@@ -1,13 +1,3 @@
-// What becomes of a one-shot command's domain, seen from outside the facility: the start's refusals,
-// the end of a gate without an exit frame, the disposition after the exit frame (the reason a
-// domain is stopped instead of handed over, in the contract's order), the handover and its unread
-// commit, the handle's two stop modes, the release, and the retention listing. The real
-// `createHostCommands` and the real retained-process index run against a stand-in `systemd-run`
-// (acting as the gate) and a stand-in `systemctl` (`fixtures/fake-supervisor.mjs`, scripted per test
-// through `gate.json`). The ledgers are the integrator's ports and record every call. Every wait on
-// the facility is bounded, so a defect that loses an answer fails the test instead of hanging it.
-// Linux only: the stand-ins use descriptor 3 and signals; elsewhere the file is skipped, and a skip
-// is not a pass.
 import { randomUUID } from 'node:crypto'
 import { chmod, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -67,7 +57,6 @@ function deferred<T>(): Deferred<T> {
   return { promise, resolve }
 }
 
-/** Waits for `promise`; fails the test when it has not settled within `ms`. */
 async function within<T>(promise: Promise<T>, what: string, ms = 10_000): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined
   const late = new Promise<never>((_, reject) => {
@@ -80,13 +69,8 @@ async function within<T>(promise: Promise<T>, what: string, ms = 10_000): Promis
   }
 }
 
-/**
- * `vi.waitFor` with a bound that holds while the fake tools run as processes on a loaded machine.
- * It only guards against a hang: the 1 s default ran out under mutation testing.
- */
 const eventually = <T>(check: () => T | Promise<T>) => vi.waitFor(check, { timeout: 10_000 })
 
-/** A port call the test answers: `asked` settles with the argument when it is called. */
 function controlled<T>() {
   const answer = deferred<T>()
   const asked = deferred<string>()
@@ -100,7 +84,6 @@ function controlled<T>() {
   }
 }
 
-/** The script of the stand-in gate; see `fixtures/fake-supervisor.mjs`. */
 type GateScript = Readonly<{
   onRequest?: 'ready' | 'silent' | 'vanish'
   onGo?: 'started' | 'spawnFailed' | 'silent' | 'startedThenGarbage'
@@ -116,13 +99,11 @@ type SetupOptions = Readonly<{
   gate?: GateScript
   settings?: Partial<CommandSettings>
   retention?: Retention
-  /** Replaces the index the commands see, or leaves them without one; the real one is still built. */
   retained?: ((index: RetainedProcessIndex) => RetainedProcessIndex) | 'none'
   capacity?: number
   plan?(key: string): Promise<Plan>
   adopt?(key: string): Promise<Adopt>
   permit?(key: string): Promise<Permit>
-  /** Answers every prerequisite reading after the start's own. */
   laterPrerequisites?(): Promise<PrerequisiteReading>
 }>
 
@@ -140,9 +121,7 @@ async function killGates(directory: string): Promise<void> {
     if (!name.endsWith('.pid')) continue
     try {
       process.kill(Number(await readFile(join(directory, name), 'utf8')), 'SIGKILL')
-    } catch {
-      /* Already gone. */
-    }
+    } catch {}
   }
 }
 
@@ -182,8 +161,6 @@ async function setup(options: SetupOptions = {}) {
   if (options.gate !== undefined)
     await writeFile(join(fake, 'gate.json'), JSON.stringify(options.gate))
   const tools = await fakeTools(fake)
-  // Long enough that a stop the fake tools confirm is confirmed on a loaded machine; a test that
-  // needs the bound to pass first sets its own.
   const stopBoundMs = options.settings?.stopBoundMs ?? 10_000
   const indexStops: string[] = []
   const bootId = await readBootId()
@@ -300,16 +277,13 @@ async function setup(options: SetupOptions = {}) {
     released,
     processesClosed,
     indexStops,
-    /** Kills issued through the stand-in `systemctl`, by the acquisition or the index. */
     kills: async () => (await logLines('systemctl.log')).filter(l => l.includes(' kill ')).length,
-    /** The control commands the gate received after the request, as `<unit> <command>`. */
     controls: async () => (await logLines('control.log')).map(l => l.split(' ')[1]),
     unitOf: async () => (await readdir(fake)).find(name => name.endsWith('.scope.pid')),
     hold: (unit: string) => writeFile(join(fake, `${unit}.hold`), ''),
     unhold: (unit: string) => rm(join(fake, `${unit}.hold`), { force: true }),
     list: () => index.list(scope, tenant),
     tools,
-    /** The retention listing of the facade; the test fails when the facade has none. */
     listing: () => {
       const retention = commands.facility.retention
       if (retention === undefined) throw new Error('expected a retention listing')
@@ -325,7 +299,6 @@ async function setup(options: SetupOptions = {}) {
 
 type Fixture = Awaited<ReturnType<typeof setup>>
 
-/** Starts the command; the start must answer `done`. The output is drained so it never fills. */
 async function started(f: Fixture) {
   const answer = await within(f.start(), 'the start')
   if (answer.kind !== 'done')
@@ -339,7 +312,6 @@ async function started(f: Fixture) {
   return { handle, unit, key }
 }
 
-/** The residue of the outcome, which must arrive within the bound and be `completed`. */
 async function residueOf(handle: ProcessHandle) {
   const outcome: CommandOutcome = await within(handle.result, 'the outcome')
   if (outcome.kind !== 'completed')
@@ -347,7 +319,6 @@ async function residueOf(handle: ProcessHandle) {
   return outcome.residue
 }
 
-/** Waits until `asked` settles; the outcome arriving first fails the test with its residue. */
 function askedBefore<T>(asked: Promise<T>, handle: ProcessHandle, what: string): Promise<T> {
   return within(
     Promise.race([
@@ -360,7 +331,6 @@ function askedBefore<T>(asked: Promise<T>, handle: ProcessHandle, what: string):
   )
 }
 
-/** The domain was stopped once, under this acquisition, and left its pending set. */
 async function stoppedByAcquisition(f: Fixture, key: string) {
   await eventually(() => expect(f.own.stopped).toEqual([[key, 'confirmed']]))
   expect(await f.kills()).toBe(1)
@@ -459,7 +429,6 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
       'answers unknown when the command does not start within the bound after GO',
       { timeout: 20_000 },
       async () => {
-        // The bound runs from the launch: it must outlast the gate's ready for GO to go out.
         const f = await setup({ gate: { onGo: 'silent' }, settings: { startBoundMs: 2_000 } })
         expect(await within(f.start(), 'the start')).toEqual({
           kind: 'unknown',
@@ -573,8 +542,6 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
         laterPrerequisites: () => ready.promise,
       })
       const { handle, key } = await started(f)
-      // The release marks the domain released at once, then waits for the prerequisites; the
-      // command exits meanwhile.
       const releasing = f.commands.stopAll()
       expect(await residueOf(handle)).toEqual({ kind: 'stopping', reason: 'closed' })
       expect(f.processes.plans).toEqual([])
@@ -669,7 +636,6 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
       const { handle, key } = await started(f)
       const residue = await residueOf(handle)
       expect(residue).toMatchObject({ kind: 'retained', process: { id: key }, processes: 2 })
-      // The retention ledger plans the very resource the acquisition ledger planned at the start.
       expect(f.own.plans.map(resource => resource.key)).toEqual([key])
       expect(f.processes.plans).toEqual(f.own.plans)
       expect(f.processes.adopts).toEqual([key])
@@ -730,8 +696,6 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
       expect(f.commands.unconfirmed().map(resource => resource.key)).toEqual([key])
       expect(await within(handle.stop('forced'), 'the stop')).toBe('confirmed')
       expect(f.processes.adopts).toEqual([key, key])
-      // The resolution stops the domain, and the handle's own stop then finds it this
-      // acquisition's and stops it again: the SPEC's expected repeat after a confirmed stop.
       expect(f.own.stopped.length).toBeGreaterThan(0)
       expect(new Set(f.own.stopped.map(stop => stop.join(' ')))).toEqual(
         new Set([`${key} confirmed`]),
@@ -781,7 +745,6 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
       expect(await residueOf(handle)).toEqual({ kind: 'unknown' })
       expect(await within(f.commands.stopAll(), 'the release')).toEqual([])
       expect(f.processes.adopts).toEqual([key, key])
-      // The commit took effect for a domain this acquisition had stopped: the index stops and records it.
       await eventually(() => expect(f.processes.stopped).toEqual([[key, 'confirmed']]))
       expect(f.own.stopped).toEqual([])
       await eventually(async () => expect(await f.controls()).toEqual(['go']))

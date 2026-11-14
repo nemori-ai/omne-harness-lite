@@ -1,11 +1,4 @@
 /** @module-tag slow */
-// Slow: every test starts real processes in real systemd user scopes and waits for them.
-// The host `command` facility on Linux, end to end through the real `systemd-run`, the real gate
-// process and the real `systemctl` supervisor: streaming, the explicit environment, bounded output,
-// the gate's back-pressure, the two stop answers, a single-call interrupt, release and retirement,
-// and resource recovery from another domain. Only the resource ledger is a test recorder: it is the
-// integrator's port. The tests run only on Linux with `OMNE_HOST_COMMAND_LINUX=1`; elsewhere they
-// are skipped, and a skip is not a pass.
 import { execFile, spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { once } from 'node:events'
@@ -61,8 +54,6 @@ const tenant = (() => {
   return parsed.value
 })()
 const access = { principal: 'subject-a', tenant }
-// Scope references unique to this run: recovery of a scope reaches every unit of that scope on the
-// host, so another test file that recovers its own scope must not meet these units.
 const runScope = `scope-command-${randomUUID()}`
 const recoverScope = `scope-recover-${randomUUID()}`
 const host: EnvironmentBinding = { kind: 'host_machine' }
@@ -244,7 +235,6 @@ function text(chunks: readonly OutputChunk[], stream: OutputChunk['stream'] = 's
     .join('')
 }
 
-/** Reads chunks until the joined stdout text matches, then leaves the iterator open. */
 async function readUntil(iterator: AsyncIterator<OutputChunk>, pattern: RegExp): Promise<string> {
   let seen = ''
   while (!pattern.test(seen)) {
@@ -285,10 +275,6 @@ type RunningGate = {
   closed: Promise<number | null>
 }
 
-/**
- * Waits for the gate's exit frame, then stops its unit: after the exit frame the gate stays in the
- * unit, draining the command's pipes, until the unit is stopped.
- */
 async function exitFrameOf(gate: RunningGate): Promise<Record<string, unknown>> {
   await vi.waitFor(() => expect(gate.frames.map(frame => frame['t'])).toContain('exit'), {
     timeout: 15_000,
@@ -300,7 +286,6 @@ async function exitFrameOf(gate: RunningGate): Promise<Record<string, unknown>> 
   return frame
 }
 
-/** Starts the real gate in its own scope unit, as the provider does, and collects its frames. */
 function gateInScope(): RunningGate {
   const unit = `omne-test-gate-${randomUUID()}.scope`
   units.add(unit)
@@ -336,7 +321,6 @@ function gateInScope(): RunningGate {
   return { unit, frames, send: message => control.write(`${JSON.stringify(message)}\n`), closed }
 }
 
-/** The gate's request for `script`, run by `/bin/sh` in `cwd` with an empty environment. */
 const gateRequest = (cwd: string, script: string) => ({
   executable: '/bin/sh',
   args: ['-c', script],
@@ -402,7 +386,6 @@ describe('host command facility on Linux', { skip: !enabled }, () => {
       timeout: 15_000,
     })
     expect(await unitState(handle.process.id)).toMatchObject({ loadState: 'not-found' })
-    // The scope is already gone: a later forced stop reads it as gone (stop exit code 5).
     expect(await handle.stop('forced')).toBe('confirmed')
   })
 
@@ -466,7 +449,6 @@ describe('host command facility on Linux', { skip: !enabled }, () => {
       kind: 'completed',
       output: { stdout: { observedBytes: total, discardedBytes: total - delivered } },
     })
-    // The gaps between offsets add up to the discarded bytes.
     let end = 0
     let gaps = 0
     for (const chunk of chunks) {
@@ -523,7 +505,6 @@ describe('host command facility on Linux', { skip: !enabled }, () => {
         buffered = buffered.slice(at + 1)
         at = buffered.indexOf('\n')
       }
-      // Stop reading after the first data frame: the gate's frame pipe fills up.
       if (holding && bytes > 0) stdout.pause()
     })
     control.write(
@@ -538,7 +519,6 @@ describe('host command facility on Linux', { skip: !enabled }, () => {
     )
     await vi.waitFor(() => expect(bytes).toBeGreaterThan(0), { timeout: 15_000 })
     await new Promise(resolve => setTimeout(resolve, 1500))
-    // The command is blocked on its own output pipe: it has not reached the marker.
     expect(await exists(marker)).toBe(false)
     holding = false
     stdout.resume()
@@ -578,7 +558,6 @@ describe('host command facility on Linux', { skip: !enabled }, () => {
     expect(await handle.stop('graceful')).toBe('unconfirmed')
     const key = recorded.plans[0]?.key
     expect(recorded.stopped).toEqual([[key, 'unconfirmed']])
-    // Not escalated: the command still runs in its scope, and the outcome is still open.
     expect(await unitState(handle.process.id)).toMatchObject({ activeState: 'active' })
     expect(await pending(handle.result, 300)).toBe('pending')
     expect(await handle.stop('forced')).toBe('confirmed')
@@ -603,7 +582,6 @@ describe('host command facility on Linux', { skip: !enabled }, () => {
   })
 
   it('completes when the main process exits, then clears what it left running in the scope', async () => {
-    // No retention binding: what the command left behind is stopped, and the residue says why.
     const recorded = recordingLedger()
     const command = commandOf(await leaseOf(hostProvider(), recorded.ledger))
     const handle = await started(command, request(await workDirectory(), 'sleep 300 & echo $!'))
@@ -659,7 +637,6 @@ describe('host command facility on Linux', { skip: !enabled }, () => {
 
   it('does not hand the control pipe on to the command: descriptor 3 there is another pipe', async () => {
     const gate = gateInScope()
-    // The parent of the shell is the gate: its descriptor 3 is the control pipe.
     gate.send(
       gateRequest(
         await workDirectory(),
@@ -704,7 +681,6 @@ describe('host command facility on Linux', { skip: !enabled }, () => {
     let provider: EnvironmentProvider
     try {
       provider = hostProvider()
-      // Wait for the probe, which reads PATH, to answer before PATH is restored.
       const lease = await leaseOf(provider, recordingLedger().ledger)
       await commandOf(lease).start(request(empty, 'exit 0'))
       process.env['PATH'] = path
@@ -727,7 +703,6 @@ describe('host command facility on Linux', { skip: !enabled }, () => {
     expect(await handle.result).toMatchObject({ kind: 'failed', reason: 'effectUnknown' })
     expect(await unitState(handle.process.id)).toMatchObject({ loadState: 'not-found' })
     expect(recorded.stopped).toEqual([[recorded.plans[0]?.key, 'confirmed']])
-    // A released acquisition starts nothing new.
     expect(await commandOf(lease).start(request(await workDirectory(), 'exit 0'))).toMatchObject({
       kind: 'rejected',
       reason: 'closed',
@@ -864,9 +839,6 @@ describe('host command facility on Linux', { skip: !enabled }, () => {
   })
 
   it('still lists a scope that systemd is stopping, while its stop job is pending', async () => {
-    // A bare scope with the description a provider writes. Its only process ignores SIGTERM, so the
-    // stop job stays pending. A provider's scope would lose its gate to the same SIGTERM, and the
-    // provider would then stop the unit itself.
     const key = randomUUID()
     const unit = `omne-host-${key}.scope`
     units.add(unit)
@@ -937,7 +909,6 @@ describe('host command facility on Linux', { skip: !enabled }, () => {
         ],
       },
     })
-    // The boot identity changed: the answer rests on it, not on a stop of this unit.
     expect(earlier).toEqual({
       status: 'confirmedStopped',
       evidence: {

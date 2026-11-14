@@ -1,9 +1,3 @@
-// Fast: what `createHostTerminals` does with an injected terminal platform, the seam the macOS
-// backend plugs into. The platform here is a stand-in: its `launch` starts the stand-in gate of
-// `fixtures/fake-terminal-gate.mjs` directly, its `stop` kills that gate, and each step answers what
-// the test sets. The host reports missing prerequisites, refuses a start without a boot identity,
-// stops the domain when the platform refuses the gate or the shell, and hands the platform's stop
-// status to the ledger and the caller. Runs on every POSIX host; skipped on Windows.
 import { spawn, type ChildProcess } from 'node:child_process'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -32,7 +26,6 @@ const directories: string[] = []
 
 afterEach(async () => {
   for (const terminals of terminalsOpened.splice(0)) await terminals.stopAll()
-  // Clean-up only, never an assertion: the cases assert what they stopped.
   const started = gates
     .splice(0)
     .flatMap(gate => (gate.pid !== undefined && gate.pid > 1 ? [gate.pid] : []))

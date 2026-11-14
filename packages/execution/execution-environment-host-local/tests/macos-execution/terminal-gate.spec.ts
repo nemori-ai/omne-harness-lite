@@ -1,8 +1,3 @@
-// Fast: the macOS terminal gate driven in this process. Its channels are in-memory streams, its
-// session reader is the stand-in reader, and its PTY is node-pty's real native fork running the real
-// Bash driver. The stand-in answers a live pid as the leader of its own session, so the gate is given
-// the pid of a sleeper that leads its own process group. Runs on every POSIX host; the real gate as
-// a process is in terminals.spec.ts and terminal-conformance.spec.ts.
 import { spawn } from 'node:child_process'
 import { fstatSync } from 'node:fs'
 import { mkdir, mkdtemp, realpath, rm, stat } from 'node:fs/promises'
@@ -22,14 +17,12 @@ type Fork = (...args: unknown[]) => unknown
 type Gate = Readonly<{
   control: PassThrough
   frames: PassThrough
-  /** The frame lines read so far, as written. */
   lines: string[]
   exits: number[]
   write(value: unknown): void
   parsed(): Frame[]
 }>
 
-/** One shell the gate forked: its PTY and how it ended, once it did. */
 type Forked = { fd: number; pid: number; signal?: unknown }
 
 const require = createRequire(import.meta.url)
@@ -50,8 +43,6 @@ beforeEach(async () => {
   directory = join(base, 'fifos')
   forked = []
   closers = []
-  // The gate's pid is a sleeper that leads its own process group, never this test process: a
-  // broken gate that stops its session with no pid excepted kills that group only.
   const sleeper = spawn('/bin/sleep', ['60'], { detached: true, stdio: 'ignore' })
   sleeper.unref()
   gatePid = sleeper.pid ?? 0
@@ -62,17 +53,13 @@ beforeEach(async () => {
 function killGroup(pid: number): void {
   try {
     if (pid > 1) process.kill(-pid, 'SIGKILL')
-  } catch {
-    /* Already gone. */
-  }
+  } catch {}
 }
 
 afterEach(async () => {
   killGroup(gatePid)
-  // Each shell leads its own session and process group; its background jobs are in that group.
   for (const shell of forked) killGroup(shell.pid)
   for (const close of closers) close()
-  // A gate that did not fail polls with an interval; here the test ends it.
   for (const result of intervals.mock.results)
     if (result.type === 'return') clearInterval(result.value)
   intervals.mockRestore()
@@ -80,7 +67,6 @@ afterEach(async () => {
   await rm(base, { recursive: true, force: true })
 })
 
-/** node-pty's native fork, which records each shell and the signal that ended it. */
 function recordingFork(): Fork | undefined {
   const fork = ptyFork(require('node-pty'))
   if (fork === undefined) return undefined
@@ -178,20 +164,17 @@ async function frame(gate: Gate, match: (frame: Frame) => boolean, timeout = 3_0
 const finished = (gate: Gate, leg: string) =>
   frame(gate, entry => entry.t === 'finished' && entry['leg'] === leg)
 
-/** The gate after `ready`. The manager sends GO only after it, as here. */
 async function ready(gate: Gate, options: Parameters<typeof initial>[0] = {}) {
   gate.write(initial(options))
   await frame(gate, entry => entry.t === 'ready')
 }
 
-/** The gate after `ready`, GO and `opened`, with its one shell. */
 async function openGate(gate: Gate, options: Parameters<typeof initial>[0] = {}) {
   await ready(gate, options)
   gate.write(go)
   await frame(gate, entry => entry.t === 'opened')
 }
 
-/** The bytes of one segment's frames of one kind, in order. */
 function bytesOf(gate: Gate, t: 'data' | 'between', leg: string): string {
   return Buffer.concat(
     gate
@@ -311,7 +294,6 @@ describe('the macOS terminal gate in this process', { skip: process.platform ===
     })
 
     it('fails when reading the PTY fails other than by blocking', async () => {
-      // A descriptor no process has open: every read of it fails with EBADF.
       const gate = startGate({ fork: () => () => ({ fd: 1_000_000, pid: gatePid }) })
       await ready(gate)
       gate.write(go)
@@ -350,7 +332,6 @@ describe('the macOS terminal gate in this process', { skip: process.platform ===
       gate.write(execute('leg-1', '(/bin/sleep 0.2; printf late; : > done) &'))
       await finished(gate, 'leg-1')
       await vi.waitFor(() => stat(join(cwd, 'done')), { timeout: 3_000, interval: 10 })
-      // The PTY holds the late bytes before the next begin sentinel; give the poll a moment to read them.
       await new Promise(resolve => setTimeout(resolve, 50))
       gate.write(execute('leg-2', 'printf two'))
       await finished(gate, 'leg-2')
@@ -370,7 +351,6 @@ describe('the macOS terminal gate in this process', { skip: process.platform ===
       await openGate(gate)
       gate.write({ c: 'term' })
       await vi.waitFor(() => expect(shell().signal).toBe(15), { timeout: 3_000, interval: 10 })
-      // The shell's end fails the gate.
       await vi.waitFor(() => expect(gate.lines.at(-1)).toBe(fault), { interval: 10 })
     })
 
@@ -405,7 +385,6 @@ describe('the macOS terminal gate in this process', { skip: process.platform ===
       gate.write(execute('leg-1', '/usr/bin/head -c 300000 /dev/zero | /usr/bin/tr "\\0" a'))
       await vi.waitFor(() => expect(frames.writableNeedDrain).toBe(true), { interval: 10 })
       await new Promise(resolve => setTimeout(resolve, 300))
-      // Base64 frames of the whole output would be about 400 KiB; a blocked gate holds a few chunks.
       expect(frames.writableLength + frames.readableLength).toBeLessThan(64 * 1024)
       collect(frames, gate.lines)
       frames.resume()

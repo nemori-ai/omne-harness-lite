@@ -21,7 +21,6 @@ it('answers an invocation only after the broker read its end sentinel, so bytes 
   const marker = 'OMNE_PIPE_PENDING'
   const declaration =
     '[DllImport("kernel32.dll",SetLastError=true)] static extern bool PeekNamedPipe(IntPtr h,byte[] data,uint count,out uint read,out uint available,out uint left);\n'
-  // The broker stops reading the ConPTY output while the marker waits in the pipe, until released.
   const gate = `if(stream=="terminal"&&!File.Exists(${literal(release)})){byte[] preview=new byte[65536];uint read,available,left;if(PeekNamedPipe(pipe,preview,(uint)preview.Length,out read,out available,out left)&&Encoding.UTF8.GetString(preview,0,(int)read).Contains("${marker}"))File.WriteAllText(${literal(witness)},"queued");Thread.Sleep(5);continue;}`
   expect(nativeSource.split('for(;;) {')).toHaveLength(2)
   const injected = nativeSource
@@ -55,7 +54,6 @@ it('answers an invocation only after the broker read its end sentinel, so bytes 
       void first.value.result.then(() => {
         answered = true
       })
-      // The finished frame came over the control pipe: it carries the cwd the script moved to.
       await expect.poll(() => backend.information().observedCwd, { timeout: 10_000 }).toBe(moved)
       expect(await readFile(witness, 'utf8')).toBe('queued')
       await new Promise(resolve => setTimeout(resolve, 200))

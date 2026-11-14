@@ -18,10 +18,6 @@ import {
   type EnvironmentConformanceSubject,
 } from '@omne-harness/execution-environment-contract/testing'
 
-// The two V-EE32 cases of the public execution-environment suite, run on a controlled environment
-// that implements only `registerProvider` and `observeRetained`. The registry runs them for real in
-// its own member; here each violation shows that the case refuses an environment that breaks it.
-
 function tenantOf(account: string): TenantId {
   const parsed = tenantCodec.parse(
     JSON.stringify({ organization: 'org_0123456789abcdefghjkmnpqrs', account }),
@@ -60,19 +56,12 @@ const violations = {
 } as const
 type Violation = keyof typeof violations
 
-/** A payload outside the operation's type, as a caller outside TypeScript can send it. */
 function malformed<T>(payload: unknown): T {
   return payload as T
 }
 const rejected = (reason: Rejected['reason']): Rejected => ({ kind: 'rejected', reason })
 const unknown = (cause: LookupUnknown['cause']): LookupUnknown => ({ kind: 'unknown', cause })
 
-/**
- * Observes with the suite's ports as the contract asks: the minted tenant, the authority for
- * `observe-retained`, then the trusted binding of the scope to the caller's tenant; then one full
- * read of every provider, merged by reference, and `unavailable` when one provider cannot answer.
- * A violation breaks exactly one of these steps.
- */
 function controlledEnvironment(
   ports: EnvironmentConformancePorts<string>,
   violation?: Violation,
@@ -210,7 +199,6 @@ function caseNamed(
   return test
 }
 
-/** Node puts the actual and expected values after the message of a failed assertion. */
 const assertionMessage = (message: string) =>
   expect.stringMatching(new RegExp(`^${message.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\n|$)`))
 

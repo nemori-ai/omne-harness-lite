@@ -47,7 +47,6 @@ type ResourceGroups = Pick<OwnedRecovery, 'stopped' | 'pending' | 'unsupported'>
   unavailable: ProviderIdentity[]
 }
 
-/** The resource path: list and stop the scope's managed resources, provider by provider. */
 async function driveResources(
   scope: ScopeRef,
   providers: readonly RecoverableProvider[],
@@ -115,17 +114,11 @@ type AcquisitionGroups = {
   unavailable: ProviderIdentity[]
 }
 
-/** Called after each settlement, so the registry can update its local copy of the acquisition. */
 export type SettlementObserver = (
   original: OriginalAcquisition,
   answer: AcquisitionSettlement,
 ) => void
 
-/**
- * The acquisition path: list the scope's acquisitions once per quota domain, add the known
- * descriptions, and settle each. A failed listing or an unreachable domain goes to the unavailable
- * group, never to an empty success.
- */
 async function driveAcquisitions(
   scope: ScopeRef,
   routes: readonly DomainRoute[],
@@ -205,11 +198,6 @@ function sameIdentity(left: ProviderIdentity, right: ProviderIdentity): boolean 
   )
 }
 
-/**
- * Drives recovery over both paths. A provider without the two resource recovery operations is
- * unsupported; a failed enumeration is unavailable, never an empty list; a failed stop stays
- * pending. Groups already handled are kept whatever happens to later groups.
- */
 export async function driveRecovery(
   scope: ScopeRef,
   providers: readonly RecoverableProvider[],
@@ -264,7 +252,6 @@ export async function recoverGiven(
   return Object.freeze({ kind: 'recovered', scope, stopped, pending, unsupported })
 }
 
-/** True when a local record and a settled original name the same acquisition and fingerprint. */
 export function sameOriginal(left: OriginalAcquisition, right: OriginalAcquisition): boolean {
   return originalKey(left) === originalKey(right) && fingerprint(left) === fingerprint(right)
 }

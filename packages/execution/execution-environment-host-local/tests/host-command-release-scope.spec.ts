@@ -1,11 +1,4 @@
 /** @module-tag slow */
-// Slow: the test starts a real process in a real systemd user scope and stops it through the real
-// registry. What it proves: after a one-shot command left a process and the scope handed it over to
-// the retention scope, `releaseScope` of the registry stops it, and reports done only after the stop
-// is confirmed (the unit is gone when the call returns). The registry, the host provider, the
-// supervisor and the gate are real; only the two ledgers, the two port services and the recovery
-// authority are test stand-ins. The test runs only on Linux with `OMNE_HOST_COMMAND_LINUX=1`;
-// elsewhere it is skipped, and a skip is not a pass.
 import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, readdir, realpath, rm } from 'node:fs/promises'
@@ -75,7 +68,6 @@ class Authority extends ExecutionRecoveryAuthorityService {
 
 type Stop = [string, 'confirmed' | 'unconfirmed']
 
-/** The acquisition's own ledger, recording the stops. */
 function acquisitionLedger() {
   const stopped: Stop[] = []
   const ledger: ResourceLedger = {
@@ -91,7 +83,6 @@ function acquisitionLedger() {
   return { ledger, stopped }
 }
 
-/** The retention scope's process ledger view, recording the stops. */
 function processLedger() {
   const stopped: Stop[] = []
   const plans: ManagedResource[] = []
@@ -253,7 +244,6 @@ describe(
       if (outcome.kind !== 'completed')
         throw new Error(`expected completed: ${JSON.stringify(outcome)}`)
       expect(outcome.residue).toMatchObject({ kind: 'retained' })
-      // The ledgers and the marker know the process by its key, the supervisor by its unit name.
       const key = handle.process.id.slice('omne-host-'.length, -'.scope'.length)
 
       await vi.waitFor(async () => expect(await reachable(port)).toBe(true), { timeout: 15_000 })
@@ -269,12 +259,8 @@ describe(
 
       const released = await service.releaseScope(scope, createRecoveryAccess())
 
-      // No waiting: the registry answered only after the stop was confirmed.
       const after = await unitState(handle.process.id)
       expect(after.loadState === 'not-found' || after.activeState === 'inactive').toBe(true)
-      // The registry sends the closure signal before it enumerates. The index may confirm the stop
-      // on that signal before the enumeration reaches the provider; the process is then gone and
-      // not in `stopped`, and the retained-process ledger below is the record of its stop.
       if (released.kind !== 'recovered')
         throw new Error(`expected recovered: ${JSON.stringify(released)}`)
       expect([[], [{ key, provider: 'host-files' }]]).toContainEqual(

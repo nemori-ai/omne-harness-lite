@@ -167,7 +167,6 @@ it('assembles a lazy, unique case list without allocating a subject', () => {
 })
 
 it('rejects a facility that keeps no list per retention scope', async () => {
-  // One scope for both acquisitions: the second list shows the first acquisition's process.
   const test = caseNamed('V-EE28.list-stays-in-scope-and-tenant', () => {
     const store = createScriptedRetentionStore()
     const shared = acquisition(store, 'scope-a', tenant)
@@ -184,10 +183,6 @@ it('rejects a facility whose scope closing stops nothing', async () => {
   await expect(runConformanceCase(test)).rejects.toMatchObject({ name: 'AssertionError' })
 })
 
-// Violating subjects. Each starts from the scripted subject and breaks one obligation by wrapping an
-// operation of the retention extension, or by handing the suite another acquisition. The suite must
-// refuse it with the message of the assertion that guards that obligation.
-
 type Retention = NonNullable<CommandFacility<unknown>['retention']>
 type OutputRequest = Parameters<NonNullable<Retention['output']>>[0]
 
@@ -196,7 +191,6 @@ function operations(a: CommandRetentionAcquisition) {
   if (!retention?.stop || !retention.output) throw new Error('expected stop and output')
   return { retention, stop: retention.stop, output: retention.output }
 }
-/** The acquisition with some operations of its retention extension replaced. */
 function rewired(
   a: CommandRetentionAcquisition,
   change: (inner: ReturnType<typeof operations>) => Partial<Retention>,
@@ -204,7 +198,6 @@ function rewired(
   const inner = operations(a)
   return { ...a, facility: { ...a.facility, retention: { ...inner.retention, ...change(inner) } } }
 }
-/** The acquisition without the named operations of its retention extension. */
 function without(
   a: CommandRetentionAcquisition,
   ...names: ('stop' | 'output')[]
@@ -225,7 +218,6 @@ const rejected = (
 const confirmed = (request: { requestId: string }) =>
   ({ kind: 'done', requestId: request.requestId, value: { status: 'confirmed' } }) as const
 
-/** Answers each stop with its own domain stop, and counts them where the suite reads `stopsIssued`. */
 function countingStops(s: CommandRetentionSubject, at: 'acquisition' | 'withoutEnded') {
   const issued = new Map<string, number>()
   const key = (ref: { id: string; generation: string }) => `${ref.id}/${ref.generation}`
@@ -245,7 +237,6 @@ function countingStops(s: CommandRetentionSubject, at: 'acquisition' | 'withoutE
     },
   }
 }
-/** The elsewhere acquisition's operation forwarded to the acquisition, as if it ignored scope and tenant. */
 function crossing(s: CommandRetentionSubject, then?: 'answer-notFound') {
   const own = operations(s.acquisition)
   return rewired(s.elsewhere, () => ({
@@ -256,7 +247,6 @@ function crossing(s: CommandRetentionSubject, then?: 'answer-notFound') {
     output: request => own.output({ ...request, access: accessOf(s.acquisition) }),
   }))
 }
-/** Matches a reference by its id alone: every generation names the scripted generation `1`. */
 const byIdAlone = (a: CommandRetentionAcquisition) =>
   rewired(a, ({ stop, output }) => ({
     stop: request => stop({ ...request, process: { ...request.process, generation: '1' } }),
@@ -640,11 +630,9 @@ const violations: readonly Violation[] = [
   })),
 ]
 
-/** Node puts the actual and expected values after the message of a failed assertion. */
 const assertionMessage = (message: string) =>
   expect.stringMatching(new RegExp(`^${message.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\n|$)`))
 
-/** A payload outside the operation's type, as a caller outside TypeScript can send it. */
 function malformed<T>(payload: unknown): T {
   return payload as T
 }
@@ -662,7 +650,6 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-/** The text of `data` read from `start`, as the contract asks: cut continuation bytes are skipped. */
 function textOf(data: Uint8Array, start: number): RetainedStreamTail['text'] {
   let skipped = 0
   while (skipped < 3 && skipped < data.length && ((data[skipped] ?? 0) & 0xc0) === 0x80) skipped++
@@ -680,7 +667,6 @@ function textOf(data: Uint8Array, start: number): RetainedStreamTail['text'] {
     replaced,
   }
 }
-/** Each stream tail of every `tail` answer changed; `undefined` drops the stream. */
 const changingTails = (
   a: CommandRetentionAcquisition,
   change: (tail: RetainedStreamTail, from: number | undefined) => RetainedStreamTail | undefined,
@@ -700,7 +686,6 @@ const withTails = (change: Parameters<typeof changingTails>[1]) => () => {
   return { ...s, acquisition: changingTails(s.acquisition, change) }
 }
 const xs = (length: number) => new Uint8Array(length).fill(0x78)
-/** The same tail with its first `n` saved bytes discarded, as a bounded tail does. */
 function discarding(tail: RetainedStreamTail, n: number): RetainedStreamTail {
   const firstSaved = tail.savedFrom + n
   const cut = Math.max(0, Math.min(firstSaved, tail.end) - tail.start)
@@ -860,7 +845,6 @@ const tailViolations: readonly Omit<Violation, 'obligation'>[] = [
         ...s,
         acquisition: rewired(s.acquisition, () => ({
           async output(request) {
-            // The second read happens past the case's deadline: the clock jumps instead of the test waiting.
             if (++reads === 2) vi.spyOn(Date, 'now').mockReturnValue(Number.MAX_SAFE_INTEGER)
             return { kind: 'done', requestId: request.requestId, value: { kind: 'none' } }
           },
@@ -911,7 +895,6 @@ it(`${tailObligation} accepts a tail that discarded its first saved bytes`, asyn
   })
 })
 
-/** The scripted subject whose acquisition or other acquisition lacks the named operations. */
 const lacking =
   (at: 'acquisition' | 'elsewhere', ...names: ('stop' | 'output')[]) =>
   (): CommandRetentionSubject => {

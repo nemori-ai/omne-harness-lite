@@ -23,7 +23,6 @@ const terminal = windowsNativeExecutable({
   references: [frameworkAssembly('System.Web.Extensions.dll'), powershellAssembly()],
 })
 
-/** Compile only project source with the installed .NET Framework compiler. */
 export function windowsBridgeExecutable(): Promise<string> {
   return bridge()
 }

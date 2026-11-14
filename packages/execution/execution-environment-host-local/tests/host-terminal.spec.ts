@@ -143,7 +143,6 @@ describe('terminal private frames', () => {
     expect(reader.push(bytes({ t: 'started', generation: 'g', leg: 'leg' }))).toMatchObject({
       kind: 'frames',
     })
-    // Segment data follows the begin sentinel; the between-segment bytes come before it.
     expect(
       reader.push(
         Buffer.concat([

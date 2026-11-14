@@ -27,14 +27,8 @@ type Commit = Parameters<FileSystemFacility<unknown>['commitBatch']>[0]
 type Recover = Parameters<FileSystemFacility<unknown>['recoverBatch']>[0]
 const digest = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex')
 
-/** A staged file: where it is, what it is and the target it stands for. */
 type Staged = Readonly<{ path: string; identity: FileIdentity; target: string; temp: string }>
 
-/**
- * Batches composed of single Windows file operations. Staging writes every entry into a new file
- * beside its target; publication moves them over the targets one by one. A staged file that is not
- * published is removed again, and one that cannot be removed is named by `temporaryFileRemains`.
- */
 export function createWindowsBatch(options: {
   files: Files
   stateDirectory?: string
@@ -47,9 +41,7 @@ export function createWindowsBatch(options: {
   const report = (diagnostic: HostFileDiagnostic) => {
     try {
       options.diagnose?.(diagnostic)
-    } catch {
-      /* A diagnostic never changes the result. */
-    }
+    } catch {}
   }
   const location = (tenant: string, id: string) =>
     win32.join(options.stateDirectory ?? '', 'batches', digest(tenant), `${id}.json`)
@@ -78,7 +70,6 @@ export function createWindowsBatch(options: {
         ? reject(request.requestId, 'conflict')
         : undefined
   }
-  /** The refusal of a commit before anything is written, or the tenant it writes for. */
   const admit = async (request: Commit): Promise<FacilityResult<never> | { tenant: string }> => {
     if (request.binding.kind !== 'host_machine') return reject(request.requestId, 'unsupported')
     const invalid = entriesRefusal(request.entries)
@@ -97,7 +88,6 @@ export function createWindowsBatch(options: {
     }
     return { tenant: tenant.value }
   }
-  /** What an unpublished entry's target holds now: the staged bytes, a conflict, or neither. */
   const targetOf = async (
     request: Recover,
     entry: Manifest['entries'][number],
@@ -107,7 +97,6 @@ export function createWindowsBatch(options: {
       if (found.failure !== 'unresolved') return 'unknown'
       return entry.expectedVersion !== null ? 'conflicting' : 'neither'
     }
-    // A directory or a link at the target is neither the expected version nor the staged bytes.
     if (found.value.type !== 'file') return 'conflicting'
     const read = await files.read({
       ...request,
@@ -121,7 +110,6 @@ export function createWindowsBatch(options: {
       ? 'conflicting'
       : 'neither'
   }
-  /** The state of a recognised batch, from its manifest and this process's running batches. */
   const stateOf = (manifest: Manifest): FileBatchRecognition['state'] => {
     if (manifest.receipts.length === manifest.entries.length) return 'complete'
     if (manifest.state === 'conflict') return 'conflict'
@@ -160,11 +148,8 @@ export function createWindowsBatch(options: {
       }
       const staged: Staged[] = []
       const published: string[] = []
-      /** The staged files that are not published stay: the effect of the batch is not known. */
       let retainPrepared = false
-      /** The staged files were already removed, or tried to be. */
       let discarded = false
-      /** Removes the staged files given; false when one of them stays, which is then named. */
       const discard = async (items: readonly Staged[]): Promise<boolean> => {
         discarded = true
         let all = true
@@ -191,11 +176,6 @@ export function createWindowsBatch(options: {
         }
         return all
       }
-      /**
-       * Staging stopped before anything was published. With every staged file removed again and a
-       * refusal for the step that stopped it, the batch is refused and its manifest goes; otherwise
-       * its effect is not known.
-       */
       const abandon = async (refusal: FacilityResult<never>): Promise<FacilityResult<never>> => {
         if (!(await discard(staged)) || refusal.kind !== 'rejected')
           return unknown(request.requestId)
@@ -233,7 +213,6 @@ export function createWindowsBatch(options: {
             bytes: entry.bytes,
             mode: 'create',
           })
-          // A write refuses only when it left no file of its own.
           if (result.kind !== 'done')
             return await abandon(result.kind === 'rejected' ? result : unknown(request.requestId))
           staged.push({ path, identity: result.value, target: entry.path, temp: stored.temp })

@@ -39,13 +39,8 @@ function scope(): ProviderAcquireInput['scope'] {
   return { ref }
 }
 
-// On Linux a new provider probes the host with real systemd scopes, and `describe()` waits for that
-// probe. The probe is a start cost of the provider, so the subject waits for it before a case
-// starts: the suite's bound then measures the operations, not the probe. Each of the four probe
-// steps waits at most the stop bound, so the test bound allows four of them.
 const linuxTestTimeoutMs = 4 * commandDefaults.stopBoundMs + 10_000
 
-/** A host provider whose start probe has settled, where there is one to wait for. */
 async function settledHostProvider() {
   const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
   if (process.platform === 'linux') await provider.describe()
@@ -68,7 +63,6 @@ function* hostProviderConformance(options: ProviderConformanceOptions) {
         (test.name === 'V-EE18.facts-match-declaration' ||
           test.name === 'V-EE22.facts-schema-refusal-has-item-reasons')
       if (slow !== (waitMs !== undefined)) continue
-      // Cold Windows facts compile native bridges and run four file probes.
       yield { test, options: slow ? { tags: ['slow'], timeout: 70_000 } : {} }
     }
   }
@@ -188,7 +182,6 @@ for (const { test, options } of hostProviderConformance({
     )
   })
 
-// These broken providers/registries are deliberately denied by the public cases, not by private checks.
 for (const fault of ['self-signed', 'retirement', 'repeat', 'declaration', 'scope'] as const)
   it('suite denies ' + fault, async () => {
     const cases = executionEnvironmentConformance<string>({

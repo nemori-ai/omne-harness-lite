@@ -1,10 +1,4 @@
 /** @module-tag slow */
-// Slow: persistent terminals on macOS with the real gate, a real PTY and the system Bash 3.2. The
-// Linux segment cases (C7, C8 over 200 segments, C9 and its bound, C10, the sentinels) run here
-// unchanged in their judgments, and macOS adds: close stops both sessions and removes the marker
-// and the FIFOs; a process that called setsid outlives the close, the known deviation; a provider
-// killed with SIGKILL leaves no shell behind; a session-retained terminal outlives the acquisition.
-// The tests run only on macOS with `OMNE_HOST_MACOS=1`; elsewhere they are skipped.
 import { spawn } from 'node:child_process'
 import { readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -263,7 +257,6 @@ setInterval(() => {}, 1000)
   expect(pids).toHaveLength(2)
   spawned.push(...pids)
   child.kill('SIGKILL')
-  // The gate saw its control channel end and stopped both sessions.
   await eventually(() => pids.every(pid => !alive(pid)))
   const fresh = hostProvider(state)
   const listed = await fresh.listRecoveryResources?.(scope)

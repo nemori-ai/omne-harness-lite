@@ -23,7 +23,6 @@ export async function filesHelper(): Promise<SessionReader> {
   return result
 }
 
-/** An exited helper cannot keep descriptors live; its effect may still need recognition. */
 export function runHelper(
   executable: string,
   input: NativeInput,

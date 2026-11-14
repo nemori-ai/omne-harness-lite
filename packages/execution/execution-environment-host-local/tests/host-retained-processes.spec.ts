@@ -1,8 +1,3 @@
-// The retained-process index with a stub supervisor and a real temporary state directory: capacity
-// per retention scope, the marker files, the listing by scope and tenant, the reading that settles
-// an empty unit and leaves an unread one alone, the load after a restart, and the closure of a
-// scope. Then the disposition itself with controllable ledgers: the rechecks around the commit
-// (C5), the unknown commit and its resolution, and the reasons a domain is stopped instead.
 import { randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, readlinkSync } from 'node:fs'
 import { chmod, mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
@@ -63,7 +58,6 @@ async function stateDirectory(): Promise<string> {
 const bootId = 'boot-1'
 const gatePid = 4242
 
-/** A supervisor stub: the members of each unit are what the test sets; stops are recorded. */
 function supervisor() {
   const readings = new Map<string, MembersReading>()
   const stops: ScopeCoordinate[] = []
@@ -181,12 +175,10 @@ it('counts reservations and stopping entries against the scope capacity, and nev
   expect(typeof first).toBe('object')
   expect(typeof second).toBe('object')
   expect(f.index.reserve(scope, tenant, 'k3')).toBe('capacity')
-  // Another scope has its own count.
   expect(typeof f.index.reserve(scopeOf('scope-b'), tenant, 'k4')).toBe('object')
   if (typeof first === 'string' || typeof second === 'string') throw new Error('unreachable')
   first.abort()
   expect(typeof f.index.reserve(scope, tenant, 'k5')).toBe('object')
-  // A stopping entry whose stop is not confirmed still occupies its place.
   f.stub.answerStops({ status: 'unconfirmed' })
   const handed = await handOver(f, scopeOf('scope-c'), tenant)
   const other = f.index.reserve(scopeOf('scope-c'), tenant, 'k6')
@@ -233,8 +225,6 @@ it.skipIf(!existsSync('/proc/self/fd'))(
     const f = await indexWith(state)
     const scope = scopeOf('scope-descriptors')
     for (let n = 0; n < 4; n++) expect((await handOver(f, scope)).handed.marker).toBe('written')
-    // Other work in this process opens and closes descriptors too, so the count proves nothing.
-    // Only a descriptor that points into this index's state directory is this index's.
     const targets = readdirSync('/proc/self/fd').flatMap(fd => {
       try {
         return [readlinkSync(join('/proc/self/fd', fd))]
@@ -313,7 +303,6 @@ it('settles a unit that only holds the gate: stops it, records the stop, removes
   expect(ledger.stopped).toEqual([[key, 'confirmed']])
   expect(await readdir(join(state, 'retained-processes'))).toEqual([])
   expect(await f.index.list(scope, tenant)).toEqual([])
-  // A unit the supervisor reports gone settles the same way.
   const second = await handOver(f, scope)
   f.stub.gone(unitOf(second.key))
   await f.index.maintain()
@@ -354,7 +343,6 @@ it('loads the markers after a restart: another boot and a gone unit are discarde
       { key: stale.key, unit: unitOf(stale.key), issue: 'discarded' },
     ]),
   )
-  // A loaded entry has no ledger; the closure of its scope records on the ledger it is given.
   const closer = ledgerStub()
   expect(await second.index.closeScope(scope, closer.ledger)).toEqual([])
   expect(stub.stops).toEqual([{ unit: unitOf(kept.key), bootId }])
@@ -376,7 +364,6 @@ it('answers unavailable, not an empty list, when the markers cannot be read, and
   expect(await index.ready()).toBe(false)
   expect(await index.list(scopeOf('scope-a'), tenant)).toBe('unavailable')
   expect(index.reserve(scopeOf('scope-a'), tenant, 'k1')).toBe('unavailable')
-  // A marker whose unit the supervisor cannot be asked about keeps the index unread as well.
   const readable = await stateDirectory()
   await mkdir(join(readable, 'retained-processes'))
   await writeFile(
@@ -409,18 +396,15 @@ it('N3: rewrites a marker that could not be written on the next maintenance, and
   const state = await stateDirectory()
   const f = await indexWith(state)
   const scope = scopeOf('scope-a')
-  // The marker directory is taken by a file: the write at commit fails.
   await writeFile(join(state, 'retained-processes'), 'in the way')
   const { key, handed } = await handOver(f, scope)
   expect(handed.marker).toBe('notWritten')
   expect(f.facts).toEqual([{ key, unit: unitOf(key), issue: 'notWritten' }])
-  // Still in the way: the maintenance tries again and diagnoses again.
   await f.index.maintain()
   expect(f.facts).toHaveLength(2)
   await rm(join(state, 'retained-processes'))
   await f.index.maintain()
   expect(await readdir(join(state, 'retained-processes'))).toEqual([`${key}.json`])
-  // Written: the next maintenance does not write it again.
   const written = await readFile(join(state, 'retained-processes', `${key}.json`), 'utf8')
   await f.index.maintain()
   expect(await readFile(join(state, 'retained-processes', `${key}.json`), 'utf8')).toBe(written)
@@ -450,7 +434,6 @@ it('N2: a handover committed for an interrupted domain is held as stopping: it c
     members: 2,
     ledger: ledger.ledger,
   })
-  // Synchronously the place is taken and the reservation can no longer be given back.
   reservation.abort()
   expect(f.index.reserve(scope, tenant, 'another')).toBe('capacity')
   expect(await f.index.list(scope, tenant)).toMatchObject([
@@ -459,7 +442,6 @@ it('N2: a handover committed for an interrupted domain is held as stopping: it c
   expect(await stopping).toBe('unconfirmed')
   expect(f.stub.stops).toEqual([{ unit: unitOf(key), bootId }])
   expect(ledger.stopped).toEqual([[key, 'unconfirmed']])
-  // The marker stays until the stop is confirmed: a restart now still lists the domain and counts it.
   await vi.waitFor(async () =>
     expect(await readdir(join(state, 'retained-processes'))).toEqual([`${key}.json`]),
   )
@@ -468,7 +450,6 @@ it('N2: a handover committed for an interrupted domain is held as stopping: it c
   const second = await indexWith(state, restarted, { capacity: 1 })
   expect(await second.index.list(scope, tenant)).toMatchObject([{ process: { id: key } }])
   expect(second.index.reserve(scope, tenant, 'another')).toBe('capacity')
-  // Unconfirmed: the maintenance stops it again until the supervisor confirms.
   f.stub.answerStops({ status: 'confirmed' })
   expect(await f.index.maintain()).toBe(0)
   expect(f.stub.stops).toHaveLength(2)
@@ -499,7 +480,6 @@ it('keeps the marker of a domain whose stop began while the marker was written a
     members: 1,
     ledger: ledger.ledger,
   })
-  // The scope closes while the marker write is in flight, and the supervisor does not confirm.
   expect(await f.index.closeScope(scope, ledger.ledger)).toHaveLength(1)
   expect((await committing).marker).toBe('written')
   expect(await readdir(join(state, 'retained-processes'))).toEqual([`${key}.json`])
@@ -555,7 +535,6 @@ it('N2: a stop the acquisition already issued is the one the index waits for, re
   expect(await f.index.list(scope, tenant)).toMatchObject([
     { state: 'stopping', processes: 'unknown' },
   ])
-  // Another stop and the maintenance join the one in flight.
   const again = f.index.stop(key)
   await f.index.maintain()
   expect(f.stub.stops).toEqual([])
@@ -581,7 +560,6 @@ it('recovers a retained process by its resource, and answers undefined for one i
   expect(await f.index.stop(key)).toBe('confirmed')
 })
 
-/** A ledger whose `ended` reads the confirmed stops it recorded, as the retention scope's ledger does. */
 function endingLedger(ended?: (key: string) => Promise<'confirmed' | 'none' | 'unavailable'>) {
   const stub = ledgerStub()
   const ledger: RetainedProcessLedger = {
@@ -764,9 +742,6 @@ describe('stopping a retained process by its reference', () => {
   })
 })
 
-// ---------------------------------------------------------------------------------------------
-// The marker files a restart reads: what is accepted, what is discarded, what keeps the index unread
-
 const scopeA = scopeOf('scope-a')
 const tenantTextOf = (who: TenantId): string => {
   const encoded = tenantCodec.encode(who)
@@ -774,7 +749,6 @@ const tenantTextOf = (who: TenantId): string => {
   return encoded.value
 }
 
-/** A marker as the index writes it, for the file `<key>.json`. */
 function markerOf(key: string, over: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     version: 1,
@@ -836,7 +810,6 @@ it.each(invalidMarkers)(
     const state = await stateDirectory()
     const directory = await writeMarkerFile(state, 'bad.json', content)
     await writeMarkerFile(state, 'good.json', markerOf('good'))
-    // Neither a leftover temporary file nor a foreign file is a marker: both are left alone.
     await writeFile(join(directory, '.good.1.tmp'), 'half written')
     await writeFile(join(directory, 'notes.txt'), '{}')
     const stub = supervisor()
@@ -847,7 +820,6 @@ it.each(invalidMarkers)(
     ])
     expect(f.facts).toEqual([{ key: 'bad.json', unit: '', issue: 'discarded' }])
     expect((await readdir(directory)).sort()).toEqual(['.good.1.tmp', 'good.json', 'notes.txt'])
-    // The marker discarded is not asked about: the supervisor was read for the good unit only.
     expect(stub.reads).toEqual([{ unit: unitOf('good') }, expect.anything()])
   },
 )
@@ -872,7 +844,6 @@ it('loads a marker with a null gate and counts every member, one with a gate and
     ['c', 'generation-0', 1],
   ])
   expect(f.facts).toEqual([])
-  // The gate of a loaded marker stays out of the count when the unit holds nothing else.
   stub.members(unitOf('b'), [7])
   expect(await f.index.list(scopeA, tenant)).toMatchObject([
     { process: { id: 'a' } },
@@ -915,9 +886,7 @@ it('keeps a marker whose unit the supervisor answered for without a member list,
   expect(await f.index.list(scopeA, tenant)).toMatchObject([
     { process: { id: 'k1' }, state: 'running', processes: 'unknown' },
   ])
-  // No directory was read at the load: the reading asks the supervisor from the unit alone.
   expect(stub.reads).toEqual([{ unit: unitOf('k1') }, { unit: unitOf('k1'), directory: undefined }])
-  // The reading that finally lists the members names the control group the next one starts from.
   stub.members(unitOf('k1'), [gatePid, 1, 2])
   expect(await f.index.list(scopeA, tenant)).toMatchObject([{ processes: 2 }])
   await f.index.list(scopeA, tenant)
@@ -943,7 +912,6 @@ it('does not discard what it could not read: an unreadable marker file, or an un
   await writeMarkerFile(state, 'bad.json', 'garbage')
   const stub = supervisor()
   stub.members(unitOf('good'), [gatePid, 1])
-  // The boot cannot be read: nothing is judged against it.
   let boot: string | undefined
   const unknownBoot: RetainedSupervision = { ...stub.supervision, bootId: async () => boot }
   const index = createRetainedProcessIndex({
@@ -955,7 +923,6 @@ it('does not discard what it could not read: an unreadable marker file, or an un
   })
   expect(await index.ready()).toBe(false)
   expect(await readdir(directory)).toEqual(['bad.json', 'good.json'])
-  // The same index reads again once the boot is known.
   boot = bootId
   expect(await index.ready()).toBe(true)
   expect(await readdir(directory)).toEqual(['good.json'])
@@ -998,12 +965,10 @@ it('counts a failed load against nothing and retries it on the next call; a mark
   }
   expect(await readdir(directory)).toEqual(['k1.json'])
   expect(stub.stops).toEqual([])
-  // Each call after a failure reads again; one that succeeds is final and asks nothing more.
   expect(await index.ready()).toBe(true)
   const afterLoad = asked
   expect(await index.ready()).toBe(true)
   expect(asked).toBe(afterLoad)
-  // The unit the marker names counts against the capacity of its scope.
   expect(index.reserve(scopeA, tenant, 'k2')).toBe('capacity')
 })
 
@@ -1082,9 +1047,6 @@ it('reports a marker it cannot delete as discarded, and discards it again at the
   expect(await readdir(directory)).toEqual([])
 })
 
-// ---------------------------------------------------------------------------------------------
-// Reservations, the scopes and tenants an index keeps apart, and the stops it records
-
 function reserveOrThrow(
   f: Awaited<ReturnType<typeof indexWith>>,
   scope: ScopeRef,
@@ -1107,7 +1069,6 @@ const handoverOf = (key: string, ledger: RetainedProcessLedger) => ({
 
 it('answers unavailable to a tenant that is not a parsed one, and takes no place for it', async () => {
   const f = await indexWith(await stateDirectory(), supervisor(), { capacity: 1 })
-  // The same members without the mark that only parsing gives.
   const forged: TenantId = { ...tenant }
   expect(f.index.reserve(scopeA, forged, 'k1')).toBe('unavailable')
   expect(await f.index.list(scopeA, forged)).toBe('unavailable')
@@ -1120,7 +1081,6 @@ it('keeps a reservation apart from the handed-over processes: it is not listed, 
   const held = await handOver(f, scopeA)
   expect(await f.index.list(scopeA, tenant)).toMatchObject([{ process: { id: held.key } }])
   expect(f.index.resources(scopeA).map(resource => resource.key)).toEqual([held.key])
-  // Closing the scope stops what was handed over and leaves the place taken.
   expect(await f.index.closeScope(scopeA)).toEqual([])
   expect(f.stub.stops).toEqual([{ unit: unitOf(held.key), bootId }])
   expect(await f.index.stop('k1')).toBe('unconfirmed')
@@ -1147,11 +1107,9 @@ it('gives a place back once, whatever the order: after an abort, after a commit,
   const second = reserveOrThrow(f, scopeA, 'k2')
   f.stub.members(unitOf('k2'), [gatePid, 1])
   await f.index.commit(second, handoverOf('k2', ledgerStub().ledger))
-  // A commit is not given back by the abort the integrator still holds.
   second.abort()
   expect(f.index.reserve(scopeA, tenant, 'k3')).toBe('capacity')
   expect(await f.index.list(scopeA, tenant)).toMatchObject([{ process: { id: 'k2' } }])
-  // The process leaves the index: its reservation object aborting then changes nothing.
   expect(await f.index.stop('k2')).toBe('confirmed')
   expect(() => second.abort()).not.toThrow()
   expect(typeof f.index.reserve(scopeA, tenant, 'k3')).toBe('object')
@@ -1173,7 +1131,6 @@ it('refuses a commit without a live reservation: a given-back one, a committed o
   await expect(
     f.index.commit({ key: 'nobody', abort: () => undefined }, handoverOf('nobody', ledger)),
   ).rejects.toThrow(message)
-  // What was refused changed nothing for the live one.
   expect(await f.index.list(scopeA, tenant)).toMatchObject([{ process: { id: 'k2' } }])
 })
 
@@ -1221,15 +1178,12 @@ it('lists what it holds, unread, while the supervisor cannot be had, and stops n
   stub.members(unitOf(key), [gatePid])
   current = undefined
   expect(await f.index.list(scopeA, tenant)).toMatchObject([{ state: 'running', processes: 2 }])
-  // The maintenance reports what it holds, as it cannot read any of it.
   expect(await f.index.maintain()).toBe(1)
   expect(stub.reads).toEqual([])
-  // A stop that cannot be issued is not confirmed, and not recorded.
   expect(await f.index.stop(key)).toBe('unconfirmed')
   expect(ledger.stopped).toEqual([])
   expect(await f.index.list(scopeA, tenant)).toMatchObject([{ state: 'stopping' }])
   expect(await f.index.maintain()).toBe(1)
-  // The supervisor is back: the maintenance stops it again and it leaves.
   current = stub.supervision
   expect(await f.index.maintain()).toBe(0)
   expect(ledger.stopped).toEqual([[key, 'confirmed']])
@@ -1247,7 +1201,6 @@ it('does not read a unit that is being stopped, and counts it as stopping until 
   expect(await f.index.stop(held.key)).toBe('unconfirmed')
   f.stub.reads.length = 0
   expect(await f.index.maintain()).toBe(1)
-  // The stopping one is stopped again, not read; the running one is read.
   expect(f.stub.stops.filter(stop => stop.unit === unitOf(held.key))).toHaveLength(2)
   expect(f.stub.reads.map(read => read.unit)).toEqual([unitOf(quiet.key)])
 })
@@ -1276,7 +1229,6 @@ it('keeps a stop the supervisor confirmed while the ledger could not record it, 
   for (const mode of ['unavailable', 'throws'] as const) {
     recording.mode = mode
     expect(await f.index.stop(key)).toBe('confirmed')
-    // Confirmed is not recorded: the entry and its marker stay, and it is listed as stopping.
     expect(existsSync(markerFile)).toBe(true)
     expect(f.index.resources(scopeA).map(resource => resource.key)).toEqual([key])
     expect(await f.index.closeScope(scopeA)).toHaveLength(1)
@@ -1302,7 +1254,6 @@ it('records the stops of a closed scope on the ledger the entry has, else the on
   expect(closing.stopped).toEqual([])
   expect(another.ledger.stopped).toEqual([])
 
-  // After a restart the entries have no ledger of their own.
   const stub = supervisor()
   stub.members(unitOf(another.key), [gatePid, 1])
   await writeMarkerFile(state, 'k-view.json', markerOf('k-view', { scope: scopeDigest(scopeA) }))
@@ -1319,7 +1270,6 @@ it('records the stops of a closed scope on the ledger the entry has, else the on
   third.index.watchClosure(new AbortController().signal, scopeA, view.ledger)
   expect(await third.index.closeScope(scopeA)).toEqual([])
   expect(view.stopped).toEqual([['k-view', 'confirmed']])
-  // No ledger anywhere: the supervisor's confirmation settles the entry and removes its marker.
   expect(await third.index.closeScope(scopeOf('scope-c'))).toEqual([])
   expect(existsSync(join(state, 'retained-processes', 'k-none.json'))).toBe(false)
   expect(stub.stops.map(stop => stop.unit).sort()).toEqual([unitOf('k-none'), unitOf('k-view')])
@@ -1397,7 +1347,6 @@ it('recovers only the resource it names: the same key with another unit or boot 
   expect(await first.index.recover(elsewhere)).toBeUndefined()
   expect(await first.index.recover(otherBoot)).toBeUndefined()
   expect(first.stub.stops).toEqual([])
-  // A restarted index that has not read its markers reads them for the recovery.
   const stub = supervisor()
   stub.members(unitOf(key), [gatePid, 1])
   const index = createRetainedProcessIndex({
@@ -1411,9 +1360,6 @@ it('recovers only the resource it names: the same key with another unit or boot 
   expect(stub.stops).toEqual([{ unit: unitOf(key), bootId }])
   expect(await readdir(join(state, 'retained-processes'))).toEqual([])
 })
-
-// ---------------------------------------------------------------------------------------------
-// The closure of a scope when its signal aborts
 
 function listeningTo(signal: AbortSignal) {
   return vi.spyOn(signal, 'addEventListener')
@@ -1446,7 +1392,6 @@ it('listens once to a signal however many acquisitions give it, and records on t
   f.index.watchClosure(controller.signal, scopeA, early.ledger)
   f.index.watchClosure(controller.signal, scopeA, late.ledger)
   expect(listening.mock.calls.filter(([type]) => type === 'abort')).toHaveLength(1)
-  // A second signal for another scope is a listener of its own.
   const otherSignal = new AbortController()
   const otherListening = listeningTo(otherSignal.signal)
   f.index.watchClosure(otherSignal.signal, scopeOf('scope-b'), early.ledger)
@@ -1461,7 +1406,6 @@ it('records the self-settlement of a process loaded after a restart on the view 
   const state = await stateDirectory()
   await writeMarkerFile(state, 'k1.json', markerOf('k1'))
   const stub = supervisor()
-  // Only the gate is left: the unit is empty and the maintenance settles it.
   stub.members(unitOf('k1'), [gatePid])
   const f = await indexWith(state, stub)
   const view = endingLedger()
@@ -1491,9 +1435,6 @@ it('closes the scope at once for a signal that has aborted, listens to nothing, 
   expect(await f.index.list(scopeA, tenant)).toEqual([])
 })
 
-// ---------------------------------------------------------------------------------------------
-// The marker file through the life of an entry
-
 it('does not write again a marker it wrote, and leaves no temporary file behind', async () => {
   const state = await stateDirectory()
   const f = await indexWith(state)
@@ -1511,7 +1452,6 @@ it('leaves no temporary file when the marker cannot be put in place, and says it
   const f = await indexWith(state)
   const key = randomUUID()
   const directory = join(state, 'retained-processes')
-  // A non-empty directory holds the marker's name: the rename fails after the file was written.
   await mkdir(join(directory, `${key}.json`), { recursive: true })
   await writeFile(join(directory, `${key}.json`, 'occupant'), 'x')
   const reservation = reserveOrThrow(f, scopeA, key)
@@ -1591,12 +1531,8 @@ it('does not let a throwing diagnostic sink change what the index answers', asyn
   expect(handed.marker).toBe('notWritten')
 })
 
-// ---------------------------------------------------------------------------------------------
-// The polling: it runs while a generation is joined and the index holds something to read
-
 const pollMs = 1_000
 
-/** Lets the timer fire and the readings it starts, which only wait on the supervisor stub, finish. */
 async function elapse(ms: number): Promise<void> {
   await vi.advanceTimersByTimeAsync(ms)
 }
@@ -1657,13 +1593,11 @@ it('stops polling when the last generation retires, and polls again when one joi
   expect(vi.getTimerCount()).toBe(1)
   await elapse(pollMs)
   expect(f.stub.reads).toHaveLength(2)
-  // Joining again, or the same generation twice, does not add a second timer.
   f.index.join('generation-4')
   f.index.join('generation-3')
   expect(vi.getTimerCount()).toBe(1)
   await elapse(pollMs)
   expect(f.stub.reads).toHaveLength(3)
-  // Retiring one of several keeps the polling; a generation never joined changes nothing.
   f.index.retire('generation-3')
   f.index.retire('never-joined')
   expect(vi.getTimerCount()).toBe(1)
@@ -1787,9 +1721,6 @@ it('retires the last generation of an index that holds nothing without trouble, 
   expect(vi.getTimerCount()).toBe(1)
 })
 
-// ---------------------------------------------------------------------------------------------
-// What a marker carries, what a loaded entry knows before it is read again, and the reading itself
-
 it('writes a null gate for a handover that had none, and reads every member of such a unit after a restart', async () => {
   const state = await stateDirectory()
   const f = await indexWith(state)
@@ -1856,7 +1787,6 @@ it('does not read a marker of a unit the supervisor could not answer for: the in
     pollMs: 60_000,
     supervision: async () => stub.supervision,
   })
-  // The tool itself failed: not a gone unit, not an empty one.
   expect(await f.ready()).toBe(false)
   expect(await f.list(scopeA, tenant)).toBe('unavailable')
   expect(f.reserve(scopeA, tenant, 'k2')).toBe('unavailable')
@@ -1864,7 +1794,6 @@ it('does not read a marker of a unit the supervisor could not answer for: the in
   expect(stub.stops).toEqual([])
   stub.members(unitOf('k1'), [gatePid])
   expect(await f.ready()).toBe(true)
-  // A unit that holds only its gate is read as it is: settled by the next reading, not dropped here.
   expect(f.reserve(scopeA, tenant, 'k2')).toBe('capacity')
 })
 
@@ -1910,7 +1839,6 @@ it('shares one reading among maintenance calls that arrive together', async () =
   gate.resolve({ kind: 'members', pids: [gatePid, 1], directory: '/cgroup/x' })
   expect(await Promise.all([first, again])).toEqual([0, 0])
   expect(reads).toHaveLength(1)
-  // Once the reading finished, the next call reads again.
   await f.index.maintain()
   expect(reads).toHaveLength(2)
 })
@@ -1971,15 +1899,11 @@ it('does not recover a place that is only reserved, even by the resource it woul
   }
   expect(await f.index.recover(placeholder)).toBeUndefined()
   expect(f.stub.stops).toEqual([])
-  // It is still the reservation: it commits.
   f.stub.members(unitOf('k1'), [gatePid, 1])
   expect(
     (await f.index.commit(reservation, handoverOf('k1', ledgerStub().ledger))).process.id,
   ).toBe('k1')
 })
-
-// ---------------------------------------------------------------------------------------------
-// The disposition
 
 type Deferred<T> = { promise: Promise<T>; resolve(value: T): void; reject(error: Error): void }
 function deferred<T>(): Deferred<T> {
@@ -2029,7 +1953,6 @@ it('C5: a stop or release while the commit is in flight makes a confirmed commit
   interrupted = true
   adopt.resolve('confirmed')
   expect(await deciding).toEqual({ kind: 'retainedInterrupted', reservation: b.reservation })
-  // The scope closing during the commit is read the same way.
   let closed = false
   const late = deferred<'confirmed' | 'closed' | 'unavailable'>()
   const c = binding({ adopt: () => late.promise, closed: () => closed })
@@ -2043,7 +1966,6 @@ it('C5: a stop or release while the commit is in flight makes a confirmed commit
   closed = true
   late.resolve('confirmed')
   expect(await closing).toEqual({ kind: 'retainedInterrupted', reservation: c.reservation })
-  // Interrupted before the commit: the reservation is given back and `adopt` is never asked.
   const adopts: string[] = []
   const before = binding(
     {
@@ -2102,7 +2024,6 @@ it('reads an unknown commit as unknown and keeps the reservation; asking again s
     }),
   ).toMatchObject({ kind: 'unknown' })
   expect(aborted).toEqual([])
-  // The same reservation, asked again.
   expect(
     await resolveUnknownHandover({
       binding: binding({ adopt: async () => 'confirmed' }),

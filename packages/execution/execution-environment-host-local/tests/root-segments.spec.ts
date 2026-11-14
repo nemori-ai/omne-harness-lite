@@ -1,6 +1,3 @@
-// The position of a host path below a host files root on POSIX: segments by text, nothing followed
-// (R2-D376). The Windows branch is covered on a real Windows file system by
-// windows-files/path-alias.spec.ts.
 import { expect, it } from 'vitest'
 import { hostSegmentsBelowRoot } from '../src/root-segments.ts'
 

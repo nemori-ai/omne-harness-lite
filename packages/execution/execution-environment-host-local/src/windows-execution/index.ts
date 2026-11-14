@@ -44,7 +44,6 @@ export type WindowsCommandsInput = Omit<HostCommandsInput, 'prerequisites' | 'un
   Readonly<{
     prerequisites: PrerequisiteProbe<WindowsCommandReading>
     unavailable(missing: readonly WindowsPrerequisite[]): void
-    /** The cold index of the state directory; absent when there is none. */
     jobs?: WindowsJobIndex | undefined
   }>
 type StartRequest = Parameters<CommandFacility<unknown>['start']>[0]
@@ -57,7 +56,6 @@ function invalid(request: StartRequest): FacilityReason | undefined {
   if (request.outputMode !== 'separate' || request.geometry !== undefined) return 'unsupported'
   const path = (value: string) => win32.isAbsolute(value) && !value.includes('\0')
   if (!path(request.executable) || !path(request.cwd)) return 'invalidInput'
-  // CreateProcessW runs a batch file through cmd.exe, which parses the arguments again.
   if (/\.(?:bat|cmd)$/iu.test(request.executable)) return 'unsupported'
   if (request.args.some(value => value.includes('\0'))) return 'invalidInput'
   if (
@@ -82,7 +80,6 @@ function invalid(request: StartRequest): FacilityReason | undefined {
   return undefined
 }
 
-/** One command in its own anchored Job: the bridge, its frames, its custody and its stop. */
 type Entry = {
   readonly resource: ManagedResource
   readonly name: string
@@ -98,14 +95,11 @@ type Entry = {
   finished: boolean
   confirmed: boolean
   nativeStopped: boolean
-  /** A stop was asked for, forced or graceful: the disposition after the exit stops the Job. */
   stopRequested: boolean
-  /** A forced stop was issued: the exit that follows is the stop's, so its effect is unknown. */
   forcing: boolean
   released: boolean
   stopReply: ReturnType<typeof deferred<StopStatus>>
   breakReply: ReturnType<typeof deferred<boolean>>
-  /** Resolves once the main process exited or the bridge went away. */
   readonly ended: ReturnType<typeof deferred<void>>
   issued: Promise<StopStatus> | undefined
   stopping: Promise<StopStatus> | undefined
@@ -125,7 +119,6 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
   let sealed = false
   const retentionBinding = retentionBindingOf({ retention, retained, scope: input.scope, tenant })
 
-  /** The native stop of the Job, once per sequence: through the bridge, else by the Job's name. */
   const issueStop = (entry: Entry): Promise<StopStatus> => {
     entry.issued ??= (async (): Promise<StopStatus> => {
       entry.stopRequested = true
@@ -139,9 +132,6 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
           ? ((await within(entry.stopReply.promise, remaining())) ?? 'unconfirmed')
           : 'unconfirmed'
       if (status === 'unconfirmed' && remaining() > 0) {
-        // Once the bridge reported the Job ready, this process knows it existed: a missing name
-        // means its last handle closed and `KILL_ON_JOB_CLOSE` stopped every member. Before that
-        // the Job may still be on its way, so a missing name proves nothing.
         const named = await stopWindowsJob(entry.name, remaining())
         status =
           named === 'confirmed' || (named === 'absent' && entry.anchor !== undefined)
@@ -158,10 +148,6 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
     return entry.issued
   }
 
-  /**
-   * The forced stop of a Job this acquisition owns, recorded on its ledger once the disposition
-   * settled; a Job handed over meanwhile is the index's to stop and record.
-   */
   const forceStop = (entry: Entry): Promise<StopStatus> => {
     if (entry.confirmed) return Promise.resolve('confirmed')
     if (entry.stopping !== undefined) return entry.stopping
@@ -182,7 +168,6 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
         if (answer !== undefined) entry.recording = undefined
       } catch {
         entry.recording = undefined
-        /* Ledger failure retains responsibility. */
       }
       if (status === 'confirmed' && recorded) {
         entry.confirmed = true
@@ -198,7 +183,6 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
     return entry.stopping
   }
 
-  /** What the handover records about the Job, for the index. */
   const handoverDetails = (entry: Entry, view: RetainedProcessLedger) => ({
     unit: retainedJobUnit(entry.identity.session, entry.name),
     bootId: entry.identity.boot,
@@ -208,10 +192,6 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
     ledger: view,
   })
 
-  /**
-   * The commit took effect and the Job is whole: the bridge stops reading control and keeps
-   * draining the pipes into the Job's tail, and the index holds the Job as running.
-   */
   const enterIndex = async (
     entry: Entry,
     binding: RetentionBinding,
@@ -235,13 +215,10 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
       ...handoverDetails(entry, binding.processes),
       output,
     })
-    // The retained-process index holds the Job now. The cold marker goes only once the index's own
-    // marker is written, so a restarted provider always finds the Job somewhere.
     if (handed.marker === 'written') await jobs?.forget(entry.resource.key)
     return handed.process
   }
 
-  /** The commit took effect, but the Job was stopped, released or its scope closed meanwhile. */
   const enterIndexStopping = (
     entry: Entry,
     binding: RetentionBinding,
@@ -271,11 +248,6 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
     enterIndexStopping,
   })
 
-  /**
-   * CTRL_BREAK_EVENT to the main process's console, then the forced stop of the Job once the main
-   * process exited within `graceMs`. A main process without a console, or one that stays, answers
-   * `unconfirmed`; the stop does not escalate by itself.
-   */
   const gracefulStop = async (entry: Entry): Promise<StopStatus> => {
     if (!entry.finished) {
       // Marked before the event, so an exit it causes counts as stopped; unmarked when none went.
@@ -295,16 +267,13 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
       if (ended !== true) {
         try {
           await ledger.stopped(entry.resource.key, 'unconfirmed')
-        } catch {
-          /* Unconfirmed either way. */
-        }
+        } catch {}
         return 'unconfirmed'
       }
     }
     return forceStop(entry)
   }
 
-  /** A stop asked through the handle acts only on a Job this acquisition owns. */
   const stopHandle = async (entry: Entry, mode: 'graceful' | 'forced'): Promise<StopStatus> => {
     if (!(await custody.ownsForStop(entry, undefined))) return 'unconfirmed'
     return mode === 'graceful' ? gracefulStop(entry) : forceStop(entry)
@@ -348,7 +317,6 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
     }
     let startedAt = now()
     const elapsed = () => Math.max(0, Math.round(now() - startedAt))
-    /** The bridge went away, its frames broke, or a stop ended the command: the effect is unknown. */
     const end = () => {
       if (entry.finished) return
       entry.finished = true
@@ -360,10 +328,8 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
         observedDurationMs: elapsed(),
         output: entry.buffer.summary(),
       })
-      // What a command left in its Job, or a bridge that went away, is cleared by a forced stop.
       if (entry.went && !entry.confirmed) void forceStop(entry)
     }
-    /** The main process exited: the outcome waits for the disposition, which precedes any stop or handover. */
     const exited = (frame: Extract<BridgeFrame, { t: 'exit' }>) => {
       if (entry.finished) return
       if (entry.forcing || frame.outputLost) return end()
@@ -374,7 +340,6 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
       const durationMs = elapsed()
       const running = custody
         .dispose(entry, undefined)
-        // A disposition that itself failed has no result: the Job stays with the acquisition.
         .catch((): ResidueReport => ({ kind: 'unknown' }))
         .then(residue => {
           outcome.resolve({
@@ -450,7 +415,6 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
         started.resolve(false)
         entry.stopReply.resolve('unconfirmed')
         entry.breakReply.resolve(false)
-        // The frame channel is gone: a tail the handover gave, or gives later, observes nothing more.
         entry.late.close()
         end()
       },
@@ -469,9 +433,7 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
     let permit: Awaited<ReturnType<typeof ledger.permit>> = 'unavailable'
     try {
       permit = await ledger.permit(resource.key)
-    } catch {
-      /* No GO without a confirmed permit. */
-    }
+    } catch {}
     if (permit !== 'confirmed') return refuse(permit)
     if (sealed || ledger.closed.aborted) return refuse('closed')
     entry.went = true
@@ -504,14 +466,12 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
     })
     const issue = invalid(request)
     if (issue !== undefined) return rejected(issue)
-    // The checks before anything exists, in the order of the Linux facility: request, platform, facade.
     const reading = await input.prerequisites.ready()
     if (reading.kind !== 'satisfied') {
       input.unavailable(reading.kind === 'unsatisfied' ? reading.missing : [])
       return rejected('unavailable')
     }
     if (sealed || ledger.closed.aborted) return rejected('closed')
-    // Part of the start: the boot and session reading is bounded like the rest of it.
     const identity = await windowsIdentity(settings.startBoundMs)
     if (identity === undefined) return rejected('unavailable')
     const key = randomUUID()
@@ -531,16 +491,12 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
     let planned: Awaited<ReturnType<typeof ledger.plan>> = 'unavailable'
     try {
       planned = await ledger.plan(resource)
-    } catch {
-      /* A failed durable plan prevents native allocation. */
-    }
+    } catch {}
     if (planned !== 'recorded') return rejected(planned)
-    // The marker precedes the Job, so a restarted provider finds every Job that may exist.
     if (
       jobs !== undefined &&
       !(await jobs.record(key, { resource, scope: input.scope.ref, identity }))
     ) {
-      // Nothing native exists: the planned resource is settled as stopped.
       await Promise.resolve(ledger.stopped(key, 'confirmed')).catch(() => undefined)
       return rejected('unavailable')
     }
@@ -548,7 +504,6 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
   }
 
   const facility: CommandFacility<unknown> = {
-    // Every command runs in its own Job with breakaway forbidden: no process can leave it.
     containment: 'sealed',
     start(request: StartRequest) {
       const snapshot = {

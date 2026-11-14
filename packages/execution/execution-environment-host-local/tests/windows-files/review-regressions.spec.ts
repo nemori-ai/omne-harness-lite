@@ -5,9 +5,7 @@ import { createHostFilesEngine, hostObjectToken } from '../../src/host-files.ts'
 import * as windows from '../../src/windows-files/facility.ts'
 import { request, withFiles } from './fixture.ts'
 
-/** A marker no request frame carries: JSON escapes the NUL character. */
 const noFrame = '\u0000'
-/** Holds the request frame that carries `marker` before the files helper reads it. */
 const hold = vi.hoisted(() => ({
   marker: '\u0000',
   entered: () => {},
@@ -180,7 +178,6 @@ it('rejects copy when its existing target disappears before replacement', async 
     await writeFile(targetPath, 'original target')
     const target = { path: targetPath, named: await hostObjectToken(targetPath) }
     const files = createHostFilesEngine({ root }).facilityFor('copier')
-    // The copy is staged; its publication waits until the target is gone.
     const entered = Promise.withResolvers<void>()
     const released = Promise.withResolvers<void>()
     Object.assign(hold, {

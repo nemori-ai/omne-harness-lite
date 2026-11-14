@@ -150,7 +150,6 @@ it('registers a subclass under the key on the fiber that loads it and removes it
   expect(ctx.get(executionEnvironmentKey)).toBeUndefined()
 })
 
-// Templates preserve the caller context while delegating to implementation hooks.
 class FaceProbe extends ExecutionEnvironmentService<unknown> {
   readonly calls: string[] = []
   readonly registrations = new Set<string>()

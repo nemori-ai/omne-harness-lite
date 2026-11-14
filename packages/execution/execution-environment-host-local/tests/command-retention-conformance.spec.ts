@@ -1,11 +1,4 @@
 /** @module-tag slow */
-// Slow: every case starts real processes in real execution domains and waits for them to stop.
-// The contract's conformance cases for what a one-shot command leaves behind, run against the real
-// host provider. The suite knows no platform: this file writes the commands, closes the retention
-// scope through the acquisition's release signal and reads the domain's state from the platform
-// (systemd on Linux, the named Job on Windows). Only the two ledgers are recorders: they are the
-// integrator's ports. The cases run on Windows, and on Linux with `OMNE_HOST_COMMAND_LINUX=1`;
-// elsewhere they are skipped, and a skip is not a pass.
 import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
@@ -85,20 +78,16 @@ async function unitStopped(unit: string): Promise<boolean> {
   return state.loadState === 'not-found' || state.activeState === 'inactive'
 }
 
-/** The host's commands and its readings of a domain, by the process id a start answered. */
 type PlatformHost = Readonly<{
   enabled: boolean
-  /** The domain of a retained process, by its reference. */
   domainOf(ref: { id: string }): string
   stopped(domain: string): Promise<boolean>
   stop(domain: string): Promise<void>
-  /** The cases' commands, in the platform's shell or in Node. */
   commands(cwd: string): CommandRetentionSubject['commands']
 }>
 
 const linuxHost: PlatformHost = {
   enabled: process.platform === 'linux' && process.env['OMNE_HOST_COMMAND_LINUX'] === '1',
-  // The unit of a retained process is named after its reference.
   domainOf: ref => `omne-host-${ref.id}.scope`,
   stopped: unitStopped,
   async stop(unit) {
@@ -115,8 +104,6 @@ const linuxHost: PlatformHost = {
     return {
       clean: () => body('echo done'),
       leftover: () => body('sleep 300 & echo started'),
-      // The leftover writes a check mark (three UTF-8 bytes) a second after the main process exits,
-      // well after the handover, then keeps running.
       writing: () => ({
         body: body("(sleep 1; printf 'tail \\342\\234\\223\\r\\n'; sleep 300) & echo before"),
         after: new TextEncoder().encode('tail ✓\r\n'),
@@ -127,7 +114,6 @@ const linuxHost: PlatformHost = {
 
 const windowsHost: PlatformHost = {
   enabled: process.platform === 'win32',
-  // The Job of a retained process is named after its reference.
   domainOf: ref => `Local\\omne-command-${ref.id}`,
   async stopped(job) {
     const reading = await askBridge(
@@ -141,8 +127,6 @@ const windowsHost: PlatformHost = {
     await stopWindowsJob(job, 5_000)
   },
   commands(cwd) {
-    // A Node child outlives its parent only when detached; it stays in the Job and keeps the
-    // inherited output pipe.
     const leftover = (child: string, main: string) => ({
       executable: process.execPath,
       args: [
@@ -162,8 +146,6 @@ const windowsHost: PlatformHost = {
         outputMode: 'separate' as const,
       }),
       leftover: () => leftover('setInterval(()=>{},1000)', "console.log('started')"),
-      // The leftover writes a check mark (three UTF-8 bytes) a second after the main process exits,
-      // well after the handover, then keeps running.
       writing: () => ({
         body: leftover(
           "setTimeout(()=>process.stdout.write(Buffer.from('tail \\u2713\\r\\n')),1000);setInterval(()=>{},1000)",
@@ -200,10 +182,6 @@ const terminalLedger: RetainedTerminalLedger = {
   stopped: async () => 'recorded',
 }
 
-/**
- * The retention scope: the scope owner's close signals, and the process ledger view over them.
- * Its `ended` reads the confirmed stops the view recorded, unless `ended` is false.
- */
 function retentionScope(ended = true) {
   const released = new AbortController()
   const closed = new AbortController()
@@ -288,7 +266,6 @@ async function hostSubject(): Promise<CommandRetentionSubject> {
     const lease: EnvironmentLease = answer.lease
     const command = lease.facility('command')
     if (command === undefined) throw new Error('expected the command facility')
-    // The unit names are noted so that the case's cleanup stops what it started, even when it fails.
     const facility: CommandFacility<unknown> = {
       ...(command.retention === undefined ? {} : { retention: command.retention }),
       async start(request) {
@@ -346,8 +323,6 @@ describe(
   { skip: !enabled },
   () => {
     for (const test of commandRetentionConformance({ subject: hostSubject, waitMs: 60_000 })) {
-      // A bare provider has no facility guard: the registry's gate asks it, and its tests cover
-      // the refusal.
       const notApplicable =
         test.name === 'V-EE30.guard-refuses-stop' || test.name === 'V-EE31.guard-refuses-output'
       it(test.name, async () => {

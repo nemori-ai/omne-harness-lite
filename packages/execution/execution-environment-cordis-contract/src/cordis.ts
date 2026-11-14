@@ -1,7 +1,3 @@
-// The Cordis service definitions of the execution environment: the environment Service and the
-// three port Services (recovery authority, environment authority, trusted scope binding), their keys
-// and the intercept configuration type. It has no events; placement changes reach readers as Runtime
-// Context blocks.
 import { type Context, Service } from '@deepseek-ai/cordis'
 import type { ScopeBindingSource } from '@omne-harness/runtime-context-contract'
 import type {
@@ -13,7 +9,6 @@ import type {
   RecoveryAuthority,
 } from '@omne-harness/execution-environment-contract'
 
-/** Parameters and result of one `ExecutionEnvironment` operation, so the signatures are written once. */
 type Operation<P, O extends keyof ExecutionEnvironment<P>> = {
   args: Parameters<ExecutionEnvironment<P>[O]>
   result: ReturnType<ExecutionEnvironment<P>[O]>
@@ -42,7 +37,6 @@ export const faceCallers: Readonly<Record<ServiceFace, CallerClass>> = Object.fr
   recovery: 'maintainer',
   registration: 'provider',
 })
-/** Registration has no rejection result channel; a mismatched declaration throws this error. */
 export class CallerClassMismatch extends Error {
   readonly operation: ServiceOperation
   readonly expected: CallerClass
@@ -94,7 +88,6 @@ export abstract class ExecutionEnvironmentService<P>
   protected abstract onAcquire(
     ...args: Operation<P, 'acquire'>['args']
   ): Operation<P, 'acquire'>['result']
-  /** A caller mismatch is a query answer here, not a stored acquisition state. */
   inspectAcquisition(
     ...args: Operation<P, 'inspectAcquisition'>['args']
   ): Operation<P, 'inspectAcquisition'>['result'] {
@@ -105,7 +98,6 @@ export abstract class ExecutionEnvironmentService<P>
   protected abstract onInspectAcquisition(
     ...args: Operation<P, 'inspectAcquisition'>['args']
   ): Operation<P, 'inspectAcquisition'>['result']
-  /** The maintainer's query by original description. A caller mismatch is a query answer. */
   inspectRecoveryAcquisition(
     ...args: Operation<P, 'inspectRecoveryAcquisition'>['args']
   ): Operation<P, 'inspectRecoveryAcquisition'>['result'] {
@@ -251,8 +243,6 @@ export abstract class ExecutionScopeBindingService extends Service implements Sc
 export const executionScopeBindingKey = ExecutionScopeBindingService.provide
 
 declare module '@deepseek-ai/cordis' {
-  // The trusted identity adapter of an assembly narrows the principal type. Providers still check
-  // every input at run time.
   interface Context {
     executionEnvironment: ExecutionEnvironmentService<unknown>
     executionRecoveryAuthority: ExecutionRecoveryAuthorityService

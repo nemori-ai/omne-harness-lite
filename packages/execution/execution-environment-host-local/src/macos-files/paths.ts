@@ -61,9 +61,7 @@ export function createMacosPaths(rootIdentity?: () => Promise<RootIdentity | und
       } catch (error) {
         try {
           if (!(await lstat(path)).isDirectory()) return fail('unsupported')
-        } catch {
-          /* The original open error owns the missing or unreadable path. */
-        }
+        } catch {}
         return fail(mapped(openCodes, error) ?? 'unknown')
       }
     }

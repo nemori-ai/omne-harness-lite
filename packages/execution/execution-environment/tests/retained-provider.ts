@@ -7,7 +7,6 @@ import type {
 import { createScriptedTerminalFacility } from '@omne-harness/execution-environment-contract/testing'
 import { scriptedProvider } from './doubles.ts'
 
-/** Frozen protocol peer for registry wiring tests. It has no shell, durable ledger or Session authority. */
 export function retainedPeer() {
   const terminal = createScriptedTerminalFacility(request => ({
     kind: 'started',

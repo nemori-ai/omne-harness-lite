@@ -1,10 +1,4 @@
 /** @module-tag slow */
-// Slow: one-shot commands on macOS through the real gate, the real session reader and the real
-// kernel. Sessions do not meet closed containment, so nothing is retained: the facility has no
-// retention extension, every completed outcome carries `residue`, leftovers are stopped with the
-// first unmet reason, and a stop is confirmed only once every member is gone by pid. A provider
-// that dies leaves nothing running, and a fresh provider recovers what the index lists. The tests
-// run only on macOS with `OMNE_HOST_MACOS=1`; elsewhere they are skipped, and a skip is not a pass.
 import { execFile, spawn } from 'node:child_process'
 import { readdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -39,7 +33,6 @@ afterEach(async () => {
   await cleanup()
 })
 
-/** Leaves three processes behind: a plain background job, a nohup job, and a job-control group. */
 const leaveThree = `
   /bin/sleep 300 & echo $! >> pids
   nohup /bin/sleep 301 >/dev/null 2>&1 & echo $! >> pids
@@ -70,7 +63,6 @@ describe('C11 and a clean exit', () => {
     if (!enabled) return ctx.skip()
     const { cwd, own, command } = await bound()
     expect(command.retention).toBeUndefined()
-    // A POSIX session can be left with setsid: the facility says so.
     expect(command.containment).toBe('none')
     const handle = await started(command, request(cwd, 'echo hello; echo oops >&2'))
     const { outcome, text } = await finished(handle)
@@ -103,7 +95,6 @@ describe('C11 and a clean exit', () => {
       const parent = (await finished(handle)).text
       expect(parent).toContain('command-gate')
       expect(parent).not.toContain('OMNE_PROVIDER_SECRET_PROBE')
-      // The reading itself shows a parent's environment when it has one.
       const { stdout } = await run('/bin/sh', ['-c', '/bin/ps eww -o command= -p $$'], {
         env: { PATH: '/usr/bin:/bin', OMNE_PROVIDER_SECRET_PROBE: 'leak-me' },
       })
@@ -272,7 +263,6 @@ setInterval(() => {}, 1000)
       child.kill('SIGKILL')
       if (killGate) process.kill(gate, 'SIGKILL')
       if (!killGate) {
-        // The gate saw its control channel end and stopped its session.
         await eventually(() => pids.every(pid => !alive(pid)) && !alive(gate))
       } else expect(pids.filter(alive)).toHaveLength(4)
       const fresh = hostProvider(state)

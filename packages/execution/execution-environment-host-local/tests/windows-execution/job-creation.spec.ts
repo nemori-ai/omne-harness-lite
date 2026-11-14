@@ -99,7 +99,6 @@ it('keeps the child suspended and stoppable by Job name when the bridge crashes 
       if (text.includes('watching')) bridge.kill()
     })
     await bridgeClosed
-    // The anchor keeps the Job: the child outlives the bridge, still suspended, so no user code ran.
     await new Promise(resolve => setTimeout(resolve, 500))
     expect(text).not.toContain('True')
     await expect(readFile(sentinel)).rejects.toMatchObject({ code: 'ENOENT' })
@@ -119,7 +118,6 @@ it('keeps the child suspended and stoppable by Job name when the bridge crashes 
     clearTimeout(watchdog)
     bridge.kill()
     await bridgeClosed
-    // The anchor runs this bridge image and exits just after the Job stops.
     await rm(directory, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 })
   }
 }, 30_000)

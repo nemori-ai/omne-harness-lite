@@ -1,10 +1,3 @@
-// The custody of a domain a one-shot command left behind, under the interleavings the real scope
-// cannot be made to show on demand: the real `createHostCommands` and the real retained-process
-// index, driven by a stand-in `systemd-run` (acting as the gate) and a stand-in `systemctl`
-// (`fixtures/fake-supervisor.mjs`). The ledgers are the integrator's ports and record. Every
-// kill the acquisition or the index issues shows in the stand-in's log, so the tests can tell a
-// handed-over domain that was left alone from one that was stopped. Linux only: the stand-ins use
-// descriptor 3 and signals; elsewhere the file is skipped, and a skip is not a pass.
 import { randomUUID } from 'node:crypto'
 import { chmod, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -65,10 +58,6 @@ function deferred<T>(): Deferred<T> {
 
 const tick = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
 
-/**
- * `vi.waitFor` with a bound that holds while the fake tools run as processes on a loaded machine.
- * It only guards against a hang: the 1 s default ran out under mutation testing.
- */
 const eventually = <T>(check: () => T | Promise<T>) => vi.waitFor(check, { timeout: 10_000 })
 
 const terminalLedger: RetainedTerminalLedger = {
@@ -80,15 +69,12 @@ const terminalLedger: RetainedTerminalLedger = {
 
 const directories: string[] = []
 
-/** Kills every fake gate whose pid file is in `directory`. */
 async function killGates(directory: string): Promise<void> {
   for (const name of await readdir(directory).catch((): string[] => [])) {
     if (!name.endsWith('.pid')) continue
     try {
       process.kill(Number(await readFile(join(directory, name), 'utf8')), 'SIGKILL')
-    } catch {
-      /* Already gone. */
-    }
+    } catch {}
   }
 }
 
@@ -105,7 +91,6 @@ async function temporary(prefix: string): Promise<string> {
   return directory
 }
 
-/** The two stand-in tools of one test, as executables that run the fixture with `FAKE_DIR` set. */
 async function fakeTools(directory: string): Promise<ScopeTools> {
   const wrapper = async (name: string) => {
     const path = join(directory, name)
@@ -128,11 +113,8 @@ type SetupOptions = {
   capacity?: number
   stopBoundMs?: number
   startBoundMs?: number
-  /** Replaces the index the commands see; the real one is still built and ready. */
   retained?(index: RetainedProcessIndex): RetainedProcessIndex
-  /** The fake gate's script (`gate.json`); absent keys keep the fixture's behavior. */
   gate?: Readonly<Record<string, unknown>>
-  /** `retainedOutputBytes` of the command settings; absent keeps the default. */
   outputBytes?: number
 }
 
@@ -142,8 +124,6 @@ async function setup(options: SetupOptions) {
   const tools = await fakeTools(fake)
   if (options.gate !== undefined)
     await writeFile(join(fake, 'gate.json'), JSON.stringify(options.gate))
-  // Long enough that a stop the fake tools confirm is confirmed on a loaded machine; a test that
-  // needs the bound to pass first sets its own.
   const stopBoundMs = options.stopBoundMs ?? 10_000
   const indexStops: string[] = []
   const bootId = await readBootId()
@@ -242,9 +222,7 @@ async function setup(options: SetupOptions) {
     processes,
     released,
     indexStops,
-    /** Kills issued through the stand-in `systemctl`, by the acquisition or the index. */
     kills: async () => (await logLines('systemctl.log')).filter(l => l.includes(' kill ')).length,
-    /** `retain` commands the fake gate received. */
     retains: async () => (await logLines('retain.log')).length,
     hold: () => writeFile(join(fake, `${unit}.hold`), ''),
     unhold: () => rm(join(fake, `${unit}.hold`), { force: true }),
@@ -257,7 +235,6 @@ async function setup(options: SetupOptions) {
       }
     },
     list: () => index.list(scope, tenant),
-    /** What the retention extension answers for the output of `process`, from `from` when given. */
     output: (process: RetainedProcessRef, from?: RetainedOutputFrom) => {
       const output = commands.facility.retention?.output
       if (output === undefined) throw new Error('expected the output of the retention extension')
@@ -270,7 +247,6 @@ async function setup(options: SetupOptions) {
         ...(from === undefined ? {} : { from }),
       })
     },
-    /** What the retention extension answers for a stop of `process`. */
     stop: (process: RetainedProcessRef, mode: 'graceful' | 'forced') => {
       const stop = commands.facility.retention?.stop
       if (stop === undefined) throw new Error('expected the stop of the retention extension')
@@ -292,21 +268,18 @@ function residueOf(outcome: CommandOutcome) {
   return outcome.residue
 }
 
-/** The retained process of a handover's residue. */
 function retainedOf(residue: ReturnType<typeof residueOf>) {
   if (residue?.kind !== 'retained')
     throw new Error(`expected a handover: ${JSON.stringify(residue)}`)
   return residue.process
 }
 
-/** A data frame of `text` on stdout, as the gate writes it. */
 const stdout = (text: string) => ({
   t: 'data',
   s: 'stdout',
   b: Buffer.from(text).toString('base64'),
 })
 
-/** An `adopt` the test answers: `asked` settles when it is called. */
 function controlledAdopt() {
   const answer = deferred<Adopt>()
   const asked = deferred<void>()
@@ -334,7 +307,6 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
       expect(f.commands.unconfirmed()).toEqual([])
       expect(f.own.stopped).toEqual([])
       if (residue?.kind === 'retained') {
-        // Handed over: the release left it alone, the index holds it running.
         expect(await f.kills()).toBe(0)
         expect(f.indexStops).toEqual([])
         await eventually(async () => expect(await f.retains()).toBe(1))
@@ -342,7 +314,6 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
         expect(await f.list()).toMatchObject([{ process: residue.process, state: 'running' }])
         expect(await f.gateAlive()).toBe(true)
       } else {
-        // Interrupted before the custody changed: stopped once, under the retention scope.
         expect(residue).toEqual({ kind: 'stopping', reason: 'closed' })
         await eventually(() => expect(f.processes.stopped).toEqual([[f.key, 'confirmed']]))
         expect(await f.kills()).toBe(1)
@@ -373,7 +344,6 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
       expect(await f.kills()).toBe(0)
       expect(f.own.stopped).toEqual([])
       expect(f.processes.stopped).toEqual([])
-      // A later release has nothing of its own left: no further adopt, no stop.
       expect(await f.commands.stopAll()).toEqual([])
       expect(f.processes.adopts).toHaveLength(2)
       expect(await f.handle.stop('forced')).toBe('unconfirmed')
@@ -511,7 +481,6 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
         adopt: adopt.adopt,
         gate: {
           beforeExit: [stdout('ab')],
-          // Read in the chunk of the exit frame, so before the handover is asked for.
           afterExit: [stdout('cde')],
           onRetain: [stdout('XY'), { t: 'x', s: 'stdout', n: 2 }, stdout('Z')],
         },
@@ -525,8 +494,6 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
           throw new Error(`expected a tail: ${JSON.stringify(answer)}`)
         expect(answer.value.streams).toHaveLength(1)
         const [tail] = answer.value.streams
-        // Two bytes before the exit and three after it were observed before the handover; then
-        // XY was saved, the gap of 2 discarded it, and Z is what remains.
         expect({ ...tail, data: [...(tail?.data ?? [])] }).toMatchObject({
           stream: 'stdout',
           savedFrom: 5,
@@ -553,7 +520,6 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
         const process = retainedOf(residueOf(await f.handle.result))
         const unavailable = { kind: 'rejected', requestId: 'output-1', reason: 'unavailable' }
         await eventually(async () => expect(await f.output(process)).toEqual(unavailable))
-        // Still the retention scope's: listed as running, not stopped by anyone.
         expect(await f.list()).toMatchObject([{ process, state: 'running' }])
         expect(await f.kills()).toBe(0)
         expect(await f.stop(process, 'forced')).toEqual({
@@ -644,7 +610,6 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
       expect(asked).toEqual({ stopRef: 0, output: 0 })
       expect(f.indexStops).toEqual([])
       expect(await f.kills()).toBe(0)
-      // A well-formed request reaches the index.
       expect(await f.output(process, { stdout: 0, stderr: 0 })).toMatchObject({ kind: 'done' })
       expect(asked).toEqual({ stopRef: 0, output: 1 })
     })
@@ -655,7 +620,6 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
     { timeout: 20_000 },
     async () => {
       let reserves = 0
-      // The same bound covers the start, so it must outlast the gate's ready on a loaded machine.
       const startBoundMs = 2_000
       const f = await setup({
         adopt: async () => 'confirmed',
@@ -682,7 +646,6 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
 })
 
 it('HostTerminalOptions carries none of the options about processes a command leaves behind', () => {
-  // The terminal never disposes of leftovers; the four options are the command facility's.
   // @ts-expect-error residuePolicy is not a terminal option
   const policy: HostTerminalOptions = { residuePolicy: 'stop' }
   // @ts-expect-error retainedPerScope is not a terminal option

@@ -75,27 +75,15 @@ export type RegistryDependencies<P> = Readonly<{
   recovery: RecoveryAuthority
   /** The environment authority port. Ordinary operations ask it before any slot is read. */
   authority: EnvironmentAuthority<P>
-  /** The trusted scope binding source; its type belongs to the Runtime Context contract. */
   bindings: ScopeBindingSource
-  /**
-   * How long the first `acquire` waits for the cleanup of an allocation whose adoption failed,
-   * in milliseconds. A configurable initial value; past it the cleanup state is `unknown` and the
-   * release keeps running. Default 1000.
-   */
   cleanupWaitMs?: number
   diagnose?: (diagnostic: RegistryDiagnostic) => void
 }>
 
-/** The registry: the environment surface, the provider surface, and its own closing. */
 export interface EnvironmentRegistry<P> extends ExecutionEnvironment<P>, ProviderRegistrations {
-  /** Refuses new acquisitions, invalidates every live lease, then retires every provider. */
   close(): Promise<Retirement>
 }
 
-/**
- * A retirement left resources behind, or its outcome is unknown. It is not a completion: calling the
- * same removal again retries it.
- */
 export class RetirementPending extends Error {
   readonly subject: string
   readonly resources: readonly ManagedResource[]
@@ -122,17 +110,13 @@ type ProviderReceipt = Readonly<{
 type AcquisitionRecord<P> = {
   readonly original: OriginalAcquisition
   readonly fingerprint: string
-  /** The ports the first call captured. A retry that replaces them is a conflict. */
   readonly ledger: ResourceLedger
   readonly guard: FacilityGuard<P>
   readonly retention: ProviderAcquireInput['retention']
   readonly entry: ProviderEntry | null
   state: AcquisitionState
-  /** Bumped on every transition; a query response older than the current version is dropped. */
   version: number
-  /** True while the first `acquire` still waits on the provider or on the adoption. */
   inFlight: boolean
-  /** The provider receipt kept while the record is provisional and not adopted. */
   receipt: ProviderReceipt | null
   adopting: Promise<Acquired | AllocationFailed | Pending | UnknownAcquisition> | undefined
   lease: EnvironmentLease | null
@@ -148,11 +132,9 @@ function byRegistry(reason: Extract<LeaseInvalidation, { source: 'registry' }>['
 }
 
 function adoptionOf(state: AcquisitionState): EnvironmentAdoption | null {
-  // The closed union carries adoption only after verification.
   return 'adoption' in state ? state.adoption : null
 }
 
-/** A layer that names an owning scope must name the requester's scope; other layers fit any scope. */
 function fitsScope(binding: EnvironmentBinding, scope: ScopeRef): boolean {
   const owner = bindingScope(binding)
   return owner === undefined || sameScope(owner, scope)
@@ -183,7 +165,6 @@ function failed<P>(record: AcquisitionRecord<P>): AllocationFailed | undefined {
     : undefined
 }
 
-/** What a repeat with the same fingerprint reads from an existing record, without a new allocation. */
 function replayAnswer<P>(
   record: AcquisitionRecord<P>,
 ): Acquired | Pending | Rejected | AllocationFailed | UnknownAcquisition {
@@ -239,7 +220,6 @@ function queryAnswer(failure: AccessFailure): AcquisitionInspection {
   }
 }
 
-/** Waits at most `ms` for a promise. `undefined` means the bound passed first. */
 async function within<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
@@ -254,12 +234,6 @@ async function within<T>(promise: Promise<T>, ms: number): Promise<T | undefined
   }
 }
 
-/**
- * Creates the environment registry: provider and facility tables, placement matching, the
- * acquisition state machine with its original-acquisition queries, lease views with their
- * per-operation gate, and recovery over resources and acquisitions. It has no Cordis dependency and
- * keeps only a process-local copy of acquisitions; durable facts stay in the caller's ledger.
- */
 export function createEnvironmentRegistry<P>(
   deps: RegistryDependencies<P>,
 ): EnvironmentRegistry<P> {
@@ -269,13 +243,10 @@ export function createEnvironmentRegistry<P>(
   const diagnose = (diagnostic: RegistryDiagnostic) => {
     try {
       deps.diagnose?.(diagnostic)
-    } catch {
-      /* A diagnostic sink never changes the operation's result. */
-    }
+    } catch {}
   }
   const providers: ProviderEntry[] = []
   const facilities = new Map<FacilityKey, StoredDescriptor>()
-  // The slot is tenant plus acquisition key; another tenant reusing a key never sees this slot.
   const records = new Map<string, AcquisitionRecord<P>>()
   const releasedScopes = new Set<string>()
   const retentionScopes = new Map<string, AbortController>()
@@ -303,7 +274,6 @@ export function createEnvironmentRegistry<P>(
     binding.kind === 'tenant_sandbox' && !tenantEquals(binding.tenant, tenant)
   const ports = { authority: deps.authority, bindings: deps.bindings }
 
-  // What a provider can serve right now: its facility keys narrowed to registered declarations.
   const capabilities = (entry: ProviderEntry): ProviderCapabilities => ({
     bindingKinds: entry.provider.bindingKinds,
     facilities: entry.provider.facilities.filter(key => facilities.has(key)),
@@ -314,8 +284,6 @@ export function createEnvironmentRegistry<P>(
     record.state = state
     record.version++
   }
-
-  // ---- cleanup of an allocation whose adoption failed ----------------------------------------
 
   const cleanupOf = async (receipt: ProviderReceipt): Promise<AllocationCleanup> => {
     let release: LeaseRelease
@@ -361,13 +329,10 @@ export function createEnvironmentRegistry<P>(
     return answer
   }
 
-  /** A provisional record whose adoption can no longer happen turns into an adoption failure. */
   const failProvisional = (record: AcquisitionRecord<P>, reason: RejectReason) => {
     if (record.state.kind !== 'provisional' || record.adopting || record.receipt === null) return
     void failAdoption(record, record.receipt, reason)
   }
-
-  // ---- providers ------------------------------------------------------------------------------
 
   const retireEntry = (entry: ProviderEntry): Promise<Retirement> => {
     entry.active = false
@@ -397,7 +362,6 @@ export function createEnvironmentRegistry<P>(
   const routes = (): readonly DomainRoute[] =>
     providers.map(entry => ({ provider: entry.provider, identity: entry.identity }))
 
-  /** Checks the placement again, since resolving and acquiring are not atomic. */
   const recheckPlacement = (
     entry: ProviderEntry | undefined,
     original: OriginalAcquisition,
@@ -419,7 +383,6 @@ export function createEnvironmentRegistry<P>(
     return entry
   }
 
-  /** The checks on a provisional receipt; the last is the caller's current authorization. */
   const verify = (
     record: AcquisitionRecord<P>,
     receipt: ProviderReceipt,
@@ -438,7 +401,6 @@ export function createEnvironmentRegistry<P>(
     return current() ? undefined : 'notAuthorized'
   }
 
-  /** Issues the adoption record and wraps the receipt's lease in a view. */
   const adopt = (record: AcquisitionRecord<P>, receipt: ProviderReceipt): Acquired => {
     const entry = record.entry
     if (entry === null) throw new Error('adoption without a provider entry')
@@ -480,7 +442,6 @@ export function createEnvironmentRegistry<P>(
     return Object.freeze({ kind: 'acquired', lease: view.lease, adoption })
   }
 
-  /** One adoption transition per record: concurrent callers share it, so only one lease is issued. */
   const adoptOnce = (
     record: AcquisitionRecord<P>,
     current: () => boolean,
@@ -506,7 +467,6 @@ export function createEnvironmentRegistry<P>(
     return answer.kind === 'rejected' ? pendingProvisional() : answer
   }
 
-  /** Asks the provider. A throw or an unknown answer keeps the slot as an unknown allocation. */
   const allocate = async (
     record: AcquisitionRecord<P>,
     entry: ProviderEntry,
@@ -547,7 +507,6 @@ export function createEnvironmentRegistry<P>(
     }
   }
 
-  /** Asks the provider's quota before the slot is written. Only a declared quota continues. */
   const quotaPreflight = async (
     entry: ProviderEntry,
     tenant: TenantId,
@@ -570,12 +529,6 @@ export function createEnvironmentRegistry<P>(
         candidate.identity.version === placement.provider.version,
     )
 
-  // ---- queries --------------------------------------------------------------------------------
-
-  /**
-   * Applies an original-provider answer to the local cache, per the contract's table. A response
-   * older than the record's current version is dropped. Returns the query answer.
-   */
   const applyStatus = (
     record: AcquisitionRecord<P>,
     status: ProviderAcquisitionStatus,
@@ -655,13 +608,11 @@ export function createEnvironmentRegistry<P>(
     if (route === undefined) return { kind: 'queryUnavailable', cause: 'provider' }
     const version = record.version
     const status = await queryOriginal(route, record.original)
-    // The authorization may have been revoked while the provider answered: neither update nor disclose.
     if (!current()) return { kind: 'refused', reason: 'notAuthorized' }
     if (record.version !== version) return { kind: 'known', state: record.state }
     return applyStatus(record, status)
   }
 
-  /** Answers an original query from the provider's record. It never adopts and never returns a lease. */
   const originalAnswer = async (
     original: OriginalAcquisition,
     current: () => boolean,
@@ -721,8 +672,6 @@ export function createEnvironmentRegistry<P>(
     }
   }
 
-  // ---- recovery -------------------------------------------------------------------------------
-
   type RecoveryDecision = 'authorized' | 'notAuthorized' | 'unavailable' | 'unknown'
 
   const authorizeRecovery = async (
@@ -743,7 +692,6 @@ export function createEnvironmentRegistry<P>(
     }
   }
 
-  /** The known list is data the maintainer brought back; it must fit the scope before authorization. */
   const validKnown = (scope: ScopeRef, known: readonly OriginalAcquisition[] | undefined) =>
     known === undefined ||
     (Array.isArray(known) &&
@@ -804,8 +752,6 @@ export function createEnvironmentRegistry<P>(
     }
     return driveRecovery(target, routes(), originals, observeSettlement)
   }
-
-  // ---- the surfaces ---------------------------------------------------------------------------
 
   const registry: EnvironmentRegistry<P> = {
     async resolvePlacement(access, input) {
@@ -914,7 +860,6 @@ export function createEnvironmentRegistry<P>(
       }
       const quota = await quotaPreflight(placed, access.tenant)
       if (quota !== 'declared' || !checked.current()) {
-        // A temporary preflight refusal does not occupy the slot.
         if (records.get(key) === record) records.delete(key)
         if (quota === 'unavailable') return rejected('unavailable')
         if (quota === 'unknown') return unknownAcquisition(original.acquisition, 'preflight')
@@ -957,7 +902,6 @@ export function createEnvironmentRegistry<P>(
         original.scope,
       )
       if (checked.kind !== 'granted') return queryAnswer(checked)
-      // Rule 3 of the access check: the description's tenant is the caller's, or the provider is not asked.
       if (!tenantEquals(original.tenant, access.tenant))
         return { kind: 'refused', reason: 'notAuthorized' }
       return originalAnswer(original, checked.current)
@@ -969,7 +913,6 @@ export function createEnvironmentRegistry<P>(
       if (decision === 'unknown') return { kind: 'queryUnknown', cause: 'authority' }
       if (decision === 'unavailable') return { kind: 'queryUnavailable', cause: 'authority' }
       if (decision === 'notAuthorized') return { kind: 'refused', reason: 'notAuthorized' }
-      // The recovery authority has no current() premise; it answers once per query.
       return originalAnswer(original, () => true)
     },
 
@@ -1018,7 +961,6 @@ export function createEnvironmentRegistry<P>(
           }
         }),
       )
-      // Two generations of one provider may hold the same retained process: it is listed once.
       const items = new Map<string, RetainedProcessInformation>()
       for (const answer of answers) {
         // A provider that cannot answer makes the whole answer unknown, never a partial list.

@@ -11,17 +11,13 @@ export type TerminalFrame =
       readonly id: string
       readonly cwd: string
       readonly restored: boolean
-      /** The script ran `exit N`: the shell ends after this answer. */
       readonly ended: boolean
-    } &
-      /** `code` is the exit code the shell host derived by the SPEC's rule. */
-      (
-        | { readonly completed: true; readonly elapsedMs: number; readonly code: number }
-        | { readonly completed: false; readonly elapsedMs: null; readonly code: null }
-      ))
+    } & (
+      | { readonly completed: true; readonly elapsedMs: number; readonly code: number }
+      | { readonly completed: false; readonly elapsedMs: null; readonly code: null }
+    ))
   | { readonly t: 'data'; readonly b: string }
   | { readonly t: 'stopped'; readonly status: 'confirmed' | 'unconfirmed' }
-  /** `transport`: the provider read a broken frame and reads no more; the broker never sends it. */
   | { readonly t: 'fault'; readonly stopped: boolean; readonly transport?: true }
 
 type Fields = Readonly<Record<string, unknown>>
@@ -33,7 +29,6 @@ const flag = (value: unknown): value is boolean => typeof value === 'boolean'
 const whole = (value: unknown): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value)
 
-/** A version 3 `finished` frame: a completed one carries its elapsed time and code, else both are null. */
 function finishedFrame(fields: Fields): TerminalFrame | undefined {
   const { v, id, cwd, restored, completed, elapsedMs, code, ended } = fields
   if (v !== 3 || !text(id) || !text(cwd) || !flag(restored) || !flag(ended)) return undefined
@@ -105,9 +100,6 @@ export function startTerminalBridge(
   const closed = deferred<void>()
   let pending = ''
   let failed = false
-  // A broken transport is a fault of the broker that will not answer a stop. The control pipe stays
-  // open: the broker stops its own Job when it closes, and the stop by Job name confirms only while
-  // the Job is still there.
   const fault = () => {
     if (failed) return
     failed = true

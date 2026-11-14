@@ -1,5 +1,3 @@
-// Port services for tests: an environment authority that authorizes every action until revoked,
-// and a scope binding source that binds every scope to one tenant unless a test binds it otherwise.
 import type { Context } from '@deepseek-ai/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ScopeBinding, ScopeRef } from '@omne-harness/runtime-context-contract'
@@ -16,7 +14,6 @@ export type PortState = {
   readonly actions: EnvironmentAction[]
 }
 
-/** Makes the two port services for one test. Load both classes as plugins next to the registry. */
 export function testPorts(tenant: TenantId) {
   const state: PortState = { revision: 0, bindings: new Map(), defaultTenant: tenant, actions: [] }
   class Authority extends ExecutionEnvironmentAuthorityService {
@@ -51,7 +48,6 @@ export function testPorts(tenant: TenantId) {
     revokeAll() {
       state.revision++
     },
-    /** Loads both port services into `ctx`. */
     async load(ctx: Context) {
       await ctx.plugin(Authority)
       await ctx.plugin(Bindings)

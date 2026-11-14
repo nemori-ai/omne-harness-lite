@@ -11,7 +11,6 @@ export type WindowsTerminalLimits = Readonly<{
   maxChunks: number
 }>
 
-/** Share one capacity object between ordinary and retained factories in a provider domain. */
 export function createWindowsTerminalCapacity(
   limits: WindowsTerminalLimits = {
     maxTerminals: 64,
@@ -67,10 +66,6 @@ export function createWindowsTerminalCapacity(
 
 export type WindowsTerminalCapacity = ReturnType<typeof createWindowsTerminalCapacity>
 
-/**
- * The output buffer of one invocation. It reserves its maximum size when it is created; sealing it
- * releases the reservation once its reader took the queued chunks or gave up, or at once when empty.
- */
 export function reserveTerminalWindow(policy: OutputPolicy, capacity: WindowsTerminalCapacity) {
   const release = capacity.window(policy.maxBufferedBytes)
   if (release === undefined) return undefined

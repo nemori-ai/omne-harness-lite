@@ -6,17 +6,11 @@ import type {
   ProviderIdentity,
 } from '@omne-harness/execution-environment-contract'
 
-/** One route to the original record of a quota domain: a provider registration of that domain. */
 export type DomainRoute = Readonly<{
   provider: EnvironmentProvider
   identity: ProviderIdentity
 }>
 
-/**
- * Picks the route for an original acquisition: the original generation when it is still in the
- * table, otherwise another registration of the same quota domain. Never another domain, and never
- * the current provider of the same name in another domain.
- */
 export function routeFor(
   routes: readonly DomainRoute[],
   original: OriginalAcquisition,
@@ -34,7 +28,6 @@ export function routeFor(
   )
 }
 
-/** One route per quota domain, so no registration claims a complete view on its own. */
 export function routesByDomain(routes: readonly DomainRoute[]): readonly DomainRoute[] {
   const seen = new Map<string, DomainRoute>()
   for (const route of routes)
@@ -71,7 +64,6 @@ function hasKind(value: unknown, kinds: ReadonlySet<string>): value is { kind: s
   )
 }
 
-/** Asks the original record. A throw or an answer outside the closed set reads as `unknown`. */
 export async function queryOriginal(
   route: DomainRoute,
   original: OriginalAcquisition,
@@ -84,7 +76,6 @@ export async function queryOriginal(
   }
 }
 
-/** Settles an original acquisition. A throw or an illegal answer reads as `unknown`. */
 export async function settleOriginal(
   route: DomainRoute,
   original: OriginalAcquisition,

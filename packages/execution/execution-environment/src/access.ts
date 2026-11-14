@@ -11,19 +11,13 @@ import type {
   EnvironmentAuthority,
 } from '@omne-harness/execution-environment-contract'
 
-/** An authorized ordinary access. `current` is the synchronous premise checked at the final step. */
 export type Granted = Readonly<{ kind: 'granted'; current: () => boolean }>
 
-/**
- * Why ordinary access did not pass. `refused` covers an authority refusal, an unbound scope and a
- * scope bound to another tenant alike, so the answer never discloses the other tenant.
- */
 export type AccessFailure = Readonly<{
   kind: 'refused' | 'unavailable' | 'unknown'
   cause: 'authority' | 'scope-binding'
 }>
 
-/** legal-identity's equality is false for any value it did not mint, so it doubles as the mint check. */
 export function mintedTenant(tenant: TenantId): boolean {
   return tenantEquals(tenant, tenant)
 }
@@ -92,11 +86,6 @@ export type AccessPorts<P> = Readonly<{
   bindings: ScopeBindingSource
 }>
 
-/**
- * Checks ordinary access in the contract's order: the environment authority for the action, then
- * the trusted binding of the target scope to the caller's tenant. A later step does not run after
- * an earlier one fails. Without a scope only the authority is asked.
- */
 export async function checkAccess<P>(
   ports: AccessPorts<P>,
   access: Access<P>,

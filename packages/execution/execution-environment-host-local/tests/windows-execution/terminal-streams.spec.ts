@@ -53,8 +53,6 @@ it('renders PowerShell output, error, host and diagnostic streams through actual
     await reading
   } finally {
     await f.manager.stopAll()
-    // The terminal host is outside the Job and exits on its own just after the Job stops; until
-    // then Windows keeps its working directory busy.
     await rm(directory, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 })
   }
 }, 60_000)

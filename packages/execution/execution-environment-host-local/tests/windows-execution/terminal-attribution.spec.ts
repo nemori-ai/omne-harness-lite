@@ -1,5 +1,3 @@
-// The manager's attribution of PTY bytes by segment sentinels, driven by a stand-in broker that
-// answers the start protocol and lets each case deliver data and control frames in its own order.
 import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -17,7 +15,6 @@ vi.mock('../../src/windows-execution/compile.ts', () => ({
   windowsTerminalExecutable: async () => 'stand-in.exe',
   windowsBridgeExecutable: async () => 'stand-in.exe',
 }))
-// The start reads the boot and login session through a one-shot bridge; the stand-in has none.
 vi.mock('../../src/windows-execution/supervision.ts', async original => ({
   ...(await original<typeof import('../../src/windows-execution/supervision.ts')>()),
   windowsIdentity: async () => ({ boot: '1', session: 1 }),
@@ -66,7 +63,6 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })))
 })
 
-/** A terminal on the stand-in broker, and the frames that deliver one invocation's bytes. */
 async function terminal(betweenSegmentBytes?: number) {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'omne-terminal-attribution-')))
   roots.push(root)
@@ -135,7 +131,6 @@ it('gives bytes before the begin sentinel to the result as between and answers a
   t.broker.emit({ t: 'data', b: Buffer.from('start-up').toString('base64') })
   const leg = await t.execute()
   const begin = Buffer.from(sentinel('begin', leg.nonce))
-  // The begin sentinel is cut across two reads; the byte before it is still between segments.
   leg.data('idle ', begin.subarray(0, 5))
   leg.data(begin.subarray(5), 'own bytes ')
   leg.finished(3)
@@ -245,7 +240,6 @@ it('fails an invocation whose finished frame came before a broken frame stopped 
   leg.finished(0)
   await tick()
   expect(leg.settled()).toBeUndefined()
-  // The provider reads no frame after a broken one, so the end sentinel cannot arrive.
   t.broker.emit({ t: 'fault', stopped: false, transport: true })
   expect(await leg.handle.result).toMatchObject({ kind: 'failed', reason: 'effectUnknown' })
   expect(await text(leg.handle)).toBe('partial')

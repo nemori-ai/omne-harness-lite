@@ -1,5 +1,4 @@
 /** @module-tag slow */
-// Slow: every case starts a real systemd user scope with a real PTY and Bash, and C8 runs 200 segments.
 import { spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
@@ -123,7 +122,6 @@ async function run(
   const result = await handle.result
   return { result, bytes: Buffer.concat(chunks), between: between(result) }
 }
-/** The between-segment report of a terminal outcome; undefined when the provider gave none. */
 function between(result: CommandOutcome) {
   const output: unknown = result.output
   const report: unknown =

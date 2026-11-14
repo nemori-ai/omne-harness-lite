@@ -1,9 +1,3 @@
-// The judgments and the segment state machine of the terminal gate process, without I/O. The gate
-// script `terminal-gate.ts` keeps the current state, reads the control channel, the observation FIFO
-// and the PTY, and for each event calls one of these functions. It gets back the next state, the
-// frames to send in order and whether the gate fails; it sends the frames first and fails after them.
-// The Bash driver text and the source of a segment are built here, with the paths given by the gate.
-// Nothing here throws: input that does not parse, or an impossible order, is a returned value.
 import {
   releaseSentinels,
   scanSentinels,
@@ -36,10 +30,8 @@ export type ActiveLeg = Leg & Readonly<{ nonce: string; begun: boolean; sawEnd: 
 
 export type Pty = Readonly<{ fd: number; pid: number }>
 
-/** The two FIFOs between the gate and the driver: segment sources in, observations out. */
 export type DriverPaths = Readonly<{ commands: string; observations: string }>
 
-/** The frames the gate sends, keys in this order; the gate adds the generation to each. */
 export type TerminalFrame =
   | Readonly<{ t: 'ready' }>
   | Readonly<{ t: 'fault' }>
@@ -49,21 +41,16 @@ export type TerminalFrame =
   | Readonly<{ t: 'begun'; leg: string; discarded: number }>
   | Readonly<{ t: 'finished'; leg: string; code: number; cwd: string }>
 
-/** The finished observation of the current segment, kept until its end sentinel arrives too. */
 export type Completion = Readonly<{ code: number; cwd: string }>
 
-/** Everything the gate knows about the segments: the opened shell, the current one, the buffers. */
 export type Segments = Readonly<{
-  /** Whether the driver reported the shell open. */
   opened: boolean
   active: ActiveLeg | undefined
   completion: Completion | undefined
   sentinels: SentinelScan
-  /** Bytes read outside any segment, kept for the next segment up to the configured bound. */
   between: readonly Buffer[]
   betweenKept: number
   betweenDiscarded: number
-  /** Observation bytes that do not make a whole record yet. */
   observed: Buffer
 }>
 
@@ -78,10 +65,6 @@ export const noSegments: Segments = {
   observed: Buffer.alloc(0),
 }
 
-/**
- * The result of one event. The gate sends `frames` in order, then replaces the standard input it
- * still has to write into the PTY with `stdin` when that is given, then fails when `fault` is set.
- */
 export type Step = Readonly<{
   state: Segments
   frames: readonly TerminalFrame[]
@@ -89,7 +72,6 @@ export type Step = Readonly<{
   stdin: Buffer | undefined
 }>
 
-/** One line of the control channel, judged against the gate's state. */
 export type ControlCommand =
   | Readonly<{ kind: 'fault' }>
   | Readonly<{ kind: 'initial'; initial: Initial }>
@@ -97,17 +79,14 @@ export type ControlCommand =
   | Readonly<{ kind: 'term'; pid: number }>
   | Readonly<{ kind: 'execute'; leg: Leg }>
 
-/** The complete lines of the control channel, or a channel past its bound. */
 export type ControlLines =
   | Readonly<{ kind: 'overflow' }>
   | Readonly<{ kind: 'lines'; lines: readonly string[]; pending: Buffer }>
 
-/** A new segment: the next state and the source to write into the command FIFO. */
 export type LegStart =
   | Readonly<{ kind: 'fault' }>
   | Readonly<{ kind: 'begun'; state: Segments; source: Buffer }>
 
-/** The control channel's bound before the first message gives one. */
 const defaultControlBytes = 1024 * 1024
 
 const quote = (text: string) => `'${text.replaceAll("'", "'\\''")}'`
@@ -171,7 +150,6 @@ export function parseLeg(value: Record<string, unknown>): Leg | undefined {
   }
 }
 
-/** The program Bash runs in the PTY: it reports the shell open, then evaluates each source read. */
 export function shellDriver(config: Initial, paths: DriverPaths): string {
   return `exec 7<${quote(paths.commands)} 8>${quote(paths.observations)}
 __omne_report() {
@@ -195,7 +173,6 @@ function sentinelWrite(mark: 'b' | 'e', nonce: string): string {
   return `builtin printf '\\033]7770;omne-${mark};%s\\a' ${quote(nonce)} >/dev/tty || return 125`
 }
 
-/** The source of one segment, as the driver evaluates it. */
 export function legSource(leg: ActiveLeg): string {
   const environment = Object.entries(leg.env ?? {})
     .map(([key, value]) => `local -x ${key}=${quote(value)} || return 125`)
@@ -228,7 +205,6 @@ if [ $? -ne 0 ]; then exit 125; fi
 `
 }
 
-/** Splits the control channel into lines; the bound counts the bytes held and the bytes read. */
 export function splitControl(
   pending: Buffer,
   bytes: Buffer,
@@ -270,10 +246,6 @@ function laterMessage(
   return leg === undefined ? { kind: 'fault' } : { kind: 'execute', leg }
 }
 
-/**
- * Judges one control line. The first message is the initial configuration; after it, `go` starts
- * the shell once, `term` stops a running shell, and anything else must be a valid `execute`.
- */
 export function readControlLine(
   line: string,
   gate: Readonly<{ initial: Initial | undefined; pty: Pty | undefined }>,
@@ -284,7 +256,6 @@ export function readControlLine(
   return laterMessage(value, gate.initial, gate.pty)
 }
 
-/** A step that changes nothing and sends nothing. */
 function still(state: Segments): Step {
   return { state, frames: [], fault: false, stdin: undefined }
 }
@@ -297,7 +268,6 @@ function advance(step: Step, state: Segments, frames: readonly TerminalFrame[] =
   return { ...step, state, frames: [...step.frames, ...frames] }
 }
 
-/** Bytes as frames of at most `bound` bytes each, in base64. */
 function chunks(
   t: 'data' | 'between',
   leg: string,
@@ -321,7 +291,6 @@ function keepBetween(state: Segments, bytes: Uint8Array, bound: number): Segment
   }
 }
 
-/** The begin sentinel: the bytes kept between segments go first, then `begun` with the count dropped. */
 function begin(step: Step, active: ActiveLeg, bound: number): Step {
   const state = step.state
   return advance(
@@ -340,10 +309,8 @@ function begin(step: Step, active: ActiveLeg, bound: number): Step {
   )
 }
 
-/** Applies one attributed piece of PTY output; a fault when the sentinel order is impossible. */
 function attribute(step: Step, piece: SentinelPiece, config: Initial): Step {
   const active = step.state.active
-  // Every kind returns, so a new kind of piece fails to compile here.
   switch (piece.kind) {
     case 'between':
       return advance(step, keepBetween(step.state, piece.bytes, config.betweenSegmentBytes))
@@ -367,12 +334,10 @@ function attribute(step: Step, piece: SentinelPiece, config: Initial): Step {
   }
 }
 
-/** The segment when it passed its begin sentinel and not yet its end sentinel. */
 function inSegment(active: ActiveLeg | undefined): ActiveLeg | undefined {
   return active?.begun === true && !active.sawEnd ? active : undefined
 }
 
-/** Applies the pieces in order and stops at the first impossible one. */
 function attributeAll(step: Step, pieces: readonly SentinelPiece[], config: Initial): Step {
   let current = step
   for (const piece of pieces) {
@@ -382,7 +347,6 @@ function attributeAll(step: Step, pieces: readonly SentinelPiece[], config: Init
   return current
 }
 
-/** A chunk read from the PTY, attributed to the current segment or to the bytes between segments. */
 export function readOutput(state: Segments, bytes: Uint8Array, config: Initial): Step {
   const scanned = scanSentinels(state.sentinels, bytes)
   return attributeAll(still({ ...state, sentinels: scanned.scan }), scanned.pieces, config)
@@ -396,7 +360,6 @@ type ObservationRecord = Readonly<{
   cwd: string
 }>
 
-/** The first whole record of five NUL-terminated fields, and the bytes after it. */
 function takeRecord(observed: Buffer): { record: ObservationRecord; rest: Buffer } | undefined {
   const fields: string[] = []
   let at = 0
@@ -416,14 +379,12 @@ function opened(step: Step, record: ObservationRecord): Step {
   return advance(step, { ...state, opened: true }, [{ t: 'opened', cwd: record.cwd }])
 }
 
-/** The segment's script starts: from now on the gate writes its standard input into the PTY. */
 function started(step: Step, record: ObservationRecord): Step {
   const active = step.state.active
   if (active === undefined || record.id !== active.id) return faulted(step)
   return { ...advance(step, step.state, [{ t: 'started', leg: record.id }]), stdin: active.stdin }
 }
 
-/** A Bash exit status: one to three digits, 255 at most. */
 function exitCode(code: string): number | undefined {
   return /^\d{1,3}$/u.test(code) && Number(code) <= 255 ? Number(code) : undefined
 }
@@ -431,7 +392,6 @@ function exitCode(code: string): number | undefined {
 function finished(step: Step, record: ObservationRecord): Step {
   const code = exitCode(record.code)
   if (record.id !== step.state.active?.id || code === undefined) return faulted(step)
-  // Other processes left in the scope do not veto completion; only the control channel decides.
   return advance(step, { ...step.state, completion: { code, cwd: record.cwd } })
 }
 
@@ -446,10 +406,6 @@ function observe(step: Step, record: ObservationRecord, generation: string): Ste
   return observationKinds.get(record.kind)?.(step, record) ?? faulted(step)
 }
 
-/**
- * Bytes read from the observation FIFO. Whole records apply in order; the gate fails at the first
- * one that is not possible now, and when the bytes waiting for a whole record pass the bound.
- */
 export function readObservations(state: Segments, bytes: Buffer, config: Initial): Step {
   if (state.observed.length + bytes.length > config.maxControlBytes) return faulted(still(state))
   let step = still({ ...state, observed: Buffer.concat([state.observed, bytes]) })
@@ -479,10 +435,6 @@ export function settle(state: Segments, config: Initial): Step {
   }
 }
 
-/**
- * Starts a segment on an opened shell with no segment running. The nonce comes from the gate; the
- * source ends in NUL, the record separator of the command FIFO.
- */
 export function beginLeg(state: Segments, leg: Leg, nonce: string): LegStart {
   if (!state.opened || state.active !== undefined) return { kind: 'fault' }
   const active: ActiveLeg = { ...leg, nonce, begun: false, sawEnd: false }
@@ -493,7 +445,6 @@ export function beginLeg(state: Segments, leg: Leg, nonce: string): LegStart {
   }
 }
 
-/** The fork function of the node-pty native module, bound to it; undefined when it has none. */
 export function ptyFork(module: unknown): ((...args: unknown[]) => unknown) | undefined {
   const native: unknown = record(module) ? module['native'] : undefined
   const fork: unknown = record(native) ? native['fork'] : undefined
@@ -501,7 +452,6 @@ export function ptyFork(module: unknown): ((...args: unknown[]) => unknown) | un
   return (...args) => Reflect.apply(fork, native, args)
 }
 
-/** The arguments of the native fork: Bash running the driver in the configured terminal. */
 export function forkArguments(config: Initial, paths: DriverPaths, onExit: () => void): unknown[] {
   return [
     '/bin/bash',
@@ -518,7 +468,6 @@ export function forkArguments(config: Initial, paths: DriverPaths, onExit: () =>
   ]
 }
 
-/** The descriptor and process of a forked PTY; undefined when the result has neither. */
 export function ptyHandle(result: unknown): Pty | undefined {
   if (
     !record(result) ||

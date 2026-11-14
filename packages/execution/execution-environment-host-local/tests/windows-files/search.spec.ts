@@ -1,6 +1,3 @@
-// Search and listing against entries the helper cannot read: a file another process holds without
-// sharing, and a name that is not valid UTF-16 (an unpaired surrogate). Neither Node nor the helper
-// can spell such a name, so Windows PowerShell creates and removes it.
 import { execFile } from 'node:child_process'
 import { constants } from 'node:fs'
 import { mkdir, open, readdir, writeFile } from 'node:fs/promises'
@@ -12,7 +9,6 @@ import { request, withFiles } from './fixture.ts'
 
 beforeEach(context => context.skip(process.platform !== 'win32'))
 
-/** libuv's `UV_FS_O_EXLOCK`: Node accepts it on Windows but does not export it in `fs.constants`. */
 const exclusiveLock = 0x1000_0000
 
 it('skips a file held without sharing, marks the search truncated and keeps the other hits', async () => {
@@ -47,7 +43,6 @@ it('skips a file held without sharing, marks the search truncated and keeps the 
   })
 }, 30_000)
 
-/** Runs a .NET file call on `name + U+D800 + suffix` in `directory`, which Node cannot name. */
 async function unpaired(directory: string, action: 'WriteAllText' | 'Delete'): Promise<void> {
   const call = action === 'Delete' ? '[IO.File]::Delete($p)' : "[IO.File]::WriteAllText($p, 'x')"
   const script = `$p = $env:OMNE_DIRECTORY + '\\odd' + [char]0xD800 + '.txt'; ${call}`
@@ -63,7 +58,6 @@ async function unpaired(directory: string, action: 'WriteAllText' | 'Delete'): P
   )
 }
 
-// Slow: it starts Windows PowerShell twice to create and remove the name.
 it(
   'leaves out a name with an unpaired surrogate from list and search, refuses its recursive removal, and refuses such a path',
   { tags: ['slow'], timeout: 60_000 },

@@ -1,5 +1,3 @@
-// Delete, rename and replacement against objects that another process holds open. A handle opened
-// by Node allows reading, writing and deleting; libuv's `UV_FS_O_EXLOCK` opens it without sharing.
 import { constants } from 'node:fs'
 import { mkdir, open, readFile, readdir, writeFile, type FileHandle } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -9,7 +7,6 @@ import { request, withFiles } from './fixture.ts'
 
 beforeEach(context => context.skip(process.platform !== 'win32'))
 
-/** libuv's `UV_FS_O_EXLOCK`: Node accepts it on Windows but does not export it in `fs.constants`. */
 const exclusiveLock = 0x1000_0000
 const exclusive = (path: string) => open(path, constants.O_RDONLY | exclusiveLock)
 

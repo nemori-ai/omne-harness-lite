@@ -15,9 +15,7 @@ export type TerminalConformanceAcquisition = Readonly<{
   executeRequest(terminal: TerminalRef): Parameters<TerminalFacility<unknown>['execute']>[0]
 }>
 export type TerminalConformanceSubject = Readonly<{
-  /** Two independent acquisitions, with legal requests for each. */
   acquisitions: readonly [TerminalConformanceAcquisition, TerminalConformanceAcquisition]
-  /** A controlled leg stays running until a confirmed stop or `finish` observes exit. */
   control?: {
     start(
       acquisition: TerminalConformanceAcquisition,
@@ -175,7 +173,6 @@ async function checkClose(s: TerminalConformanceSubject): Promise<void> {
   await process.result
 }
 
-/** Cases allocate fresh subjects when run. They require no test-only fields on real facilities. */
 export function terminalFacilityConformance(
   options: TerminalConformanceOptions,
 ): readonly ConformanceCase[] {

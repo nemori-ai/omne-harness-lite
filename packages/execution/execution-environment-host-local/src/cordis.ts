@@ -1,4 +1,3 @@
-// PACKAGE_TEMPLATE_DRAFT: The registry Service, the files and command declaration plugins and the host files plugin are in place; the Runtime Context producer plugin and the terminal provider are not yet accepted.
 import { isAbsolute } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import {
@@ -31,7 +30,6 @@ import { terminalSettings, type HostTerminalOptions } from './host-terminal.ts'
 import type { HostFilesDomain } from './host-domain.ts'
 import { createHostFilesProvider, type HostFilesProviderOptions } from './host-provider.ts'
 
-/** A Standard Schema that accepts only an absent or empty configuration. */
 type EmptyConfig = {
   readonly '~standard': {
     readonly version: 1
@@ -55,13 +53,10 @@ const emptyConfig: EmptyConfig = {
   },
 }
 
-/** Configuration of the host files plugin. An absent field takes the provider's initial value. */
 export type HostFilesConfig = Readonly<
   {
     drainBoundMs?: number
-    /** Absolute path of the host files root; kept by the provider for the files side. */
     filesRoot?: string
-    /** Absolute path of the provider's state directory; kept by the provider for the files side. */
     stateDirectory?: string
     terminal?: HostTerminalOptions
   } & HostCommandOptions
@@ -91,7 +86,6 @@ const commandFields = [
   'stopBoundMs',
   'probeRetryMs',
 ] as const
-/** The command options about processes a command leaves behind; the terminal has none of them. */
 const residueNumberFields = ['retainedPerScope', 'retainedPollMs', 'retainedOutputBytes'] as const
 const pathFields = ['filesRoot', 'stateDirectory'] as const
 const numberFields = ['drainBoundMs', ...commandFields, ...residueNumberFields] as const
@@ -130,7 +124,6 @@ function terminalConfig(value: unknown): ConfigResult<HostTerminalOptions> {
   return { value: options }
 }
 
-/** The issue of one host files configuration, or undefined when it is valid. */
 function hostConfigIssue(value: Readonly<Record<string, unknown>>): string | undefined {
   const unknownKey = Object.keys(value).find(key => !hostFields.includes(key))
   if (unknownKey !== undefined) return `configuration has no field ${unknownKey}`
@@ -145,10 +138,6 @@ function hostConfigIssue(value: Readonly<Record<string, unknown>>): string | und
   return commandOptionsIssue(value)
 }
 
-/**
- * Accepts an absent or empty configuration, `drainBoundMs` as a finite number zero or more, the two
- * paths as absolute paths, and the command bounds the provider accepts.
- */
 const hostFilesConfig: HostFilesConfigSchema = {
   '~standard': {
     version: 1,
@@ -192,22 +181,12 @@ type Operation<P, O extends keyof ExecutionEnvironment<P>> = {
   result: ReturnType<ExecutionEnvironment<P>[O]>
 }
 
-/**
- * The `executionEnvironment` Service backed by the Cordis-free registry. Recovery asks the
- * `executionRecoveryAuthority` service, and ordinary access asks the `executionEnvironmentAuthority`
- * and `executionScopeBinding` services, each read from this Service's own load context at the time
- * of each use; without one, the answer is `unavailable`, never a pass. On unload it closes the registry: new leases are refused first, then
- * every provider retires. The unload itself always completes. When the close is pending, the
- * removal throws `RetirementPending` with the resources not yet stopped, and Cordis writes that
- * error to `ctx.logger`; the unload does not fail.
- */
 export class ExecutionEnvironmentRegistry<P> extends ExecutionEnvironmentService<P> {
   static readonly Config = emptyConfig
   private readonly registry: EnvironmentRegistry<P>
 
   constructor(ctx: Context) {
     super(ctx)
-    // Read on each use (IC-9): the authority may come, go or be replaced while the registry runs.
     const recovery: RecoveryAuthority = {
       async authorizeRecovery(access, scope, resources) {
         const authority = ctx.get(executionRecoveryAuthorityKey)
@@ -220,8 +199,6 @@ export class ExecutionEnvironmentRegistry<P> extends ExecutionEnvironmentService
         const port = ctx.get(executionEnvironmentAuthorityKey)
         if (port === undefined) return { kind: 'unavailable' }
         const decision = await port.authorize(access, action)
-        // The Context property carries an unknown principal; the registry reads only the kind and
-        // the current() premise, so the principal is restated as the caller's.
         return decision.kind === 'authorized'
           ? { kind: 'authorized', principal: access.principal, current: () => decision.current() }
           : decision
@@ -290,7 +267,6 @@ export class ExecutionEnvironmentRegistry<P> extends ExecutionEnvironmentService
     return this.registry.recoverResources(...args)
   }
 
-  /** Registers on the caller's fiber: the descriptor goes away when the caller unloads. */
   protected onRegisterFacility<K extends FacilityKey>(
     descriptor: FacilityDescriptor<K>,
   ): ReturnType<ProviderRegistrations['registerFacility']> {
@@ -301,11 +277,6 @@ export class ExecutionEnvironmentRegistry<P> extends ExecutionEnvironmentService
     return () => Promise.resolve(dispose())
   }
 
-  /**
-   * Registers on the caller's fiber: the provider retires when the caller unloads. The returned
-   * removal calls the registry's removal itself, so it can be retried after `RetirementPending`;
-   * the Cordis effect only calls that removal once, when the caller's fiber unloads.
-   */
   protected onRegisterProvider(
     provider: EnvironmentProvider,
   ): ReturnType<ProviderRegistrations['registerProvider']> {
@@ -318,7 +289,6 @@ export class ExecutionEnvironmentRegistry<P> extends ExecutionEnvironmentService
   }
 }
 
-/** Registers the `files` facility declaration on the loading fiber. It registers no provider. */
 export const filesFacilityPlugin = {
   name: 'filesFacility',
   Config: emptyConfig,
@@ -328,7 +298,6 @@ export const filesFacilityPlugin = {
   },
 }
 
-/** Registers the `command` facility declaration on the loading fiber. It registers no provider. */
 export const commandFacilityPlugin = {
   name: 'commandFacility',
   Config: emptyConfig,
@@ -338,7 +307,6 @@ export const commandFacilityPlugin = {
   },
 }
 
-/** Registers the persistent terminal declaration on the loading fiber. */
 export const terminalFacilityPlugin = {
   name: 'terminalFacility',
   Config: emptyConfig,
@@ -348,16 +316,6 @@ export const terminalFacilityPlugin = {
   },
 }
 
-/**
- * Makes the plugin that registers one host files provider of `domain` on the loading fiber. The
- * process host creates the domain once and keeps it; unloading the plugin retires the provider
- * generation, not the domain, so a reloaded plugin sees the original quota use and acquisitions.
- * The `files` and `command` declarations come from `filesFacilityPlugin` and
- * `commandFacilityPlugin`; without one, acquisitions that need it are refused. `drainBoundMs` bounds
- * how long a release, a settlement or the retirement waits for operations in flight; a retirement
- * force-stops the commands this generation still runs. A pending result or a refused start writes
- * one error to `ctx.logger`.
- */
 export function createHostFilesPlugin(domain: HostFilesDomain) {
   return {
     name: 'hostFiles',

@@ -40,7 +40,6 @@ import {
 import { createHostFilesDomain as createSourceDomain } from '../src/host-domain.ts'
 import type { HostFilesProviderOptions } from '../src/host-provider.ts'
 
-// Records the options each host files provider is created with; the provider itself is the real one.
 const created = vi.hoisted((): { options: unknown[] } => ({ options: [] }))
 
 vi.mock('../src/host-provider.ts', async importOriginal => {
@@ -54,7 +53,6 @@ vi.mock('../src/host-provider.ts', async importOriginal => {
   }
 })
 
-/** A host files plugin over a fresh domain, as an assembly root would create once. */
 function hostPlugin() {
   return createHostFilesPlugin(createHostFilesDomain())
 }
@@ -323,8 +321,6 @@ it('reads the recovery authority service on each recovery, and answers unavailab
   expect(await service.releaseScope(scope('scope-1'), recoveryAccess)).toEqual(unavailable)
 
   const authority = await ctx.plugin(Authority)
-  // Recovery authorization succeeds even when Windows, or macOS without a state directory, cannot
-  // enumerate all cold resources.
   expect(await service.recoverOwned(scope('scope-1'), recoveryAccess)).toMatchObject({
     kind: 'recovered',
     stopped: [],
@@ -469,7 +465,6 @@ it('accepts only an absent, null or empty configuration on the Service and the d
   const ctx = new Context()
   await testPorts(tenant).load(ctx)
   await ctx.plugin(ExecutionEnvironmentRegistry)
-  // The typed overload forbids the bad configuration; an assembly reading a plugin tree does not.
   const loading: unknown = Reflect.apply(ctx.plugin, ctx, [filesFacilityPlugin, { extra: true }])
   await expect(Promise.resolve(loading)).rejects.toBeDefined()
   expect(await serviceOf(ctx).resolvePlacement(access, filesPlacement)).toMatchObject({
@@ -531,7 +526,6 @@ it('answers unavailable for ordinary access while the two access port services a
   expect(await service.describe(access, scope('scope-1'))).toEqual(unavailable)
   const ports = testPorts(tenant)
   const authority = await ctx.plugin(ports.Authority)
-  // The authority alone is not enough: the trusted binding source is still absent.
   expect(await service.resolvePlacement(access, filesPlacement)).toEqual(unavailable)
   await ctx.plugin(ports.Bindings)
   expect(await service.resolvePlacement(access, filesPlacement)).toMatchObject({
@@ -638,7 +632,6 @@ it('accepts the residue policy and the retained-process counts of the command, a
     expect(validate({ residuePolicy: policy })).toStrictEqual({ value: { residuePolicy: policy } })
   const counted = { retainedPerScope: 3, retainedPollMs: 500, retainedOutputBytes: 0 }
   expect(validate(counted)).toStrictEqual({ value: counted })
-  // A configuration without a policy carries no `residuePolicy` key, not even an undefined one.
   expect(validate({ stopBoundMs: 100 })).toStrictEqual({ value: { stopBoundMs: 100 } })
   expect(validate({ ...counted, residuePolicy: 'stop', stopBoundMs: 100 })).toEqual({
     value: { ...counted, residuePolicy: 'stop', stopBoundMs: 100 },
@@ -662,7 +655,6 @@ it('accepts the residue policy and the retained-process counts of the command, a
 
 it('hands the residue policy and the retained-process counts to the provider as command options', async () => {
   created.options.length = 0
-  // No tool on PATH: the platform probe of each provider stops at once and starts no scope.
   const realPath = process.env['PATH']
   const empty = await realpath(await mkdtemp(join(tmpdir(), 'omne-no-tools-')))
   roots.push(empty)
@@ -689,7 +681,6 @@ async function handsOver() {
   }
   loaded.push(await ctx.plugin(createSourcePlugin(createSourceDomain()), config))
   expect(created.options).toMatchObject([{ command: config }])
-  // A field the configuration leaves out is not handed over as an option of its own.
   created.options.length = 0
   loaded.push(await ctx.plugin(createSourcePlugin(createSourceDomain()), {}))
   expect(created.options).toHaveLength(1)

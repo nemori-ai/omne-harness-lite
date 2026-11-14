@@ -1,7 +1,3 @@
-// One Windows files backend with and without a files root (B-1, B-3, B-4 of the Windows files
-// backend in SPEC): `read` and `stat` without a root run in the files helper, path forms outside the
-// supported range answer by whether a root is configured, a `.` segment is as if not written, and
-// `hostObjectToken` gives the token the backend checks.
 import type { ChildProcess } from 'node:child_process'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -42,7 +38,6 @@ vi.mock('node:child_process', async importOriginal => {
 
 beforeEach(context => context.skip(process.platform !== 'win32'))
 
-/** The frames written to the files helper for `operation` that carry `name`. */
 const framesOf = (operation: string, name: string) =>
   seen.frames.filter(
     frame => frame.includes(`"operation":"${operation}"`) && frame.includes(JSON.stringify(name)),

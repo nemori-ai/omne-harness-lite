@@ -1,8 +1,3 @@
-// Fast: the macOS command manager with the real gate and a stand-in session reader
-// (`fake-reader.ts`), on any POSIX host. The stand-in decides what the reader answers, so a test
-// can make a start meet each refusal, make the gate report leftovers or an unread count, and make a
-// stop unconfirmed. Every test ends with every gate and command it started gone by pid. The same
-// code on the real kernel is in commands.spec.ts.
 import { chmod, mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -41,22 +36,15 @@ import {
   terminalLedger,
 } from './fixture.ts'
 
-/** The stand-in reader is a POSIX shell script; Windows has neither it nor sessions. */
 const posixOnly = { skip: process.platform === 'win32' }
 const bootId = 'B6C8C544-54F8-4C43-967D-A47FD7BEBA7D'
 
 let fake: FakeReader
-/** The reader the manager and its gates use: `frontScript` before the stand-in. */
 let front = ''
 let state = ''
 let cwd = ''
 const managers: HostCommands[] = []
 
-/**
- * The reader in front of the stand-in. With `identity.other` in the stand-in's directory, an
- * identity asked by anyone but the process itself names another session; the gate's own check
- * still passes.
- */
 const frontScript = (directory: string, reader: string) => `#!/bin/sh
 if [ "$1" = identity ] && [ -f '${directory}/identity.other' ] && [ "$PPID" != "$2" ]; then
   echo '999999 1 1'
@@ -65,13 +53,11 @@ fi
 exec '${reader}' "$@"
 `
 
-/** Every gate the stand-in was asked about; a gate asks its own identity before it reads a line. */
 async function gatePids(): Promise<number[]> {
   const calls = await fake.calls()
   return [...new Set(calls.filter(call => call[0] === 'identity').map(call => Number(call[1])))]
 }
 
-/** The pids the commands of a test wrote: each script writes `$$` to a file named `pid*`. */
 async function commandPids(): Promise<number[]> {
   const names = (await readdir(cwd)).filter(name => name.startsWith('pid'))
   return (await Promise.all(names.map(name => pidsIn(join(cwd, name))))).flat()
@@ -91,8 +77,6 @@ afterEach(async () => {
   await Promise.all((['stop', 'stop.fail', 'members', 'members.fail'] as const).map(fake.clear))
   await Promise.all(managers.splice(0).map(manager => manager.stopAll()))
   const pids = [...(await gatePids()), ...(await commandPids())]
-  // Clean-up only: a hook that fails would hide the cases' own verdicts, so the cases assert
-  // that their processes are gone, and this kills what is left.
   const stopped = await eventually(() => noneRunning(pids), 2_500).then(
     () => true,
     () => false,
@@ -103,7 +87,6 @@ afterEach(async () => {
 })
 
 type Setup = Readonly<{
-  /** Replaces ledger operations; the base ledger records plans and stops. */
   ledger?: (base: ResourceLedger) => Partial<ResourceLedger>
   options?: HostCommandOptions
   retention?: 'unbound' | 'otherScope'
@@ -130,8 +113,6 @@ function manager(setup: Setup = {}) {
       ...(setup.retention === 'unbound' ? {} : { processes: processes.ledger }),
       released: released.signal,
     },
-    // Bounds short enough that a broken manager fails a case in seconds, wide enough for a gate
-    // to start on a loaded host: the stand-in reader answers at once.
     settings: commandSettings({
       startBoundMs: 3_000,
       stopBoundMs: 1_500,
@@ -162,7 +143,6 @@ function manager(setup: Setup = {}) {
   }
 }
 
-/** A command that writes its pid to `name` and then runs until it is stopped. */
 const runs = (name = 'pid') => request(cwd, `echo $$ > ${name}; exec /bin/sleep 30`)
 
 async function runningPid(name = 'pid'): Promise<number> {
@@ -172,10 +152,6 @@ async function runningPid(name = 'pid'): Promise<number> {
   return pid
 }
 
-/**
- * True once none of the pids runs. A killed command is reparented and stays a zombie until its new
- * parent reaps it; a container's init may never reap it, so on Linux a zombie counts as gone.
- */
 async function noneRunning(pids: readonly number[]): Promise<boolean> {
   const states = await Promise.all(
     pids.map(async pid => {
@@ -335,9 +311,6 @@ describe('a start past its bound', posixOnly, () => {
   })
 
   it('answers unknown when GO went out but the gate did not report started in time', async () => {
-    // The bound covers the gate's own start, so it is wide enough for a loaded host. The permit
-    // holds the gate stopped and answers only after the bound passed: GO goes out with no time
-    // left, and the stopped gate cannot report started meanwhile.
     let held = 0
     const startBoundMs = 2_000
     const { command, commands, own, resource } = manager({
@@ -374,7 +347,6 @@ describe('the residue after the exit', posixOnly, () => {
     })
     await eventually(() => own.stopped.length === 1, 2_500)
     expect(own.stopped).toEqual([[resource().key, 'confirmed']])
-    // The marker goes after the stop was recorded, not in the same step.
     await eventually(async () => (await marker()) === 'absent', 2_500)
     await allGone()
   })
@@ -395,7 +367,6 @@ describe('the residue after the exit', posixOnly, () => {
       expect(outcome).toMatchObject({ kind: 'completed', residue: { kind: 'stopping', reason } })
       await eventually(() => own.stopped.length === 1, 2_500)
       expect(own.stopped).toEqual([[resource().key, 'confirmed']])
-      // The marker goes after the stop was recorded, not in the same step.
       await eventually(async () => (await marker()) === 'absent', 2_500)
       await allGone()
     },

@@ -16,7 +16,6 @@ import type {
 } from '@omne-harness/execution-environment-contract'
 import { sameBinding } from './compare.ts'
 
-/** The registry's stored form of a facility descriptor. */
 export type StoredDescriptor = Readonly<{
   key: FacilityKey
   operations: readonly string[]
@@ -27,13 +26,9 @@ export type LeaseViewHooks = Readonly<{
   tenant: TenantId
   origin: OriginRef
   placement: Placement
-  /** The acquisition ledger's `closed` signal. The gate is the one entry of every facility operation. */
   ledgerClosed: AbortSignal
-  /** The acquisition carries a retention scope and its terminal ledger. */
   retentionEnabled: boolean
-  /** The retention also carries the retained-process ledger. */
   processRetentionEnabled: boolean
-  /** Read on every operation, so a removed declaration refuses operations on objects already handed out. */
   descriptor: (key: FacilityKey) => StoredDescriptor | undefined
   invalidated: (invalidation: LeaseInvalidation) => void
   releasing: () => void
@@ -53,8 +48,6 @@ function requestIdOf(value: unknown): string {
   return isRecord(value) && typeof value['requestId'] === 'string' ? value['requestId'] : ''
 }
 
-// The principal is opaque to the environment: it is passed on to the guard and never interpreted,
-// so the check covers the parts the environment itself reads.
 function isFacilityRequest<P>(value: unknown): value is FacilityRequest<P> {
   if (!isRecord(value)) return false
   const access = value['access']
@@ -85,12 +78,6 @@ type Presence = 'required' | 'optional'
 const byPresence = (operations: Readonly<Record<string, Presence>>, presence: Presence) =>
   Object.keys(operations).filter(operation => operations[operation] === presence)
 
-/**
- * The retention extensions the registry hands out. Each entry names every operation of its contract
- * extension, so an operation added to the contract fails to compile here instead of going missing
- * from the extension the registry hands out. The extension is handed out only when the provider has
- * every required operation; an optional one is handed out when the provider has it.
- */
 const retentionPresence = {
   terminal: { attach: 'required', detach: 'required' } satisfies Record<
     TerminalRetentionOperation,
@@ -128,7 +115,6 @@ function supportsRetention(key: RetainingKey, facility: object, enabled: boolean
   )
 }
 
-/** The operations of the provider's extension that the handed-out extension forwards. */
 function handedOperations(
   key: RetainingKey,
   extension: Readonly<Record<string, unknown>>,
@@ -137,19 +123,11 @@ function handedOperations(
   return [...required, ...optional.filter(operation => typeof extension[operation] === 'function')]
 }
 
-/**
- * Wraps a provider lease. Only keys of the requirement resolve. Every operation of the facility
- * descriptor first checks that the lease still admits operations and the acquisition ledger is
- * still open, that the declaration is still
- * registered, that the request belongs to the acquiring tenant and names the lease's binding; a
- * guarded operation then asks the `FacilityGuard` before the provider facility runs.
- */
 export function createLeaseView<P>(
   raw: EnvironmentLease,
   guard: FacilityGuard<P>,
   hooks: LeaseViewHooks,
 ): LeaseView {
-  // `admitting` closes the entry for new operations; `valid` records the one invalidation.
   let admitting = true
   let valid = true
   let settleInvalidated: (value: LeaseInvalidation) => void = () => undefined
@@ -163,14 +141,12 @@ export function createLeaseView<P>(
     hooks.invalidated(invalidation)
     settleInvalidated(invalidation)
   }
-  // A provider cannot speak for the registry: whatever it reports is recorded as its own reason.
   raw.invalidated.then(
     value => invalidate({ source: 'provider', reason: value.reason }),
     () => invalidate({ source: 'registry', reason: 'providerInvalidated' }),
   )
 
   const allowed = new Set<FacilityKey>(hooks.placement.requirement.facilities)
-  // A new operation starts only while the lease admits and the acquisition ledger is open.
   const accepting = () => admitting && !hooks.ledgerClosed.aborted
 
   const gate = async (
@@ -278,8 +254,6 @@ export function createLeaseView<P>(
     },
     release() {
       if (releasedOnce) return Promise.resolve({ kind: 'released' })
-      // Releasing closes the entry first: whether the release ends released, pending or is still
-      // running, no new operation starts on this lease.
       admitting = false
       releasing ??= (async (): Promise<LeaseRelease> => {
         hooks.releasing()

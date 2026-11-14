@@ -1,9 +1,3 @@
-/**
- * Writes and copies stage a new object beside the target, flush it and then publish it under the
- * target name: a create does not replace, a replacement checks the named target once more just
- * before the rename. Until the publication the target is as it was, so a failure is a refusal once
- * the staged object is removed again, and unknown while it may remain.
- */
 export const nativeWrite = String.raw`
 public static partial class OmneFiles {
   [DllImport("kernel32.dll", SetLastError=true)] static extern bool WriteFile(IntPtr handle,IntPtr bytes,uint count,out uint written,IntPtr overlapped);

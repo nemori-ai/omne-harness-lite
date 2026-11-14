@@ -1,5 +1,3 @@
-// Test doubles shared by the registry tests: tenants, scopes, a ledger, guards and a scripted
-// provider whose answers each test chooses. None of them touches machine resources.
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type {
   ScopeBinding,
@@ -89,7 +87,6 @@ export const ledger: ResourceLedger = {
 export const allow: FacilityGuard<string> = { authorize: async () => 'authorized' }
 export const recovery: RecoveryAuthority = { authorizeRecovery: async () => 'authorized' }
 
-/** An environment authority that authorizes every action until a test revokes it. */
 export function openAuthority() {
   let revision = 0
   const calls: Parameters<EnvironmentAuthority<string>['authorize']>[1][] = []
@@ -108,10 +105,6 @@ export function openAuthority() {
   })
 }
 
-/**
- * A trusted binding source for tests. Every scope is bound to tenant A unless a test binds it to
- * another tenant or scripts another answer.
- */
 export function bindingTable() {
   const table = new Map<string, ScopeBinding>()
   const source: ScopeBindingSource = {
@@ -129,17 +122,14 @@ export function bindingTable() {
   })
 }
 
-/** The scope bound to tenant B by `openPorts`. */
 export const scopeB = scope('scope-b')
 
-/** Open access ports: every action authorized; every scope bound to tenant A except `scopeB`. */
 export function openPorts() {
   const bindings = bindingTable()
   bindings.bind(scopeB, tenantB)
   return { authority: openAuthority(), bindings }
 }
 
-/** The local query of one acquisition key. */
 export function local(acquisition: string) {
   return { kind: 'local', acquisition: acquisitionRef(acquisition) } as const
 }
@@ -170,7 +160,6 @@ export function commandStub(calls: Calls): CommandFacility<unknown> {
   }
 }
 
-/** Answers a test may script. Anything not given behaves as a healthy provider. */
 export type Script = {
   name?: string
   generation?: string
@@ -184,10 +173,8 @@ export type Script = {
   continuity?: EnvironmentContinuity
   keys?: readonly FacilityKey[]
   isolation?: readonly IsolationClaim[]
-  /** Facilities the lease hands out; defaults to a command stub for `command`. */
   facilities?: Partial<EnvironmentFacilities>
   acquire?: (input: ProviderAcquireInput) => Promise<ProviderAcquisition>
-  /** Binding the receipt claims; defaults to the placement's binding. */
   receiptBinding?: EnvironmentBinding
   release?: () => Promise<LeaseRelease>
   retire?: () => Promise<Retirement>
@@ -199,9 +186,7 @@ export type Script = {
 
 export type Scripted = EnvironmentProvider & {
   readonly calls: Calls
-  /** Settles every lease this provider handed out, as the provider itself would. */
   invalidateLeases(value: LeaseInvalidation): void
-  /** Ends every lease's invalidation notice with a rejection. */
   breakLeases(): void
 }
 
@@ -218,7 +203,6 @@ export function scriptedProvider(script: Script = {}): Scripted {
     listAcquisitions: 0,
     settle: 0,
   }
-  // The double's original record, keyed by acquisition key; enough for registry tests only.
   const held = new Map<
     string,
     { original: OriginalAcquisition; lease: EnvironmentLease; open: boolean }
@@ -371,7 +355,6 @@ export function requirement(
   return { allowedBindings, facilities: facilityKeys, isolation }
 }
 
-/** A registry with `command` declared and the given providers registered. */
 export function registryWith(
   providers: readonly EnvironmentProvider[],
   authority: RecoveryAuthority = recovery,
@@ -388,7 +371,6 @@ export function registryWith(
   return registry
 }
 
-/** A placement input of the requester's scope, `scope-1` unless a test names another. */
 export function want(wanted: EnvironmentRequirement, requester: ScopeRef = scope1): PlacementInput {
   return { scope: requester, requirement: wanted }
 }
@@ -404,7 +386,6 @@ export async function placed(
   return placement
 }
 
-/** The requester's scope defaults to the scope the placement's layer names, else `scope-1`. */
 export function acquireInput(
   placement: Placement,
   key = 'acq-1',
@@ -459,7 +440,6 @@ export function commandOf(lease: EnvironmentLease): CommandFacility<unknown> {
   return command
 }
 
-/** A promise with its settle functions, for interleavings a test controls. */
 export function deferred<T>() {
   let resolve: (value: T) => void = () => undefined
   const promise = new Promise<T>(settle => {
@@ -468,7 +448,6 @@ export function deferred<T>() {
   return { promise, resolve }
 }
 
-/** The stored state of a local query when known; any other answer as it is. */
 export async function stateOf(
   registry: EnvironmentRegistry<string>,
   access: Access<string>,
