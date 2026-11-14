@@ -62,6 +62,7 @@ import {
 } from './loop/coordinator.ts'
 import { agentEvidence } from './loop/identities.ts'
 import { modelRetryEntry } from './loop/model-retry.ts'
+import { reconciliationPacer } from './loop/reconciliation.ts'
 import { createControlWriter } from './control.ts'
 import type { AgentMeasurer } from './measure.ts'
 import type {
@@ -221,7 +222,7 @@ export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   binding: AgentRuntimeBinding
   configuration: Pick<
     AgentConfiguration,
-    'reconciliationDelayMs' | 'toolConcurrency' | 'jointCommits' | 'maxRunSteps' | 'modelRetry'
+    'reconciliationDelaysMs' | 'toolConcurrency' | 'jointCommits' | 'maxRunSteps' | 'modelRetry'
   >
   guard: AccessGuard<P>
   dependencies: AgentDependencies<P, B>
@@ -550,6 +551,7 @@ export function createProvider<P, B extends ContentBlock>(
   ): void {
     const own: Driving = { wait: null, asked: null }
     driving = own
+    const pacer = reconciliationPacer(entry.configuration.reconciliationDelaysMs)
     /** The handover quiesce asked for, made between a pass and a wait. True: the slot is free. */
     const handOver = async (): Promise<boolean> => {
       const asked = own.asked
@@ -575,10 +577,7 @@ export function createProvider<P, B extends ContentBlock>(
             const controller = new AbortController()
             own.wait = controller
             const wake = await coordinator
-              .waitForWake({
-                reconciliationDelayMs: entry.configuration.reconciliationDelayMs,
-                signal: controller.signal,
-              })
+              .waitForWake({ pacer, signal: controller.signal })
               .finally(() => {
                 own.wait = null
                 controller.abort()

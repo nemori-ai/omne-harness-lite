@@ -50,7 +50,12 @@ export type AgentRuntimeBinding = Readonly<{
 /** The validated, serializable configuration; see public-api.md "工厂配置". */
 export type AgentConfiguration = Readonly<{
   observerBufferBytes: number
-  reconciliationDelayMs: number
+  /**
+   * The check delays of a wait: after the n-th check-time wake in a row at an unchanged revision the
+   * wait checks after the n-th item, after the last item once the list is used up; a new revision
+   * or an event wake starts over. Non-empty.
+   */
+  reconciliationDelaysMs: readonly number[]
   reconciliationBatchLimit: number
   denialBackoffMs: number
   toolConcurrency: number

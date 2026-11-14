@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Retry policy parsing, a pure retry decision with injected jitter, and a thin executor over injected time and waiting",
+  "description": "Retry policy parsing and a pure retry decision with injected jitter",
   "engines": {
     "node": ">=24"
   },

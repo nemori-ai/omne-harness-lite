@@ -2,10 +2,9 @@
 // `node apps/desktop/dist/web-host/bin.js [--server <origin>] [--port <port>]`: starts the web host
 // on 127.0.0.1 and serves the built page from `dist/page`.
 import { fileURLToPath } from 'node:url'
-import { identityProtocol } from '@omne-harness/identity-protocol'
 import { accessProtocol } from '@omne-harness/public-contract'
-import { sessionProtocol } from '@omne-harness/session-protocol'
 import { httpServer, memoryCredentialStore, openLoginSession } from '../main-core/index.ts'
+import { domainProtocols } from '../shared/protocols.ts'
 import { readConfig } from './config.ts'
 import { createWebHost } from './server.ts'
 
@@ -18,7 +17,7 @@ const { config } = read
 const session = await openLoginSession({
   connect: httpServer(config.server),
   store: memoryCredentialStore(),
-  contracts: [accessProtocol, identityProtocol, sessionProtocol],
+  contracts: [accessProtocol, ...domainProtocols],
 })
 const host = createWebHost({
   session,

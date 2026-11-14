@@ -288,7 +288,7 @@ function agentHostOperatorConfig(): Record<string, unknown> {
     jointCommits: row.config['jointCommits'],
     coordination: row.config['coordination'],
     observerBufferBytes: 65_536,
-    reconciliationDelayMs: 0,
+    reconciliationDelaysMs: [0],
     reconciliationBatchLimit: 8,
     denialBackoffMs: 0,
     toolConcurrency: 1,

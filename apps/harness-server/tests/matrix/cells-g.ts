@@ -395,4 +395,97 @@ export const gCells: readonly Cell[] = [
       for (const one of held) one.open()
     },
   },
+  {
+    id: 'G-多租户/协议',
+    block: 'G',
+    layer: 'protocol',
+    run: async tools => {
+      const from = Date.now()
+      const held = Array.from({ length: CROWD_TENANTS }, () => gate())
+      /** The session of each sent text, so that a call at the provider names its run. */
+      const sessions = new Map<string, string>()
+      let quietFrom = 0
+      try {
+        for (const [index, one] of held.entries()) {
+          const other = await signedIn(tools)
+          const session = await other.createSession()
+          tools.stub.push({ kind: 'hold', gate: one, after: { kind: 'reply', text: 'crowd' } })
+          const text = `g-crowd hold ${String(index + 1)}`
+          const sent = await other.send(session, text)
+          tools.check('input accepted', sent === 'succeeded', sent)
+          sessions.set(text, session)
+        }
+        // The Model holds at most a set number of sends in flight and queues the rest in its own
+        // records, so only some of the calls reach the provider while the runs are held.
+        const arrived = await waitArrivals(tools, 1, 'a run reached the provider')
+        tools.check('calls reached the provider', arrived, String(tools.stub.arrivals().length))
+        quietFrom = Date.now()
+        await tools.sleep(CROWD_QUIET_MS)
+        tools.note(`${String(tools.stub.arrivals().length)} calls at the provider while held`)
+        tools.note(`readWork per 5 s up to the newcomer: ${readsPerWindow(tools, from).join(' ')}`)
+        const newcomer = tools.driver()
+        const registered = await newcomer.register()
+        tools.check('the newcomer registers', registered === 'succeeded', registered)
+        const own = await newcomer.createSession()
+        tools.check('the newcomer creates a session', own.length > 0)
+        tools.stub.push({ kind: 'reply', text: 'newcomer' })
+        sessions.set('g-crowd newcomer', own)
+        const sent = await newcomer.send(own, 'g-crowd newcomer')
+        tools.check('the newcomer input accepted', sent === 'succeeded', sent)
+        const listed = await newcomer.listSessions()
+        tools.check('the newcomer lists its session', listed.sessions.includes(own), listed.outcome)
+        // One call at a time, in the order the calls reached the provider: the Model sends the
+        // queued calls as earlier ones end, so a call that has not arrived waits for an earlier one.
+        for (let step = 0; step < sessions.size; step += 1) {
+          const mark = tools.env.mark()
+          const arrived = await tools.stub.waitArrivals(step + 1, TURN_MS)
+          const text = tools.stub.arrivals()[step]?.lastUserText ?? ''
+          held[step]?.open()
+          const session = sessions.get(text)
+          const log =
+            arrived && session !== undefined
+              ? await tools.waitLog(session, 'run terminal', settled, TURN_MS)
+              : null
+          const done = log?.terminals[0] === 'completed'
+          tools.check('the run completed', done, `call ${String(step + 1)} (${text})`)
+          if (!done)
+            tools.note(
+              `call ${String(step + 1)} (${text}) arrived ${String(arrived)} started ${String(log?.started)} ended ${JSON.stringify(log?.terminals)}: ${warningsSince(tools, mark)}`,
+            )
+        }
+      } finally {
+        for (const one of held) one.open()
+        tools.note(`${String(sessions.size)} sessions`)
+        if (quietFrom > 0)
+          tools.note(`quiet from window ${String(Math.floor((quietFrom - from) / WINDOW_MS))}`)
+        tools.note(`omne.session.readWork per 5 s: ${readsPerWindow(tools, from).join(' ')}`)
+      }
+    },
+  },
 ]
+
+const CROWD_TENANTS = 24
+const CROWD_QUIET_MS = 20_000
+const WINDOW_MS = 5000
+
+/** The warnings of the server since `mark`, the most frequent first, with their counts. */
+function warningsSince(tools: CellTools, mark: number): string {
+  const counts = new Map<string, number>()
+  for (const line of tools.env.warnings(mark)) counts.set(line, (counts.get(line) ?? 0) + 1)
+  return [...counts.entries()]
+    .sort((one, other) => other[1] - one[1])
+    .slice(0, 4)
+    .map(([line, count]) => `${String(count)}x ${line.slice(0, 160)}`)
+    .join(' | ')
+}
+
+/** The snapshot reads of the session per 5 s window since `from`. */
+function readsPerWindow(tools: CellTools, from: number): number[] {
+  const counts: number[] = []
+  for (const record of tools.env.records()) {
+    if (record.name !== 'omne.session.readWork' || typeof record['time'] !== 'string') continue
+    const slot = Math.floor((Date.parse(record['time']) - from) / WINDOW_MS)
+    if (slot >= 0) counts[slot] = (counts[slot] ?? 0) + 1
+  }
+  return Array.from(counts, count => count ?? 0)
+}

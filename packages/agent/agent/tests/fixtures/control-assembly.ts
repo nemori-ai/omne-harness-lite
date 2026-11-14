@@ -40,7 +40,10 @@ export async function controlAssembly(
   controls.selection.select.always(() => ({ ok: selected }))
   const assembled = wrap(dependencies)
   const provider = ok(
-    await createAgentRuntime(assembled, options({ reconciliationDelayMs: 1000, ...configuration })),
+    await createAgentRuntime(
+      assembled,
+      options({ reconciliationDelaysMs: [1000], ...configuration }),
+    ),
   )
   return { provider, dependencies: assembled, controls }
 }

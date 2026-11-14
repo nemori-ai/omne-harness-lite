@@ -187,7 +187,7 @@ W0 commits waiting state and one waiting event together (J2).
 It preserves the checkpoint position and yields one drive segment. The provider owns one serial driver.
 The driver starts Journal observation, then rereads the snapshot and original slots. Model admission reconciliation is used only for an unresolved admission.
 The observation starts at the event cursor that the coordinator knows exactly from its last `load` and its own later commits, so each entry into W0 reads the snapshot at most once (AG-03 R6.5). Without that cursor, the driver reads a baseline first.
-Only unchanged progress sleeps until the configured `reconciliationDelayMs` check time through `AgentClock`.
+Only unchanged progress sleeps until the configured `reconciliationDelaysMs` check time through `AgentClock`.
 A notification or elapsed check time returns through E1. Neither proves settlement or nonexecution.
 The execution keeps its slot, and `observe` shows occupied.
 The local wait aborts and joins its observations and timer before returning. It sends no producer control and releases no business responsibility.

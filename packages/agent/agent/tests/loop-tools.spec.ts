@@ -278,7 +278,7 @@ describe('tool result round', () => {
 
   it('commits nothing when a wake finds the Tool calls still open (D-104)', async () => {
     // 复查间隔为 0，与发行树相同：每次等待立刻唤醒。
-    const assembly = await toolAssembly({ toolConcurrency: 1, reconciliationDelayMs: 0 })
+    const assembly = await toolAssembly({ toolConcurrency: 1, reconciliationDelaysMs: [0] })
     let attempts = 0
     assembly.controls.tools.invoke.always(async () => {
       attempts += 1

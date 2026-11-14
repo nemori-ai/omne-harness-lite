@@ -1,5 +1,6 @@
 // The login session (SPEC.md「登录会话」). One case per reachable cell of the table, named
-// 「事件 × 状态」; then the refusal of credential-carrying operations and the probe.
+// 「事件 × 状态」; then the refusal of credential-carrying operations and of undeclared targets,
+// and the probe.
 import { describe, expect, it } from 'vitest'
 import type { LoginState } from '@omne-harness/client-assembly/cordis'
 import { identityProtocol } from '@omne-harness/identity-protocol'
@@ -19,6 +20,7 @@ import {
   answered,
   fakeServer,
   gate,
+  issued,
   settle,
   value,
   type FakeServer,
@@ -149,6 +151,17 @@ describe('登录会话全化表', () => {
     expect(t.states).toEqual(['signing-in', 'signed-out', 'signing-in', 'signed-out'])
   })
 
+  it('登录的调用抛错 × 登录中：回「未登录」，错误原样抛出，下一次登录照常', async () => {
+    const t = await open()
+    t.server.answer('identity/v1 issue-login', () => {
+      throw new Error('transport broke')
+    })
+    await expect(t.session.login(CREDENTIALS)).rejects.toThrow('transport broke')
+    expect(t.states).toEqual(['signing-in', 'signed-out'])
+    t.server.answer('identity/v1 issue-login', () => issued())
+    expect(await t.session.login(CREDENTIALS)).toBe('signed-in')
+  })
+
   it('页面请求退出 × 未登录：直接答「已经退出」', async () => {
     const t = await open()
     expect(await t.session.logout()).toBe('signed-out')
@@ -214,6 +227,16 @@ describe('登录会话全化表', () => {
     u.revoke.open(answered('denied'))
     expect(await u.logout).toBe('unknown')
     expect(u.session.state()).toBe('signed-out')
+  })
+
+  it('注销的调用抛错 × 退出中：仍然删掉本机的登录证明，进「未登录」，错误原样抛出', async () => {
+    const t = await open({ signedIn: true })
+    t.server.answer('identity/v1 revoke-login', () => {
+      throw new Error('transport broke')
+    })
+    await expect(t.session.logout()).rejects.toThrow('transport broke')
+    expect(t.session.state()).toBe('signed-out')
+    expect(await t.store.read()).toBeUndefined()
   })
 
   it('身份协议明确答复登录已失效 × 未登录：不变', async () => {
@@ -297,11 +320,9 @@ describe('登录会话全化表', () => {
     const t = await open({ signedIn: true })
     await call(t.session, 'create-session')
     await call(t.session, 'register-and-activate', IDENTITY)
-    await call(t.session, 'unknown-operation', { name: 'elsewhere', major: 1 })
     expect(t.server.seen.map(item => item.credentials)).toEqual([
       { proof: PROOF_SENTINEL, tenant: TENANT_TEXT },
       {},
-      { proof: PROOF_SENTINEL, tenant: TENANT_TEXT },
     ])
   })
 
@@ -330,6 +351,44 @@ describe('页面的调用不转发带凭据的操作', () => {
     // An operation of the same contract without the mark goes out.
     await call(t.session, 'register-and-activate', IDENTITY)
     expect(targets(t.server)).toEqual(['identity/v1 register-and-activate'])
+  })
+})
+
+describe('页面的调用只转发宿主认识的契约声明的目标', () => {
+  it('宿主不认识的协议答「没发出」，不经服务端', async () => {
+    const t = await open({ signedIn: true })
+    expect(await call(t.session, 'read-history', { name: 'elsewhere', major: 1 })).toEqual({
+      kind: 'not-sent',
+    })
+    expect(await call(t.session, 'read-history', { name: 'session', major: 2 })).toEqual({
+      kind: 'not-sent',
+    })
+    expect(t.server.seen).toEqual([])
+  })
+
+  it('没有声明的操作答「没发出」：带路径的操作名到不了签发登录', async () => {
+    const t = await open({ signedIn: true })
+    const elsewhere = { name: 'elsewhere', major: 1 }
+    t.server.answer('elsewhere/v1 ../../identity/v1/issue-login', () => issued())
+    expect(await call(t.session, '../../identity/v1/issue-login', elsewhere)).toEqual({
+      kind: 'not-sent',
+    })
+    expect(await call(t.session, '../v1/issue-login', IDENTITY)).toEqual({ kind: 'not-sent' })
+    expect(await call(t.session, 'no-such-operation')).toEqual({ kind: 'not-sent' })
+    expect(t.server.seen).toEqual([])
+  })
+
+  it('没有声明的观察答「没发出」', async () => {
+    const t = await open({ signedIn: true })
+    const frames = t.session.transport.observe({
+      protocol: SESSION,
+      observation: 'observe-elsewhere',
+      messageId: 'm-3',
+      open: value({}),
+      signal: new AbortController().signal,
+    })
+    expect(await frames.next()).toEqual({ done: true, value: { kind: 'not-sent' } })
+    expect(t.server.seen).toEqual([])
   })
 })
 

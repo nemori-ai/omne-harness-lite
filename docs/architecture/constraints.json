@@ -450,6 +450,14 @@
       "source": "packages/assets/assets-access/SPEC.md"
     },
     {
+      "id": "packages/assets/assets-ui",
+      "paths": ["packages/assets/assets-ui/src/**"],
+      "layer": "unknown",
+      "domains": ["assets"],
+      "status": "candidate",
+      "source": "packages/assets/assets-ui/SPEC.md"
+    },
+    {
       "id": "packages/common/stream-arrival",
       "paths": ["packages/common/stream-arrival/src/**"],
       "layer": "contract",
@@ -902,77 +910,6 @@
       "from": ["packages/mcp/mcp-cordis-contract"],
       "to": ["packages/mcp/mcp", "packages/mcp/mcp-host-local"],
       "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
-    }
-  ],
-  "groupCycleExceptions": [
-    {
-      "id": "GCX-CONTEXT-TOOL",
-      "edges": [
-        { "from": "packages/context/request-context-contract", "to": "packages/tool/tool-contract" },
-        { "from": "packages/tool/tool-contract", "to": "packages/context/runtime-context-contract" },
-        { "from": "packages/tool/tool", "to": "packages/context/runtime-context-contract" }
-      ],
-      "ruling": "https://github.com/nemori-ai/omne-harness-lite/issues/675#issuecomment-6480475331",
-      "reason": "上下文组装要感知工具，工具要感知运行时上下文（PanQiWei 裁定）"
-    },
-    {
-      "id": "GCX-AGENT-CONTEXT",
-      "edges": [
-        { "from": "packages/context/agent-context", "to": "packages/agent/agent-contract" },
-        { "from": "packages/context/agent-context", "to": "packages/agent/agent-cordis-contract" },
-        { "from": "packages/agent/agent", "to": "packages/tool/tool-contract" },
-        { "from": "packages/agent/agent-contract", "to": "packages/tool/tool-contract" },
-        { "from": "packages/agent/agent-host-local", "to": "packages/tool/tool-contract" },
-        { "from": "packages/agent/agent-host-local", "to": "packages/tool/tool-cordis-contract" }
-      ],
-      "ruling": "https://github.com/nemori-ai/omne-harness-lite/issues/502#issuecomment-6562280172",
-      "reason": "agent-context 实现 Agent 的请求与账目出站端口，Agent 要用工具，工具要感知运行时上下文（Reduce 裁定）"
-    },
-    {
-      "id": "GCX-TOOL-EXECUTION",
-      "edges": [
-        {
-          "from": "packages/execution/execution-environment",
-          "to": "packages/context/runtime-context-contract"
-        },
-        {
-          "from": "packages/execution/execution-environment-contract",
-          "to": "packages/context/runtime-context-contract"
-        },
-        {
-          "from": "packages/execution/execution-environment-cordis-contract",
-          "to": "packages/context/runtime-context-contract"
-        },
-        {
-          "from": "packages/execution/execution-environment-host-local",
-          "to": "packages/context/runtime-context-contract"
-        },
-        {
-          "from": "packages/tool/tool-definitions",
-          "to": "packages/execution/execution-environment-contract"
-        }
-      ],
-      "ruling": "https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6593090424",
-      "reason": "Tool 作者消费 Execution 的公开设施与环境声明，Execution 要感知运行时上下文（Reduce 裁定）"
-    },
-    {
-      "id": "GCX-TOOL-HOST-EXECUTION",
-      "edges": [
-        {
-          "from": "packages/tool/tool-host-local",
-          "to": "packages/context/runtime-context-contract"
-        },
-        {
-          "from": "packages/tool/tool-host-local",
-          "to": "packages/execution/execution-environment-contract"
-        },
-        {
-          "from": "packages/tool/tool-host-local",
-          "to": "packages/execution/execution-environment-cordis-contract"
-        }
-      ],
-      "ruling": "https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6602975605",
-      "reason": "本地 Tool 宿主经 Execution 的公开契约与 Cordis 服务获取执行环境，并感知运行时上下文（Reduce 裁定 R2-D142 第 8 项）"
     }
   ]
 }

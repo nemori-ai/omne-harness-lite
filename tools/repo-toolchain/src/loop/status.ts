@@ -3,11 +3,6 @@
 import { basename } from 'node:path'
 import type { AssemblyDelta, AssemblyObservations } from './sensors/assembly.ts'
 import type { DependencyFinding } from '../deps/graph.ts'
-import {
-  exceptedLine,
-  type ExceptedGroupCycle,
-  type GroupCycleExceptionFinding,
-} from '../arch/group-cycles.ts'
 import { describeFunction } from '../metrics/report.ts'
 import { BAND_WORDS, judgeIndicator, type Band, type Comparison } from './bands.ts'
 import { BUDGET_LABELS, type ItemComparison, type MemberBudget } from './budget.ts'
@@ -169,10 +164,8 @@ export type RangeLine =
 
 export interface HardLines {
   readonly direction: readonly DependencyFinding[]
-  /** 成员、组、文件之间的环，以及没命中任何组环的具名组环例外。 */
-  readonly cycles: readonly (DependencyFinding | GroupCycleExceptionFinding)[]
-  /** 按 runner `constraints.json` 的具名例外放行的组环：不算硬线，只列出来。 */
-  readonly exceptedCycles: readonly ExceptedGroupCycle[]
+  /** 成员之间与文件之间的环。 */
+  readonly cycles: readonly DependencyFinding[]
   readonly acceptanceLock: RangeLine
   readonly sensors: SensorLine
 }
@@ -277,7 +270,6 @@ export function hardLineLines(lines: HardLines): string[] {
     '## 硬线',
     finding('依赖违规', lines.direction),
     finding('环', lines.cycles),
-    ...lines.exceptedCycles.map(item => `    不算硬线：${exceptedLine(item)}`),
     range(lines.acceptanceLock, '验收锁', '无未解决违规', '破'),
     sensorLine(lines.sensors),
   ]

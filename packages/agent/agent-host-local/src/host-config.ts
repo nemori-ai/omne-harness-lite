@@ -44,10 +44,11 @@ const POSITIVE = [
   'toolConcurrency',
   'instanceIdleMs',
 ] as const
-const NON_NEGATIVE = ['reconciliationDelayMs', 'denialBackoffMs'] as const
+const NON_NEGATIVE = ['denialBackoffMs'] as const
 const FIELDS: ReadonlySet<string> = new Set([
   ...POSITIVE,
   ...NON_NEGATIVE,
+  'reconciliationDelaysMs',
   'jointCommits',
   'coordination',
   'loopGuardPolicy',
@@ -139,6 +140,9 @@ function issuesOf(value: unknown): readonly Issue[] {
     if (!isPositive(read(field))) issues.push(`${field}: not a positive safe integer`)
   for (const field of NON_NEGATIVE)
     if (!isNonNegative(read(field))) issues.push(`${field}: not a non-negative safe integer`)
+  const delays = read('reconciliationDelaysMs')
+  if (!Array.isArray(delays) || delays.length === 0 || !delays.every(isNonNegative))
+    issues.push('reconciliationDelaysMs: not a non-empty list of non-negative safe integers')
   issues.push(...modelRetryIssues(read('modelRetry')))
   issues.push(...stepLimitIssues(read('maxRunSteps')))
   issues.push(...receptionIssues(read('reception')))

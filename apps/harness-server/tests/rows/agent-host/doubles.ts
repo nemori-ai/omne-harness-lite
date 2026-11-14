@@ -66,7 +66,7 @@ export const caller: Access<string> = { principal: 'caller-a', tenant }
 /** The operator values of the row in these tests: the release's joint commits, test numbers. */
 export const hostConfig = {
   observerBufferBytes: 1024,
-  reconciliationDelayMs: 0,
+  reconciliationDelaysMs: [0],
   reconciliationBatchLimit: 8,
   denialBackoffMs: 0,
   toolConcurrency: 1,

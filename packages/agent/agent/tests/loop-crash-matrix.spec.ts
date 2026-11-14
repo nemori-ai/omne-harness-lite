@@ -13,6 +13,7 @@ import { agentEvaluator, type AgentDependencies } from '@omne-harness/agent'
 import type { ExecutionSnapshot } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { createExecutionCoordinator, createResumedCoordinator } from '../src/loop/coordinator.ts'
+import { reconciliationPacer } from '../src/loop/reconciliation.ts'
 import { options } from './factory-support.ts'
 import {
   acceptedInput,
@@ -168,7 +169,7 @@ async function run(at: number) {
       if ('failure' in ran) throw new Error(`the pass failed: ${JSON.stringify(ran.failure)}`)
       if ((await load(assembly)).state.kind === 'ended') break
       const wake = await resumed.waitForWake({
-        reconciliationDelayMs: 1,
+        pacer: reconciliationPacer([1]),
         signal: new AbortController().signal,
       })
       if ('failure' in wake) throw new Error(`the wait failed: ${JSON.stringify(wake.failure)}`)

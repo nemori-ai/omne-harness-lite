@@ -425,7 +425,7 @@ AdvancementFact 的四个取值不是独立状态。它们是 Evaluator 对执�
 | 分类 | 内容 | 决定时点 | 是否可序列化 | 与授权的关系 |
 | --- | --- | --- | --- | --- |
 | 构造身份绑定 | instance、tenant、安全作用域 scope、精确的定义采用 | 创建时。改变其中任何一项都必须换实例 | 是，但它们是身份，不是可调整的配置 | 身份参数不是授权证明 |
-| 可序列化配置 | observerBufferBytes、reconciliationDelayMs、denialBackoffMs 及其他取值项 | 创建时校验。默认值只是配置初值 | 是，不含业务身份、权限、秘密或运行对象 | 无。不新增否决次数上限 |
+| 可序列化配置 | observerBufferBytes、reconciliationDelaysMs、denialBackoffMs 及其他取值项 | 创建时校验。默认值只是配置初值 | 是，不含业务身份、权限、秘密或运行对象 | 无。不新增否决次数上限 |
 | 单次操作参数 | Access 的 principal 与 tenant、操作身份、目标 execution、输入（内容为 Message）或控制命令、推进资格依据 grant、恢复依据、观察 signal 与订阅 | 每次操作 | 除 signal 与订阅外是 | 每次操作核对租户，并以 AgentAccessCheck 核验主体资格。裸文本不冒充已受理的输入 |
 | 注入依赖 | Journal、接收面条目端口 AgentJournalEntries、账目出站端口 AgentAccountOutlet、主体资格核验 AgentAccessCheck、当前条件、请求准备、模型选择、模型可读上下文读取、Model、Tool、扩展实现 ExtensionImplementations、卡片端口 DecisionCards、动作准入 ActionAdmission、消息准入 MessageHandoff、材料、具名读取、采用解析、本实例的登记句柄、时钟 | 构造注入，能力对象 | 否 | AgentAccessCheck 本身是资格的来源。其他依赖的使用同样受每次操作的资格约束 |
 

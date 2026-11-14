@@ -3971,7 +3971,6 @@
     "tools/product-checks/src/rules/ops-import-whitelist.ts": 1,
     "tools/product-checks/src/rules/test-temp-physical-path.ts": 1,
     "tools/repo-toolchain/src/acceptance/historical-approvals.data.ts": 5,
-    "tools/repo-toolchain/src/arch/group-cycles.ts": 1,
     "tools/repo-toolchain/src/declarations/api-classify.ts": 1,
     "tools/repo-toolchain/src/declarations/api-cli.ts": 1,
     "tools/repo-toolchain/src/declarations/api-compare.ts": 1,
@@ -4042,7 +4041,7 @@
       "packages/tool/tool/src/ledger-start.ts": 1217,
       "packages/tool/tool/src/ledger.ts": 2249,
       "tools/repo-toolchain/src/arch/extract.ts": 1106,
-      "tools/repo-toolchain/src/deps/graph.ts": 1126
+      "tools/repo-toolchain/src/deps/graph.ts": 1085
     },
     "functions": {
       "apps/harness-server/src/model/qualification.ts": {
@@ -4135,11 +4134,11 @@
       },
       "packages/agent/agent/src/loop/wait.ts": {
         "count": 1,
-        "longest": 152
+        "longest": 151
       },
       "packages/agent/agent/src/provider.ts": {
         "count": 1,
-        "longest": 735
+        "longest": 733
       },
       "packages/agent/agent/src/receiving.ts": {
         "count": 1,
@@ -4823,7 +4822,7 @@
       },
       "tools/repo-toolchain/src/loop/run.ts": {
         "count": 1,
-        "longest": 190
+        "longest": 188
       },
       "tools/repo-toolchain/src/metrics/cli.ts": {
         "count": 1,

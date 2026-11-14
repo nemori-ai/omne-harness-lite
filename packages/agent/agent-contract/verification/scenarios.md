@@ -272,7 +272,7 @@ SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置�
 | 编号 | 场景 | 必须结果 | 后继验证观察点 |
 | --- | --- | --- | --- |
 | SC-AG-160 | 对主 Model 调用与获准 Tool 动作分别在材料保存、意图提交、生产者受理、结果保管和交付解除前后注入崩溃 | Model 保留受理前 reference、固定输入与原 ACK 规则。Tool 先保存完整 ToolInvokeRequest facts、精确 schema Adoption，再保存 intent 与 effect intent；consumer 四字段等于原 position。意图未提交重算，已提交用当前资格沿原 invoke 接续。得到引用后保存 associated，不造第二逻辑动作。释放查询只有原操作引用可得时进行，否则保留未知 | 完整材料可解读且经 judgeToolInvokeRequest 校验；Model 原引用不变；Tool 原 consumer 与请求不变；Journal 未知时材料保留；回归节点与分域切点表一致。Tool A2/T0 与生产持久性仍待实现验证 |
-| SC-AG-161 | 输入已受理、尚未唤醒时进程退出。另一次通知先于监听到达，监听登记后监听丢失，runtime 没有退出 | 第一次恢复后 E2 读到水位线以内的输入，E4 回 I0 承接，不因内存队列空完成。第二次唤醒丢失，到检查时刻后按 reconciliationDelayMs 重读来源，读到进度变化后调度。唤醒不回 reconciling | Journal.inputs 返回受理时保存的内容；第一次的节点序列为 E0、E1、E2、E4、I0；第二次没有 ended，重读间隔不短于 reconciliationDelayMs；唤醒后的状态等于进入 W0 之前的状态，没有新挂接 |
+| SC-AG-161 | 输入已受理、尚未唤醒时进程退出。另一次通知先于监听到达，监听登记后监听丢失，runtime 没有退出 | 第一次恢复后 E2 读到水位线以内的输入，E4 回 I0 承接，不因内存队列空完成。第二次唤醒丢失，到检查时刻后按 reconciliationDelaysMs 重读来源，读到进度变化后调度。唤醒不回 reconciling | Journal.inputs 返回受理时保存的内容；第一次的节点序列为 E0、E1、E2、E4、I0；第二次没有 ended，重读间隔不短于 reconciliationDelaysMs 的第一项；唤醒后的状态等于进入 W0 之前的状态，没有新挂接 |
 | SC-AG-162 | 意图已提交未受理，或已受理但回执丢失 | Model 凭预存 reference inspect，权威 not-accepted 且当前合法才沿原身份受理。Tool 无引用时以完整原请求与 consumer 重入 invoke，有引用时保存 associated 后 lookup。Tool not-accepted 不排除来源继续签发，仍沿原 invoke 接续。已受理则等原调用，不把超时当未发生 | Model reference 与原 effect intent 一致；Tool 认回同一逻辑 consumer 的原引用，无第二逻辑调用。association-unknown 保留 intent，具体分支另见 SC-AG-216、217。现有 Model 证据不替代 Tool 证据 |
 | SC-AG-163 | Journal 提交回执丢失。另一次 MessageHandoff.prepare 的提交回执未知 | 第一次 query 原操作：committed 取原结果回后继，unknown 等待，excluded 才重新求值。第二次以同一 H 与同一请求再次调用 prepare，认回原结果。两次都不用新身份重试，不把查无记录当作 excluded | query 的操作身份与原提交相同；没有第二个操作身份；excluded 带排除原写入与迟到提交的依据；prepare 认回同一结果 |
 | SC-AG-164 | 纯求值后、意图未提交时崩溃 | 重读后重算得到相同的下一步。没有外部效果。checkpoint 的 revision 不变 | 没有生产者受理；两次 next 的输出相同；修订号不变 |
@@ -323,7 +323,7 @@ SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置�
 | --- | --- | --- | --- |
 | SC-AG-180 | tryFinish 已成、回执丢失 | query 原终结，load 读到 ended。F4、O0 继续。不重开执行，不重复终态，不重跑终态前的效果 | ended 事件唯一；终态后观察台账不变；没有新的 F1 |
 | SC-AG-181 | 两个协调者并发接管同一 execution。旧写与旧发出晚到。提交身份只在内存中时进程退出。确认丢失 | attach 的条件提交使同一时刻只有一个 active 挂接，后到者得到 changed，且没有 takeover 资格时被拒。旧挂接的晚到写入返回 stale-advance，晚到回执只归原操作。只在内存中的提交身份不存在于持久索引，恢复者按确定派生得到同一操作身份并查询。确认丢失以原确认重试 | 挂接表恰有一个 active；stale-advance 的返回记录；派生的操作身份崩溃前后相同；旧挂接没有新效果；真实的迟到结果仍被保管 |
-| SC-AG-182 | Model 或 Tool 的查询暂不可用 | 保持未知，按 reconciliationDelayMs 重查。不报告失联，不重发。控制与保管不因此阻塞 | Agent 没有产生 runtime-lost 或失败结论；重查间隔；执行状态为 waiting，waits 含该生产者 |
+| SC-AG-182 | Model 或 Tool 的查询暂不可用 | 保持未知，按 reconciliationDelaysMs 重查。不报告失联，不重发。控制与保管不因此阻塞 | Agent 没有产生 runtime-lost 或失败结论；重查间隔；执行状态为 waiting，waits 含该生产者 |
 | SC-AG-183 | Model 或 Tool 自身确认失去连续性 | 沿各自协议：Model 以 runtime-lost 收场不重发，首内容为 none-proven 且窗口可靠闭合时按原政策恢复发出仍属原调用。Tool 失败收束不重放。Agent 在 M3、T1 保管收场，不用自身崩溃推导生产者崩溃 | 收场由拥有者给出；Agent 没有重放或新调用；Tool 槽位的 terminal 为 failed 且原因为异常中断 |
 | SC-AG-184 | 存储损坏或原精确材料不可读。另一次原扩展实现缺失 | load 返回 unavailable，E2 转 W0，报告依赖不可用。缺原实现保持具名等待。不以空快照、零费用或新执行掩盖丢失 | 没有新的 execution；没有零费用记录；waits 含 dependency 等待 |
 | SC-AG-185 | 共享子程序从原返回去处接续：主请求、压缩步骤、扩展能力操作各在 M1 等待时崩溃。另一次 W0 等待中唤醒 | 恢复后 M5 按保存的返回去处回 I3、C1 或 X2，内部结果不进入主动作解析。唤醒后经 E1、E2、E4 回原节点，执行回到进入 W0 之前的状态，不回 reconciling | calls 的 purpose 决定回归节点；主回复序列不含压缩与扩展用途的结果；唤醒后的状态等于进入 W0 之前的状态，没有新挂接；没有 E3 |
@@ -353,7 +353,7 @@ SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置�
 
 | 编号 | 场景 | 必须结果 | 后继验证观察点 |
 | --- | --- | --- | --- |
-| SC-AG-193 | 大量待办、持续未知的原项、同时到达的控制与结果 | 每段只处理 `reconciliationBatchLimit` 个未决项后让出。持续未知的原项按 reconciliationDelayMs 在进程内计算下一检查时刻，恢复时立即重读，不忙循环。控制与结果保管不被长等待饿死。没有默认无限队列 | 每段处理数不超过 `reconciliationBatchLimit`；检查时刻之间没有空转；控制受理时延不随待办数增长；两个配置名都登记在[工厂配置](../../agent/docs/public-api.md#工厂配置)节 |
+| SC-AG-193 | 大量待办、持续未知的原项、同时到达的控制与结果 | 每段只处理 `reconciliationBatchLimit` 个未决项后让出。持续未知的原项按 reconciliationDelaysMs 在进程内计算下一检查时刻，恢复时立即重读，不忙循环。控制与结果保管不被长等待饿死。没有默认无限队列 | 每段处理数不超过 `reconciliationBatchLimit`；检查时刻之间没有空转；控制受理时延不随待办数增长；两个配置名都登记在[工厂配置](../../agent/docs/public-api.md#工厂配置)节 |
 | SC-AG-194 | 反例：实现在模型半流失败后静默重发同一回复，或在 Tool emit 后失败时自动重跑，或抹掉原部分输出与费用 | 必须不发生。原输出、费用与未知效果保留。任何再请求须有新身份、新业务意图与当前准入，并关联原失败 | 同一回复只有一个主调用；新请求的 action 与 call 不同且关联原失败；费用记录不被删除 |
 | SC-AG-195 | 反例：把 unknown 写成 committed、excluded、failed 或 finished，把查无记录当作 excluded，用新随机身份重试 | 必须不发生。unknown 保持未知并等待。excluded 带排除原写入与迟到提交的依据。同一帧同一转移派生同一身份 | 没有由 unknown 直接推出的状态变化；excluded 的依据；操作身份派生可重现 |
 | SC-AG-196 | 反例：取消一个 execution 时停止了后台工具或同 runtime 的其他执行。旧写者在被取代后提交成功。ended 后借迟到结果恢复推进 | 必须不发生。取消范围只含本执行的前台调用。旧挂接的提交返回 stale-advance。ended 后只保管与对账 | 受影响调用的集合；stale-advance；ended 之后没有 Next |
