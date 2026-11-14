@@ -395,4 +395,62 @@ export const gCells: readonly Cell[] = [
       for (const one of held) one.open()
     },
   },
+  {
+    id: 'G-多租户/协议',
+    block: 'G',
+    layer: 'protocol',
+    run: async tools => {
+      const from = Date.now()
+      const held = Array.from({ length: CROWD_TENANTS }, () => gate())
+      const sessions: string[] = []
+      let quietFrom = 0
+      try {
+        for (const one of held) {
+          const other = await signedIn(tools)
+          const session = await other.createSession()
+          tools.stub.push({ kind: 'hold', gate: one, after: { kind: 'reply', text: 'crowd' } })
+          const sent = await other.send(session, 'g-crowd hold')
+          tools.check('input accepted', sent === 'succeeded', sent)
+          if (sent === 'succeeded') sessions.push(session)
+        }
+        const arrived = await waitArrivals(tools, CROWD_TENANTS, 'every run reached the provider')
+        tools.check('every run reached the provider', arrived, String(tools.stub.arrivals().length))
+        quietFrom = Date.now()
+        await tools.sleep(CROWD_QUIET_MS)
+        tools.note(`readWork per 5 s up to the newcomer: ${readsPerWindow(tools, from).join(' ')}`)
+        const newcomer = await signedIn(tools)
+        const own = await newcomer.createSession()
+        tools.stub.push({ kind: 'reply', text: 'newcomer' })
+        tools.check('the newcomer input accepted', (await newcomer.send(own, 'hi')) === 'succeeded')
+        const listed = await newcomer.listSessions()
+        tools.check('the newcomer lists its session', listed.sessions.includes(own), listed.outcome)
+        for (const one of held) one.open()
+        for (const session of [own, ...sessions]) {
+          const log = await tools.waitLog(session, 'run terminal', settled, TURN_MS)
+          tools.check('the run completed', log?.terminals[0] === 'completed', session)
+        }
+      } finally {
+        for (const one of held) one.open()
+        tools.note(`${String(sessions.length)} of ${String(CROWD_TENANTS)} tenants waiting`)
+        if (quietFrom > 0)
+          tools.note(`quiet from window ${String(Math.floor((quietFrom - from) / WINDOW_MS))}`)
+        tools.note(`omne.session.readWork per 5 s: ${readsPerWindow(tools, from).join(' ')}`)
+      }
+    },
+  },
 ]
+
+const CROWD_TENANTS = 24
+const CROWD_QUIET_MS = 40_000
+const WINDOW_MS = 5000
+
+/** The snapshot reads of the session per 5 s window since `from`. */
+function readsPerWindow(tools: CellTools, from: number): number[] {
+  const counts: number[] = []
+  for (const record of tools.env.records()) {
+    if (record.name !== 'omne.session.readWork' || typeof record['time'] !== 'string') continue
+    const slot = Math.floor((Date.parse(record['time']) - from) / WINDOW_MS)
+    if (slot >= 0) counts[slot] = (counts[slot] ?? 0) + 1
+  }
+  return Array.from(counts, count => count ?? 0)
+}
