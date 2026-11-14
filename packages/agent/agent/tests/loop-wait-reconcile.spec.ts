@@ -1129,7 +1129,7 @@ describe('review regressions preserve the original wait responsibility', () => {
             },
           },
           access: {}, execution: 'exec-1', expected: '1', operations: [], waits: [],
-          position: 'E2', pacer: { delayAt: () => 1000 }, signal: outer.signal,
+          position: 'E2', pacer: { delayAt: () => 1000, timerWoke() {} }, signal: outer.signal,
         })
         assert.equal(closed, true)
         assert.equal(result.failure.kind, 'unavailable')
@@ -1183,7 +1183,7 @@ describe('review regressions preserve the original wait responsibility', () => {
             },
           },
           access: {}, execution: 'exec-1', expected: '1', operations: [], waits: [],
-          position: 'E2', pacer: { delayAt: () => 1000 }, signal: new AbortController().signal,
+          position: 'E2', pacer: { delayAt: () => 1000, timerWoke() {} }, signal: new AbortController().signal,
         })
         assert.equal(closed, true)
         assert.equal(result.failure.kind, 'unavailable')

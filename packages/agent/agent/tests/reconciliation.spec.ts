@@ -19,18 +19,34 @@ describe('the delay after n quiet wakes', () => {
   })
 })
 
+/** The delays of waits entered at `revisions`, each but the last woken by its check time. */
+function timedWaits(pacer: ReturnType<typeof reconciliationPacer>, revisions: string[]): number[] {
+  return revisions.map(r => {
+    const delay = pacer.delayAt(revision(r))
+    pacer.timerWoke()
+    return delay
+  })
+}
+
 describe('the pacer of one execution', () => {
-  it('grows on the same revision and starts over on a new one', () => {
+  it('grows on timer wakes at the same revision and starts over on a new one', () => {
     const pacer = reconciliationPacer([1000, 2000, 5000])
-    const seen = ['1', '1', '1', '1', '2', '2', '1'].map(r => pacer.delayAt(revision(r)))
+    const seen = timedWaits(pacer, ['1', '1', '1', '1', '2', '2', '1'])
     expect(seen).toEqual([1000, 2000, 5000, 5000, 1000, 2000, 1000])
+  })
+
+  it('starts over after an event wake, at the same revision', () => {
+    const pacer = reconciliationPacer([1000, 2000, 5000])
+    expect(timedWaits(pacer, ['1', '1', '1', '1'])).toEqual([1000, 2000, 5000, 5000])
+    // This wait is woken by an event: no `timerWoke`.
+    expect(pacer.delayAt(revision('1'))).toBe(5000)
+    expect(pacer.delayAt(revision('1'))).toBe(1000)
   })
 
   it('counts each execution apart', () => {
     const one = reconciliationPacer([1000, 2000])
     const other = reconciliationPacer([1000, 2000])
-    expect(one.delayAt(revision('1'))).toBe(1000)
-    expect(one.delayAt(revision('1'))).toBe(2000)
+    expect(timedWaits(one, ['1', '1'])).toEqual([1000, 2000])
     expect(other.delayAt(revision('1'))).toBe(1000)
   })
 })

@@ -413,21 +413,32 @@ export const gCells: readonly Cell[] = [
           tools.check('input accepted', sent === 'succeeded', sent)
           if (sent === 'succeeded') sessions.push(session)
         }
-        const arrived = await waitArrivals(tools, CROWD_TENANTS, 'every run reached the provider')
-        tools.check('every run reached the provider', arrived, String(tools.stub.arrivals().length))
+        // The Model holds at most a set number of sends in flight and queues the rest in its own
+        // records, so only some of the calls reach the provider while the runs are held.
+        const arrived = await waitArrivals(tools, 1, 'a run reached the provider')
+        tools.check('calls reached the provider', arrived, String(tools.stub.arrivals().length))
         quietFrom = Date.now()
         await tools.sleep(CROWD_QUIET_MS)
+        tools.note(`${String(tools.stub.arrivals().length)} calls at the provider while held`)
         tools.note(`readWork per 5 s up to the newcomer: ${readsPerWindow(tools, from).join(' ')}`)
-        const newcomer = await signedIn(tools)
+        const newcomer = tools.driver()
+        const registered = await newcomer.register()
+        tools.check('the newcomer registers', registered === 'succeeded', registered)
         const own = await newcomer.createSession()
+        tools.check('the newcomer creates a session', own.length > 0)
         tools.stub.push({ kind: 'reply', text: 'newcomer' })
         tools.check('the newcomer input accepted', (await newcomer.send(own, 'hi')) === 'succeeded')
         const listed = await newcomer.listSessions()
         tools.check('the newcomer lists its session', listed.sessions.includes(own), listed.outcome)
+        const released = tools.env.mark()
         for (const one of held) one.open()
         for (const session of [own, ...sessions]) {
           const log = await tools.waitLog(session, 'run terminal', settled, TURN_MS)
           tools.check('the run completed', log?.terminals[0] === 'completed', session)
+          if (log?.terminals[0] !== 'completed')
+            tools.note(
+              `${session.slice(0, 8)} started ${String(log?.started)} ended ${JSON.stringify(log?.terminals)}: ${warningsSince(tools, released)}`,
+            )
         }
       } finally {
         for (const one of held) one.open()
@@ -443,6 +454,17 @@ export const gCells: readonly Cell[] = [
 const CROWD_TENANTS = 24
 const CROWD_QUIET_MS = 40_000
 const WINDOW_MS = 5000
+
+/** The warnings of the server since `mark`, the most frequent first, with their counts. */
+function warningsSince(tools: CellTools, mark: number): string {
+  const counts = new Map<string, number>()
+  for (const line of tools.env.warnings(mark)) counts.set(line, (counts.get(line) ?? 0) + 1)
+  return [...counts.entries()]
+    .sort((one, other) => other[1] - one[1])
+    .slice(0, 4)
+    .map(([line, count]) => `${String(count)}x ${line.slice(0, 160)}`)
+    .join(' | ')
+}
 
 /** The snapshot reads of the session per 5 s window since `from`. */
 function readsPerWindow(tools: CellTools, from: number): number[] {

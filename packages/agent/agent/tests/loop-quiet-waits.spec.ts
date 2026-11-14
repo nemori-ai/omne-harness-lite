@@ -3,9 +3,12 @@
 // once the execution moves, the next check is the first delay again, and an event still wakes the
 // run before any check time.
 import { describe, expect, it } from 'vitest'
-import type { AgentMeasureEvent } from '@omne-harness/agent'
+import { agentEvaluator, type AgentMeasureEvent } from '@omne-harness/agent'
 import { fail } from '@omne-harness/operation-result'
-import { execution, ok } from './journal-support.ts'
+import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
+import { reconciliationPacer } from '../src/loop/reconciliation.ts'
+import { options } from './factory-support.ts'
+import { acceptedInput, execution, ok, operation } from './journal-support.ts'
 import { alice, eventsOf, eventually, invoke, loopAssembly } from './loop-support.ts'
 
 const DELAYS_MS = [1000, 2000, 5000]
@@ -78,5 +81,78 @@ describe('a waiting run whose execution does not change', () => {
     const ended = await eventsOf(handle)
     expect(ended.at(-1)?.body.kind).toBe('ended')
     expect(clock.now()).toBe(at(13_000))
+  })
+})
+
+describe('a waiting run woken by an event', () => {
+  it('checks again after the first delay when the woken pass does not finish', async () => {
+    // While `busy`, the Journal answers unavailable to the reads of reply admissions and to
+    // commits: a woken pass can neither go on nor save its wait.
+    const journal = { busy: false }
+    const unavailable = () =>
+      Promise.resolve(
+        fail({ kind: 'unavailable' as const, owner: 'agentJournal', diagnostic: 'busy' }),
+      )
+    const assembly = await loopAssembly([execution()], d => ({
+      ...d,
+      journal: {
+        ...d.journal,
+        readReplyAdmissions: input =>
+          journal.busy ? unavailable() : d.journal.readReplyAdmissions(input),
+        commit: input => (journal.busy ? unavailable() : d.journal.commit(input)),
+      },
+    }))
+    const real = reconciliationPacer(DELAYS_MS)
+    const timerWakes: string[] = []
+    const pacer = {
+      delayAt: real.delayAt,
+      timerWoke: () => {
+        timerWakes.push(clock.now())
+        real.timerWoke()
+      },
+    }
+    const clock = assembly.controls.clock
+    const c = createExecutionCoordinator({
+      ports: assembly.dependencies,
+      binding: options().binding,
+      evaluator: agentEvaluator,
+      access: alice,
+      execution: execution(),
+      operation: operation('invoke-exec-1'),
+      initial: acceptedInput('input-exec-1'),
+      grant: null,
+      idle() {},
+    })
+    ok(await c.accept())
+    ok(await c.runExecution())
+    const wait = () => c.waitForWake({ pacer, signal: new AbortController().signal })
+    const checkTime = async () => {
+      await eventually(async () => clock.pending().length === 1)
+      return clock.pending()[0]
+    }
+
+    // The run waits for the Model, whose reply is held: each check time finds nothing new.
+    for (const due of [1000, 3000, 8000]) {
+      const woken = wait()
+      expect(await checkTime()).toBe(at(due))
+      ok(clock.advanceTo(at(due)))
+      expect(ok(await woken)).toBe('ready')
+      ok(await c.runExecution())
+    }
+    const parked = wait()
+    expect(await checkTime()).toBe(at(13_000))
+
+    // The reply is an event: it wakes the run before the check time. That pass does not finish.
+    journal.busy = true
+    assembly.release.open()
+    expect(ok(await parked)).toBe('ready')
+    await c.runExecution()
+    const again = wait()
+    expect(await checkTime(), 'the first delay after the event, not the last').toBe(at(9000))
+    expect(timerWakes).toEqual([at(1000), at(3000), at(8000)])
+
+    journal.busy = false
+    ok(clock.advanceTo(at(9000)))
+    expect(ok(await again)).toBe('ready')
   })
 })

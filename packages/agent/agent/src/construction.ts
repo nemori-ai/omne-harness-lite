@@ -51,8 +51,9 @@ export type AgentRuntimeBinding = Readonly<{
 export type AgentConfiguration = Readonly<{
   observerBufferBytes: number
   /**
-   * The check delays of a wait: after the n-th wake in a row that found the execution unchanged the
-   * wait checks after the n-th item, after the last item once the list is used up. Non-empty.
+   * The check delays of a wait: after the n-th check-time wake in a row at an unchanged revision the
+   * wait checks after the n-th item, after the last item once the list is used up; a new revision
+   * or an event wake starts over. Non-empty.
    */
   reconciliationDelaysMs: readonly number[]
   reconciliationBatchLimit: number
