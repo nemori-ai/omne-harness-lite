@@ -37,6 +37,11 @@ export type StopReport = Readonly<{
   shutdown: LogRecord | undefined
 }>
 
+export type Launch = Readonly<{
+  nodeArgs?: readonly string[]
+  env?: Readonly<Record<string, string>>
+}>
+
 export type Environment = Readonly<{
   base: string
   workspace: string
@@ -46,7 +51,7 @@ export type Environment = Readonly<{
   origin: string
   pid(): number | undefined
   running(): boolean
-  start(extraArgs?: readonly string[]): Promise<void>
+  start(extraArgs?: readonly string[], launch?: Launch): Promise<void>
   stop(deadlineMs?: number): Promise<StopReport>
   kill(): Promise<StopReport>
   restart(how: 'stop' | 'kill', extraArgs?: readonly string[]): Promise<StopReport>
@@ -205,15 +210,15 @@ export async function createEnvironment(options: {
         }
       })
 
-  const start = async (extraArgs: readonly string[] = []): Promise<void> => {
+  const start = async (extraArgs: readonly string[] = [], launch: Launch = {}): Promise<void> => {
     if (isAlive()) throw new Error('the server is already running')
     const from = output.length
     const spawned = spawn(
       process.execPath,
-      [serverBin, 'serve', '--operator', operatorPath, ...extraArgs],
+      [...(launch.nodeArgs ?? []), serverBin, 'serve', '--operator', operatorPath, ...extraArgs],
       {
         cwd: base,
-        env: { ...env, NODE_EXTRA_CA_CERTS: options.certPath },
+        env: { ...env, ...launch.env, NODE_EXTRA_CA_CERTS: options.certPath },
         stdio: ['ignore', 'pipe', 'pipe'],
       },
     )
