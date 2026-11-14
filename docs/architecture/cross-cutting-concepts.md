@@ -281,7 +281,7 @@ OTel的forceFlush完成不自动表示每条记录导出成功。提供者核对
 
 ### 当前承接与后续设计
 
-第一版本地工程遥测由 [telemetry-contract](../../packages/telemetry/telemetry-contract/SPEC.md)、[telemetry-cordis-contract](../../packages/telemetry/telemetry-cordis-contract/SPEC.md) 与 [telemetry-node](../../packages/telemetry/telemetry-node/SPEC.md) 承接，采用依据是 [RFC-0013 revision 2](../rfcs/RFC-0013-engineering-telemetry.md)。领域拥有事件含义，应用选择输出与预算。远端出口、OTel 与输出热换不在本次采用范围。
+第一版本地工程遥测由 `telemetry-contract`、`telemetry-cordis-contract` 与 `telemetry-node` 承接（[遥测规格](../../packages/telemetry/SPEC.md)），采用依据是 [RFC-0013 revision 2](../rfcs/RFC-0013-engineering-telemetry.md)。领域拥有事件含义，应用选择输出与预算。远端出口、OTel 与输出热换不在本次采用范围。
 
 以下事项定位仍在承接的精确契约。内容块、消息字段和流式到达的现行契约分别是 [COMMON-T02](cross-cutting-concepts.md#common-t02)、[COMMON-T03](cross-cutting-concepts.md#common-t03) 和 [STREAM-T01](runtime/streaming-and-consumption.md#stream-t01)。
 

@@ -1,6 +1,6 @@
 # `telemetry` 行
 
-本页是 `telemetry` 行的行规格。行的代码在 `src/rows/telemetry/`。它是工厂行，照 `execution-host` 的先例：配置在装载前解析，运行时由装配入口在行 fiber 里创建，插件按这一次运行绑定。设计依据是 [RFC-0013](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md) 的「[Cordis 承载与应用装配](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md#cordis-承载与应用装配)」与「[计时记录与离线聚合](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md#计时记录与离线聚合)」。本页条款属于 RFC-0013 revision 2 采用的本地输出范围。两种模式共同的规则归 [real-mode.md](../real-mode.md)。提供者自己的行为归 [telemetry-node 的 SPEC](../../../../packages/telemetry/telemetry-node/SPEC.md)（TN-1～TN-10），契约归 [telemetry-contract 的 SPEC](../../../../packages/telemetry/telemetry-contract/SPEC.md)（TC-1～TC-15）。
+本页是 `telemetry` 行的行规格。行的代码在 `src/rows/telemetry/`。它是工厂行，照 `execution-host` 的先例：配置在装载前解析，运行时由装配入口在行 fiber 里创建，插件按这一次运行绑定。设计依据是 [RFC-0013](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md) 的「[Cordis 承载与应用装配](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md#cordis-承载与应用装配)」与「[计时记录与离线聚合](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md#计时记录与离线聚合)」。本页条款属于 RFC-0013 revision 2 采用的本地输出范围。两种模式共同的规则归 [real-mode.md](../real-mode.md)。提供者的行为与契约归[遥测规格](../../../../packages/telemetry/SPEC.md#应然设计)（TN、TC 编号见其不变式）。
 
 ## 这一行做什么
 
@@ -56,7 +56,7 @@
 
 提供者的限频摘要行写到 stderr，带 `serve: ` 前缀。摘要不是记录，从不进 stdout。`stderr` 出口下，记录行与摘要行在 stderr 上交错；按前缀区分，带前缀的行不是 JSON。
 
-下图是记录从发射行到出口的路径。日志桥的状态图见 telemetry-node 的[日志桥状态](../../../../packages/telemetry/telemetry-node/docs/flows.md#日志桥三态)。
+下图是记录从发射行到出口的路径。日志桥的状态见遥测规格的[Cordis 装配与日志桥](../../../../packages/telemetry/SPEC.md#cordis-装配与日志桥)。
 
 ```mermaid
 flowchart LR

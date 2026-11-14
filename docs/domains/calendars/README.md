@@ -1,6 +1,6 @@
 # 日历
 
-本页维护已接受的目标责任与公开协作，采用范围见[领域入口](../README.md#维护与状态)。本次目标沿源 Python 修订 `a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0` 的产品范围，并采用用户确认的环境绑定规则；来源细节与验收映射归[产品正文](../../../.meta_harness/design/product/calendars/design.md)及[成员规格](../../../packages/calendar/calendar/SPEC.md)。目标接受不表示代码、供应提供者或算法验证已经完成。
+本页维护已接受的目标责任与公开协作，采用范围见[领域入口](../README.md#维护与状态)。本次目标沿源 Python 修订 `a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0` 的产品范围，并采用用户确认的环境绑定规则；来源细节与验收映射归[产品正文](../../../.meta_harness/design/product/calendars/design.md)及[日历规格](../../../packages/calendar/SPEC.md)。目标接受不表示代码、供应提供者或算法验证已经完成。
 
 ## 范围与边界
 
@@ -37,7 +37,7 @@ Schedule 区分 `followUserEnvironment` 与 `explicit`。follow 原子采用用�
 
 ## 契约与验证导航
 
-[领域协作](architecture.md)维护消费方、事实归属和共同保证；[完整成员规格](../../../packages/calendar/calendar/SPEC.md)拥有精确行为、日期边界和验收；[成员内部设计](../../../packages/calendar/calendar/docs/internals.md)拥有算法、存储和提供者方案。类型与 API 由实际成员唯一维护，本页不复制其形状。
+[领域协作](architecture.md)维护消费方、事实归属和共同保证；[日历规格](../../../packages/calendar/SPEC.md)拥有精确行为、日期边界与不变式。类型与 API 由实际成员唯一维护，本页不复制其形状。
 
 上层约束见[总体结构](../../architecture/structure.md)、[时间约定](../../architecture/cross-cutting-concepts.md#时间顺序与版本)及[数据与状态](../../architecture/data-and-state.md)。跨域验证归[组合入口](../verification.md)。
 
@@ -45,10 +45,10 @@ Schedule 区分 `followUserEnvironment` 与 `explicit`。follow 原子采用用�
 
 日历及供应成员须验证真实来源、校验、版本发布、覆盖、缓存和日期算法。第三方日期或数据解析库是实现候选，不因正文提及而成为已安装依赖，也不能替代供应出处、法定知识或数据许可。
 
-同提交守卫须由日历与 storage 拥有者共同兑现；日程不得读取日历私有表。Calendar 已提供查询与供应应用服务、本地持久化、Cordis 提供者和只读工具。公开入口与支持范围见[能力组](../../../packages/calendar/README.md)。真实跨域接入仍由各消费者与装配拥有者负责；本域验证不能代替系统联调。
+同提交守卫须由日历与 storage 拥有者共同兑现；日程不得读取日历私有表。Calendar 已提供查询与供应应用服务、本地持久化、Cordis 提供者和只读工具。成员与边界见[日历规格](../../../packages/calendar/SPEC.md#总体架构)。真实跨域接入仍由各消费者与装配拥有者负责；本域验证不能代替系统联调。
 
 ## 正式产品与技术承接导航
 
-[产品正文](../../../.meta_harness/design/product/calendars/design.md)维护能力和来源范围，[能力组](../../../packages/calendar/README.md)维护工程关系，[成员规格](../../../packages/calendar/calendar/SPEC.md)与[内部设计](../../../packages/calendar/calendar/docs/internals.md)承接完整行为和技术方案。已确认规则沿唯一终态实施，具体提供者及依赖采用仍须履约证据。
+[产品正文](../../../.meta_harness/design/product/calendars/design.md)维护能力和来源范围，[日历规格](../../../packages/calendar/SPEC.md)维护工程关系并承接完整行为。已确认规则沿唯一终态实施，具体提供者及依赖采用仍须履约证据。
 
-计算定义域、全化与证明义务见[成员函数契约](../../../packages/calendar/calendar/docs/functions-and-totalization.md)及 [verification](../../../packages/calendar/calendar/verification/README.md)。供应、发布和健康仍是有状态责任，纯计算模型不代替这些责任的验证。
+计算定义域、全化与证明义务见[日历规格](../../../packages/calendar/SPEC.md#有界计算)及[形式化对照](../../../packages/calendar/calendar/verification/formal-mapping.md)。供应、发布和健康仍是有状态责任，纯计算模型不代替这些责任的验证。

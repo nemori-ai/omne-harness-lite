@@ -298,7 +298,7 @@ flowchart TB
 
 #### 公共契约形状
 
-完整类型在 `telemetry-contract` 的公开类型与 [SPEC](../../packages/telemetry/telemetry-contract/SPEC.md)（TC-1～TC-15），不在本页重复。要点如下。
+完整类型在 `telemetry-contract` 的公开类型与 [遥测规格](../../packages/telemetry/SPEC.md#应然设计)，不在本页重复。要点如下。
 
 - **作用域与绑定**：`Binding` 带 `scope`（`ActingScope`：某个租户，或 `system`）、`component`、`instance`，以及可缺席的 `work`、`attempt`、`call`、`adopted`、`links`。
 - **声明式定义**：`defineEvent`、`defineMetric`、`defineSegment`。字段规则只有枚举、布尔值、有界有限数、不透明引用四种。没有自由文本入口。

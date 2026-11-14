@@ -18,15 +18,15 @@
 | [context](context/SPEC.md) | Runtime Context | `runtime-context`, `request-context` |
 | [human-intervention](human-intervention/README.md) | 人工介入 | `human-intervention` |
 | [execution](execution/SPEC.md) | 执行环境 | `execution-environment` |
-| [calendar](calendar/README.md) | 日历 | `calendar-contract`, `calendar-cordis-contract`, `calendar`, `calendar-local`, `calendar-tools` |
-| [schedule](schedule/README.md) | 日程与Job | `schedule-contract`, `schedule-cordis-contract`, `schedule`, `schedule-local`, `schedule-tools` |
+| [calendar](calendar/SPEC.md) | 日历 | `calendar-contract`, `calendar-cordis-contract`, `calendar`, `calendar-local`, `calendar-tools` |
+| [schedule](schedule/SPEC.md) | 日程与Job | `schedule-contract`, `schedule-cordis-contract`, `schedule`, `schedule-local`, `schedule-tools` |
 | [notification](notification/README.md) | 通知 | `notification` |
 | [slash-command](slash-command/README.md) | Slash Command | 待具名 |
 | [skills](skills/SPEC.md) | Skill | `skill-contract`, `skill`, `skill-host-local`, `skill-cordis-contract` |
 | [mcp](mcp/SPEC.md) | MCP | `mcp-contract`, `mcp`, `mcp-host-local`, `mcp-cordis-contract` |
 | [storage](storage/SPEC.md) | 存储 | 待具名 |
 | [time](time/README.md) | 时间 | 待具名 |
-| [telemetry](telemetry/README.md) | 遥测 | 待具名 |
+| [telemetry](telemetry/SPEC.md) | 遥测 | 待具名 |
 | [common](common/SPEC.md) | 共同纯表示 | `json-text`, `legal-identity`, `utc-instant`, `content-block`, `message`, `stream-arrival`, `call-account`, `operation-result` |
 | [util](util/README.md) | 纯文本格式化 | `unix-format`, `xml-format` |
 | [schema](schema/README.md) | Schema 提供者 | `schema-provider` |
