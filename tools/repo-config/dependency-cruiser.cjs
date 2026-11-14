@@ -18,6 +18,9 @@ const SDK_CORE = '^packages/access/sdk/src/(core/|limits\\.ts$|never-written\\.t
 // The members on the client's side of the access layer. They sit above the SDK. A protocol client
 // or a view module of a domain joins this set when it is built.
 const CLIENT_SIDE = '^packages/(access/client-assembly|assets/assets-ui|session/session-ui)/'
+const CLIENT_ASSEMBLY = '^packages/access/client-assembly/'
+// The view modules among the client-side members. The first group is the domain of the module.
+const VIEW_MODULE = '^packages/(assets|session)/[^/]+-ui/'
 const SHARED = '^packages/(common|util)/'
 const ORGANIZATION = 'docs/package-organization.md'
 const TOOLCHAIN = '^tools/repo-toolchain/src/'
@@ -132,12 +135,22 @@ module.exports = {
     },
     {
       name: 'client-side-only-core-contract-and-cordis',
-      comment: `A client-side member runs in a browser and depends only on the public contract, the SDK client core, Cordis and its own files; it imports no server-side member and no Node built-in. ${ACCESS_RFC}「16. 成员怎么放，依赖方向」: 客户端装配只多依赖 Cordis`,
+      comment: `The client assembly runs in a browser and depends only on the public contract, the SDK client core, Cordis and its own files; it imports no server-side member and no Node built-in. ${ACCESS_RFC}「16. 成员怎么放，依赖方向」: 客户端装配只多依赖 Cordis`,
       severity: 'error',
-      from: { path: `${CLIENT_SIDE}src/` },
+      from: { path: `${CLIENT_ASSEMBLY}src/` },
       to: {
         path: `${PACKAGES}|(^|/)node_modules/|${NODE_BUILTIN}`,
         pathNot: `${PUBLIC_CONTRACT}|${SDK_CORE}|${CLIENT_SIDE}|(^|/)node_modules/@deepseek-ai/cordis/`,
+      },
+    },
+    {
+      name: 'view-module-only-client-side-and-own-protocol',
+      comment: `The view module of a domain runs in a browser. Of the repository it depends only on the client-side members, the SDK client core, the public contract, the protocol contract of its own domain and the shared pure definitions; it imports no server-side member and no Node built-in. Its third-party packages are its own. ${LAYERS}: 领域的界面模块依赖客户端装配与领域的协议契约`,
+      severity: 'error',
+      from: { path: `${VIEW_MODULE}src/` },
+      to: {
+        path: `${PACKAGES}|${NODE_BUILTIN}`,
+        pathNot: `${PUBLIC_CONTRACT}|${SDK_CORE}|${CLIENT_SIDE}|${SHARED}|^packages/$1/[^/]+-protocol/`,
       },
     },
     {
