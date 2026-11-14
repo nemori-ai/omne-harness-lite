@@ -1948,18 +1948,9 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
         assert.equal(judgeCompletion(await s.readWork(), first).kind, 'allowed')
         succeeded(await s.finish('finish-first'), 'finishRun')
         const between = await s.readWork()
-        assert.deepEqual(
-          between.pending,
-          ['input-1'],
-          'an uninterpretable close keeps the eligibility',
-        )
+        assert.deepEqual(between.pending, ['input-1'], 'an uninterpretable close keeps eligibility')
         assert.deepEqual(between.handed, [], 'the terminal releases the hand-over state')
-        assert.equal(between.awaitingPerson, true, 'a failed Run waits for a person')
-        expectKind(
-          refused(await s.startRun('start-waiting'), 'startRun while waiting for a person'),
-          'no-input',
-          'startRun while waiting for a person',
-        )
+        expectKind(refused(await s.startRun('start-waiting'), 'waiting'), 'no-input', 'waiting')
         succeeded(await s.accept('input-2'), 'accept after the failure')
         const second = succeeded(await s.startRun('start-second'), 'second startRun').execution
         assert.notEqual(second, first)

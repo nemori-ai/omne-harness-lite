@@ -462,16 +462,10 @@ function decideFinishRun(
     ),
   )
   const remaining = pendingAfterTerminal(snapshot, terminal.outcome)
-  if (snapshot.frozen !== null && remaining.length > 0)
-    out.push(
-      encodeEntry(
-        {
-          kind: 'intake.released',
-          inputs: remaining.filter(input => input !== rejects?.input),
-        },
-        sessionOrigin(source),
-      ),
-    )
+  if (snapshot.frozen !== null && remaining.length > 0) {
+    const inputs = remaining.filter(input => input !== rejects?.input)
+    out.push(encodeEntry({ kind: 'intake.released', inputs }, sessionOrigin(source)))
+  }
   return entries(out)
 }
 
