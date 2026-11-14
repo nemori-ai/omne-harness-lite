@@ -21,15 +21,24 @@ function unbox<T>(reply: { ok: T } | { failure: unknown }): T {
 }
 
 describe('the contact answer of the local host', () => {
-  it('holds a call as soon as its admission returns, and answers without reading the records', async () => {
+  it('holds a call as soon as its admission returns', async () => {
     const w = await started()
     const gate = Promise.withResolvers<'pass'>()
     w.hooks.resolve = () => gate.promise
     await w.admit('one')
-    w.reads.recall = 0
     expect(unbox(await w.contact('one'))).toEqual({ kind: 'holding' })
-    expect(w.reads.recall).toBe(0)
     gate.resolve('pass')
+  })
+
+  it('answers lost for a settled call whose push gave up while its receiver is registered', async () => {
+    const w = await started()
+    const scripted = scriptedReceiver()
+    scripted.state.next = Array.from({ length: 20 }, () => 'unknown' as const)
+    await w.register(scripted.receiver)
+    await w.admit('one')
+    await until(() => w.record('one')?.result?.standing.status === 'unknown', 'the given-up push')
+    await quiet()
+    expect(unbox(await w.contact('one'))).toEqual({ kind: 'lost', evidence: lock('mcall_one') })
   })
 
   it('holds a woken call that waits for a free drive', async () => {

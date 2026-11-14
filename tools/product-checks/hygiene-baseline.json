@@ -4015,7 +4015,7 @@
       "packages/identity/identity/src/testing/governance-contract.ts": 2277,
       "packages/mcp/mcp-contract/src/testing-transport.ts": 2675,
       "packages/mcp/mcp-host-local/src/session.ts": 1042,
-      "packages/model/model-host-local/src/plugins/runtime.ts": 1188,
+      "packages/model/model-host-local/src/plugins/runtime.ts": 1179,
       "packages/model/model-storage-sql/src/commit.ts": 1273,
       "packages/model/model/src/commands/commands.ts": 1171,
       "packages/session/session-adapters/src/cordis/agent-journal.ts": 2519,

@@ -53,6 +53,7 @@ import {
   type ModelResultReceiverTable,
 } from '@omne-harness/model-cordis-contract/cordis'
 import { delegatedCommands } from './delegated-commands.ts'
+import { awaitsReceiver, definite, laterRevision } from './push-values.ts'
 import { whenEmpty } from './idle.ts'
 
 const DEPENDENCY = 'model-result-push'
@@ -295,16 +296,6 @@ function savedResultOf(record: ResultPushRecord): SavedResult | null {
   const held = record.result
   if (held === null || held.standing.status !== 'saved') return null
   return { result: held.delivery.key.result, evidence: held.standing.receipt.evidence }
-}
-
-/** Whether the decimal revision `next` comes after `known`. */
-function laterRevision(next: string, known: string): boolean {
-  return BigInt(next) > BigInt(known)
-}
-
-/** A failure that leaves the write uncommitted for sure; anything else may have committed. */
-function definite(failure: ModelFailure): boolean {
-  return failure.kind !== 'commit-unknown' && failure.kind !== 'unavailable'
 }
 
 /** After the ACK the receiver holds the result: the producer keeps its key and standing only. */
@@ -1114,7 +1105,7 @@ function createResultPush(
       const key = keyOf(target)
       if (phase !== 'started' || key === undefined) return false
       if (dirty.has(key) || running.has(key)) return true
-      return (ledger.read(target)?.acknowledgement ?? 'acknowledged') !== 'acknowledged'
+      return awaitsReceiver(ledger.read(target), owner => resolveReceiver(owner))
     },
     async stop() {
       if (phase === 'stopped') return

@@ -333,13 +333,8 @@ export function world(
     },
   })
   const raw = memory.dependencies.commands
-  const reads = { recall: 0 }
   const commands: ModelCommands<unknown> = {
     ...raw,
-    recall: async lookup => {
-      reads.recall += 1
-      return raw.recall(lookup)
-    },
     loadRecovery: async target =>
       hooks.loadRecovery?.() === 'fail'
         ? { failure: { kind: 'unavailable', dependency: 'records', diagnostic: 'synthetic' } }
@@ -485,7 +480,6 @@ export function world(
     messages,
     warnings,
     raw,
-    reads,
     controls: memory.controls,
     Plugin,
     provided,

@@ -22,14 +22,15 @@ export async function contactOf<P>(
 ): Reply<CallContact> {
   const resolved = resolveModelInvocationRef(reference, tenant)
   if ('failure' in resolved) return referenceFailure(resolved.failure)
-  const holder = liveness?.holds(resolved.ok) ?? null
-  if (holder === 'drive') return { ok: { kind: 'holding' } }
   const found = await commands.recall({ principal, ...resolved.ok })
   if ('failure' in found) return found
   if (found.ok.kind === 'not-accepted') return { ok: { kind: 'not-accepted' } }
   const { state } = found.ok
-  if (state.phase === 'settled' && (holder === 'push' || state.custody.kind === 'acknowledged'))
-    return { ok: { kind: 'settled' } }
+  const settled = state.phase === 'settled'
+  if (settled && state.custody.kind === 'acknowledged') return { ok: { kind: 'settled' } }
+  const holder = liveness?.holds(resolved.ok) ?? null
+  if (holder === 'drive') return { ok: { kind: 'holding' } }
+  if (settled && holder === 'push') return { ok: { kind: 'settled' } }
   const evidence = liveness?.lostContact(resolved.ok.call) ?? null
   return { ok: evidence === null ? { kind: 'unknown' } : { kind: 'lost', evidence } }
 }

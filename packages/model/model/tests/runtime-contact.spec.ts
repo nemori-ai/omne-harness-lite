@@ -38,16 +38,9 @@ function world(options: { liveness?: boolean } = {}) {
       return live.evidence
     },
   }
-  const reads = { count: 0 }
   const f = runtimeFixture(
     {},
-    commands => ({
-      ...commands,
-      recall: input => {
-        reads.count += 1
-        return commands.recall(input)
-      },
-    }),
+    undefined,
     undefined,
     options.liveness === false ? undefined : liveness,
   )
@@ -57,7 +50,7 @@ function world(options: { liveness?: boolean } = {}) {
       tenant: f.tenant,
       reference: f.reference,
     })
-  return { f, live, reads, ask }
+  return { f, live, ask }
 }
 
 async function acknowledged(f: ReturnType<typeof runtimeFixture>) {
@@ -82,14 +75,12 @@ describe('the contact answer of the runtime, by the record and the live body', (
     await f.dispose()
   })
 
-  it('answers holding for a call the live body drives, without reading the records', async () => {
-    const { f, live, reads, ask } = world()
+  it('answers holding for a call the live body drives', async () => {
+    const { f, live, ask } = world()
     unbox(await f.provider.runtime.calls.admit(f.admit))
     live.held = 'drive'
     live.evidence = LOCK
-    reads.count = 0
     expect(unbox(await ask())).toEqual({ kind: 'holding' })
-    expect(reads.count).toBe(0)
     expect(live.asked).toEqual([f.admit.call])
     expect(live.judged).toEqual([])
     await f.dispose()
@@ -153,14 +144,18 @@ describe('the contact answer of the runtime, by the record and the live body', (
     expect(unbox(await ask())).toEqual({ kind: 'settled' })
     live.held = 'push'
     expect(unbox(await ask())).toEqual({ kind: 'settled' })
+    live.held = 'drive'
+    expect(unbox(await ask())).toEqual({ kind: 'settled' })
     await f.dispose()
   })
 
-  it('refuses a principal without the right to inspect a call the live body does not hold', async () => {
+  it('refuses a principal without the right to inspect, also for a call the live body drives', async () => {
     const { f, live, ask } = world()
     unbox(await f.provider.runtime.calls.admit(f.admit))
     live.evidence = LOCK
     f.denied.add('inspect')
+    expect(await ask()).toEqual({ failure: { kind: 'denied', action: 'inspect' } })
+    live.held = 'drive'
     expect(await ask()).toEqual({ failure: { kind: 'denied', action: 'inspect' } })
     await f.dispose()
   })
