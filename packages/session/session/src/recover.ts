@@ -14,7 +14,9 @@
 //   The claim of one handover has one operation identity. The recovery queries it first (PM-14:
 //   先查后做): a claim that is committed already gives its grant, so a recovery that comes back
 //   after a failed `resume` resumes with the same grant and claims no second attempt (PM-10).
-// - The execution ended, or its record cannot be read: nothing is done here.
+// - The execution ended while this Run is still open: an event it left is not interpreted yet. The
+//   drive's `inspect` wakes the readers of the published events again; nothing else is done here.
+// - Its record cannot be read: nothing is done here.
 //
 // The takeover in one commit (an `attach` that supersedes an active attachment, Agent SPEC "恢复与
 // 接管") is not in this member: an attachment whose runtime is out of contact goes the hand-back way
