@@ -1,6 +1,6 @@
 # 日程与 Job 跨领域关键流程
 
-本页维护已确认的目标流程，尚不表示实现、模型验证或运行验证。精确状态与失败协议归[日程规格](../../../packages/schedule/SPEC.md)，领域责任归[协作设计](architecture.md)，规则归[产品正文](../../../.meta_harness/design/product/schedules-and-jobs/design.md)。既有 F-SJ05 与不变量编号保留作追溯。
+本页维护已确认的目标流程。精确状态与失败协议归[日程规格](../../../packages/schedule/SPEC.md)，领域责任归[协作设计](architecture.md)，规则归[产品正文](../../../.meta_harness/design/product/schedules-and-jobs/design.md)。
 
 ## F-SJ01 定义、草稿与替换
 
