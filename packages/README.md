@@ -22,7 +22,7 @@
 | [schedule](schedule/README.md) | 日程与Job | `schedule-contract`, `schedule-cordis-contract`, `schedule`, `schedule-local`, `schedule-tools` |
 | [notification](notification/README.md) | 通知 | `notification` |
 | [slash-command](slash-command/README.md) | Slash Command | 待具名 |
-| [skills](skills/README.md) | Skill | `skill-contract`, `skill`, `skill-host-local`, `skill-cordis-contract` |
+| [skills](skills/SPEC.md) | Skill | `skill-contract`, `skill`, `skill-host-local`, `skill-cordis-contract` |
 | [mcp](mcp/SPEC.md) | MCP | `mcp-contract`, `mcp`, `mcp-host-local`, `mcp-cordis-contract` |
 | [storage](storage/README.md) | 存储 | 待具名 |
 | [time](time/README.md) | 时间 | 待具名 |
