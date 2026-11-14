@@ -182,7 +182,7 @@ M3 复用同一原调用的已处理结果。I3 在其提交已知成立前保�
 W0 在一次提交中保存 waiting 状态和一条 waiting 事件（J2）。
 它保留 checkpoint 的原 position，并让出本次推进段。provider 持有唯一串行驱动。
 驱动启动 Journal 观察，再重读快照与原操作槽；只有受理未知时才查询 Model。
-进度未变才通过 AgentClock 等待配置 reconciliationDelayMs 对应的检查时刻。
+进度未变才通过 AgentClock 等待配置 reconciliationDelaysMs 对应的检查时刻。
 通知或检查时刻到达后回 E1。二者都不证明生产者收场或原操作未执行。
 执行仍占槽，`observe` 显示 occupied。
 本地等待在返回前中止并等待观察任务与计时任务退出，不发生产者控制，不解除业务责任。

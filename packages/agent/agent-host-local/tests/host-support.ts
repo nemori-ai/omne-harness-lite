@@ -112,7 +112,7 @@ export const IDLE_MS = 60_000
 
 export const hostConfig: AgentHostConfig = {
   observerBufferBytes: 1024,
-  reconciliationDelayMs: 0,
+  reconciliationDelaysMs: [0],
   reconciliationBatchLimit: 8,
   denialBackoffMs: 0,
   toolConcurrency: 1,

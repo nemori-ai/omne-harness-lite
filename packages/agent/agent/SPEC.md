@@ -63,7 +63,7 @@ open 尚未认回时，reserved 保存原 coordinator 和 invoke 输入指纹。
 - **Tool 受理**：Tool 的 `invoke` 答 `rejected` 而其中失败种类为 `unavailable` 时，这是依赖暂时不可用，不是对动作的拒绝。A2 不建 denied 槽位，按依赖等待，到检查时刻以原意图与原身份再调用 `invoke`，见 Loop 页节点表的 A2 行。其余 `rejected` 照旧在没有历史受理或未决尝试时建 denied 槽位。
 - **确定失败**：写提交答确定失败（存储以确定原因拒绝，Journal 答 `invalid` 或 `unsupported`，例如 `command_limit` 答 `invalid`）时不等待，按“[确定节点故障的收尾](#确定节点故障的收尾)”以失败终结。
 - **被取代的运行时**：同进程接管之后，被取代的旧运行时到检查时刻再写，Journal 答 `stale-advance` 或 `changed`，按现有处理。等待不会让它多写一次。
-- **检查间隔**：工厂配置的 `reconciliationDelayMs`，固定间隔。等待的次数没有上限。
+- **检查间隔**：工厂配置的 `reconciliationDelaysMs`，规则见包组规格的[等着的时候](../SPEC.md#等着的时候)。等待的次数没有上限。
 
 持续验证见[容量与活性模型](verification/capacity-liveness/README.md)。「上限只影响完成的早晚」这一性质以依赖终究可用为前提。确定读不到的 Journal 不在这个前提内，见 session-adapters 的[已知限制](../../session/session-adapters/SPEC.md#已知限制)第 22 条。
 

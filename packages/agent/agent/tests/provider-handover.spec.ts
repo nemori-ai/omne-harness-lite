@@ -76,7 +76,7 @@ const quiesce = (assembly: Assembly) =>
 /** Another runtime over the same dependencies, as the process that starts after a stop. */
 async function successor(assembly: Assembly) {
   return ok(
-    await createAgentRuntime(assembly.dependencies, options({ reconciliationDelayMs: 1000 })),
+    await createAgentRuntime(assembly.dependencies, options({ reconciliationDelaysMs: [1000] })),
   )
 }
 
@@ -200,7 +200,7 @@ describe('resume of an execution that was handed over', () => {
     assembly.release.open()
 
     const next = ok(
-      await createAgentRuntime(assembly.dependencies, options({ reconciliationDelayMs: 1000 })),
+      await createAgentRuntime(assembly.dependencies, options({ reconciliationDelaysMs: [1000] })),
     )
     ok(await resumeIn(next))
 

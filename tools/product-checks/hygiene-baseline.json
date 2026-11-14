@@ -4135,11 +4135,11 @@
       },
       "packages/agent/agent/src/loop/wait.ts": {
         "count": 1,
-        "longest": 152
+        "longest": 151
       },
       "packages/agent/agent/src/provider.ts": {
         "count": 1,
-        "longest": 735
+        "longest": 733
       },
       "packages/agent/agent/src/receiving.ts": {
         "count": 1,

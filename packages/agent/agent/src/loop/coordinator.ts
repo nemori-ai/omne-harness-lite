@@ -112,7 +112,7 @@ import {
 } from './admission-chain.ts'
 import type { PassageNeed } from './passages.ts'
 import { canonical } from '../canonical.ts'
-import { waitForExecutionChange, type HeldPosition } from './wait.ts'
+import { waitForExecutionChange, type HeldPosition, type ReconciliationPacer } from './wait.ts'
 import { diagnosticOf } from './diagnostic.ts'
 import {
   lowerBound,
@@ -265,7 +265,7 @@ export interface ExecutionDrive {
   runExecution(): Promise<Outcome<void, Halted>>
   /** W0's local resources belong to this awaited window, never to the producer. */
   waitForWake(
-    input: Readonly<{ reconciliationDelayMs: number; signal: AbortSignal }>,
+    input: Readonly<{ pacer: ReconciliationPacer; signal: AbortSignal }>,
   ): Promise<Outcome<'ready' | 'stopped' | 'cancelled', Halted>>
   /**
    * The handover of quiesce (SPEC "交接与停用"): `Journal.detach` revokes the attachment of an

@@ -72,6 +72,9 @@ describe('loading', () => {
       'a model retry policy without delays',
       { ...hostConfig, modelRetry: { ...hostConfig.modelRetry, delaysMs: [] } },
     ],
+    ['an empty list of check delays', { ...hostConfig, reconciliationDelaysMs: [] }],
+    ['a negative check delay', { ...hostConfig, reconciliationDelaysMs: [1000, -1] }],
+    ['the old single check delay', { ...hostConfig, reconciliationDelayMs: 1000 }],
     ['an unknown field', { ...hostConfig, tenant: 'org' }],
     ['no configuration', undefined],
   ])('fails the fiber and provides nothing for %s', async (_name, config) => {

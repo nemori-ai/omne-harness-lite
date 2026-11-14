@@ -179,13 +179,15 @@ function withObservationPolicy(
  * The operator layer with the Agent's reconciliation delay at 50 ms. The shared test layer sets it
  * to 0, and an execution that waits then runs again at once, some 200 times a second. The scenarios
  * here wait for a person for seconds, in several sessions at a time: the store load of that spin is
- * not what they examine. The release value is 1000 ms.
+ * not what they examine. The release value starts at 1000 ms and grows while nothing changes.
  */
 function withAgentWaitInterval(layer: unknown): unknown {
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
   return {
     ops: ops.map(op =>
-      op.id === 'agent-host' ? { ...op, config: { ...op.config, reconciliationDelayMs: 50 } } : op,
+      op.id === 'agent-host'
+        ? { ...op, config: { ...op.config, reconciliationDelaysMs: [50] } }
+        : op,
     ),
   }
 }
