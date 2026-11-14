@@ -35,7 +35,7 @@
 | 公开形状 | [session-contract public-api](../session-contract/docs/public-api.md) |
 | 存储契约：操作身份、提交、查询、响应证据、参加者端口、读入口、关闭协议 | [sql-contract 规格](../../storage/SPEC.md)、[sqlite-provider 规格](../../storage/SPEC.md) |
 | 技术选择：Kysely 加 `node:sqlite`，经配置切换 PostgreSQL，没有内存实现 | [技术基础](../../../docs/architecture/technical-foundations.md#共同技术选择)、[基础设施政策](../../../docs/architecture/deployment/infrastructure-policy.md) |
-| 耐久边界与 SQL-T01 | [已确认保存的耐久边界](../../../docs/architecture/data-and-state.md#已确认保存的耐久边界)、[SQL-T01](../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) |
+| 耐久边界 | [已确认保存的耐久边界](../../../docs/architecture/data-and-state.md#已确认保存的耐久边界) |
 | 组内落位 | [组架构](../docs/architecture.md)、[组流程](../docs/key-flows.md) |
 
 ### 实现现状
@@ -991,7 +991,7 @@ releasedScopes(principal, scope = system, after, limit):
 | 写并发 | 单写连接，`BEGIN IMMEDIATE`，事务本来串行 | `SELECT ... FOR UPDATE` 锁住该会话的 `sl_journal` 行 | 两边都在锁内读尾部，最后做 `tail` 条件更新（[W6](#w6)） |
 | 读连接 | sql-contract 的 `read` 入口 | 独立连接，读事务看一致快照 | 读经 `read` 入口；排队归提供者 |
 | 部分索引 | 支持 | 支持 | `sl_pending_idx` 等先用普通表保持同形，不用部分索引 |
-| 耐久 | `journal_mode=WAL`、`synchronous=FULL` 由提供者读回；不等于断电试验 | `fsync` 与复制配置 | 耐久证据归 [SQL-T01](../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) 的承接方，本成员不宣称 |
+| 耐久 | `journal_mode=WAL`、`synchronous=FULL` 由提供者读回；不等于断电试验 | `fsync` 与复制配置 | 本成员不宣称断电耐久 |
 | 迁移 | 同连接事务内 DDL 可回滚 | 事务性 DDL | 两边都走原子迁移 |
 | 大对象去向 | 同库 `sl_blob` | 同库 `sl_blob`，或对象存储 | 阈值与去向是策略配置 |
 
@@ -1038,7 +1038,7 @@ releasedScopes(principal, scope = system, after, limit):
 | 对象存储作为 blob 去向 | [issue 541](https://github.com/nemori-ai/omne-harness-lite/issues/541) | 只有同库 `sl_blob` |
 | 超过 `maxCommandBytes` 的内容先由内容拥有者保管、再以耐久引用进入条目的链路（Session 契约的[明确缺项](../session-contract/SPEC.md#具名前提与明确缺项)） | 存储的拥有者与各内容拥有者 | 条目只带已达到耐久条件的引用（[TB-04](#tb-04)）。拿不到耐久引用时命令返回 `unavailable` |
 | 数值目标：每页延迟、每秒提交数、重建时长、`maxScanPerPage` 与 `pageBytes` 的初值 | 本成员，按验证计划实测后写进本页的声明边界 | 不声明任何数值。策略配置没有默认值时装配必须给出 |
-| 断电耐久 | [SQL-T01](../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) 的承接方 | 本成员只声明进程级持久依赖提供者读回的 `synchronous=FULL`，不宣称断电耐久 |
+| 断电耐久 | [已确认保存的耐久边界](../../../docs/architecture/data-and-state.md#已确认保存的耐久边界) | 本成员只声明进程级持久依赖提供者读回的 `synchronous=FULL`，不宣称断电耐久 |
 | 登记键到能力身份的绑定（R10 的 `capability` 列） | Tool 契约与事件目录对 SE08 载荷的细化 | 本成员假定 SE08 的登记键按能力身份列出；不成立时 `ResidentReference.capability` 不可填，R10 不可用 |
 | 从 `SessionOperationId` 辨认参加操作的入口，例如身份编码带派生种类，或 `queryOperation` 的输入带种类（[R7](#r7)） | Session 契约拥有者 | R7 对未命中的操作一律探查代次，代次 1 为 `not_committed` 时返回 `unknown`，不给 `not-committed`。Session 提交的操作仍可用同一身份重做命令，由 [W1 的尝试代次](#w1-attempts)选代次。协调器与调度器发起的操作停在 `unknown` 时，靠 S1、S3 等触发者以同一身份再次触发才收敛 |
 | `accept` 的上限或背压策略：一个会话的待处理输入数上限，与超限时的拒绝原因（[W1 的代价与退化](#w1-cost)） | 本成员提出字段与初值；超限的拒绝原因归 Session 契约拥有者 | 没有上限。积累 P 条待处理输入的会话，每次 `accept` 的代价是 O(P) |

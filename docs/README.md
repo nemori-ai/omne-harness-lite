@@ -73,7 +73,7 @@
 ## 系统架构负责人
 
 - 从[项目目标与架构设计路径](context-map.md#项目目标与架构设计)核对项目要求，再按问题选择架构专题。逻辑模块分工从[领域入口](domains/README.md)展开，精确接口与行为继续随实际拥有者。
-- 用[采用范围](architecture/README.md#采用状态与当前有效源)核对目标与旧源关系，用[后续设计入口](architecture/README.md#未决事项与后续设计入口)定位尚未决定的事项。需要内部产品、独立目标或研究依据时才展开meta，工作方法沿[调查与设计](engineering/scenarios/research-and-design.md)。
+- 用[采用范围](architecture/README.md#采用状态与当前有效源)核对目标与旧源关系。需要内部产品、独立目标或研究依据时才展开meta，工作方法沿[调查与设计](engineering/scenarios/research-and-design.md)。
 - 责任、约束和必要组合义务明确后停止本轮展开。跨提供者、协调者或生命周期的保证需核对完整责任链；设计描述应然，实现事实用于识别偏离，未决方向由负责人裁定。
 
 ## 产品负责人

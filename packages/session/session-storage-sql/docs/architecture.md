@@ -108,7 +108,7 @@ sql-contract 给参加者一条业务响应通道，响应证据与回执同事�
 | 对象存储作为 blob 去向 | 没有 blob 去向，载荷一律内联 | 对象或文件存储契约的拥有者（[issue 541](https://github.com/nemori-ai/omne-harness-lite/issues/541)） |
 | 登记键到能力身份的绑定 | 假定 SE08 的登记键按能力身份列出。不成立时 R10 不可用 | Tool 契约与事件目录 |
 | 数值目标 | 不声明任何数值 | 本成员，按[验证义务](verification-obligations.md)实测后写进 SPEC |
-| 断电耐久 | 只依赖提供者读回的 `synchronous=FULL`，不宣称断电耐久 | [SQL-T01](../../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) 的承接方 |
+| 断电耐久 | 只依赖提供者读回的 `synchronous=FULL`，不宣称断电耐久 | [已确认保存的耐久边界](../../../../docs/architecture/data-and-state.md#已确认保存的耐久边界) |
 
 ## 验证与维护
 

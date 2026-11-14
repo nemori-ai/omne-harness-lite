@@ -68,7 +68,7 @@ Session 的存储成员。它用 SQL 实现 `SessionTransactionPort`，只经 `@
 pnpm turbo run test --filter=@omne-harness/session-storage-sql
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。现有用例见 [tests/](tests/README.md)：入口与依赖规则、租户隔离、事务域目录，以及后补的用例。`node:sqlite` 夹具不经过 sqlite-provider 的 Worker；`tests/real-provider.spec.ts` 经过它，覆盖进程级持久、关闭，以及 `command_limit` 与 `queue_full` 两种限额。断电耐久与 WAL 维护没有覆盖。[验证义务](docs/verification-obligations.md)里的派生等于重算、读路径复杂度基准、并发写与失败分类注入尚未实现。数值目标在实测之前不声明。断电耐久归 [SQL-T01](../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) 的承接方，本成员不宣称。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。现有用例见 [tests/](tests/README.md)：入口与依赖规则、租户隔离、事务域目录，以及后补的用例。`node:sqlite` 夹具不经过 sqlite-provider 的 Worker；`tests/real-provider.spec.ts` 经过它，覆盖进程级持久、关闭，以及 `command_limit` 与 `queue_full` 两种限额。断电耐久与 WAL 维护没有覆盖。[验证义务](docs/verification-obligations.md)里的派生等于重算、读路径复杂度基准、并发写与失败分类注入尚未实现。数值目标在实测之前不声明。本成员不宣称断电耐久。结构检查通过不表示行为已验证。
 
 ## 维护
 

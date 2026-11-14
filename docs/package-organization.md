@@ -185,7 +185,7 @@ tools/<开发工具>/              检查与开发工具
 scripts/                       仓库自动化
 ```
 
-标「未建」的叶子是已接受的落点，成员还没有建。它们在交付时用包模板生成，建好之后去掉这个标记。`access` 组三个现有成员的职责按上面的写法改变，现有实现与它的差别见[系统分层的现行偏离](architecture/layers-and-dependencies.md#现行偏离)。`apps/m2-contract-skeleton` 按同一份提案退役，随接入插件那一程删除。
+标「未建」的叶子是已接受的落点，成员还没有建。它们在交付时用包模板生成，建好之后去掉这个标记。`access` 组三个现有成员的职责按上面的写法改变。`apps/m2-contract-skeleton` 按同一份提案退役，随接入插件那一程删除。
 
 telemetry 的已采用成员为 `telemetry-contract`、`telemetry-cordis-contract`、`telemetry-node`，职责见[遥测规格](../packages/telemetry/SPEC.md#总体架构)。
 
@@ -266,7 +266,7 @@ access把每个领域都要用的那部分接入知识就近组织。它不拥�
 
 - public-contract 拥有公开契约的共同部分：逻辑消息的信封、对外结果、判断次序、协议契约的类型，以及内置协议。它是纯数据，没有 Cordis、存储与 Node 专有的依赖。
 - access-cordis-contract 拥有接入贡献的类型和登记表的 Cordis 服务定义。领域的接入插件在 access 组里只依赖它和 public-contract，不依赖 server-entry。它自己只依赖 public-contract 与 Cordis，依赖方向的门禁 `access-cordis-contract-only-contract-and-cordis` 守这一条。它的 `./cordis` 入口提供 `defineAccessPlugin`：领域写一份接入贡献，得到一个 Cordis 插件，插件加载时把协议挂上登记表，卸载时撤下。
-- server-entry 是服务端入口：承载绑定、管道、登记表、观察中枢。它的依赖里没有任何领域的契约。目前已建的是登记表、收场、管道、观察中枢与可用性（`src/registry/`、`src/settle/`、`src/pipeline/`、`src/observation-hub/`、`src/availability/`）。管道把登记表接到新地址上，操作与观察都走它，前提是构造入口时给了登记表与身份端口；正式的服务端应用给了这两样，登记表上只挂着内置协议 `access/v1`。这五个目录不导入任何领域的成员，也不导入入口现有三个位置的文件，门禁 `entry-registry-knows-no-domain` 守这一条。入口现有的三个位置仍依赖各领域的契约，见[系统分层](architecture/layers-and-dependencies.md#现行偏离)「现行偏离」。
+- server-entry 是服务端入口：承载绑定、管道、登记表、观察中枢。它的依赖里没有任何领域的契约。目前已建的是登记表、收场、管道、观察中枢与可用性（`src/registry/`、`src/settle/`、`src/pipeline/`、`src/observation-hub/`、`src/availability/`）。管道把登记表接到新地址上，操作与观察都走它，前提是构造入口时给了登记表与身份端口；正式的服务端应用给了这两样，登记表上只挂着内置协议 `access/v1`。这五个目录不导入任何领域的成员，也不导入入口现有三个位置的文件，门禁 `entry-registry-knows-no-domain` 守这一条。入口现有的三个位置仍依赖各领域的契约。
 - `sdk` 成员的子入口 `./core` 是客户端核心：给它一份协议契约和一个传输，得到带类型的方法。客户端核心只依赖 public-contract、json-text 与 eventsource-parser，不依赖 Cordis，也不导入 Node 专有的模块，能在浏览器里用；门禁 `sdk-core-stays-portable` 守这一条。`sdk` 的根入口仍是入口现有三个位置的适配。
 - client-assembly 是客户端装配：一棵 Cordis 树上的连接与协议客户端。它只比 `sdk` 成员多依赖 Cordis。
 
@@ -286,7 +286,7 @@ access把每个领域都要用的那部分接入知识就近组织。它不拥�
 
 界面用到的技术栈不写进顶层的[技术基础](architecture/technical-foundations.md)，由用它的成员在自己的文档里维护：各领域的界面模块和共用界面件都要用的写在 `packages/frontend/`，只有桌面外壳用的写在 `apps/desktop/`。版本仍然进仓库的依赖目录与锁文件。
 
-完整Harness客户端通过SDK使用系统；独立能力消费者可以直接使用所需能力及所选实现，不强制经过SDK。同组不要求共同安装或发布。传输路线和登录证明放在哪已经由[分层页的传输与兼容约定](architecture/layers-and-dependencies.md#传输与兼容约定)定下。远程接入方式、传输保护、兼容、缓存、观察的恢复及拥有式daemon启动沿[分层后续设计](architecture/layers-and-dependencies.md#待细化范围)明确，本页不补默认协议。
+完整Harness客户端通过SDK使用系统；独立能力消费者可以直接使用所需能力及所选实现，不强制经过SDK。同组不要求共同安装或发布。传输路线和登录证明放在哪已经由[分层页的传输与兼容约定](architecture/layers-and-dependencies.md#传输与兼容约定)定下。本页不为远程接入方式、传输保护、兼容、缓存、观察的恢复及拥有式daemon启动补默认协议。
 
 ## 最小 CLI 的接入边界
 
