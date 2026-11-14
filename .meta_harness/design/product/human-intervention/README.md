@@ -17,8 +17,8 @@ relations:
 
 - [产品正文](design.md)维护需求、能力状态、阶段承诺及未决事项。
 - [领域责任](../../../../docs/domains/human-intervention/README.md)维护事实归属。
-- [能力组](../../../../packages/human-intervention/README.md)维护工程关系。
-- [行为候选](../../../../packages/human-intervention/human-intervention/SPEC.md)及[技术采用](../../../../packages/human-intervention/human-intervention/docs/internals.md#后续技术采用)维护完整必要行为与后续机制。
+- [包组规格](../../../../packages/human-intervention/SPEC.md#总体架构)维护工程关系。
+- [包组规格](../../../../packages/human-intervention/SPEC.md#应然设计)维护完整必要行为。
 
 ## 维护
 
