@@ -14,24 +14,24 @@ uv run --locked python .meta_harness/tooling/src/check_sources.py --root .meta_h
 ```
 
 `--source-root` 必须指向设计根所在的同一执行检出，不从安装位置或父目录猜测。
-工具校验该检出的根登记和发现的局部登记。docs、组及仅有文档的成员 Markdown 按精确注册文件准入，
-不放行目录或同级未登记文件。另允许两个精确的非 Markdown 目标
-`docs/engineering/github-delivery.json` 和 `docs/architecture/constraints.json`。
+执行检出里的 Markdown 只放行约束的载体：`docs/requirements.md`、`docs/architecture/` 与 `docs/domains/` 下的正文、
+`packages/<组>/SPEC.md`、`apps/<名>/SPEC.md`、`tools/<名>/SPEC.md`，以及根的 `AGENTS.md` 与 `CONTRIBUTING.md`。
+别的 Markdown 不放行。session 包组还没有重写成一份规格，它的组入口与组 `docs/` 暂时放行，重写之后去掉这一条。
+另允许两个精确的非 Markdown 目标 `docs/engineering/github-delivery.json` 和 `docs/architecture/constraints.json`。
 
 实际 packages 与 apps 当前成员的文件，包括 Markdown SPEC，
 可由 workspace 包含及排除声明和有效 manifest 确认出处。目标与 manifest 必须留在该检出内。
-`ModuleSources.owns()` 与 `origin()` 只认当前成员，`origin()` 返回 `current-member` 或 None。tools 不属于产品成员，其 Markdown 按精确登记准入。
-坏登记、非法声明、缺文件、错锚点和越界链接均使检查失败。
+`ModuleSources.owns()` 与 `origin()` 只认当前成员，`origin()` 返回 `current-member` 或 None。tools 不属于产品成员，它的 Markdown 只放行 `SPEC.md`。
+非法声明、缺文件、错锚点和越界链接均使检查失败。
 
 未提供 `--source-root` 时，仅检查设计根、既有 meta agents/research 来源和 meta 根入口，
 不准入外部 docs 或成员路径。模板可被合法引用，但不扫描模板正文。tmp、record、跨检出及其别名被拒绝。
 spec、realization、registry 三个旧根不得重新出现，空目录、普通文件或悬空软链接同样拒绝。
 外部 URL 不在本工具中抓取或核实。
 
-检查冻结扫描集合、源正文、登记、依据、workspace、实际用到的 manifest、目标字节与实际路径，
+检查冻结扫描集合、源正文、workspace、实际用到的 manifest、目标字节与实际路径，
 收尾发现变化时失败。图片等二进制目标只读字节，Markdown 必须能按 UTF-8 解码。
 持续正控与拒绝反例位于 `tests/test_source_links.py`。
-角色上下文入口见 [spec-tools](../../tools/spec-tools/README.md#按角色读取上下文)。
 
 该工具不判断条款等价性、采用状态、实现符合性或模型覆盖。公开 Schema 身份、规范输入及形式模型的正负控由真实拥有者维护并执行；单次原始输出归执行工作树 tmp。根 `pnpm run check:design` 组合本检查与领域对象对账，不隐式执行形式模型。
 

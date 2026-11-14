@@ -12,7 +12,7 @@
 
 ## 终态与过程材料
 
-Git维护当前有效的需求、系统预期、承诺和必要理由；实现侧终态归对应成员。过程材料放哪、唯一源与退出条件归[位置与唯一源](../../docs/engineering/documentation.md#位置与唯一源)，正式RFC与Issue最小记录按[保存例外](../../docs/engineering/documentation.md#四类长期成果与普通任务)维护。不把旧 record 换名搬家或改成历史 Git 链接台账。
+Git维护当前有效的需求、系统预期、承诺和必要理由；实现侧终态归对应成员。过程材料放哪、唯一源与退出条件归根入口的[知识放哪](../../AGENTS.md#知识放哪)；Issue 上的最小决定照 `omne-card` 技能的[决定记录](../agents/skills/omne-card/canonical/references/decisions.md)写。不把旧 record 换名搬家或改成历史 Git 链接台账。
 
 ## 组织原则
 

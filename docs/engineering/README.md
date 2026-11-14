@@ -61,6 +61,6 @@
 
 ## 检查与维护
 
-文档维护者更新拥有者正文，再同步场景、技能入口和角色／任务导航。目标由[唯一登记](../documentation.json)维护。运行 `pnpm run check:docs` 核对链接，运行 `pnpm run docs:inventory` 观察缺项、未知和增减。结果范围见[治理说明](documentation.md#检查与结论边界)；不将结构通过当作内容、技能行为或发布授权。
+文档维护者更新拥有者正文，再同步场景、技能入口和角色／任务导航。目标由唯一登记维护。运行 `pnpm run check:docs` 核对链接，运行 `pnpm run docs:inventory` 观察缺项、未知和增减。结果范围见[治理说明](documentation.md#检查与结论边界)；不将结构通过当作内容、技能行为或发布授权。
 
 工作任务的同步、FI/RI、主干准入、稳定点与流程失效时的恢复，从[轨道与 gate](integration.md)进入。主干准入、Git 运输和交付接受分别核对。

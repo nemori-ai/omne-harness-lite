@@ -68,7 +68,7 @@
 
 ## 登记目标与留空
 
-应有文档和必要章节按[登记规则](engineering/documentation.md#最低内容与维护)维护。项目级目标归[docs/documentation.json](documentation.json)，领域及成员维护自己的局部目标，同一目标只登记一次。默认发现范围与格式见[spec-tools](../tools/spec-tools/README.md#文档目标与缺项计量)。
+应有文档和必要章节按[登记规则](engineering/documentation.md#最低内容与维护)维护。项目级目标归 docs/documentation.json，领域及成员维护自己的局部目标，同一目标只登记一次。默认发现范围与格式见[spec-tools](../tools/spec-tools/README.md)。
 
 新增必要内容先在真实要求拥有者明确，再同步稳定目标身份、拥有者、路径、章节和依据。结构要求的adopted表示应有结构已获授权，不表示目标正文中的新技术设计已接受。纯文字修复无需新增目标或改动结构依据。
 
@@ -80,7 +80,7 @@
 
 ## 检查与偏离报告
 
-普通文档维护先检查真实引用和登记，命令在仓库根运行。只需确定首轮角色路径时用[角色查询](../tools/spec-tools/README.md#按角色读取上下文)；它不递归展开依赖。随后沿实际任务读取必要拥有者，分别记录访问资格、输入版本、结果及停止点。
+普通文档维护先检查真实引用和登记，命令在仓库根运行。只需确定首轮角色路径时用[角色查询](../tools/spec-tools/README.md)；它不递归展开依赖。随后沿实际任务读取必要拥有者，分别记录访问资格、输入版本、结果及停止点。
 
 ```sh
 pnpm run check:docs
