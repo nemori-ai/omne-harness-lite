@@ -1,6 +1,6 @@
 # 日历协作设计
 
-本页维护已确认的目标责任与消费关系，不表示实现或提供者已验证。范围归[领域入口](README.md)，产品规则归[产品正文](../../../.meta_harness/design/product/calendars/design.md)，精确行为归[日历规格](../../../packages/calendar/SPEC.md)。
+本页维护已确认的目标责任与消费关系。范围归[领域入口](README.md)，产品规则归[产品正文](../../../.meta_harness/design/product/calendars/design.md)，精确行为归[日历规格](../../../packages/calendar/SPEC.md)。
 
 ## 独立部署与本地实现
 
