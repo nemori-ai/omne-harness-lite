@@ -34,7 +34,7 @@
 
 ### 增量声明与待实施责任
 
-[结果推送与保存](../SPEC.md#结果推送与保存)定义结果键、冻结载荷、saved 合取事实及接收/恢复义务；[公共内容观察与当前目标](../SPEC.md#公共内容观察与当前目标)定义 Model 投影、差分及 current 语义；其中[投影行为契约](../SPEC.md#model-投影及差分)固定完整 ref/dispatch 来源、原修订与输出游标基线、失败顺序和不可变输出。公共 ref/cursor/frame 由 [stream-arrival](../../../common/stream-arrival/README.md#public-observation-contract)拥有。结果键、账目快照与交付载荷的三个纯值类型已从根入口导出，见[结果、失败和状态](#结果失败和状态)。Model 投影与差分纯值见[显示投影入口](#model-显示投影纯值)。saved 回执、结果接收端口和纯交付 judge 已从根入口导出，接收服务与恢复实现仍由提供者承担；current 与 Model 观察别名已从根入口导出，见[当前目标与公共观察](#model-当前目标与公共观察)；公共引用和游标的出口由其拥有者提供。尚未声明的名字不是现有可导入 API，不改变旧实现的必需成员。
+[结果推送与保存](../SPEC.md#结果推送与保存)定义结果键、冻结载荷、saved 合取事实及接收/恢复义务；[公共内容观察与当前目标](../SPEC.md#公共内容观察与当前目标)定义 Model 投影、差分及 current 语义；其中[投影行为契约](../SPEC.md#model-投影及差分)固定完整 ref/dispatch 来源、原修订与输出游标基线、失败顺序和不可变输出。公共 ref/cursor/frame 由 [stream-arrival](../../../common/SPEC.md#流式到达)拥有。结果键、账目快照与交付载荷的三个纯值类型已从根入口导出，见[结果、失败和状态](#结果失败和状态)。Model 投影与差分纯值见[显示投影入口](#model-显示投影纯值)。saved 回执、结果接收端口和纯交付 judge 已从根入口导出，接收服务与恢复实现仍由提供者承担；current 与 Model 观察别名已从根入口导出，见[当前目标与公共观察](#model-当前目标与公共观察)；公共引用和游标的出口由其拥有者提供。尚未声明的名字不是现有可导入 API，不改变旧实现的必需成员。
 
 新增端口的 `Access` 直接来自 `@omne-harness/legal-identity`。root.ts 再导出同一定义，不另写副本。current 的对象参数和失败顺序归 [目标查询](../SPEC.md#current-的权威含义)。
 
@@ -52,7 +52,7 @@ receiver、observe 与 current 的完整公开声明及实际导入依赖公共�
 
 `judgeFixedModelRequest(unknown)` 判断独立固定请求。`judgeAdmit<P>(ModelAdmitCandidate<P>)` 保留 typed Access，只将四个 payload 字段视为未知输入。二者返回现有 Outcome。成功值独立深冻结；admit 根浅冻结，P 与已铸造 tenant 保持原对象。失败为 ModelInputRejection 的 field/reason，field 是规范 JSON Pointer。字段集合、资源限制、失败顺序与 Proxy 限制归 [SPEC](../SPEC.md#封闭输入判断)。结构通过不授予资格、采用或容量。
 
-- 再导出：`Adoption` 与 `ConsumerRef` 的唯一定义在 [exchange-refs](../../../common/exchange-refs/SPEC.md)，`Access` 的唯一定义在 legal-identity。root.ts 以原名再导出它们。封闭判断与 64 位小写十六进制的摘要规则留在本包。
+- 再导出：`Adoption` 与 `ConsumerRef` 的唯一定义在 [exchange-refs](../../../common/SPEC.md#交接引用)，`Access` 的唯一定义在 legal-identity。root.ts 以原名再导出它们。封闭判断与 64 位小写十六进制的摘要规则留在本包。
 - 声明：[`src/root.ts`](../src/root.ts)、[`src/identity-values.ts`](../src/identity-values.ts)、[`src/provider-name.ts`](../src/provider-name.ts)、[`src/reference.ts`](../src/reference.ts)、[`src/judge-request.ts`](../src/judge-request.ts)、[`src/input-tree.ts`](../src/input-tree.ts)。
 - 入口：`ActorRef`、`ModelOperationRef`、`ModelOperationParts`、`encodeModelOperationRef`、`decodeModelOperationRef`、`resolveModelOperationRef`、`ModelAdmitCandidate`、`ModelInputRejection`、`MODEL_INPUT_LIMITS`、`judgeFixedModelRequest`、`judgeAdmit`、`decodeReadId` 与 `compareRevisions` 在 `./provider`：操作引用由提供者铸造与解析，封闭输入判断由受理提供者调用，读取身份由提供者铸造，修订的先后只有提供者比较。其余在根入口。
 - 类型探针：[`tests/root.spec-d.ts`](../tests/root.spec-d.ts)、[`tests/reference.spec-d.ts`](../tests/reference.spec-d.ts)、[`tests/judge-request.spec-d.ts`](../tests/judge-request.spec-d.ts)。运行时行为测试：[`tests/identity.spec.ts`](../tests/identity.spec.ts)、[`tests/reference.spec.ts`](../tests/reference.spec.ts)、[`tests/judge-request.spec.ts`](../tests/judge-request.spec.ts)。
@@ -77,7 +77,7 @@ receiver、observe 与 current 的完整公开声明及实际导入依赖公共�
 
 本章给调用方和消费者拥有者：操作的失败值、调用状态、终局与确认回执。
 
-- 再导出：`DurableEvidence` 的唯一定义在 [exchange-refs](../../../common/exchange-refs/SPEC.md)，result.ts 以原名再导出。摘要算法归证据的 owner。
+- 再导出：`DurableEvidence` 的唯一定义在 [exchange-refs](../../../common/SPEC.md#交接引用)，result.ts 以原名再导出。摘要算法归证据的 owner。
 - 声明：[`src/result.ts`](../src/result.ts)、[`src/result-delivery-values.ts`](../src/result-delivery-values.ts)、[`src/result-delivery.ts`](../src/result-delivery.ts)、[`src/result-delivery-judge.ts`](../src/result-delivery-judge.ts)。
 - 类型探针：[`tests/result.spec-d.ts`](../tests/result.spec-d.ts)、[`tests/result-delivery-values.spec-d.ts`](../tests/result-delivery-values.spec-d.ts)、[`tests/result-delivery.spec-d.ts`](../tests/result-delivery.spec-d.ts)。
 - 纯判断及受控接收行为：[`tests/result-delivery.spec.ts`](../tests/result-delivery.spec.ts)。接收替身不从公开入口导出，不证明真实存储或资格提供者的行为。
@@ -100,7 +100,7 @@ receiver、observe 与 current 的完整公开声明及实际导入依赖公共�
 - 声明：[`src/model-stream.ts`](../src/model-stream.ts)。
 - 公共入口类型探针：[`tests/model-stream-selection.spec-d.ts`](../tests/model-stream-selection.spec-d.ts)。受控查询行为：[`tests/testing-stream-references.spec.ts`](../tests/testing-stream-references.spec.ts)，经 `./testing` 的 `current` 替身。
 
-`ModelStreamReferences` 供提供者实现当前显示目标查询，`ModelStreamSelection` 将同次权威读取的调用状态与当前目标一起返回。`ModelStreamObservation` 为公共 `StreamObserver` 绑定 Model 投影与差分；公共观察协议由 [stream-arrival](../../../common/stream-arrival/README.md#public-observation-contract) 拥有。查询资格、失败顺序、目标退役和回复乱序规则归 [SPEC](../SPEC.md#current-的权威含义)。这些声明和 `./testing` 的替身不提供真实查询或发布服务，也不证明真实提供者的资格与披露围栏。
+`ModelStreamReferences` 供提供者实现当前显示目标查询，`ModelStreamSelection` 将同次权威读取的调用状态与当前目标一起返回。`ModelStreamObservation` 为公共 `StreamObserver` 绑定 Model 投影与差分；公共观察协议由 [stream-arrival](../../../common/SPEC.md#流式到达) 拥有。查询资格、失败顺序、目标退役和回复乱序规则归 [SPEC](../SPEC.md#current-的权威含义)。这些声明和 `./testing` 的替身不提供真实查询或发布服务，也不证明真实提供者的资格与披露围栏。
 
 ## 普通调用面与实例观察
 
@@ -360,7 +360,7 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 
 `createScriptedStreamReferences` 从一个确认记录给出 `ModelStreamSelection`：`confirmSelection` 登记 state 与当前目标，`establishWithoutTarget` 登记没有目标的确认，`withdrawTarget` 退役无后继。这三个控制都带 `tenant`，因为引用不含租户（R2-D357）；`setSource('unavailable')` 使读取返回 `unavailable(stream-references)`；`holdResponse`/`reached`/`releaseResponse` 让一次响应等待，等待后重核资格并重读来源。失败顺序按 [current 的失败与读取顺序](../SPEC.md#current-的失败与读取顺序)；`events()` 记录每次通过前置检查的来源读取。登记的记录与返回的 selection 都是深复制、深冻结的纯值。
 
-`createScriptedStreamObservation` 按租户和 `StreamRef` 提供内存中的 `ModelStreamObservation`；`end` 与 `openObservations` 也带租户，因为引用不含租户（R2-D357）。`publish` 登记一条新流的首个已确认快照，`advance` 登记同一 ref 的下一个快照并用 `diffModelStream` 得出 delta（失败抛 `ScriptedModelError`）；两者都推进该流的公共位置（从 1 起每次加 1，state-only 变化也推进），返回 `encodeStreamCursor` 的游标。`observe` 按 [stream-arrival 的失败顺序](../../../common/stream-arrival/README.md#failure-order-and-iterator-completion)检查：未铸造的租户以 `denied` 结束，引用文本不可读以 `stale-stream` 结束，然后查控制面（`deny`→`denied`，`unavailable`→`unavailable`），然后流在观察者的租户里不存在以 `stale-stream` 结束（他租户的流也是这样）、已 `end` 的流以 `end` 给出的 reason 结束。通过后先给当前快照，之后每个 `advance` 给一帧 delta，`from` 是该观察者上一帧的游标；取得快照与登记订阅在同一同步临界区完成。signal 中止以 `observer-closed` 结束并退订，已排定的终止帧也让位给它；中止之后交出前仍重核，撤权或控制面不可用时下一帧是 `denied` 或 `unavailable`，优先于 `observer-closed`；同一 ref 再次观察先给当时的完整快照，再给后续 delta，不重放旧 delta。撤权与控制面不可用对所有已开的观察立即生效：替身当场重核每个已开的观察，排队的帧不会在核对失败之后交出。`end` 也立即生效：替身丢弃该流每个已开观察者未取的快照与 delta，之后只交出终止帧。已排定的终止帧在交出前再重核引用、租户与控制面。撤权后的下一帧是 `denied`，控制面不可用后的下一帧是 `unavailable`，二者优先于已排定的终止帧。已排定的终止帧不被之后的 `end` 改写，`end(stale-stream)` 也不例外：替身只重核引用、租户与控制面，不模拟发布代次的核对。`capacity` 是每个观察者待取帧数的上限。加入一帧会超出上限时，替身先移除该观察者的订阅并清空待取帧，再排定一个终止 `gap`：`reason` 为 `buffer`，`after` 是最后交出给该观察者的游标。按[公共契约](../../../common/stream-arrival/README.md#failure-order-and-iterator-completion)，以 `capacity` 结束的情形是快照超限、观察者准入因数量或总资源失败、生产者结束值超限。本替身只限每个观察者的待取帧数（`capacity` 须为正整数，否则构造时抛 `ScriptedModelError('invalid-script')`），不限观察者数与字节，快照总是空队列的第一帧，所以本替身不给 `capacity`。输出帧是深复制、深冻结的纯值；替身不发布真实来源，不持久化，也不模拟目标来源不可用。
+`createScriptedStreamObservation` 按租户和 `StreamRef` 提供内存中的 `ModelStreamObservation`；`end` 与 `openObservations` 也带租户，因为引用不含租户（R2-D357）。`publish` 登记一条新流的首个已确认快照，`advance` 登记同一 ref 的下一个快照并用 `diffModelStream` 得出 delta（失败抛 `ScriptedModelError`）；两者都推进该流的公共位置（从 1 起每次加 1，state-only 变化也推进），返回 `encodeStreamCursor` 的游标。`observe` 按 [stream-arrival 的失败顺序](../../../common/SPEC.md#流式到达)检查：未铸造的租户以 `denied` 结束，引用文本不可读以 `stale-stream` 结束，然后查控制面（`deny`→`denied`，`unavailable`→`unavailable`），然后流在观察者的租户里不存在以 `stale-stream` 结束（他租户的流也是这样）、已 `end` 的流以 `end` 给出的 reason 结束。通过后先给当前快照，之后每个 `advance` 给一帧 delta，`from` 是该观察者上一帧的游标；取得快照与登记订阅在同一同步临界区完成。signal 中止以 `observer-closed` 结束并退订，已排定的终止帧也让位给它；中止之后交出前仍重核，撤权或控制面不可用时下一帧是 `denied` 或 `unavailable`，优先于 `observer-closed`；同一 ref 再次观察先给当时的完整快照，再给后续 delta，不重放旧 delta。撤权与控制面不可用对所有已开的观察立即生效：替身当场重核每个已开的观察，排队的帧不会在核对失败之后交出。`end` 也立即生效：替身丢弃该流每个已开观察者未取的快照与 delta，之后只交出终止帧。已排定的终止帧在交出前再重核引用、租户与控制面。撤权后的下一帧是 `denied`，控制面不可用后的下一帧是 `unavailable`，二者优先于已排定的终止帧。已排定的终止帧不被之后的 `end` 改写，`end(stale-stream)` 也不例外：替身只重核引用、租户与控制面，不模拟发布代次的核对。`capacity` 是每个观察者待取帧数的上限。加入一帧会超出上限时，替身先移除该观察者的订阅并清空待取帧，再排定一个终止 `gap`：`reason` 为 `buffer`，`after` 是最后交出给该观察者的游标。按[公共契约](../../../common/SPEC.md#流式到达)，以 `capacity` 结束的情形是快照超限、观察者准入因数量或总资源失败、生产者结束值超限。本替身只限每个观察者的待取帧数（`capacity` 须为正整数，否则构造时抛 `ScriptedModelError('invalid-script')`），不限观察者数与字节，快照总是空队列的第一帧，所以本替身不给 `capacity`。输出帧是深复制、深冻结的纯值；替身不发布真实来源，不持久化，也不模拟目标来源不可用。
 
 ### 档案与请求准备的两个替身
 

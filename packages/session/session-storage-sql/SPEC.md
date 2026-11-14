@@ -30,7 +30,7 @@
 | 引用查询的索引维护与引用定义 | [常驻工具与会话冻结](../session-contract/SPEC.md#常驻工具与会话冻结) |
 | 已释放作用域的账本 | [ScopeReleasePort](../session-contract/SPEC.md#scopereleaseport) |
 | 推理续接状态不建索引 | [推理续接状态](../session-contract/SPEC.md#推理续接状态) |
-| 压缩记录形状、保留名单与模型视图 CM-01 至 CM-06 | [message SPEC 模型视图](../../common/message/SPEC.md#模型视图) |
+| 压缩记录形状、保留名单与模型视图 CM-01 至 CM-06 | [message SPEC 模型视图](../../common/SPEC.md#消息) |
 | 历史源读口与 epoch 视图 H1 至 H5 | [request-context-contract](../../context/SPEC.md#七组稳定读取与来源登记) |
 | 公开形状 | [session-contract public-api](../session-contract/docs/public-api.md) |
 | 存储契约：操作身份、提交、查询、响应证据、参加者端口、读入口、关闭协议 | [sql-contract 规格](../../storage/SPEC.md)、[sqlite-provider 规格](../../storage/SPEC.md) |
@@ -1008,7 +1008,7 @@ releasedScopes(principal, scope = system, after, limit):
 | 历史面四个读操作与三个对账读操作的结果与拒绝原因 | [SessionHistory](../session-contract/SPEC.md#sessionhistory)、[SessionReconciliation](../session-contract/SPEC.md#sessionreconciliation) | R2、R5、R8、R10、R11 |
 | 事件目录的封套与 38 类 | [事件目录](../session-contract/docs/object-model/session-log-events.md#原生事实类别) | `sl_entry` 列与 W3 的派生规则 |
 | `decide`、`reduce` 与 OP-00 的纯函数，以及它们共用的解释版本 | [领域服务与归约](../session-contract/SPEC.md#领域服务与归约)、[OP-00](../session-contract/SPEC.md#op-00) | W1 第 6、7、9 步；W2；W4 第 2 步；R9 |
-| 模型视图 CM-01 至 CM-06 与消息类型 | [message SPEC](../../common/message/SPEC.md#模型视图) | W4 第 4 步的新 epoch 行；R5 的消息解码；C-01 的视图重算。压缩判定经 `decide` 传递，本成员不直接调用 |
+| 模型视图 CM-01 至 CM-06 与消息类型 | [message SPEC](../../common/SPEC.md#消息) | W4 第 4 步的新 epoch 行；R5 的消息解码；C-01 的视图重算。压缩判定经 `decide` 传递，本成员不直接调用 |
 | `HistoryPage.annotations` 的含义 | [SessionHistory](../session-contract/SPEC.md#sessionhistory) | R2 每页经 R6 填充 |
 | 历史源读口 H1 至 H5 | [request-context-contract](../../context/SPEC.md#七组稳定读取与来源登记) | R5 |
 

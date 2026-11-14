@@ -552,7 +552,7 @@ guide 是定义的投影，由 `commandGuide` 机械派生（D-104）。多命�
 
 必需依赖是抽象能力名称的合取，不是指定资产、按次猜提供者或“甲或乙”的表达。可选项不写入必需声明，实际使用时探测。缺一个必需提供者则整个工具不可用；同一名称的候选由合法选择满足，不在定义侧暴露候选优先算法。
 
-可选声明包括外部服务、附件存储、目标环境及设施、参数模态、结果模态、可编程调用许可、后台许可及转后台阈值。未声明服务或附件则不依赖或不产该类附件，环境没有特殊要求，模态缺省文本，后台许可缺省拒绝。参数模态与结果模态的值取自 [modality 成员的词表](../../common/modality/SPEC.md#四种模态)，只接受其中四种模态。未声明不是允许暗用未披露的设施或对外服务，实际使用必须符合声明及资格。
+可选声明包括外部服务、附件存储、目标环境及设施、参数模态、结果模态、可编程调用许可、后台许可及转后台阈值。未声明服务或附件则不依赖或不产该类附件，环境没有特殊要求，模态缺省文本，后台许可缺省拒绝。参数模态与结果模态的值取自 [modality 成员的词表](../../common/SPEC.md#模态)，只接受其中四种模态。未声明不是允许暗用未披露的设施或对外服务，实际使用必须符合声明及资格。
 
 目标环境声明设置形状及默认，落点与身份类不接受工作区配值。转后台阈值是偏好类设置。前台上限和工具并发上限也是偏好，定义和合法配值均未提供时没有该项限制。共同求值、锁定和许可上界归 settings 与 permissions，不用统一覆盖算法改写其语义。
 
@@ -701,7 +701,7 @@ guide 是定义的投影，由 `commandGuide` 机械派生（D-104）。多命�
 
 #### 公共流协议上的观察
 
-本节依据 [CP-15c 契约稳定审计 D-10](https://github.com/nemori-ai/omne-harness-lite/issues/732)，由 [#626](https://github.com/nemori-ai/omne-harness-lite/issues/626) 写回，照 Model 已入轨的形状（`model-contract/src/model-stream.ts`）。源码按本节实现：`ToolRuntime.instances` 是 `ToolStreamReferences`，`ToolRuntime.observation` 是 `ToolStreamObservation`，`toolStreamCallCodec` 在 `./provider`。runtime 门面的实现在 `tool/src/stream-facade.ts`，实现方式见 tool 的 SPEC「运行时观察门面」（`../tool/SPEC.md#运行时观察门面`）。门面的验证在 `tool/tests/stream-observation.spec.ts`，只对受控的进程内发布者运行，不对真实观察提供者运行。公共引用、游标、帧词汇、快照与订阅边界、披露与容量、失败顺序由 [stream-arrival 的公共观察契约](../../common/stream-arrival/README.md#public-observation-contract)拥有，本页只定义 Tool 自己的投影、目标选择与原因映射，不改公共协议。
+本节依据 [CP-15c 契约稳定审计 D-10](https://github.com/nemori-ai/omne-harness-lite/issues/732)，由 [#626](https://github.com/nemori-ai/omne-harness-lite/issues/626) 写回，照 Model 已入轨的形状（`model-contract/src/model-stream.ts`）。源码按本节实现：`ToolRuntime.instances` 是 `ToolStreamReferences`，`ToolRuntime.observation` 是 `ToolStreamObservation`，`toolStreamCallCodec` 在 `./provider`。runtime 门面的实现在 `tool/src/stream-facade.ts`，实现方式见 tool 的 SPEC「运行时观察门面」（`../tool/SPEC.md#运行时观察门面`）。门面的验证在 `tool/tests/stream-observation.spec.ts`，只对受控的进程内发布者运行，不对真实观察提供者运行。公共引用、游标、帧词汇、快照与订阅边界、披露与容量、失败顺序由 [stream-arrival 的公共观察契约](../../common/SPEC.md#流式到达)拥有，本页只定义 Tool 自己的投影、目标选择与原因映射，不改公共协议。
 
 Tool 提供三样：
 
@@ -728,7 +728,7 @@ Tool 提供三样：
 
 游标：观察游标是公共 `StreamCursor`，位置是该过程流内发布者为每次已确认投影变化推进的单调位置，含没有新块的状态变化。`ToolCursor` 另有托管与执行用途（`readProcess` 的 `at`、`ProcessSnapshot` 与保管记录的已保存版本），保留，不与 `StreamCursor` 互换。
 
-公共原因与 Tool 自有原因：标准结束原因、gap 原因、它们的先后顺序与迭代器完成规则归 [stream-arrival README 的失败顺序](../../common/stream-arrival/README.md#failure-order-and-iterator-completion)，本页不复制那张表。Tool 的情形进入该顺序的方式：未铸造租户与当前资格不允许是公共 `denied`；实例目录、资格来源或目标源不可读是公共 `unavailable`，目录提供者回复 `unsupported` 也算目标源不可读；引用语法失败、producer 不是 `tool`、同租户映射不存在（含另一租户的引用，见上文）与代次已退役是公共 `stale-stream`；该观察者上一次交付的游标之后的历史不可取得是 gap `source-history`，缓冲超限是 gap `buffer`；`signal` 中止或迭代器 return 是公共 `observer-closed`；快照或自有结束值超限是公共 `capacity`。Tool 自有的结束值只有两个，经 `producer-ended` 携带：
+公共原因与 Tool 自有原因：标准结束原因、gap 原因、它们的先后顺序与迭代器完成规则归 [stream-arrival README 的失败顺序](../../common/SPEC.md#流式到达)，本页不复制那张表。Tool 的情形进入该顺序的方式：未铸造租户与当前资格不允许是公共 `denied`；实例目录、资格来源或目标源不可读是公共 `unavailable`，目录提供者回复 `unsupported` 也算目标源不可读；引用语法失败、producer 不是 `tool`、同租户映射不存在（含另一租户的引用，见上文）与代次已退役是公共 `stale-stream`；该观察者上一次交付的游标之后的历史不可取得是 gap `source-history`，缓冲超限是 gap `buffer`；`signal` 中止或迭代器 return 是公共 `observer-closed`；快照或自有结束值超限是公共 `capacity`。Tool 自有的结束值只有两个，经 `producer-ended` 携带：
 
 | `ToolStreamEnd`                | 含义                                                                                 |
 | ------------------------------ | ------------------------------------------------------------------------------------ |
@@ -1091,7 +1091,7 @@ Tool 报告实际收场，不以调用方存活为前提。控制方的业务事
 
 ### P02 定义、准入与队列
 
-judgeToolDefinition 对未知输入执行封闭字段与类型检查。名称采用资产的非空、区分大小写精确身份，不暗中改名或正规化；多命令名非空且本工具内唯一。说明不能是空白。参数 Schema 按其 vocabulary 精确采用检查，每个声明参数都有说明，defaults 必须满足设置 Schema。原作者未声明的 programmable 保留缺省，判定只认 true。两项模态声明按 [modality 成员的判定](../../common/modality/SPEC.md#判定模态)检查：不是列表或元素不是文本为 `type`，不在四种模态之内为 `modality`，重复为 `duplicate`，`field` 指向出错的元素；其他写法（例如 `audio`、`Image`）被拒绝，不映射。模态省略时在投影中展开为文本；原采用保留省略事实。完整定义的解析适配负责将资产正文转成 ToolDefinition，不将现有 toolBodyContract 的最低校验宣称为全部定义校验。
+judgeToolDefinition 对未知输入执行封闭字段与类型检查。名称采用资产的非空、区分大小写精确身份，不暗中改名或正规化；多命令名非空且本工具内唯一。说明不能是空白。参数 Schema 按其 vocabulary 精确采用检查，每个声明参数都有说明，defaults 必须满足设置 Schema。原作者未声明的 programmable 保留缺省，判定只认 true。两项模态声明按 [modality 成员的判定](../../common/SPEC.md#模态)检查：不是列表或元素不是文本为 `type`，不在四种模态之内为 `modality`，重复为 `duplicate`，`field` 指向出错的元素；其他写法（例如 `audio`、`Image`）被拒绝，不映射。模态省略时在投影中展开为文本；原采用保留省略事实。完整定义的解析适配负责将资产正文转成 ToolDefinition，不将现有 toolBodyContract 的最低校验宣称为全部定义校验。
 
 ToolCatalog 根据当前合法候选与实际消费方能力求值。可用结果 `ToolAvailability.available` 带来源层 `layer`，固定请求因此自带登记键的全部分量。消费方档案 `{ capabilities, conversion, attachmentAccess }` 的能力、合法转换（没有时为 null）及附件资格来自其拥有者；调用者不能自报支持全部模态。消费方的输出能力对应工具输入，输入能力或合法转换对应工具的直接内容输出。outputModalities 声明消费方要直接感知的 content 模态；只放在 attachments 的媒体不因其 MIME 类型提高该要求，地址按文本处理。附件存储及消费者合法取回能力仍按独立声明检查，能看地址不等于有权读字节。每个消费方提供自己的能力依据。evaluateToolAvailability 是纯判定函数，不自做授权；传入事实必须已经被受信调用方核实。search 的 programmatic 视图只列显式许可且当前可用项；普通视图保留合法已知不可用项。usage 固定定义采用，返回命令详细 Schema 或执行者拥有的真实用法，help 复用同一来源；不能为显示最新用法跨越撤权。
 

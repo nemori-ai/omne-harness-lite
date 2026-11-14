@@ -27,7 +27,7 @@
 | [storage](storage/README.md) | 存储 | 待具名 |
 | [time](time/README.md) | 时间 | 待具名 |
 | [telemetry](telemetry/README.md) | 遥测 | 待具名 |
-| [common](common/README.md) | 共同纯表示 | `json-text`, `legal-identity`, `utc-instant`, `content-block`, `message`, `stream-arrival`, `call-account`, `operation-result` |
+| [common](common/SPEC.md) | 共同纯表示 | `json-text`, `legal-identity`, `utc-instant`, `content-block`, `message`, `stream-arrival`, `call-account`, `operation-result` |
 | [util](util/README.md) | 纯文本格式化 | `unix-format`, `xml-format` |
 | [schema](schema/README.md) | Schema 提供者 | `schema-provider` |
 

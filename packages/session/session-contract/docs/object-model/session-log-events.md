@@ -221,7 +221,7 @@ SE10 的六个历史消息变体为 UserMessage、AssistantMessage、ToolMessage
 
 本节以下段落是候选修订，技术接受前不扩大本页既有承诺。
 
-压缩记录的形状、模型视图规则与相对历史判定归[消息成员](../../../../common/message/SPEC.md#模型视图)，本文不重述。Session 是历史持有者，按[压缩记录的提交](../../../../../docs/architecture/runtime/session-and-run.md#压缩记录的提交)核对后，在同一次提交中写 SE10 压缩记录与 SE33 标注，标注的 `refs.target` 指向覆盖范围，并开启新的模型可见历史视图。任一步失败，整次提交不成立。摘要只改变后续组装视图，原消息与标注不变。
+压缩记录的形状、模型视图规则与相对历史判定归[消息成员](../../../../common/SPEC.md#消息)，本文不重述。Session 是历史持有者，按[压缩记录的提交](../../../../../docs/architecture/runtime/session-and-run.md#压缩记录的提交)核对后，在同一次提交中写 SE10 压缩记录与 SE33 标注，标注的 `refs.target` 指向覆盖范围，并开启新的模型可见历史视图。任一步失败，整次提交不成立。摘要只改变后续组装视图，原消息与标注不变。
 
 作用域持有者拉取 Runtime Context 的变化材料，经 `commitDerived` 写 SE10 系统提醒，来源指向变化材料的证据。同一变化材料按操作身份认回。归档后不再追加变化提醒。
 

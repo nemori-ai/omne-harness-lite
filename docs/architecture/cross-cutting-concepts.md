@@ -354,7 +354,7 @@ flowchart TD
 
 - 思考块只出现在 `assistant` 角色的消息里。`tool` 角色消息的正文，以及 `user`、`tool_internal`、`system_reminder`、`compaction` 角色的消息，只含思考以外的内容块。部件不在该角色允许的集合里时，判定给出 `misplaced-part`。
 - `compaction` 角色的消息除 `id`、`role`、`blocks` 外，另带压缩覆盖范围 `covers`、保留名单 `retained` 和派生证据 `derivation`；其他角色不带这三个键。该成员另提供压缩记录的相对历史判定：历史持有者给出覆盖范围内的条目、范围之后的消息和未结工作，判定核对覆盖范围、保留名单、调用与结果在模型视图里同进同出，以及未结工作不被摘要。配对完整性只在这一判定里核对。
-形状与规则见[消息成员](../../packages/common/message/SPEC.md)。
+形状与规则见[消息成员](../../packages/common/SPEC.md#消息)。
 
 ```mermaid
 flowchart TD

@@ -294,7 +294,7 @@
   - `definition-changed`：调用方预期的定义摘要与当前摘要不同。
   - `action-unavailable`：已知动作不可用，或不在清单里。
 
-  `args` 必须是 JSON 对象，`isActionArgs` 判定。`invoke` 与 `continueWithInput` 收到非对象 `args` 时，返回的 Promise 以 `TypeError` reject，方法不同步抛出：这是调用方缺陷（前提违反），不是「未发出」的原因，不进入 `NotSentReason`。调用方给的值树（`args`、`ContinueRequest.inputResponses`、`provideTaskInput` 的 `inputResponses`）还必须通过 [`@omne-harness/json-text`](../../common/json-text/README.md) 的 `judgeJsonValue`：传输按原词形写出它们，以已判定为前提（T3）。不通过时同样以 `TypeError` reject，不发请求。
+  `args` 必须是 JSON 对象，`isActionArgs` 判定。`invoke` 与 `continueWithInput` 收到非对象 `args` 时，返回的 Promise 以 `TypeError` reject，方法不同步抛出：这是调用方缺陷（前提违反），不是「未发出」的原因，不进入 `NotSentReason`。调用方给的值树（`args`、`ContinueRequest.inputResponses`、`provideTaskInput` 的 `inputResponses`）还必须通过 [`@omne-harness/json-text`](../../common/SPEC.md#json-文本) 的 `judgeJsonValue`：传输按原词形写出它们，以已判定为前提（T3）。不通过时同样以 `TypeError` reject，不发请求。
 
 - **R3** `UnavailableReason` 写进已知动作的可用性：`no-longer-offered` 由 `mergeListing` 给出；`connection-unavailable`、`authorization-required`、`credential-unavailable`、`landing-unavailable` 由 `markUnavailable` 按连接条件给出。
 - **R4** 授权发现有四个字段：
@@ -490,7 +490,7 @@
   - 「走旧一路」指发 `initialize`。T8 的结论写明旧一路也失败时 `discover` 报哪一个失败。S7 建连中的 `lost`（`discover-failed`）与 S5 就绪连接上的 `degraded`（`discover-failed`），都按 `discover` 最终报出的失败判断。
   - 对端发来的请求：`ping` 答空结果，其余请求一律答 JSON-RPC 错误 `-32601`。不分修订，也不分 `notifications/initialized` 之前或之后。
   - `call` 的 `_meta` 另带 `progressToken`，每请求唯一。对端的 `notifications/progress` 带着在途调用的 `progressToken` 时，传输把这条通知的 `params` 原样放进 `untrusted`，经该调用的 `observe` 交出（S6）；`progressToken` 对不上在途调用的通知丢弃。其他通知丢弃。
-  - 调用方写的值按原词形写出：`call` 的 `arguments` 与 `continuation.inputResponses`、`updateTask` 的 `inputResponses`。传输答复对端请求时回显的请求 id 同样按原词形写出。规则见 [RFC-0010](../../../docs/rfcs/RFC-0010-json-text-lossless-writer.md)；根导出的 `requestTextOf` 与 `responseTextOf` 这样写出。`McpTransport.call` 与 `updateTask` 的前提：参数（`arguments`）与输入答复（`continuation.inputResponses`、`updateTask` 的 `inputResponses`）的值树已经判定（[`@omne-harness/json-text`](../../common/json-text/README.md) 的 `judgeJsonValue`），违反是调用方的缺陷。
+  - 调用方写的值按原词形写出：`call` 的 `arguments` 与 `continuation.inputResponses`、`updateTask` 的 `inputResponses`。传输答复对端请求时回显的请求 id 同样按原词形写出。规则见 [RFC-0010](../../../docs/rfcs/RFC-0010-json-text-lossless-writer.md)；根导出的 `requestTextOf` 与 `responseTextOf` 这样写出。`McpTransport.call` 与 `updateTask` 的前提：参数（`arguments`）与输入答复（`continuation.inputResponses`、`updateTask` 的 `inputResponses`）的值树已经判定（[`@omne-harness/json-text`](../../common/SPEC.md#json-文本) 的 `judgeJsonValue`），违反是调用方的缺陷。
 - **T4** T8 S05 的授权失败：失败是 `not-sent`（`authorization-required`），带授权发现（R4）。这个请求曾用凭据句柄授权时，传输先调用该句柄的 `reportRejection()` 恰好一次，再报这个失败。T8 S06 的 403 不调用 `reportRejection()`。
 - **T5** 取消与关闭。这些事件与 T8 的应答事件落在同一个请求上时，先发生的那个决定结论，后来的丢弃：
   - `cancelRequest` 不证明对端已停止。stdio 上，以及 Streamable HTTP 旧修订上，它发 `notifications/cancelled`，带 `requestId` 与每请求 `_meta`，`answer` 继续等应答。Streamable HTTP 现代修订上，它中止该请求的应答流，不另发通知，`answer` 以 `no-answer`（`abandoned`）兑现。

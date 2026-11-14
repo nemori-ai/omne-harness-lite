@@ -110,7 +110,7 @@ acquire 出借的是对登记转换件的包装，包装对象的 `adoption` 与
 
 ## 转换目录的键与查询输入
 
-键与查询输入的词表和文法归 [`@omne-harness/modality`](../../common/modality/SPEC.md#判定媒体类型)，目录不另立一套。目录按精确相等匹配键，不规范化，也不替调用方规范化。
+键与查询输入的词表和文法归 [`@omne-harness/modality`](../../common/SPEC.md#模态)，目录不另立一套。目录按精确相等匹配键，不规范化，也不替调用方规范化。
 
 登记：媒体类型键必须是规范形式（`isCanonicalMediaType` 为真：小写 `type/subtype`，无参数与空白）。模态键必须是该成员的四种模态之一（`judgeModality`），含 `video`。不合格的键使登记返回 `{ kind: 'invalid', reason }`，与 adoption 不一致的拒绝同一形式；`reason` 说明是媒体类型键不规范还是模态键未知。被拒的登记不进入目录，不在调用方 fiber 上留 effect，不影响已登记的贡献，也不占用该键，之后合格的同名登记不冲突。
 

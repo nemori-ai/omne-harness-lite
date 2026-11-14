@@ -40,7 +40,7 @@
 | `AgentAdoptions`                                                                          | [Agent 执行契约](../../../packages/agent/agent-contract/src/execution.ts)                                                                                       | F 上已发布的类型          |
 | Tool「采用点判定」与 `known-unavailable`                                                  | [Tool 规格](../../../packages/tool/tool-contract/SPEC.md#采用点判定)                                                                                            | 已接受                    |
 | `Adoption`、`DurableEvidence`                                                             | [exchange-refs](../../../packages/common/exchange-refs/src/index.ts)                                                                                            | F 上已发布的类型          |
-| `Adoption` 的值由被采用物的发布者解释                                                     | [exchange-refs 规格「所有权、失败与生命周期」](../../../packages/common/exchange-refs/SPEC.md#ownership)                                                        | F 上已发布的成员规格      |
+| `Adoption` 的值由被采用物的发布者解释                                                     | [exchange-refs 规格「所有权、失败与生命周期」](../../../packages/common/SPEC.md#交接引用)                                                        | F 上已发布的成员规格      |
 | Session 的创建校验与 reload 的定义身份检查                                                | [初始化校验](../../../packages/session/session-contract/src/initialization-validation.ts)、[命令判定](../../../packages/session/session-contract/src/decide.ts) | F 上已发布的实现          |
 | 服务端接入的会话判断次序                                                                  | [公开契约「会话判断次序」](../../../packages/access/SPEC.md#判断次序)                                                                       | F 上的公开契约规格        |
 | `Access`、`TenantId`                                                                      | [legal-identity](../../../packages/common/legal-identity/src/index.ts)                                                                                          | F 上已发布的类型          |
@@ -99,7 +99,7 @@
   - `name` 是 `manifest.definition` 的定义名。
   - `revision` 是摘要编码的版本，本页定为 `1`。编码改变时加一。
   - `digest` 的覆盖范围见 AC-10。
-  - 这些取值是 exchange-refs 规格允许的发布者解释：`Adoption` 的值由被采用物的发布者解释（[exchange-refs 规格](../../../packages/common/exchange-refs/SPEC.md#ownership)）。`ref` 的发布者是 `adoption-contract`，所以 `revision` 是编码版本，不是清单内容的版本。同名而内容不同的两份清单，只有 `digest` 不同。
+  - 这些取值是 exchange-refs 规格允许的发布者解释：`Adoption` 的值由被采用物的发布者解释（[exchange-refs 规格](../../../packages/common/SPEC.md#交接引用)）。`ref` 的发布者是 `adoption-contract`，所以 `revision` 是编码版本，不是清单内容的版本。同名而内容不同的两份清单，只有 `digest` 不同。
   - 消费者比较两个 `ref` 时，四个字段一起比较。只比较 `owner`、`name`、`revision` 的消费者，会把同名而内容不同的清单当成同一份。
 - `manifest`：本次采用的内容，字段见下表。
 - `knownUnavailable`：实现暂不可用的能力身份列表，可以为空。

@@ -320,7 +320,7 @@
 - **形态**：变体（父：[内容块](#ul-content-block--内容块--content-block)）
 - **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 4）
 - **别混**：**不是思考块**——思考块装可读的推理文字，可以给人看；推理续接状态装的是读不懂的状态，只给能消费它的模型
-- **注意**：哪些模型能消费它，看它所在回复的[推理回放范围](#ul-reasoning-replay-scope--推理回放范围--reasoning-replay-scope)；形状与受理规则归 [message 成员](../../../../packages/common/message/SPEC.md#推理续接状态)
+- **注意**：哪些模型能消费它，看它所在回复的[推理回放范围](#ul-reasoning-replay-scope--推理回放范围--reasoning-replay-scope)；形状与受理规则归 [message 成员](../../../../packages/common/SPEC.md#消息)
 
 ### UL-reasoning-replay · 推理回放 · Reasoning Replay
 

@@ -395,7 +395,7 @@ agent从[任务地图](context-map.md#领域设计与新增模块)定位责任�
 九条方向行的依据如下。
 
 - `DIR-SESSION-MODEL`、`DIR-SESSION-TOOL`：[依赖方向与Cordis集成](#依赖方向与cordis集成)里“Session 组只有 session-adapters 导入邻域契约”一句。from 是 session-contract 与 session-cordis-contract，不含 session-adapters 与 session-cordis。
-- `DIR-ACCESS-MODEL`、`DIR-ACCESS-TOOL`：同节里 access 组依赖边的一段（public-contract 不依赖 model-contract 与 stream-arrival，依赖边的唯一来源是接入规格的[总体架构](../packages/access/SPEC.md#总体架构)）、sdk 的安装闭包不含 Model、Tool 契约成员，以及 [stream-arrival 不导入任一领域](../packages/common/stream-arrival/README.md#public-observation-contract)。from 是 public-contract、sdk 与 stream-arrival，to 是 Model、Tool 各自的两个契约成员。stream-arrival 这一半与根依赖规则“common 与 util 不依赖领域成员”重合，这里在角色层重申。server-entry 不在 from：按同一段与 [接入规格的会话观察](../packages/access/SPEC.md#会话观察)，它只调用 model-contract 的 `current` 与 stream-arrival 的 `observe`；其余依赖以三个成员的依赖图为准，没有方向行，仍靠评审。
+- `DIR-ACCESS-MODEL`、`DIR-ACCESS-TOOL`：同节里 access 组依赖边的一段（public-contract 不依赖 model-contract 与 stream-arrival，依赖边的唯一来源是接入规格的[总体架构](../packages/access/SPEC.md#总体架构)）、sdk 的安装闭包不含 Model、Tool 契约成员，以及 [stream-arrival 不导入任一领域](../packages/common/SPEC.md#流式到达)。from 是 public-contract、sdk 与 stream-arrival，to 是 Model、Tool 各自的两个契约成员。stream-arrival 这一半与根依赖规则“common 与 util 不依赖领域成员”重合，这里在角色层重申。server-entry 不在 from：按同一段与 [接入规格的会话观察](../packages/access/SPEC.md#会话观察)，它只调用 model-contract 的 `current` 与 stream-arrival 的 `observe`；其余依赖以三个成员的依赖图为准，没有方向行，仍靠评审。
 
 检查规则如下。
 
@@ -408,7 +408,7 @@ agent从[任务地图](context-map.md#领域设计与新增模块)定位责任�
 
 - session-adapters 到 Model 或 Tool 的全包禁令没有采用。上文“依赖方向与Cordis集成”的表对它的限制仍靠评审。
 - session-cordis 到 Model 或 Tool 的禁边没有方向行（它登记了角色，但不在任何方向行的 from 里），仍靠评审。Session 的契约成员与 session-cordis 到 Agent 契约成员的禁边同样没有方向行，仍靠评审。
-- 公共流方向（显示经公共流契约）的精确成员是 `packages/common/stream-arrival`，公开入口是其 [README「公共观察契约」](../packages/common/stream-arrival/README_ZH.md#公共观察契约)的 `StreamObserver.observe`；消费者以各成员 `package.json` 的依赖为准。已机读的只是禁边：public-contract、sdk 与 stream-arrival 不依赖 Model、Tool 的契约成员。“显示必须经公共流契约到达”这条正向要求、server-entry 对 Model 与 Tool 的依赖，以及 access 组到 Agent 契约成员的禁边，都没有方向行，仍靠评审。已有共享流词汇不自动构成该方向的静态采用。
+- 公共流方向（显示经公共流契约）的精确成员是 `packages/common/stream-arrival`，公开入口是其 [README「公共观察契约」](../packages/common/SPEC.md#流式到达)的 `StreamObserver.observe`；消费者以各成员 `package.json` 的依赖为准。已机读的只是禁边：public-contract、sdk 与 stream-arrival 不依赖 Model、Tool 的契约成员。“显示必须经公共流契约到达”这条正向要求、server-entry 对 Model 与 Tool 的依赖，以及 access 组到 Agent 契约成员的禁边，都没有方向行，仍靠评审。已有共享流词汇不自动构成该方向的静态采用。
 - 运行时行为条款不在静态依赖检查范围内。`rules` 中的四条 H1 不变量只登记正文来源，不增加可执行的方向行，也不证明运行时已兑现。
 - [#689 N-PD4](https://github.com/nemori-ai/omne-harness-lite/issues/689#issuecomment-6372915674) 记录的 PD-29 历史完整条款尚未恢复，未知范围保持未覆盖，不从现有角色或方向行反推原文。
 

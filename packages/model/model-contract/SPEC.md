@@ -709,7 +709,7 @@ invalid 不能回显秘密或完整输入。公开关系失败限上述纯关系
 
 ## 公共内容观察与当前目标
 
-公共引用、游标、帧及观察生命周期由 [stream-arrival 的公共观察契约](../../common/stream-arrival/README.md#public-observation-contract)拥有。Model 只定义自己的投影和目标选择，不在公共层复制调用引用、状态机或业务终局。这里的目标观察独立于现有 `ModelHandle.observe`。
+公共引用、游标、帧及观察生命周期由 [stream-arrival 的公共观察契约](../../common/SPEC.md#流式到达)拥有。Model 只定义自己的投影和目标选择，不在公共层复制调用引用、状态机或业务终局。这里的目标观察独立于现有 `ModelHandle.observe`。
 
 ### Model 投影及差分
 
@@ -731,7 +731,7 @@ invalid 不能回显秘密或完整输入。公开关系失败限上述纯关系
 
 两函数使用公共身份拥有者的真实 `TenantId`，以 Model 原 invocation codec 核引用。引用校验只验证身份，不证明当前资格。`StreamRef` 已包含原 invocation 与流身份，不另加可独立漂移的 call 来源字段。`Snapshot.call` 与 `CallState.call` 仍须与引用内的 call 核对。即使 settled 状态不带 dispatch，也必须核外层 dispatch。
 
-输入是生产者已确认的 typed 值。持久读取方先用实际边界解析器建立这些值，再调用 helper。函数不负责解析任意 getter、Proxy、循环图、任意 JSON 大图或不符合 `CallState`、`ModelBlock` 定义的对象。本协议不新增完整 `CallState` judge，也不另设输出字节限额。[公共编码限额](../../common/stream-arrival/README.md#canonical-text-and-limits)只约束身份文本，流载荷仍遵守提供者已采用的有限额度。
+输入是生产者已确认的 typed 值。持久读取方先用实际边界解析器建立这些值，再调用 helper。函数不负责解析任意 getter、Proxy、循环图、任意 JSON 大图或不符合 `CallState`、`ModelBlock` 定义的对象。本协议不新增完整 `CallState` judge，也不另设输出字节限额。[公共编码限额](../../common/SPEC.md#流式到达)只约束身份文本，流载荷仍遵守提供者已采用的有限额度。
 
 函数检测类型可表达的来源错配和非法投影变化。生产者仍负责真实提交、来源、参数收齐、媒体关系、控制和 ACK 业务合法性。攻击者同时伪造所有相等身份字段的出处，不能由纯 helper 识别。
 
@@ -960,7 +960,7 @@ receiver 替身仍放在成员 tests/helpers。它是消费方的替身，接收
 
 ## 模态投影与实际表示
 
-模态由内容媒体类型识别，文件块不是另一种模态。模态共四种：`text`、`image`、`voice`、`video`，词表与「媒体类型属于哪种模态」的判定归 [`@omne-harness/modality`](../../common/modality/SPEC.md#判定媒体类型)，由它的 `judgeMediaType` 决定，映射表归该成员 SPEC，本域不重抄。思考和工具调用是用途，不因此新增模态。非模态文件附件只交引用；能处理文本引用不意味着取得或理解附件正文。
+模态由内容媒体类型识别，文件块不是另一种模态。模态共四种：`text`、`image`、`voice`、`video`，词表与「媒体类型属于哪种模态」的判定归 [`@omne-harness/modality`](../../common/SPEC.md#模态)，由它的 `judgeMediaType` 决定，映射表归该成员 SPEC，本域不重抄。思考和工具调用是用途，不因此新增模态。非模态文件附件只交引用；能处理文本引用不意味着取得或理解附件正文。
 
 Model 本阶段支持其中三种：文字、图片和语音是本设计的原生支持目标。视频是模态，Model 本阶段不支持：没有档案能声明视频输入，所以投影含 `video` 时合法集合为空，Model 以没有档案可选作答，不当成放行。视频的转换件是合法的转换件，见[转换件的共同契约](#转换件的共同契约)。
 
@@ -976,7 +976,7 @@ Model 本阶段支持其中三种：文字、图片和语音是本设计的原�
 
 Tool 结果采用独立分流。附件区只成为地址文本，不进入媒体读取或模态约束；消息内容中的模型可见 ref 保留原引用，在 Model 真正请求时才加载二进制及完成必要转换。消息准入、历史投影和请求组装不得为了产生 transcript 提前读取这些字节。其他消息来源继续使用下述接纳前转换规则。发送阶段的资格与完整性归 [Model SPEC](#工具定义转换与内容引用加载)；发送阶段不计量预算。
 
-转换件由系统装配按模态或文件媒体类型键选择，同键只一件生效。模态键取自 [`@omne-harness/modality`](../../common/modality/SPEC.md) 的全部四种模态，含 `video`。媒体类型键须是规范形式，即 `isCanonicalMediaType` 为真（小写 `type/subtype`，无参数与空白，见[判定媒体类型](../../common/modality/SPEC.md#判定媒体类型)），否则装配拒绝该键。键按精确相等匹配，不经规范化。媒体类型到模态的判定同样用 `judgeMediaType`。文件同时命中具体媒体类型和一般模态时，只采用媒体类型件，形成一份确定派生及 transcript。未采用本次具体件之前不得任意并行调用两件后拼合输出。
+转换件由系统装配按模态或文件媒体类型键选择，同键只一件生效。模态键取自 [`@omne-harness/modality`](../../common/SPEC.md#模态) 的全部四种模态，含 `video`。媒体类型键须是规范形式，即 `isCanonicalMediaType` 为真（小写 `type/subtype`，无参数与空白，见[判定媒体类型](../../common/SPEC.md#模态)），否则装配拒绝该键。键按精确相等匹配，不经规范化。媒体类型到模态的判定同样用 `judgeMediaType`。文件同时命中具体媒体类型和一般模态时，只采用媒体类型件，形成一份确定派生及 transcript。未采用本次具体件之前不得任意并行调用两件后拼合输出。
 
 输入是一个模型可读非文本模态块或文件块。输出包含至少一个不同模态的非文件块及纯文本 transcript。只有 transcript、无 transcript、文件派生块或执行报错都不合约。结果挂在原块上，不进入消息主块序列、不改原块，不形成另一独立业务对象。
 
@@ -1113,7 +1113,7 @@ signal 已取消或执行中取消时返回 ConversionFailure.cancelled，不抛
 
 ## 推理回放
 
-本节设计已由[任务卡 #605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的 D-03 接受。本节的「回放」都指[推理回放](../../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md#ul-reasoning-replay--推理回放--reasoning-replay)，不是调用方恢复接续时的回放；「回放范围」即推理回放范围。回放声明、`ModelBlock`、`replay-rejected`、关闭回放与回放投影已实现于本包；适配器映射、再发执行与计量方法归 Model 运行时，尚未实现。推理续接状态部件与回放描述 `replay` 的形状归 [message 成员](../../common/message/SPEC.md#推理续接状态)，本节规定谁产出它们、每次发出带不带它们、上游拒绝时怎样处理，以及怎样计量。产品规则见[模型调用：推理状态的续接](../../../.meta_harness/design/product/model-invocation/design.md#推理状态的续接)。回放声明与外来可见推理只在本域使用，定义在本节，不另立词条。
+本节设计已由[任务卡 #605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的 D-03 接受。本节的「回放」都指[推理回放](../../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md#ul-reasoning-replay--推理回放--reasoning-replay)，不是调用方恢复接续时的回放；「回放范围」即推理回放范围。回放声明、`ModelBlock`、`replay-rejected`、关闭回放与回放投影已实现于本包；适配器映射、再发执行与计量方法归 Model 运行时，尚未实现。推理续接状态部件与回放描述 `replay` 的形状归 [message 成员](../../common/SPEC.md#消息)，本节规定谁产出它们、每次发出带不带它们、上游拒绝时怎样处理，以及怎样计量。产品规则见[模型调用：推理状态的续接](../../../.meta_harness/design/product/model-invocation/design.md#推理状态的续接)。回放声明与外来可见推理只在本域使用，定义在本节，不另立词条。
 
 回放投影是 Model 在每次发出时做的表示选择，是「请求表示选择与组装在本域之外」的一项例外。理由是一次调用可能按策略回退到另一个供应商，只有每次发出才知道实际供应商；计量器与编码器对同一供应商使用同一投影，计量组合固定所用的声明，所以计量与实际发送一致。其余表示选择仍归请求组装。
 
@@ -1129,7 +1129,7 @@ signal 已取消或执行中取消时返回 ConversionFailure.cancelled，不抛
 
 声明在档案变更时校验：`produces` 与 `accepts` 的每项都必须满足 message 成员对 `replay.scope` 的要求（非空，不超过 `REPLAY_TAG_MAX_LENGTH`），`accepts` 不重复且含 `produces`；默认展开的 `produces` 超长时同样不合格。不满足时档案变更返回 `invalid`，`field` 指向该供应商的回放声明。准备请求时，准备方把每个供应商展开后的声明按 `suppliers` 的次序写进 `FixedModelRequest.declarations`。受理固定这份请求，所以声明固定在受理采用中，恢复时不随档案新修订改变。编码与计量使用请求中的声明。适配器认识哪些 `format` 写在适配器采用中，回放投影按它判断可续接；不在其中的 `format` 一律不可续接，不另报错。
 
-**产出。**一次发出正常收场（含输出限额完成）时，适配器把供应商交回的每段加密或签名推理写成一个推理续接状态部件，可读推理写成 `thinking` 块，按 message 成员的 RS-01 配对；这次发出的 `scope`（该供应商的 `produces`）与 `format` 随共享到达交出，见下文[到达与组成](#回放的到达与组成)。组成 assistant 消息的一方按 message 成员的 [RS-03](../../common/message/SPEC.md#rs-03) 写 `replay`：有推理续接状态部件时必须写，只有 `thinking` 时也写（`at` 为空），两者都没有时不写；`at` 按部件位置写。首内容前失败和未封值不产生推理续接状态部件。首内容后断流或被控制中断时，已封口的部件与其他已封部件一样保留在结果里；结算方要把这次回复组成消息时，按同样规则写 `replay`。载荷超过 message 成员的长度上限时不产生该部件，并交出一条 `reasoning-state-dropped` 诊断事实，只带载荷长度。一条 assistant 消息的内容只来自一次发出，因为回退不跨首内容边界，所以 [RS-02](../../common/message/SPEC.md#rs-02) 成立。
+**产出。**一次发出正常收场（含输出限额完成）时，适配器把供应商交回的每段加密或签名推理写成一个推理续接状态部件，可读推理写成 `thinking` 块，按 message 成员的 RS-01 配对；这次发出的 `scope`（该供应商的 `produces`）与 `format` 随共享到达交出，见下文[到达与组成](#回放的到达与组成)。组成 assistant 消息的一方按 message 成员的 [RS-03](../../common/SPEC.md#消息) 写 `replay`：有推理续接状态部件时必须写，只有 `thinking` 时也写（`at` 为空），两者都没有时不写；`at` 按部件位置写。首内容前失败和未封值不产生推理续接状态部件。首内容后断流或被控制中断时，已封口的部件与其他已封部件一样保留在结果里；结算方要把这次回复组成消息时，按同样规则写 `replay`。载荷超过 message 成员的长度上限时不产生该部件，并交出一条 `reasoning-state-dropped` 诊断事实，只带载荷长度。一条 assistant 消息的内容只来自一次发出，因为回退不跨首内容边界，所以 [RS-02](../../common/SPEC.md#消息) 成立。
 
 推理续接状态部件或 `thinking` 内容的到达都算首内容，之后按首内容后的规则处理。部件以整块到达，没有追加形式；在途观察与持久发布只表明部件存在，不交出载荷。
 
@@ -1147,7 +1147,7 @@ signal 已取消或执行中取消时返回 ConversionFailure.cancelled，不抛
 2. 不可续接且消息含推理续接状态部件：不带这些部件，并为这次发出交出一条 `replay-omitted` 诊断事实，列出被略去的消息、`scope`、`format` 和部件个数。这不是失败，请求照常发出。这种略去是本节规定、留有诊断的投影，不是[重试与策略](#重试与策略)「适用表示不满足」一行禁止的私删内容。
 3. 不可续接的消息，不论是否带 `replay`，其 `thinking` 块都是外来可见推理，按 S 的 `foreignThinking` 处理：`omit` 不带；`text` 作为普通文本带上；`adapter` 作为不带签名的推理交给适配器按供应商原生方式处理。
 
-这三项对每条 assistant 消息给出唯一的处理：可续接的消息只走第 1 项，不可续接的消息走第 2 项（若有部件）和第 3 项（若有 `thinking`）。交给 Model 的消息已经按块的 `toModel` 位投影，`at` 按 message 成员的 [RS-04](../../common/message/SPEC.md#rs-04) 指向剩余部件。
+这三项对每条 assistant 消息给出唯一的处理：可续接的消息只走第 1 项，不可续接的消息走第 2 项（若有部件）和第 3 项（若有 `thinking`）。交给 Model 的消息已经按块的 `toModel` 位投影，`at` 按 message 成员的 [RS-04](../../common/SPEC.md#消息) 指向剩余部件。
 
 投影只决定这一次发出的 payload，不改组装输入、不改历史。换供应商时按新供应商重新投影。所以同一段历史里可以同时有几个模型的推理状态：切换到另一个模型再切回，原模型的消息只要仍在模型视图里，它的状态就照常带回。消息在不在模型视图里，由请求组装按压缩规则决定，不由本节决定。
 

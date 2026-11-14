@@ -1,6 +1,6 @@
 # kernel-basis 行为规格
 
-本文件是 `@omne-harness/kernel-basis` 的目标契约，已由 PanQiWei 在 [#248 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639)中接受。[调用方 fiber 登记辅助](#调用方-fiber-登记辅助)一节属 [#626 revision 4](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6395260809) 的写回，其接受在该卡交付时记录。根入口为空导出。`./cordis` 导出 `definePlugin`、`resolveOptional`，以及[调用方 fiber 登记辅助](#调用方-fiber-登记辅助)的 `registerInCallerFiber` 与 `Admission`。`./testing` 导出 `startTestAssembly`。操作结果归 `@omne-harness/operation-result`，依据是 [#371 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/371#issuecomment-6229850851)，契约见该成员的 [SPEC.md](../../common/operation-result/SPEC.md)。
+本文件是 `@omne-harness/kernel-basis` 的目标契约，已由 PanQiWei 在 [#248 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639)中接受。[调用方 fiber 登记辅助](#调用方-fiber-登记辅助)一节属 [#626 revision 4](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6395260809) 的写回，其接受在该卡交付时记录。根入口为空导出。`./cordis` 导出 `definePlugin`、`resolveOptional`，以及[调用方 fiber 登记辅助](#调用方-fiber-登记辅助)的 `registerInCallerFiber` 与 `Admission`。`./testing` 导出 `startTestAssembly`。操作结果归 `@omne-harness/operation-result`，依据是 [#371 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/371#issuecomment-6229850851)，契约见该成员的 [SPEC.md](../../common/SPEC.md#操作结果)。
 
 本成员只服务 Cordis 集成与测试。根入口为空，并且不导入 `@deepseek-ai/cordis`。插件辅助从 `./cordis` 导出。测试装配从 `./testing` 导出。本包不声明服务键，不收回其他能力的 Service 定义。
 
