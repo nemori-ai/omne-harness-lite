@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { open } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -204,6 +204,101 @@ describe('the request journal file', () => {
   })
 })
 
+describe('emptying the file', () => {
+  it('cuts the file to nothing when the last queued request has left, and takes requests after it', async () => {
+    const journal = await openRequestJournal(file)
+    await journal.append(enqueued(request('a', 0)))
+    await journal.append(enqueued(request('b', 1)))
+    await journal.append(left(request('b', 1)))
+    await journal.append(left(request('a', 0)))
+    await vi.waitFor(() => expect(statSync(file).size).toBe(0))
+    expect(await journal.append(enqueued(request('c', 0)))).toBe(true)
+    await journal.close()
+    expect(linesOf()).toEqual([enqueued(request('c', 0))])
+    const reopened = await openRequestJournal(file)
+    expect(reopened.pending).toEqual([request('c', 0)])
+    await reopened.close()
+  })
+
+  it('leaves no part of a line that fails to land after the file was cut', async () => {
+    const journal = await openRequestJournal(file)
+    await journal.append(enqueued(request('a', 0)))
+    await journal.append(left(request('a', 0)))
+    await vi.waitFor(() => expect(statSync(file).size).toBe(0))
+    await journal.append(enqueued(request('b', 0)))
+    const whole = readFileSync(file, 'utf8')
+    ;(await syncOfFileHandles()).mockRejectedValueOnce(new Error('EIO'))
+    expect(await journal.append(enqueued(request('c', 1)))).toBe(false)
+    expect(readFileSync(file, 'utf8')).toBe(whole)
+    await journal.close()
+    expect(linesOf()).toEqual([enqueued(request('b', 0))])
+  })
+
+  it('keeps the file while one of two queued requests has left', async () => {
+    const journal = await openRequestJournal(file)
+    await journal.append(enqueued(request('a', 0)))
+    await journal.append(enqueued(request('b', 1)))
+    await journal.append(left(request('a', 0)))
+    await journal.close()
+    expect(linesOf()).toEqual([
+      enqueued(request('a', 0)),
+      enqueued(request('b', 1)),
+      left(request('a', 0)),
+    ])
+  })
+
+  it('counts the requests it found queued on open', async () => {
+    const journal = await openRequestJournal(file)
+    await journal.append(enqueued(request('a', 0)))
+    await journal.append(enqueued(request('b', 1)))
+    await journal.close()
+    const reopened = await openRequestJournal(file)
+    await reopened.append(left(request('a', 0)))
+    await reopened.close()
+    expect(linesOf()).toHaveLength(3)
+    const again = await openRequestJournal(file)
+    await again.append(left(request('b', 1)))
+    await again.close()
+    expect(readFileSync(file, 'utf8')).toBe('')
+  })
+
+  it('does not cut the file while a record is waiting to land', async () => {
+    const journal = await openRequestJournal(file)
+    await journal.append(enqueued(request('a', 0)))
+    let release = (): void => {}
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    const sync = (await syncOfFileHandles()).mockImplementationOnce(() => gate)
+    const leaving = journal.append(left(request('a', 0)))
+    await vi.waitFor(() => expect(sync).toHaveBeenCalledTimes(1))
+    const entering = journal.append(enqueued(request('b', 0)))
+    release()
+    expect(await leaving).toBe(true)
+    expect(await entering).toBe(true)
+    await journal.close()
+    expect(linesOf()).toEqual([
+      enqueued(request('a', 0)),
+      left(request('a', 0)),
+      enqueued(request('b', 0)),
+    ])
+  })
+
+  it('does not count a record that did not land', async () => {
+    const journal = await openRequestJournal(file)
+    await journal.append(enqueued(request('a', 0)))
+    await journal.append(enqueued(request('b', 1)))
+    ;(await syncOfFileHandles()).mockRejectedValueOnce(new Error('EIO'))
+    expect(await journal.append(left(request('a', 0)))).toBe(false)
+    expect(await journal.append(left(request('b', 1)))).toBe(true)
+    await journal.close()
+    expect(linesOf()).toHaveLength(3)
+    const reopened = await openRequestJournal(file)
+    expect(reopened.pending).toEqual([request('a', 0)])
+    await reopened.close()
+  })
+})
+
 describe('what the file holds of a record (R6)', () => {
   const SENTINEL = 'login-proof-sentinel-3f9c'
 
@@ -211,14 +306,14 @@ describe('what the file holds of a record (R6)', () => {
     const journal = await openRequestJournal(file)
     const carried = { loginProof: SENTINEL, credential: { secret: SENTINEL } }
     await journal.append({ ...enqueued(request('a', 0)), ...carried })
-    await journal.append({ ...left(request('a', 0)), ...carried })
     await journal.append({ ...enqueued(request('b', 1)), ...carried })
+    await journal.append({ ...left(request('a', 0)), ...carried })
     await journal.close()
     expect(readFileSync(file, 'utf8')).not.toContain(SENTINEL)
     expect(linesOf()).toEqual([
       enqueued(request('a', 0)),
-      left(request('a', 0)),
       enqueued(request('b', 1)),
+      left(request('a', 0)),
     ])
     const reopened = await openRequestJournal(file)
     expect(reopened.pending).toEqual([request('b', 1)])

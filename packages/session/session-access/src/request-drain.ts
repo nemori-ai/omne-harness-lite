@@ -7,12 +7,13 @@ import {
   lanesOf,
   leave,
   restore,
-  settles,
   type QueuedRequest,
   type RequestCandidate,
 } from './request-queue.ts'
 
 type Settled = Answer<'send-input'>
+
+export type Admission = Readonly<{ kind: 'settled'; answer: Settled }> | Readonly<{ kind: 'retry' }>
 
 export type RequestDrain = Readonly<{
   enqueue(candidate: RequestCandidate): Promise<Settled>
@@ -22,7 +23,7 @@ export type RequestDrain = Readonly<{
 
 export type RequestDrainInput = Readonly<{
   journal: RequestJournal
-  admit(request: QueuedRequest): Promise<Settled>
+  admit(request: QueuedRequest): Promise<Admission>
   limit: number
   retryDelaysMs: readonly number[]
 }>
@@ -67,10 +68,10 @@ export function createRequestDrain(input: RequestDrainInput): RequestDrain {
     for (;;) {
       const head = headOf(queue, tenant, session)
       if (stopped || head === undefined || landing.has(head)) break
-      const answer = await commitCall(() => input.admit(head))
-      if (answer !== 'unknown' && settles(answer.outcome)) {
+      const admitted = await commitCall(() => input.admit(head))
+      if (admitted !== 'unknown' && admitted.kind === 'settled') {
         await journal.append({ kind: 'left', tenant, session, acceptId: head.acceptId })
-        settle(head, answer)
+        settle(head, admitted.answer)
         failures = 0
       } else {
         failures += 1

@@ -123,17 +123,36 @@ describe('send-input through the request queue', () => {
     expect(recordKinds(world)).toEqual(['enqueued', 'left'])
   })
 
-  it.each([
-    [{ kind: 'quarantined', diagnostic: 'x' }],
-    [{ kind: 'unsupported' }],
-    [{ kind: 'commit-unknown', operation: 'op' }],
-  ] as const)('admits again after the Session failure %j', async failure => {
+  it('admits again after Session answers commit-unknown', async () => {
     const world = createWorld()
     const session = await created(world)
-    world.session.controls.failNext(failure as SessionFailure)
+    world.session.controls.failNext({ kind: 'commit-unknown', operation: 'op' } as SessionFailure)
     expect(await send(world, session)).toEqual(SUCCEEDED)
     expect(accepts(world)).toHaveLength(2)
   })
+
+  it.each([
+    [{ kind: 'quarantined', diagnostic: 'x' }],
+    [{ kind: 'unsupported' }],
+    [{ kind: 'terminal' }],
+  ])(
+    'answers basis-unavailable once to the Session failure %j, and takes the next request',
+    async failure => {
+      const world = createWorld()
+      const session = await created(world)
+      world.session.controls.failNext(failure as SessionFailure)
+      const first = send(world, session, { acceptId: 'accept-1' })
+      const second = send(world, session, { acceptId: 'accept-2' })
+      expect(await first).toEqual({ outcome: 'basis-unavailable' })
+      expect(await second).toEqual(SUCCEEDED)
+      expect(accepts(world).map(call => call.operation)).toEqual([
+        acceptOperation(ALICE.tenantText, session, 'accept-1'),
+        acceptOperation(ALICE.tenantText, session, 'accept-2'),
+      ])
+      expect(recordKinds(world)).toEqual(['enqueued', 'enqueued', 'left', 'left'])
+      expect(await query(world, session)).toEqual({ outcome: 'not-committed', body: {} })
+    },
+  )
 
   it('admits again under the same identity when the result is not known, and Session recalls it', async () => {
     const world = createWorld()
@@ -342,19 +361,23 @@ describe('what a send-input call leaves in the journal file (R6)', () => {
       const world = createWorld({}, journal)
       const session = await created(world)
       const login = { ...ALICE, proof: SENTINEL, secret: SENTINEL } as unknown as LoginIdentity
-      const answer = await ops(world)['send-input'](as(login), {
+      world.remove('faces')
+      const answer = ops(world)['send-input'](as(login), {
         tenant: ALICE.tenant,
         session,
         acceptId: 'accept-1',
         inputId: 'input-1',
         message: userMessage('hi'),
       })
-      expect(answer).toEqual(SUCCEEDED)
-      world.requests.stop()
-      await journal.close()
+      await vi.waitFor(() => expect(world.admissions().length).toBeGreaterThanOrEqual(1))
       const written = readFileSync(file, 'utf8')
       expect(written).toContain(`"login":"${ALICE.loginText}"`)
       expect(written).not.toContain(SENTINEL)
+      world.put('faces')
+      expect(await answer).toEqual(SUCCEEDED)
+      world.requests.stop()
+      await journal.close()
+      expect(readFileSync(file, 'utf8')).toBe('')
     } finally {
       rmSync(directory, { recursive: true, force: true })
     }

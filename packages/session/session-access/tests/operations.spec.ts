@@ -328,6 +328,8 @@ describe('send-input', () => {
       { outcome: 'conflict', body: {} },
     ],
     [{ kind: 'denied', action: 'accept' }, { outcome: 'denied' }],
+    [{ kind: 'quarantined', diagnostic: 'x' }, { outcome: 'basis-unavailable' }],
+    [{ kind: 'unsupported' }, { outcome: 'basis-unavailable' }],
   ] as const)('maps the Session failure %j', async (failure, expected) => {
     const world = createWorld()
     const session = await created(world)

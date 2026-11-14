@@ -7,7 +7,6 @@ import {
   lanesOf,
   leave,
   restore,
-  settles,
   type RequestCandidate,
   type RequestQueue,
 } from '../src/request-queue.ts'
@@ -83,17 +82,6 @@ describe('taking the head', () => {
   it('has nothing to take from a session without requests', () => {
     expect(headOf(EMPTY_QUEUE, 'tenant-a', 'session-1')).toBeUndefined()
     expect(headOf(queueOf(candidate('a')), 'tenant-a', 'session-2')).toBeUndefined()
-  })
-
-  it.each(['succeeded', 'invalid', 'archived', 'frozen', 'limited', 'conflict', 'denied'])(
-    'lets the head leave on the definite answer %s',
-    outcome => {
-      expect(settles(outcome)).toBe(true)
-    },
-  )
-
-  it.each(['basis-unavailable', 'unknown'])('keeps the head on %s', outcome => {
-    expect(settles(outcome)).toBe(false)
   })
 
   it('takes the requests of a session in the order they were queued (R2)', () => {

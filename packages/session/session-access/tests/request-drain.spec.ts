@@ -6,11 +6,11 @@ import type { QueuedRequest, RequestCandidate } from '../src/request-queue.ts'
 import { createJournalDouble, type JournalDouble } from './fixtures/journal-double.ts'
 
 type Settled = Answer<'send-input'>
-type Step = Settled | 'throw' | Promise<Settled>
+type Step = Settled | 'retry' | 'throw' | Promise<Settled>
 
 const SUCCEEDED: Settled = { outcome: 'succeeded', body: { recovered: false } }
 const UNAVAILABLE: Settled = { outcome: 'basis-unavailable' }
-const UNKNOWN: Settled = { outcome: 'unknown' }
+const RETRY = 'retry' as const
 const DELAYS = [10, 30, 70]
 
 function candidate(acceptId: string, session = 'session-1', tenant = 'tenant-a'): RequestCandidate {
@@ -60,9 +60,10 @@ function rig(options: { store?: JournalDouble; journal?: RequestJournal; limit?:
         admitted.push(`${request.session}/${request.acceptId}`)
         const step = scripts.get(request.acceptId)?.shift() ?? SUCCEEDED
         if (step === 'throw') throw new Error('admission fault')
+        if (step === 'retry') return { kind: 'retry' }
         inFlight += 1
         try {
-          return await step
+          return { kind: 'settled', answer: await step }
         } finally {
           inFlight -= 1
         }
@@ -108,7 +109,7 @@ describe('one lane for each session', () => {
 
   it('keeps the next request behind a head that is being retried (R2)', async () => {
     const { drain, admitted, script } = rig()
-    script('a', UNAVAILABLE, UNKNOWN, 'throw', SUCCEEDED)
+    script('a', RETRY, RETRY, 'throw', SUCCEEDED)
     const a = drain.enqueue(candidate('a'))
     const b = drain.enqueue(candidate('b'))
     await vi.advanceTimersByTimeAsync(10 + 30)
@@ -127,7 +128,7 @@ describe('one lane for each session', () => {
 
   it('settles the requests of one session while the head of another is being retried (R3)', async () => {
     const { drain, admitted, script } = rig()
-    script('a', ...Array.from({ length: 50 }, () => UNAVAILABLE))
+    script('a', ...Array.from({ length: 50 }, () => RETRY))
     void drain.enqueue(candidate('a', 'session-1'))
     void drain.enqueue(candidate('c', 'session-1'))
     await turn()
@@ -164,7 +165,7 @@ describe('one lane for each session', () => {
 describe('retrying the head', () => {
   it('waits the delays of the sequence in order and stays on the last one', async () => {
     const { drain, admitted, script } = rig()
-    script('a', ...Array.from({ length: 50 }, () => UNAVAILABLE))
+    script('a', ...Array.from({ length: 50 }, () => RETRY))
     void drain.enqueue(candidate('a'))
     await turn()
     expect(admitted).toHaveLength(1)
@@ -185,8 +186,8 @@ describe('retrying the head', () => {
 
   it('starts the sequence again after a request has left the head', async () => {
     const { drain, admitted, script } = rig()
-    script('a', UNAVAILABLE, UNAVAILABLE, SUCCEEDED)
-    script('b', UNAVAILABLE, SUCCEEDED)
+    script('a', RETRY, RETRY, SUCCEEDED)
+    script('b', RETRY, SUCCEEDED)
     const a = drain.enqueue(candidate('a'))
     const b = drain.enqueue(candidate('b'))
     await vi.advanceTimersByTimeAsync(10 + 30)
@@ -198,6 +199,26 @@ describe('retrying the head', () => {
     expect(await b).toEqual(SUCCEEDED)
     expect(admitted).toHaveLength(5)
   })
+
+  it.each([[{ outcome: 'basis-unavailable' }], [{ outcome: 'unknown' }]] as const)(
+    'lets a request leave with the settled answer %j and takes the next request',
+    async answer => {
+      const { drain, admitted, script, store } = rig()
+      script('a', answer)
+      const a = drain.enqueue(candidate('a'))
+      const b = drain.enqueue(candidate('b'))
+      expect(await a).toEqual(answer)
+      expect(await b).toEqual(SUCCEEDED)
+      expect(admitted).toEqual(['session-1/a', 'session-1/b'])
+      expect(vi.getTimerCount()).toBe(0)
+      expect(kinds(store.records())).toEqual([
+        'enqueued:session-1/a',
+        'enqueued:session-1/b',
+        'left:session-1/a',
+        'left:session-1/b',
+      ])
+    },
+  )
 
   it('gives a definite refusal to the call and lets the request leave', async () => {
     const { drain, script, store } = rig()
@@ -313,7 +334,7 @@ describe('stopping', () => {
     const { drain, admitted, script, store } = rig()
     const first = held()
     script('a', first.answer)
-    script('c', UNAVAILABLE)
+    script('c', RETRY)
     const a = drain.enqueue(candidate('a'))
     void drain.enqueue(candidate('b'))
     void drain.enqueue(candidate('c', 'session-2'))

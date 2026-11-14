@@ -21,7 +21,7 @@ import type {
   SessionAccessFaces,
   TargetTenantPrincipals,
 } from './ports.ts'
-import type { RequestDrain } from './request-drain.ts'
+import type { Admission, RequestDrain } from './request-drain.ts'
 import type { QueuedRequest } from './request-queue.ts'
 
 export type SendInputPorts = Readonly<{
@@ -63,18 +63,26 @@ export async function sendInput(
   })
 }
 
+const RETRY: Admission = Object.freeze({ kind: 'retry' })
+
+function settled(answer: Answer<'send-input'>): Admission {
+  return { kind: 'settled', answer }
+}
+
 export async function admitRequest(
   ports: AdmissionPorts,
   request: QueuedRequest,
-): Promise<Answer<'send-input'>> {
+): Promise<Admission> {
   const issued = await readCall(() => ports.principals.resume(request.tenant, request.login))
-  if (issued === 'basis-unavailable') return UNAVAILABLE
-  if ('refused' in issued) return { outcome: issued.refused }
-  const caller = describedBy(ports.facts, issued.ok)
+  if (issued === 'basis-unavailable') return RETRY
+  if ('refused' in issued)
+    return issued.refused === 'denied' ? settled({ outcome: 'denied' }) : RETRY
   const faces = ports.faces()
-  if (caller === undefined || faces === undefined) return UNAVAILABLE
+  if (faces === undefined) return RETRY
+  const caller = describedBy(ports.facts, issued.ok)
+  if (caller === undefined) return settled(UNAVAILABLE)
   const message = userMessageOf(request.message)
-  if (message === undefined) return { outcome: 'protocol-rejected' }
+  if (message === undefined) return settled({ outcome: 'protocol-rejected' })
   const session = request.session as SessionId
   const result = await commitCall(() =>
     faces.work.accept({
@@ -90,9 +98,12 @@ export async function admitRequest(
       },
     }),
   )
-  if (result === 'unknown') return { outcome: 'unknown' }
-  if ('failure' in result) return refused('send-input', result.failure)
-  return { outcome: 'succeeded', body: { recovered: result.ok.recovered } }
+  if (result === 'unknown') return RETRY
+  if ('ok' in result)
+    return settled({ outcome: 'succeeded', body: { recovered: result.ok.recovered } })
+  const { kind } = result.failure
+  if (kind === 'unavailable' || kind === 'commit-unknown') return RETRY
+  return settled(refused('send-input', result.failure))
 }
 
 export async function querySendInput(

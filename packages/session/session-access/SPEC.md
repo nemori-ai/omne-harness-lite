@@ -14,7 +14,7 @@
 
 <a id="sa-3"></a>**SA-3 定义名。** `create-session` 不给定义名时用配置的 `defaultDefinition`；没有配置时答 `invalid`。定义名不在部署映射里答 `invalid`；映射里的定义缺初始模型选择答 `basis-unavailable`。两种情况都不调会话。
 
-<a id="sa-4"></a>**SA-4 结果的映射。** 会话失败按入口会话位置的表映射：`limited`（带资源与上限）、`denied`、`invalid`、`conflict`、`archived`、`frozen`、`unsupported` 原名；`commit-unknown` 答 `unknown`；其余答 `basis-unavailable`。映射出的结果不在该操作的契约结果集里时答 `basis-unavailable`。提交类调用在调用开始后抛出答 `unknown`，只读类抛出答 `basis-unavailable`。`send-input` 的映射结果是 `basis-unavailable` 或 `unknown` 时不交给调用，请求留在队列里再受理，见 [SA-8](#sa-8)。`stop-call` 对 Tool 目标只保留会话的 `denied` 与不可用，其余答 `unsupported`。
+<a id="sa-4"></a>**SA-4 结果的映射。** 会话失败按入口会话位置的表映射：`limited`（带资源与上限）、`denied`、`invalid`、`conflict`、`archived`、`frozen`、`unsupported` 原名；`commit-unknown` 答 `unknown`；其余答 `basis-unavailable`。映射出的结果不在该操作的契约结果集里时答 `basis-unavailable`。提交类调用在调用开始后抛出答 `unknown`，只读类抛出答 `basis-unavailable`。`send-input` 例外两处：会话答 `unavailable` 或 `commit-unknown`、调用开始后抛出时，不把映射出的答复交给调用，请求留在队列里再受理，见 [SA-8](#sa-8)。`stop-call` 对 Tool 目标只保留会话的 `denied` 与不可用，其余答 `unsupported`。
 
 <a id="sa-5"></a>**SA-5 帧来源。** 会话观察 `open` 的 `opened`、`denied`、`unavailable` 对应 `succeeded`、`denied`、`basis-unavailable`。五种帧逐字段写成契约的帧。`refresh-exhausted` 原样结束。会话观察在信号中止之后结束而不带原因；这时观察中枢已经结束了这次观察，不再读原因，帧来源以 `unavailable` 结束。帧来源被关闭时关闭会话观察的帧。
 
@@ -55,12 +55,22 @@
 
 受理一条请求：用队列里存的租户与登录调 `TargetTenantPrincipals.resume` 换主体，取此刻的会话面，调会话的 `accept`，结果按 SA-4 映射。`resume` 只由排空者调用，入参只来自队列。
 
-| 受理的答复                                                   | 排空者做什么                                                   |
-| ------------------------------------------------------------ | -------------------------------------------------------------- |
-| `succeeded`、`invalid`、`archived`、`frozen`、`limited`、`conflict`、`denied` | 记下这条请求离开队列，把答复交给等着的调用，接着取下一条       |
-| `basis-unavailable`、`unknown`，或者受理抛出                 | 请求留在队头。等一个退避间隔，用同一个标识再受理               |
+受理的结果只有两类：有了结局，或者再取。按成因分，不按对外的答复分。
 
-`basis-unavailable` 包括：`resume` 答它或者抛出，会话此刻不在树上，会话答 `unavailable` 或 `quarantined`，会话的失败不在 `send-input` 的契约结果集里。退避的间隔取配置的 `requestRetryDelaysMs`，依次用，用到最后一个就一直用最后一个。有请求离开队头之后从头算。
+| 受理当中发生了什么                                                               | 结果                              |
+| -------------------------------------------------------------------------------- | --------------------------------- |
+| `resume` 答 `basis-unavailable`，或者抛出                                        | 再取                              |
+| `resume` 答 `denied`                                                             | 结局：`denied`                    |
+| 会话此刻不在树上                                                                 | 再取                              |
+| 会话的 `accept` 在调用开始之后抛出                                               | 再取                              |
+| 会话答 `unavailable`                                                             | 再取                              |
+| 会话答 `commit-unknown`                                                          | 再取                              |
+| 会话答成功                                                                       | 结局：`succeeded`                 |
+| 会话答别的失败（含 `quarantined` 与不在 `send-input` 契约结果集里的种类）        | 结局：按 SA-4 映射出的答复        |
+
+有了结局：排空者记下这条请求离开队列，把答复交给等着的调用，接着取下一条。结局的答复可以是 `basis-unavailable`，这时调用答一次 `basis-unavailable`，请求不留在队列里。
+
+再取：请求留在队头。排空者等一个退避间隔，用同一个标识再受理。退避的间隔取配置的 `requestRetryDelaysMs`，依次用，用到最后一个就一直用最后一个。有请求离开队头之后从头算。排空者调受理时受理抛出，也算再取。
 
 记「离开」失败时，答复照样交给调用。这条请求留在文件里，下次装上时再受理一次，由会话认回。
 
@@ -77,7 +87,8 @@
 本包自带 `RequestJournal` 的文件实现 `openRequestJournal(file)`：
 
 - 记录两种，一行一条 JSON：入队（租户、会话、请求标识、输入标识、消息的 JSON 文本、登录、序号）与离开（租户、会话、请求标识）。写进文件的只有这些点名的字段。
-- 打开时读整份文件，重放成还在队列里的请求。最后一行不完整就丢掉这一行。重放后把文件重写成只含还在队列里的请求：写临时文件，落盘，改名。文件只在打开时收缩，运行当中只增长。
+- 打开时读整份文件，重放成还在队列里的请求。最后一行不完整就丢掉这一行。重放后把文件重写成只含还在队列里的请求：写临时文件，落盘，改名。
+- 日志自己数还在队列里的请求有几条：打开时是重放出来的条数，入队落盘加一，离开落盘减一，没落盘的不算。一批落盘之后数到零、又没有等着落盘的记录，就把文件截到零并落盘。截空前后任何时刻进程没了，重新打开重放出来的都是空队列。
 - 追加一行并落盘之后才算成。同时到的几条合成一次落盘，先后不变。
 - 追加失败时答不成，并把文件截回这次追加之前的长度。截不回去时日志不再接受追加。
 - 关闭时等在途的追加落盘。关闭开始之后的追加答不成。

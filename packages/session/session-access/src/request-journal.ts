@@ -3,7 +3,7 @@ import { dirname } from 'node:path'
 import type { JournalRecord, RequestJournal } from './ports.ts'
 import type { QueuedRequest } from './request-queue.ts'
 
-type Waiting = Readonly<{ line: string; landed: (durable: boolean) => void }>
+type Waiting = Readonly<{ line: string; change: number; landed: (durable: boolean) => void }>
 
 function lineOf(record: JournalRecord): string {
   const { kind, tenant, session, acceptId } = record
@@ -70,6 +70,7 @@ export async function openRequestJournal(file: string): Promise<RequestJournal> 
   const waiting: Waiting[] = []
   let flushing: Promise<void> | undefined
   let closed = false
+  let queued = pending.length
 
   async function land(text: string): Promise<boolean> {
     try {
@@ -85,11 +86,21 @@ export async function openRequestJournal(file: string): Promise<RequestJournal> 
     }
   }
 
+  async function cut(): Promise<void> {
+    await handle.truncate(0)
+    size = 0
+    await handle.sync()
+  }
+
   async function flush(): Promise<void> {
     while (waiting.length > 0) {
       const batch = waiting.splice(0)
       const durable = await land(batch.map(entry => entry.line).join(''))
-      for (const entry of batch) entry.landed(durable)
+      for (const entry of batch) {
+        if (durable) queued += entry.change
+        entry.landed(durable)
+      }
+      if (queued === 0 && size > 0 && waiting.length === 0) await cut().catch(() => undefined)
     }
     flushing = undefined
   }
@@ -99,7 +110,7 @@ export async function openRequestJournal(file: string): Promise<RequestJournal> 
     append(record) {
       if (closed) return Promise.resolve(false)
       return new Promise<boolean>(landed => {
-        waiting.push({ line: lineOf(record), landed })
+        waiting.push({ line: lineOf(record), change: record.kind === 'left' ? -1 : 1, landed })
         flushing ??= flush()
       })
     },

@@ -68,10 +68,6 @@ export function headOf(
   return laneOf(queue, tenant, session)[0]
 }
 
-export function settles(outcome: string): boolean {
-  return outcome !== 'basis-unavailable' && outcome !== 'unknown'
-}
-
 export function isQueued(
   queue: RequestQueue,
   tenant: string,
