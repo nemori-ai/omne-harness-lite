@@ -22,6 +22,7 @@ import {
 export const CONSTRAINT_PATH = 'docs/architecture/constraints.json'
 export const LEGACY_CONSTRAINT_PATH = '.meta_harness/design/architecture/constraints.json'
 export const CONSTRAINT_PATHS = [CONSTRAINT_PATH, LEGACY_CONSTRAINT_PATH] as const
+const RETIRED_FIELDS = ['groupCycleExceptions'] as const
 const record = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v)
 function obj(v: unknown, keys: readonly string[]): Record<string, unknown> {
@@ -229,7 +230,7 @@ export function parseConstraints(text: string): ArchitectureConstraints {
     'roles',
     'rules',
     'importExceptions',
-    ...(schemaVersion === 3 ? ['directions'] : []),
+    ...(schemaVersion === 3 ? ['directions', ...RETIRED_FIELDS] : []),
   ])
   const domains = unique(
     list(value['domains']).map(item => {

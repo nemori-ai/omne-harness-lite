@@ -1,6 +1,6 @@
 // @module-tag slow
 // 环的判定：成员之间成环让 `omne-deps` 退出 1；只在组的层面成环、成员之间不成环，不是发现，退出 0。
-// 约束文件 schema 3 不认识登记组层面例外的字段。归慢层：临时仓库上起子进程真跑 dependency-cruiser。
+// 约束文件 schema 3 接受登记组层面例外的那个键，但不读它。归慢层：临时仓库上起子进程真跑 dependency-cruiser。
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -60,9 +60,20 @@ describe('omne-deps 只把成员之间成环当失败', { timeout: 120_000 }, ()
 })
 
 describe('约束文件', () => {
-  it('schema 3 带 groupCycleExceptions：按不认识的字段拒绝', () => {
+  it('schema 3 带 groupCycleExceptions：这个键被接受，但不读它，解析结果里没有它', () => {
     const text = JSON.stringify({
       schemaVersion: 3,
+      domains: [],
+      roles: [],
+      rules: [],
+      groupCycleExceptions: [{ id: 'X', edges: 'not even an array' }],
+    })
+    expect(parseConstraints(text)).not.toHaveProperty('groupCycleExceptions')
+  })
+
+  it('schema 2 带 groupCycleExceptions：按不认识的字段拒绝', () => {
+    const text = JSON.stringify({
+      schemaVersion: 2,
       domains: [],
       roles: [],
       rules: [],

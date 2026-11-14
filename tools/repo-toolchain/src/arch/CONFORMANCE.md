@@ -28,6 +28,7 @@ schemaVersion 2的source是仓库根相对Markdown路径，可附锚点。历史
 表示（schemaVersion 3）：
 
 - schema 3 在 schema 2 之上新增顶层数组 `directions`，可以缺省；给了就必须是数组，`null` 等别的值拒绝。schema 1、2 照旧解析，出现 `directions` 时按未知字段拒绝。
+- schema 3 的顶层键 `groupCycleExceptions` 被接受，但它的值不读取、不校验，也不参与语义预期比较。
 - 一行是 `{ "id", "from", "to", "source" }`，字段不多不少。`id` 匹配 `^DIR-[A-Z0-9]+(-[A-Z0-9]+)*$` 且在 `directions` 内唯一；`from`、`to` 非空、元素唯一、每个都是 `roles` 里声明的角色 id；`source` 按角色 `source` 的规则校验。
 - 一行的源角色与目标角色不在同一个成员里，同一个角色也不能同时在两边。成员内部的依赖不进依赖图，这样的一对永远不会命中，所以拒绝。
 - 方向行引用的角色：每条 `paths` 都落在同一个成员目录里（按依赖图的成员规则，`packages/<组>/<成员>` 或 `apps/<成员>`；`examples/` 不行），这个目录是该角色的成员；它的 `paths` 不与任何别的角色相同或互相包含（一个是另一个 `/**` 目录之下的），否则一个文件会同时属于两个角色。违反的都拒绝。
