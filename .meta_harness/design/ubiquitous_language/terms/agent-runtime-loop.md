@@ -547,11 +547,11 @@
 > **EN**: **One physical taking-up of one agent execution by one agent runtime.** Re-attaching and replacing the instance both give the same execution a new execution attachment. A new execution attachment does not make the execution a new one and does not pass the execution-started position again. It is not a run attempt, which the session side owns.
 
 - **形态**：对象
-- **出处**：[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 5）；用户决定，2026-10-17 Agent 扩展继承与边界对齐；形态由 Agent 契约的对象模型（Agent 包组规格「领域边界」）裁定，该契约已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用，见 [C-59](../conflicts.md#c-59执行挂接的形态)
+- **出处**：[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 5）；用户决定，2026-10-17 Agent 扩展继承与边界对齐；形态由 Agent 契约的[对象模型](../../../../packages/agent/SPEC.md#领域边界)裁定，该契约已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用，见 [C-59](../conflicts.md#c-59执行挂接的形态)
 - **别混 ①**：**不是[附件](execution-and-outcome.md#ul-attachment--附件--attachment)**——附件是存进存储、agent 自己去取的文件，Tool 结果里的 attachments 也指它；本条只指 agent runtime 对执行的承接
 - **别混 ②**：**不是[执行尝试](#ul-run-attempt--执行尝试--run-attempt)**——尝试是会话一侧的推进记账，执行挂接是 Agent 一侧的概念
 - **注意 ①**：**不许简称 attachment**，英文与代码名都写全称（Execution Attachment、`ExecutionAttachment`、`ExecutionAttachmentId`、`executionAttachment`），因为裸写的 attachment 已指[附件](execution-and-outcome.md#ul-attachment--附件--attachment)；中文同理写「执行挂接」，正文在没有歧义处可以写「挂接」。Agent 契约已按此命名；已接受页的旧写法已回改，见 [C-64](../conflicts.md#c-64执行挂接的候选类型名)
-- **注意 ②**：为同一次执行取得新的执行挂接有恢复与接管两条路径，前提、独立的主体资格和结果归 Agent 契约的恢复与接管（Agent 包组规格「受理、恢复与接管」）。产品正文没有区分这两条路径，本词表不为它们另立词条
+- **注意 ②**：为同一次执行取得新的执行挂接有恢复与接管两条路径，前提、独立的主体资格和结果归 [Agent 契约的恢复与接管](../../../../packages/agent/SPEC.md#受理恢复与接管)。产品正文没有区分这两条路径，本词表不为它们另立词条
 - **弃用**：~~挂载~~ ~~Agent Attachment~~
 
 ### UL-agent-registration · Agent 登记 · Agent Registration
@@ -565,10 +565,10 @@
 > **EN**: **The record a host makes when it publishes one agent runtime instance so that the instance can be discovered and can accept calls.** It has an identity of its own and three states: published, withdrawing and withdrawn. When the host publishes the same live instance again, a successor registration replaces the old one, and the identity of the old registration cannot act on the successor. A withdrawn registration leaves an identity record so that the same withdrawal can be recognized. A registration is a record the host owns. It is not the agent runtime itself and it grants no authority to advance an execution.
 
 - **形态**：对象
-- **出处**：缺产品原文。[Agent 产品页](../../product/agent-progression/design.md#使用场景)（rev 5）只写用户不需要按实例的生灭重建协作，没有一节定义登记。本条含义来自已接受系统页 [Agent runtime 实例、执行与执行挂接](../../../../docs/architecture/runtime/agent-runtime.md#实例执行与执行挂接)（保持空闲和注册）与用户决定（2026-10-17 Agent 扩展继承与边界对齐：agent runtime 保持登记），这两处都不是本词表的合法出处。身份与状态只由已接受的 Agent 契约的对象模型（Agent 包组规格「领域边界」）给出。出处缺口由产品负责人闭合：在 Agent 产品页写出登记，或裁定登记不是产品概念，见[对象条目的未裁](../../domain_objects/objects.md#ul-agent-registration--agent-登记)
+- **出处**：缺产品原文。[Agent 产品页](../../product/agent-progression/design.md#使用场景)（rev 5）只写用户不需要按实例的生灭重建协作，没有一节定义登记。本条含义来自已接受系统页 [Agent runtime 实例、执行与执行挂接](../../../../docs/architecture/runtime/agent-runtime.md#实例执行与执行挂接)（保持空闲和注册）与用户决定（2026-10-17 Agent 扩展继承与边界对齐：agent runtime 保持登记），这两处都不是本词表的合法出处。身份与状态只由已接受的 Agent 契约的[对象模型](../../../../packages/agent/SPEC.md#领域边界)给出。出处缺口由产品负责人闭合：在 Agent 产品页写出登记，或裁定登记不是产品概念，见[对象条目的未裁](../../domain_objects/objects.md#ul-agent-registration--agent-登记)
 - **别混 ①**：**不是 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)**——runtime 是推进执行的协程，登记是宿主对它的发布记录。runtime 失联后重新启动的进程是新实例，不继承原登记
 - **别混 ②**：**不是[运行时 context 注册](scope-and-resolution.md#ul-runtime-context-registration--运行时-context-注册--runtime-context-registration)**——那一条是会话纳入一块 context 来源的声明，与 agent runtime 的发布无关
-- **注意**：登记缺席不证明工作结束。执行的存续与恢复依据在执行记录里，不在登记里，见 Agent 契约的创建、登记与复用（Agent 包组规格「受理、恢复与接管」）
+- **注意**：登记缺席不证明工作结束。执行的存续与恢复依据在执行记录里，不在登记里，见 [Agent 契约的创建、登记与复用](../../../../packages/agent/SPEC.md#受理恢复与接管)
 
 ### UL-agent-step · agent 的一步 · Agent Step
 
@@ -758,7 +758,7 @@
 - **别混 ①**：**不是[一次经过](#ul-extension-point-pass--一次经过--extension-point-pass)**——一次经过是 loop 走到一个位置的那一次，挂在该位置的各件在其中各被调用一次
 - **别混 ②**：**不是[回放](#ul-replay--回放--replay)**——回放是接续时把挂起中的拓展件重新跑到停处的方式，调用是普通的一次
 - **注意 ①**：词表写「拓展」，系统页与成员正文写「扩展调用」，所指相同；见 [C-62](../conflicts.md#c-62拓展与扩展)
-- **注意 ②**：Agent 契约用 `Passage` 与 `PassageId` 记录并标识一次拓展件调用。`Passage` 指调用的记录，**不是[一次经过](#ul-extension-point-pass--一次经过--extension-point-pass)**：一次经过里，挂在该位置的每件拓展件各有一次调用，各有自己的 `PassageId`。一次调用可以包含多次对作者的 `invoke`，结果未知之后的回放与答复到达之后的回放都属于原调用，见扩展作者协议（Agent 包组规格「领域边界」）
+- **注意 ②**：Agent 契约用 `Passage` 与 `PassageId` 记录并标识一次拓展件调用。`Passage` 指调用的记录，**不是[一次经过](#ul-extension-point-pass--一次经过--extension-point-pass)**：一次经过里，挂在该位置的每件拓展件各有一次调用，各有自己的 `PassageId`。一次调用可以包含多次对作者的 `invoke`，结果未知之后的回放与答复到达之后的回放都属于原调用，见[扩展作者协议](../../../../packages/agent/SPEC.md#扩展与卡片)
 
 ### UL-extension-conclusion · 拓展结论 · Extension Conclusion
 
@@ -770,7 +770,7 @@
 > **EN**: **The judgement result an extension invocation leaves once the agent has obtained and adopted it. The agent keeps it in its own execution record.** A result that asks a person to decide (`ask` in code) is a non-final conclusion: it does not end the invocation, and once the answers are complete the same extension obtains the next conclusion. Every other conclusion is final. An invocation that already has a final conclusion is read, not called again, on continuation. Code and specifications may shorten it to *Conclusion*.
 
 - **形态**：属性
-- **出处**：[产品页 人的决定与等待](../../product/agent-progression/design.md#人的决定与等待)（rev 5）；封存来源 [PF-012 §6.10 能干预的拓展件必须留下结论](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论)（rev 25）；形态由 Agent 契约的扩展作者协议（Agent 包组规格「领域边界」）裁定，该契约已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用，见 [C-60](../conflicts.md#c-60拓展结论的形态)
+- **出处**：[产品页 人的决定与等待](../../product/agent-progression/design.md#人的决定与等待)（rev 5）；封存来源 [PF-012 §6.10 能干预的拓展件必须留下结论](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论)（rev 25）；形态由 Agent 契约的[扩展作者协议](../../../../packages/agent/SPEC.md#扩展与卡片)裁定，该契约已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用，见 [C-60](../conflicts.md#c-60拓展结论的形态)
 - **别混 ①**：**不是[干预力](#ul-intervention-power--干预力--intervention-power)**——干预力是拓展件能做到什么的上限，结论是一次调用实际得出的结果
 - **别混 ②**：**不是[运行终态](#ul-run-terminal-state--运行终态--run-terminal-state)**——结论只说一次调用的判断，不结束任何运行或执行
 - **注意**：它是挂在 [Agent 执行](#ul-agent-execution--agent-执行--agent-execution)记录上的一项值，不是会话日志里的条目，也没有独立于所属调用的身份。作者不返回结论，由 Agent 把校验通过的输出包装并保存

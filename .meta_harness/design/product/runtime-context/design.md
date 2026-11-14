@@ -542,7 +542,7 @@ CAP-RC05 与 CAP-RC10 为有限支持，由负责人确定。表中两项的限�
 
 本项为技术义务。按 [2.3](#23-需要绑定与集成原则) 与 [2.5](#25-状态块的更新与步提交)，工具定义与 Agent 扩展要能用自己的形状声明需要，工具调用结果与 Agent 各阶段的结果要能携带上下文更新，作用域持有者要能在步边界提交更新并处置失败步留下的待处理更新。未完成待办的待办语义由 [TodoItems()](../meta-capabilities/design.md#meta-todo) 定义，发布这块声明的技术拥有者尚未具名，键暂按 `agent.todos` 命名。
 
-方向已定，形状与落地归各自拥有者。兑现之前，本会话语义授权与未完成待办这两个状态块只有规则，没有实际承载者，CAP-RC01 与 CAP-RC02 的支持声明受此限制。责任由工具执行、Agent 定义与工作推进、作用域持有者（会话）与 Runtime Context 承担；精确义务分别见 [Tool 契约](../../../../packages/tool/tool-contract/SPEC.md)、Agent 契约（Agent 包组规格「应然设计」）与 [Runtime Context 契约](../../../../packages/context/runtime-context-contract/SPEC.md)。
+方向已定，形状与落地归各自拥有者。兑现之前，本会话语义授权与未完成待办这两个状态块只有规则，没有实际承载者，CAP-RC01 与 CAP-RC02 的支持声明受此限制。责任由工具执行、Agent 定义与工作推进、作用域持有者（会话）与 Runtime Context 承担；精确义务分别见 [Tool 契约](../../../../packages/tool/tool-contract/SPEC.md)、[Agent 契约](../../../../packages/agent/SPEC.md#应然设计)与 [Runtime Context 契约](../../../../packages/context/runtime-context-contract/SPEC.md)。
 
 <a id="context-n01"></a>
 ### CONTEXT-N01 当前明确不扩张的产品与实施范围
