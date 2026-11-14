@@ -155,7 +155,6 @@
       ".codex",
       "docs/**",
       ".meta_harness/design/**",
-      ".meta_harness/research/**",
       ".meta_harness/human/**",
       "examples/**",
       ".github/**",
