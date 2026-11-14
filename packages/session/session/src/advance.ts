@@ -623,14 +623,7 @@ export function createAdvance<P>(
     }
     if (run.advance?.attempt !== started.ok.advance.attempt) {
       replayed(ref, run.run)
-      return report(
-        ref,
-        'C2',
-        'replay',
-        run.run,
-        'attempt-replaced',
-        'a later attempt holds the Run',
-      )
+      return report(ref, 'C2', 'replay', run.run, 'attempt-replaced', 'held by a later attempt')
     }
     return invoke(ref, started.ok, true)
   }
