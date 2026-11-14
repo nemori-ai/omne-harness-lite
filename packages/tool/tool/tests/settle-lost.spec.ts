@@ -435,9 +435,10 @@ describe('decideSettleLost: the records of the lost execution after the commit',
     const snapshot = await snapshotOfCall(await live())
     const admission = operationId('op-c1')
     expect(snapshot.operations.get(admission)?.receipt.kind).not.toBe('settle-lost')
-    expect(replied(decideLost(snapshot, { ...COMMAND, operation: admission }))).toEqual({
-      failure: { kind: 'conflict', operation: admission },
-    })
+    const decided = decideLost(snapshot, { ...COMMAND, operation: admission }, need =>
+      preparedFor(need, admission),
+    )
+    expect(replied(decided)).toEqual({ failure: { kind: 'conflict', operation: admission } })
   })
 
   it('a prepared result of another operation answers the conflict of the synthetic channels, and nothing is committed', async () => {
