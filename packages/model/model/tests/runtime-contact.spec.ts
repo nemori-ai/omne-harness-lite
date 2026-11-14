@@ -18,7 +18,7 @@ const LOCK: DurableEvidence = {
   owner: '@omne-harness/harness-server',
   record: 'state-lock',
   revision: '1',
-  digest: 'instance:mcall_one',
+  digest: 'call:mcall_one',
 }
 
 function world(options: { liveness?: boolean } = {}) {

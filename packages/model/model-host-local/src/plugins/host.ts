@@ -392,7 +392,7 @@ export type ModelHostPluginOptions = Readonly<{
    * for it, so the assembly supplies one. The directory returns a route only after it answers ok.
    */
   qualifyObservation(access: CallAccess<unknown>): Reply<void>
-  lostContact?(instance: string): DurableEvidence | null
+  lostContact?(call: string): DurableEvidence | null
 }>
 
 /** The instance of the plugin class: Cordis calls `Service.init` and awaits it before ACTIVE. */

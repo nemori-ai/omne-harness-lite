@@ -257,7 +257,7 @@ it(
     const taken = acquireStateLock(base)
     if (taken.kind !== 'held') throw new Error('fixture: the state lock is in use')
     locks.push(taken.lock)
-    const judged = createModelHostRow({ lostContact: lostContactBy(() => taken.lock) })
+    const judged = createModelHostRow({ lostContact: lostContactBy(() => taken.lock, 'call') })
     const after = await contactOn(storageRoot, judged, false)
     const unjudged = await contactOn(storageRoot, modelHostRow, false)
     expect(before).toEqual({ ok: { kind: 'holding' } })
@@ -268,7 +268,7 @@ it(
           owner: '@omne-harness/harness-server',
           record: 'state-lock',
           revision: taken.lock.since,
-          digest: `instance:${CALL}`,
+          digest: `call:${CALL}`,
         },
       },
     })

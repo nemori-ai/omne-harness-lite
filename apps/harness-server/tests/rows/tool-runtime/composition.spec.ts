@@ -1157,7 +1157,7 @@ describe('Tool segment B: the release rows in one process composition', () => {
               plugins: {
                 ...plugins,
                 toolRecordsRow: createToolRecordsRow({
-                  lostContact: lostContactBy(() => taken.lock),
+                  lostContact: lostContactBy(() => taken.lock, 'instance'),
                 }),
               },
             },

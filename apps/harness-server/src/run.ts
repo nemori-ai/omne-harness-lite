@@ -553,10 +553,10 @@ export async function runServe(options: RunServeOptions): Promise<ServeResult> {
     ...releasePlugins,
     agentHostRow: createAgentHostRow({
       toolRequestsOf: releaseToolRequestsOf,
-      lostContact: lostContactBy(() => lock),
+      lostContact: lostContactBy(() => lock, 'instance'),
     }),
-    modelHostRow: createModelHostRow({ lostContact: lostContactBy(() => lock) }),
-    toolRecordsRow: createToolRecordsRow({ lostContact: lostContactBy(() => lock) }),
+    modelHostRow: createModelHostRow({ lostContact: lostContactBy(() => lock, 'call') }),
+    toolRecordsRow: createToolRecordsRow({ lostContact: lostContactBy(() => lock, 'instance') }),
   }
   try {
     return await runServeWithHostFiles({ ...options, plugins }, hostFiles, lockState)
