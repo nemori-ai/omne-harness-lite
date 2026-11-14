@@ -10,7 +10,7 @@
 
 领域独立于内核建模；Cordis 提供装配、组合、依赖注入和生命周期，不决定领域含义。独立能力与系统集成分别守住其公开承诺，运行时对象不直接成为数据契约。第一版单机交付，同时保留未来分布式、异构部署的语义边界；租户身份、所有权及默认拒绝跨租户访问从第一天进入关键边界。精确要求继续由上述正文与实际成员拥有。
 
-当前处于0.0.0至0.1.0研发阶段。演进沿[当前政策](docs/engineering/publication.md#当前演进与消费者)同步真实消费者并删除替代实现，进入0.1.0重新评估。历史字节不构成兼容承诺。
+当前处于0.0.0至0.1.0研发阶段。演进沿[当前政策](docs/requirements.md#当前研发阶段sys-experiment)同步真实消费者并删除替代实现，进入0.1.0重新评估。历史字节不构成兼容承诺。
 
 ## 系统的最简模型
 
@@ -181,13 +181,13 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 | 类型检查与 lint 命令 | `pnpm run typecheck`；`pnpm run lint:rules`；`pnpm run lint:oxlint`；`pnpm run lint:deps` |
 | 改动成员的合入检查 | `pnpm run preflight`，再在每个改动成员目录 `pnpm exec vitest run --mode fast` 与 `--mode slow`，有 `acceptance/` 的再 `pnpm run acceptance`。准入排在这些之后，在最终的头上只跑一次；没通过就把失败归类后补证，不重排整跑，见 `omne-card` 技能的[准入证据怎样取得](.meta_harness/agents/skills/omne-card/canonical/references/admission-evidence.md) |
 | 结构读数的覆盖率文件、范围与带位线 | `pnpm run closeout:metrics -- --base <起点> [--scope <路径>...]`：按改动成员各出一份 lcov（写到工作树外）、各调一次 pqw `metrics.mjs`，线与断言写法取自 `repo-toolchain.config.json`；切片收口用缺省的快层，一程全量加 `--full`，并另跑 [`loop:status --base <起点>`](docs/clean-loop.md#入口)。用法见 [pqw-adapter](tools/pqw-adapter/README_ZH.md) |
-| 差分变异的范围与点名文件 | `pnpm run closeout:mutation -- --base <起点> --scope <关键位置>...`：先 `--plan-only` 看范围，超过上限要给 `--scope` 或 `--files`；按改动成员各调一次 pqw `mutation.mjs`。[风险级别](docs/engineering/quality.md#按风险选择接受实现的看法)的路径下限：`pnpm run risk -- --base <起点>` |
+| 差分变异的范围与点名文件 | `pnpm run closeout:mutation -- --base <起点> --scope <关键位置>...`：先 `--plan-only` 看范围，超过上限要给 `--scope` 或 `--files`；按改动成员各调一次 pqw `mutation.mjs`。[风险级别](docs/architecture/assurance.md#按风险选择接受实现的看法)的路径下限：`pnpm run risk -- --base <起点>` |
 | 项目合入检查已按整程改动跑结构读数与差分变异时的命令 | 无 |
 | 文档检查命令 | `pnpm run check:docs`；`pnpm run check:design`；`pnpm run check:agents` |
 | 文档写作规则 | 加载 pqw `clear-writing`，照它的规则写 |
 | 三层正式文档的位置 | 产品 `.meta_harness/design/product`；项目顶层 `docs/`（项目要求、架构、领域）；每个包组一份 `packages/<组>/SPEC.md`，每个应用一份 `apps/<名>/SPEC.md` |
 | 统一语言与领域对象的位置 | `.meta_harness/design/ubiquitous_language`；`.meta_harness/design/domain_objects` |
-| 形式化工具链与声明边界 | TLC，环境见 [CONTRIBUTING](CONTRIBUTING.md#形式工具链)；声明边界见[验证说明](docs/verification.md) |
+| 形式化工具链与声明边界 | TLC，环境见 [CONTRIBUTING](CONTRIBUTING.md#形式工具链)；声明边界见[证据与有效范围](docs/architecture/assurance.md#证据与有效范围) |
 | spec 与 plan 的项目模板 | pqw 自带模板，加 [spec 附加节](.meta_harness/agents/pqw/spec-addendum.md)与 [plan 附加节](.meta_harness/agents/pqw/plan-addendum.md) |
 | 项目专有的清理项 | 本卡的工作树 `.worktrees/<卡>`；`tmp/<卡>/`；成员外写出的 lcov 目录；Stryker 容器 `.stryker-tmp*`。工作树里有 pqw 子模块，`git worktree remove` 会拒绝：先核 `git status` 干净、分支已合回，再删目录并 `git worktree prune` |
 | 验收处 | 卡评论：判据要求的证据贴摘要与关键行，原件位置与哈希写在评论里 |
@@ -204,7 +204,7 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 
 几种做法都成立时，先保护不变量，复用成熟机制，把复杂度花在真实契约差异。领域、公开能力和装配责任分别可见；状态、所有权、失败、生命周期及外部副作用有明确拥有者。项目独有判断继续归[研发品味](.meta_harness/agents/roles/engineering-taste.md)，外部工程方法的来源与本项目不同的地方见[来源与采用](.meta_harness/tooling/README.md#来源与采用)。做架构、技术设计、规格或评审时，先按[维度分解与正交](.meta_harness/agents/roles/engineering-taste.md#维度分解与正交)命名问题所在的轴与拥有者，再找现有正文。
 
-错误不能静默变成成功，外部输出不能因 disposer 而声称可逆。实现风险按需读[防御指导](docs/defensive-patterns.md)，验证按[质量与风险](docs/engineering/quality.md#按成果和风险验证)选择，适用独立接受及[现有硬线](docs/clean-loop.md#回路怎么转)保持。传感器反馈事实，负责人判断处置；结构通过不替代语义或行为接受。
+错误不能静默变成成功，外部输出不能因 disposer 而声称可逆。实现风险按需读[防御性的写法](docs/architecture/cross-cutting-concepts.md#防御性的写法)，验证按[质量与风险](docs/architecture/assurance.md#按成果和风险验证)选择，适用独立接受及[现有硬线](docs/clean-loop.md#回路怎么转)保持。传感器反馈事实，负责人判断处置；结构通过不替代语义或行为接受。
 
 ## 署名与分支：作者是人，来源可追溯
 
@@ -214,7 +214,7 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 
 用户明确的新要求优先于历史交接。先核对语义拥有者、精确版本、采用范围及消费者；评审、文件存在和测试通过不能授予接受。改变有效承诺必须有新依据并同步消费者，获准终态写回唯一源，被取代正文退出，旧字节留 Git 历史。
 
-源或实现冲突时报告具体反例和影响，只暂停依赖部分，交拥有者裁定。不能从实现反推目标、静默选方便说法或改提示解决未决架构。模型和测试结论保留其前提与覆盖；[验证说明](docs/verification.md)拥有声明边界。
+源或实现冲突时报告具体反例和影响，只暂停依赖部分，交拥有者裁定。不能从实现反推目标、静默选方便说法或改提示解决未决架构。模型和测试结论保留其前提与覆盖；[质量论证](docs/architecture/assurance.md#证据与有效范围)拥有声明边界。
 
 ## 按任务展开
 

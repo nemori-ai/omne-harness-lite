@@ -40,7 +40,7 @@
 
 ## 承载项目的包与依赖规则
 
-本项目的[产品包组织](../docs/package-organization.md)说明能力组和成员边界；[系统分层](../docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向)约束跨层依赖，[包组织角色](../docs/package-organization.md#依赖方向与cordis集成)约束成员消费方向。[IC精确规则](../docs/architecture/cordis-integration-conventions.md)与采用映射归执行仓库架构区，此处只提供导航。
+本项目的[结构与责任](../docs/architecture/structure.md#组织原则)说明能力组和成员边界；[系统分层](../docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向)约束跨层依赖，[依赖方向](../docs/architecture/layers-and-dependencies.md#依赖方向与cordis集成)约束成员消费方向。[IC精确规则](../docs/architecture/cordis-integration-conventions.md)与采用映射归执行仓库架构区，此处只提供导航。
 
 ## 当前入口
 

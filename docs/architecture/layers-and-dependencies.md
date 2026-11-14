@@ -68,6 +68,33 @@ flowchart TB
 
 运行时调用具体提供者，不等于源码必须依赖该提供者的实现。回调、事件订阅和双向消息也不能据此引入反向代码依赖；每种交互仍须由明确的契约承接。
 
+### 依赖方向与Cordis集成
+
+依赖按角色和公开契约判断，不按core、infra或util目录名取得许可。共同纯定义不依赖领域状态和提供者；能力契约不依赖实现它的提供者、SDK或应用；业务实现通过公开契约和显式依赖组合，产品装配负责选择提供者。
+
+服务定义随能力契约的唯一拥有者就近维护，消费者和提供者引用同一定义，通用assembly不收回全部Service和key。Service形状、键、依赖换代、isolate及撤除的精确规则继续归[Cordis集成约定](cordis-integration-conventions.md)。
+
+同组或同包不豁免依赖方向。类型引用、源码值边、声明和实际产物分别核对，事件或回调不为反向代码依赖提供默认许可。SDK和独立入口的安装闭包按目标平台验证。
+
+共同提交仍须满足实际存储与协调协议；相邻目录、同库路径或相同租户不证明原子性。[IC-5](cordis-integration-conventions.md#ic-5)的精确事务读例外保持原范围，不能借组织更新扩大提供者互引或装配豁免。
+
+Session、Agent、Model 与 Tool 按公开责任单向组合。Session 通过 Agent 的公开操作产生 Model 或 Tool 效果，Agent 可消费 Model 与 Tool 的必要公开契约。Agent、Model、Tool 的契约不要求认识 Session 的状态、生命周期或治理；Model、Tool 的契约也不要求认识 Agent 的状态、生命周期或治理。不透明的结果去处、调用身份或公共身份值不能暗含对外层内部状态的判断义务。
+
+| 来源职责                 | 可以消费的方向                   | 禁止的反向耦合                                                                     |
+| ------------------------ | -------------------------------- | ---------------------------------------------------------------------------------- |
+| Session 的邻域适配与协调 | Agent 公开契约；显示经公共流契约 | 不直接依赖 Model、Tool 操作契约执行控制或交付解除，也不从 Agent 取得服务后自行调用 |
+| Agent 的契约与协调       | Model、Tool 的必要公开契约       | 契约不依赖 Session 领域职责                                                        |
+| Model 契约               | 按职责需要的公共值与窄端口       | 不依赖 Session、Agent 领域职责                                                     |
+| Tool 契约                | 按职责需要的公共值与窄端口       | 不依赖 Session、Agent 领域职责                                                     |
+
+本表不改变各组内部成员分工。Session 组导入邻域契约的只有 session-adapters 与 session-observation，后者只导入 Model 契约与 Model 的 Cordis 定义；表中 Session 到 Agent 的方向不授予 session-contract 或 session-cordis 新的邻域导入权限。外部装配按其实际职责选择公开能力与提供者，不获得整个目录的反向依赖豁免。
+
+会话观察的依赖边归 session 组的 session-observation，不归接入组。它有两条跨组的成员级边：`session-observation -> model-contract` 只用公共流的两个读取面 `ModelStreamReferences.current` 与 `ModelStreamObservation.observe` 的类型，`session-observation -> model-cordis-contract` 只用这两个面的服务键。两条边都不导入实现，也不导入接入组的任何成员；后一条由约束登记的方向行 `DIR-SESSION-OBSERVATION-ACCESS` 守。
+
+同一能力的 Cordis 定义入口保持相同依赖方向，不能以服务键、Context/Events 增补或 `import type` 重新引入纯契约禁止的耦合。类型导入、重导出、跨成员相对路径和公开子路径分别核对。实际约束以所引用成员的身份与责任判断，不按名称含有 Session 或 Agent 一词作结论。
+
+领域语义、源码依赖、公开声明、发布产物和运行时授权是不同检查对象。导入检查只报告其已实现并采用的静态范围；没有代码禁边不证明旧行为条款已经迁移。已经机读的角色与方向行在[约束登记](constraints.json)里，由 `pnpm run lint:deps` 执行。共同值仍遵守领域模型边界，不能复制完整 Session 或 Agent 状态后改名 common 来绕过方向。
+
 ## 领域语义依赖与模型边界
 
 领域从自己的职责、规则、不变量和生命周期出发建模。外部存在某个对象，不构成本域为它建立模型的理由。只有本域履行承诺时必须理解的外部含义，才成为本域的语义依赖。依赖关系须明确到具体概念、用途与公开契约，不能用“依赖某领域”代替分析。
@@ -115,6 +142,18 @@ Calendar 的职责是日期知识，Schedule 的职责是未来安排，Job 的�
 此实例按 SOLID 核对变化边界。单一职责分开日期、安排、工作和协议翻译；依赖倒置把 JobExecutor 留给消费方；接口隔离让查询方不依赖供应写入或执行控制。替换实现须保留原身份、幂等、unknown 和真实停止含义；不支持 existing 却创建新会话，或把入队标为成功，均违反替换约束。新增业务执行语义须同步契约，不能借自由参数掩盖领域变化。
 
 完整消费图与反例归[日程协作](../domains/schedules-and-jobs/architecture.md)，日历事实与供应边界归[日历协作](../domains/calendars/architecture.md)。
+
+Calendar 与 Schedule/Job 各按纯契约、Cordis 定义、通用实现、单机后端和工具贡献组织为五个成员，具体边界见 [Calendar 组](../../packages/calendar/SPEC.md)和 [Schedule 组](../../packages/schedule/SPEC.md)。包划分建立安装依赖与维护边界，不要求每个包单独成为进程。
+
+公共服务可以部署在与 Session、Agent runtime 不同的机器或进程。`*-contract` 拥有公共数据和可替换服务端口，不包含 Cordis、SQL 后端、工厂配置或运行时对象。线上请求和回执可序列化，使用稳定身份、明确协议版本及授权语义。`calendar` 与 `schedule` 拥有纯领域算法、应用工厂及其内部构造依赖。`*-cordis-contract` 唯一拥有 Service、键和类型增补，不依赖通用实现。`*-tools` 经 inject 消费服务，不能依赖 core 或 `*-local`。服务定义本身不是网络协议。
+
+本次后端为 `calendar-local` 与 `schedule-local`。它们组合通用实现、sql-contract、具体来源或执行适配，提供无 Cordis 的构造入口及独立 `./cordis` 绑定。选定 SQL 介质由应用装配提供，业务包不绑定 SQLite 实现。schedule-local 的 Agent 执行适配可以消费 Session/Agent 的公开契约；纯契约和通用实现不能导入它们的服务或运行实现。Job 保持 Schedule 域内治理，不另建第二套 Job 调度或状态包。
+
+Calendar→Schedule、Job→Session 及通知/结果提供者交接，不得以共享内存、共享数据库或跨域事务参加者作为公共协议前提。命令接受与工作完成分别观察；断连、超时与取消观察不证明未接受。跨域交接保存原操作身份，以耐久意图、原操作查询及回执恢复，禁止未知时换身份重做。`-local` 可在自己的事务域内使用参加者，但这些对象不进入 wire 契约。
+
+既有设计中“最新依据与接受一致”“当前资格”和强撤权等保证保持有效。涉及远端权威时，必须由该权威提供可兑现的授权、保留或围栏协议，并声明能力与有效范围；单次读取后在本地提交不证明这些保证。不虚构分布式原子性。缺少必要能力时拒绝相关写入，不能降低为过期快照放行。
+
+远程客户端可以替换本地绑定的提供者，保持相同的公共语义。没有真实消费者的 RPC、消息队列或远程提供者包不先建。公共类型和 schema 随源码实现成为唯一的形状源。
 
 ## 两种消费方式
 

@@ -30,7 +30,7 @@
 | 新需求、新能力，或职责、身份、授权、生命周期、失败等语义变化 | 沿[任务地图](docs/context-map.md)定位要求、架构、领域或产品拥有者；必要政策未明确时，只暂停依赖它的实施 |
 | 新观察挑战已有决定 | 定位现行承诺与范围，在任务 tmp 提供反例和比较；当前正文经明确接受后修订，观察不自动改变承诺 |
 | 发布或修订正式规格 | 按[架构维护规则](.meta_harness/design/architecture/README.md)维护唯一承诺源、接受依据和消费者；同步公开类型、必要行为契约、模型及真实消费者，不保留被取代源 |
-| 衔接能力规格、提供者设计与实施交接 | 按[文档治理](docs/engineering/documentation.md)定位当前承诺，按[质量与风险](docs/engineering/quality.md#区分四层就绪状态)明确就绪范围，并同步受影响消费者与未完成义务 |
+| 衔接能力规格、提供者设计与实施交接 | 按根入口的[知识放哪](AGENTS.md#知识放哪)定位当前承诺，按[就绪范围](docs/architecture/assurance.md#区分四层就绪状态)明确就绪范围，并同步受影响消费者与未完成义务 |
 | 创建或维护 skills 及宿主适配 | 在 [.meta_harness/agents](.meta_harness/agents/README.md) 修改源；加载什么写作技能见[根 AGENTS.md](AGENTS.md#按任务展开) |
 
 用户已明确的要求和任务授权是开展工作的依据。关键歧义或缺少必需输入时，提出
@@ -99,7 +99,7 @@ uv run --locked python .meta_harness/tooling/src/initialize_agents.py --project-
   它对应哪个提交、工作树是否干净；基线以来改动的函数里超阈值的，逐条写已处理或保留理由。
   度量是抽查线索，不代替上面的验证。
 
-按[验证规范](docs/verification.md)选择检查。新增测试应保护改变的可观察
+按[质量论证](docs/architecture/assurance.md#按成果和风险验证)选择检查。新增测试应保护改变的可观察
 行为；局部文字修复无需为凑数量编写测试。修改行为时同步其所属说明、示例或契约，
 修改目录和入口时同步导航。不能靠重写预期或放宽检查隐藏尚未解决的冲突。
 skills 变更一并交付 canonical 源、宿主适配与生成产物，运行 `pnpm run check:agents`
