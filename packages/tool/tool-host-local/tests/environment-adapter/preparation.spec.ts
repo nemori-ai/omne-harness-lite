@@ -135,6 +135,7 @@ function fixture(wrap: (memory: ToolLedgerStore) => ToolLedgerStore = memory => 
       kind: 'unknown',
       cause: 'provider',
     })),
+    recoverResources: async () => ({ kind: 'unknown', cause: 'provider' }),
   }
   const build = () =>
     createLocalExecutionEnvironment({

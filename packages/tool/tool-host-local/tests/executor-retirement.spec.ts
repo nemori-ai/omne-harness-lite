@@ -193,6 +193,7 @@ async function world(
     // Without a scripted scan, no old call waits for this executor.
     recovery: { scan: options.scan ?? (async () => succeed({ calls: [], next: null })) },
     instance: () => instanceId,
+    maintenance: () => null,
   })
   const step: Step = { ...f.access, instance: instanceId, signal: new AbortController().signal }
   return {

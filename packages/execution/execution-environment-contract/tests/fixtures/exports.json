@@ -600,6 +600,11 @@
               "pending": false
             },
             {
+              "name": "ResourcesRecovery",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "Retirement",
               "kind": "type",
               "pending": false
@@ -740,6 +745,11 @@
               "pending": false
             },
             {
+              "name": "recoverResourcesParamsSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
               "name": "registerFacilityParamsSchema",
               "kind": "value",
               "pending": false
@@ -786,6 +796,11 @@
             },
             {
               "name": "releaseScopeResultSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "recoverResourcesResultSchema",
               "kind": "value",
               "pending": false
             },

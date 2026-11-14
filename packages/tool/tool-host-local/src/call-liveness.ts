@@ -63,10 +63,10 @@ export type CallAdmission = Readonly<{
   liveness: ToolCallLiveness
 }>
 
-export function executorCalls(
-  executor: () => ExecutorCalls | null,
-  retired: () => boolean,
-): CallAdmission {
+export function executorCalls({
+  executor,
+  retired,
+}: Readonly<{ executor(): ExecutorCalls | null; retired(): boolean }>): CallAdmission {
   return {
     admit(call, purpose) {
       const current = executor()

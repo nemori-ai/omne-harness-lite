@@ -17,7 +17,7 @@ import {
   type RuntimeEnvironment,
 } from './runtime-composition.ts'
 import { createRuntimeExecutor } from './runtime-executor.ts'
-import { publishRuntimeEnvironment } from './runtime-environments.ts'
+import { createMaintenanceEnvironment, publishRuntimeEnvironment } from './runtime-environments.ts'
 import { publishRuntimeFacade } from './runtime-facade.ts'
 import { publishRuntimeInstances } from './runtime-instances.ts'
 import {
@@ -78,10 +78,8 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   let host: LocalToolInstanceHost<unknown> | null = null
   let executor: ReturnType<typeof createRuntimeExecutor> | null = null
   let retired = false
-  const calls = executorCalls(
-    () => executor,
-    () => retired,
-  )
+  const calls = executorCalls({ executor: () => executor, retired: () => retired })
+  const maintenance = createMaintenanceEnvironment()
   let forwarding: ToolForwardRuntime<unknown> | undefined
   const bodyUnavailable = (operation: string) =>
     Promise.resolve(
@@ -217,6 +215,7 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
           receiver: consumer => receivers.current(consumer),
           recovery,
           instance: () => host?.instance ?? null,
+          maintenance: maintenance.current,
         })
         ctx.effect(() => close)
       },
@@ -233,6 +232,7 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
         })
       },
     },
+    maintenance: maintenance.plugin,
     close,
     diagnostics: () => ({
       retired,

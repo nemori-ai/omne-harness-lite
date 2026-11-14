@@ -93,6 +93,7 @@ export {
   type DriverStop,
   type ToolDriverHandle,
 } from './driver.ts'
+export { settleLostExecution } from './lost-execution.ts'
 export { createToolFactAcknowledgementGuard } from './fact-acknowledgements.ts'
 export {
   createToolResultReader,

@@ -33,6 +33,7 @@ export const operationFaces: Readonly<Record<ServiceOperation, ServiceFace>> = O
   inspectRecoveryAcquisition: 'recovery',
   recoverOwned: 'recovery',
   releaseScope: 'recovery',
+  recoverResources: 'recovery',
   registerFacility: 'registration',
   registerProvider: 'registration',
 })
@@ -153,6 +154,16 @@ export abstract class ExecutionEnvironmentService<P>
   protected abstract onReleaseScope(
     ...args: Operation<P, 'releaseScope'>['args']
   ): Operation<P, 'releaseScope'>['result']
+  recoverResources(
+    ...args: Operation<P, 'recoverResources'>['args']
+  ): Operation<P, 'recoverResources'>['result'] {
+    if (this.callerRefusal('recoverResources'))
+      return Promise.resolve({ kind: 'rejected', reason: 'callerMismatch' })
+    return this.onRecoverResources(...args)
+  }
+  protected abstract onRecoverResources(
+    ...args: Operation<P, 'recoverResources'>['args']
+  ): Operation<P, 'recoverResources'>['result']
   registerFacility<K extends FacilityKey>(
     descriptor: FacilityDescriptor<K>,
   ): ReturnType<ProviderRegistrations['registerFacility']> {

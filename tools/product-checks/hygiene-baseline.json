@@ -4011,7 +4011,7 @@
       "packages/agent/agent/src/testing/journal.ts": 4031,
       "packages/execution/execution-environment-contract/src/testing/environment-conformance.ts": 1062,
       "packages/execution/execution-environment-host-local/src/host-command.ts": 1042,
-      "packages/execution/execution-environment/src/registry.ts": 1108,
+      "packages/execution/execution-environment/src/registry.ts": 1107,
       "packages/identity/identity/src/testing/governance-contract.ts": 2277,
       "packages/mcp/mcp-contract/src/testing-transport.ts": 2675,
       "packages/mcp/mcp-host-local/src/session.ts": 1042,
@@ -4039,7 +4039,7 @@
       "packages/tool/tool-host-local/src/start-coordinator.ts": 1191,
       "packages/tool/tool/src/driver.ts": 1105,
       "packages/tool/tool/src/ledger-start.ts": 1217,
-      "packages/tool/tool/src/ledger.ts": 2249,
+      "packages/tool/tool/src/ledger.ts": 2245,
       "tools/repo-toolchain/src/arch/extract.ts": 1106,
       "tools/repo-toolchain/src/deps/graph.ts": 1085
     },
@@ -4338,7 +4338,7 @@
       },
       "packages/execution/execution-environment/src/registry.ts": {
         "count": 1,
-        "longest": 846
+        "longest": 845
       },
       "packages/human-intervention/human-intervention-local/src/application.ts": {
         "count": 1,
@@ -4734,7 +4734,7 @@
       },
       "packages/tool/tool-host-local/src/runtime-executor.ts": {
         "count": 1,
-        "longest": 377
+        "longest": 364
       },
       "packages/tool/tool-host-local/src/runtime-publication.ts": {
         "count": 1,
@@ -4774,7 +4774,7 @@
       },
       "packages/tool/tool/src/ledger.ts": {
         "count": 1,
-        "longest": 1763
+        "longest": 1758
       },
       "packages/tool/tool/src/runtime.ts": {
         "count": 1,

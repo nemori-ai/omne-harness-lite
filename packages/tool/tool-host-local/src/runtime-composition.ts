@@ -1,4 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
+import type { RecoveryAccess } from '@omne-harness/execution-environment-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
@@ -79,6 +80,7 @@ export type LocalToolRuntimeInput = Readonly<{
    */
   recoveryRescanMs?: number
   lostContact?: LostContact
+  recoveryAccess?: RecoveryAccess
 }>
 
 export type RuntimeCompositionInput = LocalToolRuntimeInput &

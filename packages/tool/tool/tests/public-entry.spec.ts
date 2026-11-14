@@ -39,6 +39,7 @@ it('root entry exports the independent execution functions, the ledger, the runt
     'observeToolLedgerCommit',
     'pageToolResult',
     'recordKey',
+    'settleLostExecution',
     'toolLedgerAdoption',
     'toolRuntimeAdoption',
   ])
