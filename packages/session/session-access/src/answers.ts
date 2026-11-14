@@ -2,7 +2,7 @@ import type { AnswerOf, BodyOf } from '@omne-harness/access-cordis-contract'
 import type { SessionAccess, SessionFailure } from '@omne-harness/session-contract'
 import type { Principal } from '@omne-harness/access-cordis-contract'
 import { sessionProtocol, type SessionProtocol } from '@omne-harness/session-protocol'
-import type { SessionAccessFaces } from './ports.ts'
+import type { PrincipalFact, PrincipalFacts, SessionAccessFaces } from './ports.ts'
 
 type Operations = SessionProtocol['operations']
 export type Name = keyof Operations & string
@@ -16,6 +16,17 @@ export const UNAVAILABLE = Object.freeze({ outcome: 'basis-unavailable' as const
 export type Target = Readonly<{ access: SessionAccess<Principal>; tenantText: string }>
 /** A target and the Session faces of the moment. */
 export type Admitted = Target & Readonly<{ faces: SessionAccessFaces }>
+
+export function describedBy(
+  facts: PrincipalFacts,
+  principal: Principal,
+): PrincipalFact | undefined {
+  try {
+    return facts.describe(principal)
+  } catch {
+    return undefined
+  }
+}
 
 /** The outcome of a Session failure, as the session location maps it. */
 function failureOutcome(failure: SessionFailure): string {

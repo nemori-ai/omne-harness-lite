@@ -1,5 +1,6 @@
 // The row's adapter of the session list face to the member's `SessionListing` port, and the two
 // list limits of the row configuration.
+import { resolve } from 'node:path'
 import type { Principal } from '@omne-harness/access-cordis-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
@@ -88,17 +89,41 @@ describe('sessionListingOf', () => {
   )
 })
 
+const journal = { requestJournalFile: resolve('state', 'request-queue.jsonl') }
+
 describe('the list limits of the configuration', () => {
   it('default to 50 and 50', () => {
-    expect(sessionAccessConfig.parse({})).toMatchObject({ defaultListLimit: 50, maxListLimit: 50 })
+    expect(sessionAccessConfig.parse(journal)).toMatchObject({
+      defaultListLimit: 50,
+      maxListLimit: 50,
+    })
   })
 
   it('refuse a default above the bound, which would make every call without a limit invalid', () => {
-    expect(sessionAccessConfig.safeParse({ defaultListLimit: 51, maxListLimit: 50 }).success).toBe(
+    const parsed = (limits: object) => sessionAccessConfig.safeParse({ ...journal, ...limits })
+    expect(parsed({ defaultListLimit: 51, maxListLimit: 50 }).success).toBe(false)
+    expect(parsed({ defaultListLimit: 20, maxListLimit: 100 }).success).toBe(true)
+  })
+})
+
+describe('the request queue of the configuration', () => {
+  it('needs the journal file, as an absolute path', () => {
+    expect(sessionAccessConfig.safeParse({}).success).toBe(false)
+    expect(
+      sessionAccessConfig.safeParse({ requestJournalFile: 'request-queue.jsonl' }).success,
+    ).toBe(false)
+  })
+
+  it('defaults the bound of a queue to the pending inputs of a session, and gives a retry sequence', () => {
+    expect(sessionAccessConfig.parse(journal)).toMatchObject({
+      requestQueueLimit: 64,
+      requestRetryDelaysMs: [100, 300, 1000, 3000],
+    })
+  })
+
+  it('refuses a retry sequence without a delay', () => {
+    expect(sessionAccessConfig.safeParse({ ...journal, requestRetryDelaysMs: [] }).success).toBe(
       false,
-    )
-    expect(sessionAccessConfig.safeParse({ defaultListLimit: 20, maxListLimit: 100 }).success).toBe(
-      true,
     )
   })
 })

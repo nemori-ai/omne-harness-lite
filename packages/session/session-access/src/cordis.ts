@@ -19,17 +19,21 @@ import { createSessionContribution } from './contribution.ts'
 import type {
   DefinitionResolver,
   PrincipalFacts,
+  RequestJournal,
   SessionAccessFaces,
   SessionAccessSettings,
   SessionListing,
   TargetTenantPrincipals,
 } from './ports.ts'
+import { createRequestDrain } from './request-drain.ts'
+import { admitRequest } from './send-input.ts'
 
 /** The input of one `create-session` call to Session's management face. */
 export type SessionCreateInput = Parameters<SessionManagement<Principal>['create']>[0]
 
 /** What only the application assembly can give the plugin. */
-export type SessionAccessPluginInput = Readonly<{
+export type SessionAccessPluginInput<S = SessionAccessSettings> = Readonly<{
+  journal: (settings: S) => Promise<RequestJournal>
   /** Built once when the plugin loads, over what the assembly's scope sees. */
   principals: (ctx: Context) => TargetTenantPrincipals
   facts: PrincipalFacts
@@ -70,18 +74,33 @@ function facesOf(
  * The access plugin of `session/v1`. Its configuration is the deployment values the handlers read;
  * the plugin defines no schema for it, the assembly row that loads it does.
  */
-export function createSessionAccessPlugin(input: SessionAccessPluginInput): Plugin.Object {
+export function createSessionAccessPlugin<S extends SessionAccessSettings>(
+  input: SessionAccessPluginInput<S>,
+): Plugin.Object {
   return {
     name: SESSION_ACCESS_PLUGIN,
     inject: [accessRegistryKey],
-    apply(ctx: Context, settings: SessionAccessSettings) {
+    async apply(ctx: Context, settings: S) {
+      const principals = input.principals(ctx)
+      const faces = () => facesOf(ctx, input.prepareCreation)
+      const journal = await input.journal(settings)
+      const requests = createRequestDrain({
+        journal,
+        admit: request => admitRequest({ principals, facts: input.facts, faces }, request),
+        limit: settings.requestQueueLimit,
+        retryDelaysMs: settings.requestRetryDelaysMs,
+      })
+      ctx.effect(() => async () => {
+        requests.stop()
+        await journal.close()
+      })
       ctx.plugin(
         defineAccessPlugin({
           name: `${SESSION_ACCESS_PLUGIN}.contribution`,
           protocol: sessionProtocol,
           handlers: provide =>
             createSessionContribution({
-              faces: () => facesOf(ctx, input.prepareCreation),
+              faces,
               observation: () =>
                 provide(sessionObservationKey) as SessionObservation<Principal> | undefined,
               definitions: () => input.definitions(ctx),
@@ -89,9 +108,10 @@ export function createSessionAccessPlugin(input: SessionAccessPluginInput): Plug
                 const directory = sessionOf(ctx, 'reader')?.directory
                 return directory === undefined ? undefined : input.listing(directory)
               },
-              principals: input.principals(ctx),
+              principals,
               facts: input.facts,
               settings,
+              requests,
             }),
         }),
       )

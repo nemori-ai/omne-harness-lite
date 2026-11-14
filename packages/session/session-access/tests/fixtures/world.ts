@@ -23,12 +23,17 @@ import { createSessionContribution } from '../../src/contribution.ts'
 import type {
   DefinitionResolver,
   PrincipalFacts,
+  RequestJournal,
   ResolvedDefinition,
   SessionAccessSettings,
   SessionListing,
   SessionListPage,
   TargetTenantPrincipals,
 } from '../../src/ports.ts'
+import { createRequestDrain, type RequestDrain } from '../../src/request-drain.ts'
+import type { QueuedRequest } from '../../src/request-queue.ts'
+import { admitRequest } from '../../src/send-input.ts'
+import { createJournalDouble, type JournalDouble } from './journal-double.ts'
 import { createSessionDouble, type SessionDouble } from './session-double.ts'
 
 export const DEFINITION = 'assistant'
@@ -117,8 +122,15 @@ export type World = Readonly<{
   issue(login: FixtureLogin, target?: TenantId): Principal
   /** The principal-port refusal to answer from now on; `undefined` answers by the account rule. */
   refuseTargets(refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined): void
+  refuseResumes(refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined): void
+  resumes(): readonly Readonly<{ tenant: string; login: string }>[]
   /** Takes Session, the observation, the mapping or the session list off the tree. */
   remove(port: 'faces' | 'observation' | 'definitions' | 'listing'): void
+  put(port: 'faces' | 'observation' | 'definitions' | 'listing'): void
+  journal: JournalDouble
+  requests: RequestDrain
+  admissions(): readonly QueuedRequest[]
+  restart(): void
   /** The calls the stand-in session list has had, and the answer it gives from now on. */
   listing: Readonly<{
     calls(): readonly ListingCall[]
@@ -131,13 +143,20 @@ export type World = Readonly<{
   contribution: ReturnType<typeof createSessionContribution>
 }>
 
-export function createWorld(settings: Partial<SessionAccessSettings> = {}): World {
+export function createWorld(
+  settings: Partial<SessionAccessSettings> = {},
+  journal?: RequestJournal,
+): World {
   const members = new Map<string, Set<string>>()
   const session = createSessionDouble({ members })
   const authority = inProcessPrincipalAuthority()
   const system = authority.issuer.issueSystem({ component: 'session-access-fixture' })
   if ('failure' in system) throw new Error('fixture system principal not issued')
   let refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined
+  let resumeRefusal: 'denied' | 'basis-unavailable' | 'throw' | undefined
+  const resumes: { tenant: string; login: string }[] = []
+  const admissions: QueuedRequest[] = []
+  const store = createJournalDouble()
   const removed = new Set<string>()
   let scripted: ObservationScript = { kind: 'opened', frames: [], end: 'refresh-exhausted' }
   const opens: SessionAccess<Principal>[] = []
@@ -166,6 +185,15 @@ export function createWorld(settings: Partial<SessionAccessSettings> = {}): Worl
       if (!target.ok || !accountEquals(target.value.account, caller.account))
         return { refused: 'denied' }
       return { ok: issue(caller, target.value) }
+    },
+    async resume(tenantText, loginText) {
+      resumes.push({ tenant: tenantText, login: loginText })
+      if (resumeRefusal === 'throw') throw new Error('identity fault')
+      if (resumeRefusal !== undefined) return { refused: resumeRefusal }
+      const target = tenantCodec.parse(tenantText)
+      if (!target.ok) return { refused: 'denied' }
+      const { account } = target.value
+      return { ok: issue({ account, loginText, tenant: target.value, tenantText }) }
     },
   }
 
@@ -211,21 +239,40 @@ export function createWorld(settings: Partial<SessionAccessSettings> = {}): Worl
     },
   }
 
-  const contribution = createSessionContribution({
-    faces: () => (removed.has('faces') ? undefined : session.faces),
-    observation: () => (removed.has('observation') ? undefined : observation),
-    definitions: () => (removed.has('definitions') ? undefined : resolveDefinition),
-    listing: () => (removed.has('listing') ? undefined : listing),
-    principals,
-    facts,
-    settings: {
-      maxPageBytes: 65536,
-      historyKinds: ['message.user', 'message.assistant'],
-      defaultListLimit: 50,
-      maxListLimit: 50,
-      ...settings,
-    },
-  })
+  const faces = () => (removed.has('faces') ? undefined : session.faces)
+  const complete: SessionAccessSettings = {
+    maxPageBytes: 65536,
+    historyKinds: ['message.user', 'message.assistant'],
+    defaultListLimit: 50,
+    maxListLimit: 50,
+    requestQueueLimit: 8,
+    requestRetryDelaysMs: [1],
+    ...settings,
+  }
+
+  const assemble = (opened: RequestJournal) => {
+    const requests = createRequestDrain({
+      journal: opened,
+      admit: request => {
+        admissions.push(request)
+        return admitRequest({ principals, facts, faces }, request)
+      },
+      limit: complete.requestQueueLimit,
+      retryDelaysMs: complete.requestRetryDelaysMs,
+    })
+    const contribution = createSessionContribution({
+      faces,
+      observation: () => (removed.has('observation') ? undefined : observation),
+      definitions: () => (removed.has('definitions') ? undefined : resolveDefinition),
+      listing: () => (removed.has('listing') ? undefined : listing),
+      principals,
+      facts,
+      settings: complete,
+      requests,
+    })
+    return { requests, contribution }
+  }
+  let assembled = assemble(journal ?? store.open())
 
   return {
     session,
@@ -233,8 +280,24 @@ export function createWorld(settings: Partial<SessionAccessSettings> = {}): Worl
     refuseTargets: next => {
       refusal = next
     },
+    refuseResumes: next => {
+      resumeRefusal = next
+    },
+    resumes: () => [...resumes],
     remove: port => {
       removed.add(port)
+    },
+    put: port => {
+      removed.delete(port)
+    },
+    journal: store,
+    get requests() {
+      return assembled.requests
+    },
+    admissions: () => [...admissions],
+    restart: () => {
+      assembled.requests.stop()
+      assembled = assemble(store.open())
     },
     listing: {
       calls: () => [...listingCalls],
@@ -247,6 +310,8 @@ export function createWorld(settings: Partial<SessionAccessSettings> = {}): Worl
     },
     opens: () => [...opens],
     closed: () => closed,
-    contribution,
+    get contribution() {
+      return assembled.contribution
+    },
   }
 }

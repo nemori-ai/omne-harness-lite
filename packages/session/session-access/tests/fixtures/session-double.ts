@@ -66,6 +66,8 @@ export type SessionDoubleControls = Readonly<{
   checkExistenceOnQuery(check: boolean): void
   /** Makes every mutation answer this failure until `restore()`. */
   failWith(failure: SessionFailure): void
+  failNext(...failures: readonly SessionFailure[]): void
+  loseAnswers(count: number): void
   restore(): void
   /** Makes a Run known to a session, so `cancelRun` finds it. */
   addRun(session: SessionId, run: string): void
@@ -109,6 +111,8 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
   let refuseTool = true
   let existenceOnQuery = true
   let commits = 0
+  let lostAnswers = 0
+  const failures: SessionFailure[] = []
 
   const record = (method: FaceMethod, access: SessionAccess<P>, input: unknown): void => {
     calls.push({
@@ -163,6 +167,8 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
     operation: SessionOperationId,
     content: unknown,
   ): Outcome<CommitReceipt, SessionFailure> => {
+    const next = failures.shift()
+    if (next !== undefined) return fail(next)
     if (forcedFailure !== undefined) return fail(forcedFailure)
     const digest = digestOf(content)
     const found = committed.get(operation)
@@ -173,6 +179,10 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
     }
     const receipt = receiptOf(operation, false)
     committed.set(operation, { kind, digest, receipt })
+    if (lostAnswers > 0) {
+      lostAnswers -= 1
+      return fail({ kind: 'commit-unknown', operation })
+    }
     return succeed(receipt)
   }
 
@@ -323,6 +333,12 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       },
       failWith: (failure: SessionFailure) => {
         forcedFailure = failure
+      },
+      failNext: (...next: readonly SessionFailure[]) => {
+        failures.push(...next)
+      },
+      loseAnswers: (count: number) => {
+        lostAnswers = count
       },
       restore: () => {
         throwing.clear()
