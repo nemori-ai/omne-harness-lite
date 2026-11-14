@@ -49,6 +49,7 @@ import { decideResults } from './decide-results.ts'
 import { decideProducerFact } from './decide-receive.ts'
 import { residentEntries, completeEvidence } from './decision-support.ts'
 import { closingEntries } from './run-closure.ts'
+import { pendingAfterTerminal } from './input-leases.ts'
 import { digestOf } from './operations.ts'
 import { canonicalInitializationValue, creationInput, tenantText } from './initialization-plan.ts'
 import { InitializationInvalid } from './initialization-parse.ts'
@@ -321,6 +322,7 @@ function decideStartRun(
   const judgment = judgeRunStart(snapshot, command.input.entry)
   if (judgment.kind !== 'eligible') {
     if (judgment.kind === 'frozen') return rejected({ kind: 'frozen', verdict: null })
+    if (judgment.kind === 'awaiting-person') return rejected({ kind: 'no-input' })
     return rejected({ kind: judgment.kind })
   }
   if (command.input.entry === 'interactive' && !loggedIn(reads, judgment.first))
@@ -459,16 +461,11 @@ function decideFinishRun(
       sessionOrigin(source),
     ),
   )
-  if (snapshot.frozen !== null && snapshot.pending.length > 0)
-    out.push(
-      encodeEntry(
-        {
-          kind: 'intake.released',
-          inputs: snapshot.pending.filter(input => input !== rejects?.input),
-        },
-        sessionOrigin(source),
-      ),
-    )
+  const remaining = pendingAfterTerminal(snapshot, terminal.outcome)
+  if (snapshot.frozen !== null && remaining.length > 0) {
+    const inputs = remaining.filter(input => input !== rejects?.input)
+    out.push(encodeEntry({ kind: 'intake.released', inputs }, sessionOrigin(source)))
+  }
   return entries(out)
 }
 

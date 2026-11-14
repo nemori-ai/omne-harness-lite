@@ -412,6 +412,8 @@ export type WorkSnapshot = Readonly<{
   children?: readonly SessionId[]
   autoArchive?: AutoArchivePolicy
   taken?: readonly InputId[]
+  unanswered?: readonly InputId[]
+  awaitingPerson?: true
   backgroundPlaceholders?: readonly ConsumptionId[]
   releasedScopes?: readonly Readonly<{ task: SessionOperationId; scope: string }>[]
   contextScopes?: readonly ContextScopeBinding[]

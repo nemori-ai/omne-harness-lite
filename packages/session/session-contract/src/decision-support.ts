@@ -5,6 +5,7 @@ import { encodeEntry } from './entries.ts'
 import { digestOf } from './operations.ts'
 import type { Decision, EncodedEntry } from './judgments.ts'
 import { closingEntries } from './run-closure.ts'
+import { pendingAfterTerminal } from './input-leases.ts'
 
 export const rejected = (failure: SessionFailure): Decision => ({ kind: 'rejected', failure })
 export const invalid = (field: string, reason: string): Decision =>
@@ -123,7 +124,8 @@ export function terminalEntries(
       originOf(source),
     ),
   )
-  if (snapshot.frozen !== null && snapshot.pending.length > 0)
-    out.push(encodeEntry({ kind: 'intake.released', inputs: snapshot.pending }, originOf(source)))
+  const remaining = pendingAfterTerminal(snapshot, terminal.outcome)
+  if (snapshot.frozen !== null && remaining.length > 0)
+    out.push(encodeEntry({ kind: 'intake.released', inputs: remaining }, originOf(source)))
   return out
 }
