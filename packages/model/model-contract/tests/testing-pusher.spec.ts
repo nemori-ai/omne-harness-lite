@@ -145,7 +145,6 @@ function answeringAcknowledge(
     controller: scripted.controller,
     provider: {
       runtime: { ...runtime, consumption },
-      recover: input => scripted.provider.recover(input),
       quiesce: () => scripted.provider.quiesce(),
     },
   }

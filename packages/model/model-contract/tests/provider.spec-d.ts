@@ -2,7 +2,6 @@ import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { requestHead } from '@omne-harness/model-contract/provider'
 import { expectTypeOf, it } from 'vitest'
 import type {
-  Access,
   CallAccess,
   CallState,
   MaterializationReceipt,
@@ -524,10 +523,8 @@ it('a ModelProvider exposes the ordinary runtime and the operator entries, and n
       },
       instances: { connect: async () => ({ ok: { kind: 'no-live-route' } }) },
     },
-    recover: async () => ({ ok: { scheduled: '0' } }),
     quiesce: async () => ({ ok: { pending: '0', running: '0' } }),
   }
-  expectTypeOf<ModelProvider<string>['recover']>().parameter(0).toEqualTypeOf<Access<string>>()
   expectTypeOf<ModelProvider<string>['quiesce']>().parameters.toEqualTypeOf<[]>()
   // @ts-expect-error a provider hands out no driver
   void provider.driver

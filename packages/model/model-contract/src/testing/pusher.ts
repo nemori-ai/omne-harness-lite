@@ -516,7 +516,6 @@ export function createScriptedResultPusher<P>(
       consumption,
       instances,
     },
-    recover: input => scripted.provider.recover(input),
     quiesce: () => scripted.provider.quiesce(),
   }
 

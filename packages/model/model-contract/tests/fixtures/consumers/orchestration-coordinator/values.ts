@@ -148,6 +148,7 @@ export function newWorld() {
       return reply
     },
     inspect: input => provided.inspect(input),
+    contact: input => provided.contact(input),
     dispatches: input => provided.dispatches(input),
     cancel: input => provided.cancel(input),
   }

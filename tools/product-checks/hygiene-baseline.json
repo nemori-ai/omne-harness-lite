@@ -4015,7 +4015,7 @@
       "packages/identity/identity/src/testing/governance-contract.ts": 2277,
       "packages/mcp/mcp-contract/src/testing-transport.ts": 2675,
       "packages/mcp/mcp-host-local/src/session.ts": 1042,
-      "packages/model/model-host-local/src/plugins/runtime.ts": 1212,
+      "packages/model/model-host-local/src/plugins/runtime.ts": 1188,
       "packages/model/model-storage-sql/src/commit.ts": 1273,
       "packages/model/model/src/commands/commands.ts": 1171,
       "packages/session/session-adapters/src/cordis/agent-journal.ts": 2519,
@@ -4046,7 +4046,7 @@
     "functions": {
       "apps/harness-server/src/model/qualification.ts": {
         "count": 1,
-        "longest": 190
+        "longest": 186
       },
       "apps/harness-server/src/rows/agent-cards/provider.ts": {
         "count": 1,
@@ -4418,11 +4418,11 @@
       },
       "packages/model/model-contract/src/testing/controller.ts": {
         "count": 1,
-        "longest": 165
+        "longest": 164
       },
       "packages/model/model-contract/src/testing/pusher.ts": {
         "count": 1,
-        "longest": 356
+        "longest": 354
       },
       "packages/model/model-contract/src/testing/stream-observation.ts": {
         "count": 1,
@@ -4438,11 +4438,11 @@
       },
       "packages/model/model-host-local/src/plugins/host.ts": {
         "count": 1,
-        "longest": 214
+        "longest": 199
       },
       "packages/model/model-host-local/src/plugins/runtime.ts": {
         "count": 1,
-        "longest": 725
+        "longest": 714
       },
       "packages/model/model-storage-sql/src/commit.ts": {
         "count": 1,

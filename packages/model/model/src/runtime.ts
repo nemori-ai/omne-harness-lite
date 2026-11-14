@@ -273,7 +273,6 @@ export function createModelRuntime<P>(
         },
       },
     },
-    recover: () => unavailable('recover', '5.4'),
     quiesce: async () => {
       quiesced = true
       await Promise.allSettled(admitting)

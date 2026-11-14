@@ -2269,9 +2269,6 @@ export interface ModelInstanceHost<P> {
 }
 export interface ModelProvider<P> {
     readonly runtime: ModelRuntime<P>;
-    recover(input: Access<P>): Reply<Readonly<{
-        scheduled: string;
-    }>>;
     quiesce(): Reply<Readonly<{
         pending: string;
         running: string;
