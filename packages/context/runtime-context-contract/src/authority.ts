@@ -21,11 +21,8 @@ export interface ScopeBindingSource {
   lookup(scope: ScopeRef): Promise<ScopeBinding>
 }
 
-/**
- * The answer of an authority port for one action. `current()` is a REQUIRED synchronous premise:
- * the adapter shares one serial boundary with revocation and the caller's final commit, and the
- * answer is valid only within this action. A stored `true` does not satisfy it.
- */
+/** `current()` is a required synchronous premise sharing one serial boundary with revocation and the
+ * final commit; the answer is valid only within this action, and a stored `true` does not satisfy it. */
 export type AuthorityDecision<P> =
   | Readonly<{ kind: 'authorized'; principal: P; current(): boolean }>
   | Readonly<{ kind: 'refused' }>

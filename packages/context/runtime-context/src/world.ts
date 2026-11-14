@@ -58,10 +58,8 @@ export type ScopeState = {
   view: number
   /** Bumped when cursors become invalid: registration change, producer replacement, replay begin. */
   epoch: number
-  /**
-   * Bumped by every change that can alter any filtered read of this scope. The read cache keys on
-   * it, so an entry is never served across such a change.
-   */
+  /** Bumped by every change that can alter any filtered read of this scope. The read cache keys on
+   * it, so an entry is never served across such a change. */
   projection: number
   registrations: Map<ContextBlockKey, Registration>
   values: Map<ContextBlockKey, Stored>
