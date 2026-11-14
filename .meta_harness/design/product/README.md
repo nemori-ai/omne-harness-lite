@@ -19,7 +19,7 @@
 | [模型调用的产品设计](model-invocation/design.md) | [未决](model-invocation/design.md#未决问题与待定事项) | [领域](../../../docs/domains/model-invocation/README.md) | [工程与规格](../../../packages/model/README.md) |
 | [工具执行](tool-execution/design.md) | [未决](tool-execution/design.md#未决问题与待定事项) | [领域](../../../docs/domains/tool-execution/README.md) | [工程与规格](../../../packages/tool/README.md) |
 | [元能力入口](meta-capabilities/design.md) | [未决](meta-capabilities/design.md#未决问题与待定事项) | 依各入口的原领域责任 | 完整入口定义与旅程，技术承接按入口分配；Code 已定名并细化程序编排，Engram 与 Stop 占位 |
-| [运行感知与一次模型请求](runtime-context/design.md) | [未决](runtime-context/design.md#未决问题与待定事项) | [领域](../../../docs/domains/runtime-context/README.md) | [工程与规格](../../../packages/context/README.md) |
+| [运行感知与一次模型请求](runtime-context/design.md) | [未决](runtime-context/design.md#未决问题与待定事项) | [领域](../../../docs/domains/runtime-context/README.md) | [工程与规格](../../../packages/context/SPEC.md#总体架构) |
 | [工作区产品设计](workspaces/design.md) | [未决](workspaces/design.md#未决问题与待定事项) | [领域](../../../docs/domains/workspaces/README.md) | [工程与规格](../../../packages/workspace/README.md) |
 | [执行环境产品设计](execution-environments/design.md) | [未决](execution-environments/design.md#未决问题与待定事项) | [领域](../../../docs/domains/execution-environments/README.md) | [工程与规格](../../../packages/execution/README.md) |
 | [Skill产品设计](skills/design.md) | [未决](skills/design.md#未决问题与待定事项) | [领域](../../../docs/domains/skills/README.md) | [工程与规格](../../../packages/skills/README.md) |

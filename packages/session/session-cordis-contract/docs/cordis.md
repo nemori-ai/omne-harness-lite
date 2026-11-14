@@ -138,7 +138,7 @@ Tool 常驻引用桥由应用装配提供，以显式 tenant 消费 Session 的 
 | `inject` 没有可选形式 | [inject-has-no-optional-form](../../../../.meta_harness/design/basis/cordis/inject-has-no-optional-form.md) | 性质 4；通知能力因此不进 `inject` |
 | isolate 只隔离实例可见性 | [isolate-hides-instances-not-data](../../../../.meta_harness/design/basis/cordis/isolate-hides-instances-not-data.md) | 性质 6 |
 
-对象形式 `inject` 的值到达服务方法的 `this[Service.resolveConfig]()`，不同插件各自取到自己的值：这一条只有源码读数，与 [Runtime Context 的同一条候选](../../../context/runtime-context-cordis-contract/docs/cordis.md#机制读数与假设)共用一个待补的 probe。补齐之前，性质 4 是假设，不是已核验的保证。Cordis 升版时，先按 IC 约定重跑相关 probe。
+对象形式 `inject` 的值到达服务方法的 `this[Service.resolveConfig]()`，不同插件各自取到自己的值：这一条只有源码读数，与 [Runtime Context 的同一条候选](../../../context/SPEC.md#cordis-装配)共用一个待补的 probe。补齐之前，性质 4 是假设，不是已核验的保证。Cordis 升版时，先按 IC 约定重跑相关 probe。
 
 ## 验证义务
 

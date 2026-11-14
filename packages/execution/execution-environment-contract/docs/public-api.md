@@ -253,7 +253,7 @@ schema 的规则：
 | `executionHostFactsBlock` | 值   | 块 `execution.host-facts` 的供给块声明                                       | 同上                                                                                                                  |
 | `ExecutionHostFactsValue` | 类型 | 宿主事实块的值：块级日期 `date` 与提供者事实列表 `providers`                 | 同上                                                                                                                  |
 
-两条块声明的字段相同，块的读取规则归 Runtime Context 的 [RC-02](../../../context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)：
+两条块声明的字段相同，块的读取规则归 Runtime Context 的 [RC-02](../../../context/SPEC.md#块注册与资格)：
 
 | 字段              | 值                           | 含义                                                                                                  |
 | ----------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------- |

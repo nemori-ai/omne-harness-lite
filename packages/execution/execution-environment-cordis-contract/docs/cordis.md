@@ -157,7 +157,7 @@ export const inject = {
 
 | 候选条目 | probe 要证明什么 | 支撑的性质 |
 | --- | --- | --- |
-| `inject-object-config-reaches-service-resolve-config` | 调用方插件写 `inject: { svc: { caller: 'maintainer' } }`，服务方法里 `this[Service.resolveConfig]()` 取到这份配置。两个声明不同调用方类的插件各自取到自己的值 | 性质 4。这条候选条目与 Runtime Context 的消费者类共用，见 [runtime-context-cordis-contract 的机制读数](../../../context/runtime-context-cordis-contract/docs/cordis.md#机制读数与假设) |
+| `inject-object-config-reaches-service-resolve-config` | 调用方插件写 `inject: { svc: { caller: 'maintainer' } }`，服务方法里 `this[Service.resolveConfig]()` 取到这份配置。两个声明不同调用方类的插件各自取到自己的值 | 性质 4。这条候选条目与 Runtime Context 的消费者类共用，见 [runtime-context-cordis-contract 的机制读数](../../../context/SPEC.md#cordis-装配) |
 
 撤除函数抛出时 Cordis 怎样处置，已有读数：Cordis 4.0.4 的 `fiber.ts` `_unload` 对每个撤除函数捕获抛出，只写入 `ctx.logger.error`，卸载照常完成，`fiber.dispose()` 正常返回。所以性质 5 的「不以正常返回报告完成」只对调用方直接调用的撤除函数成立。这条读数由 [execution-environment-host-local 的 cordis-entry.spec.ts](../../execution-environment-host-local/tests/cordis-entry.spec.ts) 在真实 Cordis 卸载上固定。
 

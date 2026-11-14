@@ -207,7 +207,7 @@ sequenceDiagram
 
 ### F-EEC06 落点与宿主事实经 Runtime Context 到达观察者
 
-条款：[INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)、Runtime Context 的 [RC-02](../../../context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)。对应组的 F-EX04。
+条款：[INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)、Runtime Context 的 [RC-02](../../../context/SPEC.md#块注册与资格)。对应组的 F-EX04。
 
 前提：两条块声明由本成员导出。生产者是 host-local 的 Service 实现。当前还没有发布。块的注册、读取与恢复规则归 Runtime Context。
 

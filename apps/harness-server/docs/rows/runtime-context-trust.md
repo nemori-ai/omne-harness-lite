@@ -1,6 +1,6 @@
 # Runtime Context 信任入口
 
-本入口按 Session 归属收窄 reader，并只允许应用采用的模式生产者。实现见 [runtime-context-trust.ts](../../src/entry/runtime-context-trust.ts)，公开行为与类型归 [Runtime Context 契约](../../../../packages/context/runtime-context-contract/SPEC.md)。holder 的动作表保持原语义，不带租户的 revoke 仍被拒绝。
+本入口按 Session 归属收窄 reader，并只允许应用采用的模式生产者。实现见 [runtime-context-trust.ts](../../src/entry/runtime-context-trust.ts)，公开行为与类型归 [Runtime Context 契约](../../../../packages/context/SPEC.md#应然设计)。holder 的动作表保持原语义，不带租户的 revoke 仍被拒绝。
 
 reader 先核验主体，再核对铸造租户。只有 `actor.component=sessionWorkPrincipals` 且 `work.owner=session` 的代租户主体可以继续。随后读取本次 eligibility 的 scope 归属，核对租户相同且 `work.work` 等于所属 Session。输入的租户与 scope 引用在首次等待前固定。producer 只接受原 Identity 权威签发的 `sessionModesPrincipals` 代租户主体，其工作用途固定为 `harness.session-context/modes`，key 固定为 `session.modes`，producer 固定为适配器导出的 `sessionModesProducer`。注册和租户失效仅限主体所属租户；publish、invalidate 和 supply 还核对原 scope 归属。supply 从原 `sessionWorkPrincipals` 取得该 scope 所属会话的协调者主体，并再次核验身份与绑定，交给原模式读口。缺来源不可用，未知保持未知，错绑拒绝。
 

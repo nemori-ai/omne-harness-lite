@@ -265,4 +265,4 @@
 
 - 可能造出受管资源的设施操作在过门之后先经账本计划与许可（[INV-EE15](../execution-environment-contract/SPEC.md#inv-ee15-准备持有回收与确认保持一致)）。本成员不调用账本，这一步由提供者在拿到账本后承担。根入口的模板标记写明这项用法还没有接受。
 - 长期运行的保留与淘汰策略待定：获取表的记录（含已释放与已拒绝）与已释放作用域集合现在只增不减，随进程结束释放。淘汰会改变按键查询与同键获取的答复，所以保留策略不是可随意调的配置项，要与集成方账本的重放规则一起定。
-- 块生产者的读取面没有定义：生产者读什么、按哪个租户维度读、由什么事件使当前值失效。`describe` 要求访问身份，本成员也不发出变化通知，所以现有操作不够生产者使用。它在生产者插件接受之前定义，拥有者是本成员与 [execution-environment-host-local](../execution-environment-host-local/SPEC.md)；回调的形状由 [Runtime Context 契约](../../context/runtime-context-contract/SPEC.md)给出（[契约 INV-EE17](../execution-environment-contract/SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)）。
+- 块生产者的读取面没有定义：生产者读什么、按哪个租户维度读、由什么事件使当前值失效。`describe` 要求访问身份，本成员也不发出变化通知，所以现有操作不够生产者使用。它在生产者插件接受之前定义，拥有者是本成员与 [execution-environment-host-local](../execution-environment-host-local/SPEC.md)；回调的形状由 [Runtime Context 契约](../../context/SPEC.md#应然设计)给出（[契约 INV-EE17](../execution-environment-contract/SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)）。

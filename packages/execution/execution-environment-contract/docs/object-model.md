@@ -81,7 +81,7 @@
 | 主体 | 有类型的引用 | 访问身份 `Access<P>` 里的主体，类型 `P` 由集成方给出 | 主体的含义与授权依据；由设施守卫判断 |
 | JSON 值 | 复用公共值 | json-text 的 `JsonValue`，用于提供者证据、受管资源的恢复引用与块值 | 无 |
 | Tool 的准备记录 | 放到外部协调者 | 不进入。集成方随准备记录保存采用记录，获取键可以取自准备记录的操作身份 | 准备记录、释放记录的形状与存储 |
-| Runtime Context 块 | 消费公开契约 | 两条供给块声明 `SuppliedBlockDescriptor` 与 `ContextBlocks` 增补；块的注册与读取按 [RC-02](../../../context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数) | 块的注册表、读取资格、提醒与快照 |
+| Runtime Context 块 | 消费公开契约 | 两条供给块声明 `SuppliedBlockDescriptor` 与 `ContextBlocks` 增补；块的注册与读取按 [RC-02](../../../context/SPEC.md#块注册与资格) | 块的注册表、读取资格、提醒与快照 |
 | 策略与授权 | 放到外部协调者 | 策略求值的结果是允许清单；普通操作的访问经集成方实现的 `EnvironmentAuthority`，判定形状同 Runtime Context 的授权判定；逐操作授权经集成方实现的 `FacilityGuard` | 策略词、授权依据 |
 | 耐久存储 | 放到外部协调者 | 集成方实现的 `ResourceLedger` 与恢复授权端口 | 存储形状、事务 |
 
@@ -242,7 +242,7 @@ classDiagram
 
 ### 两条块声明
 
-`execution.placement` 与 `execution.host-facts` 是 Runtime Context 的供给块声明，语义拥有者是本成员。生产者是 host-local 的 Service 实现。当前还没有发布。块的值是 JSON，按声明的解码函数核对。落点块按获取记录里的请求方作用域给出该作用域内各原调用的当前落点；宿主事实块给出每个已登记提供者的事实：代、版本、平台（操作系统类型与版本）、设施键、隔离断言，以及满足、不满足、未知三态之一的前提。两条块都是观察，读者不能据此推定物理完成。块的注册与读取规则归 [Runtime Context 契约](../../../context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)。
+`execution.placement` 与 `execution.host-facts` 是 Runtime Context 的供给块声明，语义拥有者是本成员。生产者是 host-local 的 Service 实现。当前还没有发布。块的值是 JSON，按声明的解码函数核对。落点块按获取记录里的请求方作用域给出该作用域内各原调用的当前落点；宿主事实块给出每个已登记提供者的事实：代、版本、平台（操作系统类型与版本）、设施键、隔离断言，以及满足、不满足、未知三态之一的前提。两条块都是观察，读者不能据此推定物理完成。块的注册与读取规则归 [Runtime Context 契约](../../../context/SPEC.md#块注册与资格)。
 
 ## 生命周期
 

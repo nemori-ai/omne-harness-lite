@@ -1,6 +1,6 @@
 # 计量会话的安全证明
 
-本文是待独立审阅的人工归纳证明，没有机器演绎检查。行为对象是 [MeasurementSession](../models/measurement-session/MeasurementSession.tla)，依据是 [SPEC RQ-05](../../SPEC.md#rq-05-完整预算与候选完成)。若契约锚点变化，以SPEC内RQ-05正文为准。既有replay与compaction模型不被这份模型替换。
+本文是人工归纳证明，没有机器演绎检查。行为对象是 [MeasurementSession](../models/measurement-session/MeasurementSession.tla)，规则归[包组规格](../../../SPEC.md#计量与装入)。
 
 ## 定义域与命题
 

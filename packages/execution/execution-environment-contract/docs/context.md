@@ -132,7 +132,7 @@ flowchart LR
 | 邻域 | 交接什么 | 本成员给什么 | 对方给什么 |
 | --- | --- | --- | --- |
 | Tool 契约的[环境准备和释放](../../../tool/tool-contract/SPEC.md#p03-环境准备和释放) | 工具侧的准备、认回与释放 | 落点、获取、采用记录、租约与释放结果 | 准备记录与释放记录的耐久保存 |
-| Runtime Context 的 [RC-02](../../../context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数) | 两条块 | 块声明、值类型与解码函数 | `ScopeRef`、块声明类型、块的注册与读取 |
+| Runtime Context 的 [RC-02](../../../context/SPEC.md#块注册与资格) | 两条块 | 块声明、值类型与解码函数 | `ScopeRef`、块声明类型、块的注册与读取 |
 | schema-provider | 工具环境声明的校验 | `environmentNeedSchema`、`environmentNeedAdoption` 与 JSON Schema 文件 | 按采用身份解析 schema 并校验声明值 |
 | legal-identity | 租户 | 无 | `TenantId` |
 

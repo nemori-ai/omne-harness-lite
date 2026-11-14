@@ -42,7 +42,7 @@ await registry.close()
 | --- | --- | --- |
 | 恢复授权 `RecoveryAuthority` | 调用工厂时 | `recoverOwned`、`releaseScope` 与 `inspectRecoveryAcquisition` 先调用一次 `authorizeRecovery` |
 | 环境授权 `EnvironmentAuthority<P>` | 调用工厂时 | 每次普通操作先调用一次 `authorize`；获取在写入的最后一步之前与采用之前再核它给的 `current()` |
-| 作用域绑定 `ScopeBindingSource` | 调用工厂时 | 动作有目标作用域时调用一次 `lookup`，绑定到访问租户才通过。类型归 [Runtime Context 契约](../../../context/runtime-context-contract/SPEC.md) |
+| 作用域绑定 `ScopeBindingSource` | 调用工厂时 | 动作有目标作用域时调用一次 `lookup`，绑定到访问租户才通过。类型归 [Runtime Context 契约](../../../context/SPEC.md#应然设计) |
 | 资源账本 `ResourceLedger` | 每次 `acquire` | 原样交给提供者的 `acquire`；租约视图的门读它的 `closed` 信号，已关闭时设施操作答 `closed`。本成员不调用它的方法 |
 | 设施守卫 `FacilityGuard` | 每次 `acquire` | 装进租约视图，每次须授权的操作调用一次 `authorize` |
 

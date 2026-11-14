@@ -19,8 +19,8 @@
 | Agent                            | [提交参加者协议](../../agent/agent-contract/SPEC.md#提交参加者协议)、[托管协调与运行实例](../../agent/agent-contract/SPEC.md#托管协调与运行实例)、[事件流与读取](../../agent/agent-contract/SPEC.md#事件流与读取)、[模型选择](../../agent/agent-contract/SPEC.md#模型选择)、[Agent 的 Cordis 定义](../../agent/agent-cordis-contract/docs/cordis.md)                                                                                         |
 | Model                            | [资格、共同提交与实际发送](../../model/model-contract/SPEC.md#资格共同提交与实际发送)、[消费者 owner 的装配声明](../../model/model-contract/docs/public-api.md#消费者-owner-的装配声明)、[ACK 的前提与效果](../../model/model-contract/SPEC.md#ack-的前提与效果)                                                                                                                                                                             |
 | Tool                             | [P04 实际发起围栏](../../tool/tool-contract/SPEC.md#p04-实际发起围栏)、[可靠交接与处理的两条路径](../../tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)、[Tool 的 Cordis 定义](../../tool/tool-cordis-contract/docs/cordis.md)                                                                                                                                                                                                          |
-| Runtime Context                  | [RC-02](../../context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)、[RC-04](../../context/runtime-context-contract/SPEC.md#rc-04-读取时点观察与变化材料)、[RC-06](../../context/runtime-context-contract/SPEC.md#rc-06-需要绑定与读者形状)、[RC-07](../../context/runtime-context-contract/SPEC.md#rc-07-生产者句柄并发撤除与恢复)、[RC-09](../../context/runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值) |
-| Request Context                  | [历史源读口与 epoch 视图](../../context/request-context-contract/SPEC.md#历史源读口与-epoch-视图)、[RQ-06](../../context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界)                                                                                                                                                                                                                                                      |
+| Runtime Context                  | [RC-02](../../context/SPEC.md#块注册与资格)、[RC-04](../../context/SPEC.md#读取结果变化与状态块)、[RC-06](../../context/SPEC.md#块注册与资格)、[RC-07](../../context/SPEC.md#生产者与供值)、[RC-09](../../context/SPEC.md#提交链与恢复会话) |
+| Request Context                  | [历史源读口与 epoch 视图](../../context/SPEC.md#七组稳定读取与来源登记)、[RQ-06](../../context/SPEC.md#压缩)                                                                                                                                                                                                                                                      |
 | 执行环境                         | [拒绝原因](../../execution/execution-environment-contract/SPEC.md#拒绝原因)、[恢复](../../execution/execution-environment-contract/SPEC.md#恢复)                                                                                                                                                                                                                                                                                             |
 | 集成规则                         | [IC 约定](../../../docs/architecture/cordis-integration-conventions.md)                                                                                                                                                                                                                                                                                                                                                                      |
 
@@ -281,16 +281,16 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
 
 - 注入：数组形式 `runtimeContext`（作用域持有者的适配器），`session` 调用方类 `coordinator`。回放子插件自己注入数组形式 `runtimeContext`（持有者面），并以 `reader` 调用 `session` 的历史读取；它与主插件各自注入，分开换代，不借用主插件闭包里的句柄。变化提醒子插件以对象形式 `runtimeContext: { consumer: 'model' }` 绑定模型类读者。
 - 块声明：本插件把 `session-contract` 导出的 `sessionModesBlock` 翻译为 Runtime Context 的块声明，并在本成员的 `./cordis` 增补 `ContextBlocks`。Session 契约不导入 Runtime Context，所以增补落在本成员。
-- 生产者：本插件以 `registerProducer` 登记 `session.modes`。第一个参数是调用方可信主体，登记输入带租户，并给出按作用域供值的回调（[RC-07](../../context/runtime-context-contract/SPEC.md#rc-07-生产者句柄并发撤除与恢复)）。生产者槽的身份是租户加块键。本插件为几个租户供值时，为每个租户分别登记，并分别撤除各自的句柄。
+- 生产者：本插件以 `registerProducer` 登记 `session.modes`。第一个参数是调用方可信主体，登记输入带租户，并给出按作用域供值的回调（[RC-07](../../context/SPEC.md#生产者与供值)）。生产者槽的身份是租户加块键。本插件为几个租户供值时，为每个租户分别登记，并分别撤除各自的句柄。
   - 回调收到作用域、租户与本次供值的代租户主体，以 `readWork` 读本会话三轴的当前值。
   - 句柄带只读的租户。SE03 提交后，本插件经句柄发布新值，发布输入是作用域、租户与值。使值失效的目标是指定作用域，或本租户全部作用域。目标里的租户必须等于句柄的租户。
   - 恢复方式为 `persisted`：恢复完成后，第一次合法的普通读取遇到待刷新标记时，Runtime Context 再次调用回调。本插件按回调重新发布日志里的原值，不用默认值补。
 
 持有者的三项义务：
 
-1. <a id="ad-03-1a"></a>恢复会话（1a）。本插件用 [RC-09](../../context/runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值) 的恢复会话恢复一个作用域。本插件在下列时点开始恢复会话：创建一个作用域；本插件体在 Runtime Context 提供者换代后重新运行，之后第一次为该作用域签发资格之前；`applyCommit` 返回「顺序不符」时。步骤：
+1. <a id="ad-03-1a"></a>恢复会话（1a）。本插件用 [RC-09](../../context/SPEC.md#提交链与恢复会话) 的恢复会话恢复一个作用域。本插件在下列时点开始恢复会话：创建一个作用域；本插件体在 Runtime Context 提供者换代后重新运行，之后第一次为该作用域签发资格之前；`applyCommit` 返回「顺序不符」时。步骤：
    1. `beginReplay`：输入作用域、租户、检查点与被取代的恢复引用。旧资格与旧读者在这一步失效。
-   2. 构造完整恢复材料，共三部分，全部限定于本次恢复的原 scope：按会话日志提交顺序，经历史读取取出的该 scope 全部注册提交（SE07，含移除意图）；该 scope 每个 `checkpointed` 状态块最近一次步提交的全值，从该 scope 的 `change(context-step-commit)` 条目归约得出，更新清单为空；该 scope 已经确认的结束。已注册而还没有步提交的 `checkpointed` 块不在材料中，允许缺席，重启后由生产者或下一次步提交重新建立值。这是已知限制，取 [RC-09](../../context/runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值) 允许缺席的读法；RC-09 原文由 W1-RUN-10 的设计首步核实后才确认，原文不允许缺席时，按 RC-09 补写注册与步提交原子的入口，再改本步。旧 scope 的注册、检查点与结束不得重放到新 scope。代次绑定与新 scope 初始化的责任边界见 [J18](../session-contract/SPEC.md#j18-作用域引用与结束事实)，新 scope 的初始化按下文第 1a 项后的顺序进行。
+   2. 构造完整恢复材料，共三部分，全部限定于本次恢复的原 scope：按会话日志提交顺序，经历史读取取出的该 scope 全部注册提交（SE07，含移除意图）；该 scope 每个 `checkpointed` 状态块最近一次步提交的全值，从该 scope 的 `change(context-step-commit)` 条目归约得出，更新清单为空；该 scope 已经确认的结束。已注册而还没有步提交的 `checkpointed` 块不在材料中，允许缺席，重启后由生产者或下一次步提交重新建立值。这是已知限制，取 [RC-09](../../context/SPEC.md#提交链与恢复会话) 允许缺席的读法；RC-09 原文由 W1-RUN-10 的设计首步核实后才确认，原文不允许缺席时，按 RC-09 补写注册与步提交原子的入口，再改本步。旧 scope 的注册、检查点与结束不得重放到新 scope。代次绑定与新 scope 初始化的责任边界见 [J18](../session-contract/SPEC.md#j18-作用域引用与结束事实)，新 scope 的初始化按下文第 1a 项后的顺序进行。
    3. `finishReplay`：输入恢复引用与恢复材料。
    4. `ready(open)` 后核当前普通授权、可信绑定及所需注册，重签读取资格并绑定读者。签发不以供给值已经恢复为前提；首个模型请求另等必要输入齐备。
 
@@ -318,7 +318,7 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
    1. 每次步边界提交（`change(context-step-commit)`）成功之后。
    2. 本插件经句柄发布 `session.modes` 新值之后。
 
-   上界是「下一次步边界提交之后」，与时间无关。已知限制：AD-04 与本插件是不同插件，之间没有通道，AD-04 不能在给出新的历史依据之前等本插件补拉。两次步提交之间、来自其他生产者的 Runtime Context 变化，可能晚一次模型请求才进入提醒。触发条件：Runtime Context 拥有者按 NP-11 给出补拉上界规则，或者本成员为 AD-04 与本插件定义一条装配内的通道之后，恢复「下一次模型请求之前」的上界。Runtime Context 契约把这个上界交给持有者定（[明确缺项](../../context/runtime-context-contract/SPEC.md#明确缺项)）。1b 与 1c 是本成员推出的技术决定，由 Runtime Context 拥有者确认，见 [NP-11](#np-11)。
+   上界是「下一次步边界提交之后」，与时间无关。已知限制：AD-04 与本插件是不同插件，之间没有通道，AD-04 不能在给出新的历史依据之前等本插件补拉。两次步提交之间、来自其他生产者的 Runtime Context 变化，可能晚一次模型请求才进入提醒。触发条件：Runtime Context 拥有者按 NP-11 给出补拉上界规则，或者本成员为 AD-04 与本插件定义一条装配内的通道之后，恢复「下一次模型请求之前」的上界。Runtime Context 契约把这个上界交给持有者定（[明确缺项](../../context/SPEC.md#原则与约束)）。1b 与 1c 是本成员推出的技术决定，由 Runtime Context 拥有者确认，见 [NP-11](#np-11)。
 
 变化提醒的写法与时点：
 
@@ -330,8 +330,8 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
 资格的签发与撤销：
 
 - 执行开始或建立新的执行挂接时，本插件按读者的消费者类签发资格。资格带块键集合与需要绑定集合。需要绑定来自注册材料（[AD-12](#ad-12)）。
-- 压缩提交之后，本插件对模型类读者重签资格（[RC-04](../../context/runtime-context-contract/SPEC.md#rc-04-读取时点观察与变化材料)）。在提交与重签之间崩溃时，恢复先重签，再接续。
-- 会话归档后，本插件撤销该作用域的全部读取资格。作用域结束按 RC-09 是持有者已经确认的提交事实（只结束作用域，或者注册决定与步提交带结束标记）；Session 在归档成功的同一次提交保存原 scope 的已确认结束事实；撤销归档另铸新代次，不重新开放旧 scope，精确绑定和提交后应用边界见 [Session 的 J18 条款](../session-contract/SPEC.md#j18-作用域引用与结束事实)。新 scope 的实际初始化按本节第 1a 项后的顺序进行。结束之后，签发、绑定、读取与发布都答 `scope-ended`。作用域永不重开。新的业务代次铸造新的作用域引用（[RC-01](../../context/runtime-context-contract/SPEC.md#作用域引用的铸造)）。
+- 压缩提交之后，本插件对模型类读者重签资格（[RC-04](../../context/SPEC.md#读取结果变化与状态块)）。在提交与重签之间崩溃时，恢复先重签，再接续。
+- 会话归档后，本插件撤销该作用域的全部读取资格。作用域结束按 RC-09 是持有者已经确认的提交事实（只结束作用域，或者注册决定与步提交带结束标记）；Session 在归档成功的同一次提交保存原 scope 的已确认结束事实；撤销归档另铸新代次，不重新开放旧 scope，精确绑定和提交后应用边界见 [Session 的 J18 条款](../session-contract/SPEC.md#j18-作用域引用与结束事实)。新 scope 的实际初始化按本节第 1a 项后的顺序进行。结束之后，签发、绑定、读取与发布都答 `scope-ended`。作用域永不重开。新的业务代次铸造新的作用域引用（[RC-01](../../context/SPEC.md#访问核对)）。
 - 纯 scope end 使用 CommitInput 的 scope 分支，不制造空注册或虚假 step；registration/step 带 scopeEnded 时整笔原子应用。executionEnded 只影响原 untracked 块，不等于 scope end。
 - 访问核验：持有者面每个操作的第一个参数是调用方可信主体。每个带目标的入口先问权威端口，再问可信绑定来源。「作用域到租户」的可信绑定来源是调用方提供的端口（RC-01），由装配提供。该装配缺口归 [#677](https://github.com/nemori-ai/omne-harness-lite/issues/677)。
 
@@ -387,7 +387,7 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
 
 - 本项适配拆成两个子插件，各用一个调用方类（[AD-00](#ad-00) 第 1 条）：历史源子插件以 `reader` 调用 Session 的历史读取；下界子插件以 `coordinator` 调用 `readWork`。身份来自本次 `Access`，目标来自 `HistoryEvidence.target` 的显式 tenant/scope。scope 必须与可信 Session 绑定一致，不从 scope 文本猜租户。
 - `read({ access, evidence, cursor, budgetBytes })` 读取固定 evidence 的模型历史。`compactionContext({ access, evidence, coverTo })` 读取同一依据的 CM-02 判断窗口，成功返回完整 evidence。两个入口每次都重新核验当前访问资格。
-- `HistoryEvidence` 含 target、epoch 和 upper。upper 是 empty 或 entry(seq)，seq 是规范非负十进制文本，不用 number 或 -1。Session 模型视图的 seq 从 1 开始，Request Context 历史的 seq 从 0 开始（[历史源读口与 epoch 视图](../../context/request-context-contract/SPEC.md#历史源读口与-epoch-视图)）。Session 第 n 行是历史第 n−1 行：`ModelViewBasis.upper` 为 `"0"` 时转成 empty，正值 n 转成 entry(n−1)；历史游标 after h 指 Session 第 h+1 行之后。Session 的游标是存储签发的不透明值，本适配不解码它：页的 next 非空时，历史游标指向本页最后一行，签发游标记在这一行上（见下表 `history.read`）。换算按任意精度十进制，不以浮点数往返转换；Session 行号 `"0"` 不是合法行，按翻译缺陷答 unavailable。行 bytes 从已校验的安全字节计数转为规范十进制文本。非规范值、超范围数或缺失目标返回 invalid，不静默截断。
+- `HistoryEvidence` 含 target、epoch 和 upper。upper 是 empty 或 entry(seq)，seq 是规范非负十进制文本，不用 number 或 -1。Session 模型视图的 seq 从 1 开始，Request Context 历史的 seq 从 0 开始（[历史源读口与 epoch 视图](../../context/SPEC.md#七组稳定读取与来源登记)）。Session 第 n 行是历史第 n−1 行：`ModelViewBasis.upper` 为 `"0"` 时转成 empty，正值 n 转成 entry(n−1)；历史游标 after h 指 Session 第 h+1 行之后。Session 的游标是存储签发的不透明值，本适配不解码它：页的 next 非空时，历史游标指向本页最后一行，签发游标记在这一行上（见下表 `history.read`）。换算按任意精度十进制，不以浮点数往返转换；Session 行号 `"0"` 不是合法行，按翻译缺陷答 unavailable。行 bytes 从已校验的安全字节计数转为规范十进制文本。非规范值、超范围数或缺失目标返回 invalid，不静默截断。
 - cursor 绑定完整 tenant/scope/epoch/upper 与 after。每页保持原依据，epoch-changed 带当前完整 evidence，不能拼接两个 epoch。Session 的 unavailable 保持 unavailable，不返回空页；unknown 不改为空历史或未发生。缺访问身份或可信目标时不调用历史读。
 - 本插件不等 AD-03 补拉：提醒是否落在固定 upper 内，取决于 AD-03 [1c](#ad-03-1c) 的补拉时点，两者之间没有通道（1c 的已知限制）。history 组 `readCount/readSource` 的 token 覆盖新输入的可靠保存、固定全部页、压缩窗口和 open 下界。前后 token 相同意味着这些相关事实未变。重启、来源替换或计数回绕换代；RQ 最多两次稳定读取，不把 execution revision 或到达顺序当作跨 execution 的 Session 顺序。
 

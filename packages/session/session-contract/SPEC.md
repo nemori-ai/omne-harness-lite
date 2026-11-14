@@ -280,7 +280,7 @@ Run终态只为完成、失败、被取消，每Run最多一次有效终结。�
 | 同身份重试 | 相同提交身份返回原结果。                                                                           |
 | 参数冲突   | 同一提交身份带上不同目标或不同种类则拒绝。                                                         |
 
-会话日志上的查询认回见[日志提交与查询结果](#日志提交与查询结果)。调用登记的发起字段归 [Agent](../../agent/agent-contract/SPEC.md#身份范围与归属)。模型受理归 [model](../../model/model-contract/SPEC.md#调用和各次真实发出)。工具的停止和交付解除归 [tool](../../tool/tool-contract/SPEC.md#必要持久事实与确认)。Context 的注册和读取归 [runtime-context](../../context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)。请求组装归 [request-context](../../context/request-context-contract/SPEC.md#rq-02-组装的前置输入)。
+会话日志上的查询认回见[日志提交与查询结果](#日志提交与查询结果)。调用登记的发起字段归 [Agent](../../agent/agent-contract/SPEC.md#身份范围与归属)。模型受理归 [model](../../model/model-contract/SPEC.md#调用和各次真实发出)。工具的停止和交付解除归 [tool](../../tool/tool-contract/SPEC.md#必要持久事实与确认)。Context 的注册和读取归 [runtime-context](../../context/SPEC.md#块注册与资格)。请求组装归 [request-context](../../context/SPEC.md#七组稳定读取与来源登记)。
 
 会话控制请求工具转后台时沿工具许可及转换契约；控制受理不表示转换完成。工具侧保存实际转换/收场，会话和 Agent 可靠承接后改变原步骤等待，不建立第二次执行或释放仍在执行的并发名额。后台最终结果沿原消费契约交回，原身份、效果、全文和费用保持；不默认支持后台转回前台。工具内 Ask 等待的后台限制沿工具契约，不由会话控制绕过。
 
@@ -693,7 +693,7 @@ Session 命令：
 
 `begin` 的 `from` 不含本身：前向从 `from` 之后开始，反向从 `from` 之前开始；为 null 时前向从第一条开始，反向从固定上界处的最新一条开始。`since` 的 `after` 是读者已持有的最新条目，前向补读不用 `HistoryPage.upper`：`upper` 只说明这一轮遍历固定的读取上界。读者还没有持有任何条目时，以 `begin` 前向重新开始。
 
-`readModelView` 是历史持有者为 Request Context 实现的历史源读口（[历史源读口与 epoch 视图](../../context/request-context-contract/SPEC.md#历史源读口与-epoch-视图)），session-adapters 把它翻译为 `HistorySource.read`。
+`readModelView` 是历史持有者为 Request Context 实现的历史源读口（[历史源读口与 epoch 视图](../../context/SPEC.md#七组稳定读取与来源登记)），session-adapters 把它翻译为 `HistorySource.read`。
 
 - epoch 视图是两次压缩之间的模型可见序列。每次 `commitDerived(compaction)` 在同一事务里开新 epoch，首行序列为保留名单、压缩记录、覆盖范围之后的行。行带序号、条目位置、字节数、前缀摘要与消息。
 - 同一历史依据下的各页属于同一 epoch，上界固定。依据的 epoch 已不是当前 epoch 时返回 `epoch-changed` 与当前依据，不拼接两个 epoch 的页。
@@ -1814,7 +1814,7 @@ ST09 的「旧实例已交还或失去连续性」细化为：失去连续性的
 
 ### 会话块声明与设置值的固定时点
 
-Session 作为作用域持有者，向 Runtime Context 声明并供给一个块。块声明是 `session-contract` 导出的值，适配成员把它翻译为 Runtime Context 的声明（[RC-02](../../context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)）。
+Session 作为作用域持有者，向 Runtime Context 声明并供给一个块。块声明是 `session-contract` 导出的值，适配成员把它翻译为 Runtime Context 的声明（[RC-02](../../context/SPEC.md#块注册与资格)）。
 
 | 块              | 内容             | 种类       | 恢复        | 易变性   | 消费者类               |
 | --------------- | ---------------- | ---------- | ----------- | -------- | ---------------------- |
@@ -1829,7 +1829,7 @@ Session 作为作用域持有者，向 Runtime Context 声明并供给一个块�
 
 模式的产品规则与系统层说明见[会话模式](../../../docs/architecture/runtime/session-and-run.md#会话模式)。
 
-Runtime Context 重建后，作用域持有者用 [RC-09](../../context/runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值) 的恢复会话恢复本会话：
+Runtime Context 重建后，作用域持有者用 [RC-09](../../context/SPEC.md#提交链与恢复会话) 的恢复会话恢复本会话：
 
 1. 先开始恢复会话，输入作用域、租户、检查点与被取代的恢复引用。
 2. 再用一份完整恢复材料结束恢复会话。材料有三部分，全部限定于本次恢复的原 scope：该 scope 的全部注册提交（含移除意图，SE07）的耐久顺序；每个 `checkpointed` 状态块最近一次步提交的全值，更新清单为空，全值从该 scope 的 `change(context-step-commit)` 条目归约得出；该 scope 已确认的结束。跨业务代次的保存与初始化边界见 J18。
@@ -2105,13 +2105,13 @@ Session 铸造 Context scope，引用由租户、持有者标识和业务代次�
 
 归档成功的同一次会话提交保存该业务代次的已确认 Context scope 结束事实，关联原 scope 和归档提交身份。结束事实落在 SE27（`session.archived`）的 `scope` 字段：它带原业务代次、原 scope 引用和铸造该 scope 的操作身份，`scope.ended` 是归档提交的来源。提交失败或未知未认回时，不向 Runtime Context 应用结束。确认后通过现有 applyCommit 或完整恢复材料应用，较旧恢复不能覆盖已结束。撤销归档恢复业务时铸造新代次，原 scope 永不重开。
 
-归档提交后，Session 向 Runtime Context 应用结束并撤销已签发的读取资格。Runtime Context 返回 unavailable 时，本契约接受一个窗口（[裁定第 3 项](https://github.com/nemori-ai/omne-harness-lite/issues/756#issuecomment-6490876468)）：窗口内结束事实已经提交，但尚未应用到 Runtime Context。窗口的上界是下一次恢复会话（[RC-09](../../context/runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值)、session-adapters [AD-03 第 1a 项](../session-adapters/SPEC.md#ad-03-1a)）。恢复材料带该 scope 已确认的结束。
+归档提交后，Session 向 Runtime Context 应用结束并撤销已签发的读取资格。Runtime Context 返回 unavailable 时，本契约接受一个窗口（[裁定第 3 项](https://github.com/nemori-ai/omne-harness-lite/issues/756#issuecomment-6490876468)）：窗口内结束事实已经提交，但尚未应用到 Runtime Context。窗口的上界是下一次恢复会话（[RC-09](../../context/SPEC.md#提交链与恢复会话)、session-adapters [AD-03 第 1a 项](../session-adapters/SPEC.md#ad-03-1a)）。恢复材料带该 scope 已确认的结束。
 
 Session 在撤销归档的同一次提交中，持久保存新业务代次、可信租户、持有者、所铸 scope 引用及该操作身份的绑定。这条绑定落在 SE28（`session.unarchived`）的 `scope` 字段：它带新业务代次、新 scope 引用和撤销归档的操作身份。可信租户与持有者是本会话日志的租户与会话身份，scope 引用由租户、持有者与业务代次派生（[src/decide-management.ts](src/decide-management.ts) 的 `scopeBinding`）。未知时先认回原操作，不能再铸一个 scope 绕过未知。恢复按这条绑定找回新 scope，不从进程内缓存或旧 scope 推导。注册提交、步提交检查点与已确认结束事实都带其原 scope 归属，并按原 scope 保留和恢复。旧 scope 的注册提交、检查点与结束不得重放到新 scope。新代次绑定本身不迁移旧注册或旧值，也不授予新 scope 读取资格。
 
 新 scope 首次恢复前没有本 scope 的注册或步提交时，只交经权威记录证明完整的空材料；后续只恢复本 scope 已提交的记录。`ready(open)` 后，AD-03 按当前合法声明准备尚需的注册，经现有 `change` 提交归属本 scope 的 SE07，再按原 CommitRef 应用。已经提交的注册从本 scope 的完整材料恢复，不重复建立，也不迁入旧 scope 的注册、检查点或结束。
 
-普通资格、恢复供值与首个模型请求分别核验。作用域开放且当前普通授权、可信绑定及所需注册核验通过后，持有者可签发新资格并绑定读者，不要求供给值已经恢复。合法普通读取按 [RC-09](../../context/runtime-context-contract/SPEC.md#恢复后的普通供值) 触发待刷新供值，生产者仍须有本次普通供值授权。需要初始状态的块由原合法生产者或步提交建立。恢复授权只准恢复投影，不能签代租户凭据或代替普通读取与供值授权。
+普通资格、恢复供值与首个模型请求分别核验。作用域开放且当前普通授权、可信绑定及所需注册核验通过后，持有者可签发新资格并绑定读者，不要求供给值已经恢复。合法普通读取按 [RC-09](../../context/SPEC.md#提交链与恢复会话) 触发待刷新供值，生产者仍须有本次普通供值授权。需要初始状态的块由原合法生产者或步提交建立。恢复授权只准恢复投影，不能签代租户凭据或代替普通读取与供值授权。
 
 必要注册、可信来源或普通资格缺失、不可用或未知时，不放行依赖它们的读取或动作。取得合法资格不表示必要输入已齐；只有首个模型请求所需输入全部可读，才允许发出该请求。注册已提交但初始化未完成就重启时，先完整恢复该 scope 的原注册与已有检查点，再核普通资格，由合法读取补供给值并继续尚未完成的初始化。失败保留待刷新状态与原初始化责任，首个模型请求继续暂停，不以默认值补齐。该过程使用现有注册与提交形状，不改变本节的代次绑定及原结束时点。
 

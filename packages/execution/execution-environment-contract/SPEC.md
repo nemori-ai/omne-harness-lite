@@ -22,7 +22,7 @@
 - 系统：[执行环境](../../../docs/architecture/runtime/execution-environment.md)、[执行隔离](../../../docs/architecture/security/execution-isolation.md)、[IC-4](../../../docs/architecture/cordis-integration-conventions.md#ic-4)、[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)、[IC-19](../../../docs/architecture/cordis-integration-conventions.md#ic-19)。
 - 领域：[执行环境领域](../../../docs/domains/execution-environments/README.md)、[领域架构](../../../docs/domains/execution-environments/architecture.md)。
 - 决定：[决定台账](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6357861225)的 J17、J18、J43，以 [#678](https://github.com/nemori-ai/omne-harness-lite/issues/678) 卡上的引文为准。
-- 邻域契约：[Runtime Context 契约](../../context/runtime-context-contract/SPEC.md)（`ScopeRef`、块声明类型、可信绑定来源与授权判定的类型）、[Tool 环境准备和释放](../../tool/tool-contract/SPEC.md#p03-环境准备和释放)（消费者，本成员不依赖它）。
+- 邻域契约：[Runtime Context 契约](../../context/SPEC.md#应然设计)（`ScopeRef`、块声明类型、可信绑定来源与授权判定的类型）、[Tool 环境准备和释放](../../tool/tool-contract/SPEC.md#p03-环境准备和释放)（消费者，本成员不依赖它）。
 
 本成员的根入口与 Cordis 无关。服务定义归 [execution-environment-cordis-contract](../execution-environment-cordis-contract/SPEC.md)，登记表机制归 [execution-environment](../execution-environment/SPEC.md)，宿主提供者归 [execution-environment-host-local](../execution-environment-host-local/SPEC.md)。
 
@@ -114,7 +114,7 @@
 
 落点解析、获取、排队、资源压力、到期、控制、关闭、数据恢复及其拒绝、失败、未知，均关联访问身份、作用域、原调用、适用环境、资源及实际代码与提供者版本。本成员导出两条块声明 `execution.placement`（按作用域给原调用的当前落点列表）与 `execution.host-facts`（每个已登记提供者的代、版本、平台、设施键、隔离断言与前提），供模型类读者感知各工具真实落点和上次状态保留情况。这两条块在 Runtime Context 中的生产者是执行环境 host-local 的 Service 实现。这个实现尚未交付，交付之前两条块没有当前值。块生产者的读取面没有定义，见[明确缺项](#明确缺项)。无法确认时明确未知，不能从通知成功推定物理完成。Runtime Context 按自己的供给协议消费变化，不由环境自动重做原工作。
 
-两条块声明的 `required` 都是 `false`。缺席怎样读按 Runtime Context 的 [RC-02](../../context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数) 唯一规定。`required: false` 时不表示已有发布路径。依据：PC-21。
+两条块声明的 `required` 都是 `false`。缺席怎样读按 Runtime Context 的 [RC-02](../../context/SPEC.md#块注册与资格) 唯一规定。`required: false` 时不表示已有发布路径。依据：PC-21。
 
 落点块的作用域是获取记录里的请求方作用域（[获取与租约](#获取与租约)），不是绑定层的归属；所以宿主机与租户级沙箱上的落点也列在获取它的作用域下。宿主事实块的每一项带提供者的代（一次登记化身）与版本（提供者代码的版本，[INV-EE18](#inv-ee18-提供者换代和-cordis-集成保留原责任)）。平台是操作系统类型加版本。前提取满足、不满足、未知三态之一；提供者的前提探测被接受之前报未知，不报满足。宿主事实块值为 `{ date, providers }`：`date` 是块发布时宿主本地日历日，格式为真实存在的 `YYYY-MM-DD`；日期由块生产者供值，提供者事实不重复携带日期。
 
@@ -364,7 +364,7 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 
 执行环境不签发身份，也不保存许可。普通入口经两个由集成方提供的端口核对访问：
 
-- 环境授权端口 `EnvironmentAuthority<P>`：对访问身份与一个动作答复授权判定。动作是封闭的判别联合：解析落点（作用域）、获取（原获取描述）、查询本地获取（租户与获取键）、查询原获取（原获取描述）、列出作用域（作用域）、按保留范围观察（保留范围）。判定的形状与 Runtime Context 的授权判定相同：已授权（带主体与 `current()`）、拒绝、不可用、未知。`current()` 是必需的同步前提：执行环境在最终的同步状态转移之前调用它，答假时按拒绝处理（规则见 Runtime Context 的[当前授权前提](../../context/runtime-context-contract/SPEC.md#当前授权前提)）。
+- 环境授权端口 `EnvironmentAuthority<P>`：对访问身份与一个动作答复授权判定。动作是封闭的判别联合：解析落点（作用域）、获取（原获取描述）、查询本地获取（租户与获取键）、查询原获取（原获取描述）、列出作用域（作用域）、按保留范围观察（保留范围）。判定的形状与 Runtime Context 的授权判定相同：已授权（带主体与 `current()`）、拒绝、不可用、未知。`current()` 是必需的同步前提：执行环境在最终的同步状态转移之前调用它，答假时按拒绝处理（规则见 Runtime Context 的[当前授权前提](../../context/SPEC.md#访问核对)）。
 - 可信绑定来源 `ScopeBindingSource`：类型归 Runtime Context。它对一个作用域回答已绑定（带租户）、未绑定、不可用或未知。
 
 普通入口先核对访问身份里的租户是 legal-identity 铸造的值，再按下列顺序核对。前一项不成立，后面的不再执行：
@@ -385,7 +385,7 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 
 前置授权失败时，执行环境不查询也不披露旧槽，因此不对这个键以前是否分配作承诺。提供者的配额查询在获取之前答不可用或未知时，分别是 `Rejected(unavailable)` 与 `UnknownAcquisition(preflight)`。这次前置查询只判断配额是否可用；登记表不按声明的数值作判断，`quotaExceeded` 与 `globalCapacityExceeded` 只来自提供者在接纳时的原子核对（[配额与安全上界](#配额与安全上界)）。`Rejected` 只表示本次调用在分配前被拒绝，或原获取已确认零分配的终局。
 
-所有入口在第一次外部调用或第一次 `await` 之前捕获本操作拥有的数据字段，规则同 Runtime Context 的[输入快照](../../context/runtime-context-contract/SPEC.md#输入快照)。快照包括落点、要求、嵌套的作用域父级链、原获取描述，以及提供者答复与回执的数据字段。账本、守卫与提供者回执里的运行时对象保留真实身份。
+所有入口在第一次外部调用或第一次 `await` 之前捕获本操作拥有的数据字段，规则同 Runtime Context 的[输入快照](../../context/SPEC.md#访问核对)。快照包括落点、要求、嵌套的作用域父级链、原获取描述，以及提供者答复与回执的数据字段。账本、守卫与提供者回执里的运行时对象保留真实身份。
 
 ### 获取与租约
 
@@ -624,8 +624,8 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 | 承诺                                                                   | 位置                                                                                                                             | 本成员怎样消费                                        |
 | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
 | 绑定层、连续性、要求、设施、获取、租约、账本、守卫、恢复授权的产品含义 | 产品第 2 版[环境、落点与资源的概念](../../../.meta_harness/design/product/execution-environments/design.md#环境落点与资源的概念) | 见各条                                                |
-| 作用域引用、块声明类型、可信绑定来源与授权判定                         | [Runtime Context 契约](../../context/runtime-context-contract/SPEC.md#通用权威端口)                                              | 绑定层的归属字段；两条块声明；访问核验                |
-| 作用域引用的铸造与租户核对                                             | J18；[Runtime Context 的作用域引用的铸造](../../context/runtime-context-contract/SPEC.md#作用域引用的铸造)                       | INV-EE04、访问核验                                    |
+| 作用域引用、块声明类型、可信绑定来源与授权判定                         | [Runtime Context 契约](../../context/SPEC.md#访问核对)                                              | 绑定层的归属字段；两条块声明；访问核验                |
+| 作用域引用的铸造与租户核对                                             | J18；[Runtime Context 的作用域引用的铸造](../../context/SPEC.md#访问核对)                       | INV-EE04、访问核验                                    |
 | 环境声明槽与显式请求方作用域                                           | J17                                                                                                                              | 工具环境声明                                          |
 | 提供者按租户声明配额，公平在集成方                                     | J43                                                                                                                              | 配额与安全上界                                        |
 | 两条块可选                                                             | PC-21                                                                                                                            | INV-EE17                                              |
@@ -693,7 +693,7 @@ V-EE28 另有命令保留套件 `commandRetentionConformance`，用例为 `V-EE2
 - 宿主机落点按什么确定授予根，以及授予根限制的实现，现在没有拥有者。host-local 现在不声明 `filesystem-root`。上层的相对路径起点缺省是工作目录，而 `FileRequest` 不带工作目录，声称 `filesystem-root` 的落点上相对路径从授予根起算。相对工作目录的路径由 Files 工具按工作目录解析（R2-D290）：有工作目录时解析成绝对路径再调用设施，见 [Files 的文件路径解析](../../tool/tool-definitions/SPEC.md#文件路径解析)。在声称 `filesystem-root` 的落点上，怎样把相对工作目录的路径换成相对授予根的路径，仍没有拥有者。
 - 宿主提供者已有真实的命令与终端后端，见 host-local 的[宿主命令与终端](../execution-environment-host-local/SPEC.md#宿主命令与终端)。命令与终端在获取之间的隔离证据归 [#323](https://github.com/nemori-ai/omne-harness-lite/issues/323)：以获取与对象代际为索引，阻止同租户、同作用域的其他获取列出、执行、关闭或停止原对象；停止需要真实进程或伪终端以及平台证据。文件设施的真实证据不证明命令与终端的隔离。
 - 当前没有成员发布这两条块。host-local 的 Service 实现现在不登记 Runtime Context 的生产者。
-- 块生产者的读取面没有定义：生产者读什么、按哪个租户维度读、由什么事件使当前值失效。它在生产者插件接受之前定义，拥有者是登记表成员 [execution-environment](../execution-environment/SPEC.md) 与 [execution-environment-host-local](../execution-environment-host-local/SPEC.md)；回调的形状由 [Runtime Context 契约](../../context/runtime-context-contract/SPEC.md)给出。
+- 块生产者的读取面没有定义：生产者读什么、按哪个租户维度读、由什么事件使当前值失效。它在生产者插件接受之前定义，拥有者是登记表成员 [execution-environment](../execution-environment/SPEC.md) 与 [execution-environment-host-local](../execution-environment-host-local/SPEC.md)；回调的形状由 [Runtime Context 契约](../../context/SPEC.md#应然设计)给出。
 - `current()` 同步前提的真实兑现与环境授权端口、可信绑定来源的真实适配器归应用装配；具名剩余责任交 [#677](https://github.com/nemori-ai/omne-harness-lite/issues/677) 登记。
 - 按租户的公平提交队列的实际入口与策略参数归工具启动协调者（未定位）与应用装配（[#677](https://github.com/nemori-ai/omne-harness-lite/issues/677)），本成员不宣称已有入口。
 - 宿主文件提供者的冷恢复结清需要域外可信的进程退出证据，不在本成员当前范围；具名剩余责任交 [#323](https://github.com/nemori-ai/omne-harness-lite/issues/323)，范围见[提供者的进程内证据边界](#提供者的进程内证据边界)。
