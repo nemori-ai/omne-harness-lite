@@ -345,11 +345,9 @@ export function decideQueueRequeue(
 }
 
 /**
- * The basis a call domain holds for releasing its call's queue place, or null: this is the one
- * place that says what releases a place. A start rejection is one (the fence excluded the whole
- * invocation); a call that merely settled is not, because the logical end does not prove that the
- * place is free (P02). An ended execution also needs its exact original saved final and result.
- * The minimal failure terminal of a call that never started is one too (SPEC 23).
+ * The one place that says what releases a call's queue place: a start rejection, the minimal
+ * failure terminal of a call that never started (SPEC 23), a lost execution, or an ended execution
+ * with its exact original saved final and result. A call that merely settled keeps it (P02).
  */
 export function releaseBasisOf(snapshot: Snapshot): ReleaseBasis | null {
   const record = snapshot.call
@@ -360,6 +358,8 @@ export function releaseBasisOf(snapshot: Snapshot): ReleaseBasis | null {
   if (rejected !== null) return { kind: 'ledger-rejected', result: rejected }
   if (record.state.phase === 'settled' && record.state.execution.kind === 'suspended')
     return suspendedExclusionOf(snapshot, record.state.execution.checkpoint)
+  if (record.state.phase === 'settled' && record.state.execution.kind === 'lost')
+    return { kind: 'lost-continuity', continuity: record.state.execution.evidence }
   if (
     record.state.phase !== 'settled' ||
     record.state.execution.kind !== 'ended' ||

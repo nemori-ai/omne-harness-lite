@@ -12,7 +12,7 @@ import {
   type Next,
 } from '@omne-harness/agent-contract'
 import { LOOP_NODES, successor, type LoopNode } from '../src/loop/nodes.ts'
-import { adoption, failure, ok } from './journal-support.ts'
+import { adoption, evidence, failure, ok } from './journal-support.ts'
 import {
   cancelControl,
   conditions,
@@ -260,6 +260,48 @@ describe('decode (D5: the checkpoint read position and the exact schema)', () =>
     expect(ok(agentEvaluator.decode(agentEvaluator.encode(cleared)))).toEqual(cleared)
     const decoded = ok(agentEvaluator.decode(agentEvaluator.encode(saved)))
     expect(Object.hasOwn(decoded, 'modelRetry')).toBe(false)
+  })
+
+  const voidedBy = (cause: unknown, kind: string | null = 'model') => ({
+    ...(kind === null ? {} : { kind }),
+    step: saved.step,
+    action: pendingCall.action,
+    ...(kind === 'tool' ? {} : { reference: pendingCall.reference }),
+    ...(cause === undefined ? {} : { cause }),
+    basis: evidence('answer'),
+  })
+
+  it.each([
+    ['model', 'not-accepted'],
+    ['model', 'lost'],
+    ['tool', 'not-accepted'],
+  ])('keeps a voided %s intent whose cause is %s', (kind, cause) => {
+    const closed = { ...saved, voided: [voidedBy(cause, kind)] }
+    expect(ok(agentEvaluator.decode(encodedOf(closed)))).toEqual(closed)
+  })
+
+  it.each([
+    ['no cause', voidedBy(undefined)],
+    ['another cause', voidedBy('stream-lost')],
+    ['a Tool intent that is lost', voidedBy('lost', 'tool')],
+  ])('refuses a voided intent with %s', (_name, item) => {
+    expect(failure(agentEvaluator.decode(encodedOf({ ...saved, voided: [item] })))).toEqual({
+      kind: 'invalid',
+      field: 'checkpoint.voided.cause',
+      reason: 'type',
+    })
+  })
+
+  it.each([
+    ['no kind', voidedBy('not-accepted', null)],
+    ['another kind', voidedBy('not-accepted', 'compaction')],
+    ['an item that is no record', 'lost'],
+  ])('refuses a voided intent with %s', (_name, item) => {
+    expect(failure(agentEvaluator.decode(encodedOf({ ...saved, voided: [item] })))).toEqual({
+      kind: 'invalid',
+      field: 'checkpoint.voided.kind',
+      reason: 'type',
+    })
   })
 
   const since = '1970-01-01T00:00:00.000Z'

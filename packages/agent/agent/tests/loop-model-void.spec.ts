@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest'
 import { agentEvaluator } from '@omne-harness/agent'
 import type { AgentDependencies } from '@omne-harness/agent'
+import { decodeActionId } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
 import {
   decodeRevision,
@@ -18,8 +19,10 @@ import { fail } from '@omne-harness/operation-result'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
 import { mainCall, mainInvocation, stepOf } from '../src/loop/identities.ts'
 import { canonical } from '../src/canonical.ts'
+import { voidedModelIntents } from '../src/loop/model-result.ts'
 import {
   acceptedInput,
+  evidence,
   execution,
   failure,
   ok,
@@ -121,6 +124,13 @@ async function faulted(faults: Faults): Promise<{ assembly: LoopAssembly; observ
             return fail({ kind: 'unavailable', dependency: 'admission', diagnostic: 'offline' })
           return d.models.calls.inspect(input)
         },
+        async contact(input) {
+          const call = callOf(input.reference)
+          observed.inspects.push(call)
+          if (faults.inspect(call) === 'unavailable')
+            return fail({ kind: 'unavailable', dependency: 'admission', diagnostic: 'offline' })
+          return d.models.calls.contact(input)
+        },
       },
     },
   }))
@@ -161,7 +171,12 @@ describe('R2-D292: the Model admission window after a restart', () => {
     expect(observed.admits).toEqual([callOf(retried)])
     expect(observed.inspects[0]).toBe(callOf(original))
     expect(after.checkpoint.voided).toEqual([
-      expect.objectContaining({ step: STEP, reference: original }),
+      expect.objectContaining({
+        kind: 'model',
+        step: STEP,
+        reference: original,
+        cause: 'not-accepted',
+      }),
     ])
     expect(
       after.effects.map(effect => effect.pending.kind === 'model' && effect.pending.reference),
@@ -263,5 +278,23 @@ describe('R2-D292: the Model admission window after a restart', () => {
     expect(callOf(retried)).toBe(mainCall(execution(), STEP, 1))
     expect(callOf(retried)).not.toBe(callOf(original))
     expect(mainInvocation(alice.tenant, execution(), STEP, 1)).toBe(retried)
+  })
+})
+
+describe('the attempt of the main call of a step', () => {
+  it('counts the voided Model intents of the step and no voided Tool intent', () => {
+    const basis = evidence('answer')
+    const reference = mainInvocation(alice.tenant, execution(), STEP, 0)
+    const action = ok(decodeActionId(`${STEP}/tool/0`))
+    const lost = { kind: 'model' as const, step: STEP, action, reference, cause: 'lost' as const }
+    const refused = { kind: 'tool' as const, step: STEP, action, cause: 'not-accepted' as const }
+    const voided = [
+      { ...lost, basis },
+      { ...refused, basis },
+      { ...lost, step: stepOf(2), basis },
+    ]
+    expect(voidedModelIntents(voided, STEP)).toBe(1)
+    expect(voidedModelIntents(voided, stepOf(2))).toBe(1)
+    expect(voidedModelIntents([{ ...refused, basis }], STEP)).toBe(0)
   })
 })

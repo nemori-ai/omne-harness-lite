@@ -90,11 +90,10 @@ import {
   type SessionLogJournalOptions,
   type SessionLogJournalProvider,
 } from './agent-journal.ts'
+import { announcePublished } from './published-queue.ts'
 
 const OWNER = 'session-log-journal'
 const LOGGER = 'session-adapters/agent-journal'
-/** The event that names the tenant, the session and the execution of each successful write. */
-const PUBLISHED = 'session-adapters/agent-published'
 /** The initial bound of the route cache; the assembly may set another (IC-14). */
 const ROUTE_CACHE_ENTRIES = 4096
 
@@ -674,16 +673,8 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
       else logger.debug(line)
     }
     const routed = createExecutionRoutedJournal<unknown>({
-      published: (tenant, session, execution) => {
-        try {
-          // Not awaited: the write does not wait for listeners. A failure is logged here.
-          ctx.parallel(PUBLISHED, tenant, session, execution).catch((error: unknown) => {
-            logger.warn(`a listener of ${PUBLISHED} failed: ${String(error)}`)
-          })
-        } catch (error) {
-          logger.warn(`dispatching ${PUBLISHED} failed: ${String(error)}`)
-        }
-      },
+      published: (tenant, session, execution) =>
+        announcePublished(ctx, line => logger.warn(line), { tenant, session, execution }),
       fault: diagnostic => logger.error(diagnostic),
       report: report ?? logged,
       storage: ctx.storage,

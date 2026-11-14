@@ -427,6 +427,11 @@
               "pending": false
             },
             {
+              "name": "CallContact",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "Admission",
               "kind": "type",
               "pending": false

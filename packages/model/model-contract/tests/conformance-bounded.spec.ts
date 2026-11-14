@@ -100,14 +100,6 @@ describe('the view of a subject that the checks use', () => {
     expect(await waitedFor(quiesced.provider.quiesce, quiesced.provider)).toBe(
       arrivedNever('the answer of quiesce'),
     )
-    const scripted = createScriptedConformanceSubject()
-    const recovering = boundedSubject(
-      { ...scripted, provider: { ...scripted.provider, recover: hang } },
-      WAIT,
-    )
-    expect(await waitedFor(recovering.provider.recover, recovering.provider)).toBe(
-      arrivedNever('the answer of recover'),
-    )
   })
 
   it('limits every hook to the wait and says which hook it waited for', async () => {

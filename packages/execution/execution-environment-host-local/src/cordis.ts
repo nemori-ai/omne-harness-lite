@@ -284,6 +284,11 @@ export class ExecutionEnvironmentRegistry<P> extends ExecutionEnvironmentService
   ): Operation<P, 'releaseScope'>['result'] {
     return this.registry.releaseScope(...args)
   }
+  protected onRecoverResources(
+    ...args: Operation<P, 'recoverResources'>['args']
+  ): Operation<P, 'recoverResources'>['result'] {
+    return this.registry.recoverResources(...args)
+  }
 
   /** Registers on the caller's fiber: the descriptor goes away when the caller unloads. */
   protected onRegisterFacility<K extends FacilityKey>(

@@ -50,6 +50,7 @@ import type {
 import { AgentDrivePortService, sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { resolveToolInvocationRef, type ToolCallId } from '@omne-harness/tool-contract'
 import { decodeSessionSlotRef } from '../slot-ref.ts'
+import { announcePublished } from './published-queue.ts'
 
 /** The failures of the coordinator principal: those of `SessionWorkPrincipals.forSession`. */
 export type SessionCoordinatorPrincipalFailure = Extract<
@@ -416,6 +417,7 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
       if ('failure' in loaded) return this.agentFailure('inspect', loaded.failure)
       const authority = loaded.ok.executionAttachment
       const { kind } = loaded.ok.state
+      if (kind === 'ended') this.wake(input.tenant, input.session, execution.ok)
       if (authority === null || kind === 'ended' || kind === 'suspended')
         return succeed(statusOf(loaded.ok, null))
       // The judgment belongs to the host of the record. A host that cannot answer has none, which
@@ -434,6 +436,11 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
   readonly prewarm: AgentDrivePort['prewarm'] = async () => fail({ kind: 'unsupported' })
 
   // --- steps -----------------------------------------------------------------------------------
+
+  private wake(tenant: TenantId, session: SessionId, execution: AgentExecutionId): void {
+    const logger = this.scope.logger(LOGGER)
+    announcePublished(this.scope, line => logger.warn(line), { tenant, session, execution })
+  }
 
   /**
    * Runs one operation. A closed plugin gives unavailable. A throw is reported as a defect and also

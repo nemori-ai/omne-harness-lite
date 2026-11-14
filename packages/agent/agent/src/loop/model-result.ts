@@ -1,4 +1,13 @@
-import type { ProducedResult, Failure, LoopFacts } from '@omne-harness/agent-contract'
+import type {
+  AgentCheckpoint,
+  DurableEvidence,
+  PendingCall,
+  ProducedResult,
+  Failure,
+  LoopFacts,
+  StepId,
+  VoidedIntent,
+} from '@omne-harness/agent-contract'
 import { faultIsTransient } from '@omne-harness/model-contract'
 import type * as M from '@omne-harness/model-contract'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
@@ -7,7 +16,7 @@ import { replyMessageId } from './identities.ts'
 type Message = LoopFacts['inputs'][number]
 export type ModelOutcome = Readonly<{
   produced: ProducedResult
-  settlement: M.Settlement
+  settlement: Pick<M.Settlement, 'termination' | 'source'>
 }> &
   (
     | Readonly<{ kind: 'reply'; reply: Extract<Message, { role: 'assistant' }> }>
@@ -68,6 +77,56 @@ export function consumeModelResult(
     kind: 'reply',
     reply: { id: replyMessageId(...input), role: 'assistant', blocks: [first, ...rest] },
   })
+}
+
+export const LOST_CONTACT = 'lost-contact'
+
+export function lostModelResult(call: M.ModelCallId, evidence: DurableEvidence): ModelResult {
+  const fault: M.ModelFault = {
+    cause: 'runtime-lost',
+    diagnostic: LOST_CONTACT,
+    upstreamStatus: null,
+  }
+  return {
+    kind: 'unusable',
+    nature: faultIsTransient(fault.cause) ? 'transient' : 'permanent',
+    produced: {
+      producer: { kind: 'model', call },
+      version: LOST_CONTACT,
+      delivery: null,
+      source: evidence,
+    },
+    settlement: { termination: { kind: 'failed', fault }, source: evidence },
+    parts: [],
+  }
+}
+
+export function lostIntent(
+  at: Pick<AgentCheckpoint, 'voided'>,
+  call: Readonly<{
+    step: StepId
+    pending: Extract<PendingCall, { kind: 'model' }> | null
+    lost: DurableEvidence | null
+  }>,
+): Partial<Pick<AgentCheckpoint, 'voided'>> {
+  const { step, pending, lost } = call
+  if (pending === null || lost === null) return {}
+  const { action, reference } = pending
+  const record = { kind: 'model' as const, step, action, reference, cause: 'lost' as const }
+  return { voided: [...at.voided, { ...record, basis: lost }] }
+}
+
+export function unacceptedIntent(
+  step: StepId,
+  pending: Extract<PendingCall, { kind: 'model' }>,
+  basis: DurableEvidence,
+): VoidedIntent {
+  const { action, reference } = pending
+  return { kind: 'model', step, action, reference, cause: 'not-accepted', basis }
+}
+
+export function voidedModelIntents(voided: readonly VoidedIntent[], step: StepId): number {
+  return voided.filter(item => item.kind === 'model' && item.step === step).length
 }
 
 /** The longest model diagnostic a cause record carries; a longer one is cut there. */

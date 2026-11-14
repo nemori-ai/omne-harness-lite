@@ -70,6 +70,8 @@ export declare abstract class ExecutionEnvironmentService<P> extends Service<Exe
     protected abstract onRecoverOwned(...args: Operation<P, 'recoverOwned'>['args']): Operation<P, 'recoverOwned'>['result'];
     releaseScope(...args: Operation<P, 'releaseScope'>['args']): Operation<P, 'releaseScope'>['result'];
     protected abstract onReleaseScope(...args: Operation<P, 'releaseScope'>['args']): Operation<P, 'releaseScope'>['result'];
+    recoverResources(...args: Operation<P, 'recoverResources'>['args']): Operation<P, 'recoverResources'>['result'];
+    protected abstract onRecoverResources(...args: Operation<P, 'recoverResources'>['args']): Operation<P, 'recoverResources'>['result'];
     registerFacility<K extends FacilityKey>(descriptor: FacilityDescriptor<K>): ReturnType<ProviderRegistrations['registerFacility']>;
     protected abstract onRegisterFacility<K extends FacilityKey>(descriptor: FacilityDescriptor<K>): ReturnType<ProviderRegistrations['registerFacility']>;
     registerProvider(...args: Parameters<ProviderRegistrations['registerProvider']>): ReturnType<ProviderRegistrations['registerProvider']>;

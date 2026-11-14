@@ -97,18 +97,19 @@ describe('the proof that an instance of an earlier process has no runtime', () =
   const instance = 'agent-instance-of-an-earlier-process'
 
   it('is absent before the run took its lock: nothing is judged lost', () => {
-    expect(lostContactBy(() => undefined)(instance)).toBeNull()
+    expect(lostContactBy(() => undefined, 'instance')(instance)).toBeNull()
   })
 
   it('names the holding of the lock and the instance while the run holds the lock, and ends with the lock', () => {
     const lock = take(stateRoot(), () => '2026-11-13T00:00:00.000Z')
-    const proof = lostContactBy(() => lock)
+    const proof = lostContactBy(() => lock, 'instance')
     expect(proof(instance)).toEqual({
       owner: '@omne-harness/harness-server',
       record: 'state-lock',
       revision: '2026-11-13T00:00:00.000Z',
       digest: `instance:${instance}`,
     })
+    expect(lostContactBy(() => lock, 'call')('mcall_one')?.digest).toBe('call:mcall_one')
     lock.release()
     expect(proof(instance)).toBeNull()
   })

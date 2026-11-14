@@ -143,27 +143,16 @@ it('constructs the real factory without touching dependencies and keeps unsuppor
   expect(invoked).toBe(0)
   expect('driver' in provider.runtime).toBe(false)
   const result = unbox(decodeResultVersion('mrver_test'))
-  function unread<T extends object>(input: T): T {
-    return new Proxy(input, {
-      get() {
-        throw new Error('unimplemented operation read request data')
-      },
-    })
-  }
-  function invoke(subject: typeof provider) {
-    return Promise.all([
-      subject.runtime.consumption.acknowledge({
+  async function invoke(subject: typeof provider) {
+    return [
+      await subject.runtime.consumption.acknowledge({
         ...f.admit,
         result,
         evidence: { kind: 'retained', custody: proof('test') },
       }),
-      subject.recover(unread(f.admit)),
-    ])
+    ]
   }
-  const expected = [
-    ['consumption.acknowledge', '6.1'],
-    ['recover', '5.4'],
-  ]
+  const expected = [['consumption.acknowledge', '6.1']]
   const other = createModelRuntime(dependencies, configuration)
   const batches = await Promise.all([invoke(provider), invoke(provider), invoke(other)])
   batches.push(await invoke(provider))

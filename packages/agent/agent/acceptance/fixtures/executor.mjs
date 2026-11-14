@@ -62,7 +62,7 @@ process.on('message', async message => {
             ],
           ),
           models: {
-            calls: group(['models', 'calls'], ['inspect', 'admit', 'dispatches']),
+            calls: group(['models', 'calls'], ['inspect', 'admit', 'dispatches', 'contact']),
             consumption: group(
               ['models', 'consumption'],
               ['beginRead', 'readNext', 'closeRead', 'acknowledge'],

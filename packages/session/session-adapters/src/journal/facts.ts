@@ -191,7 +191,22 @@ export type FactBody =
       record: Ref<JsonValue>
       coverage: DurableEvidence | null
     }>
-  | Readonly<{ kind: 'intent.voided'; step: StepId; attempt: Attempt; basis: DurableEvidence }>
+  | Readonly<{
+      kind: 'intent.voided'
+      intent: 'model'
+      step: StepId
+      attempt: Attempt
+      cause: 'not-accepted' | 'lost'
+      basis: DurableEvidence
+    }>
+  | Readonly<{
+      kind: 'intent.voided'
+      intent: 'tool'
+      step: StepId
+      action: ActionId
+      cause: 'not-accepted'
+      basis: DurableEvidence
+    }>
   | Readonly<{
       kind: 'call.intended'
       action: ActionId
@@ -665,6 +680,7 @@ export function factKey(fact: FactBody): string {
     case 'request.adopted':
       return `request/${fact.step}/${fact.attempt}`
     case 'intent.voided':
+      if (fact.intent === 'tool') return `voided/${fact.action}`
       return `voided/${fact.step}/${fact.attempt}`
     case 'call.intended':
       return `call/${fact.action}`

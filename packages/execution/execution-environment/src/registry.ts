@@ -57,7 +57,7 @@ import {
 } from './compare.ts'
 import { createLeaseView, type StoredDescriptor } from './lease-view.ts'
 import { queryOriginal, routeFor, type DomainRoute } from './original.ts'
-import { driveRecovery, sameOriginal } from './recovery.ts'
+import { driveRecovery, recoverGiven, sameOriginal } from './recovery.ts'
 
 /** A structured diagnostic. It carries keys and reasons, never provider error text or secrets. */
 export type RegistryDiagnostic = Readonly<{
@@ -728,8 +728,8 @@ export function createEnvironmentRegistry<P>(
   const authorizeRecovery = async (
     access: RecoveryAccess,
     scope: ScopeRef,
+    known: ManagedResource[] = [],
   ): Promise<RecoveryDecision> => {
-    const known: ManagedResource[] = []
     for (const record of records.values())
       if (record.state.kind === 'pendingRelease' && ownsScope(record.original, scope))
         known.push(...record.state.resources)
@@ -1029,12 +1029,11 @@ export function createEnvironmentRegistry<P>(
       return Object.freeze([...items.values()])
     },
 
-    recoverOwned(scope, access, known) {
-      return recover(scope, access, known, false)
-    },
-
-    releaseScope(scope, access, known) {
-      return recover(scope, access, known, true)
+    recoverOwned: (scope, access, known) => recover(scope, access, known, false),
+    releaseScope: (scope, access, known) => recover(scope, access, known, true),
+    recoverResources(scope, access, given) {
+      const target = copyScope(scope)
+      return recoverGiven(target, given, routes(), all => authorizeRecovery(access, target, all))
     },
 
     registerFacility<K extends FacilityKey>(descriptor: FacilityDescriptor<K>) {

@@ -73,22 +73,24 @@ function busy(error: unknown): boolean {
 }
 
 /**
- * The proof that an instance this run's host does not run has no runtime anywhere: the run holds
- * the exclusive lock of its state directory, so every earlier process that worked on the same
- * records has ended, and its instances with it. `current` gives the lock of the run at each
- * judgment; without a held lock there is no proof, and nothing is judged lost.
+ * The proof that an instance this run's host does not run, or a call it does not drive, has no
+ * runtime anywhere: the run holds the exclusive lock of its state directory, so every earlier
+ * process that worked on the same records has ended, and its instances and drives with it.
+ * `subject` says which of the two the judged identity is. `current` gives the lock of the run at
+ * each judgment; without a held lock there is no proof, and nothing is judged lost.
  */
 export function lostContactBy(
   current: () => StateLock | undefined,
-): (instance: string) => DurableEvidence | null {
-  return instance => {
+  subject: 'instance' | 'call',
+): (id: string) => DurableEvidence | null {
+  return id => {
     const lock = current()
     if (lock === undefined || !lock.held()) return null
     return {
       owner: '@omne-harness/harness-server',
       record: 'state-lock',
       revision: lock.since,
-      digest: `instance:${instance}`,
+      digest: `${subject}:${id}`,
     }
   }
 }

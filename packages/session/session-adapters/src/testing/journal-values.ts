@@ -29,6 +29,18 @@ export function semanticKey(method: string, input: object): string {
   return `${method}:sha256:${createHash('sha256').update(canonical(rest)).digest('hex')}`
 }
 
+/**
+ * The key of an `open`. The instance of the runtime context is the receiver of the attachment, not
+ * a part of what is accepted: a replay of the original operation by another runtime is recognized
+ * and gets the original Authority back.
+ */
+export function openKey(input: Readonly<{ runtime: object }>): string {
+  const runtime = Object.fromEntries(
+    Object.entries(input.runtime).filter(([key]) => key !== 'instance'),
+  )
+  return semanticKey('open', { ...input, runtime })
+}
+
 function minted<T>(decoded: Outcome<T, unknown>, text: string): T {
   // The Journal builds every text below from identities that already passed their decoders and
   // from decimal counters, so a decode failure is a defect of this file, not a caller error.

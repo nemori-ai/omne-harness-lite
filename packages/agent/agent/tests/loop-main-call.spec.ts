@@ -852,8 +852,8 @@ it('revocation after recovery proves not-accepted prevents its first real admiss
                 diagnostic: 'before admission',
               })
         },
-        async inspect(input) {
-          const result = await d.models.calls.inspect(input)
+        async contact(input) {
+          const result = await d.models.calls.contact(input)
           if (recovering && authority !== null)
             ok(
               await d.journal.detach({

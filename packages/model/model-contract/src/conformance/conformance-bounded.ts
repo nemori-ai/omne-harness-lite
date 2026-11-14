@@ -27,6 +27,7 @@ function boundedRuntime<P>(runtime: ModelRuntime<P>, waitMs: number): ModelRunti
     calls: {
       admit: ask('admit', calls.admit.bind(calls)),
       inspect: ask('inspect', calls.inspect.bind(calls)),
+      contact: ask('contact', calls.contact.bind(calls)),
       dispatches: ask('dispatches', calls.dispatches.bind(calls)),
       cancel: ask('cancel', calls.cancel.bind(calls)),
     },
@@ -43,7 +44,6 @@ function boundedRuntime<P>(runtime: ModelRuntime<P>, waitMs: number): ModelRunti
 function boundedProvider<P>(provider: ModelProvider<P>, waitMs: number): ModelProvider<P> {
   return {
     runtime: boundedRuntime(provider.runtime, waitMs),
-    recover: bounded(waitMs, 'the answer of recover', provider.recover.bind(provider)),
     quiesce: bounded(waitMs, 'the answer of quiesce', provider.quiesce.bind(provider)),
   }
 }

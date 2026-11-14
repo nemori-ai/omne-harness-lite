@@ -673,6 +673,7 @@ describe('the environment plan hands processes to acquire', () => {
       observeRetained: async () => [],
       recoverOwned: async () => ({ kind: 'unknown', cause: 'provider' }),
       releaseScope: async () => ({ kind: 'unknown', cause: 'provider' }),
+      recoverResources: async () => ({ kind: 'unknown', cause: 'provider' }),
     }
     let ledger: ResourceLedger | undefined
     const guard = { authorize: async () => 'authorized' as const }

@@ -77,6 +77,7 @@ class Runtime extends ModelRuntimeService<unknown> {
   readonly calls = {
     admit: unused,
     inspect: unused,
+    contact: unused,
     dispatches: unused,
     cancel: unused,
   }

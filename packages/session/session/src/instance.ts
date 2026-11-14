@@ -15,6 +15,7 @@ import { createControlPropagation, type ControlPropagation } from './control.ts'
 import { checkStartConditions, type SessionDependencies } from './dependencies.ts'
 import type { SessionDiagnose } from './diagnostics.ts'
 import { createFaces, type SessionFacesWithDirectory } from './faces.ts'
+import { createKnownHandovers } from './known-handovers.ts'
 import { Lifecycle } from './lifecycle.ts'
 import { createSessionMeasurer, type SessionMeasure } from './measure.ts'
 import { checkSessionConfiguration, type SessionConfiguration } from './policy.ts'
@@ -117,7 +118,24 @@ export function createSessionInstance<P>(
     scheduling,
     maintainer: faces.maintainer,
   })
-  const wired = createAdvance({ dependencies, lifecycle, policy, scheduling, resolution, faces })
+  const known = createKnownHandovers()
+  const recovery = createRecovery({
+    dependencies,
+    lifecycle,
+    scheduling,
+    coordinator: faces.coordinator,
+    known,
+  })
+  const wired = createAdvance({
+    dependencies,
+    lifecycle,
+    policy,
+    scheduling,
+    resolution,
+    faces,
+    known,
+    recover: recovery.trigger,
+  })
   advance = wired
   controls = createControlPropagation({
     dependencies,
@@ -127,12 +145,6 @@ export function createSessionInstance<P>(
     coordinator: faces.coordinator,
   })
   const controlPropagation = controls
-  const recovery = createRecovery({
-    dependencies,
-    lifecycle,
-    scheduling,
-    coordinator: faces.coordinator,
-  })
   const scan = createScan({
     lifecycle,
     policy,

@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {
   EnvironmentAuthority,
   EnvironmentAction,
+  RecoveryAccess,
   RecoveryAuthority,
 } from '@omne-harness/execution-environment-contract'
 import {
@@ -155,6 +156,21 @@ export class EntryExecutionScopeBinding extends ExecutionScopeBindingService {
   }
 }
 
+const maintainers = new WeakMap<Context, Set<RecoveryAccess>>()
+
+export function admitMaintainer(ctx: Context, access: RecoveryAccess): void {
+  const admitted = maintainers.get(ctx.root) ?? new Set<RecoveryAccess>()
+  admitted.add(access)
+  maintainers.set(ctx.root, admitted)
+}
+
+function maintainerAuthority(ctx: Context): RecoveryAuthority {
+  return {
+    authorizeRecovery: async access =>
+      maintainers.get(ctx.root)?.has(access) === true ? 'authorized' : 'unavailable',
+  }
+}
+
 export class EntryExecutionRecoveryAuthority extends ExecutionRecoveryAuthorityService {
   readonly readRecovery: () => RecoveryAuthority | undefined
   constructor(ctx: Context, readRecovery: () => RecoveryAuthority | undefined) {
@@ -208,7 +224,8 @@ export function createExecutionAuthorityModules(
       name: executionRecoveryAuthorityKey,
       implementation: 'real',
       install(scope) {
-        new EntryExecutionRecoveryAuthority(scope, options.readRecovery ?? (() => undefined))
+        const recovery = options.readRecovery ?? (() => maintainerAuthority(scope))
+        new EntryExecutionRecoveryAuthority(scope, recovery)
       },
     },
   ]

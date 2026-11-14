@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolAccessGuard } from '@omne-harness/tool'
-import type { Reply, ToolCallId, ToolFailure } from '@omne-harness/tool-contract'
+import type { Reply, ToolCallId, ToolFailure, ToolInstanceId } from '@omne-harness/tool-contract'
 import {
   decodeToolInstanceId,
   type CallAccess,
@@ -40,10 +40,12 @@ export function createLocalToolInstanceIdentities(): ToolInstanceIdentities {
   })
 }
 
+export type LocalToolInstanceHost<P> = ToolInstanceHost<P> & Readonly<{ instance: ToolInstanceId }>
+
 /** Owns local wakeups and publication lifetime, not the lifetime of external effects. */
 export async function createLocalToolInstanceHost<P>(
   input: LocalInstanceInput<P>,
-): Promise<Outcome<ToolInstanceHost<P>, ToolFailure>> {
+): Promise<Outcome<LocalToolInstanceHost<P>, ToolFailure>> {
   const minted = await input.identities.newInstance()
   if ('failure' in minted) return minted
   const { capacity, access, resolveAccess } = input
@@ -101,7 +103,8 @@ export async function createLocalToolInstanceHost<P>(
     }
   }
 
-  const host: ToolInstanceHost<P> = {
+  const host: LocalToolInstanceHost<P> = {
+    instance,
     install: active => {
       if (installed) throw new TypeError('The Tool instance host accepts one installation.')
       installed = true

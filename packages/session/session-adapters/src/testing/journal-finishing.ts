@@ -699,12 +699,9 @@ export function callObligations(source: LedgerSource): FinishObligation[] {
               settlesCall(item.failure) &&
               item.failure.call === call,
           )?.failure ?? undefined)
-    // R2-D292: a Model intent the Model answered authoritatively not-accepted was never admitted
-    // or sent; its voided record settles the call on the basis of that answer.
-    const voided =
-      effect.pending.kind === 'model'
-        ? source.checkpoint.voided.find(item => item.reference === effect.pending.reference)
-        : undefined
+    // R2-D292: an intent its callee answered authoritatively will have no result that counts; its
+    // voided record settles the call on the basis of that answer.
+    const voided = source.checkpoint.voided.find(item => item.action === effect.action)
     const custodian =
       association?.obligation.kind === 'call' ? association.obligation.custodian : null
     const retain = (saved: ToolAssociationRecord): RecoveryContinuation => ({
@@ -1054,10 +1051,9 @@ export function candidateOfView(view: CandidateView, blobs: BlobStore): FinishCa
  * and the voided intents as the block holds them. A member block the store lacks throws.
  */
 function checkpointOfCursor(held: CandidateCursor, blobs: BlobStore): AgentCheckpoint {
-  const base = checkpointOf(
-    { cursor: { ...held.members, inputBatch: null }, steps: [], requests: [], intents: new Map() },
-    blobs,
-  )
+  const cursor = { ...held.members, inputBatch: null }
+  const none = { steps: [], requests: [], voided: [], intents: new Map() }
+  const base = checkpointOf({ cursor, ...none }, blobs)
   return { ...base, inputBatch: held.inputBatch, voided: held.voided }
 }
 

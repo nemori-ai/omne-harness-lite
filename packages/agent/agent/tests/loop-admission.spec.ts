@@ -363,6 +363,49 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
     expect(record.commits).toHaveLength(commits)
   })
 
+  it('NA-E0-2: a runtime of another instance gets the original handle of an open it did not make and does not drive the execution', async () => {
+    const loading = gate()
+    const record: Record = { log: [], prepares: [], commits: [] }
+    let loads = 0
+    let admitted: ReturnType<MessageHandoff<Principal>['prepare']> | undefined
+    const assembly = await loopAssembly([execution()], dependencies => {
+      const wrapped = recording(record)(dependencies)
+      return {
+        ...wrapped,
+        // The owner of the admission recognizes the original request and answers its outcome again.
+        handoff: {
+          ...wrapped.handoff,
+          prepare: input => (admitted ??= wrapped.handoff.prepare(input)),
+        },
+        journal: {
+          ...wrapped.journal,
+          async load(input) {
+            loads += 1
+            if (loads === 1) await loading.opened
+            return wrapped.journal.load(input)
+          },
+        },
+      }
+    })
+    const first = ok(await invoke(assembly))
+    await eventually(async () => loads === 1)
+    const commits = record.commits.length
+    const base = options()
+    const other = ok(
+      await createAgentRuntime(assembly.dependencies, {
+        ...base,
+        binding: { ...base.binding, instance: instance('instance-2') },
+      }),
+    )
+    const again = ok(await invoke({ provider: other }))
+    expect(again.execution).toBe(first.execution)
+    expect(opens(record)).toBe(2)
+    expect((await shown({ provider: other })).kind).toBe('idle')
+    expect(loads).toBe(1)
+    expect(record.commits).toHaveLength(commits)
+    loading.open()
+  })
+
   it('NA-E0-2: in a new runtime over the same Journal, open gives the original back and the execution is not driven', async () => {
     const assembly = await recorded()
     assembly.release.open()

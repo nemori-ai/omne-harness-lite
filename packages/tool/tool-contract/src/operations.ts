@@ -25,6 +25,7 @@ import type {
   OperationResolution,
   Reply,
   ResultPage,
+  ToolCallContact,
   ToolFailure,
   ToolLookup,
   ToolState,
@@ -191,6 +192,7 @@ export type ToolReleaseDeliveryOutcome =
  */
 export interface ToolInvocationQueries<P, B extends ContentBlock> {
   lookup(input: InvocationAccess<P>): Reply<ToolLookup>
+  contact(input: InvocationAccess<P>): Reply<ToolCallContact>
   queryOperation(
     input: Access<P> & Readonly<{ operation: ToolOperationRef }>,
   ): Reply<OperationResolution>

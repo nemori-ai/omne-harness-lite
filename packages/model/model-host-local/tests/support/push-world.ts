@@ -20,6 +20,7 @@ import {
   decodeModelInstanceId,
   decodeModelOperationId,
   decodeResultVersion,
+  encodeModelInvocationRef,
   type DurableEvidence,
   type FixedModelRequest,
   type ModelCallId,
@@ -215,6 +216,8 @@ type Hooks = {
   advanceCleanup?(): 'fail' | 'pass'
   /** Runs before each `dispatches` of the plugin's commands; the read waits for what it returns. */
   dispatches?(): Promise<void> | void
+  resolve?(): Promise<'pass' | 'refuse'> | 'pass' | 'refuse'
+  loadRecovery?(): 'fail' | 'pass'
 }
 
 /**
@@ -233,6 +236,7 @@ export function world(
     /** The share of the whole assembly; the memory commands sum every tenant against it. */
     /** How many unacknowledged results the tenant may hold. */
     share?: number
+    lostContact?: (instance: string) => DurableEvidence | null
   }> = {},
 ) {
   const ledger = input.ledger ?? createMemoryResultPushLedger()
@@ -331,6 +335,10 @@ export function world(
   const raw = memory.dependencies.commands
   const commands: ModelCommands<unknown> = {
     ...raw,
+    loadRecovery: async target =>
+      hooks.loadRecovery?.() === 'fail'
+        ? { failure: { kind: 'unavailable', dependency: 'records', diagnostic: 'synthetic' } }
+        : raw.loadRecovery(target),
     handoff: async ack => {
       handoffs.push(structuredClone({ ...ack, principal: null }))
       if (hooks.handoff?.() !== 'lost') return raw.handoff(ack)
@@ -370,7 +378,13 @@ export function world(
     },
   }
   class Authority extends ModelHostAuthorityService<unknown> {
-    readonly resolve = async (target: { tenant: TenantId; call: ModelCallId }) => ({
+    readonly resolve = async (target: { tenant: TenantId; call: ModelCallId }) =>
+      (await hooks.resolve?.()) === 'refuse'
+        ? ({
+            failure: { kind: 'unavailable', dependency: 'host', diagnostic: 'refused' },
+          } as const)
+        : this.trusted(target)
+    readonly trusted = (target: { tenant: TenantId; call: ModelCallId }) => ({
       ok: {
         principal: PRINCIPAL,
         tenant: target.tenant,
@@ -437,12 +451,14 @@ export function world(
           retry: memory.dependencies.retry,
           instances: given.host,
           clock: given.clock,
+          liveness: given.liveness,
         },
         CONFIGURATION,
       )
     },
     qualifyObservation: async () => ({ ok: undefined }),
     results: { ledger, limits: input.limits ?? LIMITS },
+    ...(input.lostContact === undefined ? {} : { lostContact: input.lostContact }),
   })
   const ctx = new Context()
   const messages: string[] = []
@@ -467,6 +483,29 @@ export function world(
     controls: memory.controls,
     Plugin,
     provided,
+    contact(name: string) {
+      return ctx.modelRuntime.calls.contact({
+        principal: PRINCIPAL,
+        tenant: TENANT,
+        reference: unbox(
+          encodeModelInvocationRef({
+            tenant: TENANT,
+            call: callOf(name),
+            admission: op(`admit-${name}`),
+          }),
+        ),
+      })
+    },
+    admitBehind(name: string) {
+      return raw.admit({
+        principal: PRINCIPAL,
+        tenant: TENANT,
+        call: callOf(name),
+        operation: op(`admit-${name}`),
+        request,
+        consumer: { owner: CONSUMER, work: 'work', position: 'answer', purpose: 'push-test' },
+      })
+    },
     async services() {
       await ctx.plugin(Authority)
       await ctx.plugin(Clock)

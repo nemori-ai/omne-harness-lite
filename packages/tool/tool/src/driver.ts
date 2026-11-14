@@ -837,8 +837,8 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       if (task?.kind !== 'queue') return IDLE
       const reason = ledgerRejectedReason(recovery, task.operation)
       if (reason !== null) return settleRejected(step, recovery, reason)
-      // 暂停中收场的调用没有 final：释放依据是 suspended-exclusion，直接完成释放待办。
-      return recovery.state.execution.kind === 'suspended'
+      // 暂停中收场与失联收场的调用没有 final：释放依据在调用域里，直接完成释放待办。
+      return ['suspended', 'lost'].includes(recovery.state.execution.kind)
         ? releaseSuspended(step, recovery, task)
         : settle(step, recovery, task, cancelled)
     }
