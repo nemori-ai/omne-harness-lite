@@ -1,6 +1,7 @@
 import { succeed } from '@omne-harness/operation-result'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
+  CallContact,
   ControlState,
   CustodyState,
   DispatchRecord,
@@ -100,6 +101,7 @@ export interface ScriptController<P> {
         diagnostic: string | null
       }>,
   ): void
+  setContact(input: ScriptedCall & Readonly<{ answer: CallContact | null }>): void
   /** The instance leaves: observers end as unavailable and `connect` finds no live route. */
   withdrawInstance(input: ScriptedCall): void
   /** Another instance takes over: observers of the old one end as stale-instance. */
@@ -238,6 +240,10 @@ export function createController<P>(core: Core<P>): ScriptController<P> {
         throw new ScriptedModelError('invalid-script', `the call ${input.call} is not acknowledged`)
       record.custody = { ...record.custody, cleanup: input.cleanup, diagnostic: input.diagnostic }
       commit(record)
+    },
+
+    setContact(input) {
+      callOf(input).contact = structuredClone(input.answer)
     },
 
     withdrawInstance(input) {

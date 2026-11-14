@@ -4,6 +4,7 @@
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import type {
+  CallContact,
   CallState,
   ModelInvocationRef,
   ControlState,
@@ -107,6 +108,7 @@ export type CallRecord<P> = {
    * is taken; otherwise only one of these is.
    */
   readonly evidence: DurableEvidence[]
+  contact: CallContact | null
 }
 
 /**

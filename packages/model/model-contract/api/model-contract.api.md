@@ -2822,7 +2822,7 @@ export declare function createConsumption<P>(core: Core<P>): ModelConsumption<P>
 
 ```ts
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { ControlState, CustodyState, DispatchRecord, DurableEvidence, ResultPart, Reply, Termination, VisibleBlock } from '../index.ts';
+import type { CallContact, ControlState, CustodyState, DispatchRecord, DurableEvidence, ResultPart, Reply, Termination, VisibleBlock } from '../index.ts';
 import type { CommitQuery, TransportFact } from '../provider/index.ts';
 import type { CallAccess, DispatchId, ModelCallId, ModelInstanceId, ModelOperationId, ResultVersion, Revision } from '../root.ts';
 import { type Core, type ScriptedAction } from './core.ts';
@@ -2871,6 +2871,9 @@ export interface ScriptController<P> {
         }>['cleanup'];
         diagnostic: string | null;
     }>): void;
+    setContact(input: ScriptedCall & Readonly<{
+        answer: CallContact | null;
+    }>): void;
     withdrawInstance(input: ScriptedCall): void;
     replaceInstance(input: ScriptedCall & Readonly<{
         instance: ModelInstanceId;
@@ -2905,7 +2908,7 @@ export declare function createController<P>(core: Core<P>): ScriptController<P>;
 ```ts
 import { type TenantId } from '@omne-harness/legal-identity';
 import { type Outcome } from '@omne-harness/operation-result';
-import type { CallState, ModelInvocationRef, ControlState, CustodyState, DispatchRecord, DurableEvidence, ResultPart, ModelFailure, ModelHandle, Settlement, Snapshot, VisibleBlock, ReadState } from '../index.ts';
+import type { CallContact, CallState, ModelInvocationRef, ControlState, CustodyState, DispatchRecord, DurableEvidence, ResultPart, ModelFailure, ModelHandle, Settlement, Snapshot, VisibleBlock, ReadState } from '../index.ts';
 import type { FillTable } from './reduce.ts';
 import type { CallAccess, ConsumerRef, DispatchId, ModelCallId, ModelInstanceId, ModelOperationId, ReadId } from '../root.ts';
 export type ScriptedAction = 'admit' | 'inspect' | 'dispatches' | 'cancel' | 'connect' | 'observe' | 'read' | 'acknowledge' | 'query';
@@ -2969,6 +2972,7 @@ export type CallRecord<P> = {
     readonly reads: Map<ReadId, ReadRecord>;
     readonly fill: FillTable;
     readonly evidence: DurableEvidence[];
+    contact: CallContact | null;
 };
 export type OperationEntry<P> = Readonly<{
     record: CallRecord<P>;
