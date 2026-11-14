@@ -17,7 +17,7 @@
 | [tool](tool/README.md) | 工具执行 | `tool` |
 | [context](context/README.md) | Runtime Context | `runtime-context`, `request-context` |
 | [human-intervention](human-intervention/README.md) | 人工介入 | `human-intervention` |
-| [execution](execution/README.md) | 执行环境 | `execution-environment` |
+| [execution](execution/SPEC.md) | 执行环境 | `execution-environment` |
 | [calendar](calendar/README.md) | 日历 | `calendar-contract`, `calendar-cordis-contract`, `calendar`, `calendar-local`, `calendar-tools` |
 | [schedule](schedule/README.md) | 日程与Job | `schedule-contract`, `schedule-cordis-contract`, `schedule`, `schedule-local`, `schedule-tools` |
 | [notification](notification/README.md) | 通知 | `notification` |

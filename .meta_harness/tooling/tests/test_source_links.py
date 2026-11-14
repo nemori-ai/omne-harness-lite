@@ -202,6 +202,22 @@ def test_registered_document_only_targets_are_exact(tmp_path):
     assert any('escapes design root' in error for error in check_links(root, tmp_path))
 
 
+def test_group_specs_and_adopted_top_documents_need_no_registration(tmp_path):
+    root = tmp_path / '.meta_harness/design'
+    save(tmp_path / 'pnpm-workspace.yaml', 'packages:\n  - packages/*/*\n')
+    carriers = ['packages/group/SPEC.md', 'apps/app/SPEC.md', 'tools/tool/SPEC.md', 'docs/requirements.md',
+                'docs/architecture/layers.md', 'docs/domains/session/overview.md']
+    outside = ['packages/group/member/extra.md', 'packages/group/README.md', 'docs/development.md']
+    for path in carriers + outside:
+        save(tmp_path / path, '# Shape\n')
+    register(tmp_path)
+    save(root / 'README.md', ''.join(f'[doc](../../{path}#shape)\n' for path in carriers))
+    assert check_links(root, tmp_path) == []
+    for path in outside:
+        save(root / 'README.md', f'[doc](../../{path}#shape)\n')
+        assert any('escapes design root' in error for error in check_links(root, tmp_path))
+
+
 @pytest.mark.parametrize('suffix', ['src/index.ts', 'SPEC.md'])
 def test_real_member_origin_requires_workspace_and_manifest(tmp_path, suffix):
     kind = 'packages'

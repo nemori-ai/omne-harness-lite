@@ -90,11 +90,8 @@ export function createCustodySteps<E extends CustodyEntry, C>(platform: CustodyP
       resource: entry.resource,
     })
 
-  /**
-   * Carries out a disposition. The custody changes synchronously, in the same step as the reading
-   * of `interrupted` and of the scope's closure that justifies it; the effects follow. A commit that
-   * took effect leaves `live` here, so a release that returns from a wait finds nothing to stop.
-   */
+  /** The custody changes in the same synchronous step as the reading of `interrupted` and of the
+   *  scope's closure; effects follow, so a release back from a wait finds a handed-over domain gone. */
   const apply = async (
     entry: E,
     context: C,

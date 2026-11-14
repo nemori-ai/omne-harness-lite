@@ -189,11 +189,8 @@ done
 `
 }
 
-/**
- * The driver writes the sentinels with the shell's builtin printf to the controlling terminal,
- * so they share the PTY's one ordered buffer with the script's bytes even after the script
- * redirected the shell's own output. The nonce reaches the shell through the command FIFO only.
- */
+/** Sentinels go to the controlling terminal through the builtin printf, so they share the PTY's one
+ *  ordered buffer even when the script redirected output. The nonce travels by the command FIFO only. */
 function sentinelWrite(mark: 'b' | 'e', nonce: string): string {
   return `builtin printf '\\033]7770;omne-${mark};%s\\a' ${quote(nonce)} >/dev/tty || return 125`
 }
@@ -465,11 +462,8 @@ export function readObservations(state: Segments, bytes: Buffer, config: Initial
   return step
 }
 
-/**
- * Completes the current segment once both its finished observation and its end sentinel arrived:
- * the two come on unordered channels. The held bytes are attributed, `finished` is sent, and the
- * standard input still unwritten is dropped. Otherwise nothing changes.
- */
+/** Completes the segment only once both its finished observation and its end sentinel arrived: the
+ *  two come on unordered channels, and either alone would cut the segment's last bytes. */
 export function settle(state: Segments, config: Initial): Step {
   const active = state.active
   const completion = state.completion

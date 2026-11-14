@@ -1971,7 +1971,7 @@ Session 服务实例的必需依赖是 `SessionAccessCheck`、`SessionDelegatedT
 | `unavailable`    | 任一路枚举、查询不可用或未知，或执行环境以 `unavailable` 拒绝                                               | 保留任务，按策略退避后重试。枚举失败表示资源未知，不表示没有资源 |
 | `not-authorized` | 执行环境以 `notAuthorized` 拒绝                                                                             | 保留任务并报告维护拥有者。不改用会话用户的访问身份重试           |
 
-拒绝原因的来源见执行环境契约的[拒绝原因](../../execution/execution-environment-contract/SPEC.md#拒绝原因)与[恢复](../../execution/execution-environment-contract/SPEC.md#恢复)。释放不发起新的获取。逻辑归档在归档提交时已经成立，不等待物理全停。对人的时间线只记录「已发起释放」与读回结果。系统层说明见[作用域释放](../../../docs/architecture/runtime/control-and-recovery.md#作用域释放)。
+拒绝原因的来源见执行环境规格的[恢复](../../execution/SPEC.md#恢复)。释放不发起新的获取。逻辑归档在归档提交时已经成立，不等待物理全停。对人的时间线只记录「已发起释放」与读回结果。系统层说明见[作用域释放](../../../docs/architecture/runtime/control-and-recovery.md#作用域释放)。
 
 ### 可加契约与过渡支持范围
 

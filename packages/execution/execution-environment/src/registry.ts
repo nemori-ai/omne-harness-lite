@@ -329,11 +329,8 @@ export function createEnvironmentRegistry<P>(
     return { kind: 'unknown' }
   }
 
-  /**
-   * Seals the adoption in the same synchronous step that records the failure, then drives cleanup
-   * through the original receipt. The first caller observes the cleanup within the bound; a late
-   * answer still updates the record. The reason never changes.
-   */
+  /** Seals the adoption in the same synchronous step that records the failure, then cleans up through
+   *  the original receipt; a late answer still updates the cleanup state, never the reason. */
   const failAdoption = async (
     record: AcquisitionRecord<P>,
     receipt: ProviderReceipt,
