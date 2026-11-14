@@ -28,7 +28,7 @@ import { storageCatalog } from '../storage/catalog.ts'
  * The Session writer records the time of each commit and keeps the session list, with migration
  * `session/008-session-list` (#1267), adopting combination /11.
  */
-export const COMBINATION_VERSION = 'session-composite/11'
+export const COMBINATION_VERSION = 'session-composite/12'
 
 export type AgentJournalCombination = Readonly<{
   combinationVersion: string
