@@ -4,7 +4,7 @@
 
 ## 对象与关系
 
-本包是值包，只有一个对象：`sessionProtocol`，一个 `DefinedProtocol`。它由名字 `session`、主版本 1、八个操作契约和一个观察契约组成；每个操作契约有身份要求、效果、体上限、消息体的读写器和每个结果的读写器或 `true`。
+本包是值包，只有一个对象：`sessionProtocol`，一个 `DefinedProtocol`。它由名字 `session`、主版本 1、一组操作契约和一个观察契约组成；每个操作契约有身份要求、效果、体上限、消息体的读写器和每个结果的读写器或 `true`。
 
 ```mermaid
 classDiagram
