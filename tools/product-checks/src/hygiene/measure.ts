@@ -1,7 +1,7 @@
 import { isTestPath } from '@omne-harness/repo-toolchain/core/rule'
 import type { FunctionBand, HygieneBaseline, HygieneLimits } from './baseline.ts'
 import { outsideAllowlist } from './documents.ts'
-import { measureSource } from './source.ts'
+import { measureSource, type CommentMeasure } from './source.ts'
 
 export interface TextFile {
   readonly path: string
@@ -16,7 +16,7 @@ export interface Measurements {
   readonly documentPaths: ReadonlySet<string>
   readonly sourcePaths: ReadonlySet<string>
   readonly documents: readonly string[]
-  readonly comments: ReadonlyMap<string, { readonly count: number; readonly firstLine: number }>
+  readonly comments: ReadonlyMap<string, CommentMeasure>
   readonly files: ReadonlyMap<string, number>
   readonly functions: ReadonlyMap<string, FunctionMeasure>
 }
@@ -43,14 +43,14 @@ export function measure(
   sources: readonly TextFile[],
   limits: HygieneLimits,
 ): Measurements {
-  const comments = new Map<string, { count: number; firstLine: number }>()
+  const comments = new Map<string, CommentMeasure>()
   const files = new Map<string, number>()
   const functions = new Map<string, FunctionMeasure>()
   const sourcePaths = new Set<string>()
   for (const source of sources) {
     if (!isCheckedSource(source.path)) continue
     sourcePaths.add(source.path)
-    const result = measureSource(source.path, source.text, limits.functionLines)
+    const result = measureSource(source.path, source.text, limits)
     if (result.comments.count > 0) comments.set(source.path, result.comments)
     if (result.lines > limits.fileLines) files.set(source.path, result.lines)
     if (result.functions.count > 0) functions.set(source.path, result.functions)
