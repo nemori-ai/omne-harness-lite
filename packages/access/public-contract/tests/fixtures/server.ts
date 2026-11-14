@@ -29,7 +29,6 @@ export function receive(bytes: Uint8Array, limits: GovernanceCodecLimits) {
   }
 }
 
-/** Step 1 of the session order only. Every accepted request still needs identity and Session. */
 export function receiveSession(bytes: Uint8Array, limits: SessionCodecLimits) {
   const read = readSessionRequest({ bytes, limits })
   if (read.kind !== 'request') return encodeSessionResponse({ response: read.response, limits })

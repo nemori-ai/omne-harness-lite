@@ -1,5 +1,3 @@
-// The built-in protocol `access/v1` (#1249 C7, C8): no operation, one observation that needs no
-// login, opens with an empty object and has no end reason of its own.
 import { describe, expect, it } from 'vitest'
 import { accessProtocol, type GovernanceCodecLimits } from '@omne-harness/public-contract'
 

@@ -37,7 +37,6 @@ test('operation-indexed requests and responses reject unrelated bodies and outco
   // @ts-expect-error Empty health body cannot carry a credential.
   const bad: GovernanceRequest<'public-health'> = { ...health, body: { credential: 'secret' } }
   void bad
-  // A deployment may declare any provided operation unprovided.
   const declared: GovernanceResponse<'public-health'> = {
     protocolVersion: 'governance-public/1',
     outcome: 'stage-not-provided',

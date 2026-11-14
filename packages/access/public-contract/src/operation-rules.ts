@@ -4,7 +4,6 @@ import type {
   GovernanceStageOperation,
 } from './messages.ts'
 
-/** Rule kinds that convert one value without nested rules. */
 export type LeafKind =
   | 'text'
   | 'string'
@@ -34,25 +33,14 @@ export type Rule =
       readonly kind: 'array'
       readonly item: Rule
       readonly nonempty?: true
-      /** 至多的项数。缺席时只受调用者的 `maxItems` 约束。 */
       readonly max?: number
     }
-  /**
-   * The options must be disjoint: the first option that converts wins, and the local value does
-   * not record which option matched.
-   */
   | { readonly kind: 'one-of'; readonly rules: readonly Rule[] }
 export type RequestRule = { readonly body: Rule; readonly proof: boolean; readonly tenant: boolean }
-/**
- * One protocol version with its closed operation table, read and written by the shared codec core.
- * A family has `stage-not-provided` when it has stage operations or a deployment may declare an
- * operation unprovided; otherwise it has no such outcome.
- */
 export type Family<V extends string, P extends string, S extends string> = {
   readonly version: V
   readonly error: string
   readonly stages: readonly S[]
-  /** 部署能否声明不提供某个正常操作。能声明时，每个操作的响应都接受空正文的 `stage-not-provided`。 */
   readonly declarable: boolean
   readonly isProvided: (value: unknown) => value is P
   readonly requestRule: (operation: P) => RequestRule

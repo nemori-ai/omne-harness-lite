@@ -1,6 +1,3 @@
-// HITL 位置（SPEC「HITL 位置」）：公开契约「HITL 判断次序」的四步。协议读取，登录识别，目标租户
-// 的账号等于识别出的账号后由装配给的持有者签发入口主体，再以入口主体调用 HITL 入口面。接入不另核
-// 资格，HITL 的拒绝原样成为 `denied`，所以各个原因的 `denied` 除 `messageId` 外逐字节相同。
 import type {
   CommandResult,
   GetCard,
@@ -43,23 +40,16 @@ import { STATUS_BY_OUTCOME, type PublicOutcome } from './status.ts'
 export const HITL_PATH = '/hitl-public/1'
 const VERSION = 'hitl-public/1'
 const PROTOCOL = 'hitl/1'
-/** 入口主体的原工作。固定文本，所以同一租户每次签发都得到同一个主体引用。 */
 const ENTRY_WORK = Object.freeze({ owner: 'harness.hitl', work: 'cards' })
 
-/**
- * 本部署声明不提供的 HITL 操作（SPEC「HITL 位置」的补充规则）。四个操作都已实现，所以它是空的；
- * 机制留着，部署要收回某个操作时把它加在这里。
- */
 const UNPROVIDED: ReadonlySet<HitlOperation> = new Set<HitlOperation>()
 
-/** 装配给的 HITL 入口面，以及交给 `listPool` 的位置引用。两者一起出现。 */
 export type HitlInstallation = Readonly<{
   faces: HitlIngressFaces<ActingForTenantPrincipal>
   locationRef: string
 }>
 
 export type HitlContext = Readonly<{
-  /** 缺席时四个操作都答 `stage-not-provided`。 */
   installation: HitlInstallation | undefined
   entryPrincipals: HitlEntryPrincipals | undefined
   steps: IdentitySteps
@@ -84,12 +74,10 @@ function refusal(outcome: Refusal, messageId?: string): JsonAnswer {
   return { kind: 'json', status: STATUS_BY_OUTCOME[outcome], bytes: result.bytes }
 }
 
-/** 本位置的 `protocol-rejected`。只有读取找到可信的 `messageId` 时才带上它。 */
 export function hitlProtocolRejected(messageId?: string): JsonAnswer {
   return refusal('protocol-rejected', messageId)
 }
 
-/** 编码一份业务响应。公开契约的编码函数按操作核对 outcome 与正文；编码失败是接入自身的故障。 */
 function hitlAnswer(
   request: HitlRequest,
   outcome: PublicOutcome,
@@ -109,7 +97,6 @@ function hitlAnswer(
   return { kind: 'json', status: STATUS_BY_OUTCOME[outcome], bytes: result.bytes }
 }
 
-/** 持有者给出的主体必须是这个租户的入口主体，否则不能拿它调用 HITL。 */
 function isEntryPrincipal(principal: ActingForTenantPrincipal, tenant: TenantId) {
   return (
     principal.kind === 'acting-for-tenant' &&
@@ -121,7 +108,6 @@ function isEntryPrincipal(principal: ActingForTenantPrincipal, tenant: TenantId)
   )
 }
 
-/** 第 2、3 步：识别登录，核对目标租户的账号，再由持有者签发入口主体。 */
 async function admit(
   request: HitlRequest,
   context: HitlContext,
@@ -131,18 +117,14 @@ async function admit(
   const tenant = request.body.tenant
   if (!accountEquals(tenant.account, caller.account)) return DENIED
   try {
-    // 只交出账号与目标租户，不交出登录：入口主体与这次用哪一份登录无关。
     const issued = await context.entryPrincipals?.issue({ account: caller.account, tenant })
     if (issued?.kind === 'issued' && isEntryPrincipal(issued.principal, tenant))
       return issued.principal
-  } catch {
-    // 持有者抛出或给出不成形的主体，与持有者缺席、拒绝签发同样处理。
-  }
+  } catch {}
   emit(context.diagnostics, { code: 'issuer.fault', operation: 'hitlEntryPrincipals' })
   return UNAVAILABLE
 }
 
-/** HITL 的读取失败到公开结果（公开契约「HITL 结果」表后的映射规则）。 */
 function failureOf(
   failure: HitlReadFailure | HitlConflict,
 ): Readonly<{ outcome: PublicOutcome; body: object }> {
@@ -156,14 +138,12 @@ function failureOf(
     case 'conflict':
       return { outcome: 'conflict', body: {} }
     default:
-      // `unavailable`，或提供者给出表外的种类：现在不能得出允许。
       return { outcome: 'basis-unavailable', body: {} }
   }
 }
 
 const ORIGIN_REFS = ['sessionRef', 'runRef', 'toolCallRef'] as const
 
-/** 池项到卡片视图：`origin` 只取来源种类与三个引用，原等待的路由字段不进入视图。 */
 function viewOf(item: PoolItem): HitlCardItem {
   const source: Readonly<{ [K in (typeof ORIGIN_REFS)[number]]?: string | undefined }> = item.origin
   const origin: { -readonly [K in keyof HitlCardOrigin]: HitlCardOrigin[K] } = {
@@ -183,7 +163,6 @@ async function listCards(
   context: HitlContext,
 ): Promise<Reply> {
   const { body } = request
-  // 形状与长度预算由 HITL 自己按它的模式核对，超出时 HITL 答 `invalid-input`。
   const query = {
     protocol: PROTOCOL,
     tenantRef: tenantTextOf(body.tenant),
@@ -240,14 +219,9 @@ async function readCard(
 type Submission = HitlRequest<'submit-reply' | 'query-submit-reply'>
 type SubmitResult = Exclude<CommandResult<'submitReply'>, { kind: 'unknown' }>
 
-/**
- * 一次提交的 HITL 命令（SPEC「HITL 提交身份的派生规则」）：提交身份由目标租户与 `replyId` 派生，操作者是入口主体的
- * `standingPrincipalRef`。`submit-reply` 与 `query-submit-reply` 用同一个派生，所以认回的是同一条命令。
- */
 function commandOf(request: Submission, principal: ActingForTenantPrincipal): SubmitReply {
   const { body } = request
   const tenantText = tenantTextOf(body.tenant)
-  // 形状与长度预算由 HITL 自己按它的模式核对，超出时 HITL 答 `invalid-input` 或 `limited`。
   return {
     protocol: PROTOCOL,
     operation: {
@@ -261,7 +235,6 @@ function commandOf(request: Submission, principal: ActingForTenantPrincipal): Su
   } as unknown as SubmitReply
 }
 
-/** 答复命令的结果到公开结果：三种成功都是 `succeeded`，以 `kind` 区分；失败按映射规则。 */
 function replyOutcomeOf(result: SubmitResult): Readonly<{ outcome: PublicOutcome; body: object }> {
   switch (result.kind) {
     case 'decided':
@@ -293,7 +266,6 @@ async function submitReply(
   try {
     result = await installation.faces.commands.submitReply(principal, commandOf(request, principal))
   } catch {
-    // 调用已经开始，提交可能已经成立：调用者用同一 `replyId` 原样再送，或用 `query-submit-reply` 认回。
     return hitlAnswer(request, 'unknown', {}, context.diagnostics)
   }
   if (result.kind === 'unknown') return hitlAnswer(request, 'unknown', {}, context.diagnostics)
@@ -301,13 +273,11 @@ async function submitReply(
   return hitlAnswer(request, outcome, body, context.diagnostics)
 }
 
-/** 原操作查询的结果到公开结果（公开契约「HITL 结果」表的 `query-submit-reply` 行）。 */
 function inspectionOutcomeOf(
   found: OperationInspection,
 ): Readonly<{ outcome: PublicOutcome; body: object }> {
   switch (found.kind) {
     case 'committed':
-      // 同一提交身份只属于答复命令。别的方法占着这个身份时，同一身份对应了不同内容。
       return found.method === 'submitReply'
         ? replyOutcomeOf(found.result as SubmitResult)
         : { outcome: 'conflict', body: {} }
@@ -328,7 +298,6 @@ async function querySubmitReply(
 ): Promise<Reply> {
   let found
   try {
-    // 摘要由 HITL 提供者给出，接入不另写摘要算法。
     const binding = installation.faces.bindSubmitReply(commandOf(request, principal))
     found = await installation.faces.queries.getOperation(principal, {
       protocol: PROTOCOL,
@@ -348,7 +317,6 @@ export async function handleHitl(bytes: Uint8Array, context: HitlContext): Promi
   if (read.kind !== 'request') return hitlProtocolRejected(read.response.messageId)
   const { request } = read
   const { installation } = context
-  // 部署声明不提供的操作在第 1 步之后立刻作答，不识别登录，也不调用 HITL。
   if (installation === undefined || UNPROVIDED.has(request.operation))
     return refusal('stage-not-provided', request.messageId)
   const principal = await admit(request, context)

@@ -1,5 +1,3 @@
-// The contribution types come from the protocol contract: a handler whose body or answer
-// disagrees with the contract, or a contribution that leaves out an operation, does not compile.
 import { expectTypeOf, test } from 'vitest'
 import { defineProtocol, ruleCodec } from '@omne-harness/public-contract'
 import type {

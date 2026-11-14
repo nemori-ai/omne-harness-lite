@@ -1,7 +1,3 @@
-// The session location (SPEC「会话位置」): the read dispatch, then the six steps of the public
-// contract's「会话判断次序」for the eight session operations, each reaching Session through the
-// derived identities, and the mapping of Session results to public outcomes. The diagnostics
-// projection reads Session first and the other sources after it (`session-view/`).
 import { readJsonBytes, type JsonLimits, type JsonValue } from '@omne-harness/json-text'
 import { judgeMessage, type Message } from '@omne-harness/message'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
@@ -62,7 +58,6 @@ export type SessionContext = Readonly<{
   registry: ObservationRegistry
   readLimits: JsonLimits
   diagnostics: DiagnosticSink | undefined
-  /** The read ports of the diagnostics projection and the sealer of its cursors. */
   ports: DiagnosticPorts<ActingForTenantPrincipal>
   cursors: DiagnosticsCursors
 }>
@@ -70,7 +65,6 @@ export type SessionContext = Readonly<{
 type Request = SessionRequest
 type Reply = JsonAnswer | NoAnswer
 
-/** A reply with the outcome it carries, so the caller knows a `succeeded` without reading bytes. */
 type Replied = Readonly<{ outcome: PublicOutcome; reply: Reply }>
 
 function answererOf(
@@ -83,7 +77,6 @@ function answererOf(
   })
 }
 
-/** A plain value of a json-text tree, for the message package. Keys are defined, never assigned. */
 function plainOf(value: JsonValue): unknown {
   switch (value.kind) {
     case 'null':
@@ -109,7 +102,6 @@ function plainOf(value: JsonValue): unknown {
   }
 }
 
-/** Step 1's second half for `send-input`: the message package admits the message and its role is `user`. */
 function decodeUserMessage(wire: JsonValue): Message | undefined {
   const judged = judgeMessage(plainOf(wire))
   return 'ok' in judged && judged.ok.role === 'user' ? judged.ok : undefined
@@ -135,11 +127,8 @@ function failureOutcome(failure: SessionFailure): PublicOutcome {
     case 'frozen':
       return 'frozen'
     case 'unsupported':
-      // Only `stopCall` returns it (session-contract `SessionFailure`); the public table maps it
-      // to `unsupported` for any producer kind. For another operation the encoder refuses it.
       return 'unsupported'
     default:
-      // A kind outside the public result set of the operation: the entry cannot say allowed now.
       return 'basis-unavailable'
   }
 }
@@ -171,7 +160,6 @@ function pageOf(page: HistoryPage): SessionSuccessBodies['read-history'] {
   }
 }
 
-/** Whether a `pageBytes` text (digits only, no leading zero) is within the deployment bound. */
 function withinPageBound(pageBytes: string, bound: number): boolean {
   const boundText = String(bound)
   return (
@@ -182,7 +170,6 @@ function withinPageBound(pageBytes: string, bound: number): boolean {
 
 type Target = Readonly<{ tenant: TenantId; tenantText: string; session: SessionId }>
 
-/** Steps 2 to 4 for one request: the caller, then the acting principal for the target tenant. */
 async function admit(
   request: Request,
   context: SessionContext,
@@ -193,7 +180,6 @@ async function admit(
   const caller = await context.steps.recognize(request.proof)
   if (isRefusal(caller)) return caller
   const tenant = request.operation === 'create-session' ? request.actingTenant : request.body.tenant
-  // Step 3: only create-session has an acting tenant; it must be the login's current selection.
   if (request.operation === 'create-session' && !sameTenant(tenant, caller.tenant))
     return { outcome: 'denied' }
   const principal = await context.steps.actingFor(caller, tenant)
@@ -212,7 +198,6 @@ function sameTenant(left: TenantId, right: TenantId): boolean {
 
 type Admitted = Readonly<{ caller: Caller; principal: ActingForTenantPrincipal; target: Target }>
 
-/** A commit-class Session call: a throw after the call began is `unknown` with a body. */
 async function commitCall<T>(
   call: () => Promise<T>,
   operation: Request['operation'],
@@ -226,7 +211,6 @@ async function commitCall<T>(
   }
 }
 
-/** A read-class Session call: a throw is `basis-unavailable`, nothing was committed. */
 async function readCall<T>(
   call: () => Promise<T>,
   operation: Request['operation'],
@@ -246,12 +230,8 @@ async function createSession(
   context: SessionContext,
 ): Promise<Replied> {
   const answer = answererOf(request, context)
-  // Step 5: the definition must be in the deployment mapping. A throwing mapping is the entry's own fault.
   const resolved = context.resolveDefinition(request.body.definition)
   if (resolved === undefined) return answer('invalid', {})
-  // A mapped definition without an initial model selection is a gap of the deployment, not of the
-  // caller's message. The session would stay unable to read its model selection and never start a
-  // run, so the entry refuses before Session is called. The wire outcome of Session `unavailable`.
   const initialModelSelection = resolved.initialModelSelection
   if (initialModelSelection === undefined) {
     emit(context.diagnostics, {
@@ -320,7 +300,6 @@ async function queryOperation(
     case 'committed':
       return answer('succeeded', isCreate ? { session: target.session } : {})
     case 'not-committed':
-      // A creation that never committed means the session does not exist: denied, not disclosed.
       return answer(isCreate ? 'denied' : 'not-committed', {})
     case 'attempt-rejected':
     case 'unknown':
@@ -370,7 +349,6 @@ async function readHistory(
   const { target } = admitted
   const access = { principal: admitted.principal, tenant: target.tenant, session: target.session }
   const { body } = request
-  // Step 5: pageBytes within the deployment bound.
   if (body.cursor === null && !withinPageBound(body.pageBytes, context.config.maxPageBytes))
     return answer('invalid', {})
   const result = await readCall(
@@ -394,11 +372,6 @@ async function readHistory(
 }
 
 type DiagnosticsRequest = SessionRequest<'read-session-diagnostics'>
-/**
- * Where a read starts. `upper` is the Session upper bound the first page of this scan read, sealed
- * in the cursor; null on a first page. A continued page reads toward older entries and sees nothing
- * appended after that bound, so the basis of the whole scan is the first page's (SL10).
- */
 type DiagnosticsStart = Readonly<{
   run: string | null
   pageBytes: number
@@ -406,7 +379,6 @@ type DiagnosticsStart = Readonly<{
   upper: string | null
 }>
 
-/** The configured projection: the three fields come together (`checkConfig`), so one decides. */
 function diagnosticsConfig(
   config: ServerEntryConfig,
 ): Readonly<{ kinds: readonly string[]; limits: DiagnosticsLimits }> | undefined {
@@ -422,7 +394,6 @@ function diagnosticsConfig(
   }
 }
 
-/** Step 5 of read-session-diagnostics: the page bound on a first page, the sealed cursor on a next one. */
 function diagnosticsStart(
   body: DiagnosticsRequest['body'],
   target: Target,
@@ -446,7 +417,6 @@ async function readSessionDiagnostics(
 ): Promise<Replied> {
   const answer = answererOf(request, context)
   const { target } = admitted
-  // A deployment without the projection configured has no basis to answer from (step 5).
   const configured = diagnosticsConfig(context.config)
   if (configured === undefined) return answer('basis-unavailable', {})
   const start = diagnosticsStart(request.body, target, context)
@@ -531,7 +501,6 @@ async function cancelRun(
   }
 }
 
-/** A Tool target keeps Session's access and availability answers; every other answer is `unsupported`. */
 function toolTargetOutcome(result: Outcome<unknown, SessionFailure>): PublicOutcome {
   if ('failure' in result) {
     const { kind } = result.failure
@@ -550,9 +519,6 @@ async function stopCall(
   const { caller, target } = admitted
   const { controlId, producer } = request.body
   const operation = controlOperation(caller.loginText, target.tenantText, target.session, controlId)
-  // Session judges the access first, so `denied` and unavailability come from it. For a Tool
-  // target the public answer is `unsupported` whatever else Session says: the entry does not
-  // pre-empt the access judgment, and it discloses no business result for a Tool target.
   const result = await commitCall(
     () =>
       context.faces.work.stopCall({
@@ -590,7 +556,6 @@ async function stopCall(
 }
 
 async function handleRequest(request: Request, context: SessionContext): Promise<Reply> {
-  // The rest of step 1 for send-input happens before any identity call.
   let message: Message | undefined
   if (request.operation === 'send-input') {
     message = decodeUserMessage(request.body.message)
@@ -606,8 +571,6 @@ async function handleRequest(request: Request, context: SessionContext): Promise
       context.diagnostics,
     )
   const { outcome, reply } = await operate(request, message, admitted, context)
-  // A `succeeded` that reaches the wire is a successful business access of this login (identity
-  // ID-18). The report starts after the answer is written; nothing waits for it.
   if (outcome === 'succeeded' && reply.kind === 'json')
     return {
       ...reply,
@@ -652,7 +615,6 @@ function operate(
   }
 }
 
-/** Answers one session-location message: the read dispatch, then the judgment order. */
 export async function handleSession(bytes: Uint8Array, context: SessionContext): Promise<Answer> {
   const strict = readJsonBytes(bytes, context.readLimits)
   const observation = strict.kind === 'ok' ? selectsObservation(strict.value) : undefined

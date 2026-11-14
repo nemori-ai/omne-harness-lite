@@ -1,5 +1,3 @@
-// On real Cordis 4.0.4, unloading the plugin that mounted a contribution is the take-down: the
-// protocol leaves the registry at once and the unload waits for the last in-flight call. No double.
 import { Context, Service, type Fiber } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import type { AccessContribution } from '@omne-harness/access-cordis-contract'
@@ -25,7 +23,6 @@ const limits = {
 }
 const flush = () => new Promise<void>(resolve => setImmediate(resolve))
 
-/** Loads the registry provider and one access plugin that mounts `contribution`. */
 async function assemble(contribution: AccessContribution<NotesProtocol>) {
   const root = new Context()
   await root.plugin(AccessRegistryProvider)
@@ -143,7 +140,6 @@ describe('the registry on real Cordis', () => {
   })
 })
 
-/** A domain service the access plugin takes at each call; it comes and goes on its own. */
 class NoteStore extends Service {
   readonly title = 'stored'
   constructor(ctx: Context) {
@@ -202,7 +198,6 @@ describe('defineAccessPlugin on real Cordis (C11)', () => {
     })
     await flush()
     expect(mounted()).toEqual(['notes/v1'])
-    // The domain service is not there: the call answers basis-unavailable, the protocol stays.
     expect(await readNote(provider)).toEqual({ outcome: 'basis-unavailable' })
     let store: Fiber | undefined
     await root.plugin({

@@ -1,6 +1,3 @@
-// The HTTP transport of the client core against a stub server that answers outside the binding
-// (#1249 C13, C14): every such answer is `uncertain`, and the headers carry what the credential
-// source gives.
 import { afterEach, describe, expect, it } from 'vitest'
 import { createHttpProtocolTransport } from '@omne-harness/sdk/core'
 import { jsonReply, startLoopback, type LoopbackServer, type Reply } from './support/loopback.ts'

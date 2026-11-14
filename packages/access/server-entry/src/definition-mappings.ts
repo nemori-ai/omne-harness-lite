@@ -1,7 +1,3 @@
-// The definition name mapping of a deployment: the Cordis service definition and the table shape.
-// The mapping is release-layer data. One producer parses it once and hands the same read-only table
-// to every consumer, so each consumer sees one content identity. This member owns the shape and the
-// key. It parses nothing and reads no configuration.
 import { createHash } from 'node:crypto'
 import { Service, type Context } from '@deepseek-ai/cordis'
 import type {
@@ -11,17 +7,6 @@ import type {
   SessionAdoptionPlanInput,
 } from '@omne-harness/session-contract'
 
-/**
- * What one public definition name resolves into: the parts of a session creation that the public
- * message does not carry. `modes` are the explicit defaults of this definition. The first path reads
- * no tenant setting.
- *
- * `residentCapabilities` names the resident tools that a session of this definition adopts at
- * `create`, as the capability names of the adoption point input (`SessionAdoptionPlanInput`). The
- * mapping names them only: their authority, shape and key come from the deployment's tool sources
- * when the session is created, and a name that those sources cannot resolve fails the creation. An
- * absent field adopts no resident tool.
- */
 export type DefinitionMappingEntry = Readonly<{
   name: string
   candidate: Adoption
@@ -33,13 +18,10 @@ export type DefinitionMappingEntry = Readonly<{
   residentCapabilities?: SessionAdoptionPlanInput['capabilities']
 }>
 
-/** The read-only table. `identity` marks the whole parsed table and does not depend on the tenant. */
 export interface DefinitionMappings {
   readonly identity: string
-  /** The same array on every call: two consumers of one table see one object. */
   entries(): readonly DefinitionMappingEntry[]
   byName(name: string): DefinitionMappingEntry | undefined
-  /** The entry whose candidate is exactly this adoption (owner, name, revision and digest). */
   byCandidate(candidate: Adoption): DefinitionMappingEntry | undefined
 }
 
@@ -67,7 +49,6 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-/** The text of a plain value with sorted object keys. Members that are `undefined` are left out. */
 export function canonicalText(value: unknown): string {
   if (value === undefined || value === null) return 'null'
   if (Array.isArray(value)) return `[${value.map(canonicalText).join(',')}]`
@@ -81,18 +62,12 @@ export function canonicalText(value: unknown): string {
   return JSON.stringify(value)
 }
 
-/** The digest of the canonical text of a plain value. Equal content gives an equal digest. */
 export function contentDigest(value: unknown): string {
   return `sha256:${createHash('sha256').update(canonicalText(value)).digest('hex')}`
 }
 
 const OWNER = '@omne-harness/server-entry'
 
-/**
- * The adoption that stands for the modes of one entry. The public creation names it as the source of
- * the tenant default, and the evidence of the same table resolves it back. Its digest covers the
- * modes, so a change of a default also changes the creation material.
- */
 export function modesAdoptionOf(entry: DefinitionMappingEntry): Adoption {
   return Object.freeze({
     owner: OWNER,
@@ -102,7 +77,6 @@ export function modesAdoptionOf(entry: DefinitionMappingEntry): Adoption {
   })
 }
 
-/** The shape that the server entry takes from a definition resolver (same fields, same meaning). */
 export type MappedDefinition = Readonly<{
   candidate: Adoption
   execution: Adoption
@@ -112,7 +86,6 @@ export type MappedDefinition = Readonly<{
   initialModelSelection?: SavedModelSelection
 }>
 
-/** A resolver over one table. An unknown name gives `undefined`, never a default definition. */
 export function definitionResolverOf(
   mappings: DefinitionMappings,
 ): (name: string) => MappedDefinition | undefined {

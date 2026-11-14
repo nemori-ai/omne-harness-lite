@@ -1,10 +1,3 @@
-// The demonstration command of the new address (#1233 C14, #1249 C6). From packages/access/server-entry run
-//   node --conditions=source tests/fixtures/pipeline-demo.ts [--serve]
-// It starts an entry given `access`, mounts the test protocol notes/v1 (in no release) and a test
-// identity port, sends a series of requests and prints each request and answer, then opens
-// observations and prints their events. With --serve it mounts the protocol again afterwards
-// (`watch-note` then sends one frame a second), prints the port and curl commands to copy, and
-// stays up until Ctrl+C.
 import { createAccessRegistry } from '../../src/index.ts'
 import { send, startFixture, type HttpReply } from '../support/harness.ts'
 import {
@@ -24,7 +17,6 @@ const identity = testIdentity()
 let notes = scriptedNotes()
 let takeDown = registry.mount(notes.contribution)
 const fixture = await startFixture({
-  // Served for a person, the heartbeat is the deployment's 15 seconds, not the tests' 40 ms.
   ...(serve ? { config: { heartbeatIntervalMs: 15_000 } } : {}),
   access: {
     registry,
@@ -45,7 +37,6 @@ type Request = Readonly<{
   body: string
 }>
 
-/** A long body is shown by its head and its size. */
 function shown(body: string): string {
   if (body === '') return '(empty)'
   return body.length <= 80 ? body : `${body.slice(0, 40)}… (${Buffer.byteLength(body)} bytes)`
@@ -129,7 +120,6 @@ await show('the handler of a commit throws', legal('save-note', '{"noteId":"n-1"
 delete notes.scripts['read-note']
 delete notes.scripts['save-note']
 
-// Observations (#1249): the event stream, replacement under the same message id, the take-down.
 const events = (client: ReturnType<typeof observe>): string =>
   client.chunks
     .join('')

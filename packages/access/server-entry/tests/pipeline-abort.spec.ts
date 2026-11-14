@@ -1,7 +1,3 @@
-// Cut short (#1233 spec 已定 12, 13; C8, C13): a take-down answers a call waiting on the identity
-// port or on its body at once; a caller who goes away gets no handler call before the handler
-// starts and does not stop it after; stopping the entry waits for the calls in flight. The moments
-// come from the test identity's and the handlers' own records, never from a timed wait.
 import { getEventListeners } from 'node:events'
 import { connect, type Socket } from 'node:net'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -30,11 +26,9 @@ afterEach(async () => {
 
 type OpenCall = {
   readonly socket: Socket
-  /** Everything the server wrote, once it ends the connection. */
   readonly reply: Promise<string>
 }
 
-/** Sends the request head and `sent` bytes of the body, and keeps the connection open. */
 function openCall(name: string, body: string, sent: number): Promise<OpenCall> {
   return new Promise((resolve, reject) => {
     const socket = connect({ host: '127.0.0.1', port: fixture.port }, () => {
@@ -53,7 +47,6 @@ function openCall(name: string, body: string, sent: number): Promise<OpenCall> {
   })
 }
 
-/** Lets the event loop turn until `ready` holds. Bounded by the case's time limit, not by a clock. */
 async function until(ready: () => boolean): Promise<void> {
   while (!ready()) await turn()
 }

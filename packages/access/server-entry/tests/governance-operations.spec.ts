@@ -1,7 +1,3 @@
-// The eighteen governed operations of the governance location (identity spec F2, F3): steps 4 and 6
-// here, the rest through identity's governance port, every port outcome mapped to its public
-// outcome, body and status code; a uniform `denied` and `not-visible`; the two classes of port
-// rejection; and diagnostics without a proof, credential, login identifier or login id.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { IdentityGovernance, IdentityOperations } from '@omne-harness/identity'
 import { parseDuration } from '@omne-harness/utc-instant'
@@ -36,7 +32,6 @@ function json(reply: HttpReply): Json {
   return reply.json as Json
 }
 
-/** Sends one governed message of `who`. `acting` null leaves the acting tenant out. */
 function call(
   who: Login,
   operation: string,
@@ -50,7 +45,6 @@ function call(
   })
 }
 
-/** Asserts the status code and the outcome, and returns the body. */
 function expectAnswer(
   reply: HttpReply,
   status: number,
@@ -64,7 +58,6 @@ function expectAnswer(
 const MODEL = 'default-team'
 const UNKNOWN_LOGIN = 'lgn_abcdefghjkmnpqrstvwxyz2345'
 
-/** A login acting for another tenant: the same proof, the tenant it switched to. */
 function actingAs(who: Login, tenantText: string): Login {
   return { ...who, tenantText }
 }
@@ -75,7 +68,6 @@ describe('organizations, current tenant and invitations', () => {
     const alice = await login(fixture, 'alice')
     const bob = await login(fixture, 'bob')
 
-    // create-organization and its recall.
     const create = { createCallId: 'c-1', name: 'Team', governanceModelId: MODEL }
     const created = expectAnswer(
       await call(alice, 'create-organization', create),
@@ -131,7 +123,6 @@ describe('organizations, current tenant and invitations', () => {
     expect(expectAnswer(unknownRecall, 500, 'unknown', 'recall unknown')).toEqual({})
     expect(unknownRecall.headers.connection).not.toBe('close')
 
-    // switch-current-tenant and query-current-tenant.
     expect(
       expectAnswer(
         await call(alice, 'switch-current-tenant', { tenantId: aliceTeam }),
@@ -155,7 +146,6 @@ describe('organizations, current tenant and invitations', () => {
       expectAnswer(await call(alice, 'query-current-tenant', {}, null), 200, 'succeeded', 'cur'),
     ).toEqual({ tenantId: aliceTeam })
 
-    // issue-member-invitation.
     const issued = expectAnswer(
       await call(aliceT, 'issue-member-invitation', { invitedLoginIdentifier: 'bob' }),
       200,
@@ -196,7 +186,6 @@ describe('organizations, current tenant and invitations', () => {
       'issue with an acting tenant that is not the selection',
     )
 
-    // The three invitation reads.
     const received = expectAnswer(
       await call(bob, 'query-received-invitations', {}, null),
       200,
@@ -243,7 +232,6 @@ describe('organizations, current tenant and invitations', () => {
       'an unknown invitation',
     )
 
-    // Accept, reject and withdraw, and their replays.
     const disposition = (invitationId: string) => ({ invitationId, expectedState: 'open' })
     expect(
       expectAnswer(
@@ -521,7 +509,6 @@ describe('logins', () => {
         >[]
       ).map(item => item.loginId),
     ).toEqual([alice.loginId])
-    // Bob's login is still valid: the foreign target was not touched.
     expectAnswer(
       await call(bob, 'revoke-login', { targetLoginId: alice.loginId }, null),
       404,
@@ -543,11 +530,9 @@ describe('not-visible-uniform', () => {
     expect(foreignLogin.status).toBe(404)
     expect(foreignLogin.text).toBe(unknownLogin.text)
     expect(foreignLogin.headers['content-length']).toBe(unknownLogin.headers['content-length'])
-    // Control: the same account's own target is visible, so the answer differs.
     const own = await call(alice, 'revoke-login', { targetLoginId: alice.loginId }, null)
     expect(own.status).toBe(200)
 
-    // An invitation between two other accounts and an unknown one.
     const created = json(
       await call(bob, 'create-organization', {
         createCallId: 'c-1',
@@ -565,9 +550,7 @@ describe('not-visible-uniform', () => {
     const unknownInvitation = await call(dave, 'query-invitation', { invitationId: 'inv-none' })
     expect(foreignInvitation.status).toBe(404)
     expect(foreignInvitation.text).toBe(unknownInvitation.text)
-    // Control: the invited account sees it.
     expect((await call(carol, 'query-invitation', { invitationId: invitation })).status).toBe(200)
-    // Unknown invited identifier and an organization never joined: the same not-visible bytes.
     const unknownInvitee = await call(bobT, 'issue-member-invitation', {
       invitedLoginIdentifier: 'nobody',
     })
@@ -654,7 +637,6 @@ describe('denied is uniform', () => {
     fixture.clock.advanceBy(half.value)
     expectAnswer(await call(alice, 'query-current-tenant', {}, null), 200, 'succeeded', 'in time')
     fixture.clock.advanceBy(half.value)
-    // 800 s since issue and only governance reads in between: the 600 s idle period has passed.
     expectAnswer(await call(alice, 'query-current-tenant', {}, null), 403, 'denied', 'expired')
   })
 })
@@ -678,7 +660,6 @@ describe('steps 4 and 6 before the port', () => {
     const otherActing = await call(alice, 'issue-member-invitation', invite, bob.tenantText)
     expect([forged.status, otherActing.status]).toEqual([403, 403])
     expect(reached).toEqual([])
-    // Control: the selection as acting tenant reaches the port, which answers for the personal organization.
     const own = await call(alice, 'issue-member-invitation', invite)
     expect(own.status).toBe(403)
     expect(reached).toEqual([alice.accountText])
@@ -705,12 +686,10 @@ describe('steps 4 and 6 before the port', () => {
       }),
     ).body
     const teamTenant = created.tenantId as string
-    // The selection is still the personal tenant: the team tenant of the same account is not it.
     const invite = { invitedLoginIdentifier: 'bob' }
     const refused = await call(alice, 'issue-member-invitation', invite, teamTenant, 'm-r')
     expect(expectAnswer(refused, 403, 'denied', 'same account, other organization')).toEqual({})
     expect(reached).toEqual([])
-    // Control: after the switch the same acting tenant reaches the port and succeeds.
     await call(alice, 'switch-current-tenant', { tenantId: teamTenant })
     const accepted = await call(alice, 'issue-member-invitation', invite, teamTenant)
     expectAnswer(accepted, 200, 'succeeded', 'after the switch')
@@ -777,7 +756,6 @@ describe('the governance port fails', () => {
   })
 
   it('passes a basis-unavailable of the port through, after the login check', async () => {
-    // An assembly that reads the provider per call answers this way while the provider is absent.
     fixture = await startFixture({
       governance: (base): IdentityGovernance => ({
         ...base,
@@ -794,7 +772,6 @@ describe('the governance port fails', () => {
         'port basis-unavailable',
       ),
     ).toEqual({})
-    // The login is still checked first: a bad proof is denied, not basis-unavailable.
     expectAnswer(
       await call({ ...alice, loginProof: 'forged' }, 'query-current-tenant', {}, null),
       403,
@@ -853,7 +830,6 @@ describe('diagnostics-no-secret', () => {
     ])
       expect(diagnostics).not.toContain(secret)
     expect(diagnostics).not.toMatch(/lgn_[0-9a-z]{26}/)
-    // Control: the search sees a login id where the protocol places it.
     expect(replies[0]?.text).toContain(alice.loginId)
   })
 })

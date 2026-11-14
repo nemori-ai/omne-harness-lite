@@ -1,11 +1,3 @@
-// The client assembly on Cordis (RFC-0015 §6「客户端装配」, §13「客户端：树上的一个协议客户端」,
-// #1249 C16, C17). `connectionPlugin` provides the service `connection`: the transport, the
-// availability view, and the login state. It subscribes to `access/v1` at once, resubscribes on a
-// change frame off its base, and reconnects with backoff when the observation breaks; while it
-// reconnects the view stays and no protocol client is withdrawn. `defineProtocolClient` gives a
-// plugin that provides `protocol:<name>/v<major>` while the view says the protocol is open, and
-// withdraws it when it closes: first it marks the client, so its methods answer `unavailable`
-// locally, then it unregisters the service.
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
 import { accessProtocol, type ProtocolContract } from '@omne-harness/public-contract'
 import { createClient, type ClientOf, type ReadRetry, type Transport } from '@omne-harness/sdk/core'
@@ -20,15 +12,12 @@ import {
 
 export type LoginState = 'signed-out' | 'signing-in' | 'signed-in' | 'signing-out'
 
-/** Where the login state comes from. How a login happens is the identity protocol's; not here. */
 export interface LoginStateSource {
   state(): LoginState
   subscribe(listener: (state: LoginState) => void): () => void
 }
 
-/** One diagnostic of the client assembly. */
 export type AssemblyDiagnostic = {
-  /** The view says a protocol is open and no protocol client of it is on the tree. */
   readonly code: 'protocol-client-missing'
   readonly protocol: ProtocolKey
 }
@@ -36,7 +25,6 @@ export type AssemblyDiagnostic = {
 export interface Connection {
   readonly transport: Transport
   readonly availability: {
-    /** The protocols open in the last view; empty before the first snapshot. */
     current(): ReadonlySet<ProtocolKey>
     isOpen(key: ProtocolKey): boolean
     subscribe(listener: (open: ReadonlySet<ProtocolKey>) => void): () => void
@@ -45,7 +33,6 @@ export interface Connection {
     state(): LoginState
     subscribe(listener: (state: LoginState) => void): () => void
   }
-  /** A protocol client says it is on the tree; returns the way to say it left. */
   readonly claim: (key: ProtocolKey) => () => void
   readonly readRetry: ReadRetry | undefined
 }
@@ -61,7 +48,6 @@ export type ConnectionOptions = {
   readonly login: LoginStateSource
   readonly backoff?: Backoff
   readonly diagnostics?: (event: AssemblyDiagnostic) => void
-  /** Waits `ms`, or less when `signal` aborts. Absent: `setTimeout`. */
   readonly sleep?: (ms: number, signal: AbortSignal) => Promise<void>
   readonly readRetry?: Pick<ReadRetry, 'delayMs'>
 }
@@ -78,7 +64,6 @@ function timerSleep(ms: number, signal: AbortSignal): Promise<void> {
   })
 }
 
-/** The availability as the connection holds it, with its listeners and the claimed keys. */
 function availabilityState(diagnostics: ConnectionOptions['diagnostics']) {
   let view: AvailabilityView | undefined
   let current: ReadonlySet<ProtocolKey> = new Set()
@@ -169,7 +154,6 @@ export class ConnectionService extends Service implements Connection {
     this.readRetry =
       options.readRetry === undefined ? undefined : { delayMs: options.readRetry.delayMs, wait }
 
-    /** One subscription; answers whether it broke or saw a frame off its base. */
     async function follow(stopped: AbortSignal): Promise<'broke' | 'off-base'> {
       const subscription = new AbortController()
       const stop = (): void => subscription.abort()
@@ -196,7 +180,6 @@ export class ConnectionService extends Service implements Connection {
         const revision = state.view()?.revision
         const outcome = await follow(stopped)
         if (outcome === 'off-base' || stopped.aborted) continue
-        // A subscription that saw a frame starts the backoff over.
         attempt = state.view()?.revision === revision ? attempt + 1 : 1
         await sleep(backoff.delayMs(attempt - 1), stopped)
       }
@@ -213,7 +196,6 @@ export class ConnectionService extends Service implements Connection {
   }
 }
 
-/** The plugin that puts `connection` on the tree. */
 export function connectionPlugin(options: ConnectionOptions): Plugin.Object {
   return {
     name: 'connection-host',
@@ -223,12 +205,6 @@ export function connectionPlugin(options: ConnectionOptions): Plugin.Object {
   }
 }
 
-/**
- * A client whose methods answer `unavailable` once `revoked` is set, and whose observations end.
- * A call under way when `revoked` is set ends locally: the mark aborts it, so a send that did not
- * leave answers `unavailable` and is not sent again, and one that may have left answers
- * `uncertain`.
- */
 function guarded<P extends ProtocolContract>(
   protocol: P,
   client: ClientOf<P>,
@@ -261,11 +237,9 @@ function guarded<P extends ProtocolContract>(
     observers[name] = (open: unknown, options: { signal: AbortSignal; messageId?: string }) => {
       if (revoked.aborted)
         return (async function* () {
-          // No frame: the observation ends at once.
           yield* []
           return { kind: 'unavailable' }
         })()
-      // The subscription handle ends when the protocol client is withdrawn.
       return rawObservers[name]!(open, {
         ...options,
         signal: AbortSignal.any([options.signal, revoked]),
@@ -275,13 +249,8 @@ function guarded<P extends ProtocolContract>(
   return guardedClient as ClientOf<P>
 }
 
-/** The tree's service name of a protocol client. */
 export const protocolServiceName = (key: ProtocolKey): string => `protocol:${keyText(key)}`
 
-/**
- * The plugin of one protocol's client. It depends on `connection`, and provides
- * `protocol:<name>/v<major>` (value `ClientOf<P>`) while the availability says the protocol is open.
- */
 export function defineProtocolClient<P extends ProtocolContract>(protocol: P): Plugin.Object {
   const key: ProtocolKey = { name: protocol.name, major: protocol.major }
   const service = protocolServiceName(key)
@@ -296,7 +265,6 @@ export function defineProtocolClient<P extends ProtocolContract>(protocol: P): P
         if (provided === undefined) return Promise.resolve()
         const { revoke, withdraw: unregister } = provided
         provided = undefined
-        // Marked first: from here on every method answers `unavailable`, also through old handles.
         revoke.abort()
         return unregister()
       }

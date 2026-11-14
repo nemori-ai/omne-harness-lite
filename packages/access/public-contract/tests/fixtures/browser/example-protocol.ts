@@ -1,5 +1,3 @@
-// An example protocol contract that proves the common contract's way of writing one. It is
-// not a domain's protocol: no deployment opens it.
 import { defineProtocol, ruleCodec } from '@omne-harness/public-contract'
 
 const empty = ruleCodec({ kind: 'object', fields: {} })

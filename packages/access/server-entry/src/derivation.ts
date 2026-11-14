@@ -1,7 +1,3 @@
-// The identities this entry derives from the caller's own identifiers (handoff「派生身份」, SPEC
-// 「SessionOperationId 的派生规则」). Operation identities use Session's `deriveIngressOperation`;
-// the session and input identities and the login-entry digest take the SHA-256 of the JSON text of
-// an array, as the handoff fixes. No time, random number or `messageId` enters any identity.
 import { createHash } from 'node:crypto'
 import {
   loginStateCodec,
@@ -20,7 +16,6 @@ function sha256Hex(parts: readonly string[]): string {
   return createHash('sha256').update(JSON.stringify(parts)).digest('hex')
 }
 
-/** The tenant text of a minted tenant. Throws TypeError for an unminted value: a caller bug, not an input. */
 export function tenantTextOf(tenant: TenantId): string {
   const encoded = tenantCodec.encode(tenant)
   if (!encoded.ok) throw new TypeError('server-entry: tenant is not a minted TenantId')
@@ -33,15 +28,10 @@ export function loginTextOf(login: LoginStateId): string {
   return encoded.value
 }
 
-/** The session identity text: 64 lowercase hexadecimal characters. */
 export function sessionIdentity(tenantText: string, createCallId: string): string {
   return sha256Hex(['session-public/1:session', tenantText, createCallId])
 }
 
-/**
- * The submission identity of a HITL reply (SPEC「HITL 提交身份的派生规则」): the same tenant and
- * `replyId` give the same identity before and after a crash and under any login.
- */
 export function hitlReplyIdentity(tenantText: string, replyId: string): string {
   return sha256Hex(['hitl-public/1-reply', tenantText, replyId])
 }
@@ -76,7 +66,6 @@ export function controlOperation(
   ])
 }
 
-/** The login-entry evidence an ordinary input carries as its origin (handoff「普通输入的来源与登录门」). */
 export function loginEntryOrigin(accountText: string, loginText: string): DurableEvidence {
   return {
     owner: 'login-entry',

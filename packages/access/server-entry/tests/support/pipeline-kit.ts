@@ -1,6 +1,3 @@
-// The pipeline's test kit (#1233): a test implementation of the identity port, a registry that
-// records every `enter` and `leave`, a contribution whose handlers each case scripts, and the
-// helpers that send requests to the new address. None of it is in any release.
 import type {
   AccessContribution,
   AccessIdentity,
@@ -36,13 +33,10 @@ export const PROOF = 'proof-alice-7f3c'
 export const OTHER_PROOF = 'proof-bob-91aa'
 export const TENANT = 'tenant-acme'
 export const MESSAGE_ID = 'msg-0001'
-/** Long enough that only the case's own clock can end it. */
 export const GRACE_MS = 60_000
-/** The frame queue bound of the fixture: a few frames of a few kilobytes fit, a flood does not. */
 export const FRAME_QUEUE_BYTES = 64 * 1024
 export const AVAILABILITY_BACKLOG = 4
 
-/** A deferred value the case settles by hand. */
 export type Held<T> = {
   readonly promise: Promise<T>
   readonly resolve: (value: T) => void
@@ -59,7 +53,6 @@ export function held<T>(): Held<T> {
   return { promise, resolve, reject }
 }
 
-/** What one method of the test identity does on its next calls. */
 export type Behaviour<T> =
   | { readonly kind: 'answer'; readonly value: T }
   | { readonly kind: 'throw' }
@@ -74,16 +67,12 @@ export type IdentityCall =
 export type TestIdentity = {
   readonly port: AccessIdentity
   readonly calls: IdentityCall[]
-  /** The login object each known proof is recognised as. */
   readonly logins: ReadonlyMap<string, LoginIdentity>
-  /** The principal `actFor` issues for a login, the same object each time. */
   readonly principalOf: (login: LoginIdentity, tenant: string) => Principal
   identifyLogin?: Behaviour<LoginResult>
   actFor?: Behaviour<ActForResult>
   reportAccess?: Behaviour<void>
-  /** Settles once the method has been called `count` times in all. */
   readonly called: (method: IdentityCall['method'], count?: number) => Promise<void>
-  /** Settles once a call of the method has returned or thrown `count` times in all. */
   readonly returned: (method: IdentityCall['method'], count?: number) => Promise<void>
 }
 
@@ -104,10 +93,6 @@ function run<T>(behaviour: Behaviour<T>): Promise<T> {
   }
 }
 
-/**
- * The identity port of the cases: a table from proof to login. An unknown proof is `denied`;
- * `actFor` issues for any non-empty tenant. A case can set what a method does next.
- */
 export function testIdentity(): TestIdentity {
   const logins = new Map<string, LoginIdentity>([
     [PROOF, opaque<LoginIdentity>('login-alice')],
@@ -192,15 +177,11 @@ export function testIdentity(): TestIdentity {
 
 export type RegistryLog = {
   readonly registry: AccessRegistry
-  /** One line per `enter` that returned a member, and whether its `leave` has been called. */
   readonly entries: { readonly name: string; left: boolean }[]
-  /** How many times `leave` was called for each line of `entries`, same order (#1249 C5). */
   readonly leaveCounts: number[]
-  /** The abort signals `enter` handed out, one per mount. */
   readonly signals: Set<AbortSignal>
 }
 
-/** Wraps a registry so a case can see each `enter` and `leave` the pipeline makes. */
 export function recordingRegistry(inner: AccessRegistry): RegistryLog {
   const entries: { name: string; left: boolean }[] = []
   const leaveCounts: number[] = []
@@ -237,10 +218,6 @@ type Operations = PipelineNotesProtocol['operations']
 type Observations = PipelineNotesProtocol['observations']
 type ObservationName = keyof Observations & string
 
-/**
- * One opened observation of a case: a frame source the case drives. It ends when the case says,
- * or with `unavailable` once the hub aborts it (the source listens to its signal, as a real one must).
- */
 export type Feed = {
   readonly name: ObservationName
   readonly context: ObservationContext<any>
@@ -248,9 +225,7 @@ export type Feed = {
   readonly push: (frame: unknown) => void
   readonly finish: (reason: string) => void
   readonly fail: () => void
-  /** Settles when the generator ran its `finally`: it wound down. */
   readonly returned: Promise<void>
-  /** How many frames the hub has taken from it. */
   taken: number
 }
 
@@ -309,15 +284,10 @@ export type HandlerCall = {
 export type ScriptedNotes = {
   readonly contribution: AccessContribution<PipelineNotesProtocol>
   readonly calls: HandlerCall[]
-  /** Every frame source the hub opened, in order. */
   readonly feeds: Feed[]
-  /** What an observation's frame source does on its next openings; absent, it opens a feed. */
   readonly sources: Partial<Record<ObservationName, FrameSource<any>>>
-  /** Settles once frame sources have opened `count` feeds in all. */
   readonly opened: (count?: number) => Promise<Feed>
-  /** What an operation does on its next calls; absent, it answers `succeeded`. */
   readonly scripts: Partial<Record<keyof Operations & string, Script>>
-  /** Settles once handlers have been called `count` times in all. */
   readonly called: (count?: number) => Promise<void>
 }
 
@@ -387,17 +357,14 @@ export function scriptedNotes(): ScriptedNotes {
 }
 
 export type AccessFixture = Omit<Fixture, 'diagnostics'> & {
-  /** The entry's diagnostics and the pipeline's, in the order they came. */
   readonly diagnostics: (ServerEntryDiagnostic | AccessDiagnostic)[]
   readonly accessIdentity: TestIdentity
   readonly log: RegistryLog
   readonly notes: ScriptedNotes
   readonly accessClock: ManualClock
-  /** Takes the notes protocol down; settles when its last in-flight call has left. */
   readonly takeDown: () => Promise<void>
 }
 
-/** An entry given `access`, with the scripted notes protocol mounted. */
 export type AccessFixtureOptions = FixtureOptions &
   Readonly<{ frameQueueBytes?: number; availabilityBacklog?: number }>
 
@@ -429,12 +396,10 @@ export async function startAccessFixture(
 
 export type ApiOptions = Readonly<{
   method?: string
-  /** Replaces the four default headers; `undefined` drops one. */
   headers?: Readonly<Record<string, string | undefined>>
   body?: string | Uint8Array
 }>
 
-/** The four headers of a legal call. */
 export function callHeaders(): Record<string, string> {
   return {
     authorization: `Bearer ${PROOF}`,
@@ -444,7 +409,6 @@ export function callHeaders(): Record<string, string> {
   }
 }
 
-/** One request to `/api/notes/v1/<name>` with legal headers unless the case changes them. */
 export function call(port: number, name: string, options: ApiOptions = {}) {
   const headers: Record<string, string> = {}
   for (const [key, value] of Object.entries({ ...callHeaders(), ...options.headers }))
@@ -456,7 +420,6 @@ export function call(port: number, name: string, options: ApiOptions = {}) {
   })
 }
 
-/** Opens an observation at `/api/notes/v1/<name>` with legal headers unless the case changes them. */
 export function observe(port: number, name: string, options: ApiOptions = {}): SseClient {
   const headers: Record<string, string> = {}
   for (const [key, value] of Object.entries({ ...callHeaders(), ...options.headers }))
@@ -468,7 +431,6 @@ export function observe(port: number, name: string, options: ApiOptions = {}): S
   })
 }
 
-/** A raw request: the request line, the header lines as given, and the body text. */
 export function rawCall(
   port: number,
   target: string,
@@ -478,7 +440,6 @@ export function rawCall(
   return raw(port, [`POST ${target} HTTP/1.1`, ...headerLines, '', body].join('\r\n'))
 }
 
-/** The header lines of a legal raw call, with `Host` and the body length. */
 export function rawHeaders(bodyLength: number, extra: readonly string[] = []): string[] {
   return [
     'Host: 127.0.0.1',
@@ -495,7 +456,6 @@ export function bytes(text: string): Uint8Array {
   return encoder.encode(text)
 }
 
-/** Lets pending I/O callbacks run once; not a timed wait. */
 export function turn(): Promise<void> {
   return new Promise(resolve => setImmediate(resolve))
 }

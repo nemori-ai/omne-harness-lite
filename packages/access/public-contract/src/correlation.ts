@@ -140,7 +140,6 @@ function stepObject(scan: Scan, frame: ObjectFrame, token: number): boolean {
 
 function recoverCorrelation(bytes: Uint8Array, limits: JsonLimits): string | undefined {
   if (bytes.length > limits.maxBytes) return undefined
-  // Strict duplicate failure can occur only after successful UTF-8 decoding.
   const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes)
   if (text.startsWith('\uFEFF')) return undefined
   const scan: Scan = {

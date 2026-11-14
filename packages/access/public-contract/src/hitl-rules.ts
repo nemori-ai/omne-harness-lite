@@ -1,5 +1,3 @@
-// HITL 协议族（SPEC「HITL 公开操作」）：四个操作的封闭规则、信封与 body 字段、outcome 映射和卡片视图。
-// 阶段操作清单为空，部署能声明不提供操作，所以每个操作的响应都接受空正文的 `stage-not-provided`。
 import { empty, type Family, type Rule } from './operation-rules.ts'
 import type { HitlOperation, HitlOutcomes } from './hitl-messages.ts'
 
@@ -70,7 +68,6 @@ const requests: { readonly [O in HitlOperation]: Rule } = {
   'query-submit-reply': submission,
 }
 
-// 卡片视图（SPEC「卡片视图」）。
 const option = { id: text, label: text, description: text }
 const questionFields = { cardId: text, title: text, description: text, declineConsequence: text }
 const question: Rule = {
@@ -112,7 +109,6 @@ const card: Rule = {
     }),
   ],
 }
-// 原等待的路由字段（`originRef`、`wait`、`positionRef`、`adoptionRef`）不在这里，读到就拒绝。
 const origin = object(
   {
     kind: literal('tool', 'agent-extension', 'admission', 'independent'),
@@ -176,7 +172,6 @@ const outcomes = {
   ],
 } as const satisfies { readonly [O in HitlOperation]: readonly HitlOutcomes[O][] }
 
-/** `HitlOutcomes` 的某个 outcome 不在上表时编译失败。 */
 type MissingOutcomes = {
   readonly [O in HitlOperation]: Exclude<HitlOutcomes[O], (typeof outcomes)[O][number]>
 }[HitlOperation]

@@ -1,5 +1,3 @@
-// Which `fetch` failures prove that no request byte left (#1249 C13): only a cause, or a list of
-// causes, whose codes are all connection errors before the first byte.
 import { describe, expect, it } from 'vitest'
 import { neverWritten } from '../src/never-written.ts'
 

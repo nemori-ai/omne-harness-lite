@@ -1,5 +1,3 @@
-// defineProtocol adds the outcomes the pipeline answers for the domain. The table covers every
-// pair of identity requirement and effect; observations keep only their own end reasons.
 import { describe, expect, it } from 'vitest'
 import { defineProtocol, ruleCodec } from '@omne-harness/public-contract'
 

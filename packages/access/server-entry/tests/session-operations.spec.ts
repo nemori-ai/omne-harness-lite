@@ -1,5 +1,3 @@
-// The session location: the seven operations against the Session double, the judgment order one
-// step at a time, denied byte-for-byte, and the two classes of dependency faults.
 import { afterEach, describe, expect, it } from 'vitest'
 import { loginStateCodec } from '@omne-harness/legal-identity'
 import { INGRESS_FAMILIES, deriveIngressOperation } from '@omne-harness/session-contract'

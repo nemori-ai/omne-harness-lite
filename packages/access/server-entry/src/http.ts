@@ -1,7 +1,3 @@
-// The HTTP layer of the entry (binding page「请求与响应规则」, SPEC「服务端的 HTTP 层责任」): the
-// loopback listener, the five steps before the message, the body limit per path, the dispatch to
-// the three locations, the answer writing, and stop. A failure of this layer or of the entry itself
-// is the empty status 500 and a closed connection.
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type {
   ActingForTenantPrincipal,
@@ -50,51 +46,23 @@ export const SESSION_PATH = '/session-public/1'
 
 export type ServerEntryDependencies = Readonly<{
   identity: IdentityOperations
-  /**
-   * Identity's governance port over the same records as `identity`, so a revocation or a switch is
-   * what the next login recognition reads. The eighteen governed operations and the report of a
-   * successful business access go to it. An assembly that reads the provider per call answers
-   * `basis-unavailable` from the port while the provider is absent (R2-D235 S1).
-   */
   governance: IdentityGovernance
   issuer: PrincipalIssuer
   session: SessionIngressFaces<ActingForTenantPrincipal>
   resolveDefinition: DefinitionResolver
-  /**
-   * HITL 入口面（SPEC「HITL 位置」）。缺席时 HITL 位置的四个操作都答 `stage-not-provided`。
-   * 给了它，配置就必须有 `hitlLocationRef`。
-   */
   hitl?: HitlIngressFaces<ActingForTenantPrincipal>
-  /** 入口主体持有者 `hitlEntryPrincipals`。缺席时 HITL 位置在第 3 步答 `basis-unavailable`。 */
   hitlEntryPrincipals?: HitlEntryPrincipals
-  /**
-   * The settings of the acting tenant (SPEC「设置项」). Absent: the four setting operations answer
-   * `stage-not-provided`.
-   */
   settings?: SettingsGovernance
   diagnostics?: DiagnosticSink
 }> &
-  /**
-   * The read ports of the session diagnostics projection (SPEC「会话诊断投影」): Agent's finish
-   * read, Model's call lookup and attempt diagnostics, Tool's call lookup and account. Each may
-   * be absent; the projection then writes the corresponding gap with reason `unsupported`.
-   */
   DiagnosticPorts<ActingForTenantPrincipal>
 
 export type Listening = Readonly<{ address: string; port: number }>
 
-/**
- * What turns the new address `/api/<protocol>/v<major>/<name>` on: the registry, the identity port,
- * the grace and the two backlog bounds, all or none (SPEC「管道」). Given, the entry mounts the
- * built-in `access/v1` on the registry at start and takes it down last at stop. Absent, `/api/...`
- * answers 404.
- */
 export type ServerEntryAccess = PipelineAccess
 
 export interface ServerEntry {
-  /** Listens on the loopback address. Rejects with `ServerEntryConfigError` for another address. Idempotent while listening. */
   start(): Promise<Listening>
-  /** Stops accepting, ends every observation with `ended(unavailable)`, waits for in-flight requests, closes. */
   stop(): Promise<void>
 }
 
@@ -125,12 +93,10 @@ function writeJson(res: ServerResponse, answer: JsonAnswer, close: boolean): voi
   res.end(answer.bytes)
 }
 
-/** Status 500 with no body: the entry has no trustworthy answer. The connection closes. */
 function writeNoAnswer(res: ServerResponse): void {
   writeEmpty(res, 500, { connection: 'close' })
 }
 
-/** HITL 入口面与位置引用一起出现：给了入口面却没有位置引用，是配置错误。 */
 function hitlInstallation(
   config: ServerEntryConfig,
   dependencies: ServerEntryDependencies,
@@ -160,12 +126,10 @@ export function createServerEntry(input: {
   })
   const registry = createObservationRegistry({
     limits: config.observation,
-    // This stage has no locate or refresh round: one round is one heartbeat interval (docs/internals.md).
     loginCheckIntervalMs: config.heartbeatIntervalMs,
     diagnostics,
   })
   const ports: DiagnosticPorts<ActingForTenantPrincipal> = dependencies
-  // The cursor key lives as long as this entry: a cursor of another instance is `invalid`.
   const cursors = createDiagnosticsCursors()
   const locations: readonly Location[] = [
     {
@@ -192,7 +156,6 @@ export function createServerEntry(input: {
   let activeRequests = 0
   const drained: (() => void)[] = []
 
-  /** The in-flight budget of every path: taken before the body is read, released once. */
   const slots: RequestSlots = {
     take: res => {
       if (activeRequests >= config.maxInFlightRequests) return undefined
@@ -265,8 +228,6 @@ export function createServerEntry(input: {
     switch (answer.kind) {
       case 'json':
         writeJson(res, answer, answer.close === true)
-        // The answer is out before any follow-up starts, so a follow-up that never settles cannot
-        // hold the answer or `stop()` (SPEC「成功业务访问的报告」).
         answer.afterWrite?.()
         return
       case 'no-answer':
@@ -336,7 +297,6 @@ export function createServerEntry(input: {
     const finished = new Promise<void>(resolve => {
       res.once('close', resolve)
     })
-    // A path that is none of the three locations goes to the pipeline when it is given (SPEC「管道」).
     const route = pipeline === undefined || isLocation(req.url ?? '') ? handle : pipeline.handle
     route(req, res)
       .catch(() => {
@@ -360,7 +320,6 @@ export function createServerEntry(input: {
           ),
         )
       stopping = false
-      // `access/v1` is on before the first call can arrive and off only after the last one left.
       const access = input.access
       try {
         takeDownAccess = access?.registry.mount(
@@ -370,7 +329,6 @@ export function createServerEntry(input: {
         return Promise.reject(error)
       }
       const created = createServer(
-        // Step 3 of the binding page judges Host itself, so the host's own Host check is off.
         { requireHostHeader: false, requestTimeout: 0, headersTimeout: 60_000 },
         onRequest,
       )

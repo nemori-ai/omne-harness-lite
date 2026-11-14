@@ -1,6 +1,3 @@
-// The pure projection (SPEC「会话诊断投影」) against doubles of the four sources: the Run skeleton
-// comes from Session alone, each `call.bound` branch resolves through its owner, every refusal of a
-// source is a gap, counts stay right past the limits, and no free text of a source reaches the view.
 import { createHmac } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import type { FinishIntent } from '@omne-harness/agent-contract'
@@ -45,7 +42,6 @@ const access = { principal, tenant, session: 'a'.repeat(64) as never }
 const evidence = (record: string) => ({ owner: 'fixture', record, revision: '1', digest: 'd' })
 const adoption = { owner: 'fixture', name: 'thing', revision: '1', digest: 'sha256:thing' }
 
-/** The kinds the RFC table lists; a deployment discloses a subset of them. */
 const ALL_KINDS = [
   'run.started',
   'run.attempt-started',
@@ -137,7 +133,6 @@ const message = (id: string, role: string, text: string) =>
 type HistoryDouble = Pick<SessionHistory<P>, 'begin' | 'next'> &
   Readonly<{ begins: unknown[]; nextCalls: number }>
 
-/** Pages the entries backward from `from` (exclusive), `perPage` entries at a time, over a fixed upper. */
 function historyOf(entries: readonly HistoryEntry[], perPage = 2, upper = '9'): HistoryDouble {
   const begins: unknown[] = []
   const page = (start: number): HistoryPage => {
@@ -175,7 +170,6 @@ function historyOf(entries: readonly HistoryEntry[], perPage = 2, upper = '9'): 
 
 type Writes = { writes: number }
 
-/** The dispatch records of a call; without an entry for the call, the records are empty. */
 type DispatchRecords = Record<
   string,
   Outcome<readonly DispatchRecord[], { kind: string }> | 'throw'
@@ -226,7 +220,6 @@ function modelDouble(
 function toolDouble(
   lookups: Record<string, Outcome<ToolLookup, { kind: string }> | 'throw'>,
   accounts: Record<string, Outcome<CallAccount, { kind: string }>> = {},
-  /** The first diagnostics page of a call; without an entry for the call, the page is empty. */
   diagnostics: Record<string, Outcome<DiagnosticPage, { kind: string }>> = {},
 ) {
   const calls: Writes & { looked: string[]; diagnosed: unknown[] } = {
@@ -379,7 +372,6 @@ const modelAccount = (): CallAccount => ({
   revision: '1',
 })
 
-/** A dispatch record with only what the projection reads: the identity and the account. */
 const dispatchRecord = (dispatch: string, account: CallAccount | null): DispatchRecord =>
   ({
     dispatch,
@@ -392,7 +384,6 @@ const dispatchRecord = (dispatch: string, account: CallAccount | null): Dispatch
     materialization: null,
   }) as never
 
-/** An attempts page with one pending entry per dispatch identity. */
 const attemptsPage = (dispatches: readonly string[]): Outcome<ModelDiagnosticsPage, never> =>
   succeed({
     entries: dispatches.map(dispatch => ({
@@ -422,10 +413,6 @@ const noAttempts: SessionRunAttempts = {
   exited: '0',
 }
 
-/**
- * The stored payload of a `call.execution-fact` (Session `entries.ts`): the producer fact, with the
- * consumption and result at the top only on the observation path.
- */
 type ExecutionFactPayload = Readonly<{
   fact: ProducerFact
   consumption?: ConsumptionId
@@ -435,19 +422,16 @@ const factEntry = (id: string, payload: ExecutionFactPayload) =>
   entry(id, 'call.execution-fact', payload)
 const factSource = evidence('SECRET-FACT')
 const consumptionOf = (id: string) => `c-${id}` as ConsumptionId
-/** The producer `bound(id, kind, reference)` registers. */
 const producerOf = (kind: 'model' | 'tool', reference: string): ProducerRef => ({
   kind,
   call: `call-of-${reference}`,
 })
-/** The observation path (`projection.ts`): an `execution` with the consumption at the top. */
 const observedFact = (id: string, consumption: ConsumptionId, producer: ProducerRef) =>
   factEntry(id, {
     fact: { kind: 'execution', producer, source: factSource },
     consumption,
     result: null,
   })
-/** A received `release` (`decide-receive.ts`): the consumption sits in the fact. */
 const releaseFact = (id: string, consumption: ConsumptionId, producer: ProducerRef) =>
   factEntry(id, {
     fact: {
@@ -457,7 +441,6 @@ const releaseFact = (id: string, consumption: ConsumptionId, producer: ProducerR
       source: factSource,
     },
   })
-/** A received `execution` (`decide-receive.ts`): only the producer, no consumption. */
 const receivedFact = (id: string, producer: ProducerRef) =>
   factEntry(id, { fact: { kind: 'execution', producer, source: factSource } })
 
@@ -593,7 +576,6 @@ describe('the Run skeleton and the call branches', () => {
     expect(page.upper).toBe('9')
     expect(page.exhausted).toBe(true)
     expect(page.continueFrom).toBeNull()
-    // A completed Run reads no finish from Agent.
     expect(agent.reads).toEqual([])
     expect(model.calls.listed).toEqual(['c1'])
     expect(model.calls.dispatched).toEqual(['c1'])
@@ -602,8 +584,6 @@ describe('the Run skeleton and the call branches', () => {
   })
 
   it('reads the registration shape of call.bound that a live Run writes', async () => {
-    // The shape of a live session log (2026-11-05 smoke): the producer sits under
-    // registration.binding, with no top-level kind or reference.
     const registered = entry('e3', 'call.bound', {
       consumption: 'c-e3',
       registration: {
@@ -644,9 +624,6 @@ describe('the Run skeleton and the call branches', () => {
   })
 
   it('counts the tool-intent registration and the association of one consumption as one Tool call', async () => {
-    // What a live Run writes for one Tool call (`entries.ts` encodeEntry, `frontier-state.ts`
-    // consequenceKind): first the intent, with `kind: 'tool'` and no producer, then the association
-    // under the same consumption, with the producer.
     const consumer = { owner: '@omne-harness/agent', position: 'I3', purpose: 'action', work: 'w' }
     const intentRegistered = entry('e3', 'call.bound', {
       consumption: 'c-tool-1',
@@ -898,7 +875,6 @@ describe('gaps', () => {
     expect(run.terminal?.cause.structured).toEqual({ kind: 'unknown', reason: 'unsupported' })
     expect(run.modelCalls[0]!.call).toEqual({ kind: 'unknown', reason: 'denied' })
     expect(run.toolCalls[0]!.state).toEqual({ kind: 'unknown', reason: 'unavailable' })
-    // The account of the same Tool call still resolves: a gap of one read does not change another.
     expect(run.toolCalls[0]!.account).toMatchObject({ kind: 'account', receipt: 'received' })
     expect(JSON.stringify(page)).not.toContain('SECRET-DIAG')
   })
@@ -1474,11 +1450,9 @@ describe('the attempt counts and the execution facts of a Run', () => {
   it('counts call.execution-fact by fact.kind and gives each fact to the projected call it names: the consumption at the top, in the fact, or else the producer', async () => {
     const m1 = producerOf('model', 'm1')
     const t1 = producerOf('tool', 't1')
-    // The live registration shape: the producer sits under registration.binding.
     const m3 = { kind: 'model', call: 'm3' } as const
     const entries = [
       started('e1', 'r1'),
-      // Before the call.bound it names: log order does not decide the owner.
       observedFact('e2', consumptionOf('e3'), m1),
       bound('e3', 'model', 'm1'),
       bound('e4', 'tool', 't1', 'action'),
@@ -1491,16 +1465,12 @@ describe('the attempt counts and the execution facts of a Run', () => {
       receivedFact('e7', t1),
       receivedFact('e8', m1),
       receivedFact('e9', m3),
-      // All the Run's: an unknown consumption in the fact; the producer of a call past
-      // maxCallsPerRun; the consumption of that call; a producer of another kind with the same
-      // call text; and a consumption that names no projected call, whose producer is m1's.
       releaseFact('e10', consumptionOf('nobody'), t1),
       bound('e11', 'model', 'm2'),
       receivedFact('e12', producerOf('model', 'm2')),
       observedFact('e13', consumptionOf('e11'), producerOf('model', 'm2')),
       receivedFact('e14', { kind: 'tool', call: m1.call }),
       observedFact('e15', consumptionOf('nobody'), m1),
-      // No fact.kind: nothing to count under.
       entry('e16', 'call.execution-fact', { fact: { producer: {} }, consumption: 'c-e3' }),
     ]
     const model = modelDouble({
@@ -1769,7 +1739,6 @@ describe('the cursor', () => {
   const state = { from: 'e9', run: null, pageBytes: 1, upper: 'r12' }
   const key = Uint8Array.from({ length: 32 }, (_, index) => index + 1)
   const DOMAIN = 'omne-harness/server-entry/session-diagnostics-cursor/v1\u0000'
-  /** Seals any payload the way the entry does, so a test can hand in a well-signed payload of its choice. */
   const sealed = (payload: unknown): string => {
     const text = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url')
     return `${text}.${createHmac('sha256', key).update(DOMAIN).update(text).digest('base64url')}`

@@ -1,6 +1,3 @@
-// The client core over the in-process transport (#1249 C12, C13): calls are written and read by
-// the contract, and the three results of a transport become an answer, `unavailable` or
-// `uncertain`, never a success or a failure that did not come from the peer.
 import { describe, expect, it } from 'vitest'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import {
@@ -22,7 +19,6 @@ const object = (entries: Record<string, string>): JsonValue => ({
   })),
 })
 
-/** A peer that answers each send with the next report of the script and keeps every request. */
 function scripted(reports: CallReport[]) {
   const requests: CallRequest[] = []
   const peer: Transport = {
@@ -230,7 +226,6 @@ describe('the in-process transport', () => {
   })
 })
 
-/** A peer whose observation gives `frames` and then ends with `end`. */
 function observing(frames: JsonValue[], end: ObserveEnd) {
   const seen: { signal?: AbortSignal; messageId: string }[] = []
   let closed = false

@@ -15,11 +15,8 @@ import { basename, delimiter, resolve, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 
-/**
- * The command line that starts `command`. On Windows `pnpm` on PATH is `pnpm.cmd` and a shell shim,
- * which Node cannot start without a shell; there pnpm runs as `node_modules/pnpm/bin/pnpm.cjs` next
- * to `pnpm.cmd` (the npm global layout) with this process's Node.
- */
+// On Windows `pnpm` on PATH is a `pnpm.cmd` shim that Node cannot start without a shell; there pnpm
+// runs as `node_modules/pnpm/bin/pnpm.cjs` beside `pnpm.cmd`, with this process's Node.
 function commandLine(command: string, args: string[]): [string, string[]] {
   if (process.platform !== 'win32' || command !== 'pnpm') return [command, args]
   for (const directory of (process.env['PATH'] ?? process.env['Path'] ?? '').split(delimiter)) {
@@ -89,7 +86,6 @@ it('installs only the pure tarball closure and consumes both ends through dist e
       const added = readdirSync(tarballs).filter(name => !before.has(name))
       expect(added).toHaveLength(1)
       const archive = join(tarballs, added[0] ?? '')
-      // tar runs in `tarballs` with the bare name: GNU tar reads an absolute `C:\…` as `host:file`.
       const members = run('tar', ['-tzf', basename(archive)], tarballs)
         .trim()
         .split('\n')
@@ -105,9 +101,6 @@ it('installs only the pure tarball closure and consumes both ends through dist e
       })
       dependencies[manifest.name] = `file:${archive}`
     }
-    // The install reads no pnpm state of the machine. Every third-party package comes from the
-    // directory where the workspace installed it, so pnpm asks no registry which version to take;
-    // the consumer names the pnpm of the workspace; the store and the cache are those of this run.
     type Installed = { version: string; path?: string; dependencies?: Record<string, Installed> }
     const thirdParty: Record<string, string> = {}
     const listing = [

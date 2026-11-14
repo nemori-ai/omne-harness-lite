@@ -1,4 +1,3 @@
-// HITL 一组的四个函数（SPEC「HITL 编解码函数」），各是参数化核心对 HITL 协议族的一次实例化。
 import { encodeRequest, encodeResponse, readRequest, readResponse } from './codec.ts'
 import { hitlFamily } from './hitl-rules.ts'
 import type {

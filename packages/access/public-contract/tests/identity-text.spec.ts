@@ -76,7 +76,6 @@ const families: readonly Family[] = [
       JSON.stringify({ organization: org }),
       JSON.stringify({ organization: acc, account: org }),
       JSON.stringify({ organization: org, account: acc, extra: 'x' }),
-      // Duplicate member: the last value would win in JSON.parse, so a strict read must refuse it.
       `{"organization":"${org}","organization":"${org}","account":"${acc}"}`,
       `{"organization":"${org}","account":"${acc}"} x`,
       `{"organization":"${org}","account":"${acc}\ud800"}`,

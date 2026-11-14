@@ -1,5 +1,3 @@
-// The settle step's contract tests (RFC-0015 §5 判断次序第 10 到 14 步). Names in Chinese are those
-// of RFC-0015 §15「精化对照」.
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { AccessContribution } from '@omne-harness/access-cordis-contract'
@@ -20,7 +18,6 @@ const EMPTY: JsonValue = { kind: 'object', entries: [] }
 
 type Handlers = AccessContribution<NotesProtocol>['operations']
 
-/** Mounts a contribution with the given handlers and enters `name`; records the steps in order. */
 function setup(name: 'read-note' | 'save-note', handlers: Partial<Handlers> = {}) {
   const registry = createAccessRegistry()
   const steps: string[] = []
@@ -112,7 +109,6 @@ describe('a handler that fails after the take-down', () => {
 })
 
 describe('grace', () => {
-  /** A handler that ignores the abort and returns only when the test says so. */
   function ignoring() {
     let release!: () => void
     const released = new Promise<void>(resolve => {
@@ -142,7 +138,6 @@ describe('grace', () => {
     expect(answered).toBeUndefined()
     expect(done).toBe(false)
     call.clock.advance(1)
-    // No await on the answer itself: without the grace it would never come.
     await flush()
     expect(answered).toEqual({ outcome: 'unknown', body: EMPTY })
     expect(done).toBe(true)

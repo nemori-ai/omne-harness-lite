@@ -1,6 +1,3 @@
-// The test harness: a server entry on a loopback port with the identity reference double (its
-// operations and governance port over shared records, a manual clock and adjustable terms), the
-// in-process principal authority and the Session double, plus the HTTP helpers that the cases use.
 import { createHash } from 'node:crypto'
 import { request as httpRequest, type IncomingMessage } from 'node:http'
 import { connect } from 'node:net'
@@ -88,9 +85,7 @@ export type Fixture = Readonly<{
   port: number
   identity: IdentityOperations
   governance: IdentityGovernance
-  /** The identity double's clock: it moves only when a case moves it. */
   clock: ManualIdentityClock
-  /** The identity double's record store faults. */
   faults: RecordStoreFaultControl
   issuer: PrincipalIssuer
   session: SessionDouble
@@ -105,7 +100,6 @@ export type FixtureOptions = Readonly<{
   governance?: (base: IdentityGovernance) => IdentityGovernance
   issuer?: (base: PrincipalIssuer) => PrincipalIssuer
   dependencies?: Partial<ServerEntryDependencies>
-  /** The new address's registry, identity port and grace (#1233). Absent: `/api/...` answers 404. */
   access?: ServerEntryAccess
 }>
 
@@ -125,7 +119,6 @@ export type IdentityDouble = Readonly<{
   faults: RecordStoreFaultControl
 }>
 
-/** Both identity ports over one deployment's records: logins live 3600 s, idle 600 s; invitations 7 or at most 30 days. */
 export function identityDouble(): IdentityDouble {
   const start = parseInstant('2026-11-02T00:00:00Z')
   if (!start.ok) throw new Error('fixture time did not parse')
@@ -200,7 +193,6 @@ export type RequestOptions = Readonly<{
   body?: Uint8Array | string
 }>
 
-/** One HTTP request to the fixture. Headers default to a legal JSON POST on `path`. */
 export function send(port: number, path: string, options: RequestOptions = {}): Promise<HttpReply> {
   const body =
     options.body === undefined
@@ -244,7 +236,6 @@ export function send(port: number, path: string, options: RequestOptions = {}): 
   })
 }
 
-/** One raw HTTP/1.1 exchange over a socket, for header edge cases. Returns the full response text. */
 export function raw(port: number, text: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const socket = connect({ host: '127.0.0.1', port }, () => socket.write(text))
@@ -280,7 +271,6 @@ export function sessionMessage(
 
 export type Login = Readonly<{
   loginProof: string
-  /** The identifier of this login, from the `issue-login` reply. */
   loginId: string
   tenant: TenantId
   tenantText: string
@@ -289,7 +279,6 @@ export type Login = Readonly<{
   credential: string
 }>
 
-/** Registers an account and issues one login through the governance location. */
 export async function login(
   fixture: Pick<Fixture, 'port' | 'members'>,
   identifier: string,
@@ -323,7 +312,6 @@ export async function login(
   }
 }
 
-/** Issues one more login of an account that is already registered. */
 export async function anotherLogin(fixture: Fixture, who: Login): Promise<Login> {
   const issued = await send(fixture.port, GOVERNANCE_PATH, {
     body: governance('issue-login', {
@@ -337,7 +325,6 @@ export async function anotherLogin(fixture: Fixture, who: Login): Promise<Login>
   return { ...who, loginProof: body.loginProof, loginId: body.loginId }
 }
 
-/** A governed governance message of `who`: the proof, and the acting tenant unless `acting` is null. */
 export function governed(
   who: Login,
   operation: string,
@@ -376,7 +363,6 @@ export function userMessageWire(text: string): Record<string, unknown> {
   }
 }
 
-/** Creates a session for `login` and returns its session text. */
 export async function createSession(
   fixture: Fixture,
   who: Login,
@@ -393,25 +379,19 @@ export async function createSession(
   return (reply.json as { body: { session: string } }).body.session
 }
 
-/** Opens an SSE response and collects events as they arrive. */
 export type SseClient = Readonly<{
   status: Promise<number>
   headers: Promise<IncomingMessage['headers']>
-  /** Every raw chunk of the response body, in order. */
   chunks: string[]
   events: () => readonly unknown[]
-  /** Resolves when the response has at least `count` events. */
   waitForEvents(count: number, timeoutMs?: number): Promise<readonly unknown[]>
-  /** Resolves when the raw body contains `needle`. */
   waitForText(needle: string, timeoutMs?: number): Promise<void>
   ended: Promise<void>
   close(): void
 }>
 
 export type SseOptions = Readonly<{
-  /** Absent: the session location. */
   path?: string
-  /** Sent besides `content-type` and `content-length`. */
   headers?: Readonly<Record<string, string>>
 }>
 

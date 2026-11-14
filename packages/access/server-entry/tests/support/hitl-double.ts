@@ -1,7 +1,3 @@
-// HITL 入口面的替身与入口主体持有者的替身。替身按 HITL 协议「公开入口与受众」的规则判断读者：
-// 主体的 `standingPrincipalRef` 在卡片的读者里才能读到这张卡，否则答 `denied`。它记录每次调用，
-// 让用例核对接入交出的主体、位置引用与过滤条件。答复按一卡一决：同一操作身份同内容认回原结果，同身份不同内容
-// 答 conflict，卡片已有决定时答 already-decided。输入摘要是替身自己的算法，接入只经 `bindSubmitReply` 取得它。
 import { createHash } from 'node:crypto'
 import {
   CardSchema,
@@ -33,7 +29,6 @@ type Submitted = Readonly<{
   result: Exclude<CommandResult<'submitReply'>, { kind: 'unknown' }>
 }>
 
-/** 替身的输入摘要：答复命令除操作身份外的内容。 */
 function digestOf(command: SubmitReply): string {
   const { cardRef, expectedRevision, reply } = command
   return createHash('sha256')
@@ -44,7 +39,6 @@ function digestOf(command: SubmitReply): string {
 export type HitlDouble = Readonly<{
   faces: HitlIngressFaces<ActingForTenantPrincipal>
   calls: Call[]
-  /** 登记一张卡。读者是给出的主体引用。 */
   addCard(
     input: Readonly<{
       tenant: TenantId
@@ -53,14 +47,12 @@ export type HitlDouble = Readonly<{
       readers: readonly string[]
     }>,
   ): PoolItem
-  /** 下一次 `method` 调用抛出，或答给出的失败。 */
   failNext(
     method: 'listPool' | 'getCard' | 'submitReply' | 'getOperation' | 'bindSubmitReply',
     failure: Injected | 'throw',
   ): void
 }>
 
-/** 注入给下一次调用的答复：一种失败、结果未知，或提交身份被登记命令占着。 */
 type Injected = Failure | Readonly<{ kind: 'unknown' }> | Readonly<{ kind: 'held-by-register' }>
 
 function tenantText(tenant: TenantId): string {
@@ -126,7 +118,6 @@ export function createHitlDouble(): HitlDouble {
         calls.push({ method: 'getOperation', principal, input: query })
         const failure = injected('getOperation')
         if (failure?.kind === 'held-by-register')
-          // 同一提交身份被登记命令占着：不是答复命令的结果。
           return {
             kind: 'committed',
             operationRef: query.operationRef,
@@ -241,15 +232,11 @@ export function createHitlDouble(): HitlDouble {
 
 export type EntryPrincipalsDouble = Readonly<{
   holder: HitlEntryPrincipals
-  /** 每次签发的输入的键。 */
   inputs: string[][]
-  /** 给出租户的入口主体引用，与持有者签发的同一。 */
   refOf(tenant: TenantId): string
-  /** 下一次签发的行为。 */
   next(behaviour: HolderBehaviour, other?: TenantId): void
 }>
 
-/** 持有者下一次签发时的偏离：拒绝、抛出，或给出一个不是这个租户入口主体的主体。 */
 export type HolderBehaviour =
   | 'refuse'
   | 'throw'
@@ -261,7 +248,6 @@ export type HolderBehaviour =
   | 'actor-not-system'
   | 'no-principal'
 
-/** 按 identity「持有者与关系核对位置」签发 `{ actor: server-entry, tenant, work: harness.hitl/cards }`。 */
 export function createEntryPrincipalsDouble(): EntryPrincipalsDouble {
   const { issuer } = inProcessPrincipalAuthority()
   const system = issuer.issueSystem({ component: 'server-entry' })
@@ -277,7 +263,6 @@ export function createEntryPrincipalsDouble(): EntryPrincipalsDouble {
     if ('failure' in issued) throw new Error('fixture entry principal was not issued')
     return issued.ok
   }
-  /** 一个偏离的主体。后两种不是签发者给出的值，只有形状。 */
   const deviant = (kind: HolderBehaviour, tenant: TenantId): unknown => {
     if (kind === 'other-component') return issue(tenant, elsewhere.ok)
     if (kind === 'other-work-owner')

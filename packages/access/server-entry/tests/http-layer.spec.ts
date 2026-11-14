@@ -1,5 +1,3 @@
-// The HTTP layer before the public judgment order: loopback only, path, method, Host,
-// Content-Type, the body limit per path, the entry's own fault, and stop.
 import { request, type ClientRequest } from 'node:http'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createServerEntry } from '../src/index.ts'

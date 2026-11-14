@@ -1,6 +1,3 @@
-// End to end (#1249 C18): server-entry's test entry runs as a process with the notes protocol;
-// the client tree has the connection over the HTTP transport and the notes protocol client. The
-// service appears while the entry has notes/v1 mounted and goes when it is taken down.
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, expect, it } from 'vitest'
 import { defineProtocol, ruleCodec } from '@omne-harness/public-contract'
@@ -18,7 +15,6 @@ const note = ruleCodec({
   kind: 'object',
   fields: { noteId: { rule: { kind: 'text' } }, title: { rule: { kind: 'text' } } },
 })
-// The part of the test entry's notes contract this client uses.
 const notesProtocol = defineProtocol({
   name: 'notes',
   major: 1,

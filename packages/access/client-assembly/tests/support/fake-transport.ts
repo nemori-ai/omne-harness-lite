@@ -1,5 +1,3 @@
-// A transport the test drives: each availability subscription is a stream the test pushes frames
-// into or breaks; each call answers with the next scripted report.
 import { accessProtocol, type AvailabilityFrame } from '@omne-harness/public-contract'
 import type { CallReport, CallRequest, ObserveEnd, Transport } from '@omne-harness/sdk/core'
 
@@ -23,23 +21,13 @@ type Subscription = {
 
 export type FakeTransport = {
   readonly transport: Transport
-  /** Every availability subscription, in order; the last is the live one. */
   readonly subscriptions: Subscription[]
-  /** Sends a frame on the live subscription. */
   readonly push: (frame: AvailabilityFrame) => void
-  /** Ends the live subscription without an `ended` frame: the stream broke. */
   readonly breakStream: () => void
   readonly calls: CallRequest[]
-  /** The calls whose bytes left: every call that was not already aborted when it came. */
   readonly sent: CallRequest[]
-  /** What the next calls answer; absent, `answered succeeded {}`. */
   readonly script: CallReport[]
-  /** A call that waits until the test settles it, or until its signal aborts. */
   hold: { readonly settle: (report: CallReport) => void } | undefined
-  /**
-   * What a held call answers when its signal aborts, as a real transport does: `uncertain` when
-   * its bytes may have left (the default), `not-sent` when they did not.
-   */
   heldOnAbort: 'uncertain' | 'not-sent'
 }
 
@@ -95,7 +83,6 @@ export function fakeTransport(): FakeTransport {
       },
       async *observe(request): AsyncGenerator<JsonValue, ObserveEnd> {
         if (request.protocol.name !== 'access') {
-          // Any other observation gives no frame and ends only with its abort.
           if (!request.signal.aborted)
             await new Promise(resolve => request.signal.addEventListener('abort', resolve))
           return { kind: 'aborted' }
@@ -131,7 +118,6 @@ export function fakeTransport(): FakeTransport {
   return fake
 }
 
-/** Lets every pending promise and plugin load settle. */
 export async function settle(): Promise<void> {
   for (let turn = 0; turn < 20; turn += 1) await new Promise(resolve => setImmediate(resolve))
 }

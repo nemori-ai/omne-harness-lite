@@ -1,5 +1,3 @@
-// The read-session-diagnostics operation (SPEC「会话公开操作」, 「会话诊断页」): the two request
-// shapes chosen by `cursor`, and the closed success page with every branch of its unions.
 import {
   encodeSessionRequest,
   encodeSessionResponse,
@@ -317,7 +315,6 @@ describe('read-session-diagnostics responses', () => {
   })
 
   it('round trips a tool diagnostics entry whose phase and code are empty', () => {
-    // Tool's DiagnosticPage gives phase and code as plain strings; an empty one is a value.
     const body = withRun({
       toolCalls: [{ ...toolCall, diagnostics: [{ ...toolDiagnostic, phase: '', code: '' }] }],
     })

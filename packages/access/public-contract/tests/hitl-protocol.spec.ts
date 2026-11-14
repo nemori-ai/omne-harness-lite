@@ -1,4 +1,3 @@
-// HITL 一组的请求读写（SPEC「HITL 的版本与信封」「HITL body 字段」「HITL 编解码函数」）。
 import {
   encodeHitlRequest,
   readGovernanceRequest,
