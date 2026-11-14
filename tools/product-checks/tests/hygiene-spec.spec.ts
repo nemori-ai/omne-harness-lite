@@ -18,6 +18,22 @@ describe('hygiene-spec-shape', () => {
     expect(SPEC_PATH.test('packages/group/member/SPEC.md')).toBe(false)
   })
 
+  it('matches the spec of an application and of a tool, and no deeper path', () => {
+    for (const path of ['apps/cli/SPEC.md', 'tools/dev-flow/SPEC.md'])
+      expect(SPEC_PATH.test(path), path).toBe(true)
+    for (const path of [
+      'apps/cli/docs/SPEC.md',
+      'tools/repo-toolchain/src/arch/SPEC.md',
+      'apps/SPEC.md',
+    ])
+      expect(SPEC_PATH.test(path), path).toBe(false)
+    const missing = good.replace('## 不变式\n正文', '')
+    const violations = specShapeViolations([{ path: 'apps/cli/SPEC.md', text: missing }], 600)
+    expect(violations.map(v => [v.rule, v.path])).toEqual([
+      ['hygiene-spec-shape', 'apps/cli/SPEC.md'],
+    ])
+  })
+
   it('accepts one title and the six sections in order', () => {
     expect(shape(good)).toEqual([])
   })
