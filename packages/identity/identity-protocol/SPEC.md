@@ -4,7 +4,7 @@
 
 ## 范围与依据
 
-设计依据是 [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md) 第 3 节「共同契约」、第 7 节「协议怎样划分」与第 16 节「成员怎么放，依赖方向」，交付卡 #1266。协议契约的写法（`defineProtocol`、`ruleCodec`、规则的种类与叶子、固定结果）归[公开契约规格](../../access/public-contract/SPEC.md#共同契约)「共同契约」。
+设计依据是 [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md) 第 3 节「共同契约」、第 7 节「协议怎样划分」与第 16 节「成员怎么放，依赖方向」，交付卡 #1266。协议契约的写法（`defineProtocol`、`ruleCodec`、规则的种类与叶子、固定结果）归[公开契约规格](../../access/SPEC.md#协议契约与编解码)「共同契约」。
 
 不在本包：处理函数与接入插件（`identity-access`，未建）；客户端；身份一侧的 `AccessIdentity` 实现。操作的业务含义归[身份规格](../identity/SPEC.md)。
 

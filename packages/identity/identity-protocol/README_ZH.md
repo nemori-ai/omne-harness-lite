@@ -40,7 +40,7 @@ const read = body.read(jsonValue, limits) // { ok: true, value: { loginIdentifie
 
 ## 维护
 
-改契约前先看[公开契约规格](../../access/public-contract/SPEC.md#共同契约)。契约成员登记在 [`docs/engineering/delivery-lines.json`](../../../docs/engineering/delivery-lines.json)，公开面改动要重写 `api/` 下的快照（`pnpm run contract:api --write`）。
+改契约前先看[公开契约规格](../../access/SPEC.md#协议契约与编解码)。契约成员登记在 [`docs/engineering/delivery-lines.json`](../../../docs/engineering/delivery-lines.json)，公开面改动要重写 `api/` 下的快照（`pnpm run contract:api --write`）。
 
 ## 目录结构与文档职责
 

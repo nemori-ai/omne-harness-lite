@@ -993,7 +993,7 @@
 
 - **形态**：总称
 - **出处**：[跨系统技术约定 消息、记录与流](../../../../docs/architecture/cross-cutting-concepts.md#消息记录与流) · [观测与遥测](../../../../docs/architecture/cross-cutting-concepts.md#观测与遥测)；[项目要求 SYS-OBSERVABILITY](../../../../docs/requirements.md#全链路可观测可遥测与日志完备sys-observability)；名词由 chenyize 于 2026-11-05 采用（[#1140 的决定记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6663579066)，D01）
-- **别混 ①**：**不是面向用户的观察。**[公开契约的会话观察](../../../../packages/access/public-contract/SPEC.md#会话观察)（`observe-session`、`observation-frame`）把会话的流式内容交给获准的调用者；工程遥测给工程人员与运维者看，不承载会话正文。本系统里的 observation 只指前者
+- **别混 ①**：**不是面向用户的观察。**[接入的会话观察](../../../../packages/access/SPEC.md#会话观察)（`observe-session`、`observation-frame`）把会话的流式内容交给获准的调用者；工程遥测给工程人员与运维者看，不承载会话正文。本系统里的 observation 只指前者
 - **别混 ②**：**不是[会话日志](#ul-session-log--会话日志--session-log)或[记录条目](#ul-record-entry--记录条目--record-entry)。**那两样是协作事实，丢了会影响接续或解释；工程遥测丢了只影响诊断
 - **注意**：开启工程遥测不授予外传用户数据的资格。采集不含正文与秘密，导出按接收方再核，见[观测与遥测](../../../../docs/architecture/cross-cutting-concepts.md#观测与遥测)
 - **弃用**：~~observation~~、~~「观察」~~（用作这一类记录、它的服务或成员的名字时）

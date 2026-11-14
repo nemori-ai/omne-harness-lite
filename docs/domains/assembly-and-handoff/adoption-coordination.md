@@ -42,7 +42,7 @@
 | `Adoption`、`DurableEvidence`                                                             | [exchange-refs](../../../packages/common/exchange-refs/src/index.ts)                                                                                            | F 上已发布的类型          |
 | `Adoption` 的值由被采用物的发布者解释                                                     | [exchange-refs 规格「所有权、失败与生命周期」](../../../packages/common/exchange-refs/SPEC.md#ownership)                                                        | F 上已发布的成员规格      |
 | Session 的创建校验与 reload 的定义身份检查                                                | [初始化校验](../../../packages/session/session-contract/src/initialization-validation.ts)、[命令判定](../../../packages/session/session-contract/src/decide.ts) | F 上已发布的实现          |
-| 服务端接入的会话判断次序                                                                  | [公开契约「会话判断次序」](../../../packages/access/public-contract/SPEC.md#会话判断次序)                                                                       | F 上的公开契约规格        |
+| 服务端接入的会话判断次序                                                                  | [公开契约「会话判断次序」](../../../packages/access/SPEC.md#判断次序)                                                                       | F 上的公开契约规格        |
 | `Access`、`TenantId`                                                                      | [legal-identity](../../../packages/common/legal-identity/src/index.ts)                                                                                          | F 上已发布的类型          |
 | 定义名映射、内容身份、采用点冻结判定                                                      | [应用装配页「桥接责任」](../../architecture/runtime/application-assembly.md#桥接责任)                                                                           | #677 的装配设计，尚未实现 |
 | 跨租户访问默认拒绝                                                                        | [项目要求 SYS-TENANT](../../requirements.md#从第一天支持隔离sys-tenant)                                                                                         | 项目要求                  |
@@ -321,7 +321,7 @@ AC-24 至 AC-26 留在本页，不迁入契约成员的 SPEC。
 - `ref.name` 是定义名（AC-06）。所以 reload 交上的 `ref` 与已采用的 `ref` 名字相同，满足 Session 对 reload「保持定义身份」的检查（[命令判定](../../../packages/session/session-contract/src/decide.ts)）。
 - `read` 不需要主体，不受 R-1 限制。
 
-`server-entry` 把 `prepare` 的答案映射到公开结果的规则，归 `server-entry` 的规格，对照[会话判断次序](../../../packages/access/public-contract/SPEC.md#会话判断次序)核对。本页不定。
+`server-entry` 把 `prepare` 的答案映射到公开结果的规则，归 `server-entry` 的规格，对照[会话判断次序](../../../packages/access/SPEC.md#判断次序)核对。本页不定。
 
 本条的证据归应用成员的提供者测试，在换件的那一波：经 `server-entry` 建一个会话，Session 的 `definition.adopted` 与 `run.adoption` 都等于 `prepare` 给出的 `ref`，`agentAdoptions.resolve` 经 `read` 答出清单。负控：`server-entry` 改交映射里的定义候选时，`create` 上的 `read` 答 `unavailable`，会话没有建成。
 

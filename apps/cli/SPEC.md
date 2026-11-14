@@ -197,7 +197,7 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 
 ## 命令
 
-下列八个命令、[HITL 命令](#hitl-命令)和[治理命令](#治理命令)是候选。每个命令对应公开契约的一个操作。命令名与操作名一致。操作的字段、`outcome` 和判断次序归[公开契约](../../packages/access/public-contract/SPEC.md)。路径、方法和状态码归[承载绑定表](../../packages/access/public-contract/docs/http-binding.md#承载绑定表)。CLI 经 SDK 发出请求。
+下列八个命令、[HITL 命令](#hitl-命令)和[治理命令](#治理命令)是候选。每个命令对应公开契约的一个操作。命令名与操作名一致。操作的字段、`outcome` 和判断次序归[公开契约](../../packages/access/SPEC.md#判断次序)。路径、方法和状态码归[承载规则](../../packages/access/SPEC.md#http-承载)。CLI 经 SDK 发出请求。
 
 所有选项都写成 `--名字 值`。不支持 `--名字=值`。选项可以出现在命令名之后的任意位置。`--home` 的规则同[参数解析](#参数解析)。
 
@@ -241,7 +241,7 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 
 ### 读诊断投影
 
-`read-session-diagnostics` 读一个会话的诊断投影：每个 Run 怎样开始、怎样结束、失败的原因，以及每次模型调用与工具调用实际发生了什么。页的形状与闭合规则归公开契约的[会话诊断页](../../packages/access/public-contract/SPEC.md#会话诊断页)。命令按页读到服务端报告读完为止。请求的 `tenant` 取会话的归属租户，来源次序同[命令](#命令)一节。
+`read-session-diagnostics` 读一个会话的诊断投影：每个 Run 怎样开始、怎样结束、失败的原因，以及每次模型调用与工具调用实际发生了什么。页的形状与闭合规则归公开契约的[会话诊断页](../../packages/access/SPEC.md#会话诊断页)。命令按页读到服务端报告读完为止。请求的 `tenant` 取会话的归属租户，来源次序同[命令](#命令)一节。
 
 - 第一页的请求带 `cursor` 为 null、`run` 和 `pageBytes`。`run` 取 `--run` 的值，缺省为 null，表示全部 Run，从最新开始。`pageBytes` 取 `--page-bytes`，缺省 `65536`，必须是不带前导零的正整数文本。超出部署上界时服务端答 `invalid`。
 - 后续每页的请求只带上一页回复的 `next` 原文作 `cursor`，不带 `run` 和 `pageBytes`。公开契约规定这两个字段只在 `cursor` 为 null 时出现。每页用新的 `messageId`。
@@ -265,7 +265,7 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 
 ### HITL 命令
 
-三个 HITL 命令各对应公开契约 [HITL 公开操作](../../packages/access/public-contract/SPEC.md#hitl-公开操作)的一个操作，命令名与操作名一致。它们以 `login.json` 里的登录发出请求，经 SDK 的 `createHitlClient` 送到 HITL 位置。
+三个 HITL 命令各对应公开契约 [HITL 公开操作](../../packages/access/SPEC.md#hitl-位置)的一个操作，命令名与操作名一致。它们以 `login.json` 里的登录发出请求，经 SDK 的 `createHitlClient` 送到 HITL 位置。
 
 | 命令           | 公开操作       | 必需选项                                | 可选选项                                                                      |
 | -------------- | -------------- | --------------------------------------- | ----------------------------------------------------------------------------- |
@@ -284,7 +284,7 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 
 ### 治理命令
 
-下面 18 个命令各对应公开契约的一个治理操作，命令名等于操作名。它们都经 SDK 的治理客户端，发往治理位置。每个命令都需要一份登录：证明取登录状态文件里的 `loginProof`，需要行事租户的操作把登录状态文件里的 `tenantId` 作为 `actingTenant`。命令不接受别的租户。哪些操作需要行事租户归[公开契约](../../packages/access/public-contract/SPEC.md)的字段表。所有命令都可以带 `--server`，服务地址的取值同[服务地址](#服务地址)。
+下面 18 个命令各对应公开契约的一个治理操作，命令名等于操作名。它们都经 SDK 的治理客户端，发往治理位置。每个命令都需要一份登录：证明取登录状态文件里的 `loginProof`，需要行事租户的操作把登录状态文件里的 `tenantId` 作为 `actingTenant`。命令不接受别的租户。哪些操作需要行事租户归[公开契约](../../packages/access/SPEC.md)的字段表。所有命令都可以带 `--server`，服务地址的取值同[服务地址](#服务地址)。
 
 | 命令                                                                                                    | 必需选项                                                                | 可选选项                                 | 说明                                                                      |
 | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------- |
@@ -303,11 +303,11 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 
 - 命令在读登录状态之前先检查选项。选项缺失、重复、不属于该命令，或值不是对应的标识、租户文本或 `true`／`false`，是用法错误，退出 `2`，不发送请求。组织、账号和登录的标识文本，以及租户文本，由 SDK 读成身份值。
 - 服务端声明本部署不提供某个操作时，答 `stage-not-provided`。命令按[命令结果与退出码](#命令结果与退出码)输出该结果，退出 `3`，不当作错误。
-- 命令不提供观察、历史、隶属请求、授权表达与准入判断的入口。组织隶属、更换密码、阶段操作和这些操作都晚于本阶段。M2 部署的治理范围见服务端接入规格的[治理位置](../../packages/access/server-entry/SPEC.md#治理位置)。
+- 命令不提供观察、历史、隶属请求、授权表达与准入判断的入口。组织隶属、更换密码、阶段操作和这些操作都晚于本阶段。M2 部署的治理范围见服务端接入规格的[治理位置](../../packages/access/SPEC.md#判断次序)。
 
 ### 设置命令
 
-`setting` 管理行事租户自己的设置项。它有四个子命令，各对应公开契约的一个治理操作，见公开契约的[设置项](../../packages/access/public-contract/SPEC.md#设置项)。
+`setting` 管理行事租户自己的设置项。它有四个子命令，各对应公开契约的一个治理操作。
 
 | 子命令                            | 操作               | 选项       | 输出                                              |
 | --------------------------------- | ------------------ | ---------- | ------------------------------------------------- |
@@ -336,7 +336,7 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 4. 本机配置的地址，仅 `register` 与 `login` 使用。`harness-server setup` 在本机写的配置文件 `server.json` 给出端口时，地址是 `http://127.0.0.1:<port>`。文件的位置与形状归 harness-server 的[本机单用户档](../harness-server/SPEC.md#本机单用户档)：设了 `OMNE_SERVER_HOME` 时是 `<目录>/config/server.json`；Windows 上是 `%LOCALAPPDATA%\omne\config\server.json`；其他平台是 `$XDG_CONFIG_HOME/omne/server.json`，默认 `~/.config/omne/server.json`。CLI 只读其中的 `port`。文件不存在时取下一项。文件读不出、不是 JSON、没有 1 至 65535 的整数 `port`，或 `OMNE_SERVER_HOME` 不是绝对路径时，命令退出 `1`，标准错误写一行原因（例如 `omne: the local server settings <path> give no port\n`），不读凭据，不发请求。
 5. 默认值 `http://127.0.0.1:8787`。这是 CLI 自己的默认值，也是 `harness-server setup` 的默认端口。服务端的监听端口由装配配置给出，见[应用装配](../../docs/architecture/runtime/application-assembly.md)。两者不一致时，用户用 `--server` 或 `OMNE_SERVER` 给出地址。
 
-CLI 把地址交给 SDK 的 HTTP 传输适配。适配拒绝地址时，命令按用法错误处理，消息为 `omne: --server must be a loopback http address\n`。哪些地址被拒绝是 SDK 的 M2 已知限制，见 SDK 的[已知限制](../../packages/access/sdk/SPEC.md#已知限制)。
+CLI 把地址交给 SDK 的 HTTP 传输适配。适配拒绝地址时，命令按用法错误处理，消息为 `omne: --server must be a loopback http address\n`。哪些地址被拒绝见接入的[承载规则](../../packages/access/SPEC.md#http-承载)。
 
 ### 命令的用法错误
 

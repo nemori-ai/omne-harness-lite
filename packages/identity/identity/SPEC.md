@@ -354,7 +354,7 @@
 
 ## ID-17 注册激活、签发登录与识别登录
 
-本节定义三项操作的公开形状。类型在 `src/operations.ts`，从包根导出。业务规则沿 ID-02 与 ID-03，本节只写类型表达不了的条款。结果种类与公开协议 `register-and-activate`、`issue-login` 的业务结果对应（[公开协议](../../access/public-contract/SPEC.md)）。公开协议到本节的映射不在本节。形状由 [#745 派发](https://github.com/nemori-ai/omne-harness-lite/issues/745#issuecomment-6398214808)按域内设计决定。
+本节定义三项操作的公开形状。类型在 `src/operations.ts`，从包根导出。业务规则沿 ID-02 与 ID-03，本节只写类型表达不了的条款。结果种类与公开协议 `register-and-activate`、`issue-login` 的业务结果对应（[公开协议](../../access/SPEC.md)）。公开协议到本节的映射不在本节。形状由 [#745 派发](https://github.com/nemori-ai/omne-harness-lite/issues/745#issuecomment-6398214808)按域内设计决定。
 
 本节的调用方是任何持有操作端口的组件。提供者是实现端口的组件。本节不点名调用方的类型。
 
@@ -484,7 +484,7 @@
 
 ## ID-18 治理端口
 
-本节定义治理操作的公开形状。类型在 `src/governance.ts`，从包根导出。业务规则沿 ID-03、ID-05 至 ID-08 与 ID-13。本节只写类型表达不了的条款。结果种类与[公开协议](../../access/public-contract/SPEC.md)对应操作的业务结果对应。公开协议到本节的映射归服务端接入，不在本节。
+本节定义治理操作的公开形状。类型在 `src/governance.ts`，从包根导出。业务规则沿 ID-03、ID-05 至 ID-08 与 ID-13。本节只写类型表达不了的条款。结果种类与[公开协议](../../access/SPEC.md)对应操作的业务结果对应。公开协议到本节的映射归服务端接入，不在本节。
 
 ID-17 的三项操作不变。治理操作放在独立端口 `IdentityGovernance`，有独立的 Cordis 服务键 `identityGovernance`（R1-D27 的可加改动）。
 

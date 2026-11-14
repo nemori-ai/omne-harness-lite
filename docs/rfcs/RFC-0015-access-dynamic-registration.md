@@ -29,19 +29,19 @@ owner: PanQiWei
 
 | # | 事实 | 位置 |
 | --- | --- | --- |
-| 1 | 服务端入口只认三个固定路径：`/governance-public/1`、`/session-public/1`、`/hitl-public/1`。别的路径一律答 404 | [承载页](../../packages/access/public-contract/docs/http-binding.md)「请求与响应规则」；入口的 HTTP 代码 |
+| 1 | 服务端入口只认三个固定路径：`/governance-public/1`、`/session-public/1`、`/hitl-public/1`。别的路径一律答 404 | [承载页](../../packages/access/SPEC.md#http-承载)「请求与响应规则」；入口的 HTTP 代码 |
 | 2 | 入口的依赖是一份固定的记录，装配时一次交齐 | 服务端应用的入口行 |
 | 3 | 入口里装着领域专用的代码：治理、会话、会话视图投影、人工介入四块 | 服务端接入成员的源码 |
 | 4 | 会话诊断视图在入口内部，所以入口依赖 Agent、模型、工具三个契约 | 服务端应用的入口行 |
-| 5 | 加一个操作要同时改三个成员：公开契约、SDK、服务端入口 | [接入组说明](../../packages/access/README.md)「维护」 |
-| 6 | 三个位置共用一套信封、一套对外结果、一套判断次序 | [公开契约规格](../../packages/access/public-contract/SPEC.md)「共同消息」「对外结果」 |
+| 5 | 加一个操作要同时改三个成员：公开契约、SDK、服务端入口 | [接入组说明](../../packages/access/SPEC.md)「维护」 |
+| 6 | 三个位置共用一套信封、一套对外结果、一套判断次序 | [公开契约规格](../../packages/access/SPEC.md)「共同消息」「对外结果」 |
 | 7 | 操作名、登录证明、行事租户、消息编号都在消息体里。消息体里另有一份协议版本，与路径重复 | 公开契约规格「共同消息」 |
 | 8 | 承载页明文写着：登录证明在消息体里，服务端不读 `Authorization` 头 | 承载页 |
 | 9 | 服务端读完消息之前不知道这次请求是不是观察。请求体上限按路径定，不按操作定 | 承载页「请求与响应规则」 |
-| 10 | SDK 是三个手写的客户端：`createGovernanceClient`、`createSessionClient`、`createHitlClient` | [SDK 规格](../../packages/access/sdk/SPEC.md) |
+| 10 | SDK 是三个手写的客户端：`createGovernanceClient`、`createSessionClient`、`createHitlClient` | [SDK 规格](../../packages/access/SPEC.md#客户端) |
 | 11 | 客户端一侧没有装配，也没有办法知道服务端现在开放着什么 | 接入组说明 |
 | 12 | 治理这一个协议里有注册与登录、组织与成员、邀请、归属、授权表达、主体停用、设置几类操作 | 承载页「承载绑定表」 |
-| 13 | 会话的观察在入口里做了一半。已有：建立、取消、同一个编号替换旧的、每个登录与整个实例的上限、每轮复核登录、按登录结束、心跳、结束帧。其中登记观察与写流的两段不认识任何领域。没有：定位模型调用、取流、内容帧、刷新。流上现在只有确认、心跳和结束帧 | 入口的会话观察；[服务端接入规格](../../packages/access/server-entry/SPEC.md)「刷新策略」 |
+| 13 | 会话的观察在入口里做了一半。已有：建立、取消、同一个编号替换旧的、每个登录与整个实例的上限、每轮复核登录、按登录结束、心跳、结束帧。其中登记观察与写流的两段不认识任何领域。没有：定位模型调用、取流、内容帧、刷新。流上现在只有确认、心跳和结束帧 | 入口的会话观察；[服务端接入规格](../../packages/access/SPEC.md)「刷新策略」 |
 | 14 | 服务端没有「列出我的会话」这个对外操作。命令行只在本机的会话文件里记着自己建过的会话 | 会话位置的操作；命令行 |
 | 15 | 读历史只读部署配置列出的种类，默认是用户消息和助手消息两种。没有按块的标注过滤 | 入口的读历史 |
 | 16 | 公开协议对普通设置项一律答「不可写」。服务端应用只接了秘密项。设置领域有配值写入协议和本机实现，写入服务只在服务端应用的测试装配里实例化过 | 设置领域；服务端应用的正式装配与测试装配 |
@@ -77,8 +77,8 @@ owner: PanQiWei
 三处现行正文禁止的都是 SDK 依赖服务端的东西。客户端自己有一棵装配树，原文没有禁止，也没有提到：
 
 - [系统分层](../architecture/layers-and-dependencies.md#依赖关系与禁止方向)：「SDK 依赖公开契约及其平台适配，不依赖服务端的存储、运行时实例或 Cordis 装配树。」
-- [接入组说明](../../packages/access/README.md)：「SDK 不依赖服务端私有实现、存储或 Cordis 装配树。」
-- [公开契约规格](../../packages/access/public-contract/SPEC.md)：「它不依赖 server-entry。它不依赖服务器存储包。」
+- [接入组说明](../../packages/access/SPEC.md)：「SDK 不依赖服务端私有实现、存储或 Cordis 装配树。」
+- [公开契约规格](../../packages/access/SPEC.md)：「它不依赖 server-entry。它不依赖服务器存储包。」
 
 ### 推断与未知
 
@@ -104,8 +104,8 @@ owner: PanQiWei
 | [应用装配](../architecture/runtime/application-assembly.md#受信子树) | 插件树；受信子树 | 有贡献不等于开放；受信作用域的成员只由发行安装 |
 | [执行与资源隔离](../architecture/security/execution-isolation.md#插件装配与代码信任) | 插件装配与代码信任 | 允许装载不等于放开权限 |
 | [不可信内容](../architecture/security/untrusted-content.md) | 内容来源与控制权限 | 资产内容与工作区配置不能隐式装载宿主代码 |
-| [公开契约规格](../../packages/access/public-contract/SPEC.md#对外结果) | 对外结果；判断次序 | 对外结果表、拒绝一致、严格读取沿用 |
-| [承载页](../../packages/access/public-contract/docs/http-binding.md#状态码映射) | 状态码映射 | 一种结果一个状态码，沿用现有的对应表 |
+| [公开契约规格](../../packages/access/SPEC.md#对外结果) | 对外结果；判断次序 | 对外结果表、拒绝一致、严格读取沿用 |
+| [承载页](../../packages/access/SPEC.md#拒绝一致与不披露) | 状态码映射 | 一种结果一个状态码，沿用现有的对应表 |
 | 2026-11-05 的已有裁定 | 同步失效机制不能有局部热点 | 查登记表和广播可用性不能成为热点，不能把无关的调用串行化 |
 
 ## 建议与改变范围
@@ -304,7 +304,7 @@ declare function defineProtocol<const P extends ProtocolContract>(protocol: P): 
 | 消息体 | 请求体。就是操作的消息体本身，没有外层 |
 | 答复 | 响应体：`{"outcome": "<结果>", "body": {…}}` |
 
-状态码沿用[现有的对应表](../../packages/access/public-contract/docs/http-binding.md#状态码映射)，一种结果一个状态码。
+状态码沿用[现有的对应表](../../packages/access/SPEC.md#拒绝一致与不披露)，一种结果一个状态码。
 
 地址的三处写法和业界通行的做法一致：
 
@@ -530,7 +530,7 @@ declare function defineAccessPlugin<P extends ProtocolContract>(definition: {
 | `acting-tenant` | `Omne-Acting-Tenant` 不是恰好一个，或为空 | `denied`，不调 `actFor` |
 | `acting-tenant` | `actFor` 的结果 | 给出主体就用它；失败同 `identifyLogin` |
 
-行事租户的原文交给身份端口，它是不是这个登录能代的租户由身份判断。身份的结果不缓存。第 8、9 步等待的每一件事都同时等中止信号，信号一到就答 `basis-unavailable`。消息体还没读完就写出的答复和每一个 `denied` 都关闭连接。精确的规则归[服务端接入规格的管道](../../packages/access/server-entry/SPEC.md#管道)。
+行事租户的原文交给身份端口，它是不是这个登录能代的租户由身份判断。身份的结果不缓存。第 8、9 步等待的每一件事都同时等中止信号，信号一到就答 `basis-unavailable`。消息体还没读完就写出的答复和每一个 `denied` 都关闭连接。精确的规则归[服务端接入规格的管道](../../packages/access/SPEC.md#管道)。
 
 处理函数自己知道「什么都没提交」的时候，直接返回 `basis-unavailable`，不要抛出。抛出的失败按第 13 步处理，因为管道不知道效果有没有发生。
 
@@ -955,7 +955,7 @@ type ObserveSessionFrame =
 | 协议撤下、停机、连接断开时结束 | |
 | 写结束帧。原因是中枢的五种加上这个观察自己的那些 | |
 
-刷新的策略、退避与上界沿用[服务端接入规格的刷新策略](../../packages/access/server-entry/SPEC.md#刷新策略)，随成员搬到会话观察的规格里。它加一个事件和三条规则：
+刷新的策略、退避与上界沿用[服务端接入规格的刷新策略](../../packages/access/SPEC.md#会话观察)，随成员搬到会话观察的规格里。它加一个事件和三条规则：
 
 - **事件「这个会话有新的提交」。** 通知里的条目种类和「读历史给出的八种、调用登记」有交集时，重新定位，四个字段有变化就发一帧状态。没有交集的通知不理会。
 - **通知只是叫醒，不是事实的来源。** 漏掉的通知由原有的按间隔刷新补上。
@@ -1674,7 +1674,7 @@ SSE 的解析用 eventsource-parser 4.1.1。流式 Markdown 用 streamdown 及�
 
 #### 会话观察的定位与流
 
-[服务端接入规格的刷新策略](../../packages/access/server-entry/SPEC.md#刷新策略)画了六个状态。它们其实是两条独立的轴交叉出来的：
+[服务端接入规格的刷新策略](../../packages/access/SPEC.md#会话观察)画了六个状态。它们其实是两条独立的轴交叉出来的：
 
 | | 定位：空闲 | 定位：进行中 |
 | --- | --- | --- |
@@ -1777,7 +1777,7 @@ SSE 的解析用 eventsource-parser 4.1.1。流式 Markdown 用 streamdown 及�
 | 数据生命周期；并发 | 租户层设置的一次写入：两个窗口同时改、确认丢失后再送 | 不做模型。全化表已经写出每一格；并发由修订号与提交事务里的重读守，重复由原操作的身份守，两样都是存储事务里的单步判断 |
 | 较高的性能要求 | 每次提交多一次时钟读数和一行写入 | 不做模型。要守的是不多一次往返，结构上看得出来。代价在「列出会话」那一程的第一个切片量 |
 
-三个模型是 TLA+ 写的，用项目钉住的 TLC 1.7.4 检查。模型、负控配置与运行命令在[接入登记表与可用性的有限行为模型](../../packages/access/server-entry/verification/models/README.md)。**这是有限模型的结论。** 它说明设计在下面的规模内没有这一类缺陷。它不说明实现正确，也不说明更大的规模下成立。
+三个模型是 TLA+ 写的，用项目钉住的 TLC 1.7.4 检查。模型、负控配置与运行命令在[接入登记表与可用性的有限行为模型](../../packages/access/server-entry/verification/formal-mapping.md)。**这是有限模型的结论。** 它说明设计在下面的规模内没有这一类缺陷。它不说明实现正确，也不说明更大的规模下成立。
 
 #### 模型一：登记表与在途工作
 
@@ -1974,7 +1974,7 @@ SSE 的解析用 eventsource-parser 4.1.1。流式 Markdown 用 streamdown 及�
 
 | 受影响拥有者 | 现行条款 | 拟改变内容 | 必须保持的条件与例外 |
 | --- | --- | --- | --- |
-| 接入 | [公开契约规格](../../packages/access/public-contract/SPEC.md)；[承载页](../../packages/access/public-contract/docs/http-binding.md)；[服务端接入规格](../../packages/access/server-entry/SPEC.md)；[SDK 规格](../../packages/access/sdk/SPEC.md) | 线上形状、共同契约、登记表、管道、观察中枢、可用性、客户端核心、客户端装配 | 对外结果表、拒绝一致、严格读取沿用 |
+| 接入 | [公开契约规格](../../packages/access/SPEC.md)；[承载页](../../packages/access/SPEC.md#http-承载)；[服务端接入规格](../../packages/access/SPEC.md)；[SDK 规格](../../packages/access/SPEC.md#客户端) | 线上形状、共同契约、登记表、管道、观察中枢、可用性、客户端核心、客户端装配 | 对外结果表、拒绝一致、严格读取沿用 |
 | 身份与授权 | [身份规格](../../packages/identity/identity/SPEC.md) | `identity/v1` 的协议契约与接入插件；登录签发必返回登录的编号；登录的界面模块；实现接入的身份端口 | 34 个操作的消息体、结果集与业务规则不变 |
 | 资产与规则 | [设置规格](../../packages/assets/settings/SPEC.md) | `assets/v1` 的协议契约与接入插件；普通项可写；设置的界面模块 | 设置领域的业务规则不变；锁定与解锁不公开 |
 | 会话与工作 | [会话契约规格](../../packages/session/session-contract/SPEC.md)；[会话 SQL 存储规格](../../packages/session/session-storage-sql/SPEC.md) | `session/v1` 的协议契约与接入插件；每次提交记时刻；列出会话与会话列表项；会话观察；每次提交都发通知；调用登记的读取函数；读历史按标注过滤；建会话的定义名可以不给；定义名映射从入口搬回会话一侧；会话列表与对话的界面模块 | 业务规则除新增的读取外不变；目标租户的规则不变；派生标识用的文本不改 |
@@ -2213,22 +2213,22 @@ SSE 的解析用 eventsource-parser 4.1.1。流式 Markdown 用 streamdown 及�
 | 协议客户端随协议可用性生灭；客户端没有可写的业务状态 | [系统分层](../architecture/layers-and-dependencies.md#客户端状态与资源管理)「客户端状态与资源管理」 | 已写回 | PanQiWei 2026-11-12 |
 | 成员放哪；能力组 `frontend`；新应用 `apps/desktop`；契约骨架验证应用退役；桌面技术栈写在哪 | [产品包组织](../package-organization.md#目标目录)「目标目录」「责任与能力组」「SDK与系统接入」「新增与扩展」 | 已写回 | PanQiWei 2026-11-12 |
 | 词条：公开协议、接入贡献、公开观察、协议可用性、会话观察、界面外壳、界面模块、界面插入位置 | [统一语言](../../.meta_harness/design/ubiquitous_language/index.md) | 已写回 | PanQiWei 2026-11-12 |
-| 三个形式化模型、负控、两条硬要求、证明转契约测试的清单。模型三随会话观察的成员建成搬到它那里 | [接入登记表与可用性的有限行为模型](../../packages/access/server-entry/verification/models/README.md) | 已写回。模型与代码的对应在「接入层」那一路补上 | PanQiWei 2026-11-12 |
+| 三个形式化模型、负控、两条硬要求、证明转契约测试的清单。模型三随会话观察的成员建成搬到它那里 | [接入登记表与可用性的有限行为模型](../../packages/access/server-entry/verification/formal-mapping.md) | 已写回。模型与代码的对应在「接入层」那一路补上 | PanQiWei 2026-11-12 |
 | 依赖方向的门禁：`DIR-ACCESS-MODEL`、`DIR-ACCESS-TOOL` 跟着依赖边改；加 I-1、I-17、I-18、I-19 的规则 | [约束登记](../architecture/constraints.json) | 待写回，随「接入插件」那一程 | 未切换 |
-| 共同契约、对外结果 | [公开契约规格](../../packages/access/public-contract/SPEC.md#共同契约)「共同契约」 | 已写回（部分：本行只是原「共同契约、对外结果、判断次序、观察的结束原因、内置协议的契约」中写回了的那一部分） | 卡 #1213，PR #1222 合入；PanQiWei 2026-11-12 |
-| 判断次序、观察的结束原因、内置协议的契约 | [公开契约规格](../../packages/access/public-contract/SPEC.md)；[承载页](../../packages/access/public-contract/docs/http-binding.md) | 已写回（部分：承载页「新地址」写回了操作的线上形状与判断次序第 1 到 9 步各答什么；「新地址上的观察」写回了观察的事件流、结束帧与结束原因，公开契约规格写回了观察契约的 `limit` 一栏与内置协议 `access/v1` 的契约（卡 #1249）） | 卡 #1233、#1249；确认者随 PR 的接受 |
-| 贡献的类型、登记表的服务定义 | [access-cordis-contract 的规格](../../packages/access/access-cordis-contract/SPEC.md) | 已写回（部分：本行只是原「贡献的类型、登记表的服务定义、`defineAccessPlugin`」中写回了的那一部分；身份端口 `AccessIdentity` 的类型也写在这里，卡 #1233） | 卡 #1223、#1233；确认者随 PR 的接受 |
-| `defineAccessPlugin` | [access-cordis-contract 的规格](../../packages/access/access-cordis-contract/SPEC.md#defineaccessplugin) | 已写回 | 卡 #1249；确认者随 PR 的接受 |
-| 入口：登记表；判断次序第 10 到 14 步的收场与宽限 | [服务端接入规格](../../packages/access/server-entry/SPEC.md#登记表)「登记表」「收场与宽限」 | 已写回（部分：本行只是原「入口：登记表、管道、观察中枢、承载绑定、可用性」中写回了的那一部分；登记表经管道接到新地址上；正式的服务端应用在入口那一行接上，新地址上只有内置协议（卡 #1249）） | 卡 #1223、#1233、#1249；确认者随 PR 的接受 |
-| 入口：管道的第 1 到 9 步、观察中枢、承载绑定、可用性 | [服务端接入规格](../../packages/access/server-entry/SPEC.md#管道)「管道」 | 已写回（部分：写回了管道第 1 到 9 步、身份规则、消息编号的格式、消息体上限、关连接的规则、`access` 这份输入；「观察中枢」写回了建立、线上的字节、结束与业务访问的报告；「内置协议与可用性」写回了可用性（卡 #1249）） | 卡 #1233、#1249；确认者随 PR 的接受 |
-| 客户端核心：`createClient`、传输、本地的两种结果 | [SDK 规格](../../packages/access/sdk/SPEC.md#客户端核心)「客户端核心」 | 已写回（HTTP 传输与进程内传输；进程间传输不在本程） | 卡 #1249；确认者随 PR 的接受 |
+| 共同契约、对外结果 | [公开契约规格](../../packages/access/SPEC.md#协议契约与编解码)「共同契约」 | 已写回（部分：本行只是原「共同契约、对外结果、判断次序、观察的结束原因、内置协议的契约」中写回了的那一部分） | 卡 #1213，PR #1222 合入；PanQiWei 2026-11-12 |
+| 判断次序、观察的结束原因、内置协议的契约 | [公开契约规格](../../packages/access/SPEC.md)；[承载页](../../packages/access/SPEC.md#http-承载) | 已写回（部分：承载页「新地址」写回了操作的线上形状与判断次序第 1 到 9 步各答什么；「新地址上的观察」写回了观察的事件流、结束帧与结束原因，公开契约规格写回了观察契约的 `limit` 一栏与内置协议 `access/v1` 的契约（卡 #1249）） | 卡 #1233、#1249；确认者随 PR 的接受 |
+| 贡献的类型、登记表的服务定义 | [access-cordis-contract 的规格](../../packages/access/SPEC.md#登记表与撤下) | 已写回（部分：本行只是原「贡献的类型、登记表的服务定义、`defineAccessPlugin`」中写回了的那一部分；身份端口 `AccessIdentity` 的类型也写在这里，卡 #1233） | 卡 #1223、#1233；确认者随 PR 的接受 |
+| `defineAccessPlugin` | [access-cordis-contract 的规格](../../packages/access/SPEC.md#登记表与撤下) | 已写回 | 卡 #1249；确认者随 PR 的接受 |
+| 入口：登记表；判断次序第 10 到 14 步的收场与宽限 | [服务端接入规格](../../packages/access/SPEC.md#登记表与撤下)「登记表」「收场与宽限」 | 已写回（部分：本行只是原「入口：登记表、管道、观察中枢、承载绑定、可用性」中写回了的那一部分；登记表经管道接到新地址上；正式的服务端应用在入口那一行接上，新地址上只有内置协议（卡 #1249）） | 卡 #1223、#1233、#1249；确认者随 PR 的接受 |
+| 入口：管道的第 1 到 9 步、观察中枢、承载绑定、可用性 | [服务端接入规格](../../packages/access/SPEC.md#管道)「管道」 | 已写回（部分：写回了管道第 1 到 9 步、身份规则、消息编号的格式、消息体上限、关连接的规则、`access` 这份输入；「观察中枢」写回了建立、线上的字节、结束与业务访问的报告；「内置协议与可用性」写回了可用性（卡 #1249）） | 卡 #1233、#1249；确认者随 PR 的接受 |
+| 客户端核心：`createClient`、传输、本地的两种结果 | [SDK 规格](../../packages/access/SPEC.md#客户端)「客户端核心」 | 已写回（HTTP 传输与进程内传输；进程间传输不在本程） | 卡 #1249；确认者随 PR 的接受 |
 | 客户端装配：连接、`defineProtocolClient` | `packages/access/client-assembly` 的规格（成员未建） | 待写回，随「接入层」那一路 | 未切换 |
-| 加一个操作改哪些成员；成员与依赖 | [接入组说明](../../packages/access/README.md) | 待写回，随「接入层」那一路 | 未切换 |
+| 加一个操作改哪些成员；成员与依赖 | [接入组说明](../../packages/access/SPEC.md) | 待写回，随「接入层」那一路 | 未切换 |
 | 列出会话的读取面 `SessionDirectory` 与它的访问操作；调用登记的读取函数与两种存法；「有没有一轮在进行」的判法 | [会话契约规格](../../packages/session/session-contract/SPEC.md#稳定调用引用的读取) | 部分写回：调用登记的读取函数 `readCallRegistration`、两种存法与一轮在进行的判法已写回，会话观察用它（#1248）；会话诊断共用它、`SessionDirectory` 待写回，随「领域一侧」那一路 | 未切换 |
 | 每次提交都发通知：会话日志的每一批新写出由会话存储一侧的唯一落点报给按库登记的通知接口，认回不报；会话核心不发；会话的 Cordis 成员导出造通知接口的函数，提供者只监听；服务端应用的会话存储行登记通知接口 | [会话契约规格](../../packages/session/session-contract/SPEC.md#ec-11)「EC-11」「SessionNotifier」；[会话 SQL 存储规格](../../packages/session/session-storage-sql/SPEC.md#本批与提交通知)「本批与提交通知」；[会话的 Cordis 成员规格](../../packages/session/session-cordis/SPEC.md#唤醒调用方与扫描者)；[会话的 Cordis 契约说明](../../packages/session/session-cordis-contract/docs/cordis.md#事件)；[服务端应用规格](../../apps/harness-server/SPEC.md#会话的提交通知) | 已写回 | 卡 #1230；确认者随 PR 的接受 |
 | 公共流的两个读取面装进正式装配，消费者是会话观察；投影函数给出值 | [模型契约规格](../../packages/model/model-contract/SPEC.md)；[模型的 Cordis 契约说明](../../packages/model/model-cordis-contract/docs/cordis.md)；[应用装配](../architecture/runtime/application-assembly.md#插件树) | 已写回（#1214 装进正式装配；#1248 投影函数 `projectModelOutputV1` 给出值，消费者改为会话观察） | 未切换 |
 | 每次提交的时刻；会话列表项的派生表、迁移与回填；会话列表项的写入路径、查询路径与索引 | [会话 SQL 存储规格](../../packages/session/session-storage-sql/SPEC.md) | 待写回，随「领域一侧」那一路 | 未切换 |
-| 会话观察：领域面、五个对象、定位与流两条轴的全化表、刷新策略与新事件 | [会话观察的规格](../../packages/session/session-observation/SPEC.md)。刷新状态图从[服务端接入规格的刷新策略](../../packages/access/server-entry/SPEC.md#刷新策略)搬过去 | 部分写回（#1248）：领域面、五个对象、两条轴的全化表与用例对照、刷新策略与通知已写回；入口规格的刷新状态图在接入组，没有搬，入口那一节仍在 | 未切换 |
+| 会话观察：领域面、五个对象、定位与流两条轴的全化表、刷新策略与新事件 | [会话观察的规格](../../packages/session/session-observation/SPEC.md)。刷新状态图从[服务端接入规格的刷新策略](../../packages/access/SPEC.md#会话观察)搬过去 | 部分写回（#1248）：领域面、五个对象、两条轴的全化表与用例对照、刷新策略与通知已写回；入口规格的刷新状态图在接入组，没有搬，入口那一节仍在 | 未切换 |
 | 普通设置项的读写：领域面、租户的写入服务进正式装配 | [设置规格](../../packages/assets/settings/SPEC.md)；[服务端应用规格](../../apps/harness-server/SPEC.md) | 待写回，随「领域一侧」那一路 | 未切换 |
 | `identity/v1`：操作划分；四个不进新契约的操作；登录签发必返回登录的编号；实现接入的身份端口 | `packages/identity/identity-protocol`、`identity-access` 的规格（成员未建）；[身份规格](../../packages/identity/identity/SPEC.md) | 待写回，随「接入插件」那一程 | 未切换 |
 | `assets/v1`：四个操作；普通项可写；修订号与 `conflict` | `packages/assets/assets-protocol`、`assets-access` 的规格（成员未建） | 待写回，随「接入插件」那一程 | 未切换 |

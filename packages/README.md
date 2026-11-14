@@ -6,7 +6,7 @@
 
 | 能力组 | 责任 | 具名目标成员 |
 | --- | --- | --- |
-| [access](access/README.md) | 系统接入 | `public-contract`, `sdk`, `server-entry` |
+| [access](access/SPEC.md) | 系统接入 | `public-contract`, `sdk`, `server-entry` |
 | [identity](identity/README.md) | 身份与授权 | `identity`, `authorization` |
 | [assets](assets/README.md) | 资产与规则 | `assets`, `assets-local`, `settings`, `settings-local`, `permissions` |
 | [workspace](workspace/README.md) | 工作区 | `workspace` |

@@ -54,7 +54,7 @@ OTel 链路与指标、Collector、运行中换输出、出口分区与撤权围
 | [Agent 契约](../../packages/agent/SPEC.md#应然设计) | Journal 读面；失败诊断只写身份与状态 | 只做可加扩展；不披露私有权限块、秘密与无权内容 |
 | [Model 契约](../../packages/model/model-contract/SPEC.md#诊断查询与保留) | 诊断查询与保留 | 诊断读取资格单独核对；白名单字段；游标不代替权限；已知时长用同一单调时基 |
 | [Tool 契约](../../packages/tool/tool-contract/SPEC.md) | 读取面与具名失败 | `unsupported` 是具名失败，投影如实表达 |
-| [公开契约](../../packages/access/public-contract/SPEC.md#会话公开操作) 与 [服务端接入](../../packages/access/server-entry/SPEC.md#会话位置) | `session-public/1` 的判断次序；接入是 Session 调用的唯一调用方 | 新操作沿同一判断次序；`denied` 不披露存在性 |
+| [公开契约](../../packages/access/SPEC.md#判断次序) 与 [服务端接入](../../packages/access/SPEC.md) | `session-public/1` 的判断次序；接入是 Session 调用的唯一调用方 | 新操作沿同一判断次序；`denied` 不披露存在性 |
 | [CLI 规格](../../apps/cli/SPEC.md#命令结果与退出码) | 命令名等于操作名；结果对象；退出码 0～5 | 新命令沿同一约定 |
 | CLI/Server 交接包 | §1.2 完整会话视图是跨拥有者的只读组合；§3「读取完整会话视图」行；接手说明 §2 | access 与 apps 允许该工作做破坏性修改，本提案在那里只做加法；核心领域只做可加扩展 |
 | [#1140 的决定记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6663579066)与[范围变更](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6665535851) | chenyize 2026-11-05 | D01、D09、D13、D16 已采用；范围收窄为 A、B 两线；其余见「决定范围」 |
@@ -174,7 +174,7 @@ flowchart LR
 | `run` | 只在 `cursor` 为 null 时出现。null 表示全部 Run，从最新开始；否则是一个 Run 标识文本 |
 | `pageBytes` | 只在 `cursor` 为 null 时出现。规则同 `read-history`，超出部署上界答 `invalid` |
 
-判断次序沿公开契约的[会话判断次序](../../packages/access/public-contract/SPEC.md#会话判断次序)。第 6 步的 Session 判断是历史读取的资格判断；之后的 Agent、Model、Tool 读取各自核资格，它们的拒绝不改变操作的 `outcome`，只成为缺口。`outcome` 取 `succeeded`、`denied`、`invalid`、`basis-unavailable`。`denied` 与 `read-history` 一样不披露会话是否存在。
+判断次序沿公开契约的[会话判断次序](../../packages/access/SPEC.md#判断次序)。第 6 步的 Session 判断是历史读取的资格判断；之后的 Agent、Model、Tool 读取各自核资格，它们的拒绝不改变操作的 `outcome`，只成为缺口。`outcome` 取 `succeeded`、`denied`、`invalid`、`basis-unavailable`。`denied` 与 `read-history` 一样不披露会话是否存在。
 
 响应 body `SessionDiagnosticsPage`：
 
@@ -436,7 +436,7 @@ flowchart TB
 | 系统负责人：跨系统技术约定 | [当前承接与后续设计](../architecture/cross-cutting-concepts.md#当前承接与后续设计)的「观测基础契约」待承接 | 改为由 `telemetry-contract` 承接，指向成员 SPEC | 不建全局事件流；OTel 不取得事实权威 |
 | 联调轨道：应用装配 | [插件树](../architecture/runtime/application-assembly.md#插件树)没有 `telemetry` 行 | 新增 `telemetry` 行与遥测关闭步骤；`server-entry` 行新增注入；`model-records` 行提供 `modelDiagnostics` | 运行时对象不进树；受信可见性表同步 |
 | 包组织拥有者 | [目标目录](../package-organization.md#目标目录)的 `telemetry/` 组 | `telemetry-contract`、`telemetry-cordis-contract`、`telemetry-node` 三个成员；`diagnostic` 已删除 | 新成员有具名消费者 |
-| app-access 线 | [harness-server 进程输出](../../apps/harness-server/SPEC.md#进程输出与退出码)；[服务端接入会话位置](../../packages/access/server-entry/SPEC.md#会话位置)；[公开契约会话操作](../../packages/access/public-contract/SPEC.md#会话公开操作)；[CLI 命令](../../apps/cli/SPEC.md#命令) | 日志桥、`telemetry` 行、关闭步骤；新操作 `read-session-diagnostics`、SDK 转出诊断页类型、CLI 命令；`session-view` 模块 | stdout 唯一写者；`denied` 不披露存在性；只做加法 |
+| app-access 线 | [harness-server 进程输出](../../apps/harness-server/SPEC.md#进程输出与退出码)；[服务端接入会话位置](../../packages/access/SPEC.md)；[公开契约会话操作](../../packages/access/SPEC.md#判断次序)；[CLI 命令](../../apps/cli/SPEC.md#命令) | 日志桥、`telemetry` 行、关闭步骤；新操作 `read-session-diagnostics`、SDK 转出诊断页类型、CLI 命令；`session-view` 模块 | stdout 唯一写者；`denied` 不披露存在性；只做加法 |
 | session-run 线（Session、Agent） | 各成员已有的诊断与测量回调；[Agent Journal 读面](../../packages/agent/SPEC.md#应然设计) | measure 事件加可选 `tenant`，facade；`AgentJournalReading.readFinish?` | 回调形状不变；只做可加改动；失败诊断不带正文 |
 | model 线 | [诊断查询与保留](../../packages/model/model-contract/SPEC.md#诊断查询与保留)已接受字段与协议 | 实现 `ModelDiagnostics`；采用诊断读取资格映射与保留；可选的阶段时长 | 白名单字段；`timing` 证据不足时 `unknown`；游标不代替权限 |
 | tool-exec 线 | 账本对 `diagnostics` 答 `unsupported` | 不改 | 投影如实写 `unsupported` |

@@ -207,7 +207,7 @@ SL18。归约只用已提交依据和适用解释版本，校验完整结果及�
 
 访问裁定与原操作认回先于新输入的容量判断。已受理的原操作在队列满时仍可认回，当前撤权则不披露旧回执。读取计数、判断预算及发布入列事实必须在同一修订及原子提交边界内成立。历史输入超过新预算时仍保管，不为降低数量而删除。
 
-验证见 [intake-limits.spec.ts](tests/intake-limits.spec.ts)。SQL 事务兑现见 [W1](../session-storage-sql/SPEC.md#w1)，HTTP 的独立在途预算见 [服务端 HTTP 责任](../../access/server-entry/SPEC.md#服务端的-http-层责任)。
+验证见 [intake-limits.spec.ts](tests/intake-limits.spec.ts)。SQL 事务兑现见 [W1](../session-storage-sql/SPEC.md#w1)，HTTP 的独立在途预算见 [服务端 HTTP 责任](../../access/SPEC.md#http-承载)。
 
 ## 分流及命令边界
 
