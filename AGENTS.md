@@ -223,6 +223,7 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 | 当前判断 | 加载入口与停止点 | 重点带的 |
 | --- | --- | --- |
 | 开工前建立系统图景、理解知识体系或普通阅读 | 上面两张图与要点先给出图景；要展开时从[架构入口](docs/architecture/README.md)与[领域入口](docs/domains/README.md)进，再读要改的包组或应用的 `SPEC.md`。找到本次责任就停 | 拆、证 |
+| 在 `packages/` 或 `apps/` 里实现或修复 | 读所在包组或应用的 `SPEC.md`。新建或拆分成员先核[组织原则](docs/architecture/structure.md#组织原则)里的依赖方向、独立使用与 Cordis 集成边界，用包模板生成。已有承诺够用就不展开架构 | 定形、建、证 |
 | 新要求、系统边界或跨成员保证 | 加载 `harness-design-handbook`，从[项目要求](docs/requirements.md)、[架构](docs/architecture/README.md)、[领域](docs/domains/README.md)定位拥有者，只展开本次必要输入 | 拆、找差异、对人 |
 | 产品、概念或对象治理 | 起草产品加载 `product-design`，改词条加载 `ubiquitous-language`，改对象条目加载 `domain-objects`；只消费已有正文不加载 | 对人、找差异、拆 |
 | 文档、AGENTS 或技能维护 | 文档加载 pqw `clear-writing`，AGENTS 加载 pqw `write-agents-md`，技能加载官方 `skill-creator`；改了源、锚点或路径之后，核对入向链接与生成物 | 拆、找差异 |

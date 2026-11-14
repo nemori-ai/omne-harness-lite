@@ -81,4 +81,4 @@ omne-harness-lite 是服务组织或个人的 agent harness，组织模型、工
 
 共同集成保证归[IC约定](cordis-integration-conventions.md)，[constraints](constraints.json)是现行机读采用映射；其状态只声明检查定位，不等于实际行为符合。消费者是否已切换、成员是否满足目标及行为是否经过验证，分别核对。
 
-[系统目标与全局约束](../requirements.md)提供上游依据。领域关系归[领域层](../domains/README.md)，符合上层要求的精确接口、行为及验证资源归[实际成员](../../packages/README.md)。信息整合核对唯一正文和必要消费者，不要求所有旧技术设计继续有效。
+[系统目标与全局约束](../requirements.md)提供上游依据。领域关系归[领域层](../domains/README.md)，符合上层要求的精确接口、行为及验证资源归各包组与应用的 `SPEC.md` 与源码。信息整合核对唯一正文和必要消费者，不要求所有旧技术设计继续有效。

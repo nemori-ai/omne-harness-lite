@@ -99,8 +99,6 @@
     "docs/acceptance/README.md",
     "docs/acceptance/interruption-and-return.md",
     "docs/development_human.md",
-    "packages/AGENTS.md",
-    "packages/README.md",
     "packages/agent/agent/acceptance/README.md",
     "packages/agent/agent/acceptance/fixtures/README.md",
     "packages/model/model/acceptance/README.md",
