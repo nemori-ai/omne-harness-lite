@@ -2,7 +2,7 @@
 
 状态：已采用（Reduce，R1-D34，[#978 评论](https://github.com/nemori-ai/omne-harness-lite/issues/978#issuecomment-6564997466)）。本页是实施输入。[#688](https://github.com/nemori-ai/omne-harness-lite/issues/688) 的 D-SPEC 条件是「公开承诺、包名及采用范围已确认」，本次采用满足它：AC-01 至 AC-17、AC-19、AC-22、AC-23 给出公开承诺，AC-18 给出包名，AC-20 给出采用范围，AC-24 至 AC-26 给出调用方适配。
 
-本页是领域角色「采用协调」的契约设计唯一源。[领域页](README.md#模块角色与事实归属)只定义这个角色。[assembly 规格](../../../packages/assembly/assembly/SPEC.md#adoption)继续拥有求值、发布、入口与失败记录的行为。本页不重述那些行为，只引用它们。
+本页是领域角色「采用协调」的契约设计唯一源。[领域页](README.md#模块角色与事实归属)只定义这个角色。[assembly 规格](../../../packages/assembly/SPEC.md#采用记录与失败)继续拥有求值、发布、入口与失败记录的行为。本页不重述那些行为，只引用它们。
 
 本页的编号 `AC-nn` 也是候选结论编号 DP6-Cnn。同一条规则只在本页定义一次。
 
@@ -33,7 +33,7 @@
 
 | 依据                                                                                      | 位置                                                                                                                                                            | 采用状态                  |
 | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| assembly 规格「采用与重装」的记录、发布、入口、定义到消费者                               | [assembly 规格](../../../packages/assembly/assembly/SPEC.md#adoption)                                                                                           | 已技术接受，现行行为      |
+| assembly 规格「采用与重装」的记录、发布、入口、定义到消费者                               | [assembly 规格](../../../packages/assembly/SPEC.md#采用记录与失败)                                                                                           | 已技术接受，现行行为      |
 | Session 规格 PM-03、PM-06、PM-09，「初始化来源与提交」，「身份桥、证据桥与 Context 输入」 | [Session 规格「运行契约候选」](../../../packages/session/session-contract/SPEC.md#运行契约候选)                                                                 | 候选，尚未技术接受        |
 | `SessionAdoptionSource`、`SessionCommand`                                                 | [Session 端口](../../../packages/session/session-contract/src/ports.ts)                                                                                         | F 上已发布的类型          |
 | 服务键 `sessionAdoptionSource`                                                            | [Session 的 Cordis 契约](../../../packages/session/session-cordis-contract/src/cordis.ts) 的 `SessionAdoptionSourceService`                                     | F 上已发布                |

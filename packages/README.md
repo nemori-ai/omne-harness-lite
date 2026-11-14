@@ -11,7 +11,7 @@
 | [assets](assets/README.md) | 资产与规则 | `assets`, `assets-local`, `settings`, `settings-local`, `permissions` |
 | [workspace](workspace/README.md) | 工作区 | `workspace` |
 | [session](session/README.md) | 会话与工作 | `session` |
-| [assembly](assembly/README.md) | 装配交接 | `assembly` |
+| [assembly](assembly/SPEC.md) | 装配交接 | `assembly` |
 | [agent](agent/SPEC.md#领域边界) | Agent推进 | `agent` |
 | [model](model/SPEC.md) | 模型调用 | `model` |
 | [tool](tool/SPEC.md) | 工具执行 | `tool` |
