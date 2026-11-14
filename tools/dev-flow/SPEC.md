@@ -6,7 +6,7 @@ dev-flow 是开发流程工具，不发布。它由四部分组成：
 
 | 部分 | 入口 | 做什么 |
 | --- | --- | --- |
-| 集成 | `src/integration/gate-cli.ts wait`、`src/integration/release-run-cli.ts`（根脚本 `pnpm run release-run`）、`src/integration/cli.ts contract-check` | 等待 gate 运行并代为确认；派发并跟踪一次工具包发行运行；在 `pnpm run check` 里核对契约快照与 `dist/` |
+| 集成 | `src/integration/gate-cli.ts wait`、`src/integration/release-run-cli.ts`（根脚本 `pnpm run release-run`）、`src/integration/cli.ts contract-check` | 等待 gate 运行并代为确认，派发并跟踪一次工具包发行运行，在 `pnpm run check` 里核对契约快照与 `dist/` |
 | 共用 | `src/shared/gh.ts`、`src/shared/input.ts` | 为集成命令运行 `gh`、判断 JSON 输入 |
 | 公开导出核对 | `src/package-exports/cli.ts`（`omne-package-exports`） | 比较一个已构建成员的公开入口、机读导出清单与公开接口页 |
 | 包模板 | `src/package-template/cli.ts`（根脚本 `pnpm package:template`）与 `templates/package/`、`templates/domain/` | 生成成员与组的草稿，扫描模板采用与完整结构 |
@@ -29,7 +29,12 @@ dev-flow 是开发流程工具，不发布。它由四部分组成：
 - 组与组之间的依赖方向：归 `pnpm run lint:deps`，见 [repo-toolchain 的依赖方向](../repo-toolchain/SPEC.md#依赖方向)。
 - 成员的公开接口、行为与接受：归各成员与它的包组规格。
 
-消费者：测试运行器的步骤表调 `contract-check`；成员的测试以子进程运行 `package-exports`；`omne-card` 技能调 `gate-cli.ts wait` 与 `release-run`；新建成员时调包模板。
+消费者：
+
+- 测试运行器的步骤表调 `contract-check`。
+- 成员的测试以子进程运行 `package-exports`。
+- `omne-card` 技能调 `gate-cli.ts wait` 与 `release-run`。
+- 新建成员时调包模板。
 
 ## 心智模型
 
