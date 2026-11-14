@@ -50,6 +50,13 @@ async function unstarted(world: World, value: string) {
   return reference
 }
 
+async function unstartedBeside(world: World, value: string) {
+  await world.environments.dispose()
+  const reference = accepted(await world.api.invoke(world.invocation(value)))
+  await expect.poll(() => phase(world, world, reference)).toBe('preparing')
+  return reference
+}
+
 it('a call the records do not hold is not-accepted', async () => {
   const world = await fixture()
   try {
@@ -59,6 +66,37 @@ it('a call the records do not hold is not-accepted', async () => {
       kind: 'not-accepted',
     })
   } finally {
+    await world.close()
+  }
+})
+
+it('a principal that may not look the call up is denied before the living half is asked: no holding for a call that is held, and a call that is not held is not taken back', async () => {
+  const author = held()
+  const world = await fixture(author.author)
+  let next: Executor | null = null
+  try {
+    next = await world.newExecutor({ lostContact: () => null })
+    const reference = accepted(await world.api.invoke(world.invocation('hold-denied')))
+    await expect.poll(() => world.launches()).toBe(1)
+    const stranger = { ...world.query(reference), principal: 'bob' }
+    expect(diagnostics(world).knownCalls).toBe(1)
+    expect(await world.api.queries.contact(stranger)).toEqual({
+      failure: { kind: 'denied', action: 'lookup' },
+    })
+    expect(await world.api.queries.lookup(stranger)).toEqual({
+      failure: { kind: 'denied', action: 'lookup' },
+    })
+    const unheld = await unstartedBeside(world, 'denied-and-not-held')
+    expect(diagnostics(next).knownCalls).toBe(0)
+    expect(await next.api.queries.contact({ ...world.query(unheld), principal: 'bob' })).toEqual({
+      failure: { kind: 'denied', action: 'lookup' },
+    })
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(diagnostics(next)).toMatchObject({ knownCalls: 0, unownedRuns: 0 })
+    expect(await phase(next, world, unheld)).toBe('preparing')
+  } finally {
+    author.release()
+    await next?.close()
     await world.close()
   }
 })
