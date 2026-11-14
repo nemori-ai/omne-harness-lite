@@ -498,6 +498,14 @@ export function operatorLayer(options: {
         id: 'session-ad04',
         config: { scopeIndexEntries: 4096, pageBytes: 65536 },
       },
+      {
+        kind: 'replace',
+        id: 'session-access',
+        config: {
+          ...releaseRowConfig('session-access'),
+          requestJournalFile: join(options.storageRoot, 'request-queue.jsonl'),
+        },
+      },
       // SC4（R2-D162）：agent-host 换真件后，工厂数值与实例空闲时长归运维者层；整行替换时重抄发行层的两项。
       { kind: 'replace', id: 'agent-host', config: agentHostOperatorConfig() },
       // The session diagnostics projection: every kind it knows, and test bounds (A12).
@@ -532,12 +540,16 @@ export function operatorLayer(options: {
   }
 }
 
-/** The `maxJsonDepth` the release distribution gives the storage row. */
-export function releaseMaxJsonDepth(): number {
+function releaseRowConfig(id: string): Record<string, unknown> {
   const release = JSON.parse(readFileSync(distributionPath, 'utf8')) as {
     rows: { id: string; config: Record<string, unknown> }[]
   }
-  const depth = release.rows.find(entry => entry.id === 'storage')?.config['maxJsonDepth']
+  return release.rows.find(entry => entry.id === id)?.config ?? {}
+}
+
+/** The `maxJsonDepth` the release distribution gives the storage row. */
+export function releaseMaxJsonDepth(): number {
+  const depth = releaseRowConfig('storage')['maxJsonDepth']
   if (typeof depth !== 'number') throw new Error('the release storage row gives no maxJsonDepth')
   return depth
 }
