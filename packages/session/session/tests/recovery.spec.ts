@@ -14,7 +14,7 @@ import {
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import { evidence, succeeded } from '@omne-harness/session-contract/testing'
-import { handsBack } from '../src/recover.ts'
+import { acceptedRun as acceptedRunOf, handsBack } from '../src/recover.ts'
 import { sessionSlotReference } from '../src/slot-reference.ts'
 import { memoryBackend } from './fixtures/backends.ts'
 import { harness, TENANT_A, type Harness } from './fixtures/harness.ts'
@@ -104,22 +104,32 @@ describe('the recovery of an active Run (PM-14)', () => {
     expect(agent.detach.mock.calls[0]![0]).toMatchObject({ execution, advance: run.advance })
   })
 
-  it('asks about a granted Run whose first input was not handed over: an execution whose runtime is out of contact is handed back and resumed', async () => {
+  it('asks about a Run that C2 came to by a replay although its hand-over is not recorded: an execution whose runtime is out of contact is handed back and resumed', async () => {
     const h = await harness({ backend: memoryBackend, advance: true })
     open.push(h)
     await h.create()
-    // C2 leaves the Run granted and its first input pending: the invoke gets no acceptance here.
+    // The first invoke gets no acceptance: the Run stays granted with its first input pending.
     h.drive.invoke = async () => ({ failure: { kind: 'denied' } })
     await h.accept('input-1')
     await vi.waitFor(async () => expect((await read(h)).run.kind).toBe('active'))
     const run = await activeRun(h)
-    expect((await read(h)).handed).toEqual([])
+    // The replay is accepted, by a runtime that is out of contact; the hand-over cannot be recorded.
+    const bridge = h.evidence as { prepare: Harness['evidence']['prepare'] }
+    const prepare = bridge.prepare
+    bridge.prepare = async (command, access) =>
+      command.kind === 'receive'
+        ? { failure: { kind: 'unavailable', owner: 'evidence', diagnostic: 'no source' } }
+        : prepare(command, access)
+    h.drive.invoke = async () => ({
+      ok: { revision: 'revision-1', evidence: evidence('accepted') },
+    })
     const agent = handedOver(h)
     h.drive.inspect = async () => ({ ok: status('open', evidence('lost')) })
 
     await scan(h)
     await vi.waitFor(() => expect(agent.resume).toHaveBeenCalledTimes(1))
 
+    expect((await read(h)).handed).toEqual([])
     expect(ordinalOf(await activeRun(h))).toBe(ordinalOf(run) + 1)
     const execution = run.execution.execution
     expect(agent.detach.mock.calls[0]![0]).toMatchObject({ execution, advance: run.advance })
@@ -432,5 +442,33 @@ describe('what a step of the recovery leaves when it fails (PM-05)', () => {
     await vi.waitFor(() => expect(inspect).toHaveBeenCalledTimes(2))
     await settle()
     expect(inspect).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('the Run that the Agent accepted (PM-14, PA-06 item 2)', () => {
+  /** The snapshot of the harness with these inputs pending and handed over. */
+  const shaped = async (pending: readonly string[], handed: readonly string[]) => {
+    const { h } = await acceptedRun()
+    return { ...(await read(h)), pending, handed } as unknown as WorkSnapshot
+  }
+
+  it('a first input that is still pending without a hand-over is not accepted: C2 replays the invoke', async () => {
+    expect(acceptedRunOf(await shaped(['input-1'], []))).toBe(null)
+  })
+
+  it('a first input with a hand-over is accepted', async () => {
+    expect(acceptedRunOf(await shaped(['input-1'], ['input-1']))?.first).toBe('input-1')
+    expect(acceptedRunOf(await shaped([], ['input-1']))?.first).toBe('input-1')
+  })
+
+  it('a first input that the Agent took in a batch is accepted, also when no hand-over was recorded', async () => {
+    // The hand-over needs the production evidence source; a deployment without it records none,
+    // and the batch the Agent took is then the only fact that says the Run was accepted.
+    expect(acceptedRunOf(await shaped([], []))?.first).toBe('input-1')
+  })
+
+  it('a Run that is not active is not one', async () => {
+    const terminal = { ...(await shaped([], [])), run: { kind: 'none' } } as unknown as WorkSnapshot
+    expect(acceptedRunOf(terminal)).toBe(null)
   })
 })

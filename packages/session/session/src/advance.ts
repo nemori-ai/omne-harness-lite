@@ -106,9 +106,10 @@ export function createAdvance<P>(
     scheduling: Scheduling<P>
     resolution: Resolution
     faces: Faces<P>
+    replayed: (ref: SessionRef, run: RunId) => void
   }>,
 ): Advance {
-  const { dependencies, lifecycle, policy, scheduling, resolution, faces } = input
+  const { dependencies, lifecycle, policy, scheduling, resolution, faces, replayed } = input
   const coordinator = faces.coordinator.work
   const waiting = new Map<string, AbortController>()
 
@@ -460,7 +461,7 @@ export function createAdvance<P>(
    * same identity (PA-06 item 2). An admission refusal (`invalid`) and a drive refusal (`refused`)
    * close the Run instead (PM-02). Nothing is sent once closed.
    */
-  const invoke = async (ref: SessionRef, started: StartedRun): Promise<void> => {
+  const invoke = async (ref: SessionRef, started: StartedRun, replay = false): Promise<void> => {
     const run = started.advance.run
     const operation = deriveDriveOperation({
       kind: 'invoke',
@@ -499,6 +500,7 @@ export function createAdvance<P>(
           input: started.first,
           result: { kind: 'accepted', receipt: answer.ok.evidence },
         })
+        if (replay) replayed(ref, run)
         return handIn(ref)
       }
       const failure = answer.failure
@@ -619,18 +621,18 @@ export function createAdvance<P>(
       reportFailure(ref, 'replay', run.run, started)
       return unknownTo(ref, started, () => replay(ref))
     }
-    // The advance moved to a later attempt (claim, reload): its invoke needs the grant of that
-    // attempt, which is the takeover of C5, not in this member yet (SPEC「实现现状」).
-    if (run.advance?.attempt !== started.ok.advance.attempt)
+    if (run.advance?.attempt !== started.ok.advance.attempt) {
+      replayed(ref, run.run)
       return report(
         ref,
         'C2',
         'replay',
         run.run,
         'attempt-replaced',
-        'the granted Run is held by a later attempt; its invoke waits for the takeover (C5)',
+        'a later attempt holds the Run',
       )
-    return invoke(ref, started.ok)
+    }
+    return invoke(ref, started.ok, true)
   }
 
   /**
