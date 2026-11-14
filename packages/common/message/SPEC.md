@@ -8,7 +8,7 @@
 
 本文件定义压缩记录 `CompactionMessage` 的形状、模型视图规则，以及两层判定：`judgeMessage` 判形状，`judgeCompaction` 判相对历史的规则。它不定义何时压缩、怎样写摘要、保留哪些消息，这些归压缩策略的拥有者。它也不定义历史怎样存放、怎样提交，这些归历史持有者。
 
-本文件还定义 assistant 消息里的推理续接状态部件和消息上的回放描述 `replay`，见[推理续接状态](#推理续接状态)。它不定义哪个模型能消费哪段状态、怎样把状态写进请求体，这些归 [Model 契约](../../model/model-contract/SPEC.md#推理回放)。
+本文件还定义 assistant 消息里的推理续接状态部件和消息上的回放描述 `replay`，见[推理续接状态](#推理续接状态)。它不定义哪个模型能消费哪段状态、怎样把状态写进请求体，这些归 [Model 规格](../../model/SPEC.md#推理回放)。
 
 状态：压缩变体已实现，设计待接受，接受由[任务卡 #581](https://github.com/nemori-ai/omne-harness-lite/issues/581) 的 D-02 决定；CM-02 的增量窗口、CM-03 的配对见证与拒绝值 `source-evidence` 依据[任务卡 #676](https://github.com/nemori-ai/omne-harness-lite/issues/676) 的 J15 与 [RQ-D02](https://github.com/nemori-ai/omne-harness-lite/issues/676#issuecomment-6371278636) 写入，已通过独立表达评审（记录在[任务卡 #676](https://github.com/nemori-ai/omne-harness-lite/issues/676)），评审裁定已写入；公开形状以 [src/](src) 为准。推理续接状态已实现，设计已由[任务卡 #605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的 D-03 接受；公开形状以 [src/](src) 为准，规则与判定顺序归本文件「推理续接状态」一节。
 
@@ -238,7 +238,7 @@ assistant 的 `blocks` 在内容块和三种调用部件之外，可以含推理
 
 <a id="rs-06"></a>
 
-**RS-06 本成员不解释内容。**`scope`、`format`、`payload` 都按原样保存和比较。用量与费用不在消息里，归模型调用的账目。哪个模型能消费哪个范围、不能消费时怎样处理、怎样把载荷写进请求体，归 [Model 契约的推理回放](../../model/model-contract/SPEC.md#推理回放)。
+**RS-06 本成员不解释内容。**`scope`、`format`、`payload` 都按原样保存和比较。用量与费用不在消息里，归模型调用的账目。哪个模型能消费哪个范围、不能消费时怎样处理、怎样把载荷写进请求体，归 [Model 规格的推理回放](../../model/SPEC.md#推理回放)。
 
 ### `judgeMessage` 与 `judgePart` 的判定
 
@@ -285,10 +285,10 @@ assistant 的 `blocks` 在内容块和三种调用部件之外，可以含推理
 
 - 压缩策略的拥有者按 CM-01 至 CM-05 生成压缩记录，消费规则见[单次模型请求的上下文](../../../docs/architecture/runtime/request-context.md#压缩与历史保留)。
 - 历史持有者在提交压缩记录之前调用 `judgeCompaction`，失败就拒绝提交。提交规则归历史持有者。`judgeCompaction` 自己先跑 `judgeMessage`，形状失败只报 `message`；需要具体形状拒绝值的持有者，可以先单独调用 `judgeMessage`，再用 `role` 收窄。
-- 模型的适配器产出推理续接状态部件和 `replay`，组成 assistant 消息的一方把它们写进同一条消息；Model 契约在每次发出时按 `replay.scope` 决定带不带这些部件，规则见 [Model 契约的推理回放](../../model/model-contract/SPEC.md#推理回放)。
+- 模型的适配器产出推理续接状态部件和 `replay`，组成 assistant 消息的一方把它们写进同一条消息；Model 契约在每次发出时按 `replay.scope` 决定带不带这些部件，规则见 [Model 规格的推理回放](../../model/SPEC.md#推理回放)。
 
 ### 验证
 
 [docs/public-api.md](docs/public-api.md#压缩用例表) 的压缩用例表把上面每条规则的正反例写成行，由 [tests/normative.spec.ts](tests/normative.spec.ts) 逐行执行，并固定每条规则必须展示的极性与行数。`judgeMessage` 的三个键判定对应 `compaction.` 开头的规则，`judgeCompaction` 对应 `history.` 开头的规则。JSON 写不出的输入（符号键、非普通原型、非枚举键、访问器、稀疏数组）和成功值不与输入共享，由 [tests/compaction.spec.ts](tests/compaction.spec.ts) 锁定。公开类型由 [tests/compaction-types.spec-d.ts](tests/compaction-types.spec-d.ts) 锁定。
 
-[docs/public-api.md](docs/public-api.md#推理续接状态用例表) 的推理续接状态用例表把「`judgeMessage` 与 `judgePart` 的判定」各项，以及 RS-03、RS-04（含投影重写 `at` 后仍合法）、RS-05 的正反例写成行，由 `tests/normative.spec.ts` 逐行执行并固定每条规则必须展示的极性与行数；JSON 写不出的边界输入（访问器、不可枚举键、symbol 键、非普通原型、稀疏数组）、顶层 `replay` 的读取次数和成功值的冻结副本，由 [tests/reasoning.spec.ts](tests/reasoning.spec.ts) 锁定，公开类型由 [tests/reasoning-types.spec-d.ts](tests/reasoning-types.spec-d.ts) 锁定。RS-01、RS-02 约束产出方，RS-06 约束消费方，本成员给不出它们的反例，由 Model 契约的[推理回放场景](../../model/model-contract/verification/README.md#推理回放场景)覆盖。
+[docs/public-api.md](docs/public-api.md#推理续接状态用例表) 的推理续接状态用例表把「`judgeMessage` 与 `judgePart` 的判定」各项，以及 RS-03、RS-04（含投影重写 `at` 后仍合法）、RS-05 的正反例写成行，由 `tests/normative.spec.ts` 逐行执行并固定每条规则必须展示的极性与行数；JSON 写不出的边界输入（访问器、不可枚举键、symbol 键、非普通原型、稀疏数组）、顶层 `replay` 的读取次数和成功值的冻结副本，由 [tests/reasoning.spec.ts](tests/reasoning.spec.ts) 锁定，公开类型由 [tests/reasoning-types.spec-d.ts](tests/reasoning-types.spec-d.ts) 锁定。RS-01、RS-02 约束产出方，RS-06 约束消费方，本成员给不出它们的反例，由 Model 一侧的用例覆盖，规则见 [Model 规格的推理回放](../../model/SPEC.md#推理回放)。

@@ -16,7 +16,7 @@
 | [资产与规则](assets-and-rules/design.md) | [未决](assets-and-rules/design.md#未决问题与待定事项) | [领域](../../../docs/domains/assets-and-rules/README.md) | [工程与规格](../../../packages/assets/README.md) |
 | [会话与工作的产品设计](sessions-and-work/design.md) | [未决](sessions-and-work/design.md#未决问题与待定事项) | [领域](../../../docs/domains/sessions-and-work/README.md) | [工程与规格](../../../packages/session/README.md) |
 | [Agent 定义与工作推进](agent-progression/design.md) | [未决](agent-progression/design.md#未决问题与待定事项) | [领域](../../../docs/domains/agent-progression/README.md) | [工程与规格](../../../packages/agent/SPEC.md#领域边界) |
-| [模型调用的产品设计](model-invocation/design.md) | [未决](model-invocation/design.md#未决问题与待定事项) | [领域](../../../docs/domains/model-invocation/README.md) | [工程与规格](../../../packages/model/README.md) |
+| [模型调用的产品设计](model-invocation/design.md) | [未决](model-invocation/design.md#未决问题与待定事项) | [领域](../../../docs/domains/model-invocation/README.md) | [工程与规格](../../../packages/model/SPEC.md) |
 | [工具执行](tool-execution/design.md) | [未决](tool-execution/design.md#未决问题与待定事项) | [领域](../../../docs/domains/tool-execution/README.md) | [工程与规格](../../../packages/tool/README.md) |
 | [元能力入口](meta-capabilities/design.md) | [未决](meta-capabilities/design.md#未决问题与待定事项) | 依各入口的原领域责任 | 完整入口定义与旅程，技术承接按入口分配；Code 已定名并细化程序编排，Engram 与 Stop 占位 |
 | [运行感知与一次模型请求](runtime-context/design.md) | [未决](runtime-context/design.md#未决问题与待定事项) | [领域](../../../docs/domains/runtime-context/README.md) | 工程与规格（`packages/context/SPEC.md`「总体架构」） |

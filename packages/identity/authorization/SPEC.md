@@ -205,7 +205,7 @@ HJ0 的[动态治理贡献候选](../../assets/docs/governance-contributions.md)
 
 撤权后再核拒绝：成员关系撤销后，identity 读口答 `not-member`，下一次裁定答 `denied`。原主体对象不变也如此。
 
-每次重读不等于与最终执行共同排序。异步 `referenceAdmissionCheck` 和纯函数 `decideAdmission` 都不提供 [Model 最终发送的 R/S 围栏](../../model/model-contract/SPEC.md)。Model 提供者须协调身份权威资格写者与发送入口，在同一围栏内重读最终权威事实、核对凭据并同步 `start`，中间不得 `await`。纯裁定可以消费围栏内取得的一致事实，但它不建立该围栏。装配必须取得真实的共同排序协议，不能先异步 `check` 再凭旧 `allowed` 发送，也不能用缓存充当最终资格。这个提供者组合尚未交付。
+每次重读不等于与最终执行共同排序。异步 `referenceAdmissionCheck` 和纯函数 `decideAdmission` 都不提供 [Model 最终发送的 R/S 围栏](../../model/SPEC.md#真实发出与发送围栏)。Model 提供者须协调身份权威资格写者与发送入口，在同一围栏内重读最终权威事实、核对凭据并同步 `start`，中间不得 `await`。纯裁定可以消费围栏内取得的一致事实，但它不建立该围栏。装配必须取得真实的共同排序协议，不能先异步 `check` 再凭旧 `allowed` 发送，也不能用缓存充当最终资格。这个提供者组合尚未交付。
 
 ### 许可引用与消费事实
 

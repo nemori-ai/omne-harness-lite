@@ -20,7 +20,7 @@ token 类别名归本责任。`input` 是类别名的例子。token 用量的 `l
 | 结果保管/结算 | 待承接内容、费用及清理条件 |
 | 实际消费者 | 可靠取得、业务采用和原处理位置，归调用方 |
 
-提供者隐藏传输机制，跨提供者的共享含义由原能力契约维护，不能各自重定义成功。会话路径上，日志保存稳定调用引用，以及结果接收方写入的结果与账目，见[模型规格](../../../packages/model/model-contract/SPEC.md#调用和各次真实发出)。
+提供者隐藏传输机制，跨提供者的共享含义由原能力契约维护，不能各自重定义成功。会话路径上，日志保存稳定调用引用，以及结果接收方写入的结果与账目，见[模型规格](../../../packages/model/SPEC.md#受理与调用身份)。
 
 ## 协作与依赖
 
@@ -51,4 +51,4 @@ token 类别名归本责任。`input` 是类别名的例子。token 用量的 `l
 
 ## 正式产品与技术承接
 
-[产品正文](../../../.meta_harness/design/product/model-invocation/design.md)维护本域产品要求、能力状态、阶段与未决。[角色与交接](architecture.md)承接领域级关系；[能力组](../../../packages/model/README.md)展开工程依赖与成员机制。本域非 pi-ai 细化设计已接受；pi-ai 的采用范围由[组架构各节](../../../packages/model/docs/architecture.md#成员与新增条件)维护。设计接受不表示成员已经实现或通过运行验证。
+[产品正文](../../../.meta_harness/design/product/model-invocation/design.md)维护本域产品要求、能力状态、阶段与未决。[角色与交接](architecture.md)承接领域级关系；[能力组规格](../../../packages/model/SPEC.md)展开工程依赖与成员机制。本域非 pi-ai 细化设计已接受；pi-ai 的采用范围由[包组规格](../../../packages/model/SPEC.md#总体架构)维护。设计接受不表示成员已经实现或通过运行验证。

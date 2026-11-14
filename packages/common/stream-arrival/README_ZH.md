@@ -68,7 +68,7 @@ assembleStream({
 
 ## 公共观察契约
 
-本节是[英文行为正文](README.md#public-observation-contract)的中文投影，表达同一份承诺。本扩展携带生产者已确认的投影，不替代到达步骤，也不解释 Model、Tool 状态机。共同包不导入这两个领域。各生产者拥有自己的 snapshot、delta 和生产者专属观察结束值。Model 的[投影与当前目标](../../model/model-contract/SPEC.md#公共内容观察与当前目标)由 Model 拥有。
+本节是[英文行为正文](README.md#public-observation-contract)的中文投影，表达同一份承诺。本扩展携带生产者已确认的投影，不替代到达步骤，也不解释 Model、Tool 状态机。共同包不导入这两个领域。各生产者拥有自己的 snapshot、delta 和生产者专属观察结束值。Model 的[投影与当前目标](../../model/SPEC.md#公共观察与当前目标)由 Model 拥有。
 
 ### 引用与游标
 
