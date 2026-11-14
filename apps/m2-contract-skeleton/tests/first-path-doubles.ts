@@ -693,9 +693,10 @@ export function wrappedSession(
 
 /**
  * The Session transaction port of an assembly that closes the unfinished Run of a session before
- * the next `startRun` opens another, by a bounded close that rejects the first input of the closed
- * Run. The path has no Session coordinator that finishes a Run (GAP-SESSION-COORDINATOR), so the
- * later rounds meet `run-active`; this port stands in for the closing so that the later rounds run.
+ * the input of the next round is accepted, by a bounded close that rejects the first input of the
+ * closed Run. The path has no Session coordinator that finishes a Run (GAP-SESSION-COORDINATOR), so
+ * the later rounds meet `run-active`; this port stands in for the closing so that the later rounds
+ * run. A failed Run leaves the session waiting for the person, so the close precedes the input.
  */
 export function closingRuns({
   transactions,
@@ -705,7 +706,7 @@ export function closingRuns({
   return {
     ...transactions,
     commit: (async (input: Parameters<typeof transactions.commit>[0]) => {
-      if (input.command.kind === 'startRun') {
+      if (input.command.kind === 'accept') {
         const work = await transactions.readWork(input.access)
         if ('ok' in work && work.ok.run.kind === 'active') {
           closes += 1
