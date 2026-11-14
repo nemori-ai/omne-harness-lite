@@ -1,6 +1,6 @@
 # 工作区跨领域关键流程
 
-状态：技术协作草案。图表达责任，不表示进程或寿命共属。产品旅程见[产品正文](../../../.meta_harness/design/product/workspaces/design.md)，所有 INV 与验证义务归[完整 SPEC](../../../packages/workspace/SPEC.md#应然设计)。
+图表达责任，不表示进程或寿命共属。产品旅程见[产品正文](../../../.meta_harness/design/product/workspaces/design.md)，所有 INV 与验证义务归[完整 SPEC](../../../packages/workspace/SPEC.md#应然设计)。
 
 本页及成员机制流程共同守护 INV-WS18 的观测与披露边界。
 
