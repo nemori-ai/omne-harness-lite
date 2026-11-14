@@ -77,6 +77,11 @@ describe('hygiene-spec-content', () => {
     expect(content('不变式 I-3 与 INV-7 成立。')).toEqual([])
   })
 
+  it('accepts the domain word 候选 and rejects it only as the status of a text', () => {
+    expect(content('请求候选是对一组输入算出的结果；终态候选在提交之前固定。')).toEqual([])
+    expect(content('本节是候选设计。')).toHaveLength(1)
+  })
+
   it.each([
     ['日期', '生效于 2026-11-12。'],
     ['提交号', '见 `0c1f2f4cc`。'],
