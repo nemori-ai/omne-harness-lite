@@ -21,7 +21,6 @@ import { CONSTRAINT_PATHS, constraintDependencies } from '../arch/constraints.ts
 import {
   changeSince,
   directionLines,
-  loopGroupCycleExceptions,
   explainOf,
   measuredReport,
   readAssertions,
@@ -110,9 +109,7 @@ export function measureForHook(
       conformance,
       assemblyDelta,
     },
-    hardLines: measured
-      ? directionLines(report, loopGroupCycleExceptions(root))
-      : { direction: [], cycles: [] },
+    hardLines: measured ? directionLines(report) : { direction: [], cycles: [] },
     alert: metrics.thresholds.alert,
     ...(measured ? {} : { dependencyNote: RESOLUTION_NOTE }),
   }
