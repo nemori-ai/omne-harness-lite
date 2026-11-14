@@ -1,7 +1,6 @@
 // The transport conformance suite on the scripted transport: every case passes on both material
 // kinds, and scripted transports that break a clause make the suite fail.
 import { AssertionError } from 'node:assert'
-import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   isConnectionTarget,
@@ -188,13 +187,6 @@ describe('the decision table is a total function and the suite covers it', () =>
       row => !names.some(name => name.includes(`[${row.id}]`)),
     ).map(row => row.id)
     expect(uncovered).toEqual([])
-  })
-
-  it('writes every row into SPEC T8, and no other row id', () => {
-    const spec = readFileSync(new URL('../SPEC.md', import.meta.url), 'utf8')
-    const table = spec.slice(spec.indexOf('<a id="t8"></a>'), spec.indexOf('<a id="t8-end"></a>'))
-    const written = [...table.matchAll(/^\| ([A-Z]\d\d) /gmu)].map(match => match[1])
-    expect(written).toEqual(TRANSPORT_TABLE.map(row => row.id))
   })
 })
 

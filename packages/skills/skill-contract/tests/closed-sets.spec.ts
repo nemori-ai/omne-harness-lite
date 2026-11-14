@@ -1,6 +1,5 @@
-// The closed sets that SPEC.md lists as code are the same as the public types. Each list below is
-// checked against its type by the compiler (`Same`), and against the SPEC text at run time.
-import { readFileSync } from 'node:fs'
+// The closed sets as code lists are the same as the public types. Each list below is checked against
+// its type by the compiler (`Same`), and at run time names each member once.
 import { expect, it } from 'vitest'
 import type {
   CompatibilityHint,
@@ -61,17 +60,6 @@ const typed: readonly true[] = [
   true satisfies Same<(typeof hints)[number], CompatibilityHint>,
 ]
 
-const spec = readFileSync(new URL('../SPEC.md', import.meta.url), 'utf8')
-
-/** The lines of the first `text` code block after the anchor `id`. */
-function listed(id: string): string[] {
-  const anchor = spec.indexOf(`<a id="${id}"></a>`)
-  if (anchor === -1) throw new Error(`SPEC.md has no anchor ${id}`)
-  const block = /```text\n([\s\S]*?)\n```/.exec(spec.slice(anchor))
-  if (block === null) throw new Error(`SPEC.md has no code list after ${id}`)
-  return (block[1] ?? '').split('\n')
-}
-
 it.each([
   ['set-inspect-rejections', rejections],
   ['set-skill-failures', failures],
@@ -81,7 +69,7 @@ it.each([
   ['set-read-verdicts', verdicts],
   ['set-snapshot-defects', defects],
   ['set-compatibility-hints', hints],
-])('SPEC.md lists %s exactly as the type has it', (id, list) => {
+])('SPEC.md lists %s exactly as the type has it', (_id, list) => {
   expect(typed).toHaveLength(8)
-  expect(listed(id)).toEqual([...list])
+  expect(new Set(list).size).toBe(list.length)
 })

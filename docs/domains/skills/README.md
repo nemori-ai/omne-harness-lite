@@ -79,4 +79,4 @@ agent 可以用文件工具或 Shell 在自己的执行落点写一个 Skill 的
 
 ## 产品与技术承接
 
-[正式产品阅读位置](../../../.meta_harness/design/product/skills/design.md)维护能力、阶段与第四章未决，仍为草案，不改变本页原接受范围。[领域交接设计](architecture.md)与[跨领域流程](key-flows.md)只说明技术草案的责任关系。[能力组工程入口](../../../packages/skills/README.md)登记成员及其状态，以及完整行为的正式承接缺项；原 contracts 继续是未分配、未采用的候选，不变为组统一 SPEC。
+[正式产品阅读位置](../../../.meta_harness/design/product/skills/design.md)维护能力、阶段与第四章未决，仍为草案，不改变本页原接受范围。[领域交接设计](architecture.md)与[跨领域流程](key-flows.md)只说明技术草案的责任关系。[包组规格](../../../packages/skills/SPEC.md)写成员分工与应然设计；原 contracts 继续是未分配、未采用的候选，不变为组统一 SPEC。
