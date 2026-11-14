@@ -9,7 +9,7 @@
 | [access](access/SPEC.md) | 系统接入 | `public-contract`, `sdk`, `server-entry` |
 | [identity](identity/README.md) | 身份与授权 | `identity`, `authorization` |
 | [assets](assets/README.md) | 资产与规则 | `assets`, `assets-local`, `settings`, `settings-local`, `permissions` |
-| [workspace](workspace/README.md) | 工作区 | `workspace` |
+| [workspace](workspace/SPEC.md) | 工作区 | `workspace` |
 | [session](session/README.md) | 会话与工作 | `session` |
 | [assembly](assembly/SPEC.md) | 装配交接 | `assembly` |
 | [agent](agent/SPEC.md#领域边界) | Agent推进 | `agent` |

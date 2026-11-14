@@ -333,7 +333,7 @@ U05 已定为有效成员再次接受另一份有效邀请时，核验通过后�
 
 供应商尝试诊断已有[Model 成本与隐私边界](../model-invocation/design.md#成本隐私与性能)，成本账目资格不授予私有请求、回复或秘密读取权；具体披露与保留仍由[Model 产品承接位置](../model-invocation/design.md#identity-neighbor-diagnostics)及[Model 规格的诊断与数据保护](../../../../packages/model/SPEC.md#诊断与数据保护)维护。
 
-工作区地址与凭据按[工作区数据身份](../../../../packages/workspace/workspace/docs/internals.md#需要保留的数据身份)区分，凭据由授权绑定取得且不嵌入地址或来源说明。地址有效条件及原关联恢复的精确协议归[Q-WS04](../../../../packages/workspace/workspace/docs/internals.md#q-ws04-身份解析公开形状与关联有效条件)，原操作效果查询与跨拥有者恢复归[Q-WS06](../../../../packages/workspace/workspace/docs/internals.md#q-ws06-确认边界效果查询与跨拥有者恢复)；未知结果不能当成未执行或恢复成功。
+工作区地址与凭据按[工作区规格](../../../../packages/workspace/SPEC.md#身份与关联)区分，凭据由授权绑定取得且不嵌入地址或来源说明。未知结果不能当成未执行或恢复成功。
 
 资产名称碰撞按[资产身份、版本与持有规则](../assets-and-rules/design.md#ownership-and-versions)处理。同能力标识的不同资产可并存，同一层至多持有一份，新增资产不自动改换持有。同名不授予对其他资产的处置权，Agent 提交位置不改变这些规则。本域不重开已答选择，也不补邻域机制或阶段承诺。
 

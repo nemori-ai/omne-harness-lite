@@ -17,7 +17,7 @@ relations:
 
 - [产品正文](design.md)提供需求、能力状态、阶段与第四章未决。
 - [领域责任](../../../../docs/domains/workspaces/README.md)提供已接受的职责与边界。
-- [能力组工程入口](../../../../packages/workspace/README.md)定位工程分解、契约及组合验证责任。
+- [包组规格](../../../../packages/workspace/SPEC.md#总体架构)定位工程分解、契约及组合验证责任。
 
 ## 维护
 
