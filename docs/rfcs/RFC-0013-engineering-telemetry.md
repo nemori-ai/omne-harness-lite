@@ -52,7 +52,7 @@ OTel 链路与指标、Collector、运行中换输出、出口分区与撤权围
 | [系统分层](../architecture/layers-and-dependencies.md#依赖关系与禁止方向) | `DIR-ACCESS-MODEL`、`DIR-ACCESS-TOOL` | public-contract、sdk、stream-arrival 不得依赖 Model 与 Tool 契约；server-entry 不在禁止方向里 |
 | [Session 契约](../../packages/session/session-contract/SPEC.md#日志读取投影及恢复) | SL10～SL14；[稳定调用引用的读取](../../packages/session/session-contract/SPEC.md#稳定调用引用的读取) | 每次读取核资格；游标绑定范围；空页不等于读完；读者不推测调用是否存在 |
 | [Agent 契约](../../packages/agent/SPEC.md#应然设计) | Journal 读面；失败诊断只写身份与状态 | 只做可加扩展；不披露私有权限块、秘密与无权内容 |
-| [Model 契约](../../packages/model/model-contract/SPEC.md#诊断查询与保留) | 诊断查询与保留 | 诊断读取资格单独核对；白名单字段；游标不代替权限；已知时长用同一单调时基 |
+| [Model 规格](../../packages/model/SPEC.md#诊断与数据保护) | 诊断查询与保留 | 诊断读取资格单独核对；白名单字段；游标不代替权限；已知时长用同一单调时基 |
 | [Tool 契约](../../packages/tool/tool-contract/SPEC.md) | 读取面与具名失败 | `unsupported` 是具名失败，投影如实表达 |
 | [公开契约](../../packages/access/public-contract/SPEC.md#会话公开操作) 与 [服务端接入](../../packages/access/server-entry/SPEC.md#会话位置) | `session-public/1` 的判断次序；接入是 Session 调用的唯一调用方 | 新操作沿同一判断次序；`denied` 不披露存在性 |
 | [CLI 规格](../../apps/cli/SPEC.md#命令结果与退出码) | 命令名等于操作名；结果对象；退出码 0～5 | 新命令沿同一约定 |
@@ -438,7 +438,7 @@ flowchart TB
 | 包组织拥有者 | [目标目录](../package-organization.md#目标目录)的 `telemetry/` 组 | `telemetry-contract`、`telemetry-cordis-contract`、`telemetry-node` 三个成员；`diagnostic` 已删除 | 新成员有具名消费者 |
 | app-access 线 | [harness-server 进程输出](../../apps/harness-server/SPEC.md#进程输出与退出码)；[服务端接入会话位置](../../packages/access/server-entry/SPEC.md#会话位置)；[公开契约会话操作](../../packages/access/public-contract/SPEC.md#会话公开操作)；[CLI 命令](../../apps/cli/SPEC.md#命令) | 日志桥、`telemetry` 行、关闭步骤；新操作 `read-session-diagnostics`、SDK 转出诊断页类型、CLI 命令；`session-view` 模块 | stdout 唯一写者；`denied` 不披露存在性；只做加法 |
 | session-run 线（Session、Agent） | 各成员已有的诊断与测量回调；[Agent Journal 读面](../../packages/agent/SPEC.md#应然设计) | measure 事件加可选 `tenant`，facade；`AgentJournalReading.readFinish?` | 回调形状不变；只做可加改动；失败诊断不带正文 |
-| model 线 | [诊断查询与保留](../../packages/model/model-contract/SPEC.md#诊断查询与保留)已接受字段与协议 | 实现 `ModelDiagnostics`；采用诊断读取资格映射与保留；可选的阶段时长 | 白名单字段；`timing` 证据不足时 `unknown`；游标不代替权限 |
+| model 线 | [诊断与数据保护](../../packages/model/SPEC.md#诊断与数据保护)已接受字段与协议 | 实现 `ModelDiagnostics`；采用诊断读取资格映射与保留；可选的阶段时长 | 白名单字段；`timing` 证据不足时 `unknown`；游标不代替权限 |
 | tool-exec 线 | 账本对 `diagnostics` 答 `unsupported` | 不改 | 投影如实写 `unsupported` |
 | 数据保护拥有者 | [对外传送](../architecture/security/data-and-privacy.md#模型工具与遥测的对外传送) | 第一版不外传；诊断读取资格映射的采用 | 已有读取权限不自动授予外传 |
 | 统一语言与领域对象 | 四个词条已立；遥测段与输出代形态待裁 | 新词条「会话诊断投影」，已立 | 先词条后正文 |

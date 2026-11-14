@@ -1,6 +1,6 @@
 # 零发送收尾的安全论证
 
-本证明只覆盖发送前明确拒绝和 Model Commands 的零内容推导。共同行为归 [Model 契约](../../../model-contract/SPEC.md#342-重试失联与恢复)，实现范围归 [成员规格](../../SPEC.md#传输准备的明确拒绝)。
+本证明只覆盖发送前明确拒绝和 Model Commands 的零内容推导。规则归包组规格「[首内容、接收窗口与流](../../../SPEC.md#首内容接收窗口与流)」与「[真实发出与发送围栏](../../../SPEC.md#真实发出与发送围栏)」。
 
 ## 状态与前提
 
@@ -28,4 +28,4 @@ unavailable、解析异常、永久未知、永久失权和一般 retry 决定�
 - [send-transport-refusal.spec.ts](../../tests/send-transport-refusal.spec.ts) 经公开 sender/runtime 检查六个拒绝出口、三种已提交后抛错、读取失败、失权和释放失败。
 - [SQL 回归](../../../model-storage-sql/tests/not-sent-window.spec.ts) 经真实参加者和 node:sqlite 测试提供者检查重载、丢回执及原子拒绝。它不覆盖生产 Worker、队列、磁盘耐久或跨进程恢复。
 
-单次运行、具名变异与候选有限模型的结果留任务证据。本文是归纳论证，不宣称模型检查已穷举产品代码。
+本文是归纳论证，不宣称模型检查已穷举产品代码。

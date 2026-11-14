@@ -64,7 +64,7 @@ sequenceDiagram
 
 ## 模型 ACK 与副本清理
 
-ACK 由 Model 依据结果接收方的 saved 证据取得，表示结果已保存或已处理完成。会话路径上，Model 沿专用 ACK operation 自己取得 ACK。独立消费者的 processed ACK 按 [Model 契约](../../../packages/model/model-contract/SPEC.md#ack-的前提与效果)的原路径确认。ACK 不要求 Run 结束，也不要求所有结果都写成聊天消息。
+ACK 由 Model 依据结果接收方的 saved 证据取得，表示结果已保存或已处理完成。会话路径上，Model 沿专用 ACK operation 自己取得 ACK。独立消费者的 processed ACK 按 [Model 规格](../../../packages/model/SPEC.md#结果读取确认与清理)的原路径确认。ACK 不要求 Run 结束，也不要求所有结果都写成聊天消息。
 
 | 条件或状态 | 约束 |
 |---|---|
@@ -146,7 +146,7 @@ PF-009 要求用户已经看见的内容在故障后仍可查，同时另一段�
 
 人能看到的内容只来自[两处来源](#用户可见内容的两处来源)：会话日志的投影和在途实时增量通道。内存里的到达缓冲不是可见来源。
 
-assistant 目标可以收到推理续接状态部件，形状归[消息成员](../../../packages/common/message/SPEC.md#推理续接状态)。它没有追加形式，只以整块到达：开块后由带完整部件的封块封口，中间没有填充。`finish` 可以带这次发出的回放范围 `scope` 与格式 `format`，装配按推理续接状态部件在已封口部件中的位置写位置索引 `at`，组成带回放描述的消息再判定。有推理续接状态部件而 `finish` 没带回放范围与格式时，收场被拒。`stopped` 等终态仍只带已封口部件，流的结算方组成消息时按同样规则写回放描述。回放范围与格式不是用量，用量和费用仍不进入共享步骤；哪个模型能消费这些状态归 [Model 契约的推理回放](../../../packages/model/model-contract/SPEC.md#推理回放)。
+assistant 目标可以收到推理续接状态部件，形状归[消息成员](../../../packages/common/message/SPEC.md#推理续接状态)。它没有追加形式，只以整块到达：开块后由带完整部件的封块封口，中间没有填充。`finish` 可以带这次发出的回放范围 `scope` 与格式 `format`，装配按推理续接状态部件在已封口部件中的位置写位置索引 `at`，组成带回放描述的消息再判定。有推理续接状态部件而 `finish` 没带回放范围与格式时，收场被拒。`stopped` 等终态仍只带已封口部件，流的结算方组成消息时按同样规则写回放描述。回放范围与格式不是用量，用量和费用仍不进入共享步骤；哪个模型能消费这些状态归 [Model 规格的推理回放](../../../packages/model/SPEC.md#推理回放)。
 
 本页开头的流程图说明块怎样打开、填充和封口。下图只标共享步骤词汇，以及序号、账和可见内容各归谁。五个步骤之间没有先后箭头。`judgeStreamArrival` 不给步骤排序。`assembleStream` 不重排。序号、重复和续接的精确规则在 `packages/common/stream-arrival` 的成员说明里。
 

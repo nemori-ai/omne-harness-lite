@@ -11,7 +11,7 @@
 | Agent 结果接收，J02                                                                                                                                                               | 宿主持有接收责任；每次 push 先检查当前资格和 Model 原交付，再认回 saved                  |
 | Agent 接收共同提交                                                                                                                                                                | 材料、received 条目与原回执共同发布；unknown 沿原 operation 查询；权威排除阻止迟到发布   |
 | Agent 账目出站，J28                                                                                                                                                               | committed 后才交出账目；重试使用同一 handoff；硬失败保留 blocked；收到确认不删除 Journal |
-| Model [结果推送与保存](../../../../model/model-contract/SPEC.md#结果推送与保存)及 [push 的失败形状与决定顺序](../../../../model/model-contract/SPEC.md#push-的失败形状与决定顺序) | 每次 push 的核验顺序、原 key 认回和未知保存责任                                          |
+| Model [结果推送与保存](../../../../model/SPEC.md#结果推送与保存) | 每次 push 的核验顺序、原 key 认回和未知保存责任                                          |
 
 这些条款拥有产品行为。模型中的简化和有限参数不改变条款，也不增加产品保证。
 

@@ -18,7 +18,7 @@ relations:
 - [派生验收场景](acceptance.md)登记现行产品的三条持续验证路径。
 - [产品正文](design.md)包含需求、能力状态、阶段承诺及未决事项。
 - [领域责任](../../../../docs/domains/model-invocation/README.md)解释已接受分工与采用范围。
-- [能力组](../../../../packages/model/README.md)导航工程关系及成员契约。
+- [能力组规格](../../../../packages/model/SPEC.md)写工程关系与应然设计。
 
 ## 维护
 

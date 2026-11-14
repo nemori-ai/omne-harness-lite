@@ -750,7 +750,7 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 | `refreshing` | 无                                                                                                                           | 接入正在按刷新策略重新定位、重新查询 `current` 或重新观察同一目标。触发条件归接入的[刷新策略](../server-entry/SPEC.md#刷新策略)                                                                                                                                           |
 | `ended`      | `reason` 是 `observer-cancelled`、`observer-replaced`、`refresh-exhausted`、`denied`、`unavailable`、`capacity` 之一         | 本次观察结束，之后没有帧。`observer-replaced` 表示同一登录在同一会话中用同一 `observationId` 重新建立。撤权与登录失效都是 `denied`，沿公开契约统一的 `denied` 政策。`unavailable` 表示接入或依据暂时不可得，重新建立观察可能恢复。`capacity` 表示接入的本地帧队列超出上界 |
 
-公开契约只固定信封、`frame.kind` 与字段名。`value` 在本地保留为 json-text 值树，不解码。编解码把 `phase` 当作开放文本核对：它是 null 或非空字符串，不按封闭集合核对。所以公开契约不依赖 model-contract。这与 `read-history` 的 `payload` 处理一致。`model-output-v1` 的 JSON 投影定义入轨之前，接入不发 `snapshot` 与 `delta`，只发 `state`、`gap`、`refreshing`、`ended`。`phase` 的含义见 Model 的[current 的权威含义](../../model/model-contract/SPEC.md#current-的权威含义)。
+公开契约只固定信封、`frame.kind` 与字段名。`value` 在本地保留为 json-text 值树，不解码。编解码把 `phase` 当作开放文本核对：它是 null 或非空字符串，不按封闭集合核对。所以公开契约不依赖 model-contract。这与 `read-history` 的 `payload` 处理一致。`model-output-v1` 的 JSON 投影定义入轨之前，接入不发 `snapshot` 与 `delta`，只发 `state`、`gap`、`refreshing`、`ended`。`phase` 的含义见 Model 的[公共观察与当前目标](../../model/SPEC.md#公共观察与当前目标)。
 
 #### 来源与对外表示
 

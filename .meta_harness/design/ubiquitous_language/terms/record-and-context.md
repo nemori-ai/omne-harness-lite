@@ -335,7 +335,7 @@
 - **形态**：过程
 - **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 4）
 - **别混**：**不是 Agent 接续时的[回放](agent-runtime-loop.md#ul-replay--回放--replay)**——那是把挂起中的拓展件按日志重跑到停处；推理回放只决定一次请求带上哪些推理状态。两者都可能简称「回放」，跨 topic 时写全名
-- **注意**：被上游拒绝时略去这次带上的全部推理状态再发一次；原消费者可以对一次请求关闭推理回放。精确规则归 [Model 契约的推理回放](../../../../packages/model/model-contract/SPEC.md#推理回放)
+- **注意**：被上游拒绝时略去这次带上的全部推理状态再发一次；原消费者可以对一次请求关闭推理回放。精确规则归 [Model 规格的推理回放](../../../../packages/model/SPEC.md#推理回放)
 
 ### UL-reasoning-replay-scope · 推理回放范围 · Reasoning Replay Scope
 
@@ -351,7 +351,7 @@
 - **形态**：属性
 - **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 4）
 - **别混**：**不是[租户](subjects-and-ownership.md#ul-tenant--租户--tenant)或账户的范围**——它只说哪些模型认得这段状态，不授予任何访问资格；凭据换了账户，状态仍可能被上游拒绝
-- **注意**：消息上的键名是 `replay.scope`；档案上的声明归 [Model 契约](../../../../packages/model/model-contract/SPEC.md#推理回放)
+- **注意**：消息上的键名是 `replay.scope`；档案上的声明归 [Model 规格](../../../../packages/model/SPEC.md#推理回放)
 
 ### UL-derived-rendering · 派生表示 · Derived Rendering
 

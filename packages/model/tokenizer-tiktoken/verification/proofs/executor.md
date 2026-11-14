@@ -1,6 +1,6 @@
 # 执行器与私有缓存的安全证明
 
-本文是人工归纳证明。尚无 TLAPS 或其他机器演绎检查。独立审阅状态由交付记录给出，本文不授予实现接受。TLC 只检查实际配置的有限状态。行为对象是 [Executor](../models/executor/Executor.tla) 和 [PrivateCache](../models/cache/PrivateCache.tla)，契约来自 [SPEC](../../SPEC.md)。
+本文是人工归纳证明，没有 TLAPS 或其他机器演绎检查，不授予实现接受。TLC 只检查实际配置的有限状态。行为对象是 [Executor](../models/executor/Executor.tla) 和 [PrivateCache](../models/cache/PrivateCache.tla)，规则来自包组规格「[计量](../../../SPEC.md#计量)」。
 
 ## 定义域与命题
 

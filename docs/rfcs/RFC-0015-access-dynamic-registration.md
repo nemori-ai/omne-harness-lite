@@ -1978,7 +1978,7 @@ SSE 的解析用 eventsource-parser 4.1.1。流式 Markdown 用 streamdown 及�
 | 身份与授权 | [身份规格](../../packages/identity/identity/SPEC.md) | `identity/v1` 的协议契约与接入插件；登录签发必返回登录的编号；登录的界面模块；实现接入的身份端口 | 34 个操作的消息体、结果集与业务规则不变 |
 | 资产与规则 | [设置规格](../../packages/assets/settings/SPEC.md) | `assets/v1` 的协议契约与接入插件；普通项可写；设置的界面模块 | 设置领域的业务规则不变；锁定与解锁不公开 |
 | 会话与工作 | [会话契约规格](../../packages/session/session-contract/SPEC.md)；[会话 SQL 存储规格](../../packages/session/session-storage-sql/SPEC.md) | `session/v1` 的协议契约与接入插件；每次提交记时刻；列出会话与会话列表项；会话观察；每次提交都发通知；调用登记的读取函数；读历史按标注过滤；建会话的定义名可以不给；定义名映射从入口搬回会话一侧；会话列表与对话的界面模块 | 业务规则除新增的读取外不变；目标租户的规则不变；派生标识用的文本不改 |
-| 模型调用 | [模型契约规格](../../packages/model/model-contract/SPEC.md)；[模型的 Cordis 契约说明](../../packages/model/model-cordis-contract/docs/cordis.md) | 公共流的两个读取面装进正式装配，消费者改成会话观察；投影函数给出「得到值」的一步 | 读取面的形状与读取次序不变 |
+| 模型调用 | [模型包组规格](../../packages/model/SPEC.md#公共观察与当前目标) | 公共流的两个读取面装进正式装配，消费者改成会话观察；投影函数给出「得到值」的一步 | 读取面的形状与读取次序不变 |
 | 应用装配 | [应用装配](../architecture/runtime/application-assembly.md)；[服务端应用规格](../../apps/harness-server/SPEC.md) | 入口行瘦身；各领域的接入插件行；会话诊断的贡献；实例化租户的设置写入服务 | 有贡献不等于开放 |
 | 命令行 | [命令行规格](../../apps/cli/SPEC.md) | 底下换成 `createClient` | 命令不变 |
 | 界面外壳契约与共用界面件 | 无 | 新能力组 `frontend` | 先做到四部分用得到的 |
@@ -2226,7 +2226,7 @@ SSE 的解析用 eventsource-parser 4.1.1。流式 Markdown 用 streamdown 及�
 | 加一个操作改哪些成员；成员与依赖 | [接入组说明](../../packages/access/README.md) | 待写回，随「接入层」那一路 | 未切换 |
 | 列出会话的读取面 `SessionDirectory` 与它的访问操作；调用登记的读取函数与两种存法；「有没有一轮在进行」的判法 | [会话契约规格](../../packages/session/session-contract/SPEC.md#稳定调用引用的读取) | 部分写回：调用登记的读取函数 `readCallRegistration`、两种存法与一轮在进行的判法已写回，会话观察用它（#1248）；会话诊断共用它、`SessionDirectory` 待写回，随「领域一侧」那一路 | 未切换 |
 | 每次提交都发通知：会话日志的每一批新写出由会话存储一侧的唯一落点报给按库登记的通知接口，认回不报；会话核心不发；会话的 Cordis 成员导出造通知接口的函数，提供者只监听；服务端应用的会话存储行登记通知接口 | [会话契约规格](../../packages/session/session-contract/SPEC.md#ec-11)「EC-11」「SessionNotifier」；[会话 SQL 存储规格](../../packages/session/session-storage-sql/SPEC.md#本批与提交通知)「本批与提交通知」；[会话的 Cordis 成员规格](../../packages/session/session-cordis/SPEC.md#唤醒调用方与扫描者)；[会话的 Cordis 契约说明](../../packages/session/session-cordis-contract/docs/cordis.md#事件)；[服务端应用规格](../../apps/harness-server/SPEC.md#会话的提交通知) | 已写回 | 卡 #1230；确认者随 PR 的接受 |
-| 公共流的两个读取面装进正式装配，消费者是会话观察；投影函数给出值 | [模型契约规格](../../packages/model/model-contract/SPEC.md)；[模型的 Cordis 契约说明](../../packages/model/model-cordis-contract/docs/cordis.md)；[应用装配](../architecture/runtime/application-assembly.md#插件树) | 已写回（#1214 装进正式装配；#1248 投影函数 `projectModelOutputV1` 给出值，消费者改为会话观察） | 未切换 |
+| 公共流的两个读取面装进正式装配，消费者是会话观察；投影函数给出值 | [模型包组规格](../../packages/model/SPEC.md#公共观察与当前目标)；[应用装配](../architecture/runtime/application-assembly.md#插件树) | 已写回（#1214 装进正式装配；#1248 投影函数 `projectModelOutputV1` 给出值，消费者改为会话观察） | 未切换 |
 | 每次提交的时刻；会话列表项的派生表、迁移与回填；会话列表项的写入路径、查询路径与索引 | [会话 SQL 存储规格](../../packages/session/session-storage-sql/SPEC.md) | 待写回，随「领域一侧」那一路 | 未切换 |
 | 会话观察：领域面、五个对象、定位与流两条轴的全化表、刷新策略与新事件 | [会话观察的规格](../../packages/session/session-observation/SPEC.md)。刷新状态图从[服务端接入规格的刷新策略](../../packages/access/server-entry/SPEC.md#刷新策略)搬过去 | 部分写回（#1248）：领域面、五个对象、两条轴的全化表与用例对照、刷新策略与通知已写回；入口规格的刷新状态图在接入组，没有搬，入口那一节仍在 | 未切换 |
 | 普通设置项的读写：领域面、租户的写入服务进正式装配 | [设置规格](../../packages/assets/settings/SPEC.md)；[服务端应用规格](../../apps/harness-server/SPEC.md) | 待写回，随「领域一侧」那一路 | 未切换 |

@@ -128,6 +128,6 @@ flowchart TD
 Tool 和 Model 的架构、公开契约、操作协议、对象模型与 Cordis 集成设计已接受；Model 的 pi-ai 相关细化、Session、Agent 及共同细化仍为候选。设计接受不表示生产实现已完成。
 
 - [对象与责任模型](runtime-contract-model.md)区分原工作、原调用、执行实例、句柄与保管责任。
-- [Model操作](../../../packages/model/model-contract/docs/public-api.md)、[Tool操作](../../../packages/tool/tool-contract/docs/public-api.md)、[Session操作](../../../packages/session/session-contract/docs/public-api.md)、[Agent操作](../../../packages/agent/SPEC.md#领域边界)各自拥有精确定义，接受状态以上述说明为准。行为、必要协议及参数与依赖分类分别归 [Model SPEC](../../../packages/model/model-contract/SPEC.md#342-主干运行契约候选)、[Tool SPEC](../../../packages/tool/tool-contract/SPEC.md#342-主干运行契约候选)、[Session SPEC](../../../packages/session/session-contract/SPEC.md#运行契约候选)和 [Agent SPEC](../../../packages/agent/SPEC.md#应然设计)。
+- Model操作、[Tool操作](../../../packages/tool/tool-contract/docs/public-api.md)、[Session操作](../../../packages/session/session-contract/docs/public-api.md)、[Agent操作](../../../packages/agent/SPEC.md#领域边界)各自拥有精确定义，接受状态以上述说明为准。行为、必要协议及参数与依赖分类分别归 [Model SPEC](../../../packages/model/SPEC.md#应然设计)、[Tool SPEC](../../../packages/tool/tool-contract/SPEC.md#342-主干运行契约候选)、[Session SPEC](../../../packages/session/session-contract/SPEC.md#运行契约候选)和 [Agent SPEC](../../../packages/agent/SPEC.md#应然设计)。
 - [Cordis集成](runtime-contract-integration.md)拥有共同宿主、事件、配置和IC对账，各成员集成专题拥有独有接缝。
 - [后继实现与验证](runtime-contract-handoff.md)说明四条实现线及相邻能力如何消费各成员设计，哪些生产与组合证据仍须补齐。

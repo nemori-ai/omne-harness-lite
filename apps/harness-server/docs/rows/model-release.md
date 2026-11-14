@@ -2,8 +2,8 @@
 
 本页说明发行树里 Model 的三行真件怎样接上成员工厂：`model-records`、`model-host`、`model-request-preparation`，
 以及入口对象 `modelHostAuthority`。系统责任归[应用装配](../../../../docs/architecture/runtime/application-assembly.md#插件树)。
-接口事实归 Model 线的成员：[model-storage-sql](../../../../packages/model/model-storage-sql/SPEC.md)、
-[model-host-local](../../../../packages/model/model-host-local/SPEC.md)、[model 的首次执行记录](../../../../packages/model/model/SPEC.md)。
+接口事实归 Model 线的成员（规则见 [Model 包组规格](../../../../packages/model/SPEC.md)）：model-storage-sql、
+model-host-local、model 的首次执行记录。
 本页依据 Reduce 裁定 R2-D6、R2-D30、R2-D33（含自查收窄）、R2-D65、R2-D98 与 B3-M 简报。
 应用自己的 Model 模块在 `src/model/`。
 
@@ -100,7 +100,7 @@
 
 选定的层写进请求的 `Supplier.credential`。发送在围栏内只读这一层（`resolve`），不重新选层。
 
-**缺凭据的结局。** 准备失败时请求不形成，答 `unavailable`（`model-credential`），诊断是 `credential-missing`、`credential-incomplete`、`credential-unreadable` 等。准备之后、发送之前层变得不可用时，发送在围栏内拒绝，不向上游发字节；Model 的产品发送边界把本次调用终结为失败，`cause` 为 `credential`，`upstreamStatus` 为 null（[Model SPEC「产品发送边界」](../../../../packages/model/model/SPEC.md#产品发送边界)）。
+**缺凭据的结局。** 准备失败时请求不形成，答 `unavailable`（`model-credential`），诊断是 `credential-missing`、`credential-incomplete`、`credential-unreadable` 等。准备之后、发送之前层变得不可用时，发送在围栏内拒绝，不向上游发字节；Model 的产品发送边界把本次调用终结为失败，`cause` 为 `credential`，`upstreamStatus` 为 null（[Model SPEC「执行写入的答复」](../../../../packages/model/SPEC.md#执行写入的答复)）。
 
 ## 已知限制
 

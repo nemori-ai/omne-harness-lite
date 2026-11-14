@@ -68,7 +68,7 @@ The terminal of a `stopped`, `cancelled`, or `failed` end holds the closed parts
 
 ## Public observation contract
 
-This extension carries producer-confirmed projections. It does not replace arrival steps or interpret Model and Tool state machines. The common package imports neither domain. Each producer owns its snapshot, delta, and producer-specific observation end value. Model owns its [projection and current target](../../model/model-contract/SPEC.md#公共内容观察与当前目标).
+This extension carries producer-confirmed projections. It does not replace arrival steps or interpret Model and Tool state machines. The common package imports neither domain. Each producer owns its snapshot, delta, and producer-specific observation end value. Model owns its [projection and current target](../../model/SPEC.md#公共观察与当前目标).
 
 ### References and cursors
 

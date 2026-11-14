@@ -15,7 +15,7 @@
 
 ## 现有冲突
 
-C-31、C-34、C-40 的旧规格链接固定到封存提交 `481f9f45f76f7a36a2c3cd05cc42b640d77a421a`，仅作历史证据。引文和条款编号保留发现时原文；封存快照的章节可能已随当时修订改名，不能据此把旧能力名、字段或条款作为新成员接口。现行行为分别由[Model 契约](../../../packages/model/model-contract/SPEC.md)、[Tool](../../../packages/tool/tool-contract/SPEC.md)和[Session](../../../packages/session/session/SPEC.md)拥有。
+C-31、C-34、C-40 的旧规格链接固定到封存提交 `481f9f45f76f7a36a2c3cd05cc42b640d77a421a`，仅作历史证据。引文和条款编号保留发现时原文；封存快照的章节可能已随当时修订改名，不能据此把旧能力名、字段或条款作为新成员接口。现行行为分别由[Model](../../../packages/model/SPEC.md)、[Tool](../../../packages/tool/tool-contract/SPEC.md)和[Session](../../../packages/session/session/SPEC.md)拥有。
 
 | # | 词 | 类型 | 差在哪 | 状态 |
 |---|---|---|---|---|
@@ -294,7 +294,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 ### C-54：工具调用与工具结果部件由谁发布
 
 - **类型**：定义打架。2026-10-17 在 #342 的 Model 主干评审 R-2（共享 ToolCallPart）时发现。不新增词条。
-- **来源**：[UL-content-block](terms/record-and-context.md#ul-content-block--内容块--content-block) 原写「`tool_call` 和 `tool_result` 由工具领域发布」。[COMMON-T02](../../../docs/architecture/cross-cutting-concepts.md#common-t02) 当时有同一句。另一方是 [message 成员](../../../packages/common/message/src/index.ts)：它导出 `ToolPart` 与判定函数，拥有消息身份、角色与调用关联。[Model 契约 SPEC 的「工具定义转换与内容引用加载」](../../../packages/model/model-contract/SPEC.md#工具定义转换与内容引用加载)写调用建议采用 common/message 的 ToolCallPart。[会话日志事件 SE10](../../../packages/session/session-contract/docs/object-model/session-log-events.md) 写 ToolMessage 形状归消息契约。
+- **来源**：[UL-content-block](terms/record-and-context.md#ul-content-block--内容块--content-block) 原写「`tool_call` 和 `tool_result` 由工具领域发布」。[COMMON-T02](../../../docs/architecture/cross-cutting-concepts.md#common-t02) 当时有同一句。另一方是 [message 成员](../../../packages/common/message/src/index.ts)：它导出 `ToolPart` 与判定函数，拥有消息身份、角色与调用关联。[Model 规格的「模态、转换与工具声明」](../../../packages/model/SPEC.md#模态转换与工具声明)与它的领域边界写调用建议采用 common/message 的 ToolCallPart。[会话日志事件 SE10](../../../packages/session/session-contract/docs/object-model/session-log-events.md) 写 ToolMessage 形状归消息契约。
 - **反例与影响**：按旧句，工具领域要发布消息部件，Tool 就得依赖消息模型，而 Tool 目前不导入 message。按 message 一方，消息部件与工具领域没有依赖。两种读法的写者与依赖方向相反。
 - **负责与闭合条件**：负责人 PanQiWei 于 2026-10-17 指定 Model 主干更正统一语言一方。词条已改为引用 COMMON-T02，不再自写包级归属。COMMON-T02 属架构区正文，其拥有者已同步。
 - **状态**：已闭合。依据是 [COMMON-T02](../../../docs/architecture/cross-cutting-concepts.md#common-t02)：`tool_call` 与 `tool_result` 部件的形状由 `packages/common/message` 发布，工具领域产出工具结果的内容，不发布消息部件。词条与架构正文现在一致。
@@ -302,7 +302,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 ### C-55：模型档案词条仍写发前检查，缺窗口、压缩百分比与 updatedAt
 
 - **类型**：定义打架。2026-10-19 在 Model 契约包送轨的文档评审中发现；不新增词条。
-- **来源**：[UL-model-profile](terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile)仍写「输入 token 的发前限额检查可以采用有依据的估算与明确配置的余量」，也写「字节与图片数量仍按实际值精确检查」。词条没有上下文窗口、默认压缩触发百分比与 `updatedAt`。另一方是 [Model 契约 SPEC 的「上游限制与提供上限」](../../../packages/model/model-contract/SPEC.md#上游限制与提供上限)：Model 的准备与发送路径不计量，也不以计量结论作为发出条件，上游报告输入超限时调用以 `failed` 收场，成因为 `input-over-limit`。档案另带上下文窗口、默认压缩触发百分比与不倒退的 `updatedAt`。
+- **来源**：[UL-model-profile](terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile)仍写「输入 token 的发前限额检查可以采用有依据的估算与明确配置的余量」，也写「字节与图片数量仍按实际值精确检查」。词条没有上下文窗口、默认压缩触发百分比与 `updatedAt`。另一方是 [Model 规格的「档案、选择与参数」](../../../packages/model/SPEC.md#档案选择与参数)：Model 的准备与发送路径不计量，也不以计量结论作为发出条件，上游报告输入超限时调用以 `failed` 收场，成因为 `input-over-limit`。档案另带上下文窗口、默认压缩触发百分比与不倒退的 `updatedAt`。
 - **反例与影响**：按词条，档案消费者会认为发送前有一道限额与精确字节检查，并会认为档案不带窗口与压缩百分比。按 SPEC，请求前的计量与限额判断归压缩方或请求组装方，发送前没有这道检查。读词条的人会把发前检查当作 Model 的义务，或找不到压缩方读取窗口的出处。
 - **负责与闭合条件**：负责人 PanQiWei。由词条拥有者修订 UL-model-profile，使词条与 Model 契约 SPEC 一致，并同步英文段与消费者。闭合前，不能把词条里的发前检查读作 Model 的发送条件，也不能据词条断言档案没有窗口与压缩百分比。
 - **状态**：打开。词条未改。
@@ -328,7 +328,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 
 - **类型**：定义打架。2026-10-17 用户决定移除消息持久化位置后发现。
 - **来源**：用户决定暂不提供消息落盘之前与之后两种扩展位置。已接受[系统页](../../../docs/architecture/runtime/loop-extensions.md#不可用报错与系统扩展)的系统扩展表把模态转换列为系统扩展，非 Tool ref 来源的转换位置当时待负责人接受。
-- **各处现状**：[Model 契约](../../../packages/model/model-contract/SPEC.md#转换件的共同契约)写非 Tool ref 路径的转换在消息接纳前完成，且转换件不根据当前模型决定是否转换；请求时才加载并转换的只有 Tool 内容引用。[Model 契约的模态投影与实际表示](../../../packages/model/model-contract/SPEC.md#模态投影与实际表示)把实际表示的选择与组装交给 request-context。[UL-modality-converter](terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)、[UL-derived-rendering](terms/record-and-context.md#ul-derived-rendering--派生表示--derived-rendering)、[UL-transcript](terms/record-and-context.md#ul-transcript--transcript--transcript) 与保留技术源 [modality-projection](../architecture/modality-projection/design.md) 仍以「在落盘之前写好」和「prepersist 跨域」描述转换。
+- **各处现状**：[Model 规格](../../../packages/model/SPEC.md#模态转换与工具声明)写非 Tool ref 路径的转换在消息接纳前完成，且转换件不根据当前模型决定是否转换；请求时才加载并转换的只有 Tool 内容引用。[Model 规格的模态、转换与工具声明](../../../packages/model/SPEC.md#模态转换与工具声明)把实际表示的选择与组装交给 request-context。[UL-modality-converter](terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)、[UL-derived-rendering](terms/record-and-context.md#ul-derived-rendering--派生表示--derived-rendering)、[UL-transcript](terms/record-and-context.md#ul-transcript--transcript--transcript) 与保留技术源 [modality-projection](../architecture/modality-projection/design.md) 仍以「在落盘之前写好」和「prepersist 跨域」描述转换。
 - **候选归属**：一，与 Tool 内容引用一样，在 Model 实际请求准备时按模态投影加载并转换，转换失败按请求准备失败返回。二，仍在消息接纳前完成，只是不再挂在拓展位置上：实现[消息准入](terms/agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)的提供者在接纳前调用转换件，Tool 内容引用在 Model 实际请求时转换，Agent 只看到接纳后的消息与派生表示。
 - **推荐**：协调者推荐候选二，候选一不再推荐。候选二沿用 Model 与 Context 现行规格的时点，不另造时点，也不让 Agent 理解模态细节。
 - **受影响页**：系统页系统扩展表的模态转换行及其后一段、[UL-modality-converter](terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter) 及其索引行、[UL-message-admission](terms/agent-runtime-loop.md#ul-message-admission--消息准入--message-admission) 注意 ③。这三处已按候选二写。UL-derived-rendering、UL-transcript 的「在落盘之前写好」与候选二一致，不需要改。modality-projection 专题中「prepersist 跨域」的位置说法已改为接纳前调用。选候选二时 Model 与 Context 的规格不需要改。
@@ -400,7 +400,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **类型**：定义打架。2026-10-21 承接加密推理回放的设计时发现。
 - **来源**：[内容块](terms/record-and-context.md#ul-content-block--内容块--content-block)把块的种类列为七类封闭清单：文本、思考、语音、图、文件、工具调用、工具结果。PanQiWei 2026-10-21 定下可见推理与加密推理分成两种块；[message 成员的推理续接状态](../../../packages/common/message/SPEC.md#推理续接状态)据此设计了只在 assistant 消息里出现的推理续接状态部件，装供应商交回的不透明推理状态。
 - **差别**：按词表的七类读，加密推理没有位置，只能塞进「思考」，与产品负责人的分块裁定相反；按设计读，块多出第八类，词表的封闭清单不再成立。推理续接状态、回放范围、回放声明和外来可见推理四个说法目前只在成员规格里定义，没有产品正文出处。
-- **处置**：PanQiWei 2026-10-21 接受任务卡 [#605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的设计，并要求在本卡内消解本项。[模型调用：推理状态的续接](../product/model-invocation/design.md#推理状态的续接)（rev 3）成为产品出处。内容块改为八类，新立[推理续接状态](terms/record-and-context.md#ul-reasoning-state--推理续接状态--reasoning-state)（内容块的变体）、[推理回放](terms/record-and-context.md#ul-reasoning-replay--推理回放--reasoning-replay)与[推理回放范围](terms/record-and-context.md#ul-reasoning-replay-scope--推理回放范围--reasoning-replay-scope)；首 token、模态、媒体类型三条随之改。英文 `Replay` 已是 Agent 接续时的[回放](terms/agent-runtime-loop.md#ul-replay--回放--replay)，所以新词都带「推理」限定，两条词条互相写明别混。回放声明与外来可见推理只在 Model 一个领域使用，不立词条，定义留在 [Model 契约的推理回放](../../../packages/model/model-contract/SPEC.md#推理回放)。
+- **处置**：PanQiWei 2026-10-21 接受任务卡 [#605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的设计，并要求在本卡内消解本项。[模型调用：推理状态的续接](../product/model-invocation/design.md#推理状态的续接)（rev 3）成为产品出处。内容块改为八类，新立[推理续接状态](terms/record-and-context.md#ul-reasoning-state--推理续接状态--reasoning-state)（内容块的变体）、[推理回放](terms/record-and-context.md#ul-reasoning-replay--推理回放--reasoning-replay)与[推理回放范围](terms/record-and-context.md#ul-reasoning-replay-scope--推理回放范围--reasoning-replay-scope)；首 token、模态、媒体类型三条随之改。英文 `Replay` 已是 Agent 接续时的[回放](terms/agent-runtime-loop.md#ul-replay--回放--replay)，所以新词都带「推理」限定，两条词条互相写明别混。回放声明与外来可见推理只在 Model 一个领域使用，不立词条，定义留在 [Model 规格的推理回放](../../../packages/model/SPEC.md#推理回放)。
 - **负责与闭合条件**：负责人 PanQiWei。产品出处、词条与内容块清单已一致。
 - **状态**：已闭合（2026-10-21）。上列来源与差别保留发现时的写法，现行含义以词条为准。
 
