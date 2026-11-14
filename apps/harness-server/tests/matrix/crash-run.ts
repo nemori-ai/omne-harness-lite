@@ -24,8 +24,9 @@ const CREATE_RETRY_MS = 1_000
 const CUT_EXIT_MS = 5_000
 const PARALLEL = 2
 
+type Green = 'equivalent' | 'not-accepted'
 type Red = 'diverged' | 'no-outcome'
-type Result = 'equivalent' | Red | 'error'
+type Result = Green | Red | 'error'
 type Recorded = Readonly<Record<string, number>>
 type Listed = Readonly<{ cut: string; result: Red; detail: string }>
 type Expected = Readonly<{ recorded: Recorded; red: readonly Listed[] }>
@@ -189,7 +190,11 @@ async function record(print: (line: string) => void): Promise<{
   }
 }
 
-function judge(log: SessionLog | null): { result: Result; detail: string } {
+function judge(log: SessionLog | null, answered: string): { result: Result; detail: string } {
+  if (log !== null && log.users.length === 0 && log.started === 0)
+    return answered === 'succeeded'
+      ? { result: 'diverged', detail: 'send answered succeeded, and the input is not in the log' }
+      : { result: 'not-accepted', detail: 'the input is not in the log, and send did not succeed' }
   if (log === null || !settled(log))
     return {
       result: 'no-outcome',
@@ -241,7 +246,7 @@ async function crash(cut: string): Promise<Row> {
     await made.env.start()
     const ended = await waitFor(() => settledLog(made, session), RECOVERY_MS)
     if (ended !== undefined) await sleep(SECOND_RUN_GRACE_MS)
-    const judged = judge(readSessionLog(made.env.domainsDir, session))
+    const judged = judge(readSessionLog(made.env.domainsDir, session), answered)
     return row(judged.result, `${judged.detail}; send answered ${answered}`)
   } catch (error: unknown) {
     return row('error', String(error instanceof Error ? error.message : error).slice(0, 300))
@@ -305,7 +310,10 @@ const listed = new Map(expected.red.map(entry => [entry.cut, entry]))
 const errors = rows.filter(row => row.result === 'error')
 const red = rows.filter(row => row.result === 'diverged' || row.result === 'no-outcome')
 const unlisted = red.filter(row => !listed.has(row.cut))
-const greened = rows.filter(row => row.result === 'equivalent' && listed.has(row.cut))
+const count = (result: Result) => String(rows.filter(row => row.result === result).length)
+const greened = rows.filter(
+  row => (row.result === 'equivalent' || row.result === 'not-accepted') && listed.has(row.cut),
+)
 
 const out =
   values.out ??
@@ -317,9 +325,9 @@ writeFileSync(
 )
 
 print(
-  `cuts ${String(rows.length)}: ${String(rows.filter(row => row.result === 'equivalent').length)} equivalent, ${String(red.length)} red, ${String(errors.length)} errors; ${String(Math.round((Date.now() - began) / 1000))} s; ${out}`,
+  `cuts ${String(rows.length)}: ${count('equivalent')} equivalent, ${count('not-accepted')} not accepted, ${String(red.length)} red, ${String(errors.length)} errors; ${String(Math.round((Date.now() - began) / 1000))} s; ${out}`,
 )
-for (const row of greened) print(`now equivalent, still listed: ${row.cut}`)
+for (const row of greened) print(`no longer red, still listed: ${row.cut}`)
 for (const row of unlisted) print(`red and not listed: ${row.cut} ${row.result}: ${row.detail}`)
 for (const row of errors) print(`error: ${row.cut}: ${row.detail}`)
 for (const cut of unknown) print(`not a recorded cut: ${cut}`)

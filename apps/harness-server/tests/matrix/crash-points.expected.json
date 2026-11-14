@@ -2,11 +2,6 @@
   "recorded": { "storage~domains~tenant.sqlite": 48 },
   "red": [
     {
-      "cut": "storage~domains~tenant.sqlite:1",
-      "result": "no-outcome",
-      "detail": "the input never reached the session log: no user message and no run after the restart; send answered uncertain"
-    },
-    {
       "cut": "storage~domains~tenant.sqlite:7",
       "result": "no-outcome",
       "detail": "the run started and its attempt started, then nothing more: no assistant message, no terminal"
