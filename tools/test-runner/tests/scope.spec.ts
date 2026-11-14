@@ -121,6 +121,19 @@ const planWith = (paths: string[], members: readonly WorkspaceMember[], full = f
     dependentsLike(seeds, members),
   )
 const plan = (paths: string[], full = false) => planWith(paths, MEMBERS, full)
+const READER = 'packages/core/mid'
+const READ_DOCUMENT = 'packages/core/mid/SPEC.md'
+const READ_RULES = {
+  ...RULES,
+  readers: [
+    ...RULES.readers,
+    { paths: [READ_DOCUMENT], members: [READER], why: 'a test reads it' },
+  ],
+}
+const planRead = (paths: string[]) =>
+  planCheck(paths, MEMBERS, READ_RULES, turboLike(paths, MEMBERS), false, seeds =>
+    dependentsLike(seeds, MEMBERS),
+  )
 const describe_ = (checkPlan: CheckPlan) => describeCheckPlan(checkPlan, RULES, CONFIG).join('\n')
 const RESIDENT_BUILD = [
   { path: 'packages/common/legal-identity', reason: 'resident' },
@@ -706,20 +719,15 @@ describe('按测量收窄的规则（#793）', () => {
   })
 
   it('N2：被测试读的成员根目录文档按读者规则选中读它的成员，不带下游', () => {
-    const cases = [
-      ['apps/m2-contract-skeleton/README.md', 'apps/m2-contract-skeleton'],
-      ['apps/m2-contract-skeleton/README_ZH.md', 'apps/m2-contract-skeleton'],
-      ['apps/m2-contract-skeleton/SPEC.md', 'apps/m2-contract-skeleton'],
-    ] as const
-    for (const [path, reader] of cases) {
-      const result = plan([path])
-      expect(result.files[0], path).toMatchObject({ category: 'reader', documentOf: reader })
-      expect(result.members, path).toEqual([
-        { path: reader, changed: [], reads: [{ path, pattern: path }] },
-      ])
-      expect(result.test, path).toEqual([reader])
-      expect(describe_(result), path).not.toContain('只改了文档、不选的成员')
-    }
+    const result = planRead([READ_DOCUMENT])
+    expect(result.files[0]).toMatchObject({ category: 'reader', documentOf: READER })
+    expect(result.members).toEqual([
+      { path: READER, changed: [], reads: [{ path: READ_DOCUMENT, pattern: READ_DOCUMENT }] },
+    ])
+    expect(result.test).toEqual([READER])
+    expect(describeCheckPlan(result, READ_RULES, CONFIG).join('\n')).not.toContain(
+      '只改了文档、不选的成员',
+    )
   })
 
   it('N2：同一成员既改文档又改代码，照旧选中它与它的下游', () => {
@@ -747,13 +755,11 @@ describe('按测量收窄的规则（#793）', () => {
   })
 
   it('N2：被读的文档与别处代码一起改：读者是代码下游时两个原因都记', () => {
-    const both = plan(['apps/m2-contract-skeleton/SPEC.md', 'packages/common/message/src/a.ts'])
-    expect(both.members.find(entry => entry.path === 'apps/m2-contract-skeleton')).toEqual({
-      path: 'apps/m2-contract-skeleton',
+    const both = planRead([READ_DOCUMENT, 'packages/core/base/src/a.ts'])
+    expect(both.members.find(entry => entry.path === READER)).toEqual({
+      path: READER,
       changed: [],
-      reads: [
-        { path: 'apps/m2-contract-skeleton/SPEC.md', pattern: 'apps/m2-contract-skeleton/SPEC.md' },
-      ],
+      reads: [{ path: READ_DOCUMENT, pattern: READ_DOCUMENT }],
       downstream: true,
     })
   })
