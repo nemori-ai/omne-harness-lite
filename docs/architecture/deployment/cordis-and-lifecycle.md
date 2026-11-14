@@ -123,7 +123,7 @@ Service 方法若使用调用方 Context，在其中通过 `this.ctx.effect()` �
 
 承接责任为插件加载提供者与换代协调者。待办是明确当前契约、候选失败处理及真实依赖范围，验证换代期间无关工作保持和旧调用按原采用依据承接。
 
-Tool 部分由换代协调者 `toolGenerations` 承接，依据是 [RFC-0012 revision 1](../../rfcs/RFC-0012-tool-dynamics.md#决定范围)。承接范围如下：
+Tool 部分由换代协调者 `toolGenerations` 承接。承接范围如下：
 
 - 协调者以 `ensureLoaded`、`unload`、`sweep` 三个动词装载、撤除和恢复作者插件 fiber。每个动词向目标态收敛，可以重复调用。
 - 同一能力的新旧实现以不同登记键并存，替换不在原处进行。

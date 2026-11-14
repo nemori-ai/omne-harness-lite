@@ -57,7 +57,7 @@ def check_links(root: Path, source_root: Path | None = None) -> list[str]:
                         actual = target.resolve()
                         allowed = actual.is_relative_to(root)
                         if workspace:
-                            allowed |= any(actual.is_relative_to(workspace / name) for name in ("agents", "research"))
+                            allowed |= actual.is_relative_to(workspace / "agents")
                             allowed |= actual in (workspace / "README.md", workspace / "AGENTS.md")
                         if execution:
                             allowed |= modules.origin(actual) is not None

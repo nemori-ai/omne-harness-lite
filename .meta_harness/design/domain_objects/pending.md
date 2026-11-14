@@ -14,14 +14,14 @@
 ### 遥测段
 
 - **现象**：词条 [UL-telemetry-segment](../ubiquitous_language/terms/record-and-context.md#ul-telemetry-segment--遥测段--telemetry-segment) 形态为「未定」。审议中的工程遥测提案给段可引用的链路身份、开始、结束与超时截断，像一个对象；但没有任何产品正文定义它，对象条目的依据无处可指。两种读法见 [C-73](../ubiquitous_language/conflicts.md#c-73遥测段是不是对象)
-- **牵涉**：[RFC-0013 公共契约形状](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#公共契约形状)（status `review`，未采用）；[跨系统技术约定 观测与遥测](../../../docs/architecture/cross-cutting-concepts.md#观测与遥测)
+- **牵涉**：[RFC-0013 公共契约形状](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0013-engineering-telemetry.md#公共契约形状)（status `review`，未采用）；[跨系统技术约定 观测与遥测](../../../docs/architecture/cross-cutting-concepts.md#观测与遥测)
 - **谁来裁**：产品负责人。补一段产品正文定义它，或裁定它不是产品概念。工程遥测目前没有产品 topic
 - **闭合条件**：有产品正文定义它并立对象条目，或产品负责人裁定它不是产品概念、词条形态改为非对象的取值
 
 ### 输出代
 
 - **现象**：词条 [UL-output-generation](../ubiquitous_language/terms/execution-and-outcome.md#ul-output-generation--输出代--output-generation) 形态为「未定」。审议中的工程遥测提案给每一代代号与准备中、生效、排空、关闭、失败几种状态，像一个对象；但没有任何产品正文定义它，对象条目的依据无处可指。两种读法见 [C-74](../ubiquitous_language/conflicts.md#c-74输出代是不是对象)
-- **牵涉**：[RFC-0013 输出代与关闭](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#输出代与关闭)（status `review`，未采用）；[项目要求 SYS-DYNAMIC](../../../docs/requirements.md#完全动态目标sys-dynamic)
+- **牵涉**：[RFC-0013 输出代与关闭](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0013-engineering-telemetry.md#输出代与关闭)（status `review`，未采用）；[项目要求 SYS-DYNAMIC](../../../docs/requirements.md#完全动态目标sys-dynamic)
 - **谁来裁**：产品负责人。补一段产品正文定义它，或裁定它不是产品概念。工程遥测目前没有产品 topic
 - **闭合条件**：有产品正文定义它并立对象条目，或产品负责人裁定它不是产品概念、词条形态改为非对象的取值
 
@@ -30,7 +30,7 @@
 ### 存储
 
 - **现象**：工具定义可以指名声明「把附件放进哪个存储」，存储没配好则该工具整个不可用；被卸载的工具结果也「存着，没丢」。但全系统没有任何一处定义它——是对象、是一项设置、还是执行环境的一种设施，没人说过
-- **牵涉**：[PF-006 §4 工具的产出](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#工具的产出)（rev 24）；[PF-006 §6.4](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#64-依赖声明与解析)（rev 24）；[PF-012 §5.10](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)（rev 25）
+- **牵涉**：[PF-006 §4 工具的产出](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#工具的产出)（rev 24）；[PF-006 §6.4](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#64-依赖声明与解析)（rev 24）；[PF-012 §5.10](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)（rev 25）
 - **挂着谁**：[附件](objects.md#ul-attachment--附件)存在它里面，附件的宿主与留存因此都定不下来；被卸载的工具结果须保持可回取全文（PF-006 §6.10），物理存储归属与机制仍待技术设计
 - **谁来裁**：PF-006 的 owner
 - **闭合条件**：有一个 topic 定义了它，并立了词条，或明确说它不是一个产品概念
@@ -53,7 +53,7 @@
 ### agent 之间的消息
 
 - **现象**：元能力产品定义了「谁能给谁发」的两条规则；普通消息已沿接收会话的输入与 Run 规则处理，但无派发关系主会话通信的精确身份、重试、不存在目标以及持久交接协议仍未闭合，不由入口命令名补造
-- **牵涉**：[元能力：先说谁能给谁发消息](../product/meta-capabilities/design.md#双向通信与消息失败)（rev 7）；[PF-014 §4 入站到达](../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 14）
+- **牵涉**：[元能力：先说谁能给谁发消息](../product/meta-capabilities/design.md#双向通信与消息失败)（rev 7）；[PF-014 §4 入站到达](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 14）
 - **谁来裁**：元能力、Session 与入站拥有者
 - **闭合条件**：实际入站与消息拥有者明确普通通信的身份、持久交接、重试和目标不存在协议，并对应到消息类别
 
@@ -67,21 +67,21 @@
 ### 使用成本明细
 
 - **现象**：PF-001 要求「一次调用花掉的成本必须能算到发起它的那个租户头上，并能逐条列出来」，同时明说成本怎么算、明细怎么归集与呈现「目前没有对应的产品设计」
-- **牵涉**：[PF-001 §6.4](../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 26）
+- **牵涉**：[PF-001 §6.4](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 26）
 - **谁来裁**：产品负责人——「观测与计量」这一块还没有 topic
 - **闭合条件**：有 topic 认领计量，并说明一条明细是什么
 
 ### 通知发送与投递结果
 
 - **现象**：PF-021 已确定一次发送请求及其结果是用户可查询的单位，技术重试不成为多份独立用户通知，业务历史保留；通知、发送尝试与投递子记录如何分解及标识尚未定义
-- **牵涉**：[PF-021 §6.5 通知发送与租户送达](../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#65-通知发送与租户送达)（rev 8）；[技术设计交接](../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#十技术设计交接事项)（rev 8）
+- **牵涉**：[PF-021 §6.5 通知发送与租户送达](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#65-通知发送与租户送达)（rev 8）；[技术设计交接](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#十技术设计交接事项)（rev 8）
 - **谁来裁**：系统架构与规格，按 PF-021 已定查询单位、租户边界和送达判据决定记录分解及身份；不得以技术重试改变通知条数或业务历史范围
 - **闭合条件**：明确记录关系、身份和生命周期，按所判形态补统一语言与对象条目，或说明投影到哪个既有对象；技术问题不再等待一项产品记录建模政策
 
 ### 工具贡献与登记键
 
 - **现象**：已采用的 RFC-0012 让一个工具实现在绑定登记表里登记为一份贡献。贡献由登记键区分：来源层、能力身份与资产版本。同一个键的第二次登记有认回、冲突与后继三种处置，release 只撤自己的 token。它有身份、有生灭，却没有词条；产品正文只说实现被装载与卸载，没有把贡献当作产品概念使用。本项判为技术对象：登记键是贡献的身份，不另立对象
-- **牵涉**：[RFC-0012 绑定登记表](../../../docs/rfcs/RFC-0012-tool-dynamics.md#绑定登记表g7)；[工具执行产品页 定义、已知能力与一次执行](../product/tool-execution/design.md#resident-tools)（rev 9）
+- **牵涉**：[RFC-0012 绑定登记表](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#绑定登记表g7)；[工具执行产品页 定义、已知能力与一次执行](../product/tool-execution/design.md#resident-tools)（rev 9）
 - **挂着谁**：[会话](objects.md#ul-session--会话)的常驻工具解析到哪一份贡献，取决于贡献的身份与生灭
 - **谁来裁**：系统架构设计，即 Tool 契约的拥有者（PanQiWei）。不是产品问题
 - **闭合条件**：Tool 契约写回 G7，定义贡献的身份、登记与撤除；或某个产品 topic 需要用它，并立了词条
@@ -89,14 +89,14 @@
 ### 换代协调者
 
 - **现象**：已采用的 RFC-0012 定义 Tool 宿主的一个服务 `toolGenerations`，它持有动态装载的插件句柄，按会话引用保留或卸载贡献，有装载、卸载与恢复后清扫三个动作。它是单例服务，有运行时实例，没有产品层面的身份。本项判为技术对象，不入统一语言
-- **牵涉**：[RFC-0012 加载、卸载、替换与换代协调者](../../../docs/rfcs/RFC-0012-tool-dynamics.md#加载卸载替换与换代协调者)；[工具执行产品页 TL-J01](../product/tool-execution/design.md#tl-j01)（rev 9）
+- **牵涉**：[RFC-0012 加载、卸载、替换与换代协调者](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#加载卸载替换与换代协调者)；[工具执行产品页 TL-J01](../product/tool-execution/design.md#tl-j01)（rev 9）
 - **谁来裁**：系统架构设计，即 Tool 契约与 Tool 宿主的拥有者（PanQiWei）。不是产品问题
 - **闭合条件**：Tool 宿主的 Cordis 正文与 LIFECYCLE-M02 写回协调者的归属与保留义务
 
 ### 作者插件 fiber
 
 - **现象**：已采用的 RFC-0012 把一个工具实现在 Cordis 里的形态定为实现包导出的作者插件在 Cordis 中的 fiber。它有自己的生灭：协调者装载它，撤除它时贡献随之撤登记。它是 Cordis 的运行时实例，不是产品概念。本项判为技术对象，不入统一语言
-- **牵涉**：[RFC-0012 绑定登记表](../../../docs/rfcs/RFC-0012-tool-dynamics.md#绑定登记表g7)
+- **牵涉**：[RFC-0012 绑定登记表](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#绑定登记表g7)
 - **挂着谁**：工具贡献的寿命跟着它
 - **谁来裁**：系统架构设计，即 Tool 契约与 Cordis 集成约定的拥有者（PanQiWei）
 - **闭合条件**：Tool 的 Cordis 正文写回作者插件的形态与生灭

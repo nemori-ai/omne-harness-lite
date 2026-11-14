@@ -3,8 +3,8 @@
 > **这一页由生成器产出，没有人手写，也没有人手改；不得引为依据。**
 > 要引用，引[领域对象条目](../domain_objects/objects.md)、[统一语言词条](../ubiquitous_language/index.md)或它们指向的产品正文。
 
-- derived-from：`ubiquitous_language/terms/*.md`（形态、变体的父）· `domain_objects/objects.md` · `domain_objects/pending.md` · `product/*/{README,design,flows}.md`（当前 PD rev、反链）· `product.0.0.1.legacy/PF-*/{README,design,flows}.md`（sealed provenance，不是当前采用）
-- 生成时间：2026-11-12
+- derived-from：`ubiquitous_language/terms/*.md`（形态、变体的父）· `domain_objects/objects.md` · `domain_objects/pending.md` · `product/*/{README,design,flows}.md`（当前 PD rev、反链）· `domain_objects/sealed-revisions.json`（封存提交上旧 PF 的修订与锚点；sealed provenance，不是当前采用）
+- 生成时间：2026-11-14
 - 生成：`python tooling/src/domain_objects.py --root design --write`
 
 对象 **73** 个，变体 **33** 个，形态未定的词条 **2** 个，待裁 **12** 项。

@@ -42,7 +42,7 @@ topic 按独立产品问题、读者和变化原因组织，不要求与工程�
 
 起草沿 `product-design`。写前加载 pqw `clear-writing`，规则见[文档写作规则](../../../docs/engineering/documentation.md#文档写作规则)，写后按实际正文复核。概念沿[统一语言](../ubiquitous_language/README.md)，有身份的对象沿[领域对象](../domain_objects/README.md)。已答问题落实正文并退出活动问题；原问答与评审留任务 tmp。技术细节在所属组或成员维护，产品末块保留必要影响与跳转。
 
-活动交付按[卡与交接信息包](../../../docs/engineering/delivery.md)，正式提案从[RFC入口](../../../docs/rfcs/README.md)进入。长期规格承载当前决定版行为，不以单次任务材料替代；本区不保存过程账本或第二份技术契约。
+活动交付按[卡与交接信息包](../../../docs/engineering/delivery.md)。长期规格承载当前决定版行为，不以单次任务材料替代；本区不保存过程账本或第二份技术契约。
 
 ## 未决问题与待定事项
 
@@ -55,7 +55,7 @@ topic 按独立产品问题、读者和变化原因组织，不要求与工程�
 
 产品维护者须会同 Agent、Session、消息及各产生记录的领域逐项核对责任，确认唯一正文和仍缺的采用依据。具体产品拥有位置及完整承接范围仍待确定。它影响跨系统约定与扩展记录来源的完整对账，不阻止有明确现行承诺的分支继续设计；不能据此采用统一事件流、选择字段或保留策略，也不重新裁定已接受架构。
 
-[封存来源](../product.0.0.1.legacy/PF-000-occurrences-and-record-entries/design.md)只用于核对引用范围与原始依据，不作为并列现行产品规则，也不表示完整旧 PF 已接受或已承接。
+[封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-000-occurrences-and-record-entries/design.md)只用于核对引用范围与原始依据，不作为并列现行产品规则，也不表示完整旧 PF 已接受或已承接。
 
 <a id="product-e02"></a>
 ### PRODUCT-E02 治理中心秘密处理的产品承接
@@ -64,4 +64,4 @@ topic 按独立产品问题、读者和变化原因组织，不要求与工程�
 
 应用交付与部署产品维护者须会同身份、Model 及数据保护拥有者核对产品输出、持久表示、部署密钥生成交付的例外与原始数据及备份中的可读范围。未闭合来源限制完整产品承接的声明，不授予运维者账号治理或秘密读取通道，不将产品不呈现解释为静态数据不可读，也不重开已有取舍。已接受的[数据保护与隐私架构](../../../docs/architecture/security/data-and-privacy.md)继续有效。
 
-[封存来源](../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#614-产品不把任何秘密的值交给运维者)只用于核对引用范围与原始依据，不作为并列现行产品规则，也不表示完整旧 PF 已接受或已承接。
+[封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#614-产品不把任何秘密的值交给运维者)只用于核对引用范围与原始依据，不作为并列现行产品规则，也不表示完整旧 PF 已接受或已承接。

@@ -1,6 +1,6 @@
 # @omne-harness/desktop
 
-The desktop app. In this run it runs in a browser: a local Node process (the web host) holds the login and serves the page. A later Electron main process will implement the same bridge, and the page will not change. Behavior is in [SPEC.md](SPEC.md); the basis is [RFC-0015](../../docs/rfcs/RFC-0015-access-dynamic-registration.md) §6 and §10.
+The desktop app. In this run it runs in a browser: a local Node process (the web host) holds the login and serves the page. A later Electron main process will implement the same bridge, and the page will not change. Behavior is in [SPEC.md](SPEC.md).
 
 ## Run it
 

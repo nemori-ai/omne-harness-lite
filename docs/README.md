@@ -86,7 +86,7 @@
 
 - 安排研发前，按[给负责人的开发指南](development_human.md)核对所用harness、插件初始化及责任。判断交付时从[贡献与接受](../CONTRIBUTING.md)及[验证说明](verification.md)核对范围、基线与实际证据。
 - 用[冲突与验收](context-map.md#冲突与验收)定位缺项与拥有者，从[质量与证据](engineering/quality.md)看成果依据，从[完成声明](engineering/workflow.md#完成与交付声明)看结论边界。方法采用沿[技能入口](engineering/skills.md)，不要求逐项通跑技能。
-- 发卡与接受走[卡与交接信息包](engineering/delivery.md)，命令归 `omne-card`。技术方案审议从[RFC入口](rfcs/README.md)展开；日常接入、当前规范与过去决定分别判断。
+- 发卡与接受走[卡与交接信息包](engineering/delivery.md)，命令归 `omne-card`。日常接入、当前规范与过去决定分别判断。
 - 责任和接受范围明确后停止展开。红项、跨批依赖或未知影响需要对应细节；关键证据或裁决未到位时暂停相应接受。正文、工具、实际运行与读者体验分别判断，留空仍由工具报告缺项。
 
 ## 顶层入口分工
@@ -114,7 +114,6 @@ docs/
 ├── clean-loop.md              传感器、硬线及处置责任
 ├── maintenance.md             文档新增、拆分、整合与维护
 ├── documentation.json         应有文档及必要章节登记
-├── rfcs/                      正式技术提案、最小决定与写回关系
 ├── engineering/               共享规范、场景流程及技能引用
 ├── architecture/              全系统设计及跨责任约束
 │   ├── runtime/               运行时与关键流程
@@ -142,6 +141,6 @@ docs/
 | [开发](development.md)、[负责人指南](development_human.md)、[布局](workspace.md) | 开发操作、负责人职责及源码归属，详细规则继续引用其拥有者 |
 | [验证](verification.md)、[防御](defensive-patterns.md)、[整洁回路](clean-loop.md) | 检查能力与限制、项目防御要求及质量反馈机制；迁移时须同时核对实际读取者 |
 | [端到端验收矩阵](acceptance/README.md) | 一项系统质量要求在整套系统上逐格的情形与期望；只规定判据，一次验收的结果不写在那里 |
-| 内部 [产品](../.meta_harness/design/product/README.md)、[研究](../.meta_harness/research/README.md)、[agent 能力](../.meta_harness/agents/README.md) | 私有源的内部入口，不作公共必读 |
+| 内部 [产品](../.meta_harness/design/product/README.md)、[agent 能力](../.meta_harness/agents/README.md) | 私有源的内部入口，不作公共必读 |
 
 角色起点由本页维护，产品、架构与领域的阅读路由由 context-map 维护，研发流程的事实见[流程事实在哪](engineering/README.md#流程事实在哪)；局部细节继续随领域／成员，不在各入口复制相同正文。发现失效路径交对应源维护者，导航调整交文档维护者。

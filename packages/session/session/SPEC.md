@@ -500,7 +500,7 @@ C2 在退避前登记本会话的等待句柄，再读取原 attempt。控制或
 
 ### 遥测投影
 
-<a id="遥测投影"></a>本段按 RFC-0013 rev2 的本地 A/B 范围采用，见[本轮采用记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6703474020)。设计依据是 [RFC-0013「计时记录与离线聚合」](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#计时记录与离线聚合)。根入口的 `createSessionTelemetry(port, { instance })` 把[测量事件](#测量事件)与[诊断出口](#诊断出口)投影为 `@omne-harness/telemetry-contract` 的记录，返回 `{ measure, diagnose }`。装配者把 `measure` 与 `diagnose` 交给工厂的第三个参数。facade 只依赖 telemetry-contract 的根入口，不依赖提供者，不依赖 Cordis。源码在 [telemetry.ts](src/telemetry.ts)。
+<a id="遥测投影"></a>本段按 RFC-0013 rev2 的本地 A/B 范围采用，见[本轮采用记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6703474020)。根入口的 `createSessionTelemetry(port, { instance })` 把[测量事件](#测量事件)与[诊断出口](#诊断出口)投影为 `@omne-harness/telemetry-contract` 的记录，返回 `{ measure, diagnose }`。装配者把 `measure` 与 `diagnose` 交给工厂的第三个参数。facade 只依赖 telemetry-contract 的根入口，不依赖提供者，不依赖 Cordis。源码在 [telemetry.ts](src/telemetry.ts)。
 
 | 事件                | 记录                                          | 定义（owner `session`）                                                                                                                                                                                            | 关联                                                                             |
 | ------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |

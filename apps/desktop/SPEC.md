@@ -1,7 +1,6 @@
 # @omne-harness/desktop 行为规格
 
-本文件拥有桌面应用在公开类型以外的必要行为。依据是 [RFC-0015](../../docs/rfcs/RFC-0015-access-dynamic-registration.md) 第 6 节「客户端」、第 10 节「桌面应用」与第 13 节「桌面应用主进程里的登录会话」，交付卡 #1267。
-
+本文件拥有桌面应用在公开类型以外的必要行为。
 这一程的宿主是本机的一个 Node 进程（`src/web-host/`），不是 Electron 主进程。宿主里和 Electron 无关的一半在 `src/main-core/`，将来主进程原样用。页面（`src/page/`）只拿到 `src/shared/host-bridge.ts` 的 `HostBridge`。
 
 ## 登录会话

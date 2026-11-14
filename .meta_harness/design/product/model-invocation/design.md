@@ -312,4 +312,4 @@ Context 维护的模态投影回答点查询且可从原历史重建，单会话
 
 各产品拥有者须确认当前正文分别承接哪些用户可见行为，并定位共同表示的技术拥有者及仍缺的来源。已接受的[到达语法与在途观察](../../../../docs/architecture/runtime/streaming-and-consumption.md#到达语法与在途观察)继续约束开块、填充、封块、真实收场及分次与完整结果一致性。本项限制完整来源闭合的声明，不重选流式设计，不扩大实时双工范围，也不将已展示内容的局部耐久问题计为整套协议未设计。
 
-[封存来源](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#到达的过程有它自己的语法)只用于核对引用范围与原始依据，不作为并列现行产品规则，也不表示完整旧 PF 已接受或已承接。
+[封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-009-context-message-types/design.md#到达的过程有它自己的语法)只用于核对引用范围与原始依据，不作为并列现行产品规则，也不表示完整旧 PF 已接受或已承接。
