@@ -4029,8 +4029,8 @@
       "packages/session/session-adapters/src/testing/journal-receiving.ts": 1006,
       "packages/session/session-adapters/src/testing/journal.ts": 5499,
       "packages/session/session-adapters/src/testing/session.ts": 1340,
-      "packages/session/session-contract/src/decide.ts": 1008,
-      "packages/session/session-contract/src/testing-transactions.ts": 2684,
+      "packages/session/session-contract/src/decide.ts": 1005,
+      "packages/session/session-contract/src/testing-transactions.ts": 2683,
       "packages/session/session-storage-sql/src/participants.ts": 1028,
       "packages/session/session-storage-sql/src/worker/history-index.ts": 1093,
       "packages/session/session-storage-sql/src/worker/participant.ts": 1591,
@@ -4567,7 +4567,7 @@
       },
       "packages/session/session-contract/src/reduce-extended.ts": {
         "count": 1,
-        "longest": 249
+        "longest": 238
       },
       "packages/session/session-contract/src/testing-delegated.ts": {
         "count": 1,
