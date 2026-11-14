@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from omne_harness_lite_spec_tools.doc_support import headings, local_target, markdown_links
 from omne_harness_lite_spec_tools.documentation_inputs import Inputs, discover, load
 from source_links import ModuleSources
+
+
+_CARRIER = re.compile(
+    r"(?:(?:packages|apps|tools)/[^/]+/SPEC\.md|docs/requirements\.md|docs/(?:architecture|domains)/.+\.md)"
+)
 
 
 def _sources(root: Path) -> list[Path]:
@@ -56,7 +62,8 @@ def check_links(root: Path, source_root: Path | None = None) -> list[str]:
                         if execution:
                             allowed |= modules.origin(actual) is not None
                             if target.suffix.lower() == ".md":
-                                allowed |= target in registered and target == actual
+                                carrier = _CARRIER.fullmatch(target.relative_to(execution).as_posix())
+                                allowed |= target == actual and (target in registered or carrier is not None)
                             else:
                                 allowed |= actual in {execution / "docs/engineering/github-delivery.json",
                                                       execution / "docs/architecture/constraints.json"}
