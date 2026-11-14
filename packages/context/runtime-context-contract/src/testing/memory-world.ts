@@ -26,16 +26,13 @@ import type {
 
 export type Descriptor = ContextBlockDescriptor<ContextBlockKey, unknown, unknown>
 
-/** One stored current value or the failure that replaced it. */
 export type Stored = {
   value: unknown
   revision: number
   generation: number | null
   present: boolean
   cause?: 'no-value' | 'source-unavailable' | 'producer-withdrawn' | 'uninterpretable'
-  /** The last source answer was unknown, a throw, a timeout or an unrecognized answer. */
   unknown?: boolean
-  /** The last source answer refused the supply. */
   refused?: boolean
 }
 
@@ -53,7 +50,6 @@ export type ScopeState = {
   tenant: TenantId
   revision: number
   view: number
-  /** Bumped when cursors become invalid: registration change, producer replacement, replay begin. */
   epoch: number
   registrations: Map<ContextBlockKey, Registration>
   values: Map<ContextBlockKey, Stored>
@@ -61,23 +57,11 @@ export type ScopeState = {
   ended: CommitRef | null
   replayEpoch: number
   replay: ReplaySession | null
-  /** The `through` of the last finished replay. */
   checkpoint: CommitRef | null
-  /** Supplied blocks whose value is not restored yet; tagged with the replay epoch (RC-09). */
   needsSupply: Map<ContextBlockKey, number>
-  /** Per-key supply sequence shared by publish, invalidate, registration change and refresh. */
   supplySeq: Map<ContextBlockKey, number>
-  /** Bumped by every applied ordinary commit and end; the final replay check compares it. */
   commitsVersion: number
-  /**
-   * The head of the scope's commit chain (RC-02, R2-D319): the last applied ordinary commit, or the
-   * `through` of the installed replay. An ordinary commit applies only when its `after` equals it.
-   */
   head: CommitRef | null
-  /**
-   * The success table of the scope, by commit identity: at most the commit at `head`, when this
-   * instance applied it. Applying the next commit or installing a replay releases the others.
-   */
   successes: Map<string, AppliedEntry>
 }
 
@@ -115,12 +99,10 @@ export type WorldOptions<P> = Readonly<{
 type Registered = { s: ScopeState; r: Registration }
 type Decided<P> = Authorized<P> | CheckFailure | Readonly<{ kind: 'invalid'; reason: string }>
 
-/** The shared state of one memory instance and the checks every face uses. */
 export interface World<P> {
   readonly options: WorldOptions<P>
   closed: boolean
   serial: number
-  /** Bumped when the set of open, registered targets changes; a tenant batch compares it. */
   targetsVersion: number
   readonly incompatible: Set<string>
   readonly descriptors: Map<ContextBlockKey, Descriptor>
@@ -154,7 +136,6 @@ export function createWorld<P>(options: WorldOptions<P>): World<P> {
     options,
     closed: false,
     serial: 0,
-    /** Bumped when the set of open, registered targets changes; a tenant batch compares it. */
     targetsVersion: 0,
     incompatible: new Set<string>(),
     descriptors: new Map<ContextBlockKey, Descriptor>(),
@@ -172,9 +153,7 @@ export function createWorld<P>(options: WorldOptions<P>): World<P> {
       for (const listener of world.listeners) {
         try {
           listener(s.scope, s.view)
-        } catch {
-          /* A wake-up is not the source of fact. */
-        }
+        } catch {}
       }
     },
     put(
@@ -240,7 +219,6 @@ export function createWorld<P>(options: WorldOptions<P>): World<P> {
       world.targetsVersion++
       return s
     },
-    /** Maps an authority decision; `current` is kept for the final synchronous check. */
     async decide(
       ask: () => Promise<AuthorityDecision<P> | HolderDecision<P>>,
     ): Promise<Authorized<P> | CheckFailure | Readonly<{ kind: 'invalid'; reason: string }>> {
@@ -268,7 +246,6 @@ export function createWorld<P>(options: WorldOptions<P>): World<P> {
         }
       }
     },
-    /** Trusted binding: unbound or another tenant is unauthorized; the real tenant is never disclosed. */
     async bound(scope: ScopeRef, tenant: TenantId): Promise<CheckFailure | null> {
       if (!isMinted(tenant)) return { kind: 'refused', reason: 'unauthorized' }
       let binding
@@ -321,7 +298,6 @@ export function unavailable(cause: CheckCause): CheckUnavailable {
   return { kind: 'unavailable', cause }
 }
 
-/** Copies a scope chain into owned data. Undefined when the chain is not a valid scope. */
 export function ownScope(value: ScopeRef, seen = new Set<object>()): ScopeRef | undefined {
   if (typeof value !== 'object' || value === null || seen.has(value)) return undefined
   seen.add(value)
@@ -332,7 +308,6 @@ export function ownScope(value: ScopeRef, seen = new Set<object>()): ScopeRef | 
   return parent ? { ref: value.ref, parent } : undefined
 }
 
-/** Copies data by its declared shape. Undefined when the value is not plain data. */
 export function ownData(value: unknown): { value: unknown } | undefined {
   try {
     return { value: structuredClone(value) }
@@ -341,7 +316,6 @@ export function ownData(value: unknown): { value: unknown } | undefined {
   }
 }
 
-/** A stable digest of captured input: functions and schemas by presence, tenants by their text. */
 export function digest(value: unknown): string {
   const seen = new WeakSet<object>()
   const text = JSON.stringify(value, (_key, item: unknown) => {

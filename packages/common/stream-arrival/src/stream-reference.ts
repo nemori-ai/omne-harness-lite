@@ -145,7 +145,6 @@ function captureRecord<T extends object>(
         return { failure: 'shape' }
       entries.push([key, descriptor.value])
     }
-    // The typed record's exact own data properties have been captured without property reads.
     return { ok: Object.fromEntries(entries) as T }
   } catch {
     return { failure: 'unreadable' }

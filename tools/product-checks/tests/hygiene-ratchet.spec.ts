@@ -143,10 +143,25 @@ describe('hygiene-baseline-ratchet: growth against the base', () => {
   })
 
   it('reports a limit raised above the base', () => {
-    const raised = { ...base, limits: { fileLines: 1001, functionLines: 151, specLines: 601 } }
-    expect(growthViolations(raised, base)).toHaveLength(3)
-    const lowered = { ...base, limits: { fileLines: 900, functionLines: 100, specLines: 500 } }
+    const raised = {
+      ...base,
+      limits: {
+        fileLines: 1001,
+        functionLines: 151,
+        specLines: 601,
+        commentRunLines: base.limits.commentRunLines + 1,
+        commentFloorLines: base.limits.commentFloorLines + 1,
+        commentPercent: base.limits.commentPercent + 1,
+      },
+    }
+    expect(growthViolations(raised, base)).toHaveLength(6)
+    const lowered = {
+      ...base,
+      limits: { ...base.limits, fileLines: 900, functionLines: 100, specLines: 500 },
+    }
     expect(growthViolations(lowered, base)).toEqual([])
+    const tighter = { ...base, limits: { ...base.limits, commentFloorLines: 1 } }
+    expect(growthViolations(tighter, base)).toEqual([])
   })
 })
 
@@ -236,7 +251,7 @@ describe('hygiene baseline file', () => {
     [
       'limits with another key',
       withLimits({ ...DEFAULT_LIMITS, extra: 1 }),
-      'limits 的键须恰为 fileLines、functionLines、specLines',
+      'limits 的键须恰为 commentFloorLines、commentPercent、commentRunLines、fileLines、functionLines、specLines',
     ],
     [
       'a bad limit',

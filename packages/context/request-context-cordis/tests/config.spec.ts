@@ -1,5 +1,3 @@
-// The plugin configuration (IC-14) and the choice of the two strategies (CX-03): what is checked,
-// what makes the load fail, and that the chosen strategy is the one the operations run.
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import {
@@ -34,7 +32,6 @@ const f = createAssemblyFixture({
     })),
   },
 })
-// `FiberState` is a const enum in Cordis 4.0.4, erased at runtime: FAILED is its fourth member.
 const FIBER_FAILED = 3
 const owner: Adoption = { owner: 'test', name: 'sources', revision: '1', digest: 'd' }
 const key = (() => {

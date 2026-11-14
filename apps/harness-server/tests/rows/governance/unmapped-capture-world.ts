@@ -8,7 +8,6 @@ import { loadProductionRelease } from '../../../src/entry/tool-release.ts'
 import { toolAssetPublication } from '../../../src/rows/governance/tool-assets.ts'
 import { governanceAdoptionWorld } from './governance-adoption-world.ts'
 
-/** A fixed trusted-release boundary fixture; all holdings, adoption and permission facts use real SQL owners. */
 export async function unmappedCaptureWorld(
   options: Parameters<typeof governanceAdoptionWorld>[0],
   initialize = true,

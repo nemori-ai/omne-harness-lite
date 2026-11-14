@@ -1,11 +1,3 @@
-// Test stand-ins for the injects of the `agent-host` row, shared by the row tests of `agent-host`
-// and `session-ad14`. Every service is a non-durable double of `@omne-harness/agent/testing` behind
-// the abstract service of `agent-cordis-contract`; nothing here proves a real provider. The memory
-// Journal is a coordinated binding that declares the four joint-commit participants, because the
-// release rule of the row (R2-D93) requires `message` in `jointCommits`, and the factory refuses a
-// configuration whose joint commits the Journal does not declare. The six locally required stage
-// dependencies (tools, extensions, cards, action admission, materials, registered reads) come from
-// the same doubles, so the Agent Loop can run up to its Tool actions. It does not import vitest.
 import type { Context } from '@deepseek-ai/cordis'
 import { createTestAgentDependencies, type TestAgentControls } from '@omne-harness/agent/testing'
 import type { Access } from '@omne-harness/agent-contract'
@@ -63,7 +55,6 @@ export const definition = {
 }
 export const caller: Access<string> = { principal: 'caller-a', tenant }
 
-/** The operator values of the row in these tests: the release's joint commits, test numbers. */
 export const hostConfig = {
   observerBufferBytes: 1024,
   reconciliationDelaysMs: [0],
@@ -77,10 +68,6 @@ export const hostConfig = {
   instanceIdleMs: 60_000,
 }
 
-/**
- * The sixteen injects of the row: the fourteen of the assembly page, in its order, with the two
- * faces of the Model result receiver after `agentMaterials` (R2-D237).
- */
 export const INJECTS = [
   'agentJournal',
   'agentJournalEntries',
@@ -103,7 +90,6 @@ export type Inject = (typeof INJECTS)[number]
 type ServiceInject = Exclude<Inject, 'agentHostPrincipal'>
 
 type Constructor = new (ctx: Context) => object
-// The definition classes are abstract only to TypeScript; the stand-in gives each its members.
 const definitions: Readonly<Record<ServiceInject, unknown>> = {
   agentJournal: AgentJournalService,
   agentJournalEntries: AgentJournalEntriesService,
@@ -122,7 +108,6 @@ const definitions: Readonly<Record<ServiceInject, unknown>> = {
   agentClock: AgentClockService,
 }
 
-// The stage dependencies the host takes per call (`toolRuntime` is provided as it is).
 const stages = [
   [ExtensionImplementationsService, 'extensions'],
   [DecisionCardsService, 'cards'],
@@ -130,7 +115,6 @@ const stages = [
   [RegisteredReadsService, 'reads'],
 ] as const
 
-/** The host principal, a root object of the assembly entry. */
 export function principalObject(): EntryObjectModule {
   return {
     name: 'agentHostPrincipal',
@@ -144,14 +128,9 @@ export function principalObject(): EntryObjectModule {
 export type HostDoubles = Readonly<{
   spec: RowSpec
   controls: TestAgentControls<string>
-  /** The principal of every Journal `load`, in order. */
   loads: unknown[]
 }>
 
-/**
- * One stand-in row that provides every service key of the injects except `omit`, plus the stage
- * dependencies. The memory Journal grants every coordinated `open` and input source.
- */
 export function hostDoubles(omit: Inject | null): HostDoubles {
   const { dependencies, controls } = createTestAgentDependencies<string>({
     journal: {

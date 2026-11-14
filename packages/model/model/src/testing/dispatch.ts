@@ -2,9 +2,6 @@ import type { ModelCommands } from '@omne-harness/model-contract/provider'
 import { dispatchCommands as coreDispatchCommands } from '../commands/commands.ts'
 import type { MemoryState } from './state.ts'
 
-// Dispatch, stream preservation and retry of the memory commands: the shared core over the
-// memory storage.
-
 export function dispatchCommands<P>(
   store: MemoryState<P>,
 ): Pick<

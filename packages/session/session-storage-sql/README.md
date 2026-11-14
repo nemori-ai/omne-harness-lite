@@ -16,7 +16,7 @@ Status: storage member, `draft`. The head has an implementation. The [implementa
 - No `./cordis` subpath exists. The application owns the session storage composite (material catalog, combination declaration, tenant domain directory, Cordis services). This package does not rebuild it.
 - Not implemented: `sl_batch`, the `payload_ref` of an entry, `sl_ref_idx`, the R9 catch-up and rebuild, and PostgreSQL. The `sl_blob` table exists. Only the `execution-record` participant writes it.
 - Verified: the public entries and dependency rules (`tests/public-entry.spec.ts`), tenant isolation and the tenant domain directory (`tests/tenant-isolation.spec.ts`), and the cases that another writer adds to `tests/`. The `node:sqlite` fixture runs the real participant and handler modules in memory and does **not** cover the Worker, durability, or close. `tests/real-provider.spec.ts` runs the package over the real sqlite-provider (Worker commit, kill after the receipt then `query` by the original identity, never-committed identity, close, two limits, group commit count of 8 operations to 8 physical transactions, so zero merge). It does not cover power loss, WAL maintenance, cross-process writers or lock timeout. The new behavior has no red-then-green record. Negative-control cases take its place.
-- Precondition: the storage contract is now [sql-contract](../../storage/sql-contract/SPEC.md), and the provider is [sqlite-provider](../../storage/sqlite-provider/SPEC.md). The provider is a dev dependency of the tests only.
+- Precondition: the storage contract is now [sql-contract](../../storage/SPEC.md), and the provider is [sqlite-provider](../../storage/SPEC.md). The provider is a dev dependency of the tests only.
 
 No package depends on this package now. The application assembly selects it later.
 
@@ -68,7 +68,7 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/session-storage-sql
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The cases are in [tests/](tests/README.md). The `node:sqlite` fixture does not pass through the Worker of sqlite-provider; `tests/real-provider.spec.ts` does, and covers process-level durability, close, and the `command_limit` and `queue_full` limits. Power-loss durability and WAL maintenance have no coverage. The "derived equals recomputed" check, the read-path complexity benchmarks, concurrent writes, and failure-table injection in the [verification obligations](docs/verification-obligations.md) are not implemented. The package declares no numeric target before measurement. Power-loss durability belongs to the owners of [SQL-T01](../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01), and this package does not claim it. A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. The cases are in [tests/](tests/README.md). The `node:sqlite` fixture does not pass through the Worker of sqlite-provider; `tests/real-provider.spec.ts` does, and covers process-level durability, close, and the `command_limit` and `queue_full` limits. Power-loss durability and WAL maintenance have no coverage. The "derived equals recomputed" check, the read-path complexity benchmarks, concurrent writes, and failure-table injection in the [verification obligations](docs/verification-obligations.md) are not implemented. The package declares no numeric target before measurement. This package does not claim power-loss durability. A passing structure check does not prove behavior.
 
 ## Maintenance
 

@@ -1,6 +1,3 @@
-// The byte range rules of the SPEC "读取的形状规则", on the pure function: the page limit, the
-// character boundaries, the empty range that moves its start, the BOM, `complete`, and the
-// caller errors. The body offset makes the range relative to the body.
 import { describe, expect, it } from 'vitest'
 import { sliceRange } from '../src/access/range.ts'
 
@@ -31,7 +28,6 @@ describe('the page limit', () => {
 })
 
 describe('character boundaries of text', () => {
-  // a | C3 A9 | E4 B8 AD
   const mixed = text('aé中')
 
   it('moves the start forward to the next character boundary', () => {
@@ -74,7 +70,6 @@ describe('character boundaries of text', () => {
 })
 
 describe('the requested end is the requested start plus the length', () => {
-  // a | C3 A9 | b | c
   const sample = text('aébc')
 
   it('P5: a start inside a character and a length of 2 gives one byte after the boundary', () => {

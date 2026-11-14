@@ -377,7 +377,6 @@ class Extractor {
         nodeName(item.name) === 'provide',
     )
     const key = this.classKey(node)
-    // Inherited keys are providers; own static keys and legacy super keys are declarations.
     if (
       ownKey !== undefined ||
       this.resolver.imported(this.serviceBase(node) ?? node, 'Service', '@deepseek-ai/cordis')
@@ -630,7 +629,6 @@ class Extractor {
         (arg === undefined ? undefined : this.parameterKey(arg, context)?.value)
       if (key === undefined || !context.required.has(key)) this.key('optional', arg, context)
       else {
-        // Still count the successful service identifier attempt without creating an optional fact.
         if (arg !== undefined)
           this.attempts.add(`${this.resolver.path(arg)}|${arg.pos}|${context.plugin}|get`)
       }
@@ -662,7 +660,6 @@ class Extractor {
     if (ts.isCallExpression(node)) {
       if (this.contextCall(node, context, active)) return
       if (
-        // The root spelling belongs to historical snapshots, not the current public API.
         ['@omne-harness/kernel-basis', '@omne-harness/kernel-basis/cordis'].some(module =>
           this.resolver.imported(node.expression, 'resolveOptional', module),
         ) &&
@@ -914,7 +911,6 @@ class Extractor {
       const object = this.resolver.value(value.arguments[0])
       return object !== undefined && ts.isObjectLiteralExpression(object) ? object : undefined
     }
-    // Only append the adopted metadata. Overrides, spread, getters and arbitrary calls stay unknown.
     const callee = value.expression
     if (
       !allowMetadata ||
@@ -955,7 +951,6 @@ class Extractor {
     const packageName = this.resolver.string(expression(property(value, 'package')))?.value
     const exportedName = this.resolver.string(expression(property(value, 'export')))?.value
     if (packageName === undefined || exportedName === undefined) return reference
-    // A tree reference selects a public /cordis export, never a private source path.
     if (!/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/u.test(packageName)) return undefined
     const path = this.resolver.modulePath(`${packageName}/cordis`, tree)
     const module =
@@ -1039,7 +1034,6 @@ class Extractor {
       }
     }
     for (const tree of this.resolver.trees()) this.manifest(tree)
-    // Context-typed public helpers not reached from a plugin remain explicitly unowned.
     for (const tree of this.resolver.trees()) {
       const member = this.resolver.member(this.resolver.path(tree))?.path
       if (member === undefined) continue
@@ -1073,7 +1067,6 @@ class Extractor {
     }
   }
 }
-/** 产品源码（不含测试）里跨成员的导入，按成员对归并；导入已由本抽取器按该版本的配置解析过。 */
 function memberEdgesOf(imports: readonly ImportFact[]): MemberEdge[] {
   const edges = new Map<string, { from: string; to: string; sites: ImportSite[] }>()
   for (const item of imports) {
@@ -1096,7 +1089,6 @@ export function extractArchitecture(snapshot: Snapshot): ActualExtraction {
   return extractWithResolver(snapshot).extraction
 }
 
-/** 抽取，并交回抽取用的解析器：同一版本的符合性检查查公开导出时用它，不再为同一份快照另建一个 TypeScript 程序。 */
 export function extractWithResolver(snapshot: Snapshot): {
   readonly extraction: ActualExtraction
   readonly resolver: StaticResolver

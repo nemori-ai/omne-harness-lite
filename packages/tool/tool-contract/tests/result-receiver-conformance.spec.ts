@@ -1,6 +1,3 @@
-// Self-proof of the ToolResultReceiver suite: it passes on the conforming double, and each case
-// fails under a violating variant. The variants wrap `push` of the double at the port boundary;
-// they live here and are not exported.
 import { isDeepStrictEqual } from 'node:util'
 import { describe, expect, it } from 'vitest'
 import type { ContentBlock } from '@omne-harness/content-block'
@@ -51,7 +48,6 @@ const NAMES = {
 type Receiver = ToolResultReceiver<string, ContentBlock>
 type Push = Receiver['push']
 
-/** The double with `push` replaced by `build(real)`. */
 function variant(build: (real: Push, fixture: Fixture) => Push): () => Fixture {
   return () => {
     const base = memoryToolResultReceiverFixture()
@@ -59,7 +55,6 @@ function variant(build: (real: Push, fixture: Fixture) => Push): () => Fixture {
   }
 }
 
-/** The delivery with its reference re-encoded under `tenant`. */
 const fakeReceipt = (delivery: ToolDelivery<ContentBlock>): ToolSavedReceipt => ({
   key: delivery.key,
   evidence: { ...evidence('fake'), owner: delivery.consumer.owner },
@@ -107,7 +102,6 @@ const variants: readonly Variant<Fixture>[] = [
     fixture: variant(real => {
       const kept = new Map<string, ToolDelivery<ContentBlock>>()
       return async input => {
-        // Per tenant: a key's reference carries no tenant (R2-D357).
         const name = JSON.stringify([input.access.tenant, input.delivery.key])
         const earlier = kept.get(name)
         if (earlier !== undefined && !isDeepStrictEqual(earlier, input.delivery))
@@ -121,11 +115,7 @@ const variants: readonly Variant<Fixture>[] = [
   {
     name: 'the key leaves out the tenant',
     fails: [NAMES.RP5, NAMES.RP6, NAMES.RP10, NAMES.RP13],
-    fixture: variant(
-      (real, fixture) => input =>
-        // The reference carries no tenant (R2-D357), so the access alone names it.
-        real({ ...input, access: fixture.access }),
-    ),
+    fixture: variant((real, fixture) => input => real({ ...input, access: fixture.access })),
   },
   {
     name: 'a malformed reference is denied',
@@ -171,7 +161,6 @@ const variants: readonly Variant<Fixture>[] = [
           memoryToolResultReceiverFixture().otherConsumer as ConsumerRef,
         ],
         tenantCapacity: 100,
-        // The stranger of the fixture keeps its missing qualification; only the capacity is lost.
         qualifies: presented => presented.principal !== 'tester-stranger',
       }),
     }),
@@ -184,7 +173,6 @@ const variants: readonly Variant<Fixture>[] = [
       return async input => {
         if (held >= 2 && !input.signal.aborted) {
           const answer = await real({ ...input, signal: AbortSignal.abort() })
-          // A saved key is still recalled; only a new key meets the shared bucket.
           if ('failure' in answer && answer.failure.kind === 'cancelled-before-accept')
             return fail({ kind: 'backpressured', resource: 'records' })
           return answer

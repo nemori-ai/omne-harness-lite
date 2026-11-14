@@ -12,24 +12,18 @@ export type Dropped = Extract<Admission, { kind: 'dropped' }>
 
 type Queued = Readonly<{ record: TelemetryRecord; bytes: number }>
 
-/** One place among the open segments. The pipeline takes it back when the segment expires. */
 export type SegmentPlace = {
   readonly openedAt: number
   state: 'open' | 'ended' | 'expired' | 'closed'
   onRelease: (() => void) | undefined
 }
 
-/** What the emitters see of the pipeline. */
 export type Pipeline = Readonly<{
   accepting(): boolean
-  /** Admits one formed record into the bounded queue, or drops it. */
   admit(record: TelemetryRecord): Admission
   drop(reason: DropReason): Dropped
-  /** Takes one place among the open segments; undefined when they are all taken. */
   openSegment(onRelease?: () => void): SegmentPlace | undefined
-  /** True while the place is still open: the segment has not expired. */
   isOpen(place: SegmentPlace): boolean
-  /** Frees the place. False when the place was already released. */
   closeSegment(place: SegmentPlace): boolean
   close(deadlineMs: number): Promise<CloseReport>
 }>
@@ -41,9 +35,7 @@ const DROPPED = new Map<DropReason, Dropped>(
   ),
 )
 
-/** The frozen answer for one reason. */
 export function dropped(reason: DropReason): Dropped {
-  // The map holds every DropReason.
   return DROPPED.get(reason) as Dropped
 }
 
@@ -51,11 +43,6 @@ function byteSize(record: TelemetryRecord): number {
   return Buffer.byteLength(JSON.stringify(record), 'utf8')
 }
 
-/**
- * The bounded queue between admission and the outlet, and the counts that do not pass through it.
- * Admission is synchronous; the drain runs on a later turn of the event loop, so a caller never
- * waits for the outlet.
- */
 export function createPipeline(
   input: Readonly<{
     generation: string
@@ -86,7 +73,6 @@ export function createPipeline(
     )
   }
 
-  /** At most one summary line per interval; it never passes through the queue. */
   function noteTrouble(): void {
     if (closing !== undefined) return
     try {
@@ -94,9 +80,7 @@ export function createPipeline(
       if (lastSummaryAt !== undefined && now - lastSummaryAt < budgets.summaryIntervalMs) return
       lastSummaryAt = now
       input.summary(summaryLine())
-    } catch {
-      // The last local path failed too; the counts stay in the close report.
-    }
+    } catch {}
   }
 
   function drop(reason: DropReason): Dropped {
@@ -112,13 +96,10 @@ export function createPipeline(
     place.onRelease = undefined
     try {
       notify?.()
-    } catch {
-      // Release is complete even when its observer fails.
-    }
+    } catch {}
     return true
   }
 
-  /** Takes back the places of the segments that have outlived the budget, oldest first. */
   function expireSegments(now: number): void {
     for (const place of places) {
       if (now - place.openedAt <= budgets.maxSegmentLifetimeMs) return
@@ -127,14 +108,12 @@ export function createPipeline(
     }
   }
 
-  /** Once closing began, `close` has taken back the last expiries: a later record answers `closed`. */
   function sweep(): number {
     const now = clock.monotonicMs()
     if (closing === undefined && places.size > 0) expireSegments(now)
     return now
   }
 
-  /** Each record is written on its own: one failure does not take the rest of the batch with it. */
   function deliver(item: Queued): void {
     if (outlet.write(item.record)) {
       reachedSink = true
@@ -144,7 +123,6 @@ export function createPipeline(
     noteTrouble()
   }
 
-  /** Writes the queue in order until it is empty or the deadline has come. */
   function drain(deadlineAt?: number): void {
     const batch = queue
     queue = []
@@ -216,7 +194,6 @@ export function createPipeline(
     const wait = Number.isFinite(deadlineMs) && deadlineMs > 0 ? deadlineMs : 0
     const now = clock.monotonicMs()
     const deadlineAt = now + wait
-    // Admission stops first, then the queue drains to the local sink.
     closing = Promise.resolve().then(() => finish(deadlineAt))
     // Counted after admission stopped, so the expiries reach the report and not a summary line.
     expireSegments(now)

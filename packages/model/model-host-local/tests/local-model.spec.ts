@@ -1,11 +1,4 @@
 // @module-tag slow — starts an openssl child process and a real local HTTPS server, writes a vault
-// file, and drives one Model call of each pi family through the assembled send path.
-//
-// The real request path of the local host: the credential port reads the fixed layer inside the
-// send fence, the Model send boundary starts the pi transport, the composed families encode the
-// request and decode the recorded gateway stream, and the Model runtime preserves every fact in the
-// injected in-memory ModelCommands. The server stands in for the gateway only; it answers with the
-// recorded SSE body of the model that the request names.
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -21,11 +14,8 @@ import { readRecordFixture, type FamilyName } from './support/records.ts'
 type Case = Readonly<{
   family: FamilyName
   name: string
-  /** The gateway cost of the recorded stream, in OpenRouter credit. */
   payable: string
-  /** Whether the recorded reply holds a reasoning state part. */
   reasoning: boolean
-  /** The replay format that the record of the family produces. */
   format: string
 }>
 
@@ -143,22 +133,17 @@ describe('one call of each family through the assembled local send path', () => 
       })
       try {
         const before = server.requests.length
-        // The call settles, also when its reply holds a reasoning state part: the finish takes
-        // the replay format from the receipt that the transport gave and the Model kept.
         expect((await local.drive()).driven).toEqual({ ok: undefined })
 
-        // The request carried the value the custodian resolved, inside the send fence.
         const received = server.requests.slice(before)
         expect(received).toHaveLength(1)
         expect(received[0]?.headers.authorization).toBe(`Bearer ${PLACEHOLDER}`)
 
-        // The facts the boundary handed out end with exactly one termination.
         expect(local.facts.filter(fact => fact.kind === 'ended')).toHaveLength(1)
         expect(local.facts.at(-1)?.kind).toBe('ended')
         const reported = local.facts.filter(fact => fact.kind === 'account')
         expect(reported).toHaveLength(1)
 
-        // ModelCommands completed the account with this call and the receipt.
         const dispatches = decoded(
           await local.commands.dispatches({ ...local.access, call: local.call }),
         )
@@ -180,7 +165,6 @@ describe('one call of each family through the assembled local send path', () => 
           ok: { state: 'known', lexeme: item.payable, unit: 'openrouter-credit' },
         })
 
-        // The secret entered neither the facts nor the kept records.
         expect(JSON.stringify(local.facts)).not.toContain(PLACEHOLDER)
         expect(JSON.stringify(dispatches)).not.toContain(PLACEHOLDER)
       } finally {

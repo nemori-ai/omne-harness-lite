@@ -1,26 +1,3 @@
-// The execution coordinator: the effects of the Loop for one execution, node by node, as the
-// pseudocode of docs/architecture/loop-algorithm.md "正常路径伪代码" groups them (runExecution,
-// settle, runIter, prepareRequest, callModel, admitMessage). Each node is one handler that runs the
-// node's effect and names its outcome; where the node goes next is never decided here but looked up
-// in the transition table of nodes.ts. E4 uses a pure recovery route (J5), and delegates input
-// boundaries and iteration decisions to the evaluator. I8 uses the evaluator's Next.
-//
-// #502 1.2 is the skeleton of the normal path. Its temporary choices, each also named where it is
-// made and in tests/README.md:
-//
-// - 临时简化，1.3–1.9 按节点表收紧: every node from E3 on writes one commit when it ends, and the
-//   commit moves `position` to the next node. The exact commit points of the node table are not
-//   followed yet. Q1 writes P for an internal source before it calls `prepare` (SPEC "消息准入");
-//   for the external input, U0 to Q4 run before the execution exists and write nothing; E1, E2 and
-//   E4 only read, because a commit there would overwrite the `position` that E4 reads (the initial
-//   E3); and after F3 the execution is ended, so F4, O0 and E9 use their own records only.
-// - #514: I2 is local; M0 commits PendingCall, the fixed request adoption and the effect together.
-//   M6, M1 settlement, M4 (without extensions) and M5 make no checkpoint commit. M3 carries producer.
-// - The input-taken event is written by the I0 commit; `open` writes no event (same-shape fact 7).
-//
-// Dependency waits and original writes retain their own continuations. Determinate node failures
-// keep the first fault and enter F1. Private provenance distinguishes local defects and unsupported
-// paths from an unavailable dependency. Only the Journal's ended result releases the execution.
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   AcceptedInput,
@@ -176,7 +153,6 @@ import { contactToolCalls } from './tool-contact.ts'
 import { readToolDeliveryMaterial } from '../tool-receiving-material.ts'
 import type { ToolDelivery } from '@omne-harness/tool-contract'
 
-/** The ports the coordinator uses. None of them depends on the content block type. */
 export type LoopPorts<P> = Pick<
   AgentDependencies<P, ContentBlock>,
   | 'journal'
@@ -198,65 +174,31 @@ export type LoopPorts<P> = Pick<
 export type ExecutionEntry<P> = Readonly<{
   ports: LoopPorts<P>
   binding: AgentRuntimeBinding
-  /**
-   * The joint-commit kinds of the factory configuration, which the factory checked against the
-   * participants of the Journal binding (SPEC "提交参加者协议"). The Ja of a source whose kind is
-   * listed carries that CallerCommit; see `historyCaller`. The runtime always passes the
-   * configured list. Absent is the empty list: no external CallerCommit is requested (SPEC
-   * "真实历史的提交点"), which is what a coordinator built directly by a test or harness gets.
-   */
   jointCommits?: AgentConfiguration['jointCommits']
   evaluator: AgentEvaluator
-  /** The Access of the invoke; every operation of the execution runs under it. */
   access: Access<P>
   execution: AgentExecutionId
-  /** The operation of the invoke, which `open` uses as its own. */
   operation: AgentOperationId
   initial: AcceptedInput
   grant: DurableEvidence | null
-  /** E9, or E1 finding an advanced execution: give the slot back and return to idle. */
   idle(): void
-  /**
-   * F4 found the committed terminal: the conclusion and the finish candidate it ended with (SPEC
-   * 「以失败终结」). Called at most once per coordinator; absent, nobody is told.
-   */
   ended?(
     state: Extract<ExecutionState, { kind: 'ended' }>,
     candidate: FailureCandidate | null,
   ): void
-  /**
-   * A node began to wait for a dependency that answered `failure`. Called once for each new
-   * combination of step, node, owner and diagnostic; absent, the reason of the wait is kept nowhere.
-   */
   waiting?(
     step: StepId | null,
     node: LoopNode,
     failure: Extract<Failure, { kind: 'unavailable' }>,
   ): void
-  /**
-   * 本 run 并发范围的范围预算。A0 把它写入每个获准请求的 `limits.scopeBudget`，由 Tool 执行。
-   * 缺少它时，A0 对获准动作以 invariant 失败。
-   */
+  // 本 run 并发范围的预算：A0 把它写进每个获准请求的 `limits.scopeBudget`，由 Tool 执行。
+  // 缺少它时，A0 对获准动作以 invariant 失败。
   toolConcurrency?: number
-  /**
-   * The most steps this execution takes (R2-D221, the M2 fallback for the loop judgment of wave 3).
-   * When E4 or I8 would open the step after the last one, the execution fails with a `guard`
-   * candidate instead. Absent: no limit, which only a coordinator built directly by a test gets;
-   * the runtime always passes the configured or default value.
-   */
   maxRunSteps?: number
-  /**
-   * Receives the report of a cold read of the reply admission facts (D5 5.1, 治疗). Optional; the
-   * runtime assembly gives none yet, so the report then goes nowhere.
-   */
   report?: (report: ReplyAdmissionReadReport) => void
 }> &
   ModelRetryEntry
 
-/**
- * A cold read of the reply admission facts: E2 met `missing-basis` at the prefix `from` and read
- * once again from origin. `outcome` says how that read ended; `pages` and `facts` are its size.
- */
 export type ReplyAdmissionReadReport = Readonly<{
   kind: 'origin-reread'
   reason: 'missing-basis'
@@ -266,44 +208,25 @@ export type ReplyAdmissionReadReport = Readonly<{
   facts: number
 }>
 
-/** Where and why the coordinator stopped. The execution stays where its last commit put it. */
 export type Halted = Readonly<{ node: LoopNode; failure: Failure }>
 
-/** What a coordinator does for the drive of its runtime once it holds the attachment. */
 export interface ExecutionDrive {
-  /**
-   * After a legally accepted operation: run from E1 until idle, a saved wait or a failure.
-   */
   runExecution(): Promise<Outcome<void, Halted>>
-  /** W0's local resources belong to this awaited window, never to the producer. */
   waitForWake(
     input: Readonly<{ pacer: ReconciliationPacer; signal: AbortSignal }>,
   ): Promise<Outcome<'ready' | 'stopped' | 'cancelled', Halted>>
-  /**
-   * The handover of quiesce (SPEC "交接与停用"): `Journal.detach` revokes the attachment of an
-   * execution whose wait is saved in the Journal, and answers the handover evidence. The position,
-   * the wait and the calls stay as saved. Null: the coordinator is not on a saved wait, or it holds
-   * an operation whose outcome is unknown, so nothing is handed over and nothing is written. Only
-   * the drive calls it, between two awaited windows.
-   */
   handOver(
     input: Readonly<{ operation: AgentOperationId; reason: DurableEvidence }>,
   ): Promise<Outcome<DurableEvidence | null, Halted>>
 }
 
 export interface ExecutionCoordinator extends ExecutionDrive {
-  /** U0 to E0: the input is admitted and `open` accepts the execution. Resolves at E1. */
   accept(confirmedOpen?: CommandReceipt): Promise<Outcome<Authority, Halted>>
   /** Original runtime only, after its old driver stopped. No attach, takeover or public resume. */
   continueExecution(authority: Authority): Promise<Outcome<void, Halted>>
 }
 
-/** The coordinator of an execution that another attachment drove before (SPEC "恢复与接管"). */
 export interface ResumedCoordinator extends ExecutionDrive {
-  /**
-   * `Journal.attach` grants a new attachment to the execution that was handed over, and the frame
-   * takes the saved position. Resolves before E1; the drive reconciles and goes on from there.
-   */
   resume(
     input: Readonly<{
       operation: AgentOperationId
@@ -313,51 +236,29 @@ export interface ResumedCoordinator extends ExecutionDrive {
   ): Promise<Outcome<Authority, Halted>>
 }
 
-/** The entry of a coordinator that resumes: it has no invoke, so no operation, input or grant. */
 export type ResumeEntry<P> = Omit<ExecutionEntry<P>, 'operation' | 'initial' | 'grant'>
 
-/** The invoke that a coordinator opens its execution with. */
 type Invoked = Pick<ExecutionEntry<unknown>, 'operation' | 'initial' | 'grant'>
 
 type ReadyPreparation = Extract<Preparation, { kind: 'ready' }>
 type InternalSource = Exclude<MessageSource, { kind: 'external-input' }>
 type ModelPendingCall = Extract<PendingCall, { kind: 'model' }>
 type OpenState = JournalCommitState
-/** The Journal allocates `ended` and `entry` itself; a node commits none of them. */
 export type CommitEvent = Exclude<AgentEventBody, { kind: 'ended' | 'entry' }>
 
-/** What one node commits besides the move of `position`. */
 type Write = Readonly<{
   checkpoint?: Partial<Omit<AgentCheckpoint, 'position'>>
   state?: OpenState
-  /** The candidate content of the F1 commit (SPEC "条件终结" 1); absent on every other commit. */
   finish?: FinishCandidateContent
   events?: readonly CommitEvent[]
   effects?: readonly EffectIntent[]
   replyAdmission?: ModelReplyAdmission
   handoff?: HandoffChange
-  /** The hand-over of a Ja to a declared participant; none when absent (see `historyCaller`). */
   caller?: CallerCommit
-  /** The operation of the commit, when it is not the node's own; a Ja is derived from its H. */
   operation?: AgentOperationId
-  /**
-   * The commit records a fact that already happened, such as the reference a Tool returned for a
-   * call it accepted. It is no new advance, so an effective cancellation does not drop it: F0 needs
-   * the saved reference to interrupt the call, and the late result is received under it.
-   */
   recordsFact?: true
 }>
 
-/**
- * The CallerCommit of the Ja that applies `fixed` (SPEC "真实历史的提交点"). When the assembly
- * declared the kind in `jointCommits`, the prepared message of a tool result, a denied action or a
- * reminder (T5, X5) is a `message` hand-over: its source is the original handoff record and its
- * admission the prepared result. The prepared compaction transition (C3) is a `context-transition`
- * hand-over: its value is the transition of the request and its admission the prepared result.
- * Otherwise the caller is none and the Journal's fixed history composition keeps the same history
- * duty in the same transaction. The main reply is never a CallerCommit: its history is the Journal's
- * core duty, carried by `replyAdmission`. A rejected outcome publishes no history, so it has none.
- */
 function historyCaller(
   jointCommits: AgentConfiguration['jointCommits'],
   fixed: HandoffOutcome,
@@ -386,16 +287,10 @@ function historyCaller(
   }
 }
 
-/** The outcome of one node and the commit it writes; `commit: null` writes no commit. */
 type Step = Readonly<{ on: Label; commit: Write | null }>
 type Handler = () => Promise<Outcome<Step, Failure>>
 type Movement = Readonly<{ to: LoopNode | null; yielded: boolean }>
 
-/**
- * A candidate that Q1 to Q5 admit, and the fixed call position that Q4 returns to. The type ties
- * each source to its call position (Q1): the external input of the invoke to U0, a Model reply to
- * I3. The external request is complete before Q1; the internal request is fixed by Q1's P.
- */
 type Candidate =
   | Readonly<{
       kind: 'external-input'
@@ -416,31 +311,26 @@ type Iteration = {
   action: ActionId
   consumption: ConsumptionId
   position: ConsumerRef
-  conditions: RuntimeConditions | null // I1
-  selected: SelectedModel | null // I1, P1
-  context: ModelContextRead | null // I1
-  preparation: Preparation | null // I1
-  ready: ReadyPreparation | null // P1
-  pending: ModelPendingCall | null // I2
+  conditions: RuntimeConditions | null
+  selected: SelectedModel | null
+  context: ModelContextRead | null
+  preparation: Preparation | null
+  ready: ReadyPreparation | null
+  pending: ModelPendingCall | null
   lost: DurableEvidence | null
-  result: ModelResult | null // restored from the Journal-bound completion, not a Model cache
+  result: ModelResult | null
   admission: 'new' | 'unknown' | 'accepted'
 }
 
 const step = (on: Label, commit: Write | null = {}): Outcome<Step, Failure> =>
   succeed({ on, commit })
 
-/** The owner of a failure that is a defect of this coordinator, not of a port; see the header. */
 export const DEFECT_OWNER = `${AGENT_OWNER}#defect`
 
 function defect(diagnostic: string): Failure {
   return localFailure('invariant', { kind: 'unavailable', owner: DEFECT_OWNER, diagnostic })
 }
 
-/**
- * The position after an own commit that the Journal accepted at `expected`: the commit appended
- * exactly its `events`. Unknown when the position before it was not the one at `expected`.
- */
 function heldAfter(
   before: HeldPosition | null,
   expected: ExecutionRevision,
@@ -449,26 +339,14 @@ function heldAfter(
 ): HeldPosition | null {
   if (before?.revision !== expected) return null
   const through = before.emittedThrough ?? '0'
-  // A sequence that is not decimal text leaves the position unknown; the wait then reads its own.
   if (!/^(?:0|[1-9]\d*)$/u.test(through)) return null
   const emitted = BigInt(through) + BigInt(events)
   return { revision, emittedThrough: emitted === 0n ? null : String(emitted) }
 }
 
-/**
- * The card rounds of an official admission are not closed here: on an all-denied batch, on a card
- * that was invalidated, or at the end of the execution. Closing a round needs the closed state of a
- * round in the contract and the reconcile after the end, which come with the extension stage. The
- * official admission of this release never asks a person, so no execution reaches these branches.
- */
 const CARD_ROUND_CLOSING = '#502 stage 3'
 const OUT_ROUNDS: readonly PassageNeed[] = ['present', 'read', 'closed']
 
-/**
- * The refusal of R0 to end an execution over a passage whose conclusion was not adopted. The
- * passage of an extension belongs to the X graph; the passage of an official admission still has a
- * card round that nothing closes yet.
- */
 function pendingPassage(passages: readonly Passage[]): Failure | null {
   const pending = passages.find(passage => passage.progress.kind !== 'applied')
   if (pending === undefined) return null
@@ -477,7 +355,6 @@ function pendingPassage(passages: readonly Passage[]): Failure | null {
     : notYet('R0', 'a pending passage', '#502 stage 3')
 }
 
-/** The failure of an outcome that a later #502 card handles, named so that nobody reads it as done. */
 function notYet(node: LoopNode, what: string, card: string): Failure {
   return localFailure('unsupported-path', {
     kind: 'unavailable',
@@ -500,10 +377,6 @@ function modelUnavailable(
   }
 }
 
-/**
- * A definite refusal of one Model call (R2-D237): the same request is refused again, so the Loop
- * does not wait on it. At M6 it is the `model-refused` failure candidate.
- */
 type ModelRefusal = Extract<FailureCandidate, { kind: 'model-refused' }>['failure']
 
 function modelRefusal(failure: M.ModelFailure): ModelRefusal | null {
@@ -517,10 +390,6 @@ function modelRefusal(failure: M.ModelFailure): ModelRefusal | null {
   }
 }
 
-/**
- * A Model failure, kept as what it is (R2-D237): a refusal keeps its kind and its fields where the
- * Agent Failure has them; the other answers are the Model runtime not giving the step its answer.
- */
 function modelFailure(node: LoopNode, failure: M.ModelFailure): Failure {
   switch (failure.kind) {
     case 'denied':
@@ -534,7 +403,6 @@ function modelFailure(node: LoopNode, failure: M.ModelFailure): Failure {
   }
 }
 
-/** A value that an earlier node of the same path sets. Its absence is a defect, so it throws. */
 function required<T>(value: T | null, what: string): T {
   if (value === null) throw new Error(`coordinator defect: ${what} is not set`)
   return value
@@ -543,14 +411,12 @@ function required<T>(value: T | null, what: string): T {
 type UnsupportedRecovery = Readonly<{ kind: 'unsupported'; node: string; card: string }>
 type Recovery = Outcome<LoopNode | 'evaluate', UnsupportedRecovery>
 
-/** The #502 stage that owns a node this coordinator cannot continue from yet. */
 function recoveryCard(node: string): string {
   if (node.startsWith('X')) return '#502 stage 3'
   if (node.startsWith('C')) return '#502 stage 4'
   return /^[AT]/u.test(node) ? '#502 stage 2' : '#502 stage 5'
 }
 
-/** A node the recovery may continue from, or the named stage that still owns it. */
 function recoveryTarget(node: string): Recovery {
   if (
     /^[CX]/u.test(node) ||
@@ -563,11 +429,9 @@ function recoveryTarget(node: string): Recovery {
 
 function batchRecovery(position: string, batch: ActionBatch): string {
   if (batch.barrier.kind === 'closed') return 'A1'
-  // The batch pass and the message admission continue where they are; T5 recognizes its Ja.
   if (['T4', 'T5', 'I8'].includes(position)) return position
   const slotted = (action: Action) => batch.slots.some(slot => slot.action === action.id)
   if (batch.barrier.kind === 'all-denied') return batch.actions.every(slotted) ? 'T2' : 'A3'
-  // An action without a slot is sent, or sent again with its original request, only by A2.
   const judged = (action: Action) => ['allowed', 'denied'].includes(action.judgment.kind)
   if (batch.actions.some(action => judged(action) && !slotted(action))) return 'A2'
   return batch.slots.some(slot => slot.kind === 'dispatched') ? 'T0' : 'T1'
@@ -578,23 +442,11 @@ function callRecovery(position: string, call: PendingCall): Recovery {
     return fail({ kind: 'unsupported', node: 'M1', card: '#502 stage 4' })
   if (call.purpose === 'action') return recoveryTarget('T0')
   if (call.purpose === 'extension') return recoveryTarget('X2')
-  // A saved call survives request admission and result consumption. Its presence alone does
-  // not mean that observation at M1 is still pending.
   if (['M0', 'M6', 'M1', 'M3', 'M4', 'M5', 'I3'].includes(position)) return recoveryTarget(position)
-  // The admission of the reply of a main call (Q1 to Q4) runs on a frame that I3 builds in memory:
-  // the candidate, the pending handoff and the place to return to. I3 builds it again from the
-  // Journal alone (the completion of the call, and the P or the Ja the handoff record holds), so
-  // I3 is where a saved Q2 or Q4 goes on. Q1 recognizes the saved P, and a committed Ja is not
-  // applied again.
   if (position === 'Q2' || position === 'Q4') return recoveryTarget('I3')
   return recoveryTarget('M1')
 }
 
-/**
- * The node of a saved compaction or request preparation, or null when neither is saved. The
- * checkpoint keeps only `needs-compaction` and `cannot-fit` (R2-D292): an assembled or ready
- * preparation lived in memory, so I1, P0, P1 and I2 recover by preparing again at I1.
- */
 function preparationRecovery(at: AgentCheckpoint): Recovery | null {
   if (at.compaction !== null) {
     const ended = at.compaction.ended
@@ -617,14 +469,12 @@ function stateRecovery(
   // A lost receipt must be reconciled before any dependent business continuation can run.
   if (read.unresolved.length > 0) return succeed('R0')
   if (read.state.kind === 'settling') return succeed(at.position === 'F3' ? 'F3' : 'F2')
-  // The passage of an official admission is continued by its action batch, not by an X node.
   const passage = extensionPassages(at.passages).find(item => item.progress.kind !== 'applied')
   if (passage === undefined) return null
   const progress = passage.progress.kind
   return recoveryTarget(progress === 'resolved' ? 'X5' : progress === 'asked' ? 'X4' : 'X2')
 }
 
-/** J5: snapshot facts that LoopFacts cannot carry stay in this pure recovery decision. */
 export function recoveryRoute(
   read: Pick<ExecutionSnapshot, 'checkpoint' | 'state' | 'unresolved'>,
 ): Recovery {
@@ -635,11 +485,6 @@ export function recoveryRoute(
     return recoveryTarget(batchRecovery(at.position, at.batch))
   const call = at.calls[0]
   if (call !== undefined) return callRecovery(at.position, call)
-  // The input batch remains a consumption watermark after I3 closes the call. It does not rewind
-  // a later node to request preparation. Position records that these earlier facets are consumed.
-  // F1 fixes the candidate that the decision segment before it formed in memory. Until F1 commits
-  // (the state is then `settling`, routed above), nothing of that decision is saved, and I8 forms
-  // it again from the same facts.
   if (at.position === 'F1') return recoveryTarget('I8')
   if (['I3', 'I4', 'I8', 'F2', 'F3', 'F4', 'O0', 'E9'].includes(at.position))
     return recoveryTarget(at.position)
@@ -678,12 +523,6 @@ function coordinate<P>(
   invoked: Invoked | null,
 ): ExecutionCoordinator & ResumedCoordinator {
   const { binding, evaluator, execution } = entry
-  // The answers of the dependency ports are noted: an `unavailable` that a dependency answered
-  // is a wait (SPEC "依赖不可用时的等待"; agent-host-local SPEC 运行失败: a dependency that is
-  // unavailable now does not stop the drive). A failure that the coordinator or the evaluator made
-  // is not a port's. `toolRequests` is the trusted in-process request source, not a dependency.
-  // A port is wrapped when it is read, as the coordinator read the ports before: a caller may give
-  // only the ports its executions use.
   const ports: LoopPorts<P> = { ...entry.ports }
   for (const key of DEPENDENCY_PORTS)
     if (key in ports)
@@ -693,8 +532,6 @@ function coordinate<P>(
       })
   const access: Access<P> = { principal: entry.access.principal, tenant: entry.access.tenant }
 
-  // The frame of this coordinator. The authority over it is the Journal: E1 reloads it, and every
-  // commit replaces checkpoint and revision only after the Journal accepted them.
   let authority: Authority | null = null
   let revision: ExecutionRevision | null = null
   let checkpoint: AgentCheckpoint | null = null
@@ -712,12 +549,8 @@ function coordinate<P>(
   let faultDecision: Extract<Next, { kind: 'try-finish' }> | null = null
   let faultCandidate: FinishCandidateContent | null = null
   let candidate: Candidate | null = null
-  // The admission in progress: the internal request P fixed and the outcome `prepare` returned.
   let pendingHandoff: PendingHandoff | null = null
   let outcome: HandoffOutcome | null = null
-  // The request whose last `prepare` in this process answered unavailable. That prepare took no
-  // effect, so the wait comes back to prepare the same request again (SPEC "依赖不可用时的等待":
-  // the same operation), not to the lookup of a receipt lost with a process.
   let unpreparedHandoff: PendingHandoff | null = null
   let acceptance: OriginalInputAcceptance | null = null
   let iteration: Iteration | null = null
@@ -730,25 +563,16 @@ function coordinate<P>(
   let excludedNode: LoopNode | null = null
   let finishAttemptRevision: ExecutionRevision | null = null
   let finishRefused = false
-  // The unavailable answer of the last tryFinish: R0 waits on it as a dependency (loop-algorithm
-  // F3 row: unavailable goes to R0; R0 waits while the facts are undetermined).
   let finishUnavailable: Extract<Failure, { kind: 'unavailable' }> | null = null
-  // Whether the wait R0 entered is the memory wait of F3 (agent README, loop-algorithm R0 row): W0
-  // writes nothing for it, and the wake retries the terminal through E1.
   let finishWait = false
   let endReported = false
-  // The dependency wait that `entry.waiting` was told of last: step, node, owner and diagnostic.
   let reportedWait: string | null = null
   let reissueObligations = false
   let cancellationChanged = false
   let waits: readonly Waiting[] = []
-  // The card rounds this process saved and did not present yet. A saved round that is not here
-  // comes from an earlier process: its cards may exist, so it is looked up before it is presented.
   const unsentRounds = new Set<CardRoundId>()
   let waitingAt: LoopNode = 'E1'
   let yieldedWait = false
-  // Whether the wait the coordinator yielded on is the `waiting` state in the Journal, not a wait
-  // in memory. Only such a wait is handed over: its position and its waits are what a resume reads.
   let savedWait = false
   let waking = false
   let resumeState: OpenState = state
@@ -757,27 +581,11 @@ function coordinate<P>(
     null
   let activeDrive = false
   let activeWait = false
-  // The verified prefix of the reply admission facts this coordinator read (D5 第 5 节). It belongs
-  // to this execution and this coordinator, is lost with the process and is saved only by the
-  // ordinary commits that carry it.
   let readPrefix: ReplyAdmissionPrefix | null = null
-  // The actions whose intent this process saved or tried to save and that have no accepted or
-  // unknown attempt: a fact that only evidence of acceptance (accepted, commit-unknown,
-  // association-unknown, a thrown invoke) ends. A rejection of such an action gets its denied slot (SPEC "依赖不可用时的等待",
-  // Tool 受理), and keeps it unaccepted until that slot is saved. In process only: after a restart
-  // the history of a saved intent is not known here, and the original call is resumed.
   const unacceptedToolActions = new Set<ActionId>()
   const heldTools = new Set<ActionId>()
-  // The tool message that T5 found rejected, for H0. In process only: a restart finds the
-  // rejected Ja in the Journal again at T5.
   let rejectedMessage: Readonly<{ source: InternalSource; evidence: DurableEvidence }> | null = null
-  // The read position the last operation was sent with: a retry of the same operation sends the
-  // same semantic input (SPEC:261, 102), never a newer prefix.
   let lastSent: Readonly<{ operation: AgentOperationId; read: ReplyAdmissionRead }> | null = null
-  // The event cursor at a revision, known exactly: set by each load, moved by each own commit that
-  // landed on that revision. Event sequences are consecutive decimal numbers (SPEC "事件身份与序号")
-  // and a commit appends exactly its own events, so the cursor after it needs no read. W0 hands it
-  // to the wait as the start of the observation (perf baseline 2.3).
   let held: HeldPosition | null = null
   async function exclusive<T>(
     node: LoopNode,
@@ -857,10 +665,6 @@ function coordinate<P>(
     return succeed(undefined)
   }
 
-  /**
-   * Whether a refused advance is an effective cancellation of the open execution. If it is, the
-   * frame takes the latest snapshot and the run goes on at F0.
-   */
   async function cancelledAdvance(failure: Failure): Promise<boolean> {
     if (failure.kind !== 'stale-advance') return false
     const latest = await load()
@@ -875,12 +679,10 @@ function coordinate<P>(
     return true
   }
 
-  /** Where the run goes after the Journal refused the commit of `at`, or why it stops. */
   async function afterRefusedCommit(
     at: LoopNode,
     failure: Failure,
   ): Promise<Outcome<LoopNode, Failure>> {
-    // An unavailable write goes on to failedNode, which waits on the Journal like any port.
     if (failure.kind === 'changed' && ['F1', 'F2'].includes(at)) {
       finishRefused = true
       return succeed('R0')
@@ -893,10 +695,6 @@ function coordinate<P>(
     return fail(failure)
   }
 
-  /**
-   * The table row of one outcome and its commit: the next node, or the node a refused commit
-   * goes to. `yielded` is the end of a drive segment at a saved W0 wait.
-   */
   async function move(at: LoopNode, ran: Step): Promise<Outcome<Movement, Failure>> {
     const to = successor(at, ran.on)
     if (to === undefined) return fail(defect(`${at} has no transition on ${ran.on}`))
@@ -915,27 +713,12 @@ function coordinate<P>(
 
   const closingNodes: readonly LoopNode[] = ['F0', 'F1', 'F2', 'F3', 'F4', 'O0', 'E9', 'R0', 'W0']
 
-  /**
-   * The wait of a port that answered unavailable (SPEC "依赖不可用时的等待"): a dependency that is
-   * not available now, read or write alike. An unavailable write took no effect (agent-contract
-   * "提交参加者协议"), so the same step is written again. A non-closing node waits in W0 and comes
-   * back through E1. A closing node waits in the process, like the memory wait of F1 and F3: a
-   * waiting commit would change the state of a settling execution, and the storage is most likely
-   * still full.
-   */
   function waitOnUnavailable(
     at: LoopNode,
     failure: Extract<Failure, { kind: 'unavailable' }>,
   ): Outcome<LoopNode, Failure> {
-    // D5 5.1: the Journal lost the material of the prefix this commit carried. Drop the
-    // in-process prefix; the wake reads from the saved one again.
     if (failure.diagnostic.startsWith('missing-basis')) readPrefix = null
-    // The wait wakes at the check time. The event cursor in hand may be behind a Journal that moved
-    // while it could not be read; observing from it would wake at once and spin. The next load
-    // takes a fresh cursor.
     held = null
-    // W0 saves no wait over an unresolved original operation (it would invalidate it), so that
-    // wait, like the one of a closing node or of a fixed fault, stays in the process.
     const unresolved =
       pendingCommit !== null ||
       reconciliationOperations.length > 0 ||
@@ -945,14 +728,6 @@ function coordinate<P>(
     return succeed('W0')
   }
 
-  /**
-   * E2 was told that the advance of this attachment is gone, while the Journal still names the
-   * attachment current and holds no established cancellation: a cancel is on its way, or another
-   * attachment is being granted. The cause reaches this execution through its Journal, so the
-   * loop waits for the Journal to change. It is not a failure of the node. The wait stays in the
-   * process: a waiting commit under a revoked advance would be refused. The wake goes through
-   * E1, which routes an established cancellation to F0 and a superseded attachment to E9.
-   */
   function waitForRevocationCause() {
     finishWait = true
     return waitFor(
@@ -977,9 +752,6 @@ function coordinate<P>(
       return nodeFailureCategory(failure) === null
         ? fail(failure)
         : fail({ kind: 'commit-unknown', operation: pendingCommit.operation })
-    // A port's unavailable is a dependency wait once the execution is open. An unavailable that
-    // the coordinator or the evaluator made is not a port's answer and keeps its meaning below.
-    // Before the open there is no execution to wait in: the caller of invoke gets the answer.
     if (failure.kind === 'unavailable' && answeredByPort(failure) && authority !== null)
       return waitOnUnavailable(at, failure)
     if (failure.kind === 'stale-advance' || failure.kind === 'denied') {
@@ -1031,11 +803,6 @@ function coordinate<P>(
     }
   }
 
-  /**
-   * Runs nodes from `from` until `until` is the next node or the Loop ends. Each handler names its
-   * outcome and the table supplies its successor. A fixed fault restricts all later passes to
-   * recognition, cancellation, settlement and waiting.
-   */
   async function drive(
     from: LoopNode,
     until: LoopNode | null,
@@ -1055,8 +822,6 @@ function coordinate<P>(
     }
     return succeed(node)
   }
-
-  // Reads shared by E1, E2, I8 and F1
 
   async function load(): Promise<Outcome<ExecutionSnapshot, Failure>> {
     const loaded = await ports.journal.load({ ...access, execution })
@@ -1085,16 +850,10 @@ function coordinate<P>(
     return loaded
   }
 
-  /**
-   * The state the next commit writes when the Journal holds `read`. `reconciling` is what an attach
-   * leaves (SPEC "恢复与接管"): the reconciliation is the reading of E1 and E2 and the queries of R0,
-   * and the first commit after them writes `advancing`.
-   */
   function goingOn<S extends Exclude<ExecutionState, { kind: 'ended' }>>(read: S) {
     return read.kind === 'reconciling' ? ({ kind: 'advancing' } as const) : read
   }
 
-  /** The state a commit may write back: a settling snapshot carries the Journal's projection, which no commit writes. */
   function committedState(read: ExecutionState): OpenState {
     if (read.kind === 'ended')
       throw new Error('coordinator defect: an ended state is not committed')
@@ -1103,7 +862,6 @@ function coordinate<P>(
     return goingOn(read)
   }
 
-  /** E1's reading of the snapshot: the advancement of this attachment. */
   function advancementOf(read: ExecutionSnapshot): LoopFacts['advancement'] {
     const own = required(authority, 'authority')
     const source = read.executionAttachment?.source ?? own.source
@@ -1112,7 +870,6 @@ function coordinate<P>(
     return { kind: 'current', source }
   }
 
-  /** E2: the decision facts of the snapshot, the inputs within its watermark and the conditions. */
   async function readFacts(read: ExecutionSnapshot): Promise<Outcome<LoopFacts, Failure>> {
     const current = required(checkpoint, 'checkpoint')
     for (const operation of read.unresolved) {
@@ -1122,10 +879,8 @@ function coordinate<P>(
         case 'committed':
         case 'excluded':
         case 'rejected':
-          // Settled: the snapshot read after it carries the outcome; R0 owns the reconciliation.
           break
         case 'unknown':
-          // Still waiting; E2 reads the facts as they are and R0 retries the query.
           break
       }
     }
@@ -1149,7 +904,6 @@ function coordinate<P>(
       conditions: conditions.ok,
       batch: inputs.ok.batch,
       inputs: inputs.ok.messages,
-      // Public Model/Tool status queries belong to stage 5 (J4).
       producers: current.calls.map(pending => ({
         kind: 'unresolved',
         pending,
@@ -1157,16 +911,10 @@ function coordinate<P>(
       })),
       consumption: read.results,
       replyAdmissions: read.replyAdmissions,
-      controls: [], // Control interpretation belongs to stage 5 (J4).
+      controls: [],
     })
   }
 
-  /**
-   * E2's read of the reply admission facts (D5 第 5 节): from the lower bound to the fixed target
-   * of `read`, page by page, the in-process prefix moving with each page that passed. A gap of
-   * `missing-basis` at a prefix is read once more from origin (5.1, 治疗); every other gap, and an
-   * origin read that does not complete, is a dependency to wait on. E2 writes nothing.
-   */
   async function readAdmissions(
     read: ExecutionSnapshot,
     current: AgentCheckpoint,
@@ -1215,10 +963,6 @@ function coordinate<P>(
     return succeed(undefined)
   }
 
-  /**
-   * Saves a dependency wait at `node`. `recheck` reads the dependency again before the driver
-   * sleeps; `null` leaves the wake to a change of the execution or to the check time.
-   */
   function waitFor(
     node: LoopNode,
     failure: Extract<Failure, { kind: 'unavailable' }>,
@@ -1227,7 +971,6 @@ function coordinate<P>(
     waitingAt = node
     recheckDependency = recheck
     waits = [{ kind: 'dependency', owner: failure.owner, position: node }]
-    // The Journal keeps the owner and the node; the reason goes to the report, once per reason.
     const at = checkpoint?.step ?? null
     const reported = `${at}|${node}|${failure.owner}|${failure.diagnostic}`
     if (reported !== reportedWait) {
@@ -1237,11 +980,6 @@ function coordinate<P>(
     return step('wait', null)
   }
 
-  /**
-   * The evaluator at a decision segment; its `Next` is the outcome of the node. A stop (ended or
-   * superseded) is a contract outcome whose nodes come with #502 1.4 and stage 5, so it stops here
-   * by name instead of reaching the table as a defect.
-   */
   async function evaluate(node: 'E4' | 'I8', at: LoopFacts): Promise<Outcome<Step, Failure>> {
     const evaluated = evaluator.next(at)
     if ('failure' in evaluated) return evaluated
@@ -1269,13 +1007,6 @@ function coordinate<P>(
     return step(next.kind, null)
   }
 
-  /**
-   * The step limit (R2-D221): after `limit` steps, the next step is not opened. Like pi-agent-core's
-   * `finishTurn` returning `end`, the check sits after a completed step and before the next Model
-   * request, and it never cuts a step short. Unlike a normal end, the execution does not complete:
-   * the candidate is a failure of kind `guard` at level 3, whose basis names the limit and the step
-   * count, so the end reason says that the limit stopped the work. Null: the step may open.
-   */
   async function stepLimit(
     of: StepId,
   ): Promise<Outcome<Extract<Next, { kind: 'try-finish' }>, Failure> | null> {
@@ -1297,9 +1028,6 @@ function coordinate<P>(
     return succeed({ kind: 'try-finish', conclusion: { kind: 'fail', cause }, failure })
   }
 
-  // admitMessage: U0, Q1, Q2, Q4, Q5 (SPEC "消息准入"; the Q5 of H0, T5, C3 and X5 comes with them)
-
-  /** The runtime context of the invoke: the real instance, scope, definition and grant. */
   function runtimeContext(): InvokeRuntimeContext {
     return {
       instance: binding.instance,
@@ -1309,12 +1037,10 @@ function coordinate<P>(
     }
   }
 
-  /** The stable source position of the main reply of one step: the return position I3. */
   function replyPosition(step: StepId): PendingHandoff['position'] {
     return { step, node: 'I3', slot: null }
   }
 
-  /** The handoff record of the main reply of `step` in the latest snapshot, if P saved one. */
   function replyRecord(step: StepId, call: M.ModelCallId) {
     return required(snapshot, 'snapshot').handoffs.find(
       record =>
@@ -1325,12 +1051,6 @@ function coordinate<P>(
     )
   }
 
-  /**
-   * The reply that the current step admitted, for I4: its step, its message and the result it came
-   * from. The coordinator that ran I3 holds it in memory. I3 closes the main call in its commit, so
-   * a new coordinator has no iteration to hold it; it reads the same three from the handoff record
-   * whose Ja put the reply into the history.
-   */
   function admittedReply(): Outcome<
     Readonly<{
       step: StepId
@@ -1357,14 +1077,12 @@ function coordinate<P>(
     return succeed({ step: at, reply, produced: record.request.source.result })
   }
 
-  /** The outcome of a resolution the Journal recorded, or `undefined` when it holds none. */
   function recordedOutcome(
     resolution: ExecutionSnapshot['handoffs'][number]['resolution'],
   ): HandoffOutcome | undefined {
     return resolution?.kind === 'recorded' ? resolution.outcome : undefined
   }
 
-  /** The Ja of the current model reply: the resolve commit with the admission fact of the reply. */
   function replyApplication(
     request: PendingHandoff,
     fixed: HandoffOutcome,
@@ -1392,11 +1110,6 @@ function coordinate<P>(
   }
 
   const admitMessage = {
-    /**
-     * U0: the input of invoke becomes the external request of this entry; once the provider
-     * prepared it, the real acceptance is E0's `open` (SPEC "消息准入": the external input is
-     * published by the original open). A rejected input returns to the caller from Q5.
-     */
     async U0() {
       if (outcome === null) {
         const { operation, initial } = required(invoked, 'invoke')
@@ -1424,11 +1137,6 @@ function coordinate<P>(
       candidate = null
       return step('admitted', null)
     },
-    /**
-     * Q1: the internal request is fixed by P before anything else (SPEC "消息准入"): the commit
-     * with `handoff.prepare` sets `currentHandoff` to H. Then `prepare` fixes the admission
-     * result; prepared goes to Q2, rejected to Q5. The external input writes no P.
-     */
     async Q1() {
       const subject = required(candidate, 'candidate')
       if (subject.kind === 'external-input') {
@@ -1446,7 +1154,6 @@ function coordinate<P>(
       const existing = replyRecord(current.step, subject.source.call)
       let request: PendingHandoff
       if (existing?.request.kind === 'execution') {
-        // P already holds this reply: the same H continues (SPEC "准入的恢复切点").
         request = existing.request
       } else {
         const predecessor = required(revision, 'revision')
@@ -1478,12 +1185,6 @@ function coordinate<P>(
       outcome = fixed.ok
       return step(fixed.ok.decision.kind, null)
     },
-    /**
-     * Q2: the Ja of an internal source commits the fixed outcome with the real history in one
-     * conditional commit and clears `currentHandoff`. After a lost receipt the same H is read back
-     * with `lookup`, or prepared again with the same request when it is still unknown. The
-     * external input has its real acceptance at E0.
-     */
     async Q2() {
       const subject = required(candidate, 'candidate')
       if (subject.kind === 'external-input') return step('resolved', null)
@@ -1507,16 +1208,10 @@ function coordinate<P>(
       }
       return step('resolved', replyApplication(request, outcome, subject.source))
     },
-    /** Q4: back to the fixed call position of the source, once; nothing is retried. */
     async Q4() {
       const subject = required(candidate, 'candidate')
       return step(`return-${subject.returnTo}`, authority === null ? null : {})
     },
-    /**
-     * Q5: the rejected result by source. The external input returns the rejection to the caller
-     * of invoke as invalid; the model reply saves its rejected admission fact with the Ja and no
-     * history (SPEC "消息准入", the source table).
-     */
     async Q5() {
       const subject = required(candidate, 'candidate')
       const fixed = required(outcome, 'outcome')
@@ -1528,7 +1223,6 @@ function coordinate<P>(
     },
   } satisfies Partial<Record<LoopNode, Handler>>
 
-  /** The snapshot R0 reconciles: the latest one after a refused terminal, with the own commit. */
   async function reconciliationBase(): Promise<Outcome<ExecutionSnapshot, Failure>> {
     let before = required(snapshot, 'snapshot')
     if (finishRefused) {
@@ -1542,10 +1236,6 @@ function coordinate<P>(
     return succeed(before)
   }
 
-  /**
-   * Queries every unresolved operation of `before`; whether the own commit of this coordinator
-   * was settled. An unknown answer stops R0 under the original operation.
-   */
   async function queryOriginals(before: ExecutionSnapshot): Promise<Outcome<boolean, Failure>> {
     let resolvedOriginal = false
     reconciliationOperations = before.unresolved
@@ -1572,10 +1262,6 @@ function coordinate<P>(
     return succeed(resolvedOriginal)
   }
 
-  /**
-   * R0 takes the snapshot after its queries as the frame, without the operations it settled. An
-   * excluded terminal at another revision than its own is a refused terminal to evaluate again.
-   */
   function adoptReconciled(
     loaded: ExecutionSnapshot,
     before: ExecutionSnapshot,
@@ -1597,7 +1283,6 @@ function coordinate<P>(
     return adopted
   }
 
-  /** R0 under an effective cancellation: the cancelled route goes on or waits in memory. */
   function cancelledReconcile(): Outcome<Step, Failure> {
     if (cancellationChanged) {
       cancellationChanged = false
@@ -1619,13 +1304,8 @@ function coordinate<P>(
     return step('wait', null)
   }
 
-  /** R0 after a refused terminal, with the facts read again: wait, or re-evaluate a node. */
   function refusedFinishRoute(read: LoopFacts): Outcome<Step, Failure> {
     finishRefused = false
-    // A tryFinish that could not determine the facts is a dependency to wait on, not a refusal
-    // to re-evaluate: the same terminal would be retried in a tight loop otherwise. The wake
-    // is a change of the execution or the check time; the terminal itself is a write, so
-    // nothing rechecks it inside the wait.
     if (finishUnavailable !== null) {
       const failure = finishUnavailable
       finishUnavailable = null
@@ -1633,8 +1313,6 @@ function coordinate<P>(
       return waitFor('R0', failure, null)
     }
     const latest = required(snapshot, 'snapshot')
-    // Controls and extensions are still owned by their later cards. Never retry an unchanged
-    // refusal in a loop, or mistake an unimplemented responsibility for an empty queue.
     if (latest.controls.length > 0)
       return fail(notYet('R0', 'a terminal control responsibility', '#502 stage 5'))
     const pending = pendingPassage(latest.checkpoint.passages)
@@ -1653,10 +1331,6 @@ function coordinate<P>(
     return step('reconciled', null)
   }
 
-  /**
-   * Whether another driver moved the execution on: a revision and checkpoint this coordinator did
-   * not write, while it has no unknown commit of its own and is not waking from its own wait.
-   */
   function advancedByAnother(read: ExecutionSnapshot): boolean {
     return (
       read.revision !== revision &&
@@ -1667,7 +1341,6 @@ function coordinate<P>(
   }
 
   const runExecutionNodes = {
-    /** E0: `open` saves the original acceptance with the runtime context and grants the attachment. */
     async E0() {
       if (originalOpen === null) {
         const initial = evaluator.initial({ definition: binding.definition, step: stepOf(0) })
@@ -1688,11 +1361,6 @@ function coordinate<P>(
       checkpoint = originalOpen.checkpoint
       return step('authority', null)
     },
-    /**
-     * E1 reads the state and attachment of an already accepted operation. A revision that is
-     * not the last one this coordinator knows means that another driver moved the execution on,
-     * unless this coordinator still has its own unknown commit to reconcile.
-     */
     async E1() {
       const read = await load()
       if ('failure' in read)
@@ -1702,7 +1370,6 @@ function coordinate<P>(
       const advancement = advancementOf(read.ok)
       if (advancement.kind === 'ended') return step('terminal', null)
       if (advancement.kind === 'superseded') return step('superseded', null)
-      // A resumed coordinator has no revision yet: this read gives it the saved position.
       const resumed = revision === null
       if (!resumed && advancedByAnother(read.ok)) {
         entry.idle()
@@ -1719,7 +1386,6 @@ function coordinate<P>(
       if (cancellationOf(read.ok) !== undefined) return step('cancel', null)
       return step('allowed', null)
     },
-    /** E2: the facts of the decision, read only. */
     async E2() {
       const loaded = await load()
       if ('failure' in loaded)
@@ -1727,11 +1393,8 @@ function coordinate<P>(
           ? waitFor('E2', loaded.failure, async latest => succeed(latest))
           : loaded
       takeLatestPosition(loaded.ok)
-      // Do not read business facts under an attachment the latest snapshot has already revoked.
       if (advancementOf(loaded.ok).kind !== 'current') return step('reconciled', null)
       snapshot = withPendingCommit(loaded.ok)
-      // Reconcile every original slot before loading business facts or saving another revision;
-      // an effective cancellation reads no business facts either.
       if (snapshot.unresolved.length > 0 || cancellationOf(snapshot) !== undefined)
         return step('reconciled', null)
       const read = await readFacts(snapshot)
@@ -1743,7 +1406,6 @@ function coordinate<P>(
       facts = read.ok
       return step('reconciled', null)
     },
-    /** E4: J5 routes snapshot continuations before delegating an input or iteration decision. */
     async E4() {
       const current = required(checkpoint, 'checkpoint')
       const latest = required(snapshot, 'snapshot')
@@ -1766,24 +1428,18 @@ function coordinate<P>(
       }
       return step(to === 'E3' ? 'passage-pending' : `resume-${to}`, null)
     },
-    /** E3: no extension is adopted (invoke refuses one), so the passage ends with a commit alone. */
     async E3() {
       return step('passed')
     },
     async O0() {
       return step('delivered', null)
     },
-    /** E9: the execution is ended, so there is no attachment to detach; the runtime is idle. */
     async E9() {
       entry.idle()
       return step('idle', null)
     },
-    /** J2: one atomic wait record, retaining the original continuation and the occupied slot. */
     async W0() {
       resumeState = state.kind === 'waiting' ? resumeState : state
-      // A wait in memory (an unavailable F3, a closing node, a wait over an unresolved original):
-      // no waiting commit, no event, the state stays, and the wake goes through E1 at the check
-      // time. It writes nothing, so it cannot invalidate an original conditional operation.
       if (finishWait) {
         finishWait = false
         finishRefused = false
@@ -1791,7 +1447,6 @@ function coordinate<P>(
         yieldedWait = true
         return step('saved-wait', null)
       }
-      // No alternate waiting write may invalidate an original conditional operation.
       const original =
         pendingCommit?.operation ?? reconciliationOperations[0] ?? snapshot?.unresolved[0]
       if (original !== undefined) return fail({ kind: 'commit-unknown', operation: original })
@@ -1808,9 +1463,6 @@ function coordinate<P>(
         events: [{ kind: 'waiting', waits }],
       })
       if ('failure' in saved) {
-        // The wait is not saved: it stays in the process, the execution keeps the state it had
-        // before W0, and the check time goes through E1, which comes back here if the Journal is
-        // still unavailable. It is not an unknown outcome, so it is not `pendingCommit`.
         if (saved.failure.kind === 'unavailable') {
           yieldedWait = true
           return step('unsaved-wait', null)
@@ -1823,7 +1475,6 @@ function coordinate<P>(
       savedWait = true
       return step('saved-wait', null)
     },
-    /** R0: committed follows the saved successor; excluded re-evaluates the original local node. */
     async R0() {
       const terminalQuery = pendingCommit?.node === 'F3'
       const terminalExpected = revision
@@ -1858,7 +1509,6 @@ function coordinate<P>(
   } satisfies Partial<Record<LoopNode, Handler>>
 
   const runIter = {
-    /** I0: the inputs within the watermark become the batch of a new step. */
     async I0() {
       const at = required(facts, 'facts')
       const next = stepOf(ordinalOf(required(checkpoint, 'checkpoint').step) + 1)
@@ -1873,7 +1523,6 @@ function coordinate<P>(
         events: [{ kind: 'input-taken', batch: at.batch }],
       })
     },
-    /** I3: the reply enters Q1; when Q4 brings it back admitted, the call is closed and I4 follows. */
     async I3() {
       const current = required(iteration, 'iteration')
       const restored = await readCompletion(current)
@@ -1928,8 +1577,6 @@ function coordinate<P>(
       const pending = required(current.pending, 'pending call')
       const call = invocationParts(pending.reference, access.tenant).call
       if (outcome === null) {
-        // A reply whose Ja already committed is not admitted again (SPEC "消息准入": one H has
-        // at most one history application); one whose P is pending continues through Q1.
         const record = replyRecord(current.step, call)
         if (record !== undefined && record.history.kind !== 'pending') {
           const fixed = recordedOutcome(record.resolution)
@@ -1955,15 +1602,12 @@ function coordinate<P>(
       outcome = null
       candidate = null
       pendingHandoff = null
-      // Keep the admitted reply until this conditional commit is known to hold. An excluded
-      // I3 commit must re-evaluate the same admission rather than admit the reply a second time.
       if (decision !== 'prepared') return step('rejected', { checkpoint: { calls: [] } })
       const retrying = (required(checkpoint, 'checkpoint').modelRetry ?? null) !== null
       return step('admitted', {
         checkpoint: { calls: [], ...(retrying ? { modelRetry: null } : {}) },
       })
     },
-    /** I4: the tool call parts of the admitted reply. Actions are #502 stage 2. */
     async I4() {
       const admitted = admittedReply()
       if ('failure' in admitted) return admitted
@@ -1984,15 +1628,10 @@ function coordinate<P>(
         },
       })
     },
-    /** I8: the full facts again, and the evaluator decides between a new iteration and completion. */
     async I8() {
       const read = await load()
       if ('failure' in read) return read
-      // Input submission and result records can advance the revision while Model runs. Use the
-      // complete latest snapshot, under the same attachment, before deciding or committing I8.
       if (advancementOf(read.ok).kind !== 'current') return fail({ kind: 'stale-advance' })
-      // R0 can reconsider a refused terminal while F3 is still the saved continuation.
-      // Evaluate at I8 now; only this decision's commit (or W0) saves the new position.
       checkpoint = {
         ...read.ok.checkpoint,
         calls: callsAfterConsumedNoReply(read.ok),
@@ -2018,7 +1657,6 @@ function coordinate<P>(
         decided.failure === null
       )
         return finishDependencyWait('F3')
-      // W0 saves the wait while retaining I8 as the continuation. It does not claim a wakeup.
       return evaluated.ok.on === 'wait'
         ? step('wait', null)
         : step(evaluated.ok.on, {
@@ -2047,19 +1685,12 @@ function coordinate<P>(
     }
   }
 
-  /** Every received entry of one consumption, from the entries port of the same Journal. */
   async function receivedOfConsumption(
     consumption: ConsumptionId,
   ): Promise<Outcome<readonly ReceivedEntry[], Failure>> {
     return ports.entries.receivedOf({ ...access, execution, consumption })
   }
 
-  /**
-   * The `tool_call` parts of the reply a batch comes from, by call id, read back from the received
-   * material of that reply (SPEC "工具执行与结果承接" 10). The batch keeps only the call ids. A
-   * material that cannot be read is the failure of the read; a reply without its received entry is
-   * `unavailable`, never an empty batch.
-   */
   async function batchToolCalls(
     batch: ActionBatch,
   ): Promise<Outcome<ReadonlyMap<string, ActionToolCall>, Failure>> {
@@ -2090,7 +1721,6 @@ function coordinate<P>(
     return step('wait', null)
   }
 
-  /** Reads the latest snapshot under the current attachment; a cancellation stops the node. */
   async function advancing(): Promise<Outcome<ExecutionSnapshot, Failure>> {
     const read = await load()
     if ('failure' in read) return read
@@ -2108,10 +1738,6 @@ function coordinate<P>(
     pending: AssociatedToolCall
   }>
 
-  /**
-   * The complete saved Tool result of an action: the received entry of its original call, read
-   * from the material and checked against the entry. The live Tool runtime is never asked.
-   */
   async function receivedToolResult(
     action: Action,
   ): Promise<Outcome<ReceivedToolResult | null, Failure>> {
@@ -2134,17 +1760,12 @@ function coordinate<P>(
     return succeed({ entry: found, delivery, pending })
   }
 
-  /**
-   * `unavailable`: the Tool runtime rejected the invoke because a dependency of it is unavailable
-   * now; A2 waits on it and sends the same request again (SPEC "依赖不可用时的等待").
-   */
   type Sent = Readonly<{
     batch: ActionBatch
     progressed: boolean
     unavailable?: Extract<Failure, { kind: 'unavailable' }>
   }>
 
-  /** A2: every action denied at judgment gets its denied slot, saved before anything is sent. */
   async function slotDeniedAtJudgment(batch: ActionBatch): Promise<Outcome<Sent, Failure>> {
     let slotted = batch
     for (const action of batch.actions)
@@ -2155,7 +1776,6 @@ function coordinate<P>(
     return 'failure' in saved ? saved : succeed({ batch: slotted, progressed: true })
   }
 
-  /** A2: the saved intent of a first attempt, before the Tool is asked. */
   async function saveToolIntent(
     batch: ActionBatch,
     action: Action,
@@ -2172,7 +1792,6 @@ function coordinate<P>(
     return 'failure' in saved ? saved : succeed({ batch: next, action: withIntent })
   }
 
-  /** Q1 and Q2: P prepares the internal request; an unavailable answer is remembered. */
   async function prepareHandoff(request: PendingHandoff) {
     const fixed = await ports.handoff.prepare({
       ...access,
@@ -2184,19 +1803,11 @@ function coordinate<P>(
     return fixed
   }
 
-  /**
-   * A2 for one allowed action: the intent of a first attempt is saved, the current advance is
-   * checked, and the complete original request is sent. Only an accepted or commit-unknown answer
-   * associates the call. A rejection denies the action only while it has no accepted or unknown
-   * attempt (`unacceptedToolActions`); otherwise the original call is resumed. A rejection is no
-   * evidence of acceptance, so the action stays unaccepted until its denied slot is saved.
-   */
   async function sendAction(batch: ActionBatch, original: Action): Promise<Outcome<Sent, Failure>> {
     if (original.judgment.kind !== 'allowed') return succeed({ batch, progressed: false })
     let next = batch
     let action = original
     if (original.call === null) {
-      // Before the save: an intent commit with an unknown outcome is still an intent Tool never saw.
       unacceptedToolActions.add(original.id)
       const saved = await saveToolIntent(batch, original)
       if ('failure' in saved) return saved
@@ -2234,18 +1845,12 @@ function coordinate<P>(
       unacceptedToolActions.delete(action.id)
       return succeed({ batch: next, progressed: true })
     }
-    // Accepted, commit-unknown or association-unknown: the call may exist from here on.
     unacceptedToolActions.delete(action.id)
     if (result.kind === 'association-unknown') return succeed({ batch: next, progressed: false })
     if (result.kind === 'accepted') heldTools.add(action.id)
     return associate(next, action, pending, result.reference)
   }
 
-  /**
-   * A2: the call reference Tool returned is saved with the action and its dispatched slot. The
-   * call exists once Tool accepted it, so the reference is saved under an effective cancellation
-   * too; F0 then interrupts the call by it and the late result is received under it.
-   */
   async function associate(
     batch: ActionBatch,
     action: Action,
@@ -2278,7 +1883,6 @@ function coordinate<P>(
     return 'failure' in saved ? saved : succeed({ batch: next, progressed: true })
   }
 
-  /** The message source of a slot: its Tool result, or its denial. */
   function slotSource(action: Action, slot: ActionSlot): InternalSource {
     if (slot.kind === 'denied')
       return { kind: 'action-denied', action: action.id, evidence: slot.evidence }
@@ -2292,12 +1896,6 @@ function coordinate<P>(
     }
   }
 
-  /**
-   * The candidate message of a slot, computed again from what the slot refers to: the denial, or
-   * the received result material, with the conclusions of its single-result passage. The digest
-   * that T2 kept must match; another candidate is `invalid`, never admitted in its place (SPEC
-   * "工具执行与结果承接" 10).
-   */
   async function slotCandidate(
     action: Action,
     slot: ActionSlot,
@@ -2313,12 +1911,6 @@ function coordinate<P>(
     return computed
   }
 
-  /**
-   * The candidate of a denied slot: the generic denial, the denial with the remark of the person
-   * the admission denied it for, or the answer the action was denied with, read back from its
-   * material. A material that is not an answer is `invalid` (D-104). A slot that rule 2 denied
-   * because the admission was unavailable says that instead: nothing refused it.
-   */
   async function deniedSlotCandidate(action: Action): Promise<Outcome<Message, Failure>> {
     const answer = action.judgment.kind === 'denied' ? action.judgment.answer : undefined
     if (answer === undefined) {
@@ -2339,7 +1931,6 @@ function coordinate<P>(
     return succeed(answeredCandidate(execution, action, text))
   }
 
-  /** The candidate of a slot before any digest: no extension is adopted at after_action yet. */
   async function computedCandidate(
     action: Action,
     slot: ActionSlot,
@@ -2354,7 +1945,6 @@ function coordinate<P>(
     return succeed(toolResultCandidate(execution, action, received.ok.delivery.value.content))
   }
 
-  /** T5: P fixes the request of one slot's message before anything is prepared. */
   async function prepareSlotMessage(
     batch: ActionBatch,
     action: Action,
@@ -2390,10 +1980,6 @@ function coordinate<P>(
     return 'failure' in prepared ? prepared : succeed(request)
   }
 
-  /**
-   * T5: the admission outcome of one H. A saved H is looked up first, so an outcome the provider
-   * already fixed is never prepared again. An unavailable prepare is a dependency to wait on.
-   */
   async function slotOutcome(
     request: PendingHandoff,
     existing: ExecutionSnapshot['handoffs'][number] | undefined,
@@ -2423,7 +2009,6 @@ function coordinate<P>(
     return succeed('wait')
   }
 
-  /** T5: the Ja of one slot's message: the outcome, with the message when it was prepared. */
   async function applySlotMessage(
     request: PendingHandoff,
     fixed: HandoffOutcome,
@@ -2443,7 +2028,6 @@ function coordinate<P>(
 
   type SlotAdmission = 'admitted' | 'rejected' | 'wait'
 
-  /** T5 for a slot whose H already has its history disposition: never admitted again. */
   function disposedSlot(
     existing: ExecutionSnapshot['handoffs'][number],
     source: InternalSource,
@@ -2456,7 +2040,6 @@ function coordinate<P>(
     return succeed('rejected')
   }
 
-  /** T5: the H record of the handoff the slot saved, in the latest snapshot. */
   function slotHandoff(slot: ActionSlot): ExecutionSnapshot['handoffs'][number] | undefined {
     const handoff = slot.handoff
     if (handoff === null) return undefined
@@ -2465,7 +2048,6 @@ function coordinate<P>(
     )
   }
 
-  /** T5: the P the Journal saved for a slot, whose candidate must match the digest of the slot. */
   function savedSlotRequest(
     request: PendingHandoff,
     slot: ActionSlot,
@@ -2482,7 +2064,6 @@ function coordinate<P>(
     return succeed(request)
   }
 
-  /** T5 for one slot: recognize its Ja, or fix, prepare and apply its message. */
   async function admitSlot(action: Action): Promise<Outcome<SlotAdmission, Failure>> {
     const batch = currentBatch()
     const slot = slotOf(batch, action.id)
@@ -2504,7 +2085,6 @@ function coordinate<P>(
     return fixed.ok === 'wait' ? succeed('wait') : admitFixed(request, fixed.ok, source)
   }
 
-  /** T5: the Ja of a slot's fixed outcome; a rejected outcome is the rejected tool message. */
   async function admitFixed(
     request: PendingHandoff,
     fixed: HandoffOutcome,
@@ -2522,11 +2102,6 @@ function coordinate<P>(
     | Readonly<{ kind: 'refused'; failure: DurableEvidence }>
     | Readonly<{ kind: 'unknown'; failure: Extract<Failure, { kind: 'unavailable' }> }>
 
-  /**
-   * The cards of one saved round. A round this process saved is presented. Every other saved round,
-   * and a round whose present answered without a certain result, is looked up with the saved
-   * requests and is presented again only after the lookup excluded the original cards.
-   */
   async function roundCards(
     request: NonNullable<ReturnType<typeof presentRequest>>,
   ): Promise<Outcome<RoundCards, Failure>> {
@@ -2562,7 +2137,6 @@ function coordinate<P>(
     return unknown('agentDecisionCards', 'the result of presenting a card round is unknown')
   }
 
-  /** A1: every saved round of the batch gets its cards; the results are saved in one commit. */
   async function presentRounds(batch: ActionBatch, saved: readonly Passage[]) {
     const instant = await ports.clock.now()
     if ('failure' in instant) return instant
@@ -2596,10 +2170,6 @@ function coordinate<P>(
     return waitFor('A1', required(unknown, 'unknown present'), null)
   }
 
-  /**
-   * A1: the cards a person has not answered are read. A new reply is saved; without one the
-   * execution waits for the person. A card that cannot be read now stays waited for.
-   */
   async function readCards(batch: ActionBatch, saved: readonly Passage[]) {
     let passages = saved
     const actions: Action[] = []
@@ -2629,7 +2199,6 @@ function coordinate<P>(
   }
 
   const runTools = {
-    /** A3: all actions are denied; each gets its denied slot in the original order. */
     async A3() {
       const batch = currentBatch()
       const barrier = batch.barrier
@@ -2643,10 +2212,6 @@ function coordinate<P>(
       }
       return step('slotted', { checkpoint: { batch: slotted } })
     },
-    /**
-     * A0: each action's admission. An unavailable admission stops the round: no later chain calls
-     * admit and the whole batch is denied, so A1 closes the barrier as all-denied (SPEC rule 2).
-     */
     async A0() {
       const batch = currentBatch()
       const parts = await batchToolCalls(batch)
@@ -2654,7 +2219,6 @@ function coordinate<P>(
       let passages = required(checkpoint, 'checkpoint').passages
       const answers: Extract<ToolAdmission, { kind: 'judged' | 'allowed' }>[] = []
       for (const action of batch.actions) {
-        // An action that waits for its cards or its answers keeps its judgment; A1 continues it.
         if (needOfAction(passages, action) !== 'judge') {
           answers.push({ kind: 'judged', action })
           continue
@@ -2687,7 +2251,6 @@ function coordinate<P>(
                 CARD_ROUND_CLOSING,
               ),
             )
-          // Nothing of this batch was preserved yet, so no request is left without a judgment.
           const denied = deniedForUnavailableAdmission(execution, batch, admitted.ok, [
             ...answers.map(answer => answer.action),
             ...batch.actions.slice(answers.length),
@@ -2736,12 +2299,6 @@ function coordinate<P>(
       }
       return step('judged', { checkpoint: { batch: { ...batch, actions }, passages } })
     },
-    /**
-     * A1: the barrier of the batch. A chain that needs its judge goes back to A0 first, so cards are
-     * presented only when every chain has its conclusion or waits on saved or presented cards (rule
-     * 3). Then the saved rounds are presented, the presented cards are read, and the barrier is
-     * decided when every action has its final judgment.
-     */
     async A1() {
       const batch = currentBatch()
       const passages = required(checkpoint, 'checkpoint').passages
@@ -2766,7 +2323,6 @@ function coordinate<P>(
             passages: settled,
           },
         })
-      // The batch decision is added to each request when A2 sends it; the material stays as judged.
       return step('open', {
         checkpoint: {
           batch: { ...batch, barrier: { kind: 'open', evidence, approved: [first, ...rest] } },
@@ -2774,14 +2330,8 @@ function coordinate<P>(
         },
       })
     },
-    /**
-     * A2：判断时被拒的动作得到 denied 槽位；没有槽位的获准动作全部按原动作顺序发起。Agent 不计数
-     * 在途调用，`toolConcurrency` 作为本 run 范围的预算由 Tool 执行。首次 invoke 之前先保存
-     * intent，每次 invoke 之前再核当前推进资格。
-     *
-     * A2 只提交有变化的事实。唤醒后回到这里、调用仍关联未知时，A2 重发原请求；没有新事实就不提交，
-     * 直接去等待（D-104）。每次提交都推高执行修订，而 Tool 启动另一个调用时要求该修订不变。
-     */
+    // A2 commits only changed facts: every commit raises the execution revision,
+    // and a Tool start requires that revision unchanged.
     async A2() {
       const slotted = await slotDeniedAtJudgment(currentBatch())
       if ('failure' in slotted) return slotted
@@ -2798,7 +2348,6 @@ function coordinate<P>(
       if (idle && unsent(batch, unacceptedToolActions).length > 0) return toolWait('A2', batch)
       return step('dispatched', null)
     },
-    /** T0: wait for a received result of any dispatched call; the receiver saves it, not T0. */
     async T0() {
       const read = await advancing()
       if ('failure' in read) return read
@@ -2814,11 +2363,6 @@ function coordinate<P>(
       if (dispatched.length === 0) return step('received', null)
       return toolWait('T0', batch)
     },
-    /**
-     * T1: each received result is kept in its own slot by the original action, with its terminal
-     * and the received material as custody. Its call leaves the open calls; the received entry
-     * keeps content and account.
-     */
     async T1() {
       const read = await advancing()
       if ('failure' in read) return read
@@ -2847,11 +2391,6 @@ function coordinate<P>(
       }
       return step('kept', { checkpoint: { batch, calls }, events })
     },
-    /**
-     * T2: the single-result passage of each result and denied slot. No extension is adopted at
-     * after_action, so each passage is empty and the candidate is the unchanged message. The slot
-     * keeps only the digest of the candidate; T5 computes the candidate again and checks it.
-     */
     async T2() {
       const read = await advancing()
       if ('failure' in read) return read
@@ -2867,7 +2406,6 @@ function coordinate<P>(
       }
       return step('passed', { checkpoint: { batch } })
     },
-    /** T3: the batch is complete only when every action has a slot and every passage ended. */
     async T3() {
       const batch = currentBatch()
       const complete = batch.actions.every(action => {
@@ -2880,18 +2418,12 @@ function coordinate<P>(
       })
       if (complete)
         return step(batch.slots.some(slot => slot.kind !== 'denied') ? 'batch' : 'admit', null)
-      // 没有槽位的获准动作尚未发起或关联未知，由 A2 发起。
       if (unsent(batch, unacceptedToolActions).length > 0) return step('dispatch', null)
       return toolWait('T3', batch)
     },
-    /** T4: no extension is adopted at the after_action batch position, so the pass is empty. */
     async T4() {
       return step('proceed', { checkpoint: { batch: { ...currentBatch(), batchPass: [] } } })
     },
-    /**
-     * T5: in the original action order, each slot's candidate is fixed by P, prepared, and applied
-     * with its Ja. A slot whose Ja is in the Journal is not admitted again.
-     */
     async T5() {
       const read = await advancing()
       if ('failure' in read) return read
@@ -2903,10 +2435,6 @@ function coordinate<P>(
       }
       return step('admitted')
     },
-    /**
-     * H0: a rejected tool message with the advance still current becomes a failure candidate at
-     * F1. A cancelled or superseded execution never reaches here: the reads before stop it.
-     */
     async H0() {
       const rejection = required(rejectedMessage, 'rejected tool message')
       rejectedMessage = null
@@ -2933,8 +2461,6 @@ function coordinate<P>(
     },
   } satisfies Partial<Record<LoopNode, Handler>>
 
-  // prepareRequest: I1, P0, P1 (C0 to C4 are #502 stage 4)
-
   async function capabilityResult<T>(
     result: Promise<Outcome<T, Failure>>,
   ): Promise<Outcome<T, Failure>> {
@@ -2945,7 +2471,6 @@ function coordinate<P>(
   }
 
   const prepareRequest = {
-    /** I1: conditions, selection, context, then `prepare` without passages. */
     async I1() {
       const current = required(iteration, 'iteration')
       const advance = required(authority, 'authority')
@@ -2994,7 +2519,6 @@ function coordinate<P>(
       current.selected = selected.ok
       current.context = context.ok
       current.preparation = prepared.ok
-      // #558 S-11: only P1's review can yield ready on the phase 1 path.
       if (prepared.ok.kind === 'ready')
         return fail(
           localFailure('invariant', {
@@ -3003,8 +2527,6 @@ function coordinate<P>(
             diagnostic: 'I1: the first prepare returned ready before the before-model passage',
           }),
         )
-      // R2-D292: an assembled preparation stays in memory; only what cannot be computed again is
-      // saved. A restart before M0 prepares again from the same input batch.
       const write = {
         checkpoint: {
           priorConditions: conditions.ok.source,
@@ -3012,8 +2534,6 @@ function coordinate<P>(
         },
       }
       if (prepared.ok.kind === 'needs-compaction') {
-        // #513 revision 2: preserve Context's answer without inventing a cannot-fit cause.
-        // Stage 4 owns the C subgraph. Keep I1 as the unsupported continuation in this phase.
         const saved = await commit('I1', 'I1', write)
         return 'failure' in saved
           ? saved
@@ -3021,14 +2541,9 @@ function coordinate<P>(
       }
       return step(prepared.ok.kind === 'cannot-fit' ? 'try-finish' : 'prepared', write)
     },
-    /** P0: no extension is adopted at before_model_call, so the passage proceeds. */
     async P0() {
       return step('proceed')
     },
-    /**
-     * P1: select again and prepare with the previous preparation; the result must be ready. An
-     * unavailable dependency is a wait as at I1, and the wake prepares again from I1.
-     */
     async P1() {
       const current = required(iteration, 'iteration')
       const conditions = required(current.conditions, 'conditions')
@@ -3048,7 +2563,6 @@ function coordinate<P>(
           : prepared
       if (prepared.ok.kind !== 'ready')
         return fail(notYet('P1', `a ${prepared.ok.kind} preparation`, '#502 1.5 and stage 4'))
-      // R2-D292: the ready preparation is not saved; M0 records the final request it holds.
       current.ready = prepared.ok
       return step('ready')
     },
@@ -3087,8 +2601,6 @@ function coordinate<P>(
         position: current.position,
         history: required(snapshot, 'snapshot').history,
         inputs: required(current.batch, 'input batch'),
-        // The definition this execution runs under: the preparation reads its `instructions` as the
-        // first sections of the system prompt (agent-context SPEC「请求准备的取法」, 组四; R2-D124).
         definition: binding.definition,
         conditions,
         selection,
@@ -3100,17 +2612,10 @@ function coordinate<P>(
     )
   }
 
-  // callModel: I2, M0, M6, M1, M3, M4, M5 (M2 remains stage 3)
-
   function mainPosition(step: StepId): ConsumerRef {
     return { owner: AGENT_OWNER, work: `${execution}/${step}`, position: 'I3', purpose: 'main' }
   }
 
-  /**
-   * The `adoptedRequest` member a main-purpose M0 writes, or no member for any other purpose: the
-   * slot survives the call's settlement and the next I1, and only the next main M0 replaces it.
-   * The preparing side's `state` is kept as given; the Agent never reads it (FIXED-FACTS F2).
-   */
   function adoptedRequestOf(
     pending: ModelPendingCall,
     ready: ReadyPreparation,
@@ -3126,7 +2631,6 @@ function coordinate<P>(
     }
   }
 
-  /** The attempt of the main call of `of`: the number of its voided intents (R2-D292). */
   function attemptOf(of: StepId): number {
     return voidedModelIntents(required(checkpoint, 'checkpoint').voided, of)
   }
@@ -3144,10 +2648,6 @@ function coordinate<P>(
     }
   }
 
-  /**
-   * The iteration of a saved main Model call, for a coordinator that did not send it: the call
-   * path recognizes the saved intent and does not prepare the request again. Null without one.
-   */
   function mainCallIteration(at: AgentCheckpoint): Iteration | null {
     const pending = at.calls[0]
     if (pending?.kind !== 'model' || pending.purpose !== 'main') return null
@@ -3180,11 +2680,6 @@ function coordinate<P>(
     }
   }
 
-  /**
-   * The frame I1 prepares in after a restart or a voided intent (R2-D292): the step and attempt
-   * of the checkpoint and the input batch the step took. Only the batch ID is saved; the inputs
-   * within the watermark are that batch until a later I0 takes another, so E2's read gives it.
-   */
   function restoredIteration(at: AgentCheckpoint): Outcome<Iteration, Failure> {
     const attempt = attemptOf(at.step)
     if (
@@ -3201,23 +2696,16 @@ function coordinate<P>(
   }
 
   const callModel = {
-    /**
-     * I2: the PendingCall of the main call, whose return position is I3. Its ModelInvocationRef is
-     * encoded here from the call and admission that the coordinator derives, so the commit of this
-     * M0 saves it with the effect before the first admit at M6.
-     */
     async I2() {
       const current = required(iteration, 'iteration')
       const ready = required(current.ready, 'ready preparation')
       current.pending = mainPending(current.step, ready)
       return step('call', null)
     },
-    /** M0: the adopted context and the effect intent are committed before the Model admits. */
     async M0() {
       const current = required(iteration, 'iteration')
       const pending = required(current.pending, 'pending call')
       const ready = required(current.ready, 'ready preparation')
-      // #558 M04-2: the inherited ready preparation records the final request in this commit.
       return step('recorded', {
         checkpoint: {
           calls: [pending],
@@ -3302,11 +2790,9 @@ function coordinate<P>(
         ],
       })
     },
-    /** M4: no extension is adopted at after_model_call, so the passage proceeds. */
     async M4() {
       return step('proceed', null)
     },
-    /** M5: back to the return position that the PendingCall saved. */
     async M5() {
       const pending = required(required(iteration, 'iteration').pending, 'pending call')
       if (pending.position.position !== 'I3')
@@ -3315,13 +2801,6 @@ function coordinate<P>(
     },
   } satisfies Partial<Record<LoopNode, Handler>>
 
-  /**
-   * M6 after the Model's authoritative not-accepted of an intent whose admission was unknown
-   * (SPEC "身份、范围与归属", Model 未知行; R2-D292): the call was never admitted, sent or charged,
-   * and no late admission of it can follow. The commit closes the intent in `voided`, which gives
-   * the step its next attempt, and I1 prepares the request again under the new identity. A timeout
-   * or a missing route never comes here: they keep the identity unknown.
-   */
   function voided(
     current: Iteration,
     pending: ModelPendingCall,
@@ -3337,7 +2816,6 @@ function coordinate<P>(
       answer,
     })
     const record = unacceptedIntent(current.step, pending, basis)
-    // The batch of the step: in memory, or the saved one after a restart (R2-D292).
     iteration = newIteration(current.step, current.batch ?? at.inputBatch, attempt + 1)
     state = { kind: 'advancing' }
     return step('voided', {
@@ -3438,12 +2916,6 @@ function coordinate<P>(
       : fail(modelFailure(node, failure))
   }
 
-  /**
-   * M6 after `admit` answered a failure: the outcome of the node, or `null` when the inspection of
-   * an unknown admission found the original call, so M6 goes on as admitted. R2-D237: a definite
-   * refusal ends the run as `model-refused`; an unavailable Model is a dependency wait at M6, and
-   * the wake admits the same call again.
-   */
   async function notAdmitted(
     current: Iteration,
     pending: ModelPendingCall,
@@ -3458,19 +2930,11 @@ function coordinate<P>(
     const recalled = await ports.models.calls.inspect({ ...access, reference: pending.reference })
     if ('failure' in recalled) return modelWait('M6', recalled.failure)
     if (recalled.ok.kind === 'found') return null
-    // A conflict names an identity that the Model holds under another fixed input (R2-D292): it is
-    // never sent again under that identity. The Model's authoritative not-accepted voids it, so the
-    // step goes on under its next attempt instead of standing at M6.
     if (failure.kind === 'conflict') return voided(current, pending, recalled.ok)
     // An unknown write is never repeated in this turn, even if inspection cannot yet find it.
     return producerWait('M6', pending)
   }
 
-  /**
-   * M6's definite refusal (R2-D237): the failure candidate `model-refused` names the original call
-   * and the Model's refusal as it is, and F1 ends the run with it. A candidate already formed for
-   * the same call is kept, with its timestamp, when M6 runs again after an excluded F1 commit.
-   */
   async function refused(
     current: Iteration,
     pending: ModelPendingCall,
@@ -3504,14 +2968,12 @@ function coordinate<P>(
     return step('try-finish', null)
   }
 
-  /** E2: the frame takes the position of the latest snapshot; an open state also its kind. */
   function takeLatestPosition(read: ExecutionSnapshot): void {
     checkpoint = read.checkpoint
     revision = read.revision
     if (read.state.kind !== 'ended' && read.state.kind !== 'waiting') state = goingOn(read.state)
   }
 
-  /** The snapshot with the commit this frame left unknown among its unresolved operations. */
   function withPendingCommit(read: ExecutionSnapshot): ExecutionSnapshot {
     const unresolved = read.unresolved
     return pendingCommit === null || unresolved.includes(pendingCommit.operation)
@@ -3529,13 +2991,6 @@ function coordinate<P>(
     return succeed(undefined)
   }
 
-  // settle: F1, F2, F3, F4 (F0 is stage 5; extension evaluation is stage 3)
-
-  /**
-   * The per-call interrupt command F0 derives from the cancellation for one foreground call, with
-   * the stage its control operation is derived under. A Tool intent without a reference names no
-   * call: it cannot be interrupted, stays unresolved and nothing is sent.
-   */
   function cancelInterrupt(
     control: ControlRecord,
     pending: PendingCall,
@@ -3550,11 +3005,6 @@ function coordinate<P>(
     return { stage: `interrupt-tool/${call}`, command: { kind: 'interrupt-tool', call, reason } }
   }
 
-  /**
-   * F0 for one foreground Model or Tool call: a per-call interrupt control derived from the
-   * cancellation, accepted by the Journal on the call's own reference and advanced like any
-   * control of its kind.
-   */
   async function interruptForCancel(
     control: ControlRecord,
     pending: PendingCall,
@@ -3577,7 +3027,6 @@ function coordinate<P>(
     )
   }
 
-  /** A refused settlement commit: a changed or unknown answer is reconciled at R0. */
   function refusedSettlement(failure: Failure): Outcome<Step, Failure> {
     if (failure.kind === 'changed') cancellationChanged = true
     return failure.kind === 'changed' || failure.kind === 'commit-unknown'
@@ -3585,10 +3034,6 @@ function coordinate<P>(
       : fail(failure)
   }
 
-  /**
-   * F1 under an effective cancellation: the installation the Journal reads is the only source of
-   * the route. An author candidate of the same cancellation migrates; any other is established.
-   */
   async function fixCancellation(
     latest: ExecutionSnapshot,
     cancel: ControlRecord,
@@ -3638,7 +3083,6 @@ function coordinate<P>(
     return 'failure' in settled ? refusedSettlement(settled.failure) : step('fixed', null)
   }
 
-  /** The authorization of the terminal: the effective cancellation, or the current advance. */
   function finishAuthorization(read: ExecutionSnapshot): FinishAuthorization {
     const cancel = cancellationOf(read)
     return cancel === undefined
@@ -3646,10 +3090,6 @@ function coordinate<P>(
       : { kind: 'cancel', control: cancel.operation, source: cancel.stages.accepted.source }
   }
 
-  /**
-   * F3: prepareFinish issues the obligations of the candidate. A changed or unknown answer is
-   * the R0 step to take; `null` means the list is issued and tryFinish follows.
-   */
   async function issueObligations(
     before: ExecutionSnapshot,
     candidate: Parameters<typeof ports.journal.prepareFinish>[0]['candidate'],
@@ -3675,14 +3115,11 @@ function coordinate<P>(
     return succeed(step('reconcile', null))
   }
 
-  /** F3: where the answer of tryFinish goes; only `ended` is the terminal. */
   function finishOutcome(
     finished: Awaited<ReturnType<typeof ports.journal.tryFinish>>,
   ): Outcome<Step, Failure> {
     if ('failure' in finished) {
       if (finished.failure.kind === 'unavailable') {
-        // The facts, qualification or closure could not be determined (SPEC "条件终结" result
-        // table): nothing was written; R0 waits on the dependency and the terminal is retried.
         finishUnavailable = finished.failure
         finishRefused = true
         return step('reconcile', null)
@@ -3691,7 +3128,6 @@ function coordinate<P>(
       return step('reconcile', null)
     }
     if (finished.ok.kind !== 'ended') {
-      // A changed projection or a stale list is issued again after the re-evaluation.
       if (finished.ok.kind === 'changed') reissueObligations = true
       finishRefused = true
       return step('reconcile', null)
@@ -3715,7 +3151,6 @@ function coordinate<P>(
       }
       return step('cancelled', null)
     },
-    /** F1: the candidate of the evaluator is fixed with the current input boundary. */
     async F1() {
       const latest = await load()
       if ('failure' in latest) return latest
@@ -3765,8 +3200,6 @@ function coordinate<P>(
       }
       const at = required(checkpoint, 'checkpoint')
       const preparation = at.requestPreparation
-      // Derive only from the committed preparation. An unknown I1 commit therefore follows the
-      // same F1 route after committed reconciliation, or prepares again only when excluded.
       if (
         preparation?.kind === 'cannot-fit' &&
         (decided?.kind !== 'try-finish' || decided.failure?.kind !== 'cannot-fit')
@@ -3775,7 +3208,6 @@ function coordinate<P>(
         if ('failure' in instant) return instant
         decided = cannotFit(at.step, preparation, instant.ok)
       }
-      // Keep the same candidate, including its timestamp, if an F1 commit is excluded.
       const next = required(decided, 'decision')
       if (next.kind !== 'try-finish') throw new Error(`coordinator defect: F1 after ${next.kind}`)
       const read = latest
@@ -3784,9 +3216,6 @@ function coordinate<P>(
         finishRefused = true
         return step('reconcile', null)
       }
-      // The business content of the candidate (SPEC "条件终结" 1): the origin is the execution
-      // history the evaluation read, the conditions are the record of the conditions read. The
-      // Journal establishes the candidate, its author route and the FinishIntent projection.
       const finish: FinishCandidateContent = {
         origin: read.ok.history,
         conclusion: next.conclusion,
@@ -3797,16 +3226,11 @@ function coordinate<P>(
       return step('fixed', {
         state: { kind: 'settling' },
         finish,
-        // A call that ended without a reply, or that the Model refused, leaves no continuation.
         ...(next.failure?.kind === 'no-reply' || next.failure?.kind === 'model-refused'
           ? { checkpoint: { calls: [] } }
           : {}),
       })
     },
-    /**
-     * F2: no extension is adopted at before_terminal, so the passage completes with this plain
-     * settling commit; the Journal sets the proof of the author route from it (SPEC "条件终结" 3).
-     */
     async F2() {
       const read = await load()
       if ('failure' in read) return read
@@ -3833,11 +3257,6 @@ function coordinate<P>(
       }
       return step('proceed', { state: { kind: 'settling' } })
     },
-    /**
-     * F3: prepareFinish unless the Journal already projects a list for this candidate, load the
-     * complete revision, then tryFinish, the one terminal commit. A list that tryFinish answered
-     * `changed` for is issued again on the next pass.
-     */
     async F3() {
       const before = await load()
       if ('failure' in before) return before
@@ -3870,8 +3289,6 @@ function coordinate<P>(
       })
       return finishOutcome(finished)
     },
-    /** F4: recognize the fixed terminal ledger. Pending observations stay with the long-lived
-     * Journal; extension evaluation is stage 3 and no completion is invented here. */
     async F4() {
       const read = await load()
       if ('failure' in read) return read
@@ -3948,8 +3365,6 @@ function coordinate<P>(
         const finishingFault =
           read.ok.state.kind === 'settling' &&
           read.ok.settlement.candidate?.failure?.kind === 'node-failed'
-        // R2-D292: before M0 saved an intent nothing of the request is saved. E4 routes these
-        // positions to I1, which prepares again from the input batch of the step.
         const beforeIntent = BEFORE_RECORD.includes(at.position) && at.calls.length === 0
         const pending = at.calls[0]
         if (
@@ -3962,11 +3377,7 @@ function coordinate<P>(
           return fail({ node: 'E4', failure: { kind: 'unsupported' } })
         revision = read.ok.revision
         checkpoint = at
-        // The call path never prepares again from here: M6 recognizes the saved intent, and a
-        // request is prepared again only after the Model's authoritative not-accepted voids it.
         iteration = beforeIntent || finishingFault ? null : mainCallIteration(at)
-        // The first available recovery snapshot already owns these unknown identities. Query
-        // them before another fallible read can take the normal E1 -> W0 route.
         reconciliationOperations = read.ok.unresolved
         const ran = await drive(
           pendingCommit !== null || reconciliationOperations.length > 0 ? 'R0' : 'E1',
@@ -4003,7 +3414,6 @@ function coordinate<P>(
           reason: input.reason,
         })
         if ('failure' in detached) return fail({ node: 'W0', failure: detached.failure })
-        // Nothing is left to wait for or to run: the next `waitForWake` answers `stopped`.
         yieldedWait = false
         savedWait = false
         return succeed(detached.ok)
@@ -4029,8 +3439,6 @@ function coordinate<P>(
           operations,
           waits: operations.length > 0 ? [] : waits,
           recheck: operations.length > 0 ? null : recheckDependency,
-          // The position in hand starts the observation, so the wait reads the execution once. A
-          // position at another revision than `revision` wakes at once, as a baseline read would.
           held,
           position: waitingAt,
           ...input,

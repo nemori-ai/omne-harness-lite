@@ -30,7 +30,6 @@ async function run(distribution: unknown, operator?: unknown) {
     entryObjects: [],
     readinessTimeoutMs: 20,
     shutdownDeadlineMs: 100,
-    // A run that passes the checks takes the lock of its state directory, so it must exist.
     stateRoot,
     stop: AbortSignal.abort(),
     write: record => records.push(record),

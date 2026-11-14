@@ -1,8 +1,4 @@
 /** @module-tag slow */
-// Prerequisite P2 on Windows: the .NET Framework compiler exists, and the files helper creates,
-// reads, lists and removes a file handle-relative. This host is made to have no Windows PowerShell:
-// its files are missing to `access`, and starting it fails, so a probe that needed it could not
-// answer satisfied.
 import type { ChildProcess } from 'node:child_process'
 import { mkdtemp, readdir, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'

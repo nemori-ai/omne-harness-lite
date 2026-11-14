@@ -1,20 +1,3 @@
-// The legacy and configured Model host assemblies on real Cordis 4.0.4, for the 53 obligations of
-// `@omne-harness/model-contract/conformance`: the runtime plugin of this member (host, runtime
-// facade and result push), the send stage plugin of this member, the real Model runtime of
-// `@omne-harness/model`, and the durable ModelCommands of `@omne-harness/model-storage-sql`
-// (`createSqlModelCommands`) with its send coordinator over one shared core.
-//
-// Stand-ins, each named:
-// - The SQL storage is the node:sqlite test provider of model-storage-sql's own tests, copied here:
-//   one in-memory database per transaction domain, receipts by full identity, rollback on a
-//   stopping reply. It runs the real participant, migration and read handlers of that member. It
-//   does not model Workers, durability, queues or limits. The participant module is not on the
-//   public surface of model-storage-sql yet, so it is imported from that member's source.
-// - The transport is the scripted transport of `@omne-harness/model-contract/testing` behind a
-//   per-call channel: the facts of a call come from the hooks of the suite, never from a network.
-// - The network of the send stage is a closable object that opens nothing.
-// - Fault injection sits on the SQL storage port (`failNextWrite`, `blockCleanup`) and on the
-//   instance directory the runtime reads (`disconnectObservers`, `failDirectory`).
 import { vi } from 'vitest'
 import { createHash, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -89,8 +72,6 @@ import {
   requestHandler,
   type SqlModelCommandsOptions,
 } from '@omne-harness/model-storage-sql'
-// The participant module of the model records. It is the default export of that member's
-// `src/commit.ts` and not yet exported from its root; see the file comment.
 import participant from '../../../model-storage-sql/src/commit.ts'
 import { createSqlModelRecordsPlugin } from '@omne-harness/model-storage-sql/cordis'
 import { assembleOver, type AssemblyFactories } from '../../src/assembly.ts'
@@ -113,7 +94,6 @@ type RuntimeCapture = (
   ...args: RuntimeArguments
 ) => ReturnType<RuntimeFactory>
 
-// Every capture belongs to one send object. Concurrent subjects never share a current subject.
 const captures = vi.hoisted(() => new Map<ModelSendBoundary<unknown>, RuntimeCapture>())
 vi.mock('@omne-harness/model', async importOriginal => {
   const actual = await importOriginal<typeof import('@omne-harness/model')>()
@@ -127,8 +107,6 @@ vi.mock('@omne-harness/model', async importOriginal => {
     },
   }
 })
-
-// --- Values ------------------------------------------------------------------------------------
 
 type Principal = Readonly<{ subject: string }>
 
@@ -222,7 +200,6 @@ const CONFIGURATION: ModelConfiguration = {
   retryBackoffMs: 0,
   cleanupRetryMs: 0,
 }
-/** The paging of the durable commands is fixed at construction: two parts a page. */
 const CORE_LIMITS = {
   scanPageCalls: 2,
   resultPageParts: 2,
@@ -267,18 +244,14 @@ async function until(check: () => boolean, label: string, waitMs = WAIT_MS): Pro
   throw new Error(`durable assembly: timed out waiting for ${label}`)
 }
 
-/** Gives the macrotask queue a few turns, so a committed receipt reaches the observation. */
 async function quiet(): Promise<void> {
   for (let n = 0; n < 5; n += 1) await sleep(5)
 }
-
-// --- The node:sqlite test provider (copied from model-storage-sql tests/fixture.ts) ------------
 
 type SqlStorage = SqlModelCommandsOptions<unknown>['storage']
 type TenantDomainLookup = SqlModelCommandsOptions<unknown>['domains']
 type CommitRequest = Parameters<SqlStorage['commit']>[0]
 type CommitResult = Awaited<ReturnType<SqlStorage['commit']>>
-/** A stored receipt: what `query` answers. `commit` answers it with the `recalled` mark. */
 type Receipt = Extract<
   Awaited<ReturnType<SqlStorage['query']>>,
   { kind: 'committed' | 'rolled_back' }
@@ -428,12 +401,6 @@ function lookup(registered: readonly string[], domain: string): TenantDomainLook
   }
 }
 
-// --- Fault injection on the storage port -------------------------------------------------------
-
-/**
- * How the next matching commit of the storage is answered. `applied` commits and loses the reply,
- * `dropped` commits nothing and loses the reply, `refused` is rejected before the storage accepts.
- */
 type StorageFault = Readonly<{
   matches(request: CommitRequest): boolean
   effect: 'applied' | 'dropped' | 'refused'
@@ -480,9 +447,6 @@ function faultyStorage(inner: SqlStorage) {
   }
 }
 
-// --- The commands core options -----------------------------------------------------------------
-
-/** The actions the suite revokes, as the actions of the commands core. */
 const ACTIONS: Record<ConformanceAction, CommandAction> = {
   inspect: 'inspect',
   dispatches: 'read-account',
@@ -493,7 +457,6 @@ const ACTIONS: Record<ConformanceAction, CommandAction> = {
   acknowledge: 'handoff',
 }
 
-/** Consumer-owned completion records: the evidence that the handoff adapter accepts. */
 function completionRecords() {
   type Completed = Readonly<{
     tenant: string
@@ -591,12 +554,8 @@ function coreOptions(
   }
 }
 
-// --- The backends of the commands --------------------------------------------------------------
-
-/** The commands the plugins inject, and what the evidence file says they are. */
 type Backend = Readonly<{
   kind: 'durable-sql' | 'memory'
-  /** How the evidence names the implementation. */
   description: string
   sqlProvider: string
   commands: ModelCommands<unknown>
@@ -642,11 +601,6 @@ function durableBackend(
   }
 }
 
-/**
- * The in-memory ModelCommands of `@omne-harness/model/testing`: a store without durability and
- * without the storage faults. It is here so that a run over it says so in the evidence; the suite
- * of this member runs the durable backend.
- */
 function memoryBackend(
   denied: Set<CommandAction>,
   completions: ReturnType<typeof completionRecords>,
@@ -681,7 +635,6 @@ function memoryBackend(
   }
 }
 
-/** The backend of this member's suite. */
 const BACKEND: Backend['kind'] = 'durable-sql'
 
 function backendOf(
@@ -693,8 +646,6 @@ function backendOf(
     ? durableBackend(denied, completions)
     : memoryBackend(denied, completions)
 }
-
-// --- The Cordis services the plugins inject ---------------------------------------------------
 
 class Authority extends ModelHostAuthorityService<unknown> {
   readonly resolve = async (target: { tenant: TenantId; call: ModelCallId }) => ({
@@ -724,7 +675,6 @@ class Clock extends ModelClockService {
     })
 }
 
-/** The official credential layer: a synthetic value, never a real key. */
 class Credential extends ModelCredentialService {
   readonly layerOf: CredentialPort['layerOf'] = () => ({ ok: { layer: 'official' } })
   readonly resolve: CredentialPort['resolve'] = () => ({
@@ -764,12 +714,8 @@ function commandsServiceOver(commands: ModelCommands<unknown>) {
   }
 }
 
-// --- The per-call upstream channel -------------------------------------------------------------
-
 type Channel = {
-  /** Resolved by `startRun`: the send may start. */
   ready: ReturnType<typeof deferred<void>>
-  /** Resolved when the send path asked for the resource: the drive waits for upstream here. */
   acquired: ReturnType<typeof deferred<void>>
   starts: number
   push(facts: readonly TransportFact[]): void
@@ -834,7 +780,6 @@ function channels() {
   }
 }
 
-/** The send resources of the stage: a scripted transport whose facts come from the channel. */
 function channelSendResources(channel: (call: ModelCallId) => Channel): PiSendResources<unknown> {
   return {
     materialization: { prove: () => unavailable('model-materialization', 'scripted-transport') },
@@ -867,7 +812,6 @@ function channelSendResources(channel: (call: ModelCallId) => Channel): PiSendRe
   }
 }
 
-/** Upstream facts for the parts of a result. The real sender, receiver and driver own every write. */
 function resultFacts(parts: readonly ResultPart[]): TransportFact[] {
   return parts.flatMap((part, position): TransportFact[] => {
     const index = String(position)
@@ -905,14 +849,6 @@ function resultFacts(parts: readonly ResultPart[]): TransportFact[] {
   })
 }
 
-// --- The instrumented instance host ------------------------------------------------------------
-
-/**
- * The host of the plugin as the runtime sees it, with what only the assembly can tell: when a call
- * is placed (its route is published) and the faults of the directory. The first schedule of a call
- * returns after the call is placed and its drive waits for upstream (`blockedAt`), or after the
- * drive ended: an admission that returns has a route and a state that does not move by itself.
- */
 function instrumentedHost(
   host: ModelInstanceHost<unknown>,
   drives: Drives,
@@ -970,7 +906,6 @@ function instrumentedHost(
   }
 }
 
-/** The drives of the bound driver, by call: their outcomes and their ends. */
 type Drives = ReturnType<typeof driveLog>
 
 function driveLog() {
@@ -1004,8 +939,6 @@ function driveLog() {
     settle: () => Promise.all(running),
   }
 }
-
-// --- The subject -------------------------------------------------------------------------------
 
 const RETRY: ModelRetryPolicy<unknown> = {
   inspect: async () => unavailable('model-retry-policy', 'no-plan'),
@@ -1046,7 +979,6 @@ const PLUGIN_NAMES = [
   'ModelCredentialService test class (synthetic factory value)',
 ]
 
-/** What the evidence says about one built subject. Every field comes from what was built. */
 function assemblyFacts(
   backend: Backend,
   configured: boolean,
@@ -1084,9 +1016,6 @@ function assemblyFacts(
 export type DurableSubject = ConformanceSubject<unknown> &
   Readonly<{ facts: AssemblyFacts; injected: readonly { request: string; effect: string }[] }>
 
-/**
- * One full assembly on a fresh Cordis root. The suite calls it once per check and disposes it after.
- */
 export async function durableSubject(
   record: (event: unknown) => void = () => {},
   options: Readonly<{ configured?: boolean; beforeRuntime?(): Promise<void> }> = {},
@@ -1100,7 +1029,6 @@ export async function durableSubject(
   const drives = driveLog()
   const preserved = new Map<ModelCallId, number>()
 
-  // The commands the services serve: the backend's, with the preserves counted per call.
   let commands: ModelCommands<unknown> = {
     ...backend.commands,
     preserve: async input => {
@@ -1302,7 +1230,6 @@ export async function durableSubject(
     record({ hook: 'advanceCleanup', input, result })
   }
 
-  // The transport under test, counted: an independent scripted transport with the same request.
   const scripted = createScriptedTransport({
     receipt: {
       supplier: SUPPLIER.adoption,
@@ -1366,7 +1293,6 @@ export async function durableSubject(
         throw new Error(
           `durable assembly: the drive of ${input.call} ended before the send started: ${JSON.stringify(drives.results.get(input.call))}`,
         )
-      // The provider records the dispatch as started after the stream starts.
       let started = 0
       const end = Date.now() + WAIT_MS
       while (Date.now() < end) {
@@ -1509,7 +1435,6 @@ export async function durableSubject(
   }
 }
 
-/** The observer's right to the call, from the one authority of the commands core. */
 function coreAuthorize(
   denied: Set<CommandAction>,
   access: Readonly<{ principal: unknown; tenant: TenantId; call: ModelCallId }>,

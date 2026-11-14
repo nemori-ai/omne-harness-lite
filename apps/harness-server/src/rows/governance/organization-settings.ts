@@ -7,7 +7,6 @@ import { organizationSettingsCombination } from './organization-settings-combina
 
 const domain = { scope: { kind: 'system' as const }, transactionDomain: 'system.settings' }
 
-/** An address is not evidence that a target exists or that its definition is current. */
 export function organizationSettingsSource(input: {
   organizationId: string
   definition: Pick<SettingDefinitions, 'providerId' | 'definitionId'>
@@ -25,10 +24,6 @@ export function organizationSettingsSource(input: {
   })
 }
 
-/**
- * Opens the organization targets in the system domain. Nothing reserves an organization source:
- * a consumer reads it with `readSettingsSource` when it needs the value.
- */
 export async function openOrganizationSettingsSources(options: {
   storage: SqlStorage
   materials: SqlMaterialCatalog

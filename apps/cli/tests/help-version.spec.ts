@@ -1,5 +1,4 @@
 // @module-tag slow
-// Every case spawns the built bin as a child process.
 import {
   chmodSync,
   cpSync,
@@ -20,8 +19,6 @@ import { builtDist, createSandbox, runCli, type Sandbox } from './support/cli-pr
 import { expectedHelp, expectedVersion, identityFailure } from './support/expected.ts'
 
 const runsAsRoot = process.getuid?.() === 0
-// Windows cannot make a file unreadable with chmod: the mode only toggles the read-only attribute.
-// An ACL that denies read does not hold in an elevated session either (icacls /deny (R), then read).
 const cannotDenyRead = runsAsRoot || process.platform === 'win32'
 
 let sandbox: Sandbox
@@ -34,8 +31,6 @@ afterEach(() => {
 
 const packageModules = fileURLToPath(new URL('../node_modules', import.meta.url))
 
-// The copy sits outside the repository. The build imports the SDK, so the sandbox gets a link to the
-// package's `node_modules`: Node finds the SDK there, as it does beside the real build.
 function copyDist(): string {
   const copy = join(sandbox.root, 'copied-dist')
   cpSync(builtDist, copy, { recursive: true })

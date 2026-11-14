@@ -1,12 +1,6 @@
-// The install-closure facility is kept by each contract member (the two copies are not one
-// package), so the copies must stay the same. This compares the files of two members byte for byte.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, posix } from 'node:path'
 
-/**
- * The files of a member that make up the facility, relative to the member, in order. The relative
- * paths always use `/`, so the list and its order are the same on every platform.
- */
 export function facilityFiles(member: string): string[] {
   const found: string[] = []
   const visit = (relative: string): void => {
@@ -24,7 +18,6 @@ export function facilityFiles(member: string): string[] {
   return found.sort()
 }
 
-/** What differs between the facility files of two members; empty when they are the same. */
 export function facilityDifferences(left: string, right: string): string[] {
   const own = facilityFiles(left)
   const other = facilityFiles(right)

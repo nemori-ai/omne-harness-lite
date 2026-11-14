@@ -1,6 +1,3 @@
-// The `modelProfiles` plugin of the single-machine host: the official OpenAI profiles as one
-// frozen snapshot behind `createModelProfiles`. This file is the only place in the member that
-// imports a family package; the source construction next to it knows no family.
 import type { Context } from '@deepseek-ai/cordis'
 import type { Adoption, ModelFailure } from '@omne-harness/model-contract'
 import type { ModelProfiles } from '@omne-harness/model-contract/provider'
@@ -12,11 +9,8 @@ import { fieldOf, isRecord } from '../fields.ts'
 import { createOfficialProfileSource } from '../profile-source.ts'
 
 type PluginConfig = Readonly<{
-  /** The Model retry policy of every official profile. */
   retryPolicy: Adoption
-  /** A decimal integer from 1 to 100: the compaction trigger of every profile. */
   compactionTriggerPercent: string
-  /** The RFC 3339 UTC text of every profile and of the snapshot revision, read by `parseInstant`. */
   updatedAt: string
 }>
 
@@ -30,7 +24,6 @@ function rejected(message: string): Parsed<never> {
   return { issues: [{ message }] }
 }
 
-/** The retry policy is stored as an adoption, so it is read as one. */
 function parseAdoption(value: unknown): Parsed<Adoption> {
   if (!isRecord(value)) return rejected('retryPolicy must be an object')
   const texts: string[] = []
@@ -56,7 +49,6 @@ function parseConfig(value: unknown): Parsed<PluginConfig> {
   return { value: { retryPolicy: retryPolicy.value, compactionTriggerPercent, updatedAt } }
 }
 
-/** Why a handle kept past the plugin's removal answers `unavailable`. */
 function removedFailure(): ModelFailure {
   return { kind: 'unavailable', dependency: 'model-profiles', diagnostic: 'plugin-removed' }
 }
@@ -69,12 +61,6 @@ const configSchema = {
   },
 }
 
-/**
- * The official profiles the plugin publishes: one layer, one timestamp, no credential state.
- * The source is built once at construction, so every read of this plugin sees the same snapshot.
- * A handle kept past the plugin's removal answers `unavailable`: the profiles were never durable
- * state of its own, and the assembly no longer publishes them.
- */
 export class ModelProfilesLocalPlugin extends ModelProfilesService<unknown> {
   static readonly Config = configSchema
 
@@ -83,8 +69,6 @@ export class ModelProfilesLocalPlugin extends ModelProfilesService<unknown> {
 
   constructor(ctx: Context, config: PluginConfig) {
     super(ctx)
-    // The profiles live only in these closures: Cordis hands consumers a proxy of the instance,
-    // and a `#private` field fails through it. The service itself has nothing to close.
     const source = createOfficialProfileSource({
       definitions: officialOpenAiProfiles({
         retryPolicy: config.retryPolicy,

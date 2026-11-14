@@ -1,6 +1,3 @@
-// `governanceOfCall`: the row reads `identityGovernance` from the tree on every call. Absent, every
-// one of the nineteen methods answers `basis-unavailable` and none throws; present, each method is
-// handed to the provider with the same input; a provider that comes later is seen by the next call.
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import type { IdentityGovernance } from '@omne-harness/identity'
@@ -32,7 +29,6 @@ const METHODS = [
 type Method = (typeof METHODS)[number]
 type Untyped = Record<Method, (input: unknown) => Promise<unknown>>
 
-/** A provider whose every method answers with its own name and the input it got. */
 function echoProvider(): IdentityGovernance {
   return Object.fromEntries(
     METHODS.map(method => [method, (input: unknown) => Promise.resolve({ method, input })]),

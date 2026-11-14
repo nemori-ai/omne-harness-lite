@@ -13,10 +13,6 @@ export type CompactionSettingsValue = Readonly<{
   trimFirst: boolean
   stepBound: string
 }>
-/**
- * The window usage of the current fixed request of one target (RQ-02). `not-fixed` and
- * `unmeasured` are valid required facts, not a missing block; numeric branches never default to 0.
- */
 export type WindowUsageValue =
   | Readonly<{ kind: 'not-fixed' }>
   | Readonly<{ kind: 'unmeasured'; candidate: CandidateRef; windowTokens: string }>
@@ -56,7 +52,6 @@ function exactKeys(v: Record<string, unknown>, keys: readonly string[]): boolean
   const own = Object.keys(v)
   return own.length === keys.length && keys.every(k => Object.hasOwn(v, k))
 }
-/** `used/window` rounded up to six decimals with trailing zeros removed; may exceed 1. */
 export function windowRatio(usedTokens: string, windowTokens: string): string {
   const scaled =
     (BigInt(usedTokens) * 1_000_000n + BigInt(windowTokens) - 1n) / BigInt(windowTokens)

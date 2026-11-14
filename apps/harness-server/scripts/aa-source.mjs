@@ -1,26 +1,8 @@
-// Source rules behind `check:aa-rows` (identity governance E1, E2): who may read a trusted name,
-// and which files may call the principal issuer. Plain Node, no dependencies, no build step.
-//
-// E1. Every name in the trusted table of the assembly page is read in exactly two ways: through
-//     `env.readTrusted(name)` in an entry object module, or inside a row the table lists as
-//     visible for that name. So an entry module (`src/entry`) never calls `get`, `[]` or `ctx.name`
-//     on a trusted name at the root, and a row source (`src/rows`) never mentions a trusted name
-//     its row cannot see.
-// E2. `issueActingForTenant(` and `issueSystem(` are called only from the files the config lists.
-//
-// Names the identity plan asks to become trusted but the table does not list yet (`pending`) are
-// scanned with the same rules in report-only mode: the findings are the wiring work that the
-// table change owes. A pending name that the table already lists is enforced like any other.
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 
 const posix = path => path.split('\\').join('/')
 
-/**
- * Blank out comments and, unless `keep` allows them, the content of string and template
- * literals. Offsets and line breaks stay where they were. `keep` is `true` (keep every string) or
- * a set of exact string contents to keep. `${...}` inside a template stays code.
- */
 function mask(text, keep = new Set()) {
   const keeps = content => keep === true || keep.has(content)
   const blankOf = s => s.replace(/[^\n]/g, ' ')
@@ -108,7 +90,6 @@ const SKIPPED_DIRS = new Set([
 ])
 const isTestFile = name => /\.spec(?:-d)?\.|\.d\.ts$/.test(name)
 
-/** Source files under `dir`, as absolute paths. Test directories, specs and build output are not source. */
 function sourceFiles(root) {
   const dir = resolve(root)
   const out = []
@@ -125,7 +106,6 @@ function sourceFiles(root) {
 
 const escapeRe = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-/** Patterns that read trusted name `name` (its `<name>Key` constant, or the exact string). */
 function patternsOf(name) {
   const key = `${escapeRe(name)}Key`
   const arg = `(?:\\b${key}\\b|['"]${escapeRe(name)}['"])`
@@ -141,10 +121,6 @@ function patternsOf(name) {
 
 const matches = (re, text) => [...text.matchAll(re)].map(m => m.index)
 
-/**
- * Entry object module rule: the only way to read a trusted name is `env.readTrusted(name)`, and the
- * `get` that follows it. Any other `get`, index, `ctx.name` or aliased import is a root read.
- */
 function entryReads(code, name) {
   const p = patternsOf(name)
   const found = []
@@ -156,7 +132,6 @@ function entryReads(code, name) {
   return found
 }
 
-/** Row source rule: every mention of the name counts, because a row that cannot see it must not name it. */
 function rowMentions(code, name) {
   const p = patternsOf(name)
   const found = new Map()
@@ -169,7 +144,6 @@ function rowMentions(code, name) {
   return [...found.values()]
 }
 
-/** Replace `import ... from '...'` statements by blanks, so the imported name is not a mention. */
 const withoutImports = code =>
   code.replace(/\bimport\s+(?:type\s+)?[^;'"`]*?from\s*(['"])[^'"\n]*\1/g, m =>
     m.replace(/[^\n]/g, ' '),
@@ -182,7 +156,6 @@ const rowIdsIn = (code, rowIds) => {
     .filter(id => rowIds.includes(id))
 }
 
-/** Which rows a file under `src/rows` belongs to: the rows it declares, else the rows of its importers, else of its directory. */
 function rowOwners(files, rowsRoot) {
   const byPath = new Map(files.map(f => [f.path, f]))
   const resolveImport = (from, spec) => {
@@ -227,10 +200,6 @@ function rowOwners(files, rowsRoot) {
   return owners
 }
 
-/**
- * E1. `trusted` is the table of the assembly page (`[{ row, names }]`), `pending` the names the table
- * should list but does not yet. Returns findings; `pending` findings never fail the check.
- */
 export function scanTrustedReads({ srcRoot, repoRoot, trusted, rowIds, pending }) {
   const visible = new Map((trusted ?? []).map(e => [e.row, new Set(e.names)]))
   const tableNames = new Set((trusted ?? []).flatMap(e => e.names))
@@ -278,7 +247,6 @@ export function scanTrustedReads({ srcRoot, repoRoot, trusted, rowIds, pending }
   return findings
 }
 
-/** E2. Issuer call sites outside the allow-list (repository-relative paths) and its definition owners. */
 export function scanIssuerCalls({ repoRoot, roots, callSites, definitionOwners }) {
   const allowed = new Set([...callSites, ...definitionOwners])
   const findings = []
@@ -302,7 +270,6 @@ export function scanIssuerCalls({ repoRoot, roots, callSites, definitionOwners }
   return findings
 }
 
-/** `<file>:<line>` ordering so output is stable. */
 export const byLocation = (a, b) => (a.file === b.file ? a.line - b.line : a.file < b.file ? -1 : 1)
 
 export function describeFinding(f) {

@@ -1,9 +1,4 @@
 import { adoption } from './runtime-values.ts'
-// The commands of the way to a start under a negative answer given in flight (SPEC 14), and the
-// queue entries they leave (SPEC 22): a negative answer excludes a command from its first read on,
-// whatever it did between that read and its transaction; a call that settled never keeps or gets
-// a queue entry; and the driver redoes a start intent that was excluded while the queue held its
-// slot, after which the slot is owned by a committed start (what runs it again: driver-retrigger).
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   callId,
@@ -27,7 +22,6 @@ import {
   type StartHarness,
 } from './start-values.ts'
 
-// Every scenario ends with every queue entry accounted for by its call domain (SPEC 22).
 afterEach(auditQueues)
 
 const excludedOf = (operation: string) => ({
@@ -38,7 +32,6 @@ const excludedOf = (operation: string) => ({
 
 const resources = { owner: 'o', record: 'env', revision: '1', digest: 'd' }
 
-/** Whether a commit is a queue-domain commit that creates a queue entry. */
 function createsEntry(input: Parameters<Parameters<typeof losingCommits>[1]>[0]): boolean {
   return (
     input.domain.kind === 'queue' &&
@@ -46,7 +39,6 @@ function createsEntry(input: Parameters<Parameters<typeof losingCommits>[1]>[0])
   )
 }
 
-/** Whether a commit is a queue-domain commit that gives a slot to an entry. */
 function holdsSlot(input: Parameters<Parameters<typeof losingCommits>[1]>[0]): boolean {
   return (
     input.domain.kind === 'queue' &&
@@ -59,7 +51,6 @@ function holdsSlot(input: Parameters<Parameters<typeof losingCommits>[1]>[0]): b
   )
 }
 
-/** The operations the call domain of `call` committed, as the records hold them. */
 async function committedOperations(harness: StartHarness, call: string): Promise<string[]> {
   const read = await harness.memory.read({
     kind: 'call',
@@ -72,7 +63,6 @@ async function committedOperations(harness: StartHarness, call: string): Promise
   )
 }
 
-/** The domain revision of the call domain of `call`. */
 async function revisionOf(harness: StartHarness, call: string): Promise<bigint> {
   const read = await harness.memory.read({
     kind: 'call',
@@ -83,10 +73,6 @@ async function revisionOf(harness: StartHarness, call: string): Promise<bigint> 
   return BigInt(read.revision)
 }
 
-/**
- * A harness whose store lets a negative answer about one operation land after the n-th read of a
- * call domain that follows `arm`. `answers` collects what the negative answers said.
- */
 function windowed() {
   const answers: unknown[] = []
   let operation = ''
@@ -116,7 +102,6 @@ function windowed() {
   }
 }
 
-/** Admits `c1` and takes it through the commands up to the phase named. */
 async function stage(harness: StartHarness, until: 'accepted' | 'prepared' | 'queued') {
   await admitCall(harness, 'c1')
   if (until === 'accepted') return
@@ -139,7 +124,6 @@ async function stage(harness: StartHarness, until: 'accepted' | 'prepared' | 'qu
     ok(await harness.commands.enqueue(await writeContext(harness, 'c1', 'c1/enqueue')))
 }
 
-/** Admits `c1` and takes it through the commands to `starting`; answers its start record. */
 async function stageStarting(harness: StartHarness) {
   await admitCall(harness, 'c1')
   return toStarting(harness, 'c1')
@@ -188,7 +172,6 @@ describe('14 exclusion of the commands on the way to a start', () => {
     expect(answers).toEqual([{ ok: { kind: 'not-committed' } }])
     expect(await committedOperations(harness, 'c1')).not.toContain('op-c1/start')
     expect(await harness.state('c1')).toEqual(before)
-    // The queue step of the stopped command is kept, and the redo recalls it (SPEC 22).
     expect(await harness.queue()).toEqual([{ call: 'c1', ordinal: '1', stage: 'held' }])
     expect(ok(await harness.commands.prepareStart(input)).state.phase).toBe('starting')
     expect(await harness.queue()).toEqual([{ call: 'c1', ordinal: '1', stage: 'held' }])
@@ -241,7 +224,6 @@ describe('14 exclusion of the commands on the way to a start', () => {
       invocation: start,
       outcome: { kind: 'started' as const, acceptance: evidence('accepted-c1') },
     }
-    // Reads of the call domain: the first read, the read before the clock, the transaction.
     arm(2, 'op-c1/started')
     expect(failure(await harness.commands.recordStart(input))).toEqual(excludedOf('op-c1/started'))
     expect(answers).toEqual([{ ok: { kind: 'not-committed' } }])
@@ -280,7 +262,6 @@ describe('14 exclusion of the commands on the way to a start', () => {
     await admitCall(harness, 'c2')
     await harness.drive('c1', 'c2')
     expect(answers).toEqual([{ ok: { kind: 'not-committed' } }])
-    // The first submission was excluded; the driver submitted the same identity again.
     expect(replies).toEqual([excludedOf('op-c1/start'), 'started'])
     expect(harness.binding.executions).toEqual(['c1'])
     expect((await harness.state('c1')).phase).toBe('running')
@@ -288,7 +269,6 @@ describe('14 exclusion of the commands on the way to a start', () => {
       { call: 'c1', ordinal: '1', stage: 'held' },
       { call: 'c2', ordinal: '2', stage: 'ready' },
     ])
-    // The start committed after the negative answer, as a new submission of the same identity.
     const resolved = ok(
       await harness.ledger.reads.operation({
         principal: principalA,
@@ -325,7 +305,6 @@ describe('22 queue entries of calls that settled', () => {
     expect(await harness.queue()).toEqual([{ call: 'c2', ordinal: '2', stage: 'held' }])
   })
 
-  /** Settles `c1` through rejectPending at its current revision, as another process would. */
   async function settleElsewhere(harness: StartHarness): Promise<void> {
     ok(
       await harness.commands.rejectPending({
@@ -356,7 +335,6 @@ describe('22 queue entries of calls that settled', () => {
     const harness: StartHarness = startHarness({
       store: memory =>
         interleaving(
-          // The admission's queue step fails, so the plan is the step that creates the entry.
           losingCommits(memory, createsEntry, 'unavailable'),
           input => armed && createsEntry(input),
           () => settle(),
@@ -372,7 +350,6 @@ describe('22 queue entries of calls that settled', () => {
       purpose: 'initial',
       environmentAdoption: adoption('environment'),
     })
-    // The settlement moved the state revision on, so the transaction refuses the stale plan.
     expect(failure(refused)).toMatchObject({ kind: 'stale-revision' })
     expect(await harness.queue()).toEqual([])
     await admitCall(harness, 'c2')

@@ -1,8 +1,3 @@
-// The lifetime of the durable state of one call, at the ledger's public seams
-// (`commands.releaseDelivery`, `reads.operation`, `sweep`), each case one action of the
-// CallLifecycle model: Ack schedules the removal of the call domain at `now + G`, or at the expiry
-// of its offloaded body when that is later; Sweep deletes the bytes of the bodies and then drops
-// the domain; a domain that is not released, or that still has a pending task, is not dropped.
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { instantAt } from '@omne-harness/tool-contract/testing'
 import { createToolSweep } from '@omne-harness/tool'
@@ -23,14 +18,12 @@ const CALL_DUE = 'call'
 type Fixture = Awaited<ReturnType<typeof settlementFixture>>
 const msOf = (instant: string) => Date.parse(instant) - Date.parse(instantAt(0))
 
-/** The due entries of the tenant at the end of time, as `key@instant`. */
 async function due(f: Fixture) {
   const read = await f.harness.memory.due(f.access.tenant, instantAt(10 ** 9), 20)
   if (read.kind !== 'complete') throw new Error('due index unreadable')
   return read.entries.map(entry => `${entry.key}@${String(msOf(entry.dueAt))}`)
 }
 
-/** The acknowledgement of the consumer: the release of the owed delivery of the result. */
 async function acknowledge(f: Fixture, operation = 'ack') {
   const recovery = await f.load()
   if (recovery.result === null) throw new Error('fixture has no result')
@@ -81,10 +74,6 @@ it('Ack: with an offloaded body the call domain is due at the expiry of the body
 
 type HostAnswer = 'removed' | 'held'
 
-/**
- * Ends the tasks the settled call still holds. In an assembly the driver does this work (the
- * acknowledgement of the facts to the executor); the fixture has no driver.
- */
 async function quiesce(f: Fixture) {
   const domain = { kind: 'call' as const, tenant: f.access.tenant, call: f.access.call }
   const read = await f.harness.memory.read(domain)
@@ -98,7 +87,6 @@ async function quiesce(f: Fixture) {
   })
 }
 
-/** The sweep of the application over the fixture's store, with the host's answers in order. */
 function sweeper(f: Fixture, host: HostAnswer[] = []) {
   const asked: string[] = []
   const sweep = createToolSweep(f.harness.memory, f.bodies, 4, {
@@ -146,7 +134,6 @@ it('Sweep: the bytes of an offloaded body leave the body store before the domain
   expect((await f.bodies.store.read(ref, { first: 0, count: 1 })).kind).toBe('found')
   await s.run(expiry - 1)
   expect((await f.bodies.store.read(ref, { first: 0, count: 1 })).kind).toBe('found')
-  // The body and the domain are due at the same instant: the body's entry comes first.
   const swept = await s.run(expiry)
   expect(swept).toEqual({ reclaimed: 1, removed: 1 })
   expect((await f.bodies.store.read(ref, { first: 0, count: 1 })).kind).toBe('absent')
@@ -243,7 +230,6 @@ it('LateOperation: a negative answer in a domain that holds the call schedules n
   expect(await due(f)).toEqual([])
 })
 
-/** Rewrites the stored call record of the fixture, as a later commit of the ledger would. */
 async function rewriteCall(f: Fixture, change: (state: Record<string, unknown>) => object) {
   const domain = { kind: 'call' as const, tenant: f.access.tenant, call: f.access.call }
   const read = await f.harness.memory.read(domain)
@@ -259,7 +245,6 @@ async function rewriteCall(f: Fixture, change: (state: Record<string, unknown>) 
   })
 }
 
-/** A released, quiet call whose removal is due at `now + G`. */
 async function dueCall() {
   const f = await settlementFixture()
   ok(await f.preserve())
@@ -354,7 +339,6 @@ it('Ack: the removal instant is now + G when that is later than the expiry of th
   const page = await f.resultPage()
   if (page.value.original.kind !== 'offloaded') throw new Error('expected an offloaded result')
   const expiry = msOf(page.value.original.retention.expiresAt)
-  // The consumer acknowledges shortly before the body expires: the grace ends after the expiry.
   late.now = expiry - 1
   vi.spyOn(f.bodies.clock, 'now').mockImplementation(() => instantAt(late.now))
   ok(await acknowledge(f))

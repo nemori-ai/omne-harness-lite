@@ -224,7 +224,6 @@ test.each(['configuration', 'trust'])('%s preflight rejects before creating stat
   const visibility = new Map(serveProfile().visibility)
   const declaration = rowDeclarationOf(sessionStorageRow)
   if (declaration === undefined) throw new Error('missing session storage declaration')
-  // One violation: the row no longer sees `storage`, the other names it sees stay.
   visibility.set(
     declaration.row,
     (visibility.get(declaration.row) ?? []).filter(name => name !== 'storage'),

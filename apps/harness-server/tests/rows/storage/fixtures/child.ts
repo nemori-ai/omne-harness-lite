@@ -1,5 +1,3 @@
-// 慢层用例的子进程：在给定状态根与存储根上装真实的存储行，`write` 模式建一个会话，`read` 模式读回。
-// 结果以一行 JSON 写到 stdout；关闭报告也在里面。用 Node 原生的类型剥离直接运行。
 import { parseArgs } from 'node:util'
 import { referenceSystemActionAuthorization } from '@omne-harness/authorization'
 import { inProcessPrincipalAuthority } from '@omne-harness/identity'
@@ -66,8 +64,6 @@ if (mode === 'write') {
 const after = await lookup.lookup({ tenant: textOf(TENANT_A) })
 const asked = tree.check.controls.asked().map(request => request.operation)
 const report = await tree.shutdown()
-// The persistence/restart probe uses the real identity authority with an explicit test grant.
-// The release grant and entry factory are checked in the parent assembly after C-AUTH arrives.
 const authority = inProcessPrincipalAuthority()
 const issued = authority.issuer.issueSystem({ component: 'test-directory-scanner' })
 if (!('ok' in issued)) throw new Error('principal issuance failed')

@@ -1,6 +1,3 @@
-// A fake server entry: a `ServerConnector` whose transports answer in this process. Every value
-// crosses as JSON text (the client core's in-process transport). It records what each request
-// carried, so a test can see which credentials went out.
 import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import {
   createInProcessTransport,
@@ -16,7 +13,6 @@ export const TENANT_TEXT = JSON.stringify({
   account: 'acc_00000000000000000000000000',
 })
 export const LOGIN_ID = 'lgn_00000000000000000000000002'
-/** The login proof the fake issues. Tests look for it in everything the page could see. */
 export const PROOF_SENTINEL = 'proof-SENTINEL-4f1c9a7e'
 
 export function value(plain: unknown): JsonValue {
@@ -64,9 +60,7 @@ type Stream = (
 export type FakeServer = {
   readonly connect: ServerConnector
   readonly seen: Seen[]
-  /** The answer of one operation (`<protocol>/v<major> <operation>`). */
   answer(target: string, answer: Answer): void
-  /** The stream of one observation. */
   stream(target: string, stream: Stream): void
 }
 
@@ -106,7 +100,6 @@ export function fakeServer(): FakeServer {
   }
 }
 
-/** A promise with its resolver, to hold an answer until the test lets it go. */
 export function gate<T>(): { readonly promise: Promise<T>; readonly open: (value: T) => void } {
   let open!: (value: T) => void
   const promise = new Promise<T>(resolve => {

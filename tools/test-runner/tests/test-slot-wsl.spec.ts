@@ -1,12 +1,4 @@
 // @module-tag slow
-// 归慢层：真实跨侧。Windows 宿主与 WSL 发行版各起名额脚本，经同一个物理目录互斥；要起 wsl.exe，等待都是真的。
-// 只在 Windows 宿主上、wsl.exe 起得来且 WSL 里有 node 时跑，否则每条用例用 context.skip 写明原因
-// （慢层开着 preParse，静态 skipIf 会把整个文件丢掉）。
-// 核对三件事（#979 D1）：WSL 里不给 OMNE_TEST_SLOT_DIR 时解析到 Windows 侧的同一个目录（Windows 建的探针文件
-// WSL 看得见、WSL 登记的名额 Windows 看得见）；Windows 持有时 WSL 排队、反向亦然；两侧各 20 个短命令抢同一目录，
-// 从没同时在跑（独立原子占用哨兵覆盖命令有效区间，另采样运行标记）、40 个进程都以 0 退出、恰好 40 行 ran。
-// Date.now 在 WSL 上可能回拨，墙钟区间与账本只留作诊断，不作重叠门；hrtime 原值不跨平台比较。
-// WSL 侧只读工作树里的脚本（它只用 Node 标准库），不往 WSL 里装任何东西；锁目录放在 Windows 临时目录下的私有目录。
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process'
 import {
   existsSync,
@@ -28,7 +20,6 @@ const SCRIPT = resolve(
 )
 const WINDOWS = process.platform === 'win32'
 
-/** wsl.exe 自己的输出是 UTF-16，字节里夹着 NUL；Linux 进程的输出是 UTF-8。统一去掉 NUL 再读。 */
 function text(raw: string | Buffer | null | undefined): string {
   return (raw ?? '').toString().replaceAll('\0', '')
 }
@@ -37,7 +28,6 @@ type Wsl =
   | { readonly ok: true; readonly distro: string }
   | { readonly ok: false; readonly reason: string }
 
-/** 能不能跑：Windows 宿主、wsl.exe 的缺省发行版起得来、里面有 node。只探一次。 */
 function probeWsl(): Wsl {
   if (!WINDOWS) return { ok: false, reason: '真实跨侧只在 Windows 宿主上跑' }
   const probe = spawnSync(
@@ -55,12 +45,10 @@ function probeWsl(): Wsl {
 }
 const wsl = probeWsl()
 
-/** 在 WSL 里跑一段 bash（登录 shell，PATH 里才有 node）。 */
 function wslArgs(script: string): [string, string[]] {
   return ['wsl.exe', ['--exec', 'bash', '-l', '-c', script]]
 }
 
-/** Windows 路径在 WSL 里的路径。 */
 function toWsl(windowsPath: string): string {
   const result = spawnSync('wsl.exe', ['--exec', 'wslpath', '-u', windowsPath], {
     encoding: 'utf8',
@@ -72,14 +60,12 @@ function toWsl(windowsPath: string): string {
   return path
 }
 
-/** bash 单引号：里面的单引号写成 '\''。 */
 const q = (value: string): string => `'${value.replaceAll("'", String.raw`'\''`)}'`
 
 let dir: string
 let wslDir: string
 let children: ChildProcess[] = []
 beforeEach(() => {
-  // 长名：Windows 的临时目录常带 8.3 短名，WSL 侧按长名找同一个目录。
   dir = realpathSync.native(mkdtempSync(join(tmpdir(), 'omne-slot-wsl-')))
   mkdirSync(join(dir, 'locks'))
   if (wsl.ok) wslDir = toWsl(dir)
@@ -137,18 +123,10 @@ async function waitFor(ready: () => boolean, what: string, limitMs = 60_000): Pr
   }
 }
 
-/**
- * 经名额执行的命令（node -e）：建 `<argv[1]>` 表示开始、等 `<argv[2]>` 出现再结束，最多等 90 秒。
- * `fs` 在 `node -e` 里是现成的全局量。
- */
 const HOLD_CODE = `fs.writeFileSync(process.argv[1], String(Date.now()));
 const until = Date.now() + 90_000;
 while (!fs.existsSync(process.argv[2]) && Date.now() < until) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);`
 
-/**
- * 独立哨兵覆盖所有有效工作，包括运行标记和诊断写入。竞争失败立即退出 86，不等待、不串行化命令。
- * argv[2] 放哨兵与诊断，argv[3] 只供负控延长首个命令，正常命令仍睡 300 毫秒。
- */
 const RUN_CODE = `const path = require('node:path');
 const sentinel = process.argv[2] + '/active';
 const observation = process.argv[2] + '/' + path.basename(process.argv[1]);
@@ -171,11 +149,6 @@ fs.writeFileSync(observation + '.json', JSON.stringify({ pid: process.pid, start
 fs.closeSync(fd);
 fs.rmSync(sentinel);`
 
-/**
- * 两侧的时钟不一定对得上（本机 WSL 落后 Windows 约 2 秒），跨侧的重叠不能比时刻。
- * 改由 Windows 侧这一个观察者每 10 毫秒看一次 `runs/` 里的 `.running` 标记：同时看到两个就是重叠。
- * 返回停止观察的函数，它给出看到过的最多并发数与第一次重叠时的标记名。
- */
 function observeOverlap(runs: string): () => { readonly most: number; readonly overlap: string[] } {
   let most = 0
   let overlap: string[] = []
@@ -195,7 +168,6 @@ function observeOverlap(runs: string): () => { readonly most: number; readonly o
   }
 }
 
-/** Windows 侧：直接用本进程的 node 起名额脚本，锁目录与账本在私有目录里，每秒看一次。 */
 function onWindows(code: string, extra: string[]): Running {
   const env: NodeJS.ProcessEnv = {
     ...process.env,
@@ -213,7 +185,6 @@ function onWindows(code: string, extra: string[]): Running {
   )
 }
 
-/** WSL 侧要起名额脚本时的 bash 前缀：同一个锁目录、自己的账本、每秒看一次，清掉继承的 HELD。 */
 function wslPrefix(): string {
   return [
     `cd ${q(wslDir)}`,
@@ -224,7 +195,6 @@ function wslPrefix(): string {
   ].join(' && ')
 }
 
-/** WSL 侧：经 wsl.exe 起名额脚本，脚本本身读工作树里的那一份。 */
 function onWsl(code: string, extra: string[]): Running {
   const command = [`node ${q(toWsl(SCRIPT))} node -e ${q(code)}`, ...extra.map(toWsl).map(q)].join(
     ' ',
@@ -249,7 +219,6 @@ function ledgerLines(name: string): LedgerLine[] {
     .map(line => JSON.parse(line) as LedgerLine)
 }
 
-/** 持有者在一侧占着，等待者在另一侧排队：等待者不开始；持有者放手后等待者才开始。 */
 async function holdAcross(
   holdOn: (code: string, extra: string[]) => Running,
   waitOn: (code: string, extra: string[]) => Running,
@@ -264,7 +233,6 @@ async function holdAcross(
   await waiter.until('排队中')
   await new Promise(tick => setTimeout(tick, 2500))
   expect(existsSync(waiterStarted)).toBe(false)
-  // 持有者的命令行与侧都报出来：Windows 上命令是 node.exe 的完整路径。
   expect(waiter.stderr()).toMatch(
     /名额 1\/1 正由「\S*node(\.exe)? -e [^」]*」占着，已 \d+ 秒（[^）]*，(win32|linux)@/u,
   )
@@ -308,7 +276,6 @@ describe('with-test-slot.mjs 跨 WSL 与 Windows', { timeout: 240_000 }, () => {
 
   it('没有 USERNAME 且不给 OMNE_TEST_SLOT_DIR：Windows 与 WSL 仍共用旧 TEMP 目录', async ctx => {
     if (!wsl.ok) ctx.skip(wsl.reason)
-    // 把一个私有目录当作 Windows 侧的 TEMP：WSLENV 让 interop 起的 PowerShell 看到它（/p 转成 Windows 路径）。
     const windowsTemp = join(dir, 'win-temp')
     mkdirSync(windowsTemp)
     const held = join(dir, 'held')
@@ -342,10 +309,8 @@ while (!fs.existsSync(process.argv[2]) && Date.now() < until) Atomics.wait(new I
     await waitFor(() => existsSync(held) || holder.child.exitCode !== null, '脚本拿到名额')
     expect(holder.child.exitCode, holder.stderr()).toBeNull()
     const windowsSlotDir = join(windowsTemp, `omne-test-slots-${userInfo().username}`)
-    // WSL 侧登记在解析出的路径下，这个路径就是 Windows 侧那个目录。
     expect(readFileSync(held, 'utf8')).toBe(`${toWsl(windowsSlotDir)}/slot-1.lock`)
     expect(holder.stderr()).not.toContain('没有共用名额')
-    // Windows 侧看得见 WSL 登记的名额；PowerShell 建的探针用完即删。
     expect(readFileSync(join(windowsSlotDir, 'slot-1.lock'), 'utf8')).toContain('\nside=linux@')
     expect(readdirSync(windowsSlotDir).filter(name => name.startsWith('.omne-probe-'))).toEqual([])
     const waiterStarted = join(dir, 'windows.started')
@@ -411,7 +376,6 @@ while (!fs.existsSync(process.argv[2]) && Date.now() < until) Atomics.wait(new I
     const windowsSide = Array.from({ length: count }, (_, index) =>
       onWindows(RUN_CODE, [join(runs, `windows-${index}`), observations]),
     )
-    // WSL 侧一次起 20 个放到后台，逐个 wait 收退出码；wsl.exe 退出时会杀掉它起的进程，所以要在里面等完。
     const script = [
       wslPrefix(),
       'pids=()',
@@ -442,10 +406,8 @@ while (!fs.existsSync(process.argv[2]) && Date.now() < until) Atomics.wait(new I
     ).toEqual([])
     expect(readdirSync(observations).filter(name => name.endsWith('.json'))).toHaveLength(2 * count)
     expect(existsSync(join(observations, 'active'))).toBe(false)
-    // 跨侧：观察者从没同时看到两个在跑。
     expect(seen.overlap, '同时在跑').toEqual([])
     expect(seen.most).toBe(1)
-    // 墙钟和单调时钟原值只作诊断。WSL 墙钟会回拨，不按它们排序判互斥。
     const intervals = readdirSync(runs)
       .filter(name => !name.endsWith('.running'))
       .map(name => {
@@ -460,7 +422,6 @@ while (!fs.existsSync(process.argv[2]) && Date.now() < until) Atomics.wait(new I
         true,
       )
     }
-    // 账本仍须恰好 40 行、都以 0 退出，RFC3339 原值保留作诊断。
     const sides = {
       windows: ledgerLines('ledger-windows.jsonl'),
       wsl: ledgerLines('ledger-wsl.jsonl'),

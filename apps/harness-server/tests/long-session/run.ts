@@ -1,29 +1,3 @@
-// The long-session measurement (line #1220, M1 to M4): one session of one tenant on the release
-// assembly of `../history-cost/assembly.ts` (the release distribution, real SQLite storage, the
-// release Shell, the local model gateway) gets `--rounds` inputs one after the other. Each round
-// is one user input: the scripted model calls the release Shell once, gets a 4 KiB result back
-// inline and answers with text, so a round is two model calls and one tool call. Per round the run
-// records the six readings that `docs/engineering/perf-baseline.md` defines, then `judge.ts`
-// judges them. The probes live in this directory and in the assembly; no member source changes.
-//
-//   node apps/harness-server/tests/long-session/run.ts --out <new directory> [--rounds 200]
-//     [--control growth] [--heap-snapshots 10,30]
-//
-// Build the workspace first (`pnpm run build`). `--control growth` is the negative control: every
-// round the Shell sleeps 2 ms longer, the process keeps 1 MiB more, and the data directory gets a
-// file 16 KiB larger than the round before, so all three series grow. Writes `rounds.jsonl` (one
-// line per round), `storage-<round>.json`, `visible-<round>.json` and `polling-<round>.json` every
-// ten rounds, `run.json`, then `summary.json` and `summary.md` from `judge.ts`. Exits 0 when the
-// run completed, whatever the gates say, and 1 when it failed: most gates have no line yet, so
-// they are reported, not enforced. `--heap-snapshots` writes `heap-<round>.heapsnapshot` after the
-// listed rounds; a snapshot pauses the process, so a run with snapshots is not a baseline.
-//
-// Counting: a round's phase lasts from its input until `SETTLE_MS` after its terminal, so the work
-// that ends after the terminal (releases, settlements) counts in the round that caused it. The run
-// learns that a round ended by reading the newest terminal entry through the entry every
-// `POLL_MS`; each poll costs storage reads of its own. Every ten rounds, after the round settled,
-// the run polls `CALIBRATION_POLLS` times in a phase of its own and keeps the reads per poll by
-// handler; a round's reads are its counted reads minus its polls times that profile.
 import { randomUUID } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import {
@@ -51,13 +25,11 @@ import { bodyOf, savedLoginProof, savedTenant } from '../r9/support.ts'
 import { judge } from './judge.ts'
 import { installWorkerCount, type PhaseCounts } from './worker-count.ts'
 
-/** The kinds the release answers in `read-history`: the visible history. */
 const VISIBLE_KINDS = ['message.user', 'message.assistant'] as const
 const POLL_MS = 20
 const ROUND_LIMIT_MS = 180_000
 const SETTLE_MS = 500
 const CALIBRATION_POLLS = 20
-/** Phases outside the rounds: setup, the polls of a calibration, the snapshots. */
 const SETUP = 0
 const CALIBRATION = -1
 const SNAPSHOT = -2
@@ -80,7 +52,6 @@ const rounds = Number(args.rounds)
 if (!Number.isSafeInteger(rounds) || rounds < 1)
   throw new Error('--rounds must be a positive integer')
 const control = args.control ?? null
-/** Rounds after which to write a V8 heap snapshot, to tell which objects hold the growing heap. */
 const heapSnapshotRounds = new Set(
   (args['heap-snapshots'] ?? '')
     .split(',')
@@ -93,7 +64,6 @@ type Segment = Readonly<{ owner: string; name: string; endMs: number; durationMs
 type Entry = Readonly<{ kind?: string; payload?: { terminal?: { outcome?: string } } }>
 type Page = Readonly<{ entries: Entry[]; next: string | null; exhausted: boolean }>
 
-/** The telemetry records the server writes to its stdout writer: segment ends, counts of the rest. */
 function createTelemetryTap() {
   const segments: Segment[] = []
   const counts = { records: 0, segments: 0, other: {} as Record<string, number> }
@@ -115,11 +85,6 @@ function createTelemetryTap() {
       durationMs: Number(Reflect.get(value, 'durationMs')),
     })
   }
-  /**
-   * The segments that ended in `[from, to]` (wall milliseconds): union by owner, totals by name.
-   * Every segment that ended by `to` is dropped, so the tap holds one round at most and the
-   * measurement does not grow the memory it measures.
-   */
   const between = (from: number, to: number) => {
     const mine = segments.filter(item => item.endMs >= from && item.endMs <= to)
     const later = segments.filter(item => item.endMs > to)
@@ -141,7 +106,6 @@ function createTelemetryTap() {
   return { record, between, counts }
 }
 
-/** The union of the intervals, in milliseconds. */
 function unionMs(intervals: readonly (readonly [number, number])[]): number {
   let total = 0
   let end = -Infinity
@@ -153,7 +117,6 @@ function unionMs(intervals: readonly (readonly [number, number])[]): number {
   return total
 }
 
-/** The bytes of every file under `dir`. */
 function treeBytes(dir: string): number {
   let total = 0
   for (const name of readdirSync(dir)) {
@@ -167,7 +130,6 @@ function treeBytes(dir: string): number {
 const reads = (counts: PhaseCounts): Record<string, number> =>
   Object.fromEntries(Object.entries(counts.messages).filter(([kind]) => kind.startsWith('read:')))
 
-/** A round's reads by handler with its polls taken out at the calibrated reads per poll. */
 function withoutPolls(
   counted: Record<string, number>,
   polls: number,
@@ -207,7 +169,6 @@ async function readHistory(
       protocolVersion: 'session-public/1',
       messageId: randomUUID(),
       operation: 'read-history',
-      // A continued read names its cursor only; the cursor carries the direction and the page size.
       body:
         cursor === null
           ? { tenant: savedTenant(home), session, cursor, direction, pageBytes: String(pageBytes) }
@@ -221,14 +182,12 @@ async function readHistory(
   return (JSON.parse(text) as { body: Page }).body
 }
 
-/** The newest terminal entry as text, or null before the first. */
 async function newestTerminal(session: string): Promise<string | null> {
   const page = await readHistory(session, null, 'backward', 65_536)
   const terminal = page.entries.find(entry => entry.payload?.terminal !== undefined)
   return terminal === undefined ? null : JSON.stringify(terminal)
 }
 
-/** The JSON bytes of the visible history: every entry of the visible kinds, read page by page. */
 async function visibleHistory(session: string) {
   let cursor: string | null = null
   let bytes = 0
@@ -270,7 +229,6 @@ try {
   const tenant = parseTenantText(savedTenant(home))
   if (tenant === undefined) throw new Error('the saved tenant does not parse')
 
-  /** After the round settled: the reads per poll by handler, then the storage and the history. */
   const calibrateAndSnapshot = async (at: number): Promise<Record<string, number>> => {
     count.setPhase(CALIBRATION - at * 1000)
     for (let poll = 0; poll < CALIBRATION_POLLS; poll += 1) await newestTerminal(session)
@@ -291,7 +249,6 @@ try {
     return perPoll
   }
 
-  /** One round from its input to the terminal entry it causes; the counts come later. */
   const runRound = async (before: string | null) => {
     assembly.model.start(false)
     const modelBefore = assembly.modelMs()
@@ -358,7 +315,6 @@ try {
     }
   }
 
-  /** Writes the line of a round once its phase has closed, so its trailing work is in it. */
   const writeRound = (
     row: Readonly<{ round: number; polls: number }>,
     perPoll: Record<string, number>,
@@ -393,7 +349,6 @@ try {
     }
     const { terminal, row } = await runRound(before)
     before = terminal
-    // The work a round leaves after its terminal (releases, settlements) still counts in it.
     await sleep(SETTLE_MS)
     if (round % 10 === 0 || round === rounds) perPoll = await calibrateAndSnapshot(round)
     count.setPhase(BETWEEN)

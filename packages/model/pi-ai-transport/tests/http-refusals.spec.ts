@@ -5,10 +5,8 @@ import type { ConnectionReservation } from '../src/capacity.ts'
 import { startExchange, type ExchangeInput, type ExchangeRefusal } from '../src/http.ts'
 import { openNetwork, type NetworkInternals } from '../src/network.ts'
 
-// Nothing listens here: a refusal that still sent would surface as a connect failure.
 const UNREACHABLE = new URL('https://127.0.0.1:9/v1/responses')
 
-/** Every request Node built for this file, recorded by a delegate of the real `https.request`. */
 const built = vi.hoisted((): { readonly requests: ClientRequest[] } => ({ requests: [] }))
 vi.mock('node:https', async importOriginal => {
   const actual = await importOriginal<typeof import('node:https')>()
@@ -53,13 +51,11 @@ function input(
   }
 }
 
-/** Node built no request and the pool opened no socket. */
 function expectNoNetworkUse(network: NetworkInternals): void {
   expect(built.requests).toEqual([])
   expect(network.agent.sockets).toEqual({})
 }
 
-/** Starts with a held reservation and expects a refusal that returns it without any network use. */
 async function refused(
   overrides: Partial<ExchangeInput>,
   reason: ExchangeRefusal,
@@ -125,7 +121,6 @@ describe('refusing an exchange before anything is sent', () => {
     [{ maxErrorBodyBytes: Number.NaN }],
     [{ connectTimeoutMs: 0 }],
     [{ connectTimeoutMs: Number.POSITIVE_INFINITY }],
-    // One above the largest delay a Node timer takes; a larger value would fire after 1 ms.
     [{ connectTimeoutMs: 2_147_483_648 }],
   ])('refuses the limits %j as invalid-limit', async limits => {
     await refused(limits, 'invalid-limit')
@@ -235,7 +230,7 @@ describe('a synchronous throw inside startExchange', () => {
 
     expect(() => startExchange(network, defective, new AbortController().signal)).toThrow('read 1')
     expectNoNetworkUse(network)
-    expect(reservation.state).toBe('held') // Never reached: the input hid it behind the throw.
+    expect(reservation.state).toBe('held')
     reservation.release()
   })
 

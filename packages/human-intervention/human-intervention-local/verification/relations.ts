@@ -3,11 +3,9 @@ import type { DatabaseSync } from 'node:sqlite'
 const expectedPool = `SELECT DISTINCT s.tenant_ref,s.request_sequence,s.bucket,r.actor_ref FROM hi_card_states_v2 s JOIN hi_request_readers_v2 r USING(tenant_ref,request_sequence)`
 const actualPool =
   'SELECT tenant_ref,request_sequence,bucket,actor_ref FROM hi_pool_request_buckets_v2'
-// 过滤目录：每个请求按来源出现在若干范围里，见 relational-ddl.ts 的 hi_pool_scoped_buckets_v2。
 const scopedBase = `SELECT DISTINCT s.tenant_ref,s.request_sequence,s.bucket,r.actor_ref,%SESSION%,%ORIGIN% FROM hi_card_states_v2 s JOIN hi_request_readers_v2 r USING(tenant_ref,request_sequence) JOIN hi_requests_v2 q ON q.tenant_ref=s.tenant_ref AND q.sequence=s.request_sequence`
 const scope = (session: string, origin: string, where = '') =>
   scopedBase.replace('%SESSION%', session).replace('%ORIGIN%', origin) + where
-// 外层 SELECT 使三段 UNION 成为一个整体，EXCEPT 不会只作用于最后一段。
 const expectedScopedPool = `SELECT * FROM (${[
   scope("'*'", 'q.origin_kind'),
   scope('q.session_ref', "'*'", ' WHERE q.session_ref IS NOT NULL'),

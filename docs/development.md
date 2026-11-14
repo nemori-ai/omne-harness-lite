@@ -164,7 +164,6 @@ Cordis 服务关系与领域规则仍由 `pnpm run lint:rules` 检查。
 5. 新版本在组合候选上的结果不得比旧版本在目标分支上的结果多出失败；两边都有的既有失败如实列出。不满足时不确认。
 6. 新版本有问题时，再开一个 PR 把钉子改回旧版本，同样按第 3 至 5 步运行与确认。npm 上已经发布的版本不再修改。
 
-这一流程的决定来源是 [RFC-0008](rfcs/RFC-0008-repo-toolchain-trust.md)。
 
 ## 开始一次交付
 
@@ -242,7 +241,7 @@ uv run --locked omne-documentation inventory --root . --out tmp/documentation-in
 
 ## 运行入口
 
-**先构建，再按所属应用的 README 启动。**现有应用及其构建与运行命令见[应用入口](../apps/README.md#现有成员)。封存治理中心已从仓库删除，固定提交中的命令与配置见
+**先构建，再启动所属应用。**封存治理中心已从仓库删除，固定提交中的命令与配置见
 [tenancy-host](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/tenancy-host/README.md)，从零部署并完成账号/组织旅程的演练见
 [黑盒端到端入口](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/tenancy-host/tests/e2e/README.md)。后者使用实际构建产物，包含网络、证书和临时数据目录的环境要求。
 
@@ -288,7 +287,7 @@ pnpm run test:affected --base "$TASK_BASE" --tier slow
 
 成员测试的结果有缓存。`pnpm run check`、`test:affected` 与 `test:tier` 默认读缓存：同一台机器上，键与一次完整通过完全相同的成员不再执行，输出写明命中。要让它们重跑，设 `OMNE_TEST_CACHE=0`；`test:affected` 另认 `--no-cache`。`pnpm run check` 与 `test:tier` 经脚本入口运行，不认 `--no-cache`。命中只说明同样的输入曾经完整通过，不说明这次再跑也会通过。键、写入条件与边界见[结果缓存](../tools/test-runner/README_ZH.md#测试运行)。
 
-按 [RFC-0002 revision 2](rfcs/RFC-0002-engineering-toolchain.md#影响面选择)，改了哪些成员、哪些成员依赖它们，由 turbo 的 `--affected` 给出；构建由 `turbo run build` 编排，按依赖先构建上游，本机读写 `.turbo/` 缓存。类型检查由 `turbo run typecheck` 运行，不先构建，按输入缓存（依赖上游成员的 `typecheck`，上游源码改动后下游重新检查；准入时只写不读），运行前由 `tools/test-runner` 核对嵌套归档目录已在成员的 `tsconfig.test.json` 排除。类型检查的缓存键只覆盖成员目录、`workspace:` 依赖的上游成员和根 `turbo.json` 的 `globalDependencies`。成员的类型检查经相对路径读取其他成员的文件时，要把这些文件列入 `globalDependencies`，否则单独运行会命中过时的结果。现在列入的是仓库根的 `vitest.tiers.mts`，以及 `tools/dev-flow`、`tools/test-runner` 测试读取的 `tools/repo-toolchain/src/**` 与 `tools/repo-toolchain/tests/fixtures/**`。成员测试由 `turbo run test:fast`、`test:slow` 或 `test` 运行，层由 vitest 的 mode 选择；`tools/test-runner` 负责计划、调用 turbo，并照旧写出测试耗时账本。可执行验收仍由 `tools/test-runner` 逐成员执行。
+改了哪些成员、哪些成员依赖它们，由 turbo 的 `--affected` 给出；构建由 `turbo run build` 编排，按依赖先构建上游，本机读写 `.turbo/` 缓存。类型检查由 `turbo run typecheck` 运行，不先构建，按输入缓存（依赖上游成员的 `typecheck`，上游源码改动后下游重新检查；准入时只写不读），运行前由 `tools/test-runner` 核对嵌套归档目录已在成员的 `tsconfig.test.json` 排除。类型检查的缓存键只覆盖成员目录、`workspace:` 依赖的上游成员和根 `turbo.json` 的 `globalDependencies`。成员的类型检查经相对路径读取其他成员的文件时，要把这些文件列入 `globalDependencies`，否则单独运行会命中过时的结果。现在列入的是仓库根的 `vitest.tiers.mts`，以及 `tools/dev-flow`、`tools/test-runner` 测试读取的 `tools/repo-toolchain/src/**` 与 `tools/repo-toolchain/tests/fixtures/**`。成员测试由 `turbo run test:fast`、`test:slow` 或 `test` 运行，层由 vitest 的 mode 选择；`tools/test-runner` 负责计划、调用 turbo，并照旧写出测试耗时账本。可执行验收仍由 `tools/test-runner` 逐成员执行。
 
 turbo 不提供的规则留在 `tools/test-runner/test-runs.config.json`：全局文件改动判全量；测试读取成员目录以外的文件时带上对应成员；Python 工具、常驻检查和 legacy 排除；没有规则认得的文件判全量，不按猜的范围少跑。`turbo` 2.11.7 的 `--affected` 默认不参考任务 `inputs` 里指向成员目录外的文件，所以读者规则不能改写成 `inputs`。
 
@@ -444,7 +443,7 @@ gh pr create --base integration/mainline --head <自己的工作分支> \
 | 形式工具检查失败 | `pnpm run check:formal-tools` 看 Java/JAR 是否就位；输出`MISMATCH`表示`TLA2TOOLS_JAR`不是钉住的v1.7.4发布文件；缺环境、覆盖缺口与执行失败是三件事 |
 | `No projects matched the filters` | 核对 `pnpm-workspace.yaml` 和成员 `package.json` 的实际包名；应用包括 `@omne-harness/cli`、`@omne-harness/harness-server`、`@omne-harness/m2-contract-skeleton` |
 | `storage conformance · postgres` 显示 skipped | 未设 `OMNE_TEST_PG_URL`；跳过不是通过（[验证与证据](verification.md)） |
-| 不知道如何启动产品 | 先构建，再按[应用入口](../apps/README.md#现有成员)的命令启动；制品打包不自动安装或发布服务 |
+| 不知道如何启动产品 | 先构建，再启动所属应用；制品打包不自动安装或发布服务 |
 
 ### 投影、工作树与宿主的常见坑
 

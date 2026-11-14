@@ -45,7 +45,6 @@ describe('contract API snapshot format', () => {
       '',
       '> 由 `omne-contract-api --write` 从 dist 的声明生成，不要手改。',
     ])
-    // Entries by subpath with their exports by name, then declaration files by path.
     expect(text.match(/^## .*$/gmu)).toEqual([
       '## 入口 `.` · `index.d.ts`',
       '## 入口 `./testing` · `testing/index.d.ts`',

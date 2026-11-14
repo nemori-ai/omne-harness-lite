@@ -1,11 +1,3 @@
-// The deployment enumeration of `session-storage` asks `systemActionAuthorization` of the
-// `authorization` row on every call (R2-D245), so the operator's tightening of the built-in grant
-// table reaches it. The cases load the real `storage`, `authorization` and `session-storage` rows
-// on the release trusted table, with the real entry principal authority and the release scanner
-// principal; `tenantStanding` and `identityGovernance` are contract doubles (the enumeration never
-// reads them; the `authorization` row injects both) and
-// `identityClock` is a test clock that the case moves. Each case has a control in the same tree
-// shape that must answer otherwise.
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -50,7 +42,6 @@ function instantOf(text: string) {
   return parsed.value
 }
 
-/** A clock the case moves; the `authorization` row reads it on every end-time judgment. */
 function testClock(initial: string) {
   let reading: ClockReading = { kind: 'read', instant: instantOf(initial) }
   let reads = 0
@@ -72,10 +63,6 @@ function testClock(initial: string) {
   }
 }
 
-/**
- * The `identity` row as a contract double: the trusted `tenantStanding` and `identityGovernance` that
- * the `authorization` row injects. No case reads them: a system principal has no login to query.
- */
 const standingRow = defineRow({
   row: 'identity',
   implementation: 'contract-double',
@@ -98,7 +85,6 @@ const standingRow = defineRow({
   },
 })
 
-/** A root plugin that provides `systemActionAuthorization` under the plain name and allows all. */
 const impostor: Plugin.Object = {
   name: 'system-action-impostor',
   apply(ctx: Context) {
@@ -109,7 +95,6 @@ const impostor: Plugin.Object = {
 }
 
 type Setup = Readonly<{
-  /** `maintenanceGrants` of the real row; `null` loads a contract double that has no system key. */
   grants: Record<string, unknown> | null
   initial?: string
   withImpostor?: boolean

@@ -1,8 +1,3 @@
-// A `SqlStorage` wrapper that arms one fault for the next matching commit or read. Each fault is an
-// answer the SQL storage contract allows (sql-contract §5.5, §7, §9), except `throw-applied`, a
-// provider that breaks §2.5 by throwing after it applied the writes: the adapters must not turn it
-// into a success. A `delayed` commit is held as an operation still in the admission queue: its
-// caller sees `unknown`, and `land` sends it, so its condition is judged when it runs.
 import type {
   CommitRequestV2,
   CommitResultV2,
@@ -11,32 +6,21 @@ import type {
 } from '@omne-harness/sql-contract'
 
 export type CommitFault =
-  /** Rejected before acceptance (`queue_full`): nothing is written. */
   | 'rejected'
-  /** The commit runs, and its answer is lost (`unknown`). */
   | 'unknown-applied'
-  /** Nothing runs, and the answer is `unknown`. */
   | 'unknown-dropped'
-  /** The commit runs, and then the provider throws. */
   | 'throw-applied'
-  /** Nothing runs before `land`, which sends the held commit; the answer is `unknown`. */
   | 'delayed'
-  /** The provider throws before anything runs, as a process that stops before the commit. */
   | 'interrupted'
 
 export type Intent = 'ledger' | 'chunk' | 'manifest'
 
 export type FaultyStorage = Readonly<{
   storage: SqlStorage
-  /** Arms `fault` for the next commit whose command has `intent` (any command when omitted). */
   armCommit(fault: CommitFault, intent?: Intent): void
-  /** Arms `fault` for the commit number `ordinal` (from 1) counted from now, whatever its intent. */
   armCommitAt(fault: CommitFault, ordinal: number): void
-  /** Makes the next read answer `unavailable` (`queue_timeout`). */
   failNextRead(): void
-  /** Sends every held commit in the order it was held. */
   land(): Promise<void>
-  /** The commits that reached the wrapper, by intent. */
   commits(intent?: Intent): number
 }>
 

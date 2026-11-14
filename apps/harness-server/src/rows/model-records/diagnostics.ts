@@ -6,7 +6,6 @@ const failureOf = (failure: ModelFailure) => ({
   failure: failure.kind === 'denied' ? { kind: 'denied' as const, action: 'diagnostics' } : failure,
 })
 
-/** Each page owns its qualification, including calls made without ModelCalls first. */
 export function qualifyingDiagnostics(
   reader: ModelDiagnostics<unknown>,
   qualify: (access: Access<unknown>) => Promise<ModelReadLease>,

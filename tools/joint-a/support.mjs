@@ -1,7 +1,3 @@
-// 联调 A 的公共件：临时工作区、运维者层、`serve` 与 `omne` 的子进程、两个面的直接 POST、判定与记录。
-//
-// 本目录不是 pnpm 工作区成员，裸名 `@omne-harness/*` 在这里解析不到，所以这里不导入任何产品包。
-// 需要真件的地方一律经构建产物 `dist/bin.js` 起子进程，与 `apps/harness-server/tests/r9/` 的写法相同。
 import { spawn, spawnSync } from 'node:child_process'
 import {
   existsSync,
@@ -26,14 +22,8 @@ export const cliBin = join(cliMember, 'dist', 'bin.js')
 export const s0Distribution = join(serverMember, 'config', 's0.distribution.json')
 export const serveDistribution = join(serverMember, 'config', 'serve.distribution.json')
 
-/** `serve` 的关闭截止时间。`storage` 行的关闭期限比它低一秒。 */
 export const SHUTDOWN_DEADLINE_MS = 5000
 
-/**
- * 联调脚本起整棵发行树，是重负载检查，要先取机器的运行名额（`scripts/with-test-slot.mjs`），
- * 与准入、全量测试排同一个队。已经持有名额（`OMNE_TEST_SLOT_HELD`）时直接放行；否则在名额包装下
- * 重新运行本脚本，并以它的退出码退出。
- */
 export function holdTestSlot(scriptUrl) {
   if (process.env['OMNE_TEST_SLOT_HELD']) return
   const child = spawnSync(
@@ -53,7 +43,6 @@ export const READINESS_TIMEOUT_MS = 15_000
 export const SESSION_PATH = '/session-public/1'
 export const GOVERNANCE_PATH = '/governance-public/1'
 
-/** 三种判定。`blocked` 不是失败：它写明等哪一件。 */
 export const PASS = 'pass'
 export const FAIL = 'fail'
 export const BLOCKED = 'blocked'
@@ -67,14 +56,12 @@ export function verdict(step, name, state, detail, awaiting) {
 export const failureCount = checks => checks.filter(entry => entry.state === FAIL).length
 export const blockedCount = checks => checks.filter(entry => entry.state === BLOCKED).length
 
-/** 按判定算退出码：有失败为 1，只剩等件为 3，全部通过为 0。 */
 export function exitCodeOf(checks) {
   if (failureCount(checks) > 0) return 1
   if (blockedCount(checks) > 0) return 3
   return 0
 }
 
-/** 把判定逐行打印，再把完整记录写进证据目录。返回退出码。 */
 export function report(title, checks, evidenceDir, extra = {}) {
   const bad = failureCount(checks)
   const waiting = blockedCount(checks)
@@ -103,7 +90,6 @@ export function headOf() {
   return run.status === 0 ? run.stdout.trim() : 'unknown'
 }
 
-/** 构建产物在不在。缺时不去起子进程，直接报等件。 */
 export function missingBuild() {
   const missing = []
   if (!existsSync(serverBin)) missing.push(serverBin)
@@ -111,7 +97,6 @@ export function missingBuild() {
   return missing
 }
 
-/** 一个暂时空闲的端口。`server-entry` 不接受 0，所以先探一个再关掉。 */
 export function freePort() {
   return new Promise((resolvePort, reject) => {
     const probe = createServer()
@@ -124,7 +109,6 @@ export function freePort() {
   })
 }
 
-/** 一次运行的全部临时物。`base` 下放状态根、存储根与各用户的运行目录。 */
 export function newScratch(prefix = 'joint-a-') {
   const base = realpathSync(mkdtempSync(join(tmpdir(), prefix)))
   const stateRoot = join(base, 'state')
@@ -137,11 +121,6 @@ export function newScratch(prefix = 'joint-a-') {
   }
 }
 
-/**
- * `storage` 行的配置，即 sqlite-provider 规格 §12.1 的候选初值。
- * 每个字段都是必填的正整数，所以写全。数值与 `apps/harness-server/tests/rows/storage/fixtures/tree.ts`
- * 的 `providerConfig` 相同；那份夹具在成员目录里能导入裸名，本目录不行，所以抄成字面。
- */
 export function storageConfig(storageRoot, closeDeadlineMs) {
   return {
     storageRoot,
@@ -153,8 +132,7 @@ export function storageConfig(storageRoot, closeDeadlineMs) {
     maxCommandBytes: 1048576,
     maxRequestBytes: 4194304,
     globalInFlightWriteBytes: 67108864,
-    // 发行配置 storage 行的 `maxJsonDepth`（R2-D270）：整行替换时要抄过来，否则带首条输入的 Session `create`（K-14，69 层）
-    // 在提供者初值 64 下被拒（command_limit）。K-23 桥删除后 A2 的 Tool 意图材料只有个位数层（R2-D372）。
+    // maxJsonDepth 须不小于 69：首条输入的 Session create 有 69 层，提供者初值 64 会以 command_limit 拒绝。
     maxJsonDepth: 128,
     maxJsonMembers: 65536,
     maxResponseBytes: 65536,
@@ -192,10 +170,6 @@ export function storageConfig(storageRoot, closeDeadlineMs) {
   }
 }
 
-/**
- * 运维者层：发行配置里写绝对路径与端口的三行由它给。
- * `storage` 的关闭期限比 `serve` 的截止时间低一秒，见 harness-server SPEC「有序关闭」第 6 步。
- */
 export function operatorLayer(options) {
   const deadline = options.shutdownDeadlineMs ?? SHUTDOWN_DEADLINE_MS
   return {
@@ -214,17 +188,14 @@ export function operatorLayer(options) {
           domainRule: 'organization-account/1',
         },
       },
-      // 模型侧两行的配置是机器级参数：保管库路径与官方档案快照。写进运维层，不写进发行配置。
       {
         kind: 'replace',
         id: 'model-credential',
         config: {
           path: join(options.storageRoot, 'model-vault.json'),
-          // 联调不读真实供应商凭据：这个值只用来建立保管库文件。
           factorySecret: 'joint-a-test-factory-secret',
         },
       },
-      // 秘密保管行打开模型凭据插件建立的同一个保管库文件（web-meta-tool 切片 04）。
       {
         kind: 'replace',
         id: 'secret-custody',
@@ -253,7 +224,6 @@ export function writeJson(path, value) {
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, 'utf8')
 }
 
-/** 结束一个子进程和它启动的全部进程。Windows 上 `kill` 会留下孤儿，要用 `taskkill /T`。 */
 export function killTree(child) {
   if (child.pid === undefined || child.exitCode !== null) return
   if (process.platform === 'win32')
@@ -261,14 +231,12 @@ export function killTree(child) {
   else child.kill('SIGKILL')
 }
 
-/** stdout 每行一条 JSON 记录。不是 JSON 的行忽略。 */
 export const parseRecords = stdout =>
   stdout
     .split('\n')
     .filter(line => line.startsWith('{'))
     .map(line => JSON.parse(line))
 
-/** 一次 `s0` 运行：装载完就自动停。返回退出码与记录。 */
 export function runS0Process(options = {}) {
   const args = [
     serverBin,
@@ -294,10 +262,6 @@ export function runS0Process(options = {}) {
   }
 }
 
-/**
- * 起一个 `serve` 进程，等到 `startup-result` 写入再返回句柄。
- * 进程先退出或超时时以已收集的输出拒绝。
- */
 export function startServer(options) {
   const args = [
     serverBin,
@@ -336,7 +300,6 @@ export function startServer(options) {
     records: () => parseRecords(stdout),
     stdout: () => stdout,
     stderr: () => stderr,
-    /** 有序停止：关标准输入，等进程退出。 */
     stop: () => {
       child.stdin.end()
       return outcome()
@@ -375,7 +338,6 @@ export function startServer(options) {
   })
 }
 
-/** 一次 `omne` 调用。口令走标准输入，不进命令行。 */
 export function runOmne(options) {
   const env = {
     PATH: process.env['PATH'] ?? '',
@@ -408,7 +370,6 @@ export function runOmne(options) {
   }
 }
 
-/** 一个面的直接 POST，返回状态码与原始响应体。 */
 export async function post(port, path, body) {
   const response = await fetch(`http://127.0.0.1:${String(port)}${path}`, {
     method: 'POST',
@@ -418,17 +379,14 @@ export async function post(port, path, body) {
   return { status: response.status, body: await response.text() }
 }
 
-/** `omne login` 存下的登录证明。 */
 export function savedLoginProof(home) {
   return JSON.parse(readFileSync(join(home, 'login.json'), 'utf8')).loginProof
 }
 
-/** `omne login` 存下的租户文本。 */
 export function savedTenant(home) {
   return JSON.parse(readFileSync(join(home, 'login.json'), 'utf8')).tenantId
 }
 
-/** 读一条会话历史。游标为 null 表示从第一页开始。 */
 export function readHistoryRequest(tenant, session, loginProof, options = {}) {
   return {
     protocolVersion: 'session-public/1',
@@ -445,7 +403,6 @@ export function readHistoryRequest(tenant, session, loginProof, options = {}) {
   }
 }
 
-/** 一份拒绝：会话面用 HTTP 403 加 `outcome: denied`，正文是脱敏的空 body。 */
 export function isDenied(reply) {
   if (reply === undefined) return false
   if (reply.status !== 200 && reply.status !== 403) return false
@@ -456,7 +413,6 @@ export function isDenied(reply) {
   }
 }
 
-/** 一份成功：HTTP 200 加 `outcome: succeeded`。 */
 export function isSucceeded(reply) {
   if (reply === undefined || reply.status !== 200) return false
   try {
@@ -466,7 +422,6 @@ export function isSucceeded(reply) {
   }
 }
 
-/** 解析后的响应体；读不出时给 undefined。 */
 export function replyOf(reply) {
   try {
     return JSON.parse(reply.body)
@@ -475,14 +430,12 @@ export function replyOf(reply) {
   }
 }
 
-/** 不是 ACTIVE 的行，写成 `id:state`。 */
 export function notActive(records) {
   return records
     .filter(record => record.kind === 'row-state' && record.state !== 'ACTIVE')
     .map(record => `${String(record.id)}:${String(record.state)}`)
 }
 
-/** 树的实现计数。`startup-result.implementations` 读不到时从 `tree` 记录数。 */
 export function implementations(records) {
   const startup = records.find(record => record.kind === 'startup-result')
   if (startup?.implementations !== undefined) return startup.implementations
@@ -495,7 +448,6 @@ export function implementations(records) {
   return counts
 }
 
-/** 替身行：`implementation` 不是 `real` 的启用行。 */
 export function doubleRows(records) {
   return records
     .filter(record => record.kind === 'tree' && record.disabled !== true)
@@ -503,7 +455,6 @@ export function doubleRows(records) {
     .map(record => `${String(record.id)}(${String(record.implementation)})`)
 }
 
-/** 证据目录：给了就用给的，否则用 `tmp/m2-joint-a/<标题>/`。`tmp/` 不入库。 */
 export function evidenceDirFor(title, override) {
   return override ?? join(repoRoot, 'tmp', 'm2-joint-a', title)
 }

@@ -21,7 +21,6 @@ import type { FacilityKey } from './facility.ts'
 import type { OriginRef } from './identity.ts'
 import type { InstanceIdentity } from './lease.ts'
 
-/** One original call's current placement in a scope. An observation, not control. */
 export type ExecutionPlacementEntry = Readonly<{
   origin: OriginRef
   binding: EnvironmentBinding
@@ -33,16 +32,8 @@ export type ExecutionPlacementEntry = Readonly<{
 
 export type ExecutionPlacementValue = readonly ExecutionPlacementEntry[]
 
-/**
- * A calendar date `YYYY-MM-DD` (RFC 3339 full-date) in the host's local time zone. A value of this
- * type comes only from the schema of `execution.host-facts`, which checks that the date exists.
- */
 export type HostDate = string & { readonly __hostDate: unique symbol }
 
-/**
- * Host facts: the host's current date when the block producer published the value, and one fact
- * entry per registered provider on this host.
- */
 export type ExecutionHostFactsValue = Readonly<{
   date: HostDate
   providers: readonly ProviderFacts[]
@@ -166,12 +157,10 @@ export const decodeFacts: Decoder<ProviderFacts> = (value, path) => {
 
 const fullDate = /^(\d{4})-(\d{2})-(\d{2})$/
 
-// The calendar check: the three numbers name a day that exists, so 2026-02-30 is refused.
 function isHostDateText(text: string): text is HostDate {
   const parts = fullDate.exec(text)
   if (parts === null) return false
   const [year, month, day] = [Number(parts[1]), Number(parts[2]), Number(parts[3])]
-  // `setUTCFullYear` takes years below 100 as they are; `Date.UTC` would add 1900.
   const date = new Date(0)
   date.setUTCFullYear(year, month - 1, day)
   return (
@@ -197,10 +186,6 @@ const decodeHostFacts: Decoder<ExecutionHostFactsValue> = (value, path) => {
 
 const observers: readonly ConsumerClass[] = Object.freeze(['model', 'tool', 'extension'])
 
-/**
- * Current placements of one scope, as a list of original calls. Optional (PC-21): a lawful absence
- * may be absent, but an unavailable, unknown, refused or uninterpretable source is never dropped.
- */
 export const executionPlacementBlock: SuppliedBlockDescriptor<
   'execution.placement',
   ExecutionPlacementValue
@@ -216,10 +201,6 @@ export const executionPlacementBlock: SuppliedBlockDescriptor<
   recovery: 'recompute',
 })
 
-/**
- * The host's current date, and the name, generation, version, platform (type and release), facility
- * keys, isolation claims and prerequisites of every registered provider.
- */
 export const executionHostFactsBlock: SuppliedBlockDescriptor<
   'execution.host-facts',
   ExecutionHostFactsValue

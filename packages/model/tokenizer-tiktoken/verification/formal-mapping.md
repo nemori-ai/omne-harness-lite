@@ -1,6 +1,6 @@
 # 执行器形式模型与运行守护
 
-行为依据是 [SPEC](../SPEC.md) 的有界调度、私有缓存和生命周期条款。模型分成线程协议与单worker缓存。安全证明见 [executor.md](proofs/executor.md)。它们不拥有Model的预算、RQ的lineage或身份授权含义。
+行为依据是包组规格「[计量](../../SPEC.md#计量)」与「[不变式](../../SPEC.md#不变式)」MD-24、MD-25 的有界调度、私有缓存和生命周期条款。模型分成线程协议与单worker缓存。安全证明见 [executor.md](proofs/executor.md)。它们不拥有Model的预算、RQ的lineage或身份授权含义。
 
 ## 状态与动作
 
@@ -21,18 +21,6 @@
 
 模型放宽了运行期故障时点和排队顺序。`Exit`可在任意活跃阶段出现。它没有隐去终止失败后的物理占用，未实际Exit时允许一直stopping。单槽的初始化不覆盖多worker初始化屏障，后者由真实组合测试承担。
 
-## 可复跑入口
-
-在仓库根设置 `TLA2TOOLS_JAR` 为已安装的tla2tools JAR，再运行下列命令。输出目录必须尚不存在，避免覆盖先前证据。
-
-```sh
-python3 packages/model/tokenizer-tiktoken/verification/run_tlc.py packages/model/tokenizer-tiktoken/verification/models/executor tmp/tokenizer-formal-executor
-python3 packages/model/tokenizer-tiktoken/verification/run_tlc.py packages/model/tokenizer-tiktoken/verification/models/cache tmp/tokenizer-formal-cache
-python3 -m unittest discover -s packages/model/tokenizer-tiktoken/verification -p test_run_tlc.py
-```
-
-每配置固定一个TLC worker、768 MiB Java堆、120秒超时。runner逐项记录模型和cfg SHA-256、JAR和runner SHA-256、Java版本、完整命令、退出码和原始日志。正控要求退出0及明确完成结论。负控要求退出12及精确匹配的不变量违例。超时、解析失败、未执行或普通非零退出均失败。这个入口不会自动运行仓库总检查，交付者必须显式执行。
-
 ## 有限配置与负控
 
 | 配置 | 检查范围或预期反例 |
@@ -50,7 +38,7 @@ cfg及expected verdict的唯一清单分别在 [executor/expect.txt](models/exec
 
 ## 符合性与组合责任
 
-[executor-lifecycle.spec.ts](../tests/executor-lifecycle.spec.ts) 用可控worker核对物理取消、清缓存ACK、旧代际、错任务身份、实际exit、替换耗尽与关闭。[executor.spec.ts](../tests/executor.spec.ts) 使用真实worker核对公开行为。差分计数由 [differential.spec.ts](../tests/differential.spec.ts) 承担。单次执行结果及所核源码修订留任务tmp。
+[executor-lifecycle.spec.ts](../tests/executor-lifecycle.spec.ts) 用可控worker核对物理取消、清缓存ACK、旧代际、错任务身份、实际exit、替换耗尽与关闭。[executor.spec.ts](../tests/executor.spec.ts) 使用真实worker核对公开行为。差分计数由 [differential.spec.ts](../tests/differential.spec.ts) 承担。
 
 应用拥有worker数与限额配置、父资源owner及完整关闭；family只借executor和取得lease。Model拥有preparation的facts和release协议。RQ拥有一次规划中的有限租约复用。模型没有把这些参与者合并成tokenizer领域，也不由worker识别principal、Session或Agent。多个槽的资源界组合证明在proofs中；实际装配符合性仍由宿主验证。
 

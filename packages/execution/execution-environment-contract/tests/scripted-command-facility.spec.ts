@@ -47,28 +47,21 @@ async function started(script: CommandScript, request: StartRequest = start()) {
   return answer.value
 }
 const PENDING = Symbol('pending')
-/**
- * Races a promise against the next macrotask. Every microtask runs first, so a promise that the
- * double has already settled wins; one that is still open gives `PENDING`. No await can hang.
- */
 async function settledOrPending<T>(promise: Promise<T>): Promise<T | typeof PENDING> {
   return Promise.race([
     promise,
     new Promise<typeof PENDING>(resolve => setImmediate(resolve, PENDING)),
   ])
 }
-/** The value of a promise that must be settled by now; an open one fails the test. */
 async function settled<T>(promise: Promise<T>): Promise<T> {
   const value = await settledOrPending(promise)
   if (value === PENDING) throw new Error('expected the promise to be settled')
   return value
 }
-/** Gives up the read right through `return()`, which the one reader must have. */
 function giveUp(reader: AsyncIterator<OutputChunk>) {
   if (!reader.return) throw new Error('the output reader has no return()')
   return reader.return()
 }
-/** Reads the whole output; output that stays open fails the test instead of hanging it. */
 async function drain(handle: ProcessHandle): Promise<OutputChunk[]> {
   const reader = handle.output[Symbol.asyncIterator]()
   const chunks: OutputChunk[] = []
@@ -408,7 +401,6 @@ type RetentionScope = Readonly<{
   scope?: string
   refuse?: readonly ('stop' | 'output')[]
 }>
-/** A retaining facility, one leftover handed over to its scope, and the extension's three operations. */
 async function handedOver(at: RetentionScope, script: CommandScript = leftover, request = start()) {
   const cmd = createScriptedCommandFacility(script, {
     retention: {
@@ -431,7 +423,6 @@ async function handedOver(at: RetentionScope, script: CommandScript = leftover, 
     output: retention.output.bind(retention),
   }
 }
-/** A payload outside the operation's type, as a caller outside TypeScript can send it. */
 const malformed = <T>(payload: unknown): T => payload as T
 const invalidInput = (request: { requestId: string }) => ({
   kind: 'rejected',
@@ -523,7 +514,6 @@ it('checks the shape before it looks the process up and before its guard', async
   )
 })
 
-/** The stdout tail of a retained process whose script wrote `after` once the domain was handed over. */
 async function tailOf(
   after: string | Uint8Array,
   options: Readonly<{ before?: string | Uint8Array; from?: number }> = {},

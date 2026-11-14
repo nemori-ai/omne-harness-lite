@@ -1,12 +1,3 @@
-// The `SkillCatalog` conformance suite of `skill-contract/testing` runs on `createSkillCatalog`
-// over the memory doubles, each case on a fresh fixture. A not-applicable case counts as a
-// failure here: the fixture offers everything. The same suite runs in process on two violating
-// implementations: one that lists a refused identity too, which fails exactly the four cases
-// that look for the refused identity in the answer (SC3 refused, SC5 filter, the two SC7
-// cases), and one that presses `unknown` into an empty list, which fails exactly the two
-// whole-unknown cases (SC2 lawful set, SC3 read check). The shape of the suite is checked in
-// `skill-contract/tests/catalog-suite.spec.ts`, not here. The order tests hold the read check
-// answers and release them first to last and last to first: the answer is the same.
 import { AssertionError } from 'node:assert/strict'
 import { setImmediate } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
@@ -41,7 +32,6 @@ describe('SkillCatalog conformance: createSkillCatalog over the memory doubles',
     })
 })
 
-/** The names of the cases that fail by an assertion. Any other error is thrown. */
 async function failing(fixture: () => CatalogFixture<Principal, Scope>): Promise<string[]> {
   const failed: string[] = []
   for (const conformance of cases)
@@ -54,7 +44,6 @@ async function failing(fixture: () => CatalogFixture<Principal, Scope>): Promise
   return failed
 }
 
-/** A catalog that lists a refused identity as if it were granted. */
 function listingRefused(world: CatalogWorld): SkillCatalog<Principal, Scope> {
   return createSkillCatalog({
     ...world.ports,
@@ -67,7 +56,6 @@ function listingRefused(world: CatalogWorld): SkillCatalog<Principal, Scope> {
   })
 }
 
-/** A catalog that answers an empty list where the real one answers unknown. */
 function pressingUnknown(world: CatalogWorld): SkillCatalog<Principal, Scope> {
   const pressed = async <T>(answer: Promise<{ ok: T } | { failure: 'unknown' }>) => {
     const outcome = await answer
@@ -124,7 +112,6 @@ describe('the order and the shape of the entries', () => {
     reason: granted(isSafeReason, 'Gone.'),
   }
 
-  /** A catalog over a lawful set of `answers` that the read check grants in full. */
   function catalogOf(answers: readonly CatalogResolution[]): SkillCatalog<Principal, Scope> {
     return createSkillCatalog<Principal, Scope>({
       readCheck: { check: async () => ({ kind: 'granted' }) },

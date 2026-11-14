@@ -85,7 +85,6 @@ export type RequestBodies = {
   }
   'withdraw-authorization-expression': { readonly expressionId: string }
   'list-settings': { readonly asset?: SettingAssetSelector }
-  /** The secret is only in this request. No response or diagnostic carries it. */
   'set-setting': {
     readonly asset: SettingAssetSelector
     readonly item: string
@@ -217,17 +216,7 @@ export type AffiliationRequestItem = {
 export type Complete<K extends string, T> = { readonly [P in K]: readonly T[] } & {
   readonly completeness: 'complete'
 }
-/**
- * The asset a setting belongs to. Without `category` the name must name one asset that the acting
- * tenant sees; more than one is `conflict`.
- */
 export type SettingAssetSelector = { readonly category?: string; readonly name: string }
-/**
- * A secret setting item of the acting tenant, as `describe-setting` shows it. `unbound`: no secret
- * is configured. `usable`: a secret is configured and can be read. `revoked`: the configured
- * secret was revoked. `unreadable`: a secret is configured but cannot be read. `configuredAt` is
- * absent when the custody has no record of the time. The secret itself never appears.
- */
 export type SettingState =
   | { readonly state: 'unbound' }
   | {
@@ -235,15 +224,9 @@ export type SettingState =
       readonly tenantId: TenantId
       readonly configuredAt?: Instant
     }
-/**
- * A secret setting item in the deployment (official) layer, with the same states as
- * `SettingState`. Every legal tenant holds the official layer and reads it; no tenant operation
- * writes it.
- */
 export type SettingLayerState =
   | { readonly state: 'unbound' }
   | { readonly state: 'usable' | 'revoked' | 'unreadable'; readonly configuredAt?: Instant }
-/** A secret setting item in both layers: the acting tenant's own and the deployment's. */
 export type SettingLayers = { readonly own: SettingState; readonly official: SettingLayerState }
 type SettingItemBase = {
   readonly asset: { readonly category: string; readonly name: string }
@@ -258,7 +241,6 @@ export type SettingItemView =
     })
   | (SettingItemBase & {
       readonly sensitivity: 'ordinary'
-      /** Ordinary items are listed but this deployment provides no ordinary writes. */
       readonly state: { readonly state: 'not-writable' }
     })
 export type LoginList = {
@@ -278,7 +260,6 @@ export type SuccessBodies = {
     readonly issuedAt: Instant
     readonly tenantId: TenantId
     readonly loginProof: string
-    /** Optional: the identifier of the login this response issued, for a later `revoke-login`. */
     readonly loginId?: LoginStateId
   }
   'revoke-login': EmptyBody

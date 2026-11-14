@@ -1,9 +1,3 @@
-// Group commit G2-P inside the write Worker (SPEC 7.3, 7.5, 7.7). The scheduler collects adjacent,
-// reserved, groupable commits. The group runs in one BEGIN IMMEDIATE transaction, one savepoint
-// per original operation, and one COMMIT saves the receipts of all of them that keep one. A result leaves the
-// Worker only after the physical commit that holds it. The first local failure ends the group:
-// the prefix commits, the failed operation gets its rollback receipt in a second short
-// transaction, and the suffix goes back to the front of the queue for a new group.
 import type { DatabaseSync } from 'node:sqlite'
 import type { ParticipantDescriptor, ReceiptV2 } from '@omne-harness/sql-contract'
 import type { ParticipantModule } from '@omne-harness/sql-contract/worker'
@@ -23,7 +17,6 @@ import { MaterialMismatch } from './modules.ts'
 import type { CommitReply, WorkerEnv, WorkerRequest } from './protocol.ts'
 import { findSingletons } from './schema.ts'
 
-/** A message with the time it reached the Worker. */
 export type Queued = { id: number; request: WorkerRequest; arrivedAt: number }
 export type CommitJob = Queued & { request: Extract<WorkerRequest, { kind: 'commit' }> }
 
@@ -31,7 +24,6 @@ export const isCommitJob = (item: Queued): item is CommitJob => item.request.kin
 
 type Post = (id: number, reply: CommitReply) => void
 export type GroupResult = Readonly<{
-  /** Jobs that did not start. They go back to the front of the queue in this order. */
   unstarted: CommitJob[]
   /** The connection state is unclear: the Worker must end after the replies. */
   fatal: boolean
@@ -39,7 +31,6 @@ export type GroupResult = Readonly<{
 
 type Entry = {
   readonly job: CommitJob
-  /** Later calls of the same identity in this group (SPEC 7.7.3). */
   readonly waiters: CommitJob[]
   readonly order: string[]
   readonly modules: Map<string, ParticipantModule>
@@ -54,14 +45,8 @@ type StoppedOutcome = Extract<Outcome, { kind: 'stopped' }>
 
 const jobBytes = (job: CommitJob): number => utf8Length(canonicalJson(job.request.request))
 
-/** A commit whose identity is never recalled keeps no receipt (SQL contract SPEC 3.1). */
 const keepsReceipt = (job: CommitJob): boolean => job.request.request.identity.recall !== 'never'
 
-/**
- * ROLLBACK TO and RELEASE of one savepoint. `ended`: a statement already ended the whole
- * transaction (OR ROLLBACK), so nothing is left to undo (SPEC 7.7.5). `unclear`: the transaction
- * was alive and the rollback failed. The connection is not used again (SPEC 7.7.6 item 1).
- */
 function clearSavepoint(db: DatabaseSync, savepoint: string): 'cleared' | 'ended' | 'unclear' {
   if (!db.isTransaction) return 'ended'
   try {
@@ -80,7 +65,6 @@ export class GroupRunner {
   private singletons: ReadonlySet<string> | null = null
   private readonly closing: () => boolean
 
-  /** `closing` is true once the provider closes: the group starts no further operation (SPEC 13.3 step 3). */
   constructor(env: WorkerEnv, state: WorkerState, closing: () => boolean = () => false) {
     this.closing = closing
     this.env = env
@@ -88,7 +72,6 @@ export class GroupRunner {
     this.descriptors = new Map(env.catalog.participants.map(item => [item.participant, item]))
   }
 
-  /** The schema gate (SPEC 4.5) reads the file again after an open or a registration. */
   invalidate(): void {
     this.singletons = null
   }
@@ -108,11 +91,6 @@ export class GroupRunner {
     })
   }
 
-  /**
-   * The group that starts with `first`: the commits at the front of `inbox` that are groupable,
-   * until a limit, the end of the collection window, a barrier or a non-groupable commit.
-   * `wait` resolves when a message arrives or the given time passed.
-   */
   async collect(
     first: CommitJob,
     inbox: Queued[],
@@ -147,7 +125,6 @@ export class GroupRunner {
     return group
   }
 
-  /** Runs one group to its end. Every job is answered, or returned in `unstarted`. */
   async run(jobs: readonly CommitJob[], post: Post): Promise<GroupResult> {
     const db = this.state.db as DatabaseSync
     const sent = new Set<CommitJob>()
@@ -159,7 +136,6 @@ export class GroupRunner {
       for (const job of [entry.job, ...entry.waiters]) send(job, make(job))
     }
     const settleReceipt = (entry: Entry, receipt: ReceiptV2): void =>
-      // The commands of the entry's own job ran. A waiter of the same identity ran nothing.
       settle(entry, job =>
         job.request.inputDigest === entry.job.request.inputDigest
           ? { kind: 'receipt', receipt, recalled: job !== entry.job }
@@ -184,8 +160,6 @@ export class GroupRunner {
           )
         }
     } catch (error) {
-      // Nothing ran. A system error of the read or the import may go away: the domain stays, and
-      // the next request loads again (the cache keeps no failed load). Wrong content quarantines.
       const reply: CommitReply =
         loadFailure(error) === 'transient'
           ? { kind: 'rejected', reason: 'domain_unavailable' }
@@ -206,14 +180,10 @@ export class GroupRunner {
       for (const entry of entries) settleUnknown(entry, describeError('begin', error))
       return { unstarted: rest(), fatal: false }
     }
-    // Another opener advanced the write generation: this Worker is not the writer of the file any
-    // more. Nothing runs, and the Worker ends (SPEC 7.5 step 1, 13.5).
     let generation: number | null = null
     try {
       generation = readWriteGeneration(db)
-    } catch {
-      // The diagnostic below says that the value could not be read.
-    }
+    } catch {}
     if (generation === null || generation !== this.state.writeGeneration) {
       rollbackQuietly(db)
       const diagnostic =
@@ -291,8 +261,6 @@ export class GroupRunner {
     const settleStaged = (): void => {
       for (const item of staged) settleReceipt(item.entry, item.receipt)
     }
-    // The second short transaction: only the rollback receipt of the failed operation (SPEC 7.7.1).
-    // A commit that keeps no receipt needs no second transaction: the rollback already ended it.
     const writeRollback = (failed: Extract<Stop, { kind: 'failed' }>): boolean => {
       const request = failed.entry.job.request.request
       const receipt = receiptOf(
@@ -334,7 +302,6 @@ export class GroupRunner {
       return { unstarted: rest(), fatal: true }
     }
     if (cleared === 'ended') {
-      // The whole outer transaction is gone, and with it every staged write (SPEC 7.7.2).
       unknownStaged('transaction_ended')
       if (stop.kind === 'failed' && staged.length === 0) {
         const fatal = writeRollback(stop)
@@ -344,7 +311,6 @@ export class GroupRunner {
       return { unstarted: rest(), fatal: false }
     }
 
-    // The outer transaction is alive and the failed operation left no trace in it.
     if (staged.length > 0) {
       const error = commitOuter()
       if (error !== null) {
@@ -373,10 +339,6 @@ export class GroupRunner {
     return { unstarted: rest(), fatal }
   }
 
-  /**
-   * Steps 9 to 15 of SPEC 7.2 and the recognition of an earlier receipt answer at once: they do
-   * not depend on what the group has staged. The others become entries, in arrival order.
-   */
   private admit(
     db: DatabaseSync,
     jobs: readonly CommitJob[],

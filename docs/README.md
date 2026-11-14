@@ -1,6 +1,6 @@
 # 文档阅读入口
 
-十类读者共享同一套正文；本页按角色选起点，[任务地图](context-map.md)按工作选必需上下文。人和 agent 都使用这些路径。角色不授予访问或操作权限。Agent 可用[角色查询](../tools/spec-tools/README.md#按角色读取上下文)取得本页单个角色章节及直接引用；查询结果不授予支持或接受。
+十类读者共享同一套正文；本页按角色选起点，[任务地图](context-map.md)按工作选必需上下文。人和 agent 都使用这些路径。角色不授予访问或操作权限。Agent 可用[角色查询](../tools/spec-tools/README.md)取得本页单个角色章节及直接引用；查询结果不授予支持或接受。
 
 需要整体认识知识和文档体系，人读[知识地图](knowledge-map.md)，agent读[体系上下文](knowledge-map-agent.md)。两份分别用图文和紧凑文字说明同一套归属、遵循关系与状态；了解整体后再按本次角色或任务展开。
 
@@ -73,7 +73,7 @@
 ## 系统架构负责人
 
 - 从[项目目标与架构设计路径](context-map.md#项目目标与架构设计)核对项目要求，再按问题选择架构专题。逻辑模块分工从[领域入口](domains/README.md)展开，精确接口与行为继续随实际拥有者。
-- 用[采用范围](architecture/README.md#采用状态与当前有效源)核对目标与旧源关系，用[后续设计入口](architecture/README.md#未决事项与后续设计入口)定位尚未决定的事项。需要内部产品、独立目标或研究依据时才展开meta，工作方法沿[调查与设计](engineering/scenarios/research-and-design.md)。
+- 用[采用范围](architecture/README.md#采用状态与当前有效源)核对目标与旧源关系。需要内部产品、独立目标或研究依据时才展开meta，工作方法沿[调查与设计](engineering/scenarios/research-and-design.md)。
 - 责任、约束和必要组合义务明确后停止本轮展开。跨提供者、协调者或生命周期的保证需核对完整责任链；设计描述应然，实现事实用于识别偏离，未决方向由负责人裁定。
 
 ## 产品负责人
@@ -86,7 +86,7 @@
 
 - 安排研发前，按[给负责人的开发指南](development_human.md)核对所用harness、插件初始化及责任。判断交付时从[贡献与接受](../CONTRIBUTING.md)及[验证说明](verification.md)核对范围、基线与实际证据。
 - 用[冲突与验收](context-map.md#冲突与验收)定位缺项与拥有者，从[质量与证据](engineering/quality.md)看成果依据，从[完成声明](engineering/workflow.md#完成与交付声明)看结论边界。方法采用沿[技能入口](engineering/skills.md)，不要求逐项通跑技能。
-- 发卡与接受走[卡与交接信息包](engineering/delivery.md)，命令归 `omne-card`。技术方案审议从[RFC入口](rfcs/README.md)展开；日常接入、当前规范与过去决定分别判断。
+- 发卡与接受走[卡与交接信息包](engineering/delivery.md)，命令归 `omne-card`。日常接入、当前规范与过去决定分别判断。
 - 责任和接受范围明确后停止展开。红项、跨批依赖或未知影响需要对应细节；关键证据或裁决未到位时暂停相应接受。正文、工具、实际运行与读者体验分别判断，留空仍由工具报告缺项。
 
 ## 顶层入口分工
@@ -114,7 +114,6 @@ docs/
 ├── clean-loop.md              传感器、硬线及处置责任
 ├── maintenance.md             文档新增、拆分、整合与维护
 ├── documentation.json         应有文档及必要章节登记
-├── rfcs/                      正式技术提案、最小决定与写回关系
 ├── engineering/               共享规范、场景流程及技能引用
 ├── architecture/              全系统设计及跨责任约束
 │   ├── runtime/               运行时与关键流程
@@ -142,6 +141,6 @@ docs/
 | [开发](development.md)、[负责人指南](development_human.md)、[布局](workspace.md) | 开发操作、负责人职责及源码归属，详细规则继续引用其拥有者 |
 | [验证](verification.md)、[防御](defensive-patterns.md)、[整洁回路](clean-loop.md) | 检查能力与限制、项目防御要求及质量反馈机制；迁移时须同时核对实际读取者 |
 | [端到端验收矩阵](acceptance/README.md) | 一项系统质量要求在整套系统上逐格的情形与期望；只规定判据，一次验收的结果不写在那里 |
-| 内部 [产品](../.meta_harness/design/product/README.md)、[研究](../.meta_harness/research/README.md)、[agent 能力](../.meta_harness/agents/README.md) | 私有源的内部入口，不作公共必读 |
+| 内部 [产品](../.meta_harness/design/product/README.md)、[agent 能力](../.meta_harness/agents/README.md) | 私有源的内部入口，不作公共必读 |
 
 角色起点由本页维护，产品、架构与领域的阅读路由由 context-map 维护，研发流程的事实见[流程事实在哪](engineering/README.md#流程事实在哪)；局部细节继续随领域／成员，不在各入口复制相同正文。发现失效路径交对应源维护者，导航调整交文档维护者。

@@ -1,8 +1,3 @@
-// The tool lookup of the `agent-context` row (G-TOOLS6): the sixth group over the real release
-// Catalog. Real Cordis carries the release entry objects, the `tool-bindings` row (Catalog) and the
-// `tool-host` row, which loads the release authors of Files and Shell; the lookup reads them through
-// `toolCatalog.inspect` with the release consumer. The definitions the model would see are compared
-// with the definitions derived from the release modules themselves.
 import { describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Adoption, RuntimeConditions } from '@omne-harness/agent-contract'
@@ -45,10 +40,8 @@ import {
 
 const SYSTEM = { scope: 'system' } as const
 
-/** The release fixture with the Catalog and the release authors of Files and Shell loaded. */
 async function loaded(): Promise<ReleaseFixture> {
   const fixture = await releaseFixture()
-  // This lookup test supplies a scoped Session/adoption double; the view and catalog are real.
   await fixture.root.plugin({
     name: 'context-tools-bindings-fixture',
     apply(ctx: Context) {
@@ -101,7 +94,6 @@ async function loaded(): Promise<ReleaseFixture> {
   return fixture
 }
 
-/** The definition that the release module itself derives for `name`. */
 function releaseDefinition(fixture: ReleaseFixture, name: 'Files' | 'Shell'): ToolDefinition {
   const created =
     name === 'Files'
@@ -165,8 +157,6 @@ describe('agent-context row: the sixth group over the release Catalog', () => {
       [true, bindings[0], files],
       [true, bindings[1], shell],
     ])
-    // One declaration per tool (D-94): the description ends with the command menu, the
-    // arguments schema enumerates the commands.
     const declared = declareTools(read.value).direct
     expect(declared).toEqual(
       [files, shell].map(definition => {

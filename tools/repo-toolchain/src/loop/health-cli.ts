@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// 只读、只报告：退出码 0 正常，2 是工具自己出错（参数、配置、git、写不了产物）。
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { coordinates, git } from '../core/git.ts'
@@ -52,7 +51,6 @@ function readCommits(root: string, branch: string, count: number): Reading<Commi
   } catch {
     return noData(`没有 ${branch} 分支`)
   }
-  // 沿第一父链：主线上的每一个提交（含合并），合并提交按它对第一父的改动计（-m 配 --first-parent，旧版 git 也认）。
   const log = git(root, [
     'log',
     '--first-parent',
@@ -66,7 +64,6 @@ function readCommits(root: string, branch: string, count: number): Reading<Commi
   return commitsBlock(parseCommitLog(log), branch)
 }
 
-/** `<账本根>/<提交>/<时间>/ledger.json` 全部读进来；读不了的 JSON 记为 undefined，交给解析时报出。 */
 function readLedgers(home: string): { path: string; value: unknown }[] | undefined {
   if (statSync(home, { throwIfNoEntry: false })?.isDirectory() !== true) return undefined
   const found: { path: string; value: unknown }[] = []
@@ -94,7 +91,6 @@ function main(argv: readonly string[]): number {
   const { root } = options
   const at = coordinates(root, undefined)
   const home = loopHome(at.mainRoot, process.env)
-  // 测试的账本根，与 `src/testing/cli.ts` 同一取法；验收的账本另放一处，不混进来。
   const ledgerHome = resolve(testLedgerHome('test', at.mainRoot, process.env))
   const outDir = resolve(options.out ?? join(home, 'health'))
   const now = new Date()

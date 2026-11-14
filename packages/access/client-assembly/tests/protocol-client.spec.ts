@@ -1,6 +1,3 @@
-// A protocol client on the client tree, on real Cordis 4.0.4 (#1249 C16, C17). The C16 cases are
-// named after the cells of RFC-0015 §13「客户端：树上的一个协议客户端」: event, then the state of
-// the service. Cells the table marks unreachable have no case.
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AvailabilityFrame } from '@omne-harness/public-contract'
@@ -62,12 +59,10 @@ type Tree = {
   readonly diagnostics: AssemblyDiagnostic[]
   readonly delays: number[]
   readonly login: ReturnType<typeof loginSource>
-  /** How many times the module that depends on the service loaded and unloaded. */
   readonly module: { loaded: number; unloaded: number }
   readonly service: () => Notes | undefined
 }
 
-/** A tree with the connection, the notes protocol client unless left out, and a module using it. */
 async function tree(
   options: {
     withoutClient?: boolean
@@ -86,8 +81,6 @@ async function tree(
       login: login.source,
       diagnostics: event => diagnostics.push(event),
       ...(options.readRetry === undefined ? {} : { readRetry: options.readRetry }),
-      // The backoff waits no real time: it records the delay and yields once. A wait of
-      // `HANG_MS` lasts until its signal aborts.
       sleep: async (ms, signal) => {
         delays.push(ms)
         if (ms !== HANG_MS) return new Promise(resolve => setImmediate(resolve))
@@ -127,7 +120,6 @@ describe('C17: the connection follows the availability', () => {
     const t = await tree()
     t.fake.push(snapshot(1, ACCESS))
     await settle()
-    // Revision 3 does not sit on revision 1: a change was missed.
     t.fake.push(added(3, NOTES))
     await settle()
     expect(t.service()).toBeUndefined()
@@ -154,7 +146,6 @@ describe('C17: the connection follows the availability', () => {
     t.fake.push(snapshot(2, ACCESS))
     await settle()
     expect(t.service()).toBeUndefined()
-    // A subscription that saw a frame starts the backoff over.
     t.fake.breakStream()
     await settle()
     expect(t.delays).toEqual([200, 400, 200])
@@ -197,7 +188,6 @@ describe('C16: one protocol client on the tree', () => {
     t.fake.push(snapshot(1, ACCESS, NOTES))
     await settle()
     expect(t.service()).toBeUndefined()
-    // `access/v1` has no protocol client on this tree either.
     expect(t.diagnostics).toEqual([
       { code: 'protocol-client-missing', protocol: ACCESS },
       { code: 'protocol-client-missing', protocol: NOTES },
@@ -239,7 +229,6 @@ describe('C16: one protocol client on the tree', () => {
     const inFlight = notes.hold({})
     await settle()
     t.fake.push(removed(2, NOTES))
-    // The test never settles the held call: the mark ends it.
     expect(await inFlight).toEqual({ outcome: 'uncertain' })
     expect(t.fake.sent).toHaveLength(1)
   })
@@ -313,7 +302,6 @@ describe('C16: one protocol client on the tree', () => {
     const notes = t.service()!
     t.fake.breakStream()
     await settle()
-    // The carrier is down: the send and the one send after it both did not leave.
     t.fake.script.push({ kind: 'not-sent' }, { kind: 'not-sent' })
     expect(await notes.ping({})).toEqual({ outcome: 'unavailable' })
     expect(t.fake.sent).toEqual([])

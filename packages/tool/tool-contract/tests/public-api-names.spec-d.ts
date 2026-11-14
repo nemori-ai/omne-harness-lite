@@ -1,4 +1,3 @@
-// Resolve accepted public type names and function signatures through the package root.
 import type { BlockId, ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'

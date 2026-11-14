@@ -1,7 +1,3 @@
-// The `identity-access` row on the release tree: `identity/v1` is mounted at the new address, so a
-// client registers, signs in and reads its current tenant through `/api/identity/v1/<name>`; the
-// entry's identity port is identity's own, so the login proof the sign-in returned is recognised.
-// The availability observation names `identity/v1`.
 import { request } from 'node:http'
 import { describe, expect, it } from 'vitest'
 import { onReleaseTree, type ReleaseTree } from '../../support/release-tree.ts'
@@ -14,7 +10,6 @@ type Answer = Readonly<{
 
 let messages = 0
 
-/** One call at the new address; `proof` goes in `Authorization: Bearer`. */
 function callIdentity(
   tree: ReleaseTree,
   name: string,
@@ -56,7 +51,6 @@ function callIdentity(
 
 type Frame = Readonly<{ kind: string; protocols?: readonly { name: string; major: number }[] }>
 
-/** The availability observation, opened without a login; it collects its frames. */
 function openAvailability(port: number) {
   const frames: Frame[] = []
   let buffered = ''

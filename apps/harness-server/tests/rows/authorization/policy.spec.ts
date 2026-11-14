@@ -1,6 +1,3 @@
-// The Session and Agent policy tables (DP-4): every row of the enumerations is present, every
-// allowing cell carries a source, the two D items are default denials, and `accept` is judged by
-// the branch of its RoutedInput.
 import { describe, expect, it } from 'vitest'
 import { SYSTEM_ACTION_MATRIX } from '@omne-harness/authorization'
 import {

@@ -1,6 +1,3 @@
-// `createOpenAiFamily` and `acquire` through `composeFamilies` (#465 C2): one acquire gives one
-// compatible binding; an unknown model, a mismatched adoption, a wrong route, a tokenizer that
-// does not match the records and a cancelled acquire fail as a whole.
 import { describe, expect, it } from 'vitest'
 import { composeFamilies, recordAdoption } from '@omne-harness/pi-ai-transport'
 import {
@@ -122,7 +119,6 @@ describe('acquire', () => {
   })
 
   it('an acquire that is cancelled while the family works gives no binding', async () => {
-    // The table reads `aborted` once before it calls the family; the family reads it again.
     let reads = 0
     const signal: AbortSignal = Object.create(AbortSignal.prototype, {
       aborted: { get: () => reads++ > 0 },

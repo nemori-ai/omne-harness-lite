@@ -29,10 +29,6 @@ export type TenantState = {
   operations: Map<ModelOperationId, Binding>
 }
 
-/**
- * The memory storage of the shared commands core, and the test controls over it. One
- * synchronous fence lets one attempt, control or send check run at a time.
- */
 export class MemoryState<P> implements ModelCommandStorage {
   private roots = new Map<string, TenantState>()
   private plans = new Map<string, UnknownInjection>()
@@ -122,9 +118,6 @@ export class MemoryState<P> implements ModelCommandStorage {
     }
   }
 
-  // --- ModelCommandStorage.
-
-  /** The memory storage reads nothing before `work`, so it ignores the scope. */
   run<T>(
     work: () => Outcome<T, ModelFailure>,
     _scope?: RunScope,
@@ -134,7 +127,6 @@ export class MemoryState<P> implements ModelCommandStorage {
   documents(key: string): TenantDocuments {
     return this.root(key)
   }
-  /** The memory storage counts every tenant: its share is one bound for the whole assembly. */
   held(): number {
     let held = 0
     for (const state of this.roots.values())
@@ -144,7 +136,6 @@ export class MemoryState<P> implements ModelCommandStorage {
   readBody(tenant: string, call: ModelCallId) {
     return Promise.resolve({ ok: this.bodies.read(tenant, call) })
   }
-  /** An injected unknown makes the write unresolved; `not-applied` leaves the call unchanged. */
   commit(key: string, write: CommandWrite): 'committed' | 'unknown' {
     const root = this.root(key)
     const { call: id } = write.binding
@@ -181,8 +172,6 @@ export class MemoryState<P> implements ModelCommandStorage {
     this.roots.set(key, next)
     if (call.request === null) this.bodies.release(key, call.state.call, call.requestDigest)
   }
-
-  // --- The memory state that the test assembly reads.
 
   identity(input: Pick<ExecutionRef, 'tenant' | 'call'>): string | ModelFailure {
     return this.core.identity(input)

@@ -68,7 +68,7 @@ head 的用例（[tests/](../tests/README.md)）检查导出与依赖规则、�
 | VS-F03 | 只有提供者对代次 1 给出五项证明齐全的 `not_committed` 时 R7 才给 `not-committed`；最新代次回滚、此前没有已提交或未知代次时给 `attempt-rejected`；参加操作未命中时给 `unknown`，不给 `not-committed` | 旧写代际未排除时查询；构造一个与两个回滚代次；以参加操作的身份查询。辨认参加操作的入口补上之前，代次 1 为 `not_committed` 时也只给 `unknown` | [R7](../SPEC.md#r7) |
 | VS-F04 | `sl_entry` 缺口时该会话隔离：`readWork` 与 `loadRecovery` 返回 `quarantined`，其余读与写返回 `unavailable`，不清空 | 人为删除中间一行 | [R9](../SPEC.md#r9) |
 | VS-F05 | 已确认提交在普通进程终止后仍可读 | 回执已写、响应未回时结束 Worker，重启后 `queryOperation` | 提供者的进程级持久 |
-| VS-F06 | 断电耐久 | 只在声明介质上的故障试验记录之后声明。普通重启、普通 kill、`synchronous=FULL` 的读回都不是断电试验 | [SQL-T01](../../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) |
+| VS-F06 | 断电耐久 | 只在声明介质上的故障试验记录之后声明。普通重启、普通 kill、`synchronous=FULL` 的读回都不是断电试验 | [已确认保存的耐久边界](../../../../docs/architecture/data-and-state.md#已确认保存的耐久边界) |
 
 ## 未覆盖
 

@@ -9,9 +9,6 @@ import {
 import { MemoryState } from '../src/testing/state.ts'
 import { adoption, fixture, identity, instance, op, unbox } from './memory-fixture.ts'
 
-// Refusals of the first-execution channel: continuity is only the bound record's own, for its own
-// stored call, and prepare refuses a record that a successor or another call took over.
-
 type Continuity = Parameters<ReturnType<typeof createModelInitialExecution>['continuity']>[0]
 
 function claimed() {

@@ -1,5 +1,4 @@
 // covers: PD-tool-execution S3
-// Oracle: product/tool-execution/acceptance.md S3; Tool SPEC 20–23, 26; P04.
 import assert from 'node:assert/strict'
 import { it } from 'vitest'
 import { readToolInvocationRef } from '@omne-harness/tool-contract/provider'

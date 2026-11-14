@@ -1,5 +1,3 @@
-// The call identity (SPEC "调用身份"): purpose, consumption position and candidate. `callIdentity`
-// is the one way to take it, and group one of the preparation key is taken through it.
 import { describe, expect, it } from 'vitest'
 import {
   callIdentity,

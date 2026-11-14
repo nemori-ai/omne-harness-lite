@@ -1,4 +1,3 @@
-// The testing entry: the memory doubles and the conformance suites. Durability of the doubles is none.
 export { createMemorySqlStorage } from './memory.ts'
 export type { MemorySqlStorageInput, MemorySqlStorageLimits } from './memory.ts'
 export { runSqlStorageConformance } from './conformance.ts'

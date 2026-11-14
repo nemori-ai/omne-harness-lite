@@ -80,8 +80,6 @@ export type {
   ToolSourceGuard,
   ToolStartGuard,
 } from './ledger-guards.ts'
-// The two checks a host provider that keeps records in the store's `host` domain needs to answer
-// the same way as the ledger: the tenant shape and the canonical digest.
 export { isTenantShape } from './boundary.ts'
 export { digestOf as canonicalDigest, INITIAL_REVISION } from './evidence.ts'
 export { encodeToolCanonical, type EncodedToolCanonical } from './canonical-codec.ts'

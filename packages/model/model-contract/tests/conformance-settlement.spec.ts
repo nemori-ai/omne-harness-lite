@@ -47,7 +47,6 @@ const movedCustody: CustodyState = {
   diagnostic: null,
 }
 
-/** A receipt that the provider gives without having acknowledged anything. */
 function fabricatedReceipt(input: AckInput<unknown>): AckReceipt {
   const receipt =
     input.evidence.kind === 'processed' ? input.evidence.completion : input.evidence.custody
@@ -65,7 +64,6 @@ function fabricatedReceipt(input: AckInput<unknown>): AckReceipt {
 }
 
 describe('the conformance suite on the result and its handover', () => {
-  /** A provider that shows `change` of a settled call once a cancel has reached it after it ended. */
   function afterCancel(change: (state: Extract<CallState, { phase: 'settled' }>) => CallState) {
     return (subject: Subject) => {
       const ended = new Set<string>()
@@ -210,7 +208,6 @@ describe('the conformance suite on the result and its handover', () => {
               input.evidence.kind === 'processed'
                 ? input.evidence.completion
                 : input.evidence.custody
-            // A provider that trusts any digest it can read: the empty one and a missing one it refuses.
             const digest: unknown = offered.digest
             const strange =
               !known.has(JSON.stringify(offered)) && typeof digest === 'string' && digest !== ''
@@ -320,7 +317,6 @@ describe('the conformance suite on the result and its handover', () => {
                 })
               : outcome
           },
-          // The read that it made up closes like any other, so only the new read is the finding.
           async closeRead(input) {
             return input.read === fabricatedRead
               ? succeed({ kind: 'ended', reason: 'closed' })
@@ -465,7 +461,6 @@ describe('the conformance suite on the result and its handover', () => {
   })
 })
 
-/** A provider that answers a read that was refused for the right in the way that `answer` says. */
 function deniedAs(answer: () => Outcome<ReadState, ModelFailure>) {
   return (
     consumption: ModelConsumption<ScriptedPrincipal>,
@@ -684,8 +679,6 @@ describe('the conformance suite on the other ways that a handover can go wrong',
         }),
       })
     })
-    // The call that shows the producer after an acknowledgement also fails the obligation that
-    // the acknowledgement stays when cleanup breaks: both read the custody after the receipt.
     expect(failing).toEqual([
       'acknowledge-records-custody',
       'cleanup-failure-keeps-acknowledgement',

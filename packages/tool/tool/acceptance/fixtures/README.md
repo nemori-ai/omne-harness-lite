@@ -10,4 +10,4 @@ S1 的预期正文是先果园 17 篮苹果，再磨坊 23 袋面粉。执行者
 
 S2 参数使用完整的重复键 JSON 文本。预期来自 Tool SPEC 第12节的逻辑终局规则。S3 的 operation 由公开身份工厂生成，call 从真实受理引用读取。只有公开 authority.exclude 返回成功证据后才推进 driver，不使用私有 refuse 或伪造 exclusion。
 
-场景为消费者生成实际处理记录。`OMNE_QA_EVIDENCE_DIR` 存在时，记录同时写入获准证据目录。证据仅证明当前进程内完成，不承诺跨进程耐久性。验收范围见[独立验收](../README.md)，导航见 [index](index.md)。
+场景为消费者生成实际处理记录。`OMNE_QA_EVIDENCE_DIR` 存在时，记录同时写入获准证据目录。证据仅证明当前进程内完成，不承诺跨进程耐久性。验收范围见[独立验收](../README.md)。

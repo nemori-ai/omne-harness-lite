@@ -30,8 +30,6 @@ function children(root: string, path: string, segment: string): string[] {
       return []
     }
     if (entry.isDirectory()) return [child]
-    // Only group navigation files may occupy a non-directory slot. A wrong node kind
-    // must not hide a group or member before the source resolver filters it out.
     if (
       entry.isFile() &&
       (['README.md', 'README_ZH.md', 'AGENTS.md', 'CLAUDE.md'].includes(entry.name) ||
@@ -41,7 +39,6 @@ function children(root: string, path: string, segment: string): string[] {
     throw new Error(`${child}: product discovery rejects links and unexpected non-directory nodes`)
   })
 }
-/** Verify filesystem candidates before the architecture resolver filters non-file manifests. */
 export function discoverProducts(root: string): string[] {
   const patterns = workspacePatterns(
     readFileSync(join(root, 'pnpm-workspace.yaml'), 'utf8'),

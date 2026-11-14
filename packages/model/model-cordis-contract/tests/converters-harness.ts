@@ -1,6 +1,3 @@
-// Shared set-up of the converter catalog tests. Everything runs on a real Cordis Context. The one
-// stand-in is the qualification authority: it is the provider of ModelConverterAuthorityService
-// in a real assembly and is not part of this package, so `surrogateAuthority` answers in its place.
 import { Context } from '@deepseek-ai/cordis'
 import type { Adoption, ConvertedContent } from '@omne-harness/model-contract'
 import type {
@@ -25,7 +22,6 @@ export type ConvertInput = Parameters<ModelConverter<unknown>['convert']>[0]
 export type ConvertResult = Outcome<ConvertedContent, ConversionFailure>
 
 export const mediaType = (value: string): ConverterKey => ({ kind: 'media-type', mediaType: value })
-/** Any modality of the shared vocabulary: a converter for a modality that Model does not support is legal. */
 export type KeyedModality = Extract<ConverterKey, { kind: 'modality' }>['modality']
 export const modality = (value: KeyedModality): ConverterKey => ({
   kind: 'modality',
@@ -36,7 +32,6 @@ export function adoption(name: string): Adoption {
   return { owner: 'test', name, revision: '1', digest: `sha256:${name}` }
 }
 
-/** A converter that the catalog hands out but never runs: the catalog only lends it. */
 export function converter(name: string): ModelConverter<unknown> {
   return {
     adoption: adoption(name),
@@ -50,10 +45,6 @@ function isBlock(value: unknown): value is ConvertInput['original'] {
   return typeof value === 'object' && value !== null && 'kind' in value && 'id' in value
 }
 
-/**
- * The input of one conversion. The catalog never looks into it, so the block is a plain literal
- * that a type guard lets through; no test depends on what the block holds.
- */
 export function conversionInput(signal: AbortSignal = new AbortController().signal): ConvertInput {
   const original: unknown = {
     kind: 'text',
@@ -71,7 +62,6 @@ export function conversionInput(signal: AbortSignal = new AbortController().sign
   }
 }
 
-/** A converter whose conversions stay in flight until the test settles them. */
 export function pendingConverter(name: string) {
   const calls: { input: ConvertInput; settle(result: ConvertResult): void }[] = []
   const pending: ModelConverter<unknown> = {
@@ -81,7 +71,6 @@ export function pendingConverter(name: string) {
   return { converter: pending, calls }
 }
 
-/** The answer of a converter that converted the whole input into itself. */
 export function answerOf(asked: ConvertInput, by: ModelConverter<unknown>): ConvertResult {
   return {
     ok: {
@@ -102,7 +91,6 @@ export function input(key: ConverterKey, lent: ModelConverter<unknown>): Input {
   }
 }
 
-/** Stands in for the qualification authority and grants every registration. It keeps no record. */
 export const grantingAuthority: ModelConverterAuthority<unknown> = {
   check: () => ({ ok: undefined }),
 }
@@ -110,11 +98,6 @@ export const grantingAuthority: ModelConverterAuthority<unknown> = {
 export type SurrogateAuthority = ModelConverterAuthority<unknown> &
   Readonly<{ seen: Input[]; deny(failure: ModelRegistrationFailure | undefined): void }>
 
-/**
- * Stands in for the qualification authority: grants every registration unless told to deny, and
- * records what it was asked. The record keeps the requests alive, so a test that watches for
- * collection uses `grantingAuthority`.
- */
 export function surrogateAuthority(): SurrogateAuthority {
   const seen: Input[] = []
   let denial: ModelRegistrationFailure | undefined
@@ -148,7 +131,6 @@ export function registrationOf(outcome: Registered): ModelConverterRegistration 
 
 export type World = Awaited<ReturnType<typeof startCatalog>>
 
-/** Loads the catalog in its own plugin fiber and lets contributor plugins register through it. */
 export async function startCatalog(
   authority: ModelConverterAuthority<unknown> = grantingAuthority,
 ) {
@@ -169,11 +151,6 @@ export async function startCatalog(
     host,
     catalog,
     acquire: catalog.acquire,
-    /**
-     * Registers from a fresh contributor fiber; its disposal withdraws the contribution. The
-     * plugin object stays in the Cordis registry while the fiber lives, so it gives up its
-     * references to the request and the answer as soon as it has used them.
-     */
     async contribute(request: Input) {
       const call: { request?: Input | undefined; pending?: Promise<Registered> | undefined } = {
         request,

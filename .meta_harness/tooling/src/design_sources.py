@@ -1,10 +1,18 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from omne_harness_lite_spec_tools.doc_support import headings, local_target, markdown_links
-from omne_harness_lite_spec_tools.documentation_inputs import Inputs, discover, load
+from omne_harness_lite_spec_tools.documentation_inputs import Inputs
 from source_links import ModuleSources
+
+
+_CARRIER = re.compile(
+    r"(?:(?:packages|apps|tools)/[^/]+/SPEC\.md|docs/requirements\.md|docs/(?:architecture|domains)/.+\.md"
+    r"|AGENTS\.md|CONTRIBUTING\.md)"
+)
+_UNSWEPT_GROUP = re.compile(r"packages/session/(?:README\.md|docs/.+\.md)")
 
 
 def _sources(root: Path) -> list[Path]:
@@ -30,9 +38,6 @@ def check_links(root: Path, source_root: Path | None = None) -> list[str]:
     boundary = execution or (workspace.parent if workspace else root)
     inputs = Inputs(boundary)
     try:
-        registries = discover(execution) if execution else []
-        documents, _ = load(inputs, registries) if execution else ([], None)
-        registered = {execution / document["path"] for document in documents}
         modules = ModuleSources(execution, inputs)
         paths = _sources(root)
         headings.cache_clear()
@@ -51,12 +56,14 @@ def check_links(root: Path, source_root: Path | None = None) -> list[str]:
                         actual = target.resolve()
                         allowed = actual.is_relative_to(root)
                         if workspace:
-                            allowed |= any(actual.is_relative_to(workspace / name) for name in ("agents", "research"))
+                            allowed |= actual.is_relative_to(workspace / "agents")
                             allowed |= actual in (workspace / "README.md", workspace / "AGENTS.md")
                         if execution:
                             allowed |= modules.origin(actual) is not None
                             if target.suffix.lower() == ".md":
-                                allowed |= target in registered and target == actual
+                                relative = target.relative_to(execution).as_posix()
+                                carrier = _CARRIER.fullmatch(relative) or _UNSWEPT_GROUP.fullmatch(relative)
+                                allowed |= target == actual and carrier is not None
                             else:
                                 allowed |= actual in {execution / "docs/engineering/github-delivery.json",
                                                       execution / "docs/architecture/constraints.json"}
@@ -76,8 +83,6 @@ def check_links(root: Path, source_root: Path | None = None) -> list[str]:
         inputs.verify()
         if paths != _sources(root):
             raise ValueError("source discovery changed during check")
-        if execution and registries != discover(execution):
-            raise ValueError("registry discovery changed during check")
     except (ValueError, OSError, TypeError) as error:
         errors.append(f"source links: {error}")
     return errors

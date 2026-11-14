@@ -1,11 +1,3 @@
-// The gate of one host command on macOS, without its process wiring. The provider starts the gate
-// detached, so it leads a new POSIX session: that session is the command's domain. It speaks the
-// protocol of the Linux gate (`../command-gate.ts`) with the judgments of `../command-gate-core.ts`,
-// and differs in three places. It checks once, before it reads the control channel, that it leads
-// its own session. At exit it counts the session's members with the session reader. When the
-// control channel ends after GO, the provider went away and nothing on macOS outlives it: the gate
-// stops every other member of its session and exits. The script `command-gate.ts` gives it the
-// real channels; a test gives it streams of its own.
 import { spawn, type ChildProcess } from 'node:child_process'
 import type { Readable, Writable } from 'node:stream'
 import {
@@ -23,22 +15,14 @@ import {
 } from '../command-gate-core.ts'
 import { readIdentity, readMembers, stopSessions } from './session.ts'
 
-/** After the main process exits, output that stays quiet this long is complete. */
 const quietAfterExitMs = 100
-/** The bound of one reading, and of the gate's own stop when the provider went away. */
 const readerBoundMs = 10_000
 
-/** What the gate reads and writes, and how it ends its process. */
 export type CommandGateIo = Readonly<{
-  /** Manager to gate, one JSON object per line. */
   control: Readable
-  /** Gate to manager, one JSON frame per line. */
   frames: Writable
-  /** The domain name. */
   unit: string
-  /** The path of the session reader. */
   reader: string
-  /** The gate's own pid, which is its session's id when it leads its session. */
   pid: number
   exit(code: number): void
 }>
@@ -100,7 +84,6 @@ export function runCommandGate(io: CommandGateIo): void {
       boundMs: readerBoundMs,
     })
     send(exitFrame(exitStatus, members === undefined ? null : members.length))
-    // From here on the pipes are drained and discarded; the gate stays until its session is stopped.
     paused = false
     for (const stream of streams()) stream.resume()
     setInterval(() => undefined, 2_147_483_647)
@@ -128,7 +111,6 @@ export function runCommandGate(io: CommandGateIo): void {
   }
 
   function run(go: GateRequest): void {
-    // A fourth pipe takes descriptor 3 in the command, so the control channel does not leak into it.
     const started = spawn(go.executable, [...go.args], {
       cwd: go.cwd,
       env: { ...go.env },
@@ -173,7 +155,6 @@ export function runCommandGate(io: CommandGateIo): void {
       case 'term':
         child?.kill('SIGTERM')
         break
-      // Nothing on macOS is handed over, so `retain` never arrives; it would change nothing here.
       case 'retain':
       case 'ignore':
         break
@@ -193,8 +174,6 @@ export function runCommandGate(io: CommandGateIo): void {
     pending = split.pending
     for (const line of split.lines) onControl(line)
   })
-  // Without GO the command never started: the gate exits. After GO the provider went away: the gate
-  // stops every other member of its session, then exits; the manager's own stop needs no gate.
   control.on('end', () => {
     if (!went) {
       io.exit(0)

@@ -1,4 +1,3 @@
-// 每条规则的「故意违反就失败」自测：违反的夹具必须被报出，干净的夹具必须无违反。
 import { describe, expect, it } from 'vitest'
 import { runRules, type SourceFile } from '@omne-harness/repo-toolchain'
 import {

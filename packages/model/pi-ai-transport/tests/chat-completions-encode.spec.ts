@@ -52,7 +52,6 @@ function bind(
   })
 }
 
-/** The encode input of a request: its one declaration, no media and the resent messages. */
 function inputOf(request: FixedModelRequest, resent: TransportDispatch['resent'] = []) {
   return { request, media: [], declaration: request.declarations[0], resent }
 }
@@ -61,7 +60,6 @@ function encode(record: ChatCompletionsRecord, parts: RequestParts = {}, probe =
   return bind(record, probe).encode(inputOf(fixedRequest(record, parts)))
 }
 
-/** The body of a successful encode as plain JSON, for structural comparison. */
 function body(outcome: ReturnType<typeof encode>): Record<string, unknown> {
   if (!('ok' in outcome)) throw new Error(`encode failed: ${JSON.stringify(outcome.failure)}`)
   const parsed: unknown = JSON.parse(writeJsonText(outcome.ok.body))
@@ -152,8 +150,6 @@ describe('encode: the body', () => {
   })
 
   it('refuses two applied values for one field as invalid, never throws', () => {
-    // Two suppliers that differ only in their credential share one adoption, so the request holds
-    // the planned values of both for this binding.
     const record = testRecord()
     const planned = {
       supplier: adapterOf(record),
@@ -601,7 +597,6 @@ describe('encode: replay', () => {
     const messages = messagesOf(
       encode(record, { messages: [assistant('gateway/other'), follow], declaration }, probe),
     )
-    // The meter gets what goes out: the thinking block as a text block, no thinking block.
     expect(
       probe.views[0]?.turns[0]?.blocks.map(block => [
         block.kind,

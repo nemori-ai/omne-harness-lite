@@ -352,7 +352,6 @@ it('does not show an acquisition to another tenant that reuses its key', async (
   expect(await stateOf(registry, accessB, 'acq-1')).toEqual({
     kind: 'unrecorded',
   })
-  // Tenant B cannot use tenant A's scope, so it reuses the key in its own scope.
   expect(await registry.acquire(accessB, acquireInput(placement))).toEqual({
     kind: 'rejected',
     reason: 'notAuthorized',

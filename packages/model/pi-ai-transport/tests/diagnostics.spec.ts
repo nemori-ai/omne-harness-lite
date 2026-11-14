@@ -126,7 +126,6 @@ describe('isolating the diagnostic observer', () => {
   })
 
   it('a completion whose then accessor throws is counted as failed', () => {
-    // Every property read throws, the `then` lookup included.
     const hostile = new Proxy(
       {},
       {

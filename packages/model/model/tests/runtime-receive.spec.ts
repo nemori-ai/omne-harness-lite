@@ -63,7 +63,6 @@ for (const effect of ['applied', 'not-applied'] as const) {
       })
       const replay = f.drive()
       if (effect === 'not-applied') {
-        // The intervening cancel changed expected. It must fail explicitly, never mutate the original write.
         expect(await replay).toMatchObject({ failure: { kind: 'conflict' } })
         expect((await snapshot(f)).cursor).toBe('0')
         expect((await snapshot(f)).state.control.kind).toBe('requested')
@@ -287,8 +286,6 @@ for (const method of ['preserve', 'openReceiveWindow'] as const) {
           }
         else
           overrides.openReceiveWindow = async input => {
-            // The materialization opens the sender's window; the second open is the receiver's
-            // successor window.
             if (!original && f.openInputs.length === 2) {
               original = input
               f.controls.commands.injectUnknown({ ...input, method, effect })

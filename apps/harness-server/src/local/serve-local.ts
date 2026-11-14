@@ -1,7 +1,3 @@
-// What `serve` takes from the local single-user setup when a flag is absent. Without `--operator`
-// it builds the operator layer of the profile from the settings file and the release distribution.
-// Without `--state-root` it uses the state directory. A host without `setup` gets one clear
-// sentence and the next command, not a failed row.
 import { mkdirSync, realpathSync, statSync } from 'node:fs'
 import { openSecretVault } from '@omne-harness/settings-local/secrets'
 import { LocalProfileError, localOperatorLayer, type OperatorLayer } from './operator-defaults.ts'
@@ -10,9 +6,7 @@ import { readSettings, type ServerSettings } from './settings.ts'
 
 export type LocalServeInput = LocationInput &
   Readonly<{
-    /** No `--operator`: build the profile layer. */
     needOperator: boolean
-    /** No `--state-root`: use the state directory. */
     needStateRoot: boolean
     distribution: unknown
     shutdownDeadlineMs: number
@@ -23,12 +17,9 @@ export type LocalServe =
       kind: 'ready'
       operator?: OperatorLayer
       stateRoot?: string
-      /** The settings the layer came from, when it was built. */
       settings?: ServerSettings
     }>
-  /** The host has no complete setup. `detail` names what is missing. */
   | Readonly<{ kind: 'not-set-up'; detail: string }>
-  /** The setup is there but cannot be used as it is. */
   | Readonly<{ kind: 'refused'; message: string }>
 
 function isDirectory(path: string): boolean {
@@ -39,11 +30,6 @@ function isDirectory(path: string): boolean {
   }
 }
 
-/**
- * The real path of the workspace, the root that the Files and Shell rows get (R2-D376). A workspace
- * named through a link or by its 8.3 short name is served at the directory that it names. It is
- * taken once, here; the settings file keeps what `setup` wrote. Undefined when it is not a directory.
- */
 function realWorkspace(path: string): string | undefined {
   if (!isDirectory(path)) return undefined
   try {
@@ -61,10 +47,6 @@ function isFile(path: string): boolean {
   }
 }
 
-/**
- * The vault is opened, not only found: a file that cannot be read would let every row load and
- * fail the first model call. A missing vault means "not set up"; an unreadable one is refused.
- */
 function vaultProblem(path: string): LocalServe | undefined {
   const opened = openSecretVault({ path })
   if (opened.kind === 'open') {
@@ -114,7 +96,6 @@ export function localServeInputs(input: LocalServeInput): LocalServe {
         'Create it, or run `harness-server setup --reconfigure --workspace <dir>`.',
     }
   try {
-    // The host files directory belongs to the server. It is made again when it is gone.
     mkdirSync(locations.hostFilesDir, { recursive: true, mode: 0o700 })
     const operator = localOperatorLayer({
       distribution: input.distribution,

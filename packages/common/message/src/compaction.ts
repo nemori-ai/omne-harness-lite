@@ -2,13 +2,10 @@ import type { RecordEntryRef } from './compaction-shape.ts'
 import { judgeMessage, type CompactionMessage, type Message } from './message.ts'
 import type { MessagePart, ToolPart } from './parts.ts'
 
-/** One entry of the judgment window, in log order. `message` is null for an entry that carries no message. */
 export type CoveredEntry = Readonly<{ ref: RecordEntryRef; message: Message | null }>
 
-/** For one tool message of the window: the nearest earlier answerable call in the original history, or null. */
 export type PairingWitness = Readonly<{ result: RecordEntryRef; call: RecordEntryRef | null }>
 
-/** First compaction, or the latest committed compaction C with the pairing witnesses of the window (CM-02, CM-03). */
 export type CompactionBase =
   | Readonly<{ kind: 'initial' }>
   | Readonly<{ kind: 'previous'; record: RecordEntryRef; pairings: readonly PairingWitness[] }>
@@ -41,7 +38,6 @@ function fail(rejected: CompactionRejection, ref: RecordEntryRef | null): Failur
   return { rejected, ref }
 }
 
-/** A model-readable message is not `tool_internal` and has a block that goes to the model. */
 function isModelReadable(message: Message): boolean {
   return message.role !== 'tool_internal' && message.blocks.some(part => part.visibility.toModel)
 }
@@ -59,15 +55,10 @@ function rangeFailure(message: CompactionMessage, context: CompactionContext): F
   return broken ? fail('range', null) : undefined
 }
 
-/** The marker `callId` of a tool message; a tool message has exactly one marker. */
 function answeredCallId(message: Message): string | undefined {
   return callIdsOf(message, MARKER)[0]
 }
 
-/**
- * The window itself against the source relations of CM-02 and CM-03: the base, the retained
- * originals of C, revived summarized entries, the pairing witnesses and the open references.
- */
 function sourceEvidenceFailure(context: CompactionContext): Failure | undefined {
   const { covered, after, base, open, origin } = context
   const seen = new Set<RecordEntryRef>()
@@ -95,7 +86,6 @@ function sourceEvidenceFailure(context: CompactionContext): Failure | undefined 
   return unknown === undefined ? undefined : fail('source-evidence', unknown)
 }
 
-/** Entries before C are the retained originals of C, in order, then the untouched tail. */
 function revivedFailure(
   before: readonly CoveredEntry[],
   record: CompactionMessage,
@@ -113,7 +103,6 @@ function revivedFailure(
   return revived === undefined ? undefined : fail('source-evidence', revived.ref)
 }
 
-/** Each tool message of the window has exactly one witness; a visible witnessed call answers it. */
 function witnessFailure(
   window: readonly CoveredEntry[],
   pairings: readonly PairingWitness[],
@@ -147,10 +136,6 @@ function witnessFailure(
   return undefined
 }
 
-/**
- * Walks `retained` in order against the position of each covered entry. `judgeMessage` has
- * refused a repeated reference, so a position that is not after the previous one is earlier.
- */
 function retainedFailure(
   message: CompactionMessage,
   covered: readonly CoveredEntry[],
@@ -168,7 +153,6 @@ function retainedFailure(
   return undefined
 }
 
-/** A message with a flag that says whether the model sees it once the range is summarized. */
 interface ViewEntry {
   readonly message: Message
   readonly ref: RecordEntryRef
@@ -176,7 +160,6 @@ interface ViewEntry {
   readonly inView: boolean
 }
 
-/** The messages of the range that carry one, then the entries after it with a message, in history order. */
 function layoutHistory(
   context: CompactionContext,
   retained: ReadonlySet<RecordEntryRef>,
@@ -191,10 +174,6 @@ function layoutHistory(
   return layout
 }
 
-/**
- * The `callId` of each part of one of these kinds. The context messages passed `judgeMessage`,
- * so a call part is only in an `assistant` message and a marker only in a `tool` message.
- */
 function callIdsOf(message: Message, kinds: readonly string[]): string[] {
   const blocks: readonly MessagePart[] = message.blocks
   return blocks
@@ -202,21 +181,15 @@ function callIdsOf(message: Message, kinds: readonly string[]): string[] {
     .map(part => part.callId)
 }
 
-/** An incomplete call is not one a tool message can answer. */
 const ANSWERABLE: readonly string[] = ['tool_call', 'tool_call_unparsed']
 const MARKER: readonly string[] = ['tool_result']
 
-/**
- * The pair member that the failure points at: the one in the range, the kept one if both are,
- * the answer when the call is hidden by an earlier compaction.
- */
 function pairRef(call: ViewEntry | null, answer: ViewEntry): RecordEntryRef {
   if (call === null) return answer.ref
   if (call.covered && answer.covered) return answer.inView ? answer.ref : call.ref
   return call.covered ? call.ref : answer.ref
 }
 
-/** First compaction: each tool message is paired with the nearest earlier call of the same `callId`. */
 function nearestPairingFailure(layout: readonly ViewEntry[]): Failure | undefined {
   const nearest = new Map<string, ViewEntry>()
   for (const entry of layout) {
@@ -231,7 +204,6 @@ function nearestPairingFailure(layout: readonly ViewEntry[]): Failure | undefine
   return undefined
 }
 
-/** Later compaction: pairs come from the witnesses; a call outside the window is not in V. */
 function witnessedPairingFailure(
   layout: readonly ViewEntry[],
   pairings: readonly PairingWitness[],
@@ -258,13 +230,6 @@ function openWorkFailure(
   return entry === undefined ? undefined : fail('open-work', entry.ref)
 }
 
-/**
- * Judge a compaction record against the window the holder supplies. `message` goes through
- * `judgeMessage` first, and the later steps read only its success value. The order of checks is:
- * the range, the source evidence of the window, the retained set, the pairing of calls and
- * results, then the open work. The first failure is returned. The cost is linear in the number of
- * window entries and witnesses.
- */
 export function judgeCompaction(message: unknown, context: CompactionContext): CompactionJudgment {
   const judged = judgeMessage(message)
   if ('rejected' in judged || judged.ok.role !== 'compaction') return fail('message', null)

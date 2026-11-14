@@ -1,7 +1,3 @@
-// The governed operations of `identity/v1` beyond the first six: each calls the same governance
-// method as the server entry's governance location, with the login (and acting tenant) of the
-// caller, and maps each of its outcomes the same way. The operations this deployment declares not
-// provided answer `stage-not-provided`.
 import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
 import type { IdentityGovernance } from '@omne-harness/identity'
 import { createAccessIdentity, createIdentityOperations } from '@omne-harness/identity-access'
@@ -44,7 +40,6 @@ async function setUp() {
 
 type World = Awaited<ReturnType<typeof setUp>>
 
-/** Handlers whose governance port answers `outcome` from `method` and records the input. */
 function stubbed(w: World, method: Method, outcome: unknown) {
   const seen: unknown[] = []
   const governance = {
@@ -66,9 +61,7 @@ type Case = Readonly<{
   method: Method
   principal: 'login' | 'acting'
   body: (w: World) => unknown
-  /** The input the port must receive besides `login` (and `actingTenant`). */
   input: (w: World) => Record<string, unknown>
-  /** Each domain outcome and the answer it maps to. */
   outcomes: (w: World) => readonly (readonly [unknown, unknown])[]
 }>
 
@@ -143,7 +136,6 @@ const CASES: readonly Case[] = [
           },
         },
       ],
-      // The list holds at least the calling login; an empty one is not an answer.
       [{ kind: 'succeeded', logins: [] }, { outcome: 'basis-unavailable' }],
       denied,
       unavailable,

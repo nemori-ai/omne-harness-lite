@@ -1,10 +1,3 @@
-// The access checks of the `authorization` row (DP-4 §3.4, §3.5; D-AUTH r4 §4.7). Each check turns
-// one request into a plan before its first await: the request is copied, bound, classified by the
-// shape of its principal and resolved against the policy table. The plan is a denial, an
-// `AdmissionCheck` input (tenant admission) or a `SystemActionRequest` (system matrix). Only then
-// the dependency is called. The shape of a principal only picks the column; the verifier inside the
-// dependency decides whether the principal is trusted. A dependency that throws or answers outside
-// its contract gives `unavailable`, never `denied` or `allowed`. Exception text is not reported.
 import {
   canonicalText,
   effectiveArgumentsOf,
@@ -42,14 +35,12 @@ export { LOGIN_WORK_OWNER, SESSION_WORK_OWNER } from './principals.ts'
 export { createActionAdmission } from './action-admission.ts'
 export { createToolAccessGuard } from './tool-access.ts'
 
-/** Shared access ports; permission writes additionally require the current login source. */
 export type AccessPorts = Readonly<{
   admission: AdmissionCheck
   systemActions: SystemActionAuthorization
   login: SessionPermissionLogin
 }>
 
-/** The two access checks answer in the same three kinds. */
 type Verdict = SessionAccessDecision & AgentAccessDecision
 
 type Plan =
@@ -66,13 +57,11 @@ function tenantText(tenant: TenantId): string {
   return encoded.value
 }
 
-/** The tenant of an acting principal against the tenant of the access (policy draft §3 step 4). */
 function actsFor(who: NonNullable<ReturnType<typeof classify>>, tenant: TenantId | null): boolean {
   if (who.column === 'system') return true
   return tenant !== null && tenantEquals(who.principal.tenant, tenant)
 }
 
-/** What a policy cell needs from the request: the tenant admission input or the matrix request. */
 type Builders = Readonly<{
   member(principal: ActingForTenantPrincipal): AdmissionInput | null
   matrix(purpose: SystemPurpose, principal: SystemPrincipal): SystemActionRequest | null
@@ -109,7 +98,6 @@ function unavailable(diagnostic: string): Verdict {
   return Object.freeze({ kind: 'unavailable', diagnostic })
 }
 
-/** Both authorization ports answer with this shape; every other kind is outside the contract. */
 function fromDecision(decision: AdmissionDecision | SystemActionDecision): Verdict {
   switch (decision.kind) {
     case 'allowed':
@@ -142,11 +130,6 @@ async function execute(plan: Plan, ports: AccessPorts): Promise<Verdict> {
   }
 }
 
-/**
- * The shared frame of both checks. `plan` runs before the first await, so the request is fixed
- * before anything else can change it. A throw while planning or while calling a dependency is
- * `unavailable` with a fixed diagnostic that names the step.
- */
 async function answer(plan: () => Plan, ports: AccessPorts): Promise<Verdict> {
   let planned: Plan
   try {
@@ -163,9 +146,6 @@ async function answer(plan: () => Plan, ports: AccessPorts): Promise<Verdict> {
   }
 }
 
-// ---- Session ----------------------------------------------------------------------------------
-
-/** Every mutation of the Session faces. The `satisfies` makes a new `MutationName` a type error here. */
 const MUTATIONS = {
   accept: true,
   startRun: true,
@@ -204,7 +184,6 @@ function isMutation(operation: string): operation is MutationName {
 
 type SessionTargetKind = SessionAccessRequest<unknown>['target']['kind']
 
-/** The target branch each operation is defined on. */
 function targetKindOf(operation: SessionAccessRequest<unknown>['operation']): SessionTargetKind {
   switch (operation) {
     case 'pending':
@@ -219,11 +198,9 @@ function targetKindOf(operation: SessionAccessRequest<unknown>['operation']): Se
   }
 }
 
-/** What the binding step reads from the command of a Session mutation. */
 type CommandFacts = Readonly<{
   arguments: EffectiveArguments
   branch: BranchInput
-  /** The `scope-release` fact that a system `receive` is bound to; the matrix row takes its digest. */
   fact: unknown
 }>
 
@@ -253,12 +230,10 @@ function commandFacts(
 
 function planSession(input: SessionAccessRequest<unknown>): Plan {
   const { access, operation, target } = input
-  // Own-property lookup: `constructor` and `__proto__` are not operations.
   if (typeof operation !== 'string' || !Object.hasOwn(SESSION_POLICY, operation)) return DENIED
   const tenant = 'tenant' in access ? access.tenant : null
   if (target.kind !== targetKindOf(operation)) return DENIED
 
-  // Policy draft §3 step 2: the command, the target and the access name the same operation.
   let facts = NO_COMMAND
   if ('command' in target) {
     const { command } = target
@@ -277,7 +252,6 @@ function planSession(input: SessionAccessRequest<unknown>): Plan {
   if (target.kind === 'tenant' && (tenant === null || !tenantEquals(target.tenant, tenant)))
     return DENIED
 
-  // Steps 3 to 5: column, tenant, and the work binding of a work principal on a Session target.
   const who = classify(access.principal)
   if (who === null || !actsFor(who, tenant)) return DENIED
   if (
@@ -315,7 +289,6 @@ function planSession(input: SessionAccessRequest<unknown>): Plan {
   return permissionWrite === null ? DENIED : { ...planned, permissionWrite }
 }
 
-/** The `kind` and `key` of the target in the vocabulary of the tenant admission check. */
 function sessionResource(
   target: SessionAccessRequest<unknown>['target'],
 ): Readonly<{ kind: string; key: string }> | null {
@@ -382,28 +355,18 @@ function sessionMatrixRequest(
         },
       }
     default:
-      // The agent purposes and the not-yet-implemented session purposes belong to no Session cell.
       return null
   }
 }
 
-/** `SessionAccessCheck` over the Session policy table. */
 export function createSessionAccessCheck(ports: AccessPorts): SessionAccessCheck<unknown> {
   const check: SessionAccessCheck<unknown>['check'] = input =>
     answer(() => planSession(input), ports)
   return Object.freeze({ check })
 }
 
-// ---- Agent ------------------------------------------------------------------------------------
-
 type AgentRequest = Parameters<AgentAccessCheck<unknown>['check']>[0]
 
-/**
- * The principal of an Agent request. `receive-result` alone also takes the Model host work
- * principal M (`src/model/principals.ts`): the Model host pushes a result with the M it resolved
- * through `ModelHostAuthority.resolve`, and the `receive-result` row admits it by the member cell
- * of the work column, which checks the tenant only (R2-D248, DP-4 Q-1). M takes no other operation.
- */
 function agentPrincipalOf(operation: string, principal: unknown): ReturnType<typeof classify> {
   const who = classify(principal)
   if (who !== null || operation !== 'receive-result') return who
@@ -416,7 +379,6 @@ function planAgent(input: AgentRequest): Plan {
   if (typeof operation !== 'string' || !Object.hasOwn(AGENT_POLICY, operation)) return DENIED
   const who = agentPrincipalOf(operation, access.principal)
   if (who === null || !actsFor(who, access.tenant)) return DENIED
-  // Policy draft §3 step 5: a `scope` target of a work principal is the scope of its own session.
   if (
     who.column === 'work' &&
     target.kind === 'scope' &&
@@ -444,7 +406,6 @@ function agentMatrixRequest(
   target: AgentRequest['target'],
   tenant: TenantId,
 ): SystemActionRequest | null {
-  // The three agent instance rows bind a host duty on one instance in one tenant partition.
   if (target.kind !== 'instance') return null
   let name: 'publish' | 'quiesce' | 'withdraw'
   switch (purpose) {
@@ -473,7 +434,6 @@ function agentMatrixRequest(
   }
 }
 
-/** `AgentAccessCheck` over the Agent policy table. */
 export function createAgentAccessCheck(ports: AccessPorts): AgentAccessCheck<unknown> {
   const check: AgentAccessCheck<unknown>['check'] = input => answer(() => planAgent(input), ports)
   return Object.freeze({ check })

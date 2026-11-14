@@ -1,5 +1,3 @@
-// The Node provider of engineering telemetry, slice 1. This entry does not import Cordis; the
-// plugins and the Cordis log bridge are at `./cordis`.
 export { createDisabledTelemetry } from './disabled.ts'
 export type {
   TelemetryBudgets,

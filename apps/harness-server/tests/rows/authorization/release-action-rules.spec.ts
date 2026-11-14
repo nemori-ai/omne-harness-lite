@@ -1,4 +1,3 @@
-// Real release rules and identity checks, with explicit standing and current-permission fixtures.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { decisionEvidence, referenceAdmissionCheck } from '@omne-harness/authorization'
@@ -13,8 +12,6 @@ const tenant = fixtureTenant('a')
 const distribution: unknown = JSON.parse(
   readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
 )
-// `runServe` adds the `executionHost` factory binding to the allowlist (HOSTFILE-FACTORY-ROW); the
-// release now names it for `execution-host`, so reading the release tree needs the same entry.
 const allowlist = [...serveProfile().allowlist, 'executionHost', 'telemetry']
 
 function configOf(operator: unknown): unknown {
@@ -62,8 +59,6 @@ function admissionFor(config: unknown, currentPermission = true) {
           }
         : undefined,
   })
-  // `call` is `<tool>` or `<tool>.<command>`. The model calls the tool and names the command in the
-  // arguments (D-94); the definition is the one the trusted Tool request source describes for it.
   return (call: string) => {
     const [tool = call, command] = call.split('.')
     const args = command === undefined ? '{}' : JSON.stringify({ command, params: {} })

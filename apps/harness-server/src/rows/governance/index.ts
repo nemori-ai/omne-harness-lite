@@ -71,7 +71,6 @@ class StandingDestination extends StandingDestinationResolverService {
   readonly seal: StandingDestinationResolverService['seal']
   constructor(ctx: Context, host: TenantGovernanceHost) {
     super(ctx)
-    // HITL's reservations seal at HITL's own destination (`rows/tool-hitl`); the rest at governance.
     this.seal = reservation =>
       isHitlReservation(reservation)
         ? (toolHitlHolder(ctx).host?.destination.seal(reservation) ??
@@ -126,8 +125,6 @@ export const governanceRow = defineRow({
     ctx.effect(() => () => sources.close(), 'governance.settings-sources.close')
     const host = new TenantGovernanceHost({
       domains: ctx.tenantDomainLookup,
-      // A tenant whose governance did not open has every tool call without a permission basis and
-      // no Settings: say so each time, with the phase and when the host opens it again.
       report: failure =>
         ctx
           .logger('governance')

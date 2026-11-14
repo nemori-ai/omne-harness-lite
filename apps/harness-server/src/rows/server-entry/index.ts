@@ -1,22 +1,3 @@
-// The `server-entry` row: the loopback HTTP entry of the two public locations, carried by the row
-// body in the `entry` phase. The body builds the member's server from the tree and returns a
-// handle: `start` listens (the assembly calls it after every row is ACTIVE) and `stop` closes the
-// entry first in the planned stop. Nothing listens before `start`. The member's diagnostics leave
-// through the injected `telemetry` service (D04: required, so a tree without it does not serve).
-//
-// The session diagnostics projection (#1140 A5, RFC-0013 A line) reads four ports. Three are
-// injected, as the assembly page lists them: `agentJournal` (the finish read), `modelRuntime`
-// (only `calls.inspect` and `calls.dispatches`) and `modelDiagnostics`. `toolRuntime` is a local
-// dependency, read on every call: absent, the tool reads of the projection answer `unavailable`,
-// which the member writes as a gap, and the entry serves the rest.
-//
-// The new address (`access.ts`): the row provides `accessRegistry` and gives the entry the same
-// registry, with identity's implementation of the identity port. The domains' access rows mount
-// their protocols on it (`identity-access` mounts `identity/v1`); access diagnostics go out as
-// `omne.access.diagnostic` through the same telemetry service.
-//
-// HITL 位置（member SPEC「HITL 位置」）：入口面把每个租户事务域的 HITL 应用（`rows/tool-hitl`）按调用现取，
-// 入口主体由 `hitlEntryPrincipals` 签发（`src/entry/hitl-entry-principals.ts`）。
 import type { Context } from '@deepseek-ai/cordis'
 import { accessRegistryKey } from '@omne-harness/access-cordis-contract/cordis'
 import { agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
@@ -47,11 +28,6 @@ import { entryDiagnostics } from './telemetry.ts'
 
 const LOOPBACK = '127.0.0.1'
 
-/**
- * The Session faces by caller class. The assembly page names two classes for this row: `intake`
- * for the management and work operations, `reader` for the history. A plugin has one `inject`
- * entry per service, so the two classes come from two intercept contexts of the row fiber.
- */
 function sessionFaces(ctx: Context): ServerEntryDependencies['session'] {
   const intake = ctx.intercept(sessionKey, { caller: 'intake' }).session
   const reader = ctx.intercept(sessionKey, { caller: 'reader' }).session
@@ -81,11 +57,6 @@ const TOOL_RUNTIME_ABSENT = Object.freeze({
   diagnostic: 'tool runtime is not provided by the tree',
 })
 
-/**
- * The tool reads of the projection, taken from the tree on every call. The assembly page lists
- * `toolRuntime` as a local dependency of this row: a reloaded Tool runtime is seen by the next
- * request, and a missing one makes only the tool reads answer `unavailable`.
- */
 function toolQueriesOfCall(ctx: Context): ToolQueries {
   const current = (): ToolRuntime['queries'] | undefined =>
     (ctx.get(toolRuntimeKey) as ToolRuntime | undefined)?.queries
@@ -106,7 +77,6 @@ function toolQueriesOfCall(ctx: Context): ToolQueries {
   return queries
 }
 
-/** The three injected ports of the projection, each narrowed to what the member reads. */
 function diagnosticPorts(
   ctx: Context,
 ): Pick<ServerEntryDependencies, 'agentJournal' | 'modelCalls' | 'modelDiagnostics'> {
@@ -121,7 +91,6 @@ function diagnosticPorts(
   }
 }
 
-/** The projection fields, present together or absent together (the schema refines that). */
 function projectionOf(
   config: ServerEntryRowConfig,
 ): Pick<ServerEntryConfig, 'diagnosticsKinds' | 'maxRuns' | 'maxCallsPerRun'> {
@@ -132,11 +101,9 @@ function projectionOf(
 }
 
 async function build(ctx: Context, raw: unknown): Promise<RowHandle> {
-  // `defineRow` hands over the output of `Config`; parsing it again only narrows the type.
   const parsed = serverEntryConfig.parse(raw)
   const { diagnosticsKinds: _kinds, maxRuns: _runs, maxCallsPerRun: _calls, ...config } = parsed
   const entry = createServerEntry({
-    // HITL 位置的位置引用与决策方登记用的位置相同，不由运维者配置。
     config: {
       listenAddress: LOOPBACK,
       ...config,
@@ -154,11 +121,8 @@ async function build(ctx: Context, raw: unknown): Promise<RowHandle> {
       ...diagnosticPorts(ctx),
       toolQueries: toolQueriesOfCall(ctx),
       hitl: hitlFacesOfCall(ctx),
-      // 入口主体的签发者只交给 HITL 位置，用本行受信可见的签发者建（ID-16 持有者表）。
       hitlEntryPrincipals: createHitlEntryPrincipals(ctx.principalIssuer),
     },
-    // The new address `/api/<protocol>/v<major>/<name>`, over the registry the row provides and
-    // identity's implementation of the entry's identity port.
     access: entryAccess(
       ctx,
       ctx.telemetry,
@@ -169,7 +133,6 @@ async function build(ctx: Context, raw: unknown): Promise<RowHandle> {
       }),
     ),
   })
-  // A fiber that unloads while the tree runs (a provider change) closes the listener too.
   ctx.effect(() => () => entry.stop(), 'server-entry.listener')
   return {
     async start() {

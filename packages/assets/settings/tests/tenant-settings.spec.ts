@@ -1,7 +1,3 @@
-// The tenant-layer face over port doubles (SPEC「租户层读写面」). Each case names its row of the
-// totalization tables of RFC-0015 §9「设置的操作与答复」: list/describe (L*), set (S*), clear (C*).
-// The writer double decides with `decideSettingsChange`, keeps one root per operation and answers
-// a recalled operation with its first result, as the Settings preparation does.
 import canonicalize from 'canonicalize'
 import { describe, expect, it } from 'vitest'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -98,7 +94,6 @@ const PERMITS: Readonly<Record<string, boolean>> = { deny: false, ask: true, aut
 
 type Value = Readonly<{ pick: string | null; allowedSet: readonly string[] | null }>
 
-/** A world of one tenant asset target with an organization source before the tenant source. */
 function world() {
   const definition = definitionOf()
   const target = { policyId: 'asset', targetRef: 'tool.Shell', scopeRef: 'tenant-a' }
@@ -122,7 +117,6 @@ function world() {
     organizationPick: null as string | null,
     organizationReadable: true,
     lose: false,
-    /** Runs between the preparation and the commit of the next new write. */
     between: null as (() => void) | null,
   }
   const roots = new Map<string, { digest: string; result: TenantSettingsWriteResult }>()

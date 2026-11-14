@@ -3,12 +3,6 @@ import { empty, needDecision, noChanges, requests, successes } from './rules.ts'
 
 const emptyBody = ruleCodec(empty)
 
-/**
- * `identity/v1`: the identity operations a client may call. Every operation may answer
- * `stage-not-provided`, because a deployment may declare any identity operation unprovided.
- * An operation needs no login (`none`), a login (`login`), or a login acting for a tenant
- * (`acting-tenant`); a `query-*` operation and `judge-admission` read, the others commit.
- */
 export const identityProtocol = defineProtocol({
   name: 'identity',
   major: 1,
@@ -98,7 +92,6 @@ export const identityProtocol = defineProtocol({
         'stage-not-provided': true,
       },
     },
-    // A read whose result may stay unknown: it reads back an earlier create call.
     'query-create-organization': {
       identity: 'login',
       effect: 'read',

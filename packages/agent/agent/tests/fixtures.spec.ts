@@ -1,5 +1,3 @@
-// One test per scripting interface of the testing entry: the default answer, and the answer a test
-// scripts. A double runs no semantics of its port; these tests check only that it answers as told.
 import { describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
@@ -49,10 +47,6 @@ const authority: Authority = {
   source: testEvidence('authority'),
 }
 
-/**
- * The input of a double whose answer does not depend on most of its input. The double reads only
- * the fields given here, so the rest of the contract shape is left out on purpose.
- */
 function stub<T>(fields: object): T {
   return fields as T
 }
@@ -371,8 +365,6 @@ describe('locally required ports', () => {
     expect(ok(await reads.port.lookup(input))).toEqual({ kind: 'unknown' })
   })
 
-  // Red when the scripted card port cannot carry a `remark` reply unchanged. How the Agent reads
-  // a remark is not exercised here: no product code consumes `CardReply` yet (#502 stage 2).
   it('the card double hands back a scripted remark unchanged', async () => {
     const cards = createScriptedDecisionCards<string>()
     const input = stub<never>({ ...access, card: testEvidence('card') })

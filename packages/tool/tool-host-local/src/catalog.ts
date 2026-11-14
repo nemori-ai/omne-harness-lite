@@ -1,6 +1,3 @@
-// The Catalog (P02, P16) joins this process's live contributions with the current lawful view.
-// The view can also supply retained definitions without granting an executable binding (G7).
-// Unknown and undisclosed names get the same answer. A trusted source judges availability.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   Access,
@@ -35,13 +32,11 @@ import {
   type LocalToolCatalogView,
 } from './catalog-view.ts'
 
-/** The facts about one definition for one consumer that only a trusted source can give. */
 export type ToolAvailabilityVerdict = Pick<
   AvailabilityFacts,
   'qualification' | 'dependencies' | 'inputCompatible' | 'outputCompatible' | 'attachmentsReadable'
 >
 
-/** Judges, for the asking tenant and consumer, the facts that availability depends on. */
 export interface LocalToolAvailabilitySource<P> {
   judge(
     input: Access<P> &
@@ -50,7 +45,6 @@ export interface LocalToolAvailabilitySource<P> {
 }
 
 export type LocalToolCatalogInput<P> = Readonly<{
-  /** Absent (null) means every call answers `unavailable`. */
   registry: ToolListingSource<P> | null
   availability: LocalToolAvailabilitySource<P>
   view: LocalToolCatalogViewSource<P> | null
@@ -59,10 +53,8 @@ export type LocalToolCatalogInput<P> = Readonly<{
 
 const DEPENDENCY = 'toolBindings'
 
-/** The answer for an unknown name and for a name that the tenant may not see. */
 const unknownTool = fail({ kind: 'invalid', field: 'name', reason: 'unknown-tool' } as const)
 
-/** The listing a name resolves to: the lowest registration ordinal among the live, visible ones. */
 function choose(listings: readonly ToolListing[], name: string): ToolListing | undefined {
   let chosen: ToolListing | undefined
   for (const listing of listings)
@@ -81,7 +73,6 @@ type CatalogCandidate = Readonly<{
 }> &
   (Readonly<{ kind: 'live'; executor: Adoption }> | Readonly<{ kind: 'known' }>)
 
-/** Existing live ordinals take precedence over retained metadata with the same name. */
 function candidateFor(
   visible: ReturnType<typeof visibleCatalogListings>,
   view: LocalToolCatalogView,
@@ -117,7 +108,6 @@ const same = (left: Adoption, right: Adoption): boolean =>
   left.revision === right.revision &&
   left.digest === right.digest
 
-/** The usage of a definition for a command that the caller may use: its own, or the command's. */
 function usageOf(
   definition: ToolDefinition,
   command: string | null,
@@ -138,8 +128,6 @@ function usageOf(
   const found = definition.commands.find(candidate => candidate.name === command)
   if (found === undefined)
     return fail({ kind: 'invalid', field: 'command', reason: 'unknown-command' })
-  // The usage text and protocol of an executor-owned command live with the executor, which the
-  // Catalog does not hold. It does not make them up.
   if (found.parameters.kind !== 'declared')
     return fail({
       kind: 'unavailable',
@@ -155,7 +143,6 @@ function usageOf(
   } satisfies ToolUsage)
 }
 
-/** Builds the Catalog. */
 export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): ToolCatalog<P> {
   const { registry, availability } = input
   const rank = createCatalogRanking(input.search)

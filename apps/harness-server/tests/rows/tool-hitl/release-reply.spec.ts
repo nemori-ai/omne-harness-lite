@@ -1,13 +1,4 @@
 // @module-tag slow
-// 慢：本进程装发行树（真实 SQLite、真实 Tool 与 Agent 宿主、真实 Identity），每条命令起一个 `omne` 子进程，模型走
-// 本进程的脚本网关。先构建 `apps/cli`。
-// Ask 在发行树上答复与恢复（切片 03，验收 C3、C4）。模型调用 Ask 暂停出卡，人经真实 HTTP 的 `/hitl-public/1` 列卡并
-// `submit-reply`，Tool 接受决定、从检查点恢复一次，Ask 的结果文字回到原动作槽位，模型再走一轮，Run 完成。
-// - 从会话入口（`list-cards` 带 `sessionRef`）和从待办池（不带）各答一次：两个会话的继续路径与历史相同，各只有一条
-//   Ask 工具结果。
-// - 选项、自由作答与跳过在 question 与 approval 上的结果文字与 tool-definitions SPEC「段」一致。
-// - 两个入口并发提交同一张卡：只有一方成立，另一方得到 already-decided 与成立的那个决定；原调用只恢复一次。
-// 发行的 `coding` 定义在本文件里跳过权限询问（与 release-ask 相同），只为不让询问策略挡住调用。
 import { setTimeout as sleep } from 'node:timers/promises'
 import type { PoolItem } from '@omne-harness/human-intervention'
 import { describe, expect, it } from 'vitest'
@@ -47,11 +38,6 @@ const APPROVAL = JSON.stringify({
   },
 })
 
-/**
- * The model calls Ask once per session: `request_approval` when the user input names `approval`,
- * three questions when it names `three`, else one question. The tool result ends the turn with
- * `done`. Every request body is kept, so a scenario counts what the model received.
- */
 function recordedScript(): Readonly<{ script: GatewayScript; bodies: string[] }> {
   const bodies: string[] = []
   const answer = toolCallsThenText(body => [
@@ -88,7 +74,6 @@ function itemsOf(exchange: HitlExchange): readonly HitlCardItem[] {
   return (response.body as { items: readonly HitlCardItem[] }).items
 }
 
-/** Lists cards through the public location: the session entry with `session`, else the pool. */
 function listing(
   world: ReleaseTree,
   states: readonly ('pending' | 'decided')[],
@@ -108,10 +93,6 @@ function listing(
   })
 }
 
-/**
- * The pending cards of `session`: through the session entry, or picked from the pool by their
- * origin, as a person sees them there. Waits until `count` cards are there.
- */
 async function pending(
   world: ReleaseTree,
   session: string,
@@ -133,7 +114,6 @@ async function pending(
 
 type Submitted = Readonly<{ status: number; outcome?: string; body?: HitlReplyResult }>
 
-/** One `submit-reply` through the public location. */
 async function submit(
   world: ReleaseTree,
   item: HitlCardItem,
@@ -161,7 +141,6 @@ async function submit(
   }
 }
 
-/** The history of `session` once its Run has ended. */
 const settled = (world: ReleaseTree, session: string) =>
   pollUntil(
     'the end of the Run of the session',
@@ -169,12 +148,10 @@ const settled = (world: ReleaseTree, session: string) =>
     entries => entries.some(entry => entry.kind === 'run.terminal'),
   )
 
-/** The cards of `session` in any state, read by the registering principal in process. */
 async function cardsOf(world: ReleaseTree, session: string): Promise<readonly PoolItem[]> {
   return world.cards({ sessionRef: session, states: ['pending', 'decided', 'invalidated'] })
 }
 
-/** What one session shows after its Ask was answered: the history and the model requests. */
 async function outcomeOf(
   world: ReleaseTree,
   bodies: readonly string[],
@@ -185,7 +162,6 @@ async function outcomeOf(
   return {
     kinds: entries.map(entry => entry.kind),
     results: toolResults(entries),
-    // The model requests of this session that carry a tool result: one per resume.
     continued: bodies.filter(body => body.includes(input) && body.includes('"role":"tool"')).length,
   }
 }
@@ -206,7 +182,6 @@ describe('a person answers an Ask on the release tree and the call resumes once 
           const byPool = await world.startSession('start: one by pool')
           const [first] = await pending(world, bySession, 'session', 1)
           const [second] = await pending(world, byPool, 'pool', 1)
-          // The same card is in both entries, in the same projection.
           expect(itemsOf(await listing(world, ['pending']))).toContainEqual(first)
           for (const [item, replyId, session] of [
             [first, 'reply-session', bySession],
@@ -223,12 +198,10 @@ describe('a person answers an Ask on the release tree and the call resumes once 
               outcome: 'succeeded',
               body: { kind: 'decided', decisionRef: { card: item!.card.ref } },
             })
-            // 一个 Run 结束再答下一个，理由同下一条用例。
             await settled(world, session)
           }
           const one = await outcomeOf(world, bodies, bySession, 'start: one by session')
           const other = await outcomeOf(world, bodies, byPool, 'start: one by pool')
-          // The result of the Ask is the text of the original action slot, once; the model went on.
           expect(one.results).toEqual([`Q1 ${ONE}: selected "8081 (Recommended)"`])
           expect(one.kinds).toEqual([
             'message.user',
@@ -239,9 +212,7 @@ describe('a person answers an Ask on the release tree and the call resumes once 
             'run.terminal',
           ])
           expect(one.continued).toBe(1)
-          // The entry does not change the way on: the same history, the same result.
           expect(other).toEqual(one)
-          // Each card holds its one decision, and the call took it over.
           for (const session of [bySession, byPool])
             expect(
               (await cardsOf(world, session)).map(item => [
@@ -322,8 +293,6 @@ describe('a person answers an Ask on the release tree and the call resumes once 
               )
               expect(answered.outcome, JSON.stringify(answered)).toBe('succeeded')
             }
-            // 等这个会话的 Run 结束再答下一个。同一租户的几个 Run 同时继续，会撞上 Agent、agent-context 与模型
-            // 发行份额的已知限制（agent-host-local SPEC「运行失败」，R2-D256），那不是本场景要核的事。
             await settled(world, session)
           }
           for (const [at, item] of cases.entries()) {
@@ -361,7 +330,6 @@ describe('a person answers an Ask on the release tree and the call resumes once 
           expect([decided.length, told.length]).toEqual([1, 1])
           const winner = decided[0]!.body as Extract<HitlReplyResult, { kind: 'decided' }>
           const loser = told[0]!.body as Extract<HitlReplyResult, { kind: 'already-decided' }>
-          // The other entry is told the decision that holds.
           expect(loser.decision.ref).toEqual(winner.decisionRef)
           const option =
             loser.decision.reply.kind === 'selection' ? loser.decision.reply.optionId : ''
@@ -427,7 +395,6 @@ describe('a person answers an Ask on the release tree and the call resumes once 
             body: { kind: 'decided' },
             request: { replyId: 'cli-reply-1' },
           })
-          // The same reply id again recalls the original submission.
           const again = await world.cli([
             'submit-reply',
             ...ref,

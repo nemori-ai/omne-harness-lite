@@ -1,5 +1,3 @@
-// 覆盖率层起 pnpm 的规则：Windows 上按 PATH 顺序找 pnpm.exe，或找旁边有 pnpm.cjs 的 pnpm.cmd。
-// 只用临时目录造布局，不起真的 pnpm；平台、PATH 与 Node 的路径经参数注入，两个平台的规则都能在任何宿主上测。
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -24,14 +22,12 @@ function file(path: string): void {
   writeFileSync(path, '')
 }
 
-/** 只装了 pnpm.exe（独立安装的布局）的目录。 */
 function standalone(root: string, name: string): string {
   const directory = join(root, name)
   file(join(directory, 'pnpm.exe'))
   return directory
 }
 
-/** npm 全局安装的布局：pnpm.cmd 旁边有 node_modules/pnpm/bin/pnpm.cjs。 */
 function npmGlobal(root: string, name: string): string {
   const directory = join(root, name)
   file(join(directory, 'pnpm.cmd'))
@@ -39,7 +35,6 @@ function npmGlobal(root: string, name: string): string {
   return directory
 }
 
-/** 只有 pnpm.cmd，旁边没有 pnpm.cjs。 */
 function cmdOnly(root: string, name: string): string {
   const directory = join(root, name)
   file(join(directory, 'pnpm.cmd'))
@@ -50,7 +45,6 @@ function windows(...directories: string[]): PnpmHost {
   return { platform: 'win32', env: { PATH: directories.join(';') }, execPath: NODE }
 }
 
-/** 调用必须抛错，返回那个错误；没抛错就让测试失败。 */
 function thrownBy(run: () => unknown): Error {
   try {
     run()

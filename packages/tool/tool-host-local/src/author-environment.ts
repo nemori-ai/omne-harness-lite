@@ -43,7 +43,6 @@ export type ToolEnvironmentValue = Readonly<{
   files: AuthorFacility<FileSystemFacility<unknown>>
   command: Omit<AuthorFacility<CommandFacility<unknown>>, 'retention' | 'containment'> & {
     readonly retention?: AuthorFacility<CommandRetention<unknown>>
-    /** The provider's containment as the lease gives it; absent is not `sealed`. */
     readonly containment?: Containment
   }
   terminal: Omit<AuthorFacility<TerminalFacility<unknown>>, 'retention'> & {

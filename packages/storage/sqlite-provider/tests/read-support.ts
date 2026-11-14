@@ -1,5 +1,3 @@
-// Test support for read: real handler module files, a catalog that lists them, and helpers.
-// The handlers run real SQL on the read connection of a reader Worker.
 import { createHash } from 'node:crypto'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -133,7 +131,6 @@ export async function buildReadMaterials(
 
 export const providers: Provider[] = []
 
-/** A provider with the combination registered and `rows` ledger rows committed. */
 export async function readyProvider(
   workspace: Workspace,
   built: Built,

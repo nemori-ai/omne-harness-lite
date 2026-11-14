@@ -1,7 +1,3 @@
-// The protocol session on an in-memory line: every row of the contract's decision table (T8)
-// drives the session with the wire event of each cell and holds it to the row's conclusion; the
-// hand-written cases cover what the table does not say: the stdio probe time and close() during
-// a probe (T5), the peer's requests and notifications (T3), and the legacy HTTP+SSE mode (T3).
 import { getEventListeners } from 'node:events'
 import type { Outcome } from '@omne-harness/operation-result'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -38,13 +34,11 @@ import { Session, type SessionOptions } from '../src/session.ts'
 import { settledWithin } from './fixtures/settle.ts'
 import { MemoryLine, type Reply, type Script, type SseConfig } from './memory-line.ts'
 
-/** The default scheduler for the unit tests: one real timer per probe. */
 const schedule: SessionOptions['schedule'] = (delayMs, fire) => {
   const timer = setTimeout(fire, delayMs)
   return () => clearTimeout(timer)
 }
 
-/** The default defect outlet for the unit tests: thrown outside any promise, the guard of `unhandled.ts` fails the case. */
 const reportDefect: SessionOptions['reportDefect'] = defect => {
   queueMicrotask(() => {
     throw defect
@@ -63,7 +57,6 @@ const target = (() => {
 const never = new AbortController().signal
 const echo = { action: actionNameOf('echo'), args: jsonOf({}) }
 const NOT_SENT: TransportFailure = { kind: 'not-sent', cause: 'connection-unavailable' }
-/** The `not-sent` (`connection-unavailable`) of a transport that is not usable any more, for `cause`. */
 const notSentAfter = (unusable: UnusableCause): TransportFailure => ({
   kind: 'not-sent',
   cause: 'connection-unavailable',
@@ -81,7 +74,6 @@ function idleProcess(): ProcessHandle {
   }
 }
 
-/** A gate holds the n-th authorization (counting from 1) until its promise settles. */
 type Gate = (authorization: number) => Promise<void> | undefined
 
 function countingCredential(
@@ -90,7 +82,6 @@ function countingCredential(
   Readonly<{ rejections(): number; authorizations(): number; rejected: Promise<void> }> {
   let rejections = 0
   let authorizations = 0
-  // Resolves on the first `reportRejection`: a case waits for the port to be reached, not for time.
   let firstRejection = (): void => undefined
   const rejected = new Promise<void>(resolve => {
     firstRejection = resolve
@@ -166,7 +157,6 @@ const status = (
   headers,
   body,
 })
-/** A JSON-RPC error sent without the `jsonrpc` member: an envelope that T2 refuses. */
 const bareError = (code: number, text: string, data?: PlainJson): Reply => ({
   kind: 'message',
   message: { error: data === undefined ? { code, message: text } : { code, message: text, data } },
@@ -176,8 +166,6 @@ const METHOD_NOT_FOUND = error(-32601, 'Method not found')
 const LEGACY = result({ protocolVersion: OFFERED_LEGACY_VERSION, capabilities: {} })
 const LEGACY_BROKE = error(-32603, 'legacy broke')
 const MODERN = result({ supportedVersions: VERSIONS, capabilities: {} })
-
-// ---- The samples of the decision table ----
 
 function errorObject(code: string): PlainJson {
   switch (code) {
@@ -252,7 +240,6 @@ function resultValue(request: RequestClass, answer: string): PlainJson {
 const STATUS_OF: Readonly<{ [statusClass: string]: number }> = { '4xx': 418, '5xx': 503 }
 const HTTP_ANSWER = /^http:(\w+)\+(.+)$/u
 
-/** The reply of the memory line for one cell. */
 function replyOf(cell: TableCell): Reply {
   const { request, answer } = cell
   const stdio = cell.kind === 'stdio'
@@ -310,7 +297,6 @@ function isRecord(value: PlainJson | undefined): value is PlainRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-/** The JSON-RPC error a reply carries, directly or as the body of an HTTP answer. */
 function errorObjectOf(reply: Reply): PlainJson | undefined {
   if (reply.kind === 'message') return reply.message['error']
   if (reply.kind !== 'status' || reply.body === undefined || reply.body === '') return undefined
@@ -320,11 +306,6 @@ function errorObjectOf(reply: Reply): PlainJson | undefined {
   return isPlain(error) ? error : undefined
 }
 
-/**
- * The cause an answer of the row is marked with (T1): a `no-answer` its own cause, an ended
- * session `session-ended`, a request that could not be written (X02) `stream-broken`. Undefined
- * on a row that leaves the transport usable. A request after the row carries the same cause.
- */
 function unusableCauseOf(conclusion: TableConclusion): UnusableCause | undefined {
   if (conclusion.unusable !== true) return undefined
   const ended =
@@ -343,7 +324,6 @@ function unusableCauseOf(conclusion: TableConclusion): UnusableCause | undefined
   throw new TypeError(`a row that ends the transport concludes ${JSON.stringify(conclusion)}`)
 }
 
-/** The `not-sent` (`connection-unavailable`) of a request after the row, marked as the row says. */
 function refusedAfter(conclusion: TableConclusion): TransportFailure {
   const unusable = unusableCauseOf(conclusion)
   return unusable === undefined ? NOT_SENT : notSentAfter(unusable)
@@ -359,7 +339,6 @@ function failureOf(
     return unusable === undefined ? expected : { ...expected, unusable }
   if (expected.kind === 'not-sent') {
     if (unusable === undefined) return expected
-    // A `not-sent` (`session-ended`) carries no other mark (T1).
     return expected.cause === 'session-ended'
       ? { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' }
       : { kind: 'not-sent', cause: expected.cause, unusable }
@@ -406,7 +385,6 @@ function ok<T>(outcome: Outcome<T, TransportFailure>, what: string): T {
 
 const tick = () => new Promise<void>(resolve => setTimeout(resolve, 0))
 
-/** Waits until the line saw a request of `method` (a silent answer settles only on close). */
 async function untilSent(line: MemoryLine, method: string): Promise<void> {
   for (let round = 0; round < 200; round += 1) {
     if (line.requests(method).length > 0) return
@@ -462,7 +440,6 @@ function driveOf(request: RequestClass): Drive {
   }
 }
 
-/** The script that opens a legacy Streamable HTTP session before the cell's request. */
 const SESSION_SCRIPT: Script = {
   'server/discover': [METHOD_NOT_FOUND],
   initialize: [
@@ -811,7 +788,6 @@ describe('the stdio probe time (T3) and close() during a probe (T5)', () => {
     await new Promise(resolve => setTimeout(resolve, 70))
     const identity = ok(await pending, 'discover')
     expect(identity.protocolVersion).toBe(OFFERED_LEGACY_VERSION)
-    // The late answer to the probe is a line about no request in flight: dropped.
     const probe = line.requests('server/discover')[0]?.message['id']
     line.push({
       jsonrpc: '2.0',
@@ -936,7 +912,6 @@ describe('the legacy HTTP+SSE mode (T3)', () => {
     expect(line.sseAttempts).toHaveLength(1)
     expect(line.sseAttempts[0]?.get('mcp-protocol-version')).toBe(OFFERED_LEGACY_VERSION)
     expect(line.sseAttempts[0]?.get('authorization')).toBe('Bearer test-token')
-    // The second initialize and the notification go to the endpoint without a session header.
     expect(line.requests('initialize')[1]?.headers['mcp-session-id']).toBeUndefined()
     expect(line.requests('notifications/initialized')).toHaveLength(1)
     expect(credential.authorizations()).toBe(5)
@@ -1380,11 +1355,6 @@ describe('closing and the credential handle (T5, T9)', () => {
   })
 })
 
-/**
- * A gate that holds every authorization after the first `free` ones until `release()`. On a
- * connection that entered the SSE fallback, `discover()` asks for five: the probe, `initialize`,
- * the fallback GET, `initialize` again, and `notifications/initialized`; a `call` is the sixth.
- */
 function holdAfter(
   free: number,
 ): Readonly<{ gate: Gate; release: () => void; reached: Promise<void> }> {
@@ -1392,7 +1362,6 @@ function holdAfter(
   const open = new Promise<void>(resolve => {
     release = resolve
   })
-  // Resolves once the first held authorization arrived: the port was reached, not a timer.
   let arrived = (): void => undefined
   const reached = new Promise<void>(resolve => {
     arrived = resolve
@@ -1557,7 +1526,6 @@ describe('what the signal of a call and close() end (T5)', () => {
         failure: { cause: 'authorization-required', discovery: { metadata: 'unavailable' } },
       },
     })
-    // The fetch the signal ended comes back later; its result has nowhere to go.
     await metadataEnded.promise
     expect(order).toEqual(['line-closed', 'metadata-ended'])
   })
@@ -1768,10 +1736,6 @@ describe('a session that cannot be used any more sends nothing and asks no crede
   })
 })
 
-/**
- * A gate that never opens: the port hangs. The caller must not wait for it (T5): the signal and
- * `close()` settle what the caller can see; the hung port call is the session's background work.
- */
 const HANG: Gate = () => new Promise<void>(() => undefined)
 
 describe('the caller waits on the settlement, never on a port (T5): hung credential handle and metadata', () => {
@@ -1888,8 +1852,6 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
   })
 
   it('authorize never answers: cancelRequest on a legacy Streamable HTTP connection returns at once', async () => {
-    // The legacy path authorizes the probe, `initialize` and `notifications/initialized`; the call
-    // is the fourth authorization; the cancel notification, the fifth, hangs.
     const held = holdAfter(4)
     const { line, transport } = open(
       'streamable-http',
@@ -1911,7 +1873,6 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
   })
 
   it('authorize never answers: close() settles a discover that waits to authorize the fallback GET', async () => {
-    // The probe and `initialize` are authorized; the GET of the fallback, the third, hangs.
     const held = holdAfter(2)
     const { line, transport } = open(
       'streamable-http',
@@ -2041,7 +2002,6 @@ describe('cancelling a request, and the probe timer (T3, T5)', () => {
   })
 })
 
-/** A promise and the function that resolves it. */
 function deferred<T = void>(): Readonly<{ promise: Promise<T>; resolve: (value: T) => void }> {
   const { promise, resolve } = Promise.withResolvers<T>()
   return { promise, resolve }
@@ -2055,8 +2015,6 @@ describe('the line going away settles a request by its phase (T8 S01–S04, S07,
   }
 
   it('a request still being authorized when the session ended (S07) is not-sent and never reaches the line', async () => {
-    // The legacy path authorizes the probe, `initialize` and `notifications/initialized`; the
-    // listing is the fourth authorization; the call, the fifth, is held until the 404 came back.
     const held = holdAfter(4)
     const { line, transport } = open(
       'streamable-http',
@@ -2094,7 +2052,6 @@ describe('the line going away settles a request by its phase (T8 S01–S04, S07,
     ok(await transport.discover(), 'discover')
     const calling = transport.call(echo, never)
     await held.reached
-    // The session settles by the event, whichever line reported it.
     line.queue.push({ kind: 'ended', stdoutEndedAt: 0, exitedAt: 0 })
     await tick()
     held.release()
@@ -2132,7 +2089,6 @@ describe('the line going away settles a request by its phase (T8 S01–S04, S07,
 
   it('the events of the line rejecting is a broken stream: a sent call answers stream-broken, one still being authorized is not-sent, and the reason goes to the defect outlet', async () => {
     const seen: unknown[] = []
-    // The fifth authorization is the first call's; the second call, the sixth, is held.
     const held = holdAfter(6)
     const { line, transport } = open('streamable-http', sseScripts, {
       sse: { kind: 'entered' },
@@ -2181,7 +2137,6 @@ describe('the line going away settles a request by its phase (T8 S01–S04, S07,
     await credential.rejected
     await fetching.promise
     line.queue.push({ kind: 'broken' })
-    // The break settles nothing in the discovery: the listing waits on the fetch it is in.
     expect(await settledWithin(listing, 30)).toBe('pending')
     found.resolve({ authorization_servers: ['https://issuer.test'] })
     expect(await settledWithin(listing)).toMatchObject({
@@ -2217,7 +2172,6 @@ describe('an answer on the shared stream reaches a request only once it was hand
     ok(await transport.discover(), 'discover')
     const calling = transport.call(echo, never)
     await held.reached
-    // The ids are predictable: the probe, two `initialize`s, then this call: `r4`.
     line.push({ jsonrpc: '2.0', id: 'r4', result: { content: [] } })
     await tick()
     held.release()
@@ -2306,7 +2260,6 @@ describe('the metadata fetch of a refused authorization (R4, T9)', () => {
         fetchMetadata: (url, signal) => {
           fetched.push(url)
           started.resolve()
-          // A fetch that honours the abort late: it answers after the signal, with a document.
           return new Promise(resolve => {
             signal.addEventListener(
               'abort',
@@ -2351,7 +2304,6 @@ describe('the metadata fetch of a refused authorization (R4, T9)', () => {
         fetchMetadata: (url, signal) => {
           fetched.push(url)
           started.resolve()
-          // Nothing at this address, known only after the signal: the root path would be next.
           return new Promise(resolve => {
             signal.addEventListener(
               'abort',
@@ -2416,7 +2368,6 @@ describe('a defect of the session goes to the defect outlet (DP-06): the request
       async send(outbound) {
         sent.push(outbound.text)
         const messages = new AsyncQueue<string>()
-        // The line breaks its own port: the body yields a number where a message text is due.
         messages.push(notAText())
         return { kind: 'stream', headers: {}, messages, abort: () => undefined }
       },
@@ -2460,7 +2411,6 @@ describe('a defect of the session goes to the defect outlet (DP-06): the request
           kind: 'stream',
           headers: {},
           messages,
-          // The line breaks its port once: the first abort throws, the next one ends the stream.
           abort: () => {
             aborts += 1
             if (aborts === 1) throw new Error('the exchange abort broke')
@@ -2514,7 +2464,6 @@ describe('a defect of the session goes to the defect outlet (DP-06): the request
   })
 })
 
-/** A value the type calls text and is not one: what a line that breaks its port would hand over. */
 function notAText(): string {
   const value: unknown = 42
   return value as string

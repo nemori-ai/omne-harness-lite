@@ -2,7 +2,6 @@ import type { ToolLedgerStore } from './ledger-store.ts'
 
 type Awaitable<T> = T | Promise<T>
 
-/** Each handle arms the next matching store IO. Omitted handles produce NotApplicable. */
 export type ToolLedgerStoreControls = Readonly<{
   readUnavailable?: () => Awaitable<void>
   commitUnavailable?: () => Awaitable<void>
@@ -13,14 +12,12 @@ export type ToolLedgerStoreControls = Readonly<{
   rejectedHostValue?: () => unknown
 }>
 
-/** A fresh store for one case. The consumer owns cleanup, including failed cases. */
 export type ToolLedgerStoreFixture = Readonly<{
   store: ToolLedgerStore
   controls: ToolLedgerStoreControls
   close(): Awaitable<void>
 }>
 
-// Structurally checked against the existing ConformanceCase at the testing entry.
 export type LedgerStoreCase = Readonly<{
   name: string
   clause: string

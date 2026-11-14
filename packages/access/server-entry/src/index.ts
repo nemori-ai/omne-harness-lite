@@ -1,6 +1,3 @@
-// Public entry of server-entry: the constructor of the loopback HTTP JSON and SSE entry and the
-// shapes of its configuration and dependencies. Behavior is in SPEC.md; the HTTP carriage is the
-// public contract's binding page.
 export { createServerEntry } from './http.ts'
 export type { Listening, ServerEntry, ServerEntryAccess, ServerEntryDependencies } from './http.ts'
 export type { JsonBudgets, ServerEntryConfig } from './config.ts'

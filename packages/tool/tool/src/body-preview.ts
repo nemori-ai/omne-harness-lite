@@ -1,5 +1,3 @@
-// The first screen of an offloaded body: a header of fixed fields, outside the preview budget, and a
-// format-aligned excerpt within it (Disclosure model: `Screen`, PreviewWithinBudget).
 import { readJsonText, type JsonLimits, type JsonValue } from '@omne-harness/json-text'
 import { formatUsage } from '@omne-harness/unix-format'
 import type { ToolBodyRepresentation, ToolSchemaIdentity } from '@omne-harness/tool-contract'
@@ -14,13 +12,11 @@ import { encodeBodyReference } from './tools-protocol.ts'
 export type BodyHeaderFields = Readonly<{
   representation: ToolBodyRepresentation
   bodyBytes: number
-  /** Lines of a text body or records of a JSON Lines body; null when the count is not known. */
   units: number | null
   retentionMs: number
   reference: string
 }>
 
-/** Names the body and how to read it back, one field per line. A schema appears only by identity. */
 export function bodyHeader(fields: BodyHeaderFields): string {
   const { representation } = fields
   const lines = [
@@ -53,11 +49,6 @@ function schemaName(identity: ToolSchemaIdentity): string {
   return `${identity.id}@${identity.revision} (${identity.digest})`
 }
 
-/**
- * The largest header any body under this declaration can get: every count at the body hard limit
- * and the reference built from identities at the contract length limit. The header shows the
- * reference raw, one byte per identity character.
- */
 export function headerMax(
   representation: ToolBodyRepresentation,
   retentionMs: number,
@@ -92,16 +83,10 @@ export function utf8Bytes(text: string): number {
   return Buffer.byteLength(text, 'utf8')
 }
 
-/** Lines of a text body, records of a JSON Lines body, null for a document. */
 export function bodyUnits(representation: ToolBodyRepresentation, text: string): number | null {
   return representation.kind === 'json-document' ? null : splitLines(text).length
 }
 
-/**
- * A mechanical excerpt of `text` within `budget` UTF-8 bytes. Text keeps whole lines from the head
- * and the tail at about 2:1; JSON Lines keeps whole records; a JSON document gives an outline, never
- * a cut JSON text. `limits` are the limits the body was validated with.
- */
 export function mechanicalPreview(
   representation: ToolBodyRepresentation,
   text: string,
@@ -122,7 +107,6 @@ const OMITTED = '[... omitted ...]\n'
 const CUT = '[line cut at a character boundary]\n'
 
 type Unit = Readonly<{ text: string; index: number; count: number }>
-/** Stands in for one unit larger than the room on its side. */
 type Oversize = (unit: Unit, room: number, side: 'head' | 'tail') => string
 
 function splitLines(text: string): Unit[] {

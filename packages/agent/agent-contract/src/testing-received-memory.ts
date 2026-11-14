@@ -52,13 +52,11 @@ import {
 
 type Pause = { reached(source: DurableEvidence): void; released: Promise<void> }
 
-/** Writes the entry and, in the same step, its `entry` event (SPEC "日志条目" 6). */
 function writeEntry(state: MemoryExecution, entry: AgentJournalEntry, receipt: CommandReceipt) {
   state.entries.push(entry)
   projectEntryEvent(state, entry, receipt)
 }
 
-/** Explicit test setup; this is not a full AgentJournal or a production storage provider. */
 export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentBlock>(
   access: Access<P>,
   otherAccess: Access<P>,
@@ -73,7 +71,6 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
   const scopedDelivery = (input: Access<P>, entry: Omit<ReceivedEntry, 'material'>) =>
     canonicalText([tenantText(input.tenant), deliveryKey(entry)])
   const materials = new Map<string, KeptMaterial<B>>()
-  /** One copy of each content per tenant: the materials that name the same digest share it. */
   const blobs = new Map<string, Material<B>>()
   const custody = new Map<string, AgentExecutionId>()
   const pauses = new Map<string, Pause>()
@@ -245,11 +242,6 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
       ? value
       : succeed(structuredClone({ kind: 'committed', value: value.ok }))
   }
-  /**
-   * The write step of a record call. The scripted fault of the execution is used here and nowhere
-   * else: `unavailable` fails before anything is written, `commit-unknown` writes as usual and
-   * loses only the reply.
-   */
   const writeRecord = (
     state: MemoryExecution,
     input: JournalEntryRecord<P>,
@@ -350,7 +342,6 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
       return succeed(receivedEntriesOf(allowed.ok.entries, input.consumption))
     },
   }
-  /** The digest each (tenant, identity, consumer) first preserved: another one is a conflict. */
   const identities = new Map<string, string>()
   const materialPort: AgentMaterials<P, B> = {
     async preserve(input) {

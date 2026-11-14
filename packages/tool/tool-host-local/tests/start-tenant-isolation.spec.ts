@@ -76,9 +76,6 @@ it('lets tenant B commit while A is blocked in its read, and decides A by commit
   } finally {
     resume.open()
   }
-  // The invalidation was suspended before its read, so the acceptance committed first and the
-  // invalidation landed after it; the accepted start stays in flight (P04: only an invalidation
-  // that holds first forbids the start).
   expect(await invalidated).toHaveProperty('ok')
   expect(await consumed).toMatchObject({ ok: { kind: 'started' } })
   expect(await authority.inspect({ ...callAccess('a'), start: startOf('a') })).toMatchObject({
@@ -112,8 +109,6 @@ it('an earlier completed tail does not remove its blocked successor from the que
     commit: input => memory.commit(input),
   }
   const authority = coordinator(store)
-  // The queue is per written domain: three prepares of one call share the call's domain. Each
-  // prepare reads that domain and then the guard domain, two reads per turn.
   const prepare = () =>
     authority.prepare({ ...callAccess('one'), start: startOf('one'), request: request() })
   const one = prepare()
@@ -123,7 +118,6 @@ it('an earlier completed tail does not remove its blocked successor from the que
   expect(await one).toHaveProperty('ok')
   await secondEntered.wait
   const three = prepare()
-  // Flush qualification and queue microtasks without allowing the blocked store to return.
   await new Promise<void>(resolve => setImmediate(resolve))
   expect(reads).toBe(3)
   second.open()

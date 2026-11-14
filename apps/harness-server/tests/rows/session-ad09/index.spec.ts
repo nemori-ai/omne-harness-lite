@@ -1,9 +1,4 @@
 // @module-tag slow
-// The `session-ad09` row: the real identity bridge over the entry object `principalVerifier` of the
-// assembly. The row is ACTIVE and provides `sessionIdentity`; a principal the in-process authority
-// issued for the tenant gets material bound to the command, and a value identity never issued is
-// denied. A contract double answers nothing of this: the bridge is the real plugin of
-// `@omne-harness/session-adapters`.
 import type { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { principalIssuerKey, type PrincipalIssuerService } from '@omne-harness/identity/cordis'
@@ -26,7 +21,6 @@ const access = memoryAccess({ kind: 'test-principal' })
 const PROBE = 'ad09-probe' as RowId
 const PROBE_NAMES: readonly ServiceName[] = [principalIssuerKey]
 
-/** A row that can see the trusted issuer, which no release row of this tree can: it captures it. */
 function probeRow(capture: (issuer: PrincipalIssuerService) => void) {
   return declared(
     defineRow({

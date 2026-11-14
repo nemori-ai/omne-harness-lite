@@ -1,7 +1,3 @@
-// A checkpointed author through the whole local host: the runtime plugins, the start coordinator,
-// the local binding and the real ledger and driver. The decision owner is a
-// scripted double; the store is the in-memory one declared durable, so this proves the assembly,
-// not durability. A decision then resumes the call from its checkpoint once, and the call ends.
 import { expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest } from '@omne-harness/tool'
@@ -38,16 +34,13 @@ const ask = unbox(
   }),
 )
 
-/** The result the authors of these tests wrote for a wait that a control closes. */
 const CLOSED = 'Nothing was answered: the question was closed.'
 
 function bridge(lost: boolean) {
   const registrations = new Map<string, DurableEvidence>()
   const ensured: string[] = []
   const inspected: string[] = []
-  // How often the driver asked for the decision of a wait.
   let polls = 0
-  // Called once, when the driver next hears that a registered wait has no decision.
   let undecided: ((input: Parameters<ToolDecisionBridge<unknown>['inspect']>[0]) => void) | null =
     null
   const resolved: string[] = []
@@ -82,7 +75,6 @@ function bridge(lost: boolean) {
           : { kind: 'committed', operation: input.operation, receipt },
       )
     },
-    // A registered wait reports no decision until the person decides it.
     inspect: async input => {
       polls += 1
       const registration = registrations.get(`${input.wait}/ensure`)
@@ -96,7 +88,6 @@ function bridge(lost: boolean) {
       }
       return succeed({ registration, decision })
     },
-    // 失效按操作记下，回执由等待派生。
     invalidate: async input => {
       invalidated.push(input.operation)
       return succeed({
@@ -195,8 +186,6 @@ it.each([false, true])(
       expect(segments).toBe(1)
       expect(scripted.ensured).toEqual([`${wait}/ensure`])
       expect(scripted.inspected).toEqual(lost ? [`${wait}/ensure`] : [])
-      // The ledger keeps the request original of the wait and the state of the checkpoint, and the
-      // evidence of each binds the digest of what is kept.
       const intent = recovery.waits[0]?.intent
       if (wait === undefined || intent?.kind !== 'ask') throw new Error('no Ask wait')
       expect(recovery.waitRequest?.wait).toBe(wait)
@@ -280,11 +269,9 @@ it('resumes the call from its checkpoint once after the decision, and ends it wi
     await expect
       .poll(async () => unbox(await world.root.toolCommands.loadRecovery(access)).waits[0]?.phase)
       .toBe('open')
-    // The person decides, and the decision owner's wake-up schedules the call.
     scripted.decide(wait, { kind: 'answer', value: { kind: 'string', value: 'b.txt' } })
     unbox(await world.root.toolInstanceHost.schedule({ tenant: world.tenantA, call: parts.call }))
     await expect.poll(phase, { timeout: 3_000 }).toBe('settled')
-    // 作者收到的答复值是普通 JSON：json-text 树在交给作者之前解码（tool-contract SPEC「恢复型执行者按段执行」）。
     expect(resumed).toEqual([
       { state: '{"asked":1}', response: { kind: 'answer', value: 'b.txt' } },
     ])
@@ -293,7 +280,6 @@ it('resumes the call from its checkpoint once after the decision, and ends it wi
     expect(after.state).toMatchObject({ phase: 'settled', terminal: { kind: 'completed' } })
     expect(after.waits).toMatchObject([{ phase: 'closed', cause: 'continued' }])
     expect(after.invocations.map(start => start.kind)).toEqual(['start', 'resume'])
-    // The resume went through the local start coordinator: a permit of its own was accepted.
     expect(after.invocations[1]).toMatchObject({ operation: `${wait}/resume` })
     const result = await world.settled(reference)
     expect(JSON.stringify(result)).toContain('resumed')
@@ -302,7 +288,6 @@ it('resumes the call from its checkpoint once after the decision, and ends it wi
   }
 })
 
-/** A checkpointed author that asks once and ends with the answer. */
 const askingAuthor = (scripted: ReturnType<typeof bridge>) => ({
   waits: [ask],
   decisions: scripted.decisions,
@@ -328,7 +313,6 @@ const askingAuthor = (scripted: ReturnType<typeof bridge>) => ({
   },
 })
 
-/** A world whose one call asks a person. `arm` runs before the call is invoked. */
 async function askedCall(
   scripted: ReturnType<typeof bridge>,
   arm: (world: Awaited<ReturnType<typeof fixture>>) => void = () => undefined,
@@ -357,7 +341,6 @@ async function askedCall(
   return { world, parts, recovery, executor }
 }
 
-/** A world whose one call is suspended on an open wait, with the things a test asks of it. */
 async function waitingCall(scripted: ReturnType<typeof bridge>) {
   const asked = await askedCall(scripted)
   await expect
@@ -371,10 +354,8 @@ it('a call that waits for a person leaves the executor: no slot of its table, an
   const scripted = bridge(false)
   const { world, recovery, executor } = await waitingCall(scripted)
   try {
-    // The call is parked and owes nothing: the executor lets it go.
     await expect.poll(() => executor().knownCalls, { timeout: 3_000 }).toBe(0)
     expect(executor().dormantExits).toBeGreaterThanOrEqual(1)
-    // Many retry intervals pass (10 ms each): the driver does not ask for the decision again.
     const asked = scripted.polls()
     await new Promise(resolve => setTimeout(resolve, 200))
     expect(scripted.polls()).toBe(asked)
@@ -422,8 +403,6 @@ it('the hint of a decision brings the dormant call back, and it resumes once', a
 
 it('a decision that comes while the idle run ends is taken by the run its hint queued', async () => {
   const scripted = bridge(false)
-  // The person decides right after the driver heard "no decision", and the hint comes during that
-  // run: the instance host runs the call once more when the run returns.
   const { world, recovery, executor } = await askedCall(scripted, armed => {
     scripted.whenUndecided(input => {
       scripted.decide(input.wait, { kind: 'answer', value: { kind: 'string', value: 'b.txt' } })
@@ -434,7 +413,6 @@ it('a decision that comes while the idle run ends is taken by the run its hint q
     await expect
       .poll(async () => (await recovery()).state.phase, { timeout: 3_000 })
       .toBe('settled')
-    // The run after the idle one took the call back from the ledger; the scan was not needed.
     expect(executor().dormantExits).toBe(1)
     expect(executor().reentries).toBe(1)
     expect(scripted.resolved).toHaveLength(1)
@@ -448,7 +426,6 @@ it('a decision whose hint was lost is found by the recovery scan, which runs aga
   const { world, recovery, wait, executor } = await waitingCall(scripted)
   try {
     await expect.poll(() => executor().knownCalls, { timeout: 3_000 }).toBe(0)
-    // The person decides and nothing schedules the call.
     scripted.decide(wait, { kind: 'answer', value: { kind: 'string', value: 'b.txt' } })
     await expect
       .poll(async () => (await recovery()).state.phase, { timeout: 5_000 })
@@ -470,7 +447,6 @@ it('a run for a call the ledger owes nothing is not taken into the table', async
       .poll(async () => (await recovery()).state.phase, { timeout: 3_000 })
       .toBe('settled')
     await expect.poll(() => executor().knownCalls, { timeout: 3_000 }).toBe(0)
-    // The call is settled and delivered: a stray hint finds no work and leaves the table alone.
     const before = executor().unownedRuns
     unbox(await world.root.toolInstanceHost.schedule({ tenant: world.tenantA, call: parts.call }))
     await expect.poll(() => executor().unownedRuns).toBe(before + 1)
@@ -535,15 +511,10 @@ it('takes over a suspended call in a second executor by its recovery scan, accep
       .toBe('open')
     const wait = unbox(await world.root.toolCommands.loadRecovery(access)).waits[0]?.intent.wait
     if (wait === undefined) throw new Error('no wait')
-    // The first executor stops while the wait is open; the person answers afterwards, and no
-    // wake-up reaches any executor.
     await world.plugins.close()
     scripted.decide(wait, { kind: 'answer', value: { kind: 'string', value: 'b.txt' } })
     reopened = await world.newExecutor()
     const next = reopened
-    // Nothing names the call to the second executor: its startup scan finds the suspended call,
-    // and the driver reads the decision, accepts it, prepares the resume segment's environment and
-    // resumes from the state that custody kept, not from the first executor's memory.
     await expect
       .poll(
         async () =>
@@ -627,7 +598,6 @@ it('stops the call suspended on its wait in the whole local host: it settles, th
       intent: { kind: 'stop' },
     })
     expect(stopped).toMatchObject({ kind: 'committed', receipt: { state: { phase: 'settled' } } })
-    // 公开 control 提交后调度原调用：失效与释放两项待办由推进协程完成。
     await expect
       .poll(
         async () =>
@@ -644,7 +614,6 @@ it('stops the call suspended on its wait in the whole local host: it settles, th
       terminal: { kind: 'interrupted', cause: { kind: 'control', withdrawn: false } },
     })
     expect(after.waits).toMatchObject([{ phase: 'closed', cause: 'cancelled' }])
-    // What the caller reads: the text the author wrote for a closed wait, not an answer of a person.
     const result = await world.settled(reference)
     expect(result.terminal).toMatchObject({ kind: 'interrupted' })
     expect(result.value.content).toMatchObject([{ kind: 'text', text: CLOSED }])
@@ -655,7 +624,6 @@ it('stops the call suspended on its wait in the whole local host: it settles, th
       key: JSON.stringify([scope.owner, scope.key]),
     })
     if (queue.kind !== 'complete') throw new Error('the queue domain is unreadable')
-    // The release deleted the entry of the call: the queue holds nothing of it.
     expect(queue.records.filter(record => record.kind === 'queue-entry')).toEqual([])
   } finally {
     await world.close()

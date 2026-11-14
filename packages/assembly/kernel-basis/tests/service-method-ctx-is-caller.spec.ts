@@ -1,6 +1,3 @@
-// basis `service-method-ctx-is-caller`：经调用方的 ctx 取到的 Service（`ctx.get(key)` 或 `ctx.<key>`）是可追踪代理，
-// 方法里的 `this.ctx` 是调用方的上下文 ⇒ 方法里 `this.ctx.effect(...)` 登记的东西归调用方 fiber：
-// 调用方撤除即撤掉那条登记，注册表本身照旧活着。
 import { Context, Service } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { FIBER_STATE, plugin } from './basis-support.ts'

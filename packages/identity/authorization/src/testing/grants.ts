@@ -5,11 +5,8 @@ type GrantRequest = Parameters<MaintenanceGrantSource['read']>[0]
 
 export type ScriptedMaintenanceGrants = Readonly<{
   source: MaintenanceGrantSource
-  /** Queues answers, one per read, in order. */
   script(...answers: readonly MaintenanceGrantReading[]): void
-  /** How many reads the source answered, including reads after the script ran out. */
   calls(): number
-  /** The requests of the reads, in order. */
   requests(): readonly GrantRequest[]
 }>
 
@@ -24,10 +21,6 @@ function copyOf(answer: MaintenanceGrantReading): MaintenanceGrantReading {
   }
 }
 
-/**
- * A grant source whose every answer is scripted. A read after the script ran out answers
- * `unavailable`: the double never repeats an earlier answer and never grants by default.
- */
 export function scriptedMaintenanceGrants(): ScriptedMaintenanceGrants {
   const queue: MaintenanceGrantReading[] = []
   const asked: GrantRequest[] = []

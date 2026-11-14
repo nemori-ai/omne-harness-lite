@@ -37,7 +37,7 @@ flowchart LR
 
 依赖方向：
 
-1. 本成员实现 `session-contract` 的 `SessionTransactionPort<P>`，并导入它导出的纯函数：OP-00 的身份派生、`decide`、`reduce` 与 `openWork`。本成员不直接依赖 message 包的判定函数：压缩判定在 `decide` 里调用 `judgeCompaction`。本成员只用 message 包的类型解码消息与压缩记录，符合性重算的视图按 [CM-01 至 CM-06](../../../common/message/SPEC.md#模型视图) 推导（[编码与归约的拥有者](../SPEC.md#编码与归约的拥有者)）。
+1. 本成员实现 `session-contract` 的 `SessionTransactionPort<P>`，并导入它导出的纯函数：OP-00 的身份派生、`decide`、`reduce` 与 `openWork`。本成员不直接依赖 message 包的判定函数：压缩判定在 `decide` 里调用 `judgeCompaction`。本成员只用 message 包的类型解码消息与压缩记录，符合性重算的视图按 [CM-01 至 CM-06](../../../common/SPEC.md#消息) 推导（[编码与归约的拥有者](../SPEC.md#编码与归约的拥有者)）。
 2. 本成员依赖 sql-contract 的公开形状（根入口与 `./worker`）：`SqlStorage` 的 `commit`、`query`、`read`，参加者与读 handler 的模块接口，材料描述类型。写连接、事务、Worker 与写者代际都归存储提供者，本成员不打开连接，也不依赖 `packages/storage/**` 内部或 sqlite-provider（[public-entry.spec.ts](../tests/public-entry.spec.ts) 检查）。
 3. SQL 现在是手写的 SQLite 语句，经语句端口执行，只有一套方言。设计目标是 SQLite 与 PostgreSQL 共用表名与列名（[介质差异表](../SPEC.md#sqlite-与-postgresql)），PostgreSQL 与 Kysely 尚未进入（[技术基础](../../../../docs/architecture/technical-foundations.md#共同技术选择)）。
 4. 根入口不导入 `@deepseek-ai/cordis`（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)）。本包没有 Cordis 入口，会话存储组合由应用承担，见[装配边界](cordis.md)。
@@ -108,7 +108,7 @@ sql-contract 给参加者一条业务响应通道，响应证据与回执同事�
 | 对象存储作为 blob 去向 | 没有 blob 去向，载荷一律内联 | 对象或文件存储契约的拥有者（[issue 541](https://github.com/nemori-ai/omne-harness-lite/issues/541)） |
 | 登记键到能力身份的绑定 | 假定 SE08 的登记键按能力身份列出。不成立时 R10 不可用 | Tool 契约与事件目录 |
 | 数值目标 | 不声明任何数值 | 本成员，按[验证义务](verification-obligations.md)实测后写进 SPEC |
-| 断电耐久 | 只依赖提供者读回的 `synchronous=FULL`，不宣称断电耐久 | [SQL-T01](../../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) 的承接方 |
+| 断电耐久 | 只依赖提供者读回的 `synchronous=FULL`，不宣称断电耐久 | [已确认保存的耐久边界](../../../../docs/architecture/data-and-state.md#已确认保存的耐久边界) |
 
 ## 验证与维护
 

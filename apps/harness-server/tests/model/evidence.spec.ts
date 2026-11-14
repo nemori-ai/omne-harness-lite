@@ -1,8 +1,3 @@
-// The release `handoff` evidence routes by consumer owner (R2-D262 S2). M2 has one consumer owner of
-// Model calls, the Agent; its ACKs go to the Agent custody evidence. Another owner's ACK is routed
-// nowhere: `unavailable`, never refused as forged, and the Agent adapter is not asked. Red when an
-// ACK of another owner reaches the Agent adapter (which would refuse its real evidence as forged),
-// or when the Agent owner's ACK no longer reaches it.
 import { AGENT_CONSUMER_OWNER, type AgentCustodyQuestion } from '@omne-harness/agent'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 import {

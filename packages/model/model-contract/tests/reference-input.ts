@@ -7,7 +7,6 @@ import {
 } from '@omne-harness/model-contract'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 
-/** Construct a fixture locator from explicit original identities before admission. */
 export function invocationReference<T extends ModelInvocationParts>(parts: T): ModelInvocationRef {
   const encoded = encodeModelInvocationRef({
     tenant: parts.tenant,
@@ -35,7 +34,6 @@ export function referenceParts<T extends { tenant: TenantId; reference: ModelInv
   return { ...input, call: call.ok, admission: admission.ok }
 }
 
-/** Negative fixture: bypass the codec to send a reserved admission into the public boundary. */
 export function reservedReference<T extends ModelInvocationParts>(parts: T): string {
   if (!tenantCodec.encode(parts.tenant).ok) throw new Error('fixture requires a minted tenant')
   return JSON.stringify(['model-invocation', 2, parts.call, parts.admission])

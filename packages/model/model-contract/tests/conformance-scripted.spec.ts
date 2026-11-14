@@ -209,9 +209,7 @@ describe('the transport of the scripted conformance subject', () => {
     for await (const fact of materialized.ok.start(signal)) void fact
     try {
       for await (const fact of materialized.ok.start(signal)) void fact
-    } catch {
-      // The refusal may be an error; the count is what the suite reads.
-    }
+    } catch {}
     expect(transport.sends()).toBe(1)
   })
 })

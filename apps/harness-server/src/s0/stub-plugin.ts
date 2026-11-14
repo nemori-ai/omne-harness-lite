@@ -2,7 +2,6 @@ import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import type { RowId, RowManifest, ServiceName } from '../types.ts'
 
-/** Behaviour switches a replacement row reads from its own config. Unknown keys are ignored here. */
 const StubConfig = z.object({
   failOnApply: z.string().optional(),
   constructionCheck: z.string().optional(),
@@ -25,11 +24,9 @@ export type StubEvent =
 
 export type StubHooks = Readonly<{
   observe: (event: StubEvent) => void
-  /** Settles when a row with `holdApply` may finish loading. */
   hold?: Promise<void>
 }>
 
-/** Failure with a stable tag, so a test can tell the injected failure from an accident. */
 export class StubFailure extends Error {
   readonly tag: string
 
@@ -40,7 +37,6 @@ export class StubFailure extends Error {
   }
 }
 
-/** Provider value of a replacement row. A Service subclass registers under the label of the context it is given. */
 export class StubService extends Service {
   readonly rowId: string
   readonly config: unknown
@@ -52,7 +48,6 @@ export class StubService extends Service {
   }
 }
 
-/** One generic replacement plugin for a row. It declares only what the manifest declares. */
 export function createStubPlugin(options: {
   id: RowId
   manifest: RowManifest

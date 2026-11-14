@@ -52,7 +52,6 @@ export function collectRepositorySources(root: string): SourceFile[] {
     optionsCache.set(config, options)
     return options
   }
-  /** 相对路径按文件解析；包名按 Node 的规则从这份配置所在的目录解析，读到的是锁文件钉住的那份安装。 */
   function extendedConfig(config: string, base: string): string {
     if (base.startsWith('.')) {
       const parent = resolve(dirname(config), base)

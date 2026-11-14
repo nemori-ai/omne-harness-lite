@@ -1,11 +1,3 @@
-// The receiver fails definitively (R2-D327), and the pacing table follows the delivery.
-//
-// O1: a receiver that answers denied or invalid, or that throws, leaves the delivery owed, writes
-//     one named warning with the tenant, the call, the delivery and the reason, and does not back
-//     off. An exception does not stop the other deliveries of the run.
-// O2: an entry of the pacing table lives as long as its delivery is owed. It goes when the
-//     delivery is saved, no longer owed, revoked, or let go by the executor.
-// The worker runs on the memory ledger and a scripted receiver; the clock is a test reading.
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it, vi } from 'vitest'
 import { createLocalToolResultDelivery } from '../../src/result-delivery.ts'
@@ -80,13 +72,11 @@ describe('a receiver that fails definitively (O1)', () => {
       expect(warning).toContain('stays owed')
       expect(warning).toContain(reason)
 
-      // A definite failure is not paced: the next drive pushes again at once, and warns again.
       expect(ok(await t.drive())).toEqual({ pending: 1 })
       expect(t.push).toHaveBeenCalledTimes(2)
       expect(t.warnings).toHaveLength(2)
       expect(t.worker.pacedEntries()).toBe(0)
 
-      // The delivery was not lost: a receiver that recovers takes it.
       t.answer('saved')
       expect(ok(await t.drive())).toEqual({ pending: 0 })
       expect(t.f.pushes).toHaveLength(1)
@@ -166,7 +156,6 @@ describe('the pacing table follows the delivery (O2)', () => {
     const t = await scripted('unavailable')
     await t.drive()
     expect(t.worker.pacedEntries()).toBe(1)
-    // The gate of `drive` still lets the call in; the position of the run denies it.
     t.denyPosition()
     const refused = await t.drive()
     expect('failure' in refused && refused.failure.kind).toBe('denied')
@@ -178,12 +167,10 @@ describe('the pacing table follows the delivery (O2)', () => {
     await t.drive()
     expect(t.worker.pacedEntries()).toBe(1)
 
-    // Another worker over the same ledger delivers and releases it meanwhile.
     const other = createLocalToolResultDelivery(t.f.input)
     expect(ok(await t.f.drive(other))).toEqual({ pending: 0 })
     expect(t.f.pushes).toHaveLength(1)
 
-    // The paced worker finds the delivery done: its entry goes although it did not push.
     expect(ok(await t.drive())).toEqual({ pending: 0 })
     expect(t.worker.pacedEntries()).toBe(0)
   })

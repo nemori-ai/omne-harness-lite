@@ -13,7 +13,6 @@ import type { settingsPreparationWorld } from './settings-preparation-world.ts'
 import { createCaptureSession } from './session-capture-fixture.ts'
 import { pendingCaptureAction } from './pending-capture-action.ts'
 
-/** Original Journal and action material are real; Session admission and initial handoff are fixtures. */
 export async function createCaptureAgent(
   w: Pick<
     Awaited<ReturnType<typeof settingsPreparationWorld>>,

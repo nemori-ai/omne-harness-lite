@@ -1,4 +1,3 @@
-// React views of the shell's sources: the login state, the connectivity, services on the tree.
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import type { ClientTree } from '../tree.ts'
 
@@ -14,7 +13,6 @@ export function useSource<T>(source: Source<T>): T {
   )
 }
 
-/** The values of `services` on the tree, in order; `undefined` for each one not there now. */
 export function useServices(tree: ClientTree, services: readonly string[]): readonly unknown[] {
   const key = services.join('\n')
   const [values, setValues] = useState<readonly unknown[]>(() => services.map(() => undefined))

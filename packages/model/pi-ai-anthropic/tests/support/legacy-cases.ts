@@ -1,8 +1,3 @@
-// The replay fixtures of the Anthropic family, as one reviewable table. Each case extracts an
-// inline SSE case of a sealed test and states the facts that the sealed behaviour becomes in
-// contract facts. `pnpm run fixtures` writes the table to `tests/fixtures`; `fixtures.spec.ts`
-// checks the files against the table and the engine against the files. tests/fixtures/README.md
-// lists the intended differences.
 import type { RequestParts } from './anthropic.ts'
 import {
   callBlock,
@@ -14,20 +9,16 @@ import {
   thinkingBlock,
 } from './anthropic.ts'
 
-/** Where a case lives: the one fixture of a record, or an extra case directory. */
 export type Slot = 'record' | 'case'
 
 export type FixtureCase = Readonly<{
   id: string
   slot: Slot
   record: string
-  /** The sealed test file, the line range and the test name. */
   source: string
   request: RequestParts
-  /** The expected request body, as plain JSON. */
   body: unknown
   stream: string
-  /** The expected facts, `ended` included, as plain JSON. */
   facts: readonly unknown[]
 }>
 
@@ -36,9 +27,6 @@ const LATE = 'anthropic-stream-late-signature.spec.ts'
 const CURRENT = 'anthropic-family-current.spec.ts'
 const SONNET = 'anthropic/claude-sonnet-5'
 
-// --- JSON value trees ------------------------------------------------------------------------
-
-/** The json-text value tree of plain JSON, as facts and declarations carry it. */
 function tree(value: unknown): unknown {
   if (value === null) return { kind: 'null' }
   if (typeof value === 'string') return { kind: 'string', value }
@@ -53,7 +41,6 @@ function tree(value: unknown): unknown {
   throw new Error(`no JSON value: ${String(value)}`)
 }
 
-/** The payload of a sealed group: the items as one JSON array, each with sorted keys. */
 function groupPayload(items: readonly Readonly<Record<string, unknown>>[]): string {
   return JSON.stringify(
     items.map(item =>
@@ -62,21 +49,16 @@ function groupPayload(items: readonly Readonly<Record<string, unknown>>[]): stri
   )
 }
 
-// --- SSE -------------------------------------------------------------------------------------
-
-/** One SSE event with a JSON data line. */
 function sse(frame: object): string {
   return `data: ${JSON.stringify(frame)}\n\n`
 }
 
-/** One SSE event with this exact data text. */
 function raw(data: string): string {
   return `data: ${data}\n\n`
 }
 
 const DONE = raw('[DONE]')
 
-/** The serving members the engine requires on the first frame; sealed frames lack them. */
 function serving(record: string): Readonly<{ model: string; provider: string }> {
   return { model: record, provider: 'Anthropic' }
 }
@@ -85,12 +67,10 @@ function choice(delta: object, finish?: string): object {
   return { choices: [finish === undefined ? { delta } : { delta, finish_reason: finish }] }
 }
 
-/** `finish()` of the sealed support: a finish frame, then the end marker. */
 function finish(reason = 'stop'): string {
   return sse(choice({}, reason)) + DONE
 }
 
-/** One reasoning detail per frame, as the sealed `reasoning()` helper streams them. */
 function reasoningFrames(record: string, details: readonly object[]): string {
   return details
     .map((detail, index) =>
@@ -99,7 +79,6 @@ function reasoningFrames(record: string, details: readonly object[]): string {
     .join('')
 }
 
-/** The usage frame of the sealed three-round test: no choices, the serving members, the usage. */
 function roundUsage(record: string, round: number): string {
   return sse({
     choices: [],
@@ -115,8 +94,6 @@ function roundUsage(record: string, round: number): string {
     },
   })
 }
-
-// --- facts -----------------------------------------------------------------------------------
 
 const SHOWN = { toHuman: true, toModel: true }
 const HIDDEN = { toHuman: false, toModel: true }
@@ -160,7 +137,6 @@ function sealState(index: number, payload: string, pairs: readonly string[] = []
   }
 }
 
-/** The token counts of an account in the order of the usage rule; `null` is unknown. */
 type Counts = Readonly<{
   input: string | null
   output: string | null
@@ -177,7 +153,6 @@ const NO_COUNTS: Counts = {
   reasoning: null,
 }
 
-/** The counts of the round usage: the prompt less the cache read and write is the input. */
 function roundCounts(round: number): Counts {
   const read = round === 1 ? 0 : 20
   const write = round === 1 ? 20 : 0
@@ -196,7 +171,6 @@ function counted(name: string, lexeme: string | null): object {
     : { name, state: 'known', lexeme, unit: 'token' }
 }
 
-/** The account that the decoder gives before the termination of a finished response. */
 function account(counts: Counts, cost: string | null = null): object {
   return {
     kind: 'account',
@@ -232,8 +206,6 @@ function failed(cause: string, diagnostic: string): object {
   }
 }
 
-// --- requests --------------------------------------------------------------------------------
-
 const PROVIDER = { allow_fallbacks: false, order: ['anthropic'], require_parameters: true }
 const CACHE = { type: 'ephemeral', ttl: '1h' }
 
@@ -243,7 +215,6 @@ function text(value: string, cached = false): object {
     : { type: 'text', text: value }
 }
 
-/** The request of the sealed `input()`: an instruction, a reminder, a user turn and 128 tokens. */
 const BASIC: RequestParts = {
   system: [textBlock('s1', 'instruction')],
   messages: [
@@ -253,7 +224,6 @@ const BASIC: RequestParts = {
   parameters: [{ kind: 'max-output-tokens', value: '128' }],
 }
 
-/** The reminder goes out as a user message; every content is an array of parts. */
 function basicBody(record: string): unknown {
   return {
     max_tokens: 128,
@@ -276,8 +246,6 @@ function basicCase(
   const record = input.record ?? SONNET
   return { slot: 'case', ...input, record, request: BASIC, body: basicBody(record) }
 }
-
-// --- the three rounds of the sealed family test ----------------------------------------------
 
 const LOOKUP_SCHEMA = {
   type: 'object',
@@ -312,7 +280,6 @@ function leafOf(record: string): string {
   return record.slice('anthropic/'.length)
 }
 
-/** The joined round-1 item: id-less text fragments, then the signature alone. */
 function roundOneItem(record: string): Readonly<Record<string, unknown>> {
   return {
     type: 'reasoning.text',
@@ -366,7 +333,6 @@ function replayOf(record: string, at: readonly number[]): object {
   return { replay: { scope: `openrouter/${record}`, format: FORMAT, at } }
 }
 
-/** Round 1 with the lookup tool: late-signed thinking, then a tool call. */
 function roundOneWithTool(record: string): FixtureCase {
   return {
     id: `three-rounds-r1-tools-${leafOf(record)}`,
@@ -423,7 +389,6 @@ function roundOneWithTool(record: string): FixtureCase {
   }
 }
 
-/** Round 2 without tools: round 1 (with an image) goes back signed, the reply is encrypted. */
 function roundTwo(record: string): FixtureCase {
   const one = roundOneItem(record)
   const two = roundTwoItem(record)
@@ -489,7 +454,6 @@ function roundTwo(record: string): FixtureCase {
   }
 }
 
-/** Round 3 with the lookup tool: both earlier groups go back, the reply has two signed blocks. */
 function roundThreeWithTool(record: string): FixtureCase {
   const items = roundThreeItems(record)
   return {
@@ -576,10 +540,6 @@ function roundThreeWithTool(record: string): FixtureCase {
   }
 }
 
-/**
- * The observed shape: id-less thinking text, then the signature alone; the finish chunk arrives
- * twice and only the second carries the usage.
- */
 function observedLateSignature(record: string): FixtureCase {
   const item = {
     type: 'reasoning.text',
@@ -637,9 +597,6 @@ function observedLateSignature(record: string): FixtureCase {
   }
 }
 
-// --- joining reasoning detail fragments ------------------------------------------------------
-
-/** The fragment head of the sealed late-signature tests, with an id. */
 const BASE = {
   type: 'reasoning.text',
   id: 'one-thinking-block',
@@ -648,7 +605,6 @@ const BASE = {
   extension: { source: 'controlled' },
 }
 const { id: _id, ...UNIDENTIFIED } = BASE
-/** The head of the first group of the sealed two-turn replay cases. */
 const THINKING_A = {
   type: 'reasoning.text',
   id: 'thinking-a',
@@ -669,23 +625,16 @@ const OBSERVED_SIGNATURE = {
   index: 0,
 }
 
-/** A basic request whose stream is these details and a finish; the facts follow `visible`. */
 function detailsCase(
   input: Readonly<{
     id: string
     source: string
     details: readonly object[]
-    /** The visible thinking pieces, in order; empty for none. */
     visible: readonly string[]
-    /**
-     * The sealed group, or `null` when the group is not replayable. Without visible thinking the
-     * finish fails, so no group is sealed.
-     */
     group: readonly Readonly<Record<string, unknown>>[] | null
   }>,
 ): FixtureCase {
   const thinking = input.visible.length > 0
-  // Without visible thinking the reply has no block, so the `stop` finish fails and seals nothing.
   const facts = thinking
     ? [
         open(0, 'thinking'),
@@ -860,9 +809,6 @@ const JOIN_CASES: readonly FixtureCase[] = [
   }),
 ]
 
-// --- the boundaries of the sealed family test ------------------------------------------------
-
-/** The first reply of `secondRound`: the given frames, then `Answer 1.`, the round usage, finish. */
 function firstReply(frames: string): string {
   return frames + sse(choice({ content: 'Answer 1.' })) + roundUsage(SONNET, 1) + finish()
 }
@@ -930,8 +876,6 @@ const BOUNDARY_CASES: readonly FixtureCase[] = [
   }),
 ]
 
-// --- usage -----------------------------------------------------------------------------------
-
 const USAGE_CASES: readonly FixtureCase[] = [
   basicCase({
     id: 'usage-cache-read-and-write',
@@ -992,7 +936,6 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
   roundTwo('anthropic/claude-opus-5'),
   observedLateSignature(SONNET),
   roundThreeWithTool('anthropic/claude-fable-5.1'),
-  // The records added from the official list of 2026-11-03 reuse rounds one and two.
   roundOneWithTool('anthropic/claude-sonnet-5.5'),
   roundTwo('anthropic/claude-haiku-5.5'),
   ...JOIN_CASES,

@@ -1,6 +1,3 @@
-// 两个由入口签发的系统主体（AA 运行时对象表「Agent 宿主维护主体」「常驻引用读取主体」）：`agentHostPrincipal`
-// 与 `toolResidencyPrincipal` 在根上 provide，消费行按名 `ctx.get`；组件名与授权行的授予表一致，所以现行
-// 授权对 `publish`/`quiesce`/`withdraw` 与 `resident-references` 放行；本运行的核验器核实它们，别的签发者签的不算。
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import {
@@ -47,7 +44,6 @@ async function installed() {
   return { fixture, host, residency }
 }
 
-/** 消费行：静态 inject 一个名字，插件体里按名 `ctx.get`，把拿到的值写进 `seen`。 */
 function consumerOf(name: string, seen: unknown[]): Plugin.Object {
   return {
     name: `probe-${name}`,

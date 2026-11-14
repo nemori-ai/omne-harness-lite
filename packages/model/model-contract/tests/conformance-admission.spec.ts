@@ -20,11 +20,6 @@ const otherOperation = must(decodeModelOperationId('mop_somewhere-else'))
 const otherCall = must(decodeModelCallId('mcall_somewhere-else'))
 const isReserved = (operation: ModelOperationId) => operation.startsWith('mop_--')
 
-/**
- * A provider that answers the retry of a write with a conflict when the write that first answered
- * `commit-unknown` did take effect (`took` reads that off the call), and gives every other answer
- * as the scripted provider does. A write that was dropped is retried as a new one.
- */
 function conflictOnRetryOfAppliedWrite(
   action: 'cancel' | 'acknowledge',
   took: (state: CallState) => boolean,

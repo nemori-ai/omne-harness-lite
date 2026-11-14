@@ -1,46 +1,21 @@
-// 白名单门的正证据：两侧声明文件逐条顶层语句对齐，差异分两桶判断。
-//   第一桶：全局作用域的差异。消费者的程序里全局作用域只有一份，模块作用域能靠改名隔开、全局作用域不能，
-//     检查器证明不了「这处扩充没有影响已有导出」，所以任何一处差异整份 review、不跑检查器：
-//     `declare global` 与对外部模块的 `declare module '…'` 块的增删改；脚本文件（没有导入导出的 `.d.ts`，
-//     顶层声明都是全局的）的增删、语句变化、与模块之间的切换；三斜线指令的任何差异；
-//     导入或 `export … from` 的模块边的增删（带绑定、仅类型、空导入、无绑定导入与 `import()` 类型都算），
-//     它们决定入口可达的文件集合，集合变了，消费者程序里的全局声明就可能变；
-//     `export as namespace` 声明 UMD 全局名，它的增删也在这里。
-//   第二桶：模块作用域的白名单，只有两类。
-//     (a) 新增顶层语句，引入旧侧不知道的名字：既不是本文件已有的声明（否则是合并：新增重载、第二个同名接口、
-//         命名空间合并到类或函数上，都会改 `typeof` 与已有导出的形状），也不是任何入口已有的导出名
-//         （`export *` 与改名导出展开后），也不能在该文件的作用域里解析到已有符号（经导入可见的名字、
-//         lib 与外部包的全局名）。后两条命中时新声明遮住已有的名字，文件里已有引用的落点就变了。
-//     (b) 模块作用域的接口或类型字面量里新增可选属性（属性写法，不是方法签名或索引签名）。
-//         对本成员模块的 `declare module './x'` 块内的任何改动都不在这里：它合并进别的文件里的声明。
-// 语法判断在这里；(a) 的作用域解析用旧侧程序（api-compare.ts 的 oldSideScope），判断不了时按白名单外处理。
-// 检查器的可赋值证明另在 api-compare.ts。两步都成立才是 additive。
-// 判断 (b) 的权威是文本：把新语句里判定为新增的可选属性去掉后，规范化文本必须与旧语句相同；
-// 对齐只是提出哪些成员是新增的，任何没对上的差异都落到白名单外。
 import ts from '@typescript/typescript6'
 import type { NameResolution } from './api-compare.ts'
 import type { DeclarationFile } from './api-format.ts'
 import { referenceDirectives, sameText, statementId, statementKey } from './api-normalize.ts'
 
-/** 一处差异：哪个文件里的哪条语句，是增、删还是改，以及命中的规则。 */
 export interface StatementChange {
   readonly path: string
-  /** 给人看的语句名，例如 `interface O`、`module 'x'`、`global`、`（脚本文件）`。 */
   readonly statement: string
   readonly change: 'added' | 'removed' | 'changed'
   readonly why: string
 }
 
 export interface WhitelistResult {
-  /** 全局作用域的差异（第一桶）。非空时整份 review，不跑检查器。 */
   readonly global: readonly StatementChange[]
-  /** 模块作用域里白名单外的改动（第二桶）。空表示每一处模块作用域差异都在白名单里。 */
   readonly outside: readonly StatementChange[]
-  /** 按白名单 (b) 改了的语句（`statementId`），给覆盖判断用：到达这些语句的导出都算涉及。 */
   readonly changed: ReadonlySet<string>
 }
 
-/** 旧侧的名字：每个入口的导出名（展开后）到它所在的入口，以及该文件作用域里的解析。 */
 export interface NameScope {
   readonly exported: ReadonlyMap<string, readonly string[]>
   readonly resolve: (path: string, name: string) => NameResolution
@@ -63,12 +38,9 @@ interface Group {
 interface ParsedFile {
   readonly source: ts.SourceFile
   readonly groups: Map<string, Group>
-  /** 没有导入导出的文件：顶层声明都在全局作用域。 */
   readonly script: boolean
   readonly directives: readonly string[]
-  /** 导入或 `export … from` 的模块名，到第一条含它的顶层语句。 */
   readonly edges: Map<string, ts.Statement>
-  /** 顶层声明的名字。 */
   readonly names: Set<string>
 }
 
@@ -153,7 +125,6 @@ function parse(file: DeclarationFile): ParsedFile {
   }
 }
 
-/** 文件里每个模块名出现的第一条顶层语句：导入、`export … from`、`import x = require()` 与 `import()` 类型。 */
 function edgesOf(source: ts.SourceFile): Map<string, ts.Statement> {
   const edges = new Map<string, ts.Statement>()
   for (const statement of source.statements) {
@@ -183,7 +154,6 @@ function moduleSpecifierOf(node: ts.Node): string | undefined {
   return undefined
 }
 
-/** 一条顶层语句声明的名字；扩充块、导入与导出语句没有。 */
 function declaredNames(statement: ts.Statement, source: ts.SourceFile): string[] {
   if (ts.isVariableStatement(statement))
     return statement.declarationList.declarations.map(item => item.name.getText(source))
@@ -201,7 +171,6 @@ function declaredNames(statement: ts.Statement, source: ts.SourceFile): string[]
   return []
 }
 
-/** 三斜线指令的任何变化。 */
 function directiveChanges(
   path: string,
   o: ParsedFile | undefined,
@@ -225,7 +194,6 @@ function directiveChanges(
   ]
 }
 
-/** 模块边的增删：一侧有、另一侧没有的模块名。 */
 function edgeChanges(
   path: string,
   o: ParsedFile | undefined,
@@ -247,7 +215,6 @@ function edgeChanges(
   ]
 }
 
-/** 脚本文件的增删、语句变化，或文件在脚本与模块之间切换。 */
 function scriptChanges(
   path: string,
   o: ParsedFile | undefined,
@@ -277,7 +244,6 @@ function scriptChanges(
   return []
 }
 
-/** 删掉的只是空的 `export {}`，而新侧文件仍是模块（有别的导入或导出）：文件的含义没变。 */
 function isRedundantModuleMarker(group: Group, newSource: ts.SourceFile | undefined): boolean {
   if (newSource === undefined || !ts.isExternalModule(newSource)) return false
   return group.statements.every(
@@ -323,14 +289,12 @@ function declarationKeyword(list: ts.VariableDeclarationList): string {
   return 'var'
 }
 
-/** `declare global` 或对别的模块的 `declare module '…'`：全局作用域。 */
 function isForeignAugmentation(statement: ts.Statement): statement is ts.ModuleDeclaration {
   if (!ts.isModuleDeclaration(statement)) return false
   if ((statement.flags & ts.NodeFlags.GlobalAugmentation) !== 0) return true
   return ts.isStringLiteral(statement.name) && !statement.name.text.startsWith('.')
 }
 
-/** `declare module './x.ts'`：对本成员自己模块的扩充，模块作用域，合并进别的文件里的声明。 */
 function isOwnAugmentation(statement: ts.Statement): boolean {
   return (
     ts.isModuleDeclaration(statement) &&
@@ -341,10 +305,8 @@ function isOwnAugmentation(statement: ts.Statement): boolean {
 
 const isForeignAugmentationGroup = (group: Group) => group.statements.every(isForeignAugmentation)
 const isOwnAugmentationGroup = (group: Group) => group.statements.every(isOwnAugmentation)
-/** `export as namespace X`：UMD 全局名。键含名字，所以改名是一删一增。 */
 const isUmdGroup = (group: Group) => group.statements.every(ts.isNamespaceExportDeclaration)
 
-/** 导入与 `export … from`：模块边，归第一桶判断。 */
 function isEdgeStatement(statement: ts.Statement): boolean {
   if (ts.isImportDeclaration(statement)) return true
   if (ts.isExportDeclaration(statement)) return statement.moduleSpecifier !== undefined
@@ -354,10 +316,6 @@ function isEdgeStatement(statement: ts.Statement): boolean {
   )
 }
 
-/**
- * 模块作用域里新增的一组语句：边不在这里判断；对本成员模块的扩充合并进别的文件的声明；
- * 其余只许引入旧侧不知道的名字。
- */
 function addedGroup(
   path: string,
   group: Group,
@@ -376,7 +334,6 @@ function addedGroup(
   })
 }
 
-/** 新增的名字在旧侧已经有主时，说明是谁：本文件的同名声明、入口的导出，或文件作用域里解析到的符号。 */
 function takenName(
   path: string,
   name: string,
@@ -411,7 +368,6 @@ type GroupVerdict =
   | { readonly kind: 'optional-added' }
   | { readonly kind: 'outside'; readonly why: string }
 
-/** 同键两组语句：文本相同、只新增了可选属性，或白名单外。 */
 function changedGroup(o: Group, n: Group): GroupVerdict {
   if (o.statements.length !== n.statements.length)
     return { kind: 'outside', why: '同名语句的条数变了（重载或同名声明的增删）' }
@@ -428,7 +384,6 @@ function changedGroup(o: Group, n: Group): GroupVerdict {
   return { kind: same ? 'same' : 'optional-added' }
 }
 
-/** 新语句去掉提议的新增可选属性后，规范化文本必须与旧语句相同。空白差异不算（文本已经是打印器输出）。 */
 function onlyOptionalPropertiesAdded(
   previous: ts.Statement,
   statement: ts.Statement,
@@ -451,7 +406,6 @@ function children(node: ts.Node): ts.Node[] {
   return list
 }
 
-/** 对齐旧新两个节点，把新侧多出来的可选属性收进 `added`；对不上的差异返回 false。 */
 function proposeAdded(a: ts.Node, b: ts.Node, added: Set<ts.Node>): boolean {
   if (a.kind !== b.kind) return false
   if (ts.isInterfaceDeclaration(a) && ts.isInterfaceDeclaration(b)) {

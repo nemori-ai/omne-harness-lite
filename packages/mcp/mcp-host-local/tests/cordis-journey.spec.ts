@@ -1,8 +1,4 @@
 // @module-tag slow — every case starts a scripted peer process on real pipes.
-// The MCP plugin on a real Cordis `Context`, with processes. The adoption, eligibility and
-// credential ports are the memory doubles of `@omne-harness/mcp-contract/testing`, each provided as
-// a Service subclass; the landing starts the scripted stdio peer of `fixtures/scripted/` as a child
-// process. The cases without a process are in `cordis-entry.spec.ts`.
 import { fileURLToPath } from 'node:url'
 import { Context, type Fiber, type Message } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -89,7 +85,6 @@ function listingOf(...names: readonly string[]): NonNullable<PeerScript['listing
 
 const ANSWERING: PeerScript = { listing: listingOf('echo'), calls: { echo: text('hello') } }
 const SILENT: PeerScript = { listing: listingOf('echo'), calls: { echo: { kind: 'silent' } } }
-/** `ask` asks for input first; `work` starts the task `t1`, which the peer reports twice. */
 const OPERATIONS: PeerScript = {
   listing: listingOf('ask', 'work'),
   calls: {
@@ -123,7 +118,6 @@ afterEach(async () => {
   expect(await leftover()).toEqual([])
 })
 
-/** Loads `loaded` on `ctx` with `config`; the fiber is disposed after the case. */
 async function load<C>(
   ctx: Context,
   loaded: { apply(ctx: Context, config: C): unknown },
@@ -168,16 +162,10 @@ function landingService(port: ProcessLanding<unknown>) {
 }
 
 type Landed = Readonly<{
-  /** True once the root process has exited. */
   exited: () => boolean
-  /** Resolves when the peer received a `tools/call`. */
   called: Promise<void>
 }>
 
-/**
- * A landing that starts the scripted peer for every `start`, and what it started. The handle's
- * `stop()` stops the process and answers `stopAs` when it is given, else the fixture's own scope.
- */
 function scriptedLanding(stopAs?: StopScope) {
   const landed: Landed[] = []
   const stops: StopScope[] = []
@@ -231,7 +219,6 @@ function scriptedLanding(stopAs?: StopScope) {
   return { port, landed, stops, started }
 }
 
-/** The memory credential use, with each `release()` of a process handle it gave recorded. */
 function recordingCredentials(inner: CredentialUse<unknown>) {
   const released: string[] = []
   type Access = Parameters<CredentialUse<unknown>['acquire']>[0]
@@ -275,7 +262,6 @@ function recordingCredentials(inner: CredentialUse<unknown>) {
 
 type Endpoint = Readonly<{ script: PeerScript; credential?: boolean; stopAs?: StopScope }>
 
-/** Adopts `FILES` for alice in `SCOPE`: a stdio endpoint that runs the scripted peer. */
 function adoptFiles(adoption: MemoryAdoptionView<unknown, unknown>, endpoint: Endpoint): void {
   const credential = endpoint.credential === true
   adoption.adopt({
@@ -301,7 +287,6 @@ function adoptFiles(adoption: MemoryAdoptionView<unknown, unknown>, endpoint: En
   })
 }
 
-/** The four ports as Service classes, with `FILES` adopted and alice granted its use. */
 function ports(endpoint: Endpoint) {
   const adoption = createMemoryAdoptionView<unknown, unknown>({ scopeKey: String })
   const eligibility = createMemoryUseEligibility<unknown>({ principalKey })
@@ -327,7 +312,6 @@ function ports(endpoint: Endpoint) {
 type PortName = 'adoption' | 'eligibility' | 'credentials' | 'landing'
 const PORT_NAMES: readonly PortName[] = ['adoption', 'eligibility', 'credentials', 'landing']
 
-/** Loads the ports except `absent`, then the plugin. */
 async function assembled(endpoint: Endpoint, absent?: PortName, loaded: Plugin = plugin) {
   const ctx = new Context()
   const provided = ports(endpoint)
@@ -351,21 +335,18 @@ async function refreshed(ctx: Context) {
   return service(ctx, mcpActionDiscoveryKey).refresh(ALICE, { ref: FILES })
 }
 
-/** The names of the known actions in the stored catalog. */
 async function actionNames(ctx: Context): Promise<readonly string[]> {
   const view = await service(ctx, mcpActionDiscoveryKey).current(ALICE, FILES)
   if (!('ok' in view) || view.ok.kind !== 'acquired') throw new Error('no catalog was acquired')
   return view.ok.actions.map(action => action.name)
 }
 
-/** The name and availability of each known action in the stored catalog. */
 async function availabilities(ctx: Context) {
   const view = await service(ctx, mcpActionDiscoveryKey).current(ALICE, FILES)
   if (!('ok' in view) || view.ok.kind !== 'acquired') throw new Error('no catalog was acquired')
   return view.ok.actions.map(action => [action.name, action.availability])
 }
 
-/** Invokes `tool` with the digest the stored catalog holds. */
 async function invoke(ctx: Context, tool: string, key: CorrelationKey): Promise<InvokeResult> {
   const view = await service(ctx, mcpActionDiscoveryKey).current(ALICE, FILES)
   if (!('ok' in view) || view.ok.kind !== 'acquired') throw new Error('no catalog was acquired')
@@ -383,13 +364,11 @@ async function invoke(ctx: Context, tool: string, key: CorrelationKey): Promise<
 
 const CALL_1 = correlationKeyOf('call-1')
 
-/** Refreshes, then invokes `echo`. */
 async function invokeEcho(ctx: Context) {
   expect(await refreshed(ctx)).toMatchObject({ ok: { kind: 'published' } })
   return invoke(ctx, 'echo', CALL_1)
 }
 
-/** The warnings of the `mcp` logger. The exporter enables level 2, which Cordis drops by default. */
 function recordWarnings(ctx: Context): unknown[][] {
   const warnings: unknown[][] = []
   ctx.logger.exporter({
@@ -512,12 +491,10 @@ describe('the MCP plugin on a Cordis context, with a scripted peer process', () 
     await first.dispose()
     const replacement = createMemoryAdoptionView<unknown, unknown>({ scopeKey: String })
     const other: PeerScript = { listing: listingOf('other') }
-    // Adopted twice, so that its revision differs from the first view's only revision.
     adoptFiles(replacement, { script: other })
     adoptFiles(replacement, { script: other })
     await load(ctx, adoptionService(replacement), undefined)
     expect(await refreshed(ctx)).toMatchObject({ ok: { kind: 'published' } })
-    // The merge keeps the action the peer no longer lists, unavailable (mcp-contract R3).
     expect(await availabilities(ctx)).toEqual([
       ['echo', { kind: 'unavailable', reason: 'no-longer-offered' }],
       ['other', { kind: 'available' }],

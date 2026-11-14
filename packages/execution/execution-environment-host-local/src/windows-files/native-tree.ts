@@ -1,8 +1,3 @@
-/**
- * Name changes use opened source objects and opened target directories. Delete and rename use POSIX
- * semantics and ignore the read-only attribute: a name goes or is replaced at once, and the handles
- * other processes hold stay usable.
- */
 export const nativeTree = String.raw`
 public static partial class OmneFiles {
   [DllImport("ntdll.dll")] static extern int NtSetInformationFile(IntPtr handle,out Status status,IntPtr data,uint length,int infoClass);

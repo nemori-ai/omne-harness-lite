@@ -1,5 +1,3 @@
-// Accounts received and the window usage they derive (RQ-14), and the system recovery access
-// (RQ-15). Types only: the stateful projection is in the request-context member.
 import type * as M from '@omne-harness/model-contract'
 import type { CallAccount } from '@omne-harness/call-account'
 import type {
@@ -25,7 +23,6 @@ export type AccountingOrigin = Readonly<{
   sender: Adoption
   resultVersion: M.ResultVersion | null
 }>
-/** One committed original account revision of one dispatch. */
 export type ReceivedAccountFact = Readonly<{
   kind: 'account'
   origin: AccountingOrigin
@@ -56,7 +53,6 @@ export interface ContextAccountingInbox<P> {
   ): Promise<SourceRead<WindowUsageValue>>
 }
 
-/** System scope access for recovery only; it carries no tenant and opens no ordinary port. */
 export type SystemRecoveryAccess<P> = Readonly<{
   scope: 'system'
   principal: P

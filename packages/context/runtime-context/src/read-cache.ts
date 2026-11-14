@@ -1,14 +1,8 @@
-/** The parts of one cache key. Every part must match for a hit. */
 export type ReadCacheKey = Readonly<{
-  /** The tenant the trusted binding confirmed for this read. */
   tenant: string
-  /** The scope reference text. */
   scope: string
-  /** The current eligibility, after following supersession. */
   eligibility: string
-  /** The current registration revision of the scope. */
   registration: number
-  /** The projection version of the scope. */
   projection: number
 }>
 
@@ -16,11 +10,6 @@ export type ReadCacheEvent = 'hit' | 'miss' | 'evicted'
 
 type Entry<V> = Readonly<{ scope: string; eligibility: string; value: V }>
 
-/**
- * A bounded least-recently-used map of read results. It holds no permission: a caller looks it up
- * only after every access check of the read has passed, and discloses only after its own final
- * check. A capacity of 0 keeps nothing.
- */
 export function createReadCache<V>(capacity: number, report: (event: ReadCacheEvent) => void) {
   const entries = new Map<string, Entry<V>>()
   const text = (key: ReadCacheKey) =>
@@ -56,7 +45,6 @@ export function createReadCache<V>(capacity: number, report: (event: ReadCacheEv
         report('evicted')
       }
     },
-    /** Frees the entries of one scope. Correctness never depends on it: keys carry the projection. */
     dropScope(scope: string): void {
       drop(entry => entry.scope === scope)
     },

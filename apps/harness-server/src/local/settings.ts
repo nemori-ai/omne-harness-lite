@@ -1,22 +1,9 @@
-// The local server settings: the choices a person makes once with `setup`. The file holds no secret.
-// The numbers of the operator layer stay in code (`operator-defaults.ts`), so a new release brings
-// its own numbers without a new `setup`. The one exception is `storage`: three optional thread
-// limits that an operator may write by hand.
 import { readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { z } from 'zod'
 import { pathsOf } from './locations.ts'
 
-/** The port of `server-entry` when `setup` is not told another one. It is the `omne` CLI default too. */
 export const DEFAULT_PORT = 8787
 
-/**
- * The variables `setup` copies from its own environment into the settings, for the Shell tool. It
- * is an allowlist: the shell never gets the whole environment of the host. The temp directory is
- * not here: `serve` points it at the host files directory, which the server owns.
- * `XDG_RUNTIME_DIR` and `DBUS_SESSION_BUS_ADDRESS` locate the user service manager, so that a
- * command can use `systemctl --user` as the person can. They are not a security boundary: a
- * command can derive them from its own user id.
- */
 export const SHELL_ENVIRONMENT_ALLOWLIST: Readonly<Record<'windows' | 'posix', readonly string[]>> =
   {
     windows: [
@@ -44,27 +31,15 @@ export const SHELL_ENVIRONMENT_ALLOWLIST: Readonly<Record<'windows' | 'posix', r
     ],
   }
 
-/**
- * A name that looks as if its value is a secret. Such a variable never enters the shell
- * environment, even when a person writes it into the settings file by hand.
- */
 const SECRET_NAME = /(TOKEN|KEY|SECRET|PASSWORD|PASSWD|CREDENTIAL)S?$|^OPENROUTER_/i
 
 export function isSecretName(name: string): boolean {
   return SECRET_NAME.test(name)
 }
 
-/**
- * The thread limits of the storage provider that an operator may set. Each key is optional, and a
- * missing key keeps the value of `operator-defaults.ts`. The relation between the three is judged
- * by the storage provider when it starts (`SPEC.md` §12.1 of `sqlite-provider`), not here.
- */
 const storageLimitsSchema = z.strictObject({
-  /** The limit on the threads that work at the same time, writers and readers together. */
   maxWorkers: z.number().int().min(1).optional(),
-  /** The part of `maxWorkers` that only writers may use. */
   reservedWriterSlots: z.number().int().min(0).optional(),
-  /** The readers of one domain that work at the same time. */
   maxReadWorkersPerDomain: z.number().int().min(1).optional(),
 })
 
@@ -72,19 +47,14 @@ export type StorageLimits = z.infer<typeof storageLimitsSchema>
 
 const settingsSchema = z.strictObject({
   version: z.literal(1),
-  /** The loopback port of `server-entry`. */
   port: z.number().int().min(1).max(65535),
-  /** The absolute directory that the Files and Shell tools work in. */
   workspace: z.string().min(1),
-  /** The absolute path of the shell executable of the Shell tool. */
   shell: z.string().min(1),
-  /** The environment of the Shell tool: the allowlist values that `setup` saw. */
   shellEnvironment: z
     .record(z.string().min(1), z.string())
     .refine(env => !Object.keys(env).some(isSecretName), {
       message: 'names a variable that looks like a secret',
     }),
-  /** The thread limits of the storage provider. Absent: the values of the release profile. */
   storage: storageLimitsSchema.optional(),
 })
 
@@ -95,10 +65,6 @@ export type SettingsRead =
   | Readonly<{ kind: 'read'; settings: ServerSettings }>
   | Readonly<{ kind: 'invalid'; reason: string }>
 
-/**
- * The shell of the Shell tool when `setup` is not told another one: Windows PowerShell, which every
- * Windows host has, and `/bin/bash` elsewhere.
- */
 export function defaultShell(
   platform: NodeJS.Platform,
   env: Readonly<Record<string, string | undefined>>,
@@ -109,7 +75,6 @@ export function defaultShell(
   return path.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
 }
 
-/** A variable by name. Windows compares names without case (`Path` is `PATH`), POSIX with case. */
 export function environmentValue(
   platform: NodeJS.Platform,
   env: Readonly<Record<string, string | undefined>>,
@@ -120,7 +85,6 @@ export function environmentValue(
   return Object.entries(env).find(([key]) => key.toUpperCase() === wanted)?.[1]
 }
 
-/** The allowlist values of `env`, under the names of the allowlist. Absent and empty values are left out. */
 export function captureShellEnvironment(
   platform: NodeJS.Platform,
   env: Readonly<Record<string, string | undefined>>,
@@ -170,11 +134,6 @@ export function readSettings(file: string): SettingsRead {
 
 let temporaryCounter = 0
 
-/**
- * Writes the settings through a temporary file and a rename, so that a reader sees the old file or
- * the new one. The file is created with mode `0600`, and `narrow` closes it before the rename: on
- * POSIX the caller sets the mode again, because the creation mask can only take bits away.
- */
 export function writeSettings(
   file: string,
   settings: ServerSettings,
@@ -192,9 +151,7 @@ export function writeSettings(
   } catch (error: unknown) {
     try {
       unlinkSync(temporary)
-    } catch {
-      // The temporary file may not exist. Its removal is best-effort.
-    }
+    } catch {}
     throw error
   }
 }

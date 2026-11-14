@@ -1,7 +1,4 @@
 import { catalogSearch, catalogView } from './catalog-view-fixture.ts'
-// The Catalog over the local binding registry. The contract has no Catalog suite, so each rule of
-// this table has its own case that breaks only that rule. The origin check and the availability
-// facts are scripted; the registry is the real one.
 import { describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { Access, ToolConsumerProfile } from '@omne-harness/tool-contract'
@@ -54,7 +51,6 @@ const asB = accessOf(tenantB)
 
 type Registrant = Access<string>
 
-/** A registry with the given tools, each registered by its registrant, and a Catalog over it. */
 function world(
   tools: readonly Readonly<{
     authority: ToolAuthority
@@ -141,7 +137,6 @@ describe('Catalog: inspect and usage', () => {
       await catalog.usage({ ...inspectOf('theirs', asA), adoption: theirs.asset.adoption }),
     ).toEqual(absent)
     expect(await names(catalog, asA)).toEqual([])
-    // The owner still sees it, so the answers above are about visibility and not about absence.
     expect(await names(catalog, asB)).toEqual(['theirs'])
   })
 

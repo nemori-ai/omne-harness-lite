@@ -1,6 +1,3 @@
-// The report of a successful business access (identity spec C4, P-7): only a session operation
-// that answers `succeeded`, and an established `observe-session`, report the caller's login; a
-// failure, a governance operation and `cancel-observation` do not. A failed report changes no answer.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { IdentityGovernance } from '@omne-harness/identity'
 import { parseDuration } from '@omne-harness/utc-instant'
@@ -57,7 +54,6 @@ function countingReports(mode: ReportMode = 'pass'): Reports {
   }
 }
 
-/** Resolves to `settled` when `promise` settles within `ms`, else to `pending`. */
 function within(promise: Promise<unknown>, ms: number): Promise<'settled' | 'pending'> {
   return Promise.race([
     promise.then(() => 'settled' as const),
@@ -112,7 +108,6 @@ describe('the business access report', () => {
     expect(outcomeOf(history)).toBe('succeeded')
     expect(reports.logins).toEqual([alice.loginId, alice.loginId, alice.loginId])
 
-    // Failures report nothing: a denied target, a forged proof, a commit fault.
     const denied = await send(fixture.port, SESSION_PATH, {
       body: sendInput(bob, session, 'a-2', alice.tenantText),
     })
@@ -127,14 +122,12 @@ describe('the business access report', () => {
     })
     expect(outcomeOf(unknown)).toBe('unknown')
     fixture.session.controls.restore()
-    // Governance operations report nothing, even when they succeed.
     const current = await send(fixture.port, GOVERNANCE_PATH, {
       body: governed(alice, 'query-current-tenant', {}, null),
     })
     expect(outcomeOf(current)).toBe('succeeded')
     expect(reports.logins).toHaveLength(3)
 
-    // An established observation reports; a cancel does not.
     const stream = openSse(
       fixture.port,
       sessionMessage(
@@ -226,7 +219,6 @@ describe('the business access report', () => {
       )
     const first = observe('o-1')
     expect((await first.waitForEvents(1))[0]).toMatchObject({ outcome: 'succeeded' })
-    // The connection close frees the only slot of this login, though its report never settled.
     first.close()
     await first.ended
     const deadline = Date.now() + 2000
@@ -252,7 +244,6 @@ describe('the business access report', () => {
       body: sendInput(alice, session, 'a-1'),
     })
     expect(outcomeOf(accepted)).toBe('succeeded')
-    // 700 s after issue: past the 600 s idle period of the first issue.
     fixture.clock.advanceBy(duration('PT200S'))
     const refreshed = await send(fixture.port, GOVERNANCE_PATH, {
       body: governed(alice, 'query-current-tenant', {}, null),

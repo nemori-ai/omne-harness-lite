@@ -74,7 +74,6 @@ function record<const F extends Fields, const O extends Fields = Record<never, n
       if (!item.ok) return item
       result[key] = item.value
     }
-    // Every property has been decoded by its matching field decoder above.
     return accept(
       Object.freeze(result) as {
         readonly [K in keyof F]: Output<F[K]>
@@ -380,7 +379,6 @@ const provider: Decoder<EnvironmentProvider> = (value, path) => {
     const retained = hasFunctions(value, path, ['retainedProcesses'])
     if (!retained.ok) return retained
   }
-  // Data fields and callable members were checked; keep the original runtime object.
   return accept(value as unknown as EnvironmentProvider)
 }
 const lease: Decoder<EnvironmentLease> = (value, path) => {
@@ -591,7 +589,6 @@ export const recoverResourcesResultSchema: OperationSchema<
 )
 export const providerFactsSchema = standardSchema(decodeFacts)
 export const managedResourceSchema = standardSchema(resource)
-/** The description a caller keeps before the provider is called; recovery uses it to find the original. */
 export const originalAcquisitionSchema: OperationSchema<OriginalAcquisition> =
   standardSchema(original)
 type EnvironmentSchemas = {

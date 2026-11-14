@@ -4,7 +4,6 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { builtBin, builtDist } from './support/cli-process.ts'
 
-// The CLI reaches the system only through the SDK. It imports no contract, server, or Cordis package.
 const forbidden = [
   '@deepseek-ai/cordis',
   '@earendil-works/pi-tui',

@@ -12,7 +12,7 @@
 
 ## 终态与过程材料
 
-Git维护当前有效的需求、系统预期、承诺和必要理由；实现侧终态归对应成员。过程材料放哪、唯一源与退出条件归[位置与唯一源](../../docs/engineering/documentation.md#位置与唯一源)，正式RFC与Issue最小记录按[保存例外](../../docs/engineering/documentation.md#四类长期成果与普通任务)维护。不把旧 record 换名搬家或改成历史 Git 链接台账。
+Git维护当前有效的需求、系统预期、承诺和必要理由；实现侧终态归对应成员。过程材料放哪、唯一源与退出条件归根入口的[知识放哪](../../AGENTS.md#知识放哪)；Issue 上的最小决定照 `omne-card` 技能的[决定记录](../agents/skills/omne-card/canonical/references/decisions.md)写。不把旧 record 换名搬家或改成历史 Git 链接台账。
 
 ## 组织原则
 
@@ -35,10 +35,6 @@ Git维护当前有效的需求、系统预期、承诺和必要理由；实现�
 | [architecture/](architecture/README.md) | 未迁精确技术承诺及其维护入口；已采用顶层预期归明确执行仓库的架构正文 | 对应技术承诺或拥有者改变 |
 | [basis/](basis/README.md)               | 内核与上游的机制语义条目及其 probe                     | 上游换版本                 |
 | [views/](views/README.md)               | 全部派生的聚合视图                                     | 上游任一处变动             |
-
-**核实事实与版本化读数不在这张表里。**它们归与 `design/` **平级**的顶层
-[`research/`](../research/README.md)：那里拥有「这条事实成立到什么程度」，
-设计链这边拥有「因此该怎么做」。**本目录下不设第二个 research 家。**
 
 模块验证义务归实际拥有者；一次覆盖核对、迁移对照及执行结果留任务tmp，不维持中央形成史或覆盖登记。
 

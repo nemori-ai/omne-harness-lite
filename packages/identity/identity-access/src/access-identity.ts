@@ -1,7 +1,3 @@
-// The access entry's identity port (`AccessIdentity`, RFC-0015 §5), implemented by identity. The
-// rules are those of the server entry's identity steps: the login proof goes to identity as given;
-// the acting principal is issued only when the target tenant's account is the recognised account;
-// identity's `denied` and `basis-unavailable` are not rewritten, and a throw is `basis-unavailable`.
 import type {
   AccessIdentity,
   ActForResult,
@@ -17,15 +13,11 @@ import { accountEquals, tenantCodec, type TenantId } from '@omne-harness/legal-i
 import { callerOf, LOGIN_WORK_OWNER, loginIdentityOf, loginTextOf, principalOf } from './caller.ts'
 
 export type AccessIdentityDependencies = Readonly<{
-  /** `recognizeLogin` is the one method used. */
   operations: IdentityOperations
-  /** `reportBusinessAccess` is the one method used. */
   governance: IdentityGovernance
-  /** The issuer of the holder that signs logins in (identity ID-16 holder table). */
   issuer: PrincipalIssuer
 }>
 
-/** The component of the system principal that acts for a tenant on behalf of a login. */
 const ENTRY_COMPONENT = 'server-entry'
 
 const DENIED = Object.freeze({ outcome: 'denied' as const })
@@ -94,7 +86,6 @@ export function createAccessIdentity(
 
     async reportAccess(login): Promise<void> {
       const report = await governance.reportBusinessAccess({ login: callerOf(login).login })
-      // The pipeline records a rejected report as one diagnostic; the answer does not change.
       if (report.kind === 'basis-unavailable')
         throw new Error('identity-access: the business access was not reported')
     },

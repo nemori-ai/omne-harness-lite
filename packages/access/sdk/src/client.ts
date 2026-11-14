@@ -13,7 +13,6 @@ import {
 import { defaultLimits } from './limits.ts'
 import type { GovernanceTransport, TransportReport } from './transport.ts'
 
-/** The common response after the public contract read it and its `messageId` matched the call. */
 export interface PublicResponse {
   readonly protocolVersion: string
   readonly messageId: string
@@ -27,7 +26,6 @@ export type CallerResult =
 
 export interface ClientOptions {
   readonly transport: GovernanceTransport
-  /** Budgets for encoding the request and reading the response. */
   readonly limits?: GovernanceCodecLimits
 }
 
@@ -39,15 +37,10 @@ export interface GovernanceClient {
   submit(request: GovernanceRequest): Promise<CallerResult>
 }
 
-/**
- * HITL 位置的客户端（SPEC「HITL 客户端」）。会话入口与待办池都是 `list-cards`，以过滤条件的
- * `sessionRef` 区分。客户端不缓存卡片视图，也不替调用者换 `replyId`。
- */
 export interface HitlClient {
   submit(request: HitlRequest): Promise<CallerResult>
 }
 
-/** The local request model is not valid for the public contract. Nothing was sent. */
 export class RequestInvalidError extends TypeError {
   constructor() {
     super('request is not valid for the public contract')
@@ -57,11 +50,6 @@ export class RequestInvalidError extends TypeError {
 
 const decoder = new TextDecoder()
 
-/**
- * Sends the bytes. When the transport proves that nothing was sent, sends the same bytes once
- * more. A response or an uncertain report ends the call: bytes may have arrived, so the client
- * does not redo an unknown effect.
- */
 async function deliver(
   transport: GovernanceTransport,
   bytes: Uint8Array,
@@ -78,7 +66,6 @@ async function deliver(
   return answered(await transport.send(bytes)) ?? { kind: 'uncertain' }
 }
 
-/** The read already proved the bytes are strict JSON, so parsing them again cannot fail. */
 function wireOf(bytes: Uint8Array): PublicResponse {
   return JSON.parse(decoder.decode(bytes)) as PublicResponse
 }

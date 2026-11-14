@@ -1,7 +1,3 @@
-// The transport decision table of SPEC T8 as data. The table is a total function on a closed
-// input domain: material kind × request class × answer class. Each cell of the domain matches
-// exactly one row; each row has one conclusion. The transport suite generates one case per row
-// from this data, and a structural test checks the partition and the coverage.
 import type { NoAnswerCause } from './outcomes.ts'
 import type { TransportMaterial } from './transport.ts'
 import {
@@ -38,18 +34,6 @@ export type ExpectedFailure =
   | Readonly<{ kind: 'not-sent'; cause: 'authorization-required' }>
   | Readonly<{ kind: 'no-answer'; cause: NoAnswerCause }>
 
-/**
- * The conclusion of a row. `read`: the request reads the answer to its shape (T2, T6). `failure`:
- * the operation answers this failure; `error-answer` carries the code, message and data as
- * written. `answer`: `call` is sent and `answer` settles so. `expired`: `getTask` answers
- * `expired`. `fallback`: `discover` goes the legacy path; when that fails too it reports the
- * legacy failure (`legacy`) or this one. `retry`: `discover` is sent once more with the highest
- * version in common. `resend`: the request is sent once more with a new id, and a second such
- * answer is `no-answer` (`stream-broken`). `ignored`: no outcome; the operation that sent the
- * notification goes on. `unusable`: the transport answers later requests `not-sent`
- * (`connection-unavailable`). `rejection`: the credential handle that authorized the request
- * hears `reportRejection()` once.
- */
 export type TableConclusion = (
   | Readonly<{ kind: 'read' }>
   | Readonly<{ kind: 'failure'; failure: ExpectedFailure }>
@@ -89,13 +73,11 @@ const bodies = (
 ): readonly AnswerClass[] =>
   statuses.flatMap(status => classes.map(body => `http:${status}+${body}` as const))
 
-/** A JSON-RPC error of these codes, direct or as the body of a 4xx or 5xx answer. */
 const anywhere = (codes: readonly ErrorClass[]): readonly AnswerClass[] => [
   ...errors(codes),
   ...bodies([...STATUS_4XX, ...STATUS_5XX], codes),
 ]
 
-/** A JSON-RPC error of these codes, direct or as the body of a 4xx answer. */
 const below500 = (codes: readonly ErrorClass[]): readonly AnswerClass[] => [
   ...errors(codes),
   ...bodies(STATUS_4XX, codes),
@@ -124,9 +106,7 @@ const WRITES: readonly RequestClass[] = ['tasks/update', 'tasks/cancel']
 const OPERATIONS: readonly RequestClass[] = [...READS, ...WRITES]
 const AFTER_SESSION: readonly RequestClass[] = [...OPERATIONS, 'tools/call', 'notification']
 
-/** SPEC T8, row by row. */
 export const TRANSPORT_TABLE: readonly TableRow[] = [
-  // server/discover (T3)
   { id: 'D01', kinds: BOTH, requests: PROBES, answers: ['result'], conclusion: { kind: 'read' } },
   {
     id: 'D02',
@@ -233,7 +213,6 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
     answers: bodies(STATUS_5XX, [...ERROR_CLASSES, 'plain']),
     conclusion: BROKEN,
   },
-  // initialize, the legacy path (T3)
   {
     id: 'I01',
     kinds: BOTH,
@@ -277,16 +256,12 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
     conclusion: BROKEN,
   },
   {
-    // The row first tries the legacy HTTP+SSE fallback once (T3). The peer of the suite offers no
-    // legacy stream, so the table holds the branch where the fallback does not hold; the branch
-    // where it holds is in the legacy HTTP+SSE cases of `mcp-host-local`.
     id: 'I07',
     kinds: HTTP,
     requests: ['initialize'],
     answers: bodies(STATUS_4XX, ['plain']),
     conclusion: NOT_SENT,
   },
-  // tools/list and the task operations (T2, T6)
   {
     id: 'L01',
     kinds: BOTH,
@@ -401,7 +376,6 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
     answers: bodies(STATUS_4XX, ['plain']),
     conclusion: NOT_SENT,
   },
-  // tools/call (T1, T2)
   {
     id: 'C01',
     kinds: BOTH,
@@ -437,7 +411,6 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
     answers: bodies(STATUS_4XX, ['plain']),
     conclusion: NOT_SENT,
   },
-  // what every request class shares
   {
     id: 'S01',
     kinds: STDIO,
@@ -501,7 +474,6 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
     answers: ['unsent'],
     conclusion: { ...NOT_SENT, unusable: true },
   },
-  // notifications of the client
   {
     id: 'N01',
     kinds: BOTH,
@@ -522,7 +494,6 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
   },
 ]
 
-/** The answers that a request class can get on a material kind. */
 export function answersOf(kind: TableKind, request: RequestClass): readonly AnswerClass[] {
   const http = kind === 'streamable-http'
   const transport: readonly AnswerClass[] = http
@@ -552,7 +523,6 @@ export function answersOf(kind: TableKind, request: RequestClass): readonly Answ
   return answers
 }
 
-/** Every cell of the domain. */
 export function transportCells(): readonly TableCell[] {
   const kinds: readonly TableKind[] = ['stdio', 'streamable-http']
   return kinds.flatMap(kind =>
@@ -562,7 +532,6 @@ export function transportCells(): readonly TableCell[] {
   )
 }
 
-/** The rows that a cell matches. A sound table gives exactly one. */
 export function rowsOf(cell: TableCell): readonly TableRow[] {
   return TRANSPORT_TABLE.filter(
     row =>
@@ -572,7 +541,6 @@ export function rowsOf(cell: TableCell): readonly TableRow[] {
   )
 }
 
-/** The cells of a row, in domain order. */
 export function cellsOf(row: TableRow): readonly TableCell[] {
   return transportCells().filter(
     cell =>

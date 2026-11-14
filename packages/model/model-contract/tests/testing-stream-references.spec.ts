@@ -30,8 +30,6 @@ import {
 } from '@omne-harness/stream-arrival'
 import { within } from './helpers/within.ts'
 
-// Every product value is decoded inside a helper that the test calls, so none is built at
-// module load.
 function must<T, F>(outcome: Outcome<T, F>): T {
   if ('failure' in outcome) throw new Error('Invalid fixture value')
   return outcome.ok

@@ -1,6 +1,3 @@
-// A run that cannot go on (a closing node refused for good) retains the execution slot and is
-// reported once. A determinate node failure with healthy settlement dependencies reaches Journal
-// ended before the provider releases its slot. An unavailable write is a wait, not a stop.
 import { describe, expect, it } from 'vitest'
 import type { AgentRunFailed } from '@omne-harness/agent'
 import type { AgentRegistrationHandle, Failure } from '@omne-harness/agent-contract'
@@ -26,7 +23,6 @@ import {
   stoppedAt,
 } from './loop-support.ts'
 
-// A definite refusal: the same write gets it again, so the run cannot wait it out.
 const JOURNAL_REFUSED: Failure = { kind: 'invalid', field: 'storage', reason: 'command_limit' }
 
 const JOURNAL_FULL: Failure = {
@@ -35,7 +31,6 @@ const JOURNAL_FULL: Failure = {
   diagnostic: 'storage rejected the commit: queue_full',
 }
 
-/** A registration handle that counts withdrawals and answers withdrawn. */
 function registration() {
   const withdrawals: string[] = []
   const id = decodeAgentRegistrationId('registration-1')
@@ -51,11 +46,6 @@ function registration() {
   return { handle, withdrawals }
 }
 
-/**
- * An assembly whose Journal refuses for good every commit of the I0 node and every tryFinish,
- * with a report receiver. I0's refusal is a node fault, so the run settles towards F3; F3 is a
- * closing node, and a terminal refused for good is a run that cannot go on (SPEC 运行失败).
- */
 async function stoppingAtF3(failed: (event: AgentRunFailed) => void) {
   const host = registration()
   const assembly = await loopAssembly(
@@ -149,14 +139,12 @@ describe('a run that stops on a node failure', () => {
         failure: JOURNAL_REFUSED,
       },
     ])
-    // The execution is not ended: it still holds the slot and a new invoke answers busy.
     expect(await shown(assembly)).toMatchObject({ kind: 'occupied', execution: handle.execution })
     const loaded = ok(
       await assembly.controls.journal.port.load({ ...alice, execution: handle.execution }),
     )
     expect(loaded.state.kind).not.toBe('ended')
     expect(failure(await invoke(assembly, 'exec-2'))).toEqual({ kind: 'busy' })
-    // Nothing reports it a second time.
     for (let turn = 0; turn < 20; turn += 1) await new Promise(resolve => setTimeout(resolve, 0))
     expect(reports).toHaveLength(1)
   })
@@ -170,7 +158,6 @@ describe('a run that stops on a node failure', () => {
     const answer = ok(await quiesceOf(assembly))
     expect(answer).toMatchObject({ kind: 'unresolved', remaining: [handle.execution] })
     expect(host.withdrawals).toEqual([])
-    // The retry answers the same remainder: nothing hands the failed execution over.
     expect(ok(await quiesceOf(assembly))).toMatchObject({
       kind: 'unresolved',
       remaining: [handle.execution],
@@ -196,7 +183,6 @@ describe('a run that stops on a node failure', () => {
 })
 
 describe('a failed pass that the drive recovers from is not a stop', () => {
-  // SPEC 依赖不可用时的等待: an unavailable write is a wait, not a stop.
   it('an I0 commit answered unavailable waits, writes the same step again at the check time and ends; nothing is reported', async () => {
     const reports: AgentRunFailed[] = []
     let refused = 0

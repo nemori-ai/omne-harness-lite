@@ -135,8 +135,6 @@ describe('the current application tool result disclosure limit', () => {
 })
 
 describe('a Tools reply fits the inline threshold of the runtime that carries it', () => {
-  // A page read back with `read_result` is itself a tool result. A reply budget above the inline
-  // threshold lets that reply offload again, and then no page of the body reaches the model.
   function tree(replyMaxBytes: number, inline: number) {
     return [
       ...rows(inline),

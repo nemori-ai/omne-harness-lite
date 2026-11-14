@@ -1,6 +1,3 @@
-// 决策方（`rows/tool-hitl/bridge.ts`）对它两侧端口的用法：Tool 一侧是调用的恢复读（含等待的请求原文）与会话读，HITL 一侧
-// 是准备、登记、原操作查询、请求读、接收者绑定、接手与失效。两侧都是替身；真实组合见同目录的 release-ask.spec.ts 与
-// release-reply.spec.ts。
 import { describe, expect, it } from 'vitest'
 import type {
   CommandResult,
@@ -41,7 +38,6 @@ const reader = 'principal/1/reader'
 const call = 'call-1' as ToolCallId
 const wait = 'call-1/start/1/wait' as ToolWaitId
 const duty = `${wait}/ensure` as ToolOperationId
-/** The invalidation duty that the settlement of a suspended call writes. */
 const undo = `${wait}/invalidate` as ToolOperationId
 const evidence = (record: string) => ({
   owner: 'test',
@@ -61,23 +57,18 @@ const card = {
   ],
   declineConsequence: '跳过此题，不作答',
 }
-/** The request original that the ledger keeps for the wait: the JSON text of the Ask request. */
 const ORIGINAL = JSON.stringify({ questions: [card] })
-/** The request evidence of the wait binds the digest of the original. */
 const requestEvidence = { ...evidence('request'), digest: canonicalDigest(ORIGINAL) }
 
 type Registered = Extract<CommandResult<'registerRequest'>, { kind: 'registered' }>
 
 function world(
   options: Readonly<{
-    /** The request original the call keeps; null when it keeps none. The Ask request by default. */
     kept?: string | null
     audience?: HitlAudience | undefined
     register?: CommandResult<'registerRequest'>
-    /** The cards of the HITL request, as `getRequest` reads them. */
     cards?: readonly unknown[]
     consume?: (command: { decisionRef: unknown }) => unknown
-    /** How the wait of the call closed; null while it is open. A control closed it by default. */
     closed?: 'cancelled' | 'terminal' | 'continued' | null
   }> = {},
 ) {
@@ -88,7 +79,6 @@ function world(
     consumed: [] as Record<string, unknown>[],
     invalidated: [] as Record<string, unknown>[],
     acknowledged: [] as Record<string, unknown>[],
-    /** The queries of getOperation: the binding of the operation that was asked. */
     operations: [] as unknown[],
   }
   const operationRef = {
@@ -203,7 +193,6 @@ function world(
       inspected = value
       return bridge.inspectOperation({ ...access, operation })
     },
-    /** The original registration committed: inspect and resolve find it through getOperation. */
     committed: () => {
       inspected = { kind: 'committed', method: 'registerRequest', result: answer }
     },
@@ -233,7 +222,6 @@ const decided = (cardId: string, reply: unknown) => ({
     commitReceipt: 'commit',
   },
 })
-/** The plain JSON of a decision value's tree. */
 const plain = (value: JsonValue): unknown => JSON.parse(writeJsonText(value))
 
 describe('the Tool decision owner over HITL', () => {
@@ -251,7 +239,6 @@ describe('the Tool decision owner over HITL', () => {
       wait: { owner: 'tool', waitId: wait },
     })
     expect(registered?.questions).toEqual([card])
-    // The preparation fixes the same registration and the injected audience, with the registrar.
     expect(w.calls.prepared).toMatchObject([
       {
         kind: 'prepare',
@@ -262,7 +249,6 @@ describe('the Tool decision owner over HITL', () => {
         },
       },
     ])
-    // A second ensure derives the same identities: HITL recalls the original operations.
     unwrap(await w.ensure())
     expect(w.calls.registered[1]).toEqual(registered)
     expect(w.calls.prepared[1]).toEqual(w.calls.prepared[0])
@@ -277,7 +263,6 @@ describe('the Tool decision owner over HITL', () => {
       },
     })
     unwrap(await w.ensure())
-    // The audience gets the tenant of the call and the origin that the registration carries.
     expect(given).toEqual([{ tenant, origin: w.calls.registered[0]?.origin }])
     expect(w.calls.prepared).toMatchObject([
       {
@@ -324,7 +309,6 @@ describe('the Tool decision owner over HITL', () => {
       result: w.answer as Registered,
     })
     expect(committed).toEqual(succeed({ kind: 'committed', operation: duty, receipt: given }))
-    // It asks HITL for the registration operation, not for another operation of the wait.
     const registration = hitlCommandBinding('registerRequest', w.calls.registered[0]!)
     expect(w.calls.operations[0]).toEqual({ protocol: 'hitl/1', ...registration })
     expect(unwrap(await w.inspect({ kind: 'not-committed', sealReceipt: 's' }))).toMatchObject({
@@ -373,7 +357,6 @@ describe('the Tool decision owner over HITL', () => {
         revision: '0',
         cards: [cardRef('q1'), cardRef('q2'), cardRef('q3')],
       } as never,
-      // getRequest lists the cards in another order: the order of the registration counts.
       cards: [
         decided('q3', { kind: 'decline' }),
         decided('q1', { kind: 'selection', optionId: 'o2' }),
@@ -391,7 +374,6 @@ describe('the Tool decision owner over HITL', () => {
         { cardId: 'q3', kind: 'no-answer' },
       ],
     })
-    // The receiver is bound from generation 0, and each card is consumed under its own identity.
     expect(w.calls.bound).toMatchObject([{ expectedGeneration: '0', waitRef: { waitId: wait } }])
     expect(w.calls.consumed.map(command => command['decisionRef'])).toEqual(
       ['q1', 'q2', 'q3'].map(id => ({
@@ -402,11 +384,9 @@ describe('the Tool decision owner over HITL', () => {
     )
     const ids = w.calls.consumed.map(command => command['consumeOperationId'])
     expect(new Set(ids).size).toBe(3)
-    // Each receipt is acknowledged, so the cards show the delivery as accepted.
     expect(w.calls.acknowledged.map(command => command['consumerReceipt'])).toEqual(
       w.calls.consumed.map(command => ({ decision: command['decisionRef'], outcome: 'accepted' })),
     )
-    // A second resolve derives the same identities: HITL recalls the original operations.
     unwrap(await w.bridge.resolve({ ...w.access, wait, decision: decision! }))
     expect(w.calls.bound[1]).toEqual(w.calls.bound[0])
     expect(w.calls.consumed.slice(3)).toEqual(w.calls.consumed.slice(0, 3))
@@ -449,7 +429,6 @@ describe('the Tool decision owner over HITL', () => {
     const cause = 'cancelled' as const
     const answer = unwrap(await w.bridge.invalidate({ ...w.access, wait, terminal, cause }))
     expect(answer).toMatchObject({ revision: '3' })
-    // A wait that a control closed is invalidated as cancelled, not as the end of the original work.
     expect(w.calls.invalidated).toMatchObject([
       {
         waitRef: { owner: 'tool', waitId: wait },
@@ -488,14 +467,12 @@ describe('the Tool decision owner over HITL', () => {
       }),
     )
     unwrap(await ended.inspect(committed, undo))
-    // The recall asks for the same input as the invalidation of that cause.
     expect(ended.calls.operations).toEqual([
       {
         protocol: 'hitl/1',
         ...hitlCommandBinding('invalidateWait', ended.calls.invalidated[0] as InvalidateWait),
       },
     ])
-    // A wait that is not closed by a control or a terminal has no invalidation to recall.
     for (const closed of [null, 'continued'] as const) {
       const open = world({ closed })
       expect(unwrap(await open.inspect(committed, undo))).toMatchObject({ kind: 'unknown' })
@@ -524,11 +501,9 @@ describe('the Tool decision owner over HITL', () => {
       undo,
     )
     expect(recalled).toEqual(succeed({ kind: 'committed', operation: undo, receipt: given }))
-    // It asks HITL for the original invalidation: the same operation and the same input.
     expect(w.calls.operations).toEqual([
       { protocol: 'hitl/1', ...hitlCommandBinding('invalidateWait', command) },
     ])
-    // A committed registration of the same wait is not the invalidation.
     expect(
       unwrap(
         await w.inspect({ kind: 'committed', method: 'registerRequest', result: w.answer }, undo),
@@ -548,12 +523,10 @@ describe('the Tool decision owner over HITL', () => {
       kind: 'unknown',
       operation: undo,
     })
-    // Both recalls ask for the invalidation operation of the wait.
     expect(w.calls.operations).toMatchObject([
       { operationRef: { operationId: expect.stringMatching(/\/invalidate$/) } },
       { operationRef: { operationId: expect.stringMatching(/\/invalidate$/) } },
     ])
-    // The recall does not write: no registration, no invalidation.
     expect(w.calls.registered).toEqual([])
     expect(w.calls.invalidated).toEqual([])
   })

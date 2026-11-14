@@ -1,5 +1,4 @@
 // @module-tag slow
-// Real SQLite registration runs migrations for all production governance combinations.
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -66,10 +65,6 @@ it('registers all governance combinations on the Session tenant domain without c
   }
 })
 
-// Storage keeps one manifest per combination version and refuses the same version with another
-// manifest. These manifests change when a participant of another owner changes, so a version that
-// does not follow its manifest strands every tenant registered before the change: its governance
-// no longer opens, every tool call loses its permission basis and Settings cannot be read.
 it('names every governance combination after its own manifest', async () => {
   const combinations = governanceStorageCombinations(await productionStorageCatalog())
   const versions = Object.entries(combinations).map(([name, combination]) => {

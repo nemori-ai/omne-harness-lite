@@ -8,8 +8,6 @@ import type {
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { ModelCalls } from '@omne-harness/model-contract'
 
-// The target query and its binding are contract types (agent-contract J02 item 1); this module
-// names them again so that the existing imports of `@omne-harness/agent` keep working.
 export type { ModelReceptionTarget, ModelReceptionTargets } from '@omne-harness/agent-contract'
 
 export type ModelReceptionCapacity = Readonly<{

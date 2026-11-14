@@ -1,37 +1,3 @@
-// The world of CP3, the third in-line checkpoint (E.1): one real Cordis 4.0.4 root that carries the
-// whole line from a Session input to the joint commit of a Model result.
-//
-// Real (the product plugins and factories under test):
-// - the sqlite-provider on files in a temporary directory, with the Session log combination
-//   (execution-record and session) registered for the tenant's transaction domain;
-// - session-storage-sql `createSessionStoragePair` (the `sessionTransactions` and
-//   `sessionDelegatedTransactions` ports) over it;
-// - session-cordis `SessionProvider` (the session factory with S1 and the open-Run sequence of C2);
-// - AD-14, `createSessionAgentDrivePlugin` of session-adapters (`sessionAgentDrive`);
-// - the `agentJournal` plugin `SessionLogAgentJournalProvider` of session-adapters;
-// - the `agent-host` plugin with the production factory `createAgentRuntime`, and the directory
-//   plugin `agentInstancesPlugin`;
-// - agent-context `AgentContextProvider` (`agentRequests`, `agentModelContext`) over the real
-//   request-context-cordis and runtime-context-cordis providers;
-// - the receiver `createLocalModelReceiver`, built here and not registered through the host plugin
-//   (C22 G2), over the `received` and `materials` faces of the session-log Journal of the session.
-//
-// Doubles (each named where it is built):
-// - J06: `agentMessageHandoff` is `createScriptedMessageHandoff` and `agentConditions` is
-//   `createTableConditions` of `@omne-harness/agent/testing` (R1-D33);
-// - Model: the scripted provider and result pusher of `@omne-harness/model-contract/testing`;
-// - the receiver's `targets` (the query of the original consumption binding): no product provides
-//   it yet, so the world answers it from the Journal's public `load`; the account outlet is memory;
-// - the Agent's access check, adoptions, model selection, clock and the stage ports (tools,
-//   extensions, cards, action admission, registered reads) are `@omne-harness/agent/testing`
-//   doubles; `agentMaterials` forwards to the session-log Journal of the session;
-// - the earlier context ("前文") is the history of the K-RQ holder double
-//   (`createMemoryContextHolder` over `createAssemblyFixture`), not a read of the Session log: the
-//   RQ sources of the Session log (AD-03, AD-04) are not delivered. The K-RC reader eligibility
-//   handoff, the Model request preparation and the X-3 preparation resources are doubles too;
-// - the Session side ports other than storage and the Agent drive (identity, evidence, context
-//   input, idle input, clock, notifier, scope release, principals, access check, the assembly
-//   lifecycle) are doubles of session-contract and session-cordis-contract.
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -226,20 +192,12 @@ import {
 import { agentHostPlugin, type AgentHostConfig } from '../../src/cordis.ts'
 
 const COMBINATION = 'c1'
-/** The session the checkpoint drives. */
 export const SESSION = 'cp3-session'
-/** The text of the input the Session accepts. */
 export const INPUT_TEXT = 'what did we decide?'
-/** The texts of the earlier context that the holder double serves. */
 export const EARLIER = ['we met on Monday', 'we chose the blue plan'] as const
-/** The text the scripted Model answers. */
 export const REPLY_TEXT = 'you chose the blue plan'
 
-// --- tenants and principals ---------------------------------------------------------------------
-
-/** The caller of the intake face, of the tenant of the session. */
 export const intakeAccess: SessionAccess<string> = memoryAccess('a:tester', SESSION)
-/** A principal of another tenant. */
 export const strangerAccess: SessionAccess<string> = memoryOtherAccess('b:stranger', SESSION)
 export const TENANT: TenantId = intakeAccess.tenant
 const OTHER: TenantId = strangerAccess.tenant
@@ -251,10 +209,8 @@ export function textOf(tenant: TenantId): string {
 }
 
 const prefixOf = (tenant: TenantId) => (tenantEquals(tenant, TENANT) ? 'a' : 'b')
-/** The principal the Session work principals issue to the coordinator of the session. */
 export const COORDINATOR = 'a:coordinator'
 
-/** A principal acts on its own tenant; `system:` principals act on any tenant (session-cordis CP1). */
 function sessionPolicy(request: SessionAccessRequest<string>): SessionAccessScript {
   const principal = request.access.principal
   const allowed: SessionAccessScript = {
@@ -272,8 +228,6 @@ export function ok<T>(outcome: Outcome<T, unknown>): T {
   return outcome.ok
 }
 
-// --- the storage --------------------------------------------------------------------------------
-
 function storageConfig(storageRoot: string): SqliteStorageConfig {
   return {
     storageRoot,
@@ -285,7 +239,6 @@ function storageConfig(storageRoot: string): SqliteStorageConfig {
     maxCommandBytes: 1048576,
     maxRequestBytes: 4194304,
     globalInFlightWriteBytes: 67108864,
-    // The Session create of the session-log combination needs more than 64 (session-adapters K-14).
     maxJsonDepth: 256,
     maxJsonMembers: 65536,
     maxResponseBytes: 65536,
@@ -340,17 +293,12 @@ function catalogOf(): { catalog: SqlMaterialCatalog; digest: string } {
   return { catalog, digest: manifestDigest(manifest.manifest) }
 }
 
-/**
- * One storage commit as the storage saw it: the participants of its commands, its answer, and for a
- * Session commitLog (`intent: log`) the execution and event sequence of its observation.
- */
 export type SeenCommit = Readonly<{
   participants: readonly string[]
   result: CommitResultV2
   log: Readonly<{ execution: string; sequence: string | null }> | null
 }>
 
-/** The execution and sequence of a Session commitLog command; null for any other command. */
 function logOf(command: Readonly<{ facts?: unknown }>): SeenCommit['log'] {
   const facts = command.facts as Readonly<Record<string, unknown>> | undefined
   if (facts?.['intent'] !== 'log') return null
@@ -361,12 +309,9 @@ function logOf(command: Readonly<{ facts?: unknown }>): SeenCommit['log'] {
   return { execution, sequence: typeof sequence === 'string' ? sequence : null }
 }
 
-// --- Cordis helpers ------------------------------------------------------------------------------
-
 type Constructible = new (ctx: Context) => object
 type AbstractService = abstract new (ctx: Context) => Service
 
-/** A concrete subclass of a definition class whose members are those of `port`. */
 function serviceOf(Base: AbstractService, port: object, name: string): Constructible {
   const Concrete = class extends (Base as unknown as Constructible) {
     constructor(ctx: Context) {
@@ -380,15 +325,12 @@ function serviceOf(Base: AbstractService, port: object, name: string): Construct
 
 const LIFECYCLE_KEY = 's0.assemblyLifecycle'
 
-/** The ordered-shutdown registry of the assembly entry: it keeps registrations and stops nothing. */
 class Lifecycle extends Service {
   constructor(ctx: Context) {
     super(ctx, LIFECYCLE_KEY)
   }
   register(): void {}
 }
-
-// --- the earlier context ------------------------------------------------------------------------
 
 function userMessage(index: number, text: string): Message {
   const id = parseMessageId(`msg_${String(index).padStart(22, 'h')}`)
@@ -412,30 +354,21 @@ function historyRow(index: number, text: string): HistoryRow {
   return { seq: seq.ok, entry, bytes: String(text.length), prefixDigest: `chain:${index}`, message }
 }
 
-// --- the options of a joint world (C-JOINT) --------------------------------------------------------
-
 type Pusher = ReturnType<typeof createScriptedResultPusher<unknown>>
 type Scripted = ReturnType<typeof createScriptedModelProvider<unknown>>
 
-/** One admitted Model call, with the controls of the scripted provider that answers it. */
 export type ModelAdmission = Readonly<{
   tenant: TenantId
   call: ModelCallId
-  /** The operation of the admission: the intent of the dispatches of the call. */
   operation: ModelOperationId
-  /** The number of calls admitted before this one. */
   index: number
   scripted: Scripted
   pusher: Pusher
 }>
 
-/** What the world hands to a function of `plugins`: parts that a plugin of another closure needs. */
 export type PluginWorld = Readonly<{
-  /** The fixed request facts of the adopted-request double, for AD-04's narrow adoption source. */
   adopted: AdoptedRequestSource<unknown>
-  /** The Session log combination the plugins' records commit under. */
   combination: Readonly<{ combinationVersion: string; manifestDigest: string }>
-  /** The principal the work principals issue to the coordinator of one session. */
   coordinator: (input: {
     tenant: TenantId
     session: SessionId
@@ -443,10 +376,6 @@ export type PluginWorld = Readonly<{
 }>
 type WorkPrincipals = ReturnType<typeof createMemorySessionWorkPrincipals<string>>
 
-/**
- * The options that give the world the real AD-02 and the real handoff provider in place of the
- * scripted handoff double: the way CP3 runs once C-ADAPTERS is in the branch (D1 of the first batch).
- */
 export function withAd02AndHandoff(): LineWorldOptions {
   return {
     handoff: 'external',
@@ -464,64 +393,33 @@ export function withAd02AndHandoff(): LineWorldOptions {
   }
 }
 
-/** The Plugin and its configuration, as `ctx.plugin` takes them. */
 export type PluginMount = readonly [plugin: unknown, config?: unknown]
 
-/**
- * Everything a joint world may change. With no option the world is the one of CP3. Each option
- * names a seam where the world used a double and a later checkpoint puts the product part (or a
- * different double) in its place.
- */
 export type LineWorldOptions = Readonly<{
-  /** Wraps the shared storage, for example to count; it sees the storage after the commit log. */
   wrapStorage?: (storage: SqlStorage) => SqlStorage
-  /** The `agentJournal` plugin and its configuration; default `SessionLogAgentJournalProvider`. */
   journalPlugin?: (combination: {
     combinationVersion: string
     manifestDigest: string
   }) => PluginMount
-  /** `external`: the world does not mount `agentMessageHandoff`; a plugin of `plugins` does. */
   handoff?: 'scripted' | 'external'
-  /**
-   * `external`: the world does not mount the K-RQ holder double; a plugin of `plugins` provides
-   * `contextHolderSources` (AD-04 does, with the earlier context read from the Session log).
-   */
   holder?: 'double' | 'external'
-  /** The agent-context plugin; default `AgentContextProvider`. */
   contextPlugin?: typeof AgentContextProvider
-  /** The Session provider class; default `SessionProvider`. A subclass may observe the faces. */
   sessionProvider?: typeof SessionProvider
-  /** What happens when a Model call is admitted; default one text reply (CP3). */
   model?: (admission: ModelAdmission) => Promise<unknown>
-  /** Members of the storage configuration to change, for example the limits a long run reaches. */
   storageLimits?: Partial<SqliteStorageConfig>
-  /** What the Agent does after a reply: finish when it evaluates complete (default), or ask again. */
   progression?: 'evaluate-completion' | 'continue'
-  /** A storage directory to use and to leave in place, for a scenario that reopens it. */
   root?: string
-  /** Members of the agent-host configuration to change. */
   hostConfig?: Partial<AgentHostConfig>
-  /** The agent-host plugin; default the production plugin over `createAgentRuntime`. */
   hostPlugin?: unknown
-  /** The most records the receivers keep; default 10000 (CP3). */
   receiverRecords?: number
-  /**
-   * Plugins mounted after the Agent host and before the Session provider. A function receives the
-   * fixed request facts of the world's adopted-request double, for AD-04's narrow adoption source.
-   */
   plugins?: readonly PluginMount[] | ((world: PluginWorld) => readonly PluginMount[])
-  /** Wraps the Session transaction port the plugins reach, for example to count `commitLog`. */
   wrapTransactions?: (port: SessionTransactionPort<string>) => SessionTransactionPort<string>
-  /** Wraps the received-entry provider of the session-log Journal the Model receiver commits through. */
   wrapProvider?: <T extends object>(provider: T) => T
-  /** Wraps the Model receiver the pusher resolves, for example to count what it saves. */
   wrapModelReceiver?: (receiver: AgentModelReceiver<unknown>) => AgentModelReceiver<unknown>
   receptionTargets?: 'journal'
-  /** Receives each publication of the session-log Journal the receivers write through. */
   journalReport?: (report: JournalPublicationReport) => void
 }>
 
-/** The CP3 behaviour: the call starts and settles with one text. */
 async function replyWithText(admission: ModelAdmission): Promise<unknown> {
   const { pusher, tenant, call } = admission
   const target = { tenant, call }
@@ -552,8 +450,6 @@ async function replyWithText(admission: ModelAdmission): Promise<unknown> {
   return pusher.settled(target)
 }
 
-// --- the world ----------------------------------------------------------------------------------
-
 const AGENT_HOST_CONFIG: AgentHostConfig = {
   observerBufferBytes: 65536,
   reconciliationDelaysMs: [1000],
@@ -567,7 +463,6 @@ const AGENT_HOST_CONFIG: AgentHostConfig = {
   instanceIdleMs: 60_000,
 }
 
-/** Builds the world: every plugin mounted and active, no session created yet. */
 export async function openLineWorld(options: LineWorldOptions = {}) {
   const root = options.root ?? (await realpath(await mkdtemp(join(tmpdir(), 'line-through-cp3-'))))
   const ctx = new Context()
@@ -588,7 +483,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     },
   })
 
-  // The real storage, one transaction domain per tenant, the Session log combination registered.
   const { catalog, digest } = catalogOf()
   const created = await createSqliteStorage({
     config: { ...storageConfig(join(root, 'storage')), ...options.storageLimits },
@@ -617,8 +511,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     if (registered.kind !== 'registered') throw new Error(`registration ${registered.kind}`)
   }
   const commits: SeenCommit[] = []
-  // `seeing` and the wrapper of a joint world are the database of `real`: the Journal providers
-  // over any of them share what is kept for it (`SqlStorage.database`).
   const seeing: SqlStorage = {
     database: real.database,
     registerCombination: input => real.registerCombination(input),
@@ -634,11 +526,8 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     query: identity => real.query(identity),
     read: (request, readOptions) => real.read(request, readOptions),
   }
-  // W2: a joint world may count what goes through the shared storage; by default there is no wrapper.
   const wrapped = options.wrapStorage?.(seeing)
   const storage: SqlStorage = wrapped ?? seeing
-  // As the session storage row of the application: every fresh batch of the session log is told
-  // through the notifier of session-cordis on this root (#1230). The wrapper keeps the database.
   const unregisterNotices = registerSessionNotifier(storage, createSessionCommitNotifier(ctx))
   const lookup: TenantDomainLookup = {
     lookup: input => {
@@ -649,7 +538,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     },
   }
 
-  // The Session storage pair over the real storage, with the Session access policy.
   const sessionChecks = createPolicySessionAccessCheck<string>(sessionPolicy)
   const pairOver = (over: SqlStorage) =>
     createSessionStoragePair<string>({
@@ -677,11 +565,8 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
       combination,
     })
   const pair = pairOver(storage)
-  // The reads of the test and of the doubles go through the storage before the wrapper of
-  // `options.wrapStorage`, so a counting wrapper counts what the product reads and nothing else.
   const probe = pairOver(seeing)
 
-  // Session side doubles.
   const bindings = createMemorySessionPrincipalBindings()
   const workPrincipals = createMemorySessionWorkPrincipals<string>({
     bindings,
@@ -712,7 +597,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     source: evidence('idle/source'),
   })
 
-  // The storage keys of the Journal plugin and the Session access check, shared by both sides.
   await mount(serviceOf(StorageService, storage, 'Storage'))
   await mount(serviceOf(TenantDomainLookupService, lookup, 'TenantDomainLookup'))
   await mount(serviceOf(SessionAccessCheckService, { check: sessionChecks.check }, 'AccessCheck'))
@@ -745,8 +629,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     await mount(serviceOf(Base as unknown as AbstractService, port, name))
   await mount(Lifecycle)
 
-  // The Journal plugin.
-  // Real. W2 may mount `createSessionAgentJournalPlugin({ cancellation })` here instead.
   const [journalPlugin, journalConfig] = options.journalPlugin?.(combination) ?? [
     SessionLogAgentJournalProvider,
     combination,
@@ -757,7 +639,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     if (found === undefined) throw new Error('agentJournal is not provided')
     return found as AgentJournal<unknown>
   }
-  // The session-log Journal of the session itself, for the receiver and the materials stage.
   const sessionLog = createSessionLogJournal<unknown>({
     storage,
     tenantDomainLookup: lookup,
@@ -766,7 +647,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     ...(options.journalReport === undefined ? {} : { report: options.journalReport }),
   }).forSession({ tenant: TENANT, session: sessionId(SESSION) as SessionId })
 
-  // A read-only copy of the session-log Journal over the uncounted storage, for the doubles and the test.
   const probeLog = createSessionLogJournal<unknown>({
     storage: seeing,
     tenantDomainLookup: lookup,
@@ -774,7 +654,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     combination,
   }).forSession({ tenant: TENANT, session: sessionId(SESSION) as SessionId }).journal
 
-  // Agent ports: doubles of `@omne-harness/agent/testing`.
   const access = createScriptedAccessCheck<unknown>()
   const adoptions = createTableAdoptions<unknown>()
   const run = creation().definition.candidate
@@ -787,7 +666,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   const handoff = createScriptedMessageHandoff<unknown>()
   const conditions = createTableConditions<unknown>()
   const selection = createScriptedModelSelection<unknown>()
-  // W2 `handoff: 'external'` leaves `agentMessageHandoff` to a plugin of `options.plugins`.
   const scriptedHandoff: readonly (readonly [unknown, object, string])[] =
     options.handoff === 'external' ? [] : [[MessageHandoffService, handoff.port, 'MessageHandoff']]
   for (const [Base, port, name] of [
@@ -803,14 +681,11 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     [RegisteredReadsService, createScriptedReads<unknown>().port, 'Reads'],
   ] as const)
     await mount(serviceOf(Base as unknown as AbstractService, port as object, name))
-  // The scripted Tool runtime under its definition class, so it carries the result receiver table
-  // that the host's Tool reception registers with (R2-D273).
   const tools = createScriptedToolRuntime<unknown>()
   await mount(
     serviceOf(ToolRuntimeService as unknown as AbstractService, tools.port, 'ToolRuntime'),
   )
 
-  // The context side: the earlier context of the holder double, the real providers above it.
   const fixture = createAssemblyFixture({
     tenant: TENANT,
     rows: EARLIER.map((text, index) => historyRow(index, text)),
@@ -822,13 +697,11 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     },
   })
   const historyEvidence: HistoryEvidence = fixture.history.evidence()
-  /** The history heads the Agent asked the holder to resolve: the Journal's history evidence. */
   const resolved: DurableEvidence[] = []
   const parts: ContextHolderParts<unknown> = {
     history: fixture.sources.history as never,
     adopted: fixture.sources.adopted as never,
     eligibility: fixture.sources.eligibility as never,
-    // The double resolves every head of the tenant to the fixture history: the earlier context.
     resolveHistory: async ({
       access: who,
       evidence: head,
@@ -858,7 +731,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
       limits: { maxTargets: 4, maxFactsPerTarget: 4, maxRevisionsPerDispatch: 4 },
     },
   })
-  // W2: with `holder: 'external'` a plugin of `options.plugins` provides `contextHolderSources`.
   if (options.holder !== 'external') await mount(holder.plugin)
   const ports = createTestAuthorityPorts<unknown>()
   class RuntimeTrust extends RuntimeContextTrustService<unknown> {
@@ -869,13 +741,11 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   await mount(RuntimeContextProvider)
   const rc = ctx.get(runtimeContextKey)
   if (rc === undefined) throw new Error('no runtime context')
-  // The Runtime Context handoff double lists the scopes it knows; a scope is added by `holdScope`.
   type EligibilityScript = Parameters<typeof createScriptedReaderEligibility<unknown>>[0]
   const script = {
     scopes: [] as EligibilityScript['scopes'][number][],
     answers: [] as EligibilityScript['answers'][number][],
   }
-  /** Registers a scope with the Runtime Context and lets the model consumer read it (double: K-RC). */
   const holdScope = async (scope: ScopeRef): Promise<void> => {
     ports.bind(scope, TENANT)
     const begun = await rc.beginReplay('holder', {
@@ -915,8 +785,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   }
   await mount(Handoff)
 
-  // The Model request preparation double: it prepares what it is asked for; the assembled messages
-  // of each call are kept, so the test sees what the Model request was built from.
   const transport = createScriptedTransport({
     receipt: {
       supplier: testAdoption('cp3-transport'),
@@ -931,7 +799,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     transport: transport.transport,
   })
   preparationDouble.setAccess({ principal: COORDINATOR, tenant: TENANT }, 'allow')
-  // The profile of the fixture with adoptions a Model request accepts: a digest of 64 hex digits.
   const fixtureProfile: ModelProfile = fixture.sources.values().model.profile
   const [fixtureSupplier] = fixtureProfile.definition.suppliers
   const supplier = { ...fixtureSupplier, adoption: testAdoption('cp3-supplier') }
@@ -988,7 +855,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     owner: { owner: 'agent-context', name: 'cp3', revision: '1', digest: 'd' },
   })
 
-  // The conditions and the selection of the execution: consistent with the fixture profile.
   const selected: SelectedModel = {
     recipient: { route: 'route', profile: profile.adoption },
     resolution: {
@@ -1018,8 +884,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   conditions.read.always(() => succeed(current))
   selection.select.always(() => succeed(selected))
 
-  // The Model: the scripted provider; each admitted call settles with one text and is pushed to
-  // the receiver, which saves it with a joint commit on the session log.
   const instance = decodeModelInstanceId('minst_cp3')
   if ('failure' in instance) throw new Error('model instance')
   const scripted = createScriptedModelProvider<unknown>({ instance: instance.ok })
@@ -1027,10 +891,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   const receiverState = createModelReceiverState<unknown>()
   const pushes: Promise<unknown>[] = []
   const admits: unknown[] = []
-  /**
-   * The execution of the session's Run, read from the Session snapshot by the maintainer; after the
-   * Run ended, the one it had while it was active.
-   */
   let lastExecution: AgentExecutionId | null = null
   async function runExecution(): Promise<AgentExecutionId | null> {
     const work = await probe.transactions.readWork({
@@ -1051,8 +911,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     {
       provider: options.wrapProvider?.(sessionLog) ?? sessionLog,
       access: access.port,
-      // The query of the original consumption binding has no product provider yet: the double
-      // reads the Journal's public `load` of the execution the Run started.
       targets:
         options.receptionTargets === 'journal'
           ? {
@@ -1142,13 +1000,10 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     },
   }
   await mount(serviceOf(ModelRuntimeService, models, 'ModelRuntime'))
-  // The host plugin injects the account outlet for its own receiver (R2-D237); the world's pusher
-  // pushes to the receiver above, so the host's one is registered in the double's private table.
   await mount(
     serviceOf(AgentAccountOutletService as unknown as AbstractService, outlet, 'AccountOutlet'),
   )
 
-  // The host: the agent-host plugin, the directory plugin and AD-14 over them.
   ctx.provide('agentHostPrincipal', 'agent-host-maintainer')
   await mount(options.hostPlugin ?? agentHostPlugin, {
     ...AGENT_HOST_CONFIG,
@@ -1170,7 +1025,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
       : (options.plugins ?? [])
   for (const [plugin, config] of extra) await mount(plugin, config)
 
-  // The session provider last: from now on an accepted input wakes S1.
   await mount(options.sessionProvider ?? SessionProvider, { admission: 'none' })
 
   const intake = await (async () => {
@@ -1186,7 +1040,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     return seen.session
   })()
 
-  /** The Agent publication count and the Session common root, read on the real read Workers. */
   async function published(): Promise<{ agent: string; session: string }> {
     const domain = domains[textOf(TENANT)]!
     const read = async (handler: string, protocol: string) => {
@@ -1227,14 +1080,11 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     receiverState,
     workPrincipals,
     transactions: pair.transactions,
-    /** The same Session reads, uncounted: for the test and the doubles. */
     probe: probe.transactions,
     probeLog,
     intake,
     bindings,
-    /** The `agentJournal` the host injects: the plugin. */
     journal,
-    /** A new session-log Journal over the same storage: its copy starts from the durable records. */
     fresh: () =>
       createSessionLogJournal<unknown>({
         storage,
@@ -1242,7 +1092,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
         sessionAccessCheck: sessionChecks as never,
         combination,
       }).forSession({ tenant: TENANT, session: sessionId(SESSION) as SessionId }).journal,
-    /** The entries port of a new session-log Journal over the same storage. */
     freshEntries: () =>
       createSessionLogJournal<unknown>({
         storage,
@@ -1262,13 +1111,10 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
       for (const fiber of mounted.splice(0).reverse()) {
         try {
           await fiber.dispose()
-        } catch {
-          // A fiber that already ended has nothing left to remove.
-        }
+        } catch {}
       }
       unregisterNotices()
       await created.control.close({ initiator: 'disposal' }).catch(() => undefined)
-      // A directory the caller handed in belongs to the caller: another process may still use it.
       if (options.root === undefined) await rm(root, { recursive: true, force: true })
     },
   }
@@ -1276,7 +1122,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
 
 export type LineWorld = Awaited<ReturnType<typeof openLineWorld>>
 
-/** The execution of the active or last Run of the session, as the Session snapshot names it. */
 export function executionOf(text: string): AgentExecutionId {
   const decoded = decodeAgentExecutionId(text)
   if ('failure' in decoded) throw new Error('not an execution')

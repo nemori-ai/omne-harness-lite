@@ -201,7 +201,6 @@ it('renews replacement capacity after the rolling minute without retrying a fail
 }, 5000)
 
 it('lets a cancelled count that settles within the grace finish without stopping the worker', async () => {
-  // 1000 ms is the local default: a thread that is only slow to be scheduled is not a stuck one.
   vi.useFakeTimers()
   const { executor, lease, worker, workers } = await controlled({ cancellationGraceMs: 1000 })
   const acquired = lease()
@@ -226,7 +225,6 @@ it('rejects a cancellation grace longer than the job deadline', async () => {
   )
 }, 5000)
 
-/** Crashes the current worker and lets it exit, as a thread that died. */
 async function lose(worker: () => ControlledWorker): Promise<void> {
   worker().crash()
   worker().exit()
@@ -240,7 +238,6 @@ it('backs a slot off once its replacement budget is spent and starts it again, s
   await lose(worker)
   expect(executor.snapshot()).toMatchObject({ workers: 0, replacements: 0 })
   expect(await acquired.tokenizer.count(input)).toHaveProperty('failure')
-  // 1 s, 5 s, 30 s, then 30 s each time: each restart dies again before it counts anything.
   for (const [index, pause] of [1000, 5000, 30000, 30000].entries()) {
     await vi.advanceTimersByTimeAsync(pause - 1)
     expect(workers).toHaveLength(index + 1)

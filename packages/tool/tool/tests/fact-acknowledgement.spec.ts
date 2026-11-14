@@ -39,7 +39,6 @@ function deferred() {
   return { promise, resolve }
 }
 
-/** A real started memory execution supplies facts and its idempotent ACK to the recovery route. */
 async function fixture(options: { hold?: ReturnType<typeof deferred> } = {}) {
   let live: ToolLiveExecution | undefined
   let ackGuard: ToolFactAcknowledgementGuard<Principal> | undefined

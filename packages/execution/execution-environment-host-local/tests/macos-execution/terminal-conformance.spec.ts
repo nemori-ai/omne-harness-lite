@@ -1,9 +1,4 @@
 /** @module-tag slow */
-// Slow: the contract's terminal suite on the macOS provider, with real gates, PTYs and Bash 3.2.
-// Two acquisitions of one provider are the two subjects; the controlled leg is a shell loop that
-// ends when its own file appears, and closing a terminal is confirmed only once both sessions are
-// empty. The
-// tests run only on macOS with `OMNE_HOST_MACOS=1`; elsewhere they are skipped.
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
@@ -59,7 +54,6 @@ for (const test of terminalFacilityConformance({
     return {
       acquisitions,
       control: {
-        // The controlled leg runs until its own file appears; `finish` writes it and the leg exits.
         async start(a, terminal) {
           const done = join(cwd, `done-${++legs}`)
           const answer = await a.facility.execute({

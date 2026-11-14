@@ -1,7 +1,3 @@
-// `session-storage` 行交出的 `sessionTransactions` 逐个转交 session-storage-sql 端口的成员（R2-D254）。漏掉一个时，
-// 消费方看到的是「没有这个成员」，不是失败：漏掉 `commitLog` 时 AD-02 每次答「the Session transactions offer no
-// commitLog」，`input-taken` 解释不成 `run.batch-taken`，F3 的 tryFinish 因此每次冲突。这里对照
-// `SessionTransactionPort` 的全部成员核对一遍。
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -32,7 +28,6 @@ async function load(): Promise<LoadedTree> {
   return tree
 }
 
-/** Every member of `SessionTransactionPort`; the record makes a new port member a type error here. */
 const MEMBERS: Readonly<Record<keyof SessionTransactionPort<unknown>, 'function' | 'object'>> = {
   commit: 'function',
   readWork: 'function',

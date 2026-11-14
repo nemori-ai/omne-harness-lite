@@ -15,7 +15,6 @@ import {
   viewsOf,
 } from '@omne-harness/repo-toolchain/core/source-text'
 
-/** AR 契约 S-5 的终结结果集合：恰这四个值，没有第五个，也没有「其他」。 */
 const S5_OUTCOMES = [
   'registered',
   'identifier-taken',
@@ -23,14 +22,6 @@ const S5_OUTCOMES = [
   'interrupted',
 ] as const
 
-/**
- * AR 节点 verification「S-5 四值闭合」（文本一形；类型一形在 AR 包的 `*.spec-d.ts`）：
- * ① `TERMINAL_OUTCOMES` 常量存在，恰四个互不相同的字面量，且与 S-5 的四值相同；
- * ② `TerminalOutcome` 类型只由这个常量派生（`(typeof TERMINAL_OUTCOMES)[number]`），不另加成员；
- * ③ 源码里不出现第五个终结结果：返回类型标注含 `TerminalOutcome` 的函数体里（扣掉其中嵌套的函数）
- *    `return '<字面量>'` 的值都在常量里；任何 `as TerminalOutcome`／`<TerminalOutcome>` 断言都报出（断言能塞进第五个值）。
- * 注册组合包的源码不存在时无事可查；包存在而常量缺席 ⇒ 报出。
- */
 export const terminalOutcomeClosed: Rule = {
   id: 'terminal-outcome-closed',
   source:
@@ -53,7 +44,6 @@ export const terminalOutcomeClosed: Rule = {
         message,
       })
 
-    // ① 常量
     let declared: Set<string> | undefined
     for (const file of arFiles) {
       const views = viewsOf(file)
@@ -83,7 +73,6 @@ export const terminalOutcomeClosed: Rule = {
         }
         declared = set
       }
-      // ② 类型只由常量派生
       for (const m of codeMatches(views, /\btype\s+TerminalOutcome\s*=\s*([^\n;]*)/)) {
         const rhs = (m[1] ?? '').replace(/\s+/g, '')
         if (
@@ -103,7 +92,6 @@ export const terminalOutcomeClosed: Rule = {
       return out
     }
 
-    // ③ 第五个值
     const allowed = declared
     for (const file of arFiles) {
       const views = viewsOf(file)

@@ -1,6 +1,3 @@
-// registerCombination (SPEC 6). Steps 1 to 8 of the rejection order run on the control side. The
-// rest runs against the domain: path B creates an absent domain with this registration, an open
-// domain takes a new version in one transaction (worker/domain.ts).
 import {
   combinationManifest,
   manifestDigest,
@@ -64,7 +61,6 @@ export function createRegister(core: Core): SqlStorage['registerCombination'] {
     const judged = judge(core, input)
     if (judged.kind === 'rejected') return rejection(judged.reason)
     const { spec, transactionDomain } = judged
-    // A full control queue makes the registration wait (sql-contract SPEC 准入等待): nothing is sent yet.
     const grant = await core.admission.reserveControl(transactionDomain)
     if (grant.kind === 'closing') return rejection('closing')
     if (grant.kind !== 'granted') return rejection('queue_full')
@@ -83,13 +79,10 @@ export function createRegister(core: Core): SqlStorage['registerCombination'] {
       key: { scope: spec.scope, transactionDomain, combinationVersion: spec.combinationVersion },
       diagnostic: core.diagnostic(text),
     })
-    // At the close deadline, or when a sent registration has no reply within the reply
-    // observation, the caller gets `unknown`. The reservation stays until the work ends.
     let expire: (diagnostic: string) => void = () => undefined
     const expired = new Promise<RegisterResultV2>(resolve => {
       expire = diagnostic => resolve(unknown(diagnostic))
     })
-    // The registration holds its domain until its request has ended (SPEC 5.2).
     const unhold = core.domains.hold(transactionDomain)
     const leave = core.inFlight.add({
       domain: transactionDomain,
@@ -105,11 +98,9 @@ export function createRegister(core: Core): SqlStorage['registerCombination'] {
         if (outcome.created === spec) return registered(spec.scope)
         const { entry } = outcome
         if (!sameScope(entry.scope, spec.scope)) return rejection('domain_occupied')
-        // Not sent yet, so it can be withdrawn without a trace (SPEC 13.3 step 2).
         if (core.lifecycle.closing) return unknown('withdrawn_before_start')
         if (entry.wal.state === 'write-stopped') return rejection('domain_unavailable')
         let reply: RegisterReply
-        // The registration may migrate: the read connections give way first (SPEC 9.5).
         const resume = await core.readers.pauseForMigration(transactionDomain)
         if (core.lifecycle.closing) {
           resume()

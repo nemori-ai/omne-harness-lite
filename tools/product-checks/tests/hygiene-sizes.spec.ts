@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_LIMITS } from '../src/hygiene/baseline.ts'
 import { sizeViolations } from '../src/hygiene/checks.ts'
 import { measureSource } from '../src/hygiene/source.ts'
 import {
@@ -19,24 +20,24 @@ describe('hygiene-size-bands', () => {
       `export class K {\n  constructor() {\n${repeat('    void 0', 151)}\n  }\n  method() {\n${repeat('    void 0', 152)}\n  }\n  get g() {\n${repeat('    void 0', 160)}\n    return 1\n  }\n}\n`,
       `export const fx = function () {\n${repeat('  void 0', 200)}\n}\n`,
     ].join('')
-    const found = measureSource(SOURCE, text, 150).functions
+    const found = measureSource(SOURCE, text, DEFAULT_LIMITS).functions
     expect(found.count).toBe(6)
     expect(found.longest).toBe(202)
   })
 
   it('does not count functions at or under the limit', () => {
-    expect(measureSource(SOURCE, longFunction('f', 150), 150).functions.count).toBe(0)
-    expect(measureSource(SOURCE, longFunction('f', 151), 150).functions.count).toBe(1)
+    expect(measureSource(SOURCE, longFunction('f', 150), DEFAULT_LIMITS).functions.count).toBe(0)
+    expect(measureSource(SOURCE, longFunction('f', 151), DEFAULT_LIMITS).functions.count).toBe(1)
   })
 
   it('reports the start line of the longest function', () => {
     const text = `${longFunction('short', 151)}${longFunction('long', 300)}`
-    expect(measureSource(SOURCE, text, 150).functions.longestLine).toBe(152)
+    expect(measureSource(SOURCE, text, DEFAULT_LIMITS).functions.longestLine).toBe(152)
   })
 
   it('counts file lines without the trailing newline', () => {
-    expect(measureSource(SOURCE, fileOf(1000), 150).lines).toBe(1000)
-    expect(measureSource(SOURCE, fileOf(1001), 150).lines).toBe(1001)
+    expect(measureSource(SOURCE, fileOf(1000), DEFAULT_LIMITS).lines).toBe(1000)
+    expect(measureSource(SOURCE, fileOf(1001), DEFAULT_LIMITS).lines).toBe(1001)
   })
 
   it('accepts files and functions within the baseline', () => {

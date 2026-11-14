@@ -1,9 +1,3 @@
-// The manager side of the command gate, without a scope: the frame reader over the gate's standard
-// output, the bounded output buffer with its single reader, the two pure decisions of the scope
-// supervisor (when a `show` reading confirms a stop, and which references name a scope of this
-// provider), the recovery listing against a stand-in `systemctl`, the gate's refusal to run outside
-// its own scope, and the tool runner on a plain Node child. Inputs are byte frames as the gate writes
-// them; nothing here claims scope behavior, which `host-command.spec.ts` covers on Linux.
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { chmod, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
@@ -101,7 +95,6 @@ it('faults on a line longer than the bound before its newline arrives', () => {
   expect(reader.push(encoder.encode('x'.repeat(4096))).kind).toBe('fault')
 })
 
-/** A seeded generator, so a failing split is reproduced by its seed. */
 function mulberry32(seed: number): () => number {
   let state = seed >>> 0
   return () => {
@@ -113,7 +106,6 @@ function mulberry32(seed: number): () => number {
   }
 }
 
-/** Every frame and the fault, from bytes fed in `parts`, until the first fault. */
 function outcomeOf(parts: readonly Uint8Array[]): {
   frames: GateFrame[]
   fault: string | undefined
@@ -255,7 +247,6 @@ describe('the order of the gate frames', () => {
     exit: { t: 'exit', code: 0, signal: null },
   } as const
   type Kind = keyof typeof frames
-  /** The frames that bring a fresh reader into each phase of the gate's order. */
   const phases = {
     launching: [],
     ready: [frames.ready],
@@ -264,7 +255,6 @@ describe('the order of the gate frames', () => {
     ended: [frames.ready, frames.spawnFailed],
   } as const
   type PhaseName = keyof typeof phases
-  /** Where each frame is in order, and the fault it is named with anywhere else. */
   const order: Record<Kind, { in: readonly PhaseName[]; fault: string }> = {
     ready: { in: ['launching'], fault: 'ready out of order' },
     started: { in: ['ready'], fault: 'started out of order' },
@@ -358,14 +348,12 @@ describe('the output after the exit frame', () => {
 })
 
 describe('the fault reason and the line bound', () => {
-  // With a 64-byte chunk bound a line may hold ceil(64 / 3) * 4 + 256 = 344 bytes before its newline.
   const bound = 344
   const running = () => {
     const reader = createGateReader({ maxChunkBytes: 64 })
     framesOf(reader.push(joined(line({ t: 'ready' }), line({ t: 'started' }))))
     return reader
   }
-  /** A data frame line of exactly `length` bytes before its newline, padded with JSON spaces. */
   const paddedData = (length: number) => {
     const head = `{"t":"data","s":"stdout","b":"${Buffer.from('x').toString('base64')}"`
     return encoder.encode(`${head}${' '.repeat(length - head.length - 1)}}\n`)
@@ -403,7 +391,6 @@ describe('the fault reason and the line bound', () => {
   })
 })
 
-/** The exit frame a running reader yields for `fields`, or the fault it reports. */
 function exitOf(fields: object): GateFrame | string {
   const reader = createGateReader({ maxChunkBytes: 64 })
   framesOf(reader.push(joined(line({ t: 'ready' }), line({ t: 'started' }))))
@@ -532,7 +519,6 @@ it('confirms a stop only for an inactive or unknown unit, read from systemctl sh
   expect(confirmationOf(parseShow('LoadState=loaded\nActiveState=deactivating\n'))).toBe(
     'unconfirmed',
   )
-  // A scope killed by a signal may read `failed` for a moment: it is not counted as stopped.
   expect(confirmationOf(parseShow('LoadState=loaded\nActiveState=failed\n'))).toBe('unconfirmed')
   expect(confirmationOf(parseShow(''))).toBe('unconfirmed')
   expect(confirmationOf(undefined)).toBe('unconfirmed')
@@ -554,7 +540,6 @@ it('reads back only references to a scope this provider names, so recovery canno
 })
 
 it('runs a supervisor tool within a bound that carries a fraction, and answers failed for a tool that cannot start', async () => {
-  // Stop deadlines come from the monotonic clock, so the time left is rarely a whole number.
   expect(await runTool(process.execPath, ['-e', 'process.stdout.write("ok")'], 9999.25)).toEqual({
     kind: 'exited',
     code: 0,
@@ -567,9 +552,6 @@ it('runs a supervisor tool within a bound that carries a fraction, and answers f
   expect(await runTool('/nonexistent/omne-tool', [], 100.5)).toEqual({ kind: 'failed' })
 })
 
-// ---------------------------------------------------------------------------------------------
-// The recovery listing: a failed listing is `unavailable`, never an empty list
-
 function isScopeText(text: string): text is ListedScope['ref'] {
   return text.length > 0
 }
@@ -579,15 +561,12 @@ function scopeOf(text: string): ListedScope {
   return { ref: text }
 }
 
-/** A stand-in `systemctl` script that prints `text` for the listing call, and fails for any other. */
 const printing = (text: string) =>
   `[ "$*" = '--user show -p Id -p Description omne-host-*.scope' ] || exit 9\ncat <<'OMNE_EOF'\n${text}\nOMNE_EOF`
 
-/** `systemctl show -p Id -p Description` output: one key=value block per unit. */
 const shown = (blocks: readonly (readonly string[])[]) =>
   blocks.map(lines => lines.join('\n')).join('\n\n')
 
-/** Runs `check` with a stand-in `systemctl` that answers the listing with `body` (a shell script). */
 async function withSystemctl(body: string, check: (systemctl: string) => Promise<void>) {
   const directory = await realpath(await mkdtemp(join(tmpdir(), 'omne-host-systemctl-')))
   try {
@@ -620,14 +599,12 @@ it.skipIf(!onLinux)('lists the scopes whose description names the requester scop
       'Id=omne-host-probe-1b2c3d4e-0000-4000-8000-000000000000.scope',
       'Description=omne-host probe',
     ],
-    // A unit name that carries no resource key is not this provider's, whatever it describes.
     [
       'Id=omne-host-probe-2c3d4e5f-0000-4000-8000-000000000000.scope',
       `Description=${scopeDescription(scope, 'undefined')}`,
     ],
   ])
   const bootId = await readBootId()
-  // A trailing block of blanks is no unit.
   await withSystemctl(printing(`${output}\n\n  \n`), async systemctl => {
     const answer = await listing(systemctl, scope)
     if (answer.kind !== 'listed') throw new Error(`expected a listing: ${JSON.stringify(answer)}`)
@@ -656,7 +633,6 @@ it.skipIf(!onLinux)(
       'echo "Failed to connect to bus" >&2; exit 1',
       printing('not a property'),
       printing(shown([[...ours, '=no key']])),
-      // Two units without the blank line between them repeat their keys.
       printing(shown([[...ours, ...theirs]])),
       printing(shown([ours, [`Id=omne-host-${key}.scope`]])),
       printing(shown([ours, [`Description=${scopeDescription(scope, key)}`]])),
@@ -679,9 +655,6 @@ it.skipIf(onLinux)('answers unavailable where the host gives no boot identity', 
     kind: 'unavailable',
   })
 })
-
-// ---------------------------------------------------------------------------------------------
-// The gate outside a scope of its own
 
 it.skipIf(!onLinux)(
   'exits 2 without reporting ready when the gate does not run in its own scope',

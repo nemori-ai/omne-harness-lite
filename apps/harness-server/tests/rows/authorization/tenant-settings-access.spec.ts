@@ -1,7 +1,3 @@
-// The admission of `tenantSettings` (#1265 C6, S-11): the face takes the admission of the setting
-// management (`settings-access.ts`). Only the login principal of the tenant reads or writes. A
-// session work principal, a system principal and the login principal of another tenant are
-// denied, and nothing is read: the tenant runtimes, the storage and the release are never asked.
 import { describe, expect, it } from 'vitest'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import { inProcessPrincipalAuthority } from '@omne-harness/identity'

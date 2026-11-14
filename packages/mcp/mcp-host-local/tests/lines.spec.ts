@@ -1,8 +1,3 @@
-// The two lines on in-memory wires: what they do with bytes before the session sees a message.
-// The stdio line's byte bound on every line (T2), and the HTTP line's bookkeeping of the abort
-// signals it is given, which failures of a request it reports as not made (T8 X01), and the fetch
-// of protected resource metadata on a `fetch` double (R4). The lines on real pipes and sockets are
-// in `stdio.spec.ts`, `http.spec.ts`.
 import { getEventListeners } from 'node:events'
 import { describe, expect, it } from 'vitest'
 import { writeJsonText } from '@omne-harness/json-text'
@@ -16,16 +11,10 @@ import { StdioLine } from '../src/stdio-line.ts'
 import { settledWithin } from './fixtures/settle.ts'
 
 const BYTE_LIMIT = 16_777_216
-/** What a transport that is not usable any more answers, marked with the cause it recorded (T1). */
 const notSentAfter = (unusable: string) => ({
   failure: { kind: 'not-sent', cause: 'connection-unavailable', unusable },
 })
 
-/**
- * A process whose stdout answers the first write with one chunk: a short line, a line above the
- * byte bound, then the answer to the request. A real pipe hands over at most 64 KiB at a time,
- * so only an in-memory handle can put the long line anywhere but at the head of a chunk.
- */
 function chunkingProcess(): ProcessHandle {
   const encoder = new TextEncoder()
   let out: ReadableStreamDefaultController<Uint8Array> | undefined
@@ -77,7 +66,6 @@ describe('the stdio line and the byte bound (T2)', () => {
   })
 })
 
-/** A process that has exited and ended its stdout already; `written` collects what reaches stdin. */
 function goneHandle(written: Uint8Array[]): ProcessHandle {
   return {
     stdin: new WritableStream<Uint8Array>({
@@ -122,7 +110,6 @@ describe('a stdio process that is gone before the first request (T8 X02)', () =>
       new AbortController().signal,
     )
     if (!('ok' in opened)) throw new Error('open failed')
-    // The write that finds no reader (X02) and the end of the process race: either is the cause.
     const discovered = await opened.ok.discover()
     const cause =
       'failure' in discovered && 'unusable' in discovered.failure
@@ -183,7 +170,6 @@ describe('the HTTP line and the signals it is given', () => {
   })
 })
 
-/** A process that accepts every write at once and never writes, exits or is read. */
 function idleHandle(): ProcessHandle {
   return {
     stdin: new WritableStream<Uint8Array>(),
@@ -207,12 +193,6 @@ describe('the stdio line and the signals it is given', () => {
   })
 })
 
-/**
- * A process whose stdin takes the first write and never completes the second: a full pipe at a
- * peer that stopped reading. (The sink's `abort` is not observable here: a `WritableStream`
- * calls it only once the write in flight settled, which this one never does.)
- */
-/** A process whose stdin takes the first write and never completes the second. */
 function stuckOnSecondWrite(): ProcessHandle {
   let writes = 0
   return {
@@ -234,14 +214,11 @@ function stuckOnSecondWrite(): ProcessHandle {
 
 describe('the stdio line and close() with writes in flight (T5, SPEC H6)', () => {
   it('two overlapping writes, the first completes, then close(): close() returns at once and the write still in flight reports aborted', async () => {
-    // The write end is aborted on close(); with a write still in flight the sink sees nothing until
-    // that write settles (the streams standard), so what is observable is the line: it returns.
     const line = new StdioLine(stuckOnSecondWrite())
     const never = new AbortController().signal
     const first = line.send({ text: '{"small":1}', headers: new Headers() }, never)
     const second = line.send({ text: '{"big":2}', headers: new Headers() }, never)
     expect(await first).toEqual({ kind: 'sent' })
-    // A negative wait: no event marks "the write did not complete"; the bound is far above a turn.
     expect(await settledWithin(second, 30)).toBe('pending')
     expect(await settledWithin(line.close())).toEqual({ settled: undefined })
     expect(await settledWithin(second)).toEqual({ settled: { kind: 'aborted' } })
@@ -250,7 +227,6 @@ describe('the stdio line and close() with writes in flight (T5, SPEC H6)', () =>
 
 describe('the stdio line closes once (T5, SPEC H6)', () => {
   it('a second close() is the first one: it does not complete before the read loops ended and the events ended', async () => {
-    // The cancel of standard error is held, so the first close is still waiting on a read loop.
     let release = (): void => undefined
     const held = new Promise<void>(resolve => {
       release = resolve
@@ -275,7 +251,6 @@ describe('the stdio line closes once (T5, SPEC H6)', () => {
   })
 })
 
-/** A process whose stdout is fed by the test, chunk by chunk, and records whether it was cancelled. */
 function fedProcess(): Readonly<{
   handle: ProcessHandle
   feed: (chunk: Uint8Array) => void
@@ -306,7 +281,6 @@ function fedProcess(): Readonly<{
   }
 }
 
-/** The next event of the line, or `pending` when none came within the bound. */
 async function nextEvent(
   events: AsyncIterator<LineEvent>,
   bound?: number,
@@ -320,7 +294,6 @@ describe('the stdio line reads stdout by lines (T2, SPEC H8)', () => {
     const line = new StdioLine(process.handle)
     const events = line.events[Symbol.asyncIterator]()
     const chunk = new Uint8Array(65_536).fill(0x78)
-    // 16 MiB is 256 chunks of 64 KiB; the 257th takes the line in progress above the bound.
     for (let count = 0; count < 257; count += 1) process.feed(chunk)
     expect(await nextEvent(events)).toEqual({
       settled: { value: { kind: 'ended', stdoutEndedAt: expect.any(Number) }, done: false },
@@ -367,7 +340,6 @@ describe('the stdio line reads stdout by lines (T2, SPEC H8)', () => {
   })
 })
 
-/** What a failed `fetch` looks like: a `TypeError` whose `cause` carries the system code. */
 function fetchFailure(code: unknown): Error {
   return Object.assign(new TypeError('fetch failed'), {
     cause: Object.assign(new Error('socket'), { code }),
@@ -380,7 +352,6 @@ const failsWith =
     throw error
   }
 
-/** The codes of a connection that was never made (T8 X01); each is one of them and no other is. */
 const NEVER_MADE = [
   'ECONNREFUSED',
   'ENOTFOUND',
@@ -398,7 +369,6 @@ const NEVER_MADE = [
   'ERR_SSL_',
 ]
 
-/** Failures after the request began to go out, and failures that carry no usable code. */
 const MAY_HAVE_LEFT: readonly unknown[] = [
   fetchFailure('ECONNRESET'),
   fetchFailure('UND_ERR_SOCKET'),

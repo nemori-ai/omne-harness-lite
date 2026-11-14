@@ -35,8 +35,6 @@ import {
   modelStreamObservationKey,
 } from '../src/cordis.ts'
 
-// The definitions are abstract, so each provider below only fills the members with stubs that
-// fail if called. These tests check how a definition is published, not what a provider does.
 async function unused(): Promise<never> {
   throw new Error('not called')
 }

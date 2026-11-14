@@ -1,15 +1,4 @@
 // covers: PD-agent-progression S1, PD-agent-progression S2
-// #518 revision 1. J-AG02 input, actual reply processing and completion. NA-M0/M3/F4/O0.
-//
-// Journal facts migration (R2-D292, R2-D318). The snapshot carries no entries: they are read through
-// the entries port. Recovery follows the accepted design D2 (R2-D306 FR-2; JO final-design 3.3; SPEC
-// "身份、范围与归属" Model rows): the checkpoint saves no request, so a step that restarts before M0
-// saved its intent prepares again (I1, P0 and P1 each commit one revision), and an intent that was
-// saved but never admitted (M6) is voided by the Model's authoritative not-accepted and replaced by
-// an intent of attempt+1 under a new identity. The original identity is never admitted after a
-// crash. The I2 and M6 cuts therefore assert the exact revision ledger of the recovery
-// (`assertRecovery`), not "the resumed commit equals the attempted one at the same revision". M1
-// and M4 still continue the original call and assert no second M0 commit.
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
@@ -73,7 +62,6 @@ async function eventPage(journal: AgentJournal<Principal>) {
   return page.events
 }
 
-/** Every committed entry of the execution, read page by page through the entries port. */
 async function committedEntries(assembly: LoopAssembly) {
   return await entriesOf(assembly.controls.journal.provider.entries, {
     ...alice,
@@ -90,7 +78,6 @@ function fields(value: unknown, what: string): Fields {
   return Object.fromEntries(Object.entries(value))
 }
 
-/** The journal.commit candidates of one executor, in call order, with the revision each expects. */
 function commitsOf(calls: readonly CallRecord[]) {
   return calls
     .filter(call => call.path.join('.') === 'journal.commit')
@@ -108,7 +95,6 @@ function commitsOf(calls: readonly CallRecord[]) {
     })
 }
 
-/** The pending Model call that a commit candidate saves with its effect intent. */
 function intentOf(candidate: Fields) {
   const effects = candidate['effects']
   const saved = Array.isArray(effects) ? fields(effects[0], 'effect') : {}
@@ -122,21 +108,8 @@ function intentOf(candidate: Fields) {
   return { reference, action, consumption }
 }
 
-/** A commit candidate without the two fields that name the revision it was made at. */
 const withoutRevision = (candidate: Fields) => ({ ...candidate, expected: null, operation: null })
 
-/**
- * The revision ledger of a recovery that makes another M0 commit, every increment tied to a fact
- * (R2-D318):
- *   I2: revision 5 stands at I2 with no intent. The replacement prepares again, so I1, P0 and P1
- *       commit one checkpoint position each (6, 7, 8) and M0 saves the intent at 9. The intent equals
- *       the attempted one in everything except the revision it was made at.
- *   M6: M0 saved the intent at 6 and nothing was admitted. M6 asks the Model, which answers
- *       not-accepted, and the void commit (7) records the original reference in `voided`. I1, P0 and
- *       P1 commit 8, 9 and 10; M0 saves the intent of attempt+1 at 11 under a new action,
- *       consumption and reference.
- * In both, the one revision between M0 and M3 is the single received entry of the reply.
- */
 function assertRecovery(
   cut: 'I2' | 'M6',
   runs: Readonly<{
@@ -160,7 +133,6 @@ function assertRecovery(
   const resumed = intentOf(resumedCommit.candidate)
   expect(commits.find(item => item.node === 'M3')?.expected).toBe(resumedCommit.expected + 2)
   if (!voidsFirst) {
-    // The same intent, made again at a later revision, after the same three preparation commits.
     expect(resumed).toEqual(original)
     expect(withoutRevision(resumedCommit.candidate)).toEqual(withoutRevision(attempted))
     const preparing = (list: ReturnType<typeof commitsOf>) =>
@@ -194,7 +166,6 @@ function assertRecovery(
 }
 
 async function savedModelDelivery(assembly: LoopAssembly, saved: ExecutionSnapshot) {
-  // The live call: a voided intent (R2-D292) stays in the effect list but was never admitted.
   const pending = saved.effects.find(
     effect =>
       effect.pending.kind === 'model' &&
@@ -208,7 +179,6 @@ async function savedModelDelivery(assembly: LoopAssembly, saved: ExecutionSnapsh
   expect(pushed.status).toBe('saved')
   if (pushed.status !== 'saved' || pushed.delivery === null)
     throw new Error('Producer did not receive saved for the original delivery')
-  // The snapshot carries no entries: read every committed entry through the entries port.
   const received = (await committedEntries(assembly)).filter(item => item.kind === 'received')
   expect(received).toHaveLength(1)
   const entry = received[0]
@@ -426,8 +396,6 @@ it.each(['I2', 'M6', 'M1', 'M4'] as const)(
           candidate.operation.startsWith('M0/')
         )
       })
-      // Only a step that restarts before M0 saved its intent (I2), or whose saved intent was never
-      // admitted (M6), makes another M0 commit; M1 and M4 continue the original call.
       const recovers = cut === 'I2' || cut === 'M6'
       expect(resumedIntentCalls).toHaveLength(recovers ? 1 : 0)
       const after = await snapshot(assembly.controls.journal.port)
@@ -448,9 +416,6 @@ it.each(['I2', 'M6', 'M1', 'M4'] as const)(
               afterCheckpoint: after.checkpoint,
             })
           : null
-      // An execution that ended lists every effect intent it saved (the finish responsibility list
-      // settles a voided one by its `voided` record). I2 saved the intent once; M6 saved the voided
-      // original and then the replacement.
       const savedEffects = Array.isArray(attemptedIntent.effects) ? attemptedIntent.effects : []
       expect(after.effects).toEqual(
         cut === 'M6' && recovery !== null
@@ -461,8 +426,6 @@ it.each(['I2', 'M6', 'M1', 'M4'] as const)(
           : attemptedIntent.effects,
       )
       if (cut === 'M6' && recovery !== null) {
-        // The voided identity was never admitted: it holds no received entry, and the one
-        // admission of the whole run is the replacement's.
         const received = ok(
           await assembly.controls.journal.provider.entries.receivedOf({
             ...alice,
@@ -479,9 +442,6 @@ it.each(['I2', 'M6', 'M1', 'M4'] as const)(
         expect(afterDelivery.pushed.receipt).toEqual(beforeDelivery.pushed.receipt)
       }
       expect(calls).toEqual({ admit: 1, beginRead: 0, ack: 0 })
-      // A recovery that makes another M0 commit repeats the preparation of the step exactly once
-      // (the checkpoint saves no request; P0 and P1 call prepare, so the count doubles); the
-      // continued call never prepares again.
       expect(assembly.controls.requests.prepare.calls).toHaveLength(
         recovers ? preparations * 2 : preparations,
       )
@@ -526,8 +486,6 @@ it('S2 NA-F4-1: SIGKILL preserves registered and pending terminal observations w
         journalLoads++
         return d.journal.load(input)
       },
-      // The cut is a refusal: an unavailable tryFinish would go to R0 and save a dependency wait
-      // instead of stopping the run at F3 while the host fixes the terminal observations.
       tryFinish(input) {
         finishing = input
         return Promise.resolve(
@@ -572,8 +530,6 @@ it('S2 NA-F4-1: SIGKILL preserves registered and pending terminal observations w
         }),
       ),
     )
-    // The observation plan changed the responsibility projection: the host issues the list again
-    // and presents the projection the Journal maintains (SPEC "条件终结", "终结责任清单").
     const fixed = await snapshot(journal)
     ok(
       await journal.prepareFinish({

@@ -1,6 +1,5 @@
 import type { CredentialRead } from './cli-types.ts'
 
-/** The part of a Node input stream the reader uses. A terminal adds `isTTY` and `setRawMode`. */
 export interface CredentialInput {
   isTTY?: boolean
   setRawMode?: (mode: boolean) => unknown
@@ -16,15 +15,9 @@ export interface CredentialInput {
 
 export interface CredentialEdit {
   readonly text: string
-  /** Set when the chunk ended the entry: `enter` accepts what was typed, `cancel` drops it. */
   readonly end: 'enter' | 'cancel' | undefined
 }
 
-/**
- * Applies one chunk of raw terminal input to the credential typed so far. Backspace removes the
- * last character, Enter and Ctrl-D accept the entry, and Ctrl-C cancels it. Whatever follows the
- * end of the entry in the same chunk is ignored.
- */
 export function editCredential(current: string, chunk: string): CredentialEdit {
   let text = current
   for (const character of chunk) {
@@ -91,11 +84,6 @@ async function readLine(input: CredentialInput): Promise<string> {
   return text.endsWith('\r') ? text.slice(0, -1) : text
 }
 
-/**
- * Reads the account credential. On a terminal it prompts through `prompt` and reads without echo,
- * and it fails when the terminal cannot turn echo off. It never falls back to an echoed read. From
- * a pipe it reads up to the first newline or the end of input.
- */
 export async function readCredential(
   input: CredentialInput,
   prompt: (text: string) => void,

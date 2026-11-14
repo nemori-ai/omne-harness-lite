@@ -1,7 +1,3 @@
-// The six tree operations of the host files facility (list, search, mkdir, remove, move, copy) on
-// the real file system, without a host file root. Each operation shows done, a refusal, and where
-// the operation can stop half way, unknown. Faults are injected under `node:fs/promises` only for the
-// unknown answers; everything else is the real file system.
 import {
   link,
   lstat,
@@ -96,7 +92,6 @@ vi.mock('node:fs/promises', async importOriginal => {
 
 const roots: string[] = []
 
-// These tests need `/proc/self/fd` and a POSIX file system; elsewhere they are skipped, not passed.
 beforeEach(async ({ skip }) => {
   skip(process.platform !== 'linux' && process.platform !== 'darwin')
   if (process.platform === 'darwin') await prepareNativeHooks()
@@ -165,7 +160,6 @@ it('lists a directory in name order and pages it', async () => {
   const base = await tree()
   const dir = join(base, 'dir')
   await mkdir(dir)
-  // Created from the last name to the first, with a size that tells the entries apart.
   for (let index = 11; index >= 0; index--)
     await writeFile(join(dir, `n${String(index).padStart(2, '0')}`), 'x'.repeat(index + 1))
   const named = await hostObjectToken(dir)
@@ -662,7 +656,6 @@ it('refuses move for a missing source, an old version, a wrong name and an absen
 })
 
 it('answers unsupported when the move would cross devices', async ({ skip }) => {
-  // Without a second device the case cannot run; it is reported as skipped, not passed.
   const volume =
     process.platform === 'darwin' ? await apfsVolume().catch(() => undefined) : undefined
   if (volume !== undefined) volumes.push(volume)
@@ -682,8 +675,6 @@ it('answers unsupported when the move would cross devices', async ({ skip }) => 
     'exdev',
   )
   expect(result).toEqual(refused('exdev', 'unsupported'))
-  // Only a real rename that failed with EXDEV leaves this picture: the source is as it was and the
-  // target directory holds nothing, not even a temporary file.
   expect(await readFile(join(other, 'from'), 'utf8')).toBe('x')
   expect(await readdir(other)).toEqual(['from'])
   expect(await readdir(base)).toEqual([])

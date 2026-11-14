@@ -1,8 +1,3 @@
-// The records the host keeps for one call, and their end (SPEC, 记录生灭表). The ledger's sweep
-// asks the host to let go of them before it drops the call domain. The host answers `held` while
-// an acquisition of the call still carries a duty; then nothing is removed, and the sweep asks
-// again one grace later. A forwarded call keeps its records while the call that forwarded it has
-// its own. The acquisition domain goes last, under the revision the judgement read.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   CALL_RECORD_KEY,
@@ -16,7 +11,6 @@ import { decodeToolCallId, type ToolFailure, type ToolRevision } from '@omne-har
 import { callAcquisitions } from './environment-state.ts'
 import { callHostDomain, type HostAggregate } from './host-domains.ts'
 
-/** The per-call aggregates that carry no duty of their own once the call is quiet. */
 const PLAIN: readonly HostAggregate[] = ['source', 'start', 'delivery', 'control']
 
 type Dropped = Outcome<'dropped' | 'changed', ToolFailure>
@@ -47,11 +41,6 @@ export function createLocalCallRecords(store: ToolLedgerStore): CallRemoval['hos
         return unavailable(committed.diagnostic)
     }
   }
-  /**
-   * Whether `call` was forwarded by a call that still has its record. The forwarding call reads
-   * the result copy kept in the source domain of the forwarded one for as long as it runs, so the
-   * forwarded call keeps its records until the forwarding call is removed.
-   */
   const forwarderPresent = async (
     tenant: Parameters<CallRemoval['hostRecords']>[0],
     records: readonly LedgerRecord[],

@@ -1,5 +1,3 @@
-// 准入运行记录：写入是原子的、读回与写入相同；坏文件按「没有记录」；由步骤图运行写成记录时跑完、被终止、没开始各记成什么；
-// 挑某个提交能作接续起点的最近一次记录。
 import {
   existsSync,
   mkdirSync,
@@ -53,7 +51,6 @@ const BASE = {
   finishedAt: '2026-10-30T01:05:00.000Z',
 } as const satisfies Record<string, unknown>
 
-/** 夹具记录：改几栏后经解析器进门，夹具自己就得是合法记录。 */
 const run = (over: Record<string, unknown> = {}): AdmissionRun => {
   const parsed = parseAdmissionRun({ ...BASE, ...over })
   if (parsed === undefined) throw new Error('夹具不是合法记录')
@@ -225,7 +222,6 @@ describe('由步骤图运行写成记录', () => {
     expect(record.fullRequested).toBe(true)
     expect(record.worktree).toBe('/work/tree')
     expect(record.resumeFrom).toBeNull()
-    // 写出去再读回来仍是同一份：记录的形状与解析器对得上。
     const path = join(dir, 'run.json')
     writeAdmissionRun(path, record)
     expect(readAdmissionRun(path)).toEqual(record)

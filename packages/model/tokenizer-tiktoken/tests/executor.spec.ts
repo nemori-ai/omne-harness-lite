@@ -92,7 +92,6 @@ it('rejects input, per-lease queue, global queue and live-lease excess without s
   expect(executor.acquire(resources.definition, new AbortController().signal)).toHaveProperty(
     'failure',
   )
-  // A special token cannot be cut: one that a job cannot hold is refused.
   expect(
     await lease.ok.tokenizer.count([{ kind: 'special-token', name: 'n'.repeat(256) }]),
   ).toEqual({
@@ -122,7 +121,6 @@ it('counts an input larger than one job as the sum of its jobs', async () => {
     sum += BigInt(counted.ok.tokens)
   }
   expect(await cut.ok.tokenizer.count(input)).toEqual({ ok: { tokens: String(sum) } })
-  // The same input in one job: the cuts change the count by a few tokens at most.
   const one = await whole.ok.tokenizer.count(input)
   if (!('ok' in one)) throw new Error('count failed')
   const difference = sum - BigInt(one.ok.tokens)

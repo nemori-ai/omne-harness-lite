@@ -19,10 +19,6 @@ import {
 import { WAIT_ACCEPTED_FACT } from '../src/request-schema.ts'
 import { config } from './config.ts'
 
-/**
- * 本测试文件用 mkdtemp 建的库目录。一个目录会被关闭后重开（重启、读回），所以不在世界关闭时删，
- * 而在文件的全部用例结束后删；否则每次运行都在磁盘上留下一批库，变异运行会把它放大成数千个。
- */
 const createdRoots = new Set<string>()
 afterAll(() => {
   for (const root of createdRoots) rmSync(root, { recursive: true, force: true })
@@ -166,7 +162,6 @@ export async function openWorld(
   }
 }
 
-/** 打开测试事务域的 SQLite 文件，供关系守护与成本测试直接读取。 */
 export function database(root: string) {
   return new DatabaseSync(join(root, 'domains', '6869746c2e74657374.sqlite'))
 }

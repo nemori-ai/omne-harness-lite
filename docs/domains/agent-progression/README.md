@@ -1,7 +1,5 @@
 # Agent推进
 
-本页维护已接受的应然模块分工与公开协作，采用范围见[领域入口](../README.md#维护与状态)。引用的上游约束保持原采用范围；正文接受不表示当前代码已实现。
-
 ## 范围与边界
 
 Agent runtime按Agent Loop模型推进工作。Loop求值下一步，动作执行调用真实能力，Loop extensions在规定位置参与。它不接管模型/工具的执行寿命或Run业务终态。
@@ -20,13 +18,13 @@ Agent 可等待、回收或被替换，后继依据原执行与消费位置接�
 | 调用与消费 | 发起模型/工具，等待并交回原消费位置 |
 | 治理接口 | 接受明确控制和换代，报告实际推进状态。冻结的会话不再派发新 Run，在途 Run 自然收场 |
 
-扩展是可组合执行能力，不是给全部操作附加无限权限的全局钩子。会话路径上，Agent 执行记录经 Journal 写进会话日志，只有这一份，见[Agent 规格](../../../packages/agent/agent-contract/SPEC.md#身份范围与归属)与[领域架构](architecture.md)。
+扩展是可组合执行能力，不是给全部操作附加无限权限的全局钩子。会话路径上，Agent 执行记录经 Journal 写进会话日志，只有这一份，见[Agent 规格](../../../packages/agent/SPEC.md#身份租户与资格)与[领域架构](architecture.md)。
 
 ## 协作与依赖
 
 推进消费工作治理的资格、装配条件和Context数据，经公开接口请求模型/工具及业务能力。扩展可改变参数或阻断时，实际生效参数须重新满足对应条件，人工卡片和执行内容保持一致。
 
-Agent 只建模推进所需的外部消费事实。权限模式、压缩覆盖范围与保留名单、Tool 内部等待和 Model 内部重试不成为 Agent 的第二套治理模型。纯求值不解码生产者内部状态；具体投影归[对象模型](../../../packages/agent/agent-contract/docs/object-model.md#跨域概念与内部可见范围)。
+Agent 只建模推进所需的外部消费事实。权限模式、压缩覆盖范围与保留名单、Tool 内部等待和 Model 内部重试不成为 Agent 的第二套治理模型。纯求值不解码生产者内部状态；具体投影归[对象模型](../../../packages/agent/SPEC.md#领域边界)。
 
 Loop 决定、模型建议、工具实际效果和业务完成事实各有自己的拥有者。双向结果/事件协作不授权深导入提供者，独立执行等待不产生共同寿命树。
 
@@ -38,19 +36,3 @@ Loop 决定、模型建议、工具实际效果和业务完成事实各有自己
 4. 原结果可靠承接后回到相应位置继续求值；Agent 条件性结束本域执行，会话集成同时兑现治理方的 Run 收束规则。
 
 扩展等待时保留原身份和决定位置。取消、撤权或换代后不借旧资格发新动作，迟到结果仍归原调用，不从Agent退出推断工具结束。
-
-## 契约与验证导航
-
-Loop/推进契约维护决定和步骤，扩展链契约维护位置、改参/暂停/失败，调用协调者维护发起和消费交接。具体动作类型、状态机及持久等待协议随实际成员。
-
-上层沿[Agent runtime](../../architecture/runtime/agent-runtime.md)、[Loop extensions](../../architecture/runtime/loop-extensions.md)、[流式消费](../../architecture/runtime/streaming-and-consumption.md)；产品依据[产品正文](../../../.meta_harness/design/product/agent-progression/design.md)。跨能力核对见[验证](../verification.md)。
-
-## 后续设计与维护
-
-扩展位置的精确协议、可替换实现的失败策略、推进调度和等待恢复由推进/扩展/工作协调者设计。禁止把占位实现或接口存在当作完整Loop兑现。
-
-局部扩展沿位置契约阅读；新控制语义、HITL或在途交接再展开相邻责任。精确机制待补不降低已接受的资格和连续性要求。
-
-## 正式产品与技术承接
-
-[产品正文](../../../.meta_harness/design/product/agent-progression/design.md)维护本域产品要求、能力状态、阶段与未决。[角色与交接](architecture.md)承接领域级关系；[能力组](../../../packages/agent/README.md)展开工程依赖与成员机制。细化技术设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用，采用不表示成员已实现。

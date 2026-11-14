@@ -207,7 +207,7 @@ SL18。归约只用已提交依据和适用解释版本，校验完整结果及�
 
 访问裁定与原操作认回先于新输入的容量判断。已受理的原操作在队列满时仍可认回，当前撤权则不披露旧回执。读取计数、判断预算及发布入列事实必须在同一修订及原子提交边界内成立。历史输入超过新预算时仍保管，不为降低数量而删除。
 
-验证见 [intake-limits.spec.ts](tests/intake-limits.spec.ts)。SQL 事务兑现见 [W1](../session-storage-sql/SPEC.md#w1)，HTTP 的独立在途预算见 [服务端 HTTP 责任](../../access/server-entry/SPEC.md#服务端的-http-层责任)。
+验证见 [intake-limits.spec.ts](tests/intake-limits.spec.ts)。SQL 事务兑现见 [W1](../session-storage-sql/SPEC.md#w1)，HTTP 的独立在途预算见 [服务端 HTTP 责任](../../access/SPEC.md#http-承载)。
 
 ## 分流及命令边界
 
@@ -280,7 +280,7 @@ Run终态只为完成、失败、被取消，每Run最多一次有效终结。�
 | 同身份重试 | 相同提交身份返回原结果。                                                                           |
 | 参数冲突   | 同一提交身份带上不同目标或不同种类则拒绝。                                                         |
 
-会话日志上的查询认回见[日志提交与查询结果](#日志提交与查询结果)。调用登记的发起字段归 [Agent](../../agent/agent-contract/SPEC.md#身份范围与归属)。模型受理归 [model](../../model/model-contract/SPEC.md#调用和各次真实发出)。工具的停止和交付解除归 [tool](../../tool/tool-contract/SPEC.md#必要持久事实与确认)。Context 的注册和读取归 [runtime-context](../../context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)。请求组装归 [request-context](../../context/request-context-contract/SPEC.md#rq-02-组装的前置输入)。
+会话日志上的查询认回见[日志提交与查询结果](#日志提交与查询结果)。调用登记的发起字段归 [Agent](../../agent/SPEC.md#身份租户与资格)。模型受理归 [model](../../model/SPEC.md#受理与调用身份)。工具的停止和交付解除归 [tool](../../tool/SPEC.md#交付与调用状态的寿命)。Context 的注册和读取归 [runtime-context](../../context/SPEC.md#块注册与资格)。请求组装归 [request-context](../../context/SPEC.md#七组稳定读取与来源登记)。
 
 会话控制请求工具转后台时沿工具许可及转换契约；控制受理不表示转换完成。工具侧保存实际转换/收场，会话和 Agent 可靠承接后改变原步骤等待，不建立第二次执行或释放仍在执行的并发名额。后台最终结果沿原消费契约交回，原身份、效果、全文和费用保持；不默认支持后台转回前台。工具内 Ask 等待的后台限制沿工具契约，不由会话控制绕过。
 
@@ -458,7 +458,7 @@ Run终态只为完成、失败、被取消，每Run最多一次有效终结。�
 
 本节是候选设计，尚未技术接受，不改变前文已采用的范围。本节只细化前文条款，不削弱它们。公开形状归 [public-api](docs/public-api.md)，对象、事件目录与状态图归[对象模型](docs/object-model/README.md)，消费场景归 [context](docs/context.md)。系统层协作归 [Session、Run 与输入承接](../../../docs/architecture/runtime/session-and-run.md)与[控制、取消与故障恢复](../../../docs/architecture/runtime/control-and-recovery.md)，跨成员流程归[组的协作入口](../docs/key-flows.md)。本节写条款，不复述这些页的叙述。根入口目前没有这些操作的生产实现。
 
-本节的公开操作供受理入口、外部协调者、恢复者与读取者使用。网络 SDK、宿主接入和人机界面归公开接入的拥有者，见[公开接入与宿主](../../../docs/architecture/runtime/runtime-contract-handoff.md#318-公开接入与宿主)。
+本节的公开操作供受理入口、外部协调者、恢复者与读取者使用。网络 SDK、宿主接入和人机界面归公开接入的拥有者，见[公开接入与宿主](../../../docs/architecture/runtime/runtime-contract-handoff.md#公开接入与宿主)。
 
 ### 条款前缀
 
@@ -693,7 +693,7 @@ Session 命令：
 
 `begin` 的 `from` 不含本身：前向从 `from` 之后开始，反向从 `from` 之前开始；为 null 时前向从第一条开始，反向从固定上界处的最新一条开始。`since` 的 `after` 是读者已持有的最新条目，前向补读不用 `HistoryPage.upper`：`upper` 只说明这一轮遍历固定的读取上界。读者还没有持有任何条目时，以 `begin` 前向重新开始。
 
-`readModelView` 是历史持有者为 Request Context 实现的历史源读口（[历史源读口与 epoch 视图](../../context/request-context-contract/SPEC.md#历史源读口与-epoch-视图)），session-adapters 把它翻译为 `HistorySource.read`。
+`readModelView` 是历史持有者为 Request Context 实现的历史源读口（[历史源读口与 epoch 视图](../../context/SPEC.md#七组稳定读取与来源登记)），session-adapters 把它翻译为 `HistorySource.read`。
 
 - epoch 视图是两次压缩之间的模型可见序列。每次 `commitDerived(compaction)` 在同一事务里开新 epoch，首行序列为保留名单、压缩记录、覆盖范围之后的行。行带序号、条目位置、字节数、前缀摘要与消息。
 - 同一历史依据下的各页属于同一 epoch，上界固定。依据的 epoch 已不是当前 epoch 时返回 `epoch-changed` 与当前依据，不拼接两个 epoch 的页。
@@ -702,7 +702,7 @@ Session 命令：
 
 ##### 稳定调用引用的读取
 
-调用登记（SE18，种类短名 `call.bound`）条目的载荷保存该调用的登记记录。载荷的公开可读字段沿 Agent 契约的 [`PendingCall`](../../agent/agent-contract/SPEC.md#两态登记与完整原请求)，有下列三个。
+调用登记（SE18，种类短名 `call.bound`）条目的载荷保存该调用的登记记录。载荷的公开可读字段沿 Agent 契约的 [`PendingCall`](../../agent/SPEC.md#受理恢复与接管)，有下列三个。
 
 - 载荷的 `kind` 是 `model` 或 `tool`，不同于条目的种类短名 `call.bound`。
 - `reference` 在 Model 分支是稳定 `ModelInvocationRef` 文本。在 Tool 分支是 `ToolInvocationRef` 文本，尚未关联的 Tool 登记没有该字段。
@@ -956,11 +956,11 @@ Agent 原事实先由同一 Journal 提交保存。Session 后续按 [EC-01](#ec
 
 Session 参加执行的命令（JC-06、09、11、12）走同一条流水线：按 OP-00 认回、权威读、领域服务裁定、写事实。差别只在提交由执行记录提供者发起，回执经调用方交接回到 Agent。参加者只接收版本化材料，核对来源与 schema，在已登记的组合内经授权的事务端口工作。先读工作状态、再异步受理的两次成功不能声称资格与受理共同成立。执行记录提供者对未声明的共同提交种类返回 `unsupported` 时，Session 不保存任何一半。
 
-Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫。Session 提交本域推进资格的撤销，并通过 Agent 公开控制与条件提交交接。Tool 启动围栏由 Agent 日志的 `start-fence` 条目承载，在 Tool 的排序域内生效，见 Agent 的[日志条目](../../agent/agent-contract/SPEC.md#日志条目)。Session 不拥有 Tool 启动资格版本，也不从本域撤销、控制受理或日志通知推断新 Tool 发起已经被阻止。
+Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫。Session 提交本域推进资格的撤销，并通过 Agent 公开控制与条件提交交接。Tool 启动围栏由 Agent 日志的 `start-fence` 条目承载，在 Tool 的排序域内生效，见 Agent 的[日志条目](../../agent/SPEC.md#应然设计)。Session 不拥有 Tool 启动资格版本，也不从本域撤销、控制受理或日志通知推断新 Tool 发起已经被阻止。
 
 ### 与 Agent 的参加与核对
 
-本节是 [SW-M01](../session/docs/architecture/mechanisms.md#sw-m01-技术兑现义务) A 项（输入绑定与 Agent 终结的共同提交）的精确适配契约。参加者的四种响应（参加、失败、冲突、不支持）沿 Agent 契约的[提交参加者协议](../../agent/agent-contract/SPEC.md#提交参加者协议)。Session 在下文中担任该协议的外部协调者与提交参加者。
+本节是 [SW-M01](../session/docs/architecture/mechanisms.md#sw-m01-技术兑现义务) A 项（输入绑定与 Agent 终结的共同提交）的精确适配契约。参加者的四种响应（参加、失败、冲突、不支持）沿 Agent 契约的[提交参加者协议](../../agent/SPEC.md#提交认回与未知)。Session 在下文中担任该协议的外部协调者与提交参加者。
 
 <a id="pa-01"></a>
 
@@ -972,7 +972,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
   2. `submit`：来源依据是该输入的 SE11 回执。核对回执指向本会话已提交的 SE11，该 `InputId` 当前有待处理资格，去处是本 Run，该执行等于 `run.active.execution.execution`。
   3. `attach`（经出站端口 `resume` 发起）：来源依据是推进资格依据所指 attempt 的 SE15 回执。它作为 Agent `Journal.attach` 输入的推进资格依据 `grant` 到达参加者。核对回执指向本会话已提交的 SE15，并满足下列一种情形。
      - 普通推进：该执行等于 `run.active.execution.execution`，该 attempt 等于 `run.active.advance`，Run 未终态。
-     - 取消收束：这里的 Run 指该执行所属的 Run，不是会话当前的 Run。该 Run 已是 cancelled 终态（SE26），该 attempt 是该 Run 在取消之前最后授予的 attempt。它的 SE16 由取消批次写入，或在取消之前已经写入。更早授予的 attempt 不能用这条收束。这样取得的挂接只带取消授权，结论只能是 cancelled，不恢复推进权（Agent SPEC [条件终结](../../agent/agent-contract/SPEC.md#条件终结)「终结授权有两种」）。
+     - 取消收束：这里的 Run 指该执行所属的 Run，不是会话当前的 Run。该 Run 已是 cancelled 终态（SE26），该 attempt 是该 Run 在取消之前最后授予的 attempt。它的 SE16 由取消批次写入，或在取消之前已经写入。更早授予的 attempt 不能用这条收束。这样取得的挂接只带取消授权，结论只能是 cancelled，不恢复推进权（Agent SPEC [条件终结](../../agent/SPEC.md#终结)「终结授权有两种」）。
 
      执行已经结束时，Agent 先返回 `terminal`，不进入本核对。本条是 attach 核对的唯一规定，[PM-05](#pm-05)、[PM-06](#pm-06)、[PM-08](#pm-08) 与 [PM-13](#pm-13) 引用它。
 - 结果：核对成立时响应「参加」，不写 Session 条目。`invoke` 或 `submit` 受理成功后，推进协调以 `receive` 提交交入回执（SE35），该输入进入 `handed`。
@@ -1011,7 +1011,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 
 - 前提：[P-1](#具名前提与明确缺项)、[P-2](#具名前提与明确缺项)。
 - 动作：
-  1. 参加种类与协调模式：装配核对执行记录提供者的 `capabilities.participants` 含 `message`、`context-transition`、`custody`、`processed` 四种，并核对其 `capabilities.coordination` 为 `coordinated`、与装配配置 `coordination` 相等（Agent SPEC 的[提交参加者协议](../../agent/agent-contract/SPEC.md#提交参加者协议)）。缺一种或模式不相等就拒绝装配。Session 不声明其他参加种类。
+  1. 参加种类与协调模式：装配核对执行记录提供者的 `capabilities.participants` 含 `message`、`context-transition`、`custody`、`processed` 四种，并核对其 `capabilities.coordination` 为 `coordinated`、与装配配置 `coordination` 相等（Agent SPEC 的[提交参加者协议](../../agent/SPEC.md#提交认回与未知)）。缺一种或模式不相等就拒绝装配。Session 不声明其他参加种类。
   2. 修订：每次参加提交的材料含本次写入的 revision 与回执。提交成功后，参加者把它记入 `ExecutionRef.revision`，把回执记入 `ExecutionRef.evidence`。事件解释按 [FR-05](#fr-05) 取得同根真实 head 及原回执，不以事件序号或事件原来源代替这两项。
 - 结果：`ExecutionRef` 总是指向一次已成立的 Agent 提交。Session 不以 `ExecutionRef.revision` 拒绝 Agent 的提交，因为日志解释进度与参加提交的投影进度可能不同；发布前仍复核权威 Session 修订。
 - 失败：参加种类或协调模式不符时响应「不支持」。材料缺项时响应「不支持」，不保存任何一半。
@@ -1081,7 +1081,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 
 ### 推进映射、claim 与 reload
 
-本节是 SW-M01 B 项（推进映射与重装配交接）的精确适配契约。Run 与 Agent 执行、attempt 与执行挂接的对应见系统页[与 Agent 执行的对应及执行引用](../../../docs/architecture/runtime/session-and-run.md#与-agent-执行的对应及执行引用)。Agent 一侧的路径选择沿 Agent 契约的[恢复与接管](../../agent/agent-contract/SPEC.md#恢复与接管)与[采用交接](../../agent/agent-contract/SPEC.md#采用交接)。
+本节是 SW-M01 B 项（推进映射与重装配交接）的精确适配契约。Run 与 Agent 执行、attempt 与执行挂接的对应见系统页[与 Agent 执行的对应及执行引用](../../../docs/architecture/runtime/session-and-run.md#与-agent-执行的对应及执行引用)。Agent 一侧的路径选择沿 Agent 契约的[恢复与接管](../../agent/SPEC.md#受理恢复与接管)与[采用交接](../../agent/SPEC.md#终结)。
 
 <a id="pm-01"></a>
 
@@ -1225,7 +1225,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
   - 晚到的 `reload`：交接证明绑定的修订已过期，返回 `changed`。
   - 晚到的 `claim`（以 attempt n 为旧资格）：`judgeAdvance` 读到当前 attempt 为 n+1，返回 `stale-advance`。
   - 晚到的 `invoke` 或 `resume`（推进资格依据为 attempt n）：执行记录提供者核对失败，返回 `denied`。
-- 责任：本域推进资格由 `judgeAdvance` 与执行记录提供者的条件提交共同保护。Tool 启动围栏的失效依据、`start-fence` 记录及恢复归 [Agent J03](../../agent/agent-contract/SPEC.md#tool-启动围栏)。哪些挂接变化触发失效仍属该节的 #502 未决项，不能从 Session 的 attempt 取代推导 Tool 已阻止新发起。失效推进者发起的新 Model 发出由执行记录提供者的条件提交（`stale-advance`）与 Agent 的动作发出围栏阻止，Session 不参加 Model 的受理点守卫。
+- 责任：本域推进资格由 `judgeAdvance` 与执行记录提供者的条件提交共同保护。Tool 启动围栏的失效依据、`start-fence` 记录及恢复归 [Agent J03](../../agent/SPEC.md#动作与工具)。哪些挂接变化触发失效仍属该节的 #502 未决项，不能从 Session 的 attempt 取代推导 Tool 已阻止新发起。失效推进者发起的新 Model 发出由执行记录提供者的条件提交（`stale-advance`）与 Agent 的动作发出围栏阻止，Session 不参加 Model 的受理点守卫。
 
 <a id="pm-12"></a>
 
@@ -1247,7 +1247,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 - 动作：控制传播协调按挂接状态处理。
   1. 挂接存活时，控制经出站端口 `control` 送到原执行。
   2. 没有挂接时，仍先经出站端口 `control` 送到 Agent 的长期控制入口，受理不依赖挂接。后续收束由恢复协调 `resume` 原执行，必要时取得独立接管资格。Session 参加者按 [PA-01](#pa-01) 第 3 条的取消收束情形核对。新挂接读原取消意图，以取消授权条件终结，参加者按 [PA-02](#pa-02) 响应「参加」。之后读到的结束事实按 [RS-10](#rs-10) 认回。
-- Tool 启动围栏另按 [Agent J03](../../agent/agent-contract/SPEC.md#tool-启动围栏) 处理。Agent 取得 Tool 的失效证据后才写 `start-fence`，Session 不以取消提交代替该事实。哪些控制触发失效及特定失败的恢复仍属 #502 未决项，本节不规定取消必然产生围栏。失效推进者的新 Model 发出仍由执行记录提供者的条件提交（`stale-advance`）与 Agent 的动作发出围栏阻止。
+- Tool 启动围栏另按 [Agent J03](../../agent/SPEC.md#动作与工具) 处理。Agent 取得 Tool 的失效证据后才写 `start-fence`，Session 不以取消提交代替该事实。哪些控制触发失效及特定失败的恢复仍属 #502 未决项，本节不规定取消必然产生围栏。失效推进者的新 Model 发出仍由执行记录提供者的条件提交（`stale-advance`）与 Agent 的动作发出围栏阻止。
 - 结果：Session 的终态在提交时已经成立，不等传播。`ControlProgress` 只在原控制的传播、生产者核对与原责任交接均已对账后成为 `reconciled`，精确判据见 [AD-02 的控制对账](../session-adapters/SPEC.md#ad-02)。传播或责任仍未知时保留 `pending`、`pendingUnassociatedWaiting` 与 `propagating`。Tool 围栏不计入该进度，也不生成 Session 失效任务。超过策略上限时仍保留进度并报告。`reconciled` 不证明物理停止、效果撤回或归档任务完成。取不到挂接且 Agent 记录不可解释时，不凭无挂接或 Run 终态解除原责任。
 - 失败：长期控制或后续 `resume` 返回 `terminal` 时，读取原结束状态并按 [RS-10](#rs-10) 认回。控制结果未知时先查原操作，不为取得挂接而重发控制。
 - 责任：路径选择归控制传播协调。围栏归生产者与执行记录提供者。
@@ -1577,7 +1577,7 @@ decision非空只表示保存了原答复引用，不表示批准、已processed
 
 Message 的 CM-02、CM-04、CM-05 继续约束范围与 retained。SE18/22/24/25 的非消息引用不能伪装成模型可读消息；未结非消息须留在 after，covers 在最早必要非消息条目前结束。跨过该引用而不能合法 retained 的压缩仍被原 judgeCompaction 拒绝。若上次压缩留下该非消息在 after，后续压缩又须覆盖前次压缩条目，责任未解除期间可能无法再次压缩；本索引不承诺该期间的压缩可用性，也不放宽 Message 规则。
 
-未关联等待的控制只表达[终态与控制](#终态与控制)、[归档与撤销](#归档与撤销)、[PM-13](#pm-13) 及原 SE24/SE25 的已有责任。Agent 对取消的交接、准备阶段插队及责任释放分别按其[取消、退出与结构变更](../../agent/agent-contract/SPEC.md#取消退出与结构变更)、[插队](../../agent/agent-contract/SPEC.md#插队)、[六个阶段](../../agent/agent-contract/SPEC.md#六个阶段)，不在此新增取消政策。
+未关联等待的控制只表达[终态与控制](#终态与控制)、[归档与撤销](#归档与撤销)、[PM-13](#pm-13) 及原 SE24/SE25 的已有责任。Agent 对取消的交接、准备阶段插队及责任释放分别按其[取消、退出与结构变更](../../agent/SPEC.md#控制与取消)、[插队](../../agent/SPEC.md#控制与取消)、[六个阶段](../../agent/SPEC.md#控制与取消)，不在此新增取消政策。
 
 | 原控制                     | 未关联责任的选择与交回                                                                                                                                                                                                                                     |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1662,18 +1662,18 @@ RS-10 的拒绝同时约束当前 Run 与历史注记。解释 `ended(cancelled)
 
 九个领域服务、`reduce` 与 `decide` 是 `session-contract` 导出的纯函数。输入只有 `WorkSnapshot` 与命令参数，不读时间、随机数、连接或外部状态。结局集合是封闭的判别联合，新增结局是契约变更。`session` 的命令处理只组合调用它们，不另写允许或拒绝的规则。
 
-| 领域服务              | 输入                                                                                                            | 结局集合                                                                                                                                                                                                                                                            | 用在哪些命令                                                                                   | 由哪条守卫推出                                                           |
-| --------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `judgeAdvance`        | `run` 与三种申请之一：attempt 的 `AdvanceRef` 与 `expected`；有界收束的收束依据；参加的 execution               | `ok`、`stale-advance`、`changed`、`terminal`、`archived`                                                                                                                                                                                                            | `claim`、`reload`、`release`、`finishRun`；参加的 `recordMessage`、`commitDerived(compaction)` | ST08、ST09、ST10、ST11、ST20                                             |
-| `routeInput`          | `RoutedInput`、`lifecycle`、`frozen`、`run`                                                                     | `queue`（去处为当前 Run 或下一个 Run；冻结的会话只有当前 Run）、`card`、`business`、`rejected`（`archived`、`frozen` 或 `invalid`）                                                                                                                                 | `accept`                                                                                       | ST03、ST04、ST05                                                         |
-| `judgeRunStart`       | 快照、入口类别                                                                                                  | `eligible`（带首条输入）、`not-ready`、`archived`、`frozen`、`run-active`、`no-input`、`login-required`（结局集保留；本函数只看快照，快照不含输入的 `origin`，所以从不产出它。`login-required` 由 `decide` 按首条输入保存的 `origin` 产出，R2-D198）                | `startRun`；推进触发                                                                           | ST06                                                                     |
-| `openWork`            | 快照                                                                                                            | `OpenWork`：待处理输入、已交入未承接的输入、已承接而其后还没有模型调用登记（SE18）的输入、等待中的执行（含 FR-06 的 unassociatedWaiting）、后台占位、结果未知的操作、未读的 Agent 事件。CM-04 的「模型尚未读取的输入」对应前三项，未读的 Agent 事件使下界只会更保守 | 历史持有者的未结工作下界；`judgeCompletion`；`judgeIdle` 的本会话部分                          | ST20、ST24b；message 包的 [CM-04](../../common/message/SPEC.md#模型视图) |
-| `judgeCompletion`     | 快照、execution                                                                                                 | `allowed`、`blocked`（待交输入）、`cancelled`（SE26 cancelled 已成立）、`terminal`（其他终态已成立）                                                                                                                                                                | 条件终结的只读参加（[PA-02](#pa-02)）                                                          | ST20                                                                     |
-| `resolveControlScope` | 快照、`Control` 或 `ControlIntent`                                                                              | `scope`（待核对的生产者、FR-06 未关联等待责任、撤销的资格、是否同批形成 cancelled 终态、传播责任、级联与作用域释放任务）、`terminal`、`invalid`                                                                                                                     | `control`、`interrupt`、到期的 `considerAutoArchive`                                           | ST18a、ST18b、ST19a、ST19b、ST21                                         |
-| `resolveCascade`      | 快照中的关系、子会话列表                                                                                        | 级联任务列表；handoff 不在其中                                                                                                                                                                                                                                      | `control(archive)`、`considerAutoArchive`                                                      | ST21、ST23                                                               |
-| `judgeIdle`           | `IdleObservation`、自动归档策略、关系、`openWork`、`consumptions` 中未 confirmed 的交付责任解除、`IdleCoverage` | `due`、`not-due`、`exempt`、`disabled`、`unavailable`                                                                                                                                                                                                               | `considerAutoArchive`；空闲与自动归档调度                                                      | ST24a、ST24b                                                             |
-| `resolveOperation`    | 操作身份、规范化参数摘要、已提交记录                                                                            | `new`、`recovered`（原回执）、`conflict`                                                                                                                                                                                                                            | 全部变更命令核权后的首个领域步骤；`queryOperation`                                             | [SL07](#日志提交与查询结果)                                              |
-| `reduce`              | 前状态、已提交的完整批次                                                                                        | 新 `WorkSnapshot`、`quarantined`                                                                                                                                                                                                                                    | 全部权威读                                                                                     | [SL12、SL13](#日志读取投影及恢复)、[SL18](#原生事实与状态转移)           |
+| 领域服务              | 输入                                                                                                            | 结局集合                                                                                                                                                                                                                                                            | 用在哪些命令                                                                                   | 由哪条守卫推出                                                 |
+| --------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `judgeAdvance`        | `run` 与三种申请之一：attempt 的 `AdvanceRef` 与 `expected`；有界收束的收束依据；参加的 execution               | `ok`、`stale-advance`、`changed`、`terminal`、`archived`                                                                                                                                                                                                            | `claim`、`reload`、`release`、`finishRun`；参加的 `recordMessage`、`commitDerived(compaction)` | ST08、ST09、ST10、ST11、ST20                                   |
+| `routeInput`          | `RoutedInput`、`lifecycle`、`frozen`、`run`                                                                     | `queue`（去处为当前 Run 或下一个 Run；冻结的会话只有当前 Run）、`card`、`business`、`rejected`（`archived`、`frozen` 或 `invalid`）                                                                                                                                 | `accept`                                                                                       | ST03、ST04、ST05                                               |
+| `judgeRunStart`       | 快照、入口类别                                                                                                  | `eligible`（带首条输入）、`not-ready`、`archived`、`frozen`、`run-active`、`no-input`、`login-required`（结局集保留；本函数只看快照，快照不含输入的 `origin`，所以从不产出它。`login-required` 由 `decide` 按首条输入保存的 `origin` 产出，R2-D198）                | `startRun`；推进触发                                                                           | ST06                                                           |
+| `openWork`            | 快照                                                                                                            | `OpenWork`：待处理输入、已交入未承接的输入、已承接而其后还没有模型调用登记（SE18）的输入、等待中的执行（含 FR-06 的 unassociatedWaiting）、后台占位、结果未知的操作、未读的 Agent 事件。CM-04 的「模型尚未读取的输入」对应前三项，未读的 Agent 事件使下界只会更保守 | 历史持有者的未结工作下界；`judgeCompletion`；`judgeIdle` 的本会话部分                          | ST20、ST24b；message 包的 [CM-04](../../common/SPEC.md#消息)   |
+| `judgeCompletion`     | 快照、execution                                                                                                 | `allowed`、`blocked`（待交输入）、`cancelled`（SE26 cancelled 已成立）、`terminal`（其他终态已成立）                                                                                                                                                                | 条件终结的只读参加（[PA-02](#pa-02)）                                                          | ST20                                                           |
+| `resolveControlScope` | 快照、`Control` 或 `ControlIntent`                                                                              | `scope`（待核对的生产者、FR-06 未关联等待责任、撤销的资格、是否同批形成 cancelled 终态、传播责任、级联与作用域释放任务）、`terminal`、`invalid`                                                                                                                     | `control`、`interrupt`、到期的 `considerAutoArchive`                                           | ST18a、ST18b、ST19a、ST19b、ST21                               |
+| `resolveCascade`      | 快照中的关系、子会话列表                                                                                        | 级联任务列表；handoff 不在其中                                                                                                                                                                                                                                      | `control(archive)`、`considerAutoArchive`                                                      | ST21、ST23                                                     |
+| `judgeIdle`           | `IdleObservation`、自动归档策略、关系、`openWork`、`consumptions` 中未 confirmed 的交付责任解除、`IdleCoverage` | `due`、`not-due`、`exempt`、`disabled`、`unavailable`                                                                                                                                                                                                               | `considerAutoArchive`；空闲与自动归档调度                                                      | ST24a、ST24b                                                   |
+| `resolveOperation`    | 操作身份、规范化参数摘要、已提交记录                                                                            | `new`、`recovered`（原回执）、`conflict`                                                                                                                                                                                                                            | 全部变更命令核权后的首个领域步骤；`queryOperation`                                             | [SL07](#日志提交与查询结果)                                    |
+| `reduce`              | 前状态、已提交的完整批次                                                                                        | 新 `WorkSnapshot`、`quarantined`                                                                                                                                                                                                                                    | 全部权威读                                                                                     | [SL12、SL13](#日志读取投影及恢复)、[SL18](#原生事实与状态转移) |
 
 `decide` 把一个命令变成一次提交的内容：认回原操作，调用上表的领域服务，核对守卫材料（初始化材料按[初始化守卫编码](#初始化守卫编码)解析，其余 `facts` 沿所属协议解释），产出条目批次或拒绝结局。它是 `reduce` 的逆：同一解释版本下，`reduce` 解释 `decide` 产出的批次得到命令要求的后态。存储参加者在提交事务里调用 `decide`，命令到条目的编码只此一份，不在 `session` 或存储成员里另写。全部拒绝、认回与条件变化都由 `decide` 判定。存储提供者按尝试代次判断时（[session-storage-sql 的 W1 尝试代次](../session-storage-sql/SPEC.md#w1-attempts)），`attempt-rejected` 还表示没有仍未决的尝试，原发起者可以用同一身份重做；这是对 SL09 的加强，不改变「原操作仍未知时不得当作未提交」。`receive` 不接收 Agent 事件，不推进 `readThrough`。同日志解释由 `projectSessionLog` 准备，序号不大于 `readThrough` 的事件按原 execution 与事实身份认回（[EC-02](#ec-02)）。`commitDerived(compaction)` 需要的历史输入由存储参加者在同一事务里从权威日志读出、经 `DecideReads.compaction` 交入：`covered` 是覆盖范围内的全部条目，`after` 是覆盖范围之后、压缩点之前按历史顺序排列的全部条目，形状同 `covered`，每项为 `{ ref, message }`，非消息条目的 `message` 为 `null`；`open` 是 `openWork` 列出的未结工作所在的条目引用（由存储参加者按索引定位）；`decide` 核对 `open` 与快照的 `openWork` 一致。缺这一输入时 `decide` 返回 `invalid`。`startRun` 的登录门同样由存储参加者在同一事务里读出：`DecideReads.firstInput` 是快照首条待处理输入保存的 `{ input, origin }`。入口类别为 `interactive` 时，`decide` 要求它的 `input` 等于 `judgeRunStart` 的首条输入，且 `origin.owner` 为 `LOGIN_ENTRY_OWNER`（`login-entry`），否则返回 `login-required`。读与提交在同一事务里，判定与提交看到的是同一条输入。`dispatch` 入口不读这一项。
 
@@ -1748,7 +1748,7 @@ Tool 来源：
 | 常驻工具的首次定义                     | 采用点的候选采用材料（证据桥）                                                                                                                                                                            | SE36                             | `create`、有新增实际采用的 `completeInitialization`、`startRun`、`reload`    | 依据                 |
 | 冻结判定                               | 新 Run 或显式 reload 的候选采用材料                                                                                                                                                                       | SE37；没有未终结 Run 时另有 SE38 | `freeze`                                                                     | 依据                 |
 
-SE36 的内容（能力身份、资产版本、shape）由 Tool 规定，种类准入由本成员规定：缺了它，会话就不能恢复常驻工具在会话内不变的 name 与参数形状。常驻工具当前记下的登记键从 Run 的采用依据（SE08）派生，不另写条目，规则见 Tool 的[R4](../../tool/tool-contract/SPEC.md#会话常驻规则r1r5)。
+SE36 的内容（能力身份、资产版本、shape）由 Tool 规定，种类准入由本成员规定：缺了它，会话就不能恢复常驻工具在会话内不变的 name 与参数形状。常驻工具当前记下的登记键从 Run 的采用依据（SE08）派生，不另写条目，规则见 Tool 的[R4](../../tool/SPEC.md#不变式)。
 
 其他来源：
 
@@ -1773,7 +1773,7 @@ SE36 的内容（能力身份、资产版本、shape）由 Tool 规定，种类�
 
 ### 推理续接状态
 
-assistant 消息里的推理续接状态部件随所在消息作为 SE10 的内容块写入日志，不另存。形状归 message 包的[推理续接状态](../../common/message/SPEC.md#推理续接状态)。
+assistant 消息里的推理续接状态部件随所在消息作为 SE10 的内容块写入日志，不另存。形状归 message 包的[推理续接状态](../../common/SPEC.md#消息)。
 
 - 部件的载荷是租户数据，隐私与保留规则与会话历史相同。
 - 部件写入之后不改写。换模型也不改写历史。
@@ -1814,7 +1814,7 @@ ST09 的「旧实例已交还或失去连续性」细化为：失去连续性的
 
 ### 会话块声明与设置值的固定时点
 
-Session 作为作用域持有者，向 Runtime Context 声明并供给一个块。块声明是 `session-contract` 导出的值，适配成员把它翻译为 Runtime Context 的声明（[RC-02](../../context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)）。
+Session 作为作用域持有者，向 Runtime Context 声明并供给一个块。块声明是 `session-contract` 导出的值，适配成员把它翻译为 Runtime Context 的声明（[RC-02](../../context/SPEC.md#块注册与资格)）。
 
 | 块              | 内容             | 种类       | 恢复        | 易变性   | 消费者类               |
 | --------------- | ---------------- | ---------- | ----------- | -------- | ---------------------- |
@@ -1829,7 +1829,7 @@ Session 作为作用域持有者，向 Runtime Context 声明并供给一个块�
 
 模式的产品规则与系统层说明见[会话模式](../../../docs/architecture/runtime/session-and-run.md#会话模式)。
 
-Runtime Context 重建后，作用域持有者用 [RC-09](../../context/runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值) 的恢复会话恢复本会话：
+Runtime Context 重建后，作用域持有者用 [RC-09](../../context/SPEC.md#提交链与恢复会话) 的恢复会话恢复本会话：
 
 1. 先开始恢复会话，输入作用域、租户、检查点与被取代的恢复引用。
 2. 再用一份完整恢复材料结束恢复会话。材料有三部分，全部限定于本次恢复的原 scope：该 scope 的全部注册提交（含移除意图，SE07）的耐久顺序；每个 `checkpointed` 状态块最近一次步提交的全值，更新清单为空，全值从该 scope 的 `change(context-step-commit)` 条目归约得出；该 scope 已确认的结束。跨业务代次的保存与初始化边界见 J18。
@@ -1928,7 +1928,7 @@ Session 服务实例的必需依赖是 `SessionAccessCheck`、`SessionDelegatedT
 
 #### AgentDrivePort
 
-出站端口的参数只含本成员的值与不透明证据，不出现 Agent 的类型。输入只带身份：`invoke` 与 `submit` 带 `InputId`，适配器经 `readInput` 取内容。每个操作与 Agent 契约操作的对应由 session-adapters 实现，Agent 的行为沿其[托管协调与运行实例](../../agent/agent-contract/SPEC.md#托管协调与运行实例)。
+出站端口的参数只含本成员的值与不透明证据，不出现 Agent 的类型。输入只带身份：`invoke` 与 `submit` 带 `InputId`，适配器经 `readInput` 取内容。每个操作与 Agent 契约操作的对应由 session-adapters 实现，Agent 的行为沿其[托管协调与运行实例](../../agent/SPEC.md#应然设计)。
 
 | 操作           | 对应的 Agent 操作                                                                       | 用途                                              | 结果                                                                                                                                                                                                                                  |
 | -------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1971,7 +1971,7 @@ Session 服务实例的必需依赖是 `SessionAccessCheck`、`SessionDelegatedT
 | `unavailable`    | 任一路枚举、查询不可用或未知，或执行环境以 `unavailable` 拒绝                                               | 保留任务，按策略退避后重试。枚举失败表示资源未知，不表示没有资源 |
 | `not-authorized` | 执行环境以 `notAuthorized` 拒绝                                                                             | 保留任务并报告维护拥有者。不改用会话用户的访问身份重试           |
 
-拒绝原因的来源见执行环境契约的[拒绝原因](../../execution/execution-environment-contract/SPEC.md#拒绝原因)与[恢复](../../execution/execution-environment-contract/SPEC.md#恢复)。释放不发起新的获取。逻辑归档在归档提交时已经成立，不等待物理全停。对人的时间线只记录「已发起释放」与读回结果。系统层说明见[作用域释放](../../../docs/architecture/runtime/control-and-recovery.md#作用域释放)。
+拒绝原因的来源见执行环境规格的[恢复](../../execution/SPEC.md#恢复)。释放不发起新的获取。逻辑归档在归档提交时已经成立，不等待物理全停。对人的时间线只记录「已发起释放」与读回结果。系统层说明见[作用域释放](../../../docs/architecture/runtime/control-and-recovery.md#作用域释放)。
 
 ### 可加契约与过渡支持范围
 
@@ -2105,13 +2105,13 @@ Session 铸造 Context scope，引用由租户、持有者标识和业务代次�
 
 归档成功的同一次会话提交保存该业务代次的已确认 Context scope 结束事实，关联原 scope 和归档提交身份。结束事实落在 SE27（`session.archived`）的 `scope` 字段：它带原业务代次、原 scope 引用和铸造该 scope 的操作身份，`scope.ended` 是归档提交的来源。提交失败或未知未认回时，不向 Runtime Context 应用结束。确认后通过现有 applyCommit 或完整恢复材料应用，较旧恢复不能覆盖已结束。撤销归档恢复业务时铸造新代次，原 scope 永不重开。
 
-归档提交后，Session 向 Runtime Context 应用结束并撤销已签发的读取资格。Runtime Context 返回 unavailable 时，本契约接受一个窗口（[裁定第 3 项](https://github.com/nemori-ai/omne-harness-lite/issues/756#issuecomment-6490876468)）：窗口内结束事实已经提交，但尚未应用到 Runtime Context。窗口的上界是下一次恢复会话（[RC-09](../../context/runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值)、session-adapters [AD-03 第 1a 项](../session-adapters/SPEC.md#ad-03-1a)）。恢复材料带该 scope 已确认的结束。
+归档提交后，Session 向 Runtime Context 应用结束并撤销已签发的读取资格。Runtime Context 返回 unavailable 时，本契约接受一个窗口（[裁定第 3 项](https://github.com/nemori-ai/omne-harness-lite/issues/756#issuecomment-6490876468)）：窗口内结束事实已经提交，但尚未应用到 Runtime Context。窗口的上界是下一次恢复会话（[RC-09](../../context/SPEC.md#提交链与恢复会话)、session-adapters [AD-03 第 1a 项](../session-adapters/SPEC.md#ad-03-1a)）。恢复材料带该 scope 已确认的结束。
 
 Session 在撤销归档的同一次提交中，持久保存新业务代次、可信租户、持有者、所铸 scope 引用及该操作身份的绑定。这条绑定落在 SE28（`session.unarchived`）的 `scope` 字段：它带新业务代次、新 scope 引用和撤销归档的操作身份。可信租户与持有者是本会话日志的租户与会话身份，scope 引用由租户、持有者与业务代次派生（[src/decide-management.ts](src/decide-management.ts) 的 `scopeBinding`）。未知时先认回原操作，不能再铸一个 scope 绕过未知。恢复按这条绑定找回新 scope，不从进程内缓存或旧 scope 推导。注册提交、步提交检查点与已确认结束事实都带其原 scope 归属，并按原 scope 保留和恢复。旧 scope 的注册提交、检查点与结束不得重放到新 scope。新代次绑定本身不迁移旧注册或旧值，也不授予新 scope 读取资格。
 
 新 scope 首次恢复前没有本 scope 的注册或步提交时，只交经权威记录证明完整的空材料；后续只恢复本 scope 已提交的记录。`ready(open)` 后，AD-03 按当前合法声明准备尚需的注册，经现有 `change` 提交归属本 scope 的 SE07，再按原 CommitRef 应用。已经提交的注册从本 scope 的完整材料恢复，不重复建立，也不迁入旧 scope 的注册、检查点或结束。
 
-普通资格、恢复供值与首个模型请求分别核验。作用域开放且当前普通授权、可信绑定及所需注册核验通过后，持有者可签发新资格并绑定读者，不要求供给值已经恢复。合法普通读取按 [RC-09](../../context/runtime-context-contract/SPEC.md#恢复后的普通供值) 触发待刷新供值，生产者仍须有本次普通供值授权。需要初始状态的块由原合法生产者或步提交建立。恢复授权只准恢复投影，不能签代租户凭据或代替普通读取与供值授权。
+普通资格、恢复供值与首个模型请求分别核验。作用域开放且当前普通授权、可信绑定及所需注册核验通过后，持有者可签发新资格并绑定读者，不要求供给值已经恢复。合法普通读取按 [RC-09](../../context/SPEC.md#提交链与恢复会话) 触发待刷新供值，生产者仍须有本次普通供值授权。需要初始状态的块由原合法生产者或步提交建立。恢复授权只准恢复投影，不能签代租户凭据或代替普通读取与供值授权。
 
 必要注册、可信来源或普通资格缺失、不可用或未知时，不放行依赖它们的读取或动作。取得合法资格不表示必要输入已齐；只有首个模型请求所需输入全部可读，才允许发出该请求。注册已提交但初始化未完成就重启时，先完整恢复该 scope 的原注册与已有检查点，再核普通资格，由合法读取补供给值并继续尚未完成的初始化。失败保留待刷新状态与原初始化责任，首个模型请求继续暂停，不以默认值补齐。该过程使用现有注册与提交形状，不改变本节的代次绑定及原结束时点。
 
@@ -2121,11 +2121,11 @@ Session 在撤销归档的同一次提交中，持久保存新业务代次、可
 
 ### JC-Release 原生产者确认的写入与未决路径
 
-Tool 结果按已采用的推送路径交付。结果接收方实现 Tool 的 `ToolResultReceiver`，只返回 saved。Tool 宿主收到 saved 后，以 saved 的证据经 `releaseDelivery` 自己解除交付责任（Agent 契约的[结果接收](../../agent/agent-contract/SPEC.md#结果接收)，Tool 契约的[结果推送与保存](../../tool/tool-contract/SPEC.md#结果推送与保存)）。Session 不调用生产者解除端口。同一日志中已有 Tool 原生产者确认时，Session 适配协调者（session-adapters 的 AD-05）读取 AgentJournal.load().results 的 ResultResponsibility.release，核对租户、原 execution 所属 Run、consumption、完整结果版本及确认依据，以原 receipt 为 source 调用现有 receive(release)，写 SE19。重复投影认回，异版本不解除责任。
+Tool 结果按已采用的推送路径交付。结果接收方实现 Tool 的 `ToolResultReceiver`，只返回 saved。Tool 宿主收到 saved 后，以 saved 的证据经 `releaseDelivery` 自己解除交付责任（Agent 契约的[结果接收](../../agent/SPEC.md#结果接收)，Tool 契约的[结果推送与保存](../../tool/SPEC.md#交付与调用状态的寿命)）。Session 不调用生产者解除端口。同一日志中已有 Tool 原生产者确认时，Session 适配协调者（session-adapters 的 AD-05）读取 AgentJournal.load().results 的 ResultResponsibility.release，核对租户、原 execution 所属 Run、consumption、完整结果版本及确认依据，以原 receipt 为 source 调用现有 receive(release)，写 SE19。重复投影认回，异版本不解除责任。
 
 <a id="jc-release-tool-path"></a>
 
-具名偏离 JC-RELEASE-TOOL-PATH：Tool 宿主以 `releaseDelivery` 解除交付责任之后，它的解除回执怎样进入同一日志的 `load().results[].release`，尚未确定。日志中已有该确认时由 AD-05 写 SE19，这一点按上文成立。Agent 一侧的登记见 Agent 的开放问题 [AGENT-M05](../../agent/agent/docs/architecture/open-questions.md#agent-m05)。闭合归 Agent 契约与宿主拥有者，放在 M2 之后的里程碑。
+具名偏离 JC-RELEASE-TOOL-PATH：Tool 宿主以 `releaseDelivery` 解除交付责任之后，它的解除回执怎样进入同一日志的 `load().results[].release`，尚未确定。日志中已有该确认时由 AD-05 写 SE19，这一点按上文成立。Agent 一侧的登记见 Agent 的开放问题 AGENT-M05。闭合归 Agent 契约与宿主拥有者，放在 M2 之后的里程碑。
 
 下图是推送路径上的解除顺序。标「未定」的一步是本偏离。
 
@@ -2158,7 +2158,7 @@ sequenceDiagram
 
 Model ACK 到达是具名未决义务 MODEL-ACK-ARRIVAL。冻结 Agent SPEC 的 recordResult 路径明确排除 Model 的结果采用与账目接收，AgentReceivedCommits 又明确不执行生产者 ACK。received、材料、消费绑定与 saved 同提交只证明保存，不证明 ACK。不得把 Tool 路径套给 Model，不得新增 release-confirmed JournalEntry、ACK 回调或 Agent 端口。无合法公开确认路径时保持 pending，只停止 Model confirmed 投影。control.duty-released 也不是结果交付回执。Session 不直接 inject modelRuntime 来绕过此缺口。
 
-MODEL-ACK-ARRIVAL 的闭合归 Agent 契约与宿主拥有者（[裁定第 3 项](https://github.com/nemori-ai/omne-harness-lite/issues/756#issuecomment-6488685009)），放在 M2 之后的里程碑。Agent 一侧的登记见 Agent 的开放问题 [AGENT-M05](../../agent/agent/docs/architecture/open-questions.md#agent-m05)。Model 材料的公开 facts 解释入口同样归 Agent 契约与宿主拥有者：session-adapters 的 AD-05 依 Agent 契约[结果接收](../../agent/agent-contract/SPEC.md#结果接收)第 11 条核对 schema，不自定解释规则。
+MODEL-ACK-ARRIVAL 的闭合归 Agent 契约与宿主拥有者（[裁定第 3 项](https://github.com/nemori-ai/omne-harness-lite/issues/756#issuecomment-6488685009)），放在 M2 之后的里程碑。Agent 一侧的登记见 Agent 的开放问题 AGENT-M05。Model 材料的公开 facts 解释入口同样归 Agent 契约与宿主拥有者：session-adapters 的 AD-05 依 Agent 契约[结果接收](../../agent/SPEC.md#结果接收)第 11 条核对 schema，不自定解释规则。
 
 MODEL-ACK-ARRIVAL 悬置期间，Model 一侧未确认的交付责任解除按下列规则处置（[裁定第 2 项](https://github.com/nemori-ai/omne-harness-lite/issues/756#issuecomment-6490876468)）：
 

@@ -1,5 +1,3 @@
-// registerCombination (SQL contract SPEC 6): idempotence, conflict, new versions, and the rejection
-// order. Every order case sets two adjacent conditions at once and expects the earlier step.
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -85,9 +83,6 @@ describe('registration results', () => {
   })
 })
 
-// A fresh provider whose first touch of an existing file is registerCombination opens it through
-// path A. The Worker-side steps of SPEC 6.2 step 9 still apply after that open: only a path B
-// creation in the same call settles the registration without them.
 describe('first touch of an existing domain is registerCombination (path A, SPEC 6.2 step 9)', () => {
   const v2 = (): ReturnType<typeof registration> =>
     registration(built, {
@@ -180,8 +175,6 @@ describe('rejection order (SPEC 6.2, adjacent steps)', () => {
   })
 
   it('step 7 manifest_mismatch before step 8 queue_full', async () => {
-    // admissionWaitMs 0: a full point refuses at once (sql-contract 准入等待 rule 7), so the order of
-    // the steps is observable.
     const { storage } = await provide({
       controlQueuePerDomain: 1,
       controlQueueGlobal: 1,

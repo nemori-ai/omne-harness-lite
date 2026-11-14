@@ -1,14 +1,3 @@
-// Test support: a family contribution with pure encode and decode, and the values a transport
-// test passes around. The protocol of the test family:
-//
-// - The request body is `{"model":<supplier model>,"messages":<message count>}`.
-// - Each SSE data frame is a JSON object with a `kind`:
-//   - `{"kind":"text","value":"..."}` gives `block-open` the first time, then `block-delta`.
-//   - `{"kind":"stop"}` gives `ended` with `completed` and reason `stop`.
-//   - `{"kind":"fault"}` makes the decoder answer an `input-rejected` fault.
-//   - any other value makes the decoder answer an `upstream-protocol` fault.
-// - The end marker is `[DONE]` and gives no fact.
-// - Encode gives the diagnostics that the probe holds, none by default.
 import type { JsonValue } from '@omne-harness/json-text'
 import {
   decodeProviderName,
@@ -71,7 +60,6 @@ export const REQUEST: FixedModelRequest = {
   source: adoption('source'),
 }
 
-/** The limits of the transport tests; every value is a parameter of the test, not a package default. */
 export const LIMITS: PiTransportLimits = {
   connectTimeoutMs: 2_000,
   maxErrorBodyBytes: 4_096,
@@ -86,23 +74,15 @@ export const LIMITS: PiTransportLimits = {
   },
 }
 
-/** What the test family records, and how a test makes it fail. */
 export type FamilyProbe = {
   acquired: number
   released: number
-  /** The signal of the latest acquire. */
   lastSignal: AbortSignal | undefined
-  /** The input of the latest encode. */
   encoded: Parameters<PiFamilyBinding['encode']>[0] | undefined
-  /** The diagnostics that every encode gives. */
   encodeDiagnostics: readonly ProviderDiagnostic[]
-  /** Set: the next acquire answers this failure. */
   acquireFailure: TransportFailure | undefined
-  /** Set: acquire waits for this promise before it answers. */
   acquireGate: Promise<void> | undefined
-  /** Set: every encode answers this failure. */
   encodeFailure: TransportFailure | undefined
-  /** The replay format that the bindings of the next acquires name. */
   replayFormat: string | null
 }
 
@@ -197,7 +177,6 @@ function binding(supplier: Supplier, probe: FamilyProbe): PiFamilyBinding {
   }
 }
 
-/** The decoder of the test protocol described at the top of this file. */
 export function createTestDecoder(): PiResponseDecoder {
   let opened = false
   return {
@@ -239,7 +218,6 @@ function protocolFault(diagnostic: string): ModelFault {
   return { cause: 'upstream-protocol', diagnostic, upstreamStatus: null }
 }
 
-/** An SSE body of the test protocol: one event per frame, then the end marker. */
 export function sseBody(...frames: readonly string[]): string {
   return [...frames, END_MARKER].map(data => `data: ${data}\n\n`).join('')
 }

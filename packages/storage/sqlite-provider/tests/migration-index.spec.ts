@@ -1,5 +1,3 @@
-// A migration may create an index on a table of its owner (SPEC 5.4). SQLite raises SQLITE_REINDEX
-// for CREATE INDEX, so the migration authorizer must allow that action.
 import { createHash } from 'node:crypto'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -44,7 +42,6 @@ export default {
 }
 `
 
-/** The base materials with the ledger migration replaced by one that also creates an index. */
 async function withIndexMigration(): Promise<Built> {
   const base = await buildMaterials(workspace)
   const file = join(workspace.materialsDir, 'migration-ledger-index.mjs')

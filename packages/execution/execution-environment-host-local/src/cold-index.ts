@@ -1,20 +1,13 @@
-// A cold index: one marker file per execution domain in the state directory, so a provider that
-// starts again finds the domains an earlier one left. The platform gives the marker's shape; this
-// module owns how markers are written, read, listed and removed.
 import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 const keyPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u
 
-/** A resource key the index accepts as a file name. */
 export const indexedKey = (key: string): boolean => keyPattern.test(key)
 
 export type ColdIndex<M> = Readonly<{
-  /** Writes the marker atomically and flushes it; false when it could not be written. */
   record(key: string, marker: M): Promise<boolean>
-  /** The marker; `absent` when there is none, `unreadable` when it cannot be read or parsed. */
   read(key: string): Promise<M | 'absent' | 'unreadable'>
-  /** Removes the marker; false when it could not be removed. */
   forget(key: string): Promise<boolean>
   /** Every marker; `unavailable` unless every marker was read. */
   all(): Promise<readonly M[] | 'unavailable'>
@@ -22,7 +15,6 @@ export type ColdIndex<M> = Readonly<{
 
 export function createColdIndex<M>(input: {
   directory: string
-  /** The marker in `content`; undefined when any part is missing or names another key. */
   parse(content: string, key: string): M | undefined
 }): ColdIndex<M> {
   const { directory } = input
@@ -76,7 +68,6 @@ export function createColdIndex<M>(input: {
         const key = name.endsWith('.json') ? name.slice(0, -'.json'.length) : ''
         if (!indexedKey(key)) return 'unavailable'
         const marker = await read(key)
-        // A marker removed meanwhile was stopped; any other unread marker makes no complete list.
         if (marker === 'absent') continue
         if (marker === 'unreadable') return 'unavailable'
         markers.push(marker)

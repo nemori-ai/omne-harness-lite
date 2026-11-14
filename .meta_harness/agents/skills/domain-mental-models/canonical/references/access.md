@@ -35,5 +35,4 @@
 ## 出处
 
 - `docs/architecture/layers-and-dependencies.md`「领域能力的公开位置」「依赖关系与禁止方向」
-- `docs/rfcs/RFC-0015-access-dynamic-registration.md`
-- `docs/package-organization.md`「SDK与系统接入」
+- `packages/access/SPEC.md`「总体架构」「领域边界」

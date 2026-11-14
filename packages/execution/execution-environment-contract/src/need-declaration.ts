@@ -16,11 +16,6 @@ import {
 import type { FacilityKey } from './facility.ts'
 import type { IsolationClaim } from './requirement.ts'
 
-/**
- * What a tool can work with, written by the tool package and stored as JSON in the tool definition.
- * `layers` is capability compatibility, not policy: the integrator intersects it with the layers its
- * policy allows to build `EnvironmentRequirement.allowedBindings`.
- */
 export type EnvironmentNeedDeclaration = Readonly<{
   facilities: readonly FacilityKey[]
   isolation: readonly IsolationClaim[]
@@ -46,15 +41,9 @@ const decodeNeed: Decoder<EnvironmentNeedDeclaration> = (value, path) => {
   )
 }
 
-/**
- * Standard Schema of `EnvironmentNeedDeclaration`, matching `schema/environment-need.schema.json`.
- * It refuses unknown keys and non-string elements; it does not judge facility keys or isolation
- * claims, because both vocabularies are open.
- */
 export const environmentNeedSchema: StandardSchemaV1<unknown, EnvironmentNeedDeclaration> &
   StandardTyped<EnvironmentNeedDeclaration> = standardSchema(decodeNeed)
 
-/** Stable adoption identity of the schema. `digest` is the SHA-256 of the JSON Schema document bytes. */
 export const environmentNeedAdoption: Readonly<{
   owner: 'execution-environment'
   name: 'environment-need'

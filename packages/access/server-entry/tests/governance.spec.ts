@@ -1,7 +1,3 @@
-// The governance location: register and activate, issue a login, the four stage operations, the
-// fourteen operations this deployment declares not provided, protocol rejections, and an identity
-// fault. The eighteen governed operations are in governance-operations.spec.ts and the four setting
-// operations in settings.spec.ts.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { IdentityOperations } from '@omne-harness/identity'
 import { NOT_PROVIDED_GOVERNANCE_OPERATIONS, SETTING_OPERATIONS } from '../src/governance.ts'
@@ -59,7 +55,6 @@ describe('register-and-activate and issue-login', () => {
       'tenantId',
     ])
     expect(json.body.loginProof).not.toBe('')
-    // P-6: the identifier of the new login, for a later revoke-login; it is not the proof.
     expect(json.body.loginId).toMatch(/^lgn_[0-9a-z]{26}$/)
     expect(json.body.loginId).not.toBe(json.body.loginProof)
     const wrong = await send(fixture.port, GOVERNANCE_PATH, {
@@ -100,7 +95,6 @@ const ACTING =
 const PROOF = { loginProof: 'some-proof' }
 const PROOF_ACTING = { loginProof: 'some-proof', actingTenant: ACTING }
 
-/** One well-formed request per declared operation: each passes the closed field check of step 3. */
 const DECLARED: readonly (readonly [string, unknown, Record<string, unknown>])[] = [
   ['public-health', {}, {}],
   ['replace-credential', { currentCredential: 'pw-1', newCredential: 'pw-2' }, PROOF],
@@ -126,7 +120,6 @@ const DECLARED: readonly (readonly [string, unknown, Record<string, unknown>])[]
   ['withdraw-authorization-expression', { expressionId: 'x-1' }, PROOF_ACTING],
 ]
 
-/** The eighteen governed operations of the identity spec F2. */
 const GOVERNED = [
   'create-organization',
   'query-create-organization',
@@ -218,7 +211,6 @@ describe('operations this deployment does not provide', () => {
       })
     }
     expect(recognition.calls).toEqual([])
-    // Control: a governed operation with the same proof does reach the recognition.
     const governedReply = await send(fixture.port, GOVERNANCE_PATH, {
       body: governance('query-current-tenant', {}, PROOF),
     })

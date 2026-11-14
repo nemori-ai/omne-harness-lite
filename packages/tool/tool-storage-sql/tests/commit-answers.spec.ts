@@ -1,8 +1,3 @@
-// TS-02: how the answer of one SQL commit becomes the answer of the port. A reason that comes from
-// the state of the storage at this moment answers `unavailable`, because the same commit can be
-// accepted later; a reason that comes from the commit itself or from the assembly answers
-// `rejected`, because the same commit is refused again whenever it is sent (sql-contract
-// 「提交拒绝原因的定性」).
 import { afterEach, describe, expect, it } from 'vitest'
 import type { CommitRejectReason, CommitResultV2, SqlStorage } from '@omne-harness/sql-contract'
 import type { LedgerCommitInput, LedgerDomain, LedgerRecord } from '@omne-harness/tool'
@@ -48,7 +43,6 @@ function commitOf(domain: LedgerDomain, ...records: LedgerRecord[]): LedgerCommi
   }
 }
 
-/** The storage of `a`, whose every commit answers `rejected_before_accept` with `reason`. */
 function refusing(a: App, reason: CommitRejectReason): SqlStorage {
   return {
     ...a.options.storage,
@@ -62,7 +56,6 @@ function refusing(a: App, reason: CommitRejectReason): SqlStorage {
   }
 }
 
-// sql-contract「提交拒绝原因的定性」. `cancelled` is not classified there; it is read as transient.
 const TRANSIENT: readonly CommitRejectReason[] = [
   'closing',
   'cancelled',
@@ -116,7 +109,6 @@ describe('a ledger commit rejected before acceptance', () => {
 describe('a ledger commit the participant rolled back without a revision stop', () => {
   it('answers rejected with the failure category, and nothing of it took effect', async () => {
     const a = await app()
-    // Statement 1 reads the revision, statement 2 writes `a`, statement 3 (writing `b`) fails.
     a.sqlite.failStatement(3)
     const answer = await a.store.commit(commitOf(callDomain, host('a'), host('b')))
     expect(answer).toMatchObject({ kind: 'rejected' })

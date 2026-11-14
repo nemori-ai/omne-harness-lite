@@ -1,5 +1,3 @@
-// The instance directory and converter plugins on real Cordis 4.0.4. The authorities are test
-// objects (the assembly entry supplies the real ones); no other double is involved.
 import { Context } from '@deepseek-ai/cordis'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 import {
@@ -49,12 +47,10 @@ class ConverterAuthority extends ModelConverterAuthorityService<unknown> {
   readonly check = () => ({ ok: undefined })
 }
 
-// A bounded wait tells a fiber that waits for a dependency from one that settled.
 async function settle(fiber: PromiseLike<unknown>) {
   await Promise.race([fiber, new Promise(resolve => setTimeout(resolve, 100))])
 }
 
-// A caller plugin: the registration is an effect of its fiber and ends with it.
 function callerOf(ctx: Context, input: ModelRegistrationInput<unknown>) {
   const result: {
     registration?: Awaited<ReturnType<ModelInstancesService<unknown>['register']>>
@@ -122,8 +118,6 @@ it('a successor directory does not serve a handle that the old one served', asyn
   const ctx = new Context()
   await ctx.plugin(PublicationAuthority)
   const first = await ctx.plugin(ModelInstancesLocalPlugin)
-  // From the root context, so that the registration does not belong to a plugin fiber that Cordis
-  // would reload on top of the successor: a dependent plugin registers again by itself.
   await ctx.modelInstances.register(publication)
   expect(await ctx.modelInstances.connect(OBSERVER)).toMatchObject({ ok: { kind: 'live' } })
 

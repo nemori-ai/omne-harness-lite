@@ -12,7 +12,6 @@ import { canonical } from './parse.ts'
 import { strictJson } from './strict-json.ts'
 import { uuid } from './identifiers.ts'
 
-/** Each intent is an exclusive, flushed file. A crash after creation requires recovery, never repost. */
 export function operationJournal(root: string, operationId: string) {
   const directory = join(resolve(root), uuid(operationId, 'operationId'))
   mkdirSync(directory, { recursive: true, mode: 0o700 })

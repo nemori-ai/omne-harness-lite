@@ -1,6 +1,3 @@
-// The web host (SPEC.md「宿主给页面的通道」): a local Node process that holds the login for the
-// page and gives it the bridge over same-origin HTTP and SSE, and serves the built page. It listens
-// on the loopback address only. No server framework: `node:http`.
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { readFile } from 'node:fs/promises'
 import { extname, join, normalize, sep } from 'node:path'
@@ -20,19 +17,16 @@ import {
 
 export type WebHostOptions = {
   readonly session: LoginSession
-  /** The built page; absent: no static files (tests). */
   readonly pageRoot?: string
   /** One line per event; never a body, a proof or a password. */
   readonly log?: (line: string) => void
 }
 
 export interface WebHost {
-  /** Listens on 127.0.0.1; answers the bound port (useful with port 0). */
   listen(port: number): Promise<number>
   close(): Promise<void>
 }
 
-/** Only the page's own scripts and styles; only same-origin connections. */
 const CONTENT_SECURITY_POLICY = [
   "default-src 'none'",
   "script-src 'self'",
@@ -97,7 +91,6 @@ function openStream(response: ServerResponse): void {
 
 const event = (data: string): string => `data: ${data}\n\n`
 
-/** An abort signal that fires when the page goes away before the answer is complete. */
 function pageGone(response: ServerResponse): AbortSignal {
   const controller = new AbortController()
   response.on('close', () => {
@@ -111,7 +104,6 @@ export function createWebHost(options: WebHostOptions): WebHost {
   const log = options.log ?? (() => {})
   const streams = new Set<ServerResponse>()
 
-  /** Same-origin checks: a loopback `Host`; a JSON body; any `Origin` is ours. */
   function trusted(request: IncomingMessage, post: boolean): boolean {
     const host = request.headers.host ?? ''
     if (!LOOPBACK_HOST.test(host)) return false
@@ -134,7 +126,6 @@ export function createWebHost(options: WebHostOptions): WebHost {
     const signal = pageGone(response)
     openStream(response)
     const frames = session.transport.observe({ ...message, signal })
-    // The page went away: stop the observation, which also closes the upstream stream.
     const stop = (): void => {
       void frames.return({ kind: 'aborted' })
     }

@@ -241,7 +241,6 @@ describe('ask', () => {
 })
 
 describe('the result for a wait that a control closes', () => {
-  // The call is interrupted and no resume segment runs, so the text is written at the suspension.
   it('says for a question that nothing was selected', async () => {
     expect((await suspended(parsed('ask', oneQuestion))).closedResult).toBe(
       'No selection was made: the question was closed before the person answered.',

@@ -35,7 +35,6 @@ function actionMatches(action: PermissionAction): boolean {
   )
 }
 
-/** Interprets owner-qualified transaction facts. It does not qualify callers or issue future permits. */
 export function interpretPermission(input: {
   released: unknown
   action: unknown

@@ -17,9 +17,6 @@ import type { RuntimeContextService } from '@omne-harness/runtime-context-cordis
 import { RuntimeContextProvider } from '@omne-harness/runtime-context-cordis/cordis'
 import { deferred, descriptor, plugin, scope, tenantA, trustOf } from './support.js'
 
-// Real Cordis 4.0.4: loading, configuration, isolate uniqueness, producer effects, scope-filtered
-// wake-ups, intercept consistency and unloading (docs/cordis.md 验证义务).
-
 const FAILED = 3
 
 async function loaded(config: Record<string, unknown> = {}) {
@@ -32,7 +29,6 @@ async function loaded(config: Record<string, unknown> = {}) {
   return { ctx, ports, fiber, service }
 }
 
-/** Opens a scope, registers the block, and binds a model reader through an intercepted context. */
 async function opened(
   ctx: Context,
   ports: TestAuthorityPorts<unknown>,
@@ -118,7 +114,6 @@ describe('loading', () => {
     for (const config of configs) {
       const ctx = new Context()
       await ctx.plugin(trustOf(createTestAuthorityPorts<unknown>()))
-      // The configuration is outside data: the schema, not the type, has to refuse it.
       const fiber = ctx.plugin(RuntimeContextProvider, config as never)
       await expect(fiber).rejects.toThrow()
       expect(fiber.state as number).toBe(FAILED)
@@ -132,7 +127,6 @@ describe('loading', () => {
     await expect(second).rejects.toThrow(/has been registered/)
     expect(second.state as number).toBe(FAILED)
     expect(ctx.get(runtimeContextKey)).toBeDefined()
-    // The first provider's mechanism was not touched: it still answers instead of `closed`.
     const prepared = await service.prepareRegistration('holder', {
       kind: 'remove',
       creating: false,
@@ -207,7 +201,6 @@ describe('producer registration', () => {
     await caller.dispose()
     gate.resolve({ kind: 'authorized', principal: 'producer', current: () => true })
     expect(await pending).toEqual({ kind: 'rejected', reason: 'closed' })
-    // The slot is free again: another producer identity of the tenant can register.
     const handles: ProducerHandle[] = []
     await ctx.plugin(producerPlugin('successor', handles, 'successor'))
     expect(handles).toHaveLength(1)

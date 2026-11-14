@@ -1,7 +1,5 @@
 import { actualFactIdentity } from '../arch/actual-model.ts'
 import { assemblyMetadata } from './sensors/assembly.ts'
-// 收工钩子的判断：宿主在 agent 收工时喂进一个 JSON，决定要不要把「这次变更里要解释的红项」作为事实反馈回去。
-// 这里只有纯函数与一个以依赖注入编排的 `stopHook`；读标准输入、跑 git、起 worker、写文件都在 stop-hook.ts。
 import { sameTree } from '../core/subject.ts'
 import type { DependencyFinding, ImportSite } from '../deps/graph.ts'
 import { describeAgainstBase, type ExplainedFunction } from './against-base.ts'
@@ -10,13 +8,11 @@ import type { HookConfig } from './config.ts'
 import type { Reading } from './reading.ts'
 import type { Explain, HardLines } from './status.ts'
 
-/** 宿主输入里本钩子用到的两项；其余字段不看。 */
 export interface HookInput {
   readonly stopHookActive: boolean
   readonly cwd?: string
 }
 
-/** 解析不了、不是对象 → undefined（不反馈）。 */
 export function parseHookInput(text: string): HookInput | undefined {
   let value: unknown
   try {
@@ -33,20 +29,12 @@ export function parseHookInput(text: string): HookInput | undefined {
   }
 }
 
-/**
- * 一条线外的读数：`key` 是归一后的类别与位置（不含行号），`text` 是给 agent 看的那一行；
- * `amount` 是能比大小的那个值（函数的圈复杂度），同一处变大算变差。
- */
 export interface Finding {
   readonly key: string
   readonly text: string
   readonly amount?: number
 }
 
-/**
- * 收工时量出来的东西：要解释的红项（不含克隆）、两条硬线、函数的 alert 线。`dependencyNote`：依赖项这次没量
- * （解析配置变了），给 agent 的那一句。
- */
 export interface HookReadings {
   readonly explain: Omit<Explain, 'clones'>
   readonly hardLines: Pick<HardLines, 'direction' | 'cycles'>
@@ -65,7 +53,6 @@ function hardLineFinding(kind: string, finding: DependencyFinding<string>): Find
   }
 }
 
-/** 函数那一行末尾与基线比的说明：现值前面已经写了，涨了的只补「原 N」。 */
 function baseNote(row: ExplainedFunction): string {
   const against = row.againstBase
   return against.kind === 'worse' || against.kind === 'not-worse'
@@ -73,7 +60,6 @@ function baseNote(row: ExplainedFunction): string {
     : describeAgainstBase(row)
 }
 
-/** Neutral assembly changes retain their own identity and order. */
 function assemblyFindings(reading: Explain['assemblyDelta']): Finding[] {
   if (reading?.status !== 'data') return []
   let out: Finding[] = []
@@ -100,7 +86,6 @@ function assemblyFindings(reading: Explain['assemblyDelta']): Finding[] {
   return out
 }
 
-/** 架构一致性的三类条目：预期改动、依据字节变化、新增偏离；这次没有数据时为空。 */
 export function conformanceFindings(
   conformance: Reading<Pick<Conformance, 'changes' | 'sourceChanges' | 'rows'>> | undefined,
 ): Finding[] {
@@ -124,7 +109,6 @@ export function conformanceFindings(
   ]
 }
 
-/** 硬线排最前：条目多了被截断时，截掉的是报告项而不是硬线。 */
 export function findingsOf(readings: HookReadings): Finding[] {
   const { explain, hardLines, alert } = readings
   let out: Finding[] = [
@@ -174,10 +158,6 @@ const TAIL = [
   '完整输出：pnpm run loop:status --base <任务基线>',
 ]
 
-/**
- * 反馈的文字：列前 `maxItems` 条，多出的写「另有 N 条」；整段不超过 `maxChars` 个字符，
- * 放不下就再少列几条，连抬头都放不下时截断。
- */
 export function renderReason(
   findings: readonly Finding[],
   limits: Pick<HookConfig, 'maxItems' | 'maxChars'>,
@@ -198,10 +178,8 @@ export function renderReason(
   return render(0).slice(0, limits.maxChars)
 }
 
-/** 读数在状态里只留类别与位置，及能比大小的那个值。 */
 export type Seen = Pick<Finding, 'key' | 'amount'>
 
-/** 一棵工作树、一条分支上最近一次量出的读数：下一次只报比它新出现或变差的。 */
 export interface LastReading {
   readonly root: string
   readonly branch: string
@@ -209,12 +187,10 @@ export interface LastReading {
   readonly findings: readonly Seen[]
 }
 
-/** 各棵工作树、各条分支最近一次的读数，按记下的先后；超过上限丢最旧的。 */
 export interface HookState {
   readonly readings: readonly LastReading[]
 }
 
-/** 状态文件名。与旧版的 `hook-state.json` 分开：同一个回路目录里，还停在旧代码上的工作树照旧写那一份。 */
 export const STATE_FILE = 'hook-readings.json'
 
 const isText = (value: unknown): value is string => typeof value === 'string'
@@ -238,7 +214,6 @@ function isLastReading(value: unknown): value is LastReading {
   )
 }
 
-/** 文件不存在时传 undefined；内容不合约定就抛出（由调用方记日志、给用户警告）。 */
 export function parseState(text: string | undefined): HookState {
   if (text === undefined) return { readings: [] }
   const value: unknown = JSON.parse(text)
@@ -259,7 +234,6 @@ export function lastReading(
   return state.readings.find(entry => entry.root === root && entry.branch === branch)
 }
 
-/** 比上一次新出现的（类别与位置没见过），或同一处的值变大了的；没有上一次时全部算新。 */
 export function newOrWorse(findings: readonly Finding[], last: LastReading | undefined): Finding[] {
   if (last === undefined) return [...findings]
   const before = new Map(last.findings.map(seen => [seen.key, seen.amount]))
@@ -273,7 +247,6 @@ export function newOrWorse(findings: readonly Finding[], last: LastReading | und
 const seenOf = (findings: readonly Finding[]): Seen[] =>
   findings.map(({ key, amount }) => (amount === undefined ? { key } : { key, amount }))
 
-/** 记下这棵工作树、这条分支这一次的读数，替换它上一次的那条；超过上限丢最旧的。 */
 export function record(state: HookState, entry: LastReading, limit: number): HookState {
   const others = state.readings.filter(
     reading => reading.root !== entry.root || reading.branch !== entry.branch,
@@ -281,42 +254,27 @@ export function record(state: HookState, entry: LastReading, limit: number): Hoo
   return { readings: [...others, entry].slice(-limit) }
 }
 
-/** 钩子用到的外部动作；入口给真实的，测试给替身。任何一个抛错都按「钩子自己出错」处理。 */
 export interface HookDeps {
   readonly env: NodeJS.ProcessEnv
   readonly cwd: string
   readonly now: () => Date
   readonly config: () => HookConfig & { readonly primaryBranch: string }
-  /** 工作目录所在 git 仓库的根、分支与回路目录；不在 git 仓库里 → undefined。 */
   readonly repository: (cwd: string) => { root: string; branch: string; home: string } | undefined
-  /**
-   * 这次变更（相对与主线的合并点，求不出就只看未提交的）碰了产品源码时量出读数；没碰 → undefined。
-   * 超过时限以拒绝结束。`home` 是回路目录，BASE 一侧的读数按提交缓存在那里。
-   */
   readonly measure: (
     root: string,
     primaryBranch: string,
     timeoutMs: number,
     home: string,
   ) => Promise<HookReadings | undefined>
-  /** 本检出装没装量读数要的依赖（TypeScript 解析器）。没装就不起量读数的子进程，报「量不了」。 */
   readonly installed: () => boolean
   readonly readState: (home: string) => string | undefined
   readonly writeState: (home: string, text: string) => void
   readonly log: (home: string, line: string) => void
-  /**
-   * 正在跑的这份钩子所在检出的根。给了且与被量的根不是同一棵树时，钩子不量、报「量不了」：别的检出的工具与配置
-   * 可能落后。有意让检查器与被检仓库分开（`OMNE_RUNNER_ROOT`）时为 undefined，不比。
-   */
   readonly toolRoot: () => string | undefined
 }
 
 type Repository = NonNullable<ReturnType<HookDeps['repository']>>
 
-/**
- * 返回标准输出的全文（恰好一个 JSON 对象），没有要说的就是 undefined。从不抛出。
- * 要反馈：`{"decision":"block","reason"}`；钩子自己出错：`{"systemMessage"}`，只给用户看、不拦。
- */
 export async function stopHook(stdin: string, deps: HookDeps): Promise<string | undefined> {
   if (deps.env['OMNE_LOOP_HOOK'] === 'off') return undefined
   const input = parseHookInput(stdin)
@@ -330,23 +288,14 @@ export async function stopHook(stdin: string, deps: HookDeps): Promise<string | 
   return repository === undefined ? undefined : feedback(repository, deps)
 }
 
-/** 警告里引的出错原因最多这么多个字符；全文在日志里。 */
 const WARNING_REASON_CHARS = 300
 
-/**
- * 钩子自己出错时给人看的警告：宿主把 `systemMessage` 显示给用户，不交给 agent、不拦收工。
- * 不出这一句，「钩子坏了」与「没有红项」在会话里看起来一模一样。
- */
 export function renderWarning(reason: string, home: string): string {
   const shown =
     reason.length > WARNING_REASON_CHARS ? `${reason.slice(0, WARNING_REASON_CHARS)}…` : reason
   return `收工钩子没能量出这次变更的结构读数，所以没有反馈，agent 照常收工。原因：${shown}（全文在 ${home}/hook.log）`
 }
 
-/**
- * 量之前的三道关：跑的是被量这棵树自己的脚本，配置开着，依赖装了。
- * 配置关着时返回 undefined；另外两道不过时抛出，由调用方记日志并警告用户。
- */
 function measurableConfig(
   root: string,
   deps: HookDeps,
@@ -364,10 +313,6 @@ function measurableConfig(
   return config
 }
 
-/**
- * 找到了仓库之后：量、去重、记状态、出文字。这里的任何错误都记进回路目录的日志，并作为警告显示给用户；
- * 不反馈给 agent——钩子自己出错从不影响 agent 收工。
- */
 async function feedback(
   { root, branch, home }: Repository,
   deps: HookDeps,
@@ -397,9 +342,7 @@ async function feedback(
     const reason = (error instanceof Error ? error.message : String(error)).replaceAll('\n', ' ')
     try {
       deps.log(home, `${deps.now().toISOString()} ${root} ${reason}`)
-    } catch {
-      // 写日志失败也不拦人：钩子自己出错从不影响 agent 收工。
-    }
+    } catch {}
     return JSON.stringify({ systemMessage: renderWarning(reason, home) })
   }
 }

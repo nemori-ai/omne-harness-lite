@@ -1,9 +1,3 @@
-// server-entry 行的 HITL 位置（server-entry SPEC「HITL 位置」）。接入只声明一个入口面，HITL 应用按租户事务域各建
-// 一个（`rows/tool-hitl/host.ts`，由 `tool-records` 行建）。本模块把这些应用组织成一个入口面：每次调用按入口主体的
-// 租户选应用，不另建 HITL 应用。宿主不在、租户不可用时答 `unavailable`，接入对外答 `basis-unavailable`。
-// 租户还没有事务域时，它确实没有卡片。资格仍先按 HITL 的同一条规则判断（宿主的 `qualify`）：没有读者资格答 `denied`，
-// 与有事务域时 HITL 的拒绝相同；有资格时列卡答空页，非空游标答 `invalid-input`（这个租户从没有发出过游标），
-// 读卡与答复答 `denied`（与不存在的卡相同，不披露存在性）。
 import type { Context } from '@deepseek-ai/cordis'
 import { hitlCommandBinding } from '@omne-harness/human-intervention-local'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
@@ -27,7 +21,6 @@ const EMPTY_PAGE = Object.freeze({
   completeness: 'complete',
 } as const)
 
-/** 按调用现取的入口面。`tool-records` 行重载后，下一次请求读到新的宿主。 */
 export function hitlFacesOfCall(ctx: Context): Faces {
   const holder = toolHitlHolder(ctx)
   const select = async (principal: ActingForTenantPrincipal): Promise<Selected> => {

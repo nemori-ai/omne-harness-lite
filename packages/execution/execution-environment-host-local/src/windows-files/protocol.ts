@@ -1,17 +1,6 @@
 import type { FileInformation } from '@omne-harness/execution-environment-contract'
 import type { Failure } from '../host-paths.ts'
 
-/**
- * The frames between the Windows files backend and its resident helper process. Every frame is one
- * line of JSON. The helper's standard output is outside data: this module is the only place that
- * turns it into types.
- */
-
-/**
- * Where a request starts and how it walks. With a files root, `root` is the root and
- * `expectedRoot` its recorded token; without one, `root` is the drive root and `expectedRoot` is
- * empty. `segments` are opened one below the other from there.
- */
 export type Start = Readonly<{
   root: string
   expectedRoot: string
@@ -19,14 +8,8 @@ export type Start = Readonly<{
   rooted: boolean
 }>
 
-/**
- * How the last segment is opened. `directory`: the path ends in a separator or a `.` segment, so
- * it must name a directory. `follow`: it ends in a `.` segment, so the last segment is resolved as
- * a directory on the way, as POSIX resolves `name/.`.
- */
 export type Final = Readonly<{ directory: boolean; follow: boolean }>
 
-/** A request for `read`, `stat`, `list` or `search`. */
 export type RunInput = Start &
   Final &
   Readonly<{
@@ -43,10 +26,8 @@ export type RunInput = Start &
     path: string
   }>
 
-/** The token and metadata of the object a path names, without a named object to check. */
 export type IdentifyInput = Start & Final & Readonly<{ operation: 'identify' }>
 
-/** A request for `mkdir`, `remove` or `move`. The target starts the same way as the source. */
 export type ChangeInput = Start &
   Readonly<{
     named: string
@@ -60,7 +41,6 @@ export type ChangeInput = Start &
     replace: boolean
   }>
 
-/** A request for `write`: exclusive creation, or replacement of the named object. */
 export type WriteInput = Start &
   Readonly<{
     named: string
@@ -71,11 +51,6 @@ export type WriteInput = Start &
     bytes: string
   }>
 
-/**
- * The first request of a copy: the source starts like a read and the target like a move. The helper
- * streams the source into the new object `temporary` below the target's parent and flushes it; the
- * target is not changed.
- */
 export type CopyInput = Start &
   Final &
   Readonly<{
@@ -90,10 +65,6 @@ export type CopyInput = Start &
     temporary: string
   }>
 
-/**
- * The second request of a copy: publishes the staged object `temporary`, named by its token, under
- * the target by the rules of a write. `version` is the target's version when it was staged.
- */
 export type PublishInput = Start &
   Readonly<{
     operation: 'publish'
@@ -123,10 +94,6 @@ export type Metadata = Readonly<{
 
 export type Hit = Readonly<{ path: string; token: string; offsetBytes: number }>
 
-/**
- * The result of one native operation. Fields an operation does not fill hold their empty value.
- * The first request of a copy also names the source and the target as it was (`null`: absent).
- */
 export type NativeReply = Readonly<{
   info: Metadata
   bytes: string
@@ -139,12 +106,10 @@ export type NativeReply = Readonly<{
   target?: Metadata | null
 }>
 
-/** A parsed line of the helper's standard output. */
 export type ReplyFrame =
   | Readonly<{ kind: 'ready' }>
   | Readonly<{ kind: 'reply'; id: number; outcome: NativeReply | Failure }>
 
-/** The request line for request number `id`, with its terminating newline. */
 export function requestFrame(id: number, input: NativeInput): string {
   return `${JSON.stringify({ v: 1, id, ...input })}\n`
 }
@@ -158,11 +123,6 @@ const number = (value: unknown): value is number => typeof value === 'number'
 const objectType = (value: unknown): value is Metadata['type'] =>
   value === 'file' || value === 'directory' || value === 'symlink'
 
-/**
- * One line without its newline. `undefined` when the line is not a frame: not JSON, another
- * version, no request number, or a reply that is neither `ok` nor `failure`. A frame with a valid
- * envelope and a body of the wrong shape answers its request `unknown`.
- */
 export function parseReplyFrame(line: string): ReplyFrame | undefined {
   let value: unknown
   try {
@@ -214,7 +174,6 @@ function metadata(value: unknown): Metadata | undefined {
     : undefined
 }
 
-/** Every element parsed, or `undefined` when one element does not parse. */
 function each<T>(values: readonly unknown[], parse: (value: unknown) => T | undefined) {
   const parsed: T[] = []
   for (const value of values) {
@@ -225,7 +184,6 @@ function each<T>(values: readonly unknown[], parse: (value: unknown) => T | unde
   return parsed
 }
 
-/** A copy's `source` and `target`: absent, or present and parsed; `target` may be `null`. */
 function copyNames(fields: Fields): Pick<NativeReply, 'source' | 'target'> | undefined {
   const names: { source?: Metadata; target?: Metadata | null } = {}
   if ('source' in fields) {

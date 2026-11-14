@@ -1,6 +1,4 @@
 import { referenceParts } from './reference-input.ts'
-// Support for the tests of the conformance suite: a way to wrap the scripted subject in a provider
-// that breaks exactly one obligation, and to read which obligations the suite then fails.
 import type {
   CallAccess,
   ModelCalls,
@@ -27,7 +25,6 @@ import type { Scene } from '../src/conformance/conformance-types.ts'
 
 export type Subject = ConformanceSubject<ScriptedPrincipal>
 
-/** What a check is given, for tests that call the helpers of the suite directly. */
 export function sceneOf(waitMs = 200): Scene<ScriptedPrincipal> {
   return {
     subject: createScriptedConformanceSubject(),
@@ -47,7 +44,6 @@ export type Patch = Readonly<{
   quiesce?: (quiesce: Quiesce) => Quiesce
 }>
 
-/** The subject with parts of its provider replaced; whatever the patch leaves out is the scripted provider's. */
 export function patched(subject: Subject, patch: Patch): Subject {
   const { provider } = subject
   const { runtime } = provider
@@ -65,11 +61,6 @@ export function patched(subject: Subject, patch: Patch): Subject {
   }
 }
 
-/**
- * The obligations that the suite fails for the subject that `mutate` makes from a fresh scripted
- * one, and the reason it gives for each. No obligation may be left as not applicable: the scripted
- * subject gives every hook. A failure always says why.
- */
 export async function failures(mutate: (subject: Subject) => Subject): Promise<
   Readonly<{
     failing: readonly ConformanceObligation[]
@@ -95,7 +86,6 @@ export async function failingObligations(
   return (await failures(mutate)).failing
 }
 
-/** The subject with its hooks replaced by what `change` makes of the scripted ones. */
 export function hooked(
   subject: Subject,
   change: (hooks: ConformanceHooks<ScriptedPrincipal>) => ConformanceHooks<ScriptedPrincipal>,
@@ -121,7 +111,6 @@ async function* mapped(
   }
 }
 
-/** A directory whose handles hand out the observations of the scripted ones, changed by `map`. */
 export function observedThrough(map: ObservationMap) {
   return (directory: ModelDirectory<ScriptedPrincipal>): ModelDirectory<ScriptedPrincipal> => ({
     async connect(access) {

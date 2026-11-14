@@ -63,7 +63,6 @@ async function readBatchDelivery<P>(
   return succeed(delivery)
 }
 
-/** Restores a batch's original calls through the received entry and its original material. */
 export async function readBatchToolCalls<P>(
   ports: Sources<P>,
   access: Access<P>,

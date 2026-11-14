@@ -1,5 +1,3 @@
-// The testing entry: the scripted reader eligibility handoff and the handoff conformance suite.
-// Neither imports a provider member; the suite drives the handoff that the fixture hands in.
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import type {
   ConsumerClass,
@@ -10,10 +8,6 @@ import type {
   ScopeRef,
 } from '@omne-harness/runtime-context-contract'
 
-/**
- * Every answer is listed. A scope that the script binds to another tenant than the request's is
- * refused before any answer is looked up; an input that is not listed is answered `unavailable`.
- */
 export type ReaderEligibilityScript<P> = Readonly<{
   scopes: readonly Readonly<{ scope: ScopeRef; tenant: TenantId }>[]
   answers: readonly Readonly<{
@@ -22,7 +16,6 @@ export type ReaderEligibilityScript<P> = Readonly<{
   }>[]
 }>
 
-/** Structural equality of plain data; a field one side does not state is a difference. */
 function same(left: unknown, right: unknown): boolean {
   if (Object.is(left, right)) return true
   if (typeof left !== 'object' || typeof right !== 'object' || left === null || right === null)
@@ -39,7 +32,6 @@ const unlisted = (what: string): ReaderEligibilityResult => ({
   diagnostic: `The scripted handoff lists no ${what} for this request`,
 })
 
-/** A handoff that answers only what the script lists; an eligibility is never a default. */
 export function createScriptedReaderEligibility<P>(
   script: ReaderEligibilityScript<P>,
 ): ReaderEligibilityHandoff<P> {
@@ -62,9 +54,7 @@ export function createScriptedReaderEligibility<P>(
 
 export interface ReaderEligibilityFixture<P> {
   readonly handoff: ReaderEligibilityHandoff<P>
-  /** A request that the holder answers with `eligibility` as current. */
   readonly held: Readonly<{ request: ReaderEligibilityRequest<P>; eligibility: EligibilityId }>
-  /** A tenant that the scope of `held` does not belong to. */
   readonly otherTenant: TenantId
 }
 export type ReaderEligibilityCase = Readonly<{
@@ -112,7 +102,6 @@ const cases = <P>(fixture: ReaderEligibilityFixture<P>): ReaderEligibilityCase[]
   },
 ]
 
-/** The cases of the handoff suite; run each one and report it by `name`. */
 export function readerEligibilityConformance<P>(
   fixture: ReaderEligibilityFixture<P>,
 ): readonly ReaderEligibilityCase[] {

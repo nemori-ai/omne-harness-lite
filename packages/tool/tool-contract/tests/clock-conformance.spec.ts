@@ -1,6 +1,3 @@
-// Self-proof of the ToolClock suite: it passes on the conforming clock, each case fails under
-// a violating variant that breaks the rule of that case, and a fixture without control handles
-// reports the cases that need them as not applicable.
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
 import {
@@ -40,7 +37,6 @@ const NAMES = {
 
 type Fixture = ToolClockFixture
 
-/** A fixture whose clock is the conforming clock with `build(real, base)` laid over it. */
 function variant(
   build: (real: ToolClock, base: Fixture) => Partial<ToolClock>,
   over: Partial<Fixture> = {},
@@ -51,7 +47,6 @@ function variant(
   }
 }
 
-/** The wait is short, so a violation that never answers fails soon. */
 const SHORT = { waitMs: 30 }
 
 const unreadable = () =>
@@ -74,9 +69,7 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   ...(['owner', 'record', 'digest'] as const).map(field => ({
-    // The marker is evidence that cannot be checked: one part of it is empty.
     name: `the marker has no ${field} of its evidence`,
-    // The conforming clock reads its own markers: without an owner or a record it measures nothing.
     fails: field === 'digest' ? [NAMES.K1] : [NAMES.K1, NAMES.K2, NAMES.K3, NAMES.K4, NAMES.K5],
     fixture: variant(real => ({
       begin: async input => {
@@ -98,7 +91,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The clock keeps one current segment: a later begin takes over the measurement of all.
     name: 'a begin restarts the measurement of every segment',
     fails: [NAMES.K2],
     fixture: variant(real => {
@@ -138,7 +130,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The clock measures with the wall reading, which the operator can turn back.
     name: 'elapsed follows the wall time',
     fails: [NAMES.K4],
     fixture: variant(real => {
@@ -163,7 +154,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // Across an epoch the clock reports no time at all, which gives the call a fresh budget.
     name: 'elapsed answers zero across an epoch that cannot be compared',
     fails: [NAMES.K5],
     fixture: variant(real => ({
@@ -208,7 +198,6 @@ const variants: readonly Variant<Fixture>[] = [
     ),
   },
   {
-    // The wait ends at the abort, but it says that the instant was reached.
     name: 'waitUntil answers elapsed when the signal aborts',
     fails: [NAMES.K6, NAMES.K8],
     fixture: variant(
@@ -223,7 +212,6 @@ const variants: readonly Variant<Fixture>[] = [
     ),
   },
   {
-    // Milliseconds come as a decimal with a fraction: the number is the same, the text is not.
     name: 'elapsed counts in a decimal with a fraction',
     fails: [NAMES.K2, NAMES.K3, NAMES.K4, NAMES.K5],
     fixture: variant(real => ({
@@ -246,7 +234,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // A begin of another segment disturbs the first read of the segment that was already running.
     name: 'a begin of another segment disturbs the next read of a running segment',
     fails: [NAMES.K2, NAMES.K5],
     fixture: variant(real => {
@@ -271,7 +258,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // With a second segment running, the first one stops counting.
     name: 'a segment stops counting once another segment begins',
     fails: [NAMES.K2],
     fixture: variant(real => {
@@ -295,7 +281,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The first read of a marker counts a head start; later reads are right.
     name: 'the first read of a marker counts a head start',
     fails: [NAMES.K2, NAMES.K3, NAMES.K4, NAMES.K5],
     fixture: variant(real => {
@@ -314,7 +299,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   ...([2, 3] as const).map(nth => ({
-    // One read of the marker, the second or the third, is a millisecond off.
     name: `the ${nth === 2 ? 'second' : 'third'} read of a marker is a millisecond off`,
     fails: nth === 2 ? [NAMES.K2, NAMES.K3] : [NAMES.K2, NAMES.K3],
     fixture: variant(real => {
@@ -332,14 +316,12 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   })),
   {
-    // A wait on a far instant answers cancelled without any abort.
     name: 'waitUntil answers cancelled before the abort',
     fails: [NAMES.K6, NAMES.K8, NAMES.K9],
     fixture: variant(() => ({ waitUntil: () => Promise.resolve('cancelled' as const) }), SHORT),
   },
 ]
 
-/** Providers that the contract allows, built in clock-legal.ts at the port boundary. */
 const legal: readonly LegalProvider<Fixture>[] = [
   {
     name: 'generated: the table has no progress kind, so the boundary masks nothing',

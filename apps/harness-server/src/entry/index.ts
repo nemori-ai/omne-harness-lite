@@ -1,10 +1,5 @@
-// 入口对象清单（DP1-C11）。每个入口对象一个文件 `src/entry/<对象>.ts`，这里只汇总。
-// 本文件是入口对象的唯一登记点（L1-06）：新增入口对象的卡在这里加一条导入与一项清单元素。
-// 名字取定义包的键常量；受信与否由受信表（`src/s0/aa-rows.json`）决定，模块不自报。
-// `scopedRuntimeContextTrust` 与 `executionAuthorities` 共用一份按运行懒建的 Scope 来源（见 execution-wiring.ts）。
-// 三个系统主体模块经受信名 `principalIssuer` 的服务签发，必须排在 `principalIssuer` 之后。
-// `toolReleaseRegistrant` 与 `toolContributionAuthority` 共用一份按运行读取的发行快照，登记者排在权威之前。
-// `toolClock` 与 Tool 运行时组的 bundle 共用同一个时钟实例（按运行的根共享）；`toolPublicationAuthority` 读同一份调用见证。
+// 次序有约束：签发系统主体的模块排在 `principalIssuer` 之后；`toolReleaseRegistrant` 排在
+// `toolContributionAuthority` 之前（两者共用一份按运行读取的发行快照）。
 import type { EntryObjectModule } from '../types.ts'
 import { agentClock } from './agent-clock.ts'
 import { agentHostPrincipal } from './agent-host-principal.ts'

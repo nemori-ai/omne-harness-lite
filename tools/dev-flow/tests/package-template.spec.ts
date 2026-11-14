@@ -330,7 +330,6 @@ describe('template adoption and observation', () => {
       }
     })
     fs.writeFileSync(join(root, member, 'README.md'), COMPLETED)
-    // Controlled test fixture, not a published historical release or migration claim.
     const fixture = {
       ...readTemplate(),
       previousVersions: {

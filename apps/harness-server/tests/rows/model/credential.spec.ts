@@ -1,6 +1,3 @@
-// `model-credential` row: the Model credential port over the `secret-custody` row, as a row. The
-// vault is a real file in a temporary directory, built with the binding keys the release providers
-// give: the official layer `setup` writes and a tenant layer the `settings` row writes.
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -39,7 +36,6 @@ function apiKey(scope: SecretScope): SecretBindingKey {
   return providerCredentialKey(provider, scope, 'apiKey')
 }
 
-/** A vault holding the official key and, when asked, the tenant's own key. */
 function vaultWith(input: Readonly<{ tenant: boolean }>): string {
   const directory = realpathSync(mkdtempSync(join(tmpdir(), 'model-credential-row-')))
   directories.push(directory)
@@ -74,7 +70,6 @@ const rowsOver = (path: string) => [
   { id: 'secret-custody', plugin: 'secretCustodyRow', config: { path } },
 ]
 
-/** What the service answers for one profile kind: the layer, then the secrets of that layer. */
 function answer(service: ModelCredentialService, official: boolean) {
   const provider = openrouter()
   const layer = service.layerOf({ provider, official, access: ACCESS })

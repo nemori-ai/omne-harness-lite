@@ -1,9 +1,3 @@
-// The `ModelCommandStorage` of the shared commands core over the SQL storage, and the `model`
-// participant that it commits to. One run reads its scope (`model.call`), runs the core's
-// synchronous work on that read, and sends the one write that the work staged as one fact
-// command. The participant writes it only if `row_version` is still the version the work read
-// (CAS); otherwise the commit rolls back and the run reads again in the next attempt generation.
-// The default export is the participant module.
 import { randomUUID } from 'node:crypto'
 import {
   decodeModelCallId,
@@ -73,52 +67,35 @@ import {
 import { requestChunks } from './request-body.ts'
 import { MODEL_PARTICIPANT, PROTOCOL, TABLES, type Table } from './schema.ts'
 
-/** Bytes of one `model.request` output beside the chunk: its position and the wrapping. */
 export const BODY_READ_RESERVE_BYTES = 64 * 1024
-/** A block with this many `append` parts is folded into one part in the same commit (N2). */
 export const PART_MERGE_THRESHOLD = 64
-/** Rounds of one run: how often it goes back to read after a newer write. */
 export const DEFAULT_ATTEMPT_LIMIT = 8
-/** Operations whose commit outcome is not known, kept in the process (N5). */
 export const DEFAULT_UNRESOLVED_LIMIT = 1024
 const MAX_ATTEMPT_LIMIT = 64
 
 export type ModelStorageLimits = Readonly<{
-  /** The share of one tenant: how many of its calls may hold request material. */
   tenantResults: number
-  /**
-   * The largest encoded size of one chunk of a request body. One commit writes one chunk, so the
-   * assembly gives a value that, with the head of the facts, fits one command of the provider.
-   */
   requestChunkBytes: number
 }>
 
 export type SqlModelStorageOptions = Readonly<{
   storage: SqlStorage
   domains: TenantDomainLookup
-  /** The combination the application registered for the tenant scope (session log and Model). */
   combination: Readonly<{ combinationVersion: string; manifestDigest: string }>
   limits: ModelStorageLimits
-  /** Rounds of one run. Default 8. The attempt generations of an operation have no limit. */
   attemptLimit?: number
-  /** Operations with an unknown commit outcome that the process keeps for one tenant. Default 1024. */
   unresolvedLimit?: number
 }>
 
 export type SqlModelStorage = ModelCommandStorage &
   Readonly<{
     limits: ModelStorageLimits
-    /** The pending calls of a tenant, one page by call: the `pending` port of the core. */
     pending: NonNullable<ModelCommandStorage['pending']>
-    /** One `snapshot` read of a call, outside a run. */
     readCall(input: CallReadInput): Promise<Outcome<CallRead, ModelFailure>>
-    /** One page of the calls whose stored document has recovery work; no unknown operation. */
     readPending(
       input: Readonly<{ tenant: string; after: ModelCallId | null; limit: number }>,
     ): Promise<Outcome<PendingPage, ModelFailure>>
   }>
-
-// --- Construction --------------------------------------------------------------------------
 
 const DIGEST = /^[0-9a-f]{64}$/
 
@@ -127,7 +104,6 @@ function positive(value: number, name: string): void {
     throw new RangeError(`${name} is not a positive safe integer`)
 }
 
-/** The construction checks: the share is a positive count and the combination is named. */
 function checkOptions(options: SqlModelStorageOptions): Readonly<{
   rounds: number
   unresolved: number
@@ -149,12 +125,8 @@ function checkOptions(options: SqlModelStorageOptions): Readonly<{
   return { rounds, unresolved }
 }
 
-// --- One attempt ---------------------------------------------------------------------------
-
-/** A call of the port that the scope of the current run does not cover. Never a silent answer. */
 class ScopeError extends Error {}
 
-/** The scope of a run of this storage: it reads one call, so the call is named. */
 type CallScope = RunScope & Readonly<{ call: ModelCallId }>
 
 type Staged =
@@ -168,7 +140,6 @@ const stagedCallId = (staged: Staged): ModelCallId =>
 
 const noDocuments = (): TenantDocuments => ({ calls: new Map(), operations: new Map() })
 
-/** The body of the call that a staged write admits. */
 type AdmittedBody = Readonly<{
   tenant: string
   call: ModelCallId
@@ -189,10 +160,6 @@ const refOf = (body: AdmittedBody) => ({
   digest: body.digest,
 })
 
-/**
- * The synchronous face of one attempt. It answers from the read of this attempt and stages one
- * write; nothing reaches the storage until the run commits it.
- */
 class Attempt {
   staged: Staged | null = null
   private readonly scope: CallScope
@@ -220,7 +187,6 @@ class Attempt {
     if (tenant !== this.scope.tenant) throw new ScopeError('another tenant than the run scope')
   }
 
-  /** The documents of the scope tenant. Another tenant reads empty, as the port says. */
   documents(tenant: string): TenantDocuments {
     return tenant === this.scope.tenant ? this.view : noDocuments()
   }
@@ -242,10 +208,6 @@ class Attempt {
     return record.version
   }
 
-  /**
-   * A commit binds the operation that the run read. A run without one has not read its binding,
-   * so it could not recognize an earlier commit of the same operation.
-   */
   commit(tenant: string, write: CommandWrite): 'committed' {
     this.check(tenant)
     if (this.scope.operation === undefined)
@@ -269,11 +231,8 @@ class Attempt {
   }
 }
 
-// --- From documents to rows ----------------------------------------------------------------
-
 export type PartPlan = Readonly<{ remove: readonly StoredPart[]; insert: readonly StoredPart[] }>
 
-/** Whether `next` grows from `prior` by the pieces that parts can add. */
 function grows(prior: VisibleBlock, next: VisibleBlock | undefined): boolean {
   if (next === undefined) return false
   if (sameStored(prior, next)) return true
@@ -307,7 +266,6 @@ function fresh(seq: number, position: number, value: VisibleBlock): StoredPart[]
   ]
 }
 
-/** The parts that turn block `prior` at `position` into `next`; `rows` are its stored parts. */
 function step(
   seq: number,
   position: number,
@@ -342,7 +300,6 @@ function step(
   }
 }
 
-/** Folds the `append` parts of a block into one part when they reach the threshold (N2). */
 function bound(stored: readonly StoredPart[], plan: PartPlan): PartPlan {
   const removed = new Set(plan.remove)
   let insert = [...plan.insert]
@@ -365,10 +322,6 @@ function bound(stored: readonly StoredPart[], plan: PartPlan): PartPlan {
   return { remove, insert }
 }
 
-/**
- * The part rows that turn the stored blocks into the blocks of `after`. A block that grows gets
- * the new piece; anything else rewrites the parts of its dispatch. CAS keeps the read current.
- */
 export function planParts(
   stored: readonly StoredPart[],
   before: readonly DispatchDocument[],
@@ -400,7 +353,6 @@ export function planParts(
   return bound(stored, { remove, insert })
 }
 
-/** An encoder that refused a value, carried out of the row building at once. */
 class EncodeError extends Error {
   readonly failure: RowFailure
 
@@ -415,7 +367,6 @@ function must<T>(result: Outcome<T, RowFailure>): T {
   return result.ok
 }
 
-/** The dispatch rows of `after` that differ from the rows of `before`. */
 function changedDispatches(
   tenant: string,
   call: ModelCallId,
@@ -430,16 +381,6 @@ function changedDispatches(
   })
 }
 
-/**
- * The fact command of one staged write. The `pending` mark of the call row is the recovery-work
- * judgment of the shared core over the document. Operations with an unknown outcome are not in
- * the document; `pending` adds their calls when it reads.
- */
-/**
- * The body that an admission claims: the digest of its request and the chunk count. A body of one
- * chunk travels in the commit of the admission itself (`inline`); a larger one is written before.
- * `sweep`: the commit first deletes the chunks of the tenant that no call owns.
- */
 type BodyManifest = Readonly<{
   digest: string
   chunks: number
@@ -499,34 +440,21 @@ function encodedFacts(
   }
 }
 
-// --- The run -------------------------------------------------------------------------------
-
 const RETRIED: readonly string[] = ['version', 'operation-bound', 'call-exists']
 
 type Step = Readonly<{ kind: 'done'; failure: ModelFailure | null }> | Readonly<{ kind: 'again' }>
 
-/** The storage identity of one commit; an operation write also notes the outcome of its generation. */
-/**
- * Where a staged write goes. A write of an operation goes to one attempt generation: `saw` records
- * what became of it and `next` is the following generation, taken when this one is spent.
- */
 type Target = Readonly<{
   identity: SqlIdentity
   saw?: (outcome: CommitResultV2['kind']) => void
   next?: () => Target
 }>
 
-/**
- * A generation that an earlier call already used and rolled back: the storage recalled its rollback
- * receipt, or holds it for another input of the same identity (sql-contract 认回标记). The write
- * goes to the next generation.
- */
 function spent(result: CommitResultV2): boolean {
   if (result.kind === 'rolled_back') return result.recalled
   return result.kind === 'identity_conflict' && result.existing.kind === 'rolled_back'
 }
 
-/** What became of the generation, for the record of rolled-back generations. */
 function generationOutcome(result: CommitResultV2): CommitResultV2['kind'] {
   return result.kind === 'identity_conflict' ? result.existing.kind : result.kind
 }
@@ -542,9 +470,6 @@ function afterRollback(receipt: ReceiptV2): Step {
   if (stop?.kind === 'conflict') {
     const reason = isFactRecord(stop.basis) ? stop.basis['reason'] : undefined
     if (typeof reason === 'string' && RETRIED.includes(reason)) return { kind: 'again' }
-    // The participant checks the share again at the commit: another admission took the place.
-    // The chunks were not all there at the commit: a discard of an earlier attempt of the same
-    // call came between. The caller admits again and writes the body again.
     if (reason === 'body-incomplete')
       return { kind: 'done', failure: unavailable('the request body was not whole at the commit') }
     if (reason === 'share-full')
@@ -563,22 +488,12 @@ function afterRollback(receipt: ReceiptV2): Step {
   }
 }
 
-/**
- * A temporary rejection waits and comes again; a definite one is the same on every retry
- * (sql-contract "提交拒绝原因的定性").
- */
 function rejected(reason: CommitRejectReason): ModelFailure {
   return commitRejectionNature(reason) === 'temporary'
     ? unavailable(`storage rejected the commit: ${reason}`)
     : { kind: 'invalid', field: 'storage', reason }
 }
 
-/**
- * The highest attempt generation of each operation that this process saw rolled back ("一次 run"
- * step 5). A rolled-back generation stays rolled back, so the search for a free generation starts
- * after it. Only a rolled-back generation moves the start: a generation whose outcome is unknown
- * or committed is found again. A committed operation is forgotten. A new process starts from #1.
- */
 class Generations {
   private readonly rolledBack = new Map<string, number>()
 
@@ -592,10 +507,6 @@ class Generations {
   }
 }
 
-/**
- * The unknown bindings of each tenant, by operation. One writer: the storage of this process. The
- * limit holds per tenant, so the unknown outcomes of one tenant do not stop the writes of another.
- */
 class Unresolved {
   private readonly tenants = new Map<string, Map<ModelOperationId, Binding>>()
   private readonly limit: number
@@ -604,7 +515,6 @@ class Unresolved {
     this.limit = limit
   }
 
-  /** Whether a new unknown operation of `tenant` has no room. An operation already kept has room. */
   full(tenant: string, operation: ModelOperationId): boolean {
     const kept = this.tenants.get(tenant)
     return kept !== undefined && !kept.has(operation) && kept.size >= this.limit
@@ -614,7 +524,6 @@ class Unresolved {
     return new Map(this.tenants.get(tenant) ?? [])
   }
 
-  /** The calls of `tenant` after `after` that have an unknown operation, in call order. */
   callsAfter(tenant: string, after: ModelCallId | null): ModelCallId[] {
     const calls = [...(this.tenants.get(tenant)?.values() ?? [])].map(binding => binding.call)
     return [...new Set(calls)].filter(call => after === null || call > after).sort()
@@ -633,11 +542,6 @@ class Unresolved {
   }
 }
 
-/**
- * One page of the union of the stored pending calls and the calls with an unknown operation. When
- * more stored rows follow the stored page, nothing after its last call is known yet, so the page
- * stops there.
- */
 function mergePending(
   stored: PendingPage,
   unknown: readonly ModelCallId[],
@@ -662,7 +566,6 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
   const { storage, domains, combination, limits } = options
   const unresolved = new Unresolved(unresolvedLimit)
   const generations = new Generations()
-  /** The tenants whose orphan request chunks this process has deleted. */
   const swept = new Set<string>()
   let current: Attempt | null = null
 
@@ -680,7 +583,6 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
   })
   const generation = (domain: DomainRef, operation: ModelOperationId, at: number) =>
     identityOf(domain, operation, `${operation}#${at}`)
-  /** The generations of one storage identity: tenant scope, domain and operation. */
   const generationsKey = (domain: DomainRef, operation: ModelOperationId): string =>
     JSON.stringify([
       domain.scope.kind === 'tenant' ? domain.scope.tenant : null,
@@ -688,13 +590,6 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
       operation,
     ])
 
-  /**
-   * The first generation not yet used, or what an earlier generation already decided, by asking the
-   * storage generation after generation. Only step 2 asks, and only for an operation whose last
-   * answer was unknown (sql-contract 认回标记: ask before sending again); a write commits its
-   * generation directly. The search has no bound: the rolled-back generations of an operation add
-   * up over its runs.
-   */
   async function freeGeneration(
     domain: DomainRef,
     operation: ModelOperationId,
@@ -709,11 +604,9 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     }
     generations.saw(key, at, found.kind)
     if (found.kind === 'not_committed') return at
-    // Every generation identity recalls its receipt; `not_recallable` is treated as not known.
     return found.kind === 'not_recallable' ? 'unknown' : found.kind
   }
 
-  /** Drops the unknown operations of the call that the storage has since decided. */
   async function settleUnresolved(domain: DomainRef, scope: CallScope): Promise<void> {
     for (const [operation, binding] of unresolved.of(scope.tenant)) {
       if (binding.call !== scope.call) continue
@@ -754,8 +647,6 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     if (unresolved.full(tenant, operation))
       return { kind: 'done', failure: unavailable('too many operations with an unknown outcome') }
     const key = generationsKey(domain, operation)
-    // Step 2 asked the storage about every unknown operation of this call at the start of this
-    // attempt: one still registered is still undecided, and is not sent again (sql-contract 认回标记).
     if (unresolved.of(tenant).has(operation)) return unknownStep(tenant, staged)
     return generationTarget(domain, operation, key, generations.first(key))
   }
@@ -773,10 +664,6 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     }
   }
 
-  /**
-   * What an answer means for the run. `generational` is true for a write of an operation: a commit
-   * the storage recalls was written by an earlier call, so the read the work ran on is stale.
-   */
   function afterCommit(
     result: CommitResultV2,
     tenant: string,
@@ -807,9 +694,8 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
   ): Promise<Step> {
     const admitted = admittedBody(tenant, staged)
     if (admitted === null) return commitFacts(domain, tenant, staged, read, null)
-    // Before the first admission of a tenant in this process, the chunks that no call owns are
-    // deleted: one process writes the database, so no admission of the tenant is in flight then.
-    // The first commit of that admission does it, so a sweep that did not commit is done again.
+    // Before a tenant's first admission in this process, delete the chunks no call owns: one
+    // process writes the database, so none is in flight. A sweep that did not commit runs again.
     const sweep = !swept.has(tenant)
     const chunks = requestChunks(admitted.request, limits.requestChunkBytes)
     const [only] = chunks
@@ -819,8 +705,6 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
       if (step.kind === 'done' && step.failure === null) swept.add(tenant)
       return step
     }
-    // A body of several chunks goes first, in its own commits. The commit of the call then holds
-    // only when the body is whole. A body that the call did not come to own is deleted again.
     const written = await putBody(domain, admitted, chunks, sweep)
     const step: Step =
       written !== null
@@ -847,8 +731,6 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     if ('failure' in facts) return { kind: 'done', failure: facts.failure }
     const first = identityFor(domain, tenant, staged)
     if ('kind' in first) return first
-    // The generation is committed without asking first; the answer tells this call's write from an
-    // earlier one (sql-contract 认回标记, model RecallAtCommit).
     for (let target = first; ;) {
       const result = await storage.commit({
         identity: target.identity,
@@ -862,9 +744,6 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     }
   }
 
-  // --- The request body: chunk commits before the admission, and their cleanup.
-
-  /** One commit of the body protocol. Each has its own identity: the rows make it idempotent. */
   async function bodyCommit(
     domain: DomainRef,
     call: ModelCallId,
@@ -878,7 +757,6 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     })
   }
 
-  /** Writes every chunk of the body, one commit each. Null, or why a chunk did not commit. */
   async function putBody(
     domain: DomainRef,
     body: AdmittedBody,
@@ -905,7 +783,6 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     return null
   }
 
-  /** One attempt: settle, read, run the work, commit what it staged. */
   async function attempt<T>(
     work: () => Outcome<T, ModelFailure>,
     scope: CallScope,
@@ -982,8 +859,6 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     },
   }
 }
-
-// --- The participant (Worker) --------------------------------------------------------------
 
 class FactError extends Error {}
 
@@ -1063,7 +938,6 @@ function partKeys(raw: JsonValue | undefined): PartKeyCells[] {
   }))
 }
 
-/** The write facts, checked once: every row belongs to the tenant and call the facts name. */
 function writeFacts(facts: Readonly<Record<string, JsonValue>>) {
   const tenant = text(facts['tenant'], 'tenant')
   const call = text(facts['call'], 'call')
@@ -1078,7 +952,6 @@ function writeFacts(facts: Readonly<Record<string, JsonValue>>) {
     throw new FactError('row_version')
   const binding =
     facts['binding'] === null ? null : checkedRow(TABLES.operation, facts['binding'], tenant, call)
-  // A write is a call row, a binding, or both; a binding alone only for a call not written.
   if (row === null && (binding === null || expected !== null)) throw new FactError('shape')
   return {
     tenant,
@@ -1096,7 +969,6 @@ function writeFacts(facts: Readonly<Record<string, JsonValue>>) {
 
 const stop = (reason: string): ParticipantReply => ({ kind: 'conflict', basis: { reason } })
 
-/** The count includes the call that this commit inserted. */
 function overShare(port: ParticipantPort, tenant: string, share: number): boolean {
   const held = port.execute(HELD_CALLS_SQL, [tenant]).rows[0]?.[0] ?? 0
   if (typeof held !== 'number' && typeof held !== 'bigint')
@@ -1106,7 +978,6 @@ function overShare(port: ParticipantPort, tenant: string, share: number): boolea
 
 type WriteFacts = ReturnType<typeof writeFacts>
 
-/** Inserts the call row, or updates it at the expected version. The reason of a stop, or null. */
 function writeCall(port: ParticipantPort, facts: WriteFacts): string | null {
   const { tenant, call, expected, row } = facts
   if (row === null) return null
@@ -1123,7 +994,6 @@ function writeCall(port: ParticipantPort, facts: WriteFacts): string | null {
   return updated.changes === 1n ? null : 'version'
 }
 
-/** Upserts the changed dispatch rows, removes the dropped parts and inserts the new ones. */
 function writeChildren(port: ParticipantPort, facts: WriteFacts): void {
   const { tenant, call } = facts
   const kept = columnNames(TABLES.dispatch).filter(
@@ -1141,7 +1011,6 @@ function writeChildren(port: ParticipantPort, facts: WriteFacts): void {
   for (const item of facts.parts) insert(port, TABLES.part, item, '')
 }
 
-/** Whether every chunk of the body that a new call claims is there. */
 function bodyWhole(port: ParticipantPort, facts: WriteFacts, body: BodyManifest): boolean {
   const found = port.execute(
     'SELECT COUNT(*) FROM md_request WHERE tenant = ? AND call = ? AND digest = ? AND total = ?',
@@ -1154,10 +1023,6 @@ function bodyWhole(port: ParticipantPort, facts: WriteFacts, body: BodyManifest)
   )
 }
 
-/**
- * The body of the call in the same transaction as its row. A new call holds only with its whole
- * body. A row without a request has released its material: its chunks are deleted here.
- */
 function writeBody(port: ParticipantPort, facts: WriteFacts): string | null {
   const { tenant, call, expected, row } = facts
   if (row === null) return null
@@ -1179,11 +1044,6 @@ function writeBody(port: ParticipantPort, facts: WriteFacts): string | null {
   return null
 }
 
-/**
- * One write in the provider's transaction: bind the operation, then insert the call or update it
- * at the expected version, then the dispatch and part rows, then the body and the tenant share of
- * a new call. Any stop rolls the whole commit back.
- */
 function write(port: ParticipantPort, facts: WriteFacts): ParticipantReply {
   const bound =
     facts.binding === null ||
@@ -1199,16 +1059,12 @@ function write(port: ParticipantPort, facts: WriteFacts): ParticipantReply {
   return { kind: 'participated', response: { version: nextVersion(facts.expected) } }
 }
 
-// --- The request body in the provider's transaction.
-
 const stored: ParticipantReply = { kind: 'participated', response: {} }
 
-/** A call that holds its material under this digest owns the chunks of the digest. */
 const OWNED_SQL = `SELECT 1 FROM md_call c
   WHERE c.tenant = md_request.tenant AND c.call = md_request.call
     AND c.request_digest = md_request.digest AND c.request IS NOT NULL`
 
-/** Writes one chunk. A chunk that is there stays: the same key has the same text. */
 function putChunk(
   port: ParticipantPort,
   facts: Readonly<Record<string, JsonValue>>,
@@ -1231,7 +1087,6 @@ function putChunk(
   return stored
 }
 
-/** Deletes the chunks of one call and digest, unless a call that holds its material owns them. */
 function discardBody(
   port: ParticipantPort,
   facts: Readonly<Record<string, JsonValue>>,
@@ -1243,7 +1098,6 @@ function discardBody(
   return stored
 }
 
-/** Deletes every chunk of the tenant that no call owns. */
 function sweepBodies(port: ParticipantPort, tenant: string): void {
   port.execute(`DELETE FROM md_request WHERE tenant = ? AND NOT EXISTS (${OWNED_SQL})`, [tenant])
 }

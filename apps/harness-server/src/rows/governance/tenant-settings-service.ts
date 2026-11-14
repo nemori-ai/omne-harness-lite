@@ -1,11 +1,3 @@
-// The Cordis service `tenantSettings`: the tenant-layer face of `@omne-harness/settings` over the
-// Settings of each tenant runtime of this row. The face checks the caller with the admission of the
-// setting management (`rows/authorization/settings-access.ts`): only the login principal of the
-// tenant. It reads the catalog of the tenant, writes its tenant layer and asks Permissions about a
-// permission item through the adapters of this row.
-//
-// Why the key is defined here: the provider is this row, and no member outside this application
-// reads it yet. When one does, the key moves to the `./cordis` entry of the member that owns it.
 import { Service, type Context } from '@deepseek-ai/cordis'
 import { canonicalText, referenceAdmissionCheck } from '@omne-harness/authorization'
 import type { GovernanceScope } from '@omne-harness/governance-contract'
@@ -44,7 +36,6 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-// Closures only: a method reached through a caller proxy has another `this` (docs/real-mode.md).
 class TenantSettingsImpl extends TenantSettingsService {
   readonly list: Face['list']
   readonly describe: Face['describe']
@@ -65,13 +56,11 @@ export type TenantSettingsServiceOptions = Readonly<{
   storage: Pick<SqlStorage, 'read'>
   release(): ToolRelease | undefined
   identity: Readonly<{ verifier: PrincipalVerifier; standing: TenantStandingSource }>
-  /** False after the row stopped: the admission is then absent and every call is unavailable. */
   active(): boolean
 }>
 
 const unavailable = { kind: 'rejected', reason: 'unavailable' } as const
 
-/** The face over the tenant runtimes of `host`. */
 export function createTenantSettingsFace(options: TenantSettingsServiceOptions): Face {
   const admission = referenceAdmissionCheck({ ...options.identity, permits: null })
   const guard = createSettingsGuard(() => (options.active() ? admission : undefined))

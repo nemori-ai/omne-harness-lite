@@ -31,7 +31,6 @@ export const LOG_MESSAGE_ROLES = [
 export type LogMessageRole = (typeof LOG_MESSAGE_ROLES)[number]
 
 declare const messageIdBrand: unique symbol
-/** Branded message identity. This package does not mint ids. */
 export type MessageId = string & { readonly [messageIdBrand]: true }
 
 export type MessageIdParseError = 'empty' | 'prefix' | 'body'
@@ -46,7 +45,6 @@ function isMessageId(raw: string): raw is MessageId {
   return raw.startsWith('msg_') && BODY.test(raw.slice(4))
 }
 
-/** Parse a wire message id. Equality is exact. A missing `msg_` prefix is rejected. */
 export function parseMessageId(raw: string): MessageIdParse {
   if (raw.length === 0) return { ok: false, error: 'empty' }
   if (!raw.startsWith('msg_')) return { ok: false, error: 'prefix' }
@@ -58,12 +56,10 @@ export function messageIdEquals(left: MessageId, right: MessageId): boolean {
   return left === right
 }
 
-/** What every log message has. The role decides the blocks, which are never empty. */
 interface MessageBase {
   readonly id: MessageId
 }
 
-/** At least one block, all of the one kind of part. */
 type Blocks<Part extends MessagePart> = readonly [Part, ...Part[]]
 
 export interface UserMessage extends MessageBase {
@@ -71,17 +67,12 @@ export interface UserMessage extends MessageBase {
   readonly blocks: Blocks<MessageContentBlock>
 }
 
-/**
- * An assistant message is the only one that has the call parts, the reasoning state parts and
- * `replay`. `replay` is there when a state part is, and may be there when only `thinking` is.
- */
 export interface AssistantMessage extends MessageBase {
   readonly role: 'assistant'
   readonly blocks: Blocks<ContentBlock | CallPart | ReasoningStatePart>
   readonly replay?: ReasoningReplay
 }
 
-/** A tool message carries the result of one call: its marker, then the body content blocks. */
 export interface ToolMessage extends MessageBase {
   readonly role: 'tool'
   readonly blocks: readonly [ToolResultPart, ...MessageContentBlock[]]
@@ -97,7 +88,6 @@ export interface SystemReminderMessage extends MessageBase {
   readonly blocks: Blocks<MessageContentBlock>
 }
 
-/** The compaction variant. `blocks` is the summary. */
 export interface CompactionMessage extends MessageBase {
   readonly role: 'compaction'
   readonly blocks: Blocks<MessageContentBlock>
@@ -106,7 +96,6 @@ export interface CompactionMessage extends MessageBase {
   readonly derivation: CompactionDerivation
 }
 
-/** Each log role with its message type. The keys are exactly `LOG_MESSAGE_ROLES`. */
 export interface MessageRoleMap {
   user: UserMessage
   assistant: AssistantMessage
@@ -116,13 +105,11 @@ export interface MessageRoleMap {
   compaction: CompactionMessage
 }
 
-/** Fails to compile when `Map` lacks one of the roles or has a key that is not a role. */
 type ClosedOver<
   Roles extends string,
   Map extends Record<Roles, unknown> & { readonly [Extra in Exclude<keyof Map, Roles>]: never },
 > = Map
 
-/** The log message field, one type for each role. JSON data only. No tenant, standing, or causality. */
 export type Message = ClosedOver<LogMessageRole, MessageRoleMap>[keyof MessageRoleMap]
 
 export type MessageRejection =
@@ -173,27 +160,16 @@ interface MessageFields {
   readonly id: MessageId
   readonly role: LogMessageRole
   readonly blocks: NonEmpty<unknown>
-  /** The legal keys with the one value read for each. Nothing later reads the input again. */
   readonly read: Readonly<Record<string, unknown>>
-  /** The checked copy of `replay`, or `undefined` when the message does not have it. */
   readonly replay: ReasoningReplay | undefined
 }
 
-/**
- * Only an own `role` that is exactly `compaction` adds the three compaction keys, and only one
- * that is exactly `assistant` adds the optional `replay`.
- */
 function legalKeys(value: Record<string, unknown>, role: unknown): readonly string[] {
   if (!Object.hasOwn(value, 'role')) return MESSAGE_KEYS
   if (role === 'compaction') return COMPACTION_MESSAGE_KEYS
   return role === 'assistant' ? ASSISTANT_MESSAGE_KEYS : MESSAGE_KEYS
 }
 
-/**
- * The legal keys of the message with the one value read for each. An accessor can answer
- * differently each time, so every field is read once, and the key set, the checks and the copy
- * all use that one value.
- */
 function readFields(
   value: Record<string, unknown>,
 ): { readonly ok: Readonly<Record<string, unknown>> } | { readonly rejected: MessageRejection } {
@@ -202,7 +178,6 @@ function readFields(
   if (Object.keys(value).some(key => !keys.includes(key))) return { rejected: 'extra' }
   if (keys.some(key => key !== REPLAY_KEY && !(key in value))) return { rejected: 'missing' }
   const entries = keys.map(key => [key, key === 'role' ? role : value[key]] as const)
-  // `replay` read as `undefined`, or not there at all, is the same as no `replay`.
   const read = Object.fromEntries(
     entries.filter(([key, item]) => key !== REPLAY_KEY || item !== undefined),
   )
@@ -231,9 +206,7 @@ function messageFields(
   return { ok: { id: id.value, role: read.role, blocks, read, replay } }
 }
 
-/** Each block through `judgePart`, in order. The first failure carries the index of its block. */
 function judgeBlocks(blocks: NonEmpty<unknown>): { readonly ok: NonEmpty<MessagePart> } | Rejected {
-  // By index, not through the input's own iterator: the caller controls that iterator.
   const first = judgePart(blocks[0])
   if ('rejected' in first) return { rejected: first.rejected, blockIndex: 0 }
   const admitted: MessagePart[] = []
@@ -245,40 +218,32 @@ function judgeBlocks(blocks: NonEmpty<unknown>): { readonly ok: NonEmpty<Message
   return { ok: [first.ok, ...admitted] }
 }
 
-/** Whether a part may stand at an index of a message. One rule for each kind of message. */
 type Stands = (part: MessagePart, index: number) => boolean
 
-/** The roles other than `assistant` have content only: no marker, no call, no thinking block, no reasoning state. */
 const standsAsContent: Stands = part =>
   !isToolPart(part) && part.kind !== 'thinking' && part.kind !== 'reasoning_state'
 
-/** A `tool` message has its marker first, then body content as above. */
 const standsInTool: Stands = (part, index) =>
   index === 0 ? part.kind === 'tool_result' : standsAsContent(part, index)
 
-/** An `assistant` message has the three call parts, the thinking block and reasoning state, and no marker. */
 const standsInAssistant: Stands = part => part.kind !== 'tool_result'
 
-/** The role check of a `tool` message, and the proof that its blocks are a marker and a body. */
 function isToolBlocks(
   parts: NonEmpty<MessagePart>,
 ): parts is readonly [ToolResultPart, ...MessageContentBlock[]] {
   return parts.every(standsInTool)
 }
 
-/** The role check of an `assistant` message, and the proof that it has no marker. */
 function isAssistantBlocks(
   parts: NonEmpty<MessagePart>,
 ): parts is Blocks<ContentBlock | CallPart | ReasoningStatePart> {
   return parts.every(standsInAssistant)
 }
 
-/** The role check of the other roles and of a compaction summary: content, never thinking. */
 function isContentBlocks(parts: NonEmpty<MessagePart>): parts is Blocks<MessageContentBlock> {
   return parts.every(standsAsContent)
 }
 
-/** The failure of a role check: the first block that may not stand where it is. */
 function misplaced(stands: Stands, parts: NonEmpty<MessagePart>): Rejected {
   return {
     rejected: 'misplaced-part',
@@ -295,7 +260,6 @@ function judgeUniqueIds(parts: readonly MessagePart[]): Rejected | undefined {
   return undefined
 }
 
-/** Block identity comes after the role rules, so a message that gets here has passed them. */
 function admitted(message: Message): MessageJudgment {
   return judgeUniqueIds(message.blocks) ?? { ok: message }
 }
@@ -306,10 +270,6 @@ function isReasoningState(part: MessagePart): part is ReasoningStatePart {
   return part.kind === 'reasoning_state'
 }
 
-/**
- * The first state part, in block order, with a pair that is not the identity of a block of this
- * message, or that names a state part, itself included.
- */
 function judgePairs(parts: readonly MessagePart[]): Refused | undefined {
   const kinds = new Map(parts.map(part => [part.id, part.kind] as const))
   const index = parts.findIndex(
@@ -323,7 +283,6 @@ function judgePairs(parts: readonly MessagePart[]): Refused | undefined {
   return index < 0 ? undefined : { rejected: 'pairs', blockIndex: index }
 }
 
-/** The first `at` item that is out of the blocks, or that names a block that is not a state part. */
 function judgeAtItems(parts: readonly MessagePart[], at: readonly number[]): Refused | undefined {
   for (const index of at) {
     const part = parts[index]
@@ -333,7 +292,6 @@ function judgeAtItems(parts: readonly MessagePart[], at: readonly number[]): Ref
   return undefined
 }
 
-/** The checks of `replay` against the blocks, in the order that SPEC.md gives them. */
 function judgeReplayAt(
   parts: readonly MessagePart[],
   replay: ReasoningReplay | undefined,
@@ -350,7 +308,6 @@ function judgeReplayAt(
   )
 }
 
-/** An `assistant` message: block identity, then the pairs of the state parts, then `replay`. */
 function admittedAssistant(
   id: MessageId,
   parts: Blocks<ContentBlock | CallPart | ReasoningStatePart>,
@@ -365,10 +322,6 @@ function admittedAssistant(
   )
 }
 
-/**
- * One case for each role and no default: a role added to `LOG_MESSAGE_ROLES` without its own
- * case leaves the end reachable, and the declared return type then fails to compile.
- */
 function roleMessage(
   id: MessageId,
   role: Exclude<LogMessageRole, 'compaction'>,
@@ -411,13 +364,6 @@ function withParts(
   return 'rejected' in parts ? parts : build(parts.ok)
 }
 
-/**
- * Admit one log message field. The order of checks is: the fields of the message, with the shape
- * of `replay` after the empty-blocks check, the three compaction keys of a `compaction` message,
- * each part, the role rules, block identity within the message, then for an `assistant` message
- * the pairs of its reasoning state parts and the position index `replay.at`. The first failure
- * is returned. This package does not mint ids.
- */
 export function judgeMessage(value: unknown): MessageJudgment {
   if (!isRecord(value)) return { rejected: 'shape' }
   const fields = messageFields(value)

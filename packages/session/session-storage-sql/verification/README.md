@@ -22,4 +22,4 @@
 - [protected-basis/](protected-basis/README.md) 是权限配值受保护提交的有限模型：同一原操作多次到达、依据事实中途变化时，效果至多一次，已生效的原操作重传得到原结果，失败不留持久裁定。
 - [log-commit/](log-commit/README.md) 是同日志提交与未知结果认回的有限模型。候选模型仍包括两个进程对同一 `tail` 的并发提交裁定（[W6](../SPEC.md#w6)）。
 - 现有用例在 `tests/`，跑在 `node:sqlite` 夹具上，不覆盖 sqlite-provider 的 Worker、持久与关闭（[tests](../tests/README.md)）。义务表里的各组大多尚未实现。目标前提是真实 SQLite 或 PostgreSQL 提供者，没有内存替身。
-- 断电耐久归 [SQL-T01](../../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) 的承接方，本目录不记录耐久证据。
+- 本目录不记录断电耐久证据。

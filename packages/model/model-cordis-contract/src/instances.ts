@@ -22,8 +22,6 @@ type ReleaseResult = Awaited<ReturnType<ModelRegistration['release']>>
 const removed: ReleaseResult = Object.freeze({ removed: true })
 const alreadyGone: ReleaseResult = Object.freeze({ removed: false })
 
-// The entry keeps its own copies of the identity and the evidence, so a caller that changes the
-// objects it passed in cannot change what the directory recognises later.
 type Entry<P> = {
   readonly key: string
   readonly token: string
@@ -34,15 +32,11 @@ type Entry<P> = {
   readonly registration: ModelRegistration
 }
 
-// One entry per tenant and call. Equal tenants give equal text, and the text never contains the
-// raw separator of the pair, so two pairs cannot collide. A tenant that did not come from the
-// identity parser has no text and so no key.
 function keyOf(tenant: TenantId, call: ModelCallId): string | undefined {
   const text = tenantCodec.encode(tenant)
   return text.ok ? JSON.stringify([text.value, call]) : undefined
 }
 
-// Under one key the tenant and the call are equal by construction.
 function sameExecution(left: ExecutionRef, right: ExecutionRef): boolean {
   return left.instance === right.instance && left.generation === right.generation
 }
@@ -59,16 +53,14 @@ function sameEvidence(left: DurableEvidence, right: DurableEvidence): boolean {
 function createDirectory<P>(authority: ModelPublicationAuthority<P>) {
   const entries = new Map<string, Entry<P>>()
 
-  // Removes the entry only while it is still the one that holds its key: a late call of an old
-  // registration finds a successor under the key and leaves it alone.
   function remove(entry: Entry<P>): boolean {
     if (entries.get(entry.key)?.token !== entry.token) return false
     entries.delete(entry.key)
     return true
   }
 
-  // Runs inside the effect of the calling fiber and never yields: the authority is asked, the key
-  // is checked and the entry is recorded in one step, so the answer cannot go stale in between.
+  // Runs inside the calling fiber's effect and never yields: the authority is asked, the key is
+  // checked and the entry is recorded in one step, so the answer cannot go stale.
   function admit(
     fiber: CordisContext['fiber'],
     request: ModelRegistrationInput<P>,

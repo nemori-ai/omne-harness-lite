@@ -108,7 +108,6 @@ export interface ManagementAuthorizer {
   ): Promise<ReadResult<RecoveryScope>>
 }
 
-/** A validated definition plus bounded computation, not Calendar private state. */
 export type DefinitionObservation =
   | Readonly<{ kind: 'notNeeded' }>
   | Readonly<{
@@ -202,7 +201,6 @@ export type ManagementDecision =
       }>[]
     }>
 
-/** Command is data. The worker recomputes the decision from its locked current record. */
 export type ManagementCommit = Readonly<{
   kind: 'saveDefinition' | 'replaceDefinition'
   input: ManagementDecisionInput

@@ -12,11 +12,6 @@ import {
 } from '@omne-harness/schema-provider'
 import { z } from 'zod'
 
-/**
- * The shape of an `Adoption` as the judgments read it: exactly `owner`, `name`, `revision` and
- * `digest`, each a string. `exchange-refs` owns the type and has no schema, so the judgments
- * share this one instead of each writing the four fields again.
- */
 export const adoptionShape = z.strictObject({
   owner: z.string(),
   name: z.string(),
@@ -63,7 +58,6 @@ function refuse(reason: 'executable' | 'malformed', index: number): Plain {
   return { ok: false, reason, index }
 }
 
-/** The result for a string or a number, or `undefined` for any other value. */
 function plainText(value: unknown, walk: Walk, index: number): Plain | undefined {
   if (typeof value === 'string') {
     if (value.length > walk.limits.maxStringLength) return refuse('malformed', index)
@@ -75,11 +69,6 @@ function plainText(value: unknown, walk: Walk, index: number): Plain | undefined
   return { ok: true, value }
 }
 
-/**
- * Whether a value opens a container beyond the depth limit. `depth` counts the containers around
- * the value, and a container counts its own level as it opens, as json-text does when it reads
- * the whole text. A scalar adds no level.
- */
 function opensTooDeep(value: unknown, walk: Walk, depth: number): boolean {
   return typeof value === 'object' && value !== null && depth + 1 > walk.limits.maxDepth
 }
@@ -96,12 +85,6 @@ function plainJson(value: unknown, walk: Walk, depth: number, index: number): Pl
   return copyContainer(value, walk, depth, index)
 }
 
-/**
- * The copy of an array or an object. The copy reads each member through its property descriptor,
- * so it runs no accessor. On a Proxy, these reads and the read of an array `length` run the traps
- * of the caller. A trap that throws, or a revoked Proxy, makes the value `malformed`, and the
- * exception does not leave the copy.
- */
 function copyContainer(value: object, walk: Walk, depth: number, index: number): Plain {
   if (walk.ancestors.has(value)) return refuse('malformed', index)
   walk.ancestors.add(value)
@@ -232,7 +215,6 @@ async function validatePlain<T>(
   return settle(await validate<T>(provider, ref, read))
 }
 
-/** Whether a value is an object that is not an array. The judgments share this one guard. */
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

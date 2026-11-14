@@ -1,8 +1,3 @@
-// Source rules of the conformance suites. The answers of an operation are read through the
-// two primitives of testing-case.ts, so a suite polls nowhere: the only waits that remain are the
-// ones that a fixture gives a deadline (`within`, the quiet periods of `drain` and of the clock),
-// and a legal provider of the self-proof is built at the port boundary, never through the controls
-// of a double.
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -16,7 +11,6 @@ const suiteModules = readdirSync(sourceDir)
   .filter(name => /^testing(-[a-z-]+)?\.ts$/u.test(name))
   .map(name => join(sourceDir, name))
 
-/** The identifiers that name a deadline or a quiet period that a fixture provides. */
 const FIXTURE_DEADLINES = ['quietMs', 'milliseconds', 'waitMs', 'readDeadlineMs']
 
 describe('the suite modules read answers without polling', () => {
@@ -36,7 +30,6 @@ describe('the suite modules read answers without polling', () => {
     const lines = readFileSync(file, 'utf8').split('\n')
     lines.forEach((line, index) => {
       if (!line.includes('setTimeout(')) return
-      // The deadline is the last argument: on this line or within the next few lines.
       const window = lines.slice(index, index + 6).join('\n')
       expect(
         FIXTURE_DEADLINES.some(name => window.includes(name)),
@@ -54,7 +47,6 @@ describe('a legal provider of the self-proof is built at the port boundary', () 
   const specs = readdirSync(testsDir)
     .filter(name => name.endsWith('-conformance.spec.ts'))
     .map(name => join(testsDir, name))
-  /** The files that build legal providers: every legal row of a spec takes its provider from one. */
   const legalFiles = [
     ...readdirSync(testsDir).filter(name => name.endsWith('-legal.ts')),
     'generated-provider.ts',
@@ -90,8 +82,6 @@ describe('a legal provider of the self-proof is built at the port boundary', () 
 })
 
 describe('the source rule of the legal providers', () => {
-  // The spellings that a text match on `(base|real|fixture).<control>` lets through, the others
-  // that name a control, and the imports through which a helper of a test module reaches one.
   const bypasses: readonly (readonly [string, string])[] = [
     ['a destructuring', 'const double = make(); const { hold } = double; hold?.()'],
     ['a destructuring under another name', 'const { rejectNext: next } = make(); next("x")'],
@@ -150,7 +140,6 @@ describe('the source rule of the legal providers', () => {
     ].join('\n')
 
   it.each([
-    // A row whose provider is written in the spec itself.
     [
       'a provider written in the row',
       "{ name: 'p', fixture: () => { const base = memoryToolFixture(); return base } }",

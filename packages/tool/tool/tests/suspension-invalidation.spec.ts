@@ -1,10 +1,3 @@
-// 推进协程对已收场调用的失效待办（契约 P06 invalidate）：失效操作的身份由调用与等待派生，回包不确定时按
-// 原操作经 inspectOperation 认回而不换身份重发，`excluded` 证明原失效不会落地所以同一身份可以再发，决策方明确
-// 拒绝时待办记为阻塞并保留原因，终局不变。两部分：
-// - 单步：驱动器的一步在决策方与账本命令的替身上直接运行，逐个回答确认这一步答的 Result、对决策方的调用、
-//   记下的任务结局；
-// - 真实运行：叫停之后的失效待办在真实 runtime、账本与推进协程上执行，读账本里的待办与决策方收到的调用。
-// 替身不证明真实决策方、耐久或跨进程。
 import { afterEach, describe, expect, it } from 'vitest'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { DurableEvidence, ToolFailure, ToolWaitId } from '@omne-harness/tool-contract'
@@ -37,7 +30,6 @@ const INVALIDATION_SUFFIX = '/invalidate'.length
 const refusal = (failure: ToolFailure): Outcome<never, ToolFailure> => fail(failure)
 const DENIED: ToolFailure = { kind: 'denied', action: 'invalidate-wait' }
 
-/** 决策方对失效回包丢失：不知道有没有落地。 */
 const lost = (): Outcome<never, ToolFailure> =>
   fail({ kind: 'commit-unknown', operation: operationId(INVALIDATION) })
 const unavailable = fail({
@@ -55,17 +47,13 @@ const resolution = (kind: ExternalOperationResolution['kind'], diagnostic = 'can
   )
 
 type Answers = Readonly<{
-  /** 决策方对第 n 次失效的回答。 */
   invalidate?: (n: number) => Outcome<DurableEvidence, ToolFailure>
-  /** 决策方对第 n 次 inspectOperation 的回答。 */
   inspect?: (n: number) => Outcome<ExternalOperationResolution, ToolFailure>
-  /** 账本对第 n 次 recordTask 的回答。 */
   record?: (n: number) => Outcome<unknown, ToolFailure>
 }>
 
 type TaskOptions = Readonly<{ wait?: string; state?: 'pending' | 'blocked'; action?: string }>
 
-/** 驱动器的一步，接在记下每次调用的替身端口上。 */
 function stepOf(answers: Answers = {}) {
   const invalidated: unknown[] = []
   const inspected: unknown[] = []
@@ -110,13 +98,11 @@ function stepOf(answers: Answers = {}) {
       evidence: TERMINAL,
     } as never
   }
-  /** 调用的恢复信息：处于给定阶段，等待 `wait` 已被控制关闭（`closed` 另给时按所给）。 */
   const recoveryIn = (
     phase: string,
     closed: object = { phase: 'closed', cause: 'cancelled' },
     wait: string = WAIT,
   ) => ({ state: { phase }, waits: [{ intent: { wait }, ...closed }] }) as never
-  /** 这一步此刻欠下的工作；调用已收场，等待没有别的步骤。 */
   const run = (task = taskOf(), phase = 'settled') => {
     const { wait } = task as { wait: string }
     const next = driver.registration(step as never, recoveryIn(phase, undefined, wait), task)
@@ -215,7 +201,6 @@ describe('an invalidation the decision owner answers', () => {
   })
 
   it('does not record a duty whose done operation cannot be named', async () => {
-    // 失效操作 252 个字符：`/done` 之后超出 256 的上限。
     const wait = `w${'x'.repeat(252 - INVALIDATION_SUFFIX - 1)}`
     const { run, taskOf, recorded } = stepOf()
     const result = await run(taskOf({ wait }))
@@ -242,8 +227,6 @@ describe('an invalidation whose answer is not certain', () => {
     ])
   })
 
-  // Unavailable is not an answer that is not certain: the owner recalls the original by the same
-  // identity (P06), so the next run invalidates again with it, without asking first (U3, F2).
   it('after unavailable, ends the run and invalidates again under the same identity in the next one', async () => {
     const { run, invalidated, inspected, recorded } = stepOf({
       invalidate: n => (n === 1 ? unavailable : succeed(RECEIPT)),
@@ -273,10 +256,8 @@ describe('an invalidation whose answer is not certain', () => {
         diagnostic: 'the invalidation was excluded; it is asked again with the same identity',
       },
     })
-    // 本次运行到此为止：没有换身份重发，也没有记任务结局。
     expect(invalidated).toHaveLength(1)
     expect(recorded).toEqual([])
-    // 下一次运行先问原操作；excluded 之后用同一个身份再发，成功即完成。
     expect(await run()).toEqual(CONTINUE)
     expect(inspected).toHaveLength(2)
     expect(invalidated.map(input => (input as { operation: string }).operation)).toEqual([
@@ -348,7 +329,6 @@ describe('an invalidation whose answer is not certain', () => {
     expect(inspected).toHaveLength(1)
     expect(await run()).toEqual(CONTINUE)
     expect(invalidated).toHaveLength(2)
-    // 第二次没有先问决策方：记下任务结局之后，不确定的记忆已经清除。
     expect(inspected).toHaveLength(1)
   })
 
@@ -357,7 +337,6 @@ describe('an invalidation whose answer is not certain', () => {
       invalidate: n => (n === 1 ? lost() : succeed(RECEIPT)),
       record: n => (n === 1 ? lost() : succeed(undefined)),
     })
-    // 失效已被认回，任务结局的提交回包未知：任务还在，下一次运行仍先问原操作。
     expect(await run()).toEqual(STALLED)
     expect(await run()).toEqual(CONTINUE)
     expect(invalidated).toHaveLength(1)
@@ -402,7 +381,6 @@ describe('an invalidation the decision owner refuses', () => {
   })
 
   it('does not block a duty whose refusal operation cannot be named', async () => {
-    // 失效操作 250 个字符：`/refused` 之后超出 256 的上限，而 `/done` 仍可命名。
     const wait = `w${'x'.repeat(250 - INVALIDATION_SUFFIX - 1)}`
     const { run, taskOf, recorded } = stepOf({
       invalidate: () => refusal(DENIED),
@@ -415,14 +393,9 @@ describe('an invalidation the decision owner refuses', () => {
   })
 })
 
-// 真实运行：叫停暂停中的调用之后，失效待办由推进协程经决策方执行。决策方替身包住脚本化的决策方，只改失效与
-// inspectOperation 两处的回答。
 type Wrapped = Readonly<{
-  /** 失效落地并丢失回包（脚本化决策方的 `answer-lost`）。 */
   landed?: boolean
-  /** 第 n 次失效的回答；缺省走脚本化的决策方。 */
   invalidate?: (n: number) => Outcome<DurableEvidence, ToolFailure> | undefined
-  /** 第 n 次 inspectOperation 的回答；缺省走脚本化的决策方。 */
   inspect?: (n: number) => Outcome<ExternalOperationResolution, ToolFailure> | undefined
 }>
 

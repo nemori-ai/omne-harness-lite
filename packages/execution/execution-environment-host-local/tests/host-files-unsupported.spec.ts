@@ -1,8 +1,3 @@
-// A host without either native backend answers `unavailable` to the eight
-// operations that need them, and to every operation when a host file root is configured, without
-// touching the file system. The four accepted operations keep their behaviour when no root is
-// configured. The tests use an unsupported platform on every host. Real Windows support and
-// missing prerequisites are exercised by tests/windows-files.
 import { access, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

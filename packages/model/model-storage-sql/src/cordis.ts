@@ -25,7 +25,6 @@ import {
 
 export type { SqlModelRecordsConfig } from './cordis-config.ts'
 
-/** Live dependencies resolved anew for each activation, outside the data config. */
 export type SqlModelRecordsDependencies<P> = Readonly<
   Pick<SqlModelCommandsOptions<P>, 'storage' | 'domains' | 'authority' | 'evidence' | 'clock'> & {
     manifestDigest: string
@@ -55,7 +54,6 @@ export type SqlModelRecordsPluginClass<P> = {
   readonly Config: typeof sqlModelRecordsConfigSchema
 }
 
-/** Publishes the SQL commands and owns a separate send child, including while it is PENDING. */
 export function createSqlModelRecordsPlugin<P, C>(
   options: SqlModelRecordsPluginOptions<P, C>,
 ): SqlModelRecordsPluginClass<P> {
@@ -146,16 +144,11 @@ export function createSqlModelRecordsPlugin<P, C>(
   }
 }
 
-// --- The diagnostics plugin ---------------------------------------------------------------
-
-/** Data for one diagnostics plugin life: the adopted qualification mapping and the retention adoption. */
 export type SqlModelDiagnosticsConfig = Readonly<{
   diagnosticsRead: DiagnosticsReadMapping
-  /** Absent: no retention adopted, the read face answers `unavailable` (model-contract SPEC). */
   retention: Adoption | null
 }>
 
-/** Live dependencies resolved anew for each activation, outside the data config. */
 export type SqlModelDiagnosticsDependencies<P> = Pick<
   SqlModelDiagnosticsOptions<P>,
   'storage' | 'domains' | 'authority'
@@ -218,7 +211,6 @@ export const sqlModelDiagnosticsConfigSchema = {
   },
 }
 
-/** Publishes `modelDiagnostics` over the SQL records: the read face of `createSqlModelDiagnostics`. */
 export function createSqlModelDiagnosticsPlugin<P>(
   options: SqlModelDiagnosticsPluginOptions<P>,
 ): SqlModelDiagnosticsPluginClass<P> {

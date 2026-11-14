@@ -1,5 +1,3 @@
-// The translation between the Agent ports and the Request Context call, by the field and failure
-// tables of request-context-contract docs/context.md. Pure functions: no reads, no state.
 import type {
   AgentAdoptions,
   Failure,
@@ -26,17 +24,14 @@ import type {
 } from '@omne-harness/request-context-contract'
 import { canonical, digest } from './records.ts'
 
-/** The request preparation port of Model. */
 export type { ModelRequestPreparation }
 type ModelFailure = Extract<
   Awaited<ReturnType<ModelRequestPreparation<unknown>['prepare']>>,
   { failure: unknown }
 >['failure']
 
-/** A read that did not give a value. */
 export type NoValue = Exclude<SourceRead<never>, { kind: 'value' }>
 
-/** The owner that agent-context names in the failures it makes itself. */
 export const OWNER = 'agent-context'
 
 export const unavailable = (diagnostic: string, owner: string = OWNER): Failure => ({
@@ -45,7 +40,6 @@ export const unavailable = (diagnostic: string, owner: string = OWNER): Failure 
   diagnostic,
 })
 
-/** The recipient as Request Context compares it: the route and the adopted profile. */
 export function recipientModel(recipient: ModelRecipient): string {
   return canonical(recipient.profile)
 }
@@ -53,11 +47,6 @@ export function recipientText(recipient: ModelRecipient): string {
   return `${recipient.route}/${recipientModel(recipient)}`
 }
 
-/**
- * The fifth group. The Agent selection names the parameters it chose; each one enters as an
- * explicit adoption of the first supplier of the resolved profile, named by the selected profile.
- * Replay stays on: the Agent selection has no switch for it.
- */
 export function selectedModel(selection: AgentSelectedModel): SelectedModel {
   const profile = selection.resolution.profile
   const [first] = profile.definition.suppliers
@@ -75,35 +64,19 @@ export function selectedModel(selection: AgentSelectedModel): SelectedModel {
   }
 }
 
-/**
- * Reads the tools that one call may use (the sixth group). The production source is
- * `toolsSourceOf(lookup)` in `tools.ts`; `conditions` is `null` for `derive` and `resume`.
- */
 export type ToolsSource<P> = (
   input: Readonly<{ access: Access<P>; conditions: RuntimeConditions | null }>,
 ) => Promise<SourceRead<readonly ToolAdoption[]>>
 
-/**
- * The instructions of one adopted definition, read for the fourth group (SPEC「请求准备的取法」, 组四).
- * `null` is the definition that carries no `instructions`: that is a value, not a failure. A read
- * that gives no value closes the group: a definition that may carry a prompt and cannot be read is
- * never sent with an empty prompt (R2-D124).
- */
 export type DefinitionSource<P> = (
   input: Readonly<{ access: Access<P>; definition: Adoption }>,
 ) => Promise<SourceRead<readonly InstructionSection[] | null>>
 
-/** The reader when no definition source was given: every definition is unreadable. */
 export const absentDefinitions: DefinitionSource<unknown> = async () => ({
   kind: 'unavailable',
   diagnostic: 'definition-source-absent',
 })
 
-/**
- * The production reader over `AgentAdoptions.resolve`: the exact adoption resolves to the judged
- * definition, whose `instructions` are the value. The three failure classes of `resolve` pass
- * through as the matching reads; a thrown resolver is unavailable.
- */
 export function definitionSourceOf<P>(
   adoptions: Pick<AgentAdoptions<P>, 'resolve'>,
 ): DefinitionSource<P> {
@@ -121,8 +94,6 @@ export function definitionSourceOf<P>(
       case 'denied':
         return { kind: 'denied' }
       case 'invalid':
-        // The invalid vocabulary of Request Context names its own inputs, not a definition: an
-        // adoption that the deployment does not hold is a source that cannot be read.
         return {
           kind: 'unavailable',
           diagnostic: `definition-invalid: ${failure.field}: ${failure.reason}`,
@@ -135,16 +106,9 @@ export function definitionSourceOf<P>(
   }
 }
 
-/** The order prefix of a definition section: it sorts before every registered contribution. */
 const DEFINITION_ORDER = '0-definition-'
-/** The name prefix of a definition section: `definition/<id>`. */
 export const DEFINITION_SECTION_PREFIX = 'definition/'
 
-/**
- * The instructions of a definition as the fourth-group contribution set: one section per
- * instruction, in order, named `definition/<id>`, in the layer of the target scope, with the
- * definition adoption as the source. Sections carry no variables. The set digest covers the texts.
- */
 export function definitionContributions(
   definition: Adoption,
   scope: ScopeRef,
@@ -163,21 +127,17 @@ export function definitionContributions(
   return { contributions, digest: digest(sections), generation: null }
 }
 
-/** The summary blocks of one produced step result. */
 export type StepSummary = Extract<StepInput, { kind: 'summary' }>['produced']
 
-/** Reads the summary that one compaction step produced. */
 export type StepResultSource<P> = (
   input: Readonly<{ access: Access<P>; produced: ProducedResult }>,
 ) => Promise<SourceRead<StepSummary>>
 
-/** The first-wave reader: no step result is readable (COMPACTION-PATH). */
 export const absentStepResults: StepResultSource<unknown> = async () => ({
   kind: 'unavailable',
   diagnostic: 'step-result-source-absent',
 })
 
-/** The three failure classes of Request Context, by name; an unknown outcome is unavailable. */
 export function failureOfAssembly(failure: AssemblyFailure | AssemblyUnknown): Failure {
   switch (failure.kind) {
     case 'denied':
@@ -191,7 +151,6 @@ export function failureOfAssembly(failure: AssemblyFailure | AssemblyUnknown): F
   }
 }
 
-/** A source read that gave no value, as the failure of the port that asked it. */
 export function failureOfRead(read: NoValue, owner: string, action: string): Failure {
   switch (read.kind) {
     case 'denied':
@@ -205,10 +164,6 @@ export function failureOfRead(read: NoValue, owner: string, action: string): Fai
   }
 }
 
-/**
- * The answer of the Model request preparation. A deterministic refusal is `invalid` on `request`
- * with the reason of Model; a temporary one keeps its class.
- */
 export function failureOfModel(failure: ModelFailure): Failure {
   switch (failure.kind) {
     case 'denied':
@@ -228,7 +183,6 @@ export function failureOfModel(failure: ModelFailure): Failure {
   }
 }
 
-/** Plain data as a JSON value; `undefined` members are left out, as in the canonical text. */
 export function jsonOf(value: unknown): JsonValue {
   if (value === null || value === undefined) return { kind: 'null' }
   if (typeof value === 'boolean') return { kind: 'boolean', value }

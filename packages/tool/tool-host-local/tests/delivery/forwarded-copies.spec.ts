@@ -1,6 +1,3 @@
-// C6: the received copies of a forwarding parent go with the parent's own result delivery. The
-// worker releases them after the delivery is released and before it is done; a release that does
-// not land leaves the delivery short of done, so the next run tries again.
 import { expect, it, vi } from 'vitest'
 import { succeed } from '@omne-harness/operation-result'
 import { fixture } from './fixture.ts'
@@ -27,7 +24,6 @@ it('releases the forwarded copies once the delivery is released, and only then m
     call: f.access.call,
     request: f.call.request,
   })
-  // The copies were released while the delivery stood at `released`, before `done`.
   expect(phases).toEqual(['released'])
 })
 
@@ -39,7 +35,6 @@ it('a release that does not land keeps the delivery short of done; the next run 
   expect(await f.drive(worker)).toEqual(succeed({ pending: 1 }))
   expect(f.input.commands.releaseDelivery).toHaveBeenCalledTimes(1)
   expect(await f.drive(worker)).toEqual(succeed({ pending: 0 }))
-  // The second run found the delivery released: it released the copies and finished, no second release.
   expect(f.input.commands.releaseDelivery).toHaveBeenCalledTimes(1)
   expect(forwardedCopies).toHaveBeenCalledTimes(2)
 })

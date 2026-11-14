@@ -1,26 +1,3 @@
-// The `session-access` row: the access plugin of `session/v1` (RFC-0015 §5, §7, §8), from
-// `@omne-harness/session-access/cordis`. Loading this row opens `session/v1` at the entry's new
-// address; leaving it out keeps the protocol closed (RFC-0015 I-15). The row injects
-// `accessRegistry`, which the `server-entry` row provides, and the trusted `principalIssuer`.
-// Everything else is taken at each call: Session (`intake` for management and work, `reader` for
-// the history), `sessionObservation`, the deployment's `definitionMappings` and identity's
-// operations. A call while one of them is off the tree answers `basis-unavailable` and the
-// protocol stays mounted.
-//
-// The member asks for two principal ports, and the row answers both from identity. A target
-// tenant's principal comes from identity's own `AccessIdentity` (`createAccessIdentity`), built
-// here the way the `server-entry` row builds its own; the port keeps no state to share but one
-// cached system principal. `PrincipalFacts` reads the acting-for-tenant principal identity issues
-// for a login: its tenant, and the login as its work.
-//
-// The session list reaches the member through its `SessionListing` port. The row adapts the
-// session list face of Session (`directory`, read as `reader`) to it: a failure of Session is the
-// port's refusal of the same name (`invalid`, `denied`; any other failure is `basis-unavailable`),
-// and a time text that is not an instant makes the page `basis-unavailable`, because the list
-// would otherwise show a time it cannot vouch for as none.
-//
-// A creation passes the assembly's modes initialization on to Session, as the entry's session
-// location does.
 import { isAbsolute } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Principal } from '@omne-harness/access-cordis-contract'
@@ -57,12 +34,6 @@ import { governanceOfCall, identityOfCall } from '../server-entry/identity.ts'
 
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
 
-/**
- * The row configuration. `defaultDefinition` is the definition a `create-session` without a name
- * uses; without it such a call is `invalid`. The page bound and the history kinds take the values
- * of the entry's session location. A `list-sessions` without `limit` takes `defaultListLimit`; a
- * larger `limit` than `maxListLimit` is `invalid` (RFC-0015 §8, initial value 50 for both).
- */
 export const sessionAccessConfig = z
   .strictObject({
     defaultDefinition: z.string().min(1).optional(),
@@ -84,10 +55,8 @@ export const sessionAccessConfig = z
     path: ['defaultListLimit'],
   })
 
-/** The work owner of a principal identity issues for a login (identity's login steps). */
 const LOGIN_WORK_OWNER = 'identity-login'
 
-/** `TargetTenantPrincipals` over identity's `actFor`. */
 function targetTenantPrincipals(ctx: Context): TargetTenantPrincipals {
   const identity = createAccessIdentity({
     operations: identityOfCall(ctx),
@@ -106,7 +75,6 @@ function targetTenantPrincipals(ctx: Context): TargetTenantPrincipals {
   }
 }
 
-/** `PrincipalFacts` over the acting-for-tenant principal that identity issues for a login. */
 export const principalFacts: PrincipalFacts = {
   describe(principal: Principal) {
     const acting = principal as unknown as Partial<ActingForTenantPrincipal>
@@ -117,14 +85,12 @@ export const principalFacts: PrincipalFacts = {
   },
 }
 
-/** A time of the session list as the wire writes it; `null` stays `null`, bad text is `undefined`. */
 function instantOf(text: string | null): SessionListEntry['createdAt'] | undefined {
   if (text === null) return null
   const parsed = parseInstant(text)
   return parsed.ok ? parsed.value : undefined
 }
 
-/** One row of the list as the port says it; `undefined` when a time text is no instant. */
 function entryOf(item: SessionListItem): SessionListEntry | undefined {
   const createdAt = instantOf(item.createdAt)
   const lastActivityAt = instantOf(item.lastActivityAt)
@@ -138,7 +104,6 @@ function entryOf(item: SessionListItem): SessionListEntry | undefined {
   }
 }
 
-/** `SessionListing` over the session list face of Session. */
 export function sessionListingOf(directory: SessionDirectory<Principal>): SessionListing {
   return {
     async list(input) {

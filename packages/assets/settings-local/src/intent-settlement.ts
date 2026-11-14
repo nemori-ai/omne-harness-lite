@@ -122,8 +122,6 @@ function attemptDecision(
   return { kind: 'eligible' as const }
 }
 
-/** Internal persistence step after the transaction planner, terminal and source writers succeed.
- * Source results must come from the participant fact, never from a client command. */
 export function settleSettingsIntent(port: ParticipantPort, raw: IntentSettlement) {
   const { event, source } = intentSettlementSchema.parse(raw)
   const identity = event.kind === 'cancel' ? event.identity : event.binding.identity

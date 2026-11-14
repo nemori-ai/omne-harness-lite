@@ -1,4 +1,3 @@
-// Request builders shared by the conformance suite and the tests of this package.
 import { combinationManifest, manifestDigest } from '../manifest.ts'
 import type {
   CombinationRegistrationV2,

@@ -1,5 +1,3 @@
-// startTree: the order of its steps and what each early exit leaves behind. Preflight comes first,
-// then the preparation, then the entry objects, then the rows. A step that fails stops the later ones.
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { disposeTree, startTree, type EntryObject, type StartResult } from '../src/loader.ts'

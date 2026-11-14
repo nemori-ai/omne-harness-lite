@@ -39,7 +39,6 @@ import {
   type ToolLoader,
 } from '@omne-harness/tool-contract/provider'
 
-// Only the authority and residency sources are test doubles. Both plugins and authors are real.
 const emptyReader: ToolResidencyReader = {
   referencing: async () => succeed({ items: [], next: null }),
 }

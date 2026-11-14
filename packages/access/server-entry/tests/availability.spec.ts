@@ -1,7 +1,3 @@
-// The built-in `access/v1` and its observation `availability` (#1249 block 2, C7 and C8). C7's
-// first three cases carry the names of RFC-0015 §15「精化对照」I-6; each was first seen red against
-// the defect of that table. The frame source is driven directly where the case is about its queue,
-// and through the whole entry where it is about the wire.
 import { connect, createServer, type AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AvailabilityFrame } from '@omne-harness/public-contract'
@@ -24,7 +20,6 @@ type Key = { readonly name: string; readonly major: number }
 
 const text = (key: Key): string => `${key.name}/v${key.major}`
 
-/** Applies one frame the way a client does: a change must sit on the revision before it. */
 function apply(view: View | undefined, frame: AvailabilityFrame): View {
   if (frame.kind === 'snapshot')
     return { revision: frame.revision, protocols: new Set(frame.protocols.map(text)) }
@@ -37,7 +32,6 @@ function apply(view: View | undefined, frame: AvailabilityFrame): View {
   return { revision: frame.revision, protocols }
 }
 
-/** The registry as it is now, read the same way the frame source reads it. */
 function registryView(registry: AccessRegistry): View {
   const subscription = registry.subscribe(() => {})
   subscription.unsubscribe()
@@ -47,7 +41,6 @@ function registryView(registry: AccessRegistry): View {
   }
 }
 
-/** A registry with `access/v1` mounted first, as the entry has it. */
 function entryRegistry(backlog: number): AccessRegistry {
   const registry = createAccessRegistry()
   registry.mount(accessContribution(registry, backlog))
@@ -56,13 +49,10 @@ function entryRegistry(backlog: number): AccessRegistry {
 
 type Subscriber = {
   readonly frames: AvailabilityFrame[]
-  /** Takes every frame the source has ready now; does not wait for a change to come. */
   readonly read: () => Promise<View | undefined>
-  /** Ends the observation the way the hub does: abort, then return. */
   readonly close: () => Promise<void>
 }
 
-/** Calls the frame source now: the subscription happens in this synchronous step. */
 function open(registry: AccessRegistry, backlog: number) {
   const controller = new AbortController()
   const opened = availabilitySource(registry, backlog)(
@@ -113,11 +103,9 @@ describe('C7: availability is a projection of the registry', () => {
     const a = await subscriber(open(registry, 4))
     await a.read()
     expect(a.frames.map(frame => frame.kind)).toEqual(['snapshot'])
-    // Five changes, one past the backlog, while the subscriber reads nothing.
     for (let major = 1; major <= 5; major += 1) registry.mount(notesContribution('n', major))
     expect(await a.read()).toEqual(registryView(registry))
     expect(a.frames.map(frame => frame.kind)).toEqual(['snapshot', 'snapshot'])
-    // Exactly the backlog, the changes come one by one; a take-down is a removal.
     const takeDowns = [6, 7, 8].map(major => registry.mount(notesContribution('n', major)))
     void takeDowns[0]!()
     expect(await a.read()).toEqual(registryView(registry))
@@ -172,7 +160,6 @@ describe('C7: availability is a projection of the registry', () => {
       {},
     )
     if (opened.outcome !== 'succeeded') throw new Error('not opened')
-    // The first frame is taken and the generator is held at its yield: nobody waits.
     await opened.frames.next()
     registry.mount(notesContribution('first'))
     controller.abort()
@@ -219,7 +206,6 @@ describe('C7: availability is a projection of the registry', () => {
         }
       },
     }
-    // The hub aborts the source and never calls `next`: a generator that never ran has no `finally`.
     const { opened, controller } = open(counting, 4)
     const result = await opened
     if (result.outcome !== 'succeeded') throw new Error(`availability answered ${result.outcome}`)
@@ -264,7 +250,6 @@ function watchAvailability(port: number, authorization?: string): SseClient {
   })
 }
 
-/** The raw bytes of the first `count` events of a stream, heartbeats left out. */
 function eventText(client: SseClient, count: number): string {
   return client.chunks
     .join('')
@@ -343,7 +328,6 @@ describe('C7 and C8: availability at the entry', () => {
     const fixture = await entry({
       config: { observation: { perLogin: 1, perInstance: 8, cancelRetentionMs: 0 } },
     })
-    // `identity: 'none'` asks nothing and does not count against the login it carries.
     const anonymous = observe(fixture.port, 'watch-all', { body: '{}' })
     expect(await anonymous.status).toBe(200)
     expect(fixture.accessIdentity.calls).toEqual([])
@@ -378,8 +362,6 @@ describe('C7 and C8: availability at the entry', () => {
     })
     while (!received.join('').includes('"snapshot"')) await turn()
     socket.pause()
-    // Far more change frames than a socket buffer holds, while the observer reads nothing. One
-    // change a turn: the hub could take each as it comes, so only the pace keeps them back.
     const registry = fixture.log.registry
     let takeDown: (() => Promise<void>) | undefined
     for (let round = 0; round < 40_000; round += 1) {

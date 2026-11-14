@@ -32,7 +32,6 @@ export class SendLifetime {
   }
 }
 
-/** Does not acquire an iterator or prefetch until the sole consumer asks for it. */
 export function ownedFacts(
   source: AsyncIterable<TransportFact>,
   lifetime: SendLifetime,
@@ -93,7 +92,6 @@ export function ownedFacts(
                 if (get().throw) await get().throw?.(new Error('model-send consumer-closed'))
                 else await get().return?.()
               } catch {
-                // The consumer's exception and transport exception are not diagnostic data.
               } finally {
                 await finish()
               }

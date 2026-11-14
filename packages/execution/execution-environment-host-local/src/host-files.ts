@@ -47,11 +47,6 @@ import {
 export type { HostFilesLimits } from './host-file-tree.ts'
 export type { HostFileDiagnostic } from './host-file-batch.ts'
 
-/**
- * The token of the object `path` names, with the last segment not followed. On Windows the files
- * helper reads it, so it has the form the Windows files backend checks against. Rejects when no
- * object can be named.
- */
 export async function hostObjectToken(path: string): Promise<ObjectToken> {
   if (process.platform === 'win32') {
     const found = await windowsObjectInfo(path)
@@ -62,20 +57,8 @@ export async function hostObjectToken(path: string): Promise<ObjectToken> {
   return { token: `${stat.dev}:${stat.ino}` }
 }
 
-/**
- * `O_NOFOLLOW` where the host has it. Node on Windows has none, and its `open` follows a final
- * link; there `finalEntryIsOpened` refuses the link after the open instead.
- */
 const noFollow: number | undefined = constants.O_NOFOLLOW
 
-/**
- * For a host without `O_NOFOLLOW`: after the open, the final entry of the path must be the opened
- * object itself. A link answers `unsupported`, as `ELOOP` does on POSIX; another object answers
- * `conflict`, because the path no longer names what was opened. A path that ends in `.` or `..`
- * ends in no link on POSIX and resolves only through a directory; Windows folds such a path
- * before the lookup, so here it must have opened a directory, else it is `unresolved` as
- * `ENOTDIR` is on POSIX.
- */
 async function finalEntryIsOpened(
   path: string,
   opened: FileStats,
@@ -87,7 +70,6 @@ async function finalEntryIsOpened(
   return entry.dev === opened.dev && entry.ino === opened.ino ? 'opened' : 'conflict'
 }
 
-/** The refusal a host without `O_NOFOLLOW` owes after the open, or none when the final entry is the opened object. */
 async function refusalAfterOpen(
   requestId: string,
   path: string,
@@ -101,7 +83,6 @@ async function refusalAfterOpen(
   return final === 'unresolved' ? { kind: 'unresolved', requestId } : reject(requestId, final)
 }
 
-/** A file or directory opened for a request: the descriptor, what it is, and its state at the open. */
 type OpenedNamed = Readonly<{
   kind: 'handle'
   handle: FileHandle
@@ -128,10 +109,6 @@ const internalState = new WeakMap<
   { readonly pendingCloseCount: () => number }
 >()
 
-/**
- * Exposes internal state for tests only. Not part of the public package contract.
- * @internal
- */
 export function __unsafeHostFilesState(files: FileSystemFacility<unknown>): {
   readonly pendingCloseCount: number
 } {
@@ -139,45 +116,20 @@ export function __unsafeHostFilesState(files: FileSystemFacility<unknown>): {
   return { pendingCloseCount: state?.pendingCloseCount() ?? 0 }
 }
 
-/**
- * The shared host files engine. Every issued handle and every descriptor kept after a failed close
- * carries the owner the facade gave; a request cannot rewrite it. Handle generations are unique in
- * the engine, so two owners never collide on the same object token.
- */
 export type HostFilesEngine = Readonly<{
-  /** A facility whose handles and failed closes belong to `owner`. */
   facilityFor(owner: string): FileSystemFacility<unknown>
-  /** Retries every failed close of `owner`; answers how many descriptors are still open. */
   closeOwned(owner: string): Promise<number>
-  /** Descriptors of `owner` still open after a failed close. */
   openCount(owner: string): number
-  /** Whether a host file root is configured: every request is then bound to it. */
   readonly hasRoot: boolean
-  /**
-   * Closes the facade of `owner` to new operations and stops its running batches before the next
-   * publication. The facade registry calls it when a release begins.
-   */
   seal(owner: string): void
 }>
 
-/** The configuration of the host files engine. Without options the engine behaves as it always did. */
 export type HostFilesEngineOptions = Readonly<{
-  /** An absolute path. When given, every path of every operation must lie below it. */
   root?: string
-  /** An absolute path where the manifests of file batches are kept. Without it batches answer `unavailable`. */
   stateDirectory?: string
-  /**
-   * Receives a fact a result cannot carry, such as a staged file that stays after its batch was
-   * published. A sink that throws changes no result.
-   */
   diagnose?: ((diagnostic: HostFileDiagnostic) => void) | undefined
 }>
 
-/**
- * The host `files` facility. Every operation acts on the object the request names. Without a
- * Linux or Windows backend the eight operations beyond `read`, `stat`, `write` and `close`
- * answer `unavailable` without touching the file system.
- */
 export function createHostFiles(): FileSystemFacility<unknown> {
   return createHostFilesEngine().facilityFor('host-files')
 }
@@ -187,11 +139,6 @@ function absolutePath(name: string, value: string | undefined): void {
     throw new TypeError(`${name} must be an absolute path`)
 }
 
-/**
- * Creates the shared engine of host file use. The provider gives each acquisition its own owner.
- * `limits` overrides the bounds of listing and searching; they are configuration, the defaults
- * only initial values.
- */
 export function createHostFilesEngine(
   options: HostFilesEngineOptions = {},
   limits?: Partial<HostFilesLimits>,
@@ -212,18 +159,12 @@ export function createHostFilesEngine(
     probeDirectory: options.stateDirectory,
   })
   const macosPrerequisite = macosFilesPrerequisite(options.stateDirectory)
-  /** The process instance of this engine; batches name it, so another process can tell they are not its own. */
   const generation = randomUUID()
   const running = new Set<string>()
   const sealed = new Set<string>()
 
-  /** Issued handles with their owner. A missing key means the handle was never issued.
-   *  `live: undefined` means the descriptor was already closed successfully.
-   *  A `FileHandle` means the previous close attempt failed and the descriptor is still open.
-   */
   const handles = new Map<string, { readonly owner: string; live: FileHandle | undefined }>()
 
-  /** Opened descriptors that could not be closed on error paths, with their owner. */
   const pendingClose = new Map<FileHandle, string>()
 
   let nextGeneration = 1
@@ -235,16 +176,13 @@ export function createHostFilesEngine(
     return count
   }
 
-  /** Retries the failed closes of one owner, issued handles and error paths alike. */
   const closeOwned = async (owner: string): Promise<number> => {
     for (const [handle, holder] of pendingClose) {
       if (holder !== owner) continue
       try {
         await handle.close()
         pendingClose.delete(handle)
-      } catch {
-        // remains with its owner for the next retry
-      }
+      } catch {}
     }
     for (const entry of handles.values()) {
       const live = entry.live
@@ -252,9 +190,7 @@ export function createHostFilesEngine(
       try {
         await live.close()
         entry.live = undefined
-      } catch {
-        // remains open under its issued generation
-      }
+      } catch {}
     }
     return openCount(owner)
   }
@@ -274,7 +210,6 @@ export function createHostFilesEngine(
       }
     }
 
-    /** Closes the descriptor; a failed close keeps it under the issued generation for an explicit close. */
     const closeIssued = async (opened: FileHandle, issued: HandleGeneration): Promise<void> => {
       try {
         await opened.close()
@@ -289,9 +224,7 @@ export function createHostFilesEngine(
         try {
           await handle.close()
           pendingClose.delete(handle)
-        } catch {
-          // remain in pendingClose for next drain
-        }
+        } catch {}
       }
     }
 
@@ -318,11 +251,6 @@ export function createHostFilesEngine(
       diagnose: options.diagnose,
     })
 
-    /**
-     * Opens the last segment, which is not a link, and checks it is on the device of the directory
-     * that holds it. A mount point or a file mounted over a name is another device and is refused;
-     * the open itself changes nothing.
-     */
     async function openLastSegment(
       requestId: string,
       located: Located,
@@ -346,7 +274,6 @@ export function createHostFilesEngine(
       return reject(requestId, 'notAuthorized')
     }
 
-    /** Opens `opening` below the root without following a link; a failure is already a result. */
     async function openBelowRoot(
       requestId: string,
       opening: string,
@@ -361,7 +288,6 @@ export function createHostFilesEngine(
       }
     }
 
-    /** The refusal owed before anything is opened, or none. */
     function namedRefusal(
       requestId: string,
       path: string,
@@ -373,7 +299,6 @@ export function createHostFilesEngine(
       return namedToken === '' ? reject(requestId, 'notAuthorized') : undefined
     }
 
-    /** Opens the named path: below the root when one is configured, as the path says otherwise. */
     async function openPath(
       requestId: string,
       path: string,
@@ -392,20 +317,16 @@ export function createHostFilesEngine(
       return openBelowRoot(requestId, opening, flags)
     }
 
-    /** True when a file was named with a trailing slash, which only a directory can be. */
     function slashOnNonDirectory(path: string, stat: FileStats): boolean {
       return path.length > 1 && path.endsWith('/') && !stat.isDirectory()
     }
 
-    /**
-     * A file with a second name may be the same file as one outside the root. The count is read
-     * from the descriptor that is open, so the check cannot race with the open.
-     */
+    /** A file with a second name may be one outside the root. The count is read from the open
+     *  descriptor, so the check cannot race with the open. */
     function sharedBelowRoot(content: boolean, stat: FileStats): boolean {
       return paths.rooted && content && stat.isFile() && stat.nlink > 1n
     }
 
-    /** What the opened object must be for the request; the caller closes the handle unless it is accepted. */
     async function checkOpened(
       requestId: string,
       handle: FileHandle,
@@ -524,7 +445,6 @@ export function createHostFilesEngine(
       }
     }
 
-    /** Writes into a file just created, then issues its handle. The file stays on a failed write. */
     async function finishCreate(
       requestId: string,
       created: FileHandle,
@@ -551,11 +471,6 @@ export function createHostFilesEngine(
       }
     }
 
-    /**
-     * Create below a host file root: the parent directory is reached by descriptor, checked
-     * against the name in the request, and the file is created through that descriptor, so a
-     * parent swapped for a link after the check changes nothing.
-     */
     async function createBelowRoot(
       requestId: string,
       path: string,
@@ -600,8 +515,6 @@ export function createHostFilesEngine(
 
       if (paths.rooted) return createBelowRoot(requestId, path, namedToken, bytes)
 
-      // The request names the parent directory; it is checked before and after the exclusive create,
-      // because the host has no descriptor-relative create here.
       const parentPath = dirname(path)
       const parent = await openNamed(
         requestId,
@@ -759,7 +672,6 @@ export function createHostFilesEngine(
 
         const key = issuedKey(returnedHandle)
         const entry = handles.get(key)
-        // A handle another owner holds cannot be closed or settled through this facade.
         if (entry === undefined || entry.owner !== owner) return unknown(requestId)
         const live = entry.live
         if (live === undefined)
@@ -844,7 +756,6 @@ export function createHostFilesEngine(
       }
     }
 
-    /** Once the owner is sealed, a new operation is refused without touching the file system. */
     const unlessSealed =
       <Q extends { readonly requestId: string }, T>(
         run: (request: Q) => Promise<FacilityResult<T>>,

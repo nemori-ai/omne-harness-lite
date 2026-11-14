@@ -1,4 +1,3 @@
-// 复杂度计分的两向夹具：已知结构得到已知数值，匿名回调并入外层、有名函数各自成单元。
 import { describe, expect, it } from 'vitest'
 import { functionMetrics, MODULE_UNIT, unitDigests } from '../src/metrics/complexity.ts'
 import type { SourceFile } from '../src/index.ts'

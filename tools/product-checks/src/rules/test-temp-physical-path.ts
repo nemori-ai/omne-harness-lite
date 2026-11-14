@@ -5,11 +5,9 @@ import { syntaxOf, visitSyntax } from '@omne-harness/repo-toolchain/core/syntax'
 import { callName, localValue } from './local-binding.ts'
 
 const SCANNED_ROOTS = /^(?:packages|apps|tools)\//u
-// 测试也有 JS 写的（如 tools/model-probe/tests 的 .mjs）；syntaxOf 按扩展名用 JS 语法解析这些文件。
 const SCRIPT = /\.[cm]?[jt]s$/u
 const TEST_NAME = /\.(?:spec|test)\.[cm]?[jt]s$/u
 const CREATE = new Set(['mkdtempSync', 'mkdtemp'])
-// `realpathSync.native` 的被调用者名字是 `native`。
 const PHYSICAL = new Set(['realpathSync', 'realpath', 'native'])
 
 function scanned(path: string): boolean {
@@ -34,7 +32,6 @@ function isTmpdirEnvironment(expression: ts.Expression): boolean {
   )
 }
 
-/** 实参取自系统临时目录且途中没有取物理路径时为真。 */
 function rawTemporaryBase(
   expression: ts.Expression,
   names: ReadonlyMap<string, string>,
@@ -75,7 +72,6 @@ function calleeName(
   return name !== undefined && ts.isIdentifier(expression) ? (names.get(name) ?? name) : name
 }
 
-/** 建目录的调用（可隔着括号、await、非空断言、as、satisfies）是否正好是 realpath 的第一个实参。 */
 function wrappedInPhysicalPath(
   call: ts.CallExpression,
   names: ReadonlyMap<string, string>,
@@ -95,10 +91,6 @@ function wrappedInPhysicalPath(
   return name !== undefined && PHYSICAL.has(name)
 }
 
-/**
- * Issue #560：测试在系统临时目录下建的目录要一开始就是物理路径。macOS 的 `tmpdir()` 在符号链接 `/var` 下，
- * git、vitest 与 pytest 报告解析后的 `/private/var`，两者直接比较会失败；Linux CI 发现不了。
- */
 export const testTempPhysicalPath: Rule = {
   id: 'test-temp-physical-path',
   source: 'Issue #560 C5；docs/verification.md「包级测试责任与边界」',

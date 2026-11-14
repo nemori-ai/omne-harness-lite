@@ -1,7 +1,3 @@
-// The qualification registry of the Model application module (`src/model/qualification.ts`,
-// `tmp/wire-model/design.md` §2, §4): the synchronous `authorize`, `execution` and `current` only
-// read what an asynchronous admission point captured. Real identity issuer and verifier; the
-// standing source is scripted per test. Each case names the defect that turns it red.
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import {
@@ -84,7 +80,6 @@ function scene(reading: TenantStandingReading | 'throw' = MEMBER) {
   return { authority, qualification, work, host, alive, authorize }
 }
 
-/** Every action of the Model authorization table, in the order of `ACTIONS`. */
 const ALL_ACTIONS = [
   'admit',
   'facts',
@@ -102,7 +97,6 @@ const ALL_ACTIONS = [
 type PrincipalClassName = 'login' | 'work' | 'host'
 type Table = Readonly<Record<(typeof ALL_ACTIONS)[number], readonly PrincipalClassName[]>>
 
-/** The table at the start of #1214 (integration/mainline 481800473). */
 const BEFORE: Table = {
   admit: ['work'],
   facts: ['work', 'host'],
@@ -117,11 +111,6 @@ const BEFORE: Table = {
   send: ['host'],
 }
 
-/**
- * The table now (#1214, RFC-0015 §8): the login principal may also take the current stream of a call
- * (`facts`) and observe it (`observe`). `facts` covers three reads of an existing call (the current
- * stream, the query of an operation, the replay of an accepted admission); none creates a call.
- */
 const EXPECTED: Table = {
   ...BEFORE,
   facts: ['login', 'work', 'host'],
@@ -229,7 +218,6 @@ describe('read leases', () => {
     const blocked = Promise.withResolvers<TenantStandingReading>()
     s.setRead(() => blocked.promise)
     const revoked = lease.check('inspect', { kind: 'tenant' })
-    // Let the verifier enter the held standing read before the competing qualification.
     await Promise.resolve()
     s.setRead(async () => MEMBER)
     const other = await s.qualification.qualifyRead(access, s.alive)
@@ -614,7 +602,6 @@ describe('the synchronous bridges: execution and current', () => {
     s.qualification.dropHostBindings()
     for (const call of calls)
       expect(execution(call)).toEqual({ failure: { kind: 'denied', action: 'execution-channel' } })
-    // A retired host's bindings go on the next record, even without an explicit drop.
     let live = true
     const retiring = () => live
     record(calls[0]!, retiring)

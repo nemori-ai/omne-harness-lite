@@ -1,29 +1,4 @@
-// CP3, the third in-line checkpoint (E.1): one real Cordis 4.0.4 root carries a Session input
-// through startRun, the Agent invoke, the assembly of the Model request with the earlier context, a
-// scripted Model reply and the save of the receiver, to the commit on the session log.
-//
-// Real: the sqlite-provider (real Workers and files), session-storage-sql, the session provider of
-// session-cordis, AD-14 `createSessionAgentDrivePlugin`, the `agentJournal` plugin
-// `SessionLogAgentJournalProvider`, the `agent-host` plugin with `createAgentRuntime` and the
-// directory plugin, agent-context `AgentContextProvider` over the real request-context-cordis and
-// runtime-context-cordis providers, and the receiver `createLocalModelReceiver`.
-// Doubles: J06 (`createScriptedMessageHandoff`, `createTableConditions`, R1-D33); the Model (the
-// scripted provider and result pusher of model-contract); the receiver is built in the test world
-// and is not registered through the host plugin (C22 G2), and its `targets` port is answered from
-// the Journal's public `load`; the earlier context is the history of the K-RQ holder double, not a
-// read of the Session log (AD-03 and AD-04 are not delivered); the remaining Agent, context and
-// Session side ports are doubles. Each one is listed where it is built, in ./world.ts.
-//
-// What this checkpoint does not reach in this wave: the receiver's save is a commit of the
-// execution-record participant on the common root; the Session interpretation of the result is
-// AD-02 (wave 2, R1-D35), and with J06 a double the reply message does not enter the Session log.
-// So the last assertion is that the received entry and the Agent's original records are visible
-// at one common root count, which the Agent count and the Session root read alike. The receiver
-// writes through its own session-log Journal copy, so the plugin's event stream is not woken by
-// it: the Agent picks the entry up at its reconciliation check, which the test reaches by moving
-// the manual Agent clock.
 // @module-tag slow
-// Why slow: real Workers, real files and the whole line on one root.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AgentEvent } from '@omne-harness/agent-contract'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -55,7 +30,6 @@ afterEach(async () => {
   for (const world of worlds.splice(0)) await world.close()
 })
 
-/** Waits for `probe` on later turns, at most `ms` milliseconds. */
 async function until(probe: () => boolean | Promise<boolean>, ms = 20_000): Promise<void> {
   const end = Date.now() + ms
   while (!(await probe())) {
@@ -67,7 +41,6 @@ async function until(probe: () => boolean | Promise<boolean>, ms = 20_000): Prom
 const textOf = (message: { blocks: readonly unknown[] }): string =>
   message.blocks.map(block => (block as { kind: string; text?: string }).text ?? '').join('')
 
-/** The kinds of the session log entries, read as the reader caller class of the coordinator. */
 async function historyKinds(w: LineWorld): Promise<string[]> {
   let reader: { history: { begin(input: unknown): Promise<unknown> } } | undefined
   await w.mount({
@@ -100,13 +73,10 @@ async function historyKinds(w: LineWorld): Promise<string[]> {
 
 describe('CP3: from a Session input to the save of the Model result on the session log', () => {
   it('runs the whole line on one real Cordis root over the real sqlite-provider', async () => {
-    // The handoff provider and AD-02 are the real ones (C-ADAPTERS); only this call changed from the
-    // first form of the checkpoint, no assertion did.
     const w = await openLineWorld(withAd02AndHandoff())
     worlds.push(w)
     const agent = { principal: COORDINATOR, tenant: TENANT }
 
-    // Input: the intake face creates the session and accepts one input.
     w.bindings.controls.bind(TENANT, sessionId(SESSION))
     ok(
       await w.intake.management.create({
@@ -123,7 +93,6 @@ describe('CP3: from a Session input to the save of the Model result on the sessi
       }),
     )
 
-    // startRun: S1 opened a Run for the input; invoke reached the Model through the Agent.
     await until(() => w.admits.length > 0)
     const work = ok(await w.transactions.readWork(intakeAccess))
     if (work.run.kind !== 'active') throw new Error(`the Run is ${work.run.kind}`)
@@ -132,11 +101,6 @@ describe('CP3: from a Session input to the save of the Model result on the sessi
     if (execution === null) throw new Error('no execution')
     expect(String(execution)).toBe(work.run.execution.execution)
 
-    // invoke: the Journal open was one storage commit of the Agent records and the Session check.
-    // The handoff provider saves the admission intent before the open, as one commit of the
-    // execution-record participant alone (M-GENERATION SaveIntent), so the open is the first commit
-    // with both participants. The Session command in it carries the ordinary commit basis in the same
-    // transaction (session-storage-sql docs/commit-basis.md), so `session-ordinary-basis` joins it.
     const opening = w.commits.find(
       seen =>
         seen.participants.includes('execution-record') && seen.participants.includes('session'),
@@ -148,28 +112,15 @@ describe('CP3: from a Session input to the save of the Model result on the sessi
     ])
     expect(opening?.result.kind).toBe('committed')
 
-    // The assembly read the earlier context through the Agent's history head and built the Model
-    // request from it, in order.
     expect(w.resolved.length).toBeGreaterThan(0)
     expect(w.assembled).toHaveLength(1)
     expect(w.assembled[0]!.map(textOf)).toEqual([...EARLIER])
 
-    // The scripted Model answered the one admitted call; the receiver saved it.
     expect(w.admits).toHaveLength(1)
     expect(w.admits[0]).toHaveProperty('ok')
     const pushed = await Promise.all(w.pushes)
     expect(pushed).toHaveLength(1)
     expect(pushed[0]).toMatchObject({ status: 'saved' })
-    // With the real AD-02 and handoff, optimistic concurrency is the contract: a commit may roll back
-    // as a conflict and its logical operation commits afterwards. Whether a rollback happens depends
-    // on the interleaving, so none is required; when there are rollbacks, each one is explained
-    // (R2-D157). Every rollback is all-conflict, except the ordinary basis beside a Session command:
-    // it owns no table and does not judge, so it has answered `participated` (session-storage-sql
-    // docs/commit-basis.md);
-    // an Agent records commit that lost the head commits again under the same operation; a Session
-    // commit that found its input no longer pending lost to the path that took it, so the log holds
-    // that one take; a Session commitLog that found the execution head moved answered `changed` and
-    // AD-02 committed the event again (R2-D152, ./cp3-rollbacks.ts).
     const rolledBack = w.commits.flatMap((seen, position) =>
       seen.result.kind === 'rolled_back' ? [{ seen, position, result: seen.result }] : [],
     )
@@ -194,9 +145,6 @@ describe('CP3: from a Session input to the save of the Model result on the sessi
       ({ seen }) => !seen.participants.includes('execution-record'),
     )
     if (sessionOnly.length > 0) {
-      // R2-D152: the input was taken by another path, or `changed` whose commitLog committed later
-      // or whose sequence the saved progress reached (sessionOnlyRollbackExplained). AD-02 may still
-      // be committing again, so the judgment waits for it; an unavailable rollback (KL-146) stays red.
       const unexplained = async (): Promise<unknown[]> => {
         const held = ok(await w.transactions.readWork(intakeAccess))
         const readThroughOf = (execution: string): string | null =>
@@ -221,9 +169,6 @@ describe('CP3: from a Session input to the save of the Model result on the sessi
       ),
     ).toBe(true)
 
-    // The common root after the save: the Agent count and the Session root read the same number,
-    // and a copy rebuilt from the durable records at that count holds the received entry next to
-    // the Agent's original records of the same call.
     const root = await w.published()
     expect(root.session).toBe(root.agent)
     const saved = ok(await w.fresh().load({ ...agent, execution }))
@@ -235,7 +180,6 @@ describe('CP3: from a Session input to the save of the Model result on the sessi
     ])
     expect(saved.state).toMatchObject({ kind: 'waiting', waits: [{ kind: 'producer' }] })
 
-    // The Agent adopts the saved result at its reconciliation check: the reply is its message.
     const messages = async (): Promise<string[]> => {
       const page = ok(
         await w.journal().output.read({ ...agent, execution, after: null, limit: 100 }),
@@ -251,7 +195,6 @@ describe('CP3: from a Session input to the save of the Model result on the sessi
     })
     expect(await messages()).toEqual([REPLY_TEXT])
 
-    // Another tenant is denied the execution, as the Session is denied to it.
     expect(await w.journal().load({ ...strangerAccess, execution })).toEqual({
       failure: { kind: 'denied', action: 'load' },
     })

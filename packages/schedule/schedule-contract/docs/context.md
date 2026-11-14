@@ -1,5 +1,0 @@
-# 消费关系
-
-schedule实现本包服务接口，schedule-cordis-contract提供唯一注入定义。schedule-local通过本域应用实现单机服务，schedule-tools派生参数并消费这些服务。独立调用者只需本包公开协议，不需要加载Cordis、本地数据库或Agent runtime。
-
-本包拥有数据含义和编码约束，不拥有授权权威、时钟、日历事实或存储生命周期。CalendarSelection是Schedule所需的引用投影，日历内容和版本事实仍归Calendar。

@@ -101,7 +101,6 @@ function world() {
     capabilityId: binding.capabilityId,
     enforcementKey: binding.enforcementKey,
   }
-  // Owner observations are explicit fixtures. Release interpretation and evaluation are real.
   const current = {
     kind: 'current',
     request,
@@ -207,8 +206,6 @@ it.each(['arguments', 'operation', 'tenant', 'session', 'implementation'])(
     expect(await createCurrentToolPermission(w.ports).check(w.input)).toMatchObject({
       kind: 'unavailable',
     })
-    // The request comes with the reading of the same check; a request of another action gives
-    // no decision.
     expect(w.reads()).toBe(1)
   },
 )

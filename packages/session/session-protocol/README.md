@@ -2,8 +2,7 @@
 
 [中文](README_ZH.md)
 
-The protocol contract of the public protocol `session/v1`: the operations and the one observation that Session opens to clients. The server access plugin and the client core use the same value. The server gets the handler types. The client gets one method for each operation. The design source is [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#7-协议怎样划分).
-
+The protocol contract of the public protocol `session/v1`: the operations and the one observation that Session opens to clients. The server access plugin and the client core use the same value. The server gets the handler types. The client gets one method for each operation.
 ## Responsibility and status
 
 This package owns the operation list of `session/v1`. For each operation it owns the identity requirement, the effect, the body limit, and the rules of the body and of each outcome body. For the observation `observe-session` it owns the opening body, the frames, and the end reasons. The business meaning of the operations belongs to the Session domain. The message envelope, the fixed outcomes, and the conversion of rule leaves belong to the public contract.

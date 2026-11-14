@@ -1,7 +1,3 @@
-// One process of the restart case (R4-2). `first` registers and issues a login over a storage
-// root, writes the proof and the identities to a state file, closes the storage and exits.
-// `second` opens the same root again and reports what the persisted records make possible.
-// The clock is manual and starts at the same instant in both processes.
 import { readFile, writeFile } from 'node:fs/promises'
 import {
   accountCodec,

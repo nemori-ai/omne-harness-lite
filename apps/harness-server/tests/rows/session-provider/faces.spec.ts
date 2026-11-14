@@ -1,5 +1,3 @@
-// The Session faces of the `session-provider` contract double, called through the `session`
-// service key by caller class. The double keeps sessions in process memory only.
 import type { SessionFailure } from '@omne-harness/session-contract'
 import {
   creation,

@@ -22,10 +22,6 @@ const KINDS: readonly Kind[] = [
   'ask',
 ]
 
-/*
- * The position output table of docs/public-api/extensions.md, copied as data: the allowed column,
- * then the `observe`, `rewrite` and `veto` columns of each row.
- */
 const TABLE: Readonly<
   Record<
     PositionOutputKey,
@@ -255,7 +251,6 @@ const card = {
   proposedRewrite: { option: 'yes', effectiveArguments: '{}' },
 }
 
-/** The subject after the one rewrite that the row allows, or an unchanged copy where none is allowed. */
 function rewrittenSubject(row: PositionOutputKey): Record<string, unknown> {
   const subject = structuredClone(SUBJECTS[row])
   if (row === 'before_model_call/main') {
@@ -291,10 +286,6 @@ function sampleOutput(kind: Kind, row: PositionOutputKey): unknown {
   }
 }
 
-/*
- * The fixtures are plain data whose shape the judgment only compares and forwards, so they are
- * not built as real `Subject` values. The one assertion below is where they enter the typed input.
- */
 type FixtureOverrides = Partial<Omit<ExtensionOutputJudgeInput, 'subject'>> &
   Readonly<{ subject?: Record<string, unknown> }>
 
@@ -707,8 +698,6 @@ describe('the seven steps in order', () => {
         'a retry plan with a numeric notBefore',
         { kind: 'retry', plan: { supplier, notBefore: 5, basis: adoption } },
       ],
-      // SPEC "声明判断", `retry`: a text that `parseInstant` does not read is malformed. These go
-      // red when the check is dropped and `notBefore` is accepted as any text (SC-AG-138).
       [
         'a retry plan whose notBefore is not an instant text',
         { kind: 'retry', plan: { supplier, notBefore: 'tomorrow', basis: adoption } },
@@ -728,7 +717,6 @@ describe('the seven steps in order', () => {
         'a retry plan whose notBefore is an impossible date',
         { kind: 'retry', plan: { supplier, notBefore: '2026-02-30T08:00:00Z', basis: adoption } },
       ],
-      // Red when the text check is dropped and a non-string that reads as an instant passes.
       [
         'a retry plan whose notBefore is an array holding an instant text',
         {

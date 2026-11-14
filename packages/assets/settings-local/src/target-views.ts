@@ -6,7 +6,6 @@ import {
   type SettingsProjectionBinding,
 } from './projection.ts'
 import { equal } from './encoding.ts'
-/** The views of both target owners for one projection binding; a target has one owner. */
 export function targetViews(port: ParticipantPort, binding: SettingsProjectionBinding) {
   const sources = [settingsStandaloneProjectionFact, settingsAssetsProjectionFact].map(key =>
     SettingsOwnerProjectionSchema.parse(port.requireFact(key)),

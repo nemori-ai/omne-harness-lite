@@ -522,7 +522,6 @@ it('does not treat user output or late background writers as successful completi
   const background = await run(f.terminal, ref, '(sleep 2; printf late) &')
   expect(background.result).toMatchObject({ kind: 'completed', exit: { code: 0 } })
   expect(background.bytes.toString()).not.toContain('late')
-  // The late writer's bytes belong to whichever segment or gap they arrive in; they never end a segment.
   const next = await run(f.terminal, ref, 'sleep 3; printf next')
   expect(next.result).toMatchObject({ kind: 'completed', exit: { code: 0 } })
   const output = next.result.output
@@ -558,7 +557,6 @@ it('keeps the permit gate closed and drains a live terminal on release', async c
   const creating = f.terminal.create({ ...base, cwd: f.cwd, env: { ...env, BASH_ENV: startup } })
   await permitting
   await expect(readFile(marker)).rejects.toMatchObject({ code: 'ENOENT' })
-  // A planned scope can exist before the shell. Releasing during permit still seals this acquisition.
   const releasing = f.lease.release()
   permit?.()
   expect(await creating).toMatchObject({ kind: 'rejected', reason: 'closed' })

@@ -14,7 +14,6 @@ import {
   type Principal,
 } from './runtime-values.ts'
 
-/** Caller-owned ports for tests that do not resolve or execute real tool calls. */
 export function testAssembly(overrides: Partial<TestToolDependenciesInput<Principal>> = {}) {
   const missing = (): never => {
     throw new Error('not on this path')

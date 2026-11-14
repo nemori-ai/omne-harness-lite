@@ -1,5 +1,3 @@
-// Builds the one read-only table of the deployment from the parsed row configuration. It runs once
-// in the plugin body. Both service faces of the row read the object that this module returns.
 import type { AgentDefinition, LoopExtensionDeclaration } from '@omne-harness/agent-contract'
 import { judgeAgentDefinition, judgeLoopExtensions } from '@omne-harness/agent-contract'
 import {
@@ -11,7 +9,6 @@ import {
 import type { Adoption } from '@omne-harness/session-contract'
 import type { AgentAdoptionsConfig } from './config.ts'
 
-/** The Agent-only parts of one entry. The public table does not carry them. */
 export type AgentSide = Readonly<{
   definition: AgentDefinition
   extensions: readonly LoopExtensionDeclaration[]
@@ -19,21 +16,13 @@ export type AgentSide = Readonly<{
 
 export type MappingTable = Readonly<{
   mappings: DefinitionMappings
-  /** The Agent parts of the entry whose candidate is exactly this adoption. */
   agentSide(candidate: Adoption): AgentSide | undefined
 }>
 
 const candidateKey = (candidate: Adoption): string => canonicalText(candidate)
 
-/** The category of a reference that names a tool. Only tools can be resident in a session. */
 const TOOL_CATEGORY = 'Tool'
 
-/**
- * The resident tools of a definition, in the order the definition lists them: the names of its
- * references marked `resident`. The definition is the one declaration of them; the table copies the
- * names into the public entry and keeps no second list. A resident reference that is not a tool
- * cannot be adopted by a session, so it fails the table instead of being left out.
- */
 function residentCapabilitiesOf(definition: AgentDefinition, at: string): readonly string[] {
   const names: string[] = []
   for (const [index, reference] of definition.references.entries()) {

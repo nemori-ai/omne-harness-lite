@@ -1,5 +1,3 @@
-// The manifest digest test vector of SPEC.md section 4.4. The catalog has no number, so the vector
-// does not cover the RFC 8785 number form (the digest tests add that case).
 import type { SqlMaterialCatalog } from '../types.ts'
 
 export const MANIFEST_VECTOR_PARTICIPANTS = ['agent-journal', 'session'] as const

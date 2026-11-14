@@ -1,10 +1,4 @@
 // @module-tag slow
-// The `session-ad10` row: the real evidence bridge of Session. The row is ACTIVE and provides
-// `sessionEvidence` when all three narrow sources are present; a `create` is answered by the real
-// `adoption-sources` row over the real `agent-adoptions` table; `preserveResult` additionally asks
-// the production and custody sources. Those two have no provider row yet (the assembly page's gap
-// table names the original fact owners), so in this tree they are test stand-ins, and without them
-// the row stays PENDING and names both keys.
 import type { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { succeed } from '@omne-harness/operation-result'
@@ -28,7 +22,6 @@ import { sessionAd10Row } from '../../../src/rows/session-ad10/index.ts'
 import { createCommand, factsOf, mappingConfig } from '../adoptions/support.ts'
 import { declared, loadTree, makeBase, type LoadedTree } from '../session-fixtures/tree.ts'
 
-/** A source stand-in of one missing original owner. `real` only so that a real row may inject it. */
 function productionSource(participant: string): unknown {
   return class Production extends SessionProductionSourceService {
     readonly prepare = (command: SessionCommand) =>

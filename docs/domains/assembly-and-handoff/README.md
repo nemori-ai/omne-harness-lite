@@ -1,7 +1,5 @@
 # 定义求值与装配交接
 
-本页维护已接受的应然模块分工与公开协作，采用范围见[领域入口](../README.md#维护与状态)。引用的上游约束保持原采用范围；正文接受不表示当前代码已实现。
-
 ## 范围与边界
 
 本责任把获准定义、实现、设置、权限及运行条件求值为可采用的执行配置，协调结构变化与旧新实例交接。组织/租户/工作区求值和进程发行的Cordis装配不同，不能合成一份全局配置树。
@@ -38,19 +36,3 @@
 4. 原责任按原身份由当前合法拥有者收尾。已发调用的观察、保管与消费不依赖原实例存活。
 
 允许重装配和重新实例化，但不能造成系统性停机。重装配完成不证明原结果已接手或旧推进权失效；数据变化也不一律要求重建。
-
-## 契约与验证导航
-
-求值/采用契约拥有一致依据及失败，绑定提供者拥有装配生命周期，原工作与换代协调者拥有认领/推进交接。工具实现的换代协调者在 Tool 宿主，装配只给候选。精确服务定义、公开类型及协议随这些成员。
-
-采用协调的契约设计见[采用协调契约设计](adoption-coordination.md)。该页已由 Reduce 采用（R1-D34），它是采用协调契约的唯一源。本页只保留模块角色。
-
-动态治理贡献与当前治理采用由 [governance-contract](../../../packages/governance/governance-contract/README_ZH.md) 定义。它拥有在线声明、精确租约和当前依据的协议，具体值与许可仍归 Settings 和 Authorization；应用连接领域消费口。它不改变执行清单采用的三操作与 AC-20 消费者约束。当前仅公共定义落盘，本地提供者和生产桥接待交付。
-
-上层沿[采用与换代](../../architecture/runtime/assembly-and-change.md)、[Cordis与部署生命周期](../../architecture/deployment/cordis-and-lifecycle.md)、[系统分层](../../architecture/layers-and-dependencies.md)。当前产品责任候选见[Agent 定义与工作推进](../../../.meta_harness/design/product/agent-progression/README.md)及[资产与规则](../../../.meta_harness/design/product/assets-and-rules/README.md)，两者仍为草案，不代替既有技术接受。验证见[组合入口](../verification.md)。
-
-## 后续设计与维护
-
-快照、版本复核、结构绑定换代、同提交和跨进程交接由实际协调者细化。工具的结构绑定换代已由 Tool 的换代协调者细化，见[工具规格](../../../packages/tool/tool-contract/SPEC.md#342-契约缺口决定)的 G7。服务定义随能力的契约拥有者就近维护，目录和工具适配范围沿[产品包组织](../../package-organization.md)；装配组不集中拥有全部能力的Service定义。
-
-改独立提供者只读其契约/绑定即可；涉及来源或推进权才展开对应责任。新的组合产品规则待确认不阻塞已接受生命周期边界。

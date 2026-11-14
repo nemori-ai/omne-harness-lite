@@ -1,6 +1,3 @@
-// The exclusive lock of one `serve` run on its state directory (`src/state-lock.ts`), and the
-// proof a run gives from it. The lock is an operating-system lock, so the other holder here is a
-// real second process.
 import { spawn } from 'node:child_process'
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -20,7 +17,6 @@ function stateRoot(): string {
   roots.push(root)
   return root
 }
-/** Takes the lock and remembers it, so that the test releases it whatever happens. */
 function take(root: string, now?: () => string): StateLock {
   const taken = acquireStateLock(root, now)
   if (taken.kind !== 'held') throw new Error('the lock is in use')
@@ -32,7 +28,6 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 
-/** A second process that takes the same lock the same way and keeps it until it is killed. */
 async function otherProcess(root: string) {
   const script = `
     const { DatabaseSync } = require('node:sqlite')
@@ -58,7 +53,6 @@ describe('the state lock', () => {
     const lock = take(root, () => '2026-11-13T00:00:00.000Z')
     expect(lock.since).toBe('2026-11-13T00:00:00.000Z')
     expect(lock.held()).toBe(true)
-    // A second holder is refused, in this process too.
     expect(acquireStateLock(root)).toEqual({ kind: 'in-use' })
     lock.release()
     lock.release()

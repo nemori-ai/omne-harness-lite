@@ -1,5 +1,3 @@
-// Source verification happens outside the transaction. These decisions preserve the original duty.
-
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import type { DurableEvidence, ToolFailure } from '@omne-harness/tool-contract'
 import type { FactProgress, FactReceipt } from '@omne-harness/tool-contract/provider'
@@ -27,7 +25,6 @@ type Acknowledgement =
   | Readonly<{ kind: 'recalled'; progress: FactProgress }>
   | Readonly<{ kind: 'batch'; batch: FactBatchRecord }>
 
-/** No source call is allowed before this original operation and custody check succeeds. */
 export function checkFactAcknowledgement(
   snapshot: Snapshot,
   command: FactAcknowledgementCommand,

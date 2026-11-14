@@ -32,7 +32,6 @@ export function architectureBrowser(
     if (element === null) throw new Error(`Missing architecture element ${id}`)
     return element
   }
-  // 表单控件由 antd 渲染；这里只经句柄读写，取值、设值与 onChange 的语义与原生控件一致。
   const group = ui.select('arch-group'),
     focus = ui.select('arch-focus'),
     changes = ui.select('arch-changes')
@@ -159,7 +158,6 @@ export function architectureBrowser(
   }
   function focusNode(node: ViewNode): void {
     if (node.kind === 'external') {
-      // No group to expand into: show the declaration without changing the selection.
       showNode(node)
       return
     }
@@ -319,7 +317,6 @@ export function architectureBrowser(
       },
     }
   }
-  /** The panel takes the background of what will replace it: paper for the matrix, canvas for the graph. */
   function statusPanel(
     kind: 'loading' | 'failed',
     selected: typeof shown,

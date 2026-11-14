@@ -1,6 +1,3 @@
-// `pnpm run check` 的正文：取基线、算计划、按步骤图跑全部检查，写逐步耗时表与运行记录；准入模式另写准入日志。
-// 运行名额由 scripts/check.sh 先取；这里不排队。
-// `--resume-from <H1>`：接续 H1 上快速失败的准入（全量或按影响面；resume.ts 判断，这里只按它的结论取计划、跑步骤、写证据）。
 import { resolveBaseline } from '@omne-harness/repo-toolchain/core/task-context'
 import { coordinates, git } from '@omne-harness/repo-toolchain/core/git'
 import {
@@ -58,17 +55,13 @@ import { admissionRequested, affectedMembers, dependentMembers } from './turbo.t
 import { effectiveParallelism, readTestRunsConfig } from './config.ts'
 import { budgetFor, describeBudget, WORKER_BUDGET_ENV } from './parallelism.ts'
 
-/** `tmp/check-run/` 下按头分目录，只留最近这么多个头的目录（当前头不计）。 */
 export const KEEP_RUN_DIRS = 5
 
-/** 准入没通过时打印的一行：下一步是把失败归类后补证，不是再排一次整跑。 */
 export const ADMISSION_NEXT_STEP =
   '下一步：先把每处失败归类（本次改动带来的、起点上本来就失败、负载或时序、环境），再按类补证，不重排整跑。' +
   '做法见 docs/engineering/integration.md「准入证据怎样取得」。'
-/** repo-toolchain 依赖图缓存的开关（`deps/graph.ts` 的 `WORKING_CACHE_SWITCH`）：`0` 关掉；记录里据它写 depGraph 缓存状态。 */
 const DEP_GRAPH_CACHE_ENV = 'OMNE_DEP_GRAPH_CACHE'
 
-/** 子进程不继承的 git 环境，与 scripts/git-environment.sh 的 `omne_repository_command` 一致。 */
 const GIT_ENV = [
   'GIT_DIR',
   'GIT_WORK_TREE',
@@ -80,14 +73,12 @@ const GIT_ENV = [
   'GIT_SHALLOW_FILE',
 ]
 
-/** 轻步骤（单线程检查）同时跑几个：核的三分之一，至少 2。重步骤自己按预算起进程，不受它限制。 */
 export function lightConcurrency(cores: number): number {
   return Math.max(2, Math.floor(cores / 3))
 }
 
 const seconds = (ms: number) => (ms / 1000).toFixed(1)
 
-/** 逐步耗时表：名字、退出码、秒数、相对开始的起止秒；按开始顺序。 */
 export function stepsTable(results: readonly StepResult[], skipped: readonly string[]): string[] {
   const rows = [...results]
     .sort((a, b) => a.startedMs - b.startedMs)
@@ -107,16 +98,10 @@ export function stepsTable(results: readonly StepResult[], skipped: readonly str
   ]
 }
 
-/**
- * 实际走过的关键路径：从最后结束的步骤出发，每次退到「在它开始之前结束、结束得最晚」的那一步。
- * 一步等的不只是依赖，还有重步骤那条道上的前一个（例如 test 等 typecheck 跑完），所以按时间回溯，不按依赖。
- * 它解释墙钟花在哪条链上；与它重叠的步骤没有拖长总时间。
- */
 export function criticalPath(results: readonly StepResult[]): string[] {
   const byEnd = [...results].sort((a, b) => b.endedMs - a.endedMs)
   let current = byEnd[0]
   const path: string[] = []
-  // 零时长的步骤会互相满足「先结束」的条件，所以要排除走过的。
   const visited = new Set<StepResult>()
   while (current !== undefined) {
     visited.add(current)
@@ -127,7 +112,6 @@ export function criticalPath(results: readonly StepResult[]): string[] {
   return path
 }
 
-/** 重步骤日志里写的预算与并行度那几行，供准入日志保留（`tmp/check-run/<短号>/` 只留最近几个头）。 */
 export function budgetLines(results: readonly StepResult[]): string[] {
   const lines: string[] = []
   for (const result of results) {
@@ -151,10 +135,6 @@ function tail(path: string, lines: number): string[] {
   }
 }
 
-/**
- * `tmp/check-run/` 下只留最近 `keep` 个别的头的目录（按修改时间），再老的删掉；旧布局直接落在这一层的文件也删掉。
- * 当前头的目录由调用方重建。
- */
 export function pruneRunDirs(runRoot: string, current: string, keep: number): void {
   if (!existsSync(runRoot)) return
   const entries = readdirSync(runRoot, { withFileTypes: true })
@@ -172,30 +152,22 @@ export function pruneRunDirs(runRoot: string, current: string, keep: number): vo
 
 export interface CheckOptions {
   readonly admission: boolean
-  /** 一步失败后继续跑其余步骤，一次看全部失败；退出码仍取第一个失败。 */
   readonly keepGoing: boolean
-  /** 只打印步骤表（名字、依赖、重轻、命令），不取基线、不算计划、不跑；与 `resumeFrom` 同给时以 2 退出。 */
   readonly list: boolean
-  /** 成员测试不读结果缓存：只传给子进程的环境，不改本进程的。 */
   readonly noCache?: boolean
-  /** `--resume-from <H1>`：接续 H1 上快速失败的准入（全量或按影响面）。只在准入模式下接受，与 `FULL=1` 互斥。 */
   readonly resumeFrom?: string
 }
 
-/** 可替换的依赖：步骤表。端到端测试在夹具仓库上换成假命令的表，别的照真。 */
 export interface CheckDependencies {
   readonly steps?: (inputs: StepInputs) => CheckStep[]
-  /** 环境自愈的外部动作（离线安装）；测试换成假的。 */
   readonly environment?: EnvironmentIo
 }
 
-/** 步骤表的入口脚本路径（相对根）。 */
 export const STEP_INPUTS = {
   runnerCli: 'tools/test-runner/src/testing/cli.ts',
   devFlowIntegrationCli: 'tools/dev-flow/src/integration/cli.ts',
 } as const
 
-/** 这次运行时各缓存的状态，写进运行记录；`OMNE_TEST_CACHE` 不合法时在这里报错，不等到测试那一步。 */
 function cacheStates(env: NodeJS.ProcessEnv, full: boolean): CacheStates {
   return {
     test: cachePolicy(env, { noCache: false, full, build: true }).read ? 'on' : 'off',
@@ -203,11 +175,6 @@ function cacheStates(env: NodeJS.ProcessEnv, full: boolean): CacheStates {
   }
 }
 
-/**
- * `--resume-from` 的判断：git 事实、本树的根与全部记录、全局路径、步骤表与影响面函数都交给 resume.ts。
- * 影响面函数：整次的按 H1 那次的范围取（H1 全量取 `FULL=1` 的计划，H1 按影响面取 HEAD 相对本次基线的影响面）；
- * 按 H1..HEAD 的用 resume.ts 给的路径。那里面没有全局文件（碰到就不接续），所以不给锁文件判定。
- */
 function judgeResume(
   root: string,
   fromRef: string,
@@ -244,25 +211,18 @@ function judgeResume(
   return { facts, verdict }
 }
 
-/** `coordinates`，但 dirty 与接续同一个判法：另认 assume-unchanged 与 skip-worktree 的文件。 */
 function coordinatesAt(root: string, baseRef: string | undefined) {
   const at = coordinates(root, baseRef)
   return { ...at, dirty: at.dirty || workingTreeDirty(root) }
 }
 
-/**
- * 结束时这次运行还是不是对开始时那个头的证据：头变了，或工作树有未提交改动（与开始时同一个定义：
- * `git status --porcelain` 非空，或有 assume-unchanged／skip-worktree 的文件；被忽略的文件不算），就不是。
- */
 export function changedDuringRun(root: string, startHead: string): boolean {
   const end = coordinatesAt(root, undefined)
   return end.head !== startHead || end.dirty
 }
 
-/** 接续判断里没被拒绝的两种结论：退化为整次重跑，或增量接续。 */
 type AcceptedResume = Exclude<ResumeVerdict, { readonly kind: 'rejected' }>
 
-/** 按接续的结论取计划文件：退化时按 H1 那次的范围照常算；接续用 resume.ts 合成的计划，基线仍写统一规则取到的那一个。 */
 function planFor(
   root: string,
   targetBase: string,
@@ -297,7 +257,6 @@ export async function runCheck(
   if (options.noCache === true) env[TEST_CACHE_ENV] = '0'
   const full = fullRequested(env)
   if (options.resumeFrom !== undefined) {
-    // 接续是准入的一种：不带准入模式的运行读缓存，写出的记录也不是任何提交的证据。
     if (!admission) {
       console.error('--resume-from 只用于准入运行：加 --admission 或 OMNE_ADMISSION=1')
       return 2
@@ -309,8 +268,7 @@ export async function runCheck(
   }
   const caches = cacheStates(env, full)
 
-  // 准入先自检并自愈环境（environment.ts），在读任何现场之前：CRLF 工作副本让 dirty 判定与 format:check 失真，
-  // 依赖目录与锁文件不一致让构建与测试失真。离线安装失败时不跑任何步骤、不写记录，以 2 退出。
+  // 准入先自检并自愈环境，再读任何现场：CRLF 工作副本与依赖目录不一致，都会让 dirty 判定、构建与测试失真。
   const healed = admission ? healEnvironment(root, dependencies.environment) : undefined
   if (healed?.dependencies.status === 'install-failed') {
     for (const line of describeHealing(healed)) console.error(line)
@@ -318,14 +276,12 @@ export async function runCheck(
     return 2
   }
 
-  // 基线按统一规则取：BASELINE，再取任务上下文的基线，再取 origin/main，最后取 main。规则拒绝时抛错，调用方以 2 退出。
   const { targetBase, source } = resolveBaseline(root, env['BASELINE'])
   env['BASELINE'] = targetBase
   const at = coordinatesAt(root, undefined)
   const cores = availableParallelism()
   const steps = stepTable(STEP_INPUTS)
 
-  // 接续的判断在写任何东西之前：拒绝就以 2 退出，不留日志、不写记录。
   let resume: AcceptedResume | undefined
   if (options.resumeFrom !== undefined) {
     const judged = judgeResume(root, options.resumeFrom, targetBase, steps)
@@ -359,14 +315,12 @@ export async function runCheck(
   if (healed !== undefined) for (const line of describeHealing(healed)) say(line)
   if (resume !== undefined) for (const line of describeResume(resume, at.head)) say(line)
 
-  // 先算影响面；算不出就在这里失败，不改判全量。
   rmSync(join(root, PLAN_DIR), { recursive: true, force: true })
   const plan = planFor(root, targetBase, full, resume)
   for (const line of describePlanFile(root, plan)) say(line)
   writePlanFile(join(root, PLAN_FILE), plan)
 
-  // 预算在起任何步骤之前、机器安静时采一次，交给各重步骤：重步骤开始时跑着的轻步骤是本图自己的，
-  // 那时再采样只会把它们当成别的负载而缩预算。CI 设了 OMNE_WORKER_BUDGET 时原样交下去。
+  // 预算在起任何步骤之前采一次：重步骤开始时在跑的轻步骤是本图自己的，再采样会把它们当成别的负载而缩预算。
   const policy = readTestRunsConfig().parallel
   const budget = await budgetFor(policy, env)
   env[WORKER_BUDGET_ENV] = String(budget.workers)
@@ -409,13 +363,11 @@ export async function runCheck(
       `结束时头已不是 ${at.shortHead}，或工作树有未提交改动：记录记 dirty，不作 ${at.shortHead} 的证据`,
     )
 
-  // test 步留下的报告（定向重跑过的文件与最终仍失败的文件）：是对这个头写的才进记录。
   const testReport = readTestStepReport(join(root, PLAN_DIR, TEST_STEP_REPORT_FILE))
   if (testReport !== undefined && testReport.retried.length > 0)
     say(
       `test 步定向重跑 ${testReport.retried.length} 个文件：${testReport.retried.map(entry => `${entry.file}（${entry.kind}）→ ${entry.retryResult}`).join('、')}`,
     )
-  // 运行记录：准入运行写在准入日志旁边（同名 .json），每次运行都在本头的目录里留一份副本。
   const origin: AdmissionRunInputs['origin'] =
     resume?.kind === 'resume'
       ? { mode: 'resume', from: resume.origin }
@@ -429,7 +381,6 @@ export async function runCheck(
     worktree: worktreeRoot(root),
     admission,
     caches,
-    // 退化为整次重跑时范围同 H1 那次，H1 带了 FULL=1 就照记。
     fullRequested: full || (resume?.kind === 'rerun' && resume.origin.fullRequested),
     base:
       plan.plan.mode === 'full'

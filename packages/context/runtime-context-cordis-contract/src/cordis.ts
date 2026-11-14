@@ -13,7 +13,6 @@ type Operation<P, O extends keyof RuntimeContextOperations<P>> = {
   args: Parameters<RuntimeContextOperations<P>[O]>
   result: ReturnType<RuntimeContextOperations<P>[O]>
 }
-// Preserve the root operation's key generic without restating its input/result shape.
 declare const operations: RuntimeContextOperations
 type ProducerOperation<K extends ContextBlockKey> = {
   args: Parameters<typeof operations.registerProducer<K>>
@@ -50,7 +49,6 @@ export abstract class RuntimeContextService<P = unknown>
   constructor(ctx: Context) {
     super(ctx, RuntimeContextService.provide)
   }
-  /** The provider registers its disposer through this.ctx.effect on the calling producer fiber. */
   abstract registerProducer<K extends ContextBlockKey>(
     ...args: ProducerOperation<K>['args']
   ): ProducerOperation<K>['result']
@@ -72,7 +70,6 @@ export abstract class RuntimeContextService<P = unknown>
   abstract finishReplay(
     ...args: Operation<P, 'finishReplay'>['args']
   ): Operation<P, 'finishReplay'>['result']
-  /** The provider compares caller intercept consumer with the current eligibility consumer. */
   abstract bind(...args: Operation<P, 'bind'>['args']): Operation<P, 'bind'>['result']
 }
 export const runtimeContextKey = RuntimeContextService.provide
@@ -99,7 +96,6 @@ export abstract class RuntimeContextReaderEligibilityService<P = unknown>
 export const runtimeContextReaderEligibilityKey = RuntimeContextReaderEligibilityService.provide
 // oxlint-disable-next-line typescript/prefer-as-const -- A fixed exported type preserves the computed augmentation during instrumented declaration emit.
 export const runtimeContextScopeKey: 'scope' = 'scope'
-/** An explanatory payload shape. The event transmits its fields as two positional arguments. */
 export type RuntimeContextChangedPayload = Readonly<{ scope: ScopeRef; revision: ViewRevision }>
 
 declare module '@deepseek-ai/cordis' {

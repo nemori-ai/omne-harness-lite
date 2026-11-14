@@ -1,7 +1,3 @@
-// "Saved, but the reply was lost" through the ModelCommands (M4-5). The test provider commits the
-// write and then answers `unknown`. A retry with the same operation recognizes the saved write and
-// gives back its original result, without a second commit and without a second row. Also: commits
-// that stay undecided, the per-tenant bound on them, and a commit outside its run's operation.
 import { describe, expect, it } from 'vitest'
 import { createSqlModelStorage } from '@omne-harness/model-storage-sql'
 import {

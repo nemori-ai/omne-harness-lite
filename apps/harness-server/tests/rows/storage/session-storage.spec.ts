@@ -1,5 +1,3 @@
-// `session-storage` 行（会话存储组合）与 `storage` 行在真实 sqlite-provider 上的行为：租户登记只在放行的 `create`
-// 之后发生，读与被拒的 `create` 不登记；重启后已登记租户可读；委派视图只服务绑定的那次操作；参加者常量与目录一致。
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -160,7 +158,6 @@ describe('tenant registration (acceptance 1)', () => {
     const ws = workspace()
     const tree = await load(ws)
     started(tree)
-    // 临时文件的位置被一个目录占着：`openSync(…, "w")` 失败，登记表写不出去。
     mkdirSync(`${ws.directoryFile}.${String(process.pid)}.tmp`, { recursive: true })
     const command = createCommand(TENANT_A, 's1')
     const created = await transactions(tree).commit({
@@ -289,7 +286,6 @@ describe('restart (acceptance 2, in-process)', () => {
     })
     const work = await transactions(second).readWork(access(TENANT_A, 's1'))
     expect('ok' in work, JSON.stringify(work)).toBe(true)
-    // 启动确认的是已有租户的组合，不发起新的会话 create。
     expect(second.check.controls.asked().map(r => r.operation)).toEqual(['readWork'])
   })
 
@@ -372,7 +368,7 @@ describe('the composite declaration (acceptance 6)', () => {
     expect(SESSION_COMPOSITE_PARTICIPANTS).toContain(MODEL_PARTICIPANT)
     const catalog = storageCatalog()
     expect(catalog.migrations.map(item => item.owner)).toContain(MODEL_PARTICIPANT)
-    expect(COMBINATION_VERSION).toBe('session-composite/11')
+    expect(COMBINATION_VERSION).toBe('session-composite/12')
   })
 
   test('segment B: the tool participant and its migration are in the same combination', () => {
@@ -401,7 +397,6 @@ describe('the delegated entry and the trusted reads', () => {
       guards: createGuards(command),
     })
     expect('ok' in created, JSON.stringify(created)).toBe(true)
-    // 绑定的是这一会话的 create：同一会话的读在绑定内，别的会话、别的命令与系统读不在。
     expect('ok' in (await view.readWork(access(TENANT_A, 's1')))).toBe(true)
     const other = createCommand(TENANT_A, 's1')
     expect(
@@ -417,9 +412,7 @@ describe('the delegated entry and the trusted reads', () => {
     expect(
       await view.pending({ principal: 'tester', tenant: TENANT_A, after: null, limit: 10 }),
     ).toMatchObject({ failure: { kind: 'denied' } })
-    // 访问裁定没有被问过：绑定自己作答。
     expect(tree.check.controls.asked()).toEqual([])
-    // 读绑定的视图服务这一次读。
     const bound = delegated.bind({
       request: {
         access: { principal: 'tester', tenant: TENANT_A },

@@ -1,6 +1,3 @@
-// The page's `HostBridge` (seam four): `fetch` against the host's same-origin addresses. It is the
-// client core's `Transport` and the client assembly's `LoginStateSource`. It never sees a login
-// proof: no answer of the host carries one.
 import type { LoginState } from '@omne-harness/client-assembly/cordis'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { CallReport, ObserveEnd, Transport } from '@omne-harness/sdk/core'
@@ -23,7 +20,6 @@ import {
 import { sseData } from './sse.ts'
 
 export type PageBridge = HostBridge & {
-  /** Stops following the login state. */
   close(): void
 }
 
@@ -33,17 +29,12 @@ const JSON_HEADERS = { 'content-type': 'application/json' }
 const LOGIN_RESULTS: readonly LoginResult[] = ['signed-in', 'auth-failed', 'unknown', 'unavailable']
 const LOGOUT_RESULTS: readonly LogoutResult[] = ['signed-out', 'unknown']
 
-/** Waits before following the login state again after its stream broke. */
 const retryDelayMs = (attempt: number): number => Math.min(200 * 2 ** attempt, 5_000)
 
 /** A refusal before forwarding (4xx) proves nothing left for the server; anything else may have. */
 const refusedBeforeForwarding = (response: Response): boolean =>
   response.status >= 400 && response.status < 500
 
-/**
- * Connects to the host at `origin` (in the browser, `location.origin`); resolves once the first
- * login state arrived.
- */
 export function connectPageBridge(options: { readonly origin: string }): Promise<PageBridge> {
   const url = (path: string): string => new URL(path, options.origin).toString()
   const closed = new AbortController()
@@ -107,7 +98,6 @@ export function connectPageBridge(options: { readonly origin: string }): Promise
     for (const listener of Array.from(listeners)) listener(next)
   }
 
-  /** Follows the login state stream; follows it again after it breaks. */
   async function follow(): Promise<void> {
     for (let attempt = 0; !closed.signal.aborted; attempt += 1) {
       try {
@@ -121,9 +111,7 @@ export function connectPageBridge(options: { readonly origin: string }): Promise
             if (next !== undefined) enter(next)
             attempt = 0
           }
-      } catch {
-        // The host is not there right now; try again below.
-      }
+      } catch {}
       if (closed.signal.aborted) return
       await new Promise(resolve => setTimeout(resolve, retryDelayMs(attempt)))
     }

@@ -1,9 +1,5 @@
-// Test helper: a transport factory whose transports are reshaped as they open, one by one: a
-// method that hangs, answers late, or breaches its contract. The scripted transport is a class
-// instance, so its methods are delegated by name before the reshape replaces some of them.
 import type { McpTransport, McpTransportFactory } from '@omne-harness/mcp-contract/provider'
 
-/** The transport's methods, delegated by name, so a spread can replace some of them. */
 export function delegating(transport: McpTransport): McpTransport {
   return {
     generation: transport.generation,
@@ -19,10 +15,6 @@ export function delegating(transport: McpTransport): McpTransport {
   }
 }
 
-/**
- * The factory whose `opened`-th transport (the first is 1) gets the methods `reshape` answers in
- * place of its own. A transport `reshape` leaves alone is delegated as it is.
- */
 export function reshapedTransports(
   factory: McpTransportFactory,
   reshape: (transport: McpTransport, opened: number) => Partial<McpTransport>,
@@ -38,7 +30,6 @@ export function reshapedTransports(
   }
 }
 
-/** A promise that never settles: a port that never answers. */
 export function never<T>(): Promise<T> {
   return new Promise<T>(() => undefined)
 }

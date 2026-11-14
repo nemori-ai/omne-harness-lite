@@ -1,10 +1,4 @@
 // @module-tag slow
-// The `agent-instances` row: the real Agent instance directory (`agentInstancesPlugin` of
-// `@omne-harness/agent-cordis-contract/cordis`) on a real Cordis. The row is ACTIVE and provides
-// `agentInstances` once `agentPublicationAuthority` and `agentAccessCheck` are present; with either
-// one absent it stays PENDING and names that key. A refusal of the publication authority comes back
-// as the contract failure, never as a registration. The two providers are test stand-ins of the
-// abstract services: the real ones are the `agent-host` and `authorization` rows.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import {
@@ -63,7 +57,6 @@ function registrationInput(): AgentRegistrationInput<string> {
 
 const refusal: Failure = { kind: 'unsupported' }
 
-/** Stands in for the `agent-host` row's publication authority; `answer` is what it says. */
 function authorityRow(answer: 'allow' | Failure) {
   class Authority extends AgentPublicationAuthorityService<string> {
     readonly check: AgentPublicationAuthorityService<string>['check'] = () =>
@@ -89,7 +82,6 @@ function authorityRow(answer: 'allow' | Failure) {
   )
 }
 
-/** Stands in for the `authorization` row's Agent access check. */
 function accessRow() {
   const allowed: AgentAccessDecision = {
     kind: 'allowed',
@@ -116,7 +108,6 @@ function accessRow() {
 
 const PROBE = 'agent-instances-probe' as RowId
 
-/** A contributor fiber: registers one instance and keeps the answer. */
 function probeRow(capture: (answer: Promise<Answer>) => void) {
   return declared(
     defineRow({

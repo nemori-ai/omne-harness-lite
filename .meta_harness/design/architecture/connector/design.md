@@ -46,7 +46,7 @@
 每个接收边界重验，不信上游已校验；非法值进入业务判断之前拒绝，不记作受理的业务结论。不能丢掉多余／坏成员、裁空白、大小写归一化或部分保留附件来修补。
 现有值的拒绝集合闭合，多处违例固定按 `target_unknown > channel_empty > envelope_empty > malformed` 取最高项，与遍历顺序无关。malformed判据为其余Schema形状失败，内嵌SessionRef／AttachmentRef／Instant违例沿该项收场。嵌入资产形状时按资产闭合集合携带原名；不另造同义错误。Schema合法仅证明形状，不证明可信、会话可访问或附件可读。
 
-原 Schema 的历史依据为[封存资源快照](https://github.com/nemori-ai/omne-harness-lite/blob/481f9f45f76f7a36a2c3cd05cc42b640d77a421a/packages.0.0.1.legacy/core/asset-model/schema/resources/connector.schema.json)。该快照解释下文保留的形状和拒绝值，不是当前公共接口，也不授予原 URI 的新采用。新共同资产的[类别正文端口](../../../../packages/assets/assets/SPEC.md#accepted-public-types)没有连接件类别。连接件技术拥有者须在范围恢复后确定公开形状、Schema 身份及验证入口。单值形状合法仍不证明交接认证、实际账号一致、声明求值、去重或投递进展。
+原 Schema 的历史依据为[封存资源快照](https://github.com/nemori-ai/omne-harness-lite/blob/481f9f45f76f7a36a2c3cd05cc42b640d77a421a/packages.0.0.1.legacy/core/asset-model/schema/resources/connector.schema.json)。该快照解释下文保留的形状和拒绝值，不是当前公共接口，也不授予原 URI 的新采用。新共同资产的[类别正文端口](../../../../packages/assets/SPEC.md#类别提供方与正文)没有连接件类别。连接件技术拥有者须在范围恢复后确定公开形状、Schema 身份及验证入口。单值形状合法仍不证明交接认证、实际账号一致、声明求值、去重或投递进展。
 
 ## 阻断实施的未决
 

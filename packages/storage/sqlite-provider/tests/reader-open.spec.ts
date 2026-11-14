@@ -1,5 +1,3 @@
-// The read connection is opened read-only (SPEC 9.5). Observed on the reader entry itself: a
-// read-write open of a path with no file would create the database, a read-only open cannot.
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { Worker } from 'node:worker_threads'
@@ -15,7 +13,6 @@ afterEach(async () => {
   await workspace.remove()
 })
 
-/** Starts the real reader entry on `file` and returns the reply to its open request. */
 async function openReader(file: string): Promise<ReaderReply> {
   const env: ReaderEnv = { file, domain: 'domain-a', lockWaitMs: 1000, generation: 1 }
   const worker = new Worker(new URL('../src/worker/reader.ts', import.meta.url), {

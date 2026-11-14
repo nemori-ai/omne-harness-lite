@@ -12,7 +12,6 @@ describe('trusted forwarding association', () => {
       kind: 'rejected',
       failure: { kind: 'unavailable' },
     })
-    // inspect establishes a durable not-started exclusion for the unconsumed attempt.
     expect(ok(await f.consume()).kind).toBe('not-started')
     const started = await forwardingFixture()
     const answer = await started.source.forwarding.resolve({

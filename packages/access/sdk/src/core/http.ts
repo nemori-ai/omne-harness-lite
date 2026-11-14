@@ -1,7 +1,3 @@
-// The HTTP transport of the client core (#1249 spec 已定 17 and 18): `fetch` to the new address
-// `/api/<protocol>/v<major>/<name>`, the login proof and the acting tenant from a credential
-// source the client core never sees, and observations read as an SSE stream with
-// `eventsource-parser`. Nothing here imports a Node module; the code runs in a browser as is.
 import { createParser } from 'eventsource-parser'
 import {
   readJsonText,
@@ -20,15 +16,11 @@ import type {
 } from './transport.ts'
 import { neverWritten } from '../never-written.ts'
 
-/** What the transport puts on a request: the login proof and the tenant to act for. */
 export type Credentials = { readonly proof?: string; readonly tenant?: string }
 
 export type HttpProtocolTransportOptions = {
-  /** An `http:` or `https:` origin, with no credential, path, query or fragment. */
   readonly origin: string
-  /** Read before each request. Absent: no `Authorization` and no acting tenant. */
   readonly credentials?: () => Credentials | Promise<Credentials>
-  /** Budgets for reading answers and frames. */
   readonly limits?: JsonLimits
 }
 
@@ -52,7 +44,6 @@ function mediaType(response: Response): string | undefined {
   return response.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase()
 }
 
-/** The member `key` of an object value, or `undefined`. */
 function member(value: JsonValue, key: string): JsonValue | undefined {
   if (value.kind !== 'object') return undefined
   return value.entries.find(entry => entry.key === key)?.value
@@ -62,7 +53,6 @@ function text(value: JsonValue | undefined): string | undefined {
   return value?.kind === 'string' ? value.value : undefined
 }
 
-/** `{ "outcome": <text>, "body": <object> }`, the answer of an operation or a refused opening. */
 function answerOf(source: string, limits: JsonLimits): CallReport {
   const read = readJsonText(source, limits)
   if (read.kind !== 'ok') return UNCERTAIN
@@ -75,10 +65,8 @@ function answerOf(source: string, limits: JsonLimits): CallReport {
 type EventReader = ReadableStreamDefaultReader<string>
 
 const ABORTED: ObserveEnd = Object.freeze({ kind: 'aborted' })
-/** The stream stopped, or said something outside the binding: no trustworthy end. */
 const STOPPED: ObserveEnd = Object.freeze({ kind: 'uncertain' })
 
-/** One SSE event of the binding: a frame, or the end of the observation. */
 function eventOf(
   data: string,
   limits: JsonLimits,
@@ -110,7 +98,6 @@ export function createHttpProtocolTransport(options: HttpProtocolTransportOption
     }
   }
 
-  /** Sends one request; a failure answers whether any byte may have left. */
   async function send(
     url: URL,
     messageId: string,
@@ -148,7 +135,6 @@ export function createHttpProtocolTransport(options: HttpProtocolTransportOption
     }
   }
 
-  /** What an opening came to: a stream to read, or how the observation ended at once. */
   async function opening(request: ObserveRequest): Promise<EventReader | ObserveEnd> {
     const { signal } = request
     const url = urlOf(request.protocol, request.observation)
@@ -166,7 +152,6 @@ export function createHttpProtocolTransport(options: HttpProtocolTransportOption
     return body.pipeThrough(new TextDecoderStream()).getReader()
   }
 
-  /** Yields the frames of an open stream until its `ended` frame, a fault, or the caller stops. */
   async function* events(
     reader: EventReader,
     signal: AbortSignal,
@@ -186,8 +171,6 @@ export function createHttpProtocolTransport(options: HttpProtocolTransportOption
         parser.feed(chunk.value)
       }
     } finally {
-      // Stopping early closes the connection; the entry sees the observer go away. Cancelling a
-      // stream that already ended does nothing.
       await reader.cancel().catch(() => {})
     }
   }

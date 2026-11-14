@@ -1,6 +1,3 @@
-// The Anthropic family: the records, the rules and the meter become one `PiFamily`. `acquire`
-// acquires a private tokenizer lease, checks its definition against the record, and binds through the
-// gateway engine. Nothing here reads the environment, a file or the network.
 import type { Adoption, TokenizerDefinition, TransportFailure } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import { defineFamily, type PiFamily, type PiFamilyBinding } from '@omne-harness/pi-ai-transport'
@@ -16,12 +13,9 @@ import { ANTHROPIC_RECORDS } from './records.ts'
 import { hooksOf } from './rules.ts'
 
 export type AnthropicFamilyConfig = Readonly<{
-  /** Usually `anthropicTokenizerResources()`. The definition must equal the one the records name. */
   tokenizer: TiktokenResources
   executor: Pick<TiktokenExecutor, 'acquire'>
-  /** The decoder buffer limits of every binding. */
   limits: ChatCompletionsLimits
-  /** The margin of every input estimate and the adoption of that margin policy. */
   margin: MeterMargin
 }>
 
@@ -56,7 +50,6 @@ function checkTokenizerConfig(config: AnthropicFamilyConfig): void {
     throw new RangeError('config.executor must acquire tokenizer leases')
 }
 
-/** Throws `RangeError` for a configuration that no binding could use. */
 function checkConfig(config: AnthropicFamilyConfig): void {
   if (typeof config !== 'object' || config === null)
     throw new RangeError('the Anthropic family configuration must be an object')
@@ -69,17 +62,6 @@ function checkConfig(config: AnthropicFamilyConfig): void {
     throw new RangeError('config.margin.percent must be a non-negative decimal integer')
 }
 
-/**
- * The family borrows the configured executor and acquires one private tokenizer lease per binding.
- * Throws `RangeError` for an unusable configuration.
- *
- * `acquire(record, supplier, signal)`:
- * - the configured tokenizer definition differs from the record: `unavailable`,
- *   `tokenizer-definition-mismatch`;
- * - the executor refuses a tokenizer lease: `unavailable`, `tokenizer-<failure kind>`;
- * - the signal is aborted: `unavailable`, `cancelled`;
- * - else the binding of the gateway engine. Release awaits its private tokenizer lease cleanup.
- */
 export function createAnthropicFamily(config: AnthropicFamilyConfig): PiFamily {
   checkConfig(config)
   return defineFamily<AnthropicRecord>({

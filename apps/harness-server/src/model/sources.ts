@@ -1,11 +1,5 @@
-// The trusted send sources of the `model-records` row (R2-D30, facts a.4): one per supplier of an
-// official OpenAI profile. Every source is official, so a send may use the official credential
-// layer of its provider; the layer itself is fixed by request preparation. A source names the profile adoption and the
-// supplier the way the `model-profiles` row publishes them, so the coordinator can match a request
-// to its source. The profile adoption of the official source is the supplier adoption's owner and
-// revision, the route as the name, and the digest of the canonical JSON of the definition
-// (model-host-local `profile-source.ts`). That rule is not exported by the member; the copy below
-// is guarded by `tests/model/sources.spec.ts` against the real `ModelProfilesLocalPlugin`.
+// The profile adoption rule below copies model-host-local `profile-source.ts`, which does not export
+// it; `tests/model/sources.spec.ts` guards the copy against the real `ModelProfilesLocalPlugin`.
 import { createHash } from 'node:crypto'
 import type { Adoption, ModelProfileDefinition } from '@omne-harness/model-contract'
 import type { ModelSendSource } from '@omne-harness/model/commands'
@@ -16,7 +10,6 @@ export type OfficialProfilesInput = Readonly<{
   compactionTriggerPercent: string
 }>
 
-/** Canonical JSON: no white space, object keys sorted by UTF-16 code units. */
 function canonicalJson(value: unknown): string {
   if (value === null) return 'null'
   switch (typeof value) {
@@ -39,7 +32,6 @@ function canonicalJson(value: unknown): string {
   }
 }
 
-/** The adoption the official profile source gives a definition. */
 export function officialProfileAdoption(definition: ModelProfileDefinition): Adoption {
   const supplier = definition.suppliers[0]
   return Object.freeze({

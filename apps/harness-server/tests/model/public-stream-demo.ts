@@ -1,25 +1,3 @@
-// The demonstration of the public Model stream on the release tree (#1214). Not in the release.
-// Usage, from apps/harness-server after `pnpm run build` of the member and of apps/cli:
-//   node tests/model/public-stream-demo.ts               the demonstration
-//   node tests/model/public-stream-demo.ts --measure 5   the demonstration and the two numbers, 5 times
-//   node tests/model/public-stream-demo.ts --notices     the demonstration with the commit notices
-// With `--notices` (#1230) every commit notice on the root of the tree is printed as it arrives,
-// `notice #<revision> <entry kinds>`, between the other lines. After the demonstration a second
-// session calls one tool and then answers, so the assistant and the tool messages are committed
-// too; at the end each session puts the number of its revisions in the log beside the number of
-// its notices.
-// It starts the release tree in this process (real SQLite, real identity, the local HTTPS Model
-// gateway of the release-tree scenarios), registers and logs in one person through the `omne` CLI,
-// sends one input, reads the reference of the main Model call from the session log, takes the
-// current stream as that person and prints every frame. The gateway holds the answer after its first
-// piece until the snapshot is printed. Then another person (another tenant) asks for the same
-// reference and for one that names no call; both answers are printed.
-//
-// The two numbers, each measured in a session of its own, on one monotonic clock of this process:
-// - registration lag: from the first `inspect` of the call that answers found, to the first read of
-//   the session log that has its `call.bound`. The call is named before the log has it by reading
-//   the Model storage (`md_call`) read only; both sides are polled about every millisecond.
-// - first frame: from the `observe` call to its first frame.
 import { setTimeout as sleep } from 'node:timers/promises'
 import { onReleaseTree, toolCallsThenText, type ReleaseTree } from '../support/release-tree.ts'
 import { bodyOf } from '../r9/support.ts'
@@ -52,7 +30,6 @@ const notices = process.argv.includes('--notices')
 const print = (line: string) => process.stdout.write(`${line}\n`)
 const now = () => performance.now()
 
-/** The last part of a stream cursor: its position in the stream. */
 function position(cursor: unknown): string {
   try {
     const parts = JSON.parse(String(cursor)) as unknown[]
@@ -62,13 +39,11 @@ function position(cursor: unknown): string {
   }
 }
 
-/** The call phase a snapshot or delta value carries. */
 function phaseOf(value: unknown): string {
   const record = value as { state?: { phase?: string }; value?: { state?: { phase?: string } } }
   return String(record.state?.phase ?? record.value?.state?.phase)
 }
 
-/** The texts of the text blocks in a value, in order. */
 function texts(value: unknown): string[] {
   if (Array.isArray(value)) return value.flatMap(texts)
   if (typeof value !== 'object' || value === null) return []
@@ -78,7 +53,6 @@ function texts(value: unknown): string[] {
   return Object.values(record).flatMap(texts)
 }
 
-/** Reads until `done` holds, `pauseMs` apart, for at most a minute. */
 async function until<T>(
   read: () => Promise<T> | T,
   done: (value: T) => boolean,
@@ -155,8 +129,6 @@ async function demonstrate(
         : JSON.stringify(frame)
     print(`frame ${String(index)}: ${frame.kind} ${detail}`)
     if (frame.kind === 'snapshot')
-      // Once the Model request is held at the gateway, its first piece has some time to arrive;
-      // then the gateway sends the rest.
       void until(
         () => gateway.held(),
         held => held > 0,
@@ -182,12 +154,10 @@ async function demonstrate(
   return session
 }
 
-/** The input of the session that calls one tool; the gateway answers it with the tool script. */
 const TOOL_INPUT = 'call a tool, then answer'
 const ECHO = JSON.stringify({ command: 'execute', params: { script: 'echo notices' } })
 const toolScript = toolCallsThenText(() => [{ id: 'call_echo', tool: 'Shell', arguments: ECHO }])
 
-/** Each session: its revisions in the log beside its notices, once its turn has ended. */
 async function noticeSummary(tree: ReleaseTree, recorder: NoticeRecorder, sessions: string[]) {
   print('== commit notices against the session log')
   for (const session of sessions) {

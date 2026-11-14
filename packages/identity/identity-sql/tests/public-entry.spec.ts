@@ -1,7 +1,3 @@
-// The public entries: what the root exports, what `./cordis` exports, and that the root loads
-// without Cordis (IC-4). The materials: one participant over ten tables, the published migration
-// 001 kept byte for byte, the migration 002 after it, and four read handlers. The configuration:
-// two lifetimes, and two invitation durations with their initial values.
 import { createHash } from 'node:crypto'
 import { expect, it } from 'vitest'
 import { combinationManifest, manifestDigest } from '@omne-harness/sql-contract'
@@ -33,8 +29,6 @@ it('exports the factory, the materials, the names and the configuration helpers 
   expect(root.IDENTITY_SCOPE).toEqual({ kind: 'system' })
   expect(root.LOGIN_IDENTIFIER_UTF8_LIMIT).toBe(1024)
   expect(root.CREDENTIAL_UTF8_LIMIT).toBe(4096)
-  // The first values, for a deployment that passes them: P-10 (R2-D204) gives an invitation 7 days
-  // unless the issuer asks for at most 30.
   expect(root.IDENTITY_SQL_DEFAULT_CONFIG).toEqual({
     maxLifetime: 'PT2592000S',
     idlePeriod: 'PT604800S',
@@ -92,7 +86,6 @@ it('describes one participant, three migrations and five snapshot read handlers'
   expect(migrationsOf('identity.standing')).toEqual(['001-identity'])
   expect(migrationsOf('identity.login-by-proof')).toEqual(['001-identity', '002-governance'])
   expect(migrationsOf('identity.governance')).toEqual(['001-identity', '002-governance'])
-  // A governance list of 1000 entries fits; one more fails the read instead of being cut.
   expect(handlers['identity.governance']?.maxRowsRead).toBe(1016)
   expect(handlers['identity.governance']?.maxOutputBytes).toBe(1 << 20)
   for (const handler of materials.readHandlers) expect(handler.ordering).toBe('snapshot')
@@ -101,13 +94,10 @@ it('describes one participant, three migrations and five snapshot read handlers'
 })
 
 it('keeps the published migration 001 byte for byte', async () => {
-  // A domain that 001 created holds this checksum in its mark; another value quarantines it.
   const materials = root.identitySqlMaterials()
   expect(materials.migrations[0]?.checksum).toBe(
     '611479127bce6725a4934f7e5fdd477db845e061d23683044ad0ff7943a9c1b7',
   )
-  // `migration.ts` reads its tables and statements from `schema.ts`, which its checksum does not
-  // cover: they are pinned to the values of the published build (6c68f4a4b) here.
   const schema = (await import('../dist/worker/schema.js')) as Readonly<Record<string, unknown>>
   const text = JSON.stringify({
     tables: schema['IDENTITY_TABLES'],
@@ -125,8 +115,6 @@ it('registers the combination with the manifest digest and a version of its own'
   const digest = manifestDigest(result.manifest)
   const combination = root.identitySqlCombination()
   expect(combination.manifestDigest).toBe(digest)
-  // The version also covers the modules that the participant imports (IS-01), so it is not the
-  // manifest digest; `combination-version.spec.ts` checks what changes it.
   expect(combination.combinationVersion).toMatch(/^identity-sql\/[0-9a-f]{64}$/u)
   expect(combination.combinationVersion).not.toBe(`identity-sql/${digest}`)
   expect(root.identitySqlRegistration()).toEqual({
@@ -138,10 +126,6 @@ it('registers the combination with the manifest digest and a version of its own'
   })
 })
 
-/**
- * Two legal invitation durations and a granularity shorter than any idle period below, so that each
- * bad configuration below has one problem only.
- */
 const INVITATIONS = {
   accessRefreshGranularity: 'PT0.5S',
   invitationDefaultDuration: 'PT60S',

@@ -1,6 +1,3 @@
-// The shared parts that every operation of one provider generation uses. The operations
-// (register.ts, commit.ts, query.ts, read.ts) take a Core and return their function of the
-// SqlStorage interface. Nothing here holds a Cordis object.
 import type { SqlIdentity, SqlMaterialCatalog, StorageScope } from '@omne-harness/sql-contract'
 import { Admission, PendingIndex } from './admission.ts'
 import { InFlight } from './close.ts'
@@ -19,16 +16,8 @@ export type Core = Readonly<{
   barrier: WriteBarrier
   admission: Admission
   pending: PendingIndex
-  /** Operations that wait for a Worker. The close protocol answers them at the deadline. */
   inFlight: InFlight
-  /**
-   * How long the caller of a sent commit, query or registration observes the reply (SPEC 9.3):
-   * twice lockWaitMs, so that the Worker's own verdict on a lock wait of up to lockWaitMs reaches
-   * the caller first, and the same again covers the inbox and the execution. After it the caller
-   * gets `unknown` (`reply_wait_expired`); what the request holds stays with the Worker.
-   */
   replyObservationMs: number
-  /** A diagnostic of at most maxDiagnosticBytes. Callers branch on kind and reason only. */
   diagnostic(text: string): string
 }>
 
@@ -57,7 +46,6 @@ export function createCore(
 
 export const sameScope = (a: StorageScope, b: StorageScope): boolean => scopeKey(a) === scopeKey(b)
 
-/** The key of an identity in the pending index. The file of a domain fixes the protocol. */
 export const identityKey = (identity: SqlIdentity): string =>
   JSON.stringify([
     scopeKey(identity.scope),

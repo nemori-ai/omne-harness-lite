@@ -1,9 +1,3 @@
-// D2 of the identity delivery spec: the Session and Agent operations are neutral to the tenant
-// role. For every `member` cell of the two policy tables the test reads the standing of a super
-// administrator and of an ordinary member, runs the real access check on both, and requires the
-// same verdict and an empty `requires`. The negative control gives one cell at a time a non-empty
-// `requires` (the named qualification only the super administrator holds) and requires the probe
-// to name exactly that cell, so a neutral result cannot come from a probe that sees nothing.
 import { describe, expect, it } from 'vitest'
 import {
   inProcessPrincipalAuthority,
@@ -41,7 +35,6 @@ const evidence = { record: 'standing/test', revision: '1' }
 type RoleName = 'super-admin' | 'member'
 const ROLES: readonly RoleName[] = ['super-admin', 'member']
 
-/** The standing of a role. Only the super administrator holds the named qualification. */
 function standingOf(role: RoleName): TenantStandingReading {
   return {
     kind: 'member',
@@ -57,7 +50,6 @@ type MemberCellRef = Readonly<{ id: string; run: Run }>
 type Probe = Readonly<{ verdict: string; requires: readonly string[] }>
 type PolicyTable = Readonly<Record<string, PolicyRow>>
 
-/** `injectOn` gives the admission request of that one cell a non-empty `requires`. */
 async function probeCell(
   role: RoleName,
   cell: MemberCellRef,
@@ -82,7 +74,6 @@ async function probeCell(
       },
     },
     systemActions: { check: input => systemActions.check(input) },
-    // This world has no login source: a Session permission write reads it as unavailable.
     login: { queryCurrentTenant: () => Promise.reject(new Error('no login source')) },
   }
   const actor = okOf(authority.issuer.issueSystem({ component: 'sessionWorkPrincipals' }), 'actor')
@@ -110,7 +101,6 @@ const scopeReleaseFact = {
 const ordinary = { value: { kind: 'ordinary', input: 'i', message: 'm', origin: 'o' } }
 const business = { value: { kind: 'business', owner: 'o', input: 'i', destination: 'd' } }
 
-/** The operations that carry a command. The others are reads on a session or on the tenant. */
 const MUTATING = new Set([
   'addTodo',
   'removeTodo',
@@ -205,7 +195,6 @@ function memberCells(): readonly MemberCellRef[] {
   return cells
 }
 
-/** The cells whose verdict or `requires` differ between the two roles, or whose `requires` is not empty. */
 async function divergentCells(injectOn: string | null): Promise<readonly string[]> {
   const out: string[] = []
   for (const cell of memberCells()) {

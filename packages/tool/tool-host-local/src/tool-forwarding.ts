@@ -61,7 +61,6 @@ const statusResult = (value: unknown): MessageResult => {
   return result.ok
 }
 
-/** A provider owns accepted preparation, source and admission work after the author stops waiting. */
 export function createLocalToolForwarding<P>(
   input: LocalToolForwardingInput<P>,
 ): LocalToolForwarding<P> {

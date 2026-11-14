@@ -12,7 +12,6 @@ export interface InProcessResult {
   readonly code: number
   readonly stdout: string
   readonly stderr: string
-  /** How many times the command asked for the credential. */
   readonly credentialReads: number
 }
 
@@ -25,7 +24,6 @@ export interface InProcessOptions {
   readonly failStdout?: boolean
 }
 
-/** Runs the production catalog in this process: real HTTP transport, scripted credential and ids. */
 export async function runInProcess(
   argv: readonly string[],
   options: InProcessOptions = {},

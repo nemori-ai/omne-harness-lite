@@ -1,17 +1,3 @@
-// C1 的 E9 适配器（R2-D177 候选 4）：在 L-RUN 的 line-through 世界（w2-world.ts）上跑 E9 多轮测量。
-//
-// 这是 line-through 组合，不是发行组合。Session、Context、Agent、存储与 AD-02/04/05/06 是真实成员；
-// 模型和工具是世界自己的脚本替身，每次调用的等待交给 L-MODEL、L-TOOL 的 measured 固定延迟替身执行，
-// 所以等待区间与轮区间同进程、同钟、同代次。发行组合的测量装配入口是具名缺件 C1-E9-SEAM（波 3）。
-//
-// 本文件以测量设施身份只读复用三份测试文件（相对路径 import，不改它们）：
-// - packages/agent/agent-host-local/tests/line-through/w2-world.ts（及它导入的 world.ts、w2-measure.ts）
-// - packages/model/model-host-local/tests/support/model-measurement.ts
-// - packages/tool/tool/tests/support/tool-measurement.ts
-// 依赖的世界内部形状与失效表现写在 README「E9 适配器」一节。
-//
-// 环境变量：OMNE_E9_ROUNDS（计划轮数 1～200，缺省 200）、OMNE_E9_SHAPE（tool 或 plain，缺省 tool）、
-// OMNE_E9_ROUND_MS（单轮等终态的上限，缺省 60000）。
 import { randomUUID } from 'node:crypto'
 import { createRoundCollector } from '../e9/collector.mjs'
 
@@ -19,7 +5,6 @@ const MODEL_DELAY_MS = 100
 const TOOL_DELAY_MS = 100
 const INPUT_TEXT = 'one fixed question'
 const HISTORY_PAGE_BYTES = 1 << 20
-/** 翻页上限：只防止读面不收敛时死循环；到了就答未测量，不编数。 */
 const HISTORY_MAX_PAGES = 100_000
 
 const WORLD = '../../packages/agent/agent-host-local/tests/line-through/w2-world.ts'
@@ -27,7 +12,6 @@ const LINE_WORLD = '../../packages/agent/agent-host-local/tests/line-through/wor
 const MODEL_DOUBLE = '../../packages/model/model-host-local/tests/support/model-measurement.ts'
 const TOOL_DOUBLE = '../../packages/tool/tool/tests/support/tool-measurement.ts'
 
-/** 读环境变量里的正整数；不合格时抛错，不悄悄换成缺省值。 */
 export function integerSetting(env, name, fallback, min, max) {
   const raw = env[name]
   if (raw === undefined || raw === '') return fallback
@@ -59,19 +43,11 @@ export const workload = {
 const HOOKS_URL = new URL('./e9-source-hooks.mjs', import.meta.url).href
 const SOURCE_HOOKS_FLAG = Symbol.for('omne-harness.e9.source-hooks')
 
-/**
- * 解析钩子必须经 NODE_OPTIONS 预加载，sqlite-provider 的 Worker 才能解析源码（见 e9-source-hooks.mjs）。
- * 没有预加载时立即失败并给出要加的设置，不等 Worker 在注册存储时才答 domain_unavailable。
- */
 export function requireSourceHooks(env, loaded = globalThis[SOURCE_HOOKS_FLAG] === true) {
   if (loaded && (env.NODE_OPTIONS ?? '').includes(HOOKS_URL)) return
   throw new Error(`E9 line-through adapter needs NODE_OPTIONS=--import=${HOOKS_URL}`)
 }
 
-/**
- * 累计 Session 日志条目数：经进程内 Session history 读面（`history.begin`/`next`，kinds 为空即全部类别）
- * 从头读到底，按条目标识去重计数。annotations 是别处条目的标注，不另计。读失败或不收敛时答未测量。
- */
 export async function countLogEntries(history, access) {
   const seen = new Set()
   let page
@@ -111,10 +87,6 @@ function failureText(answer) {
   }
 }
 
-/**
- * 看住 Session readWork 的读数：一轮开着时，第一次读到与上一轮不同的 run.terminal，
- * 立即交给 `onTerminal`（采集者在此刻读钟）。不改变答复，也不额外读。
- */
 export function watchTerminals(readWork, onTerminal) {
   let armed = false
   let previous = null
@@ -137,7 +109,6 @@ export function watchTerminals(readWork, onTerminal) {
       armed = true
       seen = null
     },
-    /** 本轮读到的终态；没有读到时为 null。读到后记为下一轮的「上一个」。 */
     take() {
       armed = false
       const run = seen
@@ -148,10 +119,6 @@ export function watchTerminals(readWork, onTerminal) {
   }
 }
 
-/**
- * 一轮的五步（tools/e9 README「C1 怎样使用」）。`world` 只需要 `runRound`、`history`、`access`、`session`；
- * 单测用替身世界跑同一段代码。读不到终态时抛错，不交出一轮完成。
- */
 export async function runOneRound({ collector, world, watch, round, roundMs, requiresToolWait }) {
   collector.beginRound(round)
   watch.arm()
@@ -163,7 +130,6 @@ export async function runOneRound({ collector, world, watch, round, roundMs, req
   }
   const terminal = watch.take()
   if (runError !== undefined || terminal === null) {
-    // 封轮，让本轮已收的段进投影记录；结果不交给 nextRound。
     await collector
       .finishRound({
         session: world.session,
@@ -183,7 +149,6 @@ export async function runOneRound({ collector, world, watch, round, roundMs, req
   return collector.roundEvents(result)
 }
 
-/** 取消时替身答 cancelled 或抛 AbortError；事件已由替身记下，这里不让拒绝漏成未处理的拒绝。 */
 const settled = promise =>
   promise.then(
     () => undefined,
@@ -193,7 +158,6 @@ const settled = promise =>
 function modelScript(shape, model, signalOf) {
   return admission => {
     const suggestTool = shape === 'tool' && admission.index % 2 === 0
-    // 世界的模型替身自己不等（delayMs 0），等待由 measured 替身执行；`hold` 让世界等它结束再交结果。
     const hold = settled(model.send(undefined, signalOf()))
     return suggestTool
       ? {
@@ -219,14 +183,8 @@ function toolScript(tool, signalOf) {
   })
 }
 
-/** w2-world 模块；`open` 装载后设置。 */
 let worldModule
 
-/**
- * 把采集者的段观察者接到世界：w2-world 把 Session、Context、Agent 的 measure 事件转给
- * `startRecording()` 返回的记录器的 `observe`（每次调用时现取该属性）。这里换掉它与 `stub`，
- * 事件改交采集者；世界自己的脚本替身记录（provider scripted-*）不再记，等待只来自 measured 替身。
- */
 function attachCollector(w, collector) {
   const recorder = w.startRecording()
   if (typeof recorder?.observe !== 'function' || typeof recorder.stub !== 'function')
@@ -235,10 +193,6 @@ function attachCollector(w, collector) {
   recorder.stub = () => {}
 }
 
-/**
- * 把 Model 请求准备段接上：世界的 Preparation 服务实例把 `prepare` 作为实例字段；
- * Context 每次调用时经服务现取 `prepare`。这里包一层 measureModelPreparation（L-MODEL 的段事件）。
- */
 function attachPreparation(w, measureModelPreparation, measurement) {
   const service = w.ctx.get('modelRequestPreparation')
   if (typeof service?.prepare !== 'function')
@@ -289,7 +243,6 @@ export async function open({ out, abortSignal }) {
     attachCollector(w, collector)
     attachPreparation(w, measureModelPreparation, collector.modelMeasurement)
     await w.createSession(`e9-${SHAPE}`)
-    // 轮终点：世界的 runRound 轮询 probe.readWork 直到新终态；在同一读数上记观察时刻（D7）。
     const watch = watchTerminals(w.probe.readWork.bind(w.probe), run =>
       collector.observeTerminal({
         session: SESSION,

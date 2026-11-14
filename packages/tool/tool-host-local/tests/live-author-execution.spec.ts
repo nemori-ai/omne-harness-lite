@@ -1,5 +1,3 @@
-// The live execution of one author start: the fact stream it keeps, the end of that stream, and the
-// state of a control that was accepted before the end.
 import { describe, expect, it } from 'vitest'
 import type { ToolExecutionFact } from '@omne-harness/tool-contract/provider'
 import { completedFinal } from '@omne-harness/tool-contract/testing'

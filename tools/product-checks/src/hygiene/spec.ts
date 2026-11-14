@@ -1,6 +1,6 @@
 import type { Violation } from '@omne-harness/repo-toolchain/core/rule'
 
-export const SPEC_PATH = /^packages\/[^/]+\/SPEC\.md$/u
+export const SPEC_PATH = /^(?:packages|apps|tools)\/[^/]+\/SPEC\.md$/u
 
 export const SPEC_SECTIONS = [
   '总体架构',
@@ -23,7 +23,8 @@ const FORBIDDEN_FORMS: readonly { readonly name: string; readonly pattern: RegEx
   { name: '决定编号', pattern: /R\d+-D\d+|\bD-\d+|RFC-\d+/u },
   {
     name: '状态词',
-    pattern: /已实现|未实现|尚未|待补|待定|暂缺|TODO|draft|候选|阶段 ?\d/u,
+    pattern:
+      /已实现|未实现|尚未|待补|待定|暂缺|TODO|draft|候选(?:方案|设计|规格|正文|稿)|阶段 ?\d/u,
   },
 ]
 

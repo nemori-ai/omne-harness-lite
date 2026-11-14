@@ -1,6 +1,3 @@
-// 影响面的计划：用仓库里真实的路径规则（test-runs.config.json）、一份造出来的成员清单，核对每类改动被判成什么、
-// 选中谁、为什么；规则一旦退化（例如读者规则丢了、全局清单漏了锁文件），这里会变红。
-// 另核对取改动的那一步：改名拆成两侧、基线不存在时报错而不是改判全量。
 import { baselines } from '@omne-harness/repo-toolchain/core/task-context'
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -59,9 +56,6 @@ const member = (
   dependencies,
 })
 
-// base ← mid ← top（top 有验收）；custodian-user 依赖读自己 README 的 credential-custodian-local。
-// 读者规则与常驻构建点名的真实成员也在清单里：agent-host-local 依赖 agent-cordis-contract，
-// m2-contract-skeleton 依赖 message，用来核对「被读的成员根目录文档只选读者、不带下游」。
 const MEMBERS = [
   member('packages/common/legal-identity'),
   member('packages/agent/agent'),
@@ -92,10 +86,6 @@ const MEMBERS = [
   member('tools/test-runner', ['@x/repo-toolchain']),
 ]
 
-/**
- * 模拟 turbo 的依赖图（`--filter=...<包>`）：这些成员连同直接、间接依赖它们的成员。
- * 退役目录不是 workspace 成员，turbo 不认得。
- */
 function dependentsLike(
   seeds: readonly string[],
   members: readonly WorkspaceMember[],
@@ -116,7 +106,6 @@ function dependentsLike(
   }
   return found
 }
-/** 模拟 turbo 的 `--affected`：成员目录里有任何文件改动就选中它（按包计，含文档），再加上依赖它的成员。 */
 function turboLike(paths: readonly string[], members: readonly WorkspaceMember[]): Set<string> {
   const active = members.filter(entry => !entry.path.includes('.legacy'))
   const owners = paths.flatMap(path => {
@@ -132,6 +121,19 @@ const planWith = (paths: string[], members: readonly WorkspaceMember[], full = f
     dependentsLike(seeds, members),
   )
 const plan = (paths: string[], full = false) => planWith(paths, MEMBERS, full)
+const READER = 'packages/core/mid'
+const READ_DOCUMENT = 'packages/core/mid/SPEC.md'
+const READ_RULES = {
+  ...RULES,
+  readers: [
+    ...RULES.readers,
+    { paths: [READ_DOCUMENT], members: [READER], why: 'a test reads it' },
+  ],
+}
+const planRead = (paths: string[]) =>
+  planCheck(paths, MEMBERS, READ_RULES, turboLike(paths, MEMBERS), false, seeds =>
+    dependentsLike(seeds, MEMBERS),
+  )
 const describe_ = (checkPlan: CheckPlan) => describeCheckPlan(checkPlan, RULES, CONFIG).join('\n')
 const RESIDENT_BUILD = [
   { path: 'packages/common/legal-identity', reason: 'resident' },
@@ -314,7 +316,6 @@ describe('影响面计划（真实规则）', () => {
     expect(result.reason).toContain('turbo.json')
   })
 
-  // 这两份登记数据只被常驻检查读（依赖方向检查读约束登记，收工钩子读集成策略），没有成员的构建或测试读它们。
   it.each(['docs/architecture/constraints.json', 'docs/engineering/integration-policy.json'])(
     '登记数据 %s：只需常驻检查，不选任何成员，不判全量',
     path => {
@@ -385,13 +386,10 @@ describe('影响面计划（真实规则）', () => {
     ])
     expect(docs.members).toEqual([])
     expect(docs.test).toEqual([])
-    // loop-canary.spec.ts 把这份 README 复制进临时仓、改它的 revision 行再断言修订次数。
     const fixture = plan([
       'tools/repo-toolchain/tests/fixtures/loop-canary/repo/.meta_harness/design/product/canary/README.md',
     ])
-    // 夹具目录同时被 dev-flow、test-runner 的测试读到，读者规则排在成员归属之前；归属仍记着 repo-toolchain。
     expect(fixture.files[0]).toMatchObject({ category: 'reader', owner: 'tools/repo-toolchain' })
-    // 依赖 repo-toolchain 的三个工具成员按 turbo 的下游规则一起选中。
     expect(fixture.test).toEqual([
       'tools/repo-toolchain',
       'tools/dev-flow',
@@ -429,9 +427,6 @@ describe('影响面计划（真实规则）', () => {
   })
 })
 
-// #793 按测量收窄的三条规则：每条有正例与反例；硬线（改代码跑影响面测试、未识别文件全量）不变。
-// 锁文件按 importer 映射（#953 W2-C1）：成员清单加上锁文件夹具里的四个 importer，再加一个依赖 c 的成员 d 看下游；
-// turbo 的 `--affected` 在这里按「成员目录里有文件改动」模拟，所以只改锁文件时它什么都不选，映射到的成员全靠计划并进去。
 const LOCK_MEMBERS = [
   ...MEMBERS,
   member('packages/a'),
@@ -546,7 +541,6 @@ describe('锁文件按 importer 映射到成员（W2-C1）', () => {
     )
   })
 
-  // turbo 把 pnpm-workspace.yaml 当全局依赖：它一改，`--affected` 选中全部成员。那份名单这时不带信息。
   const withTurboSelectingAll = (paths: string[]): CheckPlan =>
     planCheck(
       paths,
@@ -588,7 +582,6 @@ describe('锁文件按 importer 映射到成员（W2-C1）', () => {
     ).toThrow('没有给出 turbo 的依赖图')
   })
 
-  // 加新成员的那一类改动：登记数据、两份依赖清单与新成员自己的文件一起改。
   it('登记数据、依赖清单与一个成员的代码一起改：选改了代码的成员、锁文件映射到的成员与它们的下游，不判全量', () => {
     const result = planLock(
       [
@@ -603,7 +596,6 @@ describe('锁文件按 importer 映射到成员（W2-C1）', () => {
     expect(result.test).toEqual(['packages/a', 'packages/c', 'packages/d'])
   })
 
-  // 引擎改了，这次的计划就是用改过的引擎算的：锁文件判定、接续与运行记录的模块都不能给自己划范围。
   const ENGINE_FILES = [
     'tools/test-runner/src/testing/lockfile-impact.ts',
     'tools/test-runner/src/testing/pnpm-lockfile.ts',
@@ -638,7 +630,6 @@ describe('锁文件按 importer 映射到成员（W2-C1）', () => {
     }))
     expect(direct.mode).toBe('full')
     expect(direct.reason).toContain('tools/test-runner 自己的依赖变了，引擎不能给自己划范围')
-    // repo-toolchain 的下游里有 test-runner（成员清单里 test-runner 依赖它）。
     const downstream = planLock(['pnpm-lock.yaml'], () => ({
       kind: 'members',
       members: [{ path: 'tools/repo-toolchain', importerChanged: true, packages: [] }],
@@ -728,22 +719,15 @@ describe('按测量收窄的规则（#793）', () => {
   })
 
   it('N2：被测试读的成员根目录文档按读者规则选中读它的成员，不带下游', () => {
-    const cases = [
-      ['packages/agent/agent-cordis-contract/SPEC.md', 'packages/agent/agent-cordis-contract'],
-      ['packages/common/message/README.md', 'packages/common/message'],
-      ['apps/m2-contract-skeleton/README.md', 'apps/m2-contract-skeleton'],
-      ['apps/m2-contract-skeleton/README_ZH.md', 'apps/m2-contract-skeleton'],
-      ['apps/m2-contract-skeleton/SPEC.md', 'apps/m2-contract-skeleton'],
-    ] as const
-    for (const [path, reader] of cases) {
-      const result = plan([path])
-      expect(result.files[0], path).toMatchObject({ category: 'reader', documentOf: reader })
-      expect(result.members, path).toEqual([
-        { path: reader, changed: [], reads: [{ path, pattern: path }] },
-      ])
-      expect(result.test, path).toEqual([reader])
-      expect(describe_(result), path).not.toContain('只改了文档、不选的成员')
-    }
+    const result = planRead([READ_DOCUMENT])
+    expect(result.files[0]).toMatchObject({ category: 'reader', documentOf: READER })
+    expect(result.members).toEqual([
+      { path: READER, changed: [], reads: [{ path: READ_DOCUMENT, pattern: READ_DOCUMENT }] },
+    ])
+    expect(result.test).toEqual([READER])
+    expect(describeCheckPlan(result, READ_RULES, CONFIG).join('\n')).not.toContain(
+      '只改了文档、不选的成员',
+    )
   })
 
   it('N2：同一成员既改文档又改代码，照旧选中它与它的下游', () => {
@@ -770,23 +754,12 @@ describe('按测量收窄的规则（#793）', () => {
     expect(result.reason).toContain('只改了文档、不选的成员 1 个')
   })
 
-  it('N2：被读的文档与别处代码一起改：读者只按读者规则选中、不带它的下游；读者是代码下游时两个原因都记', () => {
-    const apart = plan([
-      'packages/agent/agent-cordis-contract/SPEC.md',
-      'packages/common/message/src/a.ts',
-    ])
-    expect(apart.test).toEqual([
-      'packages/agent/agent-cordis-contract',
-      'packages/common/message',
-      'apps/m2-contract-skeleton',
-    ])
-    const both = plan(['apps/m2-contract-skeleton/SPEC.md', 'packages/common/message/src/a.ts'])
-    expect(both.members.find(entry => entry.path === 'apps/m2-contract-skeleton')).toEqual({
-      path: 'apps/m2-contract-skeleton',
+  it('N2：被读的文档与别处代码一起改：读者是代码下游时两个原因都记', () => {
+    const both = planRead([READ_DOCUMENT, 'packages/core/base/src/a.ts'])
+    expect(both.members.find(entry => entry.path === READER)).toEqual({
+      path: READER,
       changed: [],
-      reads: [
-        { path: 'apps/m2-contract-skeleton/SPEC.md', pattern: 'apps/m2-contract-skeleton/SPEC.md' },
-      ],
+      reads: [{ path: READ_DOCUMENT, pattern: READ_DOCUMENT }],
       downstream: true,
     })
   })
@@ -827,8 +800,6 @@ describe('按测量收窄的规则（#793）', () => {
   })
 
   it('N2：turbo 选中了改动解释不了的成员时不拿文档种子的下游，照 turbo 的名单跑：多改一份文档不会让计划变小', () => {
-    // 模拟 turbo 的种子里有这里没认出的改动（例如根 turbo.json 的 globalDependencies 多了一个成员目录外的文件）：
-    // turbo 选中全部在役成员，而改动只有一份常驻文档。
     const all = new Set(
       MEMBERS.filter(entry => !entry.path.includes('.legacy')).map(entry => entry.path),
     )
@@ -848,7 +819,6 @@ describe('按测量收窄的规则（#793）', () => {
     expect(withDocument.reason).toContain('这里解释不了（packages/common/legal-identity')
     expect(withDocument.reason).toContain('照 turbo 的名单跑，没有拿掉文档带出的下游')
     expect(withDocument.test).toEqual(alone.test)
-    // 改动能解释 turbo 的选择时照常拿掉：同一份文档单独改，只需常驻检查。
     expect(plan(['packages/core/base/SPEC.md']).test).toEqual([])
   })
 
@@ -863,15 +833,6 @@ describe('按测量收窄的规则（#793）', () => {
       category: 'global',
       rule: 'tools/test-runner/src/testing/scope.ts',
     })
-  })
-
-  it('模型组架构页被 pi-ai-transport 的测试读：只选它；同目录下别的文档只需常驻检查', () => {
-    const read = plan(['packages/model/docs/architecture.md'])
-    expect(read.files[0]).toMatchObject({ category: 'reader' })
-    expect(read.test).toEqual(['packages/model/pi-ai-transport'])
-    const other = plan(['packages/model/docs/other.md'])
-    expect(other.files[0]).toMatchObject({ category: 'resident', rule: 'packages/**/*.md' })
-    expect(other.test).toEqual([])
   })
 
   it('格式脚本与它的配置：选中跑格式自测的 repo-toolchain，不再只算常驻检查', () => {
@@ -893,8 +854,6 @@ describe('按测量收窄的规则（#793）', () => {
   })
 
   it('repo-toolchain 的源码与夹具被 dev-flow、test-runner 的测试经相对路径读到：按读者规则选中；无关文档不选', () => {
-    // 真实依赖图里这两个成员装的是 npm 上钉住的 repo-toolchain，没有指向本地成员的边，
-    // 所以这里的成员清单也不给它们依赖，只靠读者规则选中。
     const members = MEMBERS.map(entry =>
       entry.path === 'tools/dev-flow' || entry.path === 'tools/test-runner'
         ? { ...entry, dependencies: [] }
@@ -938,7 +897,6 @@ describe('真实仓库', () => {
 
   it(
     'turbo 的依赖图：给出成员连同依赖它的成员，点名几个成员就带上几个成员的下游',
-    // 起 turbo 子进程：真实的 `--filter=...<包>` 只有 turbo 能核对，造出来的依赖图测不到。
     { tags: ['slow'] },
     () => {
       const members = listWorkspaceMembers(fileTree(ROOT), RULES.excludeRoots)
@@ -1080,7 +1038,6 @@ describe('取改动', () => {
     mkdirSync(join(root, 'packages/a/y/src'), { recursive: true })
     run(root, 'mv', 'packages/a/x/src/old.ts', 'packages/a/y/src/new.ts')
     put(root, 'untracked.txt', '')
-    // 非 ASCII 的文件名要原样给出：git 缺省会给它加引号、转义成八进制，那样就归不了类、整份判全量。
     put(root, 'docs/本机实测.md', '')
     run(root, 'add', 'docs/本机实测.md')
     expect(changedFiles(root, base)).toEqual([
@@ -1126,7 +1083,6 @@ describe('取改动', () => {
 })
 
 describe('计划打印的常驻清单', () => {
-  /** 步骤表（`check-steps.ts`）里不按计划跑的步骤，按表的顺序；`scripts/check.sh` 只转发到这张表。 */
   function residentStepsOfCheckTable(): string[] {
     return residentStepNames(
       checkSteps({ runnerCli: 'cli.ts', devFlowIntegrationCli: 'integration-cli.ts' }),

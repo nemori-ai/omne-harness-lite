@@ -1,5 +1,4 @@
 /** @module-tag slow */
-// Slow: every case runs a real Windows PowerShell 5.1 Runspace in node-pty's bundled ConPTY.
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -9,9 +8,7 @@ import type { CommandOutcome, TerminalRef } from '@omne-harness/execution-enviro
 import { outputOf, psString, terminalFixture, visible } from './terminal-fixture.ts'
 
 const system = process.env['SystemRoot'] ?? 'C:\\Windows'
-/** A writer thread in the shell process: it writes its text once the release file exists. */
 const lateWriter = `using System;using System.IO;using System.Threading;public static class LateOutput { public static void Start(string release,string written,string text) { Thread thread=new Thread(delegate() { while(!File.Exists(release))Thread.Sleep(10);Console.Write(text);File.WriteAllText(written,"yes"); }); thread.IsBackground=true;thread.Start(); } }`
-/** Text without the line ends ConPTY renders, so a wrapped line reads as one. */
 const text = (bytes: Uint8Array) => visible(bytes).replace(/[\r\n]/gu, '')
 
 async function session(root: string, options: Parameters<typeof terminalFixture>[1] = {}) {
@@ -44,7 +41,6 @@ function between(result: CommandOutcome) {
   return result.output.between
 }
 
-/** Starts a writer in the shell, lets it write after the invocation ended, and waits for it. */
 async function writeBetween(
   root: string,
   run: Awaited<ReturnType<typeof session>>['run'],
@@ -110,7 +106,6 @@ it('gives each of 30 invocations exactly its own two lines and nothing between t
   const root = await realpath(await mkdtemp(join(tmpdir(), 'omne-terminal-order-')))
   const { f, run } = await session(root)
   try {
-    // ConPTY's own start-up sequences come before the first segment; they are not under test.
     await run('')
     const misplaced: unknown[] = []
     for (let i = 0; i < 30; i++) {

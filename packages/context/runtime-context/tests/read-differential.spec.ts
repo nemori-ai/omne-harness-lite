@@ -1,14 +1,3 @@
-// Machine guard of the RcRead model (runtime-context-contract verification/models/RcRead.tla),
-// properties P4 (tenant isolation along the parent chain) and P5 (the read cache never changes a
-// read). Two mechanisms, one with a read cache of two entries and one without, run the same
-// seeded sequence of publications, producer replacements and reads. Every read of the cached
-// instance must equal the read of the uncached one, and a reader of one tenant must only see the
-// values of its own tenant. A failure prints the seed.
-//
-// Scopes: a1 (tenant A), b1 (tenant B), a2 (A, parent a1) and bx (B, parent a1). The key is
-// registered in all four; only a1 and b1 are published. a2 inherits a1's value; bx must not,
-// because its parent belongs to another tenant (RC-03: every hop checks its own tenant).
-// a1 never begins a replay here: a child read while its parent replays is a known defect.
 import { describe, expect, it } from 'vitest'
 import type {
   ContextBlockKey,
@@ -32,7 +21,6 @@ import {
   type Harness,
 } from './support.js'
 
-/** A small deterministic generator (mulberry32), so a failing sequence can be replayed. */
 function random(seed: number) {
   let a = seed >>> 0
   const next = () => {
@@ -57,7 +45,6 @@ const a1 = scope('diff/a1')
 const b1 = scope('diff/b1')
 const a2 = child('diff/a2', 'diff/a1')
 const bx = child('diff/bx', 'diff/a1')
-/** The scopes and the tenant of each; the readers are made in this order. */
 const SCOPES: readonly [ScopeRef, TenantId][] = [
   [a1, tenantA],
   [b1, tenantB],
@@ -75,7 +62,6 @@ const declarations = new Map([
   [tenantA, supplied(KEY)],
   [tenantB, supplied(KEY)],
 ])
-/** The one declaration object of a tenant, so a new producer only changes the generation. */
 function declarationOf(tenant: TenantId) {
   const declaration = declarations.get(tenant)
   if (!declaration) throw new Error('no declaration')
@@ -95,7 +81,6 @@ async function world(readCacheEntries: number): Promise<World> {
   return { h, handles, readers }
 }
 
-/** The read without its cursor, which names the instance and is not part of the read value. */
 function normal(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(normal)
   if (value === null || typeof value !== 'object') return value
@@ -106,7 +91,6 @@ function normal(value: unknown): unknown {
   )
 }
 
-/** Every value a successful read discloses. */
 function valuesOf(read: unknown): number[] {
   const found: number[] = []
   const walk = (v: unknown): void => {
@@ -136,7 +120,6 @@ async function apply(w: World, op: Op): Promise<unknown> {
     })
   }
   if (op.kind === 'replace') {
-    // The same declaration object: only the generation changes (runtime-context SPEC 读取缓存).
     const next = await producer(w.h, op.tenant, KEY, { declaration: declarationOf(op.tenant) })
     w.handles.set(op.tenant, next)
     return null
@@ -160,7 +143,6 @@ function schedule(seed: number, length: number): Op[] {
   return ops
 }
 
-/** Runs one seed on a cached and an uncached instance; returns the violations found. */
 async function differential(seed: number, length: number): Promise<string[]> {
   const cached = await world(2)
   const plain = await world(0)
@@ -195,13 +177,11 @@ describe('RcRead guard: the read cache and the parent chain refine the model', (
   it('the sequences reach an inherited value, a replaced generation and a cache hit', async () => {
     const w = await world(2)
     await apply(w, { kind: 'publish', tenant: tenantA, value: 100 })
-    // a2 inherits a1's value through its parent; bx does not.
     expect(valuesOf(await apply(w, { kind: 'read', reader: 2 }))).toEqual([100])
     expect(valuesOf(await apply(w, { kind: 'read', reader: 3 }))).toEqual([])
     expect(valuesOf(await apply(w, { kind: 'read', reader: 0 }))).toEqual([100])
     expect(valuesOf(await apply(w, { kind: 'read', reader: 0 }))).toEqual([100])
     expect(w.h.diagnostics.some(d => d.kind === 'read-cache' && d.result === 'hit')).toBe(true)
-    // A new generation drops the stored value; the next read does not serve it.
     await apply(w, { kind: 'replace', tenant: tenantA })
     expect(valuesOf(await apply(w, { kind: 'read', reader: 0 }))).toEqual([])
   })

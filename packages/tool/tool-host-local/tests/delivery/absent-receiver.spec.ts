@@ -1,7 +1,3 @@
-// No receiver is registered for the frozen consumer owner (R2-D273): the delivery stays owed, each
-// look that finds none, or an unavailable one, writes one named warning, and the next look waits a backoff that doubles up
-// to its cap. The worker runs on the memory ledger and a scripted position; the clock of the pacing
-// is a test reading. Nothing here proves the Cordis registration; tool-cordis-contract tests it.
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it, vi } from 'vitest'
 import { ABSENT_RECEIVER, createLocalToolResultDelivery } from '../../src/result-delivery.ts'
@@ -37,7 +33,6 @@ describe('a delivery whose consumer owner has no registered receiver', () => {
     expect(warnings[0]).toContain('stays owed')
     expect(warnings[0]).toContain('in 1000 ms')
 
-    // Inside the wait the worker does not look again and writes nothing.
     for (let i = 0; i < 5; i += 1) expect(ok(await drive())).toEqual({ pending: 1 })
     expect(lookup).toHaveBeenCalledTimes(1)
     expect(warnings).toHaveLength(1)
@@ -51,11 +46,9 @@ describe('a delivery whose consumer owner has no registered receiver', () => {
     expect(warnings[2]).toContain('in 3000 ms')
     now = 6000
     await drive()
-    // The cap holds.
     expect(warnings[3]).toContain('in 3000 ms')
     expect(f.pushes).toHaveLength(0)
 
-    // Once a receiver is there and the wait is over, the delivery goes and no warning follows.
     registered = true
     now = 9000
     expect(ok(await drive())).toEqual({ pending: 0 })
@@ -100,7 +93,6 @@ describe('a delivery whose consumer owner has no registered receiver', () => {
     await f.drive(worker)
     await f.drive(worker)
     expect(lookup).toHaveBeenCalledTimes(2)
-    // A definite failure is not paced, and it is not silent either (R2-D327): one warning per look.
     expect(warnings).toHaveLength(2)
     for (const warning of warnings) {
       expect(warning).toContain('failed definitively')

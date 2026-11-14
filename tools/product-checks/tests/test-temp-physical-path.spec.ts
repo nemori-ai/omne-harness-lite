@@ -25,10 +25,8 @@ describe('test-temp-physical-path', () => {
     "const dir = mkdtempSync(join(ci ? tmpdir() : root, 'x-'))",
     "const dir = mkdtempSync(join(ci ? root : tmpdir(), 'x-'))",
     "const dir = await mkdtemp(join(await Promise.resolve(tmpdir()), 'x-'))",
-    // 类型断言只是包裹，外层不是 realpath 调用时照样报出。
     "const dir = record(mkdtempSync(join(tmpdir(), 'x-')) as string)",
     "const dir = mkdtempSync(join(tmpdir(), 'x-'))! satisfies string",
-    // 两段式不算：建出来的原路径仍在作用域里，可能被直接比较。
     "const dir = mkdtempSync(join(tmpdir(), 'x-'))\nconst real = realpathSync(dir)",
   ])('rejects a temporary directory that keeps the symlinked path: %s', text => {
     const violations = check(text)
@@ -64,14 +62,12 @@ describe('test-temp-physical-path', () => {
     "const dir = mkdtempSync(join(ci ? root : realpathSync(tmpdir()), 'x-'))",
     "const dir = await mkdtemp(join(await realpath(tmpdir()), 'x-'))",
     "const dir = mkdtempSync(join(realpathSync(process.env.TMPDIR!), 'x-'))",
-    // 不在系统临时目录下：仓库 tmp/ 或调用方给的目录，本规则不管。
     "const dir = mkdtempSync(join(root, 'tmp', 'x-'))",
     'function make(base: string) { return mkdtempSync(join(base, "x-")) }',
   ])('accepts a physical path or a base outside the system temporary directory: %s', text => {
     expect(check(text)).toEqual([])
   })
 
-  // `.mjs` 测试按 JS 语法解析：同一段 JS 源码，不取物理路径时报出，取了时放过。
   it('checks JavaScript tests with JavaScript syntax', () => {
     const path = 'tools/sample/tests/sample.test.mjs'
     const imports = [

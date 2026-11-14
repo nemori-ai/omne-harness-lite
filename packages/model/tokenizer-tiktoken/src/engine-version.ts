@@ -5,7 +5,6 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 
 const ENGINE = 'js-tiktoken'
 
-/** How many directories above the resolved entry file the engine manifest may lie. */
 const MAX_MANIFEST_DEPTH = 4
 
 function manifestVersion(text: string): string | undefined {
@@ -20,7 +19,6 @@ function isMissingFile(error: unknown): boolean {
   return error instanceof Error && Reflect.get(error, 'code') === 'ENOENT'
 }
 
-/** The text of `package.json` in the directory, or `undefined` when the directory has none. */
 function readManifest(directory: string): string | undefined {
   try {
     return readFileSync(join(directory, 'package.json'), 'utf8')
@@ -30,7 +28,6 @@ function readManifest(directory: string): string | undefined {
   }
 }
 
-/** Walks up from the resolved `js-tiktoken/lite` file to the manifest of the engine package. */
 function readInstalledVersion(): Outcome<string, string> {
   let directory = dirname(createRequire(import.meta.url).resolve(`${ENGINE}/lite`))
   for (let depth = 0; depth <= MAX_MANIFEST_DEPTH; depth += 1) {
@@ -44,10 +41,6 @@ function readInstalledVersion(): Outcome<string, string> {
 
 let installed: Outcome<string, string> | undefined
 
-/**
- * The version of the `js-tiktoken` package that this module actually loads. The manifest is read
- * once per process, on the first tokenizer initialization. A count never reads it.
- */
 export function installedEngineVersion(): Outcome<string, string> {
   installed ??= readInstalledVersion()
   return installed

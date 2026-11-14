@@ -1,7 +1,5 @@
 # Agent 定义与工作推进的角色与交接
 
-本页保存已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用的技术设计。采用不等于阶段选择或实现支持。四类成员已初始化。两个契约包已经实现并有测试：agent-contract 导出契约类型、声明与输出判断、身份解码与结构判定和资产正文契约，agent-cordis-contract 导出 Cordis 服务定义和目录插件。通用实现 agent 与具体装配 agent-host-local 仍是模板，Loop、runtime、提供者和宿主插件尚未实现。
-
 ## 拥有者与输入
 
 Agent 能力拥有定义专有声明、Loop 求值、推进协调和扩展位置协议。共同资产持有、版本、同标识来源与锁定由资产治理提供；共同权限与准入由授权责任提供；装配求值和有效构成切换由 assembly 协调；Session 拥有逻辑工作、推进资格、输入承接及终态。
@@ -41,6 +39,4 @@ flowchart LR
 箭头表达输入与结果协作，不规定源码互引或共同寿命。消费者通过公开契约及显式依赖使用能力。Cordis 接入遵循共同 IC，不能用 scope、fiber 或 disposer 代替租户隔离、业务提交或执行取消。
 
 
-Agent 内部按纯求值、效果协调和宿主集成分责。纯求值只读有类型的决策事实；协调者消费 Model/Tool 原调用和交付协议；集成者负责外部工作映射与持久参加者。权限策略、Context 的压缩计划、Tool 内部等待和模型内部重试各有原拥有者。完整分类归[对象模型](../../../packages/agent/agent-contract/docs/object-model.md#跨域概念与内部可见范围)。
-
-完整行为读[能力组](../../../packages/agent/README.md)，精确机制与流程随成员维护。
+Agent 内部按纯求值、效果协调和宿主集成分责。纯求值只读有类型的决策事实；协调者消费 Model/Tool 原调用和交付协议；集成者负责外部工作映射与持久参加者。权限策略、Context 的压缩计划、Tool 内部等待和模型内部重试各有原拥有者。完整分类归[对象模型](../../../packages/agent/SPEC.md#领域边界)。

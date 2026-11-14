@@ -1,9 +1,3 @@
-// The world of the agentRequests and agentModelContext tests. Real: the Request Context registry and
-// operation group with the default strategies, the Runtime Context mechanism, the history and
-// adoption doubles of request-context-contract. Doubles: the holder parts (K-RQ), the reader
-// eligibility handoff (K-RC), the Model request preparation, and the Model preparation resources,
-// which stand in for the X-3 key until it is delivered. Every call the adapter makes downstream is
-// counted here.
 import type {
   ConsumerRef,
   DurableEvidence,
@@ -110,7 +104,6 @@ export const evidence = (record: string): DurableEvidence => ({
   revision: '1',
   digest: `digest-${record}`,
 })
-/** The durable evidence of the history head that the holder resolves. */
 export const HEAD = evidence('history-head')
 
 export function userMessage(index: number, text: string): Message {
@@ -144,7 +137,6 @@ export function authority(attachment = 'attachment-1', run = execution) {
     source: evidence('authority'),
   }
 }
-/** A meter whose input tokens grow with the number of messages in the measured input. */
 export const meterBy =
   (perMessage: number): MeterScript =>
   input => ({ ok: fixtureBudget(String(input.assembled.messages.length * perMessage)) })
@@ -165,17 +157,13 @@ export const position: ConsumerRef = {
 export type WorldOptions = Readonly<{
   tenant?: TenantId
   rows?: readonly HistoryRow[]
-  /** The index of the last row the holder resolves the head to; the rows after it are not yet written. */
   upper?: number
   meter?: MeterScript
   tools?: ToolsSource<string>
   stepResults?: StepResultSource<string>
-  /** The reader of definition instructions (the fourth group); absent leaves the factory default. */
   definitions?: DefinitionSource<string>
   capacity?: number
-  /** The observer of the measurement events; absent leaves both factories without one. */
   measure?: ContextMeasure
-  /** Wraps the operation group the adapter gets, to script or observe one outcome. */
   operations?: (real: AssemblyOperations<string>) => AssemblyOperations<string>
 }>
 
@@ -190,11 +178,6 @@ const TRACKED_ROW_FIELDS = new Set([
   'bytes',
 ])
 
-/**
- * What the history port returned and which rows the derivations then read. Every row a page hands
- * out is wrapped, so the observation comes from the functions that really process the rows and not
- * from what the test expects them to process.
- */
 function createHistoryObservation() {
   let pages = 0
   let returned = new Set<string>()
@@ -225,25 +208,20 @@ function createHistoryObservation() {
       returned = new Set()
       touched = new Map()
     },
-    /** The counts since the last reset. */
     counts() {
       const ofField = (field: string) =>
         [...touched.values()].filter(fields => fields.has(field)).length
       return {
         pageCalls: pages,
         returnedRows,
-        /** Distinct rows whose message a derivation read: validation, filtering and projection. */
         messageRows: ofField('message'),
-        /** Distinct rows read by any derivation. */
         touchedRows: touched.size,
-        /** Distinct rows read although this round's pages did not return them. */
         olderRowsTouched: [...touched.keys()].filter(seq => !returned.has(seq)).length,
       }
     },
   }
 }
 
-/** Counts the calls of every downstream port and gives the adapter the real ones behind them. */
 export async function createWorld(options: WorldOptions = {}) {
   const tenant = options.tenant ?? tenantOf('1')
   const allRows = options.rows ?? [historyRow(0, 'read it'), historyRow(1, 'thanks')]
@@ -289,7 +267,6 @@ export async function createWorld(options: WorldOptions = {}) {
     },
     compactionContext: input => f.history.compactionContext(input),
   }
-  // A holder that admits the access yet resolves the head to a target of another tenant.
   let resolvedTenant: TenantId = tenant
   const parts: ContextHolderParts<string> = {
     history: observedHistory,
@@ -314,7 +291,6 @@ export async function createWorld(options: WorldOptions = {}) {
     },
   }
 
-  // Runtime Context: the real mechanism, its scope bound to the tenant, one model eligibility.
   const ports = createTestAuthorityPorts<string>()
   const rc = createRuntimeContext<string>({ trust: ports })
   ports.bind(f.target.scope, tenant)
@@ -373,7 +349,6 @@ export async function createWorld(options: WorldOptions = {}) {
     },
   }
 
-  // Request Context: the real registry with the default strategies.
   const registry: ContextSourceRegistry<string> = createContextSourceRegistry<string>({
     principalBinding: createTestingPrincipalBinding<string>(),
     registrationAuthority: { check: async () => ({ kind: 'allowed' }) },
@@ -414,7 +389,6 @@ export async function createWorld(options: WorldOptions = {}) {
     },
   }
 
-  // Model: the request preparation double, with a plan for the fixture profile.
   const transport = createScriptedTransport({
     receipt: { supplier: owner, representation: owner, payloadDigest: 'none' },
     facts: [],
@@ -439,8 +413,6 @@ export async function createWorld(options: WorldOptions = {}) {
     parameterAdoptions: [],
   }
   let planAnswer: Parameters<typeof modelDouble.setPlan>[1] = { ok: plan }
-  // The double answers only planned inputs; the plan is set for the input as it arrives, so the
-  // double still runs its own checks of tenant, profile, modality and replay on every call.
   const model = {
     prepare: async (input: Parameters<typeof modelDouble.preparation.prepare>[0]) => {
       counts.model++
@@ -553,7 +525,6 @@ export async function createWorld(options: WorldOptions = {}) {
   }
   const passed = [must(decodePassageId('passage-1'))]
   const adopted = f.sources.adopted as MemoryAdoptedSource<string>
-  /** Makes one candidate the fixed adoption of the target, as the session side would. */
   function adopt(candidate: RequestCandidate, continued = false) {
     const call = must(decodeModelCallId('mcall_fixed'))
     const caller = { tenant, call }
@@ -577,9 +548,7 @@ export async function createWorld(options: WorldOptions = {}) {
 
   return {
     f,
-    /** The history port and the rows it handed out, as the derivations then read them. */
     observation,
-    /** The holder resolves the head to this row from now on; the rows exist already. */
     growTo(index: number) {
       upper = index
     },
@@ -588,7 +557,6 @@ export async function createWorld(options: WorldOptions = {}) {
     counts,
     parts,
     adopted,
-    /** From now on the holder resolves the history head to a target of this tenant. */
     resolveTo(next: TenantId) {
       resolvedTenant = next
     },
@@ -604,21 +572,17 @@ export async function createWorld(options: WorldOptions = {}) {
       answer({ kind: 'current', eligibility: id })
     },
     answer,
-    /** Each later handoff call first switches to the next of these answers. */
     answerInTurn(results: Handed[]) {
       queued = [...results]
     },
     registry,
     candidates,
-    /** The source sets the adapter handed to the registry, in order. */
     registered,
     setRegisterAnswer(next: typeof registerAnswer) {
       registerAnswer = next
     },
     modelDouble,
-    /** The Model request preparation the adapter calls, counted. */
     model,
-    /** What the Model double answers from now on for every planned input. */
     planModel(next: typeof planAnswer) {
       planAnswer = next
     },

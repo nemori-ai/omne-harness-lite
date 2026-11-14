@@ -1,5 +1,3 @@
-// Setting views as `assets/v1` gives them: the Shell tool's call permission, and one item of each
-// other kind.
 import type { SettingView } from '@omne-harness/assets-protocol'
 
 type Permission = Extract<SettingView, { kind: 'permission' }>

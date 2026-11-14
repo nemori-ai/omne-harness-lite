@@ -1,7 +1,5 @@
 /**
  * @module-tag slow
- * Starts the TypeScript compiler as a child process. The browser fixture compiles the client core
- * from source with the DOM library and without Node types (#1249 C15, RFC-0015 I-18).
  */
 import { spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'

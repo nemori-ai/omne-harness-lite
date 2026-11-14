@@ -19,6 +19,6 @@
 本目录现在没有文件。会话观察的形式模型三（`SessionObservation.tla` 与四份 `obs-correct`、`obs-dropWhileBusy`、`obs-noDiscard`、`obs-keepOldTarget` 配置）暂在接入组，待搬到本目录，因为接入组另一个会话正在改那里：
 
 - 模型：[SessionObservation.tla](../../../../access/server-entry/verification/models/SessionObservation.tla)
-- 说明与运行命令：[接入组模型目录的 README](../../../../access/server-entry/verification/models/README.md)
+- 说明与运行命令：[接入组的形式化对照页](../../../../access/server-entry/verification/formal-mapping.md)
 
 TLC 在原地运行。

@@ -4,7 +4,6 @@ export type NodeFailureCategory = Extract<FailureCandidate, { kind: 'node-failed
 
 const origins = new WeakMap<Failure, NodeFailureCategory>()
 
-/** Keep local provenance private. Neither diagnostic text nor a port's owner grants it. */
 export function localFailure(category: NodeFailureCategory, failure: Failure): Failure {
   const local = snapshotFailure(failure)
   origins.set(local, category)

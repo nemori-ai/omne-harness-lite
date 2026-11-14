@@ -39,7 +39,6 @@ export type LayeredRequest = Readonly<{
   layers: RequestLayers
   messages: readonly Message[]
   anchorSource: Placement['anchorSource']
-  /** The stable parts of this placement, for a later call of the same principal and purpose. */
   stable: Readonly<{
     identity: SnapshotIdentity
     split: NonNullable<CachedAssemblyMaterial['split']>
@@ -47,7 +46,6 @@ export type LayeredRequest = Readonly<{
 }>
 type Split = CachedAssemblyMaterial['split']
 
-/** The row of a sequence: rows of one epoch are numbered from 0 without a gap. */
 function rowAt(rows: readonly HistoryRow[], seq: HistorySequence): HistoryRow | undefined {
   const direct = rows[Number(seq)]
   return direct?.seq === seq ? direct : rows.find(r => r.seq === seq)
@@ -65,11 +63,6 @@ function splitFull(messages: readonly ProjectedMessage[], anchor: SnapshotAnchor
     ),
   }
 }
-/**
- * The split of a view that is the cached view plus appended messages: the earlier head and body are
- * kept, and only the messages after the earlier anchor are classified. An anchor that moved
- * backwards, or another epoch, splits the whole view again.
- */
 function splitFrom(
   cached: CachedAssemblyMaterial,
   messages: readonly ProjectedMessage[],

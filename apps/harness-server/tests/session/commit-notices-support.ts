@@ -1,10 +1,3 @@
-// The commit notices of the session log on the release tree (#1230, RFC-0015 §8「会话观察」): a
-// listener of `session-cordis-contract/committed` on the root of the formal assembly, the batches of
-// the session log as the Session storage holds them (one per revision, read only), and the table
-// that puts the two side by side. No vitest import: the demonstration script uses this file too.
-//
-// The log is read from the Session SQL storage (`sl_entry`), the one place that writes it: every
-// revision and every entry kind, whatever a history face would show to a reader.
 import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -22,16 +15,13 @@ export type Notice = Readonly<{
   kinds: readonly string[]
 }>
 
-/** One revision of the session log: its entry kinds, without repeats, in their first order. */
 export type Batch = Readonly<{ revision: string; kinds: readonly string[] }>
 
 export type NoticeRecorder = Readonly<{
-  /** The notices received so far, in the order they arrived. */
   notices: () => readonly Notice[]
   stop: () => void
 }>
 
-/** Listens on the root of the assembly; `onNotice` is called for each notice as it arrives. */
 export function recordNotices(scope: Context, onNotice?: (notice: Notice) => void): NoticeRecorder {
   const received: Notice[] = []
   const stop = scope.root.on(
@@ -55,7 +45,6 @@ function sqliteFiles(dir: string): string[] {
   return files
 }
 
-/** The batches of `session` as the Session storage under `storageRoot` holds them, by revision. */
 export function logBatches(storageRoot: string, session: string): readonly Batch[] {
   const rows: { revision: string; kind: string }[] = []
   for (const file of sqliteFiles(storageRoot)) {
@@ -82,7 +71,6 @@ export function logBatches(storageRoot: string, session: string): readonly Batch
   return [...batches].map(([revision, kinds]) => ({ revision, kinds }))
 }
 
-/** Waits until the log of `session` has a `run.terminal` and has not moved for `quietMs`. */
 export async function settledLog(
   storageRoot: string,
   session: string,
@@ -107,7 +95,6 @@ export async function settledLog(
 
 export type Row = Readonly<{ revision: string; kinds: readonly string[]; notices: number }>
 
-/** One row per revision of the log: its kinds and how many notices named that revision. */
 export function noticeTable(
   batches: readonly Batch[],
   notices: readonly Notice[],
@@ -121,7 +108,6 @@ export function noticeTable(
   }))
 }
 
-/** The table as Markdown lines: revision, the kinds of the batch, and whether it had a notice. */
 export function tableLines(rows: readonly Row[]): string[] {
   return [
     '| 修订 | 这一批的条目种类 | 通知 |',

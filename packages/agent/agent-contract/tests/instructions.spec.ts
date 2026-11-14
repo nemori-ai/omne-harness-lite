@@ -1,7 +1,3 @@
-// The `instructions` member of a definition (SPEC "声明判断", R2-D124): the ordered prompt sections
-// that a definition carries. Each test names the one rule it guards; a definition that breaks only
-// that rule is `malformed` with a detail that names the section, and a definition without the member
-// is judged as before, with no member added.
 import { describe, expect, it } from 'vitest'
 import {
   INSTRUCTION_LIMITS,
@@ -26,8 +22,6 @@ async function refusal(value: unknown) {
   return judged
 }
 
-// Three UTF-8 bytes per character, one UTF-16 unit each: the unit limit of the declaration (10000)
-// does not see the overflow, the byte limit of a section must.
 const CJK = '码'
 
 describe('an accepted definition with instructions', () => {
@@ -87,26 +81,22 @@ describe('a definition whose instructions break one rule is malformed, and the d
   })
 
   it('a section text over the byte limit, counted in UTF-8 bytes and not in characters', async () => {
-    // 3334 characters: below the unit limit of the declaration, 10002 bytes.
     const over = CJK.repeat(3334)
     expect(over.length).toBeLessThan(INSTRUCTION_LIMITS.maxSectionBytes)
     const judged = await refusal(definition({ instructions: [section('role', over)] }))
     expect(judged.reason).toBe('malformed')
     expect(judged.detail).toMatch(/instructions\[0\]\.text: 10002 UTF-8 bytes exceed 10000/u)
-    // 3333 characters: 9999 bytes, legal.
     expect(
       await judgeAgentDefinition(definition({ instructions: [section('role', CJK.repeat(3333))] })),
     ).toMatchObject({ kind: 'accepted' })
   })
 
   it('a whole declaration over the declaration byte limit, each section within its own', async () => {
-    // 11 sections of 9500 bytes: every section is legal, the document is over 100000 bytes.
     const sections = Array.from({ length: 11 }, (_, index) =>
       section(`s${index}`, 'a'.repeat(9500)),
     )
     const judged = await refusal(definition({ instructions: sections }))
     expect(judged).toStrictEqual({ kind: 'refused', reason: 'malformed' })
-    // One section fewer fits.
     expect(
       await judgeAgentDefinition(definition({ instructions: sections.slice(0, 10) })),
     ).toMatchObject({ kind: 'accepted' })

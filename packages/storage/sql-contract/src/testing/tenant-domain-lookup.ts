@@ -1,16 +1,10 @@
-// The `TenantDomainLookup` double and its conformance suite. The double answers from an explicit
-// table of published entries and records each request; it never registers a tenant. Durability
-// is none. A pass proves the in-memory behavior, not the directory of the session storage composite.
 import type { TenantDomain, TenantDomainLookup, TenantDomainLookupResult } from '../types.ts'
 
 export interface MemoryTenantDomainLookup extends TenantDomainLookup {
   readonly durability: 'none'
   readonly controls: Readonly<{
-    /** Publishes `entry`, as a later snapshot of the directory would. */
     publish(entry: TenantDomain): void
-    /** While `diagnostic` is a string, every lookup answers `unavailable`; `null` restores. */
     setUnavailable(diagnostic: string | null): void
-    /** The received requests in call order. */
     asked(): readonly Readonly<{ tenant: string }>[]
   }>
 }
@@ -43,11 +37,6 @@ export function createMemoryTenantDomainLookup(
   })
 }
 
-/**
- * What the lookup suite needs. `registered` is an entry of the published snapshot; `unregistered`
- * names a tenant that the snapshot does not hold. `setUnavailable`, when offered, makes the
- * snapshot unreadable (`null` restores it).
- */
 export type TenantDomainLookupFixture = Readonly<{
   lookup: TenantDomainLookup
   registered: TenantDomain
@@ -118,7 +107,6 @@ const scenarios: readonly Readonly<{
   },
 ]
 
-/** Runs every scenario on a fresh fixture and reports each verdict; it does not throw on a failure. */
 export async function runTenantDomainLookupConformance(
   fixture: () => TenantDomainLookupFixture | Promise<TenantDomainLookupFixture>,
 ): Promise<TenantDomainLookupVerdicts> {

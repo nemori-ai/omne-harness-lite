@@ -1,6 +1,3 @@
-// 契约 API 快照的三个动作：写快照、核对快照与 dist、对比基线提交上的快照并粗分类。
-// 契约成员清单取契约成员表的 `contracts`，快照落点取 `repo-toolchain.config.json` 的 `contractApi` 一节。
-// 核对与对比只报告：发现不让命令失败，命令只在用法、配置、基线或工具出错时失败。
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
@@ -33,9 +30,7 @@ import {
 } from './api-snapshot.ts'
 
 export interface ContractApiConfig {
-  /** 契约成员表的仓库相对路径；成员清单取各组 `contracts` 的并集。 */
   readonly members: string
-  /** 快照路径模板：`{member}` 是成员目录，`{package}` 是不带 scope 的包名。 */
   readonly snapshot: string
 }
 
@@ -64,7 +59,6 @@ export function readContractApiConfig(path: string = toolchainConfigPath()): Con
   return parseContractApiConfig(readToolchainSection('contractApi', path))
 }
 
-/** 契约成员表各组 `contracts` 的并集，按路径排序；本工具只核对读取所需的形状，不校验表的其余部分。 */
 export function parseContractMembers(text: string): string[] {
   const parsed: unknown = JSON.parse(text)
   const lines =
@@ -95,7 +89,6 @@ export function snapshotPath(
     .replaceAll('{package}', packageName.replace(/^@[^/]+\//u, ''))
 }
 
-/** 一个契约成员与它的快照文件（仓库相对）。 */
 export interface LocatedMember {
   readonly member: ContractMember
   readonly snapshotFile: string
@@ -106,10 +99,6 @@ export interface Contracts {
   readonly problems: readonly MemberProblem[]
 }
 
-/**
- * 契约成员与快照路径的唯一算法，工作树与基线提交共用。契约成员表不存在时 `listMissing` 决定：
- * 工作树上是配置错误（抛出），基线上表示那时还没有契约成员。两个成员落到同一路径时抛出。
- */
 export function locateContracts(
   read: ReadFile,
   config: ContractApiConfig,
@@ -139,7 +128,6 @@ export function locateContracts(
   return { located, problems }
 }
 
-/** 快照摘要：文件字节的 SHA-256，十六进制小写。 */
 export function digest(bytes: Buffer): string {
   return createHash('sha256').update(bytes).digest('hex')
 }
@@ -150,9 +138,7 @@ export type WriteStatus =
       readonly status: 'written' | 'unchanged'
       readonly snapshotFile: string
     }
-  /** 没有 dist：没写。 */
   | { readonly directory: string; readonly status: 'unbuilt'; readonly snapshotFile: string }
-  /** package.json 或 dist 的声明不全、dist 有编译诊断：没写。 */
   | { readonly directory: string; readonly status: 'invalid'; readonly message: string }
 
 export interface WriteRun {
@@ -160,7 +146,6 @@ export interface WriteRun {
   readonly members: readonly WriteStatus[]
 }
 
-/** 契约成员的生成结果，按成员目录排序；生成不了的成员带着原因。 */
 function generate(root: string, config: ContractApiConfig) {
   const contracts = locateContracts(readWorkingFile(root), config, 'throw')
   const run = snapshotContracts(
@@ -178,7 +163,6 @@ function generate(root: string, config: ContractApiConfig) {
 const byDirectory = <T extends { readonly directory: string }>(items: T[]): T[] =>
   items.sort((a, b) => byCodeUnit(a.directory, b.directory))
 
-/** 从 dist 重写契约成员的快照；没有 dist、声明不全或有编译诊断的成员不写，如实列出。 */
 export function writeSnapshots(root: string, config: ContractApiConfig): WriteRun {
   const { typescript, results, problems } = generate(root, config)
   const members: WriteStatus[] = problems.map(item => ({ ...item, status: 'invalid' }))
@@ -211,7 +195,6 @@ function writeOne(
   return { directory, status: 'written', snapshotFile }
 }
 
-/** `sha256` 是快照文件字节的 SHA-256（快照摘要）；文件存在时才有。 */
 export type CheckStatus =
   | {
       readonly directory: string
@@ -219,7 +202,6 @@ export type CheckStatus =
       readonly snapshotFile: string
       readonly sha256: string
     }
-  /** 快照文件与 dist 不一致；差异是快照到 dist，规则同对比基线。 */
   | {
       readonly directory: string
       readonly status: 'differs'
@@ -228,7 +210,6 @@ export type CheckStatus =
       readonly change: ApiChange
       readonly differences: readonly Difference[]
     }
-  /** 快照文件读不回（格式版本不对或被改坏）。 */
   | {
       readonly directory: string
       readonly status: 'unreadable'
@@ -237,7 +218,6 @@ export type CheckStatus =
       readonly message: string
     }
   | { readonly directory: string; readonly status: 'missing'; readonly snapshotFile: string }
-  /** 没有 dist：这次没核对。 */
   | {
       readonly directory: string
       readonly status: 'unbuilt'
@@ -251,7 +231,6 @@ export interface CheckRun {
   readonly members: readonly CheckStatus[]
 }
 
-/** 拿 dist 现场生成的快照与快照文件比；不一致只报告，列出差异与粗分类。 */
 export function checkSnapshots(root: string, config: ContractApiConfig): CheckRun {
   const realRoot = realpathSync(root)
   const { typescript, results, problems } = generate(root, config)
@@ -307,13 +286,11 @@ export type DiffMember =
   | {
       readonly directory: string
       readonly status: 'compared'
-      /** 基线上与工作树上的快照文件；成员那一侧不是契约成员时没有。 */
       readonly before?: string
       readonly after?: string
       readonly change: ApiChange
       readonly differences: readonly Difference[]
     }
-  /** 一侧的 package.json 读不出，或快照文件读不回。 */
   | { readonly directory: string; readonly status: 'invalid'; readonly message: string }
 
 export interface DiffRun {
@@ -325,7 +302,6 @@ export interface DiffRun {
 
 export class BaseRevisionError extends Error {}
 
-/** 基线解析成提交；不是提交时抛 BaseRevisionError，其他 Git 失败原样带着 cause 抛出。 */
 export function resolveCommit(root: string, base: string): string {
   try {
     return git(root, ['rev-parse', '--verify', '--quiet', `${base}^{commit}`]).trim()
@@ -349,7 +325,6 @@ export function git(root: string, args: readonly string[]): string {
   })
 }
 
-/** 提交里的文件：路径不在那棵树里是 undefined；其余 Git 失败照常抛出，不当作没有文件。 */
 export function revisionReader(root: string, commit: string): ReadFile {
   return path => {
     if (git(root, ['ls-tree', '-z', commit, '--', path]) === '') return undefined
@@ -357,11 +332,6 @@ export function revisionReader(root: string, commit: string): ReadFile {
   }
 }
 
-/**
- * 基线提交上的快照文件对工作树的快照文件，逐成员粗分类。只比快照文件，不读 dist。
- * 成员取基线与当前两份契约成员表的并集，各侧的快照路径按各侧的包名算：
- * 只在当前是契约成员的整份算新增，只在基线是的整份算删除，包名变了是 review，两侧都没有快照文件是 review。
- */
 export function diffSnapshots(root: string, config: ContractApiConfig, base: string): DiffRun {
   const realRoot = realpathSync(root)
   const commit = resolveCommit(root, base)
@@ -380,12 +350,10 @@ export function diffSnapshots(root: string, config: ContractApiConfig, base: str
         side(now, working, directory),
       ),
     )
-  // 读不出的成员没有可比的结论，按 review 计。
   const changes = members.map(item => (item.status === 'compared' ? item.change : 'review'))
   return { base, commit, change: strongest(changes), members }
 }
 
-/** 一个成员在一侧（基线提交或工作树）的情况。 */
 export type Side =
   | { readonly kind: 'absent' }
   | { readonly kind: 'invalid'; readonly message: string }
@@ -409,7 +377,6 @@ export function side(contracts: Contracts, read: ReadFile, directory: string): S
   }
 }
 
-/** 一个成员两侧快照的比较；一侧读不出时为 invalid。 */
 export function diffMember(context: ClassifyContext, before: Side, after: Side): DiffMember {
   const directory = context.directory
   if (before.kind === 'invalid')
@@ -435,7 +402,6 @@ function snapshotOn(side: Side): ApiSnapshot | undefined {
   return side.kind === 'present' && side.text !== undefined ? parseSnapshot(side.text) : undefined
 }
 
-/** 两侧快照的差异；包名变了而快照只在一侧时，另记一项 renamed。 */
 function sideDifferences(context: ClassifyContext, before: Side, after: Side): Difference[] {
   const { differences } = classifySnapshots(snapshotOn(before), snapshotOn(after), context)
   const renamed =
@@ -471,7 +437,6 @@ function describeTarget(target: DifferenceTarget): string {
   }
 }
 
-/** 一条 review 依据的一句话；方向类写出两个方向，并附第一条原因。 */
 function describeReason(reason: ReviewReason): string {
   switch (reason.kind) {
     case 'global-scope-change':
@@ -507,7 +472,6 @@ const KIND_WORDS: Readonly<Record<Difference['kind'], string>> = {
   unresolved: '还原的声明有编译诊断',
 }
 
-/** 一项差异的一行说明；review 的项把每条依据写出来，检查器证明过的 additive 项标明。 */
 export function describeDifference(item: Difference): string {
   const head = `${describeTarget(item.target)}：${KIND_WORDS[item.kind]}，${item.change}`
   if (item.change === 'additive')

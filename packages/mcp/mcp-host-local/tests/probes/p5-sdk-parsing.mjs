@@ -1,6 +1,3 @@
-// P5: what the SDK 2.4.0 parsing primitives do with the lines and messages that T2 names.
-// Run from the package root: node tests/probes/p5-sdk-parsing.mjs
-// The SDK resolves from this package's devDependencies (@modelcontextprotocol/client 2.4.0).
 import {
   LATEST_PROTOCOL_VERSION,
   ReadBuffer,
@@ -16,14 +13,12 @@ console.log(
   SUPPORTED_PROTOCOL_VERSIONS,
 )
 
-// ReadBuffer on a non-JSON line followed by an answer.
 {
   const buffer = new ReadBuffer()
   buffer.append(Buffer.from('garbage line\n{"jsonrpc":"2.0","id":"r1","result":{}}\n'))
   const first = buffer.readMessage()
   console.log('ReadBuffer non-JSON then answer: first readMessage ->', JSON.stringify(first))
 }
-// ReadBuffer on a JSON line that is not JSON-RPC: throws, line lost.
 {
   const buffer = new ReadBuffer()
   buffer.append(
@@ -42,7 +37,6 @@ console.log(
     )
   }
 }
-// JSONRPCMessageSchema on an envelope with both result and error.
 for (const [label, value] of [
   ['result+error', { jsonrpc: '2.0', id: 'r1', result: {}, error: { code: -32602, message: 'x' } }],
   ['error without code', { jsonrpc: '2.0', id: 'r1', error: { message: 'no code' } }],
@@ -57,7 +51,6 @@ for (const [label, value] of [
     console.log(`parseJSONRPCMessage ${label} -> throws ${error.name}`)
   }
 }
-// extractWWWAuthenticateParams on the challenges the suite uses.
 for (const header of [
   'Bearer resource_metadata="https://peer.test/.well-known/oauth-protected-resource/mcp", scope="files:read"',
   'Bearer error="insufficient_scope", scope="files:write"',

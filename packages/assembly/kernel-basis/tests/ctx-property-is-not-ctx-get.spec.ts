@@ -1,5 +1,3 @@
-// basis `ctx-property-is-not-ctx-get`：插件里读 `ctx.<键>` 只认沿自己 fiber 链声明过的服务（inject 了或祖先提供），
-// 没声明就抛错；`ctx.get(键)` 不看声明、直接读服务表。两种读法不是同一件事的两种写法。
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { plugin } from './basis-support.ts'

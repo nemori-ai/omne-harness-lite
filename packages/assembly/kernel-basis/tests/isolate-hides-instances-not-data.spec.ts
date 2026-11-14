@@ -1,7 +1,3 @@
-// basis: isolate-hides-instances-not-data（@deepseek-ai/cordis 4.0.4）
-// 断言：两个 isolate 标签下的两个服务实例共享同一数据句柄时，从标签 A 的实例读得到「属于 B」的数据——
-// isolate 隔离的是实例可见性，不是数据。另断言：同标签重复 provide 抛错；同 label 两次 isolate 合流；
-// 子标签的属性解析不回退父标签的已注入实例（ctx.get 则返回 undefined）。
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { plugin } from './basis-support.ts'
@@ -21,7 +17,6 @@ describe('isolate-hides-instances-not-data', () => {
           observed.push('parent')
           await inner.plugin(
             plugin('same-label-child', child => {
-              // 没有自己的 inject 仍能读取父 fiber 的已注入服务；这是隔离断言的正对照。
               expect(Reflect.get(child, 'scoped')).toBe('parent-instance')
               observed.push('same-label-child')
             }),
@@ -80,8 +75,8 @@ describe('isolate-hides-instances-not-data', () => {
         ['store'],
       ),
     )
-    expect(labelInA).toBe('A') // 解析到的是本标签的实例
-    expect(seenFromA).toBe('visible') // 但数据句柄是共享的：隔离没有发生在数据层
+    expect(labelInA).toBe('A')
+    expect(seenFromA).toBe('visible')
   })
 
   it('同标签重复 provide 抛错；同 label 的两次 isolate 合流', async () => {

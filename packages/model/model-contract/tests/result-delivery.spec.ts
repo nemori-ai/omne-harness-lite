@@ -30,9 +30,6 @@ function minted(account: string): TenantId {
   if (!value.ok) throw new Error('Invalid fixture tenant')
   return value.value
 }
-// Decoded fixtures, minted tenants included, are built inside each test, so a decoder fault
-// fails that test rather than the module load or the collection. Test tables hold plain text for
-// the same reason.
 const tenant = () => minted('0')
 const foreign = () => minted('1')
 const callId = () => must(decodeModelCallId('mcall_a'))
@@ -103,8 +100,6 @@ describe('typed delivery relations through the public entry', () => {
     expect(judgeModelDelivery({ tenant: {}, delivery: resultDelivery() })).toEqual({
       failure: { field: 'tenant', reason: 'identity' },
     })
-    // R2-D357: a delivery for another tenant is the same text; the judge locates it in the
-    // presented tenant, and the receiver's own partition answers whether the call exists there.
     expect(resultDelivery(foreign())).toEqual(resultDelivery())
   })
   it('R02 gives malformed reference priority over a result version mismatch', () => {
@@ -269,8 +264,6 @@ describe('receiver qualification and original ownership', () => {
     expect(queries(store)).toEqual([])
   })
   it('R01 answers a delivery of another tenant byte for byte as one whose call never existed', async () => {
-    // R2-D357: tenant A's call is established; tenant B pushes a delivery naming it. B's
-    // partition has no such call, exactly as in a receiver where no tenant ever had it.
     const half = { records: 10, bytes: 50000, attachments: 5000, inFlight: 5 }
     const both = [
       { tenant: tenant(), reserved: half },
@@ -739,7 +732,6 @@ function withAttachment(target = resultDelivery(), ref = true) {
   return { ...target, parts: [{ kind: 'sealed', block: media, trims: [] }] } satisfies ModelDelivery
 }
 function independentBytes(value: unknown): number {
-  // This oracle uses a normalized tree; the adapter writes its canonical string directly.
   function normalize(tree: unknown): unknown {
     if (Array.isArray(tree)) return tree.map(normalize)
     if (tree !== null && typeof tree === 'object')

@@ -1,6 +1,3 @@
-// Test helper: ports that stall one call on a deferred the test settles later. They order the
-// publish boundary and the connection build against other operations, and they let a port
-// answer after the connection bound, so the late arrival is observed.
 import type { Access } from '@omne-harness/legal-identity'
 import type { EndpointRef } from '@omne-harness/mcp-contract'
 import type {
@@ -15,7 +12,6 @@ import { deferred, type Deferred } from './deferred.ts'
 import { releasing, reshapedCredentials, type AnyHandle } from './handles.ts'
 import type { Principal } from './identities.ts'
 
-/** The eligibility port whose `which`-th call waits on `gate` before it answers. */
 export function stallingEligibility(
   port: UseEligibility<Principal>,
   which: number,
@@ -34,11 +30,6 @@ export function stallingEligibility(
   }
 }
 
-/**
- * The eligibility port whose next `check` after `arm()` waits on the gate armed then, and tells
- * the case when that check was reached: the case orders a `closeAll` or a `cancel` against an
- * operation that is waiting on the gate, by what has happened.
- */
 export function armedEligibility(port: UseEligibility<Principal>): Readonly<{
   port: UseEligibility<Principal>
   arm(): Readonly<{ reached: Promise<void>; release: () => void }>
@@ -64,11 +55,6 @@ export function armedEligibility(port: UseEligibility<Principal>): Readonly<{
   }
 }
 
-/**
- * The catalog store whose next `read` after `arm()` waits on the gate armed then, and tells the
- * case when that read was reached: the case orders a `closeAll` against an operation that is
- * waiting on the store, by what has happened.
- */
 export function armedStore<T extends CatalogStore>(
   store: T,
 ): Readonly<{ port: T; arm(): Readonly<{ reached: Promise<void>; release: () => void }> }> {
@@ -94,10 +80,6 @@ export function armedStore<T extends CatalogStore>(
   }
 }
 
-/**
- * The landing whose `start` calls picked by `which` (every call unless given) wait on `gate`
- * before they start the process; `calls` counts the asks.
- */
 export function stallingLanding(
   port: ProcessLanding<Principal>,
   which: Which = from(1),
@@ -116,11 +98,6 @@ export function stallingLanding(
   }
 }
 
-/**
- * The credential port whose `acquire` waits on `gate` before it answers; `shape` replaces the
- * handle it hands out (a handle whose `release` rejects, for instance). `releases` counts the
- * release calls on the shaped handles.
- */
 export function stallingCredentials(
   port: CredentialUse<Principal>,
   shape: (handle: AnyHandle) => AnyHandle = handle => handle,
@@ -143,10 +120,6 @@ export function stallingCredentials(
   }
 }
 
-/**
- * The landing whose processes picked by `which` (in the order they landed; the first is 1) wait
- * on `gate` in `stop()` before they are stopped.
- */
 export function stallingStops(
   port: ProcessLanding<Principal>,
   which: Which,
@@ -175,10 +148,6 @@ export function stallingStops(
   }
 }
 
-/**
- * The credential port whose handles picked by `which` (in the order they were acquired; the
- * first is 1) wait on `gate` in `release()` before they are released.
- */
 export function stallingReleases(
   port: CredentialUse<Principal>,
   which: Which,
@@ -197,11 +166,6 @@ export function stallingReleases(
   }
 }
 
-/**
- * The adoption view whose `endpoint` calls picked by `which` never answer: the port is not even
- * asked. `calls` counts them all. It is the re-read of the critical section that has to be
- * bounded, so the caller does not wait on this forever.
- */
 export function silentAdoption(
   port: AdoptionView<Principal, string>,
   which: Which,
@@ -217,11 +181,6 @@ export function silentAdoption(
   }
 }
 
-/**
- * The adoption view whose `endpoint` reads run `before(call)` first (the first read is 1): a case
- * changes the adoption, or throws so the read breaches, between two reads of one operation, such
- * as the gate's read and the critical section's read again.
- */
 export function adoptionBefore(
   port: AdoptionView<Principal, string>,
   before: (call: number) => void,
@@ -237,10 +196,6 @@ export function adoptionBefore(
   }
 }
 
-/**
- * The adoption view whose `which`-th `endpoint` call asks the port at once but hands the answer
- * over only after `gate`: a read that answered early and is delivered late.
- */
 export function stallingAdoption(
   port: AdoptionView<Principal, string>,
   which: number,

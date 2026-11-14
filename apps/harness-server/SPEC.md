@@ -1,525 +1,308 @@
-# @omne-harness/harness-server 行为规格
+# 发行应用 `@omne-harness/harness-server`
 
-本页是 `apps/harness-server` 的长期行为规格。它写类型表达不了的行为：装载、可见性、就绪、进程输出、退出码和有序关闭。公开类型以 `src/types.ts` 为准，本页不重复类型定义。
+## 总体架构
 
-## 采用状态
+发行应用回答一个问题：一份发行怎样把各领域的提供者装成一棵 Cordis 树，作为一个服务进程运行、对外开放，并有序地停下来。它自己不拥有领域规则。它拥有的是装配：装哪些行，配置怎样进来，行与行之间谁能看见谁，状态放在哪里，什么时候开始接请求，停的时候按什么次序收场。
 
-本页依据 S0 私有应用实施规格 r2（#1001 的输入，见 #991 的采用记录）与 L-APP 波 1 的 DP-1 决定（#978 评论 6561644061，候选 DP1-C1～C19）。S0 模式的规格状态是候选实施输入，不是已接受的产品承诺。S0 只用私有服务键 `s0.<名>`。真实模式用正式服务键。
+| 部分           | 回答的问题                                                                                                                                                       |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 装配入口与装载 | 两层插件树怎样从配置得出，装载前查什么，受信名对哪一行可见，一行什么时候算就绪                                                                                   |
+| 行声明         | 一行装哪个插件、提供与依赖哪些名字、带不带关闭阶段、关闭句柄由谁登记                                                                                             |
+| 入口对象       | 不属于任何行、由入口在第一行装载之前安装的受信对象：主体的签发与核验、时钟、存储宿主、授权与信任来源                                                             |
+| 关闭协调器     | 计划停止时各阶段的次序、共用的截止时间、排空与关闭报告                                                                                                           |
+| 各行的适配     | 把一个领域成员的工厂接到树上，并填入它要的端口                                                                                                                   |
+| 应用自己的组合 | 只有装配者同时看得见两边时才成立的组合：Session 与 Agent 的授权政策、动作的当前权限依据、Model 的宿主权威、发行内置 Tool 的来源权威、Tool 等待与人工介入的决策方 |
+| 本机单用户档   | 一个人在自己的宿主上运行服务时，配置与状态放在哪里，怎样配置一次之后一直复用                                                                                     |
 
-装载器、就绪、行快照差分、关闭协调器和进程入口 `dist/bin.js` 已经实现。启动次序、停止状态后不再调用 `start`、启动期 `start` 抛出的处置三项也已实现，见「有序关闭」节的「启动与停止状态」。真实模式的子命令 `serve`、行声明 `defineRow`、入口对象注册表与装载前检查已经实现。`./cordis` 已导出 S0 替身插件和多条真实行；`executionHost` 由每次运行的入口闭包另行绑定。真实模式的正文在 [docs/real-mode.md](docs/real-mode.md)，本页只写两种模式共同的行为与它们的差别。
+进程入口按子命令分三条路。`serve` 先把发行层与运维层叠成最终配置，校验配置并取得状态目录的独占锁，做完装载前检查、准备好租户目录之后安装入口对象，然后按树的次序逐行装载。全部启用行 ACTIVE 之后，入口按登记次序调用各行的 `start`，接入行开始监听，服务开始接请求。停止请求到达后，关闭协调器按 entry、排空、business、composition、storage 的次序收场，写出关闭报告，撤除根，进程以报告决定的退出码结束。`s0` 用标记替身装载同一张行表，只检查装配本身，启动之后自动停止。`setup` 为本机单用户档配置一次。
 
-驻留桥、宿主文件工厂、租户目录、动作规则、Runtime/Execution 信任入口及采用规划器已有实现。精确行为与生产接线差额见真实模式的行说明。
+## 领域边界
 
-本机单用户档（子命令 `setup` 与 `serve` 的默认值）依据 R2-D345：用户用一条命令配置一次，宿主之后一直复用，Windows 与 Linux 用同一套流程。它已经实现，见[本机单用户档](#本机单用户档)。
+本应用拥有：
 
-## 范围
+- 行表：发行装哪些行，每行用哪种实现（真件、契约替身、标记替身），发行层为每行写哪些配置。行 id 与受信成员的唯一源是[应用装配](../../docs/architecture/runtime/application-assembly.md)页；行快照与受信表从它生成，不手改。
+- 配置怎样进来：发行层与运维层两层；运维者能做的三种操作；配置在边界上的严格校验；跨行必须相等的配置。
+- 状态目录与它的独占锁；本机单用户档的配置位置、状态位置与凭据保管库的位置。
+- 受信名的可见范围，以及入口对象。
+- 对外开放哪些协议：装了哪个接入行，就开放哪个协议。
+- 启动与关闭的次序，以及关闭报告。
+- 上表列出的应用自己的组合。Session 与 Agent 的政策表、系统维护授予表与发行内置 Tool 清单是本应用的源码事实。
+
+本应用不拥有：各领域的规则。会话、Agent、Model、Tool、执行环境、身份与授权、资产与设置、治理、Context、人工介入、接入、遥测与存储的规则在各自包组的规格里，本规格不抄。Cordis 只提供机制：插件树、依赖注入与作用域效应；业务含义与收场次序由领域与本应用组织。
 
-S0 模式经真实 Cordis 4.0.4 装载标记替身，验证五件事：
+它为别人实现的端口：
 
-1. 两层插件树的层叠、运维操作与来源打印。
-2. 受信子树的可见性：子树行能 inject 受信名，根上不能按名取得，根上同名提供者不替换子树实现。
-3. 就绪诊断：PENDING 与 FAILED 分开，直接缺项与阻塞链分开，启动门控在启动时可见。
-4. 行清单与应用装配页的机读差分。
-5. 有序关闭的阶段次序、截止时间与报告闩锁。
-
-S0 不接 HTTP，不创建租户，不打开业务状态根，不读真实秘密，不实现任何业务方法，不提供默认 allow。S0 成功不表示首条路径可运行。
-
-真实模式（子命令 `serve`）以正式服务键装载同一张行表。每行是三种实现之一：`real`、`contract-double`、`s0-double`。真实行与契约替身行经 `defineRow` 自带清单。S0 替身行继续用 `src/s0/stubs.ts` 的表，名字去掉前缀。一个进程只有一种模式。`serve` 启动后等停止请求，S0 启动后自动停止。真实模式的行声明、入口对象、占位规则、IC 映射与各行拿到什么，归 [docs/real-mode.md](docs/real-mode.md)。
-
-## 入口与输入
-
-入口命令是 `harness-server`，即 `node apps/harness-server/dist/bin.js`。`package.json` 的 `bin` 登记这个名字。它不是 `omne` 命令的一部分。
-
-```text
-harness-server s0 --distribution <绝对 JSON 路径> [--operator <绝对 JSON 路径>] --readiness-timeout-ms <正整数> --shutdown-deadline-ms <正整数>
-harness-server serve [--distribution <绝对 JSON 路径>] [--operator <绝对 JSON 路径>] [--readiness-timeout-ms <正整数>] [--shutdown-deadline-ms <正整数>] [--drain-deadline-ms <正整数>] [--state-root <绝对目录>] [--stop-on-stdin-close]
-harness-server setup [--port <n>] [--workspace <目录>] [--shell <可执行文件>] [--reconfigure] [--reset] [--replace-credential]
-```
-
-位置参数里有 `serve` 时，进程走真实模式。没有 `serve` 而有 `setup` 时，进程走本机首次配置，见[本机单用户档](#本机单用户档)。其他任何调用走 S0 的原解析路径：`parseArgs` 允许位置参数，子命令 `s0` 可在任意位置。这条路径的参数、输出、退出码与 stderr 文字与加入 `serve` 之前逐字节相同。`bin.ts` 只解析参数、调用 `runS0`、`runServe` 或 `runSetup` 并设置退出码。
-
-`serve` 的参数都可以省略。省略的参数取下面的值：
-
-| 参数                     | 省略时                                                                                  |
-| ------------------------ | --------------------------------------------------------------------------------------- |
-| `--distribution`         | 随应用发行的 `config/serve.distribution.json`                                           |
-| `--operator`             | 本机单用户档的运维者层，由配置文件与发行层在启动时生成，见[本机单用户档](#本机单用户档) |
-| `--readiness-timeout-ms` | 30000                                                                                   |
-| `--shutdown-deadline-ms` | 10000                                                                                   |
-| `--drain-deadline-ms`    | 120000，见[有序关闭](#有序关闭)的「排空」                                               |
-| `--state-root`           | 本机单用户档的状态目录                                                                  |
-
-只有省略 `--operator` 或 `--state-root` 时，入口才读本机的配置与状态目录。两个都给出时，行为与加入默认值之前相同。
-
-`serve` 另有两个参数：
-
-- `--state-root <绝对目录>`：入口对象需要的状态文件（例如游标签名密钥）放在这个目录下。给出时，入口只校验它是已存在的绝对目录。目录在运维者的用户目录下、靠目录继承的访问控制保护，是前提，不做程序校验（DP1-C19）。
-- `--stop-on-stdin-close`：可选。标准输入关闭时发起计划停止。SIGINT 与 SIGTERM（能投递的平台上）也发起计划停止。Windows 上别的进程不能向 Node 进程投递可处理的 SIGTERM，所以关闭标准输入是那里唯一的跨进程停止方式。
-
-配置是 UTF-8 JSON，解析为 `unknown`，在边界经同步 zod schema 严格校验。校验拒绝未知键、非法值、重复行 id、未知插件导出、未知运维目标和异步 schema。插件清单是显式 allowlist，不按输入字符串动态 import。
-
-## 本机单用户档
-
-本机单用户档是一个人在自己的宿主上运行服务的方式：自己的模型凭据、一个工作区、宿主上的 Shell。用户运行一次 `harness-server setup`，之后 `harness-server serve` 不带参数就能启动。Windows 与 Linux 用同一套命令。实现在 `src/local/`。
-
-### 位置
-
-配置目录与状态目录按下表取值。规则只依赖平台、环境变量和用户目录。
-
-| 条件                           | 配置目录                                       | 状态目录                                           |
-| ------------------------------ | ---------------------------------------------- | -------------------------------------------------- |
-| 设了 `OMNE_SERVER_HOME=<目录>` | `<目录>/config`                                | `<目录>/state`                                     |
-| Windows                        | `%LOCALAPPDATA%\omne\config`                   | `%LOCALAPPDATA%\omne\state`                        |
-| 其他平台（XDG）                | `$XDG_CONFIG_HOME/omne`，默认 `~/.config/omne` | `$XDG_STATE_HOME/omne`，默认 `~/.local/state/omne` |
-
-- `OMNE_SERVER_HOME` 必须是绝对路径。空值或相对路径时，`setup` 与 `serve` 都以退出码 2 拒绝。测试用它把整套位置放进临时目录。
-- `LOCALAPPDATA` 缺失或不是绝对路径时，取 `<用户目录>\AppData\Local`。XDG 变量是相对路径时被忽略，与 XDG 规则一致。
-
-配置目录里只有 `server.json`。状态目录里有下面这些：
-
-| 路径               | 内容                                                                                          | 谁创建                       |
-| ------------------ | --------------------------------------------------------------------------------------------- | ---------------------------- |
-| `model-vault.json` | 秘密保管库（settings-local `./secrets`）。宿主上唯一含秘密的文件；模型凭据是其中的 Model 绑定 | `setup`                      |
-| `workspace/`       | 默认工作区                                                                                    | `setup`                      |
-| `host-files/`      | 执行宿主的状态目录，也是 Shell 的临时目录                                                     | `setup`，缺失时 `serve` 重建 |
-| `storage/`         | `storage` 行的存储根                                                                          | `serve`                      |
-| 游标签名密钥       | 入口对象的状态文件（`--state-root` 即状态目录）                                               | `serve`                      |
-
-### 配置文件
-
-`server.json` 是一个 JSON 对象，必有的键不多也不少：`version`（值为 `1`）、`port`（1 至 65535 的整数）、`workspace`（绝对目录）、`shell`（Shell 可执行文件的绝对路径）、`shellEnvironment`（Shell 的环境变量，名字到值，见[Shell 的环境](#shell-的环境)）。另有一个可选的键 `storage`，见下。文件里没有秘密，除 `storage` 外也没有运维者层的数值。数值留在代码里，所以新的发行版带来新的数值时，用户不需要再运行 `setup`。
-
-可选的键 `storage` 是一个对象，让运维者改存储的三个线程上限。它至多有三个可选的键，都是整数：
-
-| 键                        | 管什么                                         | 缺省 | 取值   |
-| ------------------------- | ---------------------------------------------- | ---- | ------ |
-| `maxWorkers`              | 存储里同时在干活的线程总数，写线程与读线程合计 | 16   | 1 以上 |
-| `reservedWriterSlots`     | `maxWorkers` 中只给写线程的名额                | 4    | 0 以上 |
-| `maxReadWorkersPerDomain` | 每个域里同时在干活的读线程数                   | 2    | 1 以上 |
-
-这三个数限制的是同时在干活的线程数。没写的键取缺省值，不写 `storage` 时三个数都取缺省值。不认识的键、不是整数的值，按 `server.json` 不合格处理（见 [serve 怎样用这份配置](#serve-怎样用这份配置)）。三个数之间的关系由存储成员自己判（[`sqlite-provider` 规格 §12.1](../../packages/storage/sqlite-provider/SPEC.md)，例如 `reservedWriterSlots` 小于 `maxWorkers`）：组合不合法时 `storage` 行进入 `FAILED`，`serve` 退出 3，行状态记录里的错误列出存储成员给的每一条问题。`setup` 不写这个键，也不删已有的这个键。
-
-`omne` CLI 只读这个文件的 `port`，把 `http://127.0.0.1:<port>` 当作默认服务地址，见 CLI 的[服务地址](../cli/SPEC.md#服务地址)。文件的位置与形状归本页。
-
-### setup
-
-`setup` 按下面的次序执行。任一步失败即停止。
-
-1. 解析参数。参数不对时退出 2，标准错误写 `setup: <原因>` 和用法行。未知参数只报 `setup: unrecognized arguments`，不回显参数，因为参数可能就是密钥。`--help` 打印说明，退出 0，不读写宿主。
-2. 按[位置](#位置)取目录。
-3. 读已有的 `server.json`。文件不合格时退出 2，标准错误写明哪一项不合格，文件不变。`--reconfigure` 也不替换不合格的文件。只有 `--reset` 丢弃已有的文件（合格与否都一样），从默认值重新开始，总结里这一行标 `reset`。
-4. 算出要用的设置：已有设置（没有或有 `--reset` 时取默认值），再叠加 `--port`、`--workspace`、`--shell`。`shellEnvironment` 在新建设置与 `--reconfigure` 时从 `setup` 自己的环境按白名单取，其余时候保持文件里的值。相对路径按当前目录解析。默认端口是 8787，与 CLI 的默认地址相同。默认工作区是 `<状态目录>/workspace`。默认 Shell 在 Windows 上是 `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`，其他平台是 `/bin/bash`。
-5. 已有的 `port`、`workspace`、`shell` 与要用的不同而没有 `--reconfigure` 时，退出 2，标准错误逐项列出旧值与新值，文件不变。已有设置不被静默覆盖。
-6. Shell 不是已存在的文件时，退出 2。
-7. 建配置目录、状态目录、`host-files/`，以及不存在的工作区。
-8. 存模型凭据。保管库路径上的情形如下：
-   - 什么都没有：读凭据，经 settings-local 的 `initSecretVault` 新建保管库，凭据成为 OpenRouter 供应商凭据项 `apiKey` 的官方层，即全部官方档案使用的部署默认凭据。键由发行供应商推出（`src/assets/model-providers.ts`），与 `omne setting show openrouter apiKey` 显示的官方层是同一个。
-   - 是目录或链接：退出 1，标准错误写明路径上不是保管库文件，要人先删除它。`setup` 从不删除目录或链接。
-   - 是文件：经 `inspectSecretVault` 在文件锁下打开它（顺带清理这份保管库的残留临时文件），不只看文件在不在。
-     - 没有 `--replace-credential`、文件可读：不读标准输入，保管库不变，总结标 `kept`。
-     - 没有 `--replace-credential`、文件读不出：退出 1，标准错误写 `setup: the model credential vault <路径> cannot be read (<原因>)` 与修正办法（加 `--replace-credential` 重跑）。原因是 `corrupt` 或 `io`。保管库不变。
-     - 有 `--replace-credential`、文件可读：读凭据，经管理面 `bind` 写同一个官方层，读回确认后收窄文件权限，总结标 `replaced`。
-     - 有 `--replace-credential`、文件读不出：重建。先读凭据并校验，再删除这个文件，再按新建的规则建保管库，总结标 `rebuilt: the old vault could not be read`。旧文件的内容不读。凭据不合格时旧文件留在原处。重建后，旧保管库里各租户自己的秘密设置项都不再存在，官方档案改用部署默认凭据，直到各租户重新执行 `omne setting set`。总结里必须多写一行 `warning` 说明这一点（R2-D366）。这是运维者显式执行的例外；运行时遇到「绑定存在但读不出」时，调用仍以 credential 失败结束，不回落到默认。
-   - 文件锁等不到：退出 1。
-9. 设置是新的或变了时，写 `server.json`：先写临时文件，再改名。
-
-第 8 步在第 9 步之前，所以 `server.json` 存在表示写它时保管库已经存在。
-
-凭据只从标准输入读。标准输入是终端时，标准错误写提示，关闭回显读一行。不是终端时，读到第一个换行或输入结束，去掉行尾。凭据去首尾空白后为空、含控制字符、超过 4096 个字符或读取失败时，退出 1，不写 `server.json`。凭据不经命令行参数或环境变量传入。凭据、它的哈希或前缀不出现在任何输出、配置文件或错误文字里。
-
-权限：
-
-- POSIX：配置目录、状态目录、`host-files/` 与新建的工作区设为 `0700`，`server.json` 设为 `0600`。已存在的工作区不改模式。保管库按 settings-local 的权限护栏建立与替换：创建掩码 `077`，文件 `0600` 并读回。
-- Windows：不改访问控制列表。保护来自用户目录下继承的访问控制，前提与 settings-local 的[秘密保管](../../packages/assets/settings-local/SPEC.md#secret-custody)相同。保管库必须位于用户目录之下。`OMNE_SERVER_HOME` 指向用户目录之外时，第 8 步失败，原因是 `path-outside-home`。
-
-成功时标准输出写一份给人看的总结，退出 0：
-
-```text
-harness-server setup: done.
-  settings     <配置目录>/server.json (created | updated | kept | reset)
-  state        <状态目录>
-  credential   <状态目录>/model-vault.json (created | replaced | rebuilt: the old vault could not be read | kept (run setup --replace-credential to change it))
-  workspace    <工作区>
-  shell        <Shell>
-  address      http://127.0.0.1:<port>
-Next:
-  harness-server serve
-  then, in another terminal: omne register --login-identifier <name>
-```
-
-| 退出码 | 含义                                                                                                   |
-| ------ | ------------------------------------------------------------------------------------------------------ |
-| 0      | 完成，或 `--help`                                                                                      |
-| 1      | 一步失败：凭据读不到或不合格、保管库读不出或写不成、保管库路径上是目录或链接、目录或配置文件写不成     |
-| 2      | 参数不对、位置变量不合格、已有设置不合格而没有 `--reset`、设置不同而没有 `--reconfigure`、Shell 不存在 |
-
-凭据步骤失败时，标准错误写 `setup: model credential not stored: <原因>`。原因来自保管库操作的原因代码，不含凭据。例外是替换后收窄权限失败（`written-not-private`）：这时新凭据已经写进文件，旧凭据已不在，所以标准错误写 `setup: the new model credential was written to <路径>, but the file could not be made private to this user (mode 0600)`，再写一行 `Set the mode yourself (chmod 600 <路径>), then run setup again to check it.`，退出 1。
-
-### serve 怎样用这份配置
-
-省略 `--state-root` 时，状态目录必须存在。省略 `--operator` 时，入口读 `server.json`，用 `openSecretVault` 实际打开保管库（不只看文件在不在），确认工作区是目录，必要时重建 `host-files/`，再生成运维者层。运维者层里的文件根与 Shell、Files 的 `cwd` 取工作区的真实路径（R2-D376）：工作区经链接或 8.3 短名给出时，用它指的那个目录。真实路径只在内存里用，`server.json` 不变。
-
-- 状态目录、`server.json` 或保管库缺失时，标准错误写 `serve: not set up: <缺什么>` 和一行 ``Run `harness-server setup` first.``，退出 2。stdout 没有记录，不装载任何行。
-- 保管库读不出（原因 `corrupt` 或 `io`）时，标准错误写 `serve: the model credential vault <路径> cannot be read (<原因>)` 与修正办法，退出 2，不装载任何行。路径上是文件时，办法是 `harness-server setup --replace-credential`；不是文件时，办法是删除它后运行 `harness-server setup`。
-- `server.json` 不合格时，标准错误写哪一项不合格，并建议先改文件，`harness-server setup --reset` 用默认值替换它。工作区不是目录时，写原因与修正的命令。两种情形都再写 `serve` 的用法行，退出 2。
-- 运维者层由配置生成，而且服务开始接收请求时，标准错误在 `startup-result` 之后多写一行 `serve: accepting on http://127.0.0.1:<port>`。
-
-### 运维者层的默认值
-
-`src/local/operator-defaults.ts` 的 `localOperatorLayer` 生成本档的运维者层。发行层不写数值默认值（R2-D6），所以本档的数值在这里。每一行都是 `replace`。配置从发行层该行的配置开始，再叠加本档的键。因此本档不重抄发行层拥有的值：`storage` 的 `maxJsonDepth`、`agent-host` 的 `jointCommits` 与 `coordination`。`session-storage`、`model-records`、`tool-records` 的 `combinationVersion` 取发行层 `session-handoff` 行的值。发行层没有这个值时，入口以退出码 2 拒绝。本档的键与发行层同一行的键不重叠。
-
-| 行                                                                               | 本档给出                                                                                                                                                                                                                                                                 |
-| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `storage`                                                                        | 存储根 `<状态目录>/storage` 与提供者数值。`closeDeadlineMs` 是 D 减 1000，但不少于 D 的一半。`maxWorkers`、`reservedWriterSlots`、`maxReadWorkersPerDomain` 取 `server.json` 的 `storage` 给出的值，没给的取 16、4、2                                                    |
-| `session-storage`                                                                | 目录文件 `<存储根>/tenant-domains.json`，规则 `organization-account/1`                                                                                                                                                                                                   |
-| `secret-custody`                                                                 | 只有保管库路径 `<状态目录>/model-vault.json`，没有秘密。`model-credential` 行经本行读同一个文件，没有运维者值，见[秘密保管行](docs/rows/secret-custody.md)；`settings` 行没有运维者值，见[设置行](docs/rows/settings.md)                                                 |
-| `model-profiles`、`model-request-preparation`、`model-host`、`model-records`     | 档案、准备、宿主与记录仓的数值。路由由发行供应商 OpenRouter 的正文推出，本档不改端点。`model-records.diagnostics` 是 `tenant-self` 读取与占位的保留采用                                                                                                                  |
-| `tool-host`                                                                      | Shell：可执行文件取配置，参数见下，`cwd` 是工作区。Files：`cwd` 是工作区。Shell、Files、Web 的结果上限是 `LOCAL_TOOL_RESULT_BYTES`（1 MiB），高于 `tool-records` 的内联阈值，大结果才走得到卸载；`Tools` 的回复上限不超过内联阈值                                        |
-| `tool-records`、`execution-host`                                                 | 文件根是工作区，宿主状态目录是 `host-files/`                                                                                                                                                                                                                             |
-| `request-context`、`agent-context`、`agent-host`、`session-ad03`、`session-ad04` | 各自的上限与工厂数值                                                                                                                                                                                                                                                     |
-| `server-entry`                                                                   | 端口取配置。`historyKinds` 是 `message.user`、`message.assistant`、`message.tool`、`message.system_reminder`、`run.started`、`run.terminal`。`diagnosticsKinds` 是会话诊断投影读的全部种类（`LOCAL_DIAGNOSTICS_KINDS`，DA4 暂时采用），`maxRuns` 32，`maxCallsPerRun` 64 |
-
-Shell 的参数按可执行文件名定：`powershell` 或 `pwsh` 在 Windows 上取 `-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command` 再加一段 UTF-8 前导（见下），在其他平台取 `-NoLogo -NoProfile -NonInteractive -Command`。其他可执行文件取 `-c`。Windows PowerShell 的默认执行策略不让运行本地脚本。`-ExecutionPolicy Bypass` 只作用于这一个 Shell 进程，不改宿主的策略。
-
-Windows 上输出到管道的 PowerShell 按控制台的 OEM 代码页写出（中文系统是 936），原生程序的输出也按这一页解码，而执行宿主按 UTF-8 解码，所以中文成了乱码。前导 `WINDOWS_POWERSHELL_PRELUDE` 是 `-Command` 后面的最后一个参数，PowerShell 把它与调用的脚本用空格接成一个命令。它只对这一个 Shell 进程做几件事：把 `[Console]::InputEncoding`、`[Console]::OutputEncoding` 与 `$OutputEncoding` 设为不带 BOM 的 UTF-8（`[Console]::In` 因此按 UTF-8 读工具的 `stdin`；前者同时设控制台输出页，原生程序继承它，所以 `cmd /c echo` 与 `git log` 的输出以 UTF-8 到达宿主，管道送给原生程序的字符串也以 UTF-8 送出）；把 `Get-Content` 与 `Select-String` 的 `-Encoding` 默认值设为 `UTF8`，读不带 BOM 的 UTF-8 文件不再按 ANSI 页读（调用自己写 `-Encoding` 时以调用为准）。不改机器或用户的任何设置，Linux 的参数不变。
-
-#### Shell 的环境
-
-Shell 进程不继承服务进程的环境。它的环境是 `server.json` 的 `shellEnvironment`，再加上临时目录：Windows 上 `TEMP` 与 `TMP`，其他平台 `TMPDIR`，都指向 `host-files/`。`shellEnvironment` 缺 `SystemRoot` 时（Windows）补 `C:\Windows`，缺 `PATH` 时（其他平台）补 `/usr/bin:/bin`。Windows 上 `WINDIR` 默认等于 `SystemRoot`。
-
-`setup` 按下面的白名单从自己的环境取 `shellEnvironment`。Windows 上按名字比较时不分大小写，例如 `Path` 记为 `PATH`。值为空的变量不取。
-
-| 平台     | 白名单                                                                                                                                                            |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Windows  | `PATH`、`PATHEXT`、`SystemRoot`、`SystemDrive`、`WINDIR`、`ComSpec`、`USERPROFILE`、`APPDATA`、`LOCALAPPDATA`、`ProgramData`、`ProgramFiles`、`ProgramFiles(x86)` |
-| 其他平台 | `PATH`、`HOME`、`USER`、`LANG`、`LC_ALL`、`XDG_RUNTIME_DIR`、`DBUS_SESSION_BUS_ADDRESS`                                                                           |
-
-所以 Shell 里的 `PATH` 是运行 `setup` 时的 `PATH`，agent 能找到 `git`、`node`、`python` 这些工具。宿主上装了新工具、`PATH` 变了时，运行 `setup --reconfigure` 重新取。
-
-`XDG_RUNTIME_DIR` 与 `DBUS_SESSION_BUS_ADDRESS` 让命令找到当前用户的服务管理器，所以 agent 能像人一样用 `systemctl --user` 部署和查看本机服务。命令经服务管理器起的进程归宿主的服务管理器，不归执行环境，执行环境不负责它们的收尾；是否允许这样做由对命令的授权决定。这两个变量不是安全边界：命令可以按自己的用户号推出它们。`setup` 在没有用户会话的环境里运行时取不到它们，这时 Shell 里也没有。已有的 `server.json` 不含这两个变量，运行 `setup --reconfigure` 重新取。
-
-名字像秘密的变量不进 Shell 的环境：名字以 `TOKEN`、`KEY`、`SECRET`、`PASSWORD`、`PASSWD`、`CREDENTIAL`（可带复数 `S`）结尾，或以 `OPENROUTER_` 开头，不分大小写。白名单里没有这样的名字。有人手工把这样的名字写进 `shellEnvironment` 时，`serve` 认为配置不合格，以退出码 2 拒绝。生成运维者层时也再滤一次。
-
-用户可以改 `shellEnvironment` 来增减变量，也可以用 `--operator` 给出整份运维者层，在 `tool-host` 行写自己的 `construction.Shell.env`。经 `--operator` 配置的文件根必须是真实路径。Windows 上联接或符号链接作根不受支持：路径守卫放行时文件后端仍拒绝，以拒绝为准。
-
-数值来自联调 B 的运维者层与 coding agent 教程的运维者层。两者不同时取教程的值，因为教程在 WIRE 头 `1a34bcba6` 上用真实模型跑通了 15 次工具调用。`tools/joint-b/operator.mjs` 经构建产物消费同一份默认值，只换路径与测试工厂秘密。
-
-本地档的 SQL 单参加者响应上限为 256 KiB。四个驻留工具的 coding 定义创建 Session 时已超过原 64 KiB。Tools 读取约 50 KiB 结果时，消息准入回执同时保留原意图、结果请求与准入消息，超过中间的 128 KiB 配置并触发 `response_limit` 回滚。当前预算为既有 64 KiB 结果页及其回执封套留出空间；真实 SQLite 回归验证完整保存、原身份和同键认回。总操作响应仍为 1 MiB，全局及组预留不变。该预算服务当前发行档，不承诺任意大小的定义或消息均可接纳；超限仍明确失败并回滚，不扩大消息恢复权限。
-
-### Tools 与会话待办的发行采用
-
-当前正式发行采用 Shell、Files、Tools、TodoItems 和 Web，coding 定义将五项声明为常驻候选。实际常驻集合由 Session 的 WorkSnapshot.residents 提供。Tools 的当前目录由受信会话工作身份、活动 Session、其 adopted AgentDefinition 引用与正式发行资产求交，并保留已经实际持有的常驻项。references.resident 不替代实际持有事实。当前适配只支持官方发行，不声称组织、租户、工作区资产解析或自动继承已经实现。
-
-search 只返回合法非常驻，五项均已实际常驻时成功返回空页；inspect 可查看两类工具。Tools.execute 经原 Tool runtime 启动非常驻目标，准备与实际启动分别核当前纳入、常驻状态及目标授权规则。目标继承父调用的租户、主体和资源上限，不采用父 Tools 获准作为目标授权。已受理调用的结果保管与当前新启动资格分别处理。发现和执行不把目标加入模型直接 tool call 列表。Agent 的直接调用在运行时准入与首次启动处要求目标属于当前实际常驻集合，即使模型直接返回合法但非常驻的工具名也拒绝。该检查依据当前 Session 事实，不声称绑定原模型请求发送时的声明快照。
-
-发行提供者按当前 generation 保留成功校验的普通 ToolDefinition 副本，最多保留该清单的定义数量，不保留 executor、作者对象或运行句柄。live contribution 卸载不删除这份定义；当前会话合法 view 可据此返回 known-unavailable。当前资格仍逐次核验，元数据不是执行授权。提供者不保存跨旧发行的耐久历史。重新启动只重新取得当前发行可合法装载的定义，旧发行历史能力记忆须由采用拥有者另行承接。
-
-TodoItems 作者只得到本次执行绑定的清单能力。应用从可信 Session 工作主体和原 ToolCallId 取得 Session 范围及稳定操作身份，并固定命令与参数；模型不提供 Session、租户或主体标识。每次访问经 Session 当前授权，状态、原操作回执与访问证据同事务提交。add/remove/mark_complete 逐项生效，list 保留完成项并隐藏已移除项，跨 Run 沿同一 Session 延续。提交未知须认回原操作，不能用新模型调用代替。执行作用域关闭后撤销绑定能力。
-
-清单结果通过既有 Tool→Agent 结果链进入历史，同 Session 接续按使用指导主动 list。本次发行未采用自动 Runtime Context 待办投影，不承诺自动注入或每次模型请求必见最新待办；这些保证不能从逐项持久清单推导。
-
-工具正文的当前系统上限由最终运维者覆盖后的 `tool-records.configuration.offloading.maxInlineUtf8Bytes` 唯一提供。`serve` 在装载插件前验证配置，并把该数值编译成只读的请求披露检查。每个根只安装一次，Model 发送行捕获该检查，不读取 live Tool 服务。非法配置在预检失败；缺少真实 Tool 配置时，工具消息被明确拒绝，普通模型请求不受这项政策限制。
-
-实际发送前，对每条 tool 消息分别累计 `toModel` 文本的 UTF-8 字节。相等允许，超限拒绝；人类专用文本、原生媒体/文件引用及其他角色的消息不计入这项工具正文预算。原 ToolResult、程序 data、已保存历史和固定请求不被改写。旧候选、历史或已受理请求在新激活恢复时仍经同一发送检查，拒绝沿 Model 的耐久 not-sent 失败链收场，不重新执行工具。首版不自动把旧历史派生成更小表示；不能安全披露时明确失败。政策变更需新根/进程，不支持激活期间热替换，也不撤回已经发出的请求。当前 Model 持久故障仅记 `excluded / transport-denied`，详细拒绝 action 不保留到耐久 fault，这是诊断限制。
-
-Web 作者只得到本次执行附着的 `WebAccess`（`tool-bindings` 行按 `isReleaseToolRequest` 为 Web 的调用附着，顺序在 Tools 与 TodoItems 之后，执行作用域关闭后撤除）。提供者是 `@omne-harness/tool-host-local/web` 的 `createWebAccess`，提供者数值（Exa 端点、超时、跳数、字节上限）归运维者层 `tool-bindings.web`，作者构造值 `resultMaxBytes` 与 `maxSearchResults` 归 `tool-host.construction.Web`；缺 `tool-bindings.web` 时不附着，Web 的 search 与 fetch 答 unavailable。search 的 key 是行事租户的 Web 设置 `exa.apiKey`：附着（`src/rows/tool-bindings/web.ts` 的 `releaseExaKey`）按调用读受信 `settingsSecretCustody`，经 tool-host-local 的 `createLocalToolCredentials` 解析，选层顺序是租户、组织、官方，组织层恒未配置，官方层对每个合法租户已持有（assets-and-rules F7）；引用在调用开始时选定，使用时只读这个引用，中途被清除则这次调用失败，不改选别的层（I-4、I-8）。没有任何层配了 key 时 search 返回 `unconfigured`，fetch 照常取页。本机档的 Web 直连宿主网络，不经执行环境设施，沙箱与多租户部署的出口控制是已知限制。
-
-### 设置与 Web 凭据的组合保证
-
-「用户配了 key，Web 就能用；秘密不外泄；租户与用途互相取不到」由本应用承担，参与方是 `secret-custody` 行（保管）、`settings` 行（登记、秘密项入口与准入）、`server-entry` 行（`omne setting` 的四个治理操作，按调用读 `settingsSecretItems`）与 `tool-bindings` 行（Web 附着，按调用读 `settingsSecretCustody`）。成立条件：
-
-- 写入与读取是同一把键。`omne setting set Web exa.apiKey` 经秘密项入口写（租户范围，目标由发行 Web 条目的采用 owner 与工具名投影出的持有身份加项标识编码，用途 `setting`）；Web 附着用 `src/rows/settings/holding.ts` 的同一份编码读。本应用内只有这一份编码，Settings 自己的编码在它的 `secret-items.ts` 里，行测试以写后读证明两者相等。
-- 有无只由保管现读。`settings` 行与附着都不缓存：直接改保管文件，`show`、`list` 与下一次 search 立即看到。
-- 范围与用途隔离由键保证：公开操作只写行事租户的租户范围，不碰官方范围与使用面；Web 用途 `setting`，Model 用途 `model-send`，保管按键精确匹配，互相取不到。
-- 秘密不进持久记录：秘密只在 `set-setting` 请求里，成功体只有 `configuredAt`；`FixedToolRequest` 不变，工具结果只有 Exa 的应答。
-
-失败归属：保管读不出，`omne setting` 答 `basis-unavailable`、search 答 `unavailable`；准入不过答 `denied`；没有 key 时 search 答 `unconfigured` 并指出要配哪一项；Exa 答 401、402、429、5xx 时分别答 `denied`、`quota-exhausted`、`rate-limited`、`upstream`。核对：`tests/rows/settings/`、`tests/rows/tool-bindings/web.spec.ts` 与慢层 `tests/rows/tool-runtime/web-settings-e2e.spec.ts`（含哨兵扫描）。
-
-## 插件树与运维层
-
-树只有两层：发行层和运维层。租户与组织不是第三层。运维操作有三种：`replace` 替换一行的配置，`disable` 停用一行，`insert` 在已有锚点行之后插入一个 allowlist 内的行。
-
-- 每行只装一个插件。
-- 整行替换配置不改变该行的作用域。最终树打印的 `visibleSource` 仍是 `release-code`，`configSource` 标 `operator`。
-- 运维操作的目标 id 不存在，或产生重复 id，装载前失败，退出 2，诊断写明目标与操作，零个插件体运行。
-- 运维者插入的行可见集合为空。
-
-## 装载与可见性
-
-装配入口创建根 `Context`，为每个作用域创建一个不导出的 `Symbol` 标签。装载第一行前，入口提供根运行时对象。S0 模式提供的是替身：被某行 inject、而没有任何行提供的每个名字（例如 `s0.principalIssuer`、`s0.sessionWorkPrincipals`、`s0.runtimeContextTrust`、`s0.requestContextTrust`），以及 `s0.assemblyLifecycle`。`s0.toolStartFence` 与 `s0.toolStartAuthority` 由 `tool-records` 行提供，不是入口对象。测试参数 `omitEntryObjects` 可省去其中任意一项，CLI 不暴露它。`serve` 模式按入口对象注册表安装真实入口对象，并按占位规则给 S0 替身行提供占位对象，见 [docs/real-mode.md](docs/real-mode.md)「入口对象注册表」。
-
-装载前检查，失败均退出 2，零个插件体运行，入口对象不安装：
-
-- 行 inject 的受信名不在该行可见集合中。
-- `sameProviderGroup` 相同的名不是由同一行提供。
-- 只在 `serve` 模式：真实导出装在它声明之外的行 id 上（`row-binding`，DP1-C9）。
-- 只在 `serve` 模式：`real` 或 `contract-double` 行 inject 的名字由 `s0-double` 的提供者（行或占位对象）提供（`double-dependency`，DP1-C10）。诊断写明行、名字与提供者。
-- 只在 `serve` 模式：入口对象承载的行写了 `via`，而注册表里没有一个同名模块把该行列进 `registersFor`（`via-unregistered`，DP1-C15）。
-- 只在 `serve` 模式：注册表里同一个名字有两个模块（`duplicate-entry-object`，DP1-C11）。
-- 只在 `serve` 模式：发行层引用一个没有行声明的导出，按 `unknown-plugin` 拒绝（DP1-C8）。
-
-真实模式在最终层叠配置与受信预检成功后、入口对象安装和任何业务行装载前，自动准备启用的真实 `session-storage` 租户目录。准备使用最终 `storage` 与 `session-storage` 行配置，调用 `prepareTenantDirectory`，不增加人工首启步骤。全新存储根独占创建并写合法空表；已有根必须有合法登记表，缺表、损坏或半初始化均失败，不补空表。失败结果是独立的 `preparation-failed`，退出 3，stderr 仅写 `serve: tenant directory preparation failed`，不安装入口对象、不运行行体，也不写 `startup-result`。禁用或替身行不触发准备。目录规则归 [session-storage 行说明](docs/rows/session-storage.md)。
-
-之后按最终树顺序，对每行从根依次 `isolate(名, 标签)` 得到该行上下文，再 `plugin(...)`。`await ctx.plugin(...)` 完成不等于 ACTIVE：入口读取每行实际 `fiber.state`，并对 Cordis 4.0.4 的 `FiberState` 枚举做穷尽映射。
-
-可见性规则：
-
-- 子树行能 inject 受信名，得到入口创建的那个实例。
-- 根上的插件体按受信名取值得到 `undefined`。
-- 根上同名提供者与子树提供者并存，两者都 ACTIVE，子树消费者得到子树实现。
-- 同一作用域内第二个同名提供者 FAILED，错误含 `has been registered`，不静默覆盖。
-
-行 id 与受信成员的唯一源是应用装配页。S0 的行快照 `src/s0/aa-rows.json` 由 `scripts/aa-rows.mjs write` 从该页抽取，只能由脚本再生。`scripts/aa-rows.mjs check` 对快照与该页逐字节比较，`tests/aa-rows.spec.ts` 对正式页运行同一检查。同一个检查还对源码做两项机读拦截（身份治理 E1、E2，R2-D208）：受信表里的名字只经入口对象的 `env.readTrusted` 读取，或由受信表列为可见的行在自己的行上下文里读取；`issueActingForTenant(` 与 `issueSystem(` 只出现在 `scripts/aa-trust-config.json` 列出的文件里。该文件的 `pending` 名单只报告、不失败，现在为空。规则与局限见 [README](README.md#verification)。
-
-子 fiber 消费的受信名也列入该行的可见集合。这是启动门控的具名例外（N-4）。
-
-下图是插件树与受信子树的可见性。实线表示该行可见这个受信名。根上的行和未列出的行可见集合为空。
-
-```mermaid
-flowchart LR
-  subgraph entry[装配入口：持有每个受信名的私有标签]
-    T1[storage]
-    T2[tenantDomainLookup]
-    T3[sessionPrincipalBindings]
-    T4[sessionWorkPrincipals]
-    T5[principalIssuer]
-    T6[definitionMappings]
-    T7[runtimeContextTrust]
-    T8[requestContextTrust]
-  end
-  subgraph tree[插件树的行]
-    R1[storage、identity]
-    R2[session-storage]
-    R3[agent-journal]
-    R4[session-provider]
-    R5[agent-adoptions、adoption-sources]
-    R6[server-entry]
-    R7[runtime-context]
-    R8[request-context]
-  end
-  root[根上的插件体：未列出的行与运维者插入的行]
-  T1 --> R1
-  T1 --> R2
-  T2 --> R2
-  T3 --> R2
-  T1 --> R3
-  T2 --> R3
-  T4 --> R4
-  T6 --> R5
-  T5 --> R6
-  T6 --> R6
-  T7 --> R7
-  T8 --> R8
-  root -. 按名取得得到 undefined .-> T1
-```
-
-图只示意可见性。精确的行与名对应以应用装配页的受信子树表为准。
-
-## 就绪与诊断
-
-- 直接缺项（`missing`）与阻塞链（`blockedBy`）分开报告。
-- PENDING 与 FAILED 同时出现时都输出，整体为失败。
-- 超时不把 PENDING 改为 FAILED。LOADING 超时单列 `readiness-timeout`。
-- 私有 barrier 回调只在全部启用行 ACTIVE 时调用一次。随后入口按登记次序调用全部 `start`。
-- 构造时的检查在启动时以 FAILED 可见，不推迟到首次使用。
-
-S0 的 `accepting` 恒为 false。S0 用私有 barrier 的调用次数证明启动门控，不靠常量。`serve` 的 `accepting` 在全部启用行 ACTIVE 且全部 `start` 成功后为 true，否则为 false。
-
-## 进程输出与退出码
-
-stdout 每行一条 JSON 记录：
-
-| 记录              | 字段                                                                                                                                                                                                           |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tree`            | 启用行：`id`、`plugin`、`source`、`configSource`、`visible`（受信名）、`visibleSource: 'release-code'`、`implementation: 's0-double'`。运维者停用的行：`id`、`disabled: true`、`source`。装载前完整输出        |
-| `row-state`       | `RowState` 的全部字段。先于 `startup-result` 输出                                                                                                                                                              |
-| `startup-result`  | `profile: 's0'`、`scope: 'loader-only'`、`accepting: false`、`enabledRows`（启用行数）、`outcome`、`barrierCalls`（barrier 调用次数）、`startedRows`（已调用 `start` 的行）、`appliedRows`（插件体已运行的行） |
-| `shutdown-step`   | 序号、阶段、行 id、动作                                                                                                                                                                                        |
-| `shutdown-result` | `ShutdownReport`                                                                                                                                                                                               |
-
-S0 进程在输出 `startup-result` 之后自动发起计划停止。装载前拒绝的诊断写 stderr，stdout 只有 `tree` 记录。
-
-**stdout 只有一个写者。**`bin.ts` 交给 `runS0` 与 `runServe` 的记录写函数是唯一向 stdout 写记录的函数。装配记录、日志桥与 `telemetry` 行的 `stdout` 出口都经它写出，每条记录一行完整 JSON，次序就是调用次序。遥测在 `storage` 阶段之后关闭，`shutdown-result` 在它之后写出。`serve` 写出 `shutdown-result` 之后 stdout 封口（S0 路径在这之后没有记录要写，不封口）：之后到达写函数的记录（例如期限之后才结束的句柄的 `late-result`）改写到 stderr，每条一行完整 JSON，不带前缀。所以 `shutdown-result` 一定是 stdout 的最后一行。
-
-`serve` 沿用这五种记录，差别如下（DP1-C3）：
-
-| 记录             | 与 S0 的差别                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tree`           | `implementation` 按行取 `real`、`contract-double` 或 `s0-double`；`telemetry` 行另带 `telemetry: { implementation, outlet }`（实现名与出口种类；`disabled` 行没有配置出口时不带 `outlet`）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `entry-object`   | 新增，只在 `serve`。每个入口对象一条：`name`、`implementation`、`trusted`。不含对象的值。`s0.assemblyLifecycle` 记 `real`，占位对象记 `s0-double`。与 `tree` 一样在装载前完整输出                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `telemetry`      | 新增，只在 `serve`，取代原 `log` 记录。工程遥测记录（`@omne-harness/telemetry-node` 的 `TelemetryRecord`）：`signal`、`time`、`owner`、`name`、`version`、`scope`、`component`，以及各信号自己的成员。级别不高于 WARN 的 Cordis 日志经日志桥各成为一条 `signal: 'log'` 的记录（`owner: 'cordis'`、`name: 'omne.cordis.log'`、`level`、`fields.text`），DEBUG 不输出（R2-D253）。`telemetry` 行以 `node` 实现就绪时经运行时写出；就绪之前、实现为 `disabled` 时与关闭之后由桥直接写出，不带 `generation` 与 `instance`。格式化失败时 `text` 是固定文字，写出失败时这条丢弃并计数，都不抛给记日志的调用方。`server-entry` 的诊断是 `signal: 'event'`、`name: 'omne.entry.diagnostic'` 的记录，`path` 只取请求 URL 的路径部分。`session-provider` 的每个面操作是一对 `segment-start`、`segment-end` 记录（`name: 'omne.session.<操作>'`，owner `session`），Session 实例自己的提交写下 `run.terminal` 时是事件 `omne.session.round-complete`（由 `session-ad02` 解读 Agent 事实写下的终态不发，见 Session SPEC「测量事件」），协调器步骤停在失败上是事件 `omne.session.diagnostic`；`agent-host` 的每个执行 pass 是一对段记录（`name: 'omne.agent.pass.<pass>'`，owner `agent`）。这些记录的 `scope` 是访问的租户。原 `log` 记录（`{ kind: 'log', level, name, text }`）不再写出：这是 apps 层的破坏性输出变化，依据是 RFC-0013 revision 2 B 线。规则见 [telemetry 行](docs/rows/telemetry.md) |
-| `startup-result` | `profile: 'real'`、`scope: 'serving'`。`accepting` 见「就绪与诊断」。新增 `implementations`：三种实现各自的行数                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| 之后             | `accepting` 为 true 时进程等停止请求：`--stop-on-stdin-close`、SIGINT、SIGTERM 或运行期换代。收到后 stderr 写 `serve: stop requested: <原因>`，再走有序关闭。启动码非零时与 S0 一样立即发起计划停止。装载前拒绝时 stdout 只有 `tree` 与 `entry-object` 记录                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-
-| 退出码 | 含义                                                                                                                                                   |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 0      | 启动全部 ACTIVE 且关闭 settled。`serve` 还要求停止来自请求                                                                                             |
-| 1      | 未预期的内部错误，stderr 写 `<子命令>: internal error: ...`                                                                                            |
-| 2      | 配置、解析或装载前检查失败，也含用法错误：参数缺失、路径不是绝对路径、JSON 读不出、状态根不是已存在的目录。也含 `serve` 省略参数而本机没有完成 `setup` |
-| 3      | 至少一行 FAILED，或启动期 `start` 抛出，或（`serve`）目录准备失败、一个入口对象的 `install` 抛出                                                       |
-| 4      | 仍有 PENDING 或未完成 LOADING                                                                                                                          |
-| 5      | 启动码为 0 但关闭 incomplete                                                                                                                           |
-
-**进程的结束。**命令报出结果之后进程立即结束，不等任何句柄：入口先等 stdout 与 stderr 把已写的内容交给系统，再以结果的退出码退出（`src/process-end.ts` 的 `endProcess`）。已停止的服务留下的重试定时器或没关的端口不能让进程留着。只设置 `process.exitCode` 不够，它要等进程里每个句柄都结束。判据：`tests/process-end.spec.ts`。
-
-启动码非零时取启动码。启动期 `start` 抛出时，`outcome` 为 `start-failed`，退出码为 3，见「有序关闭」节「启动与停止状态」第 3 条。`serve` 里一个入口对象的 `install` 抛出时，入口不装载任何行，stderr 写 `serve: entry-object <名>: install failed`，错误消息不写进 stdout，然后发起计划停止，退出 3。这时没有行登记过句柄，关闭报告把预期登记者记为 `not-registered`。
-
-用法错误时，stderr 写 `<子命令>: <原因>`，再写该子命令的用法行。`s0` 的用法行不变：`usage: s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n>`。`serve` 的用法行是：`usage: serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]`。`setup` 的用法与输出见[本机单用户档](#setup)。位置参数里没有 `serve`，也不是恰好一个 `s0` 时（包括无参数），按 S0 路径处理，stderr 写 `s0: expected subcommand s0`，再写 `s0` 的用法行。位置参数里有 `serve` 但不是恰好一个 `serve` 时，stderr 写 `serve: expected subcommand serve`，再写 `serve` 的用法行。
-
-## 有序关闭
-
-本节规定计划停止时的协议。意外退出与非计划卸载不适用本节；那时各行的 disposer 只发起停止，其结果只进诊断，不能当作有序关闭成功。
-
-**状态目录的独占锁。**`serve` 的一次运行在装载前检查通过之后、装载任何入口对象与行之前，取得状态根上的独占锁（`src/state-lock.ts`），保持到这次运行结束。锁是 SQLite 以独占方式打开状态根下 `serve.lock` 时由操作系统持有的文件锁：一步取得，进程无论怎样结束都由系统释放，不涉及时间戳、进程号与残留文件。另一个进程持有同一个状态根时，标准错误写 `serve: state-root-in-use: another serve process works on <目录>`，退出 2，不装载任何行；状态根放不下锁文件时写 `serve: state-root-unusable: <原因>`，退出 2。这把锁是「在同一份记录上工作过的更早的进程都已经结束」的证明：发行自己的 `agent-host` 行凭它回答失联判断（[agent-host-local SPEC](../../packages/agent/agent-host-local/SPEC.md#失联判断)），所以重启后，上一个进程留下的仍标着 active 的挂接可以被接手。调用方给了自己的插件表时，它自己的 `agent-host` 行没有这份证明，什么都不判为失联。它是租约的退化情形：持有者活着就不过期，持有者一死就失效；多宿主部署换成带期限的租约时，换的是这份证明的来源，领域一侧不变。判据：`tests/state-lock.spec.ts`。
-
-**登记。**装配入口在装载第一行前，在根上下文提供 `assemblyLifecycle` 服务。需要参加关闭的行在插件体内调用 `register(handle)`，句柄声明阶段 `entry`、`business`、`composition` 或 `storage`。登记落在调用方 fiber；该 fiber 撤除时自动退登记。插件体重跑后，协调者只持有新句柄。句柄不进插件树，不发布为其他服务。真实模式里带阶段的行只经 `defineRow` 进入，登记有两种承载：行体承载由包装插件在行体返回后登记，入口对象承载由入口对象在被该行调用的方法里经调用方的 `this.ctx` 登记。两种都落在行 fiber 上。见 [docs/real-mode.md](docs/real-mode.md)「关闭承载」。
-
-**预期登记者。**预期登记者是启用行里清单带阶段的行：S0 替身行按 `stubs.ts` 的表，真实行按自己的声明。关闭时某个预期登记者没有句柄，记为 `not-registered`。预期登记者的句柄已随行撤除，记为 `disposed-before-stop`，并附 disposer 发起的关闭结果作诊断。
-
-**步骤。**
-
-1. 收到计划停止请求后进入停止状态。再次请求返回同一个结果，不再次调用任何句柄。此后不调用新的 `start`，规则见下面的「启动与停止状态」。
-2. 计算截止时间 D：当前单调时钟加配置的 `shutdownDeadlineMs`。全部阶段共用 D。
-3. `entry` 阶段：并发调用全部 `entry` 句柄的 `stop(D)`，等全部结束。接入停止接收新请求，结算在途请求与观察流。
-4. `business` 阶段：并发调用全部 `business` 句柄的 `stop(D)`，等全部结束。各业务的停止准入、交接与等待真实结果的语义归各自拥有者。业务交接未决时，句柄返回 `incomplete`，原责任与可查询状态保留在耐久事实中。
-5. `composition` 阶段：调用会话存储组合的句柄，得到「会话存储组合关闭结果」。该结果分别保留目录 `close()` 与 Session SQL 实例 `close()` 的结果。
-6. `storage` 阶段：调用 `storage` 句柄的 `stop(D)`。句柄由 `storageHost` 入口对象持有。它对每一个保存的控制口调用 `close({ initiator: 'assembly' })`，等全部结果或到达 D。全部为 `closed` 时答 `settled`，否则答 `incomplete`，`detail` 不写 SQL 或业务正文。提供者自己的关闭期限来自 `storage` 行配置 `closeDeadlineMs`，不来自 D，所以发行层里 `closeDeadlineMs` 的初值不大于入口的 `--shutdown-deadline-ms`（DP1-C15）。
-7. 形成最终装配关闭报告：逐句柄结果，加 `not-registered` 与 `disposed-before-stop` 各项。只有全部结果为 `settled` 时，整体为 `settled`；否则为 `incomplete`。报告写出后即确定，之后不再修改。
-8. 报告确定之后，调用 `storage` 句柄的 `assemblyReportSettled()`。不得早于第 7 步。
-9. 撤除 Cordis 根。disposer 的结果只进诊断。
-
-**排空。**`serve` 在 `entry` 阶段之后、`business` 阶段之前做一步排空：并发调用每个带 `drain` 的在册句柄的 `drain(排空期限)`，等全部结束或到达排空期限。排空期限是这一步开始时的单调时钟加 `--drain-deadline-ms`。这一步里其他各行都还活着，所以排空的行做完的工作按正常路径交给它的调用方。`drain` 的含义是：不再接新的工作，把已经接到的做完。答 `settled` 表示没有在途的工作；到期限还没做完记 `incomplete`，抛出记 `failed`，停止照常进行，剩下的由该行自己的 `stop` 收场。排空用掉的时间不从 D 里扣：后面各阶段的截止时间顺延同样长。没有在途工作时这一步立刻结束。每次调用写一条动作为 `drain-call` 的 `shutdown-step`。报告的 `drains` 列出每个句柄的结果，有一项不是 `settled` 时整体为 `incomplete`。没有句柄带 `drain` 时报告没有 `drains`。`s0` 没有这一步。
-
-现在带 `drain` 的只有 `model-host` 行。原因：模型调用是挂在本进程连接上的付费请求，停止时中止它，已经花的钱换不回结果，重启后这次调用的结局也无从认回。所以先让模型运行时关上受理闸门，等已受理的调用驱动到收场、结果推送完，再让调用方停。排空期间调用方发起的新模型调用得到 `unavailable`（`quiesced`），调用方按依赖不可用等待，重启后接着做。到排空期限还在途的调用由 `stop` 中止，它们的结局是未知。
-
-**阶段规则。**一个阶段的全部句柄结束或到达 D 之后，才开始下一阶段。同一阶段内按依赖逆序：一行提供的服务被同阶段的另一行注入时（直接注入，或经别的行间接注入），提供方的句柄在注入方的句柄结束或到达 D 之后才被调用；互相依赖的两行不分先后，没有依赖关系的行同时调用。次序由行清单的 `provides` 与 `injects` 推出（`stopPredecessors`）。原因是一行的 `stop` 可以卸载它提供的服务，Cordis 随即让注入该服务的行失活，注入方的收尾会被打断。到达 D 时未结束的句柄记为 `incomplete`，协调者继续下一阶段，不等它。句柄抛出时记为 `failed`，继续下一阶段。报告确定后才结束的句柄只写诊断，不改变报告。协调者不关闭任何业务连接，不回滚提交；SQL 连接与 Worker 只由 SQL 提供者在第 6 步关闭。
-
-**遥测关闭。**`storage` 阶段之后、第 7 步报告确定之前，协调者写一条动作为 `telemetry-close` 的 `shutdown-step`，调用入口交来的遥测关闭步骤：先把日志桥切到关闭后态，再以 `runtime.close(剩余期限)` 排空队列到本地出口。所以期限耗尽时，关闭期间与撤根期间的 Cordis 消息也走关闭后路径。步骤受同一个 D 约束，只为了报告：抛出记诊断并写 `unavailable` 与 `close-failed`，到达 D 写 `unavailable` 与 `deadline`，迟到的完成只写诊断。关闭报告附 `telemetry`：`closed` 带提供者的 `CloseReport` 与桥的四个计数；`telemetry` 行没有创建运行时时为 `not-registered`，只带桥的计数。附录不参与 `overall` 或退出码计算。撤根期间 disposer 写的 Cordis 消息经桥的关闭后态直接写出，在 `shutdown-result` 之前。报告确定后才结束的句柄的 `late-result` 若在 `shutdown-result` 之后到达，写到 stderr，见「进程输出与退出码」的 stdout 封口。规则归 [telemetry 行说明](docs/rows/telemetry.md#关闭步骤与报告)。
-
-**宿主文件结算。**启用 `executionHost` 时，入口在停止开始后取消周期。在 `business` 阶段之后、`composition` 阶段之前，入口等待已排队维护。随后经 loader 的 `disposeRow` 显式卸载宿主行，等待卸载完成后补维护，再做最终维护。关闭报告附 `hostFiles`：无残留为 `settled`，有残留为 `host-files-unsettled` 并附计数；维护或退役失败为 `unavailable`，不填未知计数。附录不参与原 `overall` 或退出码计算。超过 D 时附录固定为 `unavailable` 与 `deadline`，迟到结果只进诊断。storage 仍在报告确定后收到确认，根撤除继续等待同一个结算任务。R2-D32 只承诺显式 loader 卸载后的补维护，自动依赖卸载后的特定补维护留波 3。D 约束 stop 与报告窗口，不保证整个进程在 D 内退出。责任域和维护周期归 [execution-host 行说明](docs/rows/execution-host.md)。
-
-**启动与停止状态。**
-
-1. 启动次序：阶段之间按关闭次序的逆序，即 `storage`、`composition`、`business`、`entry`。同一阶段内按登记次序。上文「登记」一节与规格 §5.2 所说的「登记次序」按这句理解。
-2. 进入停止状态后，不再调用任何新的 `start`，包括启动尚未走完的时候。每个阶段开始前、每个句柄的 `start` 调用前，都检查停止状态。
-3. 启动期某个 `start` 抛出时，进入停止状态，走整套有序关闭，共用截止时间 D。已启动的句柄按关闭次序停止。最终报告把该句柄记为 `failed`，最后撤除根。`startup-result` 的 `outcome` 为 `start-failed`，并多一个 `startFailure` 字段，写明行与原因。退出码为 3，沿用 FAILED 的映射。替身配置新增测试输入 `startBehavior: 'fail'`，与 `stopBehavior` 同类，只用于测试，CLI 不暴露。这些字面来自卡树 head `df527a879` 的代码写者交回，合回时对照代码核对本页。
-
-**结果。**整体 `incomplete` 时，进程不能报告平滑退出成功。下次启动时，未决工作由原拥有者按原身份查询与认回。
-
-**已知限制。**单实例部署。跨进程 writer 排除不由本协议提供。
-
-实现要点：S0 用私有服务键 `s0.assemblyLifecycle`，见「偏离登记」。关闭协调器的时钟可注入。每次句柄调用与报告确定各写一条带单调序号的 `shutdown-step` 记录。
-
-下图是关闭的四个阶段，对应上面的步骤 2 至 9。
-
-```mermaid
-sequenceDiagram
-  participant R as 停止请求
-  participant C as 协调者
-  participant E as entry 句柄
-  participant B as business 句柄
-  participant P as composition 句柄
-  participant S as storage 句柄
-  participant T as 遥测运行时
-  R->>C: 步骤 1 进入停止状态
-  Note over C: 步骤 2 D = 单调时钟 + shutdownDeadlineMs，全部阶段共用
-  C->>E: 步骤 3 并发 stop(D)
-  E-->>C: 全部结束或到达 D
-  C->>B: 步骤 4 并发 stop(D)
-  B-->>C: 全部结束或到达 D
-  C->>P: 步骤 5 stop(D)
-  P-->>C: 会话存储组合关闭结果
-  C->>S: 步骤 6 stop(D)，句柄对每个控制口 close({ initiator: 'assembly' })
-  S-->>C: settled 或 incomplete
-  C->>T: 遥测关闭 close(剩余期限)，然后日志桥切到关闭后态
-  T-->>C: CloseReport
-  Note over C: 步骤 7 报告确定，之后不再修改
-  C->>S: 步骤 8 assemblyReportSettled()
-  Note over C: 步骤 9 撤除 Cordis 根，结果只进诊断
-```
-
-## 会话的提交通知
-
-正式装配里，会话日志的每一批新写出恰有一条提交通知，认回不通知（#1230）。`session-storage` 行在发布服务之前，用 session-cordis 的 `createSessionCommitNotifier` 在本行的 Context 上造一个通知接口，经 session-storage-sql 的 `registerSessionNotifier` 登记在自己的存储上。行停止或卸载时注销它。`agent-journal` 行注入同一个存储，所以 Agent 日志提交里的会话参加写出的批也报到这里（[本批与提交通知](../../packages/session/session-storage-sql/SPEC.md#本批与提交通知)）。
-
-通知接口派发 `session-cordis-contract/committed`。`sessionNotifier` 是可选服务，不进任何行的清单：通知接口每次被调用时现取它，存在时转交同一份载荷。`session-provider` 行的插件只监听这个事件。这些都不改变行的清单：`session-storage` 行不新增提供或依赖的键。订阅者在正式装配的根上下文上监听这个事件。用例在 `tests/session/commit-notices.spec.ts`；演示脚本 `tests/model/public-stream-demo.ts --notices` 逐条打印通知，并与会话日志的修订数对账。行的说明见 [session-storage 行](docs/rows/session-storage.md#提交通知)。
-
-## 模型的公共流
-
-正式装配里有模型的公共流：`modelStreamReferences`（按调用引用取当前的流）与 `modelStreamObservation`（订阅它），由 `model-host` 行发布。登录主体用自己的身份取流与订阅，允不允许由应用的模型授权表回答：#1214 给登录主体放行了 `facts` 与 `observe` 两格，其余格不变；登录主体仍不能准入调用。别的租户的调用引用与不存在的引用答复相同。订阅的中止只收订阅，不取消模型调用。接线、准入点与上限见 [Model 生产接线](docs/rows/model-release.md#模型的公共流1214)。
-
-## 已知限制
-
-- 正式服务定义（`definitionMappings`、`tenantDomainLookup`、`sessionWorkPrincipals`、`sessionPrincipalBindings`、`assemblyLifecycle`）未接受。S0 只用私有键。
-- `PrincipalIssuerService` 由 #992 交付（N-5）。#992 合回之前，只在测试里使用测试自己的定义。
-- 签发者的寿命与根进程相同，没有「绑定 identity 行」的条件分支（N-6）。
-- 暂停项（inbox、owner 解析器）不在 S0 中出现为服务。解析器交出接收方；推送资格由接收组件核验。（N-9）
-- 生产插件 ABI、身份与授权、存储、真实回复和真实业务交接，都不由 S0 证明。
-- 同进程反射遍历 `ctx.reflect.store` 可取得受信实例。这是 kernel-basis 已记录的非保证。S0 不测试它，也不宣称阻止它。隔离不是权限。
-- 生产 Node 版本由后继任务固定。
-- `serve` 的停止触发只有 `--stop-on-stdin-close`、SIGINT 与 SIGTERM。Windows 上只有关闭标准输入能跨进程触发。
-- `--state-root` 的保护只是文档化的前提（DP1-C19）。
-- `serve` 下运维者只能插入 `stubPlugin`：真实导出绑定在它声明的行 id 上，运维者 `insert` 的行 id 必须是新 id（DP1-C9）。
-- 发行层单独不能装载 `serve`。发行文件没有 `execution-host` 与 `agent-host` 的工厂数值，也没有 `agent-host` 的 `loopGuardPolicy`，进程以 `invalid-config` 退出（R2-D229）。运维者层必须用 `replace` 给出这些值，并重抄发行层的 `jointCommits` 与 `coordination`。省略 `--operator` 时，[本机单用户档](#运维者层的默认值)生成这一层。`loopGuardPolicy` 还没有生产采用来源，本档用的是占位采用，这个缺口归 L-RUN 波 3。
-- 本机单用户档的数值没有测量依据，采用引用是摘要全零的占位。它们来自联调与教程的运维者层，那里是测试值。
-- 本机单用户档的 Shell 环境是 `setup` 当时的白名单值。`PATH` 之后变了，要运行 `setup --reconfigure` 才跟上。白名单以外的变量（例如代理设置）不进 Shell，需要时手工写进 `shellEnvironment`。
-- Windows 上 Shell 的 UTF-8 前导只管输出和读文件。`Set-Content`、`Out-File` 与 `>` 仍按 PowerShell 的默认编码写（Windows PowerShell 5.1 是 ANSI 页），前导不强制 BOM，因为 BOM 会破坏 `package.json` 之类的文件；要写 UTF-8 文件，脚本自己用 `[IO.File]::WriteAllText` 或 `-Encoding utf8`（5.1 带 BOM）。工具的 `stdin` 经 `$input` 读取时仍按控制台页解码，前导够不到它；脚本用 `[Console]::In.ReadToEnd()` 读才是 UTF-8。参数里的中文文本不受影响（命令行是 UTF-16）。验证见 `tests/local/shell-encoding.spec.ts`，它在 Windows 上用真实 `powershell.exe`，其他平台跳过；经执行宿主的 Windows 命令桥做过一次手工核对，没有固化成用例。
-- Windows 上 `setup` 不改也不读回访问控制列表，保护只靠用户目录的继承，前提见[权限](#setup)。
-- <a id="releasescope-wiring"></a>工具执行环境的绑定给每次获取（含一次性执行）交出保留范围与保留账本视图，同一个视图对象同时作保留终端账本与保留进程账本（`processes`）。保留范围就是请求方范围。应用现在没有调用登记表的 `releaseScope`：会话归档或关闭不会封闭保留范围，所以保留终端与一次性执行留下的保留进程都不会因会话结束而停止，保留进程只在自己退出或被显式停止时结束。触发条件是会话归档产生作用域释放（上层候选设计见[作用域释放](../../docs/architecture/runtime/control-and-recovery.md#作用域释放)）：归档与作用域释放插件归 Session，应用里 Session 提供者的归档相关操作还没有实现，作用域释放插件 `session-ad15` 仍是 S0 替身。接线之后，归档提交产生作用域释放任务，作用域释放插件凭恢复授权调用登记表的 `releaseScope`。执行环境一侧的入口已经就绪，接线不需要改执行环境。
-- 应用的环境授权对动作 `observe-retained`（按保留范围观察保留进程）答拒绝，执行环境把它映射为 `notAuthorized`。授予哪个观察身份由接上观察适配器的装配决定，在那之前没有调用方能观察。工具设施守卫的规则不变：会话主体与原调用核对通过即放行，保留进程的 `stop` 与 `output` 同样适用。
-- `omne` CLI 为读默认地址重复了[位置](#位置)的规则，因为应用之间不互相导入。改位置规则时两处要同时改，CLI 的 `tests/local-server.spec.ts` 与本应用的 `tests/local/locations.spec.ts` 各自固定一份。
-- 成员插件在插件体内自登记的行要等正式 `assemblyLifecycle` 被接受后再定承载（N-r2-3）。现在带阶段的行只经 `defineRow` 的两种承载进入。
-- 遥测（RFC-0013 revision 2 本地范围）第一版只有一代输出，按 `telemetry` 行配置在启动时固定，改出口或预算要重启进程（D09）。进程实例引用在模块装入时生成一次，同一进程里多次 `runServe` 共用。报告里的 `afterClose` 不计撤根期间的消息。其余见 [telemetry 行](docs/rows/telemetry.md#已知限制)。
-- `storage` 句柄的结果受提供者自己的 `closeDeadlineMs` 约束。它大于 D 时，句柄在 D 答 `incomplete`，提供者仍在关闭。
-- 行清单的四跳同步靠人工：装配页到 `aa-rows.json` 由脚本再生，装配页到 `stubs.ts` 由改装配页的那张卡手工同步，`stubs.ts` 到真实行声明由 `real-manifests-sync` 检查，等待装配页补丁的差额写在该测试的具名清单里。
-- `defineRow` 声明的清单与插件实际取用的服务可能不一致。装载器只核声明，真实行的成员测试负责核对。
-- R2-D25 的 Runtime/Execution `current()` 只桥接读取方 fiber 的进程代次。撤权、工作失效和 Request Context 换代尚未同步，不闭合 #677。R2-D29 的 reader 只接受 scope 所属 Session 的工作主体，producer 拒绝；缺 AD-03 归属或 AD-15 恢复授权生产来源时默认 `unavailable`。
-- Model 三行真件的已知限制（撤权只随宿主 fiber 退役、直接命令口的 W 没有受理点、ActorRef 是租户级记录、四种证据恒 `unavailable`、数值无测量依据）归 [Model 生产接线](docs/rows/model-release.md#已知限制)。
-- R2-D26 的采用规划器已有纯模块实现，但生产 `SessionAdoptionSource` 尚未接入 `plan`，真实 authority、首次 version 与 admitted 的定义投影仍缺。登记事实缺失时整份 `unavailable`，不能把局部规划测试写成 AS-06 完整生产就绪。
-
-## 偏离登记
-
-- IC-3：私有服务键 `s0.assemblyLifecycle` 与服务类 `S0AssemblyLifecycleService`，`@owner apps/harness-server`。待 kernel-basis 的正式定义被接受后迁移，并删除这个私有定义（规格 §9 末段）。
-- `StubService` 使用动态服务键，只在 S0 替身内部使用，不对外导出。
-- IC-2：`s0-double` 占位对象以 `provide` 普通值提供，没有服务定义。只给 S0 替身行，真实消费者不得到占位（DP1-C11）。
-- IC-8：S0 的 `rowPlugin`（`src/run.ts` 的 `stubRowPlugin`）与 `serve` 的包装插件（`src/row.ts` 的 `defineRow`）的 `inject` 由清单计算，不是字面数组。补偿：`defineRow` 要求声明的 `injects` 包含被包装插件的字面 `inject`，不符即抛出。声明再由 `real-manifests-sync` 与 `stubs.ts` 比较。
-
-### Tool 生命周期遥测
-
-`tool-records` 与 `tool-body-sweep` 显式 inject `telemetry`，各自包装实际 SQL 记录仓的提交口。应用将 Tool 生命周期观察投影为 `omne.tool.material.lifecycle` 事件。作用域取真实租户；调用关联采用调用标识的 SHA-256 投影。事件字段只有阶段、闭合失败类别、条目数及可选正文总字节数，不包含正文、data、路径或自由异常文本。
-
-事件不参与结果交接、清理或升级准入。禁用、容量丢弃、出口失败、依赖缺席和关闭均不能改变 Tool 的原答复。该接线只使用独立事件，不分配 segment、长期配对表或独立定时器。持久状态仍从 Tool 查询，不能用遥测计数证明材料已清理。
-
-### Tool 正文清扫
-
-`session-storage`在发布服务前逐个确认持久目录内租户的当前组合登记。目录中的既有租户不依赖新的会话create触发补登记。登记失败或最终未知使行失败；关闭后不开始下一次登记或发布服务。该前置屏障沿SQL原有幂等登记和迁移事务。
-
-发行授予表没有 Tool 材料维护用途。会话 Tool guard 的动作集合只有 `ToolLedgerAction`。
-
-`tool-body-sweep` 行为每个租户调度 Tool 的正文清扫，回收由 Tool 运行时执行：
-
-- 它按 `intervalMs` 定时走一步。一步只清扫到点的租户，每个租户内一批取至多 `limit` 个到期项，批满就再取一批。
-- 对每个到期项，Tool 先删除正文存储中的字节，再在账本提交 `reclaimed` 并撤销排期。
-- 中途崩溃后，下一步重跑得到相同结果。
-
-**按到期时刻安排。** 行在进程内维护一张待清租户表：租户到它下一次到点的时刻。它是可丢的活体，不存事实；丢了由启动时的全量清扫重建。没有在表里的租户，清扫不读它的库。表只由下面几件事改（「访问中」是这一步正在清扫这个租户）：
-
-| 事件＼状态                                                                | 不在表里             | 在表里，未到点   | 在表里，到点                                                                         | 访问中                       |
-| ------------------------------------------------------------------------- | -------------------- | ---------------- | ------------------------------------------------------------------------------------ | ---------------------------- |
-| 本进程的账本提交写了到期项（`schedule`，提交答 `committed` 或 `unknown`） | 加入，时刻取到期时刻 | 时刻取两者较早的 | 不变（已到点）                                                                       | 记下这个时刻，访问结束时并入 |
-| 启动枚举成功                                                              | 加入，时刻取现在     | 时刻取现在       | 不变                                                                                 | 记下现在                     |
-| 走一步                                                                    | 不读                 | 不读             | 清扫，再读这个租户最早的一个到期项                                                   | —（一步只有一个在走）        |
-| 清扫与读最早到期项都成功                                                  | —                    | —                | 有到期项：时刻取它与访问中记下的较早者；没有：有记下的就取它，否则移出；失败计数清零 | —                            |
-| 清扫或读最早到期项失败                                                    | —                    | —                | 留在表里，失败计数加一，时刻取现在加退避；接着清扫别的租户                           | —                            |
-
-读最早到期项用记录仓的 `due`，`now` 取 `9999-12-31T23:59:59.999Z`、`limit` 取 1：`due` 按时刻从早到晚答，所以第一项就是最早的。
-
-启动时枚举一次全部租户，每个租户清扫一次：这是恢复，保留。枚举失败时按同一张退避表重试，已在表里的租户照常清扫。
-
-**退避。** 连续第 n 次失败之后等 `[1000, 5000, 30000]` 的第 `min(n, 3)` 项毫秒，封顶 30 秒；成功后清零。warn 只在第一次失败与退避已在封顶时各写一条，写明租户的编码文本（枚举失败时写 tenant directory）与 Tool 或目录给的原因文字。
-
-该行使用 tenantDomainScannerPrincipal 枚举租户域。写入许可密钥、正文时钟与待清租户表取自同一运行时 holder，正文存储由公开 SQL 构造器创建。普通工具执行不依赖该行。
-
-运维者提供 combinationVersion、ledgerCommitAttempts、intervalMs 和 limit。正常关闭时，business 阶段停止调度并排空，先于 composition 与 storage。截止时间到时返回 incomplete，不声称已取消外部操作。
-
-runner 异常只记录失败种类，不输出正文或原异常文本。目录接口当前仍提供完整快照，启动枚举的内存成本随租户数增长。每批到期读取和回收数都有上界。
+| 端口                                             | 对方                                                 | 对得上的一句话                                                                                      |
+| ------------------------------------------------ | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Session 访问检查                                 | [Session](../../packages/session/SPEC.md)            | Session 需要每次公开读写在执行处问一次许不许；本应用按政策表与成员资格作答                          |
+| Agent 访问检查、动作准入                         | [Agent](../../packages/agent/SPEC.md)                | Agent 需要操作的许可与动作的准入；本应用按政策表、动作规则与当前权限作答                            |
+| 系统动作授权                                     | 本应用的会话存储行                                   | 部署枚举需要按授予表判断系统主体；本应用的授权行提供它，只对会话存储行可见                          |
+| 受保护提交的依据来源                             | [Session](../../packages/session/SPEC.md) 的存储成员 | 会话权限配值的提交需要依据的计划；本应用按治理、设置与身份事实给出                                  |
+| 可信 Tool 请求来源、卡片端口                     | [Agent](../../packages/agent/SPEC.md)                | Agent 宿主需要把动作翻成 Tool 请求、需要把要人决定的一轮交出去；本应用接到 Tool 与人工介入上        |
+| Tool 的访问守卫、启动协调访问、目标政策          | [Tool](../../packages/tool/SPEC.md)                  | Tool 需要台账动作、启动与目标的资格；本应用用同一组身份与权限读口作答                               |
+| Tool 的决策桥                                    | [Tool](../../packages/tool/SPEC.md)                  | Tool 的检查点作者需要把等待交给人；本应用把它接到人工介入                                           |
+| 发行来源权威、持有者引用读取器                   | [Tool](../../packages/tool/SPEC.md)                  | Tool 宿主需要核验官方作者的来源、需要读常驻引用；本应用用发行清单与会话的引用页作答                 |
+| Model 宿主权威、命令资格、发送来源               | [Model](../../packages/model/SPEC.md)                | Model 宿主需要按调用取得主体与执行通道、需要同步的资格判断；本应用的入口对象持有本运行的 Model 组合 |
+| 环境授权、可信作用域绑定、恢复授权               | [执行环境](../../packages/execution/SPEC.md)         | 执行环境需要三个端口；本应用的入口对象提供，恢复授权在没有来源时答不可用                            |
+| Runtime Context 信任、Request Context 的账目端口 | [Context](../../packages/context/SPEC.md)            | Context 需要读者、生产者与账目来源的核对；本应用按会话归属与发行的账目出口作答                      |
+| 失联判断的证据                                   | Agent、Model 与 Tool 的宿主                          | 宿主接手前需要「没有任何人在推进它」的证明；本应用用状态目录的独占锁给出                            |
+| 接入入口的会话、身份、设置治理与诊断读口         | [接入](../../packages/access/SPEC.md)                | 入口需要这些读写口；本应用的接入行按调用现取各领域的提供者                                          |
+
+它需要别人提供的：每一行需要对应领域的提供者，经该领域的 Cordis 契约取得。点名几项：主体的签发与核验、租户成员事实与当前登录核对来自[身份](../../packages/identity/SPEC.md)；秘密保管来自[资产与设置](../../packages/assets/SPEC.md)的本机保管库；事务域、组合登记与提交来自[存储](../../packages/storage/SPEC.md)；租户治理实例来自[治理](../../packages/governance/SPEC.md)；遥测运行时来自[遥测](../../packages/telemetry/SPEC.md)。
+
+## 心智模型
+
+把本应用想成一块接线板加一份合闸与拉闸的规程。领域是电器，各自知道自己做什么。接线板决定插哪些电器、哪根线只通给哪个插座（受信可见）、总闸什么时候合上（全部 ACTIVE 之后才 `start`）、拉闸按什么次序（先断入口，再让在途的做完，再停业务，最后关组合与存储）。接线板上不做电器的事：一条领域规则出现在本应用里，就是放错了地方。本应用里留下的只有谁和谁接、按什么次序、信谁。
+
+应用自己的组合是有界的例外。只有两边互不认识、而装配者同时看得见两边时，组合才归本应用：授权政策要同时认识 Session、Agent 与身份；Tool 的等待要接到人工介入；一个动作的当前权限要把治理、设置、资产与会话的事实放进一次读。组合仍然只用各拥有者的公开端口，不读别人的私有表，不另存一份别人的事实。
+
+进程是一次运行，不是事实的来源。入口闭包与各行里的表（租户治理实例表、待清租户表、按调用的见证表）都是可丢的活体，重启之后事实从各拥有者的耐久记录接着来。重启之后唯一要证明的是「上一个进程确实不在了」，这由状态目录的独占锁给出。
+
+最容易想错的地方：
+
+- ACTIVE 不是能接请求。全部行 ACTIVE 且全部 `start` 成功之后才接请求；PENDING 不会因为超时变成 FAILED。
+- 受信可见不是权限。隔离只防按名误取，每次调用的资格照样核；同一进程里反射遍历能取到受信实例，这不在保证之内。
+- 发行配置写了 allow 不等于放行。静态规则只决定「可以继续判断」，放行要当前权限的读数。
+- 关闭报告 settled 才是平滑退出。disposer 的结果只进诊断。
+- 运维者层的数值是配置，不是答案。缺了就启动失败，代码不猜一个数。
+
+## 应然设计
+
+### 两层树与配置
+
+- 树只有发行层与运维层两层；租户与组织不是树的层。运维操作只有三种：替换一行的整份配置、停用一行、在已有锚点行之后插入允许名单里的行。替换不改变一行的作用域；运维者插入的行可见集合为空，也不能插入真件的导出。
+- 配置是 JSON，先按未知类型解析，再在边界上同步严格校验。未知键、非法值、重复行 id、未知插件导出、未知运维目标与异步 schema 都在装载前拒绝。插件只取自显式的允许名单，不按输入字符串动态导入。
+- 发行层不写数值默认值，也不写含宿主路径与端口的字段；这些由运维者层给，缺了就以配置错误退出，不由代码补。运维者替换一行时写出整份配置，发行层在这一行写的值要重抄。
+- 跨行必须相等的配置在任何插件装载之前核对，不等就退出 2 并写明哪两行哪一项：Model 记录行与宿主行的结果页目标与空闲读时长；Model 记录行与会话存储行的组合版本；发送阶段的准备配置与准备行；发送阶段的档案配置与档案行。存储行的命令上限不小于 Tool 暂停内容所需的上界，Tools 的回复与页预算不超过 Tool 运行时的内联阈值（否则带页的回复会再被卸载，正文到不了模型），也在这里核。
+- 工厂行（宿主文件、遥测）由入口按每次运行绑定。它们的导出只能站在自己的行 id 上，运维者不能插入，只能替换配置。
+
+### 行声明与可见性
+
+- 真件与契约替身经行声明进入。声明给出行 id、实现种类、提供与依赖的名字、关闭承载；名字只取定义包导出的键常量。真件只装在它声明的行 id 上；真件与契约替身不依赖标记替身，也不得到占位对象。
+- 声明的依赖必须包含被包装插件自己的字面依赖，不符时模块装入即失败。包装插件在同一个行 fiber 里转交被包装插件的配置与插件体，不建子 fiber。
+- 装载前检查在零个插件体运行、零个入口对象安装之前决定，失败退出 2：受信名不在该行的可见集合里；同一提供者组的名字不由同一行提供；真件装在别的行 id 上；真件依赖标记替身；入口对象承载的行没有对应的入口对象模块；同一个名字有两个入口对象模块；发行层引用没有声明的导出。
+- 每个受信名有入口私有的隔离标签。列为可见的行能注入它，得到入口创建的那个实例；根上的插件体按名取值得到 `undefined`；根上的同名提供者与子树提供者并存时，子树消费者得到子树实现；同一作用域里第二个同名提供者失败，不静默覆盖。子 fiber 消费的受信名也列入该行的可见集合。
+- 受信名在源码里只有两种读法：入口对象经入口的受信读口读；行在自己被列为可见的上下文里读。签发主体的调用只出现在受信配置列出的文件里。
+- 标记替身行需要、而没有任何行或入口对象提供的名字，入口给一个占位对象。真实消费者缺入口对象或缺提供行时停在 PENDING，并写出缺的名字。
+- 运行时对象（主体权威、Model 组合、责任域）不进配置、树记录与服务表。按调用现取的端口不写进依赖；它缺席时，用到它的操作答不可用，行照常 ACTIVE。
+
+### 入口对象
+
+- 入口对象按注册表次序安装，晚于装载前检查与状态锁，早于第一行。一个名字只有一个模块；名字取定义包的键常量；受信与否由受信表决定，模块不自报。
+- 安装只构造服务定义的子类，不提供普通值。安装抛出时不装载任何行，退出 3。入口对象的值不进任何输出。
+- 一次运行内共享的对象只经入口的一次性共享表取得；同一个键第二次给出不同的构造时，安装失败。
+- 主体签发者只交给受信持有者：入口的主体模块与接入行。系统主体按组件名签发；组件名只用来在授予表里定位，不是凭据。
+
+### 就绪与启动
+
+- 入口读每一行实际的 fiber 状态，不把插件调用的返回当作 ACTIVE。直接缺项与阻塞链分开报告；PENDING 与 FAILED 同时出现时都报，整体为失败；就绪超时不把 PENDING 改成 FAILED，LOADING 超时单独报告。构造时的检查在启动时以 FAILED 可见，不推迟到首次使用。
+- 全部启用行 ACTIVE 之后，私有屏障只调用一次。随后按关闭次序的逆序（storage、composition、business、entry）、同一阶段内按登记次序调用 `start`。每个阶段开始前、每个 `start` 调用前都查停止状态：进入停止状态之后不再调用新的 `start`。启动期一个 `start` 抛出时进入停止状态，走整套有序关闭，该句柄记为失败。
+- 服务只在全部启用行 ACTIVE 且全部 `start` 成功之后接请求。接入行在自己的 `start` 里才开始监听，所以有行 PENDING 时端口不监听。
+- `serve` 在最终配置与装载前检查通过之后、入口对象安装之前，为启用的会话存储行自动准备租户目录。全新的存储根独占创建并写合法的空登记表；已有的根必须有合法登记表，缺表、损坏或半初始化都失败，不补空表。准备失败时不安装入口对象、不运行行体，退出 3，诊断不带文件内容与异常原文。
+
+### 状态目录的独占锁
+
+- `serve` 的一次运行在配置解析与跨行核对通过之后、树的任何部分运行之前，取得状态目录上的独占锁，保持到运行结束。锁是操作系统持有的文件锁：一步取得，进程无论怎样结束都由系统释放，不涉及时间戳、进程号与残留文件。另一个进程持有同一个状态目录时，退出 2 并说明目录在用；目录放不下锁时，退出 2。
+- 持有这把锁就证明：在同一份记录上工作过的更早的进程都已结束，它们的实例与驱动也随之结束。发行自己的 Agent 宿主行、Tool 记录行凭它判断一个实例失联，Model 宿主行凭它判断一个调用失联，所以重启之后，上一个进程留下的在途工作可以被接手（[Agent 的接手](../../packages/agent/SPEC.md#接手)、[Model 的那一问](../../packages/model/SPEC.md#活体失联与那一问)、[Tool 的收场](../../packages/tool/SPEC.md#活体失联与收场)）。
+- 证据在每次判断时现取锁：锁没有持有，就没有证据，什么都不判为失联。调用方给了自己的插件表时，它自己的这几行没有这份证明，也什么都不判为失联。
+- 这把锁是租约的退化情形：持有者活着就不过期，持有者一死就失效。多宿主部署换成带期限的租约时，换的是证据的来源，领域一侧不变。
+
+### 进程输出与退出
+
+- stdout 每行一条完整 JSON 记录，只有一个写者：入口交给这次运行的记录写函数。装配记录、日志桥与遥测的 stdout 出口都经它写出，次序就是调用次序。`serve` 写出关闭报告之后 stdout 封口，之后到达的记录改写到 stderr，每条一行完整 JSON，所以关闭报告一定是 stdout 的最后一行。
+- 入口对象的值、登录证明、凭据、秘密与请求正文不进 stdout 与 stderr。
+- 退出码：0 表示启动全部 ACTIVE 且关闭 settled（`serve` 还要求停止来自请求）；1 是未预期的内部错误；2 是配置、解析、装载前检查与用法错误，也含状态目录不可用或在用、本机没有完成配置；3 是有行 FAILED、启动期 `start` 抛出、租户目录准备失败或入口对象安装失败；4 是仍有 PENDING 或没有完成的 LOADING；5 是启动成功而关闭 incomplete。启动码非零时取启动码。
+- 结果报出之后进程立即结束：先等 stdout 与 stderr 把已写的内容交给系统，再以结果的退出码退出，不等残留的定时器或端口。
+- `serve` 等停止请求：SIGINT、SIGTERM（能投递的平台上），或可选的标准输入关闭。Windows 上别的进程只能靠关闭标准输入让它停下。`s0` 写出启动结果之后自动请求停止。
+
+### 有序关闭
+
+- 本节只适用于计划停止。意外退出与非计划卸载时，各行的 disposer 只发起停止，结果只进诊断，不算有序关闭成功。
+- 要参加关闭的行登记一个句柄，声明阶段 entry、business、composition 或 storage。登记落在行 fiber 上，有两种承载：行体承载由包装插件在行体返回之后登记；入口对象承载由入口对象在被该行调用的方法里，经调用方的上下文登记。fiber 撤除时自动退登记，插件体重跑之后协调者只持有新句柄。登记被拒时该行 FAILED。
+- 再次请求停止返回同一个结果，不再调用任何句柄。
+- 全部阶段共用一个截止时间 D：开始停止时的单调时钟加配置的关闭期限。一个阶段的全部句柄结束或到达 D 之后，才开始下一阶段。同一阶段内按依赖的逆序：一行提供的服务被同阶段另一行直接或间接注入时，提供方在注入方结束之后才停；互相依赖的不分先后，没有依赖关系的同时停。原因是提供方停下会卸载它的服务，注入方的收尾会被打断。到达 D 还没结束的记 incomplete，抛出的记 failed，协调者都继续下一阶段。
+- entry 阶段之后、business 阶段之前做一步排空：并发调用带排空的句柄，让它不再接新的工作、把已经接到的做完，上限是排空期限。这一步里其他各行都还活着；排空用掉的时间不从 D 里扣。带排空的是 Model 宿主行：模型调用是挂在本进程连接上的付费请求，中止它，花掉的钱换不回结果，重启之后也认不回结局；所以先关上受理，等已受理的调用收场、结果推送完，再停调用方。排空期间新的模型调用答不可用，调用方按依赖不可用等待；到期限还在途的调用由 `stop` 中止，结局是未知。
+- composition 阶段得到会话存储组合的关闭结果，分别保留目录与 SQL 实例的结果。storage 阶段关闭存储宿主保存的每一个控制口，全部关好才答 settled。存储提供者自己的关闭期限来自它的行配置，不来自 D，所以它的值不大于 D。
+- business 阶段之后、composition 阶段之前，入口结算宿主文件：停周期维护，等已排队的维护，显式卸载宿主提供者行，等卸载完成后补维护，再做最终维护；结果作为关闭报告的附录。超过 D 时附录为不可用，迟到的结果只进诊断。
+- storage 阶段之后、报告确定之前，入口关闭遥测：先把日志桥切到关闭后态，再在剩余期限内把遥测运行时的队列排空到本地出口。抛出或到达 D 只影响附录。
+- 报告逐句柄列出结果，加上没有登记的预期登记者（not-registered）与停止之前已随行撤除的句柄（disposed-before-stop）。只有全部为 settled 时整体才是 settled。报告写出即确定，之后才通知存储句柄报告已确定；报告确定之后才结束的句柄只写诊断。最后撤除 Cordis 根。附录不参与整体结果与退出码。
+- 协调者不关闭业务连接，不回滚提交；SQL 连接与 Worker 只由存储提供者关闭。整体 incomplete 时，进程不报告平滑退出成功；下次启动时，未决的工作由原拥有者按原身份认回。
+
+### 授权政策：Session 与 Agent 的访问检查
+
+- 授权行提供四个服务：Session 访问检查、Agent 访问检查、动作准入，以及受信的系统动作授权。它们共用依赖，一起装载，一起撤除；依赖每次调用重新读，不缓存任何允许。行撤除之后，旧引用答不可用。
+- 一次访问检查在第一次等待之前把请求固定成计划，然后按次序判断，一步不通过就给出结论：按操作查表（只认自有属性，原型链上的键答拒绝）；核对固定绑定（变更命令的种类等于操作，命令里的会话与租户等于目标与访问的会话与租户，目标的种类等于该操作定义的种类）；按主体的形状选列；核租户；核工作绑定；取格（按输入种类或事实种类取分支）；按格调用依赖。拒绝格不调用依赖；等待产品规则的格写成拒绝格。
+- 主体分三列：登录主体 L（代租户行事，工作拥有者是身份登录），会话工作主体 W（代租户行事，工作拥有者是会话，工作是会话标识），系统主体 S。形状只用来选列，不授予资格。L 与 W 的租户必须等于访问的租户；W 的目标是会话时，它的工作必须等于目标会话，目标是租户时只核租户。Agent 的 `receive-result` 另认 Model 宿主签发的工作主体 M，按 W 的成员格判断，只核租户；M 做别的 Agent 操作一律拒绝。
+- 放行只有两种：成员（租户准入核验主体并读当前成员事实）与矩阵（系统动作授权按核主体、矩阵行、授予记录、参数的固定次序判断）。依赖答允许、拒绝或不可用时原样映射；拒绝不带原因，不披露会话是否存在；依赖抛出或答复不在契约内时答不可用，诊断是固定文字，不含异常原文。
+- 每个操作在每一列的裁决是源码里的政策表，不经配置改变。成员格对租户角色中立：问租户准入时要求的资格为空，所以租户角色不决定任何 Session 或 Agent 操作。
+- 系统维护授予表随版本内置，按系统主体的组件名定位。运维者只能收紧它：收回一项，或给一项设到期。不能新增，不能改用途、主体或作用域。表外的记录标识、多余的成员、`revoked: false`、空对象或不是 UTC 时刻的到期，都让行启动失败。到期在每次判断时读注入的身份时钟，时钟答不出时答不可用，不放行。收紧同时作用于两个访问检查的系统格与系统动作授权。撤权从下一次检查起生效，不阻止已经得到允许的那次提交。
+- 会话逐权限配值走专门的登录政策：只有实际签发、核验通过、当前仍是目标租户成员的登录主体，并且原登录仍有效、登录账号等于目标租户的账号，才能进入。资格材料在第一次等待之前固定，绑定原租户、会话、操作、完整命令摘要、期望的权限修订与政策引用；普通的允许证据不能代替它。原操作没有已提交的回执时，依据来源再做一次登录核验；已提交的由 Session 按回执认回，不重新铸造资格。
+
+### 动作准入与当前权限
+
+- 动作准入只放行会话工作主体，主体由原身份权威核验并代请求租户行事。一个动作放行，当且仅当三件事同时成立：身份当前合格；有匹配的静态允许规则而没有匹配的静态禁止；当前权限的读数解释为允许。静态禁止在读权限之前就终结。依赖缺席使对应的一项为假，不制造空约束。
+- 动作规则是部署配置的不可变快照。规则按工具定义名精确匹配，不匹配模型给的原名，所以一条规则覆盖多命令工具的全部命令，禁止不能被某个命令绕过；可选地逐项匹配采用的拥有者、名字、修订与摘要。禁止优先于一切允许，与顺序无关。没有规则、没有匹配、带人工决定或带命名权限读取的请求答不可用。没点名已知命令的调用不进动作准入，由可信请求来源以原因和工具指南作答。
+- 一次权限检查是一次读：核主体与当前租户成员资格；由受信映射把动作映射成权限请求与目标地址（地址不证明目标存在）；请原拥有者认回这个动作（Agent 动作、Tool 调用、带 Agent 来源的 Tool 调用）；在租户域的一个快照里执行只读的参加者命令，得出租户域的依据；读组织层的设置来源；作答。它不发提交，不开始治理操作，不占身份或设置的预留。
+- Tool 调用的受理是唯一用到依据的提交。启动协调者把账本命令与条件命令放进同一个事务，事务里重读依据并比较摘要：检查之后租户域的事实变了，整笔提交回滚，协调者重新检查。所以受理时依据的摘要等于检查时的摘要才能受理。身份成员资格与组织来源在别的事务域，每次检查新读，不在条件里。
+- 结构解释先于询问处理：已知的禁止仍是拒绝，结构上不可用仍是不可用；只有结构上允许而需要人决定的，才按会话发布的询问处理决定拒绝、跳过询问继续，或问人。问人在持久的等待接上之前答不可用。询问视图在读权限事实之前复制一份；它的租户、会话、权限修订与来源必须等于这次检查读到的会话权限事实，旧的发布拿不到新的依据。
+- 读数不是可以复用的执行许可：每次检查重取依赖、读当前事实。Tool 在准入与启动两处各自重新判断，不复用 Agent 先前的允许；启动时取原调用记录里的原准入，不用启动操作补造。
+- 发行内置的每个工具声明一个调用权限，覆盖它的全部命令，取值是禁止、询问、自动，缺省询问。权限声明与解释映射属于不可变的发行，版本由内容摘要推出，可变的租户配值不进摘要；同名实现替换不继承旧来源的配值与授予。
+- 每个租户的治理实例由应用的实例表管理：同一租户同一时刻只有一次打开在途，别的租户不排在它后面。目录答「没登记过」是正常情形，答不可用，不计失败。目录读不到、准备抛出，或打开没有创建出运行时，算一次失败：计数、上报，到再试时刻之前答不可用；到时刻之后的第一次调用先关闭失败那次打开仍持有的东西，再重新准备；关闭没有收场就不准备新的，关闭责任不丢。等待时长是可替换的策略。实例表是可丢的活体，不是第二份业务状态。
+
+### Model 的宿主权威
+
+- Model 宿主权威在入口闭包里持有本运行的 Model 组合：原受理的读许可、一次记录激活的附着、唯一的执行通道、宿主绑定与推送账本。服务表上只露出 `resolve`；记录行与宿主行各按运行取自己的窄口。无关插件拿不到签发者、成员事实读口、资格表的写口或通道。
+- `resolve` 有四步，任一步失败都不跳过后面的步骤去补造结果：在一次读许可里读原受理；核受理的租户与调用、当前成员资格、原发起者指向当前的成员记录；签发并登记 M（工作拥有者是 Model，工作是调用标识）；准备执行通道，失败时撤掉 M 的登记。关系核对在签发之前，所以核对不成立或依据读不到时，签发者不签出任何主体。
+- 资格回调是同步的，而主体核验与成员事实读取是异步的。L 与 W 的受理点是宿主行包装的命令：每个方法先核验、读成员事实、登记，再调用，最后释放；M 的受理点是 `resolve`。同步回调只查已登记的捕获：没有捕获答不可用；核验拒绝、非成员、租户不符或宿主已退役答拒绝。各动作允许哪些主体是源码里的矩阵，登录主体只有只读的动作。
+- 凭据由供应商、层与用途确定，租户取自调用。准备时选层：本租户层有任何一项就选它，层内缺项或读不出时准备失败，不回退官方层；本租户层为空且档案是官方档案时选官方层；凭据服务缺席、拒绝或不可用时准备失败。选定的层写进请求；发送在围栏内只读这一层，不重新选层。准备之后层变得不可用时，发送在围栏内拒绝，不向上游发出字节。
+- 一家供应商只有一个凭据项时才能发送。正文声明多项而没有说明每一项怎样放进请求时，装配拒绝这个供应商。
+- 宿主行是 business 阶段的行体承载：撤除宿主子 fiber 就是成员的有序关闭。释放执行时先撤除记录行的发送子 fiber、等发送资源关闭，再关闭通道；之后取通道答不可用，不交出已关闭的通道。资格表的宿主绑定项在通道关闭与宿主退役时整表清空，上界是一个通道、一代宿主内的调用数。
+- 登录主体可以用自己的身份取模型的公共流并订阅，只读已有的调用，不能新建调用。组合把一段观察包在捕获里，按检查间隔重新准入，新捕获成立之后才放掉旧的；重新准入失败就结束观察。订阅的中止只收订阅，不取消模型调用。
+
+### Tool 的运行时组与发行内置工具
+
+- Tool 运行时组每次运行只建一次，五行各在自己的 fiber 装同一组插件。整组的运维者配置只在记录行，缺任何一项记录行装载失败；同一次运行里换配置再建也失败，不悄悄沿用旧配置。其余四行等记录行建好再装。业务停止时执行器行关闭这一组：执行宿主退役，不再接新的作者执行。
+- 发行内置作者（Shell、Files、Tools、TodoItems、Web、Ask）来自不可变的发行清单。清单的构成规则只有一处，生成脚本与启动快照都用它。启动时先按包产物清单重算已安装的工具定义包的摘要，全等才从刚核对过的包根导入模块，不经包名解析；再重建整份清单比较。任何一项不等时快照不可用：来源权威的两个方法都答不可用，记一条警告，启动照常；读失败的结果不留，停一段之后，下一次核验触发重读，读完之前仍答不可用。
+- 来源权威的核验只为官方层、清单内的资产、证据全等且代次为当前代次的请求铸出已核验的权威，返回从快照构造的冻结值。登记准入只接受本运行签发的登记者对象本身。官方作者只能由登记者装载：发行的工具宿主行装好之后以系统作用域预装全部作者，租户的采用点只读已装的作者。预装失败只记警告，目录里没有这个作者，调用答不可用。
+- 工具宿主行只从受信快照取固定模块、构造值与上下文，不按调用参数导入；交给加载器的始终是快照里的固定模块。非空的环境声明经 schema 提供者按执行环境契约公开的 schema 校验，只有 valid 才通过。
+- 可用性判断只取已核的来源：快照、主体核验（必须是本租户的会话工作主体）、清单条目、确认的文本消费者材料。设施依赖只报装配在场，不核宿主的前提。
+- 可信 Tool 请求来源每次调用现取主体、定义、请求方作用域（会话快照里最新且未结束的作用域，以协调者调用方类读）、作用域归属、设置采用与元能力命令的可用性；缺席答不可用，不符答拒绝。元能力命令的可用性来自会话经 Runtime Context 发布的协作投影：Ask 的提问要会话允许人机交互，请求批准还要询问处理不是拒绝。不可用时调用不运行，以命令名与原因作答。
+- 来源资格只认本租户的会话工作主体。并发范围每个 Run 一个，授予按调用的租户与范围键重算核对，所以两个 Run 互不排队，同一个键在别的租户下被拒绝。
+- 环境只有宿主机落点。设施守卫核主体、原调用与文件根，检查请求里的每一个路径字段；带了路径字段而值不是路径时答拒绝。一个路径在文件根内要两条都成立：不跟随任何链接时，按段落在根下；解析后的真实位置在根的真实路径内。查不了真实位置时按根外处理。判断只用于放行，不改写请求里的路径。
+- 按调用的见证、原调用表与账本视图只随调用的终态释放：提交了结清，或之后读到已结清。表的大小随在途的调用数，不随累计的调用数增长。
+- 存储的命令上限必须容得下 Tool 暂停内容的三笔提交：上限小于三者里按存放形式最大一项的两倍时，启动失败。有了这条关系，记录仓不会因为大小而确定地拒绝暂停的提交。
+- 结果读回的参数预算归发行，不归运维者，模型参数不能覆盖它。改这个预算时要保留未到期的旧引用可读。
+- 正文保管的许可时长、时钟偏差与孤儿宽限是部署参数，由运维者显式给出；宽限与最长保留都要大于许可时长加两倍偏差，否则拒绝启动。
+- 正文清扫按到期时刻只访问到点的租户，每租户每批有上界：先删正文字节，再在账本记回收；中途崩溃之后重跑得到相同结果。失败按递增的退避再试，退避有封顶，成功后清零。启动时全量清扫一次，这是恢复。待清租户表是可丢的活体。
+- Tool 的生命周期观察投影成一个遥测事件，只带阶段、失败类别、条目数与字节数，不带正文、程序 data、路径或异常原文。遥测不参与结果交接、清理或准入；它的失败不改变 Tool 的答复。
+
+### Tool 等待与人工介入
+
+- Ask 暂停之后，等待由人工介入保管。决策方实现 Tool 的决策桥，与会话组合同一个事务域。来源带会话与 Run 时，登记与答复在同一笔提交里核对会话没有归档、该 Run 仍在进行。
+- 登记从原调用的恢复读取取等待的请求原文，核对它的摘要等于等待的证据。两个人工介入操作的身份由调用加等待派生，重送认回原结果。登记被原工作守卫拒绝时答冲突，Tool 把它当作确定的拒绝。原操作查询只读：按待办的动作重建同一条命令认回；人工介入已封口的答 excluded，其余答 unknown。
+- 全部卡片都有决定时，决定证据是请求与全部决定引用的摘要，不含修订。接手之后按登记的卡片顺序给出整批答复。接手回包未知或被拒都答不可用，Tool 不据此接受决定。失效的原因随等待关闭的原因；还没答的卡变失效，已答而没接手的卡保持已决定。
+- 唤醒只是提示：答复成为有效决定之后，请实例宿主重调度原调用；提示丢了，执行器的周期恢复扫描按待办标记找回它，所以丢了唤醒不丢事实。
+- 谁能读、谁能答，由注入的受众函数给出。还没有事务域的租户按同一条资格规则判断读者。
+- Agent 的卡片端口与 Tool 共用同一个人工介入宿主、受众与登记主体：一轮请求登记成一个请求，每项一张卡；准备与登记的身份由通道与轮次派生，按原操作身份与输入摘要认回；读到已决定而没接手的卡时，绑定接收者、接手、确认交接。
+
+### 会话存储与部署
+
+- 租户目录只增不删；读、解析与查找不登记租户。放行的创建先完成存储组合登记，再写目录文件，最后发布内存快照。不同租户的登记可以交错：每次在同一个同步发布序列里，以最新快照加上本次的租户写盘，所以并发登记不互相覆盖；同一租户的并发调用共用一次在途登记。写目录先写临时文件、刷盘、改名，再刷盘目录。目录文件只能有一个写者。
+- 行启动时按目录快照逐个确认租户当前的组合登记，全部成功才发布服务；登记失败或最终仍未知使行失败。关闭先拒绝新登记，迟到的确认不发布快照。
+- 目录里没有的租户没有会话。经委派视图的会话读与非创建的提交，对这样的租户答拒绝，与「会话不存在」是同一个结局；不答依据不可用，因为那会披露租户从没建过会话，并诱使调用者重试。这样的租户列会话得到完整的空页。访问裁定仍在先。
+- 部署枚举每次按调用现取系统动作授权；它缺席或答不可用时枚举答不可用；不是系统主体的调用者在问授权之前就答拒绝。只有允许之后才读一次完整快照，修订与条目来自同一次读取。
+- 会话日志的每一批新写出恰有一条提交通知，认回不通知。会话存储行在发布服务之前把通知接口登记在自己的存储上，停止或卸载时注销；Agent 日志行注入同一个存储，所以它写出的批也报到这里。会话提供者行只监听。
+- 进程启动时，会话提供者行以扫描主体枚举部署里的租户，为每个租户绑定恢复扫描者，所以有待办而没有新提交的租户也被找回。枚举失败时只按提交通知绑定，并记一条诊断。
+- 权限配值的提交依据每次按调用现取应用的后端；后端缺席答不可用，不阻止会话服务启动；未登记的租户先答拒绝。后端只给出依据的计划，不授予业务权限。
+
+### 信任入口与作用域归属
+
+- 作用域归属由一份按运行共享的来源回答：先问会话上下文适配行的作用域查找，它答不出时问会话存储行的受信作用域归属，再经会话主体绑定核对同一租户与同一会话，才答已绑定。未绑定、未知与不可用各自保持；两个来源都缺席时答不可用。应用不解码作用域摘要，不读会话的私有索引。Runtime Context 信任与执行环境的可信绑定共用这一份来源。
+- Runtime Context 的读者只接受会话工作主体：核验身份，租户相同，工作等于作用域所属的会话。生产者只接受会话模式主体与固定的模式生产者；供值时从该作用域所属的会话取协调者主体，再核验一次。
+- 执行环境的普通授权先核主体是代租户主体、租户等于访问的租户，再按动作核作用域绑定与原获取。恢复授权逐次委派受信来源；没有来源时不开放恢复。授权的当前性只保护读取方 fiber 的进程代次，在第一次等待之前捕获，退役之后的旧答案不再当前。
+- 环境授权对按保留范围观察答拒绝。授予哪个观察身份，由接上观察的装配决定。
+
+### 接入
+
+- 接入行只在回环地址上明文监听，不接受监听地址的配置；端口不接受 0。监听在 `start` 时打开，在 entry 阶段最先关闭：停止接新连接，给每个活动观察发结束，等在途请求写完答复，再关闭全部连接。
+- 接入行在自己的作用域里装接入登记表。一个领域的接入行把自己的协议挂上去即开放，卸下即撤下；装哪些接入行由发行决定，有贡献不等于开放。
+- 接入行取 Session 时用两个调用方类：受理（管理与工作面）与读者（历史面）。调用方类是装配事实，不授予资格。身份操作、设置治理与 Tool 查询每次调用现取，缺席答依据不可用，入口照常接收其他操作。会话诊断投影的种类与两个上限一起给或一起不给。
+- 人工介入位置的入口主体只在同一次请求的登录识别成功、并且目标租户的账号等于识别出的账号之后签发；签发者自己再核一次账号相等。入口主体的工作是固定文本，所以同一租户的入口主体引用稳定，与哪一次登录无关。
+- 入口诊断成为遥测事件，系统作用域，只带诊断码与请求 URL 的路径部分（不带查询串与片段），不带租户、请求正文、凭据或错误原文。
+
+### 设置、秘密与 Web 凭据
+
+- 秘密保管行装载时不读不建文件，每次调用才打开保管库。文件缺失或读不出时行仍 ACTIVE，读面答不可用、写面答没写入，文件字节不变。它不缓存，所以运维者在本机的写入与服务里的写入互相可见。
+- 设置行的登记跟随发行装载：一个发行工具的定义在工具宿主装好它的作者之后才可知，设置行在每次读登记表时对照受信的发行快照，把新知道的定义登记进去。持有用具体的资产引用，所以同名而不同的两份资产推出不同的秘密目标。
+- 设置的管理只对代该租户行事的登录主体开放。写入与读取恒在行事租户的租户范围；公开操作没有通往官方范围或使用面的路径。
+- 写 Web 的 key 与 Web 附着读 key 用同一份持有编码，本应用里只有这一份。有没有 key 只由保管现读。Web 的用途与 Model 的用途按键精确匹配，互相取不到。秘密只出现在设置写入的请求里，不进持久记录、固定请求或工具结果。没有任何一层配了 key 时，search 答未配置并指出要配哪一项，fetch 照常。
+- 租户层设置的写入以该租户的一个稳定主体行事，原操作的根只取决于租户与账号，不取决于哪一次登录：重新登录后重送同一操作，认回同一次写入。
+- Web 附着的选层顺序是租户、组织、官方。引用在调用开始时选定；中途被清除时这次调用失败，不改选别的层。
+
+### 采用来源
+
+- 创建会话时，常驻工具由部署映射条目列出；首次定义取自受信的发行快照，不取自调用方。任何一项拿不到材料（快照不受信、名字不在清单里、登记表缺席、某个工具没有唯一的活贡献），整份答不可用，不留下部分常驻工具。创建自己声明了映射以外的常驻工具时答 invalid。
+- 采用规划每次调用现取登记表与换代协调者，只采用唯一的活贡献，不按序号选版；已有的能力不再输出首次定义。登记口缺席、快照失败、已记录的键或首次形状解释不了、必要的定义缺失，整份答不可用。加载前已经发生的外部效果不因规划失败而撤销。
+- 创建时的模式注册用一个隔离的初始准备视图：按会话原来的算法绑定本次创建的作用域，只允许这一次准备，不允许提交或读者，完成后关闭。准备记录与创建在同一个会话批次里提交；原操作重传按完整的原输入与准备正文认回原守卫，不要求当前映射，也不重新准备。
+- 实时 Context 只在模式注册提交、并经会话上下文适配行确认应用之后供值。每个租户的模式生产者按租户装配一次，并发请求共享装配结果；生产者只保存可丢的发布状态。
+
+### 其他各行
+
+- 常驻引用桥接行以原入口主体、系统作用域读会话的引用页，投影整页。任何失败答不可用，不返回空页或部分页，不回退缓存。行撤除时把全部未决的读取结算为不可用，不等下游，迟到的结果不改变结算。
+- Request Context 的账目来源核验只放行代租户主体，三个租户相同，生产者是 Model，发送者等于发行的账目出口。读取资格与窄采用来源每次现取会话的持有者并短租借；持有者事实由入口在受信作用域里现取。缺席答不可用，不改写成拒绝。
+- 会话适配行的协调者主体每次调用由受信的会话工作主体签发，缺席答不可用，不调用 Agent 入口。
+- Request Context 的来源登记只放行会话工作主体为它自己的会话登记 Agent Context 的来源：作用域所属的会话经受信的作用域查找与会话主体绑定核对，必须等于主体的工作。
+- 会话的租户缺省模式取自部署映射条目，条目必须仍代表创建时记下的那一份模式采用；条目改名、移除或改了缺省时答不可用，不用当前的缺省代替。
+- 身份行的操作、租户成员事实与治理端口出自同一个提供者实例、同一份记录，所以治理端口上的撤销与切换对登录识别立即生效。
+- Agent 宿主行要求联合提交里有消息：本发行的日志只以消息联合提交把 Agent 的消息写进会话历史，少了它，工具消息会漏出历史而不报错，所以缺它时行装载失败。
+- 宿主文件的责任域由每次运行的入口创建，保留在入口闭包里，行重载共用同一个域。周期维护串行，行重载不新建周期；一次维护抛出只记诊断，之后的周期照常。
+- 遥测行的禁用实现是在场的实现，不是缺席，发射行照常 ACTIVE。发射行注入遥测，把成员已有的观察回调接上。记录按所属工作的租户作用域，系统作用域的操作按系统作用域；既没有租户、又不是系统作用域的记录不落到系统作用域，计为无效。日志桥在装载任何行之前登记，导出不高于 WARN 的消息；本行以 node 实现就绪时才把日志交给运行时，禁用时直写，不缓冲。输出在启动时固定，改出口或预算要重启。
+
+### 本机单用户档
+
+- 一个人在自己的宿主上运行服务：配置一次，之后 `serve` 不带参数就能启动；Windows 与 Linux 用同一套命令。只有省略运维者层或状态目录时，入口才读本机的配置。
+- 位置只依赖平台、环境变量与用户目录：设了服务主目录变量时用它下面的 config 与 state，这个变量必须是绝对路径，否则退出 2；没设时 Windows 用本地应用数据目录，其他平台按 XDG。命令行客户端为读默认地址重复了这条规则，两处要同时改。
+- 配置文件里没有秘密，除存储线程上限之外也没有运维者层的数值。数值留在代码里，所以新的发行带来新的数值时，用户不必再配置。凭据唯一的去处是状态目录下的保管库；配置文件写成之前保管库已经存在。
+- 凭据只从标准输入读，不经参数或环境变量；凭据、它的哈希或前缀不出现在任何输出、配置或错误文字里；未知参数不回显。
+- 已有的设置不被静默覆盖：与要用的不同而没有显式要求重新配置时，退出 2 并逐项列出旧值与新值。不合格的配置文件只有显式重置才替换。保管库读不出时不报保留；显式替换凭据时，读不出的保管库被重建，并警告各租户自己的秘密设置不再存在。配置从不删除目录或链接。运行时遇到绑定存在而读不出，调用仍以凭据失败结束，不回落到默认凭据。
+- POSIX 上配置与状态目录只给本用户（0700），配置文件 0600，保管库按保管库自己的权限护栏。Windows 上不改访问控制列表，保护来自用户目录的继承，所以保管库必须在用户目录之下。
+- `serve` 实际打开保管库确认可读，确认工作区是目录，再生成运维者层：从发行层每行的配置开始叠加本档的键，不重抄发行层拥有的值，本档的键与发行层同一行的键不重叠。文件根与 Shell、Files 的工作目录取工作区的真实路径；真实路径只在内存里用。
+- Shell 进程不继承服务进程的环境。它的环境是配置文件里在配置时按白名单取的变量，加上指向宿主状态目录的临时目录。名字像秘密的变量不进 Shell 的环境：手工写进配置的，`serve` 以配置不合格拒绝，生成运维者层时再滤一次。经宿主服务管理器起的进程归服务管理器，不归执行环境。
+- Windows 上 PowerShell 以只作用于这一个进程的执行策略启动，并带一段把控制台编码与读文件的缺省编码设为 UTF-8 的前导；不改机器或用户的任何设置。
+
+## 原则与约束
+
+- 本应用只装配。一条领域规则出现在这里时，先问它的拥有者是谁，写进拥有者的规格。
+- 组合只用公开端口：不读别的领域的私有表，不另存一份别人的事实，不为一个领域加特例。
+- 缺了就是缺了：依赖缺席、来源读不到、配置缺项，答不可用或启动失败；不默认放行，不补空表，不由代码猜一个数。
+- 每次调用现取。受信对象只经入口给，不经配置；运行时对象不进树，也不进输出。
+- 策略数值是配置，代码里只有初值；发行层不写数值。
+- 一处定义：行 id 与受信表源于应用装配页；发行内置工具的构成规则只在一处；秘密的持有编码只在一处。
+- 隔离不是权限。受信可见只防按名误取，资格每次核。
+
+## 不变式
+
+| 编号  | 永远成立的性质                                                                               | 违反的后果                                            | 由什么守                                                                                       |
+| ----- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| HS-1  | 装载前检查失败时，零个插件体运行，零个入口对象安装                                           | 坏配置留下半装的树或已安装的受信对象                  | `serve.spec.ts`、`plugin-tree.spec.ts` 的装载前拒绝用例                                        |
+| HS-2  | 受信名只对列为可见的行可得；根上按名取得 `undefined`；同一作用域第二个同名提供者失败         | 任意插件取到签发者或受信存储                          | `trust.spec.ts`、`serve-lifecycle.spec.ts`；`check:aa-rows` 的受信读法与签发调用点规则         |
+| HS-3  | 行快照与受信表等于应用装配页                                                                 | 装配页与运行的树不一致                                | `aa-rows.spec.ts`、`check:aa-rows`；`real-manifests-sync.spec.ts`                              |
+| HS-4  | 真件只装在声明的行 id 上，不依赖标记替身，不得到占位对象                                     | 生产路径悄悄跑在替身上                                | `serve.spec.ts`、`row.spec.ts`                                                                 |
+| HS-5  | 服务只在全部启用行 ACTIVE 且全部 `start` 成功之后接请求；进入停止状态后不再调用新的 `start`  | 半就绪的服务接请求，或停止中又启动                    | `readiness.spec.ts`、`shutdown.spec.ts`、`server-entry` 行的 `serve.spec.ts`                   |
+| HS-6  | 超时不把 PENDING 改为 FAILED                                                                 | 运维者按错误的故障处置                                | `readiness.spec.ts`                                                                            |
+| HS-7  | 同一个状态目录同一时刻只有一个 `serve` 进程持有独占锁；锁随进程结束而释放                    | 两个进程同时写同一份记录，或接手仍在运行的工作        | `state-lock.spec.ts`                                                                           |
+| HS-8  | 失联证据只在本运行持有状态锁时给出                                                           | 接手仍在推进的调用，重复发出付费请求或重复执行工具    | `state-lock.spec.ts`；崩溃矩阵 `tests/matrix/`                                                 |
+| HS-9  | stdout 只有一个写者，每行一条完整 JSON；`serve` 的关闭报告是 stdout 的最后一行               | 读者解析出半条记录，或把迟到记录当作报告之后的状态    | `shutdown.spec.ts`、`telemetry` 行的 `serve.spec.ts`                                           |
+| HS-10 | 关闭阶段依次进行，共用一个截止时间；同阶段内提供方晚于注入方停                               | 注入方的收尾被打断，或一个阶段无限等待                | `shutdown.spec.ts`、`shutdown-steps.spec.ts`                                                   |
+| HS-11 | 关闭报告确定之后不再修改，之后才通知存储句柄报告已确定；全部 settled 才是 settled            | 未收场的关闭被当作成功                                | `shutdown.spec.ts`                                                                             |
+| HS-12 | 排空期间新的模型调用答不可用；排空用的时间不从关闭截止时间里扣                               | 停止时中止在途的付费调用，结局无从认回                | `shutdown.spec.ts`；`model-host` 行的用例                                                      |
+| HS-13 | 退出码与结果一一对应；结果报出后进程立即结束                                                 | 运维脚本按错误的码处置，或进程被残留句柄挂住          | `process-end.spec.ts`、`serve-process.spec.ts`                                                 |
+| HS-14 | 跨行必须相等的配置在任何插件装载之前核对，不等退出 2                                         | 两行按不同的组合版本或页大小工作                      | `tests/model/consistency.spec.ts`、`suspension-bound.spec.ts`                                  |
+| HS-15 | Session 与 Agent 政策表的每一格的裁决与分支等于黄金表；行数等于两份操作枚举                  | 一格悄悄放宽，越权操作被放行                          | `policy-golden.spec.ts`、`policy.spec-d.ts`；角色中立由 `role-neutral-member-cells.spec.ts` 守 |
+| HS-16 | 访问检查不缓存允许；依赖抛出或答复不在契约内答不可用；拒绝不披露会话是否存在                 | 撤权后仍放行，或探测出别人的会话                      | `authorization` 行的 `adapters.spec.ts`                                                        |
+| HS-17 | 维护授予表只能收紧，不能新增或改用途；到期读注入的时钟，读不出不放行                         | 运维配置给系统主体加了权限                            | `grants.spec.ts`、`grant-tightening.spec.ts`、`system-action-enumeration.spec.ts`              |
+| HS-18 | 动作放行当且仅当身份合格、静态允许且无静态禁止、当前权限读数为允许；禁止优先，与规则顺序无关 | 静态 allow 直接放行，或一个命令绕过工具的禁止         | `adapters.spec.ts`、`release-action-rules.spec.ts`                                             |
+| HS-19 | Tool 受理时租户域依据的摘要等于检查时的摘要，否则整笔受理回滚                                | 检查之后撤下的权限仍被消费                            | `tests/rows/governance/permission-basis-read.spec.ts`、`permission-basis.spec.ts`              |
+| HS-20 | 已知的结构禁止不因询问处理变成放行；询问视图的修订必须等于本次读到的会话权限事实             | 跳过询问的政策覆盖了禁止，或旧政策混进新依据          | `permission-basis-read.spec.ts`；其余只有文字                                                  |
+| HS-21 | `resolve` 的四步不被跳过；无关插件只拿到 `resolve`                                           | 未受理的调用拿到执行通道，或别的插件签发 M            | `tests/entry/model-authorities.spec.ts`                                                        |
+| HS-22 | Model 的同步资格只认已登记的捕获；宿主退役后永远为假                                         | 未核验的主体经同步回调被放行                          | `tests/model/qualification.spec.ts`                                                            |
+| HS-23 | 本租户层有凭据项时不回退官方层；发送只读准备选定的层                                         | 租户的请求用了部署的凭据，或发送时换了层              | `model-credential` 与 `model-request-preparation` 行的用例                                     |
+| HS-24 | 发行快照只在产物与重建的清单全等时受信；不受信时来源权威一律答不可用                         | 被篡改的工具定义以官方身份装载                        | `tests/entry/tool-release.spec.ts`、`tool-host` 行的 `release-host.spec.ts`                    |
+| HS-25 | 官方作者只由本运行的登记者装载                                                               | 租户冒充官方层登记工具                                | `tool-release.spec.ts`、`tool-host` 行的用例                                                   |
+| HS-26 | 路径只有在不跟随链接按段落在根下、且真实位置在根的真实路径内时才算在文件根内                 | 经链接或别名读写根外的文件                            | `within-root.spec.ts`、`path-alias.spec.ts`                                                    |
+| HS-27 | 按调用的表只随调用的终态释放，大小随在途调用数                                               | 内存随累计调用数增长，或在途调用失去见证              | `holder-release.spec.ts`                                                                       |
+| HS-28 | 存储命令上限容得下 Tool 暂停内容的三笔提交，否则启动失败                                     | 暂停的提交被记录仓确定地拒绝，账本没有对应的终局      | `suspension-bound.spec.ts`、`tests/local/operator-defaults.spec.ts`                            |
+| HS-29 | 等待的登记与答复在同一笔提交里核对会话没有归档、Run 仍在进行；决定证据不含修订               | 已结束的 Run 出卡，或接手之后重送的决定被当作新的输入 | `tests/rows/tool-hitl/bridge.spec.ts`、`release-ask.spec.ts`                                   |
+| HS-30 | 唤醒丢了不丢事实：恢复扫描按待办标记找回等人的调用                                           | 人答复之后调用永远不恢复                              | `wake.spec.ts`、`release-restart.spec.ts`                                                      |
+| HS-31 | 租户目录只增不删，并发登记不互相覆盖；目录文件只有一个写者                                   | 已登记的租户从目录里消失                              | `tests/rows/session-storage/directory.spec.ts`                                                 |
+| HS-32 | 未登记租户的会话读与非创建提交答拒绝，与会话不存在同一个结局                                 | 外部能区分租户是否建过会话                            | `unregistered-tenant.spec.ts`                                                                  |
+| HS-33 | 会话日志每一批新写出恰有一条提交通知，认回不通知                                             | 读者漏掉提交，或重复处理认回                          | `tests/session/commit-notices.spec.ts`                                                         |
+| HS-34 | 部署枚举每次经系统动作授权判断，不缓存允许；允许之后修订与条目来自同一次读取                 | 收回授予之后仍能枚举租户                              | `system-action-enumeration.spec.ts`                                                            |
+| HS-35 | 作用域只有经会话主体绑定核对同一租户与会话之后才答已绑定；两个来源都缺席答不可用             | 一个会话的工具操作落到别的会话的作用域上              | `tests/entry/session-scope-source.spec.ts`、`runtime-context-trust.spec.ts`                    |
+| HS-36 | 接入只在回环地址明文监听；入口诊断不带租户、正文、凭据与查询串                               | 服务暴露到网络，或诊断泄露秘密                        | `server-entry` 行的 `serve.spec.ts`、`composition.spec.ts`                                     |
+| HS-37 | 设置的公开操作只写行事租户的租户范围；写 Web key 与读 Web key 用同一份持有编码               | 租户改了官方凭据，或配了 key 而 Web 读不到            | `tests/rows/settings/settings.spec.ts`、`web-settings-e2e.spec.ts`                             |
+| HS-38 | 秘密不进持久记录、固定请求、工具结果与进程输出                                               | 凭据泄露                                              | `web-settings-e2e.spec.ts` 的哨兵扫描；`tests/local/secret-input.spec.ts`                      |
+| HS-39 | 创建会话的常驻工具要么全部取得材料，要么整份不可用                                           | 会话带着半套常驻工具创建                              | `create-residents.spec.ts`、`planner.spec.ts`                                                  |
+| HS-40 | 本机档的凭据只从标准输入读；已有设置不被静默覆盖；保管库在配置文件之前存在                   | 凭据进入进程表或 shell 历史；用户的设置被悄悄改掉     | `tests/local/setup.spec.ts`、`secret-input.spec.ts`、`setup-serve-process.spec.ts`             |
+| HS-41 | 名字像秘密的变量不进 Shell 的环境                                                            | 服务的秘密经 Shell 泄露给模型                         | `tests/local/operator-defaults.spec.ts`、`serve-local.spec.ts`                                 |
+| HS-42 | 本机档的位置规则与命令行客户端的副本一致                                                     | 客户端连到错误的端口                                  | 本应用的 `locations.spec.ts` 与客户端的 `local-server.spec.ts` 各固定一份                      |

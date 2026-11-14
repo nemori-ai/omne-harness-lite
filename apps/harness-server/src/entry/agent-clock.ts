@@ -1,6 +1,3 @@
-// `agentClock`（AA 运行时对象表「时钟」、agent-contract `AgentClock`）：根上的入口对象，`agent-host` 静态 inject。
-// 读数与等待取自 `session-clock.ts` 的系统时间来源，经 agent-contract 的 `Reply` 通道作答：读不到时 `unavailable`，
-// 不能接受的时刻文本 `invalid`，不编造读数，也不永远等。
 import type { Context } from '@deepseek-ai/cordis'
 import type { AgentClock } from '@omne-harness/agent-contract'
 import { AgentClockService, agentClockKey } from '@omne-harness/agent-cordis-contract/cordis'

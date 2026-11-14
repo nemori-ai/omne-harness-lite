@@ -1,9 +1,3 @@
-// The tables of the identity records, the names that the participant, the migration and the read
-// handlers share, and the shapes of the facts and the read inputs and outputs that cross the Worker
-// boundary. This file has no runtime import, so the Worker modules load it as it is.
-// Every value in a fact or a read output is text: instants and durations travel encoded, integers
-// travel as decimal text. The participant executes SQL only; the provider does every computation.
-
 export const IDENTITY_PARTICIPANT = 'identity'
 export const PROTOCOL = '1'
 export const MIGRATION = Object.freeze({ owner: IDENTITY_PARTICIPANT, id: '001-identity' })
@@ -17,11 +11,6 @@ export const IDENTITY_TABLES: readonly string[] = Object.freeze([
   'id_login',
 ])
 
-/**
- * Plain STRICT tables: no deferred foreign key, no time default, no temporary table (sqlite-provider
- * §4.5). Unique columns are inline constraints: the provider's migration authorizer denies the
- * REINDEX step of an explicit CREATE INDEX, and an inline constraint builds its index with the table.
- */
 export const SCHEMA_STATEMENTS: readonly string[] = Object.freeze([
   `CREATE TABLE id_account (
     account TEXT NOT NULL PRIMARY KEY, login_identifier TEXT NOT NULL UNIQUE,
@@ -56,7 +45,6 @@ export const HANDLERS = Object.freeze({
 export const PERSONAL_ORGANIZATION = 'personal'
 export const MEMBERSHIP_ACTIVE = 'active'
 
-/** The five rows of one registration (SPEC: one commit, one command). */
 export type RegisterFacts = Readonly<{
   kind: 'register'
   loginIdentifier: string
@@ -69,7 +57,6 @@ export type RegisterFacts = Readonly<{
   role: string
 }>
 
-/** The one row of one issued login. The proof itself is never a fact: only its digest is. */
 export type IssueLoginFacts = Readonly<{
   kind: 'issue-login'
   login: string

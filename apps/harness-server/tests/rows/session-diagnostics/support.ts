@@ -1,11 +1,3 @@
-// Fixtures of the session diagnostics scenarios (#1140 A5): a scripted local Model gateway and the
-// reads of `omne read-session-diagnostics` as a process. No vitest import.
-//
-// The gateway is a real HTTPS server on 127.0.0.1 with a self-signed certificate, as
-// `tests/fixtures/model-gateway.ts` (R2-D258: a test never sends a Model call to a real supplier).
-// It differs in one thing: an answer may be `hold`, which keeps the request open until `release`.
-// The capacity scenario needs that: the first call of the tenant must hold its share of the
-// result capacity while the second call is admitted.
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import type { ServerResponse } from 'node:http'
@@ -17,7 +9,6 @@ import { bodyOf, type CliRun } from '../../r9/support.ts'
 
 export const GATEWAY_PATH = '/api/v1/chat/completions'
 
-/** The error body of an upstream that timed out: HTTP 504 on the streaming request. */
 export const UPSTREAM_504_BODY = JSON.stringify({
   error: { message: 'local test gateway: upstream timed out', code: 504 },
 })
@@ -37,28 +28,20 @@ export const answer504: GatewayReply = Object.freeze({
   body: UPSTREAM_504_BODY,
 })
 
-/** Answers request `index` (0 for the first) with its JSON body text. */
 export type ScenarioScript = (request: Readonly<{ index: number; body: string }>) => ScenarioAnswer
 
 export type ScenarioGateway = Readonly<{
-  /** The `https:` route URL on 127.0.0.1. */
   url: string
-  /** The PEM certificate file, for `NODE_EXTRA_CA_CERTS` of the `serve` child. */
   certPath: string
-  /** How many requests reached the gateway. */
   received(): number
-  /** How many requests are held open right now. */
   held(): number
-  /** Writes `answer` to every held request. */
   release(answer: GatewayReply): void
-  /** Stops the server, releases every held request with 504, deletes the certificate. */
   close(): Promise<void>
 }>
 
 function certificate(directory: string): { keyPath: string; certPath: string } {
   const keyPath = join(directory, 'key.pem')
   const certPath = join(directory, 'cert.pem')
-  // The child gets the inherited environment without the repository's BASELINE override.
   const { BASELINE: _inherited, ...env } = process.env
   execFileSync(
     'openssl',
@@ -146,7 +129,6 @@ export type DiagnosticsBody = Readonly<{
   complete: boolean
 }>
 
-/** The `--json` body of one complete read, or undefined when the read did not succeed. */
 export function diagnosticsBodyOf(read: CliRun): DiagnosticsBody | undefined {
   if (read.status !== 0) return undefined
   const body = bodyOf(read)
@@ -156,7 +138,6 @@ export function diagnosticsBodyOf(read: CliRun): DiagnosticsBody | undefined {
 
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
-/** The one Run of a session whose diagnostics show it ended, or the evidence why not after `timeoutMs`. */
 export async function untilRunEnded(
   cli: Cli,
   session: string,
@@ -177,13 +158,11 @@ export async function untilRunEnded(
   )
 }
 
-/** The `terminal.cause.structured` of a projected Run. */
 export function structuredCauseOf(run: Record<string, unknown>): unknown {
   const terminal = run['terminal'] as { cause?: { structured?: unknown } } | null
   return terminal?.cause?.structured
 }
 
-/** The model calls of a projected Run. */
 export function modelCallsOf(run: Record<string, unknown>): Record<string, unknown>[] {
   const calls = run['modelCalls']
   return Array.isArray(calls) ? (calls as Record<string, unknown>[]) : []

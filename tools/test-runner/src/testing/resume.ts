@@ -1,28 +1,3 @@
-// `check --resume-from <H1>`：H1 上跑过一次准入（全量，或按本次基线的影响面）、快速失败在第 X 步，修复后在 HEAD 上接着跑。
-// 这里只做判断，不跑任何步骤：前提校验（哪一条不满足都拒绝）、全局路径退化为整次重跑、增量计划（每一步怎么跑）
-// 与证据文本。全部输入由调用方给（git 事实、记录、步骤表、全局路径与影响面函数），
-// 本模块是纯函数；`resumeFacts` 单独取 git 事实。规则归 docs/engineering/integration.md「增量准入」。
-//
-// 增量计划的原则是「H1 没跑到的检查与全部轻步骤，HEAD 上按 H1 那次的范围整次跑」：没有一个步骤只因为 H1 的记录里没有失败就少跑，
-// 也没有一个步骤比 H1 那次的范围宽。
-// - 常驻步骤（非 `planned`）每次都跑整仓，照旧。
-// - 按计划的轻步骤（python）整次跑。
-// - 按计划的重步骤（build、typecheck、test、acceptance）：X 与 H1 上没跑到的整次跑——H1 全量就选全部成员，
-//   H1 按影响面就选 HEAD 相对本次基线的影响面；H1 上通过了的只跑 H1..HEAD 影响到的成员。整次跑的步骤需要它前面
-//   （`after`，传递）的按计划步骤也整次跑：成员测试与验收读构建出来的 dist，缩了构建范围就会读到旧产物或读不到。
-//   收窄的构建只重建 H1..HEAD 影响到的成员，其余 dist 是 H1 那次留在磁盘上的，所以只在 H1 那次的工作树里接续。
-// - H1 按影响面时，它的基线合并点必须就是本次的：H1 的影响面（合并点..H1）与 H1..HEAD 的影响面合起来，
-//   才覆盖 HEAD 相对本次基线的影响面（合并点..HEAD）。
-// - H1..HEAD 碰到全局路径（锁文件也是）时不接续，按 H1 那次的范围整次重跑；锁文件的按 importer 映射只用于普通的影响面计划。
-// - H1 失败于 test 且记录写了失败文件（test-retry.ts 的 `testFailures`）、失败都在慢层（快层已对全部成员通过）、
-//   H1..HEAD 的差异都落在失败文件所在的成员里时，test 步只跑必要的：H1..HEAD 影响到的成员照常跑快慢两层，
-//   另把失败的文件单独各跑一次（计划的 `testResume`）；其余步骤按本节别的规则。差异碰到别的路径、失败在快层
-//   （慢层在 H1 上没跑过）或记录没写失败文件时回退：test 步整次。
-// - 接续运行的记录（`mode: resume`）不作 H1：接续不链式。
-// - H1 之后在同一棵工作树里留下记录的运行（任何 mode，含失败的接续，准入与否都算）是「中间运行」：它们可能重建过成员，
-//   后来的提交又把改动撤回，H1..HEAD 的差异里就看不到那些成员，磁盘上的 dist 却停在中间运行那个头。
-//   所以影响面与全局路径核对用的改动集是 H1..HEAD 并上每个中间运行的「它的头..HEAD」；中间运行带未提交改动，
-//   或它的头算不出差异时整次重跑。
 import { isLegacyFile } from '@omne-harness/repo-toolchain/core/check-scope'
 import { git, nulSeparated } from '@omne-harness/repo-toolchain/core/git'
 import type { AdmissionRun, CacheStates, ResumeOrigin } from './admission-run.ts'
@@ -31,16 +6,10 @@ import { latestResumeOrigin } from './admission-run.ts'
 import type { CheckStep } from './check-graph.ts'
 import { patternToRegExp, sample, type CheckPlan } from './scope.ts'
 
-/** H1 那次准入的范围：全量，或按本次基线（`ref`，合并点 `mergeBase`）的影响面。 */
 export type OriginScope =
   | { readonly mode: 'full' }
   | { readonly mode: 'affected'; readonly ref: string; readonly mergeBase: string }
 
-/**
- * 向影响面函数要一份计划：
- * - `whole`：HEAD 上按 H1 那次的范围整次算——`full` 是 `FULL=1` 的计划，`affected` 是 HEAD 相对本次基线的影响面；
- * - `since`：只按 H1..HEAD 的改动文件（不含全局文件：碰到全局文件时不接续）。
- */
 export type PlanRequest =
   | { readonly kind: 'whole'; readonly mode: OriginScope['mode'] }
   | { readonly kind: 'since'; readonly paths: readonly string[] }
@@ -48,36 +17,21 @@ export type PlanRequest =
 export type Planner = (request: PlanRequest) => CheckPlan
 
 export interface ResumeInputs {
-  /** H1，40 位。 */
   readonly from: string
-  /** `git rev-parse H1^{tree}`，与记录的 `tree` 核对。 */
   readonly fromTree: string
   readonly head: string
-  /** 本次运行所在工作树的根；与 H1 记录的 `worktree` 比，不同就拒绝。 */
   readonly worktree: string
-  /** 本次基线（统一规则取到的）与它和 HEAD 的合并点；H1 按影响面准入时，它记下的基线必须是同一个合并点。 */
   readonly base: { readonly ref: string; readonly mergeBase: string }
   readonly dirty: boolean
-  /** H1 是 HEAD 的祖先（含相等）。 */
   readonly isAncestor: boolean
-  /** H1..HEAD 改动的仓库相对路径。 */
   readonly changedFiles: readonly string[]
-  /**
-   * 每个中间运行的头到 HEAD 的改动路径；算不出（头不在本仓库里等）记 `'unknown'`。键缺失同样按算不出处理。
-   * 没有中间运行时可以不给。
-   */
   readonly intermediateChanges?: Readonly<Record<string, readonly string[] | 'unknown'>>
-  /** 检出里能找到的全部准入记录；由本模块挑 H1 的。 */
   readonly records: readonly AdmissionRun[]
   readonly globalPaths: readonly string[]
   readonly steps: readonly CheckStep[]
   readonly plan: Planner
 }
 
-/**
- * `whole` 按 H1 那次的范围整次跑；`narrowed` 只跑 H1..HEAD 影响到的成员（只有 H1 上通过了的重步骤）；`resident` 常驻、整仓；
- * `files` 只有 test 步：H1..HEAD 影响到的成员加 H1 上失败的文件。
- */
 export type StepScope = 'whole' | 'narrowed' | 'resident' | 'files'
 
 export interface ResumeStep {
@@ -86,7 +40,6 @@ export interface ResumeStep {
   readonly why: string
 }
 
-/** 中间运行的摘要：各次运行的头（按开始时间），以及它们补进 H1..HEAD 差异之外的文件。 */
 export interface IntermediateSummary {
   readonly heads: readonly string[]
   readonly added: readonly string[]
@@ -95,7 +48,6 @@ export interface IntermediateSummary {
 export type ResumeVerdict =
   | { readonly kind: 'rejected'; readonly reason: string }
   | {
-      /** 不接续，HEAD 上按 H1 那次的范围整次重跑。 */
       readonly kind: 'rerun'
       readonly reason: string
       readonly origin: ResumeOrigin
@@ -107,10 +59,8 @@ export type ResumeVerdict =
       readonly kind: 'resume'
       readonly origin: ResumeOrigin
       readonly scope: OriginScope
-      /** H1 那次运行时各缓存的状态，原样带进证据；不据它拒绝。 */
       readonly caches: CacheStates
       readonly steps: readonly ResumeStep[]
-      /** 写进 `tmp/check-plan/plan.json` 给各 `step` 命令读的计划：按步骤各取整次或 H1..HEAD 影响面的那一份。 */
       readonly plan: CheckPlan
       readonly changedFiles: readonly string[]
       readonly intermediate: IntermediateSummary
@@ -127,10 +77,8 @@ type Prerequisites =
       readonly scope: OriginScope
     }
 
-/** H1 那次准入的说法：证据里用。 */
 const originLabel = (scope: OriginScope) => (scope.mode === 'full' ? '全量' : '影响面准入')
 
-/** H1 没有能作起点的记录时，说清是哪一种。 */
 function missingOrigin(records: readonly AdmissionRun[], from: string): string {
   const own = records.filter(run => run.head === from)
   const started = own.filter(run => run.mode !== 'resume')
@@ -143,7 +91,6 @@ function missingOrigin(records: readonly AdmissionRun[], from: string): string {
   return `${short(from)} 没有准入记录（tmp/admission/*.json 或 tmp/check-run/*/run.json）`
 }
 
-/** H1 那次的范围；按影响面时它的基线合并点要与本次相同，否则拒绝。 */
 function scopeOf(
   record: AdmissionRun,
   base: ResumeInputs['base'],
@@ -159,7 +106,6 @@ function scopeOf(
   return { mode: 'affected', ref: base.ref, mergeBase: base.mergeBase }
 }
 
-/** 前提校验：每一条都明说原因；顺序是先看现场，再看记录。 */
 function prerequisites(inputs: ResumeInputs): Prerequisites {
   const from = short(inputs.from)
   if (inputs.dirty) return { kind: 'rejected', reason: '工作树有未提交改动：先提交或清掉，再接续' }
@@ -215,17 +161,12 @@ function prerequisites(inputs: ResumeInputs): Prerequisites {
   return { kind: 'ok', record, failedStep: record.failedStep, scope }
 }
 
-/**
- * H1 之后、同一工作树里留下记录的运行（任何 mode，准入与否都算：非准入的 check 同样重建 dist/）：`startedAt` 晚于 H1 记录的 `finishedAt`。
- * 按开始时间排序；`resumeFacts` 与 `resumePlan` 用同一个挑法。
- */
 export function intermediateRuns(
   records: readonly AdmissionRun[],
   origin: AdmissionRun,
   worktree: string,
 ): AdmissionRun[] {
   const after = Date.parse(origin.finishedAt)
-  // 同一次运行在 tmp/admission 与 tmp/check-run 各留一份记录：按头与开始时间合并。
   const runs = new Map<string, AdmissionRun>()
   for (const run of records)
     if (run !== origin && run.worktree === worktree && Date.parse(run.startedAt) > after)
@@ -233,16 +174,11 @@ export function intermediateRuns(
   return [...runs.values()].sort((a, b) => a.startedAt.localeCompare(b.startedAt))
 }
 
-/** 碰到的全局文件（退役目录里的不算）。 */
 function globalHits(paths: readonly string[], globalPaths: readonly string[]): string[] {
   const patterns = globalPaths.map(patternToRegExp)
   return paths.filter(path => !isLegacyFile(path) && patterns.some(pattern => pattern.test(path)))
 }
 
-/**
- * 整次跑的按计划步骤：X、H1 上没跑到的与全部轻步骤，连同它们前面（传递）的按计划步骤。
- * `narrowedFailed` 为真时 X（test）不作种子：它只跑失败的文件与 H1..HEAD 的影响面。
- */
 function wholeScopeSteps(
   steps: readonly CheckStep[],
   record: AdmissionRun,
@@ -265,12 +201,10 @@ function wholeScopeSteps(
     for (const before of step.after) visit(before)
   }
   for (const seed of seeds) visit(seed.name)
-  // 收窄的 test 步不整次：后面的步骤（验收）读的是构建的产物，不读它的；它前面的构建已经随链进来。
   if (narrowedFailed) whole.delete(failedStep)
   return whole
 }
 
-/** 整次跑的理由：自己失败、自己没跑到、自己是轻步骤，或者它之后有整次跑的步骤（它们读它的产物）。 */
 function whyWhole(
   record: AdmissionRun,
   failedStep: string,
@@ -287,7 +221,6 @@ function whyWhole(
 
 const PLANNED_LISTS = ['build', 'typecheck', 'test', 'acceptance'] as const
 
-/** 分组的名字：H1 按影响面时，整次跑的写明范围是本次基线的影响面。 */
 function scopeName(scope: StepScope, origin: OriginScope): string {
   if (scope === 'whole') return origin.mode === 'full' ? '整次' : '整次（本次基线的影响面）'
   if (scope === 'files') return '只跑失败用例文件'
@@ -296,14 +229,8 @@ function scopeName(scope: StepScope, origin: OriginScope): string {
 
 const TEST_STEP = 'test'
 
-/** 收窄 test 步的判断：能收窄给失败文件，不能给回退的原因（写进那一步的理由）。 */
 type TestNarrowing = { readonly files: readonly FailedFile[] } | { readonly fallback: string }
 
-/**
- * H1 失败于 test 时 test 步能不能只跑失败的文件：记录写了失败文件、都在慢层（快层已对全部成员通过）、
- * 差异（含中间运行补进的）都落在这些文件所在的成员里。差异里有别的路径时，那些路径影响到的成员
- * 读的代码变了，只跑文件不够，回退整次。
- */
 function narrowTest(
   record: AdmissionRun,
   failedStep: string,
@@ -323,7 +250,6 @@ function narrowTest(
   return { files }
 }
 
-/** 按步骤各取整次或 H1..HEAD 影响面的那一份，合成一份计划文件。 */
 function composePlan(
   whole: CheckPlan,
   since: CheckPlan,
@@ -361,7 +287,6 @@ function composePlan(
   }
 }
 
-/** 三种结论之一：拒绝并给原因；退化为按 H1 的范围整次重跑并给原因；增量计划。 */
 export function resumePlan(inputs: ResumeInputs): ResumeVerdict {
   const checked = prerequisites(inputs)
   if (checked.kind === 'rejected') return checked
@@ -384,7 +309,6 @@ export function resumePlan(inputs: ResumeInputs): ResumeVerdict {
     intermediate,
   })
 
-  // 中间运行：带未提交改动、或头算不出差异，都说不清磁盘上的产物对应哪份源码，整次重跑。
   const middle = intermediateRuns(inputs.records, record, inputs.worktree)
   const dirtyRun = middle.find(run => run.dirty)
   if (dirtyRun !== undefined)
@@ -404,7 +328,6 @@ export function resumePlan(inputs: ResumeInputs): ResumeVerdict {
   intermediate = { heads: middle.map(run => run.head), added: [...added].sort() }
   const planned = [...new Set([...changedFiles, ...intermediate.added])].sort()
 
-  // 锁文件与别的全局文件一样：碰到就不接续。按 importer 映射只用于普通的影响面计划。
   const hits = globalHits(planned, inputs.globalPaths)
   if (hits.length > 0)
     return rerun(
@@ -462,10 +385,6 @@ function changedLines(label: string, changedFiles: readonly string[]): string[] 
   ]
 }
 
-/**
- * 证据文本：「H1 全量（失败于 X）＋ HEAD 增量（基线 H1）」；H1 按影响面时是「H1 影响面准入（失败于 X）＋ HEAD 增量」，
- * 并写明两次是同一个基线合并点。附差异文件清单。退化与拒绝各有自己的说法。
- */
 export function describeResume(verdict: ResumeVerdict, head: string): string[] {
   if (verdict.kind === 'rejected') return [`拒绝接续：${verdict.reason}`]
   const from = short(verdict.origin.head)
@@ -510,20 +429,14 @@ export interface ResumeFacts {
   readonly dirty: boolean
   readonly isAncestor: boolean
   readonly changedFiles: readonly string[]
-  /** 每个中间运行的头到 HEAD 的改动；没给记录时为空。 */
   readonly intermediateChanges: Readonly<Record<string, readonly string[] | 'unknown'>>
 }
 
-/**
- * 工作树有没有说不清的改动：`git status --porcelain` 非空（被忽略的文件不算），或 `git ls-files -v` 里有
- * assume-unchanged（小写字母开头）与 skip-worktree（`S`）的文件：它们的改动 status 看不到。
- */
 export function workingTreeDirty(root: string): boolean {
   if (git(root, ['status', '--porcelain']) !== '') return true
   return /^[a-zS] /mu.test(git(root, ['ls-files', '-v']))
 }
 
-/** `git merge-base --is-ancestor`：0 是，1 不是，别的退出码照常抛出。 */
 function isAncestorOf(root: string, ancestor: string, descendant: string): boolean {
   try {
     git(root, ['merge-base', '--is-ancestor', ancestor, descendant])
@@ -534,10 +447,6 @@ function isAncestorOf(root: string, ancestor: string, descendant: string): boole
   }
 }
 
-/**
- * 从检出取接续要的 git 事实；`fromRef` 不是提交、`baseRef` 与 HEAD 没有合并点都抛错（调用方以 2 退出）。
- * 改动只看已提交的 H1..HEAD。`baseRef` 是统一规则取到的本次基线。
- */
 export function resumeFacts(
   root: string,
   fromRef: string,
@@ -562,7 +471,6 @@ export function resumeFacts(
 const diffPaths = (root: string, from: string, to: string) =>
   nulSeparated(git(root, ['diff', '--no-renames', '--name-only', '-z', from, to])).sort()
 
-/** 每个中间运行的头到 HEAD 的改动；git 算不出（头不在本仓库里）记 `'unknown'`。 */
 function intermediateChanges(
   root: string,
   from: string,

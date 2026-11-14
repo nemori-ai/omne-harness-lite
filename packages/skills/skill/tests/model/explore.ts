@@ -1,8 +1,3 @@
-// The requests of the exploration, how one is performed against a run, and what a run reports.
-// Each property module enumerates its own space of worlds, schedules and requests, performs
-// every combination against the real services, and collects the combinations that break the
-// property. Nothing here knows the implementation: the checks look at the answers, at the
-// port calls that the wrappers saw, and at the bytes of the world.
 import type { ByteRange, SkillMaterialBasis } from '@omne-harness/skill-contract'
 import {
   ACCESS,
@@ -35,7 +30,6 @@ export type Request =
 
 export type AccessRequest = Extract<Request, { op: 'describe' | 'read' | 'list' | 'export' }>
 
-/** What the caller sees: the answer, or the name of the error that the operation threw. */
 export type Observation = Readonly<{ outcome: unknown }> | Readonly<{ thrown: string }>
 
 export const PART_PATH: Readonly<Record<Exclude<Part, 'body'>, string>> = {
@@ -115,7 +109,6 @@ export async function perform(run: Run, who: Principal, request: Request): Promi
   }
 }
 
-/** One combination that breaks a property: enough to replay it. */
 export type Violation = Readonly<{
   world: WorldSpec | string
   schedule?: Schedule
@@ -126,14 +119,11 @@ export type Violation = Readonly<{
 
 export type Report = Readonly<{
   property: string
-  /** How many combinations were performed and checked. */
   cases: number
   violations: readonly Violation[]
-  /** Wall time of the exploration in milliseconds. */
   ms: number
 }>
 
-/** Collects cases and violations; keeps the first `limit` violations only. */
 export class Ledger {
   cases = 0
   readonly violations: Violation[] = []
@@ -160,7 +150,6 @@ export class Ledger {
   }
 }
 
-/** The failure of an outcome, or `undefined` for a success or an observation that is no outcome. */
 export function failureOf(observation: Observation): unknown {
   if (!('outcome' in observation)) return undefined
   const { outcome } = observation
@@ -169,7 +158,6 @@ export function failureOf(observation: Observation): unknown {
     : undefined
 }
 
-/** The kind of a failure: the failure itself for the catalog (`'unknown'`), else its `kind`. */
 export function failureKind(observation: Observation): string | undefined {
   const failure = failureOf(observation)
   if (typeof failure === 'string') return failure
@@ -180,7 +168,6 @@ export function failureKind(observation: Observation): string | undefined {
   return undefined
 }
 
-/** The success value, or `undefined`. */
 export function okOf(observation: Observation): unknown {
   if (!('outcome' in observation)) return undefined
   const { outcome } = observation
@@ -189,7 +176,6 @@ export function okOf(observation: Observation): unknown {
     : undefined
 }
 
-/** A failure carries nothing but the failure: no content field beside it. */
 export function onlyFailure(observation: Observation): boolean {
   if (!('outcome' in observation)) return false
   const { outcome } = observation
@@ -198,7 +184,6 @@ export function onlyFailure(observation: Observation): boolean {
   )
 }
 
-/** Every order of `items`. */
 export function permutations<T>(items: readonly T[]): T[][] {
   if (items.length <= 1) return [[...items]]
   return items.flatMap((item, index) =>
@@ -209,7 +194,6 @@ export function permutations<T>(items: readonly T[]): T[][] {
   )
 }
 
-/** The access requests over `names`, `bases` and the read parts. `export` only with a basis. */
 export function accessRequests(
   names: readonly Name[],
   bases: readonly (BasisRef | undefined)[],
@@ -227,7 +211,6 @@ export function accessRequests(
   return requests
 }
 
-/** Waits until every pending promise job and the next timer phase ran. */
 export function settle(): Promise<void> {
   return new Promise(resolve => setImmediate(resolve))
 }

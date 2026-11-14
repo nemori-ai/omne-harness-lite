@@ -43,7 +43,6 @@ describe('the reference admission check', () => {
     table.leave(adminTenant())
     const after = await check.check(input)
     expect(after).toMatchObject({ kind: 'denied', reason: 'not-member' })
-    // The same principal object, unchanged, is now denied: the decision is not cached on it.
     expect(input.access.principal).toBe(principals.actingForAdmin)
     table.join(adminTenant(), DEFAULT_ROLES.member)
     const rejoined = await check.check(input)
@@ -179,7 +178,6 @@ describe('a permit through the reference check', () => {
     expect(after).toMatchObject({ kind: 'denied', reason: 'permit-consumed' })
     const again = await permits.ledger.consume({ permit, consumer: CONSUMER })
     expect(again.kind).toBe('already-consumed')
-    // Membership alone still admits the operation without the permit.
     const withoutPermit = await check.check(
       readHistoryInput(principals.actingForAdmin, adminTenant()),
     )

@@ -28,14 +28,6 @@ export type ModelResult = ModelOutcome &
     parts: readonly M.ResultPart[]
   }>
 
-/**
- * A sealed reasoning part: an opaque `reasoning_state` or a `thinking` block. The delivery carries
- * no original scope/format for them (R2-D70), so the reply cannot carry the `replay` a
- * `reasoning_state` needs (message SPEC RS-03), and a `thinking` block whose signature is dropped is
- * not sent back. R2-D268: the reply leaves them out, as the projection rule of message SPEC (a
- * projection that removes every reasoning_state and no thinking stays has no `replay`) allows. The
- * received material keeps them unchanged.
- */
 function sealedReasoning(part: M.ResultPart): boolean {
   return (
     part.kind === 'sealed' &&
@@ -47,11 +39,6 @@ function truncated(parts: readonly M.ResultPart[]): boolean {
   return parts.some(part => part.kind === 'partial')
 }
 
-/**
- * The interpretation of one received result. The reply is formed from the parts that are not sealed
- * reasoning (R2-D268); an unsealed thinking part is a partial part as any other. `parts` stays the
- * whole received delivery.
- */
 export function consumeModelResult(
   input: Parameters<typeof replyMessageId>,
   value: Omit<ModelResult, 'kind'>,
@@ -129,17 +116,8 @@ export function voidedModelIntents(voided: readonly VoidedIntent[], step: StepId
   return voided.filter(item => item.kind === 'model' && item.step === step).length
 }
 
-/** The longest model diagnostic a cause record carries; a longer one is cut there. */
 const DIAGNOSTIC_LIMIT = 120
 
-/**
- * The last segment of the cause record of a call that ended without a valid reply (SPEC「以失败终结」).
- * The failure candidate is `no-reply` either way (SC-AG-153), but its cause keeps why: a call that
- * Model settled as failed gives `model-failed/<fault cause>/<diagnostic>`, so the conclusion carries
- * the real cause and not only the absence of a reply. A call that completed with a partial part
- * gives `model-truncated`; `no-reply` stays for a call that completed without content. The
- * diagnostic is URI-encoded, so it never adds a segment.
- */
 export function noReplyReason(result: Pick<ModelResult, 'settlement' | 'parts'>): string {
   const terminal = result.settlement.termination
   if (terminal.kind !== 'failed') return truncated(result.parts) ? 'model-truncated' : 'no-reply'

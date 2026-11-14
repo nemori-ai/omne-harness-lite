@@ -1,5 +1,3 @@
-// The encoding helpers of the session location: the public contract's codec writes every
-// response, and an encode failure is the entry's own fault, so it gives no answer.
 import {
   encodeSessionResponse,
   type SessionOperation,
@@ -13,7 +11,6 @@ import { STATUS_BY_OUTCOME, type PublicOutcome } from './status.ts'
 export const encoder = new TextEncoder()
 const VERSION = 'session-public/1'
 
-/** The location's `protocol-rejected`, with the messageId only when the read found a trusted one. */
 export function sessionProtocolRejected(messageId?: string): JsonAnswer {
   const result = encodeSessionResponse({
     response: {
@@ -29,7 +26,6 @@ export function sessionProtocolRejected(messageId?: string): JsonAnswer {
   return { kind: 'json', status: STATUS_BY_OUTCOME['protocol-rejected'], bytes: result.bytes }
 }
 
-/** Encodes one business response. The codec checks the outcome and body against the operation. */
 export function sessionAnswer(
   operation: SessionOperation,
   messageId: string,

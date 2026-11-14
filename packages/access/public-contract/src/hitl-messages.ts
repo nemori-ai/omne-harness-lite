@@ -1,4 +1,3 @@
-// HITL 位置 `hitl-public/1` 的消息（SPEC「HITL 公开操作」）。形状用本成员的词声明，不导入 HITL 的包。
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
   EmptyBody,
@@ -12,27 +11,22 @@ export type HitlCodecLimits = GovernanceCodecLimits
 export type HitlDiagnostic = GovernanceDiagnostic
 export type HitlEncodeResult = GovernanceEncodeResult
 
-/** 卡片引用。调用者原样使用 `list-cards` 或 `read-card` 返回的 `ref`。 */
 export type HitlCardRef = {
   readonly request: { readonly tenantRef: string; readonly requestId: string }
   readonly cardId: string
 }
-/** 一次处理：选择一个选项、自由作答或跳过。 */
 export type HitlReply =
   | { readonly kind: 'selection'; readonly optionId: string }
   | { readonly kind: 'text'; readonly text: string }
   | { readonly kind: 'decline' }
 export type HitlCardState = 'pending' | 'decided' | 'invalidated'
 export type HitlOriginKind = 'tool' | 'agent-extension' | 'admission' | 'independent'
-/** `list-cards` 的过滤条件。带 `sessionRef` 时是会话入口，不带时是待办池。 */
 export type HitlCardFilter = {
   readonly states: readonly HitlCardState[]
   readonly originKind?: HitlOriginKind
-  /** 会话标识文本：64 个小写十六进制字符。 */
   readonly sessionRef?: string
   readonly delivery?: 'pending' | 'accepted' | 'superseded'
 }
-/** `submit-reply` 与 `query-submit-reply` 共用的 body：原提交的全部内容。 */
 export type HitlReplySubmission = {
   readonly tenant: TenantId
   readonly card: HitlCardRef
@@ -65,7 +59,6 @@ export type HitlRequestByOperation = {
 }
 export type HitlRequest<O extends HitlOperation = HitlOperation> = HitlRequestByOperation[O]
 
-// 卡片视图（SPEC「卡片视图」）。
 export type HitlOption = {
   readonly id: string
   readonly label: string
@@ -123,7 +116,6 @@ export type HitlCard = HitlCardFields &
         readonly terminalEvidenceRef: string
       }
   )
-/** 卡片的来源。原等待的路由字段不进入视图。 */
 export type HitlCardOrigin = {
   readonly kind: HitlOriginKind
   readonly sessionRef?: string
@@ -141,7 +133,6 @@ export type HitlCardPage = {
   readonly snapshotRef: string
   readonly completeness: 'complete' | 'partial'
 }
-/** `submit-reply` 与 `query-submit-reply` 的成功正文：三个互斥分支。 */
 export type HitlReplyResult =
   | {
       readonly kind: 'decided'
@@ -179,7 +170,6 @@ export type HitlOutcomes = {
     | 'basis-unavailable'
     | 'unknown'
 }
-/** `limited` 的正文，照 HITL 原样给出。 */
 export type HitlLimitedBody = { readonly resource: string; readonly limit: number }
 
 export type HitlProtocolRejected = {

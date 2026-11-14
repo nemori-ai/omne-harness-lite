@@ -1,12 +1,3 @@
-// S1, no disclosure, by self-composition. For an observer and a hidden identity `alpha`, each
-// world runs next to its twin in which `alpha` was deleted (`twinWorld`). The two runs share the
-// request and the schedule (the port faults, which never touch `alpha`, and a pre-aborted signal
-// or none), so the only difference is the hidden identity. The observer must get deeply equal
-// answers from both. Three ways of hiding are compared with the deletion: the read check refuses
-// and the resolution hides `alpha`; the read check refuses and the resolution answers for it (so
-// Skill's own read check is the guard); the read check grants and the resolution does not know
-// it (the "checked-only" path). A request whose basis names another identity (step 1) is also
-// compared with the same request without a basis.
 import { isDeepStrictEqual } from 'node:util'
 import {
   accessRequests,
@@ -31,7 +22,6 @@ import {
 
 const HIDDEN = 'alpha'
 
-/** How `alpha` is unavailable to the observer `who`; `owner` may read it. */
 const HIDINGS = {
   'refused-hides': (who: Principal, owner: Principal) => ({ readers: [owner], knownTo: [owner] }),
   'refused-shows': (who: Principal, owner: Principal) => ({
@@ -55,9 +45,6 @@ const OTHER_STATES: readonly IdentityState[] = [
   { kind: 'stand-in' },
 ]
 
-/** Faults shared by both runs. None is an answer about `alpha`: the premise is that the ports
- * answer the observer the same for an existing and a missing identity (PC3, PR5). The resolution
- * may still answer `beta` with the reference of `alpha` (no PR1): that must not show `alpha`. */
 const FAULTS: readonly (FaultPoint | undefined)[] = [
   undefined,
   { site: { port: 'resolve', name: 'beta' }, fault: 'misdirect', to: 'alpha' },
@@ -155,8 +142,6 @@ export async function exploreDisclosure(): Promise<Report> {
                       request,
                       detail: `${how}: ${JSON.stringify(seen)} differs from the twin's ${JSON.stringify(unseen)}`,
                     })
-                  // Step 1 and step 2 give the same answer: a basis of another identity is not
-                  // told apart from a refused read.
                   if (
                     abortAfter === undefined &&
                     'basis' in request &&

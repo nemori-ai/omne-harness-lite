@@ -1,6 +1,3 @@
-// The deployment parameters of body custody (BodyLifecycle model constants W, Eps, G, D): the
-// assembly gives them, startup refuses a set under which a late write could land after a sweep,
-// and a declaration whose retention lies inside that window is refused when it is accepted.
 import { expect, it } from 'vitest'
 import { createToolLedger } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'

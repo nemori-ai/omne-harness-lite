@@ -11,7 +11,7 @@
 | [`pqw/`](pqw/spec-addendum.md) | pqw spec 与 plan 模板的本项目附加节；`contract-version` 是本项目满足的 pqw 接入约定版本 | 不生成，由根 `AGENTS.md`「pqw-skills 接入」引用 |
 | [`roles/engineering-taste.md`](roles/engineering-taste.md) | 研发品味的项目补充 | 不生成 |
 
-[`research/`](research/README.md) 保存方法仍依赖的上游事实、适用版本与限制，不保存本项目如何讨论、迁移或验证这些方法的过程。规矩本身归 canonical skills。过程材料放哪归[位置与唯一源](../../docs/engineering/documentation.md#位置与唯一源)。
+规矩本身归 canonical skills。过程材料放哪归[位置与唯一源](../../docs/engineering/documentation.md#位置与唯一源)。
 
 ## 编译
 

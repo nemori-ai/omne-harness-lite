@@ -1,6 +1,3 @@
-// workspace 成员清单：`pnpm-workspace.yaml` 列出的成员目录、它们的脚本与声明的 workspace 依赖。
-// 依赖按 package.json 的声明算，而不是按源码导入——测试可能导入生产代码不导入的包。
-// 清单可以从工作树读，也可以从某个提交读（回放历史上的提交时用），两者走同一套解析。
 import { execFileSync } from 'node:child_process'
 import { repositoryEnv } from './git-environment.ts'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
@@ -8,31 +5,24 @@ import { join } from 'node:path'
 import { isLegacyDirectory } from './check-scope.ts'
 
 export interface WorkspaceMember {
-  /** 仓库相对目录，例如 `packages/core/messages`。 */
   readonly path: string
   readonly name: string
-  /** `package.json` 的 `scripts`，只收字符串值。 */
   readonly scripts: Readonly<Record<string, string>>
-  /** 它声明依赖的 workspace 成员名（dependencies、devDependencies、peerDependencies）。 */
   readonly dependencies: readonly string[]
 }
 
 export interface TestMember {
   readonly path: string
   readonly name: string
-  /** `package.json` 里被选中的那个脚本（`test` 或 `acceptance`）的原文。 */
   readonly script: string
   readonly dependencies: readonly string[]
 }
 
-/** 读成员清单要用到的两件事：读一个文件、列一个目录下的子目录。路径都相对仓库根。 */
 export interface Tree {
-  /** 文件不存在时为 undefined。 */
   read(path: string): string | undefined
   directories(path: string): string[]
 }
 
-/** 工作树：含未提交与未跟踪的成员；跳过 `node_modules`。 */
 export function fileTree(root: string): Tree {
   return {
     read: path => {
@@ -64,7 +54,6 @@ function gitOutput(root: string, args: readonly string[]): string | undefined {
   }
 }
 
-/** 某个提交上的树。提交本身不存在时第一次读就报错，不当作「没有成员」。 */
 export function gitTree(root: string, revision: string): Tree {
   if (gitOutput(root, ['rev-parse', '--verify', '--quiet', `${revision}^{commit}`]) === undefined)
     throw new Error(`提交 ${revision} 不存在`)
@@ -78,10 +67,6 @@ export function gitTree(root: string, revision: string): Tree {
   }
 }
 
-/**
- * `pnpm-workspace.yaml` 里 `packages:` 下列出的成员目录模式。成员清单只有那一份权威，这里不另写一份；
- * 只认它现在用到的写法：一行一个、`*` 代表一级目录。认不出的写法直接报错，不悄悄漏掉成员。
- */
 export function workspacePatterns(yaml: string): string[] {
   const lines = yaml.split('\n')
   const start = lines.findIndex(line => /^packages:\s*$/u.test(line))
@@ -125,7 +110,6 @@ interface Manifest {
   peerDependencies?: Record<string, unknown>
 }
 
-/** 全部 workspace 成员（有 package.json 且有名字的），不含被排除根目录下的；按清单顺序。 */
 export function listWorkspaceMembers(
   tree: Tree,
   excludeRoots: readonly string[],
@@ -169,7 +153,6 @@ export function listWorkspaceMembers(
   return members
 }
 
-/** 有 `script` 脚本的成员，带上脚本原文。 */
 export function withScript(members: readonly WorkspaceMember[], scriptName: string): TestMember[] {
   return members.flatMap(member => {
     const script = member.scripts[scriptName]
@@ -179,7 +162,6 @@ export function withScript(members: readonly WorkspaceMember[], scriptName: stri
   })
 }
 
-/** 工作树里带 `script` 脚本（缺省 `test`）的 workspace 成员，不含被排除根目录下的。 */
 export function listTestMembers(
   root: string,
   excludeRoots: readonly string[],
@@ -193,7 +175,6 @@ export function listTestMembers(
   )
 }
 
-/** 路径归哪个成员：最长的成员目录前缀；目录名只是前缀相同的不算。 */
 export function ownerOf<T extends { readonly path: string }>(
   path: string,
   members: readonly T[],

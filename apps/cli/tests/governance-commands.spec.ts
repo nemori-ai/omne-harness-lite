@@ -44,7 +44,6 @@ afterEach(async () => {
   rmSync(root, { recursive: true, force: true })
 })
 
-/** A service that issues logins with a `loginId`, and answers `answer` for every other operation. */
 async function serve(answer?: (seen: Seen) => Answer | undefined): Promise<FakeService> {
   const service = await startFakeService(seen => {
     const base = defaultAnswer(seen)
@@ -56,7 +55,6 @@ async function serve(answer?: (seen: Seen) => Answer | undefined): Promise<FakeS
   return service
 }
 
-/** A service that answers one outcome, with an empty body, to the given operation. */
 function answering(operation: string, outcome: string): (seen: Seen) => Answer | undefined {
   return seen => (seen.wire['operation'] === operation ? { outcome, body: {} } : undefined)
 }
@@ -77,7 +75,6 @@ const parsed = (text: string) => JSON.parse(text) as Record<string, unknown>
 interface Case {
   readonly name: string
   readonly args: readonly string[]
-  /** True when the operation carries the acting tenant. */
   readonly acting: boolean
   readonly body: Record<string, unknown>
   readonly echo?: Record<string, string>
@@ -417,7 +414,6 @@ describe('switch-current-tenant', () => {
       body: { tenant: tenantText },
     })
 
-    // A session that is created after the switch belongs to the new tenant.
     await cli(['create-session', '--definition', 'default'])
     expect(service.seen.at(-1)?.wire['actingTenant']).toBe(otherTenantText)
   })

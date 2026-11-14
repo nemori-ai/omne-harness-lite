@@ -1,5 +1,3 @@
-// Compile-time shape of the new address (#1233 spec C2, C3): steps 1 to 5 are one synchronous
-// function, and `access` is given whole or not at all.
 import { expectTypeOf, test } from 'vitest'
 import { admit } from '../src/pipeline/pipeline.ts'
 import { createServerEntry, type ServerEntryAccess } from '../src/index.ts'

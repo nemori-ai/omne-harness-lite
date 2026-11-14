@@ -1,6 +1,3 @@
-// The targets of the e2e journey: how each reference server is started, which protocol revision
-// the journey expects on it, and which tool and arguments each step calls. The tool names and
-// arguments come from the servers' own sources and their `tools/list`.
 import { existsSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import { tmpdir } from 'node:os'
@@ -15,27 +12,18 @@ export type TargetId = 'E-stdio' | 'E-http' | 'E-sse' | 'F' | 'P'
 
 export type Call = Readonly<{ tool: string; args: unknown }>
 
-/** What a target offers to the steps. A step that needs a call the target lacks stops with an error. */
 export type TargetCalls = Readonly<{
-  /** S1: a tool name the listing must contain. */
   known: string
-  /** S2: a read-only call that the server answers as a result. */
   readOnly: Call & Readonly<{ text: string }>
-  /** S3: a call that the server answers with `isError: true`. */
   toolError: Call
-  /** S4: a call that asks for input; `answer` is the `inputResponses` of the retry. */
   input?: Readonly<{ call: Call; answer: unknown; expectedText: string }>
-  /** S5: a call that the server answers with a task; `answer` goes to `provideTaskInput`. */
   task?: Readonly<{ call: Call; answer: unknown }>
-  /** S6: a call that runs long enough to be cancelled and sends a progress notification early. */
   long?: Call
 }>
 
 export type StartedTarget = Readonly<{
   adoption: Adoption
-  /** The protocol revision the journey expects the connection to negotiate. */
   revision: string
-  /** The `process` that S7 expects from `release`. */
   released: 'root-only' | 'no-process'
   calls: TargetCalls
   close(): Promise<void>
@@ -44,9 +32,7 @@ export type StartedTarget = Readonly<{
 export type Target = Readonly<{
   id: TargetId
   title: string
-  /** The step numbers the journey must run on this target, in order. */
   steps: readonly string[]
-  /** The reason the target cannot run here, or undefined when it can. */
   unavailable?: string
   start(): Promise<StartedTarget>
 }>
@@ -65,7 +51,6 @@ const FETCH_BIN = fileURLToPath(
 export const FETCH_MISSING =
   'mcp-server-fetch not installed: run uv sync --locked --group mcp-fixtures'
 
-/** One progress notification per second, so that S6 sees the request arrive in a second. */
 const LONG_CALL: Call = {
   tool: 'trigger-long-running-operation',
   args: { duration: 60, steps: 60 },
@@ -74,7 +59,6 @@ const LONG_CALL: Call = {
 const EVERYTHING_CALLS: TargetCalls = {
   known: 'echo',
   readOnly: { tool: 'echo', args: { message: 'hi' }, text: 'Echo: hi' },
-  // `echo` needs a `message`: the server answers the input validation error as a tool error.
   toolError: { tool: 'echo', args: {} },
   input: {
     call: { tool: 'trigger-elicitation-request', args: {} },
@@ -88,7 +72,6 @@ const EVERYTHING_CALLS: TargetCalls = {
   long: LONG_CALL,
 }
 
-/** The legacy revision has no task extension and no form input in this client (S4 and S5 do not apply). */
 const EVERYTHING_LEGACY_CALLS: TargetCalls = {
   known: EVERYTHING_CALLS.known,
   readOnly: EVERYTHING_CALLS.readOnly,
@@ -96,7 +79,6 @@ const EVERYTHING_LEGACY_CALLS: TargetCalls = {
   long: LONG_CALL,
 }
 
-/** A TCP port that nothing listens on now, in the range the fixtures use. */
 async function closedPort(): Promise<number> {
   for (;;) {
     const port = 20_000 + Math.floor(Math.random() * 40_000)
@@ -112,7 +94,6 @@ async function closedPort(): Promise<number> {
   }
 }
 
-/** A local web server: `/robots.txt` allows everything and `/page` is a small HTML page. */
 async function pageServer(): Promise<Readonly<{ url: string; close(): Promise<void> }>> {
   const server: Server = createServer((request, response) => {
     if (request.url === '/robots.txt') {

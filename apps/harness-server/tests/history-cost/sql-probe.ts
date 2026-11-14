@@ -1,14 +1,3 @@
-// Counts the SQLite statements of one process and its worker threads, by phase and by owner. Load
-// it with `node --import` before anything opens a database; worker threads inherit the flag. The
-// main thread sets the phase (`globalThis.historyCostPhase`); every thread reads it from one shared
-// cell, so a statement a worker runs is counted in the phase the main thread was in. A statement on
-// a `tl_` table belongs to the Tool, or to the host when it binds a `host` ledger domain (every
-// ledger and due statement of the Tool storage binds `(tenant, kind, …)`); every other statement
-// (Agent, Session, Model, identity, provider receipts) is `other`. Each group also names the tables
-// its statement scans, from the query plan of the database that prepared it: rows returned do not
-// show a statement that visits every row of a table to find a few. Each thread writes its counts to
-// `HISTORY_COST_TRACE_DIR` when a database closes and when it exits; the main thread also when
-// `globalThis.historyCostFlush` is called.
 import { mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -19,17 +8,13 @@ export type Owner = string
 export type Group = {
   phase: number
   owner: Owner
-  /** The statement text, so a difference between two calls can be traced to its statement. */
   sql: string
   statements: number
   rowsRead: number
-  /** The most rows one execution of the statement returned in the phase. */
   maxRowsRead: number
   rowsWritten: number
   bytes: number
-  /** Time spent inside the statement calls of the group, in milliseconds. */
   ms: number
-  /** The tables the plan of the statement scans in full (`SCAN <table>` of EXPLAIN QUERY PLAN). */
   scans: readonly string[]
 }
 
@@ -45,7 +30,6 @@ function cellBytes(value: unknown): number {
   throw new Error('an unmeasured SQLite value')
 }
 
-/** `tool` or `host` for the Tool storage; otherwise the prefix of the first table the statement names. */
 function ownerOf(sql: string, params: readonly unknown[]): Owner {
   if (/\btl_/u.test(sql)) return !/\btl_body_/u.test(sql) && params[1] === 'host' ? 'host' : 'tool'
   const table = /\b(?:FROM|INTO|UPDATE|JOIN)\s+"?(_?[a-z]+)_/iu.exec(sql)?.[1]
@@ -99,8 +83,6 @@ if (directory !== undefined) {
     group.bytes += cellBytes(params) + rows.reduce<number>((sum, row) => sum + cellBytes(row), 0)
     group.ms += ms
   }
-  // The statement methods are patched on the shared prototype, so they see every statement of the
-  // thread; each forwards its arguments untouched and counts the answer.
   type Method = (...params: unknown[]) => unknown
   const prepare = DatabaseSync.prototype.prepare as unknown as (sql: string) => object
   const scratch = new DatabaseSync(':memory:')
@@ -114,7 +96,6 @@ if (directory !== undefined) {
     const statement = prepare.call(this, sql)
     sqlOf.set(statement, sql)
     if (!scansOf.has(sql)) {
-      // A statement SQLite cannot explain (a pragma, a transaction statement) scans nothing.
       let plan: unknown[] = []
       try {
         plan = Reflect.apply(all, prepare.call(this, `EXPLAIN QUERY PLAN ${sql}`), []) as unknown[]

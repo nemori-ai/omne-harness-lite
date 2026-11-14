@@ -29,14 +29,12 @@
 | 领域责任、逻辑模块、事实拥有者、允许协作、组合验证 | [docs/domains/](domains/README.md) | 不复制成员字段、状态协议、算法或完整SPEC；精确技术未决链接实际拥有者 |
 | 目标能力组、包边界、SDK及新增扩展 | [docs/package-organization.md](package-organization.md)、[docs/workspace.md](workspace.md) | 前者维护目标组织，后者维护源码归属与实际工具边界；新目录不批准实施 |
 | 能力组内工程分解、成员依赖、关键流程及共同维护 | [packages/<domain>/](../packages/README.md)的README及按需工程专题 | 与docs领域关系分开；成员未具名时保留承接缺项，不创建组根统一SPEC代替成员 |
-| 公开形状、必要行为、内部机制、使用与持续资源 | 实际[packages](../packages/README.md)、[apps](../apps/README.md)、[tools](../tools/README.md)成员 | 类型/Schema拥有形状；SPEC拥有非类型行为；docs维护机制及使用；verification/tests/acceptance维护相称资源。完整必要行为不受“薄SPEC”篇幅限制 |
+| 公开形状、必要行为、内部机制、使用与持续资源 | 实际[packages](../packages/README.md)、`apps`、[tools](../tools/README.md)成员 | 类型/Schema拥有形状；SPEC拥有非类型行为；docs维护机制及使用；verification/tests/acceptance维护相称资源。完整必要行为不受“薄SPEC”篇幅限制 |
 | 工程规则、任务场景、技能采用与交付 | [docs/engineering/](engineering/README.md)、[CONTRIBUTING](../CONTRIBUTING.md)、[development](development.md) | 项目额外约束归工程拥有者，研发流程归 pqw，方法分层见[三层分工](engineering/skills.md#三层分工)；每条流程事实的拥有者见[流程事实在哪](engineering/README.md#流程事实在哪)。技能名字不证明实际加载或遵循 |
-| 正式技术提案与最小决定、写回关系 | [docs/rfcs/](rfcs/README.md) | 正式条目按真实审议产生，初始空骨架不制造历史；提案不是当前完整规范，获准范围须写回实际拥有者 |
 | 一次交付范围、条件、具名接受及恢复定位 | 实际GitHub Issue，规则归[卡与交接信息包](engineering/delivery.md#卡就是交接信息包)，命令归 `omne-card` | 卡就是交接信息包；Project为派生视图，平台关闭不授予接受 |
 | 统一概念、正式用语及英文名 | [.meta_harness/design/ubiquitous_language/](../.meta_harness/design/ubiquitous_language/README.md) | 用词读取词条，不另建同义词表；改概念加载ubiquitous-language，单纯消费词条不加载治理技能 |
 | 有身份对象的宿主、身份、生灭、依据与对象性未决 | [.meta_harness/design/domain_objects/](../.meta_harness/design/domain_objects/README.md) | 条目依统一语言与有效产品依据维护；不是完整领域架构或成员数据模型 |
 | 上游机制在固定版本下提供与不提供什么 | [.meta_harness/design/basis/](../.meta_harness/design/basis/README.md)及有效来源/probe | 读数受上游版本和实际验证范围约束，不能自动把上游保证授予本系统 |
-| 持续研究与条件性知识 | [.meta_harness/research/](../.meta_harness/research/README.md)及[agent研究入口](../.meta_harness/agents/research/README.md) | 根research职责/结构仍待负责人定义；读实际入口，不恢复旧模板或从目录推定结论采用 |
 | 怎样给 agent 布置与评审一类设计（写给人的学习材料） | [.meta_harness/human/](../.meta_harness/human/README.md) | 不是规则，规则以其引用的拥有者为准；agent 不以它为任务依据 |
 | 项目独有skills、钩子与云端环境源 | [.meta_harness/agents/](../.meta_harness/agents/README.md)、[tooling](../.meta_harness/tooling/README.md) | canonical是源；.meta_harness下宿主目录是生成物，根.agents/.claude/.codex暴露入口，不手改产物 |
 | 派生视图、结构库存、来源/符合性观察 | [设计views](../.meta_harness/design/views/README.md)、[spec-tools](../tools/spec-tools/README.md)、[repo-toolchain](../tools/repo-toolchain/README_ZH.md)、[verification](verification.md) | 视图用于定位源，报告用于定位偏离/未知。由真实输入重新生成，不手填结果或把观察变成权威 |

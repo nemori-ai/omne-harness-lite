@@ -1,4 +1,3 @@
-// Declarations of the public-api chapter "消息转换".
 import type { Outcome } from '@omne-harness/operation-result'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { Access } from './root.ts'

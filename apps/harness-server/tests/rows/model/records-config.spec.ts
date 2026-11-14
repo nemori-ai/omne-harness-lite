@@ -1,6 +1,3 @@
-// The configuration of the `model-records` row (#1214): the release requires the bounds of the
-// confirming observation source, which the member takes as optional, because the formal assembly
-// always publishes the public Model stream.
 import { describe, expect, it } from 'vitest'
 import { modelRecordsConfig } from '../../../src/rows/model-records/config.ts'
 import { modelRowsOperatorConfig } from '../../r9/support.ts'

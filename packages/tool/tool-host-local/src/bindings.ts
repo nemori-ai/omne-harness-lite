@@ -1,8 +1,3 @@
-// The binding registry (G7) of one process: the contributions of trusted loaders, keyed by source
-// layer, capability and asset version. `register` runs the origin check, the admission check and
-// the write in one synchronous step, so no other register comes between them; that step is the
-// local ordering domain. The registry is not durable and keeps no history. A contribution leaves
-// only by its own token, whether through `release` or through the end of its caller fiber.
 import { randomUUID } from 'node:crypto'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec } from '@omne-harness/legal-identity'
@@ -37,12 +32,6 @@ export type LocalToolAuthorityFailure =
   | Readonly<{ kind: 'invalid'; reason: string }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-/**
- * The synchronous origin check of a contribution, injected by the assembly. `verify` takes the
- * source layer from the authority, never from the registrant; `admits` checks that the registrant
- * may register at that layer. The Cordis service `toolContributionAuthority` has this shape. This
- * host provides no check of its own, so a registry without one admits nothing.
- */
 export interface LocalToolContributionVerifier<P> {
   verify(authority: ToolAuthority): Outcome<ToolAuthority, LocalToolAuthorityFailure>
   admits(
@@ -52,34 +41,24 @@ export interface LocalToolContributionVerifier<P> {
 }
 
 export type LocalToolBindingRegistryInput<P> = Readonly<{
-  /** Absent means every `register` answers `unavailable`. */
   verifier?: LocalToolContributionVerifier<P> | null
-  /**
-   * The identity of the fiber that is running the `register` call, or null when there is none. The
-   * assembly supplies it (for Cordis, the uid of the author plugin fiber). A fiber identity is not
-   * reused after the fiber ended.
-   */
   fiber(): string | null
 }>
 
-/** What the Catalog reads of a live contribution: the entry row, the definition and the executor. */
 export type ToolListing = Readonly<{
   entry: ToolBindingEntry
   definition: ToolDefinition
   executor: Adoption
 }>
 
-/** The catalog's read of the registry: the live listings that one tenant may access. */
 export interface ToolListingSource<P> {
   listings(
     access: Access<P>,
   ): Outcome<readonly ToolListing[], Extract<ToolContributionFailure, { kind: 'unavailable' }>>
 }
 
-/** A hold of one call on one key. `release` is idempotent. */
 export type ToolBindingPin = Readonly<{ release(): void }>
 
-/** A selection keeps the registration identity when another call needs a pin. */
 export type ToolBindingSelection<P, E, B extends ContentBlock> = Readonly<{
   loaded: ToolLoadedRegistration<E, B>
   pin: ToolBindingPin
@@ -89,20 +68,14 @@ export type ToolBindingSelection<P, E, B extends ContentBlock> = Readonly<{
   ): Outcome<ToolBindingPin, Readonly<{ kind: 'unavailable'; diagnostic: string }>>
 }>
 
-/**
- * Local extensions let the Catalog read listings, callers pin current keys or selected
- * registrations, and the assembly retire an author's fiber.
- */
 export interface LocalToolBindingRegistry<P, E, B extends ContentBlock>
   extends ToolBindingRegistry<P, E, B>, ToolListingSource<P> {
-  /** Holds `key` for `call` until the pin is released: `pins` and `drain` count it. */
   pin(key: ToolBindingKey, call: ToolCallId): Outcome<ToolBindingPin, ToolBindingKeyFailure>
   selectAndPin(
     access: Access<P>,
     request: FixedToolRequest,
     call: ToolCallId,
   ): Outcome<ToolBindingSelection<P, E, B>, Readonly<{ kind: 'unavailable'; diagnostic: string }>>
-  /** The fiber ended: withdraws its contributions and refuses its later registrations. */
   retire(fiber: string): void
 }
 
@@ -118,7 +91,6 @@ type Row<E, B extends ContentBlock> = {
   state: 'live' | 'draining'
 }
 
-/** G7 access by layer. A workspace entry needs a grant that this host does not read: no access. */
 function visibleTo(layer: SourceLayer, tenant: Access<unknown>['tenant']): boolean {
   switch (layer.kind) {
     case 'official':
@@ -141,7 +113,6 @@ const tenantUnreadable = fail({
   diagnostic: 'tenant eligibility is unavailable',
 } as const)
 
-/** Builds the registry of this process. */
 export function createLocalToolBindingRegistry<
   P,
   E = unknown,
@@ -321,7 +292,6 @@ export function createLocalToolBindingRegistry<
     },
     retire: fiber => {
       retired.add(fiber)
-      // `release` changes `rows`: pick the fiber's rows first.
       for (const row of rows.filter(candidate => candidate.fiber === fiber))
         row.contribution.release()
     },

@@ -1,6 +1,3 @@
-// The entry's identity port (`AccessIdentity`) over the identity double and the in-process
-// principal authority: recognising a login, issuing the principal for a login and a tenant, and
-// reporting a business access. The rules are those of the server entry's identity steps.
 import type { LoginIdentity } from '@omne-harness/access-cordis-contract'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import { createAccessIdentity } from '@omne-harness/identity-access'

@@ -1,4 +1,3 @@
-// `whenEmpty`: the wait for a set of tasks to run empty, without a timer.
 import { expect, it } from 'vitest'
 import { whenEmpty } from '../src/plugins/idle.ts'
 
@@ -23,7 +22,6 @@ it('waits for a task that an ending task started', async () => {
   let answer: number | undefined
   const waiting = whenEmpty(tasks, new AbortController().signal).then(left => (answer = left))
 
-  // The first task ends and starts the second in the same step, as a pump does.
   tasks.set(
     'second',
     second.promise.then(() => void tasks.delete('second')),

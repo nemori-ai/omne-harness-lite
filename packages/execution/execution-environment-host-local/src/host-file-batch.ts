@@ -29,34 +29,23 @@ import {
   type HostPaths,
 } from './host-paths.ts'
 
-/** What the batch operations need from the engine that owns the facade. */
 export type FileBatchEnvironment = Readonly<{
   paths: HostPaths
-  /** Where the manifests of batches are kept; absent, both operations answer `unavailable`. */
   stateDirectory: string | undefined
-  /** The process instance of the engine: a batch of another generation was written by another process. */
   generation: string
-  /** The batches this process is publishing now. */
   running: Set<string>
   /** True once the facade is closed: a batch stops before its next publication. */
   sealed(): boolean
   close: CloseHandle
   drain(): Promise<void>
-  /** Receives a diagnostic about a published batch; it never changes the result. */
   diagnose?: ((diagnostic: HostFileDiagnostic) => void) | undefined
 }>
 
-/** A fact about a batch that its result cannot carry. */
 export type HostFileDiagnostic = Readonly<{
-  /** The entry is published, but the staged file it was published from could not be removed. */
   kind: 'temporaryFileRemains'
-  /** The batch id. */
   batch: string
-  /** The target that was published. */
   path: string
-  /** The name of the staged file that stays beside the target. */
   temporary: string
-  /** The error code of the failed removal. */
   code?: string
 }>
 
@@ -64,20 +53,13 @@ export type FileBatch = Pick<FileSystemFacility<unknown>, 'commitBatch' | 'recov
 
 type ManifestEntry = Readonly<{
   path: string
-  /** The token the request named: the parent directory of a new file, the file for a replacement. */
   named: string
   expectedVersion: string | null
-  /** Digest and size of the staged bytes. The bytes themselves stay in the staged file only. */
   sha256: string
   size: number
   temp: string
 }>
 
-/**
- * `staging` and `publishing` are the two steps of a batch that is, or was, running. `committed`
- * and `conflict` are the two ends the writer reached. A batch that stopped any other way stays
- * `publishing`.
- */
 type ManifestState = 'staging' | 'publishing' | 'committed' | 'conflict'
 
 export type Manifest = Readonly<{
@@ -87,7 +69,6 @@ export type Manifest = Readonly<{
   tenant: string
   state: ManifestState
   entries: readonly ManifestEntry[]
-  /** Paths whose publication is durable. Only a receipt proves a publication. */
   receipts: readonly string[]
 }>
 
@@ -128,7 +109,6 @@ function isManifest(value: unknown): value is Manifest {
   )
 }
 
-/** Writes the manifest as a whole: a new file, synced, then renamed over the old one. */
 export async function writeManifest(file: string, manifest: Manifest): Promise<void> {
   const temporary = `${file}.${randomUUID()}.tmp`
   const handle = await open(
@@ -167,17 +147,14 @@ type CommitRequest = Parameters<FileSystemFacility<unknown>['commitBatch']>[0]
 type RecoverRequest = Parameters<FileSystemFacility<unknown>['recoverBatch']>[0]
 type Entries = CommitRequest['entries']
 
-/** Why a batch stopped between publications; `effectUnknown` leaves the staged files where they are. */
 type Stop = 'conflict' | 'closed' | 'effectUnknown'
 
-/** How far publishing got: the receipts, the reason it stopped (if it did), and the entry it stopped at. */
 type Publication = Readonly<{ receipts: readonly string[]; stop: Stop | undefined; at: number }>
 
 function outcomeOf(requestId: string, value: FileBatchOutcome): FacilityResult<FileBatchOutcome> {
   return { kind: 'done', requestId, value }
 }
 
-/** The reason the entries as a whole are unsound, found without the file system. */
 export function entriesRefusal(entries: Entries): FacilityReason | undefined {
   if (entries.length === 0) return 'invalidInput'
   const targets = entries.map(entry => entry.path)
@@ -189,7 +166,6 @@ export function entriesRefusal(entries: Entries): FacilityReason | undefined {
   return undefined
 }
 
-/** The reason a recovery request is refused without the file system; the state directory must be configured. */
 export function recoverRefusalOf(
   request: RecoverRequest,
   stateDirectory: string | undefined,
@@ -199,7 +175,6 @@ export function recoverRefusalOf(
   return stateDirectory === undefined ? 'unavailable' : undefined
 }
 
-/** What an entry's target must be for the entry to be staged; undefined when it is. */
 async function targetRefusal(
   requestId: string,
   entry: Entries[number],
@@ -218,7 +193,6 @@ async function targetRefusal(
   return versionOf(existing) === entry.expectedVersion ? undefined : reject(requestId, 'conflict')
 }
 
-/** Removes the staged files not yet published; false when one could not be removed. */
 async function discardAll(items: readonly Staged[]): Promise<boolean> {
   let all = true
   for (const item of items)
@@ -230,7 +204,6 @@ async function discardAll(items: readonly Staged[]): Promise<boolean> {
   return all
 }
 
-/** Creates and syncs every staged file, then marks the manifest `publishing`. `made` lists the files created. */
 async function stageFiles(
   staged: readonly Staged[],
   made: Staged[],
@@ -254,7 +227,6 @@ async function stageFiles(
   await writeManifest(file, { ...manifest, state: 'publishing' })
 }
 
-/** The target is checked once more against the name and version asked for, then renamed over. */
 async function publishReplacement(item: Staged): Promise<Stop | undefined> {
   const target = fdPath(item.parent, item.name)
   let current: FileStats | undefined
@@ -278,7 +250,6 @@ async function publishReplacement(item: Staged): Promise<Stop | undefined> {
   return undefined
 }
 
-/** True when the manifest is the batch of this tenant, of the generation asked for. */
 export function isBatchOf(manifest: Manifest, tenant: string, batch: FileBatchRef): boolean {
   return (
     manifest.tenant === tenant &&
@@ -287,7 +258,6 @@ export function isBatchOf(manifest: Manifest, tenant: string, batch: FileBatchRe
   )
 }
 
-/** The manifest of a batch, or why there is none. */
 export async function loadManifest(file: string): Promise<Manifest | 'absent' | 'unreadable'> {
   let parsed: unknown
   try {
@@ -298,12 +268,6 @@ export async function loadManifest(file: string): Promise<Manifest | 'absent' | 
   return isManifest(parsed) ? parsed : 'unreadable'
 }
 
-/**
- * `commitBatch` and `recoverBatch`. A batch stages every entry in its own directory, then publishes
- * the entries one by one; there is no atomic commit across paths. A manifest in the state
- * directory records what was staged and which publications are durable, so that a later process
- * can tell what happened.
- */
 export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
   const manifestLocation = (tenant: string, id: string) => {
     const directory = join(
@@ -314,16 +278,12 @@ export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
     return { directory, file: join(directory, `${id}.json`) }
   }
 
-  /** A diagnostic sink never changes the result of the batch. */
   function report(diagnostic: HostFileDiagnostic): void {
     try {
       env.diagnose?.(diagnostic)
-    } catch {
-      // The sink failed; the publication it reports has happened all the same.
-    }
+    } catch {}
   }
 
-  /** Step 1 for one entry: its parent, its target as it is now, and the staged file it will use. */
   async function checkEntry(
     requestId: string,
     entry: Entries[number],
@@ -348,7 +308,6 @@ export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
     return { entry, named, parent, name, temp, mode }
   }
 
-  /** Step 1: every entry is checked before anything is written. */
   async function checkEntries(
     requestId: string,
     entries: Entries,
@@ -393,7 +352,6 @@ export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
     }
   }
 
-  /** Step 2: the manifest, before any staged file exists; then steps 3 to 5. */
   async function recordAndPublish(
     requestId: string,
     staged: readonly Staged[],
@@ -431,7 +389,6 @@ export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
     }
   }
 
-  /** Steps 3 to 5: stage the bytes, then publish each entry and record its receipt. */
   async function stageAndPublish(
     requestId: string,
     staged: readonly Staged[],
@@ -442,7 +399,6 @@ export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
     try {
       await stageFiles(staged, made, manifest, file)
     } catch (error) {
-      // Nothing was published. A clean undo is a refusal; an undo that fails leaves files behind.
       if (!(await discardAll(made))) return unknown(requestId)
       await unlink(file).catch(() => undefined)
       return failed(requestId, changeFailure(error), 'notFound')
@@ -468,7 +424,6 @@ export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
     return { receipts, stop: undefined, at }
   }
 
-  /** Publishes one entry and records its receipt; a stop reason when it could not. */
   async function publishItem(
     item: Staged,
     manifest: Manifest,
@@ -504,7 +459,6 @@ export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
     try {
       await unlink(temporary)
     } catch (error) {
-      // The file is published; the staged name that stays beside it is named, not hidden.
       const code = errorCode(error)
       if (code !== 'ENOENT')
         report({
@@ -540,7 +494,6 @@ export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
         reason: 'effectUnknown',
       })
 
-    // A stop between publications: what is not published yet is taken away again.
     await discardAll(staged.slice(at))
     if (stop === 'conflict')
       await writeManifest(file, { ...manifest, state: 'conflict', receipts }).catch(() => undefined)
@@ -562,7 +515,6 @@ export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
     const loaded = await loadManifest(manifestLocation(tenant.value, batch.id).file)
     if (loaded === 'absent') return reject(requestId, 'notFound')
     if (loaded === 'unreadable') return unknown(requestId)
-    // A batch of another tenant, or of another generation than the one asked for, is not found.
     if (!isBatchOf(loaded, tenant.value, batch)) return reject(requestId, 'notFound')
 
     const recognition = await recognize(loaded)
@@ -571,7 +523,6 @@ export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
       : { kind: 'done', requestId, value: recognition }
   }
 
-  /** What the targets hold now, against the receipts. Undefined when a target cannot be read. */
   async function recognize(manifest: Manifest): Promise<FileBatchRecognition | undefined> {
     const published = manifest.entries
       .filter(entry => manifest.receipts.includes(entry.path))
@@ -605,7 +556,6 @@ export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
     return env.running.has(manifest.id) ? 'pending' : 'partial'
   }
 
-  /** The target of an entry as it is now: absent, or its version and whether its bytes are the staged bytes. */
   async function observe(
     entry: ManifestEntry,
   ): Promise<'absent' | Readonly<{ version: string; matches: boolean }> | undefined> {

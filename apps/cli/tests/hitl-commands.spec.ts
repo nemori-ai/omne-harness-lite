@@ -1,5 +1,3 @@
-// The three HITL commands (SPEC「HITL 命令」): the request each one sends to the HITL location, the
-// tenant it names, the usage errors that send nothing, and the exit code of each outcome.
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -59,7 +57,6 @@ async function loggedIn(answer?: (seen: Seen) => Answer | undefined): Promise<Fa
   return service
 }
 
-/** The HITL requests the service received, without the login. */
 const hitlSeen = (service: FakeService) =>
   service.seen.filter(seen => seen.path === '/hitl-public/1')
 const card = (tenant: string) => ({
@@ -125,7 +122,6 @@ describe('read-card', () => {
   it('builds the card reference from the tenant, --request and --card', async () => {
     const service = await loggedIn()
     const result = await cli(['read-card', ...ref, '--tenant', otherTenantText])
-    // The fake service denies a read it does not know: exit 3.
     expect(result.code).toBe(3)
     expect(hitlSeen(service)[0]?.wire['body']).toEqual({
       tenant: otherTenantText,
@@ -162,7 +158,6 @@ describe('submit-reply', () => {
       reply,
       replyId: body['replyId'],
     })
-    // A generated reply id is echoed, so the person can retry the same reply with it.
     expect(JSON.parse(result.stdout).request).toEqual({
       messageId: sent?.['messageId'],
       replyId: body['replyId'],

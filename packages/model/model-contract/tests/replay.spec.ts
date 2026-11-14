@@ -13,7 +13,6 @@ import {
   type ReplayProjectionInput,
 } from '@omne-harness/model-contract/provider'
 
-// The test names are literals: the mutation runner finds a test by its static name.
 const SECRET = 'PAYLOAD-THAT-MUST-NOT-LEAK'
 const seen = { toHuman: true, toModel: true }
 const hidden = { toHuman: false, toModel: true }
@@ -34,7 +33,6 @@ function built(value: unknown): Message {
   return judged.ok
 }
 
-/** thinking at 0, a state part at 1 paired with it, and a text block at 2. */
 function withState(letter: string, scope: string, format = 'f1'): Message {
   return built({
     id: messageId(letter),

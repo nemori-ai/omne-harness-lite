@@ -17,7 +17,6 @@ import { evidence } from './coordinator-values.ts'
 import { forwardingFixture, ok } from './forwarding-values.ts'
 
 async function receiverFixture(durableDeclaration = true) {
-  // The declared durability tests the protocol gate only. The underlying store is an explicit double.
   const f = await forwardingFixture({ durableDeclaration })
   const target = await f.source.forwarding.resolve({
     ...f.parent,
@@ -193,7 +192,6 @@ describe('forwarding receiver custody protocol over an explicit store double', (
     }
     ok(await f.push(late))
     expect(await keys()).toHaveLength(3)
-    // A call that is not a forwarding parent releases nothing and reads nothing.
     const reads = f.memory.reads
     expect(
       await f.source.releaseReceivedCopies({
@@ -204,10 +202,8 @@ describe('forwarding receiver custody protocol over an explicit store double', (
     ).toBe('released')
     expect(f.memory.reads).toBe(reads)
     expect(await keys()).toHaveLength(3)
-    // The parent's own delivery is released: its slot keeps the binding and loses the copies.
     expect(await f.source.releaseReceivedCopies(f.parent)).toBe('released')
     expect(await keys()).toEqual(slotOnly)
-    // Idempotent, and a copy received afterwards is saved afresh.
     expect(await f.source.releaseReceivedCopies(f.parent)).toBe('released')
     ok(await f.push())
     expect(await keys()).toHaveLength(2)

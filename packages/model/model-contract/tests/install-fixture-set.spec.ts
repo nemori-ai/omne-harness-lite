@@ -5,9 +5,6 @@ import { afterAll, describe, expect, it } from 'vitest'
 import type { Options, Report } from './install/consumer.ts'
 import { fixtureNames, readRoles, runFixtureSet } from './install/fixture-set.ts'
 
-// The set of fixtures is judged from the reports of its runs, so a fake run stands in for the
-// install and each case feeds the set one report that it must not let through. The real run of
-// the fixtures of this member is fixtures-run.spec.ts.
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'install-fixture-set-')))
 afterAll(() => rmSync(root, { recursive: true, force: true }))
 
@@ -65,7 +62,6 @@ function run(directory: string, answer: (options: Options) => Report) {
   )
 }
 
-/** A run that passes every fixture, reporting the role from the last part of the directory. */
 const passAll = (given: Options): Report =>
   reportOf({ fixture: passing(basename(given.fixtureDirectory ?? '')) })
 

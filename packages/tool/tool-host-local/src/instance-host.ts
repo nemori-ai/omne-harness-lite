@@ -42,7 +42,6 @@ export function createLocalToolInstanceIdentities(): ToolInstanceIdentities {
 
 export type LocalToolInstanceHost<P> = ToolInstanceHost<P> & Readonly<{ instance: ToolInstanceId }>
 
-/** Owns local wakeups and publication lifetime, not the lifetime of external effects. */
 export async function createLocalToolInstanceHost<P>(
   input: LocalInstanceInput<P>,
 ): Promise<Outcome<LocalToolInstanceHost<P>, ToolFailure>> {

@@ -27,7 +27,7 @@
 | `pnpm run lint:report` | **只报告，不在 `pnpm run check` 里，退出 0。**全部目录的 oxlint（正确性规则降为警告，另开 vitest 插件的测试风格规则）与 knip（未使用的依赖、文件、导出）。knip 入口在根 `knip.json` | 任何一条报告是缺陷——`valid-expect`、`expect-expect` 等测试风格命中尚未逐条核实，knip 在入口不全时会误报未使用 |
 | `pnpm run check:agents` | 从 canonical 源与角色源重新计算产物，核对文件内容、权限及三个根相对软链接；根 `AGENTS.md` 的常驻卡片段落与钉住的 pqw-skills 卡片逐字相同 | 宿主已发现配置、原生权限已生效或模型行为符合预期 |
 | `pnpm run check:docs` | 跨仓库 Markdown 本地链接与锚点、Codex/Claude 技能镜像一致 | JSON 字符串中的 `source` 锚点已核对；内容正确、设计成立或因果理由充分 |
-| `pnpm run docs:inventory [--base <独立目录>] [--out <输出目录>]` | 从唯一目标登记检查应有文档／必要章节、明确占位，报告允许暂缺、未知与可比增减；格式及 profile 见 [spec-tools](../tools/spec-tools/README.md#文档目标与缺项计量) | inspectable 不表示内容充分、已采用、实现符合或十类阅读体验通过；未登记语义需求不在分母；本入口独立运行，缺项不新增门禁 |
+| `pnpm run docs:inventory [--base <独立目录>] [--out <输出目录>]` | 从唯一目标登记检查应有文档／必要章节、明确占位，报告允许暂缺、未知与可比增减；格式及 profile 见 [spec-tools](../tools/spec-tools/README.md) | inspectable 不表示内容充分、已采用、实现符合或十类阅读体验通过；未登记语义需求不在分母；本入口独立运行，缺项不新增门禁 |
 | `pnpm run check:design` | 当前设计本地链接、公开拥有者及退役根拒绝；统一语言、领域对象与产品topic的条目/rev对账、派生总表新鲜度；当前PD身份、修订、正文与根内路径，以及封存出处的修订、文件与锚点。具体规则归[工具入口](../.meta_harness/tooling/README.md) | 不判断内容正确、语义等价、实现或模型通过；对账看不到未立词条的新对象，也不能证明实际演示可执行 |
 | `pnpm run test:python` | 仓库检查器与 Meta Harness 编译/链接工具的离线测试。pytest 用 pytest-xdist 分进程跑，进程数取 `OMNE_WORKER_BUDGET` 的四分之一，至少 2；没有预算时取逻辑核的一半。`OMNE_PYTEST_WORKERS=0` 退回单进程 | 宿主加载与模型行为已验证；用例之间没有共享状态——这由用例自己保证，分进程跑只是没有暴露共享状态 |
 | `pnpm run acceptance [--no-build]` | **`pnpm run check` 不调它，而是按计划跑同一个运行器的验收一步（只跑被选中、带验收的成员，不再构建），任何一份不过即失败。**它跑每个带 `acceptance` 脚本的成员的可执行验收，与测试同一个[运行器](../tools/test-runner/README_ZH.md#测试运行)、同一份并行度；缺省先构建这些成员及其依赖（验收驱动 `dist/`）。成员有可执行场景（`acceptance/` 下、`acceptance/fixtures/` 之外的 `*.acceptance.ts`）时，才配 `acceptance` 脚本与 `vitest.acceptance.config.ts`；包模板生成的 `acceptance/` 只有入口文件、不配脚本，所以不被选中，包模板扫描读作无可执行验收场景。耗时账本写进主检出的 `tmp/acceptance-ledger/`，供回路状态的验收耗时传感器读；失败可交给 `pnpm run test:triage` | 产品已被接受——验收只覆盖它声明的那几条场景，接受归产品负责人；声明之外的场景成立；`--no-build` 时 `dist/` 是新的——那由调用方先构建保证 |
@@ -139,11 +139,9 @@ SHA-256；当前环境是否安装、仓库是否定义了模型，是两个问�
 
 ## 检查的基线
 
-检查以显式给出的基线或 `origin/main` 为基线。全局 main 趋势仍按 main。双基线与目标基线同步已按 [RFC-0014](rfcs/RFC-0014-single-card-session-and-gate-relief.md) 退役。
-
+检查以显式给出的基线或 `origin/main` 为基线。全局 main 趋势仍按 main。
 ## 包级测试责任与边界
 
-PanQiWei 于 2026-10-14 接受 [RFC-0005 revision 1](rfcs/RFC-0005-package-testing.md#决定范围)。本页是该决定的现行说明。
 
 测试责任由包的公开承诺和实际职责决定。目录名、测试数量、是否起子进程、使用什么框架，都不决定责任。`fast` 和 `slow` 记录执行成本。单元、契约、集成、端到端记录责任和组合范围。`slow` 不等于端到端。`fast` 不能代替集成证据。
 

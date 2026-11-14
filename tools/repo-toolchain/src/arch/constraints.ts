@@ -64,10 +64,8 @@ export function safePath(path: string): string {
     throw new Error(`Invalid architecture path: ${path}`)
   return path
 }
-/** 成员路径的一段：字母数字开头，不含 `*`、空白与 `..`。 */
 const SEGMENT = '[A-Za-z0-9][A-Za-z0-9._-]*'
 const PACKAGE_MEMBER = `packages/${SEGMENT}/${SEGMENT}`
-/** 导入例外的成员：`packages/<组>/<包>`、`apps/<应用>`；`examples/` 不在其内。 */
 const IMPORT_MEMBER = new RegExp(`^(?:${PACKAGE_MEMBER}|apps/${SEGMENT})$`, 'u')
 function memberPath(value: unknown): string {
   const path = safePath(str(value))
@@ -100,10 +98,6 @@ function importExceptions(value: unknown): ArchitectureImportException[] {
     }
   return rows
 }
-/**
- * 角色所在的成员目录，按 deps/graph.ts 的 `memberOf` 算（`packages/<组>/<成员>` 或 `apps/<成员>`）。方向行按成员判目标，
- * 所以它引用的角色的每条 `paths` 都必须落在同一个成员里；`examples/` 不是方向行可引用的成员。
- */
 export function roleMember(role: ArchitectureRole): string {
   const [member, ...rest] = role.paths.map(path => memberOf(path))
   if (member === undefined || rest.some(other => other?.path !== member.path))
@@ -116,18 +110,12 @@ export function roleMember(role: ArchitectureRole): string {
     )
   return member.path
 }
-/** `pattern` 覆盖 `other`：两者相同，或 `other` 在 `pattern` 的 `/**` 目录之下。 */
 const covers = (pattern: string, other: string): boolean =>
   pattern === other || (pattern.endsWith('/**') && other.startsWith(pattern.slice(0, -2)))
-/** 方向行引用的一个角色与它的成员目录。 */
 interface DirectionRoleRef {
   readonly id: string
   readonly member: string
 }
-/**
- * 方向行引用的角色：成员唯一，且 `paths` 不与任何别的角色相同或互相包含。否则一个文件会同时属于两个角色，
- * 源的归属就不唯一（更精确的角色会把 `src/**` 的一部分截走）。
- */
 function directionRole(id: string, roles: ReadonlyMap<string, ArchitectureRole>): DirectionRoleRef {
   const role = roles.get(id)
   if (role === undefined) throw new Error(`Architecture direction references unknown role ${id}`)
@@ -155,10 +143,6 @@ const idsOf = ([first, ...rest]: RoleRefs): [string, ...string[]] => [
   first.id,
   ...rest.map(ref => ref.id),
 ]
-/**
- * 源角色与目标角色不能在同一个成员里：成员内部的依赖不进依赖图，这样的一对永远不会命中。
- * 同一个角色同时出现在两边是它的特例。
- */
 function rejectSameMember(id: string, from: RoleRefs, to: RoleRefs): void {
   for (const source of from) {
     const target = to.find(ref => ref.member === source.member)
@@ -212,7 +196,6 @@ function rule(item: unknown): ArchitectureConstraints['rules'][number] {
   if (known === undefined) throw new Error(`Unknown architecture rule ${id}`)
   return { id: known, source: str(row['source']) }
 }
-/** schema 3 的 `directions`：缺省是没有方向行；给了就必须是数组（`null` 也不行）。 */
 function directions(value: unknown, roles: readonly ArchitectureRole[]): ArchitectureDirection[] {
   const byId = new Map(roles.map(declared => [declared.id, declared]))
   return unique((value === undefined ? [] : list(value)).map(item => direction(item, byId)))
@@ -248,7 +231,6 @@ export function parseConstraints(text: string): ArchitectureConstraints {
     ...(schemaVersion === 3 ? { directions: directions(value['directions'], roles) } : {}),
   }
 }
-/** 读哪一版：工作树读文件，历史版本读那个提交。 */
 type DocumentAt =
   | { readonly kind: 'worktree' }
   | { readonly kind: 'revision'; readonly commit: string }
@@ -283,10 +265,6 @@ export const matchesRolePath = (path: string, pattern: string): boolean =>
 export type RunnerConstraints =
   | { readonly kind: 'missing'; readonly path: string }
   | { readonly kind: 'present'; readonly path: string; readonly value: ArchitectureConstraints }
-/**
- * 运行检查器的仓库的 `constraints.json`（与 `cruiseConfig()` 同一个根）。`omne-deps` 的方向行只从这里读，
- * 被检查的检出改不了它。文件缺失返回 missing；存在但解析、校验或来源核对失败则抛错。
- */
 export function readRunnerConstraints(root: string = runnerRoot()): RunnerConstraints {
   const document = readDocument(root, { kind: 'worktree' }, `runner ${root}`)
   return document.value === null
@@ -294,7 +272,6 @@ export function readRunnerConstraints(root: string = runnerRoot()): RunnerConstr
     : { kind: 'present', path: document.path, value: document.value }
 }
 
-/** `where` 只进错误消息，说明读的是哪一版（或哪个 runner）。 */
 function readDocument(
   root: string,
   source: DocumentAt,
@@ -368,7 +345,6 @@ function versionReader(root: string, source: DocumentAt) {
     } else if (lstatSync(join(root, path), { throwIfNoEntry: false }) !== undefined) {
       const actual = realpathSync(join(root, path))
       const contained = relative(realpathSync(root), actual)
-      // `relative` 用平台分隔符：Windows 上越界是 `..\x`，不是 `../x`。
       if (isAbsolute(contained) || contained === '..' || contained.startsWith(`..${sep}`))
         throw new Error(`Architecture input escapes checkout: ${path}`)
       text = readFileSync(actual, 'utf8')
@@ -480,7 +456,6 @@ function validateConstraintSources(
 }
 const sortedById = <T extends { readonly id: string }>(items: readonly T[]) =>
   [...items].sort((a, b) => a.id.localeCompare(b.id))
-/** 语义比较里的方向行：没有方向行时不出现这个键，所以 schema 3 不写 `directions` 与写空数组语义相同。 */
 function semanticDirections(rows: ArchitectureConstraints['directions']) {
   if (!rows?.length) return {}
   return {

@@ -1,4 +1,3 @@
-// The public root of the built package: the two factories, and nothing internal.
 import { expect, it } from 'vitest'
 
 it('exports the two factories from the public root', async () => {

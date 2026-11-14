@@ -5,7 +5,6 @@ import type { SessionPermissionCurrent } from '@omne-harness/session-storage-sql
 
 export const capturedInquirySchema = sessionInquiryBinding.need.shape.nullable()
 
-/** The trusted publication is preserved; unrelated Session work revisions do not invalidate it. */
 export function matchesCapturedInquiry(
   inquiry: SessionInquiryView | null,
   session: SessionPermissionCurrent,

@@ -26,7 +26,6 @@ export function unbox<T>(outcome: { ok: T } | { failure: unknown }): T {
   if ('ok' in outcome) return outcome.ok
   throw new Error(`fixture failure: ${JSON.stringify(outcome.failure)}`)
 }
-/** A provider name for a test supplier. */
 export const providerName = (text: string) => unbox(decodeProviderName(text))
 export function identity(suffix = '5'): TenantId {
   const a = accountCodec.parse(`acc_abcdefghjkmnpqrstvwxyz234${suffix}`)

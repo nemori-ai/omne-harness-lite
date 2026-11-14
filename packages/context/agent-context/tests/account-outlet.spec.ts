@@ -1,4 +1,3 @@
-// The account outlet of Agent as a Request Context account fact (SPEC "账目出站").
 import { describe, expect, it } from 'vitest'
 import type { AgentAccountHandoff, AgentAccountOutcome } from '@omne-harness/agent-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
@@ -24,7 +23,6 @@ import {
 } from '@omne-harness/agent-context'
 import { access, otherAccess, realInbox, sender, targetOf } from './fixtures/outlet-world.ts'
 
-/** The target of the call's own tenant. */
 const resolveOwn: AccountTargetResolver<string> = async ({ call }) => targetOf(call.tenant)
 
 const must = <T>(decoded: { ok: T } | { failure: unknown }): T => {
@@ -32,7 +30,6 @@ const must = <T>(decoded: { ok: T } | { failure: unknown }): T => {
   return decoded.ok
 }
 
-/** An inbox that answers `answer` to every fact and keeps what it was given. */
 function stubInbox(answer: () => Promise<AccountReceipt> | AccountReceipt) {
   const facts: ContextAccountingInput[] = []
   const inbox: ContextAccountingInbox<string> = {
@@ -117,8 +114,6 @@ describe('the fact handed to the inbox', () => {
 })
 
 describe('a tenant that is not the tenant of the call', () => {
-  // R2-D357: the call reference carries no tenant. A handoff encoded for another tenant is the
-  // same text, so the call is located in the deliverer's tenant, never in the other one.
   it('locates the call in the tenant of the access, never in another tenant', async () => {
     const asked: TenantId[] = []
     const { inbox } = stubInbox(() => receivedOnce)

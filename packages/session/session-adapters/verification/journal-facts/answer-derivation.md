@@ -2,7 +2,7 @@
 
 本页逐个核对 Journal 写操作的答复能否由原批推导。Agent 事实族不存答复副本：同一操作同一语义输入的重试，以及 `query` 的 committed 结论，都由该操作那一批的事实推导出原答复。这是模型性质 P6（见 [README](README.md#性质)）在实现上的前提。
 
-依据：Agent SPEC 的[原操作认回与恢复](../../../../agent/agent-contract/SPEC.md#原操作认回与恢复)第 1、5 条与[执行修订](../../../../agent/agent-contract/SPEC.md#执行修订)。原答复不随当前确认、控制阶段或 revision 更新而改写。认回的 revision 是被认回事实的修订，不是查询时的最新修订。
+依据：Agent SPEC 的[原操作认回与恢复](../../../../agent/SPEC.md#受理恢复与接管)第 1、5 条与[执行修订](../../../../agent/SPEC.md#提交认回与未知)。原答复不随当前确认、控制阶段或 revision 更新而改写。认回的 revision 是被认回事实的修订，不是查询时的最新修订。
 
 审计对象：基线 `4d5a7e0bc` 的 Agent 契约类型（`packages/agent/agent-contract/src/journal.ts`、`receiving.ts`、`finishing.ts`）与内存参考实现（`packages/session/session-adapters/src/testing/journal.ts`）。事实种类名取自已采用的终态设计，最终名称以事实车道合入的编解码为准。
 

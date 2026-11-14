@@ -1,9 +1,3 @@
-// Readers use Session work principals; the adopted modes producer is tenant-scoped.
-// Scope facts come from the shared application projection; absent production sources stay unavailable.
-// The holder facts (`replayFacts`) are read per call from `sessionReplayFacts`, which the facts
-// sub-plugin of row `session-ad03` provides (B1-GAP-REPLAY-FACTS-LINK closed, SC2); absent or
-// throwing, they answer unavailable.
-// R2-D25 current is only a caller-fiber generation bridge. It does not close #677.
 import type { Context } from '@deepseek-ai/cordis'
 import type {
   ActingForTenantPrincipal,
@@ -50,15 +44,10 @@ async function verify(verifier: PrincipalVerifier, value: unknown): Promise<Prin
   try {
     return await verifier.verify(value)
   } catch {
-    // 核验器的消息不透传：它可能带输入正文。
     return { kind: 'unavailable', diagnostic: 'the principal verifier threw an exception' }
   }
 }
 
-/**
- * 动作类别表：每个放行的类别给出动作自己写的租户。表外的类别，以及不带租户的 `revoke`（权威无法确认主体替哪个租户
- * 撤销），都是 `undefined`，一律拒绝。
- */
 function tenantOf(action: HolderAction<unknown>): TenantId | undefined {
   switch (action.kind) {
     case 'prepare':
@@ -103,10 +92,6 @@ async function readerScopeDecision(
   }
 }
 
-/**
- * Identity verification precedes policy. Holders retain their action table; readers need their Session.
- * The service composition adds caller-fiber currentness to authorized decisions.
- */
 export function createRuntimeContextAuthority(
   options: RuntimeContextAuthorityOptions,
 ): RuntimeContextAuthority<unknown> {
@@ -155,19 +140,12 @@ export function createRuntimeContextAuthority(
   })
 }
 
-/** 作用域绑定：入口解码不了 Session 的作用域摘要，一律不可用；不猜租户，不答未绑定。 */
 export const unavailableScopeBindings: ScopeBindingSource = Object.freeze({
   lookup: () => Promise.resolve({ kind: 'unavailable' as const }),
 })
 
-/** 按调用现取持有者事实的读口：返回此刻在场的 `sessionReplayFacts`，不在场是 `undefined`。 */
 export type ReplayFactsReader = () => SessionReplayFacts | undefined
 
-/**
- * 发行读法：每次调用经 `env.readTrusted` 在受信作用域里现取 `sessionReplayFacts`（应用装配页受信子树的
- * 「会话回放事实」作用域，R2-D163、R2-D168）。提供者是 `session-ad03` 行的事实子插件，它装在对该名可见的
- * 受信上下文里；根上的同名提供者不在这个作用域，读不到，也替换不了它。不在场是 `undefined`。
- */
 export function readReplayFactsService(env: EntryEnv): SessionReplayFacts | undefined {
   const facts: SessionReplayFacts | undefined = env
     .readTrusted(sessionReplayFactsKey)
@@ -177,11 +155,6 @@ export function readReplayFactsService(env: EntryEnv): SessionReplayFacts | unde
 
 const FACTS_UNAVAILABLE: StepCommittedBlocks = Object.freeze({ kind: 'unavailable' })
 
-/**
- * 持有者事实的入口端口。每次调用现取一次读口：服务不在场（`session-ad03` 未装、事实子插件已停）、读取或
- * 应答抛出，都答 `unavailable`，不答 `known`，也不缓存上一次的服务引用。`diagnostic` 只给装配者看，
- * 不进任何答复。吞掉的异常交 `trace`（调试级日志），不带异常消息。
- */
 export function entryReplayFacts(
   read: ReplayFactsReader,
   trace: (diagnostic: string) => void = () => {},
@@ -204,7 +177,6 @@ export function entryReplayFacts(
   })
 }
 
-/** 一个读取方 fiber 的代次：`retired` 一旦为真就不再为假。 */
 type Generation = { retired: boolean }
 
 type TrustState = Readonly<{
@@ -213,11 +185,9 @@ type TrustState = Readonly<{
   sessionWork: SessionModesAuthoritySources['sessionWork']
   replayFacts: SessionReplayFacts
   currents: WeakMap<Context, () => boolean>
-  /** 读取方上下文 → 绑定了该读取方代次的信任对象。 */
   byReader: WeakMap<Context, RuntimeContextTrust<unknown>>
 }>
 
-/** 为一个读取方上下文组合信任对象：代次随该上下文的 fiber 撤除而退役。 */
 function trustFor(state: TrustState, reader: Context): RuntimeContextTrust<unknown> {
   const made = state.byReader.get(reader)
   if (made !== undefined) return made
@@ -255,7 +225,6 @@ class EntryRuntimeContextTrust extends RuntimeContextTrustService<unknown> {
       byReader: new WeakMap(),
     }
   }
-  /** 访问器，不是字段：`this.ctx` 是读取方的上下文，代次绑定到它的 fiber。 */
   get authority(): RuntimeContextTrust<unknown>['authority'] {
     return trustFor(this.state, this.ctx).authority
   }
@@ -264,10 +233,6 @@ class EntryRuntimeContextTrust extends RuntimeContextTrustService<unknown> {
   }
 }
 
-/**
- * `readReplayFacts` 默认是发行读法 {@link readReplayFactsService}，读的是入口受信的 `sessionReplayFacts`；
- * 用例可换成别的现取读口，缺席时同样答 `unavailable`。
- */
 export function createRuntimeContextTrustModule(
   scopes?: SessionScopeSource,
   readReplayFacts: (env: EntryEnv) => SessionReplayFacts | undefined = readReplayFactsService,

@@ -14,7 +14,6 @@ const text = (value: string) => Buffer.from(value, 'latin1')
 const begin = text(`\u001b]7770;omne-b;${nonce}\u0007`)
 const end = text(`\u001b]7770;omne-e;${nonce}\u0007`)
 
-/** Adjacent byte pieces of the same attribution, merged, so chunk boundaries do not show. */
 function attribution(pieces: readonly SentinelPiece[]): string[] {
   const out: string[] = []
   for (const piece of pieces) {
@@ -112,7 +111,6 @@ describe('terminal sentinels', () => {
   })
 
   describe('the pieces, exactly', () => {
-    /** Every piece as it is, empty ones included, so that no chunking hides behind a merge. */
     const raw = (pieces: readonly SentinelPiece[]) =>
       pieces.map(piece =>
         piece.kind === 'begin' || piece.kind === 'end'
@@ -268,8 +266,6 @@ describe('terminal sentinels', () => {
 })
 
 it('keeps a held sentinel prefix when the caller reads the next chunk into the same buffer', () => {
-  // The terminal gate reads the PTY into one buffer and reuses it for every read of a poll. It
-  // consumes the pieces of a read before the next read, so only the held bytes must outlive it.
   const buffer = Buffer.alloc(64)
   const read = (bytes: Buffer) => buffer.subarray(0, bytes.copy(buffer))
   const one = scanSentinels(

@@ -27,7 +27,6 @@ function parsed<T>(result: { ok: true; value: T } | { ok: false }): T {
 
 const BODY = '0123456789abcdefghjkmnpqrs'
 
-/** A scope minted by legal-identity for one tenant. */
 export function aTenantScope(): ActingScope {
   return tenantScope(
     tenant(
@@ -80,7 +79,6 @@ export const BUDGETS: TelemetryBudgets = Object.freeze({
   summaryIntervalMs: 1000,
 })
 
-/** A clock that the test moves. `monotonicMs` starts at 0. */
 export type ManualClock = {
   now(): Date
   monotonicMs(): number
@@ -99,7 +97,6 @@ export function manualClock(): ManualClock {
   }
 }
 
-/** Deterministic, never all-zero bytes. */
 export function countingBytes(): (n: number) => Uint8Array {
   let next = 0
   return n => {
@@ -115,10 +112,6 @@ export type Harness = {
   summaries: string[]
 }
 
-/**
- * A runtime with a writer outlet that keeps every record. `write` replaces the writer body; it
- * receives the record and the list of records written so far.
- */
 export function harness(
   input: Partial<Omit<TelemetryRuntimeOptions, 'budgets'>> & {
     budgets?: Partial<TelemetryBudgets>
@@ -148,24 +141,20 @@ export function harness(
   return { runtime, clock, written, summaries }
 }
 
-/** Lets the runtime drain its queue once. */
 export function nextTurn(): Promise<void> {
   return new Promise(resolve => setImmediate(resolve))
 }
 
-/** One field value of a record, for the signals that carry fields. */
 export function fieldOf(record: TelemetryRecord | undefined, key: string): unknown {
   if (record === undefined || !('fields' in record)) return undefined
   return Object.entries(record.fields).find(([name]) => name === key)?.[1]
 }
 
-/** The trace and span of a segment record. */
 export function idsOf(record: TelemetryRecord | undefined): { trace?: string; span?: string } {
   if (record === undefined || !('trace' in record)) return {}
   return { trace: record.trace, span: record.span }
 }
 
-/** True for a log record that waited in the bootstrap buffer. */
 export function isBootstrap(record: TelemetryRecord | undefined): boolean {
   return record !== undefined && 'bootstrap' in record && record.bootstrap === true
 }

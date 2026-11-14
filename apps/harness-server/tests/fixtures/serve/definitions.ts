@@ -1,8 +1,5 @@
-// 夹具「定义包」：真实行与入口对象引用的服务定义与键常量（DP1-C4）。键的文本只写在这里一次。
-// 夹具行 id 与键取自 AA 行表，这样 `real-manifests-sync` 能把夹具行与 `stubs.ts` 的同一行比较。
 import { Service, type Context } from '@deepseek-ai/cordis'
 
-/** 存储控制口的夹具形状（sql-contract §2.3 的最小投影）。 */
 export type FixtureStorageControl = Readonly<{
   close(options: Readonly<{ initiator: 'assembly' }>): Promise<'closed'>
   assemblyReportSettled(): void

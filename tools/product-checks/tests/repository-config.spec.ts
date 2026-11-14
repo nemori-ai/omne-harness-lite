@@ -10,7 +10,6 @@ afterEach(() => {
   root = undefined
 })
 
-/** 根 tsconfig 只写 extends；别名在被继承的那份配置里。 */
 function repository(base: string): string {
   root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-repository-config-')))
   mkdirSync(join(root, 'packages/a/b/src'), { recursive: true })

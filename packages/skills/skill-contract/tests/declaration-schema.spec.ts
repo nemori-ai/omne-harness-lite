@@ -1,6 +1,3 @@
-// The published schema of `.omne/skill.json` must agree with what `parseSkillPackage` accepts. The
-// repository has no JSON Schema validator, so the test compares each rule of the schema with the
-// parser on the same samples.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { parseSkillPackage } from '@omne-harness/skill-contract'
@@ -39,7 +36,6 @@ function node(...path: string[]): SchemaNode {
   return current
 }
 
-/** The rejection code of a declaration, or `accepted`. The package holds `run.sh`. */
 function verdict(declaration: unknown): string {
   return verdictOfText(JSON.stringify(declaration))
 }

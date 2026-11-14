@@ -1,4 +1,3 @@
-// Test-only command schemas for exercising the public result reader through a Tool runtime.
 import { readJsonText, type JsonLimits, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {

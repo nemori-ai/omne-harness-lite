@@ -1,8 +1,3 @@
-// The `model-host` row with the judge of the run's state lock (`createModelHostRow({ lostContact })`,
-// as `serve` builds it): a call that an earlier tree admitted on the same storage, and that the
-// host of this tree never drove, answers `lost` with the evidence of the lock. The rows are the
-// real storage rows of `records-host.spec.ts`, without the credential row; the `identity` row and
-// the W of the fixture tenant are the same stand-ins.
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

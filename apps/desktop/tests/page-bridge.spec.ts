@@ -1,5 +1,3 @@
-// The page's bridge against a real web host (in Node, with the same `fetch`), and the page's
-// client tree on top of it: the client assembly's connection runs over the bridge.
 import { afterEach, describe, expect, it } from 'vitest'
 import { identityProtocol } from '@omne-harness/identity-protocol'
 import { sessionProtocol } from '@omne-harness/session-protocol'
@@ -51,7 +49,6 @@ describe('页面的桥对着真的宿主', () => {
     const tenant = await identity['query-current-tenant']({})
     expect(tenant.outcome).toBe('succeeded')
     expect(server.seen.at(-1)?.credentials.proof).toBe(PROOF_SENTINEL)
-    // The credential-carrying operation is not forwarded: the page gets `unavailable`.
     expect(await identity['issue-login']({ loginIdentifier: 'a', credential: 'b' })).toEqual({
       outcome: 'unavailable',
     })

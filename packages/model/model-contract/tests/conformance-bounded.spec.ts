@@ -13,7 +13,6 @@ import { hooked, patched, type Subject } from './conformance-support.ts'
 const WAIT = 20
 const hang = () => new Promise<never>(() => undefined)
 
-/** What the call gave when it was left to hang: the message that says what the suite waited for. */
 async function waitedFor(step: (...input: never[]) => unknown, owner: object): Promise<string> {
   try {
     await Reflect.apply(step, owner, [{}])
@@ -23,7 +22,6 @@ async function waitedFor(step: (...input: never[]) => unknown, owner: object): P
   return 'the call returned'
 }
 
-/** The subject with its prepared transport changed. */
 function transported(change: (prepared: PreparedTransport) => PreparedTransport): Subject {
   const scripted = createScriptedConformanceSubject()
   const given = scripted.transport
@@ -42,7 +40,6 @@ function transported(change: (prepared: PreparedTransport) => PreparedTransport)
   }
 }
 
-/** The prepared transport that the view of the subject gives. */
 async function preparedOf(subject: Subject): Promise<PreparedTransport> {
   const view = boundedSubject(subject, WAIT)
   const outcome = await view.transport?.transport.prepare(DEFAULT_REQUEST, DEFAULT_SUPPLIER, {

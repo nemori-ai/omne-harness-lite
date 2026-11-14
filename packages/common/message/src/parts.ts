@@ -16,7 +16,6 @@ import {
 } from './reasoning.ts'
 import { hasUnreadableOwn, isPlainRecord, isRecord, nonEmpty } from './values.ts'
 
-/** A call whose arguments arrived whole and decode to a value tree. */
 export type ToolCallPart = Readonly<{
   kind: 'tool_call'
   id: BlockId
@@ -26,7 +25,6 @@ export type ToolCallPart = Readonly<{
   arguments: JsonValue
 }>
 
-/** A call whose arguments did not all arrive. `partial` is the text so far, not decoded. */
 export type IncompleteToolCallPart = Readonly<{
   kind: 'tool_call_incomplete'
   id: BlockId
@@ -36,7 +34,6 @@ export type IncompleteToolCallPart = Readonly<{
   partial: string
 }>
 
-/** A call whose arguments all arrived but do not decode. `raw` is the text, not decoded. */
 export type UnparsedToolCallPart = Readonly<{
   kind: 'tool_call_unparsed'
   id: BlockId
@@ -46,7 +43,6 @@ export type UnparsedToolCallPart = Readonly<{
   raw: string
 }>
 
-/** The marker of a tool result. The content blocks that follow it in the message are the body. */
 export type ToolResultPart = Readonly<{
   kind: 'tool_result'
   id: BlockId
@@ -54,10 +50,8 @@ export type ToolResultPart = Readonly<{
   callId: string
 }>
 
-/** A content block that any role may have: every one except the thinking block, which only an assistant has. */
 export type MessageContentBlock = Exclude<ContentBlock, ThinkingContentBlock>
 
-/** The three parts of a call. Only an `assistant` message has them. */
 export type CallPart = ToolCallPart | IncompleteToolCallPart | UnparsedToolCallPart
 
 export type ToolPart = CallPart | ToolResultPart
@@ -79,7 +73,6 @@ export type PartRejection =
 
 export type PartJudgment = { readonly ok: MessagePart } | { readonly rejected: PartRejection }
 
-/** Every tool kind with the fields it must have besides `kind`. One table: no second key list. */
 const TOOL_FIELDS: Readonly<Record<ToolKind, readonly ToolField[]>> = {
   tool_call: ['id', 'visibility', 'callId', 'name', 'arguments'],
   tool_call_incomplete: ['id', 'visibility', 'callId', 'name', 'partial'],
@@ -91,7 +84,6 @@ function isToolKind(kind: string): kind is ToolKind {
   return Object.hasOwn(TOOL_FIELDS, kind)
 }
 
-/** `reasoning_state` is dispatched before this check, so it is not listed here. */
 function isKnownPartKind(kind: string): boolean {
   return CONTENT_BLOCK_KINDS.some(known => known === kind) || isToolKind(kind)
 }
@@ -104,7 +96,6 @@ function reject(rejected: PartRejection): PartJudgment {
   return { rejected }
 }
 
-/** Closed keys come first. A value with any other key is refused before a field is read. */
 function keyRejection(
   fields: readonly PartRejection[],
   value: Record<string, unknown>,
@@ -158,7 +149,6 @@ function judgeToolPart(kind: ToolKind, value: Record<string, unknown>): PartJudg
   }
 }
 
-/** Its keys are closed like a tool part's, then `id`, `visibility`, `payload`, `pairs` in order. */
 function judgeReasoningPart(value: Record<string, unknown>): PartJudgment {
   const closed = keyRejection(REASONING_STATE_FIELDS, value)
   if (closed !== undefined) return reject(closed)
@@ -170,7 +160,6 @@ function isReadable(value: Record<string, unknown>): boolean {
   return isPlainRecord(value) && !hasUnreadableOwn(value)
 }
 
-/** The judgment of a plain object whose kind is a string, or `undefined` for a content block. */
 function judgeByKind(value: unknown): PartJudgment | undefined {
   if (!isPlainRecord(value) || typeof value.kind !== 'string') return undefined
   if (isToolKind(value.kind)) return judgeToolPart(value.kind, value)
@@ -178,13 +167,6 @@ function judgeByKind(value: unknown): PartJudgment | undefined {
   return isKnownPartKind(value.kind) ? undefined : reject('unknown')
 }
 
-/**
- * One part. A string kind outside the ten closed names is `unknown`. A missing or non-string
- * kind falls through to `judgeContentBlock` and is `kind`. An object with an accessor, a
- * non-enumerable key, or a prototype other than a plain one is `json`. For a tool part the
- * closed keys are checked before any field is read, and only `arguments` is walked, by
- * `judgeJsonValue`.
- */
 export function judgePart(value: unknown): PartJudgment {
   if (isRecord(value) && !isReadable(value)) return reject('json')
   const byKind = judgeByKind(value)

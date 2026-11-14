@@ -205,11 +205,6 @@ export function createFactDriver<P, B extends ContentBlock, E>(
     return { kind: 'failed', failure: recorded.failure }
   }
 
-  /**
-   * Receives the next batch of the running start. `ended` is asked when the stream of a running
-   * call ended without a final: a checkpointed segment ends at its wait, and its answer is the
-   * step that follows; null keeps the reading of a live coroutine that ended its stream.
-   */
   const receive = async (
     step: Step<P>,
     recovery: ToolRecovery,

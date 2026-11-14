@@ -1,7 +1,3 @@
-// A5: the state is in the database files, not in the adapter. A real ledger admits a call and
-// settles it; the storage is closed and a new one opens the same files. A ledger over the reopened
-// store finds the call and its result, and a repeated admission recalls the original without a
-// second record.
 import { afterEach, expect, it } from 'vitest'
 
 import type { LedgerRecord } from '@omne-harness/tool'

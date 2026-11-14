@@ -1,8 +1,3 @@
-// The local binding of a checkpointed author (P06, P07, P11): its initial segment runs on the start
-// path with a context of `emit` and `signal` only; a suspended segment ends its stream at the Ask
-// wait it published, with the request original beside it, and proves its checkpoint with the state.
-// A resume runs the resume segment with the state and the committed decision that the ledger gives
-// with the start, after its `continued` fact.
 import { describe, expect, it } from 'vitest'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -69,7 +64,6 @@ const otherAsk = unbox(
     expiry: 'forbidden',
   }),
 )
-// A resource wait that carries the adoption of the Ask: declared, but not an Ask.
 const resourceWait = unbox(
   defineToolWaitContract({
     kind: 'resource',
@@ -87,7 +81,6 @@ type Resumed = Readonly<{ checkpoint: Uint8Array; response: ToolDecision<unknown
 function segmentedModule(
   initial: (context: ToolSegmentContext) => Promise<Segment>,
   resume: (input: Resumed) => Promise<Segment>,
-  /** The wait contracts the author declares; the one Ask by default. */
   waits: readonly unknown[] = [ask],
 ): ToolImplementationModule<unknown, ContentBlock> {
   return {
@@ -144,13 +137,10 @@ const suspended = (state = new Uint8Array([1, 2, 3]), wait = ask): Segment =>
     wait: { kind: 'ask', key: 'k', contract: wait, request: question },
   })
 
-/** What the ledger gives a resume with its start: the kept state and the committed response. */
 type Resumption = Readonly<{ state: Uint8Array; response: ResponseRecord }>
 
-/** The base64 text of a state, as the binding gives it to the ledger. */
 const text64 = (state: Uint8Array) => Buffer.from(state).toString('base64')
 
-/** The key of the evidence the binding mints for a start of `c1`. */
 const keyOf = (operation: string, call = 'c1') =>
   canonicalDigest([authorAccess.tenant, callId(call), operationId(operation)])
 
@@ -158,19 +148,12 @@ async function harness(
   initial: (context: ToolSegmentContext) => Promise<Segment>,
   options: Readonly<{
     resume?: (input: Resumed) => Promise<Segment>
-    /** Replaces the result of closing the scope, for one close of the given kind. */
     close?: (kind: 'returned' | 'failed') => ReturnType<ToolExecutionScope['finish']> | undefined
-    /** Wraps the emitter of the author's context. */
     emit?: (emit: ToolSegmentContext['emit']) => ToolSegmentContext['emit']
-    /** The scope the binding asks for cannot be made. */
     scopeFails?: true
-    /** The wait contracts the author declares. */
     waits?: readonly unknown[]
-    /** Replaces the settlement of the call's end. */
     settle?: Input['settle']
-    /** Attaches a capability to the scope of a first start. */
     capability?: Input['capability']
-    /** Wraps the start authority the binding consumes the permit of. */
     consume?: (base: ToolStartAuthority<string>['consume']) => ToolStartAuthority<string>['consume']
   }> = {},
 ) {
@@ -267,7 +250,6 @@ async function harness(
     )
     return { binding, live, start: record }
   }
-  /** A resume of `c1` from the checkpoint `checkpoint`, under `operation`, with what the ledger gives. */
   const resume = async (operation: string, checkpoint: string, given: Resumption) => {
     const call = 'c1'
     const record: Extract<ToolStartRecord, { kind: 'resume' }> = {
@@ -304,7 +286,6 @@ async function harness(
   }
 }
 
-/** The committed response of the wait `<start>/wait` to the decision `decision`. */
 function responseOf(start: string, decision: ToolDecision<never>): ResponseRecord {
   return {
     tenant: authorAccess.tenant,
@@ -328,7 +309,6 @@ function responseOf(start: string, decision: ToolDecision<never>): ResponseRecor
   }
 }
 
-/** Every batch of the stream until it ends. */
 async function drain(live: ToolLiveExecution): Promise<FactBatch[]> {
   const batches: FactBatch[] = []
   const signal = AbortSignal.timeout(2_000)
@@ -349,8 +329,6 @@ describe('the local binding of a checkpointed author', () => {
     const batches = await drain(live)
     expect(given).toEqual(['emit', 'signal'])
     expect(settlements).toEqual([])
-    // The request original is the JSON text of the author's request, not the tagged tree. The
-    // evidence of the request and of the state binds the digest of each text: the ledger checks both.
     const original = '"which file?"'
     const key = keyOf(record.operation)
     expect(batches.flatMap(batch => batch.events.map(event => event.fact))).toEqual([
@@ -443,7 +421,6 @@ describe('the local binding of a checkpointed author', () => {
       if ('failure' in segment) throw new Error('the suspended segment of the tests does not fail')
       return succeed({ ...segment.ok, closedResult } as typeof segment.ok)
     }
-    // The Ask contract of the tests allows 1024 bytes for the JSON text of a request.
     const oversized: Segment = succeed({
       kind: 'suspended',
       state: new Uint8Array([1]),
@@ -513,7 +490,6 @@ describe('the local binding of a checkpointed author', () => {
     expect(settlements).toMatchObject([
       { start: first.record, outcome: { kind: 'returned', value: { resumed: true } } },
     ])
-    // A repeated resume of the same record answers the same execution and runs nothing again.
     const again = await resume('start-c1/wait/resume', 'state/start-c1', given)
     expect(unbox(again.answer)).toBe(live)
     expect(resumed).toHaveLength(1)
@@ -656,7 +632,6 @@ describe('the local binding of a checkpointed author: where a segment ends badly
     expect(failing.settlements).toMatchObject([
       { outcome: { kind: 'failed', reason: 'the author gave up' } },
     ])
-    // The scope of a segment closes once: as failed for a failure that the segment returned.
     expect(failing.closes).toEqual(['failed'])
     const unclosed = await harness(() => Promise.resolve(suspended()), {
       close: kind =>
@@ -726,13 +701,10 @@ describe('the local binding of a checkpointed author: what it proves of a suspen
       execution: { ...record.execution, ...execution },
     })
     const denied = { failure: { kind: 'denied', action: 'suspend-author' } }
-    // The start names another call than the suspension does.
     expect(await binding.suspend(proofRequest(moved({ call: callId('c2') })))).toEqual(denied)
-    // The start names another tenant than the suspension does.
     expect(
       await binding.suspend(proofRequest(moved({ tenant: accessOf(tenantB).tenant }))),
     ).toEqual(denied)
-    // Suspension and start agree with each other, on a call this binding was not resolved for.
     expect(
       await binding.suspend(proofRequest(moved({ call: callId('c2') }), { call: callId('c2') })),
     ).toEqual(denied)
@@ -792,7 +764,6 @@ describe('the local binding of a checkpointed author: the reason a segment fails
 
   it('fails a segment whose start identity is too long to name the wait of its segment', async () => {
     const { start, settlements } = await harness(() => Promise.resolve(suspended()))
-    // The wait is the start identity and `/wait`: 252 and 5 characters are over the 256 allowed.
     const { live } = await start('c1', 'x'.repeat(252))
     expect(waitFacts(await drain(live))).toEqual([])
     expect(settlements).toMatchObject([
@@ -808,8 +779,6 @@ describe('the local binding of a checkpointed author: when the end of a segment 
     call = 'c1',
   ) => binding.binding.inspectStart({ ...authorAccess, call: callId(call), start: binding.start })
 
-  // F3 of #1218: a settlement that does not land leaves the execution live with no final; it is not
-  // marked unobservable for good.
   it('keeps the execution live when the settlement answers a failure, and publishes nothing', async () => {
     const { start } = await harness(
       () => Promise.resolve(succeed({ kind: 'completed', value: 1 })),
@@ -854,7 +823,6 @@ describe('the local binding of a checkpointed author: when the end of a segment 
         },
       },
     )
-    // `start` unboxes the answer, so the binding is driven directly here.
     const binding = unbox(
       await bindings.resolve({ ...authorAccess, call: callId('c1'), request: fixed }),
     )

@@ -1,10 +1,4 @@
 // @module-tag slow
-// 慢：本进程装发行树（真实 SQLite），每条命令起一个 `omne` 子进程，模型走本进程的本地网关。先构建 `apps/cli`。
-// 存储的 JSON 深度上限要用真实组合核对（session-adapters SPEC K-14，R2-D270）：发行树上跑一轮带工具的 Run，
-// 记下每次存储提交里每条命令的嵌套深度。Session `create`、A2 保存 Tool 意图材料的提交（`material.preserved`，
-// 发行全部工具定义在它的块里）、Journal 的 received 提交，都要低于发行配置 storage 行的 `maxJsonDepth`，并留出余量。
-// K-23 桥删除后（R2-D372），A2 的意图材料不再以值树写进事实，这一轮最深的命令是 `create`。负控：上限取这一轮
-// 最深命令的深度减一时，存储以 `command_limit` 拒绝那条命令，说明上限确实作用在真实组合的提交上。
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
@@ -33,7 +27,6 @@ import {
 } from '../../r9/support.ts'
 import { connectable, until } from '../server-entry/support.ts'
 
-/** The nesting the provider limits: a scalar has depth 0, a container one more than its deepest member. */
 const depth = (value: unknown): number =>
   value !== null && typeof value === 'object'
     ? 1 + Math.max(0, ...Object.values(value).map(depth))
@@ -84,7 +77,6 @@ const passConfig: StandardSchema<SqliteStorageConfig> = {
   },
 }
 
-/** The release `storage` row with each commit measured; the provider and its limits are the real ones. */
 function measuredStorageRow(commits: Commit[]) {
   const plugin = definePlugin({
     name: 'measured-sqlite-storage',
@@ -126,17 +118,14 @@ const sse = (events: readonly unknown[]): string =>
 
 `
 
-/** The serving the gateway reports: the requested model, and the provider the record pins. */
 const serving = (body: string) => ({
   model: (JSON.parse(body) as { model?: string }).model ?? 'unknown',
   provider: 'OpenAI',
 })
 
-/** The release tool the scripted Model calls, with the call of its `info` command (D-94). */
 const TOOL = 'Shell'
 const CALL = '{"command":"info","params":{}}'
 
-/** Each pair of requests runs Shell `info`, then finishes the turn with text. */
 const toolThenText: GatewayScript = ({ index, body }) => ({
   status: 200,
   contentType: 'text/event-stream',
@@ -169,7 +158,6 @@ const toolThenText: GatewayScript = ({ index, body }) => ({
   ),
 })
 
-/** Runs one tool round on the release tree with the storage limit `limit`, and returns every commit. */
 async function toolRound(
   limit: number,
   scenario: 'single' | 'restart' | 'deny-update' = 'single',
@@ -200,7 +188,6 @@ async function toolRound(
   const mappings = agentAdoptionsConfig.parse(adoptionRow.config)
   const coding = mappings.mappings.find(mapping => mapping.name === 'coding')
   if (coding === undefined) throw new Error('No coding mapping')
-  // This positive path skips only the human inquiry; all current permission sources remain real.
   coding.modes.permission = 'bypass-permissions'
   adoptionRow.config = mappings
   const launch = () =>
@@ -236,13 +223,11 @@ async function toolRound(
     expect((await cli(['register', '--login-identifier', 'dana'], credential)).status).toBe(0)
     expect((await cli(['login', '--login-identifier', 'dana'], credential)).status).toBe(0)
     const created = await cli(['create-session', '--definition', 'coding'])
-    // A limit below the `create` command refuses the create itself: the round ends there.
     if (commits.some(commit => commit.answer.includes('command_limit'))) return commits
     expect(created.status, created.stderr).toBe(0)
     const session = String(bodyOf(created)['session'])
     const sent = await cli(['send-input', '--session', session, '--text', 'how deep'])
     expect(sent.status, sent.stderr).toBe(0)
-    // Done when the intent is saved and A2 committed, or when the storage refused a command.
     await until(
       () =>
         commits.some(commit => commit.result.kind === 'rejected_before_accept') ||
@@ -325,8 +310,6 @@ async function toolRound(
         'a new real Tool result after cold restart',
         60_000,
       )
-      // Each Tool start commits its acceptance with the permission basis condition. The starts
-      // before and after the restart are different operations.
       const before = conditionalStarts(commits.slice(0, commitOffset))
       const after = conditionalStarts(commits.slice(commitOffset))
       expect(before.length).toBeGreaterThan(0)
@@ -399,7 +382,6 @@ async function toolRound(
 
 const names = (commit: Commit) => commit.commands.map(command => command.participant)
 
-/** The committed Tool acceptances that carried the permission basis guard. */
 const conditionalStarts = (items: readonly Commit[]): string[] =>
   items.flatMap(commit =>
     commit.result.kind === 'committed' &&
@@ -412,7 +394,6 @@ const conditionalStarts = (items: readonly Commit[]): string[] =>
 const isIntent = (text: string): boolean =>
   text.includes('"kind":"material.preserved"') && text.includes('fixed-tool-request')
 
-/** The kinds of command R2-D270 names, each the deepest of its kind in the round. */
 type Measured = Readonly<{ create: number; intent: number; received: number; deepest: number }>
 
 const deepest = (commits: readonly Commit[], pick: (text: string) => boolean): number =>
@@ -425,14 +406,10 @@ const deepest = (commits: readonly Commit[], pick: (text: string) => boolean): n
 
 function measured(commits: readonly Commit[]): Measured {
   return {
-    // The Session `create` of the CLI (`create-session` sends no first input).
     create: deepest(commits, text =>
       text.startsWith('{"intent":"command","command":{"kind":"create"'),
     ),
-    // The A2 intent: the Journal's material save of the Tool request (R2-D292), whose block holds
-    // the fixed Tool request with the release Tool definitions.
     intent: deepest(commits, isIntent),
-    // The publications of the Journal once the Model result is received.
     received: deepest(
       commits,
       text => text.startsWith('{"intent":"publish"') && text.includes('received-'),
@@ -441,7 +418,6 @@ function measured(commits: readonly Commit[]): Measured {
   }
 }
 
-/** The headroom the release limit keeps over the deepest command of the round. */
 const MARGIN = 32
 
 describe('the storage JSON depth limit of the release, checked on the real composition (K-14, R2-D270)', () => {
@@ -469,7 +445,6 @@ describe('the storage JSON depth limit of the release, checked on the real compo
       console.log(`R2-D270 depths: ${JSON.stringify(depths)} limit ${String(limit)}`)
       expect(commits.filter(commit => commit.answer.includes('command_limit'))).toEqual([])
       expect(conditionalStarts(commits).length).toBeGreaterThan(0)
-      // A permission check is a read. The basis commands appear only in a Tool acceptance.
       expect(
         commits.filter(
           commit =>

@@ -31,7 +31,6 @@ function fixture() {
       target: 'https://example.test',
     },
   }
-  // This map is the backing secret store. Its values do not come from resolve's input.
   let stored: ToolCredentialUsage & { tenant: TenantId } = { ...input.usage, tenant: tenantA }
   let failure: ToolCredentialFailure | null = null
   let allowed = true
@@ -63,8 +62,6 @@ function fixture() {
     },
     references,
     secrets: {
-      // Each resolution hands out a capability that the store can revoke: after `revoke`, `send`
-      // refuses instead of acting, which is the store's obligation under P15.
       resolve: async ({ reference }: { reference: string }) => {
         reads.push(reference)
         if (failure) return fail(failure)
@@ -123,9 +120,7 @@ function fixture() {
         retry: async () => {
           try {
             kept?.send()
-          } catch {
-            // A refused action is the expected end of an escaped capability.
-          }
+          } catch {}
         },
       }
     },
@@ -271,7 +266,6 @@ it('the conformance suite rejects a provider that echoes usage instead of checki
           }),
       },
     })
-    // Only an assertion of the suite counts as a detected breach; a crash is not a detection.
     await expect(runConformanceCase(test, { ...f, credentials: echo })).rejects.toThrow(
       AssertionError,
     )
@@ -350,9 +344,6 @@ it.each(['', null] as const)(
   },
 )
 
-// The #675 round-2 QA counterexample (`rawObjectEscaped=true`, `actionsAfterRevocation=1`): the
-// action of a protected use hands the raw capability out; after revocation the escaped object
-// must no longer perform the restricted action.
 it('J56: a capability that escaped through the return of a use cannot act after the use ended', async () => {
   const f = fixture()
   const capability = await f.credentials.resolve(f.request)

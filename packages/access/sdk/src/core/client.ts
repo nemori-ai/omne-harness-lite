@@ -1,7 +1,3 @@
-// `createClient` (RFC-0015 §6「客户端核心」, #1249 spec 已定 16): one protocol contract and one
-// transport give a typed client. Its answers are the contract's outcomes and two local ones:
-// `unavailable` (no byte left, twice) and `uncertain` (a byte may have left and no trustworthy
-// answer came back). Neither is ever written as a success or a failure.
 import type { JsonLimits } from '@omne-harness/json-text'
 import type {
   Codec,
@@ -16,7 +12,6 @@ type ValueOf<C> = C extends Codec<infer T> ? T : never
 
 export type BodyOf<O extends OperationContract> = ValueOf<O['body']>
 
-/** One answer per outcome of the contract: an outcome with a codec carries its body. */
 export type AnswerOf<O extends OperationContract> = {
   [K in keyof O['outcomes'] & string]: O['outcomes'][K] extends Codec<infer T>
     ? { readonly outcome: K; readonly body: T }
@@ -27,10 +22,8 @@ export type LocalOutcome = { readonly outcome: 'unavailable' } | { readonly outc
 
 export type OpenOf<O extends ObservationContract> = ValueOf<O['open']>
 export type FrameOf<O extends ObservationContract> = ValueOf<O['frame']>
-/** The end reasons of an observation: its own, and the two every observation may end with. */
 export type EndOf<O extends ObservationContract> = O['ends'][number] | 'denied' | 'unavailable'
 
-/** How an observation ended, as the iteration's return value. */
 export type ObservationEnd<O extends ObservationContract> =
   | { readonly kind: 'ended'; readonly reason: EndOf<O> }
   | { readonly kind: 'refused'; readonly outcome: string }
@@ -40,7 +33,6 @@ export type ObservationEnd<O extends ObservationContract> =
 
 export type CallOptions = {
   readonly signal?: AbortSignal
-  /** The message id of the call; a fresh `crypto.randomUUID()` when absent. A resend keeps it. */
   readonly messageId?: string
 }
 
@@ -60,7 +52,6 @@ export type ClientOf<P extends ProtocolContract> = {
   }
 }
 
-/** A body or an opening the contract cannot write: the caller's mistake, never a wire outcome. */
 export class ClientRequestError extends Error {
   override readonly name = 'ClientRequestError'
   readonly target: string
@@ -97,7 +88,6 @@ function isEmptyObject(value: CallReport & { kind: 'answered' }): boolean {
   return value.body.kind === 'object' && value.body.entries.length === 0
 }
 
-/** Reads an answer by the contract; anything it does not describe is `uncertain`. */
 function answerOf(
   outcomes: Outcomes,
   report: CallReport & { kind: 'answered' },
@@ -136,15 +126,12 @@ export function createClient<P extends ProtocolContract>(
   const limits = settings.limits ?? defaultLimits
   const key: ProtocolKey = { name: protocol.name, major: protocol.major }
   const target = (name: string): string => `${key.name}/v${key.major}/${name}`
-  // `defineProtocol` refuses the name; a contract that did not come from it stops here, before
-  // the observations could hide one of its operations.
   if (Object.hasOwn(protocol.operations, 'observe'))
     throw new TypeError(
       `${target('observe')}: an operation cannot take the name of the observations`,
     )
 
   async function ask(operation: OperationContract, request: CallRequest) {
-    // A send that provably did not leave is sent once more, under the same message id.
     let report = await transport.call(request)
     if (report.kind === 'not-sent') report = await transport.call(request)
     if (report.kind === 'not-sent') return UNAVAILABLE
@@ -207,8 +194,6 @@ export function createClient<P extends ProtocolContract>(
         yield frame.value
       }
     } finally {
-      // The caller stopped reading, or a frame was outside the contract: close the stream. Closing
-      // a stream that already ended does nothing.
       await stream.return({ kind: 'aborted' })
     }
   }

@@ -1,6 +1,3 @@
-// Test support: the record fixtures of the two pi families, read through the declared dev
-// dependencies. The request is judged by the contract, so its identities are real; the stream is
-// the SSE body that the family's own fixture check decodes into its facts.
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -12,18 +9,12 @@ export type FamilyName = 'pi-ai-openai' | 'pi-ai-anthropic'
 
 export type RecordFixture = Readonly<{
   request: FixedModelRequest
-  /** The request as plain JSON, before the judge: a test builds the next request from it. */
   requestJson: unknown
-  /** The SSE body the gateway answered with. */
   stream: string
 }>
 
 type RecordHead = Parameters<typeof fixtureDirectory>[0]
 
-/**
- * The SSE body of the family's stream captured from the real gateway for `record`, byte for byte:
- * `tests/fixtures/captured` of the family package.
- */
 export function readCapturedStream(family: FamilyName, record: RecordHead): Buffer {
   const root = fileURLToPath(
     new URL(`../../node_modules/@omne-harness/${family}/tests/fixtures/captured/`, import.meta.url),

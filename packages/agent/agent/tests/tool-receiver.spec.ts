@@ -178,8 +178,6 @@ async function setup() {
 }
 
 describe('Tool result receiver conformance', () => {
-  // A saved result keeps no record, so this receiver has no share of saved keys to fill: the
-  // capacity case does not apply. The in-flight limit has its own case below.
   const noShare = 'one tenant at its capacity is backpressured without blocking another'
   for (const entry of toolResultReceiverConformance<string>())
     it(entry.name, async () => {
@@ -387,7 +385,6 @@ it('recovers saved results from the same journal by query, and a repeated push i
   })
   expect(commits).toBe(0)
   expect(state.receptions.size).toBe(0)
-  // The producer pushes the same delivery again: the Journal recognises the operation.
   expect(await rebuilt.push({ access, delivery: s.delivery, signal: signal() })).toEqual({
     ok: saved,
   })
@@ -431,8 +428,6 @@ it('checks the complete saved payload before returning the provider receipt', as
 })
 
 it('cannot name another tenant in a delivery reference (R2-D357)', () => {
-  // The text carries no tenant: a reference encoded for another tenant is the caller's own one,
-  // located in the caller's tenant.
   expect(reference(otherTenant, 'call-1')).toBe(reference(access, 'call-1'))
 })
 

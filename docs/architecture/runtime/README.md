@@ -2,8 +2,6 @@
 
 本专题说明会话怎样承接输入，Agent Loop 怎样推进，模型和工具怎样独立执行，以及控制、消费、变更与恢复怎样协作。它描述目标设计，不根据当前源码反推行为。
 
-状态：十二页目标架构正文已获项目负责人接受。各页明确保留的未决项继续按原范围处理；正文接受不表示实现或验证完成。产品规则沿各页引用的 PF 基线与限定增量；旧技术源的切换按[架构采用规则](../README.md#采用状态与当前有效源)执行。
-
 ## 代表性主流程
 
 一轮会话工作先确定身份、能力与条件，再可靠受理输入，创建或唤醒 Run。Agent runtime 组装请求并调用模型，对模型提出的动作运行扩展链、准入和环境选择，最后执行工具并承接结果。满足完成条件后收束 Run，未结消费和费用仍继续处理。
@@ -112,22 +110,3 @@ flowchart TD
 恢复优先接续原身份、原结果与原消费位置。模型按首内容边界决定能否重新发出，工具失去连续性后不自动重放。存储及安全能力不可用时，依赖其保证的工作不得假报成功。
 
 每条路径保留适用的租户、工作、attempt、调用、实际实现及环境关联。长期会话的加载、组装、排队和等待分别计量；遥测与诊断不扩大数据访问或对外传送权限。
-
-## 局部细化与维护
-
-线程模型、持久化事务、精确接口、缓存算法和数值阈值由相应接口拥有者维护采用范围。Model 非 pi-ai 细化设计已接受；其他成员及共同方案按原接受状态推进，实际实现与运行验证分别判断。
-
-[流中在途内容的故障保留](streaming-and-consumption.md#在途内容的局部对账)与[不可用工具应答分类](tool-runtime.md#不可用应答的分类边界)保留为局部对账。跨会话派发仍需补齐授权和可靠投递契约。持续利益对齐仍是长期承诺，本阶段不在运行专题展开专项设计。
-
-单机首条租户路径的插件树、运行时对象、替身与真件切换点及应用装配承担的桥接，见[应用装配](application-assembly.md)。
-
-系统架构负责人确认目标语义及采用范围。各专题维护者更新规则时同步相关图、流程入口和登记；实现符合性另行报告，不能靠改写目标正文消除偏离。
-
-## #342 主干契约候选
-
-Tool 和 Model 的架构、公开契约、操作协议、对象模型与 Cordis 集成设计已接受；Model 的 pi-ai 相关细化、Session、Agent 及共同细化仍为候选。设计接受不表示生产实现已完成。
-
-- [对象与责任模型](runtime-contract-model.md)区分原工作、原调用、执行实例、句柄与保管责任。
-- [Model操作](../../../packages/model/model-contract/docs/public-api.md)、[Tool操作](../../../packages/tool/tool-contract/docs/public-api.md)、[Session操作](../../../packages/session/session-contract/docs/public-api.md)、[Agent操作](../../../packages/agent/agent-contract/docs/public-api/README.md)各自拥有精确定义，接受状态以上述说明为准。行为、必要协议及参数与依赖分类分别归 [Model SPEC](../../../packages/model/model-contract/SPEC.md#342-主干运行契约候选)、[Tool SPEC](../../../packages/tool/tool-contract/SPEC.md#342-主干运行契约候选)、[Session SPEC](../../../packages/session/session-contract/SPEC.md#运行契约候选)和 [Agent SPEC](../../../packages/agent/agent-contract/SPEC.md#主干运行契约)。
-- [Cordis集成](runtime-contract-integration.md)拥有共同宿主、事件、配置和IC对账，各成员集成专题拥有独有接缝。
-- [后继实现与验证](runtime-contract-handoff.md)说明四条实现线及相邻能力如何消费各成员设计，哪些生产与组合证据仍须补齐。

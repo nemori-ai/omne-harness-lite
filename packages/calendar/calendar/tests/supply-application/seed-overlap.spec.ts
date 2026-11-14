@@ -260,7 +260,6 @@ describe('seed overlap validation', () => {
       expect.objectContaining({ status: 'failed', severity: 'warning' }),
     ])
     expect(changed.findings.some(item => item.code === 'overlap.unsourced')).toBe(false)
-    // The fixed CSV is an excerpt, so its independent annual-floor rejection still applies.
     expect(changed.findings).toContainEqual(
       expect.objectContaining({ code: 'jp.annual_holiday_count_floor', status: 'failed' }),
     )

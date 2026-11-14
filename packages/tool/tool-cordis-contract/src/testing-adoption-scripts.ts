@@ -1,12 +1,3 @@
-// The two scripted doubles of RD-COORD. `createScriptedToolGenerations` stands in for the
-// generation coordinator `toolGenerations` (TL-05) at the first load of the adoption point.
-// `createScriptedAdoptionPoint` stands in for the assembly coordinator's adoption point (AS-06)
-// that Session calls before `startRun`. Both answer only from their scripts and record each call;
-// they do not implement the retention duty, the adoption-point table or any selection rule. An
-// unscripted call answers `unavailable`. Both declare `durability: 'none'` and must not be
-// assembled into production. The adoption point does not import session-contract: the material
-// item types are parameters, so `R = ResidentTool` and `K = ResidentAdoption['keys'][number]`
-// give a material of the form of `ResidentAdoption`.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { Access, residentToolFacts } from '@omne-harness/tool-contract'
@@ -22,11 +13,6 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import type { ToolGenerations, ToolLoadFailure, ToolLoadState } from './cordis.ts'
 
-// ---------------------------------------------------------------------------------------------
-// The scripted generation coordinator
-// ---------------------------------------------------------------------------------------------
-
-/** One call that reached the scripted coordinator. `unload` and `sweep` run at the system scope. */
 export type ScriptedGenerationsCall<P> = Readonly<{
   verb: 'ensureLoaded' | 'unload' | 'sweep'
   key: ToolBindingKey | null
@@ -37,17 +23,11 @@ export type ScriptedGenerationsCall<P> = Readonly<{
 export type ScriptedToolGenerations<P, E, B extends ContentBlock> = Readonly<{
   durability: 'none'
   generations: ToolGenerations<P, E, B>
-  /**
-   * Sets the answer of `ensureLoaded` for one key; a later call for the same key replaces it.
-   * With `write`, a `loaded` answer first registers `write` in the registry of the double under
-   * the caller's access and the caller's authority, so a later `snapshot` sees the key.
-   */
   answer(
     key: ToolBindingKey,
     result: Outcome<ToolLoadState, ToolLoadFailure>,
     write?: ToolLoadedRegistration<E, B>,
   ): void
-  /** Every call in arrival order, as a copy. */
   readonly calls: readonly ScriptedGenerationsCall<P>[]
 }>
 
@@ -57,13 +37,6 @@ type GenerationsScript<E, B extends ContentBlock> = Readonly<{
   write: ToolLoadedRegistration<E, B> | undefined
 }>
 
-/**
- * Builds the scripted coordinator. `ensureLoaded` finds the script by the binding key of the
- * authority (its layer and asset); without a script it answers `unavailable`. `unload` answers
- * `retained` and `sweep` an empty report; both only record the call. `loaderFor` calls
- * `missing('loaderFor')`; the testing entry passes one that throws `NotApplicable`. A scripted write that the registry refuses, or that comes with the system scope,
- * throws: the script is wrong, and the double must not answer `loaded` for a key it did not write.
- */
 export function scriptedToolGenerations<P, E, B extends ContentBlock>(
   input: Readonly<{ registry?: ToolBindingRegistry<P, E, B> }>,
   missing: (handle: string) => never,
@@ -132,32 +105,21 @@ export function scriptedToolGenerations<P, E, B extends ContentBlock>(
   } satisfies ScriptedToolGenerations<P, E, B>)
 }
 
-// ---------------------------------------------------------------------------------------------
-// The scripted adoption point
-// ---------------------------------------------------------------------------------------------
-
-/** One recorded resident item, as `residentToolFacts` writes it: capability, key text and shape. */
 export type AdoptionPointRecorded = Extract<
   ReturnType<typeof residentToolFacts>,
   Readonly<{ ok: unknown }>
 >['ok']
 
-/** What Session hands to the adoption point: the recorded resident items and the wanted capabilities. */
 export type AdoptionPointInput = Readonly<{
   recorded: readonly AdoptionPointRecorded[]
   capabilities: readonly string[]
 }>
 
-/**
- * The adoption material and the freeze verdict. With `R = ResidentTool` and
- * `K = ResidentAdoption['keys'][number]` the material has the form of `ResidentAdoption`.
- */
 export type AdoptionPointAnswer<R, K> = Readonly<{
   material: Readonly<{ residents: readonly R[]; keys: readonly K[] }>
   verdict: FreezeVerdict | null
 }>
 
-/** The script of one capability: the plan it stands for and its part of the material. */
 export type AdoptionPointScript<R, K> = Readonly<{
   plan: AdoptionPlan
   key?: K
@@ -172,19 +134,10 @@ export type ScriptedAdoptionPoint<P, R, K> = Readonly<{
     access: Access<P>,
     input: AdoptionPointInput,
   ): Promise<Outcome<AdoptionPointAnswer<R, K>, Readonly<{ kind: 'unavailable' }>>>
-  /** Sets the script of one capability; a later call for the same capability replaces it. */
   script(capability: string, answer: AdoptionPointScript<R, K> | 'unavailable'): void
-  /** Every call in arrival order, as a copy. */
   readonly calls: readonly AdoptionPointCall<P>[]
 }>
 
-/**
- * Builds the scripted adoption point. `plan` takes the caller's access, never a bare tenant. It
- * answers for each capability of `recorded` and of `capabilities`, recorded first, once each.
- * When any of them has no script or is scripted `unavailable`, the whole answer is `unavailable`.
- * Otherwise the material joins the `key` and `residents` parts in that order, and the verdict is
- * the one of the first capability whose plan is `freeze`, or null.
- */
 export function createScriptedAdoptionPoint<P, R = unknown, K = unknown>(): ScriptedAdoptionPoint<
   P,
   R,

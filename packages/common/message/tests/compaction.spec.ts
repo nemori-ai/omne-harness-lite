@@ -9,10 +9,6 @@ import {
   type RecordEntryRef,
 } from '@omne-harness/message'
 
-/**
- * Cases that the compaction table in docs/public-api.md cannot say in a cell: values that JSON
- * cannot carry, and the identity of what comes back. The rules themselves are in that table.
- */
 const id = 'msg_abcdefghijklmnopqrstuv'
 const visibility = { toHuman: true, toModel: true }
 const text = { kind: 'text', id: 't1', visibility, text: 'summary' }
@@ -59,7 +55,6 @@ const answer = (callId: string): Message =>
 type Entries = readonly (readonly [string, Message | null])[]
 const entriesOf = (entries: Entries) => entries.map(([at, message]) => ({ ref: ref(at), message }))
 
-/** A first-compaction window: the origin is the first covered entry. */
 function history(
   entries: Entries,
   after: Entries = [],

@@ -1,8 +1,4 @@
 import { testExecutor } from './executor.ts'
-// Test support of the slow layer: one local host over a vault, the two real families and the
-// in-memory ModelCommands of model, assembled with `assembleLocalModel` and driven by the real
-// Model runtime. The vault holds a placeholder. The gateway is a local HTTPS server that the spec
-// starts; only the recorder of real requests points it beyond the machine, through the proxy.
 import { join } from 'node:path'
 import { accountCodec, organizationCodec, tenant, tenantEquals } from '@omne-harness/legal-identity'
 import { createModelRuntime, type ModelConfiguration } from '@omne-harness/model'
@@ -24,11 +20,9 @@ import { assembleLocalModel, type LocalModelConfig } from '@omne-harness/model-h
 import { createTestCredentials } from './credentials.ts'
 import { factorySupplier } from './profiles.ts'
 
-/** The value the vault holds in this environment: a placeholder, never a real key. */
 export const PLACEHOLDER = 'placeholder-factory-credential'
 export const ROUTE_PATH = '/api/v1/chat/completions'
 
-/** The consumer owner of every call, and the owner of its completion evidence. */
 const CONSUMER = 'local-model-consumer'
 const TEST_ADOPTION: Adoption = {
   owner: 'model-host-local-tests',
@@ -47,7 +41,6 @@ const FAMILY_LIMITS = {
   },
   maxReasoningText: 65_536,
 }
-/** The margin of both families: 10 percent of the estimated part. A test parameter. */
 export const MARGIN_PERCENT = 10n
 const MARGIN = { percent: String(MARGIN_PERCENT), source: TEST_ADOPTION }
 export const EXECUTOR = await testExecutor([
@@ -55,7 +48,6 @@ export const EXECUTOR = await testExecutor([
   anthropicTokenizerResources(),
 ])
 
-/** The two real families with their tokenizers, the test limits and the test margin. */
 export const FAMILIES = composeFamilies([
   createOpenAiFamily({
     tokenizer: openAiTokenizerResources(),
@@ -70,7 +62,6 @@ export const FAMILIES = composeFamilies([
     margin: MARGIN,
   }),
 ])
-/** The transport limits of every local host, and of the transport the C1 evidence builds. */
 export const TRANSPORT_LIMITS = {
   connectTimeoutMs: 5_000,
   maxErrorBodyBytes: 4_096,
@@ -84,12 +75,6 @@ export const TRANSPORT_LIMITS = {
     maxNumberLength: 64,
   },
 }
-// A real reply arrives as about one fact per token: a short OpenAI answer at medium effort is about
-// a hundred facts. Every save confirms a snapshot, and a snapshot holds all blocks so far. A save
-// per fact therefore makes the work grow with the square of the fact count. So the runtime
-// collects facts into batches: up to 16 KiB of facts, or 100 ms from
-// the first fact of a batch. A body that arrives at once makes a few batches, and a streamed reply
-// one batch per 100 ms at most.
 const CONFIGURATION: ModelConfiguration = {
   outputBatchBytes: 16_384,
   outputBatchDelayMs: 100,
@@ -113,7 +98,6 @@ function tenantOf(suffix: string) {
   return tenant(organization.value, account.value)
 }
 
-/** The send boundary, with every fact it hands to the runtime kept in order. */
 function recording<P>(send: ModelSendBoundary<P>) {
   const facts: TransportFact[] = []
   const boundary: ModelSendBoundary<P> = {
@@ -140,18 +124,11 @@ function recording<P>(send: ModelSendBoundary<P>) {
 export type LocalHostInput = Readonly<{
   request: FixedModelRequest
   requestDisclosure?: LocalModelConfig<unknown>['requestDisclosure']
-  /** Names the call, the instance, the operations and the vault file. */
   label: string
-  /** A private directory for the vault file. */
   directory: string
   gateway: Gateway
 }>
 
-/**
- * Where the route of the host points. A local server gives its own certificate as `ca`; without
- * `ca` the host trusts Node's default certificate authorities. `proxy` and `connectTimeoutMs` are
- * for a gateway beyond the machine, reached through the environment's proxy.
- */
 export type Gateway = Readonly<{
   url: URL
   ca?: Buffer
@@ -159,11 +136,6 @@ export type Gateway = Readonly<{
   connectTimeoutMs?: number
 }>
 
-/**
- * One local host for one call: the vault, the assembled send path with its preparation
- * resources, an in-memory ModelCommands and the Model runtime over them. `drive` admits and
- * drives the call; the consumer evidence accepts a processed completion of this call.
- */
 export function assembleLocalHost(input: LocalHostInput) {
   const { request, label, gateway } = input
   const scope = tenantOf('5')
@@ -221,7 +193,6 @@ export function assembleLocalHost(input: LocalHostInput) {
         }),
         lateFact: unavailable,
         retry: unavailable,
-        // The consumer of these tests vouches for a processed completion of this call only.
         handoff: given =>
           given.call === call &&
           given.evidence.kind === 'processed' &&
@@ -233,7 +204,6 @@ export function assembleLocalHost(input: LocalHostInput) {
     ],
     sending: {
       maxRetainedAttempts: 1,
-      // The runtime's own sender is not used: the assembled send boundary replaces it.
       credentials: {
         layerOf: () => ({ failure: { kind: 'unavailable' } }),
         resolve: () => ({ failure: { kind: 'unavailable' } }),
@@ -297,12 +267,10 @@ export function assembleLocalHost(input: LocalHostInput) {
   const access = { principal, tenant: scope }
   return {
     access,
-    /** The same principal in another tenant: the authority denies it everything. */
     foreign: { principal, tenant: tenantOf('6') },
     call,
     operation,
     evidence,
-    /** The completion evidence of the consumer for this result version of the call. */
     completion: (result: string) => ({ ...evidence(`${call}/${result}`), owner: CONSUMER }),
     provider,
     host,
@@ -336,7 +304,6 @@ export function assembleLocalHost(input: LocalHostInput) {
       return { driven, reference: admitted.reference }
     },
     async close() {
-      // The custody closes also when the host close rejects; the rejection still reaches the caller.
       try {
         await host.close()
       } finally {

@@ -1,6 +1,3 @@
-// Self-proof of the ToolStartAuthority suite: it passes on the conforming double, and each
-// case fails under a violating variant that breaks the rule of that case. The variants are wrappers
-// around the double; they live here and are not exported.
 import type { TenantId } from '@omne-harness/legal-identity'
 import { describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -64,7 +61,6 @@ const NAMES = {
   SA19: 'another tenant cannot prepare the start of a tenant',
 } as const
 
-/** The cases that need a guard to invalidate, and the handle they name when there is none. */
 const NEEDS_GUARD = {
   [NAMES.SA4]: 'guard',
   [NAMES.SA5]: 'guard',
@@ -74,20 +70,17 @@ const NEEDS_GUARD = {
   [NAMES.SA17]: 'guard',
 }
 
-// Read when a case runs, not when the file is collected: the fixture mints its tenant then.
 const own = {
   get tenant(): TenantId {
     return memoryToolStartAuthorityFixture().access.tenant
   },
 }
 
-/** The tenant of an input is not the tenant of the fixture. */
 const isForeign = (tenant: typeof own.tenant): boolean =>
   JSON.stringify(tenant) !== JSON.stringify(own.tenant)
 
 const variants: readonly Variant<Fixture>[] = [
   {
-    // A permit alone is reported as a start.
     name: 'a permit that is only issued counts as started',
     fails: [NAMES.SA1, NAMES.SA8, NAMES.SA9],
     fixture: variant(real => {
@@ -109,7 +102,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // Every consume after the first mints a new acceptance.
     name: 'consume mints a fresh acceptance each time',
     fails: [NAMES.SA2, NAMES.SA3, NAMES.SA5],
     fixture: variant(real => {
@@ -128,13 +120,11 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The invalidation answers evidence but changes nothing.
     name: 'invalidate confirms without invalidating',
     fails: [NAMES.SA4, NAMES.SA7, NAMES.SA13],
     fixture: variant(() => ({ invalidate: () => Promise.resolve(succeed(evidence('fake'))) })),
   },
   {
-    // An invalidation reaches back to a start that was already accepted.
     name: 'an invalidation revokes an accepted start',
     fails: [NAMES.SA5],
     fixture: variant(real => {
@@ -179,7 +169,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // An excluded start gets a fresh permit and starts after all.
     name: 'consume resurrects a start that was excluded',
     fails: [NAMES.SA8],
     fixture: variant(real => {
@@ -223,7 +212,6 @@ const variants: readonly Variant<Fixture>[] = [
     fixture: variant(() => ({ exclude: () => Promise.resolve(succeed(evidence('fake'))) })),
   },
   {
-    // Every send of an invalidation is a new operation.
     name: 'a resent invalidation is a new invalidation',
     fails: [NAMES.SA12, NAMES.SA13],
     fixture: variant(real => {
@@ -239,7 +227,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The second permit of a start that was accepted gets an acceptance of its own.
     name: 'a second permit of an accepted start is accepted again',
     fails: [NAMES.SA3],
     fixture: variant(real => {
@@ -261,7 +248,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // After an invalidation, a consume that is sent again for an accepted start answers rejected.
     name: 'a resent consume after an invalidation answers rejected',
     fails: [NAMES.SA5],
     fixture: variant(real => {
@@ -292,7 +278,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // A consume that is refused once starts when it is sent again.
     name: 'a retry of a refused consume starts',
     fails: [NAMES.SA4],
     fixture: variant(real => {
@@ -312,7 +297,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // Not-started is taken as a permanent refusal of the start identity.
     name: 'not-started forbids any later first start',
     fails: [NAMES.SA9],
     fixture: variant(real => {
@@ -341,7 +325,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The key of the start leaves out the tenant: another tenant reads the acceptance.
     name: 'inspect ignores the tenant',
     fails: [NAMES.SA15],
     fixture: variant(real => ({
@@ -349,7 +332,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The answer for a start of another tenant is `denied`: it tells that the start exists.
     name: 'a foreign inspect is denied when the start exists',
     fails: [NAMES.SA15],
     fixture: variant(real => ({
@@ -363,7 +345,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // A foreign question is answered with the kind of the answer for another call.
     name: 'a foreign inspect answers unknown when the start exists',
     fails: [NAMES.SA15],
     fixture: variant(real => ({
@@ -393,7 +374,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // An undecided start is reported as rejected for good, not as not-started.
     name: 'inspect answers rejected for a start that nobody decided',
     fails: [NAMES.SA1, NAMES.SA8, NAMES.SA9],
     fixture: variant(real => ({
@@ -410,7 +390,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The permit of another tenant is accepted as if it were that of the caller.
     name: 'consume ignores the tenant',
     fails: [NAMES.SA16, NAMES.SA19],
     fixture: variant(real => ({
@@ -418,7 +397,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The foreign attempt does not spend the permit, but the authority refuses it for good after.
     name: 'a foreign consume gets the permit of the tenant refused',
     fails: [NAMES.SA16],
     fixture: variant(real => {
@@ -442,7 +420,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The permit of the tenant is spent by the foreign attempt.
     name: 'a foreign consume spends the permit of the tenant',
     fails: [NAMES.SA16],
     fixture: variant(real => {
@@ -472,9 +449,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // A consume of a permit that names another tenant answers unknown (a
-    // progress kind of the table) until settle; after it, the permit that was issued is rejected
-    // and the permit that never was is invalid. The first answers agree, the later ones do not.
     name: 'a foreign consume is unknown until settle, then tells that the permit exists',
     fails: [NAMES.SA16],
     fixture: () => {
@@ -514,7 +488,6 @@ const variants: readonly Variant<Fixture>[] = [
     },
   },
   {
-    // The invalidation of another tenant moves the guard of the first one.
     name: 'invalidate ignores the tenant',
     fails: [NAMES.SA17],
     fixture: variant(real => ({
@@ -532,7 +505,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The exclusion of another tenant rejects the call of the first one.
     name: 'exclude ignores the tenant',
     fails: [NAMES.SA18],
     fixture: variant(real => ({
@@ -550,9 +522,7 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   ...(['owner', 'resource', 'revision'] as const).map(field => ({
-    // The permit names a guard of which one part is empty; the guard is then read by the provider.
     name: `the guard of a permit has no ${field}`,
-    // The guard is read back by every case that consumes, so only the two that never do pass.
     fails: Object.values(NAMES).filter(
       name => name !== NAMES.SA8 && name !== NAMES.SA10 && name !== NAMES.SA14,
     ),
@@ -568,7 +538,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   })),
   {
-    // A resend that comes alone is answered a fresh acceptance; resends that meet recall it.
     name: 'a consume that comes alone is answered a fresh acceptance',
     fails: [NAMES.SA2, NAMES.SA3, NAMES.SA5],
     fixture: variant(real => {
@@ -595,7 +564,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // Consumes that meet in flight are answered fresh acceptances; a lone resend recalls it.
     name: 'consumes that meet in flight are answered fresh acceptances',
     fails: [NAMES.SA2],
     fixture: variant(real => {
@@ -620,7 +588,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // After an invalidation that refused a consume, the provider reports the start as unknown.
     name: 'inspect answers unknown after an invalidation refused a consume',
     fails: [NAMES.SA4, NAMES.SA7],
     fixture: variant(real => {
@@ -640,7 +607,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The permit that not-started withdrew starts all the same.
     name: 'a permit that was withdrawn by not-started starts',
     fails: [NAMES.SA8],
     fixture: variant(real => {
@@ -661,7 +627,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // After an exclusion, a new permit of the start is issued and starts.
     name: 'a new permit after an exclusion starts',
     fails: [NAMES.SA10],
     fixture: variant(real => {
@@ -685,7 +650,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The resent invalidation answers the original evidence while the first resend is fresh.
     name: 'a resent invalidation answers fresh evidence before another permit is issued',
     fails: [NAMES.SA12],
     fixture: variant(real => {
@@ -710,7 +674,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The resent invalidation answers fresh evidence once another permit was issued.
     name: 'a resent invalidation answers fresh evidence after another permit is issued',
     fails: [NAMES.SA12, NAMES.SA13],
     fixture: variant(real => {
@@ -735,7 +698,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The answer is the original evidence, and the guard moves again each time.
     name: 'a resent invalidation moves the guard again',
     fails: [NAMES.SA12, NAMES.SA13],
     fixture: variant(real => {
@@ -758,7 +720,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The revision that a permit names grows with every prepare, whether or not a guard moved.
     name: 'the revision of the guard grows with every prepare',
     fails: [NAMES.SA12],
     fixture: variant(real => {
@@ -794,7 +755,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // the provider keys an invalidation by its operation alone and ignores the guard it names.
     name: 'an invalidation operation reused for another guard is answered as the original',
     fails: [NAMES.SA13],
     fixture: variant(real => {
@@ -809,7 +769,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // the provider keys an exclusion by its operation alone and ignores the reason it gives.
     name: 'an exclusion operation reused for another reason is answered as the original',
     fails: [NAMES.SA14],
     fixture: variant(real => {
@@ -824,7 +783,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The old permit of an exclusion still starts; a permit issued after it does not.
     name: 'the permit issued before an exclusion starts after it',
     fails: [NAMES.SA10, NAMES.SA14],
     fixture: variant(real => {
@@ -848,7 +806,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // A consume after a resent invalidation is refused, as if the resend had moved the guard.
     name: 'a consume after a resent invalidation is rejected',
     fails: [NAMES.SA12, NAMES.SA13],
     fixture: variant(real => {
@@ -874,7 +831,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The first refusal after an invalidation slips through as a start; later answers refuse.
     name: 'the first consume after an invalidation starts',
     fails: [NAMES.SA4, NAMES.SA7],
     fixture: variant(real => {
@@ -901,7 +857,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The reuse of an invalidation identity is refused, but not as a conflict.
     name: 'an invalidation operation reused for another guard is refused as invalid',
     fails: [NAMES.SA13],
     fixture: variant(real => ({
@@ -926,7 +881,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The refused exclusion overwrites what the original operation answers afterwards.
     name: 'a conflicting reuse of an exclusion identity changes the evidence of the original',
     fails: [NAMES.SA14],
     fixture: variant(real => {
@@ -946,7 +900,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // A foreign prepare is answered a permit that names the tenant that owns the start.
     name: 'a foreign prepare issues a permit that names the first tenant',
     fails: [NAMES.SA19],
     fixture: variant(real => ({
@@ -960,16 +913,6 @@ const variants: readonly Variant<Fixture>[] = [
   },
 ]
 
-// ---------------------------------------------------------------------------------------------
-// Providers that the contract allows are built in start-authority-legal.ts, at the port boundary.
-// ---------------------------------------------------------------------------------------------
-
-/**
- * The resend rule for `consume`, the method of the port with a first answer that can be
- * progress: a consume that goes back to `unknown` after it answered started, and one that answers
- * a started during `unknown` which is not the one that lands (the generated provider with the
- * resend during progress replaced). The consume that mints a fresh acceptance each time is above.
- */
 const resendRule: readonly Variant<Fixture>[] = [
   {
     name: 'a resent consume goes back from started to unknown',
@@ -1030,7 +973,6 @@ const resendRule: readonly Variant<Fixture>[] = [
   },
 ]
 
-/** The cases that wait for a decision of `consume` or `inspect`, and name `settle` without it. */
 const NEEDS_SETTLE = Object.fromEntries(
   [
     NAMES.SA2,
@@ -1105,7 +1047,6 @@ const legal: readonly LegalProvider<Fixture>[] = [
   },
 ]
 
-/** Legal, but with no `settle` for the `unknown` that it answers: not applicable, never passed. */
 const legalWithoutSettle: readonly LegalProvider<Fixture>[] = [
   {
     name: 'generated: every first answer of consume and inspect is unknown and the fixture offers no settle',
@@ -1114,7 +1055,6 @@ const legalWithoutSettle: readonly LegalProvider<Fixture>[] = [
   },
 ]
 
-/** A fixture whose `settle` resolves before the authority decides. */
 const lateSettle: readonly Variant<Fixture>[] = [
   {
     name: 'a stale consume is refused as not-started and inspect then says started',
@@ -1127,7 +1067,6 @@ const lateSettle: readonly Variant<Fixture>[] = [
     fixture: generated('unknown', { lagTurns: 3 }),
   },
   {
-    // The authority stays undecided for ever, although the handle says that it decided.
     name: 'inspect answers unknown for ever although settle resolved',
     fails: [
       NAMES.SA3,
@@ -1150,7 +1089,6 @@ const lateSettle: readonly Variant<Fixture>[] = [
   },
 ]
 
-/** The methods of the port that take an access, and the case that checks another tenant on each. */
 const CROSS_TENANT_BY_METHOD: Readonly<Record<keyof ToolStartAuthority<string>, string>> = {
   prepare: NAMES.SA19,
   consume: NAMES.SA16,

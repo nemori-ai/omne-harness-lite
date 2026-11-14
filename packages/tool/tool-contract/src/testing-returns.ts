@@ -2,7 +2,6 @@ import type { ToolReturnDeclaration } from './definitions.ts'
 import type { Adoption } from './identity.ts'
 import { adoption } from './testing-values.ts'
 
-/** An unconstrained ordinary value for fixtures whose output validator accepts any value. */
 export function ordinaryReturnFixture(
   codec: Adoption,
 ): Extract<ToolReturnDeclaration, { kind: 'ordinary' }> {

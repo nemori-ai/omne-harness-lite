@@ -49,41 +49,24 @@ type Entry = {
   started: boolean
   retiring: boolean
   running: boolean
-  /**
-   * Judged from a fresh recovery after a delivery outcome: settled, no pending task, delivery
-   * done. A complete entry is not rescheduled and retires once no run is in progress.
-   */
   complete: boolean
-  /**
-   * Judged after a run that was idle: the call is suspended on a wait and owes nothing now. A
-   * dormant entry leaves the table once no run is in progress; a hint, a run the instance host
-   * queued or the recovery scan brings the call back (model DormantCalls).
-   */
   dormant: boolean
   progress: string
 }
 
-/**
- * Whether the driver runs the call again on its own, after its backoff (Tool SPEC 23): the last
- * run stopped blocked, without progress at the end of its step budget (or with progress, which it
- * goes on from at once), or on a port that could not answer. The interval leaves these calls to it.
- */
 function drivenLater(progress: string): boolean {
   return (
     progress === 'blocked' || progress === 'yielded' || progress.startsWith('failed/unavailable')
   )
 }
 
-/** The rescan period when the input does not give one (SPEC「周期」). */
 const RESCAN_MS = 60_000
 
 function logTo(ctx: Context): (level: 'warn' | 'info', message: string) => void {
   return (level, message) => {
     try {
       ctx.logger('tool-executor')[level](message)
-    } catch {
-      // The context has ended; there is nobody to tell.
-    }
+    } catch {}
   }
 }
 
@@ -95,7 +78,6 @@ type ExecutorInput = Readonly<{
   receiver: Parameters<
     typeof createLocalToolResultDelivery<unknown, ToolMessageContentBlock>
   >[0]['position']['receiver']
-  /** 账本的受信恢复扫描：执行器启动时用它找回有待推进工作的旧调用。 */
   recovery: ToolLedgerRecovery
   instance(): ToolInstanceId | null
   maintenance: LostExecutionsInput['maintenance']
@@ -123,7 +105,6 @@ export function createRuntimeExecutor(input: ExecutorInput) {
     position: { access: settings.resolveAccess, receiver: input.receiver },
     forwardedCopies: settings.sources.releaseReceivedCopies,
     capacity: settings.capacity,
-    // No receiver, or one that answers unavailable: the delivery stays owed, paced and named (R2-D273, R2-D282).
     pacing: {
       initialMs: settings.configuration.driverRetryDelayMs ?? 1000,
       maxMs: Math.max(settings.configuration.driverRetryDelayMs ?? 1000, 60_000),
@@ -258,11 +239,6 @@ export function createRuntimeExecutor(input: ExecutorInput) {
       },
     })
   }
-  /**
-   * Retires a complete entry once no run is in progress. The delivery outcome and the end of
-   * every run both call it, so the retirement does not depend on which of the two comes last
-   * (R2-D164). A failed cleanup keeps the entry and lets a later outcome judge it again.
-   */
   const stops = createRunStopLog({
     warn: message => executorLog('warn', message),
     info: message => executorLog('info', message),
@@ -288,19 +264,12 @@ export function createRuntimeExecutor(input: ExecutorInput) {
       calls.delete(key)
       stops.forget(key)
       delivery.release(wake)
-      // A complete call has settled: its terminal state takes it out of the owed set.
       if (entry.complete) scans.ended(wake)
       scans.roomMade()
     }
     if (entry.complete) completed += 1
     else dormantExits += 1
   }
-  /**
-   * The entry of a run. A call the table holds runs under its entry. A call it does not hold is a
-   * dormant call that a hint or a late run woke: it comes back when the ledger shows work of it
-   * and the table has room. With no room it is owed, and the rescan of its tenant finds it once a
-   * call retires. A call the run reads as settled with no work has reached its terminal state.
-   */
   const entryOf = async (
     step: Parameters<ToolDriver<unknown>['run']>[0],
   ): Promise<Entry | null> => {
@@ -319,11 +288,6 @@ export function createRuntimeExecutor(input: ExecutorInput) {
     scans.wanted(step)
     return null
   }
-  /**
-   * Drives the delivery of the call and judges the outcome. The delivery worker owns its own
-   * wait; it never occupies the host's driver queue. A settled call whose delivery is done and
-   * whose fresh recovery shows nothing pending is complete: it retires once no run is in progress.
-   */
   const deliver = (
     step: Parameters<ToolDriver<unknown>['run']>[0],
     entry: Entry,
@@ -359,8 +323,6 @@ export function createRuntimeExecutor(input: ExecutorInput) {
       try {
         const before = await dependencies.commands.loadRecovery(step)
         if ('failure' in before) {
-          // The read before the run could not answer: the driver runs the call again after its
-          // backoff, and the interval leaves it to the driver (Tool SPEC 23).
           if (before.failure.kind === 'unavailable') {
             entry.progress = `failed/unavailable/${before.failure.dependency}`
             driver.later(step)
@@ -376,7 +338,6 @@ export function createRuntimeExecutor(input: ExecutorInput) {
           scans.roomMade()
         }
         if (await lost.handled(step, before.ok, entry, forget)) return
-        // A saved final can release an unused writer while its fragment provider is unavailable.
         const progress = await driver.advance(step)
         stops.stopped(keyOf(step), step.call, progress)
         entry.progress =
@@ -395,8 +356,8 @@ export function createRuntimeExecutor(input: ExecutorInput) {
         deliver(step, entry, after)
       } finally {
         entry.running = false
-        // A dormant call leaves before its run returns: the run the host starts next finds the
-        // call gone and takes it back from the ledger, so a hint that came meanwhile is not lost.
+        // A dormant call leaves before its run returns: the next run finds it gone and reloads it
+        // from the ledger, so a hint that came meanwhile is not lost.
         const dormant = entry.dormant
         const left = retire(step, entry)
         if (dormant) await left
@@ -409,8 +370,6 @@ export function createRuntimeExecutor(input: ExecutorInput) {
     },
   })
   const retryMs = settings.configuration.driverRetryDelayMs ?? 1000
-  // Live calls only: a complete call has nothing left to drive and retires on its own. The
-  // interval reads no store; the recovery scans keep their own period (SPEC「周期」).
   const timer = setInterval(() => {
     for (const entry of calls.values()) {
       if (entry.retiring || entry.complete || entry.dormant || drivenLater(entry.progress)) continue
@@ -427,7 +386,6 @@ export function createRuntimeExecutor(input: ExecutorInput) {
     rejectAdmission(wake: Wake) {
       const entry = calls.get(keyOf(wake))
       if (entry === undefined || entry.started) return
-      // The admission was refused: the call never was, so it owes nothing.
       calls.delete(keyOf(wake))
       scans.ended(wake)
       scans.roomMade()

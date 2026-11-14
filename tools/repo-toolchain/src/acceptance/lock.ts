@@ -1,7 +1,3 @@
-// 验收锁：验收文件归负责的人与主线，实施的 agent 只能运行它，不能改它。
-// 这里核对的是「自任务基线以来，谁动过验收文件」：基线提交就是当时的清单（Git 按内容寻址，不必另存一份哈希），
-// 交回时拿它与当前工作树比，并把这段范围里碰过验收文件的提交逐个列出、按来源 trailer 判断是不是验收的拥有者改的。
-// 谁算拥有者、哪个目录算验收，只在仓库根 `repo-toolchain.config.json` 的 `acceptanceLock` 一节里定一次。
 import { execFileSync } from 'node:child_process'
 import { inspectHistoricalApproval } from './historical-approvals.ts'
 import type { HistoricalApproval } from './historical-approvals.data.ts'
@@ -13,11 +9,8 @@ import { auditRanges, baselines } from '../core/task-context.ts'
 import { readToolchainSection, toolchainConfigPath } from '../core/toolchain-config.ts'
 
 export interface AcceptanceLockConfig {
-  /** 成员所在的根目录；只有它们下面的验收目录受这把锁管。 */
   readonly memberRoots: readonly string[]
-  /** 验收目录的名字：路径里有一段等于它的文件就是验收文件。 */
   readonly directory: string
-  /** 可以改验收的角色（来源 trailer `Agent-Role` 的值）。没有这条 trailer 的提交按人写的算。 */
   readonly ownerRoles: readonly string[]
 }
 
@@ -58,25 +51,18 @@ export function isAcceptancePath(path: string, config: AcceptanceLockConfig): bo
   )
 }
 
-/** 模板生成的验收入口占位：验收目录里的 README.md、index.md 仍带这一行标记时，只是占位，不是验收内容。 */
 export const PLACEHOLDER_MARKER = '<!-- documentation:placeholder -->'
 const ENTRY_NAMES = new Set(['README.md', 'index.md'])
 
-/** 只有 README.md、index.md 可能是占位；别的验收文件判断前不必读内容。 */
 function isEntryName(path: string): boolean {
   return ENTRY_NAMES.has(path.slice(path.lastIndexOf('/') + 1))
 }
 
-/**
- * 纯函数：这个验收文件在这次变化里是否只是模板占位。`content` 取变化后的内容，删除时取变化前的内容；
- * 读不到内容（undefined）不算占位，照常计入。
- */
 export function isPlaceholderEntry(path: string, content: string | undefined): boolean {
   if (!isEntryName(path) || content === undefined) return false
   return content.split('\n').some(line => line.trim() === PLACEHOLDER_MARKER)
 }
 
-/** 提交信息里最后一条 `Agent-Role:` 的值；没有则为 undefined。 */
 export function agentRole(message: string): string | undefined {
   let role: string | undefined
   for (const line of message.split('\n')) {
@@ -90,7 +76,6 @@ export interface TouchingCommit {
   readonly sha: string
   readonly subject: string
   readonly author: string
-  /** 来源 trailer 写的角色；没写的按人写的算。 */
   readonly role: string | undefined
   readonly files: readonly string[]
   readonly allowed: boolean
@@ -104,13 +89,9 @@ export interface FileChange {
 export interface LockReport {
   readonly base: string
   readonly mergeBase: string
-  /** 基线到当前工作树，验收文件的净变化（含未提交与未跟踪）。 */
   readonly changes: readonly FileChange[]
-  /** 基线之后碰过验收文件的提交，新的在前。 */
   readonly commits: readonly TouchingCommit[]
-  /** 工作树里还没提交的验收改动：说不清是谁改的。 */
   readonly uncommitted: readonly string[]
-  /** Original findings, including precisely approved historical changes. */
   readonly violations: readonly string[]
   readonly approvedExceptions: readonly HistoricalApproval[]
   readonly unresolvedViolations: readonly string[]
@@ -121,7 +102,6 @@ export interface CommitTouch {
   readonly files: readonly string[]
 }
 
-/** 纯函数：给碰过验收文件的提交与未提交的改动，判断这把锁有没有被破。 */
 export function judge(
   touches: readonly CommitTouch[],
   uncommitted: readonly string[],
@@ -165,21 +145,15 @@ function lines(text: string): string[] {
   return text.split('\n').filter(line => line !== '')
 }
 
-/** 某个版本里的文件内容；不存在时为 undefined。 */
 function contentAt(root: string, revision: string, path: string): string | undefined {
   try {
     return git(root, ['show', `${revision}:${path}`])
   } catch (error) {
-    // A missing path is expected for additions/deletions; a failed read of an existing path is not.
     if (git(root, ['ls-tree', revision, '--', path]) === '') return undefined
     throw error
   }
 }
 
-/**
- * 一批 `<版本>:<路径>` 的内容，一次 `git cat-file --batch` 读完，与逐个 `contentAt` 相同：不存在的为 undefined，
- * 读出的去掉末尾空白（同 `git()`；`git show <版本>:<路径>` 给文件的也是原始内容）。不是文件的对象按工具错误报出。
- */
 function contentsAt(root: string, specs: readonly string[]): Map<string, string | undefined> {
   const found = new Map<string, string | undefined>()
   const unique = [...new Set(specs)]
@@ -276,13 +250,6 @@ function uncommittedPaths(root: string, config: AcceptanceLockConfig): string[] 
 
 const COMMIT_MARK = '\u001e'
 
-/**
- * 范围里每个提交改到的路径，一次 `git log` 读完（逐个提交调 `diff-tree` 在 Windows 上一个提交要二三十毫秒）。
- * 与逐个调 `git diff-tree --name-only --no-renames -r <-m|--cc> <提交>` 列出的路径相同：
- * `-m` 让合并提交相对每个父提交各列一次（`log.diffMerges=separate` 钉住 `-m` 的含义，免得用户配置把它改成只比第一父），
- * 同一提交的几段在这里合并；`--cc` 只列与每个父提交都不同的路径。`log.showRoot=false` 让根提交像 `diff-tree`
- * 不加 `--root` 时那样不列路径；`--no-show-signature` 不让签名校验的输出混进来。
- */
 export function namesByCommit(
   root: string,
   range: string,
@@ -322,12 +289,10 @@ function touchesSince(
 ): CommitTouch[] {
   const range = `${mergeBase}..${head}`
   const names = namesByCommit(root, range, integration)
-  // 合并提交相对每个父提交的路径已去重，即「这个提交带进来的验收改动」。
   const touched = readCommits(root, range).map(record => ({
     record,
     files: [...(names.get(record.sha) ?? [])].filter(path => isAcceptancePath(path, config)),
   }))
-  // 占位只看入口文件：变化后的内容，删掉的取父提交里的。两批各一次 git 调用读完。
   const entries = touched.flatMap(({ record, files }) =>
     files.filter(isEntryName).map(path => ({ sha: record.sha, path })),
   )
@@ -351,7 +316,6 @@ function touchesSince(
   })
 }
 
-/** 读 Git：基线到当前工作树之间，验收文件发生了什么、谁改的。 */
 export function inspect(
   root: string,
   base: string,
@@ -421,7 +385,6 @@ export function render(report: LockReport, config: AcceptanceLockConfig): string
   return out
 }
 
-/** Every audit range of this tree with the acceptance edits it carries. */
 export function auditHistory(
   root: string,
   explicitBase: string | undefined,

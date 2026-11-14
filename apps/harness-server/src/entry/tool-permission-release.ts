@@ -63,7 +63,6 @@ function invocationPolicy(name: string) {
   }
 }
 
-/** Part of the release owner's canonical manifest, never derived from tenant assignments. */
 type ControlledTool = {
   name: ReleaseToolName
   adoption: Adoption

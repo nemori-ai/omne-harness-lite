@@ -1,5 +1,3 @@
-// HITL 客户端（SPEC「HITL 客户端」）：经环回服务端替身往返四个操作，核对路径、按 messageId 的关联、
-// 部署声明不提供的答复、`unknown` 的状态 500，以及客户端与公开契约读取的一致。
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   RequestInvalidError,

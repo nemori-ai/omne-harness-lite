@@ -19,7 +19,6 @@ function streamOf(...facts: readonly TransportFact[]): AsyncIterable<TransportFa
   }
 }
 
-/** The subject with the prepared transport changed; its `sends` is the scripted one unless `sends` says otherwise. */
 function through(
   subject: Subject,
   change: (prepared: PreparedTransport) => PreparedTransport,
@@ -42,7 +41,6 @@ function through(
   }
 }
 
-/** The subject whose transport runs `before` each time that it is asked to prepare. */
 function preparing(
   subject: Subject,
   before: () => void,
@@ -65,7 +63,6 @@ function preparing(
   }
 }
 
-/** Changes what `materialize` hands out. */
 function materializing(change: (materialized: MaterializedTransport) => MaterializedTransport) {
   return (prepared: PreparedTransport): PreparedTransport => ({
     ...prepared,
@@ -76,7 +73,6 @@ function materializing(change: (materialized: MaterializedTransport) => Material
   })
 }
 
-/** Changes the facts that `start` hands out. */
 function streaming(change: (facts: AsyncIterable<TransportFact>) => AsyncIterable<TransportFact>) {
   return materializing(materialized => ({
     ...materialized,
@@ -234,7 +230,6 @@ describe('the conformance suite on a transport', () => {
         subject,
         materializing(materialized => {
           let reads = 0
-          // One receipt object, so the two reads of the receipt are the same; its format is not.
           const receipt = Object.defineProperty({ ...materialized.receipt }, 'replayFormat', {
             enumerable: true,
             get: () => `scripted-replay-v${++reads}`,

@@ -1,6 +1,3 @@
-// The readers of SPEC T2 and T6: what a transport hands over for a result that
-// `classifyWireEvent` put into the readable class. Each reader is total and answers the defect
-// of the shape it cannot read, with the `what` of T7. One implementation for every transport.
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
 import { isProtocolVersion, type Generation, type ProtocolVersion } from './brands.ts'
@@ -23,7 +20,6 @@ const TASK_STATUSES: readonly TaskStatus[] = [
   'cancelled',
 ]
 
-/** What `server/discover` or `initialize` said, before the instructions are bound (T3). */
 export type PeerRead = Readonly<{
   protocolVersion: ProtocolVersion
   capabilities: JsonValue
@@ -31,13 +27,8 @@ export type PeerRead = Readonly<{
   instructions?: string
 }>
 
-/** The material facts that turn a `PeerRead` into the peer identity. */
 export type IdentityBound = Readonly<{ generation: Generation; instructionsByteLimit: number }>
 
-/**
- * The modern answer (T2, T3): a result with `supportedVersions` and `capabilities`; the version
- * is the highest of `versions` the peer offers. `no-common-version` when it offers none of them.
- */
 export function readDiscoverResult(
   result: JsonValue,
   versions: readonly string[],
@@ -64,7 +55,6 @@ export function readDiscoverResult(
   }
 }
 
-/** The legacy answer (T2): `protocolVersion` in `LEGACY_PROTOCOL_VERSIONS`, `capabilities` an object. */
 export function readInitializeResult(result: JsonValue): Outcome<PeerRead, 'shape'> {
   if (!isObject(result)) return { failure: 'shape' }
   const version = textOf(member(result, 'protocolVersion'))
@@ -88,7 +78,6 @@ export function readInitializeResult(result: JsonValue): Outcome<PeerRead, 'shap
   }
 }
 
-/** The peer identity of a read (T3, S3): the instructions bound to the material's byte limit. */
 export function peerIdentityOf(read: PeerRead, bound: IdentityBound): PeerIdentity {
   return {
     protocolVersion: read.protocolVersion,
@@ -107,10 +96,6 @@ export function peerIdentityOf(read: PeerRead, bound: IdentityBound): PeerIdenti
   }
 }
 
-/**
- * A page of `tools/list` (T2): `tools` a list, `nextCursor` absent or text, `ttlMs` kept only as
- * a non-negative safe integer. With `checkHeaders` the `x-mcp-header` rule withholds tools.
- */
 export function readListingPage(
   result: JsonValue,
   checkHeaders: boolean,
@@ -137,14 +122,12 @@ export type TaskReadDefect =
   | 'result-missing'
   | 'error-missing'
 
-/** A `tasks/get` result as read (T6): the status with what that status must carry. */
 type TaskRead =
   | Readonly<{ status: 'working' | 'cancelled' }>
   | Readonly<{ status: 'input_required'; inputRequests: JsonValue }>
   | Readonly<{ status: 'completed'; result: JsonValue }>
   | Readonly<{ status: 'failed'; error: JsonValue }>
 
-/** The status of a `tasks/get` result and what it carries, with the hints (T6). */
 function readTask(
   result: JsonValue,
 ): Outcome<Readonly<{ read: TaskRead; hints: TaskHints }>, TaskReadDefect> {
@@ -184,7 +167,6 @@ function taskReadOf(status: TaskStatus, result: JsonObject): Outcome<TaskRead, T
   }
 }
 
-/** The status read of a `tasks/get` result (T6), with the input requests of an `input_required` task. */
 export function readTaskReport(result: JsonValue): Outcome<TaskReport, TaskReadDefect> {
   const task = readTask(result)
   if ('failure' in task) return task
@@ -200,7 +182,6 @@ export function readTaskReport(result: JsonValue): Outcome<TaskReport, TaskReadD
   }
 }
 
-/** The answer read of a `tasks/get` result (T6): the result or error of a finished task. */
 export function readTaskAnswer(result: JsonValue): Outcome<TaskAnswer, TaskReadDefect> {
   const task = readTask(result)
   if ('failure' in task) return task
@@ -222,7 +203,6 @@ export function readTaskAnswer(result: JsonValue): Outcome<TaskAnswer, TaskReadD
   }
 }
 
-/** A readable JSON-RPC error object (T2) as an `error-answer`, or undefined when it is not readable. */
 export function errorAnswerOf(error: JsonValue): ErrorAnswer | undefined {
   if (!isObject(error)) return undefined
   const code = member(error, 'code')

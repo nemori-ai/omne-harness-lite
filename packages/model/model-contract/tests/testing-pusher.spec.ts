@@ -39,7 +39,6 @@ import { within } from './helpers/within.ts'
 
 const limits: Budget = { records: 20, bytes: 100000, attachments: 10000, inFlight: 10 }
 
-/** The receiver fixture behind a queue of scripted failures that answer the next pushes first. */
 function scriptedReplies(inner: ModelResultReceiver<Principal>) {
   const replies: ModelDeliveryFailure[] = []
   const receiver: ModelResultReceiver<Principal> = {
@@ -51,10 +50,6 @@ function scriptedReplies(inner: ModelResultReceiver<Principal>) {
   return { receiver, answer: (...failures: ModelDeliveryFailure[]) => replies.push(...failures) }
 }
 
-/**
- * A scripted provider behind the pusher, and the receiver fixture as the consumer owner `test`.
- * `answer` queues failures that the next pushes get before they reach the fixture.
- */
 function harness(over: Partial<ScriptedResultPusherOptions<Principal>> = {}) {
   const scripted = scriptedProvider()
   const store = createDeliveryFixture<Principal>({
@@ -73,7 +68,6 @@ function harness(over: Partial<ScriptedResultPusherOptions<Principal>> = {}) {
 }
 type Harness = ReturnType<typeof harness>
 
-/** Admits the call through the pusher and tells the receiver about the original call. */
 async function admitted(
   h: Harness,
   name: string,
@@ -87,7 +81,6 @@ async function admitted(
   return accepted
 }
 
-/** Settles the call as completed with three blocks in pages of two. */
 function settle(h: Harness, name: string): void {
   h.pusher.controller.settle({
     ...callRef(name),
@@ -121,10 +114,6 @@ function account(name: string, revision: string): CallAccount {
   }
 }
 
-/**
- * The scripted provider with an `acknowledge` that answers the queued failures first and records
- * every input it gets; the rest of the provider is the scripted one.
- */
 function answeringAcknowledge(
   scripted: ScriptedModelProvider<Principal>,
   ...failures: ModelFailure[]
@@ -286,7 +275,6 @@ describe('a settled call behind the push-producer double', () => {
   })
 })
 
-/** Admits the call with one started dispatch that has no account yet. */
 async function started(h: Harness, name: string) {
   await admitted(h, name, [dispatch('first')])
   h.pusher.controller.start({

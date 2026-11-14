@@ -18,6 +18,22 @@ describe('hygiene-spec-shape', () => {
     expect(SPEC_PATH.test('packages/group/member/SPEC.md')).toBe(false)
   })
 
+  it('matches the spec of an application and of a tool, and no deeper path', () => {
+    for (const path of ['apps/cli/SPEC.md', 'tools/dev-flow/SPEC.md'])
+      expect(SPEC_PATH.test(path), path).toBe(true)
+    for (const path of [
+      'apps/cli/docs/SPEC.md',
+      'tools/repo-toolchain/src/arch/SPEC.md',
+      'apps/SPEC.md',
+    ])
+      expect(SPEC_PATH.test(path), path).toBe(false)
+    const missing = good.replace('## 不变式\n正文', '')
+    const violations = specShapeViolations([{ path: 'apps/cli/SPEC.md', text: missing }], 600)
+    expect(violations.map(v => [v.rule, v.path])).toEqual([
+      ['hygiene-spec-shape', 'apps/cli/SPEC.md'],
+    ])
+  })
+
   it('accepts one title and the six sections in order', () => {
     expect(shape(good)).toEqual([])
   })
@@ -75,6 +91,11 @@ describe('hygiene-spec-shape', () => {
 describe('hygiene-spec-content', () => {
   it('accepts plain prose and invariant numbers', () => {
     expect(content('不变式 I-3 与 INV-7 成立。')).toEqual([])
+  })
+
+  it('accepts the domain word 候选 and rejects it only as the status of a text', () => {
+    expect(content('请求候选是对一组输入算出的结果；终态候选在提交之前固定。')).toEqual([])
+    expect(content('本节是候选设计。')).toHaveLength(1)
   })
 
   it.each([

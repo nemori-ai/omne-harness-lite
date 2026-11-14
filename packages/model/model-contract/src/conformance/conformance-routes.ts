@@ -1,7 +1,4 @@
 import { invocationReference } from '../testing/reference-input.ts'
-// The checks of who may reach a call and where it is served: other tenants and revoked principals
-// are refused without a sign of whether the call exists, a lost or replaced instance ends only the
-// observation, and a quiescing provider takes no new call.
 import {
   accessOf,
   admitInput,
@@ -48,7 +45,6 @@ const PROBES = [
 
 const EVIDENCE = { owner: 'conformance', record: 'record', revision: '1', digest: 'digest' }
 
-/** A call that has ended when the subject can end one, so a refusal is not the answer to a call that was not ready. */
 async function readyCall<P>(scene: Scene<P>, label: string) {
   const hooks = scene.subject.hooks
   if (hooks?.startRun !== undefined && hooks.settleCall !== undefined) {

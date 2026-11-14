@@ -4,7 +4,7 @@
 
 ## 范围与依据
 
-本包是会话领域的接入插件：把 `session/v1`（[`@omne-harness/session-protocol`](../session-protocol/SPEC.md)）的贡献挂上接入的登记表。依据是 [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md) 第 5 节「领域的接入插件怎么写」、第 7 节「目标租户放在消息体里」与「派生标识用的文本不改」、第 8 节「会话观察」。处理函数从入口会话位置（`packages/access/server-entry/src/session.ts`）搬来，业务规则与结果的映射不变；`list-sessions` 是新加的，依据第 8 节「列出会话」，见 [SA-7](#sa-7)。
+本包是会话领域的接入插件：把 `session/v1`（[`@omne-harness/session-protocol`](../session-protocol/SPEC.md)）的贡献挂上接入的登记表。处理函数从入口会话位置（`packages/access/server-entry/src/session.ts`）搬来，业务规则与结果的映射不变；`list-sessions` 是新加的，依据第 8 节「列出会话」，见 [SA-7](#sa-7)。
 
 ## 结果与不变量
 

@@ -1,6 +1,3 @@
-// The `current` double: a `ModelStreamReferences` that answers from confirmation records the
-// test gives it. The test control plane, the source state and a held response are scripted
-// separately, so each failure of the `current` protocol can be driven on its own.
 import type { Access, TenantId } from '@omne-harness/legal-identity'
 import { judgeStreamRef, readStreamRef } from '@omne-harness/stream-arrival'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -23,15 +20,10 @@ import { misuse } from './error.ts'
 import { modelStreamCodec } from './stream-codec.ts'
 import { frozenCopy, tenantText } from './values.ts'
 
-/** One read of the confirmation records by `current`, after every check that precedes it passed. */
 export type ScriptedEvent = Readonly<{ sequence: number; action: 'owner-read'; key: string }>
 
 export type ScriptedStreamReferences<P> = Readonly<{
   references: ModelStreamReferences<P>
-  /**
-   * The confirmation record of the invocation in `tenant`: its state and its current target,
-   * together. The reference carries no tenant (R2-D357), so the script names it.
-   */
   confirmSelection(
     input: Readonly<{
       tenant: TenantId
@@ -39,21 +31,14 @@ export type ScriptedStreamReferences<P> = Readonly<{
       selection: ModelStreamSelection
     }>,
   ): void
-  /** The invocation is confirmed without a published target: `current` is null. */
   establishWithoutTarget(
     input: Readonly<{ tenant: TenantId; reference: ModelInvocationRef; state: CallState }>,
   ): void
-  /** The published target retires without a successor; the state stays. */
   withdrawTarget(input: Readonly<{ tenant: TenantId; reference: ModelInvocationRef }>): void
-  /** The control plane for `current`; an access that was never set is denied. */
   setAccess(access: Access<P>, decision: ScriptedAccessDecision): void
-  /** The confirmation source: `unavailable` answers every read with `unavailable`. */
   setSource(state: 'available' | 'unavailable'): void
-  /** The request with this sequence number waits after its first qualification check. */
   holdResponse(requestId: number): void
-  /** Resolves when the held request has arrived at its wait. */
   reached(requestId: number): Promise<void>
-  /** Lets the held request go on; it checks qualification and reads the source again. */
   releaseResponse(requestId: number): void
   events(): readonly ScriptedEvent[]
 }>
@@ -65,7 +50,6 @@ type Barrier = Readonly<{
   released: PromiseWithResolvers<void>
 }>
 
-/** The parts of a canonical reference in the tenant the script names. */
 function original(tenant: TenantId, reference: ModelInvocationRef) {
   const decoded = decodeModelInvocationRef(reference)
   if ('failure' in decoded || decoded.ok !== reference)
@@ -83,7 +67,6 @@ function unavailable(): ModelFailure {
   return { kind: 'unavailable', dependency: 'stream-references', diagnostic: 'scripted-source' }
 }
 
-/** Step 1 of the read order: the tenant and the reference, before anything is looked up. */
 function referenceFailure(failure: ModelReferenceFailure): ModelFailure {
   switch (failure.kind) {
     case 'invalid-tenant':
@@ -137,7 +120,6 @@ export function createScriptedStreamReferences<P>(): ScriptedStreamReferences<P>
     return barrier
   }
 
-  /** Step 4: a held response waits here, then checks qualification again before any read. */
   async function waitHeld(
     id: number,
     barrier: Barrier,
@@ -149,7 +131,6 @@ export function createScriptedStreamReferences<P>(): ScriptedStreamReferences<P>
     return qualify(access)
   }
 
-  /** Steps 3 and 5: one read of the confirmation source for the resolved invocation. */
   function readConfirmed(
     access: Access<P>,
     parts: ModelInvocationParts,
@@ -175,7 +156,6 @@ export function createScriptedStreamReferences<P>(): ScriptedStreamReferences<P>
       if ('failure' in resolved) return { failure: referenceFailure(resolved.failure) }
       const denied = qualify(access)
       if (denied !== null) return { failure: denied }
-      // A response that is not held reads the source in this same turn: no await precedes it.
       const barrier = barriers.get(id)
       if (barrier !== undefined) {
         const rechecked = await waitHeld(id, barrier, access)

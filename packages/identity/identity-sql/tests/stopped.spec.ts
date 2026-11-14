@@ -1,6 +1,3 @@
-// DP3-C16, IS-07: after `stop()`, a new call gets an answer that says nothing about credentials,
-// logins or memberships; the governance port answers like the operations. A call accepted before
-// `stop()` runs to its end.
 import { afterEach, expect, it } from 'vitest'
 import { gatedCompute } from './fixtures/scrypt.ts'
 import { openProvider, type OpenedProvider } from './fixtures/provider.ts'
@@ -43,12 +40,10 @@ it('answers not-loginable, basis-unavailable and unavailable after stop', async 
   })
   expect(recognize.kind).toBe('basis-unavailable')
   expect(recognize.kind === 'basis-unavailable' && recognize.diagnostic).toBe('provider-stopped')
-  // A malformed proof is still judged by its text alone (ID-17 recognition step 1).
   expect(await opened.provider.operations.recognizeLogin({ loginProof: '' })).toEqual({
     kind: 'invalid',
   })
   expect((await opened.provider.standing.read({ tenant: ada.tenant })).kind).toBe('unavailable')
-  // Every governance call, a write, a read or a report, says nothing about the records either.
   const { governance } = opened.provider
   for (const outcome of [
     await governance.createOrganization({
@@ -64,7 +59,6 @@ it('answers not-loginable, basis-unavailable and unavailable after stop', async 
     await governance.reportBusinessAccess({ login: issued.login }),
   ])
     expect(outcome).toEqual({ kind: 'basis-unavailable', diagnostic: 'provider-stopped' })
-  // Stopping twice changes nothing.
   opened.provider.stop()
   expect((await opened.provider.standing.read({ tenant: ada.tenant })).kind).toBe('unavailable')
 })
@@ -78,7 +72,6 @@ it('lets a call that was accepted before stop run to its end', async () => {
     credential: 'credential-ada',
   })
   if (ada.kind !== 'succeeded') throw new Error('registration failed')
-  // The credential comparison of this issue waits at the gate while the provider stops.
   gate.hold()
   const inFlight = opened.provider.operations.issueLogin({
     loginIdentifier: 'ada',

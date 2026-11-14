@@ -443,8 +443,6 @@ describe('complete records with one invalid leaf', () => {
   })
 
   it('refuses a request of the shape before provider assets, and maps nothing', () => {
-    // A stored request names its supplier by `recipient` and holds a factory credential: it is not
-    // read as an OpenRouter supplier on the official layer, it is refused.
     const old = replace('/suppliers/0', {
       adoption: { ...adopted },
       recipient: 'openrouter',
@@ -670,7 +668,6 @@ it('rejects real array descriptors and legal Proxy traps without invoking getter
       }),
       reason: 'unreadable',
     })
-  // Array length is non-configurable but writable. A Proxy may report a different value.
   for (const length of [-1, 0.5, Number.MAX_SAFE_INTEGER + 1, '1']) {
     const value = new Proxy(['END'], {
       getOwnPropertyDescriptor(target, key) {
@@ -747,7 +744,6 @@ describe('one finite parser budget', () => {
     for (let depth = 0; depth < 30; depth++) value = { kind: 'array', items: [value] }
     expect(judgeFixedModelRequest(withValue(value))).toHaveProperty('ok')
     rejection(withValue({ kind: 'array', items: [value] }), 'budget-depth')
-    // A plain but semantically invalid graph can hit exactly depth 65 before domain judging.
     let raw: unknown = null
     for (let depth = 0; depth < 61; depth++) raw = [raw]
     rejection(withValue(raw), 'json')
@@ -764,7 +760,6 @@ describe('one finite parser budget', () => {
       request: input,
       consumer: root.consumer,
     }
-    // The payload counter's container stands for the admit root. P and tenant stay opaque.
     const counted = boundary === 'fixed' ? input : payload
     const judge = () =>
       boundary === 'fixed' ? judgeFixedModelRequest(input) : judgeAdmit({ ...root, request: input })
@@ -779,7 +774,6 @@ describe('one finite parser budget', () => {
       }
       const leaf: JsonValue = { kind: 'null' }
       leaves.push(leaf)
-      // Constructing mutable fixture data does not mutate the judged output.
       if (!Array.isArray(branch.items)) throw new Error('fixture items')
       branch.items.push(leaf)
       count += 2

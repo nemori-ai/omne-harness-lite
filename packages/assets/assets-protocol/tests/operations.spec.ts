@@ -1,6 +1,3 @@
-// The table of assets/v1 (RFC-0015 §7「协议与拥有者」, §9「设置的操作与答复」): every operation's
-// identity, effect and limit, its outcomes, and that a body and an answer of each shape cross the
-// wire unchanged.
 import { readJsonText, writeJsonText, type JsonLimits } from '@omne-harness/json-text'
 import type { Codec } from '@omne-harness/public-contract'
 import { describe, expect, it } from 'vitest'
@@ -24,7 +21,6 @@ function tree(value: unknown) {
   if (read.kind !== 'ok') throw new Error('sample is not JSON')
   return read.value
 }
-/** Reads the sample, writes the value back, and checks the written JSON is the sample. */
 function expectRoundTrip(codec: Codec<any>, sample: unknown) {
   const read = codec.read(tree(sample), limits)
   expect(read.ok).toBe(true)

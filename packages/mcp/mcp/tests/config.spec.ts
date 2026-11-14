@@ -1,5 +1,3 @@
-// `McpConfig` validation (SPEC S3): every field is required, the three bounds are positive safe
-// integers, and an unlawful configuration throws `RangeError` at construction.
 import { describe, expect, it } from 'vitest'
 import type { McpConfig } from '@omne-harness/mcp-contract'
 import { validateConfig } from '../src/config.ts'

@@ -152,7 +152,6 @@ it('accepts the governance and implementation fields of RFC-0012 and refuses mal
   )
   expect(port.judge(complete, context)).toEqual({ ok: true })
   expect(port.deriveDeclarations(complete, context)).toEqual({ entries: [] })
-  // construction is any JSON and may be omitted; executor and module must be non-empty texts.
   const noConstruction = document(
     '{"name":"read_file","implementation":{"executor":"exec-1","module":"@acme/read-file"}}',
   )

@@ -1,7 +1,3 @@
-// The three ports that the first host does not provide (D-07). Every method of every port answers
-// a named `unavailable` that says which operation was asked, and neither throws nor succeeds.
-// The tables below list each method once and are checked against the port types, so a method added
-// to a port fails the type check here until it is listed.
 import { describe, expect, it } from 'vitest'
 import type {
   ToolChildren,

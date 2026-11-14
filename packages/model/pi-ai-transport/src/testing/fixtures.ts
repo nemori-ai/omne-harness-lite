@@ -1,6 +1,3 @@
-// The fixture check of a gateway-engine family: for every record, the request fixture encodes to
-// its expected body and the stream fixture decodes to its expected facts, through the binding
-// that the family gives for the record and the same body decoding that a send uses.
 import { OPENROUTER_ACCOUNTING } from '../chat-completions/openrouter.ts'
 import type { RouteAccounting } from '../config.ts'
 import { readdir, readFile } from 'node:fs/promises'
@@ -15,40 +12,16 @@ import { composeFamilies, familyRecords, recordProvider, type PiFamily } from '.
 import type { PiFamilyBinding } from '../family.ts'
 import { terminationOf } from '../termination.ts'
 
-/** The data text of the SSE event that ends a gateway stream. */
 export const GATEWAY_END_MARKER = '[DONE]'
 
-/** The three files of the fixture directory of one record. */
 export const FIXTURE_FILES = ['request.json', 'stream.sse', 'facts.json'] as const
 
 export type FixtureReport = Readonly<{ problems: readonly string[] }>
 
-/**
- * The directory of one record below the fixture root: `<name>/<revision>`, each segment
- * percent-encoded with `encodeURIComponent`, so a `/` in a name stays inside one segment.
- */
 export function fixtureDirectory(record: Readonly<{ name: string; revision: string }>): string {
   return join(encodeURIComponent(record.name), encodeURIComponent(record.revision))
 }
 
-/**
- * Checks the fixtures of every record of the family, `current` and `frozen`. The record list of
- * the family is the only list. Reports, one line each:
- *
- * - a record without its directory or without one of its three files;
- * - a `request.json` that is not `{ "request": <FixedModelRequest>, "body": <JSON> }`, or whose
- *   request does not name the record as a supplier;
- * - an encode that fails or whose body differs from `body`. The encode takes the declaration that
- *   the request fixes for the record and no re-dispatch;
- * - a `stream.sse` whose facts, `ended` included, differ from `facts.json`. The decoder reads the
- *   tool names of the request of `request.json`, so a request that is refused or does not encode
- *   leaves the stream unchecked;
- * - a directory below the root, or below a name directory, that names no record.
- *
- * The binding comes from the family through `composeFamilies` with a factory supplier and is
- * released after the check. The stream fixture is read whole; the SSE and JSON budgets of the
- * replay are the size of the file, so a fixture is never cut by a limit.
- */
 export async function checkChatCompletionsFixtures(
   family: PiFamily,
   root: string,
@@ -123,7 +96,6 @@ function isMissing(error: unknown): boolean {
   )
 }
 
-/** JSON budgets that only the size of the text bounds: fixtures are trusted repository files. */
 function budgetsOf(size: number): JsonLimits {
   const bound = Math.max(1, size)
   return {
@@ -138,7 +110,6 @@ function budgetsOf(size: number): JsonLimits {
 
 type EncodeCheck = Readonly<{
   problems: readonly string[]
-  /** The request of `request.json` when the contract accepts it and the binding encodes it. */
   request: FixedModelRequest | null
 }>
 
@@ -220,10 +191,6 @@ async function checkDecode(
   ]
 }
 
-/**
- * The facts of one SSE body through a new decoder of the binding for `request`, ending with the
- * one `ended`: the body decoding of a send and its termination, without an exchange.
- */
 export async function replayStream(
   binding: PiFamilyBinding,
   stream: Uint8Array,

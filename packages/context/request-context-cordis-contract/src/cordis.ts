@@ -12,10 +12,8 @@ import type {
 import type { ContextHolderSources } from './holder-sources.js'
 import type { RequestContextTrust } from './trust.js'
 
-/** Scope is an assembly declaration, not an access grant. */
 export type RequestContextIntercept = Readonly<{ scope: ScopeRef | null }>
 
-/** Provider selection contains serializable configuration, never runtime ports. */
 export type RequestContextPolicySelection = Readonly<{
   compaction: Readonly<{ implementation: string; config: CompactionPolicy }>
   representation: Readonly<{ implementation: string; config: RepresentationPolicyConfig }>
@@ -30,7 +28,6 @@ export abstract class RequestContextService<P>
   constructor(ctx: Context) {
     super(ctx, RequestContextService.provide)
   }
-  /** Registration is an effect of the caller's fiber, implemented by the provider. */
   abstract contributeSection(
     ...args: Parameters<PromptContributionRegistry['contributeSection']>
   ): ReturnType<PromptContributionRegistry['contributeSection']>
@@ -40,27 +37,17 @@ export abstract class RequestContextService<P>
   abstract contributions(
     ...args: Parameters<PromptContributionRegistry['contributions']>
   ): ReturnType<PromptContributionRegistry['contributions']>
-  /** Registers the source set of one target; an effect of the caller's fiber (RQ-12). */
   abstract register(
     ...args: Parameters<ContextSourceRegistry<P>['register']>
   ): ReturnType<ContextSourceRegistry<P>['register']>
-  /** Replaces the current source set of one target in one local step (RQ-12). */
   abstract replace(
     ...args: Parameters<ContextSourceRegistry<P>['replace']>
   ): ReturnType<ContextSourceRegistry<P>['replace']>
-  /**
-   * The configured operation group of one target. Each operation borrows the source set
-   * registered now and reads the current registered contributions; none registered is unavailable.
-   */
   abstract assembly(target: ContextTarget): AssemblyOperations<P>
 }
 
 export const requestContextKey = RequestContextService.provide
 
-/**
- * The trust object of one trusted subtree: the principal binding and the registration authority.
- * The entry that assembles the subtree provides a subclass; the object never enters plugin tree JSON.
- */
 export abstract class RequestContextTrustService<P>
   extends Service
   implements RequestContextTrust<P>
@@ -74,11 +61,6 @@ export abstract class RequestContextTrustService<P>
 }
 export const requestContextTrustKey = RequestContextTrustService.provide
 
-/**
- * The accounting inbox of the request context host. The host that provides `requestContext`
- * provides this key in the same plugin fiber, so the window usage and the received accounts
- * read one state.
- */
 export abstract class ContextAccountingInboxService<P>
   extends Service
   implements ContextAccountingInbox<P>

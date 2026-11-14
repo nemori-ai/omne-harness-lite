@@ -1,8 +1,3 @@
-// The one table from a source answer to a service failure: three columns, one for `inspect`
-// (with a cell for each of its two calls), one for the `snapshot` call and one for the `open`
-// call of the byte-reading operations.
-// Every row is pinned here; the inspection and access tests show that the services go
-// through this table.
 import { describe, expect, it } from 'vitest'
 import { sourceFailureTo } from '../src/mapping.ts'
 
@@ -11,8 +6,6 @@ describe('sourceFailureTo for inspect, by call', () => {
     ['package-not-found', { kind: 'source-unavailable' }, { kind: 'source-unavailable' }],
     ['entry-not-found', { kind: 'source-unavailable' }, { kind: 'source-unavailable' }],
     ['unavailable', { kind: 'source-unavailable' }, { kind: 'source-unavailable' }],
-    // A snapshot does not answer about one entry; a source that does is not usable. Only the
-    // bytes of an opened entry can move away from the snapshot.
     ['bytes-mismatch', { kind: 'source-unavailable' }, { kind: 'version-changed' }],
     [
       'entry-unreadable',
@@ -35,7 +28,6 @@ describe('sourceFailureTo for the snapshot of read, list and export', () => {
     ['unavailable', { kind: 'source-unavailable' }],
     ['entry-unreadable', { kind: 'source-unavailable' }],
     ['outside-package', { kind: 'outside-package' }],
-    // A snapshot does not answer about one entry; a source that does is not usable.
     ['entry-not-found', { kind: 'source-unavailable' }],
     ['bytes-mismatch', { kind: 'source-unavailable' }],
   ] as const)('%s → %j with and without a basis', (failure, expected) => {

@@ -1,6 +1,4 @@
 import { encodeModelInvocationRef } from '@omne-harness/model-contract'
-// Builders for the tests of the `./testing` entry. Every identity goes through the package
-// decoders, every block through the content-block judge, so no value here is made by an assertion.
 import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-block'
 import {
   accountCodec,
@@ -151,12 +149,10 @@ export const startedDispatch: DispatchRecord = {
   materialization: null,
 }
 
-/** A scripted provider with the one live instance `minst_one`. */
 export function scriptedProvider(): ScriptedModelProvider<Principal> {
   return createScriptedModelProvider<Principal>({ instance: instance('one') })
 }
 
-/** Reads one observation at a time from a handle, and closes it through the signal. */
 export function watch(
   handle: ModelHandle<Principal>,
   principal: Principal = alice,
@@ -168,7 +164,6 @@ export function watch(
     [Symbol.asyncIterator]()
   return {
     close: () => abort.abort(),
-    /** Stops reading, as a consumer does that leaves its loop early. */
     stop: async () => {
       await iterator.return?.()
     },
@@ -184,7 +179,6 @@ export const callRef = (name: string, tenantId: TenantId = tenantA) => ({
   call: call(name),
 })
 
-/** The access that `alice` of tenant A has to a call. */
 export const access = (name: string) => ({
   principal: alice,
   tenant: tenantA,
@@ -211,7 +205,6 @@ export async function liveHandle(
   return route.handle
 }
 
-/** Ends the call as completed, with three blocks cut into pages of two. */
 export function settleCall(scripted: ScriptedModelProvider<Principal>, name: string): void {
   scripted.controller.settle({
     ...callRef(name),
@@ -233,7 +226,6 @@ export const ackInput = (name: string, label = 'processed') => ({
   evidence: { kind: 'processed' as const, completion: evidence(label) },
 })
 
-/** Settles a call whose result has `count` blocks, cut into pages of `pageSize`. */
 export function settleWithBlocks(
   scripted: ScriptedModelProvider<Principal>,
   name: string,

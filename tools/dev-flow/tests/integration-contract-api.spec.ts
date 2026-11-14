@@ -1,6 +1,3 @@
-// How `runContractApi` reads the result of the pinned CLI process, how `toolchainManifest` reads a
-// failed lookup and how `unavailableOnKnown` sorts errors. The process and the lookup are stand-ins
-// here; the real CLI runs in integration-contract-check.spec.ts.
 import { describe, expect, it } from 'vitest'
 import {
   runContractApi,
@@ -37,7 +34,6 @@ describe('runContractApi', () => {
     expect(file).toBe('/node')
     expect(args).toEqual(['/cli.js', '--check', '--json', '--root', '/checkout'])
     expect(options).toMatchObject({ cwd: '/checkout', encoding: 'utf8', timeout: 1234 })
-    // The report of a repository with many members is larger than the 1 MiB default of a child process.
     expect(options?.maxBuffer).toBeGreaterThan(1024 * 1024)
     expect(options?.env?.['OMNE_SUBJECT_ROOT']).toBe('/checkout')
     expect(options?.env?.['OMNE_RUNNER_ROOT']).toBe('/checkout')
@@ -134,7 +130,6 @@ describe('toolchainManifest', () => {
         throw 'not an error'
       }),
     ).toThrow('not an error')
-    // A thrown value that is no Error is passed on even when it carries the code of a missing module.
     const notAnError = { code: 'ERR_MODULE_NOT_FOUND' }
     expect(() =>
       toolchainManifest(() => {

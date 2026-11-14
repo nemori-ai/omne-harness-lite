@@ -1,7 +1,3 @@
-// Self-proof of the ToolDecisionBridge suite: it passes on the conforming double, each case
-// fails under a violating variant that breaks the rule of that case, and a fixture without control
-// handles reports the cases that need them as not applicable. The variants of the cases that the
-// resource response suite shares are in external-association-variants.ts.
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
 import {
@@ -46,7 +42,6 @@ type Fixture = ToolDecisionBridgeFixture<string>
 type Bridge = ToolDecisionBridge<string>
 type Handles = Partial<Pick<Fixture, 'excludeDeferred' | 'invalidations' | 'decide'>>
 
-/** A fixture whose bridge is the double with `bridge` laid over it and `handles` replaced. */
 function bridgeVariant(
   build: (real: Bridge, base: Fixture) => Readonly<{ bridge?: Partial<Bridge>; handles?: Handles }>,
 ): () => Fixture {
@@ -62,12 +57,10 @@ const APPROVAL: DecisionValue = { kind: 'answer', value: { kind: 'string', value
 const variants: readonly Variant<Fixture>[] = [
   ...externalVariants(makeShared, {
     'inspect answers another registration': [NAMES.D1, NAMES.D2, NAMES.D3],
-    // Every case that registers a wait first reads the ensure that answered a lost reply.
     'a resend of an ensure during its lost reply answers another registration than the one that lands':
       [NAMES.D1, NAMES.D2, NAMES.D3, NAMES.D4, NAMES.D5, NAMES.D6, NAMES.D7, NAMES.D8],
   }),
   {
-    // The registration is keyed by the operation too, so another operation registers again.
     name: 'ensure registers again for another operation of the same wait',
     fails: [NAMES.D1],
     fixture: bridgeVariant(real => {
@@ -128,7 +121,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The owner declined or gave no answer, and the bridge reads it as consent.
     name: 'resolve turns a no-answer and a declined decision into an answer',
     fails: [NAMES.D5],
     fixture: bridgeVariant(real => ({
@@ -143,7 +135,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // Evidence that is no decision is answered with a default decision.
     name: 'resolve answers a default for evidence that is no decision',
     fails: [NAMES.D6, NAMES.D7, NAMES.D8],
     fixture: bridgeVariant(real => ({
@@ -156,7 +147,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The resolve of another tenant finds the decision of the first one.
     name: 'resolve ignores the tenant',
     fails: [NAMES.D7],
     fixture: bridgeVariant((real, base) => ({
@@ -166,7 +156,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The failure for a decision of another tenant is `denied`: it tells that the decision exists.
     name: 'a foreign resolve is denied when the decision exists',
     fails: [NAMES.D7],
     fixture: bridgeVariant((real, base) => ({
@@ -200,7 +189,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // A decision is found by its evidence alone, whichever wait asks.
     name: 'resolve ignores the wait that asks',
     fails: [NAMES.D8],
     fixture: bridgeVariant((real, base) => {
@@ -241,8 +229,6 @@ const legal: readonly LegalProvider<Fixture>[] = [
     fixture: provider.fixture,
   })),
   {
-    // A short record name such as "1" occurs in ordinary text (an operation of the other tenant,
-    // a revision, a digest): it identifies the record only as a whole text.
     name: 'the records are named by a sequence number: "1", "2", ...',
     fixture: shortRecords,
   },
@@ -259,7 +245,6 @@ const legal: readonly LegalProvider<Fixture>[] = [
   },
 ]
 
-/** Fixtures that break the completion contract of a handle: it resolves before the work landed. */
 const lateHandles: readonly Variant<Fixture>[] = [
   {
     name: 'excludeDeferred resolves 3 turns before the exclusion holds',
@@ -282,7 +267,6 @@ const lateHandles: readonly Variant<Fixture>[] = [
   },
 ]
 
-/** The methods of the port that take an access, and the case that checks another tenant on each. */
 const CROSS_TENANT: Readonly<Record<keyof ToolDecisionBridge<string>, string>> = {
   ensure: NAMES.S5,
   inspect: NAMES.S6,

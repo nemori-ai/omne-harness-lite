@@ -5,7 +5,6 @@ export function isPositiveInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 1
 }
 
-/** A positive integer that a Node timer takes as given. */
 export function isTimerDuration(value: unknown): value is number {
   return isPositiveInteger(value) && value <= MAX_TIMER_MS
 }

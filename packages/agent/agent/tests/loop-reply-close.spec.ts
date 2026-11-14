@@ -295,7 +295,6 @@ describe('#515 reply admission and iteration close', () => {
     ok(await invoke(assembly))
     assembly.release.open()
     await eventually(async () => (await load(assembly)).state.kind === 'ended')
-    // E9 releases the slot after the terminal and original responsibility records.
     await eventually(async () => {
       const controller = new AbortController()
       const seen = assembly.provider.observation
@@ -352,7 +351,6 @@ describe('#515 reply admission and iteration close', () => {
     expect(commits.filter(item => item.state.kind === 'settling')).toEqual([])
     const waiting = commits.filter(item => item.events.some(event => event.kind === 'waiting'))
     expect(waiting).toHaveLength(1)
-    // An explicit serial retry returns through I8, not through an E4/wait table defect.
     ok(await c.runExecution())
     expect((await load(assembly)).state.kind).toBe('waiting')
     expect(commits.filter(item => item.state.kind === 'settling')).toEqual([])

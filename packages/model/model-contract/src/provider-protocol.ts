@@ -1,4 +1,3 @@
-// Declarations of the public-api chapter "独立执行与提供者操作".
 import type { Outcome } from '@omne-harness/operation-result'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ContentReference } from '@omne-harness/content-block'
@@ -78,16 +77,7 @@ export interface ModelMediaReader<P> {
     signal: AbortSignal,
   ): Promise<Outcome<ModelMediaLease, TransportFailure>>
 }
-/**
- * The account of one dispatch as a provider reports it. The provider does not know the call, and it
- * does not decide whether the account is late. The runtime adds `subject` and `receipt` when it
- * keeps the account.
- */
 export type CallAccountReport = Omit<CallAccount, 'subject' | 'receipt'>
-/**
- * A diagnostic of one dispatch that a provider reports. It holds only identities, scopes, formats,
- * counts, lengths and field names, never a payload or a text.
- */
 export type ProviderDiagnostic =
   | Readonly<{
       kind: 'replay-omitted'
@@ -98,7 +88,6 @@ export type ProviderDiagnostic =
     }>
   | Readonly<{ kind: 'reasoning-disabled'; reason: 'foreign-prefix' }>
   | Readonly<{ kind: 'reasoning-state-dropped'; reason: 'payload-too-long'; length: number }>
-  /** The upstream usage contradicts itself, and the account keeps the item as unknown. */
   | Readonly<{ kind: 'usage-inconsistent'; field: string }>
 export type TransportTermination =
   | Exclude<Termination, { kind: 'interrupted' }>
@@ -125,10 +114,6 @@ export type MaterializationReceipt = Readonly<{
   supplier: Adoption
   representation: Adoption
   payloadDigest: string
-  /**
-   * The replay `format` of the reasoning state parts that this dispatch produces, by the adoption
-   * of the adapter. Absent on an older record, or when the adapter produces no reasoning state.
-   */
   replayFormat?: string
 }>
 export interface MaterializedTransport {
@@ -140,9 +125,7 @@ export interface PreparedTransport {
   materialize(signal: AbortSignal): Promise<Outcome<MaterializedTransport, TransportFailure>>
   close(): Promise<void>
 }
-/** The input of one dispatch that the request does not fix. */
 export type TransportDispatch = Readonly<{
-  /** The messages that this re-dispatch must treat as unable to continue. A first send has none. */
   resent: readonly MessageId[]
 }>
 export interface ModelTransport {
@@ -192,7 +175,6 @@ export type RetryResolution =
     }>
 export type RecoveryRecord = Readonly<{
   state: CallState
-  /** The head of the original request. `loadRequest` reads the whole request. */
   request: FixedRequestHead
   initiator: ActorRef
   admission: ModelOperationId
@@ -212,10 +194,6 @@ export interface ModelCommands<P> {
     input: Access<P> & Readonly<{ after: string | null; limit: number }>,
   ): Reply<Readonly<{ calls: readonly ModelCallId[]; next: string | null }>>
   loadRecovery(input: CallAccess<P>): Reply<RecoveryRecord>
-  /**
-   * The whole original request of a call that still holds its material. It is read to send the
-   * request; every decision reads the head in `loadRecovery`.
-   */
   loadRequest(input: CallAccess<P>): Reply<FixedModelRequest>
   claim(
     input: CallAccess<P> &
@@ -226,10 +204,6 @@ export interface ModelCommands<P> {
       }>,
   ): Reply<ExecutionRef>
   prepareDispatch(input: WriteContext & DispatchPlan): Reply<Revision>
-  /**
-   * Records the materialization receipt and opens the receive window `window` in one write: both
-   * hold or neither does, so nothing is sent before both are durable.
-   */
   recordMaterialization(
     input: WriteContext &
       Readonly<{ dispatch: DispatchId; receipt: MaterializationReceipt; window: string }>,
@@ -238,11 +212,6 @@ export interface ModelCommands<P> {
     input: WriteContext &
       Readonly<{ dispatch: DispatchId; state: 'started' | 'unknown' | 'not-sent' }>,
   ): Reply<Revision>
-  /**
-   * Opens a further receive window: on a dispatch the transport refused before materializing, or a
-   * later window of the receiving side. The first window of a sent dispatch opens with its
-   * materialization.
-   */
   openReceiveWindow(
     input: WriteContext & Readonly<{ dispatch: DispatchId; window: string }>,
   ): Reply<Revision>
@@ -316,7 +285,6 @@ export interface ModelClock {
   now(): string
   waitUntil(instant: string, signal: AbortSignal): Promise<'elapsed' | 'cancelled'>
 }
-/** Low-level call routing. The host must enforce current observation access. */
 export interface ModelInstanceDirectory<P> {
   connect(input: CallAccess<P>): Reply<LiveRoute<P>>
 }

@@ -1,6 +1,3 @@
-// The client core's HTTP transport against a real entry (#1249 C13, C14): server-entry's test
-// entry runs as a process with the notes protocol and the built-in access/v1. The entry is cut
-// once before a request leaves (it is gone) and once after (it dies while the handler runs).
 import { afterEach, describe, expect, it } from 'vitest'
 import { accessProtocol, type AvailabilityFrame } from '@omne-harness/public-contract'
 import {
@@ -23,7 +20,6 @@ async function peer(): Promise<Peer> {
   return started
 }
 
-/** The HTTP transport, with every report of its sends kept in order. */
 function counted(origin: string): { transport: Transport; reports: CallReport['kind'][] } {
   const inner = createHttpProtocolTransport({
     origin,
@@ -74,7 +70,6 @@ describe('C13: calls over HTTP to a real entry', () => {
   })
 })
 
-/** Reads every frame until the observation ends, and its end. */
 async function drain<F, E>(frames: AsyncGenerator<F, E>): Promise<{ frames: F[]; end: E }> {
   const seen: F[] = []
   for (;;) {

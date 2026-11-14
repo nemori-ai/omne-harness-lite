@@ -35,44 +35,24 @@ import { resumePreparationOperation } from './ledger-resumption.ts'
 import { LEDGER_REJECTED_DIAGNOSTIC, queueKeyOf } from './ledger-start.ts'
 import type { TenantId } from './ledger-store.ts'
 
-/**
- * 本驱动记下的每个执行引用的协调代次：固定为 `1`。账本不按代次拒绝旧写者，两个运行时推进同一
- * 调用时，由派生的固定操作身份与调用域的修订号条件提交裁定先后（SPEC 第 33 条）。
- */
 export const COORDINATION_GENERATION = '1'
 
-/** Where a run stopped, for the driver's own bookkeeping; the host sees only the promise. */
 export type DriverStop =
   | Readonly<{ kind: 'idle' }>
   | Readonly<{ kind: 'waiting'; key: string }>
   | Readonly<{ kind: 'failed'; failure: ToolFailure }>
   | Readonly<{ kind: 'blocked'; diagnostic: string }>
-  /**
-   * The step budget ran out with work left. `progressed` is true only when a step of the run
-   * committed or recalled a commit: an excluded, stale or unknown answer moves nothing.
-   */
   | Readonly<{ kind: 'yielded'; progressed: boolean }>
 
-/** The policy of a driver: how many steps one run takes, and how long a failed run waits. */
 export type DriverPolicy = Readonly<{ stepsPerRun: number; retryDelayMs: number }>
 
-/** The cap of the delay of a later run: the same pair of numbers as the delivery pacing. */
 const MAX_RETRY_DELAY_MS = 60_000
 
-/**
- * The delay of the `level`-th later run in a row without progress: `retryDelayMs`, doubled each
- * time, at most max(retryDelayMs, 60000) ms (SPEC 23).
- */
 export function laterRunDelayMs(retryDelayMs: number, level: number): number {
   const cap = Math.max(retryDelayMs, MAX_RETRY_DELAY_MS)
   return Math.min(retryDelayMs * 2 ** Math.min(level, 32), cap)
 }
 
-/**
- * Which stops the driver runs again later: no progress, a port that cannot answer, or a fact that
- * no wake-up announces. A run with progress goes on at once; idle and waiting are woken; a verdict
- * is not run again.
- */
 function runsAgainLater(stop: DriverStop): boolean {
   return (
     stop.kind === 'blocked' ||
@@ -82,29 +62,19 @@ function runsAgainLater(stop: DriverStop): boolean {
 }
 
 type Step<P> = CallAccess<P> & Readonly<{ instance: ToolInstanceId; signal: AbortSignal }>
-/**
- * The run goes on. `progressed` is true when the step committed, or recalled a commit of its own
- * operation. A step that was excluded, found its revision stale or could not learn whether it
- * committed goes on too, but nothing is known to have moved: a run of such steps only is no
- * progress, however many steps it took.
- */
 type Continue = Readonly<{ kind: 'continue'; progressed: boolean }>
 type StepResult = Continue | DriverStop
-/** What a run met: duties skipped on a failure, the first such failure, and whether it moved. */
 type RunFailures = {
   skipped: Set<string>
   first: DriverStop | null
   retry: boolean
-  /** A step of the run committed or recalled a commit, whatever the run stopped on. */
   progressed: boolean
 }
-/** The phases of a call that holds no start record; nothing of it ever ran. */
 const UNSTARTED: readonly ToolRecovery['state']['phase'][] = ['accepted', 'preparing', 'queued']
 const CONTINUE: Continue = { kind: 'continue', progressed: true }
 const STALLED: Continue = { kind: 'continue', progressed: false }
 const IDLE: DriverStop = { kind: 'idle' }
 
-/** The suffixes of the operations the driver derives from the admission operation. */
 type Suffix =
   | 'plan'
   | 'prepared'
@@ -129,13 +99,6 @@ function callKey(tenant: TenantId, call: ToolCallId): string {
   return `${tenantKey(tenant)}\u0000${call}`
 }
 
-/**
- * Whether a failure asks the driver to read again rather than to stop. None of them is progress
- * (`STALLED`). An excluded command (SPEC 14) is resubmitted with the same identity: the redo
- * recalls the queue step the excluded one left. When the redo does not finish in the same run
- * (the step budget ends, a read fails, the run is aborted), the held slot waits for one of the
- * triggers of SPEC 22 and 23.
- */
 function retryable(failure: ToolFailure): boolean {
   return (
     failure.kind === 'commit-unknown' ||
@@ -148,23 +111,13 @@ function blocked(diagnostic: string): DriverStop {
   return { kind: 'blocked', diagnostic }
 }
 
-/**
- * Whether a run that ended on this failure is run again later: the store or a port could not
- * answer, which says nothing about the call. Every other failure is a verdict, and running the
- * call again would repeat it.
- */
 function transient(failure: ToolFailure): boolean {
   return failure.kind === 'unavailable'
 }
 
 export type ToolDriverHandle<P> = ToolDriver<P> &
   Readonly<{
-    /** Runs the call and tells where it stopped. `run` is this, without the answer. */
     advance(input: Step<P>): Promise<DriverStop>
-    /**
-     * Runs the call again after its backoff, as after a run that a port could not answer. For a
-     * host whose own read before a run could not answer: the later run stays the driver's.
-     */
     later(input: Step<P>): void
   }>
 
@@ -174,17 +127,11 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 ): ToolDriverHandle<P> {
   const { commands, queues, rejections, environments, authority, instances } = dependencies
   const environmentsPrepared = new Map<string, E>()
-  // Original preparations already sent in this process. Unconfirmed answers retain their query
-  // responsibility; only a matching allocated fact permits one bounded adoption attempt.
   const environmentsAsked = new Set<string>()
-  // This driver's observations survive an unknown marker write, but not process loss.
-  // Neither this set nor a committed marker grants or revokes another driver's permit.
   const unconfirmedBindingFailures = new Set<string>()
   const waiting = new Map<string, Map<string, Readonly<{ tenant: TenantId; call: ToolCallId }>>>()
   const runs = new Map<string, Promise<unknown>>()
-  // How many later runs in a row a call had without progress: the level of its next delay.
   const backoff = new Map<string, number>()
-  // One unreferenced retry per call. An aborted signal cannot initiate another wake.
   const retrying = new Map<
     string,
     { timer: ReturnType<typeof setTimeout>; signals: readonly AbortSignal[] }
@@ -213,11 +160,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     })
   }
 
-  /**
-   * The context of a step of the start fence of `start`. The first start derives its operations
-   * from the admission; a resume derives them from its own operation, because one call may hold
-   * several resumes and each records its own start, marker and exclusion (P07).
-   */
   const startContext = (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -231,7 +173,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return retryable(reply.failure) ? STALLED : { kind: 'failed', failure: reply.failure }
   }
 
-  /** Asks the host to run the call; false when the host could not take the request. */
   const scheduleNow = async (tenant: TenantId, call: ToolCallId): Promise<boolean> => {
     try {
       return 'ok' in (await instances.schedule({ tenant, call }))
@@ -240,7 +181,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     }
   }
 
-  /** Asks the host to run the call after `policy.retryDelayMs`; a refused request is asked again. */
   const scheduleLater = (
     tenant: TenantId,
     call: ToolCallId,
@@ -270,16 +210,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     retrying.set(key, { timer, signals })
   }
 
-  /**
-   * What follows a run (SPEC 23): the driver is the one owner of a later run of a call. A run any
-   * of whose steps made progress clears the delay; one that used its budget with progress goes on
-   * at once. A run without progress, one that a port could
-   * not answer, and one blocked on a fact that no wake-up announces, go on after the delay of the
-   * call, which doubles each time up to its cap, so a store that keeps not answering is asked less
-   * and less often. A run that ends waiting, idle or aborted, or on a verdict, clears the delay and
-   * is left: the wake-up of a released slot, the waiter's reconcile and, after a restart, the
-   * host's recovery scan (`scanPending`, SPEC 33) own those.
-   */
   const retrigger = async (
     step: Step<P>,
     stop: DriverStop,
@@ -302,9 +232,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     for (const waiter of waiters.values()) {
       try {
         await instances.schedule(waiter)
-      } catch {
-        // 唤醒只是提示。丢失的提示由宿主的重调度补，进程重启后由宿主的恢复扫描补（SPEC 第 33 条）。
-      }
+      } catch {}
     }
   }
 
@@ -316,13 +244,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return { kind: 'waiting', key }
   }
 
-  /**
-   * A call that waits for its place asks the queue domain once to reconcile its key (SPEC 22),
-   * because the call in its way may be one that nothing runs any more: an entry whose call holds
-   * a release basis is gone after the reconcile, and the waiters of the key are woken; a call
-   * ahead or holding a slot that still owes the queue a step is run. The waiter changes no
-   * other call's entry. A refused request to run a call is a store-like failure of this run.
-   */
   const awaitPlace = async (step: Step<P>, recovery: ToolRecovery): Promise<StepResult> => {
     const stop = noteWaiting(step, recovery.request)
     const reconciled = await queues.reconcile({
@@ -346,7 +267,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return stop
   }
 
-  /** Settles a pending call whose invocation the host excluded (P04 rejectPending). */
   const rejectPending = async (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -360,11 +280,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return after(settled)
   }
 
-  /**
-   * Writes, or recalls and finishes, the minimal failure terminal (SPEC 23). A recalled receipt
-   * proves the call commit only, so the step counts as progress once its `queue` task is closed
-   * (SPEC 26), and the waiters of the key are woken then.
-   */
   const settleRejected = async (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -383,12 +298,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return CONTINUE
   }
 
-  /**
-   * SPEC 23: a step whose commit the store rejected for good (`invalid`, `field: storage`) is not
-   * repeated. A call that never started (no start record) settles with the minimal failure
-   * terminal instead. A call with a start record keeps the failure: its execution may run, and
-   * this increment writes no terminal for it.
-   */
   const afterRejected = async (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -401,10 +310,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return settleRejected(step, recovery, failure.reason)
   }
 
-  /**
-   * The store's reason when a settled call's open `queue` task belongs to its minimal failure
-   * terminal, or null: the release of that terminal is redone by resending it.
-   */
   const ledgerRejectedReason = (recovery: ToolRecovery, task: ToolOperationId): string | null => {
     const operation = derivedOperation(recovery.admission, 'ledger-rejected')
     const { state } = recovery
@@ -416,7 +321,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       : null
   }
 
-  /** The host excludes the whole pending invocation, then the call settles (P04). */
   const excludeAndReject = async (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -468,7 +372,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       : checkedPreparationProgress(adopted.ok, request.preparation)
   }
 
-  /** One preparation step may continue first adoption once, always with the original input. */
   const askEnvironment = async (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -488,7 +391,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     const read = await (inspect
       ? environments.inspectPreparation(request)
       : environments.prepare(request))
-    // A provider that answered holds the request; one that failed to answer is asked again (P03).
     if ('ok' in read) environmentsAsked.add(key)
     const progress = await continueAllocation(step, request, read)
     if ('ok' in progress && ['prepared', 'excluded', 'rejected', 'lost'].includes(progress.ok.kind))
@@ -496,11 +398,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return progress
   }
 
-  /**
-   * Plans the resume segment's environment again when the one planned for it is `lost`: its
-   * environment lived in a process that is gone, and no process takes it over. The next resume
-   * preparation of the accepted wait replaces it (P03 planPreparation, purpose `resume`).
-   */
   const replanResume = async (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -512,7 +409,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       return blocked('the lost environment of the resume segment has no accepted decision')
     const operation = resumePreparationOperation(recovery.preparations, accepted.intent.wait)
     if ('failure' in operation) return { kind: 'failed', failure: operation.failure }
-    // The write context carries the principal, as `context` does.
     const write = {
       ...executionOf(step),
       principal: step.principal,
@@ -529,11 +425,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     )
   }
 
-  /**
-   * Before the resume segment takes its place again: an environment that this process did not
-   * prepare may be lost with the process that did, and then the segment is planned again. An
-   * environment that the provider still holds in this process is taken as prepared here.
-   */
   const resumeEnvironment = async (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -570,7 +461,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     switch (prepared.kind) {
       case 'prepared': {
         environmentsPrepared.set(callKey(step.tenant, step.call), prepared.environment.value)
-        // A resume segment confirms its own preparation under that preparation's operation.
         const base = task.preparation.purpose === 'resume' ? task.preparation.operation : undefined
         const write = context(step, recovery, 'prepared', base)
         if ('failure' in write) return { kind: 'failed', failure: write.failure }
@@ -583,20 +473,14 @@ export function createToolDriver<P, B extends ContentBlock, E>(
         )
       }
       case 'rejected':
-        // The resume of a suspended call is not a first start: a refused environment does not
-        // settle it as never started. The call stays suspended with the reason; a stop settles it.
         if (task.preparation.purpose === 'resume')
           return blocked(`the environment of the resume segment was rejected: ${prepared.reason}`)
-        // Rejection does not prove zero allocation. The adapter retains original cleanup, while
-        // the start authority excludes this Tool invocation before its failure is recorded.
         return excludeAndReject(step, recovery, `environment: ${prepared.reason}`)
       case 'excluded':
         return blocked(
           'the preparation was excluded; the driver does not request it again (P03 reading pending)',
         )
       case 'lost':
-        // The environment went with a process that is gone. A resume segment is planned again; a
-        // call that never started settles as not started, its original keeping its cleanup.
         if (task.preparation.purpose === 'resume')
           return replanResume(step, recovery, task.preparation)
         return excludeAndReject(step, recovery, `environment: ${prepared.diagnostic}`)
@@ -611,8 +495,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
         }
       case 'pending':
       case 'unknown':
-        // The provider has not decided: the task stays, and the call is run again after the
-        // retry delay to read the provider's record, like a provider that could not answer.
         return {
           kind: 'failed',
           failure: {
@@ -661,7 +543,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return after(recorded)
   }
 
-  /** The environment of the call: the value prepared in this process, or the provider's record. */
   const environmentOf = async (
     step: CallAccess<P>,
     recovery: ToolRecovery,
@@ -738,12 +619,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return recordStart(step, recovery, start, { kind: 'rejected', reason, exclusion: excluded.ok })
   }
 
-  /**
-   * After the binding was asked to start: the fence tells what happened (P04). A refusal or a throw
-   * that the fence did not settle is marked for reconciliation; a binding that could not answer,
-   * for a start that the fence did not accept, ends the run unavailable, and the next run starts
-   * the same start with a new permit (U2, U4). Nothing of that failure is kept.
-   */
   const reconcileInvocation = async (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -825,7 +700,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return reconcileInvocation(step, recovery, start, invoked, recordBindingFailureMarker)
   }
 
-  /** A settled call with a `queue` task still owes the queue domain its release (crash repair). */
   const repairRelease = async (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -837,7 +711,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       if (task?.kind !== 'queue') return IDLE
       const reason = ledgerRejectedReason(recovery, task.operation)
       if (reason !== null) return settleRejected(step, recovery, reason)
-      // 暂停中收场与失联收场的调用没有 final：释放依据在调用域里，直接完成释放待办。
       return ['suspended', 'lost'].includes(recovery.state.execution.kind)
         ? releaseSuspended(step, recovery, task)
         : settle(step, recovery, task, cancelled)
@@ -847,7 +720,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return rejectPending(step, recovery, rejection.reason, rejection.exclusion)
   }
 
-  /** 完成暂停中收场的调用的释放待办，再唤醒同一范围里等名额的调用（Tool SPEC 第 32 条）。 */
   const releaseSuspended = async (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -877,7 +749,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     const current = await commands.loadRecovery(step)
     if (cancelled()) return blocked('the run was aborted')
     if ('failure' in current) return { kind: 'failed', failure: current.failure }
-    // The immutable preserve receipt proves the call commit, not completion of its queue tail.
     if (current.ok.tasks.some(item => item.kind === 'queue' && item.operation === task.operation))
       return blocked('the original queue release is still unconfirmed')
     await wake(step.tenant, recovery.request)
@@ -886,29 +757,22 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 
   type Action = (step: Step<P>, recovery: ToolRecovery) => Promise<StepResult>
 
-  /** The call domain still owes the queue domain a step (a `queue` task). */
   const owesQueue = (recovery: ToolRecovery) => recovery.tasks.some(task => task.kind === 'queue')
   const owing =
     (action: Action): Action =>
     (step, recovery) =>
       owesQueue(recovery) ? action(step, recovery) : Promise.resolve(IDLE)
 
-  /** A `starting` call with its `start` task goes through the start fence, a resume as well. */
   const startStep: Action = async (step, recovery) => {
     const owesStart = recovery.tasks.some(task => task.kind === 'start')
     return owesStart && recovery.start !== null ? fence(step, recovery, recovery.start) : IDLE
   }
 
-  /** A suspended call whose decision was accepted takes its place again, or waits for it. */
   const resumeStep: Action = async (step, recovery) => {
     const resumed = await resumptions.resume(step, recovery)
     return resumed === 'waiting' ? awaitPlace(step, recovery) : resumed
   }
 
-  /**
-   * The step of each phase once no duty of the call is left: the way to a start (P02, P03, P04),
-   * and the way of a suspended call back to a start (P06, P07). A phase with no entry is idle.
-   */
   const phaseSteps: Readonly<Partial<Record<ToolRecovery['state']['phase'], Action>>> = {
     accepted: owing(plan),
     preparing: (step, recovery) => {
@@ -919,8 +783,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     },
     queued: owing(prepareStart),
     starting: startStep,
-    // An accepted decision first prepares the environment of the resume segment, then takes its
-    // place again; without a decision the call asks the decision owner.
     suspended: async (step, recovery) => {
       const task = recovery.tasks.find(item => item.kind === 'prepare')
       if (task?.kind === 'prepare') return prepare(step, recovery, task)
@@ -929,7 +791,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     },
   }
 
-  /** One duty of the call: a key that names it among a run's failures, and its step. */
   type Duty = Readonly<{ key: string; run: () => Promise<StepResult> }>
   type DutyRule = (
     step: Step<P>,
@@ -937,18 +798,11 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     cancelled: () => boolean,
   ) => readonly Duty[]
 
-  /**
-   * The duties of a call, in the order a run takes them. Each rule names the duties its records
-   * owe; a new kind of duty is one more rule, not one more branch of the step.
-   */
   const duties: readonly DutyRule[] = [
-    // A settled call with a `queue` task still owes the queue domain its release (crash repair).
     (step, recovery, cancelled) =>
       recovery.state.phase === 'settled' && owesQueue(recovery)
         ? [{ key: 'queue', run: () => repairRelease(step, recovery, cancelled) }]
         : [],
-    // The propagation of stops and the release of environments.
-    // 恢复段还没有 live 时，停止待办等它 live 再送达：先走启动步骤，不让停止挡住启动。
     (step, recovery) =>
       recovery.tasks.flatMap(task =>
         ((task.kind === 'stop' && recovery.state.execution.kind !== 'starting') ||
@@ -967,7 +821,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
             ]
           : [],
       ),
-    // A wait that its resume segment continued closes before the call settles (P06).
     (step, recovery) =>
       resumptions.continued(recovery).map(wait => ({
         key: `close:${wait.intent.wait}`,
@@ -985,7 +838,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
           ? [{ key: `ack:${task.operation}`, run: () => facts.acknowledge(step, task, cancelled) }]
           : [],
       ),
-    // The wait of a checkpointed call: its checkpoint commit, its park and its registration.
     (step, recovery) =>
       recovery.tasks.flatMap(task => {
         const run =
@@ -996,7 +848,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
               : null
         return run === null ? [] : [{ key: `${task.kind}:${task.operation}`, run }]
       }),
-    // An unconfirmed batch still owns the cursor barrier, even when settlement can proceed.
     (step, recovery, cancelled) =>
       !recovery.tasks.some(task => task.kind === 'fact-ack') &&
       recovery.tasks.some(task => task.kind === 'facts' && task.state !== 'blocked')
@@ -1062,7 +913,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return { kind: 'yielded', progressed: failures.progressed }
   }
 
-  /** One run, then what its stop asks for. */
   const runOnce = async (step: Step<P>): Promise<DriverStop> => {
     const signals = facts.signalsForRun(step)
     const cancelled = () => signals.some(signal => signal.aborted)
@@ -1078,7 +928,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return stop
   }
 
-  /** Runs of the same call do not overlap in this process; the ledger orders them across it. */
   const serialized = (step: Step<P>): Promise<DriverStop> => {
     const key = callKey(step.tenant, step.call)
     const previous = runs.get(key) ?? Promise.resolve()

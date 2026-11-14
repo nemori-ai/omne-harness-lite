@@ -41,7 +41,6 @@ try {
     repository: config.repository,
     run,
     note: readFileSync(notePath, 'utf8'),
-    // Only the publish confirmation by default; other approval environments are named explicitly.
     environments: (values.get('--environments') ?? 'publish')
       .split(',')
       .map(name => name.trim())

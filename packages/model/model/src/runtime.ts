@@ -37,7 +37,6 @@ export type ModelDependencies<P> = Readonly<{
 export type ModelRuntimeProvider<P> = ModelProvider<P> &
   Readonly<{
     driver: ModelDriver<P>
-    /** The host releases the route of a call whose result body is released; see `driver.ts`. */
     released(target: Readonly<{ tenant: TenantId; call: ModelCallId }>): void
   }>
 const METHODS = {
@@ -123,14 +122,12 @@ function unavailable(operation: string, stage: string): Reply<never> {
     },
   })
 }
-/** Constructs the call facade, result consumption, stream driver and instance observations. */
 export function createModelRuntime<P>(
   dependencies: ModelDependencies<P>,
   configuration: ModelConfiguration,
 ): ModelRuntimeProvider<P> {
   validate(dependencies, configuration)
   const { commands, instances } = dependencies
-  // The driver sends through this wrapper, so that a committed cancel reaches the running stream.
   const interruption = createSendInterruption(dependencies.send)
   const activity = createModelDriver(
     commands,
@@ -139,8 +136,6 @@ export function createModelRuntime<P>(
     configuration,
     interruption.send,
   )
-  // Quiesce closes this gate to new business admissions. An admission that passed it before is
-  // in flight; quiesce waits for it so that its call is counted.
   let quiesced = false
   const admitting = new Set<Promise<unknown>>()
   async function admitNew(input: Parameters<typeof commands.admit>[0]) {
@@ -151,7 +146,6 @@ export function createModelRuntime<P>(
     }
     return result
   }
-  // After quiesce only the replay of an admission that the authority already holds goes on.
   async function admitQuiesced(input: Parameters<typeof commands.admit>[0]) {
     const { principal, tenant, call, operation } = input
     const found = await commands.recall({ principal, tenant, call, admission: operation })
@@ -165,9 +159,7 @@ export function createModelRuntime<P>(
   async function wake(input: Parameters<typeof instances.schedule>[0]): Promise<void> {
     try {
       await instances.schedule(input)
-    } catch {
-      /* Committed work remains pending for recovery. */
-    }
+    } catch {}
   }
   const reserved = (operation: string) =>
     operation.startsWith('mop_--')
@@ -206,8 +198,6 @@ export function createModelRuntime<P>(
           const input = { principal, tenant, call, operation }
           const result = await commands.control(input)
           if ('ok' in result) {
-            // Only a committed control stops the stream. The termination still waits for the
-            // transport to confirm the physical stop.
             interruption.interrupt(input)
             activity.requestRefresh(input)
             await wake({ tenant: input.tenant, call: input.call })
@@ -254,9 +244,7 @@ export function createModelRuntime<P>(
           if ('ok' in outcome) {
             try {
               activity.requestRefresh(input)
-            } catch {
-              // Observation refresh has no authority to reverse a confirmed acknowledgement.
-            }
+            } catch {}
           }
           return outcome
         },

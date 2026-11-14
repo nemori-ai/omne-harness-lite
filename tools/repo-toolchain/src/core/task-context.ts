@@ -1,6 +1,3 @@
-// task context 的只读视图：检查与测量从这里取基线和逐任务审计范围。
-// 文件由流程工具的 start 写在 git 目录下；这里只解析检查用到的字段，写入与完整校验归流程工具。
-// 字段缺失或类型不对时报错，不当作没有 context。
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
@@ -18,7 +15,6 @@ export class TaskContextError extends Error {
   }
 }
 
-/** 审计用到的任务绑定字段。 */
 export type TaskContextBinding = {
   issue: { url: string }
   revision: number
@@ -129,7 +125,6 @@ export function taskContextPath(root: string): string {
   return join(repository(root).gitDir, TASK_CONTEXT_FILE)
 }
 
-/** Reads this tree's task context and checks that it belongs to this tree and branch. */
 export function readTaskContext(root: string): TaskContext {
   const info = repository(root),
     path = join(info.gitDir, TASK_CONTEXT_FILE)
@@ -151,10 +146,6 @@ export function readTaskContext(root: string): TaskContext {
   return context
 }
 
-/**
- * Without a task context a tree checks against the explicit base, or the caller's default.
- * With one, the fixed targetBase and the task audits apply.
- */
 export function baselines(root: string, explicitBase?: string): Baselines {
   if (!existsSync(taskContextPath(root)))
     return { state: 'pending', targetBase: explicitBase, audits: [] }
@@ -179,12 +170,6 @@ export type ResolvedBaseline = {
   audits: TaskContextAudit[]
 }
 
-/**
- * The one default-baseline rule for every entry point: the explicit base (`--base`, else the
- * `BASELINE` variable), then the task context's fixed targetBase, then `origin/main`, then `main`.
- * An empty explicit base counts as not given. A bound tree still refuses an explicit base that is
- * not its targetBase; the refusal comes from `baselines`.
- */
 export function resolveBaseline(
   root: string,
   explicitBase?: string,
@@ -199,7 +184,6 @@ export function resolveBaseline(
   return { state, audits, targetBase: fallback, source: fallback }
 }
 
-/** One audit range per task, plus the target's own edits since the fixed base. */
 export function auditRanges(
   root: string,
   explicitBase?: string,

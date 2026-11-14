@@ -1,10 +1,6 @@
 // @module-tag slow
-// Uses real Windows subprocesses, retained terminal sessions and the SQL-backed assembly.
 import { expect, it } from 'vitest'
 
-/** The parent assembly supplies this explicit same-commit, real Windows backend exercise.
- * On Linux the S4 joint-b conformance suite in C1 covers the equivalent evidence; this test
- * is skipped there rather than failing. */
 it.skipIf(process.platform !== 'win32')(
   'C06 runs the Windows Shell/Files, retained terminal and single-call termination assembly',
   { tags: ['slow'], timeout: 300_000 },

@@ -1,6 +1,3 @@
-// Typed inputs for the type-consumption probes. Nothing here runs: the spec-d files are only
-// type-checked. Branded values are declared, never built, so no probe mints a brand with an
-// assertion.
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ContentBlock, ContentReference } from '@omne-harness/content-block'
 import type {

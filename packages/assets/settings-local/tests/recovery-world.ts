@@ -56,7 +56,6 @@ function moduleFile(name: string) {
 export async function openRecoveryWorld(
   root: string,
   domain: DomainRef = allocation().identity.domain,
-  /** Adds the independent targets, for a world that provisions and reads real targets. */
   withTargets = false,
   organizationCurrent?: OrganizationCurrentConfiguration,
   extra: Partial<Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'>> = {},

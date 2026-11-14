@@ -14,14 +14,9 @@ type BoundMethod<T> = T extends (request: infer R) => infer Answer
   : never
 type BoundFacility<T> = { readonly [K in keyof T]: BoundMethod<T[K]> }
 
-/** Optional consumer projection; old facilities fail closed for retained session operations. */
 type BoundTerminal = Omit<BoundFacility<TerminalFacility<unknown>>, 'retention'> & {
   readonly retention?: BoundFacility<TerminalRetention<unknown>>
 }
-/**
- * Optional consumer projection; without it the retained processes cannot be read. `containment`
- * is the provider's declared containment; absent is not `sealed`.
- */
 type BoundCommand = Omit<BoundFacility<CommandFacility<unknown>>, 'retention' | 'containment'> & {
   readonly retention?: BoundFacility<CommandRetention<unknown>>
   readonly containment?: Containment
@@ -33,7 +28,6 @@ type FileOperations = Omit<
 type Transfer = BoundRequest<Parameters<FileSystemFacility<unknown>['move']>[0]>
 type Batch = BoundRequest<Parameters<FileSystemFacility<unknown>['commitBatch']>[0]>
 
-/** The host adds current authorization, fresh request identities and authorized object names. */
 export type FilesAuthorEnvironment = Readonly<{
   files: FileOperations & {
     move(

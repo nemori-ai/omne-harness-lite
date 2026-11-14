@@ -109,7 +109,6 @@ describe('1 createIndependentToolScope', () => {
     expect(remove).not.toHaveBeenCalled()
     expect(await created.finish('returned')).toEqual({ ok: undefined })
     expect(remove).toHaveBeenCalledWith('abort', listener)
-    // Without the listener, an abort after the settlement no longer reaches the execution.
     finished.abort()
     const late = await created.context.emit(append('log', 'late'))
     expect('failure' in late && late.failure.kind).toBe('closed')
@@ -244,7 +243,6 @@ describe('4 buffer limits', () => {
 
   it('4 buffer: pending bytes over authorBufferBytes answer capacity until confirmed', async () => {
     const { receiver, release } = manualReceiver()
-    // One small update encodes to about 84 bytes; two of them do not fit in 120.
     const { scope: s } = scope({ process: receiver, limits: limits({ authorBufferBytes: 120 }) })
     const first = s.context.emit(append('log', 'one'))
     const refused = await s.context.emit(append('log', 'two'))
@@ -275,7 +273,6 @@ describe('4 buffer limits', () => {
     unwrap(await s.context.emit(append('log', 'b'.repeat(100))))
     const over = await s.context.emit(append('log', 'c'.repeat(100)))
     expect('failure' in over && over.failure.kind).toBe('too-large')
-    // Sealing the block drops its accumulated state, so a new block has room again.
     unwrap(await s.context.emit(append('log', '', true)))
     unwrap(await s.context.emit(append('next', 'd'.repeat(100))))
   })
@@ -340,7 +337,6 @@ describe('5 wait', () => {
 
   it('5 wait: the history byte limit refuses a new key once reservations fill it', async () => {
     const waiter = manualWaiter()
-    // askContract(1_024) reserves 2_048 bytes plus the key; two records do not fit in 2_100.
     const { scope: s } = scope({
       waits: waiter.waits,
       limits: limits({ authorWaitHistoryBytes: 2_100 }),
@@ -374,7 +370,6 @@ describe('5 wait', () => {
       const outcome = await s.context.wait({ ...ask('confirm'), request } as never)
       expect('failure' in outcome && outcome.failure.kind, name).toBe('invalid')
     }
-    // A cycle is rejected as a cycle, not by growing the text up to a large byte budget.
     const wide = { ...ask('confirm', 'x', askContract(4_000_000)), request: cyclic }
     const cycle = await s.context.wait(wide as never)
     expect('failure' in cycle && cycle.failure).toEqual({
@@ -391,13 +386,10 @@ describe('5 wait', () => {
     expect(await fits).toEqual({ ok: answer })
   })
 
-  // Slow: the walk must visit a million nodes before the budget fires (about one second of CPU).
   it(
     '5 wait: a request that reaches more than a million nodes is rejected by the node budget',
     { tags: ['slow'] },
     async () => {
-      // The history could hold the record and the provider would answer at once: only the node
-      // budget keeps the request from the provider.
       let forwarded = 0
       const { scope: s } = scope({
         waits: {
@@ -408,7 +400,6 @@ describe('5 wait', () => {
         } as never,
         limits: limits({ authorWaitHistoryBytes: 300_000_000 }),
       })
-      // One array of 1001 nulls shared by 1001 parents: 1,003,003 visits, about 5 MB of text.
       const row = { kind: 'array', items: Array.from({ length: 1_001 }, () => ({ kind: 'null' })) }
       const shared = { kind: 'array', items: Array.from({ length: 1_001 }, () => row) }
       const request = { ...ask('confirm', 'x', askContract(100_000_000)), request: shared }
@@ -432,19 +423,16 @@ describe('5 wait', () => {
     })
     const fault = { kind: 'unavailable', operation: 'emit:1', reason: 'capacity: receiver full' }
     expect(await s.context.wait(ask('confirm'))).toEqual({ failure: fault })
-    // One unfinished logical wait per execution (P11): another key is busy, the same key retries.
     const other = await s.context.wait(ask('other'))
     expect('failure' in other && other.failure.kind).toBe('busy')
     expect(await s.context.wait(ask('confirm'))).toEqual({ failure: fault })
     expect(waiter.requests).toEqual([])
-    // The position is still open, so a normal return is the author's protocol error.
     const closed = await s.finish('returned')
     expect('failure' in closed && closed.failure.kind).toBe('invalid')
   })
 
   it('5 wait: the history reservation counts the key bytes', async () => {
     const waiter = manualWaiter()
-    // askContract(100) reserves 200 bytes; the one-byte key decides whether the record fits.
     const tight = scope({ waits: waiter.waits, limits: limits({ authorWaitHistoryBytes: 200 }) })
     const refused = await tight.scope.context.wait(ask('k', 'proceed?', askContract(100)))
     expect('failure' in refused && refused.failure.kind).toBe('too-large')
@@ -459,7 +447,6 @@ describe('5 wait', () => {
   it('5 wait: a reply whose value exceeds the response limit is unavailable and never reaches the author', async () => {
     const waiter = manualWaiter()
     const { scope: s } = scope({ waits: waiter.waits })
-    // askContract(32) bounds the response value at 32 bytes of JSON text.
     const request = ask('confirm', 'proceed?', askContract(32))
     const pending = s.context.wait(request)
     await settled()
@@ -472,7 +459,6 @@ describe('5 wait', () => {
     expect(await pending).toEqual({ failure: oversized })
     expect(await s.context.wait(request)).toEqual({ failure: oversized })
     expect(waiter.requests).toHaveLength(1)
-    // A reply without a value, and a value within the limit, are handed over.
     const declined = s.context.wait(ask('second', 'proceed?', askContract(32)))
     await settled()
     waiter.answers[1]?.resolve(succeed({ kind: 'declined' }))
@@ -552,9 +538,8 @@ describe('6 cancellation', () => {
         scope: null,
         probe: null,
       }
-      // Registered before the scope's own listener, so it runs before the scope learns of the
-      // abort. An in-flight same-key re-entry returns the very promise the author holds; a
-      // handed-over one returns a new promise. That tells hand-over from not-yet without any lag.
+      // Registered before the scope's own listener, so it runs before the scope learns of the abort:
+      // an in-flight re-entry returns the author's own promise, a handed-over one a new one.
       controller.signal.addEventListener('abort', () => {
         holder.probe = holder.scope?.context.wait(ask('confirm')) ?? null
       })

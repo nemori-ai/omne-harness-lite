@@ -71,7 +71,6 @@ function interruption(call: Parameters<RuntimeAuthorExecution['settle']>[0]): To
   }
 }
 
-/** Local emit receipts remain local. The fact driver owns durable process acceptance. */
 export function createRuntimeAuthorExecution(
   input: Readonly<{
     configuration: ToolConfiguration
@@ -93,7 +92,6 @@ export function createRuntimeAuthorExecution(
   const finals = new Map<string, FinalRequest>()
   let validating = 0
   const unencoded = new Map<AbortSignal, Parameters<RuntimeAuthorExecution['settle']>[0]>()
-  /** Waits the `level`-th delay of the doubling backoff of the driver (Tool SPEC 23). */
   const retry = (level: number, signal = shutdown.signal) =>
     new Promise<void>(resolve => {
       const done = () => {
@@ -108,7 +106,6 @@ export function createRuntimeAuthorExecution(
       signal.addEventListener('abort', done, { once: true })
       if (signal.aborted) done()
     })
-  /** Plans the final on the ledger; a transient refusal retries until the host retires. */
   const planFinal = async (request: FinalRequest) => {
     const key = canonicalDigest([request.tenant, request.call, request.operation])
     finals.set(key, request)
@@ -391,9 +388,6 @@ export function createRuntimeAuthorExecution(
         result: projected.result.ok,
         terminal: closed.interrupted ?? projected.terminal,
       })
-      // The ledger cannot keep this result, now or later. The call still ends: its final is a
-      // failure that names the refusal. Nothing of the refused final was written, so the same
-      // operation plans the replacement.
       if (!('failure' in planned) || !isResultRefusal(planned.failure)) return planned
       const refused = failed(`The ledger refused the result: ${refusalText(planned.failure)}`)
       if ('failure' in refused.result) return planned
@@ -402,7 +396,6 @@ export function createRuntimeAuthorExecution(
   }
 }
 
-/** A refusal that the content of the final decides: the same final is refused whenever it is sent. */
 function isResultRefusal(
   failure: ToolFailure,
 ): failure is Extract<ToolFailure, { kind: 'invalid' | 'unsupported' }> {
@@ -413,16 +406,11 @@ function refusalText(failure: Extract<ToolFailure, { kind: 'invalid' | 'unsuppor
   return failure.kind === 'invalid' ? `${failure.field}: ${failure.reason}` : failure.reason
 }
 
-/**
- * The arguments of a saved call as its codec reads them again: the parameters of the admitted
- * command for a multi-command tool (D-94), the whole arguments otherwise.
- */
 function savedArguments(author: ToolOperationSlot['author'], request: FixedToolRequest) {
   const cut = commandArguments(request.availability.definition, request.command, request.arguments)
   return 'failure' in cut ? cut : author.parameters.parse(cut.ok)
 }
 
-/** The checked and rendered result of a decoded return, per author kind. */
 function checkedResult(
   author: ToolOperationSlot['author'],
   args: unknown,

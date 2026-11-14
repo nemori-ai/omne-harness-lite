@@ -246,7 +246,6 @@ it('rejects missing shell configuration and malformed terminal/geometry before s
   expect(fixture.starts).toHaveLength(0)
 })
 
-/** One-shot environment whose process ends with the given outcome. */
 function endingWith(
   fixture: ReturnType<typeof shellFixture>,
   outcome: (completed: Extract<CommandOutcome, { kind: 'completed' }>) => CommandOutcome,
@@ -318,7 +317,6 @@ it('writes no residue line when the outcome carries none or the command did not 
   )
   expect(failed).toContain('unknown reason=effectUnknown')
   expect(failed).not.toContain('residue')
-  // A terminal segment has no retention verdict of its own: the terminal owns its processes.
   const session = await run(author, 'create_session', {}, fixture.environment)
   expect(session).toContain('terminal=')
   const segment = await run(
@@ -376,7 +374,6 @@ it('names the containment the command facility declares after the shell line, an
   expect(await run(author, 'info', {}, declaring('none'))).toContain(
     'cwd="/initial"\nprocess_containment=none\n',
   )
-  // Absent is not sealed.
   const undeclared = await run(author, 'info', {}, fixture.environment)
   expect(undeclared).toContain('cwd="/initial"\nprocess_containment=undeclared\n')
   expect(undeclared).not.toContain('process_containment=sealed')
@@ -428,6 +425,5 @@ it('says unavailable, never none, when retained processes cannot be read', async
     withList(async () => ({ kind: 'unresolved', requestId: 'r' })),
   )
   expect(unresolved).toContain('retained_processes=unavailable reason=unresolved')
-  // Terminal listing and placement facts still show when only the retained list is unreadable.
   expect(unknown).toContain('os="fixtureOS"')
 })

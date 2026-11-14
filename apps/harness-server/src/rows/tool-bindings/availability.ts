@@ -1,11 +1,3 @@
-// 发行内置作者的可用性事实（简报 B3-T2a 第 5 项，L-TOOL 事实清单 §1）。每项只取已核来源：
-// - 主体与租户：经 `principalVerifier` 核验的 Session 工作主体，租户与调用一致；做不到答 unavailable。
-// - 定义：官方层，名字、规范化摘要都与受信快照的条目相等；不在快照里答 qualification denied。
-// - 消费者：只认发行清单确认的文本消费者材料，三项证据全等；陌生材料或缺来源答 unavailable。
-// - dependencies：environment 声明的 facility 逐项报告（R2-D79 第 3 条，B 段）。可用当且仅当执行环境注册表
-//   （`executionEnvironment`）与 Tool 环境适配（`toolEnvironments`）此刻都在场；任一不在报 `false`。这只说明
-//   设施的装配在场，不核具体宿主提供者的前提：前提不满足时由放置答 unavailable（已知限制）。
-// - input/output/attachments：按固定定义与确认的文本消费者能力判断。
 import type { Context } from '@deepseek-ai/cordis'
 import type { PrincipalVerifier } from '@omne-harness/identity'
 import { executionEnvironmentKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
@@ -31,7 +23,6 @@ const denied = succeed({
   attachmentsReadable: false,
 })
 
-/** environment 声明的 facility 列表；不是 `{ facilities: string[] }` 形状时为 undefined。 */
 function declaredFacilities(definition: ToolDefinition): readonly string[] | undefined {
   const environment = definition.declarations.environment
   if (environment === null) return []
@@ -47,7 +38,6 @@ function declaredFacilities(definition: ToolDefinition): readonly string[] | und
   return names
 }
 
-/** 消费者材料与发行确认的文本消费者全等（三项证据逐字段，conversion 为 null）。 */
 function confirmedTextConsumer(
   consumer: ToolConsumerProfile,
   confirmed: ToolReleaseManifest['consumer'],
@@ -70,7 +60,6 @@ type Judge = LocalToolAvailabilitySource<unknown>['judge']
 type JudgeInput = Parameters<Judge>[0]
 type Trusted = Extract<ReturnType<typeof releaseOf>, { kind: 'trusted' }>
 
-/** 主体经核验是这个租户的 Session 工作主体；核验器缺席、未核验或租户不符时给出原因。 */
 async function workPrincipalProblem(
   ctx: Context,
   principal: unknown,
@@ -88,7 +77,6 @@ async function workPrincipalProblem(
   return sameTenant ? null : 'not a session work principal of this tenant'
 }
 
-/** 官方层且名字与规范化摘要都与清单条目相等。 */
 function inRelease(release: Trusted, definition: ToolDefinition, layer: JudgeInput['layer']) {
   if (layer.kind !== 'official') return false
   const digest = canonicalDigest(definition)
@@ -97,8 +85,6 @@ function inRelease(release: Trusted, definition: ToolDefinition, layer: JudgeInp
   )
 }
 
-/** 定义已在清单、消费者已确认时的五项事实。 */
-/** 设施依赖的装配是否在场：执行环境注册表与 Tool 环境适配都提供着。 */
 function environmentInstalled(ctx: Context): boolean {
   return (
     ctx.get(executionEnvironmentKey) !== undefined && ctx.get(toolEnvironmentsKey) !== undefined

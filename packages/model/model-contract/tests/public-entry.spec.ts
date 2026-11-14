@@ -2,13 +2,8 @@ import { fileURLToPath } from 'node:url'
 import ts from '@typescript/typescript6'
 import { expect, it } from 'vitest'
 
-// The grouping of the two entries follows the rules of tool-contract SPEC「公开入口的分组」, recorded
-// for this package in docs/public-api.md「提供者协议入口」. The import scan and the closure table of
-// the split are in the PR that changed the grouping (tmp/issue-683/scan.md), not here.
-
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
 
-/** Every export name of a built declaration entry, `export *` chains resolved, types included. */
 function exportedNames(declaration: string): string[] {
   const path = `${packageDirectory}dist/${declaration}`
   const program = ts.createProgram([path], { noEmit: true, skipLibCheck: true, types: [] })
@@ -84,8 +79,6 @@ it('the provider entry exports exactly the runtime values of the provider protoc
 })
 
 it('exports every name, type or value, from exactly one of the root and provider entries', () => {
-  // Rule 5: the root is not empty. 「一名一入口」: no name is on both built entries. The exact
-  // name lists of each entry are the export inventory (tests/exports.spec.ts).
   const root = exportedNames('index.d.ts')
   const provider = exportedNames('provider/index.d.ts')
   expect(root.length).toBeGreaterThan(0)
@@ -96,7 +89,6 @@ it('exports every name, type or value, from exactly one of the root and provider
 })
 
 it('keeps the testing and conformance names off the provider entry', async () => {
-  // Rule 7: the provider entry exports no double and no suite.
   const provider = exportedNames('provider/index.d.ts')
   const testing = exportedNames('testing/index.d.ts')
   const conformance = exportedNames('conformance/index.d.ts')

@@ -1,7 +1,3 @@
-// The pure projection (SPEC「会话诊断投影」): Session history entries become Run skeletons, and the
-// answers of the other sources become the view values of one Run with its gaps. Nothing here calls
-// a port, reads HTTP or knows Cordis. The skeleton of a Run comes from Session alone; a value a
-// source did not give is `unknown` with the reason of that read, never "did not happen".
 import type { FinishIntent } from '@omne-harness/agent-contract'
 import type { JsonValue } from '@omne-harness/json-text'
 import type {
@@ -28,7 +24,6 @@ import type { HistoryEntry } from '@omne-harness/session-contract'
 import type { DiagnosticPage, ToolLookup } from '@omne-harness/tool-contract'
 import type { CallAccount, SourceAnswer } from './sources.ts'
 
-/** The entry kinds the projection reads (RFC-0013「数据来源与读取路径」). A deployment discloses a subset. */
 export const PROJECTED_KINDS: readonly string[] = Object.freeze([
   'run.started',
   'run.attempt-started',
@@ -57,8 +52,6 @@ const REFUSALS = ['denied', 'invalid', 'unsupported', 'capacity'] as const
 const FIT_REASONS = ['fixed', 'after-compaction'] as const
 const RELEASE_REASONS = ['ended', 'bounded', 'cancelled', 'released', 'superseded'] as const
 
-// ---- reading the stored payload of an entry ----
-
 function member(value: JsonValue | undefined, key: string): JsonValue | undefined {
   return value?.kind === 'object'
     ? value.entries.find(entry => entry.key === key)?.value
@@ -80,15 +73,7 @@ function producerOf(value: JsonValue | undefined): Producer | null {
   return kind === undefined || call === undefined ? null : { kind, call }
 }
 
-// ---- the Run skeleton ----
-
-/** The producer a `call.bound` registers or a `call.execution-fact` names (Session `ProducerRef`). */
 export type Producer = Readonly<{ kind: 'model' | 'tool'; call: string }>
-/**
- * One call of a Run, in log order of its first `call.bound`. `reference` is null for a registration
- * without one. `consumption` is the identity Session gives the call; null when the entry has none.
- * `producer` is the registered producer; null for a registration without one.
- */
 export type CallRegistration = Readonly<{
   position: string
   consumption: string | null
@@ -97,20 +82,14 @@ export type CallRegistration = Readonly<{
   reference: string | null
   purpose: string
 }>
-/** The attempt counts of a Run: `run.attempt-started`, `run.attempt-released` by its `reason`, `run.attempt-exited`. */
 export type AttemptCounts = Readonly<{
   started: number
   released: Readonly<Record<(typeof RELEASE_REASONS)[number], number>>
   exited: number
 }>
-/**
- * What a `call.execution-fact` names to find its call: a consumption, else its producer. Null when
- * it names neither.
- */
 export type FactSubject =
   | Readonly<{ by: 'consumption'; consumption: string }>
   | Readonly<{ by: 'producer'; producer: Producer }>
-/** One `call.execution-fact` of a Run: its `fact.kind` and what it names. */
 export type ExecutionFact = Readonly<{ kind: string; subject: FactSubject | null }>
 export type RunSkeleton = Readonly<{
   run: string
@@ -125,7 +104,6 @@ export type RunSkeleton = Readonly<{
   }> | null
   calls: readonly CallRegistration[]
   messages: ReadonlyMap<string, number>
-  /** In log order. The view attributes them to the projected calls, so the skeleton keeps them raw. */
   facts: readonly ExecutionFact[]
 }>
 
@@ -140,12 +118,6 @@ function controlOf(entry: HistoryEntry, kind: 'requested' | 'progress'): Session
   }
 }
 
-/**
- * `call.bound` has two shapes in the Session contract (`entries.ts`): the registration shape that
- * a live Run writes, with the producer under `registration.binding.producer`, and the older shape
- * with `binding`, `reference` and `purpose` at the top. The producer's `call` is the reference the
- * owner reads.
- */
 function callOf(entry: HistoryEntry): CallRegistration | undefined {
   const { payload } = entry
   const registered = member(payload, 'registration')
@@ -179,11 +151,6 @@ type Draft = {
   facts: ExecutionFact[]
 }
 
-/**
- * A Tool call is two `call.bound` of one consumption (`frontier-state.ts` consequenceKind): the
- * `tool-intent` registration without a producer, then the association with it. They are one call:
- * the entry with the producer gives its values, the first registration its position.
- */
 function registerCall(calls: CallRegistration[], entry: HistoryEntry): void {
   const call = callOf(entry)
   if (call === undefined) return
@@ -199,11 +166,6 @@ function registerCall(calls: CallRegistration[], entry: HistoryEntry): void {
     }
 }
 
-/**
- * The subject of a `call.execution-fact` (SPEC「会话诊断投影」rule 3). Session writes the
- * consumption at the top on the observation path and under `fact` for a `release`; an `execution`
- * received from a producer names only `fact.producer`.
- */
 function factSubjectOf(payload: JsonValue): FactSubject | null {
   const consumption = textAt(payload, 'consumption') ?? textAt(payload, 'fact', 'consumption')
   if (consumption !== undefined) return { by: 'consumption', consumption }
@@ -211,14 +173,8 @@ function factSubjectOf(payload: JsonValue): FactSubject | null {
   return producer === null ? null : { by: 'producer', producer }
 }
 
-/**
- * Folds one entry into the draft. A `run.attempt-released` whose `reason` is outside the Session
- * contract's five is not counted: the public counts are closed by reason. A `call.execution-fact`
- * without a `fact.kind` is not counted either: the counts are keyed by that kind.
- */
 type Folder = (draft: Draft, entry: HistoryEntry) => void
 
-/** One folder per Run entry kind the projection reads; `message.*` entries are counted apart. */
 const FOLDERS: Readonly<Record<string, Folder>> = {
   'run.attempt-started': draft => {
     draft.attempts.started += 1
@@ -257,7 +213,6 @@ function fold(draft: Draft, entry: HistoryEntry): void {
     draft.messages.set(entry.kind, (draft.messages.get(entry.kind) ?? 0) + 1)
 }
 
-/** The skeleton of the Run that `started` opens, from the entries after it in log order. */
 function skeletonOf(
   started: HistoryEntry,
   run: string,
@@ -286,18 +241,11 @@ function skeletonOf(
 }
 
 export type RunCollector = Readonly<{
-  /** Feeds one entry, newest first. Returns true once the collector wants no more entries. */
   feed(entry: HistoryEntry): boolean
   runs(): readonly RunSkeleton[]
-  /** The `run.started` entry the collection stopped at, when it stopped by its limit. */
   stoppedAt(): string | null
 }>
 
-/**
- * Collects Runs from entries fed newest first. Entries between two `run.started` belong to the
- * newer Run, so a Run closes when its own `run.started` arrives. `run` keeps one Run only; the
- * collector then stops at that Run. Without a filter it stops after `maxRuns` Runs.
- */
 export function collectRuns(
   limit: Readonly<{ run: string | null; maxRuns: number }>,
 ): RunCollector {
@@ -324,13 +272,9 @@ export function collectRuns(
   }
 }
 
-// ---- the view of one Run from the answers of the other sources ----
-
 export type ModelAnswers = Readonly<{
   lookup: SourceAnswer<Lookup>
-  /** Null when no call was found to list the attempts of. */
   attempts: SourceAnswer<ModelDiagnosticsPage> | null
-  /** The dispatch records of the same call, read for their accounts; null when no attempt was listed. */
   dispatches: SourceAnswer<readonly DispatchRecord[]> | null
 }>
 export type ToolAnswers = Readonly<{
@@ -339,7 +283,6 @@ export type ToolAnswers = Readonly<{
   diagnostics: SourceAnswer<DiagnosticPage>
 }>
 export type RunAnswers = Readonly<{
-  /** Null when the projection did not read the finish: the Run completed or has not ended. */
   finish: SourceAnswer<FinishIntent | null> | null
   models: ReadonlyMap<string, ModelAnswers>
   tools: ReadonlyMap<string, ToolAnswers>
@@ -402,14 +345,8 @@ const millisecondsOf = (
     ? { kind: 'known', milliseconds: duration.milliseconds }
     : { kind: 'unknown' }
 
-/** The account of one dispatch, by its identity among the dispatch records of the call. */
 type DispatchAccounts = (dispatch: string) => SessionModelAttemptDiagnostic['account']
 
-/**
- * The accounts of the dispatches of one call, from `ModelCalls.dispatches` (SPEC「会话诊断投影」
- * rule 3). A failed read makes every account `unknown` with its reason and one gap of the call.
- * A record without an account is `not-recorded`; a dispatch the records do not list is `not-found`.
- */
 function dispatchAccountsOf(
   reference: string,
   dispatches: ModelAnswers['dispatches'],
@@ -558,7 +495,6 @@ function toolStateOf(lookup: ToolAnswers['lookup']): SessionToolCallDiagnostic['
   }
 }
 
-/** The first page of Tool's diagnostics without its evidence; a next page is a `truncated` gap, not read. */
 function toolDiagnosticsOf(
   reference: string,
   diagnostics: SourceAnswer<DiagnosticPage>,
@@ -616,7 +552,6 @@ const factCountsOf = (facts: readonly ExecutionFact[]): SessionFactCount[] => {
 const sameProducer = (left: Producer, right: Producer): boolean =>
   left.kind === right.kind && left.call === right.call
 
-/** The position of the projected call a fact names; undefined when it names none of them. */
 function ownerOf(
   subject: FactSubject | null,
   calls: readonly CallRegistration[],
@@ -629,12 +564,6 @@ function ownerOf(
   return owner?.position
 }
 
-/**
- * The execution facts of a Run by owner (SPEC「会话诊断页」): a fact whose consumption is that of a
- * projected call, or, without a consumption, whose producer is the one a projected call registered,
- * belongs to that call, keyed by the call's position; every other fact belongs to the Run. Log
- * order between a fact and the `call.bound` it names does not matter.
- */
 function attributeFacts(
   skeleton: RunSkeleton,
   calls: readonly CallRegistration[],
@@ -664,7 +593,6 @@ const attemptsViewOf = (attempts: AttemptCounts): SessionRunAttempts => ({
   exited: String(attempts.exited),
 })
 
-/** The view of one Run. `projected` is how many of its calls entered the fan-out (the Run's `maxCallsPerRun` prefix). */
 export function projectRun(
   skeleton: RunSkeleton,
   projected: number,
@@ -719,7 +647,6 @@ export function projectRun(
   }
 }
 
-/** The kinds of the projection that the deployment does not disclose, as gaps. */
 export function undisclosedGaps(disclosed: readonly string[]): SessionDiagnosticGap[] {
   return PROJECTED_KINDS.filter(kind => !disclosed.includes(kind)).map(kind => ({
     source: 'session',

@@ -5,7 +5,6 @@ import { assembleInputs } from './assembly.js'
 import type { ReuseBasis } from './preparation.js'
 import type { AssemblyReuse } from './reuse.js'
 import { invalid } from './compaction-request.js'
-/** Re-assembles after a committed compaction; the third group must carry a full snapshot (RQ-06). */
 export async function resumeInputs<P>(
   input: AssemblyInput<P>,
   key: PreparedInputKey,

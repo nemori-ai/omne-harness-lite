@@ -1,9 +1,3 @@
-// The generation check of the policy tables (DP-4 §3.3) and the holder projection (§4.2). The
-// audit reads the tables as data and returns findings; it decides nothing about a request. Row
-// completeness against the enumerations is a type-level fact (`satisfies` in the tables, and
-// `tests/rows/authorization/policy.spec-d.ts`); the audit checks what types cannot: sources are
-// non-empty, matrix cells name a row of `SYSTEM_ACTION_MATRIX` for the same operation, matrix
-// cells sit in the system column only, and every deny cell has a basis.
 import { SYSTEM_ACTION_MATRIX, type SystemActionRow } from '@omne-harness/authorization'
 import type { AgentAccessOperation } from '@omne-harness/agent-contract'
 import type { SessionAccessOperation } from '@omne-harness/session-contract'
@@ -32,7 +26,6 @@ export type TableAudit = Readonly<{
 export type PolicyAudit = Readonly<{
   session: TableAudit
   agent: TableAudit
-  /** Empty when the tables are in order. Each finding names the table, the operation and the column. */
   findings: readonly string[]
 }>
 
@@ -69,7 +62,6 @@ type Tally = {
   allowedCellsWithoutSource: number
 }
 
-/** What the audit of one table carries from cell to cell. */
 type AuditContext = Readonly<{
   table: PolicyTable
   purposes: ReadonlyMap<string, SystemActionRow>
@@ -148,7 +140,6 @@ function auditTable(
   })
 }
 
-/** Audits the release tables, or the given ones. Findings are empty when the tables are in order. */
 export function auditPolicy(overrides: Partial<PolicyTables> = {}): PolicyAudit {
   const input: PolicyTables = { ...DEFAULT_TABLES, ...overrides }
   const findings: string[] = []
@@ -163,10 +154,6 @@ export type ProjectedCell = Readonly<{
   purpose: SystemPurpose
 }>
 
-/**
- * Which matrix cells each grant holder passes: a holder passes a cell when the cell is a matrix
- * cell and its record holds the purpose (policy draft §4.2). A rendered view, not a judgment column.
- */
 export function holderProjection(
   input: Readonly<{
     session: Readonly<Record<string, PolicyRow>>

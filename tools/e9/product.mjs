@@ -55,9 +55,7 @@ export function cliObservation(operation, result) {
   let response
   try {
     response = JSON.parse(result.stdout)
-  } catch {
-    // A missing or malformed reply cannot establish an unavailable basis.
-  }
+  } catch {}
   if (
     result.exitCode === 4 &&
     response?.result === 'response' &&
@@ -144,9 +142,7 @@ export async function probeProduct(root, output) {
           try {
             const record = JSON.parse(line)
             if (record.kind === 'startup-result') ready(record)
-          } catch {
-            /* incomplete JSON line */
-          }
+          } catch {}
         }
       },
     },

@@ -155,7 +155,7 @@
 > **indefinitely**, with **no upper bound**.
 
 - **形态**：总称
-- **出处**：[PF-008 §4 HITL](../../product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#hitl)（rev 7）
+- **出处**：[PF-008 §4 HITL](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#hitl)（rev 7）
 - **⚠️ 注意**：**不设上限是硬的。**设了上限就必须规定「到点算什么」，
   **那就是系统替人作答**——而**「人没回答」与「人回答了随便」是两回事**
 - **注意**：它**不占资源**——问询发生在动手之前，**不花钱的等待没有理由设上限**
@@ -174,7 +174,7 @@
 > wait state**, hanging off a different lifecycle.
 
 - **形态**：状态
-- **出处**：[PF-008 §4 等待态的两个维度](../../product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#等待态的两个维度)（rev 7）
+- **出处**：[PF-008 §4 等待态的两个维度](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#等待态的两个维度)（rev 7）
 - **⚠️ 别混**：**裸写「等待态」不作数**——它有两个所指，**必须说清是 run 的还是工具的**
 - **注意**：`Ask()` 属于**工具**那一列。run 之所以也停住，
   **是因为它恰好是前台调用**——**而不是因为这两个维度是同一件事**
@@ -198,7 +198,7 @@
 > tells which source, and which extension.
 
 - **形态**：对象
-- **出处**：[PF-008 §4 决策卡片](../../product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#决策卡片) · [§6.3](../../product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#63-卡片自包含但要留得住溯源的路)（rev 7）
+- **出处**：[PF-008 §4 决策卡片](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#决策卡片) · [§6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#63-卡片自包含但要留得住溯源的路)（rev 7）
 - **注意 ①**：**一张卡片只能被答一次**，在会话里答还是在[池子](#ul-decision-pool--决策池--decision-pool)里答**都算数**，
   **答完两处一起消失**——**同一张卡片有两套状态，人就再也不信任这个池子了**
 - **注意 ②**：**「在会话里答」指的是在会话里那张卡片上答，不是发一条消息**。
@@ -224,8 +224,8 @@
 > an extension resuming with the answers may raise cards again, and that is a new batch.
 
 - **形态**：视图
-- **出处**：[PF-008 §5.3 一批卡片，与「答完」是什么意思](../../product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#53-一批卡片与答完是什么意思) ·
-  [PF-008 flows §3.2 一批卡片](../../product.0.0.1.legacy/PF-008-human-in-the-loop/flows.md#32-一批卡片)（rev 7）
+- **出处**：[PF-008 §5.3 一批卡片，与「答完」是什么意思](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#53-一批卡片与答完是什么意思) ·
+  [PF-008 flows §3.2 一批卡片](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/flows.md#32-一批卡片)（rev 7）
 - **别混**：与[决策池](#ul-decision-pool--决策池--decision-pool)**分组的依据不同**——
   池子按**租户**把所有等着的卡片摆在一处**给人看**，这一批按**被它阻塞的那一个**收在一起**决定什么时候解除**
 - **⚠️ 注意 ①**：**答到一半，什么都不会发生**——已经拿到的那几个答案**不会先送出去**。
@@ -235,7 +235,7 @@
   **差别只在解除了什么**
 - **注意 ③**：**「作废」有三条来路**：那个运行被中断；**会话被归档**；
   **它等的那次执行已经终局**（据点停机后恢复时落了失败、原因「异常中断」），恢复对账时系统把那些卡片关成「已作废」——
-  这不是超时、不是替人作答，卡片上不落任何答案（[PF-008 §6.1 第三条路](../../product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#61-永远等着系统不替人作答)，§9.1 已按它写成定论）
+  这不是超时、不是替人作答，卡片上不落任何答案（[PF-008 §6.1 第三条路](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#61-永远等着系统不替人作答)，§9.1 已按它写成定论）
 - **注意 ④**：被阻塞的是后台工具执行那一种，**本版不出现**——要等应答的执行只在前台等
 
 ### UL-decision-pool · 决策池 · Decision Pool
@@ -250,11 +250,11 @@
 > glance.
 
 - **形态**：视图
-- **出处**：[PF-008 §4 决策池](../../product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#决策池)（rev 7）
+- **出处**：[PF-008 §4 决策池](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#决策池)（rev 7）
 - **⚠️ 注意**：**不存在「组织在等什么」这回事。组织不会等，等的永远是某个会话。**
   把池子当成主体，就会做出一个「组织待办中心」——**它会开始有自己的状态、自己的流转、
   自己的归属，而真正在等的那个 run 反倒被隔在一层之外**
-- **注意**：在命令行交付形态下，[池子按会话据点各一份](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#619-这里看到的池子是这一处的)——「所有」相对于会话所在之处，一个人用两台机器就有两份；定义不因此改
+- **注意**：在命令行交付形态下，[池子按会话据点各一份](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#619-这里看到的池子是这一处的)——「所有」相对于会话所在之处，一个人用两台机器就有两份；定义不因此改
 - **注意**：**租户隔离在池子上成立**
 
 ### UL-admission-decision · 放行判断 · Admission Decision
@@ -276,7 +276,7 @@
 > running towards strictness: **it cannot be replaced, disabled or narrowed**.
 
 - **形态**：过程
-- **出处**：[PF-008 §4 放行判断](../../product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#放行判断) · [§5.2](../../product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#52-那个判断函数)（rev 7） · [PF-012 §5.8 系统自带的几件](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪) · [系统自带的几件，不可用时各有定法](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 25）
+- **出处**：[PF-008 §4 放行判断](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#放行判断) · [§5.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#52-那个判断函数)（rev 7） · [PF-012 §5.8 系统自带的几件](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪) · [系统自带的几件，不可用时各有定法](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 25）
 - **注意 ①**：**没有任何一样单独说了算。**获批不等于自动放行，有权限设置也不等于请示没意义
 - **注意 ②**：**权限设置里明确禁止的，会话授权翻不了案**——
   否则任何禁止都能靠「让用户在会话里点个同意」绕过去，
@@ -359,7 +359,7 @@
   仍按[他自己的身份与权限](scope-and-resolution.md#ul-scope-layer--作用域层--scope-layer)判——
   **会话里坐着的那个人，未必是设权限的那个人**
 - **注意 ⑤**：**它是数据，不是活物。**
-  **[会话被归档它不丢](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#67-归档不动授权)**，
+  **[会话被归档它不丢](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#67-归档不动授权)**，
   撤销归档之后原样还在——**「工作被取消」推不出「授权也没了」**
 - **注意 ⑥**：**授权不能建立在记忆上**——不给它名字，「用户刚才同意过」就只能活在
   agent 的上下文里，**而上下文会被裁剪**
@@ -410,7 +410,7 @@
 > and **both leave a trace**.
 
 - **形态**：对象
-- **出处**：[PF-014 §4 入站到达](../../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 14）
+- **出处**：[PF-014 §4 入站到达](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 14）
 - **别混 ①**：**它不是一条[消息](record-and-context.md#ul-message--消息--message)。**
   消息回答**谁在说话**；入站到达回答**外面送进来了一件什么事**。
   **有的到达会成为消息**（进[待处理消息队列](agent-runtime-loop.md#ul-pending-message-queue--待处理消息队列--pending-message-queue)），
@@ -425,7 +425,7 @@
 ### UL-inbound-target · 投递目标 · Inbound Target
 
 > **中**：**[连接件](capabilities-and-composition.md#ul-connector--连接件--connector)的一项[落点与身份类](capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)设置：它送进来的外部消息进哪个[会话](agent-runtime-loop.md#ul-session--会话--session)。**
-> **它是连接件[两种投递方式](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#两种投递方式动作主体不同)里 ①「已有的会话开口接收」那一路的配置，本版只指一个已有的会话**——走这一路送进来的都落进那一个；按对面的线程分进不同会话，本版没有。
+> **它是连接件[两种投递方式](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#两种投递方式动作主体不同)里 ①「已有的会话开口接收」那一路的配置，本版只指一个已有的会话**——走这一路送进来的都落进那一个；按对面的线程分进不同会话，本版没有。
 > **连接件的事件经受理开出一个新会话是另一种方式（②）**，它的配置是触发会话的默认运行模式，不是这一项；受理怎么开那个新会话归 PF-014，新会话怎么建归 PF-015。
 > 各层按持有配值，**工作区那一级配不了它**。
 >
@@ -440,9 +440,9 @@
 
 - **产品状态**：随连接件存在性讨论搁置，保留为条件性定义，不构成当前交付承诺。
 - **形态**：属性
-- **出处**：[PF-002 §4 Connector](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#connector) · [两种投递方式](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#两种投递方式动作主体不同) ·
-  [§5.2 设置项分四类](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32） ·
-  [PF-014 §5.7 穷举一](../../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)（rev 14）
+- **出处**：[PF-002 §4 Connector](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#connector) · [两种投递方式](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#两种投递方式动作主体不同) ·
+  [§5.2 设置项分四类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32） ·
+  [PF-014 §5.7 穷举一](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)（rev 14）
 - **别混 ①**：**不是[交付面](#ul-delivery-surface--交付面--delivery-surface)**（Delivery Surface）——那是人碰到这个系统的那一面，这里是连接件把外面的消息送往哪里
 - **别混 ②**：**不是[连接目标](capabilities-and-composition.md#ul-connection-target--连接目标--connection-target)**——那是 MCP 接入点往外连到哪，方向相反
 - **注意**：送进来的消息**受理之后怎么走**，归[入站到达](#ul-inbound-arrival--入站到达--inbound-arrival)那一套，与它无关
@@ -460,7 +460,7 @@
 > mark on that log at all** — a defining property, not an implementation detail.
 
 - **形态**：位置
-- **出处**：[PF-015 §4 业务流程拓展点](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#业务流程拓展点) · [§6.6](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#66-跑题只提醒不阻拦)（rev 21）
+- **出处**：[PF-015 §4 业务流程拓展点](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#业务流程拓展点) · [§6.6](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#66-跑题只提醒不阻拦)（rev 21）
 - **⚠️ 别混**：**它不是 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)**——
   **那一类只能靠改会话日志起作用**，这一类恰恰一个字都不能改。
   两者是**并列的两类拓展点**，不是同一类的两个位置
@@ -468,7 +468,7 @@
   [受理](#ul-inbound-arrival--入站到达--inbound-arrival)，
   **请求就地返回给发起方，到此为止**；用户若再来，那是**全新的一次请求**
 - **注意 ②**：**因此「一直不确认」没有后果**——没有待办、没有草稿、没有超时，什么都没留下
-- **注意 ③**：**这一类拓展点归会话一侧拥有**：消息持久化归会话，所以消息持久化前后对输入的处理，例如斜杠命令的展开、脱敏与否决，挂在这一类拓展点上，不挂在 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)上。已有实例是[会话跑题的提醒](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#66-跑题只提醒不阻拦)。归属的裁定见 [C-61](../conflicts.md#c-61斜杠命令受理依赖已移除的位置)
+- **注意 ③**：**这一类拓展点归会话一侧拥有**：消息持久化归会话，所以消息持久化前后对输入的处理，例如斜杠命令的展开、脱敏与否决，挂在这一类拓展点上，不挂在 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)上。已有实例是[会话跑题的提醒](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#66-跑题只提醒不阻拦)。归属的裁定见 [C-61](../conflicts.md#c-61斜杠命令受理依赖已移除的位置)
 
 ### UL-control-command · 控制指令 · Control Command
 
@@ -485,7 +485,7 @@
 > defines that action**.
 
 - **形态**：变体（父：[入站到达](#ul-inbound-arrival--入站到达--inbound-arrival)）
-- **出处**：[PF-014 §4 控制指令](../../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#控制指令)（rev 14）
+- **出处**：[PF-014 §4 控制指令](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#控制指令)（rev 14）
 - **别混 ①**：**与[斜杠命令](capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command)不是一回事。**
   绑定提示词或 skill 的斜杠命令是**内容**——它要 agent 去做一件事，因此进队列；
   绑定系统业务流程的那种不进队列，但它触发的是一条业务流程、留一条记录，也不是处置；
@@ -511,18 +511,18 @@
 > why**.
 
 - **形态**：变体（父：[控制指令](#ul-control-command--控制指令--control-command)）
-- **出处**：[PF-014 §4 插队](../../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#插队)（rev 14）
+- **出处**：[PF-014 §4 插队](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#插队)（rev 14）
 - **别混 ①**：**它不终止[运行](agent-runtime-loop.md#ul-run--运行--run)。**
   这是它与**取消**最要紧的差别：取消让运行落终态，
   **插队只是把运行推到下一次取消息那一点**，运行一直活着
 - **别混 ②**：**名字容易误导：它插的不是别人的位置，是时间。**
   队首那一项是它的落脚处，**不是它的目的**——两条路最终都走到同一个地方（取一批消息），
   插队只是**把中间那段间隔压到最短**
-- **注意 ①**：**它是系统唯一的加急通道**，[不设第二种优先级](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#先到先处理只有一个例外)
+- **注意 ①**：**它是系统唯一的加急通道**，[不设第二种优先级](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#先到先处理只有一个例外)
 - **注意 ②**：**它会解除 loop 里各种等待态**，其中悬着的[决策卡片](#ul-decision-card--决策卡片--decision-card)
   按「**人明确拒绝回复**」处置——**取消视作拒绝是无副作用可逆的，反过来不是**
 - **注意 ③**：**被它中断的模型回复不交出动作**——参数已经收齐、还没执行的工具调用也不执行，
-  留在那条被中断的消息里，agent 读完新话自己决定要不要重新发起（[PF-014 §5.4](../../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#54-插队停在哪就怎么办)）
+  留在那条被中断的消息里，agent 读完新话自己决定要不要重新发起（[PF-014 §5.4](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#54-插队停在哪就怎么办)）
 
 ## 人从哪一面碰到它
 
@@ -545,9 +545,9 @@
 > only one kind: a command-line application installed on the user's own machine.**
 
 - **形态**：总称
-- **出处**：[PF-016 §4 交付面](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#交付面) ·
-  [§5.3](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#53-屏上的每一条都指得回日志里的一条) ·
-  [§5.4](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#54-人做的每一件事走的都是已有的路)（rev 13）
+- **出处**：[PF-016 §4 交付面](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#交付面) ·
+  [§5.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#53-屏上的每一条都指得回日志里的一条) ·
+  [§5.4](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#54-人做的每一件事走的都是已有的路)（rev 13）
 - **⚠️ 别混**：**不是[会话据点](grounding-and-isolation.md#ul-session-base--会话据点--session-base)。**
   据点是这些会话事实**所在的那一处**，交付面**什么都不持有**；
   同一处据点上**可以同时开着好几处**在用它
@@ -571,8 +571,8 @@
 > once in each form must leave the identical sequence of record entries in the log.**
 
 - **形态**：状态
-- **出处**：[PF-016 §4 呈现形式](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#呈现形式) ·
-  [§5.5](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#55-两种呈现形式同一份事实)（rev 13）
+- **出处**：[PF-016 §4 呈现形式](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#呈现形式) ·
+  [§5.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#55-两种呈现形式同一份事实)（rev 13）
 - **⚠️ 别混**：**不是[会话运行模式](agent-runtime-loop.md#ul-session-run-mode--会话运行模式--session-run-mode)。**
   那是「**本该问人的那一刻改怎么办**」，是会话的事，**改变领域行为**；
   这一条是「**这份事实交给谁读**」，是交付面的事，**一个字都不改**
@@ -598,14 +598,14 @@
 > context, carried by the account and travelling with the person.**
 
 - **形态**：属性
-- **出处**：[PF-016 §4 观感偏好](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#观感偏好) ·
-  [§6.12](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#612-观感偏好不改变任何领域行为)（rev 13）
+- **出处**：[PF-016 §4 观感偏好](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#观感偏好) ·
+  [§6.12](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#612-观感偏好不改变任何领域行为)（rev 13）
 - **⚠️ 别混**：**不是[元 runtime context](scope-and-resolution.md#ul-meta-runtime-context--元-runtime-context--meta-runtime-context)
   必需感知里的「账号偏好」**（语言 · 时区 · 地区 · 明暗风格一类）——
   **那些是要被 agent 感知的**，[已经是每个会话必带的一项](../../product/runtime-context/design.md#3-必需感知按内容及消费者供给)，
   **不在这里，也不由这里定**；两者同样由账号承载（[C-26 的处置](../conflicts.md#现有冲突)），但一个进会话、一个不进
 - **注意**：[宿主不是词条的字段](../conventions.md#形态这个词指的是哪一类东西)——「由账号承载」写进定义，
-  是因为[PF-016 明文把它归进个人 context](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#观感偏好)，
+  是因为[PF-016 明文把它归进个人 context](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#观感偏好)，
   那是所指的一部分，不是架构分解的结论
 
 ---
@@ -623,8 +623,8 @@
 > the client to the server still goes through operations.
 
 - **形态**：视图
-- **出处**：[RFC-0015「概念」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#1-概念) ·
-  [「观察中枢」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#观察中枢)（revision 1，PanQiWei 2026-11-12 采用）
+- **出处**：[RFC-0015「概念」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0015-access-dynamic-registration.md#1-概念) ·
+  [「观察中枢」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0015-access-dynamic-registration.md#观察中枢)（revision 1，PanQiWei 2026-11-12 采用）
 - **别混 ①**：不是[工程遥测](record-and-context.md#ul-engineering-telemetry--工程遥测--engineering-telemetry)。
   工程遥测是给工程诊断留的记录；公开观察是给客户端看的进行中状态。
 - **别混 ②**：观察者收到一帧，不表示业务已经消费了这一帧里的内容。
@@ -643,8 +643,8 @@
 > contains no code of any domain. When the UI module of a domain is removed, the shell still runs.
 
 - **形态**：属性
-- **出处**：[RFC-0015「概念」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#1-概念) ·
-  [「外壳与界面模块」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#外壳与界面模块)（revision 1，PanQiWei 2026-11-12 采用）
+- **出处**：[RFC-0015「概念」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0015-access-dynamic-registration.md#1-概念) ·
+  [「外壳与界面模块」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0015-access-dynamic-registration.md#外壳与界面模块)（revision 1，PanQiWei 2026-11-12 采用）
 - **别混**：不是执行环境里的 shell，也不是名叫 Shell 的工具。英文正式名带 `App`。
 
 ---
@@ -663,8 +663,8 @@
 > unloads when they disappear. What it put into the slots is removed with it.
 
 - **形态**：属性
-- **出处**：[RFC-0015「概念」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#1-概念) ·
-  [「外壳与界面模块」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#外壳与界面模块)（revision 1，PanQiWei 2026-11-12 采用）
+- **出处**：[RFC-0015「概念」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0015-access-dynamic-registration.md#1-概念) ·
+  [「外壳与界面模块」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0015-access-dynamic-registration.md#外壳与界面模块)（revision 1，PanQiWei 2026-11-12 采用）
 - **别混**：不是协议客户端。协议客户端是一个协议在客户端的一组方法；界面模块是用这些方法画界面的那部分。
 
 ---
@@ -679,8 +679,8 @@
 > either one item or a list of items.
 
 - **形态**：位置
-- **出处**：[RFC-0015「概念」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#1-概念) ·
-  [「外壳与界面模块」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#外壳与界面模块)（revision 1，PanQiWei 2026-11-12 采用）
+- **出处**：[RFC-0015「概念」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0015-access-dynamic-registration.md#1-概念) ·
+  [「外壳与界面模块」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0015-access-dynamic-registration.md#外壳与界面模块)（revision 1，PanQiWei 2026-11-12 采用）
 - **别混**：不是 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)。
   拓展点在 agent loop 的运行流程上；界面插入位置在客户端的界面上。
 

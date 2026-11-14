@@ -1,7 +1,3 @@
-// A projection read runs a list of read-only participant commands on one read connection, in one
-// snapshot, and answers the response of the last command. A commit can run the same commands in
-// its transaction. So one set of participant modules computes a result for a check and for the
-// condition of a later commit.
 import { createHash, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { z } from 'zod'
@@ -21,11 +17,6 @@ type Participant = SqlMaterialCatalog['participants'][number]
 const MAX_OUTPUT_BYTES = 2 * 1024 * 1024
 const MAX_ROWS_READ = 4096
 
-/**
- * Builds the read handler for `members`. It reads the tables that the members declare, and it
- * requires the migrations of the participants that own those tables. `owners` is the catalog
- * that holds those owners and their migrations.
- */
 export function projectionReadHandler(
   name: string,
   members: readonly Participant[],

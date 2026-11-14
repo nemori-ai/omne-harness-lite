@@ -1,7 +1,3 @@
-// The ready and the commit participant of a tenant-layer Settings write. Each reads the target
-// snapshot of its own transaction and states the current material from it. The commit decision of
-// Settings then checks the revision, the definition, the grants, the lock and the value against
-// this material, in the same transaction.
 import { z } from 'zod'
 import { canonicalText } from '@omne-harness/authorization'
 import type { ParticipantModule } from '@omne-harness/sql-contract/worker'

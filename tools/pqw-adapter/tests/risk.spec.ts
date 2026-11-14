@@ -7,7 +7,6 @@ import {
   toolchainPathspecs,
 } from '../src/risk.ts'
 
-// 路径表逐行：每条规则有命中例，与几个紧挨着命中例、不该命中的近邻（前后多一截、层级错一位）。
 const ROWS = [
   {
     id: 'ci',

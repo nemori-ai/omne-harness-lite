@@ -1,6 +1,5 @@
 /// <reference lib="dom" preserve="true" />
 
-/** Viewport state never changes the selected graph or its export. */
 export function architectureViewport(
   svg: SVGSVGElement,
   container: HTMLElement,

@@ -1,7 +1,3 @@
-// The start guard of the local Tool host (row 5 of the guard table): it answers the current
-// invocation kind and the current qualification of the start, and caches neither. The definition
-// side (a binding that closed or drained after the admission) is not here; SPEC records it as a
-// known limitation.
 import { describe, expect, it } from 'vitest'
 import type { AccessVerdict } from '@omne-harness/tool'
 import type { FixedToolRequest } from '@omne-harness/tool-contract'
@@ -14,7 +10,6 @@ import { callId, principalA, request, tenantA, type Principal } from './coordina
 
 type Ask = Parameters<StartCoordinatorAccess<Principal>['qualify']>[0]
 
-/** An access that answers from a script and records every question it was asked. */
 function scripted(answer: () => Promise<AccessVerdict>) {
   const asked: Ask[] = []
   const access: StartCoordinatorAccess<Principal> = {

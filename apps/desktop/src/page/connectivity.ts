@@ -1,6 +1,3 @@
-// Whether the page reaches the service, read off the connection's own subscription to
-// `access/v1` availability: a frame means connected, an end means not. The connection reconnects
-// with backoff by itself; this only watches. Pure: no DOM, no domain.
 import type { JsonValue } from '@omne-harness/json-text'
 import type { ObserveEnd, Transport } from '@omne-harness/sdk/core'
 

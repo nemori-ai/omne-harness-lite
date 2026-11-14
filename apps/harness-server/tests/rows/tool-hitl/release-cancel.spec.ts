@@ -1,21 +1,4 @@
 // @module-tag slow
-// 慢：本进程装发行树（真实 SQLite、真实 Tool 与 Agent 宿主、真实 Identity），每条命令起一个 `omne` 子进程，模型走
-// 本进程的脚本网关。先构建 `apps/cli`。
-// 控制让暂停中的 Ask 收场，以及 HITL 回包丢失时的认回（切片 05 与 09，验收 C6）。
-// 叫停、归档与中断单个调用共用一条级联（模型 InterruptCascade）。每条都核：Ask 调用以 interrupted 收场且执行仍是
-// suspended（恢复段没有运行），等待以 cancelled 关闭，对 HITL 与队列的待办已清，队列条目已删除，停服退出码为 0。
-// - 暂停位置叫停：卡片待答、条目停泊时 `cancel-run`。卡片失效，原因是 cancelled。失效的回包在这里被换成未知，
-//   Tool 经 inspectOperation 按原失效认回，不再发第二次。
-// - 排队位置叫停：答复已接受、条目 ready 时 `cancel-run`。卡片保持 decided，恢复段不运行，名额空出之后也不运行。
-// - 归档：卡片待答时归档会话。卡片失效。
-// - 迟到的答复：叫停之后经 HTTP 与 CLI 答这张卡，两者都被告知卡片已失效，历史里没有 Ask 的答案。
-// 中断单个工具调用（`stop-call`）不在这里：公开入口对 Tool 目标一律答 unsupported，发行里走不到。它在 Tool 与 Agent
-// 的契约测试里。归档那一条不核停服退出码，原因见该用例的注释。
-// - 登记的回包丢失：真实登记之后回包换成未知，Tool 经 inspectOperation 认回原登记，不再登记，只有一张卡。答复之后调用
-//   恢复一次并收场。
-// 恢复前（starting）位置在 Tool 的契约测试里（suspended-control.spec.ts），发行树上不造。同一租户的几个 Run 同时继续
-// 有已知限制（agent-host-local SPEC「运行失败」，R2-D256），所以每条只让一个 Run 推进。
-// 发行的 `coding` 定义在本文件里跳过权限询问（与 release-ask 相同），只为不让询问策略挡住调用。
 import { writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -54,12 +37,10 @@ const ASK = JSON.stringify({
     ],
   },
 })
-/** A Shell call that ends only when the file `go-b` is in the workspace. */
 const WAIT_FOR_B = JSON.stringify({
   command: 'execute',
   params: { script: 'while [ ! -f go-b ]; do sleep 0.1; done; echo go-b-done' },
 })
-/** `start: ask and wait` calls Ask and a Shell that waits for `go-b`; any other input calls Ask. */
 const options = {
   script: toolCallsThenText(body =>
     body.includes('start: ask and wait')
@@ -76,15 +57,12 @@ const askOf = (world: ReleaseTree) => toolLedger(world.storageRoot).find(row => 
 const stageOf = (world: ReleaseTree, tool: string) =>
   toolCalls(world.storageRoot).find(row => row.tool === tool)?.entry?.stage
 
-/** The cards of `session` in any state, read by the registering principal in process. */
 const cardsOf = (world: ReleaseTree, session: string) =>
   world.cards({ sessionRef: session, states: ['pending', 'decided', 'invalidated'] })
 
-/** The duties that the Ask still owes to HITL or to the queue (the clock duty is not one of them). */
 const owed = (tasks: readonly string[]) =>
   tasks.filter(task => task.startsWith('wait-registration') || task === 'queue')
 
-/** Waits until the Ask of `session` is suspended with its card pending and its entry parked. */
 async function suspended(world: ReleaseTree, session: string): Promise<void> {
   await pollUntil(
     'the card',
@@ -98,7 +76,6 @@ async function suspended(world: ReleaseTree, session: string): Promise<void> {
   )
 }
 
-/** Cancels the Run of `session` through the CLI. */
 async function cancelRun(world: ReleaseTree, session: string): Promise<void> {
   const started = (await historyOf(world, session)).find(entry => entry.kind === 'run.started')
   const cancelled = await world.cli([
@@ -113,10 +90,6 @@ async function cancelRun(world: ReleaseTree, session: string): Promise<void> {
   expect(cancelled.status, cancelled.stderr).toBe(0)
 }
 
-/**
- * Waits until the Ask closed after a control: settled and released, with no duty to HITL or to the
- * queue left, and every queue entry gone. Answers the Ask and what the Tool calls look like then.
- */
 async function closed(world: ReleaseTree) {
   const ask = await pollUntil(
     'the Ask to close',
@@ -132,11 +105,6 @@ async function closed(world: ReleaseTree) {
   return { ask, calls }
 }
 
-/**
- * Waits until the Agent ended the cancelled execution of `session`. The Run is terminal in Session
- * from the cancel on; the execution winds down after its calls settled, and a stop of the service
- * before that leaves it unresolved.
- */
 async function ended(world: ReleaseTree, session: string): Promise<void> {
   await pollUntil(
     'the cancelled execution to end',
@@ -145,7 +113,6 @@ async function ended(world: ReleaseTree, session: string): Promise<void> {
   )
 }
 
-/** What a control leaves of a suspended Ask: interrupted, never resumed, its wait cancelled. */
 const STOPPED_ASK: Partial<ToolCallLedger> = {
   phase: 'settled',
   terminal: 'interrupted',
@@ -162,7 +129,6 @@ describe('a control ends a suspended Ask on the release tree (C6)', () => {
       const invalidations: unknown[] = []
       const recalls: unknown[] = []
       const exit = await onReleaseTree(options, async world => {
-        // The invalidation commits in HITL, and its answer is lost on the way back to Tool.
         const real = world.hitl.bridge
         if (real === null) throw new Error('no decision owner')
         const lossy: ToolDecisionBridge<unknown> = {
@@ -191,8 +157,6 @@ describe('a control ends a suspended Ask on the release tree (C6)', () => {
         ])
         const entries = await historyOf(world, session)
         expect(entries.some(entry => entry.kind === 'run.terminal')).toBe(true)
-        // HITL invalidated the registration once. Tool recalled that very invalidation: the
-        // receipt of the recall is the receipt that the lost answer carried.
         expect(invalidations).toHaveLength(1)
         expect(invalidations[0]).toMatchObject({ ok: { record: expect.any(String) } })
         const receipt = (invalidations[0] as { ok: unknown }).ok
@@ -211,14 +175,12 @@ describe('a control ends a suspended Ask on the release tree (C6)', () => {
     async () => {
       const exit = await onReleaseTree(options, async world => {
         const session = await world.startSession('start: ask and wait')
-        // The one slot of the run: the Shell holds it while the Ask is parked.
         await pollUntil(
           'Ask parked and Shell held',
           () => [stageOf(world, 'Ask'), stageOf(world, 'Shell')],
           stages => stages[0] === 'parked' && stages[1] === 'held',
         )
         await answerCard(world, session, 'Use 8081')
-        // Answered, the Ask is queued again behind the Shell.
         await pollUntil(
           'the Ask ready',
           () => stageOf(world, 'Ask'),
@@ -226,15 +188,11 @@ describe('a control ends a suspended Ask on the release tree (C6)', () => {
         )
         expect(stageOf(world, 'Shell')).toBe('held')
         await cancelRun(world, session)
-        // `cancel-run` answers once Session took the control; the Agent stops the calls later. A
-        // control and a resume both write the call record, and the record takes the first one
-        // (model InterruptCascade). The slot is given back after the control settled the Ask.
         await pollUntil(
           'the control to settle the Ask',
           () => askOf(world),
           row => row?.phase === 'settled',
         )
-        // The slot comes free even when the stop does not end the Shell; the Ask still does not resume.
         writeFileSync(join(dirname(world.storageRoot), 'workspace', 'go-b'), '')
         const { ask, calls } = await closed(world)
 
@@ -245,7 +203,6 @@ describe('a control ends a suspended Ask on the release tree (C6)', () => {
         ])
         const cards = await cardsOf(world, session)
         expect(cards.map(item => item.card.kind)).toEqual(['decided'])
-        // The model never received the answer: no tool result carries it.
         const entries = await historyOf(world, session)
         expect(toolResults(entries).filter(text => text.includes('Use 8081'))).toEqual([])
         await ended(world, session)
@@ -270,8 +227,6 @@ describe('a control ends a suspended Ask on the release tree (C6)', () => {
           { kind: 'invalidated', reason: 'cancelled' },
         ])
       })
-      // The exit code is not checked here: on an archived session the Agent cannot commit the end
-      // of the cancelled execution, so the stop finds it unresolved. See docs/rows/tool-runtime.md.
       expect([0, 5]).toContain(exit)
     },
   )
@@ -294,7 +249,6 @@ describe('a control ends a suspended Ask on the release tree (C6)', () => {
           cards => cards[0]?.card.kind === 'invalidated',
         )
 
-        // The person answers the card as it was listed before the cancellation.
         const tenant = tenantCodec.parse(savedTenant(world.home))
         if (!tenant.ok) throw new Error('the saved tenant does not parse')
         const viaHttp = await hitlPublic(world.port, {
@@ -336,7 +290,6 @@ describe('a control ends a suspended Ask on the release tree (C6)', () => {
 
         expect((await cardsOf(world, session)).map(item => item.card.kind)).toEqual(['invalidated'])
         const entries = await historyOf(world, session)
-        // No answer reached the history: no tool result names the option or the words.
         expect(
           toolResults(entries).filter(text => text.includes('selected') || text.includes('8081')),
         ).toEqual([])
@@ -357,7 +310,6 @@ describe('a control ends a suspended Ask on the release tree (C6)', () => {
         await closed(world)
         await ended(world, session)
 
-        // The commit that ended the Run wrote the tool message of the Ask before the terminal.
         const cancelled = await historyOf(world, session)
         expect(toolResults(cancelled)).toEqual([
           'No result of this call is in the conversation: the run was cancelled before the call returned. The tool was asked to stop. It may have had effects before it stopped. Do not assume that the call completed or was approved.',
@@ -365,7 +317,6 @@ describe('a control ends a suspended Ask on the release tree (C6)', () => {
         const kinds = cancelled.map(entry => entry.kind)
         expect(kinds.indexOf('message.tool')).toBeLessThan(kinds.indexOf('run.terminal'))
 
-        // The history is whole, so the model request of the next Run is taken.
         const sent = await world.cli(['send-input', '--session', session, '--text', 'go on'])
         expect(sent.status, sent.stderr).toBe(0)
         const after = await pollUntil(
@@ -393,7 +344,6 @@ describe('a lost answer of HITL on the release tree is recalled by the original 
       const ensured: unknown[] = []
       const recalls: unknown[] = []
       const exit = await onReleaseTree(options, async world => {
-        // The registration commits in HITL, and its answer is lost on the way back to Tool.
         const real = world.hitl.bridge
         if (real === null) throw new Error('no decision owner')
         const lossy: ToolDecisionBridge<unknown> = {
@@ -421,7 +371,6 @@ describe('a lost answer of HITL on the release tree is recalled by the original 
           () => askOf(world),
           ask => ask?.phase === 'suspended' && stageOf(world, 'Ask') === 'parked',
         )
-        // One registration in HITL, recalled with the evidence that the lost answer carried.
         expect(ensured).toHaveLength(1)
         const receipt = (ensured[0] as { ok: unknown }).ok
         expect(receipt).toMatchObject({ record: expect.stringMatching(/^hitl-request\//) })
@@ -446,7 +395,6 @@ describe('a lost answer of HITL on the release tree is recalled by the original 
         expect(toolCalls(world.storageRoot).every(row => row.entry === null)).toBe(true)
         const cards = await cardsOf(world, session)
         expect(cards.map(item => item.card.kind)).toEqual(['decided'])
-        // Still one registration: the recall did not register again.
         expect(ensured).toHaveLength(1)
       })
       expect(exit).toBe(0)

@@ -1,6 +1,3 @@
-// 用当前公开命令建立一份含多种等待状态的库。关系守护、池过滤和查询成本测试在它上面运行。
-// 每个场景是一个独立等待：只准备、已登记、部分答复、全部答复未消费、部分消费、
-// 全部消费未确认、终局、换代。场景按顺序执行，请求序号和收件箱序号因此与提交顺序一致。
 import { randomUUID } from 'node:crypto'
 import {
   OperationRefSchema,
@@ -227,9 +224,6 @@ async function play(world: World, scenario: Scenario) {
   return { requestRef, decisions, receipts }
 }
 
-/**
- * 在新库上执行全部场景后关闭存储。返回库目录、按登记顺序读回的请求、按提交顺序的决定和消费回执。
- */
 export async function seed() {
   const world = await openWorld()
   try {

@@ -1,6 +1,3 @@
-// The ToolDecisionBridge conformance suite (P06, P12, story 25) and a non-durable double that
-// conforms to it. The double keeps its state in memory and declares `durability: 'none'`: it
-// proves nothing about a durable decision owner and must not be assembled into production.
 import assert from 'node:assert/strict'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { Access, DurableEvidence, ToolCallId, ToolWaitId } from './identity.ts'
@@ -41,28 +38,10 @@ import {
   waitId,
 } from './testing-values.ts'
 
-/**
- * What the decision bridge suite needs. A fresh fixture serves one case. The optional handles are
- * the controls of the decision owner, and a case that needs one that is missing is reported not
- * applicable. `hold` defers the next new `ensure` or `invalidate`: it is not applied and its reply
- * is lost (`commit-unknown`), and `settle` applies the deferred operations that were not excluded
- * (a provider that answers `commit-unknown`, `pending` or `unknown` for an operation that it
- * completes later lands that work too): it resolves only after the deferred work has landed and is
- * visible to every read of the port, and the suite asks once more after it and never polls;
- * without `settle`, a case that needs a final answer is reported not applicable when the first
- * answer is progress. `excludeDeferred` excludes the deferred operation of that operation
- * identity for good, and resolves when the exclusion holds;
- * `invalidations` lists the registrations that were invalidated, each once; `decide` makes the
- * decision owner decide the registered wait and returns the evidence of that decision (the first
- * decision of a wait stands). `otherAccess` is the access of a second tenant, with a principal of
- * its own: the cases that check that another tenant neither reads nor changes a record of the
- * first are reported not applicable without it.
- */
 export interface ToolDecisionBridgeFixture<P> extends ExternalHandles {
   readonly bridge: ToolDecisionBridge<P>
   readonly access: Access<P>
   readonly otherAccess?: Access<P>
-  /** Resolves with the evidence of the decision after the owner decided and `inspect` shows it. */
   decide?(
     input: Readonly<{ call: ToolCallId; wait: ToolWaitId; value: DecisionValue }>,
   ): Promise<DurableEvidence>
@@ -98,10 +77,6 @@ function peerOf<P>(fixture: ToolDecisionBridgeFixture<P>, access: Access<P>): Ex
   }
 }
 
-/**
- * The answer model of the decision bridge: the calls of P06 that both external-association ports
- * have, and `resolve` (P12), which answers the decision value or refuses and has no progress kind.
- */
 export const decisionBridgeAnswers = {
   ...externalAnswers,
   resolve: { clause: 'P12', progress: [] },
@@ -115,7 +90,6 @@ function scene<P>(fixture: ToolDecisionBridgeFixture<P>, access: Access<P> = fix
   const completion = completionOf(fixture, 'settle')
   return {
     call,
-    /** What every call of the scene sends: its access and its call. */
     sends: [access, call] as const,
     ensure: (operation = 'ensure-1', wait = WAIT): Promise<DurableEvidence> =>
       landed(
@@ -211,7 +185,6 @@ export function toolDecisionBridgeConformance<P>(): readonly ConformanceCase<
         const other = scene(fixture, otherAccessOf(fixture))
         const registration = await s.ensure()
         const decision = await s.decide(APPROVAL)
-        // The other tenant sends the decision itself; the registration still identifies the wait.
         const { ghost } = await crossTenantAnswers({
           ask: {
             real: () => other.resolve(decision),
@@ -238,10 +211,6 @@ export function toolDecisionBridgeConformance<P>(): readonly ConformanceCase<
   ]
 }
 
-// ---------------------------------------------------------------------------------------------
-// The non-durable double
-// ---------------------------------------------------------------------------------------------
-
 export interface MemoryToolDecisionBridge<P> extends ToolDecisionBridge<P> {
   readonly durability: 'none'
   readonly controls: Readonly<{
@@ -265,11 +234,6 @@ type Tenant = Access<unknown>['tenant']
 const reply = <T>(outcome: Outcome<T, ToolFailure>): Promise<Outcome<T, ToolFailure>> =>
   Promise.resolve(outcome)
 
-/**
- * A decision bridge in memory. A registration is keyed by tenant, call and wait: every ensure of
- * that wait, by whichever operation, recalls it. An operation runs once. An invalidation that
- * arrives before the registration is remembered and lands on the registration when it appears.
- */
 export function createMemoryToolDecisionBridge<P>(): MemoryToolDecisionBridge<P> {
   const registrations = new Map<string, { evidence: DurableEvidence; invalidated: boolean }>()
   const decisions = new Map<string, { evidence: DurableEvidence; value: DecisionValue }>()
@@ -391,7 +355,6 @@ export function createMemoryToolDecisionBridge<P>(): MemoryToolDecisionBridge<P>
   return Object.freeze({ ...bridge, durability: 'none' as const, controls })
 }
 
-/** A fresh fixture over a fresh in-memory decision bridge, with every control handle. */
 export function memoryToolDecisionBridgeFixture(): ToolDecisionBridgeFixture<string> {
   const bridge = createMemoryToolDecisionBridge<string>()
   const { controls } = bridge

@@ -1,12 +1,4 @@
 // @module-tag slow
-// The `agent-account-outlet` row: the real account outlet (`AgentAccountOutletProvider` of
-// `@omne-harness/agent-context/cordis`) on a real Cordis. The row is ACTIVE and provides
-// `agentAccountOutlet` once `requestContext` and `contextAccountingInbox` are present; with either
-// one absent it stays PENDING and names that key. The two providers are test stand-ins of the
-// abstract services: the real ones are the `request-context` row. In the first wave the outlet has
-// no target resolver, so a delivery answers `unavailable` with `scope-unresolved` and nothing
-// reaches the inbox; a delivery is never turned into a success. The plugin takes the adoption
-// identity `sender`; the assembly page lists no configuration for this row (see the row file).
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import type { AgentAccountOutlet } from '@omne-harness/agent-contract'
@@ -39,7 +31,6 @@ const sender = { owner: 'agent-context', name: 'outlet', revision: '1', digest: 
 
 const refused = { kind: 'unavailable' as const, diagnostic: 'stand-in' }
 
-/** Stands in for the `request-context` row's `requestContext`; nothing here is exercised. */
 class RequestContextDouble extends RequestContextService<unknown> {
   readonly contributeSection: RequestContextService<unknown>['contributeSection'] = input => ({
     kind: 'rejected',
@@ -62,7 +53,6 @@ class RequestContextDouble extends RequestContextService<unknown> {
   }
 }
 
-/** Stands in for the `request-context` row's `contextAccountingInbox`; counts what reaches it. */
 function inboxDouble(received: unknown[]) {
   return class InboxDouble extends ContextAccountingInboxService<unknown> {
     readonly receive: ContextAccountingInboxService<unknown>['receive'] = async input => {

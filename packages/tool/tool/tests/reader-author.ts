@@ -1,5 +1,4 @@
 import { structuredReturnFixture } from '@omne-harness/tool-contract/testing'
-// Test-only wrapper. The shipped Tools author belongs to tool-definitions.
 import { type Access } from '@omne-harness/tool-contract'
 import {
   defineCommandTool,
@@ -118,7 +117,6 @@ export function createReaderAuthor<P>(
         settings: null,
       },
     },
-    // `help` declares a field named `command`, so the call wraps the parameters.
     encoding: 'wrapped',
     commands,
   })

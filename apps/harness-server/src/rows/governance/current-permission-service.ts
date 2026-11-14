@@ -27,7 +27,6 @@ const unavailable = (): CurrentPermissionRead => ({
   condition: null,
 })
 
-/** Trusted application query. Identity is checked before lazy tenant installation. */
 export class CurrentPermissionService extends Service implements CurrentPermissionSource {
   static readonly provide = 'currentToolPermission'
   readonly readCurrent: CurrentPermissionSource['readCurrent']

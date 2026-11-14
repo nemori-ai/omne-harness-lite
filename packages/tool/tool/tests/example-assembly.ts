@@ -89,7 +89,6 @@ export const configuration: ToolConfiguration = {
 }
 
 export function createDemo() {
-  // Legal tenant construction is real. Membership and source issuance below are test providers.
   const tenant = testingTenant(`org_${'0'.repeat(26)}`, `acc_${'1'.repeat(26)}`)
   const access: Access<string> = { principal: 'tutorial-reader', tenant }
   const qualify = (input: Access<string>): AccessVerdict =>
@@ -134,7 +133,6 @@ export function createDemo() {
       }
       return { release: removeDriver }
     },
-    // Scheduling records work only. advance runs it under the same instance and signal.
     schedule: async input => {
       if (closed)
         return fail({ kind: 'unavailable', dependency: 'tutorial-host', diagnostic: 'closed' })
@@ -265,7 +263,6 @@ export function createDemo() {
           ...executor,
           start: async (input, _environment) => {
             startCalls += 1
-            // Stage the exact launch intent before consuming the permit. The receipt refers to this capsule.
             const capsule = `capsule-${input.start.operation}`
             capsules.set(capsule, { request: input.request, start: input.start })
             const consumed = await test.doubles.authority.consume({
@@ -313,7 +310,6 @@ export function createDemo() {
                 waits: null,
               }),
             )
-            // The trusted binding can read the registration. Ordinary consumers cannot.
             const value = valueOf(await executeTool(argumentsValue, author.executor, access, scope))
             const result =
               author.kind === 'ordinary'
@@ -329,7 +325,6 @@ export function createDemo() {
                       valueOf(author.output.check({ arguments: argumentsValue, value })),
                     ),
                   )
-            // Publish the actual author's result as the source's final fact. Never seed ledger state.
             await test.doubles.executor.controls.finishEnvelope(input.start, {
               kind: 'final',
               result,
@@ -449,7 +444,6 @@ export function createDemo() {
         }
         await driver.run({ ...access, call, instance, signal: controller.signal })
       }
-      // Let source.next continuations enqueue their work. No elapsed-time business clock.
       await Promise.resolve()
       return scheduled.size
     },

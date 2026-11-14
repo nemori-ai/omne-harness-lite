@@ -1,6 +1,3 @@
-// The permission basis of one action, as a list of read-only commands. A projection read runs the
-// commands for a check. The acceptance commit of a Tool start runs the same commands again and
-// the basis guard compares the result with the digest that the check saw.
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { z } from 'zod'
@@ -30,15 +27,12 @@ export const permissionBasisFact = { key: 'harness.permission-basis', protocol: 
 export const permissionBasisRequestSchema = z.strictObject({
   snapshot: GovernanceTargetBindingSchema,
   permission: PermissionBasisRequestSchema,
-  /** The Session permission that the caller read before it built the commands. */
   session: sessionPermissionObservationSchema,
-  /** The constraints of the origin of the action, for example the bound Agent definition. */
   constraints: z.array(PermissionConstraintSchema).max(64),
   requiredConstraintIds: PermissionEvaluationSchema.shape.requiredConstraintIds,
 })
 export type PermissionBasisRequest = z.infer<typeof permissionBasisRequestSchema>
 
-/** The facts of the tenant domain that decide the permission. Other domains are read apart. */
 export const permissionBasisSchema = z.strictObject({
   permission: PermissionBasisRequestSchema,
   evaluation: PermissionEvaluationSchema,
@@ -60,7 +54,6 @@ export function permissionBasisCommands(
   ]
 }
 
-/** The condition of a commit: the basis of this transaction is the basis that the check saw. */
 export function permissionBasisGuardCommand(basis: PermissionBasis): FactCommandV2 {
   return {
     participant: PERMISSION_BASIS_GUARD.participant,

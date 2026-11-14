@@ -1,6 +1,3 @@
-// The member exports the two factories, the materials and their names at its root, has no
-// `./cordis` entry, and uses SQL only through the public entries of sql-contract: it imports
-// nothing of a provider, of node:sqlite or of another storage member.
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'

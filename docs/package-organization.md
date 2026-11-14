@@ -46,7 +46,7 @@ packages/<能力组>/<成员>/
 
 ## 目标目录
 
-以下是初始落点。写明叶子名的目录已初始化为 workspace 草稿，公开行为仍未实现。`execution/image` 是例外。技术设计已接受，它已经是 workspace 成员。模型组成员的初始化与源码状态以「[模型组的成员与采用范围](#模型组的成员与采用范围)」一节为准，该节不改其他组的规则。公开入口包含预算、打开、编码和关闭。准备模型图片输入的[推荐配置](../packages/execution/image/docs/budget-profile.md)已于 2026-10-17 获接受，仍由调用方显式传入。`<成员>`、`<具名时间能力>`、`<具名观测能力>` 和 `<具名纯表示>` 不是叶子名，这些位置不建包。叶子若还要拆分，仍须在具名消费者和精确承诺明确后确定。
+以下是初始落点。写明叶子名的目录已初始化为 workspace 草稿，公开行为仍未实现。`execution/image` 是例外。技术设计已接受，它已经是 workspace 成员。模型组成员的初始化与源码状态以「[模型组的成员与采用范围](#模型组的成员与采用范围)」一节为准，该节不改其他组的规则。公开入口包含预算、打开、编码和关闭。准备模型图片输入的[推荐配置](../packages/execution/SPEC.md#图像)已于 2026-10-17 获接受，仍由调用方显式传入。`<成员>`、`<具名时间能力>`、`<具名观测能力>` 和 `<具名纯表示>` 不是叶子名，这些位置不建包。叶子若还要拆分，仍须在具名消费者和精确承诺明确后确定。
 
 ```text
 packages/
@@ -185,9 +185,9 @@ tools/<开发工具>/              检查与开发工具
 scripts/                       仓库自动化
 ```
 
-标「未建」的叶子是 [RFC-0015](rfcs/RFC-0015-access-dynamic-registration.md) 接受的落点，成员还没有建。它们在交付时用包模板生成，建好之后去掉这个标记。`access` 组三个现有成员的职责按上面的写法改变，现有实现与它的差别见[系统分层的现行偏离](architecture/layers-and-dependencies.md#现行偏离)。`apps/m2-contract-skeleton` 按同一份提案退役，随接入插件那一程删除。
+标「未建」的叶子是已接受的落点，成员还没有建。它们在交付时用包模板生成，建好之后去掉这个标记。`access` 组三个现有成员的职责按上面的写法改变。`apps/m2-contract-skeleton` 按同一份提案退役，随接入插件那一程删除。
 
-telemetry 的已采用成员为 `telemetry-contract`、`telemetry-cordis-contract`、`telemetry-node`，依据 [RFC-0013 revision 2](rfcs/RFC-0013-engineering-telemetry.md)，职责见[组入口](../packages/telemetry/README.md)。
+telemetry 的已采用成员为 `telemetry-contract`、`telemetry-cordis-contract`、`telemetry-node`，职责见[遥测规格](../packages/telemetry/SPEC.md#总体架构)。
 
 同一能力组内可以增加具名提供者或独立适配成员，前提是包边界有依据。单成员组仍提供稳定知识位置，不为目录对称增加转发层。time、telemetry和common须有实际共同语义及消费者，不能成为收纳未归属代码的目录。`util` 只放纯文本格式化。`unix-format` 和 `xml-format` 从封存的 [packages.0.0.1.legacy/util](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/util) 迁入，输出由迁来的测试锁定。它们不进入 `common`，因为还没有两个已确认的共同消费者。
 
@@ -195,7 +195,7 @@ telemetry 的已采用成员为 `telemetry-contract`、`telemetry-cordis-contrac
 
 装配组的目标成员如下。`assembly` 维护求值、采用和交接。`kernel-basis` 维护 Cordis 插件辅助和测试装配。`adoption-contract`（`packages/assembly/adoption-contract`）是采用协调的契约成员，含纯类型、校验、摘要函数、Cordis 服务定义 `adoptionCoordinator`、内存替身与符合性套件；它不依赖 `assembly`、Session、Agent 与 Tool，只有应用成员与具名提供者导入它（[采用协调契约设计](domains/assembly-and-handoff/adoption-coordination.md) AC-18、AC-19）。业务成员可以依赖 `kernel-basis` 的公开入口。业务成员不读取 `assembly` 来取得全局服务或隐式依赖。
 
-`governance-contract` 拥有动态贡献、当前治理采用及受保护目录的协议和 `governanceContributions` Service。`governance-local` 是其已采用的本地提供者位置，当前已建立关系迁移，业务服务与 Cordis 装配仍在实现。两者与执行内容采用 `adoption-contract` 分开。它们物理上独立于底层 Cordis 辅助所在的 assembly 组，语义仍归装配与交接责任；业务提供者依赖 kernel-basis 不形成治理组的回边。Settings 和 Authorization 通过本域来源端口消费，由应用桥接，不反向依赖装配组。行为归 [治理贡献契约](../packages/governance/governance-contract/SPEC.md)，跨领域职责归 [动态贡献](../packages/assets/docs/governance-contributions.md)。
+`governance-contract` 拥有动态贡献、当前治理采用及受保护目录的协议和 `governanceContributions` Service。`governance-local` 是其已采用的本地提供者位置，当前已建立关系迁移，业务服务与 Cordis 装配仍在实现。两者与执行内容采用 `adoption-contract` 分开。它们物理上独立于底层 Cordis 辅助所在的 assembly 组，语义仍归装配与交接责任；业务提供者依赖 kernel-basis 不形成治理组的回边。Settings 和 Authorization 通过本域来源端口消费，由应用桥接，不反向依赖装配组。行为归 [治理贡献规格](../packages/governance/SPEC.md#应然设计)，跨领域职责归 [动态贡献](../packages/assets/SPEC.md#动态治理贡献)。
 
 `kernel-basis` 不声明服务键。它不收回其他能力的 Service 定义。根入口为空导出，并且不导入 `@deepseek-ai/cordis`。操作结果归 `packages/common/operation-result`。插件辅助从同包 `./cordis` 导出。测试装配从同包 `./testing` 导出。本页登记成员位置 `packages/assembly/kernel-basis`，具体实现范围见下段。
 
@@ -211,17 +211,17 @@ telemetry 的已采用成员为 `telemetry-contract`、`telemetry-cordis-contrac
 | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | model-contract                                                            | 纯领域值、操作、必要纯函数与提供者协议；普通消费者和 adapter 作者不安装运行实现                                                                 | 已接受                            | workspace 成员；已发布全部声明并有测试                                                                                                                                                                                                   |
 | model-cordis-contract                                                     | 唯一 Cordis 服务定义、键、增补及定义自有登记表；不安装 Model 运行提供者                                                                  | 已接受                            | workspace 成员；已发布全部声明并有测试                                                                                                                                                                                                   |
-| model                                                                     | 可复用领域执行与实际工厂，按契约注入依赖，不安装 Cordis                                                                              | 已接受                            | workspace 成员；托管运行与工厂未实现，已实现部分见[成员入口](../packages/model/model/README_ZH.md)                                                                                                                                                 |
-| model-host-local                                                          | 本地凭据保管、实例调度、时钟、目录装载及 Cordis 插件，复用 model                                                                      | 已接受                            | workspace 成员；实例调度、时钟、目录装载未实现，已实现部分见[成员入口](../packages/model/model-host-local/README_ZH.md)                                                                                                                                 |
-| model-storage-sql                                                         | 调用事实的 SQL 存储：实现 model 共享归约核心的存储端口（`ModelCommandStorage`），与会话日志同处一租户一事务域；不安装 Cordis，`modelCommands` 应用插件归应用组合 | D3 决策记录（#446，第二层）已定            | workspace 成员；存储端口与表、行解析、提交循环已实现，装配与对拍在做，见[成员入口](../packages/model/model-storage-sql/README_ZH.md)                                                                                                                          |
-| pi-ai-transport                                                           | 共享 pi 请求机制、HTTP/SSE、连接资源及取消                                                                                  | 成员划分与家族贡献取得协议已接受；其余细化沿组架构标注    | workspace 成员；根入口导出家族贡献接口类型、家族表、`createPiTransport` 与 `createNetworkResources`，子入口导出网关引擎与家族测试助手；ModelTransport 三段语义已实现，两个真实家族经它的联调在 pi-ai-anthropic 的慢层验证；媒体读取未实现，见[成员入口](../packages/model/pi-ai-transport/README_ZH.md)   |
-| pi-ai-openai                                                              | OpenAI 家族的型号记录、请求与响应规则、计量与官方档案                                                                               | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | workspace 成员；根入口导出 `createOpenAiFamily`、`officialOpenAiProfiles`、`openAiTokenizerResources` 与 12 条记录；快层验证规则、计量与夹具，经共享传输的联调在 pi-ai-anthropic 的慢层；经代理的示例只在手动运行时有证据，见[成员入口](../packages/model/pi-ai-openai/README_ZH.md)      |
-| pi-ai-anthropic                                                           | Anthropic 家族的型号记录、请求与响应规则、计量、词表资源与官方档案                                                                       | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | workspace 成员；根入口导出 `createAnthropicFamily`、`officialAnthropicProfiles`、`anthropicTokenizerResources` 与 4 条记录；快层验证规则、计量、词表资源与夹具，慢层验证两个家族经共享传输的联调；两个经代理的示例只在手动运行时有证据，见[成员入口](../packages/model/pi-ai-anthropic/README_ZH.md) |
+| model                                                                     | 可复用领域执行与实际工厂，按契约注入依赖，不安装 Cordis                                                                              | 已接受                            | workspace 成员；托管运行与工厂未实现，已实现部分见[包组规格](../packages/model/SPEC.md)                                                                                                                                                 |
+| model-host-local                                                          | 本地凭据保管、实例调度、时钟、目录装载及 Cordis 插件，复用 model                                                                      | 已接受                            | workspace 成员；实例调度、时钟、目录装载未实现，已实现部分见[包组规格](../packages/model/SPEC.md)                                                                                                                                 |
+| model-storage-sql                                                         | 调用事实的 SQL 存储：实现 model 共享归约核心的存储端口（`ModelCommandStorage`），与会话日志同处一租户一事务域；不安装 Cordis，`modelCommands` 应用插件归应用组合 | D3 决策记录（#446，第二层）已定            | workspace 成员；存储端口与表、行解析、提交循环已实现，装配与对拍在做，见[包组规格](../packages/model/SPEC.md)                                                                                                                          |
+| pi-ai-transport                                                           | 共享 pi 请求机制、HTTP/SSE、连接资源及取消                                                                                  | 成员划分与家族贡献取得协议已接受；其余细化沿组架构标注    | workspace 成员；根入口导出家族贡献接口类型、家族表、`createPiTransport` 与 `createNetworkResources`，子入口导出网关引擎与家族测试助手；ModelTransport 三段语义已实现，两个真实家族经它的联调在 pi-ai-anthropic 的慢层验证；媒体读取未实现，见[包组规格](../packages/model/SPEC.md)   |
+| pi-ai-openai                                                              | OpenAI 家族的型号记录、请求与响应规则、计量与官方档案                                                                               | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | workspace 成员；根入口导出 `createOpenAiFamily`、`officialOpenAiProfiles`、`openAiTokenizerResources` 与 12 条记录；快层验证规则、计量与夹具，经共享传输的联调在 pi-ai-anthropic 的慢层；经代理的示例只在手动运行时有证据，见[包组规格](../packages/model/SPEC.md)      |
+| pi-ai-anthropic                                                           | Anthropic 家族的型号记录、请求与响应规则、计量、词表资源与官方档案                                                                       | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | workspace 成员；根入口导出 `createAnthropicFamily`、`officialAnthropicProfiles`、`anthropicTokenizerResources` 与 4 条记录；快层验证规则、计量、词表资源与夹具，慢层验证两个家族经共享传输的联调；两个经代理的示例只在手动运行时有证据，见[包组规格](../packages/model/SPEC.md) |
 | pi-ai-google、pi-ai-deepseek、pi-ai-xai、pi-ai-qwen、pi-ai-moonshot、pi-ai-zai | 按厂商家族内聚型号定义、请求与响应适配、完整计量、模板、资源和验证                                                                            | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | 未初始化                                                                                                                                                                                                                       |
-| tokenizer-tiktoken                                                        | 封装 js-tiktoken 的初始化与文本计数；具体词表、配置和模型模板归家族成员                                                                   | 成员划分与资源、计量分工已接受                | workspace 成员；根入口导出 `createTiktokenTokenizer` 与两个资源类型，pi-ai-openai 传入 o200k 秩数据，pi-ai-anthropic 传入 `claude.json`，见[成员入口](../packages/model/tokenizer-tiktoken/README_ZH.md)                                                 |
+| tokenizer-tiktoken                                                        | 封装 js-tiktoken 的初始化与文本计数；具体词表、配置和模型模板归家族成员                                                                   | 成员划分与资源、计量分工已接受                | workspace 成员；根入口导出 `createTiktokenTokenizer` 与两个资源类型，pi-ai-openai 传入 o200k 秩数据，pi-ai-anthropic 传入 `claude.json`，见[包组规格](../packages/model/SPEC.md)                                                 |
 | tokenizer-huggingface                                                     | 封装 Hugging Face 分词引擎的初始化与文本计数；具体词表、配置和模型模板归家族成员                                                              | 成员划分与资源、计量分工已接受                | 未初始化                                                                                                                                                                                                                       |
 
-具体型号默认作为家族内的精确绑定，不按型号逐一建包。依赖方向、拆分依据、装配责任和实际建包条件由[模型组架构](../packages/model/docs/architecture.md#成员与新增条件)维护。本页登记成员位置及初始化状态，不复制接口或支持型号清单。model-host-local 的本地凭据保管已实现；实例调度、时钟与目录装载的设计已接受，尚未实现。pi-ai 相关设计的采用范围及本实现线的延期条件沿组架构执行；后续运行成员随实际实现及验证切片建立。
+具体型号默认作为家族内的精确绑定，不按型号逐一建包。依赖方向、拆分依据、装配责任和实际建包条件由[模型组规格](../packages/model/SPEC.md#总体架构)维护。本页登记成员位置及初始化状态，不复制接口或支持型号清单。model-host-local 的本地凭据保管已实现；实例调度、时钟与目录装载的设计已接受，尚未实现。pi-ai 相关设计的采用范围及本实现线的延期条件沿组架构执行；后续运行成员随实际实现及验证切片建立。
 
 ## 责任与能力组
 
@@ -247,8 +247,7 @@ telemetry 的已采用成员为 `telemetry-contract`、`telemetry-cordis-contrac
 | [Skill](domains/skills/README.md)                          | skills             | 方法取用、正文及资源           |
 | [MCP](domains/mcp/README.md)                               | mcp                | 端点、连接、发现与桥接         |
 
-另有一项不属于任何业务领域的责任：界面外壳契约与共用界面件。它管界面外壳提供哪几种界面插入位置的契约，以及各领域界面共用的基础组件、主题和多语言装配。目标组是 `frontend`。它不放在 `access`，因为它不碰线上的契约；不放在某个应用里，因为下一种应用形态要复用它；不放在某个业务领域里，因为它是所有领域的界面模块共用的。依据是 [RFC-0015](rfcs/RFC-0015-access-dynamic-registration.md)。
-
+另有一项不属于任何业务领域的责任：界面外壳契约与共用界面件。它管界面外壳提供哪几种界面插入位置的契约，以及各领域界面共用的基础组件、主题和多语言装配。目标组是 `frontend`。它不放在 `access`，因为它不碰线上的契约；不放在某个应用里，因为下一种应用形态要复用它；不放在某个业务领域里，因为它是所有领域的界面模块共用的。
 assets维护共同治理，具体类别维护专有定义与业务。共同治理不反向导入全部类别实现，Tool不接管被调用类别的业务状态。命令受理、Skill读取、MCP连接与实际调用的分责继续沿对应领域页。
 
 ## 包边界与公开入口
@@ -267,7 +266,7 @@ access把每个领域都要用的那部分接入知识就近组织。它不拥�
 
 - public-contract 拥有公开契约的共同部分：逻辑消息的信封、对外结果、判断次序、协议契约的类型，以及内置协议。它是纯数据，没有 Cordis、存储与 Node 专有的依赖。
 - access-cordis-contract 拥有接入贡献的类型和登记表的 Cordis 服务定义。领域的接入插件在 access 组里只依赖它和 public-contract，不依赖 server-entry。它自己只依赖 public-contract 与 Cordis，依赖方向的门禁 `access-cordis-contract-only-contract-and-cordis` 守这一条。它的 `./cordis` 入口提供 `defineAccessPlugin`：领域写一份接入贡献，得到一个 Cordis 插件，插件加载时把协议挂上登记表，卸载时撤下。
-- server-entry 是服务端入口：承载绑定、管道、登记表、观察中枢。它的依赖里没有任何领域的契约。目前已建的是登记表、收场、管道、观察中枢与可用性（`src/registry/`、`src/settle/`、`src/pipeline/`、`src/observation-hub/`、`src/availability/`）。管道把登记表接到新地址上，操作与观察都走它，前提是构造入口时给了登记表与身份端口；正式的服务端应用给了这两样，登记表上只挂着内置协议 `access/v1`。这五个目录不导入任何领域的成员，也不导入入口现有三个位置的文件，门禁 `entry-registry-knows-no-domain` 守这一条。入口现有的三个位置仍依赖各领域的契约，见[系统分层](architecture/layers-and-dependencies.md#现行偏离)「现行偏离」。
+- server-entry 是服务端入口：承载绑定、管道、登记表、观察中枢。它的依赖里没有任何领域的契约。目前已建的是登记表、收场、管道、观察中枢与可用性（`src/registry/`、`src/settle/`、`src/pipeline/`、`src/observation-hub/`、`src/availability/`）。管道把登记表接到新地址上，操作与观察都走它，前提是构造入口时给了登记表与身份端口；正式的服务端应用给了这两样，登记表上只挂着内置协议 `access/v1`。这五个目录不导入任何领域的成员，也不导入入口现有三个位置的文件，门禁 `entry-registry-knows-no-domain` 守这一条。入口现有的三个位置仍依赖各领域的契约。
 - `sdk` 成员的子入口 `./core` 是客户端核心：给它一份协议契约和一个传输，得到带类型的方法。客户端核心只依赖 public-contract、json-text 与 eventsource-parser，不依赖 Cordis，也不导入 Node 专有的模块，能在浏览器里用；门禁 `sdk-core-stays-portable` 守这一条。`sdk` 的根入口仍是入口现有三个位置的适配。
 - client-assembly 是客户端装配：一棵 Cordis 树上的连接与协议客户端。它只比 `sdk` 成员多依赖 Cordis。
 
@@ -287,7 +286,7 @@ access把每个领域都要用的那部分接入知识就近组织。它不拥�
 
 界面用到的技术栈不写进顶层的[技术基础](architecture/technical-foundations.md)，由用它的成员在自己的文档里维护：各领域的界面模块和共用界面件都要用的写在 `packages/frontend/`，只有桌面外壳用的写在 `apps/desktop/`。版本仍然进仓库的依赖目录与锁文件。
 
-完整Harness客户端通过SDK使用系统；独立能力消费者可以直接使用所需能力及所选实现，不强制经过SDK。同组不要求共同安装或发布。传输路线和登录证明放在哪已经由[分层页的传输与兼容约定](architecture/layers-and-dependencies.md#传输与兼容约定)定下。远程接入方式、传输保护、兼容、缓存、观察的恢复及拥有式daemon启动沿[分层后续设计](architecture/layers-and-dependencies.md#待细化范围)明确，本页不补默认协议。
+完整Harness客户端通过SDK使用系统；独立能力消费者可以直接使用所需能力及所选实现，不强制经过SDK。同组不要求共同安装或发布。传输路线和登录证明放在哪已经由[分层页的传输与兼容约定](architecture/layers-and-dependencies.md#传输与兼容约定)定下。本页不为远程接入方式、传输保护、兼容、缓存、观察的恢复及拥有式daemon启动补默认协议。
 
 ## 最小 CLI 的接入边界
 
@@ -323,7 +322,7 @@ flowchart TD
 
 `tools/artifact-builder` 不依赖 CLI。已删除的封存 CLI（[apps.0.0.1.legacy/cli](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/cli)）曾把 artifact-builder 列为 devDependency。`tools/product-checks` 从 `@omne-harness/legal-identity` 读取身份类型名单。`tools/core-verification` 已删除（#332）。`scripts/build-fixed-schemas.mjs` 已删除；它只解析 `@omne-harness-lite/content-blocks`。参考树里的旧 `build` 脚本仍写着这个文件名，运行会失败。`scripts/package-cli.sh` 构建 `@omne-harness/cli`，并把 `apps/cli/dist` 打成新的 `.tar.gz`。它不安装、不上传。
 
-发布到仓库之外时，CLI 包提供 `bin`、构建后的启动模块、构建身份文件，以及指向 SDK 包的依赖声明。启动不要求当前目录是本仓库。服务端包不进入这个安装闭包。包模板没有应用变体。缺少该变体并不阻止建包。建包前要同时满足两件事。[apps 入口](../apps/README.md#建立与维护)要求应用规格和公开依赖已经写明。[workspace](workspace.md)要求没有实现代码的承诺不建空成员。`help` 与 `version` 的测试归 `apps/cli`。在有真实 SDK 调用之前，这个最小入口不声明 SDK 依赖。SDK 调用的测试归 SDK。服务端接入的测试归 server-entry 和对应能力。模板与架构规则的测试归 `tools/repo-toolchain`。
+发布到仓库之外时，CLI 包提供 `bin`、构建后的启动模块、构建身份文件，以及指向 SDK 包的依赖声明。启动不要求当前目录是本仓库。服务端包不进入这个安装闭包。包模板没有应用变体。缺少该变体并不阻止建包。建包前要同时满足两件事：应用规格和公开依赖已经写明；[workspace](workspace.md)要求没有实现代码的承诺不建空成员。`help` 与 `version` 的测试归 `apps/cli`。在有真实 SDK 调用之前，这个最小入口不声明 SDK 依赖。SDK 调用的测试归 SDK。服务端接入的测试归 server-entry 和对应能力。模板与架构规则的测试归 `tools/repo-toolchain`。
 
 ## 依赖方向与Cordis集成
 
@@ -346,7 +345,7 @@ Session、Agent、Model 与 Tool 按公开责任单向组合。Session 通过 Ag
 
 本表不改变各组内部成员分工。Session 组导入邻域契约的只有 session-adapters 与 session-observation，后者只导入 Model 契约与 Model 的 Cordis 定义；表中 Session 到 Agent 的方向不授予 session-contract 或 session-cordis 新的邻域导入权限。外部装配按其实际职责选择公开能力与提供者，不获得整个目录的反向依赖豁免。
 
-会话观察的依赖边归 session 组的 session-observation，不归接入组（[RFC-0015](rfcs/RFC-0015-access-dynamic-registration.md)）。它有两条跨组的成员级边：`session-observation -> model-contract` 只用公共流的两个读取面 `ModelStreamReferences.current` 与 `ModelStreamObservation.observe` 的类型，`session-observation -> model-cordis-contract` 只用这两个面的服务键。两条边都不导入实现，也不导入接入组的任何成员；后一条由约束登记的方向行 `DIR-SESSION-OBSERVATION-ACCESS` 守。
+会话观察的依赖边归 session 组的 session-observation，不归接入组。它有两条跨组的成员级边：`session-observation -> model-contract` 只用公共流的两个读取面 `ModelStreamReferences.current` 与 `ModelStreamObservation.observe` 的类型，`session-observation -> model-cordis-contract` 只用这两个面的服务键。两条边都不导入实现，也不导入接入组的任何成员；后一条由约束登记的方向行 `DIR-SESSION-OBSERVATION-ACCESS` 守。
 
 同一能力的 Cordis 定义入口保持相同依赖方向，不能以服务键、Context/Events 增补或 `import type` 重新引入纯契约禁止的耦合。类型导入、重导出、跨成员相对路径和公开子路径分别核对。实际约束以所引用成员的身份与责任判断，不按名称含有 Session 或 Agent 一词作结论。
 
@@ -395,7 +394,7 @@ agent从[任务地图](context-map.md#领域设计与新增模块)定位责任�
 九条方向行的依据如下。
 
 - `DIR-SESSION-MODEL`、`DIR-SESSION-TOOL`：[依赖方向与Cordis集成](#依赖方向与cordis集成)里“Session 组只有 session-adapters 导入邻域契约”一句。from 是 session-contract 与 session-cordis-contract，不含 session-adapters 与 session-cordis。
-- `DIR-ACCESS-MODEL`、`DIR-ACCESS-TOOL`：同节里 access 组依赖边的一段（public-contract 不依赖 model-contract 与 stream-arrival，依赖边的唯一来源是公开契约的[三个成员](../packages/access/public-contract/SPEC.md#三个成员)）、[sdk 的安装闭包](../packages/access/sdk/SPEC.md#安装闭包)不含 Model、Tool 契约成员，以及 [stream-arrival 不导入任一领域](../packages/common/stream-arrival/README.md#public-observation-contract)。from 是 public-contract、sdk 与 stream-arrival，to 是 Model、Tool 各自的两个契约成员。stream-arrival 这一半与根依赖规则“common 与 util 不依赖领域成员”重合，这里在角色层重申。server-entry 不在 from：按同一段与 [server-entry 的观察脱离与重附着](../packages/access/server-entry/SPEC.md#观察脱离与重附着746)，它只调用 model-contract 的 `current` 与 stream-arrival 的 `observe`；其余依赖以三个成员的依赖图为准，没有方向行，仍靠评审。
+- `DIR-ACCESS-MODEL`、`DIR-ACCESS-TOOL`：同节里 access 组依赖边的一段（public-contract 不依赖 model-contract 与 stream-arrival，依赖边的唯一来源是接入规格的[总体架构](../packages/access/SPEC.md#总体架构)）、sdk 的安装闭包不含 Model、Tool 契约成员，以及 [stream-arrival 不导入任一领域](../packages/common/SPEC.md#流式到达)。from 是 public-contract、sdk 与 stream-arrival，to 是 Model、Tool 各自的两个契约成员。stream-arrival 这一半与根依赖规则“common 与 util 不依赖领域成员”重合，这里在角色层重申。server-entry 不在 from：按同一段与 [接入规格的会话观察](../packages/access/SPEC.md#会话观察)，它只调用 model-contract 的 `current` 与 stream-arrival 的 `observe`；其余依赖以三个成员的依赖图为准，没有方向行，仍靠评审。
 
 检查规则如下。
 
@@ -408,7 +407,7 @@ agent从[任务地图](context-map.md#领域设计与新增模块)定位责任�
 
 - session-adapters 到 Model 或 Tool 的全包禁令没有采用。上文“依赖方向与Cordis集成”的表对它的限制仍靠评审。
 - session-cordis 到 Model 或 Tool 的禁边没有方向行（它登记了角色，但不在任何方向行的 from 里），仍靠评审。Session 的契约成员与 session-cordis 到 Agent 契约成员的禁边同样没有方向行，仍靠评审。
-- 公共流方向（显示经公共流契约）的精确成员是 `packages/common/stream-arrival`，公开入口是其 [README「公共观察契约」](../packages/common/stream-arrival/README_ZH.md#公共观察契约)的 `StreamObserver.observe`；消费者以各成员 `package.json` 的依赖为准。已机读的只是禁边：public-contract、sdk 与 stream-arrival 不依赖 Model、Tool 的契约成员。“显示必须经公共流契约到达”这条正向要求、server-entry 对 Model 与 Tool 的依赖，以及 access 组到 Agent 契约成员的禁边，都没有方向行，仍靠评审。已有共享流词汇不自动构成该方向的静态采用。
+- 公共流方向（显示经公共流契约）的精确成员是 `packages/common/stream-arrival`，公开入口是其 [README「公共观察契约」](../packages/common/SPEC.md#流式到达)的 `StreamObserver.observe`；消费者以各成员 `package.json` 的依赖为准。已机读的只是禁边：public-contract、sdk 与 stream-arrival 不依赖 Model、Tool 的契约成员。“显示必须经公共流契约到达”这条正向要求、server-entry 对 Model 与 Tool 的依赖，以及 access 组到 Agent 契约成员的禁边，都没有方向行，仍靠评审。已有共享流词汇不自动构成该方向的静态采用。
 - 运行时行为条款不在静态依赖检查范围内。`rules` 中的四条 H1 不变量只登记正文来源，不增加可执行的方向行，也不证明运行时已兑现。
 - [#689 N-PD4](https://github.com/nemori-ai/omne-harness-lite/issues/689#issuecomment-6372915674) 记录的 PD-29 历史完整条款尚未恢复，未知范围保持未覆盖，不从现有角色或方向行反推原文。
 
@@ -420,7 +419,7 @@ Agent 按纯契约、Cordis 定义、通用实现和具体装配分为四个 wor
 
 工厂的 Dependencies、Configuration 与构造入口归通用实现；可替换端口与领域操作归纯契约。框架定义从 agent-cordis-contract 的 `./cordis` 提供，定义包不依赖通用实现或具体提供者。agent-host-local 负责 Agent 实例宿主。
 
-详细成员关系见 [Agent 组](../packages/agent/README.md)。
+详细成员关系见 [Agent 组](../packages/agent/SPEC.md#领域边界)。
 
 ## Session 的安装边界
 
@@ -437,7 +436,7 @@ Skill 与 MCP 各按纯契约、通用实现、Cordis 定义和单机宿主组�
 | `skill-cordis-contract`、`mcp-cordis-contract` | 唯一的 Cordis 服务定义与键。不依赖通用实现 |
 | `skill-host-local`、`mcp-host-local` | 单机宿主：Skill 的本机目录来源，MCP 的传输；各带 Cordis 绑定 |
 
-纯契约和通用实现不依赖 Cordis 定义与单机宿主；Cordis 定义不依赖通用实现与单机宿主。两个领域向外声明的需求端口现在只有测试替身，还没有接进发行应用：没有 `Skills` 元工具，MCP 的动作还没有成为工具条目，也没有经过会话的用例。这些在后续各程交付，支持范围见 [Skill 组](../packages/skills/README.md)与 [MCP 组](../packages/mcp/README.md)。
+纯契约和通用实现不依赖 Cordis 定义与单机宿主；Cordis 定义不依赖通用实现与单机宿主。两个领域向外声明的需求端口现在只有测试替身，还没有接进发行应用：没有 `Skills` 元工具，MCP 的动作还没有成为工具条目，也没有经过会话的用例。这些在后续各程交付，支持范围见 [Skill 组](../packages/skills/SPEC.md)与 [MCP 组](../packages/mcp/SPEC.md)。
 
 成员带入轨道时有五处对不上现行规则，登记为偏离。前三处由紧接着的一程消除，后两处在 MCP 的动作成为工具条目的那一程消除：
 
@@ -449,7 +448,7 @@ Skill 与 MCP 各按纯契约、通用实现、Cordis 定义和单机宿主组�
 
 ## 日历与日程的安装和部署边界
 
-Calendar 与 Schedule/Job 分别按纯契约、Cordis 定义、通用实现、单机后端和工具贡献组织为五个 workspace 成员。十个成员均为 private 0.0.0。Calendar 已提供公开契约、计算、查询与供应服务、本地后端、Cordis 绑定和只读工具。Schedule 已提供公开契约、日程定义的管理与存取、规则计算与只读预览、查询、本地后端、Cordis 绑定和工具；到点触发与 Job 执行还没有实现。两个领域都还没有接进发行应用。具体支持范围见 [Calendar 组](../packages/calendar/README.md)和 [Schedule 组](../packages/schedule/README.md)。包划分建立安装依赖与维护边界，不要求每个包单独成为进程。
+Calendar 与 Schedule/Job 分别按纯契约、Cordis 定义、通用实现、单机后端和工具贡献组织为五个 workspace 成员。十个成员均为 private 0.0.0。Calendar 已提供公开契约、计算、查询与供应服务、本地后端、Cordis 绑定和只读工具。Schedule 已提供公开契约、日程定义的管理与存取、规则计算与只读预览、查询、本地后端、Cordis 绑定和工具；到点触发与 Job 执行还没有实现。两个领域都还没有接进发行应用。具体边界见 [Calendar 组](../packages/calendar/SPEC.md)和 [Schedule 组](../packages/schedule/SPEC.md)。包划分建立安装依赖与维护边界，不要求每个包单独成为进程。
 
 公共服务可以部署在与 Session、Agent runtime 不同的机器或进程。`*-contract` 拥有公共数据和可替换服务端口，不包含 Cordis、SQL 后端、工厂配置或运行时对象。线上请求和回执可序列化，使用稳定身份、明确协议版本及授权语义。`calendar` 与 `schedule` 拥有纯领域算法、应用工厂及其内部构造依赖。`*-cordis-contract` 唯一拥有 Service、键和类型增补，不依赖通用实现。`*-tools` 经 inject 消费服务，不能依赖 core 或 `*-local`。服务定义本身不是网络协议。
 
@@ -459,4 +458,4 @@ Calendar→Schedule、Job→Session 及通知/结果提供者交接，不得以�
 
 既有设计中“最新依据与接受一致”“当前资格”和强撤权等保证保持有效。涉及远端权威时，必须由该权威提供可兑现的授权、保留或围栏协议，并声明能力与有效范围；单次读取后在本地提交不证明这些保证。相关协议及故障证据尚待实现，不在初始化阶段虚构分布式原子性。缺少必要能力时拒绝相关写入，不能降低为过期快照放行。
 
-未来远程客户端可以替换本地绑定的提供者，保持相同公共语义。本次不初始化没有真实消费者的 RPC、消息队列或远程提供者包。公共类型和 schema 随源码实现成为唯一形状源；保留必要行为契约与设计理由，不另建一份重复源码的全量 DDD 正文。具体成员与组合验证见[日历组](../packages/calendar/README.md)和[日程组](../packages/schedule/README.md)。
+未来远程客户端可以替换本地绑定的提供者，保持相同公共语义。本次不初始化没有真实消费者的 RPC、消息队列或远程提供者包。公共类型和 schema 随源码实现成为唯一形状源；保留必要行为契约与设计理由，不另建一份重复源码的全量 DDD 正文。具体成员见[日历组](../packages/calendar/SPEC.md)和[日程组](../packages/schedule/SPEC.md)。

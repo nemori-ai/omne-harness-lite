@@ -1,6 +1,4 @@
 import { decodeProviderName, encodeModelInvocationRef } from '@omne-harness/model-contract'
-// The values that the paths of this fixture send and read. Every identity comes from a decoder of
-// a public package, so no value is made by an assertion.
 import {
   tenantCodec,
   accountCodec,
@@ -26,12 +24,10 @@ import {
 import { createScriptedModelProvider } from '@omne-harness/model-contract/testing'
 import type { Outcome } from '@omne-harness/operation-result'
 
-/** The party that the plugin acts for, named by the assembly in the plugin configuration. */
 export type Principal = Readonly<{ name: string }>
 
 export const follower: Principal = { name: 'follower' }
 
-/** The principal that admits the calls and reads them for the test, apart from the plugin's own. */
 const reader: Principal = { name: 'reader' }
 
 export function expect(condition: boolean, message: string): asserts condition {
@@ -72,7 +68,6 @@ const supplier: Supplier = {
   credential: { layer: 'official' },
 }
 
-/** The request that the owner fixed before the call was admitted; the plugin never reads it. */
 const request: FixedModelRequest = {
   profile: adoption('profile'),
   suppliers: [supplier],
@@ -98,7 +93,6 @@ const consumer: ConsumerRef = {
   purpose: 'purpose',
 }
 
-/** The operation under which the call `name` is admitted; the plugin looks the call up by it. */
 export const admissionOf = (name: string): ModelOperationId => operation(`admit-${name}`)
 
 export const admission = (name: string): Admit<Principal> => ({
@@ -110,18 +104,12 @@ export const admission = (name: string): Admit<Principal> => ({
   consumer,
 })
 
-/**
- * The scripted provider that stands for whatever serves the calls. The principals are the same
- * one when their names are, because Cordis hands the plugin its configuration, not the object
- * that the test built.
- */
 export function newProvider() {
   const scripted = createScriptedModelProvider<Principal>({
     instance: instance('one'),
     samePrincipal: (left, right) => left.name === right.name,
   })
   const { runtime } = scripted.provider
-  /** The state that the provider holds for the call, read under the principal of the test. */
   async function state(name: string): Promise<CallState> {
     const found = must(
       await runtime.calls.inspect({
@@ -142,11 +130,9 @@ export function newProvider() {
     runtime,
     controller: scripted.controller,
     state,
-    /** Admits the call `name` and returns the revision of the admission. */
     async admit(name: string): Promise<Revision> {
       return must(await runtime.calls.admit(admission(name))).revision
     },
-    /** The call shows a new block list, which commits one more revision; returns that revision. */
     async change(name: string): Promise<Revision> {
       scripted.controller.emit({ tenant: tenantA, call: call(name), blocks: [] })
       return (await state(name)).revision
@@ -154,7 +140,6 @@ export function newProvider() {
   }
 }
 
-/** This installed consumer uses only the package codec for ordinary locators. */
 export function invocationReference<T extends Parameters<typeof encodeModelInvocationRef>[0]>(
   parts: T,
 ) {
@@ -166,7 +151,6 @@ export function invocationReference<T extends Parameters<typeof encodeModelInvoc
     }),
   )
 }
-/** A raw reserved locator is used only for an intentionally invalid boundary request. */
 export function reservedReference(parts: Parameters<typeof encodeModelInvocationRef>[0]): string {
   if (!tenantCodec.encode(parts.tenant).ok) throw new Error('fixture tenant')
   return JSON.stringify(['model-invocation', 2, parts.call, parts.admission])

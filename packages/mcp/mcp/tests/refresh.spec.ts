@@ -1,5 +1,3 @@
-// The read port: `refresh` publishes whole listings under the publish boundary of SPEC S5 and
-// invariant 2; `current` and `peer` answer from what is stored and connected, and never connect.
 import { describe, expect, it } from 'vitest'
 import type { AuthorizationDiscovery, CatalogKey } from '@omne-harness/mcp-contract'
 import type {
@@ -536,10 +534,6 @@ describe('refresh fails', () => {
       adoptStdio(base, files)
       const late: string[] = []
       let shut = (): boolean => false
-      // The steps of MC-7 and the port that begins each: the gate (1st adoption, then
-      // eligibility), the build (2nd adoption, its re-read), the stored record, each page, the
-      // publish boundary (3rd adoption, then eligibility and a 4th adoption), the write. A step
-      // begun before closeAll finishes; no step begins after it.
       const begins = new Set(['adoption.endpoint#1', 'adoption.endpoint#2', 'adoption.endpoint#3'])
       const seen = new Map<string, number>()
       const note = (port: string): void => {
@@ -734,7 +728,6 @@ describe('current and peer do not connect', () => {
     })
     if (!('ok' in matches) || matches.ok.kind !== 'acquired') throw new Error('not acquired')
     expect(matches.ok.actions.map(action => action.name)).toEqual(['read'])
-    // The stored basis names other capabilities than the connection negotiated.
     const stored = await record(w)
     if (stored === 'absent') throw new Error('nothing stored')
     const rebased = {
@@ -745,7 +738,6 @@ describe('current and peer do not connect', () => {
     expect(await discovery.current(alice, files)).toMatchObject({
       ok: { kind: 'acquired', basisCurrent: 'differs' },
     })
-    // Member order of the capabilities does not make the basis differ.
     const reordered = {
       ...stored,
       basis: { ...stored.basis, capabilities: jsonOf({ tools: {} }) },

@@ -1,7 +1,3 @@
-// `SkillAccess` over the three ports: the four operations composed from the stages, in the
-// order of the group page "读取". `describe` ends after `gate`; `list` after `pin`; `read` and
-// `export` go on through `verifiedBytes`. Every operation checks on the spot; nothing is kept
-// between calls.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   bodyOffsetOf,
@@ -34,7 +30,6 @@ const BAD_PATH = Object.freeze({ kind: 'bad-path' } as const)
 const RESOURCE_MISSING = Object.freeze({ kind: 'resource-missing' } as const)
 const SOURCE_UNAVAILABLE = Object.freeze({ kind: 'source-unavailable' } as const)
 
-/** Step 4: the description. It reads no bytes. */
 function descriptionOf(gated: Gated): SkillDescription {
   const { ref, declared } = gated
   const material = materialOf(gated)
@@ -50,13 +45,11 @@ function descriptionOf(gated: Gated): SkillDescription {
   }
 }
 
-/** `describe` gives the gate no signal, so the gate cannot answer it `aborted`. */
 function describeFailure(failure: DescribeFailure | Aborted): DescribeFailure {
   if (failure.kind === 'aborted') throw new Error('unreachable: describe gives the gate no signal')
   return failure
 }
 
-/** Step 6: the part to read. A resource path is checked here; a control file is not a resource. */
 function partOf(part: ReadTarget['part']): Outcome<ReadResult['part'], typeof BAD_PATH> {
   if (part.kind === 'body') return succeed(part)
   const checked = toPackagePath(part.path)
@@ -64,12 +57,10 @@ function partOf(part: ReadTarget['part']): Outcome<ReadResult['part'], typeof BA
   return succeed({ kind: 'resource', path: checked.ok })
 }
 
-/** What a moved material is for an operation that may or may not carry a basis. */
 function movedFor(gated: Gated): MovedFailure {
   return gated.basis === undefined ? ADOPTED_MATERIAL_CHANGED : BASIS_UNAVAILABLE
 }
 
-/** Step 9: the entry of the snapshot at `path`, or `undefined`. No other package fills in. */
 function entryAt(snapshot: SkillPackageSnapshot, path: string): PackageEntry | undefined {
   return snapshot.entries.find(entry => entry.path === path)
 }
@@ -103,9 +94,6 @@ export function createSkillAccess<P, S>(ports: SkillPorts<P, S>): SkillAccess<P,
       if (entry === undefined) return fail(RESOURCE_MISSING)
       const bytes = await verifiedBytes(ports, pinned.ok, entry, signal)
       if (!('ok' in bytes)) return bytes
-      // Step 11: the body starts after the closing delimiter. Bytes without a legal frontmatter
-      // are no package that passed `inspect`, so where their body starts is not known: they are
-      // not given as a body.
       const bodyOffset = part.ok.kind === 'body' ? bodyOffsetOf(bytes.ok) : 0
       if (bodyOffset === undefined) return fail(SOURCE_UNAVAILABLE)
       return succeed({
@@ -124,7 +112,6 @@ export function createSkillAccess<P, S>(ports: SkillPorts<P, S>): SkillAccess<P,
       if (!('ok' in material)) return material
       const pinned = await pin(ports, gated.ok, material.ok, movedFor(gated.ok), signal)
       if (!('ok' in pinned)) return pinned
-      // Step 8: only entries of a snapshot whose digest matched, without the control files.
       return succeed({
         basis: pinned.ok.basis,
         resources: pinned.ok.snapshot.entries.filter(entry => !isControlFile(entry.path)),
@@ -139,8 +126,6 @@ export function createSkillAccess<P, S>(ports: SkillPorts<P, S>): SkillAccess<P,
       if (!('ok' in material)) return material
       const pinned = await pin(ports, gated.ok, material.ok, BASIS_UNAVAILABLE, signal)
       if (!('ok' in pinned)) return pinned
-      // Step 10 for every entry, the control files included. One failure ends the export: no
-      // partial package.
       const entries: ExportedEntry[] = []
       for (const entry of pinned.ok.snapshot.entries) {
         const bytes = await verifiedBytes(ports, pinned.ok, entry, signal)

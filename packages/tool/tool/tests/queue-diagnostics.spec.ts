@@ -1,6 +1,3 @@
-// What the answer of a start intent says while the call waits for the head or a slot (SPEC 20,
-// P02): the entries ahead, the slots held of the tool and of the scope, the tool limit and the
-// scope budget, where `null` reads as no limit.
 import { afterEach, describe, expect, it } from 'vitest'
 import { adoption, evidence, failure, fixedOf, functionDefinition, ok } from './runtime-values.ts'
 import {
@@ -16,7 +13,6 @@ afterEach(auditQueues)
 
 type Limits = Readonly<{ concurrency: number | null; scopeBudget: number | null }>
 
-/** The request parts of a call of tool `name` in the one scope, with its limits. */
 function toolIn(name: string, limits: Limits) {
   return {
     availability: {
@@ -30,7 +26,6 @@ function toolIn(name: string, limits: Limits) {
   }
 }
 
-/** Takes an admitted call to `queued`, its queue entry `ready`, without asking to start. */
 async function toQueued(harness: StartHarness, call: string): Promise<void> {
   const preparation = ok(
     await harness.commands.planPreparation({
@@ -50,7 +45,6 @@ async function toQueued(harness: StartHarness, call: string): Promise<void> {
   ok(await harness.commands.enqueue(await writeContext(harness, call, `${call}/enqueue`)))
 }
 
-/** The diagnostic of the wait of a queued call that is asked to start and does not get its turn. */
 async function waitOf(harness: StartHarness, call: string): Promise<string> {
   const answer = failure(
     await harness.commands.prepareStart(await writeContext(harness, call, `${call}/start`)),
@@ -66,7 +60,6 @@ describe('20 queue wait diagnostic (P02)', () => {
     await admitCall(harness, 'c1', toolIn('read_file', { concurrency: 1, scopeBudget: null }))
     await admitCall(harness, 'c2', toolIn('read_file', { concurrency: 1, scopeBudget: null }))
     await admitCall(harness, 'c3', toolIn('read_file', { concurrency: 1, scopeBudget: null }))
-    // c1 and c2 still prepare: both are ahead of c3, and neither holds a slot.
     await toQueued(harness, 'c3')
     expect(await waitOf(harness, 'c3')).toBe(
       'call c3 waits at ordinal 3: 2 ahead, 0 held of this tool (tool limit 1), 0 held in the scope (no scope budget)',

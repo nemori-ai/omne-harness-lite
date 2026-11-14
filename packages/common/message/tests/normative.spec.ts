@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   judgeCompaction,
@@ -11,13 +10,8 @@ import {
   type Message,
   type RecordEntryRef,
 } from '@omne-harness/message'
+import { COMPACTION_TABLE, EXAMPLE_TABLE, REASONING_TABLE } from './normative-tables.ts'
 
-/**
- * The three tables in docs/public-api.md are the rule list of the tool parts, the role rules, the
- * compaction variant, and the reasoning state. This file runs every row, and it also fixes which
- * rules and which polarities each table has to show, so a table that lost a row or changed an
- * outcome fails here.
- */
 const ID = 'msg_abcdefghijklmnopqrstuv'
 
 const POSITIVE = '正'
@@ -27,25 +21,15 @@ interface Cells {
   readonly cells: readonly string[]
 }
 
-/** The data rows of the table under a `## ` heading, each cell without its backticks. */
-function tableRows(heading: string, width: number): readonly Cells[] {
-  const doc = readFileSync(new URL('../docs/public-api.md', import.meta.url), 'utf8')
-  const lines = doc.split('\n')
-  const start = lines.findIndex(line => line.trim() === heading)
-  if (start < 0) throw new Error(`the heading ${heading} is missing`)
-  const rows: Cells[] = []
-  for (let at = start + 1; at < lines.length; at += 1) {
-    const line = lines[at] ?? ''
-    if (line.startsWith('## ')) break
-    if (!line.startsWith('|') || /^\|[\s:-]+\|/u.test(line)) continue
-    const cells = line
-      .slice(1, line.lastIndexOf('|'))
-      .split('|')
-      .map(cell => cell.trim().replace(/^`|`$/gu, ''))
-    if (cells.length !== width) throw new Error(`line ${at + 1}: a row has ${width} cells`)
-    if (cells[0] !== '规则') rows.push({ line: at + 1, cells })
-  }
-  return rows
+function tableRows(
+  table: readonly (readonly string[])[],
+  width: number,
+  firstLine: number,
+): readonly Cells[] {
+  return table.map((cells, at) => {
+    if (cells.length !== width) throw new Error(`line ${firstLine + at}: a row has ${width} cells`)
+    return { line: firstLine + at, cells }
+  })
 }
 
 function countShown(rows: readonly { rule: string; polarity: string }[]): Record<string, number> {
@@ -57,7 +41,6 @@ function countShown(rows: readonly { rule: string; polarity: string }[]): Record
   return shown
 }
 
-// The three keys of a compaction message, for a row that is about its blocks.
 const COMPACTION_KEYS = {
   covers: { from: 'e1', to: 'e1' },
   retained: [],
@@ -74,7 +57,7 @@ interface Row {
 }
 
 function exampleRows(): readonly Row[] {
-  return tableRows('## 示例表', 5).map(({ line, cells }) => {
+  return tableRows(EXAMPLE_TABLE, 5, 103).map(({ line, cells }) => {
     const [rule, polarity, role, blocks, outcome] = cells as [
       string,
       string,
@@ -93,8 +76,6 @@ function outcomeOf(role: string, blocks: unknown): string {
   return `rejected:${judged.rejected}@${judged.blockIndex ?? '-'}`
 }
 
-// How many rows show each rule on each side. An unparsed call may carry any visibility, so that
-// rule has no refused row.
 const EXPECTED_ROWS: Readonly<Record<string, number>> = {
   'call.keys/正': 1,
   'call.keys/反': 2,
@@ -178,12 +159,10 @@ const BASE_MESSAGE = {
   ...COMPACTION_KEYS,
 }
 
-/** The accessor of a `<getter>` cell, and how often it has been called. */
 interface Probe {
   calls: number
 }
 
-/** An array item that is `<getter>` becomes an accessor, as an object value does. */
 function resolveItems(items: readonly unknown[], probe: Probe): unknown[] {
   const resolved: unknown[] = []
   items.forEach((item, index) => {
@@ -201,16 +180,11 @@ function countedAnswer(probe: Probe): string {
   return 'e1'
 }
 
-/** A `<length:N>` cell is a string of that many code units. Any other value is as it is. */
 function resolveText(value: unknown): unknown {
   const length = typeof value === 'string' ? LENGTH.exec(value)?.[1] : undefined
   return length === undefined ? value : 'x'.repeat(Number(length))
 }
 
-/**
- * Applies the markers of the message cell: a key is dropped, is `undefined`, or becomes an
- * accessor, and a text of a given length stands in for a string.
- */
 function resolveMarkers(value: unknown, probe: Probe): unknown {
   if (Array.isArray(value)) return resolveItems(value, probe)
   if (typeof value !== 'object' || value === null) return resolveText(value)
@@ -244,7 +218,6 @@ function textBlock(visibility = SEEN): object {
   return { kind: 'text', id: 'b1', visibility, text: 'x' }
 }
 
-/** The message that a shorthand of the context cell stands for. */
 function shorthandMessage(shorthand: string): Message {
   const [kind = '', callId = ''] = shorthand.split(':')
   const call = { id: 'b1', callId, name: 'echo' }
@@ -273,7 +246,6 @@ function shorthandMessage(shorthand: string): Message {
         { ...textBlock(), id: 'b2' },
       ])
     case 'compaction': {
-      // `compaction:TO:R1+R2` covers e1 to TO and keeps R1, R2; bare `compaction` is the base keys.
       const [, to, retained] = shorthand.split(':')
       if (to === undefined) return admit('compaction', [textBlock()], COMPACTION_KEYS)
       const kept = retained === undefined || retained === '' ? [] : retained.split('+')
@@ -347,7 +319,7 @@ interface CompactionRow {
 const NOTES = ['getter 未被调用', '成功值不变且已冻结']
 
 function compactionRows(): readonly CompactionRow[] {
-  return tableRows('## 压缩用例表', 5).map(({ line, cells }) => {
+  return tableRows(COMPACTION_TABLE, 5, 181).map(({ line, cells }) => {
     const [rule, polarity, patch, context, outcome] = cells as [
       string,
       string,
@@ -369,7 +341,6 @@ function compactionRows(): readonly CompactionRow[] {
   })
 }
 
-/** What the function under test says: a message rejection, or a history rejection with its ref. */
 function verdictOf(message: unknown, context: ContextCell | undefined): string {
   if (context === undefined) {
     const judged = judgeMessage(message)
@@ -431,7 +402,6 @@ describe('the compaction table', () => {
   )
 })
 
-/** The success value keeps the three keys as they were, and no later change of the input reaches it. */
 function expectCopy(message: Record<string, unknown>): void {
   const judged = judgeMessage(message)
   if (!('ok' in judged) || judged.ok.role !== 'compaction') {
@@ -465,7 +435,7 @@ interface ReasoningRow {
 }
 
 function reasoningRows(): readonly ReasoningRow[] {
-  return tableRows('## 推理续接状态用例表', 4).map(({ line, cells }) => {
+  return tableRows(REASONING_TABLE, 4, 253).map(({ line, cells }) => {
     const [rule, polarity, patch, outcome] = cells as [string, string, string, string]
     const [verdict = '', ...notes] = outcome.split(';').map(part => part.trim())
     for (const note of notes) {
@@ -482,7 +452,6 @@ function reasoningRows(): readonly ReasoningRow[] {
   })
 }
 
-/** The block that a shorthand of the message cell stands for, or the block object as it is. */
 function shorthandBlock(item: unknown): unknown {
   if (typeof item !== 'string') return item
   const [kind = '', rest = ''] = item.split(':')
@@ -520,7 +489,6 @@ function textBlockOf(id: string, kind: 'text' | 'thinking'): object {
   return { kind, id, visibility: SEEN, text: 'x' }
 }
 
-/** The message of a row: the base, the patch, the block shorthands, and the `state` override. */
 function reasoningMessage(patch: Record<string, unknown>): Record<string, unknown> {
   const { state, ...own } = patch
   const message: Record<string, unknown> = { ...BASE_ASSISTANT, ...own }
@@ -603,10 +571,6 @@ function expectNoReplay(message: Record<string, unknown>): void {
   expect('replay' in admittedAssistant(message)).toBe(false)
 }
 
-/**
- * `replay`, its `at`, and the `pairs` of each state part are frozen copies, and no later change
- * of the input reaches them.
- */
 function expectFrozenCopy(message: Record<string, unknown>): void {
   const { replay, blocks } = admittedAssistant(message)
   if (replay === undefined) throw new Error('expected replay in the success value')

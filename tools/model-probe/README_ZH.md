@@ -12,7 +12,7 @@ node scripts/model-probe.mjs catalog --output tmp/model-request-runtime/catalog.
 node scripts/model-probe.mjs run --config tmp/model-request-runtime/probe.json --snapshot tmp/model-request-runtime/catalog.json --credential-file /absolute/path/to/.env --ledger tmp/model-request-runtime/ledger.json --output tmp/model-request-runtime/run-01
 ```
 
-`catalog` 只进行公开读取；`run` 必须显式提供配置、凭证文件、账本和输出目录。没有隐式付费请求、环境凭证回退、重定向或重试。同一次交付的运行必须共用一个账本。批准总额度为 100 USD；研究额度应低于总额度，为最终实现验收留出资金。
+`catalog` 只进行公开读取；`run` 必须显式提供配置、凭证文件、账本和输出目录。没有隐式付费请求、环境凭证回退、重定向或重试。同一次交付的运行必须共用一个账本。批准总额度为 200 USD，每份账本的 `limitUsd` 必须等于账本头里的值；研究额度应低于总额度，为最终实现验收留出资金。
 
 配置示例：
 

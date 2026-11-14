@@ -54,7 +54,6 @@ const statusOf: Record<string, number> = {
   unknown: 500,
 }
 
-/** A success for each operation the commands use, in the wire form of the public contract. */
 export function defaultAnswer(seen: Seen): Answer {
   const body = (seen.wire['body'] ?? {}) as Record<string, unknown>
   switch (seen.wire['operation']) {
@@ -99,7 +98,6 @@ export function defaultAnswer(seen: Seen): Answer {
 }
 
 const at = '2026-11-01T12:00:00Z'
-/** The configuration time the setting operations answer. */
 export const settingAt = '2026-11-09T08:00:00Z'
 const invitation = { invitationId: 'inv-1', state: 'open', expiresAt: at }
 const emptyOperations = new Set([
@@ -109,7 +107,6 @@ const emptyOperations = new Set([
   'change-member-role',
 ])
 
-/** A success for each governance operation that is not an account or session step. */
 function governanceAnswer(operation: string, body: Record<string, unknown>): Answer | undefined {
   const succeeded = (answer: unknown): Answer => ({ outcome: 'succeeded', body: answer })
   if (emptyOperations.has(operation)) return succeeded({})
@@ -181,7 +178,6 @@ function governanceAnswer(operation: string, body: Record<string, unknown>): Ans
   }
 }
 
-/** A real HTTP server on 127.0.0.1 that answers the commands' operations as the public contract writes them. */
 export async function startFakeService(
   answer: (seen: Seen) => Answer = defaultAnswer,
 ): Promise<FakeService> {
@@ -222,7 +218,6 @@ export async function startFakeService(
   }
 }
 
-/** A port that nothing listens on. */
 export async function closedPort(): Promise<number> {
   const server = createServer()
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))

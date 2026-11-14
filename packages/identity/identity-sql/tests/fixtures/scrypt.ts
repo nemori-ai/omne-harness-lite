@@ -1,6 +1,3 @@
-// A small scrypt configuration for tests. Only N differs from SCRYPT_PROFILE, to keep a derivation
-// in the millisecond range. `gatedCompute` can hold every computation until the test releases it,
-// so a test can fill the scrypt queue or keep a call in flight across `stop()`.
 import {
   hashScrypt,
   openScrypt,
@@ -21,7 +18,6 @@ export const TEST_SCRYPT_PROFILE: ScryptProfile = {
 
 export type OpenedScrypt = Readonly<{ module: ScryptModule; decoyMaterial: string }>
 
-/** Opens a module and derives the decoy material, as the plugin body does. */
 export async function openTestScrypt(
   profile: ScryptProfile = TEST_SCRYPT_PROFILE,
   compute?: ScryptCompute,
@@ -37,15 +33,11 @@ export async function openTestScrypt(
 
 export type GatedCompute = Readonly<{
   compute: ScryptCompute
-  /** Later computations wait until `release()`. */
   hold(): void
-  /** Lets every held computation finish, and later ones run at once. */
   release(): void
-  /** Number of computations that entered `compute`. */
   calls(): number
 }>
 
-/** Real scrypt whose completion can be held by the test. The gate starts open. */
 export function gatedCompute(): GatedCompute {
   let open = true
   let count = 0

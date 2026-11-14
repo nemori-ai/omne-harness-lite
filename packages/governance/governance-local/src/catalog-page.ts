@@ -40,9 +40,7 @@ function afterKey(cursor: string | null, expected: ReturnType<typeof cursorBasis
       parsed.witness === expected.witness
     )
       return { kind: 'after' as const, key: parsed.after }
-  } catch {
-    /* A cursor is untrusted transport. */
-  }
+  } catch {}
   return { kind: 'conflict' as const, reason: 'basis' as const }
 }
 type CatalogEntry = Readonly<{ key: string; item: GovernanceCatalogItem }>

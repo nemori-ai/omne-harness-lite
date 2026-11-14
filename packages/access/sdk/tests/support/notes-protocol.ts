@@ -1,5 +1,3 @@
-// The client side of the notes protocol that server-entry's test entry mounts. Both ends must name
-// the same contract; the SDK may not import server-entry, so it is written out here once more.
 import { defineProtocol, ruleCodec } from '@omne-harness/public-contract'
 
 const empty = ruleCodec({ kind: 'object', fields: {} })
@@ -35,6 +33,5 @@ export const notesProtocol = defineProtocol({
   },
 })
 
-/** The login proof and the tenant the test entry knows. */
 export const PROOF = 'proof-alice-7f3c'
 export const TENANT = 'tenant-acme'

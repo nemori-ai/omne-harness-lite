@@ -1,7 +1,3 @@
-// Group commit G2-P (SPEC 7.3, 7.4, 7.7.3, 7.7.4, 7.8, 4.5). The `seq` probe reads the file through
-// its own connection while the group runs, so "rows seen by the probe" is the number of operations
-// that are durable at that moment: 0 for the first operation of a group means they share a
-// physical transaction.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { CommitResultV2 } from '@omne-harness/sql-contract'
 import {
@@ -36,7 +32,6 @@ afterEach(async () => {
   await workspace.remove()
 })
 
-/** A registered domain. The collection window is wide, so operations issued together are in it. */
 async function ready(
   config: Record<string, number> = {},
   materials: Built = built,
@@ -57,7 +52,6 @@ function reply(result: CommitResultV2, participant: string): unknown {
   return (entry.reply as { response: unknown }).response
 }
 
-/** What the probe of this result saw: durable rows and receipts at the time it ran. */
 const probed = (result: CommitResultV2): { rows: number; receipts: number } =>
   reply(result, 'seq') as { rows: number; receipts: number }
 

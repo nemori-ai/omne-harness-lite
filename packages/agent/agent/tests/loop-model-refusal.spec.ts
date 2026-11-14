@@ -1,9 +1,3 @@
-// R2-D237: what M6 does with an admission that the Model does not accept. A definite refusal
-// (denied, invalid, unsupported) is the failure candidate `model-refused`, and F1 ends the
-// run with it: the original call and the Model's refusal are readable in the candidate. An
-// unavailable Model is a dependency wait at M6 with its owner; the wake at the check time admits the
-// same call again, and the run goes on to its reply. The scripted Model and the memory Journal are
-// the only providers; nothing here proves a real provider or a durable Journal.
 import { describe, expect, it } from 'vitest'
 import type { AgentDependencies } from '@omne-harness/agent'
 import type { EffectIntent, FinishCandidateContent } from '@omne-harness/agent-contract'
@@ -37,10 +31,6 @@ const SHARE_FULL: ModelFailure = {
   diagnostic: 'the share of the tenant is full',
 }
 
-/**
- * The dependencies with `admit` answering `answer` for its first `times` calls, and the effect
- * intents and F1 candidates of the commits recorded. Later calls reach the scripted Model.
- */
 function refusing(
   answer: ModelFailure,
   times: number,
@@ -95,7 +85,6 @@ describe('M6 with an admission the Model does not accept (R2-D237)', () => {
       await eventually(async () => (await read(assembly)).state.kind === 'ended')
       const ended = await read(assembly)
       expect(ended.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'fail' } })
-      // The candidate names the call M0 recorded and keeps the Model's refusal as it is.
       expect(finishes).toHaveLength(1)
       expect(finishes[0]?.conclusion.kind).toBe('fail')
       const candidate = finishes[0]?.failure
@@ -105,14 +94,11 @@ describe('M6 with an admission the Model does not accept (R2-D237)', () => {
         throw new Error('the model-refused candidate and the recorded call are required')
       expect(effect.pending.reference).toContain(candidate.call)
       expect(candidate.source).toEqual(effect.pending.fixed)
-      // The refused call leaves no continuation, and no received entry was ever written.
       expect(ended.checkpoint.calls).toEqual([])
       expect(ended.entries ?? []).toEqual([])
     },
   )
 
-  // model-contract "按租户的串行区与公平": a tenant share that is full now answers unavailable
-  // with the dependency model-capacity; the run waits and completes like any other unavailable.
   it.each([UNAVAILABLE, SHARE_FULL])(
     'waits at M6 on an unavailable Model ($dependency), names its owner, and admits the same call again after the check time',
     async answer => {
@@ -144,7 +130,6 @@ describe('M6 with an admission the Model does not accept (R2-D237)', () => {
         waits: [{ kind: 'dependency', owner: 'modelRuntime', position: 'M6' }],
       })
       expect(admits).toHaveLength(1)
-      // The dependency comes back; the check time wakes the run, which admits the same call.
       await eventually(async () => assembly.controls.clock.pending().length > 0)
       const due = assembly.controls.clock.pending()[0]
       if (due === undefined) throw new Error('the check time is required')

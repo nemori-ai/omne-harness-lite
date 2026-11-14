@@ -1,5 +1,3 @@
-// Rules of the host clock that the contract suite does not pin down: what a marker accepts, why a
-// foreign marker is refused, how `waitUntil` follows the wall time, and the default sources.
 import { describe, expect, it } from 'vitest'
 import { decodeToolCallId, decodeToolOperationId } from '@omne-harness/tool-contract'
 import { decodeToolInstanceId } from '@omne-harness/tool-contract/provider'
@@ -78,7 +76,6 @@ describe('G4 host clock', () => {
     const clock = createLocalToolClock({ ...time.sources, epoch: 'run-1' })
     const waiting = clock.waitUntil(time.instantAfter(200), new AbortController().signal)
     time.setBack(100)
-    // The sleep of 200 ms ends, but the wall time stands 100 ms short of the instant.
     time.advance(200)
     const early = await Promise.race([
       waiting,

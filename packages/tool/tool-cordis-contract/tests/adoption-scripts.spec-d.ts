@@ -1,4 +1,3 @@
-// The doubles take the caller's access, never a bare tenant, and keep the coordinator's contract.
 import { expectTypeOf, it } from 'vitest'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { Access } from '@omne-harness/tool-contract'

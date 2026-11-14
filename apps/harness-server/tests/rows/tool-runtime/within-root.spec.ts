@@ -1,6 +1,3 @@
-// 执行环境守卫与对象命名共用的文件根判定：根内（含根本身）为真；`..` 逃逸、根外绝对路径、以根为前缀的兄弟目录为假。
-// 守卫按请求核对每个路径值（L3 评审 N4）：cwd、`path`、`move`/`copy` 的 `target.path`、`commitBatch` 的 `entries[].path`。
-// 同一模块的绑定（#1137）：一次性执行的获取带保留进程账本视图，它与保留终端的账本是同一个保留视图对象。
 import { join, resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
@@ -73,7 +70,6 @@ describe('the binding hands the retained view as both retention ledgers (#1137)'
   it('the processes view of the retention is the same object as its terminal ledger', async () => {
     const scope = decodeScopeRef({ ref: 'session-scope:within-root-binding' })
     if ('failure' in scope) throw new Error('fixture scope')
-    // Binding opens the ledger views only; without a SQL store their first reads answer unavailable.
     const holder = toolRuntimeHolder({ root: {} } as unknown as Context)
     const { input } = createReleaseEnvironment(holder, {} as unknown as ReleaseToolIdentity, {
       filesRoot: ROOT,

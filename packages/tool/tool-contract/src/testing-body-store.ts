@@ -1,8 +1,3 @@
-// The ToolBodyStore conformance suite and a non-durable double that conforms to it. The suite runs
-// every multi-step sequence as separate calls, so a provider that co-commits steps is checked
-// against the behaviour of the split steps; `crash` loses process state between two steps; the
-// store clock is moved apart from the issuer's to check that the store judges the deadline with its
-// own clock. The double keeps bytes in memory and declares `durability: 'none'`.
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import type { TenantId } from '@omne-harness/legal-identity'
@@ -24,13 +19,6 @@ import { decodeToolBodyId, decodeToolInstanceId } from './identity.ts'
 import { conformanceCase, handle, type ConformanceCase } from './testing-case.ts'
 import { callId, testingTenant } from './testing-values.ts'
 
-/**
- * What the body store suite needs. A fresh fixture serves one case. `key` is the permit key the
- * store verifies with; the suite signs its own permits with it. `setStoreClock` moves the clock the
- * store reads, and every later operation of the store sees the new reading. `crash` loses every
- * process-held state of the store between two steps while durable bytes survive; a double without
- * process state may make it a no-op. `otherTenant` enables the isolation case.
- */
 export interface ToolBodyStoreFixture {
   readonly store: ToolBodyStore
   readonly key: ToolBodyPermitKey
@@ -41,7 +29,6 @@ export interface ToolBodyStoreFixture {
 }
 
 const T0 = Date.parse('2026-11-09T00:00:00.000Z')
-/** The permit duration W of the suite. */
 const W = 2_000
 const EPSILON = 1_000
 
@@ -95,7 +82,6 @@ async function expectAbsent(store: ToolBodyStore, body: ToolBodyRef, what: strin
   assert.deepEqual(await store.read(body, { first: 0, count: 8 }), { kind: 'absent' }, what)
 }
 
-/** A fixture at the issuer's time: the store clock reads T0 unless a case moves it. */
 async function started(fixture: ToolBodyStoreFixture) {
   await fixture.setStoreClock(instantAt(0))
   const body = bodyRef(fixture.tenant, 'body-1')
@@ -177,8 +163,6 @@ export function toolBodyStoreConformance(): readonly ConformanceCase<ToolBodySto
       assert.deepEqual(await store.delete(body), { kind: 'deleted' })
       await expectAbsent(store, body, 'deleted')
       assert.deepEqual(await store.delete(body), { kind: 'deleted' }, 'idempotent')
-      // No tombstone: a permit still within its deadline writes again. The ledger's parameter
-      // constraints (G > W + 2ε, D > W + 2ε) keep this unreachable, not the store.
       assert.deepEqual(await store.put(permit, 0, CHUNKS[0]!), { kind: 'kept' })
       assert.deepEqual(await store.delete(body), { kind: 'deleted' })
       await expectAbsent(store, body, 'deleted again')
@@ -205,7 +189,6 @@ export function toolBodyStoreConformance(): readonly ConformanceCase<ToolBodySto
       assert.deepEqual(await store.put(permit, 1, CHUNKS[1]!), { kind: 'permit-expired' })
       assert.deepEqual(await store.seal(permit, manifest), { kind: 'permit-expired' })
       await expectAbsent(store, body, 'an expired permit sealed nothing')
-      // The store behind the issuer by ε still accepts: it reads only its own clock.
       await fixture.setStoreClock(instantAt(W - EPSILON))
       assert.deepEqual(await store.put(permit, 1, CHUNKS[1]!), { kind: 'kept' })
       assert.deepEqual(await store.seal(permit, manifest), { kind: 'sealed' })
@@ -244,13 +227,8 @@ export function toolBodyStoreConformance(): readonly ConformanceCase<ToolBodySto
   ]
 }
 
-// ---------------------------------------------------------------------------------------------
-// The non-durable double
-// ---------------------------------------------------------------------------------------------
-
 export interface MemoryToolBodyStore extends ToolBodyStore {
   readonly durability: 'none'
-  /** The next operation answers `unavailable` and changes nothing. */
   failNext(): void
 }
 
@@ -267,7 +245,6 @@ function refKey(body: ToolBodyRef): string {
 
 const sameBytes = (a: Uint8Array, b: Uint8Array) => Buffer.from(a).equals(Buffer.from(b))
 
-/** Whether the chunks hold exactly what `manifest` declares, as the digest of the whole. */
 export function chunksHold(
   chunks: ReadonlyMap<number, Uint8Array>,
   manifest: ToolBodyManifest,
@@ -366,7 +343,6 @@ export function createMemoryToolBodyStore(
   }
 }
 
-/** A manual clock for a participant of the suite. */
 export function createManualInstantClock(
   start: ToolInstant,
 ): ToolInstantClock & { set(now: ToolInstant): void } {

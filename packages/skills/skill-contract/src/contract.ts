@@ -88,11 +88,6 @@ function judge(body: unknown, context?: { capabilityName?: string }): Judgment {
   return first === undefined ? { ok: true } : refusal(first.code)
 }
 
-/**
- * Reads the additive fields: `description`, `scripts`, `settings` and `package.digest`. Each one
- * may be absent. They follow the shape rules of `.omne/skill.json`, and script entries must be
- * normalized already.
- */
 function extensionOf(body: unknown): Read<readonly SettingDeclaration[]> {
   const findings: Finding[] = []
   const description = field(body, 'description')

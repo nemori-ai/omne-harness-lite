@@ -154,7 +154,6 @@ async function recovery(world: World, kind: 'bind' | 'consume', command: unknown
     result.responses.find(item => item.participant === 'hitl.independent-state')?.reply.response,
   ).result
 }
-/** 夹具里的 prepare 命令；类型上收窄到 prepare 分支。 */
 function preparedFixture() {
   if (preparation.kind !== 'prepare') throw new TypeError('the fixture is not a prepare command')
   return preparation
@@ -211,7 +210,6 @@ it('serializes competing human answers and recovers the original submission on r
     'already-decided',
     'decided',
   ])
-  // The storage recognises the replay as the earlier commit and answers its receipt as recalled.
   expect(await commit(world, a.command.operation, independentRequestCommands(a, waitRef))).toEqual({
     ...results[0],
     recalled: true,
@@ -590,7 +588,6 @@ it('recognises the original result only from the participants that own request a
       },
     }).inspect(binding)
   const owners = ['hitl.requests', 'hitl.independent-state']
-  // The one stored envelope sits under a participant that owns neither state: no original result.
   expect(
     await inspectWith(responses =>
       responses.map(item =>
@@ -598,7 +595,6 @@ it('recognises the original result only from the participants that own request a
       ),
     ),
   ).toEqual({ kind: 'unavailable', reason: 'operation-result' })
-  // A copy of that envelope under a foreign participant is no second candidate.
   expect(
     await inspectWith(responses => [
       ...responses,

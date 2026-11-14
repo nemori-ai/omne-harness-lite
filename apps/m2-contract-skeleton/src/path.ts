@@ -1,13 +1,3 @@
-// The connected M2 tenant path (CS v2). Every hop calls a public entry of a contract member through
-// a port that the caller passes in; this module imports only root entries and builds no double. The
-// caller (the tests of this application) wires the `./testing` doubles. Each hop returns an
-// observation with safe evidence labels: no credential, login proof or message body enters it.
-//
-// The path runs the first round (H01 to H08), reads the Agent records of that round (H13), drives
-// the later rounds (H09), and then probes three scenarios in their own sessions: the Tool round
-// trip (H10), the reassembly of the Agent instance during a Model call (H11) and the reasoning
-// replay (H12). A probe that the upstream public entries refuse reports the refusal as evidence;
-// it never builds the missing behavior here.
 import { createHash } from 'node:crypto'
 import { setImmediate } from 'node:timers/promises'
 import { readModelDeliveryMaterial, type AgentProvider } from '@omne-harness/agent'
@@ -97,25 +87,20 @@ export {
   type FirstPathObservation,
 } from './hops.ts'
 
-/** The principal of the path: the account that identity recognized from the login proof. */
 export type PathPrincipal = string
 
 export const PATH_OWNER = '@omne-harness/m2-contract-skeleton'
 const GOVERNANCE_VERSION = 'governance-public/1'
 const SESSION_VERSION = 'session-public/1'
 
-/** The sessions of the path: the main rounds and one session for each probe. */
 export const PATH_SESSIONS = {
   main: 'session-cs-first',
   tool: 'session-cs-tool',
   reassembly: 'session-cs-reassembly',
   reasoning: 'session-cs-reasoning',
 } as const
-/** How many rounds the main session drives. */
 export const PATH_ROUNDS = 3
-/** The default bound on waiting for an Agent reply, in event-loop turns. */
 export const DEFAULT_REPLY_TURNS = 2000
-/** The page size of every Session history read of the path, in bytes. */
 const HISTORY_PAGE_BYTES = 1_000_000
 
 const refused = (...evidence: string[]): ConnectedObservation => ({ kind: 'refused', evidence })
@@ -128,72 +113,43 @@ const observed = (connected: boolean, evidence: readonly string[]): ConnectedObs
   evidence,
 })
 
-/**
- * The label of an observation that one step stopped with a single label, such as a refused path
- * step or a session that was not created.
- */
 function firstLabel(observation: ConnectedObservation): string {
   return evidenceOf(observation)[0] ?? 'unknown'
 }
 
-/** The kind of an observation that did not connect: a refusal stays one, anything else disconnects. */
 function unconnectedKind(observation: ConnectedObservation): 'refused' | 'disconnected' {
   return observation.kind === 'refused' ? 'refused' : 'disconnected'
 }
 
-/** The same observation with more evidence labels. */
 function withEvidence(observation: ConnectedObservation, more: readonly string[]) {
   return observation.kind === 'not-reached' || more.length === 0
     ? observation
     : { ...observation, evidence: [...observation.evidence, ...more] }
 }
 
-/** The Agent Journal and materials of one session on the Session log (#756). */
 export type SessionLogAgentJournal = Readonly<{
   journal: AgentJournal<PathPrincipal>
-  /** The receiving entries of the same Journal; the snapshot carries none. */
   entries: AgentJournalEntries<PathPrincipal>
   materials: AgentMaterials<PathPrincipal, ContentBlock>
 }>
 
-/** The Session store that the caller assembles with the access check this path injects (#680 B-1). */
 export type SessionAssembly = Readonly<{
   transactions: SessionTransactionPort<PathPrincipal>
-  /** Session's evidence bridge: the guard materials of every commit, such as the login gate. */
   evidence: SessionEvidenceBridge
-  /**
-   * The same-log Agent Journal of a session when the store is the Session log of #756. Null when
-   * the store carries no Agent Journal; the Agent then keeps its own Journal and H13 is a gap.
-   */
   agentJournal: ((access: SessionAccess<PathPrincipal>) => SessionLogAgentJournal) | null
 }>
 
-/**
- * What the scripted Model of an Agent answers. `reply`: a text reply for each admitted call.
- * `tool-call`: a reply that carries a tool call. `reasoning`: a reply with a thinking part.
- * `held`: nothing until `releaseModel` is called.
- */
 export type AgentScenario = 'reply' | 'tool-call' | 'reasoning' | 'held'
 
-/** The Agent assembled for one tenant, with the two bridges this application owns plugged in. */
 export type PathAgent = Readonly<{
   provider: AgentProvider<PathPrincipal>
   journal: AgentJournal<PathPrincipal>
-  /** The receiving entries of the same Journal; the snapshot carries none. */
   entries: AgentJournalEntries<PathPrincipal>
   materials: AgentMaterials<PathPrincipal, ContentBlock>
-  /** The Agent instance that Session's `startRun` names. */
   instance: string
-  /** Settles the held Model call of the `held` scenario; null when the Model settles on its own. */
   releaseModel: (() => void) | null
-  /** How many calls the Model runtime admitted from this Agent (caller-reported). */
   admitted(): number
-  /** How many invocations the Tool runtime received from this Agent (caller-reported). */
   toolInvocations(): number
-  /**
-   * The execution-environment facility calls that the Tool runtime made for this Agent, each with
-   * the kind of its answer, such as `files.read:done` (caller-reported).
-   */
   toolEffects(): readonly string[]
 }>
 
@@ -201,24 +157,10 @@ export type PathDependencies = Readonly<{
   identity: IdentityOperations
   /** The login identifier and credential of the first tenant; they never enter the report. */
   login: Readonly<{ loginIdentifier: string; credential: string }>
-  /**
-   * The current access decision of every Session read and write. The path hands it to `session`.
-   * The caller must give a value: `undefined` is the explicit absence, under which the assembly
-   * stays pending and no Session call is made (#680 ruling B-1, item 4). The path never
-   * substitutes a default.
-   */
   sessionAccessCheck: SessionAccessCheck<PathPrincipal> | undefined
-  /** Builds the Session store with the injected access check. */
   session(input: Readonly<{ accessCheck: SessionAccessCheck<PathPrincipal> }>): SessionAssembly
-  /** The definition-name mapping entry of the session (application assembly page). */
   creation: SessionCreation
-  /** The external inputs of the main session, one for each round; at least `PATH_ROUNDS`. */
   requests: readonly Message[]
-  /**
-   * Builds the Agent of the tenant. `handoff` and `requests` are the bridges of this module; the
-   * caller places them as the Agent's `handoff` and `requests` dependencies. `journal` is the
-   * same-log Journal of the session when the Session store supplies one.
-   */
   agent(
     input: Readonly<{
       tenant: TenantId
@@ -230,12 +172,6 @@ export type PathDependencies = Readonly<{
       requests: RequestPreparation<PathPrincipal>
     }>,
   ): Promise<PathAgent>
-  /**
-   * Request Context assembly of the tenant over the given Session history messages, through
-   * `createAssemblyOperations` and the caller's sources. `lease` reports what the Model preparation
-   * resources of those sources saw: leases acquired, leases still open, and plans of an assembled
-   * input.
-   */
   assemble(
     input: Readonly<{
       tenant: TenantId
@@ -247,19 +183,12 @@ export type PathDependencies = Readonly<{
       lease: Readonly<{ acquired: number; outstanding: number; planned: number }>
     }>
   >
-  /**
-   * The Agent preparation fields that Request Context does not produce (source, state, schema,
-   * budget, coverage). The Agent-side Context adapter that owns them is not supplied (#542).
-   */
   preparationFrame: RequestPreparation<PathPrincipal>['prepare']
-  /** Upper bound on waiting for the Agent reply, in event-loop turns. Default 2000. */
   replyTurns?: number
 }>
 
-/**
- * A refusal inside a path step. It carries only the step name that this application mints and the
- * `kind` of the failure, never free text of a supplier or a port.
- */
+// A refusal inside a path step: only the step name this application mints and the failure `kind`,
+// never free text of a supplier or a port.
 export class PathStepError extends Error {
   readonly step: string
   readonly kind: string
@@ -271,7 +200,6 @@ export class PathStepError extends Error {
   }
 }
 
-/** The `kind` of a failure value, or `unknown` when it has no string `kind`. */
 export function kindOf(failure: unknown): string {
   return typeof failure === 'object' &&
     failure !== null &&
@@ -291,7 +219,6 @@ function okOf<T>(outcome: { ok: T } | { failure: unknown }, what: string): T {
   return outcome.ok
 }
 
-/** An Agent operation id that this module fixes; decoded once, when the module loads. */
 function fixedOperation(raw: string): AgentOperationId {
   return okOf(decodeAgentOperationId(raw), `fixed-operation:${raw}`)
 }
@@ -299,9 +226,7 @@ const QUIESCE_OPERATION = fixedOperation('quiesce-cs')
 const DETACH_OPERATION = fixedOperation('detach-cs')
 const RESUME_OPERATION = fixedOperation('resume-cs')
 
-/** A Session operation id minted by the caller for the intake operations of this path. */
 const callerOperation = (name: string): SessionOperationId => `sop_cs-${name}` as SessionOperationId
-/** A Session id of this path; the ids are fixed names of `PATH_SESSIONS`. */
 const pathSession = (name: string): SessionId => name as SessionId
 
 function evidence(record: string): DurableEvidence {
@@ -314,32 +239,27 @@ function textOf(message: Message): string {
     .join('')
 }
 
-/** The value of a member of a json-text object, or null when the value is not an object with it. */
 function fieldOf(value: JsonValue, key: string): JsonValue | null {
   if (value.kind !== 'object') return null
   return value.entries.find(entry => entry.key === key)?.value ?? null
 }
 
-/** The string value of a member of a json-text object, or null. */
 function stringField(value: JsonValue, key: string): string | null {
   const field = fieldOf(value, key)
   return field?.kind === 'string' ? field.value : null
 }
 
-/** A message judged from a json-text value. */
 function judgedMessage(value: JsonValue): Message | null {
   const judged = judgeMessage(JSON.parse(writeJsonText(value)))
   return 'ok' in judged ? judged.ok : null
 }
 
-/** The message of a Session message entry, read back from its json-text payload. */
 export function messageOf(entry: Pick<HistoryEntry, 'kind' | 'payload'>): Message | null {
   if (!entry.kind.startsWith('message.')) return null
   const message = fieldOf(entry.payload, 'message')
   return message === null ? null : judgedMessage(message)
 }
 
-/** Waits at most `turns` event-loop turns for `done` to become true. */
 async function waitTurns(turns: number, done: () => boolean): Promise<'done' | 'timed-out'> {
   for (let turn = 0; turn < turns; turn += 1) {
     if (done()) return 'done'
@@ -347,9 +267,6 @@ async function waitTurns(turns: number, done: () => boolean): Promise<'done' | '
   }
   return done() ? 'done' : 'timed-out'
 }
-
-// ---------------------------------------------------------------------------------------------
-// H01 and H02: governance over identity
 
 type Identified = Readonly<{ tenant: TenantId; principal: PathPrincipal; loginProof: string }>
 
@@ -418,7 +335,6 @@ type IssuedLogin = Extract<
   { kind: 'succeeded' }
 >
 
-/** The `issue-login` response through the governance codec; the login proof it carries, or null. */
 function carryLoginProof(issued: IssuedLogin, messageId: string): string | null {
   const response = readGovernanceResponse({
     bytes: encoded(
@@ -489,19 +405,10 @@ export async function logIn(
   }
 }
 
-// ---------------------------------------------------------------------------------------------
-// The session wire: the public session codecs of #685, carried in process
-
-/**
- * The wire identifier of a session: the 64-hex digest that `create-session` returns. Deriving it
- * from the Session id is the mapping that the server entry owns (M2); this application mints it
- * for the loop-back only (GAP-SESSION-WIRE).
- */
 export function wireSessionOf(session: SessionId): string {
   return createHash('sha256').update(String(session)).digest('hex')
 }
 
-/** Encodes a session request, reads it back, and returns the read request of that operation. */
 function carrySessionRequest(request: SessionRequest): SessionRequest | null {
   const bytes = encodeSessionRequest({ request, limits: PATH_CODEC_LIMITS })
   if (bytes.kind !== 'encoded') return null
@@ -510,7 +417,6 @@ function carrySessionRequest(request: SessionRequest): SessionRequest | null {
   return read.request
 }
 
-/** Encodes a session response, reads it back, and returns the read response. */
 function carrySessionResponse<O extends SessionOperation>(
   input: SessionResponseEncodeInput<O> & Readonly<{ operation: O }>,
   expectedMessageId: string,
@@ -530,21 +436,15 @@ function proofOf(identified: Identified) {
   return { kind: 'present' as const, value: identified.loginProof }
 }
 
-// ---------------------------------------------------------------------------------------------
-// The bridges this application owns: Agent -> Session message hand-over, Agent -> Request Context
-
-/** Session work that the bridges and the hops share. */
 type Mutations = SessionWork<never> & SessionManagement<never> & SessionReconciliation<never>
 type Commit<K extends MutationName> = Awaited<ReturnType<Mutations[K]>>
 
 type SessionScene = Readonly<{
   access: SessionAccess<PathPrincipal>
   commit<K extends MutationName>(command: Extract<SessionCommand, { kind: K }>): Promise<Commit<K>>
-  /** The first history page; `kinds` selects entry kinds, and an empty list selects every kind. */
   history(kinds?: readonly string[]): Promise<HistoryPage>
 }>
 
-/** The entry kinds a deployment discloses through `read-history` by default (public-contract SPEC「历史页」). */
 const DISCLOSED_HISTORY_KINDS = ['message.user', 'message.assistant'] as const
 
 function sessionScene(
@@ -576,29 +476,21 @@ function sessionScene(
   }
 }
 
-/** What the bridges observed for one round, that is one Agent execution. */
 export type BridgeLog = {
-  /** External inputs the message hand-over admitted for the Agent. */
   admitted: number
-  /** Whether the Session side holds the hand-over of the round's input. */
   handedOver: boolean
-  /** The last Model reply that the message bridge committed to Session. */
   reply: Readonly<{ text: string; call: string; source: DurableEvidence }> | null
-  /** How many Model replies the message bridge committed to Session. */
   replies: number
-  /** Whether the round's wait for the reply ended by its bound. */
   waited: 'done' | 'timed-out' | null
   assembled: number
   fixed: number
   fixedMessages: number
-  /** The block kinds that the fixed requests of the round carried. */
   requestBlocks: Set<string>
   historyMessages: number
   lease: Readonly<{ acquired: number; outstanding: number; planned: number }> | null
   failures: string[]
 }
 
-/** The Session binding of one round: its input, and the messages written for its execution. */
 export type Round = { sessionInput: InputId; written: number; log: BridgeLog }
 
 export function emptyLog(): BridgeLog {
@@ -618,7 +510,6 @@ export function emptyLog(): BridgeLog {
   }
 }
 
-/** The rounds of one session, by the Agent execution of each. The bridges route by execution. */
 export type Rounds = Readonly<{
   get(execution: string): Round | undefined
   open(execution: string, round: Round): void
@@ -634,7 +525,6 @@ export function roundsOf(): Rounds {
   }
 }
 
-/** The adoption this application fixes as the provider of every admission it decides. */
 const HANDOFF_PROVIDER = {
   owner: PATH_OWNER,
   name: 'message-bridge',
@@ -642,17 +532,14 @@ const HANDOFF_PROVIDER = {
   digest: `${PATH_OWNER}:message-bridge`,
 }
 
-/** The identity text of one H: the internal operation, or the entry index Ki with the input. */
 function handoffKey(reference: HandoffRequest['reference']): string {
   return reference.kind === 'execution'
     ? `execution/${String(reference.execution)}/${String(reference.operation)}`
     : `input/${String(reference.execution)}/${String(reference.entry)}/${String(reference.input)}`
 }
 
-/** The `prepare` branches this bridge decides: the invoke input and the internal candidates. */
 type DecidedPrepare = Exclude<HandoffPrepare, { kind: 'submit' }>
 
-/** The fixed outcome of `request`: the exact message with its admission, or the rejection. */
 function outcomeOf(input: DecidedPrepare, decision: HandoffOutcome['decision']): HandoffOutcome {
   const key = handoffKey(input.request.reference)
   return {
@@ -678,10 +565,6 @@ const rejected = (
   })
 }
 
-/**
- * The Session write the message bridge makes: one `recordMessage` under the session's access,
- * answering the source of the commit or the Session failure.
- */
 export type MessageWriter = Readonly<{
   access: SessionAccess<PathPrincipal>
   recordMessage(
@@ -689,14 +572,10 @@ export type MessageWriter = Readonly<{
   ): Promise<Readonly<{ ok: DurableEvidence }> | Readonly<{ failure: SessionFailure }>>
 }>
 
-/** What `decide` answers: a fixed outcome of the H, or a failure that fixes nothing. */
 type Decision = Readonly<{ ok: HandoffOutcome }> | Readonly<{ failure: Failure }>
 
-/**
- * The Agent failure of a refused Session `recordMessage`. Only a real validation refusal fixes a
- * rejection; an unavailable store, an unknown commit and every other refusal come back as a failure
- * of the same class and fix nothing, so a retry of the same H decides it again.
- */
+// Only a real validation refusal of `recordMessage` fixes a rejection; an unavailable store, an
+// unknown commit and every other refusal fix nothing, so a retry of the same H decides it again.
 function messageFailure(
   failure: SessionFailure,
   request: HandoffRequest,
@@ -731,7 +610,6 @@ function messageFailure(
   }
 }
 
-/** The canonical text of a request: the same members give the same text in any key order. */
 function canonicalText(value: unknown): string {
   return JSON.stringify(value, (_key, item: unknown) =>
     item !== null && typeof item === 'object' && !Array.isArray(item)
@@ -744,25 +622,6 @@ function canonicalText(value: unknown): string {
   )
 }
 
-/**
- * The Agent message hand-over of this application (`MessageHandoff`). `prepare` fixes the
- * admission of the external input; the Session-side `receive(input-handover)` is committed by the
- * round driver once the Agent accepted the invoke, as the drive adapter of the Session coordinator
- * would (GAP-SESSION-COORDINATOR). For a Model reply, `prepare` commits the Session message as a
- * `message` participation when it fixes the prepared outcome: this stand-in writes the message
- * there, while the Session-side `agentMessageHandoff` plugin writes it through the Ja (session-adapters
- * SPEC J06); the difference is part of GAP-SESSION-COORDINATOR. Each call is routed to its round by
- * the execution it names. Only a fixed outcome is kept: a second `prepare` of the same request
- * answers it, a different request for the same H is a conflict, and `lookup` reads it back. A
- * `prepare` of an H already in progress waits for that call; it does not decide the H twice. A
- * failure that is not a validation refusal fixes nothing (no Session round, a source this stand-in
- * does not decide, an unavailable or unknown Session write). `exclude` answers a fixed outcome as
- * recorded when it names the same request, and invalid otherwise; without a trusted P resolver and
- * a durable fence it answers unsupported for any other H. A submit needs the trusted Ki migration,
- * so its `prepare` answers unsupported. The bridge does not check the `read-message-handoff` or
- * `exclude-message-handoff` access of the caller, the advance of an execution `prepare`, or the
- * tenant of `lookup` and `exclude` (GAP-SESSION-COORDINATOR).
- */
 export function messageBridge(scene: MessageWriter, rounds: Rounds): MessageHandoff<PathPrincipal> {
   const fixed = new Map<string, Readonly<{ request: string; outcome: HandoffOutcome }>>()
   const running = new Map<string, Readonly<{ request: string; answer: Promise<Decision> }>>()
@@ -841,9 +700,6 @@ export function messageBridge(scene: MessageWriter, rounds: Rounds): MessageHand
   return {
     async prepare(input) {
       const { principal: _principal, tenant: _tenant, ...shape } = input
-      // A submit needs the trusted Ki migration and the original execution binding, which this
-      // bridge does not have. It answers unsupported and fixes no outcome, so the Ki is not
-      // closed by a stand-in rejection (agent-contract SPEC "消息准入").
       if (shape.kind === 'submit') return unsupported()
       const key = handoffKey(shape.request.reference)
       const text = canonicalText(shape.request)
@@ -884,9 +740,8 @@ export function messageBridge(scene: MessageWriter, rounds: Rounds): MessageHand
       }
     },
     async exclude(input) {
-      // A fixed outcome is answered as recorded, never turned into an exclusion. This bridge has no
-      // trusted Journal resolver for P and no durable fence, so it cannot exclude an H it has not
-      // decided: it answers unsupported (agent-contract SPEC "消息准入"), not an empty success.
+      // A fixed outcome is answered as recorded, never turned into an exclusion. Without a trusted
+      // resolver and a durable fence an H not decided here answers unsupported, not an empty success.
       const known = fixed.get(handoffKey(input.request.reference))
       if (known === undefined) return unsupported()
       if (known.request !== canonicalText(input.request))
@@ -902,7 +757,6 @@ export function messageBridge(scene: MessageWriter, rounds: Rounds): MessageHand
   }
 }
 
-/** The operation an H names for a conflict: the internal operation, or the original entry O. */
 function operationOf(request: HandoffRequest): AgentOperationId {
   return request.reference.kind === 'execution'
     ? request.reference.operation
@@ -927,10 +781,7 @@ function contextBridge(
       const { request, ...common } = frame.ok
       const previous = input.previous
       if (previous === null) return assembleRequest(scene, tenant, deps, round.log, common)
-      // P1: fix the request from the assembled input of P0, carrying Request Context's content.
       if (previous.kind !== 'assembled') return frame
-      // The representation and source adoptions stay the frame's: the Request Context testing
-      // policies carry adoption digests that the Model request check refuses (see SPEC H05).
       const { system, messages, tools, toolChoice } = previous.input
       round.log.fixed += 1
       round.log.fixedMessages = messages.length
@@ -954,7 +805,6 @@ type ReadyFrame = Omit<
   'request'
 >
 
-/** P0: assemble the request input through Request Context over the Session history. */
 async function assembleRequest(
   scene: SessionScene,
   tenant: TenantId,
@@ -984,18 +834,13 @@ async function assembleRequest(
   return { ok: { ...common, kind: 'assembled', input: assembled.candidate.assembled } }
 }
 
-// ---------------------------------------------------------------------------------------------
-// The context of the path and of one session
-
 type PathContext = Readonly<{
   deps: PathDependencies
   assembly: SessionAssembly
   identified: Identified
-  /** The bound on each wait for the Agent, in event-loop turns. */
   turns: number
 }>
 
-/** One session of the path: its Session scene, the bridges of its rounds, and its same-log Journal. */
 type OpenSession = Readonly<{
   scene: SessionScene
   rounds: Rounds
@@ -1004,7 +849,6 @@ type OpenSession = Readonly<{
   journal: SessionLogAgentJournal | null
 }>
 
-/** H03: create the session for the recognized tenant and principal through `create-session`. */
 async function openSession(
   context: PathContext,
   session: SessionId,
@@ -1075,7 +919,6 @@ async function createSession(
   return confirmCreated(assembly, access, messageId, created.ok.receipt.recovered)
 }
 
-/** The `create-session` response through the session codec, and the session that `readWork` returns. */
 async function confirmCreated(
   assembly: SessionAssembly,
   access: SessionAccess<PathPrincipal>,
@@ -1111,13 +954,8 @@ async function confirmCreated(
   ])
 }
 
-// ---------------------------------------------------------------------------------------------
-// One round: accept the input through `send-input`, start the Run, invoke the Agent, wait
-
-/** The step of a round where it stopped. */
 type DriveStage = 'send-input' | 'accept' | 'startRun' | 'identity' | 'readInput' | 'invoke'
 
-/** A round that stopped before the Agent took the input, or one that the Agent took. */
 type Drive =
   | Readonly<{
       kind: 'stopped'
@@ -1130,7 +968,6 @@ type Drive =
 type DrivenRound = Readonly<{
   kind: 'driven'
   observation: ConnectedObservation
-  /** The step where the round stopped short of a reply; null when the Agent replied. */
   stop: string | null
   agent: PathAgent
   execution: AgentExecutionId
@@ -1139,7 +976,6 @@ type DrivenRound = Readonly<{
   log: BridgeLog
 }>
 
-/** One step of a round: its value, or the stage and label where the round stopped. */
 type Step<T> = Readonly<{ ok: T }> | Readonly<{ stop: DriveStage; label: string }>
 
 type RoundInput = Readonly<{
@@ -1147,11 +983,9 @@ type RoundInput = Readonly<{
   message: Message
   scenario: AgentScenario
   instance: string
-  /** The Agent of an earlier round, reused; null builds a new one. */
   existing: PathAgent | null
 }>
 
-/** The `send-input` carriage of one external input; null when the codec did not carry it. */
 function carryInput(
   identified: Identified,
   session: SessionId,
@@ -1182,7 +1016,6 @@ function carryInput(
   return judgedMessage(request.body.message)
 }
 
-/** The input of a round through `send-input`, committed as an ordinary request. */
 async function acceptInput(
   { identified }: PathContext,
   { scene }: OpenSession,
@@ -1201,7 +1034,6 @@ async function acceptInput(
         kind: 'ordinary',
         input: sessionInput,
         message,
-        // The access layer marks a request that arrived after a successful login (#318 design).
         origin: { ...evidence(`login-entry/${sessionInput}`), owner: 'login-entry' },
       },
     },
@@ -1211,7 +1043,6 @@ async function acceptInput(
   return { ok: sessionInput }
 }
 
-/** The Agent of the round: the one of an earlier round, or a new one with this session's bridges. */
 async function agentOf(
   { deps, identified }: PathContext,
   session: OpenSession,
@@ -1238,7 +1069,6 @@ type StartedRound = Readonly<{
   operation: AgentOperationId
 }>
 
-/** `startRun` for the Agent instance, and the Agent identities of the execution it opened. */
 async function startRun(
   { deps }: PathContext,
   { scene }: OpenSession,
@@ -1276,7 +1106,6 @@ async function startRun(
   }
 }
 
-/** The Agent invoke with the input as Session admitted it: its identity, content and, on the Session log, origin. */
 async function invokeAgent(
   { assembly, identified }: PathContext,
   { scene, journal }: OpenSession,
@@ -1294,12 +1123,9 @@ async function invokeAgent(
     initial: {
       id: agentInput,
       content: admitted.ok.message,
-      // A standalone Journal refuses a non-null input source before any write (agent-contract
-      // SPEC "提交参加者协议"); the Session origin goes only to the Journal on the Session log.
       source: journal === null ? null : admitted.ok.origin,
       priority: 'ordinary',
     },
-    // A Journal on the Session log checks the grant of the Run; an independent Journal takes none.
     grant: journal === null ? null : started.receipt.source,
   })
   if ('failure' in invoked)
@@ -1307,10 +1133,6 @@ async function invokeAgent(
   return { ok: invoked.ok }
 }
 
-/**
- * One round of the session: the input through `send-input`, the Run, the hand-over to Agent, and
- * the wait for the Agent reply.
- */
 async function driveRound(
   context: PathContext,
   session: OpenSession,
@@ -1353,17 +1175,11 @@ async function driveRound(
   }
 }
 
-/** The Session-side hand-over of a round's input: whether Session holds it, and its label. */
 type HandOver = Readonly<{ handedOver: boolean; evidence: string }>
 
 const NOT_ADMITTED = 'agent:message hand-over did not admit the external input'
 const OTHER_INPUT = 'session-contract:commit(startRun) fixed another input'
 
-/**
- * H04 of a round: Session fixed this input, the Agent admitted it, and Session holds the hand-over.
- * Session refusing the hand-over with a named failure is a refusal; any other unmet condition
- * disconnects the hop.
- */
 function handOverObservation(
   fixed: boolean,
   log: BridgeLog,
@@ -1382,7 +1198,6 @@ function handOverObservation(
   return observed(fixed && admitted, evidence)
 }
 
-/** The step where a driven round stopped short of a reply, or null when the Agent replied. */
 function drivenStop(
   fixed: boolean,
   log: BridgeLog,
@@ -1400,17 +1215,10 @@ function drivenStop(
     : 'agent:no reply handed over'
 }
 
-/** The step where a round stopped: the refused step, or where the driven round stopped short. */
 function stopOf(drive: Drive): string {
   return drive.kind === 'stopped' ? firstLabel(drive.observation) : (drive.stop ?? 'unknown')
 }
 
-/**
- * The Session-side hand-over of the input once the Agent accepted the invoke, committed as the
- * drive adapter of the Session coordinator would (GAP-SESSION-COORDINATOR). On the Session log of
- * #756 the Agent loop may take the input before this commit lands; the log then already holds the
- * interpretation of that step (`run.batch-taken`, AD-02) and a second hand-over is `invalid`.
- */
 async function handOver(
   assembly: SessionAssembly,
   scene: SessionScene,
@@ -1453,24 +1261,16 @@ async function handOver(
   }
 }
 
-/**
- * Whether Session refused the hand-over because the input is no longer pending: `invalid` on the
- * field `fact.input`. Any other refusal stays a refusal of the hand-over.
- */
 function inputNoLongerPending(failure: SessionFailure): boolean {
   return failure.kind === 'invalid' && failure.field === 'fact.input'
 }
 
-/** Whether the Session log holds the batch-taken interpretation of the Run. */
 async function takenOnLog(scene: SessionScene, run: RunId): Promise<boolean> {
   const page = await scene.history()
   return page.entries.some(
     entry => entry.kind === 'run.batch-taken' && stringField(entry.payload, 'run') === String(run),
   )
 }
-
-// ---------------------------------------------------------------------------------------------
-// H05, H06 and H07: what the Agent journal and the bridges observed
 
 type AgentSnapshot = Extract<
   Awaited<ReturnType<AgentJournal<PathPrincipal>['load']>>,
@@ -1487,10 +1287,8 @@ async function loadSnapshot(
   return 'ok' in loaded ? loaded.ok : null
 }
 
-/**
- * Every committed receiving entry of an execution, read page by page through the entries port in
- * commit order. Null when a read fails: a failed read is not an empty journal.
- */
+// Every committed receiving entry of an execution, in commit order. Null when a read fails: a
+// failed read is not an empty journal.
 async function journalEntries(
   agent: Pick<PathAgent, 'entries'>,
   access: Access<PathPrincipal>,
@@ -1507,7 +1305,6 @@ async function journalEntries(
   }
 }
 
-/** The received Model result entry of an execution, if the journal holds one. */
 async function receivedModelResult(
   agent: Pick<PathAgent, 'entries'>,
   access: Access<PathPrincipal>,
@@ -1524,14 +1321,12 @@ async function receivedModelResult(
   return null
 }
 
-/** What H05 to H07 read from the Agent journal, its materials and the bridge log of the round. */
 type AgentFacts = Readonly<{
   snapshot: AgentSnapshot | null
   log: BridgeLog
   admitted: number
   modelResult: ReceivedModelResult | null
   materialReadable: boolean
-  /** The Model call that the received result names, under its original binding. */
   originalCall: string | null
 }>
 
@@ -1562,7 +1357,6 @@ function leaseLabel(log: BridgeLog): string {
     : `caller-reported: Request Context lease counts acquired=${log.lease.acquired}, planned=${log.lease.planned}, outstanding=${log.lease.outstanding}`
 }
 
-/** Whether Request Context acquired a Model preparation lease, planned with it and released it. */
 function leased(log: BridgeLog): boolean {
   return (
     log.lease !== null &&
@@ -1572,7 +1366,6 @@ function leased(log: BridgeLog): boolean {
   )
 }
 
-/** Whether the journal binds the Model call of the step: a pending call or a received result. */
 function bindsModelCall(facts: AgentFacts): boolean {
   return (
     facts.modelResult !== null ||
@@ -1580,7 +1373,6 @@ function bindsModelCall(facts: AgentFacts): boolean {
   )
 }
 
-/** H05: the Agent assembled through Request Context and sent the Model call. */
 function observeRequest(facts: AgentFacts): ConnectedObservation {
   const { log } = facts
   const bound = bindsModelCall(facts)
@@ -1601,10 +1393,8 @@ function observeRequest(facts: AgentFacts): ConnectedObservation {
   )
 }
 
-/** H06: the pushed result became the received entry, and the loop continued from it. */
 function observeReceipt(facts: AgentFacts): ConnectedObservation {
   const sameCall = facts.originalCall !== null && facts.originalCall === facts.log.reply?.call
-  // The ACK deviation is a fact of a delivered result only; without one there is no ACK to account.
   const deviation =
     facts.modelResult === null
       ? []
@@ -1622,7 +1412,6 @@ function observeReceipt(facts: AgentFacts): ConnectedObservation {
   ])
 }
 
-/** H07: the Agent reply entered the Session journal and the execution ended. */
 function observeReply(facts: AgentFacts, turns: number): ConnectedObservation {
   const state = facts.snapshot?.state.kind ?? 'unread'
   const waited =
@@ -1636,10 +1425,6 @@ function observeReply(facts: AgentFacts, turns: number): ConnectedObservation {
   ])
 }
 
-// ---------------------------------------------------------------------------------------------
-// H08: the history, read through `read-history`
-
-/** H08: the history, read through `read-history`, returns the assistant replies of the rounds. */
 async function readReplies(
   scene: SessionScene,
   identified: Identified,
@@ -1706,9 +1491,6 @@ async function readReplies(
   ])
 }
 
-// ---------------------------------------------------------------------------------------------
-// H13: the Agent records of the round, read from the Session log
-
 async function readSessionLogRecords(
   { assembly }: PathContext,
   session: OpenSession,
@@ -1743,21 +1525,16 @@ type WorkRun = Extract<
   { ok: unknown }
 >['ok']['run']
 
-/** Whether the Run that Session reports is the Run of the drive: by execution, or by its terminal. */
 function runOfDrive(run: WorkRun, drive: DrivenRound): boolean {
   if (run.kind === 'active') return run.execution.execution === String(drive.execution)
   return run.kind === 'terminal' && run.terminal.run === drive.run
 }
 
-/** Whether a history entry is the hand-over of the drive's input or the batch-taken of its Run. */
 function handOverOfDrive(entry: HistoryEntry, drive: DrivenRound): boolean {
   if (entry.kind === 'intake.handed-over')
     return stringField(entry.payload, 'execution') === String(drive.execution)
   return entry.kind === 'run.batch-taken' && stringField(entry.payload, 'run') === String(drive.run)
 }
-
-// ---------------------------------------------------------------------------------------------
-// H09: the later rounds of the main session
 
 type LaterRounds = Readonly<{ observation: ConnectedObservation; replies: readonly string[] }>
 
@@ -1801,10 +1578,6 @@ async function driveLaterRounds(
   return { observation: { kind, evidence: evidenceLines }, replies }
 }
 
-/**
- * Where a later round stopped. The Run of the earlier round has no completed terminal on this path,
- * so the next Run cannot start; the other route, a submit to the first execution, is then probed.
- */
 async function laterRoundStop(
   context: PathContext,
   first: DrivenRound,
@@ -1839,9 +1612,6 @@ async function submitToFirst(
     : 'agent:input.submit accepted'
 }
 
-// ---------------------------------------------------------------------------------------------
-// H10, H11, H12: the probes, each in its own session
-
 type Probe = Readonly<{
   name: string
   session: SessionId
@@ -1869,12 +1639,10 @@ const REASONING_PROBE: Probe = {
 
 type OpenedProbe = Readonly<{ session: OpenSession; drive: DrivenRound }>
 
-/** Opens the session of a probe and drives its first round; the observation says where it stopped. */
 async function openProbe(
   context: PathContext,
   probe: Probe,
 ): Promise<Readonly<{ opened: OpenedProbe }> | Readonly<{ observation: ConnectedObservation }>> {
-  // The probe keeps the kind of the step that stopped it and names that step.
   const label = (kind: 'refused' | 'disconnected', step: string) => ({
     observation: { kind, evidence: [`probe-${probe.name}:${step}`] },
   })
@@ -1895,7 +1663,6 @@ async function openProbe(
   return { opened: { session: opened.session, drive } }
 }
 
-/** A probe observation: connected, refused where the path met the named refusal, else disconnected. */
 function probeObservation(
   connected: boolean,
   refusal: boolean,
@@ -1904,18 +1671,12 @@ function probeObservation(
   return { kind: connected ? 'connected' : refusal ? 'refused' : 'disconnected', evidence }
 }
 
-/** The journal state and position of a snapshot, as one evidence label. */
 function stateLabel(snapshot: AgentSnapshot | null): string {
   return snapshot === null
     ? 'agent:journal unread'
     : `agent:journal state ${snapshot.state.kind} at ${snapshot.checkpoint.position}`
 }
 
-/**
- * Whether the loop stopped at A0 with an action still pending. The Agent loop admits each action
- * of the batch at A0 and answers `unavailable` when the assembly gives it no trusted Tool request
- * source (`toolRequests`), so the journal stays at A0 and the action stays `pending`.
- */
 function atToolRefusal(snapshot: AgentSnapshot | null): boolean {
   return (
     snapshot?.state.kind === 'advancing' &&
@@ -1924,20 +1685,14 @@ function atToolRefusal(snapshot: AgentSnapshot | null): boolean {
   )
 }
 
-/** The facility calls of card #790 item 2: a file read, a file write and one command. */
 const TOOL_EFFECTS = ['files.read:done', 'files.write:done', 'command.start:done'] as const
 
-/**
- * The H10 criterion: the Tool ran in the execution environment, the Model was called again with
- * the tool result, and the execution ended.
- */
 function toolRoundTripClosed(
   agent: PathAgent,
   toolResult: boolean,
   snapshot: AgentSnapshot | null,
 ): boolean {
   const effects = agent.toolEffects()
-  // Every condition is evaluated; the criterion holds only when all of them hold.
   const conditions = [
     agent.toolInvocations() > 0,
     TOOL_EFFECTS.every(effect => effects.includes(effect)),
@@ -1948,18 +1703,12 @@ function toolRoundTripClosed(
   return conditions.every(Boolean)
 }
 
-/**
- * H10: the Model requests a tool; the Agent runs it in the execution environment and calls the
- * Model again with the result. The probe waits for the tool-call reply, then for the reply after
- * the tool result unless the loop already stopped at A0.
- */
 async function probeToolRoundTrip(context: PathContext): Promise<ConnectedObservation> {
   const probe = await openProbe(context, TOOL_PROBE)
   if ('observation' in probe) return probe.observation
   const { session, drive } = probe.opened
   const { agent } = drive
   const { snapshot, waits } = await awaitToolRound(context, session, drive)
-  // The refusal at A0 is judged from the last snapshot that the probe read.
   const refused = atToolRefusal(snapshot)
   const effects = agent.toolEffects()
   const toolResult = drive.log.requestBlocks.has('tool_result')
@@ -1981,15 +1730,10 @@ async function probeToolRoundTrip(context: PathContext): Promise<ConnectedObserv
   ])
 }
 
-/** The label of a wait that ended at its bound; nothing when the wait ended in time. */
 function timedOut(waited: BridgeLog['waited'], label: string): readonly string[] {
   return waited === 'timed-out' ? [label] : []
 }
 
-/**
- * The waits of the tool probe: for the tool-call reply, then, unless the loop stopped at A0, for
- * the reply after the tool result. Returns the last snapshot it read and the waits that timed out.
- */
 async function awaitToolRound(
   context: PathContext,
   session: OpenSession,
@@ -2011,8 +1755,6 @@ async function awaitToolRound(
   }
 }
 
-// A success that carries a kind is named by it (R2-D173, R2-D185): a quiesce that answers
-// `unresolved` left an execution to hand over and is not written as succeeded.
 const replyLabel = (name: string, reply: { ok: unknown } | { failure: unknown } | null) =>
   reply === null
     ? `agent:${name} not reached`
@@ -2026,7 +1768,6 @@ type Withdrawal = Readonly<{
   resumed: { ok: unknown } | { failure: unknown }
 }>
 
-/** Withdraws the instance of a drive and resumes its execution through the public Agent faces. */
 async function withdrawAndResume(
   context: PathContext,
   session: OpenSession,
@@ -2062,19 +1803,12 @@ async function withdrawAndResume(
   return { quiesced, detached, resumed }
 }
 
-/**
- * The observation continuity of H11 (card #790 item 3, E4 of the H3 ruling): after reassembly the
- * frames on the same observation connection keep a continuous sequence, through the observation
- * path of the server entry. No public entry supplies that path on this track, so the probe cannot
- * observe it, and H11 does not connect without it (GAP-AGENT-REASSEMBLY).
- */
 const OBSERVATION_CONTINUITY = {
   observed: false,
   label:
     'observation:no public entry supplies the server-entry observation path; frame continuity on the observation connection after reassembly is not observed (GAP-AGENT-REASSEMBLY)',
 } as const
 
-/** How the execution of the reassembly probe ended, as observed after the Model settled. */
 function reassemblyEnd(withdrawn: boolean, after: AgentSnapshot | null): string {
   if (after?.state.kind !== 'ended') return `${stateLabel(after)} after the Model settled`
   return withdrawn
@@ -2082,18 +1816,12 @@ function reassemblyEnd(withdrawn: boolean, after: AgentSnapshot | null): string 
     : 'agent:the original driver continued from the received entry after the Model settled'
 }
 
-/**
- * H11: the Agent instance is withdrawn during a Model call and assembled again. Connected only
- * when the withdrawal and the resume succeeded, the Model admitted the call once (no re-send), the
- * execution ended from the Journal, and the observation stayed continuous.
- */
 async function probeReassembly(context: PathContext): Promise<ConnectedObservation> {
   const probe = await openProbe(context, REASSEMBLY_PROBE)
   if ('observation' in probe) return probe.observation
   const { session, drive } = probe.opened
   const { agent } = drive
   const turns = context.turns
-  // Wait until the Model call is admitted and the loop waits for its result.
   const admittedWait = await waitTurns(turns, () => agent.admitted() > 0)
   let withdrawal: Withdrawal
   try {
@@ -2127,11 +1855,6 @@ async function probeReassembly(context: PathContext): Promise<ConnectedObservati
   ])
 }
 
-/**
- * H12: the first reply carries reasoning; the next request must replay it. When the loop hands
- * over the first reply, the probe drives the second round on the same Agent and checks that its
- * request carries the reasoning part again.
- */
 async function probeReasoningReplay(context: PathContext): Promise<ConnectedObservation> {
   const probe = await openProbe(context, REASONING_PROBE)
   if ('observation' in probe) return probe.observation
@@ -2165,7 +1888,6 @@ async function probeReasoningReplay(context: PathContext): Promise<ConnectedObse
   ])
 }
 
-/** The second round of the reasoning probe, and whether its request replays the reasoning part. */
 async function replayRound(
   context: PathContext,
   session: OpenSession,
@@ -2190,12 +1912,8 @@ async function replayRound(
   }
 }
 
-// ---------------------------------------------------------------------------------------------
-// The path
-
 type MainSession = Readonly<{ context: PathContext; session: OpenSession }>
 
-/** H01 to H03: the tenant, the login, and the main session with the injected access check. */
 async function openMainSession(
   deps: PathDependencies,
   result: Partial<Record<FirstPathHop, ConnectedObservation>>,
@@ -2206,8 +1924,6 @@ async function openMainSession(
   const login = await logIn(deps, registered.tenant)
   result.H02 = login.observation
   if (login.identified === null) return null
-  // #680 B-1 item 4: the Session store derives Session participation from the Agent Journal, so
-  // the access check is a required injection. Without it the assembly stays pending.
   const accessCheck = deps.sessionAccessCheck
   if (accessCheck === undefined) {
     result.H03 = disconnected('session-assembly:pending:sessionAccessCheck')
@@ -2224,7 +1940,6 @@ async function openMainSession(
   return opened.session === null ? null : { context, session: opened.session }
 }
 
-/** H04 to H07: the first round, and what the Agent journal and the bridges observed of it. */
 async function driveFirstRound(
   { context, session }: MainSession,
   result: Partial<Record<FirstPathHop, ConnectedObservation>>,
@@ -2242,7 +1957,6 @@ async function driveFirstRound(
     existing: null,
   })
   result.H04 = drive.observation
-  // A first round that did not hand the input over stops the path (SPEC「Path」).
   if (drive.kind !== 'driven' || drive.observation.kind !== 'connected') return null
   const access = { principal: context.identified.principal, tenant: context.identified.tenant }
   const facts = await agentFacts(drive.agent, access, drive.execution, drive.log)

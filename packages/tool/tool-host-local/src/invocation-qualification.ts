@@ -40,7 +40,6 @@ export interface LocalInvocationQualifier<P> {
   qualify(input: InvocationQualificationRequest<P>): Reply<InvocationQualification>
 }
 
-/** Internal hook on records the source guard actually reads, never on caller-supplied evidence. */
 export type ObserveInvocationRecord = (domain: LedgerDomain, record: LedgerRecord) => void
 
 function observations() {
@@ -68,7 +67,6 @@ export function invocationQualifier<P>(
     async qualify(input) {
       try {
         const { principal, tenant, ...given } = input
-        // TenantId is an immutable value minted by legal-identity, not cloneable wire data.
         const request = { tenant, ...structuredClone(given) }
         const recorded = observations()
         let origin: InvocationOrigin | undefined

@@ -1,5 +1,3 @@
-// The one-slot call of a multi-command tool (D-94): each case names the property of the model
-// (mct-model §2.3–2.7) it would catch a wrong implementation of.
 import { describe, expect, it } from 'vitest'
 import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import {
@@ -72,7 +70,6 @@ describe('command call encodings', () => {
           const call = { command, params }
           const encoded = encodeCommandCall(encoding, call)
           expect(decodeCommandCall(encoding, names, encoded)).toEqual({ ok: call })
-          // The same through text, as the model sends it.
           expect(decodeCommandCallText(encoding, names, writeJsonText(encoded))).toEqual({
             ok: call,
           })
@@ -95,7 +92,6 @@ describe('command call encodings', () => {
         expect(reject(`{"command":"${names[0]}","params":[]}`)).toEqual({
           failure: { kind: 'params-not-object' },
         })
-        // An omitted params is the empty object.
         expect(reject(`{"command":"${names[0]}"}`)).toEqual({
           ok: { command: names[0], params: { kind: 'object', entries: [] } },
         })
@@ -108,7 +104,6 @@ describe('command call encodings', () => {
 
     it(`${encoding}: a route selects any call that names a known command, and only those`, () => {
       const select = (text: string) => selectCommandText(names, text)
-      // The rest of the call is the command codec's to judge, so a bad call still reaches it.
       expect(select(`{"command":"${names[0]}","params":[]}`)).toEqual({ ok: names[0] })
       expect(select(`{"command":"${names[0]}","x":1}`)).toEqual({ ok: names[0] })
       expect(select('{"command":"nope"}')).toEqual({
@@ -117,7 +112,6 @@ describe('command call encodings', () => {
       expect(select('{"params":{}}')).toEqual({ failure: { kind: 'command-missing' } })
       expect(select('"read"')).toEqual({ failure: { kind: 'not-object' } })
       expect(select('{')).toMatchObject({ failure: { kind: 'unreadable' } })
-      // Every decodable call selects the command it decodes to.
       for (const command of names)
         expect(
           select(
@@ -172,7 +166,6 @@ describe('command call encodings', () => {
       expect(commandArguments(definition, 'read', args('{"command":"nope"}'))).toEqual({
         failure: { kind: 'invalid', reason: 'there is no command "nope"' },
       })
-      // An incomplete block goes to the codec unchanged, which answers incomplete.
       const partial = args('{"command":"re', false)
       expect(commandArguments(definition, 'read', partial)).toEqual({ ok: partial })
     })
@@ -246,7 +239,6 @@ describe('command call encodings', () => {
     expect(judgeToolDefinition(clash)).toMatchObject({
       failure: { field: 'commands', reason: `flat-conflict:${first.name}` },
     })
-    // One clashing field among others is enough.
     const mixed = {
       ...clash,
       commands: [
@@ -265,7 +257,6 @@ describe('command call encodings', () => {
     expect(judgeToolDefinition(mixed)).toMatchObject({
       failure: { reason: `flat-conflict:${first.name}` },
     })
-    // A schema without properties declares no field, so it cannot clash.
     const empty = {
       ...clash,
       commands: [
@@ -279,7 +270,6 @@ describe('command call encodings', () => {
       ],
     }
     expect(judgeToolDefinition(empty)).toHaveProperty('ok')
-    // An executor-owned command cannot promise that it has no field named command.
     expect(judgeToolDefinition(definition)).toMatchObject({
       failure: { reason: 'flat-conflict:shell' },
     })
@@ -287,7 +277,6 @@ describe('command call encodings', () => {
   })
 })
 
-// The texts the model reads are the contract of L0 and L2, so they are pinned exactly.
 describe('the exact texts of a call', () => {
   const wrapped = withEncoding('wrapped')
   const flat = withEncoding('flat')
@@ -307,7 +296,6 @@ describe('the exact texts of a call', () => {
     expect(commandExample(wrapped, 'shell')).toBe('files {"command": "shell", "params": {…}}')
     expect(commandExample(flat, 'shell')).toBe('files {"command": "shell", …}')
     expect(commandExample(wrapped, 'nope')).toBe('files {"command": "nope", "params": {…}}')
-    // A command without fields has no dangling comma in the flat form.
     expect(commandExample(bare(flat), 'read')).toBe('files {"command": "read"}')
     expect(commandExample(bare(wrapped), 'read')).toBe('files {"command": "read", "params": {}}')
   })
@@ -335,7 +323,6 @@ describe('the exact texts of a call', () => {
     const guided = { ...wrapped, guide: 'Paths are absolute.' }
     expect(commandGuide(wrapped)).toBe(commandMenu(wrapped))
     expect(commandGuide(guided)).toBe(`${commandMenu(wrapped)}\nPaths are absolute.`)
-    // A name that is no command reads the guide of the tool.
     expect(commandGuide(guided, 'nope')).toBe(commandGuide(guided))
     expect(commandGuide(guided, 'shell')).toBe(
       [

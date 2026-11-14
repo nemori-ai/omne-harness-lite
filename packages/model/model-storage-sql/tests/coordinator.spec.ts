@@ -1,7 +1,3 @@
-// The send coordinator of this member over the SQL storage: the shared commands core runs on the
-// mirrored storage, the coordinator answers its synchronous fence from the process mirror. The
-// storage below is a test provider on node:sqlite (one in-memory database per transaction domain,
-// receipts by full identity); it does not model Workers, durability or queues.
 import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it } from 'vitest'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
@@ -53,8 +49,6 @@ import {
 import { createSendMirror } from '../src/coordinator.ts'
 import { providerName } from './provider-name.ts'
 
-// --- Test provider -------------------------------------------------------------------------
-
 function rowsOf(db: DatabaseSync, sql: string, params: readonly SqlValue[]): QueryRows {
   const statement = db.prepare(sql)
   statement.setReadBigInts(true)
@@ -78,7 +72,6 @@ const HANDLERS = new Map(
   [callHandler, pendingHandler, requestHandler].map(item => [item.handler, item]),
 )
 
-/** A node:sqlite provider with two faults: a lost commit reply, and a held read reply. */
 function sqliteStorage() {
   const domains = new Map<string, Domain>()
   const hooks: { loseNextReply: boolean; holdNextRead: Promise<void> | null } = {
@@ -170,7 +163,6 @@ function sqliteStorage() {
     async read(request) {
       const handler = HANDLERS.get(request.handler)
       const db = domainOf(request.domain.transactionDomain).db
-      // The read runs now; a held reply reaches the caller later, after other writes.
       const outcome = handler?.read(request.input, {
         execute: (sql, params) => rowsOf(db, sql, params),
       })
@@ -189,8 +181,6 @@ function sqliteStorage() {
   }
   return { storage, hooks }
 }
-
-// --- Values --------------------------------------------------------------------------------
 
 const unbox = <T>(outcome: Outcome<T, unknown>): T => {
   if ('ok' in outcome) return outcome.ok
@@ -260,11 +250,8 @@ const proof = (record: string, by = 'host'): DurableEvidence => ({
 })
 const principal: Readonly<{ subject: string }> = Object.freeze({ subject: 'trusted' })
 type Principal = typeof principal
-/** A principal that the authority admits in `OTHER_TENANT` only. */
 const otherPrincipal: Principal = Object.freeze({ subject: 'other-tenant' })
-/** A principal that the authority admits in no tenant. */
 const stranger: Principal = Object.freeze({ subject: 'stranger' })
-/** The tenant in which the authority admits each principal. */
 const GRANTS = new Map<Principal, TenantId>([
   [principal, TENANT],
   [otherPrincipal, OTHER_TENANT],
@@ -339,10 +326,6 @@ const storageOf = (provider: Provider) =>
     },
   })
 
-/**
- * The SQL assembly of the member root: `createSqlModelCommands` with send options builds one SQL
- * storage, its mirror, one core over the mirror, the commands and the coordinator.
- */
 function sqlAssembly(
   settings: Readonly<{ provider?: Provider; mirrorBytes?: number; maxClaims?: number }> = {},
 ): Subject & Readonly<{ provider: Provider }> {
@@ -363,7 +346,6 @@ function sqlAssembly(
   return { commands, coordinator, provider }
 }
 
-/** The memory assembly of `@omne-harness/model/testing`, with the same options and source. */
 function memoryAssembly(): Subject {
   const memory = createTestModelDependencies<Principal>({
     ...coreOptions,
@@ -388,15 +370,12 @@ type Actor = Readonly<{ principal: Principal; tenant: TenantId }>
 const OWNER: Actor = { principal, tenant: TENANT }
 const access = (call: ModelCallId, actor: Actor = OWNER) => ({ ...actor, call })
 
-/** `window`: materialized, with the receive window that the same write opened. */
 type Stage = 'admitted' | 'prepared' | 'window'
 type Driven = Readonly<{
   demand: SendDemand<Principal>
-  /** The `recordMaterialization` input, once the call reached that stage. */
   materialization: Parameters<ModelCommands<Principal>['recordMaterialization']>[0] | null
 }>
 
-/** Drives one call through the commands up to `stage`; returns its send demand. */
 async function drive(
   subject: Subject,
   call: ModelCallId,
@@ -472,7 +451,6 @@ const COLD = {
     diagnostic: 'qualification-unavailable',
   },
 }
-/** A fence that counts its starts. */
 function fenceOf(subject: Subject, demand: SendDemand<Principal>) {
   let starts = 0
   return {
@@ -485,8 +463,6 @@ function fenceOf(subject: Subject, demand: SendDemand<Principal>) {
   }
 }
 const turn = () => new Promise<void>(resolve => setImmediate(resolve))
-
-// --- Cases ---------------------------------------------------------------------------------
 
 describe('the synchronous fence', () => {
   it('runs start inside withinCurrent and returns its result in the same turn', async () => {
@@ -541,14 +517,12 @@ describe('the synchronous fence', () => {
 
 describe('the pin of a materialized dispatch', () => {
   it('keeps the mirror of a call from recordMaterialization to withinCurrent, then lets it go', async () => {
-    // One byte of budget: every newly mirrored call evicts every call that is not pinned.
     const subject = sqlAssembly({ mirrorBytes: 1 })
     const { demand } = await drive(subject, callId('pinned'), 'window')
     await drive(subject, callId('other'), 'prepared')
     const fence = fenceOf(subject, demand)
     expect(fence.enter().kind).toBe('started')
     expect(fence.starts()).toBe(1)
-    // The claim ends the pin: the next mirrored call evicts this one.
     await drive(subject, callId('third'), 'admitted')
     expect(subject.coordinator.check(demand, 'access')).toEqual(COLD)
   })
@@ -563,7 +537,6 @@ describe('a cold mirror', () => {
       'window',
     )
     if (materialization === null) throw new Error('fixture materialization')
-    // A new instance over the same rows: the process state of the first one is gone.
     const fresh = sqlAssembly({ provider })
     const fence = fenceOf(fresh, demand)
     expect(fresh.coordinator.check(demand, 'access')).toEqual(COLD)
@@ -611,7 +584,6 @@ describe('a cold mirror', () => {
   })
 })
 
-/** `demand` as sent by `actor` for `call`, with the execution of the same tenant and call. */
 const demandAs = (
   demand: SendDemand<Principal>,
   actor: Partial<Actor>,
@@ -631,7 +603,6 @@ describe('qualification before the mirror', () => {
   it('denies an unauthorized principal alike for a hot, a cold and a missing call', async () => {
     const provider = sqliteStorage()
     const cold = await drive(sqlAssembly({ provider }), callId('cold'), 'window')
-    // A new instance over the same rows: `cold` is stored but not mirrored, `hot` is mirrored.
     const subject = sqlAssembly({ provider })
     const hot = await drive(subject, callId('hot'), 'window')
     const demands = {
@@ -649,7 +620,6 @@ describe('qualification before the mirror', () => {
       expect([name, fence.enter()]).toEqual([name, { kind: 'refused', ...denied }])
       expect([name, fence.starts()]).toEqual([name, 0])
     }
-    // The authorized principal: the hot call is judged, a call outside the mirror is cold.
     expect(subject.coordinator.check(demands.hot, 'access')).toEqual({ ok: undefined })
     expect(subject.coordinator.check(demands.cold, 'access')).toEqual(COLD)
     expect(subject.coordinator.check(demands.missing, 'access')).toEqual(COLD)
@@ -662,13 +632,11 @@ describe('tenants', () => {
     const shared = callId('shared')
     const mine = await drive(subject, shared, 'window')
     const theirs = demandAs(mine.demand, { principal: otherPrincipal, tenant: OTHER_TENANT })
-    // The other tenant does not see the mirrored call of this tenant, nor start its dispatch.
     const intruder = fenceOf(subject, theirs)
     expect(subject.coordinator.check(theirs, 'access')).toEqual(COLD)
     expect(intruder.enter()).toEqual({ kind: 'refused', ...COLD })
     expect(intruder.starts()).toBe(0)
     expect(fenceOf(subject, mine.demand).enter().kind).toBe('started')
-    // The namesake call of the other tenant has its own mirror entry and its own claim.
     const own = await drive(subject, shared, 'window', {
       principal: otherPrincipal,
       tenant: OTHER_TENANT,
@@ -705,7 +673,6 @@ describe('claims', () => {
 })
 
 describe('parity with the memory coordinator', () => {
-  /** One script of fence calls; each answer reduced to its comparable part. */
   async function script(subject: Subject): Promise<unknown[]> {
     const answers: unknown[] = []
     const answer = (result: SendStart | Outcome<void, unknown>) =>

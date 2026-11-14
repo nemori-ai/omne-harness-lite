@@ -1,5 +1,4 @@
 /// <reference lib="dom" preserve="true" />
-// 函数表的展示。筛选、排序与截断仍由页面脚本完成，这里只按给定顺序画出行，表头点击交回脚本改排序键。
 import { Table, type TableColumnsType } from 'antd'
 import type { FunctionRow } from '../../../metrics/report.ts'
 import { toneOf } from './structure.tsx'
@@ -9,29 +8,23 @@ export type SortOrder = 'ascend' | 'descend'
 
 export interface FunctionTableProps {
   readonly rows: readonly FunctionRow[]
-  /** CRAP：开了覆盖率；CC：只有圈复杂度。决定评分列的列名。 */
   readonly metric: 'CRAP' | 'CC'
-  /** null 表示不排序，按报告给出的原始顺序。 */
   readonly sortKey: SortKey | null
   readonly sortOrder: SortOrder
-  /** 排序由页面脚本完成；表头只报告点了哪列、要哪个方向，取消排序时给 null。 */
   readonly onSort: (key: SortKey | null, order: SortOrder) => void
 }
 
 const pct = (ratio: number | undefined): string =>
   ratio === undefined ? '—' : `${Math.round(ratio * 100)}%`
 const num = (value: number): string => (Number.isInteger(value) ? String(value) : value.toFixed(1))
-/** 覆盖率单元格 ≥80% 为好、≥50% 为中、其余为差（uml-viewer engine/draw.clj:61-66）。 */
 const coverColor = (ratio: number | undefined): string | undefined =>
   ratio === undefined ? undefined : `var(--${ratio >= 0.8 ? 'good' : ratio >= 0.5 ? 'mid' : 'bad'})`
 
-/** 页面吸顶导航的高度来自 CSS 变量，表头吸在它下面。 */
 function stickyTop(): number {
   return parseFloat(getComputedStyle(document.body).getPropertyValue('--sticky-top')) || 0
 }
 
 export function FunctionTable({ rows, metric, sortKey, sortOrder, onSort }: FunctionTableProps) {
-  // 每列依次是降序、升序、不排序。
   const sortable = (key: SortKey) => ({
     sorter: true,
     sortOrder: sortKey === key ? sortOrder : null,

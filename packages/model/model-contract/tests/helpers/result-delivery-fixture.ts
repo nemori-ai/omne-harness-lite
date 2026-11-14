@@ -50,10 +50,6 @@ type Attempt = {
 }
 export type DeliveryFixture<P> = Readonly<{
   receiver: ModelResultReceiver<P>
-  /**
-   * The original call of `tenant` (by default the first configured tenant). The reference carries
-   * no tenant (R2-D357), so the fixture names it.
-   */
   establishOriginalCall(
     input: Readonly<{
       tenant?: TenantId
@@ -225,10 +221,6 @@ export function createDeliveryFixture<P>(
     globalUsed.inFlight--
     event('inFlight.release')
   }
-  /**
-   * Records are kept per tenant: a delivery key's reference carries no tenant (R2-D357). The
-   * control plane reads the records of the first configured tenant.
-   */
   function recordKey(key: ModelDeliveryKey, tenant: TenantId = tenants[0]!.tenant): string {
     return callIdentity(tenant, deliveryIdentity(key))
   }

@@ -1,8 +1,3 @@
-// Deadline arithmetic: an instant plus a signed SI-second duration, exact to every fraction digit.
-// It counts each UTC day as 86400 seconds and ignores leap seconds, so a lifetime that spans an
-// inserted second ends one second early. SPEC lists that limit. The algorithm is the one of the
-// identity reference double (identity `src/testing/time.ts`); product code does not import
-// `./testing`, so this member keeps its own copy.
 import {
   encodeDuration,
   encodeInstant,
@@ -14,10 +9,8 @@ import {
 const INSTANT_TEXT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?Z$/u
 const DURATION_TEXT = /^(-?)PT(\d+)(?:\.(\d+))?S$/u
 
-/** A count of `10^-scale` seconds since 1970-01-01T00:00:00Z. */
 type Scaled = Readonly<{ units: bigint; scale: number }>
 
-// Days from the civil date (proleptic Gregorian), after Howard Hinnant's `days_from_civil`.
 function daysFromCivil(year: number, month: number, day: number): number {
   const y = month <= 2 ? year - 1 : year
   const era = Math.floor(y / 400)
@@ -91,7 +84,6 @@ function instantOf(value: Scaled): Instant | undefined {
   return parsed.ok ? parsed.value : undefined
 }
 
-/** `instant` plus `duration`, or `undefined` when the sum falls outside years 0000 to 9999. */
 export function addDuration(instant: Instant, duration: Duration): Instant | undefined {
   const left = scaledInstant(instant)
   const right = scaledDuration(duration)
@@ -99,12 +91,10 @@ export function addDuration(instant: Instant, duration: Duration): Instant | und
   return instantOf({ units: scaleTo(left, scale) + scaleTo(right, scale), scale })
 }
 
-/** True when the duration is longer than zero seconds. */
 export function isPositive(duration: Duration): boolean {
   return scaledDuration(duration).units > 0n
 }
 
-/** -1, 0 or 1 as `left` is shorter than, as long as, or longer than `right`. */
 export function compareDurations(left: Duration, right: Duration): -1 | 0 | 1 {
   const a = scaledDuration(left)
   const b = scaledDuration(right)

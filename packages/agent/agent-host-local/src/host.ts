@@ -1,34 +1,3 @@
-// The state and the five faces of the `agent-host` plugin (docs/cordis.md "装载", "停止准入与撤除"):
-// the reservation table, the slot table, the runtimes the host holds and the registrations of its
-// instances. One plugin body builds one host, so the faces share one table and end together.
-//
-// What the host decides, and what it leaves to its owners:
-// - `acquire` checks only the caller's `reserve`; the host principal publishes. A slot has at most
-//   one published instance that is not being reclaimed, and concurrent calls share one build.
-// - The publication authority answers from the reservation table in one step that never yields:
-//   a registration needs a publish operation that the host started for that reservation, from the
-//   contribution fiber of the instance; a withdrawal needs a registration identity of the instance,
-//   from the host's own fiber or that contribution fiber.
-// - Idle reclaim: the expiry reads the last report, marks the instance and calls quiesce without
-//   an `await` in between. Only `drained` unloads the contribution fiber. Any other answer keeps the
-//   instance published, writes an error record and waits for the next idle time.
-// - Ordered stop (`quiesceAll`): admission closes first, so `acquire` and `reserve` refuse and no
-//   instance is built. Then every published instance the host runs gets the same quiesce as the
-//   reclaim, whatever its last report. Only `drained` unloads the contribution fiber. The answer is
-//   `settled` only when every instance drained before the caller's signal; otherwise it names each
-//   instance that did not and why. An instance that did not drain stays published for the fiber
-//   unload (docs/cordis.md "停止准入与撤除").
-// - The recovery and control entries check the principal and then call the Journal. They need no
-//   live runtime and keep the Journal's answer, unknown included. A control that the Journal
-//   accepted is advanced like the handle does it when a runtime this host still runs holds the
-//   active attachment of the execution; otherwise it stays accepted for the recovery path.
-// - A run that stopped on a failure: the runtime reports it once through the factory's `failed`
-//   receiver, and the host writes one warn record that names tenant, instance, execution, node,
-//   failure kind and diagnostic (SPEC「运行失败」, R2-D282). The host decides nothing from it. It
-//   keeps node and failure kind by execution, so a quiesce that leaves the execution unresolved
-//   names why in its record (R2-D285).
-// The runtime's own duties (quiesce drains, detaches and withdraws through the handle) belong to
-// the factory. The host never takes the end of a fiber for a detach or for a stopped execution.
 import { randomUUID } from 'node:crypto'
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import {
@@ -92,25 +61,18 @@ import type { AgentHostConfig } from './host-config.ts'
 import { cryptoRandom, modelRetryingRecord } from './model-retry.ts'
 import { stagePort } from './stage-ports.ts'
 
-/**
- * The factory the host calls for each instance: `createAgentRuntime` in production. `extras` carries
- * the host's own `failed` and `endedFailed` receivers; a factory hands them on to `createAgentRuntime`.
- */
 export type RuntimeFactory = (
   dependencies: AgentDependencies<unknown, ContentBlock>,
   options: AgentRuntimeOptions,
   extras: HostRuntimeExtras,
 ) => Reply<AgentProvider<unknown>>
 
-/** What the host gives every runtime it builds besides dependencies and options. */
 export type HostRuntimeExtras = Required<
   Pick<AgentRuntimeExtras, 'failed' | 'endedFailed' | 'waiting' | 'modelRetrying'>
 >
 
-/** The statically injected services that the factory takes as they are. */
 export type HostStatics = Readonly<{
   journal: AgentJournal<unknown>
-  /** The receiving entries of the same Journal provider, read by the loop (agent-contract SPEC "日志条目" 6). */
   entries: AgentDependencies<unknown, ContentBlock>['entries']
   access: AgentDependencies<unknown, ContentBlock>['access']
   models: ModelRuntime<unknown>
@@ -128,28 +90,17 @@ export type HostInput = Readonly<{
   config: AgentHostConfig
   factory: RuntimeFactory
   statics: HostStatics
-  /** The Agent host maintenance principal (`agentHostPrincipal`), issued by the assembly entry. */
   principal: unknown
-  /** See `LostContact`. Absent: the host never judges a runtime lost. */
   lostContact?: LostContact
 }>
 
-/**
- * The assembly's proof that an instance this host does not run has no runtime anywhere: the
- * evidence of that proof for `instance`, or null when the assembly cannot show it now. The host
- * asks only for an instance it does not run, at each judgment. A single-machine assembly answers
- * from the exclusive lock it holds on its state; a deployment with several hosts answers from the
- * lease of the instance. The host adds nothing to the proof and never infers one itself.
- */
 export type LostContact = (instance: AgentInstanceId) => DurableEvidence | null
 
-/** What `agentExecutionRecovery.contact` answers. */
 type Contact = Extract<
   Awaited<ReturnType<AgentExecutionRecovery<unknown>['contact']>>,
   { ok: unknown }
 >['ok']
 
-/** The faces that the plugin provides, and the hooks of the plugin body. */
 export type Host = Readonly<{
   instanceHost: AgentInstanceHost<unknown> &
     Readonly<{
@@ -159,28 +110,18 @@ export type Host = Readonly<{
   recovery: AgentExecutionRecovery<unknown>
   control: AgentExecutionControl<unknown>
   provision: AgentInstanceProvision<unknown>
-  /** The directory removed one registration of an instance. */
   retired(tenant: TenantId, instance: AgentInstanceId, generation: number, reason: string): void
-  /** The ordered stop: close admission, quiesce every instance, answer what did not drain. */
   quiesceAll(input: AgentHostStopInput): Promise<AgentHostStopResult>
-  /** The plugin body ends: no new instance, no reclaim. */
   stop(): void
 }>
 
-/** The input of the ordered stop. The caller owns the deadline: the signal aborts when it passes. */
 export type AgentHostStopInput = Readonly<{ signal: AbortSignal }>
 
-/** One instance, or one build, that the ordered stop did not end, and why. */
 export type AgentHostUnsettled = Readonly<{
-  /** Null for a build that had not published an instance by the deadline. */
   instance: AgentInstanceId | null
   reason: string
 }>
 
-/**
- * The answer of the ordered stop. `settled`: admission is closed and every instance drained and
- * unloaded. `incomplete`: admission is closed, and `instances` names each one that did not end.
- */
 export type AgentHostStopResult =
   | Readonly<{ kind: 'settled' }>
   | Readonly<{ kind: 'incomplete'; detail: string; instances: readonly AgentHostUnsettled[] }>
@@ -203,9 +144,7 @@ type InstanceRecord = {
   readonly scopeText: string
   readonly definition: Adoption
   readonly handle: AgentRegistrationHandle<unknown>
-  /** The publish operations the host started for this reservation: the authority admits these. */
   readonly publishOperations: Set<string>
-  /** Every registration identity the directory gave this instance, oldest first. */
   readonly registrations: AgentRegistrationId[]
   provider: AgentProvider<unknown> | null
   contribution: Promise<Outcome<Contribution, Failure>> | null
@@ -215,9 +154,7 @@ type InstanceRecord = {
   timer: AbortController | null
   slot: string | null
   status: Status
-  /** The quiesce in flight (reclaim or ordered stop); it resolves after a drained instance retired. */
   quiescing: Promise<Quiesced> | null
-  /** The runs of this instance that stopped on a failure: execution to `node=… failure=…`. */
   readonly failedRuns: Map<string, string>
 }
 
@@ -242,10 +179,8 @@ function describe(cause: unknown): string {
   }
 }
 
-/** The text of a tenant that the identity parser made, or undefined for any other value. */
 function tenantTextOf(value: unknown): string | undefined {
   try {
-    // `encode` takes any value and answers whether the identity parser made it.
     const encoded = tenantCodec.encode(value as TenantId)
     return encoded.ok ? encoded.value : undefined
   } catch {
@@ -253,7 +188,6 @@ function tenantTextOf(value: unknown): string | undefined {
   }
 }
 
-/** JSON with the members of each object in sorted order, or undefined when it cannot be written. */
 function dataText(value: unknown): string | undefined {
   try {
     return JSON.stringify(value, (_name, member: unknown) =>
@@ -274,24 +208,17 @@ function minted<T>(decoded: Outcome<T, unknown>): T | undefined {
   return 'ok' in decoded ? decoded.ok : undefined
 }
 
-/** A host-derived operation identity: unique, never given by a caller. */
 const mintOperation = (kind: string) =>
   minted(decodeAgentOperationId(`agent-host/${kind}/${randomUUID()}`))
 
-/** The reason evidence of an idle reclaim (agent-cordis-contract docs/cordis.md "空闲回收"). */
 function reclaimReason(instance: AgentInstanceId): DurableEvidence {
   return { owner: OWNER, record: 'idle-reclaim', revision: '1', digest: `instance:${instance}` }
 }
 
-/** The reason evidence of the ordered stop, written like the reclaim's. */
 function stopReason(instance: AgentInstanceId): DurableEvidence {
   return { owner: OWNER, record: 'ordered-stop', revision: '1', digest: `instance:${instance}` }
 }
 
-/**
- * Why a quiesce answer is not `drained`, or undefined when it is. An unresolved answer names each
- * remaining execution, with the node and failure kind of a run that stopped on a failure.
- */
 function notDrained(result: Quiesced, failedRuns: ReadonlyMap<string, string>): string | undefined {
   if ('ok' in result) {
     if (result.ok.kind === 'drained') return undefined
@@ -308,7 +235,6 @@ function notDrained(result: Quiesced, failedRuns: ReadonlyMap<string, string>): 
     : `quiesce failed with ${failure.kind}`
 }
 
-/** The text of a failure beside its kind: identities and states only, as the Failure carries them. */
 function failureText(failure: Failure): string {
   switch (failure.kind) {
     case 'unavailable':
@@ -334,7 +260,6 @@ function runFailedRecord(event: AgentRunFailed): string {
   )
 }
 
-/** The warn record of a run that began to wait for a dependency: the reason nothing else keeps. */
 function runWaitingRecord(event: AgentRunWaiting): string {
   const tenant = tenantTextOf(event.tenant) ?? 'unknown'
   return (
@@ -344,11 +269,6 @@ function runWaitingRecord(event: AgentRunWaiting): string {
   )
 }
 
-/**
- * The warn record of a run that ended with a `fail` conclusion (SPEC「以失败终结」). `fault` and
- * `diagnostic` come from the structured Model fault of the candidate, `none` when it has none; `cause`
- * is the record of the conclusion cause as the Journal keeps it, an identifier for people.
- */
 function runEndedFailedRecord(event: AgentRunEndedFailed): string {
   const tenant = tenantTextOf(event.tenant) ?? 'unknown'
   const fault = event.failure?.fault ?? null
@@ -360,7 +280,6 @@ function runEndedFailedRecord(event: AgentRunEndedFailed): string {
   )
 }
 
-/** The factory configuration: the plugin configuration without the host's own items. */
 function factoryConfiguration(config: AgentHostConfig): AgentConfiguration {
   const { instanceIdleMs: _host, reception: _reception, ...configuration } = config
   return configuration
@@ -374,18 +293,14 @@ export function createHost(input: HostInput): Host {
   const slots = new Map<string, InstanceRecord>()
   const building = new Map<string, Promise<Outcome<Granted, Failure>>>()
   let stopped = false
-  /** The ordered stop began: no instance is reserved, built or reclaimed from now on. */
   let closing = false
 
   function record(level: 'error' | 'warn' | 'info', message: string): void {
     try {
       ctx.logger(OWNER)[level](message)
-    } catch {
-      // The context has ended; there is nobody to tell.
-    }
+    } catch {}
   }
 
-  /** One check of the authorization domain. Anything but `allowed` refuses; nothing defaults to allowed. */
   async function qualify(
     access: Access<unknown>,
     operation: AgentAccessOperation,
@@ -418,7 +333,6 @@ export function createHost(input: HostInput): Host {
     }
   }
 
-  // --- registration ----------------------------------------------------------------------------
   function directoryOf(context: Context): Outcome<Context['agentInstances'], Failure> {
     const directory = context.get('agentInstances')
     return directory === undefined
@@ -426,7 +340,6 @@ export function createHost(input: HostInput): Host {
       : succeed(directory)
   }
 
-  /** The contribution fiber of an instance, under the host's own Context. A retry reuses it. */
   function contributionOf(entry: InstanceRecord): Promise<Outcome<Contribution, Failure>> {
     entry.contribution ??= (async () => {
       const made: { ctx?: Context } = {}
@@ -458,7 +371,6 @@ export function createHost(input: HostInput): Host {
       entry.status = 'published'
   }
 
-  /** Registers in the contribution fiber of the instance, after the caller's check. */
   async function publishChecked(
     entry: InstanceRecord,
     input: AgentRegistrationInput<unknown>,
@@ -478,7 +390,6 @@ export function createHost(input: HostInput): Host {
     }
   }
 
-  /** Withdraws through the directory from the host's own fiber. */
   async function withdrawChecked(input: AgentWithdrawalInput<unknown>): Reply<Registration> {
     const directory = directoryOf(ctx)
     if ('failure' in directory) return directory
@@ -495,14 +406,11 @@ export function createHost(input: HostInput): Host {
     }
   }
 
-  // --- idle reclaim ----------------------------------------------------------------------------
-
   function disarm(entry: InstanceRecord): void {
     entry.timer?.abort()
     entry.timer = null
   }
 
-  /** Starts the idle time of a published instance that the host runs. */
   function arm(entry: InstanceRecord): void {
     disarm(entry)
     if (stopped || closing || entry.status !== 'published' || entry.provider === null) return
@@ -534,12 +442,6 @@ export function createHost(input: HostInput): Host {
     })()
   }
 
-  /**
-   * Marks the instance, takes it out of its slot and calls quiesce, in one step that never yields.
-   * The returned answer resolves after a `drained` instance retired; any other answer puts the
-   * instance back to published, and back into its slot when `restore` holds and admission is open.
-   * Undefined when no quiesce operation could be made; then nothing changed.
-   */
   function quiesceNow(
     entry: InstanceRecord,
     provider: AgentProvider<unknown>,
@@ -584,11 +486,8 @@ export function createHost(input: HostInput): Host {
     return settled
   }
 
-  /**
-   * The guard point. It reads the last report, marks the instance and calls quiesce in one step
-   * that never yields, so an invoke either took the slot first (the report is not idle) or meets a
-   * draining runtime.
-   */
+  // The guard point: read the last report, mark the instance and call quiesce in one step with no
+  // await, so an invoke either took the slot first or meets a draining runtime.
   function expire(entry: InstanceRecord): void {
     if (stopped || closing || entry.status !== 'published') return
     const { provider } = entry
@@ -607,7 +506,6 @@ export function createHost(input: HostInput): Host {
     })
   }
 
-  /** Ends an instance: no route, no timer, and its contribution fiber unloads. */
   async function retire(entry: InstanceRecord): Promise<void> {
     entry.status = 'retired'
     disarm(entry)
@@ -625,9 +523,6 @@ export function createHost(input: HostInput): Host {
     }
   }
 
-  // --- reservation -----------------------------------------------------------------------------
-
-  /** The registration capability of one instance. It only reaches the instance's own registration. */
   function handleOf(key: string, instance: AgentInstanceId): AgentRegistrationHandle<unknown> {
     return {
       instance,
@@ -657,7 +552,6 @@ export function createHost(input: HostInput): Host {
     }
   }
 
-  /** Reserves an instance identity after the caller's check. The directory must be present. */
   function reserveChecked(
     access: Access<unknown>,
     tenantText: string,
@@ -699,13 +593,10 @@ export function createHost(input: HostInput): Host {
     return succeed(entry)
   }
 
-  /** Drops a reservation that never served: its runtime, its contribution and its record. */
   async function cancel(entry: InstanceRecord): Promise<void> {
     await retire(entry)
     if (entry.registrations.length === 0) records.delete(entry.key)
   }
-
-  // --- the instance host -----------------------------------------------------------------------
 
   const directory: AgentDirectory<unknown> = {
     async resolve(request) {
@@ -808,8 +699,6 @@ export function createHost(input: HostInput): Host {
     },
   }
 
-  // --- the publication authority ---------------------------------------------------------------
-
   const authority: AgentPublicationAuthority<unknown> = {
     check(request, caller) {
       const tenant = tenantTextOf(request.tenant)
@@ -833,8 +722,6 @@ export function createHost(input: HostInput): Host {
       return succeed(undefined)
     },
   }
-
-  // --- the instance provision ------------------------------------------------------------------
 
   function judgeSlot(
     raw: AgentInstanceSlotInput<unknown>,
@@ -874,7 +761,6 @@ export function createHost(input: HostInput): Host {
     }
   }
 
-  /** Reserve, create, check the host principal, publish. It never rejects. */
   async function build(
     slot: AgentInstanceSlotInput<unknown>,
     tenant: string,
@@ -945,7 +831,6 @@ export function createHost(input: HostInput): Host {
 
   const provision: AgentInstanceProvision<unknown> = {
     async acquire(raw) {
-      // After the ordered stop began, no slot answers, not even one with a published instance.
       if (closing || stopped) return fail(unavailable(OWNER, CLOSED))
       const judged = judgeSlot(raw)
       if ('failure' in judged) return judged
@@ -969,8 +854,6 @@ export function createHost(input: HostInput): Host {
     },
   }
 
-  // --- the recovery and control entries --------------------------------------------------------
-
   /** One Journal call after the check; a throw is `unavailable`, never a made-up answer. */
   async function throughJournal<T>(
     request: Access<unknown>,
@@ -993,7 +876,6 @@ export function createHost(input: HostInput): Host {
   const onExecution = (execution: Parameters<AgentJournal<unknown>['load']>[0]['execution']) =>
     ({ kind: 'execution', execution }) as const
 
-  /** The record of `instance` when this host still runs its runtime. */
   function liveRuntimeOf(tenant: TenantId, instance: AgentInstanceId): InstanceRecord | undefined {
     const text = tenantTextOf(tenant)
     const entry = text === undefined ? undefined : records.get(keyOf(text, instance))
@@ -1002,13 +884,6 @@ export function createHost(input: HostInput): Host {
       : undefined
   }
 
-  /**
-   * Advances an accepted control as the execution handle does, when the active attachment of the
-   * execution belongs to a runtime that this host still runs: the advance uses the dependencies of
-   * that runtime. With no such runtime the accepted control stays as the Journal saved it, for the
-   * recovery path. A failure is returned; the caller retries with the same control operation, and
-   * the advance recognizes every step it already saved.
-   */
   async function advanceHeld(
     request: Parameters<AgentExecutionControl<unknown>['control']>[0],
   ): Reply<void> {
@@ -1052,7 +927,6 @@ export function createHost(input: HostInput): Host {
       ),
     detach: request =>
       throughJournal(request, 'detach', onExecution(request.execution), async () => {
-        // SPEC "恢复与接管": the active attachment of a runtime that still runs needs takeover too.
         if (liveRuntimeOf(request.tenant, request.authority.instance) !== undefined) {
           const refused = await qualify(request, 'takeover', onExecution(request.execution))
           if (refused !== undefined) return fail(refused)
@@ -1082,9 +956,6 @@ export function createHost(input: HostInput): Host {
     },
   }
 
-  // --- the ordered stop ------------------------------------------------------------------------
-
-  /** Resolves `'deadline'` when the signal aborts; `release` drops the listener. */
   function deadlineOf(signal: AbortSignal) {
     let release = () => {}
     const reached = new Promise<'deadline'>(resolve => {
@@ -1096,7 +967,6 @@ export function createHost(input: HostInput): Host {
     return { reached, release: () => release() }
   }
 
-  /** The reason an instance did not end, or undefined when its quiesce drained in time. */
   async function judged(
     entry: InstanceRecord,
     pending: Promise<Quiesced>,
@@ -1114,7 +984,6 @@ export function createHost(input: HostInput): Host {
     const { reached, release } = deadlineOf(signal)
     const unsettled: AgentHostUnsettled[] = []
     try {
-      // A build that passed its admission check before the stop publishes or cancels; wait for it.
       const builds = [...building.values()]
       if (builds.length > 0) {
         const done = await Promise.race([Promise.all(builds).then(() => 'built' as const), reached])

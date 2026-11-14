@@ -1,5 +1,3 @@
-// Reading a secret from a terminal with the echo off. The typed characters never reach the
-// output; the caller gets the line or a `SecretInputError` with a reason code and nothing else.
 import { StringDecoder } from 'node:string_decoder'
 import type { ReadStream } from 'node:tty'
 import { SecretInputError } from './input.ts'
@@ -13,11 +11,8 @@ export type TextSink = Readonly<{ write(text: string): unknown }>
 
 export type ReadSecretOptions = Readonly<{
   input: TerminalInput
-  /** Receives the prompt and the line break after the input; the typed characters are never written. */
   output: TextSink
-  /** The text written before the read. The caller names what it asks for. */
   prompt: string
-  /** Gives up the read, as a signal of the process does. */
   signal?: AbortSignal
 }>
 
@@ -27,15 +22,12 @@ type Escape = 'none' | 'introduced' | 'sequence' | 'single-shift'
 
 type LineStep = 'line-end' | 'cancel' | 'continue'
 
-/** The character after ESC decides the kind of control sequence; anything else ends it at once. */
 const INTRODUCERS: Readonly<Record<string, Escape>> = { '[': 'sequence', O: 'single-shift' }
 
 const FIRST_PRINTABLE = 0x20
 const SEQUENCE_FINAL_FIRST = 0x40
 const SEQUENCE_FINAL_LAST = 0x7e
 
-// A sequence that is open swallows the character, and ESC opens one: control sequences (arrow keys
-// and the like) are skipped here, so they never end up in the key.
 function nextEscape(state: Escape, char: string): Escape {
   if (state === 'sequence') return isSequenceFinal(char) ? 'none' : 'sequence'
   if (state === 'single-shift') return 'none'
@@ -48,7 +40,6 @@ function isSequenceFinal(char: string): boolean {
   return code >= SEQUENCE_FINAL_FIRST && code <= SEQUENCE_FINAL_LAST
 }
 
-/** The keys that end or cancel the line, as opposed to those that edit it. */
 const LINE_KEYS: Readonly<Record<string, LineStep>> = {
   '\r': 'line-end',
   '\n': 'line-end',
@@ -70,12 +61,6 @@ function printable(char: string): boolean {
   return char.charCodeAt(0) >= FIRST_PRINTABLE
 }
 
-/**
- * Reads one line from a terminal with the echo off. The terminal goes back to the mode it had when
- * the line ends, when the person cancels, when the stream ends or fails, when the signal fires, and
- * when the process exits while the read is open. An input that is not a terminal is refused before
- * the mode, the prompt or any listener is touched.
- */
 export function readSecretFromTerminal(options: ReadSecretOptions): Promise<string> {
   const { input, output, signal, prompt } = options
   if (signal?.aborted) return Promise.reject(new SecretInputError('input-cancelled'))
@@ -98,9 +83,7 @@ export function readSecretFromTerminal(options: ReadSecretOptions): Promise<stri
     const restore = (): void => {
       try {
         input.setRawMode(wasRaw)
-      } catch {
-        // The terminal may already be gone; there is nothing left to restore.
-      }
+      } catch {}
     }
     const finish = (settle: () => void): void => {
       if (finished) return
@@ -118,7 +101,6 @@ export function readSecretFromTerminal(options: ReadSecretOptions): Promise<stri
     }
     const cancel = (): void => finish(() => reject(new SecretInputError('input-cancelled')))
     const onClosed = cancel
-    // The error of the stream is dropped: it could be anything, and the reason code says enough.
     const onFailed = (): void => finish(() => reject(new SecretInputError('input-failed')))
 
     const consume = (char: string): LineStep => {

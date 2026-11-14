@@ -1,6 +1,3 @@
-// The reservations of the write, control and query points (SPEC 7.2 step 8, 6.2 step 8, 8) behind
-// their waiting lists (sql-contract SPEC 准入等待), without a Worker. Each case names the defect that
-// turns it red.
 import { describe, expect, it } from 'vitest'
 import { Admission, type Acquired } from '../src/admission.ts'
 import type { SqliteStorageConfig } from '../src/config.ts'
@@ -14,7 +11,6 @@ function admission(overrides: Partial<SqliteStorageConfig>): Admission {
 
 type Granted = Extract<Acquired, { kind: 'granted' }>
 
-/** An answer known at the call is a value; a waiter is a promise. */
 function now(acquired: Acquired | Promise<Acquired>): Acquired {
   if (acquired instanceof Promise) throw new Error('expected an answer at the call, not a wait')
   return acquired
@@ -24,7 +20,6 @@ function granted(acquired: Acquired | Promise<Acquired>): Granted {
   if (answer.kind !== 'granted') throw new Error(`expected granted, got ${answer.kind}`)
   return answer
 }
-/** A waiter, with what it has been answered so far. */
 function waiting(acquired: Acquired | Promise<Acquired>) {
   if (!(acquired instanceof Promise)) throw new Error(`expected a wait, got ${acquired.kind}`)
   const seen: { answer: Acquired | null } = { answer: null }
@@ -34,7 +29,6 @@ function waiting(acquired: Acquired | Promise<Acquired>) {
 const turn = (): Promise<void> => new Promise(resolve => setImmediate(resolve))
 
 describe('the write point', () => {
-  // Defect: the request bytes are not counted, counted the wrong way, or not given back.
   it('holds the in-flight request bytes up to globalInFlightWriteBytes, and gives them back', async () => {
     const a = admission({
       admissionQueueLimit: 8,
@@ -49,12 +43,10 @@ describe('the write point', () => {
     first.release()
     await turn()
     expect(third.answer?.kind).toBe('granted')
-    // 60 + 1 are held now: 39 more fit, 40 do not.
     granted(a.reserveWrite('d4', 39))
     expect(waiting(a.reserveWrite('d5', 1)).answer).toBeNull()
   })
 
-  // Defect: the response allowance is not counted, counted the wrong way, or not given back.
   it('holds one response allowance per write up to globalWriteResponseBytes, and gives it back', async () => {
     const a = admission({
       admissionQueueLimit: 8,
@@ -73,7 +65,6 @@ describe('the write point', () => {
     expect(waiting(a.reserveWrite('d4', 1)).answer).toBeNull()
   })
 
-  // Defect: the global count is not checked, or checked with <=.
   it('holds at most globalAdmissionLimit writes in all, across domains', async () => {
     const a = admission({ admissionQueueLimit: 2, globalAdmissionLimit: 2 })
     const first = granted(a.reserveWrite('d1', 1))
@@ -86,7 +77,6 @@ describe('the write point', () => {
     expect(third.answer?.kind).toBe('granted')
   })
 
-  // Defect: the count of a domain is lost or kept wrong when one of its writes ends.
   it('keeps the count of a domain right when one of two of its writes ends', async () => {
     const a = admission({ admissionQueueLimit: 2, globalAdmissionLimit: 8 })
     const first = granted(a.reserveWrite('d1', 1))
@@ -97,7 +87,6 @@ describe('the write point', () => {
     first.release()
     await turn()
     expect(third.answer?.kind).toBe('granted')
-    // d1 holds two again: the next one of d1 waits.
     const fourth = waiting(a.reserveWrite('d1', 1))
     await turn()
     expect(fourth.answer).toBeNull()
@@ -105,7 +94,6 @@ describe('the write point', () => {
 })
 
 describe('the control and query points', () => {
-  // Defect: the domain of the request is dropped, so all requests count against one domain.
   it('count per domain: another domain is admitted while one is full', () => {
     const a = admission({
       controlQueuePerDomain: 1,
@@ -114,7 +102,6 @@ describe('the control and query points', () => {
       queryQueueGlobal: 4,
     })
     expect(now(a.reserveControl('d1')).kind).toBe('granted')
-    // d1 is full: a second one of d1 waits, while d2 is admitted at the call.
     expect(a.reserveControl('d1')).toBeInstanceOf(Promise)
     expect(now(a.reserveControl('d2')).kind).toBe('granted')
     expect(now(a.reserveQuery('d1')).kind).toBe('granted')
@@ -122,7 +109,6 @@ describe('the control and query points', () => {
     expect(now(a.reserveQuery('d2')).kind).toBe('granted')
   })
 
-  // Defect: the waiting list of a point is not bounded.
   it('bound their waiting lists like their counts: one more than the list holds is refused at once', () => {
     const a = admission({
       controlQueuePerDomain: 1,
@@ -139,7 +125,6 @@ describe('the control and query points', () => {
   })
 })
 
-// Defect: close does not reach one of the three waiting lists.
 it('close ends the waiters of all three points with closing', async () => {
   const a = admission({
     admissionQueueLimit: 1,

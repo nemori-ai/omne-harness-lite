@@ -1,7 +1,3 @@
-// The ToolStartFence conformance suite (SPEC「外层调用方的启动围栏」, J03). The fence is the view of
-// the start authority that an outer caller holds, so the suite observes the effect of a fence
-// confirmation through `prepare`, `consume` and `inspect` of the same provider: a case passes only
-// when the fence and the authority share one ordering domain.
 import assert from 'node:assert/strict'
 import type { FixedToolRequest } from './definitions.ts'
 import type { Access, DurableEvidence, ToolCallId } from './identity.ts'
@@ -43,15 +39,6 @@ import {
   tenantKey,
 } from './testing-values.ts'
 
-/**
- * What the start fence suite needs, on top of the start authority fixture. `fence` is the view
- * that an outer caller holds, served by the provider of `authority`. `guard` names the guard
- * resource of the outer caller that the trusted configuration of the provider applies to the
- * fixed request of the fixture, so that every permit of the suite carries it; the principal of
- * `access` may invalidate it, and the principal of `otherAccess` may invalidate the guard of the
- * same name in its own tenant. `strangerAccess` is an access of the tenant of `access` whose
- * principal may invalidate no guard: the case that needs it is reported not applicable without it.
- */
 export interface ToolStartFenceFixture<P> extends ToolStartAuthorityFixture<P> {
   readonly fence: ToolStartFence<P>
   readonly guard: Readonly<{ owner: string; resource: string }>
@@ -97,7 +84,6 @@ function scene<P>(fixture: Fixture<P>, access: Access<P> = fixture.access) {
         succeeded(await authority.inspect({ ...callAccess, start }), `inspect ${name}`),
     }
   }
-  /** The guard input of the outer caller: its own resource, and its own record of the cause. */
   const guard = (cause = 'retire-1'): StartGuard => ({
     owner: fixture.guard.owner,
     resource: fixture.guard.resource,
@@ -122,7 +108,6 @@ function scene<P>(fixture: Fixture<P>, access: Access<P> = fixture.access) {
   }
 }
 
-/** A start the fence refused: driven to its end, it never started. */
 function assertRefused(progress: StartProgress, what: string): void {
   expectOneOf(progress, ['rejected', 'not-started'], what)
 }
@@ -148,7 +133,6 @@ async function acceptedStartStays<P>(fixture: Fixture<P>): Promise<void> {
   const permit = await call.prepare()
   const accepted = expectKind(await call.consumeFinal(permit), 'started', 'consume')
   await s.fence('fence-1')
-  // The fence stops nothing: the acceptance stands, and the outer caller stops the call itself.
   resendRecalls(answers.inspect, { earlier: accepted, later: await call.inspect() }, 'inspect')
   resendRecalls(
     answers.consume,
@@ -160,7 +144,6 @@ async function acceptedStartStays<P>(fixture: Fixture<P>): Promise<void> {
 async function laterPermitStarts<P>(fixture: Fixture<P>): Promise<void> {
   const s = scene(fixture)
   await s.fence('fence-1')
-  // A permit prepared after the confirmation carries the new revision and starts on its own merit.
   const call = s.at('call-2')
   expectKind(await call.consumeFinal(await call.prepare()), 'started', 'consume after the fence')
 }
@@ -171,7 +154,6 @@ async function fenceResent<P>(fixture: Fixture<P>): Promise<void> {
   const call = s.at('call-1')
   const permit = await call.prepare()
   assert.deepEqual(await s.fence('fence-1'), first, 'the resent fence returns the first evidence')
-  // The resend did not move the guard again: the permit prepared between the two still starts.
   expectKind(await call.consumeFinal(permit), 'started', 'consume after the resend')
 }
 
@@ -191,7 +173,6 @@ async function foreignFence<P>(fixture: Fixture<P>): Promise<void> {
   const other = scene(fixture, otherAccessOf(fixture))
   const call = own.at('call-1')
   const permit = await call.prepare()
-  // The other tenant names the same guard resource: a guard is a resource of one tenant.
   await other.tryFence('fence-9')
   expectKind(await call.consumeFinal(permit), 'started', 'consume after a fence of another tenant')
 }
@@ -200,7 +181,6 @@ async function crossTenantPrincipal<P>(fixture: Fixture<P>): Promise<void> {
   const own = scene(fixture)
   const call = own.at('call-1')
   const permit = await call.prepare()
-  // The principal of another tenant presents the tenant of the fixture: it holds no qualification.
   const mixed = { ...fixture.access, principal: otherAccessOf(fixture).principal }
   const denied = refused(
     await fixture.fence.invalidate({
@@ -235,7 +215,6 @@ async function unqualifiedPrincipal<P>(fixture: Fixture<P>): Promise<void> {
     }),
     'fence of a guard that does not exist by an unqualified principal',
   )
-  // Both are denied alike: the answer tells nothing of whether the guard exists.
   assert.equal(real.kind, 'denied')
   assert.deepEqual(ghost, real, 'the denial tells a real guard from a ghost')
   expectKind(await call.consumeFinal(permit), 'started', 'consume after the denied fence')
@@ -268,11 +247,6 @@ export function toolStartFenceConformance<P>(): readonly ConformanceCase<Fixture
   ]
 }
 
-/**
- * The fence view of the double: it checks the fence qualification of the access, the trusted
- * configuration `qualified`, before it enters the ordering domain of `authority`. A refusal moves no
- * guard and is the same for every guard.
- */
 function qualifiedFence<P>(
   authority: ToolStartAuthority<P>,
   qualified: (access: Access<P>, owner: string) => boolean,
@@ -285,11 +259,6 @@ function qualifiedFence<P>(
   }
 }
 
-/**
- * A fresh fixture: one in-memory start authority, and the fence view of the same instance. The
- * double applies one guard resource to every request. The principal of `access` may fence it in
- * its tenant, the principal of `otherAccess` in its own tenant, and the stranger nowhere.
- */
 export function memoryToolStartFenceFixture(): ToolStartFenceFixture<string> {
   const authority = createMemoryToolStartAuthority<string>()
   const access = memoryAccess('tester')

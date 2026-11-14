@@ -1,30 +1,3 @@
-// The `model-records` row (assembly page row table, R2-D6, facts a.1/a.3/b.1/b.2, `tmp/wire-model/design.md`):
-// model-storage-sql's `createSqlModelRecordsPlugin` with the live objects of this application, and
-// the send stage of model-host-local as a child fiber of the same row (plan A of R2-D6). The row
-// provides `modelCommands` itself and `modelSendBoundary` through its child.
-//
-// What the row builds from its injects and its port of the run composition (`src/model/ports.ts`):
-// - the first-execution run (`createModelInitialRun`) with the origin read check of the composition;
-// - the qualification registry over `principalVerifier` and `tenantStanding` (the synchronous
-//   `authority`, `execution` and `current` read what the admission points captured);
-// - one evidence adapter per consumer owner adoption, over the `initial` of this activation, the
-//   materialization reader the send stage installs, and the custody evidence of the Agent owner read
-//   per call from the trusted `agentReceivedRecords` of the `agent-journal` row (R2-D257);
-// - the trusted send sources of the official OpenAI profiles;
-// - the routes of the release providers, with the operator's endpoints;
-// - the combination: the configured `combinationVersion` and the digest of the same catalog the
-//   `session-storage` row registers.
-// At activation the row attaches `initial`, the observation pair of the same activation (#1214: the
-// public Model stream; its bounds are the operator's `observation`, its timing the monotonic clock)
-// and the registry to the composition (one channel is opened there), then the member creates the
-// send child; the child captures its fiber into the composition so the host can release it before
-// the channel. A missing credential leaves the child `PENDING` and the commands `ACTIVE`.
-//
-// The row also provides `modelDiagnostics` (#1140 A5, RFC-0013 A line): model-storage-sql's
-// `createSqlModelDiagnostics` over the same storage, the same tenant domains and the same
-// `authority` as the records plugin, in the same plugin body, so the three keys are one provider
-// group (`model-records`). The read eligibility and the retention adoption come from the row
-// configuration (`diagnostics`).
 import type { Context, Fiber, Plugin } from '@deepseek-ai/cordis'
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import { principalVerifierKey, tenantStandingKey } from '@omne-harness/identity/cordis'
@@ -85,7 +58,6 @@ type Injected = Readonly<{
 }>
 
 function injected(ctx: Context): Injected {
-  // The row's static inject guarantees every name is ACTIVE when the body runs.
   return {
     storage: ctx.get(storageKey) as SqlStorage,
     tenantDomainLookup: ctx.get(tenantDomainLookupKey) as TenantDomainLookup,
@@ -95,7 +67,6 @@ function injected(ctx: Context): Injected {
   }
 }
 
-/** The evidence adapters: one per distinct consumer owner adoption. */
 function evidenceOf(
   config: ModelRecordsConfig['member'],
   sources: Parameters<typeof createModelEvidence>[1],
@@ -111,7 +82,6 @@ function evidenceOf(
   return adapters
 }
 
-/** One activation of the row: the plugin class is built for it, so every live object is in its closure. */
 function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
   const requestDisclosure = toolResultDisclosureOf(ctx)
   const port = modelRecordsPortOf(ctx)
@@ -136,8 +106,6 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
     checkOriginRead: target => port.checkOriginRead(target),
   })
   const { sendStage } = config.app
-  // The credential port the send child injects. The stage's own preparation leases complete a
-  // supplier through it, like the preparation row; outside the child's life there is none.
   const sendCredential: { port: CredentialPort | undefined } = { port: undefined }
   const sendTokenizers: { port: ModelTokenizers | undefined } = { port: undefined }
   const Records = createSqlModelRecordsPlugin<unknown, ModelSendStageSettings>({
@@ -247,7 +215,6 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
     },
   })
   new Records(ctx, config.member)
-  // The read face over the same records: the same storage, domains and authority as the commands.
   const current = currentForReader(new WeakMap(), ctx)
   class Diagnostics extends ModelDiagnosticsService<unknown> {
     readonly list

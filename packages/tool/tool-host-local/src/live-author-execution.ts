@@ -59,7 +59,6 @@ export function createLiveAuthorExecution(
       cursor,
       events: [{ event, fact }],
     })
-    // A segment that suspends ends its stream at its wait; only a final settles the start.
     if (fact.kind === 'wait') ended = true
     if (fact.kind === 'final') {
       ended = true

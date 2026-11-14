@@ -1,7 +1,4 @@
 // @vitest-environment happy-dom
-// The shell and the login screen through the assembly (SPEC.md「页面」), with a fake bridge and a
-// fake tree: the login gate, the two fallbacks, the form that clears, plain failure text, the
-// current tenant handed to the session workspace, and signing out.
 import { afterEach, describe, expect, it } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { LoginState } from '@omne-harness/client-assembly/cordis'
@@ -55,7 +52,6 @@ function fakeTree(initial: Record<string, unknown>) {
   }
 }
 
-/** An `assets/v1` client whose list answers one empty page. */
 const assetsClient = {
   'list-settings': async () => ({
     outcome: 'succeeded',
@@ -77,7 +73,6 @@ function setup(options: {
     transport: {
       call: async () => ({ kind: 'not-sent' }),
       async *observe() {
-        // No frame: the observation is not sent.
         yield* []
         return { kind: 'not-sent' }
       },
@@ -175,7 +170,6 @@ describe('外壳', () => {
   it('登录之后取当前租户交给会话界面，顶栏显示租户，可以退出登录', async () => {
     const t = setup({ login: 'signed-in' })
     await act(async () => {})
-    // The session workspace took the tenant: it offers a new session, not its "tenant unreadable" line.
     expect(screen.getByRole('button', { name: '新建会话' })).toBeTruthy()
     expect(screen.queryByText(/租户读不懂/)).toBeNull()
     expect(screen.getByText(/^租户 /)).toBeTruthy()

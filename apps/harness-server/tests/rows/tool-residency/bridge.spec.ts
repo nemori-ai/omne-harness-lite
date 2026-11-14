@@ -25,7 +25,6 @@ describe('the real tool-residency bridge with Session memory transactions', () =
       await app.write({ tenant: tenantA(), key: at, shape: shape() })
       await app.write({ tenant: tenantB(), key: at, shape: shape() })
       await app.write({ tenant: tenantA(), key: at, shape: shape() })
-      // Three holders at page size 1: a first page that is complete would leave the paging cases vacuous.
       expect(await app.reader.referencing({ scope: 'system', key: at, after: null })).toMatchObject(
         {
           ok: { items: [expect.anything()], next: expect.any(String) },
@@ -52,7 +51,6 @@ describe('the real tool-residency bridge with Session memory transactions', () =
     it(scenario.name, async () => {
       const app = await start()
       await expect(scenario.run(app)).resolves.toBeUndefined()
-      // Whatever the case wrote, the bridge still reads a fresh holder back with its tenant and shape.
       const probe = key('probe_tool')
       await app.write({ tenant: tenantA(), key: probe, shape: shape('probe_tool') })
       expect(

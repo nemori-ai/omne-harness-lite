@@ -1,17 +1,29 @@
 import ts from '@typescript/typescript6'
-
-const TOOL_MARKERS = /eslint-|oxlint-|@ts-|v8 ignore|c8 ignore|istanbul ignore|Stryker|@vitest-/u
+import { licenceComments, plainLineCount, type SourceComment } from './annotations.ts'
+import type { HygieneLimits } from './baseline.ts'
+import { PUBLISHED_BYTES } from './published-bytes.ts'
 
 const FORBIDDEN_COMMENT: readonly RegExp[] = [
   /R\d+-D\d+|\bD-\d+|RFC-\d+|#\d{3,}|阶段 ?\d/u,
   /\b(?:TODO|FIXME|XXX|HACK)\b/u,
 ]
 
-const HEADER_BLOCK_LINES = 5
+export type SourceLimits = Pick<
+  HygieneLimits,
+  'functionLines' | 'commentRunLines' | 'commentFloorLines' | 'commentPercent'
+>
+
+export interface CommentMeasure {
+  readonly count: number
+  readonly firstLine: number
+  readonly forms: number
+  readonly runs: number
+  readonly dense: number
+}
 
 export interface SourceMeasure {
   readonly lines: number
-  readonly comments: { readonly count: number; readonly firstLine: number }
+  readonly comments: CommentMeasure
   readonly functions: {
     readonly count: number
     readonly longest: number
@@ -19,12 +31,11 @@ export interface SourceMeasure {
   }
 }
 
-interface Comment {
-  readonly pos: number
-  readonly end: number
-  readonly startLine: number
-  readonly endLine: number
-  readonly text: string
+type Comment = SourceComment
+
+interface PlainComment {
+  readonly comment: Comment
+  readonly lines: number
 }
 
 function scriptKind(path: string): ts.ScriptKind {
@@ -77,34 +88,77 @@ function commentsOf(syntax: ts.SourceFile): Comment[] {
   return [...seen.values()].sort((a, b) => a.pos - b.pos)
 }
 
-function headerBlocks(comments: readonly Comment[], firstTokenPos: number): Comment[][] {
-  const header = comments.filter(comment => comment.end <= firstTokenPos)
-  const blocks: Comment[][] = []
-  for (const comment of header) {
-    const block = blocks.at(-1)
-    if (block !== undefined && comment.startLine <= (block.at(-1)?.endLine ?? 0) + 1)
-      block.push(comment)
-    else blocks.push([comment])
-  }
-  return blocks
-}
-
-function commentViolations(syntax: ts.SourceFile): { count: number; firstLine: number } {
-  const all = commentsOf(syntax).filter(comment => !TOOL_MARKERS.test(comment.text))
+function plainComments(path: string, syntax: ts.SourceFile): PlainComment[] {
+  const all = commentsOf(syntax)
   const firstToken =
     syntax.statements[0]?.getStart(syntax) ?? syntax.endOfFileToken.getStart(syntax)
-  const inBlock = new Set<Comment>()
-  const lines: number[] = []
-  for (const block of headerBlocks(all, firstToken)) {
-    const span = (block.at(-1)?.endLine ?? 0) - (block[0]?.startLine ?? 0) + 1
-    if (span < HEADER_BLOCK_LINES) continue
-    for (const comment of block) inBlock.add(comment)
-    lines.push(block[0]?.startLine ?? 1)
+  const licence = licenceComments(
+    syntax.text,
+    all.filter(comment => comment.end <= firstToken),
+  )
+  return all.flatMap(comment => {
+    const lines = licence.has(comment) ? 0 : plainLineCount(path, comment)
+    return lines === 0 ? [] : [{ comment, lines }]
+  })
+}
+
+function adjacentRuns(text: string, plain: readonly PlainComment[]): PlainComment[][] {
+  const runs: PlainComment[][] = []
+  for (const item of plain) {
+    const run = runs.at(-1)
+    const previous = run?.at(-1)?.comment
+    if (
+      run !== undefined &&
+      previous !== undefined &&
+      item.comment.startLine <= previous.endLine + 1 &&
+      /^\s*$/u.test(text.slice(previous.end, item.comment.pos))
+    )
+      run.push(item)
+    else runs.push([item])
   }
-  for (const comment of all)
-    if (!inBlock.has(comment) && FORBIDDEN_COMMENT.some(pattern => pattern.test(comment.text)))
-      lines.push(comment.startLine)
-  return { count: lines.length, firstLine: lines.length === 0 ? 0 : Math.min(...lines) }
+  return runs
+}
+
+function commentMeasure(
+  path: string,
+  syntax: ts.SourceFile,
+  fileLines: number,
+  limits: SourceLimits,
+): CommentMeasure {
+  const plain = plainComments(path, syntax)
+  const exempt = PUBLISHED_BYTES.has(path)
+  const hits: number[] = []
+  let forms = 0
+  let runs = 0
+  for (const run of adjacentRuns(syntax.text, plain)) {
+    const first = run[0]?.comment.startLine ?? 0
+    const span = (run.at(-1)?.comment.endLine ?? 0) - first + 1
+    if (span >= limits.commentRunLines) {
+      if (exempt) continue
+      runs += 1
+      hits.push(first)
+      continue
+    }
+    for (const { comment } of run)
+      if (FORBIDDEN_COMMENT.some(pattern => pattern.test(comment.text))) {
+        forms += 1
+        hits.push(comment.startLine)
+      }
+  }
+  const band = Math.max(
+    limits.commentFloorLines,
+    Math.floor((fileLines * limits.commentPercent) / 100),
+  )
+  const plainLines = plain.reduce((sum, item) => sum + item.lines, 0)
+  const dense = !exempt && plainLines > band ? 1 : 0
+  if (dense === 1) hits.push(plain[0]?.comment.startLine ?? 1)
+  return {
+    count: forms + runs + dense,
+    firstLine: hits.length === 0 ? 0 : Math.min(...hits),
+    forms,
+    runs,
+    dense,
+  }
 }
 
 function functionBand(syntax: ts.SourceFile, functionLines: number): SourceMeasure['functions'] {
@@ -130,44 +184,18 @@ function functionBand(syntax: ts.SourceFile, functionLines: number): SourceMeasu
   return { count, longest, longestLine }
 }
 
-function lineAt(text: string, pos: number): number {
-  let line = 1
-  for (let at = text.indexOf('\n'); at !== -1 && at < pos; at = text.indexOf('\n', at + 1))
-    line += 1
-  return line
-}
-
-function hasLongHeaderBlock(text: string): boolean {
-  let previousEnd = -2
-  let blockStart = 0
-  for (const range of ts.getLeadingCommentRanges(text, 0) ?? []) {
-    const start = lineAt(text, range.pos)
-    if (start > previousEnd + 1) blockStart = start
-    previousEnd = lineAt(text, range.end)
-    if (previousEnd - blockStart + 1 >= HEADER_BLOCK_LINES) return true
-  }
-  return false
-}
-
-function mayHaveForbiddenComment(text: string): boolean {
-  if (!text.includes('//') && !text.includes('/*')) return false
-  return FORBIDDEN_COMMENT.some(pattern => pattern.test(text)) || hasLongHeaderBlock(text)
-}
-
-export function measureSource(path: string, text: string, functionLines: number): SourceMeasure {
+export function measureSource(path: string, text: string, limits: SourceLimits): SourceMeasure {
   const lines = lineCount(text)
-  const parse = () =>
-    ts.createSourceFile(path, text, ts.ScriptTarget.Latest, false, scriptKind(path))
-  const noComments = { count: 0, firstLine: 0 }
+  const noComments = { count: 0, firstLine: 0, forms: 0, runs: 0, dense: 0 }
   const noFunctions = { count: 0, longest: 0, longestLine: 0 }
-  const needsFunctions = lines > functionLines
-  const needsComments = mayHaveForbiddenComment(text)
+  const needsFunctions = lines > limits.functionLines
+  const needsComments = text.includes('//') || text.includes('/*')
   if (!needsFunctions && !needsComments)
     return { lines, comments: noComments, functions: noFunctions }
-  const syntax = parse()
+  const syntax = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, false, scriptKind(path))
   return {
     lines,
-    comments: needsComments ? commentViolations(syntax) : noComments,
-    functions: needsFunctions ? functionBand(syntax, functionLines) : noFunctions,
+    comments: needsComments ? commentMeasure(path, syntax, lines, limits) : noComments,
+    functions: needsFunctions ? functionBand(syntax, limits.functionLines) : noFunctions,
   }
 }

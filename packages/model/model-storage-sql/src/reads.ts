@@ -1,6 +1,3 @@
-// The read handlers of the Model records and the main-thread reads over them. The handler
-// halves run in the provider's read Worker and carry the tenant condition in every statement;
-// the main-thread halves resolve the tenant domain and parse the output once (documents.ts).
 import { randomUUID } from 'node:crypto'
 import {
   decodeModelCallId,
@@ -28,24 +25,15 @@ import { PROTOCOL, TABLES, type Table } from './schema.ts'
 export const CALL_HANDLER = 'model.call'
 export const PENDING_HANDLER = 'model.pending'
 export const REQUEST_HANDLER = 'model.request'
-/** `maxOutputBytes` of `model.request`: one chunk of a request body and its position. */
 export const REQUEST_READ_MAX_OUTPUT_BYTES = 4 * 1024 * 1024
-/** `maxRowsRead` of `model.request`: the call row and one chunk row. */
 export const REQUEST_READ_MAX_ROWS = 2
-/** `maxOutputBytes` of `model.call`: 4 MiB, at most the provider's `maxReadResultBytes`. */
 export const CALL_READ_MAX_OUTPUT_BYTES = 4 * 1024 * 1024
-/** `maxRowsRead` of `model.call`. Dispatch and part rows above it make the read unavailable. */
 export const CALL_READ_MAX_ROWS = 20_000
 export const PENDING_READ_MAX_ROWS = 1001
 export const PENDING_PAGE_MAX = 1000
 
 const DEPENDENCY = 'model-records'
 
-/**
- * How many calls of one tenant hold a result that is not released: the calls whose request
- * material is held. The read of `model.call` reports it; the participant checks a new call
- * against it.
- */
 export const HELD_CALLS_SQL = `SELECT COUNT(*) AS held
   FROM md_call WHERE tenant = ? AND request IS NOT NULL`
 
@@ -55,14 +43,8 @@ export const unavailable = (diagnostic: string): ModelFailure => ({
   diagnostic,
 })
 
-// --- Worker half ---------------------------------------------------------------------------
-
 type Cell = string | number | null
 
-/**
- * A cell as JSON: INTEGER as a safe integer, TEXT as text, a BLOB (a `json` column) as its packed
- * text. A large integer stops.
- */
 function jsonCell(cell: SqlCell | undefined): Cell {
   if (cell === null || cell === undefined || typeof cell === 'string') return cell ?? null
   if (cell instanceof Uint8Array) return unpackText(cell)
@@ -115,12 +97,10 @@ function readCallRows(input: JsonValue, port: ReadPort): JsonValue {
             WHERE tenant = ? AND operation = ? LIMIT 1`,
           [tenant, operation],
         )[0]
-  // The read port demands a LIMIT on every statement; the aggregate gives one row.
   const held = rows(port, `${HELD_CALLS_SQL} LIMIT 1`, [tenant])[0]?.['held'] ?? 0
   const operationRow = bound ?? null
   if (head === undefined)
     return { call: null, dispatches: [], parts: [], operation: operationRow, held }
-  // Three rows are read above; the rest of the budget is for dispatches and parts together.
   const budget = CALL_READ_MAX_ROWS - 3
   const dispatches = rows(
     port,
@@ -163,10 +143,6 @@ function readPendingRows(input: JsonValue, port: ReadPort): JsonValue {
   }
 }
 
-/**
- * One chunk of the body of the call that holds its material. `seq` names the chunk. The answer is
- * null when no call holds material under this identity, or when the chunk is not there.
- */
 function readRequestChunk(input: JsonValue, port: ReadPort): JsonValue {
   const scope = record(input)
   const tenant = textInput(scope, 'tenant')
@@ -212,20 +188,14 @@ function handler(
   }
 }
 
-/** `model.call`: the call row, its dispatches and parts, the operation row and the tenant share used. */
 export const callHandler: ReadHandlerModule = handler(CALL_HANDLER, readCallRows)
-/** `model.request`: one chunk of the request body of a call that holds its material. */
 export const requestHandler: ReadHandlerModule = handler(REQUEST_HANDLER, readRequestChunk)
-/** `model.pending`: one page of the calls of a tenant that carry a pending mark, by call. */
 export const pendingHandler: ReadHandlerModule = handler(PENDING_HANDLER, readPendingRows)
-
-// --- Main-thread half ----------------------------------------------------------------------
 
 export type DomainOf =
   | Readonly<{ kind: 'ready'; domain: DomainRef }>
   | Readonly<{ kind: 'unregistered' }>
 
-/** The domain of one tenant text. A directory answer for another tenant is refused, never used. */
 export async function domainOf(
   domains: TenantDomainLookup,
   tenant: string,
@@ -264,11 +234,6 @@ export type CallReadInput = Readonly<{
   operation: ModelOperationId | null
 }>
 
-/**
- * One `snapshot` read of a call. A tenant without a domain holds no call: the answer is the same
- * as for a call that does not exist, so it tells nothing about another tenant. A row that does
- * not parse makes the read unavailable.
- */
 export async function readCall(
   storage: SqlStorage,
   domain: DomainOf,
@@ -289,7 +254,6 @@ export async function readCall(
 
 export type PendingPage = Readonly<{ calls: readonly ModelCallId[]; next: ModelCallId | null }>
 
-/** One page of the pending calls of a tenant, after the call `after`, in call order. */
 export async function readPending(
   storage: SqlStorage,
   domain: DomainOf,
@@ -318,11 +282,6 @@ export async function readPending(
   return succeed({ calls: ids, next: more ? (ids[ids.length - 1] ?? null) : null })
 }
 
-/**
- * The whole request body of a call, read chunk by chunk and put together. Null when the call
- * holds no material. A body that is not whole, or that does not parse, makes the read unavailable:
- * the participant admits a call only with its whole body, so this is a damaged store.
- */
 export async function readRequestBody(
   storage: SqlStorage,
   domain: DomainOf,

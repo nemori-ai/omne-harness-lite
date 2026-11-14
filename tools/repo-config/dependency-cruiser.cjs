@@ -1,25 +1,13 @@
-// dependency-cruiser is the repository's one dependency graph (RFC-0002). `pnpm run lint:deps` and the clean loop read
-// the same run through tools/repo-toolchain/src/deps; member and group cycles are computed there from this graph.
-// Structural guards fail for dev tools and product sources alike.
-//
-// Direction rules project docs/package-organization.md and docs/architecture/layers-and-dependencies.md onto member
-// paths. Rules that need a role the repository does not record yet (a contract must not depend on its provider; a
-// provider is reached through the contract it implements) are not expressed; see docs/package-organization.md.
 const PACKAGES = '^packages/'
 const SDK = '^packages/access/sdk/'
 const SERVER_ENTRY = '^packages/access/server-entry/'
 const PUBLIC_CONTRACT = '^packages/access/public-contract/'
 const ACCESS_CORDIS_CONTRACT = '^packages/access/access-cordis-contract/'
 const ASSEMBLY = '^packages/assembly/assembly/'
-// The entry's positions that know no domain.
 const ENTRY_CORE = '(registry|settle|pipeline|observation-hub|availability)'
-// The client core and the files it imports from the rest of the SDK.
 const SDK_CORE = '^packages/access/sdk/src/(core/|limits\\.ts$|never-written\\.ts$)'
-// The members on the client's side of the access layer. They sit above the SDK. A protocol client
-// or a view module of a domain joins this set when it is built.
 const CLIENT_SIDE = '^packages/(access/client-assembly|assets/assets-ui|session/session-ui)/'
 const CLIENT_ASSEMBLY = '^packages/access/client-assembly/'
-// The view modules among the client-side members. The first group is the domain of the module.
 const VIEW_MODULE = '^packages/(assets|session)/[^/]+-ui/'
 const SHARED = '^packages/(common|util)/'
 const ORGANIZATION = 'docs/package-organization.md'
@@ -29,7 +17,6 @@ const UNPUBLISHED_TOOLS = '^tools/(dev-flow|product-checks|test-runner)/'
 const WORKSPACE = 'docs/workspace.md'
 const LAYERS = 'docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向'
 const ACCESS_RFC = 'docs/rfcs/RFC-0015-access-dynamic-registration.md'
-// dependency-cruiser resolves `node:crypto` to `crypto`, so a Node built-in is matched by its bare name.
 const NODE_BUILTIN = `^(node:)?(${require('node:module')
   .builtinModules.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
   .join('|')})$`
@@ -221,12 +208,10 @@ module.exports = {
     },
   ],
   options: {
-    // Keep dist and installed packages as leaves: excluding them would drop the edges that point at them.
     doNotFollow: { path: ['node_modules', '(^|/)dist/', '\\.0\\.0\\.1\\.legacy/'] },
     exclude: { path: ['(^|/)tmp/', '(^|/)\\.worktrees/', '(^|/)coverage/'] },
     tsPreCompilationDeps: 'specify',
     tsConfig: { fileName: 'tsconfig.base.json' },
-    // Same condition as typecheck: workspace imports resolve to member sources instead of dist.
     enhancedResolveOptions: {
       conditionNames: ['source', 'import', 'types', 'node', 'default'],
       exportsFields: ['exports'],

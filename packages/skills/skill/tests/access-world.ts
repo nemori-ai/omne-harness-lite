@@ -1,13 +1,3 @@
-// One small world behind the three ports: a reader and a stranger, an adopted Skill `review`
-// with an earlier version, a stand-in `retired`, an adopted identity without a readable package,
-// an identity that the read check grants but the resolution does not know, an identity with a
-// body of more than one page, and an identity that exists for nobody. The memory doubles of
-// `skill-contract/testing` hold it. `controls` change the world between calls, so a test can
-// show what the service does when the material moves.
-//
-// Two shapes of the resolution double: `hiding: false` (default) answers every principal, so
-// the read check is the one guard and a service that skips step 2 shows in the tests;
-// `hiding: true` answers only the reader, as the resolution suite (PR5) requires of a real port.
 import { capabilityId, type CapabilityId } from '@omne-harness/assets'
 import {
   access,
@@ -86,28 +76,22 @@ export const review = capability('review')
 export const retired = capability('retired')
 export const noPackage = capability('no-package')
 export const checkedOnly = capability('checked-only')
-/** Adopted from a workspace source: a reference without an asset version. */
 export const workspaceNote = capability('workspace-note')
-/** Adopted, with a body of more than one page. */
 export const large = capability('large')
 export const missing = capability('nobody-has-this')
 
 export const reviewLocator: PackageLocator = { kind: 'directory', root: '/skills/review' }
 export const largeLocator: PackageLocator = { kind: 'directory', root: '/skills/large' }
-/** Where the material of `noPackage` would be: the source has no package there. */
 export const noPackageLocator: PackageLocator = { kind: 'directory', root: '/skills/no-package' }
 
 const encoder = new TextEncoder()
 export const BODY = 'Read the diff.\n仔细看每一处改动。\n'
 export const MANIFEST = `---\nname: review\ndescription: Reviews a change.\n---\n${BODY}`
 export const GUIDE = 'héllo 中文 guide\n'
-/** A resource whose text looks like a frontmatter: a resource has no header to leave out. */
 export const FRONT = '---\nx: 1\n---\nnot a body\n'
 export const BLOB = new Uint8Array([0, 1, 2, 0xff, 0xfe, 3])
-/** A body of 70000 bytes: more than one page. */
 export const LARGE_BODY = `${'a'.repeat(69_990)}中文中文\n`
 
-/** The files of the adopted material of `review`. */
 export const currentFiles: MemoryPackage['files'] = {
   'SKILL.md': MANIFEST,
   '.omne/skill.json': '{"formatVersion":1}',
@@ -115,11 +99,9 @@ export const currentFiles: MemoryPackage['files'] = {
   'docs/front.md': FRONT,
   'assets/blob.bin': BLOB,
 }
-/** An earlier, still lawful version of `review`. */
 const earlierFiles: MemoryPackage['files'] = {
   'SKILL.md': '---\nname: review\ndescription: Reviews a change.\n---\nOld body.\n',
 }
-/** What the source holds after the package was replaced under the resolution. */
 const replacedFiles: MemoryPackage['files'] = {
   'SKILL.md': '---\nname: review\ndescription: Reviews a change.\n---\nReplaced.\n',
   'docs/guide.md': GUIDE,
@@ -178,21 +160,14 @@ export const currentBasis: SkillMaterialBasis = {
 const onlyAlice = (who: Access<Principal>) => who.principal === 'alice'
 const everyone = () => true
 
-/** How many times each port was called since the world was made. */
 export type PortCalls = Readonly<{ check: number; resolve: number; snapshot: number; open: number }>
 
 export type Controls = Readonly<{
-  /** The source now holds other content at the locator of `review`; the resolution still names the old digest. */
   replaceAdopted(): void
-  /** `open` of `path` now gives other bytes than the snapshot lists. */
   tamper(path: PackagePath): void
-  /** `open` now throws. */
   breakOpen(): void
-  /** Every read check now answers `refused`. */
   refuseAll(): void
-  /** A signal that the source aborts right after it answers the next `snapshot`. */
   abortAfterSnapshot(): AbortSignal
-  /** A signal that the read check aborts right after it answers the next `check`. */
   abortAfterCheck(): AbortSignal
   calls(): PortCalls
 }>
@@ -204,11 +179,9 @@ export type World = Readonly<{
 }>
 
 export type WorldOptions = Readonly<{
-  /** Whether the resolution hides every identity from the stranger, as a real port must. */
   hiding?: boolean
 }>
 
-/** A fresh world. Each test builds its own, so the controls of one test do not reach another. */
 export function createWorld(options: WorldOptions = {}): World {
   const visible = options.hiding === true ? onlyAlice : everyone
   let inner = createMemorySource([
@@ -360,7 +333,6 @@ export function createWorld(options: WorldOptions = {}): World {
   }
 }
 
-/** A fresh fixture of the access suite over a fresh world. */
 export function accessFixture(
   options: WorldOptions = {},
 ): AccessFixture<Principal, Scope> & Readonly<{ ports: SkillPorts<Principal, Scope> }> {
@@ -391,13 +363,11 @@ export function accessFixture(
   }
 }
 
-/** The failure of an outcome, or an error naming the unexpected success. */
 export function failureOf<T, F>(outcome: { ok: T } | { failure: F }): F {
   if ('ok' in outcome) throw new Error(`expected a failure, got ${JSON.stringify(outcome.ok)}`)
   return outcome.failure
 }
 
-/** The value of an outcome, or an error naming the unexpected failure. */
 export function okOf<T, F>(outcome: { ok: T } | { failure: F }): T {
   if (!('ok' in outcome)) throw new Error(`expected ok, got ${JSON.stringify(outcome.failure)}`)
   return outcome.ok

@@ -8,10 +8,6 @@ import {
 import { MemoryState } from '../src/testing/state.ts'
 import { callId, fixture, op, unbox } from './memory-fixture.ts'
 
-// The cold read of the decorated storage and the confirmation of unknown writes: current reads the
-// call under the facts qualification, refuses a reference whose admission the call does not hold,
-// and an unknown write of the call refuses current until a later confirmation reads it again.
-
 function observed() {
   const f = fixture()
   const memory = new MemoryState(f.options)

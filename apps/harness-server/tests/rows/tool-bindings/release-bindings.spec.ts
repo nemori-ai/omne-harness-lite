@@ -1,5 +1,3 @@
-// `tool-bindings` 行（B3-T2a 第 5、6、9 项）：一个插件一个 fiber 提供 `toolBindings` 与 `toolCatalog`；可用性只取
-// 已核来源；启动权威是逐次现取的窄代理；scope 与 settle 是明确的 unavailable 占位。
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { principalIssuerKey, principalVerifierKey } from '@omne-harness/identity/cordis'
@@ -116,7 +114,6 @@ describe('tool-bindings: availability from verified sources only', () => {
   it('answers unavailable when the principal verifier is absent', async () => {
     const { fixture, judge, principal, tenant, definition, consumer } = await judged()
     expect(await judge()).toMatchObject({ ok: { qualification: 'allowed' } })
-    // Same snapshot and registrant, but no principal verifier on this root.
     const bare = fixtureEnv([principalIssuerKey])
     const entries = createToolReleaseEntries()
     await bare.install(principalIssuer)
@@ -192,7 +189,6 @@ describe('tool-bindings: the start authority proxy and the bundle author executi
     const authorExecution = { scope: vi.fn(() => scoped), settle: vi.fn(async () => settled) }
     const scope = bundleScope(root)
     const settle = bundleSettle(root)
-    // The row reads the run's holder on each call, so a bundle built after the row still serves it.
     toolRuntimeHolder(root).bundle = {
       value: { authorExecution } as unknown as ToolRuntimeBundle,
       configDigest: 'test',

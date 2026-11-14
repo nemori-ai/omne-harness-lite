@@ -1,4 +1,3 @@
-// The strict JSON judgement (SPEC 3.2, 4.4): a digest never hashes a lossy form.
 import { describe, expect, it } from 'vitest'
 import { canonicalJson, isStrictJson } from '../src/canonical.ts'
 

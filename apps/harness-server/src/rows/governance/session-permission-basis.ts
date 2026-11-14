@@ -35,7 +35,6 @@ export const sessionPermissionBasisConfigurationSchema = z.strictObject({
 export type SessionPermissionBasisConfiguration = z.infer<
   typeof sessionPermissionBasisConfigurationSchema
 >
-/** The producer of the commit basis of one mode. The combination of the mode holds it. */
 export const sessionPermissionBasisProducer = (mode: SessionPermissionBasisMode) =>
   `harness.session-permission-basis.${mode}`
 export function sessionPermissionBasisIdentity(configuration: SessionPermissionBasisConfiguration) {
@@ -69,19 +68,12 @@ export function sessionPermissionBasisParticipant(
 }
 
 const text = z.string().min(1)
-/**
- * What the trusted source states of one permission assignment. The producer joins it with the
- * facts of its own transaction: the definition projection and, for a mapped target, the target
- * snapshot.
- */
 export const sessionPermissionBasisFactsSchema = z.strictObject({
-  /** The Session command of the commit. The basis binds its digest. */
   commands: z
     .array(
       z.strictObject({ participant: z.literal('session'), facts: z.record(z.string(), z.json()) }),
     )
     .length(1),
-  /** The write qualification of the command, as the access decision gave it. */
   change: z.strictObject({
     operation: text,
     commandDigest: z.string().regex(/^[a-f0-9]{64}$/),
@@ -94,19 +86,16 @@ export const sessionPermissionBasisFactsSchema = z.strictObject({
     definition: PermissionDefinitionRefSchema,
     rule: PermissionRuleSchema.nullable(),
   }),
-  /** Null for a clear. A set names the definition that the source found and where it is valued. */
   selection: z
     .strictObject({
       binding: GovernanceDefinitionBindingSchema,
       scope: PermissionScopeSchema,
-      /** The organization layer, read in its own domain before the commit. Null without settings. */
       organization: PermissionSourceSchema.nullable(),
     })
     .nullable(),
 })
 export type SessionPermissionBasisFacts = z.infer<typeof sessionPermissionBasisFactsSchema>
 
-/** The definition that the facts of this transaction give the assignment, when the rule is valid. */
 function currentDefinition(
   facts: SessionPermissionBasisFacts,
   selection: NonNullable<SessionPermissionBasisFacts['selection']>,
@@ -142,7 +131,6 @@ function currentDefinition(
   return judgment.kind === 'valid' ? definition : undefined
 }
 
-/** Null when the stated facts and the facts of the transaction do not give a valid assignment. */
 export function sessionPermissionWriteBasis(
   raw: unknown,
   projection: unknown,

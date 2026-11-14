@@ -1,7 +1,3 @@
-// I1 hands the request preparation the definition this execution runs under (R2-D124): the
-// `definition` of the instance binding goes into every `prepare` call, so that the preparation can
-// read the `instructions` of that definition as the first sections of the system prompt. Without
-// it the preparation has no definition to read and the prompt carries no definition sections.
 import { describe, expect, it } from 'vitest'
 import { agentEvaluator } from '@omne-harness/agent'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'

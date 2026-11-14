@@ -1,4 +1,3 @@
-// Durable state and protocol records exchanged with providers.
 import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ToolWaitSchemaSnapshot } from './author-context.ts'
@@ -56,22 +55,12 @@ export type ProtocolIdentity = Readonly<{
   adoption: Adoption
   inputDigest: string
 }>
-/**
- * One planned preparation of a call. It does not hold the fixed request: the call holds it once,
- * and `inputDigest` binds this preparation to it. A port that needs the request takes it beside
- * the record.
- */
 export type PreparationRecord = ProtocolIdentity & Readonly<{ purpose: 'initial' | 'resume' }>
 export type PreparationProgress<E> =
   | Readonly<{ kind: 'allocated'; preparation: PreparationRecord; evidence: DurableEvidence }>
   | Readonly<{ kind: 'prepared'; environment: PreparedEnvironment<E> }>
   | Readonly<{ kind: 'excluded'; exclusion: DurableEvidence }>
   | Readonly<{ kind: 'rejected'; reason: string; evidence: DurableEvidence }>
-  /**
-   * The environment of this preparation is live in no process: it was acquired by a process that is
-   * gone (cold recovery). The original record keeps its cleanup responsibility; the caller may plan
-   * another preparation for the segment, never adopt this one.
-   */
   | Readonly<{ kind: 'lost'; evidence: DurableEvidence; diagnostic: string }>
   | Readonly<{ kind: 'pending' | 'unknown'; diagnostic: string }>
 export type ReleaseRecord = ProtocolIdentity &
@@ -117,7 +106,6 @@ export interface ToolStartAuthority<P> {
   prepare(
     input: CallAccess<P> & Readonly<{ start: ToolStartRecord; request: FixedToolRequest }>,
   ): Reply<StartPermit>
-  /** `request` is the fixed request the permit was prepared for; the authority keeps only its digest. */
   consume(
     input: CallAccess<P> &
       Readonly<{
@@ -131,34 +119,13 @@ export interface ToolStartAuthority<P> {
     input: Access<P> & Readonly<{ operation: ToolOperationId; guard: StartGuard }>,
   ): Reply<DurableEvidence>
 }
-/**
- * The view of the start authority that an outer caller holds (SPEC「外层调用方的启动围栏」, J03):
- * only `invalidate`. One provider serves it and the authority in one ordering domain. The returned
- * evidence is the fence confirmation that the outer caller saves as its own `start-fence` entry.
- */
 export type ToolStartFence<P> = Pick<ToolStartAuthority<P>, 'invalidate'>
-/**
- * The reference of an authorization permit (SPEC「授权消费点与撤权再核」, J50). It is opaque to
- * Tool and has the fields of `PermitRef` of `@omne-harness/authorization`, so a value of that type
- * is assignable to it. It stands in for that type until the member dependency cycle is lifted.
- */
 export type ToolPermitRef = Readonly<{ tenant: TenantId; permit: string }>
-/**
- * The fact that a permit was consumed at the consumption point. It has the fields of
- * `ConsumptionFact` of `@omne-harness/authorization` and stands in for it in the same way.
- * `consumer` identifies the original call: the same for every start and resume of that call.
- */
 export type ToolPermitConsumption = Readonly<{
   permit: ToolPermitRef
   consumer: Readonly<{ owner: string; work: string; position: string }>
   evidence: DurableEvidence
 }>
-/**
- * The acceptance record that `consume` forms and that `StartProgress.started.acceptance` locates
- * (P04): the start, the request evidence of the consumed permit, the guard revisions frozen at the
- * acceptance, the authorization permits consumed with it, the executor receipt and the acceptance
- * itself. A later invalidation, revocation or recovery does not rewrite it.
- */
 export type ToolStartAcceptance = Readonly<{
   tenant: TenantId
   call: ToolCallId
@@ -259,7 +226,6 @@ export type SuspensionRecord = ProtocolIdentity &
 export type Checkpoint = Readonly<{
   schema: Adoption
   payload: DurableEvidence
-  /** The text the call answers with when a control closes the wait of this checkpoint. */
   closedResult: string
   start: ToolStartRecord
   consumedResponses: readonly ToolOperationId[]
@@ -267,10 +233,6 @@ export type Checkpoint = Readonly<{
   exclusion: DurableEvidence
 }>
 export type SuspensionProgress =
-  /**
-   * `state` is the state of the suspended segment, encoded by the declared codec, as base64 text.
-   * `checkpoint.payload` binds its digest. The ledger keeps the state under the suspension's own key.
-   */
   | Readonly<{ kind: 'suspended'; checkpoint: Checkpoint; state: string }>
   | Readonly<{ kind: 'not-suspended'; evidence: DurableEvidence }>
   | Readonly<{ kind: 'unknown' | 'rejected'; diagnostic: string }>

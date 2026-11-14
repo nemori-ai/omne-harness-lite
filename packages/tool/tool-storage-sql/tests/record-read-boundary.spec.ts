@@ -9,7 +9,6 @@ const stored = (record: typeof wanted) => ({ key: `host:${record.host.key}`, rec
 
 const DOMAIN = { kind: 'host', tenant: TENANT_A, key: 'domain' } as const
 
-/** A store whose SQL reads answer `output` once `forge()` is called. */
 async function forging(output: JsonValue) {
   const app = await openApp()
   let forged = false
@@ -54,7 +53,6 @@ it.each(FORGED)('a point read refuses %s from the SQL boundary', async (_name, o
   }
 })
 
-// A record that the kept domain does not hold is asked of the SQL storage in the same way.
 it.each(FORGED)(
   'a point read of a kept domain refuses %s from the SQL boundary',
   async (_name, output) => {

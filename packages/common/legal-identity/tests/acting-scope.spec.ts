@@ -104,7 +104,6 @@ describe('acting scope text codec', () => {
       ok: false,
       error: { kind: 'identity-text-error', code: 'type' },
     })
-    // A parsed tenant is minted, but it is not a scope: encode refuses it instead of reading it.
     const tenantAsScope = parsedTenant(TENANT_TEXT) as unknown as ActingScope
     expect(actingScopeCodec.encode(tenantAsScope)).toEqual({
       ok: false,

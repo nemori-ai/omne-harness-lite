@@ -1,5 +1,4 @@
 // @module-tag slow — starts an openssl child process and a real local HTTPS server, and waits for
-// real connect timeouts and physical socket closure.
 import { IncomingMessage, type ServerResponse } from 'node:http'
 import type { ProviderDiagnostic, TransportFact } from '@omne-harness/model-contract/provider'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -218,10 +217,6 @@ describe('a start that sends', () => {
 })
 
 describe('the end marker', () => {
-  /**
-   * Resolves `timeout` when the stream gives no step within `ms`, so a stream that waits fails
-   * here. The close of the transport at the end of the scene ends a stream left waiting.
-   */
   async function nextWithin(
     iterator: AsyncIterator<TransportFact>,
     ms: number,
@@ -465,7 +460,6 @@ describe('the failures after the send', () => {
 })
 
 describe('stopping a started send', () => {
-  /** Writes one text frame and keeps the response open. */
   const streamForever: RequestHandler = res => {
     res.writeHead(200, { 'content-type': 'text/event-stream' })
     res.write(`data: ${TEXT('first')}\n\n`)
@@ -493,7 +487,6 @@ describe('stopping a started send', () => {
   })
 
   it('a cancel after the bytes of the end marker were read keeps the decoder termination', async () => {
-    // One write carries the text, the stop and the marker; the response stays open.
     await withTransport(
       res => {
         res.writeHead(200, { 'content-type': 'text/event-stream' })
@@ -602,7 +595,7 @@ describe('stopping a started send', () => {
 
   it('a cancel before the response ends the stream interrupted and confirmed', async () => {
     await withTransport(
-      () => {}, // Never answers.
+      () => {},
       async ({ server, resources, transport }) => {
         const controller = new AbortController()
         const arrival = server.nextRequest()
@@ -669,7 +662,6 @@ describe('stopping a started send', () => {
 })
 
 describe('capacity across real sends', () => {
-  /** Answers the first request only when `release` is called; every later one at once. */
   function heldFirstAnswer(): { handler: RequestHandler; release: () => void } {
     const first = Promise.withResolvers<void>()
     let seen = 0

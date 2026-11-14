@@ -1,7 +1,3 @@
-// `model-instances` and `model-converters` rows: the two model-host-local directories as rows. Both
-// inject an authority that an entry object of the assembly provides. No such entry object is
-// registered yet, so the tests supply named stand-ins (support.ts) and also show the row staying
-// PENDING without one.
 import { describe, expect, it } from 'vitest'
 import {
   decodeModelCallId,

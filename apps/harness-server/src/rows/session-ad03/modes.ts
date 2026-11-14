@@ -38,7 +38,6 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-/** Application lifecycle coordination. It owns no Session facts or permission decisions. */
 export class SessionModesInstallation extends Service {
   readonly recoverSession: Sources['recoverSession']
   readonly prepareInitial: (input: ModesCreation) => ReturnType<typeof prepareContextRegistration>
@@ -137,7 +136,6 @@ async function prepareInitial(
   const scope = decodeScopeRef({ ref: record.decision.scope })
   if ('failure' in scope) return unavailable()
   const authority = createRuntimeContextAuthority({ verifier: sources.verifier })
-  // Only this uncommitted creation owns this isolated view. It cannot publish into the live runtime.
   const temporary = createRuntimeContext({
     trust: {
       authority: {

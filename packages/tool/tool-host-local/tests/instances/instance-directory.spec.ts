@@ -25,7 +25,6 @@ function tenantOf(account = '0'): TenantId {
 const instance = value(decodeToolInstanceId('fixture-instance'))
 const call = value(decodeToolCallId('same-call'))
 
-// This fixture supplies routing identity only. It cannot serve a process stream.
 function handleOf(generation = '1', hosted = instance): ToolHandle<string> {
   return Object.freeze({
     instance: hosted,

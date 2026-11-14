@@ -1,7 +1,3 @@
-// R2-D292, R2-D294: the checkpoint keeps only facts that cannot be computed again. Its serialized
-// bytes at the same node do not grow with the rounds of an execution, even when the request of
-// each round grows with the history, as a real one does. A Model calls the same tool at every
-// step; the scripted preparation puts one more history message into each round's request.
 import { describe, expect, it } from 'vitest'
 import { agentEvaluator } from '@omne-harness/agent'
 import type { AgentCheckpoint, JournalCommit } from '@omne-harness/agent-contract'
@@ -29,10 +25,8 @@ import {
 type Assembly = Awaited<ReturnType<typeof toolAssembly>>
 
 const ROUNDS = 20
-/** The history text one round adds to the request: far more than any digit of a step or revision. */
 const ROUND_TEXT = 'x'.repeat(200)
 
-/** The serialized checkpoint bytes of the M0 commit of each step, by step ordinal. */
 async function measured(): Promise<Map<number, number>> {
   const bytes = new Map<number, number>()
   const assembly: Assembly = await toolAssembly({ maxRunSteps: ROUNDS + 1 })
@@ -44,7 +38,6 @@ async function measured(): Promise<Map<number, number>> {
     }
     return commit(input)
   }
-  // The request of step k carries k history messages, as a request over a growing history does.
   assembly.controls.requests.prepare.always(input => {
     const { request, ...common } = readyPreparation(input)
     const step = Number(/^step-(\d+)\//u.exec(input.action)?.[1] ?? 0)
@@ -82,7 +75,6 @@ async function measured(): Promise<Map<number, number>> {
   return bytes
 }
 
-/** The bytes of the checkpoint as the evaluator encodes it for the Journal. */
 function sizeOf(checkpoint: AgentCheckpoint): number {
   return Buffer.byteLength(JSON.stringify(agentEvaluator.encode(checkpoint).value))
 }
@@ -93,9 +85,7 @@ describe('R2-D292: the checkpoint does not grow with the rounds', () => {
     const early = bytes.get(5)
     const late = bytes.get(ROUNDS)
     if (early === undefined || late === undefined) throw new Error('rounds not measured')
-    // Step ordinals and revisions gain a digit or two; one round of history is 200 bytes.
     expect(late - early).toBeLessThanOrEqual(64)
-    // Every later round stays within the same bound of round 5.
     for (let k = 6; k <= ROUNDS; k += 1)
       expect((bytes.get(k) ?? 0) - early, `round ${k}`).toBeLessThanOrEqual(64)
   }, 120_000)

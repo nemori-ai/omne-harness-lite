@@ -1,12 +1,3 @@
-// The Session faces of the contract double. Seven operations behave as the Session contract says
-// for a session that lives in process memory: `management.create`, `work.accept`,
-// `work.queryOperation`, `work.cancelRun`, `work.stopCall`, `history.begin` and `history.next`.
-// Every other operation answers `unavailable` from this owner.
-//
-// Each of the seven asks the injected `sessionAccessCheck` first, with the request that the real
-// provider would send, and does nothing else unless the check allows. A session that is not
-// registered for the tenant of the access answers `denied`, the same bytes for a session of
-// another tenant and for a session that nobody created, so existence is not disclosed.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   commandDigest,
@@ -88,7 +79,6 @@ function refusal(method: SessionProviderMethod, decision: SessionAccessDecision)
   return denied(method)
 }
 
-/** A check that throws is a check that cannot answer. The error text stays out of the failure. */
 async function ask(
   check: SessionAccessCheck<unknown>,
   request: SessionAccessRequest<unknown>,
@@ -135,7 +125,6 @@ function snapshotOf(
 
 const recalled = (receipt: CommitReceipt): CommitReceipt => ({ ...receipt, recovered: true })
 
-/** One page of a walk, from the state that the walk fixed. The walk never sees later appends. */
 function pageOf(store: SessionStore, record: SessionRecord, state: CursorState): HistoryPage {
   const step = state.direction === 'forward' ? 1 : -1
   const within = (position: number): boolean =>
@@ -150,7 +139,6 @@ function pageOf(store: SessionStore, record: SessionRecord, state: CursorState):
     if (entry === undefined) break
     if (kinds.has(entry.kind)) {
       const size = payloadBytes(entry.payload)
-      // A page always holds one entry, so a walk makes progress whatever the byte budget is.
       if (entries.length > 0 && bytes + size > state.pageBytes) break
       entries.push(entry)
       bytes += size
@@ -181,13 +169,9 @@ export function createSessionProviderFaces(
   const report = (arrival: SessionProviderArrival): void => {
     try {
       observe?.(arrival)
-    } catch {
-      // The observer is an instrument of the assembler. Its fault does not change a face answer.
-    }
+    } catch {}
   }
 
-  // Asks the check first. The body runs only for `allowed`, synchronously, so one call is one
-  // step on the memory and a refused call leaves no trace in it.
   async function guarded<T>(
     method: SessionProviderMethod,
     principal: unknown,
@@ -271,10 +255,7 @@ export function createSessionProviderFaces(
           const record = lookup(input.tenant, input.session)
           if (record === undefined) return denied(method)
           const known = record.operations.get(input.operation)
-          // Only a storage provider can prove that an operation did not commit, so an operation
-          // that this memory never saw is `unknown`, not `not-committed`.
           if (known === undefined) return succeed({ kind: 'unknown' })
-          // The identity of a control record belongs to the control form (SPEC, SL07).
           if (known.kind === 'control')
             return fail({ kind: 'conflict', operation: input.operation })
           return succeed({ kind: 'committed', receipt: known.receipt })
@@ -324,7 +305,6 @@ export function createSessionProviderFaces(
         },
       }
       return guarded(method, input.principal, mutationAccessRequest(input, command), () => {
-        // A Tool target is refused before any look at the session (SPEC, controls).
         if (input.producer.kind === 'tool') return fail({ kind: 'unsupported' })
         const record = lookup(input.tenant, input.session)
         if (record === undefined) return denied(method)
@@ -361,11 +341,6 @@ export function createSessionProviderFaces(
     retryRun: unimplemented,
   }
 
-  /**
-   * The answer to a control whose target the session never had. The double owns the whole
-   * state, so the absence is covered, which is what `not-found` asks for. The answer is saved
-   * as the operation answer; it adds no entry and no revision.
-   */
   function notFound(
     record: SessionRecord,
     session: CursorState['session'],

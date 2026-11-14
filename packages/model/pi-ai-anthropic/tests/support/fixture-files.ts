@@ -1,21 +1,15 @@
-// The files of the replay fixtures, rendered from the case table. The writer script and the
-// fixture test share this rendering, so the files on disk are exactly the table.
 import { join } from 'node:path'
 import { fixtureDirectory } from '@omne-harness/pi-ai-transport/testing'
 import { LEGACY_CASES, type FixtureCase } from './legacy-cases.ts'
 import { recordNamed, requestJson } from './anthropic.ts'
 
 export const FIXTURES_ROOT = new URL('../fixtures/', import.meta.url)
-/** The fixtures that `checkChatCompletionsFixtures` reads for the whole family: one per record. */
 export const RECORDS_DIRECTORY = 'records'
-/** The extra cases: each is a root with the fixture of one record. */
 export const CASES_DIRECTORY = 'cases'
 
 export type RenderedCase = Readonly<{
   case: FixtureCase
-  /** The fixture root of the case, relative to the fixtures directory. */
   root: string
-  /** The record directory below the root. */
   directory: string
   files: Readonly<Record<'request.json' | 'stream.sse' | 'facts.json', string>>
 }>

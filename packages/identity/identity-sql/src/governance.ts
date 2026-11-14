@@ -67,11 +67,8 @@ import {
   type ModelFacts,
 } from './worker/schema.ts'
 
-/** What the governance port shares with the operations of one provider instance. */
 export type GovernanceCore = Readonly<{
-  /** True after `stop()`. New calls then answer `basis-unavailable`, `provider-stopped`. */
   stopped(): boolean
-  /** One clock reading, adopted by the instance: an earlier one than the latest is not adopted. */
   readTime(): Promise<TimeBasis>
   commit(operation: string, facts: GovernanceFacts): Promise<CommitResultV2>
   writeMembership(facts: GovernanceFacts): Promise<GovernanceReply | Unavailable>
@@ -82,7 +79,6 @@ export type GovernanceCore = Readonly<{
 export type GovernanceInput = Readonly<{
   invitationTerms: InvitationTermsSource
   identifiers: IdentifierSource
-  /** Reports within this time of the last refresh commit nothing (SPEC IS-14). */
   accessRefreshGranularity: Duration
 }>
 
@@ -93,7 +89,6 @@ const NO_CHANGE = Object.freeze({ kind: 'no-change' as const })
 const SUCCEEDED = Object.freeze({ kind: 'succeeded' as const })
 const NOT_REFRESHED = Object.freeze({ kind: 'not-refreshed' as const })
 
-/** The one adopted governance model: the default team scheme, revision 1 (ID-05, N6). */
 const DEFAULT_TEAM_MODEL_ID = DEFAULT_TEAM_MODEL.model
 const MODEL: ModelFacts = Object.freeze({
   roleModel: DEFAULT_TEAM_MODEL.model,
@@ -105,7 +100,6 @@ const ROLES: readonly string[] = DEFAULT_TEAM_ROLE_MAPPING.roles.map(entry => en
 const TERMINALS: readonly string[] = ['accepted', 'rejected', 'withdrawn', 'expired']
 const STATES: readonly string[] = ['open', ...TERMINALS]
 
-/** A committed reply that does not parse: the write may have happened, so the outcome is unknown. */
 function malformedReply(): never {
   throw new IdentitySqlResultUnknown('a governance reply is malformed')
 }
@@ -118,7 +112,6 @@ function isFilledText(value: unknown): value is string {
   return isText(value) && value !== ''
 }
 
-/** The text of a value that the codec minted, or `undefined` for anything else. */
 function textOf<T>(codec: IdentityTextCodec<T>, value: unknown): string | undefined {
   if (typeof value !== 'object' || value === null) return undefined
   try {
@@ -147,7 +140,6 @@ function tenantText(value: TenantId): string {
   return encoded.value
 }
 
-/** The tenant of a request as text and halves, or `undefined` when it is not a minted tenant. */
 function tenantFacts(value: unknown) {
   const text = textOf(tenantCodec, value)
   const decoded = parsed(tenantCodec, text)
@@ -160,7 +152,6 @@ function tenantFacts(value: unknown) {
   }
 }
 
-/** True when the terms are legal: both durations longer than zero, the default not the longer. */
 function legalTerms(terms: InvitationTerms): boolean {
   try {
     return (
@@ -173,7 +164,6 @@ function legalTerms(terms: InvitationTerms): boolean {
   }
 }
 
-/** A requested duration within the maximum, or `undefined` for one out of range or not a duration. */
 function requestedDuration(requested: unknown, maximum: Duration): Duration | undefined {
   try {
     const duration = requested as Duration
@@ -269,7 +259,6 @@ function validLoginOf(value: unknown): ValidLogin | undefined {
   return Object.freeze({ login, issuedAt, maxDeadline, idleDeadline })
 }
 
-/** Every entry of a list output, or `undefined` when the list or any entry does not parse. */
 function entriesOf<T>(value: unknown, parse: (entry: unknown) => T | undefined) {
   if (!Array.isArray(value)) return undefined
   const entries: T[] = []
@@ -303,11 +292,6 @@ function dispositionOf(reply: GovernanceReply): InvitationDispositionOutcome {
   }
 }
 
-/**
- * The outcome that a saved create receipt gives a recall with `name` and `governanceModelId`:
- * the saved outcome for the same input, `conflict` for another, `unknown` for a receipt that does
- * not parse (ID-18 `queryCreateOrganization`).
- */
 function recalledOf(
   receipt: unknown,
   name: string,
@@ -326,7 +310,6 @@ function recalledOf(
   return Object.freeze({ kind: 'succeeded', organization, tenant: created })
 }
 
-/** The outcome of an issue commit. `bounds` is the unavailable basis the participant reported. */
 function issuedOf(
   reply: GovernanceReply,
   bounds: Unavailable | undefined,
@@ -353,12 +336,6 @@ function issuedOf(
   }
 }
 
-/**
- * The new idle deadline of a report from the `login-terms` pre-read: the reading plus the idle
- * period frozen at issue, `not-refreshed` for an unknown or ended login, or no basis. `current`
- * when the last refresh is less than `granularity` ago and `granularity` is shorter than the idle
- * period of this login: the stored deadline stands and nothing is written (SPEC IS-14).
- */
 function nextIdleDeadline(record: unknown, now: Instant, granularity: Duration) {
   if (record === null || !isRecord(record) || record['live'] !== true) return NOT_REFRESHED
   const idlePeriod = isText(record['idlePeriod']) ? parseDuration(record['idlePeriod']) : undefined
@@ -397,11 +374,8 @@ function createdOf(reply: GovernanceReply): CreateOrganizationOutcome {
   }
 }
 
-/** The governance port over one instance's storage, clock and terms. */
 export function governanceOver(core: GovernanceCore, input: GovernanceInput): IdentityGovernance {
   const { invitationTerms, identifiers } = input
-
-  // --- Bases: the reading, the initiating login, the acting tenant. ---
 
   const begin = async (request: unknown): Promise<Begun | Unavailable | typeof DENIED> => {
     if (core.stopped()) return unavailable('provider-stopped')
@@ -429,8 +403,6 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
     })
   }
 
-  // --- Storage: one commit per write, one snapshot per read. ---
-
   const replyOf = (receipt: CommittedV2): Written | Unavailable => {
     const response = receipt.responses[0].reply.response
     if (
@@ -439,14 +411,12 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
       !isText(response['outcome'])
     )
       return malformedReply()
-    // The reading is earlier than the issue time of a login that the command judged (IS-10).
     if (response['outcome'] === CLOCK_EARLIER_THAN_RECORD)
       return unavailable(CLOCK_EARLIER_THAN_RECORD)
     return Object.freeze({ kind: 'written', reply: response as GovernanceReply })
   }
 
   const recallWrite = async (identity: SqlIdentity): Promise<Written | Unavailable> => {
-    // The same identity, at most three times. Only a committed receipt gives an outcome.
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const recalled = await core.query(identity)
       if (recalled.kind === 'committed') return replyOf(recalled)
@@ -511,10 +481,6 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
     return Object.freeze({ kind: 'answered', output: output as GovernanceReadOutput })
   }
 
-  /**
-   * A whole list, or `basis-unavailable` with no list (ID-18): a read that fails, or a list with
-   * an entry that does not parse, never becomes an empty or a partial list.
-   */
   const listRead = async <T>(
     request: GovernanceReadInput,
     key: string,
@@ -534,8 +500,6 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
     if (entries === undefined) return unavailable('governance-read-malformed')
     return Object.freeze({ kind: 'listed', entries })
   }
-
-  // --- Organizations and memberships (ID-18 "组织与成员关系"). ---
 
   const createOrganization: IdentityGovernance['createOrganization'] = async request => {
     const begun = await beginActing(request)
@@ -568,8 +532,6 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
     const governanceModelId = field(request, 'governanceModelId')
     if (!isFilledText(createCallId) || !isText(name) || !isText(governanceModelId)) return DENIED
     const answered = await query({ query: 'create-receipt', ...caller(begun), createCallId })
-    // A receipt that cannot be read now says nothing about the creation. A reading earlier than the
-    // issue time of the initiating login is no basis for the call at all (IS-11).
     if (answered.kind !== 'answered')
       return answered.diagnostic === CLOCK_EARLIER_THAN_RECORD
         ? answered
@@ -581,7 +543,6 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
     return recalledOf(receipt, name, governanceModelId)
   }
 
-  /** The terms and the duration of one issue: the expiry, a denial, or no basis. */
   const invitationBounds = async (now: Instant, requested: unknown) => {
     let reading
     try {
@@ -601,11 +562,6 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
     return Object.freeze({ kind: 'ok' as const, expiresAt })
   }
 
-  /**
-   * The account of an identifier and its tenant in `organization`, read before the commit. The
-   * commit reads the identifier again after the qualification check, so this read does not decide
-   * what the caller is told. `null` fields: no account has the identifier.
-   */
   const invitedOf = async (identifier: string, organization: OrganizationId) => {
     const found = await query({ query: 'account-of', loginIdentifier: identifier })
     if (found.kind !== 'answered') return found
@@ -798,8 +754,6 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
       }
     }
 
-  // --- The current tenant (ID-18 "当前租户"). ---
-
   const switchCurrentTenant: IdentityGovernance['switchCurrentTenant'] = async request => {
     const begun = await beginActing(request)
     if (begun.kind !== 'begun') return begun
@@ -838,12 +792,9 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
       answered.output.outcome === 'read'
         ? parsed(tenantCodec, answered.output['tenantText'])
         : undefined
-    // A selection that does not parse is not replaced by the personal tenant.
     if (selected === undefined) return unavailable('governance-read-malformed')
     return Object.freeze({ kind: 'succeeded', tenant: selected })
   }
-
-  // --- Logins (ID-18 "登录", "成功业务访问报告"). ---
 
   const revokeLogin: IdentityGovernance['revokeLogin'] = async request => {
     const begun = await begin(request)
@@ -875,7 +826,6 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
     const listed = await listRead({ query: 'own-logins', ...caller(begun) }, 'logins', validLoginOf)
     if (listed.kind === 'not-visible') return DENIED
     if (listed.kind !== 'listed') return listed
-    // The initiating login is valid, so an empty list is no answer (ID-18).
     if (listed.entries.length === 0) return unavailable('valid-login-list-empty')
     return Object.freeze({ kind: 'succeeded', logins: listed.entries })
   }

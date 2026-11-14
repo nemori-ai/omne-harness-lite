@@ -305,7 +305,6 @@ it.each([
 ])(
   'answers the denial when the caller loses its standing while %s is being read',
   async (_name, read) => {
-    // The standing was good when the read began. What was read is not disclosed after it is lost.
     const lose = { armed: false, now: async (): Promise<unknown> => undefined }
     const w = await open(storage => ({
       ...storage,
@@ -377,7 +376,6 @@ it('applies the public command byte budget independently of local routing envelo
   }
   const atLimit = RegisterRequestSchema.parse(candidate)
   expect(Buffer.byteLength(canonical(atLimit), 'utf8')).toBe(HITL_COMMAND_MAX_BYTES)
-  // This valid-sized command differs from the prepared original; it must reach the owner's binding check.
   expect(await w.app.registerRequest(w.principal, atLimit)).toMatchObject({ kind: 'conflict' })
   candidate = { ...candidate, displayContext: candidate.displayContext + 'x' }
   expect(await w.app.registerRequest(w.principal, RegisterRequestSchema.parse(candidate))).toEqual({
@@ -484,12 +482,10 @@ it('lets a reader that does not own the wait read it, and denies it the receiver
   const waitRef = w.request.origin.wait
   const mine = (operationId: string) => ({ ...w.operation(operationId), actorRef: w.readerRef })
 
-  // The reader is in the audience of the wait: it reads the wait itself.
   expect(
     await w.app.getWait(w.reader, GetWaitSchema.parse({ protocol: 'hitl/1', waitRef })),
   ).toMatchObject({ kind: 'found', wait: { state: 'replied' } })
 
-  // Only the owner of the wait binds its receiver, consumes its decisions and reads its inbox.
   const denied = { kind: 'denied', reason: 'wait-owner-required' }
   const binding = BindReceiverSchema.parse({
     ...bind(w, 'reader-bind'),

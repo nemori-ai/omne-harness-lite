@@ -1,5 +1,3 @@
-// The nature of each commit rejection reason (SPEC "提交拒绝原因的定性"): a temporary reason comes
-// from the storage's present state, a definite one from the request or the build.
 import { describe, expect, it } from 'vitest'
 import { commitRejectionNature } from '../src/index.ts'
 import type { CommitRejectReason } from '../src/index.ts'
@@ -9,7 +7,6 @@ const temporary: CommitRejectReason[] = [
   'queue_full',
   'writer_not_current',
   'domain_unavailable',
-  // The SPEC leaves `cancelled` undecided; it is answered as temporary until it is decided.
   'cancelled',
 ]
 

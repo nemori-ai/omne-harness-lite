@@ -769,7 +769,6 @@ it.each([
       ...f.access,
       operation: operationId('malformed-outcome'),
       release: f.release,
-      // The external provider can violate its static type at this runtime boundary.
       // @ts-expect-error malformed external outcome is deliberately untrusted
       outcome,
     }),

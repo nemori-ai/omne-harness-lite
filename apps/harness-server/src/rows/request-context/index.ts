@@ -1,16 +1,3 @@
-// The `request-context` row (B1, R2-D136; SC2): `RequestContextProvider` of
-// `@omne-harness/request-context-cordis` as a child of the row fiber. The provider takes runtime
-// objects as options (the accounting ports), so the row builds them in trusted code from the row
-// configuration: the accounting limits and, optionally, the serializable strategy selection. The
-// accounting ports are in `accounting.ts`: the source authority is the release's narrow allow over
-// the `principalVerifier` service; it and the read eligibility over the registered holder sources
-// (`contextHolderSources`) are read per call, not by `inject`; the adopted source and the recovery
-// authority are named gaps that answer `unavailable`. Denials go to the row logger. The trust key is
-// the trusted entry object `requestContextTrust`; the row injects it so the child provider sees it.
-//
-// Configuration (data only; the numbers come from the operator layer, the release writes none):
-// `limits` of the accounting inbox, optional `selection` of the two strategies (absent: the initial
-// values of the member's default strategies).
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import type { PrincipalVerifier } from '@omne-harness/identity'
 import { principalVerifierKey } from '@omne-harness/identity/cordis'
@@ -45,8 +32,6 @@ const plugin: Plugin.Object = {
   async apply(ctx: Context, config: RequestContextRowConfig) {
     const logger = ctx.logger('request-context')
     const accounting = releaseAccounting(config.limits, {
-      // Both read per call, not by `inject`: their providers may start, stop or restart while
-      // this row runs, and the row manifest stays as the assembly page lists it.
       readVerifier: () => ctx.get(principalVerifierKey) as PrincipalVerifier | undefined,
       readHolder: () => ctx.get(contextHolderSourcesKey),
       diagnose: diagnostic => logger.warn(diagnostic),

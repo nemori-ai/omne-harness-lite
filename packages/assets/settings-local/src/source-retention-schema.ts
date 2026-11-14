@@ -97,7 +97,6 @@ export const sourceObservationSchema = z.discriminatedUnion('kind', [
     ]),
   }),
 ])
-/** The read handler that observes one source without a reservation. */
 export const SOURCE_SNAPSHOT_READ = {
   handler: 'settings.source-snapshot-read',
   protocol: 'settings-source-snapshot-read/1',

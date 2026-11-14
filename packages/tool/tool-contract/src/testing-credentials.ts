@@ -9,24 +9,12 @@ import type {
 } from './credentials.ts'
 import { conformanceCase, type ConformanceCase } from './testing-case.ts'
 
-/** How the action of an escaping use ends: it returns the raw capability, or throws `error`. */
 export type ToolCredentialEscapeExit =
   | Readonly<{ kind: 'return' }>
   | Readonly<{ kind: 'throw'; error: Error }>
 
-/**
- * One protected use whose action kept the raw capability aside. `ended` is what `use` returned,
- * or what it rejected with. `retry` tries the restricted action on the kept raw capability after
- * the use ended and swallows whatever that attempt throws: `uses()` tells whether it acted.
- */
 export type ToolCredentialEscape = Readonly<{ ended: unknown; retry(): Promise<void> }>
 
-/**
- * Controls change the backing secret's stored binding, never fields echoed from a request.
- * `escape` runs one use whose action keeps the raw capability aside (and does not act) and ends
- * by `exit`. `failRevocation` makes every later revocation of the backing store throw the error
- * it returns.
- */
 export interface ToolCredentialsFixture<P, C> {
   credentials: ToolCredentials<P, C>
   request: ToolCredentialRequest<P>

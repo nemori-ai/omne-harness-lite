@@ -32,7 +32,6 @@ it('finishes the body writes an author left unawaited before it settles the call
     const result = await world.settled(reference)
     expect(result.terminal.kind).toBe('completed')
     expect(pending).toHaveLength(2)
-    // The scope closes after the writes it accepted are done: neither is cut off.
     for (const write of pending) expect(await write).toHaveProperty('ok')
     expect(
       result.value.content.map(block => (block.kind === 'text' ? block.text : '')).join(''),

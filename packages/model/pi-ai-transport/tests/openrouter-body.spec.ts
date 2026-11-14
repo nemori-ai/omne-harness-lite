@@ -1,7 +1,3 @@
-// The official OpenRouter provider body (model design「凭据的范围」): the release ships this document
-// as the body of the asset `model-provider/openrouter`, so each field is part of what a deployment
-// runs with. The assembly sends with a bearer of the one credential item, and the decoder reports
-// the accounting that the body declares.
 import {
   OPENROUTER_ACCOUNTING,
   OPENROUTER_PROVIDER_BODY_TEXT,

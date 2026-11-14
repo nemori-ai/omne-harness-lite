@@ -1,11 +1,3 @@
-// Finds type assertions (`value as T`, `<T>value`) in source that must construct branded values
-// through the decoders instead. oxlint cannot do this: the shared configuration enables only the
-// `correctness` category, and no rule in that category flags assertions. `as const` is not an
-// assertion about a type, so it passes.
-//
-// One site is exempt: the shared minting point that every identity decoder and
-// deriveGuardControlOperation go through. It carries the marker comment below, on its own line or
-// on the line before.
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import ts from '@typescript/typescript6'
@@ -60,12 +52,6 @@ export function findTypeAssertions(roots: readonly string[]): AssertionSite[] {
   return sites
 }
 
-/**
- * Returns what breaks the rule: every unmarked assertion, every marked one outside `source`
- * (product source, not `source/testing`), and every marked one beyond the first
- * `MAX_MINT_SITES`. Marked sites outside `source` count toward that limit, so a stray marker never
- * frees a place for another one.
- */
 export function assertionViolations(sites: readonly AssertionSite[], source: string): string[] {
   const where = (site: AssertionSite) => `${site.file}:${site.line} ${site.text}`
   const marked = sites.filter(site => site.marked)

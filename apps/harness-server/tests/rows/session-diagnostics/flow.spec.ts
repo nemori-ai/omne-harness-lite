@@ -1,21 +1,4 @@
 // @module-tag slow
-// 慢：起真实的 `dist/bin.js serve` 进程、真实的 SQLite 存储、本机 HTTPS 模型网关替身，为每条命令起一个 `omne` 进程。
-// 先构建 harness-server 与 apps/cli。
-//
-// The session diagnostics projection in the application (#1140 A5, RFC-0013 A line): the two smoke
-// failures the RFC starts from, read back through the real CLI from a real `serve` process.
-// - E1: two concurrent sessions of one tenant. The first call holds the one place of the tenant
-//   share (`model-records.limits.unacknowledgedResults` 1). The share is full only for now, so the
-//   second Run waits instead of ending
-//   `model-refused` (#1174), and goes on once the first call settles.
-// - E2: the gateway answers HTTP 504 on the streaming request (another tenant: the share of E1
-//   is per tenant). The Run ends `no-reply` with the fault, and the dispatch row of the same call,
-//   from `modelDiagnostics`, ends the same way.
-// - E3: another login reads the session: `denied`, exit 3.
-// - E4: the process with the telemetry row and the new injects starts in the release order and
-//   ends with `shutdown-result` as the last stdout line (C4 does not regress).
-// - E5: the local single-user profile gives the projection its configuration; `serve` without
-//   arguments starts and `read-session-diagnostics` answers.
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomBytes } from 'node:crypto'
@@ -58,13 +41,10 @@ import {
 
 const CREDENTIAL_A = 'alice-pw-DIAG-9a1c'
 const CREDENTIAL_B = 'bob-pw-DIAG-2e7f'
-/** The text of the input whose Model call the gateway holds open. */
 const HELD_TEXT = 'HOLD-ME while the second session waits'
 const RUN_END_TIMEOUT_MS = 90_000
-/** How long the second Run must stay without a terminal while the first call holds the share. */
 const WAIT_WINDOW_MS = 10_000
 
-/** The entry kinds the projection reads (server-entry `PROJECTED_KINDS`), as the local profile discloses them all. */
 const PROJECTED_KINDS = [
   'run.started',
   'run.attempt-started',
@@ -128,7 +108,6 @@ describe('session diagnostics over real processes: the two smoke failures', () =
     port = await freePort()
     homes.alice = join(scratch.base, 'home-alice')
     homes.bob = join(scratch.base, 'home-bob')
-    // The call of the held input stays open until `release`; every other call is answered 504.
     gateway = await startScenarioGateway(request =>
       request.body.includes(HELD_TEXT) ? { kind: 'hold' } : answer504,
     )
@@ -172,7 +151,6 @@ describe('session diagnostics over real processes: the two smoke failures', () =
       sessions.held = await createSession(alice)
       sessions.waiting = await createSession(alice)
       await sendInput(alice, sessions.held, HELD_TEXT)
-      // The first call is in flight: it holds the place of the share until its result is released.
       await until(() => gateway.held() >= 1, 'the first Model call to reach the gateway', 60_000)
       await sendInput(alice, sessions.waiting, 'the second input of the same tenant')
 
@@ -192,8 +170,6 @@ describe('session diagnostics over real processes: the two smoke failures', () =
         await sleep(1000)
       }
 
-      // The first call settles and frees the share; the second call then reaches the gateway,
-      // which answers 504 to every call but the held one.
       gateway.release(answer504)
       const { run, body } = await untilRunEnded(alice, sessions.waiting, RUN_END_TIMEOUT_MS)
       expect(structuredCauseOf(run)).toEqual({
@@ -201,7 +177,6 @@ describe('session diagnostics over real processes: the two smoke failures', () =
         cause: 'upstream-unavailable',
         upstreamStatus: '504',
       })
-      // Every port answered: no source of the page is `unsupported`.
       expect(body.gaps.filter(gap => gap.reason === 'unsupported')).toEqual([])
 
       const text = await alice(['read-session-diagnostics', '--session', sessions.waiting])
@@ -214,7 +189,6 @@ describe('session diagnostics over real processes: the two smoke failures', () =
     'E2: an upstream 504 on the stream ends the Run no-reply with the cause and the status',
     { timeout: 240_000 },
     async () => {
-      // Another tenant, so that the 504 of this Run does not depend on alice's calls.
       sessions.upstream = await createSession(bob)
       await sendInput(bob, sessions.upstream, 'the upstream answers 504')
 
@@ -388,7 +362,6 @@ describe('E5: the local single-user profile', () => {
         const served = await serveWithoutArguments(env, scratch.base, async () => {
           await registerAndLogin(cli, 'carol', 'carol-pw-DIAG-4b0d')
           const session = await createSession(cli)
-          // No input: the local profile routes Model calls to a real supplier (R2-D258).
           read = await cli(['read-session-diagnostics', '--session', session, '--json'])
         })
         expect(served.duringError).toBeUndefined()
@@ -428,7 +401,6 @@ function runProcess(
   })
 }
 
-/** Starts `serve` without arguments, runs `during` once it accepts, then closes stdin. */
 function serveWithoutArguments(
   env: NodeJS.ProcessEnv,
   cwd: string,

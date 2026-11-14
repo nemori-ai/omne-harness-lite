@@ -33,7 +33,6 @@ import type { Supplier } from './producer.js'
 
 type Gate<P> = Authorized<P> | CheckFailure
 
-/** Holder authority, then the trusted binding of the target scope. */
 export async function holderGate<P>(
   world: World<P>,
   principal: P,
@@ -78,7 +77,6 @@ export function ownChange(change: RegistrationChange): RegistrationChange | unde
   }
 }
 
-/** The predecessor of an ordinary commit; required, `null` for the first (RC-02 提交链, R2-D319). */
 function ownAfter(after: unknown): { after: CommitRef | null } | undefined {
   if (after === null) return { after: null }
   if (typeof after !== 'object' || !('commit' in after) || typeof after.commit !== 'string')
@@ -278,7 +276,6 @@ export function createHolder<P>(world: World<P>, supplier: Supplier<P>) {
     let s = world.state(scope)
     if (s && !tenantEquals(s.tenant, tenant))
       return { kind: 'invalid', reason: 'tenant-mismatch', current: s.revision }
-    // Only the commit at the head is kept (R2-D319). A released commit is answered by its `after`.
     const seen = s?.successes.get(input.commit.commit)
     if (seen) {
       if (!gate.current()) return { kind: 'refused', reason: 'unauthorized' }
@@ -294,7 +291,6 @@ export function createHolder<P>(world: World<P>, supplier: Supplier<P>) {
     }
     if (!s || s.fence !== 'open') return { kind: 'refused', reason: 'replay-incomplete' }
     if (s.ended) return { kind: 'refused', reason: 'scope-ended' }
-    // The order comes from the holder log: the predecessor must be the head (R2-D319).
     if ((input.after?.commit ?? null) !== (s.head?.commit ?? null))
       return { kind: 'invalid', reason: 'out-of-order', current: s.revision }
     const target = s
@@ -316,7 +312,6 @@ export function createHolder<P>(world: World<P>, supplier: Supplier<P>) {
     return result
   }
 
-  /** The applied commit becomes the head and the only success entry; the one before is released. */
   function remember(input: CommitInput, s: ScopeState): ApplyCommitResult {
     const result: ApplyCommitResult = {
       kind: 'applied',
@@ -324,7 +319,7 @@ export function createHolder<P>(world: World<P>, supplier: Supplier<P>) {
       viewRevision: s.view,
     }
     s.head = { commit: input.commit.commit }
-    s.successes.clear() // release: no earlier commit of the scope can be retried any more
+    s.successes.clear()
     s.successes.set(input.commit.commit, { input, digest: digest(input), result })
     return result
   }

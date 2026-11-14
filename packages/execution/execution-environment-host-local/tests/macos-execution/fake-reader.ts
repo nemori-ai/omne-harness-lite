@@ -1,8 +1,3 @@
-// A stand-in session reader for fast tests on any POSIX host. It answers like the real reader and
-// takes its answers from files in its directory, so a test can make a reading fail or report
-// leftovers. `identity` answers a live pid as the leader of its own session started at 1.000001,
-// and `stop` kills the process group of each session it is asked to stop (unless a pid is
-// excepted), so nothing a test starts outlives it. Every call is appended to `calls`.
 import { chmod, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -12,10 +7,8 @@ export type FakeAnswer = 'members' | 'members.fail' | 'identity' | 'children' | 
 export type FakeReader = Readonly<{
   path: string
   directory: string
-  /** Sets one answer: the file's text is printed for that subcommand; a `.fail` file makes it fail. */
   set(answer: FakeAnswer, text: string): Promise<void>
   clear(answer: FakeAnswer): Promise<void>
-  /** Every call so far, one argument list each. */
   calls(): Promise<string[][]>
   remove(): Promise<void>
 }>

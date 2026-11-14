@@ -1,8 +1,3 @@
-// APP-10: the `agent-model-selection` row. The row reads the model route that the Session saved,
-// resolves it through `modelProfiles`, and gives the Agent a `SelectedModel`. These tests go
-// through the serve tree and the `agentModelSelection` service key that `agent-host` uses. They
-// judge what the Agent can observe: the selected model, or one of the failures, and never another
-// model. The Session double and the profile double stand for the real providers (not covered).
 import type { Failure } from '@omne-harness/agent-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, test } from 'vitest'
@@ -32,7 +27,6 @@ import {
 
 const ROUTE = 'official-fast'
 
-/** The full set of tables for the positive case: the saved route and a profile that resolves it. */
 const happy = {
   session: () => succeed(savedSelection(ROUTE)),
   profiles: { [ROUTE]: succeed(resolvedOf(profileOf(ROUTE))) },
@@ -155,7 +149,6 @@ describe('the three failures differ', () => {
 })
 
 describe('no other model is chosen', () => {
-  /** A profile table that has a perfectly good default next to the route that fails. */
   const withDefault = (answer: ProfilesAnswer) => ({
     default: succeed(resolvedOf(profileOf('default'))),
     [ROUTE]: answer,
@@ -337,7 +330,6 @@ describe('what the row depends on', () => {
   })
 
   test('the release trusted table shows the row the two names of the execution index (R2-D160)', () => {
-    // Without them the release tree answers every default selection `unavailable` while the row is ACTIVE.
     expect(serveProfile().visibility.get('agent-model-selection' as RowId)).toEqual([
       'storage',
       'tenantDomainLookup',
@@ -351,7 +343,6 @@ describe('what a failure may say', () => {
       { session: () => fail({ kind: 'not-ready' }), profiles: {} },
       async ({ select }) => select(selectInput),
     )
-    // The positive control: the search text is in the session read of a call that did read.
     const { value: read } = await withLiveRow(happy, async ({ select, session }) => {
       await select(selectInput)
       return JSON.stringify(session.reads)

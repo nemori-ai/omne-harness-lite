@@ -1,12 +1,3 @@
-// The guard table of the local Tool host (TL-11): the assembly `createLocalToolLedgerGuards`, the
-// text result factory and the production guards under the real ledger of `@omne-harness/tool`.
-//
-// TEST DOUBLES: the allow table of `createTableToolAccess` stands in for the application
-// adapter of the authorization decision; the invoke authority is built on it; the principal
-// codec, the in-memory ledger store, the output custody and the environment are from
-// `@omne-harness/tool/testing`, `@omne-harness/tool-contract/testing` or this file. They prove the
-// behaviour of the guards over one process and one store object, not durability and not the real
-// authorization adapter.
 import { describe, expect, it } from 'vitest'
 import { fail } from '@omne-harness/operation-result'
 import {
@@ -50,7 +41,6 @@ const bob: P = { subject: 'bob' }
 
 const scope = fixedRequest().scope
 
-/** The real ledger with the production guards over a store that counts its reads and commits. */
 function assembly() {
   const memory = createMemoryToolLedgerStore()
   const counts = { reads: 0, commits: 0 }
@@ -154,7 +144,6 @@ function assembly() {
 
 type Assembly = ReturnType<typeof assembly>
 
-/** Resolves the source for `request` as alice in tenant A and admits it. */
 async function admitted(fixture: Assembly, request: ToolInvokeRequest = invokeRequest()) {
   const bound = await fixture.sources.issuer.resolve({ principal: alice, tenant: tenantA, request })
   if (bound.kind !== 'bound') throw new Error(`fixture: expected bound, got ${bound.kind}`)
@@ -275,7 +264,6 @@ describe('TL-11 guards under the real ledger', () => {
       { ...scope, grant: evidence('another-grant') },
     ]
     for (const [index, changed] of changes.entries()) {
-      // One consumer position each: one consumer position is one binding of one request.
       const consumer = { ...fixedRequest().consumer, position: `position-${index}` }
       const { outcome } = await admitted(fixture, invokeRequest({ scope: changed, consumer }))
       expect(outcome).toMatchObject({ failure: { kind: 'denied' } })

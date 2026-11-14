@@ -1,4 +1,3 @@
-// The conformance suite of `SkillPackageSource` and its memory double.
 import assert from 'node:assert/strict'
 import { posix } from 'node:path'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -19,14 +18,7 @@ import type {
 export type MemoryPackage = Readonly<{
   locator: PackageLocator
   rootName: string
-  /** Package paths and their content; text is written as UTF-8. */
   files: Readonly<Record<string, string | Bytes>>
-  /**
-   * Package paths that are links, and their targets relative to the directory of the link. A link
-   * reads the bytes of its target. A target outside the root makes `snapshot` answer
-   * `outside-package`; a target that is not a file of the package makes it answer
-   * `entry-unreadable`.
-   */
   links?: Readonly<Record<string, string>>
 }>
 
@@ -52,7 +44,6 @@ function packagePath(raw: string): PackagePath {
   return path.ok
 }
 
-/** Where a link points: a package path, or the fault that `snapshot` answers. */
 function linkTarget(
   link: PackagePath,
   target: string,
@@ -86,11 +77,6 @@ function hold(item: MemoryPackage): Held {
   return { kind: 'held', snapshot: sealed.ok, files }
 }
 
-/**
- * A source over fixed packages in memory. It keeps the bytes of each package under the digest of
- * its snapshot, so `open` with any other digest answers `package-not-found`. It throws a TypeError
- * for a file name that is not a package path or for a package that does not seal.
- */
 export function createMemorySource(packages: readonly MemoryPackage[]): SkillPackageSource {
   const held = new Map<string, Held>(packages.map(item => [locatorKey(item.locator), hold(item)]))
   return {
@@ -109,16 +95,11 @@ export function createMemorySource(packages: readonly MemoryPackage[]): SkillPac
   }
 }
 
-/** A fresh source for one case, and the locators that the case asks about. */
 export type SourceFixture = Readonly<{
   source: SkillPackageSource
-  /** A package that the source holds. It must not change while the case runs. */
   present: PackageLocator
-  /** A locator of no package. */
   absent: PackageLocator
-  /** `content-digest` when the source keeps bytes by snapshot digest, `locator` otherwise. */
   addressing: 'content-digest' | 'locator'
-  /** A package with a link that resolves outside its root, if the source can hold one. */
   escaping?: PackageLocator
 }>
 
@@ -128,7 +109,6 @@ async function snapshotOf(fixture: SourceFixture): Promise<SkillPackageSnapshot>
   return answer.ok
 }
 
-/** A path that the snapshot does not list. */
 function pathOutside(snapshot: SkillPackageSnapshot): PackagePath {
   const listed = new Set<string>(snapshot.entries.map(entry => entry.path))
   for (let index = 0; ; index += 1) {
@@ -137,7 +117,6 @@ function pathOutside(snapshot: SkillPackageSnapshot): PackagePath {
   }
 }
 
-/** A well-formed digest other than `digest`. */
 function otherDigest(digest: PackageDigest): PackageDigest {
   for (const digit of ['0', '1']) {
     const text = `sha256:${digit.repeat(64)}`

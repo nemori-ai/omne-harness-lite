@@ -1,12 +1,3 @@
-// Tool 运行时组的身份一侧（B 段）：当前资格、控制主体投影、Session 工作主体的重签、来源资格与主体编码。
-// 全部逐次读当前提供者，缺席或抛出答 `unavailable`，不默认放行：
-// - 资格：`authorization` 行已有的 `createToolAccessGuard`，底下是 identity 的参考准入核验（核验主体与租户存续）。
-// - 控制主体投影 `project`：主体经 `principalVerifier` 核验，是会话工作主体才投影；其余答 denied。判定只有
-//   `session-work.ts` 一份，与 Tool 请求供给者同口径。
-// - 重签 `resolveSessionWork`：经入口的会话工作主体（`sessionWorkPrincipals.forSession`）签发，`tool-records` 行
-//   在受信上下文里交来读口；缺席答 unavailable。
-// - 来源资格 `qualify`：调用方是本租户的会话工作主体，consumer 是 Agent 的动作消费位置（Agent `toolConsumer`）。
-//   consumer 指名的执行是否属于该会话本波不核对（具名缺件 TOOL-B-GAP-CONSUMER-SESSION），跨租户仍被拒。
 import { referenceAdmissionCheck } from '@omne-harness/authorization'
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
@@ -30,14 +21,12 @@ import {
   type VerifiedSessionWork,
 } from './session-work.ts'
 
-/** Agent 的 Tool 动作 consumer（`@omne-harness/agent` 的 `toolConsumer`）。 */
 export const AGENT_CONSUMER_OWNER = '@omne-harness/agent'
 export const AGENT_CONSUMER_PURPOSE = 'action'
 const deniedSubject = () => fail({ kind: 'denied' as const, action: 'tool-subject' })
 const unavailableSubject = (diagnostic: string) =>
   fail({ kind: 'unavailable' as const, dependency: 'principalVerifier', diagnostic })
 
-/** 每次调用现取的核验器与租户存续读口：入口经受信读法交给 `holder` 的两个读口。 */
 function identityPorts(holder: ToolRuntimeHolder) {
   const verifier: PrincipalVerifier = {
     verify: value => {
@@ -57,7 +46,6 @@ function identityPorts(holder: ToolRuntimeHolder) {
   return { verifier, standing }
 }
 
-/** 经核验的会话工作主体投影成控制主体（判定在 `session-work.ts`，与 Tool 请求供给者同一份）。 */
 async function projectWith(
   verifier: PrincipalVerifier,
   principal: unknown,
@@ -74,7 +62,6 @@ async function projectWith(
   return succeed(subject)
 }
 
-/** 主体的 JSON 形式：会话工作主体的结构字段，租户按 TenantId 的结构写出。 */
 function encodePrincipal(principal: unknown): PrincipalJson {
   const work = sessionWorkOf(principal)
   if (work === undefined)
@@ -102,13 +89,10 @@ export type ReleaseToolIdentity = Readonly<{
   access: ToolHostAccess<unknown>
   subjects: LocalToolRuntimeInput['subjects']
   sourceAuthority: ToolInvokeAuthority<unknown>
-  /** 主体经核验是这个租户的会话工作主体时给出会话 id。 */
   sessionOf(principal: unknown, tenant: TenantId): Promise<string | undefined>
-  /** The verdict of the check itself: a session, a refusal, or unavailable when it could not be read. */
   sessionWork(principal: unknown, tenant: TenantId): Promise<VerifiedSessionWork>
 }>
 
-/** 核验器、当前资格与会话工作主体读口都来自 `holder`：入口对象 `toolClock` 交来的受信读法。 */
 export function createReleaseToolIdentity(holder: ToolRuntimeHolder): ReleaseToolIdentity {
   const { verifier, standing } = identityPorts(holder)
   const admission = referenceAdmissionCheck({ verifier, standing, permits: null })
@@ -133,9 +117,7 @@ export function createReleaseToolIdentity(holder: ToolRuntimeHolder): ReleaseToo
           diagnostic: 'the session work principal source is not installed',
         })
       try {
-        // The session text comes from the original invocation source, which Session's own principal named.
         const session = input.session as SessionId
-        // The Tool runtime continues the original call for the coordinator that started it.
         const issued = await work.forSession({
           actor: 'coordinator',
           tenant: input.tenant,

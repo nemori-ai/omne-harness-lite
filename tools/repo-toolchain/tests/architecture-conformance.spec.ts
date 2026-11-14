@@ -1,5 +1,4 @@
 // @module-tag slow
-// Real Git commits exercise both version-local resolution and baseline intent protection.
 import { readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -377,7 +376,6 @@ describe('global architecture conformance', () => {
   })
   it('member projection keeps baseline aliases and full resolver context', () => {
     const { root } = setup()
-    // The root config is allowed to change between versions; neither resolver uses HEAD for BASE.
     write(
       root,
       'tsconfig.base.json',
@@ -611,7 +609,6 @@ declare module '@deepseek-ai/cordis' { interface Context { data: ${type} } }
       `${ui}/src/view.ts`,
       "import {value, unsafe} from '@example/sql'; export const view = value",
     )
-    // HEAD tries to extend the accepted exception. The new symbol must still be red.
     write(
       root,
       declaration,
@@ -717,7 +714,6 @@ export const p = { name: 'p', inject: ['newDependency'], apply(ctx:Context) { ct
     )
     const compared = readConformance({ root, base })
     expect(compared.baseline?.value).toBeNull()
-    // DIRECTION 行来自运行检查器的仓库，与被比较的版本无关：runner 的 constraints.json 是 schema 3 时它们总会出现。
     expect(
       compared.rows
         .filter(row => row.rule !== 'DIRECTION')
@@ -763,7 +759,6 @@ export const p = { name: 'p', inject: ['newDependency'], apply(ctx:Context) { ct
     const { root } = setup()
     const original = new Error('callback failure'),
       changed = new Error('provider changed failure')
-    // This deliberately bad substitute has the public signature but does not preserve P-1.
     const substitute: { write: (operation: () => Promise<void>) => Promise<void> } = {
       async write() {
         throw changed
@@ -954,7 +949,6 @@ describe('version-local constraint migration', () => {
   })
   it('rejects a source symlink escaping the worktree', () => {
     const { root } = setup()
-    // 链到检出外一个真实存在的文件；`/etc/passwd` 在 Windows 上不存在，realpath 先报 ENOENT。
     const outside = join(temporaryDirectory('escape-target-'), 'outside.md')
     writeFileSync(outside, '# outside\n')
     symlinkSync(outside, join(root, 'docs/architecture/escaped.md'))
@@ -1048,7 +1042,6 @@ describe('version-local constraint migration', () => {
         env: {
           ...process.env,
           OMNE_METRICS_HOME: home,
-          // 夹具仓库没有回路配置：配置由运行检查器的仓库（本仓库）提供。
           OMNE_RUNNER_ROOT: fileURLToPath(new URL('../../../', import.meta.url)),
         },
       },

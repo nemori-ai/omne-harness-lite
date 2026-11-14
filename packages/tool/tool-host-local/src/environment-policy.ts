@@ -4,15 +4,12 @@ import type { ToolEnvironment } from '@omne-harness/tool-contract/provider'
 export type EnvironmentPreparationInput<P> = Parameters<ToolEnvironment<P, unknown>['prepare']>[0]
 export type EnvironmentReleaseInput<P> = Parameters<ToolEnvironment<P, unknown>['release']>[0]
 
-/** Trusted host configuration. The environment provider retains quota and admission authority. */
 export interface ToolEnvironmentSchedulingPolicy<P> {
   readonly quantum: number
   readonly capacity: number
   readonly inFlight: number
   tenant(tenant: TenantId): Readonly<{ weight: number; inFlight: number }>
-  /** This promise may delay the caller's authorized retry. It cannot create a new operation. */
   retry(input: EnvironmentPreparationInput<P>): Promise<'wait' | 'inspect' | 'recognize'>
-  /** Delay or forward an already authorized release; never infer physical completion. */
   release(input: EnvironmentReleaseInput<P>): Promise<'wait' | 'release'>
 }
 
@@ -34,7 +31,6 @@ export type DrrQueue = {
   readonly pending: string[]
 }
 
-/** One new submission costs one credit. Slots and pending work are owned by the caller. */
 export function createDrrSelector(quantum: number) {
   let position = 0
   let credited = false

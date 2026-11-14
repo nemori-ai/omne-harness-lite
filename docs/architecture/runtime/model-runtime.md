@@ -2,9 +2,7 @@
 
 Model runtime 接受完整请求，管理真实发出、内容交付和实际收场。它不推进 Agent Loop，也不执行模型提出的工具动作。主流程、压缩、扩展判断及独立程序都可以成为它的消费者。
 
-Model 对 Tool 没有直接依赖。工具调用响应与 ToolMessage 使用 common/message 的消息值，内容使用 common/content-block。请求中的可用动作声明属于 Model 请求契约，由上层请求组装者从工具定义投影并保管原工具及命令路由。会话路径上，可见工具声明来自会话常驻工具集合，工具的名称与参数形状在同一会话的各次请求中保持一致，规则见 [Tool 契约](../../../packages/tool/tool-contract/SPEC.md#会话常驻规则r1r5)；Model adapter 只负责供应商格式，不读取 Tool 定义、结果对象、注册表或执行句柄。
-
-状态：已接受的目标架构。请求输入由[请求上下文](request-context.md)组织；流式协议和消费责任由[流式与消费](streaming-and-consumption.md)说明。
+Model 对 Tool 没有直接依赖。工具调用响应与 ToolMessage 使用 common/message 的消息值，内容使用 common/content-block。请求中的可用动作声明属于 Model 请求契约，由上层请求组装者从工具定义投影并保管原工具及命令路由。会话路径上，可见工具声明来自会话常驻工具集合，工具的名称与参数形状在同一会话的各次请求中保持一致，规则见 [Tool 契约](../../../packages/tool/SPEC.md#定义采用与常驻)；Model adapter 只负责供应商格式，不读取 Tool 定义、结果对象、注册表或执行句柄。
 
 <a id="h1-model-lifetime"></a>
 ## 调用生命周期独立于 Agent 实例
@@ -116,10 +114,6 @@ stateDiagram-v2
 
 精确状态码映射、退避数值和请求快照格式由后续规格确定。图中状态表达语义，不要求实现使用同名枚举。流中已经展示但尚未收场的内容，其故障保留边界只在[局部对账](streaming-and-consumption.md#在途内容的局部对账)集中说明。
 
-## 依据
-
-模型档案、调用及 ACK 的已接受产品责任见[模型调用](../../../.meta_harness/design/product/model-invocation/README.md)。Model 非 pi-ai 细化设计已接受；pi-ai 的采用范围由[组架构各节](../../../packages/model/docs/architecture.md#成员与新增条件)维护。输入与交接另见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)，其采用范围由该拥有者维护。
-
 ## 未决问题与待办事项
 
 以下事项分别跟踪契约承接与运行验证。设计候选、技术接受、实现和验证是不同状态，不能以其中一项代替另一项。
@@ -129,15 +123,15 @@ stateDiagram-v2
 
 状态：消费协议已接受，实际提供者的运行验证仍待完成。
 
-[独立消费指南](../../../packages/model/model-contract/docs/context.md#独立执行与托管独立调用)区分单次独立执行与托管独立调用。前者不提供自动重试、可靠保管或 ACK；后者无需 Session，通过原调用身份完成受理、恢复、消费确认和清理。单次执行成功不能替代托管消费协议的证据。
+[Model 规格](../../../packages/model/SPEC.md#重试)区分单次独立执行与托管独立调用。前者不提供自动重试、可靠保管或 ACK；后者无需 Session，通过原调用身份完成受理、恢复、消费确认和清理。单次执行成功不能替代托管消费协议的证据。
 
-模型提供者与原消费协调者须按[持续验证场景](../../../packages/model/model-contract/verification/README.md#持续验证义务)及[完整协作场景](../../../packages/model/model-contract/verification/README.md#内部-module-与完整协作场景)，验证可靠交接、原身份恢复、重复 ACK、清理和迟到费用。关闭本项需要实际提供者与消费方的组合证据，覆盖崩溃、未知提交和并发；设计声明的类型检查与时序图解析不满足该条件。
+模型提供者与原消费协调者须按 [Model 规格的不变式](../../../packages/model/SPEC.md#不变式)，验证可靠交接、原身份恢复、重复 ACK、清理和迟到费用。关闭本项需要实际提供者与消费方的组合证据，覆盖崩溃、未知提交和并发；设计声明的类型检查与时序图解析不满足该条件。
 
 <a id="model-t01"></a>
 ### MODEL-T01 模型请求运行时契约的承接
 
 状态：非 pi-ai 精确契约的设计承接及技术接受已完成，真实导出与实际消费者迁移仍待完成。
 
-领域类型和操作由 [model-contract 公开接口](../../../packages/model/model-contract/docs/public-api.md)拥有。发起、原身份、结果保管、消费确认、恢复及费用关联由[共同规格](../../../packages/model/model-contract/SPEC.md)约束。执行函数和构造由 [model 实现入口](../../../packages/model/model/docs/public-api.md)拥有，框架定义由 [model-cordis-contract](../../../packages/model/model-cordis-contract/docs/public-api.md)拥有。无需再寻找另一份运行时契约正文。
+领域类型和操作由 model-contract 的源码拥有。发起、原身份、结果保管、消费确认、恢复及费用关联由[包组规格](../../../packages/model/SPEC.md#应然设计)约束。执行函数和构造由 model 的源码拥有，框架定义由 model-cordis-contract 的源码拥有。无需再寻找另一份运行时契约正文。
 
 模型公共契约、提供者与原发起消费协调者须按已接受契约落实真实导出，并迁移实际消费者。关闭本项须确认这些消费者沿唯一契约接合，保留首内容、重复发起、未知结果、ACK 和迟到费用的边界。独立消费的运行符合性继续由 MODEL-V01 跟踪，不因契约定位完成而宣称已验证。

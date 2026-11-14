@@ -278,10 +278,9 @@ async function main() {
   const selected = selection === 'all' ? cases : cases.filter(([name]) => name === selection)
   assert.ok(selected.length > 0, 'unknown case')
   const sourcePaths = [
-    'packages/tool/tool-contract/SPEC.md',
+    'packages/tool/SPEC.md',
     'packages/tool/tool-contract/src/records.ts',
     'packages/tool/tool-contract/src/ports.ts',
-    'packages/tool/tool-host-local/SPEC.md',
     'packages/tool/tool-host-local/src/scheduled-environment.ts',
     'packages/tool/tool-host-local/src/environment-input.ts',
     'packages/tool/tool-host-local/src/environment-policy.ts',
@@ -391,8 +390,6 @@ async function main() {
   summary.endedAt = new Date().toISOString()
   summary.allExpectedResults =
     summary.runs.length === selected.length && summary.runs.every(run => run.accepted)
-  // Model checking never establishes source refinement; the source correspondence is documented
-  // in README.md and checked by the host tests, not by this runner.
   summary.implementationConformance = 'not-established-by-this-run'
   save()
   if (!summary.allExpectedResults) process.exitCode = 1

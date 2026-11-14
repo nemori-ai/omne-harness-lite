@@ -1,6 +1,3 @@
-// The view of a subject that the checks use: every step that waits on the subject is limited to
-// `waitMs`, so a provider method, a hook or a transport step that never returns ends the check as
-// a failure instead of ending the suite. A promise that cannot be cancelled is left alone.
 import type { ModelRuntime } from '../index.ts'
 import type { ModelProvider, PreparedTransport, MaterializedTransport } from '../provider/index.ts'
 import { within } from './conformance-kit.ts'
@@ -53,7 +50,6 @@ type Hook = <A extends unknown[], R>(
   step: (...args: A) => Promise<R>,
 ) => (...args: A) => Promise<R>
 
-/** The hooks that bring a call to a state and give it evidence. */
 function boundedDriving<P>(hooks: ConformanceHooks<P>, hook: Hook): ConformanceHooks<P> {
   return {
     ...(hooks.startRun && { startRun: hook('startRun', hooks.startRun.bind(hooks)) }),
@@ -65,7 +61,6 @@ function boundedDriving<P>(hooks: ConformanceHooks<P>, hook: Hook): ConformanceH
   }
 }
 
-/** The hooks that make a write answer `commit-unknown` and move or block the cleanup. */
 function boundedWrites<P>(hooks: ConformanceHooks<P>, hook: Hook): ConformanceHooks<P> {
   return {
     ...(hooks.failNextWrite && {
@@ -80,7 +75,6 @@ function boundedWrites<P>(hooks: ConformanceHooks<P>, hook: Hook): ConformanceHo
   }
 }
 
-/** The hooks that take an instance, a connection, an access right or the directory away. */
 function boundedWithdrawals<P>(hooks: ConformanceHooks<P>, hook: Hook): ConformanceHooks<P> {
   return {
     ...(hooks.withdrawInstance && {
@@ -156,7 +150,6 @@ function boundedTransport(given: ConformanceTransport, waitMs: number): Conforma
   }
 }
 
-/** The subject as the checks see it. `dispose` is left out; the entry calls it on the original. */
 export function boundedSubject<P>(
   subject: ConformanceSubject<P>,
   waitMs: number,

@@ -40,7 +40,6 @@ const requests = {
     kind: 'object',
     fields: { tenant: { rule: tenant }, session: { rule: session }, acceptId: { rule: text } },
   },
-  // `cursor` must be present. `direction` and `pageBytes` occur exactly when it is null.
   'read-history': {
     kind: 'one-of',
     rules: [
@@ -79,7 +78,6 @@ const requests = {
       producer: { rule: producer },
     },
   },
-  // `cursor` must be present. `run` and `pageBytes` occur exactly when it is null.
   'read-session-diagnostics': {
     kind: 'one-of',
     rules: [
@@ -102,7 +100,6 @@ const requests = {
 } satisfies Readonly<Record<SessionOperation, Rule>>
 
 const anyText: Rule = { kind: 'string' }
-// entryId follows message's RecordEntryRef, which is non-empty. revision and kind are plain text.
 const historyEntry: Rule = {
   kind: 'object',
   fields: {
@@ -113,7 +110,6 @@ const historyEntry: Rule = {
   },
 }
 
-// The wire form of a recorded origin. Declared here so this package imports no other member.
 const terminalSource: Rule = {
   kind: 'object',
   fields: {
@@ -124,7 +120,6 @@ const terminalSource: Rule = {
   },
 }
 const literal = (...values: string[]): Rule => ({ kind: 'literal', values })
-/** `requested` and `ended` are told apart by the literal `kind`, so the options are disjoint. */
 const controlAnswer = (target: Record<string, { rule: Rule }>, terminal: Rule): Rule => ({
   kind: 'one-of',
   rules: [
@@ -144,7 +139,6 @@ const controlAnswer = (target: Record<string, { rule: Rule }>, terminal: Rule): 
   ],
 })
 
-// The diagnostics page (SPEC「会话诊断页」). The union members are told apart by a literal `kind`.
 const nullable = (rule: Rule): Rule => ({ kind: 'one-of', rules: [rule, { kind: 'null' }] })
 const fieldsOf = (fields: Record<string, Rule>): Rule => ({
   kind: 'object',
@@ -181,7 +175,6 @@ const known = (field: string): Rule => ({
   ],
 })
 const adoptionRef = fieldsOf({ owner: text, name: text, revision: text, digest: text })
-/** A closed set, or an `unknown` with its reason. A literal and an object are disjoint. */
 const closedOrUnknown = (...values: string[]): Rule => ({
   kind: 'one-of',
   rules: [literal(...values), unknownValue],
@@ -258,7 +251,6 @@ const attempt = fieldsOf({
   }),
   account: accountOrUnknown,
 })
-// Counts are decimal texts, checked as non-empty text like every other count of the page.
 const counted: Rule = { kind: 'array', item: fieldsOf({ kind: text, count: text }) }
 const modelCall = fieldsOf({
   reference: text,
@@ -278,7 +270,6 @@ const modelCall = fieldsOf({
   coverage: literal('complete-through-snapshot', 'expired-prefix', 'unknown'),
   facts: counted,
 })
-// Tool's `DiagnosticPage` gives `phase` and `code` as plain strings, which can be empty.
 const toolDiagnosticEntry = fieldsOf({ operation: text, phase: anyText, code: anyText })
 const toolCall = fieldsOf({
   reference: text,
@@ -310,7 +301,6 @@ const toolCall = fieldsOf({
   },
   account: accountOrUnknown,
   facts: counted,
-  // An array and an object are disjoint.
   diagnostics: {
     kind: 'one-of',
     rules: [{ kind: 'array', item: toolDiagnosticEntry }, unknownValue],
@@ -374,7 +364,6 @@ const successes = {
     kind: 'object',
     fields: {
       entries: { rule: { kind: 'array', item: historyEntry } },
-      // next is sent back as cursor, which is null or non-empty.
       next: { rule: { kind: 'one-of', rules: [text, { kind: 'null' }] } },
       exhausted: { rule: { kind: 'boolean' } },
       scannedThrough: { rule: anyText },
@@ -452,7 +441,6 @@ const outcomes = {
   'read-session-diagnostics': ['succeeded', 'denied', 'invalid', 'basis-unavailable'],
 } as const satisfies { readonly [O in SessionOperation]: readonly SessionOutcomes[O][] }
 
-/** Fails to compile when an outcome of `SessionOutcomes` is missing from the table above. */
 type MissingOutcomes = {
   readonly [O in SessionOperation]: Exclude<SessionOutcomes[O], (typeof outcomes)[O][number]>
 }[SessionOperation]

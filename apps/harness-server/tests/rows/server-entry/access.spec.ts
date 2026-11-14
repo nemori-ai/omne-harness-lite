@@ -1,8 +1,3 @@
-// The new address of the `server-entry` row (#1249 C9): the row alone serves the entry's own
-// `access/v1`, the release adds `identity/v1` (the `identity-access` row) and `session/v1` (the
-// `session-access` row); the availability needs
-// no login, so the identity port of the row is never asked; access diagnostics leave as
-// `omne.access.diagnostic` in system scope.
 import { spawn } from 'node:child_process'
 import { request } from 'node:http'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
@@ -27,7 +22,6 @@ type Rec = { kind: string } & Record<string, unknown>
 
 const AVAILABILITY = '/api/access/v1/availability'
 
-/** Opens the availability observation without a login and answers its head and first event. */
 function firstEvent(port: number): Promise<{ status: number; type: string; event: string }> {
   return new Promise((resolve, reject) => {
     const body = '{}'
@@ -58,7 +52,6 @@ function firstEvent(port: number): Promise<{ status: number; type: string; event
           })
           req.destroy()
         })
-        // An answer that is not an event stream ends without an event.
         res.on('end', () =>
           resolve({
             status: res.statusCode ?? 0,
@@ -74,7 +67,6 @@ function firstEvent(port: number): Promise<{ status: number; type: string; event
   })
 }
 
-/** An identity port for the cases that never ask it. */
 const NO_IDENTITY: AccessIdentity = {
   identifyLogin: async () => ({ outcome: 'basis-unavailable' }),
   actFor: async () => ({ outcome: 'basis-unavailable' }),
@@ -169,7 +161,6 @@ afterEach(() => {
   for (const dir of scratches.splice(0)) rmSync(dir, { recursive: true, force: true })
 })
 
-/** The test operator layer plus telemetry on stdout, so the access records can be read. */
 function withTelemetry(layer: unknown): unknown {
   const { ops } = layer as { ops: unknown[] }
   return {
@@ -200,7 +191,6 @@ describe('the serve process with the release', () => {
     'C9: the release answers the availability with a snapshot of access/v1, assets/v1, identity/v1 and session/v1, and never asks its identity port',
     { tags: ['slow'] },
     async () => {
-      // Slow: starts `dist/bin.js serve` on the whole release tree (real SQLite storage).
       const base = realpathSync(mkdtempSync(join(tmpdir(), 'access-serve-')))
       scratches.push(base)
       const stateRoot = join(base, 'state')
@@ -258,7 +248,6 @@ describe('the serve process with the release', () => {
         frame: { kind: string; protocols: { name: string; major: number }[] }
       }
       expect(event).toMatchObject({ kind: 'frame', frame: { kind: 'snapshot' } })
-      // The release mounts assets/v1, identity/v1 and session/v1 through their rows beside access/v1.
       expect(event.frame.protocols.map(key => `${key.name}/v${key.major}`).sort()).toStrictEqual([
         'access/v1',
         'assets/v1',
@@ -272,8 +261,6 @@ describe('the serve process with the release', () => {
       const access = records.filter(
         record => record.kind === 'telemetry' && record['name'] === 'omne.access.diagnostic',
       )
-      // The availability needs no login, so the identity port is never asked; any refusal or
-      // failure of it would leave an `access.identity-*` diagnostic here.
       expect(access).toEqual([])
     },
   )

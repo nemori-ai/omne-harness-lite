@@ -1,10 +1,3 @@
-// The creation checks that read nothing but the options: the nine configuration items of
-// docs/public-api.md "工厂配置" and the four binding fields. A value the type forbids can still come
-// from an untyped caller, so each check judges the value itself. The first failure is returned as
-// `invalid`, with `field` the path of the item, for example `configuration.toolConcurrency`.
-// Limit: only the values of the options are judged for an untyped caller. The dependencies are
-// assumed to satisfy their contract types: a Journal without `capabilities`, a `registration.instance`
-// getter that throws, or options or dependencies that are not objects make the creation reject.
 import {
   decodeAgentInstanceId,
   judgeAdoption,
@@ -40,13 +33,8 @@ const NON_NEGATIVE = ['denialBackoffMs'] as const
 
 const invalid = (field: string, reason: string): Failure => ({ kind: 'invalid', field, reason })
 
-/**
- * The step limit of one execution when the configuration gives none (R2-D221). Neither pi-agent-core
- * nor the DSH agent loop has a built-in step or turn budget, so the ruling's fallback value holds.
- */
 export const DEFAULT_MAX_RUN_STEPS = 50
 
-/** The step limit of one execution: the configured value, or the default when it is absent. */
 export function maxRunStepsOf(configuration: Pick<AgentConfiguration, 'maxRunSteps'>): number {
   return configuration.maxRunSteps ?? DEFAULT_MAX_RUN_STEPS
 }
@@ -59,12 +47,10 @@ function isNonNegativeInteger(value: unknown): boolean {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0
 }
 
-/** A non-empty list of non-negative integers. */
 function isDelaySequence(value: unknown): value is readonly number[] {
   return Array.isArray(value) && value.length > 0 && value.every(isNonNegativeInteger)
 }
 
-/** A structure judgment failure under `path`; the structure's own name becomes the path itself. */
 function structure(
   path: string,
   judged: Outcome<unknown, StructureFailure>,
@@ -113,9 +99,7 @@ function judgeConfiguration(configuration: AgentConfiguration): Failure | undefi
   )
 }
 
-/** Whether legal-identity minted the value; `encode` checks registry membership of any value. */
 export function isTenantId(value: unknown): value is TenantId {
-  // `encode` types its parameter as `TenantId`, but its check takes any value; see judgeAccess.
   return tenantCodec.encode(value as TenantId).ok
 }
 
@@ -129,7 +113,6 @@ function judgeBinding(binding: AgentRuntimeOptions['binding']): Failure | undefi
   )
 }
 
-/** The first `invalid` of the options: configuration first, then binding; undefined when both hold. */
 export function judgeOptions(options: AgentRuntimeOptions): Failure | undefined {
   if (typeof options.configuration !== 'object' || options.configuration === null)
     return invalid('configuration', 'type')

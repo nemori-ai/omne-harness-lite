@@ -1,14 +1,5 @@
 import { modelTokenizersRow } from '../../../src/rows/model-tokenizers/index.ts'
 import { LOCAL_TOKENIZERS } from '../../../src/local/operator-defaults.ts'
-// The `model-records` and `model-host` rows on the real storage rows (B3-M, `tmp/wire-model/design.md`):
-// real SQLite storage, the real `session-storage`, `authorization`, `model-profiles`,
-// `model-request-preparation` and `model-credential` rows, the release entry objects, and the
-// real records plugin of model-storage-sql with the real send stage of model-host-local as its
-// child. Stand-ins, each named: the `identity` row is a contract double whose `tenantStanding`
-// answers `member` for the fixture tenant (the real one needs a registered account); the W of the
-// tests is issued by the entry's own session work issuer through a test entry object, because the
-// release `sessionWorkPrincipals` needs a session binding that no session of these tests creates.
-// No network: nothing is admitted, so the send path opens nothing beyond its pool.
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -78,11 +69,6 @@ const MEMBER: TenantStandingReading = Object.freeze({
   evidence: { record: 'standing:fixture', revision: '1' },
 })
 
-/**
- * Stands for the `identity` row: the standing of the fixture tenant is `member`, every other tenant is
- * not. It also provides `identityGovernance`, which the `authorization` row injects for the login check
- * of a user principal; no case here asks it, every caller is a system or work principal.
- */
 const identityStandIn = defineRow({
   row: 'identity',
   implementation: 'contract-double',
@@ -114,7 +100,6 @@ const identityStandIn = defineRow({
   },
 })
 
-/** A W of the fixture tenant, issued by the entry's own narrow session work issuer. */
 const workPrincipal: EntryObjectModule = {
   name: WORK_KEY,
   implementation: 'contract-double',
@@ -128,7 +113,6 @@ const workPrincipal: EntryObjectModule = {
 function workspace() {
   const base = realpathSync(mkdtempSync(join(tmpdir(), 'model-rows-')))
   bases.push(base)
-  // The storage root must not exist yet: the entry creates it and the tenant directory (R2-D34).
   return { base, storageRoot: join(base, 'storage') }
 }
 
@@ -198,7 +182,6 @@ const entryObjects = [
   cursorSigning,
   modelClock,
   modelHostAuthority,
-  // The `authorization` row injects it to judge the end time of a maintenance grant.
   identityClock,
 ]
 
@@ -260,26 +243,22 @@ describe('the model-records and model-host rows', () => {
           const runtime = ctx.get(modelRuntimeKey) as ModelRuntime<unknown>
           const host = ctx.get(modelHostAuthorityKey) as ModelHostAuthority<unknown>
           const work = ctx.get(WORK_KEY) as Principal
-          // Through the runtime (the W admission point): qualified, authorized, then not found.
           const seen = await runtime.calls.dispatches({
             principal: work,
             tenant: TENANT,
             call: CALL.ok,
           })
-          // An unverified principal through the same point: denied before any read.
           const denied = await runtime.calls.dispatches({
             principal: structuredClone(work),
             tenant: TENANT,
             call: CALL.ok,
           })
-          // Directly on the commands service there is no admission point: unavailable, never ok.
           const direct = await (commands as ModelCommandsService<unknown>).recall({
             principal: work,
             tenant: TENANT,
             call: CALL.ok,
             admission: ADMISSION.ok,
           })
-          // The host authority reads the acceptance of a call nobody admitted.
           const resolved = await host.resolve({ tenant: TENANT, call: CALL.ok })
           return {
             commands: commands instanceof ModelCommandsService,
@@ -391,7 +370,6 @@ describe('the model-records and model-host rows', () => {
         },
         () => undefined,
       ).catch(error => ({ run: undefined, error }))
-      // The probe never runs: the records row FAILED and the host stays PENDING on it.
       expect(run).toBeUndefined()
     },
   )

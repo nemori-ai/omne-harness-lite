@@ -174,8 +174,6 @@ export async function openToolHostWorld(
   })
   const scheduleEnvironment = () =>
     createScheduleToolEnvironment(base, { commands: ledger.commands, contexts })
-  // This world starts the binding itself, so the ledger records no start and cannot plan the final.
-  // The results here stay inline: the final is the envelope as the author rendered it.
   const settle: Settle = async call => {
     const author = call.operation.author
     const text = createLocalTextResults()

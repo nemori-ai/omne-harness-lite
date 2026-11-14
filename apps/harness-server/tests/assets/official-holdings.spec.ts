@@ -1,6 +1,3 @@
-// The official holdings (src/assets): a release tool's settings come from the category hook of its
-// asset body, the holding is (asset reference, definition id), and two different assets of one name
-// never reach each other's secret (I-9).
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

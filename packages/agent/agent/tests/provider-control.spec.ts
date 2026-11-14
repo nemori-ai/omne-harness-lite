@@ -115,8 +115,6 @@ describe('execution control acceptance', () => {
       command: { kind: 'cancel' as const, reason: evidence('cancel-retried') },
     }
     const journal = assembly.dependencies.journal
-    // Only this control can save a stage before the cancellation is effective, so the fault lands
-    // on its first step: the intent.
     assembly.controls.journal.failNext('recordControl', { kind: 'unavailable' })
     expect(await handle.control.control(input)).toMatchObject({ failure: { kind: 'unavailable' } })
     const failed = ok(await journal.load(input)).controls.filter(
@@ -152,7 +150,6 @@ describe('execution control acceptance', () => {
       const committed = await commit(input)
       if (!fired && 'ok' in committed && input.effects.some(e => e.pending.kind === 'model')) {
         fired = true
-        // M0 saved the Model intent. The cancellation lands before M6 asks the Model to admit it.
         const handle = ok(await handed)
         ok(
           await handle.control.control({
@@ -359,7 +356,6 @@ describe('tool call control', () => {
     let count = 0
     assembly.controls.tools.invoke.always(async () => {
       count += 1
-      // Agent never reads the receipt state as the current state of the call.
       return {
         kind: 'accepted',
         reference: reference(`call-${count}`),
@@ -434,7 +430,6 @@ describe('tool call control', () => {
       toolOperation: toolOperation(first, 'stop-a'),
       stages: { 'producer-confirmed': { state: 'reached' } },
     })
-    // Acceptance by the producer is not a physical stop, and the execution keeps advancing.
     expect(record?.stages['physically-stopped']).toBeUndefined()
     expect(record?.stages['qualification-revoked']).toBeUndefined()
     expect(controlled.executionAttachment).toEqual(before.executionAttachment)
@@ -458,7 +453,6 @@ describe('tool call control', () => {
         }),
       ),
     )
-    // Both slots are kept and the same run sends its next model request.
     assembly.controls.tools.queries.contact.always(() => ({ ok: { kind: 'settled' } }))
     await eventually(async () => {
       const moved = (await loadWithEntries(assembly.dependencies, input)).checkpoint.calls.some(
@@ -509,7 +503,6 @@ describe('tool call control', () => {
       toolOperation: toolOperation(first, 'stop-unknown'),
       stages: { 'producer-confirmed': { state: 'unresolved' } },
     })
-    // The same control again reconciles the original Tool operation instead of a new attempt.
     ok(await handle.control.control(input))
     expect(assembly.controls.tools.commands.control.calls).toHaveLength(1)
     expect(assembly.controls.tools.queries.queryOperation.calls).toEqual([
@@ -545,7 +538,6 @@ describe('tool call control', () => {
       operation: operation('interrupt-lost'),
       command: { kind: 'interrupt-tool' as const, call, reason: evidence('interrupt-lost') },
     }
-    // The lost save goes back to the caller, and a retry of the same control sends nothing again.
     expect(await handle.control.control(input)).toMatchObject({
       failure: { kind: 'unavailable', diagnostic: 'lost' },
     })
@@ -602,7 +594,6 @@ describe('tool call control', () => {
     )
     const ended = await loadWithEntries(assembly.dependencies, input)
     expect(ended.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'cancelled' } })
-    // No new Tool action and no next model request after the cancellation.
     expect(assembly.controls.tools.invoke.calls).toHaveLength(2)
     expect(ended.effects.some(effect => effect.pending.action.startsWith('step-2/'))).toBe(false)
     const accounts = (ended.entries ?? []).flatMap(entry =>
@@ -625,22 +616,18 @@ describe('tool call control', () => {
       ),
     )
     const input = { ...alice, execution: handle.execution }
-    // Session ended the Run in the commit that accepted its cancel: from now on its conditions
-    // answer that the advance is gone. The cancel control reaches the Agent only later.
     const { conditions } = assembly.dependencies
     let staleReads = 0
     conditions.read = async () => {
       staleReads += 1
       return { failure: { kind: 'stale-advance' as const } }
     }
-    // The loop wakes before the control is there and reads the conditions.
     assembly.controls.tools.queries.contact.always(() => ({ ok: { kind: 'unknown' } }))
     await eventually(async () => assembly.controls.clock.pending().length === 1)
     const [check] = assembly.controls.clock.pending()
     if (check === undefined) throw new Error('the driver is not sleeping on a check time')
     ok(assembly.controls.clock.advanceTo(check))
     await eventually(async () => staleReads > 0)
-    // It is not a failure of the node: no call is stopped yet and the execution is not over.
     expect(assembly.controls.tools.commands.control.calls).toHaveLength(0)
     expect((await loadWithEntries(assembly.dependencies, input)).state.kind).not.toBe('ended')
     ok(
@@ -650,7 +637,6 @@ describe('tool call control', () => {
         command: { kind: 'cancel', reason: evidence('cancel-late') },
       }),
     )
-    // The established cancellation wakes the waiting loop: F0 stops each foreground call.
     await eventually(async () => assembly.controls.tools.commands.control.calls.length === 2)
     const receiver = toolReceiver(assembly)
     for (const [pending, name] of [
@@ -683,7 +669,6 @@ describe('tool call control', () => {
     const commit = journal.commit.bind(journal)
     journal.commit = async input => {
       const fire = cancel
-      // Tool returned the call reference. The cancellation lands before Agent saves it.
       if (
         fire !== null &&
         input.checkpoint.calls.some(
@@ -711,7 +696,6 @@ describe('tool call control', () => {
     const [held] = await associatedTools(assembly, 1)
     if (held === undefined) throw new Error('the accepted call was not associated')
     expect(cancel).toBeNull()
-    // F0 interrupts the call by the saved reference.
     await eventually(async () => assembly.controls.tools.commands.control.calls.length === 1)
     expect(assembly.controls.tools.commands.control.calls).toEqual([
       expect.objectContaining({ reference: held.reference, intent: { kind: 'stop' } }),
@@ -752,7 +736,6 @@ describe('tool call control', () => {
     const commit = journal.commit.bind(journal)
     journal.commit = async input => {
       const fire = cancel
-      // The cancellation lands while A2 commits the intent, so the commit meets a changed revision.
       if (fire !== null && input.effects.some(effect => effect.pending.kind === 'tool')) {
         cancel = null
         await fire()
@@ -804,7 +787,6 @@ describe('tool call control', () => {
     )
     expect(observation).toContain('refused')
     expect(observation).toContain('denied')
-    // The refused control is not sent again.
     ok(await handle.control.control(input))
     expect(assembly.controls.tools.commands.control.calls).toHaveLength(1)
   })
@@ -875,7 +857,6 @@ describe('content and account read back after control', () => {
     return pending
   }
 
-  /** The received Model result of the execution, with its material read through Materials. */
   async function receivedModel(
     assembly: Assembly,
     input: {
@@ -935,7 +916,6 @@ describe('content and account read back after control', () => {
     const controlled = (await loadWithEntries(assembly.dependencies, input)).controls.find(
       item => item.operation === operation('interrupt-delivered'),
     )
-    // The interrupt did not end the execution or revoke its advance.
     expect(controlled?.stages['qualification-revoked']).toBeUndefined()
   })
 
@@ -955,7 +935,6 @@ describe('content and account read back after control', () => {
     }))
     const handle = ok(await invoke(assembly))
     const input = { ...alice, execution: handle.execution }
-    // The run holds a Tool call open, so the cancellation lands on a live execution.
     await deliverToolSuggestion(assembly, [toolCall()], '23')
     const [held] = await associatedTools(assembly, 1)
     if (held === undefined) throw new Error('no associated Tool call')

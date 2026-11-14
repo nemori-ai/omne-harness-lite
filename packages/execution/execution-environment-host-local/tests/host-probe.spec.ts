@@ -1,10 +1,3 @@
-// The platform prerequisites of the host `command` facility (P1, P3 to P6), probed against the real
-// host. There is no entry that injects a probe answer: a test changes the real environment of this
-// process (PATH, the user manager variables) and reads what the provider reports. On a host that is
-// not Linux the start answers `unavailable` while `files` of the same acquisition keeps working.
-// The tests that need the user systemd manager run only on Linux with
-// `OMNE_HOST_COMMAND_LINUX=1`, and in the slow tier: they start real scope units. The last test
-// reads, as a pure function, which items the exit of the probe program and the stop leave unsatisfied.
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -167,7 +160,6 @@ it(
   'answers unavailable on an unsupported execution platform, and files of the same acquisition still work',
   { skip: process.platform === 'win32' },
   async () => {
-    // macOS and Linux have backends; another POSIX platform falls to the Linux probe and misses it.
     const platform = Object.getOwnPropertyDescriptor(process, 'platform')
     Object.defineProperty(process, 'platform', { value: 'freebsd', configurable: true })
     onTestFinished(() => {
@@ -227,7 +219,6 @@ it(
 
 it(
   'reports satisfied on a Linux host with a running user manager and cgroup v2',
-  // Slow: starts a probe scope and waits for its stop; needs the user systemd manager.
   { tags: ['slow'], skip: !withUserManager },
   async () => {
     const provider = hostProvider()
@@ -237,7 +228,6 @@ it(
 
 it(
   'answers unavailable while the user manager is unreachable, and starts once it is back after the retry interval',
-  // Slow: starts a probe scope and waits for its stop; needs the user systemd manager.
   { tags: ['slow'], skip: !withUserManager },
   async () => {
     delete process.env['XDG_RUNTIME_DIR']

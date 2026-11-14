@@ -1,14 +1,9 @@
-// Declared production-dependency closure of a workspace member, read from package.json files only
-// (no pnpm, no network), and the forbidden-dependency judgment on it. The installed closure is
-// judged again after installation by consumer.ts, because third-party packages bring their own
-// dependencies.
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 export type Manifest = Readonly<{
   name: string
   version?: string
-  /** Only the workspace root has it: the pnpm that the workspace pins. */
   packageManager?: string
   exports?: Readonly<Record<string, unknown>>
   dependencies?: Readonly<Record<string, string>>
@@ -23,12 +18,10 @@ export type Policy = Readonly<{ profile: string; forbidden: readonly ForbiddenRu
 export type Violation = Readonly<{
   name: string
   category: string
-  /** Declared dependency chain from the member to the offending package. */
   via: readonly string[]
 }>
 
 export type DeclaredClosure = Readonly<{
-  /** The member itself first, then every workspace member that it reaches. */
   workspace: readonly Readonly<{ name: string; directory: string; via: readonly string[] }>[]
   external: readonly Readonly<{ name: string; via: readonly string[] }>[]
 }>
@@ -60,7 +53,6 @@ function expand(root: string, pattern: string): string[] {
   return directories.filter(directory => existsSync(join(directory, 'package.json')))
 }
 
-/** Maps workspace package names to directories, from the `packages:` globs of pnpm-workspace.yaml. */
 export function workspaceMembers(root: string): Map<string, string> {
   const text = readFileSync(join(root, 'pnpm-workspace.yaml'), 'utf8')
   const block = /^packages:\n((?: {2}- .+\n)+)/mu.exec(text)?.[1] ?? ''
@@ -121,22 +113,13 @@ export function findForbidden(
   })
 }
 
-/** What the post-install judgment needs of a run: the policy in force and the fixture, if any. */
 export type InstalledPlan = Readonly<{
   fixture: Readonly<{ role: string }> | null
   policy: Policy
 }>
 
-/** Where a judgment reports its verdict: the id of the check, whether it passed, and what it found. */
 export type Reporter = (id: string, ok: boolean, detail: string) => unknown
 
-/**
- * Reports the check `forbidden-installed`: the installed packages that the policy of the run
- * forbids. For a fixture run the policy already holds the fixture's own forbidden names, and a
- * package is attributed to the fixture, not the member. Third-party packages bring dependencies
- * that the declared closure does not list, so this is judged on what was installed, not on what
- * was declared. Returns the violations for the report of the run.
- */
 export function judgeInstalled(
   installed: readonly string[],
   plan: InstalledPlan,
@@ -156,7 +139,6 @@ export function judgeInstalled(
   return violations
 }
 
-/** Dependency specifiers that only make sense inside the workspace and must not reach a consumer. */
 export function workspaceResidue(manifest: Manifest): string[] {
   const residue: string[] = []
   for (const field of PRODUCTION_FIELDS)

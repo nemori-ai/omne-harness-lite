@@ -102,7 +102,6 @@ it('the check wrapper forwards to the runner inside its slot even when a subject
   })
   expect(result.status, result.stdout + result.stderr).toBe(0)
   const trace = readFileSync(f.trace, 'utf8')
-  // Exactly one call: the runner's check command, with the flags passed through and the slot held.
   expect(trace.trim().split('\n')).toHaveLength(1)
   expect(trace).toMatch(/^check\|held\|.*testing\/cli\.ts check --admission$/mu)
   expect(trace).not.toContain('pnpm')
@@ -128,7 +127,6 @@ it('the check step table runs the dev-flow entry, the snapshot check after the b
       .map(line => line.split('\t'))
       .map(([name, after, , command]) => [name, { after: after ?? '', command: command ?? '' }]),
   )
-  // The snapshot check runs through dev-flow, after the build and the type check (which may rebuild a dist), and no longer through pnpm.
   expect(rows.get('contract-check')?.after).toBe('build,typecheck')
   expect(rows.get('contract-check')?.command).toMatch(/integration\/cli\.ts contract-check$/u)
   expect(listed.stdout).not.toContain('contract:api --check')
@@ -144,8 +142,6 @@ it('runs the actual trusted formatter on subject bytes, not its own clean source
     encoding: 'utf8',
   })
   expect(result.status).toBe(1)
-  // format.sh names the subject by `git rev-parse --show-toplevel`; on Windows that is the form with
-  // forward slashes and long names.
   expect(result.stdout).toContain(
     `Formatting subject ${git(root, ['rev-parse', '--show-toplevel'])}`,
   )

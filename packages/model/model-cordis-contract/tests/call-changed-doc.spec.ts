@@ -3,8 +3,6 @@ import { fileURLToPath } from 'node:url'
 import ts from '@typescript/typescript6'
 import { expect, it } from 'vitest'
 
-// The event contract is a JSDoc on the built declaration: a consumer reads the dispatch mode and
-// the payload names from it, so the check reads the compiled file, not the source.
 const declaration = fileURLToPath(new URL('../dist/cordis.d.ts', import.meta.url))
 
 function eventTags(name: string): { mode: string[]; params: string[] } | undefined {

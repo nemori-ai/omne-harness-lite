@@ -1,7 +1,3 @@
-// 预检 `check --preflight`（根脚本 `pnpm run preflight`）：写者收尾与调度者入队前跑，把准入里不依赖构建与全量测试的步骤
-// 在当前树上一次跑完——步骤表在 check-steps.ts 的 `preflightSteps`，全部同时起（受轻步骤并发限制），失败不终止其余
-// （等价 --keep-going），最后一次列出全部发现与修法。开始时同样自检并自愈环境（environment.ts）。
-// 它不是准入证据：不写准入日志、不写运行记录，日志只落 `tmp/preflight/`。
 import { availableParallelism } from 'node:os'
 import { join, relative } from 'node:path'
 import { mkdirSync, readFileSync, rmSync } from 'node:fs'
@@ -13,7 +9,6 @@ import { describeHealing, healEnvironment, type EnvironmentIo } from './environm
 export const PREFLIGHT_LOG_DIR = 'tmp/preflight'
 const TAIL_LINES = 20
 
-/** 子进程不继承的 git 环境，与 check.ts 相同。 */
 const GIT_ENV = [
   'GIT_DIR',
   'GIT_WORK_TREE',
@@ -25,7 +20,6 @@ const GIT_ENV = [
   'GIT_SHALLOW_FILE',
 ]
 
-/** 可替换的依赖：步骤表、修法表、环境自愈的外部动作与核数。测试换成假步骤。 */
 export interface PreflightDependencies {
   readonly steps?: () => CheckStep[]
   readonly fixes?: Readonly<Record<string, string>>

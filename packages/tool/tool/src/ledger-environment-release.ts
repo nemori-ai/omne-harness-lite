@@ -28,7 +28,6 @@ import {
 import { taskKey, type CallRecord, type LedgerWrite } from './ledger-store.ts'
 import { releaseBasisOf } from './ledger-start.ts'
 
-/** Domain-separated digests fit even when a provider's original operation is at its size limit. */
 export function settlementOperation(
   purpose: 'release-environment',
   place: unknown,
@@ -38,7 +37,6 @@ export function settlementOperation(
   return decoded.ok
 }
 
-/** Immutable event history includes references replaced in the current process projection. */
 export function processCustodyCovered<B extends ContentBlock>(
   snapshot: Snapshot,
   value: ToolRenderedResult<B>,
@@ -58,7 +56,6 @@ export function releaseIntent(preparation: PreparationRecord, custody: DurableEv
   return { preparation, custody }
 }
 
-/** Both automatic and public planning use this canonical record and write set. */
 export function planEnvironmentRelease(
   snapshot: Snapshot,
   call: CallRecord,

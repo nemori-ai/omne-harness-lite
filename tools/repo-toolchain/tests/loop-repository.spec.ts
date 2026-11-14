@@ -1,5 +1,3 @@
-// 读 git 的那几层与入口本身，用临时仓库：一起改的提交、rev 翻动、并行工作树、祖先关系，
-// 以及入口的退出码（硬线破了是 1，其余报告项再多也是 0，用法错是 2）与快照的写入。
 import { execFileSync, spawnSync } from 'node:child_process'
 import {
   existsSync,
@@ -47,7 +45,6 @@ function commit(root: string, message: string): string {
 function repository(): string {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'loop-repo-')))
   made.push(root)
-  // 本机 git 可能早于 `init -b`，用 symbolic-ref 定主线分支名。
   git(root, 'init', '-q')
   git(root, 'symbolic-ref', 'HEAD', 'refs/heads/main')
   write(root, 'README.md', 'repo\n')
@@ -55,7 +52,6 @@ function repository(): string {
   return root
 }
 
-// 这两组每条用例都要起若干次 git 或 node 子进程；全量检查满载时单条会超过默认的 5 秒，所以写明时限。
 describe('读 git 的传感器', { timeout: 30_000 }, () => {
   it('一起改：最近若干个非合并提交各自碰过的成员，新的在前', () => {
     const root = repository()
@@ -200,7 +196,6 @@ describe('读 git 的传感器', { timeout: 30_000 }, () => {
   })
 })
 
-/** 成员预算「超 alert 的函数数」的处置线：要造一个超预算的成员，就造这么多个超 alert 的函数，不随负责人调线而失效。 */
 const OVER = readLoopConfig().memberBudget.overAlert.act
 
 describe('入口', { timeout: 60_000 }, () => {
@@ -211,7 +206,6 @@ describe('入口', { timeout: 60_000 }, () => {
       env: { ...process.env, OMNE_METRICS_HOME: home },
     })
 
-  /** 一个带两个成员的仓库：core 的 a、infra 的 b，彼此不依赖。 */
   function members(): { root: string; home: string } {
     const root = repository()
     const home = realpathSync(mkdtempSync(join(tmpdir(), 'loop-home-')))
@@ -222,7 +216,6 @@ describe('入口', { timeout: 60_000 }, () => {
     return { root, home }
   }
 
-  // 归慢层：子进程：在临时 git 仓库里反复起回路入口 CLI 子进程与 git 子进程。
   it(
     '硬线破了（SDK 导入了 server-entry）：退出 1，硬线一段标出；撤掉后退出 0',
     { tags: ['slow'] },
@@ -248,7 +241,6 @@ describe('入口', { timeout: 60_000 }, () => {
     },
   )
 
-  // 归慢层：起回路入口 CLI 子进程，在临时 git 仓库里整条度量。全量准入快层账本里这条 3.2 秒，超过单条预算 2.5 秒（负载下 8.1 秒）（tools/test-runner/README_ZH.md「归层」）。
   it(
     '其余报告项再多也是 0：超阈值的函数、重复代码、没有断言的测试、超预算的成员',
     { tags: ['slow'] },
@@ -276,7 +268,6 @@ describe('入口', { timeout: 60_000 }, () => {
     },
   )
 
-  // 归慢层：起回路入口 CLI 子进程，在临时 git 仓库里整条度量。全量准入快层账本里这条 3.3 秒，超过单条预算 2.5 秒（负载下 9.4 秒）（tools/test-runner/README_ZH.md「归层」）。
   it(
     '配置里排除的成员组（初值 examples）不判预算、不生成草稿；全仓指标照样计入',
     { tags: ['slow'] },
@@ -301,7 +292,6 @@ describe('入口', { timeout: 60_000 }, () => {
     },
   )
 
-  // 归慢层：起回路入口 CLI 子进程，在临时 git 仓库里整条度量。全量准入快层账本里这条 4.8 秒，超过单条预算 2.5 秒（负载下 10.1 秒）（tools/test-runner/README_ZH.md「归层」）。
   it('给了基线：有要解释的红项一段与验收锁一行；锁被破退出 1', { tags: ['slow'] }, () => {
     const { root, home } = members()
     const base = git(root, 'rev-parse', 'HEAD')
@@ -315,7 +305,6 @@ describe('入口', { timeout: 60_000 }, () => {
     expect(result.stdout).toContain('packages/core/a/tests/a.spec.ts:1 不断言')
   })
 
-  // 归慢层：子进程：在临时 git 仓库里反复起回路入口 CLI 子进程与 git 子进程。
   it('旧故事删除不再触发专门硬线，验收锁仍检查相同基线', { tags: ['slow'] }, () => {
     const { root, home } = members()
     const stories = '.meta_harness/design/product.0.0.1.legacy/PF-016-x/stories.md'
@@ -333,7 +322,6 @@ describe('入口', { timeout: 60_000 }, () => {
     expect(locked.stdout).toContain('✗ 验收锁')
   })
 
-  // 归慢层：子进程：在临时 git 仓库里反复起回路入口 CLI 子进程与 git 子进程。
   it('快照：干净的工作树上 --snapshot 写一条，再跑不重复写；不干净不写', { tags: ['slow'] }, () => {
     const { root, home } = members()
     const trend = join(home, 'trend.jsonl')
@@ -341,7 +329,6 @@ describe('入口', { timeout: 60_000 }, () => {
       readFileSync(trend, 'utf8')
         .split('\n')
         .filter(line => line !== '').length
-    // 在 main 头上：不要求也写。
     expect(run(root, home).stdout).toContain('已写入这个提交的快照')
     expect(lines()).toBe(1)
     const again = run(root, home, '--snapshot')
@@ -360,7 +347,6 @@ describe('入口', { timeout: 60_000 }, () => {
     expect(lines()).toBe(2)
   })
 
-  // 归慢层：子进程：在临时 git 仓库里反复起回路入口 CLI 子进程与 git 子进程。
   it('用法错或基线不存在：退出 2', { tags: ['slow'] }, () => {
     const { root, home } = members()
     expect(run(root, home, '--nope').status).toBe(2)

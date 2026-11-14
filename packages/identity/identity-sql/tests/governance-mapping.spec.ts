@@ -1,7 +1,3 @@
-// SPEC IS-10, IS-14: how the governance port maps commit results that the contract suite does not
-// produce. A commit that rolls back wrote nothing and answers `basis-unavailable`; a lost reply is
-// recalled by the same identity; a result that stays unknown rejects the Promise, and the create
-// receipt then tells what happened. IS-14: a report never moves the idle deadline earlier.
 import { afterEach, expect, it } from 'vitest'
 import { IdentitySqlResultUnknown } from '../dist/result.js'
 import type { SqlStorage } from '@omne-harness/sql-contract'
@@ -31,7 +27,6 @@ async function person(opened: OpenedProvider, name: string) {
   return { registered, login }
 }
 
-/** Commit replies are lost while `lose` is set; recall queries answer `unknown` while `silent` is. */
 function lossy(storage: SqlStorage) {
   const control = { lose: false, silent: false }
   const wrapped: SqlStorage = {
@@ -62,7 +57,6 @@ it('answers basis-unavailable for a commit that rolls back, and writes no receip
   }
   const opened = await provider({ identifiers })
   const ada = await person(opened, 'ada')
-  // The new team takes Ada's personal organization identity: its first row violates the key.
   collideWith = ada.registered.organization
   const call = {
     login: ada.login.login,
@@ -78,7 +72,6 @@ it('answers basis-unavailable for a commit that rolls back, and writes no receip
   })
   const recall = await opened.provider.governance.queryCreateOrganization(call)
   expect(recall.kind).toBe('unknown')
-  // Nothing was saved under the call id, so the same call with a free identity creates the team.
   collideWith = undefined
   expect((await opened.provider.governance.createOrganization(call)).kind).toBe('succeeded')
 })
@@ -145,13 +138,11 @@ it('keeps the later idle deadline when a report computes an earlier one', async 
   first.clock.advanceBy(duration('PT1800S'))
   const later = await first.provider.governance.reportBusinessAccess({ login: ada.login.login })
   if (later.kind !== 'refreshed') throw new Error(`report ${later.kind}`)
-  // A second instance over the same records, whose clock reads earlier: it has adopted nothing.
   const second = await provider({ storage: first.storage })
   second.clock.setTo(first.clock.current())
   second.clock.advanceBy(duration('-PT1200S'))
   const earlier = await second.provider.governance.reportBusinessAccess({ login: ada.login.login })
   if (earlier.kind !== 'refreshed') throw new Error(`report ${earlier.kind}`)
-  // `Instant` keeps its fields private, so the encoded texts are compared.
   const expected = addDuration(first.clock.current(), duration('PT3600S'))
   if (expected === undefined) throw new Error('fixture deadline')
   expect(encodeInstant(later.idleDeadline)).toBe(encodeInstant(expected))

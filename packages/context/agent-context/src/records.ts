@@ -1,12 +1,7 @@
-// The records that agent-context mints: durable evidence whose `record` is a self-describing key.
-// A key names the tenant, the scope, the execution and the execution attachment it belongs to, the
-// instance that minted it, and a sequence number. Any instance can read the key; only the minting
-// instance holds the material that the key points to.
 import { createHash } from 'node:crypto'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { Adoption, DurableEvidence } from '@omne-harness/request-context-contract'
 
-/** Canonical data text: object keys sorted, array order kept, undefined members left out. */
 export function canonical(value: unknown): string {
   if (value === undefined) return 'null'
   if (value === null || typeof value !== 'object') return JSON.stringify(value)
@@ -22,7 +17,6 @@ export function digest(value: unknown): string {
   return createHash('sha256').update(canonical(value)).digest('base64url')
 }
 
-/** The tenant as text, or null for a tenant that legal-identity did not mint. */
 export function tenantText(tenant: TenantId): string | null {
   const encoded = tenantCodec.encode(tenant)
   return encoded.ok ? encoded.value : null
@@ -39,7 +33,6 @@ export type RecordKind =
   | 'step'
   | 'transition'
 
-/** What a record key says about itself. */
 export type RecordKey = Readonly<{
   kind: RecordKind
   tenant: string
@@ -63,7 +56,6 @@ const KINDS: readonly RecordKind[] = [
 ]
 const TEXT_FIELDS = ['tenant', 'scope', 'execution', 'attachment', 'instance'] as const
 
-/** The owner text of the evidence that one adoption identity mints. */
 export function ownerText(owner: Adoption): string {
   return `agent-context:${canonical(owner)}`
 }
@@ -81,10 +73,6 @@ function isKind(value: unknown): value is RecordKind {
   return KINDS.some(kind => kind === value)
 }
 
-/**
- * Reads the key of evidence that this owner minted. Evidence of another owner, or a record that is
- * not a key, gives null: such evidence is not ours to interpret.
- */
 export function readRecord(owner: Adoption, evidence: DurableEvidence): RecordKey | null {
   if (evidence.owner !== ownerText(owner)) return null
   let parsed: unknown

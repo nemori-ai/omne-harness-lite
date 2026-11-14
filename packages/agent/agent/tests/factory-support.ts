@@ -1,5 +1,3 @@
-// Values and helpers that the factory and access tests share: valid options, a dependency record
-// that logs every method call made anywhere inside it, and a registration handle double.
 import {
   createAgentRuntime,
   type AgentConfiguration,
@@ -42,10 +40,6 @@ export function options(configuration: Partial<AgentConfiguration> = {}): AgentR
   }
 }
 
-/**
- * Wraps a dependency so that every method call anywhere inside it is logged by its path. A frozen
- * member is returned as it is, because a proxy may not change what a frozen property reads.
- */
 function recorded<T extends object>(target: T, path: string, calls: string[]): T {
   return new Proxy(target, {
     get(object, property, receiver) {
@@ -65,13 +59,11 @@ function recorded<T extends object>(target: T, path: string, calls: string[]): T
   })
 }
 
-/** Every dependency of the record behind a call log: `calls` lists `journal.load` and the like. */
 export function watched(dependencies: Dependencies): Readonly<{
   dependencies: Dependencies
   calls: string[]
 }> {
   const calls: string[] = []
-  // Each value keeps its shape behind the proxy, so the record keeps the type of `dependencies`.
   const proxied = Object.fromEntries(
     Object.entries(dependencies).map(([key, value]) => [
       key,
@@ -81,7 +73,6 @@ export function watched(dependencies: Dependencies): Readonly<{
   return { dependencies: proxied, calls }
 }
 
-/** A registration handle for `instance` whose methods only log that they were called. */
 export function registrationHandle(
   of: AgentInstanceId,
   calls: string[],
@@ -98,14 +89,12 @@ export function registrationHandle(
   }
 }
 
-/** A provider built from the test assembly; a creation failure fails the test. */
 export async function createdProvider(
   dependencies: Dependencies = createTestAgentDependencies<Principal>().dependencies,
 ): Promise<AgentProvider<Principal>> {
   return ok(await createAgentRuntime(dependencies, options()))
 }
 
-/** Reads observations until the sequence ends or `count` have been read. */
 export async function take(
   sequence: AsyncIterable<AgentObservation>,
   count: number,

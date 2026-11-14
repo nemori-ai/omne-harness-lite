@@ -1,4 +1,3 @@
-// Registration, retirement, closing, description and recovery of the registry.
 import { expect, it } from 'vitest'
 import {
   commandFacility,
@@ -352,7 +351,6 @@ it('releases one scope only: leases of another scope stay valid', async () => {
   )
   await registry.releaseScope(scope('scope-1'), createRecoveryAccess())
   expect(await first.lease.invalidated).toEqual({ source: 'registry', reason: 'scopeReleased' })
-  // The acquisition path settled the original acquisition after the invalidation.
   expect(await stateOf(registry, accessA, 'in-1')).toEqual({
     kind: 'released',
     adoption: first.adoption,

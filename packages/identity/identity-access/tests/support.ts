@@ -1,5 +1,3 @@
-// The identity reference double (operations and governance over shared records, a manual clock)
-// and the in-process principal authority, plus helpers that register and sign in an account.
 import {
   inProcessPrincipalAuthority,
   type IdentityGovernance,
@@ -55,7 +53,6 @@ export type SignedIn = Readonly<{
   tenantText: string
 }>
 
-/** Registers `loginIdentifier` and issues one login for it. */
 export async function signUp(
   operations: IdentityOperations,
   loginIdentifier: string,
@@ -66,7 +63,6 @@ export async function signUp(
   return signIn(operations, loginIdentifier)
 }
 
-/** Issues one more login for an account `signUp` registered. */
 export async function signIn(
   operations: IdentityOperations,
   loginIdentifier: string,

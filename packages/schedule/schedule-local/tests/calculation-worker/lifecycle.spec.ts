@@ -1,5 +1,4 @@
 // @module-tag slow
-// Real worker threads and bounded waits verify interruption, replacement, and physical exit.
 import { setTimeout as delay } from 'node:timers/promises'
 import type { Worker } from 'node:worker_threads'
 import { describe, expect, it, vi } from 'vitest'

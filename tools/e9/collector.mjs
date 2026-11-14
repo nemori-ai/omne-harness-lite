@@ -1,5 +1,3 @@
-// R2-D133 的采集侧：把成员 measure 回调、Model/Tool 固定延迟替身事件按轮收齐，交给
-// projectRound，再给 nextRound 一份完整 schema 1 数组。发行装配与驱动一轮输入仍归 C1 适配器。
 import { randomUUID } from 'node:crypto'
 import { appendFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -8,7 +6,6 @@ import { projectRound } from './projection.mjs'
 
 const DRAIN_MS = 5000
 
-/** 采集者自己的单调钟；同一个钟也交给替身，使等待与轮区间同进程、同钟、同代次。 */
 export function monotonicClock() {
   const generation = randomUUID()
   return Object.freeze({
@@ -44,10 +41,6 @@ function fsyncEvent(result, fsync) {
   }
 }
 
-/**
- * options.runId：整次测量的标识（不是 Session Run）。options.out：给出时把逐轮投影结果
- * 追加到 projection.jsonl、轮外事件写到 projection-strays.jsonl；不写 events.jsonl。
- */
 export function createRoundCollector(options) {
   const { runId, out, clock = monotonicClock(), drainMs = DRAIN_MS } = options ?? {}
   if (typeof runId !== 'string' || !runId.trim()) throw new TypeError('collector requires runId')
@@ -78,7 +71,6 @@ export function createRoundCollector(options) {
   }
 
   function measure(event) {
-    // 同步、只记录、不重入产品；任何异常只进轮外记录，不影响成员答复。
     const at = read()
     try {
       const key = `${event?.segment}:${event?.span}`
@@ -117,11 +109,8 @@ export function createRoundCollector(options) {
 
   return {
     clock,
-    /** 交给 Session、Context、Agent 构造参数 `measure` 的观察者。 */
     measure,
-    /** 交给 createMeasuredFixedDelayModel / measureModelPreparation 的 `measurement`（函数形式）。 */
     modelMeasurement: providerContext('modelEvents'),
-    /** 交给 createMeasuredFixedDelayTool 的 `measurement`（函数形式）。 */
     toolMeasurement: providerContext('toolEvents'),
     beginRound(round) {
       if (current !== null || finishing) throw new Error('previous round is still open')
@@ -137,7 +126,6 @@ export function createRoundCollector(options) {
       })
       current = round
     },
-    /** D7：调用者刚读到的 Session 运行状态（含 run.terminal）；读取时刻由本采集者记。 */
     observeTerminal({ session, run, source }) {
       const bucket = current === null ? undefined : buckets.get(current)
       if (!bucket) throw new Error('no open round')
@@ -148,10 +136,6 @@ export function createRoundCollector(options) {
         reading: read(),
       }
     },
-    /**
-     * 关闭本轮：停止接收新起点，等本轮已开始的段收尾（最多 drainMs），再投影。
-     * 超时未收尾的段留在输入里，由投影记 segment-end-missing。
-     */
     async finishRound({ session, sessionRun, logCount, requiresToolWait, fsync } = {}) {
       if (current === null) throw new Error('no open round')
       const round = current
@@ -172,7 +156,6 @@ export function createRoundCollector(options) {
           })
           clearTimeout(timer)
         }
-        // 封轮：此后到达的本轮事件只进轮外记录。
         buckets.delete(round)
         for (const [key, owner] of spanRound) if (owner === round) spanRound.delete(key)
         const result = projectRound({
@@ -202,13 +185,11 @@ export function createRoundCollector(options) {
         finishing = false
       }
     },
-    /** nextRound 的返回值：诊断为空时给完整 schema 1 数组，否则抛 ProjectionError。 */
     roundEvents(result) {
       if (result.diagnostics.length > 0) throw new ProjectionError(result)
       return result.events
     },
     strays: () => strays,
-    /** 释放：写出轮外事件。重复调用无副作用。 */
     close() {
       if (out && strays.length > 0) {
         appendFileSync(

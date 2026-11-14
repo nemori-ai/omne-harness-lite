@@ -1,7 +1,3 @@
-// The local fetch of one page (I-10): GET only, no cookies, no credentials, no scripts. The redirect
-// loop is written here so that every hop is checked and counted exactly (undici's redirect
-// interceptor is off by one); the total duration is one signal over every hop and the body read; the
-// body is counted after decompression and cut at the cap instead of refused.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { FetchedPage, WebFailure } from '@omne-harness/tool-definitions'
 import { Agent, fetch as undiciFetch } from 'undici'
@@ -9,11 +5,8 @@ import { classifyThrown, decodeText, parseContentType, readCapped } from './body
 import { htmlToMarkdown } from './markdown.ts'
 
 export type WebFetchOptions = Readonly<{
-  /** Redirects followed after the first request; the next one is `redirect-limit`. */
   maxRedirects: number
-  /** Total duration of the call over every hop and the body read. */
   timeoutMs: number
-  /** Decompressed body bytes kept; a longer body is cut and marked `truncated`. */
   maxBodyBytes: number
 }>
 
@@ -26,7 +19,6 @@ const TEXT_TYPES = new Set([
   'application/x-ndjson',
 ])
 const STRUCTURED_SUFFIX = /^application\/[\w.+-]+\+(json|xml)$/u
-/** undici needs about a second of resolution for its header and body timers. */
 const MIN_TIMER_MS = 1000
 const HEADERS = Object.freeze({
   accept:
@@ -40,7 +32,6 @@ const isTextual = (mediaType: string): boolean =>
   TEXT_TYPES.has(mediaType) ||
   STRUCTURED_SUFFIX.test(mediaType)
 
-/** An absolute http or https URL without user information; the fragment is dropped. */
 function target(value: string): Outcome<URL, WebFailure> {
   let url: URL
   try {

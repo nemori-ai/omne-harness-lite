@@ -126,7 +126,6 @@ describe('text brands', () => {
       expect(guard(undefined)).toBe(false)
     })
 
-  // V1: the request state is opaque peer text, and the peer may write an empty one.
   it('isRequestState takes any text as written, the empty text included, and nothing else', () => {
     expect(isRequestState('x')).toBe(true)
     expect(isRequestState('')).toBe(true)

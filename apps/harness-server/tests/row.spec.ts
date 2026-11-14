@@ -1,4 +1,3 @@
-// `defineRow` 与读回（DP1-C8、DP1-C15、IC-8、IC-14）。包装插件经真实 Cordis 4.0.4 装载。
 import { Context, Service } from '@deepseek-ai/cordis'
 import { describe, expect, test } from 'vitest'
 import { z } from 'zod'

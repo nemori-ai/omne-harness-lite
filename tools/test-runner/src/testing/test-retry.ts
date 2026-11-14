@@ -1,8 +1,3 @@
-// 成员测试一层（快层或慢层）失败后的定向重跑：失败处数不超过 `RETRY_LIMIT` 且每处都落在某个测试文件里时，
-// 同一次运行内以低并发（成员串行、每成员一个工作进程）只把失败用例所在的文件各重跑一次；全过则这一层通过，
-// 重跑记在 `retried` 里进运行记录（admission-run.ts）；仍失败、超过上限、有成员一级的失败（没有报告、起不来）或退出码非 0 却解析不出失败，按现语义失败。
-// 失败原因分类（超时、STACK_TRACE_ERROR、进程起不来、断言失败）只进记录，不决定重不重跑：断言失败也重跑，但分开计。
-// 不改别的步骤的失败语义；不读测试缓存（重跑经成员脚本直接起 vitest）。
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import type { Failure } from './ledger.ts'
@@ -11,7 +6,6 @@ import type { RerunOutcome } from './triage.ts'
 export type { RerunOutcome } from './triage.ts'
 
 export const RETRY_LIMIT = 10
-/** `step test` 在计划文件旁写的报告：失败文件与重跑结果，check.ts 读进运行记录。 */
 export const TEST_STEP_REPORT_FILE = 'test-step.json'
 
 export type FailureKind = 'timeout' | 'stack-trace' | 'startup' | 'assertion'
@@ -23,7 +17,6 @@ export const FAILURE_KINDS: readonly FailureKind[] = [
 ]
 export type RetryTier = 'fast' | 'slow'
 
-/** 一个失败的测试文件：所在成员、层、第一处失败的原因分类与原文（账本里的第一行）。 */
 export interface FailedFile {
   readonly member: string
   readonly file: string
@@ -41,7 +34,6 @@ const STACK_TRACE = /STACK_TRACE_ERROR/u
 const STARTUP =
   /worker exited|exited unexpectedly|ERR_IPC_CHANNEL_CLOSED|ERR_WORKER|\bspawn\b|starting the worker|could not be started|没有执行记录|起不来/iu
 
-/** 账本失败消息的分类：先看起不来（它的消息里也可能带 timeout），再看超时与 STACK_TRACE_ERROR，其余算断言失败。 */
 export function failureKind(message: string): FailureKind {
   if (STACK_TRACE.test(message)) return 'stack-trace'
   if (STARTUP.test(message)) return 'startup'
@@ -49,7 +41,6 @@ export function failureKind(message: string): FailureKind {
   return 'assertion'
 }
 
-/** 失败按文件归并（每文件取第一处的分类与原文）；有失败不在文件里时返回那一处。 */
 function filesOf(
   failures: readonly Failure[],
   tier: RetryTier,
@@ -78,15 +69,10 @@ const countByKind = (files: readonly FailedFile[]) =>
 
 export interface TierOutcome {
   readonly exitCode: number
-  /** 这一层最终仍失败的文件（没重跑时是全部失败文件；通过时为空）。 */
   readonly failures: readonly FailedFile[]
   readonly retried: readonly RetriedFile[]
 }
 
-/**
- * 跑一层并在失败时定向重跑：`run` 跑整层（返回退出码与账本失败），`rerun` 单独跑一个文件（调用方保证低并发、串行）。
- * 纯编排：决定重不重跑、怎么记，不起进程。
- */
 export async function tierWithRetry(
   tier: RetryTier,
   run: () => Promise<{ readonly exitCode: number; readonly failures: readonly Failure[] }>,
@@ -133,7 +119,6 @@ export async function tierWithRetry(
   return { exitCode: 1, failures, retried }
 }
 
-/** `step test` 写在计划文件旁的报告。 */
 export interface TestStepReport {
   readonly head: string
   readonly failures: readonly FailedFile[]
@@ -183,7 +168,6 @@ export function writeTestStepReport(path: string, report: TestStepReport): void 
   renameSync(temporary, path)
 }
 
-/** 读报告；不存在、不是 JSON、形状不对都读作没有。 */
 export function readTestStepReport(path: string): TestStepReport | undefined {
   let parsed: unknown
   try {

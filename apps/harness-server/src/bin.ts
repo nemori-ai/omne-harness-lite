@@ -1,10 +1,4 @@
 #!/usr/bin/env node
-// 进程入口：只解析参数、调用 `runS0`、`runServe` 或 `runSetup`、设置退出码（s0-spec-r2 §2、§10；DP1-C1、C2）。
-// 位置参数里有 `serve` 时走真实模式，有 `setup` 时走本机首次配置，否则走 S0 的基线解析路径：`parseArgs` 允许位置参数，
-// 子命令可在任意位置，参数、输出、退出码与 stderr 文字与加入 `serve` 之前逐字节相同。`serve` 另加 `--state-root` 与
-// `--stop-on-stdin-close`。`serve` 的参数都可省：省掉的取本机单用户档的默认值（src/local/）。
-// 退出码：0 就绪且关闭 settled；2 配置、解析或装载前检查失败；3 有 FAILED、启动失败或入口对象安装失败；
-// 4 仍有 PENDING 或 LOADING；5 启动为 0 但关闭 incomplete；1 是未预期的内部错误。
 import { chmodSync, statSync } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
@@ -24,7 +18,6 @@ import { endProcess } from './process-end.ts'
 
 class UsageError extends Error {}
 
-/** The host has no complete local setup: one sentence, then the command that fixes it. */
 class NotSetUpError extends Error {}
 
 const S0_USAGE =
@@ -32,7 +25,6 @@ const S0_USAGE =
 const SERVE_USAGE =
   'usage: serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--drain-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]'
 
-/** The distribution that ships with the application: `config/serve.distribution.json`. */
 const BUNDLED_DISTRIBUTION = fileURLToPath(
   new URL('../config/serve.distribution.json', import.meta.url),
 )
@@ -73,15 +65,12 @@ async function readJson(name: string, path: string | undefined, required: boolea
   }
 }
 
-/** DP1-C19: only "an existing absolute directory" is checked. Its protection is a documented premise. */
 async function stateRoot(path: string | undefined): Promise<string> {
   if (path === undefined) throw new UsageError('missing --state-root')
   if (!isAbsolute(path)) throw new UsageError('--state-root must be an absolute path')
   try {
     if ((await stat(path)).isDirectory()) return path
-  } catch {
-    // reported below
-  }
+  } catch {}
   throw new UsageError('--state-root must be an existing directory')
 }
 
@@ -111,7 +100,6 @@ async function commonOf(
   }
 }
 
-// The one stdout record writer and the stderr line writer of the process.
 const write = recordLineWriter(process.stdout)
 const stderr = lineWriter(process.stderr)
 
@@ -130,11 +118,9 @@ type ServeInputs = Common &
   Readonly<{
     drainDeadlineMs: number
     stateRoot: string
-    /** The loopback port, when the operator layer came from the local settings. */
     port?: number
   }>
 
-/** Every absent flag takes the default of the local single-user profile (SPEC.md「本机单用户档」). */
 async function serveInputs(
   values: Readonly<{
     [K in keyof typeof COMMON_OPTIONS | 'state-root' | 'drain-deadline-ms']?: string
@@ -200,8 +186,6 @@ async function mainServe(argv: readonly string[]): Promise<number> {
   const { port, ...inputs } = await serveInputs(values, positionals)
 
   const controller = new AbortController()
-  // Signal listeners do not keep the event loop alive. Without this timer a tree
-  // with no open handle reaches the stop wait and exits 13 before any stop request.
   const keepAlive = setInterval(() => {}, 1 << 30)
   const requestStop = (reason: string) => controller.abort(reason)
   const onSigint = () => requestStop('SIGINT')
@@ -213,7 +197,6 @@ async function mainServe(argv: readonly string[]): Promise<number> {
     process.stdin.once('close', () => requestStop('stdin closed'))
     process.stdin.resume()
   }
-  // With the local settings a person learns the address without reading the records.
   const announce = (record: S0Record) => {
     write(record)
     if (port !== undefined && record.kind === 'startup-result' && record['accepting'] === true)
@@ -270,11 +253,6 @@ function isUsageError(error: unknown): boolean {
 
 type Subcommand = 'serve' | 'setup' | 's0'
 
-/**
- * `serve` when it is one of the positionals, else `setup` when that is one, else `s0`. The scan is
- * lenient (unknown options never throw), so a malformed call without either still reaches the S0
- * path and fails there with the S0 text.
- */
 function selectedSubcommand(argv: readonly string[]): Subcommand {
   try {
     const { positionals } = parseArgs({
@@ -296,7 +274,6 @@ async function main(argv: readonly string[]): Promise<number> {
     try {
       return await mainSetup(argv)
     } catch (error) {
-      // Only the name: an unexpected error of the credential step is not printed in full.
       process.stderr.write(
         `setup: internal error: ${error instanceof Error ? error.name : 'Error'}\n`,
       )
@@ -328,5 +305,4 @@ ${serve ? SERVE_USAGE : S0_USAGE}
   }
 }
 
-// The command reported its result: the process ends now, after its output drained.
 await endProcess(await main(process.argv.slice(2)))

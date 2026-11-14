@@ -1,8 +1,3 @@
-// The contract suite of the governance port (SPEC ID-18). Like the operations suite, it runs each
-// case on a fresh deployment that the fixture makes over the suite's own clock, terms and faults,
-// reports every case by name, and needs no test framework. A case reaches the governance port the
-// way the entry does: it recognizes nothing itself, and passes the `login` of an issued login.
-// Messages never quote a proof or a credential.
 import {
   loginStateCodec,
   tenant,
@@ -44,38 +39,22 @@ import {
   timesDuration,
 } from './time.ts'
 
-/** Both ports of one provider instance over one deployment's records. */
 export type IdentityProviders = Readonly<{
   operations: IdentityOperations
   governance: IdentityGovernance
 }>
 
-/** What the suite gives `create`: the operations injections and the invitation terms. */
 export type IdentityGovernanceContractProviderOptions = IdentityContractProviderOptions &
   Readonly<{ invitationTerms: InvitationTermsSource }>
 
-/**
- * How the suite gets providers. Every call of `create` gives a new, empty deployment. The two
- * ports share its records: a revocation through `governance` is seen by `operations`.
- */
 export interface IdentityGovernanceContractFixture {
   create(
     options: IdentityGovernanceContractProviderOptions,
   ): IdentityProviders | Promise<IdentityProviders>
-  /**
-   * True when the provider consults `faults` before it queries its account, login and
-   * organization stores. Without it the cases that need a silent store skip that part.
-   */
   injectsRecordFaults?: boolean
-  /**
-   * Optional: new provider instances over the same committed records, as after a restart. The
-   * latest adopted clock reading is not carried over. Without it the restart cases are not
-   * applicable.
-   */
   restart?(providers: IdentityProviders): Promise<IdentityProviders>
 }
 
-/** Same as the operations suite: a start and two lifetimes, `short` shorter than `long`. */
 export type IdentityGovernanceContractOptions = IdentityContractOptions
 
 export type IdentityGovernanceContractCaseResult = Readonly<{
@@ -86,12 +65,10 @@ export type IdentityGovernanceContractCaseResult = Readonly<{
 }>
 
 export type IdentityGovernanceContractReport = Readonly<{
-  /** True when no case failed. */
   passed: boolean
   cases: readonly IdentityGovernanceContractCaseResult[]
 }>
 
-/** One registered account with one issued login, and the selection the suite last set on it. */
 type Person = {
   readonly identifier: string
   readonly credential: string
@@ -109,17 +86,11 @@ type Context = Readonly<{
   invitationTerms: AdjustableInvitationTerms
   faults: RecordStoreFaultControl
   providers(): IdentityProviders
-  /** Replaces the providers with the fixture's restart of them. */
   restart(): Promise<void>
-  /** Registers and logs in a new account with a unique identifier. */
   person(name: string): Promise<Person>
-  /** Another login of the same account. */
   another(person: Person): Promise<IssuedLogin>
-  /** A team created by `admin`, who is switched into it. */
   team(admin: Person): Promise<Team>
-  /** `admin` invites `member`, who accepts and is switched into the team. */
   join(team: Team, admin: Person, member: Person): Promise<TenantId>
-  /** Switches the person's login into `target` and records it as current. */
   switchTo(person: Person, target: TenantId): Promise<void>
 }>
 
@@ -154,14 +125,12 @@ function sameLogin(left: LoginStateId, right: LoginStateId): boolean {
   return left.text === right.text
 }
 
-/** A login identity that no provider issued: lexically valid, never emitted. */
 function unissuedLogin(): LoginStateId {
   const parsed = loginStateCodec.parse('lgn_0000000000000000000000zzzz')
   if (!parsed.ok) throw new RangeError('the suite login text did not parse')
   return parsed.value
 }
 
-/** Every string reachable from `value`, for a scan for secrets. */
 function stringsOf(value: unknown, into: string[] = []): string[] {
   if (typeof value === 'string') into.push(value)
   else if (typeof value === 'object' && value !== null)
@@ -172,7 +141,6 @@ function stringsOf(value: unknown, into: string[] = []): string[] {
   return into
 }
 
-/** The keys and values of an outcome, for a byte comparison of two answers. */
 function shapeOf(value: unknown): string {
   return JSON.stringify(stringsOf(value))
 }
@@ -244,7 +212,6 @@ async function recognition(context: Context, login: IssuedLogin): Promise<string
 const DISPOSITIONS = ['acceptMemberInvitation', 'rejectMemberInvitation'] as const
 
 const CASES: readonly ContractCase[] = [
-  // A1: creating a team organization.
   {
     id: 'create-team-atomic',
     rule: 'ID-05, A1: the organization, the creator tenant and the first super administrator exist together',
@@ -425,7 +392,6 @@ const CASES: readonly ContractCase[] = [
       return 'passed'
     },
   },
-  // A2: issuing an invitation.
   {
     id: 'issue-requires-super-admin',
     rule: 'A2, D1: only a current super administrator of the acting organization issues',
@@ -563,7 +529,6 @@ const CASES: readonly ContractCase[] = [
       return 'passed'
     },
   },
-  // A3: accepting an invitation.
   {
     id: 'accept-first-join-member',
     rule: 'A3, ID-06: a first join gives a plain member in the stable tenant of the organization and account',
@@ -748,7 +713,6 @@ const CASES: readonly ContractCase[] = [
       return 'passed'
     },
   },
-  // A4: one terminal per invitation.
   {
     id: 'terminal-race',
     rule: 'A4, ID-07: concurrent accept, reject and withdraw form exactly one terminal',
@@ -866,7 +830,6 @@ const CASES: readonly ContractCase[] = [
       return 'passed'
     },
   },
-  // A5: leaving.
   {
     id: 'leave-self',
     rule: 'A5, ID-06, B4: a member leaves; the tenant stays, the selection stays, the member is removed',
@@ -938,7 +901,6 @@ const CASES: readonly ContractCase[] = [
       return 'passed'
     },
   },
-  // A6: removing and changing roles.
   {
     id: 'remove-requires-super-admin',
     rule: 'A6, D1: only a current super administrator removes; a non-member cannot see the organization',
@@ -1057,7 +1019,6 @@ const CASES: readonly ContractCase[] = [
     rule: 'A6, ID-06, ID-10: two administrators removing or demoting each other at once: at most one succeeds',
     async run(context) {
       {
-        // The baseline without concurrency: the one super administrator cannot step down alone.
         const solo = await context.person('solo')
         const team = await context.team(solo)
         const self = {
@@ -1172,7 +1133,6 @@ const CASES: readonly ContractCase[] = [
       return 'passed'
     },
   },
-  // A7: read faces.
   {
     id: 'own-memberships-active-only',
     rule: 'A7: own memberships are the active ones of the caller; an ended login is denied',
@@ -1425,7 +1385,6 @@ const CASES: readonly ContractCase[] = [
       return 'passed'
     },
   },
-  // B1, B2: the current tenant.
   {
     id: 'switch-member-target',
     rule: 'B1, B3: switching to a tenant of an active membership; recognition then names it',
@@ -1616,7 +1575,6 @@ const CASES: readonly ContractCase[] = [
       return 'passed'
     },
   },
-  // C1: revoking logins.
   {
     id: 'revoke-target',
     rule: 'C1, ID-03: a revoked login is invalid to recognition; the initiator stays valid',
@@ -1763,7 +1721,6 @@ const CASES: readonly ContractCase[] = [
       return 'passed'
     },
   },
-  // C2: own valid logins.
   {
     id: 'own-logins-complete',
     rule: 'C2: the list has every valid login of the account, the initiator included',
@@ -1844,7 +1801,6 @@ const CASES: readonly ContractCase[] = [
       return 'passed'
     },
   },
-  // C4: the idle deadline.
   {
     id: 'idle-refreshed-by-success',
     rule: 'C4, ID-03: a report of a successful business access moves the idle deadline to now plus the idle period',
@@ -2025,7 +1981,6 @@ const CASES: readonly ContractCase[] = [
       return 'passed'
     },
   },
-  // F3: diagnostics.
   {
     id: 'diagnostics-no-secret',
     rule: 'F3, ID-09: no diagnostic quotes a proof, a credential, a login identifier or a login identity',
@@ -2121,11 +2076,9 @@ const CASES: readonly ContractCase[] = [
   },
 ]
 
-/** The case names and rules, in run order. */
 export const IDENTITY_GOVERNANCE_CONTRACT_CASES: readonly Readonly<{ id: string; rule: string }>[] =
   Object.freeze(CASES.map(({ id, rule }) => Object.freeze({ id, rule })))
 
-/** The login lifetime of the suite's logins: long enough that no case ends one by accident. */
 function loginLifetime(options: IdentityGovernanceContractOptions): Duration {
   return timesDuration(options.long, 8)
 }
@@ -2143,12 +2096,6 @@ function checkOptions(options: IdentityGovernanceContractOptions): void {
     throw new RangeError('the suite window must not span a leap second')
 }
 
-/**
- * Runs every case on a fresh deployment. Each case gets a clock at `options.start`, login terms of
- * eight times `long` for both lifetimes unless the case sets its own, and invitation terms with
- * `short` as the default and `long` as the maximum. Throws RangeError for unusable options; a
- * provider failure is a failed case, not a throw.
- */
 export async function checkIdentityGovernanceContract(
   fixture: IdentityGovernanceContractFixture,
   options: IdentityGovernanceContractOptions,

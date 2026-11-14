@@ -1,5 +1,3 @@
-// The identity rule of step 8 (#1233 spec 已定 7, C5, C6): one row of the table per case, the
-// negative cases included. Whatever keeps the caller from being established answers `denied`.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { HttpReply } from './support/harness.ts'
 import {

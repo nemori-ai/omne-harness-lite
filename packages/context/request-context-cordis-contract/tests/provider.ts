@@ -34,7 +34,6 @@ type SourceSet = {
   withdrawn: boolean
 }
 let generations = 0
-/** A non-production provider used only to validate the Cordis definition's promises. */
 export class ProbeProvider extends RequestContextService<unknown> {
   readonly durability = 'none'
   readonly generation = String(++generations)
@@ -61,7 +60,6 @@ export class ProbeProvider extends RequestContextService<unknown> {
     const key = scope?.ref ?? null
     const revision = (this.revisions.get(key) ?? 0) + 1
     this.revisions.set(key, revision)
-    // Listener failure must not undo an already registered contribution.
     try {
       this.ctx.emit(
         'request-context-cordis-contract/changed',
@@ -151,7 +149,6 @@ export class ProbeProvider extends RequestContextService<unknown> {
         tenantEquals(item.target.tenant, target.tenant),
     )
   }
-  /** Publishes one source set on the caller's fiber; unloading that fiber withdraws it. */
   private publish(target: ContextTarget, sources: ContextSources<unknown>): RegistrationResult {
     const n = ++this.registrations
     const ref = decodeRegistrationRef(`registration_${n}`)
@@ -197,7 +194,6 @@ export class ProbeProvider extends RequestContextService<unknown> {
     previous.withdrawn = true
     return this.publish(previous.target, input.sources)
   }
-  /** The fourth group read from the registration face, not from the registered source set. */
   private live(sources: ContextSources<unknown>, scope: ScopeRef): ContextSources<unknown> {
     const prompt = sources.groups.prompt
     return {

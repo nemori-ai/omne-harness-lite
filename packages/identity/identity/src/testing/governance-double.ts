@@ -1,8 +1,3 @@
-// The in-process reference double of the governance port (SPEC ID-18), over the same records as the
-// operations double: a revoked login is `invalid` to `recognizeLogin`, and a switch changes the
-// `tenant` that `recognizeLogin` names. Each write reads the clock and the configuration first and
-// then checks and writes with no await in between, so a check and its write are one commit and
-// concurrent calls cannot both pass the last administrator check.
 import {
   accountCodec,
   accountEquals,
@@ -54,18 +49,12 @@ import {
 } from './records.ts'
 import { addDuration, compareDurations, isPositive } from './time.ts'
 
-/** The operations options, plus the invitation terms that governance reads at every issue. */
 export type InProcessIdentityGovernanceOptions = InProcessIdentityOptions &
   Readonly<{ invitationTerms: InvitationTermsSource }>
 
-/** One instance of the double: both ports over one deployment's records. */
 export type InProcessIdentity = Readonly<{
   operations: IdentityOperations
   governance: IdentityGovernance
-  /**
-   * New instances over the same records, as a durable provider reopens its store: the records
-   * stay, the latest adopted clock reading starts again.
-   */
   restart(): InProcessIdentity
 }>
 
@@ -81,7 +70,6 @@ const ROLES: readonly string[] = DEFAULT_TEAM_ROLE_MAPPING.roles.map(entry => en
 
 type Denied = typeof DENIED
 
-/** The checked caller of one call: its login record, at the adopted reading `now`. */
 type Caller = Readonly<{ kind: 'caller'; record: LoginRecord; account: AccountId; now: Instant }>
 
 type TermsBasis = Readonly<{ kind: 'read'; terms: InvitationTerms }> | Unavailable
@@ -126,7 +114,6 @@ function isTenant(value: unknown): value is TenantId {
   return typeof value === 'object' && value !== null && tenantCodec.encode(value as TenantId).ok
 }
 
-/** The governance port of one provider instance over the given records. */
 export function governanceOver(
   records: IdentityRecords,
   instance: Instance,
@@ -134,10 +121,6 @@ export function governanceOver(
 ): IdentityGovernance {
   const off = (check: DoubleCheck) => instance.off.has(check)
 
-  /**
-   * The initiating login at commit: it must exist and be live. An acting call also needs
-   * `actingTenant` to equal the current selection. Synchronous: call it inside the commit.
-   */
   const caller = (input: unknown, now: Instant, acting: boolean): Caller | Denied | Unavailable => {
     const down = storeDown(instance, 'logins')
     if (down !== undefined) return down
@@ -163,10 +146,6 @@ export function governanceOver(
     return found !== undefined && found.state === 'active' ? found : undefined
   }
 
-  /**
-   * An account that holds or held a membership sees the organization: a former member is told
-   * `denied`, not `not-visible`, so the loser of two administrators removing each other is denied.
-   */
   const seesOrganization = (organization: OrganizationId, account: AccountId) =>
     membership(organization, account) !== undefined
 
@@ -185,14 +164,12 @@ export function governanceOver(
     return count
   }
 
-  /** True when the change would leave the organization with no active super administrator. */
   const leavesNoAdmin = (target: MembershipRecord, nextRole: string | undefined) =>
     !off('last-admin') &&
     target.role === DEFAULT_TEAM_ROLES.superAdmin &&
     nextRole !== DEFAULT_TEAM_ROLES.superAdmin &&
     superAdminCount(target.organization) <= 1
 
-  /** The organization of `actingTenant`, when the caller is its current super administrator. */
   const actingAdmin = (who: Caller) => {
     const organization = who.record.selection.organization
     const found = records.organizations.get(organization.text)
@@ -202,7 +179,6 @@ export function governanceOver(
     return Object.freeze({ kind: 'admin' as const, organization })
   }
 
-  /** The requested duration within the terms, the default when absent, or `undefined` when out of range. */
   const invitationDuration = (requested: unknown, terms: InvitationTerms): Duration | undefined => {
     if (requested === undefined) return terms.defaultDuration
     let legal: boolean
@@ -215,7 +191,6 @@ export function governanceOver(
     return legal || off('duration-range') ? (requested as Duration) : undefined
   }
 
-  /** Which members a read lists: active by default, removed for a super administrator only. */
   const memberState = (
     includeRemoved: unknown,
     organization: OrganizationId,
@@ -228,10 +203,6 @@ export function governanceOver(
     return allowed ? ('removed' as const) : undefined
   }
 
-  /**
-   * The active member that a removal or role change targets. A caller that never was a member
-   * cannot see the organization; one that is not a super administrator is denied.
-   */
   const memberTarget = (input: unknown, who: Caller) => {
     const organization = field(input, 'organization')
     if (!isOrganization(organization) || !seesOrganization(organization, who.account))
@@ -243,7 +214,6 @@ export function governanceOver(
     return Object.freeze({ kind: 'target' as const, membership: held })
   }
 
-  /** The state of an invitation at `now`. The first time it is found expired, that is written. */
   const settle = (invitation: InvitationRecord, now: Instant, write: boolean): InvitationState => {
     if (invitation.state !== 'open') return invitation.state
     if (compareInstants(now, invitation.expiresAt) < 0) return 'open'
@@ -287,7 +257,6 @@ export function governanceOver(
       return CONFLICT
     }
     const decide = (): CreateOrganizationOutcome => {
-      // ID-05: the name cannot be blank. Only the default team model is adopted in this stage.
       if (name.trim() === '') return DENIED
       if (governanceModelId !== DEFAULT_TEAM_MODEL_ID && !off('model')) return DENIED
       const organization = emit(organizationCodec, 'org_')
@@ -337,7 +306,6 @@ export function governanceOver(
     const time = await begin()
     if (time.kind !== 'read') return time
     const terms = await readInvitationTerms(invitationTerms)
-    // Everything below is one commit: no await.
     const who = caller(input, time.instant, true)
     if (who.kind !== 'caller') return who
     const down = storeDown(instance, 'organizations') ?? storeDown(instance, 'accounts')
@@ -351,7 +319,6 @@ export function governanceOver(
       )
     const duration = invitationDuration(field(input, 'duration'), terms.terms)
     if (duration === undefined) return DENIED
-    // Authorization is decided before the identifier is looked up.
     const invitedLoginIdentifier = field(input, 'invitedLoginIdentifier')
     const invited = isFilledText(invitedLoginIdentifier)
       ? records.accountsByIdentifier.get(invitedLoginIdentifier)
@@ -370,10 +337,6 @@ export function governanceOver(
     return Object.freeze({ kind: 'succeeded', invitation, state: 'open', expiresAt })
   }
 
-  /**
-   * Steps 1 and 2 of a disposition: the caller must see the invitation, then be the party the
-   * disposition belongs to. `undefined` lets the disposition go on.
-   */
   const dispositionRefusal = (
     found: InvitationRecord | undefined,
     who: Caller,
@@ -388,14 +351,11 @@ export function governanceOver(
     return undefined
   }
 
-  /** Steps 4 and 5 of an acceptance, written with the acceptance terminal. */
   const admit = (found: InvitationRecord): InvitationDispositionOutcome => {
     const current = membership(found.organization, found.invitedAccount)
     found.state = 'accepted'
     const outcome = { invitation: found.invitation, state: 'accepted' as const }
-    // 4. Already an active member: no member change.
     if (current?.state === 'active') return Object.freeze({ kind: 'no-change', ...outcome })
-    // 5. A first join or a rejoin: a plain member in the stable tenant.
     if (current === undefined)
       records.memberships.set(memberKey(found.organization, found.invitedAccount), {
         organization: found.organization,
@@ -422,11 +382,9 @@ export function governanceOver(
       if (down !== undefined) return down
       const id = field(input, 'invitation')
       const found = typeof id === 'string' ? records.invitations.get(id) : undefined
-      // 1 and 2: not visible, or not the party of this disposition.
       const refusal = dispositionRefusal(found, who, action)
       if (refusal !== undefined || found === undefined) return refusal ?? NOT_VISIBLE
       if (field(input, 'expectedState') !== 'open') return DENIED
-      // 3. Already expired or terminal: the one terminal that was formed.
       const state = settle(found, time.instant, true)
       if (state !== 'open' && !off('single-terminal'))
         return Object.freeze({ kind: 'no-change', invitation: found.invitation, state })
@@ -554,7 +512,6 @@ export function governanceOver(
       const held = target.membership
       if (field(input, 'expectedRole') !== held.role && !off('expected-role')) return CONFLICT
       if (leavesNoAdmin(held, targetRole as string | undefined)) return DENIED
-      // A negative control only: a provider that lets another call in between check and write.
       if (off('atomic-commit')) await Promise.resolve()
       if (change === 'remove') held.state = 'removed'
       else held.role = targetRole as string
@@ -599,7 +556,6 @@ export function governanceOver(
         ? loginStateCodec.encode(target as never)
         : undefined
     const found = encoded?.ok === true ? records.loginsById.get(encoded.value) : undefined
-    // An unknown target and another account's login give the same answer.
     if (found === undefined) return NOT_VISIBLE
     if (!accountEquals(found.account, who.account))
       return off('uniform-not-visible') ? DENIED : NOT_VISIBLE
@@ -683,18 +639,10 @@ function instanceOf(
   })
 }
 
-/**
- * Creates both ports of the double over one new deployment, with the injected clock, login terms
- * and invitation terms. There is no default for any of them.
- */
 export function inProcessIdentity(options: InProcessIdentityGovernanceOptions): InProcessIdentity {
   return instanceOf(newRecords(), options, new Set())
 }
 
-/**
- * For negative controls only, and not exported from `./testing`: the same double with the named
- * checks switched off.
- */
 export function inProcessIdentityWithout(
   options: InProcessIdentityGovernanceOptions,
   off: readonly DoubleCheck[],

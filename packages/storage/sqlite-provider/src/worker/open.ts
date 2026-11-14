@@ -1,4 +1,3 @@
-// DO-1 steps 3 and 4 (SPEC 5.3): the SQLite version floor and the PRAGMA read-back.
 import type { DatabaseSync } from 'node:sqlite'
 
 export const MIN_SQLITE_VERSION = '3.51.3'
@@ -29,7 +28,6 @@ function read(db: DatabaseSync, name: string): unknown {
   return row?.[name]
 }
 
-/** Sets the pragmas and reads each one back. A value that does not hold is a mismatch. */
 export function applyPragmas(
   db: DatabaseSync,
   config: Readonly<{ walAutocheckpointPages: number; journalSizeLimitBytes: number }>,

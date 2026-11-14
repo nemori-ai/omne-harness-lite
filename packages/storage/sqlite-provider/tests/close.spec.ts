@@ -1,6 +1,3 @@
-// Close protocol (SQL contract SPEC 13, C12/C14): the steps of 13.3, the reporting latch of 13.4
-// and the in-process writer exclusion of 13.5. A commit that spins in the participant keeps the
-// write Worker busy, so each test controls what is in flight when `close` runs.
 import { appendFile, symlink } from 'node:fs/promises'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -65,7 +62,6 @@ const plain = (key: string): ReturnType<typeof commitRequest> =>
     commands: [command('ledger', { note: key })],
   })
 
-/** The commit is posted to the Worker, which is now busy with it. */
 async function startSpinning(
   provider: Provider,
   key: string,
@@ -95,15 +91,12 @@ describe('close steps (13.3)', () => {
     expect(kindOf(await running)).toBe('committed')
     expect(await closing).toEqual({ kind: 'closed' })
 
-    // The withdrawn commit left no receipt; the running one is durable. A new generation sees both.
     const next = await createProvider(workspace, built, {}, recordingLeases())
     providers.push(next)
     expect(kindOf(await next.storage.query(keyOf('queued')))).toBe('not_committed')
     expect(kindOf(await next.storage.query(keyOf('running')))).toBe('committed')
   })
 
-  // The commit passed the control side before close and waits in the Worker inbox behind the
-  // running one. The Worker answers `withdrawn`, which maps to `unknown`, not to a rejection.
   it('maps a commit that the Worker withdrew to unknown/withdrawn_before_start', async () => {
     const provider = await ready()
     const { result: running } = await startSpinning(provider, 'running', 600)
@@ -139,15 +132,12 @@ describe('close steps (13.3)', () => {
     expect(residual?.leaseName).toBe(leases.admitted[0])
     expect(residual?.inFlight).toEqual([keyOf('slow')])
 
-    // The caller is answered at the deadline, before the Worker is done.
     const answered = await Promise.race([running, sleep(300).then(() => 'still waiting' as const)])
     expect(answered).toMatchObject({ kind: 'unknown', diagnostic: 'close_deadline' })
-    // The Worker was not stopped: the write finishes and stays durable (SPEC 13.3).
     await vi.waitFor(() => expect(leases.released).toHaveLength(1), { timeout: 5000 })
     const next = await createProvider(workspace, built, {}, recordingLeases())
     providers.push(next)
     expect(kindOf(await next.storage.query(keyOf('slow')))).toBe('committed')
-    // A late message does not rewrite what was given.
     expect(await running).toMatchObject({ kind: 'unknown', diagnostic: 'close_deadline' })
   })
 
@@ -167,7 +157,6 @@ describe('close steps (13.3)', () => {
 describe('close after a quarantine (13.3 step 5)', () => {
   it('returns closed only after the write Worker of a quarantined domain has exited', async () => {
     const provider = await ready()
-    // The participant file changes after construction: the Worker sees a digest mismatch.
     await appendFile(built.files['participant-ledger'] as string, '\n// changed\n')
     expect(kindOf(await provider.storage.commit(plain('a')))).toBe(
       'rejected_before_accept/domain_unavailable',
@@ -198,7 +187,7 @@ describe('reporting latch (13.4)', () => {
     const provider = await ready({ closeDeadlineMs: 150 })
     await startSpinning(provider, 'slow', 500)
     expect((await provider.control.close({ initiator: 'assembly' })).kind).toBe('incomplete')
-    await sleep(1200) // the spin has ended and the Worker has exited
+    await sleep(1200)
     expect(leases.released).toEqual([])
     provider.control.assemblyReportSettled()
     expect(leases.released).toEqual([leases.admitted[0]])
@@ -236,13 +225,11 @@ describe('one writer per file in the process (13.5)', () => {
     expect(kindOf(blocked)).toBe('rejected_before_accept/domain_unavailable')
     expect(secondLeases.admitted).toEqual([])
 
-    // After the old Worker exit is observed the new generation takes the claim.
     await vi.waitFor(() => expect(leases.released).toHaveLength(1), { timeout: 5000 })
     expect(kindOf(await second.storage.commit(plain('other')))).toBe('committed')
     expect(secondLeases.admitted).toHaveLength(1)
   })
 
-  // The claim is keyed by the file, not by the path text (SPEC 13.5).
   it.runIf(process.platform === 'win32')(
     'does not start a second writer through a storage root that differs only in drive-letter case',
     async () => {
@@ -282,7 +269,6 @@ describe('one writer per file in the process (13.5)', () => {
     expect(secondLeases.admitted).toEqual([])
   })
 
-  // SPEC 7.5 step 1: the group checks the write generation after BEGIN IMMEDIATE.
   it('gives unknown to the group of a Worker whose write generation another opener advanced', async () => {
     const provider = await ready()
     expect(kindOf(await provider.storage.commit(plain('a')))).toBe('committed')
@@ -296,7 +282,6 @@ describe('one writer per file in the process (13.5)', () => {
       kind: 'unknown',
       diagnostic: 'write_generation_changed',
     })
-    // The Worker ends. The next touch opens the domain again with a new write generation.
     await vi.waitFor(() => expect(leases.released).toHaveLength(1), { timeout: 5000 })
     expect(kindOf(await provider.storage.query(keyOf('stale')))).toBe('not_committed')
     expect(kindOf(await provider.storage.commit(plain('fresh')))).toBe('committed')

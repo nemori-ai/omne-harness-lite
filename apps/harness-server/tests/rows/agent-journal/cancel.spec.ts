@@ -1,9 +1,4 @@
 // @module-tag slow
-// The cancellation installation of the `agent-journal` row (R2-D35, KL-68): the release row hands the
-// governance installation of `src/entry/cancellation-installation.ts` to the Journal of every session,
-// so cancelling a running Run ends it `cancelled`; a row made without the installation answers
-// `unavailable`; another tenant cannot cancel the Run. The judgment itself is pure and is tested on
-// crafted inputs below.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { CancellationJudgmentInput } from '@omne-harness/agent-contract'
 import { memoryAccess, memoryOtherAccess } from '@omne-harness/session-contract/testing'
@@ -69,7 +64,6 @@ describe('the agent-journal row: cancelling a running Run', () => {
     async () => {
       const { journal, openRun } = await start('release')
       const run = await openRun(memoryAccess('tester', 'cancel-owner'))
-      // The intruder is a registered tenant with a Run of its own, so only the ownership refuses it.
       const intruder = memoryOtherAccess('intruder', 'cancel-intruder')
       await openRun(intruder)
       expect('ok' in (await requestCancel(journal, run))).toBe(true)
@@ -87,7 +81,6 @@ describe('the agent-journal row: cancelling a running Run', () => {
       expect(after.revision).toEqual(before.revision)
       expect(after.settlement.candidate).toBeNull()
 
-      // The refusals came from the tenant: the owner's own cancel of the same Run still ends it.
       expect(await endCancelled(journal, run, installation)).toMatchObject({
         ok: { kind: 'ended' },
       })
@@ -104,7 +97,6 @@ const continuation = {
   purpose: 'query',
 }
 
-/** A judgment input with an effective cancel and no obligation; tests change one field. */
 function inputOf(overrides: Record<string, unknown> = {}): CancellationJudgmentInput {
   return {
     tenant: 'tenant',

@@ -31,7 +31,6 @@ export function encodeSettingsRecoveryReference(
   return Buffer.byteLength(encoded, 'utf8') <= 16384 ? encoded : undefined
 }
 
-/** Decoding establishes routing syntax, not reservation authority or a persisted attempt. */
 export function decodeSettingsRecoveryReference(
   targetRef: unknown,
 ): SettingsRecoveryReference | undefined {

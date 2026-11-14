@@ -1,6 +1,3 @@
-// 答复之后的唤醒（`rows/tool-hitl/wake.ts` 与 `host.ts` 的 `withDecided`）：只有成为有效决定的答复才唤醒，来源是 Tool
-// 调用时调度原调用；唤醒失败不改变答复的结果。HITL 应用与 Tool 实例宿主都是替身。真实组合里驱动还按执行器的重试
-// 周期读决定，所以发行树的端到端测试看不出唤醒是否发生，由这里核对。
 import { setTimeout as sleep } from 'node:timers/promises'
 import { describe, expect, it, vi } from 'vitest'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
@@ -53,7 +50,6 @@ function instanceHost(fail = false) {
   }
 }
 
-/** Lets the detached wake-up run. */
 const settle = () => sleep(10)
 
 describe('the wake-up after a reply', () => {

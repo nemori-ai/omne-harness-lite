@@ -37,7 +37,6 @@ export const agentToolDeliverySchema: Adoption = Object.freeze({
   digest: 'agent:received-tool-delivery/1',
 })
 
-/** Tool identity distinguishes a missing field from a field whose value is undefined. */
 export function toolValueText(value: unknown): string {
   if (value === undefined) return 'undefined'
   if (value === null || typeof value !== 'object') return JSON.stringify(value)
@@ -225,7 +224,6 @@ export function toolReceivedDraft(
     : { ...common, delivery: { producer: 'tool', key: value.key, account: value.account } }
 }
 
-/** Validates saved bytes independently of the live runtime or producer's retained copy. */
 export function decodeAgentToolDeliveryMaterial(
   material: Material<ContentBlock>,
 ): Readonly<{ tenant: string; delivery: ToolDelivery<ContentBlock> }> | null {

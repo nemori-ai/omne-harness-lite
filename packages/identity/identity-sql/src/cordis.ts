@@ -1,10 +1,3 @@
-// The Cordis binding (DP3-C16; IC-1 to IC-3, IC-8, IC-13, IC-14): a function plugin that injects
-// `storage` and `identityClock`, validates the two lifetimes and the two invitation durations,
-// opens scrypt with the deployed profile, derives the decoy material, registers the identity
-// combination, and provides `identityOperations`, `tenantStanding` and `identityGovernance` as
-// subclasses of the identity service definitions, over one provider instance. One managed effect
-// stops the provider and then waits for scrypt to close. The clock is the injected `identityClock`
-// service (R1-D27): this member reads no wall clock.
 import type { Context } from '@deepseek-ai/cordis'
 import { randomBytes } from 'node:crypto'
 import type {
@@ -157,7 +150,6 @@ export const IdentitySqlPlugin = definePlugin({
       await scrypt.close()
       throw new Error(message)
     }
-    // The decoy: a random secret derived once, kept in memory only (DP3-C6).
     const decoy = scrypt.derive(randomBytes(32).toString('base64url'), () => ({ ok: true }))
     if (!('done' in decoy)) return fail(`decoy-derive-failed:${decoy.code}`)
     const derived = await decoy.done

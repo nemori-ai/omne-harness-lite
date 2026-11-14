@@ -27,7 +27,6 @@ function put(root: string, path: string, text: string): void {
   mkdirSync(dirname(join(root, path)), { recursive: true })
   writeFileSync(join(root, path), text)
 }
-/** 让夹具成员能 `pnpm exec vitest`：链到本包装好的 vitest 与根上的覆盖率插件。 */
 function linkVitest(dir: string): void {
   mkdirSync(join(dir, 'node_modules/.bin'), { recursive: true })
   symlinkSync(
@@ -78,7 +77,6 @@ it('ignores archived timestamps while an active newer source still makes dist st
   expect(distIsStale(root)).toBe(true)
 })
 
-// Slow: runs real vitest coverage in a fixture workspace. 4.5 s on the full-admission fast-tier ledger, over the 2.5 s per-case budget (6.2 s under load) (tools/test-runner/README_ZH.md「归层」).
 it(
   'real coverage excludes archived tests and source, keeps configured exclusions and active failures',
   { tags: ['slow'], timeout: 25_000 },
@@ -118,19 +116,16 @@ it(
   },
 )
 
-// 归慢层：两个夹具成员各起两次真实 vitest 覆盖率（串行一次、并行一次），本机空闲时约 8 秒。
 it(
   'parallel coverage gives the same readings, exit codes and member order as serial',
   { tags: ['slow'], timeout: 60_000 },
   async () => {
     const root = fixture()
-    // 「大」成员排在后面：并行时它先开始、后结束，完成先后与原顺序不同，结果仍按原顺序。
     const members = ['packages/small', 'packages/large']
     for (const member of members) {
       const dir = join(root, member)
       linkVitest(dir)
       put(dir, 'package.json', JSON.stringify({ type: 'module', scripts: { test: 'vitest run' } }))
-      // 第二个分支没有用例走到：行命中有真有假，比较才有内容。
       put(
         dir,
         'src/value.ts',
@@ -163,7 +158,6 @@ it(
       expect([...(parallel.files.get(path) ?? [])]).toEqual([...hits])
     expect([...(serial.files.get('packages/small/src/value.ts')?.values() ?? [])]).toContain(false)
     expect(parallel.staleDist).toEqual(serial.staleDist)
-    // 每个成员的日志各归各的：大成员的失败只出现在它自己的日志里。
     expect(readFileSync(join(root, 'parallel', 'packages__large.vitest.log'), 'utf8')).toContain(
       'slow',
     )

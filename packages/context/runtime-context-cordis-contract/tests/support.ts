@@ -14,7 +14,6 @@ import {
 } from '@omne-harness/runtime-context-contract/testing'
 import { RuntimeContextService } from '@omne-harness/runtime-context-cordis-contract/cordis'
 
-/** A fixture provider only. The product definition imports no implementation or stand-in. */
 export class Probe extends RuntimeContextService {
   readonly ports = createTestAuthorityPorts<unknown>()
   readonly memory = createMemoryRuntimeContext<unknown>(this.ports)
@@ -62,7 +61,6 @@ export class Probe extends RuntimeContextService {
   finishReplay(...args: Parameters<RuntimeContextOperations['finishReplay']>) {
     return this.memory.finishReplay(...args)
   }
-  /** Fixture only: binds and opens the scope and registers one optional block in it. */
   async prepare(target: ScopeRef, tenant: TenantId, key: ContextBlockKey): Promise<void> {
     this.ports.bind(target, tenant)
     const begun = await this.memory.beginReplay('probe', {

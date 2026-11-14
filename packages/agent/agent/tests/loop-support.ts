@@ -1,7 +1,3 @@
-// Values and the assembly that the Loop tests share: a `LoopFacts` builder for the evaluator, and the
-// test assembly with the generic evaluator adopted, the conditions and selection scripted and a Model
-// that answers each admitted call with one text reply once the test lets it. The doubles answer what
-// the test scripted; nothing here proves a real provider.
 import {
   agentEvaluator,
   createAgentRuntime,
@@ -63,16 +59,9 @@ import {
 } from './journal-support.ts'
 import { options } from './factory-support.ts'
 
-/**
- * A value whose consumer reads only the fields given. The rest of the contract shape is left out on
- * purpose; the coordinator and the evaluator never read it.
- */
 function stub<T>(fields: unknown): T {
   return fields as T
 }
-
-// ---------------------------------------------------------------------------------------------
-// LoopFacts
 
 export function conditions(
   progression: RuntimeConditions['progression']['kind'] = 'evaluate-completion',
@@ -133,7 +122,6 @@ export function responsibility(state: 'owed' | 'custody' | 'processed'): ResultR
   }
 }
 
-/** Facts of a current execution at `position` with nothing pending, overridden field by field. */
 export function loopFacts(position: string, overrides: Partial<LoopFacts> = {}): LoopFacts {
   return {
     advancement: { kind: 'current', source: evidence('advancement') },
@@ -156,11 +144,7 @@ export function loopFacts(position: string, overrides: Partial<LoopFacts> = {}):
   }
 }
 
-// ---------------------------------------------------------------------------------------------
-// The Loop assembly
-
 export const selected: SelectedModel = {
-  // A Model request accepts only an adoption whose digest is 64 hex digits, as testAdoption mints.
   recipient: { route: 'route-1', profile: testAdoption('profile') },
   resolution: stub({ kind: 'resolved', selectable: true }),
   parameters: [],
@@ -170,7 +154,6 @@ export const selected: SelectedModel = {
 
 export const REPLY_TEXT = 'hello from the model'
 
-/** The reply the Model settles each call with: one sealed text part per text, `pageSize` per page. */
 export type ScriptedReply = Readonly<{ texts: readonly string[]; pageSize: number }>
 
 const ONE_TEXT: ScriptedReply = { texts: [REPLY_TEXT], pageSize: 10 }
@@ -188,7 +171,6 @@ function replyParts(reply: ScriptedReply): readonly ResultPart[] {
   }))
 }
 
-/** A gate that the test opens; the Model settles no admitted call before it is open. */
 export type Gate = Readonly<{ open(): void; opened: Promise<void>; isOpen(): boolean }>
 
 export function gate(): Gate {
@@ -203,10 +185,6 @@ export function gate(): Gate {
   return { open, opened, isOpen: () => released }
 }
 
-/**
- * The Model runtime whose admit, once it succeeds, lets the scripted call start and settle with
- * `reply` after `release` opens. The admit answer itself is not changed.
- */
 function respondingModels(
   models: ModelRuntime<Principal>,
   controller: TestAgentControls<Principal>['models'],
@@ -264,15 +242,9 @@ export type LoopAssembly = Readonly<{
   provider: AgentProvider<Principal>
   dependencies: AgentDependencies<Principal, ContentBlock>
   controls: TestAgentControls<Principal>
-  /** Lets the Model settle every call it admitted and will admit. */
   release: Gate
 }>
 
-/**
- * The test assembly with the generic evaluator adopted for the bound definition, the conditions of
- * `executions` evaluating completion, one selected model, and the responding Model. `wrap` may put a
- * recorder around the dependencies before the factory sees them.
- */
 export async function loopAssembly(
   executions: readonly AgentExecutionId[],
   wrap: (
@@ -305,12 +277,6 @@ export async function loopAssembly(
 
 export const alice = { principal: 'alice', tenant: tenantA } as const
 
-/**
- * The same dependencies with a Journal whose `entry` events never reach a stream reader: the
- * notification of a receiver-only revision is lost, so only the check time wakes a waiting driver.
- * The entries stay readable through load. `lost.pages` counts the pages that were dropped, so a
- * test can prove that a notification was lost before it relies on the check time.
- */
 export function losingEntryNotifications(
   dependencies: AgentDependencies<Principal, ContentBlock>,
   lost: { pages: number } = { pages: 0 },
@@ -338,7 +304,6 @@ export function losingEntryNotifications(
   }
 }
 
-/** The invoke of execution `id` under operation `invoke-<id>`, with its own input unless `input`. */
 export function invoke(
   assembly: Pick<LoopAssembly, 'provider'>,
   id = 'exec-1',
@@ -353,7 +318,6 @@ export function invoke(
   })
 }
 
-/** Every event of the execution through the handle, until the ended event. */
 export async function eventsOf(handle: AgentExecutionHandle<Principal>): Promise<AgentEvent[]> {
   const events: AgentEvent[] = []
   const controller = new AbortController()
@@ -372,7 +336,6 @@ export async function eventsOf(handle: AgentExecutionHandle<Principal>): Promise
   return events
 }
 
-/** The state that `observe` shows now. */
 export async function shown(assembly: Pick<LoopAssembly, 'provider'>): Promise<AgentState> {
   const controller = new AbortController()
   for await (const seen of assembly.provider.observation.observe({
@@ -385,7 +348,6 @@ export async function shown(assembly: Pick<LoopAssembly, 'provider'>): Promise<A
   throw new Error('observe showed no state')
 }
 
-/** Calls `probe` on later turns of the event loop until it holds, at most 200 times. */
 export async function eventually(probe: () => Promise<boolean>): Promise<void> {
   for (let turn = 0; turn < 200; turn += 1) {
     if (await probe()) return
@@ -394,12 +356,8 @@ export async function eventually(probe: () => Promise<boolean>): Promise<void> {
   throw new Error('the condition never held')
 }
 
-/**
- * Waits until the run of exec-1 has stopped with `position` in the Journal, read through the
- * unwrapped memory Journal so that a test's counted port sees no extra call. A stop has no public
- * channel yet (S-14 of #558): the position must stay for 20 more turns, and `observe` must still show
- * the execution occupied. Returns the state of the execution.
- */
+// A stop has no public channel: wait until `position` has stayed for 20 more turns while `observe`
+// still shows the execution occupied.
 export async function stoppedAt(
   assembly: LoopAssembly,
   position: string,
@@ -419,23 +377,17 @@ export async function stoppedAt(
   return snapshot.state
 }
 
-/** The candidate of one prepare call: the internal candidate, or `undefined` for an external input. */
 export function replyCandidate(
   call: Pick<HandoffPrepare, 'request'> | undefined,
 ): Extract<HandoffRequest, { kind: 'execution' }>['candidate'] | undefined {
   return call?.request.kind === 'execution' ? call.request.candidate : undefined
 }
 
-/** The operation a lost prepare receipt names: the H of an internal request, the entry of an input. */
 export function handoffOperationOf(call: Pick<HandoffPrepare, 'request'>): AgentOperationId {
   const reference = call.request.reference
   return reference.kind === 'execution' ? reference.operation : reference.entry
 }
 
-/**
- * The node of one commit of the coordinator: a node commit is `<node>/commit@<revision>`; the P and
- * the Ja of a handoff derive from its H with the stages `prepare` (at Q1) and `resolve` (at Q2).
- */
 export function commitNodeOf(operation: string): string {
   if (operation.endsWith('/prepare')) return 'Q1'
   if (operation.endsWith('/resolve')) return 'Q2'

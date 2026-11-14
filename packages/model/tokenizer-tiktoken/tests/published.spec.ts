@@ -34,7 +34,6 @@ const samples: readonly (readonly TokenizationSegment[])[] = [
   [{ kind: 'text', text: 'abcde <|fim|>' }],
 ]
 
-/** The child loads the ranks itself and gets the rest of the resources as JSON. */
 const childScript = `
 import { readFileSync } from 'node:fs'
 const [input] = process.argv.slice(1)
@@ -100,7 +99,6 @@ it('the built output, loaded in another process from another directory, counts l
     samples,
     limits,
   })
-  // The child gets the inherited environment without the repository's BASELINE override.
   const { BASELINE: _inherited, ...env } = process.env
   const output = execFileSync(process.execPath, ['--input-type=module', '-e', childScript, input], {
     cwd,

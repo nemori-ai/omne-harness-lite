@@ -8,8 +8,7 @@
 
 main 保存完整集成结果。`integration/mainline` 是唯一的轨道。stable 指向 main 中经过完整检查的既有 checkpoint。轨道和 stable 不加用户名；工作及临时分支遵守人的署名约定。
 
-一张卡由一个会话从卡给定的起点交付，经 gate 进入 `integration/mainline`，见[卡就是交接信息包](delivery.md#卡就是交接信息包)。交付会话在工作分支上用普通的 `git merge` 合并 `origin/integration/mainline` 来同步轨道头，步骤见 `omne-card`「开工」与「进轨道」。依据 [RFC-0014](../rfcs/RFC-0014-single-card-session-and-gate-relief.md)：认卡、执行记录（attempt）、绑定、`start`、task context、双基线、目标基线同步与轨道树已退役。
-
+一张卡由一个会话从卡给定的起点交付，经 gate 进入 `integration/mainline`，见[卡就是交接信息包](delivery.md#卡就是交接信息包)。交付会话在工作分支上用普通的 `git merge` 合并 `origin/integration/mainline` 来同步轨道头，步骤见 `omne-card`「开工」与「进轨道」。
 ## 轨道责任与保护
 
 [policy registry](integration-policy.json) 登记轨道身份、owner、状态、上游和固定起点。下表是当前的轨道责任。
@@ -48,7 +47,7 @@ main 只接受 mainline 的提升，所以没有从 main 同步进 mainline 的 
 
 运行结果未知时，先读运行页面、目标分支和 `omne/gate/*` 标签，不盲目重新派发。Git 已发布而 Issue 投影失败时，由原正文单写者修复技术记录，不重放 Git。
 
-流程失效时，按 [RFC-0009](../rfcs/RFC-0009-adoption-and-local-tool-retirement.md#流程失效时的恢复) 恢复：
+流程失效时这样恢复：
 
 - `github-gate` 上的流程出错：admin 修正 `github-gate` 后重新启动流程。流程会重新核对目标与 PR，重复启动不会重复发布。
 - Actions 或发布身份不可用：admin 在一张 Issue 中写明原因，临时把自己加入相应规则集的例外，用普通的 Git 命令完成合并并推送，再恢复规则集并读回。推送产生的提交没有 unit 记录，`gate-reconcile` 会把它报告为缺口 Issue。admin 在缺口 Issue 中写具名决定，说明该提交的来源与处置。第一阶段的 `github-gate` 没有补建 unit 的流程，`gate-reconcile` 只报告、不创建标签。这类缺口按[现行准入](#现行准入)中“没有 unit 的主干提交”的两步闭合。
@@ -65,8 +64,7 @@ stable 选择 main first-parent 历史上的已有提交，只要求旧 stable �
 
 ## 现行准入
 
-现行准入依据 [RFC-0011 revision 1](../rfcs/RFC-0011-trunk-admission-and-track-tree.md#决定范围)。它取代 RFC-0004 中仍然有效的范围，并部分取代 RFC-0009 的三处条款与 RFC-0002 的准入缓存策略。RFC-0008 与 RFC-0009 的其余准入条款仍由原提案拥有，RFC-0011 第 16 至 18 节只作复述。第一阶段自 2026-10-15 起执行，切换记录见 [Issue #208](https://github.com/nemori-ai/omne-harness-lite/issues/208#issuecomment-6184302633)。单一轨道依据 [RFC-0014](../rfcs/RFC-0014-single-card-session-and-gate-relief.md)，它部分取代 RFC-0011 的轨道树与 RFC-0009 的双基线。
-
+第一阶段自 2026-10-15 起执行，切换记录见 [Issue #208](https://github.com/nemori-ai/omne-harness-lite/issues/208#issuecomment-6184302633)。
 四条主干是 `integration/mainline`、`main`、`stable` 和 `release`。代码从 mainline 提升到 main。`release` 只定对外发布的位置，还没有创建。
 
 第一阶段的规则如下。
@@ -105,7 +103,7 @@ stable 选择 main first-parent 历史上的已有提交，只要求旧 stable �
 
 turbo 构建体系建立后进入第二阶段。轨道改为自动检查通过后经合并队列自动合并，取消轨道的确认。增加报告身份和按改动范围的必需检查。受信检查器的版本由仓库的钉子承载，不在 `github-gate` 上另存版本文件；升级按[仓库工具链的版本](../development.md#仓库工具链的版本)先发版本、再开改钉子的 PR，新旧版本各跑一遍。集成条件评论的格式随之确定。
 
-影响面的成员选择、构建、类型检查与成员测试由 turbo 调度。`tools/test-runner` 算出计划并调用 turbo（`turbo.ts`），可执行验收仍由它逐成员运行。[RFC-0002 revision 2](../rfcs/RFC-0002-engineering-toolchain.md#影响面选择) 要求的四条约束已在测试运行器中实现：未识别文件转全量，`turbo.json` 一类选择配置是全局文件，基线显式传入，准入检查不读 turbo 任务缓存。实现方式见[迭代中的受影响测试](../development.md#迭代中的受影响测试)。
+影响面的成员选择、构建、类型检查与成员测试由 turbo 调度。`tools/test-runner` 算出计划并调用 turbo（`turbo.ts`），可执行验收仍由它逐成员运行。四条约束已在测试运行器中实现：未识别文件转全量，`turbo.json` 一类选择配置是全局文件，基线显式传入，准入检查不读 turbo 任务缓存。实现方式见[迭代中的受影响测试](../development.md#迭代中的受影响测试)。
 
 stable 的完整检查即 `OMNE_ADMISSION=1 FULL=1 pnpm run check`，由目标分支钉住的检查器版本运行，不再从 policy 读取检查清单。
 
@@ -119,13 +117,13 @@ stable 的完整检查即 `OMNE_ADMISSION=1 FULL=1 pnpm run check`，由目标�
 
 清理前先核 Git 已发布、各卡剩余接受与投影责任已交接、唯一 tmp 有去向，再按现有权限清理。ref 状态未知或分裂时保留证据，不盲目重建或重试。
 
-[policy registry](integration-policy.json) 只含 `schemaVersion`、`revision`、`repository`、`deliveryConfig`、`tracks`、`transport` 与 `timeouts`。`timeouts` 只含网络读取时限 `networkMs`。它现在的读者是收工钩子：按它的轨道找本树的基线分支（[hook-base.ts](../../tools/repo-toolchain/src/loop/hook-base.ts)）。registry 属于仓库工具链路径，改动经仓库工具链变更闸门确认，见 [RFC-0008](../rfcs/RFC-0008-repo-toolchain-trust.md)。
+[policy registry](integration-policy.json) 只含 `schemaVersion`、`revision`、`repository`、`deliveryConfig`、`tracks`、`transport` 与 `timeouts`。`timeouts` 只含网络读取时限 `networkMs`。它现在的读者是收工钩子：按它的轨道找本树的基线分支（[hook-base.ts](../../tools/repo-toolchain/src/loop/hook-base.ts)）。registry 属于仓库工具链路径，改动经仓库工具链变更闸门确认。
 
 ## 检查责任
 
 第一阶段的检查责任按[现行准入](#现行准入)执行：提交 PR 的人在本卡的工作树中运行检查，确认者在说明中写明实际命令和结果。基线按现行准入取显式基线或 `origin/main`（收工钩子的基线例外，见现行准入）。main 本身，例如进入 stable 的 PR，第一阶段没有正式检查入口；确认者写明实际运行的命令及其限制，不写成正式检查结论。第二阶段由报告身份在候选上运行必需检查。
 
-进入任何一条主干（轨道、main、stable、release）之前的检查都是准入检查，不读 turbo 任务缓存（本地与远程），只写本地缓存。缓存命中时任务不会真正运行，检查会显示通过而实际没有运行。合并前的检查带 `OMNE_ADMISSION=1` 运行，进入 stable 时由确认者带这个变量运行；确认说明写明实际命令，没有带这个变量的运行不作为准入检查结论。一次整跑没有通过时，按[准入证据怎样取得](#准入证据怎样取得)补证，不重排整跑。准入检查是否写远程缓存仍归 [RFC-0002](../rfcs/RFC-0002-engineering-toolchain.md) 的未决项。依赖图缓存同样按这条规则：准入时不读，只写。成员测试的结果缓存是另一条规则（负责人 2026-11-12 定）：准入只认准入模式下真跑出来的记录，平常的运行写的记录不认；带 `FULL=1` 的准入不认任何记录。输入没变的成员不重跑，输出里逐个写明取自哪个提交、哪个时刻的运行。提升 main、进入 stable 的全量准入带 `FULL=1`。键、写入条件与边界见[结果缓存](../../tools/test-runner/README_ZH.md#测试运行)。其他缓存（例如 pnpm 按锁文件完整性校验取包的 store）不在这条规则内。本地缓存 `.turbo/` 不进入 Git。
+进入任何一条主干（轨道、main、stable、release）之前的检查都是准入检查，不读 turbo 任务缓存（本地与远程），只写本地缓存。缓存命中时任务不会真正运行，检查会显示通过而实际没有运行。合并前的检查带 `OMNE_ADMISSION=1` 运行，进入 stable 时由确认者带这个变量运行；确认说明写明实际命令，没有带这个变量的运行不作为准入检查结论。一次整跑没有通过时，按[准入证据怎样取得](#准入证据怎样取得)补证，不重排整跑。依赖图缓存同样按这条规则：准入时不读，只写。成员测试的结果缓存是另一条规则（负责人 2026-11-12 定）：准入只认准入模式下真跑出来的记录，平常的运行写的记录不认；带 `FULL=1` 的准入不认任何记录。输入没变的成员不重跑，输出里逐个写明取自哪个提交、哪个时刻的运行。提升 main、进入 stable 的全量准入带 `FULL=1`。键、写入条件与边界见[结果缓存](../../tools/test-runner/README_ZH.md#测试运行)。其他缓存（例如 pnpm 按锁文件完整性校验取包的 store）不在这条规则内。本地缓存 `.turbo/` 不进入 Git。
 
 0.0.1 的封存产品树已从仓库删除，原件见[固定提交](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31)。工程检查不构建、不测试、也不验收封存产品，工具自身的安装、构建和测试也不依赖它们。新 packages/apps 仍是产品骨架，产品传感器没有输入时如实报告无数据，工程检查通过不代替产品质量结论。新版产品的 startup、数据迁移及严格产品传感器门槛须由未来真实成员提供证据。
 

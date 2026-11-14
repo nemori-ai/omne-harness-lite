@@ -1,12 +1,4 @@
 import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
-// The `./testing` entry: the registration-semantics suite of `ToolInstancesService.register` (IC-3)
-// and a non-durable register service that conforms to it, then the G7 suite of the binding registry
-// with its non-durable registry and the dynamics suite skeleton. The suites do not depend on a test
-// framework and do not need a Cordis runtime: each takes a fixture that gives the service under
-// test and its control handles. The service doubles declare `durability: 'none'`; they prove
-// nothing about the real services and must not be assembled into production. The holder-reference
-// reader double, the resident-key round-trip suite and the two RD-COORD scripted doubles are
-// re-exported at the end of this file.
 import assert from 'node:assert/strict'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { isDeepStrictEqual } from 'node:util'
@@ -64,7 +56,6 @@ import {
   type ScriptedToolGenerations,
 } from './testing-adoption-scripts.ts'
 
-/** Observe the settings reader behind the public loaderFor/load seam, not a copied config value. */
 export interface ToolLoaderSourceFixture<P, E, B extends ContentBlock> {
   readonly generations?: Pick<ToolGenerations<P, E, B>, 'loaderFor'>
   readonly authority: ToolAuthority
@@ -74,7 +65,6 @@ export interface ToolLoaderSourceFixture<P, E, B extends ContentBlock> {
   settingsReads(): readonly SourceLayer[]
 }
 
-/** The fixture supplies an official or organization contribution and two authorized registrants. */
 export function toolLoaderSourceConformance<
   P,
   E,
@@ -110,35 +100,12 @@ export {
   type CaseVerdict,
 } from '@omne-harness/tool-contract/testing'
 
-/** The call of `ToolInstancesService.register` that the suite checks. */
 export interface ToolRegistrationService<P> {
   register(
     input: ToolRegistrationInput<P>,
   ): Promise<Outcome<ToolRegistration, ToolRegistrationFailure>>
 }
 
-/**
- * What the registration suite needs. A fresh fixture serves one case. `tenant` is a tenant that
- * the service accepts, and `authority` is the evidence that the suite passes as the verified
- * authority of a registration of that tenant. The authority names its tenant (IC-3): a check
- * refuses a publication of another tenant under it. `renewedAuthority` is another evidence of the
- * same tenant that the check accepts, `otherTenant` is a second tenant and `otherAuthority` the
- * evidence that names it; a case that needs one that is missing is reported not applicable. The
- * optional handles are the controls of the provider, and a case that needs one that is missing is
- * reported not applicable too. Completion contract: a handle that drives work (`endFiber`)
- * resolves only after that work has landed and is visible to every later `register` and
- * `listing`; the suite never polls. `register` has no progress kind (see `registrationAnswers`),
- * so no handle completes a register. `asFiber` runs `work` as the caller fiber named `fiber`, and
- * every `register` that `work` starts belongs to that fiber (a call outside it belongs to the
- * fiber of the caller); `endFiber` ends that fiber, which runs the automatic disposers of its
- * registrations, and resolves after the last of them removed its entry; `refuseCheck` sets the
- * answer of the synchronous publication check from then on, for every `register` that starts
- * after it returns (`null` lets it pass); `listing` gives the registration token of every entry
- * that the directory holds right now; `checkedAgainst` gives, for each consultation of the check,
- * the listing that the directory had at that moment. `quietMs` (default 25) is how long the suite
- * watches the directory after a refused register, to see that nothing is written late: it is the
- * one wait of the suite, and a provider that writes later than that needs a longer one.
- */
 export interface ToolRegistrationFixture<P> {
   readonly service: ToolRegistrationService<P>
   readonly tenant: TenantId
@@ -147,24 +114,13 @@ export interface ToolRegistrationFixture<P> {
   readonly otherTenant?: TenantId
   readonly otherAuthority?: DurableEvidence
   readonly quietMs?: number
-  /** Runs `work` as the caller fiber of this name; every `register` that it starts belongs to that fiber. */
   asFiber?<T>(fiber: string, work: () => Promise<T>): Promise<T>
-  /** Resolves after the fiber ended and its automatic disposers removed their entries, visible to every read. */
   endFiber?(fiber: string): Promise<void>
-  /** Sets the answer of the synchronous check for every register that starts after it returns. */
   refuseCheck?(failure: ToolRegistrationFailure | null): void
-  /** The token of every entry that the directory holds right now (a read). */
   listing?(): readonly string[]
-  /** The listing that the directory had at each consultation of the check (a read). */
   checkedAgainst?(): readonly (readonly string[])[]
 }
 
-/**
- * The answer model of the registration (IC-3): `register` answers a registration or refuses, and a
- * refusal (`denied`, `stale-publication`, `unavailable`, `conflict`) is final for the call. The
- * synchronous check leaves no progress kind and no lost reply: a call that cannot be decided is
- * refused as `unavailable`, never answered later, so no completion handle exists.
- */
 export const registrationAnswers = {
   register: { clause: 'IC-3', progress: [] },
 } as const satisfies AnswerModel<keyof ToolRegistrationService<unknown>>
@@ -176,7 +132,6 @@ function minted<T>(decoded: { ok: T } | { failure: unknown }, text: string): T {
   return decoded.ok
 }
 
-/** A handle that the directory must never use to stop the work: it counts every observation. */
 function spyHandle<P>(instance: string): Readonly<{ handle: ToolHandle<P>; observed(): number }> {
   let observed = 0
   const handle: ToolHandle<P> = {
@@ -193,7 +148,6 @@ function spyHandle<P>(instance: string): Readonly<{ handle: ToolHandle<P>; obser
   return { handle, observed: () => observed }
 }
 
-/** How a register that was started in flight ended: with an answer, or with a rejection. */
 type InFlight = Readonly<
   { outcome: Outcome<ToolRegistration, ToolRegistrationFailure> } | { error: unknown }
 >
@@ -245,24 +199,17 @@ function scene<P>(fixture: ToolRegistrationFixture<P>) {
     if (fixture.asFiber === undefined) throw new NotApplicable('asFiber')
     return fixture.asFiber(fiber, work)
   }
-  /** A later read of the same registration: what was answered is recalled as it was. */
   const recalls = (later: ToolRegistration, earlier: ToolRegistration): void =>
     resendRecalls(
       registrationAnswers.register,
       { earlier: earlier.receipt, later: later.receipt },
       'register again',
     )
-  /**
-   * A register that is started and not awaited, to read the directory while it is in flight. Its
-   * end is kept as a value: a register that rejects is never left unhandled when the case fails
-   * before it asks for the answer.
-   */
   const inFlight = (published: ToolRegistrationInput<P>): Promise<InFlight> =>
     fixture.service.register(published).then(
       (outcome): InFlight => ({ outcome }),
       (error: unknown): InFlight => ({ error }),
     )
-  /** The answer of a register that was started with `inFlight`; a rejection fails the case. */
   const answerOf = async (started: Promise<InFlight>) => {
     const ended = await started
     if ('error' in ended)
@@ -276,13 +223,11 @@ function scene<P>(fixture: ToolRegistrationFixture<P>) {
   return { execution, input, registered, refusal, inFiber, recalls, ask, inFlight, answerOf }
 }
 
-/** The handle of a fixture, or `NotApplicable` naming it. */
 function handle<T>(offered: T | undefined, name: string): T {
   if (offered === undefined) throw new NotApplicable(name)
   return offered
 }
 
-/** The second tenant of a fixture, or `NotApplicable`; it must be another tenant than the first. */
 function otherTenantOf<P>(fixture: ToolRegistrationFixture<P>): TenantId {
   const other = handle(fixture.otherTenant, 'otherTenant')
   assert.notDeepEqual(other, fixture.tenant, 'the fixture names one tenant twice')
@@ -294,7 +239,6 @@ const registrationCase = <P>(
   run: (fixture: ToolRegistrationFixture<P>) => Promise<void>,
 ): ConformanceCase<ToolRegistrationFixture<P>> => ({ name, clause: 'IC-3', run })
 
-/** The failure that the synchronous check answers when it refuses. */
 const REFUSALS: readonly ToolRegistrationFailure[] = [
   { kind: 'denied' },
   { kind: 'stale-publication' },
@@ -332,7 +276,6 @@ export function toolRegistrationConformance<P>(): readonly ConformanceCase<
           s.registered(published, 'b'),
         ])
         for (const registration of concurrent) s.recalls(registration, first)
-        // One registration stands behind the receipts: the releases of the recalled ones are the same.
         assert.deepEqual(await again.release(), { removed: true })
         assert.deepEqual(await first.release(), { removed: false })
       },
@@ -369,7 +312,6 @@ export function toolRegistrationConformance<P>(): readonly ConformanceCase<
           'register under another qualification',
         )
         assert.equal(failure.kind, 'conflict')
-        // The refused register left the registration as it was.
         const recalled = await s.registered(s.input(published, spy.handle), 'register again')
         s.recalls(recalled, first)
       },
@@ -384,7 +326,6 @@ export function toolRegistrationConformance<P>(): readonly ConformanceCase<
         const first = await s.registered(s.input(published, spy.handle), 'register')
         const moved = s.execution('call-1', fixture.tenant, 'instance-1', '2')
         const outcome = await s.ask(s.input(moved, spy.handle))
-        // A refusal is allowed; an answer is the receipt of the publication that was given.
         if ('ok' in outcome) assert.deepEqual(outcome.ok.receipt.execution, moved)
         const recalled = await s.registered(s.input(published, spy.handle), 'register again')
         s.recalls(recalled, first)
@@ -425,7 +366,6 @@ export function toolRegistrationConformance<P>(): readonly ConformanceCase<
       await original.release()
       const successor = await s.inFiber('fiber-2', () => s.registered(published, 'successor'))
       assert.deepEqual(await original.release(), { removed: false })
-      // The successor still stands: its own fiber recalls it, and nothing was registered anew.
       const recalled = await s.inFiber('fiber-2', () => s.registered(published, 'recall'))
       s.recalls(recalled, successor)
       assert.deepEqual(await successor.release(), { removed: true })
@@ -441,7 +381,6 @@ export function toolRegistrationConformance<P>(): readonly ConformanceCase<
         assert.deepEqual(await first.release(), { removed: true })
         assert.deepEqual(await first.release(), { removed: false })
         assert.deepEqual(await first.release(), { removed: false })
-        // The entry is gone: the identity can be registered again, and it is a new registration.
         const again = await s.registered(published, 'register after release')
         assert.notEqual(again.receipt.registration, first.receipt.registration)
       },
@@ -471,12 +410,10 @@ export function toolRegistrationConformance<P>(): readonly ConformanceCase<
         const published = s.input(s.execution(), spy.handle)
         refuseCheck.call(fixture, { kind: 'denied' })
         const pending = s.inFlight(published)
-        // The directory is read before the answer arrives: a write that is taken back later shows.
         assert.deepEqual(listing.call(fixture), [])
         const outcome = await s.answerOf(pending)
         assert.ok('failure' in outcome, 'a refused check registers')
         assert.equal(outcome.failure.kind, 'denied')
-        // A write that comes after the answer shows within the quiet period of the fixture.
         await new Promise<void>(resolve => setTimeout(resolve, fixture.quietMs ?? DEFAULT_QUIET_MS))
         assert.deepEqual(listing.call(fixture), [])
         refuseCheck.call(fixture, null)
@@ -504,7 +441,6 @@ export function toolRegistrationConformance<P>(): readonly ConformanceCase<
         const published = s.input(s.execution(), spy.handle)
         await s.registered(published, 'register')
         refuseCheck.call(fixture, { kind: 'denied' })
-        // A recall is a register: it does not hand the receipt to a caller the check now refuses.
         const failure = await s.refusal(published, 'register again after the check refused')
         assert.equal(failure.kind, 'denied')
       },
@@ -516,7 +452,6 @@ export function toolRegistrationConformance<P>(): readonly ConformanceCase<
       const s = scene(fixture)
       const spy = spyHandle<P>('instance-1')
       const registration = await s.registered(s.input(s.execution(), spy.handle), 'register')
-      // A provider may check more than once before it writes; the last check precedes the write.
       assert.deepEqual(
         checkedAgainst.call(fixture).at(-1),
         [],
@@ -537,7 +472,6 @@ export function toolRegistrationConformance<P>(): readonly ConformanceCase<
         refuseCheck.call(fixture, { kind: 'stale-publication' })
         const outcome = await s.answerOf(pending)
         if ('ok' in outcome) {
-          // The entry was written in the step of the check, before the qualification was withdrawn.
           assert.deepEqual(
             atCall,
             [outcome.ok.receipt.registration],
@@ -576,7 +510,6 @@ export function toolRegistrationConformance<P>(): readonly ConformanceCase<
       const published = s.input(s.execution(), spy.handle)
       await endFiber.call(fixture, 'fiber-1')
       await s.inFiber('fiber-1', () => s.refusal(published, 'register from an exited fiber'))
-      // Nothing was registered, so another fiber takes the identity.
       await s.inFiber('fiber-2', () => s.registered(published, 'register from a live fiber'))
     }),
 
@@ -589,7 +522,6 @@ export function toolRegistrationConformance<P>(): readonly ConformanceCase<
       const original = await s.inFiber('fiber-1', () => s.registered(published, 'register'))
       await endFiber.call(fixture, 'fiber-1')
       const successor = await s.inFiber('fiber-2', () => s.registered(published, 'successor'))
-      // The explicit release comes after the automatic one: it removes nothing, least of all the successor.
       assert.deepEqual(await original.release(), { removed: false })
       const recalled = await s.inFiber('fiber-2', () => s.registered(published, 'recall'))
       s.recalls(recalled, successor)
@@ -602,14 +534,11 @@ export function toolRegistrationConformance<P>(): readonly ConformanceCase<
         const otherAuthority = handle(fixture.otherAuthority, 'otherAuthority')
         const s = scene(fixture)
         const spy = spyHandle<P>('instance-1')
-        // The authority names the tenant that it was taken for: it does not carry the publication
-        // of another one.
         const foreign = s.execution('call-1', otherTenant)
         await s.refusal(
           s.input(foreign, spy.handle),
           'register under the authority of another tenant',
         )
-        // The refused register entered nothing: the other tenant registers under its own authority.
         await s.registered(
           s.input(foreign, spy.handle, otherAuthority),
           'register of the other tenant',
@@ -635,10 +564,6 @@ export function toolRegistrationConformance<P>(): readonly ConformanceCase<
   ]
 }
 
-// ---------------------------------------------------------------------------------------------
-// The non-durable register service
-// ---------------------------------------------------------------------------------------------
-
 export interface MemoryToolRegistrations<P> extends ToolRegistrationService<P> {
   readonly durability: 'none'
   readonly controls: Readonly<{
@@ -650,7 +575,6 @@ export interface MemoryToolRegistrations<P> extends ToolRegistrationService<P> {
   }>
 }
 
-/** An evidence that the check accepts, and the tenant that it names. */
 export type ToolRegistrationGrant = Readonly<{ authority: DurableEvidence; tenant: TenantId }>
 
 type Entry<P> = {
@@ -671,8 +595,6 @@ function tenantKey(tenant: TenantId): string {
 const sameEvidence = (left: DurableEvidence, right: DurableEvidence): boolean =>
   left.owner === right.owner && left.record === right.record && left.digest === right.digest
 
-// Minted when a fixture is built, not when the module loads: an illegal text then fails the case
-// that uses it instead of the import of every suite.
 const memoryTenant = (): TenantId =>
   testingTenant('org_c0nf0rmance000000000000000', 'acc_c0nf0rmance000000000000000')
 const memoryOtherTenant = (): TenantId =>
@@ -687,7 +609,6 @@ const MEMORY_AUTHORITY = evidenceOf('authority')
 const MEMORY_RENEWED_AUTHORITY = evidenceOf('authority-renewed')
 const MEMORY_OTHER_AUTHORITY = evidenceOf('authority-other')
 
-/** The grants of the in-memory fixture: two evidences of one tenant, and one of another. */
 function memoryGrants(tenant: TenantId, otherTenant: TenantId): readonly ToolRegistrationGrant[] {
   return [
     { authority: MEMORY_AUTHORITY, tenant },
@@ -696,13 +617,6 @@ function memoryGrants(tenant: TenantId, otherTenant: TenantId): readonly ToolReg
   ]
 }
 
-/**
- * A register service in memory. The check, the test for a conflicting entry and the write are one
- * synchronous step, so no other register can come between them. The check accepts an authority
- * only for the tenant that its grant names. An entry is keyed by tenant and call; it is recalled
- * by the same fiber, handle object, instance, execution and authority, and it is removed only by
- * its own token, whether by `release` or by the end of its fiber.
- */
 export function createMemoryToolRegistrations<P>(
   grants: readonly ToolRegistrationGrant[] = memoryGrants(memoryTenant(), memoryOtherTenant()),
 ): MemoryToolRegistrations<P> {
@@ -783,7 +697,6 @@ export function createMemoryToolRegistrations<P>(
   return Object.freeze({ ...service, durability: 'none' as const, controls })
 }
 
-/** A fresh fixture over a fresh in-memory register service, with every control handle. */
 export function memoryToolRegistrationFixture(): ToolRegistrationFixture<string> {
   const tenant = memoryTenant()
   const otherTenant = memoryOtherTenant()
@@ -804,28 +717,8 @@ export function memoryToolRegistrationFixture(): ToolRegistrationFixture<string>
   }
 }
 
-// ---------------------------------------------------------------------------------------------
-// The G7 suite of the binding registry (`ToolBindingRegistry.register` and the registry reads) and
-// a non-durable registry that conforms to it. The suite follows the registration-semantics suite:
-// no test framework, no Cordis runtime; the fixture gives the registry, the authorities of two
-// keys and the fiber controls. The double declares `durability: 'none'`, keeps everything in one
-// process and must not be assembled into production. The dynamics suite of RFC-0012 is a
-// skeleton here: its ten cases name the criteria and report not applicable until 2.5 fills them.
-// ---------------------------------------------------------------------------------------------
-
-/** The registry that the G7 suite checks: `register` and the registry reads and marks. */
 export type ToolBindingRegistryService<P> = ToolBindingRegistry<P, unknown, ContentBlock>
 
-/**
- * What the G7 suite needs. A fresh fixture serves one case. `access` is a registrant the registry
- * admits at the layer of `authority`; `authority` and `otherAuthority` name two different binding
- * keys that the origin check accepts for that registrant; `foreignAuthority` names a key whose
- * origin check refuses (`denied`); a case that needs one that is missing reports not applicable.
- * `loaded(authority, digest)` builds a trusted loaded registration for the key of `authority` with
- * the given load digest. `asFiber` runs `work` as the caller fiber named `fiber`, and every
- * `register` that `work` starts belongs to that fiber; `endFiber` ends that fiber and its
- * automatic withdrawals, and resolves after the last entry is gone.
- */
 export interface ToolBindingRegistryFixture<P> {
   readonly registry: ToolBindingRegistryService<P>
   readonly access: Access<P>
@@ -884,7 +777,6 @@ const bindingCase = <P>(
   run: (fixture: ToolBindingRegistryFixture<P>) => Promise<void>,
 ): ConformanceCase<ToolBindingRegistryFixture<P>> => ({ name, clause: 'G7', run })
 
-/** The G7 cases: recognition, conflict, successor, late release, race and the registry reads. */
 export function toolBindingRegistryConformance<P>(): readonly ConformanceCase<
   ToolBindingRegistryFixture<P>
 >[] {
@@ -1106,7 +998,6 @@ export function toolBindingRegistryConformance<P>(): readonly ConformanceCase<
   ]
 }
 
-/** G7 access by layer: official to every tenant, organization to the same organization, tenant to the same tenant. */
 function visibleTo(layer: SourceLayer, tenant: Access<unknown>['tenant']): boolean {
   if (!tenantCodec.encode(tenant).ok) return false
   switch (layer.kind) {
@@ -1117,7 +1008,6 @@ function visibleTo(layer: SourceLayer, tenant: Access<unknown>['tenant']): boole
     case 'tenant':
       return sameSourceLayer(layer, { kind: 'tenant', tenant })
     case 'workspace':
-      // The double has no workspace grants: a workspace entry is visible to no tenant scope.
       return false
     default: {
       const unreachable: never = layer
@@ -1126,16 +1016,11 @@ function visibleTo(layer: SourceLayer, tenant: Access<unknown>['tenant']): boole
   }
 }
 
-// ---------------------------------------------------------------------------------------------
-// The non-durable binding registry
-// ---------------------------------------------------------------------------------------------
-
 export interface MemoryToolBindingRegistry<P> extends ToolBindingRegistryService<P> {
   readonly durability: 'none'
   readonly controls: Readonly<{
     asFiber<T>(fiber: string, work: () => T): T
     endFiber(fiber: string): Promise<void>
-    /** The answer of the origin check for an authority, by the text of its holding evidence. */
     verify(authority: ToolAuthority): Outcome<VerifiedAuthority, ToolAuthorityFailure>
   }>
 }
@@ -1150,19 +1035,11 @@ type BindingEntry = {
   readonly entry: { state: 'live' | 'draining'; shape: ToolBindingEntry['shape'] }
 }
 
-/** The grants of the in-memory registry: which holdings the origin check accepts, and for which registrant tenants. */
 export type ToolBindingGrant = Readonly<{
   authority: ToolAuthority
-  /** The tenants that may register at this authority's layer; null admits every tenant. */
   registrants: readonly Access<unknown>['tenant'][] | null
 }>
 
-/**
- * A binding registry in memory. The origin check, the conflict test and the write are one
- * synchronous step, so no other register can come between them. The entry is keyed by the
- * verified binding key; it is recognised by the same fiber with the same digest, and removed only
- * by its own token, whether by `release` or by the end of its fiber (G7).
- */
 export function createMemoryToolBindingRegistry<P>(
   grants: readonly ToolBindingGrant[],
 ): MemoryToolBindingRegistry<P> {
@@ -1173,7 +1050,6 @@ export function createMemoryToolBindingRegistry<P>(
 
   const find = (key: ToolBindingKey): BindingEntry | undefined =>
     entries.find(entry => sameBindingKey(entry.key, key))
-  // The double is the origin check here, so it is the one place that brands a granted authority.
   const verify = (authority: ToolAuthority): Outcome<VerifiedAuthority, ToolAuthorityFailure> => {
     const grant = grants.find(candidate =>
       sameEvidence(candidate.authority.holding, authority.holding),
@@ -1279,7 +1155,6 @@ export function createMemoryToolBindingRegistry<P>(
     asFiber: (fiber, work) => fibers.run(fiber, work),
     endFiber: fiber => {
       ended.add(fiber)
-      // Release mutates `entries`: pick the fiber's entries first, then release them.
       for (const entry of entries.filter(item => item.fiber === fiber)) entry.contribution.release()
       return Promise.resolve()
     },
@@ -1288,7 +1163,6 @@ export function createMemoryToolBindingRegistry<P>(
   return Object.freeze({ ...registry, durability: 'none' as const, controls })
 }
 
-/** A tool scope definition for the fixture: a read_file function tool at version `revision`. */
 function fixtureDefinition(name: string, adoption: Adoption): ToolDefinition {
   return {
     adoption,
@@ -1344,10 +1218,6 @@ function authorityOf(
   }
 }
 
-/**
- * A loaded registration for the double. Only a trusted loader builds this handle in production;
- * the double builds it for the suite and never leaves the testing entry.
- */
 function loadedFor(
   authority: ToolAuthority,
   digest: string,
@@ -1373,11 +1243,9 @@ function loadedFor(
     executor: { owner: 'conformance', name: 'executor', revision: '1', digest },
     settings: { owner: 'conformance', name: 'settings', revision: '1', digest: 'sha256:settings' },
   }
-  // The brand of a loaded registration has no run-time value; the double is the trusted loader here.
   return loaded as unknown as ToolLoadedRegistration<unknown, ContentBlock>
 }
 
-/** A fresh fixture over a fresh in-memory binding registry, with every control handle. */
 export function memoryToolBindingRegistryFixture(): ToolBindingRegistryFixture<string> {
   const tenant = testingTenant('org_c0nf0rmance000000000000000', 'acc_c0nf0rmance000000000000000')
   const access: Access<string> = { principal: 'registrant', tenant }
@@ -1400,22 +1268,12 @@ export function memoryToolBindingRegistryFixture(): ToolBindingRegistryFixture<s
   }
 }
 
-// ---------------------------------------------------------------------------------------------
-// The dynamics suite skeleton (RFC-0012, SYS-DYNAMIC for Tool)
-// ---------------------------------------------------------------------------------------------
-
-/**
- * What the dynamics suite will drive: a real Cordis `Context` with the five stable providers, the
- * generation coordinator and a session reference reader. The handles are named here so 2.5 fills
- * the case bodies against a fixed fixture shape; every case reports not applicable until then.
- */
 export interface ToolDynamicsFixture {
   readonly context?: unknown
   readonly generations?: unknown
   readonly residency?: unknown
 }
 
-/** The ten criteria of RFC-0012「验收判据」, in order. */
 export const TOOL_DYNAMICS_CRITERIA = [
   'the fiber uid of toolRuntime, toolCommands, toolReads and toolInstances is unchanged across a load',
   'same-key recognition and conflict; release withdraws only its own token; a late release leaves the successor',
@@ -1433,26 +1291,21 @@ const dynamicsCase = (index: number, name: string): ConformanceCase<ToolDynamics
   name: `dynamics ${index + 1}: ${name}`,
   clause: 'RFC-0012',
   run: () => {
-    // The case body arrives with 2.5 (coordinator and author plugin on real Cordis 4.0.4).
     throw new NotApplicable('generations')
   },
 })
 
-/** The dynamics suite skeleton: ten named cases, each not applicable until 2.5 fills it. */
 export function runToolDynamicsSuite(): readonly ConformanceCase<ToolDynamicsFixture>[] {
   return TOOL_DYNAMICS_CRITERIA.map((name, index) => dynamicsCase(index, name))
 }
 
-/** Source facts for this key. Include equal holder texts under different tenants. */
 export interface ToolResidencyReaderFixture {
   readonly reader: ToolResidencyReader
   readonly key: ToolBindingKey
   readonly references: readonly ToolResidencyReference[]
-  /** Makes the next page read unavailable, including an already obtained cursor. */
   interrupt?(): void
 }
 
-/** Reader checks only; this suite does not implement the generation coordinator. */
 export function toolResidencyReaderConformance(): readonly ConformanceCase<ToolResidencyReaderFixture>[] {
   return [
     {
@@ -1516,7 +1369,6 @@ export {
   type ScriptedToolGenerations,
 } from './testing-adoption-scripts.ts'
 
-/** The scripted generation coordinator of RD-COORD; see testing-adoption-scripts.ts. `loaderFor` throws `NotApplicable`. */
 export function createScriptedToolGenerations<P, E, B extends ContentBlock>(
   input: Readonly<{ registry?: ToolBindingRegistry<P, E, B> }> = {},
 ): ScriptedToolGenerations<P, E, B> {
@@ -1525,7 +1377,6 @@ export function createScriptedToolGenerations<P, E, B extends ContentBlock>(
   })
 }
 
-/** The round-trip suite of the resident key (XC-RESKEY); see testing-resident-key.ts. */
 export function residentKeyRoundTripConformance(): readonly ConformanceCase<ResidentKeyRoundTripFixture>[] {
   return residentKeyCases({
     tenant: testingTenant,

@@ -1,10 +1,3 @@
-// The `./testing` entry: a scripted `modelRuntime` host with a receiver table, and the conformance
-// cases of the result receiver registration. The host runs on a real Cordis Context. It is not a
-// Model runtime: the three root members fail when called, and only the registration is real. The
-// suite drives a host that the fixture hands in, through the public method and the plugin
-// lifecycle only, so a provider can run the same cases against its own runtime. Passing proves the
-// registration rules in one process. It proves nothing about the push stage that resolves from
-// the table.
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import type { ModelResultReceiver } from '@omne-harness/model-contract'
 import { ModelRuntimeService } from '../cordis.ts'
@@ -31,21 +24,16 @@ class ScriptedModelRuntimeService<P> extends ModelRuntimeService<P> {
   readonly instances = { connect: unused }
 }
 
-/** A `modelRuntime` provider on its own Context, and the lookup the push stage would use. */
 export interface ModelResultReceiverHost<P> {
-  /** The root Context. The `modelRuntime` service is provided by a plugin fiber below it. */
   readonly context: Context
-  /** The receiver of the live registration under `owner`, or `null`. */
   resolve(owner: string): ModelResultReceiver<P> | null
   dispose(): Promise<void>
 }
 
 export type ScriptedModelRuntimeHostOptions<P> = Readonly<{
-  /** Replaces the table. For a test that must show the suite goes red on a broken table. */
   table?: ModelResultReceiverTable<P>
 }>
 
-/** Starts a scripted `modelRuntime` whose registration uses the real table unless told otherwise. */
 export async function createScriptedModelRuntimeHost<P = unknown>(
   options: ScriptedModelRuntimeHostOptions<P> = {},
 ): Promise<ModelResultReceiverHost<P>> {
@@ -67,19 +55,15 @@ export async function createScriptedModelRuntimeHost<P = unknown>(
 }
 
 export interface ModelResultReceiverFixture {
-  /** A fresh host for each case. */
   create(): Promise<ModelResultReceiverHost<unknown>>
 }
 
 export type ModelResultReceiverCase = Readonly<{
   name: string
-  /** The rule the case holds, in words. */
   clause: string
   run(): Promise<void>
 }>
 
-// Cordis fiber states by value: ACTIVE 2, FAILED 3, UNLOADING 5. The enum is not importable as a
-// value.
 const ACTIVE = 2
 const FAILED = 3
 const UNLOADING = 5
@@ -99,7 +83,6 @@ function check(condition: boolean, message: string): void {
   if (!condition) throw new Error(message)
 }
 
-/** Loads a plugin that registers `owner` once and keeps the removal function it got. */
 function registrant(
   host: Host,
   name: string,
@@ -122,16 +105,9 @@ function registrant(
 async function settled(fiber: Fiber): Promise<void> {
   try {
     await fiber
-  } catch {
-    // A failed fiber is read from its state, not from the rejection.
-  }
+  } catch {}
 }
 
-/**
- * The conformance cases of `registerResultReceiver`: registration takes effect at once, a live
- * fiber's owner cannot be taken by another live fiber, a registration of an unloading fiber is
- * replaced, and a plugin that reruns registers again without failing.
- */
 export function modelResultReceiverConformance(
   fixture: ModelResultReceiverFixture,
 ): readonly ModelResultReceiverCase[] {
@@ -191,9 +167,6 @@ export function modelResultReceiverConformance(
         })
         await settled(claimant)
         const during: { state?: number; resolved?: Receiver | null; failure?: unknown } = {}
-        // Cordis runs the removal of the later effect of a fiber first, and it runs
-        // synchronously, so this hook runs while the old fiber is unloading and its own
-        // registration is not yet removed.
         const old = registrant(host, 'old', 'owner', first, ctx => {
           ctx.effect(
             () => () => {

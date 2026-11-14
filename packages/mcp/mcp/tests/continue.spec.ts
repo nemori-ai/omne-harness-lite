@@ -1,7 +1,3 @@
-// The call port `continueWithInput` (SPEC S2, MC-16): a continuation completes on the generation
-// the `inputRequired` outcome was issued at; once the connection changed generation it is not
-// sent, and nothing is sent on the new generation; the request state alone is a lawful
-// continuation.
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import type {
@@ -41,10 +37,6 @@ const ASKS: PeerReply = {
   result: { resultType: 'input_required', requestState: 's1', inputRequests: { q: 1 } },
 }
 
-/**
- * A peer whose `read` first asks for input, then completes; adopted, with the catalog stored.
- * `shape` replaces ports with ones shaped on the peer's own.
- */
 async function arranged(shape: (p: Peer) => Partial<McpPorts<Principal, string>> = () => ({})) {
   const p = peer({
     listing: { '': listing([{ name: 'read' }]) },
@@ -60,7 +52,6 @@ async function arranged(shape: (p: Peer) => Partial<McpPorts<Principal, string>>
 
 type Arranged = Awaited<ReturnType<typeof arranged>>
 
-/** The first call, which the peer answers with an input request; answers the generation. */
 async function asked(c: Arranged, digest: DefinitionDigest): Promise<Generation> {
   const first = await c.invoker.invoke(alice, {
     ref: files,
@@ -231,8 +222,6 @@ describe('continueWithInput (SPEC S2)', () => {
     const stored = await storedRecord(p, anonymousKey, ['read'])
     const digest = stored.actions[0]?.definitionDigest
     if (digest === undefined) throw new Error('no digest')
-    // Adoption reads: the first call's gate (1) and re-read (2); the continuation's gate (3) and
-    // re-read (4). The fourth is delivered only when the case lets it go.
     const stalled = stallingAdoption(p.adoption, 4)
     const { services: s, table } = services({ ...p, ports: { ...p.ports, adoption: stalled.port } })
     const c = { p, digest, table, ...s }
@@ -244,7 +233,6 @@ describe('continueWithInput (SPEC S2)', () => {
       continuation(issuedAt, { requestState: requestStateOf('s1') }),
     )
     await settled()
-    // The generation check before the build passed; now the connection is lost under the re-read.
     await loseOn(table, first, { reason: 'stream-broken', mark: 'connection-unavailable' })
     stalled.gate.resolve()
     expect(await continued).toEqual({ kind: 'not-sent', reason: { kind: 'unknown' } })
@@ -277,7 +265,6 @@ describe('continueWithInput (SPEC S2)', () => {
     const issuedAt = await asked(c, c.digest)
     let reads = 0
     const unjudged: JsonValue = { kind: 'number', lexeme: 'NaN' }
-    // The accessor answers nothing first and a tree that fails judgeJsonValue after.
     const request = Object.defineProperty(
       continuation(issuedAt, { requestState: requestStateOf('s1') }),
       'inputResponses',

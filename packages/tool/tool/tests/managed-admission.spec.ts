@@ -79,7 +79,6 @@ describe('10 boundary and qualification', () => {
       kind: 'rejected',
       failure: { kind: 'denied', action: 'admit' },
     })
-    // The halves are typed identities: an account half under another name is not a tenant.
     const misnamed = { ...tenantA, account: { name: 'OrganizationId', text: 'acc_a' } }
     expect(await runtime.invoke({ ...input, tenant: misnamed as never })).toEqual({
       kind: 'rejected',
@@ -179,7 +178,6 @@ describe('10 boundary and qualification', () => {
       }),
       account: assembly.runtime.queries.account({ ...theirs, reference }),
     }
-    // Each operation names its own resource action, so a guard can grant them separately.
     const actions: Record<keyof typeof probes, string> = {
       invoke: 'admit',
       lookup: 'lookup',
@@ -197,8 +195,6 @@ describe('10 boundary and qualification', () => {
           : { failure: { kind: 'denied', action: actions[name as keyof typeof probes] } },
       ])
     }
-    // R2-D357: tenant B's partition has no such call; it learns only "never accepted", the
-    // answer for a reference no tenant ever admitted.
     expect(
       await assembly.runtime.queries.lookup({ principal: principalB, tenant: tenantB, reference }),
     ).toEqual({ ok: { kind: 'not-accepted', operation: 'op-1' } })
@@ -276,7 +272,6 @@ describe('10 boundary and qualification', () => {
     const denied = { kind: 'rejected', failure: { kind: 'denied', action: 'admit' } }
     const acceptedAnswer = await invoke(granted())
     expect(accepted(acceptedAnswer.answer).state.phase).toBe('accepted')
-    // A grant that is missing, or issued for another key, owner, tenant or caller, admits nothing.
     for (const grants of [
       new Map<string, ScopeGrant>(),
       granted({ key: 'scope-2' }),
@@ -296,7 +291,6 @@ describe('10 boundary and qualification', () => {
       failure: { kind: 'denied', action: 'admit' },
     })
     expect(none.store.commits).toBe(0)
-    // Another owner is not covered by the declared one.
     const other = request({ scope: { ...request().scope, owner: 'undeclared-owner' } })
     const declared = harness()
     expect(await declared.admitInternal(other)).toEqual({
@@ -341,7 +335,6 @@ describe('10 boundary and qualification', () => {
         record.kind === 'queue-entry' ? [record.entry.ordinal] : [],
       )
     }
-    // Each tenant's first call is first in its own queue, though the key texts are equal.
     expect(await ordinals(tenantA)).toEqual(['1'])
     expect(await ordinals(tenantB)).toEqual(['1'])
   })
@@ -595,7 +588,6 @@ describe('11 operation idempotency (P01)', () => {
       failure: { kind: 'commit-unknown', operation: 'op-1' },
     })
     expect(await ledger.reads.operation(query)).toEqual({ ok: { kind: 'not-committed' } })
-    // The held commit expected the revision that the fence advanced, so it cannot land.
     expect(store.landDelayed()).toEqual([{ kind: 'conflict' }])
     expect(await ledger.reads.operation(query)).toEqual({ ok: { kind: 'not-committed' } })
     const admitted = ok(
@@ -610,7 +602,6 @@ describe('11 operation idempotency (P01)', () => {
   it('11 idempotency: a commit that lands before the fence is recognised, not excluded', async () => {
     const memory = createMemoryToolLedgerStore()
     faultAdmission(memory, 'unknown-delayed')
-    // The held commit lands just before the fence commit, as a slow store would apply it.
     const racing: ToolLedgerStore = {
       durability: 'none',
       scanPending: input => memory.scanPending(input),
@@ -669,7 +660,6 @@ describe('11 operation idempotency (P01)', () => {
     const { ledger, runtime } = assembly
     const first = accepted(await assembly.admitInternal(dummyRequest()))
     const reference = assembly.referenceOf('call-1')
-    // A negative lookup fences the domain; the state and its revision stay as they were.
     expect(
       await runtime.queries.lookup({
         principal: principalA,
@@ -887,7 +877,6 @@ describe('12 logical terminals (P02)', () => {
     })
     const recovery = ok(await assembly.ledger.commands.loadRecovery(admission('call-1', 'op-1')))
     expect(recovery.tasks.map(task => task.kind)).toEqual(['queue'])
-    // The admission commit and the queue step that gives the call its ordinal.
     expect(assembly.store.commits).toBe(2)
     expect([...assembly.spies.calls.keys()]).toEqual([])
     expect(assembly.host.scheduled.map(wake => wake.call)).toEqual(['call-1'])
@@ -951,8 +940,6 @@ describe('13 invocation permission', () => {
       failure: { kind: 'invalid', field: 'request.mode', reason: 'background-not-allowed' },
     }
     expect(await assembly.admitInternal(request({ mode: 'background' }))).toEqual(refused)
-    // A dummy and an argument failure would settle without running; the request is still one
-    // that the definition does not permit, so it gets the same refusal and nothing is admitted.
     expect(await assembly.admitInternal(dummyRequest({ mode: 'background' }))).toEqual(refused)
     const broken = request({
       mode: 'background',
@@ -988,11 +975,6 @@ const EXCLUDED = {
   diagnostic: 'operation op-1 was excluded by a negative answer; resubmit with the same identity',
 }
 
-/**
- * An admission of op-1 whose commit is overtaken by a negative queryOperation of op-1: the
- * admission read the domain, the query fenced it, the admission's commit conflicted. The
- * admission must then stop, because its negative answer was already given (P01).
- */
 async function overtakenAdmission() {
   const memory = createMemoryToolLedgerStore()
   const query = { ...admission('call-1', 'op-1'), operation: operationId('op-1') }
@@ -1010,7 +992,6 @@ async function overtakenAdmission() {
   expect(stopped).toEqual({ failure: EXCLUDED })
   expect(negative).toEqual({ ok: { kind: 'not-committed' } })
   expect(await ledger.reads.operation(query)).toEqual({ ok: { kind: 'not-committed' } })
-  // The fence of the first query, the overtaken commit, and the fence of the second query.
   expect(memory.commits).toBe(beforeRace + 3)
   return { memory, ledger, query, completedCommits: memory.commits }
 }
@@ -1046,8 +1027,6 @@ describe('14 exclusion fence (P01)', () => {
   })
 
   it('14 exclusion: an operation that committed before the fence is recalled, not excluded', async () => {
-    // The retrying release of op-2 re-reads a domain where op-2 committed and a lookup fenced
-    // op-2 after that (the admission is op-1, so op-2 is "not accepted"): recall wins.
     const memory = createMemoryToolLedgerStore()
     const ledger: ToolLedger<Principal, Block> = ledgerOver(
       interleaving(memory, putsOperation('op-2'), async () => {
@@ -1090,7 +1069,6 @@ describe('14 exclusion fence (P01)', () => {
     expect(await recordsOf(memory)).toEqual([
       { kind: 'exclusion', exclusion: { operation: 'op-1', revision: '1' } },
     ])
-    // Read after the first fence, overtaken by the second: excluded by the newer fence.
     expect(
       await ledger.admissions.admit(
         admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
@@ -1106,7 +1084,6 @@ describe('14 exclusion fence (P01)', () => {
     if (fence?.kind !== 'exclusion') throw new Error('missing exclusion')
     expect(fence.exclusion.operation).toBe('op-1')
     expect(BigInt(fence.exclusion.revision)).toBeGreaterThan(1n)
-    // Read after the second fence, then a conflict without a newer fence: admitted on the retry.
     memory.injectCommit('conflict')
     const admitted = ok(
       await ledger.admissions.admit(

@@ -1,8 +1,3 @@
-// The session diagnostics projection (SPEC「会话诊断投影」): reads the Session history page by
-// page, collects the Runs of this page, fans out to the other sources through the ports, and
-// returns the view with its gaps and the position a next page continues from. Session's refusal is
-// the result of the operation; every other source's refusal is a gap. The sealed cursor and the
-// public answer belong to the session location.
 import type { Access } from '@omne-harness/legal-identity'
 import type { SessionDiagnosticGap, SessionRunDiagnostic } from '@omne-harness/public-contract'
 import type {
@@ -42,12 +37,10 @@ export type ProjectionInput<P> = Readonly<{
   access: SessionAccess<P>
   history: Pick<SessionHistory<P>, 'begin' | 'next'>
   ports: DiagnosticPorts<P>
-  /** The entry kinds the deployment discloses to this projection. */
   kinds: readonly string[]
   limits: DiagnosticsLimits
   run: string | null
   pageBytes: number
-  /** The entry a continued page starts before; null for the first page. */
   from: EntryId | null
 }>
 
@@ -57,7 +50,6 @@ export type ProjectedPage = Readonly<{
   exhausted: boolean
   scannedThrough: string
   upper: string
-  /** The entry a next page starts before; null when the scan is exhausted. */
   continueFrom: EntryId | null
 }>
 
@@ -73,7 +65,6 @@ type Scan = Readonly<{
   continueFrom: EntryId | null
 }>
 
-/** The first page through `begin` from `input.from`; every later page through `next`. */
 function readPage<P>(
   input: ProjectionInput<P>,
   previous: HistoryPage | undefined,
@@ -90,17 +81,11 @@ function readPage<P>(
   return history.next({ ...access, cursor: previous.next as string })
 }
 
-/** Feeds one page to the collector. Returns the index it stopped at, or -1 when it took the whole page. */
 function feedPage(collector: RunCollector, page: HistoryPage): number {
   for (const [index, entry] of page.entries.entries()) if (collector.feed(entry)) return index
   return -1
 }
 
-/**
- * The end of a scan. With a Run filter the scan of that Run is complete. Without one, entries left
- * over in the last page or pages not yet read mean another page can continue before the Run the
- * collection stopped at.
- */
 function scanOf(
   filter: string | null,
   collector: RunCollector,
@@ -120,7 +105,6 @@ function scanOf(
   }
 }
 
-/** Reads Session pages until the collector stops or the history is exhausted. A Session throw propagates. */
 async function scan<P>(input: ProjectionInput<P>): Promise<Scan | SessionFailure> {
   const collector = collectRuns({ run: input.run, maxRuns: input.limits.maxRuns })
   let page: HistoryPage | undefined
@@ -134,10 +118,6 @@ async function scan<P>(input: ProjectionInput<P>): Promise<Scan | SessionFailure
   return scanOf(input.run, collector, page, stoppedIn)
 }
 
-/**
- * The Model branch of one call: `inspect` resolves the reference; a found call lists its attempts;
- * the dispatch records, which carry the accounts, are read only when there is an attempt to account.
- */
 async function modelAnswersOf(
   sources: DiagnosticSources,
   reference: string,
@@ -160,7 +140,6 @@ async function toolAnswersOf(sources: DiagnosticSources, reference: string): Pro
   return { lookup, account, diagnostics }
 }
 
-/** Reads what the other sources know of one Run: its finish when it did not complete, and its first `projected` calls. */
 async function answersOf(
   sources: DiagnosticSources,
   skeleton: RunSkeleton,

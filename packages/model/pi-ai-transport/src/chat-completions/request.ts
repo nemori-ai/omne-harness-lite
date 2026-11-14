@@ -1,9 +1,6 @@
 // Derived from pi 1.0.0, commit a13d35a742c6ef8462812a28fbe1d8c8b7431c32 (buildParams; the source
 // file is named in provenance.json). Copyright (c) 2025 Mario Zechner. MIT: ../../LICENSE.pi.
 // See provenance.json.
-//
-// Request planning and encoding of the gateway engine. Plan and encode share one projection and
-// one body writer, so the representation of the plan is the one that encode produces.
 import type { JsonValue } from '@omne-harness/json-text'
 import {
   type Adoption,
@@ -37,13 +34,11 @@ import type {
   VendorHooks,
 } from './vocabulary.ts'
 
-/** What plan and encode of one binding share. */
 export type RequestContext = Readonly<{
   record: ChatCompletionsRecord
   hooks: VendorHooks
   meter: FamilyMeter
   supplier: Supplier
-  /** The adoption of the record, equal to `supplier.adoption`. */
   adapter: Adoption
 }>
 
@@ -58,10 +53,6 @@ function sameAdoption(left: Adoption, right: Adoption): boolean {
   )
 }
 
-/**
- * Checks that the profile names this supplier, and gives its replay declaration with every
- * default applied: the declaration that the request of this profile fixes for the supplier.
- */
 function profileDeclaration(
   context: RequestContext,
   profile: ModelProfile,
@@ -83,7 +74,6 @@ function profileDeclaration(
   return 'ok' in declared ? declared : { failure: declared.failure }
 }
 
-/** The diagnostics of one encoding: a `replay-omitted` for each message whose reasoning state parts stay out. */
 function diagnosticsOf(projection: Projection): readonly ProviderDiagnostic[] {
   return projection.diagnostics.map(item => ({
     kind: 'replay-omitted',
@@ -94,12 +84,6 @@ function diagnosticsOf(projection: Projection): readonly ProviderDiagnostic[] {
   }))
 }
 
-/**
- * The gateway parameters of the applied values, then the fixed values of the record. Two applied
- * values for one gateway field are `invalid` (`parameterAdoptions`, `repeated`): a request whose
- * suppliers share one adoption, for example a factory and a tenant credential, gives this binding
- * the planned parameters of each, and the body can hold only one.
- */
 function gatewayParams(
   context: RequestContext,
   applied: readonly Parameter[],
@@ -122,7 +106,6 @@ function gatewayParams(
   return { ok: params }
 }
 
-/** The request body. Sorted keys; never a URL, a header or a credential. */
 function bodyOf(
   context: RequestContext,
   projection: Projection,
@@ -154,7 +137,6 @@ function bodyOf(
   }
 }
 
-/** The projection as the meter reads it, with the gateway tool names. */
 function viewOf(projection: Projection, applied: readonly Parameter[]): ProjectedRequest {
   return {
     instruction: projection.instruction,
@@ -176,7 +158,6 @@ function viewOf(projection: Projection, applied: readonly Parameter[]): Projecte
   }
 }
 
-/** Builds the body and its representation, and checks the representation adoption. */
 function represent(
   context: RequestContext,
   input: Readonly<{
@@ -207,11 +188,6 @@ function represent(
   }
 }
 
-/**
- * `rules.plan`: the supplier and its replay declaration, parameter planning, the projection,
- * the family check and the representation, in this order. The projection uses the declaration of
- * the profile, which the request of this profile fixes, and no re-dispatch.
- */
 export function planRequest(
   context: RequestContext,
   input: Readonly<{ profile: ModelProfile; supplier: Supplier; assembled: AssembledModelInput }>,
@@ -259,12 +235,6 @@ export function planRequest(
   return { ok: { parameters, representation: encoded.ok.representation } }
 }
 
-/**
- * `encode`: the same projection over the fixed request, with the declaration that the request
- * fixes for this supplier and the messages that this dispatch leaves out, the planned parameters
- * of this supplier, then the body, its representation and the diagnostics of the encoding. Media
- * references are refused: inline media only.
- */
 export function encodeRequest(
   context: RequestContext,
   input: Readonly<{

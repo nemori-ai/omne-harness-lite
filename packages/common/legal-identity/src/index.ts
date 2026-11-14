@@ -17,7 +17,6 @@ type IdentityTypeName = IdentitySpec['name']
 type AtomicSpec = Extract<IdentitySpec, { readonly prefix: string }>
 type AtomicName = AtomicSpec['name']
 
-/** Identity type names for static checks. Login identifiers are account attributes, not identity types. */
 export const IDENTITY_TYPE_NAMES = Object.freeze(IDENTITY_SPECS.map(spec => spec.name))
 
 interface AtomicIdentity<N extends AtomicName> {
@@ -60,7 +59,6 @@ export type IdentityTextResult<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly error: IdentityTextError }
 
-/** Rejected input is a failure result. Neither function throws, trims, or folds case. */
 export interface IdentityTextCodec<T> {
   readonly parse: (text: string) => IdentityTextResult<T>
   readonly encode: (value: T) => IdentityTextResult<string>
@@ -72,8 +70,6 @@ const UPPERCASE = /[A-Z]/
 
 const TENANT_MEMBERS = ['organization', 'account'] as const
 
-// A type assertion can build any of these shapes, so membership here is the only proof that
-// parse or tenant() built the value.
 const minted = new WeakSet<object>()
 
 function mint<T extends object>(value: T): T {
@@ -161,22 +157,18 @@ export const loginStateCodec: IdentityTextCodec<LoginStateId> = atomicCodec(LOGI
 
 export const workspaceCodec: IdentityTextCodec<WorkspaceId> = atomicCodec(WORKSPACE_SPEC)
 
-/** False unless both values came from parse. */
 export function accountEquals(left: AccountId, right: AccountId): boolean {
   return atomicEquals(left, right, 'AccountId')
 }
 
-/** False unless both values came from parse. */
 export function organizationEquals(left: OrganizationId, right: OrganizationId): boolean {
   return atomicEquals(left, right, 'OrganizationId')
 }
 
-/** False unless both values came from parse. */
 export function loginStateEquals(left: LoginStateId, right: LoginStateId): boolean {
   return atomicEquals(left, right, 'LoginStateId')
 }
 
-/** False unless both values came from parse. */
 export function workspaceEquals(left: WorkspaceId, right: WorkspaceId): boolean {
   return atomicEquals(left, right, 'WorkspaceId')
 }
@@ -185,7 +177,6 @@ function mintTenant(organization: OrganizationId, account: AccountId): TenantId 
   return mint<TenantId>({ name: 'TenantId', organization, account })
 }
 
-/** Throws TypeError unless both halves came from parse. */
 export function tenant(organization: OrganizationId, account: AccountId): TenantId {
   if (!isMinted(organization, 'OrganizationId') || !isMinted(account, 'AccountId'))
     throw new TypeError(
@@ -208,14 +199,12 @@ function tenantMembers(value: TenantId) {
   return { organization: value.organization.text, account: value.account.text }
 }
 
-/** Tenant text is a JSON object with exactly the `organization` and `account` members. */
 export const tenantCodec: IdentityTextCodec<TenantId> = Object.freeze({
   parse: (text: string) => parseJsonText(text, parseTenantValue),
   encode: (value: TenantId) =>
     isMinted(value, 'TenantId') ? success(JSON.stringify(tenantMembers(value))) : failure('type'),
 })
 
-/** False unless both values came from parse or tenant(). */
 export function tenantEquals(left: TenantId, right: TenantId): boolean {
   return (
     isMinted(left, 'TenantId') &&
@@ -260,10 +249,6 @@ function scopeLayerMembers(value: ScopeLayerIdentity) {
     : { layer: value.layer, tenant: tenantMembers(value.tenant) }
 }
 
-/**
- * Scope layer text is a JSON object whose `layer` is `organization` or `tenant`, plus one member
- * named after that layer. Every other layer name is `family`.
- */
 export const scopeLayerCodec: IdentityTextCodec<ScopeLayerIdentity> = Object.freeze({
   parse: (text: string) => parseJsonText(text, parseScopeLayerValue),
   encode: (value: ScopeLayerIdentity) =>
@@ -272,7 +257,6 @@ export const scopeLayerCodec: IdentityTextCodec<ScopeLayerIdentity> = Object.fre
       : failure('type'),
 })
 
-/** False unless both values came from parse. */
 export function scopeLayerEquals(left: ScopeLayerIdentity, right: ScopeLayerIdentity): boolean {
   if (!isMinted(left, 'ScopeLayerIdentity') || !isMinted(right, 'ScopeLayerIdentity')) return false
   if (left.layer === 'organization')
@@ -282,15 +266,6 @@ export function scopeLayerEquals(left: ScopeLayerIdentity, right: ScopeLayerIden
   return right.layer === 'tenant' && tenantEquals(left.tenant, right.tenant)
 }
 
-// ---------------------------------------------------------------------------------------------
-// Acting scope and access. These are the shared shapes that consumers use to say whose facts an
-// action belongs to. They are not identity type names: IDENTITY_TYPE_NAMES stays as it is.
-
-/**
- * Whose facts an action belongs to: one tenant, or the system itself for no tenant. There is no
- * form with an empty or default tenant. A value comes only from `tenantScope`, `systemScope` or
- * `actingScopeCodec.parse`.
- */
 export type ActingScope =
   | { readonly kind: 'tenant'; readonly tenant: TenantId }
   | { readonly kind: 'system' }
@@ -301,14 +276,12 @@ function isMintedScope(value: ActingScope): boolean {
   return minted.has(value) && (value.kind === 'tenant' || value.kind === 'system')
 }
 
-/** The scope of an action done for one tenant. Throws TypeError unless `tenant` came from parse or tenant(). */
 export function tenantScope(tenant: TenantId): ActingScope {
   if (!isMinted(tenant, 'TenantId'))
     throw new TypeError('tenantScope() accepts only a TenantId returned by parse or tenant()')
   return mint<ActingScope>({ kind: 'tenant', tenant })
 }
 
-/** The scope of an action the system does for no tenant. */
 export function systemScope(): ActingScope {
   return SYSTEM_SCOPE
 }
@@ -337,35 +310,20 @@ function actingScopeMembers(value: ActingScope) {
     : { kind: value.kind, tenant: tenantMembers(value.tenant) }
 }
 
-/**
- * Acting scope text is `{"kind":"system"}` or `{"kind":"tenant","tenant":<tenant text>}`. Every
- * other kind is `family`. A tenant member follows the tenant text rules.
- */
 export const actingScopeCodec: IdentityTextCodec<ActingScope> = Object.freeze({
   parse: (text: string) => parseJsonText(text, parseActingScopeValue),
   encode: (value: ActingScope) =>
     isMintedScope(value) ? success(JSON.stringify(actingScopeMembers(value))) : failure('type'),
 })
 
-/** False unless both values came from tenantScope, systemScope or parse. */
 export function actingScopeEquals(left: ActingScope, right: ActingScope): boolean {
   if (!isMintedScope(left) || !isMintedScope(right)) return false
   if (left.kind === 'system') return right.kind === 'system'
   return right.kind === 'tenant' && tenantEquals(left.tenant, right.tenant)
 }
 
-/**
- * The access basis of one call: the principal and the explicit tenant the call acts in. This is
- * the one definition that the contract members re-export. The tenant is never inferred from a
- * connection, a process, an assembly or a credential; the caller passes it. `P` is the principal
- * type that the assembly chose; this package does not know what a principal is.
- */
 export type Access<P> = Readonly<{ principal: P; tenant: TenantId }>
 
-/**
- * Builds an access basis. Throws TypeError unless `tenant` came from parse or tenant(). The
- * principal is kept as given: whether it is trustworthy is the verifier's question, not this one.
- */
 export function access<P>(principal: P, tenant: TenantId): Access<P> {
   if (!isMinted(tenant, 'TenantId'))
     throw new TypeError('access() accepts only a TenantId returned by parse or tenant()')

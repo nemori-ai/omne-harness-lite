@@ -1,6 +1,3 @@
-// The edges of the Ask command: how long a card text and a whole request may be, which shapes the
-// codec refuses and what it names, which state and replies the resume segment refuses, and what the
-// declared schemas close. The cases that `ask.spec.ts` shows by example are not repeated here.
 import { describe, expect, it } from 'vitest'
 import { readJsonText, writeJsonText } from '@omne-harness/json-text'
 import { createSchemaProvider, validate } from '@omne-harness/schema-provider'
@@ -50,13 +47,9 @@ const approval = {
 }
 
 describe('the limits on the text of a card', () => {
-  // A code point outside the BMP takes two UTF-16 units, so these also show that the length is
-  // counted in code points, as HITL counts it.
   const wide = (count: number) => '😀'.repeat(count)
 
   it('takes a title, a description, a label and an approval field of exactly the longest size, and no longer', () => {
-    // The long texts go over as one-unit characters, so that the codec's own budget on a string
-    // does not refuse them first.
     const cases: [string, (text: string) => unknown, number][] = [
       ['questions[0].title', text => ask(question({ title: text })), 256],
       ['questions[0].description', text => ask(question({ description: text })), 4096],
@@ -119,7 +112,6 @@ describe('the limits on the text of a card', () => {
           }),
         ),
       )
-    // The two are joined by a blank line, which takes two more.
     expect(together(2000, 2094)).toBe('accepted')
     expect(together(2000, 2095)).toBe('invalid-field:questions[0].options[0].diagram')
     expect(together(4096, 1)).toBe('invalid-field:questions[0].options[0].diagram')
@@ -155,9 +147,6 @@ describe('the limits on the text of a card', () => {
 describe('the size of a whole request', () => {
   const MAX = 196_608
   const FIELDS = 7 * 5
-  // Seven questions of four options, every description at its longest. The first `wide` characters
-  // over all of them are two-byte ones and the rest are one-byte ones, which tunes the size of the
-  // request one byte at a time.
   const batch = (wide: number): AskArguments => {
     let left = wide
     const text = () => {
@@ -190,7 +179,6 @@ describe('the size of a whole request', () => {
   it('takes a request of exactly the declared bytes and refuses one byte more', async () => {
     expect(await sizeOf(0)).not.toBeNull()
     expect(await sizeOf(FIELDS * 4096)).toBeNull()
-    // `taken` stays a size that passes and `refused` one that does not, until they are adjacent.
     let taken = 0
     let refused = FIELDS * 4096
     while (refused - taken > 1) {
@@ -345,7 +333,6 @@ describe('what the declared schemas close', () => {
   const check = (ref: Parameters<typeof validate>[1], value: unknown) =>
     validate(provider, ref, readJsonText(JSON.stringify(value), limits))
 
-  /** Every object schema of the document, with the path it sits at. */
   function objectSchemas(node: unknown, at = ''): [string, Record<string, unknown>][] {
     if (typeof node !== 'object' || node === null) return []
     const record = node as Record<string, unknown>

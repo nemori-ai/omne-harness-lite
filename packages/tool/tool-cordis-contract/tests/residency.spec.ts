@@ -146,12 +146,6 @@ it.each(['shape', 'duplicate', 'cursor'] as const)(
   },
 )
 
-// C7 (#675, D015) on the Tool side, per the ruling of
-// https://github.com/nemori-ai/omne-harness-lite/issues/675#issuecomment-6480754440: Tool has no
-// freeze entry; the freeze judgment is `planAdoption` over the facts of one holder, read for one
-// tenant. Two tenants have a holder of the same name with different first shapes: judged on its
-// own tenant's facts, one gets `freeze` and the other does not; a missing or unminted tenant is
-// refused by the tenant-scoped read; facts taken under the wrong tenant would give another verdict.
 describe('C7: same-name holders of two tenants are judged on their own tenant facts only', () => {
   const evidenceOf = (record: string): DurableEvidence => ({
     owner: 'conformance',
@@ -179,12 +173,6 @@ describe('C7: same-name holders of two tenants are judged on their own tenant fa
   })
   const HOLDER = 'same-name'
 
-  /**
-   * Two official contributions of `read_file`: v1 (first shape S1) was released; v2 (S2, another
-   * parameter contract) is live and is the winner. The holder named `same-name` exists in tenant
-   * A with first shape S1 and in tenant B with first shape S2; each one recorded the key it first
-   * loaded.
-   */
   function world() {
     const source = memoryToolBindingRegistryFixture()
     const tenantA = source.access.tenant
@@ -228,7 +216,6 @@ describe('C7: same-name holders of two tenants are judged on their own tenant fa
             : { items: references.slice(1), next: null },
         ),
     }
-    // The recorded key of each holder derives from its adoption basis, kept per tenant (R4).
     const recordedKey = (tenant: TenantId): ToolBindingKey =>
       tenantEquals(tenant, tenantA) ? keyOf(v1) : keyOf(v2)
     const reload = { kind: 'missing' as const, evidence: evidenceOf('reload-missing') }
@@ -248,7 +235,6 @@ describe('C7: same-name holders of two tenants are judged on their own tenant fa
   type World = ReturnType<typeof world>
   type Refusal = { kind: 'denied' } | { kind: 'unavailable'; diagnostic: string }
 
-  /** The first shape of `holder` under `tenant`, read from the Reader; refused without a fact of that tenant. */
   async function firstShapeOf(
     w: World,
     tenant: TenantId,
@@ -269,7 +255,6 @@ describe('C7: same-name holders of two tenants are judged on their own tenant fa
       : { ok: shape }
   }
 
-  /** The adoption-point facts of `holder` for `tenant`: Reader fact plus the registry read with that tenant's access. */
   async function factsFor(
     w: World,
     tenant: TenantId,
@@ -319,9 +304,6 @@ describe('C7: same-name holders of two tenants are judged on their own tenant fa
     const factsA = await factsFor(w, w.tenantA)
     const factsB = await factsFor(w, w.tenantB)
     if ('failure' in factsA || 'failure' in factsB) throw new Error('facts must be readable')
-    // A judged on B's first shape would advance instead of freezing; B judged on A's first shape
-    // would keep its recorded key instead of advancing: a holder-name lookup that ignored the
-    // tenant would change both verdicts.
     const crossed = (own: AdoptionFacts, other: AdoptionFacts): AdoptionFacts => ({
       ...own,
       recorded: { ...own.recorded, shape: other.recorded.shape },

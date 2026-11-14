@@ -1,5 +1,3 @@
-// Partial failure, two-phase rollback, whole-transaction end, environment errors and SQ-1
-// (SPEC 7.6, 7.7.1, 7.7.2, 7.7.5, 7.7.6). Scenarios C04 and C22 of the SQL contract.
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { SqlIdentity, CommitResultV2, RolledBackV2 } from '@omne-harness/sql-contract'
@@ -78,7 +76,6 @@ describe('C04: local failure inside a group (SPEC 7.7.1)', () => {
     expect(
       rolledBack(b).responses.map(entry => `${entry.participant}:${entry.reply.kind}`),
     ).toEqual(['seq:conflict'])
-    // The suffix ran in a new outer transaction: the prefix and the rollback receipt were durable.
     expect(probe(c)).toEqual({ rows: 1, receipts: 2 })
     expect(readRows(workspace, 'select tag from t_seq')).toEqual([{ tag: 'a' }])
     expect(
@@ -132,7 +129,6 @@ describe('C04: a statement that ends the whole transaction (SPEC 7.7.2, 7.7.5)',
     ])
     expect((await storage.query(identityOf(a))).kind).toBe('not_committed')
     expect((await storage.query(identityOf(e))).kind).toBe('not_committed')
-    // SQ-1 item 5: the number that the staged operation took did not survive.
     const next = await storage.commit(insert('f'))
     expect(next.kind === 'committed' && next.responses[0].reply).toEqual({
       kind: 'participated',

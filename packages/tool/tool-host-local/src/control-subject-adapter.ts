@@ -24,7 +24,6 @@ import { callHostDomain } from './host-domains.ts'
 
 type TenantId = LedgerDomain['tenant']
 
-/** A projection issued only after the identity owner verifies the current principal. */
 export type LocalToolControlSubject = Readonly<{
   tenant: TenantId
   kind: 'acting-for-tenant'
@@ -73,7 +72,6 @@ function hasKeys(value: Readonly<Record<string, unknown>>, keys: readonly string
   return own.length === keys.length && keys.every(key => Object.hasOwn(value, key))
 }
 
-/** Freeze the scope before any asynchronous dependency can observe the caller's object. */
 function fixContext(input: Context): Outcome<Context, ToolFailure> {
   const { tenant, call } = input
   if (!isTenantShape(tenant) || !tenantEquals(tenant, tenant)) return denied()
@@ -152,7 +150,6 @@ function referenceKey(context: Context, evidence: DurableEvidence): string | nul
   return typeof key === 'string' && /^subject:sha256:[0-9a-f]{64}$/u.test(key) ? key : null
 }
 
-/** The stored body and its first evidence are checked together, including the original key. */
 function parseBinding(value: unknown, context: Context, key: string): Binding | null {
   if (
     !isRecord(value) ||
@@ -179,7 +176,6 @@ function failureVerdict(failure: ToolFailure): AccessVerdict {
     : { kind: 'unavailable', diagnostic: UNAVAILABLE }
 }
 
-/** Callback failures keep denial distinct; unsupported or malformed answers fail closed. */
 function callbackReply<T>(value: Outcome<T, ToolFailure>): Outcome<T, ToolFailure> {
   const raw: unknown = value
   if (!isRecord(raw)) return unavailable()
@@ -198,7 +194,6 @@ async function guarded<T>(ask: () => Promise<Outcome<T, ToolFailure>>): Reply<T>
   }
 }
 
-/** The store owns durability. Missing callbacks disable their operations, never authorize them. */
 export function createLocalToolControlSubjects<P>(
   input: LocalToolControlSubjectsInput<P>,
 ): ToolControlSubjects<P> {
@@ -206,7 +201,6 @@ export function createLocalToolControlSubjects<P>(
   if (!Number.isSafeInteger(commitAttempts) || commitAttempts <= 0)
     throw new TypeError('commitAttempts: range')
 
-  /** The controller associations of one call live in that call's `control@<call>` host domain. */
   const domain = (context: Context): LedgerDomain =>
     callHostDomain(context.tenant, 'control', context.call)
 
@@ -245,7 +239,6 @@ export function createLocalToolControlSubjects<P>(
 
   type BindingRead = Readonly<{ revision: ToolRevision; binding: Binding | null }>
 
-  /** The association stored under `key` for this call, by key, with its domain revision. */
   const readBinding = async (context: Context, key: string): Reply<BindingRead> => {
     let read: LedgerRecordRead
     try {
@@ -306,7 +299,6 @@ export function createLocalToolControlSubjects<P>(
         return fail({ kind: 'invalid', field: 'storage', reason: committed.reason })
       if (committed.kind !== 'conflict') return unavailable()
     }
-    // The final losing commit can still have an identical winner to recall.
     return recall(context, body)
   }
 

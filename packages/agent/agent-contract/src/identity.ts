@@ -1,7 +1,3 @@
-// Identity and value types of the Agent contract (README, "身份、原位置与纯求值"), the decoders of
-// the branded identities, and the structure judgments of the values that cross a boundary as data.
-// Every function here is pure and returns an `Outcome`. None throws, except that `judgeAccess`
-// runs the principal judgment that the caller injects and does not catch what it throws.
 import { tenantCodec, type Access, type TenantId } from '@omne-harness/legal-identity'
 import type { Adoption, DurableEvidence } from '@omne-harness/exchange-refs'
 import type { JsonValue } from '@omne-harness/json-text'
@@ -31,15 +27,8 @@ export type ExecutionRevision = AgentIdentity<'ExecutionRevision'>
 export type InputId = AgentIdentity<'AgentInputId'>
 export type InputBatchId = AgentIdentity<'AgentInputBatchId'>
 export type ConsumptionId = AgentIdentity<'AgentConsumptionId'>
-/**
- * The dense ordinal of a reply admission fact: a canonical decimal non-negative integer text. It is
- * compared as an exact integer, never as a JS number or by text order.
- */
 export type ReplyAdmissionSequence = AgentIdentity<'ReplyAdmissionSequence'>
-/** The opaque cursor of the next page of one `readReplyAdmissions` range; it grants no read. */
 export type ReplyAdmissionPageCursor = AgentIdentity<'ReplyAdmissionPageCursor'>
-// The three exchange values have one definition in exchange-refs and `Access` has one in
-// legal-identity. This member re-exports them; the judgments below stay here.
 export type { Adoption, ConsumerRef, DurableEvidence } from '@omne-harness/exchange-refs'
 export type { Access } from '@omne-harness/legal-identity'
 export type Authority = Readonly<{
@@ -55,47 +44,28 @@ export type Continuation = Readonly<{
   schema: Adoption
   value: JsonValue
 }>
-/** An RFC 3339 UTC instant, for example `2026-10-17T08:00:00Z`. */
 export type AgentInstant = string
 declare const utcInstantText: unique symbol
-/**
- * An RFC 3339 UTC instant text that `parseInstant` of `@omne-harness/utc-instant` accepted. The
- * value is the original text, not normalized. Within this package only `judgeExtensionOutput`
- * mints it; the package exports no separate decoder (SPEC, "声明判断", `retry`).
- */
 export type UtcInstantText = string & { readonly [utcInstantText]: 'UtcInstantText' }
 
-/** Why a text is not an Agent identity. `field` names the identity type that the caller asked for. */
 export type IdentityFailure<K extends string = string> = Readonly<{
   field: K
   reason: 'type' | 'empty' | 'length' | 'character'
 }>
 
-/**
- * Why a value is not the structure that a judgment expects. `field` names the member that failed,
- * or, for a nested structure, the path to it (`source.owner`). It names the structure itself when
- * the value is not an object at all.
- */
 export type StructureFailure = Readonly<{
   field: string
   reason: 'type' | 'empty' | 'unknown-field' | 'missing' | 'identity'
 }>
 
-/** The longest identity text, in UTF-16 code units. */
 export const AGENT_IDENTITY_MAX_LENGTH = 256
 
-// Printable ASCII without space. Agent mints its own identities inside this lexicon, as Tool does.
 const IDENTITY_TEXT = /^[\x21-\x7e]+$/u
 
 type IdentityDecoder<T extends AgentIdentity<string>, N extends string> = (
   value: unknown,
 ) => Outcome<T, IdentityFailure<N>>
 
-/**
- * The one rule of every identity decoder: a string, not empty, at most
- * `AGENT_IDENTITY_MAX_LENGTH` units, printable ASCII without space. Each decoder below only names
- * its identity, so a new identity adds one line and the rule stays written once.
- */
 function decoderOf<T extends AgentIdentity<string>, N extends string>(
   name: N,
 ): IdentityDecoder<T, N> {
@@ -104,89 +74,56 @@ function decoderOf<T extends AgentIdentity<string>, N extends string>(
     if (value.length === 0) return fail({ field: name, reason: 'empty' })
     if (value.length > AGENT_IDENTITY_MAX_LENGTH) return fail({ field: name, reason: 'length' })
     if (!IDENTITY_TEXT.test(value)) return fail({ field: name, reason: 'character' })
-    // The checks above are the only way to mint the brand. A brand has no runtime value to build.
     return succeed(value as T)
   }
 }
 
-/**
- * Decodes the text of an `AgentInstanceId`. A decode gives the brand only: it does not prove that
- * the instance exists or that the caller may use it. The same holds for every decoder below.
- */
 export const decodeAgentInstanceId = decoderOf<AgentInstanceId, 'AgentInstanceId'>(
   'AgentInstanceId',
 )
-/** Decodes the text of a `StepId`. Gives the brand only, not existence or eligibility. */
 export const decodeStepId = decoderOf<StepId, 'StepId'>('StepId')
-/** Decodes the text of an `ActionId`. Gives the brand only, not existence or eligibility. */
 export const decodeActionId = decoderOf<ActionId, 'ActionId'>('ActionId')
-/** Decodes the text of a `PassageId`. Gives the brand only, not existence or eligibility. */
 export const decodePassageId = decoderOf<PassageId, 'PassageId'>('PassageId')
 const ADMISSION_SUFFIX = '/admission'
 
-/**
- * The Passage of the official admission of an action: the last link of the chain of the action.
- * The loop names the Passage with it, and a card provider tells an admission card by it.
- */
 export function admissionPassageOf(action: ActionId): ReturnType<typeof decodePassageId> {
   return decodePassageId(`${action}${ADMISSION_SUFFIX}`)
 }
 
-/** The action whose official admission `passage` is; `null` for any other Passage. */
 export function admissionActionOf(passage: PassageId): ActionId | null {
   if (!passage.endsWith(ADMISSION_SUFFIX)) return null
   const action = decodeActionId(passage.slice(0, -ADMISSION_SUFFIX.length))
   return 'ok' in action ? action.ok : null
 }
 
-/** Decodes the text of a `CardRoundId`. Gives the brand only, not existence or eligibility. */
 export const decodeCardRoundId = decoderOf<CardRoundId, 'CardRoundId'>('CardRoundId')
-/** Decodes the text of an `ActionBatchId`. Gives the brand only, not existence or eligibility. */
 export const decodeActionBatchId = decoderOf<ActionBatchId, 'ActionBatchId'>('ActionBatchId')
-/** Decodes the text of an `AgentExecutionId`. Gives the brand only, not existence or eligibility. */
 export const decodeAgentExecutionId = decoderOf<AgentExecutionId, 'AgentExecutionId'>(
   'AgentExecutionId',
 )
-/** Decodes the text of an `ExecutionAttachmentId`. Gives the brand only, not existence or eligibility. */
 export const decodeExecutionAttachmentId = decoderOf<
   ExecutionAttachmentId,
   'ExecutionAttachmentId'
 >('ExecutionAttachmentId')
-/** Decodes the text of an `AgentRegistrationId`. Gives the brand only, not existence or eligibility. */
 export const decodeAgentRegistrationId = decoderOf<AgentRegistrationId, 'AgentRegistrationId'>(
   'AgentRegistrationId',
 )
-/** Decodes the text of an `AgentOperationId`. Gives the brand only, not existence or eligibility. */
 export const decodeAgentOperationId = decoderOf<AgentOperationId, 'AgentOperationId'>(
   'AgentOperationId',
 )
-/** Decodes the text of an `ExecutionRevision`. Gives the brand only, not existence or eligibility. */
 export const decodeExecutionRevision = decoderOf<ExecutionRevision, 'ExecutionRevision'>(
   'ExecutionRevision',
 )
-/** Decodes the text of an `InputId`. Gives the brand only, not existence or eligibility. */
 export const decodeInputId = decoderOf<InputId, 'InputId'>('InputId')
-/** Decodes the text of an `InputBatchId`. Gives the brand only, not existence or eligibility. */
 export const decodeInputBatchId = decoderOf<InputBatchId, 'InputBatchId'>('InputBatchId')
-/** Decodes the text of a `ConsumptionId`. Gives the brand only, not existence or eligibility. */
 export const decodeConsumptionId = decoderOf<ConsumptionId, 'ConsumptionId'>('ConsumptionId')
-/**
- * Decodes the text of a `ReplyAdmissionPageCursor`. Gives the brand only: the provider checks the
- * cursor against the range of the request and the current read qualification.
- */
 export const decodeReplyAdmissionPageCursor = decoderOf<
   ReplyAdmissionPageCursor,
   'ReplyAdmissionPageCursor'
 >('ReplyAdmissionPageCursor')
 
-// A canonical decimal non-negative integer: zero, or a digit 1 to 9 and then digits.
 const CANONICAL_DECIMAL = /^(?:0|[1-9][0-9]*)$/u
 
-/**
- * Decodes the text of a `ReplyAdmissionSequence`: a canonical decimal non-negative integer of at
- * most `AGENT_IDENTITY_MAX_LENGTH` digits. A leading zero, a sign, a space or any other character
- * is `character`. Gives the brand only: it does not prove that the fact exists.
- */
 export function decodeReplyAdmissionSequence(
   value: unknown,
 ): Outcome<ReplyAdmissionSequence, IdentityFailure<'ReplyAdmissionSequence'>> {
@@ -195,11 +132,9 @@ export function decodeReplyAdmissionSequence(
   if (value.length === 0) return fail({ field, reason: 'empty' })
   if (value.length > AGENT_IDENTITY_MAX_LENGTH) return fail({ field, reason: 'length' })
   if (!CANONICAL_DECIMAL.test(value)) return fail({ field, reason: 'character' })
-  // The checks above are the only way to mint the brand.
   return succeed(value as ReplyAdmissionSequence)
 }
 
-/** A structure of non-empty text members and nothing else. */
 function judgeTextRecord<K extends string>(
   value: unknown,
   structure: string,
@@ -207,7 +142,6 @@ function judgeTextRecord<K extends string>(
 ): Outcome<Readonly<Record<K, string>>, StructureFailure> {
   const members = ownMembers(value)
   if (members === undefined) return refusal(structure, 'type')
-  // Every name in `names` is written below before the copy is returned, so the cast only names it.
   const copy = {} as Record<K, string>
   for (const name of names) {
     const text = textMember(members, name)
@@ -222,39 +156,18 @@ function judgeTextRecord<K extends string>(
 const ADOPTION_FIELDS = ['owner', 'name', 'revision', 'digest'] as const
 const EVIDENCE_FIELDS = ['owner', 'record', 'revision', 'digest'] as const
 
-/**
- * Judges the structure of an `Adoption`: exactly `owner`, `name`, `revision` and `digest`, each a
- * non-empty string. The judgment gives the shape only; it does not prove that the owner issued it.
- */
 export function judgeAdoption(value: unknown): Outcome<Adoption, StructureFailure> {
   return judgeTextRecord(value, 'Adoption', ADOPTION_FIELDS)
 }
 
-/**
- * Judges the structure of a `DurableEvidence`: exactly `owner`, `record`, `revision` and `digest`,
- * each a non-empty string. The judgment gives the shape only; it does not prove that the record
- * exists. A value that is not a plain object fails with the structure name `Evidence`.
- */
 export function judgeEvidence(value: unknown): Outcome<DurableEvidence, StructureFailure> {
   return judgeTextRecord(value, 'Evidence', EVIDENCE_FIELDS)
 }
 
-/**
- * Whether a value is a `TenantId` that legal-identity minted. Legal-identity proves it by
- * registry membership: `encode` accepts only values that `parse` or `tenant()` built.
- */
 function isTenantId(value: unknown): value is TenantId {
-  // `encode` types its parameter as `TenantId`, but its check is membership in a registry, which
-  // takes any value. The assertion only lets the unknown value reach that check.
   return tenantCodec.encode(value as TenantId).ok
 }
 
-/**
- * Judges the structure of an `Access<P>`: exactly `principal` and `tenant`. The caller injects the
- * judgment of its own principal, because this package does not know what a principal is. The
- * tenant must be a `TenantId` that legal-identity minted. A failure of the principal keeps its
- * reason and prefixes its field with `principal.`.
- */
 export function judgeAccess<P>(
   value: unknown,
   judgePrincipal: (value: unknown) => Outcome<P, StructureFailure>,
@@ -281,7 +194,6 @@ const AUTHORITY_FIELDS = [
   'source',
 ] as const
 
-/** The `source` member: a DurableEvidence structure, whose own failure is kept under the path `source.`. */
 function sourceMember(members: OwnMembers): Outcome<DurableEvidence, StructureFailure> {
   if (!Object.hasOwn(members, 'source')) return refusal('source', 'missing')
   const source = judgeEvidence(members['source'])
@@ -290,13 +202,6 @@ function sourceMember(members: OwnMembers): Outcome<DurableEvidence, StructureFa
   return refusal(field === 'Evidence' ? 'source' : `source.${field}`, reason)
 }
 
-/**
- * Judges the structure of an `Authority`: exactly `execution`, `executionAttachment`, `instance`,
- * `generation` and `source`. The three identities go through their decoders, and a failure of any
- * decoder is `identity` for that member. `generation` is a non-empty string, and `source` is a
- * `DurableEvidence`. The members are read in the order of the type. The judgment gives the shape only; it
- * does not prove that the execution attachment is current.
- */
 export function judgeAuthority(value: unknown): Outcome<Authority, StructureFailure> {
   const members = ownMembers(value)
   if (members === undefined) return refusal('Authority', 'type')

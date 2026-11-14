@@ -14,7 +14,6 @@ import { applyAttributionBaseline, readAttributionBaseline } from './attribution
 import { parseArguments } from './hygiene/arguments.ts'
 import { HYGIENE_CHECK_COUNT, runHygiene } from './hygiene/run.ts'
 
-// 本成员不发布，只在本仓库里运行：运行检查器的仓库就是它所在的仓库，配置从那里读，不看当前目录。
 const runnerRoot = resolve(
   process.env['OMNE_RUNNER_ROOT'] || fileURLToPath(new URL('../../../', import.meta.url)),
 )
@@ -38,7 +37,6 @@ if (args.hygiene) {
     hygieneText = `${HYGIENE_CHECK_COUNT} 项整洁检查，`
   } else hygieneNote = '整洁检查 未检查（不在 git 检出内）'
 }
-// 验收的覆盖声明：声明的场景要在产品区的 acceptance.md 里存在。产品区的位置与回路的读法同一份配置。
 const coverage = inspectCoverage(
   repositoryRoot,
   readLoopConfig(config).sensors.topicChurn.productRoot,
@@ -48,7 +46,6 @@ violations.push(...coverage.violations)
 let commitsNote = '提交署名 未检查（不在 git 检出内）'
 if (existsSync(join(repositoryRoot, '.git'))) {
   const commits = readCommits(repositoryRoot)
-  // 历史审计基线随本成员维护，只跳过列出的确切提交，见 commit-attribution-baseline.json。
   const baseline = readAttributionBaseline(
     fileURLToPath(new URL('../commit-attribution-baseline.json', import.meta.url)),
   )

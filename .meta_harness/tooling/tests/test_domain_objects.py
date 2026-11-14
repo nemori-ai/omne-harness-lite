@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -10,9 +11,21 @@ sys.path.insert(0, str(TOOLING / "src"))
 
 import domain_objects  # noqa: E402
 from domain_objects import Reconciler  # noqa: E402
+from omne_harness_lite_spec_tools.doc_support import headings  # noqa: E402
 
 TOPIC = "product/identity"
 VOLUME = "ubiquitous_language/terms/subjects.md"
+COMMIT = "1bbd0d6d6439441235da873e4a73b174f04fa3a0"
+SEALED = f"https://github.com/nemori-ai/omne-harness-lite/blob/{COMMIT}/.meta_harness/design/product.0.0.1.legacy"
+
+
+def seal(root: Path, directory: str, design: Path, topic: str = "PF-001", revision: int = 2) -> None:
+    """Write the sealed revision table the way the one-off read before the exit did."""
+    table = {"commit": COMMIT, "root": ".meta_harness/design/product.0.0.1.legacy",
+             "sealed_dirs": {topic: directory}, "sealed_revisions": {topic: revision},
+             "anchors": {f"{directory}/design.md": sorted(headings.__wrapped__(design))}}
+    (root / "domain_objects/sealed-revisions.json").write_text(
+        json.dumps(table, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def term(uid: str, zh: str, en: str, morph: str, rev: int = 2, extra: str = "") -> str:
@@ -65,6 +78,18 @@ def errors(root: Path, **options: str) -> list[str]:
     reconciler.load()
     reconciler.reconcile()
     return reconciler.errors
+
+
+def design_with(root: Path, text: str, sealed: bool) -> str:
+    """Put `text` behind a current topic, or seal it into the revision table; return the citation base."""
+    if not sealed:
+        (root / TOPIC / 'design.md').write_text(text, encoding='utf-8')
+        return f'../{TOPIC}/design.md'
+    source = root.parent / 'sealed-source/design.md'
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_text(text, encoding='utf-8')
+    seal(root, 'PF-001-alpha', source)
+    return f'{SEALED}/PF-001-alpha/design.md'
 
 
 def edit(root: Path, name: str, old: str, new: str) -> None:
@@ -291,12 +316,9 @@ def test_product_symlinks_cannot_change_the_declared_source(tree: Path, tmp_path
 
 @pytest.fixture
 def sealed_tree(tree: Path) -> Path:
-    import shutil
-    sealed = 'product.0.0.1.legacy/PF-001-identity'
-    shutil.copytree(tree / TOPIC, tree / sealed)
-    edit(tree, f'{sealed}/README.md', 'id: PD-identity', 'id: PF-001')
-    edit(tree, 'domain_objects/objects.md', f'../{TOPIC}/design.md#账号', f'../{sealed}/design.md#账号')
-    edit(tree, VOLUME, f'../../{TOPIC}/design.md#账号', f'../../{sealed}/design.md#账号')
+    seal(tree, 'PF-001-identity', tree / TOPIC / 'design.md')
+    edit(tree, 'domain_objects/objects.md', f'../{TOPIC}/design.md#账号', f'{SEALED}/PF-001-identity/design.md#账号')
+    edit(tree, VOLUME, f'../../{TOPIC}/design.md#账号', f'{SEALED}/PF-001-identity/design.md#账号')
     return tree
 
 
@@ -323,12 +345,34 @@ def test_sealed_bad_revision_cannot_be_downgraded_to_current_staleness(sealed_tr
 @pytest.mark.parametrize(('old', 'new', 'message'), [
     ('design.md#账号', 'flows.md#账号', '引用文件不存在'),
     ('design.md#账号', 'design.md#没有这个标题', '引用锚点'),
-    ('PF-001-identity/design.md#账号', 'PF-999-missing/design.md#账号', '没有有效 README'),
+    ('PF-001-identity/design.md#账号', 'PF-999-missing/design.md#账号', '不在封存修订表里'),
 ])
 def test_sealed_citation_file_topic_and_anchor_must_exist(
         sealed_tree: Path, old: str, new: str, message: str) -> None:
     edit(sealed_tree, 'domain_objects/objects.md', old, new)
     assert any(message in item for item in errors(sealed_tree))
+
+
+@pytest.mark.parametrize('href', [
+    f'{SEALED.replace(COMMIT, "0" * 40)}/PF-001-identity/design.md#账号',
+    f'{SEALED.replace("product.0.0.1.legacy", "product")}/PF-001-identity/design.md#账号',
+    f'{SEALED.replace("nemori-ai/omne-harness-lite", "someone/fork")}/PF-001-identity/design.md#账号',
+    '../product.0.0.1.legacy/PF-001-identity/design.md#账号',
+])
+def test_link_off_the_sealed_commit_or_root_is_not_provenance(sealed_tree: Path, href: str) -> None:
+    edit(sealed_tree, 'domain_objects/objects.md', f'{SEALED}/PF-001-identity/design.md#账号', href)
+    assert any('UL-account「依据」' in item and '不是某个 topic 的 design.md 或 flows.md 有效出处' in item
+               for item in errors(sealed_tree))
+
+
+def test_sealed_root_back_in_the_tree_is_an_error(sealed_tree: Path) -> None:
+    (sealed_tree / 'product.0.0.1.legacy/PF-001-identity').mkdir(parents=True)
+    assert any('product.0.0.1.legacy' in item and '已出树' in item for item in errors(sealed_tree))
+
+
+def test_sealed_link_without_a_revision_table_is_an_error(sealed_tree: Path) -> None:
+    (sealed_tree / 'domain_objects/sealed-revisions.json').unlink()
+    assert any('UL-account「出处」' in item and '封存修订表' in item for item in errors(sealed_tree))
 
 
 def test_current_citation_anchor_is_checked(tree: Path) -> None:
@@ -349,15 +393,16 @@ def test_old_handwritten_roster_no_longer_owns_revision(tree: Path) -> None:
 
 
 @pytest.mark.parametrize(('old', 'new', 'message'), [
-    ('id: PF-001', 'id: PF-999', 'slug 不一致'),
-    ('revision: 2', 'revision: 0', '必须是正整数'),
-    ('revision: 2', 'revision: 2\nrevision: 2', 'revision 重复'),
+    ('"PF-001": "PF-001-identity"', '"PF-001": "PF-999-identity"', 'slug 不一致'),
+    ('"PF-001": 2', '"PF-001": 0', '必须是正整数'),
+    ('"PF-001": 2', '"PF-001": 2, "PF-001": 2', 'PF-001 重复'),
+    (f'"commit": "{COMMIT}"', '"commit": "main"', 'commit'),
 ])
-def test_sealed_metadata_keeps_its_own_identity_and_revision(
+def test_sealed_table_keeps_its_own_identity_and_revision(
         sealed_tree: Path, old: str, new: str, message: str) -> None:
-    edit(sealed_tree, 'product.0.0.1.legacy/PF-001-identity/README.md', old, new)
+    edit(sealed_tree, 'domain_objects/sealed-revisions.json', old, new)
     found = errors(sealed_tree)
-    assert any('product.0.0.1.legacy' in item and message in item for item in found)
+    assert any('sealed-revisions.json' in item and message in item for item in found)
     reconciler = Reconciler(sealed_tree)
     reconciler.load()
     assert reconciler.revisions == {'PD-identity': 2}
@@ -370,7 +415,7 @@ def test_dangling_topic_symlink_is_not_ignored(tree: Path) -> None:
 
 
 def test_current_and_sealed_citations_keep_separate_revision_checks(sealed_tree: Path) -> None:
-    old = '[PD-identity §4](../product.0.0.1.legacy/PF-001-identity/design.md#账号)（rev 2）'
+    old = f'[PD-identity §4]({SEALED}/PF-001-identity/design.md#账号)（rev 2）'
     new = (old + '；[PD-identity](../product/identity/design.md#账号)（rev 1）')
     edit(sealed_tree, 'domain_objects/objects.md', old, new)
     found = errors(sealed_tree)
@@ -460,16 +505,11 @@ def test_yaml_metadata_rejects_bad_shape_syntax_tags_and_duplicate_keys(tree: Pa
 ])
 @pytest.mark.parametrize('sealed', [False, True])
 def test_markdown_code_cannot_supply_citation_anchor(tree: Path, body: str, sealed: bool) -> None:
-    topic = 'product.0.0.1.legacy/PF-001-alpha' if sealed else TOPIC
-    target = tree / topic
-    if sealed:
-        target.mkdir(parents=True)
-        (target / 'README.md').write_text('---\nid: PF-001\nrevision: 2\nstatus: active\n---\n')
-    (target / 'design.md').write_text('# Alpha\n\n' + body)
+    base = design_with(tree, '# Alpha\n\n' + body, sealed)
     reconciler = Reconciler(tree)
     reconciler._load_revisions()
     reconciler._cited('probe', tree / 'domain_objects/objects.md',
-        f'[basis](../{topic}/design.md#fake)（rev 2）', strict=True)
+        f'[basis]({base}#fake)（rev 2）', strict=True)
     assert any('引用锚点 #fake 不存在' in error for error in reconciler.errors)
     assert reconciler.sealed_citations == set()
 
@@ -496,20 +536,15 @@ def test_markdown_closed_fences_and_existing_explicit_anchors_are_legal(tree: Pa
 
 @pytest.mark.parametrize('sealed', [False, True])
 def test_markdown_duplicate_heading_suffixes_remain_citable(tree: Path, sealed: bool) -> None:
-    topic = 'product.0.0.1.legacy/PF-001-alpha' if sealed else TOPIC
-    target = tree / topic
-    if sealed:
-        target.mkdir(parents=True)
-        (target / 'README.md').write_text('---\nid: PF-001\nrevision: 2\nstatus: active\n---\n')
-    (target / 'design.md').write_text('# Alpha\n\n## Same\n\n## Same\n\n## Same\n')
+    base = design_with(tree, '# Alpha\n\n## Same\n\n## Same\n\n## Same\n', sealed)
     reconciler = Reconciler(tree)
     reconciler._load_revisions()
     for fragment in ('same', 'same-1', 'same-2'):
         reconciler._cited('probe', tree / 'domain_objects/objects.md',
-            f'[basis](../{topic}/design.md#{fragment})（rev 2）', strict=True)
+            f'[basis]({base}#{fragment})（rev 2）', strict=True)
     assert reconciler.errors == []
     reconciler._cited('probe', tree / 'domain_objects/objects.md',
-        f'[basis](../{topic}/design.md#same-3)（rev 2）', strict=True)
+        f'[basis]({base}#same-3)（rev 2）', strict=True)
     assert any('引用锚点 #same-3 不存在' in error for error in reconciler.errors)
 
 

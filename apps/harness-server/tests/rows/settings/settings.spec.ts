@@ -1,9 +1,3 @@
-// The `settings` row (web-meta-tool slice 04): the registry that follows the release definitions,
-// the secret-item entry over a real vault file, and the admitted setting management in the shape of
-// server-entry's `SettingsGovernance`. The pieces are composed as the row composes them, over the
-// release fixture (real release snapshot, real verifier); the standing source is a double whose
-// answers the test sets. One case loads the row in a `serve` tree to check the declaration, the
-// trusted key and that a principal the tree cannot verify never reaches the vault.
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -54,7 +48,6 @@ import { fixtureTenant, okOf } from '../../entry/support.ts'
 import { serveOnce } from '../../fixtures/serve/harness.ts'
 import { TEST_CONSTRUCTION, releaseFixture, tree } from '../tool-host/support.ts'
 
-/** The Settings holding of a release tool definition, or `null` when it declares no settings. */
 function toolHolding(definition: ToolDefinition): SettingsHolding | null {
   const held = officialHolding(toolAsset(definition))
   return held.kind === 'declared' ? held.ref.holding : null
@@ -65,7 +58,6 @@ const A = fixtureTenant('a')
 const B = fixtureTenant('b')
 const WEB = { category: 'tool', name: 'Web' }
 const ITEM = 'exa.apiKey'
-/** The release provider holding every table registers from the start. */
 const OPENROUTER = releaseProvider('openrouter')?.holding?.ref
 if (OPENROUTER === undefined) throw new Error('fixture: the release holds no openrouter provider')
 
@@ -109,7 +101,6 @@ function openVault(): { path: string; vault: SecretVault } {
   return { path, vault: created.vault }
 }
 
-/** The release Web definition as the loader derives it; definitions do not depend on construction. */
 function webDefinition(root: Context): ToolDefinition {
   const release = releaseOf(root)
   if (release.kind !== 'trusted') throw new Error('fixture release')
@@ -125,7 +116,6 @@ function webDefinition(root: Context): ToolDefinition {
   )
 }
 
-/** Lets the root know the Web definition, as `tool-host` does after it loaded the author. */
 function rememberWeb(root: Context): ToolDefinition {
   const definition = webDefinition(root)
   const release = releaseOf(root)
@@ -135,7 +125,6 @@ function rememberWeb(root: Context): ToolDefinition {
   return definition
 }
 
-/** The row's pieces as the row composes them, with the standing double and the admission switch. */
 async function world() {
   const fixture = await releaseFixture()
   const { path, vault } = openVault()
@@ -167,8 +156,6 @@ describe('the settings row: registry, secret items and governance', () => {
     const w = await world()
     try {
       const access = { principal: acting(A), tenant: A }
-      // Before tool-host loaded the author only the release providers are registered: Web is not
-      // visible.
       expect(w.registry.snapshot().definitions.map(d => d.definitionId)).toEqual(['openrouter'])
       expect(await w.port.list({ access, asset: { name: 'Web' } })).toEqual({
         kind: 'succeeded',
@@ -216,7 +203,6 @@ describe('the settings row: registry, secret items and governance', () => {
       const access = { principal: acting(A), tenant: A }
       const written = await w.port.set({ access, asset: WEB, item: ITEM, secret: ` ${SENTINEL} ` })
       expect(written.kind).toBe('succeeded')
-      // The public operation wrote the tenant scope and nothing in the official scope.
       expect(w.vault.list({ layer: 'official' }, null, 10)).toEqual({ entries: [], next: null })
       expect(w.vault.list({ layer: 'tenant', tenant: A }, null, 10)).toMatchObject({
         entries: [{ purpose: 'setting', presence: { kind: 'bound', life: 'active' } }],
@@ -239,7 +225,6 @@ describe('the settings row: registry, secret items and governance', () => {
           { item: ITEM, state: { state: 'usable', tenantId: A }, official: { state: 'unbound' } },
         ],
       })
-      // Nothing the caller sees carries the secret.
       expect(inspect({ written, shown, listed }, { depth: null })).not.toContain(SENTINEL)
       expect(await w.port.clear({ access, asset: WEB, item: ITEM })).toEqual({ kind: 'succeeded' })
       expect(await w.port.clear({ access, asset: WEB, item: ITEM })).toEqual({ kind: 'no-change' })
@@ -324,7 +309,6 @@ describe('the settings row: registry, secret items and governance', () => {
         secret: 'bob-own',
       })
       const before = readFileSync(w.path, 'utf8')
-      // The port's type says a login principal; the row checks the value, so the test hands in others.
       const refused = [
         { principal: acting(A), tenant: B },
         { principal: acting(B, 'session'), tenant: B },
@@ -377,7 +361,6 @@ describe('the settings row: registry, secret items and governance', () => {
     const snapshot = await loadProductionRelease()
     if (snapshot.kind !== 'trusted') throw new Error('fixture release')
     const root = new Context()
-    // The authority as the entry installs it, in a plugin of its own so that a reload can replace it.
     const installAuthority = (release: ToolReleaseSnapshot) =>
       root.plugin({
         name: 'release-authority',
@@ -405,7 +388,6 @@ describe('the settings row: registry, secret items and governance', () => {
       const before = registry.snapshot().definitions.map(entry => entry.version)
       expect(before).toHaveLength(2)
 
-      // The next generation: the Web author at another digest declares the item with another title.
       const next: ToolDefinition = structuredClone(definition)
       ;(next.adoption as { digest: string }).digest = `${definition.adoption.digest}-next`
       const item = next.declarations.settings?.items[0]
@@ -534,7 +516,6 @@ describe('the settings row in a serve tree', () => {
       expect(service).toBeInstanceOf(SettingsSecretItemsService)
       rememberWeb(ctx.root)
       const before = readFileSync(path, 'utf8')
-      // Issued by an authority the tree does not know: the admission does not let it through.
       const access = { principal: acting(A), tenant: A }
       const written = await service!.set({ access, asset: WEB, item: ITEM, secret: SENTINEL })
       expect(['denied', 'basis-unavailable']).toContain(written.kind)

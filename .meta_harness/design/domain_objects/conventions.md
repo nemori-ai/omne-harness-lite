@@ -14,7 +14,7 @@
 - **宿主**：[会话](objects.md#ul-session--会话)；前台后台不改变生命周期归属，agent runtime 只持有执行句柄
 - **身份**：正文未给标识；只要求记得下「哪一次运行、哪个 agent runtime 发起、属于哪个会话」
 - **生灭**：发起 → 前台/后台 × 执行中/等待 → 完成 · 失败 · 被中断 · 等不到；停机后不重来，算失败；会话被归档时随之收场
-- **依据**：[PF-006 §6.5](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 21）；[PF-012 §6.13](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 17）
+- **依据**：[PF-006 §6.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 21）；[PF-012 §6.13](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 17）
 - **并入**：「工具执行运行时」「一次工具调用」——正文当同一物用
 - **未裁**：具体执行标识格式正文未述；PF-011 的归因树与生命周期归属是不同关系，不据此改宿主
 ````
@@ -61,7 +61,7 @@
 ### 存储
 
 - **现象**：工具定义可以指名声明「把附件放进哪个存储」，存储没配好则该工具整个不可用；但全系统没有任何一处定义它
-- **牵涉**：[PF-006 §4 工具的产出](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#工具的产出)（rev 12）
+- **牵涉**：[PF-006 §4 工具的产出](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#工具的产出)（rev 12）
 - **挂着谁**：[附件](objects.md#ul-attachment--附件)存在它里面，附件的宿主与留存因此都定不下来
 - **谁来裁**：PF-006 的 owner；已记入该 topic 的 decisions「已知的来源问题」
 - **闭合条件**：有一个 topic 定义了它，并立了词条，或明确说它不是一个产品概念
@@ -89,17 +89,17 @@
 | 形态为「对象」的词条 ⇔ objects.md 有同名条目；形态为「未定」的词条 ⇒ pending.md 与 conflicts.md 都提到它 | 两边不各说各话 |
 | 条目四个必填字段齐全；「依据」的每条产品链接指向当前PD正文，或明确封存PF的design／flows出处，且带rev；待裁四个必填字段齐全 | 封存出处只核来源，不授当前采用；缺少可定位出处就无法复核 |
 | 链接与锚点都还在——对账器核引用的产品出处，`check_sources.py` 对设计根下全部Markdown另做完整链接检查 | 标题一改，锚点就断 |
-| **当前PD引用的rev等于其README修订；封存PF引用的rev等于封存README修订** | **这是全部对账里最要紧的一道**：rev 是词表、对象条目与产品正文对齐的唯一凭据，凭据自己不被检查，整套对账就是自证 |
+| **当前PD引用的rev等于其README修订；封存PF引用的rev等于封存修订表里的修订** | **这是全部对账里最要紧的一道**：rev 是词表、对象条目与产品正文对齐的唯一凭据，凭据自己不被检查，整套对账就是自证 |
 | 当前PD的身份与revision由README front matter拥有，目录和身份一致且唯一；正文已有重复rev时核一致，不要求新增。产品导航不维护重复修订表 | rev 自己有两个说法的话，上一道检查无从比对 |
 | `views/domain-object-map.md` 与现在算出来的一致 | 派生物入库，靠这个守住不漂 |
 
-当前`product/<slug>/`中的`PD-<slug>`进入当前产品集合及反链。`product.0.0.1.legacy/PF-*/`只用于核对既存出处的文件、锚点和原修订，单列为封存来源，不进入当前定义反链，不证明条目已按新产品重新复核。封存出处可定位与内容符合当前要求是不同结论；不得批量改rev或替换出处冒充复核。
+当前`product/<slug>/`中的`PD-<slug>`进入当前产品集合及反链。封存提交上`product.0.0.1.legacy/PF-*/`的固定链接只用于核对既存出处，文件、锚点和原修订对[封存修订表](sealed-revisions.json)核，单列为封存来源，不进入当前定义反链，不证明条目已按新产品重新复核。封存出处可定位与内容符合当前要求是不同结论；不得批量改rev或替换出处冒充复核。
 
 **rev 对不上不代表内容错了**，它只代表「那边改过，这条还没人回头看」。处置只有一条路：**回头看过，再改 rev。**
 不复核就改 rev，等于把这道检查关掉——对账器证明得了「rev 写的是当前值」，证明不了「有人回头看过」。
 
 **对账器查不了的**是「产品正文里冒出一个新对象，却没人给它立词条」：上游是散文。
-那个方向靠[新概念先进词表、再进正文](../product.0.0.1.legacy/AGENTS.md#红线)这条落字时的规矩，以及定期的全量重提兜底；
+那个方向靠[新概念先进词表、再进正文](../ubiquitous_language/AGENTS.md#红线)这条落字时的规矩，以及定期的全量重提兜底；
 两样的做法都在 `domain-objects` skill。
 
 返回[领域对象入口](README.md)。

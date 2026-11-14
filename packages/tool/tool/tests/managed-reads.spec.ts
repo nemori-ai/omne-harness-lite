@@ -103,8 +103,6 @@ describe('14 queries (P01)', () => {
   })
 
   it('14 queries: a receipt does not change when the store gives the record keys in another order', async () => {
-    // A durable store need not keep key order (a JSONB column sorts keys), so the digest of a
-    // record read back must not depend on it.
     const assembly = harness()
     await assembly.admitInternal(dummyRequest())
     const operation = assembly.operationRefOf('call-1', 'op-1')
@@ -137,7 +135,6 @@ describe('14 queries (P01)', () => {
   })
 })
 
-/** The same value with the keys of every object in reverse order. */
 function reversed<T>(value: T): T {
   if (Array.isArray(value)) return value.map(reversed) as T
   if (typeof value !== 'object' || value === null) return value
@@ -169,7 +166,6 @@ async function allPages(
 
 describe('15 result pages and the account (P08, P09)', () => {
   it('15 pages: readResult reads the full text of the logical result in whole-block pages', async () => {
-    // Four blocks of 13 characters, under 100 bytes each as JSON; a page holds two of them.
     const assembly = harness({ chunk: 13, resultPageBytes: 220 })
     const admitted = await assembly.admitInternal(dummyRequest())
     if (admitted.kind !== 'accepted' || admitted.state.phase !== 'settled')
@@ -248,7 +244,6 @@ describe('15 result pages and the account (P08, P09)', () => {
   })
 
   it('15 pages: a cursor at or after the end of the result is past-the-end, never an empty page', async () => {
-    // Four blocks; a cursor of this result at block 4 or later was never issued.
     const assembly = harness({ chunk: 13, resultPageBytes: 220 })
     await assembly.admitInternal(dummyRequest())
     const reference = referenceFor('call-1', 'op-1')
@@ -330,7 +325,6 @@ describe('15 result pages and the account (P08, P09)', () => {
       }),
     )
     expect(first).toMatchObject({ result: 'v1', value: { content: [] }, next: null })
-    // No cursor was ever issued for this result, so any cursor into it is past the end.
     const cursor = JSON.stringify({
       tenant: `${tenantA.organization.text}/${tenantA.account.text}`,
       call: 'call-1',
@@ -352,8 +346,6 @@ describe('15 result pages and the account (P08, P09)', () => {
   })
 
   it('15 pages: a block larger than the page is a named refusal, never a cut block', async () => {
-    // Settlement commits only results whose blocks fit the page, so the reader meets a larger block
-    // only when the page is configured smaller after the commit.
     const f = await settlementFixture()
     const settled = ok(await f.preserve())
     if (settled.phase !== 'settled') throw new Error('fixture did not settle')

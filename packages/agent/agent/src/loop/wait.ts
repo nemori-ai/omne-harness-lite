@@ -16,7 +16,6 @@ import type { ReconciliationPacer } from './reconciliation.ts'
 
 export type { ReconciliationPacer }
 
-/** The instant `delayMs` after `now`, or unavailable when it leaves the UTC instant range. */
 function checkTimeAfter(now: string, delayMs: number): Outcome<string, Failure> {
   const at = new Date(Date.parse(now) + delayMs)
   if (!Number.isFinite(at.getTime()) || at.getUTCFullYear() > 9999)
@@ -28,7 +27,6 @@ function checkTimeAfter(now: string, delayMs: number): Outcome<string, Failure> 
   return succeed(at.toISOString())
 }
 
-/** The revision and the event cursor of one execution that the coordinator knows exactly. */
 export type HeldPosition = Readonly<{
   revision: ExecutionRevision
   emittedThrough: string | null
@@ -105,14 +103,6 @@ async function sleep<P>(
   }
 }
 
-/**
- * W0 (loop-algorithm W0 row, mechanisms "等待、唤醒与公平"): start the observation of the Journal
- * events, read the execution again, and sleep until an event, the check time or an abort when
- * nothing moved. `held` is the position the coordinator already knows: the observation starts at
- * its cursor and replaces the wait's own first read, so the wait reads the execution once (perf
- * baseline 2.3: at most one complete read per entry into a wait). Without `held`, the wait reads a
- * baseline first.
- */
 export async function waitForExecutionChange<P>(input: WaitInput<P>): Promise<Woken> {
   const { ports, access, execution, signal } = input
   if (signal.aborted) return succeed('cancelled')
@@ -144,7 +134,6 @@ export async function waitForExecutionChange<P>(input: WaitInput<P>): Promise<Wo
     }
     wake(fail(pumpFailure))
   }
-  /** The held position, or the baseline read: the wait's start. `null` when the read failed. */
   const start = async (): Promise<Outcome<HeldPosition | null, Failure>> => {
     if (input.held != null) return succeed(input.held)
     const baseline = await ports.journal.load({ ...access, execution })
@@ -180,8 +169,8 @@ export async function waitForExecutionChange<P>(input: WaitInput<P>): Promise<Wo
             }
           })().catch(failed),
         )
-      // Observation consumption starts before this read. Replay, the initial snapshot and the
-      // clock cover the window because these ports provide no registration-ready receipt.
+      // Observation consumption starts before this read. Replay, the initial snapshot and the clock
+      // cover the window, because these ports give no registration-ready receipt.
       const latest = await ports.journal.load({ ...access, execution })
       if (input.operations.length === 0 && 'ok' in latest && latest.ok.revision !== input.expected)
         return succeed('ready')
@@ -198,7 +187,6 @@ export async function waitForExecutionChange<P>(input: WaitInput<P>): Promise<Wo
           case 'committed':
           case 'excluded':
           case 'rejected':
-            // Settled, including a durable refusal: the operation no longer holds the wait.
             break
           case 'unknown':
             operationsReady = false

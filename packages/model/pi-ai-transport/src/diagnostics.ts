@@ -1,17 +1,8 @@
-/**
- * A transport diagnostic carries its kind and level only: never a URL, a header or a body.
- * The event vocabulary and its query belong to a later owner; this is the current closed set.
- */
 export type TransportDiagnostic =
   | Readonly<{
       kind: 'exchange-started' | 'connect-failed' | 'error-body-too-large' | 'exchange-stopped'
       level: 'info' | 'error'
     }>
-  /**
-   * A send is about to start its `attempt`-th retry (1 for the first) after the previous attempt
-   * failed with `reason` before its request was written. `delayMs` is the backoff before it. Only
-   * counts and closed words: still no URL, header or body.
-   */
   | Readonly<{
       kind: 'connect-retry'
       level: 'info'
@@ -20,28 +11,19 @@ export type TransportDiagnostic =
       reason: 'connect-failed' | 'connect-timeout'
     }>
 
-/** A caller-owned observer. It may return a thenable; nothing it does reaches the emitter. */
 export type DiagnosticObserver = (event: TransportDiagnostic) => unknown
 
 export type DiagnosticCounters = Readonly<{
-  /** Deliveries that threw synchronously or whose thenable rejected. */
   failed: number
-  /** Deliveries whose thenable has not settled yet. */
   pending: number
-  /** Events not delivered because `pending` had reached `maxPending`. */
   dropped: number
 }>
 
 export interface IsolatedDiagnostics {
-  /** Delivers a frozen copy of the event. Never throws and never waits. */
   emit(event: TransportDiagnostic): void
   counters(): DiagnosticCounters
 }
 
-/**
- * Isolates a diagnostic observer from transport work: a throw, a rejection or a thenable that
- * never settles only changes the counters. `maxPending` bounds the unsettled deliveries.
- */
 export function createDiagnosticSink(
   observer: DiagnosticObserver,
   options: Readonly<{ maxPending: number }>,
@@ -61,7 +43,6 @@ export function createDiagnosticSink(
     failed += 1
   }
 
-  /** Counts the completion that the observer returned. Reading `then` may itself throw. */
   function watch(completion: unknown): void {
     let thenable: boolean
     try {
@@ -72,7 +53,6 @@ export function createDiagnosticSink(
     }
     if (!thenable) return
     pending += 1
-    // Both handlers only update counters and cannot throw, so the derived promise never rejects.
     void Promise.resolve(completion).then(settled, rejected)
   }
 
@@ -97,7 +77,6 @@ export function createDiagnosticSink(
   }
 }
 
-/** Only the named members cross to the observer: a stray property of the emitter never does. */
 function copyOf(event: TransportDiagnostic): TransportDiagnostic {
   if (event.kind === 'connect-retry') {
     const { kind, level, attempt, delayMs, reason } = event
@@ -115,5 +94,4 @@ function isThenable(value: unknown): value is PromiseLike<unknown> {
   )
 }
 
-/** The event of one retry, as the observer of a transport (`onConnectRetry`) gets it. */
 export type ConnectRetryDiagnostic = Extract<TransportDiagnostic, { kind: 'connect-retry' }>

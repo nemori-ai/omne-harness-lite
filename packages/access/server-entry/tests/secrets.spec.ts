@@ -1,5 +1,3 @@
-// No login proof, credential or issuer leaves through a response, a diagnostic or an error text,
-// apart from the one reply that issues the login. The search has a positive control.
 import { connect } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { LoginResult } from '@omne-harness/access-cordis-contract'
@@ -152,7 +150,6 @@ describe('outputs hold no secret', () => {
     expect(haystack).not.toContain(issuerText)
     expect(haystack).not.toContain('identity-login')
     expect(haystack).not.toMatch(/lgn_[0-9a-z]{26}/)
-    // Positive control: the search would see the proof where the protocol places it.
     const issued = await send(fixture.port, GOVERNANCE_PATH, {
       body: governance('issue-login', { loginIdentifier: 'alice', credential }),
     })
@@ -188,7 +185,6 @@ describe('the new address keeps the proof, the tenant text and the body out of e
     const note = `{"noteId":"${bodyMarker}"}`
     const both = `{"noteId":"${bodyMarker}","title":"${bodyMarker}"}`
 
-    // Steps 1 to 5.
     replies.push(
       await send(entry.port, `/api/notes/v1/read-note?token=${PROOF}`, {
         headers: { authorization: `Bearer ${PROOF}` },
@@ -204,14 +200,11 @@ describe('the new address keeps the proof, the tenant text and the body out of e
         body: note,
       }),
     )
-    // The observation hub (#1249): a frame source that throws at its decision, with the proof and
-    // the body in its error text.
     entry.notes.sources['watch-note'] = async () => {
       throw new Error(`frame source fault ${PROOF} ${bodyMarker}`)
     }
     await ask('watch-note', { body: note })
     delete entry.notes.sources['watch-note']
-    // Steps 7 to 9.
     await ask('read-note', { headers: { 'omne-message-id': undefined }, body: note })
     await ask('save-note', { headers: { authorization: `Bearer ${PROOF}-revoked` }, body: both })
     entry.accessIdentity.identifyLogin = {
@@ -227,11 +220,9 @@ describe('the new address keeps the proof, the tenant text and the body out of e
     delete entry.accessIdentity.actFor
     await ask('read-note', { body: `{"noteId":"${bodyMarker}${'x'.repeat(3000)}"}` })
     await ask('read-note', { body: `{"noteId":"${bodyMarker}","extra":"${bodyMarker}"}` })
-    // Step 14: the report fails with the proof in its error text.
     entry.accessIdentity.reportAccess = { kind: 'reject' }
     await ask('save-note', { body: both })
     await entry.accessIdentity.returned('reportAccess')
-    // Step 6: the budget is full while a handler holds the only slot.
     const answer = held<{ outcome: 'succeeded'; body: { noteId: string; title: string } }>()
     entry.notes.scripts['read-note'] = () => answer.promise
     const holding = ask('read-note', { body: note })
@@ -240,7 +231,6 @@ describe('the new address keeps the proof, the tenant text and the body out of e
     answer.resolve({ outcome: 'succeeded', body: { noteId: 'n', title: 't' } })
     await holding
     delete entry.notes.scripts['read-note']
-    // The caller goes away while the identity port has not returned.
     const identified = entry.accessIdentity.calls.filter(
       line => line.method === 'identifyLogin',
     ).length
@@ -258,13 +248,11 @@ describe('the new address keeps the proof, the tenant text and the body out of e
     socket.destroy()
     while (!entry.diagnostics.some(event => event.code === 'access.caller-gone')) await turn()
     recognised.resolve({ outcome: 'denied' })
-    // A take-down while the identity port has not returned.
     entry.accessIdentity.identifyLogin = { kind: 'hold', held: held<LoginResult>() }
     const aborted = ask('read-note', { body: note })
     await entry.accessIdentity.called('identifyLogin', identified + 2)
     await entry.takeDown()
     await aborted
-    // The one fault of the existing locations that recorded the whole request target.
     const who = await login(entry, 'secrets-user')
     mappingThrows = true
     const fault = await send(entry.port, `${SESSION_PATH}?`, {

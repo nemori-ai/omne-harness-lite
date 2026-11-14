@@ -25,7 +25,6 @@ type Binding = Extract<Awaited<ReturnType<Bindings['resolve']>>, { ok: unknown }
 export type Environment = Parameters<Binding['start']>[1]
 type Block = ToolMessageContentBlock
 
-/** Project real leased capabilities into each real author's declared E; execute stays the original function. */
 function bindEnvironment<E>(
   module: ToolImplementationModule<E, Block>,
   project: (env: Environment) => E,

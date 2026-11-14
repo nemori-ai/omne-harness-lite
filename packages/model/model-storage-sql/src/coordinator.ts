@@ -1,13 +1,3 @@
-// The send coordinator of the Model records over the SQL storage. `SendCoordinator` is
-// synchronous, and the SQL storage answers only inside a run, after an asynchronous read. So the
-// coordinator answers from a mirror in the process: a decorator over the storage port of the
-// shared commands core records each call document that a run read or committed, and the core,
-// run on that decorator, judges a send demand against the mirror inside one synchronous fence.
-// The commands and the coordinator share this one mirror and the one core, so they share one
-// qualification authority (`core.options.authority`). The fence asks that authority first, also
-// for a call that the mirror does not hold. Such a call is cold: a qualified demand for it is
-// refused as `qualification-unavailable`, and `recordMaterialization` with the same operation
-// reads the call back into the mirror. Imports no Cordis.
 import type {
   MaterializationReceipt,
   ModelCallId,
@@ -27,23 +17,15 @@ import type {
   TenantDocuments,
 } from '@omne-harness/model/commands'
 
-/** Dispatches claimed by a fence whose send record the mirror has not seen yet. */
 export const DEFAULT_MAX_CLAIMS = 1024
 
 export type SendMirrorOptions = Readonly<{
-  /**
-   * The bytes of call documents that the mirror keeps beside the pinned ones. The most recent
-   * document stays even when it alone is larger. Pinned documents are never evicted.
-   */
   mirrorBytes: number
-  /** Claimed dispatches that the coordinator remembers. Default 1024. */
   maxClaims?: number
 }>
 
 export type SendMirror = Readonly<{
-  /** The storage port to build the commands core on. It forwards every call to the SQL storage. */
   storage: ModelCommandStorage
-  /** The coordinator over `core`, which must run on `storage` of this mirror. */
   coordinator<P>(
     core: ModelCommandCore<P>,
     sources: readonly ModelSendSource<P>[],
@@ -69,7 +51,6 @@ function positive(value: number, name: string): void {
 
 const callKey = (tenant: string, call: ModelCallId): string => JSON.stringify([tenant, call])
 
-/** The encoded size of a document; the stream assembly is process state and not counted. */
 function documentBytes(document: CallDocument): number {
   const text = JSON.stringify(document, (key, value: unknown) => {
     if (key === 'assembly') return undefined
@@ -82,11 +63,6 @@ function documentBytes(document: CallDocument): number {
 
 type ClaimState = 'claimed' | SendStart['kind']
 
-/**
- * The claim table: a dispatch starts at most once in this process. A claim lasts while the
- * dispatch is still `prepared` in the latest mirrored document of its call, and survives the
- * eviction of that document.
- */
 class Claims {
   private readonly calls = new Map<string, Map<string, ClaimState>>()
   private count = 0
@@ -111,12 +87,10 @@ class Claims {
     this.calls.set(key, claims)
   }
 
-  /** Drops the claims that `document` shows as recorded or no longer sendable. */
   prune(key: string, document: CallDocument): void {
     const claims = this.calls.get(key)
     if (claims === undefined) return
     const settled = document.state.phase === 'settled'
-    // A Map visits each remaining key once when the loop deletes the current one.
     for (const dispatch of claims.keys()) {
       const found = document.dispatches.find(d => d.record.dispatch === dispatch)
       if (settled || found === undefined || found.record.send !== 'prepared') {
@@ -130,7 +104,6 @@ class Claims {
 
 type Entry = { readonly document: CallDocument; readonly bytes: number }
 
-/** The call documents of the process, least recently used first. */
 class Mirror {
   private readonly entries = new Map<string, Entry>()
   private total = 0
@@ -150,10 +123,6 @@ class Mirror {
     return entry.document
   }
 
-  /**
-   * A document between `recordMaterialization` and the fence of its dispatch: a dispatch with a
-   * materialization, still `prepared`, and not claimed (D3 review N4).
-   */
   private pinned(key: string, document: CallDocument): boolean {
     if (document.state.phase === 'settled') return false
     return document.dispatches.some(
@@ -164,7 +133,6 @@ class Mirror {
     )
   }
 
-  /** Keeps `document` unless the mirror already holds a later revision of the call. */
   offer(tenant: string, document: CallDocument): void {
     const key = callKey(tenant, document.state.call)
     const current = this.entries.get(key)
@@ -201,13 +169,11 @@ class Mirror {
   }
 }
 
-/** What one pass of a run read and staged. A run that meets a newer write has several passes. */
 type Pass = {
   readonly seen: Map<string, Readonly<{ tenant: string; document: CallDocument }>>
   staged: Readonly<{ tenant: string; call: ModelCallId; document: CallDocument | undefined }> | null
 }
 
-/** What the fence lets the core read: the mirrored call of one tenant, or none when it is cold. */
 type FenceView = Readonly<{
   tenant: string
   call: ModelCallId
@@ -230,7 +196,6 @@ export function createSendMirror(
   let fence: FenceView | null = null
   let busy = false
 
-  /** Records what the run decided. The mirror never holds a write the storage did not confirm. */
   function settle<T>(last: Pass, outcome: Outcome<T, ModelFailure>): void {
     const { staged } = last
     if (staged !== null && !('ok' in outcome)) {
@@ -243,7 +208,6 @@ export function createSendMirror(
 
   const storage: ModelCommandStorage = {
     async run<T>(work: () => Outcome<T, ModelFailure>, scope?: RunScope) {
-      // The pass of the latest `work`: the run commits, if anything, what its last pass staged.
       const latest: { pass: Pass | null } = { pass: null }
       const outcome = await inner.run(() => {
         latest.pass = { seen: new Map(), staged: null }
@@ -308,11 +272,6 @@ export function createSendMirror(
       }))
       const refused = (failure: ModelFailure): SendStart => ({ kind: 'refused', failure })
 
-      /**
-       * Runs `work` of the core on the mirrored call. The core asks the qualification authority
-       * before it looks for the call, so an unqualified demand is denied alike for a mirrored, a
-       * cold and a missing call; a qualified demand for a call outside the mirror is cold.
-       */
       function qualified<T>(
         input: SendDemand<P>,
         work: (call: CallDocument) => Outcome<T, ModelFailure>,
@@ -327,8 +286,6 @@ export function createSendMirror(
         } finally {
           fence = null
         }
-        // The empty view of a cold call holds no operation either, so the core can only say
-        // not-found: the mirror does not know whether the storage holds the call.
         if (document === undefined && 'failure' in outcome && notFound(outcome.failure))
           return { failure: QUALIFICATION_UNAVAILABLE }
         return outcome

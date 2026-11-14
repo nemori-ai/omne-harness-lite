@@ -1,7 +1,3 @@
-// The teardown of one entry (SPEC MC-10, MC-14): one entry point for the close order,
-// every step runs when a port rejects, every process is asked to stop, and the breach is absorbed
-// as MC-14 says. The entry stays in the table while its teardown waits on a port. Also the
-// landing still in flight at a release and at the shutdown (decisions 5 and 6).
 import { describe, expect, it } from 'vitest'
 import { only } from './doubles/calls.ts'
 import { manualBounds } from './doubles/bounds.ts'
@@ -19,7 +15,6 @@ const WITH_CREDENTIAL = {
   env: [{ name: 'TOKEN', source: 'credential' }],
 } as const
 
-/** Every non-empty combination of the three steps that can reject. */
 const COMBINATIONS: readonly (readonly Fault[])[] = [
   ['close'],
   ['stop'],
@@ -48,7 +43,6 @@ describe('teardown: every step runs, whichever port rejects (MC-14)', () => {
       expect(w.trace).toEqual(['transport.close', 'process.stop', 'credential.release'])
       expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
       if (faults.includes('stop')) {
-        // A stop that rejected confirmed nothing: the process stays, to be stopped again.
         expect(released).toEqual({ ok: { kind: 'released', process: 'unconfirmed' } })
         expect(await c.status.inspect(alice, files)).toMatchObject({
           ok: {
@@ -73,7 +67,6 @@ describe('teardown: every step runs, whichever port rejects (MC-14)', () => {
         })
         expect(w.landing.processes()).toEqual([{ stops: 1 }])
       }
-      // Whatever rejected: the transport was closed once and the handle released once.
       expect(closes(w)).toBe(1)
       expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
     },
@@ -127,7 +120,6 @@ describe('every process is asked to stop, whichever stop rejects (MC-14)', () =>
         ...w,
         ports: { ...w.ports, landing: landingStoppingAs(w.landing, index => answers[index]) },
       })
-      // Process 0 confirms only its root and lingers; the rebuild stops it again and starts process 1.
       expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
         ok: { kind: 'published' },
       })
@@ -140,7 +132,6 @@ describe('every process is asked to stop, whichever stop rejects (MC-14)', () =>
       expect(w.landing.processes()).toEqual([{ stops: 2 }, { stops: 0 }])
       answers[1] = 'reject'
       expect(await close(c)).toEqual(report)
-      // The own process is asked first and rejects; the lingering one is asked all the same.
       expect(w.landing.processes()).toEqual([{ stops: 3 }, { stops: 1 }])
       expect(w.credentials.handles()).toEqual([
         { acquired: 1, released: 1 },
@@ -157,8 +148,6 @@ describe('every process is asked to stop, whichever stop rejects (MC-14)', () =>
       ok: { kind: 'published' },
     })
     w.adoption.update(alice.tenant, files, { processEnv: [{ name: 'X', value: '1' }] })
-    // The new revision closes the old connection (process 0 confirms only its root and lingers),
-    // takes the lingering process over, and stops it again before it starts process 1.
     expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
       ok: { kind: 'published' },
     })
@@ -183,16 +172,9 @@ describe('every process is asked to stop, whichever stop rejects (MC-14)', () =>
 })
 
 describe('the entry stays while its teardown waits on a port (MC-14)', () => {
-  // A resource leaves the entry only after its port answered. A late landing that answers in the
-  // meantime makes the table look at the entry again; it has to find the entry still holding.
   const SHORT = { settings: { connectTimeout: VALUE(millisOf(50)) } }
   const RELEASED = { ok: { kind: 'released', process: 'tree-confirmed' } }
 
-  /**
-   * The first start outlives its bound and stays a landing in flight; the rebuild lands at once.
-   * Then a release whose teardown waits on a port, the late landing answering meanwhile, and a
-   * second release asked while the first still waits.
-   */
   async function releaseWhileALandingAnswers(c: Core, landing: Deferred<void>) {
     expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
       failure: { kind: 'connection-unavailable' },
@@ -216,7 +198,6 @@ describe('the entry stays while its teardown waits on a port (MC-14)', () => {
   it('a landing that answers while the process is still stopping: the entry stays, a second release joins the first', async () => {
     const w = world({ script: usualScript() })
     adoptStdio(w, files, SHORT)
-    // The rebuild's process is the first one to land: its stop waits.
     const stopping = stallingStops(w.landing, only(1))
     const stalled = stallingLanding(stopping.port, only(1))
     const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } })
@@ -232,7 +213,6 @@ describe('the entry stays while its teardown waits on a port (MC-14)', () => {
   it('a landing that answers while the handle is still being released: the entry stays, a second release joins the first', async () => {
     const w = world({ script: usualScript() })
     adoptStdio(w, files, { ...WITH_CREDENTIAL, ...SHORT })
-    // Handle 1 goes with the late landing; handle 2 is the rebuild's, and its release waits.
     const releasing = stallingReleases(w.credentials, only(2))
     const stalled = stallingLanding(w.landing, only(1))
     const c = core({
@@ -309,7 +289,6 @@ describe('the stop of what the key left behind is part of the build and under it
   it('a stop that hangs when the connection is rebuilt: the bound ends the build as preparation-failed, nothing is started, the process stays lingering', async () => {
     const w = world({ script: [...usualScript(), ...usualScript()], stop: 'root-only' })
     adoptStdio(w, files)
-    // The first stop of process 0 answers root-only at once; the second one waits on the gate.
     const gate = deferred<void>()
     let stops = 0
     const landing: typeof w.landing = {
@@ -343,7 +322,6 @@ describe('the stop of what the key left behind is part of the build and under it
     expect(stops).toBe(2)
     bounds.fire('build', 1)
     expect(await rebuilt).toEqual({ failure: { kind: 'connection-unavailable' } })
-    // Nothing of the new attempt started: no second process, no second transport.
     expect(w.landing.processes()).toEqual([{ stops: 1 }])
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(1)
     expect(c.table.stateOf(alice.tenant, files.holding)).toEqual({
@@ -360,8 +338,6 @@ describe('the state of a holding reads its connection that takes requests (S7)',
   it('an older closed entry that still holds a process, listed before the ready one, does not decide the state', async () => {
     const w = world({ script: usualScript(), stop: 'unconfirmed' })
     adoptStdio(w, files)
-    // The first revision's landing outlives its bound; the second revision connects meanwhile;
-    // the process of the first then lands, and its stop confirms nothing.
     const stalled = stallingLanding(w.landing, only(1))
     const bounds = manualBounds()
     const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } }, bounds.runtime)
@@ -371,13 +347,11 @@ describe('the state of a holding reads its connection that takes requests (S7)',
     w.adoption.update(alice.tenant, files, { processEnv: [{ name: 'X', value: '1' }] })
     const second = c.discovery.refresh(alice, { ref: files })
     await settled()
-    // The second call closed the first connection and waits for its build, which ends at its bound.
     bounds.fire('build', 0)
     expect(await first).toEqual({ failure: { kind: 'connection-unavailable' } })
     expect(await second).toMatchObject({ ok: { kind: 'published' } })
     stalled.gate.resolve()
     await settled()
-    // Process 0 is the second revision's; process 1 is the late one, stopped once, unconfirmed.
     expect(w.landing.processes()).toEqual([{ stops: 0 }, { stops: 1 }])
     expect(c.table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'ready' })
   })

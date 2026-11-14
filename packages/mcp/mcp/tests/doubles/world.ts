@@ -1,5 +1,3 @@
-// Test helper: the five ports as in-memory doubles plus the scripted transport factory, with the
-// adoptions and credentials that most cases start from.
 import type {
   ActionCatalogRecord,
   CatalogKey,
@@ -53,9 +51,7 @@ export type World = Readonly<{
   landing: ScriptedLanding
   store: MemoryCatalogStore
   transports: ScriptedTransports
-  /** The output validator and its call count. */
   checks: CountedOutputCheck
-  /** The close-order events of transports, processes and credential handles, in order. */
   trace: readonly string[]
 }>
 
@@ -131,10 +127,8 @@ export function settingsOf(given: Settings = {}): EndpointSettings {
 export const VALUE = <T>(value: T): SettingValue<T> => ({ kind: 'value', value })
 export const INVALID: SettingValue<never> = { kind: 'invalid', text: 'nonsense' }
 
-/** The ports a case adopts into: the world's, or the peer world's of `peer.ts`. */
 export type Adopting = Pick<World, 'adoption' | 'eligibility' | 'credentials'>
 
-/** A ready-to-use stdio adoption for alice: `files`, `auth` none unless given, granted. */
 export function adoptStdio(
   w: Adopting,
   ref: EndpointRef,
@@ -175,7 +169,6 @@ export function adoptStdio(
   return adopted
 }
 
-/** A ready-to-use Streamable HTTP adoption for alice, `auth` static unless given, granted. */
 export function adoptHttp(
   w: Adopting,
   ref: EndpointRef,
@@ -204,18 +197,15 @@ export function adoptHttp(
   return adopted
 }
 
-/** One `tools/list` page with the named tools. */
 export function page(names: readonly string[], nextCursor?: string) {
   const tools = names.map(name => jsonOf({ name, inputSchema: { type: 'object' } }))
   return nextCursor === undefined ? { tools } : { tools, nextCursor }
 }
 
-/** The usual lawful script: open, discover, one page. */
 export function usualScript(names: readonly string[] = ['read']): Step[] {
   return [{ discover: peerIdentityOf() }, { listActions: page(names) }]
 }
 
-/** A record of revision `revision` built by the public functions, written into the store. */
 export async function storedRecord(
   w: Pick<World, 'store'>,
   key: CatalogKey,

@@ -1,8 +1,3 @@
-// The Cordis service definitions of MCP: the abstract Service of each of the three MCP services and
-// of the four demand ports that other domains implement. Each Service writes its key once, in
-// `provide`; the exported key constants are taken from it. A Service declares no `inject`: the
-// plugin that uses a port reads it from its own context on each call and treats its absence as the
-// port's `unknown` answer.
 import { type Context, Service } from '@deepseek-ai/cordis'
 import type { ActionDiscovery, ActionInvoker, EndpointStatus } from '@omne-harness/mcp-contract'
 import type {
@@ -167,8 +162,6 @@ export abstract class ProcessLandingService<P> extends Service implements Proces
 export const mcpProcessLandingKey = ProcessLandingService.provide
 
 declare module '@deepseek-ai/cordis' {
-  // The principal and scope types stay `unknown` here; an implementation checks every input at run
-  // time, and an assembly with a trusted identity adapter narrows them.
   interface Context {
     mcpActionDiscovery: ActionDiscoveryService<unknown>
     mcpActionInvoker: ActionInvokerService<unknown>

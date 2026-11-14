@@ -1,5 +1,3 @@
-// read, snapshot ordering and the read port (SQL contract SPEC 9.2 to 9.4). Scenario C09 and the
-// read side of C15. Every case runs a real handler module on a real read connection.
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -174,8 +172,6 @@ describe('limits and handler failures (C15, SPEC 9.2 steps 4 to 13)', () => {
   })
 
   it('waits while the result reservation of the handler does not fit, and reads once it does', async () => {
-    // Defect: the reservation ignores the bytes: the second read Worker would run the read at once
-    // and end it before the slow one.
     const { storage } = await readyProvider(workspace, built, {
       maxReadResultBytes: 4096,
       globalReadResultBytes: 4096,
@@ -204,9 +200,6 @@ describe('limits and handler failures (C15, SPEC 9.2 steps 4 to 13)', () => {
       storage.read(readRequest('slow', { ms: 10 })),
     ]
     await delay(50)
-    // Two more wait (sql-contract 准入等待); the waiting list of the domain holds two, so the next
-    // is refused at once. Had the per-domain count been ignored, the first two would have been
-    // admitted and the next would wait on the global count instead.
     const waiting = [storage.read(readRequest('page')), storage.read(readRequest('page'))]
     expect(summary(await storage.read(readRequest('page')))).toBe('unavailable/queue_full')
     expect((await Promise.all([...held, ...waiting])).map(summary)).toEqual([

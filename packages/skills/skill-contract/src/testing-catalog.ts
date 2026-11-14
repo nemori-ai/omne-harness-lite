@@ -1,10 +1,3 @@
-// The conformance suite of `SkillCatalog`. It takes a catalog over doubles that the implementer
-// built, and checks from the outside what the group page "检查与发现" and the SPEC "目录的匹配规则"
-// require: the lawful set and nothing else, the read check before every listed entry, one
-// unknown makes the whole answer unknown, the entry shapes, the `capabilities` filter, the
-// `search` matching, and non-disclosure. The fixture's `world` changes the ports and counts the
-// read checks; the suite builds no catalog itself. The clauses `SC2` to `SC7` are the groups
-// that the SPEC "符合性套件" lists for this suite.
 import assert from 'node:assert/strict'
 import type { CapabilityId } from '@omne-harness/assets'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -15,50 +8,21 @@ import type { PrincipalSample } from './testing-resolution.ts'
 
 type AdoptedEntry = Extract<CatalogEntry, { kind: 'adopted' }>
 type StandInEntry = Extract<CatalogEntry, { kind: 'stand-in' }>
-/** An identity with the name and the description that the lawful set gives for it. */
 type Listed = Pick<CatalogEntry, 'capability' | 'name' | 'description'>
 
-/** A fresh catalog for one case, the principals and identities it asks about, and the world. */
 export type CatalogFixture<P, S> = Readonly<{
   catalog: SkillCatalog<P, S>
-  /** A principal whose lawful set holds exactly `granted`, `refused` and `standIn`. */
   reader: PrincipalSample<P, S>
-  /** A principal whose lawful set is empty. */
   nobody: PrincipalSample<P, S>
-  /**
-   * An identity adopted for `reader` that `reader` may read, written out in the entry the
-   * catalog must give for it. `dependencies` are the tools of its declaration projection. It has
-   * a description, and one word of the description (split on white space) is, after NFKC and
-   * lower case, a substring neither of its own name nor of the name or description of
-   * `standIn`.
-   */
   granted: AdoptedEntry
-  /**
-   * An identity in the lawful set of `reader` that the read check refuses to `reader`, with the
-   * name and description that the lawful set gives for it. After NFKC and lower case, its name
-   * and description do not contain `granted.name`.
-   */
   refused: Listed
-  /**
-   * An identity known lawfully by `reader`, not available now, that `reader` may read, written
-   * out in the entry the catalog must give for it. After NFKC and lower case, its name and
-   * description do not contain `granted.name`.
-   */
   standIn: StandInEntry
-  /** An identity that exists for nobody. */
   missing: CapabilityId
-  /** Changes to the world behind the ports, and a view of it. Each change holds for the calls
-   * that follow it. */
   world: Readonly<{
-    /** The lawful set of every principal now answers `unknown`. */
     lawfulSetUnknown(): void
-    /** The read check now answers `unknown` for `capability`, for every principal. */
     verdictUnknown(capability: CapabilityId): void
-    /** The lawful set of `reader` now lists `granted` twice. */
     repeatGranted(): void
-    /** `refused` now exists for nobody: it leaves the lawful set of `reader`. */
     removeRefused(): void
-    /** How many times the read check was called since the fixture was made. */
     checks(): number
   }>
 }>
@@ -99,12 +63,10 @@ function searchOf<P, S>(
   return f.catalog.search(who.access, who.scope, { text })
 }
 
-/** NFKC, then lower case: how the fixture constraints compare texts. */
 function fold(text: string): string {
   return text.normalize('NFKC').toLowerCase()
 }
 
-/** The first word of the description of `granted` that the fixture constraint asks for. */
 function descriptionWord<P, S>(f: CatalogFixture<P, S>): string {
   const { granted, standIn } = f
   const others = fold(`${granted.name}\n${standIn.name}\n${standIn.description ?? ''}`)
@@ -116,7 +78,6 @@ function descriptionWord<P, S>(f: CatalogFixture<P, S>): string {
   return word
 }
 
-/** The text with each ASCII letter written in its fullwidth form; NFKC folds it back. */
 function fullwidth(text: string): string {
   return [...text]
     .map(char => {
@@ -127,7 +88,6 @@ function fullwidth(text: string): string {
     .join('')
 }
 
-/** The names of the two non-disclosure cases. */
 export const CATALOG_NO_DISCLOSURE_LISTING =
   'answers the same whether a refused identity is in the lawful set or does not exist'
 export const CATALOG_NO_DISCLOSURE_FILTER =

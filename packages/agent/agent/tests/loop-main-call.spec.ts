@@ -37,7 +37,6 @@ import {
 
 type Dependencies = AgentDependencies<Principal, ContentBlock>
 type SealedPart = Extract<ResultPart, { kind: 'sealed' }>
-/** The block identity of the sealed reasoning parts of the R2-D268 cases. */
 const REASONING_ID = acceptedInput('replay').content.blocks[0].id
 const FINAL_FAILURE: Termination = {
   kind: 'failed',
@@ -150,7 +149,6 @@ describe('received Model result adoption', () => {
             dispatches: forbidden,
             async admit(input) {
               const saved = await load(assembly)
-              // R2-D292: the intent and the adopted request are saved; the preparation is not.
               expect(saved.checkpoint.requestPreparation).toBeNull()
               expect(saved.checkpoint.adoptedRequest).not.toBeNull()
               expect(saved.effects[0]?.pending).toEqual(saved.checkpoint.calls[0])
@@ -240,7 +238,6 @@ describe('received Model result adoption', () => {
     expect(assembly.controls.requests.prepare.calls).toHaveLength(preparations)
   })
 
-  // The first coordinator's M0 commit is unavailable: it waits, and its process stops in the wait.
   it('rebuilds the same ready intent after the process stops in a wait before its publication', async () => {
     let stop = true,
       admits = 0
@@ -418,13 +415,11 @@ describe('received Model result adoption', () => {
   it.each([
     ['failed', [], 'fail'],
     ['partial-text', [{ kind: 'partial', content: 'text', value: 'half', trims: [] }], 'fail'],
-    // R2-D268: an unsealed thinking part is a partial part as any other.
     [
       'partial-thinking',
       [{ kind: 'partial', content: 'thinking', value: 'reason', trims: [] }],
       'fail',
     ],
-    // R2-D268: sealed reasoning is not content; a failed call that produced only it has no reply.
     [
       'thinking-only',
       [
@@ -516,8 +511,6 @@ describe('received Model result adoption', () => {
       )
       const c = coordinator(assembly),
         authority = ok(await c.accept())
-      // A port's unavailable is a dependency wait: the pass ends waiting (Agent SPEC
-      // 依赖不可用时的等待).
       ok(await c.runExecution())
       const before = await load(assembly)
       expect(before.checkpoint.position).toBe('M4')
@@ -550,7 +543,6 @@ it('a live waiting driver whose entry notification is lost rereads receiver-only
   expect(received.revision).not.toEqual(before.revision)
   const due = assembly.controls.clock.pending()[0]
   if (!due) throw new Error('injected timer required')
-  // The notification was dropped and no reply exists yet: the check time is the only wake.
   expect(lost.pages).toBeGreaterThan(0)
   expect(await eventKinds(assembly)).not.toContain('message')
   expect(ok(assembly.controls.clock.advanceTo(due))).toBe(1)
@@ -593,8 +585,6 @@ it('no-reply waits for injected time and retains one candidate after an excluded
   }))
   const c = coordinator(assembly)
   ok(await c.accept())
-  // A port's unavailable is a dependency wait: the pass ends waiting (Agent SPEC
-  // 依赖不可用时的等待).
   ok(await c.runExecution())
   expect((await load(assembly)).checkpoint.position).toBe('M4')
   expect(failure(await c.runExecution())).toMatchObject({
@@ -611,10 +601,6 @@ it('no-reply waits for injected time and retains one candidate after an excluded
   })
 })
 
-// R2-D268 (corrects R2-D70): the delivery carries no original scope/format, so a sealed
-// reasoning_state or thinking part cannot enter the reply with a `replay`. The reply leaves them out
-// and is formed from the other blocks; the received material keeps them. Before R2-D268 such a
-// result answered `unsupported` at M3 and the run stopped there without a terminal.
 const COMPLETED: Termination = { kind: 'completed', reason: 'tool-suggestions' }
 const answerText: SealedPart = {
   kind: 'sealed',
@@ -659,8 +645,6 @@ it.each<readonly [string, SealedPart]>([
   'the reply leaves out the sealed %s, keeps the other blocks and the received material (R2-D268)',
   async (_name, part) => {
     const parts: readonly ResultPart[] = [part, answerText]
-    // The public scripted producer rejects reasoning_state in its sealed-result allowlist.
-    // This one case therefore tests a direct typed delivery to the actual receiver, not producer ACK.
     const direct = part.kind === 'sealed' && part.block.kind === 'reasoning_state'
     const assembly = direct
       ? await loopAssembly([execution()])
@@ -783,8 +767,6 @@ it('a transient material read failure resumes the same received delivery without
   assembly.release.open()
   const c = coordinator(assembly)
   ok(await c.accept())
-  // A port's unavailable is a dependency wait: the pass ends waiting (Agent SPEC
-  // 依赖不可用时的等待).
   ok(await c.runExecution())
   const before = await load(assembly)
   ok(await c.runExecution())
@@ -871,7 +853,6 @@ it('revocation after recovery proves not-accepted prevents its first real admiss
   }))
   const first = coordinator(assembly)
   authority = ok(await first.accept())
-  // R2-D237: the unavailable admission is a dependency wait at M6, saved before the recovery.
   ok(await first.runExecution())
   expect((await load(assembly)).checkpoint.position).toBe('M6')
   expect((await load(assembly)).state).toMatchObject({

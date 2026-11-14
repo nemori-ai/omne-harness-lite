@@ -1,7 +1,5 @@
 # 人在回路
 
-本页维护已接受的应然模块分工与公开协作，采用范围见[领域入口](../README.md#维护与状态)。引用的上游约束保持原采用范围；正文接受不表示当前代码已实现。
-
 ## 范围与边界
 
 HITL关联原决策请求、面向获准人的呈现和答复，既支持授权决定，也支持信息或方案选择。它不拥有原业务终态，不要求Agent仍在运行才能交回。
@@ -36,23 +34,3 @@ HITL关联原决策请求、面向获准人的呈现和答复，既支持授权�
 4. 迟到、重复或失效答复按原状态处理，不重开终局工作。
 
 超时不默认批准；失去读取资格不免除合法保管与交接责任。人的决定不证明工具已经执行或外部效果可撤回。
-
-## 契约与验证导航
-
-HITL契约拥有关联、呈现、答复及有效性，原等待/准入契约拥有答复含义和继续条件。精确持久等待、一次有效决定与提交关系随实际协调者维护。
-
-上层沿[身份与授权](../../architecture/security/identity-and-authorization.md)、[扩展准入/HITL](../../architecture/runtime/loop-extensions.md)、[控制恢复](../../architecture/runtime/control-and-recovery.md)；产品依据[产品正文](../../../.meta_harness/design/product/human-intervention/design.md)。验证见[组合入口](../verification.md)。
-
-## 后续设计与维护
-
-等待认领、卡片/答复提交、跨进程交接和失效竞态由HITL、原工作或工具/扩展协调者设计。界面可独立替换，但不能创建第二份决定权威。
-
-呈现维护读本契约；新授权或恢复含义再展开原拥有者。必要语义未定只阻塞相应决定路径，不替人补答。
-
-## 正式产品与技术承接导航
-
-[产品正文](../../../.meta_harness/design/product/human-intervention/design.md)保留完整能力与阶段缺项。[能力组](../../../packages/human-intervention/README.md)解释具名工程关系。[完整行为候选](../../../packages/human-intervention/human-intervention/SPEC.md)与[成员内部设计](../../../packages/human-intervention/human-intervention/docs/internals.md)尚待技术采用。正式维护位置不扩大本页已接受责任或证明实现。
-
-[领域角色与交接](architecture.md)补充候选分解；精确状态、提交与恢复条件由成员拥有。
-
-[跨领域关键流程](key-flows.md)补充候选分解；精确状态、提交与恢复条件由成员拥有。

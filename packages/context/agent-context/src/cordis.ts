@@ -1,7 +1,3 @@
-// The two plugins of agent-context. `AgentContextProvider` provides agentRequests and
-// agentModelContext in one fiber, so the reads that one hands out are the material the other
-// resolves. `AgentAccountOutletProvider` provides agentAccountOutlet. Each plugin stays pending and
-// provides nothing while a key it injects is absent.
 import type { Context } from '@deepseek-ai/cordis'
 import type { AgentAccountOutlet, ModelContextReader } from '@omne-harness/agent-contract'
 import {
@@ -32,11 +28,6 @@ import { createAgentRequests, type AgentRequests } from './requests.ts'
 import { absentToolLookup, toolsSourceOf, type ToolLookup } from './tools.ts'
 import { absentStepResults, definitionSourceOf, unavailable } from './translate.ts'
 
-/**
- * The key of the Model preparation resources (X-3). Its Cordis definition belongs to
- * model-cordis-contract and is not there yet; the plugin injects the key by this name and reads the
- * value as the `ModelPreparationResources` type of model-contract.
- */
 export const MODEL_PREPARATION_RESOURCES = 'modelPreparationResources'
 
 const ADOPTION_FIELDS = ['owner', 'name', 'revision', 'digest'] as const
@@ -56,7 +47,6 @@ function isAdoption(value: unknown): value is Adoption {
   )
 }
 
-/** The plugin configuration: the adoption identity of the outlet, given as the sender. */
 export type AgentAccountOutletConfig = Readonly<{ sender: Adoption }>
 
 const decodeOutletConfig: Decoder<AgentAccountOutletConfig> = (value, path) => {
@@ -69,14 +59,8 @@ const decodeOutletConfig: Decoder<AgentAccountOutletConfig> = (value, path) => {
     : fail('sender must be an adoption: owner, name, revision and digest, all text')
 }
 
-/**
- * Provides agentAccountOutlet. The first wave gives no target resolver (ACCT-TARGET), so every
- * delivery answers unavailable with scope-unresolved. The service ends with its fiber; a reference
- * kept past that answers unavailable, never a success.
- */
 export class AgentAccountOutletProvider extends AgentAccountOutletService<unknown> {
   static readonly inject = [requestContextKey, contextAccountingInboxKey]
-  /** Checked before the constructor runs; a configuration that does not fit fails the load. */
   static readonly Config = standardSchema(decodeOutletConfig)
   private closed = false
   readonly deliver: AgentAccountOutlet<unknown>['deliver']
@@ -96,13 +80,8 @@ export class AgentAccountOutletProvider extends AgentAccountOutletService<unknow
   }
 }
 
-/** The initial capacity of each material table, when the configuration gives none. */
 export const DEFAULT_MATERIAL_CAPACITY = 256
 
-/**
- * The configuration of `AgentContextProvider`: the adoption identity that owns the registrations
- * and the evidence, and the capacity of each material table.
- */
 export type AgentContextConfig = Readonly<{
   owner: Adoption
   materials?: number
@@ -123,7 +102,6 @@ const decodeContextConfig: Decoder<AgentContextConfig> = (value, path) => {
   return { ok: true, value: { owner, materials } }
 }
 
-/** Provides agentModelContext in the fiber of the provider of agentRequests. */
 class ModelContextProvider extends ModelContextReaderService<unknown> {
   readonly read: ModelContextReader<unknown>['read']
   constructor(ctx: Context, read: ModelContextReader<unknown>['read']) {
@@ -132,12 +110,6 @@ class ModelContextProvider extends ModelContextReaderService<unknown> {
   }
 }
 
-/**
- * Provides agentRequests and agentModelContext. It takes one lease of the holder parts (K-RQ) on its
- * fiber; when the fiber unloads the holder pulls the settlement, which withdraws every source set
- * this plugin registered. Both services end with the fiber; a reference kept past that answers
- * unavailable, never a success.
- */
 export class AgentContextProvider extends RequestPreparationService<unknown> {
   static readonly inject = {
     [requestContextKey]: null,
@@ -148,17 +120,11 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
     [MODEL_PREPARATION_RESOURCES]: null,
     [agentAdoptionsKey]: null,
   }
-  /** Checked before the constructor runs; a configuration that does not fit fails the load. */
   static readonly Config = standardSchema(decodeContextConfig)
   readonly prepare: RequestPreparationService<unknown>['prepare']
   readonly derive: RequestPreparationService<unknown>['derive']
   readonly resume: RequestPreparationService<unknown>['resume']
 
-  /**
-   * `input` is what the plugin factory hands in: the measurement observer and the tool lookup of
-   * the sixth group. Loaded as is, the plugin has neither: no event is built, and every non-empty
-   * set of bindings answers `tool-lookup-absent`.
-   */
   constructor(ctx: Context, config: AgentContextConfig, input: AgentContextPluginInput = {}) {
     super(ctx)
     const { measure } = input
@@ -169,7 +135,6 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
     })
     let requests: AgentRequests<unknown> | null = null
     let closed = false
-    // The lease is an effect of this fiber: its unload ends the lease and the holder pulls this.
     const leased = ctx.contextHolderSources.lease({
       settle: () => requests?.close() ?? Promise.resolve({ kind: 'settled' }),
     })
@@ -188,10 +153,8 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
         preparation,
         conversions: createAbsentConversionResults(),
         model: ctx.modelRequestPreparation,
-        // The sixth group: the resident bindings of the conditions, read through the tool lookup.
         tools: toolsSourceOf(toolLookup),
         stepResults: absentStepResults,
-        // The definition sections of the fourth group come from the adoptions service of Agent.
         definitions: definitionSourceOf(ctx.agentAdoptions),
         ...(measure === undefined ? {} : { measure }),
       })
@@ -203,7 +166,6 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
         ...(measure === undefined ? {} : { measure }),
       }).read
     }
-    // After the lease ends `requests` refuses by itself; the reader needs the flag below.
     const live = requests
     this.prepare = async input => (live ? live.prepare(input) : fail(refused))
     this.derive = async input => (live ? live.derive(input) : fail(refused))
@@ -220,28 +182,11 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
   }
 }
 
-/** What the assembly entry hands to `createAgentContextPlugin`. */
 export type AgentContextPluginInput = Readonly<{
-  /**
-   * The observer of the measurement events, handed to the request preparation and the readable
-   * context of the plugin (SPEC「测量事件」). It is a function, so it is not a configuration member.
-   * Absent: no event is built, as with `AgentContextProvider` itself.
-   */
   measure?: ContextMeasure
-  /**
-   * The tool lookup of the sixth group (SPEC「组六」), made from the context of the plugin: the
-   * constructor calls it once, and the lookup it returns serves every call. It is a function of the
-   * context, so it is not a configuration member and adds no service key. Absent: `absentToolLookup`.
-   */
   toolLookup?: (ctx: Context) => ToolLookup<unknown>
 }>
 
-/**
- * The plugin of `AgentContextProvider` with the measurement observer and the tool lookup that the
- * assembly entry hands in. The `inject`, the configuration and the provided keys are those of
- * `AgentContextProvider`; neither input is a Cordis service or a configuration member. Use the
- * returned class as `ctx.plugin(Plugin, config)` does with the provider class.
- */
 export function createAgentContextPlugin(
   input: AgentContextPluginInput = {},
 ): typeof AgentContextProvider {

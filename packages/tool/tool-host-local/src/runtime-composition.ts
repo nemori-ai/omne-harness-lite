@@ -43,7 +43,6 @@ type Bindings = ToolBindings<unknown, ToolEnvironmentValue>
 export type RuntimeEnvironment = ToolEnvironment<unknown, ToolEnvironmentValue>
 export type LocalToolRuntimeInput = Readonly<{
   store: ToolLedgerStore
-  /** Commits an acceptance together with the condition of its request policy verdict. */
   conditionalCommit: ConditionalLedgerCommit
   bodies: NonNullable<ToolLedgerPorts<unknown>['bodies']>
   content: ToolLedgerPorts<unknown>['content']
@@ -58,10 +57,6 @@ export type LocalToolRuntimeInput = Readonly<{
   configuration: ToolConfiguration
   bindings(): Bindings | undefined
   catalog(): ToolCatalog<unknown> | undefined
-  /**
-   * The decision owner of the Ask waits of checkpointed authors (P06), read at each call. Absent,
-   * or answering undefined, the waits meet the absent port (D-07): every method is `unavailable`.
-   */
   decisions?(): ToolDecisionBridge<unknown> | undefined
   environment: Readonly<{
     adoption: LocalExecutionEnvironmentInput<unknown>['adoption']
@@ -73,11 +68,6 @@ export type LocalToolRuntimeInput = Readonly<{
   observersPerCall: number
   observerQueueFrames: number
   observerResidenceMs: number
-  /**
-   * How often, in milliseconds, the executor scans the tenants that have calls not yet settled
-   * for calls whose hint was lost. It is not tied to `driverRetryDelayMs`. An integer from 1 to
-   * 2147483647; absent means 60000.
-   */
   recoveryRescanMs?: number
   lostContact?: LostContact
   recoveryAccess?: RecoveryAccess
@@ -100,7 +90,6 @@ export const runtimeUnavailable = (dependency: string) =>
     }),
   )
 
-/** Cancels only this wait; the original operation may still finish after retirement. */
 export function waitRuntime<T>(work: () => Promise<T>, signal: AbortSignal): Promise<T | null> {
   if (signal.aborted) return Promise.resolve(null)
   return new Promise((resolve, reject) => {

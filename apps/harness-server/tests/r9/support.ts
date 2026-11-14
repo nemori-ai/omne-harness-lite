@@ -1,6 +1,3 @@
-// R9 line-internal flow, shared pieces: the operator layer for the release tree, a handle on a real
-// `dist/bin.js serve` process, the `omne` CLI as a process, and the search for secrets in output.
-// No vitest import: `drive.ts` (the `run-r9.sh` driver) uses this file too.
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import {
   existsSync,
@@ -28,13 +25,11 @@ export const serverBin = join(memberDir, 'dist', 'bin.js')
 export const cliBin = join(memberDir, '..', 'cli', 'dist', 'bin.js')
 export const distributionPath = join(memberDir, 'config', 'serve.distribution.json')
 
-/** The shutdown deadline handed to `serve`. The storage close deadline stays below it. */
 export const SHUTDOWN_DEADLINE_MS = 5000
 export const READINESS_TIMEOUT_MS = 15_000
 
 export type Rec = { kind: string } & Record<string, unknown>
 
-/** A port that was free a moment ago. `server-entry` does not take port 0, so the flow picks one first. */
 export function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const probe = createServer()
@@ -48,16 +43,12 @@ export function freePort(): Promise<number> {
 }
 
 export type Scratch = Readonly<{
-  /** The directory that holds everything below. */
   base: string
-  /** `--state-root`: exists, absolute. */
   stateRoot: string
-  /** The storage root the operator layer gives to the `storage` row. */
   storageRoot: string
   remove(): void
 }>
 
-/** A fresh base with a state root and an own storage root inside it. */
 export function newScratch(prefix = 'r9-'): Scratch {
   const base = realpathSync(mkdtempSync(join(tmpdir(), prefix)))
   const stateRoot = join(base, 'state')
@@ -70,11 +61,6 @@ export function newScratch(prefix = 'r9-'): Scratch {
   }
 }
 
-/**
- * The operator layer for the release tree: the three rows whose configuration holds an absolute
- * path or a port. The distribution file keeps neither (decision L1-12).
- */
-/** The adoption every test value of the model rows names; a test parameter, not a release value. */
 const MODEL_TEST_ADOPTION = {
   owner: 'harness-server-test',
   name: 'model-rows',
@@ -82,22 +68,8 @@ const MODEL_TEST_ADOPTION = {
   digest: '0'.repeat(64),
 }
 
-/**
- * The operator values of the model rows whose numbers the release layer does not write (R2-D6:
- * the first production values follow "E9 initial value times 1.5, then the curve of the first
- * measurement"; there is no E9 table yet). These are test values: they let the release tree load
- * and the rows construct; no measurement backs them. `records` and `host` share
- * `resultPageTargetBytes` and `readIdleMs`, `records.sendStage.preparation` equals `preparation`,
- * and `records.sendStage.profiles` equals `profiles` (the load-time cross-row checks).
- */
-/**
- * The Model route when a test gives none: a loopback port that nothing listens on. A test that sends a
- * Model call without the local gateway (`tests/fixtures/model-gateway.ts`) fails on this machine; it
- * never reaches a real supplier (R2-D258).
- */
 export const UNUSED_MODEL_ROUTE = 'https://127.0.0.1:9/api/v1/chat/completions'
 
-/** The entry kinds the session diagnostics projection reads (server-entry `PROJECTED_KINDS`). */
 export const DIAGNOSTICS_KINDS = [
   'run.started',
   'run.attempt-started',
@@ -160,7 +132,6 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
     },
   }
   const records = {
-    // The consumer owner of every Agent call (`@omne-harness/agent`, loop/identities.ts AGENT_OWNER).
     owners: [
       {
         consumerOwner: '@omne-harness/agent',
@@ -173,20 +144,15 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       resultPageParts: 16,
       resultPageTargetBytes: 4096,
       readIdleMs: 1000,
-      // One unacknowledged result at a time: a second call of the tenant waits for the first.
       unacknowledgedResults: 1,
     },
     requestChunkBytes: 65536,
     combinationVersion: COMBINATION_VERSION,
     send: { mirrorBytes: 4_194_304, maxClaims: 8 },
-    // The read face `modelDiagnostics` (A12: the operator layer gives what the release does not).
     diagnostics: {
       diagnosticsRead: 'tenant-self',
       retention: { ...MODEL_TEST_ADOPTION, name: 'model-diagnostics-retention' },
     },
-    // The public Model stream (#1214): the bounds of the confirming observation source. A call keeps
-    // its publication until its result body is released: at most the 4 calls in flight and the 1
-    // unacknowledged result, within `maxRetainedCalls`.
     observation: {
       maxSnapshotBytes: 1_048_576,
       maxDeltaBytes: 262_144,
@@ -211,7 +177,6 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       },
       preparation,
       network: { maxConnections: 4, idleConnectionTimeoutMs: 60_000 },
-      // The release provider body gives the route; the test sends to its own gateway instead.
       endpoints: { openrouter: options.modelRoute ?? UNUSED_MODEL_ROUTE },
       transportLimits: {
         connectTimeoutMs: 5000,
@@ -239,18 +204,12 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
   }
 }
 
-/** The vault of a test tree: beside the storage root, which the entry creates, so it is there first. */
 export function testVaultPath(storageRoot: string): string {
   return join(dirname(storageRoot), 'model-vault.json')
 }
 
-/** The deployment key the test trees hold in the official layer of the OpenRouter `apiKey`. */
 export const TEST_DEPLOYMENT_KEY = 'r9-test-factory-secret'
 
-/**
- * Builds the vault of a test tree at `path` when it is not there, as `setup` would: the official
- * layer of the OpenRouter `apiKey` holds `TEST_DEPLOYMENT_KEY`.
- */
 export function seedTestVault(path: string): string {
   if (existsSync(path)) return path
   const provider = releaseProvider('openrouter')
@@ -272,12 +231,6 @@ export function seedTestVault(path: string): string {
   return path
 }
 
-/**
- * The `agent-host` row of the operator layer. A `replace` swaps the whole row config, so it copies
- * the two release items, `jointCommits` and `coordination`, from the distribution file (R2-D162)
- * and adds the factory numbers and `instanceIdleMs`, which are operator values. These are test
- * values; `loopGuardPolicy` has no production adoption source yet (a named gap, L-RUN wave 3).
- */
 function agentHostOperatorConfig(): Record<string, unknown> {
   const release = JSON.parse(readFileSync(distributionPath, 'utf8')) as {
     rows: { id: string; config: Record<string, unknown> }[]
@@ -298,7 +251,6 @@ function agentHostOperatorConfig(): Record<string, unknown> {
   }
 }
 
-/** 本机的 shell：可执行文件与把脚本作为最后一个参数传入的前缀参数。 */
 export function hostShell(): Readonly<{ executable: string; argsPrefix: string[] }> {
   if (process.platform !== 'win32') return { executable: '/bin/sh', argsPrefix: ['-c'] }
   const systemRoot = process.env['SystemRoot'] ?? 'C:\\Windows'
@@ -308,10 +260,6 @@ export function hostShell(): Readonly<{ executable: string; argsPrefix: string[]
   }
 }
 
-/**
- * Tool 运行时组、宿主提供者与两个作者的运维者值（测试值）。文件根与宿主状态目录在存储根的父目录下新建；
- * `tool-records` 的 `combinationVersion` 与 `session-storage` 行相同。
- */
 export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoint?: string }) {
   const base = dirname(options.storageRoot)
   const filesRoot = join(base, 'workspace')
@@ -334,9 +282,6 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       Ask: { resultMaxBytes: 1_048_576 },
       Web: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, maxSearchResults: 10 },
     },
-    // The Web provider values of the test operator layer: the local Exa stand-in when a test gives
-    // one (`tests/fixtures/exa-stub.ts`), else a loopback port that nothing listens on; short time
-    // limits, a small body cap. No test reaches the real Exa.
     web: {
       search: {
         endpoint: options.exaEndpoint ?? 'https://127.0.0.1:9/search',
@@ -404,11 +349,8 @@ export function operatorLayer(options: {
   storageRoot: string
   port: number
   shutdownDeadlineMs?: number
-  /** The `https:` URL of the Model route; the local gateway in tests that send a Model call. */
   modelRoute?: string
-  /** Replaces the release `maxJsonDepth` of the storage row (the negative control of R2-D270). */
   maxJsonDepth?: number
-  /** The `http:` URL of the local Exa stand-in; tests that run a Web search give it. */
   exaEndpoint?: string
 }): unknown {
   const deadline = options.shutdownDeadlineMs ?? SHUTDOWN_DEADLINE_MS
@@ -419,7 +361,6 @@ export function operatorLayer(options: {
       {
         kind: 'replace',
         id: 'storage',
-        // A `replace` swaps the whole row, so it copies the release `maxJsonDepth` (R2-D270).
         config: providerConfig(options.storageRoot, {
           closeDeadlineMs: deadline - 1000,
           maxResponseBytes: 131_072,
@@ -435,21 +376,13 @@ export function operatorLayer(options: {
           domainRule: 'organization-account/1',
         },
       },
-      // 模型侧五行的配置是机器级参数与运维者的数值：保管库路径、官方档案快照、宿主与记录仓的上限、准备行的家族配置。
-      // 写进运维层，不写进发行配置（R2-D6：发行层不写数值默认值）。
-      // The secret custody row opens the test vault; the model credential row reads it through the row.
       { kind: 'replace', id: 'secret-custody', config: { path: seedTestVault(model.vault) } },
       { kind: 'replace', id: 'model-tokenizers', config: model.tokenizers },
       { kind: 'replace', id: 'model-profiles', config: model.profiles },
       { kind: 'replace', id: 'model-request-preparation', config: model.preparation },
       { kind: 'replace', id: 'model-host', config: model.host },
       { kind: 'replace', id: 'model-records', config: model.records },
-      // Tool 与执行环境各行的数值与路径归运维者层，发行层不写默认值（B3-T2a 第 4 项、Tool B 段）。这里是测试值：
-      // 文件根与宿主状态目录在存储根旁边新建；Shell 用本机的 shell（Windows 是 powershell，其余是 /bin/sh）；
-      // 运行时组的数值取 L-TOOL C06 组合用例的同一组值（tool-storage-sql windows-composition/assembly.ts）。
       { kind: 'replace', id: 'tool-host', config: { construction: tools.construction } },
-      // The release row has no Tools capability and no Web provider values; the test layer adds both
-      // in one op, because a `replace` swaps the whole config of the row.
       {
         kind: 'replace',
         id: 'tool-bindings',
@@ -476,8 +409,6 @@ export function operatorLayer(options: {
         },
       },
       { kind: 'replace', id: 'execution-host', config: tools.host },
-      // B1（R2-D136）：Context 侧与 Session 适配行的数值归运维者层，发行层不写。这里是测试值：
-      // 账目收件口的上限、agent-context 的采用身份与结果容量、AD-03/AD-04 的索引上界与页大小（成员初值）。
       {
         kind: 'replace',
         id: 'request-context',
@@ -506,9 +437,7 @@ export function operatorLayer(options: {
           requestJournalFile: join(options.storageRoot, 'request-queue.jsonl'),
         },
       },
-      // SC4（R2-D162）：agent-host 换真件后，工厂数值与实例空闲时长归运维者层；整行替换时重抄发行层的两项。
       { kind: 'replace', id: 'agent-host', config: agentHostOperatorConfig() },
-      // The session diagnostics projection: every kind it knows, and test bounds (A12).
       {
         kind: 'replace',
         id: 'server-entry',
@@ -519,7 +448,6 @@ export function operatorLayer(options: {
           maxCallsPerRun: 64,
         },
       },
-      // 遥测行的预算归运维者层（R2-D229）；`replace` 整行替换，重抄发行层的实现与出口。测试值，未测量。
       {
         kind: 'replace',
         id: 'telemetry',
@@ -547,7 +475,6 @@ function releaseRowConfig(id: string): Record<string, unknown> {
   return release.rows.find(entry => entry.id === id)?.config ?? {}
 }
 
-/** The `maxJsonDepth` the release distribution gives the storage row. */
 export function releaseMaxJsonDepth(): number {
   const depth = releaseRowConfig('storage')['maxJsonDepth']
   if (typeof depth !== 'number') throw new Error('the release storage row gives no maxJsonDepth')
@@ -558,7 +485,6 @@ export function writeOperator(path: string, layer: unknown): void {
   writeFileSync(path, JSON.stringify(layer, null, 2), 'utf8')
 }
 
-/** Ends a child and everything it started. Windows needs `taskkill /T`: `kill` leaves orphans. */
 export function killTree(child: ChildProcess): void {
   if (child.pid === undefined || child.exitCode !== null) return
   if (process.platform === 'win32')
@@ -581,27 +507,18 @@ export type ServerOutcome = Readonly<{
 
 export type ServerHandle = Readonly<{
   port: number
-  /** Records seen so far. */
   records(): Rec[]
   stdout(): string
   stderr(): string
-  /** An ordered stop: closes stdin, waits for the exit. */
   stop(): Promise<ServerOutcome>
-  /** Ends the whole process tree at once. Idempotent. */
   kill(): Promise<void>
 }>
 
-/**
- * Starts `node dist/bin.js serve` on the release distribution with the operator file, and resolves
- * when `startup-result` has been written. Rejects, with the output so far, when the process ends first
- * or the deadline passes.
- */
 export function startServer(options: {
   stateRoot: string
   operatorPath: string
   port: number
   startupTimeoutMs?: number
-  /** A PEM file the child trusts in addition (`NODE_EXTRA_CA_CERTS`): the local Model gateway. */
   extraCaPath?: string
 }): Promise<ServerHandle> {
   const args = [
@@ -684,12 +601,10 @@ export function startServer(options: {
 }
 
 export type CliRun = Readonly<{
-  /** The command line without the credential (it goes to stdin). */
   command: readonly string[]
   status: number | null
   stdout: string
   stderr: string
-  /** The parsed result object of the CLI, when stdout holds one. */
   result: Record<string, unknown> | undefined
 }>
 
@@ -708,7 +623,6 @@ export function runOmne(options: {
     OMNE_HOME: options.home,
     OMNE_SERVER: options.server,
   }
-  // Windows sockets need the system directory; it carries no state of this repository.
   const systemRoot = process.env['SystemRoot']
   if (systemRoot !== undefined) env['SystemRoot'] = systemRoot
   return new Promise((resolve, reject) => {
@@ -734,7 +648,6 @@ export function runOmne(options: {
   })
 }
 
-/** The login proof that `omne login` saved in a state directory. Only tests and the driver read it. */
 export function savedLoginProof(home: string): string {
   const state = JSON.parse(readFileSync(join(home, 'login.json'), 'utf8')) as {
     loginProof: string
@@ -742,16 +655,11 @@ export function savedLoginProof(home: string): string {
   return state.loginProof
 }
 
-/** The tenant text that `omne login` saved in a state directory. */
 export function savedTenant(home: string): string {
   const state = JSON.parse(readFileSync(join(home, 'login.json'), 'utf8')) as { tenantId: string }
   return state.tenantId
 }
 
-/**
- * Every spelling in which the cursor signing key could appear in text: the file is 32 raw bytes,
- * so the spellings are hex, base64, base64url and the latin1 text of the bytes.
- */
 export function cursorKeySpellings(stateRoot: string): string[] {
   const key = readFileSync(join(stateRoot, CURSOR_KEY_FILE))
   return [
@@ -762,7 +670,6 @@ export function cursorKeySpellings(stateRoot: string): string[] {
   ]
 }
 
-/** Which of `secrets` occur in `haystack`. Returns the secrets' labels, never their values. */
 export function leaked(
   haystack: string,
   secrets: Readonly<Record<string, readonly string[]>>,
@@ -772,7 +679,6 @@ export function leaked(
     .map(([label]) => label)
 }
 
-/** `omne` result body of a successful command. */
 export function bodyOf(run: CliRun): Record<string, unknown> {
   const body = run.result?.['body']
   if (typeof body !== 'object' || body === null) throw new Error(`no body in: ${run.stdout}`)

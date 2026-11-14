@@ -53,7 +53,6 @@ function spyPort() {
   return { port, calls }
 }
 
-/** The port stays in a closure, as the definition requires of every implementation. */
 function credentialProvider(port: CredentialPort) {
   return class extends ModelCredentialService {
     readonly layerOf: CredentialPort['layerOf']

@@ -1,4 +1,3 @@
-// The source registry (RQ-12): one source set per target, generations, borrows, publication.
 import { describe, expect, it } from 'vitest'
 import { createContextSourceRegistry } from '@omne-harness/request-context'
 import { tenantCodec } from '@omne-harness/legal-identity'
@@ -222,7 +221,6 @@ describe('replace and withdraw', () => {
     const result = await registry.assembly(f.target).assemble(f.call)
     expect(replaced).toMatchObject({ kind: 'registered' })
     expect(result).toMatchObject({ kind: 'unavailable', owner: 'source-registry' })
-    // The successor serves the next operation.
     expect((await registry.assembly(f.target).assemble(f.call)).kind).toBe(
       'candidate-before-extension',
     )
@@ -307,7 +305,6 @@ describe('leases are recorded per generation (RQ-05, RQ-12)', () => {
     const f = createAssemblyFixture({ preparation: { plan: planFails as never, release: stuck } })
     const registry = registryFor(f)
     await registered(registry, f)
-    // The main failure is returned; the give-back failure is not dropped.
     expect(await registry.assembly(f.target).assemble(f.call)).toMatchObject({
       kind: 'unavailable',
       owner: 'preparation',
@@ -607,8 +604,6 @@ describe('a failure of the rules or the meter of a supplier keeps its kind (RQ-0
     unavailable: { kind: 'unavailable', owner: step },
   })
 
-  // The same input gives `invalid` and `unsupported` again, so the assembly must not answer
-  // unavailable: a caller waits on unavailable.
   it.each(['invalid', 'unsupported', 'denied', 'unavailable'] as const)(
     'the rules answer %s',
     async kind => {

@@ -1,7 +1,3 @@
-// Links and objects that are not regular files, on real temporary directories. A link inside the
-// package reads the bytes it points to; a link that resolves outside the resolved root makes the
-// whole package unreadable as `outside-package`; a dangling or cyclic link, a pipe and a socket make
-// it `entry-unreadable`.
 import { execFile } from 'node:child_process'
 import { createServer, type Server } from 'node:net'
 import { join } from 'node:path'

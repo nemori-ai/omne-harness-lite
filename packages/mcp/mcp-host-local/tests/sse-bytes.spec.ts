@@ -1,11 +1,8 @@
-// The byte bound of one SSE event (SPEC H8, contract T2), on the counter alone with a small bound:
-// the raw bytes since the last empty line, whatever line ends the body uses.
 import { describe, expect, it } from 'vitest'
 import { SseEventBytes } from '../src/sse-bytes.ts'
 
 type Read = Readonly<{ passed: string; error?: unknown }>
 
-/** Writes the chunks through a counter of `limit` bytes; what came out, and the error if any. */
 async function through(limit: number, chunks: readonly (string | Uint8Array)[]): Promise<Read> {
   const encoder = new TextEncoder()
   const body = new ReadableStream<Uint8Array>({
@@ -29,7 +26,6 @@ async function through(limit: number, chunks: readonly (string | Uint8Array)[]):
   return { passed: Buffer.concat(parts).toString('utf8') }
 }
 
-/** An event of exactly `size` bytes before its empty line: `data: ` and padding, then LF. */
 const eventOf = (size: number, end = '\n') => `data: ${'x'.repeat(size - 6 - end.length)}${end}`
 
 describe('the byte counter of an SSE event (SPEC H8)', () => {
@@ -44,7 +40,6 @@ describe('the byte counter of an SSE event (SPEC H8)', () => {
 
   it('counts bytes, not characters: three-byte characters within the character count pass the bound', async () => {
     const event = `data: ${'中'.repeat(4)}\n\n`
-    // 6 + 12 + 1 = 19 bytes before the empty line, 11 characters.
     expect(await through(18, [event])).toMatchObject({ error: expect.any(RangeError) })
     expect(await through(19, [event])).toEqual({ passed: event })
   })
@@ -104,11 +99,9 @@ describe('the byte counter of an SSE event (SPEC H8)', () => {
 
   it('a CRLF split across two chunks is one line end: the LF of the empty line is not counted', async () => {
     const line = eventOf(16, '\r\n')
-    // The empty line's CR closes one chunk and its LF opens the next, followed by a full event.
     expect(await through(16, [`${line}\r`, `\n${line}\r\n`])).toEqual({
       passed: `${line}\r\n${line}\r\n`,
     })
-    // The CRLF of a data line split the same way: both bytes are bytes of the event.
     const split = `data: ${'x'.repeat(8)}`
     expect(await through(16, [`${split}\r`, `\n\r\n`])).toEqual({ passed: `${split}\r\n\r\n` })
     expect(await through(15, [`${split}\r`, `\n\r\n`])).toMatchObject({

@@ -1,7 +1,3 @@
-// The gate process of one persistent terminal, in the terminal's scope unit. It is a script: nothing
-// imports it. This file keeps the current state and does the I/O: the control channel on file
-// descriptor 3, the frames on standard output, the two FIFOs to the Bash driver and the PTY. The
-// judgments and the segment state machine are in `terminal-gate-core.ts`.
 import { execFileSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { closeSync, constants, mkdirSync, openSync, readSync, writeSync } from 'node:fs'
@@ -62,10 +58,8 @@ function fail(): void {
   send({ t: 'fault' })
   clearInterval(timer)
   control.destroy()
-  // The manager or a cold recovery stops the original scope. This gate cannot certify its own stop.
 }
 
-/** Takes one step of the state machine: its frames first, then its failure. A failed gate sends nothing more. */
 function apply(step: Step): void {
   if (ended) return
   segments = step.state
@@ -78,12 +72,10 @@ function errno(error: unknown): unknown {
   return error instanceof Error ? Reflect.get(error, 'code') : undefined
 }
 
-/** A descriptor that would block is no failure; any other error fails the gate. */
 function failUnlessAgain(error: unknown): void {
   if (errno(error) !== 'EAGAIN') fail()
 }
 
-/** One non-blocking read; empty at the end of what is there now, or after a failure. */
 function readOnce(fd: number, buffer: Buffer): Buffer {
   try {
     return buffer.subarray(0, readSync(fd, buffer, 0, buffer.length, null))

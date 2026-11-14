@@ -1,6 +1,4 @@
 // @module-tag slow
-// The baseline is written from and checked against temporary Git repositories, and the CLI cases
-// start real Node subprocesses.
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -116,7 +114,6 @@ const ADDITIVE_A = 'export interface A {\n    a: string;\n    b?: number;\n}\n'
 describe('writing a baseline', { timeout: 120_000 }, () => {
   it('records each member at the commit: the snapshot sha256 of --check and the api tree', () => {
     const { root, base } = committedCheckout()
-    // Later work must not change what the baseline of `base` records.
     setDist(root, 'packages/x/a', { 'index.d.ts': ADDITIVE_A })
     writeSnapshots(root, CONFIG)
     commit(root, 'later')
@@ -163,7 +160,6 @@ describe('writing a baseline', { timeout: 120_000 }, () => {
 })
 
 describe('checking against a baseline', { timeout: 120_000 }, () => {
-  /** `first` is the committed checkout; `second` adds an optional field to A. */
   function twoCommits() {
     const { root, base: first } = committedCheckout()
     setDist(root, 'packages/x/a', { 'index.d.ts': ADDITIVE_A })
@@ -188,7 +184,6 @@ describe('checking against a baseline', { timeout: 120_000 }, () => {
         { directory: 'packages/x/b', commit: first, change: 'none' },
       ],
     })
-    // The supplementary registration moves a to the second commit; b stays on the first.
     const [a] = writeBaseline(root, CONFIG, second, {
       milestone: 'M1',
       members: ['packages/x/a'],
@@ -289,7 +284,6 @@ describe('checking against a baseline', { timeout: 120_000 }, () => {
   it('cannot judge a member whose registered commit has no such contract member', () => {
     const { root, base } = committedCheckout()
     const baseline = writeBaseline(root, CONFIG, base, { milestone: 'M1' })
-    // The first commit of the fixture holds only a README: no contract member table, no contract member.
     const empty = git(root, 'rev-list', '--max-parents=0', 'HEAD')
     const [a, b] = baseline.members
     const wrong = {
@@ -298,7 +292,6 @@ describe('checking against a baseline', { timeout: 120_000 }, () => {
       breakingCards: ['https://github.com/o/r/issues/9'],
     }
     const run = checkBaseline(root, CONFIG, wrong)
-    // breakingCards do not cover a member that cannot be judged.
     expect(run).toMatchObject({
       refused: true,
       undetermined: [{ path: 'packages/x/a', reason: expect.stringContaining('不是契约成员') }],
@@ -329,7 +322,6 @@ describe('checking against a baseline', { timeout: 120_000 }, () => {
 
   it('cannot judge a member that was a contract member at the baseline but is not registered', () => {
     const { root, base } = committedCheckout()
-    // A registration that left out packages/x/b although it was a contract member at base.
     const partial = writeBaseline(root, CONFIG, base, {
       milestone: 'M1',
       members: ['packages/x/a'],

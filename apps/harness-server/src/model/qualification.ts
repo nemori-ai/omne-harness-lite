@@ -20,18 +20,10 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { MODEL_HOST_COMPONENT, classOf, type PrincipalClass } from './principals.ts'
 import { callKey, sameTenant } from './tenant-call.ts'
 
-/** The owner of every subject reference: the standing source that can read the record again. */
 export const ACTOR_OWNER = tenantStandingKey
 
 const QUALIFICATION = 'model-access-qualification'
 
-/**
- * The allowed purposes of each verified principal class. The login principal reads the facts of the
- * calls of its tenant: their state (`inspect`), the current stream (`facts`) and the stream itself
- * (`observe`), as it reads the history of its sessions (#1214, RFC-0015 §8). `facts` also covers the
- * query of an operation and the replay of an accepted admission; none of them creates a call, and
- * `admit` stays with the work principal.
- */
 const ACTIONS: Readonly<Record<CommandAction, readonly PrincipalClass[]>> = Object.freeze({
   admit: ['work'],
   facts: ['login', 'work', 'host'],
@@ -70,7 +62,6 @@ type Capture =
 
 type Held = { capture: Capture; holds: number }
 
-/** A host binding the entry recorded after `channel.prepare` succeeded. */
 export type HostBinding = Readonly<{
   tenant: TenantId
   call: ModelCallId
@@ -91,10 +82,6 @@ const unavailable = (dependency: string, diagnostic: string): ModelFailure => ({
 })
 const denied = (action: string): ModelFailure => ({ kind: 'denied', action })
 
-/**
- * The subject reference of a tenant: the standing record of its account, read now. `unavailable`
- * when the source cannot answer; the diagnostic of the source is not copied (it may name rows).
- */
 export async function readSubject(
   standing: Pick<TenantStandingSource, 'read'>,
   tenant: TenantId,
@@ -141,12 +128,7 @@ export type ModelReadLease = Readonly<{
 export type ModelQualification = Readonly<{
   qualifyRead(access: Access<unknown>, current: () => boolean): Promise<ModelReadLease>
 
-  /**
-   * Verifies `access.principal`, reads the standing of its tenant and captures the outcome for the
-   * duration of one call. Returns the release. A principal the entry captured as M is left as it is.
-   */
   qualify(access: Access<unknown>, current: () => boolean): Promise<() => void>
-  /** The entry captures M after it verified the acceptance record. Returns the withdrawal. */
   captureHost(
     input: Readonly<{
       principal: object
@@ -156,19 +138,10 @@ export type ModelQualification = Readonly<{
       current: () => boolean
     }>,
   ): () => void
-  /** The entry records the binding `channel.prepare` returned, for `execution` and `current`. */
   recordHostBinding(binding: HostBinding): void
-  /**
-   * Forgets every host binding: the composition calls it when the channel closes (the attachment
-   * ends) and when the bound host retires. The table is bounded by the bindings of one channel of
-   * one host generation; stale ones (`current()` false) are also dropped on each record.
-   */
   dropHostBindings(): void
-  /** The synchronous authority the records core and the host channel ask. */
   authority: ModelCommandsAuthority<unknown>
-  /** The synchronous send qualification of every registered send source. */
   sourceCurrent: ModelSendSource<unknown>['current']
-  /** `qualifyObservation` of the host: qualify, then ask `authorize` for `observe`. */
   qualifyObservation(access: CallAccess<unknown>, current: () => boolean): Reply<void>
 }>
 
@@ -292,7 +265,6 @@ export function createModelQualification(
             return fail(unavailable(ACTOR_OWNER, subject.diagnostic))
         }
         if (released || !current()) return fail(denied(action))
-        // This result belongs to this read; another request cannot overwrite it in held.
         if (capture.kind === 'host' && captured(access.principal) !== capture)
           return fail(denied(action))
         const result = authorizeCapture(capture, { action, access, resource })

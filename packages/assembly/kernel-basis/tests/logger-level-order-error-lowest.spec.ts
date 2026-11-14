@@ -1,7 +1,3 @@
-// basis `logger-level-order-error-lowest`（W1-B 2026-09-23 核实）：Cordis logger 的级别序是
-// ERROR 0 < INFO 1 < WARN 2 < DEBUG 3；exporter 没给阈值时默认只导出到 INFO——warn 与 debug 默认看不见。
-// 装配要看到 warn 级诊断，必须给 exporter 配 `levels`（或 logger 的 `level`）。
-// `LoggerLevel` 是 `const enum`，运行期不存在，所以这里用数值；数值本身就是被核实的事实。
 import { Context, type Message } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 

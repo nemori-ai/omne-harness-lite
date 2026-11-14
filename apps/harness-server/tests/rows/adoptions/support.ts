@@ -1,6 +1,3 @@
-// Shared fixtures of the `agent-adoptions` and `adoption-sources` tests: mapping configurations, a
-// probe row that captures the live services of the tree, and a harness that holds the tree open
-// while a test calls them.
 import type { Context } from '@deepseek-ai/cordis'
 import type { Principal } from '@omne-harness/identity'
 import { succeed } from '@omne-harness/operation-result'
@@ -45,7 +42,6 @@ export const requiredIdentities = [{ capability: 'model', name: 'default' }] as 
 export const modesOf = (collaboration: 'co-work' | 'auto-drive' = 'co-work') =>
   ({ permission: 'never', environment, collaboration }) as const
 
-/** One mapping entry as it is written in the distribution file. */
 export const entryConfig = (name: string, patch: Plain = {}): Plain => ({
   name,
   candidate: candidateOf(name),
@@ -62,7 +58,6 @@ export const mappingConfig = (...entries: Plain[]): Plain => ({
   mappings: entries.length === 0 ? [entryConfig('alpha'), entryConfig('beta')] : entries,
 })
 
-/** The services of the tree, as the probe row sees them. */
 export type Captured = Readonly<{
   agent: AgentAdoptionsImpl
   mappings: DefinitionMappings
@@ -99,12 +94,6 @@ const rows = (config: unknown) => [
 
 const visibility = new Map([...serveProfile().visibility, [PROBE, ['definitionMappings']]])
 
-/**
- * The release entry objects, with the entry's real `sessionWorkPrincipals` reading a Session
- * ownership stand-in that has bound no session: a first creation, before Session committed anything.
- * The work principal is then denied, which tells `create` that there is no original initialization to
- * recall (adoption-sources docs「create 的模式注册」), so the mapping decides.
- */
 export const firstCreationEntryObjects: readonly EntryObjectModule[] = releaseEntryObjects.map(
   module =>
     module.name !== sessionWorkPrincipalsKey
@@ -125,7 +114,6 @@ export const firstCreationEntryObjects: readonly EntryObjectModule[] = releaseEn
         },
 )
 
-/** Starts the two rows and a probe, runs `use` against the live services, then stops the tree. */
 export async function withLiveTree<T>(
   config: unknown,
   use: (captured: Captured) => Promise<T> | T,
@@ -161,7 +149,6 @@ export async function withLiveTree<T>(
   }
 }
 
-/** Starts only the two rows and returns the whole run (for configurations that must not start). */
 export function serveRows(config: unknown): Promise<ServeRun> {
   return serveOnce({
     distribution: { rows: rows(config) },
@@ -176,7 +163,6 @@ type Create = Extract<AdoptionEvidenceCommand, { kind: 'create' }>
 type StartRun = Extract<AdoptionEvidenceCommand, { kind: 'startRun' }>
 type Reload = Extract<AdoptionEvidenceCommand, { kind: 'reload' }>
 
-/** A creation that matches the mapping entry `name` of `entryConfig`, so the source accepts it. */
 export function createCommand(
   name: string,
   overrides: Partial<Create['input']['creation']> = {},
@@ -219,7 +205,6 @@ export const reloadCommand = (candidate: Adoption): Reload => ({
   },
 })
 
-/** The plain value of a JSON tree. A `JsonValue` field inside the facts is itself such a tree. */
 export function plainOf(tree: unknown): unknown {
   const node = tree as GuardCommand['facts']
   switch (node.kind) {
@@ -237,7 +222,6 @@ export function plainOf(tree: unknown): unknown {
   }
 }
 
-/** The plain content of a guard's `facts` tree, for assertions on what the material says. */
 export function factsOf(guard: GuardCommand): Plain {
   return plainOf(guard.facts) as Plain
 }

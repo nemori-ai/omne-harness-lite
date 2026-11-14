@@ -49,7 +49,6 @@ export function createLocalToolBindingsPlugin<P, E, B extends ContentBlock>(
       ctx.effect(() => () => {
         retired = true
       })
-      // The assembly fixes P; the service registry erases it to unknown.
       const verifier = ctx.toolContributionAuthority as ToolContributionAuthority<P>
       const registry = (this.registry = createLocalToolBindingRegistry<P, E, B>({
         verifier,

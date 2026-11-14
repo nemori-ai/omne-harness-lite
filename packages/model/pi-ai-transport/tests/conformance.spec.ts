@@ -1,5 +1,4 @@
 // @module-tag slow — starts an openssl child process and a real local HTTPS server, and sends
-// real requests for every transport obligation of the conformance suite.
 import {
   checkModelProviderConformance,
   type ConformanceSubject,
@@ -38,10 +37,8 @@ afterAll(async () => {
   certificate.dispose()
 })
 
-/** The send counters of every subject built so far. */
 const counters: (() => number)[] = []
 
-/** The scripted provider, with the real transport over a fresh network for every check. */
 function subject(): ConformanceSubject<ScriptedPrincipal> {
   const scripted = createScriptedConformanceSubject()
   const resources = network(server.ca, { maxConnections: 2 })
@@ -73,7 +70,6 @@ it('the real transport passes every transport obligation of the conformance suit
   expect(results).toEqual(
     TRANSPORT_OBLIGATIONS.map(obligation => ({ obligation, status: 'pass', detail: '' })),
   )
-  // The package count agrees with the server: every counted send arrived, and nothing else did.
   const counted = counters.reduce((total, sends) => total + sends(), 0)
   expect(counted).toBeGreaterThan(0)
   await expect.poll(() => server.requests.length - before).toBe(counted)

@@ -1,6 +1,3 @@
-// A caller that knows only the package entries opens an account, logs in and has its login
-// recognized. Besides the two identity entries it imports the pure time values that the clock and
-// the terms take.
 import { expect, it } from 'vitest'
 import { parseDuration, parseInstant } from '@omne-harness/utc-instant'
 import type { IdentityOperations } from '@omne-harness/identity'

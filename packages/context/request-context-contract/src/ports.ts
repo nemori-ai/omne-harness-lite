@@ -48,7 +48,6 @@ export interface HistorySource<P> {
       budgetBytes: number
     }>,
   ): Promise<HistoryReadResult>
-  /** The incremental judgment window of CM-02 under the same evidence, entries without a message included. */
   compactionContext(
     input: Readonly<{ access: Access<P>; evidence: HistoryEvidence; coverTo: RecordEntryRef }>,
   ): Promise<CompactionContextResult>
@@ -60,7 +59,6 @@ export type ConversionIndexResult =
   | PortInvalid
   | Readonly<{ kind: 'unknown' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-/** 读取接纳时固定的表示与来源（RQ-04「本成员只读取其合约结果」）。Model 契约没有这个读口，本成员本地定义，结果类型取 Model 的 `ConversionResult`（RQ-Q12）。 */
 export interface ConversionResultSource<P> {
   read(
     input: Readonly<{ access: Access<P>; target: ContextTarget; blocks: readonly BlockId[] }>,
@@ -73,7 +71,6 @@ export type RetainBudget =
 export type CompactionPolicy = Readonly<{
   retainBudget: RetainBudget
   retainPreference: 'newest-first' | 'most-referenced'
-  /** 触发界线：窗口占用百分比（与 Model `ContextLimits.compactionTriggerPercent` 同口径）与可选 token 余量。 */
   triggerPercent: string | null
   headroomTokens: string | null
   trimFirst: boolean
@@ -89,7 +86,6 @@ export type CompactionPlanDraft =
       shape: CompactionPlan['shape']
     }>
   | Readonly<{ kind: 'floor-exceeds-budget'; floor: readonly RecordEntryRef[]; budget: string }>
-/** The measurement of one complete retained set; unavailable is never turned into zero or a huge number. */
 export type RetentionMeasurement =
   | Readonly<{ kind: 'measured'; tokens: string }>
   | Readonly<{ kind: 'unknown'; diagnostic: string }>
@@ -98,7 +94,6 @@ export interface CompactionPolicyPort {
   readonly identity: Adoption
   readonly config: CompactionPolicy
   configDigest(): string
-  /** `measure` measures the given entries as one complete set; the policy never holds a lease. */
   plan(
     input: Readonly<{
       view: ProjectedHistory
@@ -130,7 +125,6 @@ export type AssemblyPolicies = Readonly<{
   compaction: CompactionPolicyPort
   representation: RepresentationPolicyPort
 }>
-/** The operation group: each call carries only the call identity; the seven groups are read from sources (RQ-12, RQ-13). */
 export interface AssemblyOperations<P> {
   assemble(call: AssemblyCall<P>): Promise<AssemblyResult>
   planCompaction(call: AssemblyCall<P>): Promise<PlanResult>

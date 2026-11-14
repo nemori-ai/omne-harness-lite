@@ -1,14 +1,3 @@
-// 测量用的测试世界：line-through 联合世界（真实 session-adapters 的 Journal 提供者、真实 sqlite-provider、
-// 真实 Agent 循环与接收方；Model 与 Tool 是脚本替身，不访问网络）上跑一次「N 步工具用例」，读出每次提交。
-//
-// 使用它的测试文件必须在顶部这样挂住存储，否则没有读数：
-//
-//   vi.mock('@omne-harness/sqlite-provider', async importOriginal =>
-//     (await import('./fixtures/journal-world.ts')).measuringProvider(await importOriginal()))
-//
-// 一步 = 一次 Model 调用加它请求的那次 Tool 调用。步以 Model 调用被受理为界：第 k 步（k ≥ 1）是第 k 次受理到
-// 第 k+1 次受理之间的全部存储提交；第 0 步是建会话与受理输入；最后一次受理（文本答复，不带 Tool）之后是
-// 收尾步 N+1。
 import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -24,7 +13,6 @@ import {
 
 let active: Recorder | null = null
 
-/** 把 sqlite-provider 模块换成「创建出的存储被当前记录器包住」的版本；没有记录器时原样穿过。 */
 export function measuringProvider<
   M extends { createSqliteStorage: (input: never) => Promise<any> },
 >(original: M): M {
@@ -38,46 +26,35 @@ export function measuringProvider<
   }
 }
 
-/** 消息内容的两档：脚本化小消息，和 3 KiB 消息。 */
 export const TIERS = {
   small: 'a scripted small message',
   '3k': `${'0123456789abcdef'.repeat(192)}`,
 } as const
 export type Tier = keyof typeof TIERS
 
-/** release 配置的单个 command 上限；现状的 provider 在它之上写不出去。 */
 export const RELEASE_COMMAND_LIMIT = 1_048_576
 
 export type RunOptions = Readonly<{
-  /** 工具步数 N。 */
   steps: number
   tier: Tier
-  /** 存储上限里要改的成员；默认只设 release 的 command 上限。 */
   storageLimits?: Readonly<Record<string, number>>
-  /** 这么久没有新的存储提交也没有终态，就判这次运行停了。 */
   stallMs?: number
-  /** 整次运行的上限。 */
   totalMs?: number
-  /** 给了就把最终的库文件复制到这个目录，供 `scripts/check-journal-facts.mjs` 扫。 */
   keepDatabasesIn?: string
-  /** 复制出去的库文件名（不含扩展名）；默认「档-步数」。 */
   label?: string
 }>
 
 export type RunMeasurement = Readonly<{
   steps: number
   tier: Tier
-  /** `completed`：Run 到了终态；`stalled`：没有进展；`timeout`：超过总时限。 */
   ended: 'completed' | 'stalled' | 'timeout'
   outcome: string | null
-  /** 运行停下时已经受理的 Model 调用次数。 */
   admissions: number
   readings: readonly CommitReading[]
   summary: readonly StepSummary[]
   pageSize: number
   warnings: readonly string[]
   errors: readonly string[]
-  /** 复制出去的库文件。 */
   databases: readonly string[]
 }>
 
@@ -104,8 +81,6 @@ export async function measureToolRun(options: RunOptions): Promise<RunMeasuremen
     defaultDelayMs: 20,
     root,
     storageLimits: { maxCommandBytes: RELEASE_COMMAND_LIMIT, ...options.storageLimits },
-    // The run takes N tool steps and one closing reply: the step limit is named here, not left
-    // to the Agent's default (50), which ended the 200-step run as `failed` at its guard.
     maxRunSteps: options.steps + 2,
   })
   let ended: RunMeasurement['ended'] = 'completed'
@@ -141,9 +116,6 @@ export async function measureToolRun(options: RunOptions): Promise<RunMeasuremen
     await world.close()
     recorder.finish()
     active = null
-    // A run that did not complete names its reason from the records: the Agent's ended
-    // conclusion (its cause evidence) and the finishing facts before it. A failed run is never
-    // silent in a measurement; a run with no ended fact says so.
     if (outcome !== 'completed')
       errors.push(...endedReasons(new Set(recorder.readings.map(reading => reading.file))))
     if (options.keepDatabasesIn !== undefined) {
@@ -180,10 +152,6 @@ export async function measureToolRun(options: RunOptions): Promise<RunMeasuremen
 let lastWarnings: readonly string[] = []
 let lastErrors: readonly string[] = []
 
-/**
- * The reasons the records give for a run that did not complete: the `finish.ended` facts with
- * their conclusion, and the last finishing facts before them, per database file.
- */
 function endedReasons(files: ReadonlySet<string>): string[] {
   const reasons: string[] = []
   for (const file of files) {

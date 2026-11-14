@@ -1,6 +1,3 @@
-// The violating variants of the G7 binding-registry suite: a registry built at the registry
-// boundary over the conforming double, with one flaw switched on. With no flaw it is the double
-// itself, so the variants stay one flaw away from a conforming provider. Not a test file.
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import { sameBindingKey } from '@omne-harness/tool-contract/provider'
 import type {
@@ -15,27 +12,16 @@ import {
 } from '@omne-harness/tool-cordis-contract/testing'
 
 export type Flaws = Readonly<{
-  /** Every contribution carries an empty token. */
   emptyToken?: boolean
-  /** The ordinal of every contribution is `0`, so successors are not later. */
   ordinalResets?: boolean
-  /** The same fiber registering the same key and digest again is a conflict, not recognised. */
   recogniseNothing?: boolean
-  /** A conflicting registration replaces the holder instead of being refused. */
   overwriteOnConflict?: boolean
-  /** A release removes whatever holds the key now, not only its own token. */
   releaseByKey?: boolean
-  /** The end of a fiber withdraws nothing. */
   fiberEndKeepsEntry?: boolean
-  /** Two asset versions of one capability share one key. */
   keyIgnoresAsset?: boolean
-  /** A refused origin is reported as unavailable. */
   refusalAsUnavailable?: boolean
-  /** A loaded registration whose key is not the verified key is reported as denied. */
   mismatchAsDenied?: boolean
-  /** `close` releases the contribution instead of marking it draining. */
   closeReleases?: boolean
-  /** A tenant scope sees every entry. */
   snapshotIgnoresScope?: boolean
 }>
 
@@ -45,7 +31,6 @@ type Registered = Outcome<ToolContribution, ToolContributionFailure>
 export function flawedBindingFixture(flaws: Flaws = {}): ToolBindingRegistryFixture<string> {
   const base = memoryToolBindingRegistryFixture()
   const inner = base.registry
-  /** The latest contribution the flawed registry handed out for a key. */
   const holders: ToolContribution[] = []
   const handed = new Set<string>()
   const holderOf = (key: ToolBindingKey) => holders.find(item => sameBindingKey(item.key, key))

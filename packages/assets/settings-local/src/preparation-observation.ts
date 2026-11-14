@@ -19,7 +19,6 @@ export const preparationPlanSchema = readySettingsIntentSchema
   .extend({
     kind: z.literal('planned'),
     purpose: intentPurposeSchema,
-    /** The secret items of the current definition; see `secretItemsOf`. Not stored with an attempt. */
     secretItems: z.array(SettingsIdSchema).max(128),
   })
 const attemptSchema = z.strictObject({

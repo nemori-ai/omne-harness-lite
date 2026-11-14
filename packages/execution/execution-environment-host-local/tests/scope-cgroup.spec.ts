@@ -1,7 +1,3 @@
-// Where the unified cgroup hierarchy keeps a scope, read from `/proc/self/cgroup` and
-// `/proc/self/mountinfo` text: unified, hybrid and legacy systemd layouts, a mount that shows only
-// a subtree, and escaped mount points; then where a process stands for one unit. The last two tests
-// read this test process's own cgroup and run the probe program outside its own unit.
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { readFileSync } from 'node:fs'
@@ -56,7 +52,6 @@ it('maps the path below the root of a mount that shows only a subtree, and skips
   expect(
     unifiedCgroupDirectory(`0::${scopePath}\n`, [elsewhere, unifiedAt('/mnt/cg2')].join('\n')),
   ).toBe(`/mnt/cg2${scopePath}`)
-  // A root is a whole path segment: `/user.slice/user-10` does not contain `user-1001.slice`.
   const prefix = unifiedAt('/sys/fs/cgroup', '/user.slice/user-10')
   expect(unifiedCgroupDirectory(`0::${scopePath}\n`, prefix)).toBeUndefined()
   expect(unifiedCgroupDirectory(`0::${scopePath}\n`, unifiedAt('/mnt', scopePath))).toBe('/mnt')
@@ -95,7 +90,6 @@ it('sees no unified hierarchy on a legacy host, where the kernel still prints a 
 })
 
 it('reads only whole cgroup2 mount lines and an absolute 0:: path', () => {
-  // Too few fields before the separator, and a line without the separator at all.
   const short = '34 33 0:29 / - cgroup2 cgroup2 rw'
   const noSeparator = 'xxcgroup2 a b / /mnt'
   expect(unifiedCgroupDirectory(`0::${scopePath}\n`, [short, noSeparator].join('\n'))).toBe(
@@ -122,14 +116,12 @@ it('decodes the octal escapes of a mount point', () => {
 it.skipIf(process.platform !== 'linux')(
   'places this process in its own cgroup, whose member list names it',
   context => {
-    // Read inside the test, so that no code under test runs while the file loads.
     const procCgroup = readFileSync('/proc/self/cgroup', 'utf8')
     const path = procCgroup
       .split('\n')
       .find(line => line.startsWith('0::'))
       ?.slice(3)
     const mountinfo = readFileSync('/proc/self/mountinfo', 'utf8')
-    // A host that shows this process no unified hierarchy below the root has nothing to place.
     if (
       path === undefined ||
       path === '/' ||
@@ -148,13 +140,11 @@ it.skipIf(process.platform !== 'linux')(
 
 it(
   'fails when the probe program does not run in the unit it is named for',
-  // Slow: starts a Node process.
   { tags: ['slow'], skip: process.platform !== 'linux' },
   async () => {
     const program = fileURLToPath(new URL('../dist/scope-probe.js', import.meta.url))
     const child = spawn(process.execPath, [program, unit], { stdio: 'ignore' })
     const [code] = await once(child, 'exit')
-    // The probe program reads the same host as this test process.
     const visible = ownUnitPlacement(unit).kind !== 'noUnifiedHierarchy'
     expect(code).toBe(visible ? 1 : noUnifiedHierarchyExit)
   },

@@ -1,8 +1,3 @@
-// The file custody of secret bindings: one JSON file, a file lock for writers, an atomic publish
-// (temporary file, fsync, rename), and a read of the whole file on every answer. The handle keeps
-// no cache of the bindings: a change by another process or by hand is seen by the next call. It
-// implements the two ports of `@omne-harness/settings` and gives trusted adapters the whole
-// snapshot and a locked revision, the two things a judgment over several bindings needs.
 import {
   closeSync,
   fsyncSync,
@@ -39,25 +34,16 @@ import {
   type SecretState,
 } from './records.ts'
 
-/** Why a vault file cannot be read: absent, not a vault, or a file-system error. */
 export type UnavailableCause = 'missing' | 'corrupt' | 'io'
 
 export type SecretVaultOptions = Readonly<{
   path: string
-  /** How long a writer waits for the file lock before it gives up. Default: 30 000. */
   lockWaitMs?: number
-  /** The pause between two attempts to take the lock. Default: 50. */
   lockBackoffMs?: number
 }>
 
-/** The whole vault, read now. The one face that carries values; only trusted adapters hold it. */
 export type SecretVaultSnapshot = Readonly<{ bindings: readonly SecretRecord[] }>
 
-/**
- * An open vault: the management face, the use face, and what a trusted adapter needs beyond them.
- * `revise` is one locked read-change-write over the whole binding list; `undefined` from `change`
- * writes nothing and answers `written`.
- */
 export type SecretVault = SecretCustodyManagement &
   SecretCustodyUse &
   Readonly<{
@@ -66,7 +52,6 @@ export type SecretVault = SecretCustodyManagement &
     revise(
       change: (bindings: readonly SecretRecord[]) => readonly SecretRecord[] | undefined,
     ): SecretWriteResult
-    /** Marks this handle closed. Every face then answers `denied`; the file is not changed. */
     close(): void
   }>
 
@@ -74,7 +59,6 @@ export type OpenSecretVaultResult =
   | Readonly<{ kind: 'open'; vault: SecretVault }>
   | Readonly<{ kind: 'unavailable'; cause: UnavailableCause }>
 
-/** A binding that a new vault starts with. Only used when the file is built, never on adoption. */
 export type SecretSeed = Readonly<{
   key: SecretBindingKey
   secret: SecretText
@@ -84,10 +68,6 @@ export type SecretSeed = Readonly<{
 export type CreateSecretVaultOptions = SecretVaultOptions &
   Readonly<{ seed?: readonly SecretSeed[] }>
 
-/**
- * `created` tells whether the file was built now or adopted. `locked`: the lock wait ran out.
- * `unavailable`: a file is on the path that cannot be read as a vault; it is not replaced.
- */
 export type CreateSecretVaultResult =
   | Readonly<{ kind: 'open'; vault: SecretVault; created: boolean }>
   | Readonly<{ kind: 'unavailable'; cause: Exclude<UnavailableCause, 'missing'> }>
@@ -110,9 +90,6 @@ function requireIntegerAtLeast(value: unknown, name: string, minimum: number): n
   return value
 }
 
-// Only an absent option takes its default. A caller outside the type system can hand in `null`,
-// `NaN` or a string; `NaN` would make the lock wait endless, so every value is checked before the
-// lock is taken or the disk is read.
 function settle(options: SecretVaultOptions): Settings {
   if (typeof options.path !== 'string' || options.path === '')
     throw new TypeError('path must be a non-empty string')
@@ -144,11 +121,8 @@ function errorCode(error: unknown): string | undefined {
     : undefined
 }
 
-// proper-lockfile's time-based takeover is disabled by a `stale` of the largest safe integer: no
-// finite clock jump can make a live holder's lock appear stale, so another writer cannot steal it.
-// The lockfile mtime is still refreshed within Node's timer limit. Crash recovery is manual: a
-// leftover `${path}.lock` means the owning process died and an operator removes it after all
-// writers are stopped.
+// No clock jump may make a live lock look stale, so time-based takeover is off. A leftover
+// `${path}.lock` means its process died; an operator removes it after every writer stops.
 const STALE_NEVER_MS = Number.MAX_SAFE_INTEGER
 const LOCK_UPDATE_MS = 2 ** 31 - 1
 
@@ -167,8 +141,6 @@ function acquireLockSync(path: string, lock: Lock): () => void {
       const remaining =
         deadline - /* wall-clock: operation-timing -- Measure local lock wait. */ Date.now()
       if (remaining <= 0) throw new LockTimeout(`timed out waiting for the vault lock at ${path}`)
-      // Back off without yielding the event loop, since the faces are synchronous. A pause never
-      // runs past the deadline, so `waitMs` stays the upper bound even when `backoffMs` is larger.
       Atomics.wait(
         new Int32Array(new SharedArrayBuffer(4)),
         0,
@@ -179,18 +151,11 @@ function acquireLockSync(path: string, lock: Lock): () => void {
   }
 }
 
-/** The name `atomicSave` gives a temporary file of the vault at `path`: `<name>.<pid>.<ms>.<n>.tmp`. */
 function isOwnTemporary(path: string, name: string): boolean {
   const prefix = `${basename(path)}.`
   return name.startsWith(prefix) && /^\d+\.\d+\.\d+\.tmp$/.test(name.slice(prefix.length))
 }
 
-/**
- * Removes the temporary files of this vault that a publish left behind when its process ended
- * between the write and the rename. Such a file can hold the whole snapshot. The caller holds the
- * file lock, so no live writer is in the middle of its own temporary file. Only names of the
- * `atomicSave` pattern for this vault are removed. A failure to list or remove is ignored.
- */
 function sweepTemporaries(path: string): void {
   const directory = dirname(path)
   let names: string[]
@@ -203,13 +168,10 @@ function sweepTemporaries(path: string): void {
     if (!isOwnTemporary(path, name)) continue
     try {
       unlinkSync(join(directory, name))
-    } catch {
-      // Best-effort: the next holder of the lock tries again.
-    }
+    } catch {}
   }
 }
 
-/** Takes the file lock, then removes leftover temporary files of this vault. */
 function lockAndSweep(path: string, lock: Lock): () => void {
   const release = acquireLockSync(path, lock)
   sweepTemporaries(path)
@@ -220,7 +182,6 @@ type Refreshed =
   | Readonly<{ kind: 'state'; state: SecretState }>
   | Readonly<{ kind: 'unavailable'; cause: UnavailableCause }>
 
-// The parse error is not kept: its message can quote the file, and the file holds secrets.
 function refresh(path: string): Refreshed {
   let text: string
   try {
@@ -263,11 +224,6 @@ function exists(path: string): boolean {
   }
 }
 
-/**
- * Publishes the state: a unique temporary file, `fsync`, rename over the vault, and on POSIX an
- * `fsync` of the parent directory. `published` means the vault may already show the new state:
- * the rename returned, or it threw and the temporary file is gone, so the replace may have landed.
- */
 function atomicSave(path: string, state: SecretState): Saved {
   const tmpPath = `${path}.${process.pid}.${/* wall-clock: internal-name -- Name a temporary vault file. */ Date.now()}.${tmpCounter++}.tmp`
   let fd: number | undefined
@@ -282,7 +238,6 @@ function atomicSave(path: string, state: SecretState): Saved {
     renaming = true
     renameSync(tmpPath, path)
     phase = 'published'
-    // Windows cannot fsync a directory handle, so there the rename is the last step.
     if (process.platform !== 'win32') {
       const dirFd = openSync(dirname(path), 'r')
       try {
@@ -296,29 +251,20 @@ function atomicSave(path: string, state: SecretState): Saved {
     if (fd !== undefined) {
       try {
         closeSync(fd)
-      } catch {
-        // Cleanup of a half-open file descriptor is best-effort.
-      }
+      } catch {}
     }
     if (renaming && phase === 'temp-write' && !exists(tmpPath)) phase = 'published'
     // The temporary file is unique to this call. After a rename it is gone and the unlink fails
     // safely; otherwise the partial snapshot is removed.
     try {
       unlinkSync(tmpPath)
-    } catch {
-      // Cleanup of the temporary file is best-effort.
-    }
+    } catch {}
     return { ok: false, phase, cause: error }
   }
 }
 
 type Mutation = 'written' | 'not-written' | 'unconfirmed' | 'locked'
 
-/**
- * One locked read, change and write. `change` answers `undefined` to write nothing; the result is
- * then `written` and the file stays as it was. A failure before the new file replaced the old one
- * is `not-written`; a failure after that is `unconfirmed`; a lock wait that ran out is `locked`.
- */
 function attemptMutation(
   settings: Settings,
   change: (state: SecretState) => SecretState | undefined,
@@ -368,7 +314,6 @@ function compareSortKeys(left: SortKey, right: SortKey): number {
   return 0
 }
 
-// The cursor is the sort key of the last entry of the page, in a form the caller does not read.
 function encodeCursor(key: SortKey): SecretListCursor {
   return { after: Buffer.from(JSON.stringify(key), 'utf8').toString('base64url') }
 }
@@ -492,7 +437,6 @@ function live(settings: Settings): SecretVault {
   }
 }
 
-/** Opens the vault at `path`. It reads the file once to classify it and never creates or changes it. */
 export function openSecretVault(options: SecretVaultOptions): OpenSecretVaultResult {
   const settings = settle(options)
   const refreshed = refresh(settings.path)
@@ -500,11 +444,6 @@ export function openSecretVault(options: SecretVaultOptions): OpenSecretVaultRes
   return { kind: 'open', vault: live(settings) }
 }
 
-/**
- * Builds the vault when the path is empty, and adopts the vault that is already there otherwise.
- * The decision is made under the lock, so two processes that start on the same empty path cannot
- * each write an empty file over the other's bindings. The seed goes into a built file only.
- */
 export function createSecretVault(options: CreateSecretVaultOptions): CreateSecretVaultResult {
   const settings = settle(options)
   const { path } = settings
@@ -539,16 +478,10 @@ export function createSecretVault(options: CreateSecretVaultOptions): CreateSecr
   }
 }
 
-/** Whether a vault file can be read, or why not. `locked` means the lock wait ran out. */
 export type SecretVaultInspection =
   | Readonly<{ kind: 'readable' }>
   | Readonly<{ kind: 'unavailable'; cause: UnavailableCause | 'locked' }>
 
-/**
- * Checks that the file at `path` is a readable vault. It takes the file lock, removes the
- * temporary files that a crashed publish of this vault left behind, and reads the file. It never
- * creates or changes the vault itself. A missing path answers `missing` without a lock.
- */
 export function inspectSecretVault(options: SecretVaultOptions): SecretVaultInspection {
   const settings = settle(options)
   const { path } = settings

@@ -21,7 +21,6 @@ import {
 const file = (path: string, text: string): SourceFile => ({ path, text })
 const root = fileURLToPath(new URL('../../../', import.meta.url))
 
-// 独立列出节点范围，防止新增规则遗漏一个包而测试仍通过。
 const purePackages = [
   'content-blocks',
   'asset-model',
@@ -127,8 +126,6 @@ describe('core-pure-imports', () => {
     expect(
       corePureImports.check([file('core/messages/src/schema.ts', "import fs from 'node:fs'")]),
     ).toHaveLength(1)
-    // The native generator binds receiver/keywords; handwritten product wrappers
-    // must not separately import either of the build-only/native technical ports.
     for (const subpath of ['code-runtime', 'schema-codegen'])
       expect(
         corePureImports.check([
@@ -476,7 +473,6 @@ export const normalizeDirectory = (path: string) => isAbsolute(path) ? normalize
     ).toEqual([])
   })
 
-  // 归慢层：子进程＋重 CPU：两次起真实 CLI 子进程，每次都扫描整个仓库的执行模块。
   it('collectSources + CLI 真实临时包：坏依赖退出1，合法包退出0', { tags: ['slow'] }, () => {
     const scratch = join(root, 'tmp')
     mkdirSync(scratch, { recursive: true })

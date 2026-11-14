@@ -1,18 +1,4 @@
 import { createTiktokenExecutor, type TiktokenResources } from '@omne-harness/tokenizer-tiktoken'
-// The steps of the OpenAI example. Each round of a request goes through them:
-//
-// 1. `proxyFromEnvironment` maps HTTPS_PROXY to the proxy of the network resources. The proxy adds
-//    the real credential, so the examples never read or hold a secret.
-// 2. `profileOf` takes an official profile definition and makes the stored profile that a plan reads.
-// 3. `fixRequest` acquires the family binding, lets `rules.plan` fix the parameter adoptions and the
-//    representation, judges the `FixedModelRequest` and releases the binding. This stands in for the
-//    request preparation of Model, which belongs to parent item 4.2: the examples do it by hand.
-// 4. `openTransport` creates the network resources and the pi transport. The credential slot gives a
-//    placeholder value; the proxy replaces it.
-// 5. `executeOnce` runs `executeModel` of `@omne-harness/model` and prints what came back.
-//
-// The Anthropic family keeps the same steps for its two examples, with the assembly of the reply
-// added; the cross-family example there uses both families.
 import { createHash } from 'node:crypto'
 import {
   decodeRevision,
@@ -42,14 +28,9 @@ import {
   type ProxyConfig,
 } from '@omne-harness/pi-ai-transport'
 
-/** The OpenRouter endpoint and the data text that ends its SSE stream. */
 const OPENROUTER = 'https://openrouter.ai/api/v1/chat/completions'
 const END_MARKER = '[DONE]'
 
-/**
- * The environment to the proxy configuration. Without HTTPS_PROXY nothing could add the credential,
- * so the example stops with a clear message.
- */
 export function proxyFromEnvironment(): ProxyConfig {
   const url = process.env.HTTPS_PROXY
   if (url === undefined || url === '')
@@ -63,7 +44,6 @@ export function proxyFromEnvironment(): ProxyConfig {
   return { url, bypass }
 }
 
-/** An adoption of the example itself: the source of the inputs, the retry policy, a profile. */
 export function exampleAdoption(name: string): Adoption {
   return {
     owner: 'pi-ai-examples',
@@ -76,7 +56,6 @@ export function exampleAdoption(name: string): Adoption {
 export const SOURCE = exampleAdoption('source')
 export const RETRY_POLICY = exampleAdoption('retry-policy')
 
-/** The stored factory profile of the official definition whose supplier is the model. */
 export function profileOf(
   definitions: readonly ModelProfileDefinition[],
   model: string,
@@ -95,7 +74,6 @@ export function profileOf(
   }
 }
 
-/** The supplier of the profile, on the official credential layer. */
 export function supplierOf(profile: ModelProfile): Supplier {
   const declared = profile.definition.suppliers[0]
   return {
@@ -106,14 +84,12 @@ export function supplierOf(profile: ModelProfile): Supplier {
   }
 }
 
-/** The replay declaration of the profile supplier with every default applied. */
 export function declarationOf(profile: ModelProfile): ReplayDeclaration {
   const declared = judgeReplayDeclaration(profile.definition.suppliers[0], 0)
   if (!('ok' in declared)) throw new Error(`replay declaration: ${declared.failure.reason}`)
   return declared.ok
 }
 
-/** The input of one round, as plain JSON values; the contract judge checks them. */
 export type RoundInput = Readonly<{
   system: readonly unknown[]
   messages: readonly unknown[]
@@ -129,10 +105,6 @@ function judged(value: unknown): FixedModelRequest {
   return request.ok
 }
 
-/**
- * Acquire, plan, judge, release. Model's request preparation (parent item 4.2) will do this; the
- * example does it by hand. A refusal of the plan stops the example before anything is sent.
- */
 export async function fixRequest(
   families: readonly PiFamily[],
   profile: ModelProfile,
@@ -151,7 +123,6 @@ export async function fixRequest(
     declarations: [declarationOf(profile)],
     source: SOURCE,
   }
-  // The typed history for the plan: the same input, judged once without parameters.
   const draft = judged({
     ...base,
     parameters: [],
@@ -177,8 +148,6 @@ export async function fixRequest(
     })
     if (!('ok' in plan)) throw new Error(`plan: ${JSON.stringify(plan.failure)}`)
     for (const adoption of plan.ok.parameters) {
-      // The plan applies an explicit value as it was requested; the line still shows both, so
-      // that a changed value is visible.
       const applied = show(adoption.applied)
       const requested =
         adoption.origin.kind === 'explicit' ? show(adoption.origin.requested) : 'a default'
@@ -205,7 +174,6 @@ function show(parameter: Parameter): string {
 
 export type OpenTransport = Readonly<{ transport: PiTransport; network: NetworkResources }>
 
-/** The network resources and the transport of the families. The assembly closes both. */
 export function openTransport(families: readonly PiFamily[]): OpenTransport {
   const network = createNetworkResources({
     maxConnections: 1,
@@ -223,7 +191,6 @@ export function openTransport(families: readonly PiFamily[]): OpenTransport {
         auth: { kind: 'bearer', item: 'apiKey' },
       },
     },
-    // A placeholder: the proxy replaces it with the real credential.
     credential: { read: () => new Map([['apiKey', 'placeholder']]) },
     limits: {
       connectTimeoutMs: 30_000,
@@ -252,7 +219,6 @@ export type RoundResult = Readonly<{
   completed: boolean
 }>
 
-/** One independent execution: it prints the text, the reasoning state, the account and the end. */
 export async function executeOnce(
   open: OpenTransport,
   request: FixedModelRequest,

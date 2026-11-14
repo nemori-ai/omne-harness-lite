@@ -1,5 +1,3 @@
-// classifyWireEvent: every answer class of the decision table has an event that falls into it,
-// and every classification is a class of the table's domain for that request and material.
 import { describe, expect, it } from 'vitest'
 import {
   LEGACY_PROTOCOL_VERSIONS,
@@ -33,7 +31,6 @@ type Sample = Readonly<{
   expected: AnswerClass
 }>
 
-/** One answer delivered on a material: a stdio line or a 2xx JSON body. */
 function delivered(kind: Sample['kind'], text: string): WireEvent {
   return kind === 'stdio'
     ? { kind: 'line', text }
@@ -108,7 +105,6 @@ const STATUSES: Readonly<Record<string, number>> = {
   '5xx': 502,
 }
 
-/** Samples built from their class: one or more events for every class of every cell. */
 function samples(): readonly Sample[] {
   const kinds = ['stdio', 'streamable-http'] as const
   const list: Sample[] = []
@@ -232,10 +228,6 @@ describe('classifyWireEvent over the domain of the decision table', () => {
   })
 })
 
-/**
- * The class of an event, without the message the classification carries with a result or error
- * class: these cases pin the class; `carries the message` below pins the message.
- */
 function classify(event: WireEvent, ctx: WireContext): WireClassification {
   const classified = classifyWireEvent(event, ctx)
   return classified.kind === 'answer' ? { kind: 'answer', answer: classified.answer } : classified

@@ -86,7 +86,6 @@ const BasisSchema = z.strictObject({
 export function createSettingsCatalog(
   input: SettingsCatalogOptions,
 ): SettingsReadPort<ActingForTenantPrincipal> & {
-  /** The authority of a principal over one target of this scope, captured now, for any action. */
   access: {
     authorize(
       principal: ActingForTenantPrincipal,

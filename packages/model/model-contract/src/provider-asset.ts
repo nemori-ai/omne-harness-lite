@@ -1,9 +1,3 @@
-// The model provider asset (model design「凭据的范围」): the category `model-provider` of the asset
-// domain. A model provider is the upstream service a model request really reaches. Its body says
-// which protocol it speaks, where its endpoint is, how it accounts for cost and which credential
-// items it needs; each credential item is a secret setting the provider declares, so the
-// credentials of a provider are configured through the common asset settings. The body contract
-// judges a body, and its `settings` hook derives one secret setting item per credential item.
 import {
   isReadBody,
   readBodyText,
@@ -17,10 +11,8 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { decodeProviderName } from './provider-name.ts'
 import type { ProviderName } from './root.ts'
 
-/** The asset category of a model provider. */
 export const MODEL_PROVIDER_CATEGORY = 'model-provider'
 
-/** One credential item a provider needs: the secret setting it declares, and how it reads. */
 export type CredentialItemDeclaration = Readonly<{
   item: string
   title: string
@@ -29,7 +21,6 @@ export type CredentialItemDeclaration = Readonly<{
   clear: string
 }>
 
-/** The judged body of a model provider asset. */
 export type ModelProviderBody = Readonly<{
   name: ProviderName
   protocol: string
@@ -38,7 +29,6 @@ export type ModelProviderBody = Readonly<{
   credentials: readonly CredentialItemDeclaration[]
 }>
 
-/** Why a body is not a model provider body. */
 export type ModelProviderBodyRejection =
   | 'not-an-object'
   | 'invalid-name'
@@ -49,13 +39,9 @@ export type ModelProviderBodyRejection =
   | 'invalid-credentials'
   | 'duplicate-credential'
 
-/** A credential item name: a letter, then letters and digits. */
 const CREDENTIAL_ITEM = /^[a-zA-Z][a-zA-Z0-9]{0,63}$/u
-/** The one group every derived credential setting sits in. */
 const CREDENTIALS_GROUP = 'credentials'
-/** The provider id of every derived definition; the definition id is the provider name. */
 const SETTINGS_PROVIDER_ID = MODEL_PROVIDER_CATEGORY
-/** The version of a definition derived without a pinned version. */
 const UNPINNED_VERSION = '0'
 
 const schemaRead = readBodyText(
@@ -72,7 +58,6 @@ const schemaRead = readBodyText(
 if (schemaRead.kind !== 'ok') throw new TypeError('model provider schema text is not a document')
 const schema: JsonValue = schemaRead.value
 
-/** Judges a body against the provider rules and returns it in its typed form. */
 export function parseModelProviderBody(
   body: unknown,
   capabilityName?: string,
@@ -95,13 +80,11 @@ export function parseModelProviderBody(
   return succeed({ name, protocol, endpoint, accounting, credentials })
 }
 
-/** The typed body, or `undefined` when the body is not a model provider body. */
 export function readModelProviderBody(body: unknown): ModelProviderBody | undefined {
   const parsed = parseModelProviderBody(body)
   return 'ok' in parsed ? parsed.ok : undefined
 }
 
-/** The body contract of the category `model-provider`, for the category registry. */
 export function modelProviderBodyContract(): BodyContract {
   return {
     category: MODEL_PROVIDER_CATEGORY,
@@ -157,7 +140,6 @@ function judge(body: unknown, context?: { capabilityName?: string }): Judgment {
   return 'ok' in parsed ? { ok: true } : refusal(parsed.failure)
 }
 
-/** The typed body for the hooks: the registry judges first, so a refusal here is a caller defect. */
 function typed(body: unknown, capabilityName: string | undefined): ModelProviderBody {
   const parsed = parseModelProviderBody(body, capabilityName)
   if (!('ok' in parsed))

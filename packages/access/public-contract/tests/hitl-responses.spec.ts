@@ -1,4 +1,3 @@
-// HITL 一组的响应读写（SPEC「HITL 结果」「卡片视图」「答复的提交与认回」「HITL 编解码函数」）。
 import {
   encodeHitlResponse,
   encodeSessionResponse,
@@ -133,7 +132,6 @@ const bodyOf = (operation: HitlOperation, outcome: string): object =>
       ? { resource: 'card-bytes', limit: 4096 }
       : {}
 const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
-/** `messageId` 为 null 时响应不带关联值。 */
 const response = (outcome: string, body: unknown, messageId: string | null = 'm') => ({
   protocolVersion: version,
   ...(messageId === null ? {} : { messageId }),
@@ -191,7 +189,6 @@ describe('readHitlResponse 的 outcome 矩阵', () => {
       protocolVersion: 'session-public/1',
     })
     expect(foreign.kind).toBe('unreadable')
-    // 读不出的原因随结果一起交回。
     expect(foreign).toHaveProperty('diagnostic.code')
   })
 })

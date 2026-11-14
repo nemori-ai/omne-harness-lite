@@ -1,16 +1,11 @@
-// What the shared retained-process index reads on Windows: the boot identity, the members of a
-// retained Job by its name, and the forced stop of that Job. Every reading comes from a one-shot
-// bridge, outside the Job.
 import type { ManagedResource } from '@omne-harness/execution-environment-contract'
 import type { RetainedSupervision } from '../host-retained-processes.ts'
 import type { MembersReading, ScopeShow, StopReading, StopStatus } from '../host-scope.ts'
 import { askBridge } from './bridge.ts'
 
-/** The Job names this provider creates. Names under `Local\` exist per login session. */
 export const commandJobName = (key: string) => `Local\\omne-command-${key}`
 export const terminalJobName = (key: string) => `Local\\omne-terminal-${key}`
 
-/** The Job name in a Windows resource reference; undefined for any other reference. */
 export function readWindowsJobReference(
   reference: ManagedResource['reference'],
 ): string | undefined {
@@ -22,7 +17,6 @@ export function readWindowsJobReference(
     : undefined
 }
 
-/** The resource with the boot and login session of the process that creates its Job. */
 export function withWindowsIdentity(
   resource: ManagedResource,
   identity: WindowsIdentity,
@@ -39,7 +33,6 @@ export function withWindowsIdentity(
   return Object.freeze({ ...resource, reference })
 }
 
-/** The boot and login session a Job reference carries; undefined when it carries none. */
 function readReferenceIdentity(
   reference: ManagedResource['reference'],
 ): WindowsIdentity | undefined {
@@ -53,11 +46,6 @@ function readReferenceIdentity(
   return boot === undefined || !Number.isSafeInteger(session) ? undefined : { boot, session }
 }
 
-/**
- * The forced stop of the Job a resource names, by its name. Another boot ended the Job. Another
- * login session cannot address it. A missing name confirms the stop only in the boot and session
- * the reference carries; without them it proves nothing.
- */
 export async function stopWindowsResource(
   resource: ManagedResource,
   boundMs: number,
@@ -85,7 +73,6 @@ export type WindowsIdentity = Readonly<{ boot: string; session: number }>
 
 let identity: Promise<WindowsIdentity | undefined> | undefined
 
-/** The boot time and the login session of this process. A failed reading is not kept. */
 export function windowsIdentity(boundMs: number): Promise<WindowsIdentity | undefined> {
   const reading = (identity ??= askBridge(
     { mode: 'identity' },
@@ -98,13 +85,11 @@ export function windowsIdentity(boundMs: number): Promise<WindowsIdentity | unde
   return reading
 }
 
-/** The forced stop of a named Job; `absent` when no Job has that name in this login session. */
 export async function stopWindowsJob(
   name: string,
   boundMs: number,
 ): Promise<StopStatus | 'absent'> {
   const answer = await askBridge(
-    // The bridge reads whole milliseconds.
     { mode: 'recover', name, stopBoundMs: Math.ceil(boundMs) },
     frame => (frame.t === 'stopped' ? (frame.absent ? 'absent' : frame.status) : undefined),
     boundMs,
@@ -112,10 +97,6 @@ export async function stopWindowsJob(
   return answer ?? 'unconfirmed'
 }
 
-/**
- * A retained Job's unit in the index: the login session it was created in and its name. Names
- * under `Local\` exist per login session, so the session is part of the coordinate.
- */
 export const retainedJobUnit = (session: number, name: string): string => `${session}:${name}`
 
 function parseUnit(unit: string): Readonly<{ session: number; name: string }> | undefined {
@@ -126,7 +107,6 @@ function parseUnit(unit: string): Readonly<{ session: number; name: string }> | 
     : { session, name: parts[2] }
 }
 
-/** The unit and boot of a retained Job's reference, as the index lists it. */
 export function readRetainedJobReference(
   reference: ManagedResource['reference'],
 ): Readonly<{ session: number; name: string; boot: string }> | undefined {
@@ -138,12 +118,10 @@ export function readRetainedJobReference(
   return job === undefined ? undefined : { ...job, boot: boot.value.value }
 }
 
-/** The answer for a Job this process cannot address: its members are unknown, not none. */
 const unaddressable: ScopeShow = { loadState: 'other-session', activeState: 'unknown' }
 const gone: ScopeShow = { loadState: 'not-found', activeState: 'inactive' }
 
 export function windowsRetainedSupervision(boundMs: number): RetainedSupervision {
-  /** The Job of `unit` when this process's login session can address it. */
   const addressable = async (unit: string) => {
     const job = parseUnit(unit)
     const self = await windowsIdentity(boundMs)
@@ -169,8 +147,6 @@ export function windowsRetainedSupervision(boundMs: number): RetainedSupervision
       const name = await addressable(unit)
       if (name === undefined) return { status: 'unconfirmed', show: unaddressable }
       const status = await stopWindowsJob(name, boundMs)
-      // In the Job's own boot and session a missing name means its last handle closed, and
-      // `KILL_ON_JOB_CLOSE` stopped every member.
       return status === 'absent' ? { status: 'confirmed', show: gone } : { status }
     },
   })

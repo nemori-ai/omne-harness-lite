@@ -14,11 +14,6 @@ export type RefusalReason =
   | 'executable'
   | 'checker-failed'
 
-/**
- * The reasons for which a judgment of an extension output refuses it (extensions.md, "Conclusion").
- * They are separate from `RefusalReason`: a refused output is an error of a running extension, not
- * of a declaration.
- */
 export type OutputRefusalReason =
   | 'malformed'
   | 'position_unknown'
@@ -31,11 +26,6 @@ export type OutputRefusalReason =
   | 'rewrite_touches_immutable'
   | 'inject_source_mismatch'
 
-/**
- * A refusal carries `kind` and `reason`; `detail` is a diagnostic text for people and logs that a
- * judgment may add to say which member broke which rule. Callers decide on `reason` only; `detail`
- * has no stable vocabulary.
- */
 export type Judgment<T, Reason extends string = RefusalReason> =
   | { readonly kind: 'accepted'; readonly value: T }
   | { readonly kind: 'refused'; readonly reason: Reason; readonly detail?: string }

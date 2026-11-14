@@ -4,8 +4,6 @@ import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { facilityDifferences, facilityFiles } from './facility-sync.ts'
 
-// The comparison of the facility copies must be able to fail, or the check on the real members
-// (facility-members.spec.ts) would stay green whatever the copies held.
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'facility-sync-')))
 afterAll(() => rmSync(root, { recursive: true, force: true }))
 

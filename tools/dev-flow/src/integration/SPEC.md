@@ -1,6 +1,6 @@
 # 分支集成工具行为契约
 
-本工具在 gate 运行时等待并代为确认（I21），派发并跟踪工具包的发行运行，为 `pnpm run check` 核对契约快照与 dist（I22）。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。本工具不构造候选，不验证候选，也不发布。认卡、执行记录、绑定、开工、双基线、目标基线同步、轨道树与提升 PR 的说明生成已按 [RFC-0014](../../../../docs/rfcs/RFC-0014-single-card-session-and-gate-relief.md) 删除，相应条款随之删除。保留条款沿用原编号。
+本工具在 gate 运行时等待并代为确认（I21），派发并跟踪工具包的发行运行，为 `pnpm run check` 核对契约快照与 dist（I22）。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。本工具不构造候选，不验证候选，也不发布。保留条款沿用原编号。
 
 本模块兑现[轨道与 gate](../../../../docs/engineering/integration.md)。公开类型及输入解析归本目录源码，命令用法归 [README](README.md)。以下承诺约束实现。
 
@@ -18,7 +18,7 @@ I21。`gate-cli.ts wait` 等待一次 workflow 运行。说明去掉首尾空白
 
 `release-run-cli.ts`、仓库根和包内的 `release-run` script、构建后的 `omne-release-run` 迁移包发布脚本。它固定使用 `gate-release.yml` 与 `github-gate`。
 
-输入 JSON 先经 [strict-json.ts](strict-json.ts) 解析，重复键（含转义后相同的键）、超过 1 MiB 或嵌套超过 128 层时拒绝；再由 `parseReleaseRunInput` 严格解析，包含版本、仓库、UUID operationId、包名、候选提交、Issue 号、显式 dryRun 与 workflowHead。支持 repo-toolchain 和 repo-config。派发前读取实际 workflow ID 与 ref head，确认与输入一致；在一次 POST 之前持久保存 intent。精确 dispatch receipt 绑定本次输入和 run。没有 receipt 时返回 unknown，恢复不选择最新 run，也不重复 POST。
+输入 JSON 先经 [strict-json.ts](strict-json.ts) 解析，重复键（含转义后相同的键）、超过 1 MiB 或嵌套超过 128 层时拒绝；再由 `parseReleaseRunInput` 严格解析，包含版本、仓库、UUID operationId、包名、候选提交、Issue 号、显式 dryRun 与 workflowHead。输入被拒绝时，错误消息写出问题所在的路径，不写值。支持 repo-toolchain 和 repo-config。派发前读取实际 workflow ID 与 ref head，确认与输入一致；在一次 POST 之前持久保存 intent。精确 dispatch receipt 绑定本次输入和 run。没有 receipt 时返回 unknown，恢复不选择最新 run，也不重复 POST。
 
 每次观察核对同仓库、workflow ID/path、ref、head、workflow_dispatch、run ID 和 attempt 1，并读取精确 attempt。重跑、身份变化、失败或取消均不能报告成功。观察超时只停止本地等待，远端运行可能继续。相同输入和操作日志用于恢复；冲突输入拒绝，日志不共用临时文件。
 

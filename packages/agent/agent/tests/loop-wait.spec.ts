@@ -1,6 +1,3 @@
-// The wait for an execution change (W0) against the four query conclusions of SPEC
-// "查询的四种结论与持久拒绝": an operation found rejected is settled, so the wait is ready at once;
-// an unknown one keeps waiting until the clock or an abort.
 import { describe, expect, it } from 'vitest'
 import { reconciliationPacer } from '../src/loop/reconciliation.ts'
 import { waitForExecutionChange } from '../src/loop/wait.ts'
@@ -26,7 +23,6 @@ describe('W0 and the query conclusions', () => {
             : { ok: { kind: 'unknown' } },
       },
     }))
-    // Opened directly: no driver advances the execution behind the wait.
     const opened = await open(assembly.dependencies.journal)
     const snapshot = await load(assembly.dependencies.journal, opened.execution)
     const controller = new AbortController()
@@ -42,7 +38,6 @@ describe('W0 and the query conclusions', () => {
       signal: controller.signal,
     })
     if (conclusion === 'unknown') {
-      // The wait is held: it is neither ready nor cancelled until the abort.
       await new Promise(resolve => setTimeout(resolve, 20))
       expect(assembly.controls.clock.pending()).toHaveLength(1)
       controller.abort()

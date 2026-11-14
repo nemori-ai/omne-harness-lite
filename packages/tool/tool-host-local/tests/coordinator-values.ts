@@ -1,8 +1,5 @@
 import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
-// Builders for the start coordinator tests: tenants with the shape of legal-identity's TenantId,
-// a principal that belongs to some tenants, a fixed request, a start record and an access guard
-// that answers by tenant membership. Each builder returns a fresh value.
 import { testingTenant } from '@omne-harness/tool-contract/testing'
 
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -123,7 +120,6 @@ export function request(overrides: Partial<FixedToolRequest> = {}): FixedToolReq
   }
 }
 
-/** The first start record of `call` in `within`, with the start operation `<call>/start`. */
 export function startOf(
   call: string,
   within: TenantShape = tenantA,
@@ -132,7 +128,6 @@ export function startOf(
     kind: 'start',
     operation: operationId(`${call}/start`),
     executor: adoption('exec'),
-    // The tests pass TenantShape values where the contract types legal-identity's TenantId.
     execution: {
       tenant: within as never,
       call: callId(call),
@@ -142,7 +137,6 @@ export function startOf(
   }
 }
 
-/** Answers by tenant membership; a tenant that is not in the set of `minted` is denied. */
 export function access(
   options: Readonly<{ unavailable?: string; minted?: ReadonlySet<object> }> = {},
 ): StartCoordinatorAccess<Principal> {
@@ -163,10 +157,8 @@ export function access(
   }
 }
 
-/** The guard of every request: the programmable permission of the script runner. */
 export const permission: GuardResource = { owner: 'permissions', resource: 'scope-1/read_file' }
 
-/** Test-only decision. Production must supply its own current, complete action judgment. */
 export const noPermitRequirements: StartPermitRequirements<unknown> = {
   check: async () => ({ kind: 'not-required', source: evidence('test-no-permit-required') }),
 }
@@ -184,12 +176,10 @@ export function coordinator(
   })
 }
 
-/** The call access of `call` for principal A in tenant A. */
 export function callAccess(call: string) {
   return { principal: principalA, tenant: tenantA as never, call: callId(call) }
 }
 
-/** A store over `memory` whose next commit answers `answer` without writing, once. */
 export function failingNextCommit(
   memory: ToolLedgerStore,
   answer: 'unknown' | 'unavailable' | 'rejected',
@@ -224,16 +214,13 @@ function fixtureScope() {
   return scope.ok
 }
 
-/** A principal that is only a subject, for the tests of the invocation source and its guards. */
 export type Subject = Readonly<{ subject: string }>
 
-/** The request of a caller: the fixed request before the source issued its invocation. */
 export function invokeRequest(overrides: Partial<ToolInvokeRequest> = {}): ToolInvokeRequest {
   const { invocation: _invocation, ...rest } = request()
   return { ...rest, ...overrides }
 }
 
-/** Keeps a subject by its text; a stored value of another shape fails to decode. */
 export const subjectCodec: PrincipalCodec<Subject> = {
   encode: principal => ({ subject: principal.subject }),
   decode: value => {
@@ -243,7 +230,6 @@ export const subjectCodec: PrincipalCodec<Subject> = {
   },
 }
 
-/** The comparison of subjects: equal text is the same principal. */
 export function samePrincipalBySubject(
   input: Readonly<{ current: Subject; original: Subject }>,
 ): Promise<AccessVerdict> {

@@ -1,6 +1,3 @@
-// The refusals of the in-memory ModelCommands at the dispatch boundary: which supplier a call may
-// prepare a first dispatch for, which receipt binds a dispatch, and which completed terminal forms
-// a message. Each refusal is a named `invalid` and leaves the call as it was.
 import { describe, expect, it } from 'vitest'
 import {
   decodeDispatchId,
@@ -29,7 +26,6 @@ const second = {
   credential: { layer: 'official' },
 } as const
 
-/** A request that may fall back to a second supplier. */
 const twoSuppliers: FixedModelRequest = {
   ...request,
   suppliers: [request.suppliers[0], second],
@@ -37,7 +33,6 @@ const twoSuppliers: FixedModelRequest = {
   declarations: [request.declarations[0], request.declarations[0]],
 }
 
-/** An admitted and claimed call over `fixed`, with no dispatch yet. */
 async function claimed(fixed: FixedModelRequest = request) {
   const f = fixture()
   const admit = { ...f.admit, request: fixed }
@@ -162,7 +157,6 @@ describe('the receipt of a dispatch', () => {
       ).toEqual({ failure: { kind: 'invalid', field: 'receipt', reason: 'binding' } })
       const [record] = unbox(await f.commands.dispatches(f.admit))
       expect(record?.materialization).toBeNull()
-      // The window of the refused write did not open either: it can still be opened.
       unbox(await f.commands.openReceiveWindow({ ...(await f.write()), dispatch, window: 'w' }))
     },
   )
@@ -179,7 +173,6 @@ describe('the receipt of a dispatch', () => {
     )
     const [record] = unbox(await f.commands.dispatches(f.admit))
     expect(record?.materialization?.receipt).toEqual(bound)
-    // The same write opened the window.
     expect(
       await f.commands.openReceiveWindow({ ...(await f.write()), dispatch, window: 'w' }),
     ).toEqual({ failure: { kind: 'invalid', field: 'window', reason: 'duplicate-or-terminal' } })
@@ -188,7 +181,6 @@ describe('the receipt of a dispatch', () => {
   it.each([
     ['is already open', 'taken'],
     ['is empty', ''],
-    // The bound is on the canonical encoding, the quotes included: 255 characters take 257 bytes.
     ['is one byte over 256 bytes encoded', 'x'.repeat(255)],
   ])(
     'records nothing when the window %s: the receipt does not stand alone',
@@ -298,7 +290,6 @@ describe('a completed terminal that forms no message', () => {
       ]),
     )
     expect(snapshot.blocks).toEqual([{ kind: 'sealed', index: '0', block }])
-    // The dispatch ended logically: no further window opens on it.
     expect(
       await f.commands.openReceiveWindow({ ...(await f.write()), dispatch, window: 'w2' }),
     ).toEqual({ failure: { kind: 'invalid', field: 'window', reason: 'duplicate-or-terminal' } })

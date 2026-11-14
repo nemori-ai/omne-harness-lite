@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest'
 import * as agent from '@omne-harness/agent'
 import { describeImport, memberPath, walkModules, type ModuleKind } from './module-graph.ts'
 
-/** Cordis and the Agent packages that bind to Cordis or to a host. The implementation reaches none. */
 function forbidden(specifier: string): boolean {
   return (
     specifier === '@deepseek-ai/cordis' ||
@@ -119,7 +118,6 @@ describe('implementation has no Cordis', () => {
   })
 })
 
-/** Production dependency routes from a workspace package to Cordis, through workspace packages. */
 function routesToCordis(directory: string, route: readonly string[]): string[][] {
   const manifest = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8')) as {
     dependencies?: Record<string, string>

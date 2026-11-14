@@ -262,8 +262,6 @@ describe('trust scopes (spec 5.3)', () => {
 
 describe('mechanism probes (N-8)', () => {
   test('isolate changes the label of one name only', async () => {
-    // The row sees only s0.storage. s0.tenantDomainLookup belongs to the same
-    // scope but is not visible to it, so that name stays under the root label.
     const f = await run([{ id: 'mixed', provides: [STORAGE, LOOKUP, 's0.plain'] }], {
       mixed: [STORAGE],
     })

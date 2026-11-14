@@ -1,6 +1,3 @@
-// The connection table's `ensure`: reuse, rebuild, single flight, the setting defects of SPEC S4,
-// the connection failures of R6 with their catalog marking, the credential handle lifecycle of
-// S9, the connection bound, and the key that keeps tenants and peer accounts apart.
 import { describe, expect, it, vi } from 'vitest'
 import type { Access } from '@omne-harness/legal-identity'
 import {
@@ -45,7 +42,6 @@ import {
 const files = endpointRefOf('files')
 const peer = peerIdentityOf()
 
-/** The transport a usable connection hands to a request, read through its only door. */
 function transportOf(ensured: Ensured): unknown {
   const wire = ensured.wire()
   if ('failure' in wire) throw new Error(`the connection takes no requests: ${wire.failure.cause}`)
@@ -60,11 +56,6 @@ async function admitted(w: World, endpoint: EndpointRef, access: Access<Principa
 
 type Principal = Readonly<{ id: string }>
 
-/**
- * Two connections of one tenant and holding on one adoption revision, one for each peer account:
- * an adoption view that keeps one revision text while the credential binding changes. The
- * contract forbids this (AV5); the key must still keep the accounts apart.
- */
 async function twoAccounts(after: readonly Step[] = []) {
   const w = world({ script: [{ discover: peer }, { discover: peer }, ...after] })
   const base = adoptHttp(w, files)
@@ -291,7 +282,6 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
     })
     w.credentials.reject(alice.tenant, MAIN)
     const record = await storedRecord(w, await keyOf(w, adopted, credentialAccount), ['read'])
-    // A record at the last revision: the next one cannot be counted (contract `nextRevision`).
     const last = Number.MAX_SAFE_INTEGER
     if (!isCatalogRevision(last)) throw new TypeError('not a catalog revision')
     let writes = 0
@@ -318,7 +308,6 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
     const record = await storedRecord(w, await keyOf(w, adopted, credentialAccount), ['read'])
     const last = Number.MAX_SAFE_INTEGER
     if (!isCatalogRevision(last)) throw new TypeError('not a catalog revision')
-    // The mark of the failed build waits here until the second call has joined it.
     const marking = deferred<void>()
     let reads = 0
     const store = {
@@ -689,8 +678,6 @@ describe('ensure: the connection key (invariant 1)', () => {
       },
     })
     w.eligibility.grant(mallory, files)
-    // The double gives every adoption its own revision. Here both tenants read one revision, so
-    // the tenant is the only part of the two connection keys that differs.
     const adoption: AdoptionView<Principal, string> = {
       endpoints: (access, scope) => w.ports.adoption.endpoints(access, scope),
       endpoint: async (access, endpoint) => {
@@ -731,8 +718,6 @@ describe('ensure: the connection key (invariant 1)', () => {
   })
 
   it('a close that raised an error of this package on one connection waits for the others, then rejects with an AggregateError that holds the error (MC-10, P7)', async () => {
-    // The first connection's close stalls on its transport; the second connection's close hits a
-    // defect of this package after its teardown, when the table reads its generation to forget it.
     const closing = deferred<'closed'>()
     const { w, table, ours, theirs } = await twoAccounts([{ close: closing }])
     const defect = new Error('a defect of this package while forgetting the entry')
@@ -757,7 +742,6 @@ describe('ensure: the connection key (invariant 1)', () => {
         answered = true
       })
       await settled()
-      // The second connection's close has failed; the first one's has not ended: no answer yet.
       expect(answered).toBe(false)
       expect(w.transports.calls.filter(call => call.kind === 'close')).toHaveLength(2)
       closing.resolve('closed')
@@ -947,10 +931,6 @@ describe('ensure: a close against the build (MC-10, MC-5, P16)', () => {
         const first = table.ensure(endpoint, alice)
         const answer = joined ? table.ensure(endpoint, alice) : first
         await settled()
-        // A clock of microtask turns. A callback on `answer` runs at most one turn after the
-        // settlement, so an answer that settled before the close is seen at most one turn after.
-        // The clock stops after CLOCK_LIMIT turns: a close that waits on a timer or I/O would
-        // otherwise starve the macrotask queue, and the test would spin instead of failing.
         let tick = 0
         let running = true
         const clock = (async () => {

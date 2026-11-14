@@ -1,6 +1,3 @@
-// The three agent instance rows of the matrix (SPEC AU-12): the agent host maintenance principal
-// publishes, quiesces and withdraws instances in the tenant branch with fixed arguments. Which
-// system principal passes is decided by the grant record alone, never by the component text.
 import { describe, expect, it } from 'vitest'
 import {
   SYSTEM_ACTION_MATRIX,
@@ -17,7 +14,6 @@ const AGENT_INSTANCE_PURPOSES = [
 ] as const
 const OPERATIONS = ['publish', 'quiesce', 'withdraw'] as const
 
-/** A grant source that holds one record: the agent host, with the three agent instance purposes. */
 function hostOnlyGrants(): MaintenanceGrantSource {
   return {
     read: input =>
@@ -84,8 +80,6 @@ describe('the agent instance rows', () => {
       kind: 'denied',
       reason: 'untrusted-principal',
     })
-    // A second issued principal with the same component text is a different object of the same
-    // authority; the matrix does not tell them apart, only the grant record does.
     await expect(authorization.check(request(other, 'publish'))).resolves.toMatchObject({
       kind: 'allowed',
     })

@@ -1,6 +1,3 @@
-// The in-memory holder double of `contextHolderSources`. It lends four given reads, asks `admits`
-// on every call, calls the settlement function of a lease once when the lease ends, and closes its
-// reads only after every settlement has ended. Not durable; never install it as a production holder.
 import type { Context } from '@deepseek-ai/cordis'
 import type { Access, SourceSettlement } from '@omne-harness/request-context-contract'
 import { ContextHolderSourcesService } from '../cordis.js'
@@ -11,19 +8,14 @@ import type {
 } from '../holder-sources.js'
 
 export type MemoryContextHolderOptions<P> = Readonly<{
-  /** The reads the holder lends. The double adds the access check and nothing else. */
   parts: ContextHolderParts<P>
-  /** The current eligibility of one access, asked on every call of every part. */
   admits(access: Access<P>): boolean
 }>
 
 export interface MemoryContextHolder<P> {
   readonly durability: 'none'
-  /** The plugin that provides `contextHolderSources` from this holder. Plug it once. */
   readonly plugin: new (ctx: Context) => ContextHolderSourcesService<P>
-  /** True once the plugin has unloaded and every lease has ended and settled. */
   readonly readsClosed: boolean
-  /** The settlements the holder obtained, in the order they ended. */
   settlements(): readonly SourceSettlement[]
 }
 
@@ -52,7 +44,6 @@ function admitted<P>(
   }
 }
 
-/** Calls `settle` now; a synchronous throw becomes a rejected settlement. */
 function pull(settle: LeaseSettlement): Promise<SourceSettlement> {
   try {
     return settle()
@@ -82,10 +73,8 @@ export function createMemoryContextHolder<P>(
         settled.resolve(result)
       }, settled.reject)
     }
-    // The effect belongs to the caller's fiber: its unload ends the lease like `release`.
     const remove = ctx.effect(() => end, 'contextHolderSources.lease')
     pending.push(settled.promise)
-    // A failed settlement is reported by the close; this only keeps it from being unhandled here.
     settled.promise.catch(() => undefined)
     return {
       kind: 'leased',
@@ -99,7 +88,6 @@ export function createMemoryContextHolder<P>(
     }
   }
 
-  // A borrower fiber can unload while this runs; every lease ends that way at the latest.
   async function close(): Promise<void> {
     closing = true
     await Promise.all(pending)

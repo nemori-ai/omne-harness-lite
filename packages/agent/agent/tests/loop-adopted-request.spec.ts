@@ -1,6 +1,3 @@
-// FIXED-FACTS F2 (R2-D224): the main-purpose M0 records `checkpoint.adoptedRequest` in its own
-// commit, and that slot is the only one that survives the call's settlement, the cleared `calls`,
-// the tool round trip and the next I1. Only the next main-purpose M0 replaces it.
 import { describe, expect, it } from 'vitest'
 import type { AgentDependencies } from '@omne-harness/agent'
 import type {
@@ -41,15 +38,10 @@ type PrepareAnswer = Parameters<
   Awaited<ReturnType<typeof controlAssembly>>['controls']['requests']['prepare']['always']
 >[0]
 
-/** The opaque state the preparing side hands over with each ready preparation of `action`. */
 function stateOf(action: string): Preparation['state'] {
   return { kind: 'string', value: `record/${action}` }
 }
 
-/**
- * The default preparation (assembled first, ready on review) whose ready answer carries the state
- * of its action and the given purpose, so a test can tell which preparation a record came from.
- */
 function preparing(purpose: (action: string) => Preparation['purpose'] = () => 'main') {
   const prepare: PrepareAnswer = input => {
     const { request, ...common } = readyPreparation(input)
@@ -71,7 +63,6 @@ function preparing(purpose: (action: string) => Preparation['purpose'] = () => '
   return prepare
 }
 
-/** Records every Journal commit's node, checkpoint and effects, in commit order. */
 function recording(commits: Recorded[]) {
   return (dependencies: AgentDependencies<Principal, ContentBlock>) => ({
     ...dependencies,
@@ -90,7 +81,6 @@ function recording(commits: Recorded[]) {
   })
 }
 
-/** The tool assembly of `toolAssembly`, with the commit recorder around its Journal. */
 async function toolRound(
   commits: Recorded[],
   purpose?: (action: string) => Preparation['purpose'],
@@ -117,8 +107,6 @@ async function toolRound(
       admission: ok(decodeToolOperationId('top_one')),
     }),
   )
-  // Agent keeps the receipt as an original fact and never reads it as the current state, so the
-  // test does not build a full ToolState.
   assembly.controls.tools.invoke.always(async () => ({
     kind: 'accepted',
     reference,
@@ -135,17 +123,12 @@ async function load(
   return ok(await assembly.dependencies.journal.load({ ...alice, execution: execution(id) }))
 }
 
-/** The checkpoint of the first commit at `node` in step `step`. */
 function at(commits: readonly Recorded[], node: string, step: string): AgentCheckpoint {
   const found = commits.find(commit => commit.node === node && commit.checkpoint.step === step)
   if (found === undefined) throw new Error(`no ${node} commit in ${step}`)
   return found.checkpoint
 }
 
-/**
- * The `adoptedRequest` the main M0 of a checkpoint's own commit must have written. The ready
- * preparation is not saved (R2-D292), so its schema and state come from the scripted preparation.
- */
 function expectedOf(checkpoint: AgentCheckpoint) {
   const [call] = checkpoint.calls
   if (call?.kind !== 'model') throw new Error('not an M0 checkpoint')
@@ -169,7 +152,6 @@ describe('FIXED-FACTS F2: the main M0 records the adopted request', () => {
     if (m0 === undefined) throw new Error('no M0 commit')
     const [call] = m0.checkpoint.calls
     if (call?.kind !== 'model') throw new Error('M0 did not save the model call')
-    // One commit: the call, the adopted context, the effect intent and the adopted request.
     expect(m0.effects.map(effect => effect.pending)).toEqual([call])
     expect(m0.checkpoint.adoptedContext).not.toBeNull()
     expect(m0.checkpoint.adoptedRequest).toEqual({
@@ -179,7 +161,6 @@ describe('FIXED-FACTS F2: the main M0 records the adopted request', () => {
       record: stateOf(call.action),
     })
     expect(m0.checkpoint.adoptedRequest).toEqual(expectedOf(m0.checkpoint))
-    // Nothing before M0 wrote it: the I1 and P1 commits of the same step still hold the initial null.
     expect(at(commits, 'I1', m0.checkpoint.step).adoptedRequest).toBeNull()
     expect(at(commits, 'P1', m0.checkpoint.step).adoptedRequest).toBeNull()
 
@@ -199,11 +180,9 @@ describe('FIXED-FACTS F2: the main M0 records the adopted request', () => {
     const adopted = first.adoptedRequest
     expect(adopted).toEqual(expectedOf(first))
 
-    // The main call has settled: `calls` holds only the tool in flight, the request survives.
     const inFlight = (await load(assembly)).checkpoint
     expect(inFlight.calls.map(call => call.kind)).toEqual(['tool'])
     expect(inFlight.adoptedRequest).toEqual(adopted)
-    // Between the settlement and the tool call `calls` was empty; the slot held in every commit.
     const sinceM0 = commits.slice(commits.findIndex(commit => commit.node === 'M0'))
     const cleared = sinceM0.filter(commit => commit.checkpoint.calls.length === 0)
     expect(cleared.length).toBeGreaterThan(0)
@@ -219,13 +198,11 @@ describe('FIXED-FACTS F2: the main M0 records the adopted request', () => {
       commits.some(c => c.node === 'M0' && c.checkpoint.step === 'step-2'),
     )
 
-    // The next I1 and P1 prepare again in memory (R2-D292); neither touches it.
     const i1 = at(commits, 'I1', 'step-2')
     expect(i1.requestPreparation).toBeNull()
     expect(i1.adoptedRequest).toEqual(adopted)
     expect(at(commits, 'P1', 'step-2').adoptedRequest).toEqual(adopted)
 
-    // The next main M0 replaces it with its own request.
     const second = at(commits, 'M0', 'step-2')
     expect(second.adoptedRequest).toEqual(expectedOf(second))
     expect(second.adoptedRequest).not.toEqual(adopted)
@@ -256,7 +233,6 @@ describe('FIXED-FACTS F2: the main M0 records the adopted request', () => {
     const second = at(commits, 'M0', 'step-2')
     expect(second.requestPreparation).toBeNull()
     expect(second.calls.map(call => call.kind)).toEqual(['model'])
-    // That M0 neither writes its own request nor clears the main one.
     expect(second.adoptedRequest).toEqual(first.adoptedRequest)
   })
 

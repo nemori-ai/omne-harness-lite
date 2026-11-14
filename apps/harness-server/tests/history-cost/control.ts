@@ -1,16 +1,3 @@
-// The paired wall-clock comparison of the history cost (C8, V7c): does a new call get slower
-// because its own tenant has more settled calls, or because the process and the machine have done
-// more work? Two tenants share one server process, on the assembly of `assembly.ts`. Both get 20
-// settled calls and are measured (block 1). Then tenant `a` alone gets its long history. Then both
-// are measured again, alternating a, b, a, b (block 2). In block 2 the two tenants differ only in
-// their own history, so `a - b` of each pair is the effect of that history. Between the blocks
-// tenant `b` differs only in what the process and the machine did meanwhile; the reference probes
-// of each sample (a process start, synced writes, the memory of this process) do no work of the
-// product, so they tell a slower machine from a slower server process.
-//
-// node --import ./tests/history-cost/sql-probe.ts tests/history-cost/control.ts <out> <kind> [measured] [long]
-// Build `apps/cli` and the workspace first. Writes `<out>/samples.json` and `<out>/storage-*.json`;
-// the probe writes `<out>/sql-trace/`. The run reports; it judges nothing.
 import { closeSync, fsyncSync, mkdirSync, openSync, writeFileSync, writeSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
@@ -30,7 +17,6 @@ mkdirSync(out, { recursive: true })
 const assembly = await startAssembly(kind)
 const homes = { a: join(assembly.base, 'home-a'), b: join(assembly.base, 'home-b') } as const
 
-/** Work that does not touch the product: its time moves with the machine only. */
 function reference() {
   const spawned = performance.now()
   spawnSync(process.execPath, ['-e', ''])

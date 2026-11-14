@@ -1,10 +1,3 @@
-// The access checks of the `authorization` row (APP-6b, DP-4 §3.4 and §3.5). The checks run against
-// the real consumer contracts (`SessionAccessCheck`, `AgentAccessCheck`) and the real reference
-// authorization pieces. Only the dependencies are test doubles: a verifier and a standing source
-// whose answers and failures the test sets. Each case asks one question of the answer, and the
-// recorders show which dependency was reached, because a denial before the dependencies must not
-// call them (policy draft §3).
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { Service, Context } from '@deepseek-ai/cordis'
 import { toolAccessGuardConformance, type ToolAccessGuardFixture } from '@omne-harness/tool/testing'
@@ -42,16 +35,11 @@ import type { SessionAccessRequest } from '@omne-harness/session-contract'
 import { sessionId } from '@omne-harness/session-contract/testing'
 import {
   AGENT_HOST_COMPONENT,
-  AGENT_POLICY,
   MAINTENANCE_GRANTS,
   SESSION_MAINTAINER_COMPONENT,
-  SESSION_POLICY,
   TENANT_DOMAIN_SCANNER_COMPONENT,
   TOOL_RESIDENCY_COMPONENT,
-  holderProjection,
   releaseMaintenanceGrants,
-  type PolicyCell,
-  type PolicyRow,
   type ReleaseGrant,
 } from '../../../src/rows/authorization/index.ts'
 import {
@@ -91,7 +79,6 @@ function readingOf(mode: Exclude<StandingMode, 'throws'>): TenantStandingReading
   return { kind: 'unavailable', diagnostic: 'the standing store is closed' }
 }
 
-/** The dependencies with switches and recorders, over the real reference authorization. */
 function world(grantTable: typeof MAINTENANCE_GRANTS = MAINTENANCE_GRANTS) {
   const authority = inProcessPrincipalAuthority()
   const flags = { verifierThrows: false, standing: 'member' as StandingMode }
@@ -135,7 +122,6 @@ function world(grantTable: typeof MAINTENANCE_GRANTS = MAINTENANCE_GRANTS) {
         return systemActions.check(input)
       },
     },
-    // This world has no login source: a Session permission write reads it as unavailable.
     login: { queryCurrentTenant: () => Promise.reject(new Error('no login source')) },
   }
 
@@ -161,11 +147,6 @@ function world(grantTable: typeof MAINTENANCE_GRANTS = MAINTENANCE_GRANTS) {
   }
 }
 
-/**
- * A Session request. The adapter reads the command kind, `input.tenant`, `input.session`,
- * `input.value.kind` and `input.fact.kind` and digests the rest, so the tests build commands with
- * these members only. The one cast is the shape of that minimal command.
- */
 function sessionRequest(value: unknown): SessionAccessRequest<unknown> {
   return value as SessionAccessRequest<unknown>
 }
@@ -578,7 +559,6 @@ describe('sessionAccessCheck: system principals and the matrix', () => {
       },
       arguments: effectiveArgumentsOf(scopeReleaseFact.fact),
     })
-    // The tenant admission was never asked for a system principal.
     expect(w.seen.admissions).toEqual([])
   })
 
@@ -702,12 +682,10 @@ describe('agentAccessCheck', () => {
     expect(await w.agent.check(agentRequest(model(B), 'receive-result', target))).toEqual({
       kind: 'denied',
     })
-    // The member cells of the work column, which W passes: M passes none of them.
     for (const operation of ['submit', 'control', 'resume', 'detach', 'invoke'] as const)
       expect(await w.agent.check(agentRequest(model(A), operation, target)), operation).toEqual({
         kind: 'denied',
       })
-    // M's shape with an actor of another component is not M.
     const forged = okOf(
       w.issuer.issueActingForTenant({
         actor: w.system('sessionWorkPrincipals'),
@@ -1015,7 +993,6 @@ describe('Tool access qualification', () => {
   for (const check of toolAccessGuardConformance<unknown>()) {
     it(check.name, async () => {
       const subject = fixture()
-      // The suite is only evidence if the fixture really separates listed from unlisted principals.
       expect(await subject.guard.qualify(subject.allowed)).toEqual({ kind: 'allowed' })
       expect(await subject.guard.qualify(subject.unlisted)).toMatchObject({ kind: 'denied' })
       await expect(check.run(subject)).resolves.toBeUndefined()
@@ -1239,7 +1216,6 @@ describe('the row', () => {
         name: 'probe',
         inject: ['sessionAccessCheck', 'agentAccessCheck', 'agentActionAdmission'],
         apply: (ctx: Context) => {
-          // The services are taken while the plugin runs; the continuation below has no active context.
           const { sessionAccessCheck, agentAccessCheck, agentActionAdmission } = ctx
           answers['run'] = (async () => {
             answers['work'] = await sessionAccessCheck.check(read(work, 'readWork'))
@@ -1304,122 +1280,10 @@ describe('the row', () => {
     ])
     expect(answers['work']).toMatchObject({ kind: 'allowed' })
     expect(answers['holder']).toMatchObject({ kind: 'allowed' })
-    // Unlisted components have no maintenance purpose.
     expect(answers['intruder']).toEqual({ kind: 'denied' })
     expect(answers['agent']).toMatchObject({ kind: 'allowed' })
     expect(answers['admission']).toMatchObject({ ok: { kind: 'unavailable' } })
     expect(answers['broken']).toMatchObject({ kind: 'unavailable' })
     expect(JSON.stringify([answers, run.records, run.stderr])).not.toContain('SECRET-TEXT')
-  })
-})
-
-// ---- The row specification (验收 5) -------------------------------------------------------------
-
-const DOC = readFileSync(
-  new URL('../../../docs/rows/authorization-policy.md', import.meta.url),
-  'utf8',
-).replaceAll('\r\n', '\n')
-
-function region(name: string): string {
-  const open = `<!-- policy:${name} -->`
-  const a = DOC.indexOf(open)
-  const b = DOC.indexOf(`<!-- /policy:${name} -->`)
-  if (a < 0 || b < a) throw new Error(`the row specification has no region ${name}`)
-  return DOC.slice(a + open.length, b).trim()
-}
-
-/** The verdict of a cell in the words of the table regions. */
-function labelOf(cell: PolicyCell): string {
-  const branch =
-    (cell.verdict === 'member' || cell.verdict === 'matrix') && cell.when !== undefined
-      ? `，只限${cell.when.kind === 'routed' ? '输入种类' : '事实种类'} ${cell.when.kinds.join('、')}`
-      : ''
-  switch (cell.verdict) {
-    case 'member':
-      return `放行（成员）${branch}`
-    case 'matrix':
-      return `放行（矩阵 ${cell.purpose}）${branch}`
-    case 'deny':
-      return '拒绝'
-  }
-}
-
-function textOf(cell: PolicyCell): string {
-  switch (cell.verdict) {
-    case 'member':
-    case 'matrix':
-      return cell.source
-    case 'deny':
-      return cell.basis
-  }
-}
-
-/** The rows of a table region: operation to the three verdict cells. */
-function docCells(table: string): Map<string, string[]> {
-  const rows = new Map<string, string[]>()
-  for (const line of region(table).split('\n')) {
-    const cells = line
-      .replace(/^\|\s*/, '')
-      .replace(/\s*\|$/, '')
-      .split(/\s*(?<!\\)\|\s*/)
-      .map(cell => cell.replaceAll('\\|', '|'))
-    const operation = /^`(.+)`$/.exec(cells[0] ?? '')?.[1]
-    if (operation !== undefined) rows.set(operation, cells.slice(1))
-  }
-  return rows
-}
-
-describe('the row specification agrees with the tables', () => {
-  const tables = [
-    ['session', SESSION_POLICY],
-    ['agent', AGENT_POLICY],
-  ] as const
-
-  it.each(tables)(
-    'lists every operation of the %s table with the verdict of every cell',
-    (name, policy) => {
-      const rows = docCells(`${name}-table`)
-      expect([...rows.keys()].toSorted()).toEqual(Object.keys(policy).toSorted())
-      for (const [operation, row] of Object.entries<PolicyRow>(policy)) {
-        expect(rows.get(operation), operation).toEqual([
-          labelOf(row.login),
-          labelOf(row.work),
-          labelOf(row.system),
-        ])
-      }
-    },
-  )
-
-  it.each(tables)('gives the source or the basis of every cell of the %s table', (name, policy) => {
-    const notes = region(`${name}-notes`)
-    for (const [operation, row] of Object.entries<PolicyRow>(policy)) {
-      expect(notes, operation).toContain(`- \`${operation}\``)
-      for (const cell of [row.login, row.work, row.system]) {
-        const text = textOf(cell)
-        expect(notes, `${operation}: ${text}`).toContain(text)
-      }
-    }
-  })
-
-  it('shows the grant table and the projection of the holders', () => {
-    const grants = region('grants')
-    for (const [holder, grant] of Object.entries(MAINTENANCE_GRANTS)) {
-      expect(grants).toContain(`\`${holder}\``)
-      for (const purpose of grant.purposes) expect(grants).toContain(`\`${purpose}\``)
-    }
-    const projection = region('projection')
-    const projected = holderProjection({
-      session: SESSION_POLICY,
-      agent: AGENT_POLICY,
-      grants: MAINTENANCE_GRANTS,
-    })
-    for (const [holder, cells] of Object.entries(projected)) {
-      const line = projection.split('\n').find(row => row.includes(`\`${holder}\``)) ?? ''
-      expect(line, holder).not.toBe('')
-      for (const cell of cells) {
-        const named = `${cell.table === 'session' ? 'Session' : 'Agent'} \`${cell.operation}\``
-        expect(line, holder).toContain(named)
-      }
-    }
   })
 })

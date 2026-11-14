@@ -1,9 +1,3 @@
-// The structure judgments of the message admission inputs (SPEC "身份解码与结构判定" and
-// "消息准入"): `judgeHandoffPrepare` for the three branches of `MessageHandoff.prepare` and
-// `judgeInputOrigin` for the two branches of `InputOrigin`. Both do closed field checks on an
-// `unknown` value, refuse a field that does not belong to the branch instead of guessing the branch
-// from the fields that do, and give the shape only: they prove neither that a record exists nor
-// that a caller is qualified.
 import { judgeMessage, type Message } from '@omne-harness/message'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { AcceptedInput } from './execution.ts'
@@ -48,7 +42,6 @@ import type {
 
 type Judged<T> = Outcome<T, StructureFailure>
 
-/** A nested structure judged under its path; a structure-name failure becomes the member itself. */
 function nested<T>(
   members: OwnMembers,
   name: string,
@@ -70,7 +63,6 @@ function identityOf<T extends AgentIdentity<string>>(
   return identityMember(members, name, decode)
 }
 
-/** A member that is either `null` or a structure judged by `judge`. */
 function nullable<T>(
   members: OwnMembers,
   name: string,
@@ -82,7 +74,6 @@ function nullable<T>(
   return nested(members, name, structure, judge)
 }
 
-/** The closed `kind` member: present, a string, and one of the expected literals. */
 function kindOf<K extends string>(members: OwnMembers, kinds: readonly K[]): Judged<K> {
   if (!Object.hasOwn(members, 'kind')) return refusal('kind', 'missing')
   const kind = members['kind']
@@ -103,11 +94,6 @@ function judgeMessageMember(members: OwnMembers, name: string): Judged<Message> 
   return 'ok' in judged ? succeed(judged.ok) : refusal(name, 'type')
 }
 
-/**
- * A plain object whose inner shape another owner judges (a checkpoint, a result, a transition),
- * as a frozen copy. Its inner shape is not judged here, but every value inside it must be plain
- * data (see `plainData`), so the judgment stays total and never runs the caller's code.
- */
 function plainMember(members: OwnMembers, name: string): Judged<object> {
   if (!Object.hasOwn(members, name)) return refusal(name, 'missing')
   const copied = plainData(members[name], name, [])
@@ -118,14 +104,6 @@ function plainMember(members: OwnMembers, name: string): Judged<object> {
   return succeed(value)
 }
 
-/**
- * A frozen copy of a plain data value, judged member by member before anything is copied: a
- * string, number, boolean, bigint, `undefined` or `null`, an array whose elements are plain data,
- * or a plain object whose own data members are plain data. Anything else is refused with `type`
- * at the path of the value: a function, a symbol, an accessor, a symbol key, a hole or an extra
- * member of an array, another prototype, a value that contains itself, and a value whose
- * reflection throws. An accessor is refused, never read.
- */
 function plainData(value: unknown, path: string, ancestors: readonly object[]): Judged<unknown> {
   switch (typeof value) {
     case 'string':
@@ -161,15 +139,9 @@ function plainData(value: unknown, path: string, ancestors: readonly object[]): 
     if ('failure' in inner) return inner
     copied.push([key, inner.ok])
   }
-  // `fromEntries` defines each member, so a member named `__proto__` stays a member.
   return succeed(Object.freeze(Object.fromEntries(copied)))
 }
 
-/**
- * The elements of an array with the array prototype, read as data members; `null` for such an
- * array with an accessor, a hole, an extra member or a reflection that throws; `undefined` for a
- * value that is not such an array.
- */
 function arrayElements(value: object): readonly unknown[] | null | undefined {
   try {
     if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) return undefined
@@ -255,10 +227,6 @@ const INTERNAL_SOURCE_KINDS = [
 ] as const
 type InternalSource = Exclude<MessageSource, { kind: 'external-input' }>
 
-/**
- * An internal message source by its kind. The identities are decoded; the produced result and the
- * transition are plain objects whose inner shape belongs to their own owners.
- */
 function judgeInternalSource(value: unknown): Judged<InternalSource> {
   const members = ownMembers(value)
   if (members === undefined) return refusal('MessageSource', 'type')
@@ -463,10 +431,6 @@ function judgeInputEntry(value: unknown): Judged<InputEntry> {
 
 const INPUT_HANDOFF_FIELDS = ['kind', 'reference', 'entry', 'source'] as const
 
-/**
- * An external request, with the cross-check of its three parts: the reference names the entry's
- * execution and operation, and the source names the entry's input.
- */
 function judgeInputHandoff(value: unknown): Judged<InputHandoff> {
   const members = ownMembers(value)
   if (members === undefined) return refusal('InputHandoff', 'type')
@@ -503,7 +467,6 @@ function judgeRuntimeContext(value: unknown): Judged<InvokeRuntimeContext> {
   return succeed(Object.freeze(binding.ok))
 }
 
-/** The instance, scope, definition and grant members that the runtime context and the invoke origin share. */
 function judgeBinding(members: OwnMembers): Judged<{
   instance: InvokeRuntimeContext['instance']
   scope: DurableEvidence
@@ -526,12 +489,6 @@ function judgeBinding(members: OwnMembers): Judged<{
   })
 }
 
-/**
- * Judges the structure of a `HandoffPrepare`: the branch by `kind`, then exactly the members of
- * that branch. A member of another branch is `unknown-field`; the branch is never guessed from the
- * members. Nested failures carry the path of the member (`request.reference.operation`). The
- * success value is a frozen new value. The judgment gives the shape only.
- */
 export function judgeHandoffPrepare(value: unknown): Judged<HandoffPrepare> {
   const members = ownMembers(value)
   if (members === undefined) return refusal('HandoffPrepare', 'type')
@@ -583,12 +540,6 @@ function judgeDelivery(value: unknown): Judged<SubmitDelivery> {
   return succeed(Object.freeze({ kind: 'runtime-view', instance: instance.ok }))
 }
 
-/**
- * Judges the structure of an `InputOrigin`: the invoke branch with the runtime binding of that
- * time, or the submit branch with the execution binding reference and the delivery route. A
- * member of the other branch is `unknown-field`. The success value is a frozen new value. The
- * judgment gives the shape only; it does not prove that the provider wrote it.
- */
 export function judgeInputOrigin(value: unknown): Judged<InputOrigin> {
   const members = ownMembers(value)
   if (members === undefined) return refusal('InputOrigin', 'type')

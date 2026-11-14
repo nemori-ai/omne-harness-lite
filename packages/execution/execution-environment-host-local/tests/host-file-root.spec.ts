@@ -1,7 +1,3 @@
-// The host file root on the real Linux and macOS file systems: the four ways a path can leave the root
-// (resolution outside it, `..`, a link to the outside, a hard link to an outside file), the races
-// around a directory swapped under the walk, and the root's own identity. Every refusal is checked
-// against a snapshot of the root and of the outside tree taken before and after the request.
 import {
   chmod,
   link,
@@ -79,7 +75,6 @@ vi.mock('node:fs/promises', async importOriginal => {
 const bases: string[] = []
 const mounts: string[] = []
 
-/** Runs a command with `sudo -n`; false when it is not allowed or fails (no mount permission). */
 async function sudo(args: readonly string[]): Promise<boolean> {
   try {
     await promisify(execFile)('sudo', ['-n', ...args])
@@ -89,7 +84,6 @@ async function sudo(args: readonly string[]): Promise<boolean> {
   }
 }
 
-// Linux uses descriptor paths; macOS uses the native helper with the same behavior assertions.
 beforeEach(async ({ skip }) => {
   skip(process.platform !== 'linux' && process.platform !== 'darwin')
   if (process.platform === 'darwin') await prepareNativeHooks()
@@ -143,10 +137,6 @@ function done<T>(result: FacilityResult<T>): T {
   return result.value
 }
 
-/**
- * The world of one case: `root/` is the host file root, `outside/` a sibling the root must never
- * touch, `evil/` a sibling whose name begins with the root's name, `state/` the batch state.
- */
 type World = Readonly<{
   base: string
   root: string
@@ -162,7 +152,6 @@ async function world(options: { root?: boolean } = {}): Promise<World> {
   bases.push(base)
   const root = join(base, 'root')
   const outside = join(base, 'outside')
-  // The state directory is the engine's own; it is kept out of the tree the snapshots compare.
   const state = await realpath(await mkdtemp(join(tmpdir(), 'omne-exec-state-')))
   bases.push(state)
   await mkdir(join(root, 'dir'), { recursive: true })
@@ -196,7 +185,6 @@ type Entry = Readonly<{
   digest: string | null
 }>
 
-/** Name, type, size, link count, modification time, inode, mode and a digest of the bytes. */
 async function snapshot(directory: string, prefix = ''): Promise<Record<string, Entry>> {
   const entries: Record<string, Entry> = {}
   for (const name of (await readdir(directory)).sort()) {
@@ -223,7 +211,6 @@ async function snapshot(directory: string, prefix = ''): Promise<Record<string, 
   return entries
 }
 
-/** Runs the request and checks that neither the root nor the outside tree changed. */
 async function unchanged(w: World, run: () => Promise<unknown>): Promise<unknown> {
   const before = await snapshot(w.base)
   const result = await run()
@@ -231,7 +218,6 @@ async function unchanged(w: World, run: () => Promise<unknown>): Promise<unknown
   return result
 }
 
-/** The twelve calls aimed at one situation: a file, a directory, a name that does not exist yet. */
 function calls(
   w: World,
   situation: {
@@ -406,7 +392,6 @@ it('refuses any path with a .. segment, also one that would resolve inside the r
   expect(escaping).toEqual(refused('escape', 'notAuthorized'))
 })
 
-/** The state directory as the engine left it: its own times and everything below it. */
 async function stateSnapshot(state: string) {
   const own = await lstat(state, { bigint: true })
   return { mtimeNs: own.mtimeNs, ctimeNs: own.ctimeNs, below: await snapshot(state) }
@@ -418,7 +403,6 @@ it('refuses a path outside the root, or with .., before the prerequisite probe t
     w => `${w.root}/dir/../ok.txt`,
   ]
   for (const pathOf of outsides) {
-    // A new world is a new engine: its probe has not run yet.
     const w = await world()
     const before = await stateSnapshot(w.state)
     await new Promise(resolve => setTimeout(resolve, 25))
@@ -428,7 +412,6 @@ it('refuses a path outside the root, or with .., before the prerequisite probe t
   }
 })
 
-// Needs the right to mount; without it the case is reported as skipped, not passed.
 it('refuses a last segment that is on another device than the directory that holds it', async ({
   skip,
 }) => {
@@ -445,7 +428,6 @@ it('refuses a last segment that is on another device than the directory that hol
     mounts.push(mounted)
   }
   const named = await hostObjectToken(mounted)
-  // Only the device sets this name apart: it is a directory, not a link, inside the root.
   expect((await lstat(mounted)).isDirectory()).toBe(true)
   const stat = await unchanged(w, () => w.facility.stat(request(mounted, named, 'mounted')))
   expect(stat).toEqual(refused('mounted', 'notAuthorized'))
@@ -697,7 +679,6 @@ it('creates, renames and makes directories in the directory it opened when that 
 
   await rm(parentPath)
   await rename(swapped, parentPath)
-  // Without replace a file is moved by link and unlink; with replace by rename.
   hooks.rules.push({ fn: 'link', match: '/renamed.txt', run: swap })
   done(
     await w.facility.move({

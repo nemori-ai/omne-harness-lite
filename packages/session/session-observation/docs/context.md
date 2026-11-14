@@ -29,4 +29,4 @@ flowchart LR
   row -.-> access["接入插件的 observe-session（以后）"]
 ```
 
-系统级位置见[系统分层](../../../../docs/architecture/layers-and-dependencies.md)与提案 [RFC-0015](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#会话观察)。
+系统级位置见[系统分层](../../../../docs/architecture/layers-and-dependencies.md)。

@@ -1,6 +1,3 @@
-// The directory source runs the contract suite of `SkillPackageSource` on real temporary
-// directories, each case on a fresh tree. The source keeps no bytes by digest, so PS7 is the one
-// case that must come back not applicable; every other case must pass.
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {

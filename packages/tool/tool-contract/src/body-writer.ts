@@ -6,7 +6,6 @@ import type { CallAccess, DurableEvidence, Mutation, ToolBodyId } from './identi
 import type { ToolStartRecord } from './ports.ts'
 import type { ToolBodyRepresentation, ToolFailure } from './results.ts'
 
-/** A body the store sealed and the ledger recorded `sealed`: what a result may reference. */
 export type SealedToolBody = Readonly<{
   source: ContentReference
   bodyId: ToolBodyId

@@ -15,8 +15,6 @@ const block = judgePart({
   visibility: { toHuman: true, toModel: true },
 })
 if ('rejected' in block || block.ok.kind !== 'text') throw new Error('Invalid lesson block')
-// This isolated lesson uses a scripted upstream, an in-memory Commands provider and a
-// consumer completion store. It proves no vendor, disk durability or automatic cleanup.
 const example = createExampleAssembly({
   paging: { parts: 1, targetBytes: 128 },
   facts: [
@@ -35,7 +33,6 @@ const example = createExampleAssembly({
 const provider = createModelRuntime(example.dependencies, configuration)
 const access = { ...example.access, call: example.call }
 const admission = operation('admit')
-// Fix this locator before admission. A lost reply cannot take away the recovery identity.
 const encoded = encodeModelInvocationRef({
   tenant: example.access.tenant,
   call: example.call,
@@ -50,7 +47,6 @@ const admitted = await provider.runtime.calls.admit({
   consumer: example.consumer,
 })
 if ('failure' in admitted) throw new Error(`Admission failed: ${JSON.stringify(admitted.failure)}`)
-// A trusted host drives the stream. Ordinary consumers receive only provider.runtime.
 const driving = provider.driver.drive(example.driveInput, new AbortController().signal)
 example.upstream.resume()
 let pendingAck: AckInput<typeof example.access.principal> | undefined
@@ -79,8 +75,6 @@ try {
     let closeFailure: ModelFailure | undefined
     try {
       while (state.kind === 'reading') {
-        // Sealed blocks retain their original type. Partial tool arguments are data, never
-        // executable tool calls. Handle trims and the original Settlement on every page.
         for (const part of state.page.parts) {
           console.log(
             'part:',
@@ -108,8 +102,6 @@ try {
       } else console.log('read closed:', closed.ok.kind)
     }
     if (closeFailure) throw new Error(`Close failed: ${JSON.stringify(closeFailure)}`)
-    // Only the frozen consumer's owner may attest its actual completed business work.
-    // A production owner saves its required outcome durably before issuing this evidence.
     const completion = example.completedRecords.finish({
       result,
       consumer: example.consumer,
@@ -121,8 +113,6 @@ try {
       result,
       evidence: { kind: 'processed', completion },
     }
-    // Persist this operation locator together with the original result and evidence before ACK.
-    // The reference packages identity only. It proves neither completion nor acknowledgement.
     const ackReference = encodeModelOperationRef({
       tenant: access.tenant,
       call: access.call,
@@ -143,8 +133,6 @@ try {
     }
     let acknowledgement = await provider.runtime.consumption.acknowledge(pendingAck)
     if ('failure' in acknowledgement && acknowledgement.failure.kind === 'commit-unknown') {
-      // Keep this exact operation and evidence. Repeating can remain unknown; never mint
-      // another logical ACK to hide uncertainty. A real application persists pendingAck.
       acknowledgement = await provider.runtime.consumption.acknowledge(pendingAck)
     }
     if ('failure' in acknowledgement)
@@ -158,8 +146,6 @@ try {
       receipt.custody.receipt,
       receipt.custody.cleanup,
     )
-    // pending means the ACK succeeded and Model still owns cleanup. No cleanup worker runs
-    // in this lesson. Repeating the same input recognizes the original receipt.
     const repeated = await provider.runtime.consumption.acknowledge(pendingAck)
     if ('failure' in repeated) throw new Error(`Repeat failed: ${JSON.stringify(repeated.failure)}`)
     console.log('same ACK:', repeated.ok.custody.operation === receipt.custody.operation)

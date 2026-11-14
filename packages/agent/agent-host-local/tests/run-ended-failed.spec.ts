@@ -1,8 +1,3 @@
-// A run that ends with a `fail` conclusion because its Model call failed, in the `agent-host` plugin
-// on real Cordis 4.0.4 with the production factory `createAgentRuntime` (SPEC「以失败终结」). Checked:
-// the host writes exactly one warn record that names the execution, the step and the cause, and the
-// cause keeps the fault of the Model call rather than only `no-reply`. Nothing here proves the
-// session log Journal, a real Model or another process.
 import { agentEvaluator } from '@omne-harness/agent'
 import { testAdoption } from '@omne-harness/agent/testing'
 import {
@@ -101,7 +96,6 @@ async function until(probe: () => boolean | Promise<boolean>, ms = 10_000): Prom
 const endedFailed = (host: World) =>
   host.warnings.filter(text => text.startsWith('agent run ended with a failure'))
 
-/** A host whose main Model call settles with `termination` and no content. */
 async function ending(
   termination: Termination,
   change: Readonly<{ config?: unknown; until?: (host: World) => boolean }> = {},
@@ -181,7 +175,6 @@ describe('a run that ends with a failure', () => {
     expect(record).toContain(
       `cause=${EXECUTION}/step-1/model-failed/upstream-unavailable/connect-timeout`,
     )
-    // A run that ended is not a run that stopped on a node failure.
     expect(host.warnings.filter(text => text.startsWith('agent run stopped'))).toEqual([])
   })
 

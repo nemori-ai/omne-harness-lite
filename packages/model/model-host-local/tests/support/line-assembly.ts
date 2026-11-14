@@ -1,17 +1,3 @@
-// Test support of the line-through case: one process, one real Cordis 4.0.4 root Context, and the
-// five members of the line assembled on it. Real parts: the credential service (a vault whose
-// official layer holds a placeholder, served with `serveModelCredential`), the official profiles plugin, the request preparation plugin, the send stage
-// plugin over the real pi transport and the OpenAI family, the runtime plugin with its result push,
-// and the durable ModelCommands of `@omne-harness/model-storage-sql` (`createSqlModelCommands` with
-// `send`, so the commands and the send coordinator share one core). Stand-ins, each named:
-// - The SQL provider is `node:sqlite` on one database file (below), not `@omne-harness/sqlite-provider`.
-//   The real provider loads its materials by module file and digest, and model-storage-sql has no
-//   `modelStorageMaterials()` yet (its SPEC lists this gap): its two read handlers have no module
-//   file. The file provider here runs the member's real participant, migration and read handlers;
-//   it does not model Workers, queues, limits or crash durability, so a pass proves none of those.
-// - The result receiver is the scripted receiver of the spec, standing for `createLocalModelReceiver`
-//   of agent-host-local (joined in integration A).
-// - The retry policy answers "no plan": retries are outside this wave.
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -75,13 +61,10 @@ import { FAMILIES, PLACEHOLDER, ROUTE_PATH, TRANSPORT_LIMITS, decoded } from './
 import { factorySupplier } from './profiles.ts'
 import type { RequestDisclosure } from '@omne-harness/model-host-local'
 
-// --- Values -------------------------------------------------------------------------------------
-
 type Principal = Readonly<{ subject: string }>
 type Storage = SqlModelCommandsOptions<Principal>['storage']
 type CommitRequest = Parameters<Storage['commit']>[0]
 type CommitResult = Awaited<ReturnType<Storage['commit']>>
-/** A stored receipt: what `query` answers. `commit` answers it with the `recalled` mark. */
 type Receipt = Extract<Awaited<ReturnType<Storage['query']>>, { kind: 'committed' | 'rolled_back' }>
 type SqlIdentity = CommitRequest['identity']
 type ReadPort = Parameters<typeof modelMigration.up>[0]
@@ -96,7 +79,6 @@ export const ADOPTION: Adoption = {
   revision: '1',
   digest: '0'.repeat(64),
 }
-/** The route of the profile and of the recording: the OpenAI record with a synthetic tool reply. */
 export const ROUTE = 'openai/gpt-5.6-sol'
 export const REQUIRED: ModalityRequirement = {
   modalities: ['text'],
@@ -147,9 +129,6 @@ export function tenantText(scope: TenantId): string {
   return text.value
 }
 
-// --- The node:sqlite file provider ----------------------------------------------------------
-
-/** The participant module of model-storage-sql: `execute` of the `model` participant. */
 type Participant = Readonly<{
   execute(facts: unknown, port: unknown): unknown
 }>
@@ -163,12 +142,6 @@ function isParticipant(value: unknown): value is Participant {
   )
 }
 
-/**
- * Loads the participant of model-storage-sql the way a provider loads a material: by the module
- * file of the member's build. The member exports the migration and the read handlers from its root
- * and the participant only as the default export of its commit module (its SPEC lists the missing
- * `modelStorageMaterials()`), so this is the one path to it from outside the member.
- */
 async function loadParticipant(): Promise<Participant> {
   const url = new URL(
     '../../node_modules/@omne-harness/model-storage-sql/dist/commit.js',
@@ -205,7 +178,6 @@ const keyOf = (identity: SqlIdentity) =>
   JSON.stringify([identity.scope, identity.operation, identity.operationKey])
 const digestOf = (value: unknown) =>
   createHash('sha256').update(JSON.stringify(value), 'utf8').digest('hex')
-/** The bound of one command, as the release storage has it: a larger command is refused. */
 export const MAX_COMMAND_BYTES = 1 << 20
 const NOT_COMMITTED_PROOFS = {
   writerGenerationExcluded: true,
@@ -215,7 +187,6 @@ const NOT_COMMITTED_PROOFS = {
   operationNotQueued: true,
 } as const
 
-/** Opens the file, runs the Model migration when its tables are missing, and keeps receipts in a table. */
 function openDatabase(file: string): DatabaseSync {
   const db = new DatabaseSync(file)
   const port: ReadPort = { execute: (sql, params) => rowsOf(db, sql, params) }
@@ -227,17 +198,10 @@ function openDatabase(file: string): DatabaseSync {
 export type FileStorage = Readonly<{
   storage: Storage
   file: string
-  /** Closes the connection and opens a new one on the same file. The storage keeps working. */
   reopen(): void
   close(): void
 }>
 
-/**
- * `SqlStorage` over one `node:sqlite` file for one transaction domain. Every commit runs the real
- * participant in one transaction; the receipt is stored in the same file, so a repeated identity
- * is recognised after `reopen`. `read` runs the member's read handlers on the same connection.
- * A command above `MAX_COMMAND_BYTES` is refused before it runs, as the release storage refuses it.
- */
 export async function openFileStorage(file: string): Promise<FileStorage> {
   const participant = await loadParticipant()
   let db = openDatabase(file)
@@ -359,13 +323,10 @@ export async function openFileStorage(file: string): Promise<FileStorage> {
   }
 }
 
-// --- The durable commands --------------------------------------------------------------------
-
 function unavailable(): { failure: ModelFailure } {
   return { failure: { kind: 'unavailable', dependency: HOST_OWNER, diagnostic: 'not-supplied' } }
 }
 
-/** The options of the shared core: the authority of this tenant, the evidence the line trusts. */
 function coreOptions(): ModelCommandsCoreOptions<Principal> {
   return {
     owners: [{ consumerOwner: CONSUMER, work: { kind: 'exempt' }, evidence: ADOPTION }],
@@ -404,7 +365,6 @@ function coreOptions(): ModelCommandsCoreOptions<Principal> {
         }),
         lateFact: unavailable,
         retry: unavailable,
-        // The custody evidence is the receiver's own, for this call's key only.
         handoff: given =>
           given.evidence.kind === 'retained' &&
           given.evidence.custody.owner === CONSUMER &&
@@ -437,7 +397,6 @@ const domains: SqlModelCommandsOptions<Principal>['domains'] = {
     ),
 }
 
-/** The send sources of the profile: one official source per supplier, always authorized. */
 function sourcesOf(profile: ModelProfile): readonly ModelSendSource<Principal>[] {
   return profile.definition.suppliers.map(supplier => ({
     profile: profile.adoption,
@@ -449,7 +408,6 @@ function sourcesOf(profile: ModelProfile): readonly ModelSendSource<Principal>[]
   }))
 }
 
-/** The durable commands over `storage`, with the coordinator when a profile gives the sources. */
 export function durableCommands(storage: Storage, profile?: ModelProfile) {
   return createSqlModelCommands<Principal>({
     ...coreOptions(),
@@ -463,7 +421,6 @@ export function durableCommands(storage: Storage, profile?: ModelProfile) {
   })
 }
 
-/** Reads the whole result of a settled call through bare commands, and ends the read. */
 export async function readResult(commands: ModelCommands<Principal>, call: ModelCallId) {
   const lookup = decoded(
     await commands.recall({ ...ACCESS, call, admission: op(`admit-${nameOf(call)}`) }),
@@ -501,9 +458,6 @@ export function textOf(parts: readonly ResultPart[]): string {
     .join('')
 }
 
-// --- The scripted receiver --------------------------------------------------------------------
-
-/** The receiver stand-in: saves every push under its key and answers `saved` with its own evidence. */
 export function scriptedReceiver(log: string[]) {
   const pushes: ModelDelivery[] = []
   const saved = new Map<string, ModelSavedReceipt>()
@@ -530,8 +484,6 @@ export function scriptedReceiver(log: string[]) {
   return { receiver, pushes }
 }
 
-// --- The Cordis tree ---------------------------------------------------------------------------
-
 const NO_RETRY: ModelRetryPolicy<Principal> = {
   decide: async () => ({
     failure: { kind: 'unavailable', dependency: 'model-retry-policy', diagnostic: 'no-plan' },
@@ -541,7 +493,6 @@ const NO_RETRY: ModelRetryPolicy<Principal> = {
   }),
 }
 
-/** The commands as the service the plugins inject; `settle` and `handoff` are logged. */
 function commandsServiceOver(commands: ModelCommands<Principal>) {
   return class LineCommands extends ModelCommandsService<unknown> {
     declare readonly admit: ModelCommands<unknown>['admit']
@@ -604,22 +555,13 @@ class LineClock extends ModelClockService {
 
 export type LineInput = Readonly<{
   requestDisclosure?: RequestDisclosure
-  /** A private directory for the vault file. */
   directory: string
   storage: FileStorage
-  /** The local HTTPS gateway: its URL and the certificate to trust. */
   gateway: Readonly<{ url: URL; ca: Buffer }>
 }>
 
 export type LineTree = Awaited<ReturnType<typeof assembleLine>>
 
-/**
- * The whole line on one root Context, in load order: vault, profiles, then the SQL commands with
- * the coordinator built from the resolved profile's sources, the clock, the host authority, the
- * preparation plugin, the send stage, and the runtime plugin with the result push. `log` gets
- * `exchange-stopped` from the transport, `settle:<call>` and `handoff:<call>` from the commands and
- * `saved:<reference>` from the receiver, in the order they happen.
- */
 export async function assembleLine(input: LineInput) {
   const log: string[] = []
   const messages: string[] = []
@@ -638,7 +580,6 @@ export async function assembleLine(input: LineInput) {
     await fiber
     return fiber
   }
-  // The credential service over a secret vault whose official layer holds the placeholder.
   await load(vaultCredentialPlugin(join(input.directory, 'line.vault.json'), PLACEHOLDER))
   await load(ModelProfilesLocalPlugin, {
     retryPolicy: ADOPTION,
@@ -712,7 +653,6 @@ export async function assembleLine(input: LineInput) {
   await load(Stage, { maxRetainedAttempts: 4 })
 
   const ledger = createMemoryResultPushLedger()
-  // Every fact the send stage hands to the runtime, kept in order: the facts must not carry the credential.
   const facts: TransportFact[] = []
   const Runtime = createModelRuntimeLocalPlugin({
     provider: given =>
@@ -755,11 +695,9 @@ export async function assembleLine(input: LineInput) {
     facts,
     profile,
     ledger,
-    /** The durable commands of the tree, as the plugins see them. */
     commands,
     runtime: ctx.modelRuntime,
     preparation: ctx.modelRequestPreparation,
-    /** A plugin that registers `receiver` under the consumer owner, the way the Agent host does. */
     register(receiver: ModelResultReceiver<unknown>) {
       return load({
         name: 'receiver-stand-in',
@@ -778,14 +716,12 @@ export async function assembleLine(input: LineInput) {
     },
     dispatchesOf: async (call: ModelCallId) =>
       decoded(await commands.dispatches({ ...ACCESS, call })),
-    /** Unloads every plugin in reverse load order. */
     async close() {
       for (const fiber of fibers.toReversed()) await fiber.dispose()
     },
   }
 }
 
-/** The version of the Cordis package the tree runs on, from the installed package. */
 export function cordisVersion(): string {
   const manifest: unknown = JSON.parse(
     readFileSync(

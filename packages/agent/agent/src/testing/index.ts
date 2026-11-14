@@ -1,7 +1,3 @@
-// The `./testing` entry: the memory Journal, scripted doubles of every other Agent port, a manual
-// clock and `createTestAgentDependencies`, which assembles all 17 dependencies of the factory. They
-// are for tests only. Nothing here is durable, and a double answers what the test scripted; it
-// proves nothing about a real provider.
 import { assembleModelReceiverFixture, type ModelReceiverFixture } from './model-receiver.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import {
@@ -126,33 +122,18 @@ export type { Answer, Script } from './script.ts'
 export { createScriptedToolRuntime } from './tools.ts'
 export type { ScriptedToolRuntime } from './tools.ts'
 
-/**
- * The Journal options of the test assembly. `coordination` is optional here only because this
- * assembly chooses a standalone binding when it is omitted; the double's own factory has no default.
- */
 export type TestJournalOptions<P> = Omit<MemoryAgentJournalOptions<P>, 'coordination'> &
   Readonly<{ coordination?: MemoryAgentJournalOptions<P>['coordination'] }>
 
 export type TestAgentDependenciesOptions<P> = Readonly<{
-  /** Options of the memory Journal, such as its mode and declared participants. */
   journal?: TestJournalOptions<P>
-  /** Enables the public Model testing pusher under an explicit tenant principal. */
   receivingPrincipal?: P
-  /**
-   * Where the pusher looks for the receiver of a consumer owner, as a Model runtime resolves it
-   * from its registration table. Absent: the receiver this function builds over the memory
-   * Journal. Only with `receivingPrincipal`.
-   */
   resolveReceiver?: (owner: string) => ModelResultReceiver<P> | null
-  /** The instance of the scripted Model provider. Default: `minst_agent-testing`. */
   modelInstance?: ModelInstanceId
-  /** The start of the manual clock. Default: `1970-01-01T00:00:00Z`. */
   clockStart?: AgentInstant
-  /** Tells the scripted Model provider whether two principals are the same one. */
   samePrincipal?: (left: P, right: P) => boolean
 }>
 
-/** The control handle of every dependency in `TestAgentDependencies.dependencies`. */
 export type TestAgentControls<P> = Readonly<{
   journal: MemoryAgentJournal<P>
   receiver: AgentModelReceiver<P> | null
@@ -183,15 +164,6 @@ export type TestAgentDependencies<P> = Readonly<{
 
 const DEFAULT_MODEL_INSTANCE = 'minst_agent-testing'
 
-/**
- * Builds a fresh, non-durable set of all 17 dependencies of `createAgentRuntime`, with the control
- * handle of each. `registration` is null. `models` is the runtime of the scripted Model provider of
- * `@omne-harness/model-contract/testing`. Two calls share no state.
- *
- * A test convenience, not a default of the factory: the Journal binding and the configuration both
- * take `standalone` here unless `journal` says otherwise. `createAgentRuntime` itself compares the
- * configuration with the declaration of the binding on every call (SPEC "协调绑定").
- */
 export function createTestAgentDependencies<P>(
   options: TestAgentDependenciesOptions<P> = {},
 ): TestAgentDependencies<P> {
@@ -292,7 +264,6 @@ function defaultModelInstance(): ModelInstanceId {
 
 export type { ModelReceiverFixture } from './model-receiver.ts'
 
-/** A lawful original binding and common memory provider for host receiver tests. */
 export function createModelReceiverFixture(): Promise<ModelReceiverFixture> {
   const { tenant } = createScriptedConformanceSubject()
   return assembleModelReceiverFixture(
@@ -310,7 +281,6 @@ export type ToolReceiverFixture = Readonly<{
   journal: MemoryAgentJournal<string>
 }>
 
-/** An associated Tool call committed through the same non-durable Journal used by the host. */
 export async function createToolReceiverFixture(): Promise<ToolReceiverFixture> {
   const base = await createModelReceiverFixture()
   function value<T>(result: { ok: T } | { failure: unknown }): T {

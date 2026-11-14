@@ -25,7 +25,6 @@ it('mounts one real producer per tenant through the production authority and wit
     await fixture.install(sessionModesPrincipals)
     await fixture.install(createRuntimeContextTrustModule())
     await fixture.scopeOf(runtimeContextTrustKey).plugin(createRuntimeContextPlugin())
-    // Registration does not read Session or SQL. These dependency markers expose no operations.
     for (const key of ['session', 'sessionScopeLookup', 'storage', 'tenantDomainLookup']) {
       await fixture.root.plugin({
         name: `registration-only-${key}`,

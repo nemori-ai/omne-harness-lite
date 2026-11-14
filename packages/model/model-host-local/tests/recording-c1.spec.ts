@@ -1,22 +1,4 @@
 // @module-tag slow — starts openssl child processes and real local HTTPS servers, writes vault
-// files, drives Model calls through the assembled send path, and sends through the pi transport.
-//
-// The C1 evidence over the four real recordings. For each recording, the local HTTPS server
-// answers with the recorded bytes unchanged, and two runs check it:
-//
-// - The assembled local path (vault, send boundary, `createPiTransport`, both real families, the
-//   Model runtime and the in-memory ModelCommands) sends the rebuilt request once. The request is
-//   the recorded one: the receipt digest equals the digest of the recording note. The facts the
-//   send boundary hands to the runtime end with one termination, the cost of the account is a real
-//   value or unknown, and the placeholder credential is in the sent header only, never in the
-//   facts or the dispatch record.
-// - The six transport obligations of the model-contract conformance suite run against the real
-//   `createPiTransport` with both real families, the same request and the same recorded bytes.
-//
-// With `OMNE_EVIDENCE_OUT=<directory>` each recording writes one redacted JSON file there: the
-// case, the model, the payload digest, the fact kinds (kinds and block kinds only), the
-// termination, the usage and cost of the account, the result of each obligation and how the
-// credential is held. No request body, no reply text, no header and no reasoning payload.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -58,16 +40,10 @@ const TRANSPORT_OBLIGATIONS = [
   'transport-close-is-idempotent',
 ] as const
 
-/** How the credential of the recordings was held; the evidence states it as written. */
 const CREDENTIAL = '代理注入真实密钥；凭据库只存占位值；占位值不出现在事实与发出记录中'
 
-/** One run of equal facts: the fact kind, the content kind of its block, and how many in a row. */
 type KindRun = { kind: TransportFact['kind']; block?: string; count: number }
 
-/**
- * The kinds of a fact sequence, run-length coded. A block fact names the kind of its block: the
- * growing content kind of its open, or the kind of the sealed block. No delta, value or payload.
- */
 function kindsOf(facts: readonly TransportFact[]): readonly KindRun[] {
   const contents = new Map<string, string>()
   const runs: KindRun[] = []
@@ -108,11 +84,6 @@ type ObligationResult = Readonly<{
   detail: string | undefined
 }>
 
-/**
- * The six transport obligations against the real `createPiTransport` with both real families. A
- * fresh network and transport serve every check; a local HTTPS server answers each request on the
- * route with the recorded bytes. Every counted send must reach the server, and nothing else.
- */
 async function transportObligations(
   input: Readonly<{ request: FixedModelRequest; stream: Buffer }>,
 ): Promise<readonly ObligationResult[]> {
@@ -135,7 +106,6 @@ async function transportObligations(
           idleConnectionTimeoutMs: 60_000,
           tls: { ca: certificate.cert },
         })
-        // The transport reads the credential once per send, inside `start`.
         let reads = 0
         const built = createPiTransport({
           network,
@@ -189,7 +159,6 @@ async function transportObligations(
   }
 }
 
-/** The usage or cost amount as the evidence writes it: state, amount when there is one, unit. */
 function amountOf(amount: Amount) {
   return {
     state: amount.state,
@@ -198,10 +167,6 @@ function amountOf(amount: Amount) {
   }
 }
 
-/**
- * The recording through the assembled local path: one send of the rebuilt request, checked, and
- * summarized without any text, payload or header.
- */
 async function assembledRun(name: RecordCaseName, request: FixedModelRequest) {
   const item = RECORD_CASES[name]
   const opened = await openReplay({ request, name, label: replayLabel('c1', name) })
@@ -222,16 +187,13 @@ async function assembledRun(name: RecordCaseName, request: FixedModelRequest) {
     expect(record.terminal).toEqual(ended[0]?.termination)
     const receipt = record.materialization?.receipt
     if (receipt === undefined) throw new Error('the dispatch has no receipt')
-    // The request is the recorded one: this materialization sent the recorded request body.
     expect(receipt.payloadDigest).toBe(note.payloadDigest)
     const account = record.account
     if (account === null) throw new Error('the dispatch has no account')
-    // The cost is the gateway's real value or unknown: never provisional, never a made-up zero.
     expect(account.cost.every(cost => cost.state === 'known' || cost.state === 'unknown')).toBe(
       true,
     )
     expect(account.cost.filter(cost => cost.source === 'billable')).toHaveLength(1)
-    // The placeholder went out in the header only.
     expect(JSON.stringify(facts)).not.toContain(PLACEHOLDER)
     expect(JSON.stringify(record)).not.toContain(PLACEHOLDER)
     return {

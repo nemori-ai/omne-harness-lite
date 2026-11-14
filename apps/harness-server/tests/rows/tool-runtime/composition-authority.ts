@@ -1,5 +1,3 @@
-// Named doubles for this transport test: Session reads the real SQL snapshot; the adopted
-// Agent exposes only Files/Shell. Target policy is allow-all; production policy has separate tests.
 import type { Context } from '@deepseek-ai/cordis'
 import { AgentAdoptionsService } from '@omne-harness/agent-cordis-contract/cordis'
 import { fail, succeed } from '@omne-harness/operation-result'

@@ -1,5 +1,3 @@
-// HITL 位置（SPEC「HITL 位置」）：经真实 HTTP，用 HITL 入口面替身、入口主体持有者替身与 identity
-// 参考替身，核对判断次序、入口主体、卡片视图、denied 的逐字节一致与依赖故障的分类。
 import { standingPrincipalRef, type IdentityOperations } from '@omne-harness/identity'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -47,7 +45,6 @@ type Setup = Readonly<{
   hitl: HitlDouble
   holder: EntryPrincipalsDouble
   recognitions: string[]
-  /** 置真后登录识别答 `basis-unavailable`。 */
   identityDown: { value: boolean }
 }>
 
@@ -157,7 +154,6 @@ describe('入口主体与两个入口', () => {
 
     const principals = hitl.calls.map(call => standingPrincipalRef(call.principal))
     expect(new Set(principals)).toEqual(new Set([entryRef]))
-    // 持有者只拿到账号与目标租户，不拿到登录。
     expect(holder.inputs).toEqual([
       ['account', 'tenant'],
       ['account', 'tenant'],
@@ -283,11 +279,9 @@ describe('denied 不披露', () => {
     })
     const ref = item.card.ref
     const replies = {
-      // 目标租户的账号不是识别出的账号：不调用持有者。
       otherTenantTarget: await post(
         readCard({ loginProof: bob.loginProof }, alice.tenantText, ref, 'm-a'),
       ),
-      // 以自己的租户读别人的卡：HITL 拒绝。
       otherTenantCard: await post(
         readCard({ loginProof: bob.loginProof }, bob.tenantText, ref, 'm-b'),
       ),
@@ -372,7 +366,6 @@ describe('部署声明不提供的操作', () => {
   })
 })
 
-/** SPEC「HITL 提交身份的派生规则」第 4 条，在测试里独立写一遍。 */
 const replyIdentity = (tenantText: string, replyId: string) =>
   createHash('sha256')
     .update(JSON.stringify(['hitl-public/1-reply', tenantText, replyId]))
@@ -481,7 +474,6 @@ describe('答复的提交与认回', () => {
     const bound = hitl.calls.filter(call => call.method === 'bindSubmitReply')
     const sent = hitl.calls.find(call => call.method === 'submitReply')
     expect(bound.at(-1)?.input).toEqual(sent?.input)
-    // 同一 replyId 换了内容：HITL 的摘要不同，查询也是 conflict。
     const changed = await answer('query-submit-reply', alice, { reply: { kind: 'decline' } })
     expect(changed.status).toBe(409)
     expect(changed.json).toMatchObject({ outcome: 'conflict', body: {} })
@@ -586,7 +578,6 @@ describe('HITL 结果与依赖故障', () => {
       outcome,
       body,
     })
-    // HITL 给出了答复，不是读取故障。
     expect(fixture!.diagnostics.map(event => event.code)).not.toContain('hitl.read-fault')
   })
 

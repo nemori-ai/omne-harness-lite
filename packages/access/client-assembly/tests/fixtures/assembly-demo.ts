@@ -1,7 +1,3 @@
-// The demonstration command of the client assembly (#1249 C18). From packages/access/client-assembly
-//   pnpm run build && node tests/fixtures/assembly-demo.ts
-// It starts server-entry's test entry, puts the connection and the notes protocol client on a
-// client tree, and prints the tree's services as the entry takes notes/v1 down and mounts it again.
 import { Context } from '@deepseek-ai/cordis'
 import { defineProtocol, ruleCodec } from '@omne-harness/public-contract'
 import { createHttpProtocolTransport } from '@omne-harness/sdk/core'

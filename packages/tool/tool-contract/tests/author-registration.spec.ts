@@ -36,7 +36,6 @@ type Operation = ToolOperation<null, ToolMessageContentBlock>
 type Declared = Extract<ToolOperationParameters, { kind: 'declared' }>
 
 function readOperation() {
-  // The ordinary author does not fix the block type, so the test names it.
   const defined = defineToolOperation<JsonValue, unknown, null, ToolMessageContentBlock, Declared>({
     parameters: { kind: 'declared', value: parameters() },
     returns: ordinaryReturns,
@@ -94,7 +93,6 @@ describe('author registration', () => {
     }
     expect(implemented.ok.facts).toEqual(facts)
     expect(judgeImplementationFacts(implemented.ok.facts)).toEqual({ ok: facts })
-    // The implementation carries no name, adoption or governance: the asset supplies them.
     expect(Object.keys(implemented.ok)).toEqual(['facts'])
     expect(runs).toBe(0)
   })
@@ -114,7 +112,6 @@ describe('author registration', () => {
     const derived = deriveDefinition(governance(), implemented.ok.facts)
     expect(derived).toEqual(expected)
     expect(judgeToolDefinition(derived)).toEqual({ ok: expected })
-    // `programmable` stays omitted when the asset omits it, and comes from the asset otherwise.
     expect('programmable' in derived).toBe(false)
     expect(deriveDefinition({ ...governance(), programmable: true }, implemented.ok.facts)).toEqual(
       {
@@ -184,7 +181,6 @@ describe('author registration', () => {
         commands: { '': { summary: 'Nameless.', operation: readOperation() } },
       }),
     ).toEqual({ failure: { field: 'commands[""]', reason: 'empty' } })
-    // The name and the adoption belong to the asset: an implementation that carries them is rejected.
     const named = { ...declaration(), name: 'read_file' } as unknown as ReturnType<
       typeof declaration
     >
@@ -205,7 +201,6 @@ describe('author registration', () => {
       returns: ordinaryReturns,
       author: structuredAuthor(),
     } as const
-    // The types reject this pairing; the construction check must reject it at run time too.
     expect(
       defineToolOperation(mismatched as unknown as Parameters<typeof defineToolOperation>[0]),
     ).toEqual({
@@ -401,7 +396,6 @@ describe('wait contract', () => {
     const table = readToolRegistration(implemented.ok)
     expect(table?.kind).toBe('commands')
     if (table?.kind === 'commands') expect(table.operations.map(([name]) => name)).toEqual(['read'])
-    // A value that this module did not mark has no slot, so a forged handle cannot carry an author.
     expect(readToolOperation({ parameters: defined.ok.parameters, returns: ordinaryReturns })).toBe(
       undefined,
     )
@@ -477,7 +471,6 @@ describe('checkpointed author', () => {
     expect(
       define({ ...segments(), checkpoint: { ...segments().checkpoint, maxBytes: 0 } }),
     ).toEqual({ failure: { field: 'author.executor.checkpoint.maxBytes', reason: 'range' } })
-    // The ledger keeps the state in one record of the call: a declaration over the bound is refused.
     const bounded = (maxBytes: number) =>
       define({ ...segments(), checkpoint: { ...segments().checkpoint, maxBytes } })
     expect(bounded(CHECKPOINT_STATE_MAX_BYTES)).toHaveProperty('ok')
@@ -496,7 +489,6 @@ describe('checkpointed author', () => {
   })
 
   it('checkpointed author: the Ask of a segmented author declares sizes within the system bounds', () => {
-    // The ledger keeps the request and the response of that Ask in records of the call.
     const sized = (
       side: 'request' | 'response',
       maxBytes: number,
@@ -518,13 +510,11 @@ describe('checkpointed author', () => {
     expect(define(segments(), [sized('request', WAIT_REQUEST_MAX_BYTES + 1)])).toEqual(over)
     expect(define(segments(), [sized('response', WAIT_RESPONSE_MAX_BYTES)])).toHaveProperty('ok')
     expect(define(segments(), [sized('response', WAIT_RESPONSE_MAX_BYTES + 1)])).toEqual(over)
-    // The bound is on the Ask, wherever it stands among the waits; a resource wait keeps its own.
     const resourceOver = sized('request', WAIT_REQUEST_MAX_BYTES + 1, 'resource')
     expect(
       define(segments(), [resourceOver, sized('request', WAIT_REQUEST_MAX_BYTES + 1)]),
     ).toEqual(over)
     expect(define(segments(), [ask.ok, resourceOver])).toHaveProperty('ok')
-    // An author that runs in one execution keeps the limits of its own protocol.
     const plain = defineToolOperation({
       parameters: { kind: 'declared', value: parameters() },
       returns: ordinaryReturns,

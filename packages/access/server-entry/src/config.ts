@@ -1,43 +1,22 @@
-// The deployment configuration of the entry. Every value is given by the assembly; this member
-// writes no initial value. `listenAddress` may only be the loopback address (SPEC「服务端的 HTTP 层责任」).
 import type { JsonLimits } from '@omne-harness/json-text'
 
 export const LOOPBACK_ADDRESS = '127.0.0.1'
 
-/** The five json-text budgets besides `maxBytes`, which each path's body limit supplies. */
 export type JsonBudgets = Readonly<Omit<JsonLimits, 'maxBytes'>>
 
 export type ServerEntryConfig = Readonly<{
-  /** Must be `127.0.0.1`. Any other address is a configuration error at start. */
   listenAddress: string
-  /** 0 asks the host for a free port. */
   listenPort: number
-  /** Requests reading a body or executing a command; established SSE streams have their own budget. */
   maxInFlightRequests: number
-  /** The request body limits of the two paths, in bytes. */
   maxBodyBytes: Readonly<{ small: number; input: number }>
-  /** The SSE heartbeat interval. */
   heartbeatIntervalMs: number
-  /** The json-text budgets of the strict read, `maxBytes` excluded. */
   jsonBudgets: JsonBudgets
-  /** The deployment bound of `read-history`'s `pageBytes`. */
   maxPageBytes: number
-  /** The history entry kinds this deployment discloses through `read-history`. */
   historyKinds: readonly string[]
-  /** The observation resource bounds and the retention of an ended observation record. */
   observation: Readonly<{ perLogin: number; perInstance: number; cancelRetentionMs: number }>
-  /**
-   * The session diagnostics projection (SPEC「会话诊断投影」): the entry kinds it reads, the most
-   * Runs of one page, and the most calls of one Run that enter the fan-out. The three come
-   * together; a deployment without them answers `read-session-diagnostics` as `basis-unavailable`.
-   */
   diagnosticsKinds?: readonly string[]
   maxRuns?: number
   maxCallsPerRun?: number
-  /**
-   * HITL 位置交给 `listPool` 的位置引用（SPEC「HITL 位置」），与装配给 HITL 查询的固定位置相同。
-   * 装配给了 HITL 入口面时必须有它。
-   */
   hitlLocationRef?: string
 }>
 
@@ -57,7 +36,6 @@ function nonNegativeInteger(value: unknown, name: string): number {
   return value
 }
 
-/** Checks the shape of a configuration. The listen address is checked at `start`, so a wrong address fails the start, not the construction. */
 export function checkConfig(config: ServerEntryConfig): ServerEntryConfig {
   if (typeof config.listenAddress !== 'string')
     throw new ServerEntryConfigError('server-entry: listenAddress must be a string')
@@ -93,7 +71,6 @@ function stringList(value: unknown, name: string): void {
     throw new ServerEntryConfigError(`server-entry: ${name} must be a list of strings`)
 }
 
-/** The three projection fields are all absent, or each is present and well formed. */
 function checkDiagnostics(config: ServerEntryConfig): void {
   const { diagnosticsKinds, maxRuns, maxCallsPerRun } = config
   if (diagnosticsKinds === undefined && maxRuns === undefined && maxCallsPerRun === undefined)
@@ -103,12 +80,10 @@ function checkDiagnostics(config: ServerEntryConfig): void {
   positiveInteger(maxCallsPerRun, 'maxCallsPerRun')
 }
 
-/** The read budgets of one path: the five configured budgets plus that path's body limit. */
 export function readLimits(config: ServerEntryConfig, maxBytes: number): JsonLimits {
   return { ...config.jsonBudgets, maxBytes }
 }
 
-/** The budgets of the responses this member writes. The content comes from trusted members, so only the shape is checked. */
 export const OUTPUT_LIMITS: JsonLimits = Object.freeze({
   maxBytes: Number.MAX_SAFE_INTEGER,
   maxDepth: Number.MAX_SAFE_INTEGER,

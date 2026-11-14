@@ -1,6 +1,3 @@
-// The evaluation of one profile snapshot: which same-route profile wins, what the requirement
-// allows, and what a list offers. Every case drives the public factory `createModelProfiles` with
-// a stub source, so a snapshot reaches the judge exactly as a real source hands it over.
 import { organizationCodec, tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type {
   Adoption,
@@ -60,7 +57,6 @@ function scopeName(scope: ProfileScope): string {
 
 const factory: ProfileScope = { kind: 'factory' }
 
-/** A profile on `route` in `scope`, with the input modalities a case needs. */
 function profileOf(
   over: Readonly<{
     route?: string
@@ -136,7 +132,6 @@ function organizationOf(name: string): ProfileScope & { kind: 'organization' } {
 
 const principal = { owner: 'model-tests', subject: 'reader' }
 
-/** A source that hands over one snapshot and records the accesses it read for. */
 function sourceOf(snapshot: ModelProfileSnapshot) {
   const reads: unknown[] = []
   const source: ModelProfileSource<unknown> = {
@@ -177,8 +172,6 @@ function resolvedOf(resolution: ProfileResolution) {
   if (resolution.kind !== 'resolved') throw new Error(`expected resolved, got ${resolution.kind}`)
   return resolution
 }
-
-// --- one rule per case ----------------------------------------------------------------------
 
 it('names a route that no candidate carries as unknown-name', async () => {
   const snapshot = snapshotOf([candidateOf(profileOf({ route: 'alpha' }))])
@@ -224,9 +217,6 @@ it('lets the most specific layer win a same route and lists the lower ones as sh
 })
 
 it('lets an active lower layer win when the higher layer is withdrawn (contract 854/860, O1)', async () => {
-  // O1: model-contract 1275 says a shadowed low item must not take over automatically. The
-  // accepted decision (D2 第 6 条) writes these cases to the 854/860 reading and leaves the
-  // conflict with the contract owner. M2 has one layer, so no official profile reaches this.
   const low = profileOf({ route: 'alpha' })
   const high = profileOf({ route: 'alpha', scope: organizationOf('2'), availability: 'withdrawn' })
   const snapshot = snapshotOf([candidateOf(high), candidateOf(low)], {
@@ -314,8 +304,6 @@ it('lists only selectable profiles, one per route, in the order the routes first
     ],
     { precedence: [factory, organizationOf('2')] },
   )
-  // The excluded factory beta drops out and the organization beta takes its place; gamma's winner
-  // covers text only, so it is not a choice. Beta comes first because it appears first.
   const choices = await listOf(snapshot, null, requirement(['text', 'image']))
   expect(routesOf(choices)).toEqual(['beta', 'alpha'])
   expect(

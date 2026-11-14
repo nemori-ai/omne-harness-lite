@@ -1,20 +1,3 @@
-// The resident tools of a `create` (G-RESIDENTS, R2-D159). The deployment mapping names them
-// (`residentCapabilities` of the entry); this module turns the names into Session's resident
-// adoption material through the adoption planner of this row, which reads Tool's binding registry
-// (`toolBindings`) and asks the generations coordinator (`toolGenerations`) for a first load. Both
-// services are read again on every call, so the row's injects stay `definitionMappings`.
-//
-// The first definition of each resident comes from the trusted release snapshot
-// (`toolContributionAuthority`, `config/tool-release.json`), never from the caller:
-// - `authority`: the official layer, the release asset, and its holding and publication evidence;
-// - `version`: the revision of the asset adoption;
-// - `admitted`: evidence whose owner and digest are those of the asset adoption.
-// So the binding that J06 projects from a resident (`{ owner, name, revision, digest }`) is exactly
-// the asset adoption of the release tool.
-//
-// Every name must resolve: a name the release does not hold, an untrusted release, an absent
-// registry or a planner that cannot plan the whole set fails the creation with `unavailable` and a
-// diagnostic. No resident is left out while the others are kept.
 import type { Context } from '@deepseek-ai/cordis'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -42,13 +25,11 @@ export type ResidentsAnswer = Outcome<ResidentAdoption, SessionFailure>
 const unavailable = (diagnostic: string): ResidentsAnswer =>
   fail({ kind: 'unavailable', owner: OWNER, diagnostic: `resident tools: ${diagnostic}` })
 
-/** No resident tools: the material a creation gets from an entry that names none. */
 export const NO_RESIDENTS: ResidentAdoption = Object.freeze({
   residents: Object.freeze([]),
   keys: Object.freeze([]),
 })
 
-/** The first definition of one release tool, or `undefined` when the release does not hold it. */
 export function releaseDefinitionOf(
   release: Trusted,
   capability: string,
@@ -71,16 +52,11 @@ export function releaseDefinitionOf(
   return Object.freeze({ authority, version: adoption.revision, admitted })
 }
 
-/** The current service under `key` if it is the contract service of that key, else `undefined`. */
 function current<T>(ctx: Context, key: string, kind: abstract new (...args: never[]) => T) {
   const service: unknown = ctx.get(key, false)
   return service instanceof kind ? service : undefined
 }
 
-/**
- * The resident adoption material of a creation whose entry names `capabilities`. An empty list
- * reads nothing and answers no residents.
- */
 export async function plannedResidents<P>(
   ctx: Context,
   capabilities: readonly string[],

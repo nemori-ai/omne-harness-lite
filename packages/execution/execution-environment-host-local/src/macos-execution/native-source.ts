@@ -1,18 +1,3 @@
-/**
- * The session reader of the macOS backend, compiled on the host with the Command Line Tools.
- * It uses public interfaces only: `proc_listpids` (all pids, or the children of one), `getsid`, `getpgid`, `kill` and the
- * `PROC_PIDT_SHORTBSDINFO` and `PROC_PIDTBSDINFO` flavors of `proc_pidinfo` from <libproc.h>.
- *
- *   members <except> <sid>...            one line `pid pgid sid` per live process of the sessions
- *   identity <pid>                       `sid start_sec start_usec`, or `gone`
- *   children <pid>                       one line `pid` per live child of the process
- *   stop <bound_ms> <except> <sid>...    kills every live member and its process group until two
- *                                        readings in a row are empty: `confirmed`; at the bound:
- *                                        `unconfirmed <count>`
- *
- * `except` is a pid left out of the reading and never signalled; 0 leaves none out. The reader
- * itself is never a member: a gate that asks runs it inside its own session. A zombie is not live. Exit status 1 means the reading failed; the caller treats it as unknown, never as empty.
- */
 export const sessionReaderSource = String.raw`
 #include <errno.h>
 #include <libproc.h>

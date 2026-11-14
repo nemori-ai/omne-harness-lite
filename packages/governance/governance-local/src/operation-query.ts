@@ -17,9 +17,7 @@ function captureQuery(raw: unknown) {
     const parsed = GovernanceOperationQuerySchema.safeParse(raw)
     if (parsed.success && equal(parsed.data, raw))
       return { kind: 'query' as const, query: parsed.data }
-  } catch {
-    /* Non-JSON local inputs are invalid transport values. */
-  }
+  } catch {}
   return { kind: 'invalid-input' as const, field: 'query', reason: 'shape' }
 }
 async function observeOperation(sql: SqlOperationCoordinator, ref: GovernanceOperationRef) {

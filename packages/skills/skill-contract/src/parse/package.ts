@@ -1,5 +1,3 @@
-// Checks one Skill package: the snapshot and the bytes of its control files. It gives the
-// definition, or the first rejection reason in the order of the package rules.
 import type { JsonLimits } from '@omne-harness/assets'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { computeDigest } from '../digest.ts'
@@ -18,15 +16,12 @@ import { DECLARATION_LIMITS, EMPTY_DECLARATION, readDeclaration } from './declar
 import { readManifest } from './manifest.ts'
 import { firstFinding, type Finding } from './shape.ts'
 
-/** What a check gives instead of a definition: a rejection, or control bytes off the snapshot. */
 export type ParseFailure = Extract<InspectFailure, { kind: 'rejected' | 'version-changed' }>
 
 export type ParseInput = Readonly<{
   snapshot: SkillPackageSnapshot
-  /** The bytes of `SKILL.md` and `.omne/skill.json`, present exactly when the snapshot has them. */
   control: Readonly<{ manifest?: Bytes; declaration?: Bytes }>
   expectedName?: SkillName
-  /** The budget for `.omne/skill.json`. The default is the budget in the SPEC. */
   declarationLimits?: JsonLimits
 }>
 
@@ -38,24 +33,11 @@ function reject(code: InspectRejectionCode, detail?: string): Outcome<never, Par
   )
 }
 
-/**
- * Whether the control bytes belong to the snapshot: present exactly when the snapshot lists the
- * path, and with the digest of that entry.
- */
 function belongs(entry: PackageEntry | undefined, bytes: Bytes | undefined): boolean {
   if (entry === undefined || bytes === undefined) return entry === bytes
   return computeDigest(bytes) === entry.digest
 }
 
-/**
- * The rejection order is: manifest-missing, name-mismatch, declaration-format-unsupported,
- * outside-package, tool-ref-invalid, setting-category-unknown, malformed. An unsupported
- * declaration format stops the other checks. Control bytes that do not belong to the snapshot give
- * `version-changed`. It throws a TypeError when the snapshot was not made by `sealSnapshot`.
- *
- * The checks stay in one function on purpose: their order is the contract, and one reading of
- * this body shows it.
- */
 export function parseSkillPackage(input: ParseInput): Outcome<SkillDefinition, ParseFailure> {
   const { snapshot, control } = input
   assertSealed(snapshot)
@@ -70,8 +52,6 @@ export function parseSkillPackage(input: ParseInput): Outcome<SkillDefinition, P
     return reject('manifest-missing', 'the package has no SKILL.md')
   const manifest = readManifest(control.manifest)
   const name = manifest.kind === 'ok' ? manifest.manifest.name : manifest.name
-  // The name of the manifest is the name of the package. Only an expected name that the caller
-  // gives rejects it; a root name that differs gives a hint (the main hosts accept it).
   const { expectedName } = input
   if (name !== undefined && expectedName !== undefined && name !== expectedName)
     return reject('name-mismatch', 'the name differs from the expected name')

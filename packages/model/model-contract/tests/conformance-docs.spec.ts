@@ -4,6 +4,7 @@ import {
   CONFORMANCE_OBLIGATIONS,
   checkModelProviderConformance,
   type ConformanceHooks,
+  type ConformanceObligation,
   type ConformanceSubject,
 } from '@omne-harness/model-contract/conformance'
 import {
@@ -13,26 +14,95 @@ import {
 import { describe, expect, it } from 'vitest'
 
 const here = (name: string) => fileURLToPath(new URL(name, import.meta.url))
-const page = readFileSync(here('../docs/public-api.md'), 'utf8')
 
-type Row = Readonly<{ obligation: string; needs: readonly string[]; partial: boolean }>
+const ACKNOWLEDGE = [
+  'commit-unknown-acknowledge-recovers-original',
+  'forged-evidence-refused',
+  'acknowledge-records-custody',
+  'duplicate-acknowledge-returns-original',
+  'acknowledge-conflict-on-different-input',
+  'acknowledged-result-not-read-again',
+  'acknowledge-and-read-serialised',
+  'acknowledge-keeps-open-read-readable',
+  'cleanup-failure-keeps-acknowledgement',
+] as const satisfies readonly ConformanceObligation[]
 
-/** The rows of the obligation table on the page: the name, and the hooks that the row lists. */
-function rows(): Row[] {
-  const table = page.slice(page.indexOf('## 符合性断言'))
-  return table
-    .split('\n')
-    .filter(line => line.startsWith('| `'))
-    .map(line => {
-      const cells = line.split('|').map(cell => cell.trim())
-      const hooks = cells[4] ?? ''
-      return {
-        obligation: /^`([a-z-]+)`$/u.exec(cells[1] ?? '')?.[1] ?? '',
-        needs: [...hooks.matchAll(/`([A-Za-z]+)`|传输/gu)].map(item => item[1] ?? 'transport'),
-        partial: hooks.includes('只检查'),
-      }
-    })
-}
+const OBSERVED = [
+  'new-observer-starts-from-snapshot',
+  'growing-block-holds-accumulated-value',
+  'sealed-block-takes-no-more-fill',
+  'unsealed-tool-arguments-not-executable',
+] as const satisfies readonly ConformanceObligation[]
+
+const SKIPPED_WITHOUT = {
+  startRun: [
+    'commit-unknown-acknowledge-recovers-original',
+    'mixed-partial-result-readable',
+    'settled-call-keeps-termination',
+    'read-before-settle-refused',
+    'acknowledge-refused-before-settle',
+    'forged-evidence-refused',
+    'acknowledge-records-custody',
+    'duplicate-acknowledge-returns-original',
+    'acknowledge-conflict-on-different-input',
+    'acknowledged-result-not-read-again',
+    'acknowledge-and-read-serialised',
+    'read-page-stable-for-same-after',
+    'close-read-idempotent',
+    'acknowledge-keeps-open-read-readable',
+    'revoked-reader-gets-no-page',
+    'cleanup-failure-keeps-acknowledgement',
+    'cancelled-call-ends-interrupted-unacknowledged',
+    'cancel-sends-nothing-more',
+    'stopping-observation-keeps-call-running',
+    ...OBSERVED,
+  ],
+  showFacts: [...OBSERVED],
+  settleCall: [
+    'commit-unknown-acknowledge-recovers-original',
+    'mixed-partial-result-readable',
+    'settled-call-keeps-termination',
+    'forged-evidence-refused',
+    'acknowledge-records-custody',
+    'duplicate-acknowledge-returns-original',
+    'acknowledge-conflict-on-different-input',
+    'acknowledged-result-not-read-again',
+    'acknowledge-and-read-serialised',
+    'read-page-stable-for-same-after',
+    'close-read-idempotent',
+    'acknowledge-keeps-open-read-readable',
+    'revoked-reader-gets-no-page',
+    'cleanup-failure-keeps-acknowledgement',
+    'cancelled-call-ends-interrupted-unacknowledged',
+  ],
+  provideEvidence: [...ACKNOWLEDGE],
+  failNextWrite: [
+    'commit-unknown-keeps-operation',
+    'commit-unknown-not-reported-as-refusal',
+    'commit-unknown-cancel-recovers-original',
+    'commit-unknown-acknowledge-recovers-original',
+  ],
+  advanceCleanup: ['acknowledge-keeps-open-read-readable'],
+  blockCleanup: ['cleanup-failure-keeps-acknowledgement'],
+  withdrawInstance: ['withdrawn-instance-has-no-live-route'],
+  replaceInstance: ['replaced-instance-ends-observation-as-stale'],
+  disconnectObservers: ['disconnect-ends-observation-as-unavailable'],
+  revokeAccess: [
+    'revoked-reader-gets-no-page',
+    'unauthorised-cancel-denied',
+    'revoked-principal-gets-denied',
+    'revoked-principal-observation-ends-denied',
+  ],
+  failDirectory: ['directory-failure-is-unavailable'],
+  transport: [
+    'transport-sends-only-at-start',
+    'repeated-transport-step-sends-nothing',
+    'materialization-receipt-matches-request',
+    'fact-stream-ends-once',
+    'interruption-is-confirmed',
+    'transport-close-is-idempotent',
+  ],
+} as const satisfies Record<(typeof HOOKS)[number] | 'transport', readonly ConformanceObligation[]>
 
 const HOOKS = [
   'startRun',
@@ -68,10 +138,6 @@ function without(
 }
 
 describe('the obligation table of docs/public-api.md', () => {
-  it('lists the obligations that the suite checks, in the order of the report', () => {
-    expect(rows().map(row => row.obligation)).toEqual([...CONFORMANCE_OBLIGATIONS])
-  })
-
   it('names, for each hook and for the transport, the obligations that the suite cannot check without it', async () => {
     for (const missing of [...HOOKS, 'transport'] as const) {
       const report = await checkModelProviderConformance({
@@ -81,9 +147,9 @@ describe('the obligation table of docs/public-api.md', () => {
       const skipped = report.results
         .filter(result => result.status === 'not-applicable')
         .map(result => result.obligation)
-      const listed = rows()
-        .filter(row => row.needs.includes(missing) && !row.partial)
-        .map(row => row.obligation)
+      const listed = CONFORMANCE_OBLIGATIONS.filter(obligation =>
+        (SKIPPED_WITHOUT[missing] as readonly ConformanceObligation[]).includes(obligation),
+      )
       expect({ missing, skipped }).toEqual({ missing, skipped: listed })
     }
   })

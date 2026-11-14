@@ -38,7 +38,6 @@ describe('definition', () => {
         .outcome,
     )
 
-    // Cordis 4.0.4 places its tracker symbol on every Service instance; any other key is directory state.
     expect(Reflect.ownKeys(world.directory).map(String).sort()).toEqual([
       'Symbol(cordis.tracker)',
       'connect',
@@ -279,8 +278,6 @@ describe('registration protocol', () => {
   })
 
   describe('a second registration of the same fiber', () => {
-    // Everything but one thing is the same as in the first registration: the fiber, the call and
-    // the evidence. Only a registration that is the same in every respect is recognised.
     const variations: readonly (readonly [string, () => Input])[] = [
       [
         'another handle for the same instance',

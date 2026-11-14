@@ -1,5 +1,3 @@
-// After signing in: reads the current tenant with `identity/v1` `query-current-tenant`, shows it
-// in the top bar, and hands its wire text to whatever renders the workspace.
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { IdentityProtocol } from '@omne-harness/identity-protocol'
 import type { ClientOf } from '@omne-harness/sdk/core'

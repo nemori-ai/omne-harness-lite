@@ -5,7 +5,6 @@ import { join } from 'node:path'
 import { askBridge } from './bridge.ts'
 import { windowsBridgeExecutable } from './compile.ts'
 
-/** A Windows prerequisite a start found missing (SPEC, Windows platform prerequisites). */
 export type WindowsPrerequisite =
   | 'windows-version'
   | 'dotnet-csc'
@@ -15,7 +14,6 @@ export type WindowsPrerequisite =
 export type WindowsCommandReading =
   | Readonly<{ kind: 'satisfied' }>
   | Readonly<{ kind: 'unsatisfied'; missing: readonly WindowsPrerequisite[] }>
-  /** The probe itself failed: nothing is known about the prerequisites. */
   | Readonly<{ kind: 'unknown' }>
 
 const unsatisfied = (missing: WindowsPrerequisite): WindowsCommandReading => ({
@@ -23,7 +21,6 @@ const unsatisfied = (missing: WindowsPrerequisite): WindowsCommandReading => ({
   missing: [missing],
 })
 
-/** 64-bit Windows 10 1809, Windows Server 2019 or later; undefined when the version is unread. */
 export function supportedWindowsVersion(): boolean | undefined {
   if (process.platform !== 'win32' || process.arch !== 'x64') return false
   const [major, , build] = release().split('.').map(Number)
@@ -31,10 +28,6 @@ export function supportedWindowsVersion(): boolean | undefined {
   return major > 10 || (major === 10 && build >= 17763)
 }
 
-/**
- * The command prerequisites, in order; a later item needs the earlier ones. The round trip runs an
- * anchored probe Job, opens it by name, reads its members, stops it and confirms the stop.
- */
 export async function probeWindowsCommands(boundMs: number): Promise<WindowsCommandReading> {
   const version = supportedWindowsVersion()
   if (version === undefined) return { kind: 'unknown' }

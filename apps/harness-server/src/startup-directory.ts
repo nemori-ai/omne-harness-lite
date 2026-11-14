@@ -8,7 +8,6 @@ const storageLocationSchema = z.object({
   storageRoot: z.string().refine(isAbsolute),
 })
 
-/** Prepare only the enabled real directory, using the final layered row configurations. */
 export function prepareStartupDirectory(rows: readonly RowSpec[]): void {
   const session = rows.find(
     spec => spec.row.id === 'session-storage' && spec.implementation === 'real',

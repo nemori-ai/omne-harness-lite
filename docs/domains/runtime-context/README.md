@@ -1,7 +1,5 @@
 # 运行Context与请求组装
 
-本页维护已接受的应然模块分工与公开协作，采用范围见[领域入口](../README.md#维护与状态)。引用的上游约束保持原采用范围；正文接受不表示当前代码已实现。
-
 ## 范围与边界
 
 本责任包含两块能力。Runtime Context 是作用域内共享数据的供给中介与合并协议：按资格供给块的当前值与变化，核对需要与登记，合并状态块的更新，不拥有任何块的事实。Request Context 是一次模型请求输入的派生计算与装入保证：从历史依据、Runtime Context 读取结果、工具定义与模型档案算出请求候选、装入裁定与压缩计划，不发请求、不固定采用、不保存历史。两者有不同变化理由，不能和执行环境、会话历史或权限合成一个通用 Context 对象。
@@ -23,7 +21,7 @@
 | 贡献登记面 | 提示词贡献（有序段、变量）的登记与作用域遮蔽 |
 | 发起协调者 | 固定实际采用并复核最终条件；记录覆盖证据与快照锚点 |
 
-不可重算会话数据与可重算投影分别维护，缓存不是第二权威。交给作用域持有者的事实（注册、步提交、变化提醒、压缩转换）分别见 [runtime-context-contract 规格](../../../packages/context/runtime-context-contract/SPEC.md)和 [request-context-contract 规格](../../../packages/context/request-context-contract/SPEC.md)。
+不可重算会话数据与可重算投影分别维护，缓存不是第二权威。交给作用域持有者的事实（注册、步提交、变化提醒、压缩转换）分别见 [runtime-context-contract 规格](../../../packages/context/SPEC.md#应然设计)和 [request-context-contract 规格](../../../packages/context/SPEC.md#应然设计)。
 
 ## 协作与依赖
 
@@ -43,19 +41,3 @@
 6. 扩展改参或输入变化时重新校验，协调者固定本次采用依据后交模型执行，覆盖证据与快照锚点随记录回传。
 
 已发输入不随后续更新改写。预算失败保留原会话与历史，不循环造 Run；移除可选块不删共享源，也不在恢复时无条件加回。
-
-## 契约与验证导航
-
-供给契约拥有声明、需要、注册、资格、读取与步提交；生产者拥有原块；请求计算拥有派生、裁定、计划与覆盖证据；发起协调者拥有一致采用；历史持有者拥有历史视图、共同提交与未结工作集合。快照、压缩、缓存及版本协议随实际成员。
-
-成员分两块各四段：契约、Cordis 服务定义、机制实现、Service 实现，见[能力组](../../../packages/context/README.md)。上层沿 [Runtime Context](../../architecture/runtime/runtime-context.md)、[请求输入](../../architecture/runtime/request-context.md)、[数据与状态](../../architecture/data-and-state.md)。产品依据[运行感知与一次模型请求](../../../.meta_harness/design/product/runtime-context/design.md)。验证覆盖长期积累与资格失效，见[组合入口](../verification.md)。
-
-## 后续设计与维护
-
-完整快照前值可选，状态变化提醒表达获准实际前后关系，见[当前感知规则](../../../.meta_harness/design/product/runtime-context/design.md#5-当前值与变化感知)。精确表示、锚点往返、历史视图读口与 epoch、缓存键由成员契约细化；默认策略数值是可配置初值，另定实际规模和性能数值，不编统一阈值。Runtime Context 不持有耐久状态：`persisted` 供给块的权威持久者是生产者，重启后重新发布；注册、自有值与步提交由作用域持有者保存。
-
-只改生产者块不必通读整个运行系统；涉及读取资格、步提交、压缩或请求固定才展开邻接责任。长期会话开销须有可测责任，不能为性能跳过访问控制。
-
-## 正式产品与技术承接
-
-[产品正文](../../../.meta_harness/design/product/runtime-context/design.md)维护本域产品要求、能力状态、阶段与未决。[角色与交接](architecture.md)承接领域级关系；[能力组](../../../packages/context/README.md)展开工程依赖与成员机制。成员契约的状态是 `draft`，正式位置不升级原已接受领域正文的范围，也不表示成员已实现。

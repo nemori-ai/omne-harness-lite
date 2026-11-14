@@ -28,7 +28,6 @@ type CatalogWork = Pick<
 type Resolved = Awaited<ReturnType<AgentAdoptions<unknown>['resolve']>>
 type AdoptionFailure = Extract<Resolved, { failure: unknown }>['failure']
 
-/** Each getter reads the current owning service; absence never grants disclosure. */
 export type ReleaseCatalogViewPorts = Readonly<{
   verifier(): PrincipalVerifier | undefined
   readWork(
@@ -49,7 +48,6 @@ const unavailable = (diagnostic: string) =>
   })
 const denied = () => fail({ kind: 'denied' as const, action: 'catalog-view' })
 
-/** Projects exact adopted references, including nonresidents, onto this release's lawful assets. */
 export function createReleaseCatalogView(
   ports: ReleaseCatalogViewPorts,
 ): LocalToolCatalogViewSource<unknown> {
@@ -59,7 +57,6 @@ export function createReleaseCatalogView(
         const verified = await verifySessionWork(ports.verifier(), access.principal, access.tenant)
         if (verified.kind === 'unavailable') return unavailable(verified.diagnostic)
         if (verified.kind === 'denied') return denied()
-        // The trusted Session work issuer used the Session's own id as its work identity.
         const session = verified.session as SessionId
         const work = await ports.readWork({ ...access, session })
         if (work === undefined) return unavailable('Session absent')
@@ -129,7 +126,6 @@ export function createReleaseCatalogView(
   }
 }
 
-/** Lazy service reads avoid an initialization dependency cycle with Session and Agent. */
 export function releaseCatalogViewOf(ctx: Context): LocalToolCatalogViewSource<unknown> {
   return createReleaseCatalogView({
     verifier: () => toolRuntimeHolder(ctx).verifier(),

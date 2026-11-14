@@ -1,6 +1,3 @@
-// The revisioned rule tables of the Anthropic family: the code behind the four hooks of the
-// gateway engine. A record names one rule per hook. A rule never changes its behaviour in place:
-// a changed rule is a new name, and the records that use it get a new revision.
 import {
   readJsonText,
   writeJsonText,
@@ -24,24 +21,19 @@ import type {
 import { ANTHROPIC_OWNER } from './owner.ts'
 import type { AnthropicRecord } from './record.ts'
 
-/** The replay format of Anthropic reasoning, as the gateway labels its items. */
 export const ANTHROPIC_REASONING_FORMAT = 'anthropic-claude-v1'
 /** The text a gateway writes in place of ciphertext it withholds. It is never a replayable item. */
 const REDACTED = '[REDACTED]'
 
-/** A rule: the hook of one record. */
 type RuleOf<H> = (record: AnthropicRecord) => H
 
 type Item = Readonly<Record<string, JsonValue>>
-
-// --- reasoning -------------------------------------------------------------------------------
 
 function stringMember(item: Item, key: string): string | null {
   const value = item[key]
   return value?.kind === 'string' ? value.value : null
 }
 
-/** `id` absent, `null` or a string; `index` absent or a non-negative integer. */
 function hasValidIdentity(item: Item): boolean {
   const id = item['id']
   const index = item['index']
@@ -51,11 +43,6 @@ function hasValidIdentity(item: Item): boolean {
   return idValid && indexValid
 }
 
-/**
- * An item that Anthropic can take back: signed thinking text (`reasoning.text` with a string
- * `text` and a non-empty `signature`) or redacted thinking (`reasoning.encrypted` with data that
- * is neither empty nor the redaction marker), in the Anthropic format.
- */
 function isReplayable(item: Item): boolean {
   if (stringMember(item, 'format') !== ANTHROPIC_REASONING_FORMAT || !hasValidIdentity(item))
     return false
@@ -78,7 +65,6 @@ function byKey(left: string, right: string): number {
   return left > right ? 1 : 0
 }
 
-/** The item as one JSON object with sorted keys. */
 function sortedItem(item: Item): JsonValue {
   const keys = Object.keys(item).toSorted(byKey)
   return {
@@ -90,7 +76,6 @@ function sortedItem(item: Item): JsonValue {
   }
 }
 
-/** Budgets that only the length of a payload bounds; the message limit bounds that length. */
 function payloadLimits(payload: string): JsonLimits {
   const bound = Math.max(1, payload.length * 4)
   return {
@@ -103,7 +88,6 @@ function payloadLimits(payload: string): JsonLimits {
   }
 }
 
-/** The items of one payload, or `null` when it is not a whole replayable group. */
 function itemsOf(part: ReplayPart): readonly Item[] | null {
   const read = readJsonText(part.payload, payloadLimits(part.payload))
   if (read.kind !== 'ok' || read.value.kind !== 'array' || read.value.items.length === 0)
@@ -118,12 +102,6 @@ function itemsOf(part: ReplayPart): readonly Item[] | null {
   return items
 }
 
-/**
- * The whole group of one response is one state part: a JSON array of its items in arrival order.
- * Anthropic takes thinking back only as the complete signed group, so a group with any item it
- * cannot take back (unsigned text, a redacted placeholder, another format, another type) gives
- * no part at all.
- */
 function seal(
   details: readonly ReasoningDetail[],
 ): Outcome<readonly Readonly<{ payload: string }>[], ModelFault> {
@@ -135,17 +113,6 @@ function seal(
   return { ok: [Object.freeze({ payload })] }
 }
 
-/**
- * The carried groups go back as `reasoning_details`, in part order; native thinking then stays
- * out, because the signed items carry it. Thinking without a carried group has no signed form,
- * and Anthropic refuses unsigned thinking:
- *
- * - own thinking of a continuable message whose group was not sealed (an unsigned stream, or a
- *   group dropped as too long) is not written, so the conversation can go on;
- * - foreign thinking under the rule `adapter` asks for a form that does not exist: `unsupported`.
- *
- * Empty thinking texts write nothing.
- */
 function signedGroup(adapter: Adoption): ReasoningCodec {
   return Object.freeze({
     seal,
@@ -176,14 +143,11 @@ function signedGroup(adapter: Adoption): ReasoningCodec {
   })
 }
 
-/** The reasoning rules: a codec per record, its adoption the adapter of a refusal. */
 export const REASONING_RULES = {
   'anthropic-signed-group/1': record => signedGroup(recordAdoption(ANTHROPIC_OWNER, record)),
 } as const satisfies Readonly<Record<string, RuleOf<ReasoningCodec | null>>>
 
 export type ReasoningRuleName = keyof typeof REASONING_RULES
-
-// --- usage -----------------------------------------------------------------------------------
 
 const DECIMAL = /^(0|[1-9][0-9]*)$/
 const UNIT = 'token'
@@ -194,7 +158,6 @@ function counted(name: string, lexeme: string | null): ChatUsageItem {
     : { name, state: 'known', lexeme, unit: UNIT }
 }
 
-/** `prompt_tokens_details.cache_write_tokens`, which the decoder does not read. */
 function cacheWriteOf(usage: GatewayUsage): string | null {
   const details = usage.raw['prompt_tokens_details']
   if (details?.kind !== 'object') return null
@@ -202,10 +165,6 @@ function cacheWriteOf(usage: GatewayUsage): string | null {
   return value?.kind === 'number' && DECIMAL.test(value.lexeme) ? value.lexeme : null
 }
 
-/**
- * The uncached input: prompt less cache reads and writes. `partial`: a count is missing.
- * `negative`: the cache parts exceed the prompt, so the counts contradict each other.
- */
 type Remainder =
   | Readonly<{ kind: 'known'; lexeme: string }>
   | Readonly<{ kind: 'partial' }>
@@ -218,12 +177,6 @@ function uncachedInput(usage: GatewayUsage, write: string | null): Remainder {
   return remainder < 0n ? { kind: 'negative' } : { kind: 'known', lexeme: String(remainder) }
 }
 
-/**
- * The OpenRouter usage of an Anthropic route: `prompt_tokens_details.cached_tokens` is the cache
- * read and `cache_write_tokens` the cache write; `input` is the prompt less both, `output` the
- * completion and `reasoning` its reasoning part. Missing counts stay unknown, never zero. A
- * negative input remainder is unknown and gives a `usage-inconsistent` diagnostic for `input`.
- */
 function anthropicUsage(usage: GatewayUsage): Outcome<ChatUsage, ModelFault> {
   const write = cacheWriteOf(usage)
   const input = uncachedInput(usage, write)
@@ -248,12 +201,6 @@ export const USAGE_RULES = {
 
 export type UsageRuleName = keyof typeof USAGE_RULES
 
-// --- tool schema -----------------------------------------------------------------------------
-
-/**
- * The OpenRouter function tool subset: the parameters schema must be a JSON object. It passes
- * unchanged; a schema of another kind is unsupported, never rewritten.
- */
 function objectRoot(record: AnthropicRecord): VendorHooks['toolSchema'] {
   const adapter = recordAdoption(ANTHROPIC_OWNER, record)
   return schema =>
@@ -268,16 +215,12 @@ export const TOOL_SCHEMA_RULES = {
 
 export type ToolSchemaRuleName = keyof typeof TOOL_SCHEMA_RULES
 
-// --- check -----------------------------------------------------------------------------------
-
 export const CHECK_RULES = {
-  /** No cross-field rule: the parameter table states every Anthropic rule. */
   'none/1': () => () => ({ ok: undefined }),
 } as const satisfies Readonly<Record<string, RuleOf<VendorHooks['check']>>>
 
 export type CheckRuleName = keyof typeof CHECK_RULES
 
-/** The four hooks of a record, from the rules it names. */
 export function hooksOf(record: AnthropicRecord): VendorHooks {
   const reasoning: RuleOf<ReasoningCodec | null> = REASONING_RULES[record.rules.reasoning]
   const usage: RuleOf<VendorHooks['usage']> = USAGE_RULES[record.rules.usage]

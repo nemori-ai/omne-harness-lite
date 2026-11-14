@@ -1,8 +1,6 @@
 import type { Outcome } from '@omne-harness/operation-result'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
-// `Access` has one definition in legal-identity, the two exchange values have one in
-// exchange-refs. The structure judgments stay in schema-primitives.ts.
 export type { Access } from '@omne-harness/legal-identity'
 export type { Adoption, DurableEvidence } from '@omne-harness/exchange-refs'
 declare const brand: unique symbol
@@ -13,23 +11,14 @@ export type PlanId = RequestContextRef<'PlanId'>
 export type EpochId = RequestContextRef<'EpochId'>
 export type BatchRef = RequestContextRef<'BatchRef'>
 export type PassageRef = RequestContextRef<'PassageRef'>
-/** A registration of one source set in a registry. */
 export type RegistrationRef = RequestContextRef<'RegistrationRef'>
-/** One generation of a registered source set; never reused. */
 export type SourceGeneration = RequestContextRef<'SourceGeneration'>
-/** The revision token of one input group; bound to the source generation, no ABA. */
 export type GroupToken = RequestContextRef<'GroupToken'>
-/** The authoritative commit order of fixed adoptions in one scope, canonical non-negative decimal text. */
 export type CommitOrder = RequestContextRef<'CommitOrder'>
-/** One generation of the derived account index of one target. */
 export type AccountingGeneration = RequestContextRef<'AccountingGeneration'>
-/** A reference to a recovery grant; the host authorization owner checks it. */
 export type RecoveryGrantRef = RequestContextRef<'RecoveryGrantRef'>
-/** A stable principal key from a verified identity; not a hash of a generic principal. */
 export type PrincipalKey = RequestContextRef<'PrincipalKey'>
-/** A model-view row number in one epoch: canonical decimal text `0|[1-9][0-9]*`. */
 export type HistorySequence = RequestContextRef<'HistorySequence'>
-/** The tenant and scope that one source set, account index or history evidence belongs to. */
 export type ContextTarget = Readonly<{ tenant: TenantId; scope: ScopeRef }>
 export type RefKind =
   | 'CandidateRef'
@@ -83,10 +72,6 @@ export const decodeAccountingGeneration = (v: unknown) => decode(v, 'AccountingG
 export const decodeRecoveryGrantRef = (v: unknown) => decode(v, 'RecoveryGrantRef')
 export const decodePrincipalKey = (v: unknown) => decode(v, 'PrincipalKey')
 export const decodeHistorySequence = (v: unknown) => decode(v, 'HistorySequence')
-/**
- * Compares two history sequences as arbitrary-precision integers. Both values are canonical
- * decimal text, so a longer text is a larger number and equal lengths compare digit by digit.
- */
 export function compareHistorySequence(left: HistorySequence, right: HistorySequence): number {
   if (left.length !== right.length) return left.length < right.length ? -1 : 1
   return left < right ? -1 : left > right ? 1 : 0

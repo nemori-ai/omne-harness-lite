@@ -45,7 +45,6 @@ export type SettingsBasis = Readonly<{
   unavailableProviders: readonly string[]
 }>
 export interface SettingsReadPort<Context> {
-  /** Read a coherent authorized projection; recheck access even for a repeated request. */
   read(context: Context, request: SettingsViewRequest): Promise<SettingsBasis | SettingsFailure>
 }
 export type SettingsOperation = Readonly<{

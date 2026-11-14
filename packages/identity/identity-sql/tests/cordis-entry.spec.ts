@@ -1,10 +1,3 @@
-// The `./cordis` plugin on a real Context 4.0.4: it injects `storage` and `identityClock`, registers
-// the identity combination, provides `identityOperations`, `tenantStanding` and
-// `identityGovernance` as subclasses of the identity service definitions over one provider, fails
-// the fiber on a bad configuration, stays PENDING without a clock, and stops the provider on
-// disposal. The clock comes through the `identityClock` key (R1-D27), so the lifetimes are checked
-// by moving a controlled clock, not by waiting. The end-to-end case runs the deployed
-// SCRYPT_PROFILE, so it is slow.
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { SqlStorage } from '@omne-harness/sql-contract'
@@ -48,7 +41,6 @@ afterEach(async () => {
 
 type Host = Readonly<{ ctx: Context; storage: OpenedStorage; clock: ManualIdentityClock }>
 
-/** A root with a forwarding `storage` service and, unless withheld, a controlled `identityClock`. */
 async function hostContext(options: Readonly<{ clock?: boolean }> = {}): Promise<Host> {
   const storage = await openSqliteStorage()
   cleanups.push(() => storage.close({ remove: true }))
@@ -71,7 +63,6 @@ async function hostContext(options: Readonly<{ clock?: boolean }> = {}): Promise
   return { ctx, storage, clock }
 }
 
-/** Every field written out, as a deployment writes it: the provider has no duration of its own. */
 const CONFIG = Object.freeze({
   maxLifetime: 'PT2592000S',
   idlePeriod: 'PT604800S',
@@ -80,7 +71,6 @@ const CONFIG = Object.freeze({
   invitationMaxDuration: 'PT2592000S',
 })
 
-/** The idle period of the configuration, plus one second. */
 function pastIdlePeriod() {
   const idle = parseDuration(CONFIG.idlePeriod)
   if (!idle.ok) throw new Error('fixture: default idle period')
@@ -113,7 +103,6 @@ describe('IdentitySqlPlugin', () => {
 
   it('fails the fiber when the invitation durations are left out', async () => {
     const { ctx } = await hostContext()
-    // A deployment file is data: the plugin judges what it holds, whatever its static type says.
     const partial: unknown = { maxLifetime: CONFIG.maxLifetime, idlePeriod: CONFIG.idlePeriod }
     const fiber = ctx.plugin(IdentitySqlPlugin, partial as typeof CONFIG)
     await expect(fiber).rejects.toThrow()
@@ -126,7 +115,6 @@ describe('IdentitySqlPlugin', () => {
     const { ctx } = await hostContext({ clock: false })
     const fiber = ctx.plugin(IdentitySqlPlugin, CONFIG)
     cleanups.push(() => fiber.dispose())
-    // Give the fiber every chance to start: it must not, because a required service is absent.
     await new Promise(resolve => setTimeout(resolve, 50))
     expect(fiber.state as number).toBe(PENDING)
     expect(ctx.get(identityOperationsKey)).toBeUndefined()
@@ -149,7 +137,6 @@ describe('IdentitySqlPlugin', () => {
       expect(governance).toBeInstanceOf(IdentityGovernanceService)
       if (operations === undefined || standing === undefined || governance === undefined)
         throw new Error('keys missing')
-      // The combination is registered: a second registration is the idempotent recall.
       const { identitySqlRegistration } = await import('@omne-harness/identity-sql')
       expect((await storage.storage.registerCombination(identitySqlRegistration())).kind).toBe(
         'registered',
@@ -166,8 +153,6 @@ describe('IdentitySqlPlugin', () => {
       })
       expect(issued.kind).toBe('succeeded')
       if (issued.kind !== 'succeeded') return
-      // The issue time is the injected clock's reading, not the host's time. (`Instant` keeps its
-      // fields private, so `toEqual` cannot tell two instants apart; compare the encoded text.)
       expect(encodeInstant(issued.issuedAt)).toBe(encodeInstant(instant(START)))
       const recognized = await operations.recognizeLogin({ loginProof: issued.loginProof })
       expect(recognized.kind).toBe('recognized')
@@ -233,8 +218,6 @@ describe('IdentitySqlPlugin', () => {
       await verifierFiber.dispose()
       expect((await reservations.reserve(reserveInput)).kind).toBe('unavailable')
 
-      // The governance key works over the same records: a revocation ends the other login, and
-      // the invitation terms come from the configuration's initial values (7 days).
       const other = await operations.issueLogin({
         loginIdentifier: 'plugin-ada',
         credential: 'credential-ada',
@@ -274,10 +257,8 @@ describe('IdentitySqlPlugin', () => {
         invitedLoginIdentifier: 'plugin-bob',
       })
       if (invited.kind !== 'succeeded') throw new Error(`invite ${invited.kind}`)
-      // No duration asked: the configured default, 7 days after the injected clock reading.
       expect(encodeInstant(invited.expiresAt)).toBe('2026-11-01T12:00:00Z')
 
-      // Past the idle deadline the login is invalid; no waiting, the clock moved.
       const { idle, second } = pastIdlePeriod()
       clock.advanceBy(idle)
       clock.advanceBy(second)
@@ -285,7 +266,6 @@ describe('IdentitySqlPlugin', () => {
         kind: 'invalid',
       })
 
-      // An unavailable clock is no verdict about the login.
       clock.makeUnavailable('fixture-offline')
       const noClock = await operations.recognizeLogin({ loginProof: issued.loginProof })
       expect(noClock.kind).toBe('basis-unavailable')
@@ -301,7 +281,6 @@ describe('IdentitySqlPlugin', () => {
         kind: 'basis-unavailable',
         diagnostic: 'provider-stopped',
       })
-      // An old reference answers as a stopped provider: no verdict about the login.
       const late = await operations.recognizeLogin({ loginProof: issued.loginProof })
       expect(late.kind).toBe('basis-unavailable')
       expect((await standing.read({ tenant: registered.tenant })).kind).toBe('unavailable')

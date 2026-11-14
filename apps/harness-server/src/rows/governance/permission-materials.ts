@@ -40,7 +40,6 @@ export function permissionSqlParticipants(): SqlMaterialCatalog['participants'] 
   })
 }
 
-/** The material protocol pins the immutable release, so different releases cannot share a manifest. */
 export function toolPermissionReleaseParticipant(
   release: Extract<ToolRelease, { kind: 'trusted' }>,
 ): SqlMaterialCatalog['participants'][number] {

@@ -1,10 +1,3 @@
-// The observation facade on the public stream protocol (tool-contract SPEC「公共流协议上的观察」):
-// `instances.current` and `observation.observe` of the runtime, routed through a directory double
-// to the controlled publisher of stream-source.ts. The cases follow the SPEC's verification
-// obligations: every Tool situation in the public failure order, the two Tool-owned end values,
-// snapshot before subscription, a terminal gap, abort, the four cases of an old generation's
-// terminal frame, every row of the `current` table, and the termination and release the facade
-// owns itself when a scripted source misbehaves.
 import { describe, expect, it } from 'vitest'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -64,7 +57,6 @@ function refOf(reference: ToolInvocationRef, stream: StreamId): StreamRef {
   )
 }
 
-/** A publication generation of a call: its handle and the publisher behind it. */
 function generation(
   reference: ToolInvocationRef,
   name: string,
@@ -91,13 +83,8 @@ function generation(
 const live = (handle: ToolHandle<Principal>): Route => succeed({ kind: 'live', handle })
 const noRoute: Route = succeed({ kind: 'no-live-route' })
 
-/**
- * A runtime over the test assembly whose directory answers the last entry of `routes` at the time
- * of the call; the test pushes routes after it has invoked and knows the call's reference.
- */
 function world(initial: readonly Route[] = [noRoute]) {
   const base = testAssembly()
-  /** `'throw'` makes the directory reject, as a provider exception does. */
   const routes: (Route | 'throw')[] = [...initial]
   const connects: unknown[] = []
   let controls = 0
@@ -161,7 +148,6 @@ describe('instances.current (SPEC「current 的回复」)', () => {
   it('answers a foreign tenant as a missing call and invalid for a malformed reference, without the directory', async () => {
     const w = world()
     const call = await w.invoke()
-    // R2-D357 negative control: the same request to a world where no tenant invoked the call.
     const request = {
       access: { principal: principalA, tenant: tenantB },
       reference: call.reference,
@@ -254,7 +240,6 @@ describe('observation.observe: Tool in the public failure order', () => {
     const call = await w.invoke()
     const ref = refOf(call.reference, streamId('str_a'))
     const foreign = { principal: principalA, tenant: tenantB }
-    // R2-D357 negative control: the same observation in a world where no tenant invoked the call.
     const theirs = await drain(
       w.runtime.observation.observe({ ref, access: foreign, signal: signal() }),
     )
@@ -329,11 +314,9 @@ describe('observation.observe: generations (SPEC「旧代次的终止帧」)', (
     const call = await w.invoke()
     const g1 = generation(call.reference, 'g1', call.state)
     const g2 = generation(call.reference, 'g2', call.state)
-    // No publication for the call.
     expect(
       await drain(w.runtime.observation.observe({ ref: g1.ref, access, signal: signal() })),
     ).toEqual(endedWith('stale-stream'))
-    // g2 is current; g1 is retired.
     w.routes.push(live(g2.handle))
     expect(
       await drain(w.runtime.observation.observe({ ref: g1.ref, access, signal: signal() })),
@@ -383,7 +366,6 @@ describe('observation.observe: generations (SPEC「旧代次的终止帧」)', (
       .observe({ ref: first.current?.ref as StreamRef, access, signal: signal() })
       [Symbol.asyncIterator]()
     expect((await iterator.next()).value).toMatchObject({ kind: 'snapshot' })
-    // The host replaces the generation: the old publisher ends its observers, the directory serves g2.
     w.routes.push(live(g2.handle))
     g1.source.end('stale-instance')
     expect(await iterator.next()).toEqual({
@@ -410,7 +392,6 @@ describe('observation.observe: generations (SPEC「旧代次的终止帧」)', (
       done: false,
       value: { kind: 'ended', reason: 'producer-ended', value: { reason: 'closed' } },
     })
-    // Observed again before the directory retires the generation: still the Tool-owned end.
     expect(
       await drain(w.runtime.observation.observe({ ref: g1.ref, access, signal: signal() })),
     ).toEqual([{ kind: 'ended', reason: 'producer-ended', value: { reason: 'closed' } }])
@@ -744,10 +725,6 @@ describe('observation.observe: abort around routing', () => {
   })
 })
 
-/**
- * A handle source that hands on exactly the scripted frames and keeps going after a terminal one,
- * as a misbehaving publisher would; it records how often the facade closed it.
- */
 function scriptedSource(frames: readonly Frame[], options: { finish?: boolean } = {}) {
   let returns = 0
   let pulled = 0
@@ -772,7 +749,6 @@ function scriptedSource(frames: readonly Frame[], options: { finish?: boolean } 
 }
 
 describe('observation.observe: the facade owns termination and release', () => {
-  // The scripted source bypasses the publisher, so its cursors are opaque test values.
   const snapshotOf = (state: ToolState, cursor: string): Frame =>
     ({
       kind: 'snapshot',
@@ -875,7 +851,6 @@ describe('observation.observe: the facade owns termination and release', () => {
   })
 
   it('carries no tenant in the call inside the reference: another tenant encodes the same text', async () => {
-    // R2-D357: the tenant of an observation is the observer's; the text cannot name another.
     const w = world()
     const call = await w.invoke()
     const parts = ok(resolveToolInvocationRef(call.reference, tenantA))

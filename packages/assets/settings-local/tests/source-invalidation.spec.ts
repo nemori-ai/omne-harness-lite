@@ -69,7 +69,6 @@ it('protects values and locks while reads and original receipts remain usable', 
         expectedRevision: 1,
         action,
       }),
-      // The write does not pass the source gate. The preparation path reports it as unavailable.
     ).toEqual({ kind: 'rejected', reason: 'unavailable' })
   }
   expect(await w.service.queries.evaluate(w.principal, w.view)).toEqual(view)
@@ -112,7 +111,6 @@ it('protects target definition, layout, grants and retirement without blocking a
       record: { ...w.record, target },
     }),
   ).toMatchObject({ kind: 'committed', revision: 1 })
-  // A write to the other target, outside the catalog: the hold binds the first target only.
   w.fixture.updateCurrent(current => ({
     ...current,
     basis: { ...current.basis, target, valueRevision: 0 },

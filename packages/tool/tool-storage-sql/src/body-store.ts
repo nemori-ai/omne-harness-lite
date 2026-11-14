@@ -1,8 +1,3 @@
-// The durable ToolBodyStore over the SQL storage contract. The permit is verified here, in the
-// store's own process and with the store's own clock, before any command is sent; the participant
-// then keeps the object immutable. `seal` answers `sealed` only after the provider committed the
-// manifest, so a sealed body is durable. A range longer than one read returns is read in several
-// reads: a sealed body never changes, and a body deleted between two reads answers `absent`.
 import { randomUUID } from 'node:crypto'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type {
@@ -29,9 +24,7 @@ import { isObject } from './worker/support.ts'
 
 export type SqlToolBodyStoreOptions = SqlToolStorageOptions &
   Readonly<{
-    /** The key the ledger signs permits with; the store verifies every permit against it. */
     permitKey: ToolBodyPermitKey
-    /** The store's own clock, read for every deadline check. */
     clock: ToolInstantClock
   }>
 
@@ -57,7 +50,6 @@ type Outcome =
   | Readonly<{ kind: 'stopped'; basis: StopBasis }>
   | ToolBodyStoreUnavailable
 
-/** The stop the participant reported in a rollback, or why the rollback is not one. */
 function rolledBackOutcome(answer: Extract<CommitAnswer, { kind: 'rolled_back' }>, what: string) {
   const reply = answer.responses[answer.responses.length - 1]?.reply
   const basis = reply?.kind === 'conflict' ? stopOf(reply.basis) : null
@@ -66,7 +58,6 @@ function rolledBackOutcome(answer: Extract<CommitAnswer, { kind: 'rolled_back' }
   return unavailable(`${what} rolled back: ${why}`)
 }
 
-/** The stop the participant reported, or the diagnostic of a commit that did not land. */
 function outcomeOf(answer: CommitAnswer, what: string): Outcome {
   switch (answer.kind) {
     case 'committed':

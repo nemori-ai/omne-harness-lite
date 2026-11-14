@@ -1,59 +1,29 @@
-// The counting and the measurement events of the wave 2 joint world (C-JOINT, J6).
-//
-// Counts are taken where the product calls out, never from what a test expects: the storage the
-// plugins share, the history source the request context reads, the two receivers and the doubles of
-// the Model and the Tool. The measurement events (R2-D17) are what the
-// `measure?` observers of Session, Context and Agent give; this file only records them with one
-// monotonic clock and does not judge them.
 import type { Outcome } from '@omne-harness/operation-result'
 import type { HistoryPage, SessionHistory } from '@omne-harness/session-contract'
 import type { ReadRequest, ReadResult, SqlStorage } from '@omne-harness/sql-contract'
 
-/** The counts of one round (J6 table). `null` is a count whose source is not built into the world yet. */
 export type RoundCount = Readonly<{
   round: number
   historyReadCalls: number
   historyRows: number
-  /**
-   * The model view reads of the AD-04 read path (a page size above 1) and the reads of the
-   * qualification probes (the page size 1 that resolveHistory and the admission check use). The two
-   * add up to `historyReadCalls` and `historyRows` less the reads of the history entries face.
-   */
   ad04ReadCalls: number
   ad04ReadRows: number
   probeReadCalls: number
   probeReadRows: number
-  /** Rows of the model-view projection that the history face handed out in this round. */
   projectedRows: number
-  /**
-   * The two counts above for the AD-04 read path alone (the probes left out): the rows its reads handed
-   * out in this round, and those of them that an earlier AD-04 read had handed out.
-   */
   ad04ProjectedRows: number
   ad04StableRecompute: number
-  /** Rows handed out in this round that an earlier round had handed out: re-reads of the stable part. */
   stableRecompute: number
   storageCommits: Readonly<Record<string, number>>
   storageCommitTotal: number
-  /** Commits the storage answered with anything but `committed`: retries of a conflict. */
   storageRollbacks: number
-  /** The most commands one storage commit of the round carried. */
   maxCommandsPerCommit: number
-  /** The size in bytes of the largest commit request of the round, as JSON text. */
   maxCommitBytes: number
   storageReads: Readonly<Record<string, number>>
   storageReadRows: Readonly<Record<string, number>>
-  /**
-   * The size in bytes (JSON text) of the largest single read of each handler that carries records or
-   * the Session snapshot, and the bytes of all committed requests. They grow with the rounds by
-   * design of the Session snapshot and the Agent records, so they belong to the curve, not to the
-   * equality of the rounds of J6.
-   */
   maxReadBytes: Readonly<Record<string, number>>
   storageCommitBytes: number
-  /** `commitLog` calls of AD-02 that Session accepted. */
   ad02Commits: number | null
-  /** `commitLog` calls of AD-02 that Session refused (a conflict on the head: AD-02 reads again). */
   ad02Refused: number
   modelReceives: number
   toolReceives: number
@@ -90,12 +60,10 @@ function bump(table: Record<string, number>, key: string, by = 1): void {
   table[key] = (table[key] ?? 0) + by
 }
 
-/** The handlers whose read size the curve of J6 follows: the Session snapshot and the Agent records. */
 function sizedHandler(handler: string): boolean {
   return handler === 'session.work' || handler.startsWith('execution-record.')
 }
 
-/** The rows of a read output: the members that are arrays, summed. */
 function rowsOf(result: ReadResult): number {
   if (result.kind !== 'read') return 0
   const { output } = result as { output: unknown }
@@ -106,26 +74,14 @@ function rowsOf(result: ReadResult): number {
   )
 }
 
-/** One model view read of the AD-04 read path: its upper bound and the rows it handed out. */
 export type Ad04Read = Readonly<{ upper: bigint; rows: readonly bigint[] }>
 
-/**
- * The identities behind `ad04ProjectedRows` and `ad04StableRecompute` of one round (R2-D78): each
- * AD-04 read with the history sequences of the rows it handed out, and the sequences of the rows an
- * earlier AD-04 read had handed out, in the order they came again. Kept apart from `RoundCount`,
- * whose items J6 compares across the rounds.
- */
 export type Ad04RoundRows = Readonly<{
   round: number
   reads: readonly Ad04Read[]
   rereads: readonly bigint[]
 }>
 
-/**
- * One read of `execution-record.parts` (R2-D81): its `since`, `after` and `parts` input, and the
- * parts of the page with the text length of each (the length of its state as JSON text, as the read
- * handler measures it against its page budget; a dropped part is 0).
- */
 export type PartsRead = Readonly<{
   since: string | null
   after: string | null
@@ -134,21 +90,16 @@ export type PartsRead = Readonly<{
   next: string | null
 }>
 
-/** The `execution-record.parts` reads of one round, in order. Kept apart from `RoundCount`. */
 export type PartsRoundReads = Readonly<{ round: number; reads: readonly PartsRead[] }>
 
 export type RoundCounters = ReturnType<typeof createRoundCounters>
 
-/** The per-round counters. `begin` opens a round, `end` closes it and keeps its counts. */
 export function createRoundCounters() {
   const rounds: RoundCount[] = []
   const ad04Rows: Ad04RoundRows[] = []
   const partsRounds: PartsRoundReads[] = []
-  /** The reads the storage refused, with the handler and the answer: a long run names its limit here. */
   const refusedReads: { handler: string; answer: unknown }[] = []
   let open: Open | null = null
-  // The rows the history face has handed out in all earlier rounds, the rows of the projection of
-  // this round, and the rows of this round that were handed out before.
   const seen = new Set<string>()
   const ad04Seen = new Set<string>()
   let projected = 0
@@ -219,7 +170,6 @@ export function createRoundCounters() {
       partsRounds.push({ round: current.round, reads: partsReads })
       return count
     },
-    /** One storage commit: counted once for each participant that has a command in it. */
     commit(
       participants: readonly string[],
       committed: boolean,
@@ -238,7 +188,6 @@ export function createRoundCounters() {
         for (const participant of new Set(participants)) bump(current.storageCommits, participant)
       })
     },
-    /** One read of `execution-record.parts`, with its input and the parts it returned. */
     partsRead(read: PartsRead): void {
       if (open !== null) partsReads.push(read)
     },
@@ -261,17 +210,12 @@ export function createRoundCounters() {
     toolInvoke(): void {
       inRound(current => (current.toolInvokes += 1))
     },
-    /** The commits of the AD-02 plugin, once the world has it. */
     ad02Commit(accepted: boolean): void {
       inRound(current => {
         if (accepted) current.ad02Commits = (current.ad02Commits ?? 0) + 1
         else current.ad02Refused += 1
       })
     },
-    /**
-     * The history face of Session, with every read and every row it hands out counted. A row that an
-     * earlier round already handed out and that comes back is a re-read of the stable part.
-     */
     observeHistory(history: SessionHistory<unknown>): SessionHistory<unknown> {
       const handOut = (
         ids: readonly string[],
@@ -336,12 +280,10 @@ export function createRoundCounters() {
   return counters
 }
 
-/** The read handler of the Agent records parts (session-storage-sql `EXECUTION_RECORD_HANDLERS.parts`). */
 export const PARTS_HANDLER = 'execution-record.parts'
 
 const textOrNull = (value: unknown): string | null => (typeof value === 'string' ? value : null)
 
-/** The input and the page of one answered `execution-record.parts` read. */
 function partsReadOf(request: ReadRequest, result: ReadResult): PartsRead {
   const input = (request.input ?? {}) as Record<string, unknown>
   const output = (result as { output?: unknown }).output as
@@ -359,7 +301,6 @@ function partsReadOf(request: ReadRequest, result: ReadResult): PartsRead {
   }
 }
 
-/** The storage the world shares, with each commit and each read counted. */
 export function countingStorage(storage: SqlStorage, counters: RoundCounters): SqlStorage {
   return {
     database: storage.database,
@@ -390,9 +331,6 @@ export function countingStorage(storage: SqlStorage, counters: RoundCounters): S
   }
 }
 
-// --- measurement events (R2-D17) ------------------------------------------------------------------
-
-/** What the three measure observers hand over, as far as the recorder reads it. */
 export type MeasureEvent =
   | Readonly<{
       kind: 'segment'
@@ -403,11 +341,9 @@ export type MeasureEvent =
     }>
   | Readonly<{ kind: 'round-complete'; [field: string]: unknown }>
 
-/** One recorded line of `e9-events.jsonl`. */
 export type StageRecord = Readonly<{
   runId: string
   round: number
-  /** The process and the clock the numbers belong to: numbers of two generations do not compare. */
   generation: string
   eventKind: 'segment' | 'round-complete' | 'model' | 'tool'
   stage: string
@@ -417,18 +353,12 @@ export type StageRecord = Readonly<{
   detail: Readonly<Record<string, unknown>>
 }>
 
-/** The clock generation: one per process, the origin of its `performance.now()`. */
 export function clockGeneration(): string {
   return `${process.pid}@${performance.timeOrigin}`
 }
 
 export type StageRecorder = ReturnType<typeof recordStage>
 
-/**
- * Records the events of the three segments and the round-complete fact under one clock. `logCount`
- * reads how many commits the log has seen at the call. A segment becomes one record when its end
- * arrives; a start without an end stays in `open`.
- */
 export function recordStage(options: Readonly<{ logCount: () => number }>) {
   const records: StageRecord[] = []
   const open = new Map<number, { start: number; event: MeasureEvent; round: number; run: string }>()
@@ -439,12 +369,10 @@ export function recordStage(options: Readonly<{ logCount: () => number }>) {
   return {
     records,
     open,
-    /** The round the next events belong to. */
     beginRound(next: number, run: string): void {
       round = next
       runId = run
     },
-    /** The observer to hand to Session, Context and Agent. */
     observe(event: MeasureEvent): void {
       const at = performance.now()
       if (event.kind === 'round-complete') {
@@ -480,7 +408,6 @@ export function recordStage(options: Readonly<{ logCount: () => number }>) {
         detail: { ...began.event, ...event },
       })
     },
-    /** The record of one Model or Tool double call. */
     stub(input: {
       kind: 'model' | 'tool'
       provider: string
@@ -513,13 +440,6 @@ export function recordStage(options: Readonly<{ logCount: () => number }>) {
   }
 }
 
-/**
- * The criterion of S3 item 3 on the counts of the rounds from the second on: the model view reads
- * of the AD-04 read path depend on the rows the round added, not on the length of the history. For
- * each round after the first it lists what breaks that: a round that reads more calls or more rows
- * than the one before it, or than `rows(added)`, the rows the read path needs for `added` new rows.
- * An empty list is a pass.
- */
 export function historyReadGrowth(
   rounds: readonly RoundCount[],
   added: number,
@@ -551,14 +471,6 @@ const ascending = (rows: Iterable<bigint>): bigint[] =>
 const upperOf = (round: Ad04RoundRows | undefined): bigint =>
   (round?.reads ?? []).reduce((top, read) => (read.upper > top ? read.upper : top), 0n)
 
-/**
- * The rows of one round of the AD-04 read path by identity (history sequences), for the identity
- * form of S3 item 3 (R2-D78). `added` are the rows the upper bound of the round adds to the upper
- * bound of the round before. `boundary` is the last row of the round before: the row the cursor of
- * the Request Context stands after, which the AD-04 page read starts at. `read` are the rows the
- * AD-04 reads of the round handed out, `reread` those of them an earlier AD-04 read had handed out;
- * both once each, ascending.
- */
 export function ad04RowsOf(
   rows: readonly Ad04RoundRows[],
   round: number,
@@ -576,15 +488,9 @@ export function ad04RowsOf(
   }
 }
 
-/**
- * The page budget of the `execution-record.parts` read: `PART_PAGE_TEXT` and `PART_PAGE_ROWS` of
- * session-storage-sql (`src/worker/read-execution-parts.ts`, not exported). A page stops before the
- * part that would take its text past the budget, but holds at least one part.
- */
 export const PART_PAGE_TEXT = 256 * 1024
 export const PART_PAGE_ROWS = 64
 
-/** The pages the parts read needs for parts of these text lengths, in part order; one at least. */
 export function partPages(texts: readonly number[]): number {
   let pages = 1
   let used = 0
@@ -601,11 +507,6 @@ export function partPages(texts: readonly number[]): number {
   return pages
 }
 
-/**
- * The catch-up reads of one round (a read with `since`), one item per catch-up: a first page
- * (`after` null) and the pages that follow it. Each item holds the distinct parts the catch-up
- * returned, in part order, with their text lengths.
- */
 export function catchUpsOf(round: PartsRoundReads | undefined): number[][] {
   const catchUps: Map<string, number>[] = []
   for (const read of round?.reads ?? []) {
@@ -619,12 +520,6 @@ export function catchUpsOf(round: PartsRoundReads | undefined): number[][] {
   )
 }
 
-/**
- * The `execution-record.parts` reads of one round by kind (R2-D85): `whole`, the reads without
- * `since`, which read a whole partition (AD-02 reads the partition of the current execution once for
- * each event it interprets); and `catchUpPages`, the pages the catch-ups of the round need by the page
- * rule of the read handler (`partPages` over the distinct parts of each catch-up, added up).
- */
 export function partsReadsOf(round: PartsRoundReads | undefined): {
   whole: number
   catchUpPages: number
@@ -635,7 +530,6 @@ export function partsReadsOf(round: PartsRoundReads | undefined): {
   }
 }
 
-/** The text length of all parts the `execution-record.parts` reads of one round returned. */
 export function partsTextOf(round: PartsRoundReads | undefined): number {
   return (round?.reads ?? []).reduce(
     (sum, read) => sum + read.parts.reduce((total, part) => total + part.text, 0),

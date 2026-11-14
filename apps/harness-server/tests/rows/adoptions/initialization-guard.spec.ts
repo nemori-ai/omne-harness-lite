@@ -1,10 +1,3 @@
-// R2-D7: the `create` material of the `adoption-sources` row is Session's initialization guard
-// (session-contract「初始化守卫编码」). The row reads the deployment mapping and nothing else, so the
-// guard says what the mapping says: the initial adoption is the mapping entry, the plan and the
-// requirements are the required identities of the entry, and there are no resident tools, sources or
-// results. The Session core (`decide`) accepts the guard for the command it was prepared for and
-// refuses it once it is missing, re-owned, re-adopted or handed to another command. A creation that
-// declares what the mapping does not hold gets no guard.
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { contentDigest } from '@omne-harness/server-entry/cordis'
 import {
@@ -36,7 +29,6 @@ const tenantText = (() => {
   return encoded.value
 })()
 
-/** The JSON tree of a plain value, as a guard's `facts` carry it. */
 function treeOf(plain: unknown): GuardCommand['facts'] {
   if (plain === null || plain === undefined) return { kind: 'null' }
   if (typeof plain === 'string') return { kind: 'string', value: plain }
@@ -49,7 +41,6 @@ function treeOf(plain: unknown): GuardCommand['facts'] {
   }
 }
 
-/** The row's guard for `command`, with the table identity and the entry it was prepared against. */
 async function prepared(command: Create, config: unknown = mappingConfig()) {
   const { value } = await withLiveTree(config, async ({ mappings, source }) => ({
     outcome: await source.prepare(command),
@@ -86,7 +77,6 @@ describe('the create material is the initialization guard of Session', () => {
       },
       results: [],
     })
-    // The complete fixed input, as a JSON tree inside the facts: the tenant as its codec text.
     expect(plainOf(factsOf(guard)['input'])).toMatchObject({
       tenant: tenantText,
       session: access.session,
@@ -232,7 +222,6 @@ describe('the create material is the initialization guard of Session', () => {
   ])(
     'a creation that declares %s gets no guard: the mapping holds none',
     async (_, command, field) => {
-      // A first creation: Session has no original initialization to recall, so the mapping decides.
       const { value } = await withLiveTree(
         mappingConfig(),
         ({ source }) => source.prepare(command, access),
@@ -243,8 +232,6 @@ describe('the create material is the initialization guard of Session', () => {
   )
 
   test('a creation that declares initialization sources and whose original cannot be read gets no guard: unavailable', async () => {
-    // A retried create is recalled from Session before the mapping is consulted (adoption-sources
-    // docs「create 的模式注册」). Without the Session read, whether it is a retry stays unknown.
     const command = createCommand('alpha', {
       initialization: {
         sources: [

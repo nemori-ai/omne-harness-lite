@@ -1,8 +1,3 @@
-// agentRequests (AG-12): prepares, derives and resumes a model request through Request Context.
-// It translates each port call into one assembly call and the group values of that call, registers
-// the source set of a target on the first call for that target, and translates the outcome back.
-// It does not select a model, decide on compaction, keep plan progress for Agent or commit a
-// transition (request-context-contract docs/context.md, "适配方案").
 import type {
   CompactionAdvance,
   CompactionProgress,
@@ -60,32 +55,19 @@ import {
 
 export type AgentRequestsOptions<P> = Readonly<{
   materials: ContextMaterials<P>
-  /** The leased holder parts (K-RQ): they enter every source set this adapter registers. */
   parts: ContextHolderParts<P>
-  /** The registration face and the operation groups of Request Context. */
   requestContext: Pick<ContextSourceRegistry<P>, 'register' | 'assembly'>
-  /** The Model preparation resources (X-3) that every registered source set lends. */
   preparation: M.ModelPreparationResources<P>
   conversions: ConversionResultSource<P>
-  /** The Model request preparation that fixes a candidate or a summary step. */
   model: ModelRequestPreparation<P>
   tools: ToolsSource<P>
   stepResults: StepResultSource<P>
-  /**
-   * The reader of the instructions of an adopted definition (SPEC「请求准备的取法」, 组四). Absent
-   * means `absentDefinitions`: a `prepare` that names a definition then fails closed.
-   */
   definitions?: DefinitionSource<P>
-  /** The observer of the measurement events (SPEC「测量事件」). Absent means no event is built. */
   measure?: ContextMeasure
 }>
 
 export type AgentRequests<P> = RequestPreparation<P> &
   Readonly<{
-    /**
-     * Withdraws every registration and refuses new calls. Ends after every withdrawn generation has
-     * settled; this is the settlement the holder pulls when the lease ends.
-     */
     close(): Promise<SourceSettlement>
   }>
 
@@ -154,7 +136,6 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     }
   }
 
-  /** Registers the source set of a target once; a refused registration is asked again next time. */
   async function registered(access: Access<P>, target: ContextTarget): Promise<Failure | null> {
     const name = `${tenantText(target.tenant)}|${target.scope.ref}`
     let pending = registrations.get(name)
@@ -168,10 +149,6 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     return result.failure
   }
 
-  /**
-   * Runs one Request Context call with the staged values of the call and removes them after.
-   * `tenant` is the text of `access.tenant` that the operation has already checked.
-   */
   async function staged<T>(
     tenant: string,
     access: Access<P>,
@@ -193,7 +170,6 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     }
   }
 
-  /** Resolves `context.source` to the read it names, checking owner and tenant first. */
   function readOf(
     evidence: Preparation['source'],
     tenant: string,
@@ -208,7 +184,6 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
       : { ok: material }
   }
 
-  /** Resolves the plan evidence of a needs-compaction preparation to the plan it entered. */
   function planOf(original: Original, tenant: string, action: string): Answer<PlanMaterial<P>> {
     const key = materials.key(original.progress.plan)
     if (key === null) return { failure: invalid('original.progress.plan', 'foreign-evidence') }
@@ -235,7 +210,6 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     }
   }
 
-  /** Fixes one assembled input through Model: a candidate, or a summary step. */
   async function fix(
     access: Access<P>,
     profile: M.ModelProfile,
@@ -262,11 +236,9 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     }>
     purpose: Preparation['purpose']
     place: Place
-    /** The target of the history that the call resolved; a fixed request record names it. */
     target: ContextTarget
   }>
 
-  /** The assembled or ready preparation of one candidate. */
   async function candidateOf(
     outcome: Outcome,
     candidate: Candidate,
@@ -294,8 +266,6 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
         ...shared,
         kind: 'ready',
         request: request.ok,
-        // The fixed facts at this moment: the candidate's own coverage, the window of the profile
-        // that fixed it and the forecast of its budget report (RQ-14). Agent keeps the value.
         state: encodeFixedRequestRecord({
           schema: 'request-context/fixed-request/1',
           target,
@@ -309,7 +279,6 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     }
   }
 
-  /** The preparation of an assembly outcome; `plan` runs when compaction is needed. */
   async function preparationOf(
     outcome: Outcome,
     result: AssemblyResult,
@@ -336,13 +305,6 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     }
   }
 
-  /**
-   * The fourth group. Without a definition the group has no contributions and a null definition
-   * key, as before. With one, the definition key is the canonical text of the adoption and the
-   * contributions are its instructions in order; a definition that resolves without instructions
-   * contributes nothing. A read that gives no value is the group read: Request Context then
-   * answers unavailable, invalid or denied for the assembly, and no empty prompt is sent.
-   */
   async function promptGroupOf(
     access: Access<P>,
     scope: ContextTarget['scope'],
@@ -368,7 +330,6 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     }
   }
 
-  /** Translates the port input of `prepare` into the call and the group values of that call. */
   async function groupsOf(
     input: Parameters<RequestPreparation<P>['prepare']>[0],
     tenant: string,
@@ -435,7 +396,6 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     }
   }
 
-  /** The plan entered in the same call as a needs-compaction outcome. */
   async function enter(
     outcome: Outcome,
     operations: AssemblyOperations<P>,
@@ -529,7 +489,6 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     return 'ok' in answer ? succeed(answer.ok) : fail(answer.failure)
   }
 
-  /** The progress after one step: same plan, one more completed step, and below the bound to go on. */
   function stepped(entry: PlanMaterial<P>, progress: PlanProgress, next: boolean): Failure | null {
     if (progress.planId !== entry.plan.planId) return invalid('progress.plan', 'plan-mismatch')
     if (BigInt(progress.completed) !== BigInt(entry.progress.completed) + 1n)
@@ -539,7 +498,6 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     return null
   }
 
-  /** A summary step fixed through Model, as the ready preparation of the compaction purpose. */
   async function stepOf(
     input: Parameters<RequestPreparation<P>['derive']>[0],
     entry: PlanMaterial<P>,
@@ -688,8 +646,6 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     if ('failure' in entry) return fail(entry.failure)
     const read = readOf(input.context.source, tenant, 'resume')
     if ('failure' in read) return fail(read.failure)
-    // The commit source: the read after the commit was taken with this transition, on the target
-    // of the plan. Anything else is another commit than the one the original preparation entered.
     if (
       read.ok.transition === null ||
       canonical(read.ok.transition) !== canonical(input.transition) ||

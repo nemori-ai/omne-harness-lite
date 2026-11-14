@@ -38,4 +38,4 @@ description: "为新的能力或责任边界核对已有覆盖、性质保护责
 
 关键语义或采用依据缺失时，只停依赖部分。提出有范围的候选，不用当前实现、结构通过或评审意见补造接受。达到任务约定终点即停止，剩余责任可定位、可接续。
 
-本项目的唯一源和保存规则归 `docs/engineering/documentation.md`，验证义务归 `docs/verification.md`，风险和评审条件归 `docs/engineering/quality.md`。普通交付直接消费这些拥有者，不以加载本技能作为默认前提。
+本项目的唯一源规则归根 `AGENTS.md`「知识放哪」，验证义务、风险和评审条件归 `docs/architecture/assurance.md`。普通交付直接消费这些拥有者，不以加载本技能作为默认前提。

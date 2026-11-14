@@ -1,4 +1,3 @@
-// SPEC §2.6: the identity of a database is the field `SqlStorage.database`.
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import type { SqlStorage } from '@omne-harness/sql-contract'

@@ -1,10 +1,3 @@
-// 首装与 create 的常驻工具（L3 评审 N6）。coding 的 create 经 adoption-sources 的采用规划器
-// （`createAdoptionPlanner`，G-RESIDENTS 的 `residents.ts` 用的就是它）为 Files、Shell 规划常驻：每个名字要么已有
-// 唯一的 live 贡献，要么由会话的 access 首装。会话 access 装不了官方作者，所以发行树里只有 tool-host 行的首装
-// （发行登记者）能让两者 live。这里用真实的 tool-bindings 与 tool-host 行：
-// - 首装成功：规划给出两个常驻（对照）；
-// - 首装失败（缺运维者构造值）或尚未开始：规划答 unavailable，create 随之失败关闭（G-RESIDENTS 用例
-//   「a named tool that is not live fails the creation」给出 create 一侧的答复）。
 import { afterEach, describe, expect, it } from 'vitest'
 import type { ToolBindingScope } from '@omne-harness/tool-contract/provider'
 import { toolBindingsKey, toolGenerationsKey } from '@omne-harness/tool-cordis-contract/cordis'
@@ -31,7 +24,6 @@ afterEach(async () => {
   for (const fixture of roots.splice(0)) await fixture.root.fiber.dispose()
 })
 
-/** The first definition of a release tool, as G-RESIDENTS builds it from the trusted snapshot. */
 function definitionOf(fixture: ReleaseFixture, name: string): AdoptionDefinition {
   const { adoption } = entryOf(fixture.manifest, name).asset
   return {

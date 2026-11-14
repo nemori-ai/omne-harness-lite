@@ -1,11 +1,3 @@
-// The recovery entry (`agentExecutionRecovery`, AG-04) and the control entry without a live runtime
-// (`agentExecutionControl`, AG-05) of the `agent-host` plugin on real Cordis 4.0.4. An execution is
-// opened straight in the memory Journal, so no runtime of the host holds it unless a case says so.
-// What is checked: both entries check the principal with the operation name of the call and the
-// execution target before the Journal is asked; they read back by the original execution, need no
-// handle, answer another tenant `denied`, and keep a refusal of the access check; detach of an
-// attachment whose runtime the host still runs also needs takeover; reconcile answers a named
-// `unavailable`. A sudden loss of a dependency detaches nothing: the attachment stays as it was.
 import {
   decodeAgentExecutionId,
   decodeAgentInstanceId,
@@ -84,7 +76,6 @@ function checkpoint(): AgentCheckpoint {
   }
 }
 
-/** Opens the execution in the memory Journal, attached to `instance`. */
 async function openExecution(host: World, instance: AgentInstanceId) {
   const initial = input()
   const runtime = {
@@ -210,7 +201,6 @@ describe('the recovery entry (AG-04)', () => {
 })
 
 describe('the judgment of the runtime that holds an attachment (contact)', () => {
-  /** A host whose assembly can show that an instance it does not run has ended. */
   async function provingWorld(lostContact: (instance: AgentInstanceId) => DurableEvidence | null) {
     const made = await openWorld({ plugin: createAgentHostLocalPlugin({ lostContact }) })
     opened.push(made)
@@ -238,7 +228,6 @@ describe('the judgment of the runtime that holds an attachment (contact)', () =>
       kind: 'lost',
       evidence: evidence(`lock/${unknownInstance}`),
     })
-    // The judgment is a read of the execution: it is checked as `load` and writes nothing.
     expect(host.controls.access.check.calls.map(call => call.operation)).toEqual(['load'])
     const snapshot = ok(await host.recovery.load({ ...caller('a'), execution: EXECUTION }))
     expect(snapshot.executionAttachment).toEqual(held.authority)

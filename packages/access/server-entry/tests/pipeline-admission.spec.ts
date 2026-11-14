@@ -1,6 +1,3 @@
-// Steps 1 to 6 of the new address (RFC-0015 §5 判断次序; #1233 spec C3): each step answers with a
-// status code and an empty body, closes the connection, and reads no body. Two steps broken at once
-// answer by the earlier one.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { HttpReply } from './support/harness.ts'
 import {

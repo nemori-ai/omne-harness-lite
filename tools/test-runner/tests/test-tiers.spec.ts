@@ -1,6 +1,4 @@
 // @module-tag slow
-// 归慢层：真起 vitest、turbo 与 git 子进程，各层跑了什么要真跑才看得到。全量准入快层账本里整份合计 21.9 秒，负载下 51.4 秒，只标超预算的用例，余下仍有 13.1 秒（负载下 30.9 秒），过了 10 秒线（tools/test-runner/README_ZH.md「归层」）。
-// 测试分层：仓库根的分层定义、运行器交给 turbo 的任务，以及真起 vitest 时三种层各跑了什么、导入了什么。
 import { execFileSync, spawnSync } from 'node:child_process'
 import {
   existsSync,
@@ -43,11 +41,9 @@ import { fileTree, listWorkspaceMembers } from '@omne-harness/repo-toolchain/cor
 
 const ROOT_DEFINITION = fileURLToPath(new URL('../../../vitest.tiers.mts', import.meta.url))
 const REPOSITORY = fileURLToPath(new URL('../../../', import.meta.url))
-// vitest 的 bin 入口本身，由当前 Node 起；`.bin/vitest` 在 Windows 上是 shell 垫片，Node 不经 shell 起不了。
 const VITEST = fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', import.meta.url))
 const CLI = fileURLToPath(new URL('../src/testing/cli.ts', import.meta.url))
 
-/** vitest 命令行定义里的一个选项（cac 的 Option）：这里用到的字段。带值的选项没有 `isBoolean`。 */
 interface VitestCliOption {
   readonly names: readonly string[]
   readonly isBoolean?: boolean
@@ -67,10 +63,6 @@ function isVitestCliOption(value: unknown): value is VitestCliOption {
   )
 }
 
-/**
- * 安装的 vitest 的命令行选项：`createCLI().globalCommand.options`。`createCLI` 不在公开导出里，
- * 从 `vitest/node` 导出 `parseCLI` 的那个 chunk 里按函数名取；取不到就报错，不猜。
- */
 async function vitestCliOptions(): Promise<readonly VitestCliOption[]> {
   const dist = join(dirname(createRequire(import.meta.url).resolve('vitest/package.json')), 'dist')
   const entry = readFileSync(join(dist, 'node.js'), 'utf8')
@@ -153,7 +145,6 @@ describe('根上的分层定义', () => {
       ['--isolate', 'run', 'x'],
     ]
     for (const option of options) {
-      // `--help`、`--version` 只打印、不跑测试，解析时还会往输出里打印帮助。
       if (option.names.includes('help') || option.names.includes('version')) continue
       for (const name of option.names)
         lines.push([name.length === 1 ? `-${name}` : `--${name}`, 'probe'])
@@ -165,7 +156,6 @@ describe('根上的分层定义', () => {
       try {
         parsed = parseCLI(['vitest', 'run', ...words])
       } catch {
-        // vitest 拒绝这条命令行（比如 `--silent probe`）：不会跑起来，没有过滤可言。
         continue
       }
       const pattern: unknown = parsed.options.testNamePattern
@@ -182,7 +172,6 @@ describe('根上的分层定义', () => {
     expect(disagreements, disagreements.join('\n')).toEqual([])
   })
 
-  /** 不带过滤的 vitest 命令行：单测不随运行它的那条命令变。 */
   const PLAIN = ['node', '/x/node_modules/vitest/vitest.mjs', 'run', '--mode', 'fast']
 
   it('不给 mode：声明 slow 标签及其时限、排除嵌套归档目录，不过滤', () => {
@@ -220,9 +209,7 @@ describe('根上的分层定义', () => {
       testNames: ['x', 'y'],
       files: [],
     })
-    // 不带子命令时第一个词就是文件过滤；`--` 之后的不算。
     expect(cliFilters(vitest('tests/a', '--', 'c'))).toEqual({ testNames: [], files: ['tests/a'] })
-    // sandbox 预检的写法：带值的选项用空格分开，没有过滤。
     expect(
       cliFilters(vitest('run', '--config', 'c.mts', '--pool', 'threads', '--maxWorkers', '1')),
     ).toEqual({ testNames: [], files: [] })
@@ -238,15 +225,12 @@ describe('根上的分层定义', () => {
     expect(files('--no-isolate', 'tests/x')).toEqual(['tests/x'])
     expect(files('--typecheck', 'tests/x')).toEqual(['tests/x'])
     expect(files('--coverage.enabled', 'false', '--isolate', 'true')).toEqual([])
-    // 运行器逐成员运行的写法：`--exclude` 带值，它的 glob 不是过滤。
     expect(files('--exclude', '**/*.legacy/**', '--reporter=json')).toEqual([])
-    // 带点的选项同样照布尔表分。
     expect(files('--max-workers', '2', '--coverage.reportsDirectory', 'out/cov')).toEqual([])
     expect(files('--sequence.shuffle', 'tests/x')).toEqual(['tests/x'])
     expect(files('--typecheck.only', 'true', '--coverage.thresholds.100', 'tests/y')).toEqual([
       'tests/y',
     ])
-    // 表外的选项（vitest 命令行没定义的配置键）与 vitest 一样按带值算。
     expect(files('--typecheck.include', 'tests/**/*.spec-d.ts')).toEqual([])
     expect(cliFilters(vitest('run', '--test-name-pattern', 'y', 'tests/a')).testNames).toEqual([
       'y',
@@ -268,7 +252,6 @@ describe('根上的分层定义', () => {
       passWithNoTests: false,
       experimental: { preParse: true },
     })
-    // 报告目录与守卫同时生效：守卫追加在后面，不替换账本要的报告器。
     expect(
       testTiers('fast', { [ROOT_REPORT_DIR_ENV]: '/runs/1' }, REPOSITORY, file).reporters,
     ).toEqual([
@@ -287,7 +270,6 @@ describe('根上的分层定义', () => {
     const member = join(REPOSITORY, 'packages/common/json-text')
     expect(reportSlug(member)).toBe('packages__common__json-text')
     const tiers = testTiers('fast', { [ROOT_REPORT_DIR_ENV]: '/runs/1' }, member, PLAIN)
-    // 报告路径由 path.join 拼出，期望同样按本机分隔符拼。
     expect(tiers).toMatchObject({
       reporters: [
         'default',
@@ -393,14 +375,12 @@ afterAll(() => {
   for (const path of temporaries) rmSync(path, { recursive: true, force: true })
 })
 
-/** 一个小 vitest 项目：配置展开根上的分层定义；不导入 vitest（用全局 API），所以放在系统临时目录也跑得起来。 */
 function project(files: Readonly<Record<string, string>>): string {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'test-tiers-')))
   temporaries.push(root)
   writeFileSync(
     join(root, 'vitest.config.mjs'),
     [
-      // file URL：Windows 上的绝对路径作 ESM 说明符时，盘符会被当成 URL 协议。
       `import { testTiers } from ${JSON.stringify(pathToFileURL(ROOT_DEFINITION).href)}`,
       "export default ({ mode }) => ({ test: { ...testTiers(mode), globals: true, include: ['tests/**/*.spec.ts'] } })",
     ].join('\n'),
@@ -413,7 +393,6 @@ function project(files: Readonly<Record<string, string>>): string {
 function vitest(root: string, tier: string) {
   const report = join(root, `report-${tier || 'all'}.json`)
   const marker = join(root, `imported-${tier || 'all'}.txt`)
-  // 不把运行器的报告目录传给夹具：它的报告不进这一轮的账本。
   const env: NodeJS.ProcessEnv = { ...process.env, MARKER: marker }
   delete env[ROOT_REPORT_DIR_ENV]
   const ran = spawnSync(
@@ -447,13 +426,8 @@ function vitest(root: string, tier: string) {
   }
 }
 
-/**
- * 夹具没拿到 MARKER 时（失败归因经成员脚本重跑，不传它）写进的空设备，写成 JS 字符串字面量。
- * Windows 上没有 `/dev/null`（会解析成当前盘的 `\dev\null`），用 `os.devNull`。
- */
 const NULL_DEVICE = JSON.stringify(devNull)
 
-/** 被导入时往 MARKER 文件里记一行自己的名字。 */
 const MARK = (name: string) => [
   "import { appendFileSync } from 'node:fs'",
   `appendFileSync(process.env['MARKER'] ?? ${NULL_DEVICE}, ${JSON.stringify(`${name}\n`)})`,
@@ -468,7 +442,6 @@ describe('真起 vitest：各层跑了什么、导入了什么', { timeout: 60_0
     ].join('\n'),
     'heavy.spec.ts': [
       '/**',
-      // vitest 扫描整个文件找这条声明，字符串里的也算：拆开写，免得本文件自己被归进慢层。
       ` * @module-${'tag'} slow`,
       ' * 归慢层：夹具，整文件归慢。',
       ' */',
@@ -512,7 +485,6 @@ describe('真起 vitest：各层跑了什么、导入了什么', { timeout: 60_0
   })
 })
 
-/** 不带 `--reporter` 起夹具的 vitest（命令行给的报告器会替换配置里的），返回退出码、输出与跑到的用例。 */
 function vitestWith(root: string, args: readonly string[]) {
   const marker = join(root, `ran-${temporaries.length}-${Date.now()}.txt`)
   const env: NodeJS.ProcessEnv = { ...process.env, MARKER: marker, NO_COLOR: '1' }
@@ -530,7 +502,6 @@ function vitestWith(root: string, args: readonly string[]) {
   }
 }
 
-/** 用例跑起来时往 MARKER 文件里记一行名字。 */
 const RAN = [
   "import { appendFileSync } from 'node:fs'",
   "const ran = (name: string) => appendFileSync(process.env['MARKER'] ?? " +
@@ -542,7 +513,6 @@ describe('真起 vitest：带过滤的运行要么选中要么失败（#737）',
   const root = project({
     'each.spec.ts': [
       RAN,
-      // 用例名由 test.each 生成：preParse 只认字面量名字，静态匹配不到。
       "test.each(['甲', '乙'])('生成的慢用例 %s', { tags: ['slow'] }, value => ran(`慢 ${value}`))",
       "test.each(['丙'])('生成的快用例 %s', value => ran(`快 ${value}`))",
     ].join('\n'),
@@ -680,9 +650,6 @@ describe('真起 vitest：带过滤的运行要么选中要么失败（#737）',
 
   it(
     '现状：失败归因经成员脚本与同一配置重跑时，选中生成的用例名，选不中的归为未能单独重跑',
-    // 刻画现状，不是回归：triage 走成员脚本 `test`（不给 mode，不开 preParse），#682 的现象没有经过这条路。
-    // 它传 `--reporter`，过滤守卫不在场，归类只靠 JSON 报告。
-    // 归慢层：经 pnpm 起成员脚本、每处再起一次 vitest，约数秒。
     { tags: ['slow'] },
     async () => {
       writeFileSync(
@@ -690,7 +657,6 @@ describe('真起 vitest：带过滤的运行要么选中要么失败（#737）',
         JSON.stringify({
           name: 'triage-fixture',
           private: true,
-          // 两段路径都加双引号：成员脚本经 shell 运行，Windows 路径里的反斜杠在引号里原样保留。
           scripts: { test: `${JSON.stringify(process.execPath)} ${JSON.stringify(VITEST)} run` },
         }),
       )
@@ -721,12 +687,10 @@ describe('入口的层参数', { timeout: 60_000 }, () => {
     join(subject, 'pnpm-workspace.yaml'),
     'packages:\n  - packages/*/*\n  - apps/*\n  - tools/*\n  - packages.archive.legacy/core/*\n',
   )
-  // 计划经 turbo 选成员，turbo 要读被检查仓库根的 package.json 与 packageManager。
   writeFileSync(
     join(subject, 'package.json'),
     '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@10.28.1" }\n',
   )
-  // 影响面规则点名的成员都要在，否则计划报错；外加一个退役目录里的成员。
   for (const path of [
     'packages/common/legal-identity',
     'packages/agent/agent',

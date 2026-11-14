@@ -1,8 +1,5 @@
-// Reads the data of each SSE event of a `fetch` response. The browser's `EventSource` cannot POST
-// and reconnects on its own; the bridge needs neither.
 import { createParser } from 'eventsource-parser'
 
-/** Yields each event's data until the stream ends; returns whether it ended or broke. */
 export async function* sseData(response: Response): AsyncGenerator<string, 'ended' | 'broke'> {
   const body = response.body
   if (body === null) return 'broke'

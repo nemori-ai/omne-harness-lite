@@ -1,6 +1,3 @@
-// Builders for the binding registry and Catalog tests. Everything here is a test double and stays
-// in tests: the origin check is scripted (the package ships none), and loaded registrations come
-// from the contract suite's fixture, which is the only place that builds the branded handle.
 import { AsyncLocalStorage } from 'node:async_hooks'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -52,7 +49,6 @@ export function authorityFor(
   }
 }
 
-/** A loaded registration for the authority's key; `programmable` is the only definition knob. */
 export function loadedFor(
   authority: ToolAuthority,
   digest = 'digest-1',
@@ -63,11 +59,9 @@ export function loadedFor(
     ...loaded.definition,
     ...(options.programmable === undefined ? {} : { programmable: options.programmable }),
   }
-  // The brand has no run-time value, so a copy with another definition is a loaded registration.
   return { ...loaded, definition } as unknown as ToolLoadedRegistration<unknown, ContentBlock>
 }
 
-/** The scripted origin check: it grants the holdings in `granted` at the layer they name. */
 export function scriptedVerifier(
   granted: readonly ToolAuthority[],
 ): LocalToolContributionVerifier<string> {
@@ -91,7 +85,6 @@ export function scriptedVerifier(
   }
 }
 
-/** A registry whose caller fiber is the one that `asFiber` names. */
 export function fiberedRegistry(verifier: LocalToolContributionVerifier<string> | null): Readonly<{
   registry: LocalToolBindingRegistry<string, unknown, ContentBlock>
   asFiber<T>(fiber: string, work: () => T): T

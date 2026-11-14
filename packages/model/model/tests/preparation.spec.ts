@@ -1,8 +1,3 @@
-// The production preparation resources: the lease acquires one binding per supplier, reads the
-// facts of the calls the lineage names once with the caller's access, judges the anchor and the
-// sources, and hands the family meter the numbers. The family meter here is a stub that records
-// what it receives: these tests are about what the lease reads, judges and reports, not about
-// token arithmetic (the family packages cover that with their real meters).
 import { describe, expect, it } from 'vitest'
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { tenantEquals } from '@omne-harness/legal-identity'
@@ -59,15 +54,12 @@ type Principal = ReturnType<typeof fixture>['principal']
 type Commands = ModelCommands<Principal>
 type Measured = Awaited<ReturnType<ModelInputMeter['measure']>>
 
-// --- request material ------------------------------------------------------------------------
-
 const SHOWN = { toHuman: true, toModel: true }
 
 function textBlock(id: string, text: string): unknown {
   return { kind: 'text', id, visibility: SHOWN, text }
 }
 
-/** The one sealed block of a settled reply, through the content-block judge. */
 function replyBlock() {
   const judged = judgeContentBlock(textBlock('reply', 'answer'))
   if ('rejected' in judged) throw new Error('fixture block')
@@ -88,7 +80,6 @@ function user(id: string, text = 'hello'): unknown {
   return { id: `msg_${id.padEnd(22, '0')}`, role: 'user', blocks: [textBlock(`b-${id}`, text)] }
 }
 
-/** An assistant message that carries one reasoning state part, so a request would replay it. */
 function assistantWithState(id: string): unknown {
   return {
     id: `msg_${id.padEnd(22, '0')}`,
@@ -155,18 +146,13 @@ const basis: ModelCountingBasis = {
 }
 const otherAdoption = { ...adoption, name: 'other' }
 
-// --- the stub family: a binding source whose meter records the calibration it receives --------
-
 type StubFamily = {
   readonly bindings: PreparationBindingSource
-  /** Every calibration a stub meter received, in call order. */
   readonly calibrations: MeterCalibration[]
-  /** The binding the source gave out, once acquired. */
   readonly given: PreparationBinding[]
   readonly released: number
   failRelease: boolean
   acquireFailures: number
-  /** When true, the meter breaks its contract: it does not report the anchor it was handed. */
   silent: boolean
 }
 
@@ -263,8 +249,6 @@ const supplierOf: ModelPreparationOptions<Principal>['supplierOf'] = ({ supplier
   },
 })
 
-// --- a stub store: the dispatches of each call, as the storage port would answer ---------------
-
 type Reads = { readonly access: CallAccess<Principal> }[]
 
 function stubStore(
@@ -345,8 +329,6 @@ function recordOf(
   }
 }
 
-// --- driving a lease -------------------------------------------------------------------------
-
 async function acquire(
   options: Partial<ModelPreparationOptions<Principal>> &
     Readonly<{ commands: Pick<Commands, 'dispatches'>; bindings: PreparationBindingSource }>,
@@ -367,7 +349,6 @@ async function acquire(
 
 type MeterInput = Parameters<ModelPreparationLease['bindings'][number]['meter']['measure']>[0]
 
-/** The input of `measure` for this request, planned with the rules of the first binding. */
 function inputWith(
   lease: ModelPreparationLease,
   fixed: FixedModelRequest,
@@ -406,8 +387,6 @@ const Y = callId('ysource')
 const two = [user('u1'), user('u2')]
 const three = [...two, user('u3')]
 const ids = (fixed: FixedModelRequest) => fixed.messages.map(message => message.id)
-
-// --- the real memory Commands: a settled call X with an account -------------------------------
 
 async function settledCall(
   f: ReturnType<typeof fixture>,
@@ -540,7 +519,6 @@ describe('a lease over the real memory Commands', () => {
     await expect(measureWith(lease, requestWith(three))).rejects.toThrow(TypeError)
     await expect(measureWith(lease, requestWith(three))).rejects.toThrow(supplierName)
     await lease.release()
-    // Without a handed anchor the family has nothing to report: the miss of the lease stands.
     const missed = await acquire({ commands, bindings: family.bindings }, f.admit, {
       continues: callId('missing'),
     })
@@ -970,7 +948,6 @@ describe('acquire: reads, limits and all-or-nothing bindings', () => {
       supplierOf,
       maxCitedCalls: 4,
     })
-    /** A lineage as untyped JSON would give it: the parse makes no claim about its shape. */
     const untyped = (text: string): PreparationLineage => JSON.parse(text)
     const cases: readonly (readonly [string, Readonly<{ field: string; reason: string }>])[] = [
       [
@@ -1204,11 +1181,8 @@ describe('release', () => {
   })
 })
 
-// --- boundary cases of the judges, through the lease --------------------------------------------
-
 type UsageItem = NonNullable<DispatchRecord['account']>['usage'][number]
 
-/** An account whose `name` item is replaced by `item`, or dropped when `item` is null. */
 function accountWith(name: string, item: UsageItem | null): NonNullable<DispatchRecord['account']> {
   const account = accountOf()
   return {
@@ -1219,14 +1193,12 @@ function accountWith(name: string, item: UsageItem | null): NonNullable<Dispatch
   }
 }
 
-/** The same adoption with one field changed. */
 const changed = (field: keyof typeof adoption) => ({
   ...adoption,
   [field]: `${adoption[field]}-other`,
 })
 const FIELDS = ['owner', 'name', 'revision', 'digest'] as const
 
-/** Counts that the store hands over but that are no known decimal count. */
 const NOT_A_COUNT: readonly (readonly [string, UsageItem | null])[] = [
   ['absent', null],
   ['provisional', { name: 'x', state: 'provisional', lexeme: '18', unit: 'token' }],

@@ -5,7 +5,7 @@
 
 状态：候选。本页把[运行契约候选](../../SPEC.md#运行契约候选)的条款展开成协议级流程。每条流程写参与者、时序、数据去向与失败分支，并链到它依据的条款。流程不新增条款。条款没有写的内容标为「契约未定」，并汇总在 [README 的缺项表](README.md#缺项与持续验证入口)。
 
-参与者是逻辑角色，不表示部署、进程或共同寿命。「提交」指一次权威提交。提交结果未知时各方按 [PA-05](../../SPEC.md#pa-05) 与 [PA-07](../../SPEC.md#pa-07) 认回。Session 与 Agent 之间的「参加」「冲突」「失败」「不支持」沿 Agent 契约的[提交参加者协议](../../../../agent/agent-contract/SPEC.md#提交参加者协议)。事件含义归[事件目录](../object-model/session-log-events.md#原生事实类别)，守卫与完整结果归[状态转移页](../object-model/session-state-transitions.md#命令守卫与完整结果)，操作形状归 [public-api](../public-api.md)。本页只引用它们。
+参与者是逻辑角色，不表示部署、进程或共同寿命。「提交」指一次权威提交。提交结果未知时各方按 [PA-05](../../SPEC.md#pa-05) 与 [PA-07](../../SPEC.md#pa-07) 认回。Session 与 Agent 之间的「参加」「冲突」「失败」「不支持」沿 Agent 契约的[提交参加者协议](../../../../agent/SPEC.md#提交认回与未知)。事件含义归[事件目录](../object-model/session-log-events.md#原生事实类别)，守卫与完整结果归[状态转移页](../object-model/session-state-transitions.md#命令守卫与完整结果)，操作形状归 [public-api](../public-api.md)。本页只引用它们。
 
 ## 编号表
 
@@ -290,7 +290,7 @@ sequenceDiagram
 
 ## F-SC08 条件终结与 Run 终态
 
-细化 [F-SE03](../../../docs/key-flows.md#f-se03-控制传播)与 [F-SE05](../../../docs/key-flows.md#f-se05-恢复)的终态部分。依据：[PA-02](../../SPEC.md#pa-02)、[PA-08](../../SPEC.md#pa-08)、[PM-13](../../SPEC.md#pm-13)、[PM-14](../../SPEC.md#pm-14)、[RS-08](../../SPEC.md#rs-08) 至 [RS-10](../../SPEC.md#rs-10)、[I-R4](../../SPEC.md#i-r4)、[I-R5](../../SPEC.md#i-r5)、[P-5](../../SPEC.md#具名前提与明确缺项)。Agent 一侧沿[条件终结](../../../../agent/agent-contract/SPEC.md#条件终结)。
+细化 [F-SE03](../../../docs/key-flows.md#f-se03-控制传播)与 [F-SE05](../../../docs/key-flows.md#f-se05-恢复)的终态部分。依据：[PA-02](../../SPEC.md#pa-02)、[PA-08](../../SPEC.md#pa-08)、[PM-13](../../SPEC.md#pm-13)、[PM-14](../../SPEC.md#pm-14)、[RS-08](../../SPEC.md#rs-08) 至 [RS-10](../../SPEC.md#rs-10)、[I-R4](../../SPEC.md#i-r4)、[I-R5](../../SPEC.md#i-r5)、[P-5](../../SPEC.md#具名前提与明确缺项)。Agent 一侧沿[条件终结](../../../../agent/SPEC.md#终结)。
 
 Run 终态有三个入口。完成与失败在 Session 读取并解释 Agent 结束事实的后续提交中成立。Agent 原 tryFinish 提交只读核对 Session，不写 SE26。取消在 Session 的控制提交时成立。有界收束的失败在 finishRun 提交时成立。Agent ended 已发布而 Session 尚未解释时，cancel 可先写 cancelled；后续 ended 只保留原 Run 引用，不改终态或后继。
 
@@ -365,7 +365,7 @@ flowchart TD
 
 ## F-SC09 推进映射与换代
 
-细化 [F-SE05](../../../docs/key-flows.md#f-se05-恢复)的接续部分与 [F-SE10](../../../docs/key-flows.md#f-se10-新-run-开始的求值与重装判定)的 reload 入口。依据：[PM-01](../../SPEC.md#pm-01) 至 [PM-12](../../SPEC.md#pm-12)、JC-07、JC-08、JC-15、[RS-05](../../SPEC.md#rs-05) 至 [RS-07](../../SPEC.md#rs-07)、[I-R2](../../SPEC.md#i-r2)、[I-R8](../../SPEC.md#i-r8)。Agent 一侧沿[恢复与接管](../../../../agent/agent-contract/SPEC.md#恢复与接管)与[采用交接](../../../../agent/agent-contract/SPEC.md#采用交接)。
+细化 [F-SE05](../../../docs/key-flows.md#f-se05-恢复)的接续部分与 [F-SE10](../../../docs/key-flows.md#f-se10-新-run-开始的求值与重装判定)的 reload 入口。依据：[PM-01](../../SPEC.md#pm-01) 至 [PM-12](../../SPEC.md#pm-12)、JC-07、JC-08、JC-15、[RS-05](../../SPEC.md#rs-05) 至 [RS-07](../../SPEC.md#rs-07)、[I-R2](../../SPEC.md#i-r2)、[I-R8](../../SPEC.md#i-r8)。Agent 一侧沿[恢复与接管](../../../../agent/SPEC.md#受理恢复与接管)与[采用交接](../../../../agent/SPEC.md#终结)。
 
 Run 与 Agent 执行一一对应，attempt 与执行挂接一一对应。Session 不保存接续值。`claim.continuity` 与 `reload.handover` 都是耐久证据。
 
@@ -639,7 +639,7 @@ sequenceDiagram
 
 ## F-SC13 epoch 视图读取
 
-细化 [F-SE07](../../../docs/key-flows.md#f-se07-模型可见历史的读取)。依据：[SessionHistory](../../SPEC.md#sessionhistory) 的 `readModelView` 条款、JC-09、[VC-O06](../../SPEC.md#候选的持续验证义务)。Request Context 一侧沿[历史源读口与 epoch 视图](../../../../context/request-context-contract/SPEC.md#历史源读口与-epoch-视图)。
+细化 [F-SE07](../../../docs/key-flows.md#f-se07-模型可见历史的读取)。依据：[SessionHistory](../../SPEC.md#sessionhistory) 的 `readModelView` 条款、JC-09、[VC-O06](../../SPEC.md#候选的持续验证义务)。Request Context 一侧沿[历史源读口与 epoch 视图](../../../../context/SPEC.md#七组稳定读取与来源登记)。
 
 epoch 视图是两次压缩之间的模型可见序列。它在压缩提交时物化（F-SC03），读取不重算。
 
@@ -765,7 +765,7 @@ sequenceDiagram
 
 ## F-SC16 作用域释放与换代后重新释放
 
-细化 [F-SE04](../../../docs/key-flows.md#f-se04-归档级联与作用域释放)的释放部分。依据：JC-16、[ScopeReleasePort](../../SPEC.md#scopereleaseport) 与它的五类处置表、`releasedScopes` 的操作表行（[SessionReconciliation](../../SPEC.md#sessionreconciliation)）、[守卫条款](../../SPEC.md#守卫条款)并入 ST21 与 ST26 的分支、[VC-O02](../../SPEC.md#候选的持续验证义务)、[VC-O07](../../SPEC.md#候选的持续验证义务)。系统层说明见[作用域释放](../../../../../docs/architecture/runtime/control-and-recovery.md#作用域释放)，执行环境一侧沿[恢复](../../../../execution/execution-environment-contract/SPEC.md#恢复)与[拒绝原因](../../../../execution/execution-environment-contract/SPEC.md#拒绝原因)。
+细化 [F-SE04](../../../docs/key-flows.md#f-se04-归档级联与作用域释放)的释放部分。依据：JC-16、[ScopeReleasePort](../../SPEC.md#scopereleaseport) 与它的五类处置表、`releasedScopes` 的操作表行（[SessionReconciliation](../../SPEC.md#sessionreconciliation)）、[守卫条款](../../SPEC.md#守卫条款)并入 ST21 与 ST26 的分支、[VC-O02](../../SPEC.md#候选的持续验证义务)、[VC-O07](../../SPEC.md#候选的持续验证义务)。系统层说明见[作用域释放](../../../../../docs/architecture/runtime/control-and-recovery.md#作用域释放)，执行环境一侧沿[恢复](../../../../execution/SPEC.md#恢复)。
 
 ```mermaid
 sequenceDiagram

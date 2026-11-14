@@ -121,7 +121,6 @@ async function executeShell(
     case 'execute':
       return executeScript(args, environment, execution, config)
     default:
-      // The command table names exactly these commands, so a miss is a defect, not a result.
       throw new Error(`Shell has no operation for command ${command}`)
   }
 }
@@ -138,7 +137,6 @@ async function terminalLines(environment: ShellAuthorEnvironment): Promise<strin
   return terminals.endsWith('\n') ? terminals : `${terminals}\n`
 }
 
-/** An unreadable list is reported as unavailable; it is never written as none. */
 async function retainedProcessLines(environment: ShellAuthorEnvironment): Promise<string> {
   const retention = environment.command.retention
   if (retention === undefined) return 'retained_processes=unavailable'

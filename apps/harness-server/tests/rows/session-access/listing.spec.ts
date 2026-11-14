@@ -1,5 +1,3 @@
-// The row's adapter of the session list face to the member's `SessionListing` port, and the two
-// list limits of the row configuration.
 import { resolve } from 'node:path'
 import type { Principal } from '@omne-harness/access-cordis-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
@@ -35,7 +33,6 @@ const item = (over: Partial<SessionListItem> = {}): SessionListItem => ({
   ...over,
 })
 
-/** The adapter over a directory that answers `reply` and keeps what it was asked. */
 function adapted(reply: Reply | 'throw') {
   const asked: unknown[] = []
   const directory: SessionDirectory<Principal> = {

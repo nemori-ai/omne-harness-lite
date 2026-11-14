@@ -15,7 +15,6 @@ function validateLocation({ storageRoot, directoryFile }: TenantDirectoryLocatio
     throw new Error('tenant domain directory file must be a direct child of the storage root')
 }
 
-/** Only a newly claimed storage root may receive an empty registration file. */
 export function initializeTenantDirectory(location: TenantDirectoryLocation): void {
   validateLocation(location)
   try {

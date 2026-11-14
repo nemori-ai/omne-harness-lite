@@ -18,7 +18,6 @@ import {
 
 let hostProbe: ReturnType<typeof createPrerequisiteProbe<WindowsCommandReading>> | undefined
 
-/** The real Windows command prerequisites, probed once per test file. */
 export function windowsCommandInputs(missing: WindowsPrerequisite[][] = []) {
   hostProbe ??= createPrerequisiteProbe({
     retryMs: 60_000,

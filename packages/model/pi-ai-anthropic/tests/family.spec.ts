@@ -1,6 +1,3 @@
-// `createAnthropicFamily` and `acquire` through `composeFamilies` (#465 C2): one acquire gives one
-// compatible binding; an unknown model, a mismatched adoption, a wrong route, a tokenizer that
-// does not match the records and a cancelled acquire fail as a whole.
 import { describe, expect, it } from 'vitest'
 import { composeFamilies, recordAdoption } from '@omne-harness/pi-ai-transport'
 import {
@@ -57,7 +54,6 @@ describe('acquire', () => {
     const supplier = supplierOf(SONNET)
     for (const adoption of [
       { ...supplier.adoption, name: 'anthropic/claude-sonnet-5-mini' },
-      // Sonnet 5 is at revision 2; no record has revision 3.
       { ...supplier.adoption, revision: '3' },
       { ...supplier.adoption, digest: '0'.repeat(64) },
     ])
@@ -123,7 +119,6 @@ describe('acquire', () => {
   })
 
   it('an acquire that is cancelled while the family works gives no binding', async () => {
-    // The table reads `aborted` once before it calls the family; the family reads it again.
     let reads = 0
     const signal: AbortSignal = Object.create(AbortSignal.prototype, {
       aborted: { get: () => reads++ > 0 },

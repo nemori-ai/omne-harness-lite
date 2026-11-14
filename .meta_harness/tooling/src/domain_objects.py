@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import os
 import re
@@ -29,6 +30,10 @@ OBJECT_FIELDS = ("宿主", "身份", "生灭", "依据")
 PENDING_FIELDS = ("现象", "牵涉", "谁来裁", "闭合条件")
 VIEW = "views/domain-object-map.md"
 STAMP = "- 生成时间："
+SEALED_ROOT = "product.0.0.1.legacy"
+SEALED_PATH = f".meta_harness/design/{SEALED_ROOT}"
+SEALED_TABLE = "domain_objects/sealed-revisions.json"
+REPOSITORY = "https://github.com/nemori-ai/omne-harness-lite/blob/"
 
 TERM_RE = re.compile(r"^### (UL-[a-z0-9-]+) · (.+?) · (.+?)\s*$")
 CARD_RE = re.compile(r"^### (UL-[a-z0-9-]+) · (.+?)\s*$")
@@ -146,8 +151,10 @@ class Reconciler:
         self.revisions: dict[str, int] = {}
         self.drafts: set[str] = set()  # front-matter 的 status 为 draft 的 topic：那份产品正文还没被接受
         self.topic_dirs: dict[str, Path] = {}
+        self.sealed_commit: str | None = None
         self.sealed_revisions: dict[str, int] = {}
-        self.sealed_dirs: dict[str, Path] = {}
+        self.sealed_dirs: dict[str, str] = {}
+        self.sealed_anchors: dict[str, set[str]] = {}
         self.sealed_citations: set[str] = set()
         self._anchors: dict[Path, set[str]] = {}
         self.cards: dict[str, Card] = {}
@@ -201,20 +208,70 @@ class Reconciler:
         return ProductMetadata(id=identity, revision=int(revision), status=status)
 
     def _load_revisions(self) -> None:
-        self._load_product_root("product", sealed=False)
-        self._load_product_root("product.0.0.1.legacy", sealed=True)
+        self._load_product_root("product")
+        self._load_sealed()
         if not self.topic_dirs:
             self.error("product/: zero-current-input，没有可对账的当前 PD topic")
 
-    def _load_product_root(self, name: str, *, sealed: bool) -> None:
-        base = self.root / name
-        if sealed and not base.exists() and not base.is_symlink():
+    def _load_sealed(self) -> None:
+        if (self.root / SEALED_ROOT).exists() or (self.root / SEALED_ROOT).is_symlink():
+            self.error(f"{SEALED_ROOT}/: 封存的旧产品设计已出树，不得重新出现在工作树里；出处写成封存提交上的固定链接")
+        path = self.root / SEALED_TABLE
+        if not path.is_file():
             return
+
+        def unique(pairs: list[tuple[str, object]]) -> dict:
+            result = {}
+            for key, value in pairs:
+                if key in result:
+                    raise ValueError(f"{key} 重复")
+                result[key] = value
+            return result
+
+        try:
+            table = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique)
+        except ValueError as error:
+            self.error(f"{SEALED_TABLE}: 不是有效 JSON：{error}")
+            return
+        if not isinstance(table, dict) or set(table) != {"commit", "root", "sealed_dirs", "sealed_revisions", "anchors"}:
+            self.error(f"{SEALED_TABLE}: 字段必须是 commit、root、sealed_dirs、sealed_revisions、anchors")
+            return
+        commit, root, directories, revisions, anchors = (
+            table[name] for name in ("commit", "root", "sealed_dirs", "sealed_revisions", "anchors"))
+        if not isinstance(commit, str) or re.fullmatch(r"[0-9a-f]{40}", commit) is None:
+            self.error(f"{SEALED_TABLE}: commit 必须是完整的提交号")
+            return
+        if root != SEALED_PATH:
+            self.error(f"{SEALED_TABLE}: root 必须是 {SEALED_PATH}")
+            return
+        if not all(isinstance(item, dict) for item in (directories, revisions, anchors)):
+            self.error(f"{SEALED_TABLE}: sealed_dirs、sealed_revisions、anchors 必须是映射对象")
+            return
+        self.sealed_commit = commit
+        for name, files in anchors.items():
+            if not isinstance(files, list) or not all(isinstance(anchor, str) for anchor in files):
+                self.error(f"{SEALED_TABLE}: anchors 的 {name} 必须是字符串列表")
+                continue
+            self.sealed_anchors[name] = set(files)
+        for topic in sorted(set(directories) | set(revisions)):
+            directory, revision = directories.get(topic), revisions.get(topic)
+            expected = re.match(r"^(PF-\d{3})(?:-|$)", directory) if isinstance(directory, str) else None
+            if expected is None or expected.group(1) != topic or "/" in directory:
+                self.error(f"{SEALED_TABLE}: id {topic} 与 topic slug 不一致")
+                continue
+            if type(revision) is not int or revision < 1:
+                self.error(f"{SEALED_TABLE}: {topic} 的 revision 必须是正整数")
+                continue
+            self.sealed_dirs[topic] = directory
+            self.sealed_revisions[topic] = revision
+
+    def _load_product_root(self, name: str) -> None:
+        base = self.root / name
         if not base.is_dir() or base.resolve() != base:
             self.error(f"{name}/: 产品根不存在或越界别名")
             return
-        revisions = self.sealed_revisions if sealed else self.revisions
-        directories = self.sealed_dirs if sealed else self.topic_dirs
+        revisions = self.revisions
+        directories = self.topic_dirs
         seen: set[str] = set()
         for directory in sorted(base.iterdir()):
             if directory.name.startswith("."):
@@ -224,9 +281,7 @@ class Reconciler:
                 continue
             if not directory.is_dir():
                 continue
-            if not sealed and directory.name.endswith(".legacy"):
-                continue
-            if sealed and not directory.name.startswith("PF-"):
+            if directory.name.endswith(".legacy"):
                 continue
             if directory.resolve() != directory:
                 self.error(f"{self.rel(directory)}: topic 目录是越界或别名链接")
@@ -243,11 +298,7 @@ class Reconciler:
                 self.error(f"{self.rel(readme)}: topic id {topic} 重复")
                 continue
             seen.add(topic)
-            expected = re.match(r"^(PF-\d{3})(?:-|$)", directory.name) if sealed else None
-            valid_id = (expected is not None and topic == expected.group(1)) if sealed else (
-                re.fullmatch(r"PD-[a-z0-9]+(?:-[a-z0-9]+)*", topic) is not None
-                and topic == f"PD-{directory.name}")
-            if not valid_id:
+            if re.fullmatch(r"PD-[a-z0-9]+(?:-[a-z0-9]+)*", topic) is None or topic != f"PD-{directory.name}":
                 self.error(f"{self.rel(readme)}: id {topic} 与 topic slug 不一致")
                 continue
             target = directory / "design.md"
@@ -261,7 +312,7 @@ class Reconciler:
             current = int(fields["revision"])
             directories[topic] = directory
             revisions[topic] = current
-            if not sealed and fields["status"] == "draft":
+            if fields["status"] == "draft":
                 self.drafts.add(topic)
             stated = self._header_rev(target.read_text(encoding="utf-8").splitlines())
             if stated is not None and stated != current:
@@ -270,33 +321,59 @@ class Reconciler:
 
     def _product_reference(self, source: Path, href: str, where: str | None = None) -> tuple[str, bool] | None:
         target, fragment = urldefrag(unquote(href))
+        if target.startswith(REPOSITORY):
+            return self._sealed_reference(href, target[len(REPOSITORY):], fragment, where)
         lexical = Path(os.path.abspath(source.parent / target))
-        for name, directories, sealed in (("product", self.topic_dirs, False),
-                                         ("product.0.0.1.legacy", self.sealed_dirs, True)):
-            base = self.root / name
-            if not lexical.is_relative_to(base):
-                continue
-            parts = lexical.relative_to(base).parts
+        base = self.root / "product"
+        if not lexical.is_relative_to(base):
+            return None
+        parts = lexical.relative_to(base).parts
+        if len(parts) != 2 or parts[1] not in ("design.md", "flows.md"):
+            return None
+        topic = next((uid for uid, directory in self.topic_dirs.items() if directory == lexical.parent), None)
+        problem = None
+        if lexical.resolve() != lexical:
+            problem = "引用目标是越界或别名链接"
+        elif topic is None:
+            problem = "引用的 topic 没有有效 README 元数据"
+        elif not lexical.is_file():
+            problem = "引用文件不存在"
+        elif fragment:
+            if lexical not in self._anchors:
+                self._anchors[lexical] = headings.__wrapped__(lexical)
+            if fragment not in self._anchors[lexical]:
+                problem = f"引用锚点 #{fragment} 不存在"
+        if problem:
+            if where is not None:
+                self.error(f"{where}: {href} {problem}")
+            return None
+        return topic, False
+
+    def _sealed_reference(self, href: str, location: str, fragment: str, where: str | None) -> tuple[str, bool] | None:
+        """封存提交上、封存根下某个 topic 的 design.md 或 flows.md 才算出处；别的提交、别的路径不算。"""
+        commit, _, path = location.partition("/")
+        if not path.startswith(f"{SEALED_PATH}/"):
+            return None
+        if self.sealed_commit is None:
+            problem = f"指向封存的旧产品设计，但封存修订表 {SEALED_TABLE} 不存在或无效"
+        elif commit != self.sealed_commit:
+            return None
+        else:
+            parts = path[len(SEALED_PATH) + 1:].split("/")
             if len(parts) != 2 or parts[1] not in ("design.md", "flows.md"):
                 return None
-            topic = next((uid for uid, directory in directories.items() if directory == lexical.parent), None)
-            problem = None
-            if lexical.resolve() != lexical:
-                problem = "引用目标是越界或别名链接"
-            elif topic is None:
-                problem = "引用的 topic 没有有效 README 元数据"
-            elif not lexical.is_file():
+            topic = next((uid for uid, directory in self.sealed_dirs.items() if directory == parts[0]), None)
+            anchors = self.sealed_anchors.get("/".join(parts))
+            if topic is None:
+                problem = "引用的 topic 不在封存修订表里"
+            elif anchors is None:
                 problem = "引用文件不存在"
-            elif fragment:
-                if lexical not in self._anchors:
-                    self._anchors[lexical] = headings.__wrapped__(lexical)
-                if fragment not in self._anchors[lexical]:
-                    problem = f"引用锚点 #{fragment} 不存在"
-            if problem:
-                if where is not None:
-                    self.error(f"{where}: {href} {problem}")
-                return None
-            return topic, sealed
+            elif fragment and fragment not in anchors:
+                problem = f"引用锚点 #{fragment} 不存在"
+            else:
+                return topic, True
+        if where is not None:
+            self.error(f"{where}: {href} {problem}")
         return None
 
     @staticmethod
@@ -547,7 +624,7 @@ class Reconciler:
                "[统一语言词条](../ubiquitous_language/index.md)或它们指向的产品正文。",
                "",
                "- derived-from：`ubiquitous_language/terms/*.md`（形态、变体的父）· `domain_objects/objects.md` · "
-               "`domain_objects/pending.md` · `product/*/{README,design,flows}.md`（当前 PD rev、反链）· `product.0.0.1.legacy/PF-*/{README,design,flows}.md`（sealed provenance，不是当前采用）",
+               "`domain_objects/pending.md` · `product/*/{README,design,flows}.md`（当前 PD rev、反链）· `domain_objects/sealed-revisions.json`（封存提交上旧 PF 的修订与锚点；sealed provenance，不是当前采用）",
                f"{STAMP}{date.today().isoformat()}",
                "- 生成：`python tooling/src/domain_objects.py --root design --write`",
                "",

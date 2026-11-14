@@ -1,23 +1,10 @@
 # 跨系统技术约定
 
-状态：目标架构正文已获项目负责人接受。具体接口迁移和实现验证分别判断。
-
 本页规定多个领域、runtime、客户端和提供者协作时须保持的共同语义。共同值和基础契约由一个拥有者定义，各领域保留自己的结果、状态机和失败规则。具体字段、类型和协议随公开接口维护，本页不建立另一套中央 Schema。
 
 ## 约定目录与适用范围
 
 同进程调用与跨进程调用共享业务含义。跨进程适配还须承接序列化、身份传递、连接中断和结果认回，不能以传输成功替代业务完成。
-
-| 要解决的问题 | 本页约定 | 详细责任 |
-|---|---|---|
-| 怎样识别工作、数据与访问范围 | [公共数据模型与身份](#公共数据模型与身份) | 公共值及各领域拥有者 |
-| 什么应当保存、展示或送入模型 | [消息、记录与流](#消息记录与流) | 内容、消息、记录与流式消费拥有者 |
-| 怎样调用、判断成功及处理失败 | [接口协议与错误语义](#接口协议与错误语义) | 公开能力、SDK 与传输适配器 |
-| 怎样重试、取消和继续原工作 | [并发、取消与恢复](#并发取消与恢复) | Session/Run、各 runtime、协调与存储拥有者 |
-| 怎样解释期限、先后和版本 | [时间、顺序与版本](#时间顺序与版本) | 公共值、业务判定及协议拥有者 |
-| 配置何时生效，结果怎样追溯 | [配置与可观测性](#配置与可观测性) | 配置、装配、各能力与观测拥有者 |
-| 怎样替换能力并释放资源 | [装配与资源管理](#装配与资源管理) | 独立能力、Cordis 绑定及资源拥有者 |
-| 怎样发现偏离并维护共同规则 | [契约演进与符合性](#契约演进与符合性) | 接口维护者与跨边界验证拥有者 |
 
 代码风格、目录模板和提交方法归[工程文档](../engineering/README.md)。领域内部的业务规则不因被多个调用方使用而自动升级为全系统规则。
 
@@ -38,7 +25,7 @@
 
 数据归属可由记录封装或已经认证并明确绑定的调用通道携带，不要求每个内容块重复存租户字段。跨边界传递时，接收方须取得并核验必要归属，不能从正文、文件路径、当前界面或进程推断租户。
 
-本页的登录入口租户冲突规则由[身份与授权产品草案](../../.meta_harness/design/product/identity-and-authorization/design.md#加入组织后按明确的租户身份协作)承接产品责任，草案尚待接受。经登录状态进入治理服务的请求，若显式租户与该登录状态当前选中的租户不一致，入口拒绝该请求，不按任一租户继续业务操作。调用方须先切换或使用匹配的登录状态。身份或当前租户无法核验时，按该入口的认证与不可用规则处理，不能伪报为已确认的租户冲突。此规则不改变既有 Session、Run 和后台工作的固定归属，也不改变独立调用按其显式授权依据核验的方式。
+经登录状态进入治理服务的请求，若显式租户与该登录状态当前选中的租户不一致，入口拒绝该请求，不按任一租户继续业务操作。调用方须先切换或使用匹配的登录状态。身份或当前租户无法核验时，按该入口的认证与不可用规则处理，不能伪报为已确认的租户冲突。此规则不改变既有 Session、Run 和后台工作的固定归属，也不改变独立调用按其显式授权依据核验的方式。
 
 ### 表示与校验
 
@@ -50,98 +37,10 @@
 
 多模态内容按结构化块及媒体类型表达。文字、图片和语音都可携带来源与引用，派生表示须能区分于原内容。人可见、模型可见与访问授权分别判断；隐藏于某个显示通道不构成保密边界。附件的可访问性、完整性、保留期和失效处理由内容及存储契约承接。
 
-公共JSON边界先执行严格UTF-8解码，在逐对象扫描时检测解码后重名键，保留数字原词法再交字段codec。禁止注释、尾逗号及空输入，任一语法错误拒绝整份输入。项数、深度、字符串和数字均有有限预算。JSON.parse之后无法找回已丢失的重名键和精度。增量解析必须兑现同一拒绝语义。精确签名与失败种类见[公共 JSON 文本读取](#json-text-reader)。
+公共JSON边界先执行严格UTF-8解码，在逐对象扫描时检测解码后重名键，保留数字原词法再交字段codec。禁止注释、尾逗号及空输入，任一语法错误拒绝整份输入。项数、深度、字符串和数字均有有限预算。JSON.parse之后无法找回已丢失的重名键和精度。增量解析必须兑现同一拒绝语义。精确签名与失败种类见[JSON 文本](../../packages/common/SPEC.md#json-文本)。
 
-已经通过字段 codec 的 JSON 值，规范写出使用 RFC 8785，用于摘要。写出拒绝 `undefined`、BigInt、NaN、Infinity、Date 和函数，不自行转换。读取与写出是两个操作。规范写出不在 json-text 里。json-text 只拥有自己值树的原样写出，见[公共 JSON 文本读取](#json-text-reader)。规范写出的采用见 [RFC-0006](../rfcs/RFC-0006-json-canonical-text.md)，原样写出的采用见 [RFC-0010](../rfcs/RFC-0010-json-text-lossless-writer.md)。
-
+已经通过字段 codec 的 JSON 值，规范写出使用 RFC 8785，用于摘要。写出拒绝 `undefined`、BigInt、NaN、Infinity、Date 和函数，不自行转换。读取与写出是两个操作。规范写出不在 json-text 里。json-text 只拥有自己值树的原样写出，见[JSON 文本](../../packages/common/SPEC.md#json-文本)。
 每份公共形状只有一个拥有源，TS类型和编码从该源派生。校验不默认coercion、填默认或删除字段，拒绝无法保留精度和未知值语义的转换。具体Schema及严格JSON技术路线归[系统技术基础](technical-foundations.md#共同技术选择)，按需加载、首次编译及运行时换代归[缓存机制](data-and-state.md#缓存懒加载与预热)。活体对象、句柄、函数和Context不能进入序列化数据契约。
-
-<a id="json-text-reader"></a>
-
-#### 公共 JSON 文本读取
-
-公共 JSON 文本只有一个纯读取器，以及两个处理值树的函数：判定函数和原样写出函数。它们不导入 Cordis、业务存储或插件树。读取器的调用方传入字节或已经解码的文本，以及自己的预算。
-
-```ts
-readJsonBytes(bytes, limits) -> JsonRead
-readJsonText(text, limits) -> JsonRead
-judgeJsonValue(value, limits?) -> JsonValueJudgment
-writeJsonText(value) -> string
-```
-
-`readJsonBytes` 对字节做致命 UTF-8 解码，并且不跳过 BOM。`readJsonText` 只接收已经完成致命解码的文本。`readJsonText` 的文本含孤立代理项时抛 `TypeError`。JSON 源码里的 `\u` 转义不因此抛 `TypeError`。文本以 U+FEFF 开头时，结果是 `bom`。
-
-`limits` 有 `maxBytes`、`maxDepth`、`maxItems`、`maxMembers`、`maxStringLength` 和 `maxNumberLength`。每个字段都是 1 到 `Number.MAX_SAFE_INTEGER` 的整数。缺字段、非安全整数或超出该范围抛 `TypeError`。`readJsonBytes` 只接受 `Uint8Array`。`readJsonText` 只接受字符串。参数类型不对时抛 `TypeError`。读取器不提供默认预算。
-
-成功结果的 `kind` 是 `ok`，并带 `value`。每个 JSON 数字的 `kind` 是 `number`，值是源词法 `lexeme`，不转成 JavaScript `number`。对象的 `kind` 是 `object`，以 `entries` 保存键的出现顺序。数组的 `kind` 是 `array`。键 `2` 在键 `1` 之前出现时，结果保持这个顺序。失败结果不带 `value`，也不抛 `SyntaxError`。
-
-失败种类是 `utf8`、`bom`、`empty`、`syntax`、`duplicate-key` 和 `budget`。`syntax` 的原因是 `comment`、`trailing-comma`、`token`、`truncated` 或 `trailing-content`。`duplicate-key` 带从根到父对象的路径，以及解码后的键名。路径中的对象键是字符串，数组下标是数字。`budget` 的名目是 `bytes`、`depth`、`items`、`members`、`string` 或 `number`。
-
-读取器按下列顺序停止。`readJsonBytes` 先拒绝非法 UTF-8，再拒绝 BOM，再拒绝超过 `maxBytes` 的输入。`maxBytes` 是整份输入的 UTF-8 字节长度。`readJsonText` 没有 `utf8` 失败。它先抛出孤立代理项的 `TypeError`，再拒绝 BOM，再按文本的 UTF-8 字节长度拒绝超过 `maxBytes` 的输入。然后两边都拒绝空输入。只含空格、制表符、换行或回车的输入是空输入。
-
-对象键在扫描对应的值之前判定。`maxStringLength` 是解码后的 JavaScript 字符串长度，键和字符串值都用它。解码后的键超过 `maxStringLength` 时，结果是 `budget` `string`。再接受一个成员就会超过 `maxMembers` 时，结果是 `budget` `members`。`maxMembers` 按单个对象计数。键已经出现过时，结果是 `duplicate-key`，并且不再扫描该值。
-
-一个值开始时，先看容器深度，再看项数。根容器的深度是 1。`{` 或 `[` 会使深度加一。加一之后大于 `maxDepth` 时，结果是 `budget` `depth`。项是一份文档里的 JSON 值。容器也算一项。键不算项。同一个 token 上深度和项数都会超限时，结果是 `depth`。`[1]` 在 `maxItems` 为 1 时是 `budget` `items`。
-
-字符串先看原始文本是不是合法 JSON 字符串前缀。未闭合字符串里已经出现非法转义、控制字符或其他非法内容时，结果是 `syntax` `token`，先于长度，也先于 `truncated`。合法字符串的解码长度超过 `maxStringLength` 时，结果是 `budget` `string`。合法但没有写完、并且还在长度预算内时，结果是 `truncated`。数字先按 RFC 8259 核对源词法。不合语法的词法是 `syntax` `token`，出现在文本末尾也一样。合语法的词法长度超过 `maxNumberLength` 时，结果是 `budget` `number`。`maxNumberLength` 是源词法的字符长度。
-
-值没有写完，且尚未发生非法内容、预算或重复键失败时，结果是 `truncated`。
-
-`{"a":1,"a":` 在 `maxMembers` 为 2 时是 `duplicate-key`。`{"a":[` 在 `maxDepth` 为 1 时是 `budget` `depth`。`{"a":` 是 `truncated`。
-
-字段 codec 在读取成功之后运行，由该形状的拥有者持有。缺席的键是 `undefined`。JSON `null` 不是缺席。字段拒绝已经出现的 `""`、`[]` 或 `{}` 时，失败种类是 `empty`。JSON 种类与字段要求不同时，失败种类是 `type`。`encode` 无法保留字段含义时返回 `type` 或 `precision`。它不返回缺席、`null` 或空值失败。读取成功不表示对象存在，也不表示调用方得到授权。
-
-对同一份完整文档，增量读取与一次读取给出同一个 `JsonFailure`。语法引擎在报错之后仍给出的值，或在重复键中保留的某一个值，都不是成功结果。编译、运行时、异步路径和缓存归[缓存机制](data-and-state.md#缓存懒加载与预热)。
-
-**值树判定。** 读取成功的 `value` 是值树，即 `JsonValue`。成员在内存里构造、从别处收到的值也可能要当作值树使用。值树的合法条件只在这里定义一次，使用者不复制数字文法、重复键与环的检查。
-
-```ts
-type JsonTreePath = readonly (string | number)[]
-type JsonValueJudgment =
-  | Readonly<{ ok: JsonValue }>
-  | Readonly<{ rejected: 'missing' | 'type' | 'value' | 'unknown-field' | 'duplicate' | 'cycle' | 'budget' | 'accessor' | 'unreadable'; path: JsonTreePath }>
-judgeJsonValue(value: unknown, limits?: Readonly<{ maxVisits: number }>) -> JsonValueJudgment
-```
-
-只有这一个判定入口，没有布尔版。调用方要布尔时，看结果里有没有 `ok`。
-
-合法的值树由带 `kind` 的纯对象组成，键按 `kind` 闭合：`null` 只有 `kind`；`boolean` 和 `string` 加 `value`；`number` 加 `lexeme`；`array` 加 `items`；`object` 加 `entries`，每一项只有 `key` 和 `value`。`string` 的值与对象键可以是任意字符串，包括孤立代理项，所以 `readJsonText` 的每一份产出都合法。`lexeme` 必须符合 RFC 8259 的数字语法，与读取器用的是同一条规则。同一个对象的 `entries` 键不重复。回指自己祖先的容器是环，被拒绝。同一个容器可以被几个父节点共用。判定用显式的栈走树，很深的树不抛 `RangeError`。
-
-成功时 `ok` 是冻结的副本，不与输入共享任何节点。共用的子树在副本里各有一份。输入之后再变，副本不变。
-
-失败带 `rejected` 和 `path`。`path` 是值树的结构路径：值树节点的字段名，或 `items`、`entries` 的下标，例如 `['entries', 0, 'value', 'items', 2]`。它从传入的值算起，空路径是根。它不是 `JsonPathSegment`，后者表示 JSON 文档里的逻辑路径。各原因和路径的对应是：
-
-| `rejected` | 含义 | `path` 指向 |
-|---|---|---|
-| `missing` | 必需的字段或列表位置不存在 | 缺的那一项，末段是缺的字段名或下标 |
-| `value` | `kind` 不是六种之一，类型不是字符串也算 | 该节点的 `kind` 字段 |
-| `type` | 字段类型不对。节点不是纯对象，`value` 类型不对，`lexeme` 不合 RFC 8259，`items` 或 `entries` 不是列表，对象项不是纯对象，`key` 不是字符串 | 类型不对的字段；节点或对象项本身不对时是它自己 |
-| `unknown-field` | 节点或对象项有多余的自有键，符号键也算 | 多余的键，末段是该键的名字 |
-| `duplicate` | `entries` 里的键重复 | 第二个重复项的键，即 `[…, 'entries', j, 'key']` |
-| `cycle` | 容器回指自己的祖先 | 回指祖先的那个字段 |
-| `accessor` | 要读的属性是访问器属性 | 访问器属性所在的字段 |
-| `budget` | 访问次数会超过 `maxVisits` | 读它的槽位会超出上限的那个列表，即 `items` 或 `entries` 字段 |
-| `unreadable` | 读取输入时抛出异常，例如 Proxy 的 trap；或列表报告的长度不是非负安全整数 | 根，空路径，整值拒绝 |
-
-一次判定只报告一个失败。同时有几处失败时，报告哪一处不作承诺。
-
-两条保证：判定只读自有数据属性，不调用 getter，访问器属性以 `accessor` 拒绝；读取输入时抛出的异常不会传出，整值以 `unreadable` 拒绝；列表报告的长度不是非负安全整数时同样以 `unreadable` 拒绝。`limits` 不是对象，`maxVisits` 读取时抛出异常，或 `maxVisits` 不是 1 到 `Number.MAX_SAFE_INTEGER` 的整数时，抛 `TypeError`。这是调用方参数的错误，不是值的失败。
-
-`maxVisits` 默认是 1 000 000。每次到达一个节点计一次，共用的子树每次到达都计，所以一个层层共用子树的小输入不能让副本无限变大。列表的槽位也在读取之前计入：读一个列表之前，判定先把它的长度与剩余的访问额度比较，剩余额度已扣除排队等待的节点。长度超出时，以 `budget` 拒绝，指向该列表，一个槽位也不读。所以输入声称的长度不能让判定读取超过 `maxVisits` 个槽位。判定在访问上限内接受 `readJsonText` 的全部产出。用比默认更大的读取预算读出的树，要传相应的 `maxVisits`。
-
-**值树原样写出。** 值树写成文本，并且保留数字词法和成员顺序，只有这一条路径。
-
-```ts
-writeJsonText(value: JsonValue) -> string
-```
-
-输出没有空白。`number` 节点写 `lexeme` 原文，不重新格式化。对象键按 `entries` 的顺序，不排序。字符串和键按 JSON 字符串转义，孤立代理项写成 `\uXXXX`，所以文本是格式良好的字符串。写出用显式的栈，很深的树不抛 `RangeError`。
-
-原样写出不是规范写出。规范写出按 RFC 8785，排序键并规范化数字，用于摘要，在 json-text 之外。同一棵值树的原样文本因此可以和它的规范文本不同。要得到摘要，不能用 `writeJsonText` 的输出。
-
-参数类型是 `JsonValue`，不收 `unknown`。输入必须已经通过 `judgeJsonValue`，或者是 `readJsonText` 的产出。节点缺少或不认识 `kind`、字段类型不对、`lexeme` 不合 RFC 8259 的数字语法、对象项的键不是字符串，这些情况抛 `TypeError`，不返回文本。重复键、环和共用的子树是前置条件：输入违反它们时，函数不承诺任何行为。文本的字节数没有上限，预算由调用方承担。
-
-对 `readJsonText` 的任一产出，`writeJsonText` 写出的文本再经 `readJsonText` 读回，值树相等。孤立代理项和保留写法的数字（`1.0`、`-0`、`1E5`）也成立。这条在读出该树所用的同一份 `limits` 内成立：写出的文本不比原文长，因为原文里的每个转义都不比写出的转义短。
 
 ## 消息、记录与流
 
@@ -231,6 +130,10 @@ writeJsonText(value: JsonValue) -> string
 
 可序列化配置与秘密材料、管理权限及活的运行句柄分开。记录采用版本和来源时，不把完整凭据、用户正文或可复用授权写入诊断数据。
 
+### 横切策略
+
+重试、退避、超时、限流、节流、熔断和轮询间隔这些横切策略，采用可配置的策略对象与可替换的实现。默认值只是配置的初值，不是永久的政策。调度与时序优先复用成熟的策略库，不自己写已有适用机制的计时与退避。具体取值、失败与生效的语义由策略的拥有者写明。
+
 ### 观测与遥测
 
 每个能力及其组合都须提供足以解释输入到结果的观测。记录明确租户或系统作用域，按工作实际具有的层次关联逻辑工作、尝试、调用与实例，并在相关阶段指出采用的能力版本、装配依据和执行环境。无 Session 的工作也须可追踪，不能伪造一个 Session 来补齐字段。
@@ -261,119 +164,17 @@ OTel的forceFlush完成不自动表示每条记录导出成功。提供者核对
 
 清理失败或部分完成须可观察，再次关闭的效果由资源契约说明。不能因请求了清理就报告全部释放，也不能无限保留已失去消费者的订阅和缓冲。具体 Cordis 装配约束、独立执行拥有者及退出顺序归[Cordis 与生命周期](deployment/cordis-and-lifecycle.md)。
 
-## 契约演进与符合性
+## 防御性的写法
 
-### 维护与检查
+下面十条是设计、实现和评审时防住常见缺陷的写法。它们是指导，不是保证：租户隔离、授权、已承诺的提交和取消语义这些系统保证归各自的契约。风险出现时读相关的一条，不要求每次任务过全部十条。编号稳定，供评审与整洁回路引用。前面各节已经规定的，这里只写那一条的重点。
 
-共同值和基础契约的拥有者维护公开形状、无法由类型表达的行为、适用版本和相称验证。领域契约引用共同定义，传输适配器证明转换保持其语义；类型相同、可编译或 JSON 可解析不等于行为一致。
-
-接口修改同时核对 SDK、服务端、独立消费者、Schema、持久数据与恢复路径。当前阶段允许有正向收益的破坏性重构，但须迁移实际消费者，删除被替代的现行实现，不能把第一版发布前的政策当作永远没有版本责任。
-
-| 核对范围 | 可采集的证据 | 证据不能单独证明什么 |
-|---|---|---|
-| 定义与引用 | 导出入口、依赖方向、重复定义、Schema 引用及版本对应检查 | 同形类型具有同一业务含义 |
-| 表示转换 | 精确值、未知值、缺席、无效引用和跨边界往返用例 | 当前权限、可靠受理和副作用正确 |
-| 操作与恢复 | 受理后断连、提交未知、同次重试、取消竞态、撤权和迟到结果测试 | 未覆盖的故障及无限规模成立 |
-| 隔离与观测 | 跨租户反例、错误披露、秘密泄漏、关联连续性及观测故障测试 | 日志存在就等于事实已可靠提交 |
-| 提供者替换 | 共享符合性场景及真实组合验证 | 单个 mock 或纯类型检查证明部署可用 |
-
-偏离报告分别列出全量已知差异、本次新增与消除、未覆盖及无法判定项，并给出相关承诺和消费者。高风险规则是否阻断交付，按工程治理的明确清单判断；本页不把所有检查失败升级成新的硬线。
-
-### 当前承接与后续设计
-
-第一版本地工程遥测由 [telemetry-contract](../../packages/telemetry/telemetry-contract/SPEC.md)、[telemetry-cordis-contract](../../packages/telemetry/telemetry-cordis-contract/SPEC.md) 与 [telemetry-node](../../packages/telemetry/telemetry-node/SPEC.md) 承接，采用依据是 [RFC-0013 revision 2](../rfcs/RFC-0013-engineering-telemetry.md)。领域拥有事件含义，应用选择输出与预算。远端出口、OTel 与输出热换不在本次采用范围。
-
-以下事项定位仍在承接的精确契约。内容块、消息字段和流式到达的现行契约分别是 [COMMON-T02](cross-cutting-concepts.md#common-t02)、[COMMON-T03](cross-cutting-concepts.md#common-t03) 和 [STREAM-T01](runtime/streaming-and-consumption.md#stream-t01)。
-
-| 范围 | 仍在承接的契约 |
-|---|---|
-| 共享身份值 | [COMMON-T01 共享身份值的精确契约承接](cross-cutting-concepts.md#common-t01) |
-| 会话日志、记录与提交 | [SESSION-T01 会话日志与固定读取的契约承接](runtime/session-and-run.md#session-t01)、[STORAGE-T01 公共事务与确认契约的承接](data-and-state.md#storage-t01) |
-| 客户端与治理入口 | [SDK-T01 客户端治理操作的公开契约承接](layers-and-dependencies.md#sdk-t01)、[IDENTITY-T02 治理入口的精确边界承接](security/identity-and-authorization.md#identity-t02) |
-| 生命周期与独立调用 | [LIFECYCLE-T01 装配生命周期公共契约承接](deployment/cordis-and-lifecycle.md#lifecycle-t01)、[MODEL-T01 模型请求运行时契约的承接](runtime/model-runtime.md#model-t01)、[TOOL-T01 工具执行与原执行账契约承接](runtime/tool-runtime.md#tool-t01) |
-| 时间与动态上下文 | [COMMON-T04 时间服务与到期值契约承接](cross-cutting-concepts.md#common-t04)、[RUNTIME-CONTEXT-T01 注册与读取行为契约承接](runtime/runtime-context.md#runtime-context-t01) |
-
-后续设计按下表承接。此处区分已定方向的精化、消费者迁移与原有产品缺口，不由实现者补充新的默认政策。
-
-| 后续事项 | 已定边界与需要完成的工作 | 拥有者 |
-|---|---|---|
-| 公共基础契约 | 统一请求关联、错误分类等基础定义，保留领域结果。确定精确字段、传播、可见性和适配，再迁移 SDK 与实际调用方；现有不同结果类型不能直接视作已符合。 | 公开契约、SDK 及各能力维护者 |
-| 登录入口租户冲突 | 产品规则已由 PF-001 拥有，PF-017 已同步入口流程与验收。[身份与授权产品草案](../../.meta_harness/design/product/identity-and-authorization/README.md)是当前产品责任入口，尚待接受。治理接口的拒绝表达与校验次序归系统公开契约的[判断次序](../../packages/access/public-contract/SPEC.md#判断次序)；测试与消费者切换仍待承接。 | 身份产品、治理入口及客户端维护者 |
-| 共享时间与版本表达 | 明确时间精度、编码、时长范围和转换，核对现有不同类型；业务到期规则及各版本作用域保持独立。 | 公共值与各协议拥有者 |
-| 观测基础契约 | 细化关联字段、事件分类、传播、脱敏及可靠记录要求，连接实际运行边界；不把诊断流升级为业务事实。 | 观测、各能力与安全维护者 |
-| 内容与流式契约 | 消息字段和流式到达的精确规则已在 COMMON-T03 与 STREAM-T01。附件保留、跨节点读取和断线协议继续细化。完整状态快照是否适用前值要求、扩展提醒在正文中交代前值是否足够，仍由产品拥有者裁定。 | 内容、消息、流式消费及相应产品拥有者 |
-| 记录与通知 | 细化记录封装的适用字段、寿命归属和通知交付模型，不要求所有记录填满同一字段表，也不恢复已暂缓的 Connector 设计。 | 记录、通知及相应产品拥有者 |
-
-产品来源承接涉及 [PRODUCT-E01 发生与记录条目的跨产品承接](../../.meta_harness/design/product/README.md#product-e01)、身份与资产、消息、非常态、Run、入站队列、治理入口及日程等专题。跨领域记录来源的完整分配由该产品待办维护。当前产品草案仅提供候选责任入口；本页既有架构承诺及产品采用范围仍按实际接受记录执行。
-
-## 未决问题与待办事项
-
-COMMON-T02 与 COMMON-T03 是现行契约，锚点留在本节。COMMON-T01 与 COMMON-T04 仍在承接。来源定位不表示这两项尚未承接的契约已经完整。
-
-<a id="common-t01"></a>
-### COMMON-T01 共享身份值的精确契约承接
-
-本项为契约承接待办。共享账号、组织、登录、租户及操作关联的现行公开形状、身份相等、解析与消费义务尚须与实际拥有者对账。标识解析成功不代表授权成立。
-
-承接责任为公共身份值、身份及各边界消费者。待办是定位唯一公开入口和必要行为，核验实际消费者及资源身份，不以旧包名指认已经完成的现行契约。
-
-[固定提交中的封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/core/identity-values/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
-
-<a id="common-t02"></a>
-### COMMON-T02 内容块的精确契约承接
-
-本项是现行契约。`packages/common/content-block` 发布已经封闭的文本、思考、语音、图和文件，以及块身份、可见性和媒体类型。工具调用、工具结果和仍在增长的块不是这个成员的值。`tool_call` 与 `tool_result` 部件的形状由 `packages/common/message` 发布，工具领域产出工具结果的内容，不发布消息部件。块上或 `visibility` 里的未知键得到 `extra`。成功值只含该种类的已知键。成员另导出块身份与标注的判定 `judgeBlockIdentity`，以及每种内容块的开块头键表 `CONTENT_BLOCK_HEAD_KEYS`。消息字段与流式到达判定工具部件和开块头时直接使用它们，不复制。
-
-```mermaid
-flowchart TD
-  block["已封闭内容块"]
-  block --> text["text 文本"]
-  block --> thinking["thinking 思考"]
-  block --> voice["voice 语音"]
-  block --> image["image 图"]
-  block --> file["file 文件"]
-  outside["不进入这个成员"]
-  outside --> call["工具调用部件（形状归 message）"]
-  outside --> result["工具结果部件（形状归 message）"]
-  outside --> growing["仍在增长的块"]
-  outside --> state["推理续接状态部件（形状归 message）"]
-```
-
-推理续接状态部件 `reasoning_state` 也不是这个成员的值，形状由 `packages/common/message` 发布，见 [COMMON-T03](#common-t03)。
-
-承接责任为共同内容、消息、Model、Tool 与各内容消费者。
-
-[固定提交中的封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/core/content-blocks/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
-
-<a id="common-t03"></a>
-### COMMON-T03 消息形状与消费行为的承接
-
-本项是现行契约。`packages/common/message` 发布事实记录里的消息字段，以及六种日志角色和 `MessageId` 的解析与相等。消息不是日志条目。消息值是 `{ id, role, blocks }`。`id` 是 `parseMessageId` 接受的字符串。`role` 是 `user`、`assistant`、`tool`、`tool_internal`、`system_reminder`、`compaction` 之一。`blocks` 按到达顺序，不能为空。部件是已封闭内容块、四种工具部件之一，或推理续接状态部件。工具部件与内容块同形，带块身份 `id` 和块标注 `visibility`，键闭合，不保留其他自有键；块身份与标注的判定来自 `content-block` 的 `judgeBlockIdentity`。`tool_call` 是参数收齐并解码的调用，`arguments` 是值树，由 `json-text` 的 `judgeJsonValue` 判定并保存冻结副本。`tool_call_incomplete` 是参数没收齐的调用，`partial` 是原样累计文本，`visibility` 两位都为 false，留在日志里备查，不参与配对。`tool_call_unparsed` 是参数收齐但不能解码的调用，`raw` 是原样累计文本，登记调用身份，不执行。两个变体的 `callId` 非空，`name` 是任意字符串，任何字段不用 `null`。`tool_result` 是不嵌套内容的关联标记，不带结果状态，正文是同一消息里紧随其后的已封闭内容块。`tool` 角色的消息第一块是标记，其余块是内容块，恰有一个标记。标记只出现在 `tool` 角色的消息里，三种调用部件只出现在 `assistant` 角色的消息里。推理续接状态部件 `reasoning_state` 装供应商交回的不透明推理状态，不给人看，只出现在 `assistant` 角色的消息里；含这类部件的消息必须带回放描述 `replay`，写明推理回放范围、格式与这些部件的位置，其他角色不带 `replay`。该成员不解释推理回放范围与载荷，哪个模型能消费哪个范围归 Model 契约。块身份在整条消息内唯一。调用与结果的配对完整性、半截调用出现的条件不在该成员的消息判定里判定。工具部件在流上的开块头与封口规则归 `stream-arrival` 成员说明，承接见 [STREAM-T01](runtime/streaming-and-consumption.md#stream-t01)。`SystemMessage` 由请求组装发布，不进该成员。会话在受理进日志时铸造身份并写日志。该成员不铸造。
-
-以下两项是候选修订，技术接受前不扩大本项既有承诺。
-
-- 思考块只出现在 `assistant` 角色的消息里。`tool` 角色消息的正文，以及 `user`、`tool_internal`、`system_reminder`、`compaction` 角色的消息，只含思考以外的内容块。部件不在该角色允许的集合里时，判定给出 `misplaced-part`。
-- `compaction` 角色的消息除 `id`、`role`、`blocks` 外，另带压缩覆盖范围 `covers`、保留名单 `retained` 和派生证据 `derivation`；其他角色不带这三个键。该成员另提供压缩记录的相对历史判定：历史持有者给出覆盖范围内的条目、范围之后的消息和未结工作，判定核对覆盖范围、保留名单、调用与结果在模型视图里同进同出，以及未结工作不被摘要。配对完整性只在这一判定里核对。
-形状与规则见[消息成员](../../packages/common/message/SPEC.md)。
-
-```mermaid
-flowchart TD
-  log["会话日志"] --> fact["事实记录"]
-  fact --> field["消息字段"]
-  field --> roles["六种日志角色"]
-  field --> parts["内容块与四种工具部件"]
-  assembly["请求组装"] --> system["SystemMessage"]
-  session["会话"] -->|"受理进日志时铸造身份"| field
-  member["packages/common/message"] -->|"发布消息值、解析与相等"| field
-```
-
-[固定提交中的封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/core/messages/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
-
-<a id="common-t04"></a>
-### COMMON-T04 时间服务与到期值契约承接
-
-本项为契约承接待办。时间值、到期值与 Clock 的现行公开形状、不可用、回拨及恢复语义尚须定位实际拥有者。业务期限、时间源和部署策略分别确定，不能因服务存在推断时钟可用。
-
-承接责任为公共时间值、时钟提供者、到期业务及装配维护者。待办是确认精确表示及必要消费行为，核对等待后的准入、恢复时刻、撤除和耐久检查点的适用范围，不新增统一时长政策。
-
-[固定提交中的封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/core/offer-expiry/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
+- **DP-01 独立事实分别报告。** 超时、取消、信号、退出码、部分输出和错误原因是不同的事实，被截断的运行不能报成成功。内部失败抛带类型和上下文的异常，交给能处置的一层。只有契约规定了失败值的边界才收束到闭合的失败集合，未知错误原样上抛。资源操作的边界是例外：未知错误收束成闭合的失败或待处置结果，保留待处置的责任与原错误，不声称资源已经停止。
+- **DP-02 公共契约两端一致。** 入口把多种表示归一成明确的内部结果，出口公开稳定的错误、完成与取消语义。适配器、中间件与消费者的错误边界分得开。
+- **DP-03 异步状态不可混同。** 已提交、运行、空闲、完成和结果可归属是不同的状态。等待与结果归属有明确的观察范围。
+- **DP-04 释放以可观察的终态为准。** abort、kill 或 unregister 只是停止请求。释放契约写明返回时哪些子任务、监听器、定时器、文件和服务已经停止。先关闭新入口，再处理在途的工作。
+- **DP-05 回调故障有边界地隔离。** 独立观察者（listener、hook、disposer）的失败不吞掉，也不让调度跳过后面的观察者或留下半清理的状态。校验、授权和命令回调按契约必须失败的，不套用「捕获后继续」。
+- **DP-06 所有权可追踪。** 每个注册、监听、任务、effect、临时资源和外部句柄，都说得出创建者、释放责任和失效时机。Promise 要等待、返回或显式托管，`void` 不代替拒绝处理。持续服务的路径不阻塞事件循环。
+- **DP-07 外部输出不声称可逆。** 网络发送、模型调用、已提交的写入和单调分配，不因为有 disposer 就能回滚。恢复、补偿、幂等和撤销分别核对。
+- **DP-08 不把环境交给不可信的执行。** 子进程、插件和工具只拿到明确授权的环境变量、凭据、目录和能力。临时文件用私有目录、不可预测的名字和严格的权限。动态加载不是安全边界。
+- **DP-09 失败阻止假状态提交。** 组合、重载和依赖刷新只提交完整的新状态，或按契约报告失败。不普遍承诺旧的运行态可以恢复。
+- **DP-10 规格、实现与证据对齐。** 三者任一改变后，旧证据不自动覆盖新行为。发现缺口时用能区分几种解释的反例归因，读数变绿不证明原因已经查明。

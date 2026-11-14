@@ -39,7 +39,6 @@ export interface ArchitectureImportException {
   readonly sharedStorage: string
   readonly source: string
 }
-/** schema 3 的方向行：`from` 角色的源码不得依赖 `to` 角色所在的成员。角色按 id 绑定，与 status 无关。 */
 export interface ArchitectureDirection {
   readonly id: string
   readonly from: readonly [string, ...string[]]
@@ -49,7 +48,6 @@ export interface ArchitectureDirection {
 export interface ArchitectureConstraints {
   readonly schemaVersion: 1 | 2 | 3
   readonly importExceptions?: readonly ArchitectureImportException[]
-  /** 只有 schema 3 可以声明；schema 1、2 的文档没有这个字段。 */
   readonly directions?: readonly ArchitectureDirection[]
   readonly domains: readonly {
     readonly id: string
@@ -64,7 +62,6 @@ export interface ConstraintInput {
   readonly source: SourceCoordinates
   readonly value: ArchitectureConstraints | null
   readonly sources: readonly { readonly path: string; readonly digest: string }[]
-  /** Retired only after matching the actual source snapshot at source.commit. */
   readonly retiredRoleIds?: readonly string[]
 }
 export function activeRoles(input: ConstraintInput): readonly ArchitectureRole[] {
@@ -79,7 +76,6 @@ export interface ConstraintChange {
 }
 export interface ConformanceRow {
   readonly id: string
-  /** `DIRECTION` 是方向行（schema 3 的 `directions`）按成员对展开的一行；`key` 带方向行 id。 */
   readonly rule: RuleId | 'ROLE' | 'INPUT' | 'DIRECTION'
   readonly state: 'converged' | 'deviation' | 'unknown'
   readonly age: 'new' | 'stock' | 'unjudged'

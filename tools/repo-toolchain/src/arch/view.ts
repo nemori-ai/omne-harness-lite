@@ -91,7 +91,6 @@ const nodeId = (kind: string, key: string) => JSON.stringify([kind, key])
 const memberId = (path: string) => nodeId('member', path)
 const groupOf = (path: string) => (path.startsWith('apps/') ? path : dirname(path))
 
-/** Collapse only observed member-to-member edges. Shared keys cannot establish group bindings. */
 function overviewEdges(nodes: readonly ViewNode[], edges: readonly ViewEdge[]): ViewEdge[] {
   const groups = new Map(
     nodes
@@ -169,7 +168,6 @@ function factTarget(
   return { kind: 'service', key: fact.key }
 }
 
-/** A derived browsing projection. Same service/event name never asserts runtime binding. */
 export function buildArchitectureView(
   document: ActualArchitectureDocument,
   bands: Bands,
@@ -246,7 +244,6 @@ export function buildArchitectureView(
   }
   read(document.current, 'current')
   if (document.baseline !== undefined) read(document.baseline, 'baseline')
-  // Named keys are shared graph ports. A new reference to an old key does not make the key new.
   if (document.baseline !== undefined) {
     const oldKeys = new Set(
       document.baseline.facts.flatMap(fact => {
@@ -321,7 +318,6 @@ export function buildArchitectureView(
   }
 }
 
-/** Self-contained function also used by the offline browser; selection and exports share one oracle. */
 export function selectArchitectureView(
   graph: ArchitectureView,
   selection: ViewSelection,
@@ -361,7 +357,6 @@ export function selectArchitectureView(
         if (seeds.has(edge.from)) visible.add(edge.to)
         if (seeds.has(edge.to)) visible.add(edge.from)
       }
-      // A service/event name can expose declarations on both sides without selecting a provider.
       for (const id of graph.nodes
         .filter(node => visible.has(node.id) && ['service', 'event'].includes(node.kind))
         .map(node => node.id))

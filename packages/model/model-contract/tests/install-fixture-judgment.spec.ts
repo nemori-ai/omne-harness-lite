@@ -16,8 +16,6 @@ import {
 } from './install/fixture-spec.ts'
 import { missingCheckIds, requiredCheckIds } from './install/judgment.ts'
 
-// Each judgment that a fixture run adds gets an input that it must reject. A judgment that always
-// passed would leave the real fixture run green, so these cases show that the instrument can fail.
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'install-fixture-judgment-')))
 afterAll(() => rmSync(root, { recursive: true, force: true }))
 
@@ -27,7 +25,6 @@ function write(path: string, text: string): string {
   return path
 }
 
-/** A fixture directory with every file, and the declarations that `declared` holds. */
 function fixtureDirectory(name: string, declared: Record<string, unknown>): string {
   const directory = join(root, name)
   for (const file of ['tsconfig.json', 'fixture.ts']) write(join(directory, file), '')
@@ -171,7 +168,6 @@ describe('the judgment of what was installed', () => {
   const policy = { profile: 'p', forbidden: [{ category: 'vendor-sdk', names: ['left-pad'] }] }
   const fixturePlan = { fixture: { role: 'caller' }, policy: withFixtureForbidden(policy, spec) }
 
-  /** The calls that a judgment made to report, in order. */
   function judged(installed: readonly string[], plan: Parameters<typeof judgeInstalled>[1]) {
     const reported: [string, boolean, string][] = []
     const violations = judgeInstalled(installed, plan, '@m/member', (id, ok, detail) =>
@@ -180,8 +176,6 @@ describe('the judgment of what was installed', () => {
     return { reported, violations }
   }
 
-  // Red when the check always passes: a package that only the install brought in, which the
-  // declared closure does not list, is forbidden by the policy of the member.
   it('fails an installed package that the policy forbids although the declared closure has none', () => {
     const { reported, violations } = judged(['@a/one', 'left-pad'], { fixture: null, policy })
     expect(reported).toEqual([['forbidden-installed', false, 'left-pad (vendor-sdk)']])
@@ -190,8 +184,6 @@ describe('the judgment of what was installed', () => {
     ])
   })
 
-  // Red when the check leaves out the names that the fixture forbids on its own: only the overlay
-  // of the fixture forbids `banned-x`, and the package is blamed on the fixture.
   it('fails an installed package that only the fixture forbids, attributed to the fixture', () => {
     const { reported, violations } = judged(['@a/one', 'banned-x'], fixturePlan)
     expect(reported).toEqual([['forbidden-installed', false, 'banned-x (fixture:caller)']])
@@ -201,7 +193,6 @@ describe('the judgment of what was installed', () => {
     expect(judged(['banned-x'], { fixture: null, policy }).reported[0]?.[1]).toBe(true)
   })
 
-  // Red when a clean install is reported as a violation, or the check is not reported at all.
   it('reports one passing check for an install in which nothing is forbidden', () => {
     expect(judged(['@a/one', '@a/two'], fixturePlan)).toEqual({
       reported: [['forbidden-installed', true, 'none']],
@@ -374,8 +365,6 @@ describe('reading what the entries print', () => {
   }
   const set = { member: '@m/one', ok: true, problems: [], fixtures: [summary] }
 
-  // Red when a report of another shape is taken as a report: the specs would then read fields that
-  // are not there and pass or fail for the wrong reason.
   it('reads a report of the agreed shape and names the field of one that is not', () => {
     expect(readEntryReport(JSON.stringify(entry))).toEqual(entry)
     for (const broken of [

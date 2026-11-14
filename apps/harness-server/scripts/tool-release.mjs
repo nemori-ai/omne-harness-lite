@@ -1,7 +1,3 @@
-// Generate or check the release manifest of the built-in tools (config/tool-release.json) from the
-// built @omne-harness/tool-definitions. The composition rules live in
-// src/entry/tool-release-manifest.ts, which the startup snapshot uses too; Node strips its types.
-// Build tool-definitions (and its dependencies) first. Exit codes: 0 ok, 1 mismatch, 2 error.
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -10,11 +6,6 @@ const memberDir = fileURLToPath(new URL('..', import.meta.url))
 const DEFAULT_MANIFEST = join(memberDir, 'config', 'tool-release.json')
 const ZERO = `sha256:${'0'.repeat(64)}`
 
-/**
- * Construction values used only to derive each author's definition; they are never written to the
- * manifest and are not release defaults. Two different probes must give the same definition,
- * otherwise the definition depends on operator values and the manifest cannot fix it.
- */
 const PROBES = [
   {
     Shell: { resultMaxBytes: 1, executable: 'probe', argsPrefix: [], cwd: 'probe', env: {} },
@@ -53,7 +44,6 @@ function parseArgs(argv) {
 async function compute() {
   const release = await import('../src/entry/tool-release-manifest.ts')
   const root = await release.locateToolDefinitions(memberDir)
-  // The same file the startup snapshot imports: the entry under the scanned root.
   const modules = await release.importReleaseModules(root)
   const artifacts = await release.scanArtifacts(root)
   const version = JSON.parse(readFileSync(join(memberDir, 'package.json'), 'utf8')).version
@@ -83,7 +73,6 @@ async function compute() {
   return { manifest, text: release.manifestText(manifest) }
 }
 
-/** Itemised differences between the recomputed manifest and the committed one. */
 function diff(expected, committed) {
   const out = []
   if (committed?.generation !== expected.generation) out.push('generation')

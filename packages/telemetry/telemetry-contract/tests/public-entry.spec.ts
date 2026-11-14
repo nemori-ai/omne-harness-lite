@@ -18,10 +18,6 @@ function manifestOf(directory: string): Manifest {
   return JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8')) as Manifest
 }
 
-/**
- * Every module specifier that the built entry reaches, following relative imports. Declarations
- * keep the `.ts` extension of the source, so a relative specifier is mapped to the entry's suffix.
- */
 function reach(entry: string): { files: string[]; specifiers: string[] } {
   const suffix = entry.endsWith('.d.ts') ? '.d.ts' : '.js'
   const files: string[] = []
@@ -42,7 +38,6 @@ function reach(entry: string): { files: string[]; specifiers: string[] } {
   return { files: files.map(file => file.slice(dist.length)), specifiers: [...specifiers].sort() }
 }
 
-/** Production dependency routes from a workspace package to Cordis, through workspace packages. */
 function routesToCordis(directory: string, route: readonly string[]): string[][] {
   return Object.entries(manifestOf(directory).dependencies ?? {}).flatMap(([name, range]) => {
     if (name === '@deepseek-ai/cordis') return [[...route, name]]

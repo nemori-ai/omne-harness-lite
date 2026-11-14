@@ -8,9 +8,7 @@ import { createCore } from './core.ts'
 import { createDirectory } from './directory.ts'
 
 export type ScriptedModelProviderOptions<P> = Readonly<{
-  /** The instance that serves every call at first. */
   instance: ModelInstanceId
-  /** Tells whether two principals are the same one; `Object.is` when it is left out. */
   samePrincipal?: (left: P, right: P) => boolean
 }>
 
@@ -19,13 +17,6 @@ export type ScriptedModelProvider<P> = Readonly<{
   controller: ScriptController<P>
 }>
 
-/**
- * A provider that keeps calls in memory and lets tests script their outcomes. It implements
- * the contract's recognition and idempotence rules and holds all state in the closure.
- * Admission uses the public judgeAdmit function for closed request structure checks.
- * Evidence checks compare only against evidence registered by the script, when any is registered.
- * It does not verify external evidence or real supplier behavior, run a model, or store state durably.
- */
 export function createScriptedModelProvider<P>(
   options: ScriptedModelProviderOptions<P>,
 ): ScriptedModelProvider<P> {

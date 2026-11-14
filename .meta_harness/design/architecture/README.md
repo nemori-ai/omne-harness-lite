@@ -17,7 +17,7 @@
 | 完整Session与Agent第一期候选 | [session-agent-runtime-phase1](session-agent-runtime-phase1/README.md)；F0限定授权与完整候选分开，实际成员维护其当前契约 |
 | Connector接入 | [connector](connector/README.md)；产品整体搁置，保留条件性设计，不构成当前交付承诺 |
 
-PF 分解后的当前产品正文从[产品入口](../product/README.md)进入，领域、能力组与成员分别维护已落位关系、工程设计及行为规格。尚未承接的 PF 详细技术保留在[封存原源](../product.0.0.1.legacy/README.md)，只供后续专项核对，不成为已落位正文的并列权威。
+PF 分解后的当前产品正文从[产品入口](../product/README.md)进入，领域、能力组与成员分别维护已落位关系、工程设计及行为规格。
 
 ## 已承接信息从哪里读取
 
@@ -25,7 +25,7 @@ PF 分解后的当前产品正文从[产品入口](../product/README.md)进入�
 
 身份、组织、登录、注册、治理入口和客户端的精确行为沿[身份与治理责任](../../../docs/domains/identity-and-authorization/README.md)定位实际成员。装配、插件树、Storage/Clock与Session相关承诺沿[架构入口](../../../docs/architecture/README.md)和[领域导航](../../../docs/domains/README.md)展开，不再消费旧施工页。
 
-未取得关闭依据的原组合问题继续由[符合性问题入口](../../../docs/architecture/assurance.md#尚未取得关闭依据的组合问题)显示未知。OG3等已接受但未实现的增量继续由其实际成员规格维护，不能因施工页退出而销项。
+OG3等已接受但未实现的增量继续由其实际成员规格维护，不能因施工页退出而销项。
 
 ## 维护与退出
 

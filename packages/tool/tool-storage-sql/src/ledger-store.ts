@@ -1,9 +1,3 @@
-// The durable ToolLedgerStore (G1) over the SQL storage contract. A ledger domain (`call`, `queue`
-// or `host`) is a group of rows with its own revision inside the transaction domain of its tenant.
-// `read` is one `domain-serial` read; `commit` is one SQL commit whose participant checks the
-// expected revision and the read-set assertions, applies the writes in order and sets the new
-// revision, or writes nothing. 调用域的提交在同一事务里维护这个调用的待办标记；`scanPending` 按租户的
-// 事务域分页读这些标记。
 import { randomUUID } from 'node:crypto'
 
 import { tenantCodec } from '@omne-harness/legal-identity'
@@ -67,7 +61,6 @@ export type SqlToolLedgerStore = ToolLedgerStore & Readonly<{ durability: 'durab
 
 type Listed = Readonly<{ calls: readonly string[]; more: boolean }>
 
-/** Storage keeps a stored value opaque until Tool checks its format. */
 type StoredRecord = Readonly<{ key: string; record: unknown }>
 
 function storedRecordsOf(rows: JsonValue | undefined): StoredRecord[] | null {
@@ -80,7 +73,6 @@ function storedRecordsOf(rows: JsonValue | undefined): StoredRecord[] | null {
   return records
 }
 
-/** A row key check before exposing records; the migration baseline keeps old formats out. */
 function recordsOf(rows: readonly StoredRecord[]): LedgerRecord[] | null {
   const records: LedgerRecord[] = []
   for (const row of rows) {
@@ -116,7 +108,6 @@ async function readStored(
   return { kind: 'read', revision: revision.ok, rows: records } as const
 }
 
-/** A due row as the handler returns it, read back into the port's entry; null when malformed. */
 function dueEntryOf(tenant: TenantId, row: JsonValue): DueEntry | null {
   if (!isObject(row)) return null
   const kind = row['kind']
@@ -131,14 +122,8 @@ function dueEntryOf(tenant: TenantId, row: JsonValue): DueEntry | null {
   return 'ok' in call ? { domain: { kind, tenant, call: call.ok }, key, dueAt: dueAt.ok } : null
 }
 
-/** The revision of a domain that was never committed (`INITIAL_REVISION` of the ledger). */
 const INITIAL_REVISION = '0'
 
-/**
- * One keeper for each database (`SqlStorage.database`). Every ledger store of this process over the same
- * database commits through it, so the stores of the Tool runtime and of the sweep answer reads
- * from one snapshot, whichever storage object each of them was given.
- */
 const keepers = new WeakMap<object, LedgerKeeper>()
 
 function keeperOf(storage: SqlStorage): LedgerKeeper {
@@ -151,27 +136,18 @@ function keeperOf(storage: SqlStorage): LedgerKeeper {
   return keeper
 }
 
-/**
- * Commands of other participants that run before the ledger write in the same SQL transaction,
- * and the registered combination that holds those participants together with the Tool participant.
- */
 export type LedgerCommitCondition = Readonly<{
   combinationVersion: string
   manifestDigest: string
   commands: readonly FactCommandV2[]
 }>
 
-/**
- * The commit of the ledger store over the SQL storage. With `condition`, its commands run first in
- * the same transaction; `answerOf` reads the answer of the storage.
- */
 function ledgerCommitOver(
   options: SqlToolStorageOptions,
   condition?: LedgerCommitCondition,
   answerOf: (answer: CommitAnswer) => LedgerCommit = ledgerAnswer,
 ) {
   return async (input: LedgerCommitInput): Promise<LedgerCommit> => {
-    // The assertion is part of the commit, so the same commit is refused whenever it is sent.
     if (!(input.asserts ?? []).every(assertion => sameTenant(input.domain, assertion.domain)))
       return { kind: 'rejected', reason: 'an assertion names a domain of another tenant' }
     if (
@@ -189,7 +165,6 @@ function ledgerCommitOver(
         revision: input.revision,
         writes: writesOf(input, fixed),
         asserts: assertsOf(input),
-        // 标记随每一次发送带上：补发固定部分的那一次与第一次是同一笔提交。
         ...(input.domain.kind === 'call' && input.pending !== undefined
           ? { pending: input.pending }
           : {}),
@@ -207,8 +182,6 @@ function ledgerCommitOver(
       )
     }
     try {
-      // A domain that was never committed holds no record, so its first commit gives the fixed
-      // part. Every later commit leaves it out; the participant says so when it holds none.
       const answer = await sent(input.expected === INITIAL_REVISION ? 'given' : 'kept')
       return answerOf(lacksFixed(answer) ? await sent('given') : answer)
     } catch (error) {
@@ -218,10 +191,6 @@ function ledgerCommitOver(
   }
 }
 
-/**
- * The ledger commit with a condition, through the keeper of the database: the snapshot a read
- * answers from follows this commit as it follows every other commit of the process.
- */
 export function conditionalLedgerCommit(
   options: SqlToolStorageOptions,
   condition: LedgerCommitCondition,
@@ -280,14 +249,9 @@ function storeOver(
   return { durability: 'durable', ...kept, due }
 }
 
-/**
- * 待办标记的扫描（契约 P01 scanPending）。标记不经保管者：它们不是账本域的记录，每一页直接按
- * `domain-serial` 读，所以提交返回 committed 之后开始的扫描看得到它的标记。
- */
 function pendingScanOver(
   options: SqlToolLedgerStoreOptions,
 ): (input: LedgerPendingScanInput) => Promise<LedgerPendingScan> {
-  /** 一个租户事务域里的一页标记。 */
   const readPending = async (
     domain: DomainRef,
     input: PendingReadInput,
@@ -315,7 +279,6 @@ function pendingScanOver(
     return { calls, more } satisfies PendingReadOutput
   }
 
-  /** 把一个租户的标记行变成调用身份；不合法的身份是存储故障，不是空页。 */
   const callsOf = (
     tenant: PendingCall['tenant'],
     listed: Listed,
@@ -329,7 +292,6 @@ function pendingScanOver(
     return calls
   }
 
-  /** 单个租户：在它的事务域里按调用身份分页。 */
   const scanTenant = async (input: LedgerPendingScanInput): Promise<LedgerPendingScan> => {
     if (input.tenant === null) return unavailable('not a legal tenant')
     const resolved = await resolveTenant(options, input.tenant)
@@ -351,10 +313,6 @@ function pendingScanOver(
     return { kind: 'page', calls, more: listed.more }
   }
 
-  /**
-   * 跨租户：按租户文本的顺序逐个读已发布目录里的租户事务域。每个域各自读一次，整个扫描不声称是
-   * 同一时刻的快照。一个域读不到时整页答复 `unavailable`，不答复更短的页；诊断文字写明是哪个租户。
-   */
   const scanTenants = async (input: LedgerPendingScanInput): Promise<LedgerPendingScan> => {
     let listed: TenantDomainListing
     try {
@@ -386,7 +344,6 @@ function pendingScanOver(
         after: from !== null && from.tenant === entry.tenant ? from.call : null,
         limit: input.limit - calls.length,
       })
-      // The diagnostic names the tenant: the scan reads many, and the caller reports which one failed.
       if ('kind' in page)
         return page.kind === 'unavailable'
           ? unavailable(`tenant ${entry.tenant}: ${page.diagnostic}`)

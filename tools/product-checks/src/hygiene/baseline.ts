@@ -2,11 +2,16 @@ import { readFileSync } from 'node:fs'
 
 export const HYGIENE_BASELINE_PATH = 'tools/product-checks/hygiene-baseline.json'
 
-export interface HygieneLimits {
-  readonly fileLines: number
-  readonly functionLines: number
-  readonly specLines: number
-}
+export const LIMIT_KEYS = [
+  'fileLines',
+  'functionLines',
+  'specLines',
+  'commentRunLines',
+  'commentFloorLines',
+  'commentPercent',
+] as const
+
+export type HygieneLimits = Readonly<Record<(typeof LIMIT_KEYS)[number], number>>
 
 export interface FunctionBand {
   readonly count: number
@@ -23,7 +28,14 @@ export interface HygieneBaseline {
   }
 }
 
-export const DEFAULT_LIMITS: HygieneLimits = { fileLines: 1000, functionLines: 150, specLines: 600 }
+export const DEFAULT_LIMITS: HygieneLimits = {
+  fileLines: 1000,
+  functionLines: 150,
+  specLines: 600,
+  commentRunLines: 3,
+  commentFloorLines: 6,
+  commentPercent: 1,
+}
 
 const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0)
 
@@ -63,7 +75,7 @@ export function parseHygieneBaseline(text: string, label: string): HygieneBaseli
     const body = record(JSON.parse(text), '基线')
     exactKeys(body, ['limits', 'documents', 'comments', 'sizes'], '基线')
     const limits = record(body['limits'], 'limits')
-    exactKeys(limits, ['fileLines', 'functionLines', 'specLines'], 'limits')
+    exactKeys(limits, LIMIT_KEYS, 'limits')
     const documents = body['documents']
     if (!Array.isArray(documents) || documents.some(entry => typeof entry !== 'string'))
       throw new Error('documents 须为字符串数组')
@@ -72,11 +84,9 @@ export function parseHygieneBaseline(text: string, label: string): HygieneBaseli
     const sizes = record(body['sizes'], 'sizes')
     exactKeys(sizes, ['files', 'functions'], 'sizes')
     return {
-      limits: {
-        fileLines: count(limits['fileLines'], 'limits.fileLines'),
-        functionLines: count(limits['functionLines'], 'limits.functionLines'),
-        specLines: count(limits['specLines'], 'limits.specLines'),
-      },
+      limits: Object.fromEntries(
+        LIMIT_KEYS.map(key => [key, count(limits[key], `limits.${key}`)]),
+      ) as HygieneLimits,
       documents: documents as string[],
       comments: mapOf(body['comments'], 'comments', count),
       sizes: {

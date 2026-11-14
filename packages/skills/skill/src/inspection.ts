@@ -1,6 +1,3 @@
-// `PackageInspection` over one source: one snapshot, the bytes of the control files that the
-// snapshot lists, then the package rules of the contract. The rules check the control bytes
-// against the snapshot themselves, so nothing is checked twice here.
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import {
   DECLARATION_PATH,
@@ -29,7 +26,6 @@ export function createPackageInspection(source: SkillPackageSource): PackageInsp
       const taken = await sourceAnswer(() => source.snapshot(locator), isSealedSnapshot)
       if (!('ok' in taken)) return fail(sourceFailureTo('inspect', taken.failure, 'snapshot'))
       const snapshot = taken.ok
-      /** The bytes of a control file that the snapshot lists, or `undefined` when it does not. */
       const control = async (path: string): Promise<Outcome<Bytes | undefined, InspectFailure>> => {
         const entry = snapshot.entries.find(item => item.path === path)
         if (entry === undefined) return { ok: undefined }

@@ -76,7 +76,6 @@ export function modelReceivedDraft(
     ? { ...common, delivery: { producer: 'model', key: delivery.key, accounts: delivery.accounts } }
     : { ...common, delivery: { producer: 'model', key: delivery.key, account: delivery.account } }
 }
-/** Decodes persisted bytes before admitting them as a producer envelope. */
 export function readModelDeliveryMaterial<P>(
   access: Access<P>,
   material: Material<ContentBlock>,

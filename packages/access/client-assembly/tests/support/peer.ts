@@ -1,12 +1,8 @@
-// Starts server-entry's test entry (`tests/fixtures/entry-peer.ts`) as a process. The client
-// assembly does not import server-entry, so the real entry of these tests is a process and its
-// file path only. `send` writes one command line to it.
 import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-/** The workspace root: the nearest directory with `pnpm-workspace.yaml`, also from a test sandbox. */
 function workspaceRoot(): string {
   let dir = dirname(fileURLToPath(import.meta.url))
   while (!existsSync(join(dir, 'pnpm-workspace.yaml'))) {
@@ -22,15 +18,10 @@ const script = join(workspaceRoot(), 'packages/access/server-entry/tests/fixture
 export type Peer = {
   readonly port: number
   readonly origin: string
-  /** Every JSON line the peer printed after its port. */
   readonly events: unknown[]
-  /** Settles when the peer printed a line equal to `event`. */
   readonly saw: (event: unknown) => Promise<void>
-  /** Stops the entry as planned and waits for the process. */
   readonly stop: () => Promise<void>
-  /** Writes one command line: `take-down` or `mount`. */
   readonly send: (command: string) => void
-  /** Kills the process: open connections are cut, nothing is answered. */
   readonly kill: () => Promise<void>
 }
 

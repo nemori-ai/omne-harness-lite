@@ -1,7 +1,3 @@
-// The G7 suite runs on the non-durable binding registry with every handle and on a registry
-// without fiber controls; every case fails under a violating variant that breaks the rule of that
-// case (flawed-bindings.ts, one flaw at a time); the dynamics skeleton names the ten RFC-0012
-// criteria and reports each as not applicable until 2.5 fills it.
 import { describe, expect, it } from 'vitest'
 import {
   TOOL_DYNAMICS_CRITERIA,
@@ -56,7 +52,6 @@ const variant = (name: string, flaws: Flaws, fails: readonly string[]): Variant<
 })
 type Fixture = ToolBindingRegistryFixture<string>
 
-/** One flaw each; the listed cases are exactly the ones that the flaw breaks. */
 const variants: readonly Variant<Fixture>[] = [
   variant('empty tokens', { emptyToken: true }, [NAMES.answers, NAMES.successor, NAMES.twoKeys]),
   variant('ordinals that reset', { ordinalResets: true }, [
@@ -90,7 +85,6 @@ const variants: readonly Variant<Fixture>[] = [
 
 describe('G7 binding registry suite', () => {
   it('is well formed: unique names and the G7 clause of the contract SPEC', () => {
-    // The IC harness check expects an IC clause; this suite carries the SPEC gap decision G7.
     expect(new Set(cases.map(item => item.name)).size).toBe(cases.length)
     for (const item of cases) expect(item.clause).toBe('G7')
     expect(cases.map(item => item.name)).toEqual(Object.values(NAMES))

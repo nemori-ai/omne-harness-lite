@@ -1,9 +1,3 @@
-/**
- * The frame loop of the resident files helper. It reads one request frame per line, runs each
- * request on a thread-pool thread and writes one reply frame per request while it holds the output
- * lock. The operations open and close their own handles; the loop keeps nothing between requests.
- * At the end of its input it waits for the running requests and exits.
- */
 export const nativeHost = String.raw`
 using System;
 using System.Collections;

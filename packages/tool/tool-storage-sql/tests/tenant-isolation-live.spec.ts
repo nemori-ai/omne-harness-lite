@@ -1,6 +1,3 @@
-// A4 on the body tables and the due index (L3 hot spot): a body one tenant settled is not due,
-// not swept and not readable for another tenant, whether the other tenant asks through its own
-// domain or its rows were planted in the first tenant's database. Real SQLite, real ledger.
 import { randomBytes } from 'node:crypto'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { TenantId } from '@omne-harness/legal-identity'
@@ -47,12 +44,10 @@ describe('a body tenant A settled, asked for by tenant B through its own domain'
     const dueA = await a.store.due(TENANT_A, at, 10)
     expect(dueA.kind === 'complete' && dueA.entries.length).toBe(1)
 
-    // B's sweep over the same ledger and body store reclaims nothing of A.
     expect(ok(await live.ledger.sweep(TENANT_B, at, 10))).toEqual({ reclaimed: 0, removed: 0 })
     expect(count(a, TENANT_A, 'tl_body_chunk')).toBeGreaterThan(0)
     expect(count(a, TENANT_A, 'tl_due')).toBe(1)
 
-    // A ledger of B that shares the body store, permit key and clock reads no page of A's body.
     const worldB = await ledgerWorld(TENANT_B)
     const ledgerB = worldB.ledgerOver(a.store, { bodies: live.bodies })
     const read = await ledgerB.reads.body.read({
@@ -65,7 +60,6 @@ describe('a body tenant A settled, asked for by tenant B through its own domain'
     })
     expect('failure' in read && read.failure.kind).toBe('not-found')
 
-    // The body store itself: B's reference to A's call and body is absent, and B's delete is a no-op.
     const mirrored = { tenant: TENANT_B, call: live.access.call, body: body.bodyId }
     expect(await live.bodies.store.read(mirrored, { first: 0, count: 1 })).toEqual({
       kind: 'absent',

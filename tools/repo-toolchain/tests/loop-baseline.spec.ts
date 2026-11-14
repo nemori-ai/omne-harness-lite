@@ -1,8 +1,4 @@
 // @module-tag slow
-// 归慢层：每条用例在临时 git 仓库里整条跑 runLoopStatus（度量与基线比）。全量准入快层账本里整份合计 20.4 秒，负载下 39.3 秒，7 条里 4 条在全量准入超单条预算（2.5 秒），余下的合计不到 0.5 秒（tools/test-runner/README_ZH.md「归层」）。
-// 两处「与基线比」的判法，走 `pnpm run loop:status` 同一个入口（runLoopStatus），用临时仓库：
-// 成员预算——基线里有的成员只在变差时进提醒、新成员照绝对线；要解释的函数——只留比基线涨了的、
-// 新出现的与拿不准的，没变差的另计。线在这里给死，不随仓库配置里负责人调的数值变。
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -23,23 +19,17 @@ import {
 
 afterEach(removeTemporaries)
 
-/** 圈复杂度 1 + `branches` 的函数；`tag` 让各处文本不同。 */
 const routed = (name: string, branches: number, tag = name) =>
   `export function ${name}(x: number): string {\n${Array.from(
     { length: branches },
     (_, i) => `  if (x === ${i}) return '${tag}${i}'`,
   ).join('\n')}\n  return ''\n}\n`
 
-/** `count` 个超 alert（圈复杂度 15）的函数。 */
 const overAlert = (prefix: string, count: number) =>
   Array.from({ length: count }, (_, n) => routed(`${prefix}${n}`, 14)).join('\n')
 
 const LINES = { warn: 1000, act: 2000, release: 500 }
 
-/**
- * 只有「超 alert 的函数数」有实际的线（提醒 2／处置 5／解除 1），其余几项的线高到碰不到；
- * 重复代码关掉，免得几个相似的函数让重复行占比也进「变差」。
- */
 function config(baseline: boolean): LoopConfig {
   const base = readLoopConfig()
   return {
@@ -89,12 +79,7 @@ async function status(
   }
 }
 
-// 建仓与量都要起 git 子进程；全量检查满载时会超过默认的 5 秒。
 describe('成员预算与基线比（入口）', { timeout: 120_000 }, () => {
-  /**
-   * 主线上：a 有 2 个超 alert 的函数（绝对线提醒）、b 有 3 个（提醒）、d 有 6 个（处置）；
-   * 在主线头上跑一次写下基线快照。之后在工作分支上：a 加到 3 个，b、d 不动，新成员 c 有 2 个。
-   */
   async function budgets(): Promise<{ root: string; home: string }> {
     const root = repository()
     const home = temporaryDirectory('loop-baseline-home-')
@@ -182,7 +167,6 @@ describe('要解释的函数与基线比（入口）', { timeout: 120_000 }, () 
     const base = commit(root, 'base')
 
     git(root, 'checkout', '-q', '-b', 'someone/work')
-    // 改名（已提交）并改一行、不加分支：git 认作改名，对回 old.ts。
     git(root, 'mv', `${member}/old.ts`, `${member}/moved.ts`)
     write(
       root,
@@ -190,7 +174,6 @@ describe('要解释的函数与基线比（入口）', { timeout: 120_000 }, () 
       `${routed('moved', 14).replace("return ''", "return 'z'")}\nexport const kept = 1\n`,
     )
     commit(root, 'rename')
-    // 未提交：改一行不加分支、加一个分支加一个新函数、一个新文件、改同名的其中一个。
     write(root, `${member}/stay.ts`, routed('stay', 14).replace("return ''", "return 'z'"))
     write(root, `${member}/grow.ts`, `${routed('grow', 15)}\n${routed('fresh', 14)}`)
     write(root, `${member}/brand.ts`, routed('brand', 14))

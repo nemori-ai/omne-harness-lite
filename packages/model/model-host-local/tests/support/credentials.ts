@@ -1,8 +1,3 @@
-// The credentials of the package tests. `providerName` mints a provider name the way every
-// boundary does. `createTestCredentials` keeps a synthetic key in the official layer of one
-// provider, in a settings-local secret vault in the test directory, and reads it through the
-// package's own `createSecretCredentialPort`: the tests send through the real credential path.
-// `vaultCredentialPlugin` serves that port as `modelCredential` for the life of its fiber.
 import type { Context } from '@deepseek-ai/cordis'
 import { decodeProviderName, type ProviderName } from '@omne-harness/model-contract'
 import type { CredentialPort } from '@omne-harness/model-contract/provider'
@@ -17,10 +12,8 @@ export function providerName(text: string): ProviderName {
   return decoded.ok
 }
 
-/** The one credential item of the test providers, as the OpenRouter body declares it. */
 export const CREDENTIAL_ITEM = 'apiKey'
 
-/** The binding key of one item of a provider in one scope. The tests own this key shape. */
 export function testKeyOf(provider: string) {
   return (scope: SecretScope, item: string): SecretBindingKey => ({
     scope,
@@ -31,10 +24,6 @@ export function testKeyOf(provider: string) {
 
 export type TestCredentials<P> = Readonly<{ port: CredentialPort<P>; close(): void }>
 
-/**
- * A vault at `path` whose official layer holds `secret` for each provider, and the port over it.
- * Each provider declares the one item `apiKey` and is held by the release.
- */
 export function createTestCredentials<P = unknown>(
   input: Readonly<{ path: string; secret: string; providers: readonly string[] }>,
 ): TestCredentials<P> {
@@ -62,10 +51,6 @@ export function createTestCredentials<P = unknown>(
   return { port, close: () => vault.close() }
 }
 
-/**
- * A plugin that serves the test credentials of `openrouter` as `modelCredential`: a vault at
- * `path` whose official layer holds `secret`. The vault closes with the plugin fiber.
- */
 export function vaultCredentialPlugin(path: string, secret: string) {
   return {
     name: 'test-credential',

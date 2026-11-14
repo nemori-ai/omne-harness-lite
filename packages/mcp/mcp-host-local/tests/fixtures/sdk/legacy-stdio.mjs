@@ -1,6 +1,3 @@
-// A peer that speaks only the 2025 revisions: an SDK `McpServer` connected to a
-// `StdioServerTransport` by hand. It answers `server/discover` with -32601 (method not found),
-// so a transport must fall back to `initialize`.
 import { McpServer } from '@modelcontextprotocol/server'
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio'
 import { z } from 'zod'

@@ -1,13 +1,3 @@
-// 审讯页。结构图是 React Flow 岛（src/report/flow/metrics/）：层是横向的列、组是层内容器、成员是卡片，
-// 几何与画哪些线由该目录的纯函数算出，本文件留明细、悬停清单与选择状态。
-// 做法取自 Robert C. Martin 的 uml-viewer 与它的前身 arch-view（按其逻辑重写，不搬原文）：
-// - 默认不逐条画连线，只在卡片上标入/出、悬停时列出捆在一起的「从 → 到」，违规排前并标红：
-//   uml-viewer 的 triangles 模式（application/hit.clj:28-77、engine/draw.clj:373-402）。
-//   画线的取舍见 flow/edges.ts。
-// - 评分到颜色：评分不超过 5 时在「差 → 中」之间取色，否则在「中 → 好」之间取色（draw.clj:34-48），
-//   见 flow/structure.tsx 的 toneOf；覆盖率单元格的取色见 flow/function-table.tsx（draw.clj:61-66）。
-// 表单控件、函数表与折叠区由 antd 渲染（src/report/flow/architecture/controls.tsx），本文件的脚本经句柄读写。
-// - 端点没有框的边跳过（提交 2f532e27）；成员名只显示最后一段（提交 70fffa0c）。
 import type { Report } from '../metrics/report.ts'
 import type { ArchitectureView } from '../arch/view.ts'
 import { architectureMarkup, architectureScript } from './architecture-render.ts'
@@ -23,7 +13,6 @@ export interface PageContext {
   readonly baseRef?: string
   readonly generatedAt: string
   readonly summary: readonly string[]
-  /** 未选中成员时，变更触及的边不超过这个数才逐条画出。 */
   readonly changedEdgeLimit: number
 }
 
@@ -31,7 +20,6 @@ function embed(value: unknown): string {
   return JSON.stringify(value).replaceAll('<', '\\u003c').replaceAll('\u2028', '\\u2028')
 }
 
-/** 审讯页的样式；流程体检页（`src/loop/health-render.ts`）沿用同一套，风格一致。 */
 export const STYLE = `
 /* 设计 token：底色、墨色、线色与圆角阶、控件高度。风险三色、变更蓝、例外橙是数据编码，色相不随界面调整。 */
 :root { color-scheme:light;
@@ -280,7 +268,6 @@ else renderDetail()
 mountFlow()
 `
 
-/** 自包含、离线可开的审讯页：数据内联，无外部资源。 */
 export function renderPage(
   report: Report,
   context: PageContext,

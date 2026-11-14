@@ -1,6 +1,3 @@
-// The three HITL commands (SPEC「HITL 命令」): list the cards, read one card and reply to it, each
-// through one operation of the HITL location. The tenant of the request is `--tenant`, else the
-// tenant of the login. The card reference is built from that tenant, `--request` and `--card`.
 import {
   createHitlClient,
   tenantText,
@@ -42,7 +39,6 @@ interface HitlCommand {
   readonly accepted: readonly string[]
   readonly required: readonly string[]
   readonly switches?: readonly string[]
-  /** Builds the request from the option values; `undefined` is an unrecognized argument. */
   readonly build: (values: Option, context: Context) => Built | undefined
 }
 
@@ -77,7 +73,6 @@ async function runHitl(
   return report(name, result, built.echo, output)
 }
 
-/** The card reference of `--request` and `--card` in the tenant of the request. */
 function cardOf(values: Option, tenant: TenantId) {
   return {
     request: { tenantRef: tenantText(tenant), requestId: values.get('--request') ?? '' },
@@ -93,7 +88,6 @@ const listCards: HitlCommand = {
     const wanted = values.get('--state') ?? 'pending'
     const limitText = values.get('--limit') ?? String(DEFAULT_LIMIT)
     const limit = Number(limitText)
-    // `Number` reads `07` as 7, so the text form of the limit is checked here.
     if (!DECIMAL.test(limitText)) return undefined
     const session = values.get('--session')
     return {
@@ -104,7 +98,6 @@ const listCards: HitlCommand = {
         proof: proofOf(state),
         body: {
           tenant,
-          // With a session this is the session entry; without one it is the pool.
           filter: {
             states: [wanted as HitlCardState],
             ...(session === undefined ? {} : { sessionRef: session }),
@@ -134,7 +127,6 @@ const readCard: HitlCommand = {
   }),
 }
 
-/** Exactly one of `--option`, `--text` and `--decline`; `undefined` for none or more than one. */
 function replyOf(values: Option): HitlReply | undefined {
   const option = values.get('--option')
   const text = values.get('--text')
@@ -161,12 +153,9 @@ const submitReply: HitlCommand = {
   required: ['--request', '--card', '--revision'],
   switches: ['--decline'],
   build: (values, { messageId, state, tenant, newId }) => {
-    // The state, the revision and the limit bounds are checked by the SDK against the contract:
-    // a value it refuses is a usage error, and nothing is sent.
     const reply = replyOf(values)
     const revision = values.get('--revision') ?? ''
     if (reply === undefined) return undefined
-    // A retry of the same reply must pass the original `--reply-id`; a new one is a new reply.
     const replyId = values.get('--reply-id') ?? newId()
     return {
       request: {
@@ -186,7 +175,6 @@ const run =
   (args, output, environment) =>
     runHitl(command, args, output, environment)
 
-/** The HITL commands, in the order the help lists them. */
 export const hitlCommands: readonly CommandSpec[] = [
   {
     name: 'list-cards',

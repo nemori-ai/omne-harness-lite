@@ -1,5 +1,4 @@
 import { z } from 'zod'
-// Real IdentitySql and SQLite exercise revocation against the HITL destination.
 import { OperationRefSchema } from '@omne-harness/human-intervention'
 import { afterEach, expect, it } from 'vitest'
 import {
@@ -278,7 +277,6 @@ it('keeps revocation pending while the destination is offline, then resumes by s
   expect(await pending).toMatchObject({ kind: 'conflict', reason: 'operation-sealed' })
 })
 
-/** A second service over the same storage, with one part of the world replaced. */
 function serviceOf(
   w: Awaited<ReturnType<typeof open>>,
   change: Readonly<{ options?: object; identity?: object }> = {},
@@ -409,7 +407,6 @@ it('refuses a required qualification that Identity does not name', async () => {
   )
 })
 
-/** The reservation Identity holds for the registration of the world, with some fields changed. */
 function reservationOf(
   w: Awaited<ReturnType<typeof open>>,
   change: Readonly<Record<string, string>> = {},

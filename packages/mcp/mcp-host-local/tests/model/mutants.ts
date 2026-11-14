@@ -1,13 +1,4 @@
-// The negative controls of the explorer, of the line cases and of the cases on real wires: one
-// defect each, put into `src/` as a text replacement, that the named case must catch. `mutate.ts`
-// applies one, runs the case, and restores the source byte for byte. Each entry names the
-// property or clause it proves can go red and the signature (explorer) or case (vitest) expected
-// to show it. A defect listed here with more than one replacement needs every one of them: the
-// property is held at more than one place. A slow-tier case imports the package through `dist`:
-// `mutate.ts` builds the package for it.
-
 export type Replacement = Readonly<{
-  /** The exact text to replace; it must occur `occurrences` times (default 1) in the file. */
   find: string
   replace: string
   occurrences?: number
@@ -15,19 +6,13 @@ export type Replacement = Readonly<{
 
 export type Mutant = Readonly<{
   name: string
-  /** The property or clause the defect breaks. */
   breaks: string
-  /** What the defect is, in one sentence. */
   defect: string
   file: 'src/session.ts' | 'src/stdio-line.ts' | 'src/http-line.ts'
   replacements: readonly Replacement[]
-  /** The spec file to run, relative to the package root. */
   spec: string
-  /** The vitest tier the case lives in. */
   mode: 'fast' | 'slow'
-  /** The `-t` filter that selects the case. */
   filter: string
-  /** The text the red run must show: a violation signature, or the failing assertion. */
   expect: string
 }>
 

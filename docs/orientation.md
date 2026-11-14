@@ -165,8 +165,8 @@ Session 与 Model、Tool 之间只画了禁止线，没有源码依赖线。结�
 - 九条方向约束：[constraints.json](architecture/constraints.json) 的 `directions`，范围与未覆盖见[现有成员与工具适配](package-organization.md#现有成员与工具适配)。本图只画核心四项之间的七条；public-contract、sdk 与公共流契约到 Model、Tool 的两条（`DIR-ACCESS-MODEL`、`DIR-ACCESS-TOOL`）不在本图。
 - 集成方认识被集成方：[系统分层](architecture/layers-and-dependencies.md#领域语义依赖与模型边界)「领域语义依赖与模型边界」。
 - Session 与 Model、Tool 的关系：[会话与工作](domains/sessions-and-work/README.md#协作与依赖)「协作与依赖」。
-- 服务键名与 Agent 到 Session 的运行时关系：[应用装配](architecture/runtime/application-assembly.md#插件树)「插件树」；`toolEnvironments` 见 [Tool 的 Cordis 说明](../packages/tool/tool-cordis-contract/docs/cordis.md)。
-- `ConsumerRef`：[Model 契约](../packages/model/model-contract/SPEC.md)中 `ConsumerRef` 是消费者拥有者登记的稳定引用的一段；[Tool 契约](../packages/tool/tool-contract/SPEC.md)。
+- 服务键名与 Agent 到 Session 的运行时关系：[应用装配](architecture/runtime/application-assembly.md#插件树)「插件树」；`toolEnvironments` 见 [Tool 的 Cordis 说明](../packages/tool/SPEC.md#总体架构)。
+- `ConsumerRef`：[Model 规格](../packages/model/SPEC.md#受理与调用身份)中 `ConsumerRef` 是消费者拥有者登记的稳定引用的一段；[Tool 契约](../packages/tool/SPEC.md)。
 - K-04：[Session 契约的被替代的协议](../packages/session/session-contract/SPEC.md#被替代的协议)。
 - K-05：[session-adapters 规格](../packages/session/session-adapters/SPEC.md#ad-05)「AD-05 Model 消费适配」及其插件表中的 AD-05 行。
 - 核对于 `f36d8f8eb`（#943 的正文头，随 PR #963 合入）。
@@ -222,7 +222,7 @@ flowchart LR
 | 状态 | 元素 |
 | --- | --- |
 | 已接受正文 | 图中全部元素与关系 |
-| 已接受正文，成员未建 | 客户端装配、领域的界面模块、领域的协议契约、领域的接入插件。现有实现里，各领域的线上形状在公开契约、处理代码在服务端入口、SDK 为每个位置手写一个客户端，差别见[系统分层](architecture/layers-and-dependencies.md#现行偏离)「现行偏离」 |
+| 已接受正文，成员未建 | 客户端装配、领域的界面模块、领域的协议契约、领域的接入插件。现有实现里，各领域的线上形状在公开契约、处理代码在服务端入口、SDK 为每个位置手写一个客户端 |
 | 首条路径已装载 | 图中不标。插件树装载的成员包括：服务端接入适配中的 `server-entry`；基础设施与 Cordis 适配中由 `agent-host`、`model-host`、`tool-runtime`、`tool-executor`、`tool-host`、`execution-environment`、`execution-files`、`execution-host-files`、`storage`、`session-storage` 与 `session-ad*` 各行装载的成员；服务端能力的公开接口中这些行所依赖的各契约成员。全部装载行见[插件树](architecture/runtime/application-assembly.md#插件树) |
 | 已知冲突待裁 | 无 |
 | 已裁定待写回 | 无 |

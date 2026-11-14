@@ -65,7 +65,7 @@
 下列已有规则各是这个方法的一个实例：
 
 - 被集成方只用自己的词声明供什么、要什么，不知道被谁集成，见[外域概念的进入方式](../../../docs/architecture/layers-and-dependencies.md#外域概念的进入方式)。
-- 横切策略采用可配置的策略对象，默认值只是配置初值，见[公开能力、策略与观测](../../../docs/engineering/quality.md#公开能力策略与观测)。
+- 横切策略采用可配置的策略对象，默认值只是配置初值，见[横切策略](../../../docs/architecture/cross-cutting-concepts.md#横切策略)。
 - 设置有效、资产可用、操作获准分别判断，见[资产与规则的范围与边界](../../../docs/domains/assets-and-rules/README.md#范围与边界)。
 - 工作区参与内容和设置供给，不成为权限授予层，见[配置的来源与生效](../../../docs/architecture/cross-cutting-concepts.md#配置的来源与生效)。
 - 组合保证由组合承担者承担，见[组合保证由谁承担](../../../docs/architecture/structure.md#组合保证由谁承担)。

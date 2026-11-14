@@ -54,22 +54,22 @@
     {
       "id": "calendar",
       "label": "日历",
-      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+      "source": "packages/calendar/SPEC.md"
     },
     {
       "id": "schedule",
       "label": "日程与 Job",
-      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+      "source": "packages/schedule/SPEC.md"
     },
     {
       "id": "skills",
       "label": "Skill 方法取用",
-      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+      "source": "packages/skills/SPEC.md"
     },
     {
       "id": "mcp",
       "label": "MCP 接入",
-      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+      "source": "packages/mcp/SPEC.md"
     }
   ],
   "roles": [
@@ -319,7 +319,7 @@
       "layer": "contract",
       "domains": ["agent"],
       "status": "adopted",
-      "source": "packages/agent/agent-contract/SPEC.md"
+      "source": "packages/agent/SPEC.md"
     },
     {
       "id": "packages/agent/agent-cordis-contract",
@@ -327,7 +327,7 @@
       "layer": "unknown",
       "domains": ["agent"],
       "status": "candidate",
-      "source": "packages/agent/agent-cordis-contract/SPEC.md"
+      "source": "packages/agent/SPEC.md"
     },
     {
       "id": "packages/model/model-contract",
@@ -335,7 +335,7 @@
       "layer": "contract",
       "domains": ["model"],
       "status": "adopted",
-      "source": "packages/model/model-contract/SPEC.md"
+      "source": "packages/model/SPEC.md"
     },
     {
       "id": "packages/model/model-cordis-contract",
@@ -343,7 +343,7 @@
       "layer": "unknown",
       "domains": ["model"],
       "status": "candidate",
-      "source": "packages/model/model-cordis-contract/SPEC.md"
+      "source": "packages/model/SPEC.md"
     },
     {
       "id": "packages/tool/tool-contract",
@@ -351,7 +351,7 @@
       "layer": "contract",
       "domains": ["tool"],
       "status": "adopted",
-      "source": "packages/tool/tool-contract/SPEC.md"
+      "source": "packages/tool/SPEC.md"
     },
     {
       "id": "packages/tool/tool-cordis-contract",
@@ -359,7 +359,7 @@
       "layer": "unknown",
       "domains": ["tool"],
       "status": "candidate",
-      "source": "packages/tool/tool-cordis-contract/SPEC.md"
+      "source": "packages/tool/SPEC.md"
     },
     {
       "id": "packages/session/session-contract",
@@ -383,7 +383,7 @@
       "layer": "assembly",
       "domains": ["agent"],
       "status": "adopted",
-      "source": "packages/agent/agent-host-local/SPEC.md"
+      "source": "packages/agent/SPEC.md"
     },
     {
       "id": "packages/session/session-cordis",
@@ -439,7 +439,7 @@
       "layer": "contract",
       "domains": ["assets"],
       "status": "candidate",
-      "source": "packages/assets/assets-protocol/SPEC.md"
+      "source": "packages/assets/SPEC.md"
     },
     {
       "id": "packages/assets/assets-access",
@@ -447,7 +447,7 @@
       "layer": "unknown",
       "domains": ["assets"],
       "status": "candidate",
-      "source": "packages/assets/assets-access/SPEC.md"
+      "source": "packages/assets/SPEC.md"
     },
     {
       "id": "packages/assets/assets-ui",
@@ -455,7 +455,7 @@
       "layer": "unknown",
       "domains": ["assets"],
       "status": "candidate",
-      "source": "packages/assets/assets-ui/SPEC.md"
+      "source": "packages/assets/SPEC.md"
     },
     {
       "id": "packages/common/stream-arrival",
@@ -463,7 +463,7 @@
       "layer": "contract",
       "domains": [],
       "status": "adopted",
-      "source": "packages/common/stream-arrival/README.md"
+      "source": "packages/common/SPEC.md"
     },
     {
       "id": "packages/access/access-cordis-contract",
@@ -471,7 +471,7 @@
       "layer": "unknown",
       "domains": [],
       "status": "candidate",
-      "source": "packages/access/access-cordis-contract/SPEC.md"
+      "source": "packages/access/SPEC.md"
     },
     {
       "id": "packages/access/client-assembly",
@@ -479,7 +479,7 @@
       "layer": "interaction",
       "domains": [],
       "status": "candidate",
-      "source": "packages/access/client-assembly/SPEC.md"
+      "source": "packages/access/SPEC.md"
     },
     {
       "id": "packages/access/public-contract",
@@ -487,7 +487,7 @@
       "layer": "contract",
       "domains": [],
       "status": "adopted",
-      "source": "packages/access/public-contract/SPEC.md"
+      "source": "packages/access/SPEC.md"
     },
     {
       "id": "packages/identity/identity-protocol",
@@ -495,7 +495,7 @@
       "layer": "contract",
       "domains": ["identity"],
       "status": "adopted",
-      "source": "packages/identity/identity-protocol/SPEC.md"
+      "source": "packages/identity/SPEC.md"
     },
     {
       "id": "packages/identity/authorization",
@@ -503,7 +503,7 @@
       "layer": "unknown",
       "domains": ["identity"],
       "status": "adopted",
-      "source": "packages/identity/authorization/SPEC.md"
+      "source": "packages/identity/SPEC.md"
     },
     {
       "id": "packages/identity/identity",
@@ -511,7 +511,7 @@
       "layer": "unknown",
       "domains": ["identity"],
       "status": "adopted",
-      "source": "packages/identity/identity/SPEC.md"
+      "source": "packages/identity/SPEC.md"
     },
     {
       "id": "packages/identity/identity-sql",
@@ -519,7 +519,7 @@
       "layer": "unknown",
       "domains": ["identity"],
       "status": "adopted",
-      "source": "packages/identity/identity-sql/SPEC.md"
+      "source": "packages/identity/SPEC.md"
     },
     {
       "id": "packages/session/session",
@@ -543,7 +543,7 @@
       "layer": "interaction",
       "domains": [],
       "status": "candidate",
-      "source": "packages/access/sdk/SPEC.md"
+      "source": "packages/access/SPEC.md"
     },
     {
       "id": "packages/access/server-entry",
@@ -551,7 +551,7 @@
       "layer": "interaction",
       "domains": [],
       "status": "candidate",
-      "source": "packages/access/server-entry/SPEC.md"
+      "source": "packages/access/SPEC.md"
     },
     {
       "id": "packages/calendar/calendar-contract",
@@ -559,7 +559,7 @@
       "layer": "contract",
       "domains": ["calendar"],
       "status": "adopted",
-      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+      "source": "packages/calendar/SPEC.md"
     },
     {
       "id": "packages/calendar/calendar-cordis-contract",
@@ -567,7 +567,7 @@
       "layer": "unknown",
       "domains": ["calendar"],
       "status": "candidate",
-      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+      "source": "packages/calendar/SPEC.md"
     },
     {
       "id": "packages/calendar/calendar",
@@ -575,7 +575,7 @@
       "layer": "unknown",
       "domains": ["calendar"],
       "status": "candidate",
-      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+      "source": "packages/calendar/SPEC.md"
     },
     {
       "id": "packages/calendar/calendar-local",
@@ -583,7 +583,7 @@
       "layer": "assembly",
       "domains": ["calendar"],
       "status": "adopted",
-      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+      "source": "packages/calendar/SPEC.md"
     },
     {
       "id": "packages/calendar/calendar-tools",
@@ -591,7 +591,7 @@
       "layer": "interaction",
       "domains": ["calendar"],
       "status": "adopted",
-      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+      "source": "packages/calendar/SPEC.md"
     },
     {
       "id": "packages/schedule/schedule-contract",
@@ -599,7 +599,7 @@
       "layer": "contract",
       "domains": ["schedule"],
       "status": "adopted",
-      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+      "source": "packages/schedule/SPEC.md"
     },
     {
       "id": "packages/schedule/schedule-cordis-contract",
@@ -607,7 +607,7 @@
       "layer": "unknown",
       "domains": ["schedule"],
       "status": "candidate",
-      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+      "source": "packages/schedule/SPEC.md"
     },
     {
       "id": "packages/schedule/schedule",
@@ -615,7 +615,7 @@
       "layer": "unknown",
       "domains": ["schedule"],
       "status": "candidate",
-      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+      "source": "packages/schedule/SPEC.md"
     },
     {
       "id": "packages/schedule/schedule-local",
@@ -623,7 +623,7 @@
       "layer": "assembly",
       "domains": ["schedule"],
       "status": "adopted",
-      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+      "source": "packages/schedule/SPEC.md"
     },
     {
       "id": "packages/schedule/schedule-tools",
@@ -631,7 +631,7 @@
       "layer": "interaction",
       "domains": ["schedule"],
       "status": "adopted",
-      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+      "source": "packages/schedule/SPEC.md"
     },
     {
       "id": "packages/skills/skill-contract",
@@ -639,7 +639,7 @@
       "layer": "contract",
       "domains": ["skills"],
       "status": "adopted",
-      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+      "source": "packages/skills/SPEC.md"
     },
     {
       "id": "packages/skills/skill-cordis-contract",
@@ -647,7 +647,7 @@
       "layer": "unknown",
       "domains": ["skills"],
       "status": "candidate",
-      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+      "source": "packages/skills/SPEC.md"
     },
     {
       "id": "packages/skills/skill",
@@ -655,7 +655,7 @@
       "layer": "unknown",
       "domains": ["skills"],
       "status": "candidate",
-      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+      "source": "packages/skills/SPEC.md"
     },
     {
       "id": "packages/skills/skill-host-local",
@@ -663,7 +663,7 @@
       "layer": "assembly",
       "domains": ["skills"],
       "status": "adopted",
-      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+      "source": "packages/skills/SPEC.md"
     },
     {
       "id": "packages/mcp/mcp-contract",
@@ -671,7 +671,7 @@
       "layer": "contract",
       "domains": ["mcp"],
       "status": "adopted",
-      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+      "source": "packages/mcp/SPEC.md"
     },
     {
       "id": "packages/mcp/mcp-cordis-contract",
@@ -679,7 +679,7 @@
       "layer": "unknown",
       "domains": ["mcp"],
       "status": "candidate",
-      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+      "source": "packages/mcp/SPEC.md"
     },
     {
       "id": "packages/mcp/mcp",
@@ -687,7 +687,7 @@
       "layer": "unknown",
       "domains": ["mcp"],
       "status": "candidate",
-      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+      "source": "packages/mcp/SPEC.md"
     },
     {
       "id": "packages/mcp/mcp-host-local",
@@ -695,7 +695,7 @@
       "layer": "assembly",
       "domains": ["mcp"],
       "status": "adopted",
-      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+      "source": "packages/mcp/SPEC.md"
     }
   ],
   "rules": [
@@ -749,43 +749,43 @@
       "id": "DIR-AGENT-SESSION",
       "from": ["packages/agent/agent-contract", "packages/agent/agent-cordis-contract"],
       "to": ["packages/session/session-contract", "packages/session/session-cordis-contract"],
-      "source": "docs/package-organization.md#依赖方向与cordis集成"
+      "source": "docs/architecture/layers-and-dependencies.md#依赖方向与cordis集成"
     },
     {
       "id": "DIR-MODEL-SESSION",
       "from": ["packages/model/model-contract", "packages/model/model-cordis-contract"],
       "to": ["packages/session/session-contract", "packages/session/session-cordis-contract"],
-      "source": "docs/package-organization.md#依赖方向与cordis集成"
+      "source": "docs/architecture/layers-and-dependencies.md#依赖方向与cordis集成"
     },
     {
       "id": "DIR-TOOL-SESSION",
       "from": ["packages/tool/tool-contract", "packages/tool/tool-cordis-contract"],
       "to": ["packages/session/session-contract", "packages/session/session-cordis-contract"],
-      "source": "docs/package-organization.md#依赖方向与cordis集成"
+      "source": "docs/architecture/layers-and-dependencies.md#依赖方向与cordis集成"
     },
     {
       "id": "DIR-MODEL-AGENT",
       "from": ["packages/model/model-contract", "packages/model/model-cordis-contract"],
       "to": ["packages/agent/agent-contract", "packages/agent/agent-cordis-contract"],
-      "source": "docs/package-organization.md#依赖方向与cordis集成"
+      "source": "docs/architecture/layers-and-dependencies.md#依赖方向与cordis集成"
     },
     {
       "id": "DIR-TOOL-AGENT",
       "from": ["packages/tool/tool-contract", "packages/tool/tool-cordis-contract"],
       "to": ["packages/agent/agent-contract", "packages/agent/agent-cordis-contract"],
-      "source": "docs/package-organization.md#依赖方向与cordis集成"
+      "source": "docs/architecture/layers-and-dependencies.md#依赖方向与cordis集成"
     },
     {
       "id": "DIR-SESSION-MODEL",
       "from": ["packages/session/session-contract", "packages/session/session-cordis-contract"],
       "to": ["packages/model/model-contract", "packages/model/model-cordis-contract"],
-      "source": "docs/package-organization.md#依赖方向与cordis集成"
+      "source": "docs/architecture/layers-and-dependencies.md#依赖方向与cordis集成"
     },
     {
       "id": "DIR-SESSION-TOOL",
       "from": ["packages/session/session-contract", "packages/session/session-cordis-contract"],
       "to": ["packages/tool/tool-contract", "packages/tool/tool-cordis-contract"],
-      "source": "docs/package-organization.md#依赖方向与cordis集成"
+      "source": "docs/architecture/layers-and-dependencies.md#依赖方向与cordis集成"
     },
     {
       "id": "DIR-SESSION-OBSERVATION-ACCESS",
@@ -796,7 +796,7 @@
         "packages/access/sdk",
         "packages/access/server-entry"
       ],
-      "source": "docs/rfcs/RFC-0015-access-dynamic-registration.md#会话观察"
+      "source": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向"
     },
     {
       "id": "DIR-SESSION-UI-SERVER",
@@ -811,7 +811,7 @@
         "packages/session/session-cordis",
         "packages/session/session-storage-sql"
       ],
-      "source": "docs/rfcs/RFC-0015-access-dynamic-registration.md#四部分界面"
+      "source": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向"
     },
     {
       "id": "DIR-ACCESS-MODEL",
@@ -822,7 +822,7 @@
         "packages/common/stream-arrival"
       ],
       "to": ["packages/model/model-contract", "packages/model/model-cordis-contract"],
-      "source": "docs/package-organization.md#依赖方向与cordis集成"
+      "source": "docs/architecture/layers-and-dependencies.md#依赖方向与cordis集成"
     },
     {
       "id": "DIR-ACCESS-TOOL",
@@ -833,7 +833,7 @@
         "packages/common/stream-arrival"
       ],
       "to": ["packages/tool/tool-contract", "packages/tool/tool-cordis-contract"],
-      "source": "docs/package-organization.md#依赖方向与cordis集成"
+      "source": "docs/architecture/layers-and-dependencies.md#依赖方向与cordis集成"
     },
     {
       "id": "DIR-CALENDAR-PURE",
@@ -843,7 +843,7 @@
         "packages/calendar/calendar-local",
         "packages/calendar/calendar-tools"
       ],
-      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+      "source": "packages/calendar/SPEC.md"
     },
     {
       "id": "DIR-CALENDAR-DEFINITION",
@@ -853,13 +853,13 @@
         "packages/calendar/calendar-local",
         "packages/calendar/calendar-tools"
       ],
-      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+      "source": "packages/calendar/SPEC.md"
     },
     {
       "id": "DIR-CALENDAR-TOOLS",
       "from": ["packages/calendar/calendar-tools"],
       "to": ["packages/calendar/calendar", "packages/calendar/calendar-local"],
-      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+      "source": "packages/calendar/SPEC.md"
     },
     {
       "id": "DIR-SCHEDULE-PURE",
@@ -869,7 +869,7 @@
         "packages/schedule/schedule-local",
         "packages/schedule/schedule-tools"
       ],
-      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+      "source": "packages/schedule/SPEC.md"
     },
     {
       "id": "DIR-SCHEDULE-DEFINITION",
@@ -879,37 +879,37 @@
         "packages/schedule/schedule-local",
         "packages/schedule/schedule-tools"
       ],
-      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+      "source": "packages/schedule/SPEC.md"
     },
     {
       "id": "DIR-SCHEDULE-TOOLS",
       "from": ["packages/schedule/schedule-tools"],
       "to": ["packages/schedule/schedule", "packages/schedule/schedule-local"],
-      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+      "source": "packages/schedule/SPEC.md"
     },
     {
       "id": "DIR-SKILL-PURE",
       "from": ["packages/skills/skill-contract", "packages/skills/skill"],
       "to": ["packages/skills/skill-cordis-contract", "packages/skills/skill-host-local"],
-      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+      "source": "packages/skills/SPEC.md"
     },
     {
       "id": "DIR-SKILL-DEFINITION",
       "from": ["packages/skills/skill-cordis-contract"],
       "to": ["packages/skills/skill", "packages/skills/skill-host-local"],
-      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+      "source": "packages/skills/SPEC.md"
     },
     {
       "id": "DIR-MCP-PURE",
       "from": ["packages/mcp/mcp-contract", "packages/mcp/mcp"],
       "to": ["packages/mcp/mcp-cordis-contract", "packages/mcp/mcp-host-local"],
-      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+      "source": "packages/mcp/SPEC.md"
     },
     {
       "id": "DIR-MCP-DEFINITION",
       "from": ["packages/mcp/mcp-cordis-contract"],
       "to": ["packages/mcp/mcp", "packages/mcp/mcp-host-local"],
-      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+      "source": "packages/mcp/SPEC.md"
     }
   ]
 }

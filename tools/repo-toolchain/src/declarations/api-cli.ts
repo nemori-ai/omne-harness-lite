@@ -1,9 +1,4 @@
 #!/usr/bin/env node
-// 契约 API 快照入口：`--write` 写快照，`--check` 核对快照与 dist，`--diff <基线>` 对比基线提交上的快照并粗分类。
-// `--baseline-write <提交>` 生成里程碑基线的机读区块，`--baseline <文件>` 逐成员按登记的提交核对。
-// `--check` 与 `--diff` 只报告，有发现也退出 0；`--write` 有成员没写成时退出 1；`--baseline` 有判不了的成员，
-// 或有 review 而没有 breakingCards 时退出 1；用法、配置、基线或工具出错退出 2。
-// `--write` 与 `--check` 读 dist：先构建。`--json` 把结果按 JSON 写到标准输出。
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { subjectRoot } from '../core/subject.ts'
@@ -55,7 +50,6 @@ function choose(parsed: Arguments, action: Action): void {
   parsed.action = action
 }
 
-/** 读一个参数，返回它占了几个位置。 */
 function readFlag(argv: readonly string[], index: number, parsed: Arguments): number {
   const flag = argv[index]
   switch (flag) {

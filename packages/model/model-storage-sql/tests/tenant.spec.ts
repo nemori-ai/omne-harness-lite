@@ -1,7 +1,3 @@
-// Tenant isolation (M4-4): a caller of tenant B that names a call of tenant A gets the same answer
-// as for a call that does not exist, and the writes of one tenant leave the rows of the other as
-// they were. Both tenants share one transaction domain here, so a statement that loses its tenant
-// condition meets the rows of the other tenant and the answers differ.
 import { describe, expect, it } from 'vitest'
 import { decodeDispatchId, type ModelBlock, type VisibleBlock } from '@omne-harness/model-contract'
 import type { ModelCommands } from '@omne-harness/model-contract/provider'
@@ -30,7 +26,6 @@ const B = tenantOf('b')
 const CALL = callId('shared')
 const ADMISSION = opId('a-admit')
 
-/** Every answer that B gets for `CALL` through the read methods and one write method. */
 async function answersOfB(
   commands: ModelCommands<Principal>,
   principal: Principal,
@@ -42,7 +37,6 @@ async function answersOfB(
     loadRecovery: await commands.loadRecovery(access),
     dispatches: await commands.dispatches(access),
     scanPending: await commands.scanPending({ principal, tenant: B, after: null, limit: 2 }),
-    // A write of B under the operation that A bound: B must not read the binding of A.
     control: await commands.control({ ...access, operation: ADMISSION }),
   }
 }
@@ -111,9 +105,6 @@ describe('another tenant through the commands', () => {
   })
 })
 
-// --- Writes ----------------------------------------------------------------------------------
-
-/** The SQL storage over the provider of `subject`, as the commands of `subject` use it. */
 function storageOf(subject: ReturnType<typeof setup>): SqlModelStorage {
   return createSqlModelStorage({
     storage: subject.sqlite.storage,
@@ -164,7 +155,6 @@ function dispatchOf(blocks: readonly VisibleBlock[]): DispatchDocument {
   }
 }
 
-/** One write of the stored document of `CALL` for `tenant`, the way the core makes it. */
 function edit(
   store: SqlModelStorage,
   tenant: string,
@@ -196,7 +186,6 @@ function edit(
   )
 }
 
-/** Tenants A and B each admit a call of the same identity in the shared domain. */
 async function bothAdmitted() {
   const subject = setup()
   for (const tenant of [A, B]) {

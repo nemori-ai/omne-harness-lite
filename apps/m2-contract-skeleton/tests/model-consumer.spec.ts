@@ -18,7 +18,6 @@ describe('public Model conformance consumer', () => {
       state: 'verified',
       blockedBy: [],
     })
-    // The probed hops of CS v2 stay gaps on this track, so the whole path is incomplete.
     expect(report.checksPassed).toBe(false)
     expect(report.fullPath).toBe('incomplete')
   })
@@ -56,7 +55,6 @@ describe('public Model conformance consumer', () => {
     ).toBe(false)
   })
 
-  // The subject factory intentionally exceeds a real 20 ms wait.
   it(
     'keeps factory exceptions and timeouts visible and continues other checks',
     { tags: ['slow'] },

@@ -1,9 +1,3 @@
-// The identities and evidence that the coordinator mints. Every one is derived from stable parts of
-// the execution (its identity, a step, a node, the revision that the write follows), never from a
-// random value, a clock or a returned value, so the same frame and transition give the same
-// identity (docs/architecture/mechanisms.md "操作身份的确定派生"). The exact encoding is this
-// implementation's; a digest stands in for the execution identity where a Model identity allows
-// only `[A-Za-z0-9_-]`.
 import { createHash } from 'node:crypto'
 import {
   decodeActionId,
@@ -41,10 +35,6 @@ import type { Outcome } from '@omne-harness/operation-result'
 
 export const AGENT_OWNER = '@omne-harness/agent'
 
-/**
- * The value of a decoder that cannot refuse: every text below is built inside the lexicon of its
- * identity. A refusal is a defect of this module, so it throws and the coordinator stops on it.
- */
 function minted<T>(outcome: Outcome<T, unknown>, text: string): T {
   if ('failure' in outcome) throw new Error(`minted identity ${text} was refused`)
   return outcome.ok
@@ -56,13 +46,6 @@ function digest(text: string): string {
 
 const STEP = /^step-(0|[1-9][0-9]*)$/u
 
-/**
- * The execution that a consumer position of this coordinator names. The coordinator registers its
- * Model consumer under `AGENT_OWNER` with `work` = `<execution>/<step>` (the main position of
- * `coordinator.ts`); this reads it back. The result receiver uses it only as the route of its
- * target query: the target it acts on is the committed binding the provider answers with. Null for
- * a position of another owner or of another shape.
- */
 export function positionExecution(consumer: ConsumerRef): AgentExecutionId | null {
   if (consumer.owner !== AGENT_OWNER) return null
   const at = consumer.work.lastIndexOf('/')
@@ -71,12 +54,6 @@ export function positionExecution(consumer: ConsumerRef): AgentExecutionId | nul
   return 'ok' in execution ? execution.ok : null
 }
 
-/**
- * The execution that a Tool consumer position of this coordinator names. The coordinator registers
- * each action under `AGENT_OWNER` with `work` = `<execution>` and purpose `action` (`toolConsumer`
- * in `tools.ts`). Like `positionExecution`, it is only the route of the target query. Null for a
- * position of another owner, purpose or shape.
- */
 export function actionPositionExecution(consumer: ConsumerRef): AgentExecutionId | null {
   if (consumer.owner !== AGENT_OWNER || consumer.purpose !== 'action') return null
   const execution = decodeAgentExecutionId(consumer.work)
@@ -88,14 +65,12 @@ export function stepOf(ordinal: number): StepId {
   return minted(decodeStepId(text), text)
 }
 
-/** The ordinal of a step that `stepOf` minted; another text is not a step of this coordinator. */
 export function ordinalOf(step: StepId): number {
   const match = STEP.exec(step)
   if (match?.[1] === undefined) throw new Error(`step ${step} was not minted by this coordinator`)
   return Number(match[1])
 }
 
-/** The operation of one Journal write: the node, what it writes and the revision it follows. */
 export function journalOperation(
   node: string,
   what: string,
@@ -105,10 +80,6 @@ export function journalOperation(
   return minted(decodeAgentOperationId(text), text)
 }
 
-/**
- * The internal admission operation H (SPEC "消息准入"): derived from the source kind, the stable
- * source position and the predecessor revision of its P, never from the attachment or a clock.
- */
 export function handoffOperation(
   kind: string,
   position: Readonly<{ step: StepId; node: string; slot: string | null }>,
@@ -119,10 +90,6 @@ export function handoffOperation(
   return minted(decodeAgentOperationId(text), text)
 }
 
-/**
- * The P and the first Ja of one H (SPEC "消息准入": each derives from H and its own fixed stage).
- * A later application attempt after an excluded Ja is #502 stage 5.
- */
 export function handoffStage(
   handoff: AgentOperationId,
   stage: 'prepare' | 'resolve',
@@ -131,11 +98,6 @@ export function handoffStage(
   return minted(decodeAgentOperationId(text), text)
 }
 
-/**
- * The suffix of attempt `attempt` of the main call of a step (SPEC "身份、范围与归属", Model 未知行;
- * R2-D292). Attempt 0 has none, so the identities of a step that was never voided stay as they
- * were. A later attempt follows the voided intents of its step; it is never a retry counter.
- */
 function attemptSuffix(attempt: number, separator: string): string {
   if (!Number.isSafeInteger(attempt) || attempt < 0)
     throw new Error(`attempt ${attempt} is not a count of voided intents`)
@@ -147,32 +109,20 @@ export function mainAction(step: StepId, attempt = 0): ActionId {
   return minted(decodeActionId(text), text)
 }
 
-/**
- * The card round a passage of this coordinator opens with its `ordinal`-th ask, counted from 1.
- * The passage is one this coordinator minted from an action, so the text stays inside the lexicon.
- */
 export function cardRound(passage: PassageId, ordinal: number): CardRoundId {
   const text = `${passage}/round/${ordinal}`
   return minted(decodeCardRoundId(text), text)
 }
 
-/** The identity of the `ordinal`-th card request of a round, counted from 1. */
 export function cardRequestIdentity(round: CardRoundId, ordinal: number): string {
   return `${round}/card/${ordinal}`
 }
 
-/** The complete action batch formed from the admitted main reply of one step. */
 export function mainBatch(step: StepId): ActionBatchId {
   const text = `${step}/actions`
   return minted(decodeActionBatchId(text), text)
 }
 
-/**
- * The consumptions of one execution. Session keeps the call registrations of a session by
- * consumption (session-contract `SessionWorkEntryIndex`: calls are unique by consumption), and a
- * session holds the executions of all its Runs, so a consumption names its execution as well as its
- * step: the same step of two executions is two consumptions.
- */
 function consumptionScope(execution: AgentExecutionId): string {
   return digest(execution).slice(0, 40)
 }
@@ -186,16 +136,13 @@ export function mainConsumption(
   return minted(decodeConsumptionId(text), text)
 }
 
-/** The consumption of the result of one Tool action of the execution. */
 export function toolConsumption(execution: AgentExecutionId, action: ActionId): ConsumptionId {
   const text = `${consumptionScope(execution)}/${action}/result`
   return minted(decodeConsumptionId(text), text)
 }
 
-/**
- * The prefix-free body that stands for one execution, step and attempt in a Model identity. The
- * attempt part `_a<n>` starts with a letter, so it never reads as the ordinal or as `what`.
- */
+// The prefix-free body of one execution, step and attempt in a Model identity. The attempt part
+// `_a<n>` starts with a letter, so it never reads as the ordinal or as `what`.
 function modelBody(execution: AgentExecutionId, step: StepId, attempt = 0): string {
   return `${digest(execution).slice(0, 40)}_${ordinalOf(step)}${attemptSuffix(attempt, '_')}`
 }
@@ -215,16 +162,8 @@ export function modelOperation(
   return minted(decodeModelOperationId(text), text)
 }
 
-/** A message of the history, named through the contract so this package needs no message import. */
 export type Message = LoopFacts['inputs'][number]
 
-/**
- * The saved locator of the main call of one step (model-contract SPEC "可保存调用引用"): the tenant,
- * the call and its admission operation, encoded by the contract before the first admit, so the
- * PendingCall that holds it can be committed before the Model is asked. The call and the admission
- * are minted here (model-contract: the caller mints `ModelCallId`); `attempt` is the number of
- * voided intents of the step, so a voided intent is never admitted again under its identity.
- */
 export function mainInvocation(
   tenant: TenantId,
   execution: AgentExecutionId,
@@ -239,10 +178,6 @@ export function mainInvocation(
   return minted(encodeModelInvocationRef(parts), `${parts.call}/${parts.admission}`)
 }
 
-/**
- * The call and admission that a saved locator names, read back through the contract for the tenant
- * of the execution. The locator was encoded for that tenant, so a refusal is a defect.
- */
 export function invocationParts(
   reference: ModelInvocationRef,
   tenant: TenantId,
@@ -250,15 +185,10 @@ export function invocationParts(
   return minted(resolveModelInvocationRef(reference, tenant), 'the saved Model reference')
 }
 
-/** The message identity of the main reply of one step. */
 export function replyMessageId(execution: AgentExecutionId, step: StepId): Message['id'] {
-  // `msg_` and 40 hex digits, `_`, the ordinal and `_reply`: a body of 22 to 64 characters of
-  // [A-Za-z0-9_-], which is what parseMessageId of @omne-harness/message accepts. The brand has no
-  // runtime value, so naming it is the cast.
   return `msg_${modelBody(execution, step)}_reply` as Message['id']
 }
 
-/** Evidence of a fact that this coordinator records itself, bound to its payload by a digest. */
 export function agentEvidence(record: string, payload: unknown = null): DurableEvidence {
   return {
     owner: AGENT_OWNER,

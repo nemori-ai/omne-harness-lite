@@ -1,6 +1,3 @@
-// Step 9 (#1233 spec 已定 10, C7): the body limit is the operation's, a body over it is
-// protocol-rejected (400) with the connection closed, and the strict read rejects what the
-// contract does not take.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   MESSAGE_ID,
@@ -12,7 +9,6 @@ import {
 } from './support/pipeline-kit.ts'
 
 const REJECTED = '{"outcome":"protocol-rejected","body":{}}'
-/** Over `maxBodyBytes.small` (2048 in the fixture), under `maxBodyBytes.input` (65536). */
 const SIZE = 3000
 
 let fixture: AccessFixture
@@ -25,7 +21,6 @@ afterEach(async () => {
   await fixture.stop()
 })
 
-/** A JSON text of exactly `size` bytes: the fields given, the last one padded. */
 function padded(prefix: string, size: number): string {
   const text = `${prefix}"`
   return `${text}${'x'.repeat(size - text.length - 2)}"}`

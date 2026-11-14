@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-/** 放行波次 R(w) 的先后；`E` 指 M2-E。 */
 export const WAVES = ['A', 'B', 'C', 'D', 'E'] as const
 export type Wave = (typeof WAVES)[number]
 
@@ -11,27 +10,20 @@ export type Category = (typeof CATEGORIES)[number]
 export interface RetireItem {
   readonly id: string
   readonly category: Category
-  /** `./testing` 导出的替身名；没有就为空，由 Reduce 判定后填入。 */
   readonly exports: readonly string[]
-  /** 该替身在刷新所用的提交上是否已存在。 */
   readonly exists: boolean
-  /** 账本算出的退役波；算不出或不退役为 null。 */
   readonly retireWave: Exclude<Wave, 'E'> | null
-  /** 必须已删的放行波次；C 类、none 类与算不出退役波的项为 null。命令不重新推导它。 */
   readonly dueBy: Wave | null
   readonly ownerKind: 'line' | 'reduce' | null
-  /** C 类的留存理由等说明。 */
   readonly note: string
 }
 
 export interface RetireTable {
   readonly source: { readonly file: string; readonly sha256: string; readonly ref: string }
-  /** 刷新导出名所用的提交。 */
   readonly refreshedAt: string
   readonly items: readonly RetireItem[]
 }
 
-/** 退役表缺失、不可解析或字段不合法。命令遇到它退出 2，不输出「无问题」。 */
 export class TableError extends Error {
   override readonly name = 'TableError'
 }
@@ -90,7 +82,6 @@ function parseItem(value: unknown, index: number): RetireItem {
   return { id, category, exports: exportsField, exists, retireWave, dueBy, ownerKind, note }
 }
 
-/** 解析并自检退役表文本；任何一处不合法都抛 TableError。 */
 export function parseRetireTable(text: string): RetireTable {
   let raw: unknown
   try {
@@ -130,7 +121,6 @@ export function readRetireTable(path: string = DEFAULT_TABLE_PATH): RetireTable 
   return parseRetireTable(text)
 }
 
-/** 放行波次 `wave` 时，该项是否已到期。没有 dueBy 的项永不到期。 */
 export function isDue(item: RetireItem, wave: Wave): boolean {
   return item.dueBy !== null && WAVES.indexOf(item.dueBy) <= WAVES.indexOf(wave)
 }

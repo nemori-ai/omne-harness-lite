@@ -47,7 +47,6 @@ async function runAccount(
     required: ['--login-identifier'],
   })
   if (read.kind === 'unrecognized') return usageError(output, unrecognized(name))
-  // `register` never touches the state directory, so it takes no `--home`.
   if (name === 'register' && environment.homeFlag !== undefined)
     return usageError(output, unrecognized(name))
   if (read.kind === 'missing') return usageError(output, missingOption(name, read.option))
@@ -122,20 +121,14 @@ interface SessionCommandBase<Parsed> {
   readonly name: string
   readonly accepted: readonly string[]
   readonly required: readonly string[]
-  /** Checks the values that need no state. Returns `undefined` for a usage error. */
   readonly parse: (values: Option) => Parsed | undefined
 }
 
-/** Creates a session. The tenant that is selected at login is the acting tenant. */
 interface CreatingCommand<Parsed> extends SessionCommandBase<Parsed> {
   readonly kind: 'creating'
   readonly build: (parsed: Parsed, context: SessionContext & { loginTenant: TenantId }) => Built
 }
 
-/**
- * Acts on a session that exists. The owner of a session is fixed when it is created, so the
- * tenant of the request is the owner and never the tenant that is selected now.
- */
 interface ExistingCommand<Parsed> extends SessionCommandBase<Parsed> {
   readonly kind: 'existing'
   readonly target: (parsed: Parsed) => {
@@ -355,7 +348,6 @@ const stopCall: ExistingCommand<Targeted & { kind: 'model' | 'tool'; call: strin
   },
 }
 
-/** The commands of the command surface, in the order the help lists them. */
 export const productionCommands: readonly CommandSpec[] = [
   {
     name: 'register',

@@ -1,6 +1,3 @@
-// `identity.login-by-proof`: the login row of one proof digest, and whether a revocation of it is
-// recorded. The proof itself never reaches the Worker (DP3-C10). Deadlines travel as encoded
-// instants; the provider compares them. `tenantText` is the login's current selection (SPEC IS-12).
 import {
   HANDLERS,
   isRecord,

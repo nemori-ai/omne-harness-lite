@@ -2,8 +2,6 @@ import { encodeModelInvocationRef } from '@omne-harness/model-contract'
 import { createModelRuntime } from '@omne-harness/model'
 import { configuration, createExampleAssembly, operation } from '../tests/example-support.ts'
 
-// trim is an actual upstream reminder, not a locally estimated missing-token count.
-// An unsealed prefix remains partial output. It does not become an executable tool suggestion.
 const trim = { kind: 'trim', index: '0', removed: '7', reason: 'output-limit' } as const
 const example = createExampleAssembly({
   facts: [
@@ -15,7 +13,6 @@ const example = createExampleAssembly({
 })
 const provider = createModelRuntime(example.dependencies, configuration)
 const admission = operation('admit')
-// Fix this locator before admission. A lost reply cannot take away the recovery identity.
 const encoded = encodeModelInvocationRef({
   tenant: example.access.tenant,
   call: example.call,
@@ -48,8 +45,6 @@ try {
     throw new Error('Expected completed/limit')
   console.log('termination:', termination.kind, termination.reason)
   console.log('upstream trim:', trim.removed, trim.reason)
-  // Snapshot has visible blocks and state, but no full trims list. Lesson 05 consumes the result
-  // through the public reading and processed ACK capabilities, including the actual trims.
 } finally {
   await example.withdrawPublication()
 }

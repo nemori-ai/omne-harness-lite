@@ -31,7 +31,6 @@ export type ExecutionAuthorityOptions = Readonly<{
 
 type Target = Readonly<{ tenant: TenantId; scope?: ScopeRef }>
 
-/** The scopes whose binding answer was last logged, so that a retried request does not repeat it. */
 const LOGGED_SCOPES = 256
 
 async function scopeFailure(
@@ -83,7 +82,6 @@ export class EntryExecutionEnvironmentAuthority extends ExecutionEnvironmentAuth
     this.options = options
   }
 
-  /** A scope whose binding the authority cannot read is no refusal: say so once per scope and answer. */
   noteScope(scope: ScopeRef | undefined, failure: AuthorityDecision<unknown> | undefined): void {
     if (scope === undefined) return
     const kind = failure?.kind
@@ -100,15 +98,12 @@ export class EntryExecutionEnvironmentAuthority extends ExecutionEnvironmentAuth
         .warn(
           `the binding of scope ${scope.ref} answers ${kind}; environment access there is not granted`,
         )
-    } catch {
-      // The context has ended; there is nobody to tell.
-    }
+    } catch {}
   }
 
   async authorize(
     ...[access, action]: Parameters<EnvironmentAuthority<unknown>['authorize']>
   ): Promise<AuthorityDecision<unknown>> {
-    // No observer identity is wired into this assembly yet, so nobody may observe retained processes.
     if (action.kind === 'observe-retained') return { kind: 'refused' }
     const current = currentForReader(this.readers, this.ctx)
     const { principal, tenant } = access

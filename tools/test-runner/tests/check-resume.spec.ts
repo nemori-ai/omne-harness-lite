@@ -1,10 +1,4 @@
 // @module-tag slow
-// `check` 的运行记录与 `--resume-from` 的端到端：在一个夹具仓库上真跑 runCheck——真实的 git、turbo、影响面、步骤图、
-// 计划文件、运行记录与准入日志，只把步骤表换成「记下自己跑了什么、读到什么范围」的假命令（真表里的步骤是 pnpm 脚本，
-// 夹具里没有）。核对：只在 oxlint 失败的全量准入写出记录（W2-C2）；修复后接续只跑规定的步骤与成员、证据格式正确（W2-C2）；
-// 前提不满足以 2 退出、差异碰到全局路径时整次全量并写明（W2-C3）；记录写明带没带 FULL=1 与工作树，
-// 运行中工作树多出未被忽略的文件时记录记 dirty；H1 按影响面准入时接续的范围不比 H1 宽、
-// 基线合并点不同就拒绝、接续记录不再作 H1。归慢层：每次 runCheck 起 turbo 与十来个 node 子进程。
 import { execFileSync, spawnSync } from 'node:child_process'
 import {
   existsSync,
@@ -35,7 +29,6 @@ import { readTestRunsConfig } from '../src/testing/config.ts'
 
 const CLI = fileURLToPath(new URL('../src/testing/cli.ts', import.meta.url))
 const RULES = readTestRunsConfig().affected
-/** 真实规则点名的成员在夹具里都要存在，否则算计划就报「规则点名了不存在的成员」；它们没有脚本，不进任何清单。 */
 const RULE_MEMBERS = [
   ...new Set([
     ...RULES.readers.flatMap(reader => reader.members),
@@ -45,16 +38,6 @@ const RULE_MEMBERS = [
 const TEST_MEMBERS = ['members/a', 'members/b', 'members/c', 'members/d']
 const ACCEPTING = ['members/a', 'members/c']
 
-/**
- * 假步骤：把步骤名与它从计划文件里读到的范围追加进 trace.txt；`--fail-if-bad <文件>` 时文件里有 bad 就退出 1；
- * `--hold-if-bad <文件> <标记文件>` 时文件里有 bad 就等标记文件出现（至多 30 秒），超时退出 3 并在 stderr 写明在等什么；
- * `--fail-after <步骤>` 与 `--fail-if-bad` 同给、文件里有 bad 时，先等那一步在 trace.txt 里出现（至多 30 秒）再退出 1；
- * 等不到就退出 3（夹具自己的时序问题，不当成 oxlint 失败）。所以退出 1 一定发生在那一步已经起了之后。
- * `--wait-done <步骤,…>` 与 `--fail-if-bad` 同给、文件里有 bad 时，还要等这些步骤各自成功退出（它们退出 0 时写下 `doneFile`，
- * 在 tmp/ 里，不进工作树的状态）；同样至多 30 秒、等不到退出 3。这样 H1 上它们一定跑完、通过。
- * 环境变量 `FAKE_STRAY` 给了文件名时，lint:deps 那一步在工作树里写这个文件（一个没被忽略的未跟踪文件）。
- */
-/** 假步骤的完成标记目录（相对夹具根，在 tmp/ 里，不进工作树的状态）：假步骤成功退出时写下，`--wait-done` 等它。 */
 const FAKE_DONE_DIR = 'tmp/fake-done'
 const FAKE_STEP = `import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 const [name, ...flags] = process.argv.slice(2)
@@ -122,7 +105,6 @@ interface Fixture {
   readonly git: (...args: string[]) => string
   readonly commit: (message: string) => string
   readonly steps: () => CheckStep[]
-  /** trace.txt 的内容：步骤名 → 它读到的范围（逗号分隔；常驻步骤是 `-`）；读后清空。 */
   readonly trace: () => Map<string, string>
 }
 
@@ -171,7 +153,6 @@ function fixture(): Fixture {
     return git('rev-parse', 'HEAD')
   }
   git('init', '-q', '-b', 'main')
-  // 与本仓库相同：检出写 LF（Git for Windows 的系统配置是 autocrlf=true，夹具不能继承它）。
   git('config', 'core.autocrlf', 'input')
   commit('base')
   git('switch', '-qc', 'card')
@@ -190,7 +171,6 @@ function fixture(): Fixture {
   })
   const steps = (): CheckStep[] => {
     const table: CheckStep[] = [
-      // check:docs 启动时清掉上一次的完成标记（它先于 python 起，python 的标记要到它退出时才写）。
       {
         name: 'check:docs',
         command: command('check:docs'),
@@ -201,9 +181,8 @@ function fixture(): Fixture {
       planned('python', [], false),
       planned('build', []),
       planned('typecheck', ['build']),
-      // 让 H1 上「哪些步骤跑完、哪些没跑到」不随机器快慢变：假的 oxlint 排在类型检查之后才起，
-      // 并等成员测试起来、check:docs 与 python 跑完之后才失败（不然快的机器上 oxlint 先失败，它们还没跑完，
-      // 被终止、记 ran: false；接续的理由「轻步骤，按整次运行的范围」要求 python 在 H1 上跑完且通过）。
+      // 假 oxlint 排在 typecheck 之后，并等 test 起来、check:docs 与 python 跑完才失败：
+      // 否则快机器上它们被终止，H1 上哪些步骤跑完就随机器快慢变。
       {
         name: 'lint:oxlint',
         command: command(
@@ -218,8 +197,7 @@ function fixture(): Fixture {
         after: ['typecheck'],
         heavy: false,
       },
-      // 成员测试与真表一样只在构建之后；重步骤一次一个，它在类型检查之后开始。lint 还坏着时它停在一个夹具从不创建的
-      // 标记文件上，只能被步骤图终止：oxlint 失败时它一定还在跑、被终止（记 ran: false），验收与 lint:deps 没开始。
+      // test 停在夹具从不创建的标记文件上，只能被步骤图终止：oxlint 失败时它一定还在跑。
       {
         ...planned('test', ['build']),
         command: command('test', '--hold-if-bad', 'members/c/lint.txt', 'release.txt'),
@@ -276,7 +254,6 @@ const printed: string[] = []
 beforeAll(() => {
   fx = fixture()
   saved = { ...process.env }
-  // 预算钉死，不采样；不读缓存的策略由准入模式决定；基线退回夹具的 main。
   process.env['OMNE_WORKER_BUDGET'] = '2'
   for (const name of ['FULL', 'OMNE_ADMISSION', 'OMNE_TEST_CACHE', 'BASELINE'])
     delete process.env[name]
@@ -329,7 +306,6 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
     const first = await check()
     delete process.env['FULL']
     expect(first.code).toBe(1)
-    // 成员测试起了（有踪迹）却被终止：记录里是 ran: false，不是「跑过」；验收没开始。
     expect(first.trace.has('test')).toBe(true)
     expect(first.trace.has('acceptance')).toBe(false)
 
@@ -351,12 +327,10 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
     expect(steps.get('build')).toEqual({ ran: true, exit: 0 })
     expect(steps.get('typecheck')).toEqual({ ran: true, exit: 0 })
     expect(steps.get('lint:oxlint')).toEqual({ ran: true, exit: 1 })
-    // oxlint 失败前先等 check:docs 与 python 跑完（握手）：它们在 H1 上是跑过且通过的。接续的「轻步骤，按整次运行的范围」理由靠这一条。
     expect(steps.get('check:docs'), 'check:docs').toEqual({ ran: true, exit: 0 })
     expect(steps.get('python'), 'python').toEqual({ ran: true, exit: 0 })
     for (const name of ['test', 'acceptance', 'lint:deps'])
       expect(steps.get(name), name).toEqual({ ran: false, exit: null })
-    // 准入日志旁边同名的记录与它内容相同；日志以 exit=1 收尾并写明记录在哪。
     const beside = recordsIn(fx.root, ADMISSION_RECORD_DIR)
     expect(beside).toHaveLength(1)
     expect(readAdmissionRun(join(fx.root, ADMISSION_RECORD_DIR, beside[0] ?? ''))).toEqual(record)
@@ -365,7 +339,6 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
       'utf8',
     )
     expect(log).toContain('运行记录：tmp/admission/')
-    // 没通过的准入告诉人下一步是归类补证，并指到正文。
     expect(log).toContain(ADMISSION_NEXT_STEP)
     expect(log.trimEnd().endsWith('exit=1')).toBe(true)
   })
@@ -376,7 +349,6 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
     const resumed = await check({ resumeFrom: h1 })
     expect(resumed.code).toBe(0)
 
-    // 全部步骤都跑了；按步骤各取整次或影响面的范围。
     const all = new Set(TEST_MEMBERS)
     expect([...resumed.trace.keys()].sort()).toEqual(
       fx
@@ -388,7 +360,6 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
     expect(members(resumed.trace.get('build'))).toEqual(all)
     expect(members(resumed.trace.get('acceptance'))).toEqual(new Set(ACCEPTING))
     expect(members(resumed.trace.get('typecheck'))).toEqual(new Set(['members/c']))
-    // 轻步骤 python 在 H1 上通过了，仍按整次运行的范围跑（H1 全量：跑）；H1..HEAD 没碰 Python 工具。
     expect(resumed.trace.get('python')).toBe('true')
 
     const record = runRecord(fx.root, h2)
@@ -408,14 +379,12 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
       },
     })
     expect(record.steps.every(step => step.ran && step.exit === 0)).toBe(true)
-    // H1 的目录还在（不再每次清空整个 tmp/check-run），两次准入各留一份记录。
     expect(existsSync(join(fx.root, CHECK_RUN_RECORD_DIR, h1.slice(0, 9), RUN_RECORD_FILE))).toBe(
       true,
     )
     expect(recordsIn(fx.root, ADMISSION_RECORD_DIR)).toHaveLength(2)
 
     const short = (sha: string) => sha.slice(0, 9)
-    // 准入日志名是「时间（只到秒）-头短号」：同一秒里的两次运行按短号排、不按先后，不能取排序后的最后一个；按 H2 的短号认它的日志。
     const logs = readdirSync(join(fx.root, ADMISSION_RECORD_DIR)).filter(name =>
       name.endsWith(`-${short(h2)}.log`),
     )
@@ -484,7 +453,6 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
     expect(members(degraded.trace.get('typecheck'))).toEqual(new Set(TEST_MEMBERS))
     expect(degraded.trace.get('python')).toBe('true')
     const record = runRecord(fx.root, h3)
-    // 整次重跑的范围同 H1 那次；H1 带了 FULL=1，记录照记。
     expect(record).toMatchObject({
       mode: 'full',
       fullRequested: true,
@@ -512,10 +480,8 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
     expect(runRecord(fx.root, head)).toMatchObject({ dirty: true, fullRequested: false })
     expect(printed.join('\n')).toContain('记录记 dirty')
     rmSync(join(fx.root, 'stray.txt'))
-    // 同一个头再跑一次、工作树干净：不是 dirty。trace.txt 与 tmp/ 被忽略，不算。
     await check()
     expect(runRecord(fx.root, head).dirty).toBe(false)
-    // OMNE_DEP_GRAPH_CACHE=0 记依赖图缓存 off，其余值与不设都记 on（上面几次运行没设，记的是 on）。
     expect(runRecord(fx.root, head).caches.depGraph).toBe('on')
     process.env['OMNE_DEP_GRAPH_CACHE'] = '0'
     try {
@@ -550,7 +516,6 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
       },
     ])
     expect(record.testFailures).toEqual([])
-    // 下一次运行没有报告：计划目录每次先清空，旧报告不会串进新记录。
     await check()
     expect(runRecord(fx.root, head).retried).toBeUndefined()
   })
@@ -573,8 +538,6 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
 })
 
 describe('H1 按影响面准入时的接续', { timeout: 240_000 }, () => {
-  // H1 的影响面（合并点..H1）与 H1..HEAD 的影响面合起来就是 HEAD 相对本次基线的影响面：
-  // 所以接续的「整次」只按本次基线的影响面跑，不比 H1 宽；合并点变了就合不起来，拒绝。
   let fa: Fixture
   let h0 = ''
   let h1 = ''
@@ -625,12 +588,10 @@ describe('H1 按影响面准入时的接续', { timeout: 240_000 }, () => {
   it('合并点相同：接受；没跑到的步骤按 HEAD 相对本次基线的影响面整次跑（只选 a、b，不取全量），证据写「影响面准入」', async () => {
     const resumed = await check({ resumeFrom: h1 }, fa)
     expect(resumed.code).toBe(0)
-    // HEAD 相对本次基线的影响面是 a（改了）与 b（依赖 a）：c 的 lint.txt 已改回基线的内容；全量才会带上 c、d。
     const affected = new Set(['members/a', 'members/b'])
     expect(members(resumed.trace.get('test'))).toEqual(affected)
     expect(members(resumed.trace.get('build'))).toEqual(affected)
     expect(members(resumed.trace.get('acceptance'))).toEqual(new Set(['members/a']))
-    // 类型检查在 H1 上通过了，只跑 H1..HEAD 影响到的 c。
     expect(members(resumed.trace.get('typecheck'))).toEqual(new Set(['members/c']))
 
     expect(runRecord(fa.root, h2)).toMatchObject({
@@ -658,9 +619,6 @@ describe('H1 按影响面准入时的接续', { timeout: 240_000 }, () => {
 })
 
 describe('H1 之后这棵树上跑过中间运行', { timeout: 240_000 }, () => {
-  // H1（FULL=1）只在最后一步 lint:deps 失败，别的步骤都通过，所以接续的构建只重建 H1..HEAD 影响到的成员。
-  // H2 上接续、改了 a 并重建它，又在 lint:deps 失败；H3 把 a 撤回。再从 H1 接续：H1..H3 的差异里没有 a，
-  // 磁盘上 a 的 dist 却是 H2 那次的，所以要补建它。
   let fb: Fixture
   let on: Fixture
   let h1 = ''
@@ -721,8 +679,6 @@ describe('H1 之后这棵树上跑过中间运行', { timeout: 240_000 }, () => 
 })
 
 describe('H1 失败于 test 的接续只跑必要的', { timeout: 240_000 }, () => {
-  // H1（FULL=1）的 test 步在慢层失败于 members/c 的一个文件（假步骤按 members/c/README.md 里的 bad 失败并写报告）；
-  // H2 只改了那份 README：接续时 test 步只跑 H1..HEAD 影响到的成员加那个文件，不是全部成员；没开始的验收整次、构建因它整次。
   let fc: Fixture
   let on: Fixture
   let h1 = ''
@@ -739,7 +695,6 @@ describe('H1 失败于 test 的接续只跑必要的', { timeout: 240_000 }, () 
           step.name === 'test'
             ? {
                 ...step,
-                // 去掉 --hold-if-bad，换成按 README 失败：[node, fake-step.mjs, 'test', ...]。
                 command: [
                   step.command[0],
                   ...step.command.slice(1, 3),
@@ -777,7 +732,6 @@ describe('H1 失败于 test 的接续只跑必要的', { timeout: 240_000 }, () 
     const h2 = fc.commit('card: fix the slow test')
     const resumed = await check({ resumeFrom: h1 }, on)
     expect(resumed.code).toBe(0)
-    // 夹具里成员根目录的 README 算成员改动：H1..HEAD 影响面是 c；test 步只跑 c 加失败的文件，不是全部四个成员。
     expect(members(resumed.trace.get('test'))).toEqual(new Set(['members/c', `file:${file}`]))
     expect(members(resumed.trace.get('acceptance'))).toEqual(new Set(ACCEPTING))
     expect(resumed.output.join('\n')).toMatch(/^ {2}只跑失败用例文件：test（/mu)

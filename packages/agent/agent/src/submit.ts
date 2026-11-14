@@ -1,12 +1,3 @@
-// `input.submit` of an execution handle (agent-contract SPEC "输入内容与水位线" and the per-operation
-// table, input.submit; loop-algorithm U0). A submit works on the durable view of the original
-// execution: it needs no live runtime, advance, grant, slot, resume or attach, and it changes none
-// of them. The Journal recognizes the original operation first, so a retry of an accepted submit
-// gets its original receipt even after the end. An input that the execution already accepted under
-// another operation is recognized through its original acceptance. A new input goes through the
-// submit branch of message admission; a rejection answers `invalid` on `value`, and the provider's
-// record makes a retry answer the same rejection. A thrown `Journal.submit` answers commit-unknown
-// for the original operation: its retry is the recognition.
 import type {
   AgentExecutionInput,
   AgentJournal,
@@ -27,7 +18,6 @@ export type SubmitPorts<P> = Readonly<{
   handoff: Pick<MessageHandoff<P>, 'prepare'>
 }>
 
-/** The original acceptance of `input`'s identity in `snapshot`, if the execution accepted it. */
 function acceptanceOf<P>(
   snapshot: ExecutionSnapshot,
   input: SubmitInput<P>,
@@ -46,7 +36,6 @@ function acceptanceOf<P>(
   return null
 }
 
-/** The external request of a new submit entry: Ki is the execution, the operation and the input. */
 function requestOf<P>(input: SubmitInput<P>): InputHandoff {
   const { execution, operation, value } = input
   return {

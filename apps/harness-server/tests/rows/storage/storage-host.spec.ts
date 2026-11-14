@@ -1,6 +1,3 @@
-// `storageHost` 入口对象（sql-contract §2.3 的装配关闭适配器）：构造期核对材料摘要；保存每一代控制口；`stop` 对每一代
-// `close({ initiator: 'assembly' })`；`register` 被拒时关闭刚保存的控制口（N-r2-2）；报告确定后才 `assemblyReportSettled`；
-// 停止之后租约口不再准入。
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -66,10 +63,6 @@ async function hostOn(expected: ReadonlyMap<RowId, LifecyclePhase>) {
 
 const expectedStorage = new Map<RowId, LifecyclePhase>([[STORAGE, 'storage']])
 
-/**
- * The catalog with the `session` participant's code digest broken. The Session log combination runs
- * `execution-record` first (ascending names), so ``first`` is no longer `session`; pick it by name.
- */
 function tampered(catalog: SqlMaterialCatalog): SqlMaterialCatalog {
   const index = catalog.participants.findIndex(item => item.participant === 'session')
   const target = catalog.participants[index]
@@ -92,7 +85,6 @@ describe('materials (acceptance 4)', () => {
     expect(catalogProblems(catalog)).toEqual([])
     expect(catalog.catalogProtocol).toBe('sql-catalog/1')
     expect(catalog.participants.map(item => item.participant)).toContain('session')
-    // identity 行（identity-sql）在 `system` 域登记自己的组合，它的材料必须在同一份发行目录里。
     expect(catalog.participants.map(item => item.participant)).toContain(IDENTITY_PARTICIPANT)
     expect(catalog.declaredCombinations).toEqual({ tenant: null, system: null })
   })
@@ -109,8 +101,6 @@ describe('materials (acceptance 4)', () => {
     ])
     const governance = catalog.readHandlers.find(item => item.handler === 'identity.governance')
     expect(governance?.maxOutputBytes).toBe(1048576)
-    // The storage row serves no handler whose output limit is above its `maxReadResultBytes`
-    // (20 MiB in the release, AA `storage` row); the identity handlers stay well below it.
     for (const handler of catalog.readHandlers)
       expect(handler.maxOutputBytes, handler.handler).toBeLessThanOrEqual(
         DISTRIBUTION_SESSION_READ_OUTPUT_LIMIT_BYTES,
@@ -265,7 +255,6 @@ describe('the close adapter (acceptance 5)', () => {
       const control = fakeControl(() => Promise.reject(new Error('close blew up')))
       expect(() => host.attachControl(control)).toThrow(/phase-mismatch/)
       expect(control.closes).toEqual(['assembly'])
-      // 让拒绝有机会走到 unhandledRejection 钩子。
       await new Promise<void>(resolve => setTimeout(resolve, 50))
     } finally {
       process.off('unhandledRejection', record)

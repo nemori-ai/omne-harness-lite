@@ -1,16 +1,11 @@
-// Reading a request body under a byte limit, shared by the three existing locations and the new
-// address. It counts the bytes actually read; a declared Content-Length over the limit is refused
-// unread.
 import type { IncomingMessage } from 'node:http'
 
 export type BodyRead =
   | Readonly<{ kind: 'ok'; bytes: Uint8Array }>
   | Readonly<{ kind: 'over' }>
   | Readonly<{ kind: 'aborted' }>
-  /** `stop` fired before the body was complete. Only when a `stop` signal is given. */
   | Readonly<{ kind: 'stopped' }>
 
-/** Without a stop signal the read never ends as `stopped`. */
 export function readBody(
   req: IncomingMessage,
   maxBytes: number,

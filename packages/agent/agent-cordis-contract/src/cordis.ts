@@ -1,6 +1,3 @@
-// The Cordis service definitions of Agent: abstract Services, the service keys, the
-// `agent-cordis-contract/instance-retired` event and the instance directory. Provider plugins live
-// in `@omne-harness/agent-host-local/cordis`. This entry does not import an Agent implementation.
 import { randomBytes } from 'node:crypto'
 import { type Context, CordisError, Service } from '@deepseek-ai/cordis'
 import {
@@ -52,11 +49,6 @@ import type {
 
 export type { AgentLocalRoute, AgentRegistrationInput, AgentWithdrawalInput } from './index.ts'
 
-/**
- * The host's synchronous, final check of one registration or withdrawal. `caller` is the context
- * of the fiber that calls the directory. The directory asks before it writes anything. It takes a
- * Cordis context, so it is declared here and not in the root entry.
- */
 export interface AgentPublicationAuthority<P> {
   check(
     input: AgentRegistrationInput<P> | AgentWithdrawalInput<P>,
@@ -88,7 +80,6 @@ export abstract class AgentJournalService<P> extends Service implements AgentJou
   abstract readonly inputs: AgentJournal<P>['inputs']
   abstract readonly readReplyAdmissions: AgentJournal<P>['readReplyAdmissions']
   abstract readonly query: AgentJournal<P>['query']
-  /** Optional, as on the contract: a provider that does not implement the finish read leaves it out. */
   abstract readonly readFinish?: NonNullable<AgentJournal<P>['readFinish']>
   abstract readonly output: AgentJournal<P>['output']
   abstract readonly capabilities: AgentJournal<P>['capabilities']
@@ -259,7 +250,6 @@ export abstract class AgentInstanceHostService<P> extends Service implements Age
   abstract readonly publish: AgentInstanceHost<P>['publish']
   abstract readonly withdraw: AgentInstanceHost<P>['withdraw']
   abstract readonly directory: AgentInstanceHost<P>['directory']
-  /** In-process only. The directory asks the host for the objects of a published instance. */
   abstract route(tenant: TenantId, instance: AgentInstanceId): AgentLocalRoute<P> | null
 }
 export const agentInstanceHostKey = AgentInstanceHostService.provide
@@ -294,7 +284,6 @@ export abstract class AgentExecutionRecoveryService<P>
 }
 export const agentExecutionRecoveryKey = AgentExecutionRecoveryService.provide
 
-// The receiving entries port. The provider of `agentJournal` serves it in the same ordering.
 /** @owner packages/agent/agent-cordis-contract */
 export abstract class AgentJournalEntriesService<P>
   extends Service
@@ -310,8 +299,6 @@ export abstract class AgentJournalEntriesService<P>
 }
 export const agentJournalEntriesKey = AgentJournalEntriesService.provide
 
-// The joint custody port of the result receiver (agent-contract "接收共同提交"). The provider of
-// `agentJournal` serves it in the same ordering, with `agentJournalEntries` and `agentMaterials`.
 /** @owner packages/agent/agent-cordis-contract */
 export abstract class AgentReceivedCommitsService<P, B extends ContentBlock>
   extends Service
@@ -326,9 +313,6 @@ export abstract class AgentReceivedCommitsService<P, B extends ContentBlock>
 }
 export const agentReceivedCommitsKey = AgentReceivedCommitsService.provide
 
-// The read face of the received records (agent-contract J08 item 6), for the evidence adapter of
-// the Agent consumer owner. The provider of `agentJournal` serves it from the same records. A
-// trusted name: the assembly makes it visible only to the holder of that adapter.
 /** @owner packages/agent/agent-cordis-contract */
 export abstract class AgentReceivedRecordsService<P>
   extends Service
@@ -342,8 +326,6 @@ export abstract class AgentReceivedRecordsService<P>
 }
 export const agentReceivedRecordsKey = AgentReceivedRecordsService.provide
 
-// The stable target query of the Model result receiver (agent-contract J02 item 1). The provider
-// that keeps the original consumption bindings, the provider of `agentJournal`, serves it.
 /** @owner packages/agent/agent-cordis-contract */
 export abstract class ModelReceptionTargetsService<P>
   extends Service
@@ -358,8 +340,6 @@ export abstract class ModelReceptionTargetsService<P>
 }
 export const agentModelReceptionTargetsKey = ModelReceptionTargetsService.provide
 
-// The stable target query of the Tool result receiver (agent-contract J02 item 1, R2-D273). The
-// provider that keeps the original consumption bindings, the provider of `agentJournal`, serves it.
 /** @owner packages/agent/agent-cordis-contract */
 export abstract class ToolReceptionTargetsService<P>
   extends Service
@@ -374,7 +354,6 @@ export abstract class ToolReceptionTargetsService<P>
 }
 export const agentToolReceptionTargetsKey = ToolReceptionTargetsService.provide
 
-// The account outlet of Agent. The adapter on the side of Request Context provides it.
 /** @owner packages/agent/agent-cordis-contract */
 export abstract class AgentAccountOutletService<P>
   extends Service
@@ -388,8 +367,6 @@ export abstract class AgentAccountOutletService<P>
 }
 export const agentAccountOutletKey = AgentAccountOutletService.provide
 
-// The control entry that needs no live runtime. The long-lived Journal adapter of the host
-// provides it.
 /** @owner packages/agent/agent-cordis-contract */
 export abstract class AgentExecutionControlService<P>
   extends Service
@@ -403,8 +380,6 @@ export abstract class AgentExecutionControlService<P>
 }
 export const agentExecutionControlKey = AgentExecutionControlService.provide
 
-// The entry that gives out the instance of a slot. The host plugin provides it in the same body as
-// the host, the publication authority and the recovery entry, because they share one slot table.
 /** @owner packages/agent/agent-cordis-contract */
 export abstract class AgentInstanceProvisionService<P>
   extends Service
@@ -420,9 +395,6 @@ export const agentInstanceProvisionKey = AgentInstanceProvisionService.provide
 
 type RetirementReason = 'withdrawn' | 'contributor-removed' | 'superseded'
 
-// One registration, from its entry to the end of the process. The directory keeps ended records so
-// that a late call of an old identity, and a repeated call of an old operation, still find their
-// answer. `hint` is the reason that the next removal reports: only an explicit withdrawal sets it.
 type Entry = {
   readonly id: AgentRegistrationId
   readonly tenant: TenantId
@@ -454,7 +426,6 @@ const unavailable = (source: string, diagnostic: string): Failure => ({
   diagnostic,
 })
 
-// A caller can hand over anything, so reading it can throw. A read that throws is an invalid input.
 function guarded<T>(read: () => T): T | undefined {
   try {
     return read()
@@ -463,7 +434,6 @@ function guarded<T>(read: () => T): T | undefined {
   }
 }
 
-/** The text of a thrown value for a record. A value whose text cannot be made still gives one. */
 function causeOf(error: unknown): string {
   return guarded(() => String(error)) ?? 'a thrown value that has no text'
 }
@@ -474,7 +444,6 @@ type MemberJudgment = (
   value: unknown,
 ) => Outcome<unknown, Readonly<{ field: string; reason: string }>>
 
-// The members that each operation names, with the judgment of agent-contract that validates each.
 const registrationMembers: Readonly<Record<string, MemberJudgment>> = {
   instance: decodeAgentInstanceId,
   operation: decodeAgentOperationId,
@@ -487,9 +456,6 @@ const withdrawalMembers: Readonly<Record<string, MemberJudgment>> = {
 }
 const reachMembers: Readonly<Record<string, MemberJudgment>> = { instance: decodeAgentInstanceId }
 
-// Step: validate, at the boundary of the directory and before anyone is asked. The tenant must
-// come from the identity parser, and then each member goes through its judgment. A failure names
-// the member, and its reason is the failure of the judgment. The answer is the text of the tenant.
 function validated(
   input: Readonly<{ tenant: TenantId }>,
   members: Readonly<Record<string, MemberJudgment>>,
@@ -510,8 +476,6 @@ function validated(
   }
 }
 
-// The text of the data that a retry has to repeat. Members come in sorted order, so two inputs that
-// hold the same data give the same text. It is undefined when the data cannot be written as JSON.
 function dataText(value: unknown): string | undefined {
   return guarded(() =>
     JSON.stringify(value, (_name, member: unknown) =>
@@ -524,17 +488,12 @@ function dataText(value: unknown): string | undefined {
   )
 }
 
-// One entry per tenant and instance. Equal tenants give equal text, and the text never contains
-// the raw separator of the pair, so two pairs cannot collide. `tenant` is the text that
-// `validated` gives.
 function keyOf(tenant: string, member: string): string {
   return JSON.stringify([tenant, member])
 }
 
 type EntryKeys = Readonly<{ instance: string; operation: string; text: string }>
 
-// What `register` repeats on a retry: the keys of the instance and of the operation, and the text
-// of the data. It is undefined when the data cannot be written as JSON.
 function keysOf<P>(input: AgentRegistrationInput<P>, tenant: string): EntryKeys | undefined {
   const text = dataText([input.principal, input.instance, input.scope, input.state])
   if (text === undefined) return undefined
@@ -545,8 +504,6 @@ function keysOf<P>(input: AgentRegistrationInput<P>, tenant: string): EntryKeys 
   }
 }
 
-// The answer when the effect of the calling fiber cannot be made. Cordis refuses a fiber that has
-// ended. Any other throw keeps its cause, so that it is not taken for the end of the fiber.
 function enterFailure(error: unknown): Failure {
   return error instanceof CordisError && error.code === 'INACTIVE_EFFECT'
     ? unavailable(owner, 'the calling fiber has ended')
@@ -569,13 +526,11 @@ function createDirectory<P>(ctx: Context, authority: AgentPublicationAuthority<P
     state: record.state,
   })
 
-  // A provider that throws gives unavailable. The cause goes to the record, not to the caller.
   const recordCause = (provider: string, error: unknown) =>
     ctx.logger('agent-cordis-contract').error(`${provider} threw: ${causeOf(error)}`)
 
-  // Step: notify. The tell comes after the removal is whole, so a listener that calls back into
-  // the directory sees the state after the removal. A listener failure is logged and changes
-  // nothing that the directory has answered.
+  // The tell comes after the removal is whole, so a listener that calls back into the directory
+  // sees the state after the removal. A listener failure is logged and changes no answer.
   function announce(record: Entry, reason: RetirementReason): Promise<void> {
     record.announced = (async () => {
       try {
@@ -598,11 +553,8 @@ function createDirectory<P>(ctx: Context, authority: AgentPublicationAuthority<P
     return record.announced
   }
 
-  // The one removal. Explicit withdrawal, supersession and the unload of the calling fiber all
-  // reach it, and the first one wins. It returns the reason that it reported, or undefined when
-  // the registration had already ended. It only changes the tables and never yields. An entry that
-  // has not ended holds its instance in `live`, because a successor ends the old entry in the same
-  // step that it enters, so this delete never removes a successor.
+  // The one removal: withdrawal, supersession and fiber unload all reach it and the first wins.
+  // It only changes the tables and never yields.
   function retire(record: Entry, reason: RetirementReason): RetirementReason | undefined {
     if (record.state === 'withdrawn') return undefined
     live.delete(record.instanceKey)
@@ -610,8 +562,6 @@ function createDirectory<P>(ctx: Context, authority: AgentPublicationAuthority<P
     return reason
   }
 
-  // Takes the effect of an entry off its fiber. The removal that this runs is the one above, and
-  // it has already happened when the entry is superseded. A failure of the disposer is logged.
   async function release(entry: Entry): Promise<void> {
     try {
       await entry.drop()
@@ -620,14 +570,11 @@ function createDirectory<P>(ctx: Context, authority: AgentPublicationAuthority<P
     }
   }
 
-  // The removal for the fiber that ended: it announces on its own and nobody waits for it.
   function removeWithFiber(record: Entry): void {
     const reason = retire(record, record.hint ?? 'contributor-removed')
     if (reason !== undefined) void announce(record, reason)
   }
 
-  // Step: check. The host's authority answers before anything is written. A throw from the
-  // authority, or an answer of another shape, counts as unavailable and never as allowed.
   function check(
     input: AgentRegistrationInput<P> | AgentWithdrawalInput<P>,
     caller: Context,
@@ -637,15 +584,13 @@ function createDirectory<P>(ctx: Context, authority: AgentPublicationAuthority<P
       if ('ok' in checked) return undefined
       if ('failure' in checked) return checked.failure
     } catch (error) {
-      // The authority failed. The answer below is the same as for an answer of another shape.
       recordCause('agentPublicationAuthority', error)
     }
     return unavailable('agentPublicationAuthority', 'the publication authority gave no answer')
   }
 
-  // Step: write. It runs inside the effect of the calling fiber and never yields: the authority
-  // is asked, the keys are checked and the entry replaces the old one in one step, so the answer
-  // cannot go stale in between.
+  // `admit` never yields: the authority is asked, the keys are checked and the entry replaces the
+  // old one in one step, so the answer cannot go stale in between.
   function admit(
     caller: Context,
     input: AgentRegistrationInput<P>,
@@ -688,8 +633,6 @@ function createDirectory<P>(ctx: Context, authority: AgentPublicationAuthority<P
     return { kind: 'entered', record, superseded }
   }
 
-  // Runs `admit` in an effect of the calling fiber, so the entry ends when that fiber ends. A
-  // refused or recognised request registers nothing, so its effect is removed again at once.
   function enter(caller: Context, input: AgentRegistrationInput<P>, keys: EntryKeys): Admission {
     const call: { admission?: Admission; remove?: () => unknown } = {}
     const drop = () => call.remove?.()
@@ -745,9 +688,6 @@ function createDirectory<P>(ctx: Context, authority: AgentPublicationAuthority<P
     return succeed(view(record))
   }
 
-  // Step: check. The access check of the authorization domain answers for an instance that has an
-  // entry. It is a required dependency of the plugin, so it is read as `ctx.agentAccessCheck`. The
-  // read throws when the directory was not built by its plugin or its plugin has ended.
   async function qualify(
     input: Parameters<AgentDirectory<P>['resolve']>[0],
     operation: Extract<AgentAccessOperation, 'resolve' | 'connect'>,
@@ -770,14 +710,11 @@ function createDirectory<P>(ctx: Context, authority: AgentPublicationAuthority<P
       if (decision.kind === 'unavailable')
         return unavailable('agentAccessCheck', decision.diagnostic)
     } catch (error) {
-      // The access check failed. The answer below is the same as for an answer of another shape.
       recordCause('agentAccessCheck', error)
     }
     return unavailable('agentAccessCheck', 'the access check gave no answer')
   }
 
-  // Asks the host for the objects of a published instance. The host is taken from the context at
-  // each call, so a host that was replaced is never used from an old reference.
   function route(tenant: TenantId, instance: AgentInstanceId): Outcome<Reached, Failure> {
     const host = ctx.get('agentInstanceHost')
     if (host === undefined)
@@ -791,10 +728,7 @@ function createDirectory<P>(ctx: Context, authority: AgentPublicationAuthority<P
     }
   }
 
-  // The path that resolve and connect share. The key of the directory answers first: an instance
-  // of another tenant has no entry under this tenant's key, so it answers denied, the same as an
-  // instance that does not exist, whatever the access check would answer. The table is read again
-  // after the check, because the entry can end while the check answers.
+  // The table is read again after the access check: the entry can end while the check answers.
   async function reach(
     input: Parameters<AgentDirectory<P>['resolve']>[0],
     operation: Extract<AgentAccessOperation, 'resolve' | 'connect'>,
@@ -873,8 +807,6 @@ const emptyConfig = {
   '~standard': {
     version: 1 as const,
     vendor: 'agent-cordis-contract',
-    // The return type is written out so that the published declaration does not follow the
-    // order in which the compiler meets the two result shapes.
     validate(
       value: unknown,
     ): { issues?: never; value: {} } | { value?: never; issues: { message: string }[] } {
@@ -886,11 +818,6 @@ const emptyConfig = {
   },
 }
 
-/**
- * The plugin of the directory: it provides `agentInstances` once the publication authority and
- * the access check are present, and it loads again when either one changes its provider. Its
- * `Config` is an empty object and refuses any member.
- */
 export const agentInstancesPlugin = {
   name: 'agentInstances',
   Config: emptyConfig,
@@ -901,8 +828,6 @@ export const agentInstancesPlugin = {
 }
 
 declare module '@deepseek-ai/cordis' {
-  // The trusted identity adapter of an assembly narrows the principal type. Providers still
-  // check every input at run time.
   interface Context {
     agentJournal: AgentJournalService<unknown>
     agentAccessCheck: AgentAccessCheckService<unknown>

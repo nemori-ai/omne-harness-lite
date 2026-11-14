@@ -1,6 +1,3 @@
-// The web host's channels (SPEC.md「宿主给页面的通道」), against a fake server entry in this
-// process. Every answer the page could read is kept, and the last case scans all of them for the
-// login proof sentinel.
 import { request } from 'node:http'
 import { afterEach, describe, expect, it } from 'vitest'
 import { identityProtocol } from '@omne-harness/identity-protocol'
@@ -20,7 +17,6 @@ import {
 } from './support/fake-server.ts'
 
 const hosts: WebHost[] = []
-/** Every answer body the page received in this file. */
 const seenByPage: string[] = []
 
 afterEach(async () => {
@@ -61,7 +57,6 @@ const events = (text: string): unknown[] =>
     .filter(chunk => chunk.startsWith('data: '))
     .map(chunk => JSON.parse(chunk.slice('data: '.length)))
 
-/** Reads an SSE stream until `count` events came, then lets go of it. */
 async function firstEvents(response: Response, count: number, abort: AbortController) {
   const reader = response.body!.pipeThrough(new TextDecoderStream()).getReader()
   let text = ''
@@ -244,20 +239,16 @@ describe('宿主的通道', () => {
         req.on('error', reject)
         req.end()
       })
-    // The browser behind a forwarded port sends its own local port. Past the check, the answer is
-    // the page file's (this suite has no built page, so 404), never the refusal.
     const own = await statusWith(`127.0.0.1:${port}`)
     expect(own).not.toBe(403)
     expect(await statusWith('localhost:54321')).toBe(own)
     expect(await statusWith('127.0.0.1:54321')).toBe(own)
     expect(await statusWith('[::1]:54321')).toBe(own)
-    // A rebinding page reaches this socket with its own name in `Host`.
     expect(await statusWith(`evil.example:${port}`)).toBe(403)
     expect(await statusWith(`127.0.0.1.evil.example:${port}`)).toBe(403)
   })
 
   it('登录证明不出现在宿主给页面的任何答复里', async () => {
-    // A signed-in host: calls, observations and the state stream all ran with the proof.
     const { base, server } = await start()
     server.stream('session/v1 observe-session', async function* () {
       yield value({ kind: 'state' })

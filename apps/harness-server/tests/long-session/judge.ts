@@ -1,17 +1,9 @@
-// Judges one long-session run directory (written by `run.ts`) and writes `summary.json` and
-// `summary.md`. The definitions and the gates are those of `docs/engineering/perf-baseline.md`
-// 「长会话」. The two gates on a per-round series come from `tools/e9/metrics.mjs`, so own overhead,
-// memory and new disk bytes are judged with the constants of P1. A run shorter than 200 rounds
-// reports its readings, and every gate is `blocked`.
-//
-//   node apps/harness-server/tests/long-session/judge.ts <run directory>
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 // @ts-expect-error -- tools/e9 is plain JavaScript without declarations.
 import { evaluateSeries } from '../../../../tools/e9/metrics.mjs'
 
-/** The linear bound of the own bytes of the session log (perf-baseline 「守卫与阈值」, R2-D294). */
 export const LINEAR_OWN_BYTES = { j0Bytes: 64 * 1024, wBytesPerStep: 12 * 1024 } as const
 
 type Row = Readonly<{
@@ -57,7 +49,6 @@ function gates(values: readonly number[]): Gates {
   return evaluateSeries([...values]) as Gates
 }
 
-/** The three keys with the largest totals of `pick` over the rows. */
 function top(rows: readonly Row[], pick: (row: Row) => Record<string, number>, n = 3) {
   const totals: Record<string, number> = {}
   for (const row of rows)
@@ -73,7 +64,6 @@ const readJson = (file: string): unknown => JSON.parse(readFileSync(file, 'utf8'
 
 export type Summary = ReturnType<typeof summarize>
 
-/** Judges `dir` and writes `summary.json` and `summary.md` into it. */
 export function judge(dir: string): Summary {
   const summary = summarize(dir)
   writeFileSync(join(dir, 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`)
@@ -97,7 +87,6 @@ function summarize(dir: string) {
   const full = n === 200
   const at = (round: number) => rows.find(row => row.round === round)
 
-  // 1. own overhead, with the telemetry stages.
   const stageNames = [...new Set(rows.flatMap(row => Object.keys(row.stages)))].sort()
   const overhead = {
     medianMs: median(rows.map(row => row.ownOverheadMs)),
@@ -118,7 +107,6 @@ function summarize(dir: string) {
     ),
   }
 
-  // 2. own bytes of the session log against J0 + W × steps.
   const steps = n * run.method.stepsPerRound
   const journalTotal =
     run.setup.journalOwnBytes +
@@ -135,7 +123,6 @@ function summarize(dir: string) {
     top: top(rows, row => row.journalOwnBytesByKind),
   }
 
-  // 3. memory.
   const memory = {
     rss: {
       first: rows[0]?.memory.rss,
@@ -162,7 +149,6 @@ function summarize(dir: string) {
     })),
   }
 
-  // 4. disk.
   const snapshots = readdirSync(dir)
     .map(name => /^visible-(\d+)\.json$/u.exec(name)?.[1])
     .filter((value): value is string => value !== undefined)
@@ -210,7 +196,6 @@ function summarize(dir: string) {
     rowsAtEnd: Object.assign({}, ...storage.map(file => file.tables)) as Record<string, number>,
   }
 
-  // 5. one tool call (one round has exactly one).
   const toolCall = {
     commitsMedian: median(rows.map(row => row.commits)),
     readsMedian: median(rows.map(row => row.reads)),
@@ -230,7 +215,6 @@ function summarize(dir: string) {
     topReads: top(rows, row => row.readsByHandler),
   }
 
-  // 6. commits and reads against the round.
   const trend = {
     at: Object.fromEntries(
       [1, 20, 100, 200]

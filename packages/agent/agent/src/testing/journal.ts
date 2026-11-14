@@ -1,12 +1,5 @@
-// The memory `AgentJournal`: a single-process, non-durable Journal provider for tests. It follows
-// the same-shape list of docs/architecture/mechanisms.md "两种实现必须同形的事实", so the tests
-// written against it carry over to a durable provider. Every write runs synchronously between two
-// awaits, which makes one write atomic and gives all writes of the process one order. Nothing
-// survives the process, and fencing holds only inside it.
-//
-// The binding declares its coordination mode at construction. A standalone binding refuses a
-// non-null grant or input source before any write; a coordinated one asks the coordinator hooks
-// and the scripted participant responses inside the same write (SPEC "提交参加者协议").
+// Every write runs synchronously between two awaits: that makes a write atomic and gives the
+// writes of the process one order.
 import type {
   AcceptedInput,
   AgentCheckpoint,
@@ -142,7 +135,6 @@ import {
 
 export type JointCommitKind = Exclude<CallerCommit['kind'], 'none'>
 
-/** The write methods of the Journal. A fault can be scripted on each of them. */
 export type JournalWrite =
   | 'open'
   | 'attach'
@@ -161,35 +153,12 @@ export type JournalWrite =
   | 'received'
   | 'record'
 
-/** The read methods of the Journal. `read` also serves each page of `events`. */
 export type JournalRead = 'load' | 'inputs' | 'readReplyAdmissions' | 'query' | 'read'
 
-/**
- * A fault of the next call of one write method.
- *
- * - `unavailable`: nothing is saved; the call returns `unavailable`.
- * - `commit-unknown` with `applied`: the write runs as usual, and the call returns `commit-unknown`.
- *   `query` then answers `committed` if the write took effect, and `excluded` if it failed.
- * - `commit-unknown` with `dropped`: nothing is saved; `query` answers `excluded`.
- * - `commit-unknown` with `pending`: the write is held. `query` answers `unknown` and the snapshot
- *   lists the operation in `unresolved` until `settle` runs or decides it, or until an `attach`
- *   fences it, which excludes it.
- *
- * The call that takes a fault answers with it, also when it re-sends an operation whose write is
- * held; the held write belongs to the earlier call and stays as it is. A call that is denied because
- * its tenant does not own the execution, or because its Tool reference belongs to another tenant,
- * still uses up the fault and is never held.
- */
 export type WriteFault =
   | Readonly<{ kind: 'unavailable' }>
   | Readonly<{ kind: 'commit-unknown'; outcome: 'applied' | 'dropped' | 'pending' }>
 
-/**
- * How a declared participant answers one joint commit; see SPEC "提交参加者协议". `fail` saves
- * nothing and returns `unavailable`. `fail-unknown` returns `commit-unknown` and holds the commit as
- * pending, like the `pending` write fault. `conflict` returns `changed`, `unsupported` returns
- * `unsupported`, and both save nothing.
- */
 export type ParticipantResponse =
   | 'participate'
   | 'fail'
@@ -197,10 +166,8 @@ export type ParticipantResponse =
   | 'conflict'
   | 'unsupported'
 
-/** The four operations a coordinated binding checks with the external coordinator (SPEC "提交参加者协议"). */
 export type CoordinatedOperation = 'open' | 'attach' | 'submit' | 'tryFinish'
 
-/** A joint commit that the participant saved together with the Journal's own facts. */
 export type JointFact = Readonly<{
   execution: AgentExecutionId
   operation: AgentOperationId
@@ -210,65 +177,27 @@ export type JointFact = Readonly<{
 type Qualification<P, X> = (input: Access<P> & X) => boolean
 
 export type MemoryAgentJournalOptions<P> = Readonly<{
-  /**
-   * The coordination mode this binding declares (SPEC "提交参加者协议"). Required: a binding has
-   * no implicit mode. A standalone binding refuses a non-null grant or input source before any
-   * write; a coordinated one checks them through the coordinator hooks below.
-   */
   coordination: JournalCapabilities['coordination']
-  /** Explicitly enables retained invocation corruption controls. Default: false. */
   retainedToolInvocationFaults?: boolean
-  /** The joint-commit kinds whose participant this provider declares. Default: none. */
   participants?: Iterable<JointCommitKind>
-  /**
-   * The coordinator a coordinated binding checks with, in the same write: whether the grant of
-   * `open` or `attach` and the input source of `open` or `submit` hold. A coordinated binding
-   * requires both to be non-null and answers `denied` when a hook is absent or refuses. Ignored by a
-   * standalone binding.
-   */
   coordinator?: Readonly<{
     grant?: Qualification<P, Readonly<{ execution: AgentExecutionId; grant: DurableEvidence }>>
     source?: Qualification<P, Readonly<{ execution: AgentExecutionId; source: DurableEvidence }>>
   }>
-  /** Whether the caller of `recordResult` or `received` is the lawful custodian or processor. Default: yes. */
   custodian?: Qualification<P, Readonly<{ execution: AgentExecutionId }>>
-  /** Whether the caller of `recordTerminalObservation` may observe and record. Default: yes. */
   observer?: Qualification<P, Readonly<{ execution: AgentExecutionId }>>
-  /**
-   * Whether the caller holds one of the three settlement qualifications (SPEC "commitSettlement
-   * 的变体"): `settle` for the candidate and judgment variants and for the cancel prepareFinish and
-   * tryFinish, `settle` and `migrate-cancellation` together for a migration, `reconcile` for the
-   * custody variants. Default: all three hold.
-   */
   qualification?: Qualification<
     P,
     Readonly<{ execution: AgentExecutionId; operation: SettlementQualification }>
   >
-  /** The largest `limit` that `read` accepts. Default: 100. */
   readLimit?: number
-  /** The schema of every event that this Journal writes. */
   eventSchema?: Adoption
-  /** The rule of the reply-admission projection. */
   replyAdmissionRule?: Adoption
-  /**
-   * Whether the caller is qualified to read the execution now: `load`, `readReplyAdmissions` and
-   * `query` check it on every call and answer `denied` when it refuses. Default: yes.
-   */
   reader?: Qualification<P, Readonly<{ execution: AgentExecutionId }>>
-  /**
-   * The trusted cancellation judgment this binding holds (SPEC "安装记录与资格"): the installation
-   * governance issued and the pure implementation it names. Absent: the candidate, migration and
-   * judgment variants of commitSettlement answer `unavailable`.
-   */
   cancellation?: Readonly<{
     installation: CancellationPolicyInstallation
     policy: CancellationPolicy
   }>
-  /**
-   * The records of the trusted host reads that the three custody variants of commitSettlement
-   * resolve a source to, by the record text of the source evidence. A source no record answers is
-   * unreadable: the variant answers `unavailable`.
-   */
   hostRecords?: ReadonlyMap<string, TestHostRecord>
 }>
 
@@ -278,22 +207,12 @@ export type MemoryAgentJournal<P> = Readonly<{
   targets: ModelReceptionTargets<P>
   receiving: JournalReceivingControls<P>
   durability: 'none'
-  /**
-   * Every material source a durable fact of the execution refers to: the received entries, the
-   * fixed request of every effect intent, the allowed requests of the current batch and the stage
-   * sources of the controls. A material outside it is an orphan.
-   */
   referencedSources(
     input: Readonly<{ tenant: TenantId; execution: AgentExecutionId }>,
   ): readonly DurableEvidence[]
-  /**
-   * Every handoff record of the execution at its current revision, open or closed. The snapshot of
-   * `load` lists the open ones only; a test that checks a closed record reads it here.
-   */
   handoffRecords(
     input: Readonly<{ tenant: TenantId; execution: AgentExecutionId }>,
   ): readonly ExecutionHandoff[]
-  /** Changes one saved Tool control's invocation, or restores its first saved bytes with null. */
   setRetainedToolInvocationFault(
     input: Readonly<{
       tenant: TenantId
@@ -308,75 +227,31 @@ export type MemoryAgentJournal<P> = Readonly<{
         kind: 'rejected'
         reason: 'disabled' | 'invalid-input' | 'target-unavailable' | 'not-tool-control'
       }>
-  /** Scripts a fault on the next call of one write method. Faults are used in order. */
   failNext(method: JournalWrite, fault: WriteFault): void
-  /** Makes the next call of one read method return `unavailable`. */
   failNextRead(method: JournalRead): void
-  /**
-   * Queues how the participant of `kind` answers the next joint commit, or how the coordinator
-   * answers the next coordinated operation of a coordinated binding. Default: participate.
-   */
   respond(kind: JointCommitKind | CoordinatedOperation, response: ParticipantResponse): void
-  /**
-   * Decides a pending write. `applied` runs it now under the checks of that moment; when they fail,
-   * the operation is excluded. `dropped` excludes it. Returns `false` when nothing is pending.
-   * Only a pending write of the execution's own tenant is decided; for a pending `open`, whose
-   * execution does not exist yet, `tenant` names the tenant when two could match.
-   */
   settle(
     execution: AgentExecutionId,
     operation: AgentOperationId,
     outcome: 'applied' | 'dropped',
     tenant?: TenantId,
   ): boolean
-  /** The joint commits that participants saved, in commit order. */
   joint(): readonly JointFact[]
-  /**
-   * Seeds a legacy cancelled candidate as a writer of the old protocol left it (SPEC
-   * "旧取消记录的迁移"): the candidate `candidate` with the conclusion cancelled, on an author route
-   * whose before-terminal proof is set, in one new revision. It is the fixture seam of the
-   * migration cases; `commit` does not accept such an F1. Returns `false` when the execution is
-   * not found or already ended.
-   */
   seedLegacyCandidate(
     execution: AgentExecutionId,
     candidate: AgentOperationId,
     tenant?: TenantId,
   ): boolean
-  /**
-   * Sets the terminal condition the one external participant of a coordinated binding reports
-   * from now on: judge-cancellation reads it into the judgment input, and the cancel tryFinish
-   * re-reads it as the same fact (SPEC "判断输入、判据与记录", TerminalParticipantFacts). Default:
-   * ready. A standalone binding has no participant and ignores it.
-   */
   participantCondition(condition: TerminalParticipantFact['condition']): void
-  /**
-   * Applies the retention policy to one execution: drops the acknowledged events. Unacknowledged
-   * events are kept, as SPEC "终态后与 ended" requires. Returns how many events were dropped.
-   */
   applyRetention(execution: AgentExecutionId, tenant?: TenantId): number
-  /** The reply admission controls of the D5 tests (Agent SPEC "回复准入的已核实前缀"). */
   replyAdmissions: MemoryReplyAdmissionControls
 }>
 
-/** The reply admission controls of the memory Journal; `tenant` names the tenant when two could match. */
 export type MemoryReplyAdmissionControls = Readonly<{
-  /**
-   * Admits `count` admitted model reply facts in one new revision, as original Ja commits would:
-   * each with its sequence, basis, publication and the incremental projection. Returns `false`
-   * when the execution is not found or ended.
-   */
   seed(execution: AgentExecutionId, count: number, tenant?: TenantId): boolean
-  /** Removes ledger material as a storage fault would. Returns `false` when it names nothing. */
   damage(execution: AgentExecutionId, damage: AdmissionDamage, tenant?: TenantId): boolean
-  /** Sets the provider's own page bounds; null leaves a bound out. Default: none. */
   limitPages(limits: AdmissionPageLimits): void
-  /** The read counters of this Journal since it was created. */
   statistics(): Readonly<ReturnType<typeof admissionCounters>>
-  /**
-   * Changes the projection rule of the Journal. `rebuild` converts the projection of the execution
-   * by folding its facts from the origin; `none` leaves it, so `load` answers `unavailable`.
-   */
   changeRule(
     execution: AgentExecutionId,
     rule: Adoption,
@@ -389,7 +264,6 @@ type Attachment = {
   authority: Authority
   status: 'active' | 'detached' | 'superseded'
   handoff: DurableEvidence | null
-  /** The revision at which the handoff was established, for a later detach that recognizes it. */
   handoffRevision: number
 }
 
@@ -399,42 +273,30 @@ export type MemoryExecution = {
   id: AgentExecutionId
   tenant: TenantId
   revision: number
-  /** The committed state; the FinishIntent of a settling execution is projected from `finishing`. */
   state: JournalCommitState | Extract<ExecutionState, { kind: 'ended' }>
   checkpoint: AgentCheckpoint
   attachments: Attachment[]
   inputs: AcceptedInput[]
-  /** The revision at which each input was accepted, for a later submit that recognizes it. */
   inputRevisions: Map<InputId, number>
   batches: Map<InputBatchId, Range>
   watermarks: Map<string, Range>
-  /** Every event ever written; those before `retainedFrom` are dropped by retention. */
   events: AgentEvent[]
   retainedFrom: number
   acknowledged: number
-  /** The revision at which the acknowledged prefix last advanced. */
   acknowledgedAt: number
   controls: ControlRecord[]
   results: ResultResponsibility[]
-  /** The revision at which each result responsibility was last established, by result and consumption. */
   resultRevisions: Map<string, number>
   effects: EffectIntent[]
   observations: TerminalObservation[]
-  /** The receipt that first recorded each control stage fact, by target and stage. */
   stageReceipts: Map<string, CommandReceipt>
-  /** The receipt of the first registration of each post-terminal observation. */
   observed: Map<TerminalObservation['passage'], CommandReceipt>
-  /** The reply admission facts: index i holds the sequence i + 1. */
   admissions: AdmissionRecord[]
-  /** The index of each fact by its deduplication key (SPEC:598). */
   admissionKeys: Map<string, number>
   admissionLedger: AdmissionLedger
   entries: AgentJournalEntry[]
-  /** The handoff responsibilities of the execution, as `load.handoffs` projects them (SPEC "消息准入"). */
   handoffs: HandoffRecord[]
-  /** Every Rh attempt that reached the write step, by operation, for the custody chain of its H. */
   custodyAttempts: Map<AgentOperationId, CustodyAttempt>
-  /** The candidate, route, obligation, judgment and custody records (SPEC "条件终结"). */
   finishing: FinishingRecords
   serial: number
   waiters: Set<() => void>
@@ -464,7 +326,6 @@ type Committed = Readonly<{
   receipt: CommandReceipt
 }>
 type Excluded = Readonly<{ kind: 'excluded'; key: string; evidence: DurableEvidence }>
-/** The persistent rejection of a recordControl (SPEC "查询的四种结论与持久拒绝"). */
 type Rejected = Readonly<{
   kind: 'rejected'
   key: string
@@ -479,26 +340,15 @@ type Pending = Readonly<{
   execution: AgentExecutionId
   operation: AgentOperationId
   run: () => void
-  /** What a drop of the held write records besides the exclusion; the attempt reached the write. */
   drop?: () => void
 }>
 export type OperationRecord = Committed | Rejected | Excluded | Pending
 
-/** The outcome of preparing one write: either an answer without a write, or a write to apply. */
 export type Attempt<R> =
   | Readonly<{ kind: 'answer'; value: Outcome<R, Failure> }>
-  /** A declared participant could not tell whether its part held; nothing is saved yet. */
   | Readonly<{ kind: 'unknown' }>
   | Readonly<{ kind: 'write'; value: R; receipt: CommandReceipt; apply: () => void }>
-  /**
-   * A new operation that recognizes an existing fact (SPEC "原操作认回与恢复"): only its index is
-   * saved, with a receipt at the revision of the fact; no execution fact and no revision change.
-   */
   | Readonly<{ kind: 'recognize'; value: R; receipt: CommandReceipt }>
-  /**
-   * Contradicting evidence (SPEC "查询的四种结论与持久拒绝"): `apply` saves the audit and advances
-   * one revision, the operation is fixed as rejected, and the call answers the conflict.
-   */
   | Readonly<{
       kind: 'reject'
       failure: Extract<Failure, { kind: 'conflict' }>
@@ -507,7 +357,6 @@ export type Attempt<R> =
       apply: () => void
     }>
 
-/** Which stages apply to which control; SPEC "六个阶段". */
 const STAGES: Readonly<Record<ExecutionControl['kind'], ReadonlySet<ControlStage>>> = {
   'interrupt-model': new Set([
     'intent-established',
@@ -538,7 +387,6 @@ const STAGES: Readonly<Record<ExecutionControl['kind'], ReadonlySet<ControlStage
 }
 
 const answer = <R>(value: Outcome<R, Failure>): Attempt<R> => ({ kind: 'answer', value })
-/** The protocol under which the coordinated participant of this double reports its terminal condition. */
 const PARTICIPANT_PROTOCOL: Adoption = Object.freeze({
   owner: JOURNAL_OWNER,
   name: 'terminal-participant',
@@ -629,15 +477,10 @@ type RetainedFaultInput = Parameters<
   MemoryAgentJournal<unknown>['setRetainedToolInvocationFault']
 >[0]
 
-/** The text that keys one operation of one tenant's execution, from the canonical tenant text. */
 function operationText(tenant: string, execution: AgentExecutionId, operation: AgentOperationId) {
   return JSON.stringify([tenant, execution, operation])
 }
 
-/**
- * The key of the restore baseline of a well-formed retained-fault request: the canonical tenant,
- * execution and control. A request with another shape has no key.
- */
 function retainedFaultKey(input: RetainedFaultInput): string | undefined {
   if (!exactDataFields(input, ['tenant', 'execution', 'control', 'fault'])) return undefined
   const tenant = tenantCodec.encode(input.tenant)
@@ -653,7 +496,6 @@ function retainedFaultKey(input: RetainedFaultInput): string | undefined {
   return exactDataFields(fault, ['kind']) && fault.kind === 'malformed' ? key : undefined
 }
 
-/** A supplied `toolOperation` that resolved in the caller's tenant: the bytes as given and the parts. */
 type LocalAttachment = Readonly<{
   kind: 'local'
   reference: ToolOperationRef
@@ -663,7 +505,6 @@ type SuppliedAttachment =
   | LocalAttachment
   | Readonly<{ kind: 'malformed'; reference: ToolOperationRef }>
 
-/** Reads the optional attachment of a recording once, through the public Tool resolver. */
 function suppliedAttachment(
   request: Readonly<{ tenant: TenantId; toolOperation?: ToolOperationRef }>,
 ): SuppliedAttachment | undefined {
@@ -675,7 +516,6 @@ function suppliedAttachment(
     : { kind: 'malformed', reference }
 }
 
-/** Whether a recording adds a Tool operation reference to its control record. */
 type Attached =
   | Readonly<{ kind: 'unchanged' }>
   | Readonly<{ kind: 'attached'; record: ToolControlRecord }>
@@ -686,12 +526,6 @@ const damaged = (diagnostic: string): Failure => ({
   diagnostic,
 })
 
-/**
- * The parts of the retained operation reference of a Tool control, checked against its invocation.
- * A retained reference that does not resolve in the record's tenant, or that does not agree with the
- * other retained reference, breaks an invariant of this provider. It is not a caller conflict (SPEC
- * "Recording operation 与阶段事实"): the record is unavailable.
- */
 function retainedOperation(
   record: ToolControlRecord,
   invocation: ToolInvocationParts,
@@ -706,10 +540,6 @@ function retainedOperation(
     : fail(damaged(diagnostic))
 }
 
-/**
- * Checks the retained references of a new recording's target, then the supplied attachment against
- * them, in the order of SPEC "Recording operation 与阶段事实" step 4.
- */
 function attachToolOperation(
   record: ControlRecord,
   tenant: TenantId,
@@ -741,7 +571,6 @@ function attachToolOperation(
     : fail(conflict(recording))
 }
 
-/** The control record that a recording writes, and whether it adds an operation reference. */
 function attachedRecord(
   record: ControlRecord,
   attached: Attached,
@@ -764,12 +593,10 @@ function sameEvidence(left: DurableEvidence | null, right: DurableEvidence | nul
   )
 }
 
-/** Whether two data values are the same content, by their canonical text. */
 function sameValue(left: unknown, right: unknown): boolean {
   return canonical(left) === canonical(right)
 }
 
-/** The handoff record of `reference` in the execution, or `undefined`. */
 function handoffRecord(
   execution: Execution,
   reference: HandoffReference,
@@ -777,22 +604,10 @@ function handoffRecord(
   return execution.handoffs.find(record => sameValue(record.handoff, reference))
 }
 
-/** Whether the handoff is still undetermined: no history applied and no retirement (SPEC "消息准入"). */
 function undetermined(record: HandoffRecord): boolean {
   return record.history.kind === 'pending' && record.retirement === null
 }
 
-/** The `load.handoffs` projection: a frozen deep copy of every record at this revision. */
-/** The handoff records with the custody chain that `custody` derives from the operation records. */
-/**
- * The open items of a snapshot (agent-contract SPEC "提交与保管"): the snapshot holds what is still
- * open, so its size does not grow with the steps the execution took. A closed item stays in the
- * Journal; it only leaves the snapshot.
- */
-/**
- * Whether the execution is settling or ended: it takes no further step, and the finish obligations
- * and the settlement may refer to any of its items, so the snapshot keeps them all.
- */
 function finishing(execution: Execution): boolean {
   return execution.state.kind === 'settling' || execution.state.kind === 'ended'
 }
@@ -801,7 +616,6 @@ function openResult(result: ResultResponsibility): boolean {
   return result.completion === null || result.release.kind === 'pending'
 }
 
-/** An effect intent whose call is still open in the checkpoint or whose action is in its batch. */
 function openEffect(checkpoint: AgentCheckpoint, effect: EffectIntent): boolean {
   return (
     checkpoint.calls.some(call => call.action === effect.action) ||
@@ -809,11 +623,6 @@ function openEffect(checkpoint: AgentCheckpoint, effect: EffectIntent): boolean 
   )
 }
 
-/**
- * A handoff record with a pending history or an unsettled custody chain, or one that is still
- * referred to: the current H, a slot of the current batch, an H of the current step, or the H of an
- * input that is not taken yet or is in the current input batch.
- */
 function openHandoff(execution: Execution, record: ExecutionHandoff): boolean {
   if (record.history.kind === 'pending') return true
   if (record.custody !== null && record.custody.committed === null) return true
@@ -827,7 +636,6 @@ function openHandoff(execution: Execution, record: ExecutionHandoff): boolean {
   return record.request.kind === 'execution' && record.request.position.step === checkpoint.step
 }
 
-/** An accepted input that no batch took yet, or one of the current input batch. */
 function openInput(execution: Execution, input: InputId): boolean {
   const index = execution.inputs.findIndex(accepted => accepted.id === input)
   if (index < 0) return true
@@ -846,7 +654,6 @@ function handoffsOf(
   }))
 }
 
-/** The original acceptance that `open` or a new-input `submit` carries, checked against the method. */
 function acceptanceFailure(
   method: 'open' | 'submit',
   input: ExecutionMutation<unknown>,
@@ -882,7 +689,6 @@ function acceptanceFailure(
   return undefined
 }
 
-/** Creates an empty memory Journal. Each call has its own records; nothing is shared. */
 export function createMemoryAgentJournal<P>(
   options: MemoryAgentJournalOptions<P>,
 ): MemoryAgentJournal<P> {
@@ -918,10 +724,6 @@ export function createMemoryAgentJournal<P>(
   const jointFacts: JointFact[] = []
   let participantCondition: TerminalParticipantFact['condition'] = { kind: 'ready' }
 
-  /**
-   * Operation records are kept per tenant, so a query never tells one tenant whether another
-   * tenant's execution or operation exists. A tenant that legal-identity did not mint has no key.
-   */
   const operationKey = (
     tenant: TenantId,
     execution: AgentExecutionId,
@@ -931,10 +733,6 @@ export function createMemoryAgentJournal<P>(
     return text.ok ? operationText(text.value, execution, operation) : undefined
   }
 
-  // ------------------------------------------------------------------------------------------
-  // Shared steps of every write
-
-  /** The execution an Access may use: `denied` when it is absent or belongs to another tenant. */
   function owned(
     input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
     action: string,
@@ -946,7 +744,6 @@ export function createMemoryAgentJournal<P>(
     return succeed(execution)
   }
 
-  /** The original answer of an operation that already committed, or `undefined` when none did. */
   function recognized<R>(
     input: ExecutionMutation<P>,
     key: string,
@@ -954,17 +751,12 @@ export function createMemoryAgentJournal<P>(
     const at = operationKey(input.tenant, input.execution, input.operation)
     const record = at === undefined ? undefined : operations.get(at)
     if (record?.kind === 'rejected') {
-      // A persistent rejection answers its fixed conflict again; another input conflicts too, and
-      // neither writes a second audit (SPEC "查询的四种结论与持久拒绝").
       return fail(record.key === key ? copy(record.failure) : conflict(input.operation))
     }
     if (record?.kind !== 'committed') return undefined
-    // The record of this operation was written by the same method, whose key starts with its name,
-    // so its value has the type R of that method.
     return record.key === key ? succeed(copy(record.value) as R) : fail(conflict(input.operation))
   }
 
-  /** The receipt of a new operation that recognizes a fact established at `revision` (SPEC "原操作认回与恢复" 1). */
   function recognition(
     execution: Execution,
     operation: AgentOperationId,
@@ -1030,12 +822,9 @@ export function createMemoryAgentJournal<P>(
     cause: DurableEvidence,
   ): void {
     const attachment = latestAttachment(execution)
-    // `open` establishes the first attachment before anything is written, so an execution without
-    // one is a defect of this Journal, not a case to pass over in silence.
     if (attachment === undefined) {
       throw new TypeError('the memory Journal has an execution without an attachment')
     }
-    // The ended event is the last event of an execution; nothing is appended after it.
     if (execution.events.at(-1)?.body.kind === 'ended') return
     for (const body of bodies) {
       execution.events.push({
@@ -1054,12 +843,6 @@ export function createMemoryAgentJournal<P>(
     }
   }
 
-  /**
-   * Runs one prepared write under the scripted fault of its method, records its operation and
-   * returns the answer of the call. Every call that answers `commit-unknown` leaves a record that
-   * `query` can decide: committed when the write took effect, excluded when it did not, and pending
-   * (listed in `unresolved`, fenced by `attach`, decided by `settle`) while nobody knows yet.
-   */
   async function write<R>(
     method: JournalWrite,
     input: ExecutionMutation<P>,
@@ -1073,12 +856,6 @@ export function createMemoryAgentJournal<P>(
     return run(method, entered.ok.fault, input, key, prepare, beforeRecognition, onDropped)
   }
 
-  /**
-   * The first step of every write. The scripted fault belongs to the next call of the method,
-   * whoever makes it, so it is taken here, before anything else of the call is read. Ownership is
-   * checked before the fault takes effect: a write on another tenant's execution, or on an execution
-   * that does not exist (other than `open`), is denied and never becomes pending.
-   */
   function enter(
     method: JournalWrite,
     input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
@@ -1090,7 +867,6 @@ export function createMemoryAgentJournal<P>(
     return foreign ? fail(denied(method)) : succeed({ fault })
   }
 
-  /** The rest of a write after `enter`, under the fault that `enter` took. */
   function run<R>(
     method: JournalWrite,
     fault: WriteFault | undefined,
@@ -1110,7 +886,6 @@ export function createMemoryAgentJournal<P>(
     })
     const check = (): Failure | undefined => {
       if (beforeRecognition === undefined) return undefined
-      // `open` creates the execution, so ownership is only checked for the other methods.
       if (method !== 'open') {
         const found = owned(input, method)
         if ('failure' in found) return found.failure
@@ -1119,8 +894,6 @@ export function createMemoryAgentJournal<P>(
     }
     const pending = operations.get(at)
     if (pending?.kind === 'pending') {
-      // A call that meets the held write of its operation still answers with its own fault. The
-      // held write belongs to the earlier call: no fault of this call runs, drops or holds it again.
       if (fault !== undefined)
         return fault.kind === 'unavailable' ? scriptedUnavailable : commitUnknown
       const rejected = check()
@@ -1166,7 +939,6 @@ export function createMemoryAgentJournal<P>(
       })
       return { kind: 'wrote', value: prepared.value }
     }
-    /** After a run whose answer the caller does not see: no write excludes, unknown stays held. */
     const decide = (run: Run) => {
       if (run.kind === 'answered') exclude('no-write')
       if (run.kind === 'unknown') hold()
@@ -1200,7 +972,6 @@ export function createMemoryAgentJournal<P>(
         decide(attempt())
         return commitUnknown
       case 'dropped':
-        // The write reached the provider and was dropped: the attempt exists, nothing applied.
         onDropped?.()
         exclude('dropped')
         return commitUnknown
@@ -1225,7 +996,6 @@ export function createMemoryAgentJournal<P>(
     })
   }
 
-  /** Whether a record is a pending write of this execution under the execution's own tenant. */
   function pendingOf(record: OperationRecord, execution: Execution): record is Pending {
     return (
       record.kind === 'pending' &&
@@ -1234,7 +1004,6 @@ export function createMemoryAgentJournal<P>(
     )
   }
 
-  /** Excludes every pending write of an execution: the fence of `attach` (fact 5). */
   function fence(execution: Execution): void {
     for (const [key, record] of operations) {
       if (!pendingOf(record, execution) || record.key.startsWith('received:')) continue
@@ -1246,17 +1015,12 @@ export function createMemoryAgentJournal<P>(
     }
   }
 
-  // ------------------------------------------------------------------------------------------
-  // The coordination mode (SPEC "提交参加者协议")
-
-  /** A standalone binding refuses a non-null grant or input source before any write. */
   function standaloneRefusal(...given: readonly (DurableEvidence | null)[]): Failure | undefined {
     return coordination === 'standalone' && given.some(value => value !== null)
       ? { kind: 'unsupported' }
       : undefined
   }
 
-  /** A coordinated binding requires the grant and asks the coordinator about it; otherwise denied. */
   function grantHolds(
     input: Access<P> & Readonly<{ execution: AgentExecutionId; grant: DurableEvidence | null }>,
   ): boolean {
@@ -1270,7 +1034,6 @@ export function createMemoryAgentJournal<P>(
     })
   }
 
-  /** A coordinated binding requires the input source and asks the coordinator about it; otherwise denied. */
   function sourceHolds(
     input: Access<P> & Readonly<{ execution: AgentExecutionId; source: DurableEvidence | null }>,
   ): boolean {
@@ -1284,12 +1047,6 @@ export function createMemoryAgentJournal<P>(
     })
   }
 
-  /**
-   * The scripted answer of a participant to one joint commit, or of the coordinator to one
-   * coordinated operation: `undefined` to go on, an attempt that ends the call otherwise. A
-   * conflict of the coordinator on open, attach or submit is the failed co-check of the grant or
-   * source, so it is `denied`; on tryFinish it is FinishResult.changed, which the caller maps.
-   */
   function participation<R>(
     kind: JointCommitKind | CoordinatedOperation,
     conflict: () => Attempt<R>,
@@ -1319,13 +1076,9 @@ export function createMemoryAgentJournal<P>(
     }
   }
 
-  /** The coordinator's answer to a coordinated operation; a standalone binding has none. */
   function coordinated<R>(kind: CoordinatedOperation, conflict: () => Attempt<R>) {
     return coordination === 'coordinated' ? participation(kind, conflict) : undefined
   }
-
-  // ------------------------------------------------------------------------------------------
-  // Snapshot and input boundary
 
   function inputBoundary(execution: Execution): Range {
     const taken = execution.checkpoint.inputBatch
@@ -1340,7 +1093,6 @@ export function createMemoryAgentJournal<P>(
     return evidence
   }
 
-  /** The ledger scope of an execution: its tenant and id name every basis, range and cursor. */
   function admissionScope(tenant: TenantId, id: AgentExecutionId): AdmissionScope {
     const encoded = tenantCodec.encode(tenant)
     return {
@@ -1350,7 +1102,6 @@ export function createMemoryAgentJournal<P>(
     }
   }
 
-  /** The current read qualification of `input` (SPEC D5 第 6 节); `denied` when it does not hold. */
   function unreadable(
     input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
     action: string,
@@ -1402,7 +1153,6 @@ export function createMemoryAgentJournal<P>(
     )
   }
 
-  /** The public state: a settling execution carries the FinishIntent projection of its current candidate. */
   function stateOf(execution: Execution): ExecutionState {
     if (execution.state.kind !== 'settling') return execution.state
     const intent = intentOf(execution.finishing)
@@ -1411,7 +1161,6 @@ export function createMemoryAgentJournal<P>(
     return { kind: 'settling', intent }
   }
 
-  /** The writes of the execution still undecided, except `operation` (SPEC "条件终结", operations). */
   function pendingOperations(
     execution: Execution,
     operation: AgentOperationId,
@@ -1424,7 +1173,6 @@ export function createMemoryAgentJournal<P>(
     return pendingWrites
   }
 
-  /** The obligations of `candidate` from the Journal's own records at the current revision. */
   function obligationsOf(
     execution: Execution,
     candidate: FinishCandidate,
@@ -1469,19 +1217,6 @@ export function createMemoryAgentJournal<P>(
     | Readonly<{ kind: 'blocked'; value: Blocked }>
     | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-  /**
-   * The judgment of the responsibilities at the terminal commit (SPEC "条件终结" result table), read
-   * from the current list `items`, rebuilt with the same function prepareFinish used.
-   *
-   * - author route: a cancelled candidate that did not migrate is blocked with passages at the
-   *   route record. Otherwise the first pending item in the fixed order inputs, controls,
-   *   operations, passages, custody is blocked, with the source of that item in the issued list
-   *   `listed` (rulings-gate-S23 17); a route without its proof counts as a pending of passages. Without a pending, an unknown item is unavailable.
-   * - cancellation route: no judgment record is blocked with passages; a judgment whose criteria
-   *   (the items with their dispositions and the participant conditions) differ from the current
-   *   closure is changed; a blocked judgment is blocked with the first of its reasons; an unknown
-   *   judgment is unavailable.
-   */
   function finishCheck(
     execution: Execution,
     candidate: FinishCandidate,
@@ -1496,8 +1231,6 @@ export function createMemoryAgentJournal<P>(
     if (route === undefined)
       throw new Error('memory Journal defect: the current candidate has no current route')
     if (route.kind === 'author') {
-      // A cancelled candidate on an author route did not migrate: it does not end under the cancel
-      // without the trusted judgment of a cancellation route.
       if (candidate.conclusion.kind === 'cancelled') return blocked('passages', route.record)
       const pending = firstPending(items)
       const pendingCategory = pending === undefined ? undefined : categoryOf(pending)
@@ -1537,15 +1270,12 @@ export function createMemoryAgentJournal<P>(
       const first = ordered[0]
       if (first === undefined)
         throw new Error('memory Journal defect: a blocked judgment without a reason')
-      // On the cancellation route the source of the block is the judgment record; the source of
-      // each responsibility is reachable through its CancellationBlock (rulings-gate-S23 17).
       return blocked(first.category, judgment.evidence)
     }
     if (candidate.candidate !== judgment.candidate) return { kind: 'changed' }
     return { kind: 'clear' }
   }
 
-  /** The cancel control an authorization names, when it is saved and its intent is reached. */
   function effectiveCancel(
     execution: Execution,
     control: AgentOperationId,
@@ -1566,7 +1296,6 @@ export function createMemoryAgentJournal<P>(
     )
   }
 
-  /** Whether the caller holds the settlement qualification `operation` on the execution. */
   function qualified(
     input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
     operation: SettlementQualification,
@@ -1582,14 +1311,6 @@ export function createMemoryAgentJournal<P>(
     )
   }
 
-  /**
-   * The checks of a cancel authorization shared by prepareFinish, tryFinish and the candidate,
-   * migration and judgment variants (SPEC "条件终结", "commitSettlement 的变体" 3): the control must
-   * be saved with its intent reached (`denied` for `action` otherwise); the source must be the
-   * source of that control (`invalid` otherwise). The `settle` qualification is checked first, before
-   * the original operation is recognized: `settleRefusal` for prepareFinish and tryFinish, the
-   * qualification of commitSettlement for the variants.
-   */
   function cancelAuthorizationFailure(
     execution: Execution,
     authorization: Extract<FinishAuthorization, { kind: 'cancel' }>,
@@ -1602,11 +1323,6 @@ export function createMemoryAgentJournal<P>(
     return undefined
   }
 
-  /**
-   * A cancel authorization needs the caller's current `settle` qualification. It is checked with the
-   * tenant, before the original operation is recognized and before stale-advance or terminal (SPEC
-   * "判定次序与失败映射" 1 and 2): `denied` for `settle`.
-   */
   function settleRefusal(
     input: Access<P> &
       Readonly<{ execution: AgentExecutionId; authorization: FinishAuthorization }>,
@@ -1616,7 +1332,6 @@ export function createMemoryAgentJournal<P>(
       : undefined
   }
 
-  /** The control of the current cancellation route must be the control of the authorization (SPEC "判断输入、判据与记录" 1). */
   function routeControlFailure(
     route: FinishRoute | undefined,
     authorization: Extract<FinishAuthorization, { kind: 'cancel' }>,
@@ -1626,7 +1341,6 @@ export function createMemoryAgentJournal<P>(
       : undefined
   }
 
-  /** Whether the authorization kind fits the conclusion of the candidate: a cancel ends with cancelled only. */
   function kindMismatch(
     candidate: FinishCandidate | undefined,
     authorization: FinishAuthorization,
@@ -1637,11 +1351,6 @@ export function createMemoryAgentJournal<P>(
     )
   }
 
-  /**
-   * The terminal participant facts of the binding (SPEC "TerminalParticipantFacts"): standalone
-   * keeps the mode basis; coordinated reports the one external participant with the condition the
-   * test scripted, the same fact for the judgment and for the tryFinish that re-checks it.
-   */
   function participantsOf(execution: Execution): CancellationJudgmentInput['participants'] {
     if (coordination !== 'coordinated')
       return { kind: 'standalone', basis: journalEvidence(`${execution.id}/standalone`, 0) }
@@ -1662,16 +1371,8 @@ export function createMemoryAgentJournal<P>(
     }
   }
 
-  // ------------------------------------------------------------------------------------------
-  // Message admission (SPEC "消息准入", "真实历史的提交点", "内部 H 的排除与退役")
-
   type HandoffApply = (revision: number, evidence: DurableEvidence) => void
 
-  /**
-   * Checks the handoff part of one commit against the records of the execution and returns what
-   * the write applies. A commit without a handoff change must keep `currentHandoff` as it is: only
-   * P sets it and only a Ja clears or moves it.
-   */
   function handoffWrite(
     execution: Execution,
     input: JournalCommit<P>,
@@ -1689,7 +1390,6 @@ export function createMemoryAgentJournal<P>(
         const reference = request.reference
         if (reference.execution !== execution.id)
           return fail(invalid('handoff', 'the request is not of this execution'))
-        // Only a Ja moves the pointer: a P needs it clear (SPEC "消息准入").
         if (execution.checkpoint.currentHandoff !== null)
           return fail(invalid('checkpoint.currentHandoff', 'another H holds the pointer'))
         if (!sameValue(pointer, reference))
@@ -1698,8 +1398,6 @@ export function createMemoryAgentJournal<P>(
           return fail(invalid('handoff', 'the predecessor of P is the expected revision'))
         if (handoffRecord(execution, reference) !== undefined)
           return fail(invalid('handoff', 'the H is already prepared'))
-        // SPEC "消息准入": the same source position cannot take another H while the old one is
-        // undetermined. 待 U-18: the failure kind of this refusal is not fixed by the contract yet.
         const occupied = execution.handoffs.find(
           record =>
             record.request.kind === 'execution' &&
@@ -1837,7 +1535,6 @@ export function createMemoryAgentJournal<P>(
     }
   }
 
-  /** The custody projection of one H, rebuilt from the attempts and their operation records. */
   function custodyOf(
     execution: Execution,
     handoff: HandoffReference,
@@ -1870,19 +1567,12 @@ export function createMemoryAgentJournal<P>(
     return { root: root[0], chain, committed }
   }
 
-  // ------------------------------------------------------------------------------------------
-  // The port
-
-  // ------------------------------------------------------------------------------------------
-  // The settlement variants (SPEC "commitSettlement 的变体")
-
   type CandidateVariant = Extract<
     SettlementRequest<P>,
     { kind: 'establish-cancellation' | 'migrate-cancellation' | 'judge-cancellation' }
   >
   type CustodyVariant = Exclude<SettlementRequest<P>, CandidateVariant>
 
-  /** The candidate, migration and judgment variants, in the judgment order of SPEC "commitSettlement 的变体". */
   function settleCandidate(
     execution: Execution,
     input: CandidateVariant,
@@ -1893,8 +1583,6 @@ export function createMemoryAgentJournal<P>(
     if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
     const refusal = cancelAuthorizationFailure(execution, input.authorization, 'commitSettlement')
     if (refusal !== undefined) return answer(fail(refusal))
-    // SPEC "commitSettlement 的变体" step 4: an installation that is not the current one is no
-    // longer applicable, then the expected, then the current candidate; shape errors come after.
     if (!sameEvidence(installed.installation.record, input.installation))
       return answer(fail({ kind: 'changed' }))
     if (input.expected !== revisionOf(execution.revision)) return answer(fail({ kind: 'changed' }))
@@ -1920,8 +1608,6 @@ export function createMemoryAgentJournal<P>(
     })
     switch (input.kind) {
       case 'establish-cancellation': {
-        // A predecessor that was never a candidate of this execution names the wrong candidate;
-        // one that is no longer current is a candidate that changed (SPEC "commitSettlement 的变体" 4).
         if (
           input.predecessor !== null &&
           !finishing.candidates.some(item => item.candidate === input.predecessor)
@@ -1929,8 +1615,6 @@ export function createMemoryAgentJournal<P>(
           return answer(fail(invalid('predecessor', 'not a candidate of this execution')))
         if ((current?.candidate ?? null) !== input.predecessor)
           return answer(fail({ kind: 'changed' }))
-        // A cancelled candidate is never superseded by a new one: on an author route it migrates,
-        // on a cancellation route it is judged (SPEC "commitSettlement 的变体", establish row).
         if (current !== undefined && current.conclusion.kind === 'cancelled')
           return answer(fail(invalid('predecessor', 'the current candidate is already cancelled')))
         const intent = control.stages['intent-established']
@@ -2130,7 +1814,6 @@ export function createMemoryAgentJournal<P>(
     }
   }
 
-  /** The target of a custody variant that this execution does not hold, checked before the source is read. */
   function custodyTargetFailure(
     execution: Execution,
     input: CustodyVariant,
@@ -2183,13 +1866,6 @@ export function createMemoryAgentJournal<P>(
     }
   }
 
-  /**
-   * The three custody variants: the reconcile qualification, no expected, also after ended. The
-   * target of this execution is checked before the source is read (SPEC "commitSettlement 的变体"
-   * table): a target the Journal does not hold is invalid, a source the host does not answer is
-   * unavailable, a host record of another tenant is denied and one of another execution invalid
-   * before the record is compared, a source that contradicts a known reference is conflict.
-   */
   function settleCustody(execution: Execution, input: CustodyVariant): Attempt<SettlementResult> {
     const finishing = execution.finishing
     const sourceEvidence =
@@ -2201,10 +1877,6 @@ export function createMemoryAgentJournal<P>(
     const record = options.hostRecords?.get(sourceEvidence.record)
     if (record === undefined)
       return answer(fail(damaged(`the host answers no record for ${sourceEvidence.record}`)))
-    // A tool-return record carries no tenant, and its returned reference names none either
-    // (R2-D357): its tenant isolation is not a check of this stub (R2-D372).
-    // A record of another tenant is denied before anything of it is compared or disclosed; a record
-    // of another execution of this tenant is not a source of this execution.
     if (record.kind !== 'tool-return') {
       if (!tenantEquals(record.tenant, execution.tenant))
         return answer(fail(denied('commitSettlement')))
@@ -2351,8 +2023,6 @@ export function createMemoryAgentJournal<P>(
         const effect = execution.effects.find(item => item.action === input.intent.action)
         if (effect === undefined)
           throw new Error('memory Journal defect: the Tool intent was checked before the source')
-        // A known reference of the same intent is not merged with another call or admission
-        // (SPEC "commitSettlement 的变体", the Tool paragraph): conflict, the association stays.
         for (const existing of finishing.toolAssociations) {
           if (!sameValue(existing.intent, input.intent)) continue
           if (existing.association.kind === 'no-proven-reference') continue
@@ -2390,7 +2060,6 @@ export function createMemoryAgentJournal<P>(
           source: effect.pending.fixed,
           version: evidence,
           position: effect.pending.position,
-          // commit-unknown keeps the admission undecided: unknown, not held (SPEC:1328, 1334).
           disposition:
             record.returned.kind === 'accepted'
               ? {
@@ -2463,8 +2132,6 @@ export function createMemoryAgentJournal<P>(
         const original = recognized<{ receipt: CommandReceipt; authority: Authority }>(input, key)
         if (original !== undefined) return answer(original)
         if (existing !== undefined) return answer(fail(conflict(input.operation)))
-        // The two parts of the acceptance must agree with each other and with this operation
-        // (SPEC "输入内容与水位线"): the first open uses the fixed adoption of the invoke origin.
         const malformed = acceptanceFailure('open', input, acceptance)
         if (malformed !== undefined) return answer(fail(malformed))
         if (entry.kind !== 'invoke') return answer(fail(invalid('original.entry', 'not an invoke')))
@@ -2477,7 +2144,6 @@ export function createMemoryAgentJournal<P>(
           return answer(
             fail(invalid('runtime', 'not the scope and definition of the invoke origin')),
           )
-        // The co-check of the grant and the input source, in the same write as the acceptance.
         if (!grantHolds({ ...input, grant: runtime.grant })) return answer(fail(denied('open')))
         if (!sourceHolds({ ...input, source: initial.source })) return answer(fail(denied('open')))
         const refused = coordinated<{ receipt: CommandReceipt; authority: Authority }>('open', () =>
@@ -2528,8 +2194,6 @@ export function createMemoryAgentJournal<P>(
           generation: '1',
           source: evidence,
         }
-        // The external H is published by this acceptance (SPEC "消息准入": the real history of an
-        // external input is the original open or submit).
         execution.handoffs.push({
           handoff: copy(acceptance.handoff),
           request: copy(acceptance.outcome.request),
@@ -2545,7 +2209,6 @@ export function createMemoryAgentJournal<P>(
           handoffRevision: 0,
         })
         const receipt = receiptOf(execution, input.operation, 1, evidence, 'applied')
-        // open appends no event: the first event comes from a later commit (SPEC per-operation table).
         return {
           kind: 'write',
           value: { receipt, authority },
@@ -2569,7 +2232,6 @@ export function createMemoryAgentJournal<P>(
         const execution = found.ok
         const original = recognized<{ receipt: CommandReceipt; authority: Authority }>(input, key)
         if (original !== undefined) return answer(original)
-        // An ended execution answers terminal before the coordinator is asked (SPEC per-operation table).
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         if (!grantHolds(input)) return answer(fail(denied('attach')))
         const refused = coordinated<{ receipt: CommandReceipt; authority: Authority }>(
@@ -2630,8 +2292,6 @@ export function createMemoryAgentJournal<P>(
         )
         if (target === undefined) return answer(fail(denied('detach')))
         if (target.status === 'superseded') return answer(fail({ kind: 'stale-advance' }))
-        // A detached target only recognizes the existing handoff: the new operation is indexed at
-        // the revision of that handoff and writes no new position (SPEC "原操作认回与恢复").
         if (target.handoff !== null) {
           return recognize(
             copy(target.handoff),
@@ -2664,8 +2324,6 @@ export function createMemoryAgentJournal<P>(
         const found = owned(input, 'commit')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        // The Journal allocates `entry` and `ended` events itself: `entry` when it writes an entry
-        // (SPEC "日志条目" 6), `ended` in tryFinish. A commit that carries either is invalid.
         const forged = input.events.find(body => {
           const kind = (body as AgentEventBody).kind
           return kind === 'entry' || kind === 'ended'
@@ -2680,7 +2338,6 @@ export function createMemoryAgentJournal<P>(
             ),
           )
         }
-        // SPEC "条件终结": only a settling commit fixes a candidate, and a settling commit needs one.
         if (input.finish !== null && input.state.kind !== 'settling') {
           return answer(fail(invalid('finish', 'only a settling commit carries a candidate')))
         }
@@ -2693,25 +2350,17 @@ export function createMemoryAgentJournal<P>(
         }
         const original = recognized<CommandReceipt>(input, key)
         if (original !== undefined) return answer(original)
-        // SPEC "判定次序与失败映射": stale-advance before terminal, terminal before changed.
         if (!holds(execution, input.authority)) return answer(fail({ kind: 'stale-advance' }))
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         if (input.expected !== revisionOf(execution.revision)) {
           return answer(fail({ kind: 'changed' }))
         }
-        // An effective cancel takes precedence over an ordinary completion or failure (SPEC
-        // "条件终结"): a candidate that is not cancelled is changed, nothing is written.
         if (
           input.finish !== null &&
           input.finish.conclusion.kind !== 'cancelled' &&
           effectiveCancels(execution).length > 0
         )
           return answer(fail({ kind: 'changed' }))
-        // F1: a settling commit with the candidate content establishes the candidate under this
-        // operation, unless the current candidate already has this content; other content
-        // supersedes the current candidate (SPEC "条件终结" 1). F2: the first plain settling commit
-        // after the candidate, with no before-terminal passage left open, is the proof of the
-        // author route (SPEC "条件终结" 3).
         const finishing = execution.finishing
         const current = currentCandidate(finishing)
         const newCandidate =
@@ -2736,8 +2385,6 @@ export function createMemoryAgentJournal<P>(
           }
           if (known === undefined) newEffect = true
         }
-        // SPEC:598: one fact per original call and result version. The same key with the same
-        // decision recognizes the original fact and its sequence; another decision conflicts.
         let admission: ModelReplyAdmission | null = null
         if (input.replyAdmission !== null) {
           const fact = input.replyAdmission
@@ -2749,7 +2396,6 @@ export function createMemoryAgentJournal<P>(
           if (known === undefined) admission = copy(fact)
         }
         const scope = admissionScope(execution.tenant, execution.id)
-        // SPEC D5 5.1: a changed read position is checked by a point read of its basis.
         const readFailure = checkReadPosition(
           scope,
           execution.admissions,
@@ -2768,8 +2414,6 @@ export function createMemoryAgentJournal<P>(
           )
           if (refused !== undefined) return refused
         }
-        // A commit that establishes no new fact does not advance the revision and writes no event:
-        // its receipt names the current revision (SPEC "执行修订").
         const unchanged =
           semanticKey('checkpoint', execution.checkpoint) ===
             semanticKey('checkpoint', input.checkpoint) &&
@@ -2845,8 +2489,6 @@ export function createMemoryAgentJournal<P>(
               finishing.routes[index] = { ...route, beforeTerminal: evidence }
             }
             if (admission !== null) {
-              // The fact, its key, sequence, basis, publication and the projection step are written
-              // in this same write as the Ja (SPEC D5 第 4 节).
               const admitted = admit(
                 scope,
                 execution.admissionLedger,
@@ -2884,8 +2526,6 @@ export function createMemoryAgentJournal<P>(
         const found = owned(input, 'submit')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        // SPEC per-operation table, input.submit: the original O is recognized first, then a new
-        // input after ended is terminal, then a new operation may recognize an accepted input.
         const original = recognized<CommandReceipt>(input, key)
         if (original !== undefined) return answer(original)
         const lineage = input.lineage
@@ -2913,7 +2553,6 @@ export function createMemoryAgentJournal<P>(
                 diagnostic: 'the original acceptance of the recognized input is not on record',
               }),
             )
-          // The same input identity with other content conflicts (SPEC "输入内容与水位线").
           if (semanticKey('input', known) !== semanticKey('input', input.value))
             return answer(fail(conflict(input.operation)))
           const stored = handoffRecord(execution, lineage.original.handoff)
@@ -2930,8 +2569,6 @@ export function createMemoryAgentJournal<P>(
           const receipt = recognition(execution, input.operation, at, 'accepted')
           return recognize(receipt, receipt)
         }
-        // A new input under an identity the execution already accepted is another entry for the
-        // same InputId: it conflicts, it does not recognize (SPEC "输入内容与水位线").
         if (known !== undefined) return answer(fail(conflict(input.operation)))
         if (!sourceHolds({ ...input, source: input.value.source }))
           return answer(fail(denied('submit')))
@@ -2999,7 +2636,6 @@ export function createMemoryAgentJournal<P>(
               stages: { accepted: { state: 'reached', source: evidence } },
             })
             execution.revision = revision
-            // The accepted fact, its control event and the operation result hold at once (SPEC "六个阶段").
             appendEvents(
               execution,
               [
@@ -3030,8 +2666,6 @@ export function createMemoryAgentJournal<P>(
         if (through === undefined || through < 1 || through > execution.events.length) {
           return answer(fail(invalid('through', 'beyond the emitted events')))
         }
-        // A `through` within the acknowledged prefix recognizes that prefix at the revision it was
-        // established and never moves it back (SPEC "确认").
         if (through <= execution.acknowledged) {
           const receipt = recognition(
             execution,
@@ -3082,8 +2716,6 @@ export function createMemoryAgentJournal<P>(
         ) {
           return rejected
         }
-        // transfer custody or processed: the provider establishes the custody or completion evidence
-        // in its own commit boundary; the participant declaration only binds `commit.caller`.
         let custody = known?.custody ?? null
         let completion = known?.completion ?? null
         if (transfer.kind === 'custody') {
@@ -3118,7 +2750,6 @@ export function createMemoryAgentJournal<P>(
           input.result.version,
           input.consumption,
         ])
-        // No new responsibility fact: a new operation recognizes the existing one at its revision.
         if (
           known !== undefined &&
           semanticKey('responsibility', known) === semanticKey('responsibility', responsibility)
@@ -3172,7 +2803,6 @@ export function createMemoryAgentJournal<P>(
         state: request.state,
         source: copy(request.source),
       }
-      // A local attachment takes part in the key by its canonical parts, a malformed one by its bytes.
       const key = semanticKey(
         method,
         attachment === undefined
@@ -3208,8 +2838,6 @@ export function createMemoryAgentJournal<P>(
           fact.state === input.state &&
           sameEvidence(fact.source, input.source)
         if (sameFact && !referenceAdded) {
-          // The same stage fact without a new reference is recognized by the new operation at the
-          // revision of the fact; it is not recorded or projected twice (SPEC "六个阶段").
           const first = execution.stageReceipts.get(stageKey)
           if (first !== undefined) {
             const receipt = recognition(
@@ -3222,10 +2850,6 @@ export function createMemoryAgentJournal<P>(
           }
         }
         const ended = execution.state.kind === 'ended'
-        // After a lawful ended only the three late duty stages may still be saved; a new intent or
-        // revocation is a pre-terminal effect and answers terminal (SPEC "六个阶段", Q1b). Evidence
-        // that contradicts a stage already reached is not a new intent: it takes the persistent
-        // rejection below (SPEC "判定次序与失败映射" 8).
         if (
           ended &&
           !sameFact &&
@@ -3235,8 +2859,6 @@ export function createMemoryAgentJournal<P>(
           return answer(fail({ kind: 'terminal' }))
         }
         if (!sameFact && fact !== undefined && fact.state === 'reached') {
-          // Evidence that contradicts an established stage: the persistent rejection saves an
-          // audit, advances one revision, writes no event and fixes the conflict for query.
           const revision = execution.revision + 1
           const audit = nextEvidence(execution, 'rejected-control', revision)
           return {
@@ -3266,7 +2888,6 @@ export function createMemoryAgentJournal<P>(
             }
             if (!sameFact) execution.stageReceipts.set(stageKey, receipt)
             execution.revision = revision
-            // A late stage after ended is saved without an event; ended stays the last event.
             if (ended || sameFact) return
             appendEvents(
               execution,
@@ -3291,10 +2912,6 @@ export function createMemoryAgentJournal<P>(
       const request =
         input.original.kind === 'recorded' ? input.original.outcome.request : input.original.request
       const reference = request.reference
-      /**
-       * The attempt that this Rh is, once it is the root or the one direct successor of the chain
-       * of its H (SPEC "准入结果保管"); otherwise the refusal.
-       */
       const validated = (execution: Execution): Outcome<CustodyAttempt, Failure> => {
         const record = handoffRecord(execution, reference)
         if (record === undefined || !sameValue(record.request, request))
@@ -3309,7 +2926,6 @@ export function createMemoryAgentJournal<P>(
         const chain = custodyOf(execution, reference)
         const custody = input.custody
         if (custody === null) {
-          // The root: the first Rh of this H. Another root for the same H is not a derivation.
           if (chain !== null && chain.root !== input.operation)
             return fail(invalid('operation', 'the H already has its custody root'))
           return succeed(attempt)
@@ -3342,8 +2958,6 @@ export function createMemoryAgentJournal<P>(
         const execution = found.ok
         const original = recognized<CommandReceipt>(input, key)
         if (original !== undefined) return answer(original)
-        // SPEC "准入结果保管" 4: a permanently excluded attempt can never commit under this
-        // operation; the fence answers before any new write.
         const at = operationKey(input.tenant, input.execution, input.operation)
         const fixed = at === undefined ? undefined : operations.get(at)
         if (fixed?.kind === 'excluded')
@@ -3352,8 +2966,6 @@ export function createMemoryAgentJournal<P>(
         if ('failure' in checked) return answer(checked)
         const record = handoffRecord(execution, reference)
         if (record === undefined) throw new Error('recordHandoff: the validated record is missing')
-        // The attempt reaches the write step: it is part of the chain whether it commits or is
-        // dropped, because a dropped attempt is permanently excluded under its operation.
         execution.custodyAttempts.set(input.operation, checked.ok)
         const revision = execution.revision + 1
         const evidence = nextEvidence(execution, 'record-handoff', revision)
@@ -3364,14 +2976,12 @@ export function createMemoryAgentJournal<P>(
           receipt,
           apply: () => {
             if (record.resolution === null) record.resolution = copy(input.original)
-            // An unpublished prepared message is retained after the end; Rh never publishes.
             if (execution.state.kind === 'ended' && record.history.kind === 'pending')
               record.history = { kind: 'retained', disposition: execution.state.disposition }
             execution.revision = revision
           },
         }
       }
-      /** A dropped Rh still reached the write: a valid attempt joins the chain as excluded. */
       const dropped = () => {
         const found = owned(input, 'recordHandoff')
         if ('failure' in found) return
@@ -3400,11 +3010,6 @@ export function createMemoryAgentJournal<P>(
           const authorization = input.authorization
           const finishing = execution.finishing
           const named = finishing.candidates.find(item => item.candidate === input.candidate)
-          // A cancel without settle was denied before the recognition (`settleRefusal`). Then the
-          // judgment order of rulings-gate-S23 section 3: stale-advance, terminal, the cancel
-          // checks (denied, invalid), the kind of the authorization against the named candidate
-          // (denied; skipped when it names none), an advancement under an effective cancel
-          // (changed), not settling (changed), expected (changed), an unknown candidate (invalid).
           if (authorization.kind === 'advancement' && !holds(execution, authorization.authority))
             return answer(fail({ kind: 'stale-advance' }))
           if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
@@ -3475,12 +3080,6 @@ export function createMemoryAgentJournal<P>(
           const authorization = input.authorization
           const finishing = execution.finishing
           const candidate = currentCandidate(finishing)
-          // A cancel without settle was denied before the recognition (`settleRefusal`). Then the
-          // judgment order of rulings-gate-S23 section 3: stale-advance, terminal, the cancel
-          // checks (denied, invalid), the kind of the authorization against the candidate (denied),
-          // an advancement under an effective cancel (changed), not settling (changed), expected
-          // (changed), the list (invalid), the intent and the projection (changed), then the
-          // responsibilities of the route.
           if (authorization.kind === 'advancement' && !holds(execution, authorization.authority))
             return answer(fail({ kind: 'stale-advance' }))
           if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
@@ -3497,7 +3096,6 @@ export function createMemoryAgentJournal<P>(
           if (input.expected !== revisionOf(execution.revision)) return changed
           const intent = intentOf(finishing)
           if (candidate === undefined || intent === undefined) return changed
-          // The list must be issued, real and of this candidate (SPEC "条件终结" result table).
           const given = input.intent.obligations
           if (given === null)
             return answer(fail(invalid('intent.obligations', 'the obligations are not issued')))
@@ -3506,11 +3104,8 @@ export function createMemoryAgentJournal<P>(
             return answer(fail(invalid('intent.obligations', 'not a list this Journal issued')))
           if (list.candidate !== candidate.candidate)
             return answer(fail(invalid('intent.obligations', 'the list of another candidate')))
-          // The intent is compared with the projection for equality only (SPEC "条件终结" 4).
           if (semanticKey('finish-intent', intent) !== semanticKey('finish-intent', input.intent))
             return changed
-          // The list is usable while the responsibility projection is unchanged (SPEC "终结责任清单");
-          // the current closure, rebuilt with the same function, carries the dispositions.
           const current = obligationsOf(execution, candidate, input.operation).items
           if (projectionOf(current) !== projectionOf(list.items)) return changed
           const boundary = execution.watermarks.get(candidate.inputWatermark.record)
@@ -3519,8 +3114,6 @@ export function createMemoryAgentJournal<P>(
           if (check.kind === 'changed') return changed
           if (check.kind === 'blocked') return answer(succeed(check.value))
           if (check.kind === 'unavailable') return answer(fail(damaged(check.diagnostic)))
-          // The coordinated binding checks the external participant in the same conditional commit;
-          // its conflict is FinishResult.changed, not a failure (SPEC "条件终结").
           const refused = coordinated<FinishResult>('tryFinish', () => changed)
           if (refused !== undefined) return refused
           const revision = execution.revision + 1
@@ -3542,8 +3135,6 @@ export function createMemoryAgentJournal<P>(
             apply: () => {
               execution.state = { kind: 'ended', conclusion, disposition: evidence }
               execution.observations = observations
-              // A prepared message that no Ja published is retained by the terminal disposition
-              // (SPEC "准入结果保管"); nothing publishes it after the end.
               for (const record of execution.handoffs) {
                 if (record.history.kind === 'pending')
                   record.history = { kind: 'retained', disposition: evidence }
@@ -3563,8 +3154,6 @@ export function createMemoryAgentJournal<P>(
 
     commitSettlement(input) {
       const key = semanticKey('commitSettlement', input)
-      // SPEC "commitSettlement 的变体" step 1: the qualification of this operation is checked before
-      // the original record is disclosed; a refusal is denied.
       const beforeRecognition = (): Failure | undefined => {
         const required: readonly SettlementQualification[] =
           input.kind === 'migrate-cancellation'
@@ -3623,7 +3212,6 @@ export function createMemoryAgentJournal<P>(
         if (item.observed !== null) {
           if (!sameEvidence(item.observed, input.observed))
             return answer(fail(conflict(input.operation)))
-          // The same value is recognized by the new operation at the revision of the registration.
           const first = execution.observed.get(input.passage)
           if (first !== undefined) {
             const receipt = recognition(
@@ -3643,7 +3231,6 @@ export function createMemoryAgentJournal<P>(
           value: receipt,
           receipt,
           apply: () => {
-            // No event: SPEC "终态后与 ended" keeps the event stream closed after ended.
             execution.observations[index] = { ...item, observed: copy(input.observed) }
             execution.observed.set(input.passage, receipt)
             execution.revision = revision
@@ -3712,7 +3299,6 @@ export function createMemoryAgentJournal<P>(
       if (fault !== undefined) return fault
       const found = owned(input, 'readReplyAdmissions')
       if ('failure' in found) return found
-      // Every page checks the current qualification; a cursor or a prefix grants nothing.
       const refused = unreadable(input, 'readReplyAdmissions')
       if (refused !== undefined) return fail(refused)
       const execution = found.ok
@@ -3739,8 +3325,6 @@ export function createMemoryAgentJournal<P>(
       }
       const at = operationKey(input.tenant, input.execution, input.operation)
       const record = at === undefined ? undefined : operations.get(at)
-      // Without an execution and without an operation of this tenant, the answer is the one that
-      // another tenant gets: it does not tell a missing execution from a forbidden one.
       if (execution === undefined && record === undefined) return fail(denied('query'))
       if (record === undefined || record.kind === 'pending') return succeed({ kind: 'unknown' })
       if (record.kind === 'excluded') {
@@ -3882,7 +3466,6 @@ export function createMemoryAgentJournal<P>(
       responses.set(kind, queue)
     },
     settle(execution, operation, outcome, tenant) {
-      // The tenant of an existing execution, or the one the test names for a pending `open`.
       const matches = [...executions.values()].filter(value => value.id === execution)
       const owner = tenant ?? (matches.length === 1 ? matches[0]?.tenant : undefined)
       if (owner === undefined && matches.length > 1) return false
@@ -4021,7 +3604,6 @@ export function createMemoryAgentJournal<P>(
     },
   }
 
-  /** The one execution `id` names, of `tenant` when given. */
   function only(id: AgentExecutionId, tenant: TenantId | undefined): Execution | undefined {
     const matches = [...executions.values()].filter(
       value => value.id === id && (tenant === undefined || tenantEquals(tenant, value.tenant)),

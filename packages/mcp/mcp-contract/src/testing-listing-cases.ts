@@ -1,6 +1,3 @@
-// The exhaustive sample table of `mergeListing`. Each case gives the catalog state, a complete
-// listing that carries the revision it is based on, and the result that the merge must give. The
-// expected records are written out from the inputs; they are not computed by `mergeListing`.
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
   ActionCatalogRecord,
@@ -48,7 +45,6 @@ function listingOf(
   return listing.ok
 }
 
-/** The known action that an offered entry of the listing becomes. */
 function offered(listing: CompleteListing, index: number): KnownAction {
   const entry = listing.actions[index]
   if (entry === undefined) throw new TypeError(`the listing has no entry ${index}`)

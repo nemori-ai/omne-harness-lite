@@ -1,6 +1,3 @@
-// The process memory of the contract double: sessions by (tenant, session), each with its log,
-// its operation records and the inputs it accepted, and the history cursors that the double issued.
-// Nothing here is written anywhere. A restart, or a reload of the row, starts empty.
 import { createHash, randomUUID } from 'node:crypto'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type {
@@ -19,17 +16,14 @@ import type { Payload } from './payload.ts'
 
 export const OWNER = 'session-provider'
 
-/** The digest text of the given parts. The parts are plain text, so their order fixes the result. */
 export function digestOf(...parts: readonly string[]): string {
   return `sha256:${createHash('sha256').update(JSON.stringify(parts)).digest('hex')}`
 }
 
-/** An evidence of this double: its owner is this row, so no reader takes it for a storage record. */
 export function evidenceOf(record: string, ...parts: readonly string[]): DurableEvidence {
   return { owner: OWNER, record, revision: '1', digest: digestOf(record, ...parts) }
 }
 
-/** What the double remembers of one operation, so a replay answers the original result. */
 export type OperationRecord =
   | Readonly<{ kind: 'create'; digest: string; receipt: CommitReceipt }>
   | Readonly<{ kind: 'accept'; digest: string; receipt: CommitReceipt }>
@@ -39,7 +33,6 @@ export type EntryDraft = Readonly<{ kind: string; payload: Payload }>
 
 const entryId = (position: number): EntryId => `entry-${position + 1}` as EntryId
 
-/** One registered session. The log is append-only and its entries are never changed. */
 export class SessionRecord {
   readonly creation: SessionCreation
   readonly operations = new Map<SessionOperationId, OperationRecord>()
@@ -67,7 +60,6 @@ export class SessionRecord {
     return this.entries.findIndex(entry => entry.id === id)
   }
 
-  /** Appends the drafts as one revision and returns the receipt of that commit. */
   commit(
     session: SessionId,
     operation: SessionOperationId,
@@ -97,23 +89,19 @@ export class SessionRecord {
   }
 }
 
-/** The fixed state of one history walk: what the cursor stands for. */
 export type CursorState = Readonly<{
   tenant: string
   session: SessionId
   kinds: readonly string[]
   direction: 'forward' | 'backward'
-  /** The log length when the walk began: later appends are not part of this walk. */
   upper: number
   upperRevision: SessionRevision
-  /** The next log position to scan. */
   position: number
   pageBytes: number
 }>
 
 const MAX_CURSORS = 1024
 
-/** The text key of a tenant, or `undefined` for a value that legal-identity did not mint. */
 export function tenantKeyOf(tenant: TenantId): string | undefined {
   const encoded = tenantCodec.encode(tenant)
   return encoded.ok ? encoded.value : undefined
@@ -133,7 +121,6 @@ export class SessionStore {
     this.tenants.set(tenant, sessions)
   }
 
-  /** Issues an opaque token for `state`. The oldest token is dropped when there are too many. */
   issueCursor(state: CursorState): string {
     const token = `cursor-${randomUUID()}`
     this.cursors.set(token, state)
@@ -144,7 +131,6 @@ export class SessionStore {
     return token
   }
 
-  /** The state of a token, only for the tenant and session that it was issued for. */
   cursor(token: string, tenant: string, session: SessionId): CursorState | undefined {
     const state = this.cursors.get(token)
     return state !== undefined && state.tenant === tenant && state.session === session

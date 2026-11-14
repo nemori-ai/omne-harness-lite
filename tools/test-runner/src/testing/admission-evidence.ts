@@ -1,11 +1,3 @@
-// 准入证据核对：收口点 F 上要有一次完整通过的全量准入。F 的树与某个提交 C 的树相同时，C 上的全量准入就是 F 上的全量准入
-// （integration.md 波末收口的树相同复用）。这里只核对树相同，不要求 F 是 gate 合并提交，也不看 C 与 F 的祖先关系。
-// 接受条件逐项都要满足：记录是 schemaVersion 1 的 `admission-run`，`admission` 为真，带了 `FULL=1` 的全量（`mode: full` 且
-// `fullRequested` 为真，或 `resumeFrom.fullRequested` 为真的 `mode: resume`——integration.md：用增量准入的证据复用时
-// H1 上的整次运行必须带 `FULL=1`；只是计划判了全量的不算），运行时工作树干净，
-// 没有快速失败，步骤表非空且每步都跑完、退出 0，有 `finishedAt`；记录的头在本仓库里，记录写的树与头的树一致；
-// 树（记录缺 `tree` 时由头补算）等于 F 的树。任何一项不满足就拒绝并写明原因，读不出、算不出的一律按拒绝处理，不猜。
-// 命令行形状（接线在 cli.ts）：`admission-evidence --for <F> [--record <路径>]`，接受退出 0、拒绝退出 1、用法错误退出 2。
 import { git } from '@omne-harness/repo-toolchain/core/git'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { isAbsolute, join, relative, resolve } from 'node:path'
@@ -27,15 +19,12 @@ export const ADMISSION_EVIDENCE_USAGE = [
   '      否则逐项列出拒绝原因（退出 1）；用法错误退出 2',
 ].join('\n')
 
-// 记录的形状归 admission-run.ts；这里不用它的整份解析（整份通过或不通过给不出逐项原因），只借它的常量与类型，
-// 逐字段核对并逐项列出拒绝原因。
 const SCHEMA_VERSION = ADMISSION_RUN_SCHEMA_VERSION
 const RECORD_KIND = ADMISSION_RUN_KIND
 const OBJECT_ID = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u
 
 export type Caches = CacheStates
 
-/** 拒绝的一项原因：`kind` 供程序分辨，`message` 给人读。 */
 export type RejectionKind =
   | 'target-missing'
   | 'no-matching-record'
@@ -58,11 +47,9 @@ export interface Rejection {
   readonly message: string
 }
 
-/** 一份记录的核对结果；`reasons` 为空就是可采用。 */
 export interface RecordFinding {
   readonly record: string
   readonly reasons: readonly Rejection[]
-  /** 记录里 test 步定向重跑过的文件（写得合法时）；确认者要看得到哪些用例是重跑才过的。 */
   readonly retried?: readonly RetriedFile[]
 }
 
@@ -78,26 +65,19 @@ export type AdmissionEvidence =
       readonly source: CommitTree
       readonly record: string
       readonly caches: Caches
-      /** 记录是接续了 H1 全量准入的组成证据时，H1 的头；一次整次全量没有。 */
       readonly resumedFrom?: string
-      /** test 步定向重跑过的文件。 */
       readonly retried?: readonly RetriedFile[]
     }
   | {
       readonly kind: 'rejected'
       readonly forRef: string
-      /** F 解析不出时没有。 */
       readonly target: CommitTree | undefined
-      /** 不属于某一份记录的原因：F 解析不出、本树里没有同树的记录。 */
       readonly reasons: readonly Rejection[]
-      /** 逐份记录的原因：给了 `--record` 时是那一份；按树找时是同树的各份，一份也没有时是读不出的各份。 */
       readonly records: readonly RecordFinding[]
     }
 
 export interface EvidenceRequest {
-  /** 收口点：任何能解析成提交的写法。 */
   readonly for: string
-  /** 记录路径，相对路径按 `root` 解析；不给时在 `root` 的 `tmp/admission/*.json` 里按树哈希找。 */
   readonly record?: string
 }
 
@@ -112,7 +92,6 @@ const isObjectId = (value: unknown): value is string =>
 const isCacheState = (value: unknown): value is CacheState =>
   CACHE_STATES.some(state => state === value)
 
-/** git 解析不出（对象不存在、引用写错）时返回 undefined；其余照 `git` 抛出。 */
 function resolveObject(root: string, spec: string): string | undefined {
   try {
     const id = git(root, ['rev-parse', '--verify', '--quiet', '--end-of-options', spec])
@@ -122,7 +101,6 @@ function resolveObject(root: string, spec: string): string | undefined {
   }
 }
 
-/** 读出来的记录：头、记录写的树（可能没有）、缓存状态，以及与树无关的全部拒绝原因。 */
 type Inspected =
   | { readonly kind: 'unreadable'; readonly reason: Rejection }
   | {
@@ -131,7 +109,6 @@ type Inspected =
       readonly tree: string | undefined
       readonly finishedAt: string
       readonly caches: Caches
-      /** 接续记录写的 H1 的头；不是接续或写得不对时没有（写得不对已进 `problems`）。 */
       readonly resumedFrom: string | undefined
       readonly retried: readonly RetriedFile[] | undefined
       readonly problems: readonly Rejection[]
@@ -142,10 +119,6 @@ const unreadable = (message: string): Inspected => ({
   reason: reject('unreadable', `记录读不出：${message}`),
 })
 
-/**
- * 缓存状态只用于展示，不进接受条件；没写时两项都是 unknown，写了就要每项都是 on、off、unknown 之一。
- * 旧记录里多出的字段（例如已删的 mutation）不读也不报错。
- */
 function readCaches(value: unknown): Caches | undefined {
   if (value === undefined) return { test: 'unknown', depGraph: 'unknown' }
   if (!isObject(value)) return undefined
@@ -167,7 +140,6 @@ function stepProblems(steps: unknown): Rejection[] {
   })
 }
 
-/** `fullRequested` 不是真时的原因：假就是没有带 FULL=1，别的写法看不出。 */
 function notRequested(subject: string, value: unknown): Rejection {
   return reject(
     'full-not-requested',
@@ -177,10 +149,6 @@ function notRequested(subject: string, value: unknown): Rejection {
   )
 }
 
-/**
- * 范围够不够全量：`full` 且带了 `FULL=1` 才够；`resume` 看它接续的 H1——H1 那次带了 `FULL=1`，
- * 「H1 全量（失败于 X）＋ 头上增量」合起来是全量准入；H1 只按影响面或只是计划判了全量时都不是。
- */
 function modeProblem(record: Readonly<Record<string, unknown>>): Rejection | undefined {
   const { mode, fullRequested, resumeFrom } = record
   if (mode === 'full') return fullRequested === true ? undefined : notRequested('', fullRequested)
@@ -196,7 +164,6 @@ function modeProblem(record: Readonly<Record<string, unknown>>): Rejection | und
   return notRequested('接续记录：H1 那次', resumeFrom['fullRequested'])
 }
 
-/** 与树无关的接受条件；每项独立判断，全部列出。 */
 function problemsOf(record: Readonly<Record<string, unknown>>): Rejection[] {
   const { schemaVersion, kind, admission, dirty, failedStep, steps, finishedAt } = record
   const problems: Rejection[] = []
@@ -240,7 +207,6 @@ function problemsOf(record: Readonly<Record<string, unknown>>): Rejection[] {
   return problems
 }
 
-/** 边界解析：读文件、解析 JSON、取头与树。头或树的写法不对、缓存状态写得不对，按读不出算。 */
 function inspect(path: string): Inspected {
   let text: string
   try {
@@ -281,7 +247,6 @@ function inspect(path: string): Inspected {
   }
 }
 
-/** 一份记录对 F 的核对。`tree` 是比对用的树：记录写的，缺时由头补算；都得不到时为 undefined。 */
 interface Judged {
   readonly finding: RecordFinding
   readonly tree: string | undefined
@@ -340,7 +305,6 @@ function judge(root: string, path: string, target: CommitTree): Judged {
   }
 }
 
-/** 记录路径给人看：在 `root` 里写相对路径（`/` 分隔），在外面写绝对路径。 */
 function display(root: string, path: string): string {
   const inside = relative(root, path)
   return inside === '' || inside.startsWith('..') || isAbsolute(inside)
@@ -371,7 +335,6 @@ function accept(target: CommitTree, judged: Judged): AdmissionEvidence | undefin
   }
 }
 
-/** 定向重跑过的文件，给人看：没有或为空时没有这几行。 */
 function retriedLines(retried: readonly RetriedFile[] | undefined, indent: string): string[] {
   if (retried === undefined || retried.length === 0) return []
   return [
@@ -383,7 +346,6 @@ function retriedLines(retried: readonly RetriedFile[] | undefined, indent: strin
   ]
 }
 
-/** 按 F 的树在本树 `tmp/admission/*.json` 里找；同树且可采用的取最晚结束的那份。 */
 function searchByTree(root: string, forRef: string, target: CommitTree): AdmissionEvidence {
   const all = recordsIn(root).map(path => judge(root, path, target))
   const sameTree = all.filter(judged => judged.tree === target.tree)
@@ -416,7 +378,6 @@ function searchByTree(root: string, forRef: string, target: CommitTree): Admissi
   }
 }
 
-/** 核对 F 上有没有可采用的全量准入；只读，不写任何文件。仓库本身出错（`root` 不是 git 检出等）照常抛出。 */
 export function admissionEvidence(root: string, request: EvidenceRequest): AdmissionEvidence {
   const forRef = request.for
   const commit = resolveObject(root, `${forRef}^{commit}`)
@@ -443,7 +404,6 @@ export function admissionEvidence(root: string, request: EvidenceRequest): Admis
   )
 }
 
-/** 给人读的结论：接受时一行；拒绝时先一行结论，再逐项列原因。 */
 export function formatEvidence(evidence: AdmissionEvidence): string[] {
   if (evidence.kind === 'accepted') {
     const { target, source, record, caches, resumedFrom } = evidence
@@ -478,7 +438,6 @@ const STANDARD_OUTPUT: CommandOutput = {
   err: text => process.stderr.write(text),
 }
 
-/** `admission-evidence` 子命令：接受 0、拒绝 1、用法错误 2。 */
 export function admissionEvidenceCommand(
   root: string,
   argv: readonly string[],

@@ -1,6 +1,6 @@
 # Session 的逻辑状态、守卫与日志归约
 
-状态为候选，尚未技术接受。本文说明已提交事实怎样构成会话治理，以及一次合法意图必须共同改变什么。[事件目录](session-log-events.md)拥有事实语义，[主架构](../../../session/docs/architecture/mechanisms.md)拥有共同提交、原操作认回、固定读取及恢复。[Agent Loop 规格候选](../../../../agent/agent-contract/docs/flows/loop.md)拥有下一步求值和扩展顺序，本文不建立第二套 Loop。
+状态为候选，尚未技术接受。本文说明已提交事实怎样构成会话治理，以及一次合法意图必须共同改变什么。[事件目录](session-log-events.md)拥有事实语义，[主架构](../../../session/docs/architecture/mechanisms.md)拥有共同提交、原操作认回、固定读取及恢复。[Agent Loop 规格候选](../../../../agent/SPEC.md#应然设计)拥有下一步求值和扩展顺序，本文不建立第二套 Loop。
 
 ## 三个计算分别做什么
 
@@ -132,7 +132,7 @@ stateDiagram-v2
 
 开始 Run 与 Agent 受理执行是两次提交，顺序固定：先提交 `startRun`（固定首条输入，不扣除待处理资格），再以本 attempt 的 SE15 耐久证据作为推进资格依据调用 `invoke` 交出首条输入，其余待处理输入按到达顺序经 `submit` 交入。批界由 Agent 的输入水位线决定，承接事实从 Agent 的承接事件派生。`claim` 与 `reload` 同样先于 `resume`，`resume` 失败不撤销已提交的 SE15。Agent 打开或接续执行时，Session 参加者只读核对该 attempt 仍是当前 attempt 且 Run 未终结，核对失败时 Agent 拒绝。旧 attempt 的后续写入得到 `stale-advance`。失去连续性的判定归 Agent 执行挂接的状态与接管资格，Session 不从目录或超时推断。
 
-Session 在 `active` 的 Run 上只保存 `ExecutionRef = { execution, revision, evidence, readThrough }`，不保存接续值。推进命令不携带接续数据。恢复者从 Agent 的执行恢复服务读取原记录，再请 Agent 接续原执行，见 Agent [恢复与接管](../../../../agent/agent-contract/SPEC.md#恢复与接管)。
+Session 在 `active` 的 Run 上只保存 `ExecutionRef = { execution, revision, evidence, readThrough }`，不保存接续值。推进命令不携带接续数据。恢复者从 Agent 的执行恢复服务读取原记录，再请 Agent 接续原执行，见 Agent [恢复与接管](../../../../agent/SPEC.md#受理恢复与接管)。
 
 ## 命令守卫与完整结果
 

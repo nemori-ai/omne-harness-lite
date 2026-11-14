@@ -59,7 +59,6 @@ async function publish(input: Installation, publication: Publication): Promise<b
     }),
   })
   if (result.kind === 'rejected' && result.reason !== 'revision_conflict') return false
-  // A lost receipt or concurrent publisher is resolved by the original immutable publication.
   return matchesPublication(await owner.readVersion(lookup), publication)
 }
 
@@ -117,7 +116,6 @@ async function select(
   return { kind: 'ready', target }
 }
 
-/** Installs an application-owned holding; callers supply the verified release and tenant owner. */
 export async function installToolAsset(input: Installation): Promise<ToolAssetInstallation> {
   const publication = toolAssetPublication(input.entry)
   const target = toolAssetTarget(input.entry, input.tenantRef)
@@ -128,7 +126,6 @@ export async function installToolAsset(input: Installation): Promise<ToolAssetIn
     : { kind: 'unavailable', phase: 'holding' }
 }
 
-/** The address is shared by installation and consumers; only the Assets owner proves it exists. */
 export function toolAssetTarget(entry: ToolReleaseEntry, tenantRef: string): SettingsTarget {
   return {
     policyId: 'asset',

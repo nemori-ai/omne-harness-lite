@@ -50,8 +50,6 @@ export function createToolLifecycleTelemetry(
           items: event.items,
           ...(event.bytes === undefined ? {} : { bytes: event.bytes }),
         })
-    } catch {
-      /* Telemetry cannot change the confirmed Tool outcome. */
-    }
+    } catch {}
   }
 }

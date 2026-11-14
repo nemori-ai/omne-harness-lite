@@ -1,6 +1,3 @@
-// The `modelPreparationResources` key: its shape, its `./testing` double, and the conformance
-// cases a provider runs. The double runs on a real Cordis Context. Passing proves the lease rules
-// of one provider in one process; it proves nothing about the request assembly that meters with it.
 import { Context, Service } from '@deepseek-ai/cordis'
 import {
   decodeProviderName,
@@ -64,7 +61,6 @@ const INPUT: Parameters<Acquire>[0] = {
   profile: PROFILE,
 }
 
-/** The scripted double behind the double's own provider plugin. */
 function fixtureOver(
   script: (failRelease: boolean) => ScriptedModelPreparationResourcesScript,
 ): ModelPreparationResourcesFixture {

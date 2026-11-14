@@ -1,8 +1,3 @@
-// What the profile and preparation doubles share: copies and scope checks of profiles, the modality
-// coverage, the script rows and the frozen answers. Nothing here is exported from the entry. A
-// minted identity cannot be copied: a structured clone of it is a plain object that the identity
-// package no longer knows. So the identities of a profile scope keep their reference, and every
-// other plain value is a frozen copy.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   organizationCodec,
@@ -22,11 +17,6 @@ import type {
 } from '../profile.ts'
 import { frozenCopy, sameValue, tenantText } from './values.ts'
 
-/**
- * Why a profile scope does not apply to a tenant, or null when it applies. `invalid-identity`: the
- * scope holds an identity that is not minted. `foreign`: the scope belongs to another tenant or
- * organization. The factory scope applies to every tenant; it grants no access by itself.
- */
 export function profileScopeFailure(
   scope: ProfileScope,
   tenant: TenantId,
@@ -45,7 +35,6 @@ export function profileScopeFailure(
   }
 }
 
-/** Whether the profile input holds every modality that the requirement names. */
 export function covers(profile: ModelProfile, required: ModalityRequirement): boolean {
   const input: readonly string[] = profile.definition.input
   return required.modalities.every(modality => input.includes(modality))
@@ -62,7 +51,6 @@ function copyScope(scope: ProfileScope): ProfileScope {
   }
 }
 
-/** A frozen copy of a profile whose scope identities are the original minted references. */
 export function copyProfile(profile: ModelProfile): ModelProfile {
   const { identity, ...rest } = profile
   return Object.freeze({
@@ -91,7 +79,6 @@ export function copyChoices(choices: ModelChoices): ModelChoices {
   })
 }
 
-/** A frozen answer that shares nothing with the caller: the payload is copied with `copy`. */
 export function frozenAnswer<T>(
   answer: Outcome<T, ModelFailure>,
   copy: (value: T) => T,
@@ -99,12 +86,10 @@ export function frozenAnswer<T>(
   return Object.freeze('ok' in answer ? succeed(copy(answer.ok)) : fail(frozenCopy(answer.failure)))
 }
 
-/** A frozen failed reply. */
 export function refusal(failure: ModelFailure): Outcome<never, ModelFailure> {
   return Object.freeze(fail(Object.freeze(failure)))
 }
 
-/** One registered answer: the minted tenant text, the principal identity and the other fields. */
 export type ScriptRow<P, K, T> = Readonly<{
   tenant: string
   principal: P
@@ -121,14 +106,12 @@ function sameRow<P, K>(
   return row.tenant === tenant && Object.is(row.principal, principal) && sameValue(row.key, key)
 }
 
-/** Keeps `row`: it replaces a row of the same tenant, principal and key, or it is added. */
 export function putRow<P, K, T>(rows: ScriptRow<P, K, T>[], row: ScriptRow<P, K, T>): void {
   const at = rows.findIndex(item => sameRow(item, row.tenant, row.principal, row.key))
   if (at === -1) rows.push(row)
   else rows[at] = row
 }
 
-/** The row of this access and key; the tenant of the access is minted. */
 export function findRow<P, K, T>(
   rows: readonly ScriptRow<P, K, T>[],
   access: Access<P>,

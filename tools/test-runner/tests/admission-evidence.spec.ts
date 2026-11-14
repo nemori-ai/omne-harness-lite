@@ -1,6 +1,3 @@
-// 准入证据核对：F 的树与 C 的树相同时，C 上一次干净、每步都通过、带了 FULL=1 的全量准入就是 F 上的全量准入；其余一律拒绝并写明原因。
-// 夹具是真实 git 仓库：C 是分支上的提交，F 是把它 `--no-ff` 并回主线的合并提交（树与 C 相同、提交不同），
-// D 是 F 之后又改了文件的提交（树不同）。记录按运行记录的形状手写，每条用例只改一个字段，核对那一项单独就能让它被拒。
 import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -26,11 +23,8 @@ const git = (cwd: string, ...args: string[]) =>
 
 interface Fixture {
   readonly root: string
-  /** 分支上的提交，全量准入跑在它上面。 */
   readonly c: string
-  /** C 的空合并：树与 C 相同。 */
   readonly f: string
-  /** F 之后改了文件：树与 C 不同。 */
   readonly d: string
   readonly tree: (commit: string) => string
 }
@@ -63,7 +57,6 @@ afterAll(() => {
   for (const path of temporaries) rmSync(path, { recursive: true, force: true })
 })
 
-/** C 上一次干净、全部通过、带了 FULL=1 的全量准入记录。 */
 function passingRecord(head = fixture.c): Record<string, unknown> {
   return {
     schemaVersion: 1,
@@ -88,7 +81,6 @@ function passingRecord(head = fixture.c): Record<string, unknown> {
   }
 }
 
-/** 写进夹具仓库的 `tmp/admission/<名字>.json`（按树找的那个目录），返回相对路径。 */
 function writeRecord(name: string, record: unknown): string {
   const directory = join(fixture.root, 'tmp/admission')
   mkdirSync(directory, { recursive: true })
@@ -96,7 +88,6 @@ function writeRecord(name: string, record: unknown): string {
   return `tmp/admission/${name}.json`
 }
 
-/** 另起一个空的记录目录，按树找的用例互不干扰。 */
 function freshRecordDirectory(): void {
   rmSync(join(fixture.root, 'tmp'), { recursive: true, force: true })
 }
@@ -542,7 +533,6 @@ describe('真实 CLI 子进程', () => {
 
   it(
     '树相同接受（退出 0），树不同拒绝（退出 1），缺 --for 用法错误（退出 2）',
-    // 起真实 CLI 子进程：核对 cli.ts 的接线与 OMNE_SUBJECT_ROOT 的解析，函数级用例测不到。
     { tags: ['slow'] },
     () => {
       const record = writeRecord('cli-pass', passingRecord())

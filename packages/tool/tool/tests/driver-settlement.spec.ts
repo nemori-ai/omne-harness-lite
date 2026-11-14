@@ -356,7 +356,6 @@ describe('original final settlement in one shared driver', () => {
     expect(await f.h.released(first.call)).toBe(false)
     expect(f.h.binding.executions).toEqual([first.call])
     expect((await f.load(second.call)).state.phase).toBe('queued')
-    // Discard the prior unavailable retry. The blocked run itself adds no immediate work.
     await f.close()
   })
 
@@ -764,7 +763,6 @@ describe('original final settlement in one shared driver', () => {
     const start = await f.start(first.call)
     await f.h.binding.controls.finish(start, await f.final(first.call))
     const batch = await seen.promise
-    // A second coordinator has already preserved this exact batch from the original source.
     ok(await f.h.commands.receiveFacts({ ...first.access, start, batch }))
     await f.h.runOnce(first.call, first.controller.signal)
     await f.pump()

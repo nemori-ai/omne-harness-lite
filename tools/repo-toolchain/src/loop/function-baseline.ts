@@ -1,29 +1,18 @@
-// 「要解释的函数」与基线比：碰过、带位不是 ok 的函数里，只留比基线涨了的、新出现的，
-// 以及拿不准的（照留并注明原因）；原来就在线外、这次没有变差的拿出来另计，不让它们无声消失。
-// 基线上的圈复杂度用度量同一套解析与算法（`functionMetrics`）对基线提交上的文件文本算，
-// 只取这些函数所在的文件，不扫全仓。结果的形状与说明文字在 against-base.ts。
 import { functionMetrics, MODULE_UNIT, type FunctionMetric } from '../metrics/complexity.ts'
 import { fileAt, git } from '../core/git.ts'
 import type { FunctionRow } from '../metrics/report.ts'
 import type { AgainstBase, ExplainedFunction } from './against-base.ts'
 
-/** 一个文件在基线提交上的样子：新文件、能取到的文本（改名的是改名前的路径），或取不到。 */
 export type BaseFile =
   | { readonly kind: 'new-file' }
   | { readonly kind: 'text'; readonly path: string; readonly text: string }
   | { readonly kind: 'unreadable'; readonly reason: string }
 
 export interface FunctionsAgainstBase {
-  /** 要解释的：涨了的、新出现的、拿不准的。顺序同输入。 */
   readonly kept: readonly ExplainedFunction[]
-  /** 碰过、原来就在线外、这次没有变差的。 */
   readonly notWorse: readonly ExplainedFunction[]
 }
 
-/**
- * `git diff -M -z --name-status` 的输出 → 现在的路径 → 基线上的路径。新增的（含复制出来的）不在其中，
- * 删除的也不在其中。改名与复制一条三段（状态、原路径、新路径），其余两段。
- */
 export function parseNameStatus(output: string): Map<string, string> {
   const fields = output.split('\u0000').filter(field => field !== '')
   const out = new Map<string, string>()
@@ -37,10 +26,6 @@ export function parseNameStatus(output: string): Map<string, string> {
   return out
 }
 
-/**
- * `paths` 里每个文件在基线提交上的样子。基线以来已跟踪的改动按 git 的改名判定（`-M`）对回改名前的路径；
- * 不在已跟踪改动里的是未跟踪的新文件。没有要取的文件时不跑 git。
- */
 export function baseFilesOf(
   root: string,
   mergeBase: string,
@@ -52,7 +37,6 @@ export function baseFilesOf(
     git(root, ['diff', '--no-color', '-M', '-z', '--name-status', mergeBase]),
   )
   for (const path of paths) {
-    // 不在已跟踪改动里（未跟踪），或 git 认作新增的：新文件。
     const before = tracked.get(path)
     if (before === undefined) {
       out.set(path, { kind: 'new-file' })
@@ -91,7 +75,6 @@ function judgeOne(row: FunctionRow, sameNameNow: number, base: BaseUnits): Again
   if (base.kind === 'unreadable') return { kind: 'unsure', reason: base.reason }
   const [only, ...others] = base.units.filter(unit => unit.name === row.name)
   if (only === undefined)
-    // 顶层判定点为零时度量不出 <module> 这个单元：基线上没有它，它那时就是 1，不是新出现。
     return row.name === MODULE_UNIT
       ? judgeComplexity(row.complexity, 1)
       : { kind: 'new', reason: 'new-function' }
@@ -107,11 +90,6 @@ function judgeComplexity(now: number, baseline: number): AgainstBase {
   return now > baseline ? { kind: 'worse', baseline } : { kind: 'not-worse', baseline }
 }
 
-/**
- * @param candidates 碰过、带位不是 ok 的函数。
- * @param all 当前全部函数，用来数同一文件里的同名函数。
- * @param bases 候选函数所在文件在基线上的样子（`baseFilesOf`）。
- */
 export function judgeAgainstBase(
   candidates: readonly FunctionRow[],
   all: readonly FunctionRow[],

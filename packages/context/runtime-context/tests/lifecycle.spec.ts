@@ -14,9 +14,6 @@ import {
   tenantA,
 } from './support.js'
 
-// Review N2: an operation in flight when close begins answers `closed`, never success, and close
-// waits for the operations of the holder and producer faces, not only for reads.
-
 describe('closing with holder operations in flight', () => {
   it('finishReplay waiting for the holder authority answers closed and installs nothing', async () => {
     const h = harness()
@@ -60,8 +57,6 @@ describe('closing with holder operations in flight', () => {
       supersedes: null,
     })
     if (begun.kind !== 'replaying') throw new Error(begun.kind)
-    // The holder authority answers at once; the trusted binding is held. The binding answer is
-    // delivered and close begins in the same turn, before the operation resumes.
     const binding = deferred<ScopeBinding>()
     const lookup = h.ports.bindings.lookup
     let held = false

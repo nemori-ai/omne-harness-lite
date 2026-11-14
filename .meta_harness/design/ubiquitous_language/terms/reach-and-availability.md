@@ -21,7 +21,7 @@
 > **三层互不牵连。**一个工具可以「**在动作空间里 + 不占槽位 + 当下不可用**」——
 > **三个取值各说各的**。
 
-- **出处**：[PF-006 §4 三层](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#三层能做什么--怎么够得着--现在做不做得了) · [§5.1](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#51-三层正交)（rev 24）
+- **出处**：[PF-006 §4 三层](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#三层能做什么--怎么够得着--现在做不做得了) · [§5.1](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#51-三层正交)（rev 24）
 
 ## 怎么够得着
 
@@ -50,11 +50,11 @@
 > resident, it is resident.
 
 - **形态**：属性
-- **出处**：[PF-006 §4 常驻](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24） · [工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 9） · [Skill 产品 J-SK02](../../product/skills/design.md#j-sk02-找到方法并理解当下能否使用)（rev 4） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 3）
+- **出处**：[PF-006 §4 常驻](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24） · [工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 9） · [Skill 产品 J-SK02](../../product/skills/design.md#j-sk02-找到方法并理解当下能否使用)（rev 4） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 3）
 - **别混**：**它是那份 Agent Definition 或 Plugin 上、或会话执行类型必需身份集合那一项上的一项设置**（引用条目长在那里），
   归[偏好类](capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)，由持有它的各层配值——**不是工具或技能自己的设置**
 - **注意**：**上下文预算是装配方的问题，工具作者根本不知道**——这就是标记挂在引用上而非资产上的理由
-- **注意 ②**：一个会话里的常驻工具组成[常驻工具集合](#ul-resident-tool-set--常驻工具集合--resident-tool-set)。集合只增不减，每一项的名字与参数形状在会话内不变，依据见 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
+- **注意 ②**：一个会话里的常驻工具组成[常驻工具集合](#ul-resident-tool-set--常驻工具集合--resident-tool-set)。集合只增不减，每一项的名字与参数形状在会话内不变，依据见 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
 
 ### UL-residency-holder · 常驻持有者 · Residency Holder
 
@@ -83,7 +83,7 @@
 > Registration keys come from adoption evidence and are not separate holder facts.
 
 - **形态**：视图
-- **出处**：[常驻持有者的现行定义](../index.md#ul-d-04-常驻持有者)，PanQiWei 2026-10-24 的 D-04 裁决；会话路径依据[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 9）；已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R1–R4）；[PF-006 §4 常驻](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24）
+- **出处**：[常驻持有者的现行定义](../index.md#ul-d-04-常驻持有者)，PanQiWei 2026-10-24 的 D-04 裁决；会话路径依据[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 9）；已采用的 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R1–R4）；[PF-006 §4 常驻](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24）
 - **别混 ①**：不是会话产品页里主会话的「常驻」。那个标记让主会话免于自动归档，与工具无关
 - **别混 ②**：非常驻工具不受这些规则约束。Run 中途新装载的工具经 `Tools()` 够到，不进这个集合。MCP 动作一般不常驻，不在这些规则的范围内；标了常驻的 MCP 接入点，它的动作在采用点成为常驻工具，适用这些规则
 - **注意**：RFC-0012 简称它「常驻集合」。跨 topic 引用时写全称，避免与主会话的「常驻」混淆
@@ -131,7 +131,7 @@
 > **EN**: The evaluated usability of a tool, skill or MCP capability: current selection and governance must permit it, and required implementations and dependencies must hold. It is evaluated from the facts at the moment on each discovery and at each attempt start, and subsequent use respects effective changes. An unavailable resident entry keeps its identity.
 
 - **形态**：视图
-- **出处**：[Skill 产品 J-SK02](../../product/skills/design.md#j-sk02-找到方法并理解当下能否使用)（rev 4） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 7） · [PF-006 §4 可用性](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#可用性) · [§6.2](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算)（rev 24）
+- **出处**：[Skill 产品 J-SK02](../../product/skills/design.md#j-sk02-找到方法并理解当下能否使用)（rev 4） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 7） · [PF-006 §4 可用性](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#可用性) · [§6.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算)（rev 24）
 - **别混**：禁用是治理输入，当下可用性是求值结果；禁用可使已知条目不可用，不能使主体此刻没有使用资格的条目凭空可见。执行权限准入仍单独适用。
 - **注意**：封存的 PF-006 把它限定为「已纳入会话的」能力。现行产品里发现不经纳入，见 [C-79](../conflicts.md#c-79能发现的范围与会话已知能力)。
 
@@ -156,12 +156,12 @@
 > remains that of the original entry in the action space.
 
 - **形态**：视图
-- **出处**：[PF-006 §4 替换件](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#替换件) · [§6.3](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装)（rev 24）
+- **出处**：[PF-006 §4 替换件](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#替换件) · [§6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装)（rev 24）
 - **别混**：**它不是另一个条目**——动作空间里的条目一个没多、一个没少，变的只有那一条的说明与应答
 - **注意 ①**：**不可用时装的是它，不是「不装」**——**藏起来 agent 会以为自己没这个能力，而实际只是暂时用不了**
 - **注意 ②**：**说明不是闸**，agent 读到了照样可能调它——所以它的行为只有一种。
   读到「不可用」该**绕路，不该重试**
-- **注意 ③**：常驻工具被卸载、暂时缺席、状态未知或被撤权时，会话都用它替代，不进入[会话冻结](agent-runtime-loop.md#ul-session-freeze--会话冻结--session-freeze)。RFC-0012 与 Tool 契约把它写作「同形不可用件」，指的就是它；依据见 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R3）
+- **注意 ③**：常驻工具被卸载、暂时缺席、状态未知或被撤权时，会话都用它替代，不进入[会话冻结](agent-runtime-loop.md#ul-session-freeze--会话冻结--session-freeze)。RFC-0012 与 Tool 契约把它写作「同形不可用件」，指的就是它；依据见 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R3）
 
 ### UL-same-shape · 同形 · Same Shape
 
@@ -178,7 +178,7 @@
 > in the comparison.
 
 - **形态**：规则
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 9）；比较的字段见已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 9）；比较的字段见已采用的 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
 - **别混**：不是「同一个能力身份」。同一个能力身份下，不同层的资产可以派生出不同形的定义
 - **注意**：比较按文本规范化进行。语义等价但文本不同的两份 schema 判为不同形，这时会话留在原版本，不会因此误判冻结
 
@@ -203,7 +203,7 @@
 > **anything a tool can do without stays out of the declaration and is probed at use**.
 
 - **形态**：属性
-- **出处**：[PF-006 §4 依赖](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#依赖) · [§6.4](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#64-依赖声明与解析)（rev 24）
+- **出处**：[PF-006 §4 依赖](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#依赖) · [§6.4](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#64-依赖声明与解析)（rev 24）
 - **别混**：这里的「**外部服务**」**不是 [PF-002 排除掉的那个 Service](capabilities-and-composition.md#ul-asset--资产--asset)**——
   那条排除的是 Cordis 的运行时概念。**指前者时必须写全 `Cordis service`**
 - **注意**：**声明不是免费的**——每多一项就多一个可能不被满足的前提，
@@ -220,9 +220,9 @@
 > **EN**: A session view exposing the adopted result for an asset category. Known Tool, Skill and MCP identities are retained while current definition data, implementation selection and unavailability reasons may change. Resident tools are the exception: their name and argument shape stay fixed for the session, and their definition and implementation change only at an adoption point and only to a definition of the same shape. Reload updates its selected sources without erasing known capability identities. Human slash-command entry points retain their own visibility and revocation rules rather than capability-identity monotonicity.
 
 - **形态**：视图
-- **出处**：[PF-002 §4 会话认得哪些命令，什么时候变](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变) ·
-  [§4「谁可以使用它」是各类资产共用的一项权限](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限)（rev 32） ·
-  [PF-016 §5.7 人要做的事分三族](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)（rev 13）；常驻工具的例外见已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R1、R5）
+- **出处**：[PF-002 §4 会话认得哪些命令，什么时候变](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变) ·
+  [§4「谁可以使用它」是各类资产共用的一项权限](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限)（rev 32） ·
+  [PF-016 §5.7 人要做的事分三族](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)（rev 13）；常驻工具的例外见已采用的 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R1、R5）
 - **别混**：不是历史装配清单，不是资产所有权目录；保留历史可见身份不授予继续使用的权利。
 
 ### UL-governance-center-health-check · 治理中心体检 · Governance Center Health Check
@@ -245,9 +245,9 @@
 > it to "center health check".
 
 - **形态**：视图
-- **出处**：[PF-017 §4 中心体检](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#中心体检) ·
-  [§6.17](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#617-体检只说部署不说里面有谁)（rev 8）
-- **⚠️ 别混**：与 [PF-016 本机族的「体检」](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)是**同一个词的两头**：
+- **出处**：[PF-017 §4 中心体检](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#中心体检) ·
+  [§6.17](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#617-体检只说部署不说里面有谁)（rev 8）
+- **⚠️ 别混**：与 [PF-016 本机族的「体检」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)是**同一个词的两头**：
   那边是客户端自查「能不能连上中心」，这边是中心自述「我在不在」；**取同一个词是有意的**，两头合起来才是「这条路通不通」
 - **注意**：不是[当下可用性](#ul-current-availability--当下可用性--current-availability)——那是一份能力的依赖解析结果，这是一次部署的自述
 
@@ -269,15 +269,15 @@
 > not mean they are invalid; a run already under way can continue while the center is unreachable. A new run still requires confirmation of a valid login before it starts.
 
 - **形态**：属性
-- **出处**：[PF-016 §6.17](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活) ·
-  [§5.6 哪几件事必须现读](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#哪几件事必须现读)（rev 13） ·
-  [PF-017 §4 中心体检](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#中心体检)（rev 8）
+- **出处**：[PF-016 §6.17](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活) ·
+  [§5.6 哪几件事必须现读](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#哪几件事必须现读)（rev 13） ·
+  [PF-017 §4 中心体检](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#中心体检)（rev 8）
 - **⚠️ 别混 ①**：**不是[治理中心体检](#ul-governance-center-health-check--治理中心体检--governance-center-health-check)**——
   体检是中心自述「我在不在、能不能答」；这一条是据点这一头的观察。体检答「数据所在够不着」，中心照样在应答，照样可达
 - **别混 ②**：**裸写「可达性」不作数**——形式检查里的可达性说的是某个状态走不走得到，
   [当下可用性](#ul-current-availability--当下可用性--current-availability)说的是一样能力此刻用不用得了，都与这一条无关
 - **注意 ①**：**它变了不让任何东西停下**——中心问不到不是让据点上任何在途工作停的理由；
-  再连上之后，那几件必须现读的事按新读到的重新算（[PF-016 §6.17](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活)）
+  再连上之后，那几件必须现读的事按新读到的重新算（[PF-016 §6.17](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活)）
 - **注意 ②**：规格层（`capability.center-connection` v2，本能力在规格里叫「中心连接」）把它分成三态：
   多出的「尚未判定」是据点这一侧起来之后还没有任何一次往来有结果——**既不当可达，也不当不可达**
 
@@ -293,7 +293,7 @@
 > only whether a protocol exists. It does not tell whether a caller is allowed to use it.
 
 - **形态**：视图
-- **出处**：[RFC-0015「内置协议与可用性」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#内置协议与可用性)（revision 1，PanQiWei 2026-11-12 采用）
+- **出处**：[RFC-0015「内置协议与可用性」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0015-access-dynamic-registration.md#内置协议与可用性)（revision 1，PanQiWei 2026-11-12 采用）
 - **别混 ①**：不是[当下可用性](#ul-current-availability--当下可用性--current-availability)。
   当下可用性是一样能力在一次执行尝试开始前的依赖解析结果；协议可用性只说一个协议挂没挂着。
 - **别混 ②**：不是许可。允不允许用，由领域与授权在每次调用时回答。

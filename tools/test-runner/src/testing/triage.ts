@@ -1,5 +1,3 @@
-// 失败归因：把一次运行里失败的用例逐个单独重跑若干次，按结果分类。
-// 它回答的是「这条用例单独跑过不过」，不替人下「是机器的问题」这样的结论——分类的措辞只说重跑看到了什么。
 import { mkdirSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { VITEST_MAX_WORKERS_ENV, type RunScript } from './config.ts'
@@ -9,15 +7,7 @@ import { pnpmCommand } from './support.ts'
 
 export type RerunOutcome = 'passed' | 'failed' | 'not-run'
 
-export type TriageClass =
-  /** 每次单独重跑都通过。 */
-  | 'passes-alone'
-  /** 每次单独重跑都失败。 */
-  | 'fails-alone'
-  /** 单独重跑有过有不过。 */
-  | 'unstable-alone'
-  /** 没能把它单独跑起来（名字选不中、报告缺失，或失败不在任何测试文件里）。 */
-  | 'not-isolated'
+export type TriageClass = 'passes-alone' | 'fails-alone' | 'unstable-alone' | 'not-isolated'
 
 export function classify(outcomes: readonly RerunOutcome[]): TriageClass {
   if (outcomes.length === 0 || outcomes.includes('not-run')) return 'not-isolated'
@@ -26,12 +16,10 @@ export function classify(outcomes: readonly RerunOutcome[]): TriageClass {
   return 'unstable-alone'
 }
 
-/** vitest 的 `-t` 是不加锚的正则，按用例全名匹配；转义并加锚才能只选中这一条。 */
 export function namePattern(fullName: string): string {
   return `^${fullName.replaceAll(/[.*+?^${}()|[\]\\]/gu, '\\$&')}$`
 }
 
-/** 一次单独重跑的结论：报告里这个文件（或这条用例）的状态。 */
 export function outcomeOf(
   report: VitestJsonReport | undefined,
   exitCode: number,
@@ -57,7 +45,6 @@ export function outcomeOf(
 export interface TriageEntry extends Failure {
   readonly outcomes: readonly RerunOutcome[]
   readonly class: TriageClass
-  /** 仅当用例单独跑全过时补做：它所在的文件整个单独跑一次的结果。 */
   readonly wholeFile?: RerunOutcome
 }
 
@@ -96,10 +83,6 @@ export function triageSummary(entries: readonly TriageEntry[], triageDir: string
   return lines
 }
 
-/**
- * 单独重跑一个测试文件（`test` 给了时只跑那一条用例）：经成员自己的 `script` 脚本起 vitest，一个工作进程，
- * 日志与 JSON 报告写在 `base` 旁。失败归因与一层失败后的定向重跑（test-retry.ts）共用。
- */
 export async function rerunInFile(
   root: string,
   script: string,
@@ -110,10 +93,6 @@ export async function rerunInFile(
 ): Promise<RerunOutcome> {
   const memberDir = join(root, member)
   const reportPath = `${base}.json`
-  // 经成员自己的脚本跑（它是 `vitest run …`，验收的那份还带着自己的配置），后面的参数原样传给 vitest。
-  // 命令行的 `--reporter` 替换配置里的报告器，`vitest.tiers.mts` 的过滤守卫不在场：选不中时退出码可能是 0，
-  // 归类只看 JSON 报告（`outcomeOf`），没选中的记为没跑到。
-  // Windows 上 PATH 里的 pnpm 是 pnpm.cmd，Node 不经 shell 起不了；pnpmCommand 按平台给出起法。
   const pnpm = pnpmCommand()
   const result = await spawnLogged(
     pnpm.command,
@@ -126,12 +105,10 @@ export async function rerunInFile(
       '--reporter=default',
       '--reporter=json',
       `--outputFile.json=${reportPath}`,
-      // 慢层成员脚本已关闭类型检查；重复同一选项会被 Vitest 拒绝。
       ...(script === 'test:slow' ? [] : ['--typecheck.enabled=false']),
     ],
     {
       cwd: memberDir,
-      // 一次只跑这一条，不给它并行的同伴。
       env: { ...process.env, [VITEST_MAX_WORKERS_ENV]: '1' },
       logPath: `${base}.log`,
     },
@@ -139,7 +116,6 @@ export async function rerunInFile(
   return outcomeOf(readReport(reportPath), result.exitCode, test)
 }
 
-/** 串行地逐个重跑：归因要的就是「旁边没有别的东西在跑」。 */
 export async function triage(
   root: string,
   script: RunScript,

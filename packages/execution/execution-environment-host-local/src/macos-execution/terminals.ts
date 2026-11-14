@@ -29,10 +29,6 @@ const gateScript = fileURLToPath(
   ),
 )
 
-/**
- * node-pty's spawn-helper, found as node-pty finds it: next to the native module it loads.
- * Undefined when node-pty or its native module cannot be loaded.
- */
 export function spawnHelperPath(): string | undefined {
   try {
     const require = createRequire(import.meta.url)
@@ -60,7 +56,6 @@ const executable = (path: string) =>
 
 export type TerminalTools = Readonly<{ reader: string; helper: string }>
 
-/** What a macOS terminal needs: the session reader, Bash, node-pty and its executable helper. */
 export async function macosTerminalAdmission(
   reader: () => Promise<SessionReader>,
 ): Promise<TerminalTools | readonly MacosPrerequisite[]> {
@@ -75,7 +70,6 @@ export async function macosTerminalAdmission(
   return { reader: reading.path, helper }
 }
 
-/** The live children of a process; undefined when they cannot be read. */
 function readChildren(reader: string, pid: number, boundMs: number): Promise<number[] | undefined> {
   return new Promise(done => {
     execFile(reader, ['children', String(pid)], { timeout: boundMs, env: {} }, (error, stdout) => {
@@ -89,7 +83,6 @@ function readChildren(reader: string, pid: number, boundMs: number): Promise<num
   })
 }
 
-/** The session the gate's shell leads: the gate's child that leads its own session. */
 async function shellSession(
   reader: string,
   gate: number,
@@ -103,20 +96,13 @@ async function shellSession(
   return undefined
 }
 
-/**
- * The macOS terminal domain: the gate's session and the shell's. The sessions are recorded in the
- * cold index before GO (the gate's) and once the shell opened (the shell's). A stop covers both and
- * is confirmed only when both are empty; the FIFO directory goes after a confirmed stop.
- */
 export function macosTerminalPlatform(input: {
   scope: ScopeRef
   stopBoundMs: number
   startBoundMs: number
   reader(): Promise<SessionReader>
   domains: DomainIndex | undefined
-  /** This boot's identity; `kern.bootsessionuuid` when absent. */
   bootId?: () => Promise<string | undefined>
-  /** The terminal prerequisites; `macosTerminalAdmission` of the reader when absent. */
   admission?: () => Promise<TerminalTools | readonly MacosPrerequisite[]>
 }): TerminalPlatform {
   let tools: TerminalTools | undefined
@@ -184,7 +170,6 @@ export function macosTerminalPlatform(input: {
       let known = coordinates.get(resource.key)
       let status: StopStatus = 'unconfirmed'
       if (known === undefined) {
-        // No session was recorded: no GO went out, so no shell ran. The gate alone is stopped.
         gate.kill('SIGKILL')
         status = await Promise.race([
           gateExited.then((): StopStatus => 'confirmed'),
@@ -193,8 +178,6 @@ export function macosTerminalPlatform(input: {
       } else {
         const reading = await input.reader()
         if (reading.kind === 'ready') {
-          // A shell started after GO but not yet recorded is found through the gate that started it.
-          // A gate that exited, on its own or by a signal, may have its pid reused: it is not asked.
           const gateLives = gate.exitCode === null && gate.signalCode === null
           if (known.sessions.length === 1 && gate.pid !== undefined && gateLives) {
             const shell = await shellSession(reading.path, gate.pid, input.stopBoundMs)

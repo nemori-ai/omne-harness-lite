@@ -1,6 +1,5 @@
 import ts from '@typescript/typescript6'
 
-/** 文件顶层声明的值（函数、类、枚举、变量）与它们所在的行。解析语法树，不构造类型检查程序。 */
 export function declaredValues(path: string, text: string): ReadonlyMap<string, number> {
   const kind = path.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
   const source = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true, kind)

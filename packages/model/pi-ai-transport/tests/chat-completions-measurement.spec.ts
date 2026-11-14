@@ -1,7 +1,3 @@
-// The measurement rules both family meters share around the calibrated arithmetic: the method
-// name of a measurement, the input digest and its calibration condition, the per-unit extra
-// tokens, the calibration of a plain `measure`, and the shared meter that uses them. The family
-// packages cover the shared meter with their real tokenizers and image rules.
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
@@ -119,7 +115,6 @@ const measure: MeasureInput = {
   },
 }
 
-/** The digest of the fixed fields without a calibration member. */
 function plainDigest(input: MeasureInput): string {
   const fixed = {
     profile: input.profile,
@@ -213,7 +208,6 @@ describe('NO_CALIBRATION', () => {
 })
 
 describe('createCalibratedMeter', () => {
-  /** One unit whose text has a different length in its NFKC form: U+FB01 is `fi`. */
   const units: JsonValue = {
     kind: 'object',
     entries: [
@@ -234,7 +228,6 @@ describe('createCalibratedMeter', () => {
     replay: METER,
     evidence: METER,
   }
-  /** Counts one token per UTF-16 code unit of the text it is given. */
   const tokenizer: ModelTextTokenizer = {
     definition: {
       adoption: adoption('tokenizer'),

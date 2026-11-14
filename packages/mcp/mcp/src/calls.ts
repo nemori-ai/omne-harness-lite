@@ -1,9 +1,3 @@
-// The call port `ActionCalls` (SPEC S1, S2, S6, R2, R5, O1–O6): `invoke` and `continueWithInput`
-// walk the one send order of SPEC MC-16 on the in-flight table, the gate, the catalog and the
-// connection table; `cancel` reads the in-flight table only. From its reservation to its answer a
-// call has one owner, `perform`: every wait before the send is under the call's one stop signal
-// (the caller's signal and `cancel` as one), the place is concluded in one spot by the phase the
-// table recorded, and after the send the peer is told once and not waited for.
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -64,33 +58,25 @@ const UNKNOWN: NotSentReason = { kind: 'unknown' }
 const ABANDONED: PeerAnswer = { kind: 'no-answer', cause: 'abandoned' }
 const UNKNOWN_ABANDONED: CallOutcome = { kind: 'unknown', cause: 'abandoned' }
 
-/** The stop signal fired before the send: the one answer `perform` turns into `cancelled`. */
 const STOPPED = 'stopped'
 type Stopped = typeof STOPPED
 
-/** The shutdown began before the send: `perform` answers it as S8's refusal. */
 const SHUT = 'shut'
 type Shut = typeof SHUT
 
-/** Why the send order went no further before the send: the stop signal or the shutdown. */
 type Halted = Stopped | Shut
 
-/** A `call` that breached its contract (T9): no answer and no request to cancel. */
 const CALL_BREACHED = 'call-breached'
 type CallBreached = typeof CALL_BREACHED
 
-/** What a continuation sends besides the action and the arguments. */
 type Continuation = NonNullable<CallRequest['continuation']>
 
-/** The two sends: a first call, and the continuation of an `inputRequired` outcome (S2). */
 type Send =
   | Readonly<{ kind: 'invoke'; request: InvokeRequest }>
   | Readonly<{ kind: 'continue'; request: ContinueRequest }>
 
-/** What the send needs once the steps before it passed: the connection and the known action. */
 type Prepared = Readonly<{ ensured: Ensured; known: KnownAction }>
 
-/** A call on the wire: what the answer is read with. */
 type Sent = Readonly<{
   send: Send
   key: InFlightKey
@@ -112,20 +98,10 @@ function sent(outcome: CallOutcome): InvokeResult {
   return { kind: 'sent', outcome }
 }
 
-/** The "not sent" reason of a connection that `ensure` did not give (R2, SPEC MC-16 table). */
 function notSentOfEnsure(failure: EnsureFailure): NotSentReason {
   return failure.stage === 'settings' ? failure.reason : connectionFailureOfBuild(failure)
 }
 
-/**
- * The send as this package keeps it (R2, MC-16 step 1), made before any place is taken. Each field
- * of the caller's request is read once, here, into a new record, and every later step reads that
- * record: a field that is an accessor answers once, so what was judged is what goes out. Each
- * value tree passes `judgeJsonValue`, the precondition of `McpTransport.call`, and the arguments
- * are a JSON object. A continuation carries its request state or its input responses, each
- * optional (S2): one with neither continues nothing. A caller defect is a `TypeError`, not a
- * "not sent" reason.
- */
 function checkedSend(given: Send): Send {
   if (given.kind === 'invoke') {
     const { ref, action, args, expectedDefinition, correlationKey, signal, connectBound, observe } =
@@ -190,7 +166,6 @@ function callRequestOf(send: Send): CallRequest {
   }
 }
 
-/** The observer as the transport gets it: one that throws changes no outcome (S6). */
 function observerOf(
   observe: ((notification: PeerNotification) => void) | undefined,
 ): ((notification: PeerNotification) => void) | undefined {
@@ -198,9 +173,7 @@ function observerOf(
   return notification => {
     try {
       observe(notification)
-    } catch {
-      // S6: the observer's error is the observer's; the call goes on.
-    }
+    } catch {}
   }
 }
 
@@ -215,13 +188,6 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     correlationKey,
   })
 
-  /**
-   * A wait of the send order under the call's stop signal and the table's shutdown (MC-16 steps
-   * 2 and 3), both read before the wait: a stop that fired starts nothing, and one that fires
-   * first ends the wait (the work goes on in the table's scope), both `stopped`; a shutdown that
-   * began starts nothing either, `shut`, so no port is asked after it. Neither is an answer:
-   * `perform` decides the answer when the call concludes, from the state of that moment.
-   */
   async function under<T>(
     stop: AbortSignal,
     work: () => Promise<Outcome<T, NotSentReason>>,
@@ -232,11 +198,6 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     return waited.kind === 'expired' ? STOPPED : waited.value
   }
 
-  /**
-   * Step 5: the known action in the stored catalog. Not acquired, not listed or unavailable is
-   * `action-unavailable`; a store that breaches is `unknown` (MC-15); for a first call the
-   * caller's expected definition has to be the current one (R2).
-   */
   async function knownActionOf(
     send: Send,
     catalogKey: CatalogKey,
@@ -253,16 +214,10 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     return succeed(known)
   }
 
-  /**
-   * Step 6: a continuation goes only on the generation the `inputRequired` outcome was issued at
-   * (S2). Without a usable connection of that generation the state cannot be proven; nothing is
-   * built or sent to find out, because a build gives a later generation.
-   */
   function issuedOn(send: Send, generation: Generation | undefined): boolean {
     return send.kind === 'invoke' || generation === send.request.issuedAt
   }
 
-  /** Step 7: the build, shared by every caller of the key and bounded by the connection bound. */
   async function connectionOf(
     send: Send,
     access: Access<P>,
@@ -272,14 +227,12 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     return 'failure' in ensured ? fail(notSentOfEnsure(ensured.failure)) : ensured
   }
 
-  /** Steps 3–7 of MC-16: what the send needs, or why the call is not sent. Every wait is under `stop`. */
   async function prepare(
     send: Send,
     access: Access<P>,
     stop: AbortSignal,
   ): Promise<Outcome<Prepared, NotSentReason> | Halted> {
     const { request } = send
-    // Step 3: the shutdown first, read by `under` before the gate is asked (S8), then the gate.
     const admitted = await under(stop, () => admitForUse(gate, access, request.ref))
     if (isHalted(admitted) || 'failure' in admitted) return admitted
     const endpoint = admitted.ok
@@ -292,27 +245,18 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     if (isHalted(known) || 'failure' in known) return known
     const current = table.current(connectionKeyOf(access.tenant, endpoint, account))
     if (!issuedOn(send, current?.generation)) return fail(UNKNOWN)
-    // The stop ends only this call's wait for the build.
     const ensured = await under(stop, () => connectionOf(send, access, endpoint))
     if (isHalted(ensured) || 'failure' in ensured) return ensured
     if (!issuedOn(send, ensured.ok.generation)) return fail(UNKNOWN)
     return succeed({ ensured: ensured.ok, known: known.ok })
   }
 
-  /**
-   * Step 12: the answer applied to the tables: classified (O1–O6), a lost connection reported to
-   * the connection table (judged on the transport's answer, which carries the mark), a task
-   * recorded for its initiator (MC-17).
-   */
   function applyAnswer(on: Sent, answer: PeerAnswer): CallOutcome {
     const { outputSchema } = on.known.lastLawful
     const outcome = classifyOutcome(
       answer,
       classificationOf(on.ensured.generation, outputSchema, ports.checkOutput),
     )
-    // The transport's answer to a stop signal that fired (T5) carries no mark while the transport
-    // is still usable, so it leaves the connection as it is; once the transport is not usable any
-    // more it carries the mark (T1), and the connection is lost by rule 1 of `lostOf`.
     loseIfLost(table, on.ensured, answer)
     if (outcome.kind === 'task')
       tasks.record(
@@ -331,14 +275,6 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     return outcome
   }
 
-  /**
-   * Steps 11–12 on a call that is on the wire: the wait for the answer under the stop signal.
-   * A stop that fires first ends the wait: the outcome is `unknown` (`abandoned`) (T5, O6), and
-   * the peer is told once, in the table's scope, without a wait for it; after the shutdown began
-   * it is not told (S8): the transport is closing and settles its own requests (T5). The answer
-   * is always read through `ask`, so one that rejects (T9) is no answer, and one that arrives
-   * after the stop is dropped.
-   */
   async function answerOf(on: Sent): Promise<InvokeResult> {
     const { requestId, answer } = on.call
     const waited = await waitAtMost(
@@ -346,9 +282,6 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
       on.stop,
     )
     if (waited.kind === 'expired') {
-      // The peer is told only while the connection takes requests: once its close began or it is
-      // lost, the transport settles its own requests (T5). `closeAll` makes every connection
-      // refuse before it first yields (`ConnectionTable.closeAll`).
       const wire = on.ensured.wire()
       if ('ok' in wire) scope.spawn(ask(() => wire.ok.cancelRequest(requestId), undefined))
       return sent(UNKNOWN_ABANDONED)
@@ -356,11 +289,6 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     return sent(applyAnswer(on, waited.value))
   }
 
-  /**
-   * Steps 3–12 under the reservation: the steps before the send, the send, and the answer. A
-   * stop signal or a shutdown read before a wait or before the send halts the order; `perform`
-   * answers it, and reads both once more for a refusal.
-   */
   async function sendOrder(
     send: Send,
     access: Access<P>,
@@ -372,11 +300,6 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     if (isHalted(prepared)) return prepared
     if ('failure' in prepared) return notSent(prepared.failure)
     const { ensured, known } = prepared.ok
-    // Step 8: the last look, in the same synchronous run as the send. A stop that fired by now
-    // keeps the call off the transport. So does a connection that stopped taking requests since
-    // `ensure` answered: its close began (`ConnectionTable.close` and `closeAll` make every
-    // connection refuse before they first yield: P13) or it is lost (MC-10). That refusal is the
-    // one a closed transport gives (T1) and is answered as one.
     if (stop.aborted) return STOPPED
     const wire = ensured.wire()
     const called =
@@ -387,7 +310,6 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
             CALL_BREACHED,
           )
     if (called === CALL_BREACHED) {
-      // T9: a `call` that breached left with an unknown effect; the place is a sent one.
       place.recordSent(ensured.connection, ensured.generation)
       return sent(UNKNOWN_ABANDONED)
     }
@@ -399,13 +321,6 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     return answerOf({ send, key, stop, ensured, known, call: called.ok })
   }
 
-  /**
-   * The answer of a call (MC-16 steps 2 and 3), read from the state of the moment it concludes.
-   * A call not sent whose stop signal fired by then is `cancelled`, whatever the step it fired in
-   * refused (S2). Else a call not sent once the shutdown began is S8's `connection-unavailable`,
-   * whatever step or transport refused it, so a call in flight at `closeAll` answers as one that
-   * started after it. A sent call answers its outcome.
-   */
   function answerAtExit(result: InvokeResult | Halted, stop: AbortSignal): InvokeResult {
     if (result === STOPPED) return notSent(CANCELLED)
     if (result !== SHUT && result.kind === 'sent') return result
@@ -413,13 +328,6 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     return result === SHUT || table.isShut() ? notSent(CONNECTION_UNAVAILABLE) : result
   }
 
-  /**
-   * The one owner of a call (MC-16): the reservation hands out the stop signal; the send order
-   * runs under it; and the place is concluded once, in one `finally`, by the phase the table
-   * recorded. The answer is decided here and nowhere else, in the same synchronous run as the
-   * conclusion, so a `cancel` that answered `signalled` makes the call answer `cancelled`, and a
-   * `closeAll` that lands at any microtask before it gives the call S8's answer.
-   */
   async function perform(given: Send, access: Access<P>): Promise<InvokeResult> {
     const send = checkedSend(given)
     const key = keyOf(access, send.request.correlationKey)

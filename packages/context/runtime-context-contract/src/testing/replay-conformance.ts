@@ -122,7 +122,6 @@ async function scopeEndCommitConflict<P>(fixture: RuntimeContextFixture<P>) {
   assert.equal(still.value.missing.length, 1)
 }
 
-/** A registration that ends the scope applies both or neither (RC-09). */
 async function scopeEndAtomicWithRegistration<P>(fixture: RuntimeContextFixture<P>) {
   const s = await started(fixture)
   const bad = await s.subject.applyCommit(s.principal, {
@@ -273,7 +272,6 @@ async function replayRetryAndConflict<P>(fixture: RuntimeContextFixture<P>) {
   )
 }
 
-/** A complete material installs registrations and checkpoint values without calling any source (RC-09). */
 async function replayRestoresProjection<P>(fixture: RuntimeContextFixture<P>) {
   const { subject, ports } = await start(fixture)
   const target = scope('restored')
@@ -406,7 +404,6 @@ async function replayCannotReopenEnded<P>(fixture: RuntimeContextFixture<P>) {
   })
 }
 
-/** Finishing a replay only marks supplied blocks; the next ordinary read supplies them (RC-09). */
 async function refreshAfterReplay<P>(fixture: RuntimeContextFixture<P>) {
   const { subject, ports } = await start(fixture)
   const target = scope('refresh')
@@ -468,7 +465,6 @@ async function refreshAfterReplay<P>(fixture: RuntimeContextFixture<P>) {
   assert.equal(calls, 2)
 }
 
-/** After out-of-order, a superseding replay catches the projection up and the original retry applies (RC-09). */
 async function outOfOrderRecoveredByReplay<P>(fixture: RuntimeContextFixture<P>) {
   const { subject, ports } = await start(fixture)
   const target = scope('catch-up')

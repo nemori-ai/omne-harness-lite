@@ -1,5 +1,3 @@
-// 同一文件内的局部取值：顺着外层块找到名字的初始化表达式。参数、catch 与解构绑定会遮住外层同名，查找到此为止。
-// 不跟踪重新赋值、函数传参与跨模块数据流。
 import ts from '@typescript/typescript6'
 
 function bindsName(name: ts.BindingName, identifier: string): boolean {
@@ -49,7 +47,6 @@ function localInitializer(identifier: ts.Identifier): ts.Expression | undefined 
   return undefined
 }
 
-/** 去掉括号与类型断言，名字换成它在本文件里的初始化表达式；查不到时返回 undefined。 */
 export function localValue(
   expression: ts.Expression,
   seen = new Set<ts.Node>(),
@@ -69,7 +66,6 @@ export function localValue(
   return expression
 }
 
-/** 被调用者的名字：`f(…)` 取 `f`，`a.b.f(…)` 取 `f`；其他写法返回 undefined。 */
 export function callName(expression: ts.Expression): string | undefined {
   return ts.isIdentifier(expression)
     ? expression.text

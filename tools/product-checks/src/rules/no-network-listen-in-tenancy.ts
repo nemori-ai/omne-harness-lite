@@ -9,11 +9,6 @@ import {
 
 const NETWORK_MODULES = /^(?:node:)?(?:http|https|net|tls)$/
 
-/**
- * 入口 verification「网络监听只在本包（R-20）」（契约 S-25；提案「能力间内部面不直接暴露」）：
- * `tenancy/*` 的包源码不得导入 `node:http`／`node:https`／`node:net`／`node:tls`（不带 `node:` 前缀的同名模块也算），
- * 也不得调用 `.listen(`；入口层包之内也只许在客户端面 `src/transport/**` 与运维面 `src/ops/**` 出现。
- */
 export const noNetworkListenInTenancy: Rule = {
   id: 'no-network-listen-in-tenancy',
   source:

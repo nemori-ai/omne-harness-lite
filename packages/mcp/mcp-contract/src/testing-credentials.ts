@@ -1,4 +1,3 @@
-// The conformance suite of `CredentialUse`, and an in-memory double that passes it.
 import assert from 'node:assert/strict'
 import { inspect } from 'node:util'
 import type { Access, TenantId } from '@omne-harness/legal-identity'
@@ -19,19 +18,13 @@ export type CredentialUseFixture<P> = Readonly<{
   port: CredentialUse<P>
   access: Access<P>
   holding: EndpointHolding
-  /** A binding of the tenant of `access` on `holding`, and the secret value behind it. */
   binding: CredentialBinding
   secret: string
   target: ConnectionTarget
-  /** A binding with no credential behind it. */
   missing: CredentialBinding
-  /** A principal of another tenant. */
   otherTenant: Access<P>
-  /** Another holding of the same tenant, which `binding` does not belong to. */
   otherHolding?: EndpointHolding
-  /** A binding whose credential is refused. */
   rejected?: CredentialBinding
-  /** A binding the port cannot read now. */
   unreadable?: CredentialBinding
 }>
 
@@ -140,12 +133,8 @@ export function mcpCredentialUseConformance<P>(): readonly ConformanceCase<
   ]
 }
 
-// The secret behind each process handle of the memory double, kept off the handle itself. The
-// memory process landing reads it to fill the environment. This is the in-memory form of the
-// agreement between a credential provider and a process landing: MCP never reads it.
 const secrets = new WeakMap<ProcessCredentialHandle, string>()
 
-/** The secret behind a process handle of the memory double. Not exported from `./testing`. */
 export function memorySecretOf(credential: ProcessCredentialHandle): string | undefined {
   return secrets.get(credential)
 }
@@ -191,7 +180,6 @@ function processHandle(secret: string): ProcessCredentialHandle {
   return credential
 }
 
-/** Credentials by tenant and binding, each bound to one holding. It keeps nothing durable. */
 export function createMemoryCredentialUse<P>(): MemoryCredentialUse<P> {
   const entries = new Map<string, Entry>()
   const keyOf = (tenant: TenantId, binding: CredentialBinding) =>

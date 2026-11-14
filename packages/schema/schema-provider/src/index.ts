@@ -3,26 +3,18 @@ import type { JsonFailure, JsonRead } from '@omne-harness/json-text'
 declare const schemaIdBrand: unique symbol
 declare const schemaRevisionBrand: unique symbol
 
-/** Stable shape name. One owner per id. Contains no tenant or request data. */
 export type SchemaId = string & { readonly [schemaIdBrand]: true }
 
-/** Owner-declared generation name. A new revision is a new snapshot. */
 export type SchemaRevision = string & { readonly [schemaRevisionBrand]: true }
 
-/**
- * Lazy handle. Creating it loads nothing and compiles nothing.
- * `load` takes no argument, so the provider cannot pass tenant, request, or authorization data.
- */
 export type SchemaRef<T> = {
   readonly id: SchemaId
   readonly load: () => Promise<SchemaDefinition<T>>
   readonly __type?: T
 }
 
-/** How a JSON number lexeme is shown to the checker. The shape owner chooses. There is no global default. */
 export type NumberProjection = 'exact-or-reject' | 'lexeme'
 
-/** Structural Standard Schema marker. The provider imports no engine type. */
 export type StandardTyped<T> = {
   readonly '~standard': {
     readonly version: 1
@@ -36,17 +28,12 @@ type DefinitionCommon = {
   readonly numbers: NumberProjection
 }
 
-/** Code-owned Zod definition. Revision is owner-declared. Content is checked by a structural digest. */
 export type ZodDefinition<T> = DefinitionCommon & {
   readonly engine: 'zod'
   readonly revision: SchemaRevision
   readonly schema: StandardTyped<T>
 }
 
-/**
- * JSON Schema document already in the tagged JSON tree.
- * The provider derives the revision from the canonical document.
- */
 export type JsonSchemaDefinition<T> = DefinitionCommon & {
   readonly engine: 'json-schema'
   readonly document: Readonly<Record<string, unknown>>
@@ -68,10 +55,6 @@ export {
 
 export type { SchemaProvider } from './provider.ts'
 
-/**
- * Budget for one execution domain. Every field is required. The module has no default magnitudes.
- * `maxSnapshots` counts resident entries. It is not a byte size.
- */
 export type SchemaBudget = {
   readonly maxSnapshots: number
   readonly maxConstructDepth: number
@@ -99,7 +82,6 @@ export type UnavailableReason = 'load-failed' | 'compile-failed'
 
 export type CheckPath = 'compiled' | 'runtime' | 'projection'
 
-/** Result of a check that already holds an admitted snapshot. */
 export type SyncVerdict<T> =
   | {
       readonly kind: 'valid'
@@ -115,7 +97,6 @@ export type SyncVerdict<T> =
     }
   | { readonly kind: 'unreadable'; readonly failure: JsonFailure }
 
-/** Result of `validate`, which may still have to load and compile. */
 export type SchemaVerdict<T> =
   | SyncVerdict<T>
   | { readonly kind: 'refused'; readonly reason: RefusalReason }

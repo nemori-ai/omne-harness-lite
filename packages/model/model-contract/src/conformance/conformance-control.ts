@@ -1,5 +1,3 @@
-// The checks of control: a cancel is an intent that the call keeps, that reaches only its own call,
-// that does not pretend the model stopped, and that does not acknowledge the result.
 import {
   dispatchesOf,
   ending,
@@ -76,9 +74,6 @@ export function controlChecks<P>(): readonly Check<P>[] {
           await runtimeOf(scene).calls.cancel(mutationOf(scene, call.call, operation)),
           'the cancel',
         )
-        // The termination comes from this suite, through the hook: the provider does not choose
-        // it. Only the custody below is the provider's own answer, and the report does not say
-        // that the interruption was proven.
         const done = await ending(scene, call, {
           termination: { kind: 'interrupted', control: operation },
         })

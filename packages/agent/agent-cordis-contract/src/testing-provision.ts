@@ -1,9 +1,3 @@
-// A non-durable double of `AgentInstanceProvision` with the directory that serves its instances.
-// It keeps the rules of the provision that a caller can observe: one published instance for each
-// slot, one build for the calls of a slot that run at the same time, a new instance after a
-// reclaim, and a reclaim that skips an instance which is not idle. A test gives the runtime
-// factory, the qualification check and the idle state, as the host plugin gets them from the
-// factory, the authorization domain and the registration handle.
 import {
   decodeAgentInstanceId,
   decodeAgentRegistrationId,
@@ -21,32 +15,20 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { AgentInstanceProvision, AgentInstanceSlotInput } from './index.ts'
 
-/** What the double asks the qualification check about: the caller's `reserve`, then the host. */
 export type ProvisionOperation = 'reserve' | 'publish' | 'quiesce'
 
 export type MemoryInstanceProvisionInput<P> = Readonly<{
-  /** Builds the runtime of a slot under the instance that the double minted. */
   create(slot: AgentInstanceSlotInput<P>, instance: AgentInstanceId): Reply<AgentRuntime<P>>
-  /**
-   * The qualification check. `reserve` asks for the caller. `publish` and `quiesce` ask for the
-   * host principal, with the tenant of the instance. It answers allowed when absent.
-   */
   check?(access: Access<P>, operation: ProvisionOperation): Outcome<void, Failure>
-  /** The principal of the host. When absent the double uses the principal of the caller. */
   hostPrincipal?: P
 }>
 
-/** A non-durable double. It must not be assembled into production. */
 export interface MemoryInstanceProvision<P> {
   readonly durability: 'none'
   readonly provision: AgentInstanceProvision<P>
-  /** `resolve` and `connect` over the published instances. Another tenant gets denied. */
   readonly directory: AgentDirectory<P>
-  /** The number of published instances that are not reclaimed. */
   live(): number
-  /** Sets the last state that the runtime reported through its registration handle. */
   setIdle(instance: AgentInstanceId, idle: boolean): void
-  /** The expiry of `instanceIdleMs` for all instances at once: the reclaim of the guard point. */
   reclaimIdle(): Promise<void>
 }
 
@@ -69,7 +51,6 @@ const unavailable = (diagnostic: string): Failure => ({
   diagnostic,
 })
 
-/** The text of a tenant that the identity parser made, or undefined for any other value. */
 function tenantText(value: unknown): string | undefined {
   try {
     const encoded = tenantCodec.encode(value as TenantId)
@@ -79,7 +60,6 @@ function tenantText(value: unknown): string | undefined {
   }
 }
 
-/** Creates the double. */
 export function createMemoryInstanceProvision<P>(
   input: MemoryInstanceProvisionInput<P>,
 ): MemoryInstanceProvision<P> {
@@ -91,7 +71,6 @@ export function createMemoryInstanceProvision<P>(
   const check = (access: Access<P>, operation: ProvisionOperation) =>
     input.check?.(access, operation) ?? succeed(undefined)
 
-  // Step: validate the slot before anyone is asked. A failure names the member.
   function judged(
     raw: AgentInstanceSlotInput<P>,
   ): Outcome<Readonly<{ slot: AgentInstanceSlotInput<P>; tenant: string }>, Failure> {
@@ -121,8 +100,6 @@ export function createMemoryInstanceProvision<P>(
     })
   }
 
-  // Step: build, check the host principal, publish. It never rejects, so the promise that
-  // concurrent calls share always settles with an outcome.
   async function build(
     slot: AgentInstanceSlotInput<P>,
     tenant: string,
@@ -206,9 +183,6 @@ export function createMemoryInstanceProvision<P>(
         throw new TypeError(`the double has no published instance ${instance}`)
       held.idle = idle
     },
-    // The guard point. The expiry reads the last reported state, marks the instance and removes it
-    // in one step that never yields, so a call that arrives later builds a new instance. An
-    // instance that is not idle stays, and so does one whose quiesce the host principal is refused.
     async reclaimIdle() {
       for (const held of bySlot.values()) {
         if (!held.idle) continue

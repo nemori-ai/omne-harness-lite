@@ -1,6 +1,4 @@
 // @module-tag slow — every case starts a peer on a local port, some a reference server process.
-// MC3-11: the Streamable HTTP transport on real sockets, with the legacy HTTP+SSE fallback. The
-// A layer is the scripted peer; the B layer is the SDK's servers and the reference server.
 import { createServer as createTcpServer } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -41,7 +39,6 @@ const [OFFERED_LEGACY_VERSION] = LEGACY_PROTOCOL_VERSIONS
 const never = new AbortController().signal
 const NOT_SENT = { failure: { kind: 'not-sent', cause: 'connection-unavailable' } }
 const STREAM_BROKEN = { kind: 'no-answer', cause: 'stream-broken' }
-/** What a transport that is not usable any more answers, marked with the cause it recorded (T1). */
 const notSentAfter = (unusable: string) => ({
   failure: { kind: 'not-sent', cause: 'connection-unavailable', unusable },
 })
@@ -95,15 +92,10 @@ function materialOf(target: ConnectionTarget, handle?: HttpCredentialHandle): Tr
   }
 }
 
-/** For the SDK's servers and other peers that are not the scripted one. */
 async function open(material: TransportMaterial): Promise<McpTransport> {
   return ok(await factory.open(material, never), 'open')
 }
 
-/**
- * Through the scripted peer's own factory, whose requests the peer tracks: its `received()` waits
- * for those requests only.
- */
 async function openOn(peer: HttpPeer, handle?: HttpCredentialHandle): Promise<McpTransport> {
   return ok(await peer.factory.open(materialOf(targetOf(peer), handle), never), 'open')
 }
@@ -391,7 +383,6 @@ describe('the waits that the signal and close() govern (T5, T4, T9)', () => {
   it('a metadata document that never ends counts as not fetched: the discovery settles with metadata unavailable', async () => {
     const peer = await scripted({ listing: { '': refused } }, { metadata: 'endless' })
     const transport = await openOn(peer, credential())
-    // Two candidate addresses, each read up to the 16 MiB bound over the loopback.
     expect(await settledWithin(transport.listActions(), 10_000)).toMatchObject({
       settled: {
         failure: {
@@ -401,7 +392,6 @@ describe('the waits that the signal and close() govern (T5, T4, T9)', () => {
         },
       },
     })
-    // The read stops at the byte bound: the peer wrote 16 MiB and what the sockets hold per address, not the document.
     expect(peer.endlessBytes()).toBeGreaterThanOrEqual(2 * 16_777_216)
     expect(peer.endlessBytes()).toBeLessThan(2 * 16_777_216 + 48 * 1_048_576)
     await transport.close()
@@ -553,14 +543,8 @@ describe('the events of a 2xx answer body (T2)', () => {
 
 describe('the byte bound of one SSE event (T2, SPEC H8)', () => {
   const BYTE_LIMIT = 16_777_216
-  /** The id the transport gives the call: the first request id of the connection. */
   const CALL_ID = 'r1'
 
-  /**
-   * A result whose answer event has `size` raw bytes before its empty line: `event: message`, then
-   * `data: ` and the answer with its line end. The padding is three-byte characters, so the event
-   * has far fewer characters than bytes, and the answer alone stays within the JSON byte limit.
-   */
   function padOf(size: number): string {
     const answerBytes = (pad: string) =>
       Buffer.byteLength(JSON.stringify({ jsonrpc: '2.0', id: CALL_ID, result: { pad } }))
@@ -568,7 +552,6 @@ describe('the byte bound of one SSE event (T2, SPEC H8)', () => {
     return '中'.repeat(Math.floor(padBytes / 3)) + 'x'.repeat(padBytes % 3)
   }
 
-  /** The answer of a call whose answer event has `size` raw bytes; the first event is a decoy ping. */
   async function answerOfEvent(size: number) {
     const pad = padOf(size)
     expect(pad.length).toBeLessThan(BYTE_LIMIT / 2)
@@ -578,7 +561,6 @@ describe('the byte bound of one SSE event (T2, SPEC H8)', () => {
     const answer = await settledWithin(sent.answer, 10_000)
     await transport.close()
     await peer.close()
-    // The padding was measured for this id; another id would shift the event by its length.
     expect(sent.requestId).toBe(CALL_ID)
     return { pad, answer }
   }
@@ -724,7 +706,6 @@ describe('the legacy HTTP+SSE fallback (T3, T8 I07)', () => {
     const received = await peer.received()
     expect(requestsOf(received, 'initialize')).toHaveLength(2)
     expect(requestsOf(received, 'tools/list')[0]?.headers?.['mcp-session-id']).toBeUndefined()
-    // Before the GET the requests go to the target; after it, every message goes to the endpoint.
     expect(peer.requestLines()).toEqual([
       'POST /mcp',
       'POST /mcp',

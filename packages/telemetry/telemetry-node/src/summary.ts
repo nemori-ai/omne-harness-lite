@@ -1,13 +1,9 @@
-// Offline aggregation of telemetry JSON lines into a hotspot report. The rules are SPEC.md TN-11.
 import { actingScopeCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { LOG_LEVELS, type LogLevel, type SegmentOutcome } from './record.ts'
 
-/** Reader-side selection of records. It grants no access: the report stays on the operator host. */
 export type SummaryFilter = Readonly<{
   tenant?: TenantId
-  /** Inclusive. */
   from?: Date
-  /** Exclusive. */
   to?: Date
 }>
 
@@ -30,20 +26,16 @@ export type SegmentSummary = Readonly<{
 export type EventSummary = Readonly<{ owner: string; name: string; level: LogLevel; count: number }>
 
 export type TelemetrySummary = Readonly<{
-  /** In descending p95 order. */
   segments: readonly SegmentSummary[]
-  /** In descending count order. */
   events: readonly EventSummary[]
   logs: Readonly<Record<LogLevel, number>>
   unfinished: number
   skipped: Readonly<{ invalid: number; otherKinds: number }>
-  /** The times of the first and the last counted record, or null when no record is counted. */
   window: Readonly<{ from: string; to: string }> | null
 }>
 
 const OUTCOMES: readonly SegmentOutcome[] = ['ok', 'failure', 'unknown']
 
-/** What one valid telemetry line contributes to the report. */
 type FactBody =
   | Readonly<{ signal: 'segment-start'; pair: string }>
   | Readonly<{
@@ -106,7 +98,6 @@ function event(record: JsonObject, named: Named): FactBody | undefined {
   return level === undefined ? undefined : { signal: 'event', ...named, level }
 }
 
-/** One reader per TN-3 signal. A `segment-event` counts as an event of its own definition. */
 const BODIES = new Map<string, (record: JsonObject, named: Named) => FactBody | undefined>([
   [
     'segment-start',
@@ -136,7 +127,6 @@ function bodyOf(record: JsonObject): FactBody | undefined {
   return read(record, { owner, name })
 }
 
-/** The tenant of a scope, `undefined` for the system scope, or `null` for a scope that does not parse. */
 function tenantOfScope(scope: unknown): TenantId | undefined | null {
   if (!isObject(scope)) return null
   const parsed = actingScopeCodec.parse(JSON.stringify(scope))
@@ -172,7 +162,6 @@ function selected(fact: Fact, filter: SummaryFilter): boolean {
   return true
 }
 
-/** Nearest rank: the value at rank ceil(p / 100 * n) of the ascending values, ranks from 1. */
 function percentile(sorted: readonly number[], p: number): number {
   const rank = Math.max(1, Math.ceil((p * sorted.length) / 100))
   return sorted[rank - 1] ?? Number.NaN
@@ -200,7 +189,6 @@ function byName(a: { owner: string; name: string }, b: { owner: string; name: st
   return a.owner.localeCompare(b.owner) || a.name.localeCompare(b.name)
 }
 
-/** Collects the facts. One instance per call, so the function stays pure. */
 class Tally {
   readonly segments = new Map<string, SegmentGroup>()
   readonly events = new Map<string, EventSummary>()
@@ -276,10 +264,6 @@ class Tally {
   }
 }
 
-/**
- * Aggregates telemetry JSON lines (SPEC.md TN-3) into a report. A line that is not a valid record
- * is counted and skipped, never thrown.
- */
 export function summarizeTelemetry(
   lines: Iterable<string>,
   filter: SummaryFilter = {},

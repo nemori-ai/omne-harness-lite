@@ -1,5 +1,3 @@
-// `tool-records` 行在受信存储子树里建 HITL 宿主与决策方，交给按运行的共享状态；行撤除时关闭并收回。答复成为
-// Tool 调用的卡片决定之后，宿主经 `wake.ts` 唤醒原调用。
 import type { Context } from '@deepseek-ai/cordis'
 import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { fail } from '@omne-harness/operation-result'
@@ -26,8 +24,6 @@ export function mountToolHitl(
     verifier: () => tool.verifier(),
     standing: () => tool.standing(),
     reservations: () => hitl.reservations(),
-    // 答复成为 Tool 调用的卡片决定之后，再调度这个调用。
-    // 没唤醒成不改变结局（调用等下一次唤醒），但要留一条告警。
     decided: wakeOnDecision(currentInstanceHost(ctx), text => ctx.logger('tool-hitl').warn(text)),
   })
   const readWork = sessionWorkReaderOf(ctx)
@@ -45,7 +41,6 @@ export function mountToolHitl(
         })
       return commands.loadRecovery(access)
     },
-    // 用 Session 为调用所在会话签发的会话工作主体，读该会话的工作快照。
     readWork: async ({ tenant, session }) => {
       const work = tool.workPrincipals()
       if (work === undefined) return undefined

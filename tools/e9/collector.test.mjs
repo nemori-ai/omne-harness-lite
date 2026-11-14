@@ -30,7 +30,6 @@ const terminalState = (run, outcome = 'completed') => ({
 })
 const logCount = value => ({ state: 'measured', value, unit: 'count', source: 'test log' })
 
-/** 一个同步的模型等待：起止都读采集者交出的钟，形状同 model-measurement.ts。 */
 function modelWait(context, invocationId) {
   const start = context.clock.read()
   const end = context.clock.read()
@@ -115,7 +114,6 @@ test('排空超时的段不被丢掉，本轮带诊断，roundEvents 拒绝交�
   assert.ok(result.diagnostics.some(issue => issue.code === 'segment-end-missing'))
   assert.equal(result.events.filter(event => event.eventKind === 'round-complete').length, 0)
   assert.throws(() => collector.roundEvents(result), ProjectionError)
-  // 迟到的终点不会混进下一轮。
   collector.measure(seg('agent', 7, 'end'))
   assert.equal(collector.strays().length, 1)
 })

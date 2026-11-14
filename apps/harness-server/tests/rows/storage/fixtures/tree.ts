@@ -1,5 +1,3 @@
-// Loads the real storage rows. The access policy is a named fixture unless authorizationRow selects the original row.
-// Also used by slow subprocess scenarios, so this fixture does not import Vitest.
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { existsSync } from 'node:fs'
 import { inProcessPrincipalAuthority } from '@omne-harness/identity'
@@ -65,7 +63,6 @@ export function textOf(tenant: TenantId): string {
   return encoded.value
 }
 
-/** sqlite-provider 规格 §12.1 的候选初值；关闭期限按测试缩短。 */
 export function providerConfig(
   storageRoot: string,
   overrides: Partial<SqliteStorageConfig> = {},
@@ -120,16 +117,11 @@ export function providerConfig(
 
 export type AccessPolicy = Parameters<typeof createPolicySessionAccessCheck<string>>[0]
 
-/** 放行一切的政策；测试按需换成拒绝某操作或某租户的政策。 */
 export const allowAll: AccessPolicy = request => ({
   kind: 'allowed',
   evidence: evidence(`access/${request.operation}`),
 })
 
-/**
- * `sessionAccessCheck` 的契约替身行：行 id `authorization`，可显式附加测试 verifier。替身来自
- * `session-contract/testing`，没有业务持久性。
- */
 export function accessPolicyRow(
   policy: AccessPolicy,
   options: Readonly<{ includePrincipalVerifier?: boolean }> = {},
@@ -172,7 +164,6 @@ export function treeRow(id: string, plugin: string, config: unknown = {}): TreeR
   return { id: id as RowId, plugin, config, source: 'distribution' }
 }
 
-/** 真实导出的 RowSpec，按 `runServe` 的办法从声明读回。 */
 export function declared(plugin: Plugin, config: unknown = {}): RowSpec {
   const declaration = rowDeclarationOf(plugin)
   if (declaration === undefined) throw new Error('not a declared row')
@@ -197,14 +188,11 @@ export type TreeOptions = Readonly<{
   storageRoot: string
   directoryFile: string
   policy?: AccessPolicy
-  /** Use the original authorization row instead of the default policy fixture. */
   authorizationRow?: RowSpec
   combinationVersion?: string
   closeDeadlineMs?: number
-  /** 替换预期登记阶段（用来触发 `phase-mismatch`）。 */
   expected?: ReadonlyMap<RowId, LifecyclePhase>
   entryObjects?: readonly EntryObjectModule[]
-  /** 不装 `session-storage` 行。 */
   withoutSessionStorage?: boolean
   extraRows?: readonly RowSpec[]
   includePrincipalVerifier?: boolean
@@ -216,9 +204,7 @@ export type LoadedTree = Readonly<{
   registry: LifecycleRegistry
   expected: ReadonlyMap<RowId, LifecyclePhase>
   check: ScriptedSessionAccessCheck<string>
-  /** 根上的公开服务。 */
   service<T>(name: ServiceName): T
-  /** 受信名下的服务（入口自己按名读取）。 */
   trusted<T>(name: ServiceName): T
   state(id: string): RowState
   shutdown(deadlineMs?: number): Promise<ShutdownReport>

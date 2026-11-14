@@ -1,6 +1,3 @@
-// A call at the new address that gets through (#1233 spec C2, C4, C9, C10, C11): the answer's
-// bytes and headers, the message id, what the handler receives, failures, and the report of a
-// successful business access.
 import { afterEach, describe, expect, it } from 'vitest'
 import { send, startFixture, type Fixture, type HttpReply } from './support/harness.ts'
 import {

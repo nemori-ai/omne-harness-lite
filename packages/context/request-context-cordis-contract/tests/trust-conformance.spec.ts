@@ -31,7 +31,6 @@ async function failures(defect?: Defect): Promise<string[]> {
   return failed
 }
 
-// Each defect breaks exactly one rule, so exactly one case must go red (C7).
 const EXPECTED_RED: Record<Defect, string> = {
   'cache-key-by-principal': 'cross-tenant-keys-stay-apart',
   'ignore-binding': 'forged-principal-is-not-keyed',

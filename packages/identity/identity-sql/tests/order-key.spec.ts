@@ -1,7 +1,3 @@
-// SPEC IS-10: the participant and the governance read compare instants in SQL through an order key.
-// The key's text order must be the order of utc-instant `compareInstants`, in JavaScript and in SQL
-// alike: otherwise a login could count as valid after its deadline, or an invitation as open after
-// its expiry. Encoded instants keep their fraction digits, so `0.5` and `0.500` must give one key.
 import { DatabaseSync } from 'node:sqlite'
 import { expect, it } from 'vitest'
 import { compareInstants, encodeInstant } from '@omne-harness/utc-instant'
@@ -56,7 +52,6 @@ it('computes the same key in SQL as in JavaScript', () => {
     const rows = db.prepare(`SELECT value, ${orderKeySql('value')} AS key FROM t`).all()
     expect(rows).toHaveLength(TEXTS.length)
     for (const row of rows) expect(row['key']).toBe(instantOrderKey(String(row['value'])))
-    // SQL compares the keys in the same order.
     const pairs = db
       .prepare(
         `SELECT a.value AS a, b.value AS b,

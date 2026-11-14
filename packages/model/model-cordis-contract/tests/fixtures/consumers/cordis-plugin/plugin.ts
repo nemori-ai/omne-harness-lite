@@ -1,7 +1,3 @@
-// The plugin under test. It depends on the runtime service through the key constant of the
-// definition entry, refuses to run on a service that is not an instance of the definition class,
-// listens to the call-changed notification through `ctx.on`, and asks the runtime for the
-// authoritative revision before it believes the notification. It provides nothing.
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import {
@@ -15,16 +11,11 @@ import type { Principal } from './values.ts'
 
 export type Refresh = Readonly<{ tenant: TenantId; call: ModelCallId; revision: Revision }>
 
-/** What the plugin shows the assembly about its state; the plugin is the only writer. */
 export type Followed = {
-  /** The newest revision that the plugin has seen for each call it still follows. */
   readonly known: Map<ModelCallId, Revision>
   readonly refreshed: Refresh[]
-  /** The calls that the plugin no longer follows because the runtime refused it. */
   readonly stopped: ModelCallId[]
-  /** How many times the plugin ran. */
   started: number
-  /** The runtime service that the plugin received through injection. */
   readonly received: unknown[]
 }
 
@@ -37,13 +28,10 @@ export const newFollowed = (): Followed => ({
 })
 
 export type FollowerConfig = Readonly<{
-  /** The principal that the assembly lets the plugin act for. */
   principal: Principal
-  /** The only tenant whose notifications the plugin looks at. */
   tenant: TenantId
   tracked: readonly Readonly<{
     call: ModelCallId
-    /** The operation under which the call was admitted, which finds the call again. */
     reference: ModelInvocationRef
     known: Revision
   }>[]
@@ -54,9 +42,6 @@ export const followerPlugin = {
   name: 'call-follower',
   inject: [modelRuntimeKey],
   apply(ctx: Context, config: FollowerConfig) {
-    // The key is all that the injection checks: whatever is provided on it is served here. The
-    // runtime of the definition is an instance of the one class that the definition entry
-    // exports; a class with the same members is not it, and this plugin does not run on one.
     const runtime: unknown = ctx.modelRuntime
     if (!(runtime instanceof ModelRuntimeService))
       throw new Error(`the service on ${modelRuntimeKey} is not the model runtime definition`)
@@ -69,8 +54,6 @@ export const followerPlugin = {
     followed.started += 1
     followed.received.push(runtime)
 
-    // A failure of this listener reaches the sender of the notification, which records it and
-    // keeps the committed change; the plugin does not catch it.
     ctx.on('model-cordis-contract/call-changed', async (tenant, call, notified) => {
       if (!tenantEquals(tenant, config.tenant)) return
       const reference = admissions.get(call)

@@ -1,4 +1,3 @@
-// A protocol for the tests: one operation that answers at once, one that waits, one observation.
 import { defineProtocol, ruleCodec } from '@omne-harness/public-contract'
 
 const empty = ruleCodec({ kind: 'object', fields: {} })

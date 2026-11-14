@@ -14,24 +14,24 @@ uv run --locked python .meta_harness/tooling/src/check_sources.py --root .meta_h
 ```
 
 `--source-root` 必须指向设计根所在的同一执行检出，不从安装位置或父目录猜测。
-工具校验该检出的根登记和发现的局部登记。docs、组及仅有文档的成员 Markdown 按精确注册文件准入，
-不放行目录或同级未登记文件。另允许两个精确的非 Markdown 目标
-`docs/engineering/github-delivery.json` 和 `docs/architecture/constraints.json`。
+执行检出里的 Markdown 只放行约束的载体：`docs/requirements.md`、`docs/architecture/` 与 `docs/domains/` 下的正文、
+`packages/<组>/SPEC.md`、`apps/<名>/SPEC.md`、`tools/<名>/SPEC.md`，以及根的 `AGENTS.md` 与 `CONTRIBUTING.md`。
+别的 Markdown 不放行。session 包组还没有重写成一份规格，它的组入口与组 `docs/` 暂时放行，重写之后去掉这一条。
+另允许两个精确的非 Markdown 目标 `docs/engineering/github-delivery.json` 和 `docs/architecture/constraints.json`。
 
 实际 packages 与 apps 当前成员的文件，包括 Markdown SPEC，
 可由 workspace 包含及排除声明和有效 manifest 确认出处。目标与 manifest 必须留在该检出内。
-`ModuleSources.owns()` 与 `origin()` 只认当前成员，`origin()` 返回 `current-member` 或 None。tools 不属于产品成员，其 Markdown 按精确登记准入。
-坏登记、非法声明、缺文件、错锚点和越界链接均使检查失败。
+`ModuleSources.owns()` 与 `origin()` 只认当前成员，`origin()` 返回 `current-member` 或 None。tools 不属于产品成员，它的 Markdown 只放行 `SPEC.md`。
+非法声明、缺文件、错锚点和越界链接均使检查失败。
 
 未提供 `--source-root` 时，仅检查设计根、既有 meta agents/research 来源和 meta 根入口，
 不准入外部 docs 或成员路径。模板可被合法引用，但不扫描模板正文。tmp、record、跨检出及其别名被拒绝。
 spec、realization、registry 三个旧根不得重新出现，空目录、普通文件或悬空软链接同样拒绝。
 外部 URL 不在本工具中抓取或核实。
 
-检查冻结扫描集合、源正文、登记、依据、workspace、实际用到的 manifest、目标字节与实际路径，
+检查冻结扫描集合、源正文、workspace、实际用到的 manifest、目标字节与实际路径，
 收尾发现变化时失败。图片等二进制目标只读字节，Markdown 必须能按 UTF-8 解码。
 持续正控与拒绝反例位于 `tests/test_source_links.py`。
-角色上下文入口见 [spec-tools](../../tools/spec-tools/README.md#按角色读取上下文)。
 
 该工具不判断条款等价性、采用状态、实现符合性或模型覆盖。公开 Schema 身份、规范输入及形式模型的正负控由真实拥有者维护并执行；单次原始输出归执行工作树 tmp。根 `pnpm run check:design` 组合本检查与领域对象对账，不隐式执行形式模型。
 
@@ -140,7 +140,7 @@ slots:
 保留可执行位，`SKILL.md` 照样核 frontmatter。与 `agents/skills/` 里的项目技能同名时项目技能优先，
 外部的那份不生成；项目删掉自己的那份后，外部的接手。两个技能集有同名技能时整体预检失败。
 新检出先 `git submodule update --init`；没有初始化的子模块是空目录，生成器预检失败并提示这条命令，不会悄悄少生成一整套技能。
-采用范围归[技能入口](../../docs/engineering/skills.md#来源与项目采用)。
+每个来源固定在哪个版本、项目采用它的哪一部分，见下面的[来源与采用](#来源与采用)。
 
 ### pqw-skills 只钉接入约定的版本
 
@@ -156,6 +156,71 @@ uv run --locked python .meta_harness/tooling/src/pqw_contract.py --project-root 
 - `--check` 只读：子模块的约定版本等于所钉版本；根 `AGENTS.md`「pqw-skills 接入」有约定列出的每个槽位；卡模板的二级标题等于约定的节名。`pnpm run check:agents` 的第一步就是它。
 - pqw-skills 的约定版本涨了：浮动停在旧约定的最后一版。要用新版时，在一个 PR 里把子模块指到新版、改 `contract-version`，再按 `--check` 报的逐条改接入节与卡模板。
 - 没有网络的环境（gate、CI）读子模块。约定版本相同，接入节与卡模板对两份都成立。
+
+### 来源与采用
+
+研发方法分三层：工作流程用 pqw-skills；交付方案与实施规格的写法用 Matt 的三项，经 pqw `spec-and-plan` 加载；写或改代码时的判断以 ub-mode 为基础，项目独有的补充在 [研发品味](../agents/roles/engineering-taste.md)。采用一种方法不替代正式的语义接受，也不扩大任务权限。
+
+| 体系 | 固定来源 | 采用范围 |
+| --- | --- | --- |
+| pqw-skills | [PanQiWei/pqw-skills](https://github.com/PanQiWei/pqw-skills)，子模块 `agents/vendor/pqw-skills`，只钉接入约定的版本（上一节） | 工作流程。由生成器原样投影进三个宿主，与项目技能同名时项目技能优先 |
+| pstack port | 0.9.79，[michael-denyer/pstack-claude@60ae9e25610744bccd45bd405c211413a471aaf8](https://github.com/michael-denyer/pstack-claude/tree/60ae9e25610744bccd45bd405c211413a471aaf8/plugins/pstack) | Codex 与 Claude Code 上 pqw 引用的环节方法，以及不够格走 pqw 流程的小改动 |
+| Cursor 官方 pstack | 0.15.20，[cursor/plugins@1b6d44ff26d4e242f4e8f68c391e6d2f7ca16def](https://github.com/cursor/plugins/tree/1b6d44ff26d4e242f4e8f68c391e6d2f7ca16def) | Cursor 上同一范围，不覆盖 port 0.9.79 |
+| Matt skills | 1.3.1，[mattpocock/skills@b0618bc436ad893b3c5e84e55fba86586d34a404](https://github.com/mattpocock/skills/tree/b0618bc436ad893b3c5e84e55fba86586d34a404/skills) | `to-spec`、`to-tickets`、`writing-for-agents` 三项的写法；其余入口按需 |
+| ub-mode | [unclebob/ub-mode@57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f](https://github.com/unclebob/ub-mode/tree/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f) | 研发品味。它取代 poteto-mode 的原则清单：不要求逐个加载 `pstack:principle-*` |
+| 项目技能 | [`agents/skills`](../agents/README.md) | 只装本项目独有的知识；canonical 源维护之后生成 |
+
+更换上游版本之前，检查正文、必要的参考、触发、权限和语义，同步这张表与两处云端环境的脚本。新版本不静默扩大采用范围。
+
+### 在宿主里安装
+
+pqw-skills 随检出投影，不另装。参与研发维护之前，在自己实际使用的宿主里装好其余几样，版本取上表：Codex 与 Claude Code 装 pstack port、Matt skills 与 ub-mode；Cursor 装 Cursor 官方 pstack、Matt skills 与 ub-mode。一台机器装好，不替代新机器、云端环境或新宿主的初始化。
+
+1. 确认实际的宿主及其版本，打开它的插件管理入口。照上表的固定版本装，不拿原版 pstack、同名技能或上游最新版代替。
+2. 注册固定来源并安装两份插件。宿主支持指定 Git 版本时直接指定；只支持本地 marketplace 时，先在仓库外准备对应版本的检出，再注册它。不把插件正文复制进本仓库的技能源，也不同时装另一份同名技能。
+3. 装 ub-mode。它只有一份 `SKILL.md`，上游没有声明许可证，所以不复制进本仓库：按固定提交取 `https://raw.githubusercontent.com/unclebob/ub-mode/<提交>/SKILL.md`，放进宿主的用户技能目录（Claude Code 是 `~/.claude/skills/ub-mode/`，Codex 是 `~/.codex/skills/ub-mode/`，Cursor 是 `~/.cursor/skills/ub-mode/`）。
+4. 新开会话，核对两份插件的版本、启用状态与发现路径，宿主有没有发现 `ub-mode`，这次要用的技能和参考文件读不读得到。装上了、宿主发现了、正文读到了、行为照做了，是四件事，分别判断。
+5. 插件自动更新之后也核对实际版本；对不上时先恢复指定版本，或由技能的拥有者明确改版，再继续依赖它的工作。
+
+Codex CLI 的命令形态（语法以 `codex plugin --help` 为准；别的宿主照固定来源自己的安装说明，不套用这几条）：
+
+```sh
+codex plugin marketplace add michael-denyer/pstack-claude --ref <pstack 的提交>
+codex plugin add pstack@pstack-claude
+codex plugin marketplace add mattpocock/skills --ref <Matt 的提交>
+codex plugin add mattpocock-skills@mattpocock
+mkdir -p ~/.codex/skills/ub-mode
+curl -fsSL https://raw.githubusercontent.com/unclebob/ub-mode/<ub-mode 的提交>/SKILL.md -o ~/.codex/skills/ub-mode/SKILL.md
+```
+
+两处云端环境与这张表的关系：Cursor Cloud 的镜像照上表的版本安装；Claude Code on the web 每次会话启动时把 pstack port、Matt 与 ub-mode 更新到上游最新版本，实际版本可能比上表新。各自的说明在 [`agents/cloud`](../agents/cloud/README.md)。
+
+### 在宿主里怎样叫、怎样读
+
+- Codex 上的名字是 `pstack:<name>`、`mattpocock-skills:<name>` 与 `ub-mode`。先核对当前宿主实际发现了哪些技能，再读选中的 `SKILL.md` 与它必要的参考。技能名出现在提示里不等于已经加载。
+- Matt 的 `to-spec`、`to-tickets` 与 `grill-with-docs` 声明了 `disable-model-invocation: true`：宿主不会自动触发，按已安装的路径直接读正文，并在报告里写明是这样读的。
+- 同名技能写明来源：`pstack:tdd` 与 Matt 的 `tdd` 是两份不同的正文。TDD 的默认来源是 ub-mode 的 TDD 一节，要展开时读 `pstack:tdd`。
+- 缺入口、正文或宿主能力时，报告具体缺了什么，停下依赖它的步骤，其余照常做。
+
+### 外部方法与本项目不同的地方
+
+外部方法的原文与本项目的要求冲突时，先定位这条要求的范围、拥有者与接受依据，不用「外部方法优先」处理。常见的几处：
+
+| 来源 | 原文或默认 | 本项目怎样做 |
+| --- | --- | --- |
+| ub-mode | 先写会失败的测试 | 先设计必要的测试与验证（判据、反例、变红验证）；写新测试时先确认它变红，再实现 |
+| ub-mode | 每个函数 CRAP 小于 10；消除相似度 0.8 以上的重复；变异 | 用 pqw `slice-closeout` 的结构读数与差分变异，命令在根 `AGENTS.md` 的接入表；阈值与带位线归整洁回路，不另定数 |
+| ub-mode | 术语表 | 术语归统一语言 `design/ubiquitous_language/`，不另建词表 |
+| ub-mode | 最后提交并推到主线 | 提交格式与来源 trailer 归根 `CONTRIBUTING.md`；主干只经 PR 与 gate 进入，步骤在 `omne-card` 技能 |
+| pstack | playbook 里的提交、PR、对外消息与发布 | 技能不授予对外动作的权限；发布要有任务授权 |
+| pstack | 并行写入 | 一棵工作树同一时间只有一个写者；共享的接口、锁文件与集成由一个负责人做 |
+| pstack | 写作方法删掉留有余地的说法与未知 | 按 pqw `clear-writing`：保留事实、条件与把握的程度 |
+| pstack | 专用流程固定用多路并行或新增阻断 | 按风险选，不给所有任务新增固定的门 |
+| pstack、Matt | 直接写宿主的技能目录 | 改 canonical 源，再生成 |
+| Matt | `to-spec` 逐项确认、自动发 issue | 已经明确的输入不重复审批；发布要有任务授权 |
+| Matt | `to-tickets` 默认先扩后缩 | 0.1.0 之前同一批迁移全部消费者并删掉被取代的实现 |
+| Matt | `code-review` 默认只看已提交的差异 | 先说清实际的来源与覆盖，不为了适配方法擅自提交 |
+| Matt | spec 与票据 | 它们只组织单次实施的输入；正式的形状、行为契约与验收归实际的拥有者 |
 
 ## 宿主钩子
 

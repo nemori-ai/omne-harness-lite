@@ -1,9 +1,3 @@
-// What both family meters share around the calibrated arithmetic: the meter itself (the supplier
-// and representation checks, the refusal of pending media, the call of the arithmetic and the
-// budget it returns), the calibration of a plain `measure`, the method name of a measurement, the
-// input digest and the per-unit extra tokens. Pure. A family gives only its own values: its
-// adoptions, how to read the units of its token input, its image rules, its tokenizer, the name of
-// its output-group method and the diagnostic of an uncountable reasoning unit.
 import { sorted } from './json.ts'
 import { createHash } from 'node:crypto'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
@@ -30,17 +24,10 @@ import {
   type CalibrationArithmeticInput,
 } from './calibration.ts'
 
-/** The method name suffix of a measurement that the anchor applied to. */
 export const ANCHORED_METHOD = 'continuation-anchored/1'
 
-/** The calibration of a plain `measure`: no anchor, no outputs. */
 export const NO_CALIBRATION: MeterCalibration = Object.freeze({ anchor: null, outputs: [] })
 
-/**
- * The method of a measurement: the meter adoption, with the output-group method of the family
- * appended when a unit was counted as the output of its source, then `ANCHORED_METHOD` when the
- * anchor applied. Each suffix follows a `+`. Owner, revision and digest stay the meter's.
- */
 export function calibratedMethod(
   input: Readonly<{ meter: Adoption; outputGroup: string; amount: CalibratedAmount }>,
 ): Adoption {
@@ -54,11 +41,6 @@ export function calibratedMethod(
     : Object.freeze({ ...meter, name: `${meter.name}+${suffixes.join('+')}` })
 }
 
-/**
- * The `inputDigest` of a measurement: the SHA-256 hex of what the estimate depends on. A
- * calibration enters it only when it carries an anchor or an output, so a plain measurement keeps
- * the digest it had without calibration. A different anchor or output count is a different input.
- */
 export function calibratedDigest(
   input: Readonly<{
     measure: MeterFacts
@@ -83,11 +65,6 @@ export function calibratedDigest(
   return createHash('sha256').update(JSON.stringify(fixed)).digest('hex')
 }
 
-/**
- * The `extra` of the calibrated arithmetic from the extra tokens of every unit. The arithmetic
- * calls it with the units it counts. Each call asks `perUnit` again and sums the units it names.
- * A unit without an entry adds zero. A failure of `perUnit` is the failure of the call.
- */
 export function unitExtras(
   perUnit: () => Outcome<readonly bigint[], TransportFailure>,
 ): CalibrationArithmeticInput['extra'] {
@@ -98,42 +75,23 @@ export function unitExtras(
   }
 }
 
-/** The margin that every estimate of a family carries, from the family configuration. */
 export type MeterMargin = Readonly<{
-  /** A non-negative decimal integer: the margin is `ceil(amount * percent / 100)`. */
   percent: string
-  /** The adoption of the margin policy that the assembly configured. */
   source: Adoption
 }>
 
-/** What the meter reads from one message unit of a token input: whether it carries reasoning state. */
 export type MeteredUnit = Readonly<{ reasoning: boolean }>
 
-/** What one family record gives the shared meter. The meter is a pure function of it. */
 export type CalibratedMeterRules<U extends MeteredUnit> = Readonly<{
-  /** The family owner: the `dependency` of an unavailability of the meter. */
   owner: string
-  /** The supplier adoption of the record. The meter refuses any other supplier. */
   supplier: Adoption
-  /** The adoptions of the record's meter, representation and media components. */
   adoptions: Readonly<{ meter: Adoption; representation: Adoption; media: Adoption }>
   basis: ModelCountingBasis
   margin: MeterMargin
-  /** The method name suffix of a measurement that counted a unit as the output of its source. */
   outputGroup: string
-  /** The diagnostic of a reasoning unit that no output count stands for. */
   uncountable: string
-  /**
-   * The family tokenizer and the form of the text it counts: the JSON text as written, or its
-   * NFKC form.
-   */
   tokens: Readonly<{ tokenizer: ModelTextTokenizer; form: 'as-written' | 'nfkc' }>
-  /** The units of a token input of the family schema, in order, or `null` for another schema. */
   contentOf(tokenInput: JsonValue): readonly U[] | null
-  /**
-   * The extra tokens of each unit after the family image rules, in unit order, or the failure that
-   * keeps an image out. The media facts stand for the images of the whole token input.
-   */
   imageTokens(
     input: Readonly<{ units: readonly U[]; media: readonly MediaMeasurementFact[] }>,
   ): Outcome<readonly bigint[], TransportFailure>
@@ -155,7 +113,6 @@ function upstreamOf(entries: ModelLimit['upstream'], supplier: Adoption): Upstre
   return entries.find(entry => sameAdoption(entry.supplier, supplier))?.limit ?? { kind: 'unknown' }
 }
 
-/** The input bound: the separate input limit, else the window less the output limit. */
 function inputCheck<U extends MeteredUnit>(
   input: Readonly<{
     measure: MeterFacts
@@ -192,7 +149,6 @@ function inputCheck<U extends MeteredUnit>(
   }
 }
 
-/** The exact byte and count checks of the profile limits that apply to this request. */
 function exactChecks(measure: MeterFacts, method: Adoption): readonly BudgetCheck[] {
   const supplier = measure.supplier.adoption
   const images = measure.representation.media.filter(fact => fact.kind === 'image')
@@ -230,7 +186,6 @@ function exactChecks(measure: MeterFacts, method: Adoption): readonly BudgetChec
   return checks
 }
 
-/** Counts the JSON text of a token input, in the form the family counts. */
 async function countWith(
   tokens: CalibratedMeterRules<MeteredUnit>['tokens'],
   tokenInput: JsonValue,
@@ -259,7 +214,6 @@ async function measureCalibrated<U extends MeteredUnit>(
   const representation = submitted.representation
   if (!sameAdoption(representation.adoption, rules.adoptions.representation))
     return { failure: { kind: 'unsupported', field: 'representation', adapter } }
-  // Media that is not read yet has no pixels here; the media path is not part of this meter.
   if (representation.kind === 'pending-media')
     return { failure: { kind: 'unsupported', field: 'representation.kind', adapter } }
   const { assembled: _assembled, ...facts } = submitted
@@ -294,15 +248,6 @@ async function measureCalibrated<U extends MeteredUnit>(
   }
 }
 
-/**
- * The calibrated meter of one family record. It refuses another supplier (`invalid`, `supplier`,
- * `not-this-meter`), another representation and pending media (`unsupported`), and a token input
- * of another schema (`invalid`, `tokenInput`, `schema`). Otherwise it calls `calibratedAmount` and
- * returns a complete budget: the input-token estimate with the method of `calibratedMethod` and
- * the margin source of the family, the exact checks of the profile limits, the counting basis, and
- * the anchor verdict when the calibration had an anchor. `measure(input)` is
- * `measureCalibrated(input, NO_CALIBRATION)`.
- */
 export function createCalibratedMeter<U extends MeteredUnit>(
   rules: CalibratedMeterRules<U>,
 ): CalibratedInputMeter {

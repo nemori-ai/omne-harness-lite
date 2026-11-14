@@ -18,8 +18,6 @@ it('C05 requires a declared durable store and keeps foreign tenant reads in thei
     ).toThrow('durable')
     const reference = accepted(await world.api.invoke(world.invocation('isolation')))
     await world.settled(reference)
-    // R2-D357: the reference carries no tenant. Tenant B's partition has no such call, so it gets
-    // the answer of a call that was never accepted, never tenant A's state.
     expect(await world.api.queries.lookup(world.query(reference, world.tenantB))).toMatchObject({
       ok: { kind: 'not-accepted' },
     })
@@ -146,8 +144,6 @@ it('a new executor finds the original call by its recovery scan but never attach
     await world.plugins.close()
     reopened = await world.newExecutor()
     const next = reopened
-    // Nothing names the call to the new executor: its startup scan finds the pending call, runs it
-    // once, and lets it go because the original execution may still be live in the old instance.
     await expect
       .poll(() => next.plugins.diagnostics().executor?.foreignExecutionRuns ?? 0)
       .toBeGreaterThan(0)
@@ -248,8 +244,6 @@ it('takes over an old admitted call that never acquired an execution and starts 
     expect(world.launches()).toBe(0)
     reopened = await world.newExecutor()
     const next = reopened
-    // The original facts prove that the call never started (contract P09 recover), so the new
-    // executor goes on from its preparation and starts it under the original identity, once.
     await expect
       .poll(async () => {
         const read = unbox(await next.api.queries.lookup(world.query(reference)))

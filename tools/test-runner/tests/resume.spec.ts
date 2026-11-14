@@ -1,6 +1,3 @@
-// `check --resume-from`：用真实步骤表、一份只在 oxlint 失败的 H1 记录（全量或按影响面）与造出来的影响面函数，核对
-// 前提校验的每种拒绝、全局路径（锁文件也是）的退化、增量计划里每一步怎么跑、证据文本；另在临时仓库上核对取 git 事实
-// 与结束时重新核对现场。
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -26,9 +23,7 @@ import type { CheckPlan } from '../src/testing/scope.ts'
 const H1 = 'a'.repeat(40)
 const HEAD = 'b'.repeat(40)
 const TREE = 'c'.repeat(40)
-/** 本次基线 main 与 HEAD 的合并点。 */
 const MB = 'e'.repeat(40)
-/** H1 那次准入与本次运行所在的工作树。 */
 const WORKTREE = '/work/tree'
 
 const STEPS = checkSteps({
@@ -41,7 +36,6 @@ const HEAVY_PLANNED = STEPS.filter(step => step.planned === true && step.heavy).
 )
 const RESIDENT = STEPS.filter(step => step.planned !== true).map(step => step.name)
 
-/** H1 的记录：`failed` 失败，`notRan` 没跑到，其余通过。 */
 function record(
   failed: string | null,
   notRan: readonly string[],
@@ -74,7 +68,6 @@ function record(
   return parsed
 }
 
-/** 快速失败在 oxlint：与它同时跑的轻步骤和构建已经结束，构建之后的都被终止或没开始。 */
 const AFTER_BUILD = [
   'check:declarations',
   'contract-check',
@@ -85,7 +78,6 @@ const AFTER_BUILD = [
   'acceptance',
 ]
 const OXLINT_FAILED = record('lint:oxlint', AFTER_BUILD)
-/** 同样只在 oxlint 失败，但 H1 那次是按影响面准入，基线就是本次的合并点。 */
 const OXLINT_FAILED_AFFECTED = record('lint:oxlint', AFTER_BUILD, {
   mode: 'affected',
   base: MB,
@@ -104,7 +96,6 @@ const FULL_PLAN: CheckPlan = {
   acceptance: ['packages/a'],
   python: { run: true, reason: '全量' },
 }
-/** HEAD 相对本次基线的影响面：比全量窄，比 H1..HEAD 的宽。 */
 const BASE_PLAN: CheckPlan = {
   mode: 'scoped',
   reason: '按基线影响面',
@@ -326,7 +317,6 @@ describe('增量计划', () => {
     expect(verdict.steps.find(step => step.name === 'python')?.why).toBe('轻步骤，按整次运行的范围')
     expect(verdict.steps.find(step => step.name === 'build')?.why).toContain('整次跑的步骤在它之后')
     expect(verdict.steps.find(step => step.name === 'test')?.why).toContain('没跑到')
-    // 计划文件按步骤各取一份：整次的取全量清单，按影响面的取影响面那份。
     expect(verdict.plan.build).toEqual(FULL_PLAN.build)
     expect(verdict.plan.typecheck).toEqual(ALL)
     expect(verdict.plan.test).toEqual(ALL)
@@ -347,7 +337,6 @@ describe('增量计划', () => {
     expect(verdict.steps.find(step => step.name === 'python')?.scope).toBe('whole')
     expect(verdict.plan.build).toEqual(AFFECTED_PLAN.build)
     expect(verdict.plan.test).toEqual(['packages/b'])
-    // H1..HEAD 没碰 Python 工具（影响面那份不跑）；整次运行的范围要跑，取整次那份。
     expect(verdict.plan.python).toEqual(FULL_PLAN.python)
     expect(verdict.steps.find(step => step.name === 'lint:deps')?.scope).toBe('resident')
   })
@@ -384,7 +373,6 @@ describe('增量计划', () => {
 })
 
 describe('H1 失败于 test 时只跑必要的', () => {
-  // H1 的 test 步在慢层失败于 packages/b 的一个文件（快层已对全部成员通过），验收没开始。
   const AFTER_TEST = ['acceptance']
   const FAILED_FILE = {
     member: 'packages/b',
@@ -395,7 +383,6 @@ describe('H1 失败于 test 时只跑必要的', () => {
   } as const
   const testFailed = (over: Record<string, unknown> = {}) =>
     record('test', AFTER_TEST, { testFailures: [FAILED_FILE], ...over })
-  /** H1..HEAD 只改了 packages/b 的文档：影响面没有选中任何成员要测。 */
   const DOCS_ONLY: CheckPlan = {
     ...AFFECTED_PLAN,
     members: [],
@@ -417,7 +404,6 @@ describe('H1 失败于 test 时只跑必要的', () => {
     expect(test?.scope).toBe('files')
     expect(test?.why).toContain('packages/b/tests/x.spec.ts')
     expect(verdict.plan.testResume).toEqual({ files: [FAILED_FILE] })
-    // 成员清单按 H1..HEAD 影响面（这里为空）；没开始的验收仍整次，构建因它而整次。
     expect(verdict.plan.test).toEqual([])
     const scope = new Map(verdict.steps.map(step => [step.name, step.scope]))
     expect(scope.get('acceptance')).toBe('whole')
@@ -484,7 +470,6 @@ describe('H1 失败于 test 时只跑必要的', () => {
 
 describe('中间运行', () => {
   const H2 = 'f'.repeat(40)
-  /** H1 之后在同一棵树上的一次接续运行，失败在 contract-check。 */
   const middle = (over: Record<string, unknown> = {}) =>
     record('contract-check', [], {
       head: H2,
@@ -503,7 +488,6 @@ describe('中间运行', () => {
       finishedAt: '2026-10-30T02:20:00.000Z',
       ...over,
     })
-  /** 影响面函数按路径前缀选成员：看得出交给它的改动集里有没有被撤回的成员。 */
   const byPaths = (request: PlanRequest): CheckPlan => {
     if (request.kind === 'whole') return FULL_PLAN
     const hit = ALL.filter(path => request.paths.some(file => file.startsWith(`${path}/`)))
@@ -514,7 +498,6 @@ describe('中间运行', () => {
       test: hit,
     }
   }
-  /** 失败在构建之后的轻步骤、重步骤都通过了：构建只重建被改动影响到的成员，所以磁盘上的旧产物才要紧。 */
   const H1_LATE = record('lint:deps', [])
   const withMiddle = (over: Partial<ResumeInputs>) =>
     harness({ records: [H1_LATE, middle()], plan: byPaths, ...over }).inputs
@@ -596,7 +579,6 @@ describe('中间运行', () => {
 })
 
 describe('H1 按影响面准入', () => {
-  // H1 的影响面（合并点..H1）与 H1..HEAD 的影响面合起来就是 HEAD 相对本次基线的影响面，所以接续的范围不比 H1 宽。
   it('合并点与本次相同：接受；没跑到的步骤按本次基线的影响面整次跑，不取全量', () => {
     const { inputs, requests } = harness({ records: [OXLINT_FAILED_AFFECTED] })
     const verdict = resumePlan(inputs)
@@ -663,7 +645,6 @@ describe('H1 按影响面准入', () => {
 })
 
 describe('接续不链式', () => {
-  // 接续记录本身形状完整、快速失败在 check:docs：被误当 H1 时会接续成功，只是失败步骤不同。
   const resumed = (over: Record<string, unknown> = {}) =>
     record('check:docs', AFTER_BUILD, {
       mode: 'resume',
@@ -687,7 +668,6 @@ describe('接续不链式', () => {
     const verdict = resumePlan(
       harness({
         records: [OXLINT_FAILED, resumed({ startedAt: '2026-10-31T00:00:00.000Z' })],
-        // 更晚的接续记录是中间运行：它的头到 HEAD 的差异要给。
         intermediateChanges: { [H1]: [] },
       }).inputs,
     )
@@ -727,8 +707,6 @@ describe('证据文本', () => {
   })
 })
 
-// 每条用例在 beforeEach 建一棵临时仓库、再起多个 git 子进程：空闲时约 1 秒，负载下量到 6.5 秒
-// （2026-11-01 准入），超过 vitest 默认的 5 秒。时限按负载下成本的三倍写明，钩子同样，不改断言。
 describe('取 git 事实', { timeout: 20_000 }, () => {
   let repo: string
   const run = (...args: string[]) =>
@@ -775,7 +753,6 @@ describe('取 git 事实', { timeout: 20_000 }, () => {
     expect(facts.isAncestor).toBe(true)
     expect(facts.changedFiles).toEqual(['b.txt'])
     expect(facts.dirty).toBe(false)
-    // 本次基线与 HEAD 的合并点：基线是 HEAD 的祖先时就是它自己。
     expect(facts.base).toEqual({ ref: first, mergeBase: first })
     writeFileSync(join(repo, 'c.txt'), 'c\n')
     expect(resumeFacts(repo, first, 'main').dirty).toBe(true)
@@ -867,9 +844,7 @@ describe('取 git 事实', { timeout: 20_000 }, () => {
     commit('main two')
     expect(resumeFacts(repo, side, 'main').isAncestor).toBe(false)
     expect(resumeFacts(repo, first, 'main').isAncestor).toBe(true)
-    // 本次基线在另一条分支上：合并点是分叉处。
     expect(resumeFacts(repo, first, side).base.mergeBase).toBe(first)
-    // 同一个提交也算祖先：接续时差异为空。
     const same = resumeFacts(repo, 'HEAD', 'main')
     expect(same.isAncestor).toBe(true)
     expect(same.changedFiles).toEqual([])

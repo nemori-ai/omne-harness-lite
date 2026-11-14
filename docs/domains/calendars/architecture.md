@@ -1,6 +1,6 @@
 # 日历协作设计
 
-本页维护已确认的目标责任与消费关系，不表示实现或提供者已验证。范围归[领域入口](README.md)，产品规则归[产品正文](../../../.meta_harness/design/product/calendars/design.md)，精确行为归[calendar/calendar SPEC](../../../packages/calendar/calendar/SPEC.md)。
+本页维护已确认的目标责任与消费关系。范围归[领域入口](README.md)，产品规则归[产品正文](../../../.meta_harness/design/product/calendars/design.md)，精确行为归[日历规格](../../../packages/calendar/SPEC.md)。
 
 ## 独立部署与本地实现
 
@@ -58,7 +58,7 @@ followUserEnvironment 采用同一 revision 下的 timezone 与 calendar，环�
 
 发布协调者只负责本域版本、出处、current 指针和发布回执一致成立。Schedule 接受协调者通过日历拥有者注册的公共 participant 校验 publication generation；不能绕过边界读写日历私有表。pinned 校验版本及访问资格，latest 才校验 current generation。网络抓取和计算放在事务外，事务内只核验版本并提交决定。
 
-事件用于加速唤醒，漏事件通过有界查询与反熵恢复。事件送达、Cordis emit 成功和工具响应均不是最终接受证据。单机同进程也不自动提供跨拥有者原子性。实际 storage 前提与限制沿[提供者规格](../../../packages/storage/sqlite-provider/SPEC.md#已知限制)，不得把设计目标写成当前保证。
+事件用于加速唤醒，漏事件通过有界查询与反熵恢复。事件送达、Cordis emit 成功和工具响应均不是最终接受证据。单机同进程也不自动提供跨拥有者原子性。实际 storage 前提与限制沿[存储规格](../../../packages/storage/SPEC.md#保证的范围)，不得把设计目标写成当前保证。
 
 ## 接口与替换边界
 

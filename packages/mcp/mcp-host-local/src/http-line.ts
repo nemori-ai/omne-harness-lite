@@ -1,9 +1,3 @@
-// The Streamable HTTP line: one POST per message to the connection target, the answer in the
-// JSON body or as SSE events, no redirects followed, no timeout of its own. It also carries the
-// legacy HTTP+SSE mode (contract T3): after the session enters it on a GET, messages post to the
-// endpoint the peer named and the answers come on the shared GET stream as `line` events. The line
-// puts the credential's headers on the wire and nowhere else; it reports what the wire did and
-// classifies nothing, and judges nothing.
 import { EventSourceParserStream, type EventSourceMessage } from 'eventsource-parser/stream'
 import { bodyOf } from './body.ts'
 import { BYTE_LIMIT } from './limits.ts'
@@ -21,11 +15,6 @@ import { SseEventBytes } from './sse-bytes.ts'
 
 type Fetch = typeof fetch
 
-/**
- * The `cause.code` values of a `fetch` failure before the connection was made (contract T8:
- * "the request failed before it left"). Anything else after the request started is a broken
- * stream. The TLS codes are those of a failed handshake.
- */
 const UNSENT_CODES: readonly string[] = [
   'ECONNREFUSED',
   'ENOTFOUND',
@@ -47,7 +36,6 @@ function codeOf(error: unknown): string | undefined {
   return typeof cause.code === 'string' ? cause.code : undefined
 }
 
-/** `unsent` for a connection that was not made; `aborted` for a request that started to go out. */
 function failedExchange(error: unknown): Exchange {
   const code = codeOf(error)
   const unsent = code !== undefined && (UNSENT_CODES.includes(code) || code.startsWith('ERR_SSL_'))
@@ -66,10 +54,6 @@ function mediaTypeOf(response: Response): string {
   return (response.headers.get('content-type') ?? '').split(';')[0]?.trim().toLowerCase() ?? ''
 }
 
-/**
- * The events of an SSE body. The bound of one event is in raw bytes, before the decoder (H8); an
- * event above it errors the stream, which the readers take as a broken stream.
- */
 function eventsOf(body: ReadableStream<Uint8Array>): ReadableStream<EventSourceMessage> {
   return body
     .pipeThrough(new SseEventBytes(BYTE_LIMIT))
@@ -77,7 +61,6 @@ function eventsOf(body: ReadableStream<Uint8Array>): ReadableStream<EventSourceM
     .pipeThrough(new EventSourceParserStream())
 }
 
-/** The JSON-RPC messages of a 2xx answer: the JSON body as one, the data of each SSE message event. */
 async function* messagesOf(response: Response): AsyncGenerator<string> {
   const type = mediaTypeOf(response)
   if (type === 'application/json') {
@@ -92,7 +75,6 @@ async function* messagesOf(response: Response): AsyncGenerator<string> {
     if (event.event === undefined || event.event === 'message') yield event.data
 }
 
-/** One exchange's abort controller, linked to the caller's signal, with a way to unlink it. */
 type Linked = Readonly<{ controller: AbortController; unlink: () => void }>
 
 export class HttpLine implements Line {
@@ -103,7 +85,6 @@ export class HttpLine implements Line {
   private readonly target: string
   private readonly fetch: Fetch
   private readonly controllers = new Set<AbortController>()
-  /** The endpoint of the legacy HTTP+SSE mode, once the session entered it. */
   private endpoint: string | undefined
   private closed = false
 
@@ -114,7 +95,6 @@ export class HttpLine implements Line {
     this.openGet = (headers, signal) => this.getStream(headers, signal)
   }
 
-  /** An abort controller for one exchange, aborted with the caller's signal and on close. */
   private link(signal: AbortSignal): Linked {
     const controller = new AbortController()
     this.controllers.add(controller)
@@ -163,7 +143,6 @@ export class HttpLine implements Line {
     }
   }
 
-  /** The messages of a 2xx answer; the exchange is unlinked when the body ends, breaks or is let go. */
   private stream(response: Response, linked: Linked): AsyncIterable<string> {
     const messages = messagesOf(response)
     return {
@@ -191,11 +170,6 @@ export class HttpLine implements Line {
     }
   }
 
-  /**
-   * The GET of the legacy HTTP+SSE fallback (T3): GET the target and report what came back. The
-   * session judges whether the fallback holds; this reports the status, the headers, and the first
-   * event when the body was an SSE stream, and keeps or discards the stream on the session's word.
-   */
   private async getStream(headers: Headers, signal: AbortSignal): Promise<GetOpened> {
     if (this.closed || this.endpoint !== undefined) return { kind: 'unavailable' }
     const linked = this.link(signal)
@@ -221,7 +195,6 @@ export class HttpLine implements Line {
     return this.openStream(response, linked)
   }
 
-  /** A 2xx GET answer: its first SSE event when it has one, and the handles to keep or discard it. */
   private async openStream(response: Response, linked: Linked): Promise<GetOpened> {
     const answered = headersOf(response)
     const reader =
@@ -248,7 +221,6 @@ export class HttpLine implements Line {
     }
   }
 
-  /** The shared stream of the SSE mode: each message event is a line; its end breaks the line. */
   private async readSharedStream(
     reader: ReadableStreamDefaultReader<EventSourceMessage>,
     linked: Linked,
@@ -260,9 +232,7 @@ export class HttpLine implements Line {
         if (next.value.event === undefined || next.value.event === 'message')
           this.queue.push({ kind: 'line', text: next.value.data })
       }
-    } catch {
-      // The stream broke: the same event as its end.
-    }
+    } catch {}
     linked.unlink()
     if (!this.closed) this.queue.push({ kind: 'broken' })
   }
@@ -276,7 +246,6 @@ export class HttpLine implements Line {
   }
 }
 
-/** The first event of a GET stream, or undefined when it ends or breaks before one. */
 async function firstEventOf(
   reader: ReadableStreamDefaultReader<EventSourceMessage>,
 ): Promise<FirstEvent | undefined> {

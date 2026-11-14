@@ -1,6 +1,3 @@
-// The `session-access` row loads on the release tree and opens `session/v1`: the availability
-// observation of the entry's new address lists it, and a real login creates a session there with
-// the release's default definition.
 import { request } from 'node:http'
 import { describe, expect, it } from 'vitest'
 import { rowDeclarationOf } from '../../../src/row.ts'
@@ -10,7 +7,6 @@ import { savedLoginProof, savedTenant } from '../../r9/support.ts'
 import { onReleaseTree, type ReleaseTree } from '../../support/release-tree.ts'
 import { until } from '../server-entry/support.ts'
 
-/** Calls `/api/session/v1/create-session` with the release's own login and acting tenant. */
 function createSession(tree: ReleaseTree): Promise<{ status: number; body: string }> {
   const body = JSON.stringify({ createCallId: 'create-1', purpose: 'hello' })
   return new Promise((resolve, reject) => {
@@ -48,7 +44,6 @@ type Frame = Readonly<{
   protocols?: readonly Readonly<{ name: string; major: number }>[]
 }>
 
-/** The availability observation, opened without a login; it collects the frames of its events. */
 function openAvailability(port: number) {
   const frames: Frame[] = []
   let buffered = ''

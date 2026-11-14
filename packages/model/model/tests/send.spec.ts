@@ -469,8 +469,6 @@ for (const kind of ['value', ...Object.keys(FAILURES)]) {
     expect(f.counts().starts).toBe(kind === 'value' ? 1 : 0)
     const recorded = unbox(await f.dependencies.commands.dispatches(f.admit))[0]
     expect(recorded?.send).toBe(kind === 'value' ? 'started' : 'not-sent')
-    // Only a refused layer is final for the call: the not-sent dispatch then carries the failed
-    // terminal. A denial or an unavailable dependency leaves no terminal.
     expect(recorded?.terminal ?? null).toEqual(
       FINAL.includes(kind)
         ? {
@@ -499,8 +497,6 @@ for (const kind of ['value', ...Object.keys(FAILURES)]) {
     }
   })
 }
-// A missing credential is final. When the record owner definitely rejects the not-sent record or
-// the terminal, that rejection is the answer, never the credential's retryable unavailable.
 for (const method of ['recordSend', 'preserve'] as const)
   for (const kind of ['denied', 'stale-instance', 'conflict'] as const)
     it(`answers a definite ${kind} of ${method} for a missing credential`, async () => {
@@ -542,7 +538,6 @@ for (const method of ['recordSend', 'preserve'] as const)
       kind: 'not-started',
       failure: { kind: 'denied', action: 'record-refused' },
     })
-    // The resource is still held: the repeat answers the release failure, not a new attempt.
     expect(await sender.send(f.demand, signal())).toMatchObject({
       kind: 'unknown',
       diagnostic: 'resource-release-failed',
@@ -561,7 +556,6 @@ it('retries an unconfirmed credential terminal with the same operation', async (
       async preserve(input) {
         inputs.push(input)
         const applied = await f.dependencies.commands.preserve(input)
-        // The first write commits, but its confirmation is lost.
         return inputs.length === 1 && 'ok' in applied
           ? { failure: { kind: 'commit-unknown', operation: input.operation } }
           : applied
@@ -688,7 +682,6 @@ it('a backend dispatch claim survives a thrown start and blocks another coordina
     ?.receipt
   const record = unbox(await f.dependencies.commands.loadRecovery(f.admit))
   expect(receipt).toBeDefined()
-  // Observe the real open-window command, without pretending it is a public driver handoff.
   const write = fault.inputs[0]
   expect(write).toBeDefined()
   expect(record.unresolved).toHaveLength(1)
@@ -846,9 +839,7 @@ for (const action of ['done', 'return', 'throw', 'error'] as const)
     if (sent.kind !== 'started') throw new Error('send fixture')
     const iterator = sent.facts[Symbol.asyncIterator]()
     if (action === 'done') {
-      while (!(await iterator.next()).done) {
-        /* consume */
-      }
+      while (!(await iterator.next()).done) {}
     }
     if (action === 'return') await iterator.return?.()
     if (action === 'throw')
@@ -900,10 +891,7 @@ for (const action of ['done', 'return', 'throw'] as const)
       const iterator = sent.facts[Symbol.asyncIterator]()
       expect(() => sent.facts[Symbol.asyncIterator]()).toThrow('facts-already-consumed')
       expect((await iterator.next()).done).toBe(false)
-      if (action === 'done')
-        while (!(await iterator.next()).done) {
-          /* consume */
-        }
+      if (action === 'done') while (!(await iterator.next()).done) {}
       if (action === 'return') await iterator.return?.()
       if (action === 'throw')
         await expect(iterator.throw?.(new Error(synthetic))).rejects.toThrow('consumer-closed')
@@ -1303,7 +1291,6 @@ for (const record of ['confirmed', 'rejected'] as const)
       reachedRelease = resolve
     })
     let writes = 0
-    // A refusal that is not final. A missing credential writes a terminal instead.
     const sender = f.makeSender({
       credentials: credentialPort(fail({ kind: 'unavailable' })),
       commands: {

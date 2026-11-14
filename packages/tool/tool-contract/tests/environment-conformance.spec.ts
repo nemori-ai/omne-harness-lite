@@ -1,6 +1,3 @@
-// Self-proof of the ToolEnvironment suite: it passes on the conforming double, each case fails
-// under a violating variant that breaks the rule of that case, and a fixture without control
-// handles reports the cases that need them as not applicable.
 import type { TenantId } from '@omne-harness/legal-identity'
 import { describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -81,7 +78,6 @@ type Prepared = Extract<PreparationProgress<MemoryEnvironment>, { kind: 'prepare
 
 type Handles = Partial<Omit<Fixture, 'environment' | 'access' | 'request'>>
 
-/** A fixture whose port is the double with `port` laid over it and whose handles are `handles`. */
 function variant(
   build: (
     real: Environment,
@@ -92,7 +88,6 @@ function variant(
     const base = memoryToolEnvironmentFixture()
     const laid = build(base.environment, base)
     const environment = { ...base.environment, ...laid.port }
-    // A restart keeps the variant's port: only the registrations of the double are gone.
     const restart = async () => {
       await base.restart?.()
       return environment
@@ -122,26 +117,22 @@ function decoded<T>(outcome: { ok: T } | { failure: unknown }): T {
   return outcome.ok
 }
 
-// Read when a case runs, not when the file is collected: the fixture mints its tenant then.
 const own = {
   get tenant(): TenantId {
     return memoryToolEnvironmentFixture().access.tenant
   },
 }
 
-/** The tenant of an input is not the tenant of the fixture. */
 const isForeign = (tenant: typeof own.tenant): boolean =>
   JSON.stringify(tenant) !== JSON.stringify(own.tenant)
 
 const variants: readonly Variant<Fixture>[] = [
   {
-    // A restart leaves every environment live: the new process reconnects the old one.
     name: 'a restart keeps the environments live',
     fails: [NAMES.E20],
     fixture: variant(real => ({ handles: { restart: () => Promise.resolve(real) } })),
   },
   {
-    // The second prepared answer of one operation is another resource.
     name: 'a resent preparation answers another resource',
     fails: [NAMES.E1, NAMES.E17],
     fixture: variant(real => {
@@ -159,7 +150,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The resend allocates a second resource and hides it behind the first answer.
     name: 'a resent preparation allocates again',
     fails: [NAMES.E2, NAMES.E3, NAMES.E14, NAMES.E20],
     fixture: variant(real => {
@@ -211,7 +201,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The provider keys its allocations by operation alone, so a second call joins the first.
     name: 'the allocation is keyed by the operation alone',
     fails: [NAMES.E6],
     fixture: variant(real => {
@@ -232,7 +221,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // After the deferred allocation landed, the provider still says pending.
     name: 'a landed allocation is still reported pending',
     fails: [NAMES.E7],
     fixture: variant((real, base) => {
@@ -258,13 +246,11 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The exclusion handle does nothing, so the deferred allocation lands anyway.
     name: 'the exclusion does not hold back the deferred allocation',
     fails: [NAMES.E8, NAMES.E9],
     fixture: variant(() => ({ handles: { excludeDeferred: () => Promise.resolve() } })),
   },
   {
-    // The allocation is marked excluded, but it lands anyway when the allocation window closes.
     name: 'an excluded allocation lands after all',
     fails: [NAMES.E8, NAMES.E9],
     fixture: variant((real, base) => {
@@ -294,7 +280,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // A rejected operation that is asked again is prepared on another host.
     name: 'a rejected preparation degrades on the second ask',
     fails: [NAMES.E10],
     fixture: variant(real => {
@@ -360,7 +345,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // A resend while the preparation is pending allocates a second resource, and answers it.
     name: 'a resend of a pending preparation allocates again and answers the new resource',
     fails: [NAMES.E3],
     fixture: variant(real => {
@@ -384,7 +368,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // A resend while the preparation is pending is answered pending, and allocates a second resource.
     name: 'a resend of a pending preparation allocates again',
     fails: [NAMES.E3],
     fixture: variant(real => {
@@ -409,7 +392,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // A resend while the preparation is pending lands it, and answers prepared.
     name: 'a resend of a pending preparation is answered prepared',
     fails: [NAMES.E3],
     fixture: variant((real, base) => {
@@ -432,7 +414,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The excluded preparation allocates its resource when the deferred allocations land.
     name: 'an excluded preparation allocates anyway',
     fails: [NAMES.E9],
     fixture: variant((real, base) => {
@@ -461,7 +442,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // Only prepare keys the allocation by the operation alone; inspect is right.
     name: 'prepare hands the resource of one call to another call',
     fails: [NAMES.E6],
     fixture: variant(real => {
@@ -483,7 +463,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The exclusion is answered once; the next ask finds the preparation after all.
     name: 'an excluded preparation is prepared on the next ask',
     fails: [NAMES.E8],
     fixture: variant(real => {
@@ -591,7 +570,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // Resends that come one after the other recall the resource; a resend alone is not recalled.
     name: 'a resend that comes alone answers another resource',
     fails: [NAMES.E1, NAMES.E7, NAMES.E17],
     fixture: variant(real => {
@@ -617,7 +595,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // Resends that meet in flight are answered other resources; resends one after the other recall it.
     name: 'resends that meet in flight answer other resources',
     fails: [NAMES.E1],
     fixture: variant(real => {
@@ -658,7 +635,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // Only inspectPreparation keys the allocation by the operation alone; prepare is right.
     name: 'inspectPreparation hands the resource of one call to another call',
     fails: [NAMES.E6],
     fixture: variant(real => {
@@ -719,7 +695,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The tenant is told of the resource of another tenant by the evidence, and of nothing else.
     name: 'a foreign inspectPreparation answers the evidence of the tenant for the real preparation',
     fails: [NAMES.E16],
     fixture: variant(real => ({
@@ -749,7 +724,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // Under a hold the first answer claims a resource that the provider has not allocated yet.
     name: 'the first answer under a hold claims a resource',
     fails: [NAMES.E3, NAMES.E7, NAMES.E8, NAMES.E9],
     fixture: variant((real, base) => {
@@ -781,7 +755,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The preparation of another tenant joins the allocation of the first one.
     name: 'prepare ignores the tenant',
     fails: [NAMES.E17],
     fixture: variant(real => ({
@@ -796,7 +769,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The foreign preparation takes the place of the allocation of the tenant.
     name: 'a foreign prepare replaces the allocation of the tenant',
     fails: [NAMES.E17],
     fixture: variant(real => {
@@ -818,7 +790,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The release of another tenant is done on the release of the first one.
     name: 'release ignores the tenant',
     fails: [NAMES.E18],
     fixture: variant(real => ({
@@ -845,7 +816,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The foreign release uses up the release of the tenant: its own release fails afterwards.
     name: 'a foreign release spends the release of the tenant',
     fails: [NAMES.E18],
     fixture: variant(real => {
@@ -868,7 +838,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The provider keys the answer by identity and ignores the input: other input, same answer.
     name: 'a preparation operation reused with another input is answered as the original',
     fails: [NAMES.E14],
     fixture: variant(real => {
@@ -906,7 +875,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The reuse of the identity is refused, but not as a conflict.
     name: 'a preparation operation reused with another input is refused as invalid',
     fails: [NAMES.E14],
     fixture: variant(real => ({
@@ -949,7 +917,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // once a preparation was answered prepared, a resend goes back to pending.
     name: 'a prepared preparation is answered pending on the next ask',
     fails: [NAMES.E1, NAMES.E2, NAMES.E17],
     fixture: variant(real => {
@@ -974,7 +941,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // a resend during pending answers a prepared that is not the one that lands.
     name: 'a resend during pending answers another prepared than the one that lands',
     fails: [NAMES.E3],
     fixture: variant(real => {
@@ -1037,7 +1003,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // A rejection is final and recalled, but every preparation is rejected, the first one included.
     name: 'every preparation is rejected',
     fails: [
       NAMES.E1,
@@ -1075,7 +1040,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The failure for a release of another tenant is `denied`: it tells that the release exists.
     name: 'a foreign inspectRelease is denied when the release exists',
     fails: [NAMES.E19],
     fixture: variant(real => ({
@@ -1096,7 +1060,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // Every release that another tenant asks about is answered with the evidence of the tenant.
     name: 'a foreign inspectRelease answers the evidence of the tenant for every release',
     fails: [NAMES.E19],
     fixture: variant(real => {
@@ -1121,14 +1084,6 @@ const variants: readonly Variant<Fixture>[] = [
   },
 ]
 
-// Providers that the contract allows are built in environment-legal.ts, at the port boundary.
-
-/**
- * The resend rule for a release, the second method of the port with a first answer that can be
- * progress: a release that goes back to pending after it answered released, and one that answers
- * a released during pending which is not the one that lands (the generated provider with the
- * resend during progress replaced). The preparation has its own variants above.
- */
 const resendRule: readonly Variant<Fixture>[] = [
   {
     name: 'a resent release goes back from released to pending',
@@ -1194,8 +1149,6 @@ const NEEDS_SETTLE: Readonly<Record<string, string>> = Object.fromEntries(
   ].map(name => [name, 'settle']),
 )
 
-// allocated requires an independently recorded pre-adoption allocation, exercised by
-// environment-allocation.spec.ts. It cannot mask arbitrary rejections or released records.
 const legal: readonly LegalProvider<Fixture>[] = [
   ...maskKinds(environmentAnswers)
     .filter(kind => kind !== 'allocated')
@@ -1243,7 +1196,6 @@ const legal: readonly LegalProvider<Fixture>[] = [
   },
 ]
 
-/** The providers that are legal but offer no completion handle: the cases that need it are not applicable. */
 const legalWithoutHandle: readonly LegalProvider<Fixture>[] = maskKinds(environmentAnswers)
   .filter(kind => kind !== 'allocated')
   .map((kind): LegalProvider<Fixture> => ({
@@ -1252,11 +1204,6 @@ const legalWithoutHandle: readonly LegalProvider<Fixture>[] = maskKinds(environm
     notApplicable: NEEDS_SETTLE,
   }))
 
-/**
- * Fixtures that break the completion contract of a handle (it resolves before the work landed),
- * and the cases that read the landed state once after it. They are violators of the fixture, not
- * of the port: the suite must say so.
- */
 const LATE_FAILS = [
   NAMES.E1,
   NAMES.E2,
@@ -1322,7 +1269,6 @@ const lateHandles: readonly Variant<Fixture>[] = [
   },
 ]
 
-/** The methods of the port that take an access, and the case that checks another tenant on each. */
 const CROSS_TENANT: Readonly<
   Record<Exclude<keyof ToolEnvironment<string, MemoryEnvironment>, 'adoption'>, string>
 > = {

@@ -1,6 +1,3 @@
-// 恢复扫描（契约 P01「通知丢失由 scanPending 补偿」，P09 recover）：账本在写调用记录的同一笔提交里
-// 维护待办标记，`scanPending` 按标记分页列出有待推进工作的调用。有待推进的工作指调用记录里有待办，
-// 或调用暂停中且等待处于 opening、open、responding。真实账本、推进协程与内存记录仓，脚本化的决策方。
 import { afterEach, describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { ToolWaitId } from '@omne-harness/tool-contract'
@@ -50,7 +47,6 @@ function setup(script: BridgeScript = 'registers', options: StartOptions = {}) {
   return { harness, checkpoint, bridge, authority }
 }
 
-/** The environment provider of the start path, which also releases a call's environment. */
 function releasing(base: Parameters<NonNullable<StartOptions['environmentsPort']>>[0]) {
   const released = { kind: 'released', evidence: evidence('environment-released') } as const
   return Object.assign(base, {
@@ -68,7 +64,6 @@ async function settle(harness: Harness): Promise<void> {
   }
 }
 
-/** 按契约形状分页读完 `tenantA` 的扫描，返回全部调用。 */
 async function scanned(harness: Harness, limit = 10): Promise<string[]> {
   const calls: string[] = []
   let after: string | null = null
@@ -84,7 +79,6 @@ async function scanned(harness: Harness, limit = 10): Promise<string[]> {
   throw new Error('the scan did not end')
 }
 
-/** 调用的 `pending` 待办与等待阶段。受阻的待办不在其中：推进协程不处理它们。 */
 async function tasksOf(harness: Harness, call: string) {
   const read = ok(await harness.commands.loadRecovery({ ...ACCESS, call: callId(call) }))
   return {
@@ -104,7 +98,6 @@ describe('the pending marker of a call domain', () => {
     const { harness, bridge } = setup()
     expect(await scanned(harness)).toEqual([])
     await suspend(harness, 'c1')
-    // No task is open: only the open wait of the suspended call keeps it in the scan.
     expect(await tasksOf(harness, 'c1')).toEqual({ tasks: [], waits: ['open'] })
     expect(await scanned(harness)).toEqual(['c1'])
     bridge.decide(FIRST, { kind: 'answer', value: { kind: 'string', value: 'a.txt' } })
@@ -113,7 +106,6 @@ describe('the pending marker of a call domain', () => {
     const state = await harness.state('c1')
     if (state.phase !== 'settled' || state.delivery?.kind !== 'pending')
       throw new Error('c1 must settle with its delivery owed')
-    // The settled call still owes the delivery of its result: it stays in the scan.
     expect(await tasksOf(harness, 'c1')).toEqual({ tasks: ['deliver'], waits: ['closed'] })
     expect(await scanned(harness)).toEqual(['c1'])
     const { delivery, consumer } = state.delivery
@@ -127,7 +119,6 @@ describe('the pending marker of a call domain', () => {
         evidence: { kind: 'processed', completion: evidence('consumer-processed', consumer.owner) },
       }),
     ).toMatchObject({ kind: 'released' })
-    // What is left is blocked: the driver does not advance it, so the scan does not list it.
     expect(await tasksOf(harness, 'c1')).toEqual({ tasks: [], waits: ['closed'] })
     const left = ok(await harness.commands.loadRecovery({ ...ACCESS, call: callId('c1') })).tasks
     expect(left.map(task => [task.kind, task.state])).toEqual([['clock', 'blocked']])
@@ -146,7 +137,6 @@ describe('the pending marker of a call domain', () => {
       },
     })
     await admitCall(unanswered.harness, 'c1')
-    // One drive: the registration answers unavailable and its retry is not run.
     await unanswered.harness.drive('c1')
     expect(await tasksOf(unanswered.harness, 'c1')).toEqual({
       tasks: ['wait-registration'],
@@ -159,7 +149,6 @@ describe('the pending marker of a call domain', () => {
   it('lists a call whose wait stays opening after the decision owner refused its registration', async () => {
     const { harness } = setup('refuses')
     await suspend(harness, 'c1')
-    // The refused duty is blocked; the opening wait of the suspended call keeps it listed.
     expect(await tasksOf(harness, 'c1')).toEqual({ tasks: [], waits: ['opening'] })
     expect(await scanned(harness)).toEqual(['c1'])
   })
@@ -177,7 +166,6 @@ describe('the pending marker of a call domain', () => {
         decision: evidence(`decision/${FIRST}`, 'test-decisions'),
       }),
     )
-    // The acceptance owes the requeue and the preparation of the resume segment's environment.
     expect(await tasksOf(harness, 'c1')).toEqual({
       tasks: ['queue', 'prepare'],
       waits: ['responding'],
@@ -252,7 +240,6 @@ describe('the pending marker of a call domain', () => {
 
 describe('the boundary of scanPending and of the trusted scan', () => {
   type Store = Parameters<NonNullable<StartOptions['store']>>[0]
-  /** The ledger over a store whose pending scan is `scan`. */
   const over = (scan: Store['scanPending']) =>
     setup('registers', { store: memory => ({ ...memory, scanPending: scan }) }).harness
 

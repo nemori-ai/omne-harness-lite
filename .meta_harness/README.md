@@ -1,7 +1,7 @@
 # Meta Harness
 
 建设 harness 的可复用设计方法、待设计系统的设计链，以及研发 agent 源资产的私有工作区。
-**它可以整体迁出承载仓库**；产品事实只从内部 `design/`、`research/` 或本次明确输入取得，
+**它可以整体迁出承载仓库**；产品事实只从内部 `design/` 或本次明确输入取得，
 不从承载它的仓库推断。
 
 本项目已采用[项目要求](../docs/requirements.md)、[系统架构](../docs/architecture/README.md)与[领域责任](../docs/domains/README.md)顶层正文。
@@ -30,19 +30,17 @@
 │   ├── foundation/           项目要求的薄导航，正文归执行仓库 docs/requirements.md
 │   ├── basis/                内核与上游的机制语义条目及其 probe——失效于上游换版本
 │   └── views/                全部派生的聚合视图，由生成器产出，任何人不手写
-├── research/                 TypeSafe Jev 与两篇交付调研；职责与结构待负责人另行定义
 ├── agents/                   技能、钩子、云端环境与外部技能集的源
 ├── tooling/                  确定性生成、设计检查与项目根链接
 ├── human/                    人类协作者的学习指南与流程草稿，不是规则，agent 不自动加载
 └── .claude/ .agents/ .codex/ 编译产物，不手改
 ```
 
-**`research/` 与 `design/` 是兄弟目录。**当前保留 TypeSafe Jev 与两篇交付调研，职责与结构待负责人另行定义。
 具体任务的调查、比较和执行材料是过程材料，放哪归[位置与唯一源](../docs/engineering/documentation.md#位置与唯一源)；当前终态归实际拥有者。
 
 ## 承载项目的包与依赖规则
 
-本项目的[产品包组织](../docs/package-organization.md)说明能力组和成员边界；[系统分层](../docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向)约束跨层依赖，[包组织角色](../docs/package-organization.md#依赖方向与cordis集成)约束成员消费方向。[IC精确规则](../docs/architecture/cordis-integration-conventions.md)与采用映射归执行仓库架构区，此处只提供导航。
+本项目的[结构与责任](../docs/architecture/structure.md#组织原则)说明能力组和成员边界；[系统分层](../docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向)约束跨层依赖，[依赖方向](../docs/architecture/layers-and-dependencies.md#依赖方向与cordis集成)约束成员消费方向。[IC精确规则](../docs/architecture/cordis-integration-conventions.md)与采用映射归执行仓库架构区，此处只提供导航。
 
 ## 当前入口
 
@@ -52,7 +50,7 @@
 | 在 [design/product](design/product/AGENTS.md) 起草或修订产品正文 | 加载 `product-design` skill；**只把产品正文当输入读的技术工作不加载它** |
 | 要用到某个概念，或要引入新概念 | [统一语言](design/ubiquitous_language/README.md)。**先有词条，再动正文** |
 | 想知道系统里有哪些有身份的对象、各自依据在哪 | [领域对象](design/domain_objects/README.md)；总表是派生的[领域对象地图](design/views/domain-object-map.md) |
-| 查证上游机制到底保证什么 | [research/](research/README.md) 的对应 topic，或 [basis/](design/basis/README.md) 的条目 |
+| 查证上游机制到底保证什么 | [basis/](design/basis/README.md) 的条目 |
 | 新建长期设计材料 | 先过 [准入与停止条件](design/README.md#准入与停止条件)，再用目标目录的本地 `.templates/` |
 | 维护 skills | 从 [agents/](agents/README.md) 改 canonical 源，**不手改生成产物** |
 | 生成、检查或接入宿主入口 | [tooling/](tooling/README.md)。编译、项目根链接、发布是三个动作 |

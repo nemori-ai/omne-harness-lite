@@ -1,5 +1,4 @@
 // @module-tag slow
-// Packaging runs a full tsc build and a tar child process.
 import { execFileSync, type ExecFileSyncOptions } from 'node:child_process'
 import {
   cpSync,
@@ -20,11 +19,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 const repoRoot = resolve(import.meta.dirname, '../../..')
 const scratch: string[] = []
 
-/**
- * Runs the packaging script. Windows cannot start a shell script directly (EFTYPE); there it runs
- * under Git for Windows' bash, found from `git --exec-path` rather than PATH, where `bash` may be
- * the WSL launcher.
- */
+// Windows cannot start a shell script directly (EFTYPE): run it under Git for Windows' bash, found
+// from `git --exec-path` and not from PATH, where `bash` may be the WSL launcher.
 function runScript(script: string, args: string[], options: ExecFileSyncOptions): void {
   if (process.platform !== 'win32') {
     execFileSync(script, args, options)
@@ -64,7 +60,6 @@ function packageFixture(root: string) {
   }
 }
 
-/** Inode and modification time of every entry under the member's dist; a delete-and-rebuild changes them. */
 function identities(memberDist: string): Map<string, string> {
   const entries = readdirSync(memberDist, { recursive: true, withFileTypes: true })
   return new Map(
@@ -85,7 +80,6 @@ describe('package-cli.sh', () => {
     const dir = realpathSync(mkdtempSync(join(tmpdir(), 'omne-cli-package-')))
     scratch.push(dir)
     const { checkout, script, memberDist } = packageFixture(dir)
-    // The turbo test task depends on build, so dist exists here.
     expect(existsSync(memberDist)).toBe(true)
     const sentinel = join(memberDist, '.packaging-sentinel')
     writeFileSync(sentinel, '')
@@ -95,7 +89,6 @@ describe('package-cli.sh', () => {
     const target = join(output, 'omne-cli.tar.gz')
     runScript(script, [target], { cwd: checkout, stdio: 'inherit' })
     expect(identities(memberDist)).toEqual(before)
-    // A name relative to `output`: GNU tar reads an absolute `C:\…` name as a remote `host:file`.
     const names = execFileSync('tar', ['-tzf', basename(target)], {
       cwd: output,
       encoding: 'utf8',

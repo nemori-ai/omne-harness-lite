@@ -1,8 +1,4 @@
 // @module-tag slow
-// Runs the five role fixtures of this member through the `fixtures` entry: each one is packed from
-// the built members, installed offline into a consumer directory of its own, compiled there and
-// run there. This is the real consumption of the package by the roles; the refusals of the entry
-// are in install-fixture.spec.ts.
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
@@ -14,8 +10,6 @@ import type { FixtureSetReport } from './install/fixture-set.ts'
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
 const workspaceRoot = join(packageDirectory, '..', '..', '..')
 const consumers = join(packageDirectory, 'tests/fixtures/consumers')
-// A directory of this run alone: another member's spec runs the same entry at the same time, and
-// removing the shared parent would take the consumer directories of that run away.
 const workDirectory = join(
   workspaceRoot,
   'tmp/install-closure',
@@ -31,7 +25,6 @@ const ROLES = [
 afterAll(() => rmSync(workDirectory, { recursive: true, force: true }))
 
 function runFixtures(): { status: number; report: FixtureSetReport } {
-  // The vitest bin shim sets NODE_PATH, and a developer shell may allow the network: strip both.
   const { NODE_PATH: _path, OMNE_INSTALL_ALLOW_NETWORK: _network, ...environment } = process.env
   const run = spawnSync(
     process.execPath,
@@ -52,9 +45,7 @@ function runFixtures(): { status: number; report: FixtureSetReport } {
   return { status: run.status, report: readSetReport(run.stdout) }
 }
 
-/** Packing and installing five consumers takes longer than the default time of a hook. */
 const RUN_LIMIT_MS = 300_000
-/** The entry itself kills a stuck fixture after a minute; this one turns a stuck entry into a failure. */
 const ENTRY_LIMIT_MS = 240_000
 
 describe('the role fixtures of the member', () => {

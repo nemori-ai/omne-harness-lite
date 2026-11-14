@@ -1,5 +1,3 @@
-// Acquisition: provider answers, the recheck after resolving, verification of the receipt, the
-// compensating release, idempotent repeats and tenant checks.
 import { expect, it } from 'vitest'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
@@ -215,7 +213,6 @@ it('keeps a failed adoption with cleanup pending when the receipt release is pen
     acquisition: 'acq-1',
     ...state,
   })
-  // The cleanup is not settled, so a local query asks the original record again.
   expect(await stateOf(registry, accessA, 'acq-1')).toEqual(state)
   expect(await registry.describe(accessA, scope('scope-1'))).toEqual([])
   expect(await registry.recoverOwned(scope('scope-1'), createRecoveryAccess())).toEqual({
@@ -245,10 +242,6 @@ it('keeps a failed adoption with cleanup unknown when the receipt release throws
   })
 })
 
-/**
- * Starts an acquisition whose provider waits inside `acquire`, runs `onHold` while it waits, then
- * lets the provider hand back a healthy receipt.
- */
 async function heldAcquire(
   binding: EnvironmentBinding,
   onHold: (registry: EnvironmentRegistry<string>, remove: () => Promise<void>) => Promise<unknown>,
@@ -513,7 +506,6 @@ it('keeps an inactive provider out of placement while its retirement is pending'
   })
 })
 
-// Shaped like a tenant but not minted by legal-identity: no tenant equality holds for it.
 const handBuilt: TenantId = {
   name: 'TenantId',
   organization: { name: 'OrganizationId', text: 'org_0123456789abcdefghjkmnpqrs' },

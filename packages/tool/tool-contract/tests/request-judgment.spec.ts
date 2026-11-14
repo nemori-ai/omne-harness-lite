@@ -335,7 +335,6 @@ describe('request judgment', () => {
       field: 'scope.key',
       reason: 'empty',
     })
-    // The scope has no kind: a kind is a field the contract does not know.
     expect(rejection({ ...request(), scope: { ...scope, kind: 'scope-kind' } })).toEqual({
       field: 'scope.kind',
       reason: 'unknown-field',

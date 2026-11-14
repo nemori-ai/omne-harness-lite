@@ -2,9 +2,6 @@ import { createMemoryToolBodies } from '@omne-harness/tool/testing'
 import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { createMemoryToolEnvironment } from '@omne-harness/tool-contract/testing'
-// Builders and controllable ports for the managed-runtime tests. Each builder returns a fresh
-// value, so a test can change one field and keep the rest legal. Every port the logical-result
-// path must not touch is a throwing stub that counts its calls.
 import type { BlockId, TextContentBlock } from '@omne-harness/content-block'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -64,7 +61,6 @@ import {
 import { createMemoryToolLedgerStore, type MemoryToolLedgerStore } from '@omne-harness/tool/testing'
 
 export type Block = ToolMessageContentBlock
-/** The principal of these tests: a subject and the tenants it belongs to. */
 export type Principal = Readonly<{ subject: string; tenants: readonly string[] }>
 
 function tenantKeyOf(tenant: TenantIdLike): string {
@@ -210,7 +206,6 @@ export function text(id: string, value: string): TextContentBlock {
   }
 }
 
-/** A text factory that cuts the text into blocks of `chunk` characters, one block when omitted. */
 export function textFactory(chunk = Number.MAX_SAFE_INTEGER): TextResultFactory<Block> {
   return {
     text: value => {
@@ -228,7 +223,6 @@ export function textFactory(chunk = Number.MAX_SAFE_INTEGER): TextResultFactory<
   }
 }
 
-/** The text of a block; a reference block has none. */
 export function textOf(block: Block): string {
   return block.kind === 'text' ? block.text : ''
 }
@@ -242,11 +236,9 @@ function stub<T extends object>(spies: Spies, name: string, methods: readonly st
       spies.calls.set(`${name}.${method}`, (spies.calls.get(`${name}.${method}`) ?? 0) + 1)
       throw new Error(`${name}.${method} must not be called on the logical-result path`)
     }
-  // Every method of the port is a throwing stub, so the object has the port's shape at run time.
   return out as T
 }
 
-/** A grant of the fake scope guard: `owner` granted `key` to the tenant and to the caller. */
 export type ScopeGrant = Readonly<{
   owner: string
   key: string
@@ -256,44 +248,21 @@ export type ScopeGrant = Readonly<{
 
 export type GuardOptions = Readonly<{
   chunk?: number
-  /** Source records that the source guard reports as forged. */
   forged?: readonly string[]
-  /** When set, every access question answers unavailable with this diagnostic. */
   accessUnavailable?: string
-  /** Actions that the access guard denies to every principal. */
   deniedActions?: readonly ToolLedgerAction[]
-  /** When set, the access guard accepts only these tenant objects, as a minted-identity check. */
   minted?: ReadonlySet<object>
-  /** When set, the access guard throws an Error with this message. */
   accessThrows?: string
-  /** When set, the source guard throws an Error with this message. */
   sourceThrows?: string
-  /**
-   * The grants the scope guard knows, by the record of the grant evidence. When omitted every
-   * scope is granted; when set a scope is granted only by a matching entry.
-   */
   grants?: ReadonlyMap<string, ScopeGrant>
-  /**
-   * The scope owners that the assembly declares a grant verifier for; only the owner of the
-   * default request when omitted.
-   */
   grantOwners?: readonly string[]
-  /** When set, the grant source cannot be read: the scope guard answers unavailable. */
   grantUnavailable?: string
-  /** When set, the scope guard throws an Error with this message. */
   grantThrows?: string
-  /** The text result factory; the chunking factory when omitted. */
   results?: TextResultFactory<Block>
-  /**
-   * The current start qualification by call: a call in the set is refused, as when a script call
-   * lost its `programmable` permission after the admission. The set may change during a test.
-   */
   startRefused?: Set<string>
-  /** When set, the start guard answers unavailable with this diagnostic. */
   startUnavailable?: string
 }>
 
-/** The configuration fields the harness passes on: the ledger reads two of them. */
 export type HarnessOptions = GuardOptions & Partial<ToolConfiguration>
 
 function qualify(
@@ -311,12 +280,10 @@ function qualify(
   return member ? { kind: 'allowed' } : { kind: 'denied', reason: 'not-a-member' }
 }
 
-/** Test credentials contain mutable tenant membership data and a stable subject string. */
 export function snapshotTestPrincipal(principal: Principal): Principal {
   return { subject: principal.subject, tenants: [...principal.tenants] }
 }
 
-/** Explicit test authority: only the two minted tenants and the declared consumer owner. */
 export function invokeAuthority(options: GuardOptions = {}): ToolInvokeAuthority<Principal> {
   return {
     qualify: async input => {
@@ -585,7 +552,6 @@ export type Harness = Readonly<{
   operationRefOf(call: string, operation: string): ToolOperationRef
 }>
 
-/** A real runtime over the non-durable store; only the ledger ports are real. */
 export function harness(options: HarnessOptions = {}): Harness {
   const store = createMemoryToolLedgerStore()
   const spies: Spies = { calls: new Map() }
@@ -655,8 +621,6 @@ export function harness(options: HarnessOptions = {}): Harness {
   }
   const provider = createToolRuntime(dependencies, config)
   const invoked = new Map<string, ToolInvocationRef>()
-  // Trusted internal admission fixture for the ledger-specific suites. This does not exercise
-  // the public source association protocol. Each tenant has independent named test identities.
   const counters = new Map<string, number>()
   const internalBindings: FixedToolRequest[] = []
   const admitInternal: Harness['admitInternal'] = async (
@@ -711,7 +675,6 @@ export function harness(options: HarnessOptions = {}): Harness {
     referenceOf,
     operationRefOf: (call, operation) => {
       const encoded = encodeToolOperationRef({
-        // The text carries no tenant (R2-D357); any minted tenant encodes the same reference.
         tenant: tenantA,
         call: callId(call),
         admission: readToolInvocationRef(referenceOf(call)).admission,
@@ -723,7 +686,6 @@ export function harness(options: HarnessOptions = {}): Harness {
   }
 }
 
-/** A ledger over another store, for a store that the memory store cannot imitate. */
 export function ledgerOver(
   store: ToolLedgerStore,
   options: HarnessOptions = {},
@@ -739,7 +701,6 @@ export function ledgerOver(
   )
 }
 
-/** Every state the runtime answers must pass the contract's closed judgment. */
 export function judged(state: ToolState): ToolState {
   const verdict = judgeToolState(state)
   if ('failure' in verdict)
@@ -812,11 +773,6 @@ export function operationRefFor(
   return encoded.ok
 }
 
-/**
- * A store over `memory` that runs `land` once, just before the first commit that `matches`, as
- * another writer that committed between the caller's read and its commit would. What `land`
- * commits through this store is forwarded without a second interception.
- */
 export function interleaving(
   memory: ToolLedgerStore,
   matches: (input: LedgerCommitInput) => boolean,
@@ -839,7 +795,6 @@ export function interleaving(
   }
 }
 
-/** Whether a commit writes the operation record of `operation`: the commit of that operation. */
 export function putsOperation(operation: string): (input: LedgerCommitInput) => boolean {
   return input =>
     input.writes.some(
@@ -850,7 +805,6 @@ export function putsOperation(operation: string): (input: LedgerCommitInput) => 
     )
 }
 
-/** Whether a commit writes an exclusion record: the fence of a negative answer. */
 export function putsExclusion(input: LedgerCommitInput): boolean {
   return input.writes.some(write => write.kind === 'put' && write.record.kind === 'exclusion')
 }

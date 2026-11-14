@@ -16,7 +16,6 @@ export interface AssemblyObservations {
   readonly delta: Reading<AssemblyDelta>
 }
 
-/** Metadata is separate from identity. A contract change is observable without a new service. */
 export function assemblyMetadata(fact: Fact): string {
   return JSON.stringify([
     fact.contract ?? null,
@@ -30,7 +29,6 @@ export function assemblyMetadata(fact: Fact): string {
 }
 function byIdentity(extraction: ActualExtraction): Map<string, Map<string, Fact>> {
   const groups = new Map<string, Map<string, Fact>>()
-  // Occurrences retain names that the old delimiter-based deduplication could collide.
   const occurrences = [...extraction.factOccurrences].sort(
     (a, b) => a.path.localeCompare(b.path) || a.line - b.line,
   )
@@ -51,7 +49,6 @@ const variantsOf = (variants: Map<string, Fact> | undefined): Fact[] =>
 const flattened = (groups: Map<string, Map<string, Fact>>): Fact[] =>
   [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).flatMap(([, v]) => variantsOf(v))
 
-/** Absence of a static fact is not proof that its runtime effect was released. */
 export function observeAssembly(
   current: ActualExtraction,
   baseline?: ActualExtraction,

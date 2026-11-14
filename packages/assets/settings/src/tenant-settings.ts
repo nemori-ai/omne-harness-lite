@@ -1,9 +1,3 @@
-// The tenant-layer face of the settings (SPEC「租户层读写面」): list, describe, set and clear of the
-// setting items of the assets a tenant holds, in the words of the domain. It checks the principal
-// first and reads nothing before that. It orchestrates four ports that the assembly adapts: who the
-// caller is, the catalog read of the settings, the permission rules, and the tenant-layer write. It
-// keeps no value: every read is read now. It does not evaluate a permission; the permission port
-// answers with the evaluation of the permission owner.
 import { z } from 'zod'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { SettingsChange, SettingsTarget } from './commands.ts'
@@ -14,12 +8,10 @@ import type { SettingsPreparedCommitResult } from './preparation.ts'
 import { SettingsIdSchema, type SettingItem, type SettingPresence } from './schema.ts'
 
 export type SettingJson = z.infer<ReturnType<typeof z.json>>
-/** An asset the tenant holds, as a caller names it. The category may be left out. */
 export type TenantSettingsAssetQuery = Readonly<{ category?: string; name: string }>
 export type TenantSettingsAssetRef = Readonly<{ category: string; name: string }>
 export type TenantSettingsAction = 'list' | 'describe' | 'set' | 'clear'
 
-/** What a caller may write at the tenant layer. A permission item takes a pick only. */
 export const SettingInputSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('ordinary'), value: z.json() }),
   z.strictObject({ kind: z.literal('permission'), pick: SettingsIdSchema }),
@@ -42,16 +34,12 @@ export type PermissionEffective =
   | Readonly<{ kind: 'value'; value: string; source: 'default' | 'organization' | 'tenant' }>
   | Readonly<{ kind: 'prohibited'; by: 'organization' | 'tenant' }>
   | Readonly<{ kind: 'empty-bound' }>
-/** The permission part of a view: what the permission port answers for one item. */
 export type PermissionItemView = Readonly<{
   appliesAt: string
   choices: readonly PermissionChoice[]
   default: string
-  /** The pick of the tenant layer. */
   own: string | null
-  /** The result from the tenant layer outwards. A pick of one session is not in it. */
   effective: PermissionEffective
-  /** The common allowed set; null when no layer locks one. */
   bound: readonly string[] | null
   editable: Editable
 }>
@@ -83,13 +71,11 @@ export type SettingView = Readonly<{
     | Readonly<{ kind: 'secret'; own: SecretState; official: SecretState; editable: Editable }>
   )
 
-/** `denied` carries no reason and cannot be told from an absent target. */
 export type ReadRefusal =
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'not-visible' }>
   | Readonly<{ kind: 'conflict' }>
   | Readonly<{ kind: 'unavailable' }>
-/** `unavailable` is certainly not written; `unknown` may be written. */
 export type WriteOutcome =
   | Readonly<{ kind: 'written'; revision: string }>
   | Readonly<{ kind: 'no-change' }>
@@ -108,7 +94,6 @@ export type TenantSettingsListInput<P> = Readonly<{
   principal: P
   tenant: TenantId
   asset?: TenantSettingsAssetQuery
-  /** The `next` text of the previous page. */
   after: string | null
   limit: number
 }>
@@ -120,9 +105,7 @@ export type TenantSettingsItemInput<P> = Readonly<{
 }>
 export type TenantSettingsWriteInput<P> = TenantSettingsItemInput<P> &
   Readonly<{
-    /** The original operation of the caller. The same operation sent again recalls the same write. */
     operation: string
-    /** The revision read from `list` or `describe`. */
     expectedRevision: string
   }>
 
@@ -143,33 +126,26 @@ export interface TenantSettings<P> {
   clear(input: TenantSettingsWriteInput<P>): Promise<WriteOutcome>
 }
 
-/** Whether the principal is the login principal of this tenant, with the right to the action now. */
 export interface TenantSettingsPrincipals<P> {
   admit(
     input: Readonly<{ principal: P; tenant: TenantId; action: TenantSettingsAction }>,
   ): Promise<'allowed' | 'denied' | 'unavailable'>
 }
-/** The catalog read of the settings, in the management view of one tenant. */
 export type TenantSettingsCatalog = SettingsReadPort<TenantId> &
   Readonly<{
-    /** The asset a target stands for; undefined when the target is no holding of an asset. */
     assetOf(view: SettingsTargetView): TenantSettingsAssetRef | undefined
   }>
-/** The rules of a permission item. The permission owner evaluates; the face only shows its answer. */
 export interface TenantSettingsPermissions {
   kindOf(input: Readonly<{ view: SettingsTargetView; itemId: string }>): 'permission' | 'ordinary'
   view(
     input: Readonly<{ tenant: TenantId; view: SettingsTargetView; itemId: string }>,
   ): Promise<PermissionItemView | 'unavailable'>
-  /** The stored value of the tenant layer with `pick`; the allowed set of the layer stays. */
   compose(
     input: Readonly<{ view: SettingsTargetView; itemId: string; pick: string }>,
   ): Readonly<{ kind: 'value'; value: SettingJson }> | Readonly<{ kind: 'invalid' }>
-  /** The stored value after a clear: the pick goes; an allowed set of the layer stays. */
   cleared(
     input: Readonly<{ view: SettingsTargetView; itemId: string }>,
   ): Readonly<{ kind: 'clear' }> | Readonly<{ kind: 'value'; value: SettingJson }>
-  /** Whether `pick` may be written under the current outer layers. */
   judge(
     input: Readonly<{ tenant: TenantId; view: SettingsTargetView; itemId: string; pick: string }>,
   ): Promise<'within' | 'out-of-bound' | 'unavailable'>
@@ -177,11 +153,6 @@ export interface TenantSettingsPermissions {
 export type TenantSettingsWriteResult =
   | SettingsPreparedCommitResult
   | Readonly<{ kind: 'refused'; outcome: WriteOutcome }>
-/**
- * The tenant-layer write: a preparation and its commit, one operation for the caller. The writer
- * calls `beforeWrite` only when the operation has no result yet; an operation that already has
- * one answers that result. A refusal of `beforeWrite` writes nothing.
- */
 export interface TenantSettingsWriter {
   write(
     input: Readonly<{
@@ -310,7 +281,6 @@ export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSe
     }
   }
 
-  /** Every item of the tenant's assets, from one read of the catalog. */
   async function entries(tenant: TenantId) {
     let basis: Awaited<ReturnType<TenantSettingsCatalog['read']>>
     try {

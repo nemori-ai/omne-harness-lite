@@ -3,7 +3,6 @@ import type { CallAccess, Reply } from '@omne-harness/model-contract'
 import type { ModelReadLease } from './qualification.ts'
 import type { ModelCommands } from '@omne-harness/model-contract/provider'
 
-/** The commands with call-scoped capture; recall and dispatches use read leases below. */
 const METHODS = [
   'admit',
   'scanPending',

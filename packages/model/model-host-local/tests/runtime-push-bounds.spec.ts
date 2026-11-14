@@ -1,7 +1,3 @@
-// Machine guard of the ResultPush model (model-contract verification/models/ResultPush.tla),
-// property P3: one wakeup pushes a delivery at most 1 + maxRedeliveries times, and a receiver that
-// answers unavailable or backpressured is not pushed again until the next wakeup (R2-D273, the
-// Model side). The world is the real plugin on Cordis with a scripted receiver.
 import { expect, it } from 'vitest'
 import { LIMITS, quiet, scriptedReceiver, until, world } from './support/push-world.ts'
 

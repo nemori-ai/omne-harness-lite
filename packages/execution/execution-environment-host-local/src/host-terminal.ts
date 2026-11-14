@@ -42,20 +42,15 @@ import { createTerminalOutput, type TerminalOutput } from './terminal-output.ts'
 import type { RetainedTerminalBackend, RetainedTerminalFactory } from './host-retained-terminals.ts'
 import type { MacosPrerequisite } from './macos-execution/commands.ts'
 
-/** The terminal's bounds: the command bounds without the options about processes a command leaves behind. */
 export type HostTerminalOptions = Omit<
   HostCommandOptions,
   'residuePolicy' | 'retainedPerScope' | 'retainedPollMs' | 'retainedOutputBytes'
 > &
   Readonly<{
-    /** Maximum bytes of one private control frame, including script and environment. Initial 1 MiB. */
     maxControlBytes?: number
-    /** Geometry when create omits it. Initial 80 columns and 24 rows. */
     columns?: number
     rows?: number
-    /** Domain-wide retained shell capacity. Initial 64; unresolved reservations consume capacity. */
     retainedCapacity?: number
-    /** Bytes kept between two segments for the next result; later bytes are counted as discarded. Initial 256 KiB. */
     betweenSegmentBytes?: number
   }>
 export type TerminalSettings = CommandSettings &
@@ -112,7 +107,6 @@ type Input = Readonly<{
     missing: readonly (HostTerminalPrerequisite | HostCommandPrerequisite | MacosPrerequisite)[],
   ): void
   closed?(): boolean
-  /** The platform of the domain; the Linux scope when absent. */
   platform?: TerminalPlatform
   reservation?: Readonly<{
     resource: ManagedResource
@@ -120,32 +114,25 @@ type Input = Readonly<{
     terminal: TerminalRef
   }>
 }>
-/** What admits, places, starts and stops a terminal's domain on one platform. */
 export type TerminalPlatform = Readonly<{
-  /** The platform's prerequisites: what is missing, or nothing. */
   admit(): Promise<
     readonly (HostTerminalPrerequisite | HostCommandPrerequisite | MacosPrerequisite)[] | 'ready'
   >
   bootId(): Promise<string | undefined>
-  /** A new domain of this boot, before any process: its key and where it lives. */
   allocate(
     bootId: string,
   ): Readonly<{ key: string; coordinate: ScopeCoordinate; reference: ManagedResource['reference'] }>
-  /** Starts the gate of the domain; it reads the control channel on descriptor 3. */
   launch(coordinate: ScopeCoordinate, resource: ManagedResource): ChildProcess
-  /** After the gate reported ready and before GO; false refuses the start. */
   ready(
     coordinate: ScopeCoordinate,
     resource: ManagedResource,
     gate: ChildProcess,
   ): Promise<boolean>
-  /** After the shell opened; false invalidates the terminal. */
   opened(
     coordinate: ScopeCoordinate,
     resource: ManagedResource,
     gate: ChildProcess,
   ): Promise<boolean>
-  /** Stops every process of the domain and confirms it empty; cleans up after a confirmed stop. */
   stop(
     coordinate: ScopeCoordinate,
     resource: ManagedResource,
@@ -154,7 +141,6 @@ export type TerminalPlatform = Readonly<{
   ): Promise<StopStatus>
 }>
 
-/** The Linux terminal domain: a systemd user scope, launched and stopped with the probed tools. */
 function linuxTerminalPlatform(
   input: Pick<Input, 'scope' | 'settings' | 'prerequisites'>,
 ): TerminalPlatform {
@@ -209,7 +195,6 @@ type Leg = {
   started: Deferred<boolean>
   result: Deferred<CommandOutcome>
   output: TerminalOutput
-  /** Between-segment bytes delivered before the begin sentinel; set once the gate read it. */
   between: Uint8Array[]
   begun: { discarded: number } | undefined
   startedAt: number
@@ -296,7 +281,6 @@ function settleLeg(entry: Entry, code?: number): void {
       : { kind: 'completed', exit: { kind: 'code', code }, durationMs, output },
   )
 }
-/** The segment counts, with the between-segment bytes once the gate attributed them to this leg. */
 function summary(leg: Leg): Extract<OutputSummary, { mode: 'terminal' }> {
   if (leg.begun === undefined) return leg.output.summary()
   const data = new Uint8Array(Buffer.concat(leg.between))
@@ -331,9 +315,7 @@ export function createHostTerminals(input: Input): HostTerminals {
       let recorded: Awaited<ReturnType<ResourceLedger['stopped']>> = 'unavailable'
       try {
         recorded = await ledger.stopped(entry.resource.key, status)
-      } catch {
-        /* The original ledger still owns the unsettled stop. */
-      }
+      } catch {}
       if (status === 'confirmed' && recorded === 'recorded') entry.confirmed = true
       return entry.confirmed ? 'confirmed' : 'unconfirmed'
     })().finally(() => {
@@ -706,9 +688,7 @@ export function createHostTerminals(input: Input): HostTerminals {
         try {
           if ((await ledger.stopped(input.reservation.resource.key, 'confirmed')) === 'recorded')
             reservationPlan = 'settled'
-        } catch {
-          // No process started; only the original key's durable settlement remains unknown.
-        }
+        } catch {}
       }
       return unconfirmed()
     },
@@ -739,7 +719,6 @@ const linuxBootIdNow = (): string | undefined => {
 export function retainedHostTerminalFactory(
   input: Omit<Input, 'ledger' | 'scope' | 'closed' | 'reservation' | 'platform'> &
     Readonly<{
-      /** The platform of each retained terminal's domain; the Linux scope when absent. */
       platform?: (scope: ScopeRef) => TerminalPlatform
       bootIdNow?: () => string | undefined
     }>,

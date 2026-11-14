@@ -1,13 +1,8 @@
-// The bounded waiting list of one admission point (sql-contract SPEC 准入等待). Each case is a
-// property of the model sql-contract verification/models/admission-wait, and names the rule whose
-// removal turns it red: the model's negative controls are `jump` (NoOvertake), `no-rescan`
-// (NoIdleFit) and `wake-all` (WithinCapacity).
 import { describe, expect, it, vi } from 'vitest'
 import { WaitingQueue, type Acquired, type Fit, type Resource } from '../src/waiting.ts'
 
 type Need = Readonly<{ domain: string; bytes: number }>
 
-/** The model's resource: one place per domain, two global places, two bytes. */
 function world(limits = { perDomain: 2, global: 2 }) {
   const held = new Map<string, number>()
   let count = 0
@@ -43,7 +38,6 @@ function world(limits = { perDomain: 2, global: 2 }) {
   return { queue, arrive, release, outcomes, peak: () => peak }
 }
 
-/** Lets the promise reactions of everything already settled run. */
 const settle = (): Promise<void> => new Promise(resolve => setImmediate(resolve))
 
 describe('WaitingQueue', () => {
@@ -63,9 +57,7 @@ describe('WaitingQueue', () => {
     expect(w.outcomes.get('d')).toBe('granted')
   })
 
-  // Negative control `wake-all`: a release that grants every waiter goes past the capacity.
   it('a release grants only what the returned room fits (WithinCapacity)', async () => {
-    // Three waiting places, so that all three wait and the release is the only thing that grants.
     const w = world({ perDomain: 2, global: 3 })
     await w.arrive('a', 'd1')
     await w.arrive('b', 'd2')
@@ -81,13 +73,12 @@ describe('WaitingQueue', () => {
     expect(w.peak()).toBe(2)
   })
 
-  // Negative control `jump`: a new arrival that fits takes the room before an earlier waiter.
   it('a waiter that a global bound blocks stops the scan: a later arrival does not overtake it (NoOvertake)', async () => {
     const w = world()
     await w.arrive('a', 'd1', 1)
-    void w.arrive('c', 'd2', 2) // 1 + 2 bytes > 2: a global bound blocks it
+    void w.arrive('c', 'd2', 2)
     await settle()
-    void w.arrive('d', 'd3', 1) // it would fit, but c is ahead
+    void w.arrive('d', 'd3', 1)
     await settle()
     expect([w.outcomes.get('c'), w.outcomes.get('d')]).toEqual([undefined, undefined])
     w.release('a')
@@ -107,8 +98,6 @@ describe('WaitingQueue', () => {
     expect(w.outcomes.get('b')).toBe('granted')
   })
 
-  // Negative control `no-rescan`: after an expiry or an abort the list is not scanned again, and a
-  // waiter that fits stays waiting.
   it('when a waiter leaves, the next one that fits is granted at once (NoIdleFit)', async () => {
     const w = world()
     await w.arrive('a', 'd1', 1)
@@ -153,8 +142,6 @@ describe('WaitingQueue', () => {
     expect([w.outcomes.get('c'), w.outcomes.get('f')]).toEqual([undefined, undefined])
   })
 
-  // A granted waiter leaves nothing behind: its deadline timer and its listener on the caller's
-  // signal are gone, so neither keeps the process alive or fires later.
   it('a waiter that is granted leaves no timer and no abort listener behind', async () => {
     vi.useFakeTimers()
     try {

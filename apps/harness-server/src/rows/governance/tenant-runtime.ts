@@ -154,7 +154,6 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
   }
 }
 
-/** The Settings of one tenant: the catalog read and the tenant-layer write. */
 export type TenantSettingsAccess = Readonly<{
   read(request: SettingsViewRequest): Promise<SettingsBasis | SettingsFailure>
   writer: TenantSettingsWriter
@@ -163,7 +162,6 @@ export type TenantSettingsAccess = Readonly<{
 /** Publish the durable settlement routes before open() can begin historical recovery. */
 export type TenantGovernanceAssembly = Readonly<{
   destination: StandingDestinationResolver
-  /** Present when the assembly composes the tenant Settings. */
   settings?: TenantSettingsAccess
   open(): Promise<
     | Awaited<ReturnType<typeof open>>
@@ -194,7 +192,6 @@ export function prepareTenantGovernance(input: TenantGovernanceOptions): TenantG
   let opening: ReturnType<typeof open> | undefined
   return {
     destination: createGovernanceLocalDestination(coordination),
-    // One prepared assembly owns one attempt. Retry or remount creates a new assembly over the same durable domain.
     open: () => (opening ??= Promise.resolve().then(() => open(options, combinations))),
   }
 }

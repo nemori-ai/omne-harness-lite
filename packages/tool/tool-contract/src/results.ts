@@ -1,4 +1,3 @@
-// Tool results, effects, terminals, failures, state and result pages.
 import type {
   ContentBlock,
   ContentReference,
@@ -74,11 +73,6 @@ export type Effect =
   | Readonly<{ kind: 'not-occurred'; evidence: DurableEvidence }>
   | Readonly<{ kind: 'occurred'; evidence: DurableEvidence }>
   | Readonly<{ kind: 'unknown'; diagnostic: string }>
-/**
- * What Tool itself observed about an interruption. A control names its operation, so the
- * controller relates its own reason through that operation and the control record. `withdrawn`
- * tells whether the control withdrew the call.
- */
 export type InterruptionCause =
   | Readonly<{ kind: 'control'; operation: ToolOperationId; withdrawn: boolean }>
   | Readonly<{ kind: 'foreground-limit' }>

@@ -38,10 +38,6 @@ import {
 } from './receiving-state.ts'
 export { createModelReceiverState, ModelReceiverState } from './receiving-state.ts'
 export type { ModelReceptionDiagnostic, ModelReceiverReport } from './receiving-state.ts'
-/**
- * The consumer owner under which this Agent registers every Model call it admits, and so the owner
- * under which the host registers the receiver with the Model runtime (IC-13).
- */
 export const AGENT_CONSUMER_OWNER: string = AGENT_OWNER
 
 export interface AgentModelReceiver<P> extends ModelResultReceiver<P> {
@@ -69,10 +65,6 @@ function freeze<T>(value: T): T {
   }
   return value
 }
-/**
- * The target query of one delivery. The route is read from the position this Agent registered; the
- * target is the binding the provider answers with. Another owner's position names no route.
- */
 function targetQuery<P>(access: Access<P>, delivery: ModelDelivery) {
   const route = positionExecution(delivery.consumer)
   return {
@@ -85,11 +77,6 @@ function targetQuery<P>(access: Access<P>, delivery: ModelDelivery) {
 const receptionKey = <P>(access: Access<P>, delivery: ModelDelivery) =>
   canonical([tenantKey(access), delivery.key])
 
-/**
- * The operation under which this receiver commits the delivery that `key` names for the tenant of
- * `access`. It is derived, so the owner's evidence adapter finds the same committed record from the
- * delivery key alone (custody-evidence.ts).
- */
 export function receptionOperation<P>(
   access: Access<P>,
   key: ModelDelivery['key'],
@@ -144,7 +131,6 @@ export function createAgentModelReceiver<P>(
     }
     return conclude(reception, result, query, stopped)
   }
-  /** What one answer of the Journal means for the delivery: the commit state and the reply. */
   async function conclude(
     reception: Reception<P>,
     result: Awaited<ReturnType<typeof received.query>>,
@@ -197,10 +183,6 @@ export function createAgentModelReceiver<P>(
     outlet.enqueue(reception, value)
     return succeed(structuredClone({ key: reception.delivery.key, evidence: value.saved }))
   }
-  /**
-   * A delivery without a record under a stopped signal: nothing new is written. The Journal is
-   * asked for its operation; a delivery it holds is answered saved, any other is not accepted.
-   */
   async function recognise(
     access: Access<P>,
     target: ModelReceptionTarget,
@@ -377,7 +359,6 @@ export function createAgentModelReceiver<P>(
     const current = reception
     const work = (async () => {
       try {
-        // Maintenance brings a delivery the Journal may hold: it asks, it does not write again.
         const outcome = await finish(
           current,
           maintenance || current.commit.kind === 'unknown',
@@ -393,8 +374,6 @@ export function createAgentModelReceiver<P>(
       } finally {
         state.active.set(tenant, (state.active.get(tenant) ?? 1) - 1)
         state.writing.delete(key)
-        // A record stays only while its outcome is not known: maintenance owes that one a query.
-        // A decided delivery needs none; the Journal recognises its operation when it comes again.
         if (current.commit.kind !== 'unknown') state.receptions.delete(key)
       }
     })()

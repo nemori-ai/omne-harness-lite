@@ -1,4 +1,3 @@
-// The status code map covers every public outcome of the binding page, one code each.
 import { describe, expect, it } from 'vitest'
 import { STATUS_BY_OUTCOME } from '../src/status.ts'
 

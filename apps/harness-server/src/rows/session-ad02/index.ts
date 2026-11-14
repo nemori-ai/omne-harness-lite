@@ -1,9 +1,3 @@
-// The `session-ad02` row (B1, R2-D136): the AD-02 journal interpretation plugin of session-adapters
-// (`createSessionJournalInterpretationPlugin`). It subscribes to `session-adapters/agent-published`
-// and commits the interpreted consequences of the Agent records of one execution through
-// `commitLog`. It injects `session` as `coordinator`, `sessionTransactions`, and the trusted
-// `storage` and `tenantDomainLookup` for the read of the execution-record partition. The coordinator
-// principal comes from the trusted `sessionWorkPrincipals`. No configuration: the plugin takes none.
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { createSessionJournalInterpretationPlugin } from '@omne-harness/session-adapters/cordis'
 import {

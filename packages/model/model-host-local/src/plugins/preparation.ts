@@ -1,18 +1,3 @@
-// MD-15 and MD-14: the request preparation plugin and the metering leases of the same host.
-//
-// The plugin provides two keys on one fiber: `modelRequestPreparation` and
-// `modelPreparationResources`. It needs `modelCommands` and nothing else of the system: no
-// `modelRuntime` and no network. Both keys run over the one `ModelCommands` that the host plugin
-// injects, so a lease that continues an earlier call reads that call's facts.
-// - `prepare` takes a lease for the profile, plans each supplier with the rules of its binding,
-//   gives the lease back and returns the fixed request. It never measures and never sends.
-// - `modelPreparationResources` gives the leases the request assembler meters with, from the same
-//   lease source, `createModelPreparationResources`, of the same load. The `resources` that the
-//   creator returns is the same source seen from outside the plugin tree.
-//
-// A lease belongs to the live plugin. Once the plugin is gone, no new lease is given, through the
-// key or through `resources`, and `prepare` answers unavailable; a lease taken before keeps its
-// bindings until it is released.
 import type { Context } from '@deepseek-ai/cordis'
 import {
   organizationEquals,
@@ -78,7 +63,6 @@ function covers(profile: ModelProfile, required: ModalityRequirement): boolean {
   return required.modalities.every(modality => input.includes(modality))
 }
 
-/** The profile must apply to the tenant, be active, and take every modality the input needs. */
 function qualify(input: PrepareInput): ModelFailure | null {
   if (!tenantCodec.encode(input.tenant).ok) return { kind: 'denied', action: 'tenant' }
   const scope = scopeFailure(input.profile.identity.scope, input.tenant)
@@ -90,7 +74,6 @@ function qualify(input: PrepareInput): ModelFailure | null {
   return null
 }
 
-/** The replay declarations of the profile suppliers, in order, by the contract judge. */
 function declarationsOf(
   suppliers: ModelProfile['definition']['suppliers'],
 ): { ok: readonly [ReplayDeclaration, ...ReplayDeclaration[]] } | Failed {
@@ -106,10 +89,6 @@ function declarationsOf(
   return { ok: [first.ok, ...more] }
 }
 
-/**
- * The fixed request of this call: the lease binds the suppliers (each with its credential
- * reference) and plans their parameters; the assembled input fills the rest.
- */
 function requestOf(
   input: PrepareInput,
   lease: ModelPreparationLease,
@@ -145,11 +124,8 @@ function requestOf(
   }
 }
 
-/** What the plugin needs besides `modelCommands` and its configuration: objects, not data. */
 export type ModelPreparationPluginOptions = Readonly<{
-  /** Where leases take the family bindings (rules and meter) from. No network is involved. */
   bindings: PreparationBindingSource
-  /** Fixes the credential layer of a profile supplier, as `prepare` does. */
   supplierOf: SupplierPort<unknown>
 }>
 
@@ -162,7 +138,6 @@ export type ModelRequestPreparationPluginClass = {
 type Live = { current: ModelPreparationResources<unknown> | null }
 type Acquire = ModelPreparationResources<unknown>['acquire']
 
-/** `modelPreparationResources` of one load: the leases of that load while it lives. */
 class ModelPreparationResourcesLocal extends ModelPreparationResourcesService<unknown> {
   private readonly leases: ModelPreparationResources<unknown>
 
@@ -177,13 +152,7 @@ class ModelPreparationResourcesLocal extends ModelPreparationResourcesService<un
 }
 
 export type ModelPreparationPlugin = Readonly<{
-  /** The plugin class. Cordis gives it `modelCommands` and the configuration. */
   plugin: ModelRequestPreparationPluginClass
-  /**
-   * The leases of the live plugin, seen from outside the plugin tree. Inside the tree the same
-   * leases are at `modelPreparationResources`. Before the plugin is loaded and after it is unloaded
-   * `acquire` answers unavailable.
-   */
   resources: ModelPreparationResources<unknown>
 }>
 
@@ -206,12 +175,9 @@ function createPluginClass(
     try {
       formed = requestOf(input, leased.ok)
     } catch (error) {
-      // A throwing rule is a program defect. The lease is still given back before it surfaces.
       await leased.ok.release()
       throw error
     }
-    // The algorithm lease ends with the request. A release that failed is the failure of this
-    // call: the provider still owes the resource, and a plain success would hide that.
     const released = await leased.ok.release()
     if (released.failure !== undefined) return { failure: released.failure }
     return formed
@@ -225,8 +191,6 @@ function createPluginClass(
 
     constructor(ctx: Context, settings: ModelPreparationSettings) {
       super(ctx)
-      // One reference to the injected commands, the same service that the host plugin injects:
-      // one source of call facts for the host and for every lease.
       const resources = createModelPreparationResources<unknown>({
         commands: ctx.modelCommands,
         bindings: options.bindings,
@@ -235,13 +199,10 @@ function createPluginClass(
       })
       this.prepare = prepareOver
       live.current = resources
-      // The second key of this fiber: the leases of this load only, so a reference kept after
-      // the unload refuses instead of reaching a successor.
       const own: Live = { current: resources }
       new ModelPreparationResourcesLocal(ctx, gate(own))
       ctx.fiber.effect(() => () => {
         own.current = null
-        // Only this plugin's own resources end here: a successor that loaded first keeps its own.
         if (live.current === resources) live.current = null
       })
     }
@@ -257,10 +218,6 @@ function gate(live: Live): ModelPreparationResources<unknown> {
   }
 }
 
-/**
- * Creates the preparation plugin class and the lease source that goes with it. The two share one
- * life: the leases are given only while the plugin lives.
- */
 export function createModelRequestPreparationPlugin(
   options: ModelPreparationPluginOptions,
 ): ModelPreparationPlugin {

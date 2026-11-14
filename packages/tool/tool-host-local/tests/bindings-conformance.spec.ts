@@ -1,8 +1,4 @@
 import type { ContentBlock } from '@omne-harness/content-block'
-// The G7 suite of the binding registry (`toolBindingRegistryConformance`) against the local
-// registry, and the rules of the registry that the suite does not name: no verifier means no
-// admission, a failed check leaves nothing behind, a pin shows in `pins` and `drain`, and a fiber
-// that ended registers no more. The origin check is scripted here; this package ships none.
 import { describe, expect, it } from 'vitest'
 import { runConformanceCase } from '@omne-harness/tool-contract/testing'
 import {
@@ -26,11 +22,9 @@ import {
   tenantLayer,
 } from './binding-values.ts'
 
-/** The cases that this registry cannot run, with the handle each one misses. */
 const NOT_APPLICABLE: Readonly<Record<string, string>> = {}
 
 function fixture(): ToolBindingRegistryFixture<string> {
-  // The contract double only lends the authorities and the loaded-registration builder.
   const lent = memoryToolBindingRegistryFixture()
   const granted = [lent.authority, lent.otherAuthority!]
   const { registry, asFiber } = fiberedRegistry(scriptedVerifier(granted))

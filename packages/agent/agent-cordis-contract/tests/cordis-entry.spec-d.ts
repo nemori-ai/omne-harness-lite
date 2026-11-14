@@ -1,5 +1,3 @@
-// Compile-time checks of the `./cordis` augmentation and of the root types. Each
-// `@ts-expect-error` names the diagnostic that the accepted types must produce.
 import type { Context, Events } from '@deepseek-ai/cordis'
 import type {
   AgentAccountOutlet,

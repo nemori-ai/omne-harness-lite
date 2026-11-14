@@ -30,7 +30,6 @@ import {
 
 export type { RequestContextProviderOptions } from './config.ts'
 
-/** The accounting inbox, provided by the same plugin fiber as `requestContext`. */
 class AccountingInboxProvider extends ContextAccountingInboxService<unknown> {
   private readonly inbox: ContextAccountingInbox<unknown>
   constructor(ctx: Context, inbox: ContextAccountingInbox<unknown>) {
@@ -45,14 +44,8 @@ class AccountingInboxProvider extends ContextAccountingInboxService<unknown> {
   }
 }
 
-/**
- * The Request Context provider. It needs the trust key: the principal binding and the registration
- * authority come from the trusted subtree, the plugin never builds them. With the key absent the
- * plugin stays pending and provides neither key.
- */
 export class RequestContextProvider extends RequestContextService<unknown> {
   static readonly inject = [requestContextTrustKey]
-  /** Checked before the constructor runs; a configuration that does not fit fails the load. */
   static readonly Config = requestContextProviderConfig
   readonly generation: string
   private static generations = 0
@@ -62,7 +55,6 @@ export class RequestContextProvider extends RequestContextService<unknown> {
   private readonly layers = new Map<string | null, Map<string, PromptContribution>>()
   private readonly revisions = new Map<string | null, number>()
   readonly listenerErrors: unknown[] = []
-  /** The result of closing the registry when the fiber is disposed. */
   settled: Promise<unknown> = Promise.resolve()
 
   constructor(ctx: Context, options: RequestContextProviderOptions) {
@@ -74,7 +66,6 @@ export class RequestContextProvider extends RequestContextService<unknown> {
       registrationAuthority: trust.registrationAuthority,
       policies: selectPolicies(options),
     })
-    // Same ctx, hence the same fiber: both keys live and end together.
     new AccountingInboxProvider(ctx, createContextAccounting(options.accounting).inbox)
     ctx.effect(() => () => {
       this.closed = true
@@ -90,7 +81,6 @@ export class RequestContextProvider extends RequestContextService<unknown> {
     const key = scope?.ref ?? null
     const revision = (this.revisions.get(key) ?? 0) + 1
     this.revisions.set(key, revision)
-    // Listener failure must not undo an already registered contribution.
     try {
       this.ctx.emit(
         'request-context-cordis-contract/changed',
@@ -173,13 +163,6 @@ export class RequestContextProvider extends RequestContextService<unknown> {
     }
   }
 
-  /**
-   * The fourth group joins the registration face to the registered source set: the contributions
-   * that the source set gives for the call (the definition sections of the coordinator's adapter)
-   * come first, the registered contributions follow. A source read that gives no value stays that
-   * read, so a source that fails closed closes the group. The token of the source already covers
-   * its contributions; the token here adds the generation and the layer revisions of the face.
-   */
   private live(sources: ContextSources<unknown>, scope: ScopeRef): ContextSources<unknown> {
     const prompt = sources.groups.prompt
     return {
@@ -220,7 +203,6 @@ export class RequestContextProvider extends RequestContextService<unknown> {
     }
   }
 
-  /** Registration is an effect of the caller's fiber: unloading that fiber withdraws the set. */
   private bind(result: RegistrationResult, target: ContextTarget): RegistrationResult {
     if (result.kind !== 'registered') return result
     this.targets.set(result.handle.ref, target)
@@ -253,7 +235,6 @@ export class RequestContextProvider extends RequestContextService<unknown> {
   ): Promise<RegistrationResult> {
     if (this.closed) return { kind: 'unavailable', diagnostic: 'Provider is closed' }
     const target = this.targets.get(input?.expected)
-    // A reference this provider never issued is passed on and answered as a conflict.
     const sources = target === undefined ? input.sources : this.live(input.sources, target.scope)
     const result = await this.registry.replace({ ...input, sources })
     return target === undefined ? result : this.bind(result, target)

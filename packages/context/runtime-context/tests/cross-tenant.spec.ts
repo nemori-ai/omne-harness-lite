@@ -16,9 +16,6 @@ import {
   tenantB,
 } from './support.js'
 
-// R5.4: another tenant's access to Runtime Context is refused inside the mechanism, before any
-// source call. The test authority below answers like a real adapter: the caller's tenant is the
-// tenant of the principal, so a principal of tenant B acting on tenant A is refused.
 function tenantOfPrincipal(principal: string): TenantId {
   return principal.startsWith('b:') ? tenantB : tenantA
 }
@@ -75,12 +72,10 @@ describe('cross-tenant access', () => {
       },
     })
     expect(registered).toEqual({ kind: 'refused', reason: 'unauthorized' })
-    // A tenant B handle publishing into tenant A's scope: the handle tenant differs from the input.
     h.ports.script(undefined)
     const intruder = await producer(h, tenantB, 'test.value', { name: 'intruder' })
     const published = await intruder.publish({ scope: a, tenant: tenantA, value: 9 })
     expect(published).toEqual({ kind: 'refused', reason: 'unauthorized' })
-    // Same tenant on the handle and the input, but the trusted binding says the scope is tenant A's.
     const sameTenantInput = await intruder.publish({ scope: a, tenant: tenantB, value: 9 })
     expect(sameTenantInput).toEqual({ kind: 'refused', reason: 'unauthorized' })
     expect(JSON.stringify([issued, registered, published, sameTenantInput])).not.toContain('acc_')
@@ -98,8 +93,6 @@ describe('cross-tenant access', () => {
     await handle.publish({ scope: a, tenant: tenantA, value: 1 })
     const r = await reader(h, await issue(h, a, tenantA, ['test.value']))
     expect(await firstBlock(r)).toEqual({ kind: 'value', value: 1 })
-    // The binding source answers another tenant: the read is unauthorized and discloses nothing,
-    // even though the value is still in the projection and in the read cache.
     h.ports.bind(a, tenantB)
     expect(await r.snapshot()).toEqual({ kind: 'refused', reason: 'unauthorized' })
     expect(await r.read([{ key: 'test.value', need: 'value' }])).toEqual({
@@ -114,7 +107,6 @@ describe('cross-tenant access', () => {
     await open(h, a, tenantA)
     await producer(h, tenantA, 'test.value')
     await register(h, a, tenantA, 'test.value')
-    // A faulty binding source rebinds the scope: the recorded tenant conflicts with the trusted fact.
     h.ports.bind(a, tenantB)
     const issued = await h.rc.issueEligibility('holder', {
       supersedes: null,

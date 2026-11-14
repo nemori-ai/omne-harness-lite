@@ -54,7 +54,6 @@ async function boundOriginal<P>(
   })
   if ('failure' in read) return read
   const saved = fixedRequestOf(read.ok)
-  // Tool proves the original barrier with the full invocation. Agent's saved A0 request predates it.
   if (
     saved === null ||
     input.request.batchDecision === null ||
@@ -119,7 +118,6 @@ async function originalAt<P>(
   return boundOriginal(sources, input, snapshot, resolved.ok)
 }
 
-/** Reads Agent-owned provenance; it neither qualifies a Tool invocation nor grants permission. */
 export function createAgentToolQualification<P>(
   sources: AgentToolQualificationSources<P>,
 ): AgentToolQualification<P> {

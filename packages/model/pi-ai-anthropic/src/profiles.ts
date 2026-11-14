@@ -1,6 +1,3 @@
-// The official profiles of the Anthropic family: one profile definition per `current` record,
-// derived from the record. The retry policy is a Model policy and the compaction trigger is a
-// profile setting, so the assembly gives both.
 import type {
   Adoption,
   ModelLimit,
@@ -16,7 +13,6 @@ import { ANTHROPIC_RECORDS } from './records.ts'
 
 export type OfficialProfilesInput = Readonly<{
   retryPolicy: Adoption
-  /** A decimal integer from 1 to 100: the compaction trigger of every profile. */
   compactionTriggerPercent: string
 }>
 
@@ -35,7 +31,6 @@ function tokenLimit(record: AnthropicRecord, supplier: Adoption, data: TokenLimi
   }
 }
 
-/** The profile definition of one record. */
 export function profileOf(
   record: AnthropicRecord,
   input: OfficialProfilesInput,
@@ -73,10 +68,6 @@ export function profileOf(
   }
 }
 
-/**
- * One profile definition per `current` record, in record order. Pure data; nothing is acquired.
- * Throws `RangeError` when `compactionTriggerPercent` is not a decimal integer from 1 to 100.
- */
 export function officialAnthropicProfiles(
   input: OfficialProfilesInput,
 ): readonly ModelProfileDefinition[] {

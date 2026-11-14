@@ -1,11 +1,5 @@
 import type { Rule } from '@omne-harness/public-contract'
 
-/*
- * The rule text of each identity operation, copied from the shared contract member
- * (`packages/access/public-contract/src/operation-rules.ts`). The rules belong to identity; the
- * shared contract's copy is removed by the access plugin's run.
- */
-
 export const empty = { kind: 'object', fields: {} } as const satisfies Rule
 
 const text = { kind: 'text' } as const
@@ -225,7 +219,6 @@ export const successes = {
       tenantId: { rule: tenant },
     },
   },
-  // `loginId` is required here; the shared family has it optional (RFC-0015 §7).
   'issue-login': {
     kind: 'object',
     fields: {

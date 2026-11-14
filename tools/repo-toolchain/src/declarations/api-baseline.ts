@@ -1,6 +1,3 @@
-// 里程碑的契约基线：评论里的 `json omne-contract-baseline:v1` 机读区块。
-// `writeBaseline` 从一个提交生成区块内容，`checkBaseline` 逐成员从它登记的提交比到工作树的快照。
-// 本工具不读 GitHub：区块从文件读入，评论的读取与合并归 dev-flow。
 import { execFileSync } from 'node:child_process'
 import { realpathSync } from 'node:fs'
 import { repositoryEnv } from '../core/git-environment.ts'
@@ -24,24 +21,16 @@ import {
 
 export const BASELINE_MARKER = 'omne-contract-baseline:v1'
 
-/** 一个契约成员的基线登记。 */
 export interface BaselineMember {
-  /** 成员目录，仓库相对。 */
   readonly path: string
-  /** 这个成员的基线提交，40 位小写十六进制。 */
   readonly commit: string
-  /** 该提交上快照文件字节的 SHA-256，口径同 `--check --json`。 */
   readonly sha256: string
-  /** `git rev-parse <commit>:<path>/api` 的树号。 */
   readonly apiTree: string
 }
 
 export interface ContractBaseline {
-  /** 里程碑名；生成时没给 `--milestone` 为 null。 */
   readonly milestone: string | null
-  /** 按 `path` 排序，`path` 不重复。 */
   readonly members: readonly BaselineMember[]
-  /** 承接破坏性改动的 integration 卡；调度者在破坏性裁定读回后补登记。 */
   readonly breakingCards?: readonly string[]
 }
 
@@ -91,7 +80,6 @@ function parseMember(value: unknown, index: number): BaselineMember {
   }
 }
 
-/** 校验区块的 JSON 值：键、成员的格式、`path` 不重复、`breakingCards` 是不重复的非空字符串。 */
 export function parseBaseline(value: unknown): ContractBaseline {
   const raw = record(value, '区块', TOP_KEYS)
   if (!('milestone' in raw)) fail('缺 milestone（没有里程碑时写 null）')
@@ -111,10 +99,6 @@ export function parseBaseline(value: unknown): ContractBaseline {
 
 const FENCE = new RegExp(`^\`\`\`json ${BASELINE_MARKER}\\s*$`, 'u')
 
-/**
- * 读区块：整段文本是 JSON 时按 JSON 读，否则须恰好含一个 `json omne-contract-baseline:v1` 围栏，
- * 例如一条登记评论的正文。没有或多于一个围栏、JSON 不合格时抛 BaselineFormatError。
- */
 export function parseBaselineText(input: string): ContractBaseline {
   const trimmed = input.trim()
   if (trimmed.startsWith('{')) return parseBaseline(parseJson(trimmed))
@@ -135,7 +119,6 @@ function parseJson(input: string): unknown {
   }
 }
 
-/** 评论里用的围栏区块；键的顺序固定，成员按 `path` 排序。 */
 export function renderBaselineBlock(baseline: ContractBaseline): string {
   const ordered = {
     milestone: baseline.milestone,
@@ -147,7 +130,6 @@ export function renderBaselineBlock(baseline: ContractBaseline): string {
   return `\`\`\`json ${BASELINE_MARKER}\n${JSON.stringify(ordered, null, 2)}\n\`\`\`\n`
 }
 
-/** 提交上一个文件的原始字节；路径不在那棵树里时为 undefined。 */
 function blobBytes(root: string, commit: string, path: string): Buffer | undefined {
   if (git(root, ['ls-tree', '-z', commit, '--', path]) === '') return undefined
   return execFileSync('git', ['cat-file', 'blob', `${commit}:${path}`], {
@@ -158,7 +140,6 @@ function blobBytes(root: string, commit: string, path: string): Buffer | undefin
   })
 }
 
-/** `<commit>:<directory>/api` 的树号；没有这棵树时为 undefined。 */
 function apiTreeOf(root: string, commit: string, directory: string): string | undefined {
   const path = `${directory}/api`
   const entry = git(root, ['ls-tree', commit, '--', path]).trim()
@@ -166,10 +147,6 @@ function apiTreeOf(root: string, commit: string, directory: string): string | un
   return git(root, ['rev-parse', '--verify', `${commit}:${path}`]).trim()
 }
 
-/**
- * 从提交 `ref` 生成基线：成员取那个提交的契约成员表，`members` 给出时只写这些成员。
- * 成员不是那个提交的契约成员、声明不全、没有快照文件或没有 `api` 目录时抛出。
- */
 export function writeBaseline(
   root: string,
   config: ContractApiConfig,
@@ -198,7 +175,6 @@ export function writeBaseline(
   return { milestone: options.milestone, members }
 }
 
-/** 一条登记与它的提交对不上：只报告，不改变分类与退出码。 */
 export interface RegistrationFinding {
   readonly path: string
   readonly code: 'sha256-mismatch' | 'api-tree-mismatch' | 'not-a-contract-member'
@@ -206,10 +182,8 @@ export interface RegistrationFinding {
   readonly actual: string | null
 }
 
-/** 一个成员的核对结果；`commit` 是登记的基线提交，没有登记的成员为 null。 */
 export type BaselineMemberRun = DiffMember & { readonly commit: string | null }
 
-/** 判不了的成员：登记一侧读不出，或基线上已是契约成员却没有登记。有一项就拒绝。 */
 export interface UndeterminedMember {
   readonly path: string
   readonly reason: string
@@ -219,11 +193,9 @@ export interface BaselineRun {
   readonly milestone: string | null
   readonly change: ApiChange
   readonly breakingCards: readonly string[]
-  /** 有判不了的成员，或分类为 review 且没有 breakingCards。 */
   readonly refused: boolean
   readonly members: readonly BaselineMemberRun[]
   readonly registration: readonly RegistrationFinding[]
-  /** breakingCards 不能放行这些成员。 */
   readonly undetermined: readonly UndeterminedMember[]
 }
 
@@ -232,7 +204,6 @@ interface CommitSide {
   readonly contracts: Contracts
 }
 
-/** 登记一侧读不出时的原因；读得出时为 undefined。 */
 function unreadableRegistration(entry: BaselineMember, before: Side): string | undefined {
   switch (before.kind) {
     case 'absent':
@@ -250,17 +221,6 @@ function unreadableRegistration(entry: BaselineMember, before: Side): string | u
   }
 }
 
-/**
- * 逐成员从登记的提交比到工作树的快照，分类与 `--diff` 相同。成员取登记与当前契约成员表的并集：
- *
- * - 登记的成员在它的提交上不是契约成员、读不出或没有快照文件时判不了。
- * - 没有登记、只在当前表里的成员：在基线点（全部登记提交的共同祖先）上已是契约成员的，是漏登记，
- *   判不了；不是的，是基线之后加入的，基线一侧没有快照，整份算新增。
- * - 只在登记里的成员整份算删除。
- *
- * 有判不了的成员就拒绝，breakingCards 不能放行。登记的提交上快照的 sha256 或 api 树与登记不同时，
- * 记在 `registration`，只报告。
- */
 export function checkBaseline(
   root: string,
   config: ContractApiConfig,
@@ -326,12 +286,10 @@ export function checkBaseline(
   }
 }
 
-/** 这个提交上目录是不是契约成员（声明不全的也算）。 */
 function isContractAt(commit: CommitSide, directory: string): boolean {
   return side(commit.contracts, commit.read, directory).kind !== 'absent'
 }
 
-/** 几个登记提交的共同祖先；只有一个提交时就是它。没有共同祖先时出错。 */
 function commonAncestor(root: string, commits: readonly string[]): string {
   const [only] = commits
   if (commits.length === 1 && only !== undefined) return resolveCommit(root, only)

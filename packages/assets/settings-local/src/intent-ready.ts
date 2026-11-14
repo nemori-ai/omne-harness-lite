@@ -61,7 +61,6 @@ export function settingsIntentReadiness(port: ReadPort, raw: ReadySettingsIntent
   if (sources.kind !== 'held') return { kind: 'pending' as const, dependency: 'sources' as const }
   return { ...candidate, input }
 }
-/** Internal writer. Current basis, requirements and the open-terminal observation must be trusted transaction facts. */
 export function readySettingsIntent(port: ParticipantPort, raw: ReadySettingsIntent) {
   const candidate = settingsIntentReadiness(port, raw)
   if (candidate.kind !== 'candidate') return candidate

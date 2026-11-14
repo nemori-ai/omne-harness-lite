@@ -1,5 +1,3 @@
-// 夹具入口对象 `runtimeContextTrust`：一个受信名的真实入口对象，构造定义的子类（IC-1、IC-2）。
-// 另给一个安装时抛出的模块，用来检验退出码 3 与「错误消息不进 stdout」。
 import type { Context } from '@deepseek-ai/cordis'
 import type { EntryEnv, EntryObjectModule, ServiceName } from '../../../../src/types.ts'
 import { FixtureRuntimeContextTrustService, runtimeContextTrustKey } from '../definitions.ts'
@@ -24,7 +22,6 @@ export function failingEntryObject(name: ServiceName, detail: string): EntryObje
   }
 }
 
-/** 调用 `env.once` 的模块：同一符号两次，第二次按 `again` 决定用同一个还是另一个 create。 */
 export function onceProbe(
   name: ServiceName,
   again: 'same' | 'different',

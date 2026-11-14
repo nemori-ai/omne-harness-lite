@@ -1,6 +1,3 @@
-// Source rule of the registration suite: it polls nowhere. The one wait that remains is the
-// quiet period that the fixture names (`quietMs`), and a legal provider of the self-proof is built
-// at the boundary of the register service, never through a flaw or a control of a double.
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'

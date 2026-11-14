@@ -48,9 +48,7 @@ type Flight = {
   held: Snapshot | undefined
   /** A refresh arrived while this load was still running. Later consumers must load again. */
   reload: boolean
-  /** Waiters that still have to hold or cancel this ready result. `live` hits zero earlier. */
   undelivered: number
-  /** Waiters who have not finished. A claim is counted only while it is still here at publish. */
   readonly open: Set<DeliveryClaim>
 }
 
@@ -81,14 +79,12 @@ type Slot =
 type Domain = {
   readonly budget: SchemaBudget
   readonly slots: Map<string, Slot>
-  /** Leased snapshots that are no longer the current slot. They still occupy the budget. */
   readonly retained: Set<Snapshot>
   closed: boolean
 }
 
 const providerBrand: unique symbol = Symbol('schema-provider')
 
-/** One cache owner for one execution domain. Callers cannot construct it. Workers do not share it. */
 export type SchemaProvider = { readonly [providerBrand]: true }
 
 const domains = new WeakMap<SchemaProvider, Domain>()
@@ -131,11 +127,6 @@ export function jsonSchemaDefinition<T>(spec: {
   return { origin: 'static', engine: 'json-schema', document: spec.document, numbers: spec.numbers }
 }
 
-/**
- * Create the cache for one execution domain.
- * Throws `TypeError` when a budget field is missing or out of range.
- * Compiles nothing. Does not import Cordis.
- */
 export function createSchemaProvider(budget: SchemaBudget): SchemaProvider {
   requireSafeInteger('maxSnapshots', budget.maxSnapshots, 1)
   requireSafeInteger('maxConstructDepth', budget.maxConstructDepth, 1)
@@ -152,11 +143,6 @@ function requireSafeInteger(name: string, value: number, minimum: number): void 
   throw new TypeError(`${name} must be a safe integer greater than or equal to ${minimum}`)
 }
 
-/**
- * Load, admit, compile on first use, and check one `JsonRead`.
- * Concurrent calls for the same key share one in-flight task.
- * `signal` cancels only this caller.
- */
 export function validate<T>(
   provider: SchemaProvider,
   schema: SchemaRef<T>,
@@ -202,11 +188,6 @@ export function validate<T>(
   }
 }
 
-/**
- * Hold one admitted snapshot for many synchronous checks.
- * A newer revision does not retarget this lease. `superseded` becomes true.
- * `release` drops the lease. The snapshot stays until its lease count is zero.
- */
 export function lease<T>(
   provider: SchemaProvider,
   schema: SchemaRef<T>,
@@ -250,10 +231,6 @@ export function lease<T>(
   }
 }
 
-/**
- * Ask the provider to call `load` again on the next use of this id.
- * Shape owners call this when they publish a new revision. Request paths do not.
- */
 export function refresh(provider: SchemaProvider, id: SchemaId): void {
   const domain = domainOf(provider)
   const slot = domain.slots.get(id)
@@ -293,11 +270,6 @@ export function refresh(provider: SchemaProvider, id: SchemaId): void {
   }
 }
 
-/**
- * Stop new admission. Checks that already joined finish on the snapshot they joined.
- * A later `validate` or `lease` returns `refused` with reason `closed`.
- * Calling `close` twice leaves the provider closed.
- */
 export function close(provider: SchemaProvider): void {
   domainOf(provider).closed = true
 }
@@ -328,7 +300,6 @@ function beginFlight<T>(
     if (!admitAnother(domain, schema.id)) {
       return { result: Promise.resolve({ kind: 'refused', reason: 'budget-exhausted' }) }
     }
-    // Count the leased snapshot from the moment the replacement flight is accepted.
     domain.retained.add(keeping)
   } else if (keeping === undefined && current === undefined && !reserve(domain)) {
     return { result: Promise.resolve({ kind: 'refused', reason: 'budget-exhausted' }) }
@@ -357,7 +328,6 @@ function reserve(domain: Domain): boolean {
   return false
 }
 
-/** A new snapshot beside one that a lease still holds needs its own budget unit. */
 function admitAnother(domain: Domain, keepId: string): boolean {
   if (occupancy(domain) < domain.budget.maxSnapshots) return true
   for (const [id, slot] of domain.slots) {
@@ -627,11 +597,9 @@ function markSuperseded(
   }
 }
 
-/** A refresh during this flight belongs to the next consumer, on every settlement path. */
 function noteReload(domain: Domain, id: string, flight: Flight): void {
   if (!flight.reload) return
   const slot = domain.slots.get(id)
-  // A ready result still has to reach its waiters. Deleting it here lets another id take the budget first.
   if (slot?.kind === 'ready' && slot.reload) return
   const held = activeHeld(flight)
   if (held !== undefined) domain.retained.add(held)

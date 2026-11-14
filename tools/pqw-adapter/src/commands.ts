@@ -1,4 +1,3 @@
-// 三个命令的流程：取 Git 事实、分组、调执行器、打印。进程、Git 与配置都从 Deps 进来，用例换成假的。
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ReadingConfig } from './config.ts'
@@ -25,14 +24,11 @@ export interface Deps {
   readonly repo: Repo
   readonly exec: Executor
   readonly print: (line: string) => void
-  /** 产物目录的上级，缺省是系统临时目录：lcov 与 JSON 写在工作树外。 */
   readonly scratch: string
-  /** 可用的逻辑 CPU 数。 */
   readonly cpus: number
   readonly config: () => ReadingConfig
 }
 
-/** 用法错误退出 2，与 pqw 两个脚本相同。 */
 const USAGE = 2
 
 function requireBase(options: Options): string {
@@ -62,7 +58,6 @@ async function build(deps: Deps, args: string[]): Promise<boolean> {
   return false
 }
 
-/** 成员外改动那一份读数的名字。 */
 const OUTSIDE = '成员外'
 
 export async function closeoutMetrics(argv: readonly string[], deps: Deps): Promise<number> {
@@ -90,7 +85,6 @@ export async function closeoutMetrics(argv: readonly string[], deps: Deps): Prom
   }
   const readings: MemberReading[] = []
   for (const member of grouping.members) readings.push(await measureMember(member, context))
-  // 成员外的改动（脚本、技能自带的脚本等）没有测试可跑，照样交给 pqw 量复杂度，不丢掉。
   if (grouping.outside.length > 0)
     readings.push(
       await measureMember(
@@ -113,7 +107,6 @@ export async function closeoutMetrics(argv: readonly string[], deps: Deps): Prom
   return readings.some(reading => reading.error !== undefined) ? 1 : 0
 }
 
-/** 列范围的结果：参与的成员、各成员的范围计划、合计与上限的判断、读文件行数的函数、跑变异要的上下文。 */
 interface MutationRange {
   readonly members: readonly ChangedMember[]
   readonly plans: readonly MemberMutation[]
@@ -122,11 +115,9 @@ interface MutationRange {
   readonly context: MutationContext
 }
 
-/** 第一步：列出每个成员的变异范围，打印并按上限判断；还没有跑变异。 */
 async function listRange(deps: Deps, options: Options, base: string): Promise<MutationRange> {
   const { repo } = deps
   const head = repo.head()
-  // 点名的文件不论改没改都打，所以它们所在的成员也算改动成员，它们本身也进范围。
   const changed = repo.changedFiles(base)
   const scopes = options.scopes.length === 0 ? [] : [...options.scopes, ...options.files]
   const grouping = groupByMember(
@@ -149,10 +140,6 @@ async function listRange(deps: Deps, options: Options, base: string): Promise<Mu
   return { members, plans, plan, lineCount, context }
 }
 
-/**
- * 第二步：构建上游，按范围行数分 CPU 跑各成员，打印汇总；返回退出码。
- * 范围为空的成员（只改了文档等没有代码行的文件）不构建、不跑：pqw 对它们只会报「没有位点」。
- */
 async function runMutation(deps: Deps, range: MutationRange): Promise<number> {
   const { members, plans, lineCount, context } = range
   const sized = members.map((member, index) => ({
@@ -218,7 +205,6 @@ export async function risk(argv: readonly string[], deps: Deps): Promise<number>
   return missing === undefined ? 0 : 1
 }
 
-/** 命令面调用的入口：用法错误退出 2，其余异常照抛。 */
 export async function runCommand(
   command: (argv: readonly string[], deps: Deps) => Promise<number>,
   argv: readonly string[],
@@ -233,15 +219,12 @@ export async function runCommand(
   }
 }
 
-/** 命令面认得的三个命令，按第一个参数的名字选。 */
 export const COMMANDS = { metrics: closeoutMetrics, mutation: closeoutMutation, risk }
 
-/** 第一个参数是不是命令名：没给或认不出时命令面打印用法。 */
 export function isCommandName(name: string | undefined): name is keyof typeof COMMANDS {
   return name !== undefined && Object.hasOwn(COMMANDS, name)
 }
 
-/** 打印用法后的退出码：只问 `--help` 是 0，没给命令或认不出命令是 2。 */
 export function usageExitCode(name: string | undefined): 0 | 2 {
   return name === '--help' ? 0 : 2
 }

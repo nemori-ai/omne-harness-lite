@@ -1,9 +1,3 @@
-// G-SELECT: the default session binding of the `agent-model-selection` row. A `select` call names
-// an execution and no session; the row finds the session through the execution index of the tenant
-// (the trusted `storage` and `tenantDomainLookup`) and the Session snapshot, then reads the
-// selection that this session saved. These tests run the row with its own default binding in a
-// serve tree, with doubles for the index, the Session and the profiles (the real Session log
-// storage and the real Session authorization are not covered here).
 import type { Failure } from '@omne-harness/agent-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, test } from 'vitest'
@@ -31,7 +25,6 @@ import {
 const ROUTE = 'official-fast'
 const OTHER_ROUTE = 'official-deep'
 
-/** The default binding, a Session that saved `ROUTE` for `SESSION` and the two profiles. */
 const unindexed: TreeOptions = {
   bindings: {},
   session: access =>
@@ -43,7 +36,6 @@ const unindexed: TreeOptions = {
     [OTHER_ROUTE]: succeed(resolvedOf(profileOf(OTHER_ROUTE))),
   },
 }
-/** The same over the index doubles. */
 const located: TreeOptions = { ...unindexed, index: {} }
 
 const withExecution = (execution: string) => ({
@@ -51,7 +43,6 @@ const withExecution = (execution: string) => ({
   advance: { ...selectInput.advance, execution: execution as never },
 })
 
-/** One call of the row with `options`; it must settle within `ms`, or the test fails. */
 async function callOnce(options: TreeOptions, input = selectInput, ms = 2000) {
   return withLiveRow(options, async live => {
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -231,7 +222,6 @@ describe('an execution that is not located', () => {
 
 describe('across tenants', () => {
   test('an execution of another tenant is not found under the tenant of the call', async () => {
-    // `execution-b` is in the index, under the other tenant only.
     const { value } = await callOnce(located, withExecution('execution-b'))
     expect(failureFrom(value)).toMatchObject({
       kind: 'unavailable',

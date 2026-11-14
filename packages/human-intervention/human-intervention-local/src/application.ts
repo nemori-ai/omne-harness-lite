@@ -33,14 +33,9 @@ type Application = HumanInterventionCommands<Access> &
   HumanInterventionQueries<Access> &
   RecoveryQueries<Access>
 
-/**
- * 原工作拥有者为一个来源要求的守卫命令。装配提供它；登记与答复把返回的命令放进同一笔提交。
- * 来源带 sessionRef 时 Session 守卫是必需的：返回空清单表示装配缺少守卫，不表示不适用。
- */
 export type HitlGuards = (origin: Origin) => readonly FactCommandV2[]
 export type HitlApplicationOptions = IndependentHitlQueryOptions & Readonly<{ guards: HitlGuards }>
 
-/** HITL 应用入口。等待的准备材料归可信的原工作拥有者。 */
 export function createIndependentHitlApplication(
   options: HitlApplicationOptions,
 ): Application & { close(): Promise<void> } {
@@ -76,7 +71,6 @@ export function createIndependentHitlApplication(
         return queries.route(access, input.command.cardRef.request)
     }
   }
-  /** 登记与答复按原来源取守卫；失效与确认交接不取。缺少必需的 Session 守卫时返回 undefined。 */
   function guardsOf(origin: Origin | undefined): readonly FactCommandV2[] | undefined {
     if (origin === undefined) return []
     const guards = options.guards(origin)
@@ -95,11 +89,6 @@ export function createIndependentHitlApplication(
   }
   const guardRejected = (answer: { kind: string; reason?: unknown }): boolean =>
     answer.kind === 'conflict' && answer.reason === 'guard-rejected'
-  /**
-   * 原来源守卫拒绝了一次答复：原工作已经不在进行。卡片若已有终态，答复的人得到的是卡片的终态
-   * （已失效，或已有的决定），不是守卫的拒绝：卡片的终态不再变化，所以这次读取就是定论。卡片仍
-   * 待答时返回 undefined，守卫的拒绝照旧。
-   */
   async function closedCardAnswer<M extends HitlMethod>(
     access: Access,
     reply: HitlCommands['submitReply'],

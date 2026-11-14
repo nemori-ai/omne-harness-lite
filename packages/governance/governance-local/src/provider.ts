@@ -62,7 +62,6 @@ export type GovernanceLocalOptions = GovernanceLocalCoordination &
       adoption: AdoptionProjection
       catalog: GovernanceCatalogOptions['current']
     }>
-    /** Reads of the catalog run their commands through this port. */
     projection: GovernanceProjectionRead
     recoveryPagesPerPass: number
     closeTimeoutMs: number

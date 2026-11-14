@@ -20,9 +20,7 @@ import {
 import { slotFree } from './support/transport.ts'
 import { fixedRequest, testRecord } from './support/chat-record.ts'
 
-// Nothing listens here; materialize never sends.
 const ROUTE_URL = 'https://127.0.0.1:9/v1/chat/completions'
-/** The body the test family encodes for REQUEST. */
 const EXPECTED_BODY = '{"model":"test-model","messages":0}'
 
 const networks: NetworkInternals[] = []
@@ -197,7 +195,6 @@ describe('materialize', () => {
     const { prepare } = setup(1)
     const prepared = await prepare()
     await materialized(prepared)
-    // The only slot is held: a second materialize that reserved would wait for ever.
     expect(await prepared.materialize(new AbortController().signal)).toEqual({
       failure: { kind: 'invalid', field: 'materialize', reason: 'repeated' },
     })

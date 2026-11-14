@@ -2,10 +2,8 @@ import type { GovernanceTransport, TransportReport } from './transport.ts'
 import { neverWritten } from './never-written.ts'
 
 export interface HttpTransportOptions {
-  /** A loopback `http:` origin: `127.0.0.1` or `localhost`, with no credential, path, or query. */
   readonly origin: string
   readonly location: 'governance' | 'session' | 'hitl'
-  /** Cancels sends. A send cancelled before it began is `not-sent`; one cancelled later is `uncertain`. */
   readonly signal?: AbortSignal
 }
 
@@ -37,12 +35,6 @@ function isJson(contentType: string | null): boolean {
   return contentType.split(';')[0]?.trim().toLowerCase() === 'application/json'
 }
 
-/**
- * An HTTP transport for one public location of one loopback server, built on `fetch`. It does
- * not follow redirects: the login proof is in the request body and a redirect would resend it.
- * It hands over the full body of every JSON response whatever the status, so the client can
- * read an `unknown` outcome that travels with status 500.
- */
 export function createHttpTransport(options: HttpTransportOptions): GovernanceTransport {
   const url = loopbackUrl(options.origin, options.location)
   const { signal } = options

@@ -1,9 +1,3 @@
-// The Web attachment of the `tool-bindings` row (web-meta-tool slices 02 and 04): a release Web call
-// gets a `WebAccess`, calls of the other release tools do not, the chain order (Tools, TodoItems,
-// Web) is kept, and `finish` removes the access. The search key comes from the secret custody
-// through the local credential provider: the tenant layer first, then the official layer; the
-// organization layer is never configured; a reference selected at the start of a call is not
-// replaced by another layer when it is gone at the moment of use.
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -31,7 +25,6 @@ import { forwardWorld } from '../../entry/tool-forward-support.ts'
 import { fixtureTenant, okOf } from '../../entry/support.ts'
 import { exaResult, exaResults, startExaStub, type ExaStub } from '../../fixtures/exa-stub.ts'
 
-/** The Settings holding of a release tool definition, or `null` when it declares no settings. */
 function toolHolding(definition: ToolDefinition): SettingsHolding | null {
   const held = officialHolding(toolAsset(definition))
   return held.kind === 'declared' ? held.ref.holding : null
@@ -86,7 +79,6 @@ async function exa(): Promise<ExaStub> {
   return stub
 }
 
-/** The custody, the keys of the Web item for the fixture tenant and the official layer, and a world. */
 async function world() {
   const w = await forwardWorld()
   const request = w.request('Web')
@@ -162,7 +154,6 @@ describe('tool-bindings: the Web attachment', () => {
       expect(
         await own?.search({ query: 'q', limit: 1 }, new AbortController().signal),
       ).toHaveProperty('ok')
-      // The organization layer is read between the two and is never configured.
       expect(stub.requests().map(r => r.apiKey)).toEqual([OFFICIAL_KEY, TENANT_KEY])
     } finally {
       await w.close()
@@ -177,7 +168,6 @@ describe('tool-bindings: the Web attachment', () => {
       const selected = await source()
       expect(selected).toHaveProperty('ok')
       if ('failure' in selected) throw new Error('unreachable')
-      // Between the selection and the use: the tenant key goes, an official key comes.
       expect(vault.unbind(tenantKey)).toBe('removed')
       expect(vault.bind(officialKey, text(OFFICIAL_KEY), null)).toBe('written')
       const seen: string[] = []
@@ -187,7 +177,6 @@ describe('tool-bindings: the Web attachment', () => {
       })
       expect(used).toEqual({ failure: { kind: 'missing' } })
       expect(seen).toEqual([])
-      // A replaced key is read at the moment of use.
       expect(vault.bind(tenantKey, text('exa-sentinel-replaced-e5f6'), null)).toBe('written')
       expect(await selected.ok.use(async key => key)).toEqual({ ok: 'exa-sentinel-replaced-e5f6' })
     } finally {

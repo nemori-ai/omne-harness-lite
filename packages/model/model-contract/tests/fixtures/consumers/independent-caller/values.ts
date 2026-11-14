@@ -1,6 +1,4 @@
 import { decodeProviderName, encodeModelInvocationRef } from '@omne-harness/model-contract'
-// The values that the paths of this fixture send and read. Every identity comes from a decoder of
-// a public package, and every block from the content-block judge, so no value is made by an assertion.
 import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-block'
 import {
   accountCodec,
@@ -80,7 +78,6 @@ const supplier: Supplier = {
   credential: { layer: 'official' },
 }
 
-/** The request that the caller fixed before admitting; the fixture does not look inside it. */
 const request: FixedModelRequest = {
   profile: adoption('profile'),
   suppliers: [supplier],
@@ -124,7 +121,6 @@ export function textBlock(id: string, text: string): ContentBlock {
   return judged.ok
 }
 
-/** The text of the text blocks, in order; a tool suggestion has no text. */
 export function textsOf(parts: readonly ResultPart[]): string[] {
   return parts.flatMap(part =>
     part.kind === 'sealed' && part.block.kind === 'text' ? [part.block.text] : [],
@@ -155,7 +151,6 @@ export const admission = (name: string): Admit<Principal> => ({
   consumer,
 })
 
-/** A dispatch that the provider has started and that has produced nothing yet. */
 export const startedDispatch: DispatchRecord = {
   dispatch: dispatch('first'),
   supplier,
@@ -167,18 +162,12 @@ export const startedDispatch: DispatchRecord = {
   materialization: null,
 }
 
-/** One admission that the caller sent: for which call and operation, and whether it was accepted. */
 export type SentAdmission = Readonly<{
   call: ModelCallId
   operation: ModelOperationId
   accepted: boolean
 }>
 
-/**
- * The scripted provider that stands for whatever serves the calls, with the helpers that read it.
- * Every admission leaves through `calls.admit` and is recorded, so `admissions()` lists all the
- * calls that the caller ever tried to bring into the tenant; a call appears nowhere else.
- */
 export function newWorld() {
   const scripted = createScriptedModelProvider<Principal>({
     instance: must(decodeModelInstanceId('minst_one')),
@@ -201,11 +190,8 @@ export function newWorld() {
     consumption,
     instances,
     controller: scripted.controller,
-    /** The admissions that the caller sent so far, in order. */
     admissions: (): readonly SentAdmission[] => sent,
-    /** Admits the call `name` under the operation `admit-<name>`. */
     admit: async (name: string) => must(await calls.admit(admission(name))),
-    /** The state of the call, looked up through its own admission operation. */
     async state(name: string, principal: Principal = alice): Promise<CallState> {
       const found = must(
         await calls.inspect({
@@ -224,7 +210,6 @@ export function newWorld() {
 
 export type World = ReturnType<typeof newWorld>
 
-/** This fixture constructs its own locator through the installed public codec. */
 export function invocationReference<T extends Parameters<typeof encodeModelInvocationRef>[0]>(
   parts: T,
 ) {

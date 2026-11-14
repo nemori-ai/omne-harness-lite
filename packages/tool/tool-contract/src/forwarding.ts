@@ -10,7 +10,6 @@ import type {
 import type { ToolStartRecord } from './ports.ts'
 import type { Reply } from './results.ts'
 
-/** Provider proof of the original author execution. The source verifies it again. */
 export type ToolForwardParent<P> = CallAccess<P> &
   Readonly<{
     start: Extract<ToolStartRecord, { kind: 'start' }>

@@ -58,8 +58,6 @@ vi.mock('node:child_process', async importOriginal => {
     spawn(...args: Parameters<typeof actual.spawn>) {
       const child = actual.spawn(...args)
       if (!String(args[0]).endsWith('files.exe')) return child
-      // The real write and native cleanup finish in the resident helper, then its receipt is lost
-      // with the helper itself: the reply frame is dropped and the helper is killed.
       const writes = new Set<number>()
       const write = child.stdin?.write.bind(child.stdin)
       if (child.stdin === null || child.stdout === null || write === undefined) return child
@@ -87,7 +85,6 @@ vi.mock('node:child_process', async importOriginal => {
 const roots: string[] = []
 
 afterEach(async () => {
-  // A deliberately failed close still owns a real descriptor after the assertion.
   await Promise.all([...openHandles].map(close => close()))
   await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })))
 })
@@ -238,7 +235,6 @@ it('reads through an ancestor symlink when the final object is the named one', a
   await symlink(real, join(root, 'via'))
   const named = await hostObjectToken(file)
   const stat = await lstat(file, { bigint: true })
-  // Windows: the volume serial number and the 128-bit file ID of FileIdInfo, read by the files helper.
   if (process.platform === 'win32') expect(named.token).toMatch(/^\d+:[0-9a-f]{32}$/u)
   else expect(named.token).toBe(`${stat.dev}:${stat.ino}`)
   const result = await createHostFiles().read(
@@ -482,7 +478,6 @@ it('issues a new handle generation for the second read', async () => {
   expect(second).toMatchObject({ kind: 'done', value: { handle: { generation: '2' } } })
 })
 
-// Windows: the files backend keeps no descriptor across requests, so no close of one can fail here.
 it.skipIf(process.platform === 'win32')(
   'returns unknown on close when the read-time close failed',
   async () => {
@@ -516,7 +511,6 @@ it.skipIf(process.platform === 'win32')(
   },
 )
 
-// Windows: the files backend keeps no descriptor across requests, so no close of one can fail here.
 it.skipIf(process.platform === 'win32')(
   'returns unknown on close when the stat-time close failed',
   async () => {
@@ -668,8 +662,6 @@ it('leaves a regular file with a trailing slash unresolved on read', async () =>
 })
 
 it('leaves a regular file followed by a dot segment unresolved on read', async () => {
-  // POSIX opens `file/.` with ENOTDIR. Without O_NOFOLLOW (Windows) the open succeeds on the file
-  // itself, and the check of the final entry after the open must answer the same way.
   const root = await tree()
   const path = join(root, 'notes.txt')
   await writeFile(path, 'file-bytes')
@@ -702,7 +694,6 @@ it('leaves a regular file with a trailing slash unresolved on stat', async () =>
   expect(result).toEqual({ kind: 'unresolved', requestId: 'file-slash-stat' })
 })
 
-// Windows: the files backend keeps no descriptor across requests, so no close of one can fail here.
 it.skipIf(process.platform === 'win32')(
   'keeps descriptors whose close failed on error paths for continued cleanup',
   async () => {

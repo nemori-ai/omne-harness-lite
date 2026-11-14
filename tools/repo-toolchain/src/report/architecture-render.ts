@@ -7,18 +7,14 @@ import { architectureMatrix } from './matrix.ts'
 import { conformanceBrowser } from './conformance-browser.ts'
 import { selectArchitectureView, type ArchitectureView } from '../arch/view.ts'
 
-/** Minified elk.bundled.js with its copyright notices; see `pageAssets`. */
 export function elkScript(): string {
   return pageAssets().elk
 }
 
 export function architectureMarkup(graph: ArchitectureView): string {
-  // 架构数据有几十 MB 且高度重复：gzip 后以 base64 内联，体积约为原来的 5%。
-  // base64 只含字母、数字与 +/=，不可能提前闭合脚本标签。
   const data = gzipSync(JSON.stringify(graph), { level: 9 }).toString('base64')
   const bundle = elkScript()
   const inline = (script: string): string => script.replaceAll('</script', '<\\/script')
-  // React Flow 的 bundle 与样式由 renderPage 内联一次，架构视图与结构图共用。
   return `<style>
 /* 视图切换：吸顶的分段控件；当前视图由面板是否隐藏决定，不另设状态。 */
 body:has(.arch-nav) { --sticky-top:57px; }
@@ -153,10 +149,6 @@ div.arch-notice:not(.ui-collapse) { margin:0 0 12px; padding:4px 16px; backgroun
 <script>${inline(bundle)}</script>`
 }
 
-/**
- * 先用浏览器原生的 DecompressionStream 解压架构数据，再启动视图；解压是异步的，视图在数据就绪后才挂上。
- * 解压或解析失败时在布局状态栏显示原因并把画布标为失败，不静默留空。
- */
 export function architectureScript(): string {
   return `(async () => {
   const diagram = document.getElementById('arch-diagram');

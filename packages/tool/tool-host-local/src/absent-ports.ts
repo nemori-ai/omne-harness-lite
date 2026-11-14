@@ -1,7 +1,3 @@
-// The ports that the first host does not provide (D-07): `toolDecisions`, `toolResourceResponses`
-// and `toolChildren`. Every method answers a named `unavailable` that says which operation was
-// asked. None throws and none answers an empty success, so a caller cannot take absence for an
-// answer such as "no wait" or "no children".
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import type { ToolFailure } from '@omne-harness/tool-contract'
 import type {
@@ -10,7 +6,6 @@ import type {
   ToolResourceResponses,
 } from '@omne-harness/tool-contract/provider'
 
-/** The methods of a port, each named once. A method missing here fails the type check. */
 type MethodSet<T> = { readonly [K in keyof T]-?: true }
 
 const DECISION_METHODS = {
@@ -52,7 +47,6 @@ function absentPort<T extends object>(port: string, methods: MethodSet<T>): T {
     )
   const methodsOut: Record<string, () => Promise<Outcome<never, ToolFailure>>> = {}
   for (const method of Object.keys(methods)) methodsOut[method] = () => answer(method)
-  // Every method of `T` is listed in `methods` and answers a failure, which every `Reply` admits.
   return Object.freeze(methodsOut) as unknown as T
 }
 
@@ -62,7 +56,6 @@ export type AbsentToolPorts<P> = Readonly<{
   toolChildren: ToolChildren<P>
 }>
 
-/** The three ports in absence. */
 export function createAbsentToolPorts<P>(): AbsentToolPorts<P> {
   return Object.freeze({
     toolDecisions: absentPort<ToolDecisionBridge<P>>('toolDecisions', DECISION_METHODS),

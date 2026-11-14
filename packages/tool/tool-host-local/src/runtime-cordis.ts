@@ -36,7 +36,6 @@ import { createLocalToolControlSubjects } from './control-subject-adapter.ts'
 export type { LocalToolRuntimeInput } from './runtime-composition.ts'
 export type { RuntimeAuthorExecution } from './runtime-author.ts'
 
-/** Each returned plugin belongs to its own fiber. All share one durable Tool ordering domain. */
 export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   const lifetime = new AbortController()
   const resolveSource = createRuntimeSourceAccess({
@@ -131,8 +130,6 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
         `Tool body custody remains unresolved during retirement: ${bodyClose.failure.kind}`,
       )
   }
-  // A named type keeps the declaration on RuntimeAuthorExecution; an inferred one would inline
-  // exchange-refs types that this member does not depend on.
   const publicAuthorExecution: RuntimeAuthorExecution = {
     scope: authorExecution.scope,
     settle: authorExecution.settle,

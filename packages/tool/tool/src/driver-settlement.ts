@@ -5,7 +5,6 @@ import type { CallAccess } from '@omne-harness/tool-contract/provider'
 import type { ToolRecovery, ToolTask } from '@omne-harness/tool-contract/provider'
 import type { ToolDependencies } from './construction.ts'
 
-/** Replays the saved final under the original task identity, including its queue tail. */
 export async function preserveSavedFinal<P, B extends ContentBlock, E>(
   { commands }: Pick<ToolDependencies<P, B, E>, 'commands'>,
   access: CallAccess<P>,

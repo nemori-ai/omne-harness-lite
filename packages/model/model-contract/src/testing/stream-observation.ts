@@ -1,9 +1,3 @@
-// The observation double: an in-memory `ModelStreamObservation` whose streams the test publishes
-// and advances by hand. Each stream is keyed by its `StreamRef`; the public position advances on
-// every confirmed snapshot, state-only changes included. Frames follow the common observation
-// contract of stream-arrival: a snapshot first, then one delta per confirmed change, then one
-// terminal frame, an end or a buffer gap. Nothing here is persistent and nothing proves a real
-// producer.
 import type { Access, TenantId } from '@omne-harness/legal-identity'
 import {
   decodeStreamPosition,
@@ -22,23 +16,13 @@ import { modelStreamCodec } from './stream-codec.ts'
 import { frozenCopy, tenantText } from './values.ts'
 
 export type ScriptedStreamObservationOptions = Readonly<{
-  /**
-   * How many frames one observer may leave untaken. A frame beyond it removes the subscription,
-   * drops the untaken frames and ends the observer with a buffer gap after its last taken frame.
-   */
   capacity?: number
 }>
 
 export type ScriptedStreamObservation<P> = Readonly<{
   observation: ModelStreamObservation<P>
-  /** The first confirmed snapshot of a new stream; returns the cursor of the stream's position. */
   publish(input: Readonly<{ tenant: TenantId; snapshot: ModelStreamSnapshot }>): StreamCursor
-  /** The next confirmed snapshot of the stream named by `snapshot.ref`; open observers get a delta. */
   advance(input: Readonly<{ tenant: TenantId; snapshot: ModelStreamSnapshot }>): StreamCursor
-  /**
-   * The stream of `tenant` ends: open observers end with `reason`, and a later observe ends the
-   * same way. A reference carries no tenant (R2-D357), so the script names it.
-   */
   end(
     input: Readonly<{
       tenant: TenantId
@@ -46,9 +30,7 @@ export type ScriptedStreamObservation<P> = Readonly<{
       reason: 'source-closed' | 'stale-stream'
     }>,
   ): void
-  /** The control plane for `observe`; an access that was never set is denied. */
   setAccess(access: Access<P>, decision: ScriptedAccessDecision): void
-  /** How many observations of the stream of `tenant` are open: begun and neither ended nor closed. */
   openObservations(ref: StreamRef, tenant: TenantId): number
 }>
 
@@ -68,21 +50,17 @@ type Stream<P> = {
   readonly observers: Set<Observer<P>>
 }
 
-/** The life of one observation: not begun, subscribed, holding its terminal frame, or closed. */
 type Phase =
   | Readonly<{ kind: 'new' }>
   | Readonly<{ kind: 'open' }>
   | Readonly<{ kind: 'terminal'; frame: Terminal }>
   | Readonly<{ kind: 'closed' }>
 
-/** One observation. */
 type Observer<P> = {
   readonly request: Request<P>
-  /** The stream the request names, once a qualification found it. */
   stream: Stream<P> | null
   phase: Phase
   queue: Body[]
-  /** The cursor of the last snapshot or delta handed to this observer. */
   lastDelivered: StreamCursor | null
   readonly pending: ((result: IteratorResult<Frame>) => void)[]
   readonly onAbort: () => void
@@ -92,12 +70,6 @@ function ended(reason: EndReason): Ended {
   return { kind: 'ended', reason }
 }
 
-/**
- * The end that a reference failure gives before the control plane is asked: an unminted tenant
- * is denied, an unreadable envelope is stale. A reference of another tenant does not fail here; its
- * stream is not published in the observer's tenant. The other kinds wait for the control
- * plane, so they do not tell a denied observer anything.
- */
 function endBeforeControl(failure: StreamReferenceFailure): Ended | null {
   switch (failure.kind) {
     case 'invalid-tenant':
@@ -110,7 +82,6 @@ function endBeforeControl(failure: StreamReferenceFailure): Ended | null {
   }
 }
 
-/** Streams are kept per tenant: the reference text carries no tenant (R2-D357). */
 function streamKey(tenant: TenantId, ref: StreamRef): string {
   return JSON.stringify([tenantText(tenant), ref])
 }
@@ -132,7 +103,6 @@ export function createScriptedStreamObservation<P>(
   const streams = new Map<string, Stream<P>>()
   const rules = createAccessRules<P>()
 
-  /** The canonical reference of a snapshot the test confirms, or a misuse. */
   function confirmedRef(tenant: TenantId, snapshot: ModelStreamSnapshot): StreamRef {
     const judged = judgeStreamRef({ value: snapshot.ref, tenant }, modelStreamCodec)
     if ('failure' in judged || judged.ok !== snapshot.ref)
@@ -140,10 +110,6 @@ export function createScriptedStreamObservation<P>(
     return judged.ok
   }
 
-  /**
-   * The checks before any frame goes out, in the order of the common contract: tenant and
-   * reference first, then the control plane, then the stream. Null means the frame may go.
-   */
   function qualify(observer: Observer<P>): Ended | null {
     const judged = judgeStreamRef(
       { value: observer.request.ref, tenant: observer.request.access.tenant },
@@ -158,10 +124,6 @@ export function createScriptedStreamObservation<P>(
     return 'failure' in judged ? ended('stale-stream') : endOfStream(observer, judged.ok)
   }
 
-  /**
-   * Failed pre-output checks replace a held terminal. An ordinary source end does not
-   * replace it, so source-closed preserves an earlier held gap.
-   */
   function disclose(observer: Observer<P>, terminal: Terminal): Terminal {
     const failure = qualify(observer)
     if (
@@ -174,10 +136,6 @@ export function createScriptedStreamObservation<P>(
     return terminal
   }
 
-  /**
-   * The last check: the stream the reference names must be published in the observer's tenant and
-   * not ended. A stream of another tenant is not there: the same answer as an unpublished one.
-   */
   function endOfStream(observer: Observer<P>, ref: StreamRef): Ended | null {
     const stream = streams.get(streamKey(observer.request.access.tenant, ref))
     if (stream === undefined) return ended('stale-stream')
@@ -191,7 +149,6 @@ export function createScriptedStreamObservation<P>(
     observer.stream?.observers.delete(observer)
   }
 
-  /** Ends the subscription and holds `frame`; the callers hold an observer that is not closed. */
   function terminate(observer: Observer<P>, frame: Terminal): void {
     detach(observer)
     observer.phase = { kind: 'terminal', frame }
@@ -204,11 +161,6 @@ export function createScriptedStreamObservation<P>(
     for (const resolve of observer.pending.splice(0)) resolve({ done: true, value: undefined })
   }
 
-  /**
-   * Hands queued frames to waiting readers. The checks of an open observer change only through
-   * `setAccess` and `end`, and both re-check every open observer at once, so a queued frame
-   * never goes out after its checks failed. A held terminal frame is re-checked here.
-   */
   function flush(observer: Observer<P>): void {
     while (observer.pending.length > 0) {
       const { phase } = observer
@@ -233,10 +185,6 @@ export function createScriptedStreamObservation<P>(
     observer.queue.push(frame)
   }
 
-  /**
-   * Takes the confirmed snapshot and registers the subscription in one synchronous section. The
-   * snapshot is the first frame of an empty queue, so it never exceeds the capacity.
-   */
   function begin(observer: Observer<P>): void {
     const failure = qualify(observer)
     if (failure !== null) {
@@ -274,8 +222,6 @@ export function createScriptedStreamObservation<P>(
             queue: [],
             lastDelivered: null,
             pending: [],
-            // Registered while the observation is open; `close` removes it, so it never runs
-            // on a closed observation.
             onAbort() {
               terminate(observer, ended('observer-closed'))
               flush(observer)

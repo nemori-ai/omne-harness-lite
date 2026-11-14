@@ -10,7 +10,6 @@ import {
   type Subscription,
 } from './core.ts'
 
-/** Resolves when the call changes, the script ends the stream, or the signal aborts. */
 function untilWoken<P>(subscription: Subscription<P>, signal: AbortSignal): Promise<void> {
   return new Promise(resolve => {
     const done = () => {
@@ -27,7 +26,6 @@ function ended(reason: Extract<Observation, { kind: 'ended' }>['reason']): Obser
   return { kind: 'ended', reason }
 }
 
-/** Why a handle of `instance` can no longer observe the call, or null while it still can. */
 function routeEnd<P>(record: CallRecord<P>, instance: ModelInstanceId): ObservationEnd | null {
   if (record.instance === null) return 'unavailable'
   return record.instance === instance ? null : 'stale-instance'
@@ -76,7 +74,6 @@ async function* observe<P>(
   }
 }
 
-/** The handle of one instance of a call; asking again gives the same handle. */
 export function handleFor<P>(
   core: Core<P>,
   record: CallRecord<P>,
@@ -92,7 +89,6 @@ export function handleFor<P>(
   return handle
 }
 
-/** Ends every open observation that `matches`, with the reason given. */
 export function endObservations<P>(
   record: CallRecord<P>,
   reason: ObservationEnd,

@@ -1,5 +1,5 @@
 import type { Violation } from '@omne-harness/repo-toolchain/core/rule'
-import { HYGIENE_BASELINE_PATH, type HygieneBaseline } from './baseline.ts'
+import { HYGIENE_BASELINE_PATH, LIMIT_KEYS, type HygieneBaseline } from './baseline.ts'
 import { DOCUMENT_MESSAGE, isAllowedDocument } from './documents.ts'
 import type { Measurements } from './measure.ts'
 
@@ -26,7 +26,10 @@ export function commentViolations(current: Measurements, baseline: HygieneBaseli
         rule: COMMENT_RULE,
         path,
         line: found.firstLine,
-        message: `被禁止的注释形式 ${found.count} 条，基线 ${recorded} 条`,
+        message:
+          `注释违例 ${found.count} 条（禁止的形式 ${found.forms}、` +
+          `${baseline.limits.commentRunLines} 行以上的注释块 ${found.runs}、` +
+          `注释行数超线 ${found.dense}），基线 ${recorded} 条`,
       })
   }
   return out
@@ -112,7 +115,7 @@ export function growthViolations(current: HygieneBaseline, base: HygieneBaseline
       line: 1,
       message: `基线对基点只许变短：${detail}`,
     })
-  for (const key of ['fileLines', 'functionLines', 'specLines'] as const)
+  for (const key of LIMIT_KEYS)
     if (current.limits[key] > base.limits[key])
       grew(`limits.${key} ${current.limits[key]} 大于基点的 ${base.limits[key]}`)
   const baseDocuments = new Set(base.documents)

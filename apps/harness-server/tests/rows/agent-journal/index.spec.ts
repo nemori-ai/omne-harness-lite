@@ -1,7 +1,4 @@
 // @module-tag slow
-// The `agent-journal` row: the real Session-log Journal provider over the real storage rows. The row
-// is ACTIVE and provides `agentJournal`, `agentJournalEntries`, `agentMaterials` and the two Model
-// result receiver faces (R2-D237) from the one provider, as the assembly page asks; the provider serves the coordination its SPEC declares.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AgentJournal } from '@omne-harness/agent-contract'
 import {
@@ -69,7 +66,7 @@ describe('the agent-journal row: declaration', () => {
     const manifest = compositeManifestDigest(storageCatalog())
     if (manifest.kind !== 'manifest') throw new Error(manifest.diagnostic)
     expect(agentJournalCombination()).toEqual({
-      combinationVersion: 'session-composite/11',
+      combinationVersion: 'session-composite/12',
       manifestDigest: manifest.digest,
     })
   })

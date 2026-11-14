@@ -5,7 +5,6 @@ import type { ToolRecovery } from './execution.ts'
 import { encodeToolInvocationRef } from './reference.ts'
 import type { ToolState } from './results.ts'
 
-/** Original committed facts and currently disclosable text, bound by their source to this call. */
 export type ToolBackgroundCallSource = Pick<ToolRecovery, 'admission' | 'state' | 'tasks'> &
   Readonly<{
     tenant: TenantId
@@ -15,11 +14,6 @@ export type ToolBackgroundCallSource = Pick<ToolRecovery, 'admission' | 'state' 
     >
   }>
 
-/**
- * The source's answer for this supply's actual scope, tenant and principal. `value` means its
- * authorized directory is complete and its original facts are readable. This type performs no
- * authorization. A partial scan is `partial`, even when it found no calls.
- */
 export type ToolBackgroundCallsSource =
   | Exclude<
       SupplyAnswer<
@@ -85,11 +79,6 @@ function matchesTarget(
   return tenantEquals(source.tenant, input.tenant) && source.scope.ref === input.scope.ref
 }
 
-/**
- * Pure projection, with no I/O or authorization. The supply callback must obtain `source` afresh
- * for this `input` after checking the actual principal, scope binding and disclosure permission.
- * A shaped input or matching identifier does not establish any of those facts.
- */
 export function projectToolBackgroundCalls({
   input,
   source,

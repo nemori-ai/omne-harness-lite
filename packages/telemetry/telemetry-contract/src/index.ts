@@ -1,6 +1,3 @@
-// The pure telemetry contract. This package does not import Cordis, a Node built-in or an SDK; the
-// Cordis service definition is the member `@omne-harness/telemetry-cordis-contract` and the
-// capturing double is at `./testing`.
 export { validateBinding, type Binding, type OwnedRef, type TelemetryScope } from './binding.ts'
 export { decodeCarrier, encodeCarrier, type Carrier } from './carrier.ts'
 export {

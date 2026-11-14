@@ -1,5 +1,3 @@
-// 验收覆盖声明的正反夹具：合乎写法的声明通过；缺声明、两行声明、声明不在开头、写法不对、场景不存在、
-// 编号重复、文件名的 topic 不在声明里、有验收却没有 acceptance 脚本，各自指名报出。
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'

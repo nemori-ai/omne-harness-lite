@@ -1,16 +1,3 @@
-// One history-cost run on the release tree (C8, V7b), on the assembly of `assembly.ts`. Every call
-// is one Shell call in a new session of the same tenant. Seeding calls leave their body
-// unread; the measured calls read it back page by page. The run measures `measured` calls after 20
-// settled calls and `measured` calls after 200, each from `send-input` to the terminal of its Run,
-// and marks each call's phase for `sql-probe.ts`, so the SQL counts of a call can be compared at
-// both history sizes.
-//
-// node --import ./tests/history-cost/sql-probe.ts tests/history-cost/run.ts <out> <kind> [measured]
-// Build `apps/cli` and the workspace first. Writes `<out>/samples.json`; the probe writes
-// `<out>/sql-trace/`, and the run ends by judging them with `summarize.ts`: the exit code is
-// non-zero when the run or a ruling of `summarize.ts` fails. With `HISTORY_COST_TRACE_DIR` unset
-// nothing is counted or judged. The wall-clock numbers of this run compare two times of one
-// process, so they are reported only; `control.ts` is the paired wall-clock comparison (V7c).
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -78,7 +65,6 @@ try {
   writeFileSync(join(out, 'result.json'), `${JSON.stringify(outcome, null, 2)}\n`)
   console.log(JSON.stringify(outcome).slice(0, 2000))
   const flush: unknown = Reflect.get(globalThis, 'historyCostFlush')
-  // A run without the probe has nothing to judge; a measured run is judged by `summarize.ts`.
   const judged =
     typeof flush === 'function' && outcome['ok'] === true
       ? (flush(),

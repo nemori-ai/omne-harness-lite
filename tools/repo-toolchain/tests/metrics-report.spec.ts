@@ -1,4 +1,3 @@
-// 报告组装的已知值核对：CRAP 公式、变更判定、覆盖率三态、摘要行数上限、审讯页自包含。
 import { statSync } from 'node:fs'
 import { isAbsolute, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -24,7 +23,6 @@ const thresholds = { warn: 10, alert: 12 }
 const bands = { green: 8, yellow: 12, red: 20 }
 const file = (path: string, text: string): SourceFile => ({ path, text })
 
-// 第 1 行起：simple 占 1 行；tangled 占第 2～9 行，圈复杂度 5。
 const SOURCE = `export function simple() { return 1 }
 export function tangled(a: number, b: number) {
   if (a > 0) return 1
@@ -39,7 +37,6 @@ const consumer = file(
   'packages/tenancy/account-identity-sql/src/index.ts',
   "import { simple } from '@omne-harness/storage'\nexport const x = simple()\n",
 )
-// dependency-cruiser 给出的图：tenancy 的产品源码第 1 行导入了 core/storage。
 const graph: DependencyGraph = {
   members: [
     { path: 'packages/core/storage', group: 'packages/core', name: 'storage' },
@@ -100,7 +97,6 @@ describe('crap 与评级', () => {
   })
 
   it('均值、总体标准差与最大值各四舍五入到 0.1；风险值是两者之和', () => {
-    // 2、4、4、4、5、5、7、9：均值 5，总体标准差 2（样本标准差约 2.14）。
     expect(spread([2, 4, 4, 4, 5, 5, 7, 9])).toEqual({ mu: 5, sigma: 2, max: 9, risk: 7 })
     expect(spread([])).toEqual({ mu: 0, sigma: 0, max: 0, risk: 0 })
   })
@@ -114,13 +110,10 @@ describe('barycenterOrder', () => {
       ['x', new Set(['b'])],
       ['y', new Set(['a'])],
     ])
-    // 初始 a–y、b–x 两条线交叉。第一轮先排上一行：a 的邻居 y 在 80、b 的邻居 x 在 0，于是 b 排到 a 前面；
-    // 再排下一行时 x 的邻居 b 已在 0、y 的邻居 a 在 80，顺序不动。结果 b 在 x 正上方、a 在 y 正上方。
     expect(barycenterOrder([[['a', 'b']], [['x', 'y']]], neighbors)).toEqual([
       [['b', 'a']],
       [['x', 'y']],
     ])
-    // 两段各自重排，节点不跨段。
     expect(barycenterOrder([[['a', 'b']], [['x'], ['y']]], neighbors)).toEqual([
       [['b', 'a']],
       [['x'], ['y']],
@@ -229,7 +222,6 @@ describe('buildReport', () => {
   it('成员带均值、标准差、风险值与色带；扇入扇出与不稳定度；布局按依赖图分层', () => {
     const report = buildReport(base)
     const [core, tenancy] = report.members
-    // simple 1 分、tangled 5 分：均值 3，总体标准差 2。
     expect(core).toMatchObject({ mu: 3, sigma: 2, max: 5, risk: 5, band: 'green', grade: 10 })
     expect(core).toMatchObject({ fanIn: 1, fanOut: 0, instability: 0 })
     expect(tenancy).toMatchObject({ fanIn: 0, fanOut: 1, instability: 1 })
@@ -324,7 +316,6 @@ describe('摘要与审讯页', () => {
     expect(lines.at(-1)).toBe(`审讯页：${context.reviewPath}`)
   })
 
-  // 归慢层：渲染整份审讯页（内联 React 与 React Flow 的 bundle）并逐项扫描。全量准入快层账本里这条 1.6 秒，负载下 3.7 秒，负载下超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
   it(
     '审讯页自包含：数据内联、无外部资源，内联数据不含可提前闭合脚本的字符',
     { tags: ['slow'] },
@@ -345,9 +336,7 @@ describe('摘要与审讯页', () => {
         changedEdgeLimit: 24,
       })
       expect(html).toContain('"page":{"changedEdgeLimit":24}')
-      // 内联的 React 与 React Flow 在错误信息和署名链接里带网址字符串，那不是外部资源；与架构视图的测试判同一组加载方式。
       expect(html).not.toMatch(/<script[^>]+src=|<link[^>]+href=|fetch\(/u)
-      // React Flow 的 bundle、内联数据与页面脚本。
       expect(html.match(/<\/script>/gu)).toHaveLength(3)
       expect(html).toContain('window.StructureFlow')
       expect(html).toContain('一行 &lt;b&gt;')
