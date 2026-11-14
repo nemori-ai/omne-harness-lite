@@ -1,9 +1,4 @@
 // @module-tag slow
-// Negative controls of the governance suite on the SQL provider: take one check out of a copy of
-// this package's `dist` and show that the contract cases written for that check turn red. Slow: each
-// control runs the whole suite on new storage deployments. The unchanged copy passes, so a red case
-// comes from the mutation, not from the copy. With IDENTITY_SQL_EVIDENCE_DIR set, each control also
-// writes the ids of its failed cases there.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -41,7 +36,6 @@ async function failedCases(name: string, mutations: readonly Mutation[]) {
   }
 }
 
-// Each check, and the cases that must fail without it.
 const CONTROLS: readonly (readonly [CheckName, readonly string[]])[] = [
   ['last-admin', ['leave-last-admin-denied', 'last-admin-concurrent']],
   ['expected-role', ['change-role-expected-conflict']],

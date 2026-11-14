@@ -1,8 +1,3 @@
-// The configuration of the `identity` row: two login lifetimes, the access refresh granularity and
-// two member invitation durations, all as SI-second text (IC-16, data only). The plugin validates
-// it once; the provider reads the resulting terms at every issue. All five fields are required: the
-// provider has no duration of its own (identity ID-18), so the deployment writes every value
-// (R2-D240).
 import type {
   InvitationTerms,
   InvitationTermsSource,
@@ -12,26 +7,14 @@ import type {
 import { parseDuration, type Duration } from '@omne-harness/utc-instant'
 import { compareDurations, isPositive } from './deadline.ts'
 
-/**
- * `PT<seconds>S` text for every duration. Each must be longer than zero, the access refresh
- * granularity must be shorter than the idle period, and the default invitation duration must not
- * be longer than the maximum.
- */
 export type IdentitySqlConfig = Readonly<{
   maxLifetime: string
   idlePeriod: string
-  /** Access reports within this time of the last refresh commit nothing (SPEC IS-14). */
   accessRefreshGranularity: string
   invitationDefaultDuration: string
   invitationMaxDuration: string
 }>
 
-/**
- * The first value of the configuration: logins of 30 days and 7 days idle (DP3-C15), one access
- * refresh commit per login and hour at most, invitations of 7 days by default and 30 days at most
- * (P-10). A deployment that wants these values passes them; the parser never fills a missing field
- * from here.
- */
 export const IDENTITY_SQL_DEFAULT_CONFIG: IdentitySqlConfig = Object.freeze({
   maxLifetime: 'PT2592000S',
   idlePeriod: 'PT604800S',
@@ -74,14 +57,12 @@ function judgeField(field: Field, value: unknown): Judged {
   return { ok: true, duration: parsed.value }
 }
 
-/** One problem for each key that is not a configuration field. */
 function unknownFields(record: Readonly<Record<string, unknown>>): ConfigProblem[] {
   return Object.keys(record)
     .filter(key => !(FIELDS as readonly string[]).includes(key))
     .map(key => ({ field: key, rule: 'is not a configuration field' }))
 }
 
-/** The problem of a default invitation duration that is longer than the upper bound, if any. */
 function invitationOrderProblem(
   durations: Partial<Record<Field, Duration>>,
 ): ConfigProblem | undefined {
@@ -94,7 +75,6 @@ function invitationOrderProblem(
   }
 }
 
-/** The problem of a refresh granularity that is not shorter than the idle period, if any. */
 function refreshOrderProblem(
   durations: Partial<Record<Field, Duration>>,
 ): ConfigProblem | undefined {
@@ -104,10 +84,6 @@ function refreshOrderProblem(
   return { field: 'accessRefreshGranularity', rule: 'must be shorter than idlePeriod' }
 }
 
-/**
- * Judges a raw configuration. Lists every problem, not only the first. Unknown fields and missing
- * fields are problems.
- */
 export function parseIdentitySqlConfig(input: unknown): IdentitySqlConfigJudgement {
   if (typeof input !== 'object' || input === null || Array.isArray(input))
     return { kind: 'invalid', problems: [{ field: 'config', rule: 'must be an object' }] }
@@ -158,13 +134,11 @@ export function parseIdentitySqlConfig(input: unknown): IdentitySqlConfigJudgeme
   }
 }
 
-/** A terms source that answers the same validated terms at every read. */
 export function constantLoginTerms(terms: LoginTerms): LoginTermsSource {
   const reading = Object.freeze({ kind: 'read' as const, terms })
   return Object.freeze({ read: () => Promise.resolve(reading) })
 }
 
-/** An invitation terms source that answers the same validated terms at every read. */
 export function constantInvitationTerms(terms: InvitationTerms): InvitationTermsSource {
   const reading = Object.freeze({ kind: 'read' as const, terms })
   return Object.freeze({ read: () => Promise.resolve(reading) })

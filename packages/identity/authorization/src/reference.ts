@@ -1,6 +1,3 @@
-// The in-process reference check (SPEC AU-11): reads the facts from the installed identity
-// verifier, the tenant standing source and the permit ledger, then decides. It keeps no state and
-// reads again on every call. A dependency that throws is `unavailable`, never `allowed`.
 import { tenantEquals } from '@omne-harness/legal-identity'
 import type {
   PrincipalVerification,
@@ -19,7 +16,6 @@ import type { PermitLedger, PermitLookup, PermitRef } from './permit.ts'
 export type ReferenceAdmissionDependencies = Readonly<{
   verifier: PrincipalVerifier
   standing: TenantStandingSource
-  /** Null when no permit ledger is installed; a presented permit is then `unavailable`. */
   permits: PermitLedger | null
 }>
 

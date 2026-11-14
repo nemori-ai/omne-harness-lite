@@ -1,6 +1,3 @@
-// R4-5: the standing read does not tell an unknown tenant from a non-member. Three kinds of
-// non-member get the same reading shape, with evidence computed from the input alone. A read that
-// cannot reach the rows answers `unavailable`.
 import { tenant, type TenantId } from '@omne-harness/legal-identity'
 import { afterEach, expect, it } from 'vitest'
 import { randomIdentifiers } from '@omne-harness/identity-sql'
@@ -69,7 +66,6 @@ it('gives an unknown tenant, a non-member of a known organization and an unminta
     expect(reading.evidence.revision).toBe('0')
     expect(reading.evidence.record).toMatch(/^identity-sql\/membership\/[0-9a-f]{64}$/u)
   }
-  // The evidence of a non-member comes from the input alone: reading it again gives the same value.
   const again = await opened.provider.standing.read({ tenant: nonMember })
   expect(again).toEqual(readings[1])
   expect((await opened.provider.standing.read({ tenant: ada.tenant })).kind).toBe('member')

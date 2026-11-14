@@ -1,6 +1,3 @@
-// R4-4: a registration writes its five rows in one commit, so a failure after the first rows
-// leaves no account, no organization, no tenant and no membership. An unknown commit result is a
-// rejected promise, not `not-loginable`. DP3-C8: the stricter input rules of this provider.
 import { tenant, type AccountId, type OrganizationId } from '@omne-harness/legal-identity'
 import { afterEach, describe, expect, it } from 'vitest'
 import { randomIdentifiers, type IdentifierSource } from '@omne-harness/identity-sql'
@@ -38,7 +35,6 @@ describe('registration is one transaction', () => {
       credential: 'credential-ada',
     })
     if (ada.kind !== 'succeeded') throw new Error('ada did not register')
-    // Bob's organization identity is Ada's: the third row of the transaction violates the key.
     collideWith = ada.organization
     const bob = await sql.operations.registerAndActivate({
       loginIdentifier: 'bob',
@@ -52,7 +48,6 @@ describe('registration is one transaction', () => {
     if (handed.account === undefined) throw new Error('no account was handed out')
     const rejectedTenant = tenant(ada.organization, handed.account)
     expect((await sql.standing.read({ tenant: rejectedTenant })).kind).toBe('not-member')
-    // The identifier is free: with ordinary identities the same registration succeeds.
     collideWith = undefined
     const again = await sql.operations.registerAndActivate({
       loginIdentifier: 'bob',
@@ -113,7 +108,6 @@ describe('the stricter input rules (DP3-C8)', () => {
         credential: longCredential,
       }),
     ).toEqual({ kind: 'not-loginable' })
-    // The bounds are inclusive.
     expect(
       (
         await sql.operations.registerAndActivate({
@@ -122,7 +116,6 @@ describe('the stricter input rules (DP3-C8)', () => {
         })
       ).kind,
     ).toBe('succeeded')
-    // An over-long credential cannot belong to any account, so issue answers without scrypt.
     await scrypt.module.close()
     expect(
       await sql.operations.issueLogin({ loginIdentifier: 'ada', credential: longCredential }),

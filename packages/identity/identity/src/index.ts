@@ -1,7 +1,3 @@
-// Public entry of identity. Shapes and ports only, plus the in-process principal authority; the
-// durable providers of accounts, logins and memberships are later members. The reference double of
-// the account, login and governance operations is in the `./testing` entry. SPEC.md owns the behavior that
-// these types cannot express.
 export { inProcessPrincipalAuthority, scopeOf } from './principal.ts'
 export type {
   ActingForTenantPrincipal,

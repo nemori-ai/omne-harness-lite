@@ -1,8 +1,3 @@
-// One provider over one fresh SQLite deployment: the storage is opened, the identity combination
-// is registered, the scrypt module is opened with the test profile, and the provider is built with
-// a manual clock, adjustable login terms and adjustable invitation terms (one hour by default, one
-// day at most). `close` stops the provider, closes scrypt and closes the storage. The build is the
-// real one, or a mutant of it for a negative control.
 import type { SqlStorage } from '@omne-harness/sql-contract'
 import type {
   IdentityClock,
@@ -45,17 +40,13 @@ export const REFRESH = 'PT60S'
 export type ProviderOptions = Readonly<{
   clock?: IdentityClock
   terms?: LoginTermsSource
-  /** Wraps the real storage before the provider sees it. The registration goes to the real one. */
   wrap?: (storage: SqlStorage) => SqlStorage
   identifiers?: IdentifierSource
   compute?: ScryptCompute
-  /** Reuse an open deployment instead of opening a new one. */
   storage?: OpenedStorage
-  /** The build under test: the real one by default, or a mutant (`mutants.ts`). */
   build?: IdentitySqlBuild
   principalVerifier?: PrincipalVerifier
   destinationResolver?: StandingDestinationResolver
-  /** The access refresh granularity g. Default `REFRESH`. */
   accessRefreshGranularity?: string
 }>
 

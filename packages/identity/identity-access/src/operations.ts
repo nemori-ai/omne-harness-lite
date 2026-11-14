@@ -1,8 +1,3 @@
-// The handlers of `identity/v1`. Each operation this deployment provides calls the public entry of
-// identity that the server entry's governance location calls for it, and maps the result the same
-// way; the operations the deployment declares not provided answer `stage-not-provided`. The domain
-// services are taken at each call; one that is not there answers `basis-unavailable`. A throw is
-// left to the pipeline, which answers it by the effect rule.
 import type { AccessContribution, Principal } from '@omne-harness/access-cordis-contract'
 import type {
   IdentityGovernance,
@@ -14,7 +9,6 @@ import type { IdentityProtocol } from '@omne-harness/identity-protocol'
 import { parseDuration } from '@omne-harness/utc-instant'
 import { actingOf, callerOf, type Acting } from './caller.ts'
 
-/** The domain services, taken at each call; `undefined` while a provider is not there. */
 export type IdentityServices = Readonly<{
   operations: () => IdentityOperations | undefined
   governance: () => IdentityGovernance | undefined
@@ -27,7 +21,6 @@ const UNAVAILABLE = Object.freeze({ outcome: 'basis-unavailable' as const })
 const DENIED = Object.freeze({ outcome: 'denied' as const })
 const NOT_PROVIDED = Object.freeze({ outcome: 'stage-not-provided' as const })
 
-/** The refusals of the governance port; two of them carry an empty body on the wire. */
 type Refusal = 'denied' | 'basis-unavailable' | 'not-visible' | 'conflict'
 type RefusalAnswer<K extends Refusal> = K extends 'not-visible' | 'conflict'
   ? { readonly outcome: K; readonly body: Readonly<Record<string, never>> }
@@ -69,7 +62,6 @@ type DispositionMethod =
   | 'rejectMemberInvitation'
   | 'withdrawMemberInvitation'
 
-/** One disposition of an open invitation; `state` is the terminal state the operation reaches. */
 function disposition<S extends InvitationTerminal>(
   services: IdentityServices,
   method: DispositionMethod,
@@ -88,7 +80,6 @@ function disposition<S extends InvitationTerminal>(
     })
     switch (outcome.kind) {
       case 'succeeded':
-        // Identity's type allows any terminal state; the contract takes only this operation's one.
         if (outcome.state !== state)
           throw new TypeError(`identity-access: ${method} answered state ${outcome.state}`)
         return { outcome: 'succeeded' as const, body: { invitationId: outcome.invitation, state } }
@@ -117,8 +108,6 @@ export function createIdentityOperations(services: IdentityServices): IdentityOp
     governed(governance => work(governance, actingOf(principal)))
 
   return {
-    // --- the two operations without a login ---------------------------------------------------
-
     async 'register-and-activate'(_call, body) {
       const operations = services.operations()
       if (operations === undefined) return UNAVAILABLE
@@ -157,8 +146,6 @@ export function createIdentityOperations(services: IdentityServices): IdentityOp
       }
     },
 
-    // --- the operations with a login ------------------------------------------------------------
-
     'revoke-login': (call, body) =>
       governed(async governance => {
         const outcome = await governance.revokeLogin({
@@ -186,7 +173,6 @@ export function createIdentityOperations(services: IdentityServices): IdentityOp
           maxDeadline: item.maxDeadline,
           idleDeadline: item.idleDeadline,
         }))
-        // The list holds at least the calling login; an empty list is not one the wire can carry.
         if (first === undefined) return UNAVAILABLE
         return {
           outcome: 'succeeded',
@@ -250,12 +236,8 @@ export function createIdentityOperations(services: IdentityServices): IdentityOp
         }
       }),
 
-    // --- the operations with a login and an acting tenant ---------------------------------------
-
     'issue-member-invitation': (call, body) =>
       actingGoverned(call.principal, async (governance, acting) => {
-        // The duration text is the deployment's to read; text that is not an SI-second duration is
-        // outside the authorized range: denied, no invitation.
         let duration
         if (body.duration !== undefined) {
           const parsed = parseDuration(body.duration)
@@ -376,8 +358,6 @@ export function createIdentityOperations(services: IdentityServices): IdentityOp
             return refuse(outcome.kind)
         }
       }),
-
-    // --- the operations this deployment declares not provided -----------------------------------
 
     'replace-credential': async () => NOT_PROVIDED,
     'open-affiliation-request': async () => NOT_PROVIDED,

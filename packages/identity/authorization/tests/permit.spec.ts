@@ -108,7 +108,6 @@ describe('the in-memory permit ledger', () => {
     const key = `${tenantKey(grant.ref.tenant)}#${grant.ref.permit}`
     expect(first.fact.evidence.owner).toBe('authorization')
     expect(first.fact.evidence.record).toBe(`consumption/${key}`)
-    // The ledger's sequence: 1 for the grant, 2 for this consumption.
     expect(first.fact.evidence.revision).toBe('2')
     expect(first.fact.evidence.digest).toBe(digestOf({ permit: key, consumer: CONSUMER }))
     expect(Object.isFrozen(first.fact)).toBe(true)

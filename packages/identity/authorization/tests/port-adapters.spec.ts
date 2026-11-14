@@ -1,9 +1,3 @@
-// In-process examples of limited consumer mappings on top of the admission check:
-// Agent's AgentAccessCheck and ActionAdmission, Tool's access.qualify (ToolAccessGuard of
-// @omne-harness/tool and StartCoordinatorAccess of tool-host-local), and Session's
-// SessionAccessCheck. Session maps only the explicitly selected membership-only examples below;
-// it does not implement the complete Session policies. StartCoordinatorAccess is declared here with the shape of tool-host-local, which is not
-// a devDependency.
 import { describe, expect, it } from 'vitest'
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import type { Principal } from '@omne-harness/identity'
@@ -63,9 +57,6 @@ import {
   type StandingTable,
 } from './support.ts'
 
-// ---------------------------------------------------------------------------------------------
-// The adapters
-
 function agentTarget(target: AgentAccessTarget): AdmissionTarget {
   switch (target.kind) {
     case 'scope':
@@ -77,7 +68,6 @@ function agentTarget(target: AgentAccessTarget): AdmissionTarget {
     case 'instance':
       return { owner: 'agent', kind: 'instance', key: target.instance }
     case 'execution':
-      // SPEC "主体资格核验": the execution target is the logical execution, without the instance.
       return { owner: 'agent', kind: 'execution', key: target.execution }
     case 'input-entry':
       return { owner: 'agent', kind: 'input-entry', key: `${target.execution}/${target.operation}` }
@@ -111,7 +101,6 @@ function agentAccessCheck(check: AdmissionCheck): AgentAccessCheck<Principal> {
   }
 }
 
-/** Only the three first-shape conclusions; `need-decision` is not produced here. */
 function toAgentAdmissionDecision(decision: AdmissionDecision): AgentAdmissionDecision {
   switch (decision.kind) {
     case 'allowed':
@@ -123,11 +112,6 @@ function toAgentAdmissionDecision(decision: AdmissionDecision): AgentAdmissionDe
   }
 }
 
-/**
- * AU-05: a remark on the official admission card is the person's only valid handling, but it is
- * not an approval. The port answers deny with `human-guidance`; the verbatim text goes back to
- * the original work owner as guidance, not into the evidence.
- */
 function denyHumanGuidance(card: DurableEvidence, answer: DurableEvidence): AgentAdmissionDecision {
   return {
     kind: 'deny',
@@ -161,13 +145,10 @@ function actionAdmission(check: AdmissionCheck): ActionAdmission<Principal> {
           kind: 'action',
           key: `${input.execution}/${input.passage}/${input.action}`,
         },
-        // The fixed text the action will run with; a permit is bound to its digest.
         arguments: effectiveArgumentsOf(input.effectiveArguments),
         requires: [],
         permit: null,
       })
-      // A remark is read only after the tenant and standing checks: a cross-tenant remark is
-      // still a tenant mismatch, not guidance.
       if (remark !== null && decision.kind === 'allowed')
         return succeed(denyHumanGuidance(remark.card, remark.answer))
       return succeed(toAgentAdmissionDecision(decision))
@@ -202,7 +183,6 @@ function toolAccessGuard(check: AdmissionCheck): ToolAccessGuard<Principal> {
   }
 }
 
-/** The shape of tool-host-local's StartCoordinatorAccess: `invalidate` is asked without a call. */
 interface StartCoordinatorAccess<P> {
   qualify(
     input: Readonly<{
@@ -260,11 +240,6 @@ function sessionTargetMatches(input: TenantSessionRequest): boolean {
   )
 }
 
-/**
- * These examples explicitly choose membership-only qualification for history.begin/history.next
- * and recordMessage. Allowed does not replace caller-class, participation, message admission,
- * source, or joint-commit checks. Every other operation needs a policy this example does not supply.
- */
 function sessionAccessCheck(check: AdmissionCheck): SessionAccessCheck<Principal> {
   return {
     check: async input => {
@@ -304,15 +279,11 @@ function sessionAccessCheck(check: AdmissionCheck): SessionAccessCheck<Principal
   }
 }
 
-// ---------------------------------------------------------------------------------------------
-// Fixtures
-
 function decoded<T, F>(result: { ok: T } | { failure: F }, what: string): T {
   if ('failure' in result) throw new Error(`fixture ${what} did not decode`)
   return result.ok
 }
 
-/** The admitted call in full: admission judges its name and arguments; the Action keeps only its `callId`. */
 type Original = Parameters<ActionAdmission<Principal>['admit']>[0]['original']
 
 const isBlockId = (text: string): text is Original['id'] => text.length > 0
@@ -394,9 +365,6 @@ const executionTarget = (): AgentAccessTarget => ({
   kind: 'execution',
   execution: decoded(decodeAgentExecutionId('exec_1'), 'execution'),
 })
-
-// ---------------------------------------------------------------------------------------------
-// The four ports, through the same check
 
 describe('AgentAccessCheck through the admission check', () => {
   it('allows with evidence, denies after revocation, and is unavailable on an outage', async () => {
@@ -533,8 +501,6 @@ describe('ActionAdmission through the admission check', () => {
     expect(deny).toMatchObject({ ok: { kind: 'deny', reason: 'tenant-mismatch' } })
   })
 
-  // Red when a remark on the official admission card is read as a grant, or is turned away as
-  // "no interpreter": AU-05 says a remark is not an approval, the port answers deny/human-guidance.
   it('denies with human-guidance when the card reply is a remark, with admission evidence', async () => {
     const { principals, actions } = installed()
     const card = { ...EVIDENCE, record: 'card-for-act_1' }
@@ -556,8 +522,6 @@ describe('ActionAdmission through the admission check', () => {
     expect(deny.ok.evidence.digest).toMatch(/^[0-9a-f]{64}$/)
   })
 
-  // Red when the remark branch is taken before the tenant check: a remark sent with an acting
-  // principal of another tenant would come back as guidance instead of a tenant mismatch.
   it('answers tenant-mismatch, not human-guidance, for a remark across tenants', async () => {
     const { principals, actions } = installed()
     const deny = await actions.admit({
@@ -882,8 +846,6 @@ describe('SessionAccessCheck through the admission check', () => {
     const { principals, table, session } = installed()
     const initialization = createMemoryInitializationSource()
     const asked: string[] = []
-    // The port requires one check. `create` is outside this reference policy, so the fixture
-    // answers it itself; every other request goes to the adapter under test.
     const port = createMemorySessionTransactions<Principal>({
       initialization,
       accessCheck: {

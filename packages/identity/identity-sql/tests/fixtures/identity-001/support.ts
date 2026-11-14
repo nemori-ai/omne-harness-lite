@@ -1,5 +1,3 @@
-// Shared by the Worker modules: row access over the statement ports, and the read handler frame
-// that checks its input once at the boundary. No runtime import beyond this directory.
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type {
   HandlerOutcome,
@@ -32,10 +30,6 @@ export function oneRow(port: Executor, sql: string, params: readonly SqlValue[])
 
 export const text = (cell: SqlCell | undefined): string => String(cell)
 
-/**
- * A read handler: `parse` judges the raw input once, `read` works on the typed input. A malformed
- * input is a failed read, which the provider reports as `read_failed`.
- */
 export function handler<Input, Output extends JsonValue>(
   name: string,
   parse: (raw: unknown) => Input | undefined,

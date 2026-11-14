@@ -1,4 +1,3 @@
-// Fixtures of the identity tests: parsed tenants.
 import {
   accountCodec,
   organizationCodec,

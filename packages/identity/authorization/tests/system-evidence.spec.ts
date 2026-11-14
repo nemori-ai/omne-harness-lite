@@ -122,7 +122,6 @@ describe('revocation takes effect at the next check', () => {
     const request = requestFor(scanner, PENDING)
     grants.script({ kind: 'found', grant: grantOf(['pending-sessions']) })
     await authorization.check(request)
-    // The script is exhausted: the double answers unavailable, never a repeat of the last answer.
     await expect(authorization.check(request)).resolves.toMatchObject({ kind: 'unavailable' })
   })
 

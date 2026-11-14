@@ -81,7 +81,6 @@ describe('decideAdmission: allowed', () => {
     expect(decision.evidence.owner).toBe('authorization')
     expect(decision.evidence.record).toBe('admission/session/read-history')
     expect(decision.evidence.revision).toBe(decision.basis.standing?.evidence.revision)
-    // A reader recomputes the digest from the carried basis.
     expect(decision.evidence.digest).toBe(digestOf({ kind: 'allowed', basis: decision.basis }))
     expect(Object.isFrozen(decision)).toBe(true)
   })
@@ -278,7 +277,6 @@ describe('decideAdmission: the permit', () => {
     expect(decision).toMatchObject({ kind: 'denied', reason: 'permit-unknown' })
   })
 
-  // The rows are thunks: product code must not run while the suite is collected.
   it.each([
     ['another operation name', () => ({ operation: { owner: 'session', name: 'append' } })],
     ['another operation owner', () => ({ operation: { owner: 'agent', name: 'read-history' } })],

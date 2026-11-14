@@ -1,12 +1,3 @@
-// `identity.governance`: the governance reads (SPEC IS-11, IS-13), each in one snapshot. Every query
-// except the two pre-reads first checks the initiating login at the call's reading, and an acting
-// one also checks that the selection is the acting tenant; a refused read answers `denied` or
-// `not-visible` and reads no record of the object. A reading earlier than the issue time of a login
-// that the read judges answers `clock-earlier-than-record`, which the provider gives as
-// `basis-unavailable` (IS-11). A list is whole or the read fails: a list longer
-// than `GOVERNANCE_LIST_LIMIT` fails the read, so the provider answers `basis-unavailable` and
-// never a cut list. The pre-reads `account-of` and `login-terms` give the provider the account of an
-// identifier and the idle period of a login before a commit; their answers never reach a caller.
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { HandlerOutcome, ReadHandlerModule, ReadPort } from '@omne-harness/sql-contract/worker'
 import {
@@ -80,14 +71,11 @@ function parseInput(raw: unknown): GovernanceReadInput | undefined {
     Object.entries(shape.choices ?? {}).every(
       ([field, allowed]) => isText(raw[field]) && allowed.includes(raw[field]),
     )
-  // The shape table has just checked every field this query reads.
   return fits ? (raw as unknown as GovernanceReadInput) : undefined
 }
 
-/** A list that would be cut. The read fails instead of answering part of it. */
 class ListLimit extends Error {}
 
-/** The rows of one list statement; the statement asks for one row more than the limit. */
 function listRows(port: ReadPort, sql: string, params: readonly (string | bigint)[]): Row[] {
   const rows = rowsOf(port, `${sql} LIMIT ${String(GOVERNANCE_LIST_LIMIT + 1)}`, params)
   if (rows.length > GOVERNANCE_LIST_LIMIT) throw new ListLimit()
@@ -101,7 +89,6 @@ function read(fields: Readonly<Record<string, JsonValue>>): GovernanceReadOutput
   return { outcome: 'read', ...fields }
 }
 
-/** An invitation as a reader sees it now: an open one whose expiry is reached reads `expired`. */
 const INVITATION_COLUMNS = `invitation, organization, invited_account, expires_at,
   CASE WHEN state = 'open' AND ${orderKeySql('expires_at')} <= ? THEN 'expired' ELSE state END AS state`
 
@@ -210,7 +197,6 @@ function members(input: Input<'members'>, port: ReadPort): GovernanceReadOutput 
   if (who.kind !== 'caller') return { outcome: who.outcome }
   const organization = input.organization
   const own = organization === null ? undefined : membershipOf(port, organization, who.account)
-  // A former member sees the organization; an account that never was a member does not.
   if (organization === null || own === undefined) return NOT_VISIBLE
   if (own.state !== MEMBERSHIP_ACTIVE || input.wanted === 'invalid') return DENIED
   if (input.wanted === 'removed' && own.role !== input.superAdminRole) return DENIED

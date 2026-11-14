@@ -1,7 +1,3 @@
-// Public entry of authorization. The admission decision and its port, the system action decision
-// and its port, permits with their consumption facts, the checkable evidence, and the in-process
-// reference pieces. SPEC.md owns the
-// behavior that these types cannot express.
 export { decideAdmission } from './admission.ts'
 export { decideInquiry } from './inquiry.ts'
 export type { InquiryPolicy, InquiryRequirement, InquiryDisposition } from './inquiry.ts'

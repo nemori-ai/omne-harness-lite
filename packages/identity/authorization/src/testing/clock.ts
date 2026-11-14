@@ -2,17 +2,12 @@ import type { SystemActionClock } from '../system-reference.ts'
 
 export type ManualSystemClock = Readonly<{
   clock: SystemActionClock
-  /** From now on `expiresAt` counts as not reached yet. */
   pend(expiresAt: string): void
-  /** From now on `expiresAt` counts as reached. */
   expire(expiresAt: string): void
-  /** From now on the clock answers `unavailable` with this diagnostic. */
   fail(diagnostic: string): void
-  /** The end times that were asked about, in order. */
   asked(): readonly string[]
 }>
 
-/** A clock that knows only the end times it was told about; for any other it answers `unavailable`. */
 export function manualSystemClock(): ManualSystemClock {
   const pending = new Set<string>()
   const reached = new Set<string>()

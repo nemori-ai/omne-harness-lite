@@ -1,6 +1,3 @@
-// C1, C3 and C5: the identity/v1 contract has the 33 identity operations with the identity,
-// effect and limit of the evidence table, and each body reads as the governance family reads it.
-// The old family's reader is imported here only, as the reference.
 import {
   readGovernanceRequest,
   readGovernanceResponse,
@@ -23,7 +20,6 @@ const limits: JsonLimits = {
   maxNumberLength: 100,
 }
 
-/** The evidence table (facts §2): identity, effect and limit of each operation. */
 const table = {
   'register-and-activate': ['none', 'commit', 'small'],
   'issue-login': ['none', 'commit', 'small'],
@@ -65,7 +61,6 @@ const organization = 'org_00000000000000000000000000'
 const login = 'lgn_00000000000000000000000000'
 const tenant = JSON.stringify({ organization, account })
 
-/** A valid body of each operation, from the shared contract member's `operations.spec.ts`. */
 const bodies: Readonly<Record<Name, Readonly<Record<string, unknown>>>> = {
   'register-and-activate': { loginIdentifier: ' Raw Login ', credential: 'secret' },
   'issue-login': { loginIdentifier: ' Raw Login ', credential: 'secret' },
@@ -125,7 +120,6 @@ const bodies: Readonly<Record<Name, Readonly<Record<string, unknown>>>> = {
   'withdraw-authorization-expression': { expressionId: 'expression' },
 }
 
-/** Fields an operation may leave out. */
 const optional: ReadonlySet<string> = new Set(['duration', 'includeRemoved'])
 
 function json(value: unknown): JsonValue {
@@ -140,7 +134,6 @@ function json(value: unknown): JsonValue {
   }
 }
 
-/** The old governance family's envelope around a body, with the identity the table names. */
 function oldRead(operation: Name, body: unknown) {
   const identity = table[operation][0]
   const wire = {
@@ -201,7 +194,6 @@ describe('C3: a body reads as the governance family reads it', () => {
     const old = oldRead(name, body)
     expect(old.kind).toBe('request')
     if (old.kind !== 'request') return
-    // One operation at a time; the union of all body types is not needed here.
     const codec = identityProtocol.operations[name].body as Codec<unknown>
     const read = codec.read(json(body), limits)
     expect(read).toEqual({ ok: true, value: old.request.body })
@@ -217,7 +209,6 @@ describe('C3: a body reads as the governance family reads it', () => {
     const invalid: Readonly<Record<string, unknown>>[] = [{ ...body, forbidden: 'secret' }]
     for (const key of Object.keys(body)) {
       invalid.push({ ...body, [key]: null })
-      // Every string field of an identity body is non-empty text, a literal or an identifier.
       if (typeof body[key] === 'string') invalid.push({ ...body, [key]: '' })
       if (optional.has(key)) continue
       const missing: Record<string, unknown> = { ...body }

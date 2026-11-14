@@ -1,13 +1,3 @@
-// One process of the governance restart cases. Every phase opens the storage root, does its part,
-// writes what the next phase needs to the state file, prints one JSON line and exits.
-//   revoke-first     register, issue two logins, revoke the second through governance.
-//   revoke-second    a new process: the revoked login is invalid, the other one is recognized.
-//   legacy-first     the published 001 build: a catalog with the 001 participant and only the 001
-//                    migration, one registration and one login written through its participant.
-//   upgrade-second   this build over the 001 files: its registration runs 002; the old account and
-//                    login work, governance works on them, the old login is revoked.
-//   upgrade-third    this build again: no new migration; the revocation and the team are still there.
-// The clock is manual. It starts at the same instant in every process and never goes back.
 import { createHash, randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
@@ -65,7 +55,6 @@ async function readState(): Promise<State> {
   return JSON.parse(await readFile(stateFile as string, 'utf8')) as State
 }
 
-/** The catalog of this build: every material of the identity member. */
 function currentCatalog(): SqlMaterialCatalog {
   return {
     catalogProtocol: 'sql-catalog/1',
@@ -74,10 +63,6 @@ function currentCatalog(): SqlMaterialCatalog {
   }
 }
 
-/**
- * The catalog of the published 001 build: its participant (a frozen copy in `identity-001/`) with
- * the six 001 tables, and the 001 migration of this build, whose bytes the 001 build published.
- */
 function legacyCatalog(): SqlMaterialCatalog {
   const url = new URL('./identity-001/participant.ts', import.meta.url)
   const migration = identitySqlMaterials().migrations.find(item => item.id === '001-identity')
@@ -144,7 +129,6 @@ async function openScryptModule() {
   return { module: opened.module, decoyMaterial: done.material }
 }
 
-/** This build over the storage root, with a manual clock at `START` plus `offset`. */
 async function openCurrent(offset: string) {
   const created = await openStorage(currentCatalog())
   const registered = await created.storage.registerCombination(identitySqlRegistration())

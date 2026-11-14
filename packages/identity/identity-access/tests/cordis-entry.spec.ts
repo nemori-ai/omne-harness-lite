@@ -1,6 +1,3 @@
-// The Cordis entry: the plugin mounts a complete identity/v1 contribution on the access registry,
-// and its handlers take the domain services at each call, so a missing one answers
-// `basis-unavailable` while the protocol stays mounted.
 import { Context } from '@deepseek-ai/cordis'
 import type { AccessContribution } from '@omne-harness/access-cordis-contract'
 import { AccessRegistryService } from '@omne-harness/access-cordis-contract/cordis'

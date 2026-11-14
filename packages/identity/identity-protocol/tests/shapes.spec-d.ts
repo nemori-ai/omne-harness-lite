@@ -1,5 +1,3 @@
-// C2 and C4: each identity/v1 operation has the shape the governance family has, except where
-// spec decision 9 says otherwise. The old family's types are imported here only.
 import type {
   Codec,
   GovernanceProvidedOperation,
@@ -25,7 +23,6 @@ type OldBody<O extends GovernanceProvidedOperation, K extends PropertyKey> = Ext
   GovernanceResponse<O>,
   { readonly outcome: K }
 >['body']
-/** The outcomes the governance family answers for the operation itself (`BusinessOutcomes`). */
 type OldOutcomes<O extends GovernanceProvidedOperation> = Exclude<
   GovernanceResponse<O>['outcome'],
   'protocol-rejected' | 'stage-not-provided'
@@ -33,13 +30,7 @@ type OldOutcomes<O extends GovernanceProvidedOperation> = Exclude<
 
 type Same<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false
 type AllTrue<T> = { readonly [K in keyof T]: true }
-/** One object type in place of an intersection, as the old `Complete<K, T>` is written. */
 type Flat<T> = { [K in keyof T]: T[K] } & {}
-/**
- * Equal after flattening the old intersection, or both the empty body. A rule infers the empty
- * object as `{}`; the old family writes it `Readonly<Record<string, never>>`. The two are the same
- * set of values.
- */
 type Matches<New, Old> =
   Same<New, Flat<Old>> extends true
     ? true
@@ -47,14 +38,12 @@ type Matches<New, Old> =
       ? Same<Old, Readonly<Record<string, never>>>
       : false
 
-/** The outcomes `defineProtocol` adds, by the operation's identity and effect. */
 type Pipeline<O extends Name> =
   | 'protocol-rejected'
   | 'basis-unavailable'
   | (Field<O, 'identity'> extends 'none' ? never : 'denied')
   | (Field<O, 'effect'> extends 'commit' ? 'unknown' : never)
 
-/** The two `succeeded` bodies that differ from the old ones; each is asserted on its own below. */
 type Differs = 'issue-login' | 'query-own-valid-logins'
 
 test('the operations are the governance family minus health, settings and stages', () => {

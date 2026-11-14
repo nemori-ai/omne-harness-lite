@@ -5,13 +5,6 @@ import type {
   StandingReservations,
   IdentityGovernanceRecovery,
 } from '@omne-harness/identity'
-// The provider of the three identity operations, the standing read and the governance port over the
-// SQL storage contract (identity SPEC ID-16, ID-17, ID-18; DP-3). Every computation that is not SQL
-// happens in the main thread: input checks, scrypt, identities, digests, deadlines and result
-// mapping. The participant and the read handlers in `./worker` run statements and the record checks
-// that must share a transaction with them. The governance port is in `governance.ts` and shares this
-// instance's storage, clock and stop flag. A reply to the caller never carries a credential, a proof
-// or a login identifier in a diagnostic.
 import {
   DEFAULT_TEAM_MODEL,
   DEFAULT_TEAM_ROLES,
@@ -86,7 +79,6 @@ import {
   type StandingOutput,
 } from './worker/schema.ts'
 
-/** The stricter input rules of this provider (DP3-C8). Both bounds are inclusive UTF-8 byte counts. */
 export const LOGIN_IDENTIFIER_UTF8_LIMIT = 1024
 export const CREDENTIAL_UTF8_LIMIT = 4096
 
@@ -94,16 +86,9 @@ export type IdentitySqlInput = Readonly<{
   storage: SqlStorage
   clock: IdentityClock
   terms: LoginTermsSource
-  /** The member invitation durations, read at every issue (identity SPEC ID-18). */
   invitationTerms: InvitationTermsSource
-  /**
-   * Access reports within this time of the last refresh commit nothing (SPEC IS-14). Positive;
-   * the configuration keeps it shorter than the idle period.
-   */
   accessRefreshGranularity: Duration
-  /** An open scrypt module. The caller closes it after `stop()`. */
   scrypt: ScryptModule
-  /** Material derived from a random secret at start, compared for an unknown account (DP3-C6). */
   decoyMaterial: string
   identifiers?: IdentifierSource
   principalVerifier?: PrincipalVerifier
@@ -113,11 +98,9 @@ export type IdentitySqlInput = Readonly<{
 export type IdentitySql = Readonly<{
   operations: IdentityOperations
   standing: TenantStandingSource
-  /** Shares the records of `operations`: a revocation or a switch is seen by recognition. */
   governance: IdentityGovernance
   reservations: StandingReservations
   governanceRecovery: IdentityGovernanceRecovery
-  /** New calls get the stopped answers (DP3-C16). Calls already accepted run to their end. */
   stop(): void
 }>
 
@@ -151,7 +134,6 @@ function utf8Within(value: string, limit: number): boolean {
 
 type CredentialInput = Readonly<{ loginIdentifier: string; credential: string }>
 
-/** Non-empty text within the byte bounds; anything else is a malformed input. */
 function parseCredentialInput(input: unknown): CredentialInput | undefined {
   const loginIdentifier = field(input, 'loginIdentifier')
   const credential = field(input, 'credential')
@@ -183,8 +165,6 @@ function parseTenantOf(organization: string, account: string): TenantId | undefi
     ? tenant(parsedOrganization.value, parsedAccount.value)
     : undefined
 }
-
-// --- Read output parsing: the Worker answers JSON, judged once here. ------------------------
 
 function parseIssueBasis(output: JsonValue): IssueBasisOutput | undefined {
   if (!isRecord(output)) return undefined
@@ -279,20 +259,12 @@ function decodeLogin(row: NonNullable<LoginByProofOutput['login']>): LoginRecord
   }
 }
 
-/**
- * Creates the provider over an injected storage, clock, terms and scrypt module. There is no
- * default for any of them, and the factory reads no wall clock. It registers nothing: the caller
- * registers the identity combination (`identitySqlRegistration()`) before the first operation.
- */
 export function createIdentitySql(input: IdentitySqlInput): IdentitySql {
   const { storage, clock, terms, invitationTerms, scrypt, decoyMaterial } = input
   const identifiers = input.identifiers ?? randomIdentifiers()
   const combination = identitySqlCombination()
   let stopped = false
-  // The latest clock reading this instance adopted. An earlier reading is not adopted (ID-17).
   let latest: Instant | undefined
-
-  // --- Injected bases -----------------------------------------------------------------------
 
   const readTime = async (floor?: Instant): Promise<TimeBasis> => {
     let reading
@@ -340,8 +312,6 @@ export function createIdentitySql(input: IdentitySqlInput): IdentitySql {
       : { unavailable: done.code }
   }
 
-  // --- Storage ------------------------------------------------------------------------------
-
   const commit = (operation: string, facts: IdentityFacts): Promise<CommitResultV2> => {
     const identity: SqlIdentity = {
       ...DOMAIN,
@@ -368,8 +338,6 @@ export function createIdentitySql(input: IdentitySqlInput): IdentitySql {
 
   const read = (handler: string, input: JsonValue): Promise<ReadResult> =>
     storage.read({ domain: DOMAIN, handler, protocol: '1', requestKey: requestKey(), input })
-
-  // --- Operations (ID-17) ------------------------------------------------------------------
 
   const registerAndActivate: IdentityOperations['registerAndActivate'] = async input => {
     const parsed = parseCredentialInput(input)
@@ -413,7 +381,6 @@ export function createIdentitySql(input: IdentitySqlInput): IdentitySql {
     }
   }
 
-  // The steps follow SPEC ID-17 "签发登录" and DP3-C9; an earlier step's answer wins.
   const issueLogin: IdentityOperations['issueLogin'] = async input => {
     // 1. The basis comes first, so `basis-unavailable` never tells whether the credential matches.
     if (stopped) return unavailable('provider-stopped')
@@ -425,10 +392,8 @@ export function createIdentitySql(input: IdentitySqlInput): IdentitySql {
     const idleDeadline = addDuration(time.instant, lifetimes.terms.idlePeriod)
     if (maxDeadline === undefined || idleDeadline === undefined)
       return unavailable('deadline-out-of-range')
-    // 2. A malformed input. An over-long value can belong to no account (DP3-C8).
     const parsed = parseCredentialInput(input)
     if (parsed === undefined) return UNIFORM_AUTH_FAILURE
-    // 3. The account rows and the login table, read before the credential is compared.
     const basis = await read(HANDLERS.issueBasis, { loginIdentifier: parsed.loginIdentifier })
     if (basis.kind !== 'read') return unavailable(`account-basis-unavailable:${readReason(basis)}`)
     const found = parseIssueBasis(basis.output)
@@ -439,13 +404,11 @@ export function createIdentitySql(input: IdentitySqlInput): IdentitySql {
         : parseTenantOf(found.account.organization, found.account.account)
     if (found.account !== null && personal === undefined)
       return unavailable('account-basis-malformed')
-    // 4. The comparison. An unknown account compares against the decoy, through the same module.
     const compared = await compare(found.account?.material ?? decoyMaterial, parsed.credential)
     if (typeof compared !== 'string')
       return unavailable(`credential-check-unavailable:${compared.unavailable}`)
     if (found.account === null || personal === undefined || compared === 'mismatch')
       return UNIFORM_AUTH_FAILURE
-    // 5. A new, independent login. A write that is not known to be committed rejects the promise.
     const login = identifiers.login()
     const proof = newLoginProof()
     const result = await commit(OPERATIONS.issueLogin, {
@@ -476,7 +439,6 @@ export function createIdentitySql(input: IdentitySqlInput): IdentitySql {
     })
   }
 
-  // The steps follow SPEC ID-17 "识别登录", DP3-C11 and IS-12; an earlier step's answer wins.
   const recognizeLogin: IdentityOperations['recognizeLogin'] = async input => {
     const loginProof = field(input, 'loginProof')
     if (!isText(loginProof) || loginProof === '') return INVALID
@@ -498,7 +460,6 @@ export function createIdentitySql(input: IdentitySqlInput): IdentitySql {
       return unavailable('login-record-malformed')
     // A revoked login has ended: after step 3, before the clock is read (ID-18).
     if (output.login.revoked) return INVALID
-    // The lower bound of this reading is the later of the adopted reading and the issue time.
     const time = await readTime(record.issuedAt.value)
     if (time.kind !== 'read') return time
     if (
@@ -514,13 +475,10 @@ export function createIdentitySql(input: IdentitySqlInput): IdentitySql {
     })
   }
 
-  // --- Standing (ID-16, DP3-C12) ------------------------------------------------------------
-
   const readStanding: TenantStandingSource['read'] = async input => {
     if (stopped) return { kind: 'unavailable', diagnostic: 'provider-stopped' }
     const encoded = tenantCodec.encode(field(input, 'tenant') as TenantId)
     const tenantText = encoded.ok ? encoded.value : ''
-    // The evidence of a non-member comes from the input alone, so it tells nothing about the rows.
     const record = `${STANDING_RECORD_PREFIX}${sha256Hex(tenantText)}`
     const notMember: TenantStandingReading = Object.freeze({
       kind: 'not-member',

@@ -11,7 +11,6 @@ declare const tenant: TenantId
 declare const issuer: PrincipalIssuer
 const work = { owner: 'session', work: 'ses_1' } as const
 
-// A principal that acts for a tenant cannot be written without the tenant.
 // @ts-expect-error the tenant is required
 const _noTenant: ActingForTenantPrincipal = { kind: 'acting-for-tenant', actor, work }
 const _nullTenant: ActingForTenantPrincipal = {
@@ -38,7 +37,6 @@ issuer.issueActingForTenant({
 
 const _acting: ActingForTenantPrincipal = { kind: 'acting-for-tenant', actor, tenant, work }
 
-// Reading the tenant narrows on `kind`: a system principal has none.
 declare const principal: Principal
 if (principal.kind === 'acting-for-tenant') {
   const _narrowed: TenantId = principal.tenant

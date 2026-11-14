@@ -1,8 +1,4 @@
 // @module-tag slow
-// SPEC IS-13, identity ID-18 list completeness: a governance list is whole or absent. A list of
-// 1000 entries is answered whole; with one entry more the read fails and the provider answers
-// `basis-unavailable` with no list. It never cuts the list to the limit. Slow: 1001 invitations,
-// each a read and a commit on the real SQLite provider.
 import { afterAll, expect, it } from 'vitest'
 import { openProvider, type OpenedProvider } from './fixtures/provider.ts'
 

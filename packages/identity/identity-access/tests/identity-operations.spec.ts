@@ -1,6 +1,3 @@
-// The handlers of `identity/v1`: each calls the same public entry of identity that the server
-// entry's governance location calls, and maps its result the same way. A domain service that is not
-// there answers `basis-unavailable`.
 import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
 import type { IdentityGovernance, IdentityOperations } from '@omne-harness/identity'
 import { createAccessIdentity, createIdentityOperations } from '@omne-harness/identity-access'

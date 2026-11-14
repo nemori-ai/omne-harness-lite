@@ -1,13 +1,3 @@
-// The `identity` participant. It runs inside the provider's write transaction and only executes
-// SQL: every identity, digest and time value arrives in the facts, computed by the provider in the
-// main thread (DP3-C7). A registration writes its five rows in this one command, so a failure at
-// any row rolls back all of them. A taken login identifier is a `conflict`; the unique index on
-// the identifier is the second guard against two concurrent registrations.
-// A governance command (SPEC IS-10) checks, in this one command and in this order, that the
-// initiating login is valid at the call's reading, that the actor holds the role the operation
-// needs, and that the expected state still holds; then it writes. The domain's writes are serial,
-// so two commands never pass the same check before either writes. A refusal writes nothing and
-// answers `participated` with its outcome, so a refusal is not a rollback.
 import { membershipGate, standingCommand, type MembershipMode } from './standing.ts'
 import type {
   ParticipantModule,
@@ -92,8 +82,6 @@ function pick<K extends string>(
   return Object.fromEntries(fields.map(field => [field, value[field]])) as Record<K, string>
 }
 
-// --- The shapes of the governance facts. A fact the shape does not admit is `unsupported`. ---
-
 type Shape = Readonly<{
   text: readonly string[]
   nullable?: readonly string[]
@@ -162,13 +150,10 @@ function parseFacts(facts: unknown): IdentityFacts | undefined {
   if (facts['kind'] === 'issue-login' && hasTextFields(facts, ISSUE_FIELDS))
     return { kind: 'issue-login', ...pick(facts, ISSUE_FIELDS) }
   const kind = facts['kind']
-  // The shape table has just checked every field this kind reads.
   if (isGovernanceKind(kind) && fits(facts, GOVERNANCE_SHAPES[kind]))
     return facts as unknown as GovernanceFacts
   return undefined
 }
-
-// --- Registration and login issue (SPEC IS-02, IS-04). ---
 
 function register(facts: RegisterFacts, port: ParticipantPort): ParticipantReply {
   const taken = oneRow(port, 'SELECT account FROM id_account WHERE login_identifier = ? LIMIT 1', [
@@ -233,8 +218,6 @@ function issueLogin(facts: IssueLoginFacts, port: ParticipantPort): ParticipantR
   return { kind: 'participated', response: {} }
 }
 
-// --- Governance commands (SPEC IS-10 to IS-14). ---
-
 function reply(outcome: string, fields: Readonly<Record<string, string>> = {}): ParticipantReply {
   return { kind: 'participated', response: { outcome, ...fields } }
 }
@@ -242,7 +225,6 @@ function reply(outcome: string, fields: Readonly<Record<string, string>> = {}): 
 const DENIED = (): ParticipantReply => reply('denied')
 const NOT_VISIBLE = (): ParticipantReply => reply('not-visible')
 
-/** The number of active super administrators of one organization. */
 function activeSuperAdmins(port: Executor, organization: string, superAdminRole: string): number {
   const row = oneRow(
     port,
@@ -253,10 +235,6 @@ function activeSuperAdmins(port: Executor, organization: string, superAdminRole:
   return Number(row?.['n'] ?? 0)
 }
 
-/**
- * The last administrator check (ID-06): true when moving `role` to `nextRole` (`null` for leaving
- * or removal) would leave the organization with no active super administrator.
- */
 function leavesNoAdmin(
   port: Executor,
   organization: string,
@@ -278,7 +256,6 @@ function createOrganization(facts: CreateOrganizationFacts, port: ParticipantPor
     [who.account, facts.createCallId],
   )
   if (saved !== undefined) {
-    // The receipt binds the name and the model: another input under the same id gets nothing saved.
     if (
       text(saved['name']) !== facts.name ||
       text(saved['governance_model_id']) !== facts.governanceModelId
@@ -311,7 +288,6 @@ function createOrganization(facts: CreateOrganizationFacts, port: ParticipantPor
   }
   const blocked = membershipGate(port, facts.organization, who.account)
   if (blocked !== undefined) return blocked
-  // The organization, the creator's tenant and the first super administrator, in this one command.
   port.execute('INSERT INTO id_organization (organization, kind) VALUES (?, ?)', [
     facts.organization,
     TEAM_ORGANIZATION,
@@ -419,7 +395,6 @@ function setInvitationState(port: Executor, invitation: string, state: string): 
   ])
 }
 
-/** Acceptance steps 4 and 5 (ID-18), written with the acceptance terminal. */
 function admit(
   facts: DisposeInvitationFacts,
   invitation: string,
@@ -455,7 +430,6 @@ function admit(
       ],
     )
   } else
-    // A rejoin keeps the tenant and gets a plain member: no old role comes back.
     port.execute(
       `UPDATE id_membership SET state = ?, role = ?, role_model = ?, role_model_revision = ?,
           revision = revision + 1
@@ -481,15 +455,12 @@ function disposeInvitation(
   if (who.kind !== 'caller') return reply(who.outcome)
   const invitation = facts.invitation
   const found = invitation === null ? undefined : invitationRow(port, invitation, facts.nowKey)
-  // 1. Not there, or the caller cannot see it.
   if (invitation === null || found === undefined) return NOT_VISIBLE()
   const isInvitee = found.invitedAccount === who.account
   const isIssuer = holdsActiveRole(port, found.organization, who.account, facts.superAdminRole)
   if (!isInvitee && !isIssuer) return NOT_VISIBLE()
-  // 2. Not the party of this disposition.
   if (!(facts.action === 'withdraw' ? isIssuer : isInvitee)) return DENIED()
   if (facts.expectedOpen !== 'yes') return DENIED()
-  // 3. Already terminal, or expired now: the first finding of expiry is written.
   let state = found.state
   if (state === INVITATION_OPEN && found.reached) {
     setInvitationState(port, invitation, INVITATION_EXPIRED)
@@ -529,7 +500,6 @@ function changeMember(facts: ChangeMemberFacts, port: ParticipantPort, mode?: Me
   const who = actingCaller(port, facts)
   if (who.kind !== 'caller') return reply(who.outcome)
   const organization = facts.organization
-  // An account that never was a member cannot see the organization; a former one is denied.
   if (organization === null || membershipOf(port, organization, who.account) === undefined)
     return NOT_VISIBLE()
   if (!holdsActiveRole(port, organization, who.account, facts.superAdminRole)) return DENIED()
@@ -584,7 +554,6 @@ function switchTenant(facts: SwitchTenantFacts, port: ParticipantPort) {
   )
   if (held === undefined) return DENIED()
   if (targetTenant === who.selection) return reply('no-change')
-  // The selection of this login only; `actingCaller` above is the compare of this write.
   port.execute('UPDATE id_login SET tenant_text = ? WHERE login = ?', [targetTenant, facts.login])
   return reply('succeeded', { tenantText: targetTenant })
 }
@@ -601,7 +570,6 @@ function revokeLogin(facts: RevokeLoginFacts, port: ParticipantPort) {
             FROM id_login l WHERE l.login = ? LIMIT 1`,
           [facts.nowKey, facts.nowKey, facts.nowKey, facts.target],
         )
-  // An unknown login and a login of another account give the same answer.
   if (facts.target === null || target === undefined || text(target['account']) !== who.account)
     return NOT_VISIBLE()
   // A revoked or ended target stays as it is; a target issued after the reading is not judged.
@@ -617,10 +585,8 @@ function revokeLogin(facts: RevokeLoginFacts, port: ParticipantPort) {
 
 function reportAccess(facts: ReportAccessFacts, port: ParticipantPort) {
   const who = liveCaller(port, facts.login, facts.nowKey)
-  // A login that is not valid is not revived; a reading earlier than its issue time is no basis.
   if (who.kind !== 'caller')
     return reply(who.outcome === CLOCK_EARLIER_THAN_RECORD ? who.outcome : 'not-refreshed')
-  // A new idle deadline earlier than the stored one leaves the stored one.
   port.execute(
     `UPDATE id_login SET idle_deadline = ?
       WHERE login = ? AND ${orderKeySql('idle_deadline')} < ?`,
