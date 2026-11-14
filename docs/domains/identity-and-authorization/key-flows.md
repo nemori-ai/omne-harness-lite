@@ -4,7 +4,7 @@
 
 ## 责任、来源与流程边界
 
-[产品需求](../../../.meta_harness/design/product/identity-and-authorization/design.md#关键用户旅程)拥有用户规则；[领域架构](architecture.md)拥有协作分解。[identity SPEC](../../../packages/identity/identity/SPEC.md)拥有主体、治理、登录及关系事实，[authorization SPEC](../../../packages/identity/authorization/SPEC.md)拥有表达解释、绑定、准入、撤回及消费含义。图以这些正文为机制责任源，没有定义另一套状态机。
+[产品需求](../../../.meta_harness/design/product/identity-and-authorization/design.md#关键用户旅程)拥有用户规则；[领域架构](architecture.md)拥有协作分解。[identity SPEC](../../../packages/identity/SPEC.md#应然设计)拥有主体、治理、登录及关系事实，[authorization SPEC](../../../packages/identity/SPEC.md#动作准入)拥有表达解释、绑定、准入、撤回及消费含义。图以这些正文为机制责任源，没有定义另一套状态机。
 
 参与者是逻辑角色，可独立调用或经系统装配。identity 读取采用的认证及治理依据，维护可信身份事实；authorization 消费可信身份、合法权限、原操作及范围。资产与规则拥有配值求值和正式设置写入，HITL 拥有卡片及唯一有效答复，原工作拥有者维护等待、原位置、控制、终局和结果保管。Run、Session、工具与模型的生命周期不归本领域。
 
@@ -60,7 +60,7 @@ sequenceDiagram
 
 原业务若需要停止工作，使用自己的控制协议并记录实际结果；撤权或 disposer 不回滚外部输出。停止向失去资格者交付不免除生产方或合法承接方保管责任。读取、交付与消费确认分别授权，诊断仅关联既有事实，不能触发重做或泄露凭据。
 
-恢复认回原主体、操作、范围、决定、消费及终局，当前资格来自权威事实。已确认持久的撤销、到期及消费在普通崩溃或断电后保持。介质或整机损毁后，0.0.0 到 0.1.0 不提供重新打开，也不能用备份角色授予访问。当前事实与提交的一致性归 T03，缓存和跨边界来源归 T05，真实故障与读取验证归 T06。规格为 ID-09、AU-06、AU-07，验证见 [V-ID-J08](../../../packages/identity/identity/SPEC.md#v-id-j08)及 [V-AU-J08](../../../packages/identity/authorization/SPEC.md#v-au-j08)。
+恢复认回原主体、操作、范围、决定、消费及终局，当前资格来自权威事实。已确认持久的撤销、到期及消费在普通崩溃或断电后保持。介质或整机损毁后，0.0.0 到 0.1.0 不提供重新打开，也不能用备份角色授予访问。当前事实与提交的一致性归 T03，缓存和跨边界来源归 T05，真实故障与读取验证归 T06。规格为 ID-09、AU-06、AU-07。
 
 ## 本阶段可核对案例
 

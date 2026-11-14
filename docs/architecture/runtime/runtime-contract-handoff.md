@@ -66,7 +66,7 @@ SessionService 是内部工作治理面，不是网络 SDK。外部调用者经�
 #### 登录到 `Access`
 
 1. 服务端接入用 identity 的登录识别（[#745](https://github.com/nemori-ai/omne-harness-lite/issues/745)）核验 `loginProof`，得到账号、这份登录的 `login`（`LoginStateId`）与当前选择的租户。
-2. 服务端接入用 tenantCodec 解析目标租户文本，得到的值就是签发要求的已解析租户；租户是否存在不在这里判断。服务端接入是 [ID-16](../../../packages/identity/identity/SPEC.md#id-16-首批公开形状主体与资格事实) 所列「装配授权的系统部件」：应用装配（[#677](https://github.com/nemori-ai/omne-harness-lite/issues/677)）把签发者安装给它。目标租户的账号等于识别出的账号时，它签发代租户行事主体：`actor` 是服务端接入的系统主体，`tenant` 是目标租户，`work` 是 `{ owner: 'identity-login', work: login 的 loginStateCodec 文本 }`。关系核对按 [ID-16](../../../packages/identity/identity/SPEC.md#id-16-首批公开形状主体与资格事实) 的登录条款。账号不等时不签发，结果是 `denied`。
+2. 服务端接入用 tenantCodec 解析目标租户文本，得到的值就是签发要求的已解析租户；租户是否存在不在这里判断。服务端接入是 [ID-16](../../../packages/identity/SPEC.md#主体的签发与核验) 所列「装配授权的系统部件」：应用装配（[#677](https://github.com/nemori-ai/omne-harness-lite/issues/677)）把签发者安装给它。目标租户的账号等于识别出的账号时，它签发代租户行事主体：`actor` 是服务端接入的系统主体，`tenant` 是目标租户，`work` 是 `{ owner: 'identity-login', work: login 的 loginStateCodec 文本 }`。关系核对按 [ID-16](../../../packages/identity/SPEC.md#主体的签发与核验) 的登录条款。账号不等时不签发，结果是 `denied`。
 3. 服务端接入以这个主体、目标租户与会话标识组成 `Access` 交给 Session：`create-session` 与 `query-create-session` 用派生的会话标识，其他操作用 body 的 `session`。服务端接入不另核资格。变更操作的当前成员资格与创建、发送资格由 Session 的身份桥核，桥不可得时返回 `unavailable`；读取由 Session 事务端口的读路径按身份与披露边界核权。租户或会话不存在与没有资格都是 `denied`。
 4. 会话的租户由会话固定。Session 不核该登录当前选择的租户（[J52](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6357861225)）。只有 `create-session` 要求行事租户等于当前选择，因为新会话建在它下面。
 

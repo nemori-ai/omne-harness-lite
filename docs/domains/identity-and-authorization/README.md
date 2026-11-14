@@ -49,4 +49,4 @@
 
 ## 正式产品与技术承接
 
-[产品正文](../../../.meta_harness/design/product/identity-and-authorization/design.md)维护当前产品阅读稿及有效未决，topic 状态为 draft，已定承诺保持。[本域技术关系](architecture.md)与[能力组](../../../packages/identity/README.md)定位正式维护责任；详细设计仍按各源声明判断，不由落位取得接受。
+[产品正文](../../../.meta_harness/design/product/identity-and-authorization/design.md)维护当前产品阅读稿及有效未决，topic 状态为 draft，已定承诺保持。[本域技术关系](architecture.md)与[能力组](../../../packages/identity/SPEC.md)定位正式维护责任；详细设计仍按各源声明判断，不由落位取得接受。

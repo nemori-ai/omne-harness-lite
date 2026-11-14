@@ -562,13 +562,13 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
 
 - 提供：`sessionIdentity`，实现 `SessionIdentityBridge`。插件 `extends` 对应的端口抽象类。
 - 动作：本插件核实主体的可信来源，生成绑定租户、会话、操作与命令的 `GuardCommand`。材料不能用于另一命令，不序列化主体的秘密。
-- 核验：本插件以 identity 的 `PrincipalVerifier.verify` 核实主体（[identity 的签发与核验](../../identity/identity/SPEC.md#签发与核验)）。`verified` 时生成材料；`rejected` 时返回 `denied`，不生成材料，Session 的变更不提交；`unavailable` 时按下一条处置。核验只证明来源，不证明当前成员资格或动作获准，后者归访问检查。
+- 核验：本插件以 identity 的 `PrincipalVerifier.verify` 核实主体（[identity 的签发与核验](../../identity/SPEC.md#主体的签发与核验)）。`verified` 时生成材料；`rejected` 时返回 `denied`，不生成材料，Session 的变更不提交；`unavailable` 时按下一条处置。核验只证明来源，不证明当前成员资格或动作获准，后者归访问检查。
 - 失败：身份来源不可用时返回 `unavailable`，`owner` 为身份来源。Session 一侧只有变更操作因此返回 `unavailable` 或 `denied`。
 - 注入与缺席：本插件 `inject` identity 的 `principalVerifier` 服务（必需依赖）。该服务缺席时插件停在 `PENDING`，不提供 `sessionIdentity`，Session 的变更操作按[端口服务键](../session-cordis-contract/docs/cordis.md#端口服务键)返回 `unavailable`，读取照常。核验器服务卸载时本插件随之卸载；新核验器到位后插件体重新运行。插件停止后仍被持有的旧句柄不交出材料，返回 `unavailable`。
 - 租户绑定：`GuardCommand` 材料只含完整 `SessionCommand` 的摘要，不含主体的任何成员，也不含命令正文。命令已含租户、会话与操作身份，所以摘要同时绑定这四项与命令种类。同一命令经另一个已核验主体（重试、恢复）得到同一材料。核验之前先核对命令里的租户与会话和本次 `Access` 一致，不一致返回 `denied`。核验为 `verified` 的代租户行事主体，其租户与本次 `Access` 的租户不一致时返回 `denied`，不生成材料。系统主体不绑租户，其操作资格归访问检查。
 - 核验结果的容错：核验器抛错、答复形状不属于 `verified`、`rejected`、`unavailable`，或 `verified` 返回的主体不是传入的那个对象，一律返回 `unavailable`，不当作 `verified`，也不当作 `rejected`。`unavailable` 的 `owner` 为 `identity`。
 - 实现现状：`src/cordis/identity-bridge.ts` 的 `SessionIdentityBridgeProvider extends SessionIdentityBridgeService`。验证见 `tests/identity-bridge.spec.ts`：真实 Cordis 4.0.4 的装载、停止、缺席与换核验器，`rejected`、伪造主体、另一租户主体与不可答复的核验源。
-- 已知限制：装配用 identity 的 `inProcessPrincipalAuthority()` 的核验器时，核验只在同一进程、同一份已加载模块内成立（[签发与核验](../../identity/identity/SPEC.md#签发与核验)）。跨进程来源验证归后续核验提供者，不由本插件承诺。本插件不读授权域，也不核当前成员资格。
+- 已知限制：装配用 identity 的 `inProcessPrincipalAuthority()` 的核验器时，核验只在同一进程、同一份已加载模块内成立（[签发与核验](../../identity/SPEC.md#主体的签发与核验)）。跨进程来源验证归后续核验提供者，不由本插件承诺。本插件不读授权域，也不核当前成员资格。
 
 <a id="ad-10"></a>
 
@@ -810,7 +810,7 @@ AgentInstanceRef = { owner: 'agent', id: JSON.stringify(["slot1", <SessionId 文
 
 - 翻译结果带来源证据：SE03 的回执与翻译函数的版本。
 - `skip-ask` 只跳过询问，不越过结构化权限限制。结构化权限在动作准入处拒绝，本成员不替它判断。
-- `co-work` 下的提问仍受权限限制。这一限制由授权域的询问处理需要表达，元能力宿主的两个布尔值不重复表达它。`InquiryPolicy` 由 Authorization 发布，形状归 [AU-09](../../identity/authorization/SPEC.md#au-09-阶段范围公开形状与维护)。
+- `co-work` 下的提问仍受权限限制。这一限制由授权域的询问处理需要表达，元能力宿主的两个布尔值不重复表达它。`InquiryPolicy` 由 Authorization 发布，形状归 [AU-09](../../identity/SPEC.md#人工决定与询问处理)。
 
 权限轴的纯投影由根入口 `projectSessionPermissionMode` 提供。输入和结果形状归 [permission-mode.ts](src/permission-mode.ts)。覆盖存在时使用覆盖值及原证据；否则显式创建使用创建值及原创建证据；tenant-default 必须消费与原采用四字段全等的默认观察。缺失或错配返回 unavailable，不能退到最新默认。默认观察必须由可信模式来源解析器提供，字段相同本身不授予资格。
 
