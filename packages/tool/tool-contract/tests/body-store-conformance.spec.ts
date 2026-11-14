@@ -1,5 +1,3 @@
-// The ToolBodyStore suite against its own non-durable double, and against a store that answers
-// nothing (the negative control: every case must fail there for the reason it checks).
 import assert from 'node:assert/strict'
 import { describe, it } from 'vitest'
 import {

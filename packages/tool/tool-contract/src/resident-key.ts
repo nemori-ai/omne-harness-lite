@@ -1,8 +1,3 @@
-// The text form of a resident binding key and of a resident shape (SPEC「常驻登记键与 shape 的文本
-// 编码」). The writer of the session evidence and the bridge that reads Session `references` call
-// the same functions, so both sides compute the same key text. Session compares the key text only;
-// Tool does not import a Session type, so the inputs and outputs are plain texts and structural
-// pages, and the caller adds the Session brand.
 import type { JsonEntry, JsonValue } from '@omne-harness/json-text'
 import {
   organizationCodec,
@@ -14,18 +9,11 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolBindingKey, ToolShape, ToolShapeParameters } from './authoring.ts'
 import type { SourceLayer } from './definitions.ts'
 
-/**
- * Why a key, a shape or a page was refused. `field` names the member, for example
- * `layer.workspace`, `asset.adoption.digest` or `sessions[3].shape.kind`. `type`: the member has the
- * wrong type or kind, or an unknown or missing member. `empty`: a text member is empty. `identity`:
- * an identity text does not parse, or a workspace is not a minted value.
- */
 export type ResidentKeyFailure = Readonly<{
   field: string
   reason: 'type' | 'empty' | 'identity'
 }>
 
-/** The structural form of one Session `references` page. It does not import session-contract. */
 export type ResidentReferencesPage = Readonly<{
   sessions: readonly Readonly<{
     tenant: TenantId
@@ -36,7 +24,6 @@ export type ResidentReferencesPage = Readonly<{
   next: string | null
 }>
 
-/** The structural form of a `ToolResidencyPage` of tool-cordis-contract. */
 export type ResidentHolderPage = Readonly<{
   items: readonly Readonly<{ holder: string; tenant: TenantId; shape: ToolShape }>[]
   next: string | null
@@ -86,7 +73,6 @@ function layerId(layer: SourceLayer): Outcome<readonly [string, string], Residen
       return succeed(['tenant', id])
     }
     case 'workspace': {
-      // The workspace branch needs a minted value, as `sameSourceLayer` does.
       const encoded = workspaceCodec.encode(layer.workspace)
       if (!encoded.ok) return refuse('layer.workspace', 'identity')
       return succeed(['workspace', encoded.value])
@@ -96,12 +82,6 @@ function layerId(layer: SourceLayer): Outcome<readonly [string, string], Residen
   }
 }
 
-/**
- * The one text form of a binding key (rk1): the `JSON.stringify` of eight strings, `"rk1"`, the
- * layer kind, the layer identity text, the capability name and the four adoption members. The
- * same key always gives the same text, and two encodable keys give the same text exactly when
- * `sameBindingKey` holds. There is no decoder: a reader only needs the text of a key it has.
- */
 export function encodeResidentKey(key: ToolBindingKey): Outcome<string, ResidentKeyFailure> {
   const input: unknown = key
   if (!isRecord(input)) return refuse('key', 'type')
@@ -151,13 +131,11 @@ function parametersJson(parameters: ToolShapeParameters): JsonValue {
   ])
 }
 
-/** Code-unit order, the order `shapeOf` sorts commands in. */
 function compareText(left: string, right: string): number {
   if (left === right) return 0
   return left < right ? -1 : 1
 }
 
-/** The stored form of a shape: a plain JSON copy with the commands sorted by name. */
 function shapeJson(shape: ToolShape): JsonValue {
   if (shape.kind === 'function')
     return jsonObject([
@@ -180,7 +158,6 @@ function shapeJson(shape: ToolShape): JsonValue {
   ])
 }
 
-/** The members of a JSON object when they are exactly `keys`, each once; otherwise a failure. */
 function members<K extends string>(
   value: unknown,
   keys: readonly K[],
@@ -205,7 +182,6 @@ function jsonString(value: unknown, field: string): Outcome<string, ResidentKeyF
   return text(value['value'], field)
 }
 
-/** The `kind` text member of a stored object, read before its member set is judged. */
 function kindOf(value: unknown, field: string): Outcome<string, ResidentKeyFailure> {
   if (!isRecord(value) || value['kind'] !== 'object' || !Array.isArray(value['entries']))
     return refuse(field, 'type')
@@ -215,7 +191,6 @@ function kindOf(value: unknown, field: string): Outcome<string, ResidentKeyFailu
   return jsonString(isRecord(entry) ? entry['value'] : undefined, `${field}.kind`)
 }
 
-/** Reads one stored parameters member back, by the closed `ToolShapeParameters` form. */
 function readParameters(
   value: JsonValue,
   field: string,
@@ -249,7 +224,6 @@ function readParameters(
   )
 }
 
-/** Reads a stored shape back by the closed `ToolShape` form; any other member or kind fails. */
 function readShape(value: unknown, field: string): Outcome<ToolShape, ResidentKeyFailure> {
   const kind = kindOf(value, field)
   if ('failure' in kind) return kind
@@ -286,12 +260,6 @@ function readShape(value: unknown, field: string): Outcome<ToolShape, ResidentKe
   )
 }
 
-/**
- * What the writer of the session evidence needs for one resident item, in one call: the
- * capability identity (the asset name), the key text and the stored shape. The stored shape is a
- * plain JSON copy with the commands sorted by name, and it reads back by the same rule that
- * `projectResidentReferences` applies, so a writer cannot store a shape the reader refuses.
- */
 export function residentToolFacts(
   key: ToolBindingKey,
   shape: ToolShape,
@@ -311,11 +279,6 @@ export function residentToolFacts(
   return succeed(Object.freeze({ capability: key.asset.name, key: encoded.ok, shape: stored }))
 }
 
-/**
- * The read-side projection: each Session reference becomes a holder reference `{ holder: session,
- * tenant, shape }`, and `next` is kept. When any shape does not read back, the whole page fails
- * and names the reference and the member; no reference is dropped to return the others.
- */
 export function projectResidentReferences(
   page: ResidentReferencesPage,
 ): Outcome<ResidentHolderPage, ResidentKeyFailure> {

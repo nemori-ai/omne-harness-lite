@@ -1,7 +1,4 @@
 import type { ToolBodyWriter } from '@omne-harness/tool-contract'
-// The independent execution scope (G2, P11): a local output ledger, one logical wait at a time,
-// cancellation through the given signal and the return barrier. It creates no ToolCall and
-// promises no durability; a success receipt is `local`.
 import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolDecision } from '@omne-harness/tool-contract'
@@ -61,8 +58,6 @@ function unavailableOperation(operation: string, reason: string): Failure {
   return Object.freeze({ kind: 'unavailable', operation, reason })
 }
 
-/** Reads an outcome that a provider returned. A value of another shape is a provider defect. */
-/** Reads what a receiver or provider settled with: an Outcome, or a throw that becomes unknown. */
 function readExternal(
   operation: string,
 ): [(value: unknown) => Result<unknown>, (error: unknown) => Result<unknown>] {
@@ -107,13 +102,8 @@ function hasExactKeys(value: object, keys: readonly string[]): boolean {
   )
 }
 
-// ---------------------------------------------------------------------------------------------
-// Process updates
-// ---------------------------------------------------------------------------------------------
-
 type JudgedUpdate = Readonly<{
   update: ToolProcessUpdate
-  /** Bytes the update adds to the accumulated state of its block while the block is open. */
   accumulates: number
 }>
 
@@ -148,7 +138,6 @@ function judgeReplace(input: object, header: UpdateHeader): Outcome<JudgedUpdate
   if (content.kind !== 'value') return invalid('content is missing')
   const judged = judgeContentBlock(content.value)
   if ('rejected' in judged) return invalid(`content is not a content block: ${judged.rejected}`)
-  // Process output is for people (P11). A block hidden from people has no reader here.
   if (!judged.ok.visibility.toHuman) return invalid('content must be visible to humans')
   const block: ContentBlock = Object.freeze({
     ...judged.ok,
@@ -171,24 +160,16 @@ function judgeUpdate(input: unknown): Outcome<JudgedUpdate, Failure> {
   return invalid('kind must be append-text or replace')
 }
 
-// ---------------------------------------------------------------------------------------------
-// Wait requests
-// ---------------------------------------------------------------------------------------------
-
 type JudgedWait = Readonly<{
   request: AnyWaitRequest
-  /** The key, the contract identity, the deadline and the canonical request text. */
   digest: string
-  /** The record capacity reserved in the wait history (P11): declared request and response limits. */
   reserve: number
-  /** The declared response limit; a larger reply is not a valid reply (P11). */
   responseMax: number
 }>
 
 type WaitHeader = Readonly<{ kind: WaitKind; key: string; fields: object }>
 
 type JudgedContract = Readonly<{
-  /** The contract object as given; it is kept, not copied, because its handle is opaque here. */
   value: object
   adoption: string
   expiry: Expiry
@@ -196,7 +177,6 @@ type JudgedContract = Readonly<{
   responseMax: number
 }>
 
-/** The closed field set of each wait kind. An Ask has no deadline (P11). */
 const WAIT_KEYS: Readonly<Record<WaitKind, readonly string[]>> = {
   ask: ['kind', 'key', 'contract', 'request'],
   resource: ['kind', 'key', 'contract', 'request', 'deadline'],
@@ -246,10 +226,6 @@ function readDeclaredMaxBytes(contract: object, key: 'request' | 'response'): nu
   return maxBytes.kind === 'value' && isPositiveSafeInteger(maxBytes.value) ? maxBytes.value : null
 }
 
-/**
- * The shape of a wait contract. The contract package keeps its handle brand private, so only the
- * fields the scope consumes are checked: kind, expiry, adoption and the two declared limits.
- */
 function judgeWaitContract(value: unknown, kind: WaitKind): Outcome<JudgedContract, Failure> {
   if (typeof value !== 'object' || value === null)
     return invalid('contract must be a wait contract')
@@ -268,7 +244,6 @@ function judgeWaitContract(value: unknown, kind: WaitKind): Outcome<JudgedContra
   return succeed({ value, adoption, expiry, requestMax, responseMax })
 }
 
-/** The deadline of a resource wait: null, or an ISO 8601 instant when the contract supports expiry. */
 function judgeDeadline(input: object, expiry: Expiry): Outcome<string | null, Failure> {
   const read = slot(input, 'deadline')
   if (read.kind !== 'value' || (read.value !== null && typeof read.value !== 'string'))
@@ -287,7 +262,6 @@ type RequestParts = Readonly<{
   deadline: string | null
 }>
 
-/** A frozen copy of the request. The contract object was judged by shape and is kept as given. */
 function copyWaitRequest({ header, contract, request, deadline }: RequestParts): AnyWaitRequest {
   const base = { key: header.key, request }
   return header.kind === 'ask'
@@ -330,15 +304,6 @@ function judgeWait(input: unknown): Outcome<JudgedWait, Failure> {
   })
 }
 
-// ---------------------------------------------------------------------------------------------
-// Provider replies
-// ---------------------------------------------------------------------------------------------
-
-/**
- * The UTF-8 size of the JSON text of a reply's `value`: the response schema governs that value
- * (P12), and `no-answer`, `declined` and `expired` carry none. `null` when the value has no JSON
- * text.
- */
 function replyValueBytes(reply: unknown): number | null {
   if (typeof reply !== 'object' || reply === null) return 0
   const value = slot(reply, 'value')
@@ -351,7 +316,6 @@ function replyValueBytes(reply: unknown): number | null {
   }
 }
 
-/** A reply whose value exceeds the declared response limit is not a valid reply (P11). */
 function judgeReply(reply: unknown, responseMax: number, operation: string): Result<unknown> {
   const bytes = replyValueBytes(reply)
   if (bytes === null)
@@ -363,10 +327,6 @@ function judgeReply(reply: unknown, responseMax: number, operation: string): Res
   return succeed(reply)
 }
 
-// ---------------------------------------------------------------------------------------------
-// The execution ledger
-// ---------------------------------------------------------------------------------------------
-
 type Block = { mode: ToolProcessUpdate['kind']; closed: boolean; bytes: number }
 
 type Admitted = Readonly<{ update: ToolProcessUpdate; sequence: number; bytes: number }>
@@ -376,23 +336,18 @@ type WaitEntry = {
   readonly digest: string
   readonly request: AnyWaitRequest
   readonly responseMax: number
-  /** The outcome once the wait settled, shared by every re-entry with the same key and input. */
   outcome: Result<unknown> | null
-  /** The in-flight open, when the wait is reserved or forwarded and not yet settled. */
   pending: Promise<Result<unknown>> | null
-  /** Settles the wait from outside: cancellation or a finish while it is open. */
   readonly interrupt: Deferred<Outcome<never, Failure>>
 }
 
 type Exit = 'returned' | 'failed'
 
-/** One execution: its state, output ledger, wait history and settlement. */
 class Execution {
   readonly limits: ToolAuthorLimits
   readonly signal: AbortSignal
   readonly receiver: ToolProcessReceiver | null
   readonly waits: ToolWaiter | null
-  /** The first closure. A later closure of another kind never replaces it. */
   closure: Exit | 'cancelled' | null = null
   cancelled = false
   readonly aborted: Deferred<void> = deferred()
@@ -402,13 +357,10 @@ class Execution {
   pendingItems = 0
   readonly blocks = new Map<string, Block>()
   openBytes = 0
-  /** The delivery chain. Every accepted emit reaches the receiver after the one before it. */
   tail: Promise<void> = Promise.resolve()
-  /** The first accepted output that the receiver did not take. The barrier never holds past it. */
   fault: Readonly<{ sequence: number; failure: Failure }> | null = null
   readonly history = new Map<string, WaitEntry>()
   historyBytes = 0
-  /** The one unfinished logical wait, kept across a failed open until it settles (P11). */
   active: WaitEntry | null = null
   settlement: Readonly<{ exit: Exit; promise: Promise<Result<void>> }> | null = null
 
@@ -436,12 +388,10 @@ class Execution {
     this.active?.interrupt.resolve(fail(cancellation()))
   }
 
-  /** Drops the abort listener once the execution can no longer change: cancelled or finished. */
   release(): void {
     this.signal.removeEventListener('abort', this.onAbort)
   }
 
-  /** Why a new primitive is refused now, or null while the execution accepts. */
   refusal(): Failure | null {
     if (this.cancelled) return cancellation()
     if (this.closure !== null) return named('closed', `the execution ${this.closure}`)
@@ -468,7 +418,6 @@ class Execution {
     return succeed(Object.freeze({ kind: 'local', sequence: String(sequence) }))
   }
 
-  /** The accumulated bytes of the update's block, or why the update cannot enter the block. */
   enterBlock(update: ToolProcessUpdate): Outcome<number, Failure> {
     const block = this.blocks.get(update.index)
     if (block === undefined) return succeed(0)
@@ -477,7 +426,6 @@ class Execution {
     return succeed(block.bytes)
   }
 
-  /** Takes the slot: the sequence, the pending budget and the block state are fixed before any await. */
   admit({ update, accumulates }: JudgedUpdate): Outcome<Admitted, Failure> {
     const entered = this.enterBlock(update)
     if ('failure' in entered) return entered
@@ -507,7 +455,6 @@ class Execution {
     return succeed({ update, sequence, bytes })
   }
 
-  /** Appends the update to the delivery chain and gives the receiver's outcome for it. */
   deliver(
     receiver: ToolProcessReceiver,
     sequence: number,
@@ -531,20 +478,17 @@ class Execution {
     const known = this.history.get(judged.ok.request.key)
     const entry = known === undefined ? this.reserve(judged.ok) : this.recall(known, judged.ok)
     if ('failure' in entry) return Promise.resolve(entry)
-    // The answer came from the provider for this same request, so it has the type the author asked for.
     return this.open(entry.ok, this.waits) as Promise<
       Result<ToolDecision<A> | ToolResourceReply<A>>
     >
   }
 
-  /** The same key recalls its record only with the same input (P11). */
   recall(entry: WaitEntry, judged: JudgedWait): Outcome<WaitEntry, Failure> {
     if (entry.digest !== judged.digest)
       return fail(named('conflict', `key ${entry.key} was opened with another input`))
     return succeed(entry)
   }
 
-  /** Reserves the history record of a new key, or says why no new key can open now. */
   reserve(judged: JudgedWait): Outcome<WaitEntry, Failure> {
     const { request, digest, reserve, responseMax } = judged
     if (this.active !== null) return fail(named('busy', `wait ${this.active.key} is still open`))
@@ -572,7 +516,6 @@ class Execution {
     return succeed(entry)
   }
 
-  /** Shares a settled or in-flight wait, or opens a reserved one. */
   open(entry: WaitEntry, waits: ToolWaiter): Promise<Result<unknown>> {
     if (entry.outcome !== null) return Promise.resolve(entry.outcome)
     if (entry.pending !== null) return entry.pending
@@ -586,8 +529,6 @@ class Execution {
     if ('failure' in barrier) {
       if (barrier.failure.kind === 'cancelled' || barrier.failure.kind === 'closed')
         return this.settle(entry, barrier)
-      // The position stays reserved and active: the same key and input retries it, another key
-      // is busy until it settles (P11).
       entry.pending = null
       return barrier
     }
@@ -600,10 +541,7 @@ class Execution {
       )
       .then(...readExternal(operation))
     const raced = await Promise.race([external, entry.interrupt.promise])
-    // An abort that lands between the answer and this continuation still wins: the executor
-    // confirmed the cancellation before the hand-over (P11).
     if (this.cancelled) return this.settle(entry, fail(cancellation()))
-    // A finish that lands in the same window found this wait active, so the wait ends closed.
     if (this.closure !== null)
       return this.settle(
         entry,
@@ -620,13 +558,11 @@ class Execution {
     return outcome
   }
 
-  /** Holds until every output accepted before now reached the receiver, or an interrupt arrives. */
   async barrier(interrupt: Promise<Outcome<never, Failure>>): Promise<Result<void>> {
     const tail = this.tail
     const sequence = this.sequence
     const outcome = await Promise.race([tail.then(() => null), interrupt])
     if (outcome !== null) return outcome
-    // An abort that lands between the tail settling and this continuation still wins.
     if (this.cancelled) return fail(cancellation())
     if (this.fault !== null && this.fault.sequence <= sequence) return fail(this.fault.failure)
     return succeed(undefined)
@@ -642,14 +578,12 @@ class Execution {
     this.closure ??= exit
     const promise = exit === 'failed' ? Promise.resolve(this.closeFailed()) : this.closeReturned()
     this.settlement = { exit, promise }
-    // The signal can still cancel a returned finish while output is stuck; after that, nothing.
     const release = () => this.release()
     void promise.then(release, release)
     return promise
   }
 
   closeFailed(): Result<void> {
-    // A failed exit does not wait on stuck output; the receiver keeps what it accepted.
     this.active?.interrupt.resolve(
       fail(named('closed', 'the execution failed with this wait open')),
     )
@@ -665,7 +599,6 @@ class Execution {
       if (this.cancelled) return fail(cancellation())
       return invalid(`the author returned with wait ${active.key} open`)
     }
-    // The barrier answers cancelled when the signal aborted before or while it held (P11).
     return this.barrier(this.aborted.promise.then(() => fail(cancellation())))
   }
 }
@@ -674,10 +607,6 @@ function barrierFault(failure: Failure, operation: string): Failure {
   if (failure.kind === 'unavailable' || failure.kind === 'unknown') return failure
   return unavailableOperation(operation, `${failure.kind}: ${failure.reason}`)
 }
-
-// ---------------------------------------------------------------------------------------------
-// The author-facing context and the scope
-// ---------------------------------------------------------------------------------------------
 
 class IndependentContext implements ToolExecutionContext {
   readonly mode = 'independent' as const
@@ -732,10 +661,6 @@ function isCapability(value: unknown, method: string): boolean {
   return typeof Reflect.get(value, method) === 'function'
 }
 
-/**
- * Builds an independent execution scope (G2). Every limit must be a positive safe integer, the
- * signal must be an AbortSignal, and each capability is null or an object with the port method.
- */
 export function createIndependentToolScope(
   input: IndependentToolScopeInput,
 ): Outcome<ToolExecutionScope, Rejection> {

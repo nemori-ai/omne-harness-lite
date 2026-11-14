@@ -85,7 +85,6 @@ it('snapshots request data before awaits and withholds evidence on read failures
     ...f.input,
     store: {
       ...f.store,
-      // The source guard reads one record by key.
       async readRecord(domain, key) {
         entered.resolve()
         await release.promise

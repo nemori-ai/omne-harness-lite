@@ -1,5 +1,3 @@
-// `content.read` on the source of an authored offloaded result reads the sealed body bytes back
-// from the body store, page by page, under the same ledger checks as `read_result`.
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { sealedText, settlementFixture } from './settlement-values.ts'
 import { auditQueues } from './start-values.ts'

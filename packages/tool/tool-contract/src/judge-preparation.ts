@@ -5,7 +5,6 @@ import type { PreparationRecord } from './records.ts'
 import { judgeUnknown, record, reject, type Checked } from './shape.ts'
 import { durableEvidence } from './value-shapes.ts'
 
-/** Checks a provider fact against the complete original preparation, without authorizing adoption. */
 export function judgePreparationFact(
   value: unknown,
   expected: PreparationRecord,

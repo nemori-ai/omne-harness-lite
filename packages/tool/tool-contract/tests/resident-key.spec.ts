@@ -1,7 +1,3 @@
-// The resident key text and the stored shape (SPEC「常驻登记键与 shape 的文本编码」). Each case
-// names the defect it catches: a key text that is not a function of the key, two writers that
-// would compute different texts for the same key, a stored shape that does not read back, or a
-// reader that drops a bad reference and returns the rest.
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import {
@@ -106,7 +102,6 @@ describe('encodeResidentKey', () => {
 
   it('is deterministic: separately built equal keys give the same text', () => {
     for (const layer of layers()) expect(encoded(key(layer))).toBe(encoded(key(layer)))
-    // A fresh tenant value minted from the same texts is the same layer.
     expect(encoded(key({ kind: 'tenant', tenant: tenantA() }))).toBe(
       encoded(key({ kind: 'tenant', tenant: tenantA() })),
     )
@@ -118,7 +113,6 @@ describe('encodeResidentKey', () => {
       ...layers().map(layer => key(layer, '2')),
       key({ kind: 'tenant', tenant: tenantB() }),
       key({ kind: 'official' }, '1', 'write_file'),
-      // Texts that would collide under a naive join stay apart.
       key({ kind: 'official' }, '1', 'a","b'),
       {
         layer: { kind: 'official' },

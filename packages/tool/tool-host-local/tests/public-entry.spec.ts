@@ -47,7 +47,6 @@ it('root entry exports the local start coordinator (G5), the host clock (G4), th
   ])
 })
 
-/** A root graph must not reach Cordis or the Cordis entry of any package, this one included. */
 function forbiddenFromRoot(specifier: string): boolean {
   return (
     specifier === '@deepseek-ai/cordis' ||
@@ -71,8 +70,6 @@ describe('root entry has no Cordis', () => {
   })
 
   it('sees every import form that can load a module', () => {
-    // A guard for the walker itself: a walker that misses one of these forms would pass the
-    // checks above while the root still loaded Cordis.
     const text = [
       "import '@deepseek-ai/cordis'",
       "export * from './cordis.js'",
@@ -86,7 +83,6 @@ describe('root entry has no Cordis', () => {
   })
 })
 
-/** A testing entry of any package, or a Cordis entry: neither belongs to a production source. */
 function forbiddenInSource(specifier: string): boolean {
   return forbiddenFromRoot(specifier) || /(^|\/)testing(\.d)?(\.ts|\.js)?$/u.test(specifier)
 }

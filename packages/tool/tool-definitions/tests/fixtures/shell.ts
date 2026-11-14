@@ -15,7 +15,6 @@ export function shellFixture(output = 'one-shot output') {
   const sessions = new Map<string, { cwd: string; closed: boolean }>()
   let drained = false
   const stops: string[] = []
-  /** What the optional command retention extension lists; tests add entries. */
   const retained: RetainedProcessInformation[] = []
   const done = <T>(value: T): FacilityResult<T> => ({ kind: 'done', requestId: 'fixture', value })
   const rejected = (reason: 'notFound' | 'closed') =>

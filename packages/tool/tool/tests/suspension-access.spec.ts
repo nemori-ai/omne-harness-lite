@@ -1,6 +1,3 @@
-// The commands that suspend a call, take its decision and resume it answer `denied` to a principal
-// the access guard does not allow on the call, before they judge a field or write a record. The
-// value the decision owner resolves is one of three closed shapes; any other one is refused.
 import { afterEach, describe, expect, it } from 'vitest'
 import { succeed } from '@omne-harness/operation-result'
 import type { ToolWaitId } from '@omne-harness/tool-contract'
@@ -20,16 +17,13 @@ afterEach(auditQueues)
 
 const FIRST = 'op-c1/start/wait' as ToolWaitId
 const OWNER = { principal: principalA, tenant: tenantA, call: callId('c1') }
-/** The same tenant and call, named by a principal of another tenant. */
 const STRANGER = { ...OWNER, principal: principalB }
 
-/** `c1` admitted and run to its first wait: suspended, with the wait registered. */
 async function suspended() {
   const authority = testAuthority()
   const checkpoint = checkpointBinding(authority, askingAuthor())
   const released = { kind: 'released', evidence: evidence('environment-released') } as const
   const bridge = scriptedBridge('registers')
-  /** What the decision owner reports about a wait; a test may replace it. */
   const reports = { inspect: bridge.inspect }
   const harness = startHarness({
     authority,
@@ -57,7 +51,6 @@ describe('a principal the guard does not allow on the call', () => {
     const harness = await suspended()
     const recovery = ok(await harness.commands.loadRecovery(OWNER))
     const state = await harness.state('c1')
-    /** The write fields of the suspended call as its owner would send them. */
     const write = (operation: string) => ({
       ...STRANGER,
       instance: recovery.execution?.instance as never,
@@ -107,7 +100,6 @@ describe('a principal the guard does not allow on the call', () => {
   })
 
   it('the owner of the call is not denied by the same commands', async () => {
-    // The same fields under the owner pass the guard: each answer is the judgment of its fields.
     const harness = await suspended()
     const recovery = ok(await harness.commands.loadRecovery(OWNER))
     const state = await harness.state('c1')
@@ -181,7 +173,6 @@ describe('a decision the owner reports under another registration', () => {
       signal: new AbortController().signal,
     })
     expect(step).toMatchObject({ kind: 'blocked' })
-    // The value was not asked for and nothing was written: the wait is still open.
     expect(harness.bridge.resolved).toEqual([])
     expect(harness.memory.commits).toBe(commits)
     expect((await harness.state('c1')).phase).toBe('suspended')

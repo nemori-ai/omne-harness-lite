@@ -21,7 +21,6 @@ it('requires caller-owned authorization, trusted construction ports and unresolv
   expectTypeOf<TestToolDependencies<P>['dependencies']>().not.toExtend<
     ToolDependencies<P, TextContentBlock, MemoryEnvironment>
   >()
-  // A type-only check: these values are never evaluated.
   const required = (input: TestToolDependenciesInput<P>): void => {
     const { guards, instances, catalog, children, operationIdentities, sourceIssuer, ...rest } =
       input

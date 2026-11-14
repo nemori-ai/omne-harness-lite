@@ -1,5 +1,3 @@
-// Ask 的检查点作者：ask 与 request_approval 共用一个执行者。
-// initial 段校验参数，然后以整批卡片暂停。resume 段把答复投影成结果。
 import type { JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
@@ -68,7 +66,6 @@ export const askExecutor: CheckpointedToolExecutor<AskArguments, string, null> =
       },
     })
   },
-  // resume 段不再等人：读回题目，把决定投影成结果，调用随之完成。
   async resume({ checkpoint, response }) {
     const state = readAskState(checkpoint)
     if ('failure' in state) return fail({ kind: 'invalid', reason: state.failure })
@@ -80,10 +77,6 @@ export const askExecutor: CheckpointedToolExecutor<AskArguments, string, null> =
 
 const returns = textReturns(askAdoption)
 
-/**
- * Ask 的命令工具：两条命令共用 `askExecutor`，都声明 `askWaitContract`。结果是 resume 段投影出的
- * 文本，运维者用 `resultMaxBytes` 限定它的 UTF-8 字节数。
- */
 export function createAskAuthor(
   construction: JsonValue,
 ): ReturnType<ToolImplementationModule<null, ToolMessageContentBlock>['createAuthor']> {

@@ -20,7 +20,6 @@ export type ReaderFixture<P> = ToolResultReader<P> &
     definition: ToolDefinition
   }>
 
-/** Test-only command transport. This is not the released five-command Tools author. */
 export function createReaderFixture<P>(
   runtime: ToolsReadRuntime<P>,
   options: ToolsOptions,

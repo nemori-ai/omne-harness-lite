@@ -118,7 +118,6 @@ export type Author = (
   execution: ToolExecutionContext,
 ) => Promise<string>
 
-/** Frozen external contracts. The in-memory store's declaration tests assembly, not durability. */
 export async function fixture(
   author: Author = async value => `answer:${value}`,
   receiver?: ToolResultReceiver<unknown, ToolMessageContentBlock>,
@@ -131,7 +130,6 @@ export async function fixture(
     schemas: LocalToolRuntimeInput['bodySchemas']
   }>,
   configure: (base: ToolConfiguration) => ToolConfiguration = base => base,
-  /** A checkpointed author in place of `author`, and the decision owner of its waits. */
   checkpointed?: Readonly<{
     executor: CheckpointedToolExecutor<string, string, ToolEnvironmentValue>
     waits: readonly ToolWaitContract<unknown, 'ask'>[]
@@ -437,7 +435,6 @@ export async function fixture(
   const input: LocalToolRuntimeInput = {
     store,
     bodies: createMemoryToolBodies(),
-    // No verdict of this fixture carries a condition.
     conditionalCommit: { commit: async ({ ledger }) => store.commit(ledger) },
     content: null,
     ...(body === undefined ? {} : { bodySchemas: body.schemas }),
@@ -445,7 +442,6 @@ export async function fixture(
     access,
     clock,
     configuration: configure(configuration),
-    // Short, so that a call whose hint was lost is found again within a test's poll.
     recoveryRescanMs: 600,
     guardsOf: () => [],
     permitRequirements: {
@@ -804,10 +800,6 @@ export async function fixture(
       consumer = receive()
       await consumer
     },
-    /**
-     * A second runtime over the same records, as a restarted process has it: its own plugins, its
-     * own start authority, and author bindings that settle into its own author execution.
-     */
     async newExecutor(overrides: Partial<LocalToolRuntimeInput> = {}) {
       const nextRoot = new Context()
       let nextBindings: typeof bindings

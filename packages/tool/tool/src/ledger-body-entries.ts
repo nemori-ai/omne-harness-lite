@@ -1,7 +1,3 @@
-// The ledger's authority over one body of a call (BodyLifecycle `status`): `opened` at the writer's
-// begin, `sealed` once the store holds the manifest, `linked` by the result commit, `orphaned` by the
-// settlement that did not link it, `reclaimed` by the sweep. Expiry is not kept here: the result's
-// body descriptor and the due index hold it, so one decision lives in one place.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   Attachment,
@@ -34,14 +30,12 @@ import type { BodyEntryRecord } from './ledger-body-records.ts'
 
 export type { BodyEntryRecord, BodyEntryState } from './ledger-body-records.ts'
 
-/** What the body deciders read of a call domain snapshot. */
 export type BodyView = Readonly<{
   bodies: ReadonlyMap<string, BodyEntryRecord>
   call: CallRecord | null
   operations: ReadonlyMap<string, OperationRecord>
 }>
 
-/** A decision in the shape the ledger's transactions take. */
 type BodyDecision<T> =
   | Readonly<{ kind: 'reply'; outcome: Outcome<T, ToolFailure> }>
   | Readonly<{ kind: 'commit'; writes: readonly LedgerWrite[]; value: T }>
@@ -49,14 +43,12 @@ type BodyDecision<T> =
 const put = (record: LedgerRecord): LedgerWrite => ({ kind: 'put', record })
 import type { BodyPolicy } from './result-offloading.ts'
 
-/** The storage name of a body's content reference. A reference here is never a native resource. */
 export const bodyStorage = '@omne-harness/tool/body'
 
 export function bodyEntryKey(bodyId: ToolBodyId): string {
   return `body:${bodyId}`
 }
 
-/** One identity per (execution, key): a new generation writes a new body, never the same one. */
 export function bodyIdentity(start: ToolStartRecord | null, key: string): ToolBodyId {
   const digest = digestOf({ start: start?.operation ?? null, key }).slice('sha256:'.length)
   const decoded = decodeToolBodyId(`body:${digest}`)
@@ -80,7 +72,6 @@ export function bodySource(bodyId: ToolBodyId, manifest: ToolBodyManifest): Atta
   }
 }
 
-/** The sealed body of this call that `source` names, if any. */
 export function entryBySource(snapshot: BodyView, source: Attachment): BodyEntryRecord | null {
   for (const entry of snapshot.bodies.values()) {
     const manifest = sealedManifest(entry)
@@ -89,17 +80,12 @@ export function entryBySource(snapshot: BodyView, source: Attachment): BodyEntry
   return null
 }
 
-/** A body reference is a temporary custody of this call, never a native resource of a result. */
 export function checkBodyReferences(references: readonly Attachment[]): Outcome<void, ToolFailure> {
   return references.some(reference => reference.storage === bodyStorage)
     ? invalid('content.ref', 'temporary-body-source-is-not-a-native-resource')
     : succeed(undefined)
 }
 
-/**
- * The precondition of `Begin`, `Renew` and `LedgerSeal`: the call is not settled and, for an author
- * body, the writing execution is the current one.
- */
 export function bodyWritable(
   snapshot: BodyView,
   start: ToolStartRecord | null,
@@ -132,7 +118,6 @@ const reply = <T>(outcome: Outcome<T, ToolFailure>): BodyDecision<Outcome<T, Too
   outcome: succeed(outcome),
 })
 
-/** Model `Begin`: commit `opened`. The same operation with the same input is recognised. */
 export function beginBodyEntry(
   snapshot: BodyView,
   mint: Readonly<{ revision: ToolRevision }>,
@@ -180,7 +165,6 @@ export function beginBodyEntry(
   }
 }
 
-/** Model `LedgerSeal`: after the store sealed the bytes; refused once the call is settled. */
 export function sealBodyEntry(
   snapshot: BodyView,
   bodyId: ToolBodyId,
@@ -212,12 +196,6 @@ export type LinkedBody = Readonly<{
   expiresAt: ToolInstant
 }>
 
-/**
- * The body part of model `Settle`: the referenced body must be `sealed`; it becomes `linked` and is
- * scheduled at its expiry. Every other `opened` or `sealed` body of the call becomes `orphaned` and
- * is scheduled at `orphanDue` (the settler's now + G). A result that references an unsealed body
- * settles as `invalid` with `body-not-sealed`.
- */
 export function settleBodyEntries(
   snapshot: BodyView,
   linked: LinkedBody | null,
@@ -235,7 +213,6 @@ export function settleBodyEntries(
   return succeed([...link.ok, ...orphans])
 }
 
-/** The referenced body, `sealed`, becomes `linked` to the result and is due at its expiry. */
 function linkWrites(
   snapshot: BodyView,
   linked: LinkedBody,

@@ -43,7 +43,6 @@ export function createRuntimeRecords(
     ...(input.bodySchemas === undefined ? {} : { bodySchemas: input.bodySchemas }),
     bodies: input.bodies,
     releaseInspection: stages.environments,
-    // acceptDecision resolves the decision through the decision owner read at each call.
     decisions: {
       resolve: request =>
         input.decisions?.()?.resolve(request) ??

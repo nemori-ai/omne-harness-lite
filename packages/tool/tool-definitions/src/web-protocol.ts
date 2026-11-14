@@ -1,5 +1,3 @@
-// The command table of Web: the same table supplies the declared parameters, the validation and the
-// help text, through the shared Files and Shell protocol helpers.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ParameterContract } from '@omne-harness/tool-contract'
 import { describedAdoption, type ParameterCodec } from '@omne-harness/tool-contract/provider'
@@ -18,7 +16,6 @@ export type WebArguments =
   | Readonly<{ kind: 'search'; query: string; limit: number | null }>
   | Readonly<{ kind: 'fetch'; url: string }>
 
-/** A Web command of the table: a `Command` whose name is one of `webCommandNames`. */
 export type WebCommand = Command & Readonly<{ name: WebCommandName }>
 
 export const webCommands: readonly WebCommand[] = [
@@ -100,7 +97,6 @@ function typed(name: WebCommandName, args: Arguments): Parsed {
   }
 }
 
-/** The codec of one Web command: the shared field validation, then the typed arguments. */
 export function webParameterCodec(name: WebCommandName): ParameterCodec<WebArguments> {
   const base = parameterCodec(webCommand(name))
   return {

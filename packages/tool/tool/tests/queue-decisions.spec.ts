@@ -1,7 +1,3 @@
-// The queue transitions of one scope (P02): a call takes a slot (Hold), gives it up while its wait
-// has no decision (Park) and takes its place in the order again (Requeue). Each transition is a
-// function of the entries of the scope, so the cases state the entries and read what the queue
-// answers and writes.
 import { describe, expect, it } from 'vitest'
 import type { ToolCallId, ToolOperationId } from '@omne-harness/tool-contract'
 import {
@@ -85,7 +81,6 @@ describe('taking a slot (Hold)', () => {
       kind: 'reply',
       outcome: { failure: { kind: 'conflict', operation: op('op-other') } },
     })
-    // Without the resume mark an entry held by another operation is not taken over.
     expect(hold([held], false, 'op-other')).toMatchObject({
       kind: 'reply',
       outcome: { failure: { kind: 'conflict' } },
@@ -100,7 +95,6 @@ describe('taking a slot (Hold)', () => {
       value: { kind: 'held', entry: { stage: 'held', operation: 'op-resume' } },
     })
     expect(written(decision)).toHaveLength(1)
-    // The resume that holds the slot already recalls it and writes nothing.
     expect(hold([{ ...held, operation: op('op-resume') }], true, 'op-resume')).toMatchObject({
       kind: 'reply',
       outcome: { ok: { kind: 'held' } },

@@ -22,16 +22,6 @@ import { controlProgress } from './control-progress.ts'
 import { decideControl, decideRecordControl } from './ledger-control.ts'
 import { settleLostWith } from './ledger-lost.ts'
 import { controlSubject, createLedgerControls } from './ledger-control-subjects.ts'
-// The ledger factory (G1): `createToolLedger(store, guards, clock, configuration, settlement)` gives the
-// ToolCommands and ToolReads of this implementation, and the admission entry that the runtime
-// uses. Each entry checks its boundary input, asks the guards, reads the domain, lets a pure
-// decider answer, and commits by revision. A negative answer of a query is given only after an
-// exclusion fence commits; a command of the excluded operation that was in flight then stops
-// instead of landing after the negative. The commands of the way to a start sequence the call
-// domain and the queue domain as docs/architecture.md describes: the call domain leads with a
-// task, the queue domain follows, the call domain closes. Operations of later increments answer a
-// named `unsupported` failure after the same checks; nothing throws for an expected failure,
-// and nothing pretends to succeed.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -204,38 +194,26 @@ export type ToolLedger<P, B extends ContentBlock> = Readonly<{
     read(input: CallAccess<P> & Readonly<{ result: ToolResultVersion }>): Reply<ToolResult<B>>
   }>
   bodyWrites: ToolBodyWrites<P>
-  /** The sweep over the due index: delete the bytes, then record `reclaimed` (C5). */
   sweep: ToolLedgerSweep['sweep']
-  /** Plans the final when the execution records it; the fact stores the plan (ruling 1). */
   finalPlanner: ToolFinalPlanner<P, B>
   controls: ToolLedgerControls<P>
   commands: ToolCommands<P, B>
   reads: ToolReads<P, B>
-  /** The admission with the recall flag; `commands.admit` answers its state only. */
   admissions: ToolLedgerAdmissions<P>
-  /** The queue maintenance a waiting call asks for (SPEC 22). */
   queues: ToolLedgerQueues<P>
-  /** The minimal failure terminal after a step the store rejected for good (SPEC 23). */
   rejections: ToolLedgerRejections<P>
   facts: ToolLedgerFacts<P, B>
-  /** The trusted recovery scan across tenants; the host takes it at construction. */
   recovery: ToolLedgerRecovery
 }>
 
-/** 一页扫描最多列出的调用数。 */
 const SCAN_LIMIT = 1000
 
-/** The identity of this ledger implementation, named in its `unsupported` answers. */
 export const toolLedgerAdoption: Adoption = describedAdoption({
   owner: '@omne-harness/tool',
   name: 'tool-ledger',
   revision: '1',
 })
 
-/**
- * The diagnostic of a port that threw. A thrown message can carry a connection string or other
- * secret text (P05: diagnostics carry no secret), so the reply names the dependency only.
- */
 function thrown(dependency: string): string {
   return `${dependency} threw an exception; its message is not reported`
 }
@@ -254,10 +232,6 @@ function unavailable(dependency: string, diagnostic: string): Outcome<never, Too
 
 type DecideQueue<T> = (snapshot: QueueSnapshot) => Decision<T>
 
-/**
- * What a query answers when its exclusion fence has an unknown outcome. A negative answer is
- * never given then (P01), because an in-flight commit of the operation may still land.
- */
 type Fence<T> = Readonly<{
   negative(answer: T): boolean
   unknown: Outcome<T, ToolFailure>
@@ -273,15 +247,8 @@ const operationFence: Fence<OperationResolution> = {
   unknown: succeed({ kind: 'unknown' }),
 }
 
-/** The write context fields plus the principal the caller passes alongside (SPEC 19). */
 type WriteEntry<P> = WriteInput & Readonly<{ principal: P }>
 
-/**
- * Creates the ledger. The store keeps the records, the guards answer qualification and policy,
- * the configuration gives the result page size, the commit attempts and the queue capacity, and
- * the clock begins the timing segment of a foreground start. A bad configuration throws
- * `TypeError`.
- */
 export function createToolLedger<P, B extends ContentBlock>(
   store: ToolLedgerStore,
   guards: ToolLedgerGuards<P, B>,
@@ -307,10 +274,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     return 'failure' in result ? result : succeed(queueSnapshotOf(domain, result.ok))
   }
 
-  /**
-   * 读一页待办标记。`limit` 已经过边界检查。记录仓答复 `unsupported` 时回复 `unsupported`，
-   * 读不到或抛错时回复 `unavailable`。
-   */
   const scanStore = async (
     input: LedgerPendingScanInput,
   ): Reply<Readonly<{ calls: readonly PendingCall[]; more: boolean }>> => {
@@ -326,16 +289,11 @@ export function createToolLedger<P, B extends ContentBlock>(
     return succeed({ calls: answer.calls, more: answer.more })
   }
 
-  /** 一页的大小：1 到 SCAN_LIMIT 的整数。 */
   const judgeLimit = (value: unknown): Outcome<number, ToolFailure> =>
     typeof value === 'number' && Number.isSafeInteger(value) && value >= 1 && value <= SCAN_LIMIT
       ? succeed(value)
       : invalid('limit', `expected an integer from 1 to ${SCAN_LIMIT}`)
 
-  /**
-   * 契约的 scanPending：只扫输入的租户，按调用身份分页，游标是上一页最后一个调用。列出的每个
-   * 调用都按 `recover` 问资格，有一个被拒绝就整页拒绝，不默默去掉它。空页不问资格。
-   */
   const scanPending: ToolCommands<P, B>['scanPending'] = async input => {
     if (typeof input !== 'object' || input === null) return invalid('input', 'type')
     const tenant: unknown = Reflect.get(input, 'tenant')
@@ -389,10 +347,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     },
   }
 
-  /**
-   * The queue-domain step of a cross-domain transition. A conflict re-reads and re-decides; the
-   * decision is idempotent by call, so a repeated step after a crash recalls its own transition.
-   */
   const transactQueue = async <T>(
     domain: Extract<LedgerDomain, { kind: 'queue' }>,
     decide: DecideQueue<T>,
@@ -431,7 +385,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     key: queueKeyOf(request),
   })
 
-  /** A read entry: boundary, access, snapshot, projection. */
   const query = async <T>(
     input: unknown,
     action: ToolLedgerAction,
@@ -444,15 +397,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     return project(snapshot.ok, checked.ok)
   }
 
-  /**
-   * A read entry whose negative answer excludes the in-flight commits of the operation (P01). A
-   * complete read without the operation is followed by an exclusion fence: a commit that writes
-   * the exclusion record of the operation at the new domain revision, replacing an older one.
-   * Every commit prepared against the read revision then fails its revision check, and the
-   * command behind it reads the fence on its retry. The negative answer is given only after the
-   * fence committed; a conflict re-reads, and an unknown or unavailable fence never answers the
-   * negative.
-   */
   const fenced = async <T>(
     input: unknown,
     action: ToolLedgerAction,
@@ -471,9 +415,6 @@ export function createToolLedger<P, B extends ContentBlock>(
         const answer = project(snapshot, operation.ok)
         if (!fence.negative(answer)) return { kind: 'reply', outcome: succeed(answer) }
         const exclusion = { operation: operation.ok, revision: mint.revision }
-        // In a domain without the call the fence is the only record, so it gets its own removal
-        // instant (CallLifecycle `LateOperation`). A domain that holds the call is scheduled by
-        // the release of its delivery.
         const clock = settlement.bodies?.clock
         return {
           kind: 'commit',
@@ -496,7 +437,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     )
   }
 
-  /** A mutation entry: boundary, access, then the transaction with the given decider. */
   const mutate = async <T>(
     input: unknown,
     action: ToolLedgerAction,
@@ -512,14 +452,9 @@ export function createToolLedger<P, B extends ContentBlock>(
     return transact(callDomain(checked.ok), operation, decider.ok, commitUnknown(operation))
   }
 
-  /**
-   * The boundary and the qualification of a write-context entry. The principal travels next to
-   * the context (the contract's WriteContext has no principal field; SPEC 19).
-   */
   const writeEntry = async (input: unknown): Promise<Outcome<WriteEntry<P>, ToolFailure>> => {
     const checked = judgeWriteInput(input)
     if ('failure' in checked) return checked
-    // A write without a principal is denied like a foreign one; the guard judges the principal.
     if (!('principal' in (input as object))) return denied('write')
     const principal = Reflect.get(input as object, 'principal') as P
     const allowed = await access(
@@ -530,7 +465,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     return succeed({ ...checked.ok, principal })
   }
 
-  /** The write command fields of an entry, with the canonical digest of its own input fields. */
   const writeCommand = (context: WriteEntry<P>, fields: unknown): WriteCommand => ({
     tenant: context.tenant,
     call: context.call,
@@ -539,22 +473,18 @@ export function createToolLedger<P, B extends ContentBlock>(
     inputDigest: digestOf(fields),
   })
 
-  /** The call record as the domain holds it now, for the steps that precede the transaction. */
   const peek = async (context: WriteEntry<P>): Promise<Outcome<Snapshot, ToolFailure>> =>
     read(callDomain(context))
 
-  /** Whether the snapshot already holds the operation: the transaction will recall it. */
   const committedBefore = (snapshot: Snapshot, operation: ToolOperationId): boolean =>
     snapshot.operations.has(operation)
 
-  /** The call of a pre-read, or the failure the transaction would give for its absence. */
   const recordOf = (snapshot: Snapshot): Outcome<CallRecord, ToolFailure> => {
     const call = snapshot.call
     if (call === null) return invalid('call', 'unknown-call')
     return succeed(call)
   }
 
-  /** The gate a cross-domain command checks on its pre-read, before it touches the queue. */
   const preGate = (
     snapshot: Snapshot,
     context: WriteEntry<P>,
@@ -566,10 +496,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     return record
   }
 
-  /**
-   * A write-context entry of a later increment: boundary, access, revision gate, then unsupported.
-   * The gate compares with the revision of the current state, which a fence does not change.
-   */
   const write = async (input: unknown, name: string, increment: string): Reply<never> => {
     const context = await writeEntry(input)
     if ('failure' in context) return context
@@ -587,7 +513,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     )
   }
 
-  /** A mutation entry of a later increment: boundary, access, then unsupported. */
   const later = (input: unknown, action: ToolLedgerAction, name: string, increment: string) =>
     mutate<never>(input, action, () =>
       Promise.resolve(succeed(() => ({ kind: 'reply', outcome: unsupported(name, increment) }))),
@@ -747,7 +672,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     )
   }
 
-  /** How many unreleased calls the queue of the request's scope holds before admission (P02). */
   const queueLoad = async (
     checked: MutationInput<P>,
     request: FixedToolRequest,
@@ -758,14 +682,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     return succeed({ load: snapshot.ok.entries.size, capacity: queueCapacity })
   }
 
-  /**
-   * Gives a pending call its place in the FIFO: the one queue step that creates an entry, shared
-   * by the admission and planPreparation. Whether the call may still take a place is a fact of
-   * the call domain, which `gate` judges on the call-domain read the step holds; the commit that
-   * creates the entry asserts the revision of that read (SPEC 22). A release advances that
-   * revision before it touches the queue, so a creation that judged the call before its release
-   * lands nothing, however late the store applies it. A conflict reads and judges the call again.
-   */
   const order = async (
     context: Readonly<{
       tenant: CallInput<P>['tenant']
@@ -808,7 +724,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     return unavailable('ledger-store', `${attempts} revision conflicts in a row`)
   }
 
-  /** The gate of the admission's ordinal assignment: the call is still `accepted`. */
   const stillAccepted = (snapshot: Snapshot): Outcome<void, ToolFailure> => {
     const record = recordOf(snapshot)
     if ('failure' in record) return record
@@ -817,10 +732,6 @@ export function createToolLedger<P, B extends ContentBlock>(
       : wrongPhase(record.ok.state.phase)
   }
 
-  /**
-   * The ordinal of a fresh admission, assigned before the admit reply (P02). A failure here
-   * leaves the admission standing: planPreparation's queue step assigns the ordinal then.
-   */
   const assignOrdinal = async (checked: MutationInput<P>, request: FixedToolRequest) => {
     const current = await read(callDomain(checked))
     if ('failure' in current) return
@@ -856,14 +767,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     },
   }
 
-  /**
-   * Releases the call's queue place after a settlement of a real tool, then closes the `queue`
-   * task of `operation`. The place is released only on a basis the call domain holds, read after
-   * the settlement committed: a call that merely settled keeps its place and its task (P02). The
-   * release is attempted whatever position the state holds, because an entry may exist that the
-   * state never recorded (a crash after planPreparation's queue step). A failure leaves the
-   * task, so the release is redone by a resend of the same command.
-   */
   const releaseQueue = async (
     context: WriteEntry<P>,
     record: CallRecord,
@@ -890,12 +793,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     return 'failure' in closed ? closed : succeed(state)
   }
 
-  /**
-   * The place a plan takes before its transaction: the plan's gates on the call-domain read, so
-   * that a refused plan leaves no entry behind, then the queue step under the same gates. A call
-   * that settled since the plan read it answers as the transaction would, `stale-revision` or the
-   * phase it is in, and no entry is made for it.
-   */
   const placeForPlan = async (
     context: WriteEntry<P>,
     command: WriteCommand,
@@ -930,7 +827,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     })
     const before = await peek(context.ok)
     if ('failure' in before) return before
-    // A resume segment keeps the place its call holds: nothing is asked of the queue domain.
     if (purpose === 'resume')
       return transact(
         callDomain(context.ok),
@@ -1025,7 +921,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     )
   }
 
-  /** The current start qualification of the request (SPEC 21: the start guard). */
   const qualifyStart = async (
     context: WriteEntry<P>,
     request: FixedToolRequest,
@@ -1122,7 +1017,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     return releaseQueue(context.ok, record.ok, settled.ok)
   }
 
-  /** The minimal failure terminal of a call that never started (SPEC 23), then its release. */
   const settleRejected: ToolLedgerRejections<P>['settle'] = async input => {
     const context = await writeEntry(input)
     if ('failure' in context) return context
@@ -1144,12 +1038,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     return releaseQueue(context.ok, record.ok, settled.ok)
   }
 
-  /**
-   * The timing segment of a foreground start, begun by the clock before the record (P07). The
-   * clock is a port with an effect, so the segment is not begun for an operation that a negative
-   * answer excluded after the command's first read: the call domain is read once more first. An
-   * answer given after that read is still caught by the transaction, which stops the command.
-   */
   const beginSegment = async (
     context: WriteEntry<P>,
     since: Snapshot['revision'],
@@ -1281,11 +1169,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     return releaseQueue(context.ok, record.ok, settled.ok)
   }
 
-  /**
-   * The timing of a suspension with its running segment closed (P07): the elapsed time of the
-   * committed segment is added and the timing pauses. A clock that cannot answer leaves the timing
-   * unknown with its segment, as a settlement does; elapsed time is never reset.
-   */
   const closeSegment = async (timing: ToolTiming): Promise<ToolTiming> => {
     if (timing.kind !== 'running') return timing
     const unknown = {
@@ -1335,7 +1218,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     if ('failure' in checkpoint) return checkpoint
     const state = judgeCheckpointStateField(fixed.ok['state'])
     if ('failure' in state) return state
-    // The payload of the checkpoint binds the digest of the state, so the intent names it already.
     const fields = { suspension: suspension.ok, checkpoint: checkpoint.ok }
     const command = { ...writeCommand(context.ok, fields), ...fields, state: state.ok }
     const before = await peek(context.ok)
@@ -1371,12 +1253,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     )
   }
 
-  /**
-   * The decision the owner resolves from the evidence it reported for the wait (P06, P12). It is
-   * asked only for a wait that can take a decision, so a decision that comes after a cancellation
-   * is not consumed for nothing. An answer outside the three decision kinds is a fault of the
-   * owner: it is reported, never read as a person's answer.
-   */
   const resolveDecision = async (
     checked: MutationInput<P>,
     wait: ToolWaitId,
@@ -1418,7 +1294,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     const fields = { wait: wait.ok, decision: decision.ok }
     const before = await read(callDomain(checked.ok))
     if ('failure' in before) return before
-    // A committed operation is recalled before the decider reads the value.
     let value: DecisionValue = { kind: 'no-answer' }
     if (!committedBefore(before.ok, operation)) {
       const refused = refuseDecision(before.ok, wait.ok)
@@ -1450,14 +1325,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     )
   }
 
-  /**
-   * The resume of a suspended call whose decision was accepted (P02, P07). After the gates on the
-   * pre-read and the current start qualification, the queue domain takes two steps: a parked entry
-   * is requeued at a new ordinal (the model's `Requeue`), and then the entry takes a slot, or keeps
-   * the slot it never gave up (`Hold`). The call domain then saves the resume record (`Resume`).
-   * While the call waits for a slot nothing is written to the call domain, and a later resend
-   * recalls the requeue.
-   */
   const prepareResume: ToolCommands<P, B>['prepareResume'] = async input => {
     const context = await writeEntry(input)
     if ('failure' in context) return context
@@ -1599,13 +1466,6 @@ export function createToolLedger<P, B extends ContentBlock>(
       const context = checked.ok
       const allowed = await access(context, 'control')
       if ('failure' in allowed) return allowed
-      // The decision of a control is synchronous: a control that settles a suspended call forms
-      // its result on the synthetic path, which asks the decider several times and waits for no
-      // dependency. The controller is therefore judged against one read of the call, and the
-      // decider answers only on a snapshot that holds the same record of this operation. When
-      // another controller recorded the operation in between, the controller is judged again
-      // against that record before the intent is recalled. The record of an operation is written
-      // once, so the second judgment stands.
       const attempt = async (): Promise<
         Readonly<{ answer: Outcome<ControlReceipt, ToolFailure>; overtaken: boolean }>
       > => {
@@ -1959,7 +1819,6 @@ export function createToolLedger<P, B extends ContentBlock>(
       if (!own.ok.tasks.some(task => task.kind === 'queue' && task.operation === operation))
         return succeed({ released: false })
       if (call.request.availability.kind !== 'available') return invalid('call', 'no-queue-place')
-      // The queue domain keeps nothing for a released call: the basis stays in the call domain.
       if (releaseBasisOf(own.ok) === null) return invalid('call', 'no-release-basis')
       const released = await transactQueue(
         queueDomain(checked.tenant, call.request),
@@ -2007,7 +1866,6 @@ export function createToolLedger<P, B extends ContentBlock>(
       transact,
       read,
       commit,
-      // A ledger alone has no host. An assembly with a host builds its sweep with `createToolSweep`.
       removal: {
         graceMs: configuration.offloading.orphanGraceMs,
         hostRecords: () => Promise.resolve(succeed('removed' as const)),
@@ -2041,12 +1899,10 @@ export function createToolLedger<P, B extends ContentBlock>(
   })
 }
 
-/** recordTask 收到的处置是否为 done：等待失效以对端回执完成。 */
 function isDone(value: unknown): boolean {
   return typeof value === 'object' && value !== null && Reflect.get(value, 'kind') === 'done'
 }
 
-/** Whether a task given to recordTask names a wait registration. */
 function isRegistrationTask(value: unknown): boolean {
   return (
     typeof value === 'object' &&
@@ -2055,10 +1911,6 @@ function isRegistrationTask(value: unknown): boolean {
   )
 }
 
-/**
- * The entry a cross-domain command passes to its decider when its pre-read showed the operation
- * already committed: the transaction recalls the receipt and never reads this value.
- */
 function missingEntry(call: ToolCallId, operation: ToolOperationId) {
   return {
     call,
@@ -2079,10 +1931,6 @@ function decodeToolOperationIdField(
   return 'ok' in decoded ? decoded : invalid(field, decoded.failure.reason)
 }
 
-/**
- * A preparation record given back by a caller (prepared): its identity fields decode and its
- * request is a fixed request. The decider then compares it with the planned record by digest.
- */
 function judgePreparationField(value: unknown): Outcome<PreparationRecord, ToolFailure> {
   if (typeof value !== 'object' || value === null) return invalid('preparation', 'type')
   const identity = judgePreparationIdentity(value)
@@ -2101,7 +1949,6 @@ function judgePreparationField(value: unknown): Outcome<PreparationRecord, ToolF
   })
 }
 
-/** The protocol identity of a preparation given back by a caller: tenant, call and operation. */
 function judgePreparationIdentity(
   value: object,
 ): Outcome<Pick<PreparationRecord, 'tenant' | 'call' | 'operation'>, ToolFailure> {
@@ -2117,16 +1964,11 @@ function judgePreparationIdentity(
   return succeed({ tenant, call: call.ok, operation: operation.ok })
 }
 
-/** The execution reference a write context names: its instance and generation on the call. */
 function executionOf(context: WriteInput): ToolExecutionRef {
   const { tenant, call, instance, generation } = context
   return { tenant, call, instance, generation }
 }
 
-/**
- * A start record given back by a caller (recordStart): a closed `start` record, or the `resume`
- * record of a checkpoint (P07), with decodable identity.
- */
 function judgeStartRecordField(value: unknown): Outcome<ToolStartRecord, ToolFailure> {
   if (typeof value !== 'object' || value === null) return invalid('invocation', 'type')
   const kind: unknown = Reflect.get(value, 'kind')
@@ -2135,12 +1977,10 @@ function judgeStartRecordField(value: unknown): Outcome<ToolStartRecord, ToolFai
   return 'failure' in judged ? invalid('invocation', 'shape') : judged
 }
 
-/** The exclusion evidence of a `not-started` or `rejected` start progress. */
 function exclusionOf(value: object): Outcome<DurableEvidence, ToolFailure> {
   return judgeEvidenceField(Reflect.get(value, 'exclusion'), 'outcome.exclusion')
 }
 
-/** The judgment of each kind of start progress, after the kind was read. */
 const START_PROGRESS: Readonly<
   Record<StartProgress['kind'], (value: object) => Outcome<StartProgress, ToolFailure>>
 > = {
@@ -2172,13 +2012,11 @@ const START_PROGRESS: Readonly<
   },
 }
 
-/** A start progress given by the host (recordStart): one of the four outcomes, closed. */
 function judgeStartProgressField(value: unknown): Outcome<StartProgress, ToolFailure> {
   if (typeof value !== 'object' || value === null) return invalid('outcome', 'type')
   const kind: unknown = Reflect.get(value, 'kind')
   if (typeof kind !== 'string' || !Object.hasOwn(START_PROGRESS, kind))
     return invalid('outcome.kind', 'value')
-  // The own key check above makes `kind` one of the four kinds.
   return START_PROGRESS[kind as StartProgress['kind']](value)
 }
 
@@ -2189,7 +2027,6 @@ type ReleaseFields = Readonly<{
   evidence: Handoff
 }>
 
-/** A contract judgment of one input field, with its rejection placed under that field. */
 function field<T>(
   judged: Outcome<T, Readonly<{ field: string; reason: string }>>,
   name: string,
@@ -2200,11 +2037,6 @@ function field<T>(
   return invalid(at === root ? name : `${name}.${at}`, reason)
 }
 
-/**
- * The release-specific fields of a releaseDelivery input, after the mutation identity. The
- * consumer and the handoff pass the contract's closed checks before anything compares or
- * digests them, so an extra field or a function field is `invalid`, never a digest error.
- */
 function judgeRelease(input: object): Outcome<ReleaseFields, ToolFailure> {
   const result = decodeToolResultVersion(Reflect.get(input, 'result'))
   if ('failure' in result) return invalid('result', result.failure.reason)
@@ -2226,11 +2058,6 @@ function judgeRelease(input: object): Outcome<ReleaseFields, ToolFailure> {
   })
 }
 
-/**
- * A decision as the decision owner resolved it (P06, P12): one of the three closed kinds. An
- * answer is a tagged JSON tree within the response bound that the wait's schemas fix; it is
- * copied, so nothing the owner holds can change it later.
- */
 function judgeDecisionValue(value: unknown, maxBytes: number): Outcome<DecisionValue, ToolFailure> {
   if (typeof value !== 'object' || value === null) return invalid('decision', 'type')
   const kind: unknown = Reflect.get(value, 'kind')

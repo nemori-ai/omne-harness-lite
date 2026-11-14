@@ -1,4 +1,3 @@
-// The closed judgment of a Tool state value (342 returns and execution facts).
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolCallId,
@@ -71,7 +70,6 @@ const terminal: Check<ToolTerminal> = variant('kind', {
   ...terminalBranches,
   'no-response': record({ kind: literal('no-response'), wait, reason: text }),
 })
-/** A background execution cannot settle without a response: Ask is foreground only. */
 const backgroundTerminal: Check<Exclude<ToolTerminal, { kind: 'no-response' }>> = variant(
   'kind',
   terminalBranches,
@@ -211,7 +209,6 @@ const common = {
 const relation = literal('foreground', 'background')
 const beforeStart = (phase: 'accepted' | 'preparing' | 'queued' | 'starting') =>
   record({ ...common, phase: literal(phase), wait: waitNone, relation })
-/** An active execution may wait only in the foreground (P06). */
 const active = <F extends Readonly<Record<string, Check<unknown>>>>(fields: F) =>
   variant('relation', {
     foreground: record({ ...common, ...fields, relation: literal('foreground'), wait: waitState }),
@@ -247,29 +244,23 @@ const stateShape: Check<ToolState> = variant('phase', {
 
 type StateRule = Readonly<{ field: string; reason: string; holds: (state: ToolState) => boolean }>
 
-/** Relations between fields that the type cannot express. Each row names the source rule. */
 const STATE_RULES: readonly StateRule[] = [
   {
-    // A background placeholder answers the foreground of the same call (342 waits and timing).
     field: 'foreground.call',
     reason: 'call-mismatch',
     holds: state => state.foreground?.kind !== 'background' || state.foreground.call === state.call,
   },
   {
-    // Background is fixed together with its placeholder, also at a start in background (P02).
     field: 'foreground',
     reason: 'missing-background-placeholder',
     holds: state => state.relation !== 'background' || state.foreground?.kind === 'background',
   },
   {
-    // Only a call whose execution never started may settle as unavailable (dummy, first start
-    // rejection). A started execution, also one that already ended, ends otherwise (342 waits).
     field: 'execution',
     reason: 'unavailable-after-start',
     holds: state => !settledUnavailable(state) || state.execution.kind === 'not-started',
   },
   {
-    // The unavailable result of a first start rejection records effect=not-started (342 values).
     field: 'effect',
     reason: 'unavailable-with-effect',
     holds: state => !settledUnavailable(state) || state.effect.kind === 'not-started',
@@ -280,11 +271,6 @@ function settledUnavailable(state: ToolState): boolean {
   return state.phase === 'settled' && state.terminal.kind === 'unavailable'
 }
 
-/**
- * Judges an untrusted value as a Tool state. The check is closed and follows the phase and
- * relation branches of `ToolState`, then the field relations in `STATE_RULES`. It reads no store
- * and does not prove that the state is current. The result is a frozen copy.
- */
 export function judgeToolState(
   value: unknown,
 ): Outcome<ToolState, Readonly<{ field: string; reason: string }>> {

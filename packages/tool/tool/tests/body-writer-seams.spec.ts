@@ -1,7 +1,3 @@
-// The author's body writer at the ledger's public seam (`ledger.bodyWrites`): what `inspect`
-// reports in each body state; how the writer binds its input; how each store answer to a put or a
-// seal reaches the author; the sequence, block and size rules of `append`; the record rules of a
-// JSON Lines writer.
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { ToolBodyWriteInput } from '@omne-harness/tool-contract/provider'
@@ -26,7 +22,6 @@ afterEach(async () => {
 
 type Fixture = Awaited<ReturnType<typeof settlementFixture>>
 
-/** The author's binding of one writer key, as the executor passes it with every call. */
 async function binding(
   f: Fixture,
   key: string,
@@ -313,7 +308,6 @@ async function jsonLinesWriter(
       attachments: [],
     },
   })
-  // The harness ledger holds the schema port the fixture was given.
   const writes = f.harness.ledger.bodyWrites
   const bound = await binding(f, 'rows')
   let step = 0

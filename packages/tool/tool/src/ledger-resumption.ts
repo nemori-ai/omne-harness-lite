@@ -1,8 +1,3 @@
-// The pure deciders of a checkpointed call after a person answered its wait (P06, P07): the
-// acceptance of the decision, the resume that takes the slot again, and the closing of the wait
-// at the resume segment's `continued` fact. Each reads one call-domain snapshot and one command;
-// nothing here reads a port. The step names follow verification/models/SuspendedSlots.tla:
-// `decideAcceptDecision` is `Answer`, `decidePrepareResume` is `Resume`.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolOperationId,
@@ -67,18 +62,10 @@ export type AcceptDecisionCommand = Readonly<{
   operation: WriteCommand['operation']
   inputDigest: string
   wait: ToolWaitId
-  /** The decision evidence the decision owner reported for the wait (`inspect`). */
   decision: DurableEvidence
-  /** The decision the owner resolved from that evidence (`resolve`) before this decision. */
   value: DecisionValue
 }>
 
-/**
- * Why the wait of the call cannot take a decision now, or the wait. The call must be suspended on
- * that very Ask wait, and the wait must be `open`. A call that settled first, a closed wait, or a
- * wait that took a decision already is refused: P06 orders the cancellation and the answer on the
- * call record, so a decision that comes after the cancellation is not an answer.
- */
 export function refuseDecision(
   snapshot: Snapshot,
   wait: ToolWaitId,
@@ -94,17 +81,6 @@ export function refuseDecision(
   return succeed({ record, found })
 }
 
-/**
- * Accepts the decision of an open Ask wait (P06 acceptDecision, the model's `Answer`). One commit
- * fixes the ResponseRecord on the wait, moves the wait to `responding`, writes the decision
- * evidence into the call's wait state, and adds the `queue` task that owes the queue domain the
- * requeue and the hold of the resume. The same commit plans the environment of the resume
- * segment: the resume is a new execution of the executor, so it prepares its own environment from
- * the binding of the segment that suspended, under `<wait>/resume/prepare`, in whatever process
- * runs it. The ResponseRecord names the start of the segment that suspended and the decision as
- * the owner resolved it. A resend of the same operation recalls
- * the wait state; any other acceptance of the same wait is refused, so one wait has one answer.
- */
 export function decideAcceptDecision(
   snapshot: Snapshot,
   command: AcceptDecisionCommand,
@@ -175,10 +151,6 @@ export function decideAcceptDecision(
   }
 }
 
-/**
- * The preparation of the resume segment: the environment binding of the segment that suspended,
- * the fixed request and its environment adoption, planned again under the wait's own operation.
- */
 function resumePreparation(
   record: CallRecord,
   command: AcceptDecisionCommand,
@@ -201,10 +173,6 @@ function resumePreparation(
   })
 }
 
-/**
- * The operation of the next preparation of the resume segment of `wait`: `<wait>/resume/prepare`
- * at the acceptance, then `<wait>/resume/prepare/<k>` for the k-th, when an earlier one was lost.
- */
 export function resumePreparationOperation(
   preparations: readonly PreparationRecord[],
   wait: ToolWaitId,
@@ -222,13 +190,6 @@ export function resumePreparationOperation(
 export type ResumePlanCommand = WriteCommand &
   Readonly<{ request: FixedToolRequest; environmentAdoption: Adoption }>
 
-/**
- * Plans the resume segment's environment again (P03 planPreparation, purpose `resume`): the
- * preparation planned for it answered `lost`, so the segment is prepared under the next resume
- * preparation of the accepted wait. The call stays suspended; the `queue` task of the acceptance
- * still owes the requeue. One commit records the preparation, drops the call's environment and
- * replaces the `prepare` task.
- */
 export function decideResumePlan(
   snapshot: Snapshot,
   command: ResumePlanCommand,
@@ -301,7 +262,6 @@ function prepareTask(preparation: PreparationRecord): ToolTask {
   }
 }
 
-/** The responding wait whose decision resumes at `checkpoint`, or undefined. */
 function respondingAt(
   snapshot: Snapshot,
   checkpoint: DurableEvidence,
@@ -312,13 +272,6 @@ function respondingAt(
   return undefined
 }
 
-/**
- * Why the call cannot prepare a resume from `checkpoint` now, or nothing (P07 prepareResume): the
- * call is suspended on that checkpoint, never rejected, its `suspend` committed that checkpoint with
- * the exclusion of the execution that suspended, and the wait that resumes there took a decision.
- * The ledger asks this before the queue steps, so a refused resume moves no entry; the decider asks
- * it again under the transaction's snapshot.
- */
 export function refuseResume(
   snapshot: Snapshot,
   record: CallRecord,
@@ -344,20 +297,12 @@ export function refuseResume(
 export type PrepareResumeCommand = WriteCommand &
   Readonly<{
     checkpoint: DurableEvidence
-    /** The queue domain's answer to the hold of this resume, given before this decision. */
     hold: HoldOutcome
     execution: ToolExecutionRef
   }>
 
 export type ResumeIntent = Readonly<{ state: ToolState; start: Resume }>
 
-/**
- * Saves the unique successor of a checkpoint (P07 prepareResume, the model's `Resume`): the call is
- * suspended on that checkpoint with an accepted decision, and the queue domain gave it a slot in
- * this very step. One commit writes the resume record as the call's current start, `starting` with
- * the held position, the `start` task, and removes the `queue` task. The checkpoint is consumed: a
- * later resume of it finds the call no longer suspended.
- */
 export function decidePrepareResume(
   snapshot: Snapshot,
   command: PrepareResumeCommand,
@@ -379,7 +324,6 @@ export function decidePrepareResume(
   const start: Resume = {
     kind: 'resume',
     operation: command.operation,
-    // The executor the call was admitted with: a resume never takes a newer implementation.
     executor: record.start?.executor ?? record.request.availability.executor,
     execution: command.execution,
     checkpoint: command.checkpoint,
@@ -420,13 +364,6 @@ export function decidePrepareResume(
 export type CloseWaitCommand = WriteCommand &
   Readonly<{ wait: ToolWaitId; continuation: DurableEvidence }>
 
-/**
- * Closes a responding wait at the `continued` fact of its resume segment (P06 closeWait): the call
- * runs that resume, the wait's response progressed to `continued` with `continuation`, and the
- * saved fact behind that evidence is the resume's own `continued` fact for this wait and response.
- * One commit closes the wait with cause `continued` and touches the call state. The timing segment
- * of the resume began when its start was recorded, at the segment's real start.
- */
 export function decideCloseWait(
   snapshot: Snapshot,
   command: CloseWaitCommand,

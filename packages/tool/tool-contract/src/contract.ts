@@ -32,7 +32,6 @@ export function toolBodyContract(): BodyContract {
     deriveDeclarations(body, context) {
       const decision = judge(body, context)
       if (!decision.ok) throw new TypeError(`tool body failed judgment: ${decision.rejected}`)
-      // Only boolean true permits programmatic calls. An omitted or false value declares nothing.
       return { entries: programmable(body) === true ? [PROGRAMMABLE_DECLARATION] : [] }
     },
     settings(body, context) {
@@ -75,10 +74,6 @@ function judge(body: unknown, context?: { capabilityName?: string }): Judgment {
   return { ok: true }
 }
 
-/**
- * `requiredCapabilities` is optional (RFC-0012 governance). When present it is a list of
- * non-empty names; anything else is undefined, which the judgment refuses.
- */
 function requiredCapabilities(body: unknown): readonly string[] | undefined {
   const value = field(body, 'requiredCapabilities')
   if (value === undefined) return isObject(body) ? [] : undefined
@@ -92,12 +87,6 @@ function requiredCapabilities(body: unknown): readonly string[] | undefined {
   return names
 }
 
-/**
- * `implementation { executor, module, construction }` is the implementation reference of the
- * asset (RFC-0012). It is optional: a body without it declares no implementation and cannot be
- * loaded. When present, `executor` and `module` are non-empty texts and `construction` is any JSON
- * value; a missing `construction` reads as JSON null.
- */
 function implementation(body: unknown): 'absent' | 'present' | 'invalid' {
   const value = field(body, 'implementation')
   if (value === undefined) return 'absent'
@@ -109,10 +98,8 @@ function implementation(body: unknown): 'absent' | 'present' | 'invalid' {
   return 'present'
 }
 
-/** The declaration entry of a tool body whose `programmable` is boolean true. */
 const PROGRAMMABLE_DECLARATION = 'programmable'
 
-/** `programmable` is optional and boolean. A string, number or null is not converted. */
 function programmable(body: unknown): boolean | 'invalid' | undefined {
   const value = field(body, 'programmable')
   if (value === undefined) return undefined

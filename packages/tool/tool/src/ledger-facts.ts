@@ -1,4 +1,3 @@
-// Pure custody decisions. A batch advances only with its complete facts and downstream duties.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -66,7 +65,6 @@ function updateProcess(
   return succeed(undefined)
 }
 
-/** The event history decides duplicate sequences, including historical updates after closure. */
 function processWrites(
   snapshot: Snapshot,
   batch: StoredFactBatch,
@@ -131,11 +129,6 @@ function factPlace(call: CallRecord, batch: Pick<FactBatch, 'start' | 'source'>)
     owner: batch.source.owner,
   }
 }
-/**
- * Why `fact` cannot follow the facts this start already holds, or nothing (P06, P07, P11). A
- * segment ends once: with its final, or with the one wait it suspends on, and nothing follows the
- * wait. A resume segment holds at most one `continued` fact, before its end.
- */
 function refuseOrder(
   call: CallRecord,
   fact: FactEventRecord['fact'],
@@ -156,12 +149,6 @@ function refuseOrder(
   return succeed(undefined)
 }
 
-/**
- * The wait write of a resume segment's `continued` fact (P06, P11): the segment runs on a resume
- * start, the fact names a wait of this call that is `responding` at that start's checkpoint, and
- * the response that wait fixed. The wait's response progresses to `continued` with the fact's own
- * evidence and timing; `closeWait` then verifies that fact.
- */
 function continuedWrite(
   snapshot: Snapshot,
   start: ToolStartRecord,
@@ -254,7 +241,6 @@ function planEvents(
     }
     if (event.fact.kind === 'wait') {
       seen.wait = true
-      // The call holds one request original: this write replaces the one of an earlier wait.
       if (request !== null)
         writes.push(
           put({ kind: 'wait-request', waitRequest: { wait: event.fact.value.wait, request } }),

@@ -11,7 +11,6 @@ import {
 } from '@omne-harness/tool-cordis-contract/testing'
 import { expect, it } from 'vitest'
 
-/** A loader seam double. These checks do not supply a production loader or settings SDK. */
 function fixture(
   kind: 'official' | 'organization',
   leaking: boolean,

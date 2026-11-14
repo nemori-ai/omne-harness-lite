@@ -37,7 +37,6 @@ import { controlIntent } from './control-intent.ts'
 import { invocationInput, operationInput } from './invocation-access.ts'
 import { createStreamFacade } from './stream-facade.ts'
 
-/** The identity of this runtime implementation, named in its `unsupported` answers. */
 export const toolRuntimeAdoption: Adoption = describedAdoption({
   owner: '@omne-harness/tool',
   name: 'tool-runtime',
@@ -90,15 +89,8 @@ function redactedPortExceptionDiagnostic(dependency: string): string {
   return `${dependency} threw an exception; its message is not reported`
 }
 
-/** 恢复扫描每次向账本要的一页调用数。 */
 const RECOVER_PAGE = 100
 
-/**
- * 契约 P09 的 recover：按租户分页读 `scanPending`，把每个有待推进工作的调用交给宿主运行
- * （`instances.schedule`），答复调度了多少个调用。驱动按调用当前的阶段与待办推进它，所以已启动
- * 而失联的执行不会被重新启动。扫描或调度失败时答复那个失败，已经调度的调用仍然有效；再次调用
- * recover 从头扫描，重复的调度是同一个提示。
- */
 async function recoverPending<P, B extends ContentBlock, E>(
   dependencies: ToolDependencies<P, B, E>,
   input: Parameters<ToolProvider<P, B>['recover']>[0],
@@ -146,7 +138,6 @@ function rejected(failure: ToolDefiniteFailure): ToolInvokeOutcome {
   return { kind: 'rejected', failure }
 }
 
-/** The request as the caller fixed it, admitted under the system offloading bounds. */
 function admittedRequest(
   supplied: unknown,
   configuration: ToolConfiguration,
@@ -164,7 +155,6 @@ function admittedRequest(
     : fail({ kind: 'invalid', field: 'request.returns.offloading', reason: refusal })
 }
 
-/** The identities the source issuer bound, decoded, with the reference the caller keeps. */
 function resolvedIdentity(
   tenant: ToolInvocationParts['tenant'],
   bound: Readonly<{ call: string; admission: string }>,
@@ -227,11 +217,6 @@ async function commandReference(
   return succeed({ operation: operation.ok, reference: reference.ok })
 }
 
-/**
- * Builds the provider and installs the driver on the instance host. The installation admits no
- * business: the host wakes the driver for a call when the runtime schedules it after an
- * admission, and the driver reads the ledger before it does anything.
- */
 export function createToolRuntime<P, B extends ContentBlock, E>(
   dependencies: ToolDependencies<P, B, E>,
   configuration: ToolConfiguration,
@@ -252,7 +237,6 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
   return Object.freeze(provider)
 }
 
-/** Builds the ordinary API without taking ownership of an executor installation. */
 export function createToolRuntimeFacade<P, B extends ContentBlock, E>(
   dependencies: ToolDependencies<P, B, E>,
   configuration: ToolConfiguration,
@@ -262,7 +246,6 @@ export function createToolRuntimeFacade<P, B extends ContentBlock, E>(
   const { commands, reads, instances, catalog, operationIdentities, sourceIssuer } = dependencies
   const stream = createStreamFacade<P, B>({ directory: instances.directory, reads })
 
-  /** The source issuer's binding of a call; an issuer that throws leaves the association unknown. */
   const resolveSource = async (
     input: Parameters<typeof sourceIssuer.resolve>[0],
   ): Promise<Awaited<ReturnType<typeof sourceIssuer.resolve>>> => {
@@ -297,8 +280,6 @@ export function createToolRuntimeFacade<P, B extends ContentBlock, E>(
 
   const runtime: ToolRuntime<P, B> = {
     invoke,
-    // The current availability is the Catalog's answer (P16: without a Catalog, inspect is
-    // unavailable with dependency toolCatalog); the runtime adds nothing to it.
     inspect: input => catalog.inspect(input),
     queries: Object.freeze<ToolInvocationQueries<P, B>>({
       lookup: async input => {

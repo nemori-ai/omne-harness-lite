@@ -1,5 +1,3 @@
-// The boundary of the suspension commands (P07): a suspension and a checkpoint given back by the
-// driver and the binding are copied as data and checked as closed records before any digest.
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolCallId,
@@ -38,7 +36,6 @@ function operationAt(value: unknown, field: string): Outcome<ToolOperationId, To
   return 'ok' in decoded ? decoded : invalid(field, decoded.failure.reason)
 }
 
-/** A suspension record as planSuspension answered it: its identity, start and schema. */
 export function judgeSuspensionField(value: unknown): Outcome<SuspensionRecord, ToolFailure> {
   const keys = ['tenant', 'call', 'operation', 'adoption', 'inputDigest', 'start', 'schema']
   const data = closed(value, keys, 'suspension')
@@ -68,10 +65,6 @@ export function judgeSuspensionField(value: unknown): Outcome<SuspensionRecord, 
   })
 }
 
-/**
- * The state of a suspended segment as the binding gave it: base64 text of at most
- * CHECKPOINT_STATE_MAX_BYTES bytes. The ledger keeps the text and does not decode it.
- */
 export function judgeCheckpointStateField(value: unknown): Outcome<string, ToolFailure> {
   if (typeof value !== 'string') return invalid('state', 'type')
   if (value.length > Math.ceil(CHECKPOINT_STATE_MAX_BYTES / 3) * 4)
@@ -81,7 +74,6 @@ export function judgeCheckpointStateField(value: unknown): Outcome<string, ToolF
   return succeed(value)
 }
 
-/** A checkpoint as the binding proved it: payload, start, consumed responses, boundary, exclusion. */
 export function judgeCheckpointField(value: unknown): Outcome<Checkpoint, ToolFailure> {
   const keys = [
     'schema',

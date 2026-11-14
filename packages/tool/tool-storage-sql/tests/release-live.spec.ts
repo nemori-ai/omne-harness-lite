@@ -1,7 +1,3 @@
-// Delivery release over real SQLite (C6, Handoff model `Release`): once the one delivery that needs
-// the model channels is released, the result record keeps the summary in place of the content and
-// the attachments, the body entry and its expiry stay, the body still reads, and the sweep reclaims
-// it at its expiry as before.
 import { decodeToolInstant } from '@omne-harness/tool-contract/provider'
 import { decodeToolOperationId } from '@omne-harness/tool-contract'
 import { afterEach, expect, it } from 'vitest'
@@ -24,7 +20,6 @@ it('a released delivery leaves the summary in the record, keeps the body readabl
   const live = await settledOffloaded(app)
   if (live.value.original.kind !== 'offloaded') throw new Error('body was not offloaded')
   const body = live.value.original
-  // The first screen of a mechanically offloaded result is its summary: the release keeps it.
   expect(live.value.content).toEqual(body.summary)
   const state = ok(await live.ledger.commands.loadRecovery(live.access)).state
   if (state.phase !== 'settled' || state.delivery === null) throw new Error('no delivery')
@@ -61,8 +56,6 @@ it('a released delivery leaves the summary in the record, keeps the body readabl
   expect(
     await live.ledger.reads.result({ ...live.access, result: live.result, after: null }),
   ).toEqual({ failure: { kind: 'not-found', target: 'result', reason: 'released' } })
-  // The body entry, its bytes and its due entry are untouched by the release.
-  // The release adds the call's own removal entry.
   expect(count(app, 'tl_body_manifest')).toBe(1)
   expect(count(app, 'tl_due')).toBe(2)
   const readInput = {
@@ -76,7 +69,6 @@ it('a released delivery leaves the summary in the record, keeps the body readabl
     kind: 'text',
     text: 'x'.repeat(64),
   })
-  // The same release again, under the same or another operation, writes nothing more.
   expect(ok(await live.ledger.commands.releaseDelivery(releaseInput))).toEqual(released)
   expect(
     ok(

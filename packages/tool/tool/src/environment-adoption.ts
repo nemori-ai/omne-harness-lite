@@ -7,7 +7,6 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import { judgeAdoptionField } from './boundary.ts'
 
-/** A provider replacement cannot act on the previous provider's operations or resources. */
 export function matchEnvironmentAdoption(
   provider: Readonly<{ adoption: Adoption }>,
   original: Adoption,
@@ -22,9 +21,7 @@ export function matchEnvironmentAdoption(
       current.ok.digest === original.digest
     )
       return succeed(undefined)
-  } catch {
-    // A provider whose identity cannot be read cannot handle the original operation.
-  }
+  } catch {}
   return fail({
     kind: 'unavailable',
     dependency: 'tool-environment',
@@ -32,7 +29,6 @@ export function matchEnvironmentAdoption(
   })
 }
 
-/** Provider facts never become executable or adoptable until their original binding is checked. */
 export function checkedPreparationProgress<E>(
   progress: PreparationProgress<E>,
   expected: PreparationRecord,

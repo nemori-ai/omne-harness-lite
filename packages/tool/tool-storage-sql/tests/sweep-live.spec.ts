@@ -1,6 +1,3 @@
-// The sweep over real SQLite (C5): after the ledger reclaims an offloaded body, the body tables and
-// the due index of the tenant hold no row for it, the entry stays as a keyed cold record, and a
-// read answers `expired`.
 import { decodeToolInstant } from '@omne-harness/tool-contract/provider'
 import { afterEach, expect, it } from 'vitest'
 import { domainNameOf, openApp, TENANT_A, type App } from './fixtures/app.ts'

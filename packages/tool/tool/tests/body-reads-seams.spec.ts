@@ -1,6 +1,3 @@
-// Read-back of an offloaded body at the ledger's public seam (`reads.body.read`): the input the
-// reader accepts, the cursors it refuses, what a store that contradicts the ledger entry gets, and
-// the page that is too small for one character or one record.
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { TOOL_REFERENCE_MAX_LENGTH } from '@omne-harness/tool-contract/provider'
 import { settlementFixture } from './settlement-values.ts'

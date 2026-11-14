@@ -1,6 +1,3 @@
-// A local `node:http` server for the Web provider tests: pages of several media types, redirect
-// chains, a server that never answers, a gzip bomb, a slow body, and an Exa double. Nothing here
-// reaches the network outside 127.0.0.1.
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { gzipSync } from 'node:zlib'
@@ -12,7 +9,6 @@ export type SeenRequest = Readonly<{
   body: string
 }>
 
-/** What the Exa double answers; `location` adds a `Location` header, for a redirect answer. */
 export type ExaAnswer = Readonly<{
   status: number
   contentType?: string
@@ -22,11 +18,9 @@ export type ExaAnswer = Readonly<{
 
 export type WebFixture = Readonly<{
   origin: string
-  /** A port on 127.0.0.1 that was free a moment ago: connecting to it is refused. */
   closedPort: number
   url(path: string): string
   seen: readonly SeenRequest[]
-  /** The Exa double answers every POST on `/exa` with this; tests replace it. */
   exa: { answer: ExaAnswer }
   close(): Promise<void>
 }>
@@ -43,7 +37,6 @@ export const HTML_PAGE = `<!doctype html>
 <p>中文段落。</p>
 </body></html>`
 
-/** Deep enough for turndown's recursive walk to overflow the stack (it fails from about 2000 levels). */
 export const DEEP_HTML = `<html><body>${'<div>'.repeat(6000)}deep${'</div>'.repeat(6000)}</body></html>`
 
 const BOMB = gzipSync(Buffer.alloc(8 * 1024 * 1024, 0x61))
@@ -112,7 +105,7 @@ export async function startWebFixture(): Promise<WebFixture> {
       response.writeHead(302)
       return response.end()
     }
-    if (path === '/silent') return undefined // never answers
+    if (path === '/silent') return undefined
     if (path === '/bomb') {
       response.writeHead(200, { 'content-type': 'text/plain', 'content-encoding': 'gzip' })
       return response.end(BOMB)

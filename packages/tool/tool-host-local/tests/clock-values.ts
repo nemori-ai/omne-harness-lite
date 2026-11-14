@@ -1,5 +1,3 @@
-// Manual time sources for the host clock tests: `advance` moves both readings and fires the
-// sleepers that came due, `setBack` turns only the wall time back.
 import type { LocalToolClockInput } from '@omne-harness/tool-host-local'
 
 const ORIGIN = Date.parse('2026-11-01T00:00:00.000Z')

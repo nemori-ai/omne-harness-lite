@@ -10,10 +10,6 @@ export type StartPermitRequirement =
   | Readonly<{ kind: 'required'; reason: string }>
   | Readonly<{ kind: 'unknown' | 'unavailable'; diagnostic: string }>
 
-/**
- * A trusted, current decision about the complete fixed action, not call access alone. It is asked
- * again for each resume of a checkpointed call, with the resume record (P07: the same start fence).
- */
 export interface StartPermitRequirements<P> {
   check(
     input: CallAccess<P> &
@@ -27,7 +23,6 @@ export interface StartPermitRequirements<P> {
 export const REQUIRED_IN_WAVE2 = 'authorization-permit-required-in-wave2'
 export const REQUIREMENTS_UNAVAILABLE = 'start-permit-requirements unavailable'
 
-/** Treat malformed or unavailable provider answers as unknown, without exposing their contents. */
 export async function checkStartPermitRequirement<P>(
   provider: StartPermitRequirements<P> | undefined,
   input: Parameters<StartPermitRequirements<P>['check']>[0],
@@ -43,9 +38,7 @@ export async function checkStartPermitRequirement<P>(
         if (source !== null) return { kind, source }
       }
     }
-  } catch {
-    // The public diagnostic does not expose provider errors or request contents.
-  }
+  } catch {}
   return { kind: 'unknown', diagnostic: REQUIREMENTS_UNAVAILABLE }
 }
 

@@ -1,13 +1,3 @@
-// The handover commit of a retained process (#1137): the retention scope's ledger view `adopt`s a
-// key, and from that commit on the acquisition ledger shows the key as handed over. The scope's
-// record lives in the scope's own `retention@<scope>` domain and the acquisition in the call's own
-// domain. A reservation (`plan`) stays in its creator's acquisition record; the handover is one
-// commit of the scope's record that asserts the acquisition and the original call unchanged, and
-// the acquisition derives `handedOver` from the scope's entries. A confirmed stop of an adopted
-// process keeps its end fact under its own key in the scope's domain (execution-environment
-// contract, stop clause 7). Nothing is deleted: a closed scope keeps its record, its entries and
-// its end facts. Also the plan passthrough of `processes` to `ExecutionEnvironment.acquire`, and
-// its live-plan conflict rule.
 import { describe, expect, it, vi } from 'vitest'
 import {
   acquisitionRef,
@@ -96,7 +86,6 @@ const resource: ManagedResource = {
   reference: { kind: 'string', value: 'domain-generation-1' },
 }
 
-/** The original call while it runs, with its environment preparation. */
 function callRecord(): CallRecord {
   return {
     tenant: tenantA,
@@ -128,7 +117,6 @@ function callRecord(): CallRecord {
   }
 }
 
-/** One original call, its acquisition record bound to a retention scope, and both ledger views. */
 async function fixture() {
   const store = createMemoryToolLedgerStore()
   const callDomain = { kind: 'call' as const, tenant: tenantA, call: preparation.call }
@@ -174,14 +162,12 @@ async function fixture() {
     mutation: string
     state: { resources: Fact[]; reservations?: Fact[]; [field: string]: unknown }
   }
-  /** One stored envelope and the revision of its domain, read without the state store. */
   async function stored(domain: LedgerDomain, key: string) {
     const read = await store.readRecord(domain, hostKey(key))
     if (read.kind !== 'complete') throw new Error('fixture domain unavailable')
     const envelope = read.record?.kind === 'host' ? (read.record.host.value as Envelope) : undefined
     return { revision: read.revision, envelope }
   }
-  /** The two records as stored: the acquisition in the call's domain, the scope in the tenant's. */
   async function domain() {
     const acquired = await stored(acquisitionDomain(preparation), preparationKey(preparation))
     const retention = await stored(
@@ -232,7 +218,6 @@ async function fixture() {
       ],
     })
   }
-  /** The acquisition planned and permitted the domain and reserved it for its retention scope. */
   async function reserved() {
     expect(await acquisition.plan(resource)).toBe('recorded')
     expect(await acquisition.permit(resource.key)).toBe('confirmed')
@@ -263,9 +248,7 @@ describe('adopt commits the handover once, in one durable commit of the scope', 
     expect(BigInt(after.retentionRevision)).toBe(BigInt(before.retentionRevision) + 1n)
     expect(after.acquisitionRevision).toBe(before.acquisitionRevision)
     expect(after.retainedFact).toMatchObject({ taken: 'adopted', stop: 'active' })
-    // The scope owns the handover; the acquisition's view applies it.
     expect(await f.acquisition.inspect()).toMatchObject([{ stop: 'handedOver' }])
-    // The handover asserted the acquisition and the original call it decided on.
     const last = f.commit.mock.calls.at(-1)?.[0]
     expect(last?.asserts?.map(assertion => assertion.domain.kind).sort()).toEqual(['call', 'host'])
   })
@@ -278,7 +261,6 @@ describe('adopt commits the handover once, in one durable commit of the scope', 
       return f.realCommit(input)
     })
     expect(await f.processes.adopt(resource.key)).toBe('closed')
-    // Nobody took the reservation over; the creator's close stopped it in the creator's record.
     expect(await f.domain()).toMatchObject({ reservation: { stop: 'confirmed' } })
     expect((await f.domain()).retainedFact).toBeUndefined()
   })
@@ -354,7 +336,6 @@ describe('adopt checks the scope, the original call and the reservation', () => 
     const f = await fixture()
     await f.reserved()
     const before = await f.domain()
-    // The call settles while the handover's commit is in flight: its call assertion fails for real.
     f.commit.mockImplementationOnce(async input => {
       await f.finish()
       return f.realCommit(input)
@@ -379,7 +360,6 @@ describe('adopt checks the scope, the original call and the reservation', () => 
     const before = await f.domain()
     expect(await f.processes.adopt(resource.key)).toBe('unavailable')
     expect(await f.domain()).toEqual(before)
-    // The acquisition reserves another key only.
     expect(await f.processes.plan({ ...resource, key: 'another' })).toBe('recorded')
     const reservedOther = await f.domain()
     expect(await f.processes.adopt(resource.key)).toBe('unavailable')
@@ -428,7 +408,6 @@ describe('the acquisition ledger keeps a handed-over key handed over', () => {
   })
 })
 
-/** Another call's view of the same retention scope, as a provider has after a restart. */
 async function otherCallView(f: Awaited<ReturnType<typeof fixture>>) {
   const other = { ...preparation, call: callId('call-b'), operation: operationId('prepare-b') }
   const state = createEnvironmentStateStore({ store: f.store, mode: 'test' })
@@ -457,7 +436,6 @@ async function otherCallView(f: Awaited<ReturnType<typeof fixture>>) {
   })
 }
 
-/** The host keys of the scope's domain, read whole: the scope record and its end facts. */
 async function scopeKeys(f: Awaited<ReturnType<typeof fixture>>) {
   const read = await f.store.read(retentionDomain(tenantA, fixed.requesterScope))
   if (read.kind !== 'complete') throw new Error('fixture scope unavailable')
@@ -474,7 +452,6 @@ describe("a stop of a handed-over key is the retention scope's to record", () =>
     expect((await f.domain()).retainedFact).toMatchObject({ taken: 'adopted', stop: 'unconfirmed' })
     expect(await f.acquisition.inspect()).toMatchObject([{ stop: 'handedOver' }])
     expect(await view.stopped(resource.key, 'confirmed')).toBe('recorded')
-    // The scope holds nothing of the key any more; the creator's own fact says the resource stopped.
     expect((await f.domain()).retainedFact).toBeUndefined()
     expect(await f.acquisition.inspect()).toMatchObject([{ stop: 'confirmed' }])
   })
@@ -499,13 +476,11 @@ describe("a stop of a handed-over key is the retention scope's to record", () =>
     expect(await view.stopped(resource.key, 'unconfirmed')).toBe('recorded')
     expect(await view.ended(resource.key)).toBe('none')
     expect(await view.stopped(resource.key, 'confirmed')).toBe('recorded')
-    // Stop clause 7: the stopped process is no longer held, and its end fact answers a later stop.
     expect((await f.domain()).retainedFact).toBeUndefined()
     expect(await f.processes.inspect()).toEqual([])
     expect(await f.processes.ended(resource.key)).toBe('confirmed')
     expect(await view.ended(resource.key)).toBe('confirmed')
     expect(await view.ended('another-key')).toBe('none')
-    // The close marks the scope closed and deletes nothing.
     expect(await view.close()).toBe('confirmed')
     expect(await f.processes.ended(resource.key)).toBe('confirmed')
     expect((await f.domain()).retention?.state).toMatchObject({ phase: 'closed', resources: [] })
@@ -572,7 +547,6 @@ describe("a stop of a handed-over key is the retention scope's to record", () =>
 })
 
 describe('a retention scope is open or closed, and never open again', () => {
-  /** The scope's record as stored: its encoded state, or undefined when there is none. */
   const scopeState = async (f: Awaited<ReturnType<typeof fixture>>) =>
     (await f.domain()).retention?.state as unknown
 
@@ -782,7 +756,6 @@ describe('the environment plan hands processes to acquire', () => {
       [resource.key, 'handedOver'],
       [other.key, 'confirmed'],
     ])
-    // The scope confirms the process ended: the released acquisition shows its own confirmed stop.
     expect(await processes.stopped(resource.key, 'confirmed')).toBe('recorded')
     expect(await stops()).toEqual([
       [resource.key, 'confirmed'],
@@ -811,7 +784,6 @@ function anotherScope() {
   return scope.ok
 }
 
-/** This call's view of the scope over a state store that `wrap` may interleave with. */
 function viewOver(
   f: Awaited<ReturnType<typeof fixture>>,
   wrap: (state: StateStore) => StateStore,
@@ -831,7 +803,6 @@ describe('the scope view plans a reservation only into an open acquisition of an
     const closer = await otherCallView(f)
     const view = await viewOver(f, state => ({
       ...state,
-      // The other view closes the scope after this view read its binding, before it writes.
       update: async (...args) => {
         await closer.close()
         return state.update(...args)
@@ -911,7 +882,6 @@ describe('a stop goes to whoever holds the key when it is written', () => {
     let armed = false
     const view = await viewOver(f, state => ({
       ...state,
-      // The scope adopts the key after the stop read the scope, before the creator's write.
       readRetention: async (...args) => {
         const read = await state.readRetention(...args)
         if (armed) {
@@ -981,7 +951,6 @@ type Stored = Record<string, unknown> & {
   reservations: Record<string, unknown>[]
 }
 
-/** Rewrites the stored state of one host record of the fixture, keeping its envelope. */
 async function rewrite(
   f: Awaited<ReturnType<typeof fixture>>,
   domain: LedgerDomain,
@@ -1110,7 +1079,6 @@ describe('the host lets go of the records of a call only when its acquisitions c
   const plain = (['start', 'source', 'delivery', 'control'] as const).map(aggregate =>
     callHostDomain(tenantA, aggregate, preparation.call),
   )
-  /** One record in each of the four plain host domains of the call; the source is not forwarded. */
   async function withControlRecord(f: Awaited<ReturnType<typeof fixture>>) {
     for (const domain of plain)
       await f.realCommit({
@@ -1146,9 +1114,6 @@ describe('the host lets go of the records of a call only when its acquisitions c
     expect(await f.processes.adopt(resource.key)).toBe('confirmed')
     expect(await f.acquisition.close()).toBe('confirmed')
     expect(await remove(f)).toEqual({ ok: 'held' })
-    // The stop marks the creator's record first. A stop that ends there leaves every stop fact of
-    // the acquisition confirmed while the scope still holds the entry: the rerun of the stop
-    // needs the creator's record.
     f.commit
       .mockImplementationOnce(input => f.realCommit(input))
       .mockImplementationOnce(async () => ({ kind: 'unavailable', diagnostic: 'fixture' }))
@@ -1165,16 +1130,13 @@ describe('the host lets go of the records of a call only when its acquisitions c
     expect(await records(f, acquisitionDomain(preparation))).toEqual({ revision: '0', count: 0 })
     for (const domain of plain)
       expect(await records(f, domain)).toEqual({ revision: '0', count: 0 })
-    // The scope's record and its end fact belong to the scope, not to the call.
     expect(await records(f, scope)).toEqual(kept)
-    // A second request finds nothing and answers the same.
     expect(await remove(f)).toEqual({ ok: 'removed' })
   })
 
   it('answers held when one stop fact is confirmed and another is not', async () => {
     const f = await fixture()
     await f.reserved()
-    // The close confirms the reservation nobody took over; the permitted resource is still active.
     expect(await f.acquisition.close()).toBe('confirmed')
     expect((await f.domain()).acquired?.state).toMatchObject({
       resources: [{ stop: 'active' }],

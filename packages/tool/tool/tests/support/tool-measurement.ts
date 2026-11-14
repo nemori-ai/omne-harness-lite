@@ -79,7 +79,6 @@ function count(value: number | undefined): MeasuredNumber {
     : { state: 'unmeasured', reason: 'invalid-count' }
 }
 
-/** Test/assembly instrumentation only. It measures this invocation, not Tool admission or delivery. */
 export function createMeasuredFixedDelayTool<A, R, E>(
   options: Readonly<{
     definedDelayMs: number

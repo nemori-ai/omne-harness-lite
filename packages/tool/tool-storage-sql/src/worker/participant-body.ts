@@ -1,7 +1,3 @@
-// The body store commands of the `tool` participant (model `Put`, `StoreSeal`, `DeleteBytes`).
-// The permit was verified by the adapter, in the store's process, before the command was sent; the
-// participant keeps the object immutable: a chunk is written once, a manifest seals exactly the
-// chunks it declares, and a delete leaves no row behind.
 import { createHash } from 'node:crypto'
 import type { ParticipantPort, ParticipantReply } from '@omne-harness/sql-contract/worker'
 import type {
@@ -50,7 +46,6 @@ function chunkOf(port: ParticipantPort, facts: BodyAddress, seq: number): Uint8A
   return data instanceof Uint8Array ? data : null
 }
 
-/** The bytes of a chunk as base64 gives them, or null when `data` is not canonical base64. */
 function decode(data: string): Uint8Array | null {
   const bytes = Buffer.from(data, 'base64')
   return bytes.toString('base64') === data ? new Uint8Array(bytes) : null
@@ -64,7 +59,6 @@ function put(facts: BodyPutFacts, port: ParticipantPort): ParticipantReply {
     return Buffer.from(existing).equals(bytes)
       ? participated({ kind: 'body-kept' })
       : stopped({ reason: 'body-conflict' })
-  // A sealed body holds every chunk its manifest names; a new sequence number would change it.
   if (manifestOf(port, facts) !== null) return stopped({ reason: 'body-conflict' })
   port.execute('INSERT INTO tl_body_chunk (tenant, call, body, seq, data) VALUES (?, ?, ?, ?, ?)', [
     ...addressOf(facts),
@@ -74,7 +68,6 @@ function put(facts: BodyPutFacts, port: ParticipantPort): ParticipantReply {
   return participated({ kind: 'body-kept' })
 }
 
-/** Why the chunks do not hold what `facts` declares, or null when they do. */
 function notReady(facts: BodySealFacts, port: ParticipantPort): string | null {
   const counted = oneRow(
     port,

@@ -1,6 +1,3 @@
-// The object chain and R1–R5 as pure functions: each case names the SPEC row or rule it would
-// catch a wrong implementation of (SPEC「定义完整性与呈现」「会话常驻规则（R1–R5）」「采用点判定」
-// 「刷新点允许的变化」, G7 binding keys).
 import { describe, expect, it } from 'vitest'
 import { type SourceLayer, type ToolDefinition } from '@omne-harness/tool-contract'
 import {
@@ -49,7 +46,6 @@ function key(
 
 type FunctionDefinition = Extract<ToolDefinition, { kind: 'function' }>
 
-/** The function definition of the fixtures, narrowed so a test can vary one field of its shape. */
 function fn(): FunctionDefinition {
   const definition = functionDefinition()
   if (definition.kind !== 'function') throw new Error('function')
@@ -81,7 +77,6 @@ describe('deriveDefinition', () => {
       returns: fn().returns,
     })
     expect(Object.isFrozen(derived)).toBe(true)
-    // definition.adoption is the asset version, never the implementation's executor or declarations.
     expect(derived.adoption).toEqual(adoption('other_name'))
   })
 
@@ -94,7 +89,6 @@ describe('deriveDefinition', () => {
       backgroundAllowed: source.backgroundAllowed,
       declarations: source.declarations,
     })
-    // The fixture keeps the read_file adoption under the files name; the asset version wins.
     expect(derived).toEqual({
       ...source,
       adoption: adoption('files'),
@@ -116,7 +110,6 @@ describe('shapeOf and sameShape', () => {
         vocabulary: { owner: 'test-owner', name: 'json-schema', digest: 'sha256:json-schema' },
       },
     })
-    // Description, parameter descriptions, returns, declarations, adoption, vocabulary revision: no part.
     const varied: ToolDefinition = {
       ...base,
       adoption: adoption('v2'),

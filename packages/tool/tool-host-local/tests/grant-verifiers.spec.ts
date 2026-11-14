@@ -1,6 +1,3 @@
-// The grant verifier of the local Tool host (row 4 of the guard table, D1 conclusion 1): the
-// assembly passes one scope value, and the verifier accepts exactly that scope. The ledger side
-// (an owner that no verifier declares) is in `ledger-guards.spec.ts`, over the real ledger.
 import { describe, expect, it } from 'vitest'
 import type { DurableEvidence, ResourceScope } from '@omne-harness/tool-contract'
 import { createLocalGrantVerifiers, type LocalGrantScope } from '@omne-harness/tool-host-local'

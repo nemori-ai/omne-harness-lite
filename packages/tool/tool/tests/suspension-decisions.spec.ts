@@ -1,7 +1,3 @@
-// The decisions of the suspension commands (P06, P07) on a call that really runs in the ledger: a
-// suspension is planned on the start that saved an Ask wait, committed with the binding's proof,
-// and the wait opens on its registration. Each refusal names the fact that was wrong and writes
-// nothing; a resend under the same operation answers what the first answer was.
 import { describe, expect, it } from 'vitest'
 import type { DurableEvidence, ToolRevision } from '@omne-harness/tool-contract'
 import type { Checkpoint, SuspensionRecord, ToolClock } from '@omne-harness/tool-contract/provider'
@@ -22,7 +18,6 @@ import {
 } from './runtime-values.ts'
 
 const wait = 'op-facts/start/wait'
-/** The state of the suspended segment as base64 text, and the request original as JSON text. */
 const STATE = Buffer.from('{"asked":"which file?"}').toString('base64')
 const REQUEST = JSON.stringify({ question: 'which file?' })
 const resume = { ...evidence('resume'), digest: canonicalDigest(STATE) }
@@ -51,7 +46,6 @@ function askFact(waitId: string) {
   }
 }
 
-/** A running call whose first segment saved an Ask wait fact and has not been suspended yet. */
 async function waiting(withWait = true, waitId: string = wait) {
   const harness = startHarness()
   await admitCall(harness, 'facts')
@@ -90,7 +84,6 @@ async function waiting(withWait = true, waitId: string = wait) {
     if (read.kind !== 'complete') throw new Error('unreadable fixture')
     return read.records
   }
-  /** Rewrites the stored call record or adds records, the way a state this ledger cannot reach by itself would stand. */
   const forge = async (
     edit: (record: { kind: string; call?: { state: object } }) => unknown,
     extra: readonly unknown[] = [],
@@ -172,8 +165,6 @@ describe('planning a suspension', () => {
     )
     expect(duty).toMatchObject([{ task: { operation: planned.operation, state: 'pending' } }])
     const commits = f.harness.memory.commits
-    // The same operation again: the first answer, nothing written. The stale revision of the
-    // resend is not judged, because the operation is already answered.
     expect(ok(await f.plan())).toEqual(planned)
     expect(f.harness.memory.commits).toBe(commits)
   })
@@ -297,7 +288,6 @@ describe('planning a suspension on a call that cannot suspend', () => {
 })
 
 describe('the timing of a suspension', () => {
-  /** The suspension of the planned call by a ledger over the same records whose clock answers `elapsed`. */
   async function suspendedBy(elapsed: ToolClock['elapsed']) {
     const f = await waiting()
     const planned = ok(await f.plan())
@@ -373,7 +363,6 @@ describe('the timing of a suspension', () => {
 
 describe('committing a suspension whose wait cannot be registered', () => {
   it('refuses a wait whose registration operation is not an identity, and commits nothing', async () => {
-    // The registration operation is the wait identity and `/ensure`: a wait at the length limit has none.
     const f = await waiting(true, 'w'.repeat(256))
     const planned = ok(await f.plan())
     const before = await f.records()
@@ -411,7 +400,6 @@ describe('committing a suspension', () => {
         expect.objectContaining({ kind: 'suspend', operation: 'op-facts/start/suspended' }),
       ]),
     )
-    // The duty of the plan is replaced by the duty of the commit, and the facts duty is gone.
     expect(owed.filter(task => task.kind === 'suspend')).toHaveLength(1)
     expect(owed.map(task => task.kind)).not.toContain('facts')
     const commits = f.harness.memory.commits
@@ -488,7 +476,6 @@ describe('committing a suspension', () => {
     const f = await waiting()
     const planned = ok(await f.plan())
     const before = await f.records()
-    // Well-formed base64 of another text: the payload binds the digest of the planned state.
     const other = Buffer.from('{"asked":"another file?"}').toString('base64')
     expect(await f.suspend(planned, f.checkpointOf(), 'op-facts/start/suspended', other)).toEqual({
       failure: { kind: 'invalid', field: 'state', reason: 'digest-mismatch' },
@@ -502,7 +489,6 @@ describe('committing a suspension', () => {
     const planned = ok(await f.plan())
     const running = (await f.records()).find(record => record.kind === 'call')
     ok(await f.suspend(planned, f.checkpointOf()))
-    // The call runs again with the saved wait of the first segment: its wait exists already.
     await f.forge(record => (record.kind === 'call' ? running : record))
     expect(await f.suspend(planned, f.checkpointOf(), 'op-facts/start/suspended-again')).toEqual({
       failure: { kind: 'invalid', field: 'wait', reason: 'wait-identity-used' },
@@ -519,7 +505,6 @@ describe('committing a suspension', () => {
   })
 })
 
-/** A suspended call whose wait is opening: the registration is owed and has not been attached. */
 async function suspended() {
   const f = await waiting()
   const planned = ok(await f.plan())
@@ -609,7 +594,6 @@ describe('opening the wait on its registration', () => {
         registration: f.registration,
       }),
     ).toEqual({ failure: { kind: 'stale-revision', current } })
-    // The record of the running segment stands again, as a revision that lagged behind would leave it.
     await f.forge(record => (record.kind === 'call' ? f.running : record))
     expect(await f.attach('op-facts/attach-running')).toEqual({
       failure: { kind: 'invalid', field: 'call', reason: 'phase:running' },
@@ -659,7 +643,6 @@ describe('blocking the registration of a wait that the decision owner refused', 
       failure: { kind: 'invalid', field: 'task', reason: 'pending-registration-required' },
     })
     ok(await f.block(resolution))
-    // A blocked duty is a verdict already: it is not blocked a second time.
     expect(await f.block(resolution, 'op-facts/block-again', await f.owed())).toEqual({
       failure: { kind: 'invalid', field: 'task', reason: 'pending-registration-required' },
     })
@@ -685,7 +668,6 @@ describe('blocking the registration of a wait that the decision owner refused', 
   it.each([null, 'text', 5])('does not take %s for a registration duty', async task => {
     const f = await suspended()
     const answer = await f.block({ kind: 'blocked', reason: 'denied' }, 'op-facts/block', task)
-    // Only a registration duty goes to the blocking; another value is a task this ledger does not record.
     expect(answer).toMatchObject({ failure: { kind: 'unsupported' } })
   })
 })

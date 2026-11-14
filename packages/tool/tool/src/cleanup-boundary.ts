@@ -5,7 +5,6 @@ import { readOwnSlot } from '@omne-harness/tool-contract/binding'
 import { invalid, judgeEvidenceField } from './boundary.ts'
 import { copyData } from './facts-boundary.ts'
 
-/** Freeze only protocol fields. Opaque principals do not enter the data copy or digest. */
 export function fixCleanupFields(
   input: unknown,
   keys: readonly string[],

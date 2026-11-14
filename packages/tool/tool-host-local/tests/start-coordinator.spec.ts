@@ -1,6 +1,3 @@
-// The local start coordinator (G5) as the start ordering domain of P04: permits, consume,
-// inspect, invalidate and exclude over the `host` domain of a non-durable ledger store.
-
 import type { ToolLedgerStore } from '@omne-harness/tool'
 import { describe, expect, it } from 'vitest'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
@@ -74,7 +71,6 @@ describe('G5 the start ordering domain', () => {
     expect(ok(await authority.inspect({ ...callAccess('c1'), start: startOf('c1') }))).toEqual(
       consumed,
     )
-    // A new permit for the same start cannot undo the rejection.
     const again = await permitFor(authority, 'c1')
     expect(ok(await authority.consume(consumeWith(again)))).toEqual(consumed)
   })
@@ -92,10 +88,6 @@ describe('G5 the start ordering domain', () => {
   })
 
   it('G5 order: a concurrent invalidation and consume are decided by their commits, and the answer agrees with that order', async () => {
-    // The permit and the acceptance live in the call's domain, the guard in the tenant's guard
-    // domain. The two have no shared revision order; the operation whose read is suspended
-    // commits last. Consume asserts the guard revision at its commit, so the acceptance and the
-    // invalidation linearize on their commits (StartConsume P1), not on the order they entered.
     const seen = new Set<string>()
     for (const invalidationBlocked of [true, false]) {
       const memory = createMemoryToolLedgerStore()
@@ -128,7 +120,6 @@ describe('G5 the start ordering domain', () => {
       block = true
       let invalidationPending: ReturnType<typeof authority.invalidate>
       let consumePending: ReturnType<typeof authority.consume>
-      // The suspended operation commits last: the other one runs to its commit first.
       if (invalidationBlocked) {
         invalidationPending = authority.invalidate(invalidation('revoke-1'))
         await firstRead
@@ -144,26 +135,18 @@ describe('G5 the start ordering domain', () => {
       const [invalidated, consumed] = await Promise.all([invalidationPending, consumePending])
       ok(invalidated)
       const answer = ok(consumed)
-      // An acceptance committed before the invalidation stays; a consume that reads the advanced
-      // guard is rejected.
       expect(answer.kind).toBe(invalidationBlocked ? 'started' : 'rejected')
       if (answer.kind === 'rejected') expect(answer.reason).toContain('invalidated')
-      // The answer is the decided order: inspect and a repeated consume agree with it.
       expect(ok(await authority.inspect({ ...callAccess('c1'), start: startOf('c1') }))).toEqual(
         answer,
       )
       expect(ok(await authority.consume(consumeWith(permit)))).toEqual(answer)
       seen.add(answer.kind)
     }
-    // Both orders occurred, so each branch above was checked.
     expect([...seen].sort()).toEqual(['rejected', 'started'])
   })
 
   it('G5 order: an invalidation committed between the consume read of the guards and its commit refuses the start', async () => {
-    // The fence the StartConsume model checks: consume reads `start-guards`, decides, and commits
-    // the acceptance into the call domain. An invalidation that commits in that window must make
-    // the acceptance a conflict, so the retry sees the moved guard and rejects for good. A store
-    // wrapper pauses the acceptance commit and lets the invalidation run to completion meanwhile.
     const memory = createMemoryToolLedgerStore()
     let invalidateInWindow: (() => Promise<void>) | null = null
     const store: ToolLedgerStore = {
@@ -215,7 +198,6 @@ describe('G5 the start ordering domain', () => {
       const permit = await permitFor(authority, 'c1')
       store.arm()
       expect('failure' in (await authority.invalidate(invalidation('revoke-1')))).toBe(true)
-      // The invalidation did not hold, and the caller was not told it did.
       expect(ok(await authority.consume(consumeWith(permit))).kind).toBe('started')
     }
   })
@@ -476,7 +458,6 @@ describe('G5 the start ordering domain', () => {
         },
       })
       const commits = store.commits
-      // The probe reads the domain that holds the record: prepare reads the guards, inspect the call.
       const probe =
         kind === 'invalidation'
           ? restored.prepare({ ...callAccess('c1'), start: startOf('c1'), request: request() })
@@ -560,7 +541,6 @@ describe('G5 the start ordering domain', () => {
       }),
     )
     expect(guardReads.count).toBe(2)
-    // Invalidate writes the guards: it reads them once as its own domain, not a second time as guards.
     ok(await authority.invalidate(invalidation('revoke-placement')))
     expect(guardReads.count).toBe(3)
   })
@@ -570,7 +550,6 @@ describe('G5 the start ordering domain', () => {
     const stale = await permitFor(authority, 'c1')
     const inspected = ok(await authority.inspect({ ...callAccess('c1'), start: startOf('c1') }))
     expect(inspected.kind).toBe('not-started')
-    // The permit issued before the answer is excluded; a permit issued after it is not.
     expect(ok(await authority.consume(consumeWith(stale)))).toEqual(inspected)
     const fresh = await permitFor(authority, 'c1')
     expect(ok(await authority.consume(consumeWith(fresh))).kind).toBe('started')
@@ -604,7 +583,6 @@ describe('G5 the start ordering domain', () => {
     expect(await authority.consume({ ...consumeWith(permit), request: other })).toEqual({
       failure: { kind: 'invalid', field: 'request', reason: 'not-the-permitted-request' },
     })
-    // The permit names the digest of its request; another digest is not the stored binding.
     const renamed = { ...permit, inputDigest: 'sha256:other' }
     expect(ok(await authority.consume(consumeWith(renamed))).kind).toBe('unknown')
     expect(ok(await authority.consume(consumeWith(permit))).kind).toBe('started')
@@ -803,9 +781,6 @@ describe('G5 tenants and qualification', () => {
       ).toThrow('turnTimeoutMs: range')
   })
 
-  // A store whose read never settles stands for a turn that holds the tenant section without ever
-  // finishing. Every caller of that tenant must still answer within its bound: an answer that never
-  // arrives is a silent failure, whatever holds the store.
   const neverSettles = (): ToolLedgerStore => ({
     durability: 'none',
     scanPending: () => new Promise(() => {}),
@@ -837,7 +812,6 @@ describe('G5 tenants and qualification', () => {
         diagnostic: expect.stringContaining('did not settle within 60 ms'),
       },
     })
-    // The bound is what ends the wait, not a store answer: it must fire near its own value.
     expect(elapsed).toBeLessThan(2_000)
   })
 
@@ -872,11 +846,7 @@ describe('G5 tenants and qualification', () => {
   })
 })
 
-// A turn that outlives its bound keeps running and may still commit (the serial section above).
-// The caller that stopped waiting cannot tell whether it did, so it gets the unknown answer of its
-// own operation, never `unavailable`, which would claim that nothing was decided.
 describe('G5 bound: what an expired turn may still commit is unknown, not unavailable', () => {
-  /** A store over memory whose commits wait until `release()`, then write as usual. */
   const heldCommits = () => {
     const memory = createMemoryToolLedgerStore()
     let held: (() => void)[] = []

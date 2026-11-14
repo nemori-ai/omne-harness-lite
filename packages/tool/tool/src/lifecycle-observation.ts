@@ -49,7 +49,6 @@ function observations(input: LedgerCommitInput): readonly ToolLifecycleObservati
   }))
 }
 
-/** Observes confirmed facts; telemetry is never a receipt or a condition of committing. */
 export function observeToolLedgerCommit(
   commit: ToolLedgerStore['commit'],
   observe: ToolLifecycleObserver,
@@ -57,18 +56,14 @@ export function observeToolLedgerCommit(
   const report = (event: ToolLifecycleObservation) => {
     try {
       observe(event)
-    } catch {
-      /* The original commit answer remains authoritative. */
-    }
+    } catch {}
   }
   return async input => {
     const domain = input.domain
     let events: readonly ToolLifecycleObservation[] = []
     try {
       events = observations(input)
-    } catch {
-      /* Observation cannot prevent a business commit. */
-    }
+    } catch {}
     const failure = (kind: 'unknown' | 'conflict' | 'unavailable' | 'rejected') => {
       if (domain.kind === 'call' && events.length > 0)
         report({

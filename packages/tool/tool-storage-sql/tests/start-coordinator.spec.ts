@@ -1,13 +1,3 @@
-// A7: the local start coordinator of `tool-host-local` keeps its acceptance ledger in the `host`
-// domain of the store it is given (D2 candidate §5). Over the SQL ledger store it passes the three
-// start suites of `@omne-harness/tool-contract/testing`, and a coordinator rebuilt over the same
-// reopened files still refuses a permit prepared before an invalidation.
-//
-// The fence view is the coordinator's `invalidate`, as the `tool-records` row will provide it. The
-// coordinator has no authorization consumption point (J50): it binds, revokes and reads no permit,
-// so the authorization suite has no handles and each of its cases is not applicable, naming
-// `authorization`. That is a fact of the coordinator, not of this store; the memory store gives the
-// same verdicts.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { TenantId } from '@omne-harness/legal-identity'
 import {
@@ -40,7 +30,6 @@ const principalB: Principal = { subject: 'bob', tenants: [keyOf(TENANT_B)], fenc
 const stranger: Principal = { subject: 'carol', tenants: [keyOf(TENANT_A)], fences: false }
 const GUARD: GuardResource = { owner: 'permissions', resource: 'scope-1/read_file' }
 
-/** Members of a tenant may start; only principals that fence may invalidate. */
 const access: StartCoordinatorAccess<Principal> = {
   qualify: async input =>
     input.principal.tenants.includes(keyOf(input.tenant)) &&
@@ -91,7 +80,6 @@ async function fixture() {
   }
 }
 
-/** The cases each suite cannot run on the coordinator, with the handle each one misses. */
 const suites = [
   { name: 'P04 start authority', cases: toolStartAuthorityConformance<Principal>(), missing: null },
   { name: 'P04 start fence', cases: toolStartFenceConformance<Principal>(), missing: null },

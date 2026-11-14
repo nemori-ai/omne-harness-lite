@@ -1,12 +1,6 @@
 import { createMemoryToolBodies } from '@omne-harness/tool/testing'
 import type { JsonLimits } from '@omne-harness/json-text'
 import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
-// A real Tool ledger (`createToolLedger` of `@omne-harness/tool`) over a given store, with a fixed
-// non-production trust model: one principal of one tenant is qualified, the invocation source is
-// the test source of `@omne-harness/tool/testing`, and the other ports are the in-memory doubles
-// of `@omne-harness/tool-contract/testing`. Only the store comes from this member. The source is
-// built once and given to every ledger, so a ledger rebuilt over a reopened store verifies the
-// same invocation.
 import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-block'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { succeed } from '@omne-harness/operation-result'
@@ -35,12 +29,10 @@ export type Principal = Readonly<{ subject: 'alice' | 'bob' }>
 
 const sourceCall = decodeToolCallId('source-qualification')
 if ('failure' in sourceCall) throw new Error('invalid fixture call')
-/** The call the source qualification names: the source binds before a call exists. */
 const SOURCE_CALL = sourceCall.ok
 
 type ScopeRef = FixedToolRequest['requesterScope']
 
-/** A verifying guard: a scope reference is a non-empty `ref` text and nothing else. */
 function isScopeRef(value: unknown): value is ScopeRef {
   if (typeof value !== 'object' || value === null) return false
   const ref: unknown = Reflect.get(value, 'ref')
@@ -122,7 +114,6 @@ function invokeRequest(body?: ToolBodyDeclaration, argumentsText = '{}'): ToolIn
   }
 }
 
-/** A fixed request with a direct invocation, for the start coordinator. */
 export function fixedRequest(): FixedToolRequest {
   return {
     ...invokeRequest(),
@@ -135,10 +126,6 @@ export function fixedRequest(): FixedToolRequest {
 
 export type LedgerWorld = Awaited<ReturnType<typeof ledgerWorld>>
 
-/**
- * The trust model and one admitted-to-be input of `tenant`; `ledgerOver` builds a ledger on a store.
- * `argumentsText` is the JSON text of the call's arguments; the argument budget admits its size.
- */
 export async function ledgerWorld(
   tenant: TenantId,
   body?: ToolBodyDeclaration,

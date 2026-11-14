@@ -1,5 +1,3 @@
-// A result is committed only when every page of it can be read back (I-2 at settlement): a block
-// that fits the threshold L in UTF-8 may still exceed the result page once JSON-encoded.
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { sealedText, settlementFixture } from './settlement-values.ts'
 import { auditQueues } from './start-values.ts'
@@ -12,9 +10,7 @@ afterEach(async () => {
 })
 
 const PAGE = 16_384
-/** 64 UTF-8 bytes a line; `\t` encodes as two JSON bytes, so the encoded line is 128 bytes. */
 const INDENTED_LINE = `${'\t'.repeat(63)}\n`
-/** 10 240 UTF-8 bytes, within L = 65 536; 20 480 encoded bytes, over the page. */
 const INDENTED_TEXT = INDENTED_LINE.repeat(160)
 const encodedBytes = (block: unknown) => Buffer.byteLength(JSON.stringify(block))
 const hidden = (id: string, value: string) => ({

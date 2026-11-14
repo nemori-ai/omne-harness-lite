@@ -38,7 +38,6 @@ import {
   type Principal,
 } from '../coordinator-values.ts'
 
-/** `wrap` puts a store double between the adapter and the memory store. */
 function fixture(wrap: (memory: ToolLedgerStore) => ToolLedgerStore = memory => memory) {
   const store = createMemoryToolLedgerStore()
   const ledgerStore = wrap(store)
@@ -434,7 +433,6 @@ for (const test of toolEnvironmentConformance<Principal, ToolEnvironmentValue>()
       access: { tenant: tenantA, principal: principalA },
       request: f.prepare.request,
       allocations: () => f.acquire.mock.calls.length,
-      // A new adapter over the same environment state: the port of a new process.
       restart: () => Promise.resolve(f.build()),
     })
   })

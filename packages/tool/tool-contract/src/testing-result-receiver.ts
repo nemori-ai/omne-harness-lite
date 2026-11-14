@@ -1,8 +1,3 @@
-// The ToolResultReceiver conformance suite (SPEC「结果推送与保存」, J02) and a non-durable double
-// that conforms to it. A receiver is implemented by a consumer owner; the suite checks recall,
-// conflict, the tenant carried by the invocation reference, the relation table, cancellation and
-// the per-tenant capacity. The double keeps its records in memory and declares
-// `durability: 'none'`: a saved receipt of it proves nothing about durable custody.
 import assert from 'node:assert/strict'
 import { isDeepStrictEqual } from 'node:util'
 import type { CallAccount } from '@omne-harness/call-account'
@@ -36,19 +31,6 @@ import {
   textResult,
 } from './testing-values.ts'
 
-/**
- * What the receiver suite needs. A fresh fixture serves one case. `consumer` is a consumer position
- * that the receiver registered as waiting for results, so a push to it has its original
- * association when nothing else is wrong; the suite takes a position that differs from it only in
- * `position` as one the receiver never registered. `otherConsumer` is a second registered
- * position: the case that pushes one call to two positions is reported not applicable without it.
- * `strangerAccess` is an access of the tenant of `access` whose principal holds no receiving
- * qualification: the case that needs it is reported not applicable without it.
- * The receiver answers each push definitely in this suite: no fault is injected. `tenantCapacity`
- * is how many new keys one tenant may hold before a further new key is backpressured; the capacity
- * case is reported not applicable without it, and the cases that need a second tenant without
- * `otherAccess`.
- */
 export interface ToolResultReceiverFixture<P> {
   readonly receiver: ToolResultReceiver<P, ContentBlock>
   readonly access: Access<P>
@@ -89,7 +71,6 @@ function accountOf(call: string, revision: string): CallAccount {
   }
 }
 
-/** A legal result push of `call` under `access`, version `version`, with text `text`. */
 function resultDelivery(
   access: Access<unknown>,
   consumer: ConsumerRef,
@@ -192,7 +173,6 @@ async function sameKeyConflicts<P>(fixture: Fixture<P>): Promise<void> {
 
 async function keptOwnCopy<P>(fixture: Fixture<P>): Promise<void> {
   const s = scene(fixture)
-  // A field the caller keeps a mutable handle on, and changes after the push.
   const source = { owner: 'conformance', record: 'source-1', revision: '1', digest: 'sha256:1' }
   const first = await s.saved({ ...s.result('call-1'), source }, 'push')
   source.record = 'changed'
@@ -207,9 +187,6 @@ async function keptOwnCopy<P>(fixture: Fixture<P>): Promise<void> {
 async function foreignReference<P>(fixture: Fixture<P>): Promise<void> {
   const own = scene(fixture)
   const other = scene(fixture, otherAccessOf(fixture))
-  // The reference carries no tenant (R2-D357): the tenant comes from the access. A key that the
-  // other tenant saved is unknown to the pusher, so other content under it is not a conflict and
-  // the receipt of the other tenant is not recalled: the answer does not tell that it exists.
   const theirs = await other.saved(
     other.result('call-1', 'result-1', 'one'),
     'push of the other tenant',
@@ -225,7 +202,6 @@ async function tenantInKey<P>(fixture: Fixture<P>): Promise<void> {
   const own = scene(fixture)
   const other = scene(fixture, otherAccessOf(fixture))
   const first = await own.saved(own.result('call-1', 'result-1', 'one'), 'push of the tenant')
-  // The same call and version of another tenant is another key: no conflict, no recall.
   const second = await other.saved(
     other.result('call-1', 'result-1', 'two'),
     'push of another tenant',
@@ -266,8 +242,6 @@ async function relationTable<P>(fixture: Fixture<P>): Promise<void> {
     'push of a result whose account belongs to another call',
   )
   assert.deepEqual(subject, { kind: 'invalid', field: 'account.subject', reason: 'call-mismatch' })
-  // The refusals saved nothing: the legal result is still a new key. The suite pins no order of
-  // result and account at the receiver.
   await s.saved(result, 'push of the legal result')
 }
 
@@ -279,7 +253,6 @@ async function unqualifiedReceiver<P>(fixture: Fixture<P>): Promise<void> {
     'push by a principal of the tenant without receiving qualification',
   )
   assert.equal(denied.kind, 'denied')
-  // The denied push saved nothing: other content under the same key is still a new key.
   await own.saved(own.result('call-1', 'result-1', 'two'), 'push by the qualified principal')
 }
 
@@ -290,7 +263,6 @@ async function cancelledBeforeAccept<P>(fixture: Fixture<P>): Promise<void> {
   const cancelled = failureOf(await s.push(s.result('call-1'), aborted.signal), 'aborted new key')
   assert.equal(cancelled.kind, 'cancelled-before-accept')
   const receipt = await s.saved(s.result('call-1'), 'push after the cancellation')
-  // A key already saved is recalled even when the signal is aborted.
   assert.deepEqual(
     savedOf(await s.push(s.result('call-1'), aborted.signal), 'aborted resend'),
     receipt,
@@ -306,7 +278,6 @@ async function tenantCapacity<P>(fixture: Fixture<P>): Promise<void> {
     receipts.push(await own.saved(own.result(`call-${index}`), `push ${index}`))
   const full = failureOf(await own.push(own.result('call-over')), 'push over the capacity')
   assert.equal(full.kind, 'backpressured')
-  // One tenant at its share does not block another, and a resend takes no new share.
   await other.saved(other.result('call-over'), 'push of another tenant')
   assert.deepEqual(await own.saved(own.result('call-0'), 'resend at capacity'), receipts[0])
 }
@@ -369,25 +340,12 @@ export function toolResultReceiverConformance<P>(): readonly ConformanceCase<Fix
   ]
 }
 
-// ---------------------------------------------------------------------------------------------
-// The non-durable double
-// ---------------------------------------------------------------------------------------------
-
 export interface MemoryToolResultReceiver<P> extends ToolResultReceiver<P, ContentBlock> {
   readonly durability: 'none'
 }
 
 type Stored = Readonly<{ delivery: ToolDelivery<ContentBlock>; receipt: ToolSavedReceipt }>
 
-/**
- * A receiver that keeps its records in memory for the registered consumer positions `consumers`.
- * The double stands in for the original association this way: a push to a position that is not
- * registered has none, and the first saved push of a call binds the call to its position, so a
- * later push of the call to another position is not original. Each tenant holds at most
- * `tenantCapacity` keys; a resend takes no new share. Every push runs to its end before the next
- * one, and the receiver copies the payload before it looks at it. `qualifies` is the current
- * receiving qualification of a principal for its tenant; it is asked after the tenant check.
- */
 export function createMemoryToolResultReceiver<P>(
   input: Readonly<{
     consumers: readonly ConsumerRef[]
@@ -464,17 +422,12 @@ export function createMemoryToolResultReceiver<P>(
   return Object.freeze({ push, durability: 'none' as const })
 }
 
-/**
- * A fresh fixture over a fresh in-memory receiver with two registered positions, a capacity of two
- * keys per tenant, and a stranger of the own tenant without receiving qualification.
- */
 export function memoryToolResultReceiverFixture(): ToolResultReceiverFixture<string> {
   const owner = 'conformance-receiver'
   const consumer = { owner, work: 'work-1', position: 'position-1', purpose: 'result' }
   const otherConsumer = { ...consumer, position: 'position-2' }
   const access = memoryAccess('tester')
   const otherAccess = memoryOtherAccess('tester-other')
-  // The receiving qualification of the double: each fixture principal in its own tenant.
   const grants = new Set(
     [access, otherAccess].map(granted =>
       JSON.stringify([granted.principal, tenantKey(granted.tenant)]),

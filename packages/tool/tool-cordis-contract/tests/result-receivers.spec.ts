@@ -1,7 +1,3 @@
-// The result receiver registration of `ToolRuntimeService` on real Cordis 4.0.4 (XC-TOOLRESULT r2,
-// the re-registration rule R1-D15). Each case names the defect it catches: a registration that
-// outlives its fiber, a second live owner accepted silently, a stale registration that blocks the
-// rerun of its owner, or a late disposer that removes the registration that replaced it.
 import { Context } from '@deepseek-ai/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { ToolResultReceiver } from '@omne-harness/tool-contract'
@@ -12,7 +8,6 @@ type CordisFiberState = typeof import('@deepseek-ai/cordis').FiberState
 const ACTIVE = 2 satisfies CordisFiberState['ACTIVE']
 const FAILED = 3 satisfies CordisFiberState['FAILED']
 
-/** A provider with stub operations; the test reads the push-stage lookup through `receiverOf`. */
 class TestRuntime extends ToolRuntimeService<string, ContentBlock> {
   readonly invoke = stub
   readonly inspect = stub
@@ -37,7 +32,6 @@ function runtimeOf(ctx: Context): TestRuntime {
   return ctx.get('toolRuntime') as TestRuntime
 }
 
-/** An agent-host-like plugin: it builds a new receiver on every run and registers it. */
 function registering(owner: string, built: ToolResultReceiver<string, ContentBlock>[]) {
   return {
     name: `registers-${owner}`,
@@ -105,9 +99,7 @@ describe('ToolRuntimeService.registerResultReceiver', () => {
     })
     if (successorCtx === undefined) throw new Error('successor did not run')
     const next = receiver()
-    // Both live: the successor may not take the owner.
     expect(() => runtimeOf(successorCtx as Context).registerResultReceiver('agent', next)).toThrow()
-    // Start the disposal of the old host. Its registration is still present for a few microtasks.
     const disposal = oldHost.dispose()
     expect(runtimeOf(root).receiverOf('agent')).toBe(old[0])
     runtimeOf(successorCtx).registerResultReceiver('agent', next)

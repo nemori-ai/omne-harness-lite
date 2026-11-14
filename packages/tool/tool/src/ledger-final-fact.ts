@@ -1,6 +1,3 @@
-// The final fact of a call: the planned final the execution recorded (model `CommitResult`
-// consumes it, nothing reads a body back). Receipt checks that an offloaded original names a
-// sealed body entry of this call; recovery hands the stored plan back, or the settlement receipt.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolFailure } from '@omne-harness/tool-contract'
@@ -19,11 +16,6 @@ import {
 
 type StoredSavedFact = Pick<FactEventRecord, 'start' | 'source' | 'event' | 'fact' | 'evidence'>
 
-/**
- * The batch as the ledger stores it: each event with its fingerprint, a planned final as a pending
- * fact, and a wait as its intent with the request original beside it. The first final of a call may name only a body this call sealed; a final the call already
- * knows is adopted as that known final (`planEvents` fixes the value and refuses a conflicting one).
- */
 export function adoptFinalFact(
   snapshot: Snapshot,
   batch: FactBatch,
@@ -72,7 +64,6 @@ function planned(final: ToolPlannedFinal): StoredExecutionFact {
   return { ...final, payload: { kind: 'pending' } }
 }
 
-/** The saved final as recovery returns it: the pending plan, or its settlement receipt. */
 export function restoreSavedFact<B extends ContentBlock>(saved: StoredSavedFact): SavedFact<B> {
   if (saved.fact.kind !== 'final') return { ...saved, fact: saved.fact }
   const { payload, ...final } = saved.fact

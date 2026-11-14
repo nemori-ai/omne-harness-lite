@@ -36,14 +36,7 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import { callHostDomain, retentionHostDomain } from './host-domains.ts'
 
-/** The stop fact an acquisition stores for one of its resources. */
 export type StoredResourceStop = 'active' | 'unconfirmed' | 'confirmed'
-/**
- * The stop fact as a reader of the acquisition sees it. `handedOver` is never stored: the
- * retention scope of the acquisition adopted the resource, so the acquisition no longer owns it.
- * The scope's record owns that fact; a read of the acquisition applies it, and a write of the
- * acquisition keeps its own stored fact for the key. No later stop fact replaces it in the view.
- */
 export type ResourceStop = StoredResourceStop | 'handedOver'
 export type ResourceFact = Readonly<{
   resource: ManagedResource
@@ -52,10 +45,6 @@ export type ResourceFact = Readonly<{
   stop: ResourceStop
 }>
 type StoredResourceFact = ResourceFact & Readonly<{ stop: StoredResourceStop }>
-/**
- * A reservation (`plan`) of the acquisition's retention scope view: it stays in the creating
- * acquisition's record with its stop fact, and reads `handedOver` while the scope holds the key.
- */
 export type Reservation = Readonly<{ resource: ManagedResource; stop: ResourceStop }>
 type StoredReservation = Reservation & Readonly<{ stop: StoredResourceStop }>
 export type AllocationFact =
@@ -73,7 +62,6 @@ export type EnvironmentState = Readonly<{
   resources: readonly ResourceFact[]
   reservations: readonly Reservation[]
 }>
-/** The acquisition as stored: its own stop facts, never a handover. */
 type StoredEnvironmentState = Omit<EnvironmentState, 'resources' | 'reservations'> &
   Readonly<{
     resources: readonly StoredResourceFact[]
@@ -89,38 +77,24 @@ export type EnvironmentStorageOptions = Readonly<{
   mode?: 'production' | 'test'
   commitAttempts?: number
 }>
-/**
- * The acquisition that created a retained entry: a reference by key, with the digest of its
- * original binding. The entry copies nothing of the preparation; a reader that needs it reads the
- * creator's `environment@<call>` record by key.
- */
 export type RetainedCreator = Readonly<{
   call: ToolCallId
   operation: ToolOperationId
   original: string
 }>
-/** The stop fact of a live retained entry; a confirmed stop removes the entry. */
 export type RetainedStop = 'active' | 'unconfirmed'
-/** An entry the scope took over: a permitted terminal or an adopted process. */
 export type RetainedResourceFact = Readonly<{
   resource: ManagedResource
   taken: 'permitted' | 'adopted'
   stop: RetainedStop
   creator: RetainedCreator
 }>
-/**
- * The record of one retention scope (SPEC, 环境准备的租户调度): `open` or `closed`, never open
- * again, and never deleted. It holds only the entries the scope took over; a reservation stays
- * in its creator's record. The end fact of an adopted process is a record of its own in the
- * scope's domain (`ended/<key>`).
- */
 export type RetentionState = Readonly<{
   phase: 'open' | 'closed'
   scope: ScopeRef
   resources: readonly RetainedResourceFact[]
 }>
 
-/** The acquisition as it closes: every reservation the scope did not take over is stopped. */
 export function closedAcquisition(state: EnvironmentState): EnvironmentState {
   return {
     ...state,
@@ -131,17 +105,11 @@ export function closedAcquisition(state: EnvironmentState): EnvironmentState {
   }
 }
 
-/** A change of an acquisition record, decided on it and on its retention scope's record. */
 type StateChange = (
   state: EnvironmentState | null,
   receipt: (value: unknown) => DurableEvidence,
   retention: RetentionState | null,
 ) => Outcome<EnvironmentState, ToolFailure>
-/**
- * The decision of one take-over: the entry the scope adds for a reservation of the creating
- * acquisition, or `held` when the scope holds it already, decided on that acquisition and the
- * scope's record. The acquisition is read, never written.
- */
 type TakeOverDecision = (
   creator: EnvironmentState,
   retention: RetentionState | null,
@@ -155,12 +123,9 @@ type RetentionSnapshot = Readonly<{
 }>
 type AcquisitionSnapshot = Readonly<{
   revision: ToolRevision
-  /** The record as stored, or null when there is none. */
   stored: StoredEnvironmentState | null
-  /** The record with the handovers of its retention scope applied. */
   state: EnvironmentState | null
   mutation: string | null
-  /** The retention scope's record when the acquisition names one, for the write's assertion. */
   retention: RetentionSnapshot | null
 }>
 const localClosures = new WeakMap<ToolLedgerStore, Map<string, Set<() => void>>>()
@@ -169,15 +134,11 @@ export const environmentFailure = (diagnostic: string): Outcome<never, ToolFailu
   fail({ kind: 'unavailable', dependency: 'execution-environment-adapter', diagnostic })
 export const preparationKey = (address: Pick<EnvironmentAddress, 'call' | 'operation'>): string =>
   JSON.stringify([address.call, address.operation])
-/** The host domain of one call's environment acquisitions. */
 export const acquisitionDomain = (address: Pick<EnvironmentAddress, 'tenant' | 'call'>) =>
   callHostDomain(address.tenant, 'environment', address.call)
-/** The host domain of one retention scope: state that spans the calls of that scope. */
 export const retentionDomain = (tenant: TenantId, scope: ScopeRef) =>
   retentionHostDomain(tenant, canonicalDigest(scope))
-/** The key of the one record of a retention scope's domain. */
 export const RETENTION_RECORD_KEY = 'scope'
-/** The key of the end fact of the retained process `key` in its scope's domain. */
 export const endedRecordKey = (key: string): string => `ended/${key}`
 const callDomain = (address: Pick<EnvironmentAddress, 'tenant' | 'call'>): LedgerDomain => ({
   kind: 'call',
@@ -185,7 +146,6 @@ const callDomain = (address: Pick<EnvironmentAddress, 'tenant' | 'call'>): Ledge
   call: address.call,
 })
 
-/** Whether `entry` was created by the acquisition `stored`. */
 export function createdBy(creator: RetainedCreator, stored: EnvironmentState): boolean {
   return (
     creator.call === stored.preparation.call &&
@@ -194,10 +154,6 @@ export function createdBy(creator: RetainedCreator, stored: EnvironmentState): b
   )
 }
 
-/**
- * The acquisition with every key its retention scope took over from it marked `handedOver`, in
- * its resources and its reservations.
- */
 function withHandovers(
   stored: StoredEnvironmentState,
   retention: RetentionState | null,
@@ -218,10 +174,6 @@ function withHandovers(
   }
 }
 
-/**
- * The decided state as the acquisition stores it: a fact the decision left `handedOver` keeps the
- * acquisition's own stored stop fact, because the handover is the scope's fact.
- */
 function withoutHandovers(
   next: EnvironmentState,
   stored: StoredEnvironmentState | null,
@@ -325,7 +277,6 @@ function allocation(value: unknown): AllocationFact | null {
   return null
 }
 
-/** Every item of a stored list decoded, or null when the value is not a list or an item fails. */
 async function decodeEach<T>(
   value: unknown,
   decode: (item: unknown) => Promise<T | null>,
@@ -472,7 +423,6 @@ function encodeState(state: StoredEnvironmentState): unknown {
   }
 }
 
-/** The closure listener key of a retention scope; the tenant is added by `identity`. */
 const retentionKey = (scope: ScopeRef): string => `retention:${canonicalDigest(scope)}`
 
 function decodeCreator(value: unknown): RetainedCreator | null {
@@ -504,7 +454,6 @@ async function decodeRetention(value: unknown): Promise<RetentionState | null> {
     : { phase: value.phase, scope: scope.ok, resources }
 }
 
-/** Whether a decoded acquisition is the one of `address`, under the digest of its preparation. */
 function storedAt(stored: StoredEnvironmentState, address: EnvironmentAddress): boolean {
   return (
     preparationKey(stored.preparation) === preparationKey(address) &&
@@ -553,7 +502,6 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     }
   }
 
-  /** The envelope of one host record: its mutation marker and the encoded state. */
   async function envelope(
     domain: LedgerDomain,
     key: string,
@@ -596,13 +544,6 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     return succeed({ revision: read.ok.revision, state, mutation: read.ok.mutation })
   }
 
-  /**
-   * The acquisition record with the handovers of its retention scope applied: a key the scope
-   * took over from this acquisition is `handedOver` here. The scope owns the handover fact; the
-   * acquisition domain never stores it (one decision, one owner). The scope's record is returned
-   * so a write of the acquisition decides on it and asserts its revision, which keeps the write
-   * serialized with take-overs.
-   */
   async function snapshot(
     address: EnvironmentAddress,
   ): Promise<Outcome<AcquisitionSnapshot, ToolFailure>> {
@@ -634,7 +575,6 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     })
   }
 
-  /** The acquisition with the handovers of its retention scope, and the scope's snapshot. */
   async function withRetention(
     tenant: TenantId,
     stored: StoredEnvironmentState,
@@ -655,7 +595,6 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     return 'failure' in result ? result : succeed(result.ok.state)
   }
 
-  /** The revision of the original call while it is live and bound to `expected`. */
   async function callRevision(
     address: EnvironmentAddress,
     expected: PreparationRecord,
@@ -682,10 +621,6 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     return succeed(read.revision)
   }
 
-  /**
-   * The assertion that the original call is still the live call the snapshot was taken for, and
-   * the current resource authorization, when a change needs them.
-   */
   async function callAssertion(
     address: EnvironmentAddress,
     preparation: PreparationRecord,
@@ -758,8 +693,6 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
         'current resource authorization unavailable',
       )
       if ('failure' in call) return call
-      // The retention scope may take a key over between this snapshot and the write; the
-      // assertion makes such a take-over a conflict, and the retry decides on the current scope.
       const scope = stored.original.retentionScope
       const retention: readonly LedgerAssertion[] =
         before.ok.retention === null || scope === undefined
@@ -800,10 +733,6 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     return 'failure' in result ? result : succeed(result.ok.state)
   }
 
-  /**
-   * Whether the scope holds the end fact of the retained process `key`: one keyed read of
-   * `ended/<key>` in the scope's domain, never a read of the whole domain.
-   */
   async function readEnded(
     address: EnvironmentAddress,
     scope: ScopeRef,
@@ -822,10 +751,6 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
       : 'unavailable'
   }
 
-  /**
-   * One commit of a scope's record: `next` at the revision of `before`, with `writes` next to it,
-   * asserting `asserts`. A lost answer is recognized by the mutation of the record.
-   */
   async function commitScope(
     address: EnvironmentAddress,
     scope: ScopeRef,
@@ -856,12 +781,6 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     )
   }
 
-  /**
-   * The take-over (`permit`, `adopt`): the one commit across domains. It adds the entry `decide`
-   * gives for a reservation of the creating acquisition at `address` to the scope's record, and
-   * asserts the creator acquisition domain and the original call. An acquisition that changed or
-   * a call that settled since the snapshot is a conflict; the retry decides again.
-   */
   async function takeOver(
     address: EnvironmentAddress,
     scope: ScopeRef,
@@ -901,11 +820,6 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     return environmentFailure('retention ledger revision contention')
   }
 
-  /**
-   * The stop of an entry the scope holds, by any view of the scope. An unconfirmed stop changes
-   * the entry's stop fact. A confirmed stop removes the entry and, for an adopted process, writes
-   * its end fact `ended/<key>` in the same commit.
-   */
   async function stopRetained(
     address: EnvironmentAddress,
     scope: ScopeRef,
@@ -940,10 +854,6 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     return environmentFailure('retention ledger revision contention')
   }
 
-  /**
-   * Marks the scope closed, creating the record when there is none. A closed record is the
-   * durable closed signal; it keeps its entries.
-   */
   async function closeRetention(
     address: EnvironmentAddress,
     scope: ScopeRef,
@@ -981,13 +891,6 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
 }
 export type EnvironmentStateStore = ReturnType<typeof createEnvironmentStateStore>
 
-/**
- * Whether the acquisitions of one call still carry a duty, read from the durable records with the
- * revision of the call's acquisition domain. An acquisition is `held` while one of its own stop
- * facts is not confirmed, or while a retention scope holds an entry it created: the stop of that
- * entry writes the creator's record first. Neither condition returns once it has ended, because a
- * scope takes over only a reservation that is not stopped.
- */
 export async function callAcquisitions(
   store: ToolLedgerStore,
   tenant: TenantId,

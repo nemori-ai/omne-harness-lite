@@ -1,7 +1,3 @@
-// The static materials of the Tool storage: its participant, two migrations and four read handlers,
-// as the SQL storage contract describes them (sql-contract §4). The application aggregates these
-// with the materials of the other owners into one catalog and declares the combination; this
-// member never builds a catalog, a Cordis service or a domain registration.
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -29,7 +25,6 @@ import {
 } from './worker/schema.ts'
 import { PENDING_READ_LIMIT } from './worker/facts.ts'
 
-/** The participant name that a combination lists for the Tool storage; its tables start with `tl_`. */
 export const TOOL_PARTICIPANT = PARTICIPANT
 
 const extension = import.meta.url.endsWith('.ts') ? '.ts' : '.js'
@@ -57,10 +52,6 @@ type Handler = Readonly<{
   requires: readonly Readonly<{ owner: string; id: string }>[]
 }>
 
-/**
- * The ledger domain read is `domain-serial`: it is ordered after every write admitted before it
- * (sql-contract §9.3, §17). The body read is a snapshot: a sealed body is immutable.
- */
 const HANDLERS: readonly Handler[] = [
   {
     handler: LEDGER_READ_HANDLER,
@@ -70,7 +61,6 @@ const HANDLERS: readonly Handler[] = [
     rows: LEDGER_READ_ROWS + 2,
     requires: [migrationRef],
   },
-  // 待办标记的一页也按 `domain-serial` 读：提交返回 committed 之后开始的扫描看得到它的标记。
   {
     handler: PENDING_READ_HANDLER,
     file: 'read-pending',
@@ -103,7 +93,6 @@ export type ToolStorageMaterials = Readonly<{
   readHandlers: readonly ReadHandlerDescriptor[]
 }>
 
-/** Reads the module files once and returns the descriptors with their digests. */
 export function toolStorageMaterials(): ToolStorageMaterials {
   const participant = module('participant')
   const migration = module('migration')

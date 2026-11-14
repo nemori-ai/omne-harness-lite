@@ -162,7 +162,6 @@ describe('model-visible Tools result loop through real runtime and P14', () => {
     const initial = await host.present()
     const next = model.continue(initial)
     if (next === null) throw new Error('No continuation')
-    // R2-D357: another tenant's partition has no such call; it is answered as a missing one.
     const foreign = await host.call('read_result', next, { principal: principalB, tenant: tenantB })
     expectFailure(foreign.view, 'not-found (result: missing)')
     expect(foreign.full.attachments).toEqual([])

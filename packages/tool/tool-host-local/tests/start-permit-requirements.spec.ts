@@ -186,7 +186,6 @@ describe('R2-D60 start permit requirements', () => {
   ])('keeps malformed or unknown requirement %j pending without an author call', async value => {
     const f = await fixture()
     const permit = unbox(await f.prepare())
-    // Deliberately violate the provider boundary to exercise runtime validation.
     f.answer(value as StartPermitRequirement)
     expect(await f.prepare()).toMatchObject({
       failure: { kind: 'unavailable', dependency: 'start-permit-requirements' },
@@ -597,8 +596,6 @@ describe('R2-D60 start permit requirements', () => {
     await f.finish()
   })
 
-  // An acceptance whose answer was lost is the original bridge's to run (P04): the same start
-  // recalls it and enters the author once, and a later attempt does not run it again.
   it('recognizes a committed acceptance after its reply is lost, and runs the author once', async () => {
     let lose = false
     const f = await fixture({

@@ -1,7 +1,3 @@
-// The asset body of a tool definition: the document a release pins for a tool it holds, so that
-// the category contract derives the tool's declarations and settings from the body like it does
-// for any other asset. The body carries the name, `programmable`, `requiredCapabilities` and the
-// settings declaration; the schema and defaults keep their exact JSON text.
 import { readBodyText, type JsonValue } from '@omne-harness/assets'
 import { writeJsonText } from '@omne-harness/json-text'
 import type { ToolDeclarations } from './authoring.ts'
@@ -16,7 +12,6 @@ const LIMITS = {
   maxNumberLength: 64,
 }
 
-/** The asset body of a tool definition, read through the asset domain. */
 export function toolAssetBody(
   definition: Pick<ToolDefinition, 'name' | 'programmable' | 'requiredCapabilities'> &
     Readonly<{ declarations: Pick<ToolDeclarations, 'settings'> }>,

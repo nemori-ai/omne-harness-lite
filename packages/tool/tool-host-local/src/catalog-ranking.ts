@@ -21,7 +21,6 @@ type Corpus = Readonly<{
 
 export const byCodeUnits = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0)
 
-/** Canonical JSON data, including identity projections, hashed without retaining the input. */
 export function catalogDigest(value: unknown): string {
   const serialized = JSON.stringify(value, (_key, item: unknown) => {
     if (item !== null && typeof item === 'object' && !Array.isArray(item))
@@ -123,7 +122,6 @@ function validateConfiguration(config: LocalToolCatalogSearchConfiguration): voi
     throw new TypeError('invalid catalog search configuration')
 }
 
-/** The cache owns only immutable numeric/text indexes, never current entries or access grants. */
 export function createCatalogRanking(
   configuration: LocalToolCatalogSearchConfiguration,
   build = buildCatalogCorpus,

@@ -1,9 +1,3 @@
-// The doubles of a checkpointed call on the real runtime, ledger and driver: a minimal checkpointed
-// author, a checkpointed binding that runs its initial and resume segments, and a scripted decision
-// owner. The binding keeps its executions in memory and proves nothing about a durable host; the
-// host-local binding is tested in its own package. The state of a checkpoint and the request
-// original of a wait go to the ledger, and a resume gets its state and its response from the
-// driver. A decision owner reads the request original from the recovery of the call.
 import { writeJsonText } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -45,10 +39,8 @@ export type Segment = Outcome<AuthorSegment<Uint8Array, unknown>, ToolPrimitiveF
 
 export const STATE_CODEC = adoption('ask-state-codec')
 
-/** The result the double's author wrote for a wait that a control closes. */
 export const CLOSED_RESULT = 'No file was chosen: the question was closed.'
 
-/** A segment that suspends on one question, with `state` as its encoded state. */
 export function asking(state: string, text = 'which file?'): Segment {
   return succeed({
     kind: 'suspended',
@@ -58,14 +50,8 @@ export function asking(state: string, text = 'which file?'): Segment {
   })
 }
 
-/** What a resume segment of the double was given: its decoded state and the decision. */
 export type ResumeInput = Readonly<{ state: string; response: ToolDecision<unknown> }>
 
-/**
- * A checkpointed author whose initial segment asks one question and suspends on it. Its resume
- * segment answers `resume(input)`, by default a completed segment; `resumed` lists every input it
- * was given, in order.
- */
 export function askingAuthor(
   initial: () => Promise<Segment> = () => Promise.resolve(asking('{"asked":"which file?"}')),
   resume: (input: ResumeInput, count: number) => Promise<Segment> = () =>
@@ -95,7 +81,6 @@ type Execution = {
   readonly source: DurableEvidence
   readonly batches: FactBatch[]
   readonly waiters: Set<() => void>
-  /** The responses this execution's segment consumed: its resume's response. */
   consumed: string[]
   ended: boolean
   outcome:
@@ -106,19 +91,11 @@ type Execution = {
 
 export type CheckpointBinding = Readonly<{
   bindings: ToolBindings<Principal, TestEnvironment>
-  /** The starts and resumes whose segment ran, in order. */
   readonly segments: string[]
-  /** 各段执行收到的 stop，按到达顺序。 */
   readonly stops: ControlDispatch[]
-  /** The suspensions the binding was asked to prove. */
   readonly suspensions: SuspensionRecord[]
 }>
 
-/**
- * A checkpointed binding. Its start consumes the permit, then runs the author's initial segment
- * once with a context of `emit` and `signal` only. A suspended segment publishes its Ask wait as
- * the last fact and ends the stream; `suspend` then proves the checkpoint of that segment.
- */
 export function checkpointBinding(
   authority: ToolStartAuthority<Principal>,
   author: CheckpointedToolExecutor<unknown, unknown, TestEnvironment>,
@@ -143,11 +120,6 @@ export function checkpointBinding(
     execution.ended = true
     for (const waiter of execution.waiters) waiter()
   }
-  /**
-   * How a segment ended: a final, or the Ask wait it suspends on. The payload evidence binds the
-   * digest of the state text and the request evidence the digest of the request text, as the
-   * ledger checks them.
-   */
   const finish = (execution: Execution, segment: Segment, resumed: boolean) => {
     const { start } = execution
     if ('ok' in segment && segment.ok.kind === 'suspended') {
@@ -183,7 +155,6 @@ export function checkpointBinding(
       })
     } else {
       execution.outcome = { kind: 'completed' }
-      // A resume segment that completes ends its call with a final.
       if (resumed) publish(execution, completedFinal())
     }
     end(execution)
@@ -196,11 +167,6 @@ export function checkpointBinding(
     segments.push(execution.start.operation)
     finish(execution, await author.initial(null, environment, context()), false)
   }
-  /**
-   * Runs the resume segment with what the driver gave: the state of the checkpoint and the
-   * committed ResponseRecord of the wait that resumes there. The `continued` fact goes first, at
-   * the point where the author gets the decision.
-   */
   const runResume = async (
     execution: Execution,
     environment: TestEnvironment,
@@ -280,10 +246,6 @@ export function checkpointBinding(
       },
     }
   }
-  /**
-   * Consumes the permit, then runs the segment of `start` once: a repeated start or resume of the
-   * same record answers the same execution and runs nothing again.
-   */
   const launch = async (
     input: Readonly<{
       principal: Principal
@@ -389,37 +351,21 @@ function refused(name: string): ToolFailure {
   }
 }
 
-/** How the scripted decision owner answers a new registration. */
 export type BridgeScript = 'registers' | 'answer-lost' | 'refuses'
 
-/** 脚本化决策方怎样答复新的失效。两种都保存这次失效。 */
 export type InvalidationScript = 'answers' | 'answer-lost'
 
 export type ScriptedBridge = ToolDecisionBridge<Principal> &
   Readonly<{
     script(next: BridgeScript): void
-    /** 之后的失效怎样答复。 */
     invalidation(next: InvalidationScript): void
-    /** The person decides the registered wait `wait`: inspect reports it, resolve answers `value`. */
     decide(wait: string, value: DecisionValue): void
-    /** Every ensure, with its operation, wait and request. */
     readonly ensured: Readonly<{ operation: string; wait: string; request: DurableEvidence }>[]
-    /** Every inspectOperation, with its operation. */
     readonly inspected: string[]
-    /** Every resolve, with its wait. */
     readonly resolved: string[]
-    /** 每次 invalidate 的操作、等待与终局证据。 */
     readonly invalidated: Readonly<{ operation: string; wait: string; terminal: DurableEvidence }>[]
   }>
 
-/**
- * A decision owner that keeps its registrations in memory by call and operation. `registers`
- * answers the registration; `answer-lost` keeps it and loses the answer (commit-unknown); `refuses`
- * answers a definite refusal and keeps nothing. The same operation with the same input recalls the
- * registration; with another input it is a conflict. `inspect` reports a registered wait with no
- * decision until `decide` is called; `resolve` then answers the decided value for that very
- * decision evidence and refuses any other.
- */
 export function scriptedBridge(initial: BridgeScript = 'registers'): ScriptedBridge {
   let mode = initial
   let invalidation: InvalidationScript = 'answers'
@@ -502,7 +448,6 @@ export function scriptedBridge(initial: BridgeScript = 'registers'): ScriptedBri
           : fail({ kind: 'invalid', field: 'decision', reason: 'not-the-decision' }),
       )
     },
-    // 失效按操作保存：同一操作重送认回原失效。`answer-lost` 保存失效后丢失回包。
     invalidate: input => {
       invalidated.push({ operation: input.operation, wait: input.wait, terminal: input.terminal })
       const key = keyOf(input.call, input.operation)

@@ -61,7 +61,6 @@ describe('17 the runtime factory and later increments', () => {
 
   it('17 factory: the retry delay of a failed driver run is an integer from 1 to what a timer holds, and absent takes the default', () => {
     const dependencies = testAssembly().dependencies
-    // 0 would run a failing call in a tight loop; above 2147483647 a timer fires after 1 ms.
     for (const delay of [
       -1,
       0,
@@ -168,7 +167,6 @@ describe('17 the runtime factory and later increments', () => {
       if (failure?.kind === 'unsupported' && failure.adoption !== undefined)
         expect([toolRuntimeAdoption.name, 'tool-ledger']).toContain(failure.adoption.name)
     }
-    // recover belongs to the recovery scan now: it answers how many calls it scheduled.
     expect(await provider.recover({ principal: principalA, tenant: tenantA })).toMatchObject({
       ok: { scheduled: expect.stringMatching(/^\d+$/u) },
     })
@@ -224,7 +222,6 @@ describe('17 the runtime factory and later increments', () => {
       call: parts.call,
       admission: parts.admission,
     }
-    // One read before the state read and one after it, to confirm the publication did not change.
     expect(connected).toEqual([route, route])
   })
 
@@ -261,7 +258,6 @@ describe('the recovery entry of the provider: the pending scan, page by page, in
   type Scan = Dependencies['commands']['scanPending']
   type Schedule = Dependencies['instances']['schedule']
 
-  /** A provider whose scan and schedule are the given ones; `asked` lists the cursors of the scan. */
   function recovering(pages: Scan, schedule?: Schedule) {
     const { dependencies, configuration: config } = testAssembly()
     const asked: (string | null)[] = []

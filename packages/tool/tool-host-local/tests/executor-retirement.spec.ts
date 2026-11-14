@@ -1,7 +1,3 @@
-// R2-D164: the lockstep that hung C06, reproduced with controlled scheduling. A settled call whose
-// delivery completes while one of its runs is in progress must retire when that run ends, and the
-// retry interval must not reschedule a complete call. The host is scripted: it runs a call only
-// when the test says so and records every reschedule. The ledger is real over the memory store.
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { expect, it, vi } from 'vitest'
@@ -16,11 +12,8 @@ import { fixture } from './delivery/fixture.ts'
 
 type ExecutorInput = Parameters<typeof createRuntimeExecutor>[0]
 type Step = Parameters<ToolDriver<unknown>['run']>[0]
-// Far beyond what vi.waitFor advances on the fake clock while it polls: only the explicit
-// advances below fire the retry interval.
 const RETRY_MS = 3_600_000
 
-/** Holds the next call of a port until the test lets it go. */
 function gate() {
   let pending: PromiseWithResolvers<void> | null = null
   return {
@@ -63,10 +56,6 @@ function controlledHost() {
   }
 }
 
-/**
- * `execution`: the recovery reports an ended execution of this instance, so the executor publishes
- * the call through `ctx.plugin` and owns a fiber. `fiber` is what that plugin call returns.
- */
 async function world(
   options: Readonly<{
     execution?: boolean
@@ -74,18 +63,10 @@ async function world(
     receiver?: ExecutorInput['receiver']
     scan?: ExecutorInput['recovery']['scan']
     capacity?: number
-    /** Replaces the answer of the n-th `loadRecovery` (from 1); `undefined` lets it through. */
     recoveryFault?: (count: number) => RecoveryAnswer | undefined
-    /** Replaces the logger of the context. */
     logger?: Context['logger']
-    /** Replaces the pending scan of the record store: the rescans read through it. */
     pending?: ToolLedgerStore['scanPending']
-    /** The driver's retry interval; `RETRY_MS` by default. */
     retryMs?: number
-    /**
-     * The rescan period. `'default'` leaves it to the executor; by default it is beyond every
-     * advance of the tests that are not about the rescan.
-     */
     rescanMs?: number | 'default'
   }> = {},
 ) {
@@ -110,7 +91,6 @@ async function world(
       const answer = await f.ledger.commands.loadRecovery(input)
       recovered += 1
       if ('ok' in answer && foreign !== null) {
-        // Another instance holds the current segment, and that segment may still run there.
         const other = decodeToolInstanceId('instance-2')
         if ('failure' in other) throw new Error('fixture instance')
         const elsewhere = { ...execution, instance: other.ok }
@@ -190,7 +170,6 @@ async function world(
     },
     receiver:
       options.receiver ?? (f.input.position.receiver as unknown as ExecutorInput['receiver']),
-    // Without a scripted scan, no old call waits for this executor.
     recovery: { scan: options.scan ?? (async () => succeed({ calls: [], next: null })) },
     instance: () => instanceId,
     maintenance: () => null,
@@ -205,11 +184,9 @@ async function world(
     access,
     recovered: () => recovered,
     logs,
-    /** The current segment as the recovery reports it from now on; another instance's live one by default. */
     foreignInstance: (as: Partial<Foreign> = {}) => {
       foreign = { phase: 'live', start: 'other', execution: 'other', ...as }
     },
-    /** The recovery reports the call as it is again. */
     ownInstance: () => {
       foreign = null
     },
@@ -218,7 +195,6 @@ async function world(
 
 type RecoveryAnswer = Awaited<ReturnType<ExecutorInput['dependencies']['commands']['loadRecovery']>>
 
-/** Who holds the current segment in the recovery: by its start record, by the call's execution, and in which phase. */
 type Foreign = Readonly<{
   phase: 'starting' | 'live' | 'unknown' | 'ended'
   start: 'other' | 'self'
@@ -231,26 +207,20 @@ it('R2-D164 a complete call retires when the run in progress ends, and is not re
     const w = await world()
     const { call } = w.f.access
     expect(w.executor.remember(w.f.access)).toBe(true)
-    // Round 1: the run issues the delivery. The delivery run is held before its first read.
     const delivery1 = w.access.hold()
     await w.controlled.run(w.step)
-    // A live call is rescheduled by the interval.
     vi.advanceTimersByTime(RETRY_MS)
     expect(w.controlled.scheduled).toEqual([call])
-    // Round 2 starts, like the immediate re-run of the host, and is held inside its first read.
     const run2Recovery = w.recovery.hold()
     const run2 = w.controlled.run(w.step)
     const recoveredBefore = w.recovered()
-    // The delivery of round 1 completes while round 2 is in progress; the outcome is judged.
     delivery1.resolve()
     await vi.waitFor(() => expect(w.f.receiver.push).toHaveBeenCalledTimes(1))
     await vi.waitFor(() => expect(w.recovered()).toBe(recoveredBefore + 1))
-    // Complete, but a run is in progress: still known, not rescheduled any more.
     expect(w.executor.knows(w.f.access)).toBe(true)
     expect(w.executor.diagnostics().completed).toBe(0)
     vi.advanceTimersByTime(RETRY_MS)
     expect(w.controlled.scheduled).toEqual([call])
-    // Round 2 ends. Its own delivery run is held, so only the end of the run can retire the call.
     const delivery2 = w.access.hold()
     run2Recovery.resolve()
     await run2
@@ -271,15 +241,12 @@ it('R2-D186 a failed cleanup keeps the call, the interval wakes it, and it retir
     const w = await world({ execution: true, fiber: { dispose } })
     const { call } = w.f.access
     expect(w.executor.remember(w.f.access)).toBe(true)
-    // Round 1 publishes the call (a fiber) and delivers; the retirement's cleanup fails.
     await w.controlled.run(w.step)
     await vi.waitFor(() => expect(dispose).toHaveBeenCalledTimes(1))
     expect(w.executor.diagnostics().completed).toBe(0)
     expect(w.executor.knows(w.f.access)).toBe(true)
-    // Not complete any more: the interval wakes the call again.
     vi.advanceTimersByTime(RETRY_MS)
     expect(w.controlled.scheduled).toEqual([call])
-    // Round 2 judges the delivery outcome again; this time the cleanup succeeds.
     await w.controlled.run(w.step)
     await vi.waitFor(() => expect(w.executor.diagnostics().completed).toBe(1))
     expect(dispose).toHaveBeenCalledTimes(2)
@@ -290,8 +257,6 @@ it('R2-D186 a failed cleanup keeps the call, the interval wakes it, and it retir
   }
 })
 
-// F7 of #1218: a run that a port could not answer is the driver's to run again, after its own
-// backoff. The interval does not reschedule it on every tick as well: one owner of a later run.
 it('the interval does not reschedule a call whose last run the driver owns', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
   try {
@@ -300,7 +265,6 @@ it('the interval does not reschedule a call whose last run the driver owns', asy
       dependency: 'tool-ledger',
       diagnostic: 'busy',
     })
-    // The executor's own read passes; the driver's read and every later one cannot answer.
     const w = await world({ recoveryFault: count => (count >= 2 ? busy : undefined) })
     expect(w.executor.remember(w.f.access)).toBe(true)
     await w.controlled.run(w.step)
@@ -325,7 +289,6 @@ it('a read before the run that cannot answer is handed to the driver, not to eve
     expect(w.executor.remember(w.f.access)).toBe(true)
     await w.controlled.run(w.step)
     expect(w.executor.diagnostics().progress).toEqual(['failed/unavailable/tool-ledger'])
-    // Not the interval: the driver runs it again once, after its first delay.
     await vi.advanceTimersByTimeAsync(RETRY_MS - 1)
     expect(w.controlled.scheduled).toEqual([])
     await vi.advanceTimersByTimeAsync(1)
@@ -347,12 +310,10 @@ it('R2-D327 the executor lets a call go and its pacing entries go with it', asyn
       })
     const w = await world({ receiver: unavailable as unknown as ExecutorInput['receiver'] })
     expect(w.executor.remember(w.f.access)).toBe(true)
-    // The receiver is absent: the delivery stays owed and holds one pacing entry.
     await w.controlled.run(w.step)
     await vi.waitFor(() => expect(w.executor.diagnostics().pacedDeliveries).toBe(1))
     expect(w.executor.knows(w.f.access)).toBe(true)
 
-    // Another instance owns the call now: this executor drops it, and the entry goes too.
     w.foreignInstance()
     await w.controlled.run(w.step)
     expect(w.executor.knows(w.f.access)).toBe(false)
@@ -366,10 +327,6 @@ it('R2-D327 the executor lets a call go and its pacing entries go with it', asyn
 type Scan = ExecutorInput['recovery']['scan']
 type ScanAnswer = Awaited<ReturnType<Scan>>
 
-/**
- * 按调用身份的键集分页的扫描替身，每页 `page` 个调用。`fault` 依次替换某一次扫描的答复，
- * `undefined` 表示照常答复。`seen` 记下每次扫描的 `after`。
- */
 function pagedScan(
   tenant: TenantId,
   calls: readonly string[],
@@ -404,13 +361,10 @@ it('the startup scan remembers and schedules the old calls of every page, once',
   await w.executor.close()
 })
 
-/** Every timer the executor arms: the retry interval, the rescan period and the backoff waits. */
 const TIMERS = ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] as const
 
-/** Lets the work the fake clock started run to its next wait: a real turn of the event loop. */
 const settle = () => new Promise<void>(resolve => setImmediate(resolve))
 
-/** Moves the fake clock by `ms`, then lets what it started run. */
 async function advance(ms: number): Promise<void> {
   await vi.advanceTimersByTimeAsync(ms)
   await settle()
@@ -462,7 +416,6 @@ it('a full executor stops the scan at its cursor and goes on when room is made',
     await vi.waitFor(() => expect(w.executor.diagnostics().recoveredCalls).toBe(2))
     expect(w.executor.diagnostics().recoveryScan).toBe('waiting')
     expect(w.controlled.scheduled).toEqual(['c-a', 'c-b'])
-    // The first call never started: the executor lets it go, which makes room for one more.
     w.executor.rejectAdmission({ tenant: f.access.tenant, call: 'c-a' as never })
     vi.advanceTimersByTime(RETRY_MS)
     await vi.waitFor(() => expect(w.executor.diagnostics().recoveryScan).toBe('done'))
@@ -481,7 +434,6 @@ const SCAN_DOWN = fail({
   diagnostic: 'injected',
 })
 
-/** The log lines of the executor whose message starts with `prefix`, as `[level, message]`. */
 const linesOf = (w: Awaited<ReturnType<typeof world>>, prefix: string) =>
   w.logs
     .filter(([name, , message]) => name === 'tool-executor' && message.startsWith(prefix))
@@ -490,7 +442,6 @@ const linesOf = (w: Awaited<ReturnType<typeof world>>, prefix: string) =>
 it('logs where a run stopped once per reason, and once more when the call goes on', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
   try {
-    // A run reads the recovery for the executor first, then for the driver: the second read fails.
     let failing = true
     let reads = 0
     const w = await world({
@@ -513,7 +464,6 @@ it('logs where a run stopped once per reason, and once more when the call goes o
     ]
     expect(linesOf(w, 'Tool call')).toEqual([stopped])
     expect(w.executor.diagnostics().progress).toEqual(['failed/unavailable/ledger-store'])
-    // The same reason again says nothing new.
     await run()
     expect(linesOf(w, 'Tool call')).toEqual([stopped])
     failing = false
@@ -548,7 +498,6 @@ it('backs a scan that cannot read off by 1, 5 and 30 seconds, and logs the first
     await settle()
     expect(paged.seen).toHaveLength(1)
     expect(linesOf(w, 'The recovery scan')).toEqual([line(1000)])
-    // Each wait is the next step of the ladder: not one millisecond sooner.
     for (const [wait, reads] of [
       [1000, 2],
       [5000, 3],
@@ -559,9 +508,7 @@ it('backs a scan that cannot read off by 1, 5 and 30 seconds, and logs the first
       await advance(1)
       expect(paged.seen).toHaveLength(reads)
     }
-    // The second failure was silent; the third and the fourth wait at the cap and are logged.
     expect(linesOf(w, 'The recovery scan')).toEqual([line(1000), line(30_000), line(30_000)])
-    // The fifth scan reads a page, the sixth fails: the ladder starts again from one second.
     await advance(30_000)
     expect(paged.seen).toHaveLength(6)
     expect(linesOf(w, 'The recovery scan')).toEqual([
@@ -666,10 +613,6 @@ const textOf = (tenant: TenantId) => {
   return encoded.value
 }
 
-/**
- * The pending scan of the record store as the rescans see it: it records the tenant of each read
- * and answers `answer` for it (an empty page by default).
- */
 function pendingReads(answer: (tenant: string) => LedgerPendingScan | undefined = () => undefined) {
   const read: string[] = []
   const pending: ToolLedgerStore['scanPending'] = async input => {
@@ -681,7 +624,6 @@ function pendingReads(answer: (tenant: string) => LedgerPendingScan | undefined 
   return { pending, read }
 }
 
-/** A startup scan that finds nothing, and counts how often it was asked. */
 function emptyStartup() {
   let asked = 0
   const scan: Scan = async () => {
@@ -717,15 +659,12 @@ it('after the startup scan the rescan reads only a tenant with a call in flight,
     const w = await world({ scan: startup.scan, pending: reads.pending, rescanMs: 60_000 })
     await settle()
     expect(w.executor.diagnostics().recoveryScan).toBe('done')
-    // Nothing in flight: no tenant is read, and the cross-tenant scan does not run again.
     await advance(60_000)
     expect(reads.read).toEqual([])
     expect(w.executor.diagnostics().owedTenants).toBe(0)
-    // A call in flight makes its tenant owed, and only that tenant is read.
     expect(w.executor.remember(w.f.access)).toBe(true)
     await advance(60_000)
     expect(reads.read).toEqual([textOf(w.f.access.tenant)])
-    // The call completes and retires: its tenant is not read again.
     await w.controlled.run(w.step)
     await vi.waitFor(() => expect(w.executor.diagnostics().completed).toBe(1))
     expect(w.executor.diagnostics().owedTenants).toBe(0)
@@ -743,17 +682,14 @@ it('a call out of the table that a run reads as settled leaves the owed set', as
   try {
     const reads = pendingReads()
     const w = await world({ pending: reads.pending, rescanMs: 60_000 })
-    // The call runs to its end once, so the ledger holds it settled with no work.
     expect(w.executor.remember(w.f.access)).toBe(true)
     await w.controlled.run(w.step)
     await vi.waitFor(() => expect(w.executor.diagnostics().completed).toBe(1))
-    // A late registration owes it again; another instance holds it, so the executor lets it go.
     expect(w.executor.remember(w.f.access)).toBe(true)
     w.foreignInstance()
     await w.controlled.run(w.step)
     expect(w.executor.knows(w.f.access)).toBe(false)
     expect(w.executor.diagnostics().owedTenants).toBe(1)
-    // A later run reads the call as it is: settled, with no work.
     w.ownInstance()
     await w.controlled.run(w.step)
     expect(w.executor.knows(w.f.access)).toBe(false)
@@ -780,7 +716,6 @@ it('a tenant whose rescan cannot read backs off 1, 5 and 30 seconds and does not
     expect(w.executor.remember(w.f.access)).toBe(true)
     expect(w.executor.remember({ tenant: tenantB, call: 'c-b' as never })).toBe(true)
     const of = (tenant: string) => reads.read.filter(read => read === tenant).length
-    // The round reads both: the tenant that cannot answer does not stop the other.
     await advance(60_000)
     expect([of(a), of(b)]).toEqual([1, 1])
     for (const [wait, count] of [
@@ -802,11 +737,9 @@ it('a tenant whose rescan cannot read backs off 1, 5 and 30 seconds and does not
       line(30_000),
       line(30_000),
     ])
-    // The next round reads the other tenant on time; the failing one stays in its backoff.
     expect(of(b)).toBe(1)
     await advance(120_000 - 96_000)
     expect([of(a), of(b)]).toEqual([4, 2])
-    // It reads again at the cap and succeeds: the ladder starts again from one second.
     down = false
     await advance(6000)
     expect(of(a)).toBe(5)
@@ -846,7 +779,6 @@ it('keeps a call whose segment in another instance has ended: its pending work i
 })
 
 it('takes the owner of the current segment from its start record, not from the first execution', async () => {
-  // The segment that may run was started by another instance; the call was first run by this one.
   const elsewhere = await world()
   expect(elsewhere.executor.remember(elsewhere.f.access)).toBe(true)
   elsewhere.foreignInstance({ start: 'other', execution: 'self' })
@@ -855,7 +787,6 @@ it('takes the owner of the current segment from its start record, not from the f
   expect(elsewhere.executor.diagnostics().foreignExecutionRuns).toBe(1)
   await elsewhere.executor.close()
 
-  // The segment that may run was started by this instance; another instance first ran the call.
   const here = await world()
   expect(here.executor.remember(here.f.access)).toBe(true)
   here.foreignInstance({ start: 'self', execution: 'other' })

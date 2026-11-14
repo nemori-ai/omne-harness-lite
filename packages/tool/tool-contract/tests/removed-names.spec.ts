@@ -3,8 +3,6 @@ import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import { memberPath } from './module-graph.ts'
 
-// The names that an external actor gave to Tool constructs are built from parts, so that this
-// file does not name them either.
 const REMOVED_TYPES = [['Stop', 'Reason'].join('')]
 const REMOVED_TASK_KINDS = [['wait', 'card'].join('-')]
 

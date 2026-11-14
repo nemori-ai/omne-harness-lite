@@ -215,7 +215,6 @@ describe('state judgment', () => {
       { kind: 'background' },
     ])
       expect(judgeToolState(withControl(intent))).toEqual({ ok: withControl(intent) })
-    // A withdraw has no default reach: a missing or unknown reach is not a control.
     expect(rejection(withControl({ kind: 'withdraw' }))).toEqual({
       field: 'controls[0].intent.reach',
       reason: 'missing',
@@ -224,7 +223,6 @@ describe('state judgment', () => {
       field: 'controls[0].intent.reach',
       reason: 'value',
     })
-    // No control carries a business reason: the controller keeps it behind the operation.
     expect(rejection(withControl({ kind: 'stop', reason: 'user' }))).toEqual({
       field: 'controls[0].intent.reason',
       reason: 'unknown-field',

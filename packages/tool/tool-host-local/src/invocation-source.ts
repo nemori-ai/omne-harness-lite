@@ -2,16 +2,6 @@ import { createForwardedResultReader } from './forwarding-results.ts'
 import type { ToolAccessGuard } from '@omne-harness/tool'
 import type { ResultPolicy } from '@omne-harness/tool-contract/provider'
 import type { ToolInvocationQueries } from '@omne-harness/tool-contract'
-// The paired invocation source of the guard table (row 2) and the operation identity mint. The
-// issuer binds a tenant and a consumer to the identities of its original call, once, and recalls
-// them afterwards. The guard checks that a fixed request is the one that was bound. The binding is
-// kept in the `source@<call>` host domain of the call it names, so a rebuilt source over the same
-// store recalls what an earlier one issued, and no domain of the tenant grows with its calls.
-//
-// The identities of a binding are a function of the tenant and the consumer, so the reader computes
-// the call and the domain from the consumer before it reads. A retry after an issuance whose answer
-// is unknown therefore finds the same identities, whether the first commit took effect or not, and
-// `issuance-unknown` names identities that the retry will use.
 import {
   createInvocationForwarding,
   TOOL_FORWARDING_OWNER,
@@ -71,10 +61,8 @@ type TenantId = LedgerDomain['tenant']
 
 export { invocationSourceIdentities } from './source-identities.ts'
 
-/** The owner named in the evidence of every invocation source this module issues. */
 const INVOCATION_SOURCE_OWNER = '@omne-harness/tool-host-local'
 
-/** A JSON value in its plain form, the form in which a principal is kept in a binding. */
 export type PrincipalJson =
   | null
   | boolean
@@ -83,23 +71,15 @@ export type PrincipalJson =
   | readonly PrincipalJson[]
   | Readonly<{ [key: string]: PrincipalJson }>
 
-/**
- * How a principal is kept in the binding, so that a rebuilt source can compare it with the
- * principal of a later call. The shape of `P` belongs to identity: the assembly gives the codec of
- * the identity owner. A stored value that `decode` refuses makes the recall `association-unknown`.
- */
 export type PrincipalCodec<P> = Readonly<{
   encode(principal: P): PrincipalJson
   decode(value: PrincipalJson): Outcome<P, Readonly<{ reason: string }>>
 }>
 
 export type LocalInvocationSourceInput<P> = Readonly<{
-  /** The ledger store of the runtime: its `source@<call>` host domains keep the bindings. */
   store: ToolLedgerStore
-  /** Current consumer qualification and the stable comparison of subjects (identity's adapter). */
   authority: ToolInvokeAuthority<P>
   principalCodec: PrincipalCodec<P>
-  /** How many times a revision conflict is re-read and decided again. */
   commitAttempts: number
   forwarding?: Readonly<{
     authority(): ToolStartAuthority<P> | undefined
@@ -113,35 +93,25 @@ export type LocalInvocationSourceInput<P> = Readonly<{
 }>
 
 export type LocalInvocationSource<P, B extends ContentBlock = ContentBlock> = Readonly<{
-  /** Goes to the runtime as its `sourceIssuer`. */
   issuer: ToolInvocationSourceIssuer<P>
-  /** Goes to the ledger as `guards.sources`. */
   guard: ToolSourceGuard<P>
   forwarding: ToolForwardSource<P>
   receiver: ToolResultReceiver<P, B>
   forwardedResult: ToolInvocationQueries<P, ContentBlock>['readResult']
-  /** Reads only the persisted subject projection; the caller must reissue and run guard.verify. */
   recoverBinding(
     input: Omit<CallAccess<P>, 'principal'> &
       Readonly<{ admission: ToolOperationId; request: FixedToolRequest }>,
   ): Reply<{ principal: PrincipalJson }>
-  /**
-   * Releases the received copies of the forwarding slot of a parent call, once the parent's own
-   * result delivery is released (C6). A call that is not a forwarding parent has nothing to release.
-   */
   releaseReceivedCopies(
     input: Omit<CallAccess<P>, 'principal'> & Readonly<{ request: FixedToolRequest }>,
   ): Promise<'released' | 'unavailable'>
 }>
 
-/** What the source keeps for one tenant and consumer. */
 type Binding = Readonly<{
   kind: 'invocation-source'
   call: ToolCallId
   admission: ToolOperationId
-  /** The digest of the invoke request the binding was made for. */
   requestDigest: string
-  /** The digest of the whole fixed request, the issued invocation included. */
   fixedDigest: string
   invocation: ToolInvocation
   principal: PrincipalJson
@@ -180,10 +150,6 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null
 }
 
-/**
- * A binding as the source wrote it, or null for any other value. The store interprets no record,
- * so a value of another shape is a defect of the store, not a binding.
- */
 function parseBinding(value: unknown): Binding | null {
   if (!isRecord(value) || value.kind !== 'invocation-source') return null
   if (
@@ -217,7 +183,6 @@ function parseBinding(value: unknown): Binding | null {
   }
 }
 
-/** What one issuance needs once the consumer is qualified. */
 type IssuePlan = Readonly<{
   tenant: TenantId
   consumer: FixedToolRequest['consumer']
@@ -228,7 +193,6 @@ type IssuePlan = Readonly<{
   encoded: PrincipalJson
 }>
 
-/** The digest of a fixed request, or null when it is not canonical. */
 function digestOf(request: FixedToolRequest): string | null {
   try {
     return canonicalDigest(request)
@@ -237,12 +201,10 @@ function digestOf(request: FixedToolRequest): string | null {
   }
 }
 
-/** Whether a binding was made for this call, this admission operation and this fixed request. */
 function bindsTo(binding: Binding, call: ToolCallId, operation: ToolOperationId, fixed: string) {
   return binding.call === call && binding.admission === operation && binding.fixedDigest === fixed
 }
 
-/** What the comparison of subjects means to verification. */
 function subjectVerdict(same: AccessVerdict | 'undecodable'): SourceVerdict {
   if (same === 'undecodable')
     return { kind: 'unavailable', diagnostic: 'the stored principal cannot be decoded' }
@@ -257,11 +219,6 @@ function nextRevision(revision: string) {
   return decoded.ok
 }
 
-/**
- * Builds the invocation source of a local host: the issuer for the runtime and the guard for the
- * ledger, over one ledger store. `commitAttempts` must be a positive safe integer, else a
- * `TypeError`.
- */
 export function createLocalInvocationSource<P, B extends ContentBlock = ContentBlock>(
   input: LocalInvocationSourceInput<P>,
 ): LocalInvocationSource<P, B> {
@@ -288,7 +245,6 @@ function buildInvocationSource<P, B extends ContentBlock>(
   if (typeof authority?.qualify !== 'function') throw new TypeError('authority: missing')
   if (typeof principalCodec?.encode !== 'function') throw new TypeError('principalCodec: missing')
 
-  /** The original consumer binding and its domain revision, or a read failure. */
   const readBinding = async (
     tenant: TenantId,
     consumer: FixedToolRequest['consumer'],
@@ -322,14 +278,12 @@ function buildInvocationSource<P, B extends ContentBlock>(
     }
   }
 
-  /** Whether the principal of a call is the one that the binding was made for. */
   const sameSubject = (current: P, binding: Binding): Promise<AccessVerdict | 'undecodable'> => {
     const original = decodePrincipal(binding.principal)
     if (original === null) return Promise.resolve('undecodable')
     return checked(() => authority.samePrincipal({ current, original }))
   }
 
-  /** A rejection when the tenant is malformed or the consumer is not qualified now; else null. */
   const admit = async (
     principal: P,
     tenant: TenantId,
@@ -353,7 +307,6 @@ function buildInvocationSource<P, B extends ContentBlock>(
     }
   }
 
-  /** The answer to a consumer that already has a binding: the same bound call, or a refusal. */
   const recall = async (
     known: Binding,
     principal: P,
@@ -374,7 +327,6 @@ function buildInvocationSource<P, B extends ContentBlock>(
     }
   }
 
-  /** Writes a new binding at the revision that was read; null when that revision moved. */
   const bind = async (
     read: Extract<LedgerRecordRead, { kind: 'complete' }>,
     plan: IssuePlan,
@@ -574,11 +526,6 @@ function buildInvocationSource<P, B extends ContentBlock>(
   })
 }
 
-/**
- * Mints the identity of every operation that the runtime creates for an admitted call. A mint is
- * a fresh UUID, so it never returns a value twice, also not after a restart. It reads no store and
- * does not tell tenants apart: a command is told apart by the ledger, by its operation.
- */
 export function createLocalOperationIdentities(): ToolOperationIdentities {
   return Object.freeze({
     newOperation: () =>

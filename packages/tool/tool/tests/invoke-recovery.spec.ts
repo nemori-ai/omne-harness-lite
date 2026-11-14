@@ -319,7 +319,6 @@ describe('public persistent intent recovery over shared non-durable source and l
         [field]: `${base.consumer[field as keyof typeof base.consumer]}|other`,
       },
     }))
-    // An explicit authority accepts these owners for this key-encoding-only test.
     const authority = invokeAuthority()
     const b = paired({
       ...authority,
@@ -443,7 +442,6 @@ describe('public persistent intent recovery over shared non-durable source and l
       a.store.injectCommit(fault)
       const lost = await a.one.invoke(input())
       if (lost.kind !== 'commit-unknown') throw new Error(JSON.stringify(lost))
-      // No lookup empty-read shortcut. Re-submit the original admission, including a delayed write.
       const recovered = accepted(await a.two.invoke(input()))
       a.store.landDelayed()
       expect(recovered.reference).toBe(lost.reference)
@@ -664,7 +662,6 @@ it.each(['unknown', 'throw'] as const)(
   async fault => {
     const a = paired()
     const invoked = accepted(await a.one.invoke(input(dummyRequest())))
-    // This commands/reads pair models operation records only. It does not stop an execution.
     const operations = new Map<ToolOperationId, OperationResolution>()
     const control = vi.fn(async (access: Parameters<typeof a.dependencies.commands.control>[0]) => {
       if (operations.size === 0) {

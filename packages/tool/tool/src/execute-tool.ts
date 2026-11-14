@@ -1,5 +1,3 @@
-// The independent execution wrapper (P11 "独立消费与失败解释"). It checks the scope, hands the
-// context to the author, and settles the scope after the author returns or throws.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolExecutionScope, ToolExecutor } from '@omne-harness/tool-contract/provider'
 import { describeThrown } from './independent-scope.ts'
@@ -18,11 +16,6 @@ function scopeMismatch(scope: unknown): string | null {
   return null
 }
 
-/**
- * Runs one executor inside an independent scope. A scope that is not independent or whose
- * limits are not positive safe integers is refused before the author runs. The value of R is
- * given only after `finish('returned')` succeeded, so the return barrier holds.
- */
 export async function executeTool<A, R, E>(
   argumentsValue: A,
   executor: ToolExecutor<A, R, E>,

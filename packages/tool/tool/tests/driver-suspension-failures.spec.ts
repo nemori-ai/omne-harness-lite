@@ -1,8 +1,3 @@
-// How the driver of a checkpointed call takes the answers of the suspension commands (P06, P07).
-// A commit whose answer is unknown, or a revision that went stale, moves nothing that is known:
-// the step is taken again in the same run on the recalled or the re-read state, and the call
-// reaches its wait. Any other failure is a verdict: the duty stops the run, and nothing asks again
-// on its own.
 import { describe, expect, it } from 'vitest'
 import { fail } from '@omne-harness/operation-result'
 import { askingAuthor, checkpointBinding, scriptedBridge } from './checkpoint-values.ts'
@@ -13,7 +8,6 @@ type Commands = Parameters<NonNullable<StartOptions['commands']>>[0]
 type Wrapped = 'planSuspension' | 'suspend' | 'attachRegistration'
 type Fault = 'unknown-applied' | 'stale-revision' | 'refused'
 
-/** Answers the first call of `command` with `fault`, and every later one as the ledger does. */
 function faulty(command: Wrapped, fault: Fault) {
   const attempts = { count: 0 }
   const wrap = (base: Commands): Commands => ({
@@ -24,7 +18,6 @@ function faulty(command: Wrapped, fault: Fault) {
       if (attempts.count > 1) return original(input)
       const operation = (input as { operation: never; expected: never }).operation
       if (fault === 'unknown-applied') {
-        // The commit landed, and its answer was lost.
         await original(input)
         return fail({ kind: 'commit-unknown', operation })
       }
@@ -72,7 +65,6 @@ describe.each(['planSuspension', 'suspend', 'attachRegistration'] as const)(
         const { recovery, state, attempts } = await suspendWith(command, fault)
         expect(state.phase).toBe('suspended')
         expect(recovery.waits).toMatchObject([{ phase: 'open' }])
-        // A landed commit is recalled from the ledger; a stale revision is sent again on the new one.
         expect(attempts.count).toBe(fault === 'unknown-applied' ? 1 : 2)
       },
     )

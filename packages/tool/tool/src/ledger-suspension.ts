@@ -1,6 +1,3 @@
-// The pure deciders of a checkpointed call's wait (P06, P07): the plan of a suspension, the
-// suspend commit that opens the wait, the attachment of its registration, and the duty that parks
-// the queue entry. Each reads one call-domain snapshot and one command; nothing here reads a port.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolOperationId,
@@ -53,17 +50,11 @@ function same(left: unknown, right: unknown): boolean {
   return digestOf(left) === digestOf(right)
 }
 
-/**
- * The operation of the registration of a wait (P06 ensure). It is derived from the wait alone, and
- * a call never uses a wait identity twice, so the call and the wait fix it: a resend after an
- * unknown answer uses it again, and a second wait of the same call gets another one.
- */
 export function registrationOperation(wait: ToolWaitId): Outcome<ToolOperationId, ToolFailure> {
   const decoded = decodeToolOperationId(`${wait}/ensure`)
   return 'ok' in decoded ? decoded : invalid('wait', decoded.failure.reason)
 }
 
-/** The saved Ask wait fact that the segment of `start` ended with, or undefined. */
 export function savedWaitOf(snapshot: Snapshot, start: ToolStartRecord): SavedWait | undefined {
   for (const saved of snapshot.facts.values())
     if (saved.fact.kind === 'wait' && saved.fact.value.kind === 'ask' && same(saved.start, start))
@@ -71,13 +62,11 @@ export function savedWaitOf(snapshot: Snapshot, start: ToolStartRecord): SavedWa
   return undefined
 }
 
-/** The same state at a new revision: a commit that changes the call's records but not its phase. */
 function touched(record: CallRecord, revision: Mint['revision']): ToolState {
   const { source: _source, ...body } = record.state
   return nextState(record, body as StateBody, revision)
 }
 
-/** The call a suspension step addresses: gated, running in the foreground, on its own start. */
 function runningCall(
   snapshot: Snapshot,
   command: WriteCommand,
@@ -87,7 +76,6 @@ function runningCall(
   if ('failure' in gated) return gated
   const record = gated.ok
   if (record.state.phase !== 'running') return wrongPhase(record.state.phase)
-  // P06: a background call cannot open a wait.
   if (record.state.relation !== 'foreground') return invalid('call', 'background-cannot-wait')
   if (record.start === null || !same(record.start, start))
     return invalid('start', 'not-the-start-record')
@@ -105,12 +93,6 @@ function receiptOf<K extends OperationReceipt['kind']>(
 export type PlanSuspensionCommand = WriteCommand &
   Readonly<{ start: ToolStartRecord; schema: Adoption }>
 
-/**
- * Plans the suspension of the running segment (P07 planSuspension): the call runs in the
- * foreground on `start`, the segment ended with a saved Ask wait fact, and no suspension of this
- * start was planned before. One commit saves the suspension with its start and checkpoint schema,
- * and the `suspend` task that owes its checkpoint commit.
- */
 export function decidePlanSuspension(
   snapshot: Snapshot,
   command: PlanSuspensionCommand,
@@ -161,17 +143,10 @@ export type SuspendCommand = WriteCommand &
   Readonly<{
     suspension: SuspensionRecord
     checkpoint: Checkpoint
-    /** The state of the suspended segment as base64 text; `checkpoint.payload` binds its digest. */
     state: string
-    /** The timing with the running segment closed, as the ledger sampled it before this decision. */
     timing: ToolTiming
   }>
 
-/**
- * The responses this call accepted: only they may be named as consumed by a checkpoint. A wait
- * that a resume segment continued is closed, and its response stays named by the saved
- * `continued` fact of that segment.
- */
 function acceptedResponses(snapshot: Snapshot): ReadonlySet<string> {
   const accepted = new Set<string>()
   for (const { record } of snapshot.waits.values())
@@ -181,7 +156,6 @@ function acceptedResponses(snapshot: Snapshot): ReadonlySet<string> {
   return accepted
 }
 
-/** Why the checkpoint does not belong to the planned suspension and its wait, or nothing. */
 function refuseCheckpoint(
   snapshot: Snapshot,
   suspension: SuspensionRecord,
@@ -203,15 +177,6 @@ function refuseCheckpoint(
   return succeed(undefined)
 }
 
-/**
- * Commits the suspension (P06 opening, P07 suspend): the call runs on the planned start, the
- * checkpoint is the binding's proof for the planned suspension, and the wait of the saved fact
- * resumes at that checkpoint. One commit writes `suspended` with the checkpoint and the closed
- * timing segment, the wait `opening`, the checkpoint on the suspension, the state of the
- * checkpoint under its own key, the `wait-registration`
- * task that owes the registration, and the `suspend` task that owes the park of the queue entry. It
- * removes the task of the plan and the facts task: the segment's stream ended at its wait.
- */
 export function decideSuspend(
   snapshot: Snapshot,
   command: SuspendCommand,
@@ -259,7 +224,6 @@ export function decideSuspend(
   const writes: LedgerWrite[] = [
     put({ kind: 'call', call: { ...record, state } }),
     put({ kind: 'suspension', suspension: { ...planned, checkpoint } }),
-    // The call holds one checkpoint state: this write replaces the one of an earlier suspension.
     put({
       kind: 'checkpoint-state',
       checkpointState: { payload: checkpoint.payload, state: command.state },
@@ -310,12 +274,6 @@ export function decideSuspend(
 export type AttachRegistrationCommand = WriteCommand &
   Readonly<{ wait: ToolWaitId; registration: DurableEvidence }>
 
-/**
- * Opens the wait on its registration (P06 attachRegistration): the call is suspended in the
- * foreground and the wait is `opening`. A closed wait is never opened again. One commit writes the
- * wait `open` with the registration, the same Ask wait state on the call, and removes the
- * `wait-registration` task of the ensure.
- */
 export function decideAttachRegistration(
   snapshot: Snapshot,
   command: AttachRegistrationCommand,
@@ -369,12 +327,6 @@ export function decideAttachRegistration(
   }
 }
 
-/**
- * What the park duty `operation` asks now (P02): nothing when the duty is gone, a park when the
- * call is suspended and its wait has not reached `responding`, and otherwise only the closing of
- * the duty. A call whose decision was accepted before the park keeps its slot and resumes on it;
- * parking it then would release and retake the slot again and again.
- */
 export type ParkDuty =
   | Readonly<{ kind: 'none' }>
   | Readonly<{ kind: 'park' | 'close'; record: CallRecord; holder: ToolOperationId }>
@@ -386,7 +338,6 @@ export function parkDutyOf(snapshot: Snapshot, operation: ToolOperationId): Park
   )
   if (record === null || task?.kind !== 'suspend') return { kind: 'none' }
   const committed = snapshot.suspensions.get(task.suspension.operation)
-  // The task of a plan names the plan's own operation; it owes the checkpoint, not a park.
   if (committed === undefined || committed.checkpoint === null) return { kind: 'none' }
   const waiting = [...snapshot.waits.values()].some(
     wait =>
@@ -396,12 +347,10 @@ export function parkDutyOf(snapshot: Snapshot, operation: ToolOperationId): Park
   return {
     kind: record.state.phase === 'suspended' && waiting ? 'park' : 'close',
     record,
-    // The slot to give up is the one the start of the suspended segment took.
     holder: task.suspension.start.operation,
   }
 }
 
-/** Removes the park duty `operation` after the queue domain answered it. */
 export function decideClosePark(
   snapshot: Snapshot,
   operation: ToolOperationId,
@@ -415,11 +364,6 @@ export function decideClosePark(
   }
 }
 
-/**
- * Blocks the registration duty of a wait that the decision owner refused for good (P06). The duty
- * stays with its original identity and its refusal reason; nothing answers for the person, and
- * the wait stays as it is until its call ends. One commit marks the task and keeps the receipt.
- */
 export function decideBlockRegistration(
   snapshot: Snapshot,
   command: RecordTaskCommand,
@@ -461,11 +405,6 @@ export function decideBlockRegistration(
   }
 }
 
-/**
- * 完成一次等待失效（P06 invalidate，契约「recordTask(done) 核这个对端回执」）：待办是调用已收场后的
- * `wait-registration{action:'invalidate'}`，回执是决策方对原失效操作的回执（invalidate 的答复，或
- * inspectOperation 认回的 committed）。同一笔提交删除失效待办并保存回执。失效不改调用的终局。
- */
 export function decideCompleteInvalidation(
   snapshot: Snapshot,
   command: RecordTaskCommand,

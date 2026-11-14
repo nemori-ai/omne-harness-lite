@@ -1,7 +1,3 @@
-// The live-only ToolExecutorBinding conformance suite (P04, P05, P07, story 23) and a non-durable
-// double that conforms to it. The double keeps its executions in memory and declares
-// `durability: 'none'`: it proves nothing about a durable executor and must not be assembled into
-// production.
 import assert from 'node:assert/strict'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -63,32 +59,6 @@ type Fact = ToolExecutionFact
 type FinalFact = Extract<Fact, { kind: 'final' }>
 type LiveOnly<P, E> = Extract<ToolExecutorBinding<P, E>, { kind: 'live-only' }>
 
-// ---------------------------------------------------------------------------------------------
-// The suite
-// ---------------------------------------------------------------------------------------------
-
-/**
- * What the binding suite needs. A fresh fixture serves one case. `permit` yields the permit that
- * the binding consumes for a start; without it the suite builds a permit of its own that names the
- * start. A binding refuses a permit that names another call, another start or another tenant
- * (P04). `otherAccess` is the access of a second tenant, with a principal of its own: the cases
- * that check that another tenant neither reads nor joins an execution of the first are reported
- * not applicable without it. The optional handles are the controls of the executor, and a
- * case that needs one that is missing is reported not applicable: `launches` counts the
- * executions the executor performed; `emit` makes the executor of a started call produce one
- * fact; `finish` ends it with a final fact; `loseContinuity` loses it for good; `blindInspection`
- * makes `inspectStart` of the start unable to tell; `pendingAcknowledgements` counts the fact
- * batches whose custody receipt the executor still waits for; `holdStop` makes the executor of
- * the start answer the next stop as accepted only, and `completeStop` ends the stop: it resolves
- * only after the executor ended and every read of the control (`stop`, `inspectControl`) answers
- * its final progress. `settle` lands the deferred answer of `inspectStart` for a provider that
- * answers `unknown` to a start it knows: it resolves only after `inspectStart` tells what the
- * start is. The suite asks once more after a handle and never polls; a case that needs a handle
- * that is missing is reported not applicable when the first answer is progress. `readDeadlineMs`
- * (default 1000) is how long the suite waits for a fact batch that the executor owes, and
- * `quietMs` (default 25) is how long it waits for a fact that must not come; a slower provider
- * raises them.
- */
 export interface ToolExecutorBindingFixture<P, E> {
   readonly binding: LiveOnly<P, E>
   readonly access: Access<P>
@@ -97,25 +67,15 @@ export interface ToolExecutorBindingFixture<P, E> {
   readonly request?: FixedToolRequest
   readonly readDeadlineMs?: number
   readonly quietMs?: number
-  /** Yields the permit that the binding consumes for this start. */
   permit?(start: Start): Promise<StartPermit>
-  /** Resolves after `inspectStart` tells what the start is, and every read of it tells the same. */
   settle?(): Promise<void>
-  /** Counts the executions the executor performed (a read). */
   launches?(): number
-  /** Resolves after the executor produced the fact and the facts stream can read it. */
   emit?(start: Start, fact: Fact): Promise<void>
-  /** Resolves after the executor ended with the final fact and every read shows the end. */
   finish?(start: Start, final: FinalFact): Promise<void>
-  /** Resolves after the continuity of the start is lost for good and every read shows it. */
   loseContinuity?(start: Start): Promise<void>
-  /** Makes `inspectStart` of the start unable to tell (it takes effect at once). */
   blindInspection?(start: Start): void
-  /** Counts the fact batches whose custody receipt the executor still waits for (a read). */
   pendingAcknowledgements?(start: Start): number
-  /** Makes the executor answer the next stop as accepted only (it takes effect at once). */
   holdStop?(start: Start): void
-  /** Resolves after the executor ended the stop and every read of the control answers its final progress. */
   completeStop?(start: Start): Promise<void>
 }
 
@@ -123,15 +83,6 @@ const PROCESS_FACT: Fact = { kind: 'process', blocks: [] }
 const DEFAULT_READ_DEADLINE_MS = 1_000
 const DEFAULT_QUIET_MS = 25
 
-/**
- * The answer model of the executor binding for the methods that the suite asks about an operation.
- * `start` and `acknowledge` have no progress kind: they answer with the execution or the evidence
- * once, and a failure is final. `inspectStart` may answer `unknown` for a start it knows (P05:
- * unknown is asked again on the original start). A stop is `pending` or `unknown` until the
- * executor accepted it, `accepted` until the executor has ended, and then one of the final kinds;
- * P07 keeps these apart, so a read never goes back from `accepted` to `pending` and an accepted
- * stop keeps its evidence.
- */
 const STOP_PROGRESS: AnswerRow<'pending' | 'unknown' | 'accepted'> = {
   clause: 'P07',
   progress: ['pending', 'unknown', 'accepted'],
@@ -149,7 +100,6 @@ export const executorBindingAnswers = {
   'start' | 'inspectStart' | 'acknowledge' | 'stop' | 'inspectControl'
 >
 
-/** A final fact that settles a start as completed. */
 export function completedFinalEnvelope(): ToolFinalEnvelope<ContentBlock> {
   return {
     kind: 'final',
@@ -159,7 +109,6 @@ export function completedFinalEnvelope(): ToolFinalEnvelope<ContentBlock> {
   }
 }
 
-/** The planned final of the conformance fixture: a result under the threshold stays as it is. */
 export function completedFinal(): FinalFact {
   return completedFinalEnvelope()
 }
@@ -173,7 +122,6 @@ function scene<P, E>(
   const callAccess = { ...access, call }
   const start: Start = startRecord(access, call)
   const request = fixture.request ?? fixedRequest()
-  /** The permit of `of`: the provider's own when it supplies one, or one that names the start. */
   const permitFor = async (of: Start, forCall: ToolCallId): Promise<StartPermit> =>
     fixture.permit !== undefined
       ? fixture.permit(of)
@@ -185,7 +133,6 @@ function scene<P, E>(
   const lookup = async (): Promise<ToolStartLookup> =>
     succeeded(await binding.inspectStart({ ...callAccess, start }), 'inspectStart')
   const completion = completionOf(fixture, 'settle')
-  /** What `inspectStart` finally tells; a provider that is not sure at first lands it by `settle`. */
   const lookupFinal = (): Promise<ToolStartLookup> =>
     finalAnswer({
       ask: lookup,
@@ -203,10 +150,6 @@ function scene<P, E>(
     intent: { kind: 'stop' },
     source: evidence('controller'),
   })
-  /**
-   * The final progress of a stop whose first answer was `first`: a progress answer is driven to its
-   * end with `completeStop` and read with `inspectControl`, which every executor answers.
-   */
   const stopLanded = async (
     execution: ToolLiveExecution,
     control: ControlDispatch,
@@ -230,7 +173,6 @@ function scene<P, E>(
     start,
     call,
     completion,
-    /** What every call of the scene sends: its access and its call. */
     sends: [access, call] as const,
     stopLanded,
     begin,
@@ -250,10 +192,6 @@ function scene<P, E>(
 const deadline = (fixture: { readonly readDeadlineMs?: number }): number =>
   fixture.readDeadlineMs ?? DEFAULT_READ_DEADLINE_MS
 
-/**
- * The batches of `execution` after `after`, read until `events` facts arrived (a batch may carry
- * several facts, so the suite counts facts and not batches); the stream is then closed.
- */
 async function readBatches(
   execution: ToolLiveExecution,
   after: string | null,
@@ -278,10 +216,8 @@ async function readBatches(
   return batches
 }
 
-/** The facts that the batches carry, in order. */
 const factsOf = (batches: readonly FactBatch[]) => batches.flatMap(batch => batch.events)
 
-/** The batches that arrive from the start of the stream within the quiet period of the fixture. */
 async function drain(execution: ToolLiveExecution, quietMs: number): Promise<FactBatch[]> {
   const controller = new AbortController()
   const iterator = execution
@@ -350,7 +286,6 @@ export function toolExecutorBindingConformance<P, E>(): readonly ConformanceCase
     conformanceCase('P04', 'a start with the permit of another call is refused', async fixture => {
       const s = scene(fixture)
       const other = callId('call-2')
-      // The permit that names the start, moved to another call: nothing else of it changes.
       const permit = await s.permitFor(s.start, s.call)
       const moved: StartPermit = {
         ...permit,
@@ -493,7 +428,6 @@ export function toolExecutorBindingConformance<P, E>(): readonly ConformanceCase
         const all = await readBatches(execution, null, 3, deadline(fixture))
         const saved = all[0]?.cursor
         assert.ok(saved !== undefined, 'the stream gave a first batch')
-        // The facts after the saved cursor: those of the later batches, and no others.
         const later = factsOf(all.slice(1))
         assert.deepEqual(
           factsOf(await readBatches(execution, saved, later.length, deadline(fixture))),
@@ -532,7 +466,6 @@ export function toolExecutorBindingConformance<P, E>(): readonly ConformanceCase
         const pending = handle(fixture.pendingAcknowledgements, 'pendingAcknowledgements')
         const s = scene(fixture)
         const execution = await s.begin()
-        // Two facts: a source that counts its duty, not its batches, shows a second release.
         await s.emit()
         await s.emit()
         const [batch] = await readBatches(execution, null, 2, deadline(fixture))
@@ -576,7 +509,6 @@ export function toolExecutorBindingConformance<P, E>(): readonly ConformanceCase
           { earlier: resent, later: inspected },
           'inspectControl',
         )
-        // The stop that lands answers the final that a resend gave, if it gave one.
         await s.stopLanded(execution, control, inspected)
       },
     ),
@@ -616,7 +548,6 @@ export function toolExecutorBindingConformance<P, E>(): readonly ConformanceCase
         const execution = await s.begin()
         await finish.call(fixture, s.start, completedFinal())
         const control = s.dispatch('stop-1')
-        // A provider may answer that the stop is on its way: it is driven to its end, and read.
         const first = succeeded(await execution.stop(control), 'stop')
         const progress = await s.stopLanded(execution, control, first)
         assert.equal(progress.kind, 'already-ended')
@@ -674,7 +605,6 @@ export function toolExecutorBindingConformance<P, E>(): readonly ConformanceCase
           fixture.environment,
         )
         const failure = refused(answer, 'start with another input')
-        // A provider that judges the permit first may call the permit invalid.
         assert.ok(
           failure.kind === 'conflict' ||
             (fixture.permit !== undefined && failure.kind === 'invalid'),
@@ -691,7 +621,6 @@ export function toolExecutorBindingConformance<P, E>(): readonly ConformanceCase
         const own = scene(fixture)
         const other = scene(fixture, otherAccessOf(fixture))
         await own.begin()
-        // The other tenant names the same call and start: only the tenant identifies the record.
         await crossTenantAnswers({
           ask: { real: other.tryLookup, ghost: () => other.lookupOf(callId('call-ghost')) },
           row: executorBindingAnswers.inspectStart,
@@ -727,10 +656,6 @@ export function toolExecutorBindingConformance<P, E>(): readonly ConformanceCase
   ]
 }
 
-// ---------------------------------------------------------------------------------------------
-// The non-durable double
-// ---------------------------------------------------------------------------------------------
-
 type Tenant = Access<unknown>['tenant']
 type Status = 'live' | 'settled' | 'lost'
 type Waiter = () => void
@@ -742,7 +667,6 @@ type Execution = {
   readonly acknowledged: Map<string, DurableEvidence>
   readonly pending: Set<string>
   readonly controls: Map<string, ControlProgress>
-  /** What each stop operation asked: the same identity with another input is a conflict. */
   readonly controlInputs: Map<string, string>
   readonly requestDigest: string
   readonly waiters: Set<Waiter>
@@ -774,11 +698,6 @@ export interface MemoryToolExecutorBinding<P, E> {
 const reply = <T>(outcome: Outcome<T, ToolFailure>): Promise<Outcome<T, ToolFailure>> =>
   Promise.resolve(outcome)
 
-/**
- * A live-only executor in memory. A start is keyed by tenant, call and start operation: a resend
- * joins the execution that exists. The executor keeps the facts it produced, so a stream read
- * from a cursor continues there, and it ends only when the channel is closed by the reader.
- */
 export function createMemoryToolExecutorBinding<P, E>(
   planner?: ToolFinalPlanner<P, ContentBlock>,
 ): MemoryToolExecutorBinding<P, E> {
@@ -801,7 +720,6 @@ export function createMemoryToolExecutorBinding<P, E>(
   }
   const executions = new Map<string, Execution>()
   const exclusions = new Map<string, DurableEvidence>()
-  /** The executions whose next stop is answered as accepted only. */
   const heldStops = new Set<Execution>()
   let launched = 0
   let minted = 0
@@ -837,7 +755,6 @@ export function createMemoryToolExecutorBinding<P, E>(
     wake(state)
   }
   const stopFor = async (state: Execution, control: ControlDispatch): Promise<void> => {
-    // The executor ends and the final records why: a control interrupted it.
     const envelope: ToolFinalEnvelope<ContentBlock> = {
       ...completedFinalEnvelope(),
       terminal: {
@@ -950,7 +867,6 @@ export function createMemoryToolExecutorBinding<P, E>(
   const binding: LiveOnly<P, E> = {
     kind: 'live-only',
     start: input => {
-      // The permit names this tenant, this call and this start, or the executor does not start.
       const { permit } = input
       if (
         tenantKey(permit.tenant) !== tenantKey(input.tenant) ||
@@ -1004,7 +920,6 @@ export function createMemoryToolExecutorBinding<P, E>(
       if (state?.blind === true)
         return reply(succeed({ kind: 'unknown', diagnostic: 'the executor cannot be asked now' }))
       if (state === undefined) {
-        // The same start that was never made gets the same exclusion every time it is asked.
         const at = keyOf(input.tenant, input.call, input.start.operation)
         const exclusion = exclusions.get(at) ?? mint('exclusion', { start: input.start.operation })
         exclusions.set(at, exclusion)
@@ -1056,7 +971,6 @@ export function createMemoryToolExecutorBinding<P, E>(
     holdStop: start => {
       heldStops.add(stateOf(start))
     },
-    // Every answer of the double is final when the call returns, so nothing is left to land.
     settle: () => Promise.resolve(),
     completeStop: async start => {
       const state = stateOf(start)
@@ -1082,7 +996,6 @@ function unsupported(): ToolFailure {
   }
 }
 
-/** A fresh fixture over a fresh in-memory executor, with every control handle. */
 export function memoryToolExecutorBindingFixture(): ToolExecutorBindingFixture<
   string,
   { readonly resource: string }

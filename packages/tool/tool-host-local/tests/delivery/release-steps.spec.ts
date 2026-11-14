@@ -1,7 +1,3 @@
-// The steps of one delivery run after the receiver saved it: a lost release is recalled by its
-// operation only when the result record shows it released, a stop while the release is being
-// marked or sent sends nothing, a release answer for another delivery or consumer is not taken,
-// a run that cannot read a delivery keeps its pacing, and a done delivery is not finished twice.
 import { expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { LedgerCommitInput } from '@omne-harness/tool'
@@ -12,7 +8,6 @@ import { decodeToolDeliveryId, decodeToolRevision } from '@omne-harness/tool-con
 
 type Fixture = Awaited<ReturnType<typeof fixture>>
 
-/** Runs `onWrite` before the store commits a delivery record that enters `phase`. */
 function onPhaseWrite(f: Fixture, phase: string, onWrite: () => Promise<unknown> | unknown) {
   const commit = f.store.commit.bind(f.store)
   return vi.spyOn(f.store, 'commit').mockImplementation(async (input: LedgerCommitInput) => {
@@ -50,7 +45,6 @@ it('recalls a lost release that committed once the result record shows it releas
   expect(await f.drive(worker)).toEqual(succeed({ pending: 0 }))
   expect(f.input.commands.releaseDelivery).toHaveBeenCalledTimes(1)
   expect(f.input.reads.operation).toHaveBeenCalledTimes(1)
-  // Recalled as released, the delivery releases its copies and is done.
   expect(forwardedCopies).toHaveBeenCalledTimes(1)
 })
 
@@ -73,7 +67,6 @@ it('a worker closed before the release marks nothing: the next worker sends it d
   let calls = 0
   vi.mocked(f.input.position.access).mockImplementation(async input => {
     calls += 1
-    // The run, the push and its recheck, then the release: the worker closes at the release.
     if (calls === 4) void worker.close()
     return recover(input)
   })

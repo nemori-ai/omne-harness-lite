@@ -103,8 +103,6 @@ export async function authorRun(
   const entry = registered.operations.find(([name]) => name === command)
   if (entry === undefined) return fail({ kind: 'invalid', reason: 'unknown-command' } as const)
   const author = entry[1].author
-  // A text is the parameters, which the author's codec parses. Arguments are a request's: the whole
-  // call, which a binding cuts for the admitted command first (D-94), or an incomplete block.
   const cut =
     typeof args === 'string'
       ? succeed({ original: args, effective: args, complete: true })

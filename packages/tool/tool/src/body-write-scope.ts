@@ -98,7 +98,6 @@ class BodyScope<P> implements ToolBodyScope {
       return Promise.resolve(fail({ kind: 'closed', reason: 'body writer is closing' }))
     let fixed: V
     try {
-      // copyData preserves the typed data shape and rejects accessors or non-data values.
       fixed = copyData(value) as V
     } catch {
       return Promise.resolve(

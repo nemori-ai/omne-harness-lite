@@ -133,7 +133,6 @@ function fixture(
                               ...next.value.events,
                               {
                                 event: 'unsupported',
-                                // An account fact: still not received (P05 accounts).
                                 fact: {
                                   kind: 'account',
                                   event: 'unsupported',
@@ -796,7 +795,6 @@ describe('reader isolation and command outcomes', () => {
       ok(await f.h.commands.loadRecovery(c.access)).tasks.some(task => task.kind === 'facts'),
     ).toBe(true)
     const resumed = new AbortController()
-    // Disable the one aborted connection's injected timing for a legal reconnect.
     await f.h.runOnce(c.call, resumed.signal)
     resumed.abort()
     await flush()

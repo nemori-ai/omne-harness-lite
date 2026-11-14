@@ -1,14 +1,6 @@
-// The grant verifier of the guard table (row 4), as the D1 decision fixes it: the assembly gives
-// one scope value, `{ owner, key, grant }`, to this verifier and to the Agent that fills the
-// request. The verifier holds no recipe. It accepts the request whose scope is that value, so no
-// rule has to be copied to two sides.
-//
-// Known limitation: an assembly has one scope in M2, so every call shares one queue key (one concurrency scope)
-// (the key is made of the owner, the key and the tool name), whatever its tenant or caller.
 import type { ToolGrantVerifier } from '@omne-harness/tool'
 import type { DurableEvidence, ResourceScope } from '@omne-harness/tool-contract'
 
-/** The one scope an assembly accepts: its owner, its key, and the fixed durable grant evidence. */
 export type LocalGrantScope = ResourceScope
 
 const EVIDENCE_FIELDS = ['owner', 'record', 'revision', 'digest'] as const
@@ -21,12 +13,6 @@ function sameEvidence(left: DurableEvidence, right: DurableEvidence): boolean {
   return EVIDENCE_FIELDS.every(field => left[field] === right[field])
 }
 
-/**
- * Builds the verifier map of an assembly: one entry, for the owner of `scope`. A request scope
- * with the same owner and key and the same grant evidence is `granted`; any other scope of that
- * owner is `refused`. An owner that is not in the map is denied by the ledger, not here.
- * A scope with an empty text is a defect of the assembly and throws a `TypeError`.
- */
 export function createLocalGrantVerifiers<P>(
   scope: LocalGrantScope,
 ): ReadonlyMap<string, ToolGrantVerifier<P>> {
@@ -39,7 +25,6 @@ export function createLocalGrantVerifiers<P>(
     !EVIDENCE_FIELDS.every(field => filled(scope.grant[field]))
   )
     throw new TypeError('scope.grant: not a filled value')
-  // Keep a copy, so a later change of the caller's object cannot change what is granted.
   const declared: LocalGrantScope = Object.freeze({
     owner: scope.owner,
     key: scope.key,

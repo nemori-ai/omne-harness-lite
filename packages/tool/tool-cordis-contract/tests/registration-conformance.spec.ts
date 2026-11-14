@@ -1,7 +1,3 @@
-// Self-proof of the registration suite: it passes on the conforming register service, each
-// case fails under a violating variant that breaks the rule of that case, and a fixture without
-// control handles reports the cases that need them as not applicable. A variant is a register
-// service with one flaw set (flawed-registrations.ts).
 import { succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
 import type { ToolRegistrationService } from '@omne-harness/tool-cordis-contract/testing'
@@ -133,8 +129,6 @@ const variants: readonly Variant<Fixture>[] = [
     NAMES.R8,
     NAMES.R18,
   ]),
-  // The rejection reaches only the case that withdraws the qualification while a register is in
-  // flight, and it is an assertion failure of that case, not a crash of the suite.
   flaw(
     'a register rejects when the check changes while it is in flight',
     { rejectsWhenCheckChanges: true },
@@ -145,8 +139,6 @@ const variants: readonly Variant<Fixture>[] = [
     { writeAfterAnswerMs: 0 },
     [NAMES.R11],
   ),
-  // The write comes well within the quiet period of 25 ms, but not at once: only a case that
-  // waits for the quiet period sees it.
   flaw(
     'a refused check writes the entry 10 ms after the answer, and keeps it',
     { writeAfterAnswerMs: 10 },
@@ -218,21 +210,17 @@ const variants: readonly Variant<Fixture>[] = [
     NAMES.R20,
   ]),
   {
-    // The provider checks twice. The withdrawal in flight reaches the final check, which names
-    // another kind than the withdrawal.
     name: 'a withdrawal in flight is answered denied by the final check',
     fails: [NAMES.R15],
     fixture: () => preChecked(flawedFixture({ refusalAsDenied: true })),
   },
   {
-    // The entry is written before the check and stays when the check refuses it later.
     name: 'a refusal in flight leaves the entry that was written before the check',
     fails: [NAMES.R14, NAMES.R15, NAMES.R19],
     fixture: () => preChecked(flawedFixture({ writeBeforeCheck: true, keepOnRefusal: true })),
   },
 ]
 
-/** Providers that the contract allows, built in registration-legal.ts at the service boundary. */
 const legal: readonly LegalProvider<Fixture>[] = [
   {
     name: 'generated: the table has no progress kind, so the boundary masks nothing',
@@ -247,17 +235,12 @@ const legal: readonly LegalProvider<Fixture>[] = [
     fixture: tenantChecking,
   },
   {
-    // The cases that need a second tenant are not applicable.
     name: 'a tenant-checking authority with one tenant: a check that knows the tenant of its authority only',
     fixture: oneTenantChecking,
     notApplicable: { [NAMES.R19]: 'otherTenant', [NAMES.R20]: 'otherTenant' },
   },
 ]
 
-/**
- * Fixtures that break the completion contract of `endFiber`: it resolves before the automatic
- * disposers of the fiber have removed its entries.
- */
 const lateEndFiber: readonly Variant<Fixture>[] = [
   {
     name: 'endFiber resolves 3 turns before the fiber is ended and its entries are removed',
@@ -275,7 +258,6 @@ const lateEndFiber: readonly Variant<Fixture>[] = [
   },
 ]
 
-/** The methods of the service that take a tenant, and the case that checks another tenant on each. */
 const CROSS_TENANT: Readonly<Record<keyof ToolRegistrationService<string>, readonly string[]>> = {
   register: [NAMES.R19, NAMES.R20],
 }
@@ -365,7 +347,6 @@ describe('registration conformance suite', () => {
   })
 
   it('fails the first case for a receipt whose release is not a function', async () => {
-    // Only the first case runs: every other case calls release and would crash on it.
     const first = cases.filter(item => item.name === NAMES.R1)
     const noRelease = (): Fixture => {
       const base = memoryToolRegistrationFixture()

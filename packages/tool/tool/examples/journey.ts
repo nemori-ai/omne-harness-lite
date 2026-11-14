@@ -30,7 +30,6 @@ function visibleField(view: View, name: string): string {
   return row.slice(row.indexOf(':') + 1).trim()
 }
 
-// This consumer receives only P14 blocks and the actual help reply. It has no runtime or ledger.
 function modelContinuation(help: View, view: View) {
   assert.ok(textOf(help).includes('read_result'))
   assert.ok(textOf(help).includes('next=null'))
@@ -45,7 +44,6 @@ function modelContinuation(help: View, view: View) {
 }
 
 function project(value: ToolResult<ToolMessageContentBlock>): View {
-  // This tutorial has no attachments, so P14 needs no additional attachment block identities.
   return valueOf(projectToolResult(value, []))
 }
 
@@ -87,7 +85,6 @@ async function settle(demo: Demo, reference: ToolInvocationRef): Promise<Settled
   for (let step = 0; step < 100; step += 1) {
     const found = valueOf(await demo.runtime.queries.lookup({ ...demo.access, reference }))
     if (found.kind === 'found' && found.state.phase === 'settled') {
-      // Queue repair is separate from settlement. Give scheduled work its remaining turns.
       if (found.state.queue.kind === 'released' || found.state.queue.kind === 'none')
         return found.state
     }
@@ -116,8 +113,6 @@ async function scenario(name: string, run: (demo: Demo) => Promise<void>) {
   console.log(`PASS ${name}; tutorial host closed`)
 }
 
-// The consumer owns these records. Each record contains the complete text it actually processed.
-// They are in-memory evidence for this tutorial, not a durable consumer-completion service.
 const processed = new Map<
   string,
   Readonly<{ reference: ToolInvocationRef; result: string; delivery: string; text: string }>
@@ -172,7 +167,6 @@ async function processAndRelease(
   }
   const after = valueOf(await demo.runtime.queries.lookup({ ...demo.access, reference }))
   assert.ok(after.kind === 'found' && after.state.delivery?.kind === 'released')
-  // Handoff does not delete the fixed result.
   valueOf(
     await demo.runtime.queries.readResult({
       ...demo.access,
@@ -184,7 +178,6 @@ async function processAndRelease(
 }
 
 async function successfulReport(demo: Demo) {
-  // Save the fixed request and full consumer before invoking. This identity is also the recovery key.
   const originalRequest = demo.request('source-report', null, '{}')
   const reference = await accepted(
     demo,
@@ -215,7 +208,6 @@ async function successfulReport(demo: Demo) {
       await demo.runtime.invoke({ ...demo.access, request }),
     )
     const metaState = await settle(demo, metaReference)
-    // Host-only: collect the whole NEW meta result before P14 projection. The model never reads cursors here.
     const reply = valueOf(
       await demo.tools.readReply({
         ...demo.access,
@@ -241,7 +233,6 @@ async function successfulReport(demo: Demo) {
   const seen = new Set<string>()
   let pages = 0
   for (;;) {
-    // Processing here means extracting every visible report section in order into the consumer record.
     reportText.push(
       ...view.flatMap(block =>
         block.kind === 'text' && block.id.startsWith('report-') ? [block.text] : [],
@@ -271,7 +262,6 @@ async function successfulReport(demo: Demo) {
   )
 }
 
-// Host reads of original failure results use the ordinary query, not the meta-reply collector.
 async function readOriginal(
   demo: Demo,
   reference: ToolInvocationRef,
@@ -300,7 +290,6 @@ async function readOriginal(
 }
 
 async function argumentsFailure(demo: Demo) {
-  // The request envelope is valid and complete. Strict JSON rejects duplicate keys as arguments failure.
   const request = demo.request('invalid-arguments', null, '{"topic":"first","topic":"second"}')
   const reference = await accepted(demo, await demo.runtime.invoke({ ...demo.access, request }))
   const state = await settle(demo, reference)
@@ -319,8 +308,6 @@ async function excludedStart(demo: Demo) {
   const reference = await accepted(demo, await demo.runtime.invoke({ ...demo.access, request }))
   const operation = valueOf(await demo.identities.operationIdentities.newOperation())
   const { call } = readToolInvocationRef(reference)
-  // The coordinator owns authority. It has checked the same principal and tenant, and has not advanced the driver.
-  // Only confirmed exclusion proves this call cannot start. An unknown reply must keep this identity pending.
   const excluded = await demo.test.doubles.authority.exclude({
     ...demo.access,
     call,

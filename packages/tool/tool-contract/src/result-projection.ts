@@ -1,4 +1,3 @@
-// The pure projection of a ToolResult into message blocks for a consumer (P14).
 import type { BlockId, ContentBlock, TextContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { toolResultShape } from './result-policy.ts'
@@ -13,13 +12,10 @@ import {
   type ShapeRejection,
 } from './shape.ts'
 
-/** P14: the fixed prefix of an attachment address text. */
 const ADDRESS_PREFIX = '附件地址（按需读取）：'
 
-/** A block identity follows the content-block rule: a non-empty string. */
 const blockId: Check<BlockId> = (value, at) => {
   const checked = filled(value, at)
-  // `filled` accepted the text that content-block accepts as a block identity.
   return 'ok' in checked ? succeed(checked.ok as BlockId) : checked
 }
 
@@ -29,7 +25,6 @@ type Projection = Readonly<{
   ids: readonly BlockId[]
 }>
 
-/** The identity rules of P14, in the order that a rejection reports them. */
 const IDENTITY_RULES: readonly ((projection: Projection) => ShapeRejection | undefined)[] = [
   ({ content }) => {
     const repeat = firstRepeat(content.map(block => block.id))
@@ -54,7 +49,6 @@ const IDENTITY_RULES: readonly ((projection: Projection) => ShapeRejection | und
   },
 ]
 
-/** The text block that tells a reader where an attachment is. It is not a URL or a read. */
 function addressBlock(id: BlockId, attachment: Attachment): TextContentBlock {
   return Object.freeze({
     kind: 'text',
@@ -64,12 +58,6 @@ function addressBlock(id: BlockId, attachment: Attachment): TextContentBlock {
   })
 }
 
-/**
- * Projects a result into message blocks without reading any bytes (P14). The content blocks
- * that the consumer may see keep their order, then one address text block follows per attachment,
- * in order. `attachmentBlockIds` gives one fixed identity per attachment; a wrong count, a repeat
- * or a collision with a content block is rejected. Disclosure checks stay with the caller.
- */
 export function projectToolResult(
   value: ToolResult<ContentBlock>,
   attachmentBlockIds: readonly BlockId[],
@@ -88,7 +76,6 @@ export function projectToolResult(
   const visible = projection.content.filter(block => block.visibility.toModel)
   const addresses = projection.attachments.map((attachment, index) => {
     const id = projection.ids[index]
-    // The count rule above makes every attachment index a valid identity index.
     return addressBlock(id as BlockId, attachment)
   })
   return succeed(Object.freeze([...visible, ...addresses]))

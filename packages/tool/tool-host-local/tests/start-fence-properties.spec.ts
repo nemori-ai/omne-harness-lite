@@ -1,18 +1,3 @@
-// Property guard of the start ordering domain (G5, P04), the machine-readable twin of
-// `verification/models/StartFence.tla`. A seeded driver sends random sequences of prepare,
-// consume (with any permit ever issued), inspect, exclude, invalidate and re-sent invalidation
-// to the real coordinator over the memory ledger, with lost commit answers injected, and a
-// checker judges every observable answer against the properties of the model:
-//   P1 one acceptance per start (every `started` names the same acceptance evidence),
-//   P2 an invalidation whose evidence returned fences every permit issued before it,
-//   P3 a permit issued before inspect answered not-started is never accepted after it,
-//   P4 an excluded call is never accepted and an accepted call is never excluded,
-//   P5 a re-sent invalidation returns its first evidence and the guard moves once per operation,
-//   P6 a start is accepted or rejected, never both,
-//   T  a principal of another tenant is denied by every operation and writes nothing.
-// The negative control runs the same driver and checker against a faulty authority with one
-// rule removed; the checker must report that rule.
-
 import { succeed } from '@omne-harness/operation-result'
 import type { ToolLedgerStore } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore, type MemoryToolLedgerStore } from '@omne-harness/tool/testing'
@@ -39,7 +24,6 @@ import {
   type Principal,
 } from './coordinator-values.ts'
 
-/** mulberry32: a small seeded generator, so a red run names the seed that reproduces it. */
 function random(seed: number): () => number {
   let a = seed >>> 0
   return () => {
@@ -67,18 +51,14 @@ type Op =
 
 type Issued = { permit: StartPermit; step: number }
 
-/** The observable facts the checker keeps across one run. */
 type Trace = {
   step: number
   issued: Issued[]
-  /** acceptance evidence key -> the step it was first seen */
   acceptances: Map<string, number>
-  /** step at which the first `started` answer was seen, or null */
   firstStarted: number | null
   rejectedAt: number | null
   notStartedAt: number | null
   excludedAt: number | null
-  /** invalidation operation -> its first returned evidence and the step it returned */
   invalidations: Map<string, { evidence: DurableEvidence; step: number }>
   unknownInvalidations: string[]
   violations: string[]
@@ -88,7 +68,6 @@ function violation(trace: Trace, text: string): void {
   trace.violations.push(`step ${String(trace.step)}: ${text}`)
 }
 
-/** Judge one answer of consume or inspect for the permit `used` (null for inspect). */
 function judgeProgress(trace: Trace, used: Issued | null, progress: StartProgress): void {
   if (progress.kind === 'started') {
     const key = evidenceKey(progress.acceptance)
@@ -215,7 +194,6 @@ async function run(
     } else if (op === 'lose-next-commit') {
       loseNext()
     } else {
-      // A principal of tenant B names tenant A: denied before any read, nothing written.
       const before = await guardRevision()
       const foreign = { principal: principalB, tenant: tenantA as never, call: callId(CALL) }
       const answers = await Promise.all([
@@ -236,7 +214,6 @@ async function run(
         violation(trace, 'T: a foreign principal moved the guard')
     }
   }
-  // P5 in the ledger: the guard advanced once per distinct applied invalidation operation.
   const revision = await guardRevision()
   const returned = trace.invalidations.size
   const sent = returned + trace.unknownInvalidations.length
@@ -248,7 +225,6 @@ async function run(
   return trace
 }
 
-/** The guard revision of tenant A as stored, read without the coordinator. */
 function guardRevisionReader(store: ToolLedgerStore) {
   return async (): Promise<number | null> => {
     const read = await store.read(tenantHostDomain(tenantA as never, START_GUARDS_DOMAIN_KEY))
@@ -279,10 +255,6 @@ describe('the start ordering domain keeps the StartFence properties under random
   })
 })
 
-// ---------------------------------------------------------------------------------------------
-// Negative control: a faulty authority with one rule removed must be caught by the same checker.
-// ---------------------------------------------------------------------------------------------
-
 type Fault =
   | 'skip-guard-check'
   | 'double-accept'
@@ -291,11 +263,6 @@ type Fault =
   | 'resend-readvances'
   | 'admit-foreign'
 
-/**
- * A toy ordering domain with the shape of the coordinator and one rule removed. It denies every
- * principal other than tenant A's, so the driver's foreign step neither replaces the permit nor
- * moves the guard and the removed rule is the only difference from the model.
- */
 function faulty(
   fault: Fault,
 ): ToolStartAuthority<Principal> & { guardRevision(): number; loseNext(): void } {

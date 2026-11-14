@@ -1,5 +1,3 @@
-// Ask 的命令参数、卡片、等待协议与检查点状态。
-// 卡片的字段与上界和 HITL 的 Question 一致，所以 Ask 接受的请求 HITL 也能登记。
 import { writeJsonText } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { defineSchema, jsonSchemaDefinition } from '@omne-harness/schema-provider'
@@ -42,7 +40,6 @@ export type AskArguments =
   | Readonly<{ command: 'ask'; questions: readonly AskQuestionInput[] }>
   | (Readonly<{ command: 'request_approval' }> & AskApprovalInput)
 
-/** 一张卡。字段与 HITL 的 Question 一一对应。 */
 export type AskCard = Readonly<{
   cardId: string
   kind: 'question' | 'approval'
@@ -51,9 +48,7 @@ export type AskCard = Readonly<{
   options: readonly Readonly<{ id: string; label: string; description: string }>[]
   declineConsequence: string
 }>
-/** 等待请求：整批卡片，按出卡顺序排列。 */
 export type AskWaitRequest = Readonly<{ questions: readonly AskCard[] }>
-/** 整批答复的值，按卡片顺序。跳过的卡是 `no-answer`。 */
 export type AskResponse = Readonly<{
   answers: readonly (Readonly<{ cardId: string }> &
     (
@@ -62,7 +57,6 @@ export type AskResponse = Readonly<{
       | Readonly<{ kind: 'no-answer' }>
     ))[]
 }>
-/** 检查点状态：命令与题目。resume 段用它把答复投影成结果。 */
 export type AskState = Readonly<{
   command: AskCommand
   questions: readonly Readonly<{
@@ -72,9 +66,6 @@ export type AskState = Readonly<{
   }>[]
 }>
 
-// 问题数与选项数是 Ask 自己的界，比 HITL 的通用上界（64 张卡、64 个选项）窄：
-// 一次打断问得太多人答不过来；只有一个选项不算选择，自由作答与跳过由 HITL 保证。
-// 文本上界与 HITL 的 Question 和 Reply 相同，按 Unicode 码点计数。
 const CARD_LIMIT = 7
 const OPTION_MIN = 2
 const OPTION_LIMIT = 4
@@ -82,11 +73,8 @@ const TITLE_MAX = 256
 const TEXT_MAX = 4096
 const REPLY_MAX = 8192
 const APPROVAL_FIELD_MAX = 1000
-/** HITL 登记命令的上界是 256 KiB。留 64 KiB 给来源、显示上下文与信封。 */
 export const ASK_REQUEST_MAX_BYTES = 196_608
-/** 状态是请求的子集，所以不会大于请求。 */
 export const ASK_STATE_MAX_BYTES = ASK_REQUEST_MAX_BYTES
-/** 至多 7 条答复，每条至多 8192 个码点。JSON 转义后每个码点至多 6 字节，另留信封的余量。 */
 export const ASK_RESPONSE_MAX_BYTES = 393_216
 
 const QUESTION_DECLINE = '跳过此题，不作答'
@@ -123,7 +111,6 @@ function questionCard(
       return fail(invalidField(`${where}.label`))
     labels.add(option.label)
     if (!validText(option.description, TEXT_MAX)) return fail(invalidField(`${where}.description`))
-    // 图解辅助比较，不替代选项文本。HITL 的卡片没有图解字段，所以图解接在选项说明之后。
     const description =
       option.diagram === undefined
         ? option.description
@@ -164,10 +151,6 @@ function approvalCard(input: AskApprovalInput): Outcome<AskCard, string> {
   })
 }
 
-/**
- * 校验参数并生成整批卡片。卡片身份由位置决定：问题是 `q1`、`q2`……，选项是 `o1`、`o2`……。
- * 失败值是给模型的原因。
- */
 export function askCards(args: AskArguments): Outcome<readonly AskCard[], string> {
   let cards: AskCard[]
   if (args.command === 'request_approval') {
@@ -221,7 +204,6 @@ function closedObject(
   }
   return succeed(record)
 }
-/** `questions` 与 `options` 是数组，其余字段都是字符串。 */
 function isFieldValue(key: string, value: unknown): boolean {
   return key === 'questions' || key === 'options' ? Array.isArray(value) : typeof value === 'string'
 }
@@ -293,7 +275,6 @@ const json = createDefaultParameterCodec({
 if ('failure' in json) throw new TypeError(json.failure.reason)
 const jsonCodec = json.ok
 
-/** 参数编解码：先读 JSON，再核形状，最后按卡片规则核内容。任何一步失败都不进入执行者。 */
 export function askParameterCodec(command: AskCommand): ParameterCodec<AskArguments> {
   return {
     adoption: askAdoption,
@@ -406,7 +387,6 @@ export type AskCommandEntry = Readonly<{
   codec: ParameterCodec<AskArguments>
 }>
 
-/** 一条命令的名称、摘要、给模型的参数声明与参数编解码。 */
 export function askCommand(name: AskCommand): AskCommandEntry {
   return {
     name,
@@ -538,7 +518,6 @@ const wait = defineToolWaitContract<AskResponse, 'ask'>({
   response: valueSchema<AskResponse>('response', ASK_RESPONSE_MAX_BYTES),
 })
 if ('failure' in wait) throw new TypeError(wait.failure.reason)
-/** Ask 的等待协议：请求是整批卡片，答复是按卡片顺序的整批答复，没有到期。 */
 export const askWaitContract = wait.ok
 
 export const askStateSchema = valueSchema<AskState>('state', ASK_STATE_MAX_BYTES)

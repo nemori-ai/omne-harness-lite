@@ -1,8 +1,3 @@
-// The providers of the live-only executor binding suite that the contract allows, and the
-// builders that the violating variants of the spec share with them. Each is built at the port
-// boundary: it wraps the binding of a double, the executions that it hands out and the handles
-// that it may change (`settle`, `completeStop`), and it never calls a control of a double to make
-// the double behave.
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { ControlProgress } from '@omne-harness/tool-contract'
 import type {
@@ -28,7 +23,6 @@ export type Handles = Partial<
   Omit<Fixture, 'binding' | 'access' | 'environment' | 'request' | 'permit'>
 >
 
-/** A fixture whose binding is the double with `binding` laid over it and `handles` replaced. */
 export function variant(
   build: (
     real: Binding,
@@ -42,7 +36,6 @@ export function variant(
   }
 }
 
-/** Lays `over` on every execution that the binding hands out, from `start` and from `inspectStart`. */
 export function overExecution(
   real: Binding,
   over: (execution: Execution) => Partial<Execution>,
@@ -77,13 +70,11 @@ const controlKey = (input: ControlDispatch): string =>
 const startKey = (input: { tenant: unknown; call: string; start: { operation: string } }): string =>
   JSON.stringify(['s', input.tenant, input.call, input.start.operation])
 
-/** The progress answer of a stop of kind `kind`; an accepted stop carries its evidence. */
 const controlAnswer = (kind: string): unknown =>
   kind === 'accepted'
     ? succeed<ControlProgress>({ kind: 'accepted', evidence: evidence('masked-acceptance') })
     : progressOf(kind, 'the stop is on its way')
 
-/** How a handle resolves relative to the lifting of its mask: with it, or `lag` turns after it. */
 export type Landing = Readonly<{ lagTurns?: number }>
 
 function lift(mask: Mask, landing: Landing): void {
@@ -94,12 +85,6 @@ function lift(mask: Mask, landing: Landing): void {
     })
 }
 
-/**
- * The generated provider of the table: the first answer of every method, for a new operation, is
- * progress of `kind`, and every read of it says so until the handle resolves (`settle` for
- * `inspectStart`, `completeStop` for a stop). With `lag`, the handle resolves before the mask is
- * lifted, which breaks the completion contract.
- */
 export function generated(
   kind: string,
   options: Readonly<{
@@ -168,7 +153,6 @@ export function generated(
   }
 }
 
-/** A stop answers `pending` first; a resend and an inspectControl read its progress. */
 export function pendingFirstStop(): Fixture {
   const base = memoryToolExecutorBindingFixture()
   return {
@@ -199,7 +183,6 @@ export function pendingFirstStop(): Fixture {
   }
 }
 
-/** P05 names the identity of an event and a batch apart: facts that are ready travel together. */
 export const coalescingFacts = variant(real => ({
   binding: overExecution(real, execution => ({
     facts: input =>
@@ -230,7 +213,6 @@ export const coalescingFacts = variant(real => ({
   })),
 }))
 
-/** P07 lets a stop be answered `pending` first, also when the executor has already ended. */
 export const endedStopPendingFirst = variant(real => ({
   binding: overExecution(real, execution => ({
     stop: async control => {
@@ -242,18 +224,11 @@ export const endedStopPendingFirst = variant(real => ({
   })),
 }))
 
-/** The double with one tenant only: the cross-tenant cases have no second access. */
 export const oneTenant = (): Fixture => without(memoryToolExecutorBindingFixture(), 'otherAccess')
 
-/**
- * A binding that issues its own permits and judges the permit before the executor: a permit that
- * it never issued is denied, and a start that was made with one request and is asked again with
- * another is answered `invalid` before the executor sees it (P04: the binding judges the permit).
- */
 export function permitFirst(): Fixture {
   const base = memoryToolExecutorBindingFixture()
   const issued = new Set<string>()
-  /** The request of each start, as the first start of it gave it. */
   const requests = new Map<string, string>()
   return {
     ...base,

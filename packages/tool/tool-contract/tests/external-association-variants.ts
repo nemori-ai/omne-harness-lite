@@ -1,7 +1,3 @@
-// The violating variants of the cases that the decision bridge suite and the resource response
-// suite share (P06), and the legal providers that those cases must let pass. A variant is the
-// conforming double with one rule broken, laid over the calls that both ports have; each spec
-// supplies how a laid variant becomes a fixture of its own port.
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
@@ -23,7 +19,6 @@ import { externalGenerated, operationKey } from './external-association-legal.ts
 import { answersAnotherFinalDuringProgress, regressesAfterFinal } from './resend-violators.ts'
 import { evidence } from './tool-values.ts'
 
-/** The names of the shared cases, in the order of the suites. */
 export const SHARED = {
   S1: 'a resent ensure returns the original registration',
   S2: 'inspect recalls the registration that ensure answered',
@@ -51,7 +46,6 @@ export const SHARED = {
 type Answer<T> = Promise<Outcome<T, ToolFailure>>
 type Reply<T> = Answer<T>
 
-/** The calls that both external-association ports have; the input of each is the common part. */
 export interface ExternalPort {
   inspectOperation(input: Mutation<string>): Reply<ExternalOperationResolution>
   ensure(input: Mutation<string> & Readonly<{ wait: unknown }>): Reply<DurableEvidence>
@@ -72,7 +66,6 @@ export interface ExternalHandleOverrides {
 
 export type Laid = Readonly<{ port?: Partial<ExternalPort>; handles?: ExternalHandleOverrides }>
 
-/** The part of a fixture that the shared variants read. */
 export interface ExternalBase {
   readonly access: Access<string>
   readonly otherAccess?: Access<string>
@@ -106,11 +99,9 @@ const unknownOperation = (input: Mutation<string>): ExternalOperationResolution 
   diagnostic: 'forgotten',
 })
 
-/** The tenant of `input` is not the tenant of the fixture. */
 const isForeign = (input: { tenant: Access<string>['tenant'] }, base: ExternalBase): boolean =>
   JSON.stringify(input.tenant) !== JSON.stringify(base.access.tenant)
 
-/** The same input as that of the own tenant: the provider keys without the tenant. */
 const blind = <T extends { tenant: Access<string>['tenant'] }>(
   input: T,
   base: ExternalBase,
@@ -119,10 +110,6 @@ const blind = <T extends { tenant: Access<string>['tenant'] }>(
   tenant: base.access.tenant,
 })
 
-/**
- * A read for another tenant that answers `unknown`, as for an operation never seen, and names in
- * its diagnostic the receipt of the operation of the own tenant when there is one.
- */
 async function leakingRead(
   real: ExternalPort,
   input: Mutation<string>,
@@ -138,13 +125,8 @@ async function leakingRead(
   })
 }
 
-/** How a foreign read hides what it tells of the record of the own tenant in its answer. */
 type Telling = (receipt: DurableEvidence, base: ExternalBase) => object
 
-/**
- * A read for another tenant that answers `unknown`, as for an operation never seen, and adds to
- * that answer the fields of `tell` when the operation of the own tenant is committed.
- */
 async function tellingRead(
   real: ExternalPort,
   input: Mutation<string>,
@@ -160,7 +142,6 @@ async function tellingRead(
   return succeed(answer)
 }
 
-/** The ways of hiding the record or the tenant in a foreign answer that the S7 case must find. */
 const TELLINGS: readonly Readonly<{ name: string; tell: Telling }>[] = [
   {
     name: 'a foreign inspectOperation answers unknown and names the tenant as a TenantId',
@@ -198,7 +179,6 @@ const blanked = (value: DurableEvidence, field: Blanked): DurableEvidence => ({
   [field]: '',
 })
 
-/** The variants of the shared cases, each with the cases that it must make fail. */
 export function externalVariants<F extends ExternalBase>(
   make: MakeVariant<F>,
   also: Readonly<Record<string, readonly string[]>> = {},
@@ -207,7 +187,6 @@ export function externalVariants<F extends ExternalBase>(
     fail({ kind: 'commit-unknown', operation: input.operation })
   const variants: readonly Variant<F>[] = [
     {
-      // once an ensure was answered, a resend goes back to the lost reply.
       name: 'a resent ensure goes back from the registration to a lost reply',
       fails: [SHARED.S1],
       fixture: make(real => ({
@@ -232,7 +211,6 @@ export function externalVariants<F extends ExternalBase>(
       })),
     },
     {
-      // the generated provider with the resend of an ensure during its lost reply replaced.
       name: 'a resend of an ensure during its lost reply answers another registration than the one that lands',
       fails: [
         SHARED.S1,
@@ -284,8 +262,6 @@ export function externalVariants<F extends ExternalBase>(
       }),
     },
     {
-      // The invalidation that was sent before the registration landed is not what the operation
-      // finally was: its original operation is reported as excluded, though it was carried out.
       name: 'inspectOperation answers excluded for an invalidation that arrived before the registration landed',
       fails: [SHARED.S16],
       fixture: make((real, base) => {
@@ -336,7 +312,6 @@ export function externalVariants<F extends ExternalBase>(
       }),
     },
     {
-      // Ensures of one operation that meet in flight apply twice and answer distinct registrations.
       name: 'concurrent ensures of one operation answer distinct registrations',
       fails: [SHARED.S1],
       fixture: make(real => {
@@ -409,7 +384,6 @@ export function externalVariants<F extends ExternalBase>(
       })),
     },
     {
-      // Every wait of the call is inspected as the first wait that was registered.
       name: 'inspect ignores which wait of the call is asked',
       fails: [SHARED.S4, SHARED.S20],
       fixture: make(real => ({
@@ -431,7 +405,6 @@ export function externalVariants<F extends ExternalBase>(
       })),
     },
     {
-      // Every wait of the call recalls the registration of the first one.
       name: 'the waits of one call share one registration',
       fails: [SHARED.S4, SHARED.S5],
       fixture: make(real => {
@@ -449,7 +422,6 @@ export function externalVariants<F extends ExternalBase>(
       }),
     },
     {
-      // The ensure of another tenant recalls the registration of the first one.
       name: 'ensure ignores the tenant',
       fails: [SHARED.S5],
       fixture: make((real, base) => ({
@@ -483,7 +455,6 @@ export function externalVariants<F extends ExternalBase>(
       })),
     },
     {
-      // The failure for a registration of another tenant is `denied`: it tells that it exists.
       name: 'a foreign inspect is denied when the registration exists',
       fails: [SHARED.S6],
       fixture: make((real, base) => ({
@@ -522,7 +493,6 @@ export function externalVariants<F extends ExternalBase>(
       })),
     },
     {
-      // A foreign question about an operation that exists is answered pending, not unknown.
       name: 'a foreign inspectOperation answers pending when the operation exists',
       fails: [SHARED.S7],
       fixture: make((real, base) => ({
@@ -576,8 +546,6 @@ export function externalVariants<F extends ExternalBase>(
       }),
     },
     {
-      // The foreign read answers the kind that a ghost operation gets, and tells the receipt of
-      // the tenant in its diagnostic: only the identifying values of the record catch it.
       name: 'a foreign inspectOperation answers unknown and names the receipt of the tenant',
       fails: [SHARED.S7],
       fixture: make((real, base) => ({
@@ -588,7 +556,6 @@ export function externalVariants<F extends ExternalBase>(
       })),
     },
     {
-      // The same leak, after a first answer that is pending until settle.
       name: 'a foreign inspectOperation is pending until settle, then names the receipt of the tenant',
       fails: [SHARED.S7],
       fixture: make((real, base) => {
@@ -616,8 +583,6 @@ export function externalVariants<F extends ExternalBase>(
         }
       }),
     },
-    // The same leak, told as the tenant itself or hidden where only a key, a member of a Map or of
-    // an Error, or a symbol key holds it.
     ...TELLINGS.map(({ name, tell }): Variant<F> => ({
       name,
       fails: [SHARED.S7],
@@ -631,9 +596,6 @@ export function externalVariants<F extends ExternalBase>(
       })),
     })),
     {
-      // The read model lags, so every inspectOperation answers pending (a progress kind of the
-      // table) until settle; after it, the read ignores the tenant. The first answers of the real
-      // and of the ghost operation agree, the later ones do not.
       name: 'inspectOperation answers pending until settle, then ignores the tenant',
       fails: [SHARED.S7],
       fixture: make((real, base) => {
@@ -661,7 +623,6 @@ export function externalVariants<F extends ExternalBase>(
       }),
     },
     {
-      // The invalidation of another tenant reaches the registration of the first one.
       name: 'invalidate ignores the tenant',
       fails: [SHARED.S8],
       fixture: make((real, base) => ({
@@ -717,7 +678,6 @@ export function externalVariants<F extends ExternalBase>(
       })),
     },
     {
-      // A commit that names another operation than the one that was asked about.
       name: 'inspectOperation names another operation in a commit',
       fails: [SHARED.S9],
       fixture: make(real => ({
@@ -771,7 +731,6 @@ export function externalVariants<F extends ExternalBase>(
       })),
     },
     {
-      // An operation that was never seen is excluded as a fence, and then it is applied after all.
       name: 'an operation that was excluded as a fence is applied after all',
       fails: [SHARED.S10],
       fixture: make(real => ({
@@ -790,7 +749,6 @@ export function externalVariants<F extends ExternalBase>(
       })),
     },
     {
-      // The fence refuses the operation, but the registration of its wait is written all the same.
       name: 'an operation that was excluded as a fence still registers its wait',
       fails: [SHARED.S10],
       fixture: make(real => {
@@ -875,7 +833,6 @@ export function externalVariants<F extends ExternalBase>(
       }),
     },
     {
-      // The receipt that inspectOperation gives for an invalidation is not the evidence it answered.
       name: 'inspectOperation answers another receipt for an invalidation',
       fails: [SHARED.S13, SHARED.S21],
       fixture: make(real => ({
@@ -930,8 +887,6 @@ export function externalVariants<F extends ExternalBase>(
       })),
     },
     {
-      // The invalidation reaches every wait of the call, not only the wait that it names.
-      // The extra invalidation is a new operation, so it takes the deferral meant for the first.
       name: 'an invalidation also invalidates another wait of the call',
       fails: [SHARED.S15, SHARED.S17, SHARED.S21],
       fixture: make(real => ({
@@ -948,7 +903,6 @@ export function externalVariants<F extends ExternalBase>(
       })),
     },
     {
-      // The provider records an early invalidation as done, and never carries it out.
       name: 'an invalidation that arrives early is forgotten',
       fails: [SHARED.S16],
       fixture: make(real => {
@@ -969,8 +923,6 @@ export function externalVariants<F extends ExternalBase>(
       }),
     },
     {
-      // The provider carries out a deferred invalidation when it reads the registration, and
-      // goes on reporting the operation as pending.
       name: 'inspect invalidates the registration it reads',
       fails: [SHARED.S17],
       fixture: make((real, base) => {
@@ -1007,8 +959,6 @@ export function externalVariants<F extends ExternalBase>(
       })),
     },
     {
-      // The ledger knows an operation by its identity alone: another action under the same
-      // identity answers the receipt of the first one and does nothing.
       name: 'a reused operation identity answers the receipt of the first action',
       fails: [SHARED.S18, SHARED.S19, SHARED.S20, SHARED.S21],
       fixture: make(real => {
@@ -1033,7 +983,6 @@ export function externalVariants<F extends ExternalBase>(
       }),
     },
     {
-      // The conflict is answered, and the refused invalidation is carried out all the same.
       name: 'a conflicting reuse of an operation identity is still carried out',
       fails: [SHARED.S19, SHARED.S21],
       fixture: make(real => ({
@@ -1048,7 +997,6 @@ export function externalVariants<F extends ExternalBase>(
       })),
     },
     {
-      // The refused action overwrites the receipt that the operation answers afterwards.
       name: 'a conflicting reuse of an operation identity overwrites its receipt',
       fails: [SHARED.S18, SHARED.S21],
       fixture: make(real => {
@@ -1077,8 +1025,6 @@ export function externalVariants<F extends ExternalBase>(
       }),
     },
     {
-      // Another wait under the same identity is answered with the first registration, which is
-      // then also the answer of an inspect of the second wait.
       name: 'a reused operation identity answers the registration of the first wait',
       fails: [SHARED.S20],
       fixture: make(real => {
@@ -1099,7 +1045,6 @@ export function externalVariants<F extends ExternalBase>(
       }),
     },
     {
-      // The conflict is answered, and the refused ensure registers its wait all the same.
       name: 'a conflicting reuse of an operation identity still registers the other wait',
       fails: [SHARED.S20],
       fixture: make(real => ({
@@ -1114,8 +1059,6 @@ export function externalVariants<F extends ExternalBase>(
       })),
     },
     {
-      // The input of an invalidation is not compared: another wait under the same identity is
-      // answered the evidence of the first, and nothing is refused.
       name: 'a reused invalidation identity for another wait answers the first evidence',
       fails: [SHARED.S21],
       fixture: make(real => {
@@ -1136,7 +1079,6 @@ export function externalVariants<F extends ExternalBase>(
       }),
     },
     {
-      // The conflict is answered, and the refused invalidation is carried out on the other wait.
       name: 'a conflicting reuse of an invalidation identity still invalidates the other wait',
       fails: [SHARED.S19, SHARED.S21],
       fixture: make(real => ({
@@ -1165,7 +1107,6 @@ export function externalVariants<F extends ExternalBase>(
       })),
     },
     {
-      // Under a hold the ensure is not applied, yet its reply is a registration: it claims a commit.
       name: 'a deferred ensure answers a registration',
       fails: [SHARED.S11],
       fixture: make((real, base) => {
@@ -1189,7 +1130,6 @@ export function externalVariants<F extends ExternalBase>(
       }),
     },
     {
-      // A resend that comes alone is answered another registration; resends that meet recall it.
       name: 'a resend that comes alone answers another registration',
       fails: [SHARED.S1, SHARED.S11, SHARED.S16],
       fixture: make(real => {
@@ -1213,7 +1153,6 @@ export function externalVariants<F extends ExternalBase>(
       }),
     },
     {
-      // The waits of one call share one registration, as ensure and as inspect alike.
       name: 'the waits of one call share one registration for ensure and inspect alike',
       fails: [SHARED.S4],
       fixture: make(real => {
@@ -1240,7 +1179,6 @@ export function externalVariants<F extends ExternalBase>(
       }),
     },
     {
-      // Once the call has two registrations, the first wait is inspected as another registration.
       name: 'inspect answers another registration for the first wait of two',
       fails: [SHARED.S4],
       fixture: make(real => {

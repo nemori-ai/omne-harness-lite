@@ -1,8 +1,3 @@
-// The one non-durable double of the holder-reference reader (RD-TOOLHEAD). It stands in for the
-// application bridge `tool-residency` until that bridge exists. The double makes the query key
-// with `encodeResidentKey` and projects each record with `projectResidentReferences`, the same
-// tool-contract functions the real bridge calls, so the double and the bridge fail the same way.
-// It declares `durability: 'none'` and must not be assembled into production.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { TenantId } from '@omne-harness/legal-identity'
 import {
@@ -14,7 +9,6 @@ import {
 import type { ToolBindingKey, ToolShape } from '@omne-harness/tool-contract/provider'
 import type { ToolResidencyPage, ToolResidencyReader } from './cordis.ts'
 
-/** The structural form of Session `references`. It does not import session-contract. */
 export type ResidentReferencesRead = (
   input: Readonly<{ scope: 'system'; key: string; after: string | null; limit: number }>,
 ) => Promise<Outcome<ResidentReferencesPage, Readonly<{ kind: string }>>>
@@ -22,16 +16,10 @@ export type ResidentReferencesRead = (
 export type MemoryToolResidencyReader = Readonly<{
   durability: 'none'
   reader: ToolResidencyReader
-  /**
-   * Built-in source only: replaces the holders of a key. The key and each shape are stored in the
-   * text form that Session stores. Throws when the double reads an outer source, or when the key
-   * or a shape cannot be encoded.
-   */
   set(
     key: ToolBindingKey,
     holders: readonly Readonly<{ tenant: TenantId; session: string; shape: ToolShape }>[],
   ): void
-  /** Every later read answers unavailable until `restore`, an already obtained cursor too. */
   interrupt(diagnostic?: string): void
   restore(): void
 }>
@@ -40,13 +28,6 @@ type Unavailable = Readonly<{ kind: 'unavailable'; diagnostic: string }>
 const unavailable = (diagnostic: string): Outcome<never, Unavailable> =>
   fail({ kind: 'unavailable', diagnostic })
 
-/**
- * Builds the reader double. With `source`, it reads that source (for example the `references` of
- * the session-contract in-memory transactions) and passes `after` and `limit` through. Without
- * `source`, it reads a built-in store that `set` fills, in pages of at most `pageSize` holders,
- * with opaque cursors bound to the key. `pageSize` defaults to 2 and must be a positive safe
- * integer.
- */
 export function createMemoryToolResidencyReader(
   input: Readonly<{ source?: ResidentReferencesRead; pageSize?: number }> = {},
 ): MemoryToolResidencyReader {
@@ -88,7 +69,6 @@ export function createMemoryToolResidencyReader(
       } catch (error) {
         return unavailable(`source: ${String(error)}`)
       }
-      // An interruption during the read wins: the page must not count as an answer.
       if (interrupted !== null) return unavailable(interrupted)
       if ('failure' in read) return unavailable(`source: ${read.failure.kind}`)
       const page = projectResidentReferences(read.ok)

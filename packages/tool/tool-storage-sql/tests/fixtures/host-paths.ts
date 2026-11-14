@@ -1,8 +1,3 @@
-// The values one settled Tools call leaves on the host paths, for the history-independence gate:
-// a Tools `execute` parent request and the target it forwards to, the parent's call record as the
-// Tool ledger would hold it, the environment preparation of the parent and its acquisition record.
-// Every identity is fixed-width in the call index, so the bytes of one call never depend on the
-// digits of its index.
 import {
   acquisitionRef,
   originRef,
@@ -41,7 +36,6 @@ export function ok<T>(answer: { ok: T } | { failure: unknown }): T {
   return answer.ok
 }
 
-/** `index` as six digits: the width of every per-call identity text. */
 export const width = (index: number): string => String(index).padStart(6, '0')
 
 export const evidence = (record: string): DurableEvidence => ({
@@ -61,7 +55,6 @@ const adoption = (name: string): Adoption => ({
 const isJsonObject = (value: PrincipalJson): value is Readonly<{ [key: string]: PrincipalJson }> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-/** The principal codec of the test host: a principal is its two text fields. */
 export const principalCodec = {
   encode: (principal: Principal): PrincipalJson => ({ ...principal }),
   decode: (value: PrincipalJson) => {
@@ -74,20 +67,17 @@ export const principalCodec = {
   },
 }
 
-/** The target of the Tools call: the fixture tool with no arguments. */
 export const targetIntent: ToolForwardIntent = {
   name: 'fixture',
   command: null,
   arguments: { kind: 'object', entries: [] },
 }
 
-/** The target request of a Tools call, as the application's `prepareTarget` gives it. */
 export function targetRequest(): Omit<ToolInvokeRequest, 'invocation'> {
   const { invocation: _entry, ...request } = fixedRequest()
   return request
 }
 
-/** The Tools `execute` request of one call: a `commands` definition that wraps the target. */
 export function parentRequest(index: number): ToolInvokeRequest {
   const base = targetRequest()
   const definition = base.availability.definition
@@ -128,7 +118,6 @@ export function parentRequest(index: number): ToolInvokeRequest {
 export const isParent = (request: FixedToolRequest): boolean =>
   request.availability.definition.name === 'Tools'
 
-/** The first start record of `call`. */
 export function startOf(
   tenant: TenantId,
   call: ToolCallId,
@@ -146,7 +135,6 @@ export function startOf(
   }
 }
 
-/** The environment preparation of `call`, bound to its fixed request. */
 export function preparationOf(
   tenant: TenantId,
   call: ToolCallId,
@@ -162,7 +150,6 @@ export function preparationOf(
   }
 }
 
-/** The acquisition the host records for `preparation`, bound to the retention `scope`. */
 export function acquisitionOf(
   preparation: PreparationRecord,
   scope: FixedToolRequest['requesterScope'],
@@ -199,7 +186,6 @@ export function acquisitionOf(
   }
 }
 
-/** The retained terminal one call leaves in its session's retention scope. */
 export function terminalOf(index: number): ManagedResource {
   return {
     key: `terminal-${width(index)}`,
@@ -208,7 +194,6 @@ export function terminalOf(index: number): ManagedResource {
   }
 }
 
-/** The retained process a seeded call hands over to its retention scope. */
 export function processOf(index: number): ManagedResource {
   return {
     key: `process-${width(index)}`,
@@ -217,7 +202,6 @@ export function processOf(index: number): ManagedResource {
   }
 }
 
-/** The call record of a parent while it runs: admitted, started, with its environment preparation. */
 export function runningCall(input: {
   tenant: TenantId
   call: ToolCallId

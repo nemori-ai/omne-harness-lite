@@ -1,9 +1,3 @@
-// Body custody at the ledger's public seams (`bodyWrites`, `commands.preserveResult`,
-// `reads.body.read`), each case one action of the BodyLifecycle model: Begin issues a permit only
-// after `opened` committed; Renew keeps a long write alive; Settle links and schedules the
-// referenced body and orphans the rest; a return that names an unsealed body settles `invalid`;
-// reads re-check expiry after the store read and answer `expired`, never integrity, across the
-// expiry point; a miss within ε of expiry is `expired`, a miss clearly before expiry is integrity.
 import { bodyRepresentation } from '../src/body-representation.ts'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { instantAt } from '@omne-harness/tool-contract/testing'
@@ -117,8 +111,6 @@ it('C3 store checks the permit: a put past the deadline on the store clock is no
   const w = await writer(f.ledger, f.access, 'late')
   ok(await w.begin('begin-late'))
   const issuedAt = f.bodies.clock.now()
-  // The store's clock runs ahead of the issuer's by more than the permit: the writer renews on the
-  // ledger before the store sees a chunk, so the chunk is kept under a permit the store accepts.
   f.bodies.clock.set(instantAt(Date.parse(issuedAt) - Date.parse(instantAt(0)) + W + EPS + 1))
   ok(await w.append('append-late', '1', 'bytes'))
   const found = await f.bodies.store.read(
@@ -306,7 +298,6 @@ it('C5 a miss in the store is expired within ε of expiry and integrity only cle
   })
 })
 
-/** A settled call with one linked body and one orphan, and the store refs of both. */
 async function settledWithOrphan() {
   let orphanId: ToolBodyId | null = null
   const f = await settlementFixture({

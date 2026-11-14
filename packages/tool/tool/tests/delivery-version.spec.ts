@@ -23,7 +23,6 @@ import {
 } from './runtime-values.ts'
 import { settlementFixture } from './settlement-values.ts'
 
-// Existing-record fixtures isolate release behavior. Late-result production belongs to a later increment.
 async function existingVersions() {
   const f = await settlementFixture({
     terminal: { kind: 'failed', cause: 'runtime-lost', diagnostic: 'fixture continuity lost' },

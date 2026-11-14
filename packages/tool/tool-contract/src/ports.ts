@@ -1,6 +1,3 @@
-// Ports of the Tool runtime that outside providers implement, and the driver and the provider
-// that a Tool implementation hands to its host. The construction shape of the runtime factory is
-// not here: it belongs to the implementation package.
 import type { CallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
@@ -55,20 +52,12 @@ import type { Reply } from './results.ts'
 export type DecisionValue = ToolDecision<JsonValue>
 export interface ToolDecisionBridge<P> {
   inspectOperation(input: Mutation<P>): Reply<ExternalOperationResolution>
-  /**
-   * Registers the wait with the decision owner. `request` is the evidence that binds the request
-   * original; the owner reads the original from the recovery of the call (`waitRequest`).
-   */
   ensure(
     input: Mutation<P> & Readonly<{ wait: ToolWaitId; request: DurableEvidence }>,
   ): Reply<DurableEvidence>
   inspect(
     input: CallAccess<P> & Readonly<{ wait: ToolWaitId }>,
   ): Reply<Readonly<{ registration: DurableEvidence; decision: DurableEvidence | null }>>
-  /**
-   * `cause` is how the wait closed: `cancelled` when a control closed it, `terminal` when the
-   * original execution ended on its own. The owner keeps it as the reason of the invalidation.
-   */
   invalidate(
     input: Mutation<P> &
       Readonly<{ wait: ToolWaitId; terminal: DurableEvidence; cause: 'cancelled' | 'terminal' }>,
@@ -83,12 +72,6 @@ export interface ToolDecisionBridge<P> {
 }
 export type ToolExecutionFact =
   | Readonly<{ kind: 'process'; blocks: readonly ProcessBlock[] }>
-  /**
-   * The wait a segment suspends on. `request` is the request original of the wait: the JSON text
-   * that the author encoded, within `value.schemas.requestMaxBytes` UTF-8 bytes. The digest of the
-   * evidence `value.request` is the canonical digest of that text. The ledger keeps the text for
-   * the call without reading it, and the recovery of the call gives it to the decision owner.
-   */
   | Readonly<{ kind: 'wait'; value: WaitIntent; request: string }>
   | Readonly<{
       kind: 'continued'
@@ -157,11 +140,6 @@ export type ToolExecutorBinding<P, E> =
       ): Reply<ToolStartLookup>
       suspend(input: SuspensionRecord): Reply<SuspensionProgress>
       inspectSuspension(input: SuspensionRecord): Reply<SuspensionProgress>
-      /**
-       * Runs the segment after the checkpoint that `start.checkpoint` names. `state` is the
-       * committed state of that checkpoint as base64 text, and `response` the committed response
-       * of the wait that resumes there. The ledger gives both, so the binding reads no record.
-       */
       resume(
         input: CallAccess<P> &
           Readonly<{
@@ -213,19 +191,12 @@ export interface ToolInstanceHost<P> {
   ): Reply<Readonly<{ removed: boolean }>>
   readonly directory: ToolDirectory<P>
 }
-/**
- * The operation and instance identity mints of trusted providers. Invocation identities belong
- * to the source association. A new operation belongs to an admitted call; a new instance is the
- * identity of one hosted instance the host creates. A mint never reuses a value it returned
- * before, also not after a restart of the provider.
- */
 export interface ToolOperationIdentities {
   newOperation(): Reply<ToolOperationId>
 }
 export interface ToolInstanceIdentities {
   newInstance(): Reply<ToolInstanceId>
 }
-/** The source owns the atomic tenant/consumer association and its original identities. */
 export type ToolInvocationSourceOutcome =
   | Readonly<{
       kind: 'bound'
@@ -250,10 +221,6 @@ export interface ToolDriver<P> {
 }
 export interface ToolClock {
   now(): string
-  /**
-   * Only produces a marker. A segment that is not committed has no effect and needs no closing.
-   * Elapsed time counts the committed segments only.
-   */
   begin(
     input: Readonly<{ operation: ToolOperationId; execution: ToolExecutionRef }>,
   ): Reply<ClockSegment>

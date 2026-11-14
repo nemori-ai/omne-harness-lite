@@ -94,7 +94,6 @@ it('createToolLedger takes the store, the guards, the clock and the ledger confi
       recovery: ToolLedgerRecovery
     }>
   >()
-  // The runtime configuration fits where the ledger configuration is asked for.
   expectTypeOf<ToolConfiguration>().toExtend<ToolLedgerConfiguration>()
 })
 

@@ -1,5 +1,3 @@
-// 待办标记的一致性用例（G1，契约 P01「通知丢失由 scanPending 补偿」）。标记随调用域的提交原子地
-// 写下或删掉，扫描按键集分页、跨租户列出带标记的调用。内存记录仓与 SQL 记录仓跑同一套用例。
 import assert from 'node:assert/strict'
 import type { ToolCallId } from '@omne-harness/tool-contract'
 import type {
@@ -26,7 +24,6 @@ function page(answer: LedgerPendingScan, message: string) {
   return answer
 }
 
-/** 从头分页读完一次扫描，检查每页不超过 `limit`，返回全部条目的文本。 */
 async function walk(scan: Scan, tenant: TenantId | null, limit: number): Promise<string[]> {
   const seen: string[] = []
   let after: PendingCall | null = null
@@ -41,7 +38,6 @@ async function walk(scan: Scan, tenant: TenantId | null, limit: number): Promise
   throw new Error('the scan did not end within 100 pages')
 }
 
-/** 一笔调用域提交：一条记录，带或不带标记。 */
 function callCommit(
   domain: LedgerDomain,
   expected: string,
@@ -164,7 +160,6 @@ export function storePendingCases(deps: StoreCaseDependencies): readonly LedgerS
         ]
         for (const entry of owned)
           await store.commit(callCommit(callDomain(entry.tenant, entry.call), '0', '1', true))
-        // 已收场的调用：写过标记又删掉，任何一页都不能列出它。
         const done = callDomain(tenantB, callId('b'))
         await store.commit(callCommit(done, '0', '1', true))
         await store.commit(callCommit(done, '1', '2', false))

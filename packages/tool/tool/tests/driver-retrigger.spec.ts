@@ -1,7 +1,3 @@
-// What runs a call again when a run leaves work (SPEC 23). A held slot whose start intent was
-// excluded is the case that needs it: the queue step landed, the call-domain commit did not, and
-// nothing in the call domain says the entry is waiting. Each test ends with a run that the driver
-// asked for by itself, never one the test drives, and with the slot owned by a committed start.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fail } from '@omne-harness/operation-result'
 import type { LedgerCommitInput, ToolLedgerStore } from '@omne-harness/tool'
@@ -25,7 +21,6 @@ import {
   type StartHarness,
 } from './start-values.ts'
 
-// The driver arms timers when a run fails; fake ones let a test say when the delay has passed.
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
 })
@@ -36,7 +31,6 @@ afterEach(async () => {
 
 type Commit = LedgerCommitInput
 
-/** Whether a commit is a queue-domain commit that gives a slot to an entry. */
 function holdsSlot(input: Commit): boolean {
   return (
     input.domain.kind === 'queue' &&
@@ -49,7 +43,6 @@ function holdsSlot(input: Commit): boolean {
   )
 }
 
-/** Whether a commit writes the operation record of `operation`: the commit of that operation. */
 function putsOperation(operation: string) {
   return (input: Commit) =>
     input.writes.some(
@@ -60,7 +53,6 @@ function putsOperation(operation: string) {
     )
 }
 
-/** A negative answer about the start of `c1`: it excludes the start intent that is in flight. */
 async function negativeAnswerAboutStart(harness: StartHarness): Promise<void> {
   ok(
     await harness.ledger.reads.operation({
@@ -77,7 +69,6 @@ const wake = (call: string) => ({ tenant: tenantA, call: callId(call) })
 const excludedStart =
   'operation op-c1/start was excluded by a negative answer; resubmit with the same identity'
 
-/** What a prepareStart of `c1` answered, as text. */
 function prepareStartReplies(replies: string[]) {
   return (base: StartHarness['commands']): StartHarness['commands'] => ({
     ...base,
@@ -96,7 +87,6 @@ function prepareStartReplies(replies: string[]) {
   })
 }
 
-/** The state c1 must end in: running, one executor run, its slot held by the committed start. */
 async function expectStarted(harness: StartHarness): Promise<void> {
   expect((await harness.state('c1')).phase).toBe('running')
   expect(harness.binding.executions).toEqual(['c1'])
@@ -105,11 +95,6 @@ async function expectStarted(harness: StartHarness): Promise<void> {
   })
 }
 
-/**
- * Two calls of one key, c1 first. c1's slot is held in the queue, then a negative answer excludes
- * its start intent and the run is aborted: the call domain still says `queued` with its `queue`
- * task, and nothing runs c1 again. Returns the harness whose driver stopped there.
- */
 async function orphanedByAbort(): Promise<StartHarness> {
   const controller = new AbortController()
   const harness: StartHarness = startHarness({
@@ -128,7 +113,6 @@ async function orphanedByAbort(): Promise<StartHarness> {
     { call: 'c1', ordinal: '1', stage: 'held' },
     { call: 'c2', ordinal: '2', stage: 'preparing' },
   ])
-  // An aborted run is the host's decision to stop: the driver does not ask to run it again.
   await vi.advanceTimersByTimeAsync(3_600_000)
   expect(harness.host.scheduled).toEqual([])
   return harness
@@ -187,7 +171,6 @@ describe('23 retrigger: a held slot whose start intent was excluded is redone by
           if (armed && holdsSlot(input)) {
             armed = false
             await negativeAnswerAboutStart(harness)
-            // After this commit: the transaction's read of prepareStart, then the driver's.
             failing = 2
           }
           return memory.commit(input)
@@ -209,7 +192,6 @@ describe('23 retrigger: a held slot whose start intent was excluded is redone by
 
   it('23 retrigger: a waiter that is blocked by an orphaned held slot asks the host to run the owner, after the owner run was aborted', async () => {
     const harness = await orphanedByAbort()
-    // c2 reaches its start intent, finds the slot held, and its reconcile asks for c1's run.
     await harness.drive('c2')
     await expectStarted(harness)
     expect(await harness.queue()).toEqual([
@@ -257,7 +239,6 @@ describe('23 retrigger: when a failed run is run again', () => {
     expect(harness.host.scheduled).toEqual([])
     await vi.advanceTimersByTimeAsync(1)
     expect(harness.host.scheduled).toEqual([wake('c1')])
-    // The next run meets the same port: the delay doubles (backoff, F7 of #1218).
     await harness.host.runScheduled()
     expect(harness.host.scheduled).toEqual([])
     await vi.advanceTimersByTimeAsync(499)
@@ -305,8 +286,6 @@ describe('23 retrigger: when a failed run is run again', () => {
         scanPending: input => memory.scanPending(input),
         readRecord: memory.readRecord,
         due: memory.due,
-        // A reader that gives a negative answer about the start of c1 between the reads of
-        // prepareStart: every start intent of c1 is excluded while it polls.
         read: async domain => {
           const read = await memory.read(domain)
           if (polling && domain.kind === 'queue') await negativeAnswerAboutStart(harness)
@@ -316,24 +295,20 @@ describe('23 retrigger: when a failed run is run again', () => {
       }),
     })
     await admitCall(harness, 'c1')
-    // Plan, prepare and enqueue commit; the run used its budget with progress and goes on at once.
     await harness.runOnce('c1')
     expect((await harness.state('c1')).phase).toBe('queued')
     harness.host.scheduled.splice(0)
     polling = true
     await harness.runOnce('c1')
-    // Three excluded start intents are not progress: no host turn may follow before the delay.
     expect(harness.host.scheduled).toEqual([])
     await vi.advanceTimersByTimeAsync(59_999)
     expect(await harness.host.runScheduled()).toBe(0)
     await vi.advanceTimersByTimeAsync(1)
     expect(harness.host.scheduled).toEqual([wake('c1')])
-    // The turn meets the same reader and again ends without progress: one turn per delay.
     expect(await harness.host.runScheduled()).toBe(1)
     expect(harness.host.scheduled).toEqual([])
     await vi.advanceTimersByTimeAsync(59_999)
     expect(harness.host.scheduled).toEqual([])
-    // The reader stops; the next turn commits the start.
     polling = false
     await vi.advanceTimersByTimeAsync(1)
     await harness.host.runScheduled()
@@ -368,7 +343,6 @@ describe('23 retrigger: when a failed run is run again', () => {
         readRecord: memory.readRecord,
         due: memory.due,
         read: domain => memory.read(domain),
-        // The host stops the run while its plan is being committed, and the store is down.
         commit: async input => {
           if (!putsOperation('op-c1/plan')(input)) return memory.commit(input)
           controller.abort()
@@ -401,7 +375,6 @@ describe('23 retrigger: when a failed run is run again', () => {
       expect(harness.host.scheduled).toEqual([])
       await vi.advanceTimersByTimeAsync(1)
       expect(harness.host.scheduled).toEqual([wake('c1')])
-      // Still undecided: the provider's record is read, and the next delay, twice the first, starts.
       await harness.host.runScheduled()
       expect(harness.environments.inspected).toEqual(['c1'])
       expect(harness.host.scheduled).toEqual([])
@@ -409,7 +382,6 @@ describe('23 retrigger: when a failed run is run again', () => {
       expect(harness.host.scheduled).toEqual([])
       await vi.advanceTimersByTimeAsync(1)
       expect(harness.host.scheduled).toEqual([wake('c1')])
-      // The provider has decided: the call goes on to its start without a second request.
       harness.environments.answer('c1', 'prepared')
       await harness.host.runScheduled()
       expect(harness.environments.prepared).toEqual(['c1'])

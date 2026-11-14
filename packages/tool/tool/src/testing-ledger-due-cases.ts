@@ -1,6 +1,3 @@
-// The due index cases of the ledger store suite: `schedule` and `unschedule` land with their
-// commit or not at all, `due` reads by tenant and instant, and a lost answer (the crash point of a
-// caller between the commit and its reply) leaves the index as committed.
 import assert from 'node:assert/strict'
 import { decodeToolInstant, type ToolInstant } from '@omne-harness/tool-contract/provider'
 import type { LedgerDomain, LedgerWrite, ToolLedgerStore } from './ledger-store.ts'

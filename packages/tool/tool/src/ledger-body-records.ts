@@ -1,5 +1,3 @@
-// The ledger's record of one body (BodyLifecycle `status`), kept apart from the deciders so the
-// store's record union and the deciders do not import each other.
 import type {
   DurableEvidence,
   ToolBodyId,
@@ -21,7 +19,6 @@ export type BodyEntryState =
 export type BodyEntryRecord = Readonly<{
   bodyId: ToolBodyId
   key: string
-  /** The author execution that writes it; null for the body the ledger writes at settlement. */
   start: ToolStartRecord | null
   operation: ToolOperationId
   source: DurableEvidence

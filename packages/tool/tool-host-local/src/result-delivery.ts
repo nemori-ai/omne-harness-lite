@@ -56,38 +56,19 @@ export type LocalDeliveryInput<P, B extends ContentBlock> = Readonly<{
   accountAtFreeze(
     input: CallAccess<P>,
   ): Reply<Extract<ToolDelivery<B>, { kind: 'result' }>['account']>
-  /**
-   * The tenants with a run in flight, and for one tenant its running and queued runs. A call with
-   * no place answers `delivery-capacity` and stays owed. It does not mean the tenant is busy:
-   * a later call of the same tenant waits for its turn (R2-D164, R2-D186).
-   */
   capacity: number
-  /**
-   * The pacing of a push whose receiver answers `unavailable`, or has none registered for the
-   * consumer owner (R2-D273, R2-D282): the delivery stays owed, the first wait is `initialMs` and
-   * every later one doubles up to `maxMs`. Absent: 1000 and 60000.
-   */
   pacing?: Readonly<{ initialMs: number; maxMs: number }>
-  /** Where the named warning of a paced push goes. Absent: nowhere. */
   warn?: (message: string) => void
-  /** A monotonic reading in milliseconds for that pacing. Absent: the process monotonic timer of `clock.ts`. */
   now?: () => number
-  /**
-   * Releases what the call's result delivery kept alive: the received copies of its forwarding
-   * slot (C6). Run after the delivery is released and before it is done; a delivery whose copies
-   * are not released stays short of `done`, and the next run tries again. Absent: nothing to release.
-   */
   forwardedCopies?: (
     call: Readonly<{ tenant: TenantId; call: ToolCallId; request: FixedToolRequest }>,
   ) => Promise<'released' | 'unavailable'>
 }>
 
-/** The answer of `DeliveryPosition.receiver` when no receiver is registered for the owner. */
 export const ABSENT_RECEIVER = 'tool-result-receiver'
 
 type Pace = { until: number; delay: number; dependency: string }
 
-/** One tenant's runs in flight: the last one started or queued, and how many wait behind it. */
 type Turn = { last: Promise<unknown> | null; queued: number }
 
 function tenantKey(tenant: TenantId): string | null {
@@ -137,7 +118,6 @@ function resultDeliveryBase(call: CallRecord, result: ResultRecord): DeliveryBas
   }
 }
 
-/** The body descriptor the delivery commits to: the offloaded original without its summary. */
 function offloadedDescription(
   original: Extract<ResultRecord['value']['original'], { kind: 'offloaded' }>,
 ): Extract<ResultValueCommitment['original'], { kind: 'offloaded' }> {
@@ -145,7 +125,6 @@ function offloadedDescription(
   return description
 }
 
-/** The fingerprint of the channels as the model sees them: the body descriptor is not part of it. */
 function fingerprintOf(value: ResultRecord['value']): ToolCanonicalFingerprint {
   const original = value.original
   const encoded = encodeToolCanonical({
@@ -159,12 +138,10 @@ function fingerprintOf(value: ResultRecord['value']): ToolCanonicalFingerprint {
   return encoded.ok.fingerprint
 }
 
-/** The key of one call of one tenant: the owner of its table entries. */
 function callKeyOf(access: Readonly<{ tenant: TenantId; call: ToolCallId }>): string {
   return JSON.stringify([tenantKey(access.tenant), access.call])
 }
 
-/** The named fields of a failure answer, for the warning. */
 function describeFailure(failure: object): string {
   const fields = failure as Record<string, unknown>
   const named = ['dependency', 'action', 'field', 'reason', 'diagnostic'].flatMap(name =>
@@ -173,7 +150,6 @@ function describeFailure(failure: object): string {
   return `${String(fields.kind)}${named.length === 0 ? '' : ` (${named.join(', ')})`}`
 }
 
-/** The exception of a receiver as one bounded line for the warning. */
 function describeError(error: unknown): string {
   let text: string
   try {
@@ -184,10 +160,8 @@ function describeError(error: unknown): string {
   return text.length > 200 ? `${text.slice(0, 200)}...` : text
 }
 
-/** What one run of a call saw: the deliveries still owed, and whether that picture is complete. */
 type Sweep = { owed: Set<string>; certain: boolean }
 
-/** Stops this wait without inferring that the provider stopped or rolled back. */
 function wait<T>(promise: Promise<T>, signal: AbortSignal): Promise<T | null> {
   if (signal.aborted) {
     void promise.catch(() => undefined)
@@ -200,7 +174,6 @@ function wait<T>(promise: Promise<T>, signal: AbortSignal): Promise<T | null> {
   })
 }
 
-/** Internal worker. The assembly must use a durable store for production. */
 export function createLocalToolResultDelivery<P, B extends ContentBlock>(
   input: LocalDeliveryInput<P, B>,
 ) {
@@ -217,22 +190,9 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
   const state = createDeliveryState(input.store)
   const shutdown = new AbortController()
   const active = new Map<string, Reply<Readonly<{ pending: number }>>>()
-  /**
-   * The tenants with a run in flight: one running run each, and the runs queued behind it in
-   * arrival order. The capacity counts tenants here; the queue of one tenant does not take the
-   * place of another tenant (R2-D186).
-   */
   const turns = new Map<string, Turn>()
   const pacing = input.pacing ?? { initialMs: 1000, maxMs: 60_000 }
   const now = input.now ?? processMonotonicMs
-  /**
-   * The deliveries whose receiver was absent or answered `unavailable` at the last push, by call
-   * and then by delivery digest: when the next push may look again, the wait that set it, and the
-   * dependency named then. An entry lives as long as its delivery is owed (R2-D327). It goes when
-   * the receiver answers without `unavailable` (so the next trouble starts at the first wait),
-   * when the delivery is saved, released or no longer owed, when the call is revoked, and when
-   * the executor lets the call go. The table is never larger than the deliveries in flight.
-   */
   const paced = new Map<string, Map<string, Pace>>()
 
   function pacedOf(access: CallAccess<P>, record: DeliveryRecord): Pace | undefined {
@@ -247,12 +207,10 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     if (entries.size === 0) paced.delete(key)
   }
 
-  /** Releases every entry of a call that is revoked or let go. */
   function unpaceCall(access: Readonly<{ tenant: TenantId; call: ToolCallId }>): void {
     paced.delete(callKeyOf(access))
   }
 
-  /** Keeps only the entries of the deliveries the run saw still owed. */
   function retainPaced(access: CallAccess<P>, owed: ReadonlySet<string>): void {
     const key = callKeyOf(access)
     const entries = paced.get(key)
@@ -261,13 +219,10 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     if (entries.size === 0) paced.delete(key)
   }
 
-  /** Writes one warning. A warning that cannot be written does not change the delivery. */
   function say(message: string): void {
     try {
       input.warn?.(message)
-    } catch {
-      // Nobody to tell.
-    }
+    } catch {}
   }
 
   async function current(access: CallAccess<P>): Reply<CallAccess<P>> {
@@ -370,7 +325,6 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
         signal,
       )
     } catch (error) {
-      // An exception of the receiver is a definite failure like any other (R2-D327).
       failed(access, record, `the push threw ${describeError(error)}`)
       return deliveryUnavailable('delivery-receiver')
     }
@@ -396,13 +350,11 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     )
   }
 
-  /** The wait of `record` while the last push was paced and the wait is not over; else null. */
   function pacedAway(access: CallAccess<P>, record: DeliveryRecord): Pace | null {
     const waiting = pacedOf(access, record)
     return waiting !== undefined && now() < waiting.until ? waiting : null
   }
 
-  /** The receiver of the frozen consumer; an unavailable answer paces the next look. */
   async function receiverOf(
     access: CallAccess<P>,
     record: DeliveryRecord,
@@ -421,11 +373,6 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     return receiver
   }
 
-  /**
-   * A definite failure of the receiver (an answer that is not `unavailable`, or an exception)
-   * clears the pacing and writes one named warning with the tenant, the call, the delivery and the
-   * reason (R2-D327). The delivery stays owed: no backoff, no loss; the next drive pushes again.
-   */
   function failed(access: CallAccess<P>, record: DeliveryRecord, reason: string): void {
     unpace(access, record)
     say(
@@ -435,10 +382,6 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     )
   }
 
-  /**
-   * Paces the next push of `record` and names the wait in one warning (R2-D273, R2-D282). The
-   * first wait is `initialMs`, every later one doubles up to `maxMs`.
-   */
   function pace(
     access: CallAccess<P>,
     record: DeliveryRecord,
@@ -490,10 +433,6 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     return sendRelease(access, qualified.ok, record, evidence, signal)
   }
 
-  /**
-   * The outcome of a release whose answer was lost, by its operation: released when it committed
-   * and the result record shows it; null when it definitely did not commit, so it is sent again.
-   */
   async function recallRelease(
     access: CallAccess<P>,
     qualified: CallAccess<P>,
@@ -508,7 +447,6 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     return state.save(access, { ...record, phase: { kind: 'released', evidence } }, record)
   }
 
-  /** Marks the release unknown, sends it under the record's release operation, and keeps the answer. */
   async function sendRelease(
     access: CallAccess<P>,
     qualified: CallAccess<P>,
@@ -541,7 +479,6 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     return state.save(access, { ...attempt, phase: { kind: 'released', evidence } }, attempt)
   }
 
-  /** The delivery's record, frozen now when it has none and its task is owed. */
   async function frozenRecord(
     access: CallAccess<P>,
     base: DeliveryBase,
@@ -563,7 +500,6 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     return frozen.ok
   }
 
-  /** Pushes the frozen delivery of `task`, keeping the run's owed set in step with its phase. */
   async function pushOwed(
     access: CallAccess<P>,
     frozen: DeliveryRecord,
@@ -579,7 +515,6 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     return saved.ok
   }
 
-  /** A released delivery is done once what it kept alive is released (C6). */
   async function finish(
     access: CallAccess<P>,
     request: FixedToolRequest,
@@ -662,17 +597,10 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
       )
         pending -= 1
     }
-    // What this run did not see owed is saved, released, excluded or gone: its entry goes too.
     if (!signal.aborted && sweep.certain) retainPaced(qualified.ok, sweep.owed)
     return succeed({ pending })
   }
 
-  /**
-   * Where a new run of the tenant goes. A tenant without a run in flight takes one of the
-   * `capacity` places. A tenant with one keeps its place: the run waits behind the running one,
-   * in arrival order, as long as the tenant's running and queued runs stay within `capacity`.
-   * Null when there is no place.
-   */
   function admit(tenant: string): Turn | null {
     const turn = turns.get(tenant)
     if (turn !== undefined) return turn.queued + 1 < input.capacity ? turn : null
@@ -682,10 +610,6 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     return fresh
   }
 
-  /**
-   * Runs `work` after the last run of the tenant. The turn belongs to the worker: a caller that
-   * stops observing leaves it in place (R2-D164). A turn that comes after close does not run.
-   */
   function enqueue(
     turn: Turn,
     tenant: string,
@@ -750,13 +674,11 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
       )
       return (await wait(running, access.signal)) ?? deliveryUnavailable('delivery-wait')
     },
-    /** How many deliveries hold a pacing entry now; it never exceeds the deliveries in flight. */
     pacedEntries(): number {
       let entries = 0
       for (const call of paced.values()) entries += call.size
       return entries
     },
-    /** The executor lets the call go: its table entries are released (R2-D327). */
     release(call: Readonly<{ tenant: TenantId; call: ToolCallId }>): void {
       unpaceCall(call)
     },

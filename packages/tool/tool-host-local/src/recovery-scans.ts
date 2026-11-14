@@ -1,6 +1,3 @@
-// 执行器的恢复扫描（SPEC「启动扫描与旧调用的接手」）：启动时跨租户扫一次；之后的兜底重扫只读有事的租户，
-// 周期是自己的配置。每个扫描是一个作业，一次只有一个作业在读；读不到的作业按有界退避等，不挡别的作业。
-// 有事集合是进程内可丢的活体：租户到它未到终态的调用，只由登记与终态改变。
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
   canonicalDigest,
@@ -9,10 +6,8 @@ import {
   type ToolLedgerStore,
 } from '@omne-harness/tool'
 
-/** 连续第 n 次读不到之后等第 min(n, 3) 项毫秒，封顶 30 秒；读到一页后 n 清零。 */
 const BACKOFF_MS = [1000, 5000, 30_000] as const
 
-/** 每次向账本或记录仓要的一页调用数。 */
 const PAGE = 100
 
 type PageAnswer =
@@ -20,10 +15,8 @@ type PageAnswer =
   | Readonly<{ kind: 'unavailable'; reason: string }>
   | Readonly<{ kind: 'unsupported' }>
 
-/** 一个扫描作业：启动扫描，或一个有事的租户的重扫。状态表见 SPEC。 */
 type Job = {
   readonly key: string
-  /** warn 的主语：哪个扫描。 */
   readonly label: string
   readonly read: (after: PendingCall | null) => Promise<PageAnswer>
   state: 'ready' | 'running' | 'backoff' | 'blocked'
@@ -34,16 +27,12 @@ type Job = {
 
 const STARTUP = 'startup'
 
-/** The startup scan as the diagnostics name it. */
 type RecoveryScanState = 'waiting' | 'running' | 'done' | 'unsupported'
 
 export type RecoveryScansInput = Readonly<{
-  /** 账本的受信跨租户扫描：启动扫描用它。 */
   startup: ToolLedgerRecovery['scan']
-  /** 记录仓的待办标记扫描：重扫只按一个租户用它。 */
   pending: ToolLedgerStore['scanPending']
   rescanMs: number
-  /** 记入执行器的内存表；表满时答 false。 */
   remember(call: PendingCall): boolean
   schedule(call: PendingCall): void
   warn(message: string): void
@@ -187,18 +176,15 @@ export function createRecoveryScans(input: RecoveryScansInput) {
       recovered += 1
       input.schedule(call)
     }
-    // A tenant whose calls all ended while its page was read has nothing left to rescan.
     if (answer.next === null || (job.key !== STARTUP && !owed.has(job.key))) {
       finish(job, 'done')
       return
     }
-    // Back of the queue: the other scans read their pages in turn.
     jobs.delete(job.key)
     jobs.set(job.key, job)
     job.state = 'ready'
   }
 
-  /** 登记：调用进有事集合。 */
   const register = (call: PendingCall): void => {
     const key = tenantKeyOf(call.tenant)
     const found = owed.get(key) ?? { tenant: call.tenant, calls: new Set<string>() }
@@ -220,7 +206,6 @@ export function createRecoveryScans(input: RecoveryScansInput) {
       kick()
     },
     registered: register,
-    /** 终态：调用移出有事集合；租户没有调用了，它的重扫作业也撤掉（正在读的那一页读完为止）。 */
     ended(call: PendingCall): void {
       const key = tenantKeyOf(call.tenant)
       const found = owed.get(key)
@@ -231,13 +216,11 @@ export function createRecoveryScans(input: RecoveryScansInput) {
       const job = jobs.get(key)
       if (job !== undefined && job.state !== 'running') drop(job)
     },
-    /** 一次 run 认出调用有工作，但内存表已满：登记，它的租户等有空位时重扫。 */
     wanted(call: PendingCall): void {
       register(call)
       const key = tenantKeyOf(call.tenant)
       if (rescans && !jobs.has(key)) jobs.set(key, tenantJob(key, call.tenant, 'blocked'))
     },
-    /** 有调用退场：停在内存表已满上的作业接着读。 */
     roomMade(): void {
       for (const job of jobs.values()) if (job.state === 'blocked') job.state = 'ready'
       kick()

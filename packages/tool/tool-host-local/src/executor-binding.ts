@@ -40,7 +40,6 @@ import {
 import { segmentWait } from './segment-operations.ts'
 
 type Start = ToolStartRecord
-/** The input of a start or a resume: the call, its start record, the permit and the request. */
 type StartInput<P, E> = Omit<Parameters<ToolExecutorBinding<P, E>['start']>[0], 'start'> &
   Readonly<{ start: Start }>
 type Segment = Outcome<AuthorSegment<Uint8Array, unknown>, ToolPrimitiveFailure>
@@ -71,10 +70,6 @@ export type LocalToolBindingsInput<P, E, B extends ContentBlock> = Readonly<{
     input: CallAccess<P> &
       Readonly<{ start: Start; request: FixedToolRequest; execution: LocalAuthorExecution }>,
   ): ToolExecutionScope
-  /**
-   * Attaches a capability to the scope of a first start. A resume is not given one: a segment's
-   * context carries `emit` and `signal` only.
-   */
   capability?(
     input: CallAccess<P> &
       Readonly<{ start: Extract<ToolStartRecord, { kind: 'start' }>; request: FixedToolRequest }>,
@@ -96,11 +91,6 @@ export type LocalToolBindingsInput<P, E, B extends ContentBlock> = Readonly<{
   ): Reply<Final>
 }>
 
-/**
- * The end of a segment that suspended: the wait it published and the parts of its checkpoint.
- * `state` is the encoded state as base64 text and `payload` the evidence that binds its digest;
- * the ledger keeps the state from the suspension commit on.
- */
 type SuspendedSegment = Readonly<{
   payload: DurableEvidence
   state: string
@@ -110,7 +100,6 @@ type SuspendedSegment = Readonly<{
   intent: WaitIntent
 }>
 
-/** The operation of a call's request in the author's registration, or undefined. */
 function operationOf(
   registration: ReturnType<typeof readToolRegistration>,
   command: string | null,
@@ -120,10 +109,6 @@ function operationOf(
   return registration?.operations.find(([name]) => name === command)?.[1]
 }
 
-/**
- * The arguments of the call as the operation's codec reads them (D-94: a multi-command tool's
- * codec reads the parameters of its command). It throws the reason and the command guide (D-104).
- */
 function argumentsOf<P, E>(input: StartInput<P, E>, operation: ToolOperationSlot): unknown {
   const { request } = input
   const { definition } = request.availability
@@ -143,7 +128,6 @@ function argumentsOf<P, E>(input: StartInput<P, E>, operation: ToolOperationSlot
   return argumentsValue.ok
 }
 
-/** Whether the segment's wait is one of the Ask contracts that the author declared (P12). */
 function declaredWait(operation: ToolOperationSlot, wait: AuthorWait): boolean {
   return (
     wait.kind === 'ask' &&
@@ -164,33 +148,21 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
     operation: ToolOperationSlot | undefined
     binding: ToolExecutorBinding<P, E>
   }
-  /**
-   * One attempt of a start in this process. Whether it entered the author is the one fact the
-   * binding knows of it; whether the fence accepted it is asked of the fence. An attempt that was
-   * answered without entering the author is not replayed: the same start makes a new attempt.
-   */
   type Attempt = {
     digest: string
     start: Start
     execution: LocalAuthorExecution
     answer: ReturnType<ToolExecutorBinding<P, E>['start']>
-    /** The consume has answered. */
     answered: boolean
-    /** The author was entered: only once the fence answered `started`, and once. */
     entered: boolean
-    /** Enters the author, once; a later call does nothing. */
     enter(): void
-    /** The pin the attempt still holds while it has not entered the author. */
     pin: Pin | null
-    /** How a segment ended: null while it runs or for a live coroutine. */
     segment: SuspendedSegment | Readonly<{ kind: 'completed' }> | null
-    /** The responses this segment consumed: the response of the wait a resume continues. */
     consumed: readonly ToolOperationId[]
   }
   type Pin = Bound['pin']
   const bindings = new Map<string, Bound>()
   const attempts = new Map<string, Attempt>()
-  /** An attempt that is still consuming, or that entered the author, answers the same start. */
   const replays = (attempt: Attempt) => attempt.entered || !attempt.answered
   const releasePin = (attempt: Attempt) => {
     attempt.pin?.release()
@@ -198,13 +170,8 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
   }
   type Started = ReturnType<ToolExecutorBinding<P, E>['start']>
   type Lookup = ReturnType<ToolExecutorBinding<P, E>['inspectStart']>
-  /** Refusals that end the attempt for good: the pin goes back. */
   const DEFINITE = new Set(['denied', 'invalid', 'conflict', 'unsupported'])
 
-  /**
-   * Consumes the permit of an attempt and enters the author once the fence answers `started`. Any
-   * other answer leaves the author untouched; a definite refusal gives the pin back.
-   */
   const consumeFor = async (input: StartInput<P, E>, key: string, attempt: Attempt): Started => {
     const operation = input.start.operation
     try {
@@ -230,10 +197,6 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
     }
   }
 
-  /**
-   * What the fence decided about a start that no attempt here entered the author for (P05). An
-   * acceptance whose answer was lost is run here, once: only the original bridge may run it (P04).
-   */
   const askFence = async (
     input: CallAccess<P> & Readonly<{ start: Start }>,
     attempt: Attempt | undefined,
@@ -265,7 +228,6 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
   const unavailable = (diagnostic: string) =>
     fail({ kind: 'unavailable' as const, dependency: 'toolBindings', diagnostic })
 
-  /** The scope with the assembly's capability, for a first start only. */
   const withCapability = (input: StartInput<P, E>, scope: ToolExecutionScope) => {
     const { start } = input
     return start.kind === 'start'
@@ -302,19 +264,9 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
       closing,
       execution,
     })
-    // A settlement that does not land leaves the execution as it is: the author returned and its
-    // final is not published yet. The settlement retries its transient dependencies itself; what is
-    // left is reported, not turned into an unreadable execution (F3).
     if ('ok' in settled) execution.publish(settled.ok)
   }
 
-  /**
-   * Ends a suspended segment at its Ask wait (P06, P07): it publishes the wait as the last fact of
-   * the stream, with the request original beside it, and retains the state for the suspension
-   * that the ledger asks next. The evidence of the request and of the state binds the digest of
-   * each text, as the ledger checks it. A wait the author did not declare, or a state or a request
-   * over the declared size, is a failure of the author, settled like any other.
-   */
   const suspendSegment = (
     input: StartInput<P, E>,
     operation: ToolOperationSlot,
@@ -335,7 +287,6 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
     if (!(state instanceof Uint8Array) || state.byteLength > segments.checkpoint.maxBytes)
       return 'the segment state exceeds the declared checkpoint size'
     const { contract } = wait
-    // The request original is the JSON text of the author's request.
     const judged = judgeJsonValue(wait.request)
     if (!('ok' in judged)) return 'the request of the segment wait is no JSON value'
     const request = writeJsonText(judged.ok)
@@ -356,7 +307,6 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
     const payload = localAuthorEvidence(`checkpoint-state/${key}`, kept)
     const intent: WaitIntent = {
       kind: 'ask',
-      // A start runs one segment, and a segment ends at one wait, so the start names the wait.
       wait: waitId.ok,
       resume: payload,
       request: localAuthorEvidence(`wait-request/${key}`, request),
@@ -374,11 +324,6 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
     return null
   }
 
-  /**
-   * Runs one segment of a checkpointed author with a context of `emit` and `signal` only: `enter`
-   * starts the initial or the resume segment. A completed segment settles like a live return; a
-   * suspended one ends at its wait; a failed or throwing one settles as a failure of the author.
-   */
   const launchSegment = async (
     input: StartInput<P, E>,
     environment: E,
@@ -407,7 +352,6 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
         signal: full.signal,
       }
       const segment = await enter(segments, parsed, context)
-      // The scope closes once, as failed for a failure that the segment returned.
       closing = closeScope(scope, 'failure' in segment ? 'failed' : 'returned')
       if ('failure' in segment) throw new Error(segment.failure.reason)
       if (segment.ok.kind === 'suspended') {
@@ -435,13 +379,9 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
       closing: closing ?? Promise.resolve(succeed(undefined)),
       execution,
     })
-    // A settlement that does not land leaves the execution as it is: the author returned and its
-    // final is not published yet. The settlement retries its transient dependencies itself; what is
-    // left is reported, not turned into an unreadable execution (F3).
     if ('ok' in settled) execution.publish(settled.ok)
   }
 
-  /** What the binding proves about the suspension of a segment it ran (P07 suspend). */
   const suspensionOf = (
     bound: Omit<Bound, 'binding'>,
     suspension: SuspensionRecord,
@@ -492,7 +432,6 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
   const makeBinding = (bound: Omit<Bound, 'binding'>): Bound['binding'] => {
     let assigned = false
     type Enter = Parameters<typeof launchSegment>[5]
-    /** The pin of a new attempt: the one an earlier attempt of the start kept, or a new one. */
     const takePin = (input: StartInput<P, E>, old: Attempt | undefined) => {
       if (old?.pin != null) {
         const kept = old.pin
@@ -508,11 +447,6 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
       assigned = true
       return succeed(bound.pin)
     }
-    /**
-     * Checks the input, recalls an attempt of the same start, takes the pin, consumes the permit
-     * and runs the author once: a live coroutine, or the segment that `enter` starts. A start and a
-     * resume of the same call are attempts of their own, each under its own start record.
-     */
     const begin = (
       input: StartInput<P, E>,
       environment: E,
@@ -573,7 +507,6 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
             operation.segments === null
               ? launch(input, environment, operation, execution)
               : launchSegment(input, environment, operation, execution, attempt, enter)
-          // A settlement that throws leaves the execution live and unsettled, as above.
           void launched.catch(() => undefined)
         },
         segment: null,
@@ -622,10 +555,8 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
       ...live,
       kind: 'checkpointed',
       checkpointSchema: segments.checkpoint.codec,
-      // The segment has returned before its suspension is asked: proving it stops nothing.
       suspend: prove,
       inspectSuspension: prove,
-      // The ledger gives the state of the checkpoint and the response of its wait with the start.
       resume: ({ state, response, ...input }, environment) => {
         if (
           response.response.kind !== 'decision' ||
@@ -642,7 +573,6 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
           input,
           environment,
           (segments, _parsed, context) => {
-            // The author's continuation is released here, so the real resume point is fixed here.
             const execution = attempts.get(key)?.execution
             execution?.publish({
               kind: 'continued',
@@ -675,7 +605,6 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
         readToolRegistration(selected.ok.loaded.implementation),
         input.request.command,
       )
-      // A start of a command the author does not have fails at the start: it releases the pin there.
       const fixed = {
         ...selected.ok,
         requestDigest: canonicalDigest(input.request),

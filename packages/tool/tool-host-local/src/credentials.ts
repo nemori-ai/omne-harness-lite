@@ -12,12 +12,10 @@ import {
 type CredentialReply<T> = Promise<Outcome<T, ToolCredentialFailure>>
 
 export interface ToolCredentialAccess<P> {
-  /** Check the current principal, tenant, original call and its fixed request. */
   qualify(input: ToolCredentialRequest<P>): CredentialReply<void>
 }
 
 export interface ToolCredentialReferences<P> {
-  /** Read this exact fixed settings adoption at the requested source. No secret values. */
   read(
     input: ToolCredentialRequest<P> & Readonly<{ source: SourceLayer }>,
   ): CredentialReply<
@@ -25,11 +23,6 @@ export interface ToolCredentialReferences<P> {
   >
 }
 
-/**
- * One resolution of a secret: the stored binding, a capability that is valid until `revoke`, and
- * `revoke` itself. After `revoke` resolved, the capability must no longer perform its action;
- * `revoke` rejects when the store could not revoke. Error texts must not carry secret values.
- */
 export type ToolCredentialResolution<C> = Readonly<{
   binding: ToolCredentialUsage & { tenant: TenantId }
   capability: C
@@ -37,19 +30,11 @@ export type ToolCredentialResolution<C> = Readonly<{
 }>
 
 export interface ToolCredentialSecrets<P, C> {
-  /** Return the stored binding, independently of the requested usage. No fallback is permitted. */
   resolve(
     input: ToolCredentialRequest<P> & Readonly<{ reference: string }>,
   ): CredentialReply<ToolCredentialResolution<C>>
 }
 
-/**
- * A local capability rechecks the original reference immediately before each protected use. The
- * capability it hands to `action` is valid for that use only: when `action` settled, the use
- * revokes it, then returns the result or rethrows the unknown error of `action` as it was. A
- * failed revocation after a successful action rejects with the revocation error; after a failed
- * action, with an `AggregateError` of `[actionError, revocationError]`.
- */
 export interface ToolCredentialCapability<C> {
   use<T>(action: (capability: C) => Promise<T>): CredentialReply<T>
 }
@@ -118,7 +103,6 @@ function validUsage(usage: ToolCredentialUsage): boolean {
   )
 }
 
-/** Reference selection is separate from use; a selected missing secret never selects another source. */
 export function createLocalToolCredentials<P, C>(
   ports: LocalToolCredentialsInput<P, C>,
 ): ToolCredentials<P, ToolCredentialCapability<C>> {
@@ -153,7 +137,6 @@ export function createLocalToolCredentials<P, C>(
     return fail({ kind: 'missing' })
   }
 
-  /** Qualifies again, resolves the stored binding and checks it. A mismatch revokes at once. */
   const boundCapability = async (
     input: ToolCredentialRequest<P>,
     reference: string,
@@ -179,7 +162,6 @@ export function createLocalToolCredentials<P, C>(
     return mismatch
   }
 
-  /** Runs `action` on a capability valid for this use only; see `ToolCredentialCapability`. */
   const restrictedUse = async <T>(
     resolution: ToolCredentialResolution<C>,
     action: (capability: C) => Promise<T>,
@@ -210,7 +192,6 @@ export function createLocalToolCredentials<P, C>(
       if ('failure' in allowed) return allowed
       const reference = await selectedReference(input.ok)
       if ('failure' in reference) return reference
-      // Resolution only proves the binding; the capability it obtained is not handed out.
       const initial = await boundCapability(input.ok, reference.ok)
       if ('failure' in initial) return initial
       await initial.ok.revoke()

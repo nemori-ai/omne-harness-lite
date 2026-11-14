@@ -27,7 +27,6 @@ import {
 
 const refused = () =>
   fail<ToolFailure>({ kind: 'unavailable', dependency: 'executor', diagnostic: 'launch refused' })
-/** A binding that refuses the start for good: the failure marker and the exclusion follow. */
 const definitelyRefused = () =>
   fail<ToolFailure>({
     kind: 'unsupported',
@@ -82,9 +81,6 @@ describe('21 binding start outcomes', () => {
   })
 })
 
-// A binding that answers `unavailable`, or `commit-unknown` for a start the fence did not accept,
-// did not start it (U2). The run ends `unavailable` and the next run starts the same start: no
-// failure marker, no exclusion, no unavailable terminal (U1, U3). Before, it was settled unavailable.
 describe('21 a binding that cannot answer (F1)', () => {
   const answering = (answer: 'unavailable' | 'commit-unknown') => {
     let failing = true
@@ -129,9 +125,6 @@ describe('21 a binding that cannot answer (F1)', () => {
     },
   )
 
-  // The run that a binding could not answer ends unavailable, so the driver itself runs the call
-  // again after the retry delay (U4): no one has to run it by hand. A run that ended blocked would
-  // be left, and the call would wait for a wake-up that never comes.
   it('21 transient: the driver runs the call again on its own after a binding that could not answer', async () => {
     const harness = startHarness({ ...answering('unavailable'), driverRetryDelayMs: 5 })
     await admitCall(harness, 'c1')
@@ -145,7 +138,6 @@ describe('21 a binding that cannot answer (F1)', () => {
     expect(await harness.state('c1')).toMatchObject({ phase: 'running', queue: { kind: 'held' } })
   })
 
-  // The run ends unavailable, so the driver runs the call again itself after the retry delay.
   it('21 transient: a fence that cannot answer after the binding ends the run, and keeps nothing', async () => {
     let inspections = 0
     const harness = startHarness({
@@ -175,8 +167,6 @@ describe('21 a binding that cannot answer (F1)', () => {
     expect(harness.binding.controls.launches()).toBe(1)
   })
 
-  // A binding that threw is not a binding that could not answer: its failure marker is written in
-  // the same run, before any later run asks the binding again.
   it('21 throw: a binding that throws has its failure marker written in the same run', async () => {
     const markers: string[] = []
     const harness = startHarness({

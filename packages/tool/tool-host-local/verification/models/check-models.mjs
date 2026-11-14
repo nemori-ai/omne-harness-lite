@@ -390,8 +390,6 @@ async function main() {
   summary.endedAt = new Date().toISOString()
   summary.allExpectedResults =
     summary.runs.length === selected.length && summary.runs.every(run => run.accepted)
-  // Model checking never establishes source refinement; the source correspondence is documented
-  // in README.md and checked by the host tests, not by this runner.
   summary.implementationConformance = 'not-established-by-this-run'
   save()
   if (!summary.allExpectedResults) process.exitCode = 1

@@ -1,4 +1,3 @@
-// Declarations, inspection, catalog, codecs and the author registration types.
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Modality } from '@omne-harness/modality'
@@ -32,11 +31,6 @@ export type ToolDeclarations = Readonly<{
   outputModalities: readonly Modality[]
   settings: ToolSettingsDeclaration | null
 }>
-/**
- * How a declared setting is shown to the person who configures it (P15): the presentation of a
- * Settings item, minus the enum labels, which a tool declaration does not carry. The field
- * meanings belong to `@omne-harness/settings`.
- */
 export type ToolSettingPresentation = Omit<SettingItem['presentation'], 'enumLabels'>
 export type ToolSettingsDeclaration = Readonly<{
   schema: ParameterContract
@@ -48,7 +42,6 @@ export type ToolSettingsDeclaration = Readonly<{
     presentation: ToolSettingPresentation
   }>[]
 }>
-/** The consumer's own abilities. A consumer without a legal conversion gives `conversion: null`. */
 export type ToolConsumerProfile = Readonly<{
   capabilities: DurableEvidence
   conversion: Adoption | null
@@ -151,12 +144,7 @@ export type ToolOperation<
   returns: ToolReturnDeclaration
   [toolOperation]: Readonly<{ environment: (value: E) => E; block: (value: B) => B }>
 }>
-/**
- * The executor an author gives to `defineToolOperation`: one that runs as a live coroutine, or one
- * that runs in segments and waits only by returning `suspended`.
- */
 export type ToolAuthorExecutor<A, R, E> = ToolExecutor<A, R, E> | CheckpointedToolExecutor<A, R, E>
-/** An author of one return mode whose executor may also be a checkpointed one. */
 type SpecAuthor<T extends Readonly<{ executor: unknown }>, X> = Omit<T, 'executor'> &
   Readonly<{ executor: X }>
 export type ToolOperationSpec<
@@ -184,35 +172,22 @@ export type ToolOperationSpec<
         >
       }>
   )
-/**
- * What `defineFunctionTool` and `defineCommandTool` build: the implementation side of a tool. It
- * carries the author facts and the projected shape, and hides the operations behind the
- * `./binding` reader. It has no name, no adoption and no governance field: the loader derives the
- * `ToolDefinition` from it and the asset governance (RFC-0012 object chain).
- */
 export type ToolImplementation<E, B extends ContentBlock> = Readonly<{
   facts: ToolImplementationFacts
   [toolAuthorRegistration]: Readonly<{ environment: (value: E) => E; block: (value: B) => B }>
 }>
-/** The implementation-side fields an author gives to `defineFunctionTool` or `defineCommandTool`. */
 export type ToolImplementationDeclaration = Readonly<{
   description: string
   backgroundAllowed: boolean
   declarations: ToolDeclarations
 }>
-/**
- * What an implementation package exports next to its author plugin: the executor identity and the
- * factory that turns the checked construction configuration (P15) into the implementation.
- */
 export type ToolImplementationModule<E, B extends ContentBlock> = Readonly<{
   executor: Adoption
   createAuthor(
     construction: JsonValue,
   ): Outcome<ToolImplementation<E, B>, Readonly<{ field: string; reason: string }>>
 }>
-/** The binding key of G7: source layer, capability identity and asset version. */
 export type ToolBindingKey = Readonly<{ layer: SourceLayer; asset: ToolAssetVersion }>
-/** A command of the shape: the parameter contract in canonical form, or the executor-owned mark. */
 export type ToolShapeParameters =
   | Readonly<{
       kind: 'declared'
@@ -220,11 +195,6 @@ export type ToolShapeParameters =
       vocabulary: Readonly<{ owner: string; name: string; digest: string }>
     }>
   | Readonly<{ kind: 'executor-owned' }>
-/**
- * What `shapeOf` reads from a definition (R1–R5 same-shape): name, kind, the parameter contract
- * and the command table. Descriptions, summaries, returns, declarations, adoption and executor
- * take no part. Commands are sorted by name.
- */
 export type ToolShape = Readonly<{ name: string }> &
   (
     | Readonly<{ kind: 'function'; parameters: ToolShapeParameters }>
@@ -234,7 +204,6 @@ export type ToolShape = Readonly<{ name: string }> &
       }>
   )
 declare const toolLoadedRegistration: unique symbol
-/** What a trusted loader hands to the binding registry: the key, the derived definition and shape. */
 export type ToolLoadedRegistration<E, B extends ContentBlock> = Readonly<{
   implementation: ToolImplementation<E, B>
   key: ToolBindingKey
@@ -255,14 +224,12 @@ export interface ToolLoader<P, E, B extends ContentBlock> {
       }>,
   ): Reply<ToolLoadedRegistration<E, B>>
 }
-/** The verified origin of a contribution: its layer, asset version, holding and publication (G7). */
 export type ToolAuthority = Readonly<{
   layer: SourceLayer
   asset: ToolAssetVersion
   holding: DurableEvidence
   publication: DurableEvidence
 }>
-/** A registered contribution. `release` withdraws only this token; a repeat answers `removed: false`. */
 export type ToolContribution = Readonly<{
   key: ToolBindingKey
   token: string
@@ -274,7 +241,6 @@ export type ToolContributionFailure =
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'invalid'; reason: string }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-/** One row of `snapshot(scope)`: key, registration ordinal, load digest, shape, state and fiber. */
 export type ToolBindingEntry = Readonly<{
   key: ToolBindingKey
   ordinal: string
@@ -283,16 +249,9 @@ export type ToolBindingEntry = Readonly<{
   state: 'live' | 'draining'
   fiber: string
 }>
-/** The caller's access, or the system scope of an internal caller such as the coordinator. */
 export type ToolBindingScope<P> = Access<P> | Readonly<{ scope: 'system' }>
 export type ToolBindingKeyFailure = Readonly<{ kind: 'unknown-key' }>
-/** What `drain(key)` reports: the pin count and the calls still in flight on that key. */
 export type ToolBindingDrain = Readonly<{ pins: string; inflight: readonly ToolCallId[] }>
-/**
- * The binding registry of G7. `register` is synchronous: the admission and the write happen in one
- * step of the caller fiber's effect. `snapshot`, `pins`, `close`, `reopen` and `drain` read or mark
- * the in-process registry; they are not a durable ledger. Selection rules belong to the SPEC.
- */
 export interface ToolBindingRegistry<P, E, B extends ContentBlock> {
   register(
     input: Access<P> &

@@ -1,8 +1,3 @@
-// The `tool` participant module. It runs inside the provider's write transaction, so every command
-// is atomic: a ledger commit checks the domain revision and its read-set assertions, then applies
-// its writes in input order; a body command keeps, seals or deletes the chunks of one body. A
-// stopping reply rolls the whole command back. It never begins, commits or rolls back, and keeps no state between
-// calls.
 import {
   packText,
   type ParticipantModule,
@@ -26,10 +21,8 @@ const participated = (answer: ParticipantAnswer): ParticipantReply => ({
 })
 const stopped = (basis: StopBasis): ParticipantReply => ({ kind: 'conflict', basis })
 
-/** The revision of a domain that was never committed (`INITIAL_REVISION` of the ledger). */
 const INITIAL_REVISION = '0'
 
-/** The revision of one domain of the tenant, `INITIAL_REVISION` when it was never committed. */
 function revisionOf(port: ParticipantPort, domain: readonly [string, string, string]): string {
   const row = oneRow(
     port,
@@ -41,10 +34,6 @@ function revisionOf(port: ParticipantPort, domain: readonly [string, string, str
 
 type Domain = readonly [tenant: string, kind: string, name: string]
 
-/**
- * Writes one record. The fixed part is written only when the command gives it; a `kept` put
- * changes the other part alone and stops when the store holds no fixed part to keep.
- */
 function put(
   port: ParticipantPort,
   domain: Domain,
@@ -79,18 +68,14 @@ function commitLedger(facts: LedgerFacts, port: ParticipantPort): ParticipantRep
   const domain = [facts.tenant, facts.kind, facts.name] as const
   const current = revisionOf(port, domain)
   if (current !== facts.expected) return stopped({ reason: 'revision', current })
-  // The assertions read the same transaction as the writes: nothing of the tenant moves between.
   for (const assertion of facts.asserts)
     if (revisionOf(port, [facts.tenant, assertion.kind, assertion.name]) !== assertion.revision)
       return stopped({ reason: 'assertion', current })
-  // A drop leaves no row of the domain: its records, its due entries and its revision.
   if (facts.writes.some(write => write.op === 'drop')) {
-    // The store refuses a malformed drop before it sends it; one that arrives is not this protocol.
     if (facts.writes.length !== 1 || facts.revision !== INITIAL_REVISION)
       return { kind: 'unsupported', basis: { reason: 'facts' } }
     for (const table of ['tl_record', 'tl_due', 'tl_domain'])
       port.execute(`DELETE FROM ${table} WHERE tenant = ? AND kind = ? AND name = ?`, [...domain])
-    // 调用域整域删除后没有待推进的工作：它的待办标记一并删掉。
     if (facts.kind === 'call')
       port.execute('DELETE FROM tl_pending WHERE tenant = ? AND call = ?', [
         facts.tenant,
@@ -136,7 +121,6 @@ function commitLedger(facts: LedgerFacts, port: ParticipantPort): ParticipantRep
      ON CONFLICT (tenant, kind, name) DO UPDATE SET revision = excluded.revision`,
     [...domain, facts.revision],
   )
-  // 待办标记与记录同一事务：命令回滚时两者都不落地。
   if (facts.pending === true)
     port.execute('INSERT INTO tl_pending (tenant, call) VALUES (?, ?) ON CONFLICT DO NOTHING', [
       facts.tenant,

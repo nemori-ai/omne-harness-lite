@@ -1,7 +1,3 @@
-// Self-proof of the ToolResourceResponses suite: it passes on the conforming double, each case
-// fails under a violating variant that breaks the rule of that case, and a fixture without control
-// handles reports the cases that need them as not applicable. The variants of the cases that the
-// decision bridge suite shares are in external-association-variants.ts.
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
 import {
@@ -71,7 +67,6 @@ type Handles = Partial<
   Pick<Fixture, 'excludeDeferred' | 'invalidations' | 'respond' | 'reachDeadline'>
 >
 
-/** A fixture whose responses are the double with `responses` laid over it and `handles` replaced. */
 function responsesVariant(
   build: (
     real: Responses,
@@ -112,7 +107,6 @@ const variants: readonly Variant<Fixture>[] = [
     'the waits of one call share one registration for ensure and inspect alike': [NAMES.RX16],
     'inspectOperation fabricates a commit for an operation never sent': [NAMES.RX5],
     'inspectOperation reports a deferred operation as committed': [NAMES.RX11],
-    // Every case that registers a wait first reads the ensure that answered a lost reply.
     'a resend of an ensure during its lost reply answers another registration than the one that lands':
       [
         NAMES.RX1,
@@ -134,7 +128,6 @@ const variants: readonly Variant<Fixture>[] = [
       ],
   }),
   {
-    // once an expire was answered, a resend goes back to the lost reply.
     name: 'a resent expire goes back from the expiry to a lost reply',
     fails: [NAMES.RX7],
     fixture: responsesVariant(real => ({
@@ -151,7 +144,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // the generated provider with the resend of an expire during its lost reply replaced.
     name: 'a resend of an expire during its lost reply answers another expiry than the one that lands',
     fails: [NAMES.RX6, NAMES.RX7, NAMES.RX15, NAMES.RX16],
     fixture: externalGenerated(makeShared, resourceResponsesAnswers, 'commit-unknown', {
@@ -174,8 +166,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The input of an expire is not compared: another wait under the same identity is answered
-    // the expiry of the first, and nothing is refused.
     name: 'a reused expire identity for another wait answers the first expiry',
     fails: [NAMES.RX16],
     fixture: responsesVariant(real => {
@@ -195,7 +185,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The conflict is answered, and the refused expire is carried out on the other wait all the same.
     name: 'a conflicting reuse of an expire identity still expires the other wait',
     fails: [NAMES.RX16],
     fixture: responsesVariant(real => ({
@@ -250,7 +239,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // Evidence that is no response is answered with a value, so Tool would act on an invented one.
     name: 'resolve answers a value for evidence that is no response',
     fails: [NAMES.RX4, NAMES.RX14],
     fixture: responsesVariant(real => ({
@@ -287,7 +275,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The owner is asked to consider the deadline reached whenever an expire comes in.
     name: 'expire ignores the deadline',
     fails: [NAMES.RX5],
     fixture: responsesVariant((real, base) => ({
@@ -300,9 +287,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // An expire that the owner refuses before the deadline answers a lost
-    // reply instead, and at settle the expiry lands all the same. Only a case that reads the
-    // expire to its final answer sees the expiry that should have been refused.
     name: 'an expire before the deadline answers a lost reply and lands an expiry at settle',
     fails: [NAMES.RX5],
     fixture: () => {
@@ -351,7 +335,6 @@ const variants: readonly Variant<Fixture>[] = [
     },
   },
   {
-    // Before the deadline the expire is not refused: it answers evidence and changes nothing.
     name: 'expire before the deadline answers evidence and changes nothing',
     fails: [NAMES.RX5, NAMES.RX9, NAMES.RX10],
     fixture: responsesVariant((real, base) => {
@@ -371,8 +354,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // A registration that has no deadline is not refused: the expire answers evidence and changes
-    // nothing.
     name: 'expire of a registration that has no deadline answers evidence and changes nothing',
     fails: [NAMES.RX9, NAMES.RX10, NAMES.RX12],
     fixture: responsesVariant(real => {
@@ -451,8 +432,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The provider keeps the deadline of the wait for its ensure only, and expires by the deadline
-    // that the expire call carries.
     name: 'expire judges the deadline of the call',
     fails: [NAMES.RX12],
     fixture: responsesVariant(real => ({
@@ -468,7 +447,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The same for the expiry support: the call decides, not the registered wait.
     name: 'expire judges the expiry support of the call',
     fails: [NAMES.RX13],
     fixture: responsesVariant(real => ({
@@ -492,7 +470,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The call decides as well, and only a call that declares expiry supported may expire.
     name: 'expire takes only a call that declares expiry supported',
     fails: [NAMES.RX13],
     fixture: responsesVariant(real => ({
@@ -516,8 +493,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // An expire that names a registration the owner never made is answered with an expiry all
-    // the same, for every tenant: the answers of another tenant still read alike.
     name: 'expire answers an expiry for a registration that is none',
     fails: [NAMES.RX15],
     fixture: responsesVariant(real => ({
@@ -534,7 +509,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The resolve of another tenant finds the response of the first one.
     name: 'resolve ignores the tenant',
     fails: [NAMES.RX14],
     fixture: responsesVariant((real, base) => ({
@@ -557,8 +531,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The foreign resolve is refused as one of a response that is none, and the reason tells the
-    // resource value of the tenant.
     name: 'a foreign resolve is refused with a reason that names the value of the tenant',
     fails: [NAMES.RX14],
     fixture: responsesVariant((real, base) => ({
@@ -597,7 +569,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The foreign attempt turns the response of the tenant into an expiry, which still resolves.
     name: 'a foreign resolve turns the response of the tenant into an expiry',
     fails: [NAMES.RX14],
     fixture: responsesVariant((real, base) => {
@@ -617,7 +588,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The expire of another tenant reaches the wait of the first one.
     name: 'expire ignores the tenant',
     fails: [NAMES.RX15],
     fixture: responsesVariant((real, base) => ({
@@ -646,7 +616,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The foreign attempt uses up the deadline of the tenant: its own expire is refused after it.
     name: 'a foreign expire uses up the deadline of the tenant',
     fails: [NAMES.RX15],
     fixture: responsesVariant((real, base) => {
@@ -701,7 +670,6 @@ const variants: readonly Variant<Fixture>[] = [
     },
   ]),
   {
-    // The receipt that inspectOperation gives for an expire is not the expiry that it answered.
     name: 'inspectOperation answers another receipt for an expire',
     fails: [NAMES.RX7, NAMES.RX11, NAMES.RX16],
     fixture: responsesVariant(real => ({
@@ -721,7 +689,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // An expire whose reply was lost lands, and the resend after it is answered fresh evidence.
     name: 'a resent expire after a lost reply answers fresh evidence',
     fails: [NAMES.RX11],
     fixture: responsesVariant(real => {
@@ -743,7 +710,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // An expire that is only deferred is answered with evidence, as if it had been applied.
     name: 'a deferred expire is answered with evidence',
     fails: [NAMES.RX11],
     fixture: () => {
@@ -766,7 +732,6 @@ const variants: readonly Variant<Fixture>[] = [
     },
   },
   {
-    // The expire is refused, and a later resolve reads the response as an expiry all the same.
     name: 'a refused expire turns the response into an expiry',
     fails: [NAMES.RX8],
     fixture: responsesVariant(real => {
@@ -841,7 +806,6 @@ const legal: readonly LegalProvider<Fixture>[] = [
   },
 ]
 
-/** Fixtures that break the completion contract of a handle: it resolves before the work landed. */
 const lateHandles: readonly Variant<Fixture>[] = [
   {
     name: 'reachDeadline resolves 3 turns before the deadline is reached',
@@ -869,7 +833,6 @@ const lateHandles: readonly Variant<Fixture>[] = [
   },
 ]
 
-/** The methods of the port that take an access, and the case that checks another tenant on each. */
 const CROSS_TENANT: Readonly<Record<keyof ToolResourceResponses<string>, string>> = {
   ensure: NAMES.S5,
   inspect: NAMES.S6,

@@ -4,8 +4,6 @@ import { succeed } from '@omne-harness/operation-result'
 import { fixJsonTree, JSON_TREE_MAX_NODES } from '../src/json-tree.ts'
 import { answer, ask, askContract, manualWaiter, scope, settled } from './scope-values.ts'
 
-// The request tree of a wait is judged by `judgeJsonValue` of json-text, and this scope adds the
-// canonical text and its byte budget. The tests reach both through `context.wait`.
 async function refusal(request: unknown, maxBytes = 1_024): Promise<unknown> {
   const waiter = manualWaiter()
   const { scope: s } = scope({ waits: waiter.waits })
@@ -17,7 +15,6 @@ async function refusal(request: unknown, maxBytes = 1_024): Promise<unknown> {
   return 'failure' in outcome ? outcome.failure : undefined
 }
 
-/** A list of `length` empty slots: a hole is no own property. */
 function holes(length: number): unknown[] {
   const list: unknown[] = []
   list.length = length
@@ -132,12 +129,10 @@ describe('5 wait: the request tree is judged by json-text', () => {
     await pending
   })
 
-  // Slow: json-text must read a million nodes before the budget fires (about one second of CPU).
   it(
     'rejects a request that reaches more than a million nodes as budget, not as invalid',
     { tags: ['slow'] },
     async () => {
-      // One list of 1001 nulls shared by 1001 parents: 1,003,003 visits when each visit counts.
       const row = array(...Array.from({ length: 1_001 }, () => nil))
       const shared = array(...Array.from({ length: 1_001 }, () => row))
       expect(await refusal(shared, 100_000_000)).toEqual({
@@ -148,14 +143,9 @@ describe('5 wait: the request tree is judged by json-text', () => {
   )
 })
 
-// The byte budget bounds the check. fixJsonTree runs the check with at most maxBytes visits, which
-// is sound only if an accepted tree never has more visits than its canonical text has bytes.
-
-/** Deterministic pseudo-random numbers, so that a failing tree can be rebuilt from its seed. */
 function randoms(seed: number): (below: number) => number {
   let state = seed >>> 0
   return below => {
-    // mulberry32
     state = (state + 0x6d2b79f5) >>> 0
     let mixed = Math.imul(state ^ (state >>> 15), state | 1)
     mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61)
@@ -168,11 +158,6 @@ type Built = Readonly<{ tree: unknown; text: string; visits: number }>
 const WORDS = ['', 'a', 'é', '€', '😀', 'a"b\\c\n', 'key', '\u0000']
 const LEXEMES = ['0', '-0', '7', '1000', '-1.5', '1e9', '2E-3', '0.000']
 
-/**
- * A random tree with its canonical text and its visit count written by this test alone: nested
- * objects and arrays, empty containers, empty and multi-byte strings and keys, and containers
- * that several parents share (every reached visit counts).
- */
 function build(random: (below: number) => number, depth: number, pool: Built[]): Built {
   const shared = pool.length > 0 && random(4) === 0
   if (shared) return pool[random(pool.length)] as Built
@@ -213,7 +198,6 @@ function build(random: (below: number) => number, depth: number, pool: Built[]):
   return built
 }
 
-/** Whether a container object is reached through two parents. */
 function sharesNode(tree: unknown): boolean {
   const seen = new Set<object>()
   const pending = [tree]
@@ -235,21 +219,17 @@ describe('5 wait: the byte budget bounds the check', () => {
     for (let seed = 1; seed <= 400; seed += 1) {
       const { tree, text, visits } = build(randoms(seed), 6, [])
       const bytes = Buffer.byteLength(text)
-      // The model of the visit count is the test's own: it matches what json-text counts.
       expect(judgeJsonValue(tree, { maxVisits: visits }), `seed ${seed}`).toHaveProperty('ok')
       if (visits > 1) {
         expect(judgeJsonValue(tree, { maxVisits: visits - 1 }), `seed ${seed}`).toMatchObject({
           rejected: 'budget',
         })
       }
-      // The premise: the visits of an accepted tree never exceed the bytes of its text.
       expect(visits, `seed ${seed}`).toBeLessThanOrEqual(bytes)
       expect(judgeJsonValue(tree, { maxVisits: bytes }), `seed ${seed}`).toHaveProperty('ok')
-      // The text Tool writes is the model's text, and the size is its byte count.
       const fixed = fixJsonTree(tree, bytes)
       expect(fixed, `seed ${seed}`).toHaveProperty('ok')
       expect('ok' in fixed ? [fixed.ok.text, fixed.ok.bytes] : []).toEqual([text, bytes])
-      // One byte less is too large, never budget.
       if (bytes > 1) {
         expect(fixJsonTree(tree, bytes - 1), `seed ${seed}`).toEqual({
           failure: { reason: 'too-large', detail: `more than ${bytes - 1} bytes` },
@@ -258,7 +238,6 @@ describe('5 wait: the byte budget bounds the check', () => {
       largest = Math.max(largest, visits)
       if (sharesNode(tree)) sharing += 1
     }
-    // The generator reaches trees of some size, not only leaves.
     expect(largest).toBeGreaterThan(50)
     expect(sharing).toBeGreaterThan(20)
   })
@@ -270,7 +249,6 @@ describe('5 wait: the byte budget bounds the check', () => {
 
   it('rejects a tree with far more nodes than maxBytes as too-large, after about maxBytes visits', () => {
     let visits = 0
-    // Reading the kind of a node is one visit of it: a Proxy counts the reads of that field.
     const counted = new Proxy(
       { kind: 'null' },
       {
@@ -280,16 +258,13 @@ describe('5 wait: the byte budget bounds the check', () => {
         },
       },
     )
-    // 1001 shared lists of 1001 counted nodes: over a million visits if the walk were not bounded.
     const row = array(...Array.from({ length: 1_001 }, () => counted))
     const shared = array(...Array.from({ length: 1_001 }, () => row))
     expect(fixJsonTree(shared, 500)).toEqual({
       failure: { reason: 'too-large', detail: 'more than 500 bytes' },
     })
-    // The first list is longer than the budget, so the walk stops before it reads any node.
     expect(visits).toBeLessThanOrEqual(500)
     visits = 0
-    // With a budget that holds one row but not the tree, the walk stops after that budget.
     expect(fixJsonTree(shared, 3_000)).toEqual({
       failure: { reason: 'too-large', detail: 'more than 3000 bytes' },
     })
@@ -297,8 +272,6 @@ describe('5 wait: the byte budget bounds the check', () => {
     expect(visits).toBeLessThanOrEqual(3_000)
   })
 
-  // The list of 21 slots is longer than the budget of 10 visits, so the walk stops at that list and
-  // never reads the invalid slot: the answer is too-large, not invalid.
   it('stops at the budget before it reaches an invalid part that comes later', () => {
     const later = array(...Array.from({ length: 20 }, () => nil), { kind: 'bogus' })
     expect(fixJsonTree(later, 10)).toEqual({

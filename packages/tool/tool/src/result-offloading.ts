@@ -57,10 +57,6 @@ export function resultBodyPolicy(
   return succeed(resolveBodyPolicy(declaration, system, readResultArguments))
 }
 
-/**
- * Admission of a call under the system bounds: its fixed return declaration must leave room for
- * the largest header and the preview within its threshold, or no result of it could be shown.
- */
 export function callOffloadingRefusal(
   request: DeclaredCall,
   system: ToolOffloadingConfiguration,
@@ -99,7 +95,6 @@ export function resolveBodyPolicy(
 
 type OffloadingBounds = Pick<BodyPolicy, 'inlineBytes' | 'retentionMs' | 'previewBytes'>
 
-/** L = min(T, S) and the effective retention, each the smaller of the author and system bounds. */
 function offloadingBounds(
   declared: ToolReturnDeclaration['offloading'],
   system: ToolOffloadingConfiguration,
@@ -119,7 +114,6 @@ function offloadingBounds(
   }
 }
 
-/** P = min(Tp, Sp, floor(L / k)): the excerpt shown first never grows with the body. */
 function previewBudget(
   declared: ToolReturnDeclaration['offloading'],
   system: ToolOffloadingConfiguration,
@@ -151,17 +145,8 @@ type BodyPlan<B extends ContentBlock> =
   | ScreenPlan<B, 'author'>
   | OffloadedPlan<B>
 
-/** The transport bound a committed result must meet: every content block fits one result page. */
 export type ResultDelivery = Readonly<{ pageBytes: number }>
 
-/**
- * Decides inline or offloaded and builds the first screen, so that the result is deliverable when it
- * is committed (I-2 at settlement). A result stays inline only when its model-visible text is within
- * L and every block fits the result page; a text block over the page offloads like one over L; a
- * block offloading cannot shrink is refused here. An offloaded first screen is the preview (author
- * content, or the mechanical preview) within P followed by the header within headerMax; acceptance
- * has checked headerMax + P <= L. `authored` is the sealed author body, if any.
- */
 export function planResultBody<B extends ContentBlock>(
   value: ToolRenderedResult<B>,
   policy: BodyPolicy,
@@ -189,7 +174,6 @@ export function planResultBody<B extends ContentBlock>(
     : fail(stuck)
 }
 
-/** The author's first screen: content and summary each within P, the header after the content. */
 function planAuthoredScreen<B extends ContentBlock>(
   value: ToolRenderedResult<B>,
   summary: readonly ContentBlock[],
@@ -228,7 +212,6 @@ function planAuthoredScreen<B extends ContentBlock>(
   })
 }
 
-/** The system's first screen in place of the model text: the mechanical preview, then the header. */
 function planOffloadedScreen<B extends ContentBlock>(
   value: ToolRenderedResult<B>,
   frames: readonly TextContentBlock[],
@@ -267,7 +250,6 @@ function planOffloadedScreen<B extends ContentBlock>(
   })
 }
 
-/** The first model-visible text block carries the screen; the other model texts leave the content. */
 function withFirstScreen<B extends ContentBlock>(blocks: readonly B[], screen: string): B[] {
   let emitted = false
   return blocks.flatMap(block => {
@@ -278,7 +260,6 @@ function withFirstScreen<B extends ContentBlock>(blocks: readonly B[], screen: s
   })
 }
 
-/** The first block over the page, named by its position; `null` entries are blocks not under judgement. */
 function oversizeBlock(
   blocks: readonly (ContentBlock | null)[],
   pageBytes: number,
@@ -293,7 +274,6 @@ function isModelText(block: ContentBlock): block is TextContentBlock {
   return block.kind === 'text' && block.visibility.toModel
 }
 
-/** The model-visible text of a result as body frames, well-formed and within the body hard limit. */
 function modelText(
   blocks: readonly ContentBlock[],
   maxBodyBytes: number,
@@ -339,7 +319,6 @@ function modelTexts(blocks: readonly ContentBlock[]): string[] {
   return blocks.filter(isModelText).map(block => block.text)
 }
 
-/** The header follows the last model-visible text, or stands alone when the author gave none. */
 function withHeader<B extends ContentBlock>(blocks: readonly B[], header: string): B[] {
   const last = blocks.findLastIndex(isModelText)
   if (last === -1)
@@ -357,7 +336,6 @@ function withHeader<B extends ContentBlock>(blocks: readonly B[], header: string
   )
 }
 
-/** W + 2ε: the time within which a write under an already issued permit may still land. */
 export function lateWriteWindowMs(
   system: Pick<ToolOffloadingConfiguration, 'permitMs' | 'clockSkewMs'>,
 ): number {
@@ -368,11 +346,6 @@ export type OffloadingRefusal =
   | 'header-and-preview-exceed-threshold'
   | 'retention-within-late-write-window'
 
-/**
- * Acceptance of a return declaration under the system bounds: the largest header plus the preview
- * budget must fit the offloading threshold, so no first screen exceeds L; and the retention must
- * exceed W + 2ε, or a sweep at expiry could meet a late write of the body (model `ttl-too-small`).
- */
 export function offloadingRefusal(
   declaration: Pick<ToolReturnDeclaration, 'body' | 'offloading'>,
   system: ToolOffloadingConfiguration,
@@ -397,7 +370,6 @@ export function offloadingFits(
   return offloadingRefusal(declaration, system) === null
 }
 
-/** The return declaration of the system's own results, accepted at startup like any author's. */
 export const SYSTEM_RETURN: Pick<ToolReturnDeclaration, 'body' | 'offloading'> = {
   body: {
     kind: 'text',

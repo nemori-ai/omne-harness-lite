@@ -1,9 +1,6 @@
 import { tenantEquals, tenantCodec } from '@omne-harness/legal-identity'
 import { sameAdoption } from './value-shapes.ts'
 import { judgeFixedToolRequest } from './judge-request.ts'
-// The ToolEnvironment conformance suite (P03, story 22) and a non-durable double that conforms to
-// it. The double keeps its state in memory and declares `durability: 'none'`: it proves nothing
-// about a durable provider and must not be assembled into production.
 import assert from 'node:assert/strict'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { FixedToolRequest } from './definitions.ts'
@@ -46,50 +43,21 @@ import {
   tenantKey,
 } from './testing-values.ts'
 
-/**
- * What the environment suite needs. A fresh fixture serves one case. The optional handles are
- * the controls of the provider: a case that needs one that is missing is reported not applicable.
- * `allocations` counts the resources the environment allocated. `hold` makes the next preparation
- * answer pending with its allocation deferred; nothing lands before `settle`. `settle` lands the
- * deferred allocations that were not excluded, and, for a provider that answers `pending` or
- * `unknown` to a preparation or a release that it completes later, lands that work too: it
- * resolves only after the deferred work has landed and is visible to every read of the port (the
- * suite asks once more after it and never polls). Without `settle`, a case that needs a final
- * answer is reported not applicable when the first answer is progress. `excludeDeferred` excludes
- * the deferred allocation of one preparation, and resolves when the exclusion holds. `rejectNext`
- * makes the next new preparation fail with a reason. `otherAccess` is the access of a second
- * tenant, with a principal of its own: the cases that check that another tenant neither reads nor
- * changes a record of the first are reported not applicable without it.
- */
 export interface ToolEnvironmentFixture<P, E> {
   readonly environment: ToolEnvironment<P, E>
   readonly access: Access<P>
   readonly otherAccess?: Access<P>
   readonly request?: FixedToolRequest
-  /** Counts the allocations made so far (a read: nothing is deferred, nothing to wait for). */
   allocations?(): number
-  /** Makes the next preparation answer pending: its allocation lands at `settle`, not before. */
   hold?(): void
-  /** Resolves after every deferred allocation, preparation and release has landed and is visible to every read. */
   settle?(): Promise<void>
-  /** Resolves after the exclusion of the deferred allocation of this preparation holds. */
   excludeDeferred?(preparation: PreparationRecord): Promise<void>
-  /** Makes the next new preparation fail with this reason (it takes effect at once). */
   rejectNext?(reason: string): void
-  /**
-   * The port of a new process over the same durable state: every environment the old process held
-   * live is gone, every record stays.
-   */
   restart?(): Promise<ToolEnvironment<P, E>>
 }
 
 const UNSETTLED = ['pending', 'unknown']
 
-/**
- * The answer model of the environment port (P03): `allocated`, `pending` and `unknown` keep the original task,
- * so every other kind of a preparation (`prepared`, `excluded`, `rejected`, `lost`) and of a release
- * (`released`, `rejected`) is final.
- */
 export const environmentAnswers = {
   prepare: { clause: 'P03', progress: ['allocated', ...UNSETTLED] },
   inspectPreparation: { clause: 'P03', progress: ['allocated', ...UNSETTLED] },
@@ -97,7 +65,6 @@ export const environmentAnswers = {
   inspectRelease: { clause: 'P03', progress: UNSETTLED },
 } as const satisfies AnswerModel<Exclude<keyof ToolEnvironment<unknown, unknown>, 'adoption'>>
 
-/** What a preparation answer says apart from the reconnect capability, which may be a fresh handle. */
 const preparationView = <E>(answer: PreparationProgress<E>): unknown =>
   answer.kind === 'prepared'
     ? {
@@ -129,7 +96,6 @@ function scene<P, E>(fixture: ToolEnvironmentFixture<P, E>, access: Access<P> = 
     environment.inspectPreparation(input(preparation))
   const inspectRelease = (release: ReleaseRecord) =>
     environment.inspectRelease({ ...access, call: release.call, release })
-  /** The final answer of a preparation, whatever its kind (prepared, excluded or rejected). */
   const prepareFinal = (preparation: PreparationRecord): Promise<PreparationProgress<E>> =>
     finalAnswer({
       ask: () => prepare(preparation),
@@ -140,9 +106,7 @@ function scene<P, E>(fixture: ToolEnvironmentFixture<P, E>, access: Access<P> = 
     })
   return {
     completion,
-    /** What every call of the scene sends besides its record: its access. */
     sends: [access] as const,
-    /** The fixed request every preparation of the scene is for. */
     request,
     record,
     prepare,
@@ -150,7 +114,6 @@ function scene<P, E>(fixture: ToolEnvironmentFixture<P, E>, access: Access<P> = 
     release,
     inspectRelease,
     prepareFinal,
-    /** The final answer of `inspectPreparation` for an operation that was asked before. */
     inspectFinal: (preparation: PreparationRecord): Promise<PreparationProgress<E>> =>
       finalAnswer({
         ask: async () => succeeded(await inspect(preparation), 'inspectPreparation'),
@@ -215,8 +178,6 @@ async function pendingResentAllocatesNothing<P, E>(fixture: Fixture<P, E>): Prom
   hold.call(fixture)
   const first = await s.prepare(record)
   assert.ok(isProgress(first, environmentAnswers.prepare), 'prepare under hold is progress')
-  // The original task is kept: asking again neither lands it nor starts another one. Nothing
-  // lands before `settle`, so the answer is still progress.
   const resent = await s.prepare(record)
   assert.ok(
     isProgress(resent, environmentAnswers.prepare),
@@ -419,7 +380,6 @@ async function foreignInspectPreparation<P, E>(fixture: Fixture<P, E>): Promise<
   const own = scene(fixture)
   const other = scene(fixture, otherAccessOf(fixture))
   const original = await own.prepared(own.record())
-  // The other tenant asks with the same call and operation: only the evidence identifies the record.
   const asked = other.record()
   await crossTenantAnswers({
     ask: {
@@ -444,7 +404,6 @@ async function foreignPreparation<P, E>(fixture: Fixture<P, E>): Promise<void> {
   const own = scene(fixture)
   const other = scene(fixture, otherAccessOf(fixture))
   const original = await own.prepared(own.record())
-  // The same call and operation of another tenant is a preparation of its own.
   const answer = await other.prepareFinal(other.record())
   if (answer.kind === 'prepared')
     assert.notDeepEqual(answer.environment.evidence, original.evidence)
@@ -458,7 +417,6 @@ async function foreignRelease<P, E>(fixture: Fixture<P, E>): Promise<void> {
   const record = own.record()
   const resource = (await own.prepared(record)).evidence
   const release = releaseRecord(record, 'release-1', resource)
-  // The other tenant sends the resource evidence itself, so only the tenant identifies the record.
   const asked = releaseRecord(other.record(), 'release-1', resource)
   await crossTenantAnswers({
     ask: {
@@ -472,7 +430,6 @@ async function foreignRelease<P, E>(fixture: Fixture<P, E>): Promise<void> {
     submitted: [...other.sends, asked],
     what: 'release by another tenant',
   })
-  // Nothing of the own tenant was released.
   const inspected = await own.inspectRelease(release)
   if ('ok' in inspected) assert.notEqual(inspected.ok.kind, 'released')
   await own.released(release)
@@ -560,11 +517,6 @@ export function toolEnvironmentConformance<P, E>(): readonly ConformanceCase<Fix
   ]
 }
 
-// ---------------------------------------------------------------------------------------------
-// The non-durable double
-// ---------------------------------------------------------------------------------------------
-
-/** What the double hands out as the reconnect capability of an allocated environment. */
 export type MemoryEnvironment = Readonly<{ resource: string }>
 
 export interface MemoryToolEnvironment<P> extends ToolEnvironment<P, MemoryEnvironment> {
@@ -573,13 +525,9 @@ export interface MemoryToolEnvironment<P> extends ToolEnvironment<P, MemoryEnvir
     allocations(): number
     leases(): number
     outstanding(): number
-    /** The next allocation loses its initial answer before first adoption. */
     allocateBeforeAdoption(): void
-    /** Lose only the local registration, as a restart does: the operation answers `lost`, unsettled. */
     forgetRegistration(preparation: PreparationRecord): void
-    /** A terminal adoption failure retains the original allocation and cleanup responsibility. */
     failAdoption(preparation: PreparationRecord, reason: string): void
-    /** A new process over the same records: every registration is gone. */
     restart(): Promise<ToolEnvironment<P, MemoryEnvironment>>
     hold(): void
     settle(): Promise<void>
@@ -600,15 +548,10 @@ type Tenant = Access<unknown>['tenant']
 const reply = <T>(outcome: Outcome<T, ToolFailure>): Promise<Outcome<T, ToolFailure>> =>
   Promise.resolve(outcome)
 
-/**
- * An environment that allocates in memory. A preparation is keyed by tenant, call and operation:
- * a resend answers the original allocation, and a call never sees the resource of another call.
- */
 export function createMemoryToolEnvironment<P>(): MemoryToolEnvironment<P> {
   const preparations = new Map<string, Entry>()
   const originalAllocations = new Map<string, PreparedEnvironment<MemoryEnvironment>>()
   const releases = new Map<string, ReleaseProgress>()
-  /** What each operation was asked to do: the same identity with another input is a conflict. */
   const asked = new Map<string, string>()
   let allocated = 0
   let leases = 0
@@ -653,7 +596,6 @@ export function createMemoryToolEnvironment<P>(): MemoryToolEnvironment<P> {
     }
   }
 
-  /** A preparation this double was asked for whose registration is gone: its cleanup stays owed. */
   const lost = (at: string): PreparationProgress<MemoryEnvironment> => ({
     kind: 'lost',
     evidence: mintEvidence('environment/lost', { at }),
@@ -747,7 +689,6 @@ export function createMemoryToolEnvironment<P>(): MemoryToolEnvironment<P> {
         return reply(succeed(progress))
       }
       if (known && existing === undefined) return reply(succeed(lost(at)))
-      // An exclusion lets the original operation ask again; every other answer is the original.
       if (existing !== undefined && existing.kind !== 'excluded')
         return reply(succeed(answer(existing)))
       return prepareNew(record, at)
@@ -869,7 +810,6 @@ export function createMemoryToolEnvironment<P>(): MemoryToolEnvironment<P> {
   return Object.freeze({ ...environment, durability: 'none' as const, controls })
 }
 
-/** A fresh fixture over a fresh in-memory environment, with every control handle. */
 export function memoryToolEnvironmentFixture(): ToolEnvironmentFixture<string, MemoryEnvironment> {
   const environment = createMemoryToolEnvironment<string>()
   const { controls } = environment

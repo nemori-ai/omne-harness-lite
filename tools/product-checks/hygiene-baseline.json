@@ -1008,66 +1008,7 @@
     "packages/session/session/src/measure.ts": 2,
     "packages/session/session/src/recover.ts": 1,
     "packages/session/session/src/scan.ts": 1,
-    "packages/session/session/src/telemetry.ts": 1,
-    "packages/tool/tool-contract/src/authoring.ts": 1,
-    "packages/tool/tool-contract/src/background-calls.ts": 1,
-    "packages/tool/tool-contract/src/binding.ts": 1,
-    "packages/tool/tool-contract/src/body-store.ts": 1,
-    "packages/tool/tool-contract/src/command-call.ts": 3,
-    "packages/tool/tool-contract/src/contract.ts": 2,
-    "packages/tool/tool-contract/src/definitions.ts": 1,
-    "packages/tool/tool-contract/src/dynamics.ts": 1,
-    "packages/tool/tool-contract/src/json-tree.ts": 1,
-    "packages/tool/tool-contract/src/judge-definition.ts": 1,
-    "packages/tool/tool-contract/src/operations.ts": 1,
-    "packages/tool/tool-contract/src/reference.ts": 3,
-    "packages/tool/tool-contract/src/registration.ts": 1,
-    "packages/tool/tool-contract/src/resident-key.ts": 1,
-    "packages/tool/tool-contract/src/result-delivery.ts": 1,
-    "packages/tool/tool-contract/src/settings.ts": 1,
-    "packages/tool/tool-contract/src/testing-body-store.ts": 1,
-    "packages/tool/tool-contract/src/testing-external.ts": 1,
-    "packages/tool/tool-contract/src/testing-result-receiver.ts": 2,
-    "packages/tool/tool-cordis-contract/src/testing-adoption-scripts.ts": 1,
-    "packages/tool/tool-cordis-contract/src/testing-residency-memory.ts": 1,
-    "packages/tool/tool-cordis-contract/src/testing-resident-key.ts": 1,
-    "packages/tool/tool-cordis-contract/src/testing.ts": 3,
-    "packages/tool/tool-definitions/src/author.ts": 1,
-    "packages/tool/tool-definitions/src/files-paths.ts": 1,
-    "packages/tool/tool-definitions/src/protocol.ts": 1,
-    "packages/tool/tool-host-local/src/absent-ports.ts": 1,
-    "packages/tool/tool-host-local/src/bindings.ts": 1,
-    "packages/tool/tool-host-local/src/call-records.ts": 1,
-    "packages/tool/tool-host-local/src/clock.ts": 1,
-    "packages/tool/tool-host-local/src/executor-binding.ts": 1,
-    "packages/tool/tool-host-local/src/grant-verifiers.ts": 1,
-    "packages/tool/tool-host-local/src/host-domains.ts": 1,
-    "packages/tool/tool-host-local/src/ledger-guards.ts": 1,
-    "packages/tool/tool-host-local/src/result-delivery.ts": 9,
-    "packages/tool/tool-host-local/src/runtime-author.ts": 1,
-    "packages/tool/tool-host-local/src/runtime-composition.ts": 1,
-    "packages/tool/tool-host-local/src/runtime-executor.ts": 2,
-    "packages/tool/tool-host-local/src/source-identities.ts": 1,
-    "packages/tool/tool-host-local/src/start-coordinator.ts": 1,
-    "packages/tool/tool-host-local/src/start-guard.ts": 1,
-    "packages/tool/tool-storage-sql/src/body-store.ts": 1,
-    "packages/tool/tool-storage-sql/src/ledger-keeper.ts": 1,
-    "packages/tool/tool-storage-sql/src/ledger-store.ts": 1,
-    "packages/tool/tool-storage-sql/src/tenant.ts": 1,
-    "packages/tool/tool-storage-sql/src/worker/participant.ts": 1,
-    "packages/tool/tool-storage-sql/src/worker/schema.ts": 1,
-    "packages/tool/tool/src/driver-resumption.ts": 1,
-    "packages/tool/tool/src/driver-suspension.ts": 1,
-    "packages/tool/tool/src/json-tree.ts": 1,
-    "packages/tool/tool/src/ledger-body-reads.ts": 1,
-    "packages/tool/tool/src/ledger-body-writer.ts": 1,
-    "packages/tool/tool/src/ledger-queue.ts": 1,
-    "packages/tool/tool/src/ledger-resumption.ts": 1,
-    "packages/tool/tool/src/ledger-store.ts": 1,
-    "packages/tool/tool/src/ledger-sweep.ts": 1,
-    "packages/tool/tool/src/stream-facade.ts": 1,
-    "packages/tool/tool/src/testing-access.ts": 1,
-    "packages/tool/tool/src/testing-store.ts": 1
+    "packages/session/session/src/telemetry.ts": 1
   },
   "sizes": {
     "files": {
@@ -1102,13 +1043,11 @@
       "packages/session/session-storage-sql/src/participants.ts": 1028,
       "packages/session/session-storage-sql/src/worker/history-index.ts": 1093,
       "packages/session/session-storage-sql/src/worker/participant.ts": 1591,
-      "packages/tool/tool-contract/src/testing-executor-binding.ts": 1109,
-      "packages/tool/tool-cordis-contract/src/testing.ts": 1537,
-      "packages/tool/tool-host-local/src/environment-state.ts": 1027,
-      "packages/tool/tool-host-local/src/start-coordinator.ts": 1191,
-      "packages/tool/tool/src/driver.ts": 1105,
-      "packages/tool/tool/src/ledger-start.ts": 1217,
-      "packages/tool/tool/src/ledger.ts": 2245,
+      "packages/tool/tool-contract/src/testing-executor-binding.ts": 1022,
+      "packages/tool/tool-cordis-contract/src/testing.ts": 1388,
+      "packages/tool/tool-host-local/src/start-coordinator.ts": 1059,
+      "packages/tool/tool/src/ledger-start.ts": 1002,
+      "packages/tool/tool/src/ledger.ts": 2072,
       "tools/repo-toolchain/src/arch/extract.ts": 1098
     },
     "functions": {
@@ -1694,27 +1633,27 @@
       },
       "packages/tool/tool-contract/src/testing-environment.ts": {
         "count": 1,
-        "longest": 264
+        "longest": 261
       },
       "packages/tool/tool-contract/src/testing-executor-binding.ts": {
         "count": 2,
-        "longest": 420
+        "longest": 413
       },
       "packages/tool/tool-contract/src/testing-external.ts": {
         "count": 1,
-        "longest": 407
+        "longest": 395
       },
       "packages/tool/tool-contract/src/testing-resource-responses.ts": {
         "count": 2,
-        "longest": 308
+        "longest": 299
       },
       "packages/tool/tool-contract/src/testing-start-authority.ts": {
         "count": 1,
-        "longest": 191
+        "longest": 186
       },
       "packages/tool/tool-cordis-contract/src/testing.ts": {
         "count": 2,
-        "longest": 333
+        "longest": 318
       },
       "packages/tool/tool-host-local/src/author-environment.ts": {
         "count": 1,
@@ -1726,7 +1665,7 @@
       },
       "packages/tool/tool-host-local/src/bindings.ts": {
         "count": 1,
-        "longest": 185
+        "longest": 184
       },
       "packages/tool/tool-host-local/src/catalog.ts": {
         "count": 1,
@@ -1734,63 +1673,59 @@
       },
       "packages/tool/tool-host-local/src/control-subject-adapter.ts": {
         "count": 1,
-        "longest": 180
-      },
-      "packages/tool/tool-host-local/src/environment-resource-ledger.ts": {
-        "count": 1,
-        "longest": 152
+        "longest": 177
       },
       "packages/tool/tool-host-local/src/environment-state.ts": {
         "count": 1,
-        "longest": 465
+        "longest": 426
       },
       "packages/tool/tool-host-local/src/execution-environment.ts": {
         "count": 1,
-        "longest": 351
+        "longest": 348
       },
       "packages/tool/tool-host-local/src/executor-binding.ts": {
         "count": 2,
-        "longest": 550
+        "longest": 495
       },
       "packages/tool/tool-host-local/src/invocation-forwarding.ts": {
         "count": 1,
-        "longest": 306
+        "longest": 297
       },
       "packages/tool/tool-host-local/src/invocation-source.ts": {
         "count": 1,
-        "longest": 297
+        "longest": 292
       },
       "packages/tool/tool-host-local/src/recovery-scans.ts": {
         "count": 1,
-        "longest": 189
+        "longest": 183
       },
       "packages/tool/tool-host-local/src/result-delivery.ts": {
         "count": 1,
-        "longest": 566
+        "longest": 515
       },
       "packages/tool/tool-host-local/src/runtime-author.ts": {
         "count": 2,
-        "longest": 329
+        "longest": 324
       },
       "packages/tool/tool-host-local/src/runtime-cordis.ts": {
         "count": 1,
-        "longest": 206
+        "longest": 204
       },
       "packages/tool/tool-host-local/src/runtime-executor.ts": {
         "count": 1,
-        "longest": 364
+        "longest": 340
       },
       "packages/tool/tool-host-local/src/runtime-publication.ts": {
         "count": 1,
-        "longest": 338
+        "longest": 337
       },
       "packages/tool/tool-host-local/src/scheduled-environment.ts": {
         "count": 1,
-        "longest": 487
+        "longest": 478
       },
       "packages/tool/tool-host-local/src/start-coordinator.ts": {
         "count": 1,
-        "longest": 518
+        "longest": 492
       },
       "packages/tool/tool-host-local/src/tool-forwarding.ts": {
         "count": 2,
@@ -1798,39 +1733,39 @@
       },
       "packages/tool/tool/src/driver-facts.ts": {
         "count": 1,
-        "longest": 309
+        "longest": 304
       },
       "packages/tool/tool/src/driver-suspension.ts": {
         "count": 1,
-        "longest": 325
+        "longest": 284
       },
       "packages/tool/tool/src/driver.ts": {
         "count": 1,
-        "longest": 935
+        "longest": 831
       },
       "packages/tool/tool/src/ledger-body-reads.ts": {
         "count": 1,
-        "longest": 196
+        "longest": 188
       },
       "packages/tool/tool/src/ledger-body-writer.ts": {
         "count": 1,
-        "longest": 444
+        "longest": 428
       },
       "packages/tool/tool/src/ledger.ts": {
         "count": 1,
-        "longest": 1758
+        "longest": 1649
       },
       "packages/tool/tool/src/runtime.ts": {
         "count": 1,
-        "longest": 166
+        "longest": 163
       },
       "packages/tool/tool/src/stream-facade.ts": {
         "count": 1,
-        "longest": 205
+        "longest": 201
       },
       "packages/tool/tool/src/testing-ledger-assembly.ts": {
         "count": 1,
-        "longest": 211
+        "longest": 210
       },
       "packages/tool/tool/src/testing-ledger-composition-cases.ts": {
         "count": 1,
@@ -1850,11 +1785,11 @@
       },
       "packages/tool/tool/src/testing-source.ts": {
         "count": 1,
-        "longest": 180
+        "longest": 177
       },
       "packages/tool/tool/src/testing-store.ts": {
         "count": 1,
-        "longest": 195
+        "longest": 189
       },
       "tools/product-checks/src/rules/model-credential-boundary.ts": {
         "count": 1,

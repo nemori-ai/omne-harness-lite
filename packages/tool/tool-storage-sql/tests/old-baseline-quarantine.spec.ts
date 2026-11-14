@@ -1,7 +1,3 @@
-// C9: a database migrated under the pre-r6 Tool baseline (`tool/001-tool-ledger-custody`, the
-// catalog of d3631d30e) is quarantined when the current catalog opens it. The provider finds a
-// migration marker the catalog does not list (sqlite-provider SPEC, migration markers) and refuses
-// the domain with a diagnostic; nothing migrates the old data.
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
@@ -23,7 +19,6 @@ import { configuration } from './windows-composition/storage.ts'
 
 const OLD_BASELINE = { owner: 'tool', id: '001-tool-ledger-custody' }
 
-/** The pre-r6 baseline as a standalone module: its id and the four tables it created. */
 const OLD_MIGRATION_MODULE = `
 export default {
   owner: ${JSON.stringify(OLD_BASELINE.owner)},
@@ -126,9 +121,6 @@ it('C9: a database created under the pre-r6 baseline is quarantined by the curre
     const answer = await current.register()
     expect(answer.kind).toBe('rejected_before_accept')
     assert.ok(answer.kind === 'rejected_before_accept')
-    // The provider names the quarantined domain unavailable at its boundary (sqlite-provider
-    // SPEC 5.5: a quarantined domain answers like an absent one); the marker reason stays in the
-    // provider's domain state. Nothing of the old data is migrated or read.
     expect(answer.reason).toBe('domain_unavailable')
   } finally {
     await current.close()

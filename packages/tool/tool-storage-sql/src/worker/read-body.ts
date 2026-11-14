@@ -1,5 +1,3 @@
-// A range of one body of one tenant (`snapshot`): its manifest, when sealed, and the chunks in
-// `[first, first + count)` as base64. A body without a manifest reads as absent.
 import type { ReadHandlerModule } from '@omne-harness/sql-contract/worker'
 import { parseBodyReadInput, type BodyReadOutput } from './facts.ts'
 import { BODY_READ_CHUNKS, BODY_READ_HANDLER, PROTOCOL } from './schema.ts'

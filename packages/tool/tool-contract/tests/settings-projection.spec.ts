@@ -1,7 +1,3 @@
-// The settings a tool asset body declares (P15), projected into the Settings definition shape by
-// the category hook: what the hook reads from the body, what it decides itself, that the body
-// judgment refuses a malformed declaration, and that the definition judgment refuses an item
-// without its presentation.
 import { readBodyText } from '@omne-harness/assets'
 import { defineSettings } from '@omne-harness/settings'
 import {
@@ -40,7 +36,6 @@ function declaration(
 
 const VERSION = 'sha256:0123abcd'
 
-/** The definition the settings hook derives from the asset body of a tool with this declaration. */
 function project(declaration: ToolSettingsDeclaration | null, name = 'Web', version = VERSION) {
   const body = toolAssetBody({
     name,
@@ -73,7 +68,6 @@ describe('the settings hook of the tool body contract', () => {
       },
     ])
     expect(projected?.definitionId).toBe('Web')
-    // The category; the assembly that holds the asset registers it under the asset reference.
     expect(projected?.providerId).toBe('tool')
     expect(projected?.version).toBe('sha256:0123abcd')
   })

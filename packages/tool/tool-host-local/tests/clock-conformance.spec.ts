@@ -1,6 +1,3 @@
-// The ToolClock conformance suite (P07) of the contract package, run against the host clock on a
-// manual time source. The fixture moves the sources the clock reads and nothing else, so a case
-// that turned not applicable would fail the table below.
 import { describe, expect, it } from 'vitest'
 import {
   runConformanceCase,
@@ -18,7 +15,6 @@ function fixture(): ToolClockFixture {
   const time = manualSources()
   let current = createLocalToolClock({ ...time.sources, epoch: 'run-1' })
   let runs = 1
-  // A restart or another host: a clock of another epoch reads the same sources.
   const clock: ToolClock = {
     now: () => current.now(),
     begin: input => current.begin(input),

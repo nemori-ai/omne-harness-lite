@@ -1,7 +1,3 @@
-// A4: tenant isolation. Each tenant reaches only the transaction domain the published directory
-// names for it, and inside a domain every statement filters on the tenant, so rows of another tenant
-// planted in the same database (a corrupt or mixed store) are never read, recalled or overwritten.
-// A tenant the directory does not hold is not read and not written.
 import { afterEach, describe, expect, it } from 'vitest'
 
 import type { LedgerDomain, LedgerRecord } from '@omne-harness/tool'

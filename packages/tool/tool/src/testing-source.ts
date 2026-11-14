@@ -65,17 +65,10 @@ async function authorityVerdict(check: () => Promise<AccessVerdict>): Promise<Ac
   }
 }
 
-/**
- * Non-durable paired source. A synchronous map insertion owns identity allocation and the
- * complete association. UUIDs reduce accidental reuse across fresh test assemblies; this is
- * neither a durable store nor a proof of collision-free allocation across process restarts.
- */
 export function createTestInvocationSource<P>(
   options: Readonly<{
     authority: ToolInvokeAuthority<P>
-    /** Capture an independent semantic view of mutable P; reuse only genuinely immutable P. */
     snapshotPrincipal: (principal: P) => P
-    /** Synchronous fault injection after reservation, before first successful issuance. */
     beforeIssue?: () => void
     throws?: string
   }>,
@@ -152,7 +145,6 @@ export function createTestInvocationSource<P>(
             failure: { kind: 'conflict', operation: known.reservation.admission },
           }
       }
-      // No await is allowed between checking the winner and saving the reservation.
       known = saved.get(key)
       if (known === undefined) {
         const call = decodeToolCallId(`call-${randomUUID()}`)
@@ -256,7 +248,6 @@ export type TestToolIdentities = Readonly<{
   instanceIdentities: ToolInstanceIdentities
 }>
 
-/** Non-durable operation/instance counters; invocation identities belong to the paired source. */
 export function createTestToolIdentities(): TestToolIdentities {
   let operations = 0
   let instances = 0

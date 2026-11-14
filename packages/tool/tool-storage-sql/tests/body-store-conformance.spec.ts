@@ -1,6 +1,3 @@
-// The ToolBodyStore suite against the SQL body store over the SQLite test provider. The store
-// clock is a manual clock the suite moves; `crash` closes the storage and reopens the same files
-// with a new adapter, so process state is lost and only the committed rows remain.
 import { randomBytes } from 'node:crypto'
 import { afterEach, describe, expect, it } from 'vitest'
 import {

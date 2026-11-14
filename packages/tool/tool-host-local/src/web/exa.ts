@@ -1,7 +1,3 @@
-// The Exa `/search` client: one POST with the key in `x-api-key`, the answer parsed at the boundary
-// with zod, the HTTP status mapped to the closed `WebFailure` set. No retry: a request that was sent
-// may have consumed credits, and a cancellation does not refund them. No redirect: the key goes to
-// the configured endpoint and to no second address, so a 3xx is answered as `upstream`.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { SearchHit, WebFailure } from '@omne-harness/tool-definitions'
 import { Agent, fetch as undiciFetch } from 'undici'
@@ -9,17 +5,12 @@ import { z } from 'zod'
 import { classifyThrown, parseContentType, readCapped } from './body.ts'
 
 export type WebSearchOptions = Readonly<{
-  /** The Exa search endpoint, for example `https://api.exa.ai/search`. */
   endpoint: URL
-  /** `lite` accepts only the request body written here; `auto` is the richer, costlier search. */
   type: 'lite' | 'auto'
-  /** Asked of Exa per result and enforced here per excerpt, in characters (Exa may exceed it). */
   highlightChars: number
-  /** Total duration of the call. */
   timeoutMs: number
 }>
 
-/** An Exa answer longer than this is not a search result page; it cannot be cut, so it is `too-large`. */
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 const MIN_TIMER_MS = 1000
 

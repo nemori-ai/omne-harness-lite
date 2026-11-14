@@ -1,6 +1,3 @@
-// The way from an admission to a recorded start through the real runtime, ledger and driver: the
-// preparation before the queue, the FIFO head and slot, the admission capacity, the start guard,
-// the start fence and the repair of a crash between the call domain and the queue domain.
 import { afterEach, describe, expect, it } from 'vitest'
 import { completedFinal } from '@omne-harness/tool-contract/testing'
 import {
@@ -32,7 +29,6 @@ import {
   type StartHarness,
 } from './start-values.ts'
 
-/** Whether a commit writes the operation record of `operation`: the commit of that operation. */
 function putsOperation(operation: string) {
   return (input: Parameters<Parameters<typeof losingCommits>[1]>[0]) =>
     input.writes.some(
@@ -43,14 +39,12 @@ function putsOperation(operation: string) {
     )
 }
 
-/** Whether a commit is a queue-domain commit that deletes the entry of `call`: its release. */
 function releasesEntry(call: string) {
   return (input: Parameters<Parameters<typeof losingCommits>[1]>[0]) =>
     input.domain.kind === 'queue' &&
     input.writes.some(write => write.kind === 'delete' && write.key === `entry:${call}`)
 }
 
-// Every scenario ends with every queue entry accounted for by its call domain (SPEC 22).
 afterEach(auditQueues)
 
 async function admitAll(harness: StartHarness, ...calls: readonly string[]): Promise<void> {
@@ -59,7 +53,6 @@ async function admitAll(harness: StartHarness, ...calls: readonly string[]): Pro
 
 type Limits = Readonly<{ concurrency: number | null; scopeBudget: number | null }>
 
-/** The request parts of a call of tool `name` in the scope with key `key`, with its limits. */
 function toolIn(name: string, limits: Limits, key = 'scope-1') {
   return {
     availability: {
@@ -73,7 +66,6 @@ function toolIn(name: string, limits: Limits, key = 'scope-1') {
   }
 }
 
-/** Makes the running execution of `call` end with a completed final. */
 async function finish(harness: StartHarness, call: string): Promise<void> {
   const access = { principal: principalA, tenant: tenantA, call: callId(call) }
   const recovery = ok(await harness.commands.loadRecovery(access))
@@ -139,7 +131,6 @@ describe('20 preparation and queue (P02, P03)', () => {
       effect: { kind: 'not-started' },
       execution: { kind: 'not-started' },
     })
-    // The rejected call released its place, so the next call of the key starts.
     expect(await harness.queue()).toEqual([{ call: 'c2', ordinal: '2', stage: 'preparing' }])
     await harness.drive('c2')
     expect(harness.binding.executions).toEqual(['c2'])
@@ -170,8 +161,6 @@ describe('20 preparation and queue (P02, P03)', () => {
     expect(harness.binding.executions).toEqual(['c1'])
   })
 
-  // The provider's last word on a preparation ends the driver's memory that it asked: when the step
-  // after that answer fails, the next run asks the provider to prepare, not to read a record.
   it.each(['prepared', 'rejected', 'lost', 'excluded'] as const)(
     '20 preparation: after the answer %s, a run that could not record it asks the provider to prepare again',
     async kind => {
@@ -199,7 +188,6 @@ describe('20 preparation and queue (P02, P03)', () => {
             },
           })
         },
-        // The first record of the provider's answer is lost before it commits.
         commands: base => ({
           ...base,
           prepared: input => {
@@ -242,7 +230,6 @@ describe('20 preparation and queue (P02, P03)', () => {
       purpose: 'resume',
       environmentAdoption: adoption('environment'),
     })
-    // A resume preparation is planned only for a suspended call whose decision was accepted.
     expect(failure(resume)).toEqual({ kind: 'invalid', field: 'call', reason: 'phase:accepted' })
     const other = {
       ...fixedOf(harness.internalRequests, 'c1'),
@@ -325,7 +312,6 @@ describe('20 preparation and queue (P02, P03)', () => {
   it('20 queue: with limit 1, three calls attempt their starts strictly in admission order, whatever order their drivers run in', async () => {
     const harness = startHarness()
     await admitAll(harness, 'c1', 'c2', 'c3')
-    // The first two starts are refused by the fence, so each releases its slot to the next call.
     harness.authority.refuse('c1')
     harness.authority.refuse('c2')
     await harness.drive('c3', 'c2', 'c1')
@@ -354,8 +340,6 @@ describe('20 preparation and queue (P02, P03)', () => {
   it('20 queue: an earlier call that is still preparing is not overtaken', async () => {
     const harness = startHarness()
     await admitAll(harness, 'c1', 'c2')
-    // c2 waits behind c1, and its reconcile asks the host to run c1, which still owes a step:
-    // c1 starts, and c2 never starts ahead of it.
     await harness.drive('c2')
     expect(harness.binding.attempts).toEqual(['c1'])
     expect((await harness.state('c2')).phase).toBe('queued')
@@ -384,7 +368,6 @@ describe('20 preparation and queue (P02, P03)', () => {
       queue: { kind: 'held' },
       timing: { kind: 'paused' },
     })
-    // The queue domain still counts the background call's slot, so a later run of c2 still waits.
     expect(await harness.queue()).toEqual([
       { call: 'c1', ordinal: '1', stage: 'held' },
       { call: 'c2', ordinal: '2', stage: 'ready' },
@@ -415,7 +398,6 @@ describe('20 preparation and queue (P02, P03)', () => {
       phase: 'queued',
       queue: { kind: 'waiting', ordinal: '2' },
     })
-    // One queue holds the calls of both tools: the key is the scope, not the scope and tool.
     expect(await harness.queue()).toEqual([
       { call: 'a1', ordinal: '1', stage: 'held' },
       { call: 'b2', ordinal: '2', stage: 'ready' },
@@ -596,10 +578,8 @@ describe('21 start intent and start fence (P04)', () => {
     })
     await admitCall(harness, 'c1')
     await harness.drive('c1')
-    // The run stopped with the start accepted by the fence and not recorded by the ledger.
     expect((await harness.state('c1')).phase).toBe('starting')
     expect(harness.binding.attempts).toEqual(['c1'])
-    // The store answers again; the next run learns the acceptance from the fence.
     await harness.host.driver().run({
       principal: principalA,
       tenant: tenantA,
@@ -709,7 +689,6 @@ describe('22 cross-domain commits and their repair', () => {
     })
     await admitAll(harness, 'c1', 'c2')
     await harness.drive('c1')
-    // The call domain settled; the queue domain still holds the entry, and the task says so.
     expect((await harness.state('c1')).phase).toBe('settled')
     const pending = ok(await harness.commands.loadRecovery(admission('c1', 'op-c1')))
     expect(pending.tasks.map(task => task.kind).sort()).toEqual(['deliver', 'queue'])
@@ -752,7 +731,6 @@ describe('23 driver run', () => {
     const harness = startHarness({ driverStepsPerRun: 2 })
     await admitCall(harness, 'c1')
     harness.host.scheduled.splice(0)
-    // Plan and environment are the first two steps; the run then yields and asks to go on.
     await harness.runOnce('c1')
     expect((await harness.state('c1')).phase).toBe('preparing')
     expect(harness.binding.executions).toEqual([])
@@ -767,7 +745,6 @@ describe('23 driver run', () => {
   })
 })
 
-/** A write context as the driver passes it: the WriteContext fields and the principal. */
 type Context = Parameters<StartHarness['commands']['enqueue']>[0]
 
 describe('19 write commands: boundary and qualification', () => {

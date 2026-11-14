@@ -1,6 +1,3 @@
-// The table double of the Tool access guard and its provider suite (RD-TOOLHEAD). The double must
-// pass all five cases. Three of them carry tenant isolation: no rule is denied, a forged tenant is
-// denied, and the same request for another tenant is denied.
 import { describe, expect, it } from 'vitest'
 import { decodeToolCallId, type ToolCallId } from '@omne-harness/tool-contract'
 import { testingTenant } from '@omne-harness/tool-contract/testing'
@@ -48,7 +45,6 @@ function fixture(): ToolAccessGuardFixture<Principal> {
     allowed,
     unlisted: { ...allowed, principal: { id: 'mallory' } },
     otherTenant: { ...allowed, tenant: tenantB() },
-    // The same texts as the allowed tenant, but a copy that legal-identity did not mint.
     forgedTenant: { ...allowed, tenant: structuredClone(tenantA()) },
     breakDependency: () => access.fail('authorization down'),
   }

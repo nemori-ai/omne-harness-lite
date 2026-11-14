@@ -1,4 +1,3 @@
-// Output custody, durable reads, content pages and accounts.
 import type { CallAccount } from '@omne-harness/call-account'
 import type { ToolBodyReader } from './body-reads.ts'
 import type { ContentBlock } from '@omne-harness/content-block'

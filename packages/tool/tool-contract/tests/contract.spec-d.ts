@@ -1,5 +1,3 @@
-// Compile-time checks of the public contract. Each `@ts-expect-error` names the diagnostic that
-// the accepted types must produce. The cases come from the #342 type probes.
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
 import { organizationCodec } from '@omne-harness/legal-identity'

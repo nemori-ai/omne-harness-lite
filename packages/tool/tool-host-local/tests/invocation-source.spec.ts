@@ -1,8 +1,3 @@
-// The paired invocation source (TL-11, row 2 of the guard table): identity issuance and recall over
-// the `host` domain of a ledger store, and the verification of a fixed request against the
-// binding. The authority (qualification and subject comparison) and the principal codec are test
-// parameters; the store is the in-memory store of `@omne-harness/tool/testing`, so these cases
-// prove behaviour over one store object, not durability.
 import { describe, expect, it } from 'vitest'
 
 import { fail } from '@omne-harness/operation-result'
@@ -44,7 +39,6 @@ const mallory: P = { subject: 'mallory' }
 
 const codec = subjectCodec
 
-/** Counts the calls and answers by subject: every subject is qualified, only equal ones are the same. */
 function authority(
   options: Readonly<{ qualify?: AccessVerdict; same?: AccessVerdict; throws?: boolean }> = {},
 ): ToolInvokeAuthority<P> & Readonly<{ calls: { qualify: number; same: number } }> {
@@ -73,7 +67,6 @@ type Fault =
   | 'commit-throws'
   | 'rejected'
 
-/** A store over the memory store that counts reads and commits and fails the next one on demand. */
 function observed() {
   const memory = createMemoryToolLedgerStore()
   const counts = { reads: 0, commits: 0 }
@@ -159,7 +152,6 @@ async function bound(issuer: ReturnType<typeof source>['issuer'], input = resolv
   return outcome
 }
 
-/** The mutation input the ledger passes to `verify` for a bound outcome. */
 function verifyInput(
   outcome: Awaited<ReturnType<typeof bound>>,
   overrides: Partial<{ principal: P; tenant: typeof tenantA }> = {},
@@ -230,7 +222,6 @@ describe('TL-11 invocation source: issuance and recall', () => {
     const b = await bound(issuer, resolveInput({ tenant: tenantB }))
     expect(b.recovered).toBe(false)
     expect(b.call).not.toBe(a.call)
-    // Each binding lives in the source domain of the call it names, in its own tenant.
     for (const [tenant, outcome] of [
       [tenantA, a],
       [tenantB, b],

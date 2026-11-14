@@ -1,6 +1,3 @@
-// 待办标记的判定（Tool SPEC 第 33 条）：有 `pending` 待办，或调用暂停中且有等待处于 opening、open、
-// responding。账本在每笔调用域提交里按提交生效后的记录判定。这里直接给出记录，覆盖真实流程里
-// 由别的待办掩盖的情形：接受之后的 `queue` 待办总与 responding 一起出现，非暂停调用的等待也总带着待办。
 import { describe, expect, it } from 'vitest'
 import type { LedgerRecord } from '../src/ledger-store.ts'
 import { hasPendingWork, pendingAfter } from '../src/ledger-pending.ts'

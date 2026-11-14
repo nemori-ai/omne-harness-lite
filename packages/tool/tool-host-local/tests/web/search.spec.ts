@@ -1,6 +1,3 @@
-// The Exa client of `createWebAccess` against the Exa double of the local fixture: the request it
-// sends, the mapping of a 200 answer, the status mapping, the shape failures, the key source and
-// cancellation. No request leaves 127.0.0.1.
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolCredentialFailure } from '@omne-harness/tool-contract/provider'
@@ -17,7 +14,6 @@ afterAll(async () => {
 })
 
 const never = () => new AbortController().signal
-/** A capability that hands the key to the action once and counts the uses. */
 function capability(key: string): ToolCredentialCapability<string> & { uses: number } {
   const holder = {
     uses: 0,
@@ -89,7 +85,6 @@ describe('Web search: the Exa request and the mapping of its answer', () => {
           title: 'Node.js permissions',
           url: 'https://nodejs.org/api/permissions.html',
           publishedAt: '2026-05-01T00:00:00.000Z',
-          // Exa exceeds maxCharacters; the client cuts the joined highlights to it.
           excerpt: `${'The Permission Model is a mechanism for '.slice(0, 40)}…`,
         },
         {

@@ -1,6 +1,3 @@
-// 调用域的待办标记在 SQLite 上的兑现：标记与调用域的记录同一事务，主键 `(tenant, call)` 是扫描的
-// 索引，关闭重开后仍在；在 002 之前就已迁移的事务域，下次打开时补上标记表。数据库直接检查，
-// 不只经端口。
 import { afterEach, describe, expect, it } from 'vitest'
 import type { LedgerCommitInput, LedgerDomain } from '@omne-harness/tool'
 import { decodeToolCallId, type ToolCallId } from '@omne-harness/tool-contract'
@@ -91,15 +88,12 @@ describe('the pending marker of a call domain', () => {
         writes: [{ kind: 'drop' }],
       }),
     ).toEqual({ kind: 'committed' })
-    // A dropped call owes no work: a marker left behind would be listed by every later scan.
     expect(markers(a)).toEqual([{ call: 'c2' }])
     expect(records(a)).toHaveLength(1)
   })
 
   it('rolls back with the records when its own statement fails, and the records roll it back', async () => {
     const a = await app()
-    // Statement 1 reads the revision, 2 writes the record, 3 sets the revision, 4 writes the marker.
-    // A failed statement is a definite refusal of this commit (TS-02): `rejected`, nothing written.
     a.sqlite.failStatement(4)
     expect((await a.store.commit(commitOf(domainOf('c1'), '0', true))).kind).toBe('rejected')
     expect({ records: records(a), markers: markers(a) }).toEqual({ records: [], markers: [] })
@@ -152,7 +146,6 @@ describe('the pending marker of a call domain', () => {
   it('reaches a domain that was migrated before the marker table: the next open adds the table', async () => {
     const first = await openApp({ keep: true })
     await first.store.commit(commitOf(domainOf('old'), '0', false))
-    // The domain as the baseline migration alone left it: no marker table, no record of the second.
     const name = domainNameOf(TENANT_A)
     first.sqlite.inspect(name, 'DROP TABLE tl_pending')
     first.sqlite.inspect(name, "DELETE FROM _sql_migration WHERE id = 'r6-002-tool-pending'")
@@ -217,7 +210,6 @@ describe('a scan the store cannot answer', () => {
   })
 })
 
-/** The first three suite tenants, in the order of their tenant texts: the order of a scan. */
 const ORDERED = SUITE_TENANTS.slice(0, 3).sort((a, b) => (textOf(a) < textOf(b) ? -1 : 1))
 const [FIRST, MIDDLE, LAST] = ORDERED as [
   (typeof ORDERED)[0],
@@ -230,7 +222,6 @@ const entryOf = (tenant: (typeof ORDERED)[0]) => ({
   domain: domainRef(textOf(tenant), domainNameOf(tenant)),
 })
 
-/** A store whose directory lists `tenants` in the given order. */
 const listing = (a: App, tenants: readonly (typeof ORDERED)[0][]) =>
   createSqlToolLedgerStore({
     ...a.options,
@@ -241,7 +232,6 @@ const namesOf = (answer: Awaited<ReturnType<App['store']['scanPending']>>) =>
   answer.kind === 'page' ? answer.calls.map(entry => [textOf(entry.tenant), entry.call]) : answer
 
 describe('the scan of every tenant', () => {
-  /** Two markers in the first tenant, one in the middle one, two in the last. */
   async function marked() {
     const a = await app()
     for (const [text, tenant] of [
@@ -252,7 +242,6 @@ describe('the scan of every tenant', () => {
       ['c5', LAST],
     ] as const)
       await a.store.commit(commitOf(domainOf(text, tenant), '0', true))
-    // The directory lists the tenants in another order than the scan answers them.
     return listing(a, [LAST, FIRST, MIDDLE])
   }
 
@@ -277,7 +266,6 @@ describe('the scan of every tenant', () => {
       [textOf(FIRST), 'c2'],
     ])
     expect(first).toMatchObject({ more: true })
-    // The cursor is in the middle tenant: the first tenant is not read again.
     const rest = await store.scanPending({
       tenant: null,
       after: { tenant: MIDDLE, call: call('c3') },
@@ -396,7 +384,6 @@ describe('why a scan is unavailable', () => {
     ).toEqual({ kind: 'unavailable', diagnostic: 'not a legal tenant' })
   })
 
-  /** A store whose pending read answers `answer` instead of reading. */
   function answering(a: App, answer: unknown) {
     const inner = a.options.storage
     const storage = Object.assign(Object.create(inner) as typeof inner, {

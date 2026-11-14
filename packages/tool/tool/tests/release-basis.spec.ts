@@ -1,7 +1,3 @@
-// The basis that releases the queue place of a settled call (P02): a place is freed on a proof that
-// the execution physically ended or never started, never on the logical end alone. The basis
-// exists only while the saved final, the call's start and execution and the preserved result agree
-// piece by piece; a call whose records disagree in any piece keeps its place.
 import { afterEach, describe, expect, it } from 'vitest'
 import { snapshotOf } from '../src/ledger-decider.ts'
 import { releaseBasisOf } from '../src/ledger-start.ts'
@@ -40,7 +36,6 @@ const call = (change: (call: Record & { kind: 'call' }) => object) => (record: n
   const original = record as Record & { kind: 'call' }
   return { ...original, call: { ...original.call, ...change(original) } }
 }
-/** Edits the saved event of the final: `fact` of the event record is the event, its `fact` the final. */
 const saved =
   (change: (event: Record & { kind: 'fact-event' }) => object, inside: 'event' | 'final') =>
   (record: never) => {
@@ -250,8 +245,6 @@ describe('the basis of a call that settled while it was suspended', () => {
 
   it('names the exclusion of the suspension whose checkpoint the settled state keeps', async () => {
     const { records, basis, checkpoint, committed } = await suspendedAndSettled()
-    // Suspension records that come first and are not that one: a plan without its checkpoint, and a
-    // commit of another checkpoint with its own exclusion.
     const plan = {
       ...committed,
       suspension: {
@@ -277,7 +270,6 @@ describe('the basis of a call that settled while it was suspended', () => {
       checkpoint,
       exclusion: committed.suspension.checkpoint?.exclusion,
     })
-    // Only a checkpoint that is not the settled one: none of the commits proves this call's exclusion.
     expect(basis([plan, other, ...records.filter(record => record.kind !== 'suspension')])).toBe(
       null,
     )
