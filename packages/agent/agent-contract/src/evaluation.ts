@@ -314,15 +314,19 @@ export type AdoptedRequest = Readonly<{
   record: JsonValue
 }>
 /**
- * A main Model intent that the Model answered with an authoritative not-accepted (SPEC "身份、范围与
- * 归属", Model 未知行; R2-D292). The call was never admitted and never sent: the intent is closed
- * by `basis`, and the step prepares its request again under the next attempt. `reference` is the
- * invocation of the voided intent; `action` is the action of its effect.
+ * A main Model intent that will have no result that counts, on the authoritative answer of the
+ * Model (SPEC "身份、范围与归属", Model 未知行; R2-D292). `cause` says which answer: `not-accepted`,
+ * the call was never admitted and never sent, and the step prepares its request again under the
+ * next attempt; `lost`, the call was admitted and nobody advances it any more, its cost is unknown,
+ * and it counts as one transient failure of the main call. The intent is closed by `basis`, the
+ * evidence of that answer. `reference` is the invocation of the voided intent; `action` is the
+ * action of its effect.
  */
 export type VoidedIntent = Readonly<{
   step: StepId
   action: ActionId
   reference: M.ModelInvocationRef
+  cause: 'not-accepted' | 'lost'
   basis: DurableEvidence
 }>
 export type ModelRetryState = Readonly<{

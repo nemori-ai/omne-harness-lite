@@ -790,6 +790,7 @@ export type VoidedIntent = Readonly<{
     step: StepId;
     action: ActionId;
     reference: M.ModelInvocationRef;
+    cause: 'not-accepted' | 'lost';
     basis: DurableEvidence;
 }>;
 export type ModelRetryState = Readonly<{

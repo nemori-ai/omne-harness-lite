@@ -57,7 +57,8 @@ it('closes a main call the Model lost in the Session log Journal, and a new call
       expect.objectContaining({
         step: 'step-1',
         reference: lost,
-        basis: expect.objectContaining({ record: `${first}/step-1/lost/0` }),
+        cause: 'lost',
+        basis: LOCK,
       }),
     ])
     expect(ended.checkpoint.modelRetry ?? null).toBeNull()

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { StepId } from '@omne-harness/agent-contract'
-import { execution, ok } from './journal-support.ts'
+import { evidence, execution, ok } from './journal-support.ts'
 import { eventually } from './loop-support.ts'
 import {
   assistantTexts,
@@ -93,7 +93,8 @@ describe('takeover of a main Model call whose result is not in the Journal', () 
         step: 'step-1',
         action: open?.action,
         reference: open?.kind === 'model' ? open.reference : null,
-        basis: expect.objectContaining({ record: `${execution()}/step-1/lost/0` }),
+        cause: 'lost',
+        basis: evidence('state-lock'),
       },
     ])
     expect(after.settlement.candidate).toBeNull()

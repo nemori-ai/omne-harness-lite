@@ -1887,7 +1887,7 @@ function coordinate<P>(
           ports.clock,
         )
         if ('failure' in retried) return retried
-        const lost = lostIntent(execution, required(checkpoint, 'checkpoint'), current)
+        const lost = lostIntent(required(checkpoint, 'checkpoint'), current)
         if (retried.ok !== null)
           return step('retry', { checkpoint: { calls: [], modelRetry: retried.ok, ...lost } })
         if (decided?.kind !== 'try-finish' || decided.failure?.kind !== 'no-reply') {
@@ -3335,6 +3335,8 @@ function coordinate<P>(
       reference: pending.reference,
       answer,
     })
+    const { action, reference } = pending
+    const record = { step: current.step, action, reference, cause: 'not-accepted' as const, basis }
     // The batch of the step: in memory, or the saved one after a restart (R2-D292).
     iteration = newIteration(current.step, current.batch ?? at.inputBatch, attempt + 1)
     state = { kind: 'advancing' }
@@ -3343,10 +3345,7 @@ function coordinate<P>(
         calls: at.calls.filter(
           call => call.kind !== 'model' || call.reference !== pending.reference,
         ),
-        voided: [
-          ...at.voided,
-          { step: current.step, action: pending.action, reference: pending.reference, basis },
-        ],
+        voided: [...at.voided, record],
       },
       state: { kind: 'advancing' },
     })

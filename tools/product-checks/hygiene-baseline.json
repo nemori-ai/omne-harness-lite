@@ -4026,7 +4026,7 @@
       "packages/session/session-adapters/src/testing/factory.ts": 1415,
       "packages/session/session-adapters/src/testing/journal-finishing.ts": 1567,
       "packages/session/session-adapters/src/testing/journal-receiving.ts": 1006,
-      "packages/session/session-adapters/src/testing/journal.ts": 5499,
+      "packages/session/session-adapters/src/testing/journal.ts": 5496,
       "packages/session/session-adapters/src/testing/session.ts": 1340,
       "packages/session/session-contract/src/decide.ts": 1005,
       "packages/session/session-contract/src/testing-transactions.ts": 2683,
@@ -4546,7 +4546,7 @@
       },
       "packages/session/session-adapters/src/testing/journal.ts": {
         "count": 6,
-        "longest": 4006
+        "longest": 4003
       },
       "packages/session/session-adapters/src/testing/root.ts": {
         "count": 1,

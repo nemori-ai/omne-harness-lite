@@ -1,6 +1,5 @@
 import type {
   AgentCheckpoint,
-  AgentExecutionId,
   DurableEvidence,
   PendingCall,
   ProducedResult,
@@ -11,7 +10,7 @@ import type {
 import { faultIsTransient } from '@omne-harness/model-contract'
 import type * as M from '@omne-harness/model-contract'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
-import { agentEvidence, replyMessageId } from './identities.ts'
+import { replyMessageId } from './identities.ts'
 
 type Message = LoopFacts['inputs'][number]
 export type ModelOutcome = Readonly<{
@@ -102,7 +101,6 @@ export function lostModelResult(call: M.ModelCallId, evidence: DurableEvidence):
 }
 
 export function lostIntent(
-  execution: AgentExecutionId,
   at: Pick<AgentCheckpoint, 'voided'>,
   call: Readonly<{
     step: StepId
@@ -113,8 +111,7 @@ export function lostIntent(
   const { step, pending, lost } = call
   if (pending === null || lost === null) return {}
   const { action, reference } = pending
-  const basis = agentEvidence(`${execution}/${step}/lost/${at.voided.length}`, { reference, lost })
-  return { voided: [...at.voided, { step, action, reference, basis }] }
+  return { voided: [...at.voided, { step, action, reference, cause: 'lost', basis: lost }] }
 }
 
 /** The longest model diagnostic a cause record carries; a longer one is cut there. */
