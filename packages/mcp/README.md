@@ -38,7 +38,7 @@ flowchart LR
 
 候选决定：mcp-host-local 的插件暂不进应用插件树。mcp-cordis-contract 是定义成员，只给出服务定义与服务键，没有插件树行。端口缺席时插件也能装载，但用到缺席端口的那一步答 `unknown`，操作不放行（[端口缺席](mcp-host-local/SPEC.md#port-absent)）。所以进树的条件是：组外为四个需求端口提供实现；装配承担 mcp-host-local 的 SPEC 在[验证范围](mcp-host-local/SPEC.md#cordis-plugin-verification)里列出的前提，即同一 isolate 只装一次（IC-6）、撤除期限，以及让停止范围警告可见的日志级别。
 
-使用方式（候选，同沿 Tool 组先例）：只用契约的调用方依赖 mcp-contract；需要通用实现时再加 mcp；本地宿主使用 mcp-host-local。四个需求端口 `AdoptionView`、`UseEligibility`、`CredentialUse`、`ProcessLanding` 由组外提供，本组成员不导入提供者的包。第五个需求端口 `CatalogStore` 用 mcp 的内存实现。它的耐久实现接存储契约 [sql-contract](../storage/sql-contract/README.md)，是剩余义务，承载成员在建立时决定，见 [Q-MC03](docs/architecture.md#q-mc03-客户端认证清单一致采用及配置机制)。
+使用方式（候选，同沿 Tool 组先例）：只用契约的调用方依赖 mcp-contract；需要通用实现时再加 mcp；本地宿主使用 mcp-host-local。四个需求端口 `AdoptionView`、`UseEligibility`、`CredentialUse`、`ProcessLanding` 由组外提供，本组成员不导入提供者的包。第五个需求端口 `CatalogStore` 用 mcp 的内存实现。它的耐久实现接存储契约 [sql-contract](../storage/SPEC.md)，是剩余义务，承载成员在建立时决定，见 [Q-MC03](docs/architecture.md#q-mc03-客户端认证清单一致采用及配置机制)。
 
 旧任务的完整行为候选仍未分配。每份候选由哪个成员承接，见[承接表](docs/architecture.md#完整行为候选的正式承接缺口)。本组不在组根建立统一 SPEC。
 

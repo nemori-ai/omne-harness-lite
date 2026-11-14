@@ -39,7 +39,7 @@ MCP 是需求方。它用自己的词声明下面三个跨领域端口，由集�
 MCP 还声明需求端口 `CatalogStore`，保存自己的 MCP 动作清单。它的问题、答复与失败见[组工程设计](../../../packages/mcp/docs/architecture.md#mcp-声明的端口)。实现方如下：
 
 - 组内通用实现成员的内存实现。它只在一次运行内保存清单，进程重启后清单回到「未取得」。
-- 耐久实现：接存储契约 [sql-contract](../../../packages/storage/sql-contract/README.md)，是剩余义务。存储契约只提供存储机制，清单的含义、键与修订条件仍归 MCP。拥有者：MCP 组的维护者。
+- 耐久实现：接存储契约 [sql-contract](../../../packages/storage/SPEC.md)，是剩余义务。存储契约只提供存储机制，清单的含义、键与修订条件仍归 MCP。拥有者：MCP 组的维护者。
 
 ## MCP 交出的能力
 

@@ -40,7 +40,7 @@ const bodyStore = createSqlToolBodyStore({
 
 ## 契约
 
-端口形状归 [`@omne-harness/tool`](../tool/src/ledger-store.ts)（`ToolLedgerStore`）与 [`@omne-harness/tool-contract`](../tool-contract/SPEC.md#正文存储端口与到期索引)（`ToolBodyStore` 与到期索引）。SQL 操作归 [`@omne-harness/sql-contract`](../../storage/sql-contract/SPEC.md)。[SPEC.md](SPEC.md) 写本包在类型以外做什么：提交顺序、每种 SQL 结果的答复、租户隔离、正文的分块与清单、到期索引与已知限制。[docs/public-api.md](docs/public-api.md) 列出导出。
+端口形状归 [`@omne-harness/tool`](../tool/src/ledger-store.ts)（`ToolLedgerStore`）与 [`@omne-harness/tool-contract`](../tool-contract/SPEC.md#正文存储端口与到期索引)（`ToolBodyStore` 与到期索引）。SQL 操作归 [`@omne-harness/sql-contract`](../../storage/SPEC.md)。[SPEC.md](SPEC.md) 写本包在类型以外做什么：提交顺序、每种 SQL 结果的答复、租户隔离、正文的分块与清单、到期索引与已知限制。[docs/public-api.md](docs/public-api.md) 列出导出。
 
 ## 设计
 

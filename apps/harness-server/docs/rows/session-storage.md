@@ -1,6 +1,6 @@
 # 会话存储的租户目录与部署枚举
 
-`session-storage` 行持有租户登记表，并向存储登记会话组合。目录公开形状归 [sql-contract](../../../../packages/storage/sql-contract/SPEC.md)。系统枚举的裁定顺序归 [authorization AU-12](../../../../packages/identity/authorization/SPEC.md#au-12-系统动作授权端口判定顺序用途矩阵与维护授权读口)。本行通过这些公开端口履约，不另建身份或授予模型。
+`session-storage` 行持有租户登记表，并向存储登记会话组合。目录公开形状归 [sql-contract](../../../../packages/storage/SPEC.md#cordis-装配)。系统枚举的裁定顺序归 [authorization AU-12](../../../../packages/identity/authorization/SPEC.md#au-12-系统动作授权端口判定顺序用途矩阵与维护授权读口)。本行通过这些公开端口履约，不另建身份或授予模型。
 
 ## 首次启动与已有部署
 

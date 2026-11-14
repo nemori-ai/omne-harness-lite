@@ -27,8 +27,8 @@
 | [json-text](../../common/json-text/README.md) 与 [schema-provider](../../schema/schema-provider/SPEC.md)，已有实现 | 有界 JSON 读取、数字投影、结构校验、编译缓存；本域拥有 schema 身份与业务验证 | 新 JSON parser、JSON Schema 引擎或平行校验缓存。SchemaRef 的 load 函数留在本地 |
 | [operation-result](../../common/operation-result/SPEC.md)，已有实现                                                | 复用 Outcome/Ack；本域明确 pending/unknown 等业务观察                        | 把 unknown 压成成功或普通拒绝                                                  |
 | [exchange-refs](../../common/exchange-refs/SPEC.md)，纯类型                                                        | 消费采用与证据引用，向原拥有者核验                                           | 用一个引用对象冒充持久保管或授权服务                                           |
-| [sql-contract](../../storage/sql-contract/SPEC.md)，契约与辅助已存在                                               | `calendar-local` 编写本域表、迁移、参加者和查询；只使用公开入口              | 自建数据库、事务引擎、通用锁或第二套存储服务                                   |
-| [sqlite-provider](../../storage/sqlite-provider/SPEC.md)，已有提供者及具名限制                                     | 由应用装配选择，local 依赖 sql-contract，不依赖该具体包                      | 扩大 L-1 的授权保证或 L-4 的跨进程写者排除保证                                 |
+| [sql-contract](../../storage/SPEC.md)，契约与辅助已存在                                               | `calendar-local` 编写本域表、迁移、参加者和查询；只使用公开入口              | 自建数据库、事务引擎、通用锁或第二套存储服务                                   |
+| [sqlite-provider](../../storage/SPEC.md)，已有提供者及具名限制                                     | 由应用装配选择，local 依赖 sql-contract，不依赖该具体包                      | 扩大 L-1 的授权保证或 L-4 的跨进程写者排除保证                                 |
 | [kernel-basis](../../assembly/kernel-basis/README.md) 与 Cordis                                                    | 绑定使用公开辅助及唯一 Service 定义                                          | 第二套 DI 容器、插件注册表或有序清理框架                                       |
 | [settings](../../assets/settings/README.md) 与 [settings-local](../../assets/settings-local/README.md)，已有独立提供者 | 本域消费同一授权读取依据中的有效环境投影；真实 Calendar 消费适配仍待实现 | 在 Calendar 重建设置存储、注册器或资格治理 |
 | [notification](../../notification/notification/README.md)，草稿 | 交接维护通知要求 | 在 Calendar 实现通知渠道或替代服务 |

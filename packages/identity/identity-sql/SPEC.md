@@ -1,6 +1,6 @@
 # @omne-harness/identity-sql 行为规格
 
-状态：实现成员，按 [DP-3 决策记录](https://github.com/nemori-ai/omne-harness-lite/issues/978#issuecomment-6561478373)（#978 评论 6561478373）建立。本成员是 [identity 契约](../identity/SPEC.md) ID-16 资格读口、ID-17 三项操作与 ID-18 治理端口的持久提供者。治理端口按 M2 Reduce 的裁定 R2-D203 与 R2-D204 加入，兑现身份治理交付规格的 A、B、C 组。记录落在 [SQL 存储契约](../../storage/sql-contract/SPEC.md)系统作用域的事务域 `system.identity`。凭据只保存 [scrypt](../scrypt/SPEC.md) 派生材料。
+状态：实现成员，按 [DP-3 决策记录](https://github.com/nemori-ai/omne-harness-lite/issues/978#issuecomment-6561478373)（#978 评论 6561478373）建立。本成员是 [identity 契约](../identity/SPEC.md) ID-16 资格读口、ID-17 三项操作与 ID-18 治理端口的持久提供者。治理端口按 M2 Reduce 的裁定 R2-D203 与 R2-D204 加入，兑现身份治理交付规格的 A、B、C 组。记录落在 [SQL 存储契约](../../storage/SPEC.md)系统作用域的事务域 `system.identity`。凭据只保存 [scrypt](../scrypt/SPEC.md) 派生材料。
 
 本文件拥有本包在公开类型以外的必要行为。公开形状与运行时校验归 `src/` 的公开定义，公开定义的导航归 [docs/public-api.md](docs/public-api.md)。身份、登录与资格的产品语义归 identity 契约，本文只写本提供者怎样兑现它们，以及本提供者自己承担的规则。
 
@@ -13,7 +13,7 @@
 3. 纯工厂 `createIdentitySql`：注册激活、签发登录、识别登录、资格读口与治理端口的实现，以及 scrypt 结果、提交结果与读结果到契约结果的映射。
 4. `./cordis` 插件 `IdentitySqlPlugin`：配置校验、scrypt 打开、组合登记、五个服务键与停止语义。
 
-本成员不拥有：identity 的产品规则与结果类型（归 [identity SPEC](../identity/SPEC.md)）、SQL 提交、查询与读取的行为（归 [sql-contract](../../storage/sql-contract/SPEC.md) 与 [sqlite-provider](../../storage/sqlite-provider/SPEC.md)）、口令派生的强度与队列（归 [scrypt](../scrypt/SPEC.md)）、主体签发与核验（线包 R3）、更换凭据与组织隶属（R2-D204 第 6 条，本阶段不提供）、公开协议到治理端口的映射（归服务端接入）、应用行与材料目录的聚合（`apps/harness-server`）。
+本成员不拥有：identity 的产品规则与结果类型（归 [identity SPEC](../identity/SPEC.md)）、SQL 提交、查询与读取的行为（归 [sql-contract](../../storage/SPEC.md) 与 [sqlite-provider](../../storage/SPEC.md)）、口令派生的强度与队列（归 [scrypt](../scrypt/SPEC.md)）、主体签发与核验（线包 R3）、更换凭据与组织隶属（R2-D204 第 6 条，本阶段不提供）、公开协议到治理端口的映射（归服务端接入）、应用行与材料目录的聚合（`apps/harness-server`）。
 
 | 依据                                           | 位置                                                                                                               |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
@@ -23,8 +23,8 @@
 | 邀请时长的初值（7 天、最长 30 天）             | R2-D204 第 7 条（P-10）                                                                                            |
 | 资格读口、证据与角色映射                       | [identity SPEC ID-16](../identity/SPEC.md#id-16-首批公开形状主体与资格事实)                                        |
 | 不同失败事实与不伪造确定无效                   | [identity SPEC ID-03](../identity/SPEC.md#id-03-登录退出与登录状态维护)                                            |
-| 系统作用域、事务域、登记、提交结果、读 handler | [sql-contract SPEC](../../storage/sql-contract/SPEC.md) §2.5、§3、§4、§6、§7、§9                                   |
-| 域打开、迁移、分组资格与持久性                 | [sqlite-provider SPEC](../../storage/sqlite-provider/SPEC.md) §4.5、§5.3、§5.4                                     |
+| 系统作用域、事务域、登记、提交结果、读 handler | [sql-contract SPEC](../../storage/SPEC.md) §2.5、§3、§4、§6、§7、§9                                   |
+| 域打开、迁移、分组资格与持久性                 | [sqlite-provider SPEC](../../storage/SPEC.md) §4.5、§5.3、§5.4                                     |
 | 派生与校验的结果种类与关闭                     | [scrypt SPEC](../scrypt/SPEC.md)                                                                                   |
 | 成员位置、结果映射、单事务、读口、插件形状     | DP-3 决策记录第 1 至 6 条（候选 DP3-C1 至 DP3-C16）                                                                |
 | 时钟经 `identityClock` 服务键注入              | R1-D27（AAP-8 替代路径）。它取代 DP1-C16 与 DP-3 决策记录第 5 条的「插件体内构造系统时钟」                         |

@@ -1,6 +1,6 @@
 # @omne-harness/session-storage-sql 行为规格
 
-状态：存储成员，`draft`。已实现事务端口、三个参加者 `session`、`execution-record` 与 `session-ordinary-basis`、共同日志根、`session` 的只读核对、`./participants` 子路径、静态材料与读 handler，见[实现现状](#实现现状)与[参加者模块与材料](#参加者模块与材料)。事件通道的解释提交 `commitLog`、K-5 同根索引读取、观察尾部前缀与准入记录见[已知限制](#已知限制)第 12、16、17 条。本成员只经 [sql-contract](../../storage/sql-contract/SPEC.md) 的公开形状使用 SQL；本页其余条款是设计目标，实现覆盖范围见下文[实现现状](#实现现状)。本成员是 Session 组里唯一接触介质的成员。它用 SQL 表兑现 [session-contract](../session-contract/SPEC.md) 声明的 `SessionTransactionPort`：提交、权威读、原操作查询、控制操作查询、模型选择读、历史读、epoch 视图读、待办扫描、引用查询与已释放作用域读。治理规则不在本页，本页只写表、索引、写路径、读路径、符合性与介质差异。
+状态：存储成员，`draft`。已实现事务端口、三个参加者 `session`、`execution-record` 与 `session-ordinary-basis`、共同日志根、`session` 的只读核对、`./participants` 子路径、静态材料与读 handler，见[实现现状](#实现现状)与[参加者模块与材料](#参加者模块与材料)。事件通道的解释提交 `commitLog`、K-5 同根索引读取、观察尾部前缀与准入记录见[已知限制](#已知限制)第 12、16、17 条。本成员只经 [sql-contract](../../storage/SPEC.md) 的公开形状使用 SQL；本页其余条款是设计目标，实现覆盖范围见下文[实现现状](#实现现状)。本成员是 Session 组里唯一接触介质的成员。它用 SQL 表兑现 [session-contract](../session-contract/SPEC.md) 声明的 `SessionTransactionPort`：提交、权威读、原操作查询、控制操作查询、模型选择读、历史读、epoch 视图读、待办扫描、引用查询与已释放作用域读。治理规则不在本页，本页只写表、索引、写路径、读路径、符合性与介质差异。
 
 本文件拥有本包在公开类型以外的必要行为。公开形状与运行时校验归 `src/` 的公开定义，公开定义的导航归 [docs/public-api.md](docs/public-api.md)。表与索引的列、键与约束在 [docs/object-model.md](docs/object-model.md)，写路径、压缩提交与派生重建的时序在 [docs/flows.md](docs/flows.md)，验证义务在 [docs/verification-obligations.md](docs/verification-obligations.md)。
 
@@ -33,7 +33,7 @@
 | 压缩记录形状、保留名单与模型视图 CM-01 至 CM-06 | [message SPEC 模型视图](../../common/message/SPEC.md#模型视图) |
 | 历史源读口与 epoch 视图 H1 至 H5 | [request-context-contract](../../context/SPEC.md#七组稳定读取与来源登记) |
 | 公开形状 | [session-contract public-api](../session-contract/docs/public-api.md) |
-| 存储契约：操作身份、提交、查询、响应证据、参加者端口、读入口、关闭协议 | [sql-contract 规格](../../storage/sql-contract/SPEC.md)、[sqlite-provider 规格](../../storage/sqlite-provider/SPEC.md) |
+| 存储契约：操作身份、提交、查询、响应证据、参加者端口、读入口、关闭协议 | [sql-contract 规格](../../storage/SPEC.md)、[sqlite-provider 规格](../../storage/SPEC.md) |
 | 技术选择：Kysely 加 `node:sqlite`，经配置切换 PostgreSQL，没有内存实现 | [技术基础](../../../docs/architecture/technical-foundations.md#共同技术选择)、[基础设施政策](../../../docs/architecture/deployment/infrastructure-policy.md) |
 | 耐久边界与 SQL-T01 | [已确认保存的耐久边界](../../../docs/architecture/data-and-state.md#已确认保存的耐久边界)、[SQL-T01](../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) |
 | 组内落位 | [组架构](../docs/architecture.md)、[组流程](../docs/key-flows.md) |
@@ -84,7 +84,7 @@ K-n 编号是 Session 组各成员共用的一套序列：本页用 K-1 至 K-5 
 5. 偏离：材料集合核对（W1 第 3 步；session-contract「SessionTransactionPort」义务 1、2）。现行条款要求按命令种类核对 `guards` 的完整材料集合，缺一项或多一项答「不支持」。共同提交表的「参加者」列只有文字，没有可核对的 `owner`、`participant`、`protocol` 取值，身份桥、证据桥与 Context 输入在生产中也尚未实现，所以本成员现在只执行契约已固定的两处核对：`create` 与 `completeInitialization` 的 `session-initialization` 材料；`startRun` 的登录门见 W4b，不经守卫；其余命令的 `guards` 原样带入，不核对集合。退出条件：真实身份桥、证据桥与 Context 输入接入 Session 时，由 session-contract 的拥有者补导出逐命令材料表，本成员随之核对缺项与多项。条款原文不改（Reduce 裁定，#1000）。
 6. 组提交计数：`tests/real-provider.spec.ts` 并发提交 8 个会话的 `create`，原操作数 8，物理写事务数 8（读 WAL 提交帧得到，没有读提供者内部计数）。两者相等，记为零合并：参加者 `session` 标 `singleton`，按提供者规格 §4.5 单独成组。本成员不声称 G2-P 在这条路径上生效。这是 Windows 上 Node 26.12 的一次观察。
 7. `exclusion()` 构造的 `not-committed` 排除证据（`record`、`digest`）是死数据：`unfound()` 不把它交给调用方。要么删除，要么等辨认参加操作的入口补上后启用，见[明确缺项](#明确缺项)。
-8. K-1 大载荷：执行记录的一次写入超过存储的 `maxCommandBytes` 时，存储以确定的 `command_limit` 拒绝，提交方答确定失败 `invalid`（[会话日志 Journal 的翻译](../session-adapters/SPEC.md#生产提供者的实现现状)），Run 以失败终结。一批事实有上界（第 18 条），所以只有内容块会让一次写入超限。块可以用 `blobs` 意图先于引用它的事实单独提交。单个块仍受 `maxCommandBytes` 限制，超过它的块没有分段链路。触发条件：真实材料超过上限。读口上限：每个读 handler 的 `maxOutputBytes` 是装配参数，本成员没有默认值，也没有源码常量。`sessionStorageMaterials({ readOutputLimitBytes })` 必填该参数，类型 `SessionStorageMaterialsOptions`，必须是正安全整数；缺参数、0、负数、小数、`NaN`、无穷、超出安全范围或不是数字，构造时抛 `TypeError`（`readOutputLimitBytes must be a positive safe integer`），不读任何文件。推荐值 20 MiB（20971520，R2-D81：长会话的快照每轮增长，不能停在 1 MiB，见 [session SN-1](../session/SPEC.md#sn-1)；harness-server 的发行构建写明这个值，见第 19 条）。该值与装配的 `maxCommandBytes` 无关。上限由装配保证：本成员看不到提供者的配置，不核对它。提供者读时答 `handler_unavailable`，这是可见的失败；装配期另有 sqlite-provider 的启动核对（R2-D89）：构造期核对每个读 handler 的 `maxOutputBytes` 不超过 `maxReadResultBytes`，见 [sqlite-provider 的构造与域打开](../../storage/sqlite-provider/SPEC.md#53-do-1构造与域打开)与[配置](../../storage/sqlite-provider/SPEC.md#121-配置)。提供者不为输出上限超过自己 `maxReadResultBytes` 的 handler 服务（读时答 `handler_unavailable`），并按这个上限为每次读预留 `globalReadResultBytes`（含只读几行的读），所以装配把 `maxReadResultBytes` 配到至少 `readOutputLimitBytes`，`globalReadResultBytes` 至少是同时在途的读数乘它，不足时多出来的并发读答 `queue_full`。`maxRowsRead` 仍是 2000，`session.work` 是 4000：它的索引最多读 1000 行，快照的分块每行至多 16 KiB，20 MiB 的快照约 1300 行（[快照的存储形态](#快照的存储形态)）。事实读口一页最多读 513 行。所以行数上限不先于字节上限挡住长会话。一个块由 `execution-record.blob` 整块读出。输出是块加一个很短的外壳。写入块的命令是同一个块加摘要、标识与事实（至少数百字节）。所以只要 `maxCommandBytes` 不超过 `readOutputLimitBytes`，能写入的块一定读得回。`tests/real-joint.spec.ts` 在 `maxCommandBytes` 为 1 MiB 的真实 provider 上写入恰好等于上限的命令（多一字节被拒为 `command_limit`），再读回同一个块。`tests/read-output-limit.spec.ts` 在写入上限放大的真实 provider 上写入 2 MiB 与几乎填满读上限的块并整块读回。输出超过 `readOutputLimitBytes`（该用例传 20 MiB）时读口答 `read_limit`，不交出任何部分。事实读口按整批分页（第 18 条），所以一个会话的事实总量不受 1 MiB 限制。装配把 `maxCommandBytes` 配到超过 `readOutputLimitBytes` 时这个保证不再成立。读口上限必须随之放大，否则块写得进、读不回，引用它的读者答 `unavailable`。
+8. K-1 大载荷：执行记录的一次写入超过存储的 `maxCommandBytes` 时，存储以确定的 `command_limit` 拒绝，提交方答确定失败 `invalid`（[会话日志 Journal 的翻译](../session-adapters/SPEC.md#生产提供者的实现现状)），Run 以失败终结。一批事实有上界（第 18 条），所以只有内容块会让一次写入超限。块可以用 `blobs` 意图先于引用它的事实单独提交。单个块仍受 `maxCommandBytes` 限制，超过它的块没有分段链路。触发条件：真实材料超过上限。读口上限：每个读 handler 的 `maxOutputBytes` 是装配参数，本成员没有默认值，也没有源码常量。`sessionStorageMaterials({ readOutputLimitBytes })` 必填该参数，类型 `SessionStorageMaterialsOptions`，必须是正安全整数；缺参数、0、负数、小数、`NaN`、无穷、超出安全范围或不是数字，构造时抛 `TypeError`（`readOutputLimitBytes must be a positive safe integer`），不读任何文件。推荐值 20 MiB（20971520，R2-D81：长会话的快照每轮增长，不能停在 1 MiB，见 [session SN-1](../session/SPEC.md#sn-1)；harness-server 的发行构建写明这个值，见第 19 条）。该值与装配的 `maxCommandBytes` 无关。上限由装配保证：本成员看不到提供者的配置，不核对它。提供者读时答 `handler_unavailable`，这是可见的失败；装配期另有 sqlite-provider 的启动核对（R2-D89）：构造期核对每个读 handler 的 `maxOutputBytes` 不超过 `maxReadResultBytes`，见存储规格的[事务域的打开与迁移](../../storage/SPEC.md#事务域的打开与迁移)与[配置](../../storage/SPEC.md#wal-与配置)。提供者不为输出上限超过自己 `maxReadResultBytes` 的 handler 服务（读时答 `handler_unavailable`），并按这个上限为每次读预留 `globalReadResultBytes`（含只读几行的读），所以装配把 `maxReadResultBytes` 配到至少 `readOutputLimitBytes`，`globalReadResultBytes` 至少是同时在途的读数乘它，不足时多出来的并发读答 `queue_full`。`maxRowsRead` 仍是 2000，`session.work` 是 4000：它的索引最多读 1000 行，快照的分块每行至多 16 KiB，20 MiB 的快照约 1300 行（[快照的存储形态](#快照的存储形态)）。事实读口一页最多读 513 行。所以行数上限不先于字节上限挡住长会话。一个块由 `execution-record.blob` 整块读出。输出是块加一个很短的外壳。写入块的命令是同一个块加摘要、标识与事实（至少数百字节）。所以只要 `maxCommandBytes` 不超过 `readOutputLimitBytes`，能写入的块一定读得回。`tests/real-joint.spec.ts` 在 `maxCommandBytes` 为 1 MiB 的真实 provider 上写入恰好等于上限的命令（多一字节被拒为 `command_limit`），再读回同一个块。`tests/read-output-limit.spec.ts` 在写入上限放大的真实 provider 上写入 2 MiB 与几乎填满读上限的块并整块读回。输出超过 `readOutputLimitBytes`（该用例传 20 MiB）时读口答 `read_limit`，不交出任何部分。事实读口按整批分页（第 18 条），所以一个会话的事实总量不受 1 MiB 限制。装配把 `maxCommandBytes` 配到超过 `readOutputLimitBytes` 时这个保证不再成立。读口上限必须随之放大，否则块写得进、读不回，引用它的读者答 `unavailable`。
 9. K-2 线性序依赖单写者：共同根的严格递增依赖 SQLite 每个事务域只有一个写事务。PostgreSQL 或跨进程写者要另做串行化，例如锁住 `er_root` 与 `sl_journal` 两行。触发条件：PostgreSQL 提供者或跨进程写者进入范围。
 10. K-3 Agent 读形状：Agent 的读口只能用通用索引列。读形状要按别的字段过滤或排序时，要新增 `execution-record/00N` 迁移，由本成员的串行写者写。在此之前提供者不能用全量扫描代替。触发条件：Agent 契约改读口形状。
 11. K-4 执行顺序依赖名字：共同提交里 `session` 读到本批 `er_` 写入，这依赖名字序（`execution-record` 在 `session` 之前）。触发条件：任一参加者改名，或任一方声明事实依赖（依赖图先于名字序决定顺序）。`tests/execution-record.spec.ts` 断言当前顺序。
@@ -168,7 +168,7 @@ K-n 编号是 Session 组各成员共用的一套序列：本页用 K-1 至 K-5 
 
 ### 存储契约入口的采用
 
-存储契约现在是 [sql-contract](../../storage/sql-contract/SPEC.md)，它的公开形状已经提供本成员原先期望的六项入口。本成员只经这些公开形状使用 SQL，不依赖提供者实现。表中编号保留，因为其他条款引用它们。
+存储契约现在是 [sql-contract](../../storage/SPEC.md)，它的公开形状已经提供本成员原先期望的六项入口。本成员只经这些公开形状使用 SQL，不依赖提供者实现。表中编号保留，因为其他条款引用它们。
 
 <a id="xp-table"></a>
 
@@ -181,7 +181,7 @@ K-n 编号是 Session 组各成员共用的一套序列：本页用 K-1 至 K-5 
 | XP-5 | 迁移挂接 | `MigrationModule` 由提供者在原子迁移里执行。每个迁移的 `verify` 核对它建的表都在 |
 | XP-6 | 事务域目录 | 应用提供 `TenantDomainAccess`。每次调用先 `resolve` 本租户的域；系统读用 `snapshot` 枚举。目录项指向别的租户或别的作用域时拒绝使用 |
 
-存储对 SQLite 提供者的独立读连接由 sql-contract 的 `read` 入口闭合，不再是缺项。读与提交是否在同一个 Worker 内串行是提供者的事，见 [sqlite-provider 规格](../../storage/sqlite-provider/SPEC.md)。
+存储对 SQLite 提供者的独立读连接由 sql-contract 的 `read` 入口闭合，不再是缺项。读与提交是否在同一个 Worker 内串行是提供者的事，见 [sqlite-provider 规格](../../storage/SPEC.md)。
 
 `sl_blob` 已落地，由 `execution-record` 写入（[已知限制](#已知限制)第 18 条）。条目一侧的 `payload_ref` 尚未实现。超过 `maxCommandBytes` 的内容的保管链路仍是 Session 契约记下的[明确缺项](../session-contract/SPEC.md#具名前提与明确缺项)。
 
@@ -422,7 +422,7 @@ N 为该会话条目总数。K 为本页实际扫描条目数。B 为本页读�
 **W1 Session 为提交方的提交。**`SessionTransactionPort.commit` 按下列步骤执行。`session` 的流水线（[CP-01](../session/SPEC.md#cp-01)）在事务外完成它的第 1 至第 4 步，本成员从 CP-01 的第 5 步接手。时序见[写路径](docs/flows.md#写路径session-为提交方)。
 
 1. 选尝试代次并构造存储操作身份。代次的规则见下文的[尝试代次](#w1-attempts)。身份的 `scope` 与 `transactionDomain` 取自应用目录里该租户的事务域，`operation` 为 `SessionOperationId`，`operationKey` 为 `JSON.stringify([SessionId, SessionOperationId, attempt])`，`protocolVersion` 为 `2`。规范化 `{ command, guards, intakeLimits }` 为 JSON 值：位置、序号与 epoch 都是十进制文本，租户与工作区经 legal-identity 的编码写成带标记的文本，没有 BigInt、`undefined`、`Date` 或函数。Session 操作的输入摘要由 `commandDigest` 给出，写进 `sl_operation.input_digest`。调用前先向访问裁定取一次当前决定，访问不指名该命令的租户与会话时直接 `denied`。经委派视图提交时不取决定，改为核对视图绑定的请求与本次命令（租户、Session、命令摘要），不一致答 `denied`，证据取自绑定。两条路径取得的证据（公开端口的当次裁定，或视图的绑定证据）都随命令事实交给参加者，参加者在同一事务里写入 `sl_operation_evidence`，见[操作记录的访问证据](#操作记录的访问证据)。
-2. 调用存储契约的 `commit`，命令数组只有一条 `participant` 为 `session` 的命令。`rejected_before_accept` 按 sql-contract 的[提交拒绝原因的定性](../../storage/sql-contract/SPEC.md#提交拒绝原因的定性)映射，不改写为业务拒绝：暂时的原因映射为 `unavailable`，诊断带原因；确定的原因映射为 `invalid`，字段为 `storage`，原因为存储的原因名；其中 `writer_not_current` 映射为 `commit-unknown`。`unknown` 映射为 `commit-unknown`。`identity_conflict` 说明同一 Session 操作的另一次尝试已经用了这个代次：已有回执为 `committed` 时，端口从该回执的响应证据取出原结果，摘要相同则返回，`recovered` 为真，摘要不同则返回 `conflict`；已有回执为 `rolled_back` 时，回到第 1 步选下一个代次。
+2. 调用存储契约的 `commit`，命令数组只有一条 `participant` 为 `session` 的命令。`rejected_before_accept` 按 sql-contract 的[提交拒绝原因的定性](../../storage/SPEC.md#拒绝的定性)映射，不改写为业务拒绝：暂时的原因映射为 `unavailable`，诊断带原因；确定的原因映射为 `invalid`，字段为 `storage`，原因为存储的原因名；其中 `writer_not_current` 映射为 `commit-unknown`。`unknown` 映射为 `commit-unknown`。`identity_conflict` 说明同一 Session 操作的另一次尝试已经用了这个代次：已有回执为 `committed` 时，端口从该回执的响应证据取出原结果，摘要相同则返回，`recovered` 为真，摘要不同则返回 `conflict`；已有回执为 `rolled_back` 时，回到第 1 步选下一个代次。
 3. Worker 内，`session` 模块收到 `facts` 与语句端口。先核对材料：每个 `GuardCommand` 的 `owner`、`participant`、`protocol` 与该命令种类要求的材料集合一致。集合按[共同提交表](../session-contract/SPEC.md#共同提交与共享事务域)的「参加者」列固定在本成员的材料表里。缺一项或多一项，响应「不支持」，不写任何行。
 4. 点查 `sl_operation`，得到该操作的 `OperationRecord`，没有时为 null。认回由第 6 步的 `decide` 判定，本步只读行。
 5. 锁住并读 `sl_journal`，再读 `sl_state` 的头行。头文本与写 Worker 保留的快照相同时复用它，否则读出全部分块拼成快照（[Worker 内的两处保留](#worker-retention)）。PostgreSQL 下用 `SELECT ... FOR UPDATE` 锁住该会话的 `sl_journal` 行，同一会话后到的事务在这里等待，前一个事务提交后才读到新尾部。SQLite 只有一个写者，事务本来就串行，不另加锁。`sl_state.covered` 不等于 `sl_journal.tail`，或归约版本不是当前版本：响应「失败」，原因为 `unavailable`，`owner` 为本成员，由 R9 追赶后重试。核对通过时，交给 `decide` 的快照的 `revision` 等于 `tail`。
@@ -440,7 +440,7 @@ N 为该会话条目总数。K 为本页实际扫描条目数。B 为本页读�
 
 <a id="参加者失败的定性"></a>
 
-**参加者失败的定性。**`session` 参加者的每种失败是暂时的或确定的。判别方法与 sql-contract 的[提交拒绝原因的定性](../../storage/sql-contract/SPEC.md#提交拒绝原因的定性)相同：等待之后同一操作可以成立的是暂时的，等待不会改变的是确定的。暂时的失败响应「失败」，端口映射为 `unavailable`。确定的失败响应「冲突」，依据是 `SessionFailure` 的 `invalid`，字段为 `storage`，原因为下表的类别名，端口按第 9 步「冲突」一支原样返回。这样确定失败不经 `failed` 的诊断文本，端口不解析诊断。
+**参加者失败的定性。**`session` 参加者的每种失败是暂时的或确定的。判别方法与 sql-contract 的[提交拒绝原因的定性](../../storage/SPEC.md#拒绝的定性)相同：等待之后同一操作可以成立的是暂时的，等待不会改变的是确定的。暂时的失败响应「失败」，端口映射为 `unavailable`。确定的失败响应「冲突」，依据是 `SessionFailure` 的 `invalid`，字段为 `storage`，原因为下表的类别名，端口按第 9 步「冲突」一支原样返回。这样确定失败不经 `failed` 的诊断文本，端口不解析诊断。
 
 | 失败 | 定性 | 类别名 | 理由 |
 | --- | --- | --- | --- |
@@ -461,7 +461,7 @@ N 为该会话条目总数。K 为本页实际扫描条目数。B 为本页读�
 **尝试代次。**一个 Session 操作可以有多次存储提交尝试，每次尝试用一个新的存储操作身份 `JSON.stringify([SessionId, SessionOperationId, attempt])`，代次是从 1 起的安全整数。存储契约规定同身份同摘要返回已保存的回执，`rolled_back` 回执也持久保存，所以一个存储身份只能承载一次尝试。代次由存储回执推出，本成员不为代次另存耐久状态，只在进程内按操作记住已见到的最大代次。按下列顺序选代次：
 
 1. 点查 `sl_operation`。命中时返回原回执，`recovered` 为真，不提交。
-2. 未命中时，从起点往后逐个代次直接提交，不先 `query`。存储在执行之前认出同一身份的早先回执，并在答复里标明（sql-contract 的[认回标记](../../storage/sql-contract/SPEC.md#认回标记)）。起点是进程内记住的该操作的最大代次；没有记住时，例如进程重启之后，从代次 1 起。代次数不设上限：
+2. 未命中时，从起点往后逐个代次直接提交，不先 `query`。存储在执行之前认出同一身份的早先回执，并在答复里标明（sql-contract 的[认回标记](../../storage/SPEC.md#身份与认回)）。起点是进程内记住的该操作的最大代次；没有记住时，例如进程重启之后，从代次 1 起。代次数不设上限：
    - 答复是本次执行的回执（`recalled` 为假）：按第 3 步起的规则解读，本次尝试用的就是这个代次。
    - 答复是认回的 `rolled_back`：存储契约规定这是持久的终态，该代次不会再生效。提交下一个代次。
    - 答复是认回的 `committed`：读 `sl_operation`，返回原回执，`recovered` 为真，不开新代次。仍没有行时，这是存储缺陷（[C-01](#c-01)），返回 `unavailable`。
@@ -848,7 +848,7 @@ releasedScopes(principal, scope = system, after, limit):
 
 工作缓存（`src/work-cache.ts`）。R1 的回答可以由端口从进程内缓存给出，但每次都先核对存储，缓存永远不是权威：
 
-- 范围：每个数据库一份。身份是 sql-contract 的 `SqlStorage.database`（[§2.6](../../storage/sql-contract/SPEC.md#26-同一个数据库的身份)）。同一个库的公开端口、委派视图、会话归属读口、经 `./participants` 的 `readCachedSessionWork` 读的调用方（session-adapters 的 Journal 提供者）与各插件拿到的代理带同一个身份，共用一份缓存；不同的库身份不同，绝不共用，即使事务域名、租户、会话与版本都相同。键是事务域、租户文本与会话；`SessionId` 只在租户内唯一，所以两个租户的同名会话是两个键。缓存不是核权点：端口先取访问裁定、再按调用指名的租户取事务域，之后才查缓存。
+- 范围：每个数据库一份。身份是 sql-contract 的 `SqlStorage.database`（[存储规格](../../storage/SPEC.md#同一个数据库的身份)）。同一个库的公开端口、委派视图、会话归属读口、经 `./participants` 的 `readCachedSessionWork` 读的调用方（session-adapters 的 Journal 提供者）与各插件拿到的代理带同一个身份，共用一份缓存；不同的库身份不同，绝不共用，即使事务域名、租户、会话与版本都相同。键是事务域、租户文本与会话；`SessionId` 只在租户内唯一，所以两个租户的同名会话是两个键。缓存不是核权点：端口先取访问裁定、再按调用指名的租户取事务域，之后才查缓存。
 - 单飞：读到同一版本的并发读共用一次整读（以键与版本登记进行中的整读，结束即清除）；整读失败时所有等待者拿到同一个 `unavailable`，下一次读重新回源。版本点查失败的读不合并。
 - 版本：`(sl_journal.tail, er_root.published)`。`session.work` 的回答依赖这两个计数：快照行只在推进 `tail` 的事务里替换，`historyIndex` 读的 `er_` 行只在推进 `published` 的事务里写。两者只增不减。
 - 读：先经 `session.work-version` 点查当前版本（`sl_journal` 与 `er_root` 各一次主键点查，只读 `tail` 与 `published`，不读 `sl_state`：SQLite 取 `covered` 要走完快照正文的溢出页，代价随快照增长。行数与字节与会话大小无关）。会话不存在答 `denied`；版本与缓存项相等时返回缓存的已解析快照（缓存项只从核对过 `covered == tail` 的整读登记，快照行只在推进 `tail` 的事务里替换，所以 `tail` 相等时仍覆盖它）；不相等、没有缓存项、点查失败或回答不可解析时整读 `session.work`，按它在同一读快照里给出的版本登记。整读失败或解码失败时删除该项并返回失败。`tail` 或 `published` 任一项小于缓存项时（两者分别比较）删除该项并答 `unavailable`，诊断写 backwards（日志倒退，例如库被换成备份），不当作一次普通读。
@@ -920,7 +920,7 @@ releasedScopes(principal, scope = system, after, limit):
 - 范围：每个数据库一份（`SqlStorage.database`），按租户与会话记录“计数”与“存储上次确认它的时刻”。同一个数据库上的全部日志提供者共用。
 - 确认：读根得到计数，或一次发布在本次调用里提交成功并带回新计数。计数只增不减；低于已知值的答复是被发布越过的读，不改已知值。
 - 存疑：一次发布的结局不是“本次调用提交成功”时（被拒、认回、未知、不可用），丢掉已知值，下一次调用读根。
-- 取用（`planPublishedCount`，全函数）：没有已知值或调用方有结局未知的写时读根；否则用已知值。已知值没有龄期：一个数据库只由一个进程写（sqlite-provider 的 [§13.5](../../storage/sqlite-provider/SPEC.md#135-进程内写者排除) 与已知限制 L-4），这个进程的发布都经保管者。别的进程向同一个数据库发布不在支持的部署内；真发生时，按旧计数决定的发布被存储拒绝，已知值随即作废。
+- 取用（`planPublishedCount`，全函数）：没有已知值或调用方有结局未知的写时读根；否则用已知值。已知值没有龄期：一个数据库只由一个进程写（存储规格的[写者排除](../../storage/SPEC.md#写者读屏障与-worker) 与已知限制 L-4），这个进程的发布都经保管者。别的进程向同一个数据库发布不在支持的部署内；真发生时，按旧计数决定的发布被存储拒绝，已知值随即作废。
 - 最多记 4 096 个会话，最久未确认的先丢。丢掉只让下一次调用多读一次根。
 
 这条不放宽任何写入的条件：发布仍带计数作期望，按旧计数决定的发布被存储拒绝，调用方重读后重判。形式模型是 [PublishedCount](verification/models/published-count/README.md)。判据：`tests/published-count.spec.ts` 与 `session-adapters/tests/journal-root-reads.spec.ts`。
@@ -948,7 +948,7 @@ releasedScopes(principal, scope = system, after, limit):
 
 - 一次 `commit` 只有一个存储事务。参加者模块不开始、不提交、不回滚事务，语句端口拒绝这些语句。
 - 参加者语句失败后，提供者关闭本次语句端口，本成员不再执行语句，响应「失败」。
-- 读路径在事务外执行。读经 `SqlStorage.read` 的 `snapshot` 读，只读已提交状态。读与提交在提供者内部怎样排队归 [sqlite-provider 规格](../../storage/sqlite-provider/SPEC.md)。PostgreSQL 没有实现。
+- 读路径在事务外执行。读经 `SqlStorage.read` 的 `snapshot` 读，只读已提交状态。读与提交在提供者内部怎样排队归 [sqlite-provider 规格](../../storage/SPEC.md)。PostgreSQL 没有实现。
 - `commit` 没有取消。调用方取消观察时，原操作仍有结果拥有者，按原身份经 R7 对账。读路径的取消只释放调用方。
 - 同一会话的提交由 [W6](#w6) 串行化。不同会话的提交在同一事务域内仍经同一条写连接串行（SQLite），这是提供者的规则。
 
@@ -1001,9 +1001,9 @@ releasedScopes(principal, scope = system, after, limit):
 
 | 承诺 | 精确位置 | 本成员怎样消费 |
 | --- | --- | --- |
-| `commit`、`query`、`read` 的结果模型与拒绝顺序，响应证据 | [sql-contract §7 commit](../../storage/sql-contract/SPEC.md#7-commit)、[§8 query](../../storage/sql-contract/SPEC.md#8-query)、[§9 read](../../storage/sql-contract/SPEC.md#9-read) | W1 的映射与读路径路由 |
-| 参加者端口、事实格与语句限制 | [sql-contract §7.4](../../storage/sql-contract/SPEC.md#74-参加者端口与事实格) | 参加者模块经 `requireFact`/`provideFact` 传递提交依据，SQL 语句只用 `execute`，`params` 只用允许的类型 |
-| SQLite 提供者的启动、受理队列、两段回滚、未知条件 | [sqlite-provider 规格](../../storage/sqlite-provider/SPEC.md) | 失败分类表 |
+| `commit`、`query`、`read` 的结果模型与拒绝顺序，响应证据 | 存储规格的[提交](../../storage/SPEC.md#提交)、[查询](../../storage/SPEC.md#查询)、[读](../../storage/SPEC.md#读) | W1 的映射与读路径路由 |
+| 参加者端口、事实格与语句限制 | [存储规格「参加者端口与事实格」](../../storage/SPEC.md#参加者端口与事实格) | 参加者模块经 `requireFact`/`provideFact` 传递提交依据，SQL 语句只用 `execute`，`params` 只用允许的类型 |
+| SQLite 提供者的启动、受理队列、两段回滚、未知条件 | [sqlite-provider 规格](../../storage/SPEC.md) | 失败分类表 |
 | `SessionTransactionPort` 六条义务 | [SessionTransactionPort](../session-contract/SPEC.md#sessiontransactionport) | W1 第 3 步核对完整材料；W1 第 6 步与 W6 对带 `expected` 的七种命令返回 `changed`；TB-04 的保管前提；W1 的尝试代次与 R7 的 `attempt-rejected`；读路径逐页核权；W5 的游标同存 |
 | 历史面四个读操作与三个对账读操作的结果与拒绝原因 | [SessionHistory](../session-contract/SPEC.md#sessionhistory)、[SessionReconciliation](../session-contract/SPEC.md#sessionreconciliation) | R2、R5、R8、R10、R11 |
 | 事件目录的封套与 38 类 | [事件目录](../session-contract/docs/object-model/session-log-events.md#原生事实类别) | `sl_entry` 列与 W3 的派生规则 |

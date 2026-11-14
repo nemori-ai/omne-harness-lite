@@ -1,6 +1,6 @@
 # 装配边界
 
-本文件说明本包与 Cordis 装配的关系：本包不提供插件，会话存储组合由应用承担。文件名沿用固定专题名 `cordis.md`。本页不另立集成规则，规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md) 与 [sql-contract](../../../storage/sql-contract/SPEC.md)。
+本文件说明本包与 Cordis 装配的关系：本包不提供插件，会话存储组合由应用承担。文件名沿用固定专题名 `cordis.md`。本页不另立集成规则，规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md) 与 [sql-contract](../../../storage/SPEC.md)。
 
 ## 现状
 
@@ -19,8 +19,8 @@
 | 游标签名能力 | 应用 | 本包只收 `cursorSigning` |
 | `sessionTransactions` 服务键 | 应用：用 `createSessionStorage` 得到端口，交给服务键 | 键与抽象类归 [session-cordis-contract](../../session-cordis-contract/docs/cordis.md#端口服务键)，本包不提供 |
 | `sessionPrincipalBindings` 受信服务键 | 应用：用 `createSessionPrincipalBindings({ storage, domains })` 得到会话归属读口，存储与目录和公开端口相同，交给受信服务键 | 读口只答租户、会话归属与建立该会话那一批的证据，不调用访问检查；它经窄 handler `session.binding` 读，不用工作缓存，`bound` 在进程内记住。应用在行停止时调用读口的 `stop()`，此后一律答 `unavailable`。键与抽象类归 [session-cordis-contract](../../session-cordis-contract/docs/cordis.md#受信服务键)，本包不提供 |
-| 迁移执行与重启后的迁移 | 提供者（DO-1，见 [sqlite-provider 规格](../../../storage/sqlite-provider/SPEC.md) §5.3） | 迁移模块 `session/001-session-log`、`session/002-execution-index`、`session/003-operation-evidence`（以及 `execution-record/001-execution-record` 至 `execution-record/005-fact-body`）。插件加载时不登记组合，这一步已按 Context r3 删除 |
-| 注册的结果处理（`registerCombination` 的各类拒绝） | 应用 | 无。拒绝规则见 [sql-contract §6](../../../storage/sql-contract/SPEC.md#6-registercombination) |
+| 迁移执行与重启后的迁移 | 提供者（DO-1，见 [存储规格](../../../storage/SPEC.md#事务域的打开与迁移)） | 迁移模块 `session/001-session-log`、`session/002-execution-index`、`session/003-operation-evidence`（以及 `execution-record/001-execution-record` 至 `execution-record/005-fact-body`）。插件加载时不登记组合，这一步已按 Context r3 删除 |
+| 注册的结果处理（`registerCombination` 的各类拒绝） | 应用 | 无。拒绝规则见 [存储规格「登记」](../../../storage/SPEC.md#登记) |
 
 ## 撤除与资源
 

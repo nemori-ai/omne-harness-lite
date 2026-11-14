@@ -102,7 +102,7 @@ Changes contain no assignment values. Ordinary changes identify revision, operat
 
 The prepared service, owner, and catalog close operations stop their own admission and drain their accepted mutations or captures. They do not close shared SQL or Identity dependencies. The registry and selection holder have separate synchronous close operations. Unresolved reservations remain Identity recovery work.
 
-`cancelChange` cancels a root that has not committed. Cancelling a Storage observer cannot withdraw accepted SQL. Worker failures, SQL limits, unsupported registration, and incomplete shared-provider close retain explicit failure or unknown semantics under the [SQL contract](../../storage/sql-contract/SPEC.md).
+`cancelChange` cancels a root that has not committed. Cancelling a Storage observer cannot withdraw accepted SQL. Worker failures, SQL limits, unsupported registration, and incomplete shared-provider close retain explicit failure or unknown semantics under the [SQL contract](../../storage/SPEC.md).
 
 ## Secret custody
 

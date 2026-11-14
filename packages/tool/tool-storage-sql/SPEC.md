@@ -1,6 +1,6 @@
 # @omne-harness/tool-storage-sql 行为规格
 
-本文件拥有本包在公开类型以外的必要行为。公开形状与运行时校验归 `src/` 的公开定义，公开定义的导航归 [docs/public-api.md](docs/public-api.md)。本包兑现的端口契约归它们的拥有者：记录仓端口 `ToolLedgerStore` 归 [`@omne-harness/tool`](../tool/src/ledger-store.ts)，正文存储端口 `ToolBodyStore` 与到期索引的契约归 [`@omne-harness/tool-contract`](../tool-contract/SPEC.md#正文存储端口与到期索引)，SQL 操作语义归 [`@omne-harness/sql-contract`](../../storage/sql-contract/SPEC.md)。本文件不复制这些契约，只写本包怎样兑现它们。
+本文件拥有本包在公开类型以外的必要行为。公开形状与运行时校验归 `src/` 的公开定义，公开定义的导航归 [docs/public-api.md](docs/public-api.md)。本包兑现的端口契约归它们的拥有者：记录仓端口 `ToolLedgerStore` 归 [`@omne-harness/tool`](../tool/src/ledger-store.ts)，正文存储端口 `ToolBodyStore` 与到期索引的契约归 [`@omne-harness/tool-contract`](../tool-contract/SPEC.md#正文存储端口与到期索引)，SQL 操作语义归 [`@omne-harness/sql-contract`](../../storage/SPEC.md)。本文件不复制这些契约，只写本包怎样兑现它们。
 
 ## 范围与依据
 
@@ -48,7 +48,7 @@
 | `rolled_back`，其他原因（参加者抛错、语句失败） | `rejected`，`reason` 为失败类别。明确回滚已持久，提交没有任何效果；失败由输入与已提交的数据决定（sql-contract §7.6），同一提交再试得到同一失败 |
 | `unknown`                                       | `unknown`。账本按它写入的操作认回结果                                                                                                          |
 | `rejected_before_accept`，暂时的原因            | `unavailable`，诊断带拒绝原因                                                                                                                  |
-| `rejected_before_accept`，确定的原因            | `rejected`，`reason` 为拒绝原因。定性见 sql-contract 的[提交拒绝原因的定性](../../storage/sql-contract/SPEC.md#提交拒绝原因的定性)             |
+| `rejected_before_accept`，确定的原因            | `rejected`，`reason` 为拒绝原因。定性见 sql-contract 的[提交拒绝原因的定性](../../storage/SPEC.md#拒绝的定性)             |
 | `identity_conflict`                             | `unavailable`。每次提交用新的操作键，提供者没有执行本次提交                                                                                    |
 
 写入的记录不是严格 JSON 时（函数、BigInt、非有限数、类型化数组、环），端口在发出提交之前答 `rejected`：同一写入集再试仍不是严格 JSON。值为 `undefined` 的对象成员按 JSON 省略。
@@ -98,12 +98,12 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 本条兑现 `tool` SPEC 的[记录仓读取的新鲜度](../tool/SPEC.md#记录仓读取的新鲜度)。形式模型是 [SnapshotCache](verification/models/snapshot-cache/README.md)。
 
-同一个数据库上的全部记录仓共用一个保管者（`ledger-keeper.ts`）。数据库的身份是 sql-contract 的 `SqlStorage.database`（[§2.6](../../storage/sql-contract/SPEC.md#26-同一个数据库的身份)），所以 Tool 运行时与清扫各自拿到不同的存储对象时仍看到同一份快照。保管者为每个账本域保管它知道的记录：整域读之后是全部记录，单键读之后是读到的那几条。规则如下。
+同一个数据库上的全部记录仓共用一个保管者（`ledger-keeper.ts`）。数据库的身份是 sql-contract 的 `SqlStorage.database`（[存储规格](../../storage/SPEC.md#同一个数据库的身份)），所以 Tool 运行时与清扫各自拿到不同的存储对象时仍看到同一份快照。保管者为每个账本域保管它知道的记录：整域读之后是全部记录，单键读之后是读到的那几条。规则如下。
 
 1. 快照知道的内容用快照作答，不向 SQL 存储发请求。整域读要求快照知道整个域，否则读整个域并保管它。单键读只要求快照知道那条记录，否则只读那一条并把它记进快照；它不读无关记录，所以大到整域读不出的域仍然可以单键读。
 2. 提交答 `committed` 且快照的修订号等于期望时，快照按同一个写集合前进到新修订号。写集合是整域删除时，快照丢掉。
 3. 提交答 `conflict` 且快照正是被拒的修订号时，丢掉快照。被断言的域的快照若正是被断言的修订号，也丢掉。提交答 `unknown` 或提供者抛出时丢掉快照。答 `unavailable` 与 `rejected` 时没有写入，快照保留。
-4. 快照没有龄期，保管者不定时向 SQL 存储确认它。依据：一个数据库只由一个进程写（sqlite-provider 的 [§13.5](../../storage/sqlite-provider/SPEC.md#135-进程内写者排除) 与已知限制 L-4），这个进程的提交都经保管者。别的进程写同一个数据库不在支持的部署内；真发生时，按旧快照决定的写入仍被修订号拒绝（规则 3），答“没有”仍由存储作答（规则 5），只有快照知道的内容可能一直是旧的。
+4. 快照没有龄期，保管者不定时向 SQL 存储确认它。依据：一个数据库只由一个进程写（存储规格的[写者排除](../../storage/SPEC.md#写者读屏障与-worker) 与已知限制 L-4），这个进程的提交都经保管者。别的进程写同一个数据库不在支持的部署内；真发生时，按旧快照决定的写入仍被修订号拒绝（规则 3），答“没有”仍由存储作答（规则 5），只有快照知道的内容可能一直是旧的。
 5. 答“没有”不用快照。单键读在快照里找不到该键，或整域读的快照没有记录时，向 SQL 存储读取并以它的答复作答。答复的修订号等于快照的修订号时确认快照，不等时快照只留下这次答复的内容。
 6. 一次读取途中有同一个域的提交在途或完成时，这次读取的答复不成为快照：SQL 存储可能在提交之前答出它，而答复在提交之后才到达。
 7. 交给读取方的记录是它自己的副本，读取方改动它不影响之后的读取。快照按记录键排序，与 SQL 整域读的次序相同。
@@ -158,7 +158,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 - 本包不持有连接、Worker、计时器或其他需要释放的资源。连接、Worker、事务与清理归 SQL 提供者。工厂返回的对象可以随时丢弃。
 - 信任假设（评审 N5）：本包不核验主体。调用方（账本、执行侧与启动协调器）在调用之前已核验主体与租户资格。本包只按受信的目录解析租户的事务域，并在每条语句里按租户过滤。
-- 每次提交使用新的 SQL 操作键（`tool.ledger`、`tool.body-put`、`tool.body-seal`、`tool.body-delete`），身份带 `recall: 'never'`（[sql-contract §3.1](../../storage/sql-contract/SPEC.md#不认回的提交)），提供者不为它写回执。端口按自己的记录认回结果：账本按操作记录与域修订，正文存储按分块与清单的现状（同序号同字节答 `kept`，同清单答 `sealed`，删除幂等）。提交结果未知时，端口读回这些记录，不重新执行工具。端口从不重用 SQL 身份；同一端口操作重送时，账本的修订守卫与正文的不可变性认回原结果，不产生第二份结果。
+- 每次提交使用新的 SQL 操作键（`tool.ledger`、`tool.body-put`、`tool.body-seal`、`tool.body-delete`），身份带 `recall: 'never'`（[存储规格「身份与认回」](../../storage/SPEC.md#身份与认回)），提供者不为它写回执。端口按自己的记录认回结果：账本按操作记录与域修订，正文存储按分块与清单的现状（同序号同字节答 `kept`，同清单答 `sealed`，删除幂等）。提交结果未知时，端口读回这些记录，不重新执行工具。端口从不重用 SQL 身份；同一端口操作重送时，账本的修订守卫与正文的不可变性认回原结果，不产生第二份结果。
 - 已提交的写入与正文不因任何对象被丢弃而撤销。
 
 ## 已知限制
@@ -191,7 +191,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 ## 正文存储与到期索引的实现映射
 
-正文与到期索引的命令沿同一 `tool` 参加者执行（`body-put`、`body-seal`、`body-delete` 与 `ledger` 的 `schedule`/`unschedule`）。表：`tl_domain`、`tl_record`、`tl_body_chunk`、`tl_body_manifest`、`tl_due`。`tl_record.record` 与 `tl_record.fixed` 是 `BLOB`，存记录两部分各自的 JSON 的压缩文本（[sql-contract §10.1](../../storage/sql-contract/SPEC.md#101-大文本列的存储格式)）；读上限仍按还原后的 JSON 计。读 handler：`tool.ledger.read`、`tool.body.read`、`tool.due.read`；一条迁移 `tool/r6-001-tool-ledger-body-due`。打开 r6 基线之前建的库时，SQL 提供者发现当前目录不列出的迁移标记，拒绝该事务域，不迁移旧数据（C9，`tests/old-baseline-quarantine.spec.ts`）。
+正文与到期索引的命令沿同一 `tool` 参加者执行（`body-put`、`body-seal`、`body-delete` 与 `ledger` 的 `schedule`/`unschedule`）。表：`tl_domain`、`tl_record`、`tl_body_chunk`、`tl_body_manifest`、`tl_due`。`tl_record.record` 与 `tl_record.fixed` 是 `BLOB`，存记录两部分各自的 JSON 的压缩文本（[存储规格「SQL 值与大文本列」](../../storage/SPEC.md#sql-值与大文本列)）；读上限仍按还原后的 JSON 计。读 handler：`tool.ledger.read`、`tool.body.read`、`tool.due.read`；一条迁移 `tool/r6-001-tool-ledger-body-due`。打开 r6 基线之前建的库时，SQL 提供者发现当前目录不列出的迁移标记，拒绝该事务域，不迁移旧数据（C9，`tests/old-baseline-quarantine.spec.ts`）。
 
 ### TS-13 正文存储
 

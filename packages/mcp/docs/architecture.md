@@ -298,7 +298,7 @@ MCP 动作清单的候选聚合是 `ActionCatalog`。它带键（租户、对端
 - 发布是一次按修订条件的写入：只有存储里的修订仍是本次采用所基于的修订时，写入才成立。答修订冲突时，表示已有较新的采用，本次结果不覆盖它，`refresh` 交回「保留原采用」与原因。
 - 写入答不可用时，`refresh` 不报告新修订，答 `unknown`。清单的实际修订以下一次读取为准。
 - 由 mcp 提供内存实现。它只在一次运行内保存清单。进程重启后清单回到「未取得」，MCP 已知动作不跨重启保留。这是已知限制。
-- 耐久实现接存储契约（[sql-contract](../../storage/sql-contract/README.md)），是剩余义务，见 [Q-MC03](#q-mc03-客户端认证清单一致采用及配置机制)。
+- 耐久实现接存储契约（[sql-contract](../../storage/SPEC.md)），是剩余义务，见 [Q-MC03](#q-mc03-客户端认证清单一致采用及配置机制)。
 
 依据层：统一语言 MCP 动作清单「按租户、对端账号与接入点持有分开保存」「整份更新」；产品 [J-MC03](../../../.meta_harness/design/product/mcp/design.md#j-mc03-刷新后续采用且保护原调用)「迟到刷新不能覆盖较新选择」。
 
@@ -635,7 +635,7 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 
 - MCP 接缝验证协商、旧协议兼容与认证。已有验证与未覆盖项见 mcp-host-local 的 SPEC [组合与验证](../mcp-host-local/SPEC.md#组合与验证)。拥有者：mcp-host-local 的维护者。依据层：技术基础该行的实施准入。
 - `deriveDeclarations` 取得 MCP 动作清单的上下文或另立接缝，见[设置声明与逐动作权限](#设置声明与逐动作权限)。拥有者：资产 SPEC。
-- `CatalogStore` 的耐久实现，接存储契约 [sql-contract](../../storage/sql-contract/README.md)，并通过同一份符合性套件。在它交付之前，MCP 已知动作不跨进程重启保留。承载它的成员在建立时决定。拥有者：mcp 的维护者。
+- `CatalogStore` 的耐久实现，接存储契约 [sql-contract](../../storage/SPEC.md)，并通过同一份符合性套件。在它交付之前，MCP 已知动作不跨进程重启保留。承载它的成员在建立时决定。拥有者：mcp 的维护者。
 
 下列事项已由 mcp-contract 的 SPEC 封闭：
 

@@ -6,7 +6,7 @@
 
 最小有效示例见 [README_ZH.md「使用」](../README_ZH.md#使用)。调用方要做四件事：
 
-1. 把 `identitySqlMaterials()` 的参加者、迁移与读 handler 聚合进存储提供者的材料目录。目录由应用装配构造（[sql-contract §4.2](../../../storage/sql-contract/SPEC.md)）。
+1. 把 `identitySqlMaterials()` 的参加者、迁移与读 handler 聚合进存储提供者的材料目录。目录由应用装配构造（[存储规格「摘要与材料」](../../../storage/SPEC.md#摘要与材料)）。
 2. 在第一次操作之前调用 `storage.registerCombination(identitySqlRegistration())`。登记幂等，重启后再调用得到同一登记。
 3. 打开 scrypt 模块并派生假材料，连同 `storage`、时钟、登录期限源与邀请时长源交给 `createIdentitySql`。
 4. 用完后先 `stop()`，再关闭 scrypt 模块。存储的关闭归装配。

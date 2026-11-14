@@ -36,6 +36,6 @@
 | ------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `IdentitySqlPlugin` | `src/cordis.ts` | [docs/cordis.md](cordis.md)。`inject: ['storage', 'identityClock']`，提供 `identityOperations`、`tenantStanding`、`identityGovernance`、`standingReservations` 与 `identityGovernanceRecovery` |
 
-操作、读口与治理端口的输入输出类型归 [identity 根入口](../../identity/README_ZH.md)：`IdentityOperations`、`TenantStandingSource`、`IdentityGovernance`、`IdentityClock`、`LoginTermsSource`、`InvitationTermsSource` 与各结果联合。存储类型归 [sql-contract](../../../storage/sql-contract/SPEC.md)。scrypt 类型归 [scrypt](../../scrypt/README_ZH.md)。
+操作、读口与治理端口的输入输出类型归 [identity 根入口](../../identity/README_ZH.md)：`IdentityOperations`、`TenantStandingSource`、`IdentityGovernance`、`IdentityClock`、`LoginTermsSource`、`InvitationTermsSource` 与各结果联合。存储类型归 [sql-contract](../../../storage/SPEC.md)。scrypt 类型归 [scrypt](../../scrypt/README_ZH.md)。
 
 预留及恢复行为见 [SPEC IS-16](../SPEC.md#is-16)，公开端口定义归 [identity reservations](../../identity/src/reservations.ts) 与 [governance](../../identity/src/governance.ts)。成员变更的未知错误带 `operation`，用原发起账号的当前有效登录调用 `governanceRecovery.resume` 认回；最终变更仍检查原登录。
