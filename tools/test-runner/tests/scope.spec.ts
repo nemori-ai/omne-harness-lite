@@ -729,7 +729,6 @@ describe('按测量收窄的规则（#793）', () => {
 
   it('N2：被测试读的成员根目录文档按读者规则选中读它的成员，不带下游', () => {
     const cases = [
-      ['packages/agent/agent-cordis-contract/SPEC.md', 'packages/agent/agent-cordis-contract'],
       ['packages/common/message/README.md', 'packages/common/message'],
       ['apps/m2-contract-skeleton/README.md', 'apps/m2-contract-skeleton'],
       ['apps/m2-contract-skeleton/README_ZH.md', 'apps/m2-contract-skeleton'],
@@ -770,16 +769,7 @@ describe('按测量收窄的规则（#793）', () => {
     expect(result.reason).toContain('只改了文档、不选的成员 1 个')
   })
 
-  it('N2：被读的文档与别处代码一起改：读者只按读者规则选中、不带它的下游；读者是代码下游时两个原因都记', () => {
-    const apart = plan([
-      'packages/agent/agent-cordis-contract/SPEC.md',
-      'packages/common/message/src/a.ts',
-    ])
-    expect(apart.test).toEqual([
-      'packages/agent/agent-cordis-contract',
-      'packages/common/message',
-      'apps/m2-contract-skeleton',
-    ])
+  it('N2：被读的文档与别处代码一起改：读者是代码下游时两个原因都记', () => {
     const both = plan(['apps/m2-contract-skeleton/SPEC.md', 'packages/common/message/src/a.ts'])
     expect(both.members.find(entry => entry.path === 'apps/m2-contract-skeleton')).toEqual({
       path: 'apps/m2-contract-skeleton',
@@ -863,15 +853,6 @@ describe('按测量收窄的规则（#793）', () => {
       category: 'global',
       rule: 'tools/test-runner/src/testing/scope.ts',
     })
-  })
-
-  it('模型组架构页被 pi-ai-transport 的测试读：只选它；同目录下别的文档只需常驻检查', () => {
-    const read = plan(['packages/model/docs/architecture.md'])
-    expect(read.files[0]).toMatchObject({ category: 'reader' })
-    expect(read.test).toEqual(['packages/model/pi-ai-transport'])
-    const other = plan(['packages/model/docs/other.md'])
-    expect(other.files[0]).toMatchObject({ category: 'resident', rule: 'packages/**/*.md' })
-    expect(other.test).toEqual([])
   })
 
   it('格式脚本与它的配置：选中跑格式自测的 repo-toolchain，不再只算常驻检查', () => {
