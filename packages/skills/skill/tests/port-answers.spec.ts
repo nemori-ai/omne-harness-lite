@@ -1,9 +1,3 @@
-// The unified handling of a port answer, by the contract SPEC "端口答复的统一处置": every answer
-// is parsed whole at the boundary of this member, the discriminant and the payload. An answer
-// outside its closed set, a port that rejects or throws, and an answer that throws while it is
-// read are all "no answer": the read check and the resolution are taken as `unknown`; the source
-// is taken as `unavailable`, which the mapping turns into `source-unavailable`. No operation
-// throws. Every case goes through the public services.
 import { describe, expect, it } from 'vitest'
 import { createPackageInspection, createSkillAccess, createSkillCatalog } from '@omne-harness/skill'
 import type {
@@ -34,22 +28,17 @@ const UNKNOWN = { failure: { kind: 'unknown' } }
 const SOURCE_UNAVAILABLE = { failure: { kind: 'source-unavailable' } }
 const body = { capability: review, part: { kind: 'body' } } as const
 
-/** A port method that answers `answer` whatever it is asked, or rejects when `answer` is an Error.
- * The port types do not let a malformed answer be written, so the helper widens it here. */
 function answering<T>(answer: unknown): () => Promise<T> {
   return () =>
     answer instanceof Error ? Promise.reject(answer) : Promise.resolve(answer as unknown as T)
 }
 
-/** A port method that throws before it gives a promise. */
 function throwing<T>(): () => Promise<T> {
   return () => {
     throw new Error('the port threw at once')
   }
 }
 
-/** An object that throws on every look at its fields: a broken proxy that a port hands over. It
- * is not a thenable, so the promise of the port settles with it. */
 const EXPLODING: unknown = new Proxy(
   {},
   {
@@ -63,7 +52,6 @@ const EXPLODING: unknown = new Proxy(
   },
 )
 
-/** A script declaration whose parameters hold every kind of JSON node. */
 const SCRIPT = {
   entry: 'scripts/run.sh',
   runKind: 'shell',
@@ -80,7 +68,6 @@ const SCRIPT = {
   },
 }
 
-/** The adopted answer and the stand-in answer that the world's resolution gives. */
 async function lawfulAnswers(world: World) {
   const adopted = await world.ports.resolution.resolve(alice, scope, review)
   const standIn = await world.ports.resolution.resolve(alice, scope, retired)
@@ -89,7 +76,6 @@ async function lawfulAnswers(world: World) {
   return { adopted, standIn }
 }
 
-/** One malformed answer and the name of its case. */
 type Case = readonly [name: string, answer: unknown]
 
 const THROWN: readonly Case[] = [
@@ -97,7 +83,6 @@ const THROWN: readonly Case[] = [
   ['an answer that throws when it is read', EXPLODING],
 ]
 
-/** The cases of `THROWN` after the cases of `own`. */
 function cases(...own: readonly Case[]): readonly Case[] {
   return [...own, ...THROWN]
 }
@@ -128,7 +113,6 @@ describe('the read check', () => {
 })
 
 describe('the resolution at resolve', () => {
-  /** Describe and read through a resolution with this `resolve` both answer unknown. */
   async function expectUnknown(world: World, resolve: () => Promise<Resolution>) {
     const resolution: SkillResolution<Principal, Scope> = { ...world.ports.resolution, resolve }
     const access = createSkillAccess({ ...world.ports, resolution })
@@ -264,7 +248,6 @@ describe('the resolution at resolve', () => {
 })
 
 describe('the resolution at adopted', () => {
-  /** The catalog over a resolution whose `adopted` gives `answer` answers unknown both ways. */
   async function expectUnknown(world: World, answer: unknown) {
     const resolution: SkillResolution<Principal, Scope> = {
       ...world.ports.resolution,

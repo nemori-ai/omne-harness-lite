@@ -1,6 +1,3 @@
-// The pure matching rule of `search`, exhaustively: NFKC then lower case on both sides, words by
-// white space, every word a substring of the name or the description joined by one newline, no
-// words match everything.
 import { describe, expect, it } from 'vitest'
 import { matches } from '../src/match.ts'
 
@@ -36,7 +33,6 @@ describe('matches', () => {
   })
 
   it('folds to lower case, not to upper case', () => {
-    // ß has no one-letter upper case: upper case folds it to SS, lower case keeps it.
     expect(matches('ß', 'x', 'strasse')).toBe(false)
     expect(matches('ss', 'x', 'straße')).toBe(false)
     expect(matches('STRASSE', 'x', 'strasse')).toBe(true)

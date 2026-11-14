@@ -1,7 +1,3 @@
-// The walk visits at most 65536 entries, counting every name of every listing, also when links
-// reach one directory many times. Links can multiply the visits without a cycle: two links per
-// level that point to the next level give 2^n visits at depth n. Past the budget the package
-// is unreadable. The seam is a tree in memory, so no case writes 65536 files.
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { createDirectorySource, type DirectoryFs } from '@omne-harness/skill-host-local'
@@ -13,7 +9,6 @@ function refusal(path: string): Error {
   return Object.assign(new Error(`ENOENT: ${path}`), { code: 'ENOENT' })
 }
 
-/** A tree in memory: `dirs` maps a directory to its names, `links` maps a path to its target. */
 function memoryFs(
   dirs: ReadonlyMap<string, readonly string[]>,
   links: ReadonlyMap<string, string> = new Map(),
@@ -33,17 +28,11 @@ function memoryFs(
   }
 }
 
-/** `count` files directly in `/pkg`. */
 function flat(count: number): DirectoryFs {
   const names = Array.from({ length: count }, (_, index) => `f${index}`)
   return memoryFs(new Map([['/pkg', names]]))
 }
 
-/**
- * Levels `/pkg`, `/pkg/L1` … `/pkg/L<depth>`. Each level above the last holds the links `a` and
- * `b` to the next level; the last level holds `f.md`. The visits are 2 + 4 + … + 2^depth for the
- * links and 2^depth for the files.
- */
 function fanOut(depth: number): DirectoryFs {
   const level = (index: number) => (index === 0 ? '/pkg' : `/pkg/L${index}`)
   const dirs = new Map<string, readonly string[]>()

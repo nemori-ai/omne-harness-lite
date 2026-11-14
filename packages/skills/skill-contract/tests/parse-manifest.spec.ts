@@ -1,5 +1,3 @@
-// SKILL.md: name-mismatch and every malformed case of the frontmatter. What the format accepts
-// beyond the native rules, with a compatibility hint, is in parse-compat.spec.ts.
 import { describe, expect, it } from 'vitest'
 import { manifestText } from './package-builder.ts'
 import { codeOf, demo, name, parse } from './parse-support.ts'
@@ -51,7 +49,6 @@ describe('malformed SKILL.md', () => {
     ['a closing delimiter with a trailing space', '---\nname: demo\ndescription: d\n--- \n'],
     ['an empty frontmatter', '---\n---\nBody.\n'],
     ['a frontmatter that is a list', '---\n- demo\n---\n'],
-    // YAML fails on the repeated key, and the line by line reading cannot tell which one counts.
     ['a duplicate top-level key', manifestText(['name: demo', 'description: a', 'description: b'])],
     [
       'a YAML error and a name that cannot be read',
@@ -158,7 +155,6 @@ describe('malformed SKILL.md', () => {
   })
 })
 
-/** Three levels of 20 aliases each: 8000 nodes from a few short lines, 4 levels deep. */
 function aliasBomb(): string[] {
   const twenty = (name: string) => `[${Array.from({ length: 20 }, () => `*${name}`).join(', ')}]`
   return [
@@ -169,7 +165,6 @@ function aliasBomb(): string[] {
   ]
 }
 
-/** A field value of `levels` nested sequences around one scalar. */
 function nested(levels: number): string {
   return `x-deep: ${'['.repeat(levels)}a${']'.repeat(levels)}`
 }
@@ -181,7 +176,6 @@ describe('frontmatter budget', () => {
   })
 
   it('accepts 4096 nodes and rejects 4097', () => {
-    // The root mapping, the scalars of name and description, the list and its items.
     const list = (items: number) =>
       `x-list: [${Array.from({ length: items }, () => '1').join(', ')}]`
     expect(codeOf(parse('demo', { 'SKILL.md': demo([list(4096 - 4)]) }))).toBe('accepted')

@@ -1,5 +1,3 @@
-// `export` through the public service: every entry of the pinned snapshot, each checked, or one
-// failure without any entry.
 import { describe, expect, it } from 'vitest'
 import { computeDigest } from '@omne-harness/skill-contract'
 import {

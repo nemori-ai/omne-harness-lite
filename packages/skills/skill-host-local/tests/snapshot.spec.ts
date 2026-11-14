@@ -1,8 +1,3 @@
-// What one snapshot of a real directory holds: every file under the root, hidden ones and the
-// `.omne` directory included, as `/`-separated package paths; directories, empty ones included,
-// are not entries; the root name is the last segment of the root. A file name that is no
-// package path makes the package unreadable. A locator of another kind, an
-// absent root and a root that is a file name no package of this source.
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { isPackageDigest } from '@omne-harness/skill-contract'

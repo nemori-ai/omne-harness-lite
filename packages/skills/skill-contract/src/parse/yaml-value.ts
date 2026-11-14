@@ -1,24 +1,15 @@
-// Turns the YAML node tree of a frontmatter into plain immutable values, without changing any
-// type. Every map key must be text, every scalar must be null, a boolean, a finite number or text,
-// and the whole tree, aliases expanded, stays inside a node budget.
 import { isAlias, isMap, isScalar, isSeq, type Document, type YAMLMap, type YAMLSeq } from 'yaml'
 import type { ManifestValue } from '../values.ts'
 
-/**
- * The frontmatter budget, the same as the declaration budget: at most 16 nested mappings and
- * sequences, the root mapping counted as the first, and at most 4096 nodes once aliases expand.
- */
 const MAX_DEPTH = 16
 const MAX_NODES = 4096
 
 type Budget = { nodes: number }
 
-/** Plain values, or `undefined` when the tree breaks a rule above. */
 export function plainValue(document: Document, node: unknown): ManifestValue | undefined {
   return convert(document, node, 1, { nodes: 0 })
 }
 
-/** Alias expansion, the budget, the depth, and the dispatch to the four kinds of node. */
 function convert(
   document: Document,
   node: unknown,

@@ -1,10 +1,3 @@
-// The small worlds of the bounded exploration. A world is data (`WorldSpec`): three identities,
-// two principals, two materials per identity, and for each identity who the read check grants,
-// who the resolution knows it for, and which material the source holds at its locator. The
-// memory doubles of `skill-contract/testing` hold the world; `portsOf` wraps them with the
-// schedule of one run: port faults, an abort and a change of the source content, keyed by the
-// number of port answers so far. The wrappers record every port call in a trace. The services
-// under test are the real ones from `@omne-harness/skill` (its `dist`).
 import type { CapabilityId } from '@omne-harness/assets'
 import type { Access } from '@omne-harness/legal-identity'
 import { fail } from '@omne-harness/operation-result'
@@ -62,7 +55,6 @@ export type Name = (typeof NAMES)[number]
 export type MaterialIndex = 0 | 1
 export const MATERIALS: readonly MaterialIndex[] = [0, 1]
 
-/** A word of each description that no name and no other description holds. */
 export const DESCRIPTION_WORD: Readonly<Record<Name, string>> = {
   alpha: 'Reviews',
   beta: 'Translates',
@@ -85,7 +77,6 @@ export function locatorOf(name: Name): PackageLocator {
   return { kind: 'directory', root: `/skills/${name}` }
 }
 
-/** The bytes of a package: package path to text or bytes. */
 export type Files = MemoryPackage['files']
 
 export type Material = Readonly<{
@@ -93,7 +84,6 @@ export type Material = Readonly<{
   index: MaterialIndex
   files: Files
   digest: PackageDigest
-  /** Byte length of the frontmatter of `SKILL.md`: the body starts here. */
   bodyStart: number
 }>
 
@@ -102,7 +92,6 @@ export const GUIDE_PATH = 'docs/guide.md'
 export const NEW_PATH = 'docs/new.md'
 export const CONTROL_PATH = '.omne/skill.json'
 
-/** The snapshot that a source gives for `files` under the root `rootName`. */
 export function sealedOf(rootName: string, files: Files): SkillPackageSnapshot {
   const list = Object.entries(files).map(([raw, content]) => ({
     path: path(raw),
@@ -113,8 +102,6 @@ export function sealedOf(rootName: string, files: Files): SkillPackageSnapshot {
   return sealed.ok
 }
 
-/** Material 0 and 1 of one identity: `SKILL.md` differs, `docs/guide.md` is the same, and
- * material 1 adds `docs/new.md`. */
 function materialOf(name: Name, index: MaterialIndex): Material {
   const header = `---\nname: ${name}\ndescription: ${DESCRIPTION_WORD[name]} things.\n---\n`
   const files: Record<string, string> = {
@@ -138,12 +125,10 @@ export const MATERIAL: Readonly<Record<Name, readonly [Material, Material]>> = {
   gamma: [materialOf('gamma', 0), materialOf('gamma', 1)],
 }
 
-/** The material of each digest that any world holds. */
 export function materialByDigest(digest: PackageDigest): Material | undefined {
   return NAMES.flatMap(name => MATERIAL[name]).find(item => item.digest === digest)
 }
 
-/** The basis that names material `index` of `name`. */
 export function basisOf(name: Name, index: MaterialIndex): SkillMaterialBasis {
   return {
     capability: CAPABILITY[name],
@@ -165,9 +150,7 @@ function declaredOf(name: Name): DeclaredProjection {
 
 export type IdentityState =
   | Readonly<{ kind: 'absent' }>
-  /** Adopted; material `current` is the adopted one, material 0 stays lawful. */
   | Readonly<{ kind: 'adopted'; current: MaterialIndex }>
-  /** Adopted, and the asset body has no `package.digest`. */
   | Readonly<{ kind: 'no-digest' }>
   | Readonly<{ kind: 'stand-in' }>
 
@@ -175,11 +158,8 @@ export type Held = MaterialIndex | 'none'
 
 export type IdentitySpec = Readonly<{
   state: IdentityState
-  /** The principals that the read check grants. */
   readers: readonly Principal[]
-  /** The principals that the resolution answers for this identity. */
   knownTo: readonly Principal[]
-  /** The material that the source holds at the locator of the identity. */
   held: Held
 }>
 
@@ -192,12 +172,10 @@ export const ABSENT: IdentitySpec = {
   held: 'none',
 }
 
-/** The twin of `world` in which `hidden` was deleted: no read grant, no resolution, no package. */
 export function twinWorld(world: WorldSpec, hidden: Name): WorldSpec {
   return { ...world, [hidden]: ABSENT }
 }
 
-/** The basis that a read without a basis pins: the adopted material of the reference. */
 export function adoptedBasis(world: WorldSpec, name: Name): SkillMaterialBasis | undefined {
   const { state } = world[name]
   return state.kind === 'adopted' ? basisOf(name, state.current) : undefined
@@ -269,7 +247,6 @@ function sourceOf(held: Readonly<Record<Name, Held>>): SkillPackageSource {
   return createMemorySource(packages)
 }
 
-/** Where a port call went. `name` is the identity asked about; `path` the entry opened. */
 export type CallSite =
   | Readonly<{ port: 'check'; name: Name }>
   | Readonly<{ port: 'resolve'; name: Name }>
@@ -277,9 +254,6 @@ export type CallSite =
   | Readonly<{ port: 'snapshot'; name: Name }>
   | Readonly<{ port: 'open'; name: Name; path: string }>
 
-/** An answer that the port gives instead of the world's answer. The first five are "no answer"
- * in the contract's sense, except `unknown`, which is the decided answer "cannot decide now".
- * The misdirections are well-formed `resolve` answers that break PR1 or PR3; see `Misdirection`. */
 export type Fault =
   | 'unknown'
   | 'malformed'
@@ -289,14 +263,6 @@ export type Fault =
   | SourceFailure
   | Misdirection
 
-/**
- * A `resolve` answer that names other material than the request, without the premise PR1 and PR3:
- * `misdirect` answers `adopted` with the reference and declarations of another identity (the
- * point's `to`); the other four take the world's `adopted` answer and change one field of its
- * reference: the source layer, the asset version, or the digest, or they drop the digest. Skill
- * must take each of them for no answer when it names another identity, or, with a basis, other
- * material than the basis: a basis names material with a digest.
- */
 export const MISDIRECTIONS = [
   'misdirect',
   'mislayer',
@@ -307,28 +273,20 @@ export const MISDIRECTIONS = [
 
 export type Misdirection = (typeof MISDIRECTIONS)[number]
 
-/** Which call a fault replaces. `item` replaces one item of the lawful set by a malformed one. */
 export type FaultSite =
   | Readonly<{ port: 'check'; name: Name }>
   | Readonly<{ port: 'resolve'; name: Name }>
   | Readonly<{ port: 'adopted' }>
   | Readonly<{ port: 'item'; name: Name }>
   | Readonly<{ port: 'snapshot' }>
-  /** Every `open`, or only the `open` of `path`. */
   | Readonly<{ port: 'open'; path?: string }>
 
-/** `to` is the identity whose reference a `misdirect` gives; the default is the next name. */
 export type FaultPoint = Readonly<{ site: FaultSite; fault: Fault; to?: Name }>
 
 export type Schedule = Readonly<{
-  /** `digest`: `open` keys bytes by the snapshot digest (the memory double); `locator`: it gives
-   * the current bytes at the locator and ignores the digest (like `DirectorySource`). */
   addressing: 'digest' | 'locator'
-  /** After this many port answers, the source holds `to` at the locator of `name`. */
   change?: Readonly<{ after: number; name: Name; to: Held }>
-  /** The signal aborts as the port gives answer number `after`; 0 aborts before the operation. */
   abortAfter?: number
-  /** At most one fault per call site; the first point that matches a call decides it. */
   faults?: readonly FaultPoint[]
 }>
 
@@ -336,18 +294,14 @@ export const PLAIN: Schedule = { addressing: 'digest' }
 
 export type TracedCall = Readonly<{
   site: CallSite
-  /** The answer could not be decided: `unknown`, malformed, rejected, thrown, or a proxy. */
   undecided: boolean
-  /** The signal was already aborted when the call was made. */
   afterAbort: boolean
 }>
 
-/** The port types do not let a malformed answer be written; this one helper widens it. */
 function widened<T>(answer: unknown): T {
   return answer as T
 }
 
-/** An object that throws on every look at its fields. It is no thenable, so a promise settles with it. */
 const EXPLODING: unknown = new Proxy(
   {},
   {
@@ -367,7 +321,6 @@ const EXPLODING: unknown = new Proxy(
   },
 )
 
-/** A malformed answer of each port: the right outer shape, a wrong inside. */
 function malformedOf(site: CallSite): unknown {
   switch (site.port) {
     case 'check':
@@ -387,11 +340,6 @@ function malformedOf(site: CallSite): unknown {
   }
 }
 
-/**
- * Whether `point` names other material than `request` asks for. Without a basis, the source
- * layer, the asset version and the digest of the adopted material are the resolution's own word,
- * so only `misdirect` breaks a request without one: the others are honest answers there.
- */
 export function misdirects(point: FaultPoint | undefined, basis: unknown): boolean {
   if (point === undefined || !isMisdirection(point.fault)) return false
   return point.fault === 'misdirect' || basis !== undefined
@@ -407,8 +355,6 @@ function isSourceFailure(fault: Fault): fault is SourceFailure {
   )
 }
 
-/** Whether a fault leaves the answer undecided. A source failure is a decided answer. A
- * misdirection is no answer only when it breaks the request; see `misdirected`. */
 export function undecides(fault: Fault): boolean {
   return !isSourceFailure(fault) && !isMisdirection(fault)
 }
@@ -417,12 +363,6 @@ function nextName(name: Name): Name {
   return NAMES[(NAMES.indexOf(name) + 1) % NAMES.length] ?? name
 }
 
-/**
- * The answer of `misdirection` for a `resolve` of `name` whose world answer is `given`, and
- * whether it breaks the request: it names another identity, or, with a basis, another source
- * layer, asset version or digest than the basis. A change that does not apply (the world does
- * not answer `adopted`, or the reference has no digest) leaves the answer as it is.
- */
 function misdirected(
   misdirection: Misdirection,
   name: Name,
@@ -489,7 +429,6 @@ function matches(site: FaultSite, call: CallSite): boolean {
   }
 }
 
-/** The fault of the schedule for `call`, if any. */
 function faultAt(schedule: Schedule, call: CallSite): Fault | undefined {
   return schedule.faults?.find(point => matches(point.site, call))?.fault
 }
@@ -503,13 +442,8 @@ export type Run = Readonly<{
   inspection: PackageInspection
 }>
 
-/** Holds the read check answers until `release` lets them out; see `heldChecks`. */
 export type CheckGate = (name: Name, answer: () => Promise<unknown>) => Promise<unknown>
 
-/**
- * The ports of one run over `world` with `schedule`, and the three real services over them.
- * `gate`, when given, decides when each read check answer comes out (the order exploration).
- */
 export function runOf(world: WorldSpec, schedule: Schedule = PLAIN, gate?: CheckGate): Run {
   const held: Record<Name, Held> = {
     alpha: world.alpha.held,
@@ -533,7 +467,6 @@ export function runOf(world: WorldSpec, schedule: Schedule = PLAIN, gate?: Check
     }),
   )
 
-  /** Counts one answer: the change and the abort of the schedule happen as it is given. */
   const answered = (): void => {
     const count = calls.length
     const { change, abortAfter } = schedule
@@ -544,8 +477,6 @@ export function runOf(world: WorldSpec, schedule: Schedule = PLAIN, gate?: Check
     if (abortAfter !== undefined && abortAfter === count) controller.abort()
   }
 
-  /** One port call: the world's answer, or the fault of the schedule. A misdirection is the
-   * world's answer changed by `misdirect`, which also says whether the change breaks the request. */
   const call = <T>(
     site: CallSite,
     real: () => Promise<T>,
@@ -606,7 +537,6 @@ export function runOf(world: WorldSpec, schedule: Schedule = PLAIN, gate?: Check
         const name = nameOf(item)
         const site: CallSite = { port: 'check', name }
         const real = () => call(site, () => readCheck.check(who, at, item))
-        // A synchronous throw stays synchronous: it is not held.
         if (gate === undefined || faultAt(schedule, site) === 'throw') return real()
         return gate(name, real).then(answer => widened<ReadVerdict>(answer))
       },
@@ -678,7 +608,6 @@ function locatorName(locator: PackageLocator): Name {
   return found
 }
 
-/** The bytes of `path` in `material`. */
 export function bytesIn(material: Material, entryPath: string): Uint8Array | undefined {
   const content = material.files[entryPath]
   if (content === undefined) return undefined

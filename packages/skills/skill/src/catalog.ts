@@ -1,11 +1,3 @@
-// `SkillCatalog` over two ports: the current lawful set from `SkillResolution.adopted`, one
-// entry per identity, then `SkillReadCheck.check` for each identity that the request or the
-// query keeps. An empty request calls no port. Only `granted` identities are listed; a
-// `refused` one is left out without a trace; one `unknown` makes the whole answer `unknown`.
-// The checks go out together and the answer is read in the order of the entries, so the
-// completion order cannot change it. The entries are sorted by the category and then the name
-// of the capability identity, so that one input gives one output; the order is not a promise.
-// No bytes are read: the catalog takes no source.
 import type { Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { sameCapability, type CatalogEntry, type SkillCatalog } from '@omne-harness/skill-contract'
@@ -18,11 +10,6 @@ type Listing = Outcome<readonly CatalogEntry[], 'unknown'>
 
 const UNKNOWN = Object.freeze({ failure: 'unknown' } as const)
 
-/**
- * The order of the entries: by category, then by name, each in UTF-16 code unit order. The
- * entries are deduplicated by `sameCapability` before they are sorted, so two entries never
- * share both the category and the name.
- */
 function byIdentity(left: CatalogEntry, right: CatalogEntry): number {
   const a = left.capability
   const b = right.capability
@@ -31,7 +18,6 @@ function byIdentity(left: CatalogEntry, right: CatalogEntry): number {
   return 0
 }
 
-/** The entry of one parsed answer of the lawful set, by the group page "检查与发现". */
 function entryOf(answer: CatalogResolution): CatalogEntry {
   switch (answer.kind) {
     case 'adopted': {
@@ -55,14 +41,12 @@ function entryOf(answer: CatalogResolution): CatalogEntry {
       }
     }
     default: {
-      // A kind that `CatalogResolution` gains and this switch lacks fails to compile here.
       const exhaustive: never = answer
       return exhaustive
     }
   }
 }
 
-/** The current lawful set written out in entries, one per identity, in canonical order; or `unknown`. */
 async function lawfulEntries<P, S>(
   ports: Pick<SkillPorts<P, S>, 'resolution'>,
   access: Access<P>,
@@ -79,7 +63,6 @@ async function lawfulEntries<P, S>(
   return succeed(entries.sort(byIdentity))
 }
 
-/** The entries that the read check grants, in the given order; `unknown` when one check is unknown. */
 async function grantedOf<P, S>(
   ports: Pick<SkillPorts<P, S>, 'readCheck'>,
   access: Access<P>,
@@ -92,7 +75,6 @@ async function grantedOf<P, S>(
         () => ports.readCheck.check(access, scope, entry.capability),
         parseVerdict,
       )
-      // No answer is `unknown`, like the verdict `unknown` itself.
       return verdict?.kind ?? 'unknown'
     }),
   )
@@ -103,7 +85,6 @@ async function grantedOf<P, S>(
 export function createSkillCatalog<P, S>(
   ports: Pick<SkillPorts<P, S>, 'readCheck' | 'resolution'>,
 ): SkillCatalog<P, S> {
-  /** The lawful entries that `keep` selects, then the read check on those alone. */
   const listing = async (
     access: Access<P>,
     scope: S,
@@ -115,8 +96,6 @@ export function createSkillCatalog<P, S>(
   }
   return {
     async summaries(access, scope, capabilities) {
-      // An empty request asks about no identity, so no port is asked either: the answer is the
-      // empty list even when the lawful set would be unknown now.
       if (capabilities?.length === 0) return succeed([])
       return listing(access, scope, entry =>
         capabilities === undefined

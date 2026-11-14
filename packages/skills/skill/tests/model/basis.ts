@@ -1,11 +1,3 @@
-// S3, no mixed versions. Every success of `read`, `list` and `export` names the pinned material
-// (the basis given, or the adopted material of the reference) and gives only bytes of that
-// material: the page is the slice of that material's entry, the listing is that material's
-// entries, the export is every entry of it. The source content changes at every point of the
-// operation (after the read check, the resolution, the snapshot, each `open`), with both kinds
-// of source: one that keys bytes by the snapshot digest and one that gives the current bytes at
-// the locator. A failure carries no content. Not vacuous: when the source holds the pinned
-// material all along and nothing fails, the operation succeeds.
 import { isDeepStrictEqual } from 'node:util'
 import { isControlFile, PAGE_LIMIT, type SkillMaterialBasis } from '@omne-harness/skill-contract'
 import {
@@ -42,7 +34,6 @@ function field(value: unknown, key: string): unknown {
   return typeof value === 'object' && value !== null ? Reflect.get(value, key) : undefined
 }
 
-/** The material that `request` pins in `world`: its basis, or the adopted material. */
 export function pinnedBasis(
   world: WorldSpec,
   request: AccessRequest,
@@ -99,7 +90,6 @@ function exportBreak(material: Material, ok: unknown): string | undefined {
   return undefined
 }
 
-/** The S3 check of one run; a message when it breaks. */
 export function mixedBreak(
   world: WorldSpec,
   request: AccessRequest,
@@ -128,7 +118,6 @@ export function mixedBreak(
   }
 }
 
-/** Whether nothing stands in the way of `request`: the source holds the lawful pinned material. */
 function plainlyReadable(current: MaterialIndex, held: Held, request: AccessRequest): boolean {
   const index = request.basis?.index ?? current
   if (index !== 0 && index !== current) return false
@@ -140,7 +129,6 @@ function plainlyReadable(current: MaterialIndex, held: Held, request: AccessRequ
   return true
 }
 
-/** Without PR1 and PR3: no fault, or one reference to other material (`misdirect` to beta). */
 const MISDIRECTED: readonly (FaultPoint | undefined)[] = [
   undefined,
   ...MISDIRECTIONS.map(
@@ -194,7 +182,6 @@ export async function exploreBasis(): Promise<Report> {
               knownTo: ['alice'],
               held,
             },
-            // The package of beta is there, so a reference to it would give bytes.
             beta: { state: { kind: 'absent' }, readers: [], knownTo: [], held: 0 },
             gamma: { state: { kind: 'absent' }, readers: [], knownTo: [], held: 'none' },
           }
@@ -205,7 +192,6 @@ export async function exploreBasis(): Promise<Report> {
               ...(point === undefined ? {} : { faults: [point] }),
             }
             for (const request of requests()) {
-              // A misdirection that the request cannot tell from an honest answer is not one.
               if (point !== undefined && !misdirects(point, request.basis)) continue
               const observation = await perform(runOf(world, schedule), 'alice', request)
               ledger.count()

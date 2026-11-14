@@ -1,6 +1,3 @@
-// Step 10: the bytes of one entry of the pinned snapshot from the source, checked against the
-// entry digest. Bytes that do not match are not given: `version-changed`. The entry comes from
-// the caller, which did step 9 (the lookup) itself.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   computeDigest,

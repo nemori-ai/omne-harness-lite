@@ -1013,39 +1013,6 @@
     "apps/harness-server/src/state-lock.ts": 1,
     "apps/m2-contract-skeleton/src/path-report.ts": 2,
     "apps/m2-contract-skeleton/src/path.ts": 13,
-    "packages/access/access-cordis-contract/src/contribution.ts": 1,
-    "packages/access/access-cordis-contract/src/cordis.ts": 2,
-    "packages/access/access-cordis-contract/src/identity.ts": 1,
-    "packages/access/client-assembly/src/availability.ts": 2,
-    "packages/access/client-assembly/src/cordis.ts": 1,
-    "packages/access/public-contract/src/access-protocol.ts": 1,
-    "packages/access/public-contract/src/outcome.ts": 2,
-    "packages/access/public-contract/src/protocol.ts": 1,
-    "packages/access/sdk/src/core/client.ts": 1,
-    "packages/access/sdk/src/core/http.ts": 1,
-    "packages/access/sdk/src/core/in-process.ts": 1,
-    "packages/access/sdk/src/core/index.ts": 1,
-    "packages/access/sdk/src/core/transport.ts": 1,
-    "packages/access/server-entry/src/availability/availability.ts": 1,
-    "packages/access/server-entry/src/governance.ts": 1,
-    "packages/access/server-entry/src/http.ts": 1,
-    "packages/access/server-entry/src/identity-steps.ts": 1,
-    "packages/access/server-entry/src/observation-hub/hub.ts": 1,
-    "packages/access/server-entry/src/observation-hub/records.ts": 2,
-    "packages/access/server-entry/src/observation-hub/sse.ts": 1,
-    "packages/access/server-entry/src/observation.ts": 2,
-    "packages/access/server-entry/src/pipeline/address.ts": 1,
-    "packages/access/server-entry/src/pipeline/answer.ts": 1,
-    "packages/access/server-entry/src/pipeline/identity-rule.ts": 2,
-    "packages/access/server-entry/src/pipeline/pipeline.ts": 3,
-    "packages/access/server-entry/src/pipeline/watch.ts": 1,
-    "packages/access/server-entry/src/registry/cordis.ts": 1,
-    "packages/access/server-entry/src/registry/registry.ts": 1,
-    "packages/access/server-entry/src/session-view/index.ts": 1,
-    "packages/access/server-entry/src/session-view/project.ts": 1,
-    "packages/access/server-entry/src/session-view/sources.ts": 1,
-    "packages/access/server-entry/src/settings.ts": 1,
-    "packages/access/server-entry/src/settle/settle.ts": 2,
     "packages/agent/agent-contract/src/definition.ts": 1,
     "packages/agent/agent-contract/src/evaluation.ts": 6,
     "packages/agent/agent-contract/src/finishing.ts": 1,
@@ -1147,29 +1114,6 @@
     "packages/identity/identity/src/testing/double.ts": 1,
     "packages/identity/identity/src/testing/governance-contract.ts": 1,
     "packages/identity/identity/src/testing/governance-double.ts": 1,
-    "packages/mcp/mcp-contract/src/composition.ts": 5,
-    "packages/mcp/mcp-contract/src/decisions.ts": 1,
-    "packages/mcp/mcp-contract/src/order.ts": 1,
-    "packages/mcp/mcp-contract/src/testing-scripted-transport.ts": 2,
-    "packages/mcp/mcp-cordis-contract/src/cordis.ts": 1,
-    "packages/mcp/mcp-host-local/src/cordis.ts": 1,
-    "packages/mcp/mcp-host-local/src/http-line.ts": 1,
-    "packages/mcp/mcp-host-local/src/limits.ts": 1,
-    "packages/mcp/mcp-host-local/src/line.ts": 1,
-    "packages/mcp/mcp-host-local/src/session.ts": 2,
-    "packages/mcp/mcp-host-local/src/stdio-line.ts": 1,
-    "packages/mcp/mcp/src/calls.ts": 1,
-    "packages/mcp/mcp/src/internal/build.ts": 1,
-    "packages/mcp/mcp/src/internal/entry.ts": 1,
-    "packages/mcp/mcp/src/internal/gate.ts": 1,
-    "packages/mcp/mcp/src/internal/in-flight.ts": 1,
-    "packages/mcp/mcp/src/internal/lost.ts": 1,
-    "packages/mcp/mcp/src/internal/port.ts": 1,
-    "packages/mcp/mcp/src/internal/scope.ts": 1,
-    "packages/mcp/mcp/src/internal/table.ts": 1,
-    "packages/mcp/mcp/src/internal/task-table.ts": 1,
-    "packages/mcp/mcp/src/internal/teardown.ts": 1,
-    "packages/mcp/mcp/src/tasks.ts": 1,
     "packages/model/model-contract/src/conformance/conformance-stream.ts": 1,
     "packages/model/model-contract/src/credential-values.ts": 1,
     "packages/model/model-contract/src/index.ts": 1,
@@ -1323,20 +1267,6 @@
     "packages/session/session/src/recover.ts": 1,
     "packages/session/session/src/scan.ts": 1,
     "packages/session/session/src/telemetry.ts": 1,
-    "packages/skills/skill-contract/src/parse/by-line.ts": 1,
-    "packages/skills/skill-contract/src/parse/manifest.ts": 1,
-    "packages/skills/skill-contract/src/snapshot.ts": 1,
-    "packages/skills/skill-contract/src/testing-access.ts": 1,
-    "packages/skills/skill-contract/src/testing-case.ts": 1,
-    "packages/skills/skill-contract/src/testing-catalog.ts": 1,
-    "packages/skills/skill-host-local/src/fs.ts": 1,
-    "packages/skills/skill/src/access/gate.ts": 1,
-    "packages/skills/skill/src/access/pin.ts": 1,
-    "packages/skills/skill/src/access/range.ts": 1,
-    "packages/skills/skill/src/answer-values.ts": 1,
-    "packages/skills/skill/src/catalog.ts": 1,
-    "packages/skills/skill/src/port-answer.ts": 1,
-    "packages/skills/skill/src/source-answer.ts": 1,
     "packages/storage/sql-contract/src/testing/memory.ts": 1,
     "packages/storage/sqlite-provider/src/admission.ts": 1,
     "packages/storage/sqlite-provider/src/commit.ts": 1,
@@ -1462,8 +1392,7 @@
       "packages/execution/execution-environment-host-local/src/host-command.ts": 1042,
       "packages/execution/execution-environment/src/registry.ts": 1105,
       "packages/identity/identity/src/testing/governance-contract.ts": 2277,
-      "packages/mcp/mcp-contract/src/testing-transport.ts": 2675,
-      "packages/mcp/mcp-host-local/src/session.ts": 1042,
+      "packages/mcp/mcp-contract/src/testing-transport.ts": 2537,
       "packages/model/model-host-local/src/plugins/runtime.ts": 1212,
       "packages/model/model-storage-sql/src/commit.ts": 1273,
       "packages/model/model/src/commands/commands.ts": 1171,
@@ -1535,15 +1464,11 @@
       },
       "packages/access/server-entry/src/http.ts": {
         "count": 1,
-        "longest": 270
-      },
-      "packages/access/server-entry/src/observation-hub/records.ts": {
-        "count": 1,
-        "longest": 155
+        "longest": 262
       },
       "packages/access/server-entry/src/pipeline/pipeline.ts": {
         "count": 1,
-        "longest": 193
+        "longest": 177
       },
       "packages/agent/agent-contract/src/testing-journal-core.ts": {
         "count": 2,
@@ -1827,23 +1752,19 @@
       },
       "packages/mcp/mcp/src/calls.ts": {
         "count": 1,
-        "longest": 235
+        "longest": 170
       },
       "packages/mcp/mcp/src/discovery.ts": {
         "count": 1,
-        "longest": 228
+        "longest": 197
       },
       "packages/mcp/mcp/src/internal/build.ts": {
         "count": 1,
-        "longest": 234
+        "longest": 194
       },
       "packages/mcp/mcp/src/internal/table.ts": {
         "count": 1,
-        "longest": 343
-      },
-      "packages/mcp/mcp/src/tasks.ts": {
-        "count": 1,
-        "longest": 174
+        "longest": 282
       },
       "packages/model/model-contract/src/conformance/conformance-admission.ts": {
         "count": 1,

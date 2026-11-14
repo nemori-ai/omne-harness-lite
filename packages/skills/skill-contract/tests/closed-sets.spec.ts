@@ -1,5 +1,3 @@
-// The closed sets as code lists are the same as the public types. Each list below is checked against
-// its type by the compiler (`Same`), and at run time names each member once.
 import { expect, it } from 'vitest'
 import type {
   CompatibilityHint,
@@ -18,7 +16,6 @@ import type {
 
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false
 
-// The rejection order is a constant of the member, not a public export: read it from its module.
 const rejections = INSPECT_REJECTIONS
 const failures = [
   'not-available-to-you',
@@ -46,7 +43,6 @@ const sourceFailures = [
 ] as const
 const verdicts = ['granted', 'refused', 'unknown'] as const
 const defects = ['invalid-root-name', 'duplicate-path', 'prefix-conflict'] as const
-// The order of the hints is the order in a result: read it from its module.
 const hints = COMPATIBILITY_HINTS
 
 const typed: readonly true[] = [

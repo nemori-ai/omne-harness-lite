@@ -1,6 +1,3 @@
-// `read` and `list` through the public service: the body from its start, resources as text or
-// bytes, the step order, the failures of the steps, no partial content on `version-changed`
-// and `aborted`, the abort checkpoints before any port, and no cache between two calls.
 import { describe, expect, it } from 'vitest'
 import { createSkillAccess } from '@omne-harness/skill'
 import { isSkillName, type ReadTarget } from '@omne-harness/skill-contract'
@@ -297,9 +294,6 @@ describe('list gives', () => {
 })
 
 describe('the body of a SKILL.md without a legal frontmatter', () => {
-  // Not reachable for a material whose digest comes from a package that passed `inspect`: the
-  // entry digest is checked at step 10, and `inspect` rejects such bytes. Reachable only when the
-  // asset digest comes from elsewhere. The bytes are then not known to be a body.
   it.each([
     ['no frontmatter at all', '# Title\nSome text.\n'],
     ['an opening delimiter without a closing one', '---\nname: review\nNot closed.\n'],
@@ -331,7 +325,6 @@ describe('the body of a SKILL.md without a legal frontmatter', () => {
     expect(await access.read(alice, scope, body)).toStrictEqual({
       failure: { kind: 'source-unavailable' },
     })
-    // A resource of the same material is still read whole: only the body needs the header.
     expect(okOf(await access.read(alice, scope, resource('docs/guide.md'))).content).toStrictEqual({
       kind: 'text',
       text: GUIDE,

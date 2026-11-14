@@ -1,5 +1,3 @@
-// The failure set of the directory source stays the closed source failure set of the contract,
-// and the seam keeps exactly its four reads.
 import { expectTypeOf, test } from 'vitest'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { Bytes, SkillPackageSnapshot } from '@omne-harness/skill-contract'

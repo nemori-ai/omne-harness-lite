@@ -1,4 +1,3 @@
-// The conformance suite of `SkillReadCheck` and its memory double.
 import assert from 'node:assert/strict'
 import type { CapabilityId } from '@omne-harness/assets'
 import type { Access } from '@omne-harness/legal-identity'
@@ -9,11 +8,9 @@ import type { PrincipalSample } from './testing-resolution.ts'
 
 export type MemoryReadGrant<P, S> = Readonly<{
   capability: CapabilityId
-  /** Whether the principal may read this identity in the scope. */
   visible: (access: Access<P>, scope: S) => boolean
 }>
 
-/** A read check over fixed grants. A missing identity and a hidden one are both refused. */
 export function createMemoryReadCheck<P, S>(
   grants: readonly MemoryReadGrant<P, S>[],
 ): SkillReadCheck<P, S> {
@@ -27,19 +24,14 @@ export function createMemoryReadCheck<P, S>(
   }
 }
 
-/** A fresh read check for one case, and the principals and identities that the case asks about. */
 export type ReadCheckFixture<P, S> = Readonly<{
   readCheck: SkillReadCheck<P, S>
-  /** A principal who may read `readable`. */
   permitted: PrincipalSample<P, S>
-  /** A principal who may not read `readable`. */
   refused: PrincipalSample<P, S>
   readable: CapabilityId
-  /** An identity that exists for nobody. */
   missing: CapabilityId
 }>
 
-/** The name of the non-disclosure case. */
 export const READ_CHECK_NO_DISCLOSURE =
   'answers a principal without the right the same for an existing and a missing identity'
 

@@ -1,5 +1,3 @@
-// .omne/skill.json: declaration-format-unsupported, outside-package, tool-ref-invalid,
-// setting-category-unknown and every malformed case of the declaration.
 import { describe, expect, it } from 'vitest'
 import { parseSkillPackage } from '@omne-harness/skill-contract'
 import { buildPackage } from './package-builder.ts'

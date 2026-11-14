@@ -1,7 +1,3 @@
-// What `parseSkillPackage` accepts beyond the native format, because the community Skills and the
-// main hosts use it: each acceptance carries a compatibility hint in `compatibilityHints` of the
-// definition, and a package without any carries no such field. A package that cannot be read at
-// all stays rejected: see parse-manifest.spec.ts.
 import { describe, expect, it } from 'vitest'
 import { readBodyText } from '@omne-harness/assets'
 import { writeJsonText } from '@omne-harness/json-text'
@@ -9,7 +5,6 @@ import { projectAssetBody, skillBodyContract } from '@omne-harness/skill-contrac
 import { manifestText } from './package-builder.ts'
 import { codeOf, demo, name, parse } from './parse-support.ts'
 
-/** The definition of an accepted package, or an error naming the failure. */
 function accepted(result: ReturnType<typeof parse>) {
   if (!('ok' in result)) throw new Error(JSON.stringify(result.failure))
   return result.ok
@@ -212,8 +207,6 @@ describe('a frontmatter that strict YAML does not read', () => {
     ])
   })
 
-  // Each case breaks strict YAML with `x: a: b`, so only the line by line reading applies. A
-  // description that it does not read leaves the manifest without one: `malformed`.
   it.each([
     [
       'a key that does not start the line',

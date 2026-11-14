@@ -1,8 +1,3 @@
-// The parsers of the values inside a port answer, by the contract SPEC "端口答复的统一处置". Each
-// parser takes `unknown` and gives the value of the contract type, built anew, or `undefined`
-// when one part of it does not hold. A branded value comes only from its contract guard; a
-// capability identity is built anew by `capabilityId`. Nothing of the port's object is kept, so
-// the port cannot change a value after it was parsed.
 import { capabilityId, type CapabilityId, type JsonValue } from '@omne-harness/assets'
 import {
   DECLARATION_LIMITS,
@@ -21,10 +16,6 @@ import {
 } from '@omne-harness/skill-contract'
 import type { PackageLocator, SkillRef } from '@omne-harness/skill-contract/provider'
 
-/**
- * Whether `value` is an object with its own field `key`. A field on the prototype does not count:
- * a port answer is data, and data has its fields itself. The field itself is still unknown.
- */
 export function has<K extends string>(
   value: unknown,
   key: K,
@@ -32,12 +23,10 @@ export function has<K extends string>(
   return typeof value === 'object' && value !== null && Object.hasOwn(value, key)
 }
 
-/** The own field `key` of `value`, or `undefined` when `value` is no object or has no such field. */
 export function fieldOf<K extends string>(value: unknown, key: K): unknown {
   return has(value, key) ? value[key] : undefined
 }
 
-/** A parser made from a guard. */
 function guarded<T>(guard: (value: unknown) => value is T): (value: unknown) => T | undefined {
   return value => (guard(value) ? value : undefined)
 }
@@ -46,10 +35,6 @@ function text(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined
 }
 
-/**
- * An optional field: `{}` when it is absent, `{ [key]: parsed }` when it parses, and `undefined`
- * when it is present and does not parse. Absent means a missing field or the value `undefined`.
- */
 function optional<K extends string, T>(
   value: unknown,
   key: K,
@@ -64,7 +49,6 @@ function optional<K extends string, T>(
   return one
 }
 
-/** Every item parsed, or `undefined` when the value is no list or one item does not parse. */
 export function listOf<T>(
   value: unknown,
   parse: (item: unknown) => T | undefined,
@@ -79,7 +63,6 @@ export function listOf<T>(
   return Object.freeze(items)
 }
 
-/** A capability identity, built anew from its category and name. */
 export function capabilityOf(value: unknown): CapabilityId | undefined {
   const category = fieldOf(value, 'category')
   const name = fieldOf(value, 'name')
@@ -130,9 +113,7 @@ function refOf(value: unknown): SkillRef | undefined {
   return Object.freeze({ capability, layer, ...assetVersion, locator, ...digest })
 }
 
-/** The deepest nesting of containers in script parameters: the depth budget of a declaration. */
 const PARAMETERS_DEPTH = DECLARATION_LIMITS.maxDepth
-/** A JSON number by RFC 8259 section 6: the lexeme form that `@omne-harness/json-text` reads. */
 const JSON_NUMBER = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/
 const NULL_NODE: JsonValue = Object.freeze({ kind: 'null' })
 
@@ -172,7 +153,6 @@ function jsonTreeOf(value: unknown, above: number): JsonValue | undefined {
   return undefined
 }
 
-/** One entry of a JSON object; `above` counts the containers above its value. */
 function entryOf(value: unknown, above: number): JsonEntry | undefined {
   const key = text(fieldOf(value, 'key'))
   const tree = jsonTreeOf(fieldOf(value, 'value'), above)
@@ -230,7 +210,6 @@ function declaredOf(value: unknown): DeclaredProjection | undefined {
   return Object.freeze({ name, ...description, tools, scripts, settings })
 }
 
-/** The payload of an `adopted` answer: the reference and the declared projection. */
 export function adoptedOf(
   value: unknown,
 ): Readonly<{ kind: 'adopted'; ref: SkillRef; declared: DeclaredProjection }> | undefined {
@@ -240,7 +219,6 @@ export function adoptedOf(
   return Object.freeze({ kind: 'adopted', ref, declared })
 }
 
-/** The payload of a `known-unavailable` answer: the last lawful name and description, and the reason. */
 export function standInOf(
   value: unknown,
 ): (StandIn & Readonly<{ kind: 'known-unavailable' }>) | undefined {

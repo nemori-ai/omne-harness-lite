@@ -1,12 +1,8 @@
-// The additive extension of the `skill` body: description, scripts, settings and package.digest.
-// The original body rules stay in contract.spec.ts, unchanged.
 import { describe, expect, it } from 'vitest'
 import { readBodyText, type JsonLimits, type JsonValue } from '@omne-harness/assets'
 import { writeJsonText } from '@omne-harness/json-text'
 import { skillBodyContract } from '@omne-harness/skill-contract'
 
-/** A reader budget large enough for a description of DESCRIPTION_LIMIT characters outside the
- * basic plane (4 bytes and 2 UTF-16 units each). */
 const limits: JsonLimits = {
   maxBytes: 262_144,
   maxDepth: 16,

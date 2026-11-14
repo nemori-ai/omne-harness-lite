@@ -1,4 +1,3 @@
-// Media type inference and the text or binary class of an entry.
 import type { Bytes, MediaType, PackagePath } from './values.ts'
 
 const BY_EXTENSION: ReadonlyMap<string, string> = new Map(
@@ -66,11 +65,6 @@ function sniff(head: Bytes): string | undefined {
   return undefined
 }
 
-/**
- * Infers the media type from the extension of the path, case-insensitive. When the extension is
- * not known, it reads the leading bytes for a PNG, JPEG, GIF, PDF or WebP signature. Otherwise the
- * type is absent: an absent type does not mean text.
- */
 export function inferMediaType(path: PackagePath, head: Bytes): MediaType | undefined {
   const extension = extensionOf(path)
   const type = (extension === undefined ? undefined : BY_EXTENSION.get(extension)) ?? sniff(head)
@@ -79,7 +73,6 @@ export function inferMediaType(path: PackagePath, head: Bytes): MediaType | unde
 
 const utf8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
 
-/** Text is strict UTF-8 without a NUL character. Everything else is binary. */
 export function encodingOf(bytes: Bytes): 'text' | 'binary' {
   if (bytes.includes(0)) return 'binary'
   try {

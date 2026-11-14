@@ -1,7 +1,3 @@
-// Material without a readable package (its asset body has no `package.digest`). Without a basis
-// the operations that read answer `unsupported`; with a basis the port echoes the digest of the
-// basis (PR3), so the material is pinned like any other and the source decides: it holds no
-// package where the reference points, so the read answers `basis-unavailable`.
 import { describe, expect, it } from 'vitest'
 import type { ReadTarget } from '@omne-harness/skill-contract'
 import {

@@ -1,8 +1,3 @@
-// S7, the reference names the requested material: the contract SPEC "端口答复的统一处置" and the
-// member SPEC "引用身份一致". An `adopted` answer of `resolve` whose reference names another
-// identity, or, with a basis, another source layer, asset version or digest than the basis, is no
-// answer: the operation answers `unknown`, gives no content and calls no source. Every case goes
-// through the public services.
 import { describe, expect, it } from 'vitest'
 import { capabilityId } from '@omne-harness/assets'
 import { createSkillAccess } from '@omne-harness/skill'
@@ -36,7 +31,6 @@ import { CAPABILITY, runOf } from './model/world.ts'
 
 const UNKNOWN = { failure: { kind: 'unknown' } }
 
-/** The reference of the current material of `review`, as the world's resolution gives it. */
 const REVIEW_REF: SkillRef = {
   capability: review,
   layer: 'tenant',
@@ -45,7 +39,6 @@ const REVIEW_REF: SkillRef = {
   digest: currentDigest,
 }
 
-/** The declared projection that the world's resolution gives for `review`. */
 async function reviewDeclared() {
   const { ports } = createWorld()
   const answer = await ports.resolution.resolve(alice, scope, review)
@@ -55,7 +48,6 @@ async function reviewDeclared() {
 
 type Lying = Readonly<{ access: SkillAccess<Principal, Scope>; calls: () => PortCalls }>
 
-/** A world whose resolution answers `adopted` with `ref` for every request. */
 async function lyingWorld(ref: SkillRef): Promise<Lying> {
   const world = createWorld()
   const declared = await reviewDeclared()
@@ -67,7 +59,6 @@ async function lyingWorld(ref: SkillRef): Promise<Lying> {
   return { access, calls: world.controls.calls }
 }
 
-/** Every operation on `review`, with `basis` when one is given; each answer must be `unknown`. */
 async function expectNoAnswer(lying: Lying, basis?: SkillMaterialBasis): Promise<void> {
   const options = basis === undefined ? {} : { basis }
   const { access } = lying
@@ -86,7 +77,6 @@ async function expectNoAnswer(lying: Lying, basis?: SkillMaterialBasis): Promise
   expect(await access.list(alice, scope, review, options)).toStrictEqual(UNKNOWN)
   if (basis !== undefined)
     expect(await access.export(alice, scope, review, basis)).toStrictEqual(UNKNOWN)
-  // No byte was asked for: the bad answer stops the operation at step 3.
   expect(lying.calls()).toMatchObject({ snapshot: 0, open: 0 })
 }
 
@@ -183,7 +173,6 @@ describe('a reference that agrees with the request passes', () => {
 })
 
 describe('a resolution that answers one reference with the material of another (S7)', () => {
-  // alice may read alpha and not beta. The resolution answers alpha with the material of beta.
   it('gives alice nothing of beta when the resolution answers alpha with the reference of beta', async () => {
     const world = {
       alpha: {
