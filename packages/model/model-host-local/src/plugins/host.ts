@@ -15,7 +15,7 @@
 import { randomUUID } from 'node:crypto'
 import { Service, symbols, type Context } from '@deepseek-ai/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { ModelRuntimeProvider } from '@omne-harness/model'
+import type { ModelLiveness, ModelRuntimeProvider } from '@omne-harness/model'
 import {
   drivable,
   type ModelInitialExecution,
@@ -24,6 +24,7 @@ import {
 } from '@omne-harness/model/commands'
 import type {
   CallAccess,
+  DurableEvidence,
   ModelCallId,
   ModelFailure,
   ModelHandle,
@@ -109,10 +110,37 @@ type LocalDriverHost = ModelDriverHost<unknown> &
      * after a drive that can be driven again is not counted: it stays owed in the commands.
      */
     idle(signal: AbortSignal): Promise<number>
+    drives(target: Wake): boolean
   }>
 
+/** Whether the call is owed another drive. */
+async function driveOnce(
+  { authority, report }: Pick<HostInput, 'authority' | 'report'>,
+  signal: AbortSignal,
+  driver: ModelDriver<unknown>,
+  target: Wake,
+): Promise<boolean> {
+  try {
+    const resolved = await authority.resolve(target)
+    if ('failure' in resolved) {
+      // No trusted input for this call, for example no evidence that the old process ended: the
+      // call is not driven. Queries and custody are other services and stay available.
+      report({ kind: 'blocked', failure: resolved.failure.kind })
+      return false
+    }
+    if (signal.aborted) return false
+    const outcome = await driver.drive(resolved.ok, signal)
+    if ('ok' in outcome) return false
+    report({ kind: 'drive-failed', failure: outcome.failure.kind })
+    return drivable(outcome.failure)
+  } catch {
+    report({ kind: 'drive-threw' })
+    return false
+  }
+}
+
 function createLocalDriverHost(input: HostInput): LocalDriverHost {
-  const { settings, authority, clock, report } = input
+  const { settings, clock, report } = input
   const wakes = new Map<string, Wake>()
   /** The calls that wait for their next wake after a drive that can be driven again. */
   const owed = new Set<string>()
@@ -122,27 +150,8 @@ function createLocalDriverHost(input: HostInput): LocalDriverHost {
   let phase: Phase = 'unbound'
   let bound: { driver: ModelDriver<unknown>; binding: ModelDriverBinding } | undefined
   let closing: Reply<void> | undefined
-
-  /** Whether the call is owed another drive. */
-  async function drive(driver: ModelDriver<unknown>, target: Wake): Promise<boolean> {
-    try {
-      const resolved = await authority.resolve(target)
-      if ('failure' in resolved) {
-        // No trusted input for this call, for example no evidence that the old process ended: the
-        // call is not driven. Queries and custody are other services and stay available.
-        report({ kind: 'blocked', failure: resolved.failure.kind })
-        return false
-      }
-      if (stopDrives.signal.aborted) return false
-      const outcome = await driver.drive(resolved.ok, stopDrives.signal)
-      if ('ok' in outcome) return false
-      report({ kind: 'drive-failed', failure: outcome.failure.kind })
-      return drivable(outcome.failure)
-    } catch {
-      report({ kind: 'drive-threw' })
-      return false
-    }
-  }
+  const drive = (driver: ModelDriver<unknown>, target: Wake) =>
+    driveOnce(input, stopDrives.signal, driver, target)
 
   /** Sets the wake bit of an owed call after the pause. A full queue is asked again a pause later. */
   async function wakeLater(key: string, target: Wake): Promise<void> {
@@ -214,6 +223,10 @@ function createLocalDriverHost(input: HostInput): LocalDriverHost {
     // Every drive that ends pumps the woken calls first, so an empty `running` has no woken call
     // that could be dispatched behind it.
     idle: signal => whenEmpty(running, signal),
+    drives(target) {
+      const key = keyOf(target.tenant, target.call)
+      return key !== undefined && (running.has(key) || wakes.has(key) || owed.has(key))
+    },
     retireRoute(target) {
       const key = keyOf(target.tenant, target.call)
       const held = key === undefined ? undefined : routes.get(key)
@@ -367,6 +380,7 @@ export type ModelHostPluginOptions = Readonly<{
       host: ModelInstanceHost<unknown>
       commands: ModelCommands<unknown>
       clock: ModelClock
+      liveness: ModelLiveness
     }>,
   ): Pick<ModelRuntimeProvider<unknown>, 'driver' | 'quiesce'> &
     Partial<Pick<ModelRuntimeProvider<unknown>, 'released'>> &
@@ -378,6 +392,7 @@ export type ModelHostPluginOptions = Readonly<{
    * for it, so the assembly supplies one. The directory returns a route only after it answers ok.
    */
   qualifyObservation(access: CallAccess<unknown>): Reply<void>
+  lostContact?(call: string): DurableEvidence | null
 }>
 
 /** The instance of the plugin class: Cordis calls `Service.init` and awaits it before ACTIVE. */
@@ -557,6 +572,11 @@ export function createModelRuntimeLocalPlugin(
         host,
         commands: stage.commands,
         clock: ctx.modelClock,
+        liveness: {
+          holds: target =>
+            host.drives(target) ? 'drive' : stage.delivering(target) ? 'push' : null,
+          lostContact: call => options.lostContact?.(call) ?? null,
+        },
       })
       // The order is the guarantee: the host was built unbound, it binds here, and only after the
       // bind has returned is the contribution that publishes it created.

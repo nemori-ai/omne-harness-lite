@@ -32,6 +32,7 @@ import {
 import type { SessionDependencies } from './dependencies.ts'
 import type { SessionDiagnostic } from './diagnostics.ts'
 import { messageOf } from './failures.ts'
+import type { KnownHandovers } from './known-handovers.ts'
 import type { Lifecycle } from './lifecycle.ts'
 import type { SchedulingPolicy } from './policy.ts'
 import type { Resolution } from './resolution.ts'
@@ -54,12 +55,13 @@ type HandoverFact = Extract<ProducerFact, { kind: 'input-handover' }>
 type Holding = boolean | Readonly<{ failure: SessionFailure }>
 
 /**
- * PA-06 item 2: the Run is active, an attempt holds the advance and the first input has no
- * hand-over (SE35) yet, so the invoke of the Run was not accepted, or its acceptance not recorded.
+ * PA-06 item 2: the Run is active, an attempt holds the advance, the first input has no hand-over
+ * (SE35) yet and this instance read no acceptance of it (`known`): the invoke of the Run was not
+ * accepted, or it was accepted before a restart.
  */
-function grantedNotInvoked(snapshot: WorkSnapshot): ActiveRun | null {
+function grantedNotInvoked(snapshot: WorkSnapshot, known: ReadonlySet<InputId>): ActiveRun | null {
   const { run } = snapshot
-  if (run.kind !== 'active' || run.advance === null) return null
+  if (run.kind !== 'active' || run.advance === null || known.has(run.first)) return null
   if (!snapshot.pending.includes(run.first) || snapshot.handed.includes(run.first)) return null
   return run
 }
@@ -74,10 +76,11 @@ function grantedNotInvoked(snapshot: WorkSnapshot): ActiveRun | null {
  */
 function waitingInputs(
   snapshot: WorkSnapshot,
+  known: ReadonlySet<InputId>,
 ): Readonly<{ run: ActiveRun; inputs: readonly InputId[] }> | null {
   const { run } = snapshot
   if (run.kind !== 'active' || run.advance === null) return null
-  const handed = new Set(snapshot.handed)
+  const handed = new Set([...snapshot.handed, ...known])
   const inputs = snapshot.pending.filter(input => input !== run.first && !handed.has(input))
   return inputs.length === 0 ? null : { run, inputs }
 }
@@ -106,9 +109,11 @@ export function createAdvance<P>(
     scheduling: Scheduling<P>
     resolution: Resolution
     faces: Faces<P>
+    known: KnownHandovers
+    recover: (ref: SessionRef) => void
   }>,
 ): Advance {
-  const { dependencies, lifecycle, policy, scheduling, resolution, faces } = input
+  const { dependencies, lifecycle, policy, scheduling, resolution, faces, known, recover } = input
   const coordinator = faces.coordinator.work
   const waiting = new Map<string, AbortController>()
 
@@ -391,6 +396,7 @@ export function createAdvance<P>(
     const target = { ...ref, execution, operation }
     const delays = policy.advance.retryDelaysMs
     const recorded = async (result: HandoverFact['result']): Promise<true> => {
+      known.note(ref, run.run, input)
       await handOver(ref, run.run, { kind: 'input-handover', execution, input, result })
       return true
     }
@@ -435,7 +441,7 @@ export function createAdvance<P>(
       coordinator.readWork({ principal, ...ref }),
     )
     if ('failure' in snapshot) return reportFailure(ref, 'submit', null, snapshot)
-    const due = waitingInputs(snapshot.ok)
+    const due = waitingInputs(snapshot.ok, known.of(ref, snapshot.ok))
     if (due === null) return
     for (const input of due.inputs) {
       const source = routedSource(snapshot.ok, input)
@@ -460,7 +466,7 @@ export function createAdvance<P>(
    * same identity (PA-06 item 2). An admission refusal (`invalid`) and a drive refusal (`refused`)
    * close the Run instead (PM-02). Nothing is sent once closed.
    */
-  const invoke = async (ref: SessionRef, started: StartedRun): Promise<void> => {
+  const invoke = async (ref: SessionRef, started: StartedRun, replay = false): Promise<void> => {
     const run = started.advance.run
     const operation = deriveDriveOperation({
       kind: 'invoke',
@@ -493,12 +499,14 @@ export function createAdvance<P>(
         grant: started.receipt.source,
       })
       if ('ok' in answer) {
+        known.note(ref, run, started.first)
         await handOver(ref, run, {
           kind: 'input-handover',
           execution: started.execution,
           input: started.first,
           result: { kind: 'accepted', receipt: answer.ok.evidence },
         })
+        if (replay) recover(ref)
         return handIn(ref)
       }
       const failure = answer.failure
@@ -612,25 +620,19 @@ export function createAdvance<P>(
       coordinator.readWork({ principal, ...ref }),
     )
     if ('failure' in snapshot) return reportFailure(ref, 'replay', null, snapshot)
-    const run = grantedNotInvoked(snapshot.ok)
+    const run = grantedNotInvoked(snapshot.ok, known.of(ref, snapshot.ok))
     if (run === null) return
     const started = await start(ref, run.first, predecessorOf(snapshot.ok, run.run), run.adoption)
     if ('failure' in started) {
       reportFailure(ref, 'replay', run.run, started)
       return unknownTo(ref, started, () => replay(ref))
     }
-    // The advance moved to a later attempt (claim, reload): its invoke needs the grant of that
-    // attempt, which is the takeover of C5, not in this member yet (SPEC「实现现状」).
-    if (run.advance?.attempt !== started.ok.advance.attempt)
-      return report(
-        ref,
-        'C2',
-        'replay',
-        run.run,
-        'attempt-replaced',
-        'the granted Run is held by a later attempt; its invoke waits for the takeover (C5)',
-      )
-    return invoke(ref, started.ok)
+    if (run.advance?.attempt !== started.ok.advance.attempt) {
+      known.note(ref, run.run, run.first)
+      recover(ref)
+      return report(ref, 'C2', 'replay', run.run, 'attempt-replaced', 'held by a later attempt')
+    }
+    return invoke(ref, started.ok, true)
   }
 
   /**
@@ -643,9 +645,10 @@ export function createAdvance<P>(
     )
     if ('failure' in snapshot)
       return report(ref, 'S1', 'read', null, snapshot.failure.kind, snapshot.failure)
-    if (grantedNotInvoked(snapshot.ok) !== null)
+    const seen = known.of(ref, snapshot.ok)
+    if (grantedNotInvoked(snapshot.ok, seen) !== null)
       return scheduling.serial(sessionKey(ref), () => replay(ref))
-    if (waitingInputs(snapshot.ok) !== null)
+    if (waitingInputs(snapshot.ok, seen) !== null)
       return scheduling.serial(sessionKey(ref), () => handIn(ref))
     // A frozen session starts no new Run (I-F2): skip without judging.
     if (snapshot.ok.frozen !== null && snapshot.ok.run.kind !== 'active') return

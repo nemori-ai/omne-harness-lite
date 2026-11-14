@@ -15,7 +15,13 @@ async function unused(): Promise<never> {
 }
 
 class ScriptedModelRuntimeService<P> extends ModelRuntimeService<P> {
-  readonly calls = { admit: unused, inspect: unused, dispatches: unused, cancel: unused }
+  readonly calls = {
+    admit: unused,
+    inspect: unused,
+    contact: unused,
+    dispatches: unused,
+    cancel: unused,
+  }
   readonly consumption = {
     beginRead: unused,
     readNext: unused,

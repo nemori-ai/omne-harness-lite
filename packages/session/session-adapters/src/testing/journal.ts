@@ -103,6 +103,7 @@ import {
   frozenSet,
   journalEvidence,
   revisionOf,
+  openKey,
   semanticKey,
   sequenceOf,
   JOURNAL_OWNER,
@@ -119,9 +120,11 @@ import {
   cursorOf as cursorMembersOf,
   emptyExecutionView,
   fold,
+  modelAttempt,
   receiptOf as batchReceiptOf,
   BATCH_MAX_FACTS,
   refOf,
+  voidedFacts,
   type Answer,
   type Blob,
   type ExclusionReason,
@@ -3514,7 +3517,7 @@ export function createJournal<P>(
     capabilities: Object.freeze({ coordination: 'coordinated' as const, participants }),
 
     open(input) {
-      const key = semanticKey('open', input)
+      const key = openKey(input)
       const { original: acceptance, runtime } = input
       const entry = acceptance.entry
       const initial = entry.kind === 'invoke' ? entry.initial : entry.value
@@ -3552,7 +3555,6 @@ export function createJournal<P>(
           generation: '1',
           source: attachmentEvidence(input.execution, 'attach', 1, 1),
         }
-        // The initial checkpoint comes from the caller, not from the invoke entry (R2-D292).
         const checkpoint = input.checkpoint
         const outcome = acceptance.outcome
         const bound = receiving.newBindings(
@@ -3971,8 +3973,7 @@ export function createJournal<P>(
           facts.push({
             kind: 'request.adopted',
             step: input.checkpoint.step,
-            attempt: input.checkpoint.voided.filter(item => item.step === input.checkpoint.step)
-              .length,
+            attempt: modelAttempt(input.checkpoint),
             reference: adopted.reference,
             fixed: copy(adopted.fixed),
             schema: copy(adopted.schema),
@@ -3982,17 +3983,11 @@ export function createJournal<P>(
         }
         // Each newly voided intent closes the adopted request it names (R2-D292); `voided` is
         // never a cursor member, so it is not rewritten with each voiding.
-        for (const item of input.checkpoint.voided.slice(execution.checkpoint.voided.length)) {
-          const request = view.requests.findLast(request => request.reference === item.reference)
-          if (request === undefined)
-            return answer(fail(invalid('checkpoint.voided', 'the voided request was not adopted')))
-          facts.push({
-            kind: 'intent.voided',
-            step: request.step,
-            attempt: request.attempt,
-            basis: copy(item.basis),
-          })
-        }
+        const voidedNow = input.checkpoint.voided.slice(execution.checkpoint.voided.length)
+        const closed = voidedFacts(view, voidedNow)
+        if (closed === null)
+          return answer(fail(invalid('checkpoint.voided', 'the voided request was not adopted')))
+        facts.push(...closed)
         for (const body of input.events) {
           if (body.kind === 'input-taken')
             facts.push({ kind: 'step.begun', step: input.checkpoint.step, batch: copy(body.batch) })

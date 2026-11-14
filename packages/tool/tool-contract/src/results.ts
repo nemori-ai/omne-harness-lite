@@ -190,3 +190,8 @@ export type OperationResolution =
 export type ToolLookup =
   | Readonly<{ kind: 'found'; state: ToolState }>
   | Readonly<{ kind: 'not-accepted'; operation: ToolOperationId }>
+export type ToolCallContact =
+  | Readonly<{ kind: 'holding' }>
+  | Readonly<{ kind: 'settled' }>
+  | Readonly<{ kind: 'not-accepted' }>
+  | Readonly<{ kind: 'unknown' }>

@@ -114,6 +114,7 @@ export type OperationReceipt =
   | Readonly<{ kind: 'ledger-rejected'; state: ToolState }>
   | Readonly<{ kind: 'record-start'; state: ToolState }>
   | Readonly<{ kind: 'preserve-result'; state: ToolState }>
+  | Readonly<{ kind: 'settle-lost'; state: ToolState }>
   | Readonly<{ kind: 'plan-release'; release: ReleaseRecord }>
   | Readonly<{ kind: 'record-release' | 'record-task'; evidence: DurableEvidence }>
   | Readonly<{ kind: 'fact-acknowledgement'; progress: FactProgress }>
@@ -362,6 +363,7 @@ export type ReleaseBasis =
       checkpoint: DurableEvidence
       exclusion: DurableEvidence
     }>
+  | Readonly<{ kind: 'lost-continuity'; continuity: DurableEvidence }>
 
 /** A record of a host provider. The ledger stores it by key and never reads its value. */
 export type HostRecord = Readonly<{ key: string; value: unknown }>

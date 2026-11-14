@@ -1,5 +1,8 @@
 // The recovery of an active Run whose execution was handed over (contract PM-14, PM-05; SPEC C2
-// 顺序：恢复与接管, the recovery path only). S3 hands an active Run here. The execution record decides:
+// 顺序：恢复与接管, the recovery path only). S3 hands an active Run here, and C2 hands one whose
+// invoke it sent again: the Agent may have accepted that invoke in a process that ended before the
+// answer came back. A Run whose acceptance this instance read is asked about without a recorded
+// hand-over too. The execution record decides:
 //
 // - The attachment is active and the host of the record has no judgment that its runtime is out of
 //   contact: the Agent advances the execution, and nothing is done (PM-14).
@@ -14,7 +17,9 @@
 //   The claim of one handover has one operation identity. The recovery queries it first (PM-14:
 //   先查后做): a claim that is committed already gives its grant, so a recovery that comes back
 //   after a failed `resume` resumes with the same grant and claims no second attempt (PM-10).
-// - The execution ended, or its record cannot be read: nothing is done here.
+// - The execution ended while this Run is still open: an event it left is not interpreted yet. The
+//   drive's `inspect` wakes the readers of the published events again; nothing else is done here.
+// - Its record cannot be read: nothing is done here.
 //
 // The takeover in one commit (an `attach` that supersedes an active attachment, Agent SPEC "恢复与
 // 接管") is not in this member: an attachment whose runtime is out of contact goes the hand-back way
@@ -29,6 +34,7 @@ import {
   type DriveFailure,
   type DurableEvidence,
   type ExecutionStatus,
+  type InputId,
   type RunId,
   type SessionFaces,
   type SessionFailure,
@@ -37,6 +43,7 @@ import {
 import type { SessionDependencies } from './dependencies.ts'
 import type { SessionDiagnostic } from './diagnostics.ts'
 import { messageOf } from './failures.ts'
+import type { KnownHandovers } from './known-handovers.ts'
 import type { Lifecycle } from './lifecycle.ts'
 import { sessionKey, type Scheduling, type SessionRef } from './scheduling.ts'
 import { sessionSlotReference } from './slot-reference.ts'
@@ -60,6 +67,12 @@ export function acceptedRun(snapshot: WorkSnapshot): ActiveRun | null {
   return snapshot.handed.includes(run.first) || !snapshot.pending.includes(run.first) ? run : null
 }
 
+/** The Run a check asks about: the accepted one, by the snapshot or by an answer this instance read. */
+function checkedRun(snapshot: WorkSnapshot, known: ReadonlySet<InputId>): ActiveRun | null {
+  const { run } = snapshot
+  return run.kind === 'active' && known.has(run.first) ? run : acceptedRun(snapshot)
+}
+
 /**
  * Whether the attachment of the execution can be handed back now: it was handed back already, or
  * it is active and the host of the record judges its runtime out of contact. An active attachment
@@ -81,9 +94,10 @@ export function createRecovery<P>(
     lifecycle: Lifecycle
     scheduling: Scheduling<P>
     coordinator: SessionFaces<P>
+    known: KnownHandovers
   }>,
 ): Recovery {
-  const { dependencies, lifecycle, scheduling, coordinator } = input
+  const { dependencies, lifecycle, scheduling, coordinator, known } = input
 
   const report = (
     ref: SessionRef,
@@ -193,9 +207,8 @@ export function createRecovery<P>(
     if ('failure' in principal) return
     const snapshot = await coordinator.work.readWork({ principal: principal.ok, ...ref })
     if ('failure' in snapshot) return
-    const run = acceptedRun(snapshot.ok)
+    const run = checkedRun(snapshot.ok, known.of(ref, snapshot.ok))
     if (run === null) return
-    // No member releases an advance without a claim, so the Run that the Agent accepted holds one.
     const { advance } = run
     if (advance === null) return
     const execution = run.execution.execution
@@ -219,28 +232,35 @@ export function createRecovery<P>(
     await takeUp(ref, port, principal.ok, snapshot.ok, run, handover.ok)
   }
 
+  return { trigger: absorbing(lifecycle, scheduling, check) }
+}
+
+/** Runs `check` on the lane of the session. A check in flight absorbs later triggers into one more. */
+function absorbing<P>(
+  lifecycle: Lifecycle,
+  scheduling: Scheduling<P>,
+  check: (ref: SessionRef) => Promise<void>,
+): (ref: SessionRef) => void {
   const triggers = new Map<string, { again: boolean }>()
-  return {
-    trigger: ref => {
-      if (lifecycle.closed) return
-      const key = sessionKey(ref)
-      const inFlight = triggers.get(key)
-      if (inFlight !== undefined) {
-        inFlight.again = true
-        return
+  return ref => {
+    if (lifecycle.closed) return
+    const key = sessionKey(ref)
+    const inFlight = triggers.get(key)
+    if (inFlight !== undefined) {
+      inFlight.again = true
+      return
+    }
+    const state = { again: false }
+    triggers.set(key, state)
+    lifecycle.spawn(async () => {
+      try {
+        do {
+          state.again = false
+          await scheduling.serial(key, () => check(ref))
+        } while (state.again && !lifecycle.closed)
+      } finally {
+        triggers.delete(key)
       }
-      const state = { again: false }
-      triggers.set(key, state)
-      lifecycle.spawn(async () => {
-        try {
-          do {
-            state.again = false
-            await scheduling.serial(key, () => check(ref))
-          } while (state.again && !lifecycle.closed)
-        } finally {
-          triggers.delete(key)
-        }
-      })
-    },
+    })
   }
 }

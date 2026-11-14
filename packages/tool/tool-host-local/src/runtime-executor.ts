@@ -7,13 +7,15 @@ import {
   type ToolLedger,
   type ToolLedgerRecovery,
 } from '@omne-harness/tool'
-import type { DurableEvidence } from '@omne-harness/tool-contract'
+import type { DurableEvidence, ToolInstanceId } from '@omne-harness/tool-contract'
 import type {
   ToolDriver,
   ToolInstanceHost,
   ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
 import { owesWork, waitsForPerson } from './call-dormancy.ts'
+import { attachCall } from './call-liveness.ts'
+import { createLostExecutions, type LostExecutionsInput } from './lost-execution.ts'
 import { createRecoveryScans } from './recovery-scans.ts'
 import { createLocalToolResultDelivery } from './result-delivery.ts'
 import { createRuntimePublication } from './runtime-publication.ts'
@@ -72,9 +74,6 @@ function drivenLater(progress: string): boolean {
   )
 }
 
-/** 原执行可能仍在旧实例里运行的阶段：新实例不接上它，也不重新启动它。 */
-const POSSIBLY_LIVE: ReadonlySet<string> = new Set(['starting', 'live', 'unknown'])
-
 /** The rescan period when the input does not give one (SPEC「周期」). */
 const RESCAN_MS = 60_000
 
@@ -88,19 +87,23 @@ function logTo(ctx: Context): (level: 'warn' | 'info', message: string) => void 
   }
 }
 
-export function createRuntimeExecutor(
-  input: Readonly<{
-    ctx: Context
-    settings: RuntimeCompositionInput
-    dependencies: ToolDependencies<unknown, ToolMessageContentBlock, ToolEnvironmentValue>
-    resultDelivery: ToolLedger<unknown, ToolMessageContentBlock>['delivery']
-    receiver: Parameters<
-      typeof createLocalToolResultDelivery<unknown, ToolMessageContentBlock>
-    >[0]['position']['receiver']
-    /** 账本的受信恢复扫描：执行器启动时用它找回有待推进工作的旧调用。 */
-    recovery: ToolLedgerRecovery
-  }>,
-) {
+type ExecutorInput = Readonly<{
+  ctx: Context
+  settings: RuntimeCompositionInput
+  dependencies: ToolDependencies<unknown, ToolMessageContentBlock, ToolEnvironmentValue>
+  resultDelivery: ToolLedger<unknown, ToolMessageContentBlock>['delivery']
+  receiver: Parameters<
+    typeof createLocalToolResultDelivery<unknown, ToolMessageContentBlock>
+  >[0]['position']['receiver']
+  /** 账本的受信恢复扫描：执行器启动时用它找回有待推进工作的旧调用。 */
+  recovery: ToolLedgerRecovery
+  instance(): ToolInstanceId | null
+  maintenance: LostExecutionsInput['maintenance']
+}>
+
+const AT_REST: ReadonlySet<string> = new Set(['ended', 'not-started', 'lost'])
+
+export function createRuntimeExecutor(input: ExecutorInput) {
   const { settings, dependencies } = input
   const abort = new AbortController()
   const calls = new Map<string, Entry>()
@@ -140,6 +143,7 @@ export function createRuntimeExecutor(
     stepsPerRun: settings.configuration.driverStepsPerRun ?? 16,
     retryDelayMs: settings.configuration.driverRetryDelayMs ?? 1000,
   })
+  const lost = createLostExecutions(input, step => driver.later(step))
   const keyOf = (wake: Wake) => canonicalDigest([wake.tenant, wake.call])
   // `scans` is built below; `remember` reaches it only when it is called, after construction.
   const remember = (wake: Wake, purpose: RuntimeCallPurpose = 'execute'): boolean => {
@@ -333,7 +337,7 @@ export function createRuntimeExecutor(
         const current = await dependencies.commands.loadRecovery(step)
         if ('failure' in current || calls.get(keyOf(step)) !== entry) return
         const { execution } = current.ok.state
-        if (execution.kind !== 'ended' && execution.kind !== 'not-started') return
+        if (!AT_REST.has(execution.kind)) return
         if (current.ok.tasks.some(task => task.state === 'pending')) return
         entry.complete = true
         await retire(step, entry)
@@ -364,24 +368,14 @@ export function createRuntimeExecutor(
           return
         }
         entry.started = true
-        // A new executor cannot attach an old execution by resolving the latest providers. It
-        // lets a call go only when the execution of the current segment can still run in an old
-        // instance; the start record of the segment names its owner. This instance advances a
-        // call that is suspended, ended or never started, or whose current segment it prepared.
-        const owner = before.ok.start?.execution.instance ?? before.ok.execution?.instance
-        if (
-          owner !== undefined &&
-          owner !== step.instance &&
-          POSSIBLY_LIVE.has(before.ok.state.execution.kind)
-        ) {
+        const forget = () => {
           foreignExecutionRuns += 1
-          if (calls.get(keyOf(step)) === entry) {
-            calls.delete(keyOf(step))
-            delivery.release(step)
-            scans.roomMade()
-          }
-          return
+          if (calls.get(keyOf(step)) !== entry) return
+          calls.delete(keyOf(step))
+          delivery.release(step)
+          scans.roomMade()
         }
+        if (await lost.handled(step, before.ok, entry, forget)) return
         // A saved final can release an unused writer while its fragment provider is unavailable.
         const progress = await driver.advance(step)
         stops.stopped(keyOf(step), step.call, progress)
@@ -429,6 +423,7 @@ export function createRuntimeExecutor(
   return {
     remember,
     knows: (wake: Wake) => calls.has(keyOf(wake)),
+    attach: (wake: Wake) => attachCall(input, remember, wake),
     rejectAdmission(wake: Wake) {
       const entry = calls.get(keyOf(wake))
       if (entry === undefined || entry.started) return

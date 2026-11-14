@@ -350,9 +350,12 @@ describe('createAgentHostLocalPlugin with a Tool request source', () => {
     await until(async () => (await load()).state.kind === 'waiting', 3_000)
     const before = await load()
     const committed = commits
-    // 等待一再唤醒，每次复查都只读。
+    // 每次到点只问 Tool；Tool 还拿着这两个调用，等待不醒，也不读日志。
+    const asked = host.controls.tools.queries.contact.calls
+    await until(() => asked.length > 2, 3_000)
     const loads = host.journalCalls.length
-    await until(() => host.journalCalls.length > loads + 20, 3_000)
+    await until(() => asked.length > 22, 3_000)
+    expect(host.journalCalls.length).toBe(loads)
     const after = await load()
     expect(commits).toBe(committed)
     expect(after.revision).toBe(before.revision)

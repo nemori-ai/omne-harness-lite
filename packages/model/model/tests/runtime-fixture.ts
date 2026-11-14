@@ -2,6 +2,7 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import {
   createModelRuntime,
   type ModelConfiguration,
+  type ModelLiveness,
   type SendResources,
 } from '@omne-harness/model'
 import { createTestModelDependencies, type MemoryModelEvidence } from '@omne-harness/model/testing'
@@ -44,6 +45,7 @@ export function runtimeFixture(
     commands: ModelCommands<ReturnType<typeof fixture>['principal']>,
   ) => ModelCommands<ReturnType<typeof fixture>['principal']>,
   handoff?: MemoryModelEvidence['handoff'],
+  liveness?: ModelLiveness,
 ) {
   const f = fixture()
   const assembly = createTestModelDependencies({
@@ -239,7 +241,10 @@ export function runtimeFixture(
     },
   }
   const dependencies = { ...assembly.dependencies, commands: recorded, send, instances }
-  const provider = createModelRuntime(dependencies, { ...configuration, ...config })
+  const provider = createModelRuntime(
+    liveness === undefined ? dependencies : { ...dependencies, liveness },
+    { ...configuration, ...config },
+  )
   return {
     ...f,
     ...assembly,

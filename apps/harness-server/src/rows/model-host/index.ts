@@ -22,6 +22,7 @@
 // `incomplete` while the disposal goes on; the tree disposal awaits the same disposal later.
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
 import { createModelRuntime } from '@omne-harness/model'
+import type { DurableEvidence } from '@omne-harness/model-contract'
 import type { ModelRetryPolicy, ModelSendBoundary } from '@omne-harness/model-contract/provider'
 import {
   ModelSendBoundaryService,
@@ -78,11 +79,19 @@ export function lateBoundSendBoundary(ctx: Context): ModelSendBoundary<unknown> 
 
 type Drain = (signal: AbortSignal) => Promise<ModelHostDrain>
 
+export type ModelHostRowInput = Readonly<{
+  lostContact?: (instance: string) => DurableEvidence | null
+}>
+
 /**
  * The host plugin of one row activation, with every live object in its closure. `built` is given
  * the drain of the host instance when the plugin builds it.
  */
-function hostPlugin(config: ModelHostConfig, built: (drain: Drain) => void): Plugin.Object {
+function hostPlugin(
+  input: ModelHostRowInput,
+  config: ModelHostConfig,
+  built: (drain: Drain) => void,
+): Plugin.Object {
   return {
     name: 'model-host',
     inject: [modelCommandsKey, modelClockKey, modelHostAuthorityKey],
@@ -105,7 +114,8 @@ function hostPlugin(config: ModelHostConfig, built: (drain: Drain) => void): Plu
         qualifyObservation: access => binding.qualifyObservation(access),
         observation: observation.ok,
         results: { ledger: binding.ledger, limits: config.results },
-        provider: ({ host, commands, clock }) =>
+        ...(input.lostContact === undefined ? {} : { lostContact: input.lostContact }),
+        provider: ({ host, commands, clock, liveness }) =>
           createModelRuntime(
             {
               commands: qualifyingCommands(
@@ -117,6 +127,7 @@ function hostPlugin(config: ModelHostConfig, built: (drain: Drain) => void): Plu
               instances: host,
               send,
               retry: unavailableRetry,
+              liveness,
             },
             config.runtime,
           ),
@@ -128,68 +139,73 @@ function hostPlugin(config: ModelHostConfig, built: (drain: Drain) => void): Plu
   }
 }
 
-async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
-  const config = modelHostConfig.parse(raw)
-  let drain: Drain | undefined
-  const child = ctx.plugin(hostPlugin(config, built => (drain = built)))
-  await child
-  let disposing: Promise<void> | undefined
-  return {
-    // A model call is a paid request that lives on this process: aborting it loses what was paid
-    // for. So before any caller stops, the calls already admitted run to their end.
-    drain: async deadline => {
-      if (drain === undefined) return { kind: 'settled' }
-      const expired = new AbortController()
-      const timer = monotonicClock.after(deadline - monotonicClock.now())
-      void timer.promise.then(() => expired.abort())
-      const drained = await drain(expired.signal)
-      timer.cancel()
-      if (!drained.quiesced)
-        return { kind: 'incomplete', detail: 'the model runtime did not close its admission' }
-      if (drained.inFlight === 0) return { kind: 'settled' }
-      return {
-        kind: 'incomplete',
-        detail: `${drained.inFlight} model call(s) or result push(es) still ran at the drain deadline; the stop aborts them and their outcome stays unknown`,
-      }
-    },
-    stop: async deadline => {
-      disposing ??= child.dispose()
-      const remaining = deadline - monotonicClock.now()
-      const timer = monotonicClock.after(remaining)
-      const settled = await Promise.race([
-        disposing.then(
-          () => 'settled' as const,
-          () => 'failed' as const,
-        ),
-        timer.promise.then(() => 'deadline' as const),
-      ])
-      timer.cancel()
-      switch (settled) {
-        case 'settled':
-          return { kind: 'settled' }
-        case 'failed':
-          return { kind: 'failed', detail: 'the model host did not shut down cleanly' }
-        case 'deadline':
-          return { kind: 'incomplete', detail: 'the model host is still handing back its drives' }
-      }
-    },
+const bodyOf = (input: ModelHostRowInput) =>
+  async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
+    const config = modelHostConfig.parse(raw)
+    let drain: Drain | undefined
+    const child = ctx.plugin(hostPlugin(input, config, built => (drain = built)))
+    await child
+    let disposing: Promise<void> | undefined
+    return {
+      // A model call is a paid request that lives on this process: aborting it loses what was paid
+      // for. So before any caller stops, the calls already admitted run to their end.
+      drain: async deadline => {
+        if (drain === undefined) return { kind: 'settled' }
+        const expired = new AbortController()
+        const timer = monotonicClock.after(deadline - monotonicClock.now())
+        void timer.promise.then(() => expired.abort())
+        const drained = await drain(expired.signal)
+        timer.cancel()
+        if (!drained.quiesced)
+          return { kind: 'incomplete', detail: 'the model runtime did not close its admission' }
+        if (drained.inFlight === 0) return { kind: 'settled' }
+        return {
+          kind: 'incomplete',
+          detail: `${drained.inFlight} model call(s) or result push(es) still ran at the drain deadline; the stop aborts them and their outcome stays unknown`,
+        }
+      },
+      stop: async deadline => {
+        disposing ??= child.dispose()
+        const remaining = deadline - monotonicClock.now()
+        const timer = monotonicClock.after(remaining)
+        const settled = await Promise.race([
+          disposing.then(
+            () => 'settled' as const,
+            () => 'failed' as const,
+          ),
+          timer.promise.then(() => 'deadline' as const),
+        ])
+        timer.cancel()
+        switch (settled) {
+          case 'settled':
+            return { kind: 'settled' }
+          case 'failed':
+            return { kind: 'failed', detail: 'the model host did not shut down cleanly' }
+          case 'deadline':
+            return { kind: 'incomplete', detail: 'the model host is still handing back its drives' }
+        }
+      },
+    }
   }
+
+export function createModelHostRow(input: ModelHostRowInput = {}) {
+  return defineRow({
+    row: 'model-host',
+    implementation: 'real',
+    manifest: {
+      provides: [
+        modelRuntimeKey,
+        modelInstanceHostKey,
+        modelStreamReferencesKey,
+        modelStreamObservationKey,
+      ],
+      injects: [modelCommandsKey, modelClockKey, modelHostAuthorityKey],
+      sameProviderGroup: null,
+    },
+    lifecycle: { kind: 'body', phase: 'business' },
+    Config: modelHostConfig,
+    body: bodyOf(input),
+  })
 }
 
-export const modelHostRow = defineRow({
-  row: 'model-host',
-  implementation: 'real',
-  manifest: {
-    provides: [
-      modelRuntimeKey,
-      modelInstanceHostKey,
-      modelStreamReferencesKey,
-      modelStreamObservationKey,
-    ],
-    injects: [modelCommandsKey, modelClockKey, modelHostAuthorityKey],
-    sameProviderGroup: null,
-  },
-  lifecycle: { kind: 'body', phase: 'business' },
-  Config: modelHostConfig,
-  body,
-})
+export const modelHostRow = createModelHostRow()

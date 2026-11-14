@@ -23,6 +23,7 @@ export async function startAssembly(runtime: ModelRuntime<Principal>) {
     },
     dispatches: input => runtime.calls.dispatches(input),
     cancel: input => runtime.calls.cancel(input),
+    contact: input => runtime.calls.contact(input),
   }
   class HostedRuntime extends ModelRuntimeService<Principal> {
     readonly calls = calls

@@ -7,6 +7,7 @@ import { expectTypeOf, it } from 'vitest'
 import type {
   Access,
   CallAccess,
+  CallContact,
   CallState,
   CustodyState,
   DispatchRecord,
@@ -88,10 +89,16 @@ it('an adapter can implement ModelCalls from the contract alone', () => {
   const calls: ModelCalls<string> = {
     admit: async () => ({ ok: { call, revision, recovered: false, reference } }),
     inspect: async _unused => ({ ok: { kind: 'not-accepted', operation: operation } }),
+    contact: async () => ({ ok: { kind: 'unknown' } }),
     dispatches: async () => ({ ok: [] }),
     cancel: async () => ({ ok: { kind: 'none' } }),
   }
   void calls
+  expectTypeOf<ModelCalls<string>['contact']>().returns.toEqualTypeOf<Reply<CallContact>>()
+  const lost: CallContact = { kind: 'lost', evidence }
+  // @ts-expect-error lost carries the evidence of the judgement
+  const unproven: CallContact = { kind: 'lost' }
+  void [lost, unproven]
   expectTypeOf<ModelCalls<string>['cancel']>().parameter(0).toEqualTypeOf<Mutation<string>>()
   expectTypeOf<ModelCalls<string>['dispatches']>().returns.toEqualTypeOf<
     Reply<readonly DispatchRecord[]>
@@ -315,6 +322,7 @@ it('the ordinary runtime has no driver, no publication and no replaceable parts'
     calls: {
       admit: calls.admit,
       inspect: calls.inspect,
+      contact: calls.contact,
       dispatches: calls.dispatches,
       cancel: calls.cancel,
     },

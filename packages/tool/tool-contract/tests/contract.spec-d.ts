@@ -6,6 +6,7 @@ import { organizationCodec } from '@omne-harness/legal-identity'
 import { expectTypeOf, it } from 'vitest'
 import {
   decodeToolCallId,
+  type ToolCallContact,
   type ToolCallId,
   type ToolInstanceId,
   type ToolInvocationRef,
@@ -120,6 +121,16 @@ it('keeps provider operations out of consumer surfaces', () => {
   void execution.finish
   // @ts-expect-error TS2339: Property 'acceptDecision' does not exist on type 'ToolWaitResponseValidator'.
   void validator.acceptDecision
+})
+
+it('contact takes the reference of a call and answers one of four kinds, never a loss', () => {
+  expectTypeOf(runtime.queries.contact)
+    .parameter(0)
+    .toEqualTypeOf<Parameters<typeof runtime.queries.lookup>[0]>()
+  type Answer = Extract<Awaited<ReturnType<typeof runtime.queries.contact>>, { ok: unknown }>['ok']
+  expectTypeOf<Answer>().toEqualTypeOf<ToolCallContact>()
+  expectTypeOf<Answer['kind']>().toEqualTypeOf<'holding' | 'settled' | 'not-accepted' | 'unknown'>()
+  expectTypeOf<keyof Answer>().toEqualTypeOf<'kind'>()
 })
 
 it('keeps the internal admission and the flat call or operation methods out of the ordinary runtime', () => {

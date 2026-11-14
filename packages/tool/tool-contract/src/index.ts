@@ -74,6 +74,7 @@ export type {
   ReleasedDelivery,
   Reply,
   ResultPage,
+  ToolCallContact,
   ToolFailure,
   ToolLookup,
   ToolRelation,

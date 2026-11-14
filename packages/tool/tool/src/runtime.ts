@@ -31,6 +31,7 @@ import { admitResolvedInvocation, scheduleAcceptedCallBestEffort } from './runti
 import { callOffloadingRefusal } from './result-offloading.ts'
 import { checkToolConfiguration, driverRetryDelayMs, driverStepsPerRun } from './configuration.ts'
 import type { ToolConfiguration, ToolDependencies } from './construction.ts'
+import { contactCall } from './contact.ts'
 import { createToolDriver } from './driver.ts'
 import { controlIntent } from './control-intent.ts'
 import { invocationInput, operationInput } from './invocation-access.ts'
@@ -258,8 +259,7 @@ export function createToolRuntimeFacade<P, B extends ContentBlock, E>(
 ): ToolRuntime<P, B> {
   checkToolConfiguration(configuration)
   checkDependencies(dependencies)
-  const { commands, reads, instances, catalog } = dependencies
-  const { operationIdentities, sourceIssuer } = dependencies
+  const { commands, reads, instances, catalog, operationIdentities, sourceIssuer } = dependencies
   const stream = createStreamFacade<P, B>({ directory: instances.directory, reads })
 
   /** The source issuer's binding of a call; an issuer that throws leaves the association unknown. */
@@ -305,6 +305,7 @@ export function createToolRuntimeFacade<P, B extends ContentBlock, E>(
         const resolved = invocationInput<P>(input, 'lookup')
         return 'failure' in resolved ? resolved : reads.lookup(resolved.ok)
       },
+      contact: input => contactCall(dependencies, input),
       queryOperation: async input => {
         const resolved = operationInput<P>(input, 'query-operation')
         return 'failure' in resolved ? resolved : reads.operation(resolved.ok)

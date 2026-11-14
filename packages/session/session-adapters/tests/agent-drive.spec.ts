@@ -1190,6 +1190,34 @@ describe('inspect maps the snapshot and never says missing', () => {
     await inspect(f)
     expect(f.calls.some(call => call.method === 'contact')).toBe(false)
   })
+
+  it('wakes the readers of the published events for an ended execution, and for no other state', async () => {
+    const f = await assembled()
+    const woken: unknown[][] = []
+    f.ctx.on('session-adapters/agent-published', (...named) => {
+      woken.push(named)
+    })
+    const others: [ExecutionSnapshot['state'], typeof authority | null][] = [
+      [{ kind: 'advancing' }, authority],
+      [{ kind: 'suspended', handoff: evidence('h') }, null],
+      [{ kind: 'reconciling' }, null],
+    ]
+    for (const [state, attachment] of others) {
+      f.script.load.push(succeed(snapshot(state, attachment)))
+      await inspect(f)
+    }
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(woken).toEqual([])
+    const ended: ExecutionSnapshot['state'] = {
+      kind: 'ended',
+      conclusion: { kind: 'complete' },
+      disposition: evidence('disposition'),
+    }
+    f.script.load.push(succeed(snapshot(ended, null)))
+    expect(await inspect(f)).toHaveProperty('ok.state', 'ended')
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(woken).toEqual([[A.tenant, A.session, EXECUTION]])
+  })
 })
 
 describe('the two operations that have no Agent entry', () => {

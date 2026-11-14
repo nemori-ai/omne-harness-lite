@@ -1,4 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
+import type { RecoveryAccess } from '@omne-harness/execution-environment-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
@@ -25,6 +26,7 @@ import {
   type ToolDecisionBridge,
 } from '@omne-harness/tool-contract/provider'
 import type { ToolEnvironmentValue } from './author-environment.ts'
+import type { CallAdmission, LostContact } from './call-liveness.ts'
 import type {
   LocalExecutionEnvironmentInput,
   LocalEnvironmentPlanInput,
@@ -77,6 +79,8 @@ export type LocalToolRuntimeInput = Readonly<{
    * 2147483647; absent means 60000.
    */
   recoveryRescanMs?: number
+  lostContact?: LostContact
+  recoveryAccess?: RecoveryAccess
 }>
 
 export type RuntimeCompositionInput = LocalToolRuntimeInput &
@@ -164,12 +168,7 @@ export function createRuntimeDependencies(
   stages: RuntimeStages,
   records: RuntimeRecords,
   host: () => ToolInstanceHost<unknown> | null,
-  admit: (
-    wake: Parameters<ToolInstanceHost<unknown>['schedule']>[0] | null,
-    purpose?: RuntimeCallPurpose,
-  ) => boolean,
-  rejectAdmission: (wake: Parameters<ToolInstanceHost<unknown>['schedule']>[0]) => void,
-  knows: (wake: Parameters<ToolInstanceHost<unknown>['schedule']>[0]) => boolean,
+  { admit, rejectAdmission, knows, liveness }: CallAdmission,
 ): ToolDependencies<unknown, ToolMessageContentBlock, ToolEnvironmentValue> & {
   forwardSource: ToolForwardSource<unknown>
 } {
@@ -222,6 +221,7 @@ export function createRuntimeDependencies(
   }
   return {
     ...records.ledger,
+    liveness,
     admissions: {
       async admit(request) {
         const answer = await records.ledger.admissions.admit(request)

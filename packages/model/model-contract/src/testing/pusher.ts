@@ -483,6 +483,7 @@ export function createScriptedResultPusher<P>(
     },
     advanceControl: input => inner.advanceControl(input),
     setCleanup: input => inner.setCleanup(input),
+    setContact: input => inner.setContact(input),
     withdrawInstance: input => inner.withdrawInstance(input),
     replaceInstance: input => inner.replaceInstance(input),
     disconnectObservers: input => inner.disconnectObservers(input),
@@ -495,6 +496,7 @@ export function createScriptedResultPusher<P>(
   const provider: ModelProvider<P> = {
     runtime: {
       calls: {
+        ...calls,
         async admit(input) {
           const operation: unknown = input.operation
           if (
@@ -510,14 +512,10 @@ export function createScriptedResultPusher<P>(
             }
           return reply
         },
-        inspect: input => calls.inspect(input),
-        dispatches: input => calls.dispatches(input),
-        cancel: input => calls.cancel(input),
       },
       consumption,
       instances,
     },
-    recover: input => scripted.provider.recover(input),
     quiesce: () => scripted.provider.quiesce(),
   }
 

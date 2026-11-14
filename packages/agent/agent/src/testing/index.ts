@@ -60,6 +60,7 @@ import {
   type MemoryAgentJournalOptions,
 } from './journal.ts'
 import { createScriptedToolRuntime, type ScriptedToolRuntime } from './tools.ts'
+import { scriptModelContact, type ScriptedModelContact } from './model-contact.ts'
 import {
   decodeActionId,
   decodeAgentOperationId,
@@ -158,6 +159,7 @@ export type TestAgentControls<P> = Readonly<{
   pusher: ScriptedResultPusher<P> | null
   access: ScriptedAccessCheck<P>
   models: ScriptController<P>
+  modelContact: ScriptedModelContact<P>['contact']
   tools: ScriptedToolRuntime<P>
   adoptions: TableAdoptions<P>
   conditions: TableConditions<P>
@@ -229,12 +231,14 @@ export function createTestAgentDependencies<P>(
           principal: options.receivingPrincipal,
           resolveReceiver: options.resolveReceiver ?? (() => receiver),
         })
+  const contacted = scriptModelContact(pusher?.provider.runtime ?? models.provider.runtime)
   const controls: TestAgentControls<P> = {
     journal,
     access,
     receiver,
     pusher,
     models: pusher?.controller ?? models.controller,
+    modelContact: contacted.contact,
     tools: createScriptedToolRuntime<P>(),
     adoptions: createTableAdoptions<P>(),
     conditions: createTableConditions<P>(),
@@ -259,7 +263,7 @@ export function createTestAgentDependencies<P>(
       journal: controls.journal.port,
       entries: journal.provider.entries,
       access: controls.access.port,
-      models: pusher?.provider.runtime ?? models.provider.runtime,
+      models: contacted.runtime,
       tools: controls.tools.port,
       adoptions: controls.adoptions.port,
       conditions: controls.conditions.port,

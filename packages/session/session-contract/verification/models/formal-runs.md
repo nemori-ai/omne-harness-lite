@@ -86,7 +86,7 @@ F1 至 F5 按 R2-D327 处理，下表写处置。
 
 ## 未覆盖
 
-- `claim` 被 C5 接管后的 Run：重放 `invoke` 需要后来 attempt 的授予依据，属于未实现的 C5。现在只记 `attempt-replaced` 诊断。
+- `claim` 之后的 Run：重放时发现推进资格已归后来的 attempt，不再 `invoke`，交恢复路径认回 `claim` 后 `resume`。WakeUp 模型不含这一步，由 `session` 的成员用例 `recovery.spec.ts` 守。
 - S3 没有每会话退避：Agent 一直不可用时，每个扫描周期重放一轮重试序列，并记一条 `retries-exhausted`。
 - 扫描找回丢失的通知由 `advance.spec.ts` 的启动扫描用例覆盖；周期扫描的定时路径没有新用例。
 - 延后控制事实（FR-05）不在模型内。

@@ -269,11 +269,7 @@ export function createModelQualification(
       return fail(denied(action))
     if (!ACTIONS[action].includes(capture.kind)) return fail(denied(action))
     if (capture.kind === 'host') {
-      if (resource.kind !== 'call')
-        return action === 'recovery'
-          ? fail(unavailable('model-recovery-scan', 'tenant-scan-not-provided'))
-          : fail(denied(action))
-      if (resource.call !== capture.call) return fail(denied(action))
+      if (resource.kind !== 'call' || resource.call !== capture.call) return fail(denied(action))
     }
     return succeed(capture.actor)
   }

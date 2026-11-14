@@ -350,6 +350,7 @@ export type W2Options = Readonly<{
    * R2-D221) ends a longer run as `failed` at its guard. A world that drives more steps names it.
    */
   maxRunSteps?: number
+  modelRetry?: NonNullable<LineWorldOptions['hostConfig']>['modelRetry']
   /** What the Agent does after a reply; default finish when it evaluates complete. */
   progression?: 'evaluate-completion' | 'continue'
   /** Called with each `agentMessageHandoff.prepare` input of the Agent and its answer. */
@@ -488,6 +489,7 @@ export async function openW2World(options: W2Options) {
     hostConfig: {
       instanceIdleMs: 2_000_000_000,
       ...(options.maxRunSteps === undefined ? {} : { maxRunSteps: options.maxRunSteps }),
+      ...(options.modelRetry === undefined ? {} : { modelRetry: options.modelRetry }),
     },
     ...(options.receiverRecords === undefined ? {} : { receiverRecords: options.receiverRecords }),
     ...(options.root === undefined ? {} : { root: options.root }),

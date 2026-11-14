@@ -43,3 +43,18 @@ export function subscribePublished(
   ctx.on(PUBLISHED, (tenant, session, execution) => enqueue({ tenant, session, execution }))
   return enqueue
 }
+
+/** Sends the event without waiting for its listeners; what they throw goes to `warn`. */
+export function announcePublished(
+  ctx: Context,
+  warn: (line: string) => void,
+  { tenant, session, execution }: PublishedTarget,
+): void {
+  try {
+    ctx.parallel(PUBLISHED, tenant, session, execution).catch((error: unknown) => {
+      warn(`a listener of ${PUBLISHED} failed: ${String(error)}`)
+    })
+  } catch (error) {
+    warn(`dispatching ${PUBLISHED} failed: ${String(error)}`)
+  }
+}

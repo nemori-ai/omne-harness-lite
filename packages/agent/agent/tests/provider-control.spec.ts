@@ -459,11 +459,15 @@ describe('tool call control', () => {
       ),
     )
     // Both slots are kept and the same run sends its next model request.
-    await eventually(async () =>
-      (await loadWithEntries(assembly.dependencies, input)).checkpoint.calls.some(
+    assembly.controls.tools.queries.contact.always(() => ({ ok: { kind: 'settled' } }))
+    await eventually(async () => {
+      const moved = (await loadWithEntries(assembly.dependencies, input)).checkpoint.calls.some(
         pending => pending.kind === 'model' && pending.action.startsWith('step-2/'),
-      ),
-    )
+      )
+      const due = assembly.controls.clock.pending()[0]
+      if (!moved && due !== undefined) ok(assembly.controls.clock.advanceTo(due))
+      return moved
+    })
     const after = await loadWithEntries(assembly.dependencies, input)
     const kept = after.entries?.find(
       entry =>
@@ -630,6 +634,7 @@ describe('tool call control', () => {
       return { failure: { kind: 'stale-advance' as const } }
     }
     // The loop wakes before the control is there and reads the conditions.
+    assembly.controls.tools.queries.contact.always(() => ({ ok: { kind: 'unknown' } }))
     await eventually(async () => assembly.controls.clock.pending().length === 1)
     const [check] = assembly.controls.clock.pending()
     if (check === undefined) throw new Error('the driver is not sleeping on a check time')

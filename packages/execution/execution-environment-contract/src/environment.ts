@@ -196,6 +196,14 @@ export type UnsupportedRecovery =
   | Readonly<{ kind: 'provider'; provider: ProviderIdentity }>
   | Readonly<{ kind: 'resource'; resource: ManagedResource }>
 
+export type ResourcesRecovery = Readonly<{
+  kind: 'recovered'
+  scope: ScopeRef
+  stopped: readonly ManagedResource[]
+  pending: readonly ManagedResource[]
+  unsupported: readonly ManagedResource[]
+}>
+
 /**
  * Result of one recovery drive over both paths: resources and acquisitions. A failed group does not
  * erase the groups already handled. Released holds only when both listings were complete and every
@@ -295,6 +303,11 @@ export interface ExecutionEnvironment<P> {
     access: RecoveryAccess,
     known?: readonly OriginalAcquisition[],
   ): Promise<OwnedRecovery | Rejected | LookupUnknown>
+  recoverResources(
+    scope: ScopeRef,
+    access: RecoveryAccess,
+    resources: readonly ManagedResource[],
+  ): Promise<ResourcesRecovery | Rejected | LookupUnknown>
 }
 
 /** The surface of providers and facility owners. Each call returns its own removal. */

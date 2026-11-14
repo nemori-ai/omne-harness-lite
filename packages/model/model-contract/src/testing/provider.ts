@@ -1,11 +1,10 @@
 import { succeed } from '@omne-harness/operation-result'
-import type { Reply } from '../index.ts'
 import type { ModelProvider } from '../provider/index.ts'
-import type { Access, ModelInstanceId } from '../root.ts'
+import type { ModelInstanceId } from '../root.ts'
 import { createCalls } from './calls.ts'
 import { createConsumption } from './consumption.ts'
 import { createController, type ScriptController } from './controller.ts'
-import { createCore, denied, scopeOf } from './core.ts'
+import { createCore } from './core.ts'
 import { createDirectory } from './directory.ts'
 
 export type ScriptedModelProviderOptions<P> = Readonly<{
@@ -40,15 +39,6 @@ export function createScriptedModelProvider<P>(
       calls: createCalls(core),
       consumption: createConsumption(core),
       instances: createDirectory(core),
-    },
-
-    async recover(input: Access<P>): Reply<Readonly<{ scheduled: string }>> {
-      const scope = scopeOf(input.tenant)
-      if (scope === null) return denied('recover')
-      const unsettled = [...core.records.values()].filter(
-        record => record.scope === scope && record.lifecycle.phase !== 'settled',
-      )
-      return succeed({ scheduled: String(unsettled.length) })
     },
 
     async quiesce() {
