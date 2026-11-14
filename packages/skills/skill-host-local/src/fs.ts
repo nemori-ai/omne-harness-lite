@@ -16,11 +16,8 @@ export type Opened =
   | Readonly<{ kind: 'file'; bytes: Uint8Array }>
   | Readonly<{ kind: 'directory' | 'other' }>
 
-/**
- * The four reads that the directory source makes. Each one rejects with an error that has a string
- * `code` (`ENOENT`, `EACCES`, `ELOOP`, ...) when the file system refuses. An error without a
- * string `code` is not a file system answer: the source throws it on to its caller.
- */
+// Each read rejects with an error that has a string `code` when the file system refuses. An error
+// without a string `code` is not a file system answer: the source throws it on to its caller.
 export type DirectoryFs = Readonly<{
   /** The names in a directory, as the bytes that the file system stores. */
   readdir(path: string): Promise<readonly Uint8Array[]>

@@ -138,12 +138,8 @@ const NULL_NODE: JsonValue = Object.freeze({ kind: 'null' })
 
 type JsonEntry = Extract<JsonValue, { kind: 'object' }>['entries'][number]
 
-/**
- * A JSON tree in the form that `@omne-harness/assets` reads, built anew and frozen node by node.
- * Each node keeps only the fields of its kind, and each object entry only `key` and `value`.
- * `above` counts the containers above the node; a container below `PARAMETERS_DEPTH` others is
- * too deep, so the walk never goes deeper than the budget and a cycle ends there too.
- */
+// `above` counts the containers above the node; past `PARAMETERS_DEPTH` the tree is too deep,
+// so the walk stays inside the budget and a cyclic tree ends there too.
 function jsonTreeOf(value: unknown, above: number): JsonValue | undefined {
   switch (fieldOf(value, 'kind')) {
     case 'null':
