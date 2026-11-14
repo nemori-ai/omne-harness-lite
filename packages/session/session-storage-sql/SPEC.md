@@ -31,7 +31,7 @@
 | 已释放作用域的账本 | [ScopeReleasePort](../session-contract/SPEC.md#scopereleaseport) |
 | 推理续接状态不建索引 | [推理续接状态](../session-contract/SPEC.md#推理续接状态) |
 | 压缩记录形状、保留名单与模型视图 CM-01 至 CM-06 | [message SPEC 模型视图](../../common/message/SPEC.md#模型视图) |
-| 历史源读口与 epoch 视图 H1 至 H5 | [request-context-contract](../../context/request-context-contract/SPEC.md#历史源读口与-epoch-视图) |
+| 历史源读口与 epoch 视图 H1 至 H5 | [request-context-contract](../../context/SPEC.md#七组稳定读取与来源登记) |
 | 公开形状 | [session-contract public-api](../session-contract/docs/public-api.md) |
 | 存储契约：操作身份、提交、查询、响应证据、参加者端口、读入口、关闭协议 | [sql-contract 规格](../../storage/sql-contract/SPEC.md)、[sqlite-provider 规格](../../storage/sqlite-provider/SPEC.md) |
 | 技术选择：Kysely 加 `node:sqlite`，经配置切换 PostgreSQL，没有内存实现 | [技术基础](../../../docs/architecture/technical-foundations.md#共同技术选择)、[基础设施政策](../../../docs/architecture/deployment/infrastructure-policy.md) |
@@ -553,7 +553,7 @@ Session 操作的输入摘要写在 `sl_operation.input_digest`，`decide` 用�
 
 旧 epoch 的行不删除，供审计与人侧读取。写成本是 O(|retained| + 保留尾长度) 行索引复制，两者都由压缩策略有界，策略归 Request Context。
 
-第 1 步在写事务里读 `covers` 内的全部条目，代价是 O(log N + |covers| + |after|) 加这些条目的字节。它的上界是一个具名前提：`covers` 由 Request Context 的压缩计划确定（[RQ-06](../../context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界)）。现行条款规定覆盖范围从历史起点开始、到压缩点之前结束，并限定了计划的步数上界与保留预算，但没有给出覆盖范围的条目数上界。所以 `|covers|` 可以随历史长度增长，这是一条[明确缺项](#明确缺项)。SQLite 下同一事务域只有一个写者，长压缩提交持有写连接期间，同一事务域的其他提交等待。PostgreSQL 下只有同一会话的提交在 `sl_journal` 行锁上等待。
+第 1 步在写事务里读 `covers` 内的全部条目，代价是 O(log N + |covers| + |after|) 加这些条目的字节。它的上界是一个具名前提：`covers` 由 Request Context 的压缩计划确定（[RQ-06](../../context/SPEC.md#压缩)）。现行条款规定覆盖范围从历史起点开始、到压缩点之前结束，并限定了计划的步数上界与保留预算，但没有给出覆盖范围的条目数上界。所以 `|covers|` 可以随历史长度增长，这是一条[明确缺项](#明确缺项)。SQLite 下同一事务域只有一个写者，长压缩提交持有写连接期间，同一事务域的其他提交等待。PostgreSQL 下只有同一会话的提交在 `sl_journal` 行锁上等待。
 
 <a id="w4b"></a>
 
@@ -1010,7 +1010,7 @@ releasedScopes(principal, scope = system, after, limit):
 | `decide`、`reduce` 与 OP-00 的纯函数，以及它们共用的解释版本 | [领域服务与归约](../session-contract/SPEC.md#领域服务与归约)、[OP-00](../session-contract/SPEC.md#op-00) | W1 第 6、7、9 步；W2；W4 第 2 步；R9 |
 | 模型视图 CM-01 至 CM-06 与消息类型 | [message SPEC](../../common/message/SPEC.md#模型视图) | W4 第 4 步的新 epoch 行；R5 的消息解码；C-01 的视图重算。压缩判定经 `decide` 传递，本成员不直接调用 |
 | `HistoryPage.annotations` 的含义 | [SessionHistory](../session-contract/SPEC.md#sessionhistory) | R2 每页经 R6 填充 |
-| 历史源读口 H1 至 H5 | [request-context-contract](../../context/request-context-contract/SPEC.md#历史源读口与-epoch-视图) | R5 |
+| 历史源读口 H1 至 H5 | [request-context-contract](../../context/SPEC.md#七组稳定读取与来源登记) | R5 |
 
 ### 自有义务的验证
 
@@ -1042,7 +1042,7 @@ releasedScopes(principal, scope = system, after, limit):
 | 登记键到能力身份的绑定（R10 的 `capability` 列） | Tool 契约与事件目录对 SE08 载荷的细化 | 本成员假定 SE08 的登记键按能力身份列出；不成立时 `ResidentReference.capability` 不可填，R10 不可用 |
 | 从 `SessionOperationId` 辨认参加操作的入口，例如身份编码带派生种类，或 `queryOperation` 的输入带种类（[R7](#r7)） | Session 契约拥有者 | R7 对未命中的操作一律探查代次，代次 1 为 `not_committed` 时返回 `unknown`，不给 `not-committed`。Session 提交的操作仍可用同一身份重做命令，由 [W1 的尝试代次](#w1-attempts)选代次。协调器与调度器发起的操作停在 `unknown` 时，靠 S1、S3 等触发者以同一身份再次触发才收敛 |
 | `accept` 的上限或背压策略：一个会话的待处理输入数上限，与超限时的拒绝原因（[W1 的代价与退化](#w1-cost)） | 本成员提出字段与初值；超限的拒绝原因归 Session 契约拥有者 | 没有上限。积累 P 条待处理输入的会话，每次 `accept` 的代价是 O(P) |
-| 压缩覆盖范围的条目数上界（[W4](#w4)） | [request-context-contract](../../context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界) 的拥有者 | W4 在写事务里读出 `covers` 的全部条目，代价随覆盖范围线性增长。SQLite 下同一事务域的其他提交在此期间等待 |
+| 压缩覆盖范围的条目数上界（[W4](#w4)） | [request-context-contract](../../context/SPEC.md#压缩) 的拥有者 | W4 在写事务里读出 `covers` 的全部条目，代价随覆盖范围线性增长。SQLite 下同一事务域的其他提交在此期间等待 |
 | 撤销归档之后，作用域引用会不会被复用（[W3](#w3) 的 SE28 行） | 执行环境契约的拥有者 | 撤销归档时删除该会话在 `sl_released_scope_idx` 的行，R11 不再返回这些作用域。作用域引用若被复用，本成员不区分新旧两次使用 |
 
 ## Todo 同事务结果与恢复

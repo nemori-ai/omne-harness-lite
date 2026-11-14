@@ -262,11 +262,8 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     return { key, kind: 'value', value: stored.value, evidence }
   }
 
-  /**
-   * The read cache sits behind every access check (D4). A read of a scope with a parent, or of a
-   * block with a pending refresh mark, is computed, not cached, so the per-hop checks and the
-   * restored supply are never skipped.
-   */
+  /** The read cache sits behind every access check. A scope with a parent or a block with a refresh
+   * mark is computed, not cached, so per-hop checks and the restored supply are never skipped. */
   function cacheKey(checked: Checked<P>) {
     const { e, s } = checked
     if (!world.cache.enabled || e.scope.parent !== undefined) return undefined

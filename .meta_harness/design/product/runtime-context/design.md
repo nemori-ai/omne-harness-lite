@@ -338,7 +338,7 @@ Tool 内容 ref 与附件地址分流已有明确产品规则，MODEL-E01 跟踪
 
 ### 关键用户旅程
 
-以下 RC-J 编号只定位本文旅程，不定义产品对象或公开操作。每条旅程解释前述规则的用户后果；跨域过程由相应拥有者推进，Runtime Context 只承担供给，Request Context 只承担派生。能力与旅程多对多，对应协作从[关键流程](../../../../packages/context/docs/key-flows.md)展开。
+以下 RC-J 编号只定位本文旅程，不定义产品对象或公开操作。每条旅程解释前述规则的用户后果；跨域过程由相应拥有者推进，Runtime Context 只承担供给，Request Context 只承担派生。能力与旅程多对多，对应协作从关键流程（`packages/context/SPEC.md`「总体架构」）展开。
 
 <a id="rc-j01"></a>
 #### RC-J01 开始或接续工作，先理解当前条件
@@ -349,7 +349,7 @@ Tool 内容 ref 与附件地址分流已有明确产品规则，MODEL-E01 跟踪
 
 执行开始或挂接建立时读取当前快照，与模型首次读取及压缩后取得完整模型可读 runtime context，是两个触发。运行中的合法变化继续形成追加提醒；空闲状态推送可以丢弃，下一次执行开始或挂接建立时读当前值。已经受理的输入、控制和结果仍可靠保留。完整快照的前值可选，状态变化提醒则表达获准披露的实际前后关系。
 
-关联能力为 [CAP-RC01](#cap-rc01)、[CAP-RC03](#cap-rc03)、[CAP-RC04](#cap-rc04)。协作见[组内流程](../../../../packages/context/docs/key-flows.md)，成员与验证见 [RC-04](../../../../packages/context/runtime-context-contract/SPEC.md#rc-04-读取时点观察与变化材料)、[RC-05](../../../../packages/context/runtime-context-contract/SPEC.md#rc-05-状态块上下文更新与步提交)及 [RC 持续验证义务](../../../../packages/context/runtime-context-contract/SPEC.md#持续验证义务)。
+关联能力为 [CAP-RC01](#cap-rc01)、[CAP-RC03](#cap-rc03)、[CAP-RC04](#cap-rc04)。协作见组内流程（`packages/context/SPEC.md`「总体架构」），成员与验证见 RC-04（`packages/context/SPEC.md`「读取结果、变化与状态块」）、RC-05（`packages/context/SPEC.md`「读取结果、变化与状态块」）及 RC 持续验证义务（`packages/context/SPEC.md`「不变式」）。
 
 <a id="rc-j02"></a>
 #### RC-J02 调整本会话感知，撤除后不再继续供给
@@ -358,7 +358,7 @@ Tool 内容 ref 与附件地址分流已有明确产品规则，MODEL-E01 跟踪
 
 必需块移除、固定身份改写或无权变更被拒绝。读取期间撤权时，旧缓存不能继续供应新内容；必要依据查不到时暂停依赖读取并保留未知。提交响应丢失不能解释为未保存，原拥有者按原操作查询和对账。用户取消等待不证明变更未提交。恢复保留主动移除及会话自有值，已发请求仍保留原采用依据，不把注册失效解释为撤回外部效果。
 
-关联能力为 [CAP-RC01](#cap-rc01)、[CAP-RC02](#cap-rc02)、[CAP-RC04](#cap-rc04)、[CAP-RC10](#cap-rc10)。协作见[组内流程](../../../../packages/context/docs/key-flows.md)，成员与验证见 [RC-02](../../../../packages/context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)、[RC-07](../../../../packages/context/runtime-context-contract/SPEC.md#rc-07-生产者句柄并发撤除与恢复)及 [RC 持续验证义务](../../../../packages/context/runtime-context-contract/SPEC.md#持续验证义务)。
+关联能力为 [CAP-RC01](#cap-rc01)、[CAP-RC02](#cap-rc02)、[CAP-RC04](#cap-rc04)、[CAP-RC10](#cap-rc10)。协作见组内流程（`packages/context/SPEC.md`「总体架构」），成员与验证见 RC-02（`packages/context/SPEC.md`「块、注册与资格」）、RC-07（`packages/context/SPEC.md`「生产者与供值」）及 RC 持续验证义务（`packages/context/SPEC.md`「不变式」）。
 
 <a id="rc-j03"></a>
 #### RC-J03 进入工作目录时取得适用指导
@@ -367,7 +367,7 @@ Tool 内容 ref 与附件地址分流已有明确产品规则，MODEL-E01 跟踪
 
 无权或来源不可用时，系统不能声称已取得指导；依赖该指导的处理须按原消费契约报告缺项。取消本次读取不撤销已发生操作。恢复后仍须区分历史采用与当前资格，首次访问判据、合并和恢复协议尚待 CONTEXT-E02 明确，不能据此声称远端变化已即时同步。
 
-关联能力为 [CAP-RC01](#cap-rc01)、[CAP-RC05](#cap-rc05)、[CAP-RC10](#cap-rc10)。协作见[组内流程](../../../../packages/context/docs/key-flows.md)，成员与验证见 [RC-05](../../../../packages/context/runtime-context-contract/SPEC.md#rc-05-状态块上下文更新与步提交)及 [RC 持续验证义务](../../../../packages/context/runtime-context-contract/SPEC.md#持续验证义务)。
+关联能力为 [CAP-RC01](#cap-rc01)、[CAP-RC05](#cap-rc05)、[CAP-RC10](#cap-rc10)。协作见组内流程（`packages/context/SPEC.md`「总体架构」），成员与验证见 RC-05（`packages/context/SPEC.md`「读取结果、变化与状态块」）及 RC 持续验证义务（`packages/context/SPEC.md`「不变式」）。
 
 <a id="rc-j04"></a>
 #### RC-J04 回看历史，并理解中断后留下了什么
@@ -376,7 +376,7 @@ Tool 内容 ref 与附件地址分流已有明确产品规则，MODEL-E01 跟踪
 
 用户叫停或流中断时，已经交付的内容按原消息规则保留并能解释中断；无内容不造空回复。残缺工具调用可以留作备查，不能执行或作为完整模型调用输入。ToolInternalMessage 始终不进入模型。普通语音仍沿完整输入和流式输出处理，停止播放不等于取消业务。用户取消翻阅只结束对应读取；撤权后不从旧缓存取得新内容。已展示在途内容的故障保留尚缺兑现机制，不能默认允许丢失，也不能把重新打开历史声称为已验证恢复。
 
-关联能力为 [CAP-RC06](#cap-rc06)、[CAP-RC10](#cap-rc10)。协作见[组内流程](../../../../packages/context/docs/key-flows.md)，成员与验证见 [RQ-03](../../../../packages/context/request-context-contract/SPEC.md#rq-03-历史与块投影)及 [RQ 组合与验证](../../../../packages/context/request-context-contract/SPEC.md#组合与验证)。
+关联能力为 [CAP-RC06](#cap-rc06)、[CAP-RC10](#cap-rc10)。协作见组内流程（`packages/context/SPEC.md`「总体架构」），成员与验证见 RQ-03（`packages/context/SPEC.md`「六层布局与前缀」）及 RQ 组合与验证（`packages/context/SPEC.md`「不变式」）。
 
 <a id="rc-j05"></a>
 #### RC-J05 提交图片或语音，并知道模型实际读取什么
@@ -387,7 +387,7 @@ Tool 内容 ref 与附件地址分流已有明确产品规则，MODEL-E01 跟踪
 
 外部输入被否决，发送方得到原因，该输入不成为会话消息。模型回复被否决，保留真实收场并回原 Agent 的否决路径。连续否决不设次数上限，不因此使 Run 失败。Tool 结果先可靠保管；否决按原消费契约处置有效未终态工作。后台、Run 外或旧 Run 已终态时不挂无关后继，不改旧终态，不恢复取消资格。取消或故障后需要接续的是原结果及原消费位置，不能重跑外部 Tool 换一份结果。
 
-关联能力为 [CAP-RC06](#cap-rc06)、[CAP-RC07](#cap-rc07)、[CAP-RC10](#cap-rc10)。协作见[组内流程](../../../../packages/context/docs/key-flows.md)，成员与验证见 [RQ-04](../../../../packages/context/request-context-contract/SPEC.md#rq-04-模态与可追溯表示)、[RQ-08](../../../../packages/context/request-context-contract/SPEC.md#rq-08-失败否决与消费位置)及 [RQ 组合与验证](../../../../packages/context/request-context-contract/SPEC.md#组合与验证)。
+关联能力为 [CAP-RC06](#cap-rc06)、[CAP-RC07](#cap-rc07)、[CAP-RC10](#cap-rc10)。协作见组内流程（`packages/context/SPEC.md`「总体架构」），成员与验证见 RQ-04（`packages/context/SPEC.md`「六层布局与前缀」）、RQ-08（`packages/context/SPEC.md`「请求的计算边界与结局」）及 RQ 组合与验证（`packages/context/SPEC.md`「不变式」）。
 
 <a id="rc-j06"></a>
 #### RC-J06 发起一次能解释实际采用内容的模型请求
@@ -398,7 +398,7 @@ Agent、扩展或独立能力消费者需要发起模型请求。会话路径先
 
 取消组装只终止相应计算与等待。发出结果未知时按原调用身份对账，不能新建调用重发。恢复区分固定采用与当前条件，结果、费用及消费责任仍归原调用。预算超限的具体后果见下一旅程。
 
-关联能力为 [CAP-RC01](#cap-rc01)、[CAP-RC06](#cap-rc06)、[CAP-RC07](#cap-rc07)、[CAP-RC08](#cap-rc08)、[CAP-RC10](#cap-rc10)。协作见[组内流程](../../../../packages/context/docs/key-flows.md)，成员与验证见 [RQ-02](../../../../packages/context/request-context-contract/SPEC.md#rq-02-组装的前置输入)、[RQ-07](../../../../packages/context/request-context-contract/SPEC.md#rq-07-扩展修改发起与固定采用)及 [RQ 组合与验证](../../../../packages/context/request-context-contract/SPEC.md#组合与验证)。
+关联能力为 [CAP-RC01](#cap-rc01)、[CAP-RC06](#cap-rc06)、[CAP-RC07](#cap-rc07)、[CAP-RC08](#cap-rc08)、[CAP-RC10](#cap-rc10)。协作见组内流程（`packages/context/SPEC.md`「总体架构」），成员与验证见 RQ-02（`packages/context/SPEC.md`「七组稳定读取与来源登记」）、RQ-07（`packages/context/SPEC.md`「请求的计算边界与结局」）及 RQ 组合与验证（`packages/context/SPEC.md`「不变式」）。
 
 <a id="rc-j07"></a>
 #### RC-J07 长期工作接近窗口限制，保留未完事项再继续
@@ -409,7 +409,7 @@ Agent、扩展或独立能力消费者需要发起模型请求。会话路径先
 
 压缩若使用内部模型调用，其结果先按原调用及消费位置承接，再回压缩处理，不当作主流程回复。取消组装不证明该模型已物理停止，也不撤销已提交的压缩记录。中断恢复沿原内部调用接续，整条压缩记录（摘要、覆盖范围与保留名单）不能只恢复一部分，Model ACK 也不能提前清掉接续所需内容。
 
-关联能力为 [CAP-RC04](#cap-rc04)、[CAP-RC08](#cap-rc08)、[CAP-RC09](#cap-rc09)、[CAP-RC10](#cap-rc10)。协作见[组内流程](../../../../packages/context/docs/key-flows.md)，成员与验证见 [RQ-05](../../../../packages/context/request-context-contract/SPEC.md#rq-05-完整预算与候选完成)、[RQ-06](../../../../packages/context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界)及 [RQ 组合与验证](../../../../packages/context/request-context-contract/SPEC.md#组合与验证)。
+关联能力为 [CAP-RC04](#cap-rc04)、[CAP-RC08](#cap-rc08)、[CAP-RC09](#cap-rc09)、[CAP-RC10](#cap-rc10)。协作见组内流程（`packages/context/SPEC.md`「总体架构」），成员与验证见 RQ-05（`packages/context/SPEC.md`「计量与装入」）、RQ-06（`packages/context/SPEC.md`「压缩」）及 RQ 组合与验证（`packages/context/SPEC.md`「不变式」）。
 
 <a id="rc-j08"></a>
 #### RC-J08 故障或归档之后，认回原事实与当前资格
@@ -420,7 +420,7 @@ Agent、扩展或独立能力消费者需要发起模型请求。会话路径先
 
 确认后普通故障保证覆盖进程、操作系统崩溃和断电，不能用只做过重启检查声称全部满足。物理损毁恢复范围和开放资格仍由原拥有者决定。已展示在途内容的故障保留机制继续作为具名缺项，不降低保留目标。
 
-关联能力为 [CAP-RC02](#cap-rc02)、[CAP-RC03](#cap-rc03)、[CAP-RC10](#cap-rc10)。协作见[组内流程](../../../../packages/context/docs/key-flows.md)，成员与验证见 [RC-06](../../../../packages/context/runtime-context-contract/SPEC.md#rc-06-需要绑定与读者形状)、[RQ-09](../../../../packages/context/request-context-contract/SPEC.md#rq-09-取消恢复与迟到)、[RC 持续验证义务](../../../../packages/context/runtime-context-contract/SPEC.md#持续验证义务)及 [RQ 组合与验证](../../../../packages/context/request-context-contract/SPEC.md#组合与验证)。
+关联能力为 [CAP-RC02](#cap-rc02)、[CAP-RC03](#cap-rc03)、[CAP-RC10](#cap-rc10)。协作见组内流程（`packages/context/SPEC.md`「总体架构」），成员与验证见 RC-06（`packages/context/SPEC.md`「块、注册与资格」）、RQ-09（`packages/context/SPEC.md`「请求的计算边界与结局」）、RC 持续验证义务（`packages/context/SPEC.md`「不变式」）及 RQ 组合与验证（`packages/context/SPEC.md`「不变式」）。
 
 <a id="rc-j09"></a>
 #### RC-J09 检查长会话为何等待或失败
@@ -429,24 +429,24 @@ Agent、扩展或独立能力消费者需要发起模型请求。会话路径先
 
 缓存缺口或重建未完成时不能报告完整成功，来源未知也不冒充不存在。诊断和遥测只按用途与实际接收方提供获准信息；错误详情、摘要、提醒、链接不能泄漏正文或秘密。取消诊断读取不清理原数据。故障后从持久依据解释旧请求，再重建可重算缓存，不用最新值冒充原采用。具体规模、计量方法与性能数值尚未采用，当前只有验证义务，未有实现通过结论。
 
-关联能力为 [CAP-RC01](#cap-rc01)、[CAP-RC08](#cap-rc08)、[CAP-RC10](#cap-rc10)。协作见[组内流程](../../../../packages/context/docs/key-flows.md)，成员与验证见 [RC-08](../../../../packages/context/runtime-context-contract/SPEC.md#rc-08-缓存观测与遥测)、[RQ-10](../../../../packages/context/request-context-contract/SPEC.md#rq-10-性能缓存与观测)、[RC 持续验证义务](../../../../packages/context/runtime-context-contract/SPEC.md#持续验证义务)及 [RQ 组合与验证](../../../../packages/context/request-context-contract/SPEC.md#组合与验证)。
+关联能力为 [CAP-RC01](#cap-rc01)、[CAP-RC08](#cap-rc08)、[CAP-RC10](#cap-rc10)。协作见组内流程（`packages/context/SPEC.md`「总体架构」），成员与验证见 RC-08（`packages/context/SPEC.md`「生产者与供值」）、RQ-10（`packages/context/SPEC.md`「原则与约束」）、RC 持续验证义务（`packages/context/SPEC.md`「不变式」）及 RQ 组合与验证（`packages/context/SPEC.md`「不变式」）。
 
 ## 能力定义与实现状态记录表
 
-以下能力由前述候选规则提炼，不新增产品范围。能力编号稳定，成员规格中的 RC、RQ 编号仍只定位技术行为。Runtime Context 与 Request Context 的四个契约成员已有类型、纯操作、契约套件与 Cordis 机制测试；详见 [Context 能力组入口](../../../../packages/context/README.md)及成员 verification。四个机制与 Service 实现成员仍未实现。契约及其内存测试替身不证明真实会话中的能力兑现，产品候选确认、技术接受和交付接受仍分别判断。
+以下能力由前述候选规则提炼，不新增产品范围。能力编号稳定，成员规格中的 RC、RQ 编号仍只定位技术行为。Runtime Context 与 Request Context 的四个契约成员已有类型、纯操作、契约套件与 Cordis 机制测试；详见 Context 能力组入口（`packages/context/SPEC.md`「总体架构」）及成员 verification。四个机制与 Service 实现成员仍未实现。契约及其内存测试替身不证明真实会话中的能力兑现，产品候选确认、技术接受和交付接受仍分别判断。
 
 | 编号与能力 | 可判定的目标和需求定位 | 成员责任及持续验证 | 实现支持与限制 | 验证事实 | 接受状态 |
 | --- | --- | --- | --- | --- | --- |
-| <a id="cap-rc01"></a>CAP-RC01 按消费者供给合法块 | 块声明归语义拥有者，消费者按自己声明的需要读到自己的形状，绑定与翻译归集成方。有效来源、注册及作用域持有者签发的读取资格共同决定读取范围。私有授权不进模型，缺项与未知可辨。见需求 1、2、3、8 及 RC-J01、02、06、09。 | [RC-01](../../../../packages/context/runtime-context-contract/SPEC.md#rc-01-消费者身份与范围)、[RC-03](../../../../packages/context/runtime-context-contract/SPEC.md#rc-03-当前读取资格与缺项)、[RC-06](../../../../packages/context/runtime-context-contract/SPEC.md#rc-06-需要绑定与读者形状)、[RC 持续验证义务](../../../../packages/context/runtime-context-contract/SPEC.md#持续验证义务) | 未核实；来源一致读取协议待定，需要声明的承载见 CONTEXT-M04 | 契约层已有包内验证；真实持有者与协调者组合未核实 | 产品候选待确认；实现与交付未核实 |
-| <a id="cap-rc02"></a>CAP-RC02 注册、自有值与状态块提交 | 作用域持有者保存注册与自有值，`0.0.0 -> 0.1.0` 阶段的持有者是会话。状态块的更新经步提交成为事实，失败步中已成功动作的更新待持有者处置。移除可选块不删共享源，必需项和固定身份不可绕过。见需求 2 及 RC-J02、08。 | [RC-02](../../../../packages/context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)、[RC-05](../../../../packages/context/runtime-context-contract/SPEC.md#rc-05-状态块上下文更新与步提交)、[RC-07](../../../../packages/context/runtime-context-contract/SPEC.md#rc-07-生产者句柄并发撤除与恢复)、[RC 持续验证义务](../../../../packages/context/runtime-context-contract/SPEC.md#持续验证义务) | 未核实；提交与恢复协议待定，更新的携带见 CONTEXT-M04 | 契约层已有包内验证；真实持有者与协调者组合未核实 | 产品候选待确认；实现与交付未核实 |
-| <a id="cap-rc03"></a>CAP-RC03 会话模式感知 | 会话作为语义拥有者供给三个独立模式及变化，保留创建时默认捕获和用户修改边界。工具与扩展经集成方翻译取得自己需要的值，Runtime Context 不改模式。见需求 2、4 及 RC-J01、08。 | [RC-02](../../../../packages/context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)、[RC-06](../../../../packages/context/runtime-context-contract/SPEC.md#rc-06-需要绑定与读者形状)、[RC 持续验证义务](../../../../packages/context/runtime-context-contract/SPEC.md#持续验证义务) | 未核实；消费 Session 精确协议待定 | 未核实；无真实组合运行证据 | 产品候选待确认；实现与交付未核实 |
-| <a id="cap-rc04"></a>CAP-RC04 当前读取与变化链 | 执行开始或挂接建立时拉当前快照，运行中追加合法变化，模型首次及压缩后全量。上下文快照提醒只进请求并锚定，逐请求变化的块只进尾部易变提醒。空闲推送可丢而业务输入不可丢。见需求 5 及 RC-J01、02、07。 | [RC-04](../../../../packages/context/runtime-context-contract/SPEC.md#rc-04-读取时点观察与变化材料)、[装载布局与前缀](../../../../packages/context/request-context-contract/SPEC.md#装载布局与前缀)、[RC 持续验证义务](../../../../packages/context/runtime-context-contract/SPEC.md#持续验证义务)、[RQ-11](../../../../packages/context/request-context-contract/SPEC.md#rq-11-持续验证与未覆盖) | 未核实；通知补查、前值关联待定 | 契约层已有包内验证；真实持有者与协调者组合未核实 | 产品候选待确认；实现与交付未核实 |
-| <a id="cap-rc05"></a>CAP-RC05 首次目录访问指导 | 在首次实际进入目录时加载适用 AGENTS.md，保留来源与采用依据，不走普通资产预加载或 reload。见需求 5 及 RC-J03。 | [RC-04](../../../../packages/context/runtime-context-contract/SPEC.md#rc-04-读取时点观察与变化材料)、[RC 明确缺项](../../../../packages/context/runtime-context-contract/SPEC.md#明确缺项) | 未核实；规范版本、访问与合并协议待定 | 未核实；无真实组合运行证据 | 产品候选待确认；实现与交付未核实 |
-| <a id="cap-rc06"></a>CAP-RC06 同源历史与块投影 | 人侧与模型侧标注独立，模型排除 ToolInternalMessage、未标注块和残缺调用，保留历史及中断解释。见需求 1、6、9 及 RC-J04、05、06。 | [RQ-03](../../../../packages/context/request-context-contract/SPEC.md#rq-03-历史与块投影)、[RQ-11](../../../../packages/context/request-context-contract/SPEC.md#rq-11-持续验证与未覆盖) | 未核实；人侧读取由 Session 与交付面承接 | 未核实；无真实组合运行证据 | 产品候选待确认；实现与交付未核实 |
-| <a id="cap-rc07"></a>CAP-RC07 模态转换与表示采用 | 非 Tool 来源接纳前适用转换；Tool 内容 ref 延迟加载、附件仅地址文本，原件保留，按模型能力选择实际表示并区分失败来源。见需求 6 及 RC-J05、06。 | [RQ-04](../../../../packages/context/request-context-contract/SPEC.md#rq-04-模态与可追溯表示)、[RQ-08](../../../../packages/context/request-context-contract/SPEC.md#rq-08-失败否决与消费位置)、[RQ-11](../../../../packages/context/request-context-contract/SPEC.md#rq-11-持续验证与未覆盖) | 未核实；MODEL-E01 和转换接续待定 | 未核实；无真实组合运行证据 | 产品候选待确认；实现与交付未核实 |
-| <a id="cap-rc08"></a>CAP-RC08 完整请求、预算与固定采用 | Request Context 给出请求候选、覆盖证据、装入裁定与表示决定。全输入计量，工具绑定一致，扩展后复核且不重触发，固定采用并明确超限或未知。提示词贡献只有有序段与变量，请求内容按稳定程度自上而下排列。独立消费不造 Session。见需求 6、7 及 RC-J06、07、09。 | [RQ-02](../../../../packages/context/request-context-contract/SPEC.md#rq-02-组装的前置输入)、[RQ-05](../../../../packages/context/request-context-contract/SPEC.md#rq-05-完整预算与候选完成)、[RQ-07](../../../../packages/context/request-context-contract/SPEC.md#rq-07-扩展修改发起与固定采用)、[装载布局与前缀](../../../../packages/context/request-context-contract/SPEC.md#装载布局与前缀)、[RQ-11](../../../../packages/context/request-context-contract/SPEC.md#rq-11-持续验证与未覆盖) | 未核实；计量、一致采用及失败协议待定 | 未核实；无真实组合运行证据 | 产品候选待确认；实现与交付未核实 |
-| <a id="cap-rc09"></a>CAP-RC09 合法压缩与未完工作保护 | 共同追加摘要、压缩覆盖范围和保留名单，旧历史不删，未读输入与未结占位不压，调用与结果同进同出，补全 Context 后复核完整预算。见需求 7 及 RC-J07。 | [RQ-06](../../../../packages/context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界)、[RQ-11](../../../../packages/context/request-context-contract/SPEC.md#rq-11-持续验证与未覆盖) | 未核实；共同保存及内部调用接续待定 | 未核实；无真实组合运行证据 | 产品候选待确认；实现与交付未核实 |
-| <a id="cap-rc10"></a>CAP-RC10 恢复、取消与可追查依据 | 保留已确认事实、原调用与消费位置，当前授权重核，取消不倒转外部效果，缓存可重建且诊断不泄密。见需求 8、9 及 RC-J02 至 09。 | [RC-07](../../../../packages/context/runtime-context-contract/SPEC.md#rc-07-生产者句柄并发撤除与恢复)、[RC-08](../../../../packages/context/runtime-context-contract/SPEC.md#rc-08-缓存观测与遥测)、[RQ-09](../../../../packages/context/request-context-contract/SPEC.md#rq-09-取消恢复与迟到)、[RQ-10](../../../../packages/context/request-context-contract/SPEC.md#rq-10-性能缓存与观测)、[RC 持续验证义务](../../../../packages/context/runtime-context-contract/SPEC.md#持续验证义务)、[RQ-11](../../../../packages/context/request-context-contract/SPEC.md#rq-11-持续验证与未覆盖) | 未核实；在途耐久及精确恢复、缓存协议待定 | 契约层已有包内验证；真实故障恢复与性能未核实 | 产品候选待确认；实现与交付未核实 |
+| <a id="cap-rc01"></a>CAP-RC01 按消费者供给合法块 | 块声明归语义拥有者，消费者按自己声明的需要读到自己的形状，绑定与翻译归集成方。有效来源、注册及作用域持有者签发的读取资格共同决定读取范围。私有授权不进模型，缺项与未知可辨。见需求 1、2、3、8 及 RC-J01、02、06、09。 | RC-01（`packages/context/SPEC.md`「访问核对」）、RC-03（`packages/context/SPEC.md`「块、注册与资格」）、RC-06（`packages/context/SPEC.md`「块、注册与资格」）、RC 持续验证义务（`packages/context/SPEC.md`「不变式」） | 未核实；来源一致读取协议待定，需要声明的承载见 CONTEXT-M04 | 契约层已有包内验证；真实持有者与协调者组合未核实 | 产品候选待确认；实现与交付未核实 |
+| <a id="cap-rc02"></a>CAP-RC02 注册、自有值与状态块提交 | 作用域持有者保存注册与自有值，`0.0.0 -> 0.1.0` 阶段的持有者是会话。状态块的更新经步提交成为事实，失败步中已成功动作的更新待持有者处置。移除可选块不删共享源，必需项和固定身份不可绕过。见需求 2 及 RC-J02、08。 | RC-02（`packages/context/SPEC.md`「块、注册与资格」）、RC-05（`packages/context/SPEC.md`「读取结果、变化与状态块」）、RC-07（`packages/context/SPEC.md`「生产者与供值」）、RC 持续验证义务（`packages/context/SPEC.md`「不变式」） | 未核实；提交与恢复协议待定，更新的携带见 CONTEXT-M04 | 契约层已有包内验证；真实持有者与协调者组合未核实 | 产品候选待确认；实现与交付未核实 |
+| <a id="cap-rc03"></a>CAP-RC03 会话模式感知 | 会话作为语义拥有者供给三个独立模式及变化，保留创建时默认捕获和用户修改边界。工具与扩展经集成方翻译取得自己需要的值，Runtime Context 不改模式。见需求 2、4 及 RC-J01、08。 | RC-02（`packages/context/SPEC.md`「块、注册与资格」）、RC-06（`packages/context/SPEC.md`「块、注册与资格」）、RC 持续验证义务（`packages/context/SPEC.md`「不变式」） | 未核实；消费 Session 精确协议待定 | 未核实；无真实组合运行证据 | 产品候选待确认；实现与交付未核实 |
+| <a id="cap-rc04"></a>CAP-RC04 当前读取与变化链 | 执行开始或挂接建立时拉当前快照，运行中追加合法变化，模型首次及压缩后全量。上下文快照提醒只进请求并锚定，逐请求变化的块只进尾部易变提醒。空闲推送可丢而业务输入不可丢。见需求 5 及 RC-J01、02、07。 | RC-04（`packages/context/SPEC.md`「读取结果、变化与状态块」）、装载布局与前缀（`packages/context/SPEC.md`「六层布局与前缀」）、RC 持续验证义务（`packages/context/SPEC.md`「不变式」）、RQ-11（`packages/context/SPEC.md`「不变式」） | 未核实；通知补查、前值关联待定 | 契约层已有包内验证；真实持有者与协调者组合未核实 | 产品候选待确认；实现与交付未核实 |
+| <a id="cap-rc05"></a>CAP-RC05 首次目录访问指导 | 在首次实际进入目录时加载适用 AGENTS.md，保留来源与采用依据，不走普通资产预加载或 reload。见需求 5 及 RC-J03。 | RC-04（`packages/context/SPEC.md`「读取结果、变化与状态块」）、RC 明确缺项（`packages/context/SPEC.md`「原则与约束」） | 未核实；规范版本、访问与合并协议待定 | 未核实；无真实组合运行证据 | 产品候选待确认；实现与交付未核实 |
+| <a id="cap-rc06"></a>CAP-RC06 同源历史与块投影 | 人侧与模型侧标注独立，模型排除 ToolInternalMessage、未标注块和残缺调用，保留历史及中断解释。见需求 1、6、9 及 RC-J04、05、06。 | RQ-03（`packages/context/SPEC.md`「六层布局与前缀」）、RQ-11（`packages/context/SPEC.md`「不变式」） | 未核实；人侧读取由 Session 与交付面承接 | 未核实；无真实组合运行证据 | 产品候选待确认；实现与交付未核实 |
+| <a id="cap-rc07"></a>CAP-RC07 模态转换与表示采用 | 非 Tool 来源接纳前适用转换；Tool 内容 ref 延迟加载、附件仅地址文本，原件保留，按模型能力选择实际表示并区分失败来源。见需求 6 及 RC-J05、06。 | RQ-04（`packages/context/SPEC.md`「六层布局与前缀」）、RQ-08（`packages/context/SPEC.md`「请求的计算边界与结局」）、RQ-11（`packages/context/SPEC.md`「不变式」） | 未核实；MODEL-E01 和转换接续待定 | 未核实；无真实组合运行证据 | 产品候选待确认；实现与交付未核实 |
+| <a id="cap-rc08"></a>CAP-RC08 完整请求、预算与固定采用 | Request Context 给出请求候选、覆盖证据、装入裁定与表示决定。全输入计量，工具绑定一致，扩展后复核且不重触发，固定采用并明确超限或未知。提示词贡献只有有序段与变量，请求内容按稳定程度自上而下排列。独立消费不造 Session。见需求 6、7 及 RC-J06、07、09。 | RQ-02（`packages/context/SPEC.md`「七组稳定读取与来源登记」）、RQ-05（`packages/context/SPEC.md`「计量与装入」）、RQ-07（`packages/context/SPEC.md`「请求的计算边界与结局」）、装载布局与前缀（`packages/context/SPEC.md`「六层布局与前缀」）、RQ-11（`packages/context/SPEC.md`「不变式」） | 未核实；计量、一致采用及失败协议待定 | 未核实；无真实组合运行证据 | 产品候选待确认；实现与交付未核实 |
+| <a id="cap-rc09"></a>CAP-RC09 合法压缩与未完工作保护 | 共同追加摘要、压缩覆盖范围和保留名单，旧历史不删，未读输入与未结占位不压，调用与结果同进同出，补全 Context 后复核完整预算。见需求 7 及 RC-J07。 | RQ-06（`packages/context/SPEC.md`「压缩」）、RQ-11（`packages/context/SPEC.md`「不变式」） | 未核实；共同保存及内部调用接续待定 | 未核实；无真实组合运行证据 | 产品候选待确认；实现与交付未核实 |
+| <a id="cap-rc10"></a>CAP-RC10 恢复、取消与可追查依据 | 保留已确认事实、原调用与消费位置，当前授权重核，取消不倒转外部效果，缓存可重建且诊断不泄密。见需求 8、9 及 RC-J02 至 09。 | RC-07（`packages/context/SPEC.md`「生产者与供值」）、RC-08（`packages/context/SPEC.md`「生产者与供值」）、RQ-09（`packages/context/SPEC.md`「请求的计算边界与结局」）、RQ-10（`packages/context/SPEC.md`「原则与约束」）、RC 持续验证义务（`packages/context/SPEC.md`「不变式」）、RQ-11（`packages/context/SPEC.md`「不变式」） | 未核实；在途耐久及精确恢复、缓存协议待定 | 契约层已有包内验证；真实故障恢复与性能未核实 | 产品候选待确认；实现与交付未核实 |
 
 ## 阶段与版本支持承诺
 
@@ -494,11 +494,11 @@ CAP-RC05 与 CAP-RC10 为有限支持，由负责人确定。表中两项的限�
 <a id="u06"></a>
 ### U06 由技术设计推导、待确认的三处写法
 
-下面三处由 Context 成员的技术设计推导，已写进本页或成员契约，产品负责人尚未确认。确认之前它们按候选执行。改变任一处时，同步修订 [runtime-context-contract](../../../../packages/context/runtime-context-contract/SPEC.md) 与 [request-context-contract](../../../../packages/context/request-context-contract/SPEC.md) 的对应条款。
+下面三处由 Context 成员的技术设计推导，已写进本页或成员契约，产品负责人尚未确认。确认之前它们按候选执行。改变任一处时，同步修订 runtime-context-contract（`packages/context/SPEC.md`「应然设计」） 与 request-context-contract（`packages/context/SPEC.md`「应然设计」） 的对应条款。
 
-- **变化频率多一个值。**[§2.1](#21-两类块供给块与状态块) 只列稳定与逐请求两种。契约 [RC-02](../../../../packages/context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数) 多一个 `per-step`：状态块在步提交后变化，只产生变化提醒，不进尾部易变提醒。产品若只保留两种，契约删去这个值，状态块按稳定处理。
+- **变化频率多一个值。**[§2.1](#21-两类块供给块与状态块) 只列稳定与逐请求两种。契约 RC-02（`packages/context/SPEC.md`「块、注册与资格」） 多一个 `per-step`：状态块在步提交后变化，只产生变化提醒，不进尾部易变提醒。产品若只保留两种，契约删去这个值，状态块按稳定处理。
 - **读取资格带允许的需要绑定。**[§2.4](#24-注册读取资格与绑定读者) 写明读取资格含允许的需要绑定。这一项为带翻译的需要而推导：没有它，读者要么读不到翻译后的值，要么得到按块原形状读取的资格。
-- **窗口占用比例的时点。**[§3](#3-必需感知按内容及消费者供给) 写这个比例实时派生。契约取该作用域最近一次固定请求的占用比例（[RQ-02](../../../../packages/context/request-context-contract/SPEC.md#rq-02-组装的前置输入)）：读取先于组装，读取时本次请求的占用还不存在，所以模型看到的值落后于本次请求。产品若要求本次请求的占用，需要改变读取与组装的先后。
+- **窗口占用比例的时点。**[§3](#3-必需感知按内容及消费者供给) 写这个比例实时派生。契约取该作用域最近一次固定请求的占用比例（RQ-02（`packages/context/SPEC.md`「七组稳定读取与来源登记」））：读取先于组装，读取时本次请求的占用还不存在，所以模型看到的值落后于本次请求。产品若要求本次请求的占用，需要改变读取与组装的先后。
 
 由 Runtime Context 产品拥有者确认。缺项不改变已有的租户隔离、读取资格与消费者边界。
 
@@ -514,21 +514,21 @@ CAP-RC05 与 CAP-RC10 为有限支持，由负责人确定。表中两项的限�
 
 本项为来源缺证。AGENTS.md 已明确在嵌套目录首次访问时加载，具体社区规范版本、访问判据及合并协议仍未采用。
 
-精确指导读取实现仍缺必要输入，不影响其他块的供给和组装规则。责任由Runtime Context与工作区指导拥有者承担；具体义务、既定边界和未采用建议见[技术原文](../../../../packages/context/runtime-context-contract/SPEC.md)。
+精确指导读取实现仍缺必要输入，不影响其他块的供给和组装规则。责任由Runtime Context与工作区指导拥有者承担；具体义务、既定边界和未采用建议见技术原文（`packages/context/SPEC.md`「应然设计」）。
 
 <a id="context-m01"></a>
 ### CONTEXT-M01 注册、当前读取和恢复的一致协议
 
 本项为技术义务。注册变更、源更新、撤权与读取并发，提交未知或通知丢失后，当前值、恢复事实和实际采用仍须一致。
 
-实施前仍缺精确协议，已有供给和恢复保证不因此降低。责任由 Runtime Context、作用域持有者（会话）、原来源与读取协调者承担；具体义务、既定边界和未采用建议见[技术原文](../../../../packages/context/runtime-context-contract/SPEC.md)。
+实施前仍缺精确协议，已有供给和恢复保证不因此降低。责任由 Runtime Context、作用域持有者（会话）、原来源与读取协调者承担；具体义务、既定边界和未采用建议见技术原文（`packages/context/SPEC.md`「应然设计」）。
 
 <a id="context-m02"></a>
 ### CONTEXT-M02 派生请求、表示、预算与最终采用的精确协议
 
 本项为技术义务。模型档案、工具实现或 runtime context 块在组装期间变化，扩展又修改参数，压缩内部调用跨消费者换代后须接续。
 
-真实组合及完整性能接受仍缺输入，当前规则和局部失败责任继续。责任由Request Context、Model、Tool与原发起消费协调者承担；具体义务、既定边界和未采用建议见[技术原文](../../../../packages/context/request-context-contract/SPEC.md)。
+真实组合及完整性能接受仍缺输入，当前规则和局部失败责任继续。责任由Request Context、Model、Tool与原发起消费协调者承担；具体义务、既定边界和未采用建议见技术原文（`packages/context/SPEC.md`「应然设计」）。
 
 <a id="context-m03"></a>
 ### CONTEXT-M03 已展示在途内容的恢复兑现
@@ -542,7 +542,7 @@ CAP-RC05 与 CAP-RC10 为有限支持，由负责人确定。表中两项的限�
 
 本项为技术义务。按 [2.3](#23-需要绑定与集成原则) 与 [2.5](#25-状态块的更新与步提交)，工具定义与 Agent 扩展要能用自己的形状声明需要，工具调用结果与 Agent 各阶段的结果要能携带上下文更新，作用域持有者要能在步边界提交更新并处置失败步留下的待处理更新。未完成待办的待办语义由 [TodoItems()](../meta-capabilities/design.md#meta-todo) 定义，发布这块声明的技术拥有者尚未具名，键暂按 `agent.todos` 命名。
 
-方向已定，形状与落地归各自拥有者。兑现之前，本会话语义授权与未完成待办这两个状态块只有规则，没有实际承载者，CAP-RC01 与 CAP-RC02 的支持声明受此限制。责任由工具执行、Agent 定义与工作推进、作用域持有者（会话）与 Runtime Context 承担；精确义务分别见 [Tool 契约](../../../../packages/tool/tool-contract/SPEC.md)、[Agent 契约](../../../../packages/agent/agent-contract/SPEC.md)与 [Runtime Context 契约](../../../../packages/context/runtime-context-contract/SPEC.md)。
+方向已定，形状与落地归各自拥有者。兑现之前，本会话语义授权与未完成待办这两个状态块只有规则，没有实际承载者，CAP-RC01 与 CAP-RC02 的支持声明受此限制。责任由工具执行、Agent 定义与工作推进、作用域持有者（会话）与 Runtime Context 承担；精确义务分别见 [Tool 契约](../../../../packages/tool/tool-contract/SPEC.md)、[Agent 契约](../../../../packages/agent/agent-contract/SPEC.md)与 Runtime Context 契约（`packages/context/SPEC.md`「应然设计」）。
 
 <a id="context-n01"></a>
 ### CONTEXT-N01 当前明确不扩张的产品与实施范围

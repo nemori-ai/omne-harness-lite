@@ -1,6 +1,6 @@
 # 计量会话的安全证明
 
-本文是待独立审阅的人工归纳证明，没有机器演绎检查。行为对象是 [MeasurementSession](../models/measurement-session/MeasurementSession.tla)，依据是 [SPEC RQ-05](../../SPEC.md#rq-05-完整预算与候选完成)。若契约锚点变化，以SPEC内RQ-05正文为准。既有replay与compaction模型不被这份模型替换。
+本文是人工归纳证明，没有机器演绎检查。行为对象是 [MeasurementSession](../models/measurement-session/MeasurementSession.tla)，规则归[包组规格](../../../SPEC.md#计量与装入)。
 
 ## 定义域与命题
 
@@ -18,26 +18,26 @@ Init使所有请求和entry都unused，chosen为0，registered、reusable和fail
 
 ## 每个动作保持I
 
-| 动作 | 推导 |
-| --- | --- |
-| `Mutate(k,b)` | 只更改externalKey和externalBody，仍在类型内。snap、entry key、acquiredKey和measuredBody都不变，所以快照及资源性质保持。 |
-| `Begin(r)` | 仅open且Pending数量严格小于上限时接纳unused请求。它只增加一个Pending，固定snapKey和snapBody，进入choosing且chosen仍为0。没有创建或使用租约，不改变Retained。 |
-| `Existing(r,e)` | 只选择registered且key等于snapKey的entry。Structure保证该entry处于acquiring或acquired，因此增加一个Users不会使用已释放对象。请求从choosing变waiting，Pending大小不变。没有创建第二个相同key，也不改变预算。 |
-| `Create(r,e,0)` 有复用空间 | e必须unused且没有同key注册项。Retained大小小于Capacity时，新entry的reusable为TRUE，增加恰好一个Retained。请求成为waiting，Pending不变，key从snapKey复制。尚未acquire，ExactKey不触发。 |
-| `Create(r,e,0)` 全忙溢出 | 没有闲置可淘汰项且Retained已经满时，新entry的reusable为FALSE，所以不增加Retained。它仍受同一个已接纳请求的Pending计数约束。registered允许后来的同key请求共享该Promise，SharedAcquire由无同key前提保持。 |
-| `Create(r,e,victim)` 淘汰 | 要求Retained已满、victim已取得且Users为空。动作同时取消旧项registered/reusable、将旧项releasing，并创建一份reusable新项。因此Retained净变化为零，BusyNotReleased对victim成立。新entry记录blockedBy=victim，暂不调用acquire。其他忙entry不变。 |
-| `Acquire(e)` | 只在acquiring且没有victim或victim已released时执行。正常动作将acquiredKey设为entry固定key，所以新触发的ExactKey成立。此前registered项仍合法。动作不增加请求、Users或Retained。 |
-| `AcquireFail(e)` | 同样等待victim释放，然后进入failed、取消registered/reusable并记录failure。没有取得实际租约，failed不是待release的资源。已有等待请求仍在Pending中，故关闭不能越过它们。 |
-| `Measure(r)` | 只有waiting请求及acquired entry才能进入measuring。正常动作把snapBody赋给measuredBody，因此ProbeSnapshot成立。waiting与measuring都属于Users和Pending，计数不变。 |
-| `Finish(r,bad)` 保留项 | 如果entry仍可复用且本次未失败，请求转done。Users和Pending各减一，租约继续registered/acquired。类型、容量、key和快照性质不变。 |
-| `Finish(r,bad)` 退休但尚有使用者 | 失败将reusable与registered清除，并记录failure。其他已开始的使用者仍持有原entry，phase保持acquired，所以不会提前释放。当前请求转done并减Users。一次性entry在非最后使用者完成时同理，registered可继续共享到最后一个使用者离开。 |
-| `Finish(r,bad)` 最后一次使用 | 非复用entry且旧Users恰为1时，当前请求转cleanup，phase改releasing并移除registered。新Users为空，所以BusyNotReleased成立。cleanup仍属于Pending，因此close须继续等待。对acquire失败的entry不需要release，请求直接done。 |
-| `ReleaseDone(e,bad)` | 前态phase为releasing，由BusyNotReleased得Users为空。registered已为FALSE且不再允许Existing加入。动作记录release结算为released；失败时failure为TRUE。它不将cleanup请求提前done。released表示release Promise已结算，可含失败，不代表底层物理资源必然成功清理。 |
-| `CleanupDone(r)` | 只在关联release已结算后，把cleanup变done，减少Pending。没有新增使用者或取得资源。 |
-| `Close` | 只把host改closing。Begin从此不再启用。已经接纳的请求仍能选择、取得、计量和清理，Pending保持真实在途集合。 |
-| `CloseRelease(e)` | 只有closing且Pending为空时进入。由Users定义推出Users为空，然后将一个acquired entry改releasing并删除注册。不会淘汰正在使用的租约。 |
-| `CloseDone` | 明确要求Pending为空，全部entry都unused、failed或released，随后host变closed，所以ClosedDrained成立。若failure为TRUE，只能返回failure，因此FailureVisible成立。 |
-| stuttering | 状态不变，I保持。重复关闭请求在抽象中不再新增资源。 |
+| 动作                             | 推导                                                                                                                                                                                                                                                        |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Mutate(k,b)`                    | 只更改externalKey和externalBody，仍在类型内。snap、entry key、acquiredKey和measuredBody都不变，所以快照及资源性质保持。                                                                                                                                     |
+| `Begin(r)`                       | 仅open且Pending数量严格小于上限时接纳unused请求。它只增加一个Pending，固定snapKey和snapBody，进入choosing且chosen仍为0。没有创建或使用租约，不改变Retained。                                                                                                |
+| `Existing(r,e)`                  | 只选择registered且key等于snapKey的entry。Structure保证该entry处于acquiring或acquired，因此增加一个Users不会使用已释放对象。请求从choosing变waiting，Pending大小不变。没有创建第二个相同key，也不改变预算。                                                  |
+| `Create(r,e,0)` 有复用空间       | e必须unused且没有同key注册项。Retained大小小于Capacity时，新entry的reusable为TRUE，增加恰好一个Retained。请求成为waiting，Pending不变，key从snapKey复制。尚未acquire，ExactKey不触发。                                                                      |
+| `Create(r,e,0)` 全忙溢出         | 没有闲置可淘汰项且Retained已经满时，新entry的reusable为FALSE，所以不增加Retained。它仍受同一个已接纳请求的Pending计数约束。registered允许后来的同key请求共享该Promise，SharedAcquire由无同key前提保持。                                                     |
+| `Create(r,e,victim)` 淘汰        | 要求Retained已满、victim已取得且Users为空。动作同时取消旧项registered/reusable、将旧项releasing，并创建一份reusable新项。因此Retained净变化为零，BusyNotReleased对victim成立。新entry记录blockedBy=victim，暂不调用acquire。其他忙entry不变。               |
+| `Acquire(e)`                     | 只在acquiring且没有victim或victim已released时执行。正常动作将acquiredKey设为entry固定key，所以新触发的ExactKey成立。此前registered项仍合法。动作不增加请求、Users或Retained。                                                                               |
+| `AcquireFail(e)`                 | 同样等待victim释放，然后进入failed、取消registered/reusable并记录failure。没有取得实际租约，failed不是待release的资源。已有等待请求仍在Pending中，故关闭不能越过它们。                                                                                      |
+| `Measure(r)`                     | 只有waiting请求及acquired entry才能进入measuring。正常动作把snapBody赋给measuredBody，因此ProbeSnapshot成立。waiting与measuring都属于Users和Pending，计数不变。                                                                                             |
+| `Finish(r,bad)` 保留项           | 如果entry仍可复用且本次未失败，请求转done。Users和Pending各减一，租约继续registered/acquired。类型、容量、key和快照性质不变。                                                                                                                               |
+| `Finish(r,bad)` 退休但尚有使用者 | 失败将reusable与registered清除，并记录failure。其他已开始的使用者仍持有原entry，phase保持acquired，所以不会提前释放。当前请求转done并减Users。一次性entry在非最后使用者完成时同理，registered可继续共享到最后一个使用者离开。                               |
+| `Finish(r,bad)` 最后一次使用     | 非复用entry且旧Users恰为1时，当前请求转cleanup，phase改releasing并移除registered。新Users为空，所以BusyNotReleased成立。cleanup仍属于Pending，因此close须继续等待。对acquire失败的entry不需要release，请求直接done。                                        |
+| `ReleaseDone(e,bad)`             | 前态phase为releasing，由BusyNotReleased得Users为空。registered已为FALSE且不再允许Existing加入。动作记录release结算为released；失败时failure为TRUE。它不将cleanup请求提前done。released表示release Promise已结算，可含失败，不代表底层物理资源必然成功清理。 |
+| `CleanupDone(r)`                 | 只在关联release已结算后，把cleanup变done，减少Pending。没有新增使用者或取得资源。                                                                                                                                                                           |
+| `Close`                          | 只把host改closing。Begin从此不再启用。已经接纳的请求仍能选择、取得、计量和清理，Pending保持真实在途集合。                                                                                                                                                   |
+| `CloseRelease(e)`                | 只有closing且Pending为空时进入。由Users定义推出Users为空，然后将一个acquired entry改releasing并删除注册。不会淘汰正在使用的租约。                                                                                                                           |
+| `CloseDone`                      | 明确要求Pending为空，全部entry都unused、failed或released，随后host变closed，所以ClosedDrained成立。若failure为TRUE，只能返回failure，因此FailureVisible成立。                                                                                               |
+| stuttering                       | 状态不变，I保持。重复关闭请求在抽象中不再新增资源。                                                                                                                                                                                                         |
 
 类型保持来自集合内取值和记录局部更新。`Structure`的各项也由表保持。registered只能由Create引入，此时phase为acquiring；所有进入failed、releasing、released的动作同步删除registered。reusable只有Create可设TRUE，同时设registered。waiting/measuring只能由Existing、Create、Measure产生，其chosen有效且entry尚未释放；进入releasing只可能发生在Users空时。cleanup只由最后使用者开始release产生。请求一旦离开unused，不再改snap。result只由CloseDone写入，hostclosed后没有产生failure的新动作。这些事实给出 `I ∧ Next ⇒ I'`。按状态序列长度归纳得到命题。
 

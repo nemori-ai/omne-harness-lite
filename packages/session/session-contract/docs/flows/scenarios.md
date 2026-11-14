@@ -639,7 +639,7 @@ sequenceDiagram
 
 ## F-SC13 epoch 视图读取
 
-细化 [F-SE07](../../../docs/key-flows.md#f-se07-模型可见历史的读取)。依据：[SessionHistory](../../SPEC.md#sessionhistory) 的 `readModelView` 条款、JC-09、[VC-O06](../../SPEC.md#候选的持续验证义务)。Request Context 一侧沿[历史源读口与 epoch 视图](../../../../context/request-context-contract/SPEC.md#历史源读口与-epoch-视图)。
+细化 [F-SE07](../../../docs/key-flows.md#f-se07-模型可见历史的读取)。依据：[SessionHistory](../../SPEC.md#sessionhistory) 的 `readModelView` 条款、JC-09、[VC-O06](../../SPEC.md#候选的持续验证义务)。Request Context 一侧沿[历史源读口与 epoch 视图](../../../../context/SPEC.md#七组稳定读取与来源登记)。
 
 epoch 视图是两次压缩之间的模型可见序列。它在压缩提交时物化（F-SC03），读取不重算。
 

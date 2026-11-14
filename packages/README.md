@@ -15,7 +15,7 @@
 | [agent](agent/README.md) | Agent推进 | `agent` |
 | [model](model/README.md) | 模型调用 | `model` |
 | [tool](tool/README.md) | 工具执行 | `tool` |
-| [context](context/README.md) | Runtime Context | `runtime-context`, `request-context` |
+| [context](context/SPEC.md) | Runtime Context | `runtime-context`, `request-context` |
 | [human-intervention](human-intervention/README.md) | 人工介入 | `human-intervention` |
 | [execution](execution/SPEC.md) | 执行环境 | `execution-environment` |
 | [calendar](calendar/README.md) | 日历 | `calendar-contract`, `calendar-cordis-contract`, `calendar`, `calendar-local`, `calendar-tools` |

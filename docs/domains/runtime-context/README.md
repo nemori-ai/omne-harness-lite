@@ -23,7 +23,7 @@
 | 贡献登记面 | 提示词贡献（有序段、变量）的登记与作用域遮蔽 |
 | 发起协调者 | 固定实际采用并复核最终条件；记录覆盖证据与快照锚点 |
 
-不可重算会话数据与可重算投影分别维护，缓存不是第二权威。交给作用域持有者的事实（注册、步提交、变化提醒、压缩转换）分别见 [runtime-context-contract 规格](../../../packages/context/runtime-context-contract/SPEC.md)和 [request-context-contract 规格](../../../packages/context/request-context-contract/SPEC.md)。
+不可重算会话数据与可重算投影分别维护，缓存不是第二权威。交给作用域持有者的事实（注册、步提交、变化提醒、压缩转换）分别见 [runtime-context-contract 规格](../../../packages/context/SPEC.md#应然设计)和 [request-context-contract 规格](../../../packages/context/SPEC.md#应然设计)。
 
 ## 协作与依赖
 
@@ -48,7 +48,7 @@
 
 供给契约拥有声明、需要、注册、资格、读取与步提交；生产者拥有原块；请求计算拥有派生、裁定、计划与覆盖证据；发起协调者拥有一致采用；历史持有者拥有历史视图、共同提交与未结工作集合。快照、压缩、缓存及版本协议随实际成员。
 
-成员分两块各四段：契约、Cordis 服务定义、机制实现、Service 实现，见[能力组](../../../packages/context/README.md)。上层沿 [Runtime Context](../../architecture/runtime/runtime-context.md)、[请求输入](../../architecture/runtime/request-context.md)、[数据与状态](../../architecture/data-and-state.md)。产品依据[运行感知与一次模型请求](../../../.meta_harness/design/product/runtime-context/design.md)。验证覆盖长期积累与资格失效，见[组合入口](../verification.md)。
+成员分两块各四段：契约、Cordis 服务定义、机制实现、Service 实现，见[能力组](../../../packages/context/SPEC.md#总体架构)。上层沿 [Runtime Context](../../architecture/runtime/runtime-context.md)、[请求输入](../../architecture/runtime/request-context.md)、[数据与状态](../../architecture/data-and-state.md)。产品依据[运行感知与一次模型请求](../../../.meta_harness/design/product/runtime-context/design.md)。验证覆盖长期积累与资格失效，见[组合入口](../verification.md)。
 
 ## 后续设计与维护
 
@@ -58,4 +58,4 @@
 
 ## 正式产品与技术承接
 
-[产品正文](../../../.meta_harness/design/product/runtime-context/design.md)维护本域产品要求、能力状态、阶段与未决。[角色与交接](architecture.md)承接领域级关系；[能力组](../../../packages/context/README.md)展开工程依赖与成员机制。成员契约的状态是 `draft`，正式位置不升级原已接受领域正文的范围，也不表示成员已实现。
+[产品正文](../../../.meta_harness/design/product/runtime-context/design.md)维护本域产品要求、能力状态、阶段与未决。[角色与交接](architecture.md)承接领域级关系；[能力组](../../../packages/context/SPEC.md#总体架构)展开工程依赖与成员机制。成员契约的状态是 `draft`，正式位置不升级原已接受领域正文的范围，也不表示成员已实现。

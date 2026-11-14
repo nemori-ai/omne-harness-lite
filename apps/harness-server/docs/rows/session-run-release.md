@@ -3,8 +3,8 @@
 本页说明发行树里 B1（R2-D136）接上的八行，以及 SC1、SC4 接上的四行，怎样接到成员工厂，哪些参数在发行里没有生产来源，以及还没接的行为什么没接。
 系统责任归[应用装配](../../../../docs/architecture/runtime/application-assembly.md#插件树)。接口事实归各成员：
 [session-adapters](../../../../packages/session/session-adapters/docs/cordis.md)、
-[request-context-cordis](../../../../packages/context/request-context-cordis/docs/cordis.md)、
-[agent-context](../../../../packages/context/agent-context/SPEC.md#context-plugin)。
+[request-context-cordis](../../../../packages/context/SPEC.md#cordis-装配)、
+[agent-context](../../../../packages/context/SPEC.md#适配)。
 依据：R2-D117、R2-D124、R2-D136、R2-D145、R2-D162，L-RUN 的事实清单 `C-ADAPTERS-A`、`C-ADAPTERS-B`、`C-TOOLREQ`。
 
 ## 各行与配置
