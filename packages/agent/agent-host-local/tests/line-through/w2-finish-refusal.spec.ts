@@ -8,6 +8,9 @@ it('waits on Session pending input without replacing the completion candidate', 
   // The Model call of the recovering Run waits until the second input is in, so that input is
   // pending while that Run settles, however soon Session starts the Run.
   const recovering = Promise.withResolvers<void>()
+  // Session hands `in-2` to the active Run through the Agent's submit, which prepares the admission
+  // before it accepts: held here, `in-2` stays pending in Session and out of the Run's hands.
+  const handIn = Promise.withResolvers<void>()
   const w = await openW2World({
     receptionTargets: 'journal',
     model: a => ({
@@ -17,6 +20,14 @@ it('waits on Session pending input without replacing the completion candidate', 
     }),
     wrapAgentDependencies: dependencies => ({
       ...dependencies,
+      handoff: {
+        ...dependencies.handoff,
+        async prepare(input) {
+          if (input.kind === 'submit' && String(input.request.reference.input) === 'in-2')
+            await handIn.promise
+          return dependencies.handoff.prepare(input)
+        },
+      },
       conditions: {
         read(input) {
           if (!injected) {
@@ -66,6 +77,7 @@ it('waits on Session pending input without replacing the completion candidate', 
     )
   } finally {
     recovering.resolve()
+    handIn.resolve()
     await w.close()
   }
 })
