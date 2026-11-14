@@ -256,10 +256,8 @@ export type PathDependencies = Readonly<{
   replyTurns?: number
 }>
 
-/**
- * A refusal inside a path step. It carries only the step name that this application mints and the
- * `kind` of the failure, never free text of a supplier or a port.
- */
+// A refusal inside a path step: only the step name this application mints and the failure `kind`,
+// never free text of a supplier or a port.
 export class PathStepError extends Error {
   readonly step: string
   readonly kind: string
@@ -692,11 +690,8 @@ export type MessageWriter = Readonly<{
 /** What `decide` answers: a fixed outcome of the H, or a failure that fixes nothing. */
 type Decision = Readonly<{ ok: HandoffOutcome }> | Readonly<{ failure: Failure }>
 
-/**
- * The Agent failure of a refused Session `recordMessage`. Only a real validation refusal fixes a
- * rejection; an unavailable store, an unknown commit and every other refusal come back as a failure
- * of the same class and fix nothing, so a retry of the same H decides it again.
- */
+// Only a real validation refusal of `recordMessage` fixes a rejection; an unavailable store, an
+// unknown commit and every other refusal fix nothing, so a retry of the same H decides it again.
 function messageFailure(
   failure: SessionFailure,
   request: HandoffRequest,
@@ -884,9 +879,8 @@ export function messageBridge(scene: MessageWriter, rounds: Rounds): MessageHand
       }
     },
     async exclude(input) {
-      // A fixed outcome is answered as recorded, never turned into an exclusion. This bridge has no
-      // trusted Journal resolver for P and no durable fence, so it cannot exclude an H it has not
-      // decided: it answers unsupported (agent-contract SPEC "消息准入"), not an empty success.
+      // A fixed outcome is answered as recorded, never turned into an exclusion. Without a trusted
+      // resolver and a durable fence an H not decided here answers unsupported, not an empty success.
       const known = fixed.get(handoffKey(input.request.reference))
       if (known === undefined) return unsupported()
       if (known.request !== canonicalText(input.request))
@@ -1487,10 +1481,8 @@ async function loadSnapshot(
   return 'ok' in loaded ? loaded.ok : null
 }
 
-/**
- * Every committed receiving entry of an execution, read page by page through the entries port in
- * commit order. Null when a read fails: a failed read is not an empty journal.
- */
+// Every committed receiving entry of an execution, in commit order. Null when a read fails: a
+// failed read is not an empty journal.
 async function journalEntries(
   agent: Pick<PathAgent, 'entries'>,
   access: Access<PathPrincipal>,
