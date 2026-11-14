@@ -40,7 +40,7 @@ In the member directory, run `pnpm exec vitest run --mode fast` (full table, sha
 
 ## Maintenance
 
-Read the [shared contract specification](../../access/public-contract/SPEC.md#共同契约) before you change the contract. The member is a contract member in [`docs/engineering/delivery-lines.json`](../../../docs/engineering/delivery-lines.json). When the public surface changes, rewrite the snapshot under `api/` with `pnpm run contract:api --write`.
+Read the [shared contract specification](../../access/SPEC.md#协议契约与编解码) before you change the contract. The member is a contract member in [`docs/engineering/delivery-lines.json`](../../../docs/engineering/delivery-lines.json). When the public surface changes, rewrite the snapshot under `api/` with `pnpm run contract:api --write`.
 
 ## Directory structure and documentation roles
 

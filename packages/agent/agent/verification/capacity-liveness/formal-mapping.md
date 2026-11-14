@@ -14,8 +14,8 @@
 | 模型                                         | 正文规则                                                                                                                                                                                                                                                                             |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `Refuse` 的等待分支，`waiting`               | Agent SPEC 的依赖不可用时的等待。Loop 页节点表与恢复入口与回归点的 W0 行                                                                                                                                                                                                             |
-| `Refuse` 对 `model` 的等待                   | Loop 页节点表的 M6 行：Model 答 unavailable 时按依赖等待。Model 规格的[受理与调用身份](../../../../model/SPEC.md#受理与调用身份)：份额此刻被占满答 unavailable。 |
-| `DefiniteRefuse`                             | sql-contract 的[提交拒绝原因的定性](../../../../storage/sql-contract/SPEC.md#提交拒绝原因的定性)。会话日志 Journal 按定性翻译，见 session-adapters 的[生产提供者的实现现状](../../../../session/session-adapters/SPEC.md#生产提供者的实现现状)。Agent SPEC 的确定节点故障的收尾      |
+| `Refuse` 对 `model` 的等待 | Loop 页节点表的 M6 行：Model 答 unavailable 时按依赖等待。Model 规格的[受理与调用身份](../../../../model/SPEC.md#受理与调用身份)：份额此刻被占满答 unavailable。 |
+| `DefiniteRefuse` | 存储的[拒绝的定性](../../../../storage/SPEC.md#拒绝的定性)。会话日志 Journal 按定性翻译，见 session-adapters 的[生产提供者的实现现状](../../../../session/session-adapters/SPEC.md#生产提供者的实现现状)。Agent SPEC 的确定节点故障的收尾 |
 | `Acquire`、`Release`、`StoreCap`、`ModelCap` | 存储的提交名额与 Model 的租户份额。一次提交或一次调用结束时，名额归还                                                                                                                                                                                                                |
 
 ## 状态与动作

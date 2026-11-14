@@ -94,7 +94,7 @@ local装配中，独立请求的HITL与原等待参与者位于同一登记SQL�
 
 ### 公开入口与受众
 
-HITL 的公开入口是系统公开契约的 HITL 位置 `hitl-public/1`，操作与线上形状见[HITL 公开操作](../../../access/public-contract/SPEC.md#hitl-公开操作)。四个公开操作 `list-cards`、`read-card`、`submit-reply` 与 `query-submit-reply` 分别对应本协议的 `listPool`、`getCard`、`submitReply` 与 `getOperation`，不增加业务含义。会话入口与待办池都是 `list-cards`：过滤条件带 `sessionRef` 时是会话入口，不带时是待办池。服务端接入以租户的入口主体调用本协议的应用服务，不另核资格。
+HITL 的公开入口是系统公开契约的 HITL 位置 `hitl-public/1`，操作与线上形状见[HITL 公开操作](../../../access/SPEC.md#hitl-位置)。四个公开操作 `list-cards`、`read-card`、`submit-reply` 与 `query-submit-reply` 分别对应本协议的 `listPool`、`getCard`、`submitReply` 与 `getOperation`，不增加业务含义。会话入口与待办池都是 `list-cards`：过滤条件带 `sessionRef` 时是会话入口，不带时是待办池。服务端接入以租户的入口主体调用本协议的应用服务，不另核资格。
 
 租户由 `<account_id, org_id>` 确定，是一个身份。租户的入口主体是 `{ actor: server-entry, tenant, work: { owner: 'harness.hitl', work: 'cards' } }`，由具名持有者在同一次请求的登录核对之后签发，见 identity 的[持有者与关系核对位置](../../../identity/identity/SPEC.md#持有者与关系核对位置)。入口主体的 `standingPrincipalRef` 对同一租户稳定，与登录无关。
 

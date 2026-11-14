@@ -153,7 +153,7 @@ storage 原结果保持 `committed / rolled_back / unknown / identity_conflict /
 | L-10 打开中未知scope Worker不列 residuals | incomplete 与租约仍成立；本域不把空 residuals 当全部收场，也不伪造scope |
 | L-11 FIFO query与writesPerControlTurn未实现 | 认回延迟受 admissionQueueLimit 而非该配置控制，不承诺控制插队；结果慢仍保留原 identity |
 
-限制唯一正文归 [sqlite-provider SPEC](../../../storage/sqlite-provider/SPEC.md#已知限制)，操作否定证据、read、取消和关闭归 [sql-contract SPEC](../../../storage/sql-contract/SPEC.md)。storage commit 的 committed/rolled_back/unknown/identity_conflict/rejected_before_accept 原样解释；unknown 不能改普通失败。notCommitted 需旧写代际排除、旧事务终止、恢复完成、权威读成功、未进队列五项证明。一般 read 的 not-found 不提供这些证明。
+限制唯一正文归[存储规格](../../../storage/SPEC.md#保证的范围)，操作否定证据、read、取消和关闭归[存储规格](../../../storage/SPEC.md)。storage commit 的 committed/rolled_back/unknown/identity_conflict/rejected_before_accept 原样解释；unknown 不能改普通失败。notCommitted 需旧写代际排除、旧事务终止、恢复完成、权威读成功、未进队列五项证明。一般 read 的 not-found 不提供这些证明。
 
 Snapshot read 保证单次快照，跨页按 queryHash、observationRevision 与稳定 key，无法保持则 stale_cursor/changed/unavailable，不能拼混版。read 取消不打断运行 SQL；域外启动围栏不是 SQL 写代际。FULL/进程终止和真实断电验证分开，本轮没有执行 SQL-T01。
 

@@ -24,7 +24,7 @@
 | 对象 | 承载什么 | 拥有者或当前持有者 |
 | --- | --- | --- |
 | `WorkspaceId` 的含义 | 哪个工作区 | 工作区域 |
-| `WorkspaceId` 的文本形式 | legal-identity 第六族文本，前缀 `wsp_` | [legal-identity](../../../packages/common/legal-identity/README.md) |
+| `WorkspaceId` 的文本形式 | legal-identity 第六族文本，前缀 `wsp_` | [legal-identity](../../../packages/common/SPEC.md#合法身份) |
 | 工作区附着 `WorkspaceAttachment` | 实例标识 `instance` 与装载依据 `basis` | 语义归工作区域。形状暂由 [session-contract](../../../packages/session/session-contract/SPEC.md#消费者资格与输入) 持有，迁出见 [#837](https://github.com/nemori-ai/omne-harness-lite/issues/837) |
 | Session 创建、`DeclarationChange` 的 `workspace` 分支、SE05 `session.workspace-changed` | 身份加附着 | [session-contract](../../../packages/session/session-contract/SPEC.md#消费者资格与输入) |
 | Tool 的 `SourceLayer`、`FixedToolRequest` | 只承载身份 | [tool-contract](../../../packages/tool/tool-contract/SPEC.md) |

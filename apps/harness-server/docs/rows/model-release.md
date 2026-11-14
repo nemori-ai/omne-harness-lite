@@ -90,7 +90,7 @@ model-host-local、model 的首次执行记录。
 
 **键。** 凭据由（供应商、层、用途）确定，租户取自调用的 `access`。绑定键由发行供应商的设置持有推出（`src/assets/model-providers.ts` 的 `providerCredentialKey`）：租户层是 `omne setting set openrouter apiKey` 写的那一份，官方层是 `harness-server setup` 写的部署默认凭据。第二个供应商只是多一份发行正文，键、端口与发送不变。
 
-**管理。** 租户经公开契约的[设置项](../../../../packages/access/public-contract/SPEC.md#设置项)操作管理自己的那一层，准入与范围归[设置行](settings.md)；`show` 与 `list` 同时给出本租户层与官方层的状态。`model-credential` 行没有管理面，也没有运维者配置：它注入 `settingsSecretCustody`，在其读面与使用面上建 model-host-local 的 `createSecretCredentialPort`，经 `serveModelCredential` 提供 `modelCredential`。
+**管理。** 租户经公开契约的设置项操作管理自己的那一层，准入与范围归[设置行](settings.md)；`show` 与 `list` 同时给出本租户层与官方层的状态。`model-credential` 行没有管理面，也没有运维者配置：它注入 `settingsSecretCustody`，在其读面与使用面上建 model-host-local 的 `createSecretCredentialPort`，经 `serveModelCredential` 提供 `modelCredential`。
 
 **选层。** `model-request-preparation` 行与 `model-records` 发送子插件自带的准备租约，按调用现取 `modelCredential`，为每个供应商调用 `layerOf`（`src/model/credential-layer.ts`）：
 

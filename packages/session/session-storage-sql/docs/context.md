@@ -77,4 +77,4 @@ flowchart LR
 
 - 系统关系：[会话与工作](../../../../docs/architecture/runtime/session-and-run.md)、[已确认保存的耐久边界](../../../../docs/architecture/data-and-state.md#已确认保存的耐久边界)。
 - 端口义务：[SessionTransactionPort](../../session-contract/SPEC.md#sessiontransactionport)。
-- 存储契约：[sql-contract 规格](../../../storage/sql-contract/SPEC.md)。
+- 存储契约：[sql-contract 规格](../../../storage/SPEC.md)。

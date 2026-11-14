@@ -40,7 +40,7 @@ The store goes to `createToolLedger` and to `createLocalStartCoordinator` of `@o
 
 ## Contracts
 
-The port shapes belong to [`@omne-harness/tool`](../tool/src/ledger-store.ts) (`ToolLedgerStore`) and [`@omne-harness/tool-contract`](../tool-contract/SPEC.md#正文存储端口与到期索引) (`ToolBodyStore` and the due index). The SQL operations belong to [`@omne-harness/sql-contract`](../../storage/sql-contract/SPEC.md). [SPEC.md](SPEC.md) states what this package does beyond the types: the commit order, the answer of each SQL result, tenant isolation, the body chunks and manifest, the due index and the known limits. [docs/public-api.md](docs/public-api.md) lists the exports.
+The port shapes belong to [`@omne-harness/tool`](../tool/src/ledger-store.ts) (`ToolLedgerStore`) and [`@omne-harness/tool-contract`](../tool-contract/SPEC.md#正文存储端口与到期索引) (`ToolBodyStore` and the due index). The SQL operations belong to [`@omne-harness/sql-contract`](../../storage/SPEC.md). [SPEC.md](SPEC.md) states what this package does beyond the types: the commit order, the answer of each SQL result, tenant isolation, the body chunks and manifest, the due index and the known limits. [docs/public-api.md](docs/public-api.md) lists the exports.
 
 ## Design
 

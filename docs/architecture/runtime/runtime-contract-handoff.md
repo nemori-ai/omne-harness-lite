@@ -31,7 +31,7 @@ Session/Model/Tool所需命令均有具名原操作与权威认回。Session治�
 
 ### #318 公开接入与宿主
 
-SessionService 是内部工作治理面，不是网络 SDK。外部调用者经服务端接入使用会话：服务端接入把一条公开消息变成对 Session 某个面的一次调用。跨边界始终显式 tenant，不把 Context 或句柄序列化为业务对象。公开消息的字段、结果、判断次序与 body 归[公开契约的会话公开操作](../../../packages/access/public-contract/SPEC.md#会话公开操作)。
+SessionService 是内部工作治理面，不是网络 SDK。外部调用者经服务端接入使用会话：服务端接入把一条公开消息变成对 Session 某个面的一次调用。跨边界始终显式 tenant，不把 Context 或句柄序列化为业务对象。公开消息的字段、结果、判断次序与 body 归[公开契约的会话公开操作](../../../packages/access/SPEC.md#判断次序)。
 
 #### 操作到 Session 的映射
 
@@ -61,7 +61,7 @@ SessionService 是内部工作治理面，不是网络 SDK。外部调用者经�
 
 租户文本是公开契约判断次序第 1 步解析出的 `TenantId` 再经 tenantCodec 编码的文本，不是调用者原文，所以同一租户只有一种写法；它含账号，不同账号的同名调用标识不会撞。会话文本就是会话标识摘要的十六进制文本。登录文本是这份登录的 loginStateCodec 文本，同一登录在同一会话内重试同一次中断，得到同一个控制操作身份。会话标识与 `InputId` 的摘要到 Session 品牌值的转换由服务端接入完成，归 M2 的接入实现。
 
-`create-session` 不公开 `SessionCreation` 的内部采用字段。服务端接入按部署装配把定义名解析为定义候选、执行类型与入口契约的采用，`modes` 取租户默认，`workspace` 为 null，`workspaceAttachment` 为 null，没有初始输入。定义名到采用的映射、`requiredIdentities` 与租户默认设置的来源都归[应用装配 #677](https://github.com/nemori-ai/omne-harness-lite/issues/677)。Session 比较的是解析后的 `SessionCreation`，所以部署映射变化会让原样再送得到 `conflict`（见[会话公开操作](../../../packages/access/public-contract/SPEC.md#会话公开操作)）。
+`create-session` 不公开 `SessionCreation` 的内部采用字段。服务端接入按部署装配把定义名解析为定义候选、执行类型与入口契约的采用，`modes` 取租户默认，`workspace` 为 null，`workspaceAttachment` 为 null，没有初始输入。定义名到采用的映射、`requiredIdentities` 与租户默认设置的来源都归[应用装配 #677](https://github.com/nemori-ai/omne-harness-lite/issues/677)。Session 比较的是解析后的 `SessionCreation`，所以部署映射变化会让原样再送得到 `conflict`（见[会话公开操作](../../../packages/access/SPEC.md#判断次序)）。
 
 #### 登录到 `Access`
 
@@ -72,7 +72,7 @@ SessionService 是内部工作治理面，不是网络 SDK。外部调用者经�
 
 #### 普通输入的来源与登录门
 
-服务端接入把普通输入的 `origin` 写成登录入口证据：`{ owner: 'login-entry', record: login 的 loginStateCodec 文本, revision: '1', digest: ["login-entry", 账号的 accountCodec 文本, login 的 loginStateCodec 文本] 按上述派生规则得到的摘要 }`。它不含识别时刻：Session 的输入摘要包含 `origin`，同一登录下原样再送必须得到同一份内容。换了登录之后原样再送的结果见[会话公开操作](../../../packages/access/public-contract/SPEC.md#会话公开操作)。Session 的新 Run 要求首条输入经登录入口而来：`startRun` 在提交事务里读首条输入保存的 `origin`，`owner` 须为 `login-entry`（R2-D198）。受理时的识别就是登录门的证据。
+服务端接入把普通输入的 `origin` 写成登录入口证据：`{ owner: 'login-entry', record: login 的 loginStateCodec 文本, revision: '1', digest: ["login-entry", 账号的 accountCodec 文本, login 的 loginStateCodec 文本] 按上述派生规则得到的摘要 }`。它不含识别时刻：Session 的输入摘要包含 `origin`，同一登录下原样再送必须得到同一份内容。换了登录之后原样再送的结果见[会话公开操作](../../../packages/access/SPEC.md#判断次序)。Session 的新 Run 要求首条输入经登录入口而来：`startRun` 在提交事务里读首条输入保存的 `origin`，`owner` 须为 `login-entry`（R2-D198）。受理时的识别就是登录门的证据。
 
 `startRun` 由装配的推进触发发起，不是公开操作。`login-required` 不进入公开结果：Run 不开时，读历史读不到回复，原因由宿主诊断。
 
@@ -83,7 +83,7 @@ SessionService 是内部工作治理面，不是网络 SDK。外部调用者经�
 #### 传输
 
 - 进程内环回是骨架的承载：同一进程里 SDK 编码请求，服务端接入读取并回写字节。它证明消息格式、判断次序与结果映射。它不证明网络、并发连接、进程隔离或跨进程的主体来源。
-- HTTP 是结束标志的承载：同样的字节经 HTTP 承载，承载映射见 `packages/access/public-contract/docs/http-binding.md`。它另外证明跨进程的请求与回复能完整往返。它不证明多实例部署、连接复用下的隔离或长连接观察。状态码不替代消息里的 `outcome`。
+- HTTP 是结束标志的承载：同样的字节经 HTTP 承载，承载规则见 `packages/access/SPEC.md` 的「HTTP 承载」。它另外证明跨进程的请求与回复能完整往返。它不证明多实例部署、连接复用下的隔离或长连接观察。状态码不替代消息里的 `outcome`。
 
 #### 尚未提供
 
@@ -95,13 +95,13 @@ SessionService 是内部工作治理面，不是网络 SDK。外部调用者经�
 
 #### 观察脱离与重附着
 
-[#746 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/746) 由公开接入 `server-entry` 承担观察组合，已由 PanQiWei [接受](https://github.com/nemori-ai/omne-harness-lite/issues/746#issuecomment-6443957269)。完整边界归[接入行为规格](../../../packages/access/server-entry/SPEC.md#观察脱离与重附着746)，取舍归[接入内部设计](../../../packages/access/server-entry/docs/internals.md#观察接入的责任选择)。公开观察操作归公开契约的[会话观察](../../../packages/access/public-contract/SPEC.md#会话观察)。本节不声明已有运行实现。
+[#746 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/746) 由公开接入 `server-entry` 承担观察组合，已由 PanQiWei [接受](https://github.com/nemori-ai/omne-harness-lite/issues/746#issuecomment-6443957269)。完整边界与公开观察操作归接入规格的[会话观察](../../../packages/access/SPEC.md#会话观察)。本节不声明已有运行实现。
 
 接入在当前身份与租户边界下，从 Session 的公开日志读面取得稳定 `ModelInvocationRef`，携带观察者自己的 `Access` 查询 Model `current`，再向目标生产者先取快照、后观察增量。Agent 不在重附着链路，会话日志不保存瞬时流引用。Session 只供日志事实，Model 只供权威调用状态与当前目标，各受保护端口分别核权。
 
-`current` 为 null 时保留同边界 `CallState`，不把它解释成未执行或终局。接入拥有有界刷新与本地观察资源清理，策略参数见[刷新策略与资源](../../../packages/access/server-entry/SPEC.md#刷新策略与资源)。旧 ref 失效后重新查询，新目标从新快照开始，不能沿用旧 cursor。观察路径串行查询，阻止旧响应覆盖新目标。定位、核权、快照或订阅失败保留原含义，不转成观察成功、成功 null 或业务重发。脱离与撤权停止本地观察及刷新，不取消 Model 或 Tool 调用，不重发调用，不推进 Session。
+`current` 为 null 时保留同边界 `CallState`，不把它解释成未执行或终局。接入拥有有界刷新与本地观察资源清理，策略参数见接入规格的[会话观察](../../../packages/access/SPEC.md#会话观察)。旧 ref 失效后重新查询，新目标从新快照开始，不能沿用旧 cursor。观察路径串行查询，阻止旧响应覆盖新目标。定位、核权、快照或订阅失败保留原含义，不转成观察成功、成功 null 或业务重发。脱离与撤权停止本地观察及刷新，不取消 Model 或 Tool 调用，不重发调用，不推进 Session。
 
-Session 日志读面的引用定位见 Session 的[稳定调用引用的读取](../../../packages/session/session-contract/SPEC.md#稳定调用引用的读取)。公开订阅形状、连接寿命与传输细节见公开契约的[会话观察](../../../packages/access/public-contract/SPEC.md#会话观察)。[#789](https://github.com/nemori-ai/omne-harness-lite/issues/789) 消费这条观察通道，[#790](https://github.com/nemori-ai/omne-harness-lite/issues/790) H3 负责观察连续的组合运行证据。
+Session 日志读面的引用定位见 Session 的[稳定调用引用的读取](../../../packages/session/session-contract/SPEC.md#稳定调用引用的读取)。公开订阅形状、连接寿命与传输细节见接入规格的[会话观察](../../../packages/access/SPEC.md#会话观察)。[#789](https://github.com/nemori-ai/omne-harness-lite/issues/789) 消费这条观察通道，[#790](https://github.com/nemori-ai/omne-harness-lite/issues/790) H3 负责观察连续的组合运行证据。
 
 #### 宿主身份、生命周期与旧数据
 

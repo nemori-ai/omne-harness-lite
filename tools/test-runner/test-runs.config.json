@@ -112,11 +112,6 @@
         "why": "dev-flow 的 gate 读交付配置的仓库名；product-checks 的 scenario-status 从当前产品 README、正文及编号场景读取长期覆盖，变化须运行真实消费者测试"
       },
       {
-        "paths": ["packages/common/message/README.md"],
-        "members": ["packages/common/message"],
-        "why": "message 的 tests/message.spec.ts 读本成员的 README.md，用其中的 JSON 示例核对 judgeMessage；成员根目录文档不算成员改动，没有这条就漏选"
-      },
-      {
         "paths": [
           "apps/m2-contract-skeleton/README.md",
           "apps/m2-contract-skeleton/README_ZH.md",

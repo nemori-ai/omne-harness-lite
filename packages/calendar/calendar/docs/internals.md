@@ -65,11 +65,11 @@ flowchart LR
 
 ## 持久化与实际限制
 
-CalendarRepository 从[真实 sql-contract](../../../storage/sql-contract/SPEC.md)读取不可变版本，PublicationParticipant 在同事务域具名命令中保存版本、provenance、pointer/generation、receipt 与 outbox。I/O、解析和业务校验在事务外，提交内复核 expected publicationGeneration 和资格。snapshot.provenanceRefs 保存来源 authority 引用，本机 rawReference 独立保管，不成为可移植 seed 身份。发布时将 version 精确关联原 candidate，readCurrent 先固定 versionId，再读该版本的原发布材料并核 source、lineage、authority、原文 hash 和两个时点。不能用后来 noChange/rejected 的 current 回执替代原材料。关联或材料缺失明确失败，不降成空贡献。
+CalendarRepository 从[真实 sql-contract](../../../storage/SPEC.md)读取不可变版本，PublicationParticipant 在同事务域具名命令中保存版本、provenance、pointer/generation、receipt 与 outbox。I/O、解析和业务校验在事务外，提交内复核 expected publicationGeneration 和资格。snapshot.provenanceRefs 保存来源 authority 引用，本机 rawReference 独立保管，不成为可移植 seed 身份。发布时将 version 精确关联原 candidate，readCurrent 先固定 versionId，再读该版本的原发布材料并核 source、lineage、authority、原文 hash 和两个时点。不能用后来 noChange/rejected 的 current 回执替代原材料。关联或材料缺失明确失败，不降成空贡献。
 
 新发布已提交后再恢复反应，不重抓/重铸。query unknown 用完整原身份认回，不能把 read 空页当未提交。
 
-calendar-local 已提供发布存储与供应材料/运行记录的迁移、参加者和恢复查询，消费 sql-contract，由装配选择提供者。这不扩大 [sqlite-provider](../../../storage/sqlite-provider/SPEC.md#已知限制) 的保证。L-1 的 check→commit 授权窗口不满足额外强撤权承诺；L-4 不保证跨进程排除。全部 L-1–L-11 对本域采用的影响及门槛见[日程存储约束表](../../../schedule/schedule/docs/internals.md#实际存储能力与未闭合保证)，不因两包同进程宣称它们消失。断电耐久须真实介质 SQL-T01 证据，Node26探针不是Node24验收。
+calendar-local 已提供发布存储与供应材料/运行记录的迁移、参加者和恢复查询，消费 sql-contract，由装配选择提供者。这不扩大 [存储](../../../storage/SPEC.md#保证的范围) 的保证。L-1 的 check→commit 授权窗口不满足额外强撤权承诺；L-4 不保证跨进程排除。全部 L-1–L-11 对本域采用的影响及门槛见[日程存储约束表](../../../schedule/schedule/docs/internals.md#实际存储能力与未闭合保证)，不因两包同进程宣称它们消失。断电耐久须真实介质 SQL-T01 证据，Node26探针不是Node24验收。
 
 ## 后续技术采用
 

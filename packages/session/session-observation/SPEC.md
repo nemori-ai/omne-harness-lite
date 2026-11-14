@@ -13,7 +13,7 @@
 - 提案 [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md) 的[会话观察](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#会话观察)与[会话观察的定位与流](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#会话观察的定位与流)两节，以及模型三的精化对照。
 - 会话契约 [SPEC](../session-contract/SPEC.md#稳定调用引用的读取) 的读者日志读取面、调用登记的读法（`readCallRegistration`）和「一轮在进行」的判法与读法（`readRunBoundary`）。
 - 模型 [SPEC](../../model/SPEC.md#公共观察与当前目标) 的公共流两个读取面。本包以观察者的主体调用它们：`current` 取当前的流，`observe` 订阅。
-- 刷新的数值与原状态图沿用[服务端接入规格的刷新策略](../../access/server-entry/SPEC.md#刷新策略)。本包的策略对象承接它。
+- 刷新的数值与原状态图沿用[接入规格的会话观察](../../access/SPEC.md#会话观察)。本包的策略对象承接它。
 
 采用范围：定位轴、流轴与刷新都已按本文件实现。
 

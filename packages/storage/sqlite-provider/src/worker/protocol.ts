@@ -24,11 +24,8 @@ export type WorkerEnv = Readonly<{
   checkpointWalBytes: number
   walReadPauseBytes: number
   walWriteStopBytes: number
-  /**
-   * One Int32 shared with the control side. The control side stores 1 when the provider closes. The
-   * Worker reads it before it starts a request, and confirms by reply what it did not start
-   * (SPEC 13.3 step 2). The flag does not depend on when a message reaches the Worker.
-   */
+  /** One Int32 shared with the control side, 1 once closing. Read before each request starts, so it
+   *  does not depend on when a message reaches the Worker. */
   closingFlag: SharedArrayBuffer
   /** Group commit limits (SPEC 7.3). */
   groupMaxOperations: number

@@ -1,6 +1,6 @@
 # `server-entry` 行
 
-本页是 `server-entry` 行的行规格。行的代码在 `src/rows/server-entry/`。行用 `defineRow` 声明，承载是行体，阶段是 `entry`。依据是 DP-1 决定中的行体承载，以及[装配页](../../../../docs/architecture/runtime/application-assembly.md)的 `server-entry` 行。两种模式共同的规则归 [real-mode.md](../real-mode.md)。接入本身的行为归 [`@omne-harness/server-entry` 的 SPEC](../../../../packages/access/server-entry/SPEC.md)。
+本页是 `server-entry` 行的行规格。行的代码在 `src/rows/server-entry/`。行用 `defineRow` 声明，承载是行体，阶段是 `entry`。依据是 DP-1 决定中的行体承载，以及[装配页](../../../../docs/architecture/runtime/application-assembly.md)的 `server-entry` 行。两种模式共同的规则归 [real-mode.md](../real-mode.md)。接入本身的行为归 [接入的包组规格](../../../../packages/access/SPEC.md)。
 
 ## 这一行做什么
 

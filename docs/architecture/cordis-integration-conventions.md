@@ -121,7 +121,7 @@ flowchart TB
 
 系统作用域不代表某个租户。扫描、卸载、目录枚举、中继和协调读取只有在各自契约允许的资源与返回范围内使用系统作用域。系统作用域不自动授予业务正文读取或代租户访问，不免除该动作要求的来源、资源和资格检查。
 
-主体签发与可信来源核验归 [identity](../../packages/identity/identity/README.md)。装配选择并安装已授权的签发与核验能力，不能用安装关系替代主体授权。共同身份与作用域的公开形状归 [legal-identity](../../packages/common/legal-identity/README.md)，准入与许可责任归 [authorization](../../packages/identity/authorization/README.md)。这些形状本身不证明调用者受信、当前资格有效或许可已消费。
+主体签发与可信来源核验归 [identity](../../packages/identity/identity/README.md)。装配选择并安装已授权的签发与核验能力，不能用安装关系替代主体授权。共同身份与作用域的公开形状归 [legal-identity](../../packages/common/SPEC.md#合法身份)，准入与许可责任归 [authorization](../../packages/identity/authorization/README.md)。这些形状本身不证明调用者受信、当前资格有效或许可已消费。
 
 复合主体保留原主体、实际代行者及原工作关联。高权限服务按原主体的适用授权核验，不能用服务自身资格替原请求放行。装配只把签发能力交给受信具名持有者。持有者在请求签发代租户主体前，向原工作拥有者核对原主体、目标租户与原工作的关系；核对失败、依据不可得或能力未安装时不得签发。原工作拥有者提供关系事实，identity 负责来源签发与核验，具体分工见 [ID-16](../../packages/identity/identity/SPEC.md#签发与核验)。实际操作点仍按其契约核对当前成员、工作资格、资源归属和本次许可。缺少必要核验或资格不可用时，不得继续受保护动作。旧允许、旧句柄或已完成的准备步骤不能代替撤权后的再核；再核与实际发起的排序由对应能力拥有者保证，不能由一次读取推定。
 

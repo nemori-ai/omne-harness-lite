@@ -729,7 +729,6 @@ describe('按测量收窄的规则（#793）', () => {
 
   it('N2：被测试读的成员根目录文档按读者规则选中读它的成员，不带下游', () => {
     const cases = [
-      ['packages/common/message/README.md', 'packages/common/message'],
       ['apps/m2-contract-skeleton/README.md', 'apps/m2-contract-skeleton'],
       ['apps/m2-contract-skeleton/README_ZH.md', 'apps/m2-contract-skeleton'],
       ['apps/m2-contract-skeleton/SPEC.md', 'apps/m2-contract-skeleton'],

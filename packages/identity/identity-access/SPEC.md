@@ -6,7 +6,7 @@
 
 本包是身份领域交给接入层的两样东西（RFC-0015 第 5 节「领域的接入插件怎么写」、第 7 节「协议怎样划分」，提案未接受，范围是候选）：
 
-- `createAccessIdentity(deps)`：入口的身份端口 `AccessIdentity`（[access-cordis-contract](../../access/access-cordis-contract/SPEC.md)）的实现。
+- `createAccessIdentity(deps)`：入口的身份端口 `AccessIdentity`（[access-cordis-contract](../../access/SPEC.md#管道)）的实现。
 - `identityAccessPlugin`（`./cordis`）与 `createIdentityOperations(services)`：`identity/v1`（[identity-protocol](../identity-protocol/SPEC.md)）的接入插件与它的处理函数。
 
 业务规则归身份领域（[身份规格](../identity/SPEC.md) ID-16、ID-17、ID-18）。本包只把公开入口的结果映射成协议的结果，映射与入口旧治理位置（`packages/access/server-entry/src/governance.ts`）相同，规则与入口旧登录步骤（`identity-steps.ts`）相同。

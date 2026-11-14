@@ -1,8 +1,5 @@
-// WAL maintenance inside the write Worker (SPEC 12.3). `tick` runs between two physical
-// transactions, never inside one. It never changes `synchronous`, and it never waits for a reader:
-// the restart checkpoint runs with a zero busy timeout, so a reader that has not ended makes it
-// fail at once and the next tick tries again. A write request or a query therefore waits for one
-// checkpoint call at most, not for a reader.
+// The restart checkpoint runs with a zero busy timeout: a reader that has not ended makes it fail at
+// once and the next tick tries again, so a write or a query never waits for a reader.
 import { statSync } from 'node:fs'
 import type { DatabaseSync } from 'node:sqlite'
 import type { WalState, WorkerEnv } from './protocol.ts'

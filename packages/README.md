@@ -6,7 +6,7 @@
 
 | 能力组 | 责任 | 具名目标成员 |
 | --- | --- | --- |
-| [access](access/README.md) | 系统接入 | `public-contract`, `sdk`, `server-entry` |
+| [access](access/SPEC.md) | 系统接入 | `public-contract`, `sdk`, `server-entry` |
 | [identity](identity/README.md) | 身份与授权 | `identity`, `authorization` |
 | [assets](assets/README.md) | 资产与规则 | `assets`, `assets-local`, `settings`, `settings-local`, `permissions` |
 | [workspace](workspace/README.md) | 工作区 | `workspace` |
@@ -24,10 +24,10 @@
 | [slash-command](slash-command/README.md) | Slash Command | 待具名 |
 | [skills](skills/SPEC.md) | Skill | `skill-contract`, `skill`, `skill-host-local`, `skill-cordis-contract` |
 | [mcp](mcp/SPEC.md) | MCP | `mcp-contract`, `mcp`, `mcp-host-local`, `mcp-cordis-contract` |
-| [storage](storage/README.md) | 存储 | 待具名 |
+| [storage](storage/SPEC.md) | 存储 | 待具名 |
 | [time](time/README.md) | 时间 | 待具名 |
 | [telemetry](telemetry/README.md) | 遥测 | 待具名 |
-| [common](common/README.md) | 共同纯表示 | `json-text`, `legal-identity`, `utc-instant`, `content-block`, `message`, `stream-arrival`, `call-account`, `operation-result` |
+| [common](common/SPEC.md) | 共同纯表示 | `json-text`, `legal-identity`, `utc-instant`, `content-block`, `message`, `stream-arrival`, `call-account`, `operation-result` |
 | [util](util/README.md) | 纯文本格式化 | `unix-format`, `xml-format` |
 | [schema](schema/README.md) | Schema 提供者 | `schema-provider` |
 

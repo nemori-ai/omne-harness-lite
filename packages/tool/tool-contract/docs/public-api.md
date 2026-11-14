@@ -13,7 +13,7 @@
 [行为与约束](../SPEC.md#342-值定义和固定请求)。
 
 - [reference.ts](../src/reference.ts)：调用与操作引用、encode/decode 及租户解析。引用是定位文本，每次访问仍核当前资格。
-- [identity.ts](../src/identity.ts)：品牌身份、访问输入，以及每个品牌身份的解码函数。`Adoption`、`ConsumerRef`、`DurableEvidence` 再导出 [exchange-refs](../../../common/exchange-refs/SPEC.md) 的唯一定义，`Access` 再导出 legal-identity 的唯一定义。结构判定留在 `value-shapes.ts` 与 `judge-release.ts`。
+- [identity.ts](../src/identity.ts)：品牌身份、访问输入，以及每个品牌身份的解码函数。`Adoption`、`ConsumerRef`、`DurableEvidence` 再导出 [exchange-refs](../../../common/SPEC.md#交接引用) 的唯一定义，`Access` 再导出 legal-identity 的唯一定义。结构判定留在 `value-shapes.ts` 与 `judge-release.ts`。
 - [definitions.ts](../src/definitions.ts)：参数契约、返回声明、资产版本 `ToolAssetVersion`、资产侧 `ToolGovernance`、实现侧 `ToolImplementationFacts` 与形状 `ToolImplementationShape`（多命令形状带调用编码 `encoding` 与可选的工具规则 `guide`）、工具定义、来源层 `SourceLayer`（其 `workspace` 与固定请求的 `workspace` 都是 legal-identity 第六族 `WorkspaceId`，本包不导出自有 `WorkspaceId`）、可用性、调用参数、资源 scope（owner、key 与授予证据 grant）与固定请求。
 - [judge-definition.ts](../src/judge-definition.ts)：`judgeToolDefinition`，按 P02、P13 和 P15 对未知输入做封闭字段与类型检查；`judgeImplementationFacts` 对实现侧事实 `ToolImplementationFacts` 做同一封闭检查。
 - [contract.ts](../src/contract.ts)：资产类别端口 `toolBodyContract`，在根入口；它的 `settings` 钩子读正文的设置声明并经 [settings.ts](../src/settings.ts) 投影为 settings 的 `SettingDefinitions`（[P15](../SPEC.md#p15-配置声明与合法装载)），`projectAssetSettings` 再经 `defineSettings` 判定。
@@ -26,7 +26,7 @@
 
 `judgeToolDefinition` 检查与 schema 词汇无关的参数说明规则：每条说明有路径和非空白文本，同一路径只说明一次。哪些参数由 schema 声明取决于词汇，本成员没有词汇解释器，所以判定不从 schema 推导参数清单。`defaults` 是否满足设置 schema 也不在本函数检查。
 
-声明 `ToolDeclarations` 的 `inputModalities` 与 `outputModalities` 是 `@omne-harness/modality` 的 `Modality` 数组，只接受[该成员词表](../../../common/modality/SPEC.md#四种模态)的四种模态，省略时投影为文本。`judgeToolDefinition` 用该成员的 `judgeModalities` 判定这两项：不是列表或元素不是文本为 `type`，不在词表内为 `modality`，重复为 `duplicate`，`field` 指向出错的元素，例如 `declarations.inputModalities[1]`。不在词表内的写法（例如 `audio`、`Image`）被拒绝，不映射。附件的 `mediaTypes` 仍只判非空且不重复。
+声明 `ToolDeclarations` 的 `inputModalities` 与 `outputModalities` 是 `@omne-harness/modality` 的 `Modality` 数组，只接受[该成员词表](../../../common/SPEC.md#模态)的四种模态，省略时投影为文本。`judgeToolDefinition` 用该成员的 `judgeModalities` 判定这两项：不是列表或元素不是文本为 `type`，不在词表内为 `modality`，重复为 `duplicate`，`field` 指向出错的元素，例如 `declarations.inputModalities[1]`。不在词表内的写法（例如 `audio`、`Image`）被拒绝，不映射。附件的 `mediaTypes` 仍只判非空且不重复。
 
 解码函数接收 `unknown`，返回 `Outcome`，不抛异常。合法身份文本是 1 至 256（常量 `TOOL_IDENTITY_MAX_LENGTH`）个可打印 ASCII 字符，不含空格。失败值的 `field` 是所求身份类型，`reason` 是 `type`、`empty`、`length` 或 `character`。解码成功只给出品牌身份，不证明该调用存在，也不授予使用资格。需要保存生产方引用的消费方用 `decodeToolCallId` 解码调用文本。
 

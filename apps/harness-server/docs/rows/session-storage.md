@@ -1,6 +1,6 @@
 # 会话存储的租户目录与部署枚举
 
-`session-storage` 行持有租户登记表，并向存储登记会话组合。目录公开形状归 [sql-contract](../../../../packages/storage/sql-contract/SPEC.md)。系统枚举的裁定顺序归 [authorization AU-12](../../../../packages/identity/authorization/SPEC.md#au-12-系统动作授权端口判定顺序用途矩阵与维护授权读口)。本行通过这些公开端口履约，不另建身份或授予模型。
+`session-storage` 行持有租户登记表，并向存储登记会话组合。目录公开形状归 [sql-contract](../../../../packages/storage/SPEC.md#cordis-装配)。系统枚举的裁定顺序归 [authorization AU-12](../../../../packages/identity/authorization/SPEC.md#au-12-系统动作授权端口判定顺序用途矩阵与维护授权读口)。本行通过这些公开端口履约，不另建身份或授予模型。
 
 ## 首次启动与已有部署
 
@@ -32,7 +32,7 @@
 
 ## 未登记租户的会话读与提交
 
-目录里没有的租户没有会话，因为登记只由放行的 create 触发。经委派视图的会话读与提交（`readWork`、`readInput`、`queryOperation`、`queryControlOperation`、`readModelSelection`、四个 `history` 读和非 create 的 `commit`）对这样的租户答 `denied`，与「会话不存在」是同一个结局（[public-contract 会话判断次序第 6 步](../../../../packages/access/public-contract/SPEC.md#会话判断次序)）。访问裁定仍在先：裁定的 `denied` 与 `unavailable` 不被覆盖。绑定是 create 时不包装，租户在视图第一次解析时登记。
+目录里没有的租户没有会话，因为登记只由放行的 create 触发。经委派视图的会话读与提交（`readWork`、`readInput`、`queryOperation`、`queryControlOperation`、`readModelSelection`、四个 `history` 读和非 create 的 `commit`）对这样的租户答 `denied`，与「会话不存在」是同一个结局（[接入的判断次序](../../../../packages/access/SPEC.md#判断次序)）。访问裁定仍在先：裁定的 `denied` 与 `unavailable` 不被覆盖。绑定是 create 时不包装，租户在视图第一次解析时登记。
 
 session-storage-sql 对目录缺项答 `unavailable`（[SPEC 失败表](../../../../packages/session/session-storage-sql/SPEC.md)），那是对装配故障的答复。不在这里转换时，没有建过会话的账号读别人的会话，公开契约会得到 `basis-unavailable`，既能区分「租户从未建过会话」与「租户有会话」，也诱使调用者重试。已知限制：登记表文件在运行中被外部删除或改写不在保证内（见上节），这时已登记租户也会按未登记答 `denied`。会话归属读口不受此条影响，见下节。
 

@@ -81,7 +81,7 @@ sequenceDiagram
   Note over Owner: 全组织账目经账目拥有者的范围查询读取，不经会话
 ```
 
-同一主体、同一费用来源的更后修订整份替换旧快照。后到的修订标明 `receipt` 为 `late`，`revision` 加一。修订准入、按来源小计、应付金额、单位与精度的规则归[调用账目](../../../packages/common/call-account/README.md)。会话按这些规则求和，不另定第二套规则。
+同一主体、同一费用来源的更后修订整份替换旧快照。后到的修订标明 `receipt` 为 `late`，`revision` 加一。修订准入、按来源小计、应付金额、单位与精度的规则归[调用账目](../../../packages/common/SPEC.md#调用账目)。会话按这些规则求和，不另定第二套规则。
 
 ## 协作与依赖
 

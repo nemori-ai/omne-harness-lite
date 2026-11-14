@@ -2,7 +2,7 @@
 
 本组维护身份与授权的工程分解。`scrypt` 是已创建的 workspace 成员，提供有界口令派生与校验。identity 与 authorization 已有首批公开形状：两种主体的签发与核验、具名资格、准入裁定、许可引用与消费事实；登录、账号、成员关系与持久台账的提供者仍待设计。本组操作规格的正式落位不表示那些规格已经技术接受。
 
-合法身份与时间点的已采用纯值归[共同纯表示](../common/README.md)。identity 消费这些纯值，并拥有存在、成员关系和登录事实。authorization 拥有授权决定。`legal-identity` 另发布行事作用域 `ActingScope` 与契约成员共用的 `Access<P>`。
+合法身份与时间点的已采用纯值归[共同纯表示](../common/SPEC.md)。identity 消费这些纯值，并拥有存在、成员关系和登录事实。authorization 拥有授权决定。`legal-identity` 另发布行事作用域 `ActingScope` 与契约成员共用的 `Access<P>`。
 
 ## 责任与范围
 

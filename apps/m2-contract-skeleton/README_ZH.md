@@ -30,7 +30,7 @@
 
 ## 契约
 
-路径调用 [public-contract](../../packages/access/public-contract/SPEC.md) 的治理与会话编解码、[identity](../../packages/identity/identity/SPEC.md) 的操作、带注入访问检查的 [Session 契约](../../packages/session/session-contract/SPEC.md) 事务端口、[Agent](../../packages/agent/SPEC.md#应然设计) 运行时与宿主接收方、[Request Context](../../packages/context/SPEC.md#应然设计) 的组装，以及 [Model 契约](../../packages/model/SPEC.md#结果推送与保存) 的结果推送。Model 义务来自 `@omne-harness/model-contract/conformance`。`src/` 只导入根入口与 `./conformance` 入口。测试接入全部 `./testing` 替身，包括 [session-adapters](../../packages/session/session-adapters/SPEC.md) 的同日志 Journal。替身清单见[公开依赖](SPEC.md#public-dependencies)。
+路径调用 [public-contract](../../packages/access/SPEC.md) 的治理与会话编解码、[identity](../../packages/identity/identity/SPEC.md) 的操作、带注入访问检查的 [Session 契约](../../packages/session/session-contract/SPEC.md) 事务端口、[Agent](../../packages/agent/SPEC.md#应然设计) 运行时与宿主接收方、[Request Context](../../packages/context/SPEC.md#应然设计) 的组装，以及 [Model 契约](../../packages/model/SPEC.md#结果推送与保存) 的结果推送。Model 义务来自 `@omne-harness/model-contract/conformance`。`src/` 只导入根入口与 `./conformance` 入口。测试接入全部 `./testing` 替身，包括 [session-adapters](../../packages/session/session-adapters/SPEC.md) 的同日志 Journal。替身清单见[公开依赖](SPEC.md#public-dependencies)。
 
 稳定的输出是逐跳观察、跳点状态、残余缺口清单与 `fullPath`。路径证明这些公开入口能为同一租户按次序连通，并证明每一跳交接的值形状。
 

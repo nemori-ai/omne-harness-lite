@@ -92,7 +92,7 @@ The prepared service's `control.close()` and the catalog `close()` stop admissio
 
 ## Runtime and verification limits
 
-Node.js 24 or newer is required. SQL engine, Worker execution, transactions, and durability behavior come from the public [SQL contract](../../storage/sql-contract/SPEC.md) and selected provider. The package adds no private cross-owner table access, background expiry timer, unbounded snapshot cache, or automatic SQL receipt garbage collection. Configure storage admission and retention through that provider's public contract.
+Node.js 24 or newer is required. SQL engine, Worker execution, transactions, and durability behavior come from the public [SQL contract](../../storage/SPEC.md) and selected provider. The package adds no private cross-owner table access, background expiry timer, unbounded snapshot cache, or automatic SQL receipt garbage collection. Configure storage admission and retention through that provider's public contract.
 
 Ordinary secret assignment commands are unsupported. Catalogs expose safe declaration metadata and an absent value for secret items, not secret plaintext. Receipts and changes contain no assignment values.
 
