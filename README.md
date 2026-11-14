@@ -57,7 +57,7 @@
 | 位置 | 内容 |
 |---|---|
 | [.meta_harness/](.meta_harness/README.md) | 产品设计、统一语言、领域对象、持续研究及独有agent能力；保留源按其入口定位 |
-| `docs/` | [项目要求](docs/requirements.md)、[系统架构](docs/architecture/README.md)、[领域关系](docs/domains/README.md)、[验收矩阵](docs/acceptance/README.md)与[整洁回路](docs/clean-loop.md) |
+| `docs/` | [项目要求](docs/requirements.md)、[系统架构](docs/architecture/README.md)、[领域关系](docs/domains/README.md)与[整洁回路](docs/clean-loop.md) |
 | `packages/` | 按能力组组织的产品包；每个包组的规格是它的 `SPEC.md`，包边界沿[组织原则](docs/architecture/structure.md#组织原则)维护 |
 | `apps/` | 产品应用与装配；每个应用的规格是它的 `SPEC.md` |
 | [packages.0.0.1.legacy/](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/README.md)、[apps.0.0.1.legacy/](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/README.md) | 封存源码与公开说明，已从仓库删除，链接指向固定提交。只用于来源核对，不作为新树实现支持 |
