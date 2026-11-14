@@ -12,6 +12,7 @@ export type SessionLog = Readonly<{
   started: number
   attemptsStarted: number
   terminals: readonly string[]
+  terminalRuns: readonly string[]
   users: readonly string[]
   assistants: readonly string[]
   tools: readonly string[]
@@ -49,6 +50,10 @@ function summarize(session: string, entries: LogEntry[]): SessionLog {
     terminals: of('run.terminal').map(entry => {
       const terminal = entry.body['terminal'] as { outcome?: string } | undefined
       return terminal?.outcome ?? 'unknown'
+    }),
+    terminalRuns: of('run.terminal').map(entry => {
+      const terminal = entry.body['terminal'] as { run?: string } | undefined
+      return terminal?.run ?? 'unknown'
     }),
     users: of('message.user').map(entry => blocksText(entry.body)),
     assistants: of('message.assistant').map(entry => blocksText(entry.body)),

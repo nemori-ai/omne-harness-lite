@@ -38,6 +38,7 @@ export const expectations: Readonly<Record<string, Expectation>> = {
   },
   'Q-R': { expected: 'untestable' },
   'Q-失败': { expected: 'pass' },
+  'Q-失败/重试': { expected: 'pass' },
   'Q-取消/已取走': { expected: 'pass' },
   'G-0': { expected: 'pass' },
   'G-1/单步': { expected: 'pass' },

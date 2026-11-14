@@ -192,51 +192,7 @@ export const dCells: readonly Cell[] = [
     block: 'Q',
     layer: 'protocol',
     run: async tools => {
-      const client = await signedIn(tools)
-      const session = await client.createSession()
-      const held = gate()
-      tools.stub.push({
-        kind: 'hold',
-        gate: held,
-        head: 'D'.repeat(180),
-        after: { kind: 'reply', text: 'qf-first-reply' },
-      })
-      tools.stub.push({ kind: 'status', code: 400 })
-      tools.check(
-        'input accepted',
-        (await client.send(session, 'qf write an essay')) === 'succeeded',
-      )
-      await waitArrivals(tools, 1, 'first model call')
-      tools.check(
-        'appended input accepted',
-        (await client.send(session, 'qf appended: reply 收到甲')) === 'succeeded',
-      )
-      await tools.waitLog(
-        session,
-        'appended message in the log',
-        log => log.users.length === 2,
-        TURN_MS,
-      )
-      held.open()
-      const failed = await tools.waitLog(
-        session,
-        'failing run terminal',
-        log => log.terminals.length >= 1,
-        TURN_MS,
-      )
-      const appended = failed?.inputs[1] ?? ''
-      tools.check(
-        'the run that took the appended input ends as failed',
-        failed?.terminals[0] === 'failed' && failed.batches.some(batch => batch.includes(appended)),
-        `${JSON.stringify(failed?.terminals)}, batches ${JSON.stringify(failed?.batches)}`,
-      )
-      await tools.sleep(QUIET_MS)
-      const quiet = tools.log(session)
-      tools.check(
-        'no run starts by itself after the failure',
-        quiet?.started === 1 && quiet.terminals.length === 1,
-        `${String(quiet?.started)} started, ${String(quiet?.terminals.length)} ended`,
-      )
+      const { client, session, failed, appended } = await failedWithAppended(tools)
       tools.stub.clear()
       tools.stub.push({ kind: 'reply', text: '收到甲，也收到新的' })
       tools.check(
@@ -272,4 +228,102 @@ export const dCells: readonly Cell[] = [
       )
     },
   },
+  {
+    id: 'Q-失败/重试',
+    block: 'Q',
+    layer: 'protocol',
+    run: async tools => {
+      const { client, session, failed, appended } = await failedWithAppended(tools)
+      const run = failed?.terminalRuns[0] ?? ''
+      tools.stub.clear()
+      tools.stub.push({ kind: 'reply', text: '收到甲' })
+      const retried = await client.retryRun(session, run, 'qf-retry')
+      tools.check(
+        'the retry of the failed run is accepted',
+        retried.outcome === 'succeeded' && retried.recovered === false,
+        JSON.stringify(retried),
+      )
+      const handled = await tools.waitLog(
+        session,
+        'the run after the retry ends',
+        log => log.started === 2 && log.terminals.length === 2,
+        TURN_MS,
+      )
+      tools.check(
+        'the next run completes and answers',
+        handled?.terminals[1] === 'completed' &&
+          handled.assistants.some(text => text.includes('收到甲')),
+        `${JSON.stringify(handled?.terminals)} ${JSON.stringify(handled?.assistants)}`,
+      )
+      const later = handled?.batches.slice(failed?.batches.length ?? 0) ?? []
+      tools.check(
+        'the next run takes the appended input again, exactly once',
+        later.flat().filter(input => input === appended).length === 1,
+        JSON.stringify(later),
+      )
+      tools.check(
+        'no user message is added by the retry',
+        handled?.users.length === failed?.users.length,
+        `${String(failed?.users.length)} before, ${String(handled?.users.length)} after`,
+      )
+      const replayed = await client.retryRun(session, run, 'qf-retry')
+      tools.check(
+        'the same control identity is answered as before and recalled',
+        replayed.outcome === 'succeeded' && replayed.recovered === true,
+        JSON.stringify(replayed),
+      )
+      const again = await client.retryRun(session, run, 'qf-retry-again')
+      tools.check(
+        'another control identity for the same run is not-found',
+        again.outcome === 'not-found',
+        JSON.stringify(again),
+      )
+    },
+  },
 ]
+
+async function failedWithAppended(tools: CellTools) {
+  const client = await signedIn(tools)
+  const session = await client.createSession()
+  const held = gate()
+  tools.stub.push({
+    kind: 'hold',
+    gate: held,
+    head: 'D'.repeat(180),
+    after: { kind: 'reply', text: 'qf-first-reply' },
+  })
+  tools.stub.push({ kind: 'status', code: 400 })
+  tools.check('input accepted', (await client.send(session, 'qf write an essay')) === 'succeeded')
+  await waitArrivals(tools, 1, 'first model call')
+  tools.check(
+    'appended input accepted',
+    (await client.send(session, 'qf appended: reply 收到甲')) === 'succeeded',
+  )
+  await tools.waitLog(
+    session,
+    'appended message in the log',
+    log => log.users.length === 2,
+    TURN_MS,
+  )
+  held.open()
+  const failed = await tools.waitLog(
+    session,
+    'failing run terminal',
+    log => log.terminals.length >= 1,
+    TURN_MS,
+  )
+  const appended = failed?.inputs[1] ?? ''
+  tools.check(
+    'the run that took the appended input ends as failed',
+    failed?.terminals[0] === 'failed' && failed.batches.some(batch => batch.includes(appended)),
+    `${JSON.stringify(failed?.terminals)}, batches ${JSON.stringify(failed?.batches)}`,
+  )
+  await tools.sleep(QUIET_MS)
+  const quiet = tools.log(session)
+  tools.check(
+    'no run starts by itself after the failure',
+    quiet?.started === 1 && quiet.terminals.length === 1,
+    `${String(quiet?.started)} started, ${String(quiet?.terminals.length)} ended`,
+  )
+  return { client, session, failed, appended }
+}
