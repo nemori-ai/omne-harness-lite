@@ -406,10 +406,8 @@ export function createHostPathsCore(options: HostPathsOptions): HostPathsCore {
       return ok(current)
     }
 
-    /**
-     * The path is judged against the recorded root first, so a path outside the root or with a `..`
-     * is refused before the prerequisite probe makes anything in the state directory.
-     */
+    /** Judged against the recorded root first, so a path outside the root or with `..` is refused
+     *  before the prerequisite probe makes anything in the state directory. */
     const checkPath = async (path: string): Promise<Failure | undefined> => {
       if (process.platform !== 'linux') return 'unavailable'
       const recorded = await rootBinding()

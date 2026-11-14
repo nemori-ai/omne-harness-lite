@@ -397,10 +397,8 @@ export function createHostFilesEngine(
       return path.length > 1 && path.endsWith('/') && !stat.isDirectory()
     }
 
-    /**
-     * A file with a second name may be the same file as one outside the root. The count is read
-     * from the descriptor that is open, so the check cannot race with the open.
-     */
+    /** A file with a second name may be one outside the root. The count is read from the open
+     *  descriptor, so the check cannot race with the open. */
     function sharedBelowRoot(content: boolean, stat: FileStats): boolean {
       return paths.rooted && content && stat.isFile() && stat.nlink > 1n
     }
