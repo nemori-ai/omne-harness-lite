@@ -88,4 +88,5 @@ export {
   keyKnown,
   movedMembers,
 } from './decide.ts'
+export { modelAttempt, voidedFacts } from './voided.ts'
 export type { BatchRefusal, Blob, BlobStore } from './decide.ts'

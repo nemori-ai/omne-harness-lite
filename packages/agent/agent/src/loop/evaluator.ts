@@ -374,8 +374,11 @@ function decode(value: Continuation): Outcome<AgentCheckpoint, Failure> {
   )
     return refused('checkpoint.requestPreparation', 'not a saved preparation')
   if (!Array.isArray(tree['voided'])) return refused('checkpoint.voided', 'type')
-  const caused = (item: unknown) =>
-    isRecord(item) && (item['cause'] === 'not-accepted' || item['cause'] === 'lost')
+  const kinded = (item: unknown) =>
+    isRecord(item) && (item['kind'] === 'model' || item['kind'] === 'tool')
+  if (!tree['voided'].every(kinded)) return refused('checkpoint.voided.kind', 'type')
+  const caused = (item: Record<string, unknown>) =>
+    item['cause'] === 'not-accepted' || (item['kind'] === 'model' && item['cause'] === 'lost')
   if (!tree['voided'].every(caused)) return refused('checkpoint.voided.cause', 'type')
   const decoded = { ...(tree as AgentCheckpoint), step: step.ok, replyAdmissionRead: read.ok }
   if (!Object.hasOwn(tree, 'modelRetry')) return succeed(decoded)

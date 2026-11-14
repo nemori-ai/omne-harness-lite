@@ -389,6 +389,31 @@ describe('tool result round', () => {
     expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
   })
 
+  it('ends the run as complete after the Tool refused an action for good', async () => {
+    const assembly = await toolAssembly()
+    assembly.controls.tools.invoke.always(async () => ({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'request', reason: 'the arguments do not match' },
+    }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly)
+    await secondModelCall(assembly)
+    await deliverModelReply(assembly, [textBlock('after the denial')], 'final')
+    await eventually(async () => (await snapshot(assembly)).state.kind !== 'waiting')
+    await eventually(async () => (await snapshot(assembly)).state.kind === 'ended').catch(() => {})
+    const after = await snapshot(assembly)
+    expect(after.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
+    expect(after.checkpoint.voided).toEqual([
+      {
+        kind: 'tool',
+        step: 'step-1',
+        action: 'step-1/tool/0',
+        cause: 'not-accepted',
+        basis: expect.objectContaining({ record: 'exec-1/step-1/tool/0/rejected' }),
+      },
+    ])
+  })
+
   // An unavailable answer admitted nothing, so the action still has no accepted or unknown attempt:
   // a definite rejection after the wait denies it like a first one (Agent SPEC "依赖不可用时的
   // 等待", Tool 受理), and the run does not wait on a producer that never comes.

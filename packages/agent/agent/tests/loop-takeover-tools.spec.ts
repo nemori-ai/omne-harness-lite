@@ -148,7 +148,7 @@ describe('takeover of a dispatched Tool call whose result is not in the Journal'
     expect(after.checkpoint.batch).toEqual(run.parked.checkpoint.batch)
   })
 
-  it('the Tool answers not-accepted and refuses the request for good: the action is denied and the run goes on', async () => {
+  it('the Tool answers not-accepted and refuses the request for good: the action is denied and the run ends', async () => {
     const run = await dispatched(acceptingOnce)
     answering(run.assembly, 'not-accepted')
     const next = await run.rebuild()
@@ -162,9 +162,11 @@ describe('takeover of a dispatched Tool call whose result is not in the Journal'
     await deliverModelReply(run.assembly, [textBlock('after the denial')], 'final')
     ok(await next.runExecution())
     expect(await assistantTexts(run.assembly)).toEqual(['after the denial'])
-    expect((await saved(run.assembly)).settlement.candidate?.conclusion).toEqual({
-      kind: 'complete',
-    })
+    const ended = await saved(run.assembly)
+    expect(ended.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
+    expect(ended.checkpoint.voided).toMatchObject([
+      { kind: 'tool', step: 'step-1', cause: 'not-accepted' },
+    ])
     expect(run.assembly.controls.tools.invoke.calls).toHaveLength(2)
     expect(run.assembly.controls.tools.queries.contact.calls).toHaveLength(1)
   })

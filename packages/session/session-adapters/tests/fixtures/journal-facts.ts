@@ -255,6 +255,7 @@ function roundBatches(builder: Builder, rng: Random): void {
     batch(builder, 'voided-retry', [
       {
         kind: 'intent.voided',
+        intent: 'model',
         step,
         attempt: 0,
         cause: 'not-accepted',

@@ -435,12 +435,9 @@ export function buildObligations(
               (item.failure?.kind === 'no-reply' || item.failure?.kind === 'model-refused') &&
               item.failure.call === call,
           )?.failure?.source ?? null)
-    // R2-D292: a Model intent the Model answered authoritatively not-accepted was never admitted
-    // or sent; its voided record settles the call on the basis of that answer.
-    const voided =
-      effect.pending.kind === 'model'
-        ? source.checkpoint.voided.find(item => item.reference === effect.pending.reference)
-        : undefined
+    // R2-D292: an intent its callee answered authoritatively will have no result that counts; its
+    // voided record settles the call on the basis of that answer.
+    const voided = source.checkpoint.voided.find(item => item.action === effect.action)
     const intent =
       source.finishing.effectOperations.get(effect.action) ??
       defect(`the effect ${effect.action} has no establishing operation`)

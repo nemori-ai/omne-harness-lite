@@ -10,6 +10,7 @@ import {
   type ActionToolCall,
   type AdmissionDecision,
   type Adoption,
+  type AgentCheckpoint,
   type AgentExecutionId,
   type Authority,
   type CardAnswer,
@@ -571,6 +572,18 @@ export function answeredCandidate(
   return toolMessage(execution, action, [
     { kind: 'text', id: `${action.id}/answer` as BlockId, visibility: VISIBLE, text },
   ])
+}
+
+export function refusedTool(
+  at: Pick<AgentCheckpoint, 'step' | 'calls' | 'voided'>,
+  action: ActionId,
+  basis: DurableEvidence,
+): Pick<AgentCheckpoint, 'calls' | 'voided'> {
+  const record = { kind: 'tool' as const, step: at.step, action, cause: 'not-accepted' as const }
+  return {
+    calls: at.calls.filter(call => call.kind !== 'tool' || call.action !== action),
+    voided: [...at.voided, { ...record, basis }],
+  }
 }
 
 /** A denied slot before any single-result passage. */

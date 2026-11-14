@@ -90,6 +90,7 @@ describe('takeover of a main Model call whose result is not in the Journal', () 
     })
     expect(after.checkpoint.voided).toEqual([
       {
+        kind: 'model',
         step: 'step-1',
         action: open?.action,
         reference: open?.kind === 'model' ? open.reference : null,

@@ -792,6 +792,16 @@ describe('the discriminants of the request chapter', () => {
     expectTypeOf<{ cause?: undefined }>().not.toMatchTypeOf<Pick<VoidedIntent, 'cause'>>()
   })
 
+  it('a voided intent is of the main Model call or of a Tool call, and only a Model call is lost', () => {
+    type Of<K extends VoidedIntent['kind']> = Extract<VoidedIntent, { kind: K }>
+    expectTypeOf<VoidedIntent['kind']>().toEqualTypeOf<'model' | 'tool'>()
+    expectTypeOf<Of<'model'>['cause']>().toEqualTypeOf<'not-accepted' | 'lost'>()
+    expectTypeOf<Of<'tool'>['cause']>().toEqualTypeOf<'not-accepted'>()
+    expectTypeOf<Of<'model'>['reference']>().toEqualTypeOf<M.ModelInvocationRef>()
+    expectTypeOf<Of<'tool'>['reference']>().toEqualTypeOf<undefined>()
+    expectTypeOf<Of<'tool'>['action']>().toEqualTypeOf<ActionId>()
+  })
+
   it('a checkpoint may hold the retry state of the main model call of its step', () => {
     expectTypeOf<AgentCheckpoint['modelRetry']>().toEqualTypeOf<
       ModelRetryState | null | undefined

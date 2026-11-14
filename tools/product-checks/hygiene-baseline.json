@@ -4007,7 +4007,7 @@
       "packages/agent/agent-contract/src/testing-journal-helpers.ts": 1042,
       "packages/agent/agent-contract/src/testing-received-conformance.ts": 1071,
       "packages/agent/agent-host-local/src/host.ts": 1184,
-      "packages/agent/agent/src/loop/coordinator.ts": 4064,
+      "packages/agent/agent/src/loop/coordinator.ts": 4063,
       "packages/agent/agent/src/testing/journal.ts": 4031,
       "packages/execution/execution-environment-contract/src/testing/environment-conformance.ts": 1062,
       "packages/execution/execution-environment-host-local/src/host-command.ts": 1042,
@@ -4022,11 +4022,11 @@
       "packages/session/session-adapters/src/cordis/context-holder.ts": 1390,
       "packages/session/session-adapters/src/cordis/context-input.ts": 1231,
       "packages/session/session-adapters/src/cordis/history-source.ts": 1213,
-      "packages/session/session-adapters/src/journal/fold.ts": 1109,
+      "packages/session/session-adapters/src/journal/fold.ts": 1106,
       "packages/session/session-adapters/src/testing/factory.ts": 1415,
-      "packages/session/session-adapters/src/testing/journal-finishing.ts": 1567,
+      "packages/session/session-adapters/src/testing/journal-finishing.ts": 1563,
       "packages/session/session-adapters/src/testing/journal-receiving.ts": 1006,
-      "packages/session/session-adapters/src/testing/journal.ts": 5496,
+      "packages/session/session-adapters/src/testing/journal.ts": 5494,
       "packages/session/session-adapters/src/testing/session.ts": 1340,
       "packages/session/session-contract/src/decide.ts": 1005,
       "packages/session/session-contract/src/testing-transactions.ts": 2683,
@@ -4130,7 +4130,7 @@
       },
       "packages/agent/agent/src/loop/coordinator.ts": {
         "count": 1,
-        "longest": 3392
+        "longest": 3388
       },
       "packages/agent/agent/src/provider.ts": {
         "count": 1,
@@ -4142,7 +4142,7 @@
       },
       "packages/agent/agent/src/testing/journal-finishing.ts": {
         "count": 1,
-        "longest": 376
+        "longest": 373
       },
       "packages/agent/agent/src/testing/journal-receiving.ts": {
         "count": 1,
@@ -4526,7 +4526,7 @@
       },
       "packages/session/session-adapters/src/journal/fold.ts": {
         "count": 1,
-        "longest": 477
+        "longest": 471
       },
       "packages/session/session-adapters/src/testing/factory.ts": {
         "count": 3,
@@ -4546,7 +4546,7 @@
       },
       "packages/session/session-adapters/src/testing/journal.ts": {
         "count": 6,
-        "longest": 4003
+        "longest": 3999
       },
       "packages/session/session-adapters/src/testing/root.ts": {
         "count": 1,
