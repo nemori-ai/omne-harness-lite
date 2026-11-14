@@ -24,6 +24,12 @@ describe('hygiene-document-allowlist', () => {
     '.github/ISSUE_TEMPLATE/card.md',
     'packages/session/session/README.md',
     'apps/cli/README.md',
+    'tools/repo-toolchain/README.md',
+    'apps/desktop/SPEC.md',
+    'tools/dev-flow/SPEC.md',
+    'packages/session/session-contract/verification/formal-mapping.md',
+    'packages/model/model-contract/verification/models/formal-mapping.md',
+    'packages/model/tokenizer-tiktoken/verification/proofs/executor.md',
   ])('accepts %s', path => {
     expect(isAllowedDocument(path, open)).toBe(true)
   })
@@ -33,8 +39,13 @@ describe('hygiene-document-allowlist', () => {
     'notes.md',
     'packages/session/session/docs/design.md',
     'packages/session/session/SPEC.md',
-    'tools/repo-toolchain/README.md',
+    'tools/repo-toolchain/src/arch/SPEC.md',
+    'tools/repo-toolchain/README_ZH.md',
     'packages/session/session/README_ZH.md',
+    'packages/session/session-contract/verification/README.md',
+    'packages/session/session-contract/verification/formal-runs.md',
+    'packages/session/session-contract/verification/proofs/index.md',
+    'packages/session/session-contract/verification/proofs/README.md',
     'tmp/card/plan.md',
   ])('rejects %s', path => {
     expect(isAllowedDocument(path, open)).toBe(false)
@@ -45,6 +56,12 @@ describe('hygiene-document-allowlist', () => {
     expect(isAllowedDocument('packages/tool/secret/README.md', isPrivate)).toBe(false)
     expect(isAllowedDocument('apps/secret/README.md', isPrivate)).toBe(true)
     expect(isAllowedDocument('packages/tool/public/README.md', isPrivate)).toBe(true)
+    expect(
+      isAllowedDocument(
+        'tools/private-tool/README.md',
+        directory => directory === 'tools/private-tool',
+      ),
+    ).toBe(false)
     expect(
       isAllowedDocument(
         'apps/private-app/README.md',

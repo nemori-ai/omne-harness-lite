@@ -4,8 +4,10 @@ const ALWAYS: readonly RegExp[] = [
   /^docs\/requirements\.md$/u,
   /^docs\/architecture\/.+/u,
   /^docs\/domains\/.+/u,
-  /^packages\/[^/]+\/SPEC\.md$/u,
+  /^(packages|apps|tools)\/[^/]+\/SPEC\.md$/u,
   /(^|\/)api\/[^/]+\.api\.md$/u,
+  /(^|\/)verification\/(.+\/)?formal-mapping\.md$/u,
+  /(^|\/)verification\/(.+\/)?proofs\/(?!README\.md$|index\.md$)[^/]+\.md$/u,
   /(^|\/)UPSTREAM\.md$/u,
   /(^|\/)LICENSE[^/]*\.md$/u,
   /^\.meta_harness\/design\/ubiquitous_language\/.+/u,
@@ -14,7 +16,7 @@ const ALWAYS: readonly RegExp[] = [
   /^\.github\/.+/u,
 ]
 
-const PUBLIC_README = /^(packages\/[^/]+\/[^/]+|apps\/[^/]+)\/README\.md$/u
+const PUBLIC_README = /^(packages\/[^/]+\/[^/]+|apps\/[^/]+|tools\/[^/]+)\/README\.md$/u
 
 export const DOCUMENT_MESSAGE =
   '白名单之外的文档。约束只有四样：架构与领域边界、规格、静态检查、形式化证明；别的不进仓库'

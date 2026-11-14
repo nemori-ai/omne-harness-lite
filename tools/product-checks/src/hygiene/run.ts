@@ -42,7 +42,7 @@ export function privateMemberReader(root: string): (directory: string) => boolea
     const known = cache.get(directory)
     if (known !== undefined) return known
     const manifest = join(root, directory, 'package.json')
-    let result = false
+    let result = true
     if (existsSync(manifest)) {
       const parsed: unknown = JSON.parse(readFileSync(manifest, 'utf8'))
       result =
