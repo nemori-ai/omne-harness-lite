@@ -186,10 +186,8 @@ export function createSessionProviderFaces(
     }
   }
 
-  /**
-   * Asks the check first. The body runs only for `allowed`, synchronously, so one call is one
-   * step on the memory and a refused call leaves no trace in it.
-   */
+  // Asks the check first. The body runs only for `allowed`, synchronously, so one call is one
+  // step on the memory and a refused call leaves no trace in it.
   async function guarded<T>(
     method: SessionProviderMethod,
     principal: unknown,
@@ -360,6 +358,7 @@ export function createSessionProviderFaces(
     loadRecovery: unimplemented,
     readModelSelection: unimplemented,
     queryControlOperation: unimplemented,
+    retryRun: unimplemented,
   }
 
   /**

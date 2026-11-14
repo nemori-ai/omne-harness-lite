@@ -239,10 +239,6 @@ export interface SessionWork<P> {
   stopCall(
     input: Mutation<P> & Readonly<{ producer: ProducerRef }>,
   ): Reply<SessionControlReceipt<SessionCallTerminal>>
-  /**
-   * Lifts the wait for a person after the failed Run `run`. Failures: invalid, archived, frozen,
-   * not-found, nothing-pending, conflict, denied, commit-unknown, unavailable, quarantined.
-   */
   retryRun(input: Mutation<P> & Readonly<{ run: RunId }>): Reply<CommitReceipt>
   queryControlOperation(
     input: SessionAccess<P> & Readonly<{ operation: SessionOperationId }>,

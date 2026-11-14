@@ -61,6 +61,8 @@ function failure(value: SessionFailure): TodoAuthorFailure {
     case 'no-input':
     case 'run-active':
     case 'login-required':
+    case 'not-found':
+    case 'nothing-pending':
     case 'limited':
       return {
         kind: 'unavailable',

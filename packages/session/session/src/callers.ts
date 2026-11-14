@@ -46,6 +46,7 @@ const ADMITTED: Readonly<Record<FaceOperation, readonly SessionCallerClass[]>> =
   readModelSelection: [I, M],
   cancelRun: [I, M],
   stopCall: [I, M],
+  retryRun: [I],
   queryControlOperation: [I, M],
   inspectIdle: [M],
   recordIdle: [M],

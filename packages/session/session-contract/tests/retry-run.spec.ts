@@ -125,7 +125,6 @@ const retry = (s: Scene, name: string, run: RunId | string) =>
 
 const entryCount = (s: Scene) => s.port.controls.entriesOf(s.access.tenant, s.access.session).length
 
-/** The first Run took `first` and failed with no answer: `first` is pending again, a person is awaited. */
 async function failed() {
   const s = await open()
   await handIn(s, 'first')

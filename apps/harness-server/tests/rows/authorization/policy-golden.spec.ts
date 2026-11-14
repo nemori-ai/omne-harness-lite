@@ -63,6 +63,7 @@ const SESSION_GOLDEN = {
   interrupt: [M, D, D],
   cancelRun: BOTH,
   stopCall: BOTH,
+  retryRun: BOTH,
   freeze: WORK_ONLY,
   receive: [D, M, 'matrix scope-release-receive [fact scope-release]'],
   readWork: WORK_ONLY,

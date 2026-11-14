@@ -193,6 +193,7 @@ const MUTATIONS = {
   interrupt: true,
   cancelRun: true,
   stopCall: true,
+  retryRun: true,
   freeze: true,
   receive: true,
 } as const satisfies Readonly<Record<MutationName, true>>

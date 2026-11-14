@@ -12,11 +12,12 @@ const table = {
   'list-sessions': { identity: 'login', effect: 'read', limit: 'small' },
   'cancel-run': { identity: 'login', effect: 'commit', limit: 'small' },
   'stop-call': { identity: 'login', effect: 'commit', limit: 'small' },
+  'retry-run': { identity: 'login', effect: 'commit', limit: 'small' },
 } as const
 
 /**
- * Outcome names per operation: the old family's, plus `protocol-rejected`. `list-sessions` has no
- * old family; its own outcomes are `invalid` besides the always-present ones.
+ * Outcome names per operation: the old family's, plus `protocol-rejected`. `list-sessions` and
+ * `retry-run` have no old family; their own outcomes are listed besides the always-present ones.
  */
 const outcomes = {
   'create-session': ['limited', 'invalid', 'conflict', 'unknown'],
@@ -27,13 +28,14 @@ const outcomes = {
   'list-sessions': ['invalid'],
   'cancel-run': ['invalid', 'conflict', 'not-found', 'unknown'],
   'stop-call': ['invalid', 'conflict', 'not-found', 'unknown', 'unsupported'],
+  'retry-run': ['invalid', 'archived', 'frozen', 'not-found', 'no-change', 'conflict', 'unknown'],
 } as const
 const always = ['succeeded', 'protocol-rejected', 'basis-unavailable', 'denied']
 
 const operations = sessionProtocol.operations
 
 describe('session/v1', () => {
-  it('is session major 1 with exactly the eight operations and one observation', () => {
+  it('is session major 1 with exactly the nine operations and one observation', () => {
     expect(sessionProtocol.name).toBe('session')
     expect(sessionProtocol.major).toBe(1)
     expect(Object.keys(operations).sort()).toEqual(Object.keys(table).sort())

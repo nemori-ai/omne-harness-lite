@@ -293,11 +293,6 @@ export function judgeRunStart(snapshot: WorkSnapshot, _entry: EntryClass): RunSt
   return { kind: 'eligible', first }
 }
 
-/**
- * Whether a person's retry of the failed Run `run` lifts the wait: null when it does, else the
- * refusal. Only the Run that ended last, failed, while the session still waits for a person, and
- * only with pending inputs for the next Run to take.
- */
 export function judgeRetryRun(
   snapshot: WorkSnapshot,
   run: RunId,
@@ -305,10 +300,9 @@ export function judgeRetryRun(
   if (snapshot.lifecycle === 'archived') return 'archived'
   if (snapshot.frozen !== null) return 'frozen'
   if (
+    snapshot.awaitingPerson !== true ||
     snapshot.run.kind !== 'terminal' ||
-    snapshot.run.terminal.run !== run ||
-    snapshot.run.terminal.outcome !== 'failed' ||
-    snapshot.awaitingPerson !== true
+    snapshot.run.terminal.run !== run
   )
     return 'not-found'
   return snapshot.pending.length === 0 ? 'nothing-pending' : null
