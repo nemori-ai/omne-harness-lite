@@ -52,6 +52,7 @@ import {
   createModelResultReceiverTable,
   type ModelResultReceiverTable,
 } from '@omne-harness/model-cordis-contract/cordis'
+import { delegatedCommands } from './delegated-commands.ts'
 import { whenEmpty } from './idle.ts'
 
 const DEPENDENCY = 'model-result-push'
@@ -306,6 +307,21 @@ function definite(failure: ModelFailure): boolean {
   return failure.kind !== 'commit-unknown' && failure.kind !== 'unavailable'
 }
 
+/** After the ACK the receiver holds the result: the producer keeps its key and standing only. */
+function dropBody(record: ResultPushRecord): ResultPushRecord {
+  const held = record.result
+  if (held === null) return record
+  return {
+    ...record,
+    result: { ...held, delivery: frozen({ ...held.delivery, parts: [], accounts: [] }) },
+  }
+}
+
+/** Refuses a late account before the commands see it; the source keeps its report. */
+function refuse(diagnostic: string): Awaited<ReturnType<ModelCommands<unknown>['recordLateFact']>> {
+  return { failure: { kind: 'unavailable', dependency: DEPENDENCY, diagnostic } }
+}
+
 /** A late account frozen at its acceptance, with the origin of its call. */
 type Arrival = Readonly<{
   target: Target
@@ -346,6 +362,7 @@ export type RuntimeStage = Readonly<{
    * calls whose push still runs. A delivery that waits for its receiver is not counted.
    */
   idle(signal: AbortSignal): Promise<number>
+  delivering(target: Target): boolean
 }>
 
 /** The `modelRuntime` service: the runtime of the provider and its receiver table. */
@@ -400,6 +417,7 @@ export function createRuntimeStage(
       },
       idle: async () => 0,
       stop: async () => {},
+      delivering: () => false,
     }
   return createResultPush(input, options.ledger, checkedLimits(options.limits), options.recovery)
 }
@@ -776,16 +794,6 @@ function createResultPush(
     return false
   }
 
-  /** After the ACK the receiver holds the result: the producer keeps its key and standing only. */
-  function dropBody(record: ResultPushRecord): ResultPushRecord {
-    const held = record.result
-    if (held === null) return record
-    return {
-      ...record,
-      result: { ...held, delivery: frozen({ ...held.delivery, parts: [], accounts: [] }) },
-    }
-  }
-
   /** Pushes the held late accounts in order, once the result is saved or was acknowledged. */
   async function pushAccounts(record: ResultPushRecord, access: Access): Promise<void> {
     const resultDone = record.acknowledgement === 'acknowledged' || savedResultOf(record) !== null
@@ -808,13 +816,6 @@ function createResultPush(
     let count = 0
     for (const owner of reservations.values()) if (owner === tenant) count += 1
     return count
-  }
-
-  /** Refuses a late account before the commands see it; the source keeps its report. */
-  function refuse(
-    diagnostic: string,
-  ): Awaited<ReturnType<ModelCommands<unknown>['recordLateFact']>> {
-    return { failure: { kind: 'unavailable', dependency: DEPENDENCY, diagnostic } }
   }
 
   /**
@@ -1109,6 +1110,12 @@ function createResultPush(
     // Every piece of work that ends pumps the dirty calls first, so an empty `running` has no
     // dirty call that could start behind it.
     idle: signal => whenEmpty(running, signal),
+    delivering(target) {
+      const key = keyOf(target)
+      if (phase !== 'started' || key === undefined) return false
+      if (dirty.has(key) || running.has(key)) return true
+      return (ledger.read(target)?.acknowledgement ?? 'acknowledged') !== 'acknowledged'
+    },
     async stop() {
       if (phase === 'stopped') return
       phase = 'stopped'
@@ -1127,38 +1134,6 @@ function createResultPush(
       release?.()
       release = undefined
     },
-  }
-}
-
-/**
- * Every method of `commands`, called on it. A Service may keep its methods on its prototype, so the
- * object is not spread.
- */
-function delegatedCommands(commands: ModelCommands<unknown>): ModelCommands<unknown> {
-  return {
-    admit: input => commands.admit(input),
-    recall: input => commands.recall(input),
-    scanPending: input => commands.scanPending(input),
-    loadRecovery: input => commands.loadRecovery(input),
-    loadRequest: input => commands.loadRequest(input),
-    claim: input => commands.claim(input),
-    prepareDispatch: input => commands.prepareDispatch(input),
-    recordMaterialization: input => commands.recordMaterialization(input),
-    recordSend: input => commands.recordSend(input),
-    openReceiveWindow: input => commands.openReceiveWindow(input),
-    preserve: input => commands.preserve(input),
-    recordLateFact: input => commands.recordLateFact(input),
-    prepareRetry: input => commands.prepareRetry(input),
-    decideRetry: input => commands.decideRetry(input),
-    settle: input => commands.settle(input),
-    control: input => commands.control(input),
-    acquireRead: input => commands.acquireRead(input),
-    nextRead: input => commands.nextRead(input),
-    endRead: input => commands.endRead(input),
-    handoff: input => commands.handoff(input),
-    advanceCleanup: input => commands.advanceCleanup(input),
-    query: input => commands.query(input),
-    dispatches: input => commands.dispatches(input),
   }
 }
 

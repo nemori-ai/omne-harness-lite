@@ -141,13 +141,15 @@ export interface ScriptController<P> {
   ): Reply<CommitQuery<Readonly<{ revision: Revision }>>>
 }
 
+function acceptedCall<P>(core: Core<P>, { tenant, call }: ScriptedCall): CallRecord<P> {
+  const record = findCall(core, tenant, call)
+  if (record === null)
+    throw new ScriptedModelError('unknown-call', `the provider accepted no call ${call}`)
+  return record
+}
+
 export function createController<P>(core: Core<P>): ScriptController<P> {
-  function callOf({ tenant, call }: ScriptedCall): CallRecord<P> {
-    const record = findCall(core, tenant, call)
-    if (record === null)
-      throw new ScriptedModelError('unknown-call', `the provider accepted no call ${call}`)
-    return record
-  }
+  const callOf = (input: ScriptedCall) => acceptedCall(core, input)
 
   function runningCallOf(input: ScriptedCall): CallRecord<P> {
     const record = callOf(input)
