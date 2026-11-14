@@ -1,6 +1,6 @@
 # MCP领域交接设计
 
-状态：技术草案，未获技术接受。已接受职责沿[领域入口](README.md)。本页只维护事实拥有者、端口的实现方和跨领域交接。`@omne-harness/mcp-contract` 已有实现（候选，尚未取得技术接受）。`@omne-harness/mcp` 已实现（候选，尚未取得技术接受）：`EndpointInspection`、`ActionDiscovery`、`ActionInvoker`、`EndpointStatus`、`Connections` 与 `CatalogStore` 的内存实现，`@omne-harness/mcp-host-local` 已实现传输与 Cordis 插件（候选，尚未取得技术接受）。`@omne-harness/mcp-cordis-contract` 已实现服务定义与服务键（候选，尚未取得技术接受）。成员分解、端口、对外接口和行为规则见[包组规格](../../../packages/mcp/SPEC.md)。成员里对不上现行规则的地方登记在[包组织「Skill 与 MCP 的成员边界」](../../package-organization.md#skill-与-mcp-的成员边界)里。
+已接受职责沿[领域入口](README.md)。本页只维护事实拥有者、端口的实现方和跨领域交接。成员分解、端口、对外接口和行为规则见[包组规格](../../../packages/mcp/SPEC.md)。
 
 用词沿统一语言：[MCP 连接](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-mcp-connection--mcp-连接--mcp-connection)、[MCP 动作清单](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-mcp-action-catalog--mcp-动作清单--mcp-action-catalog)、[MCP 已知动作](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-mcp-known-action--mcp-已知动作--mcp-known-action)、[凭据保管方](../../../.meta_harness/design/ubiquitous_language/terms/grounding-and-isolation.md#ul-credential-custodian--凭据保管方--credential-custodian)。接入点指 MCP 资产。
 
@@ -88,8 +88,4 @@ flowchart LR
 | 选定（把一次调用绑到实现） | 工具入口选定，实现取自来源内存里的清单快照 | 选定是同步的，可能读到刚过时的清单，没有关系 |
 | 发出 | MCP 的调用入口，复核定义与发出是一步 | 定义在受理之后、发出之前变了，答「定义已变」，不发。不依赖选定时读得新不新 |
 
-这些是已接受的目标，实现在 4 号线，尚未实现。
-
 对端要求补充输入时，调用的执行体走工具内「等人决定」的原语，把表单变成人工介入的卡片。人答了，按原调用继续并把答复交对端。人拒绝或没答，把相应的答复告诉对端。这个等待没有超时，也没有默认答复。对端转成任务的调用仍是原调用，按任务号查到终局或调用被停止。
-
-本页关于接入点权限、认证、只按地址接入、条目来源和补充输入的规则来自负责人 2026-11-12 的裁定，是已接受的目标。MCP 领域内已有的实现在 `packages/mcp` 的成员里，是候选，其余实现在 4 号线，见[领域页的实现现状](README.md#实现现状)。

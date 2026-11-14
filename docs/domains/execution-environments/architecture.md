@@ -1,6 +1,6 @@
 # 执行环境领域交接设计
 
-状态：技术设计草案，未获整体技术接受。领域责任沿[已接受入口](README.md)；本页只拥有角色、事实归属与跨领域交接。
+领域责任沿[已接受入口](README.md)；本页只拥有角色、事实归属与跨领域交接。
 
 ## 事实归属与公开协作
 
@@ -20,11 +20,11 @@
 
 相邻责任从正式入口展开：[身份与授权](../identity-and-authorization/README.md)提供可信主体及当前准入，[资产与规则](../assets-and-rules/README.md)求值合法配值，[工具执行](../tool-execution/README.md)拥有原效果，[工作区](../workspaces/README.md)拥有身份、参与及实例关联，[Session 与工作](../sessions-and-work/README.md)治理逻辑工作，[装配](../assembly-and-handoff/README.md)拥有采用及推进交接，[Context](../runtime-context/README.md)供给可感知变化，[MCP](../mcp/README.md)和[HITL](../human-intervention/README.md)保留各自协议。
 
-工作区合法关联可以供来源校验和环境准备使用，不能以装配完成作为所有准备动作的前提。来源校验、正式采用、设施就绪及工具开始是不同确认。工作区接缝的技术细化仍保留草案状态，不能提升为本领域的已接受上层。
+工作区合法关联可以供来源校验和环境准备使用，不能以装配完成作为所有准备动作的前提。来源校验、正式采用、设施就绪及工具开始是不同确认。
 
 ## 文件使用的交接
 
-PanQiWei 已接受本节，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/278#issuecomment-6197369869)。它不增加角色，只标明 `Files()` 与 `Shell()` 怎样交到上表已有的拥有者。工作区目录是地址，不参与这张图里的围栏。本页其余部分仍是草案。
+本节不增加角色，只标明 `Files()` 与 `Shell()` 怎样交到上表已有的拥有者。工作区目录是地址，不参与这张图里的围栏。
 
 ```mermaid
 flowchart TD
