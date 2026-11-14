@@ -63,11 +63,8 @@ export type DataMembers =
 const NOT_OBJECT: DataMembers = Object.freeze({ kind: 'not-object' })
 const ACCESSOR: DataMembers = Object.freeze({ kind: 'accessor' })
 
-/**
- * Reads the own members of a plain object (prototype `Object.prototype` or `null`). Arrays, class
- * instances and `Error` objects are `not-object`. A member with a getter or setter is `accessor`.
- * A proxy may still throw; callers catch.
- */
+// Reads own members by descriptor and never calls a getter: an accessor is `accessor`.
+// A proxy may still throw while it is read; callers catch.
 export function dataMembers(value: unknown): DataMembers {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return NOT_OBJECT
   const prototype: unknown = Object.getPrototypeOf(value)

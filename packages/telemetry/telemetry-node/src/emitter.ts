@@ -47,11 +47,8 @@ function ownData(value: unknown): Map<PropertyKey, unknown> | undefined {
   return members
 }
 
-/**
- * A frozen copy of plain data, so that later changes by the caller do not reach a record and what
- * was validated is what is kept. A value that is not plain data stays as it is: validation rejects
- * it.
- */
+// Validate the frozen copy, not the input: what was validated is what is written.
+// A value that is not plain data is kept as it is, and validation rejects it.
 function copyData(value: unknown): unknown {
   if (Array.isArray(value))
     return value.length > COPY_LIMIT ? value : Object.freeze(value.map(copyData))
