@@ -14,7 +14,7 @@
 
 ## 系统的最简模型
 
-下面两张图是全系统最简的模型。一个框是一组责任，不是一个包、一个服务或一个进程。正文里任何一张架构图，化简之后都应当是它们；对不上时报告，并按[心智模型](docs/mental-models.md#维护)的维护规则定哪一边改。
+下面两张图是全系统最简的模型。一个框是一组责任，不是一个包、一个服务或一个进程。正文里任何一张架构图，化简之后都应当是它们。对不上时报告，并先定哪一边对：拥有者正文变了，就改这两张图与技能 `domain-mental-models` 里对应的那一份；正文没变，就改那张架构图。
 
 核心领域怎样协调：
 
@@ -96,7 +96,7 @@ flowchart LR
 
 ## 心智模型要点
 
-下面是每个 agent 始终要懂的。全文在技能 `domain-mental-models`：每个领域一份，跨领域协调一份，都答「它是什么、不是什么、拿它怎样量一个设计」。在一个领域里做设计或实现，或改动波及别的领域时加载它；入口见[心智模型](docs/mental-models.md)。
+下面是每个 agent 始终要懂的。全文在技能 `domain-mental-models`：每个领域一份，跨领域协调一份，都答「它是什么、不是什么、拿它怎样量一个设计」。在一个领域里做设计或实现，或改动波及别的领域时加载它。
 
 - **会话日志是一个会话的唯一事实源，而且只有一个写入者。** 运行着的对象不存别处没有的事实；它丢了，从日志接着来。别的领域要留下事实，把一条会话命令交给这个写入者，由它在同一次提交里写。每次提交之后要做的事挂在写入者上，不挂在各个提交方上。
 - **Session 管一个会话的业务流程，Agent 管一轮 Run 怎样往前推。** Run 是边界。Session 不发模型请求，不运行工具，也不直接控制它们的调用：会话路径上这些由 Agent 发起，控制经 Agent 送达。
@@ -160,7 +160,9 @@ Cordis 提供机制：一棵插件树；依赖齐了才启动，依赖没了就�
 
 ## 知识放哪
 
-项目要求、工程约定、技术架构与领域关系在[docs](docs/README.md)；实际包、应用和工具拥有公开形状、完整必要行为、使用指南、设计理由与持续验证资源。[`.meta_harness/`](.meta_harness/AGENTS.md)保持产品规则、独立目标、统一语言、领域对象、持续研究和项目独有的技能；根 `.agents`、`.claude`、`.codex`、`.cursor` 只暴露[生成物](.meta_harness/tooling/README.md)，不直接修改。唯一源与退出条件归[文档治理](docs/engineering/documentation.md#位置与唯一源)，过程材料留[任务tmp](docs/development.md#终态与过程材料)。
+约束后来的 agent 的只有四样：架构与领域的边界（[架构](docs/architecture/README.md)、[领域](docs/domains/README.md)），规格（每个包组一份 `packages/<组>/SPEC.md`，每个应用一份 `apps/<名>/SPEC.md`），静态检查，形式化证明。源码已经表达的不另写文档。一程自己用的材料留在本工作树的 `tmp/<任务>/`，不提交。信息的源头只有一处：改承诺先改它的拥有者，再改引用它的地方。
+
+[`.meta_harness/`](.meta_harness/AGENTS.md)保持产品规则、独立目标、统一语言、领域对象、持续研究和项目独有的技能；根 `.agents`、`.claude`、`.codex`、`.cursor` 只暴露[生成物](.meta_harness/tooling/README.md)，不直接修改。
 
 实施须依据明确且已接受的承诺。未定新方案不能凭目录或产品设计直接开包；先定位拥有者及采用范围。旧接受记录不能授予冲突设计继续采用，实际限制记录为偏离。
 
@@ -168,7 +170,7 @@ Cordis 提供机制：一棵插件树；依赖齐了才启动，依赖没了就�
 
 大改动（新增领域、跨领域纵线、子系统重构、较大改造）走 pqw `single-session-dev-flow`：定义期由人主导，交接期由设计会话与人定约、定程并交出一程，交付期由代理自主交付；小修、原型、诊断按它的「不够格」一节转 Matt `tdd`、`prototype`、`diagnosing-bugs`。流程的环节与做法只归 pqw 各技能，本仓库只在下面的接入节给出 omne 的命令与位置。
 
-卡就是交接信息包：设计段落盘进 `integration/mainline` 后，设计会话一次发一程的卡，交付会话只读这张卡与它链接的 spec、正式文档就开工，做完在卡上交回，由设计会话与人收回。发卡、开工、开 PR、请求 gate 确认与接受的命令归 [`omne-card`](.meta_harness/agents/skills/omne-card/canonical/SKILL.md)。合入的门与准入的时机归[集成规则](docs/engineering/integration.md)。
+卡就是交接信息包：设计段落盘进 `integration/mainline` 后，设计会话一次发一程的卡，交付会话只读这张卡与它链接的 spec、正式文档就开工，做完在卡上交回，由设计会话与人收回。发卡、开工、开 PR、请求 gate 确认与接受的命令归 [`omne-card`](.meta_harness/agents/skills/omne-card/canonical/SKILL.md)；准入证据怎样取得、契约变更怎样判、决定怎样记录，也在这个技能的参考页里。
 
 ## pqw-skills 接入
 
@@ -177,19 +179,19 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 | 槽位 | omne 的值 |
 | --- | --- |
 | 类型检查与 lint 命令 | `pnpm run typecheck`；`pnpm run lint:rules`；`pnpm run lint:oxlint`；`pnpm run lint:deps` |
-| 改动成员的合入检查 | `pnpm run preflight`，再在每个改动成员目录 `pnpm exec vitest run --mode fast` 与 `--mode slow`，有 `acceptance/` 的再 `pnpm run acceptance`。准入排在这些之后，在最终的头上只跑一次；没通过就把失败归类后补证，不重排整跑，见[准入证据怎样取得](docs/engineering/integration.md#准入证据怎样取得) |
+| 改动成员的合入检查 | `pnpm run preflight`，再在每个改动成员目录 `pnpm exec vitest run --mode fast` 与 `--mode slow`，有 `acceptance/` 的再 `pnpm run acceptance`。准入排在这些之后，在最终的头上只跑一次；没通过就把失败归类后补证，不重排整跑，见 `omne-card` 技能的[准入证据怎样取得](.meta_harness/agents/skills/omne-card/canonical/references/admission-evidence.md) |
 | 结构读数的覆盖率文件、范围与带位线 | `pnpm run closeout:metrics -- --base <起点> [--scope <路径>...]`：按改动成员各出一份 lcov（写到工作树外）、各调一次 pqw `metrics.mjs`，线与断言写法取自 `repo-toolchain.config.json`；切片收口用缺省的快层，一程全量加 `--full`，并另跑 [`loop:status --base <起点>`](docs/clean-loop.md#入口)。用法见 [pqw-adapter](tools/pqw-adapter/README_ZH.md) |
 | 差分变异的范围与点名文件 | `pnpm run closeout:mutation -- --base <起点> --scope <关键位置>...`：先 `--plan-only` 看范围，超过上限要给 `--scope` 或 `--files`；按改动成员各调一次 pqw `mutation.mjs`。[风险级别](docs/engineering/quality.md#按风险选择接受实现的看法)的路径下限：`pnpm run risk -- --base <起点>` |
 | 项目合入检查已按整程改动跑结构读数与差分变异时的命令 | 无 |
 | 文档检查命令 | `pnpm run check:docs`；`pnpm run check:design`；`pnpm run check:agents` |
-| 文档写作规则 | [文档写作规则](docs/engineering/documentation.md#文档写作规则)；写作加载 pqw `clear-writing` |
-| 三层正式文档的位置 | 产品 `.meta_harness/design/product`；项目顶层 `docs/`；包组与成员各包 `docs/`、`SPEC.md` |
+| 文档写作规则 | 加载 pqw `clear-writing`，照它的规则写 |
+| 三层正式文档的位置 | 产品 `.meta_harness/design/product`；项目顶层 `docs/`（项目要求、架构、领域）；每个包组一份 `packages/<组>/SPEC.md`，每个应用一份 `apps/<名>/SPEC.md` |
 | 统一语言与领域对象的位置 | `.meta_harness/design/ubiquitous_language`；`.meta_harness/design/domain_objects` |
-| 形式化工具链与声明边界 | TLC，见[开发指南](docs/development.md)「形式工具链」；声明边界见[验证说明](docs/verification.md) |
+| 形式化工具链与声明边界 | TLC，环境见 [CONTRIBUTING](CONTRIBUTING.md#形式工具链)；声明边界见[验证说明](docs/verification.md) |
 | spec 与 plan 的项目模板 | pqw 自带模板，加 [spec 附加节](.meta_harness/agents/pqw/spec-addendum.md)与 [plan 附加节](.meta_harness/agents/pqw/plan-addendum.md) |
 | 项目专有的清理项 | 本卡的工作树 `.worktrees/<卡>`；`tmp/<卡>/`；成员外写出的 lcov 目录；Stryker 容器 `.stryker-tmp*`。工作树里有 pqw 子模块，`git worktree remove` 会拒绝：先核 `git status` 干净、分支已合回，再删目录并 `git worktree prune` |
 | 验收处 | 卡评论：判据要求的证据贴摘要与关键行，原件位置与哈希写在评论里 |
-| 子代理的模型与档位政策 | [子代理的模型与档位](docs/engineering/skills.md#子代理的模型与档位) |
+| 子代理的模型与档位政策 | 按 pqw `delegate-brief` 的表定档。各档用的模型，Claude Code：便宜档 Haiku，经济档 Sonnet，默认档 Opus，顶档 Fable，都取宿主提供的当前版本；Codex：经济档与默认档 GPT-6.1 Sol，顶档 GPT-6 Astra，没有便宜档；Cursor 在可选的模型里取同档，简报里写明取了哪个。顶档的推理档位最高用 high。只读的评审与核对：Claude Code 派自带的只读子代理类型；另两个宿主在简报里写明不改文件，交回后用 `git status` 核对 |
 | 交接信息包与路线图放哪 | 卡正文，模板 `.github/ISSUE_TEMPLATE/card.md`（见 `omne-card`）；分程时路线图放父卡 |
 | 跨会话协调用什么 | GitHub issue：卡正文放包，卡评论放交付声明与退包，关卡即接受 |
 | 不做与推迟的记录放哪 | 未提供 |
@@ -200,7 +202,7 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 
 从本域职责与不变量出发，只建模履约必需的外域概念，保留原拥有者的治理权。架构、领域建模、契约或开发涉及跨域概念和依赖变更时，读取[领域语义依赖与模型边界](docs/architecture/layers-and-dependencies.md#领域语义依赖与模型边界)，按需明确消费契约、投影、引用和外部集成的归属；局部实现沿已有边界执行。
 
-几种做法都成立时，先保护不变量，复用成熟机制，把复杂度花在真实契约差异。领域、公开能力和装配责任分别可见；状态、所有权、失败、生命周期及外部副作用有明确拥有者。项目独有判断继续归[研发品味](.meta_harness/agents/roles/engineering-taste.md)，工程方法按[技能入口](docs/engineering/skills.md)选择。做架构、技术设计、规格或评审时，先按[维度分解与正交](.meta_harness/agents/roles/engineering-taste.md#维度分解与正交)命名问题所在的轴与拥有者，再找现有正文。
+几种做法都成立时，先保护不变量，复用成熟机制，把复杂度花在真实契约差异。领域、公开能力和装配责任分别可见；状态、所有权、失败、生命周期及外部副作用有明确拥有者。项目独有判断继续归[研发品味](.meta_harness/agents/roles/engineering-taste.md)，外部工程方法的来源与本项目不同的地方见[来源与采用](.meta_harness/tooling/README.md#来源与采用)。做架构、技术设计、规格或评审时，先按[维度分解与正交](.meta_harness/agents/roles/engineering-taste.md#维度分解与正交)命名问题所在的轴与拥有者，再找现有正文。
 
 错误不能静默变成成功，外部输出不能因 disposer 而声称可逆。实现风险按需读[防御指导](docs/defensive-patterns.md)，验证按[质量与风险](docs/engineering/quality.md#按成果和风险验证)选择，适用独立接受及[现有硬线](docs/clean-loop.md#回路怎么转)保持。传感器反馈事实，负责人判断处置；结构通过不替代语义或行为接受。
 
@@ -212,7 +214,7 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 
 用户明确的新要求优先于历史交接。先核对语义拥有者、精确版本、采用范围及消费者；评审、文件存在和测试通过不能授予接受。改变有效承诺必须有新依据并同步消费者，获准终态写回唯一源，被取代正文退出，旧字节留 Git 历史。
 
-源或实现冲突时报告具体反例和影响，只暂停依赖部分，按[冲突入口](docs/context-map.md#冲突与验收)交拥有者裁定。不能从实现反推目标、静默选方便说法或改提示解决未决架构。模型和测试结论保留其前提与覆盖；[验证说明](docs/verification.md)拥有声明边界。
+源或实现冲突时报告具体反例和影响，只暂停依赖部分，交拥有者裁定。不能从实现反推目标、静默选方便说法或改提示解决未决架构。模型和测试结论保留其前提与覆盖；[验证说明](docs/verification.md)拥有声明边界。
 
 ## 按任务展开
 
@@ -220,22 +222,22 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 
 | 当前判断 | 加载入口与停止点 | 重点带的 |
 | --- | --- | --- |
-| 开工前建立系统图景、理解知识体系或普通阅读 | 架构、领域、契约、装配与实现切片先读一次[开工定向](docs/orientation.md)；整体理解读[体系上下文](docs/knowledge-map-agent.md)；其余从[读者入口](docs/README.md)找实际应用或包。找到本次责任就停 | 拆、证 |
+| 开工前建立系统图景、理解知识体系或普通阅读 | 上面两张图与要点先给出图景；要展开时从[架构入口](docs/architecture/README.md)与[领域入口](docs/domains/README.md)进，再读要改的包组或应用的 `SPEC.md`。找到本次责任就停 | 拆、证 |
 | 新要求、系统边界或跨成员保证 | 加载 `harness-design-handbook`，从[项目要求](docs/requirements.md)、[架构](docs/architecture/README.md)、[领域](docs/domains/README.md)定位拥有者，只展开本次必要输入 | 拆、找差异、对人 |
 | 产品、概念或对象治理 | 起草产品加载 `product-design`，改词条加载 `ubiquitous-language`，改对象条目加载 `domain-objects`；只消费已有正文不加载 | 对人、找差异、拆 |
-| 文档、AGENTS 或技能维护 | 文档加载 pqw `clear-writing`，AGENTS 加载 pqw `write-agents-md`，技能加载官方 `skill-creator`；按[维护指南](docs/maintenance.md)同步真实消费者 | 拆、找差异 |
-| 研发流程、发卡、合入与发行 | 环节做法读 pqw 技能；发卡与合入加载 `omne-card`；每条流程事实的拥有者见[流程事实在哪](docs/engineering/README.md#流程事实在哪)；局部修复与环境从[开发指南](docs/development.md)起 | 转手、证、对人 |
+| 文档、AGENTS 或技能维护 | 文档加载 pqw `clear-writing`，AGENTS 加载 pqw `write-agents-md`，技能加载官方 `skill-creator`；改了源、锚点或路径之后，核对入向链接与生成物 | 拆、找差异 |
+| 研发流程、发卡、合入与发行 | 环节做法读 pqw 技能；发卡、合入、提升与接受加载 `omne-card`；环境准备见 [CONTRIBUTING](CONTRIBUTING.md#开始工作) | 转手、证、对人 |
 | Cordis 来源、生命周期或 API | 加载手册的来源核对，优先[官方资料](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs)，固定采用版本；未覆盖行为保留假设并以源码或验证补足 | 证、找差异 |
 
 ## Cursor Cloud specific instructions
 
-Cloud Agent 的镜像源、安装脚本和版本钉扎归[开发指南](docs/development.md#cursor-cloud-agent-镜像)。根 `.cursor` 是生成的软链接。改镜像时改 `.meta_harness/agents/cloud/cursor/`，不要改投影副本。Build 已经安装依赖。锁文件未变时，不要再执行安装。
+Cloud Agent 的镜像源、安装脚本和版本钉扎归[镜像说明](.meta_harness/agents/cloud/cursor/README.md)。根 `.cursor` 是生成的软链接。改镜像时改 `.meta_harness/agents/cloud/cursor/`，不要改投影副本。Build 已经安装依赖。锁文件未变时，不要再执行安装。
 
 密钥和令牌只放在 Cursor Cloud Agents 的 Secrets。形式工具和 Postgres 不在此镜像中。缺少环境时报告未执行。不要把跳过的检查写成通过。
 
 ## Claude Code on the web specific instructions
 
-环境源、setup 脚本和每次会话启动脚本归[开发指南](docs/development.md#claude-code-on-the-web-环境)。改环境时改 `.meta_harness/agents/cloud/claude-code/`，再把 `setup.sh` 粘贴到云端环境设置。会话启动钩子已经同步 `main`、安装依赖并生成投影。它输出诊断时，按诊断处理，不要把未完成的步骤写成完成。
+环境源、setup 脚本和每次会话启动脚本归[环境说明](.meta_harness/agents/cloud/claude-code/README.md)。改环境时改 `.meta_harness/agents/cloud/claude-code/`，再把 `setup.sh` 粘贴到云端环境设置。会话启动钩子已经同步 `main`、安装依赖并生成投影。它输出诊断时，按诊断处理，不要把未完成的步骤写成完成。
 
 外部服务的密钥是代理侧的网络密钥。容器里的对应环境变量为空，这是预期结果。请求必须经过代理，用法见[网络密钥与对外请求](.meta_harness/agents/cloud/claude-code/README.md#网络密钥与对外请求)。
 
