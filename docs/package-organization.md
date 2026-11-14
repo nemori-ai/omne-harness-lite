@@ -449,7 +449,7 @@ Skill 与 MCP 各按纯契约、通用实现、Cordis 定义和单机宿主组�
 
 ## 日历与日程的安装和部署边界
 
-Calendar 与 Schedule/Job 分别按纯契约、Cordis 定义、通用实现、单机后端和工具贡献组织为五个 workspace 成员。十个成员均为 private 0.0.0。Calendar 已提供公开契约、计算、查询与供应服务、本地后端、Cordis 绑定和只读工具。Schedule 已提供公开契约、日程定义的管理与存取、规则计算与只读预览、查询、本地后端、Cordis 绑定和工具；到点触发与 Job 执行还没有实现。两个领域都还没有接进发行应用。具体支持范围见 [Calendar 组](../packages/calendar/README.md)和 [Schedule 组](../packages/schedule/README.md)。包划分建立安装依赖与维护边界，不要求每个包单独成为进程。
+Calendar 与 Schedule/Job 分别按纯契约、Cordis 定义、通用实现、单机后端和工具贡献组织为五个 workspace 成员。十个成员均为 private 0.0.0。Calendar 已提供公开契约、计算、查询与供应服务、本地后端、Cordis 绑定和只读工具。Schedule 已提供公开契约、日程定义的管理与存取、规则计算与只读预览、查询、本地后端、Cordis 绑定和工具；到点触发与 Job 执行还没有实现。两个领域都还没有接进发行应用。具体边界见 [Calendar 组](../packages/calendar/SPEC.md)和 [Schedule 组](../packages/schedule/SPEC.md)。包划分建立安装依赖与维护边界，不要求每个包单独成为进程。
 
 公共服务可以部署在与 Session、Agent runtime 不同的机器或进程。`*-contract` 拥有公共数据和可替换服务端口，不包含 Cordis、SQL 后端、工厂配置或运行时对象。线上请求和回执可序列化，使用稳定身份、明确协议版本及授权语义。`calendar` 与 `schedule` 拥有纯领域算法、应用工厂及其内部构造依赖。`*-cordis-contract` 唯一拥有 Service、键和类型增补，不依赖通用实现。`*-tools` 经 inject 消费服务，不能依赖 core 或 `*-local`。服务定义本身不是网络协议。
 
@@ -459,4 +459,4 @@ Calendar→Schedule、Job→Session 及通知/结果提供者交接，不得以�
 
 既有设计中“最新依据与接受一致”“当前资格”和强撤权等保证保持有效。涉及远端权威时，必须由该权威提供可兑现的授权、保留或围栏协议，并声明能力与有效范围；单次读取后在本地提交不证明这些保证。相关协议及故障证据尚待实现，不在初始化阶段虚构分布式原子性。缺少必要能力时拒绝相关写入，不能降低为过期快照放行。
 
-未来远程客户端可以替换本地绑定的提供者，保持相同公共语义。本次不初始化没有真实消费者的 RPC、消息队列或远程提供者包。公共类型和 schema 随源码实现成为唯一形状源；保留必要行为契约与设计理由，不另建一份重复源码的全量 DDD 正文。具体成员与组合验证见[日历组](../packages/calendar/README.md)和[日程组](../packages/schedule/README.md)。
+未来远程客户端可以替换本地绑定的提供者，保持相同公共语义。本次不初始化没有真实消费者的 RPC、消息队列或远程提供者包。公共类型和 schema 随源码实现成为唯一形状源；保留必要行为契约与设计理由，不另建一份重复源码的全量 DDD 正文。具体成员见[日历组](../packages/calendar/SPEC.md)和[日程组](../packages/schedule/SPEC.md)。
