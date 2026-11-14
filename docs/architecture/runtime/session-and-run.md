@@ -53,7 +53,7 @@ Session 对六个邻域担任下列通用角色。每个角色只经对方的公
 | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | Agent           | 外部协调者、提交参加者、事件消费者、恢复发现者                                                                                                                                                      | [托管协调与运行实例](../../../packages/agent/SPEC.md#应然设计)、[外部协调者的前提](../../../packages/agent/SPEC.md#领域边界)                |
 | Model           | 消费位置拥有者、结果承接与 ACK 的消费侧、模型选择的保存者。Session 不参加 Model 的受理点守卫                                                                                                        | [结果读取、确认与清理](../../../packages/model/SPEC.md#结果读取确认与清理)                                                         |
-| Tool            | 读取同日志结果与账目并形成 Session 后果；启动围栏归 Agent 日志的 `start-fence` 条目，在 Tool 排序域生效                                                                                             | [Agent J03](../../../packages/agent/SPEC.md#动作与工具)、[P04 实际发起围栏](../../../packages/tool/tool-contract/SPEC.md#p04-实际发起围栏)  |
+| Tool            | 读取同日志结果与账目并形成 Session 后果；启动围栏归 Agent 日志的 `start-fence` 条目，在 Tool 排序域生效                                                                                             | [Agent J03](../../../packages/agent/SPEC.md#动作与工具)、[P04 实际发起围栏](../../../packages/tool/SPEC.md#启动围栏)  |
 | Runtime Context | 作用域持有者、会话块的生产者、变化材料的消费者                                                                                                                                                      | [Runtime Context 契约](../../../packages/context/SPEC.md#生产者与供值)                                                                      |
 | Request Context | 历史持有者：提供历史源读口与未结工作下界，承担压缩转换的持有者一侧，调用人侧投影                                                                                                                    | [历史源读口与 epoch 视图](../../../packages/context/SPEC.md#七组稳定读取与来源登记)、[压缩共同结果](../../../packages/context/SPEC.md#压缩) |
 | 执行环境        | 不直接认识。经两条间接线：执行环境模式变化时，Session 写一条会话层的目标环境设置声明，有效值经设置求值进入 Tool 装载时固定的设置快照；归档后的作用域释放由 Session 的作用域释放插件以维护者身份发起 | [执行环境恢复](../../../packages/execution/SPEC.md#恢复)                                                                                    |
@@ -118,7 +118,7 @@ Session 作为生产者向 Runtime Context 供给一个块 `session.modes`，保
 
 1. 执行环境模式变化时，Session 在同一次提交里写一条会话层的目标环境设置声明。它是会话设置声明的一种，计入[设置声明修订](../../domains/sessions-and-work/architecture.md#设置声明修订)。模式词到这条声明的翻译是 [session-adapters](../../../packages/session/session-adapters/SPEC.md) 证据桥里的纯函数，经 `change` 的设置材料进入同一次提交，在模式变化时算好，不在工具调用时翻译。
 2. 设置求值的拥有者按默认、组织、租户、工作区、会话的次序求出有效值，取最具体的合法值，上层锁定照常生效，见[配置资产的行为，同时守住权限上界](../../../.meta_harness/design/product/assets-and-rules/design.md#配置资产的行为同时守住权限上界)。
-3. Tool 装载时，设置读取适配器取得有效值，固定在 `FixedToolRequest.settings`。执行、收场与恢复都用这份快照，见 Tool 契约的 [P15 配置声明与合法装载](../../../packages/tool/tool-contract/SPEC.md#p15-配置声明与合法装载)。
+3. Tool 装载时，设置读取适配器取得有效值，固定在 `FixedToolRequest.settings`。执行、收场与恢复都用这份快照，见 Tool 契约的 [P15 配置声明与合法装载](../../../packages/tool/SPEC.md#受理与调用身份)。
 
 Session 不要求 Agent 增加传递设置的端口，也不为每次工具调用翻译模式。
 
@@ -360,7 +360,7 @@ flowchart LR
 
 这样的事实是依据。只解释发生过什么的留痕可以保存。留痕不改变队列、推进资格、等待或终态。能重新读取的外部当前值、可丢弃的局部计算和 Cordis 通知不进入这套标准。Agent 执行接续所需的记录属于会话事实，不能作为 runtime 内部状态排除。
 
-Tool 的 `tool-resident-admitted` 记录会话常驻工具首次装载的定义。缺了它就不能恢复上列的常驻工具 name 与参数形状，因此它满足准入。常驻工具当前记下的登记键可从 Run 的采用依据派生，不另写会话事实。常驻规则见 [Tool 契约](../../../packages/tool/tool-contract/SPEC.md#会话常驻规则r1r5)。
+Tool 的 `tool-resident-admitted` 记录会话常驻工具首次装载的定义。缺了它就不能恢复上列的常驻工具 name 与参数形状，因此它满足准入。常驻工具当前记下的登记键可从 Run 的采用依据派生，不另写会话事实。常驻规则见 [Tool 契约](../../../packages/tool/SPEC.md#定义采用与常驻)。
 
 会话规格规定种类准入、效力、整批提交，以及一条事实能否改变推进资格或 Run 终态。调用者不能自填种类取得治理权。各领域只规定自己的事实。例如 `tool-resident-admitted` 的内容由 Tool 规定，它的种类准入由会话规定。日志的追加、分页和恢复只由会话规定。这些规则约束 Session 条目族。Agent 事实族的种类准入归 Agent 契约，它的追加与恢复由 Journal 提供者在同一个存储事务域里兑现。Agent 事实不直接改变推进资格或 Run 终态，Session 按它们的事件投影派生治理事实，见[两个只追加族](#h1-two-families)。
 

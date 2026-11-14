@@ -17,13 +17,13 @@
 
 ## 读取和失败
 
-公开形状归 [Tool Cordis 契约](../../../../packages/tool/tool-cordis-contract/docs/cordis.md#换代协调者契约)。
+公开形状归 [Tool Cordis 契约](../../../../packages/tool/SPEC.md#装载登记与换代)。
 每次 `referencing` 直接调用 Session 的公开 `reconciliation.references`，出示原入口主体，显式带
 `scope: 'system'`。`encodeResidentKey` 生成查询键，`after` 原样透传，`pageSize` 作为 `limit`。
 `projectResidentReferences` 投影整个页，保留每条引用的 tenant 与首次装载形状，以及原 `next`。
 桥接行不按会话文本反查租户，也不合并跨租户的同名 holder。
 
-编码和投影归 [Tool 文本编码契约](../../../../packages/tool/tool-contract/SPEC.md#常驻登记键与-shape-的文本编码)。
+编码和投影归 [Tool 文本编码契约](../../../../packages/tool/SPEC.md#领域边界)。
 编码失败、Session 失败或异常、非法存储形状均返回 `unavailable`。诊断只含固定阶段描述，不包含主体、
 下游错误原文或业务正文。失败不返回空页或部分页，也不回退缓存。下一次调用重新读取当前 Session 面。
 

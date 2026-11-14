@@ -40,7 +40,7 @@
 
 **首装的限制。** 发行权威的 `admits` 只接受发行登记者登记官方作者。规划器用会话的 access 首装 Shell、Files 时得到 `denied`，所以创建答 `unavailable`。发行树里还没有一方在启动时以登记者装载这两个作者。在那之前，名字列了常驻工具的定义在发行树里不能创建会话。行用例先由登记者装载作者，再创建。
 
-行目录另导出 `createAdoptionPlanner(options)`。它实现应用的采用点事实采集，通过 Tool 公开接口生成 Session 候选材料。采用规则归 [Tool 契约](../../../../packages/tool/tool-contract/SPEC.md#采用点判定)，交接责任归[工具运行时](../../../../docs/architecture/runtime/tool-runtime.md#冻结判定只随采用材料到达)。
+行目录另导出 `createAdoptionPlanner(options)`。它实现应用的采用点事实采集，通过 Tool 公开接口生成 Session 候选材料。采用规则归 [Tool 契约](../../../../packages/tool/SPEC.md#定义采用与常驻)，交接责任归[工具运行时](../../../../docs/architecture/runtime/tool-runtime.md#冻结判定只随采用材料到达)。
 
 ## 输入与结果
 

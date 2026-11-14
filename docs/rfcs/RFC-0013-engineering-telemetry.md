@@ -53,7 +53,7 @@ OTel 链路与指标、Collector、运行中换输出、出口分区与撤权围
 | [Session 契约](../../packages/session/session-contract/SPEC.md#日志读取投影及恢复) | SL10～SL14；[稳定调用引用的读取](../../packages/session/session-contract/SPEC.md#稳定调用引用的读取) | 每次读取核资格；游标绑定范围；空页不等于读完；读者不推测调用是否存在 |
 | [Agent 契约](../../packages/agent/SPEC.md#应然设计) | Journal 读面；失败诊断只写身份与状态 | 只做可加扩展；不披露私有权限块、秘密与无权内容 |
 | [Model 规格](../../packages/model/SPEC.md#诊断与数据保护) | 诊断查询与保留 | 诊断读取资格单独核对；白名单字段；游标不代替权限；已知时长用同一单调时基 |
-| [Tool 契约](../../packages/tool/tool-contract/SPEC.md) | 读取面与具名失败 | `unsupported` 是具名失败，投影如实表达 |
+| [Tool 契约](../../packages/tool/SPEC.md) | 读取面与具名失败 | `unsupported` 是具名失败，投影如实表达 |
 | [公开契约](../../packages/access/SPEC.md#判断次序) 与 [服务端接入](../../packages/access/SPEC.md) | `session-public/1` 的判断次序；接入是 Session 调用的唯一调用方 | 新操作沿同一判断次序；`denied` 不披露存在性 |
 | [CLI 规格](../../apps/cli/SPEC.md#命令结果与退出码) | 命令名等于操作名；结果对象；退出码 0～5 | 新命令沿同一约定 |
 | CLI/Server 交接包 | §1.2 完整会话视图是跨拥有者的只读组合；§3「读取完整会话视图」行；接手说明 §2 | access 与 apps 允许该工作做破坏性修改，本提案在那里只做加法；核心领域只做可加扩展 |

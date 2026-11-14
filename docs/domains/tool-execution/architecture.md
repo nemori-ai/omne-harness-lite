@@ -1,12 +1,12 @@
 # 工具执行的角色与交接
 
-本页在正式维护位置保存待审技术设计。领域分解已评审不等于成员技术接受、阶段选择或实现支持。契约包 `packages/tool/tool-contract` 与 `packages/tool/tool-cordis-contract` 已导出公开类型、契约函数、服务定义与端口一致性套件，见[支持范围](../../../packages/tool/README.md#支持范围)。实现成员位于 `packages/tool/tool` 与 `packages/tool/tool-host-local`，当前实现与组合验证范围仍以该支持表为准。
+本页在正式维护位置保存待审技术设计。领域分解已评审不等于成员技术接受、阶段选择或实现支持。契约包 `packages/tool/tool-contract` 与 `packages/tool/tool-cordis-contract` 已导出公开类型、契约函数、服务定义与端口一致性套件，见[支持范围](../../../packages/tool/SPEC.md#总体架构)。实现成员位于 `packages/tool/tool` 与 `packages/tool/tool-host-local`，当前实现与组合验证范围仍以该支持表为准。
 
 ## 责任与依赖
 
-Tool 组拥有工具专有定义、逻辑调用、真实执行、内部等待、控制实际结果、原结果、效果确定性及交付关系。契约包 `packages/tool/tool-contract` 定义这些契约，Cordis 定义归 `tool-cordis-contract`；`tool` 承担独立执行、账本与 runtime 的实现责任，`tool-host-local` 承担单机宿主适配的实现责任。具体支持与未交付部分见[组支持范围](../../../packages/tool/README.md#支持范围)。真实执行的提供者兑现共同契约，契约与实现分包，不合并二者版本和生命周期。
+Tool 组拥有工具专有定义、逻辑调用、真实执行、内部等待、控制实际结果、原结果、效果确定性及交付关系。契约包 `packages/tool/tool-contract` 定义这些契约，Cordis 定义归 `tool-cordis-contract`；`tool` 承担独立执行、账本与 runtime 的实现责任，`tool-host-local` 承担单机宿主适配的实现责任。具体支持与未交付部分见[组支持范围](../../../packages/tool/SPEC.md#总体架构)。真实执行的提供者兑现共同契约，契约与实现分包，不合并二者版本和生命周期。
 
-业务拥有者定义等待的请求/回应 schema 和工具输出性质；Schema 提供者负责通用形状检查。HITL 或资源响应拥有者在确认有效回应前完成校验，Tool 只接续原有效回应。成员的 [P12](../../../packages/tool/tool-contract/SPEC.md#p12-等待-schema-与响应提交)规定无效提交不消费等待，[P13](../../../packages/tool/tool-contract/SPEC.md#p13-双返回形态与程序输出契约)规定双返回归一化及程序数据校验。Code 和模型分别消费合法程序值与展示投影，不改变原结果与效果的拥有者。
+业务拥有者定义等待的请求/回应 schema 和工具输出性质；Schema 提供者负责通用形状检查。HITL 或资源响应拥有者在确认有效回应前完成校验，Tool 只接续原有效回应。成员的 [P12](../../../packages/tool/SPEC.md#等待与检查点作者)规定无效提交不消费等待，[P13](../../../packages/tool/SPEC.md#执行事实收场与结果)规定双返回归一化及程序数据校验。Code 和模型分别消费合法程序值与展示投影，不改变原结果与效果的拥有者。
 
 Tool 通过公开能力访问被调用领域，不修改其私有状态或接管业务完成。包装工具的执行事实和被操作的业务对象分别有自己的身份和拥有者。
 
@@ -26,7 +26,7 @@ Tool 通过公开能力访问被调用领域，不修改其私有状态或接管
 领域接口和显式依赖允许独立消费。公开执行函数与 runtime 管理接口分别组织，纯函数或显式依赖闭包可不带 Session、租户和存储单独运行，运行时层承担持久与治理保证，系统集成承担托管资源资格。Cordis 集成入口负责装配、捕获、换代和生命周期适配，不能决定工具的业务含义。包的公开入口、依赖方向及同包集成沿[包组织](../../package-organization.md)和现行 IC；本设计不新增 Service key 或公开签名。
 
 
-完整行为读[能力组](../../../packages/tool/README.md)，精确机制与流程随成员维护。
+完整行为读[能力组](../../../packages/tool/SPEC.md)，精确机制与流程随成员维护。
 
 ## 工具目录与条目来源
 
@@ -61,7 +61,7 @@ flowchart LR
 
 ## 完整成员设计承接
 
-以下说明成员设计在领域中的责任。公开形状由 [Tool public-api](../../../packages/tool/tool-contract/docs/public-api.md) 唯一维护，[对象模型](../../../packages/tool/tool-contract/docs/object-model.md)区分持久调用、实例协程与目录句柄，[操作协议](../../../packages/tool/tool-contract/SPEC.md#tool-操作协议)规定跨域提交和未知处理。领域层不复制类型。
+以下说明成员设计在领域中的责任。公开形状由 [Tool public-api](../../../packages/tool/SPEC.md#总体架构) 唯一维护，[对象模型](../../../packages/tool/SPEC.md#总体架构)区分持久调用、实例协程与目录句柄，[操作协议](../../../packages/tool/SPEC.md#应然设计)规定跨域提交和未知处理。领域层不复制类型。
 
 | 协作边界 | Tool 的责任 | 邻接拥有者必须提供 |
 | --- | --- | --- |
@@ -89,11 +89,11 @@ flowchart TD
     Code --> Children[父子关联和后继责任]
 ```
 
-成员逐能力覆盖与真实组合验收入口见 [coverage](../../../packages/tool/tool-contract/verification/README.md)。这些邻接提供者的实现与接受仍由各自拥有者负责。无法参与共同围栏或保管协议的组合不得声明满足该项保证；保留未知而不降低目标。
+成员逐能力覆盖与真实组合验收入口见 [coverage](../../../packages/tool/SPEC.md#不变式)。这些邻接提供者的实现与接受仍由各自拥有者负责。无法参与共同围栏或保管协议的组合不得声明满足该项保证；保留未知而不降低目标。
 
 ## 结果卸载
 
-[结果卸载](../../../.meta_harness/design/ubiquitous_language/terms/execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)只处理本来给模型阅读的正文。产品规则见[产品正文](../../../.meta_harness/design/product/tool-execution/design.md#结果保管卸载与模型采用)，系统约束见[工具运行时](../../architecture/runtime/tool-runtime.md#返回结果与执行账)与[模型 ACK 与副本清理](../../architecture/runtime/streaming-and-consumption.md#模型-ack-与副本清理)。本节规定 Tool 领域内的责任划分、跨域交接、性质的守护者和组合验证责任。能力组的工程分解见[结果卸载的工程分解](../../../packages/tool/docs/architecture.md#结果卸载的工程分解)。
+[结果卸载](../../../.meta_harness/design/ubiquitous_language/terms/execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)只处理本来给模型阅读的正文。产品规则见[产品正文](../../../.meta_harness/design/product/tool-execution/design.md#结果保管卸载与模型采用)，系统约束见[工具运行时](../../architecture/runtime/tool-runtime.md#返回结果与执行账)与[模型 ACK 与副本清理](../../architecture/runtime/streaming-and-consumption.md#模型-ack-与副本清理)。本节规定 Tool 领域内的责任划分、跨域交接、性质的守护者和组合验证责任。能力组的工程分解见[结果卸载的工程分解](../../../packages/tool/SPEC.md#正文卸载与保管)。
 
 状态：已接受的目标设计，尚未实现。成员 SPEC 中与本节冲突的条款描述现有实现，不约束后续设计。
 
@@ -159,7 +159,7 @@ flowchart LR
 | 有界聚合 | 租户级状态只含跨调用状态（守卫、环境保留作用域），不随已结算调用增长；每个调用的事实放在它自己的调用域里，热路径只按键读取。正文回收后不留行 | `tool-host-local` 的放置与 `tool` 的回收 |
 | 租户隔离 | 引用、游标、许可、证据和回收都不跨租户生效 | 全部承担者 |
 
-有限期限、先耐久再发布和有界聚合必须在下列条件下成立：账本与正文存储是两个独立参与者，两步之间可能崩溃，参与者之间的时钟有偏差。到期时刻附近的时钟偏差窗口、部署参数与时钟前提见[部署无关原则](../../../packages/tool/docs/architecture.md#部署无关原则)。
+有限期限、先耐久再发布和有界聚合必须在下列条件下成立：账本与正文存储是两个独立参与者，两步之间可能崩溃，参与者之间的时钟有偏差。到期时刻附近的时钟偏差窗口、部署参数与时钟前提见[部署无关原则](../../../packages/tool/SPEC.md#正文卸载与保管)。
 
 已知风险：租户级启动守卫域随控制动作增长，增长上界由 Agent 契约裁定。
 

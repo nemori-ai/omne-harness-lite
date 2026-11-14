@@ -2,7 +2,7 @@
 
 本页是 #342 的装配候选，尚未技术接受或生产实现。领域和操作边界先由[对象模型](runtime-contract-model.md)及四成员 SPEC 与 public-api 确定。这里消费 [IC-1 至 IC-19](../cordis-integration-conventions.md)，选择服务定义、依赖、宿主与撤除协议，不把 Cordis 机制当作领域授权或持久提交。
 
-成员的精确接缝分别归 [Session](../../../packages/session/session-cordis-contract/docs/cordis.md)、[Agent](../../../packages/agent/SPEC.md#宿主)、[Model](../../../packages/model/SPEC.md#资源寿命与装配)、[Tool](../../../packages/tool/tool-cordis-contract/docs/cordis.md)。Tool 和 Model 的成员集成设计已接受，其中 Model 的 pi-ai 相关细化仍为候选。本页共同集成及 Session、Agent 成员设计保持原候选状态。生产服务图、事件矩阵及绑定读数从实际源码生成，不另立手写实现权威。
+成员的精确接缝分别归 [Session](../../../packages/session/session-cordis-contract/docs/cordis.md)、[Agent](../../../packages/agent/SPEC.md#宿主)、[Model](../../../packages/model/SPEC.md#资源寿命与装配)、[Tool](../../../packages/tool/SPEC.md#装载登记与换代)。Tool 和 Model 的成员集成设计已接受，其中 Model 的 pi-ai 相关细化仍为候选。本页共同集成及 Session、Agent 成员设计保持原候选状态。生产服务图、事件矩阵及绑定读数从实际源码生成，不另立手写实现权威。
 
 ## 根入口、定义与提供者
 
@@ -139,11 +139,11 @@ Agent 独立装配只要求本域输入受理与终结的条件提交，不依�
 
 ## Tool 完整协议的共同采用条件
 
-以下是 #342 Tool 细化后的候选集成义务，不表示 Session、Agent、HITL、环境或存储提供者已经实现。精确操作归 [Tool协议](../../../packages/tool/tool-contract/SPEC.md#tool-操作协议)，这里仅保持跨拥有者交接。
+以下是 #342 Tool 细化后的候选集成义务，不表示 Session、Agent、HITL、环境或存储提供者已经实现。精确操作归 [Tool协议](../../../packages/tool/SPEC.md#应然设计)，这里仅保持跨拥有者交接。
 
 | 参与者 | 必须承接的条件 |
 | --- | --- |
-| 身份/权限、Session工作资格、Agent推进资格 | 身份/权限的撤权不经invalidate进入，由Tool在consume的同一排序内（启动线性化点之前）[再核](../../../packages/tool/tool-contract/SPEC.md#授权消费点与撤权再核)，远端效果可能晚于撤权实际发生（残余窗口）。工作资格与推进资格实际启动的 guard 失效进入同一 ToolStartAuthority 排序域；确认新发起已阻止之前取得失效回执。保存业务取消与宣称启动围栏已生效分别表达 |
+| 身份/权限、Session工作资格、Agent推进资格 | 身份/权限的撤权不经invalidate进入，由Tool在consume的同一排序内（启动线性化点之前）[再核](../../../packages/tool/SPEC.md#启动围栏)，远端效果可能晚于撤权实际发生（残余窗口）。工作资格与推进资格实际启动的 guard 失效进入同一 ToolStartAuthority 排序域；确认新发起已阻止之前取得失效回执。保存业务取消与宣称启动围栏已生效分别表达 |
 | Tool与受信执行边界 | 启动意图、queue名额与待办先提交；唯一待发胶囊由共同围栏消费，不把授权查询后任意函数调用当原子开始 |
 | Code协调者 | 父屏障按真实原因和子范围纳入start/resume守卫；Run取消保留已合法受理后台子的自身启动/接续资格，normal returned只封新预留。父状态与child/program-fence任务同提交，由长期宿主扫描 |
 | HITL或资源响应拥有者 | 原卡/原响应可认回，决定来源可验证，失效有具名回执；实现可自行选择可靠通知方法，不强制复制Tool存储结构 |
