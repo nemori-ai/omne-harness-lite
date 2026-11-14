@@ -342,7 +342,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **产品正文**：[产品页](../product/agent-progression/design.md#扩展检查与权限)（rev 2）只说重挂接与实例换代不再经过执行开始之后位置，没有给执行挂接的身份或生灭。
 - **判据**：能挂成已有对象一个属性的关系，不另立对象（见 `ubiquitous-language` 技能「判形态」）。
 - **负责与闭合条件**：Agent 技术设计（系统架构设计）按产品页的触发边界核对两种读法，定后回头改词条形态。
-- **处置**：Agent 契约的[对象模型](../../../packages/agent/agent-contract/docs/object-model.md#对象与生命周期)给执行挂接独立的身份、三种状态（有效、被取代、已脱离）和围栏记录：状态终止后记录保留到所属执行的保留期结束，用于归属晚到回执与事件因果。它有独立身份和耐久记录，不能挂成执行或 agent runtime 的一项属性，所以取第一种读法。词条形态改为对象，[领域对象](../domain_objects/objects.md#ul-execution-attachment--执行挂接)已立条目，待裁项已删除。
+- **处置**：Agent 契约的[对象模型](../../../packages/agent/SPEC.md#领域边界)给执行挂接独立的身份、三种状态（有效、被取代、已脱离）和围栏记录：状态终止后记录保留到所属执行的保留期结束，用于归属晚到回执与事件因果。它有独立身份和耐久记录，不能挂成执行或 agent runtime 的一项属性，所以取第一种读法。词条形态改为对象，[领域对象](../domain_objects/objects.md#ul-execution-attachment--执行挂接)已立条目，待裁项已删除。
 - **状态**：已闭合（2026-10-18）。依据是 Agent 契约的对象模型。该契约已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用（2026-10-19），接受时已复核：已接受的对象模型仍给执行挂接独立身份、三种状态和耐久的围栏记录，形态保持对象。
 
 ### C-60：拓展结论的形态
@@ -351,7 +351,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **两种读法**：一，Agent 自己保存的耐久记录，有自己的身份，已有它的调用不再调用。二，会话日志里记录条目的一种，沿封存 [PF-012 §6.10](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论) 的写法。
 - **差别**：Agent 不要求、不解释会话日志，所以第二种读法与 Agent 一侧的边界不一致；第一种读法没有产品正文给出身份与生灭。
 - **负责与闭合条件**：Agent 技术设计（系统架构设计）定拥有者与记录种类，定后回头改词条形态。
-- **处置**：Agent 契约的[扩展作者协议](../../../packages/agent/agent-contract/docs/public-api/extensions.md#conclusion)规定 Agent 把校验通过的输出包装为结论并保存，作者不返回结论。[对象模型](../../../packages/agent/agent-contract/docs/object-model.md#对象与生命周期)把扩展调用的记录列为 execution 内的台账，结论没有独立于所属调用的身份。保存者是 Agent，保存位置是它的执行记录，所以第二种读法与 Agent 不解释会话日志的边界不符。词条形态改为属性，挂在 Agent 执行的记录上，待裁项已删除。非最终结论（请求人处理）与最终结论同属这一属性。
+- **处置**：Agent 契约的[扩展作者协议](../../../packages/agent/SPEC.md#扩展与卡片)规定 Agent 把校验通过的输出包装为结论并保存，作者不返回结论。[对象模型](../../../packages/agent/SPEC.md#领域边界)把扩展调用的记录列为 execution 内的台账，结论没有独立于所属调用的身份。保存者是 Agent，保存位置是它的执行记录，所以第二种读法与 Agent 不解释会话日志的边界不符。词条形态改为属性，挂在 Agent 执行的记录上，待裁项已删除。非最终结论（请求人处理）与最终结论同属这一属性。
 - **状态**：已闭合（2026-10-18）。依据是 Agent 契约的扩展作者协议与对象模型。该契约已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用（2026-10-19），接受时已复核：已接受的对象模型仍把结论列在扩展调用的台账内，结论没有独立身份，形态保持属性。
 
 ### C-61：斜杠命令受理依赖已移除的位置
@@ -380,7 +380,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 ### C-64：执行挂接的候选类型名
 
 - **类型**：同义不同名，并有英文同名不同义。2026-10-17 核对执行挂接的英文名时发现。
-- **来源**：Agent 契约的[公开接口页](../../../packages/agent/agent-contract/docs/public-api/README.md)当时用裸写的 `AttachmentId` 类型与 `attachment` 字段指执行挂接；[附件](terms/execution-and-outcome.md#ul-attachment--附件--attachment)的英文名是 Attachment，Tool 结果中的 attachments 也指文件附件，两者都流经 Agent。已接受[系统页 Agent runtime](../../../docs/architecture/runtime/agent-runtime.md#实例执行与执行挂接)与[领域页](../../../docs/domains/agent-progression/README.md)的中文当时写「挂载」。
+- **来源**：Agent 契约的[公开接口页](../../../packages/agent/SPEC.md#领域边界)当时用裸写的 `AttachmentId` 类型与 `attachment` 字段指执行挂接；[附件](terms/execution-and-outcome.md#ul-attachment--附件--attachment)的英文名是 Attachment，Tool 结果中的 attachments 也指文件附件，两者都流经 Agent。已接受[系统页 Agent runtime](../../../docs/architecture/runtime/agent-runtime.md#实例执行与执行挂接)与[领域页](../../../docs/domains/agent-progression/README.md)的中文当时写「挂载」。
 - **差别**：同一个域里，一个英文词有两个所指，会直接传到类型与字段名上；中文「挂载」与「执行挂接」是同一个概念的两种说法。
 - **处置**：[UL-execution-attachment](terms/agent-runtime-loop.md#ul-execution-attachment--执行挂接--execution-attachment) 的英文名定为 Execution Attachment，不许简称 attachment；「挂载」与「Agent Attachment」列入弃用。类型名改为 `ExecutionAttachment`、`ExecutionAttachmentId`，字段改为 `executionAttachment`。
 - **负责与闭合条件**：Agent 契约的写者改类型名与字段名；已接受页的「挂载」随系统页修订交负责人接受后回改。两处都回改后闭合。

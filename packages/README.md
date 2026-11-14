@@ -12,7 +12,7 @@
 | [workspace](workspace/README.md) | 工作区 | `workspace` |
 | [session](session/README.md) | 会话与工作 | `session` |
 | [assembly](assembly/README.md) | 装配交接 | `assembly` |
-| [agent](agent/README.md) | Agent推进 | `agent` |
+| [agent](agent/SPEC.md#领域边界) | Agent推进 | `agent` |
 | [model](model/README.md) | 模型调用 | `model` |
 | [tool](tool/README.md) | 工具执行 | `tool` |
 | [context](context/SPEC.md) | Runtime Context | `runtime-context`, `request-context` |

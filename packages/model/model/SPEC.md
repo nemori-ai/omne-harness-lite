@@ -244,7 +244,7 @@ Q 里还带执行代次（`execution`），所以比较比五项更严。栅栏�
 
 **前提。**
 
-- H1（owner 记录只增不变）：Agent 的接收记录一旦稳定保存，查询就答 committed；committed 带原回执，已成立的成功记录保持原含义（agent-contract SPEC 第 237 与 241 行，「[原操作认回与恢复](../../agent/agent-contract/SPEC.md#原操作认回与恢复)」与「[查询的四种结论与持久拒绝](../../agent/agent-contract/SPEC.md#查询的四种结论与持久拒绝)」；会话日志只追加）。所以适配器在 t₁ 对 Q 的确认在任何 t₂ > t₁ 对同一 Q 仍成立。不确认的答复不被采用为确认，不依赖这一前提。
+- H1（owner 记录只增不变）：Agent 的接收记录一旦稳定保存，查询就答 committed；committed 带原回执，已成立的成功记录保持原含义（agent-contract SPEC 第 237 与 241 行，「[原操作认回与恢复](../../agent/SPEC.md#受理恢复与接管)」与「[查询的四种结论与持久拒绝](../../agent/SPEC.md#应然设计)」；会话日志只追加）。所以适配器在 t₁ 对 Q 的确认在任何 t₂ > t₁ 对同一 Q 仍成立。不确认的答复不被采用为确认，不依赖这一前提。
 - H2（Q 的来源）：consumer、admission（因而 reference）与证据采用在受理时冻结（model-contract SPEC「[参数与注入的裁定](../model-contract/SPEC.md#342-参数与注入的裁定)」）；结果版本在收场时固定；执行代次只由 `claim` 改变；租户与 call 是输入。
 - H3（写入串行）：同一调用的写入经存储的单写栅栏串行，栅栏内看到的是提交前的当前调用。
 

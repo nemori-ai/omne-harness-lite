@@ -156,7 +156,7 @@ J-AG 编号只用于定位文档，不是新的产品对象、运行状态或公
 
 结果是可解释的定义版本、必需与可选来路，以及当前可用或不可用的能力。禁止替换 official、越过锁定或删除必需项的请求被拒绝。首次装配、reload 或后续装配缺少必需合法定义，或者 Loop 必需入口不能建立时，候选失败；合法定义存在而执行实现暂不可用时，可保留已知身份和不可用应答。已有会话的后续装配只让同形实现接替常驻工具；原实现已确定不能装载且只剩不同形实现时，结论是会话冻结，由 Session 执行，见[会话冻结](../sessions-and-work/design.md#frozen)。装配中断不制造 Run 或执行，恢复先核对候选及当前资格。已有会话的取消与归档由 Session 治理处理；Agent 不借定义校验创建第二条控制路径。
 
-关联 [CAP-AG01、CAP-AG02](#能力定义与实现状态记录表)，协作见 [F-AG01](../../../../packages/agent/agent-contract/docs/flows/scenarios.md#f-ag01)，规格及验证见[定义专题](../../../../packages/agent/agent-contract/docs/public-api/definition.md#旅程与持续验证)。
+关联 [CAP-AG01、CAP-AG02](#能力定义与实现状态记录表)。
 
 <a id="j-ag02"></a>
 #### J-AG02 推进一项工作并取得工具结果
@@ -165,7 +165,7 @@ J-AG 编号只用于定位文档，不是新的产品对象、运行状态或公
 
 用户可以继续补充输入，但新输入不改写已发请求。前台结果或合法后台占位返回原动作位置；后台保持同一次 Tool 执行。不可用替换件返回真实的逻辑不可用结果。全批动作被拒绝时，Agent 保存原因并重新求值，不等不存在的工具，也不自动完成。模型重试仍在原调用内时继续等待；故障、中断与实例替换分别沿原拥有者接续。用户取消 Run 后不再发新动作，已有结果、费用及未知效果仍可查。
 
-关联 [CAP-AG03、CAP-AG04、CAP-AG05、CAP-AG09](#能力定义与实现状态记录表)，协作见 [F-AG02](../../../../packages/agent/agent-contract/docs/flows/scenarios.md#f-ag02)，规格及验证见 [Loop 旅程验证](../../../../packages/agent/agent-contract/docs/flows/loop.md#旅程与持续验证)。
+关联 [CAP-AG03、CAP-AG04、CAP-AG05、CAP-AG09](#能力定义与实现状态记录表)。
 
 <a id="j-ag03"></a>
 #### J-AG03 审阅一批动作并继续原判断
@@ -174,7 +174,7 @@ J-AG 编号只用于定位文档，不是新的产品对象、运行状态或公
 
 卡片与唯一有效答复归 HITL，授权类答复的授权含义归 authorization。Agent 保持原参数、生效参数、实现绑定和扩展经过。最终执行还核对当前资格。参数、绑定或相关授权依据改变后，旧批准不能自动使用；无关变更不机械重问。系统准入不可用时全拒且不出卡；其他扩展的缺失与报错沿既定干预力和位置规则处置。实例退出后复用原判断、答复与调用，不重出原卡。Run 取消或原逻辑执行确定终局后解除原等待，不伪造人的答案；工具内部 Ask 仍归 Tool。
 
-关联 [CAP-AG05、CAP-AG06、CAP-AG09](#能力定义与实现状态记录表)，协作见 [F-AG03](../../../../packages/agent/agent-contract/docs/flows/scenarios.md#f-ag03)，规格及验证见[扩展旅程验证](../../../../packages/agent/agent-contract/docs/public-api/extensions.md#旅程与持续验证)。
+关联 [CAP-AG05、CAP-AG06、CAP-AG09](#能力定义与实现状态记录表)。
 
 <a id="j-ag04"></a>
 #### J-AG04 面对输入装不下或消息拒收
@@ -183,7 +183,7 @@ J-AG 编号只用于定位文档，不是新的产品对象、运行状态或公
 
 外部输入拒收返回发送方。完整模型回复拒收后保留原结果和费用，退避后可创建新调用。连续否决不设次数上限。否决历史跨恢复保留，不因此失败。工具结果否决只影响原消费契约指定的有效未终结 Run；旁路、后台及已终态结果由原消费入口处理，不重做工具、不造新 Run、不把迟到结果挂到后继工作。必要保存失败或查询未知时先保留对账责任，不能将未知当成成功。取消优先阻止新的处理效果；中断后先认回原压缩、原调用或原结果，再恢复相应位置。
 
-关联 [CAP-AG04、CAP-AG07、CAP-AG08、CAP-AG09](#能力定义与实现状态记录表)，协作见 [F-AG04](../../../../packages/agent/agent-contract/docs/flows/scenarios.md#f-ag04)，规格及验证见 [Loop 旅程验证](../../../../packages/agent/agent-contract/docs/flows/loop.md#旅程与持续验证)。
+关联 [CAP-AG04、CAP-AG07、CAP-AG08、CAP-AG09](#能力定义与实现状态记录表)。
 
 <a id="j-ag05"></a>
 #### J-AG05 完成工作或停止指定目标
@@ -192,7 +192,7 @@ J-AG 编号只用于定位文档，不是新的产品对象、运行状态或公
 
 用户只控制单个模型或工具时，其他调用与整个 Run 不因此取消。模型中断后已交付内容和费用保留，该响应中未发建议不执行。Run 取消先保存意图并撤新推进资格，再按具名范围通知执行；后台、子会话和无关调用不自动跟随。Session 归档按业务取消解除等待，不以全部物理执行停止为条件；撤销归档回休眠，不恢复旧 Run、卡片或调用。控制确认未知时保留未收尾责任，实例恢复后继续对账。终态后扩展不能反转终态，迟到真实效果和费用仍归原调用。
 
-关联 [CAP-AG08、CAP-AG09](#能力定义与实现状态记录表)，协作见 [F-AG05](../../../../packages/agent/agent-contract/docs/flows/scenarios.md#f-ag05)，规格及验证见 [Loop 旅程验证](../../../../packages/agent/agent-contract/docs/flows/loop.md#旅程与持续验证)。
+关联 [CAP-AG08、CAP-AG09](#能力定义与实现状态记录表)。
 
 <a id="j-ag06"></a>
 #### J-AG06 换一个推进实例继续原工作
@@ -201,7 +201,7 @@ J-AG 编号只用于定位文档，不是新的产品对象、运行状态或公
 
 Model 和 Tool 独立拥有原执行寿命。只有执行拥有者确认自身失联，才适用它的恢复结论；Tool 不自动重放，Agent 替换不重发原模型。可靠交付可以先完成处理，也可以先保存接续内容或可靠引用，再解除原生产责任；模型 ACK 另要求真实收场及合法消费者。若当前资格已撤或 Run 已终态，接手者只做获准的事实保管、结算和交付，不继续旧业务。未知不能写成失败、零费用或无副作用。普通崩溃与断电后的已确认事实必须保留；在途展示内容跨生产 runtime 失联的局部耐久机制仍待细化。
 
-关联 [CAP-AG03、CAP-AG06、CAP-AG09、CAP-AG10](#能力定义与实现状态记录表)，协作见 [F-AG06](../../../../packages/agent/agent-contract/docs/flows/scenarios.md#f-ag06)，规格及验证见 [SPEC 旅程验证入口](../../../../packages/agent/agent-contract/SPEC.md#旅程验证入口)。
+关联 [CAP-AG03、CAP-AG06、CAP-AG09、CAP-AG10](#能力定义与实现状态记录表)。
 
 <a id="j-ag07"></a>
 #### J-AG07 更新定义版本并保护在途工作
@@ -210,7 +210,7 @@ Model 和 Tool 独立拥有原执行寿命。只有执行拥有者确认自身�
 
 候选无效时报告原因，不发布半份构成；原采用只在仍合法时继续。结构换代由装配方与 Session 交接推进资格，原调用、扩展经过、卡片和已得判断保持原语义。尚未发的动作核对当前参数、绑定、授权和调用约定；不兼容就交回原因，不暗换参数或实现。取消先成立时新候选不能恢复推进。换代中断后按原身份对账；撤除扩展后的精确接续协议仍由成员与装配拥有者细化，不能默认作废卡片或重跑已得结论。
 
-关联 [CAP-AG01、CAP-AG02、CAP-AG05、CAP-AG06、CAP-AG09](#能力定义与实现状态记录表)，协作见 [F-AG07](../../../../packages/agent/agent-contract/docs/flows/scenarios.md#f-ag07)，规格及验证见[定义旅程验证](../../../../packages/agent/agent-contract/docs/public-api/definition.md#旅程与持续验证)和[扩展旅程验证](../../../../packages/agent/agent-contract/docs/public-api/extensions.md#旅程与持续验证)。
+关联 [CAP-AG01、CAP-AG02、CAP-AG05、CAP-AG06、CAP-AG09](#能力定义与实现状态记录表)。
 
 <a id="j-ag08"></a>
 #### J-AG08 长期推进时识别重复打转并解释费用
@@ -219,24 +219,24 @@ Model 和 Tool 独立拥有原执行寿命。只有执行拥有者确认自身�
 
 L1、L2 提醒后可以继续，L3 以打转失败进入统一终态出口，L4 等待人的处理。已存判断复用；必要依据缺失不编造守卫通过或费用。获准的诊断者看到原调用、真实发出、判断和消费关联，不能因接手者换了就重复记账，也不能靠遥测采样补成完整账单。停止和恢复沿原控制与工作位置，守卫不扩大取消范围。算法、阈值、配置资格、适用上界与生效时点由相应策略拥有者细化，本页不钉死部署值或新增配额业务。
 
-关联 [CAP-AG03、CAP-AG08、CAP-AG09、CAP-AG10](#能力定义与实现状态记录表)，协作见 [F-AG08](../../../../packages/agent/agent-contract/docs/flows/scenarios.md#f-ag08)，规格及验证见 [Loop 旅程验证](../../../../packages/agent/agent-contract/docs/flows/loop.md#旅程与持续验证)。
+关联 [CAP-AG03、CAP-AG08、CAP-AG09、CAP-AG10](#能力定义与实现状态记录表)。
 
 ## 能力定义与实现状态记录表
 
-下表从前述规则提炼能力，不新增产品要求。两个契约包的类型、声明判定和 Cordis 服务定义已经实现，入口见各行的“成员与验证入口”，也见 [agent-contract 测试说明](../../../../packages/agent/agent-contract/tests/README.md)与 [agent-cordis-contract 测试说明](../../../../packages/agent/agent-cordis-contract/tests/README.md)。推进与运行、提供者和装配未实现，已知的实施差异见 [agent-contract 的实施差异](../../../../packages/agent/agent-contract/verification/coverage.md#实施差异)。能力的行为验证与接受未核实。实现观察时间、代码版本或检出、适用装配和行为证据尚缺；文档整理日期不是实现观察。目标成员为 `packages/agent/agent/`，该路径表示责任去向，不证明实际成员存在或已兑现。
+下表从前述规则提炼能力，不新增产品要求。两个契约包的类型、声明判定和 Cordis 服务定义已经实现，入口见各行的“成员与验证入口”。推进与运行、提供者和装配未实现。能力的行为验证与接受未核实。实现观察时间、代码版本或检出、适用装配和行为证据尚缺；文档整理日期不是实现观察。目标成员为 `packages/agent/agent/`，该路径表示责任去向，不证明实际成员存在或已兑现。
 
 | 编号 | 可判定的能力及边界 | 需求旅程 | 成员与验证入口 | 实现支持及限制 | 验证与接受 |
 | --- | --- | --- | --- | --- | --- |
-| CAP-AG01 | 解释 AgentDefinition 身份、类型、合法来源与版本采用；会话标识固定，普通恢复不升级，合法 reload 可换同标识版本 | [J-AG01](#j-ag01)、[J-AG07](#j-ag07) | [定义专题](../../../../packages/agent/agent-contract/docs/public-api/definition.md#旅程与持续验证)；源码 [judge-definition.ts](../../../../packages/agent/agent-contract/src/judge-definition.ts)、[body-contract.ts](../../../../packages/agent/agent-contract/src/body-contract.ts)，[agent-contract 测试说明](../../../../packages/agent/agent-contract/tests/README.md) | 契约类型与声明判定已实现，推进与运行未实现 | 未核实，未运行、未接受 |
-| CAP-AG02 | 解释 Skill、Tool、MCP 必需来路（执行类型必需集合与定义引用两处叠加，任一处标常驻即常驻）、继承范围、排除及已知身份；区分身份选入与实现解析；继承范围与排除不在本阶段 | [J-AG01](#j-ag01)、[J-AG07](#j-ag07) | [定义专题](../../../../packages/agent/agent-contract/docs/public-api/definition.md#旅程与持续验证)；源码 [judge-definition.ts](../../../../packages/agent/agent-contract/src/judge-definition.ts)、[body-contract.ts](../../../../packages/agent/agent-contract/src/body-contract.ts)，[agent-contract 测试说明](../../../../packages/agent/agent-contract/tests/README.md) | 必需来路与已知身份的契约类型与声明判定已实现。继承范围与排除没有契约类型，也没有判定，规则只在[定义专题](../../../../packages/agent/agent-contract/docs/public-api/definition.md#必需身份与继承)，解析归 `AgentAdoptions.resolve`，它只有类型。推进与运行未实现 | 未核实，未运行、未接受 |
-| CAP-AG03 | 根据完整工作依据求值并在合法位置推进；接续优先、当前全部输入承接、同依据同结果 | [J-AG02](#j-ag02)、[J-AG06](#j-ag06)、[J-AG08](#j-ag08) | [Loop 专题](../../../../packages/agent/agent-contract/docs/flows/loop.md#旅程与持续验证)；契约类型源码 [index.ts](../../../../packages/agent/agent-contract/src/index.ts) | 契约类型已实现，推进与运行未实现 | 未核实，未运行、未接受 |
-| CAP-AG04 | 协调 Context 与模型请求，固定实际输入、消费完整收场；内部重试不另造调用，不执行未完整参数 | [J-AG02](#j-ag02)、[J-AG04](#j-ag04) | [Loop 专题](../../../../packages/agent/agent-contract/docs/flows/loop.md#旅程与持续验证)；契约类型源码 [index.ts](../../../../packages/agent/agent-contract/src/index.ts) | 契约类型已实现，推进与运行未实现 | 未核实，未运行、未接受 |
-| CAP-AG05 | 在九处位置组合扩展；保留原参数和生效参数，整批判断屏障、当前授权复核及合法故障兜底 | [J-AG02](#j-ag02)、[J-AG03](#j-ag03)、[J-AG07](#j-ag07) | [扩展专题](../../../../packages/agent/agent-contract/docs/public-api/extensions.md#旅程与持续验证)；源码 [extensions.ts](../../../../packages/agent/agent-contract/src/extensions.ts)、[judge-extensions.ts](../../../../packages/agent/agent-contract/src/judge-extensions.ts)、[judge-output.ts](../../../../packages/agent/agent-contract/src/judge-output.ts)，[agent-contract 测试说明](../../../../packages/agent/agent-contract/tests/README.md) | 契约类型与声明判定已实现，推进与运行未实现 | 未核实，未运行、未接受 |
-| CAP-AG06 | 保存人工等待与扩展经过；有效答复回原位置，整批处理后继续，允许后继出卡，不重问或默认答复 | [J-AG03](#j-ag03)、[J-AG06](#j-ag06)、[J-AG07](#j-ag07) | [扩展专题](../../../../packages/agent/agent-contract/docs/public-api/extensions.md#旅程与持续验证)；契约类型源码 [index.ts](../../../../packages/agent/agent-contract/src/index.ts) | 契约类型已实现，推进与运行未实现 | 未核实，未运行、未接受 |
-| CAP-AG07 | 按外部输入、模型回复及工具结果来源处理入口否决；保留原事实，限制有效 Run 范围，不重做效果 | [J-AG04](#j-ag04) | [Loop 专题](../../../../packages/agent/agent-contract/docs/flows/loop.md#旅程与持续验证)；契约类型源码 [index.ts](../../../../packages/agent/agent-contract/src/index.ts) | 契约类型已实现，推进与运行未实现 | 未核实，未运行、未接受 |
-| CAP-AG08 | 核对完成候选并承接失败、取消和单调用控制；统一终态出口，迟到事实不复活工作 | [J-AG04](#j-ag04)、[J-AG05](#j-ag05)、[J-AG08](#j-ag08) | [Loop 专题](../../../../packages/agent/agent-contract/docs/flows/loop.md#旅程与持续验证)；契约类型源码 [index.ts](../../../../packages/agent/agent-contract/src/index.ts) | 契约类型已实现，推进与运行未实现 | 未核实，未运行、未接受 |
-| CAP-AG09 | 跨实例接续原调用、判断及交付责任；独立执行、不重复发出、ACK 两路径和未知对账 | [J-AG02](#j-ag02)至[J-AG08](#j-ag08) | [SPEC](../../../../packages/agent/agent-contract/SPEC.md#旅程验证入口)；契约类型源码 [index.ts](../../../../packages/agent/agent-contract/src/index.ts) | 契约类型已实现，身份解码与结构判定已实现并有测试，推进与运行未实现 | 未核实，未运行、未接受 |
-| CAP-AG10 | 按原事实维持守卫、可重建读取进度及因果费用观测；不因压缩或换代清零，不泄露正文与秘密 | [J-AG06](#j-ag06)、[J-AG08](#j-ag08) | [Loop 专题](../../../../packages/agent/agent-contract/docs/flows/loop.md#旅程与持续验证)；契约类型源码 [index.ts](../../../../packages/agent/agent-contract/src/index.ts) | 守卫与读取进度的契约类型已实现。契约包没有费用类型，费用观测归 Loop 节点 M3 与 T1，见 [Loop 算法](../../../../packages/agent/agent/docs/architecture/loop-algorithm.md#复杂度上界与进展)。推进与运行未实现 | 未核实，未运行、未接受 |
+| CAP-AG01 | 解释 AgentDefinition 身份、类型、合法来源与版本采用；会话标识固定，普通恢复不升级，合法 reload 可换同标识版本 | [J-AG01](#j-ag01)、[J-AG07](#j-ag07) | 定义专题；源码 [judge-definition.ts](../../../../packages/agent/agent-contract/src/judge-definition.ts)、[body-contract.ts](../../../../packages/agent/agent-contract/src/body-contract.ts) | 契约类型与声明判定已实现，推进与运行未实现 | 未核实，未运行、未接受 |
+| CAP-AG02 | 解释 Skill、Tool、MCP 必需来路（执行类型必需集合与定义引用两处叠加，任一处标常驻即常驻）、继承范围、排除及已知身份；区分身份选入与实现解析；继承范围与排除不在本阶段 | [J-AG01](#j-ag01)、[J-AG07](#j-ag07) | 定义专题；源码 [judge-definition.ts](../../../../packages/agent/agent-contract/src/judge-definition.ts)、[body-contract.ts](../../../../packages/agent/agent-contract/src/body-contract.ts) | 必需来路与已知身份的契约类型与声明判定已实现。继承范围与排除没有契约类型，也没有判定，规则只在[定义专题](../../../../packages/agent/SPEC.md#扩展与卡片)，解析归 `AgentAdoptions.resolve`，它只有类型。推进与运行未实现 | 未核实，未运行、未接受 |
+| CAP-AG03 | 根据完整工作依据求值并在合法位置推进；接续优先、当前全部输入承接、同依据同结果 | [J-AG02](#j-ag02)、[J-AG06](#j-ag06)、[J-AG08](#j-ag08) | Loop 专题；契约类型源码 [index.ts](../../../../packages/agent/agent-contract/src/index.ts) | 契约类型已实现，推进与运行未实现 | 未核实，未运行、未接受 |
+| CAP-AG04 | 协调 Context 与模型请求，固定实际输入、消费完整收场；内部重试不另造调用，不执行未完整参数 | [J-AG02](#j-ag02)、[J-AG04](#j-ag04) | Loop 专题；契约类型源码 [index.ts](../../../../packages/agent/agent-contract/src/index.ts) | 契约类型已实现，推进与运行未实现 | 未核实，未运行、未接受 |
+| CAP-AG05 | 在九处位置组合扩展；保留原参数和生效参数，整批判断屏障、当前授权复核及合法故障兜底 | [J-AG02](#j-ag02)、[J-AG03](#j-ag03)、[J-AG07](#j-ag07) | 扩展专题；源码 [extensions.ts](../../../../packages/agent/agent-contract/src/extensions.ts)、[judge-extensions.ts](../../../../packages/agent/agent-contract/src/judge-extensions.ts)、[judge-output.ts](../../../../packages/agent/agent-contract/src/judge-output.ts) | 契约类型与声明判定已实现，推进与运行未实现 | 未核实，未运行、未接受 |
+| CAP-AG06 | 保存人工等待与扩展经过；有效答复回原位置，整批处理后继续，允许后继出卡，不重问或默认答复 | [J-AG03](#j-ag03)、[J-AG06](#j-ag06)、[J-AG07](#j-ag07) | 扩展专题；契约类型源码 [index.ts](../../../../packages/agent/agent-contract/src/index.ts) | 契约类型已实现，推进与运行未实现 | 未核实，未运行、未接受 |
+| CAP-AG07 | 按外部输入、模型回复及工具结果来源处理入口否决；保留原事实，限制有效 Run 范围，不重做效果 | [J-AG04](#j-ag04) | Loop 专题；契约类型源码 [index.ts](../../../../packages/agent/agent-contract/src/index.ts) | 契约类型已实现，推进与运行未实现 | 未核实，未运行、未接受 |
+| CAP-AG08 | 核对完成候选并承接失败、取消和单调用控制；统一终态出口，迟到事实不复活工作 | [J-AG04](#j-ag04)、[J-AG05](#j-ag05)、[J-AG08](#j-ag08) | Loop 专题；契约类型源码 [index.ts](../../../../packages/agent/agent-contract/src/index.ts) | 契约类型已实现，推进与运行未实现 | 未核实，未运行、未接受 |
+| CAP-AG09 | 跨实例接续原调用、判断及交付责任；独立执行、不重复发出、ACK 两路径和未知对账 | [J-AG02](#j-ag02)至[J-AG08](#j-ag08) | SPEC；契约类型源码 [index.ts](../../../../packages/agent/agent-contract/src/index.ts) | 契约类型已实现，身份解码与结构判定已实现并有测试，推进与运行未实现 | 未核实，未运行、未接受 |
+| CAP-AG10 | 按原事实维持守卫、可重建读取进度及因果费用观测；不因压缩或换代清零，不泄露正文与秘密 | [J-AG06](#j-ag06)、[J-AG08](#j-ag08) | Loop 专题；契约类型源码 [index.ts](../../../../packages/agent/agent-contract/src/index.ts) | 守卫与读取进度的契约类型已实现。契约包没有费用类型，费用观测归 Loop 节点 M3 与 T1，见 [Loop 算法](../../../../packages/agent/SPEC.md#总体架构)。推进与运行未实现 | 未核实，未运行、未接受 |
 
 ## 阶段与版本支持承诺
 
@@ -259,21 +259,21 @@ L1、L2 提醒后可以继续，L3 以打转失败进入统一终态出口，L4 
 
 本项为技术义务。模型完整回复被消息入口否决后创建新调用，期间可能换 attempt 或经过 Context 压缩。需要辨认同一推进单元。连续否决不设次数上限。M2 的临时兜底除外：拒收后的新调用计入 Agent 工厂配置 `maxRunSteps`（缺省 50），依据 R2-D229 与 R2-D221，完整的循环判断见波 3。
 
-Agent 自有技术方案已明确，仍待实现与故障验证，不新增产品裁决。责任由 Agent Loop 与运行策略拥有者承担；当前设计与验证边界见[技术原文](../../../../packages/agent/agent/docs/architecture/open-questions.md#agent-m01)。
+Agent 自有技术方案已明确，仍待实现与故障验证，不新增产品裁决。责任由 Agent Loop 与运行策略拥有者承担。
 
 <a id="agent-m02"></a>
 ### AGENT-M02 扩展稳定调用、非确定输入与撤除后接续
 
 本项为技术义务。扩展已调用模型或出卡，当前推进实例被替换，原依赖撤除或新版判断语义不同。
 
-Agent 自有接续方案已明确，采用原精确版本恢复；运行提供者及故障验证未完成。assembly、HITL 与授权继续拥有原构成和决定，Session 的推进换代另由其技术义务承接。当前设计与验证边界见[技术原文](../../../../packages/agent/agent/docs/architecture/open-questions.md#agent-m02)。
+Agent 自有接续方案已明确，采用原精确版本恢复；运行提供者及故障验证未完成。assembly、HITL 与授权继续拥有原构成和决定，Session 的推进换代另由其技术义务承接。当前设计与验证边界见技术原文。
 
 <a id="agent-m03"></a>
 ### AGENT-M03 原子推进、可靠交接与长期读取机制
 
 本项为技术义务。多个触发竞争推进，提交确认丢失，结果交接后模型已 ACK，长期历史不断增长。
 
-Agent 自有提交与读取协议已明确，实际提供者及性能验证未完成。会话专用的输入/终结、推进映射、日志和消费交接由 Session 未决事项承接。当前设计与验证边界见[技术原文](../../../../packages/agent/agent/docs/architecture/open-questions.md#agent-m03)。
+Agent 自有提交与读取协议已明确，实际提供者及性能验证未完成。会话专用的输入/终结、推进映射、日志和消费交接由 Session 未决事项承接。当前设计与验证边界见技术原文。
 
 <a id="agent-n01"></a>
 ### AGENT-N01 本批不展开的长程议题

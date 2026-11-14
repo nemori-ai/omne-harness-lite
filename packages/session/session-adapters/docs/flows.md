@@ -198,7 +198,7 @@ flowchart LR
 
 ### FA-13 Tool 启动围栏
 
-围栏由 Agent 日志的 start-fence 条目在 Tool 排序域生效，见 [Agent J03](../../../agent/agent-contract/SPEC.md#tool-启动围栏)。Session 不发另一套失效调用，不以本域撤销宣称 Tool 已阻止新发起。
+围栏由 Agent 日志的 start-fence 条目在 Tool 排序域生效，见 [Agent J03](../../../agent/SPEC.md#动作与工具)。Session 不发另一套失效调用，不以本域撤销宣称 Tool 已阻止新发起。
 
 ### FA-14 原生产者确认的日志投影
 

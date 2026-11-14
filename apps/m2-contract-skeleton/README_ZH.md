@@ -30,7 +30,7 @@
 
 ## 契约
 
-路径调用 [public-contract](../../packages/access/public-contract/SPEC.md) 的治理与会话编解码、[identity](../../packages/identity/identity/SPEC.md) 的操作、带注入访问检查的 [Session 契约](../../packages/session/session-contract/SPEC.md) 事务端口、[Agent](../../packages/agent/agent/SPEC.md) 运行时与宿主接收方、[Request Context](../../packages/context/SPEC.md#应然设计) 的组装，以及 [Model 契约](../../packages/model/model-contract/SPEC.md) 的结果推送。Model 义务来自 `@omne-harness/model-contract/conformance`。`src/` 只导入根入口与 `./conformance` 入口。测试接入全部 `./testing` 替身，包括 [session-adapters](../../packages/session/session-adapters/SPEC.md) 的同日志 Journal。替身清单见[公开依赖](SPEC.md#public-dependencies)。
+路径调用 [public-contract](../../packages/access/public-contract/SPEC.md) 的治理与会话编解码、[identity](../../packages/identity/identity/SPEC.md) 的操作、带注入访问检查的 [Session 契约](../../packages/session/session-contract/SPEC.md) 事务端口、[Agent](../../packages/agent/SPEC.md#应然设计) 运行时与宿主接收方、[Request Context](../../packages/context/SPEC.md#应然设计) 的组装，以及 [Model 契约](../../packages/model/model-contract/SPEC.md) 的结果推送。Model 义务来自 `@omne-harness/model-contract/conformance`。`src/` 只导入根入口与 `./conformance` 入口。测试接入全部 `./testing` 替身，包括 [session-adapters](../../packages/session/session-adapters/SPEC.md) 的同日志 Journal。替身清单见[公开依赖](SPEC.md#public-dependencies)。
 
 稳定的输出是逐跳观察、跳点状态、残余缺口清单与 `fullPath`。路径证明这些公开入口能为同一租户按次序连通，并证明每一跳交接的值形状。
 
@@ -42,18 +42,18 @@
 
 残余缺口写明连通路径不包含的部分。只有阻断残余缺口使跳点保持 `gap` 状态。承接者记在交付流程里，不记在本文件。
 
-| 缺口                    | 阻断 | 跳            | 摘要                                                                                                                                                    |
-| ----------------------- | ---- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GAP-SESSION-WIRE        | 否   | H03、H04、H08 | 会话编解码在进程内运行。映射线上会话标识与识别登录的服务端接入仍然缺。                                                                                  |
-| GAP-SESSION-COORDINATOR | 否   | H04、H07、H09 | 没有 Session 的面、推进适配与 Session 一侧的交接，由本应用排定调用次序。                                                                                |
-| GAP-RUN-COMPLETED       | 否   | H07           | 本路径上 Session 不能形成 completed 的 Run 终态。                                                                                                       |
-| GAP-AGENT-CONTEXT       | 否   | H05           | 没有 Agent 一侧的 Context 适配。Request Context 取得租约后，由本应用的桥固定请求。                                                                      |
-| GAP-RECEIVE-SURFACE     | 否   | H06           | H06 经 pusher 与宿主接收方连通。Model ACK 在 Session 一侧的记账仍是具名偏离 `MODEL-ACK-ARRIVAL`。                                                       |
-| GAP-SECOND-RUN          | 是   | H09           | Session 以 `run-active` 拒绝第二个 Run，Agent 对 `input.submit` 答 `unavailable`。                                                                      |
-| GAP-TOOL-LOOP           | 是   | H10           | 装配缺 `toolRequests`，Agent 拒绝整批工具调用动作。本应用的消息桥拒绝交接拒绝消息，loop 因此停在 T5，没有发起 Tool 调用。owner 是 Reduce B3（R2-D36）。 |
-| GAP-AGENT-REASSEMBLY    | 是   | H11           | `quiesce` 把执行交接出去并返回 `drained`。`detach` 与 `resume` 返回 `unavailable`，所以没有实例接着推进这次执行。没有公开入口提供 server entry 的观察路径，重装配后观察是否连续无法观察。                            |
-| GAP-REASONING-REPLAY    | 是   | H12           | Agent loop 交出的回复不含已封的推理部件（R2-D268），下一次请求无法回放它们。第 2 轮还会遇到 GAP-SECOND-RUN。                                            |
-| GAP-SESSION-LOG-TARGETS | 是   | H13           | 同日志提供者不暴露 Model 接收目标，无法在 Session 日志上建立接收方。                                                                                    |
+| 缺口                    | 阻断 | 跳            | 摘要                                                                                                                                                                                      |
+| ----------------------- | ---- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GAP-SESSION-WIRE        | 否   | H03、H04、H08 | 会话编解码在进程内运行。映射线上会话标识与识别登录的服务端接入仍然缺。                                                                                                                    |
+| GAP-SESSION-COORDINATOR | 否   | H04、H07、H09 | 没有 Session 的面、推进适配与 Session 一侧的交接，由本应用排定调用次序。                                                                                                                  |
+| GAP-RUN-COMPLETED       | 否   | H07           | 本路径上 Session 不能形成 completed 的 Run 终态。                                                                                                                                         |
+| GAP-AGENT-CONTEXT       | 否   | H05           | 没有 Agent 一侧的 Context 适配。Request Context 取得租约后，由本应用的桥固定请求。                                                                                                        |
+| GAP-RECEIVE-SURFACE     | 否   | H06           | H06 经 pusher 与宿主接收方连通。Model ACK 在 Session 一侧的记账仍是具名偏离 `MODEL-ACK-ARRIVAL`。                                                                                         |
+| GAP-SECOND-RUN          | 是   | H09           | Session 以 `run-active` 拒绝第二个 Run，Agent 对 `input.submit` 答 `unavailable`。                                                                                                        |
+| GAP-TOOL-LOOP           | 是   | H10           | 装配缺 `toolRequests`，Agent 拒绝整批工具调用动作。本应用的消息桥拒绝交接拒绝消息，loop 因此停在 T5，没有发起 Tool 调用。owner 是 Reduce B3（R2-D36）。                                   |
+| GAP-AGENT-REASSEMBLY    | 是   | H11           | `quiesce` 把执行交接出去并返回 `drained`。`detach` 与 `resume` 返回 `unavailable`，所以没有实例接着推进这次执行。没有公开入口提供 server entry 的观察路径，重装配后观察是否连续无法观察。 |
+| GAP-REASONING-REPLAY    | 是   | H12           | Agent loop 交出的回复不含已封的推理部件（R2-D268），下一次请求无法回放它们。第 2 轮还会遇到 GAP-SECOND-RUN。                                                                              |
+| GAP-SESSION-LOG-TARGETS | 是   | H13           | 同日志提供者不暴露 Model 接收目标，无法在 Session 日志上建立接收方。                                                                                                                      |
 
 ## 配置与运行
 

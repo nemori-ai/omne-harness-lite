@@ -6,13 +6,13 @@
 
 模型版本为 1。输入基线为 `2e6fa47b1e95b8f0108fbe2032d9f9457f4b54a8`，模型没有改变产品契约。
 
-| 拥有者                                                                                    | 采用条款                                                                       |
-| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| [session-adapters SPEC](../../SPEC.md#j06-会话路径的两个-agent-提供者)                    | J06 的 Ki/H 原身份、完整 request、origin、原主体与 outcome，固定后才返回       |
-| [Agent SPEC](../../../../agent/agent-contract/SPEC.md#消息准入)                           | prepare 的步骤 2、4、6，原结果先认回，异输入冲突，首次来源不被新主体或路由覆盖 |
-| [Agent 恢复切点](../../../../agent/agent-contract/SPEC.md#准入的恢复切点)                 | 准入已经固定后崩溃，沿原 Ki/H 查询，不重复准入                                 |
-| [Runtime Context SPEC](../../../../context/SPEC.md#访问核对) | 捕获的 current 在失效后不能恢复，异步等待后须重核                              |
-| [session-storage-sql SPEC](../../../session-storage-sql/SPEC.md#执行索引)                 | `(tenant, execution)` 到 Session 的唯一映射，同名 execution 可分别属于不同租户 |
+| 拥有者                                                                    | 采用条款                                                                       |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [session-adapters SPEC](../../SPEC.md#j06-会话路径的两个-agent-提供者)    | J06 的 Ki/H 原身份、完整 request、origin、原主体与 outcome，固定后才返回       |
+| [Agent SPEC](../../../../agent/SPEC.md#消息准入)                          | prepare 的步骤 2、4、6，原结果先认回，异输入冲突，首次来源不被新主体或路由覆盖 |
+| [Agent 恢复切点](../../../../agent/SPEC.md#受理恢复与接管)                | 准入已经固定后崩溃，沿原 Ki/H 查询，不重复准入                                 |
+| [Runtime Context SPEC](../../../../context/SPEC.md#访问核对)              | 捕获的 current 在失效后不能恢复，异步等待后须重核                              |
+| [session-storage-sql SPEC](../../../session-storage-sql/SPEC.md#执行索引) | `(tenant, execution)` 到 Session 的唯一映射，同名 execution 可分别属于不同租户 |
 
 进程代次只保护当前进程内读取方的生命周期。模型不证明 #677 的跨进程同步撤权，也不把原授权答复替换为过程内缓存。模型把原授权的 current 固定为真，单独检查进程桥能否拒绝已经退役的引用。
 
@@ -67,14 +67,14 @@
 
 ## 性质与负控
 
-| 条款 | 不变量                                    | 正常预期                                                      | 移除的控制与具名配置                                                                            |
-| ---- | ----------------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| P1   | `RetiredNeverCurrent`                     | 所有已退役捕获引用的 current 为假，包括晚到答复和重装后的引用 | `bad-retirement` 不关闭 live；`bad-generation-check` 不比较引用代次                             |
-| P1   | `LiveReaderUnaffected`                    | 未退役读取方的当前引用仍可使用                                | 与 P1 的退役负控共同检查，避免正常控制退化为恒假                                                |
-| P2   | `AtomicRecord`                            | 索引与完整意图对应，outcome 有完整原记录                      | `bad-partial-record` 只发布索引                                                                 |
-| P2   | `ReplyIsDurable`、`RestartRetainsReplies` | 已返回的结果在返回时与重启后都仍可读                          | `bad-early-reply` 在 Compute 后返回，随后崩溃丢失 outcome。该配置只检查重启性质，以保留重启反例 |
-| P3   | `UniqueHandoff`                           | 同 Ki 或 H 只能认回同一完整原记录                             | `bad-ki-rebind` 与 `bad-h-rebind` 允许不同输入占据原索引                                        |
-| P3   | `UniqueExecutionRoute`                    | 同租户同 execution 只对应一个 Session                         | `bad-execution-rebind` 允许写入第二个 Session                                                   |
+| 条款 | 不变量                                    | 正常预期                                                      | 移除的控制与具名配置                                                                               |
+| ---- | ----------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| P1   | `RetiredNeverCurrent`                     | 所有已退役捕获引用的 current 为假，包括晚到答复和重装后的引用 | `bad-retirement` 不关闭 live；`bad-generation-check` 不比较引用代次                                |
+| P1   | `LiveReaderUnaffected`                    | 未退役读取方的当前引用仍可使用                                | 与 P1 的退役负控共同检查，避免正常控制退化为恒假                                                   |
+| P2   | `AtomicRecord`                            | 索引与完整意图对应，outcome 有完整原记录                      | `bad-partial-record` 只发布索引                                                                    |
+| P2   | `ReplyIsDurable`、`RestartRetainsReplies` | 已返回的结果在返回时与重启后都仍可读                          | `bad-early-reply` 在 Compute 后返回，随后崩溃丢失 outcome。该配置只检查重启性质，以保留重启反例    |
+| P3   | `UniqueHandoff`                           | 同 Ki 或 H 只能认回同一完整原记录                             | `bad-ki-rebind` 与 `bad-h-rebind` 允许不同输入占据原索引                                           |
+| P3   | `UniqueExecutionRoute`                    | 同租户同 execution 只对应一个 Session                         | `bad-execution-rebind` 允许写入第二个 Session                                                      |
 | P4   | `OriginalResult`、`AtMostOneAdmission`    | 同 H 永远返回原 outcome，固定新结果至多一次                   | `bad-repeat-admission` 再次计入准入固定；`bad-original-result` 绕过原结果选择，暴露同 H 的不同结果 |
 
 所有正常配置也检查 `TypeOK`。负控只删除表中指定控制，不改变输入范围。它们必须得到 TLC 退出码 12、指定不变量与完整反例。语法失败、超时、其他退出码或错误性质均不算命中。
@@ -100,13 +100,13 @@ Generation 枚举两个读取方，每个最多三代。Handoff 枚举两个调�
 
 ## 源码映射与后续实现义务
 
-| 模型位置                         | 基线源码与状态                                                                                                                                                                                                                           | 实现必须核对的切点                                                                    |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `Capture`、`Deliver`             | [runtime-context-trust.ts](../../src/runtime-context-trust.ts) 的 `capture`、`bridged` 与三种 authority 方法已存在                                                                                                                       | 首次 await 前捕获，原 current 与桥 current 合取，晚到答复保留原引用                   |
-| `Retire`、`Assemble`             | [应用进程桥](../../../../../apps/harness-server/src/entry/runtime-context-trust.ts) 的 `Generation`、`bridgeOf`、`trustFor` 已存在                                                                                                       | 每个读取方的 effect 撤除使原对象永久退役。应用修改归 Reduce，不属于本资源             |
-| `intents`、`outcomes`            | [Agent 公开类型](../../../../agent/agent-contract/src/passages.ts) 的 `InputHandoff`、`InputOrigin`、`HandoffOutcome`、`HandoffLookup` 已存在                                                                                            | 实际请求、完整原来源、主体稳定身份与结果同原 H 关联；原资格依据不替代当前许可         |
+| 模型位置                         | 基线源码与状态                                                                                                                                                                                                                                                   | 实现必须核对的切点                                                                                                                                                                                                          |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Capture`、`Deliver`             | [runtime-context-trust.ts](../../src/runtime-context-trust.ts) 的 `capture`、`bridged` 与三种 authority 方法已存在                                                                                                                                               | 首次 await 前捕获，原 current 与桥 current 合取，晚到答复保留原引用                                                                                                                                                         |
+| `Retire`、`Assemble`             | [应用进程桥](../../../../../apps/harness-server/src/entry/runtime-context-trust.ts) 的 `Generation`、`bridgeOf`、`trustFor` 已存在                                                                                                                               | 每个读取方的 effect 撤除使原对象永久退役。应用修改归 Reduce，不属于本资源                                                                                                                                                   |
+| `intents`、`outcomes`            | [Agent 公开类型](../../../../agent/agent-contract/src/passages.ts) 的 `InputHandoff`、`InputOrigin`、`HandoffOutcome`、`HandoffLookup` 已存在                                                                                                                    | 实际请求、完整原来源、主体稳定身份与结果同原 H 关联；原资格依据不替代当前许可                                                                                                                                               |
 | `SaveIntent`、`Commit`、`Lookup` | 已兑现：[message-handoff.ts](../../src/cordis/message-handoff.ts) 的 `prepare` 先以 `preadmission` 意图阶段保存（`SaveIntent`），存储确认后以结果阶段固定一次（`Commit`，事务内重查由 session-storage-sql 的 `er_preadmission` 承担），`lookup` 只读（`Lookup`） | 已核：完整记录与 Ki 唯一由存储的独立表与 002 迁移承担；同 Ki 认回与杀进程读回见 `tests/message-handoff.spec.ts`、`tests/message-handoff-real.spec.ts`。未核：两个调用方并发交错只由存储层事务与模型覆盖，本成员没有并发用例 |
-| `BindExecution`                  | [执行索引迁移](../../../session-storage-sql/src/worker/execution-index-migration.ts)、[路由读取](../../../session-storage-sql/src/worker/read-execution-session.ts) 与 [Journal 路由](../../src/cordis/agent-journal-provider.ts) 已存在 | 路由与原 SE13 同事务，冲突不覆盖；读取按 tenant 与 execution，不从调用连接猜归属      |
+| `BindExecution`                  | [执行索引迁移](../../../session-storage-sql/src/worker/execution-index-migration.ts)、[路由读取](../../../session-storage-sql/src/worker/read-execution-session.ts) 与 [Journal 路由](../../src/cordis/agent-journal-provider.ts) 已存在                         | 路由与原 SE13 同事务，冲突不覆盖；读取按 tenant 与 execution，不从调用连接猜归属                                                                                                                                            |
 
 既有 Agent `model-reception`、Finishing 与 Session frontier 模型分别覆盖结果接收、终结与日志前沿。本资源不修改它们，也不将它们的通过结论用于 P1～P4。
 

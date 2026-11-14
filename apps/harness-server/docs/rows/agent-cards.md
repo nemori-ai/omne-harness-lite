@@ -2,7 +2,7 @@
 
 本页说明发行树里 `agent-cards` 行怎样接线。它提供 Agent 的卡片端口 `agentDecisionCards`：Agent 循环要人决定时，
 一轮卡片经 HITL 保管。系统责任归[应用装配](../../../../docs/architecture/runtime/application-assembly.md#插件树)。
-端口的契约归 [Agent 契约](../../../../packages/agent/agent-contract/SPEC.md#卡片与准入端口的逐操作要素)，
+端口的契约归 [Agent 契约](../../../../packages/agent/SPEC.md#扩展与卡片)，
 卡片与等待的协议归 [HITL 公共协议](../../../../packages/human-intervention/human-intervention/docs/protocol.md)。
 
 ## 接线

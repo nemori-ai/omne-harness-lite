@@ -280,7 +280,7 @@ Run终态只为完成、失败、被取消，每Run最多一次有效终结。�
 | 同身份重试 | 相同提交身份返回原结果。                                                                           |
 | 参数冲突   | 同一提交身份带上不同目标或不同种类则拒绝。                                                         |
 
-会话日志上的查询认回见[日志提交与查询结果](#日志提交与查询结果)。调用登记的发起字段归 [Agent](../../agent/agent-contract/SPEC.md#身份范围与归属)。模型受理归 [model](../../model/model-contract/SPEC.md#调用和各次真实发出)。工具的停止和交付解除归 [tool](../../tool/tool-contract/SPEC.md#必要持久事实与确认)。Context 的注册和读取归 [runtime-context](../../context/SPEC.md#块注册与资格)。请求组装归 [request-context](../../context/SPEC.md#七组稳定读取与来源登记)。
+会话日志上的查询认回见[日志提交与查询结果](#日志提交与查询结果)。调用登记的发起字段归 [Agent](../../agent/SPEC.md#身份租户与资格)。模型受理归 [model](../../model/model-contract/SPEC.md#调用和各次真实发出)。工具的停止和交付解除归 [tool](../../tool/tool-contract/SPEC.md#必要持久事实与确认)。Context 的注册和读取归 [runtime-context](../../context/SPEC.md#块注册与资格)。请求组装归 [request-context](../../context/SPEC.md#七组稳定读取与来源登记)。
 
 会话控制请求工具转后台时沿工具许可及转换契约；控制受理不表示转换完成。工具侧保存实际转换/收场，会话和 Agent 可靠承接后改变原步骤等待，不建立第二次执行或释放仍在执行的并发名额。后台最终结果沿原消费契约交回，原身份、效果、全文和费用保持；不默认支持后台转回前台。工具内 Ask 等待的后台限制沿工具契约，不由会话控制绕过。
 
@@ -702,7 +702,7 @@ Session 命令：
 
 ##### 稳定调用引用的读取
 
-调用登记（SE18，种类短名 `call.bound`）条目的载荷保存该调用的登记记录。载荷的公开可读字段沿 Agent 契约的 [`PendingCall`](../../agent/agent-contract/SPEC.md#两态登记与完整原请求)，有下列三个。
+调用登记（SE18，种类短名 `call.bound`）条目的载荷保存该调用的登记记录。载荷的公开可读字段沿 Agent 契约的 [`PendingCall`](../../agent/SPEC.md#受理恢复与接管)，有下列三个。
 
 - 载荷的 `kind` 是 `model` 或 `tool`，不同于条目的种类短名 `call.bound`。
 - `reference` 在 Model 分支是稳定 `ModelInvocationRef` 文本。在 Tool 分支是 `ToolInvocationRef` 文本，尚未关联的 Tool 登记没有该字段。
@@ -956,11 +956,11 @@ Agent 原事实先由同一 Journal 提交保存。Session 后续按 [EC-01](#ec
 
 Session 参加执行的命令（JC-06、09、11、12）走同一条流水线：按 OP-00 认回、权威读、领域服务裁定、写事实。差别只在提交由执行记录提供者发起，回执经调用方交接回到 Agent。参加者只接收版本化材料，核对来源与 schema，在已登记的组合内经授权的事务端口工作。先读工作状态、再异步受理的两次成功不能声称资格与受理共同成立。执行记录提供者对未声明的共同提交种类返回 `unsupported` 时，Session 不保存任何一半。
 
-Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫。Session 提交本域推进资格的撤销，并通过 Agent 公开控制与条件提交交接。Tool 启动围栏由 Agent 日志的 `start-fence` 条目承载，在 Tool 的排序域内生效，见 Agent 的[日志条目](../../agent/agent-contract/SPEC.md#日志条目)。Session 不拥有 Tool 启动资格版本，也不从本域撤销、控制受理或日志通知推断新 Tool 发起已经被阻止。
+Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫。Session 提交本域推进资格的撤销，并通过 Agent 公开控制与条件提交交接。Tool 启动围栏由 Agent 日志的 `start-fence` 条目承载，在 Tool 的排序域内生效，见 Agent 的[日志条目](../../agent/SPEC.md#应然设计)。Session 不拥有 Tool 启动资格版本，也不从本域撤销、控制受理或日志通知推断新 Tool 发起已经被阻止。
 
 ### 与 Agent 的参加与核对
 
-本节是 [SW-M01](../session/docs/architecture/mechanisms.md#sw-m01-技术兑现义务) A 项（输入绑定与 Agent 终结的共同提交）的精确适配契约。参加者的四种响应（参加、失败、冲突、不支持）沿 Agent 契约的[提交参加者协议](../../agent/agent-contract/SPEC.md#提交参加者协议)。Session 在下文中担任该协议的外部协调者与提交参加者。
+本节是 [SW-M01](../session/docs/architecture/mechanisms.md#sw-m01-技术兑现义务) A 项（输入绑定与 Agent 终结的共同提交）的精确适配契约。参加者的四种响应（参加、失败、冲突、不支持）沿 Agent 契约的[提交参加者协议](../../agent/SPEC.md#提交认回与未知)。Session 在下文中担任该协议的外部协调者与提交参加者。
 
 <a id="pa-01"></a>
 
@@ -972,7 +972,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
   2. `submit`：来源依据是该输入的 SE11 回执。核对回执指向本会话已提交的 SE11，该 `InputId` 当前有待处理资格，去处是本 Run，该执行等于 `run.active.execution.execution`。
   3. `attach`（经出站端口 `resume` 发起）：来源依据是推进资格依据所指 attempt 的 SE15 回执。它作为 Agent `Journal.attach` 输入的推进资格依据 `grant` 到达参加者。核对回执指向本会话已提交的 SE15，并满足下列一种情形。
      - 普通推进：该执行等于 `run.active.execution.execution`，该 attempt 等于 `run.active.advance`，Run 未终态。
-     - 取消收束：这里的 Run 指该执行所属的 Run，不是会话当前的 Run。该 Run 已是 cancelled 终态（SE26），该 attempt 是该 Run 在取消之前最后授予的 attempt。它的 SE16 由取消批次写入，或在取消之前已经写入。更早授予的 attempt 不能用这条收束。这样取得的挂接只带取消授权，结论只能是 cancelled，不恢复推进权（Agent SPEC [条件终结](../../agent/agent-contract/SPEC.md#条件终结)「终结授权有两种」）。
+     - 取消收束：这里的 Run 指该执行所属的 Run，不是会话当前的 Run。该 Run 已是 cancelled 终态（SE26），该 attempt 是该 Run 在取消之前最后授予的 attempt。它的 SE16 由取消批次写入，或在取消之前已经写入。更早授予的 attempt 不能用这条收束。这样取得的挂接只带取消授权，结论只能是 cancelled，不恢复推进权（Agent SPEC [条件终结](../../agent/SPEC.md#终结)「终结授权有两种」）。
 
      执行已经结束时，Agent 先返回 `terminal`，不进入本核对。本条是 attach 核对的唯一规定，[PM-05](#pm-05)、[PM-06](#pm-06)、[PM-08](#pm-08) 与 [PM-13](#pm-13) 引用它。
 - 结果：核对成立时响应「参加」，不写 Session 条目。`invoke` 或 `submit` 受理成功后，推进协调以 `receive` 提交交入回执（SE35），该输入进入 `handed`。
@@ -1011,7 +1011,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 
 - 前提：[P-1](#具名前提与明确缺项)、[P-2](#具名前提与明确缺项)。
 - 动作：
-  1. 参加种类与协调模式：装配核对执行记录提供者的 `capabilities.participants` 含 `message`、`context-transition`、`custody`、`processed` 四种，并核对其 `capabilities.coordination` 为 `coordinated`、与装配配置 `coordination` 相等（Agent SPEC 的[提交参加者协议](../../agent/agent-contract/SPEC.md#提交参加者协议)）。缺一种或模式不相等就拒绝装配。Session 不声明其他参加种类。
+  1. 参加种类与协调模式：装配核对执行记录提供者的 `capabilities.participants` 含 `message`、`context-transition`、`custody`、`processed` 四种，并核对其 `capabilities.coordination` 为 `coordinated`、与装配配置 `coordination` 相等（Agent SPEC 的[提交参加者协议](../../agent/SPEC.md#提交认回与未知)）。缺一种或模式不相等就拒绝装配。Session 不声明其他参加种类。
   2. 修订：每次参加提交的材料含本次写入的 revision 与回执。提交成功后，参加者把它记入 `ExecutionRef.revision`，把回执记入 `ExecutionRef.evidence`。事件解释按 [FR-05](#fr-05) 取得同根真实 head 及原回执，不以事件序号或事件原来源代替这两项。
 - 结果：`ExecutionRef` 总是指向一次已成立的 Agent 提交。Session 不以 `ExecutionRef.revision` 拒绝 Agent 的提交，因为日志解释进度与参加提交的投影进度可能不同；发布前仍复核权威 Session 修订。
 - 失败：参加种类或协调模式不符时响应「不支持」。材料缺项时响应「不支持」，不保存任何一半。
@@ -1081,7 +1081,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 
 ### 推进映射、claim 与 reload
 
-本节是 SW-M01 B 项（推进映射与重装配交接）的精确适配契约。Run 与 Agent 执行、attempt 与执行挂接的对应见系统页[与 Agent 执行的对应及执行引用](../../../docs/architecture/runtime/session-and-run.md#与-agent-执行的对应及执行引用)。Agent 一侧的路径选择沿 Agent 契约的[恢复与接管](../../agent/agent-contract/SPEC.md#恢复与接管)与[采用交接](../../agent/agent-contract/SPEC.md#采用交接)。
+本节是 SW-M01 B 项（推进映射与重装配交接）的精确适配契约。Run 与 Agent 执行、attempt 与执行挂接的对应见系统页[与 Agent 执行的对应及执行引用](../../../docs/architecture/runtime/session-and-run.md#与-agent-执行的对应及执行引用)。Agent 一侧的路径选择沿 Agent 契约的[恢复与接管](../../agent/SPEC.md#受理恢复与接管)与[采用交接](../../agent/SPEC.md#终结)。
 
 <a id="pm-01"></a>
 
@@ -1225,7 +1225,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
   - 晚到的 `reload`：交接证明绑定的修订已过期，返回 `changed`。
   - 晚到的 `claim`（以 attempt n 为旧资格）：`judgeAdvance` 读到当前 attempt 为 n+1，返回 `stale-advance`。
   - 晚到的 `invoke` 或 `resume`（推进资格依据为 attempt n）：执行记录提供者核对失败，返回 `denied`。
-- 责任：本域推进资格由 `judgeAdvance` 与执行记录提供者的条件提交共同保护。Tool 启动围栏的失效依据、`start-fence` 记录及恢复归 [Agent J03](../../agent/agent-contract/SPEC.md#tool-启动围栏)。哪些挂接变化触发失效仍属该节的 #502 未决项，不能从 Session 的 attempt 取代推导 Tool 已阻止新发起。失效推进者发起的新 Model 发出由执行记录提供者的条件提交（`stale-advance`）与 Agent 的动作发出围栏阻止，Session 不参加 Model 的受理点守卫。
+- 责任：本域推进资格由 `judgeAdvance` 与执行记录提供者的条件提交共同保护。Tool 启动围栏的失效依据、`start-fence` 记录及恢复归 [Agent J03](../../agent/SPEC.md#动作与工具)。哪些挂接变化触发失效仍属该节的 #502 未决项，不能从 Session 的 attempt 取代推导 Tool 已阻止新发起。失效推进者发起的新 Model 发出由执行记录提供者的条件提交（`stale-advance`）与 Agent 的动作发出围栏阻止，Session 不参加 Model 的受理点守卫。
 
 <a id="pm-12"></a>
 
@@ -1247,7 +1247,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 - 动作：控制传播协调按挂接状态处理。
   1. 挂接存活时，控制经出站端口 `control` 送到原执行。
   2. 没有挂接时，仍先经出站端口 `control` 送到 Agent 的长期控制入口，受理不依赖挂接。后续收束由恢复协调 `resume` 原执行，必要时取得独立接管资格。Session 参加者按 [PA-01](#pa-01) 第 3 条的取消收束情形核对。新挂接读原取消意图，以取消授权条件终结，参加者按 [PA-02](#pa-02) 响应「参加」。之后读到的结束事实按 [RS-10](#rs-10) 认回。
-- Tool 启动围栏另按 [Agent J03](../../agent/agent-contract/SPEC.md#tool-启动围栏) 处理。Agent 取得 Tool 的失效证据后才写 `start-fence`，Session 不以取消提交代替该事实。哪些控制触发失效及特定失败的恢复仍属 #502 未决项，本节不规定取消必然产生围栏。失效推进者的新 Model 发出仍由执行记录提供者的条件提交（`stale-advance`）与 Agent 的动作发出围栏阻止。
+- Tool 启动围栏另按 [Agent J03](../../agent/SPEC.md#动作与工具) 处理。Agent 取得 Tool 的失效证据后才写 `start-fence`，Session 不以取消提交代替该事实。哪些控制触发失效及特定失败的恢复仍属 #502 未决项，本节不规定取消必然产生围栏。失效推进者的新 Model 发出仍由执行记录提供者的条件提交（`stale-advance`）与 Agent 的动作发出围栏阻止。
 - 结果：Session 的终态在提交时已经成立，不等传播。`ControlProgress` 只在原控制的传播、生产者核对与原责任交接均已对账后成为 `reconciled`，精确判据见 [AD-02 的控制对账](../session-adapters/SPEC.md#ad-02)。传播或责任仍未知时保留 `pending`、`pendingUnassociatedWaiting` 与 `propagating`。Tool 围栏不计入该进度，也不生成 Session 失效任务。超过策略上限时仍保留进度并报告。`reconciled` 不证明物理停止、效果撤回或归档任务完成。取不到挂接且 Agent 记录不可解释时，不凭无挂接或 Run 终态解除原责任。
 - 失败：长期控制或后续 `resume` 返回 `terminal` 时，读取原结束状态并按 [RS-10](#rs-10) 认回。控制结果未知时先查原操作，不为取得挂接而重发控制。
 - 责任：路径选择归控制传播协调。围栏归生产者与执行记录提供者。
@@ -1577,7 +1577,7 @@ decision非空只表示保存了原答复引用，不表示批准、已processed
 
 Message 的 CM-02、CM-04、CM-05 继续约束范围与 retained。SE18/22/24/25 的非消息引用不能伪装成模型可读消息；未结非消息须留在 after，covers 在最早必要非消息条目前结束。跨过该引用而不能合法 retained 的压缩仍被原 judgeCompaction 拒绝。若上次压缩留下该非消息在 after，后续压缩又须覆盖前次压缩条目，责任未解除期间可能无法再次压缩；本索引不承诺该期间的压缩可用性，也不放宽 Message 规则。
 
-未关联等待的控制只表达[终态与控制](#终态与控制)、[归档与撤销](#归档与撤销)、[PM-13](#pm-13) 及原 SE24/SE25 的已有责任。Agent 对取消的交接、准备阶段插队及责任释放分别按其[取消、退出与结构变更](../../agent/agent-contract/SPEC.md#取消退出与结构变更)、[插队](../../agent/agent-contract/SPEC.md#插队)、[六个阶段](../../agent/agent-contract/SPEC.md#六个阶段)，不在此新增取消政策。
+未关联等待的控制只表达[终态与控制](#终态与控制)、[归档与撤销](#归档与撤销)、[PM-13](#pm-13) 及原 SE24/SE25 的已有责任。Agent 对取消的交接、准备阶段插队及责任释放分别按其[取消、退出与结构变更](../../agent/SPEC.md#控制与取消)、[插队](../../agent/SPEC.md#控制与取消)、[六个阶段](../../agent/SPEC.md#控制与取消)，不在此新增取消政策。
 
 | 原控制                     | 未关联责任的选择与交回                                                                                                                                                                                                                                     |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1928,7 +1928,7 @@ Session 服务实例的必需依赖是 `SessionAccessCheck`、`SessionDelegatedT
 
 #### AgentDrivePort
 
-出站端口的参数只含本成员的值与不透明证据，不出现 Agent 的类型。输入只带身份：`invoke` 与 `submit` 带 `InputId`，适配器经 `readInput` 取内容。每个操作与 Agent 契约操作的对应由 session-adapters 实现，Agent 的行为沿其[托管协调与运行实例](../../agent/agent-contract/SPEC.md#托管协调与运行实例)。
+出站端口的参数只含本成员的值与不透明证据，不出现 Agent 的类型。输入只带身份：`invoke` 与 `submit` 带 `InputId`，适配器经 `readInput` 取内容。每个操作与 Agent 契约操作的对应由 session-adapters 实现，Agent 的行为沿其[托管协调与运行实例](../../agent/SPEC.md#应然设计)。
 
 | 操作           | 对应的 Agent 操作                                                                       | 用途                                              | 结果                                                                                                                                                                                                                                  |
 | -------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -2121,11 +2121,11 @@ Session 在撤销归档的同一次提交中，持久保存新业务代次、可
 
 ### JC-Release 原生产者确认的写入与未决路径
 
-Tool 结果按已采用的推送路径交付。结果接收方实现 Tool 的 `ToolResultReceiver`，只返回 saved。Tool 宿主收到 saved 后，以 saved 的证据经 `releaseDelivery` 自己解除交付责任（Agent 契约的[结果接收](../../agent/agent-contract/SPEC.md#结果接收)，Tool 契约的[结果推送与保存](../../tool/tool-contract/SPEC.md#结果推送与保存)）。Session 不调用生产者解除端口。同一日志中已有 Tool 原生产者确认时，Session 适配协调者（session-adapters 的 AD-05）读取 AgentJournal.load().results 的 ResultResponsibility.release，核对租户、原 execution 所属 Run、consumption、完整结果版本及确认依据，以原 receipt 为 source 调用现有 receive(release)，写 SE19。重复投影认回，异版本不解除责任。
+Tool 结果按已采用的推送路径交付。结果接收方实现 Tool 的 `ToolResultReceiver`，只返回 saved。Tool 宿主收到 saved 后，以 saved 的证据经 `releaseDelivery` 自己解除交付责任（Agent 契约的[结果接收](../../agent/SPEC.md#结果接收)，Tool 契约的[结果推送与保存](../../tool/tool-contract/SPEC.md#结果推送与保存)）。Session 不调用生产者解除端口。同一日志中已有 Tool 原生产者确认时，Session 适配协调者（session-adapters 的 AD-05）读取 AgentJournal.load().results 的 ResultResponsibility.release，核对租户、原 execution 所属 Run、consumption、完整结果版本及确认依据，以原 receipt 为 source 调用现有 receive(release)，写 SE19。重复投影认回，异版本不解除责任。
 
 <a id="jc-release-tool-path"></a>
 
-具名偏离 JC-RELEASE-TOOL-PATH：Tool 宿主以 `releaseDelivery` 解除交付责任之后，它的解除回执怎样进入同一日志的 `load().results[].release`，尚未确定。日志中已有该确认时由 AD-05 写 SE19，这一点按上文成立。Agent 一侧的登记见 Agent 的开放问题 [AGENT-M05](../../agent/agent/docs/architecture/open-questions.md#agent-m05)。闭合归 Agent 契约与宿主拥有者，放在 M2 之后的里程碑。
+具名偏离 JC-RELEASE-TOOL-PATH：Tool 宿主以 `releaseDelivery` 解除交付责任之后，它的解除回执怎样进入同一日志的 `load().results[].release`，尚未确定。日志中已有该确认时由 AD-05 写 SE19，这一点按上文成立。Agent 一侧的登记见 Agent 的开放问题 AGENT-M05。闭合归 Agent 契约与宿主拥有者，放在 M2 之后的里程碑。
 
 下图是推送路径上的解除顺序。标「未定」的一步是本偏离。
 
@@ -2158,7 +2158,7 @@ sequenceDiagram
 
 Model ACK 到达是具名未决义务 MODEL-ACK-ARRIVAL。冻结 Agent SPEC 的 recordResult 路径明确排除 Model 的结果采用与账目接收，AgentReceivedCommits 又明确不执行生产者 ACK。received、材料、消费绑定与 saved 同提交只证明保存，不证明 ACK。不得把 Tool 路径套给 Model，不得新增 release-confirmed JournalEntry、ACK 回调或 Agent 端口。无合法公开确认路径时保持 pending，只停止 Model confirmed 投影。control.duty-released 也不是结果交付回执。Session 不直接 inject modelRuntime 来绕过此缺口。
 
-MODEL-ACK-ARRIVAL 的闭合归 Agent 契约与宿主拥有者（[裁定第 3 项](https://github.com/nemori-ai/omne-harness-lite/issues/756#issuecomment-6488685009)），放在 M2 之后的里程碑。Agent 一侧的登记见 Agent 的开放问题 [AGENT-M05](../../agent/agent/docs/architecture/open-questions.md#agent-m05)。Model 材料的公开 facts 解释入口同样归 Agent 契约与宿主拥有者：session-adapters 的 AD-05 依 Agent 契约[结果接收](../../agent/agent-contract/SPEC.md#结果接收)第 11 条核对 schema，不自定解释规则。
+MODEL-ACK-ARRIVAL 的闭合归 Agent 契约与宿主拥有者（[裁定第 3 项](https://github.com/nemori-ai/omne-harness-lite/issues/756#issuecomment-6488685009)），放在 M2 之后的里程碑。Agent 一侧的登记见 Agent 的开放问题 AGENT-M05。Model 材料的公开 facts 解释入口同样归 Agent 契约与宿主拥有者：session-adapters 的 AD-05 依 Agent 契约[结果接收](../../agent/SPEC.md#结果接收)第 11 条核对 schema，不自定解释规则。
 
 MODEL-ACK-ARRIVAL 悬置期间，Model 一侧未确认的交付责任解除按下列规则处置（[裁定第 2 项](https://github.com/nemori-ai/omne-harness-lite/issues/756#issuecomment-6490876468)）：
 
