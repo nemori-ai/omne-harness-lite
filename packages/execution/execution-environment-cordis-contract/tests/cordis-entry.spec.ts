@@ -133,6 +133,9 @@ it('registers a subclass under the key on the fiber that loads it and removes it
     protected async onReleaseScope() {
       return refused
     }
+    protected async onRecoverResources() {
+      return refused
+    }
     protected onRegisterFacility() {
       return async () => undefined
     }
@@ -181,6 +184,10 @@ class FaceProbe extends ExecutionEnvironmentService<unknown> {
   }
   protected async onReleaseScope() {
     this.calls.push('releaseScope')
+    return { kind: 'rejected', reason: 'unavailable' } as const
+  }
+  protected async onRecoverResources() {
+    this.calls.push('recoverResources')
     return { kind: 'rejected', reason: 'unavailable' } as const
   }
   protected onRegisterFacility<
@@ -303,6 +310,7 @@ for (const caller of ['integrator', 'maintainer', 'provider', 'admin', undefined
       const recoveries = [
         await service.recoverOwned(fixture.input.scope, fixture.recovery),
         await service.releaseScope(fixture.input.scope, fixture.recovery),
+        await service.recoverResources(fixture.input.scope, fixture.recovery, []),
       ]
       const recoveryInspection = await service.inspectRecoveryAcquisition(
         fixture.recovery,
@@ -334,9 +342,14 @@ for (const caller of ['integrator', 'maintainer', 'provider', 'admin', undefined
       ).toHaveLength(environmentAllowed ? 5 : 0)
       expect(
         root.calls.filter(name =>
-          ['recoverOwned', 'releaseScope', 'inspectRecoveryAcquisition'].includes(name),
+          [
+            'recoverOwned',
+            'releaseScope',
+            'recoverResources',
+            'inspectRecoveryAcquisition',
+          ].includes(name),
         ),
-      ).toHaveLength(recoveryAllowed ? 3 : 0)
+      ).toHaveLength(recoveryAllowed ? 4 : 0)
       if (caller === 'provider') {
         const removeFacility = service.registerFacility(fixture.commandFacility)
         const removeProvider = service.registerProvider(fixture.provider)

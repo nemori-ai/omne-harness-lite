@@ -20,6 +20,7 @@ import { matchEnvironmentAdoption } from './environment-adoption.ts'
 import { controlIntent } from './control-intent.ts'
 import { controlProgress } from './control-progress.ts'
 import { decideControl, decideRecordControl } from './ledger-control.ts'
+import { settleLostWith } from './ledger-lost.ts'
 import { controlSubject, createLedgerControls } from './ledger-control-subjects.ts'
 // The ledger factory (G1): `createToolLedger(store, guards, clock, configuration, settlement)` gives the
 // ToolCommands and ToolReads of this implementation, and the admission entry that the runtime
@@ -589,12 +590,7 @@ export function createToolLedger<P, B extends ContentBlock>(
   /** A mutation entry of a later increment: boundary, access, then unsupported. */
   const later = (input: unknown, action: ToolLedgerAction, name: string, increment: string) =>
     mutate<never>(input, action, () =>
-      Promise.resolve(
-        succeed(() => ({
-          kind: 'reply',
-          outcome: unsupported(name, increment),
-        })),
-      ),
+      Promise.resolve(succeed(() => ({ kind: 'reply', outcome: unsupported(name, increment) }))),
     )
 
   const verifySource = async (
@@ -1833,7 +1829,7 @@ export function createToolLedger<P, B extends ContentBlock>(
       later(input, 'write', 'recordLateFact', 'process observation and diagnostics'),
     recordLateResult: input =>
       later(input, 'write', 'recordLateResult', 'process observation and diagnostics'),
-    settleLost: input => later(input, 'write', 'settleLost', 'recovery scan'),
+    settleLost: settleLostWith<P>({ access, settle: settleSynthetic }),
     recordTask: async input => {
       const fixed = fixCleanupFields(input, ['task', 'resolution'])
       if ('failure' in fixed) return fixed

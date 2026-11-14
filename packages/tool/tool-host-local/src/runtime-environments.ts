@@ -6,7 +6,26 @@ import {
   createLocalEnvironmentPlanResolver,
 } from './execution-environment.ts'
 import type { ToolEnvironmentValue } from './author-environment.ts'
+import type { Maintenance } from './lost-execution.ts'
 import type { LocalToolRuntimeInput, RuntimeEnvironment } from './runtime-composition.ts'
+
+export function createMaintenanceEnvironment() {
+  let current: Maintenance | null = null
+  return {
+    current: () => current,
+    plugin: {
+      name: 'local-tool-maintenance',
+      inject: { executionEnvironment: { caller: 'maintainer' as const } },
+      apply(ctx: Context) {
+        const mounted = ctx.executionEnvironment
+        current = mounted
+        ctx.effect(() => () => {
+          if (current === mounted) current = null
+        })
+      },
+    },
+  }
+}
 
 export function publishRuntimeEnvironment(
   ctx: Context,

@@ -398,6 +398,9 @@ export async function fixture(
     continuity: { kind: 'not_guaranteed' },
     requirement: { allowedBindings: [{ kind: 'host_machine' }], facilities: [], isolation: [] },
   }
+  const resourceRecovery: { answer: ExecutionEnvironment<unknown>['recoverResources'] } = {
+    answer: async () => ({ kind: 'unknown', cause: 'provider' }),
+  }
   const execution: ExecutionEnvironment<unknown> = {
     resolvePlacement: async () => placement,
     acquire: async (_access, input) => ({
@@ -429,6 +432,7 @@ export async function fixture(
     observeRetained: async () => [],
     recoverOwned: async () => ({ kind: 'unknown', cause: 'provider' }),
     releaseScope: async () => ({ kind: 'unknown', cause: 'provider' }),
+    recoverResources: (...args) => resourceRecovery.answer(...args),
   }
   const input: LocalToolRuntimeInput = {
     store,
@@ -739,6 +743,7 @@ export async function fixture(
     store,
     deliveries,
     signals,
+    resourceRecovery,
     launches: () => launches,
     forwarded,
     forwarding,
@@ -803,10 +808,14 @@ export async function fixture(
      * A second runtime over the same records, as a restarted process has it: its own plugins, its
      * own start authority, and author bindings that settle into its own author execution.
      */
-    async newExecutor() {
+    async newExecutor(overrides: Partial<LocalToolRuntimeInput> = {}) {
       const nextRoot = new Context()
       let nextBindings: typeof bindings
-      const next = createLocalToolRuntimePlugins({ ...input, bindings: () => nextBindings })
+      const next = createLocalToolRuntimePlugins({
+        ...input,
+        ...overrides,
+        bindings: () => nextBindings,
+      })
       const external = nextRoot.plugin({
         name: 'frozen-reopened-external',
         apply(ctx: Context) {
@@ -821,6 +830,7 @@ export async function fixture(
         nextRoot.plugin(next.instanceHost),
         nextRoot.plugin(next.instances),
         nextRoot.plugin(next.environments),
+        nextRoot.plugin(next.maintenance),
       ])
       nextBindings = createLocalToolBindings({
         registry,
@@ -829,9 +839,26 @@ export async function fixture(
         ...next.authorExecution,
       })
       await Promise.all([nextRoot.plugin(next.executor), nextRoot.plugin(next.runtime)])
+      const received: ToolDelivery<ToolMessageContentBlock>[] = []
       return {
         api: nextRoot.toolRuntime,
         plugins: next,
+        commands: nextRoot.toolCommands,
+        received,
+        receive: () =>
+          nextRoot.plugin({
+            name: 'reopened-consumer',
+            inject: ['toolRuntime'],
+            apply(ctx: Context) {
+              const capture: ToolResultReceiver<unknown, ToolMessageContentBlock> = {
+                async push(value) {
+                  received.push(structuredClone(value.delivery))
+                  return defaultReceiver.push(value)
+                },
+              }
+              ctx.toolRuntime.registerResultReceiver('consumer', capture)
+            },
+          }),
         schedule: (wake: Parameters<typeof nextRoot.toolInstanceHost.schedule>[0]) =>
           nextRoot.toolInstanceHost.schedule(wake),
         close: async () => {

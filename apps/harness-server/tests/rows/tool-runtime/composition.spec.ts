@@ -10,6 +10,7 @@
 // 请求由生产的 Tool 请求供给者构造（`createReleaseToolRequests`），会话快照读口给出那个作用域。
 // 用例：Shell.execute 一次、Files.write 加 Files.read 各一次，读回原结果；外租户的同一调用被拒。
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -20,6 +21,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -53,8 +55,10 @@ import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provid
 import {
   ToolResidencyReaderService,
   toolCatalogKey,
+  toolCommandsKey,
   toolResidencyReaderKey,
   toolRuntimeKey,
+  type ToolCommandsService,
   type ToolRuntimeService,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { executionScopeBindingKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
@@ -81,9 +85,11 @@ import { releaseOf } from '../../../src/entry/tool-release.ts'
 import { createReleaseToolRequests } from '../../../src/entry/tool-requests.ts'
 import { toolClock, toolPublicationAuthority } from '../../../src/entry/tool-runtime-objects.ts'
 import { defineRow } from '../../../src/row.ts'
-import { callHostDomain } from '@omne-harness/tool-host-local'
+import { callHostDomain, createEnvironmentStateStore } from '@omne-harness/tool-host-local'
 import { COMBINATION_VERSION } from '../../../src/rows/agent-journal/config.ts'
 import { toolRuntimeHolder } from '../../../src/rows/tool-runtime/holder.ts'
+import { createToolRecordsRow } from '../../../src/rows/tool-runtime/index.ts'
+import { acquireStateLock, lostContactBy } from '../../../src/state-lock.ts'
 import { permissionOriginsOf } from '../../../src/rows/governance/permission-origins.ts'
 import { sessionWorkOf } from '../../../src/rows/tool-runtime/session-work.ts'
 import { TOOL_BODY_SCHEMA_VOCABULARY } from '../../../src/entry/tool-body-schemas.ts'
@@ -1059,6 +1065,163 @@ describe('Tool segment B: the release rows in one process composition', () => {
       expect(value.throughLink.text).not.toContain('OUTSIDE-BYTES')
       expect(value.write.text).toMatch(/^done request=/u)
       expect(readFileSync(join(child, 'alias.txt'), 'utf8')).toBe('alias-files')
+    },
+  )
+
+  // Slow: two live trees over one storage, and a real systemd unit that the second tree stops.
+  it.runIf(process.platform === 'linux')(
+    'a Shell command whose tool host was dropped without retirement is stopped by its unit, and its call is settled as lost by the tree that holds the state lock',
+    { tags: ['slow'], timeout: 180_000 },
+    async () => {
+      const { base, storageRoot } = workspace()
+      const { rows } = rowsOf(storageRoot)
+      const marker = join(base, 'lost-shell.txt')
+      const lockRoot = join(base, 'lock')
+      mkdirSync(lockRoot)
+      const plugins = {
+        ...cordis,
+        identityStandIn,
+        residencyStandIn,
+        policyAccess: maintenancePolicy,
+      }
+      const live = {
+        rows,
+        entryObjects: entryObjects(workPrincipalsOverStandIn),
+        probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, toolCommandsKey, WORK_A],
+      }
+      const show = (unit: string) =>
+        execFileSync(
+          'systemctl',
+          ['--user', 'show', '-p', 'LoadState', '-p', 'ActiveState', unit],
+          {
+            encoding: 'utf8',
+          },
+        )
+      const delivered: ToolDelivery<ToolMessageContentBlock>[] = []
+      const taken = acquireStateLock(lockRoot)
+      if (taken.kind !== 'held') throw new Error('the lock of the test is in use')
+      try {
+        await withLiveRows({ ...live, plugins }, async first => {
+          const { runtime, principal } = await ready(first, [])
+          const caller = { principal, tenant: TENANT_A }
+          const script = `echo start >> ${marker}; sleep 150; echo end >> ${marker}`
+          const outcome = await runtime.invoke({
+            ...caller,
+            request: await requestFor(
+              first,
+              principal,
+              'Shell.execute',
+              JSON.stringify({ script }),
+            ),
+          })
+          if (outcome.kind !== 'accepted') throw new Error(`invoke: ${JSON.stringify(outcome)}`)
+          const { reference } = outcome
+          await until(
+            'the command to write its first line',
+            async () => existsSync(marker) && readFileSync(marker, 'utf8'),
+            text => text === 'start\n',
+            60_000,
+          )
+          const { call } = readToolInvocationRef(reference)
+          const commands = first.get(toolCommandsKey) as ToolCommandsService<
+            unknown,
+            ToolMessageContentBlock
+          >
+          const recovery = await commands.loadRecovery({ ...caller, call })
+          if ('failure' in recovery) throw new Error(`recovery: ${JSON.stringify(recovery)}`)
+          expect(recovery.ok.state.execution.kind).toBe('live')
+          const store = toolRuntimeHolder(first).sql?.store
+          const preparation = recovery.ok.preparations.at(-1)
+          if (store === undefined || preparation === undefined) throw new Error('no records')
+          const environment = await createEnvironmentStateStore({ store }).read({
+            tenant: TENANT_A,
+            call,
+            operation: preparation.operation,
+          })
+          const owned = 'ok' in environment ? (environment.ok?.resources ?? []) : []
+          expect(owned.map(fact => fact.stop)).toEqual(['active'])
+          const unit = JSON.stringify(owned[0]?.resource.reference).match(
+            /omne-host-[0-9a-f-]+\.scope/u,
+          )?.[0]
+          if (unit === undefined) throw new Error('the resource names no unit')
+          expect(show(unit)).toContain('ActiveState=active')
+          // The first tree is dropped, not retired: the second tree takes the records as they are
+          // now (a copy of the state), and the first execution host keeps the unit running.
+          const taking = join(base, 'taking')
+          cpSync(join(base, 'state'), join(taking, 'state'), { recursive: true })
+          await withLiveRows(
+            {
+              ...live,
+              rows: rowsOf(join(taking, 'state', 'storage')).rows,
+              probe: [toolRuntimeKey, WORK_A],
+              plugins: {
+                ...plugins,
+                toolRecordsRow: createToolRecordsRow({
+                  lostContact: lostContactBy(() => taken.lock),
+                }),
+              },
+            },
+            async second => {
+              const next = second.get(toolRuntimeKey) as Runtime
+              next.registerResultReceiver('@omne-harness/agent', {
+                async push(input) {
+                  delivered.push(input.delivery)
+                  const key = canonicalDigest(input.delivery.key)
+                  return succeed({
+                    key: input.delivery.key,
+                    evidence: {
+                      owner: '@omne-harness/agent',
+                      record: key,
+                      revision: '1',
+                      digest: key,
+                    },
+                  })
+                },
+              })
+              const found = await until(
+                'the call to settle as lost',
+                () =>
+                  next.queries.lookup({
+                    principal: second.get(WORK_A),
+                    tenant: TENANT_A,
+                    reference,
+                  }),
+                read =>
+                  'ok' in read && read.ok.kind === 'found' && read.ok.state.phase === 'settled',
+                60_000,
+              )
+              expect(found).toMatchObject({
+                ok: {
+                  state: {
+                    terminal: { kind: 'failed', cause: 'runtime-lost' },
+                    effect: { kind: 'unknown' },
+                    execution: {
+                      kind: 'lost',
+                      evidence: { owner: '@omne-harness/harness-server', record: 'state-lock' },
+                    },
+                  },
+                },
+              })
+              expect(show(unit)).toMatch(/ActiveState=inactive|LoadState=not-found/u)
+              await until(
+                'one delivery',
+                async () => delivered.length,
+                count => count >= 1,
+                30_000,
+              )
+            },
+          )
+        })
+      } finally {
+        taken.lock.release()
+      }
+      expect(delivered).toHaveLength(1)
+      expect(delivered[0]).toMatchObject({
+        kind: 'result',
+        terminal: { kind: 'failed', cause: 'runtime-lost' },
+        effect: { kind: 'unknown' },
+      })
+      expect(readFileSync(marker, 'utf8')).toBe('start\n')
     },
   )
 

@@ -5,6 +5,7 @@ import { releaseCatalogViewOf } from '../tool-bindings/catalog-view.ts'
 // 每个输入只取已核来源，缺席时由各自的窄代理答 `unavailable`。`tool-records` 行按运维者配置调用一次；同一运行的
 // 后续调用配置必须相同，否则装载失败（不建第二份 bundle，也不悄悄沿用旧配置）。
 import type { Context } from '@deepseek-ai/cordis'
+import { createRecoveryAccess } from '@omne-harness/execution-environment-contract'
 import { canonicalDigest } from '@omne-harness/tool'
 import {
   toolBindingsKey,
@@ -20,6 +21,7 @@ import {
   createLocalToolRuntimePlugins,
   type LocalToolRuntimeInput,
 } from '@omne-harness/tool-host-local/cordis'
+import { admitMaintainer } from '../../entry/execution-authorities.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
 import { isReleaseToolsRequest } from '../../entry/tool-forward-requests.ts'
 import { toolTargetPolicyOf } from '../authorization/tool-target-policy.ts'
@@ -87,7 +89,14 @@ function releasePermitRequirements(
   }
 }
 
-function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeConfig) {
+export type ToolLostContact = NonNullable<LocalToolRuntimeInput['lostContact']>
+
+function inputFor(
+  root: Context,
+  holder: ToolRuntimeHolder,
+  config: ToolRuntimeConfig,
+  lostContact: ToolLostContact | undefined,
+) {
   const identity = createReleaseToolIdentity(holder)
   const store = lateStore(holder)
   const requestAccess = currentTargetPolicy({
@@ -110,6 +119,8 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
     },
   }
   const sources = createLocalInvocationSource(sourceInput)
+  const recoveryAccess = createRecoveryAccess()
+  admitMaintainer(root, recoveryAccess)
   const environment = createReleaseEnvironment(holder, identity, {
     filesRoot: config.filesRoot,
     commitAttempts: config.configuration.ledgerCommitAttempts,
@@ -156,6 +167,8 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
     observersPerCall: config.observersPerCall,
     observerQueueFrames: config.observerQueueFrames,
     observerResidenceMs: config.observerResidenceMs,
+    recoveryAccess,
+    ...(lostContact === undefined ? {} : { lostContact }),
   }
   return { input, qualification: createLocalInvocationQualifier(sourceInput) }
 }
@@ -164,6 +177,7 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
 export function ensureToolRuntimeBundle(
   ctx: Context,
   config: ToolRuntimeConfig,
+  lostContact?: ToolLostContact,
 ): ToolRuntimeBundle {
   const holder = toolRuntimeHolder(ctx)
   const digest = canonicalDigest(config)
@@ -172,7 +186,7 @@ export function ensureToolRuntimeBundle(
       throw new Error('tool runtime: this run already built its bundle with another configuration')
     return holder.bundle.value
   }
-  const { input, qualification } = inputFor(ctx.root, holder, config)
+  const { input, qualification } = inputFor(ctx.root, holder, config, lostContact)
   const value = Object.freeze({ ...createLocalToolRuntimePlugins(input), qualification })
   holder.bundle = Object.freeze({ value, configDigest: digest })
   holder.resolve(value)

@@ -186,6 +186,7 @@ function controlledEnvironment(
     describe: outside('describe'),
     recoverOwned: outside('recoverOwned'),
     releaseScope: outside('releaseScope'),
+    recoverResources: outside('recoverResources'),
   }
 }
 

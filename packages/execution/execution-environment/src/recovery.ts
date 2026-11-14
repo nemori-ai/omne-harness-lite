@@ -3,12 +3,15 @@ import type {
   AcquisitionListing,
   AcquisitionSettlement,
   EnvironmentProvider,
+  LookupUnknown,
   ManagedResource,
   OriginalAcquisition,
   OwnedRecovery,
   ProviderIdentity,
   RecoveryListing,
+  Rejected,
   ResourceRecovery,
+  ResourcesRecovery,
   UnsupportedRecovery,
 } from '@omne-harness/execution-environment-contract'
 import { fingerprint, tenantText } from './compare.ts'
@@ -229,6 +232,36 @@ export async function driveRecovery(
     pendingAcquisitions: acquisitions.pendingAcquisitions,
     unsupportedAcquisitions: acquisitions.unsupportedAcquisitions,
   })
+}
+
+export async function recoverGiven(
+  scope: ScopeRef,
+  resources: readonly ManagedResource[],
+  providers: readonly RecoverableProvider[],
+  authorize: (
+    resources: ManagedResource[],
+  ) => Promise<'authorized' | 'notAuthorized' | 'unavailable' | 'unknown'>,
+): Promise<ResourcesRecovery | Rejected | LookupUnknown> {
+  if (!Array.isArray(resources)) return Object.freeze({ kind: 'rejected', reason: 'invalidInput' })
+  const decision = await authorize([...resources])
+  if (decision === 'unknown') return Object.freeze({ kind: 'unknown', cause: 'authority' })
+  if (decision !== 'authorized') return Object.freeze({ kind: 'rejected', reason: decision })
+  const stopped: ManagedResource[] = []
+  const pending: ManagedResource[] = []
+  const unsupported: ManagedResource[] = []
+  for (const resource of resources) {
+    const owner = providers.find(
+      ({ provider, identity }) =>
+        identity.name === resource.provider && provider.recover !== undefined,
+    )
+    const recovered: ResourceRecovery =
+      owner === undefined
+        ? { status: 'unsupported', evidence: null }
+        : await recoverOne(owner.provider, resource)
+    const group = { confirmedStopped: stopped, pending, unsupported }[recovered.status]
+    group.push(resource)
+  }
+  return Object.freeze({ kind: 'recovered', scope, stopped, pending, unsupported })
 }
 
 /** True when a local record and a settled original name the same acquisition and fingerprint. */
