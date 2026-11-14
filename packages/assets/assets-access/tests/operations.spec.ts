@@ -1,7 +1,3 @@
-// The four handlers of `assets/v1` against a double of the settings face: what each hands the face,
-// how each result of the face maps to an outcome (SPEC AA-4), the principal for the target tenant
-// (AA-1), a face not on the tree (AA-2) and a face that throws (AA-5). Every success is also
-// written through the contract's codec, so a field the contract lacks or misses shows here.
 import type { AnswerOf } from '@omne-harness/access-cordis-contract'
 import { assetsProtocol } from '@omne-harness/assets-protocol'
 import { readJsonText, writeJsonText, type JsonLimits } from '@omne-harness/json-text'
@@ -36,7 +32,6 @@ function tree(value: unknown) {
 type Operations = typeof assetsProtocol.operations
 type Name = keyof Operations
 
-/** The answer as it goes on the wire: the outcome and the plain JSON of its body. */
 function wire<K extends Name>(name: K, answer: AnswerOf<Operations[K]>) {
   if (!('body' in answer)) return { outcome: answer.outcome }
   const codec = (assetsProtocol.operations[name].outcomes as Record<string, unknown>)[
@@ -61,7 +56,6 @@ const principalOf = (login: FixtureLogin): FixturePrincipal => ({
   tenantText: login.tenantText,
 })
 
-/** One body per operation, read through the contract's codec as the pipeline does. */
 function body<K extends Name>(name: K, sample: Record<string, unknown>) {
   const read = assetsProtocol.operations[name].body.read(tree(sample), limits)
   if (!read.ok) throw new Error(`${name} sample did not read`)

@@ -15,7 +15,6 @@ export function projectStandaloneSettingsRecord(
   record: ReturnType<typeof StandaloneRecordSchema.parse>,
 ) {
   const { sourceLayout, publicationRef: _publicationRef, ...view } = record.projection
-  // An independent target has no disable command; its projection is always enabled.
   return {
     ...view,
     enabled: true,

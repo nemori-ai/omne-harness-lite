@@ -50,11 +50,6 @@ async function openStorage(root: string) {
       })),
   }
 }
-/**
- * A real Identity in its own storage: an organization with an administrator (ada) and a member
- * (bob), and a principal that acts for the member tenant. It holds no Settings; a test connects
- * its destination with `setResolver`.
- */
 export async function openIdentityWorld() {
   const ids = randomIdentifiers(),
     ada = ids.account(),
@@ -205,14 +200,10 @@ export async function openIdentityWorld() {
   return {
     authority,
     identity,
-    /** Acts for the member tenant. */
     principal,
     principalRef: standingPrincipalRef(principal),
-    /** The member tenant, as a Settings scope. */
     scopeRef,
-    /** Acts for the tenant of the administrator in the same organization. */
     administrator: admin.ok,
-    /** The login of the administrator, for the governance operations that the administrator runs. */
     administratorLogin: loginA.login,
     setResolver(value: StandingDestinationResolver) {
       destination = value
@@ -247,7 +238,6 @@ export async function openIdentityWorld() {
         account: bob,
         expectedRole: 'member',
       }),
-    /** Stops this Identity and starts another one over the same stored facts. */
     async remount() {
       identity.stop()
       await sql.close()

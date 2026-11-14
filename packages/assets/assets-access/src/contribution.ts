@@ -1,7 +1,3 @@
-// The contribution of `assets/v1`: one handler for each of the four setting operations. Each
-// handler turns the login and the target tenant of the body into a principal, takes the settings
-// face of the moment, hands over the body and maps the face's result to the outcome of the same
-// name (SPEC AA-4). Business rules stay in the face.
 import type {
   AccessContribution,
   AnswerOf,
@@ -22,7 +18,6 @@ import type {
   WriteOutcome,
 } from './ports.ts'
 
-/** What the contribution reads. `settings` is called at the moment of a call. */
 export type AssetsContributionInput = Readonly<{
   settings: () => TenantSettingsPort | undefined
   principals: TargetTenantPrincipals
@@ -66,7 +61,6 @@ function plainOf(value: JsonValue): SettingJson {
   }
 }
 
-/** A plain value as a value tree of the wire. */
 function treeOf(value: SettingJson): JsonValue {
   if (value === null) return { kind: 'null' }
   if (typeof value === 'boolean') return { kind: 'boolean', value }
@@ -85,7 +79,6 @@ function presenceOf(presence: Extract<SettingView, { kind: 'ordinary' }>['own'])
     : ({ kind: 'set', value: treeOf(presence.value) } as const)
 }
 
-/** One view of the face as a view of the contract, field by field. */
 function viewOf(view: SettingView): WireView {
   const head = {
     asset: { category: view.asset.category, name: view.asset.name },
@@ -148,7 +141,6 @@ function inputOf(value: WireInput): SettingInput {
   }
 }
 
-/** A refusal of a read, as the outcome of the same name (SPEC AA-4). */
 function readRefused(refusal: ReadRefusal) {
   switch (refusal.kind) {
     case 'denied':
@@ -162,7 +154,6 @@ function readRefused(refusal: ReadRefusal) {
   }
 }
 
-/** The outcome of a write, the same for `set-setting` and `clear-setting` (SPEC AA-4). */
 function written(outcome: WriteOutcome): Answer<'set-setting'> {
   switch (outcome.kind) {
     case 'written':
@@ -191,12 +182,10 @@ export function createAssetsContribution(
 ): Omit<AccessContribution<AssetsProtocol>, 'protocol'> {
   const { principals } = input
 
-  /** The principal for the target tenant, then the settings face as it is on the tree now (AA-1, AA-2). */
   async function admit(
     login: LoginIdentity,
     tenant: TenantId,
   ): Promise<Admitted | typeof DENIED | typeof UNAVAILABLE> {
-    // The pipeline read `tenant` with the contract's tenant rule, so it encodes.
     const tenantText = tenantCodec.encode(tenant)
     if (!tenantText.ok) throw new TypeError('assets-access: tenant is not a minted TenantId')
     let issued: Awaited<ReturnType<TargetTenantPrincipals['actingFor']>>
@@ -210,7 +199,6 @@ export function createAssetsContribution(
     return face === undefined ? UNAVAILABLE : { principal: issued.ok, tenant, face }
   }
 
-  /** A read: a throw is `basis-unavailable`, nothing was committed (AA-5). */
   async function read<T>(call: () => Promise<T>): Promise<T | typeof UNAVAILABLE> {
     try {
       return await call()
@@ -219,7 +207,6 @@ export function createAssetsContribution(
     }
   }
 
-  /** A write: a throw after the call began is `unknown` (AA-5). */
   async function write(call: () => Promise<WriteOutcome>): Promise<WriteOutcome> {
     try {
       return await call()

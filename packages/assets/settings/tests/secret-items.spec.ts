@@ -1,6 +1,3 @@
-// The secret-item entry (SPEC「秘密设置项」): which items it lets through to the custody, how it derives
-// the binding key from the holding and the item, and that no answer carries the secret. The custody
-// is an in-memory double of `SecretCustodyManagement`; it proves the mapping, not a vault file.
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { parseInstant, type Instant } from '@omne-harness/utc-instant'
 import { describe, expect, it, vi } from 'vitest'
@@ -89,7 +86,6 @@ const scopeText = (scope: SecretScope) => {
 const keyText = (key: SecretBindingKey) =>
   JSON.stringify([scopeText(key.scope), key.target.owner, key.target.key, key.purpose])
 
-/** An in-memory custody: a map from the key text to the presence. No value is kept. */
 function memoryCustody(answers: Partial<{ bind: SecretWriteResult }> = {}) {
   const bindings = new Map<string, SecretPresence>()
   const custody: SecretCustodyManagement = {
@@ -236,7 +232,6 @@ describe('createSettingsSecretItems: one holding, several definitions', () => {
         definition(webHolding.providerId, 'Web', '2'),
       ],
     })
-    // The asset reference is unambiguous; the holding it resolves has two registered versions.
     expect(items.set({ scope: tenantA, item: exaKey, secret: secret(SENTINEL), at: null })).toBe(
       'conflict',
     )
@@ -354,7 +349,6 @@ describe('createSettingsSecretItems: target derivation', () => {
   })
 
   it('does not let values that share a boundary collide, and keeps the three parts apart', () => {
-    // A Settings id may hold `.`, `:`, `/` and `-`; none of them is a boundary of the encoding.
     const left = targetOf(
       [{ asset: web.asset, holding: { providerId: 'p:x', definitionId: 'd' } }],
       [definition('p:x', 'd')],
@@ -393,7 +387,6 @@ describe('createSettingsSecretItems: describe and items', () => {
     expect(items.describe({ scope: official, item: exaKey })).toEqual({ kind: 'unbound' })
     expect(JSON.stringify(items.describe({ scope: tenantA, item: exaKey }))).not.toContain(SENTINEL)
     expect(JSON.stringify(items.items({ scope: tenantA }))).not.toContain(SENTINEL)
-    // The custody is the one fact: a binding removed behind the entry is unbound at once.
     bindings.clear()
     expect(items.describe({ scope: tenantA, item: exaKey })).toEqual({ kind: 'unbound' })
   })

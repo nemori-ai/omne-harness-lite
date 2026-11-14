@@ -7,15 +7,11 @@ import { SettingsDriver } from '../model/settings-driver.ts'
 import type { Notice, Row, State } from '../model/settings-machine.ts'
 
 export type SettingsPanelProps = Readonly<{
-  /** assets/v1 的协议客户端。外壳从客户端装配的树上取到才渲染这个组件。 */
   client: ClientOf<AssetsProtocol>
-  /** 当前租户。外壳用 identity/v1 的 query-current-tenant 得到。 */
   tenant: string
 }>
 
 export function SettingsPanel(props: SettingsPanelProps): JSX.Element {
-  // The same tenant text is the same tenant: a parent that renders again must not look like a
-  // change of tenant, which would end the driver and read the whole list again.
   const tenant = useMemo(() => readTenantText(props.tenant), [props.tenant])
   if (tenant === undefined)
     return (
@@ -26,7 +22,6 @@ export function SettingsPanel(props: SettingsPanelProps): JSX.Element {
   return <Panel client={props.client} tenant={tenant} />
 }
 
-/** The driver lives exactly as long as the effect; a new client or tenant is a new driver. */
 function Panel({
   client,
   tenant,
@@ -173,7 +168,6 @@ function RowView({ row, driver }: { readonly row: Row; readonly driver: Settings
               正在读取这一项……
             </p>
           ) : null}
-          {/* A new revision is a new view: the pick starts again from what the server holds. */}
           <Controls key={view.revision} row={row} driver={driver} />
           <WriteLine row={row} driver={driver} />
         </>
@@ -250,7 +244,6 @@ function Facts({ view }: { readonly view: SettingView }) {
   }
 }
 
-/** Whether this layer holds something a clear would take away. */
 function hasOwn(view: SettingView): boolean {
   switch (view.kind) {
     case 'permission':

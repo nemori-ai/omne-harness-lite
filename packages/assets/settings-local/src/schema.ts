@@ -29,7 +29,6 @@ export const operationBindingSchema = z.strictObject({
   operationId: SettingsIdSchema,
   commandDigest: z.string().regex(/^[a-f0-9]{64}$/),
 })
-/** The actions that each source of a target may take, as the owner of the target grants them. */
 export const grantsSchema = z
   .array(
     z.strictObject({

@@ -23,7 +23,6 @@ function file(relative: string) {
     codeDigest: createHash('sha256').update(readFileSync(url)).digest('hex'),
   }
 }
-/** A real independent target whose owner and stored values the source snapshot captures. */
 async function open(reopen?: { root: string; scopeRef: string }) {
   const w = await openPreparedTargetWorld({
     actions: ['set', 'clear', 'lock', 'unlock'],
@@ -196,7 +195,6 @@ it('blocks writers after reopening a pending gate even when no reservations rema
     database.close()
   }
   const reopened = await open({ root: w.root, scopeRef: w.target.scopeRef })
-  // A prepared write does not pass the pending gate: nothing of it is stored.
   expect(await reopened.write()).toEqual({ kind: 'rejected', reason: 'unavailable' })
   expect(stored(w.root)).toMatchObject({ state: null, operations: 0, changes: 0 })
   expect(

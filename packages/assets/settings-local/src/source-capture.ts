@@ -24,10 +24,6 @@ function hasMatchingDefinition(projection: SettingsTargetProjection) {
   )
 }
 
-/**
- * Reads one source target and its state. The source snapshot participant and the read handler use
- * it; each parses the result with `sourceObservationSchema`.
- */
 export function captureSource(port: ReadPort, source: SourceReference) {
   const unavailable = (reason: SettingsFailure['reason'] | 'unsupported') => ({
     kind: 'unavailable' as const,

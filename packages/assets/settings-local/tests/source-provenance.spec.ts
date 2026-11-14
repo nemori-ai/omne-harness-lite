@@ -215,13 +215,10 @@ it('rejects a provenance-only rebase at revision exhaustion without creating a r
       sources: [{ id: 'tenant', values: [] }],
     }
   })
-  // The owner replaces the source identity: the rebase changes provenance only.
   await update(
     w,
     ownerSources('tenant').map(source => ({ ...source, ownerRef: 'replacement' })),
   )
-  // The change is refused and nothing of it is stored. The preparation path has no abort reason
-  // for the exhausted revision, so the reason it gives is not pinned here.
   expect(await w.rebase(rebase(w, [], Number.MAX_SAFE_INTEGER - 1))).toMatchObject({
     kind: 'rejected',
   })

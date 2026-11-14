@@ -1,9 +1,5 @@
 import { defineProtocol, ruleCodec, type Rule, type RuleValue } from '@omne-harness/public-contract'
 
-// `assets/v1`: the four setting operations of RFC-0015 §9「设置的操作与答复」, in the shapes of the
-// tenant settings face (§9「设置读写面的契约」). The rules stay literals: the value types come from
-// them through `RuleValue`.
-
 type Fields = Readonly<Record<string, { readonly rule: Rule; readonly optional?: true }>>
 
 const text = { kind: 'text' } as const
@@ -20,14 +16,10 @@ const literal = <const V extends readonly string[]>(...values: V) =>
 const nullable = <const R extends Rule>(rule: R) =>
   ({ kind: 'one-of', rules: [rule, nothing] }) as const
 
-/** A caller names an asset by its name; the category may be left out. */
 const assetQuery = object({ category: { rule: text, optional: true }, name: { rule: text } })
-/** An asset as the face names it back: both parts. */
 const assetRef = object({ category: { rule: text }, name: { rule: text } })
 
-/** Every operation names its target tenant in the body; the access plugin checks the login against it. */
 const itemTarget = { tenant: { rule: tenant }, asset: { rule: assetQuery }, item: { rule: text } }
-/** The original operation of a write and the revision read before it (§9 规定 3). */
 const writeTarget = {
   ...itemTarget,
   operation: { rule: text },
@@ -54,7 +46,6 @@ const editable = {
 const secretState = literal('unset', 'available', 'revoked', 'unreadable')
 const layer = literal('default', 'organization', 'tenant')
 
-/** The fields every item view has, whatever its kind. */
 const head = {
   asset: { rule: assetRef },
   item: { rule: text },
@@ -69,7 +60,6 @@ const head = {
   },
 } as const
 
-/** `SettingView`. The three options differ in the literal `kind`, so they are disjoint. */
 const settingView = {
   kind: 'one-of',
   rules: [
@@ -129,7 +119,6 @@ const settingView = {
   ],
 } as const
 
-/** `SettingInput`. A permission item takes a pick only, never an allowed set. */
 const settingInput = {
   kind: 'one-of',
   rules: [
@@ -147,12 +136,9 @@ const notWritable = ruleCodec(
   }),
 )
 
-/** One item of the settings list, as `list-settings` and `describe-setting` give it. */
 export type SettingView = RuleValue<typeof settingView>
-/** What `set-setting` writes. */
 export type SettingInput = RuleValue<typeof settingInput>
 
-/** `assets/v1`. SPEC.md gives the operation table and the outcome of each face result. */
 export const assetsProtocol = defineProtocol({
   name: 'assets',
   major: 1,
@@ -161,7 +147,6 @@ export const assetsProtocol = defineProtocol({
       identity: 'login',
       effect: 'read',
       limit: 'small',
-      // `after` is the `next` of the page before, or null for the first page.
       body: ruleCodec(
         object({
           tenant: { rule: tenant },

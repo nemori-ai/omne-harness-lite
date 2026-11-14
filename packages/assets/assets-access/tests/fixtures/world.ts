@@ -1,6 +1,3 @@
-// The world of the handler cases: a stand-in for the principal port that follows identity's rule
-// (the account of the target tenant must be the account of the login), and a double of the
-// settings face that records what it was handed and answers what the case scripts.
 import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
 import {
   accountCodec,
@@ -20,7 +17,6 @@ import type {
 
 const BODY = 'abcdefghjkmnpqrstvwxyz2345'
 
-/** A login of the account `acc_<letter><body>` and its personal-organization tenant. */
 export type FixtureLogin = Readonly<{ account: string; tenant: TenantId; tenantText: string }>
 
 export function fixtureLogin(letter: string): FixtureLogin {
@@ -38,7 +34,6 @@ export function loginIdentity(login: FixtureLogin): LoginIdentity {
   return login as unknown as LoginIdentity
 }
 
-/** The principal the stand-in issues: opaque to the handlers, readable here. */
 export type FixturePrincipal = Readonly<{ account: string; tenantText: string }>
 
 type Listed = Awaited<ReturnType<TenantSettingsPort['list']>>
@@ -47,11 +42,8 @@ type Described = Awaited<ReturnType<TenantSettingsPort['describe']>>
 export type FaceCall = Readonly<{ method: keyof TenantSettingsPort; input: unknown }>
 
 export type World = Readonly<{
-  /** The principal-port refusal from now on; `undefined` answers by the account rule. */
   refuseTargets(refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined): void
-  /** Takes the settings face off the tree. */
   removeFace(): void
-  /** What the face answers from now on; `throw` makes it throw. */
   answer(next: Partial<FaceAnswers>): void
   calls(): readonly FaceCall[]
   contribution: ReturnType<typeof createAssetsContribution>
@@ -121,7 +113,6 @@ const declaration = {
   clearEffect: 'The organization value applies.',
 }
 
-/** One view of each kind, as the face gives them. */
 export const VIEWS = {
   ordinary: {
     asset: ASSET,

@@ -1,6 +1,3 @@
-// The settings interface as a pure state machine: `step(state, event)` gives the next state and the
-// effects the driver runs against the protocol client. Every cell of SPEC.md「全化表」is one branch
-// here; the tests are named after the rows.
 import type { AssetsProtocol, SettingView } from '@omne-harness/assets-protocol'
 import type { ClientOf } from '@omne-harness/sdk/core'
 
@@ -10,13 +7,10 @@ export type ListAnswer = Answer<'list-settings'>
 export type DescribeAnswer = Answer<'describe-setting'>
 export type WriteAnswer = Answer<'set-setting'> | Answer<'clear-setting'>
 
-/** A sentence for a person, and which of the three kinds of trouble it is. */
 export type Notice = Readonly<{ kind: 'refused' | 'unavailable' | 'unknown'; text: string }>
 
-/** What a write asks for. A permission item takes a pick; a clear takes nothing. */
 export type WriteRequest = Readonly<{ kind: 'set'; pick: string }> | Readonly<{ kind: 'clear' }>
 
-/** One write as it was sent: a recognition resends exactly this. */
 export type Sent = Readonly<{ operation: string; expectedRevision: string; request: WriteRequest }>
 
 export type Write =
@@ -66,7 +60,6 @@ export type Step = Readonly<{ state: State; effects: readonly Effect[] }>
 
 export const INITIAL: State = { list: { kind: 'unread' }, issued: 0 }
 
-/** The row key: the asset and the item, which together name one setting. */
 export const keyOf = (view: Target): string =>
   JSON.stringify([view.asset.category, view.asset.name, view.item])
 
@@ -74,14 +67,12 @@ const targetOf = (view: SettingView): Target => ({ asset: view.asset, item: view
 
 const same = (state: State): Step => ({ state, effects: [] })
 
-/** Every answer that is neither a success nor an unknown, nor a refusal with its own reason. */
 type Refusal = Exclude<
   ListAnswer['outcome'] | DescribeAnswer['outcome'] | WriteAnswer['outcome'],
   'succeeded' | 'no-change' | 'not-writable' | 'unknown'
 >
 type NotWritable = Extract<WriteAnswer, { outcome: 'not-writable' }>['body']['reason']
 
-// The sentences people read. One place, so every refusal reads the same wherever it shows.
 const SENTENCES: Readonly<Record<Refusal, string>> = {
   denied: '没有权限，或登录已失效。',
   'not-visible': '这一项现在看不到了：资产没有持有，或声明里没有这一项。',
@@ -150,10 +141,6 @@ const STILL_UNKNOWN: Notice = {
   text: '结果仍未知：这次确认没有说出原来那次写没写。',
 }
 
-/**
- * The row `key` of a read list, with the three ways it changes: put a changed row back; reread it
- * under a new token, with the write it keeps; resend the write it holds, under the same operation.
- */
 function rowOf(state: State, key: string) {
   const list = state.list
   if (list.kind !== 'read') return undefined
@@ -185,7 +172,6 @@ function rowOf(state: State, key: string) {
   return { row, put, reread, recognize }
 }
 
-/** Idle: read, and the write settled. Only an idle row takes a new write. */
 const idle = (row: Row): boolean =>
   row.read.kind === 'read' && row.write.kind !== 'submitting' && row.write.kind !== 'unknown'
 
@@ -206,7 +192,6 @@ function writeAnswered(state: State, key: string, operation: string, answer: Wri
   const write = row.write
   const inFlight = write.kind === 'submitting' || (write.kind === 'unknown' && write.confirming)
   if (!inFlight || write.sent.operation !== operation) return same(state)
-  // An answer to a recognition that cannot speak for the original write (SPEC.md R7, R8).
   const stillUnknown = (): Step =>
     put({
       ...row,

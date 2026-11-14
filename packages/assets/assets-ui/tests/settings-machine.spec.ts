@@ -1,4 +1,3 @@
-// One case per reachable cell of SPEC.md「全化表」. Case names start with the row id.
 import { describe, expect, it } from 'vitest'
 import {
   INITIAL,
@@ -47,7 +46,6 @@ function rowIn(state: State): Row {
   return row
 }
 
-/** Picks `auto` with operation `op-1`: the row is submitting. */
 function submitting(): State {
   return run(listed(), { kind: 'set', key: KEY, pick: 'auto', operation: 'op-1' }).state
 }
@@ -58,7 +56,6 @@ const SENT_SET = {
   request: { kind: 'set', pick: 'auto' },
 } as const
 
-/** The first answer was unknown: the recognition is in flight. */
 function confirming(): State {
   return run(submitting(), {
     kind: 'write-answered',
@@ -68,7 +65,6 @@ function confirming(): State {
   }).state
 }
 
-/** The recognition could not tell either: still unknown. */
 function stillUnknown(): State {
   return run(confirming(), {
     kind: 'write-answered',

@@ -1,5 +1,3 @@
-// An `assets/v1` client with no transport: each call is recorded with its options and answered by
-// the test.
 import type { AssetsProtocol } from '@omne-harness/assets-protocol'
 import type { CallOptions, ClientOf } from '@omne-harness/sdk/core'
 
@@ -16,7 +14,6 @@ export type Call = Readonly<{
 export type FakeClient = Readonly<{
   client: Client
   calls: Call[]
-  /** The next call of this operation not taken yet, waiting until it is made. */
   next(operation: Operation): Promise<Call>
 }>
 

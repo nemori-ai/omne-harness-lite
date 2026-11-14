@@ -1,7 +1,3 @@
-// The file custody of secret bindings (SPEC「Secret custody」): the one file format, the four
-// write results, the exact key match of the use face, what the read faces show, and the three
-// causes of an unavailable file. Every case runs on a real file in a temporary directory, and
-// every visible result is scanned for the secret sentinels.
 import {
   existsSync,
   mkdirSync,
@@ -64,7 +60,6 @@ const tenantB = identity('6')
 const official: SecretScope = { layer: 'official' }
 const scopeOf = (who: TenantId): SecretScope => ({ layer: 'tenant', tenant: who })
 
-/** Keys of a second owner beside the setting keys: an official key and tenant keys by id. */
 const MODEL_TARGET = (key: string) => ({ owner: 'model', key })
 const FACTORY_KEY: SecretBindingKey = {
   scope: official,
@@ -117,7 +112,6 @@ function created(path: string) {
   return result.vault
 }
 
-/** Everything a result could show, as text. `inspect` renders an Instant without calling toJSON. */
 const shown = (value: unknown) => inspect(value, { depth: null })
 function leaks(value: unknown): boolean {
   const seen = shown(value)
@@ -134,8 +128,6 @@ describe('the one file format', () => {
   })
 })
 
-// The vaults on disk were written by boundaries that checked the text then. Reading accepts what
-// those files hold, as it is.
 describe('a stored secret is read as the file holds it', () => {
   const stored = [
     ['a trailing space', `${SECRET_A} `],
@@ -195,7 +187,6 @@ describe('a stored secret is read as the file holds it', () => {
       }),
     )
     expect(openSecretVault({ path })).toEqual({ kind: 'unavailable', cause: 'corrupt' })
-    // The only maker of a `SecretText` rejects or changes each of them: a write goes through it.
     for (const [, raw] of stored) {
       const parsed = parseSecretText(raw)
       expect(parsed.ok && parsed.value === raw, JSON.stringify(raw.slice(0, 40))).toBe(false)
@@ -240,7 +231,6 @@ describe('the four results of a write', () => {
     const path = scratch()
     const vault = created(path)
     const key = settingKey(tenantA, 'Web/exa.apiKey')
-    // The rename lands, then the call reports a failure: the publish may be visible.
     injectedRename = (from, to) => {
       globalThis.__secretVaultActualFs.renameSync(from, to)
       throw new Error('injected failure after the rename')
@@ -368,7 +358,7 @@ describe('what the read faces show', () => {
     expect(leaks(view)).toBe(false)
     expect(leaks(page)).toBe(false)
     expect(leaks(vault.list(official, null, 10))).toBe(false)
-    expect(leaks(vault.snapshot())).toBe(true) // negative control: the snapshot is the one face that carries values
+    expect(leaks(vault.snapshot())).toBe(true)
   })
 
   it('list is scoped and pages in a stable order through an opaque cursor', () => {
@@ -534,6 +524,5 @@ describe('options', () => {
 })
 
 declare global {
-  // The real fs, kept for the one case that lets a rename land and then fail.
   var __secretVaultActualFs: typeof import('node:fs')
 }

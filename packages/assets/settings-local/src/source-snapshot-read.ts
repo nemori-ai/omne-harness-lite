@@ -7,7 +7,6 @@ import {
   sourceSnapshotReadSchema,
 } from './source-retention-schema.ts'
 
-/** Observes one source in one snapshot. It makes no reservation and writes nothing. */
 export default {
   ...SOURCE_SNAPSHOT_READ,
   read(raw, port) {

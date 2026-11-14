@@ -30,7 +30,6 @@ it('reads the current source before and after a committed change, without a rese
     kind: 'captured',
     snapshot: { source, presence: 'present', state: { revision: 1 } },
   })
-  // The read holds nothing: a second change commits at once.
   expect(await w.set(false, 1, 'set-again')).toMatchObject({ kind: 'committed', revision: 2 })
 })
 

@@ -1,5 +1,3 @@
-// Runs the state machine against an `assets/v1` client: holds the state, runs each effect, and turns
-// each answer into the next event. No React, no DOM: the view subscribes to it.
 import type { AssetsProtocol } from '@omne-harness/assets-protocol'
 import type { TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
@@ -8,17 +6,11 @@ import { INITIAL, step, type Effect, type Event, type State } from './settings-m
 export type SettingsDriverDeps = Readonly<{
   client: ClientOf<AssetsProtocol>
   tenant: TenantId
-  /** Fresh operation ids. Defaults to `crypto.randomUUID()`. */
   newId?: () => string
 }>
 
-/** The largest page `list-settings` takes. */
 const PAGE_LIMIT = 100
 
-/**
- * The client throws only before anything is sent (a body the contract cannot write). Such a call
- * provably did not leave, which is what the local `unavailable` says.
- */
 function notSent<T>(call: () => Promise<T>): Promise<T | { readonly outcome: 'unavailable' }> {
   return Promise.resolve()
     .then(call)
@@ -102,7 +94,6 @@ export class SettingsDriver {
         const { key, target, sent } = effect
         const { operation, expectedRevision, request } = sent
         const body = { tenant, ...target, operation, expectedRevision }
-        // One operation, one message id: a recognition resends both unchanged.
         const options = { messageId: operation }
         void notSent(() =>
           request.kind === 'set'

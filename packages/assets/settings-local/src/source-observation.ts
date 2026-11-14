@@ -8,15 +8,8 @@ import {
   type SourceReference,
 } from './source-retention-schema.ts'
 
-export type SettingsSourceReading =
-  | SourceObservation
-  /** The storage gave no answer. It is not an absent source and not an empty value. */
-  | Readonly<{ kind: 'unreadable' }>
+export type SettingsSourceReading = SourceObservation | Readonly<{ kind: 'unreadable' }>
 
-/**
- * Reads the current state of one source in its own domain. The read makes no reservation, so a
- * later change of the source is not prevented: the caller reads again when it needs the value.
- */
 export async function readSettingsSource(
   storage: Pick<SqlStorage, 'read'>,
   source: SourceReference,

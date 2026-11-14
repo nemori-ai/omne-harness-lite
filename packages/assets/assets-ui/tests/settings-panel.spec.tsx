@@ -1,6 +1,4 @@
 // @vitest-environment happy-dom
-// The settings panel through the component and a fake protocol client: list, change, clear, a
-// conflict, an unknown result, and a failed read.
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, expect, it } from 'vitest'
 import type { SettingView } from '@omne-harness/assets-protocol'
