@@ -10,7 +10,7 @@
 
 - tool-exec 线 D2 决策记录（#421 评论 6561321713，线负责人 2026-11-01 决定，第二层）。决策记录修订了 D2 候选（#421 评论 6561130766）的第 1、2.2、2.3、4、5、7 节。两者不一致时以决策记录为准。
 - Reduce 裁定 R1-D2：Tool 的耐久仓与会话日志在同一个租户事务域，共用写队列。
-- [执行环境的资源许可与原调用终局同序](../../execution/execution-environment-contract/SPEC.md#结果与不变量)由 `ToolLedgerStore.commit` 的读集断言（`tool` SPEC「记录仓的同租户读集断言」）兑现，本包在 TS-11 实现它；原来的专用守护宿主提交已删除。
+- [执行环境的资源许可与原调用终局同序](../../execution/SPEC.md#不变式)由 `ToolLedgerStore.commit` 的读集断言（`tool` SPEC「记录仓的同租户读集断言」）兑现，本包在 TS-11 实现它；原来的专用守护宿主提交已删除。
 - 消费的契约修订：本包合入时 `@omne-harness/tool` 的 `ToolLedgerStore`（G1）与两组记录仓套件，`@omne-harness/tool-contract` 的正文存储端口与 `toolBodyStoreConformance()`，`@omne-harness/sql-contract` 的 SQL r2（§2.4、§3.2、§4、§7、§9.3、§17）。
 
 状态：实现与包内验证在 #421 r6 闭包 C-LEDGER 完成。交付接受归派发者。本包不提供 `./cordis` 插件，不接 `tool-records` 行，不合并材料目录。这些归应用侧（波 B 与 L-APP）。

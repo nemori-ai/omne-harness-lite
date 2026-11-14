@@ -51,4 +51,4 @@
 
 ## 产品与技术承接
 
-[正式产品阅读位置](../../../.meta_harness/design/product/execution-environments/design.md)维护产品后果、能力状态、阶段及未决；该草案位置不改变本页原已接受责任。[工程入口](../../../packages/execution/README.md)定位目标成员及完整行为，[领域交接设计](architecture.md)与[跨领域流程](key-flows.md)保留技术草案状态。尚无运行实现或阶段支持证据。
+[正式产品阅读位置](../../../.meta_harness/design/product/execution-environments/design.md)维护产品后果、能力状态、阶段及未决；该草案位置不改变本页原已接受责任。[工程入口](../../../packages/execution/SPEC.md)定位目标成员及完整行为，[领域交接设计](architecture.md)与[跨领域流程](key-flows.md)保留技术草案状态。尚无运行实现或阶段支持证据。

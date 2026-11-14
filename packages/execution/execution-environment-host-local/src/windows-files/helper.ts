@@ -7,21 +7,8 @@ import { nativeTree } from './native-tree.ts'
 import { nativeWrite } from './native-write.ts'
 import { parseReplyFrame, requestFrame, type NativeInput, type NativeReply } from './protocol.ts'
 
-/**
- * The resident Windows files helper process and its request transport. Each step below is one
- * action of `verification/models/FilesHelper.tla` and runs in one synchronous section:
- *
- * - `request`: Enqueue.
- * - `pump`: Dispatch, Start and Restart.
- * - `received`: StartOk on the ready frame, ReceiveFrame on a reply. `startFailed`: StartFail.
- * - `expired`: RequestTimeout. `invalidate`: the host side of Terminate (frames read after it are
- *   dropped; the process is killed).
- * - `exited`, on the child's `close` event: HelperExit.
- *
- * The helper knows no engine, acquisition or owner. Sealing is the facade's admission: a sealed
- * facade answers `closed` before a request is made, and a drain waits for the admitted operations
- * to end. The helper does not check a seal at Enqueue or Dispatch.
- */
+/** Each step here is one action of `verification/models/FilesHelper.tla` in one synchronous section;
+ *  the map is in `verification/formal-mapping.md`. Sealing is the facade's admission, not the helper's. */
 
 /** A reply of the native operation, a native failure, or the helper's own answer. */
 export type HelperAnswer = NativeReply | Failure

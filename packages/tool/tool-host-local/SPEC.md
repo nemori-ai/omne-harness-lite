@@ -96,13 +96,13 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 环境获取记录放在该调用的 `host` 域 `environment@<call>`，按原 call/operation 键读写。保留作用域跨调用：每个作用域有自己的 `host` 域 `retention@<作用域摘要>`，里面一条作用域记录（键 `scope`）和下文的收场记录，域名由 [host-domains.ts](src/host-domains.ts) 的 `retentionHostDomain` 生成，所以一个会话的提交不与另一个会话争同一个修订号。两者都只用 `ToolLedgerStore.readRecord`，不加载同租户的无关环境历史。需要当前资格的变更（许可、保留许可、交接）在提交里断言原调用域的修订号等于本次核对时读到的修订号：调用结算在中间落下即 `conflict`，重读后回复 `not-settled`。这取代了原来的守护宿主提交。
 
-预留（`plan`）记在创建它的获取自己的 `environment@<call>` 记录里，不进入作用域：还没有移交的预留只有创建它的获取能为它记账（执行环境契约[保留进程](../../execution/execution-environment-contract/SPEC.md#停止)）。创建者对自己预留的 `stopped` 写在自己的域里，不受作用域是否关闭影响。`plan` 按键读作用域记录，作用域已关闭时答 `closed`，不写作用域。
+预留（`plan`）记在创建它的获取自己的 `environment@<call>` 记录里，不进入作用域：还没有移交的预留只有创建它的获取能为它记账（执行环境契约[保留进程](../../execution/SPEC.md#一次性命令留下的进程)）。创建者对自己预留的 `stopped` 写在自己的域里，不受作用域是否关闭影响。`plan` 按键读作用域记录，作用域已关闭时答 `closed`，不写作用域。
 
 作用域记录只保存作用域已接手的资源。每个条目带资源、`permitted`（保留终端）或 `adopted`（保留进程）、停止事实（`active` 或 `unconfirmed`）与创建者引用（创建它的获取的 call、operation 与原获取绑定的摘要），不复制准备记录或请求；需要创建者时按键读它的 `environment@<call>`。接手（保留终端的 `permit`、保留进程的 `adopt`）是唯一的跨域事件：一次作用域提交加入条目，断言创建者获取记录所在域与原调用域的修订号，并核对创建者记录里有该键的预留、创建者仍开放、作用域仍开放。接手的条目活到停止被确认：作用域的任一视图都能记它的停止，`stopped(key, 'confirmed')` 先把创建者获取记录里该键的停止事实写成 `confirmed`，再在同一次作用域提交中删去该条目并写入收场事实；`unconfirmed` 只改停止事实。
 
 `close` 把作用域标为已关闭。作用域只有开放与已关闭两个状态，已关闭不回到开放；作用域记录永不删除，已关闭的记录就是耐久的关闭信号，之后 `plan`、`permit`、`adopt` 答 `closed`。
 
-收场事实按执行环境契约[停止](../../execution/execution-environment-contract/SPEC.md#停止)第 7 项保存。保留进程的停止被确认时，删去作用域条目的那次提交在同一个作用域域里写入一条按键记录 `ended/<进程键>`。`ended(key)` 用 `readRecord` 读这一条记录：有记录答 `confirmed`，没有答 `none`，读不到或记录无效答 `unavailable`；它从不读整个域。提供者据此对已离开其索引的保留进程的 `stop` 答 `confirmed`。保留终端没有收场事实。
+收场事实按执行环境契约[停止](../../execution/SPEC.md#一次性命令留下的进程)第 7 项保存。保留进程的停止被确认时，删去作用域条目的那次提交在同一个作用域域里写入一条按键记录 `ended/<进程键>`。`ended(key)` 用 `readRecord` 读这一条记录：有记录答 `confirmed`，没有答 `none`，读不到或记录无效答 `unavailable`；它从不读整个域。提供者据此对已离开其索引的保留进程的 `stop` 答 `confirmed`。保留终端没有收场事实。
 
 获取记录随所属调用由 Tool 账本的清扫删除（[调用状态的生命周期](../tool/SPEC.md#调用状态的生命周期)），宿主自己不排期。清扫经 `createLocalCallRecords` 请宿主放手一个调用的记录。宿主在下面任一条件成立时答 `held`，不删除任何记录：该调用的某条获取记录里还有未确认的停止事实；保留作用域还持有该调用创建的条目（作用域确认停止时先写创建者的获取记录）；该调用是被转发的调用，而转发它的调用的记录还在（来源记录的 `origin.parent` 指向它）。三个条件一旦都不成立就不会再成立：作用域只接手未停止的预留，调用标识不重用。否则宿主删除以该调用为名的 `start@`、`source@`、`delivery@`、`control@` 四个域，最后删除 `environment@` 域，并以判定时读到的修订号为条件；任一域在此期间被改写时答 `held`。判据：[retained-process-ledger.spec.ts](tests/retained-process-ledger.spec.ts) 的宿主放手记录一组。作用域记录与收场事实跨调用，不删除。三者都只按键读写，从不被跨调用或跨作用域汇总读取，所以每次读取都不随租户的已结算调用数或作用域里停止过的进程数增长。
 

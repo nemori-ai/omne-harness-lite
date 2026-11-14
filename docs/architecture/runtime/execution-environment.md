@@ -44,9 +44,9 @@ flowchart TD
 
 具体候选排序、池化、探测和节点选择由环境提供者定义。独立工具调用提供等价的合法环境输入，并实现资源账本、设施守卫、恢复授权与环境授权四个端口，提供可信绑定来源，不要求先创建完整 Session。
 
-执行环境分四个成员：纯契约（身份、绑定层、要求、落点、租约、需要端口、设施协议、块声明）、唯一 Cordis 服务定义、不含 Cordis 的登记表机制、Service 实现与宿主提供者。沙箱是将来新增的提供者，放在新的提供者成员里，登记到同一个登记表，不是新的 Service 实现，也不改契约。成员与依赖见[能力组](../../../packages/execution/README.md)。
+执行环境分四个成员：纯契约（身份、绑定层、要求、落点、租约、需要端口、设施协议、块声明）、唯一 Cordis 服务定义、不含 Cordis 的登记表机制、Service 实现与宿主提供者。沙箱是将来新增的提供者，放在新的提供者成员里，登记到同一个登记表，不是新的 Service 实现，也不改契约。成员与依赖见[能力组](../../../packages/execution/SPEC.md)。
 
-提供者退役是一个状态，不是 disposer 里的等待。提供者插件卸载即撤除登记，撤除登记就是退役开始，之后提供者拒绝新租约。提供者的状态与转移见契约对象模型的[提供者](../../../packages/execution/execution-environment-contract/docs/object-model.md#提供者)。
+提供者退役是一个状态，不是 disposer 里的等待。提供者插件卸载即撤除登记，撤除登记就是退役开始，之后提供者拒绝新租约。提供者的状态与转移见契约对象模型的[提供者](../../../packages/execution/SPEC.md#提供者的登记退役与关闭)。
 
 退役时，已交租约的失效对持有方可见。在途的设施操作由原提供者结清。
 
@@ -56,7 +56,7 @@ flowchart TD
 
 作用域的整体释放由维护者凭恢复授权发起。维护者在本版由应用装配层的协调者担任。执行环境不从任何上层逻辑状态推断作用域已结束。
 
-上面几段的条款见契约的 [INV-EE18](../../../packages/execution/execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)与[恢复](../../../packages/execution/execution-environment-contract/SPEC.md#恢复)。
+上面几段的条款见契约的 [INV-EE18](../../../packages/execution/SPEC.md#不变式)与[恢复](../../../packages/execution/SPEC.md#恢复)。
 
 ## 资源、凭据与可见变化
 

@@ -1,11 +1,8 @@
 import { lstat } from 'node:fs/promises'
 import { win32 } from 'node:path'
 
-/**
- * Where a host path lies below a host files root, judged without following any link. One judgment
- * for the Windows files backend and for a guard in front of a provider, so the two cannot disagree
- * about the position of a path (R2-D374, R2-D376).
- */
+/** Where a host path lies below a host files root, without following links. The Windows files backend
+ *  and a guard in front of a provider share this one judgment, so they cannot disagree. */
 
 /** The segments of a Windows path. Empty and `.` segments are left out, as on POSIX. */
 const splitWindows = (value: string) =>
