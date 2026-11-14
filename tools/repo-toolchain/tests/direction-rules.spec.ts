@@ -563,7 +563,7 @@ describe('omne-deps 的方向发现（C2–C4）', { timeout: 180_000 }, () => {
       stdout: expect.stringContaining('依赖方向：检查了 5 条方向行、20 个成员对，命中 0 处'),
     })
     // C3 的同前缀兄弟成员：agent-contract 导入 packages/session/session-contract-extra 不是方向命中。
-    // 它与 session-adapters → agent-contract 一起让 agent、session 两个组成环，那是预设自己的发现，单独一轮看。
+    // 它与 session-adapters → agent-contract 一起让 agent、session 两个组成环，成员之间不成环，不是发现。
     const sibling = `${MEMBERS.agent}/src/legal-sibling.ts`
     write(
       tree,
@@ -571,10 +571,10 @@ describe('omne-deps 的方向发现（C2–C4）', { timeout: 180_000 }, () => {
       "import { sibling } from '@omne-harness/session-contract-extra'\nexport const s = sibling\n",
     )
     const siblingRun = deps(tree, trusted)
-    expect(siblingRun.status).toBe(1)
+    expect(siblingRun.status).toBe(0)
     expect(hits(siblingRun.stdout)).toEqual([])
     expect(siblingRun.stdout).toContain('命中 0 处')
-    expect(siblingRun.stdout).toContain('组之间成环：packages/agent、packages/session')
+    expect(siblingRun.stdout).not.toContain('成环')
     rmSync(join(tree, sibling))
 
     // C2：四十个反例，外加一处未解析的导入与一个文件环。
