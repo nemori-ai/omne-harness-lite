@@ -30,7 +30,6 @@ export type HopObservation = Readonly<{
   publicEntry: string
   responsibility: string
   ownerCards: readonly string[]
-  reason: string
   /** The rows of the plugin tree that the hop crosses, by the row ids of the assembly page. */
   rows: readonly RowId[]
   /** The declared realization of each row on this invocation. */
@@ -50,7 +49,6 @@ export const HOP_DEFINITIONS = [
     publicEntry: '@omne-harness/public-contract; @omne-harness/identity',
     responsibility: 'create the organization and tenant',
     ownerCards: [319, 659],
-    reason: 'SPEC.md#h01',
     rows: ['server-entry', 'identity'],
   },
   {
@@ -58,7 +56,6 @@ export const HOP_DEFINITIONS = [
     publicEntry: '@omne-harness/public-contract; @omne-harness/identity',
     responsibility: 'log in and recognize the tenant',
     ownerCards: [319, 659],
-    reason: 'SPEC.md#h02',
     rows: ['server-entry', 'identity'],
   },
   {
@@ -66,7 +63,6 @@ export const HOP_DEFINITIONS = [
     publicEntry: '@omne-harness/public-contract; @omne-harness/session-contract',
     responsibility: 'create the session through the session codec, with the injected access check',
     ownerCards: [685, 536, 680],
-    reason: 'SPEC.md#h03',
     rows: ['server-entry', 'authorization', 'session-storage', 'session-provider', 'session-ad10'],
   },
   {
@@ -75,7 +71,6 @@ export const HOP_DEFINITIONS = [
       '@omne-harness/public-contract; @omne-harness/session-contract; @omne-harness/agent',
     responsibility: 'first request through the session codec, Run start and hand-over to Agent',
     ownerCards: [685, 536, 502],
-    reason: 'SPEC.md#h04',
     rows: [
       'server-entry',
       'session-provider',
@@ -91,7 +86,6 @@ export const HOP_DEFINITIONS = [
       '@omne-harness/agent; @omne-harness/request-context-contract; @omne-harness/model-contract',
     responsibility: 'Agent assembles through Request Context and sends the Model call',
     ownerCards: [502, 676],
-    reason: 'SPEC.md#h05',
     rows: [
       'agent-host',
       'session-conditions',
@@ -108,7 +102,6 @@ export const HOP_DEFINITIONS = [
     responsibility:
       'Model result is pushed to the host receiver, written as a received entry, and the loop continues from it',
     ownerCards: [683, 787, 502],
-    reason: 'SPEC.md#h06',
     rows: ['model-host', 'agent-host', 'agent-journal'],
   },
   {
@@ -116,7 +109,6 @@ export const HOP_DEFINITIONS = [
     publicEntry: '@omne-harness/agent-contract; @omne-harness/session-contract',
     responsibility: 'Agent reply enters the Session journal',
     ownerCards: [502, 536],
-    reason: 'SPEC.md#h07',
     rows: ['session-handoff', 'session-ad01'],
   },
   {
@@ -124,7 +116,6 @@ export const HOP_DEFINITIONS = [
     publicEntry: '@omne-harness/public-contract; @omne-harness/session-contract',
     responsibility: 'history read through the session codec returns the pure-message replies',
     ownerCards: [685, 536],
-    reason: 'SPEC.md#h08',
     rows: ['server-entry', 'session-provider'],
   },
   {
@@ -132,7 +123,6 @@ export const HOP_DEFINITIONS = [
     publicEntry: '@omne-harness/session-contract; @omne-harness/agent',
     responsibility: 'the later rounds of the session: a Run and a reply for each input',
     ownerCards: [536, 756, 502],
-    reason: 'SPEC.md#h09',
     rows: ['session-provider', 'session-ad02', 'session-ad14', 'agent-host'],
   },
   {
@@ -142,7 +132,6 @@ export const HOP_DEFINITIONS = [
     responsibility:
       'Model requests a tool, Tool runs it in the execution environment, the result returns to the Model',
     ownerCards: [502, 791],
-    reason: 'SPEC.md#h10',
     rows: [
       'agent-host',
       'tool-runtime',
@@ -158,7 +147,6 @@ export const HOP_DEFINITIONS = [
     responsibility:
       'the Agent instance is withdrawn during a Model call and assembled again; the call is not re-sent, the loop continues from the Journal, and the observation through the server entry stays continuous',
     ownerCards: [502, 787, 746],
-    reason: 'SPEC.md#h11',
     rows: ['agent-host', 'agent-instances', 'model-host', 'server-entry'],
   },
   {
@@ -166,7 +154,6 @@ export const HOP_DEFINITIONS = [
     publicEntry: '@omne-harness/model-contract; @omne-harness/agent',
     responsibility: 'a reply with reasoning is consumed and the next request replays its state',
     ownerCards: [502, 683],
-    reason: 'SPEC.md#h12',
     rows: ['model-host', 'agent-host', 'session-ad04'],
   },
   {
@@ -174,7 +161,6 @@ export const HOP_DEFINITIONS = [
     publicEntry: '@omne-harness/session-adapters; @omne-harness/session-contract',
     responsibility: 'the Agent records of the round are read from the Session log',
     ownerCards: [756],
-    reason: 'SPEC.md#h13',
     rows: ['agent-journal', 'session-ad02'],
   },
 ] as const satisfies readonly Readonly<{
@@ -182,7 +168,6 @@ export const HOP_DEFINITIONS = [
   publicEntry: string
   responsibility: string
   ownerCards: readonly number[]
-  reason: string
   rows: readonly string[]
 }>[]
 
@@ -198,7 +183,6 @@ export type ResidualGap = Readonly<{
   hops: readonly HopId[]
   owners: readonly string[]
   blocking: boolean
-  reason: string
 }>
 
 export const RESIDUAL_GAPS = [
@@ -207,70 +191,60 @@ export const RESIDUAL_GAPS = [
     hops: ['H03', 'H04', 'H08'],
     owners: [card(784)],
     blocking: false,
-    reason: 'SPEC.md#gap-session-wire',
   },
   {
     gapId: 'GAP-SESSION-COORDINATOR',
     hops: ['H04', 'H07', 'H09'],
     owners: [card(784)],
     blocking: false,
-    reason: 'SPEC.md#gap-session-coordinator',
   },
   {
     gapId: 'GAP-RUN-COMPLETED',
     hops: ['H07'],
     owners: [card(784)],
     blocking: false,
-    reason: 'SPEC.md#gap-run-completed',
   },
   {
     gapId: 'GAP-AGENT-CONTEXT',
     hops: ['H05'],
     owners: [card(542)],
     blocking: false,
-    reason: 'SPEC.md#gap-agent-context',
   },
   {
     gapId: 'GAP-RECEIVE-SURFACE',
     hops: ['H06'],
     owners: [card(502), card(795)],
     blocking: false,
-    reason: 'SPEC.md#gap-receive-surface',
   },
   {
     gapId: 'GAP-SECOND-RUN',
     hops: ['H09'],
     owners: [card(784), card(502)],
     blocking: true,
-    reason: 'SPEC.md#gap-second-run',
   },
   {
     gapId: 'GAP-TOOL-LOOP',
     hops: ['H10'],
     owners: [REDUCE_B3],
     blocking: true,
-    reason: 'SPEC.md#gap-tool-loop',
   },
   {
     gapId: 'GAP-AGENT-REASSEMBLY',
     hops: ['H11'],
     owners: [card(502), card(784)],
     blocking: true,
-    reason: 'SPEC.md#gap-agent-reassembly',
   },
   {
     gapId: 'GAP-REASONING-REPLAY',
     hops: ['H12'],
     owners: [card(502)],
     blocking: true,
-    reason: 'SPEC.md#gap-reasoning-replay',
   },
   {
     gapId: 'GAP-SESSION-LOG-TARGETS',
     hops: ['H13'],
     owners: [card(784)],
     blocking: true,
-    reason: 'SPEC.md#gap-session-log-targets',
   },
 ] as const satisfies readonly ResidualGap[]
 
@@ -391,7 +365,7 @@ type NormalizedHop = Readonly<{
 function hopErrors(hop: HopObservation): readonly string[] {
   const errors: string[] = []
   if (
-    [hop.publicEntry, hop.reason, hop.responsibility].some(text => text.length === 0) ||
+    [hop.publicEntry, hop.responsibility].some(text => text.length === 0) ||
     hop.ownerCards.length === 0 ||
     hop.rows.length === 0
   )

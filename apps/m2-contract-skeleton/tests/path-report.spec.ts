@@ -53,12 +53,10 @@ describe('M2 path observations', () => {
     }
     for (const gap of report.residualGaps) {
       expect(gap.owners.length).toBeGreaterThan(0)
-      expect(gap.reason).toBe(`SPEC.md#${gap.gapId.toLowerCase()}`)
     }
     for (const hop of report.hops) {
       expect(hop.ownerCards.length).toBeGreaterThan(0)
       expect(hop.publicEntry.length).toBeGreaterThan(0)
-      expect(hop.reason).toBe(`SPEC.md#${hop.hopId.toLowerCase()}`)
     }
     const text = JSON.stringify(report)
     const { login } = pathDependencies()
