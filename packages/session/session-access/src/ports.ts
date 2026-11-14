@@ -75,10 +75,13 @@ export interface SessionListing {
   >
 }
 
-/** The Session faces the seven operations reach. The real Session service satisfies it structurally. */
+/** The Session faces the operations reach. The real Session service satisfies it structurally. */
 export type SessionAccessFaces = Readonly<{
   management: Pick<SessionManagement<Principal>, 'create'>
-  work: Pick<SessionWork<Principal>, 'accept' | 'queryOperation' | 'cancelRun' | 'stopCall'>
+  work: Pick<
+    SessionWork<Principal>,
+    'accept' | 'queryOperation' | 'cancelRun' | 'stopCall' | 'retryRun'
+  >
   history: Pick<SessionHistory<Principal>, 'begin' | 'next'>
 }>
 

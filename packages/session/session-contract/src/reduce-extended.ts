@@ -15,6 +15,24 @@ import {
 import { associated, registerCall, registeredWaiting } from './call-state.ts'
 
 type Draft = { -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K] }
+
+function takeBatch(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'run.batch-taken' }>,
+): string | null {
+  // I-R3: an input is taken at most once in one Run. A repeated member or a second taking in the
+  // same Run is a contradiction to report, not a value to merge.
+  const ordered = entry.batch.ordered
+  if (new Set(ordered).size !== ordered.length) return 'a taken batch repeats an input'
+  draft.pending = draft.pending.filter(input => !ordered.includes(input))
+  if (draft.run.kind !== 'active' || draft.run.run !== entry.run) return null
+  if (ordered.some(input => (draft.taken ?? []).includes(input)))
+    return 'an input taken twice in the same Run'
+  draft.handed = draft.handed.filter(input => !ordered.includes(input))
+  draft.taken = [...(draft.taken ?? []), ...ordered]
+  draft.unanswered = [...(draft.unanswered ?? []), ...ordered]
+  return null
+}
 export function applyExtended(
   draft: Draft,
   entry: SessionEntry,
@@ -144,20 +162,7 @@ export function applyExtended(
         return 'missing historical execution binding'
       return null
     case 'run.batch-taken':
-      // I-R3: an input is taken at most once. A repeated member or a second taking in the same
-      // Run is a contradiction to report, not a value to merge.
-      if (new Set(entry.batch.ordered).size !== entry.batch.ordered.length)
-        return 'a taken batch repeats an input'
-      if (draft.run.kind !== 'active' || draft.run.run !== entry.run) {
-        draft.pending = draft.pending.filter(input => !entry.batch.ordered.includes(input))
-        return null
-      }
-      if (entry.batch.ordered.some(input => (draft.taken ?? []).includes(input)))
-        return 'an input taken twice in the same Run'
-      draft.pending = draft.pending.filter(input => !entry.batch.ordered.includes(input))
-      draft.handed = draft.handed.filter(input => !entry.batch.ordered.includes(input))
-      draft.taken = [...(draft.taken ?? []), ...entry.batch.ordered]
-      return null
+      return takeBatch(draft, entry)
     case 'call.bound': {
       if ('binding' in entry && entry.reference !== entry.binding.producer.call)
         invalidAt('reference', 'does not match original binding')
@@ -248,6 +253,8 @@ export function applyExtended(
       draft.waiting = []
       draft.callWaits = []
       draft.taken = []
+      delete draft.unanswered
+      delete draft.awaitingPerson
       draft.tasks = [...draft.tasks.filter(task => task.kind !== 'routed-input'), ...entry.tasks]
       const existing = draft.contextScopes ?? []
       draft.contextScopes = [

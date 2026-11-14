@@ -46,6 +46,30 @@ export type ModelFaultCause =
   | 'policy-unavailable'
   | 'upstream-protocol'
   | 'unclassified'
+export function faultIsTransient(cause: ModelFaultCause): boolean {
+  switch (cause) {
+    case 'upstream-unavailable':
+    case 'stream-lost':
+    case 'runtime-lost':
+      return true
+    case 'profile-withdrawn':
+    case 'excluded':
+    case 'modality':
+    case 'credential':
+    case 'input-rejected':
+    case 'input-over-limit':
+    case 'replay-rejected':
+    case 'persistence':
+    case 'policy-unavailable':
+    case 'upstream-protocol':
+    case 'unclassified':
+      return false
+    default: {
+      const unknown: never = cause
+      throw new TypeError(`unknown model fault cause ${String(unknown)}`)
+    }
+  }
+}
 export type OverLimitMetric = 'context-tokens' | 'input-tokens' | LimitMetric
 /**
  * `replayCarried` is present only when the failed send carried reasoning state, so the original

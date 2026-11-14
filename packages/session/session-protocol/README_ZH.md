@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-公开协议 `session/v1` 的协议契约：会话向客户端开放的八个操作和一个观察。服务端的接入插件和客户端核心用同一个值，一边得到处理函数的类型，一边得到每个操作一个方法。设计源是 [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#7-协议怎样划分)。
+公开协议 `session/v1` 的协议契约：会话向客户端开放的操作和一个观察。服务端的接入插件和客户端核心用同一个值，一边得到处理函数的类型，一边得到每个操作一个方法。设计源是 [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#7-协议怎样划分)。
 
 ## 职责与状态
 
@@ -23,7 +23,7 @@ const read = body.read(tree, limits) // { ok: true, value } 或 { ok: false }
 
 ## 契约
 
-八个操作的三栏、和旧家族 `session-public/1` 的六处差别、结果的体与观察的帧见 [SPEC.md](SPEC.md)。精确类型由 [src/session-protocol.ts](src/session-protocol.ts) 推出，导航在 [docs/public-api.md](docs/public-api.md)。
+每个操作的三栏、和旧家族 `session-public/1` 的差别、结果的体与观察的帧见 [SPEC.md](SPEC.md)。精确类型由 [src/session-protocol.ts](src/session-protocol.ts) 推出，导航在 [docs/public-api.md](docs/public-api.md)。
 
 ## 设计
 

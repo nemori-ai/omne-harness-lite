@@ -443,17 +443,24 @@ function toolRecords(workspace: string, combinationVersion: string) {
 }
 
 /**
- * The factory numbers of `agent-host`. The reconciliation delay and the denial backoff are 1000 ms:
- * an Agent that waits for a dependency checks again at this interval, and 0 runs it again about
- * every 9 ms (R2-D209). `loopGuardPolicy` has no production adoption source yet (L-RUN wave 3).
+ * The factory numbers of `agent-host`. A waiting run checks again after 1000 ms three times, then
+ * after longer delays while nothing changes, at most every 30 s; a change starts the list again. The
+ * denial backoff is 1000 ms; 0 runs it again about every 9 ms (R2-D209). `loopGuardPolicy` has no
+ * production adoption source yet (L-RUN wave 3).
  */
 const AGENT_HOST = {
   observerBufferBytes: 65_536,
-  reconciliationDelayMs: 1000,
+  reconciliationDelaysMs: [1000, 1000, 1000, 2000, 2000, 5000, 5000, 10_000, 30_000],
   reconciliationBatchLimit: 8,
   denialBackoffMs: 1000,
   toolConcurrency: 1,
   loopGuardPolicy: { ...ADOPTION, name: 'local-single-user/loop-guard' },
+  modelRetry: {
+    maxAttempts: 4,
+    maxElapsedMs: 120_000,
+    delaysMs: [1_000, 5_000, 30_000],
+    jitter: 0.2,
+  },
   instanceIdleMs: 60_000,
 } as const
 

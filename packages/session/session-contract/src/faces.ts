@@ -66,7 +66,16 @@ export type SessionFailure =
   | Readonly<{ kind: 'terminal'; terminal: RunTerminal }>
   | Readonly<{ kind: 'stale-advance'; current: AdvanceRef | null }>
   | Readonly<{ kind: 'frozen'; verdict: FreezeVerdict | null }>
-  | Readonly<{ kind: 'archived' | 'no-input' | 'run-active' | 'not-ready' | 'login-required' }>
+  | Readonly<{
+      kind:
+        | 'archived'
+        | 'no-input'
+        | 'run-active'
+        | 'not-ready'
+        | 'login-required'
+        | 'not-found'
+        | 'nothing-pending'
+    }>
 export type Reply<T> = Promise<Outcome<T, SessionFailure>>
 export type CommitReceipt = Readonly<{
   operation: SessionOperationId
@@ -230,6 +239,7 @@ export interface SessionWork<P> {
   stopCall(
     input: Mutation<P> & Readonly<{ producer: ProducerRef }>,
   ): Reply<SessionControlReceipt<SessionCallTerminal>>
+  retryRun(input: Mutation<P> & Readonly<{ run: RunId }>): Reply<CommitReceipt>
   queryControlOperation(
     input: SessionAccess<P> & Readonly<{ operation: SessionOperationId }>,
   ): Reply<ControlOperationResolution>

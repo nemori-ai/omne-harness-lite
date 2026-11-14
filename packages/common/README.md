@@ -1,6 +1,6 @@
 # 共同纯表示能力组
 
-本组是条件性工程位置，依据为[目标包组织](../../docs/package-organization.md#目标目录)。下面十份成员已经在 workspace 里。`json-text` 导出读取函数、值树判定函数和值树原样写出函数。`utc-instant` 导出时间点、SI 时长和 `compareInstants`。`legal-identity` 导出解析、编码、相等和 `tenant()`。`content-block`、`message` 和 `stream-arrival` 导出各自的纯校验。`call-account` 导出调用账目的快照准入、修订替换、来源小计和应付金额。`operation-result` 导出操作结果的两种形状和构造函数。`modality` 导出四种模态、媒体类型到模态的识别和模态判定函数。`exchange-refs` 只导出三个类型，没有运行时值。
+本组是条件性工程位置，依据为[目标包组织](../../docs/package-organization.md#目标目录)。下面十一份成员已经在 workspace 里。`json-text` 导出读取函数、值树判定函数和值树原样写出函数。`utc-instant` 导出时间点、SI 时长和 `compareInstants`。`legal-identity` 导出解析、编码、相等和 `tenant()`。`content-block`、`message` 和 `stream-arrival` 导出各自的纯校验。`call-account` 导出调用账目的快照准入、修订替换、来源小计和应付金额。`operation-result` 导出操作结果的两种形状和构造函数。`modality` 导出四种模态、媒体类型到模态的识别和模态判定函数。`exchange-refs` 只导出三个类型，没有运行时值。`retry` 导出重试策略的解析和一个纯判定函数。
 
 ## 责任与范围
 
@@ -10,20 +10,21 @@
 
 ## 成员与依赖
 
-依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。下表的十份目录现在是 workspace 成员。`json-text` 的读取函数已经实现，#242 已于 2026-10-15 接受这部分。值树判定与原样写出函数是 #373 新增，待 D-02 确认。`utc-instant` 的公开行为已经实现，整卡接受见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171844996)。`legal-identity` 从 `src/index.ts` 导出解析、编码、相等和 `tenant()`。#243 的成果已合并进 `integration/legacy-refactor`。
+依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。下表的十一份目录现在是 workspace 成员。`json-text` 的读取函数已经实现，#242 已于 2026-10-15 接受这部分。值树判定与原样写出函数是 #373 新增，待 D-02 确认。`utc-instant` 的公开行为已经实现，整卡接受见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171844996)。`legal-identity` 从 `src/index.ts` 导出解析、编码、相等和 `tenant()`。#243 的成果已合并进 `integration/legacy-refactor`。
 
-| 目标成员 | 状态 | 拥有的纯值 | 具名消费者 |
-| --- | --- | --- | --- |
-| `json-text` | 读取函数已实现，#242 已接受。`judgeJsonValue` 已于 2026-10-18 在 #373 接受；`writeJsonText` 依 RFC-0010（2026-10-18 接受）加入。叶子名在本分支确定为 `json-text`。#242 当时没有裁定名字，并禁止从旧目录猜测 | 严格 JSON 文本读取、值树判定、值树原样写出 | 后续的配置读取、协议解码与持久记录读取。新增的两个函数尚无生产消费者，第一个是 message（K2b） |
-| `legal-identity` | 公开入口已实现。精确文本归成员 README。#243 已合并进 `integration/legacy-refactor` | 合法身份文本、相等、租户组合 | `packages/identity/identity` 与 `packages/session/session` |
-| `utc-instant` | 公开行为已实现。revision 1 整卡已由 PanQiWei 于 2026-10-14 接受并关闭，见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171844996) | 时间点、SI 时长、唯一比较 | 设计消费者为 Identity 与 Tool；实际直接导入及 testing 支持见[成员维护说明](utc-instant/README_ZH.md#维护) |
-| `content-block` | 纯校验已导出，另导出块身份与标注的判定、开块头键表 | 已封闭的文本、思考、语音、图、文件，以及块身份与标注 | 消息、流式到达、模型、工具、会话、请求投影 |
-| `message` | 解析和相等已导出，另导出四种工具部件与工具消息的闭合形状及其判定。不铸造消息身份和块身份 | 事实记录中的消息字段，含工具调用、两个调用变体与工具结果标记 | 流式到达、会话、请求投影、模型、工具 |
-| `stream-arrival` | 步骤校验与折叠已导出，开块头键闭合，工具调用须显式完整封口 | 开块、填充、封块、削减、结束 | 模型、工具、会话 |
-| `call-account` | 快照准入、修订替换、来源小计和应付金额已导出 | 一次模型调用或工具执行的调用账目 | 值消费者与会话结果接收职责见[成员说明](call-account/README_ZH.md#职责与状态) |
-| `operation-result` | 公开入口已实现，零依赖。形状由 [#248](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639) 接受，拆分依据是 [#371 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/371#issuecomment-6229850851) | 带值成功、无值确认与失败两种操作结果。失败词汇 `F` 归调用方 | 当前直接消费者由[成员 SPEC](operation-result/SPEC.md#消费者)唯一维护，区分 src 类型、运行时值和 testing 支持 |
-| `modality` | 公开入口已实现，零依赖。含义与 Model 契约一致，由 Model 主干会话于 2026-10-19 确认。媒体类型到模态的对照表由 PanQiWei 随 [#397](https://github.com/nemori-ai/omne-harness-lite/issues/397) 接受，其中全部 `audio/*` 读作 `voice` 是 PanQiWei 2026-10-19 的裁定 | 四种模态、媒体类型规范形式与按顶层类型识别的模态、模态判定、缺失模态。不含历史模态投影、转换件选择、初始文本约束和块种类到模态的映射 | 具名消费者是 Model 与 Tool。以后有会话、代理与基础设施。当前轨道没有生产调用点。Model 与 Tool 在各自的交付里采用，采用前保留各自的副本 |
-| `exchange-refs` | 公开入口已实现，零依赖，只有类型。逐字段核对与收归由 PanQiWei 在 [#734 派发裁定](https://github.com/nemori-ai/omne-harness-lite/issues/734#issuecomment-6394333906)中决定。判定、摘要算法与跨值规则留在原域 | 可以恢复的精确采用 `Adoption`、一个 owner 的耐久记录定位 `DurableEvidence`、消费者拥有者登记的稳定位置 `ConsumerRef` | agent-contract、model-contract、tool-contract、request-context-contract 以原名再导出，authorization 的 `DecisionEvidence` 建在 `DurableEvidence` 上。清单见[成员 SPEC](exchange-refs/SPEC.md#composition) |
+| 目标成员           | 状态                                                                                                                                                                                                                                                           | 拥有的纯值                                                                                                                           | 具名消费者                                                                                                                                                                                                |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `json-text`        | 读取函数已实现，#242 已接受。`judgeJsonValue` 已于 2026-10-18 在 #373 接受；`writeJsonText` 依 RFC-0010（2026-10-18 接受）加入。叶子名在本分支确定为 `json-text`。#242 当时没有裁定名字，并禁止从旧目录猜测                                                    | 严格 JSON 文本读取、值树判定、值树原样写出                                                                                           | 后续的配置读取、协议解码与持久记录读取。新增的两个函数尚无生产消费者，第一个是 message（K2b）                                                                                                             |
+| `legal-identity`   | 公开入口已实现。精确文本归成员 README。#243 已合并进 `integration/legacy-refactor`                                                                                                                                                                             | 合法身份文本、相等、租户组合                                                                                                         | `packages/identity/identity` 与 `packages/session/session`                                                                                                                                                |
+| `utc-instant`      | 公开行为已实现。revision 1 整卡已由 PanQiWei 于 2026-10-14 接受并关闭，见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171844996)                                                                                            | 时间点、SI 时长、唯一比较                                                                                                            | 设计消费者为 Identity 与 Tool；实际直接导入及 testing 支持见[成员维护说明](utc-instant/README_ZH.md#维护)                                                                                                 |
+| `content-block`    | 纯校验已导出，另导出块身份与标注的判定、开块头键表                                                                                                                                                                                                             | 已封闭的文本、思考、语音、图、文件，以及块身份与标注                                                                                 | 消息、流式到达、模型、工具、会话、请求投影                                                                                                                                                                |
+| `message`          | 解析和相等已导出，另导出四种工具部件与工具消息的闭合形状及其判定。不铸造消息身份和块身份                                                                                                                                                                       | 事实记录中的消息字段，含工具调用、两个调用变体与工具结果标记                                                                         | 流式到达、会话、请求投影、模型、工具                                                                                                                                                                      |
+| `stream-arrival`   | 步骤校验与折叠已导出，开块头键闭合，工具调用须显式完整封口                                                                                                                                                                                                     | 开块、填充、封块、削减、结束                                                                                                         | 模型、工具、会话                                                                                                                                                                                          |
+| `call-account`     | 快照准入、修订替换、来源小计和应付金额已导出                                                                                                                                                                                                                   | 一次模型调用或工具执行的调用账目                                                                                                     | 值消费者与会话结果接收职责见[成员说明](call-account/README_ZH.md#职责与状态)                                                                                                                              |
+| `operation-result` | 公开入口已实现，零依赖。形状由 [#248](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639) 接受，拆分依据是 [#371 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/371#issuecomment-6229850851)               | 带值成功、无值确认与失败两种操作结果。失败词汇 `F` 归调用方                                                                          | 当前直接消费者由[成员 SPEC](operation-result/SPEC.md#消费者)唯一维护，区分 src 类型、运行时值和 testing 支持                                                                                              |
+| `modality`         | 公开入口已实现，零依赖。含义与 Model 契约一致，由 Model 主干会话于 2026-10-19 确认。媒体类型到模态的对照表由 PanQiWei 随 [#397](https://github.com/nemori-ai/omne-harness-lite/issues/397) 接受，其中全部 `audio/*` 读作 `voice` 是 PanQiWei 2026-10-19 的裁定 | 四种模态、媒体类型规范形式与按顶层类型识别的模态、模态判定、缺失模态。不含历史模态投影、转换件选择、初始文本约束和块种类到模态的映射 | 具名消费者是 Model 与 Tool。以后有会话、代理与基础设施。当前轨道没有生产调用点。Model 与 Tool 在各自的交付里采用，采用前保留各自的副本                                                                    |
+| `exchange-refs`    | 公开入口已实现，零依赖，只有类型。逐字段核对与收归由 PanQiWei 在 [#734 派发裁定](https://github.com/nemori-ai/omne-harness-lite/issues/734#issuecomment-6394333906)中决定。判定、摘要算法与跨值规则留在原域                                                    | 可以恢复的精确采用 `Adoption`、一个 owner 的耐久记录定位 `DurableEvidence`、消费者拥有者登记的稳定位置 `ConsumerRef`                 | agent-contract、model-contract、tool-contract、request-context-contract 以原名再导出，authorization 的 `DecisionEvidence` 建在 `DurableEvidence` 上。清单见[成员 SPEC](exchange-refs/SPEC.md#composition) |
+| `retry`            | 公开入口已实现，零依赖。成员里没有缺省数值，不读时钟，不用定时器与随机数：随机数由调用方传入，等待由调用方自己做                                                                                                                                               | 重试策略（次数上限、总时长上限、间隔表、抖动）与「再试一次、等多久，还是预算用尽」的纯判定                                           | `packages/agent/agent` 的模型重试（次数记在检查点里）与 `apps/desktop` 页面对读的再问                                                                                                                     |
 
 采用记录是 [Issue 221 技术设计采用](https://github.com/nemori-ai/omne-harness-lite/issues/221#issuecomment-6161958178)。
 
@@ -41,38 +42,38 @@
 
 下表对照 `71876225cf9300f0381f09e496b27d4007fb71ea` 上的旧公开类型。旧类型名不构成兼容要求。本卡不删除 legacy 包，也不修改这些消费者的源码。
 
-| 旧公开类型或用法 | 新拥有者 | 消费者迁移责任 |
-| --- | --- | --- |
-| `AccountId`、`OrganizationId`、`LoginStateId` 共用一个不透明字符串解析 | `legal-identity` | 调用方按家族解析。错前缀得到 `family` |
-| `LoginIdentifier` | 不进入 `IDENTITY_SPECS` | 它仍是账号属性，不是身份类型名 |
-| 由两个裸字符串组成的 `TenantId` | `legal-identity` 的文本解析与 `tenant()` | `governance-client-operations-local` 的缓存不再收下解析器会拒绝的字符串 |
-| 没有相等函数的 `ScopeLayerIdentity` | `legal-identity` | 调用方使用相等函数。重新解析得到新对象 |
-| 同一种 `HandoffWarrant` 既解析又签发 | `packages/identity/identity` | 核对凭证不代替授权 |
-| 三套 RFC 3339 比较，以及经 `Date` 与 `Number` 的时间点 | `utc-instant` 的 `compareInstants` | `session-runtime`、`call-accounts`、`runtime-context` 去掉各自的本地比较 |
-| 用 `Number` 解析的工具时长 | `utc-instant` | `session-runtime-local` 不再对秒字段调用 `Number` |
-| 共享的 `deriveState` | 业务拥有者 | 到期判断不放进本组 |
-| 用 `filledAt` 充当递增序号 | 序号拥有者 | `asset-registry-local` 不再在钟停住时保存 `previous + 1` |
-| 租约读取 `Date.now` | 单调钟端口 | `clock-lease` 不把 `Date.now` 当作默认当前时间 |
-| `IDENTITY_TYPE_NAMES` | `legal-identity` 的唯一名单 | `tools/product-checks` 的 `identity-shapes` 导入这份名单。它删除字面量 `AccountId`。#219 不另写一份拼写 |
+| 旧公开类型或用法                                                       | 新拥有者                                 | 消费者迁移责任                                                                                          |
+| ---------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `AccountId`、`OrganizationId`、`LoginStateId` 共用一个不透明字符串解析 | `legal-identity`                         | 调用方按家族解析。错前缀得到 `family`                                                                   |
+| `LoginIdentifier`                                                      | 不进入 `IDENTITY_SPECS`                  | 它仍是账号属性，不是身份类型名                                                                          |
+| 由两个裸字符串组成的 `TenantId`                                        | `legal-identity` 的文本解析与 `tenant()` | `governance-client-operations-local` 的缓存不再收下解析器会拒绝的字符串                                 |
+| 没有相等函数的 `ScopeLayerIdentity`                                    | `legal-identity`                         | 调用方使用相等函数。重新解析得到新对象                                                                  |
+| 同一种 `HandoffWarrant` 既解析又签发                                   | `packages/identity/identity`             | 核对凭证不代替授权                                                                                      |
+| 三套 RFC 3339 比较，以及经 `Date` 与 `Number` 的时间点                 | `utc-instant` 的 `compareInstants`       | `session-runtime`、`call-accounts`、`runtime-context` 去掉各自的本地比较                                |
+| 用 `Number` 解析的工具时长                                             | `utc-instant`                            | `session-runtime-local` 不再对秒字段调用 `Number`                                                       |
+| 共享的 `deriveState`                                                   | 业务拥有者                               | 到期判断不放进本组                                                                                      |
+| 用 `filledAt` 充当递增序号                                             | 序号拥有者                               | `asset-registry-local` 不再在钟停住时保存 `previous + 1`                                                |
+| 租约读取 `Date.now`                                                    | 单调钟端口                               | `clock-lease` 不把 `Date.now` 当作默认当前时间                                                          |
+| `IDENTITY_TYPE_NAMES`                                                  | `legal-identity` 的唯一名单              | `tools/product-checks` 的 `identity-shapes` 导入这份名单。它删除字面量 `AccountId`。#219 不另写一份拼写 |
 
 ## 反例
 
 下表是已采用契约的结果。2026-10-14 的本地探针 `tmp/issue-221-identity-time/probe.mjs` 输出 `probe ok`。该探针不在 Git 中。本表是可核对的结果。
 
-| 输入 | 结果 |
-| --- | --- |
-| 账号前缀的正文按组织解析 | `family` |
-| `a` 按账号解析 | 不成功 |
-| 同一账号文本解析两次 | 两个对象。相等函数为真 |
-| 小数秒 `0.5005` 与 `0.500` | `0.5005` 更晚 |
-| 小数 `0004` 与 `00049` | 不相等 |
+| 输入                                  | 结果                                   |
+| ------------------------------------- | -------------------------------------- |
+| 账号前缀的正文按组织解析              | `family`                               |
+| `a` 按账号解析                        | 不成功                                 |
+| 同一账号文本解析两次                  | 两个对象。相等函数为真                 |
+| 小数秒 `0.5005` 与 `0.500`            | `0.5005` 更晚                          |
+| 小数 `0004` 与 `00049`                | 不相等                                 |
 | `Math.round(Number('0.5005') * 1000)` | 旧路径得到 `500`。新比较不使用这条路径 |
-| `2016-12-31T23:59:60Z` 与次日零点 | 闰秒更早。比较不调用 `Date` |
-| `PT1.0000000000000001S` | 保留 16 位小数 |
-| `P1D` | `calendar-unit` |
-| 租户文本多一个 `role` | 不成功 |
-| 序号的下一个，观察时间不可用 | 接受这个序号 |
-| 序号不前进，只提供一个时间点 | `stale-sequence` |
+| `2016-12-31T23:59:60Z` 与次日零点     | 闰秒更早。比较不调用 `Date`            |
+| `PT1.0000000000000001S`               | 保留 16 位小数                         |
+| `P1D`                                 | `calendar-unit`                        |
+| 租户文本多一个 `role`                 | 不成功                                 |
+| 序号的下一个，观察时间不可用          | 接受这个序号                           |
+| 序号不前进，只提供一个时间点          | `stale-sequence`                       |
 
 ## 时钟失败
 

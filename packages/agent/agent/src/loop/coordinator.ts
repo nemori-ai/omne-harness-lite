@@ -112,7 +112,7 @@ import {
 } from './admission-chain.ts'
 import type { PassageNeed } from './passages.ts'
 import { canonical } from '../canonical.ts'
-import { waitForExecutionChange, type HeldPosition } from './wait.ts'
+import { waitForExecutionChange, type HeldPosition, type ReconciliationPacer } from './wait.ts'
 import { diagnosticOf } from './diagnostic.ts'
 import {
   lowerBound,
@@ -125,7 +125,13 @@ import { attemptWrite, originalJournal, type OriginalWrite } from './original-wr
 import { localFailure, nodeFailureCategory, type NodeFailureCategory } from './node-failure.ts'
 import { readBatchToolCalls } from './action-source.ts'
 import { answeredByPort, notingPorts } from './port-answers.ts'
-import { consumeModelResult, noReplyReason, type ModelOutcome } from './model-result.ts'
+import {
+  consumeModelResult,
+  noReplyReason,
+  type ModelOutcome,
+  type ModelResult,
+} from './model-result.ts'
+import { modelRetryNotDue, retryModelCall, type ModelRetryEntry } from './model-retry.ts'
 import { readModelDeliveryMaterial } from '../receiving-material.ts'
 import {
   advanceAcceptedControl,
@@ -232,7 +238,8 @@ export type ExecutionEntry<P> = Readonly<{
    * runtime assembly gives none yet, so the report then goes nowhere.
    */
   report?: (report: ReplyAdmissionReadReport) => void
-}>
+}> &
+  ModelRetryEntry
 
 /**
  * A cold read of the reply admission facts: E2 met `missing-basis` at the prefix `from` and read
@@ -258,7 +265,7 @@ export interface ExecutionDrive {
   runExecution(): Promise<Outcome<void, Halted>>
   /** W0's local resources belong to this awaited window, never to the producer. */
   waitForWake(
-    input: Readonly<{ reconciliationDelayMs: number; signal: AbortSignal }>,
+    input: Readonly<{ pacer: ReconciliationPacer; signal: AbortSignal }>,
   ): Promise<Outcome<'ready' | 'stopped' | 'cancelled', Halted>>
   /**
    * The handover of quiesce (SPEC "交接与停用"): `Journal.detach` revokes the attachment of an
@@ -391,7 +398,6 @@ type Candidate =
       returnTo: 'I3'
     }>
 
-/** The facts of one iteration, filled as its nodes run. Each field is set by the node named. */
 type Iteration = {
   step: StepId
   batch: InputBatch | null
@@ -405,7 +411,7 @@ type Iteration = {
   ready: ReadyPreparation | null // P1
   pending: ModelPendingCall | null // I2
   settlement: M.Settlement | null // M1
-  result: ModelOutcome | null // restored from the Journal-bound completion, not a Model cache
+  result: ModelResult | null // restored from the Journal-bound completion, not a Model cache
   admission: 'new' | 'unknown' | 'accepted'
 }
 
@@ -444,7 +450,6 @@ function heldAfter(
  * official admission of this release never asks a person, so no execution reaches these branches.
  */
 const CARD_ROUND_CLOSING = '#502 stage 3'
-/** The needs of a chain whose card round is saved or presented and not answered. */
 const OUT_ROUNDS: readonly PassageNeed[] = ['present', 'read', 'closed']
 
 /**
@@ -469,7 +474,6 @@ function notYet(node: LoopNode, what: string, card: string): Failure {
   })
 }
 
-/** The Model answer that the Loop waits on: the Model runtime did not give the step its answer yet. */
 function modelUnavailable(
   node: LoopNode,
   failure: M.ModelFailure,
@@ -577,7 +581,6 @@ function recoveryTarget(node: string): Recovery {
   return succeed(node as LoopNode)
 }
 
-/** The node of a saved action batch, by its barrier and slots. */
 function batchRecovery(position: string, batch: ActionBatch): string {
   if (batch.barrier.kind === 'closed') return 'A1'
   // The batch pass and the message admission continue where they are; T5 recognizes its Ja.
@@ -590,7 +593,6 @@ function batchRecovery(position: string, batch: ActionBatch): string {
   return batch.slots.some(slot => slot.kind === 'dispatched') ? 'T0' : 'T1'
 }
 
-/** The node of a saved call outside an action batch. */
 function callRecovery(position: string, call: PendingCall): Recovery {
   if (call.purpose === 'compaction')
     return fail({ kind: 'unsupported', node: 'M1', card: '#502 stage 4' })
@@ -627,7 +629,6 @@ function preparationRecovery(at: AgentCheckpoint): Recovery | null {
 /** The positions before the final request record: no fact of them outlives the process. */
 const BEFORE_RECORD: readonly string[] = ['I1', 'P0', 'P1', 'I2']
 
-/** The routes the execution state, a lost receipt or a pending passage decide alone. */
 function stateRecovery(
   read: Pick<ExecutionSnapshot, 'checkpoint' | 'state' | 'unresolved'>,
 ): Recovery | null {
@@ -669,7 +670,6 @@ export function recoveryRoute(
   return recoveryTarget(at.position)
 }
 
-/** The ports whose answers are a dependency's (all of `LoopPorts` but `toolRequests`). */
 const DEPENDENCY_PORTS = [
   'journal',
   'entries',
@@ -739,7 +739,6 @@ function coordinate<P>(
   // effect, so the wait comes back to prepare the same request again (SPEC "依赖不可用时的等待":
   // the same operation), not to the lookup of a receipt lost with a process.
   let unpreparedHandoff: PendingHandoff | null = null
-  // The acceptance of the external input that U0 admitted, which E0 hands to `open`.
   let acceptance: OriginalInputAcceptance | null = null
   let iteration: Iteration | null = null
   let pendingCommit: Readonly<{
@@ -757,11 +756,9 @@ function coordinate<P>(
   // Whether the wait R0 entered is the memory wait of F3 (agent README, loop-algorithm R0 row): W0
   // writes nothing for it, and the wake retries the terminal through E1.
   let finishWait = false
-  // Whether F4 already told `entry.ended` of the terminal: one report per coordinator.
   let endReported = false
   // The dependency wait that `entry.waiting` was told of last: step, node, owner and diagnostic.
   let reportedWait: string | null = null
-  // Whether the next F3 issues the obligations again, after a tryFinish answered `changed`.
   let reissueObligations = false
   let cancellationChanged = false
   let waits: readonly Waiting[] = []
@@ -1078,7 +1075,6 @@ function coordinate<P>(
     return succeed(node)
   }
 
-  // ------------------------------------------------------------------------------------------
   // Reads shared by E1, E2, I8 and F1
 
   async function load(): Promise<Outcome<ExecutionSnapshot, Failure>> {
@@ -1320,7 +1316,6 @@ function coordinate<P>(
     return succeed({ kind: 'try-finish', conclusion: { kind: 'fail', cause }, failure })
   }
 
-  // ------------------------------------------------------------------------------------------
   // admitMessage: U0, Q1, Q2, Q4, Q5 (SPEC "消息准入"; the Q5 of H0, T5, C3 and X5 comes with them)
 
   /** The runtime context of the invoke: the real instance, scope, definition and grant. */
@@ -1552,9 +1547,6 @@ function coordinate<P>(
     },
   } satisfies Partial<Record<LoopNode, Handler>>
 
-  // ------------------------------------------------------------------------------------------
-  // R0: the reconciliation of original operations, and where it goes on
-
   /** The snapshot R0 reconciles: the latest one after a refused terminal, with the own commit. */
   async function reconciliationBase(): Promise<Outcome<ExecutionSnapshot, Failure>> {
     let before = required(snapshot, 'snapshot')
@@ -1692,9 +1684,6 @@ function coordinate<P>(
       canonical(read.checkpoint) !== canonical(checkpoint)
     )
   }
-
-  // ------------------------------------------------------------------------------------------
-  // runExecution: E0, E1, E2, E3, E4, O0, E9
 
   const runExecutionNodes = {
     /** E0: `open` saves the original acceptance with the runtime context and grants the attachment. */
@@ -1887,16 +1876,12 @@ function coordinate<P>(
     },
   } satisfies Partial<Record<LoopNode, Handler>>
 
-  // ------------------------------------------------------------------------------------------
-  // runIter: I0, I3, I4, I8
-
   const runIter = {
     /** I0: the inputs within the watermark become the batch of a new step. */
     async I0() {
       const at = required(facts, 'facts')
       const next = stepOf(ordinalOf(required(checkpoint, 'checkpoint').step) + 1)
       iteration = newIteration(next, at.batch, 0)
-      // The input-taken event goes with the commit that fixes the batch and the step.
       return step('taken', {
         checkpoint: {
           step: next,
@@ -1914,7 +1899,18 @@ function coordinate<P>(
       if ('failure' in restored) return restored
       const result = restored.ok.result
       current.result = result
-      if (result.kind === 'no-reply') {
+      if (result.kind === 'interrupted') return step('partial', { checkpoint: { calls: [] } })
+      if (result.kind === 'unusable') {
+        const retried = await retryModelCall(
+          entry,
+          current.step,
+          result,
+          () => required(checkpoint, 'checkpoint').modelRetry ?? null,
+          ports.clock,
+        )
+        if ('failure' in retried) return retried
+        if (retried.ok !== null)
+          return step('retry', { checkpoint: { calls: [], modelRetry: retried.ok } })
         if (decided?.kind !== 'try-finish' || decided.failure?.kind !== 'no-reply') {
           const instant = await ports.clock.now()
           if ('failure' in instant) return instant
@@ -1938,7 +1934,7 @@ function coordinate<P>(
             conclusion: {
               kind: 'fail',
               cause: agentEvidence(
-                `${execution}/${current.step}/${noReplyReason(result.settlement)}`,
+                `${execution}/${current.step}/${noReplyReason(result)}`,
                 failure,
               ),
             },
@@ -1947,7 +1943,6 @@ function coordinate<P>(
         }
         return step('try-finish', null)
       }
-      if (result.kind === 'partial') return step('partial', { checkpoint: { calls: [] } })
       const pending = required(current.pending, 'pending call')
       const call = invocationParts(pending.reference, access.tenant).call
       if (outcome === null) {
@@ -1980,7 +1975,11 @@ function coordinate<P>(
       pendingHandoff = null
       // Keep the admitted reply until this conditional commit is known to hold. An excluded
       // I3 commit must re-evaluate the same admission rather than admit the reply a second time.
-      return step(decision === 'prepared' ? 'admitted' : 'rejected', { checkpoint: { calls: [] } })
+      if (decision !== 'prepared') return step('rejected', { checkpoint: { calls: [] } })
+      const retrying = (required(checkpoint, 'checkpoint').modelRetry ?? null) !== null
+      return step('admitted', {
+        checkpoint: { calls: [], ...(retrying ? { modelRetry: null } : {}) },
+      })
     },
     /** I4: the tool call parts of the admitted reply. Actions are #502 stage 2. */
     async I4() {
@@ -2022,6 +2021,10 @@ function coordinate<P>(
       const current = await readFacts(read.ok)
       if ('failure' in current) return current
       facts = current.ok
+      const retry = required(checkpoint, 'checkpoint').modelRetry ?? null
+      const notDue = await modelRetryNotDue(retry, ports.clock)
+      if ('failure' in notDue) return notDue
+      if (notDue.ok !== null) return waitFor('I8', notDue.ok, null)
       const evaluated = await evaluate('I8', current.ok)
       if ('failure' in evaluated) return evaluated
       if (
@@ -2974,7 +2977,6 @@ function coordinate<P>(
     },
   } satisfies Partial<Record<LoopNode, Handler>>
 
-  // ------------------------------------------------------------------------------------------
   // prepareRequest: I1, P0, P1 (C0 to C4 are #502 stage 4)
 
   async function capabilityResult<T>(
@@ -3142,7 +3144,6 @@ function coordinate<P>(
     )
   }
 
-  // ------------------------------------------------------------------------------------------
   // callModel: I2, M0, M6, M1, M3, M4, M5 (M2 remains stage 3)
 
   function mainPosition(step: StepId): ConsumerRef {
@@ -3411,7 +3412,7 @@ function coordinate<P>(
 
   async function readCompletion(
     current: Iteration,
-  ): Promise<Outcome<{ result: ModelOutcome; completion: DurableEvidence }, Failure>> {
+  ): Promise<Outcome<{ result: ModelResult; completion: DurableEvidence }, Failure>> {
     const pending = required(current.pending, 'pending call')
     const received = await receivedOf(pending)
     if ('failure' in received) return received
@@ -3447,7 +3448,7 @@ function coordinate<P>(
 
   function callsAfterConsumedNoReply(read: ExecutionSnapshot): readonly PendingCall[] {
     const current = iteration
-    if (current?.result?.kind !== 'no-reply' || current.pending === null)
+    if (current?.result?.kind !== 'unusable' || current.pending === null)
       return read.checkpoint.calls
     const pending = current.pending
     return read.checkpoint.calls.filter(
@@ -3569,7 +3570,6 @@ function coordinate<P>(
     return succeed(undefined)
   }
 
-  // ------------------------------------------------------------------------------------------
   // settle: F1, F2, F3, F4 (F0 is stage 5; extension evaluation is stage 3)
 
   /**

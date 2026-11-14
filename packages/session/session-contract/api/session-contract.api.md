@@ -694,6 +694,9 @@ import type { SessionCommand } from './ports.ts';
 import type { WorkSnapshot } from './values.ts';
 import type { Decision } from './judgments.ts';
 import type { DecideReads } from './judgments.ts';
+export declare function decideNamedControl(snapshot: WorkSnapshot, command: Extract<SessionCommand, {
+    kind: 'cancelRun' | 'stopCall' | 'retryRun';
+}>, reads: DecideReads): Decision;
 export declare function closeControlFailure(decision: Decision, command: SessionCommand): Decision;
 export declare function decideCancelRun(snapshot: WorkSnapshot, command: Extract<SessionCommand, {
     kind: 'cancelRun';
@@ -754,6 +757,17 @@ import { type Decision } from './judgments.ts';
 export declare const consumptionIdOf: (binding: unknown) => ConsumptionId;
 export declare function resultRefusal(snapshot: WorkSnapshot, consumption: ConsumptionId, result: ProducedResult, operation: SessionCommand['input']['operation']): Decision | null;
 export declare function decideResults(snapshot: WorkSnapshot, command: SessionCommand): Decision;
+```
+
+## 声明文件 `decide-retry.d.ts`
+
+```ts
+import type { SessionCommand } from './ports.ts';
+import type { WorkSnapshot } from './values.ts';
+import type { Decision, DecideReads } from './judgments.ts';
+export declare function decideRetryRun(snapshot: WorkSnapshot, command: Extract<SessionCommand, {
+    kind: 'retryRun';
+}>, reads: DecideReads): Decision;
 ```
 
 ## 声明文件 `decide-todos.d.ts`
@@ -1164,7 +1178,7 @@ export type SessionFailure = Readonly<{
     kind: 'frozen';
     verdict: FreezeVerdict | null;
 }> | Readonly<{
-    kind: 'archived' | 'no-input' | 'run-active' | 'not-ready' | 'login-required';
+    kind: 'archived' | 'no-input' | 'run-active' | 'not-ready' | 'login-required' | 'not-found' | 'nothing-pending';
 }>;
 export type Reply<T> = Promise<Outcome<T, SessionFailure>>;
 export type CommitReceipt = Readonly<{
@@ -1338,6 +1352,9 @@ export interface SessionWork<P> {
     stopCall(input: Mutation<P> & Readonly<{
         producer: ProducerRef;
     }>): Reply<SessionControlReceipt<SessionCallTerminal>>;
+    retryRun(input: Mutation<P> & Readonly<{
+        run: RunId;
+    }>): Reply<CommitReceipt>;
     queryControlOperation(input: SessionAccess<P> & Readonly<{
         operation: SessionOperationId;
     }>): Reply<ControlOperationResolution>;
@@ -1911,6 +1928,14 @@ export declare function initializationGuard(previous: WorkSnapshot | null, comma
 export declare function validateResult(value: InitializationGuardResult, plan: InitializationPlanItem): void;
 ```
 
+## 声明文件 `input-leases.d.ts`
+
+```ts
+import type { InputId } from './identity.ts';
+import type { RunTerminal, WorkSnapshot } from './values.ts';
+export declare function pendingAfterTerminal(snapshot: Pick<WorkSnapshot, 'pending' | 'unanswered'>, outcome: RunTerminal['outcome']): readonly InputId[];
+```
+
 ## 声明文件 `intake.d.ts`
 
 ```ts
@@ -2059,7 +2084,7 @@ export type RunStartJudgment = Readonly<{
     kind: 'eligible';
     first: InputId;
 }> | Readonly<{
-    kind: 'not-ready' | 'archived' | 'frozen' | 'run-active' | 'no-input' | 'login-required';
+    kind: 'not-ready' | 'archived' | 'frozen' | 'run-active' | 'awaiting-person' | 'no-input' | 'login-required';
 }>;
 export type OpenWork = Readonly<{
     unassociatedWaiting?: readonly SessionCallWait[];
@@ -2186,6 +2211,7 @@ export declare function expectedHolds(snapshot: WorkSnapshot, kind: MutationName
 export declare function judgeAdvance(snapshot: WorkSnapshot, claim: AdvanceClaim): AdvanceJudgment;
 export declare function routeInput(snapshot: WorkSnapshot, input: RoutedInput): RouteJudgment;
 export declare function judgeRunStart(snapshot: WorkSnapshot, _entry: EntryClass): RunStartJudgment;
+export declare function judgeRetryRun(snapshot: WorkSnapshot, run: RunId): 'archived' | 'frozen' | 'not-found' | 'nothing-pending' | null;
 export declare function openWork(snapshot: WorkSnapshot): OpenWork;
 export declare function judgeCompletion(snapshot: WorkSnapshot, execution: string): CompletionJudgment;
 export declare function resolveControlScope(snapshot: WorkSnapshot, intent: ControlIntent): ControlScope;
@@ -2584,7 +2610,7 @@ export type SessionBlockDeclaration = Readonly<{
     consumers: readonly ('model' | 'coordinator')[];
     schema: Adoption;
 }>;
-export type MutationName = 'addTodo' | 'removeTodo' | 'markTodoComplete' | 'accept' | 'startRun' | 'claim' | 'reload' | 'recordMessage' | 'preserveResult' | 'completeConsumption' | 'completeExternalConsumption' | 'bindExternalCall' | 'commitDerived' | 'release' | 'control' | 'finishRun' | 'create' | 'completeInitialization' | 'change' | 'setRelation' | 'configureAutoArchive' | 'considerAutoArchive' | 'recordIdle' | 'interrupt' | 'cancelRun' | 'stopCall' | 'freeze' | 'receive';
+export type MutationName = 'addTodo' | 'removeTodo' | 'markTodoComplete' | 'accept' | 'startRun' | 'claim' | 'reload' | 'recordMessage' | 'preserveResult' | 'completeConsumption' | 'completeExternalConsumption' | 'bindExternalCall' | 'commitDerived' | 'release' | 'control' | 'finishRun' | 'create' | 'completeInitialization' | 'change' | 'setRelation' | 'configureAutoArchive' | 'considerAutoArchive' | 'recordIdle' | 'interrupt' | 'cancelRun' | 'stopCall' | 'retryRun' | 'freeze' | 'receive';
 export type Mutations = Pick<SessionWork<never> & SessionManagement<never> & SessionReconciliation<never>, MutationName>;
 export type SessionCommand = {
     readonly [K in MutationName]: Readonly<{
@@ -2911,8 +2937,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:c86687e95f63983616bfbb4cb27bdd4e1f86da0948975c558b455e3a3be9530d";
-export declare const SESSION_RELEASE_DIGEST = "sha256:c86687e95f63983616bfbb4cb27bdd4e1f86da0948975c558b455e3a3be9530d";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:6e9089902e22710181b59c8f388ae4eddcc4c14f331a5b47a01fe18bd20aa19b";
+export declare const SESSION_RELEASE_DIGEST = "sha256:6e9089902e22710181b59c8f388ae4eddcc4c14f331a5b47a01fe18bd20aa19b";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -3447,6 +3473,8 @@ export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
         children?: readonly SessionId[];
         autoArchive?: import("./values.ts").AutoArchivePolicy;
         taken?: readonly InputId[];
+        unanswered?: readonly InputId[];
+        awaitingPerson?: true;
         backgroundPlaceholders?: readonly import("./identity.ts").ConsumptionId[];
         releasedScopes?: readonly Readonly<{
             task: SessionOperationId;
@@ -3727,6 +3755,9 @@ export type Control = Readonly<{
     kind: 'archive';
 }> | Readonly<{
     kind: 'unarchive';
+}> | Readonly<{
+    kind: 'retry-run';
+    run: RunId;
 }>;
 export type ControlIntent = Readonly<{
     kind: 'control';
@@ -4030,6 +4061,8 @@ export type WorkSnapshot = Readonly<{
     children?: readonly SessionId[];
     autoArchive?: AutoArchivePolicy;
     taken?: readonly InputId[];
+    unanswered?: readonly InputId[];
+    awaitingPerson?: true;
     backgroundPlaceholders?: readonly ConsumptionId[];
     releasedScopes?: readonly Readonly<{
         task: SessionOperationId;

@@ -22,8 +22,9 @@ const userMessage = { role: 'user', blocks: [{ type: 'text', text: 'hello' }], w
 const producer = { kind: 'model', call: 'call-1' }
 const source = { owner: 'agent', record: 'record-1', revision: '4', digest: 'digest-1' }
 
-// `list-sessions` has no old family to compare with; its own cases are at the end of this file.
-type Name = Exclude<keyof typeof sessionProtocol.operations, 'list-sessions'>
+// `list-sessions` and `retry-run` have no old family to compare with; their own cases are at the
+// end of this file.
+type Name = Exclude<keyof typeof sessionProtocol.operations, 'list-sessions' | 'retry-run'>
 type Samples = Readonly<Record<Name, readonly Record<string, unknown>[]>>
 
 const validBodies: Samples = {

@@ -26,10 +26,8 @@ export interface TemplateManifest {
   readonly format: 1
   readonly id: string
   readonly version: string
-  /** Rule set 3 adds the docs topics and the content-based acceptance condition. */
-  readonly ruleSet: 3
-  /** Each topic is either docs/<topic>.md or docs/<topic>/ with README.md and index.md. */
-  readonly topics: readonly string[]
+  /** Rule set 4 allows no documentation slots; the acceptance condition is content-based. */
+  readonly ruleSet: 4
   readonly common: readonly FileTemplate[]
   readonly variants: Readonly<Record<Variant, readonly FileTemplate[]>>
   readonly requiredFiles: readonly string[]
@@ -43,7 +41,9 @@ export interface TemplateManifest {
         readonly requiredFiles: readonly string[]
         readonly variantRequiredFiles: Readonly<Record<Variant, readonly string[]>>
         readonly layout: LayoutRules
-        readonly ruleSet: 2
+        readonly ruleSet: 2 | 3
+        /** Rule set 3 only. Each topic is either docs/<topic>.md or docs/<topic>/ with README.md and index.md. */
+        readonly topics?: readonly string[]
       }
     >
   >

@@ -415,15 +415,42 @@ describe('#515 reply admission and iteration close', () => {
   })
 
   it.each([
-    { kind: 'completed', reason: 'limit' },
-    {
-      kind: 'failed',
-      fault: {
-        cause: 'upstream-unavailable',
-        diagnostic: 'after first content',
-        upstreamStatus: null,
+    [{ kind: 'completed', reason: 'limit' }, 'model-truncated'],
+    [
+      {
+        kind: 'failed',
+        fault: {
+          cause: 'upstream-unavailable',
+          diagnostic: 'after first content',
+          upstreamStatus: null,
+        },
       },
+      'model-failed/upstream-unavailable/after%20first%20content',
+    ],
+  ] satisfies (readonly [Termination, string])[])(
+    'partial %j cannot enter reply admission or authorize actions, and fails the run as %s',
+    async (termination, reason) => {
+      const commits: JournalCommit<Principal>[] = []
+      const assembly = await settled(
+        [{ kind: 'partial', content: 'tool-arguments', value: '{', trims: [] }],
+        termination,
+        commits,
+      )
+      const c = coordinator(assembly)
+      ok(await c.accept())
+      ok(await c.runExecution())
+      expect(commits.filter(item => item.replyAdmission !== null)).toEqual([])
+      expect(commits.some(item => item.operation.startsWith('I4/'))).toBe(false)
+      expect(commits.some(item => item.operation.startsWith('I3/'))).toBe(false)
+      expect(commits.some(item => item.operation.startsWith('I8/'))).toBe(false)
+      expect(commits.find(item => item.finish !== null)?.finish).toMatchObject({
+        conclusion: { kind: 'fail', cause: { record: `${execution()}/step-1/${reason}` } },
+        failure: { kind: 'no-reply', step: 'step-1' },
+      })
     },
+  )
+
+  it.each([
     { kind: 'interrupted', control: ok(decodeModelOperationId('mop_interrupt')) },
   ] satisfies Termination[])(
     'partial %j cannot enter reply admission or authorize actions',

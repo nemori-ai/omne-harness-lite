@@ -1393,12 +1393,12 @@ function sameEvidence(left: DurableEvidence | null, right: DurableEvidence | nul
 }
 
 /** Whether two data values are the same content, by their canonical text. */
-/**
- * A checkpoint with its optional `adoptedRequest` spelled out: the cursor folds an absent one as
- * null (`checkpointOf`), so two checkpoints are compared in this one shape.
- */
 function sameShape(checkpoint: AgentCheckpoint): AgentCheckpoint {
-  return { ...checkpoint, adoptedRequest: checkpoint.adoptedRequest ?? null }
+  return {
+    ...checkpoint,
+    adoptedRequest: checkpoint.adoptedRequest ?? null,
+    modelRetry: checkpoint.modelRetry ?? null,
+  }
 }
 
 /** The producer call of a produced result: the identities a result fact refers to it by. */

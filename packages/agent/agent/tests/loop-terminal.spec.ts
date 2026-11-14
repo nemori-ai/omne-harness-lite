@@ -9,6 +9,7 @@ import type {
   JournalCommit,
 } from '@omne-harness/agent-contract'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
+import { reconciliationPacer } from '../src/loop/reconciliation.ts'
 import { options, registrationHandle } from './factory-support.ts'
 import {
   acceptedInput,
@@ -93,7 +94,7 @@ describe('#516 terminal exit', () => {
       expect(before.state.kind).toBe('settling')
       expect(before.settlement.candidates).toHaveLength(1)
       const controller = new AbortController()
-      const wake = c.waitForWake({ reconciliationDelayMs: 1000, signal: controller.signal })
+      const wake = c.waitForWake({ pacer: reconciliationPacer([1000]), signal: controller.signal })
       await eventually(async () => assembly.controls.clock.pending().length > 0)
       expect((await load(assembly)).revision).toBe(before.revision)
       refused = false
@@ -656,7 +657,7 @@ describe('#516 terminal exit', () => {
     expect(commits.filter(item => item.events.some(event => event.kind === 'waiting'))).toEqual([])
     // Nothing rechecks the terminal inside the wait: the driver sleeps until the check time.
     const controller = new AbortController()
-    const wake = c.waitForWake({ reconciliationDelayMs: 1000, signal: controller.signal })
+    const wake = c.waitForWake({ pacer: reconciliationPacer([1000]), signal: controller.signal })
     await eventually(async () => assembly.controls.clock.pending().length > 0)
     const waiting = await load(assembly)
     expect(waiting.revision).toBe(unavailable.revision)
@@ -811,7 +812,7 @@ describe('#516 terminal exit', () => {
     expect(unavailable.revision).toBe(afterInput)
     expect(commits.filter(item => item.events.some(event => event.kind === 'waiting'))).toEqual([])
     const controller = new AbortController()
-    const wake = c.waitForWake({ reconciliationDelayMs: 1000, signal: controller.signal })
+    const wake = c.waitForWake({ pacer: reconciliationPacer([1000]), signal: controller.signal })
     await eventually(async () => assembly.controls.clock.pending().length > 0)
     const waiting = await load(assembly)
     expect(waiting.revision).toBe(afterInput)
@@ -908,7 +909,7 @@ describe('#516 terminal exit', () => {
     const memoryWait = await load(assembly)
     expect(memoryWait.state.kind).toBe('settling')
     const controller = new AbortController()
-    const first = c.waitForWake({ reconciliationDelayMs: 1000, signal: controller.signal })
+    const first = c.waitForWake({ pacer: reconciliationPacer([1000]), signal: controller.signal })
     await eventually(async () => assembly.controls.clock.pending().length > 0)
     const due = assembly.controls.clock.pending()[0]
     if (due === undefined) throw new Error('the check time is required')
@@ -926,7 +927,7 @@ describe('#516 terminal exit', () => {
     factsDown = false
     // The saved wait rechecks its dependency before the driver sleeps; the facts are back.
     expect(
-      ok(await c.waitForWake({ reconciliationDelayMs: 1000, signal: controller.signal })),
+      ok(await c.waitForWake({ pacer: reconciliationPacer([1000]), signal: controller.signal })),
     ).toBe('ready')
     ok(await c.runExecution())
     expect((await load(assembly)).state.kind).toBe('ended')

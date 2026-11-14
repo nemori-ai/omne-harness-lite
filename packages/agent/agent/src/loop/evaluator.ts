@@ -22,6 +22,7 @@ import {
   type Continuation,
   type Failure,
   type LoopFacts,
+  type ModelRetryState,
   type Next,
   type ReplyAdmissionRead,
   type StepId,
@@ -172,7 +173,8 @@ function afterIteration(facts: LoopFacts): Outcome<Next, Failure> {
   const basis =
     round === 'round' ||
     facts.batch.ordered.length > 0 ||
-    facts.conditions.progression.kind === 'continue'
+    facts.conditions.progression.kind === 'continue' ||
+    (checkpoint.modelRetry ?? null) !== null
   if (basis) return succeed({ kind: 'take-inputs', position: 'I0' })
   // Neither an action nor an empty queue ends the execution by itself: this is only a candidate,
   // which F1 fixes and F3 commits or refuses.
@@ -243,7 +245,10 @@ const CHECKPOINT_MEMBERS: readonly (keyof AgentCheckpoint)[] = [
  * The members the contract declares optional: `initial` writes them, and decode keeps them when
  * present and leaves them out when absent (R2-D18: optional until Reduce makes them required).
  */
-const OPTIONAL_CHECKPOINT_MEMBERS: readonly (keyof AgentCheckpoint)[] = ['adoptedRequest']
+const OPTIONAL_CHECKPOINT_MEMBERS: readonly (keyof AgentCheckpoint)[] = [
+  'adoptedRequest',
+  'modelRetry',
+]
 
 /** Every member a decoded checkpoint may hold; any other member is unknown. */
 const KNOWN_CHECKPOINT_MEMBERS: readonly string[] = [
@@ -310,6 +315,27 @@ function readPositionOf(value: unknown): Outcome<ReplyAdmissionRead, Failure> {
   return succeed({ kind: 'verified', prefix: { sequence: sequence.ok, basis: basis.ok } })
 }
 
+function isInstant(value: unknown): value is string {
+  return typeof value === 'string' && Number.isFinite(Date.parse(value))
+}
+
+function retryStateOf(value: unknown): Outcome<ModelRetryState | null, Failure> {
+  const field = 'checkpoint.modelRetry'
+  if (value === null) return succeed(null)
+  if (!isRecord(value)) return refused(field, 'type')
+  for (const member of Object.keys(value))
+    if (!['failures', 'since', 'notBefore'].includes(member))
+      return refused(`${field}.${member}`, 'unknown-field')
+  const failures = value['failures']
+  if (typeof failures !== 'number' || !Number.isInteger(failures) || failures < 1)
+    return refused(`${field}.failures`, 'range')
+  const since = value['since']
+  if (!isInstant(since)) return refused(`${field}.since`, 'type')
+  const notBefore = value['notBefore']
+  if (!isInstant(notBefore)) return refused(`${field}.notBefore`, 'type')
+  return succeed({ failures, since, notBefore })
+}
+
 /**
  * Decodes a continuation this evaluator encoded: the exact schema adoption, every required member
  * present, an optional one kept only when present, and no other member, the definition, step and
@@ -348,8 +374,11 @@ function decode(value: Continuation): Outcome<AgentCheckpoint, Failure> {
   )
     return refused('checkpoint.requestPreparation', 'not a saved preparation')
   if (!Array.isArray(tree['voided'])) return refused('checkpoint.voided', 'type')
-  // The members were checked one by one above; the other facets keep the shape encode wrote.
-  return succeed({ ...(tree as AgentCheckpoint), step: step.ok, replyAdmissionRead: read.ok })
+  const decoded = { ...(tree as AgentCheckpoint), step: step.ok, replyAdmissionRead: read.ok }
+  if (!Object.hasOwn(tree, 'modelRetry')) return succeed(decoded)
+  const retry = retryStateOf(tree['modelRetry'])
+  if ('failure' in retry) return retry
+  return succeed({ ...decoded, modelRetry: retry.ok })
 }
 
 /** The evaluator of the generic Agent. An assembly resolves it through `AgentAdoptions`. */

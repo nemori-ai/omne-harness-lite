@@ -112,13 +112,14 @@ export const IDLE_MS = 60_000
 
 export const hostConfig: AgentHostConfig = {
   observerBufferBytes: 1024,
-  reconciliationDelayMs: 0,
+  reconciliationDelaysMs: [0],
   reconciliationBatchLimit: 8,
   denialBackoffMs: 0,
   toolConcurrency: 1,
   jointCommits: [],
   coordination: 'standalone',
   loopGuardPolicy: { owner: 'agents', name: 'loop-guard', revision: '1', digest: 'sha256:guard' },
+  modelRetry: { maxAttempts: 1, maxElapsedMs: 0, delaysMs: [0], jitter: 0 },
   instanceIdleMs: IDLE_MS,
 }
 

@@ -126,6 +126,7 @@ describe('C1 the transition table follows the node table on the normal path', ()
       ['I1', 'try-finish', 'F1'],
       ['I3', 'try-finish', 'F1'],
       ['I3', 'partial', 'I8'],
+      ['I3', 'retry', 'I8'],
       ['I3', 'rejected', 'I8'],
       ['Q1', 'rejected', 'Q5'],
       ['Q5', 'disposed', 'Q4'],

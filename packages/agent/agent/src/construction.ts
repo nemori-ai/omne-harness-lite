@@ -5,6 +5,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type * as M from '@omne-harness/model-contract'
 import type * as T from '@omne-harness/tool-contract'
+import type { RetryPolicy } from '@omne-harness/retry'
 import type {
   ActionAdmission,
   Access,
@@ -49,7 +50,12 @@ export type AgentRuntimeBinding = Readonly<{
 /** The validated, serializable configuration; see public-api.md "工厂配置". */
 export type AgentConfiguration = Readonly<{
   observerBufferBytes: number
-  reconciliationDelayMs: number
+  /**
+   * The check delays of a wait: after the n-th check-time wake in a row at an unchanged revision the
+   * wait checks after the n-th item, after the last item once the list is used up; a new revision
+   * or an event wake starts over. Non-empty.
+   */
+  reconciliationDelaysMs: readonly number[]
   reconciliationBatchLimit: number
   denialBackoffMs: number
   toolConcurrency: number
@@ -57,6 +63,7 @@ export type AgentConfiguration = Readonly<{
   /** The coordination mode this assembly requires of the Journal binding; no implicit default. */
   coordination: JournalCapabilities['coordination']
   loopGuardPolicy: Adoption
+  modelRetry: RetryPolicy
   /**
    * The most steps one execution takes (M2 fallback of R2-D221; the full loop judgment is wave 3).
    * Absent: `DEFAULT_MAX_RUN_STEPS`. A step is one main Model request and the tools it calls.
@@ -99,6 +106,7 @@ export type AgentDependencies<P, B extends ContentBlock> = Readonly<{
   reads: RegisteredReads<P>
   registration: AgentRegistrationHandle<P> | null
   clock: AgentClock
+  random: () => number
 }>
 
 /**

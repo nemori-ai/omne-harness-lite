@@ -556,13 +556,14 @@ async function replyWithText(admission: ModelAdmission): Promise<unknown> {
 
 const AGENT_HOST_CONFIG: AgentHostConfig = {
   observerBufferBytes: 65536,
-  reconciliationDelayMs: 1000,
+  reconciliationDelaysMs: [1000],
   reconciliationBatchLimit: 8,
   denialBackoffMs: 0,
   toolConcurrency: 1,
   jointCommits: ['message', 'context-transition', 'custody', 'processed'],
   coordination: 'coordinated',
   loopGuardPolicy: { owner: 'agents', name: 'loop-guard', revision: '1', digest: 'sha256:guard' },
+  modelRetry: { maxAttempts: 1, maxElapsedMs: 0, delaysMs: [0], jitter: 0 },
   instanceIdleMs: 60_000,
 }
 

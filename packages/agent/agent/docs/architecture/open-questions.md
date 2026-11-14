@@ -34,7 +34,7 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 
 本项的剩余出入尚未闭合。下列各项已关闭，规则写在各自拥有者的正文中。
 
-- M04-2 与 M04-6：依据 [#558 的阶段 1 决定](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6307768802)，ready 的 requestPreparation 构成最终请求记录，检查与退避时刻不持久化。恢复立即重读，进程内消费 reconciliationDelayMs，拒收退避恢复后重新计足。
+- M04-2 与 M04-6：依据 [#558 的阶段 1 决定](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6307768802)，ready 的 requestPreparation 构成最终请求记录，检查与退避时刻不持久化。恢复立即重读，进程内消费 reconciliationDelaysMs，拒收退避恢复后重新计足。
 - M04-5：按 [#558 修订稿](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6366444012)对现行条款的对账（及其[复核](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6366538839)），参加者声明只约束 `commit.caller`，不约束 `recordResult.transfer`。规则见公开接口页的[执行记录与调用方交接端口](../../../agent-contract/docs/public-api/README.md#执行记录与调用方交接端口)与 SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管)。
 - M04-7：按同一修订稿对现行条款的对账，`open` 与 `attach` 不追加事件，execution 的第一个事件由 open 之后首次产生事件的提交分配。规则见 SPEC 的[逐操作及输入分类](../../../agent-contract/SPEC.md#逐操作及输入分类)。
 - M04-8：依据阶段 1 决定，`input.submit` 不追加事件，input-taken 只由 I0 固定输入批的那次提交追加。规则见同一节与节点表 I0。

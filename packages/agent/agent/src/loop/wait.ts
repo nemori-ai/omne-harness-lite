@@ -11,6 +11,21 @@ import type {
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { LoopPorts } from './coordinator.ts'
 import { diagnosticOf } from './diagnostic.ts'
+import type { ReconciliationPacer } from './reconciliation.ts'
+
+export type { ReconciliationPacer }
+
+/** The instant `delayMs` after `now`, or unavailable when it leaves the UTC instant range. */
+function checkTimeAfter(now: string, delayMs: number): Outcome<string, Failure> {
+  const at = new Date(Date.parse(now) + delayMs)
+  if (!Number.isFinite(at.getTime()) || at.getUTCFullYear() > 9999)
+    return fail({
+      kind: 'unavailable',
+      owner: 'agentClock',
+      diagnostic: 'check time exceeds the UTC instant range',
+    })
+  return succeed(at.toISOString())
+}
 
 /** The revision and the event cursor of one execution that the coordinator knows exactly. */
 export type HeldPosition = Readonly<{
@@ -35,7 +50,7 @@ export async function waitForExecutionChange<P>(
     operations: readonly AgentOperationId[]
     waits: readonly Waiting[]
     position: string
-    reconciliationDelayMs: number
+    pacer: ReconciliationPacer
     signal: AbortSignal
     recheck?: ((read: ExecutionSnapshot) => Promise<Outcome<unknown, Failure>>) | null
     held?: HeldPosition | null
@@ -43,17 +58,13 @@ export async function waitForExecutionChange<P>(
 ): Promise<Outcome<'ready' | 'cancelled', Failure>> {
   const { ports, access, execution, signal } = input
   if (signal.aborted) return succeed('cancelled')
+  const delayMs = input.pacer.delayAt(input.expected)
   const now = await ports.clock.now()
   if (signal.aborted) return succeed('cancelled')
   if ('failure' in now) return now
-  const at = new Date(Date.parse(now.ok) + input.reconciliationDelayMs)
-  if (!Number.isFinite(at.getTime()) || at.getUTCFullYear() > 9999)
-    return fail({
-      kind: 'unavailable',
-      owner: 'agentClock',
-      diagnostic: 'check time exceeds the UTC instant range',
-    })
-  const checkAt = at.toISOString()
+  const checked = checkTimeAfter(now.ok, delayMs)
+  if ('failure' in checked) return checked
+  const checkAt = checked.ok
   const controller = new AbortController()
   const abort = () => controller.abort()
   signal.addEventListener('abort', abort, { once: true })
@@ -65,6 +76,7 @@ export async function waitForExecutionChange<P>(
   const tasks: Promise<void>[] = []
   let timer: Promise<Outcome<'ready' | 'cancelled', Failure>> | null = null
   let timerOutcome: Outcome<'ready' | 'cancelled', Failure> | null = null
+  let elapsed: Outcome<'ready', Failure> | null = null
   let pumpFailure: Failure | null = null
   const changed = () => wake(succeed('ready'))
   const failed = (error: unknown) => {
@@ -147,7 +159,9 @@ export async function waitForExecutionChange<P>(
       timer = ports.clock.waitUntil(checkAt, controller.signal).then(
         result => {
           if ('failure' in result) return result
-          return succeed(result.ok === 'elapsed' ? ('ready' as const) : ('cancelled' as const))
+          if (result.ok !== 'elapsed') return succeed('cancelled' as const)
+          elapsed = succeed('ready' as const)
+          return elapsed
         },
         error =>
           fail({
@@ -160,9 +174,9 @@ export async function waitForExecutionChange<P>(
       controller.signal.addEventListener('abort', stop, { once: true })
       if (controller.signal.aborted) return succeed('cancelled')
       const result = await Promise.race([notified, timer])
+      if (result === elapsed) input.pacer.timerWoke()
       // A configured zero interval still yields the event loop; it is not a polling default.
-      if (input.reconciliationDelayMs === 0 && 'ok' in result && result.ok === 'ready')
-        await yieldTurn()
+      if (delayMs === 0 && 'ok' in result && result.ok === 'ready') await yieldTurn()
       return result
     } finally {
       signal.removeEventListener('abort', abort)

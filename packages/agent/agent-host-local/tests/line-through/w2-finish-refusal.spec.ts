@@ -5,19 +5,12 @@ import { openW2World, replyText } from './w2-world.ts'
 
 it('waits on Session pending input without replacing the completion candidate', async () => {
   let injected = false
-  // The Model call of the recovering Run waits until the second input is in, so that input is
-  // pending while that Run settles, however soon Session starts the Run.
-  const recovering = Promise.withResolvers<void>()
   // Session hands `in-2` to the active Run through the Agent's submit, which prepares the admission
   // before it accepts: held here, `in-2` stays pending in Session and out of the Run's hands.
   const handIn = Promise.withResolvers<void>()
   const w = await openW2World({
     receptionTargets: 'journal',
-    model: a => ({
-      parts: [replyText(`reply-${a.index}`, 'recovered answer')],
-      reason: 'stop',
-      ...(a.index === 0 ? { hold: recovering.promise } : {}),
-    }),
+    model: a => ({ parts: [replyText(`reply-${a.index}`, 'recovered answer')], reason: 'stop' }),
     wrapAgentDependencies: dependencies => ({
       ...dependencies,
       handoff: {
@@ -41,20 +34,19 @@ it('waits on Session pending input without replacing the completion candidate', 
   })
   try {
     await w.createSession('finish-refusal')
-    // Not `runRound`: it waits for the latest Run of the snapshot to be a terminal, and the
-    // recovering Run starts at once and is held here. The failed Run by its identity instead: the
-    // commit notice of its end wakes Session, which grants the untaken input again at once (#1248).
-    await w.accept('in-1', 'recover this input')
-    await w.until(() => w.endedRuns().length > 0, 10_000)
-    const failedEnd = w.endedRuns()[0]
+    await w.runRound(1, 'recover this input', 10_000)
+    const [failedEnd] = w.endedRuns()
     expect(failedEnd).toMatchObject({ outcome: 'failed' })
     if (failedEnd === undefined) throw new Error('the first Run did not end')
     const failed = failedEnd.execution
-    // The commit notice of the failed end wakes Session, which grants the untaken input again at
-    // once: the recovering Run is in its Model call before the second input goes in.
-    await w.until(() => w.modelCalls.length === 1, 10_000)
-    await w.accept('in-2', 'another input while the first needs recovery')
-    recovering.resolve()
+    expect(ok(await w.probe.readWork(intakeAccess))).toMatchObject({
+      awaitingPerson: true,
+      pending: ['in-1'],
+    })
+
+    await w.accept('in-2', 'another input after the failure')
+    // One saved Model result lets the clock release three reconciliation waits; after them nothing
+    // moves the clock, so the Run keeps the state the assertions read.
     await w.until(() => w.modelCalls.length === 1 && w.releases() === 3, 10_000)
     const active = await w.execution()
     expect(active).not.toBe(failed)
@@ -72,11 +64,19 @@ it('waits on Session pending input without replacing the completion candidate', 
     expect(work.pending).toContain('in-2')
     expect(work.handed).not.toContain('in-2')
     expect(w.modelCalls).toHaveLength(1)
+
+    handIn.resolve()
+    await w.until(async () => ok(await w.fresh().load(access)).state.kind === 'ended', 10_000)
+    const ended = ok(await w.fresh().load(access))
+    expect(ended.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
+    expect(ended.checkpoint.inputBatch?.ordered).toEqual(['in-2'])
+    expect(w.modelCalls).toHaveLength(2)
+    await w.until(async () => (await w.lastOutcome()) === 'completed', 10_000)
+    expect(ok(await w.probe.readWork(intakeAccess)).pending).toHaveLength(0)
     expect(ok(await w.fresh().load({ ...w.agentAccess, execution: failed })).state.kind).toBe(
       'ended',
     )
   } finally {
-    recovering.resolve()
     handIn.resolve()
     await w.close()
   }

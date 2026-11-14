@@ -10,7 +10,7 @@ import type {
   ProtocolContract,
 } from '@omne-harness/public-contract'
 import { defaultLimits } from '../limits.ts'
-import type { CallReport, ObserveEnd, ProtocolKey, Transport } from './transport.ts'
+import type { CallReport, CallRequest, ObserveEnd, ProtocolKey, Transport } from './transport.ts'
 
 type ValueOf<C> = C extends Codec<infer T> ? T : never
 
@@ -70,12 +70,28 @@ export class ClientRequestError extends Error {
   }
 }
 
-export type ClientSettings = { readonly limits?: JsonLimits }
+export type ReadRetry = {
+  readonly delayMs: (failures: number, elapsedMs: number) => number | null
+  readonly wait: (ms: number, signal: AbortSignal | undefined) => Promise<void>
+}
+
+export type ClientSettings = { readonly limits?: JsonLimits; readonly readRetry?: ReadRetry }
+
+const now = (): number =>
+  /* wall-clock: operation-timing -- The elapsed time of a read is a monotonic duration from its first ask. */ performance.now()
 
 const UNAVAILABLE = Object.freeze({ outcome: 'unavailable' as const })
 const UNCERTAIN = Object.freeze({ outcome: 'uncertain' as const })
 
 type Outcomes = Readonly<Record<string, Codec<unknown> | true>>
+
+function isNotReadable(answer: { readonly outcome: string }): boolean {
+  return (
+    answer.outcome === 'unavailable' ||
+    answer.outcome === 'uncertain' ||
+    answer.outcome === 'basis-unavailable'
+  )
+}
 
 function isEmptyObject(value: CallReport & { kind: 'answered' }): boolean {
   return value.body.kind === 'object' && value.body.entries.length === 0
@@ -127,6 +143,15 @@ export function createClient<P extends ProtocolContract>(
       `${target('observe')}: an operation cannot take the name of the observations`,
     )
 
+  async function ask(operation: OperationContract, request: CallRequest) {
+    // A send that provably did not leave is sent once more, under the same message id.
+    let report = await transport.call(request)
+    if (report.kind === 'not-sent') report = await transport.call(request)
+    if (report.kind === 'not-sent') return UNAVAILABLE
+    if (report.kind === 'uncertain') return UNCERTAIN
+    return answerOf(operation.outcomes as Outcomes, report, limits)
+  }
+
   async function call(
     name: string,
     operation: OperationContract,
@@ -135,19 +160,27 @@ export function createClient<P extends ProtocolContract>(
   ) {
     const written = operation.body.write(body as never, limits)
     if (!written.ok) throw new ClientRequestError(target(name))
-    const request = {
+    const request: CallRequest = {
       protocol: key,
       operation: name,
       messageId: options.messageId ?? crypto.randomUUID(),
       body: written.value,
       ...(options.signal === undefined ? {} : { signal: options.signal }),
     }
-    // A send that provably did not leave is sent once more, under the same message id.
-    let report = await transport.call(request)
-    if (report.kind === 'not-sent') report = await transport.call(request)
-    if (report.kind === 'not-sent') return UNAVAILABLE
-    if (report.kind === 'uncertain') return UNCERTAIN
-    return answerOf(operation.outcomes as Outcomes, report, limits)
+    const retry = operation.effect === 'read' ? settings.readRetry : undefined
+    const started = now()
+    let answer = await ask(operation, request)
+    if (retry === undefined) return answer
+    const stopped = (): boolean => options.signal?.aborted === true
+    for (let failures = 1; isNotReadable(answer); failures += 1) {
+      if (stopped()) return answer
+      const delay = retry.delayMs(failures, now() - started)
+      if (delay === null) return answer
+      await retry.wait(delay, options.signal)
+      if (stopped()) return answer
+      answer = await ask(operation, { ...request, messageId: crypto.randomUUID() })
+    }
+    return answer
   }
 
   async function* observe(

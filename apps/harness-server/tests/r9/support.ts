@@ -288,11 +288,12 @@ function agentHostOperatorConfig(): Record<string, unknown> {
     jointCommits: row.config['jointCommits'],
     coordination: row.config['coordination'],
     observerBufferBytes: 65_536,
-    reconciliationDelayMs: 0,
+    reconciliationDelaysMs: [0],
     reconciliationBatchLimit: 8,
     denialBackoffMs: 0,
     toolConcurrency: 1,
     loopGuardPolicy: { ...MODEL_TEST_ADOPTION, name: 'loop-guard' },
+    modelRetry: { maxAttempts: 1, maxElapsedMs: 0, delaysMs: [0], jitter: 0 },
     instanceIdleMs: 60_000,
   }
 }

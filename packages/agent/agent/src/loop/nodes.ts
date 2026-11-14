@@ -113,6 +113,7 @@ export type Label =
   | 'settled'
   | 'kept'
   | 'partial'
+  | 'retry'
   | 'empty'
   | 'fixed'
   | 'cancel'
@@ -239,6 +240,7 @@ export const TRANSITIONS: readonly Transition[] = [
   // Node table I3: a rejected reply goes to I8 for a new step.
   { from: 'I3', on: 'rejected', to: 'I8' },
   { from: 'I3', on: 'partial', to: 'I8' },
+  { from: 'I3', on: 'retry', to: 'I8' },
   { from: 'I3', on: 'try-finish', to: 'F1' },
   { from: 'I4', on: 'empty', to: 'I8' },
   { from: 'I4', on: 'tools', to: 'A0' },

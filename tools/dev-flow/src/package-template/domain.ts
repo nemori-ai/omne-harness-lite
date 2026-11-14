@@ -35,6 +35,7 @@ export function createDomain(input: DomainCreationInput) {
     template: { id: template.id, version: template.version },
   }
 }
+const LEGACY_ROOT_FILES = ['README.md', 'README_ZH.md', 'documentation.json']
 export interface DomainScan {
   readonly path: string
   readonly template: { readonly id: 'package-domain'; readonly version: string }
@@ -59,6 +60,7 @@ export function scanDomains(root: string, groups?: readonly string[]): DomainSca
       throw new Error(`packages/${entry.name}: unexpected group node`)
     })
   const template = readDomainTemplate()
+  const previous = template.previousVersions['1.0.0']
   return names.map(name => {
     const path = `packages/${groupName(name)}`
     checkDirectories(join(root, path))
@@ -72,12 +74,23 @@ export function scanDomains(root: string, groups?: readonly string[]): DomainSca
           })?.isFile(),
       )
       .map(entry => entry.name)
+    const registered = LEGACY_ROOT_FILES.some(file =>
+      lstatSync(join(root, path, file), { throwIfNoEntry: false })?.isFile(),
+    )
+    const rules =
+      registered && previous !== undefined
+        ? { version: '1.0.0', requiredFiles: previous.requiredFiles, layout: previous.layout }
+        : {
+            version: template.version,
+            requiredFiles: template.requiredFiles,
+            layout: template.layout,
+          }
     const result = checkLayout(root, path, {
-      ...template.layout,
+      ...rules.layout,
       ignoredDirectories: members,
     })
     const findings = [...result.findings]
-    for (const file of template.requiredFiles)
+    for (const file of rules.requiredFiles)
       if (!result.tree.some(node => node.path === file && node.kind === 'file'))
         findings.push({
           code: 'required',
@@ -95,7 +108,7 @@ export function scanDomains(root: string, groups?: readonly string[]): DomainSca
     }
     return {
       path,
-      template: { id: template.id, version: template.version },
+      template: { id: template.id, version: rules.version },
       coverage: 'current-template-only',
       structure: findings.length === 0 ? 'pass' : 'fail',
       tree: result.tree,

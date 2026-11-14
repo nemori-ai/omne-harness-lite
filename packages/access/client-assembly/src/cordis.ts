@@ -8,7 +8,7 @@
 // locally, then it unregisters the service.
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
 import { accessProtocol, type ProtocolContract } from '@omne-harness/public-contract'
-import { createClient, type ClientOf, type Transport } from '@omne-harness/sdk/core'
+import { createClient, type ClientOf, type ReadRetry, type Transport } from '@omne-harness/sdk/core'
 import {
   applyFrame,
   defaultBackoff,
@@ -47,6 +47,7 @@ export interface Connection {
   }
   /** A protocol client says it is on the tree; returns the way to say it left. */
   readonly claim: (key: ProtocolKey) => () => void
+  readonly readRetry: ReadRetry | undefined
 }
 
 declare module '@deepseek-ai/cordis' {
@@ -62,6 +63,7 @@ export type ConnectionOptions = {
   readonly diagnostics?: (event: AssemblyDiagnostic) => void
   /** Waits `ms`, or less when `signal` aborts. Absent: `setTimeout`. */
   readonly sleep?: (ms: number, signal: AbortSignal) => Promise<void>
+  readonly readRetry?: Pick<ReadRetry, 'delayMs'>
 }
 
 function timerSleep(ms: number, signal: AbortSignal): Promise<void> {
@@ -135,6 +137,7 @@ export class ConnectionService extends Service implements Connection {
   readonly availability: Connection['availability']
   readonly login: Connection['login']
   readonly claim: Connection['claim']
+  readonly readRetry: Connection['readRetry']
 
   constructor(ctx: Context, options: ConnectionOptions) {
     super(ctx, 'connection')
@@ -149,6 +152,22 @@ export class ConnectionService extends Service implements Connection {
       subscribe: listener => options.login.subscribe(listener),
     }
     this.claim = key => state.claim(key)
+
+    async function wait(ms: number, signal: AbortSignal | undefined): Promise<void> {
+      if (signal?.aborted === true) return
+      const ended = new AbortController()
+      const end = (): void => ended.abort()
+      signal?.addEventListener('abort', end)
+      const unsubscribe = state.face.subscribe(end)
+      try {
+        await sleep(ms, ended.signal)
+      } finally {
+        unsubscribe()
+        signal?.removeEventListener('abort', end)
+      }
+    }
+    this.readRetry =
+      options.readRetry === undefined ? undefined : { delayMs: options.readRetry.delayMs, wait }
 
     /** One subscription; answers whether it broke or saw a frame off its base. */
     async function follow(stopped: AbortSignal): Promise<'broke' | 'off-base'> {
@@ -286,9 +305,12 @@ export function defineProtocolClient<P extends ProtocolContract>(protocol: P): P
         const open = connection.availability.isOpen(key)
         if (open && provided === undefined) {
           const revoke = new AbortController()
+          const { readRetry } = connection
           const client = guarded(
             protocol,
-            createClient(protocol, connection.transport),
+            readRetry === undefined
+              ? createClient(protocol, connection.transport)
+              : createClient(protocol, connection.transport, { readRetry }),
             revoke.signal,
           )
           const unregister = ctx.reflect.provide(service, client)

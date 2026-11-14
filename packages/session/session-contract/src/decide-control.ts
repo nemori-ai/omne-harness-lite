@@ -10,6 +10,18 @@ import { resolveControlScope } from './judgments.ts'
 import { decideControl } from './decide-management.ts'
 import { invalid, rejected } from './decision-support.ts'
 import type { DecideReads } from './judgments.ts'
+import { decideRetryRun } from './decide-retry.ts'
+
+export function decideNamedControl(
+  snapshot: WorkSnapshot,
+  command: Extract<SessionCommand, { kind: 'cancelRun' | 'stopCall' | 'retryRun' }>,
+  reads: DecideReads,
+): Decision {
+  if (command.kind === 'retryRun') return decideRetryRun(snapshot, command, reads)
+  return command.kind === 'cancelRun'
+    ? decideCancelRun(snapshot, command, reads)
+    : decideStopCall(snapshot, command, reads)
+}
 
 const unknownLookup = (what: string): Decision =>
   rejected({

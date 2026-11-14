@@ -61,9 +61,12 @@ import {
   type ResumeEntry,
 } from './loop/coordinator.ts'
 import { agentEvidence } from './loop/identities.ts'
+import { modelRetryEntry } from './loop/model-retry.ts'
+import { reconciliationPacer } from './loop/reconciliation.ts'
 import { createControlWriter } from './control.ts'
 import type { AgentMeasurer } from './measure.ts'
 import type {
+  AgentModelRetryingReceiver,
   AgentRunEndedFailedReceiver,
   AgentRunFailedReceiver,
   AgentRunWaitingReceiver,
@@ -219,7 +222,7 @@ export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   binding: AgentRuntimeBinding
   configuration: Pick<
     AgentConfiguration,
-    'reconciliationDelayMs' | 'toolConcurrency' | 'jointCommits' | 'maxRunSteps'
+    'reconciliationDelaysMs' | 'toolConcurrency' | 'jointCommits' | 'maxRunSteps' | 'modelRetry'
   >
   guard: AccessGuard<P>
   dependencies: AgentDependencies<P, B>
@@ -230,6 +233,7 @@ export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   endedFailed: AgentRunEndedFailedReceiver | undefined
   /** The receiver of the report of a run that began to wait for a dependency; undefined: nobody is told. */
   waiting: AgentRunWaitingReceiver | undefined
+  modelRetrying: AgentModelRetryingReceiver | undefined
 }>
 
 export function createProvider<P, B extends ContentBlock>(
@@ -246,7 +250,6 @@ export function createProvider<P, B extends ContentBlock>(
 
   const writeControl = createControlWriter(dependencies)
   let slot: Slot = { kind: 'free' }
-  // The drive of the `running` slot, null while no drive works.
   let driving: Driving | null = null
   let current: AgentState = { kind: 'idle', instance }
   const listeners = new Set<() => void>()
@@ -530,6 +533,7 @@ export function createProvider<P, B extends ContentBlock>(
           // The report observes the runtime and never decides an answer of it.
         }
       },
+      ...modelRetryEntry(entry, dependencies.random, execution),
       toolConcurrency: entry.configuration.toolConcurrency,
       maxRunSteps: maxRunStepsOf(entry.configuration),
     })
@@ -547,6 +551,7 @@ export function createProvider<P, B extends ContentBlock>(
   ): void {
     const own: Driving = { wait: null, asked: null }
     driving = own
+    const pacer = reconciliationPacer(entry.configuration.reconciliationDelaysMs)
     /** The handover quiesce asked for, made between a pass and a wait. True: the slot is free. */
     const handOver = async (): Promise<boolean> => {
       const asked = own.asked
@@ -572,10 +577,7 @@ export function createProvider<P, B extends ContentBlock>(
             const controller = new AbortController()
             own.wait = controller
             const wake = await coordinator
-              .waitForWake({
-                reconciliationDelayMs: entry.configuration.reconciliationDelayMs,
-                signal: controller.signal,
-              })
+              .waitForWake({ pacer, signal: controller.signal })
               .finally(() => {
                 own.wait = null
                 controller.abort()

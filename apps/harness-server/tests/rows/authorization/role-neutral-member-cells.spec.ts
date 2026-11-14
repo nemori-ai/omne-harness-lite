@@ -138,6 +138,7 @@ const MUTATING = new Set([
   'interrupt',
   'cancelRun',
   'stopCall',
+  'retryRun',
   'freeze',
   'receive',
 ])

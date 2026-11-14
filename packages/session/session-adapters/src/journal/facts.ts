@@ -27,6 +27,7 @@ import type {
   InputBatch,
   InputId,
   ModelReplyAdmission,
+  ModelRetryState,
   PassageId,
   PendingCall,
   StepId,
@@ -133,6 +134,7 @@ export type CursorMembers = Readonly<{
   schema: Adoption
   definition: Adoption
   adoptedRequest: Ref | null
+  modelRetry?: ModelRetryState | null
   /** The committed `JournalCommitState`; the waits of a waiting state are in `wait.entered`. */
   state: 'reconciling' | 'advancing' | 'waiting' | 'settling' | 'suspended'
 }>

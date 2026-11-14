@@ -98,7 +98,7 @@ Finish races remain later work.
 
 I2 constructs the original PendingCall and M0 commits it with the fixed request and effect before admission. M6 normally calls admit directly. An unknown admission or a restored coordinator can inspect the original reference to reconcile it. This lookup cannot create a result.
 
-M1 waits for a committed received result in the same Journal. M3 reads its complete facts material, validates the schema and the original tenant/reference/consumer/consumption, interprets reply, partial or no-reply, then commits the producer event. I3 and restored coordinators use that same material. The Agent loop does not open a Model observer, paginate results, call Model consumption or record a Model result responsibility. A receiver-only revision causes a reload and a conditional commit with the current revision; it does not revoke a valid attachment.
+M1 waits for a committed received result in the same Journal. M3 reads its complete facts material, validates the schema and the original tenant/reference/consumer/consumption, interprets it, then commits the producer event. I3 and restored coordinators use that same material. The Agent loop does not open a Model observer, paginate results, call Model consumption or record a Model result responsibility. A receiver-only revision causes a reload and a conditional commit with the current revision; it does not revoke a valid attachment.
 
 The independent `createAgentModelReceiver` uses a single `AgentReceivedProvider`, an access check, stable original targets, Model inspect/dispatches, an account outlet, explicit tenant limits and host-owned state. It copies the full typed delivery before any await, checks current qualification and the original Model facts on every push, then commits entry/material/saved together. Unknown writes query the original operation; excluded operations never acquire a new identity. The schema is `agentModelDeliverySchema`; `readModelDeliveryMaterial` decodes and checks the original binding. These checks alone do not prove durable storage. `createAgentCustodyEvidence` is the evidence adapter of this consumer owner for the Model's ACK: it reads the received record the receiver committed, through `AgentReceivedRecords`, and confirms the retained evidence only on an exact match. Evidence that differs from the committed record is refused as forged with `handoff-invalid`; a missing or unreadable record is `unavailable`.
 
@@ -120,7 +120,7 @@ Ready results that need the later consumption nodes remain unsupported. Real wak
 An empty batch is cleared when I8 chooses the next step or candidate.
 
 Ordinary completed/limit output with legal sealed parts can enter reply admission. Original trims and settlement remain in received materials. Agent synthesizes no trim or reminder.
-Partial output and interrupted results return to I8 without reply admission or executable actions. Their presence alone does not decide completion.
+Interrupted results return to I8 without reply admission or executable actions.
 Interruption retains the original control identity. The control request protocol and phase recording remain later work.
 
 Tests use Journal.submit while a call is in flight to demonstrate step-2 in the same execution.
@@ -187,7 +187,7 @@ W0 commits waiting state and one waiting event together (J2).
 It preserves the checkpoint position and yields one drive segment. The provider owns one serial driver.
 The driver starts Journal observation, then rereads the snapshot and original slots. Model admission reconciliation is used only for an unresolved admission.
 The observation starts at the event cursor that the coordinator knows exactly from its last `load` and its own later commits, so each entry into W0 reads the snapshot at most once (AG-03 R6.5). Without that cursor, the driver reads a baseline first.
-Only unchanged progress sleeps until the configured `reconciliationDelayMs` check time through `AgentClock`.
+Only unchanged progress sleeps until the configured `reconciliationDelaysMs` check time through `AgentClock`.
 A notification or elapsed check time returns through E1. Neither proves settlement or nonexecution.
 The execution keeps its slot, and `observe` shows occupied.
 The local wait aborts and joins its observations and timer before returning. It sends no producer control and releases no business responsibility.

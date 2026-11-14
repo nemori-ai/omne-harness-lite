@@ -279,7 +279,7 @@ export async function loopAssembly(
     dependencies: AgentDependencies<Principal, ContentBlock>,
   ) => AgentDependencies<Principal, ContentBlock> = dependencies => dependencies,
   reply: ScriptedReply = ONE_TEXT,
-  configuration: Partial<AgentConfiguration> = { reconciliationDelayMs: 1000 },
+  configuration: Partial<AgentConfiguration> = { reconciliationDelaysMs: [1000] },
   extras: AgentRuntimeExtras = {},
 ): Promise<LoopAssembly> {
   const { dependencies, controls } = createTestAgentDependencies<Principal>({

@@ -1,4 +1,4 @@
-// The contribution of `session/v1`: one handler for each of the eight operations and the frame
+// The contribution of `session/v1`: one handler for each of the nine operations and the frame
 // source of `observe-session`. The handlers are moved from the server entry's session location
 // (`packages/access/server-entry/src/session.ts`), except `list-sessions`, which is new and reaches
 // the session list through the `SessionListing` port; they reach Session through the same faces and
@@ -8,8 +8,6 @@
 // call: one that is not there answers `basis-unavailable`.
 import type {
   AccessContribution,
-  AnswerOf,
-  BodyOf,
   EndOf,
   FrameOf,
   LoginIdentity,
@@ -23,9 +21,7 @@ import type {
   HistoryPage,
   InputId,
   RunId,
-  SessionAccess,
   SessionCreation,
-  SessionFailure,
   SessionId,
 } from '@omne-harness/session-contract'
 import type {
@@ -33,7 +29,7 @@ import type {
   SessionObservationEnd,
   SessionObservationFrame,
 } from '@omne-harness/session-observation'
-import { sessionProtocol, type SessionProtocol } from '@omne-harness/session-protocol'
+import type { SessionProtocol } from '@omne-harness/session-protocol'
 import {
   acceptOperation,
   controlOperation,
@@ -43,6 +39,18 @@ import {
   sessionIdentity,
   tenantTextOf,
 } from './derivation.ts'
+import {
+  commitCall,
+  readCall,
+  refused,
+  UNAVAILABLE,
+  type Admitted,
+  type Answer,
+  type Body,
+  type Refusal,
+  type Target,
+} from './answers.ts'
+import { retryRun } from './retry-run.ts'
 import type {
   DefinitionResolver,
   PrincipalFact,
@@ -64,74 +72,10 @@ export type SessionContributionInput = Readonly<{
   settings: SessionAccessSettings
 }>
 
-type Operations = SessionProtocol['operations']
-type Name = keyof Operations & string
-type Answer<K extends Name> = AnswerOf<Operations[K]>
-type Body<K extends Name> = BodyOf<Operations[K]>
 type ObserveSession = SessionProtocol['observations']['observe-session']
-
-type Refusal = Readonly<{ outcome: 'denied' | 'basis-unavailable' }>
-const UNAVAILABLE = Object.freeze({ outcome: 'basis-unavailable' as const })
 
 /** The principal for a target tenant, or the refusal identity gave. */
 type TenantPrincipal = Readonly<{ principal: Principal; tenantText: string }>
-
-/** The target of one call: the principal for the target tenant and the session it names. */
-type Target = Readonly<{ access: SessionAccess<Principal>; tenantText: string }>
-/** A target and the Session faces of the moment. */
-type Admitted = Target & Readonly<{ faces: SessionAccessFaces }>
-
-/** The outcome of a Session failure, as the session location maps it. */
-function failureOutcome(failure: SessionFailure): string {
-  switch (failure.kind) {
-    case 'limited':
-    case 'denied':
-    case 'invalid':
-    case 'conflict':
-    case 'archived':
-    case 'frozen':
-    case 'unsupported':
-      return failure.kind
-    case 'commit-unknown':
-      return 'unknown'
-    default:
-      // `unavailable`, `quarantined`, and a kind outside the public result set: the session cannot
-      // say allowed now.
-      return 'basis-unavailable'
-  }
-}
-
-/**
- * The answer of operation `name` to a Session failure. An outcome outside the operation's contract
- * is `basis-unavailable`. A codec outcome carries its body: the limit of `limited`, else empty.
- */
-function refused<K extends Name>(name: K, failure: SessionFailure): Answer<K> {
-  const outcomes: Readonly<Record<string, unknown>> = sessionProtocol.operations[name].outcomes
-  const outcome = failureOutcome(failure)
-  if (!Object.hasOwn(outcomes, outcome)) return UNAVAILABLE as Answer<K>
-  if (outcomes[outcome] === true) return { outcome } as Answer<K>
-  const body =
-    failure.kind === 'limited' ? { resource: failure.resource, limit: failure.limit } : {}
-  return { outcome, body } as Answer<K>
-}
-
-/** A commit-class Session call: a throw after the call began is `unknown`. */
-async function commitCall<T>(call: () => Promise<T>): Promise<T | 'unknown'> {
-  try {
-    return await call()
-  } catch {
-    return 'unknown'
-  }
-}
-
-/** A read-class Session call: a throw is `basis-unavailable`, nothing was committed. */
-async function readCall<T>(call: () => Promise<T>): Promise<T | 'basis-unavailable'> {
-  try {
-    return await call()
-  } catch {
-    return 'basis-unavailable'
-  }
-}
 
 /** A plain value of a json-text tree, for the message package. Keys are defined, never assigned. */
 function plainOf(value: JsonValue): unknown {
@@ -408,7 +352,6 @@ export function createSessionContribution(
     login: LoginIdentity,
     body: Body<'send-input'>,
   ): Promise<Answer<'send-input'>> {
-    // The message is judged before any identity call, as the session location did.
     const message = decodeUserMessage(body.message)
     if (message === undefined) return { outcome: 'protocol-rejected' }
     const admitted = await admit(login, body.tenant, body.session)
@@ -603,6 +546,7 @@ export function createSessionContribution(
       'read-history': (call, body) => readHistory(call.principal, body),
       'cancel-run': (call, body) => cancelRun(call.principal, body),
       'stop-call': (call, body) => stopCall(call.principal, body),
+      'retry-run': (call, body) => retryRun({ admit, factOf }, call.principal, body),
       'list-sessions': (call, body) => listSessions(call.principal, body),
     },
     observations: {

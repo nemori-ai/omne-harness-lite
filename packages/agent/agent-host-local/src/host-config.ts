@@ -5,6 +5,7 @@
 // the factory judges them again when it creates an instance.
 import type { AgentConfiguration } from '@omne-harness/agent'
 import { judgeAdoption } from '@omne-harness/agent-contract'
+import { parseRetryPolicy } from '@omne-harness/retry'
 
 /**
  * The reception items: the tenant capacity of the Model result receiver and the waits of its
@@ -43,16 +44,27 @@ const POSITIVE = [
   'toolConcurrency',
   'instanceIdleMs',
 ] as const
-const NON_NEGATIVE = ['reconciliationDelayMs', 'denialBackoffMs'] as const
+const NON_NEGATIVE = ['denialBackoffMs'] as const
 const FIELDS: ReadonlySet<string> = new Set([
   ...POSITIVE,
   ...NON_NEGATIVE,
+  'reconciliationDelaysMs',
   'jointCommits',
   'coordination',
   'loopGuardPolicy',
+  'modelRetry',
   'maxRunSteps',
   'reception',
 ])
+
+function modelRetryIssues(value: unknown): readonly string[] {
+  try {
+    parseRetryPolicy(value)
+    return []
+  } catch (error) {
+    return [`modelRetry: ${error instanceof Error ? error.message : 'not a retry policy'}`]
+  }
+}
 
 const RECEPTION_FIELDS = [
   'records',
@@ -128,6 +140,10 @@ function issuesOf(value: unknown): readonly Issue[] {
     if (!isPositive(read(field))) issues.push(`${field}: not a positive safe integer`)
   for (const field of NON_NEGATIVE)
     if (!isNonNegative(read(field))) issues.push(`${field}: not a non-negative safe integer`)
+  const delays = read('reconciliationDelaysMs')
+  if (!Array.isArray(delays) || delays.length === 0 || !delays.every(isNonNegative))
+    issues.push('reconciliationDelaysMs: not a non-empty list of non-negative safe integers')
+  issues.push(...modelRetryIssues(read('modelRetry')))
   issues.push(...stepLimitIssues(read('maxRunSteps')))
   issues.push(...receptionIssues(read('reception')))
   if (!COORDINATION.includes(read('coordination'))) issues.push('coordination: unknown mode')

@@ -245,7 +245,10 @@ for (const final of ['cancel', 'finish', 'archive', 'ended'] as const)
     const rows = s.backend.controls.entriesOf(s.access.tenant, s.access.session),
       kinds = rows.map(row => row.kind)
     expect(kinds.indexOf('run.batch-taken')).toBeLessThan(kinds.indexOf('run.terminal'))
-    expect(kinds).not.toContain('intake.released')
+    if (final === 'finish') {
+      expect(kinds.indexOf('run.terminal')).toBeLessThan(kinds.indexOf('intake.released'))
+      expect(ok(await s.backend.transactions.readWork(s.access)).pending).toEqual([])
+    } else expect(kinds).not.toContain('intake.released')
     if (final !== 'ended')
       ok(
         await s.backend.controls.interpret({

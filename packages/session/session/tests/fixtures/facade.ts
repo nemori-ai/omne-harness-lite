@@ -42,6 +42,7 @@ const CALLER: Readonly<Record<SessionCommand['kind'], SessionCallerClass>> = {
   interrupt: 'intake',
   cancelRun: 'intake',
   stopCall: 'intake',
+  retryRun: 'intake',
   freeze: 'coordinator',
   receive: 'coordinator',
 }

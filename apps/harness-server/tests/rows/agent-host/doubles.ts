@@ -66,13 +66,14 @@ export const caller: Access<string> = { principal: 'caller-a', tenant }
 /** The operator values of the row in these tests: the release's joint commits, test numbers. */
 export const hostConfig = {
   observerBufferBytes: 1024,
-  reconciliationDelayMs: 0,
+  reconciliationDelaysMs: [0],
   reconciliationBatchLimit: 8,
   denialBackoffMs: 0,
   toolConcurrency: 1,
   jointCommits: ['message', 'context-transition', 'custody', 'processed'] as string[],
   coordination: 'coordinated',
   loopGuardPolicy: { owner: 'agents', name: 'loop-guard', revision: '1', digest: 'sha256:guard' },
+  modelRetry: { maxAttempts: 1, maxElapsedMs: 0, delaysMs: [0], jitter: 0 },
   instanceIdleMs: 60_000,
 }
 

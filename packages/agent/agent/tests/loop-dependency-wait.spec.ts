@@ -1,6 +1,6 @@
 // The public driver parked on an unavailable I1 dependency (R2-D202). The dependency has no change
 // notification, so the only wake is the check time: mechanisms "等待、唤醒与公平" (查询暂不可用的原项
-// 在进程内计算下一检查时刻，按同一间隔重查), public-api "工厂配置" (reconciliationDelayMs), SC-AG-182 and
+// 在进程内计算下一检查时刻，按同一序列重查), public-api "工厂配置" (reconciliationDelaysMs), SC-AG-182 and
 // SC-AG-193 (检查时刻之间没有空转). With the clock frozen the driver makes one pass and one call of
 // `waitForWake`; each check time adds exactly one pass. The drive passes are counted through the
 // measurement events: every `run` pass of the driver is followed by one `waitForWake`.
@@ -48,7 +48,7 @@ async function parkedOnContext() {
       },
     }),
     undefined,
-    { reconciliationDelayMs: INTERVAL_MS },
+    { reconciliationDelaysMs: [INTERVAL_MS] },
     { measure: event => events.push(event) },
   )
   assembly.release.open()

@@ -152,6 +152,7 @@
 - `diffModelStream` · `model-stream-values.d.ts`
 - `encodeModelInvocationRef` · `reference.d.ts`
 - `encodeModelOutputV1` · `model-output-v1.d.ts`
+- `faultIsTransient` · `result.d.ts`
 - `judgeModelDelivery` · `result-delivery-judge.d.ts`
 - `projectModelOutputV1` · `model-output-v1.d.ts`
 - `resolveModelInvocationRef` · `reference.d.ts`
@@ -1241,6 +1242,7 @@ export declare function compareOutputCursors(left: OutputCursor, right: OutputCu
 ```ts
 export type { Access, Admit, Adoption, CallAccess, ConsumerRef, DispatchId, FixedModelRequest, Identity, ModelCallId, ModelIdentityKey, ModelIdentityRejection, ModelInstanceId, ModelOperationId, ModelReferenceAccess, Mutation, OutputCursor, Parameter, CredentialLayer, ProviderName, ReadId, ResultVersion, Revision, Supplier, ToolDeclaration, } from './root.ts';
 export type * from './result.ts';
+export { faultIsTransient } from './result.ts';
 export type * from './result-delivery-values.ts';
 export type * from './result-delivery.ts';
 export type * from './result-delivery-judge.ts';
@@ -2534,6 +2536,7 @@ export type Reply<T> = Promise<Outcome<T, ModelFailure>>;
 export type ToolSuggestion = ToolCallPart;
 export type ModelBlock = ContentBlock | ToolSuggestion | ReasoningStatePart;
 export type ModelFaultCause = 'profile-withdrawn' | 'excluded' | 'modality' | 'credential' | 'input-rejected' | 'input-over-limit' | 'replay-rejected' | 'upstream-unavailable' | 'stream-lost' | 'runtime-lost' | 'persistence' | 'policy-unavailable' | 'upstream-protocol' | 'unclassified';
+export declare function faultIsTransient(cause: ModelFaultCause): boolean;
 export type OverLimitMetric = 'context-tokens' | 'input-tokens' | LimitMetric;
 export type ModelFault = Readonly<{
     diagnostic: string;

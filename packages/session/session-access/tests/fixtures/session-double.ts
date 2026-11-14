@@ -33,6 +33,7 @@ type FaceMethod =
   | 'queryOperation'
   | 'cancelRun'
   | 'stopCall'
+  | 'retryRun'
   | 'history.begin'
   | 'history.next'
 
@@ -190,7 +191,16 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
     },
   }
 
-  const work: Pick<SessionWork<P>, 'accept' | 'queryOperation' | 'cancelRun' | 'stopCall'> = {
+  const work: Pick<
+    SessionWork<P>,
+    'accept' | 'queryOperation' | 'cancelRun' | 'stopCall' | 'retryRun'
+  > = {
+    async retryRun(input) {
+      record('retryRun', input, { run: input.run })
+      if (accessDenied(input)) return fail({ kind: 'denied', action: 'retryRun' })
+      if (existing(input) === undefined) return fail({ kind: 'denied', action: 'retryRun' })
+      return commit('retryRun', input.operation, { kind: 'retryRun', run: input.run })
+    },
     async accept(input) {
       record('accept', input, input.value)
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'accept' })

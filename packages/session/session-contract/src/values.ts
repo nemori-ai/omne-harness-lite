@@ -157,6 +157,7 @@ export type Control =
   | Readonly<{ kind: 'background-tool'; producer: Extract<ProducerRef, { kind: 'tool' }> }>
   | Readonly<{ kind: 'archive' }>
   | Readonly<{ kind: 'unarchive' }>
+  | Readonly<{ kind: 'retry-run'; run: RunId }>
 export type ControlIntent =
   | Readonly<{ kind: 'control'; value: Control }>
   | Readonly<{
@@ -412,6 +413,8 @@ export type WorkSnapshot = Readonly<{
   children?: readonly SessionId[]
   autoArchive?: AutoArchivePolicy
   taken?: readonly InputId[]
+  unanswered?: readonly InputId[]
+  awaitingPerson?: true
   backgroundPlaceholders?: readonly ConsumptionId[]
   releasedScopes?: readonly Readonly<{ task: SessionOperationId; scope: string }>[]
   contextScopes?: readonly ContextScopeBinding[]

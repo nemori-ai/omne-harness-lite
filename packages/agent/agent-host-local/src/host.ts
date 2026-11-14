@@ -89,6 +89,7 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolRuntime } from '@omne-harness/tool-contract'
 import { toolRuntimeKey } from '@omne-harness/tool-cordis-contract/cordis'
 import type { AgentHostConfig } from './host-config.ts'
+import { cryptoRandom, modelRetryingRecord } from './model-retry.ts'
 import { stagePort } from './stage-ports.ts'
 
 /**
@@ -103,7 +104,7 @@ export type RuntimeFactory = (
 
 /** What the host gives every runtime it builds besides dependencies and options. */
 export type HostRuntimeExtras = Required<
-  Pick<AgentRuntimeExtras, 'failed' | 'endedFailed' | 'waiting'>
+  Pick<AgentRuntimeExtras, 'failed' | 'endedFailed' | 'waiting' | 'modelRetrying'>
 >
 
 /** The statically injected services that the factory takes as they are. */
@@ -324,7 +325,6 @@ function failureText(failure: Failure): string {
   }
 }
 
-/** The warn record of a run that stopped on a failure (SPEC「运行失败」). */
 function runFailedRecord(event: AgentRunFailed): string {
   const tenant = tenantTextOf(event.tenant) ?? 'unknown'
   return (
@@ -385,8 +385,6 @@ export function createHost(input: HostInput): Host {
     }
   }
 
-  // --- access ----------------------------------------------------------------------------------
-
   /** One check of the authorization domain. Anything but `allowed` refuses; nothing defaults to allowed. */
   async function qualify(
     access: Access<unknown>,
@@ -421,7 +419,6 @@ export function createHost(input: HostInput): Host {
   }
 
   // --- registration ----------------------------------------------------------------------------
-
   function directoryOf(context: Context): Outcome<Context['agentInstances'], Failure> {
     const directory = context.get('agentInstances')
     return directory === undefined
@@ -873,6 +870,7 @@ export function createHost(input: HostInput): Host {
       materials: stagePort(ctx, agentMaterialsKey),
       reads: stagePort(ctx, agentReadsKey),
       registration: entry.handle,
+      random: cryptoRandom,
     }
   }
 
@@ -908,6 +906,8 @@ export function createHost(input: HostInput): Host {
           },
           endedFailed: event => record('warn', runEndedFailedRecord(event)),
           waiting: event => record('warn', runWaitingRecord(event)),
+          modelRetrying: event =>
+            record('warn', modelRetryingRecord(event, tenantTextOf(event.tenant))),
         },
       )
       if ('failure' in created) {
