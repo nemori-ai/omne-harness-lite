@@ -86,16 +86,28 @@
   min-width: 0;
   border-bottom: 1px solid var(--omne-line-subtle);
 }
-.omne-session-title {
+.omne-session-heading {
+  display: flex;
   flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.omne-session-title {
   min-width: 0;
   margin: 0;
   overflow: hidden;
-  font-family: var(--omne-font-reading);
   font-size: var(--omne-text-ui);
   font-weight: var(--omne-weight-strong);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.omne-session-id {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
 }
 .omne-session-main {
   display: flex;

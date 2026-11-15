@@ -33,6 +33,10 @@ export type ListEffect = Readonly<{ kind: 'list-sessions'; token: number; cursor
 
 export type ListStep = Readonly<{ list: SessionList; effects: readonly ListEffect[] }>
 
+export function sessionName(item: ListedSession): string {
+  return item.title ?? `未命名的会话 ${item.session.slice(0, 8)}`
+}
+
 export const UNREAD: SessionList = { kind: 'unread', issued: 0 }
 
 export function shownBy(list: SessionList): ListPage | null {

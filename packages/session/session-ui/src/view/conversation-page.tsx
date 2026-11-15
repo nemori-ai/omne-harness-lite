@@ -1,9 +1,10 @@
-import { StatusPill, Textarea } from '@omne-harness/ui-kit'
+import { CopyButton, StatusPill, Textarea, ValuePill } from '@omne-harness/ui-kit'
 import { Fragment, useMemo, useState, useSyncExternalStore, type KeyboardEvent } from 'react'
 import { stopFace } from '../model/composer.ts'
 import { EMPTY_CONTENT } from '../model/content.ts'
 import { conversationItems } from '../model/conversation.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
+import { sessionName, shownBy, type SessionList } from '../model/session-list.ts'
 import type { Open, PendingInput, State } from '../model/session-machine.ts'
 import type { SessionWorkspaces } from '../model/session-workspaces.ts'
 import type { Waiting } from '../model/waiting.ts'
@@ -39,11 +40,16 @@ export function ConversationPage({ workspaces, scope }: ConversationPageProps) {
 }
 
 function Page({ driver }: { readonly driver: SessionDriver }) {
-  const { session: state } = useSyncExternalStore(driver.subscribe, driver.getState)
+  const { session: state, list } = useSyncExternalStore(driver.subscribe, driver.getState)
   return (
     <div className="omne-session-page">
       <header className="omne-session-bar">
-        <h2 className="omne-session-title">{titleOf(state)}</h2>
+        <div className="omne-session-heading">
+          <h2 className="omne-session-title">{titleOf(state, list)}</h2>
+          {state.kind === 'open' || state.kind === 'unavailable' ? (
+            <SessionId session={state.session} />
+          ) : null}
+        </div>
         <ConnectionBadge state={state} />
       </header>
       <div className="omne-session-main">
@@ -53,16 +59,38 @@ function Page({ driver }: { readonly driver: SessionDriver }) {
   )
 }
 
-function titleOf(state: State): string {
+function titleOf(state: State, list: SessionList): string {
   switch (state.kind) {
     case 'none':
       return '还没有会话'
     case 'creating':
       return '正在建会话'
     case 'open':
-    case 'unavailable':
-      return `会话 ${state.session}`
+    case 'unavailable': {
+      const listed = shownBy(list)?.sessions.find(item => item.session === state.session)
+      return listed === undefined ? '新会话' : sessionName(listed)
+    }
   }
+}
+
+const SHOWN_ID = 12
+
+function SessionId({ session }: { readonly session: string }) {
+  const short = session.length > SHOWN_ID ? `${session.slice(0, SHOWN_ID)}…` : session
+  return (
+    <span className="omne-session-id">
+      <span title={session}>
+        <ValuePill mono>{short}</ValuePill>
+      </span>
+      <CopyButton
+        value={session}
+        label="复制会话标识"
+        copiedLabel="已复制会话标识"
+        failedLabel="没有复制成功"
+        size="icon-compact"
+      />
+    </span>
+  )
 }
 
 function ConnectionBadge({ state }: { readonly state: State }) {
