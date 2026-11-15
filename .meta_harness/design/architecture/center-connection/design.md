@@ -1,13 +1,39 @@
-# 中心连接观察：当前设计与未实现边界
+# 中心连接观察的设计
 
-本页只维护尚无真实提供者的已采用技术行为及未决，不授予实现或验证状态。公开数据沿实际定义拥有者，不建空包。新增产品政策仍由产品负责人决定。
+本设计的公开数据由实际定义它的拥有者发布，不为它单独建空包。新的产品政策由产品负责人决定。
 
- `reachability()` 无参数、无授权（不出秘密/治理事实）、无结构拒绝、纯读当前快照，**闭合失败集合为空**。在场 service 必须始终能读；service 缺席是依赖缺席，不编造操作失败。输出三态 undetermined/reachable/unreachable、since、reachCount；天然可重复。
+## 前提
 
-自主探测与进展不是操作副作用：首轮结果之前 undetermined/count0；合法且对端确认的答复（含 business unavailable、login rejected、版本不合）皆 reachable；超时、断开、TLS/对端不能确认、不可解析答复为 unreachable。仅非reachable→reachable 增 count，状态变更才更新时间；clock 读不到不提交新观察，不伪造时间，首次 clock 不可得 since 可缺席。配置 probeInterval/probeTimeout 必填、缺失启动失败；clock 可用条件下探测转态有 interval+timeout 上界，无用户请求仍继续；断线不撤 service、不重跑消费者、不丢在途模型调用。
+- 治理中心有一个[治理中心标识](../../ubiquitous_language/terms/grounding-and-isolation.md#ul-governance-center-identifier--治理中心标识--governance-center-identifier)。换了地址而标识相同，是同一个中心。标识不同，必须被认出是另一个中心。标识不是秘密，也不证明真实性：客户端必须确认对端真是配置的那个中心，否则不交出登录，也不接受答复。
+- 中心提供匿名的公开[治理中心体检](../../ubiquitous_language/terms/reach-and-availability.md#ul-governance-center-health-check--治理中心体检--governance-center-health-check)，答复是 `{ reachable: true, centerId, version }`。探测消费这个端口。
+- 答复按传输绑定读。答复读完之前连接关闭，或者读到的不是一份按传输绑定读得成的答复，都算没有答复。
 
-PF017 已定义 center ID，换址同 ID 是同中心、另 ID 必须被认出，但 ID 非秘密且不证明真实性：客户端必须确认真实对端，否则不交 login、不接受答复。“别的中心时旧据点/会话如何展示”仍归 PF016，不能给连接 service 自造第四态或删会话。旧 probe node 的匿名公共体检假定可消费当前 governance-entry 的真实公开端口；没有自主 probe 提供者，不声明已接线。变化推送未定、未来资产/据点请求面未到；只接观察窄口，不补业务请求。
+## 操作
 
-验证义务与规范输入见[verification](verification/README.md)。尚未闭合的公共语义阻止相应提供者实施，不以迁移目录关闭业务缺口。
+`reachability()` 没有参数，不要授权（它不出秘密，也不出治理事实），没有结构拒绝，只读当前快照。**它的闭合失败集合为空。** 本能力在场时，这个操作必须始终能读。本能力缺席是依赖缺席，不编造操作失败。输出是三态 `undetermined`、`reachable`、`unreachable`，加上 `since` 与 `reachCount`。这个操作天然可以重复。
 
-clock不可读不立即重探，本地定时器仍保持probeInterval节拍。卸载、替换或重启后新的在场从undetermined/reachCount=0开始，跨在场count不可比较；旧迟到probe不得写新实例。
+## 探测与观察
+
+自主探测与观察的推进不是操作的副作用。
+
+- 首轮结果出来之前，观察是 `undetermined`，计数为 0。
+- 对端确认过、合法的答复都算 `reachable`，包括业务上的 `unavailable`、登录被拒与版本不合。
+- 超时、断开、TLS 或对端不能确认、答复不可解析，都算 `unreachable`。
+- 只有从非 `reachable` 变成 `reachable` 才给计数加一。状态变了才更新 `since`。
+- 时钟读不到时不提交新观察，不伪造时间。首次就读不到时钟时，`since` 可以缺席。时钟读不到也不立即重探，本地定时器仍按 `probeInterval` 的节拍走。
+- `probeInterval` 与 `probeTimeout` 是必填配置，缺失时启动失败。时钟可用的前提下，探测导致的状态转换在 `probeInterval + probeTimeout` 之内发生。没有用户请求时探测照样继续。
+- 断线不撤除本能力的服务，不重跑消费者，不丢掉在途的模型调用。
+- 卸载、替换或重启之后，新的一次在场从 `undetermined`、`reachCount = 0` 开始。不同在场之间的计数不可比较。旧在场迟到的探测结果不能写进新的实例。
+- 本能力只给观察这一个窄口，不补业务请求。中心换成另一个时，本能力不给自己造第四种状态，也不删除会话。
+
+## 未决
+
+下列未决闭合之前，依赖它的那部分不按本设计实现。
+
+| 未决 | 问题与读法 | 做到这一程时要定 |
+| --- | --- | --- |
+| 换了中心之后怎样展示 | 据点发现所连的是另一个中心时，旧据点与会话怎样展示，没定。 | 展示规则与它的拥有者 |
+| 变化推送 | 观察变化要不要推送给消费者，没定。读法一：只给 `reachability()` 的读，消费者用 `reachCount` 看出其间重连过。读法二：另给一条变化推送。 | 读法二要多一个观察面，并定它和读的先后关系 |
+| 与桌面外壳连接状态的关系 | [桌面应用规格](../../../../apps/desktop/SPEC.md#页面)第 82 行说外壳显示连接状态，连不上服务时显示「连不上服务」并按退避重连。那是客户端到服务的连接，本设计观察的是据点到中心的连接。读法一：两者并存，各管一段。读法二：外壳的连接状态消费本能力的观察。 | 外壳要不要显示据点到中心的可达性，显示的话怎样和自己的重连并存 |
+
+验证义务见[验证](verification/README.md)。
