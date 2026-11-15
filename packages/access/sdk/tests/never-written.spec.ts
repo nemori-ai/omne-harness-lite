@@ -20,6 +20,19 @@ describe('neverWritten', () => {
     }
   })
 
+  it('is true when fetch refuses the port before it connects', async () => {
+    expect(neverWritten(failed(new Error('bad port')))).toBe(true)
+    const refused = await fetch('http://127.0.0.1:6667/', { method: 'POST' }).catch(
+      (error: unknown) => error,
+    )
+    expect(neverWritten(refused)).toBe(true)
+  })
+
+  it('is false for another refusal of fetch, and for a bad port that is not an Error', () => {
+    expect(neverWritten(failed(new Error('bad url')))).toBe(false)
+    expect(neverWritten(failed({ message: 'bad port' }))).toBe(false)
+  })
+
   it('is false for any other code, a mixed list, no code, or no cause', () => {
     expect(neverWritten(failed(coded('ECONNRESET')))).toBe(false)
     expect(neverWritten(failed({ errors: [coded('ECONNREFUSED'), coded('EPIPE')] }))).toBe(false)
