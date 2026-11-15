@@ -1,18 +1,12 @@
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import {
-  ShellAssemblyError,
-  slots,
+  createSlotStore,
   type ItemOf,
   type ScopeSource,
   type ShellSlots,
   type SlotName,
 } from '@omne-harness/shell-contract'
 import { ShellService, type ShellLogin } from '@omne-harness/shell-contract/cordis'
-
-type Held = { id: string; order?: number }
-
-const byOrderThenId = (a: Held, b: Held): number =>
-  (a.order ?? 0) - (b.order ?? 0) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
 
 export class ReferenceShell extends ShellService implements ShellSlots {
   readonly navigated: string[] = []
@@ -27,19 +21,14 @@ export class ReferenceShell extends ShellService implements ShellSlots {
     set: () => undefined,
     subscribe: () => () => undefined,
   }
-  private readonly held: Record<SlotName, Held[]> = { gate: [], pages: [], sidebar: [] }
-  private readonly listeners = new Set<{ slot: SlotName; listener: () => void }>()
+  private readonly store = createSlotStore()
 
   items<K extends SlotName>(slot: K): readonly ItemOf<K>[] {
-    return [...this.held[slot]].sort(byOrderThenId) as unknown as ItemOf<K>[]
+    return this.store.items(slot)
   }
 
   subscribe(slot: SlotName, listener: () => void): () => void {
-    const entry = { slot, listener }
-    this.listeners.add(entry)
-    return () => {
-      this.listeners.delete(entry)
-    }
+    return this.store.subscribe(slot, listener)
   }
 
   navigate(pageId: string): void {
@@ -47,21 +36,7 @@ export class ReferenceShell extends ShellService implements ShellSlots {
   }
 
   protected place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void {
-    const list = this.held[slot]
-    if (slots[slot].kind === 'one' && list.length > 0)
-      throw new ShellAssemblyError(slot, item.id, 'occupied')
-    if (list.some(held => held.id === item.id))
-      throw new ShellAssemblyError(slot, item.id, 'duplicate')
-    list.push(item)
-    this.changed(slot)
-    return () => {
-      list.splice(list.indexOf(item), 1)
-      this.changed(slot)
-    }
-  }
-
-  private changed(slot: SlotName): void {
-    for (const entry of this.listeners) if (entry.slot === slot) entry.listener()
+    return this.store.place(slot, item)
   }
 }
 

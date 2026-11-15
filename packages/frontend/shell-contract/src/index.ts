@@ -1,3 +1,4 @@
+export { createSlotStore, type SlotStore } from './slot-store.ts'
 export { ShellAssemblyError, slots } from './slots.ts'
 export type {
   GateItem,
