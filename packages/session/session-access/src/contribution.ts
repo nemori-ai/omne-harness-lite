@@ -39,6 +39,7 @@ import type {
   RunFailureCauses,
   SessionAccessFaces,
   SessionAccessSettings,
+  SessionListEntry,
   SessionListing,
   TargetTenantPrincipals,
 } from './ports.ts'
@@ -91,6 +92,16 @@ function pageOf(page: HistoryPage) {
     exhausted: page.exhausted,
     scannedThrough: page.scannedThrough,
     upper: page.upper,
+  }
+}
+
+function summaryOf(item: SessionListEntry) {
+  return {
+    session: item.session,
+    createdAt: item.createdAt,
+    lastActivityAt: item.lastActivityAt,
+    lifecycle: item.lifecycle,
+    title: item.title,
   }
 }
 
@@ -304,13 +315,7 @@ export function createSessionContribution(
     return {
       outcome: 'succeeded',
       body: {
-        sessions: items.map(item => ({
-          session: item.session,
-          createdAt: item.createdAt,
-          lastActivityAt: item.lastActivityAt,
-          lifecycle: item.lifecycle,
-          title: item.title,
-        })),
+        sessions: items.map(summaryOf),
         next,
         completeness,
       },

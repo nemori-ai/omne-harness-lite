@@ -31,6 +31,24 @@ function accessOf<P>(input: SessionAccess<P>): SessionAccess<P> {
   return { principal: input.principal, tenant: input.tenant, session: input.session }
 }
 
+function readSnapshotOf<P>(
+  reads: Reads<P>,
+  caller: SessionCallerClass,
+  operation: 'readWork' | 'loadRecovery',
+  value: SessionAccess<P>,
+) {
+  return reads.session(caller, operation, value, view =>
+    readSnapshot(view, accessOf(value), operation),
+  )
+}
+
+function readWaitingOf<P>(reads: Reads<P>, caller: SessionCallerClass, value: SessionAccess<P>) {
+  return reads.session(caller, 'readWaiting', value, async view => {
+    const snapshot = await readSnapshot(view, accessOf(value), 'readWaiting')
+    return 'failure' in snapshot ? snapshot : succeed(judgeWaiting(snapshot.ok))
+  })
+}
+
 export function createFaces<P>(
   input: Readonly<{
     caller: SessionCallerClass
@@ -55,15 +73,8 @@ export function createFaces<P>(
     markTodoComplete: mutation('markTodoComplete'),
     listTodos: value => reads.session(caller, 'listTodos', value, view => listTodos(view, value)),
     accept: mutation('accept'),
-    readWork: value =>
-      reads.session(caller, 'readWork', value, view =>
-        readSnapshot(view, accessOf(value), 'readWork'),
-      ),
-    readWaiting: value =>
-      reads.session(caller, 'readWaiting', value, async view => {
-        const snapshot = await readSnapshot(view, accessOf(value), 'readWaiting')
-        return 'failure' in snapshot ? snapshot : succeed(judgeWaiting(snapshot.ok))
-      }),
+    readWork: value => readSnapshotOf(reads, caller, 'readWork', value),
+    readWaiting: value => readWaitingOf(reads, caller, value),
     readInput: value =>
       reads.session(caller, 'readInput', value, view =>
         view.readInput({ ...accessOf(value), input: value.input }),
@@ -84,10 +95,7 @@ export function createFaces<P>(
       reads.session(caller, 'queryOperation', value, view =>
         view.queryOperation({ ...accessOf(value), operation: value.operation }),
       ),
-    loadRecovery: value =>
-      reads.session(caller, 'loadRecovery', value, view =>
-        readSnapshot(view, accessOf(value), 'loadRecovery'),
-      ),
+    loadRecovery: value => readSnapshotOf(reads, caller, 'loadRecovery', value),
     readModelSelection: value =>
       reads.session(caller, 'readModelSelection', value, view =>
         view.readModelSelection(accessOf(value)),

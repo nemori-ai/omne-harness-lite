@@ -4,7 +4,7 @@
  */
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -82,7 +82,7 @@ it(
       return { kind: 'aborted' }
     })
     const http = await serveFakeHttp(server, [accessProtocol, identityProtocol, sessionProtocol])
-    const userData = await mkdtemp(join(tmpdir(), 'omne-electron-'))
+    const userData = await realpath(await mkdtemp(join(tmpdir(), 'omne-electron-')))
     const child = spawn('xvfb-run', ['-a', electron, probeMain, `--user-data-dir=${userData}`], {
       detached: true,
       stdio: ['ignore', 'pipe', 'pipe'],
