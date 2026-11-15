@@ -1,0 +1,35 @@
+.identity-login {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--omne-space-block);
+}
+
+.identity-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.identity-account {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 4px;
+}
+
+.identity-account-tenant {
+  margin: 0;
+  padding: 4px 8px;
+  overflow: hidden;
+  color: var(--omne-ink-muted);
+  font-family: var(--omne-font-mono, ui-monospace, monospace);
+  font-size: var(--omne-text-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.identity-account-logout {
+  justify-content: flex-start;
+}

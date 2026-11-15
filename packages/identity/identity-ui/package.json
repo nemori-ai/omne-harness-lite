@@ -1,0 +1,55 @@
+{
+  "name": "@omne-harness/identity-ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The identity interface module: the login gate (sign in, first use) and the account block (current tenant, sign out)",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "source": "./src/cordis.ts",
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    },
+    "./identity-ui.css": "./src/view/identity-ui.css"
+  },
+  "files": [
+    "dist",
+    "src/view/identity-ui.css"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/client-assembly": "workspace:*",
+    "@omne-harness/identity-protocol": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/sdk": "workspace:*",
+    "@omne-harness/shell-contract": "workspace:*",
+    "@omne-harness/ui-kit": "workspace:*",
+    "react": "catalog:"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "happy-dom": "catalog:",
+    "react-dom": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
