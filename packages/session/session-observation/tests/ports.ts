@@ -285,6 +285,8 @@ export class FakeStream {
   #wake: (() => void) | undefined
   #done = false
   #farewell: unknown
+  #failure: unknown
+  #farewellFailure: unknown
 
   constructor(ref: string, signal: AbortSignal) {
     this.ref = ref
@@ -307,6 +309,17 @@ export class FakeStream {
     this.#farewell = frame
   }
 
+  /** The stream breaks: its next read throws. */
+  fail(error: unknown): void {
+    this.#failure = error
+    this.#poke()
+  }
+
+  /** The stream breaks the way a Model that is torn down while the observer leaves does: it throws once its signal aborts. */
+  failOnAbort(error: unknown): void {
+    this.#farewellFailure = error
+  }
+
   #poke(): void {
     const wake = this.#wake
     this.#wake = undefined
@@ -316,9 +329,11 @@ export class FakeStream {
   async *frames(): AsyncGenerator<never> {
     for (;;) {
       if (this.signal.aborted) {
+        if (this.#farewellFailure !== undefined) throw this.#farewellFailure
         if (this.#farewell !== undefined) yield this.#farewell as never
         return
       }
+      if (this.#failure !== undefined) throw this.#failure
       const frame = this.#queue.shift()
       if (frame !== undefined) {
         yield frame as never
@@ -338,6 +353,7 @@ export class FakeModel {
   readonly accesses: unknown[] = []
   readonly streams: FakeStream[] = []
   fallback: ModelAnswer = { ok: { state: { phase: 'accepted' }, current: null } }
+  observeFault: unknown
 
   readonly #held = new Map<string, Readonly<{ gate: Promise<void>; answer: ModelAnswer }>>()
 
@@ -383,6 +399,7 @@ export class FakeModel {
       },
       observer: {
         observe: input => {
+          if (this.observeFault !== undefined) throw this.observeFault
           this.accesses.push(input.access)
           const stream = new FakeStream(String(input.ref), input.signal)
           this.streams.push(stream)

@@ -543,3 +543,78 @@ describe('abort while observing', () => {
     expect(w.notices.unsubscriptions).toBe(1)
   })
 })
+
+describe('the frames of the Model stream', () => {
+  it('a snapshot is sent as a snapshot of the model-output-v1 projection, with the projected value', async () => {
+    const w = world(new FakeLog(started('run_1'), mainCall('m-1')))
+    w.model.answer('m-1', stream('s1'))
+    const frames = await open(w)
+    await take(frames)
+    await settle()
+    w.model.stream('s1').push(snapshot('s1', 1))
+    const [step] = await drain(frames, 1)
+    expect(step?.done === true ? null : step?.value).toEqual({
+      kind: 'snapshot',
+      projection: 'model-output-v1',
+      value: expect.objectContaining({ kind: 'object' }),
+    })
+    expect(text(step)).toContain('"phase":"running"')
+    stop()
+  })
+
+  it('a delta is sent as a delta of the model-output-v1 projection, with the projected value', async () => {
+    const w = world(new FakeLog())
+    const frames = await observing(w)
+    w.model.stream('s1').push(delta('s1', 2))
+    const [step] = await drain(frames, 1)
+    expect(step?.done === true ? null : step?.value).toEqual({
+      kind: 'delta',
+      projection: 'model-output-v1',
+      value: expect.objectContaining({ kind: 'object' }),
+    })
+    stop()
+  })
+
+  it('a snapshot in a new phase is preceded by the state in that phase', async () => {
+    const w = world(new FakeLog())
+    const frames = await observing(w)
+    w.model.stream('s1').push(snapshot('s1', 2, 'settled'))
+    const steps = await drain(frames, 3)
+    expect(steps.map(step => step.value)).toEqual([
+      expect.objectContaining({ kind: 'state', phase: 'settled', target: expect.anything() }),
+      expect.objectContaining({ kind: 'snapshot' }),
+    ])
+    stop()
+  })
+})
+
+describe('a stream that breaks', () => {
+  it('an observer that throws while the frames are read ends the stream: state, refreshing', async () => {
+    const w = world(new FakeLog())
+    const frames = await observing(w)
+    w.model.stream('s1').fail(new Error('observer broke'))
+    expect(kinds(await drain(frames, 3))).toEqual(['state', 'refreshing'])
+    stop()
+  })
+
+  it('an observer that throws when asked to observe ends the stream the same way', async () => {
+    const w = world(new FakeLog(started('run_1'), mainCall('m-1')))
+    w.model.answer('m-1', stream('s1'))
+    w.model.observeFault = new Error('observer refused')
+    const frames = await open(w)
+    expect(kinds(await drain(frames, 3))).toEqual(['state', 'state', 'refreshing'])
+    stop()
+  })
+
+  it('an observer that throws once the subscription was dropped delivers nothing', async () => {
+    const w = world(new FakeLog())
+    const frames = await observing(w)
+    w.model.stream('s1').failOnAbort(new Error('torn down'))
+    w.log.append(mainCall('m-2'))
+    w.model.answer('m-2', stream('s2'))
+    w.notices.commit('call.bound')
+    expect(kinds(await drain(frames, 3))).toEqual(['state'])
+    expect(w.diagnostics).toEqual([])
+    stop()
+  })
+})
