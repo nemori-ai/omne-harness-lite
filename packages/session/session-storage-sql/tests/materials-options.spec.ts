@@ -1,6 +1,3 @@
-// The read output limit is an assembly parameter of `sessionStorageMaterials` (SPEC K-1): required,
-// a positive safe integer, and the value that every read handler carries as `maxOutputBytes`. The
-// member has no default, so a missing or wrong value fails where the materials are built.
 import { describe, expect, it } from 'vitest'
 import { sessionStorageMaterials } from '../src/materials.ts'
 

@@ -65,7 +65,6 @@ it('invalidates the previous read on both an original assignment and an explicit
       },
     }
     const facts = sessionCommandFacts(command, [])
-    // The qualification is a named fixture; the event writer and permission guard are production modules.
     const basis = {
       kind: 'permission-change',
       commandsDigest: sessionCommitDigest([facts]),

@@ -1,7 +1,3 @@
-// The commitLog conformance suite of session-contract (LC-01 to LC-10), run on the real participant
-// and read handlers over the node:sqlite test provider and over the real sqlite-provider. The Agent
-// side of the fixture (`observe`) publishes the original event through the `execution-record`
-// participant, so the commit reads it back from the same-root index in its own write transaction.
 import { afterEach, describe, it } from 'vitest'
 import { readAccessRequest } from '@omne-harness/session-contract'
 import {
@@ -30,7 +26,6 @@ function commitLogPort(port: SessionTransactionPort<string>): CommitLogPort {
   return port as CommitLogPort
 }
 
-/** States one original event of the observation to the Agent records of its session. */
 const observeWith =
   (agent: AgentPublisher) =>
   async (observation: SessionLogObservation): Promise<void> => {
@@ -121,7 +116,6 @@ async function realFixture(): Promise<SessionLogFixture<string>> {
 }
 
 describe('session-contract commitLog conformance on the real sqlite-provider', () => {
-  // Why slow: real write and read Workers over real files in a temporary directory.
   for (const test of sessionLogConformance<string>())
     it(`${test.clause}: ${test.name}`, { tags: ['slow'] }, async () => {
       await test.run(await realFixture())

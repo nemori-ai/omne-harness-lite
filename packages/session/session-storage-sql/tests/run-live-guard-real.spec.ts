@@ -1,5 +1,3 @@
-// session.run-live 守卫：真实 sqlite-provider 与真实 Session 提交。守卫与一条 Session 写入放进
-// 同一笔提交，守卫拒绝时整笔回滚，Session 的工作快照不变。
 import { afterEach, expect, it, vi } from 'vitest'
 import { operationId, ordinaryInput, sessionId } from '@omne-harness/session-contract/testing'
 import {
@@ -42,7 +40,6 @@ function commit(
     commands: sessionCommitCommands(commands),
   })
 }
-/** 一条普通输入的受理，作为与守卫同笔提交的 Session 写入。 */
 function acceptance(app: RealApp, name: string) {
   return sessionCommandFacts(
     {
@@ -57,7 +54,6 @@ function acceptance(app: RealApp, name: string) {
     [],
   )
 }
-/** 会话 session-1 带一个进行中的 Run。 */
 async function live() {
   const app = await openRealApp({ participants })
   apps.push(app)

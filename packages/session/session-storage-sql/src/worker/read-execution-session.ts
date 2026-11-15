@@ -1,6 +1,3 @@
-// The session, Run and SE13 position of one execution of one tenant, or null when no Run of the
-// tenant started it. Another tenant's execution and an execution that never started give the same
-// null.
 import { big, handler, oneRow, text } from './support.ts'
 
 export default handler('session.execution', (input, port) => {

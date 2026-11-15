@@ -1,7 +1,3 @@
-// The plugin on real Cordis 4.0.4: when it loads, what stops it from loading, and what a change of
-// a provider does to it (SPEC properties 1 to 4 and 10; verification 1, 7 and 9). The session
-// instance inside is the real factory over the in-memory transaction pair; only the providers of
-// the ports are small plugins of the test.
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   assemble,
@@ -84,7 +80,6 @@ describe('a port that is read per call does not decide whether the plugin loads'
     await a.provide('sessionClock', serviceOf(SessionClockService, {}, 'AnotherClock'))
     expect(a.provider).toBe(held)
     expect(a.provider.state as number).toBe(FIBER_STATE.ACTIVE)
-    // Neither the plugin body nor the caller plugin ran again.
     expect(Object.is(a.handles.get('session-provider'), registered)).toBe(true)
     expect(intake.runs()).toBe(1)
     await a.accept(intake, 'after-the-change')
@@ -99,7 +94,6 @@ describe('a change of an injected provider', () => {
     expect(a.handles.size).toBe(1)
     await a.withdraw(key)
     await a.provider.await()
-    // The body was unloaded first: the service is gone and its lifecycle registration with it.
     expect(provides(a)).toBe(false)
     expect(a.provider.state as number).toBe(FIBER_STATE.PENDING)
     expect(a.handles.size).toBe(0)
@@ -107,7 +101,6 @@ describe('a change of an injected provider', () => {
     await a.provider.await()
     expect(a.provider.state as number).toBe(FIBER_STATE.ACTIVE)
     expect(a.handles.size).toBe(1)
-    // The caller plugin ran again and holds the new service, which works.
     await intake.ctx().fiber.await()
     expect(intake.runs()).toBe(2)
     expect((await a.create(intake)).revision).toBeDefined()
@@ -119,7 +112,6 @@ describe('a change of an injected provider', () => {
     const oldFaces = intake.session().work
     await a.withdraw('sessionPrincipals')
     await a.provider.await()
-    // The face read before the change answers unavailable, because that instance is closed.
     const answer = await oldFaces.readWork(a.access())
     expect(answer).toMatchObject({ failure: { kind: 'unavailable' } })
   })
@@ -134,7 +126,6 @@ describe('the same command after a change', () => {
     await a.withdraw('sessionWorkPrincipals')
     await a.provide('sessionWorkPrincipals')
     await a.provider.await()
-    // The new instance holds nothing of the old one. The store answers the repeated operation.
     const again = await a.accept(intake, 'once')
     expect(again).toEqual({ ...first, recovered: true })
   })
@@ -166,10 +157,8 @@ describe('configuration', () => {
     const a = await build({ provider: config })
     expect(a.provider.state as number).toBe(FIBER_STATE.FAILED)
     expect(provides(a)).toBe(false)
-    // The schema refused it: the error is Cordis's validation error, not one raised by a body.
     await expect(a.provider.await()).rejects.toMatchObject({ name: 'ValidationError' })
     await expect(a.provider.await()).rejects.toThrow(message)
-    // The body did not run, so nothing registered itself with the lifecycle.
     expect(a.handles.size).toBe(0)
   })
 })

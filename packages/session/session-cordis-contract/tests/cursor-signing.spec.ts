@@ -1,5 +1,3 @@
-// The fixed signing double and its conformance suite (RD-CURSOR), plus the Cordis loading of the
-// signing service under its own key.
 import { Context } from '@deepseek-ai/cordis'
 import { createHmac } from 'node:crypto'
 import { describe, expect, it } from 'vitest'

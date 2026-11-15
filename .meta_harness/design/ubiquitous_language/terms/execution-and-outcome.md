@@ -185,7 +185,7 @@
   它的三个终态（**完整一份 · 上交 · 被中断**）、失败怎么分类、[什么时候算试尽](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#什么时候算试尽)，都在那里
 - **注意 ②**：**每一次调用的执行由它自己的运行时承载；执行收场与模型侧结果保管、确认后的清理责任分别判断**——
   [正文叫它「模型请求的运行时」，当同一物用](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)，
-  [对象条目已并入](../../domain_objects/objects.md#ul-model-call--一次模型调用)，**不另立词条**（与工具执行各自的运行时并入[工具执行](#ul-tool-execution--工具执行--tool-execution)同一分寸）；
+  **不另立词条**（与工具执行各自的运行时并入[工具执行](#ul-tool-execution--工具执行--tool-execution)同一分寸）；
   它受 [`runtime` 那条写死的规矩](../conventions.md#runtime-这个词本系统写死了)约束：**生命周期归会话，工作归所属 Run（已有 Run 外调用直接归会话）；Agent runtime 只持有句柄**。主流程仍等待结果，不另引入模型“转后台”模式。
   消费方确认结果已处理后，模型侧清理无用副本，原身份、真实收场和账仍保留；清理状态不使调用重新进入执行。依据 [PF-013 §6.19](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#619-消费方确认结果后清理模型侧不再需要的副本)（rev 17）。
   **这里说的是「这一次调用的那个协程」，不是承载所有这类协程的那项系统能力**——规格里以「模型请求运行时」为名的能力是另一层的东西，读到时按所在层分清（[C-31](../conflicts.md#现有冲突)）
@@ -263,7 +263,7 @@
 - **别混 ②**：**不是[一次发出](#ul-upstream-send--一次发出--upstream-send)**——发出是过程，本条是请求责任的收场留痕，不能据本条存在反推实际发送；**也不是[调用账目](#ul-call-account--调用账目--call-account)**——账是「花了什么」，一次发出的用量与费用落在哪一条上归规格
 - **注意 ①**：**数量随每份已确认的请求责任计，不据记录条数推断实际发送次数**——[首 token](#ul-first-token--首-token--first-token) 之后不再有第二次发出，所以带回复的至多一条、且是最后一条；停机后照常再发的那一次也是新的一条，两笔钱两条都照实记
 - **注意 ②**：**规格里的「上游原始响应留存」（响应头、原始字节）是它身上的一项属性，排查用，不进上下文、不进任何给人的呈现——不另立词条**；产品正文只要求[状态码原样带着](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它)、[错误信息外泄之前脱敏](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#616-错误信息外泄之前要脱敏)
-- **注意 ③**：正文对失败那几次的叫法是「留痕」；成功那一次「实际用了哪条档案、带了什么参数」的留痕，正文放在「那次请求的可追溯组成」里（[PF-004 §6.6](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#66-模型在每次请求时确定)、[PF-013 §4 模型档案](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模型档案)）——**两者是不是同一条记录，正文未述**，[对象条目](../../domain_objects/objects.md#ul-model-response--模型响应体)记为未裁
+- **注意 ③**：正文对失败那几次的叫法是「留痕」；成功那一次「实际用了哪条档案、带了什么参数」的留痕，正文放在「那次请求的可追溯组成」里（[PF-004 §6.6](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#66-模型在每次请求时确定)、[PF-013 §4 模型档案](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模型档案)）——**两者是不是同一条记录，正文未述**
 
 ## 跑的过程中，跟外面说的两种话
 
@@ -947,6 +947,6 @@
 - **别混 ①**：**不是 Cordis 插件换代。**输出代在同一个遥测服务实例里切换，插件树不变，依赖遥测服务的插件不重跑；Cordis 换代会重跑消费者插件，见[依赖换代与就绪](../../../../docs/architecture/deployment/cordis-and-lifecycle.md#依赖换代与就绪)
 - **别混 ②**：**不是[环境提供者](grounding-and-isolation.md#ul-environment-provider--环境提供者--environment-provider)的「代」或[生产者句柄](scope-and-resolution.md#ul-producer-handle--生产者句柄--producer-handle)的代际。**那些代属于别的对象，与工程遥测的输出无关
 - **注意**：已经开始的[遥测段](record-and-context.md#ul-telemetry-segment--遥测段--telemetry-segment)留在原代，到结束或截止；新记录进入新代。旧代排空有期限，超期截断并计数
-- **待裁决**：它是不是领域对象还没有人裁过，见 [C-74](../conflicts.md#c-74输出代是不是对象) 与[领域对象的待裁](../../domain_objects/pending.md#输出代)
+- **待裁决**：它是不是领域对象还没有人裁过，见 [C-74](../conflicts.md#c-74输出代是不是对象)
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

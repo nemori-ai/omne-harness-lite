@@ -2,8 +2,6 @@ import { expect, it } from 'vitest'
 import * as session from '@omne-harness/session-contract'
 import * as testing from '@omne-harness/session-contract/testing'
 
-// The whole runtime surface of the root entry. Every type is erased, so a new value export has to
-// be added here on purpose; the entry codec and the identity derivations of `decide` stay out.
 it('exports exactly the declared root runtime surface', () => {
   expect(Object.keys(session).sort()).toEqual([
     'CONTEXT_SCOPE_KINDS',

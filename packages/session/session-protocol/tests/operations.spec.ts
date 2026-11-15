@@ -1,5 +1,3 @@
-// The table of session/v1 (card #1266, facts §3): every operation's identity, effect, limit and
-// business-access mark, and the fixed outcomes each one has.
 import { describe, expect, it } from 'vitest'
 import { sessionProtocol } from '@omne-harness/session-protocol'
 
@@ -15,10 +13,6 @@ const table = {
   'retry-run': { identity: 'login', effect: 'commit', limit: 'small' },
 } as const
 
-/**
- * Outcome names per operation: the old family's, plus `protocol-rejected`. `list-sessions` and
- * `retry-run` have no old family; their own outcomes are listed besides the always-present ones.
- */
 const outcomes = {
   'create-session': ['limited', 'invalid', 'conflict', 'unknown'],
   'query-create-session': ['unknown'],
@@ -82,7 +76,7 @@ describe('list-sessions', () => {
   })
 })
 
-describe('C8', () => {
+describe('the query operations', () => {
   it('the two queries are reads that still answer unknown', () => {
     for (const name of ['query-create-session', 'query-send-input'] as const) {
       expect(operations[name].effect).toBe('read')

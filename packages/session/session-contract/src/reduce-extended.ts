@@ -20,8 +20,6 @@ function takeBatch(
   draft: Draft,
   entry: Extract<SessionEntry, { kind: 'run.batch-taken' }>,
 ): string | null {
-  // I-R3: an input is taken at most once in one Run. A repeated member or a second taking in the
-  // same Run is a contradiction to report, not a value to merge.
   const ordered = entry.batch.ordered
   if (new Set(ordered).size !== ordered.length) return 'a taken batch repeats an input'
   draft.pending = draft.pending.filter(input => !ordered.includes(input))
@@ -151,7 +149,6 @@ export function applyExtended(
       return null
     }
     case 'entries.interpreted':
-      // RD-2 and RD-3. RD-1 needs the saved progress of the channel: see `advanceEntriesProgress`.
       if (decimal(entry.through, 'entries.through') <= decimal(entry.after, 'entries.after'))
         return 'entries progress does not advance'
       if (
@@ -274,12 +271,6 @@ export function applyExtended(
 
 type ProgressRow = Extract<SessionEntry, { kind: 'entries.interpreted' }>
 
-/**
- * The saved entries progress after the progress rows of one reduced batch (RD-1). A row must start
- * at the saved through of its channel, or at 0 for a channel with no saved progress; it then sets
- * the item of its channel to its through and to `evidence`, the evidence of the batch. Returns a
- * diagnostic when the chain breaks.
- */
 export function advanceEntriesProgress(
   saved: readonly SessionEntriesProgress[],
   rows: readonly ProgressRow[],

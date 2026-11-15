@@ -162,7 +162,7 @@ Cordis 提供机制：一棵插件树；依赖齐了才启动，依赖没了就�
 
 约束后来的 agent 的只有四样：架构与领域的边界（[架构](docs/architecture/README.md)、[领域](docs/domains/README.md)），规格（每个包组一份 `packages/<组>/SPEC.md`，每个应用一份 `apps/<名>/SPEC.md`），静态检查，形式化证明。源码已经表达的不另写文档。一程自己用的材料留在本工作树的 `tmp/<任务>/`，不提交。信息的源头只有一处：改承诺先改它的拥有者，再改引用它的地方。
 
-[`.meta_harness/`](.meta_harness/AGENTS.md)保持产品规则、独立目标、统一语言、领域对象、持续研究和项目独有的技能；根 `.agents`、`.claude`、`.codex`、`.cursor` 只暴露[生成物](.meta_harness/tooling/README.md)，不直接修改。
+[`.meta_harness/`](.meta_harness/AGENTS.md)保持产品规则、独立目标、统一语言、持续研究和项目独有的技能；根 `.agents`、`.claude`、`.codex`、`.cursor` 只暴露[生成物](.meta_harness/tooling/README.md)，不直接修改。
 
 实施须依据明确且已接受的承诺。未定新方案不能凭目录或产品设计直接开包；先定位拥有者及采用范围。旧接受记录不能授予冲突设计继续采用，实际限制记录为偏离。
 
@@ -186,7 +186,7 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 | 文档检查命令 | `pnpm run check:docs`；`pnpm run check:design`；`pnpm run check:agents` |
 | 文档写作规则 | 加载 pqw `clear-writing`，照它的规则写 |
 | 三层正式文档的位置 | 产品 `.meta_harness/design/product`；项目顶层 `docs/`（项目要求、架构、领域）；每个包组一份 `packages/<组>/SPEC.md`，每个应用一份 `apps/<名>/SPEC.md` |
-| 统一语言与领域对象的位置 | `.meta_harness/design/ubiquitous_language`；`.meta_harness/design/domain_objects` |
+| 统一语言与领域对象的位置 | `.meta_harness/design/ubiquitous_language`。领域对象不另设清单，哪些词是对象看词条的「形态」字段 |
 | 形式化工具链与声明边界 | TLC，环境见 [CONTRIBUTING](CONTRIBUTING.md#形式工具链)；声明边界见[证据与有效范围](docs/architecture/assurance.md#证据与有效范围) |
 | spec 与 plan 的项目模板 | pqw 自带模板，加 [spec 附加节](.meta_harness/agents/pqw/spec-addendum.md)与 [plan 附加节](.meta_harness/agents/pqw/plan-addendum.md) |
 | 项目专有的清理项 | 本卡的工作树 `.worktrees/<卡>`；`tmp/<卡>/`；成员外写出的 lcov 目录；Stryker 容器 `.stryker-tmp*`。删之前照 `omne-card` 技能的[清理之前](.meta_harness/agents/skills/omne-card/canonical/references/gate-recovery.md#清理之前)核过：树干净或分支已合回都不够。工作树里有 pqw 子模块，`git worktree remove` 会拒绝：核过之后删目录并 `git worktree prune` |
@@ -226,7 +226,7 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 | 在 `packages/` 或 `apps/` 里实现或修复 | 读所在包组或应用的 `SPEC.md`。新建或拆分成员先核[组织原则](docs/architecture/structure.md#组织原则)里的依赖方向、独立使用与 Cordis 集成边界，用包模板生成。已有承诺够用就不展开架构 | 定形、建、证 |
 | 在 `tools/` 或 `scripts/` 里写检查与工具 | 读这个工具的 `SPEC.md` 与命令的帮助。发现实现与规则冲突时核对规则的拥有者，不靠改检查器放宽要求；失败状态传给调用方；产品包不依赖工具。要改仓库检查跑的两个发布包，先读 `omne-card` 的工具链升级参考页 | 证、找差异 |
 | 新要求、系统边界或跨成员保证 | 加载 `harness-design-handbook`，从[项目要求](docs/requirements.md)、[架构](docs/architecture/README.md)、[领域](docs/domains/README.md)定位拥有者，只展开本次必要输入 | 拆、找差异、对人 |
-| 产品、概念或对象治理 | 起草产品加载 `product-design`，改词条加载 `ubiquitous-language`，改对象条目加载 `domain-objects`；只消费已有正文不加载 | 对人、找差异、拆 |
+| 产品、概念或对象治理 | 起草产品加载 `product-design`，改词条加载 `ubiquitous-language`；只消费已有正文不加载 | 对人、找差异、拆 |
 | 文档、AGENTS 或技能维护 | 文档加载 pqw `clear-writing`，AGENTS 加载 pqw `write-agents-md`，技能加载官方 `skill-creator`；改了源、锚点或路径之后，核对入向链接与生成物 | 拆、找差异 |
 | 研发流程、发卡、合入与发行 | 环节做法读 pqw 技能；发卡、合入、提升与接受加载 `omne-card`；环境准备见 [CONTRIBUTING](CONTRIBUTING.md#开始工作) | 转手、证、对人 |
 | Cordis 来源、生命周期或 API | 加载手册的来源核对，优先[官方资料](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs)，固定采用版本；未覆盖行为保留假设并以源码或验证补足 | 证、找差异 |

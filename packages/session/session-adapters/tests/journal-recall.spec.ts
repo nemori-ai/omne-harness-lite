@@ -1,11 +1,3 @@
-// A new operation for a saved delivery recalls the delivery's receipt (JC-Release: one delivery,
-// one receipt; R2-D292 "原操作认回"): the `op.recognized` batch it writes carries `recalls`, and the
-// receipt derived from that batch alone (what a cold reader of the store derives) is the receipt
-// the warm copy answers, which is the receipt the first operation answered. What is checked, on the
-// node:sqlite double: after a `record` and a second `record` of the same received entry under
-// another operation, the warm `query` of the second operation, the receipt derived from its stored
-// batch over the fold of the session's stored batches, and the first operation's receipt are one.
-// A negative control: a recognition without `recalls` derives its own receipt, not the target's.
 import { describe, expect, it } from 'vitest'
 import { sampleReceivedModelResult } from '@omne-harness/agent-contract/testing'
 import { tenantCodec } from '@omne-harness/legal-identity'
@@ -15,15 +7,12 @@ import { ok, operation } from './fixtures/common-journal.ts'
 import { unpackText } from '@omne-harness/sql-contract/worker'
 import { sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 
-/** The stored batches of the scene's session, decoded as a reader decodes them. */
 function storedBatches(s: SqlScene) {
   const text = tenantCodec.encode(s.access.tenant)
   if (!text.ok) throw new Error('tenant')
   const rows = s.controls?.select(
     `SELECT pub, ord, execution, kind, eseq, op, kinds, body FROM er_fact WHERE session = '${s.access.session}' AND kind NOT LIKE 'core.%' ORDER BY pub, ord`,
   ).rows
-  // The envelope row's operation and participation kinds are in its body (the store's `op` and
-  // `kinds` columns are the storage operation and an event's consequence kinds).
   const facts: FactRow[] = (rows ?? []).map(row => {
     const ord = Number(row[1])
     const body = unpackText(row[7] as Uint8Array)
@@ -79,7 +68,6 @@ describe('a recognition that recalls derives the saved delivery’s receipt, war
     const cold = receiptOf({ owner: JOURNAL_OWNER, session: namespace }, view, stored)
     expect(cold).toEqual(first)
 
-    // Negative control: without `recalls`, the derived receipt is the recognizing operation's own.
     const plain = {
       ...stored,
       facts: [{ kind: 'op.recognized' as const, target: operation('first') }],

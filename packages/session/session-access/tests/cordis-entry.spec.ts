@@ -1,6 +1,3 @@
-// The Cordis binding on real Cordis 4.0.4: the plugin mounts `session/v1` on the access registry,
-// reads Session as `intake` for management and work and as `reader` for the history, takes it at
-// each call, and keeps the protocol mounted while Session is not on the tree (RFC-0015 I-5).
 import { Context, Service } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import type { Principal } from '@omne-harness/access-cordis-contract'
@@ -44,8 +41,6 @@ function harness(withDirectory: boolean) {
       return {} as never
     }
   }
-  // `directory` is a plain optional property of the service, so the caller class is recorded by an
-  // accessor put on the prototype.
   Object.defineProperty(FakeSession.prototype, 'directory', {
     get(this: object) {
       reads.push(`directory:${callerOf(this)}`)
@@ -97,7 +92,6 @@ async function assemble({
         }),
       },
       definitions: () => resolveDefinition,
-      // The fake directory answers in the shape of the port, so the adapter hands it through.
       listing: directory => ({
         list: async input => {
           const answered = await directory.list({ ...input, principal: input.principal })

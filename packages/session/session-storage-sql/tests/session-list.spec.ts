@@ -1,6 +1,3 @@
-// The commit times and the session list (SPEC「提交的时刻与会话列表」): which commits move the latest
-// activity, the title rule, the order and keyset pages of `directory.list`, a clock that answers
-// unavailable, the backfill of the migration, and one transaction with the batch.
 import { describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type {
@@ -43,7 +40,6 @@ describe('the materials', () => {
 
 type Clock = Pick<SessionClock, 'sample'>
 
-/** A clock that answers `times` in turn, then fails; `null` in the list is one failed reading. */
 function clockOf(times: readonly (string | null)[]): Clock {
   let next = 0
   return {
@@ -127,7 +123,6 @@ async function finishRun(a: App, name = 'finish') {
   return a.port.commit({ access: a.access(TENANT_A), command, guards: [] })
 }
 
-/** An ordinary input whose message is the given blocks. */
 function inputOf(
   name: string,
   blocks: readonly object[],
@@ -219,7 +214,6 @@ describe('the title', () => {
   })
 })
 
-/** Writes list items straight into the table, for the order and page cases. */
 function seed(a: App, rows: readonly (readonly [string, string | null, string])[]) {
   for (const [session, at, lifecycle] of rows)
     a.provider.select(

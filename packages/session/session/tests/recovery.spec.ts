@@ -1,9 +1,3 @@
-// The recovery of an active Run whose execution was handed over (contract PM-14, PM-05; SPEC C2
-// 顺序：恢复与接管, the recovery path). S3 hands an active Run to the recovery. It reads the execution
-// record: an active attachment is left to the Agent; a suspended execution is claimed with its
-// handover evidence as the continuity and resumed under the grant of the new attempt. The claim of
-// one handover is recognized when the recovery comes back, so a failed resume is tried again with
-// the same grant.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   deriveDriveOperation,
@@ -35,10 +29,8 @@ async function activeRun(h: Harness): Promise<ActiveRun> {
   return run
 }
 
-/** The attempt ordinal of a Run, which the snapshot carries as a decimal text. */
 const ordinalOf = (run: ActiveRun): number => Number(run.ordinal)
 
-/** A session whose Run the Agent accepted: the first input is handed over. */
 async function acceptedRun(): Promise<Readonly<{ h: Harness; run: ActiveRun }>> {
   const h = await harness({ backend: memoryBackend, advance: true })
   open.push(h)
@@ -60,7 +52,6 @@ const status = (
   evidence: evidence('history'),
 })
 
-/** The Agent side of a Run whose execution was handed over with the evidence `handover`. */
 function handedOver(h: Harness, handover = evidence('handover')) {
   const detach = vi.fn<AgentDrivePort['detach']>(async () => ({ ok: handover }))
   const resume = vi.fn<AgentDrivePort['resume']>(async () => ({
@@ -72,16 +63,14 @@ function handedOver(h: Harness, handover = evidence('handover')) {
   return { detach, resume, handover }
 }
 
-/** The session of the harness, as the recovery names it to the Agent. */
 const sessionRef = (h: Harness) => ({ tenant: TENANT_A, session: h.access().session })
 
-/** One startup scan of the tenant: a new scanner reads the union of reasons once. */
 async function scan(h: Harness): Promise<void> {
   const handle = succeeded(await h.instance.maintain(TENANT_A), 'maintain')
   await handle.release()
 }
 
-describe('the recovery of an active Run (PM-14)', () => {
+describe('the recovery of an active Run', () => {
   it('claims a new attempt for an execution that was handed over and resumes it under that grant', async () => {
     const { h, run } = await acceptedRun()
     const agent = handedOver(h)
@@ -93,7 +82,6 @@ describe('the recovery of an active Run (PM-14)', () => {
     expect(after.run).toBe(run.run)
     expect(ordinalOf(after)).toBe(ordinalOf(run) + 1)
     expect(after.advance?.attempt).not.toBe(run.advance?.attempt)
-    // The same slot reference: the Run keeps its adoption (CAP-SW02).
     expect(after.advance?.instance).toEqual(sessionSlotReference(h.access().session, run.adoption))
     const execution = run.execution.execution
     const sent = agent.resume.mock.calls[0]![0]
@@ -108,12 +96,10 @@ describe('the recovery of an active Run (PM-14)', () => {
     const h = await harness({ backend: memoryBackend, advance: true })
     open.push(h)
     await h.create()
-    // The first invoke gets no acceptance: the Run stays granted with its first input pending.
     h.drive.invoke = async () => ({ failure: { kind: 'denied' } })
     await h.accept('input-1')
     await vi.waitFor(async () => expect((await read(h)).run.kind).toBe('active'))
     const run = await activeRun(h)
-    // The replay is accepted, by a runtime that is out of contact; the hand-over cannot be recorded.
     const bridge = h.evidence as { prepare: Harness['evidence']['prepare'] }
     const prepare = bridge.prepare
     bridge.prepare = async (command, access) =>
@@ -139,12 +125,10 @@ describe('the recovery of an active Run (PM-14)', () => {
     const h = await harness({ backend: memoryBackend, advance: true })
     open.push(h)
     await h.create()
-    // No acceptance reaches this instance, as after a restart: the first input stays pending.
     h.drive.invoke = async () => ({ failure: { kind: 'denied' } })
     await h.accept('input-1')
     await vi.waitFor(async () => expect((await read(h)).run.kind).toBe('active'))
     const run = await activeRun(h)
-    // A recovery before the restart claimed the Run for the handover and did not resume it.
     const agent = handedOver(h)
     const instance = sessionSlotReference(h.access().session, run.adoption)
     succeeded(
@@ -191,7 +175,6 @@ describe('the recovery of an active Run (PM-14)', () => {
   it('takes up an active attachment whose runtime the host judges out of contact: the attachment is handed back in its place, then claimed and resumed', async () => {
     const { h, run } = await acceptedRun()
     const agent = handedOver(h)
-    // For example the runtime of a process that ended: the record still says active.
     h.drive.inspect = async () => ({ ok: status('open', evidence('host-lock')) })
 
     await scan(h)
@@ -267,8 +250,7 @@ describe('the recovery of an active Run (PM-14)', () => {
   })
 })
 
-describe('what a step of the recovery leaves when it fails (PM-05)', () => {
-  /** The C2 diagnostics of the recovery steps, as (step, reason). */
+describe('what a step of the recovery leaves when it fails', () => {
   const reported = (h: Harness) =>
     h
       .diagnostics()
@@ -367,7 +349,6 @@ describe('what a step of the recovery leaves when it fails (PM-05)', () => {
     await vi.waitFor(() => expect(agent.resume).toHaveBeenCalledTimes(1))
     await settle()
     expect(reported(h)).toEqual([])
-    // The claim of the crashed resume is recognized: the next scan resumes under the same attempt.
     await scan(h)
     await vi.waitFor(() => expect(agent.resume).toHaveBeenCalledTimes(2))
     expect(ordinalOf(await activeRun(h))).toBe(ordinalOf(run) + 1)
@@ -390,7 +371,6 @@ describe('what a step of the recovery leaves when it fails (PM-05)', () => {
   it('a query of the claim that does not answer claims nothing: the next scan asks again', async () => {
     const { h, run } = await acceptedRun()
     const agent = handedOver(h)
-    // The check of the query, which follows the detach, answers unavailable once.
     agent.detach.mockImplementationOnce(async () => {
       h.checks.script({ kind: 'unavailable', diagnostic: 'the access check is offline' })
       return { ok: agent.handover }
@@ -411,7 +391,6 @@ describe('what a step of the recovery leaves when it fails (PM-05)', () => {
   it('a claim that is refused for good is reported and nothing is resumed', async () => {
     const { h, run } = await acceptedRun()
     const agent = handedOver(h)
-    // After the detach come the check of the query, which passes, and the check of the claim.
     agent.detach.mockImplementationOnce(async () => {
       h.checks.script(
         { kind: 'allowed', evidence: evidence('access/queryOperation') },
@@ -429,8 +408,6 @@ describe('what a step of the recovery leaves when it fails (PM-05)', () => {
   it('another recovery that claims first makes this claim fail without a report, and nothing is resumed here', async () => {
     const { h, run } = await acceptedRun()
     const agent = handedOver(h)
-    // Between the snapshot this recovery read and its claim, another recovery claims the Run
-    // for a handover of its own: the Run layer moved, so the claim here does not commit.
     agent.detach.mockImplementationOnce(async () => {
       const snapshot = await read(h)
       const instance = sessionSlotReference(h.access().session, run.adoption)
@@ -455,7 +432,6 @@ describe('what a step of the recovery leaves when it fails (PM-05)', () => {
     await settle()
     expect(agent.resume).not.toHaveBeenCalled()
     expect(reported(h)).toEqual([])
-    // The other recovery holds the advance: one attempt more, not two.
     expect(ordinalOf(await activeRun(h))).toBe(ordinalOf(run) + 1)
   })
 
@@ -483,8 +459,7 @@ describe('what a step of the recovery leaves when it fails (PM-05)', () => {
   })
 })
 
-describe('the Run that the Agent accepted (PM-14, PA-06 item 2)', () => {
-  /** The snapshot of the harness with these inputs pending and handed over. */
+describe('the Run that the Agent accepted', () => {
   const shaped = async (pending: readonly string[], handed: readonly string[]) => {
     const { h } = await acceptedRun()
     return { ...(await read(h)), pending, handed } as unknown as WorkSnapshot
@@ -500,8 +475,6 @@ describe('the Run that the Agent accepted (PM-14, PA-06 item 2)', () => {
   })
 
   it('a first input that the Agent took in a batch is accepted, also when no hand-over was recorded', async () => {
-    // The hand-over needs the production evidence source; a deployment without it records none,
-    // and the batch the Agent took is then the only fact that says the Run was accepted.
     expect(acceptedRunOf(await shaped([], []))?.first).toBe('input-1')
   })
 

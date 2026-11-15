@@ -1,8 +1,3 @@
-// The Standard Schema of the plugin configuration (SPEC property 3, IC-14). The policy fields
-// override `defaultSchedulingPolicy` one by one; the defaults are only initial values. The numeric
-// rules are those of the factory (the root entry of session does not export its checker), so this
-// file does not repeat them: it merges, refuses unknown keys, and asks the factory to name the first
-// offending field.
 import {
   createSessionInstance,
   defaultSchedulingPolicy,
@@ -18,13 +13,9 @@ type Overrides<T> = {
       : T[K]
 }
 
-/** What the assembly writes. Every field is optional; `preEvaluation.prewarm` only accepts `false`. */
 export type SessionProviderConfig = Readonly<{
-  /** Overrides of `SchedulingPolicy`, field by field. */
   policy?: Overrides<SchedulingPolicy>
-  /** The upper bound, in milliseconds, of the wait for `close` at removal. Initial value: 10 000. */
   disposeWaitMs?: number
-  /** `'none'` declares that this deployment has no command domain and no hooks. Omit it otherwise. */
   admission?: 'none'
 }>
 
@@ -47,7 +38,6 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-/** The policy `overrides` give over `base`. An unknown key is an issue: a misspelling must not pass. */
 function mergePolicy(
   base: unknown,
   overrides: unknown,
@@ -71,10 +61,6 @@ function mergePolicy(
   return { value: merged }
 }
 
-/**
- * Merges a configuration over the initial values and refuses unknown keys and wrong types. The
- * numeric rules of the policy are not checked here: they belong to the factory (see `probe`).
- */
 export function resolveProviderConfig(
   config: unknown,
 ): { value: ResolvedProviderConfig } | { issues: readonly Issue[] } {
@@ -99,10 +85,6 @@ export function resolveProviderConfig(
   return { value: { policy: policy.value as SchedulingPolicy, disposeWaitMs, admission } }
 }
 
-/**
- * The factory checks the start conditions before the configuration, and only by their shape. These
- * four stand-ins pass that check and are never called: the probe instance serves no operation.
- */
 const probeDependencies = {
   accessCheck: { check: () => Promise.reject(new Error('probe')) },
   transactions: { bind: () => Promise.reject(new Error('probe')) },
@@ -110,7 +92,6 @@ const probeDependencies = {
   principals: { coordinator: null, maintainer: null },
 } as unknown as SessionDependencies<unknown>
 
-/** The issue the factory raises for `policy`, naming the offending field, or null when it accepts it. */
 function probe(policy: SchedulingPolicy): Issue | null {
   try {
     void createSessionInstance(probeDependencies, { policy })
@@ -132,7 +113,6 @@ function parse(config: unknown): Parsed {
   return { value: isRecord(config) ? config : {} }
 }
 
-/** The static `Config` of the plugin. Its output is the input the assembly gave, once it is known to be valid. */
 export const sessionProviderConfigSchema = {
   '~standard': {
     version: 1 as const,

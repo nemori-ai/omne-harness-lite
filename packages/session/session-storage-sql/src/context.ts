@@ -1,6 +1,3 @@
-// What the port needs from the application: the SQL storage, the tenant domain directory, the
-// current access decision and the cursor signing. Shared by the commit path and the read path.
-// `qualify` is the one place where a call gets its access; the context says which step answers it.
 import { sessionIntakeLimits, type SessionIntakeLimits } from '@omne-harness/session-contract'
 import { randomUUID } from 'node:crypto'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -28,58 +25,31 @@ import { PROTOCOL } from './worker/schema.ts'
 export type SessionStorageOptions<P> = Readonly<{
   intakeLimits?: SessionIntakeLimits
   storage: SqlStorage
-  /** Construction capability of the trusted session storage composite (sql-contract 2.4). */
   domains: TenantDomainAccess
-  /** The current access decision of every public read and write. There is no default permission. */
   accessCheck: SessionAccessCheck<P>
   cursorSigning: SessionCursorSigning
-  /** The combination version and manifest digest the application registered for the tenant scope. */
   combination: Readonly<{ combinationVersion: string; manifestDigest: string }>
-  /**
-   * The source of the commit basis of a permission assignment. Without it the assignment goes to
-   * the ordinary producer, which does not support it.
-   */
   protectedBasis?: SessionProtectedBasisSource<P>
-  /** Cursor lifetime. Default 15 minutes. */
   cursorTtlMs?: number
-  /**
-   * The bounds of the work cache of `storage` (SPEC RT-04), shared by every reader of the same
-   * storage object; the first reader that reaches the storage sets them. Defaults
-   * `WORK_CACHE_SESSIONS` and `WORK_CACHE_BYTES`; 0 keeps nothing.
-   */
   workCache?: WorkCacheBounds
-  /**
-   * The Session clock: the time of each commit (SPEC「提交的时刻与会话列表」). Absent, or answering
-   * a failure, the commit has no time. It is not `now`, which only dates cursors.
-   */
   clock?: Pick<SessionClock, 'sample'>
   now?: () => number
 }>
 
-/**
- * The step that answers the access of one call. The public port asks the access check; a delegated
- * view answers from its binding and does not ask (session-contract SPEC「当前操作的访问裁定」).
- */
 export type AccessStep<P> = (
   request: SessionAccessRequest<P>,
 ) => Promise<Outcome<AllowedAccess, SessionFailure>>
 
-/** The allowed decision of one call: its evidence and, for a permission write, the qualification. */
 export type AllowedAccess = Omit<Extract<SessionAccessDecision, { kind: 'allowed' }>, 'kind'>
 
 export type Context<P> = Readonly<{
   options: SessionStorageOptions<P>
   cursor: CursorOptions
-  /**
-   * The largest attempt generation of each storage operation that this process saw rolled back
-   * (SPEC W1 attempts). Shared by every port over the same context; a new process starts at `#1`.
-   */
   generations: Map<string, number>
   intakeLimits: SessionIntakeLimits
   access: AccessStep<P>
 }>
 
-/** The part of the options that reaches the storage. The binding read needs nothing else. */
 export type StorageReach = Readonly<{
   options: Pick<SessionStorageOptions<unknown>, 'storage' | 'domains'>
 }>
@@ -106,7 +76,6 @@ export function contextOf<P>(options: SessionStorageOptions<P>): Context<P> {
   }
 }
 
-/** The access evidence of one call, from the step of its context. Only an allowed answer continues. */
 export async function qualify<P>(
   context: Context<P>,
   request: SessionAccessRequest<P>,
@@ -115,7 +84,6 @@ export async function qualify<P>(
   return 'failure' in allowed ? allowed : succeed(allowed.ok.evidence)
 }
 
-/** One current decision for one public call. A throwing or unavailable source does not continue. */
 async function checkAccess<P>(
   accessCheck: SessionAccessCheck<P>,
   request: SessionAccessRequest<P>,
@@ -146,7 +114,6 @@ async function checkAccess<P>(
 
 export type TenantDomainRef = Readonly<{ text: string; domain: DomainRef }>
 
-/** The domain of one tenant. A directory entry that names another tenant is refused, never used. */
 export async function domainOf(
   context: StorageReach,
   tenant: TenantId,
@@ -173,7 +140,6 @@ export async function domainOf(
 
 export type HandlerOutput = Readonly<Record<string, JsonValue>>
 
-/** One `snapshot` read. A read that did not return is `unavailable`, never an empty answer. */
 export async function readHandler(
   context: StorageReach,
   domain: DomainRef,
@@ -189,7 +155,6 @@ export async function readHandler(
   })
   if (result.kind === 'read') {
     const output = result.output as HandlerOutput
-    // A stored row that does not read (support.ts `handler`).
     return output['kind'] === 'malformed'
       ? failure(unavailable(`read ${handler}: ${String(output['diagnostic'])}`))
       : succeed(output)

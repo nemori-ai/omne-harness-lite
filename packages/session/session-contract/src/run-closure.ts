@@ -1,12 +1,3 @@
-// The tool calls of the active Run that have no tool message yet, and the tool messages that the
-// end of the Run writes for them (SPEC "Run 结束时关上未答的调用").
-//
-// A provider takes a history only when every tool call that the model sees has a tool message. A
-// call is answered by its own outcome, which the loop of the Run hands over while the Run is
-// active, or by the end of its Run. Session owns the end of a Run, and a terminal Run takes no
-// message, so the commit that writes the terminal writes the tool messages of the calls that are
-// still unanswered. The message states what the caller knows: the Run ended before the call
-// returned. What the tool did after that belongs to the tool.
 import type { Message } from '@omne-harness/message'
 import type { DurableEvidence } from './identity.ts'
 import type { RunTerminal, WorkSnapshot } from './values.ts'
@@ -18,15 +9,10 @@ import type { HistoryEntry } from './faces.ts'
 type MessageBlock = Message['blocks'][number]
 type CallBlock = Extract<MessageBlock, { kind: 'tool_call' | 'tool_call_unparsed' }>
 
-/** A block that writes a tool call which a tool message answers. */
 export function writesCall(block: MessageBlock): block is CallBlock {
   return block.kind === 'tool_call' || block.kind === 'tool_call_unparsed'
 }
 
-/**
- * The unanswered calls after `message`. An assistant message adds the calls that the model sees; a
- * tool message removes the call its marker names. Every other message leaves them as they are.
- */
 export function unansweredAfter(open: readonly string[], message: Message): readonly string[] {
   if (message.role === 'assistant') {
     const written = message.blocks
@@ -41,14 +27,12 @@ export function unansweredAfter(open: readonly string[], message: Message): read
   return open.filter(callId => callId !== marker.callId)
 }
 
-/** Applies `message` to the unanswered calls of the snapshot under reduction. */
 export function trackCalls(draft: { unansweredCalls?: readonly string[] }, message: Message): void {
   const open = draft.unansweredCalls ?? []
   const next = unansweredAfter(open, message)
   if (next !== open) draft.unansweredCalls = next
 }
 
-/** A snapshot whose active Run still has a call without a tool message cannot take a terminal. */
 export function hasUnansweredCalls(snapshot: { unansweredCalls?: readonly string[] }): boolean {
   return (snapshot.unansweredCalls ?? []).length > 0
 }
@@ -63,7 +47,6 @@ const REASON: Readonly<Record<RunTerminal['outcome'], string>> = {
 function closingMessage(terminal: RunTerminal, callId: string): Message {
   const visibility = { toHuman: true, toModel: true }
   const id = `msg_${digestOf({ run: terminal.run, callId }).slice(0, 40)}_tool`
-  // The ids are derived, so naming the brands is the cast.
   return {
     id,
     role: 'tool',
@@ -79,7 +62,6 @@ function closingMessage(terminal: RunTerminal, callId: string): Message {
   } as unknown as Message
 }
 
-/** The tool messages that the terminal of the active Run writes before it, one per unanswered call. */
 export function closingEntries(
   snapshot: WorkSnapshot,
   terminal: RunTerminal,

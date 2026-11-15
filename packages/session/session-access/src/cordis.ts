@@ -1,12 +1,3 @@
-// The Cordis binding: the access plugin of `session/v1`. It depends on the access registry only and
-// mounts the contribution on its own scope (`defineAccessPlugin`). It takes the Session faces, the
-// session observation and the definitions at every call, so a Session provider that is reloaded
-// makes the calls of that moment answer `basis-unavailable` and does not take the protocol down.
-//
-// Session tells its callers apart by the caller class of the intercept configuration: the
-// management and work faces are read as `intake`, the history and the session list as `reader`
-// (the history as the server entry's session location did). The class is a fact of this caller, so the plugin reads Session through two
-// intercept contexts of its own scope rather than through a plain `provide`.
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import type { Principal } from '@omne-harness/access-cordis-contract'
 import { accessRegistryKey, defineAccessPlugin } from '@omne-harness/access-cordis-contract/cordis'
@@ -28,20 +19,14 @@ import type {
 import { createRequestDrain } from './request-drain.ts'
 import { admitRequest } from './send-input.ts'
 
-/** The input of one `create-session` call to Session's management face. */
 export type SessionCreateInput = Parameters<SessionManagement<Principal>['create']>[0]
 
-/** What only the application assembly can give the plugin. */
 export type SessionAccessPluginInput<S = SessionAccessSettings> = Readonly<{
   journal: (settings: S) => Promise<RequestJournal>
-  /** Built once when the plugin loads, over what the assembly's scope sees. */
   principals: (ctx: Context) => TargetTenantPrincipals
   facts: PrincipalFacts
-  /** The deployment's definition mapping, read from the tree at every call. */
   definitions: (ctx: Context) => DefinitionResolver | undefined
-  /** Adapts the session list face of Session to the port the handler asks for. */
   listing: (directory: SessionDirectory<Principal>) => SessionListing
-  /** What the assembly adds to a creation before Session sees it. Absent: the creation as built. */
   prepareCreation?: (input: SessionCreateInput) => SessionCreateInput
 }>
 
@@ -51,7 +36,6 @@ function sessionOf(ctx: Context, caller: 'intake' | 'reader'): SessionService | 
   return ctx.intercept(sessionKey, { caller }).get(sessionKey)
 }
 
-/** The Session faces of this moment, or `undefined` while Session is not on the tree. */
 function facesOf(
   ctx: Context,
   prepare: SessionAccessPluginInput['prepareCreation'],
@@ -70,10 +54,6 @@ function facesOf(
   }
 }
 
-/**
- * The access plugin of `session/v1`. Its configuration is the deployment values the handlers read;
- * the plugin defines no schema for it, the assembly row that loads it does.
- */
 export function createSessionAccessPlugin<S extends SessionAccessSettings>(
   input: SessionAccessPluginInput<S>,
 ): Plugin.Object {

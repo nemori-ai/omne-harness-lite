@@ -57,7 +57,6 @@ export const sessionModesPublicationSchema = z
   .readonly()
 export type SessionModesPublication = z.infer<typeof sessionModesPublicationSchema>
 
-/** Identifies the adapter's wire carrier, separately from Session's three-axis Modes value. */
 export const SESSION_MODES_PUBLICATION: Adoption = Object.freeze({
   owner: '@omne-harness/session-adapters',
   name: 'session.modes-publication',

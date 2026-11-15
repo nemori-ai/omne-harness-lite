@@ -1,6 +1,3 @@
-// Session observation, block 1 of #1248: the domain face (C8), the run in progress (C6), the locate
-// axis cell by cell (C9a, cells of RFC-0015 §13), no lost wake-up (C10a), teardown on abort (C11a)
-// and the refresh budget (C12). The case names start with the cell they cover.
 import { describe, expect, it } from 'vitest'
 import {
   createSessionObservation,
@@ -35,7 +32,6 @@ async function frame(frames: Frames): Promise<SessionObservationFrame> {
   return step.value
 }
 
-/** The next step once the oldest pending wait runs out. */
 async function afterInterval(w: World, frames: Frames) {
   const step = frames.next()
   await settle()
@@ -43,7 +39,7 @@ async function afterInterval(w: World, frames: Frames) {
   return step
 }
 
-describe('the domain face (C8)', () => {
+describe('the domain face', () => {
   it('open subscribes to the commit notices of this tenant and this session only', async () => {
     const w = world(new FakeLog(started('run_1')))
     await frame(await open(w))
@@ -96,7 +92,7 @@ describe('the domain face (C8)', () => {
   })
 })
 
-describe('the run in progress (C6)', () => {
+describe('the run in progress', () => {
   it('a run that started is in progress; its own terminal ends it', async () => {
     const log = new FakeLog(started('run_1'))
     const w = world(log)
@@ -134,7 +130,7 @@ describe('the run in progress (C6)', () => {
   })
 })
 
-describe('the locate axis (C9a)', () => {
+describe('the locate axis', () => {
   it('opened-idle: the first locate reads backward from the newest entry', async () => {
     const w = world(new FakeLog(started('run_1')))
     await open(w)
@@ -174,7 +170,7 @@ describe('the locate axis (C9a)', () => {
     expect((await after).value).toEqual({ kind: 'refreshing' })
   })
 
-  it('notice-busy (不丢唤醒, C10a): a notice while the locate reads is kept, and the locate runs again at once', async () => {
+  it('notice-busy (不丢唤醒): a notice while the locate reads is kept, and the locate runs again at once', async () => {
     const log = new FakeLog(started('run_1'))
     const w = world(log)
     const frames = await open(w)
@@ -379,7 +375,6 @@ describe('the locate axis (C9a)', () => {
     const log = new FakeLog(started('run_1'), ended('run_1'), started('run_2'))
     log.pageSize = 1
     log.failures.since = [{ kind: 'invalid', field: 'from', reason: 'expired' }]
-    // The backward read of open takes two more pages; the third `next` is the one that fails.
     log.failures.next = [
       undefined as never,
       undefined as never,
@@ -438,7 +433,7 @@ describe('the locate axis (C9a)', () => {
   })
 })
 
-describe('abort (C11a)', () => {
+describe('abort', () => {
   it('an abort while waiting ends the frames without a reason and leaves no notice, wait or read', async () => {
     const controller = new AbortController()
     const w = world(new FakeLog(started('run_1')))
@@ -475,7 +470,6 @@ describe('abort (C11a)', () => {
     w.model.answer('m-1', stream('s1'))
     const frames = await open(w, controller.signal)
     await frame(frames)
-    // The held read takes its answer when it is asked, so the new main call is in the log before.
     log.append(mainCall('m-1'))
     const gate = log.hold()
     const step = afterInterval(w, frames)
@@ -533,7 +527,7 @@ describe('abort (C11a)', () => {
   })
 })
 
-describe('the refresh budget (C12)', () => {
+describe('the refresh budget', () => {
   it('interval-driven locates back off by the policy up to 30 times the interval', async () => {
     const w = world(new FakeLog(started('run_1')), { interval: 100, backoff: 10, maxAttempts: 10 })
     const frames = await open(w)

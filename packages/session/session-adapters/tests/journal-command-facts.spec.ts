@@ -1,9 +1,3 @@
-// The commands of the memory Journal append their facts (R2-D308): each write is one batch, the
-// fold of the log is the view the Journal holds, and the view names the revision and the
-// checkpoint the reader records answer. The batch rules the command migration added have a
-// negative control each: a joint commit without a fact of its own still advances, a step takes
-// more than one input batch, and an account delivery does not collide with the result of its
-// consumption.
 import { describe, expect, it } from 'vitest'
 import type { AgentCheckpoint } from '@omne-harness/agent-contract'
 import {
@@ -26,10 +20,8 @@ type Scene = Awaited<ReturnType<typeof scene>>
 const shape = (value: AgentCheckpoint) =>
   canonical({ ...value, adoptedRequest: value.adoptedRequest ?? null })
 
-/** The fact family the scene's Journal holds, checked against the reader records. */
 async function agree(s: Scene) {
   const facts = s.view.controls.facts()
-  // F3 on the real log: the held view is the fold of the batches from the start.
   expect(viewDigest(foldAll(facts.log))).toBe(viewDigest(facts.view))
   const loaded = ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
   const folded = facts.view.executions.get(s.execution)!
@@ -64,7 +56,7 @@ async function commit(
   )
 }
 
-describe('the commands of the memory Journal append their facts (R2-D308)', () => {
+describe('the commands of the memory Journal append their facts', () => {
   it('each write is one batch; the log folds to the held view, its revision and checkpoint', async () => {
     const s = await scene('command-facts')
     const opened = await agree(s)
@@ -78,17 +70,14 @@ describe('the commands of the memory Journal append their facts (R2-D308)', () =
     const batch = afterMove.facts.log.at(-1)!
     expect(batch.envelope.op).toBe(moved.operation)
     expect(batch.facts.map(fact => fact.kind)).toEqual(['cursor.moved'])
-    // The receipt is the batch's own evidence, minted from its coordinates.
     expect(moved.evidence.record.endsWith(`/${s.execution}/pub/${batch.pub}`)).toBe(true)
 
-    // A commit with no new fact appends the envelope alone and answers the current revision.
     const same = await commit(s, 'same', {})
     const afterSame = await agree(s)
     expect(afterSame.facts.log).toHaveLength(3)
     expect(afterSame.facts.log.at(-1)!.facts).toEqual([])
     expect(same.revision).toBe(moved.revision)
 
-    // The same operation again is answered from its record: no second batch.
     const again = await commit(s, 'same', {})
     expect(again).toEqual(same)
     expect(s.view.controls.facts().log).toHaveLength(3)

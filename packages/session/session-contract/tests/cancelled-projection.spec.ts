@@ -148,7 +148,6 @@ describe('Agent cancelled requires the original Run cancellation', () => {
         failure: { kind: 'invalid', field: 'outcome' },
       })
 
-      // Preserve the original Agent fact while testing a changed interpretation.
       expect(await s.port.controls.project(replay, operation)).toEqual({
         failure: {
           kind: 'invalid',

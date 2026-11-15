@@ -1,4 +1,3 @@
-// One case per reachable cell of SPEC.md「全化表」. Case names start with the row id.
 import { describe, expect, it } from 'vitest'
 import {
   INITIAL,
@@ -71,20 +70,20 @@ const send: Event = {
   messageId: 'msg_x',
 }
 
-describe('R1 新建会话', () => {
-  it('R1 还没有会话：转到建会话中，发 create-session', () => {
+describe('新建会话', () => {
+  it('还没有会话：转到建会话中，发 create-session', () => {
     const next = step(INITIAL, { kind: 'create', createCallId: 'c1' })
     expect(next.state).toMatchObject({ kind: 'creating', createCallId: 'c1', confirm: 'no' })
     expect(next.effects).toEqual([{ kind: 'create-session', createCallId: 'c1' }])
   })
-  it('R1 建会话中：不变，不发第二次', () => {
+  it('建会话中：不变，不发第二次', () => {
     const creating = step(INITIAL, { kind: 'create', createCallId: 'c1' }).state
     expect(step(creating, { kind: 'create', createCallId: 'c2' })).toEqual({
       state: creating,
       effects: [],
     })
   })
-  it('R1 会话就绪、进行中、取消中：收掉当前观察，转到建会话中', () => {
+  it('会话就绪、进行中、取消中：收掉当前观察，转到建会话中', () => {
     for (const state of [open(), running(), cancelling()]) {
       const next = step(state, { kind: 'create', createCallId: 'c2' })
       expect(next.state.kind).toBe('creating')
@@ -94,7 +93,7 @@ describe('R1 新建会话', () => {
       ])
     }
   })
-  it('R1 会话不可用：转到建会话中', () => {
+  it('会话不可用：转到建会话中', () => {
     const unavailable = step(open(), {
       kind: 'observation-ended',
       session: S,
@@ -105,7 +104,7 @@ describe('R1 新建会话', () => {
   })
 })
 
-describe('R2–R5 建会话的答复', () => {
+describe('建会话的答复', () => {
   it('R2 成功：会话就绪，开观察并读历史', () => {
     const next = run(
       INITIAL,
@@ -127,7 +126,7 @@ describe('R2–R5 建会话的答复', () => {
       { kind: 'read-history', session: S, token: 1, request: { cursor: null } },
     ])
   })
-  it('R3 被拒：回到还没有会话，带一句人话', () => {
+  it('被拒：回到还没有会话，带一句人话', () => {
     for (const outcome of [
       'limited',
       'invalid',
@@ -150,7 +149,7 @@ describe('R2–R5 建会话的答复', () => {
       expect(next.state).toMatchObject({ kind: 'none', notice: { kind: 'refused' } })
     }
   })
-  it('R4 本地 unavailable：回到还没有会话，说明没有发出去', () => {
+  it('本地 unavailable：回到还没有会话，说明没有发出去', () => {
     const next = run(
       INITIAL,
       { kind: 'create', createCallId: 'c1' },
@@ -158,7 +157,7 @@ describe('R2–R5 建会话的答复', () => {
     )
     expect(next.state).toMatchObject({ kind: 'none', notice: { kind: 'unavailable' } })
   })
-  it('R5 unknown 或 uncertain：不重发，用同一个调用编号认回', () => {
+  it('unknown 或 uncertain：不重发，用同一个调用编号认回', () => {
     for (const outcome of ['unknown', 'uncertain'] as const) {
       const next = run(
         INITIAL,
@@ -188,13 +187,13 @@ describe('R2–R5 建会话的答复', () => {
   })
 })
 
-describe('R6–R8 认回建会话', () => {
+describe('认回建会话', () => {
   const asking = run(
     INITIAL,
     { kind: 'create', createCallId: 'c1' },
     { kind: 'create-answered', createCallId: 'c1', answer: { outcome: 'uncertain' } },
   ).state
-  it('R6 认回成功：会话就绪', () => {
+  it('认回成功：会话就绪', () => {
     const next = step(asking, {
       kind: 'create-confirmed',
       createCallId: 'c1',
@@ -202,7 +201,7 @@ describe('R6–R8 认回建会话', () => {
     })
     expect(next.state).toMatchObject({ kind: 'open', session: S })
   })
-  it('R7 认回仍不知道：停在未知，可以再确认', () => {
+  it('认回仍不知道：停在未知，可以再确认', () => {
     for (const outcome of [
       'unknown',
       'uncertain',
@@ -223,7 +222,7 @@ describe('R6–R8 认回建会话', () => {
       expect(next.effects).toEqual([])
     }
   })
-  it('R8 再确认：只在未知时发 query-create-session', () => {
+  it('再确认：只在未知时发 query-create-session', () => {
     const unknown = step(asking, {
       kind: 'create-confirmed',
       createCallId: 'c1',
@@ -236,8 +235,8 @@ describe('R6–R8 认回建会话', () => {
   })
 })
 
-describe('R9–R15 发消息与认回', () => {
-  it('R9 就绪、进行中、取消中：加一条发送中的输入，发 send-input', () => {
+describe('发消息与认回', () => {
+  it('就绪、进行中、取消中：加一条发送中的输入，发 send-input', () => {
     for (const state of [open(), running(), cancelling()]) {
       const next = step(state, send)
       expect(asOpen(next.state).inputs).toMatchObject([{ acceptId: 'a1', status: 'sending' }])
@@ -252,16 +251,16 @@ describe('R9–R15 发消息与认回', () => {
       ])
     }
   })
-  it('R9 没有会话、建会话中：不可达（没有输入框），不变', () => {
+  it('没有会话、建会话中：不可达（没有输入框），不变', () => {
     const creating = step(INITIAL, { kind: 'create', createCallId: 'c1' }).state
     for (const state of [INITIAL, creating])
       expect(step(state, send)).toEqual({ state, effects: [] })
   })
-  it('R9 空白的消息：不变', () => {
+  it('空白的消息：不变', () => {
     const state = open()
     expect(step(state, { ...send, text: '  \n' }).state).toBe(state)
   })
-  it('R10 成功：已受理', () => {
+  it('成功：已受理', () => {
     const next = run(open(), send, {
       kind: 'send-answered',
       session: S,
@@ -270,7 +269,7 @@ describe('R9–R15 发消息与认回', () => {
     })
     expect(asOpen(next.state).inputs[0]).toMatchObject({ status: 'accepted', notice: null })
   })
-  it('R11 unknown 或 uncertain：不重发，用同一个受理编号认回，显示未知', () => {
+  it('unknown 或 uncertain：不重发，用同一个受理编号认回，显示未知', () => {
     for (const outcome of ['unknown', 'uncertain'] as const) {
       const next = run(open(), send, {
         kind: 'send-answered',
@@ -288,7 +287,7 @@ describe('R9–R15 发消息与认回', () => {
       ])
     }
   })
-  it('R12 本地 unavailable：没有发出去', () => {
+  it('本地 unavailable：没有发出去', () => {
     const next = run(open(), send, {
       kind: 'send-answered',
       session: S,
@@ -300,7 +299,7 @@ describe('R9–R15 发消息与认回', () => {
       notice: { kind: 'unavailable' },
     })
   })
-  it('R13 被拒：每种拒绝一句人话', () => {
+  it('被拒：每种拒绝一句人话', () => {
     for (const outcome of [
       'invalid',
       'archived',
@@ -320,7 +319,7 @@ describe('R9–R15 发消息与认回', () => {
       expect(input?.notice?.text).toMatch(/^没有发出：.+。$/)
     }
   })
-  it('R14 认回：succeeded 已受理，not-committed 确认没受理，其余仍未知', () => {
+  it('认回：succeeded 已受理，not-committed 确认没受理，其余仍未知', () => {
     const confirming = run(open(), send, {
       kind: 'send-answered',
       session: S,
@@ -339,7 +338,7 @@ describe('R9–R15 发消息与认回', () => {
     for (const outcome of ['unknown', 'uncertain', 'unavailable', 'basis-unavailable', 'denied'])
       expect(asOpen(answer(outcome).state).inputs[0]?.status).toBe('unknown')
   })
-  it('R15 再确认：只在未知时，用同一个受理编号', () => {
+  it('再确认：只在未知时，用同一个受理编号', () => {
     const confirming = run(open(), send, {
       kind: 'send-answered',
       session: S,
@@ -359,12 +358,12 @@ describe('R9–R15 发消息与认回', () => {
   })
 })
 
-describe('R16–R19 取消这一轮', () => {
-  it('R16 就绪：没有一轮，不变', () => {
+describe('取消这一轮', () => {
+  it('就绪：没有一轮，不变', () => {
     const state = open()
     expect(step(state, { kind: 'cancel', controlId: 'k1' }).state).toBe(state)
   })
-  it('R16 进行中：转到取消中，带状态帧给的编号发 cancel-run', () => {
+  it('进行中：转到取消中，带状态帧给的编号发 cancel-run', () => {
     const next = step(running(), { kind: 'cancel', controlId: 'k1' })
     expect(asOpen(next.state).run).toEqual({
       kind: 'cancelling',
@@ -376,11 +375,11 @@ describe('R16–R19 取消这一轮', () => {
       { kind: 'cancel-run', session: S, run: 'run_1', controlId: 'k1' },
     ])
   })
-  it('R16 取消中：不发第二次', () => {
+  it('取消中：不发第二次', () => {
     const state = cancelling()
     expect(step(state, { kind: 'cancel', controlId: 'k2' }).effects).toEqual([])
   })
-  it('R16 取消结果未知：再点一次用同一个控制编号', () => {
+  it('取消结果未知：再点一次用同一个控制编号', () => {
     const unknown = step(cancelling(), {
       kind: 'cancel-answered',
       session: S,
@@ -391,7 +390,7 @@ describe('R16–R19 取消这一轮', () => {
       { kind: 'cancel-run', session: S, run: 'run_1', controlId: 'k1' },
     ])
   })
-  it('R17 成功：requested 仍在取消中，ended 回到就绪', () => {
+  it('成功：requested 仍在取消中，ended 回到就绪', () => {
     const requested = step(cancelling(), {
       kind: 'cancel-answered',
       session: S,
@@ -418,7 +417,7 @@ describe('R16–R19 取消这一轮', () => {
     })
     expect(asOpen(ended.state).run).toEqual({ kind: 'idle' })
   })
-  it('R18 unknown 或 uncertain：取消中且标为未知', () => {
+  it('unknown 或 uncertain：取消中且标为未知', () => {
     for (const outcome of ['unknown', 'uncertain'] as const) {
       const next = step(cancelling(), {
         kind: 'cancel-answered',
@@ -430,7 +429,7 @@ describe('R16–R19 取消这一轮', () => {
       expect(asOpen(next.state).notice?.kind).toBe('unknown')
     }
   })
-  it('R19 被拒或没发出：回到进行中，带一句人话', () => {
+  it('被拒或没发出：回到进行中，带一句人话', () => {
     for (const answer of [
       { outcome: 'unavailable' },
       { outcome: 'not-found', body: {} },
@@ -449,8 +448,8 @@ describe('R16–R19 取消这一轮', () => {
   })
 })
 
-describe('R20–R22 观察的帧', () => {
-  it('R20 state 帧带 run：就绪转进行中，观察转在连', () => {
+describe('观察的帧', () => {
+  it('state 帧带 run：就绪转进行中，观察转在连', () => {
     const next = step(open(), {
       kind: 'frame',
       session: S,
@@ -460,7 +459,7 @@ describe('R20–R22 观察的帧', () => {
     expect(asOpen(next.state).run).toEqual({ kind: 'running', run: 'run_1' })
     expect(asOpen(next.state).observation).toEqual({ kind: 'live', generation: 1 })
   })
-  it('R20 state 帧 run 为空：进行中、取消中都回到就绪', () => {
+  it('state 帧 run 为空：进行中、取消中都回到就绪', () => {
     for (const state of [running(), cancelling()]) {
       const next = step(state, {
         kind: 'frame',
@@ -471,7 +470,7 @@ describe('R20–R22 观察的帧', () => {
       expect(asOpen(next.state).run).toEqual({ kind: 'idle' })
     }
   })
-  it('R20 取消中收到同一轮的 state 帧：仍在取消中', () => {
+  it('取消中收到同一轮的 state 帧：仍在取消中', () => {
     const next = step(cancelling(), {
       kind: 'frame',
       session: S,
@@ -480,7 +479,7 @@ describe('R20–R22 观察的帧', () => {
     })
     expect(asOpen(next.state).run.kind).toBe('cancelling')
   })
-  it('R20 revision 超过读到的位置：读历史；读的时候再变大，读完再读一次', () => {
+  it('revision 超过读到的位置：读历史；读的时候再变大，读完再读一次', () => {
     const loaded = step(open(), {
       kind: 'history-read',
       session: S,
@@ -513,8 +512,7 @@ describe('R20–R22 观察的帧', () => {
       { kind: 'read-history', session: S, token: 3, request: { cursor: null } },
     ])
   })
-  it('R20 历史新不新只看这一轮读取的 upper：读到了就不再读，不看扫描位置', () => {
-    // The page's scan position (the fixture's 900) is on another axis and decides nothing.
+  it('历史新不新只看这一轮读取的 upper：读到了就不再读，不看扫描位置', () => {
     const read = step(open(), {
       kind: 'history-read',
       session: S,
@@ -536,7 +534,7 @@ describe('R20–R22 观察的帧', () => {
         .effects,
     ).toEqual([{ kind: 'read-history', session: S, token: 2, request: { cursor: null } }])
   })
-  it('R21 snapshot 与 delta：进行中的回复按块更新', () => {
+  it('snapshot 与 delta：进行中的回复按块更新', () => {
     const live = run(
       running(),
       {
@@ -564,7 +562,7 @@ describe('R20–R22 观察的帧', () => {
       { kind: 'growing', index: '0', mode: 'append', content: 'text', value: '你好' },
     ])
   })
-  it('R21 delta 的基线对不上：不应用，换一代重新观察', () => {
+  it('delta 的基线对不上：不应用，换一代重新观察', () => {
     const next = step(running(), {
       kind: 'frame',
       session: S,
@@ -588,15 +586,14 @@ describe('R20–R22 观察的帧', () => {
     generation: 1,
     frame: { kind: 'refreshing' },
   }
-  it('R22 refreshing：这一轮进行中标成「在等内容」；没有进行中的一轮时不标', () => {
+  it('refreshing：这一轮进行中标成「在等内容」；没有进行中的一轮时不标', () => {
     expect(asOpen(step(running(), refreshingFrame).state).content.liveStatus).toEqual({
       kind: 'refreshing',
     })
-    // The observation sends it on every idle interval too: it says nothing about a reply then.
     const idle = step(open(), refreshingFrame).state
     expect(asOpen(idle).content.liveStatus).toBeNull()
   })
-  it('R22 这一轮结束、没有进行中的回复：「在等内容」的标记收掉', () => {
+  it('这一轮结束、没有进行中的回复：「在等内容」的标记收掉', () => {
     const waiting = step(running(), refreshingFrame).state
     const ended = step(waiting, {
       kind: 'frame',
@@ -607,7 +604,7 @@ describe('R20–R22 观察的帧', () => {
     expect(asOpen(ended).run).toEqual({ kind: 'idle' })
     expect(asOpen(ended).content.liveStatus).toBeNull()
   })
-  it('R22 gap：标在进行中的回复上，跟着来的 refreshing 不改它，下一个快照清掉', () => {
+  it('gap：标在进行中的回复上，跟着来的 refreshing 不改它，下一个快照清掉', () => {
     const gap = step(running(), {
       kind: 'frame',
       session: S,
@@ -625,7 +622,7 @@ describe('R20–R22 观察的帧', () => {
     }).state
     expect(asOpen(fresh).content.liveStatus).toBeNull()
   })
-  it('R20 作废：旧一代或别的会话的帧不改状态', () => {
+  it('作废：旧一代或别的会话的帧不改状态', () => {
     const state = running()
     expect(
       step(state, { kind: 'frame', session: S, generation: 0, frame: stateFrame(null, '9') }).state,
@@ -637,8 +634,8 @@ describe('R20–R22 观察的帧', () => {
   })
 })
 
-describe('R23–R26 观察结束与重连', () => {
-  it('R23 denied（结束原因或拒绝）：会话不可用', () => {
+describe('观察结束与重连', () => {
+  it('denied（结束原因或拒绝）：会话不可用', () => {
     for (const end of [
       { kind: 'ended', reason: 'denied' },
       { kind: 'refused', outcome: 'denied' },
@@ -647,7 +644,7 @@ describe('R23–R26 观察结束与重连', () => {
       expect(next.state).toMatchObject({ kind: 'unavailable', notice: { kind: 'refused' } })
     }
   })
-  it('R24 aborted：是自己收的，不变', () => {
+  it('aborted：是自己收的，不变', () => {
     const state = running()
     expect(
       step(state, {
@@ -658,7 +655,7 @@ describe('R23–R26 观察结束与重连', () => {
       }).state,
     ).toBe(state)
   })
-  it('R25 refresh-exhausted、unavailable、uncertain、其他拒绝：观察断开在重连，按退避', () => {
+  it('refresh-exhausted、unavailable、uncertain、其他拒绝：观察断开在重连，按退避', () => {
     const ends = [
       { kind: 'ended', reason: 'refresh-exhausted' },
       { kind: 'ended', reason: 'unavailable' },
@@ -680,7 +677,7 @@ describe('R23–R26 观察结束与重连', () => {
       ])
     }
   })
-  it('R25 重连中再失败：退避加倍，有上界', () => {
+  it('重连中再失败：退避加倍，有上界', () => {
     const first = step(running(), {
       kind: 'observation-ended',
       session: S,
@@ -701,7 +698,7 @@ describe('R23–R26 观察结束与重连', () => {
     expect(second.effects.at(-1)).toMatchObject({ delayMs: 2000 })
     expect(reconnectDelay(10)).toBe(15_000)
   })
-  it('R26 到点：同一代重新开观察；第一帧到了转在连', () => {
+  it('到点：同一代重新开观察；第一帧到了转在连', () => {
     const waiting = step(running(), {
       kind: 'observation-ended',
       session: S,
@@ -718,7 +715,7 @@ describe('R23–R26 观察结束与重连', () => {
     })
     expect(asOpen(back.state).observation).toEqual({ kind: 'live', generation: 2 })
   })
-  it('R26 作废：旧一代的到点不开观察', () => {
+  it('作废：旧一代的到点不开观察', () => {
     const waiting = step(running(), {
       kind: 'observation-ended',
       session: S,
@@ -729,8 +726,8 @@ describe('R23–R26 观察结束与重连', () => {
   })
 })
 
-describe('R27–R29 读历史', () => {
-  it('R27 一页没读到已知条目且没读完：接着读下一页', () => {
+describe('读历史', () => {
+  it('一页没读到已知条目且没读完：接着读下一页', () => {
     const next = step(open(), {
       kind: 'history-read',
       session: S,
@@ -743,10 +740,9 @@ describe('R27–R29 读历史', () => {
     expect(next.effects).toEqual([
       { kind: 'read-history', session: S, token: 1, request: { cursor: 'cur-2' } },
     ])
-    // The traversal is not finished: history is not yet read through its pinned revision.
     expect(asOpen(next.state).content.readThrough).toBeNull()
   })
-  it('R27 读完：条目合并；已提交的输入不再挂着', () => {
+  it('读完：条目合并；已提交的输入不再挂着', () => {
     const sent = step(open(), send).state
     const next = step(sent, {
       kind: 'history-read',
@@ -759,7 +755,7 @@ describe('R27–R29 读历史', () => {
     expect(state.inputs).toEqual([])
     expect(state.history.reading).toBeNull()
   })
-  it('R27 助手消息提交之后：用历史里的那一条替换进行中的那一条', () => {
+  it('助手消息提交之后：用历史里的那一条替换进行中的那一条', () => {
     const live = run(running(), {
       kind: 'frame',
       session: S,
@@ -792,7 +788,7 @@ describe('R27–R29 读历史', () => {
       'message.assistant',
     ])
   })
-  it('R28 denied：会话不可用', () => {
+  it('denied：会话不可用', () => {
     const next = step(open(), {
       kind: 'history-read',
       session: S,
@@ -801,7 +797,7 @@ describe('R27–R29 读历史', () => {
     })
     expect(next.state).toMatchObject({ kind: 'unavailable' })
   })
-  it('R29 其他失败：记下读不到，不结束会话', () => {
+  it('其他失败：记下读不到，不结束会话', () => {
     for (const answer of [
       { outcome: 'unavailable' },
       { outcome: 'uncertain' },
@@ -815,7 +811,7 @@ describe('R27–R29 读历史', () => {
       })
     }
   })
-  it('R27 作废：别的读取编号的答复不改状态', () => {
+  it('作废：别的读取编号的答复不改状态', () => {
     const state = open()
     expect(
       step(state, { kind: 'history-read', session: S, token: 9, answer: { outcome: 'denied' } })
@@ -848,14 +844,14 @@ describe('不可达与作废的格', () => {
   })
 })
 
-describe('R30 打开会话', () => {
+describe('打开会话', () => {
   const OTHER = 'ses_2'
   const pick: Event = { kind: 'open-session', session: OTHER }
   const opening = [
     { kind: 'observe', session: OTHER, generation: 1 },
     { kind: 'read-history', session: OTHER, token: 1, request: { cursor: null } },
   ]
-  it('R30 还没有会话：和建会话成功走同一条路，开观察，从末尾读历史', () => {
+  it('还没有会话：和建会话成功走同一条路，开观察，从末尾读历史', () => {
     const next = step(INITIAL, pick)
     expect(next.state).toMatchObject({
       kind: 'open',
@@ -876,7 +872,7 @@ describe('R30 打开会话', () => {
     ).state
     expect(next.state).toEqual(created)
   })
-  it('R30 建会话的调用在途：不变', () => {
+  it('建会话的调用在途：不变', () => {
     const sent = step(INITIAL, { kind: 'create', createCallId: 'c1' }).state
     const asking = step(sent, {
       kind: 'create-answered',
@@ -885,7 +881,7 @@ describe('R30 打开会话', () => {
     }).state
     for (const state of [sent, asking]) expect(step(state, pick)).toEqual({ state, effects: [] })
   })
-  it('R30 建会话仍未知：打开点的那个，之后到的认回作废', () => {
+  it('建会话仍未知：打开点的那个，之后到的认回作废', () => {
     const unknown = run(
       INITIAL,
       { kind: 'create', createCallId: 'c1' },
@@ -897,13 +893,12 @@ describe('R30 打开会话', () => {
     expect(next.effects).toEqual(opening)
     expect(step(next.state, { kind: 'create-confirm' }).state).toBe(next.state)
   })
-  it('R30 就绪、进行中、取消中点别的会话：停掉原会话的观察，新会话从头开始', () => {
+  it('就绪、进行中、取消中点别的会话：停掉原会话的观察，新会话从头开始', () => {
     for (const state of [open(), running(), cancelling()]) {
       const next = step(step(state, send).state, pick)
       expect(next.effects).toEqual([{ kind: 'stop-observing', generation: 1 }, ...opening])
       expect(next.state).toMatchObject({ kind: 'open', session: OTHER, inputs: [] })
       expect(asOpen(next.state).content.entries).toEqual([])
-      // The old session's answers carry its id and are dropped, as after R1.
       const late = step(next.state, {
         kind: 'send-answered',
         session: S,
@@ -913,11 +908,11 @@ describe('R30 打开会话', () => {
       expect(late.state).toBe(next.state)
     }
   })
-  it('R30 点的是已经打开的会话：不变', () => {
+  it('点的是已经打开的会话：不变', () => {
     const state = running()
     expect(step(state, { kind: 'open-session', session: S })).toEqual({ state, effects: [] })
   })
-  it('R30 会话不可用：打开点的那个，同一个会话也重开', () => {
+  it('会话不可用：打开点的那个，同一个会话也重开', () => {
     const unavailable = step(open(), {
       kind: 'observation-ended',
       session: S,
@@ -1108,7 +1103,7 @@ describe('活动之后重读列表；列表与会话互不干扰', () => {
       { kind: 'list-sessions', token: 1, cursor: null },
     ])
   })
-  it('活动 建会话成功（R2、R6）：重读第一页', () => {
+  it('活动 建会话成功 （R2）：重读第一页', () => {
     const creating = workspace(step(INITIAL, { kind: 'create', createCallId: 'c1' }).state)
     const created = stepWorkspace(creating, {
       kind: 'create-answered',
@@ -1130,7 +1125,7 @@ describe('活动之后重读列表；列表与会话互不干扰', () => {
     })
     expect(confirmed.effects).toContainEqual(reload)
   })
-  it('活动 建会话仍未知时点一项（R30）：重读第一页，由列表说明建没建成', () => {
+  it('活动 建会话仍未知时点一项：重读第一页，由列表说明建没建成', () => {
     const unknown = workspace(
       run(
         INITIAL,
@@ -1143,7 +1138,7 @@ describe('活动之后重读列表；列表与会话互不干扰', () => {
       stepWorkspace(unknown, { kind: 'open-session', session: 'ses_2' }).effects,
     ).toContainEqual(reload)
   })
-  it('活动 输入受理（R10、R14）：重读第一页', () => {
+  it('活动 输入受理：重读第一页', () => {
     const sending = workspace(step(open(), send).state)
     const accepted = stepWorkspace(sending, {
       kind: 'send-answered',
@@ -1168,7 +1163,7 @@ describe('活动之后重读列表；列表与会话互不干扰', () => {
     })
     expect(confirmed.effects).toEqual([reload])
   })
-  it('活动 一轮结束（R20、R17）：重读第一页', () => {
+  it('活动 一轮结束：重读第一页', () => {
     const ended = stepWorkspace(workspace(running()), {
       kind: 'frame',
       session: S,

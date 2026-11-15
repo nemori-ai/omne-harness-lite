@@ -1,7 +1,3 @@
-// The generation memory of the Journal commit (SPEC 生产提供者的实现现状, step 6) is per storage
-// operation: its key is the whole identity but the generation. Two scopes may share a transaction
-// domain (sql-contract registers per scope and domain), so the memory of one tenant's operation
-// does not move the first generation of another tenant's operation of the same name.
 import type { DomainRef, SqlIdentity, SqlStorage } from '@omne-harness/sql-contract'
 import { describe, expect, it } from 'vitest'
 import { commitJournal, type JournalCombination } from '../src/journal-commit.ts'
@@ -11,10 +7,6 @@ const domain = (tenant: string): DomainRef => ({
   transactionDomain: 'shared-domain',
 })
 
-/**
- * A storage whose generations below `rolledBackBelow` are rolled back receipts of earlier calls;
- * it records every commit it is sent.
- */
 function storage(rolledBackBelow: number, commitAnswer: 'committed' | 'unknown') {
   const sent: string[] = []
   const generation = (identity: SqlIdentity) => Number(identity.operationKey.split('#')[1])

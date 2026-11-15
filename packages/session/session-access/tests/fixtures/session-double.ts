@@ -1,9 +1,3 @@
-// An in-memory stand-in for the Session faces that the handlers call, copied from the server entry's
-// tests (`packages/access/server-entry/tests/support/session-double.ts`) so the moved handlers run
-// against the same world. It keeps the documented order of Session's own judgment (access first,
-// Tool `stopCall` before the existence check, then existence, then recall by operation identity),
-// so a test can tell which step answered. It proves nothing about the real Session; it is the
-// fixture of this member's tests only.
 import { createHash } from 'node:crypto'
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -54,24 +48,16 @@ type SessionRecord = {
 }
 
 export type SessionDoubleControls = Readonly<{
-  /** The calls that reached the faces, in order. */
   calls(): readonly SessionDoubleRecord[]
-  /** The committed operations by identity. */
   committed(): ReadonlyMap<SessionOperationId, Committed>
-  /** Makes `method` throw until `restore()`. */
   throwOn(method: FaceMethod, error: unknown): void
-  /** Whether `stopCall` refuses a Tool target itself, as Session's SPEC says. Default true. */
   refuseToolTargets(refuse: boolean): void
-  /** Whether `queryOperation` answers `denied` for a session that does not exist. Default true. */
   checkExistenceOnQuery(check: boolean): void
-  /** Makes every mutation answer this failure until `restore()`. */
   failWith(failure: SessionFailure): void
   failNext(...failures: readonly SessionFailure[]): void
   loseAnswers(count: number): void
   restore(): void
-  /** Makes a Run known to a session, so `cancelRun` finds it. */
   addRun(session: SessionId, run: string): void
-  /** Appends a history entry to a session. */
   addEntry(
     session: SessionId,
     entry: Readonly<{ id: string; kind: string; payload: unknown }>,
@@ -85,7 +71,6 @@ export type SessionDouble = Readonly<{
 }>
 
 export type SessionDoubleOptions = Readonly<{
-  /** The accounts (account text) that are members of each tenant (tenant text). Absent: denied. */
   members: ReadonlyMap<string, ReadonlySet<string>>
 }>
 
@@ -101,7 +86,6 @@ function revision(n: number): SessionRevision {
   return String(n) as SessionRevision
 }
 
-/** Creates the double. `members` decides the access judgment: the principal must act for the target tenant and its account must be a member. */
 export function createSessionDouble(options: SessionDoubleOptions): SessionDouble {
   const calls: SessionDoubleRecord[] = []
   const committed = new Map<SessionOperationId, Committed>()
@@ -161,7 +145,6 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
     }
   }
 
-  /** Recall by operation identity: same content gives the original receipt, other content gives conflict. */
   const commit = (
     kind: string,
     operation: SessionOperationId,
@@ -254,7 +237,6 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
     async stopCall(input) {
       record('stopCall', input, { producer: input.producer })
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'stopCall' })
-      // Session's own order: the Tool target is refused before the existence check and writes nothing.
       if (refuseTool && input.producer.kind === 'tool') return fail({ kind: 'unsupported' })
       if (existing(input) === undefined) return fail({ kind: 'denied', action: 'stopCall' })
       const outcome = commit('stopCall', input.operation, {

@@ -1,6 +1,3 @@
-// Development only: the session interface against a fake `session/v1` client that plays a small
-// server with several sessions. Each message starts a run that streams a reply word by word, calls a
-// tool, and commits. One session is there from the start, as after reloading the page.
 import { createRoot } from 'react-dom/client'
 import '../src/view/session-ui.css'
 import { SessionWorkspace } from '../src/index.ts'
@@ -18,7 +15,6 @@ type Held = {
   log: Entry[]
   revision: number
   title: string | null
-  /** Order of the last activity: the list shows the highest first. */
   active: number
   current: { run: string; cancelled: boolean } | null
 }
@@ -300,7 +296,6 @@ void serve('cancel-run', (body: { session: string; controlId: string; run: strin
   }
 })
 
-// A newly opened observation starts with a state frame, as the server's does.
 void (async () => {
   let seen = 0
   for (;;) {
@@ -315,7 +310,6 @@ const root = document.getElementById('root')
 if (root !== null)
   createRoot(root).render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
 
-// `?play=<text>` walks the scene without hands (for a headless screenshot): new session, one message.
 const params = new URLSearchParams(location.search)
 const theme = params.get('theme')
 if (theme !== null) document.documentElement.dataset['theme'] = theme

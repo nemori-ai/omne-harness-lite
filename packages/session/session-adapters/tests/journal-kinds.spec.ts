@@ -1,11 +1,3 @@
-// The kinds of the fact rows that the production Journal writes at its publication point (K-5,
-// Agent side): each event's kinds are the kinds of the consequences that the shared normalization
-// of the memory reference gives, and the Session pure layer accepts those consequences against the
-// rows in the same commit (`commitLog` checks that the observation names the complete original
-// consequence order). A control event, whose consequences Session decides when it interprets
-// it, has the deferred marker and its Agent evidence; until it is interpreted, a Session decision
-// that needs it answers `unavailable`. The storage is the
-// node:sqlite double of the Session log combination; the Journal is the session-log provider.
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   decodeActionId,
@@ -49,7 +41,6 @@ type CommitInput = Parameters<AgentJournal<string>['commit']>[0]
 const work = async (s: SqlScene): Promise<WorkSnapshot> =>
   ok(await s.port.readWork(s.sessionAccess))
 
-/** One Agent commit of the scene's execution at its current head. */
 async function committed(
   s: SqlScene,
   label: string,
@@ -81,7 +72,6 @@ async function committed(
 const loadOf = async (s: SqlScene) =>
   ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
 
-/** Open, the handover of the initial input and the take of it: event 1, input-taken. */
 async function started(s: SqlScene) {
   const opened = ok(await s.view.journal.open(s.openInput))
   ok(await handed(s, String(s.initial.id), opened.receipt.evidence))
@@ -99,7 +89,6 @@ async function started(s: SqlScene) {
   }))
 }
 
-/** A wait on one Model call of the scene: its event registers the call (event kind waiting). */
 function modelWait(s: SqlScene) {
   const result = sampleReceivedModelResult(s.access.tenant, 'kinds')
   if (result.delivery.producer !== 'model') throw new Error('fixture: a Model entry')
@@ -115,7 +104,6 @@ function modelWait(s: SqlScene) {
   return pending
 }
 
-/** The kinds column of every event row of the scene's execution, by sequence. */
 function factKinds(s: SqlScene): Record<string, readonly string[]> {
   if (s.controls === null) throw new Error('the double storage is expected')
   const rows = s.controls.select(
@@ -135,7 +123,6 @@ const lookup = (s: SqlScene) => ({
     ),
 })
 
-/** The events of the scene's execution with the consequences the publication normalized. */
 async function interpretation(s: SqlScene, after = '0') {
   const read = await readExecutionInterpretation(
     { storage: s.storage, tenantDomainLookup: lookup(s) },
@@ -145,7 +132,6 @@ async function interpretation(s: SqlScene, after = '0') {
   return read.execution
 }
 
-/** Commits the non-observed events after the saved progress, one `commitLog` each, in order. */
 async function commitEvents(s: SqlScene) {
   const snapshot = await work(s)
   if (snapshot.run.kind !== 'active') throw new Error('an active Run is expected')
@@ -209,8 +195,6 @@ describe('the kinds of a fact row are the kinds of its normalized consequences',
     for (const event of view.events)
       expect(event.consequences?.map(item => item.kind)).toEqual(kinds[event.sequence])
 
-    // The pure layer compares the observation with the fact row of the same commit: it accepts
-    // each event, and the Model call is registered as the event said.
     await commitEvents(s)
     const snapshot = await work(s)
     expect(snapshot.run.kind === 'active' ? snapshot.run.execution.readThrough : null).toBe('4')
@@ -252,7 +236,6 @@ describe('an event whose consequences the publication does not decide', () => {
     expect(view.events.map(event => [event.sequence, event.consequences])).toEqual([['2', null]])
     expect(view.events[0]?.control?.records.map(record => record.command)).toEqual(['cancel'])
     expect(factKinds(s)['2']).toEqual(['deferred'])
-    // Session accepts input-2 and the Agent submits it; its handover needs the unread event 2.
     const value = ordinaryInput('input-2')
     const accepted = ok(
       await s.port.commit({
@@ -284,8 +267,7 @@ describe('an event whose consequences the publication does not decide', () => {
   })
 })
 
-describe('path P: AD-02 reads the events after its progress from the fact rows (C-WORKCACHE)', () => {
-  /** A scene with an input-taken, an observed message, a Model call wait and a control event. */
+describe('path P: the interpretation plugin reads the events after its progress from the fact rows', () => {
   async function eventful(name: string) {
     const s = await scene(name)
     await started(s)
@@ -317,7 +299,6 @@ describe('path P: AD-02 reads the events after its progress from the fact rows (
     return s
   }
 
-  /** The reads of `handler` the storage served while `run` ran. */
   async function readsDuring<T>(s: SqlScene, handler: string, run: () => Promise<T>) {
     if (s.controls === null) throw new Error('the double storage is expected')
     const from = s.controls.reads.length
@@ -343,7 +324,6 @@ describe('path P: AD-02 reads the events after its progress from the fact rows (
       expect(facts.value.events.map(event => event.sequence)).toEqual(
         ['1', '2', '3', '4'].slice(Number(after)),
       )
-      // The kinds of each event are the kinds of the consequences its row keeps.
       const kinds = factKinds(s)
       for (const event of facts.value.events)
         expect(event.consequences?.map(item => item.kind) ?? []).toEqual(
@@ -387,7 +367,6 @@ describe('path P: AD-02 reads the events after its progress from the fact rows (
     })
   })
 
-  /** Every page holds one fact at most, and names the next: the read follows the pages. */
   type Page = Facts & { next: string | null; revision: string; emittedThrough: string }
   const onePerPage = (page: Page): Page =>
     page.events.length <= 1
@@ -430,7 +409,7 @@ describe('path P: AD-02 reads the events after its progress from the fact rows (
     expect(asked).toEqual(['0', '1', '2', '3'])
   })
 
-  it('T-P7: a head that moves between pages starts the read again; one that keeps moving is unavailable after three tries', async () => {
+  it('a head that moves between pages starts the read again; one that keeps moving is unavailable after three tries', async () => {
     const s = await eventful('facts-moving')
     const whole = await interpretation(s)
     let firsts = 0
@@ -468,7 +447,7 @@ describe('path P: AD-02 reads the events after its progress from the fact rows (
   })
 })
 
-describe('a publication replaces the index of the held Session snapshot (session-storage-sql RT-04)', () => {
+describe('a publication replaces the index of the held Session snapshot', () => {
   it('the next readWork reads no whole snapshot, and answers what a whole read gives', async () => {
     const s = await scene('publish-index')
     if (s.controls === null) throw new Error('the double storage is expected')
@@ -494,7 +473,7 @@ describe('a publication replaces the index of the held Session snapshot (session
   })
 })
 
-describe('a joint commit with a Session participation folds its batch (session-storage-sql RT-04)', () => {
+describe('a joint commit with a Session participation folds its batch', () => {
   it('the next readWork reads no whole snapshot, and answers what a whole read gives', async () => {
     const s = await scene('joint-fold')
     if (s.controls === null) throw new Error('the double storage is expected')
@@ -513,7 +492,6 @@ describe('a joint commit with a Session participation folds its batch (session-s
     const from = s.controls.reads.length
     const held = await work(s)
     expect(s.controls.reads.slice(from).filter(item => item === SESSION_WORK_HANDLER)).toEqual([])
-    // The joint commit moved the Session tail: the held answer is the folded one.
     expect(BigInt(held.revision)).toBe(BigInt(before.revision) + 1n)
     const whole = await s.storage.read({
       domain: s.domain,
@@ -530,8 +508,6 @@ describe('a joint commit with a Session participation folds its batch (session-s
 
 describe('a wait for many things at once', () => {
   it('commits and reads back whatever the number of waits: the list is a block, the fact a reference', async () => {
-    // A step that sends many calls side by side waits for all of them. Two hundred waits are far
-    // more than one fact body holds (`FACT_MAX_BYTES`); the commit still stands.
     const s = await scene('many-waits')
     await started(s)
     const waits: Waiting[] = Array.from({ length: 200 }, (_, index) => ({

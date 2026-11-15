@@ -50,14 +50,11 @@ export type SessionState = Readonly<{
     {
       record: SessionOperationRecord
       projection?: import('@omne-harness/session-contract').SessionLogObservation
-      /** The access decision evidence of the public commit that recorded this operation; absent for delegated and projected commits. */
       decision?: import('@omne-harness/session-contract').DurableEvidence
-      /** `control` marks a cancelRun or stopCall that has a business batch: it recalls a control receipt. */
       form?: 'control'
       recall(receipt: CommitReceipt): unknown
     }
   >
-  /** The answer-only control operations (ended, not-found): one row, no batch, no revision. */
   answers: ReadonlyMap<
     SessionOperationId,
     Readonly<{
@@ -82,11 +79,6 @@ export type CommonRoot = Readonly<{
   session: SessionState | null
   sources: SessionSources
   agent: {
-    /**
-     * The Agent fact family of this session (SPEC "事实族与折叠核"): the appended batches in
-     * publication order, their fold, and the custody blocks the facts refer to by digest. The
-     * executions below are the reader projection of the same log, kept until the readers move.
-     */
     log: readonly PublishedBatch[]
     view: SessionJournalView
     blobs: Map<string, unknown>
@@ -150,10 +142,6 @@ export type JournalHooks<P> = {
   ): Failure | undefined
 }
 export type JournalCell<P> = ReturnType<typeof createCell<P>>
-/**
- * What one Journal write answers inside a common-root transaction. `rejected` is the persistent
- * rejection whose audit the write saved: the only failure whose draft is published.
- */
 export type TransactionAnswer<T> =
   | Readonly<{ kind: 'answered'; outcome: Outcome<T, Failure> }>
   | Readonly<{ kind: 'rejected'; failure: Extract<Failure, { kind: 'conflict' }> }>
@@ -178,12 +166,8 @@ function copyExecution(value: MemoryExecution): MemoryExecution {
     observed: new Map(value.observed),
     admissions: [...value.admissions],
     entries: [...value.entries],
-    // A write changes a handoff record in place (resolution, history, retirement), so each record
-    // is copied, not only the list.
     handoffs: value.handoffs.map(item => ({ ...item })),
     custodyAttempts: new Map(value.custodyAttempts),
-    // F2 replaces an author route at its index and the writes append to the lists, so the lists
-    // and maps are copied; the records themselves are immutable.
     finishing: copyFinishing(value.finishing),
   }
 }
@@ -347,8 +331,6 @@ export function createCell<P>(tenant: TenantId, session: SessionId, hooks: Journ
     }
     try {
       const answered = action()
-      // A persistent rejection (Agent SPEC "查询的四种结论与持久拒绝") answers conflict and still
-      // publishes its audit; every other failure discards the draft.
       const result = answered.kind === 'rejected' ? fail(answered.failure) : answered.outcome
       if (
         answered.kind === 'answered' &&
@@ -393,7 +375,6 @@ export function createCell<P>(tenant: TenantId, session: SessionId, hooks: Journ
       notifications.add(execution)
     },
     current: () => root,
-    /** Whether a common-root transaction is open: only then may a preparation write. */
     writing: () => draft !== null,
     issueEvidence(evidence: import('@omne-harness/agent-contract').DurableEvidence) {
       return activeWrite
@@ -446,7 +427,6 @@ export function createCell<P>(tenant: TenantId, session: SessionId, hooks: Journ
       }
       touch()
     },
-    /** The Session's attempt records a provider read for this call (R2-D349), in place of the folded ones. */
     adoptAttemptRecords(
       records: readonly import('@omne-harness/session-contract').SessionAttemptRecord[],
     ) {

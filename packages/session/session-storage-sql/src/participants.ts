@@ -21,11 +21,6 @@ export {
 } from './permission-current.ts'
 import { SESSION_ORDINARY_BASIS, SESSION_COMMIT_PROTOCOL } from './commit-basis.ts'
 import { sessionIntakeLimits, type SessionIntakeLimits } from '@omne-harness/session-contract'
-// The participant vocabulary of the Session log combination: the participant names, their facts
-// protocols, the builders of the facts a committer sends and the decoders of the replies and read
-// outputs it gets back. The functions are pure functions over the data formats. This entry imports
-// no provider implementation, so a committer outside this member (the Agent Journal provider) uses
-// it without a dependency on `createSessionStorage` (IC-5).
 import type {
   DurableEvidence,
   GuardCommand,
@@ -42,66 +37,31 @@ import { readCachedSessionWork } from './work-cache.ts'
 import { recordOf, SESSION_PARTICIPANT } from './session-reply.ts'
 
 export { SESSION_PARTICIPANT }
-/** The participant that keeps the records of the execution record provider (the Agent Journal). */
 export const EXECUTION_RECORD_PARTICIPANT = 'execution-record'
-/**
- * The participants of every Session log combination, in the execution order the storage fixes for
- * them. The ordinary basis runs before Session by fact dependency. Among ready participants,
- * ascending names keep execution-record before Session, so joint checks see the same commit.
- */
+// execution-record runs before session: ascending names keep that order, so the joint checks of session see the same commit.
 export const SESSION_LOG_PARTICIPANTS: readonly [
   typeof EXECUTION_RECORD_PARTICIPANT,
   typeof SESSION_ORDINARY_BASIS,
   typeof SESSION_PARTICIPANT,
 ] = [EXECUTION_RECORD_PARTICIPANT, SESSION_ORDINARY_BASIS, SESSION_PARTICIPANT]
 
-/** Protocol of the Session write participant. */
 export const SESSION_PROTOCOL = SESSION_COMMIT_PROTOCOL
-/** Read handlers evolve separately from the write participant. */
 export const SESSION_READ_PROTOCOL = '1'
 export const EXECUTION_RECORD_PROTOCOL = '1'
 
-/** The read handler that reads the common log root G in one snapshot. */
 export const SESSION_HISTORY_ROOT_HANDLER = 'session.history-root'
-/** The read handler of the authoritative snapshot of one session (input: tenant and session). */
 export const SESSION_WORK_HANDLER = 'session.work'
-/** The read handler of one ordinary input of one session (input: tenant, session and input). */
 export const SESSION_INPUT_HANDLER = 'session.input'
-/**
- * The read handler of the execution index (input: tenant and execution): the session, the Run and
- * the SE13 position of the execution, or null when no Run of the tenant started it.
- */
 export const SESSION_EXECUTION_HANDLER = 'session.execution'
-/** The read handlers of the execution record participant. */
 export const EXECUTION_RECORD_HANDLERS = {
-  /**
-   * The batches of the fact family of one session after a publication, one page at a time
-   * (`ExecutionRecordFactsRead`, `decodeExecutionRecordFacts`): the incremental read of a view.
-   */
   facts: 'execution-record.facts',
-  /** The open executions of one session (`ExecutionRecordOpenRead`): the cold start of a view. */
   openExecutions: 'execution-record.open-executions',
-  /**
-   * The head row of one execution and its events after a sequence, one page at a time
-   * (`ExecutionRecordEventsRead`, `decodeExecutionRecordEvents`).
-   */
   events: 'execution-record.events',
-  /** The operation key and the facts of its batch (`decodeExecutionRecordOperation`). */
   operation: 'execution-record.operation',
-  /** One content block of the tenant by digest (`ExecutionRecordBlobRead`). */
   blob: 'execution-record.blob',
-  /** One preadmission record, by tenant and handoff or by tenant and entry (`PreadmissionRead`). */
   preadmission: 'execution-record.preadmission',
 } as const
 
-// ---------------------------------------------------------------------------------------------
-// The `session` participant
-
-/**
- * Trusted integration facts, never caller-controlled budgets. Production storage fixes limits at
- * construction. `at` is the time of the commit from the Session clock (SPEC「提交的时刻与会话列表」);
- * absent or null, the commit has no time.
- */
 export function sessionCommandFacts(
   command: SessionCommand,
   guards: readonly GuardCommand[],
@@ -120,11 +80,7 @@ export function sessionCommandFacts(
   }
 }
 
-/**
- * One ordinary input as Session admitted it (SE10, SE11): the identity, the origin and the message.
- * In the `open` and `submit` checks, `origin` carries the source basis of the Agent's
- * `AcceptedInput` (its `source`), not the origin Session recorded for the input.
- */
+// In the open and submit checks, origin is the source basis of the Agent's AcceptedInput, not the origin Session recorded.
 export type SessionAdmittedInput = Pick<
   Extract<RoutedInput, { kind: 'ordinary' }>,
   'input' | 'origin' | 'message'
@@ -132,21 +88,6 @@ export type SessionAdmittedInput = Pick<
 
 type CheckScope = Readonly<{ tenant: TenantId; session: SessionId; execution: string }>
 
-/**
- * The read-only participations of the `session` participant (session-contract JC-26 and JC-27).
- * They write no Session entry.
- *
- * - `open`: PA-01 item 1. `initial.origin` is a receipt of the committed SE13 that started this
- *   execution with the initial input as its first input, and the message is the one Session
- *   admitted. The grant names the attempt of the active Run that started this execution.
- * - `submit`: PA-01 item 2. `value.origin` is a receipt of the committed SE11 of the input, and the
- *   message is the one Session admitted. The active Run is the Run of this execution.
- * - `attach`: PA-01 item 3. The grant names the current attempt of the active Run of this
- *   execution (ordinary advance), or the last attempt granted before the cancel of the cancelled
- *   Run of this execution (cancel wind-down).
- * - `finish`: PA-02. `judgeCompletion` on this execution. `control` is the cancel control of a
- *   finish with cancel authorization, or null.
- */
 export type SessionCheck =
   | (CheckScope & Readonly<{ kind: 'open'; grant: DurableEvidence; initial: SessionAdmittedInput }>)
   | (CheckScope & Readonly<{ kind: 'submit'; value: SessionAdmittedInput }>)
@@ -158,15 +99,12 @@ export type SessionCheck =
         control: string | null
       }>)
 
-/** The answer of a read-only check that holds. `attempt` is the attempt the grant names, if any. */
 export type SessionCheckResult = Readonly<{
   kind: 'checked'
   attempt: string | null
-  /** `wind-down` when an attach holds only by the cancel wind-down case of PA-01 item 3. */
   advance: 'ordinary' | 'wind-down' | null
 }>
 
-/** The facts of one read-only check. */
 export function sessionCheckFacts(check: SessionCheck): FactCommandV2 {
   return {
     participant: SESSION_PARTICIPANT,
@@ -174,7 +112,6 @@ export function sessionCheckFacts(check: SessionCheck): FactCommandV2 {
   }
 }
 
-/** The digest a check answer carries: the same check gives the same digest. */
 export function sessionCheckDigest(check: SessionCheck): string {
   return `sha256:${sha256(canonicalText(encodeValue(check)))}`
 }
@@ -186,28 +123,16 @@ export {
   type SessionWorkReply,
 } from './session-reply.ts'
 
-// ---------------------------------------------------------------------------------------------
-// The `execution-record` participant: the Agent fact family and the content blocks
-
 export { blobDigest, EXECUTION_BATCH_MAX_FACTS, EXECUTION_FACT_MAX_BYTES } from './codec.ts'
 
-/** The head of one execution after a write: the Agent side of the execution history boundary. */
 export type ExecutionBoundaryRecord = Readonly<{
   execution: string
   revision: string
-  /** The evidence of the original Agent commit that wrote this head (its `CommandReceipt`). */
   receipt: DurableEvidence
   emittedThrough: string
   ended: Readonly<{ sequence: string; source: DurableEvidence }> | null
 }>
 
-/**
- * The event projection of a fact that is an event: what Session reads of it (K-5, AD-02). Its
- * sequence is unique in its execution. `kinds` are its Session consequence kinds. `consequences`
- * is the JSON of the normalized consequences (absent or null: not decided), `control` the JSON of
- * the deferred control evidence (absent or null: none), `batch` the JSON of the batch of an
- * input-taken event (absent: not one). All three pass as given.
- */
 export type ExecutionEventProjection = Readonly<{
   sequence: string
   source: DurableEvidence
@@ -217,11 +142,6 @@ export type ExecutionEventProjection = Readonly<{
   batch?: JsonValue
 }>
 
-/**
- * One fact of a batch. `execution` is the write's execution when absent. `kind` names the kind of
- * the fact; `body` is its JSON, opaque to this member, at most `EXECUTION_FACT_MAX_BYTES` UTF-8
- * bytes. A fact that is an event carries its projection in `event`.
- */
 export type ExecutionFactRecord = Readonly<{
   execution?: string
   kind: string
@@ -229,13 +149,8 @@ export type ExecutionFactRecord = Readonly<{
   body: JsonValue
 }>
 
-/**
- * One content block (TB-04): `payload` is its text, `digest` is `blobDigest(payload)` and `media`
- * its media type. A tenant holds one block per digest.
- */
 export type ExecutionBlobRecord = Readonly<{ digest: string; media: string; payload: string }>
 
-/** One original acceptance of an input by an open or a submit (the reverse input directory). */
 export type ExecutionAdmissionRecord = Readonly<{
   input: string
   execution: string
@@ -243,26 +158,9 @@ export type ExecutionAdmissionRecord = Readonly<{
   accepted: DurableEvidence
   grant: DurableEvidence
   attachment: string
-  /**
-   * The SE15 attempt the acceptance was granted under. Without it a Run with more than one SE15
-   * cannot prove the original attempt of this row (`grant` is the Agent's receipt, not an SE15).
-   */
   attempt?: string
 }>
 
-/**
- * One publication of the execution record provider: one batch of facts. The participant does six
- * things in the commit transaction. It finds the original batch of `operation`. It compares the
- * publication count of the session with `published` and the head revision of `execution` with
- * `expected` (the first gate). It appends `facts` at publication `published + 1`, the first fact
- * at place 0 as the envelope of the batch, which alone names `operation` (the primary key is the
- * second gate). It stores `blobs`, once per tenant and digest. It writes the operation key, the
- * head rows and the admissions. It adds one to the publication count.
- *
- * A batch holds one to `EXECUTION_BATCH_MAX_FACTS` facts. `revision` equal to `expected` is a
- * write that establishes no new revision of the execution. No answer is stored: the provider
- * derives the answer of an operation from its batch.
- */
 export type ExecutionRecordWrite = Readonly<{
   tenant: TenantId
   session: SessionId
@@ -278,7 +176,6 @@ export type ExecutionRecordWrite = Readonly<{
   admissions: readonly ExecutionAdmissionRecord[]
 }>
 
-/** The opaque members (each `body`, the event `consequences`, `control` and `batch`) pass as given. */
 export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2 {
   const { facts, blobs, ...rest } = write
   const encoded = encodeValue(rest) as Readonly<Record<string, JsonValue>>
@@ -313,10 +210,6 @@ export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2
   }
 }
 
-/**
- * Content blocks alone, before the facts that refer to them: for a block that does not fit one
- * command with its facts. A block without a fact that refers to it is not a fact.
- */
 export type ExecutionBlobsWrite = Readonly<{
   tenant: TenantId
   blobs: readonly ExecutionBlobRecord[]
@@ -335,18 +228,6 @@ export function executionRecordBlobFacts(write: ExecutionBlobsWrite): FactComman
   }
 }
 
-/**
- * The reply of the `execution-record` participant to a publication, decoded.
- *
- * - `published`: the batch is saved; `published` is its publication (the new count of the session)
- *   and `digest` the digest of the write's operation, so a recalled receipt tells its operation.
- * - `revision-conflict`: the head revision of the execution is not `expected`, or the publication
- *   count is not `published`. `revision` is the current head (null: no such execution) and
- *   `published` the current count.
- * - `operation-conflict`: the operation already has a batch. `digest` is its digest, `published`
- *   its publication: an equal digest is the recall of the same operation, whose answer the
- *   provider derives from that batch.
- */
 export type ExecutionRecordParticipation =
   | Readonly<{ kind: 'published'; published: string; digest: string }>
   | Readonly<{ kind: 'revision-conflict'; revision: string | null; published: string }>
@@ -394,7 +275,6 @@ export function decodeExecutionRecordReply(reply: RecordedReply): ExecutionRecor
   }
 }
 
-/** The reply to a write of blocks alone: the digests stored or already held. */
 export type ExecutionBlobsParticipation =
   | Readonly<{ kind: 'stored'; digests: readonly string[] }>
   | Readonly<{ kind: 'failed'; diagnostic: string }>
@@ -416,49 +296,31 @@ export function decodeExecutionBlobsReply(reply: RecordedReply): ExecutionBlobsP
   }
 }
 
-/** One fact as the reads of the fact family give it. `event` and `body` are the JSON written. */
 export type ExecutionFact = Readonly<{
-  /** The place of the fact in its batch; 0 is the envelope. */
   ord: number
   execution: string
   kind: string
-  /** The event sequence; null for a fact that is not an event. */
   sequence: string | null
   kinds: readonly string[]
   event: JsonValue
   body: JsonValue
 }>
 
-/** One batch: its publication, the operation its envelope names (null when not read) and facts. */
 export type ExecutionBatch = Readonly<{
   published: string
   operation: string | null
   facts: readonly ExecutionFact[]
 }>
 
-/** A session or execution that is not of the tenant of the call, or does not exist. */
 export type ExecutionRecordDenied = Readonly<{ kind: 'denied' }>
-/**
- * The records of a session that are not all there: a session published before the fact family
- * (0.0.x moved no old record), or a gap after `after`. The reader answers `unavailable`.
- */
 export type ExecutionRecordMissing = Readonly<{ kind: 'missing'; published: string }>
 
-/**
- * The input of `execution-record.facts`: the batches after publication `after` ('0': all). With
- * `execution`, only the facts of that execution (a batch may then be part of its publication).
- */
 export type ExecutionRecordFactsRead = Readonly<{
   tenant: string
   session: string
   after: string
   execution?: string | null
 }>
-/**
- * One page of `execution-record.facts`: the publication count of the snapshot, whole batches in
- * publication order, and the `after` of the next page (null: none). A read without `execution`
- * gives every publication after `after` through `published`, or answers `missing`.
- */
 export type ExecutionRecordFactsPage =
   | Readonly<{
       kind: 'facts'
@@ -524,7 +386,6 @@ function batchOf(value: JsonValue): ExecutionBatch | null {
     : null
 }
 
-/** The `denied` and `missing` answers every session read of the fact family shares. */
 function refusalOf(
   value: Readonly<{ readonly [key: string]: JsonValue }>,
 ): ExecutionRecordDenied | ExecutionRecordMissing | null {
@@ -546,13 +407,11 @@ export function decodeExecutionRecordFacts(output: JsonValue): ExecutionRecordFa
     : null
 }
 
-/** The input of `execution-record.open-executions`: `after` the last execution of the last page. */
 export type ExecutionRecordOpenRead = Readonly<{
   tenant: string
   session: string
   after?: string | null
 }>
-/** One open execution: its head revision, the evidence of its head and its last event. */
 export type ExecutionOpenHead = Readonly<{
   execution: string
   revision: string
@@ -595,14 +454,12 @@ export function decodeExecutionRecordOpen(output: JsonValue): ExecutionRecordOpe
     : null
 }
 
-/** The input of `execution-record.events`: the events of `execution` after sequence `after`. */
 export type ExecutionRecordEventsRead = Readonly<{
   tenant: string
   session: string
   execution: string
   after: string
 }>
-/** One event as `execution-record.events` gives it: its projection beside the opaque body. */
 export type ExecutionEvent = Readonly<{
   sequence: string
   published: string
@@ -610,15 +467,11 @@ export type ExecutionEvent = Readonly<{
   kind: string
   kinds: readonly string[]
   source: JsonValue
-  /** The normalized consequences; null: not decided. */
   consequences: JsonValue
-  /** The deferred control evidence; null: none. */
   control: JsonValue
-  /** The batch of an input-taken event; null: not one. */
   batch: JsonValue
   body: JsonValue
 }>
-/** One page of events with the head row of the execution, and the `after` of the next page. */
 export type ExecutionRecordEventsPage =
   | Readonly<{
       kind: 'events'
@@ -679,7 +532,6 @@ export function decodeExecutionRecordEvents(output: JsonValue): ExecutionRecordE
     : null
 }
 
-/** The input of `execution-record.blob`, and its output: the block, or `denied`. */
 export type ExecutionRecordBlobRead = Readonly<{ tenant: string; digest: string }>
 export type ExecutionRecordBlob =
   | Readonly<{ kind: 'blob'; digest: string; media: string; size: string; payload: string }>
@@ -698,10 +550,6 @@ export function decodeExecutionRecordBlob(output: JsonValue): ExecutionRecordBlo
     : null
 }
 
-/**
- * The input of `execution-record.operation` and its output: the operation key and the facts of its
- * batch, or null when the tenant has no batch of the operation.
- */
 export type ExecutionRecordOperationRead = Readonly<{ tenant: string; operation: string }>
 export type ExecutionRecordOperation = Readonly<{
   digest: string
@@ -727,14 +575,6 @@ export function decodeExecutionRecordOperation(
     : 'malformed'
 }
 
-// ---------------------------------------------------------------------------------------------
-// The preadmission records of the `execution-record` participant
-
-/**
- * The intent of one handoff, as the provider saves it before it answers: the complete request, its
- * origin, the stable identity of the original principal (never a credential), the qualification
- * basis, the adopted implementation and the materials. Every member is opaque JSON here.
- */
 export type PreadmissionIntent = Readonly<{
   request: JsonValue
   origin: JsonValue
@@ -744,11 +584,6 @@ export type PreadmissionIntent = Readonly<{
   materials: JsonValue
 }>
 
-/**
- * Phase one: save the intent of handoff `handoff` (H) under entry `entry` (Ki). A record of the same
- * Ki is the answer as it is, whatever its H; a record of the same H answers when its intent is the
- * same and conflicts otherwise. `session` and `execution` are null when there is no Run yet.
- */
 export type PreadmissionIntentWrite = Readonly<{
   phase: 'intent'
   tenant: TenantId
@@ -759,11 +594,9 @@ export type PreadmissionIntentWrite = Readonly<{
   intent: PreadmissionIntent
 }>
 
-/** The fixed result of one handoff: `prepared` or `rejected`, with opaque members. */
 export type PreadmissionOutcome = Readonly<{ kind: 'prepared' | 'rejected' }> &
   Readonly<{ [key: string]: JsonValue }>
 
-/** Phase two: fix the outcome of the saved intent of `handoff` once. */
 export type PreadmissionOutcomeWrite = Readonly<{
   phase: 'outcome'
   tenant: TenantId
@@ -771,7 +604,6 @@ export type PreadmissionOutcomeWrite = Readonly<{
   outcome: PreadmissionOutcome
 }>
 
-/** The opaque intent and outcome travel as they are; the tenant is encoded. */
 export function preadmissionFacts(
   write: PreadmissionIntentWrite | PreadmissionOutcomeWrite,
 ): FactCommandV2 {
@@ -786,7 +618,6 @@ export function preadmissionFacts(
   }
 }
 
-/** One saved preadmission record. The digests are the participant's digests of the canonical JSON. */
 export type PreadmissionRecord = Readonly<{
   tenant: string
   handoff: string
@@ -831,14 +662,6 @@ export function decodePreadmissionRecord(
     : 'malformed'
 }
 
-/**
- * The reply of a preadmission write, decoded.
- *
- * - `saved`: the record after the write. `created` is true when this write saved the intent or
- *   fixed the outcome, false when the record already held it (a recall).
- * - `conflict`: the same H holds another intent, or another fixed outcome; `record` is the held one.
- * - `invalid`: an outcome without a saved intent.
- */
 export type PreadmissionParticipation =
   | Readonly<{ kind: 'saved'; created: boolean; record: PreadmissionRecord }>
   | Readonly<{ kind: 'conflict'; record: PreadmissionRecord }>
@@ -846,7 +669,6 @@ export type PreadmissionParticipation =
   | Readonly<{ kind: 'failed'; diagnostic: string }>
   | Readonly<{ kind: 'unsupported'; reason: string }>
 
-/** A `participated` preadmission reply: the saved record and whether this write saved it. */
 function decodeSaved(response: JsonValue | undefined): PreadmissionParticipation {
   const value = recordOf(response)
   const created = value?.['created']
@@ -859,7 +681,6 @@ function decodeSaved(response: JsonValue | undefined): PreadmissionParticipation
     : { kind: 'failed', diagnostic: 'a preadmission reply without its record' }
 }
 
-/** A `conflict` preadmission reply: an outcome without an intent, or the held record. */
 function decodeRefusal(basis: JsonValue | undefined): PreadmissionParticipation {
   const value = recordOf(basis)
   const reason = value?.['reason']
@@ -886,15 +707,10 @@ export function decodePreadmissionReply(reply: RecordedReply): PreadmissionParti
   }
 }
 
-/** The input of `execution-record.preadmission`: the tenant text and exactly one of H or Ki. */
 export type PreadmissionRead =
   | Readonly<{ tenant: string; handoff: string }>
   | Readonly<{ tenant: string; entry: string }>
 
-// ---------------------------------------------------------------------------------------------
-// The execution index
-
-/** The input of `session.execution` and the output it gives (null: no Run of the tenant started it). */
 export type SessionExecutionRead = Readonly<{ tenant: string; execution: string }>
 export type SessionExecution = Readonly<{ session: string; run: string; position: string }>
 
@@ -909,14 +725,6 @@ export function decodeSessionExecution(output: JsonValue): SessionExecution | nu
     : 'malformed'
 }
 
-// ---------------------------------------------------------------------------------------------
-// The common log root
-
-/**
- * The common log root G of one session, read in one snapshot: `position` is the Session position
- * (the last entry position) plus the Agent publication count, so a publication of either side
- * moves it forward. `source` covers both parts and the Session revision.
- */
 export type SessionHistoryRoot = Readonly<{
   position: string
   sessionPosition: string
@@ -940,30 +748,13 @@ export function decodeSessionHistoryRoot(output: JsonValue): SessionHistoryRoot 
     : null
 }
 
-// ---------------------------------------------------------------------------------------------
-// The Session reads a committer needs before it prepares
-
-/**
- * The output of `session.work`: the snapshot, `absent` when the session does not exist, `behind`
- * when the snapshot row does not cover the log tail (a read to retry, never an empty session).
- */
 export type SessionWorkRead =
   | Readonly<{ kind: 'state'; snapshot: WorkSnapshot }>
   | Readonly<{ kind: 'absent' }>
   | Readonly<{ kind: 'behind' }>
 
-/**
- * The `session.work` answer through the work cache of `storage` (SPEC RT-04), for a committer that
- * holds the domain of the tenant: the version of the session is read first, and the snapshot is
- * read whole only when no cached answer has that version. The snapshot it answers is deeply frozen.
- */
 export { readCachedSessionWork }
 
-/**
- * The one landing of a storage commit with a Session participation, for a committer outside this
- * member (the Journal provider): fresh or not, the fold into the work cache, the notice to the
- * notifiers registered on the database. It never throws (SPEC「本批与提交通知」).
- */
 export {
   afterSessionCommit,
   registerSessionNotifier,
@@ -993,7 +784,6 @@ export function decodeSessionWork(output: JsonValue): SessionWorkRead | null {
   }
 }
 
-/** The output of `session.input`: the admitted ordinary input, or why there is none. */
 export type SessionInputRead =
   | Readonly<{ kind: 'input'; value: Extract<RoutedInput, { kind: 'ordinary' }> }>
   | Readonly<{ kind: 'absent' }>

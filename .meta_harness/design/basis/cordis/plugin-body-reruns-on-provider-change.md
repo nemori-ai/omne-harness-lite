@@ -8,12 +8,12 @@ symbols:
   - "fiber.ts: store 代际由各提供者 fiber 的 uid 拼成，任一必需服务换提供者即先卸载再重跑插件体"
   - "reflect.ts: check 谓词返回假或提供者非 ACTIVE 亦触发"
 lines:
-  - "fiber.ts:210"
-  - "fiber.ts:597-646"
+  - "fiber.ts:198, 647"
+  - "fiber.ts:597-696"
   - "reflect.ts:241"
-  - "reflect.ts:274-277"
+  - "reflect.ts:277"
 probe: packages/assembly/kernel-basis/tests/plugin-body-reruns-on-provider-change.spec.ts
-checked: 2026-09-22
+checked: 2026-11-15
 ---
 
 # 必需服务换提供者会使插件体重跑
@@ -37,13 +37,13 @@ checked: 2026-09-22
 
 | symbol / 语义位置 | 读到了什么 | 怎样复核 |
 |---|---|---|
-| `fiber.ts` store | 必需服务实现的快照，非实时解析 | 观察插件体内取到的实现在整次执行中不变 |
-| `fiber.ts` 代际 | 由各提供者 fiber uid 拼成；变化即卸载重跑 | 卸载并重新装载提供者插件，观察消费者插件体重新执行 |
-| `reflect.ts` | 提供者非 ACTIVE 时该服务读不到 | 令提供者进入非 ACTIVE 状态，观察消费者被卸载 |
+| `fiber.ts` store（198、647 行） | 必需服务实现的快照，非实时解析 | 观察插件体内取到的实现在整次执行中不变 |
+| `fiber.ts` 代际（597–696 行） | 由各提供者 fiber uid 拼成；变化即卸载重跑；`check` 谓词返回假同样触发（601 行） | 卸载并重新装载提供者插件，观察消费者插件体重新执行 |
+| `reflect.ts`（241 行） | 提供者非 ACTIVE 时该服务读不到 | 令提供者进入非 ACTIVE 状态，观察消费者被卸载 |
 
-## probe 断言什么
+## 探针断言什么
 
-probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行。对 4.0.4 通过（2026-09-22）；2026-10-22 迁入该成员后对 4.0.4 复跑通过：
+探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
 
 消费者插件体内递增一个外部计数器。提供者缺席时计数为 0（PENDING，插件体未跑）；
 提供者 A 就位后计数为 1；改变 A 实例内部状态并让出事件循环后仍为 1（同实例状态变化不触发）；
@@ -56,7 +56,7 @@ probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行�
 中途换代会使整个流程从头重跑，而它已经产生的外部效果不会回滚。
 
 正确做法不是禁止重跑，而是**让重跑安全**：流程持有幂等操作键而非中途状态，
-重跑时凭键认回已有结果。本项目的账号注册组合即采用这一结构——
+重跑时凭键认回已有结果。例如注册流程可以采用这一结构：
 以登录标识为幂等边界，三步各自幂等，激活为单一提交点。
 
 **把跨重载要保留的事实放在闭包里。**重跑后闭包是新的，旧值消失。

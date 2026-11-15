@@ -1,9 +1,4 @@
-// The identities derived from the caller's own identifiers. Copied from the server entry
-// (`packages/access/server-entry/src/derivation.ts`) with the texts unchanged: the texts
-// `session-public/1:session` and `session-public/1:input` name identity families, they are in the
-// log, and changing them would give another session for the same message (RFC-0015 §7). Operation
-// identities use Session's `deriveIngressOperation`; the session and input identities and the
-// login-entry digest take the SHA-256 of the JSON text of an array.
+// The family texts session-public/1:session and session-public/1:input are in the log: changing them gives another session for the same message.
 import { createHash } from 'node:crypto'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
@@ -17,14 +12,12 @@ function sha256Hex(parts: readonly string[]): string {
   return createHash('sha256').update(JSON.stringify(parts)).digest('hex')
 }
 
-/** The tenant text of a minted tenant. Throws TypeError for an unminted value: a caller bug, not an input. */
 export function tenantTextOf(tenant: TenantId): string {
   const encoded = tenantCodec.encode(tenant)
   if (!encoded.ok) throw new TypeError('session-access: tenant is not a minted TenantId')
   return encoded.value
 }
 
-/** The session identity text: 64 lowercase hexadecimal characters. */
 export function sessionIdentity(tenantText: string, createCallId: string): string {
   return sha256Hex(['session-public/1:session', tenantText, createCallId])
 }
@@ -59,7 +52,6 @@ export function controlOperation(
   ])
 }
 
-/** The login-entry evidence an ordinary input carries as its origin. */
 export function loginEntryOrigin(accountText: string, loginText: string): DurableEvidence {
   return {
     owner: 'login-entry',

@@ -20,7 +20,6 @@ import { harness, type Harness } from './harness.ts'
 
 export type Pair = ReturnType<typeof createMemorySessionTransactionPair<string>>
 
-/** The memory pair of the other tests, with its history source and its projection kept for the test. */
 function memoryWithHistory() {
   const history = createMemorySessionHistorySource()
   let pair: Pair | null = null
@@ -55,7 +54,6 @@ function memoryWithHistory() {
 export const read = async (h: Harness): Promise<WorkSnapshot> =>
   succeeded(await h.backend.transactions.readWork(h.access()), 'read')
 
-/** Records the original admission of every accepted hand-over, as the Agent journal would hold it. */
 function admitHandOvers(h: Harness, history: MemorySessionHistorySource, pair: () => Pair) {
   h.view.onCommit(async (input, next) => {
     const command: SessionCommand = input.command

@@ -14,10 +14,6 @@ import {
   openInput,
 } from './common-journal.ts'
 export type Scene = Awaited<ReturnType<typeof scene>>
-/**
- * Records on the Session side that the Agent accepted an input: by default the initial input
- * under the open receipt; a submitted input under the receipt of its submit.
- */
 export async function handed(
   s: Scene,
   input: Readonly<{
@@ -184,13 +180,6 @@ export async function start(s: Scene, name = 'second') {
   const opened = ok(await s.view.journal.open(input))
   return { ok: { ...s, execution, input, opened, initial } }
 }
-/**
- * F1, F2 and prepareFinish of an ordinary completion under the current attachment, as the
- * coordinator writes them (Agent SPEC "条件终结"): the F1 commit fixes the candidate content, the
- * plain settling commit after it is the before-terminal proof, and prepareFinish issues the
- * obligations. Answers the snapshot whose FinishIntent projection tryFinish presents; the caller
- * writes neither the obligations nor the proof.
- */
 export async function prepareEnd(s: Scene, name = 'end') {
   const load = async () => ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
   const commit = async (step: string, finish: JournalCommit<string>['finish']) => {
@@ -238,7 +227,6 @@ export async function prepareEnd(s: Scene, name = 'end') {
   )
   return load()
 }
-/** tryFinish of the projection of `ready` (by default the snapshot `prepareEnd` answers). */
 export async function end(s: Scene, name = 'end', ready?: Awaited<ReturnType<typeof prepareEnd>>) {
   const loaded = ready ?? (await prepareEnd(s, name))
   if (loaded.state.kind !== 'settling') throw new Error('settling expected')

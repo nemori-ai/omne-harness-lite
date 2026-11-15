@@ -1,11 +1,3 @@
-// The history pages a reader sees (session-contract SPEC「条目的存储形式」, R2-D357). The storage
-// view pages the stored form of revision 4, in which a value the log already holds is a marker; the
-// faces give the payload of the full form. A page that only names its own origins resolves in
-// place. A page that holds an SE01 with residents or an initial SE08 needs the initial adoption of
-// the session, which the snapshot keeps. The SE01 is written once and never changes, so the first
-// such page of a session reads the snapshot through the same view and later pages take the kept
-// value: an active session reads nothing more. The kept values are bounded and keyed by tenant and
-// session; a page reaches them only after its own access decision.
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -20,7 +12,6 @@ import {
 import { OWNERS, unavailable } from './failures.ts'
 import { readSnapshot } from './qualify.ts'
 
-/** The sessions whose initial adoption one faces object keeps; past it the oldest goes. */
 export const KEPT_INITIAL_ADOPTIONS = 256
 
 export type HistoryPages = Readonly<{

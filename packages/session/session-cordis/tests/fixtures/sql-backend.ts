@@ -1,9 +1,3 @@
-// The real SQL pair under the session provider: session-storage-sql's `createSessionStoragePair`
-// over the real sqlite-provider, with real files in a temporary directory, a real write Worker per
-// transaction domain and the real read Worker pool. Everything is built through public entries;
-// there is no `node:sqlite` double here. Two tenants, each with its own transaction domain. The
-// setup follows the fixture of the session member (tests/fixtures/sql.ts) and that of
-// session-storage-sql (tests/real-provider.spec.ts).
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -35,7 +29,6 @@ function textOf(tenant: TenantId): string {
   return encoded.value
 }
 
-/** The provider configuration: the values of session-storage-sql's own real-provider fixture. */
 function config(storageRoot: string): SqliteStorageConfig {
   return {
     storageRoot,

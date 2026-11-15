@@ -1,17 +1,3 @@
-// The `agentJournal` plugin of the session-log Journal on real Cordis 4.0.4. What is checked: it
-// provides the key only with storage, the trusted tenant domain lookup and the Session access check
-// present, and removes it on stop; a reference held from before answers unavailable. A call is
-// routed by its tenant and execution to the session whose Run started that execution, so two
-// sessions with an execution each do not mix; the route is cached in-process and a new instance
-// rebuilds it from storage. An execution no Run started and an execution of another tenant get the
-// same `denied` and nothing is written; an unreadable index is `unavailable`, never `denied`. The
-// Agent contract's core Journal suite passes through the plugin over the Session log in SQL (the
-// node:sqlite double of the published modules), and routing holds on the real sqlite-provider.
-// The same plugin body also provides `agentJournalEntries` and `agentMaterials`: the three keys
-// belong to the plugin's own fiber and go together; a received delivery is one fact to the three;
-// a record whose reply was lost is decided by the Journal of the same provider; a material read goes
-// to the session its source names and waits for a write of that session in flight, and `preserve`,
-// which names no session, is unavailable.
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import {
@@ -104,13 +90,10 @@ import { endWithFailure, noReplyWithFault, refusedByModel } from './fixtures/fin
 import { MODEL_CALL } from './fixtures/main-reply.ts'
 import { toolCall } from './fixtures/tool-call.ts'
 
-// `FiberState` is a const enum of Cordis, so its members are not values to import: in Cordis 4.0.4
-// 0 is PENDING, 2 is ACTIVE and 3 is FAILED.
 const PENDING = 0
 const ACTIVE = 2
 const FAILED = 3
 
-/** The three keys one provider serves in one authoritative ordering (assembly row `agent-journal`). */
 const FACES = [agentJournalKey, agentJournalEntriesKey, agentMaterialsKey] as const
 
 const other = memoryOtherAccess('intruder', 'route-other')
@@ -125,31 +108,18 @@ afterEach(async () => {
   for (const dispose of disposers.splice(0).reverse()) await dispose()
 })
 
-/** How the next storage commit fails: it runs and its reply is lost, or it never runs. */
 type Fault = 'applied' | 'dropped' | 'pending'
 
 type Wiring = {
-  /** Makes reads of the execution index answer `unavailable` while true. */
   failIndex: boolean
-  /** Every read of the execution index, by the tenant it named. */
   indexReads: string[]
-  /** How many storage reads the plugin made, of any handler. */
   reads: number
-  /** The fault of the next storage commit, if any; the commit takes it. */
   fault: Fault | null
-  /** When set, the next storage commit takes it, calls `reached` and waits for `released`. */
   hold: Readonly<{ reached: () => void; released: Promise<void> }> | null
-  /** The decision of the Session access check; every request is allowed when absent. */
   decide?: ((request: SessionAccessRequest<unknown>) => SessionAccessDecision) | undefined
-  /** Every request the Session access check decided. */
   decided: SessionAccessRequest<unknown>[]
 }
 
-/**
- * Cordis services over the scene's storage: `storage` (counting and optionally failing the index
- * reads), a trusted lookup that knows the scene's tenant and the other tenant, and a Session access
- * check that allows everything.
- */
 function servicesOf(s: SqlScene, otherDomain: DomainRef) {
   const wiring: Wiring = {
     failIndex: false,
@@ -160,7 +130,6 @@ function servicesOf(s: SqlScene, otherDomain: DomainRef) {
     decided: [],
   }
   const storage: SqlStorage = s.storage
-  // The operations whose commit never ran and whose outcome stays undecided (`pending`).
   const undecided = new Set<string>()
   const wrapped: SqlStorage = {
     database: storage.database,
@@ -231,7 +200,6 @@ function servicesOf(s: SqlScene, otherDomain: DomainRef) {
   return { wiring, Storage, Lookup, Access, storage: wrapped, lookup: { lookup }, check }
 }
 
-/** The domain of the other tenant; on the real provider it is registered with the same combination. */
 async function otherDomainOf(s: SqlScene): Promise<DomainRef> {
   const domain: DomainRef = {
     scope: { kind: 'tenant', tenant: textOf(other.tenant) },
@@ -252,7 +220,6 @@ async function mount(ctx: Context, plugin: Parameters<Context['plugin']>[0], con
   return fiber
 }
 
-/** A real Cordis root with the three dependencies and the plugin, over the scene's storage. */
 async function assembled(
   s: SqlScene,
   config: Readonly<{ routeCacheEntries?: number }> = {},
@@ -292,7 +259,6 @@ async function assembled(
   }
 }
 
-/** The trusted cancellation installation of the test policy, as the assembly entry hands it in. */
 type TestCancellation = Readonly<{
   installation: typeof testCancellationPolicyInstallation
   policy: ReturnType<typeof createTestCancellationPolicy>
@@ -302,11 +268,6 @@ const testCancellation = (): TestCancellation => ({
   policy: createTestCancellationPolicy(),
 })
 
-/**
- * The Journal of the scene's session without the plugin: `createSessionLogJournal(...).forSession`
- * over the same scripted storage, so the core suite can tell a fault of the provider from one of
- * the plugin's routing.
- */
 async function direct(s: SqlScene, cancellation?: TestCancellation) {
   const services = servicesOf(s, await otherDomainOf(s))
   const journal = createSessionLogJournal<string>({
@@ -330,10 +291,6 @@ async function scene(name: string, options: SqlSceneOptions = {}) {
   return s
 }
 
-/**
- * A second session of the scene's tenant on the same storage, created and with a started Run, as
- * the scene builds its own: its execution and the input that opens it.
- */
 async function secondSession(s: SqlScene, name: string) {
   const access = memoryAccess('tester', name)
   const value = creation({ initial: ordinaryInput('input-1') })
@@ -381,7 +338,6 @@ async function secondSession(s: SqlScene, name: string) {
   const initial: AcceptedInput = {
     id: ok(decodeInputId(admitted.input)),
     content: admitted.message,
-    // AD-14: the source basis of the initial input is the receipt of SE13 (PA-01 item 1).
     source: started.receipt.source,
     priority: 'ordinary',
   }
@@ -449,15 +405,12 @@ describe('loading and stopping on real Cordis', () => {
       await mount(ctx, services.Storage)
       await mount(ctx, services.Lookup)
       await mount(ctx, services.Access)
-      // The wrapper `ctx.plugin` returns is a thenable that rejects when the load fails; the fiber
-      // under it is not.
       const wrapped = ctx.plugin(SessionLogAgentJournalProvider, config as never)
       const fiber = Object.getPrototypeOf(wrapped) as Awaited<typeof wrapped>
       disposers.push(() => fiber.dispose())
       await fiber.await().catch(() => undefined)
       expect(fiber.state, JSON.stringify(config)).toBe(FAILED)
       expect(ctx.get(agentJournalKey)).toBeUndefined()
-      // The schema refused it: the error is Cordis's validation error, not one the body raised.
       await expect(fiber.await()).rejects.toMatchObject({ name: 'ValidationError' })
     }
   })
@@ -499,7 +452,6 @@ describe('routing by tenant and execution', () => {
     expect(sessionOf(s, s.execution)).toBe(String(s.access.session))
     expect(sessionOf(s, b.execution)).toBe(String(b.access.session))
 
-    // A write on A moves A only: the Agent of A takes its initial input.
     const before = ok(await journal().load({ ...b.access, execution: b.execution }))
     const loaded = ok(await journal().load({ ...s.access, execution: s.execution }))
     const page = ok(
@@ -542,7 +494,6 @@ describe('routing by tenant and execution', () => {
     ok(await reload())
     expect(first.wiring.indexReads).toEqual([s.domain.scope.tenant])
 
-    // A second plugin instance on the same storage has an empty cache and finds the same session.
     const second = await assembled(s)
     const again = ok(await second.journal().load({ ...s.access, execution: s.execution }))
     expect(second.wiring.indexReads).toEqual([s.domain.scope.tenant])
@@ -559,7 +510,6 @@ describe('routing by tenant and execution', () => {
       expect(ok(await journal().load({ ...s.access, execution: s.execution })).revision).toBe('1')
       expect(ok(await journal().load({ ...b.access, execution: b.execution })).revision).toBe('1')
     }
-    // Each load after the other session's evicted the route reads the index again.
     expect(wiring.indexReads).toHaveLength(6)
   })
 })
@@ -623,7 +573,6 @@ describe('an execution that is not the caller tenant’s', () => {
       ],
     ]
     for (const [action, call] of calls) {
-      // The scene's execution is in the route cache now, under the scene's tenant only.
       const foreign = await call(s.execution, other)
       const never = await call(unknown, s.access)
       const expected = { failure: { kind: 'denied', action } }
@@ -631,8 +580,6 @@ describe('an execution that is not the caller tenant’s', () => {
       expect(never, action).toEqual(foreign)
     }
     expect(s.commits.length).toBe(commits)
-    // The route the scene's tenant cached is not the other tenant's: each of its calls read the
-    // index under its own tenant.
     expect(wiring.indexReads.filter(tenant => tenant === textOf(other.tenant))).toHaveLength(
       calls.length,
     )
@@ -660,8 +607,6 @@ describe('an execution that is not the caller tenant’s', () => {
   })
 })
 
-// --- the entries and materials faces --------------------------------------------------------------
-
 const unavailableHere = { failure: { kind: 'unavailable', owner: 'session-log-journal' } }
 const CONSUMER = { owner: 'suite', work: 'work', position: 'at', purpose: 'action' }
 
@@ -673,10 +618,6 @@ function factsMaterial(name: string): Material<ContentBlock> {
   }
 }
 
-/**
- * Opens the scene's execution through the plugin and makes it wait on one Model call, so the call's
- * consumption is bound to the execution. Returns the delivery of that call without its material.
- */
 async function waitingOnModel(
   s: SqlScene,
   journal: AgentJournal<string>,
@@ -704,8 +645,6 @@ async function waitingOnModel(
       authority: opened.authority,
       expected: opened.receipt.revision,
       checkpoint: { ...s.checkpoint, calls: [pending] },
-      // `quiet`: no event, so the Session history of the Run needs no original of it (a next Run
-      // of the session reads that history).
       state: quiet ? { kind: 'advancing' } : { kind: 'waiting', waits },
       events: quiet ? [] : [{ kind: 'waiting', waits }],
       effects: [{ pending, action: pending.action, authority: opened.authority }],
@@ -719,8 +658,6 @@ async function waitingOnModel(
   return draft
 }
 
-// R2-D237: the two faces the host's Model result receiver needs. Each case is red when the plugin
-// stops providing the face, routes it to the wrong session, or answers from the live checkpoint.
 describe('agentReceivedCommits and agentModelReceptionTargets: the result receiver faces', () => {
   it('commits a received delivery routed by its execution, as one fact the Journal reads', async () => {
     const s = await scene('recv-commit')
@@ -742,13 +679,11 @@ describe('agentReceivedCommits and agentModelReceptionTargets: the result receiv
       await entries().read({ ...s.access, execution: s.execution, after: null, limit: 100 }),
     )
     expect(read.items.map(item => item.entry)).toContainEqual(saved.value.entry)
-    // The same operation is recognized: the original commit, no second fact.
     expect(ok(await received().commit(input))).toEqual(saved)
     expect(ok(await received().query(input))).toEqual(saved)
     expect(ok(await journal().load({ ...s.access, execution: s.execution })).revision).toBe(
       loaded.revision,
     )
-    // An execution no Run started: denied, nothing written.
     const unknown = ok(decodeAgentExecutionId('recv-nobody'))
     expect(await received().commit({ ...input, execution: unknown })).toHaveProperty(
       'failure.kind',
@@ -756,9 +691,6 @@ describe('agentReceivedCommits and agentModelReceptionTargets: the result receiv
     )
   })
 
-  // R2-D257: the read face the Agent owner's evidence adapter confirms a Model ACK through. Red
-  // when the plugin does not provide it in its own fiber, when it answers something other than the
-  // committed record, or when a new instance on the same storage no longer finds the record.
   it('agentReceivedRecords answers the committed record, also from a new instance on the same storage', async () => {
     const s = await scene('recv-records')
     const first = await assembled(s)
@@ -779,7 +711,6 @@ describe('agentReceivedCommits and agentModelReceptionTargets: the result receiv
       await first.journal().load({ ...s.access, execution: s.execution }),
     ).revision
     expect(ok(await first.records().query(input))).toEqual(saved)
-    // A read writes nothing.
     expect(ok(await first.journal().load({ ...s.access, execution: s.execution })).revision).toBe(
       revision,
     )
@@ -804,7 +735,6 @@ describe('agentReceivedCommits and agentModelReceptionTargets: the result receiv
     const query = { access: s.access, consumer: draft.consumer, reference: pending }
     expect(ok(await first.targets().resolve({ ...query, execution: s.execution }))).toEqual(target)
 
-    // The checkpoint drops the call; the binding stays.
     const loaded = ok(await first.journal().load({ ...s.access, execution: s.execution }))
     const attach = loaded.executionAttachment
     if (attach === null) throw new Error('fixture: attached')
@@ -827,7 +757,6 @@ describe('agentReceivedCommits and agentModelReceptionTargets: the result receiv
     )
     expect(ok(await first.targets().resolve({ ...query, execution: s.execution }))).toEqual(target)
 
-    // A new plugin instance on the same storage reads the binding from the session's records.
     await first.plugin.dispose()
     const second = await assembled(s)
     expect(ok(await second.targets().resolve({ ...query, execution: s.execution }))).toEqual(target)
@@ -858,10 +787,6 @@ describe('agentReceivedCommits and agentModelReceptionTargets: the result receiv
     )
   })
 
-  // R2-D250 N3. Red when a route to another execution of the same session reads the binding of the
-  // first one: both routes reach the same session log, so only the execution of the binding tells.
-  // The execution index routes the sibling to the same session as soon as its Run started. The session
-  // core and the plugin both compare the execution; the case turns red when neither does.
   it('a route to another execution of the same session does not resolve the binding of the first', async () => {
     const s = await scene('recv-sibling')
     const { journal, targets } = await assembled(s)
@@ -884,7 +809,6 @@ describe('agentReceivedCommits and agentModelReceptionTargets: the result receiv
   })
 })
 
-/** The scene's execution opened, with one associated Tool call committed in its action batch. */
 async function withToolCall(s: SqlScene, journal: AgentJournal<string>, name: string) {
   const opened = ok(await journal.open(s.openInput))
   const tool = toolCall(s.access.tenant, name)
@@ -910,9 +834,6 @@ async function withToolCall(s: SqlScene, journal: AgentJournal<string>, name: st
   return { tool, instance: opened.authority.instance }
 }
 
-// R2-D273: the target query of the host's Tool result receiver. Red when the plugin stops
-// providing the face, answers from the live checkpoint, or lets a route reach the binding of
-// another execution (the session core and the plugin both compare it; red when neither does).
 describe('agentToolReceptionTargets: the Tool result receiver face', () => {
   it('answers the binding the committed associated Tool call made, also from a new instance', async () => {
     const s = await scene('tool-targets', { storage: 'real' })
@@ -996,7 +917,6 @@ describe('agentToolReceptionTargets: the Tool result receiver face', () => {
     const { tool } = await withToolCall(s, journal(), 'tool-sibling')
     const sibling = await nextRun(s, 2)
     expect(sibling.execution).not.toBe(s.execution)
-    // The sibling is opened, so the access on its route is allowed: only the binding's execution tells.
     ok(await journal().open(sibling.openInput))
     const query = {
       access: s.access,
@@ -1014,7 +934,6 @@ describe('agentToolReceptionTargets: the Tool result receiver face', () => {
 })
 
 describe('sessionAdoptedRequests: the a part of a session, from the same plugin body', () => {
-  /** One main-purpose M0 of the scene's execution through `journal`. */
   async function m0(s: SqlScene, journal: AgentJournal<string>, authority: unknown, tag: string) {
     const loaded = ok(await journal.load({ ...s.access, execution: s.execution }))
     const scope = { ref: 'scope:adopted-plugin' } as never
@@ -1071,7 +990,6 @@ describe('sessionAdoptedRequests: the a part of a session, from the same plugin 
     }
     expect(await read()).toMatchObject({ kind: 'unavailable' })
     expect(wiring.reads).toBe(reads)
-    // An unminted tenant is refused before the check; another tenant never reads this session's a.
     wiring.decide = undefined
     const unminted = { ...s.access, tenant: structuredClone(s.access.tenant) }
     expect(
@@ -1100,7 +1018,6 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
   it('serves the three keys from its own fiber, removes the three together when it stops, and a held reference then answers unavailable', async () => {
     const s = await scene('faces-fiber')
     const { ctx, plugin, journal, entries, materials } = await assembled(s)
-    // Compared by identity: printing a Cordis fiber reads services it does not inject.
     for (const key of FACES) expect(plugin.store?.[key]?.fiber === plugin, key).toBe(true)
     ok(await journal().open(s.openInput))
     const value = factsMaterial('kept')
@@ -1128,7 +1045,6 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
         entry,
       }),
     ).toMatchObject(unavailableHere)
-    // A source of this session that read before the stop: only the stop refuses it now.
     expect(await held.materials.read({ ...s.access, source })).toMatchObject(unavailableHere)
     expect(
       await held.materials.preserve({
@@ -1147,7 +1063,6 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
     const { journal, entries, materials } = await assembled(s)
     const draft = await waitingOnModel(s, journal(), 'faces-received')
     const material = factsMaterial('faces-received')
-    // The result receiver saves entry, material and saved in one commit of the same session log.
     const saved = ok(
       await s.view.received.commit({
         ...s.access,
@@ -1166,7 +1081,6 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
     )
     expect(read.items.map(item => item.entry)).toContainEqual(entry)
     expect(ok(await materials().read({ ...s.access, source: entry.material }))).toEqual(material)
-    // The entries face recognizes the saved delivery: the original receipt and no second fact.
     expect(
       ok(
         await entries().record({
@@ -1240,7 +1154,6 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
 
     const commits = s.commits.length
     const reads = wiring.reads
-    // Another tenant's source is refused before the storage is asked anything.
     expect(await materials().read({ ...other, source })).toMatchObject(unavailableHere)
     expect(wiring.reads).toBe(reads)
     expect(
@@ -1294,7 +1207,7 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
   })
 })
 
-describe('readFinish: the finish candidate of a settling or ended execution (RFC-0013 A2)', () => {
+describe('readFinish: the finish candidate of a settling or ended execution', () => {
   it('through the plugin, a model-refused end: null before any candidate, the current intent while settling, the final intent with the capacity refusal after the end', async () => {
     const s = await scene('finish-refused')
     const { journal } = await assembled(s)
@@ -1370,18 +1283,9 @@ describe('readFinish: the finish candidate of a settling or ended execution (RFC
   })
 })
 
-/**
- * The core suite's fixture through the plugin: each case opens its own scene and its own Cordis
- * root, and the execution through `agentJournal`. The Journal holds the test cancellation
- * installation (R2-D35) unless the case asks for none.
- * Host records, settlement qualifications, legacy candidates and reply admission controls have no
- * seam in the production provider; those cases are uncovered too.
- */
 const coreFixtureVia = (via: 'plugin' | 'direct'): AgentJournalCoreFixture<string> => ({
   async open(name, options = {}): Promise<AgentJournalCoreOpened<string>> {
     const s = await scene(`${via === 'plugin' ? 'pj' : 'pd'}-${name}`.slice(0, 48))
-    // An absent policy leaves the Journal without an installation; otherwise the test installation
-    // is handed in the way the production entry does (R2-D35): the plugin factory, or the option.
     const installation = options.cancellationPolicy === 'absent' ? undefined : testCancellation()
     const { journal: current, wiring } =
       via === 'plugin'
@@ -1396,8 +1300,6 @@ const coreFixtureVia = (via: 'plugin' | 'direct'): AgentJournalCoreFixture<strin
     const base = current()
     const opened = ok(await base.open(s.openInput))
     ok(await handed(s, String(s.initial.id), opened.receipt.evidence))
-    // A scripted fault belongs to the next call of its method, as in the memory Journal: that call
-    // takes it even when it is refused before it commits.
     const faults = new Map<string, Fault>()
     const faulted =
       <A extends unknown[], R>(method: string, call: (...args: A) => Promise<R>) =>
@@ -1474,7 +1376,6 @@ const coreFixtureVia = (via: 'plugin' | 'direct'): AgentJournalCoreFixture<strin
         )
         return {
           id: ok(decodeInputId(`input-${label}`)),
-          // AD-14: the source basis of a submitted input is the receipt of its SE11 (PA-01 item 2).
           source: (accepted as { source: DurableEvidence }).source,
           content: value.message,
           priority: 'ordinary' as const,
@@ -1555,16 +1456,9 @@ const coreFixtureVia = (via: 'plugin' | 'direct'): AgentJournalCoreFixture<strin
   },
 })
 
-/** The capabilities a case may name as missing; any other is a fixture fault. */
 const UNCOVERABLE =
   /^uncovered: the fixture has no (cancellation policy installation|hostRecord control|qualify control|seedLegacyCandidate control|seedLegacyCandidate and hostRecord controls|replyAdmissions controls)$/u
 
-/**
- * The case the session-log Journal itself does not pass yet. It fails the same way through the
- * plugin and straight from `forSession` (the suite runs both ways below), and it is pinned to the
- * failing assertion: the message names the call and the values are the counters `advances` read.
- * Any other failure of the case is red, and so is a pass.
- */
 const PROVIDER_GAPS: readonly Readonly<{
   name: string
   gap: string
@@ -1630,7 +1524,6 @@ describe('routing on the real sqlite-provider', () => {
     'opens the executions of two sessions on their own logs and denies another tenant alike an unknown execution',
     { tags: ['slow'] },
     async () => {
-      // Why slow: real Workers and real files.
       const s = await scene('route-real', { storage: 'real' })
       const b = await secondSession(s, 'route-real-b')
       const { journal } = await assembled(s)
@@ -1647,7 +1540,6 @@ describe('routing on the real sqlite-provider', () => {
       expect(foreign).toEqual({ failure: { kind: 'denied', action: 'load' } })
       expect(never).toEqual(foreign)
       expect(s.commits.length).toBe(commits)
-      // A new instance on the same files finds the same session.
       const second = await assembled(s)
       expect(
         ok(await second.journal().load({ ...b.access, execution: b.execution })).revision,
@@ -1656,7 +1548,6 @@ describe('routing on the real sqlite-provider', () => {
   )
 })
 
-/** The routed Journal made directly, over the scene's storage, so an option can be handed to it. */
 async function routedDirect(
   s: SqlScene,
   extra: Partial<ExecutionRoutedJournalOptions<string>> = {},
@@ -1673,10 +1564,6 @@ async function routedDirect(
   return { routed, wiring: services.wiring }
 }
 
-/**
- * The cancellation route up to the judgment, through `journal`: the cancel control and its intent,
- * the established candidate, then the judgment. Answers the first failure, or the judgment.
- */
 async function cancelThrough(journal: AgentJournal<string>, s: SqlScene) {
   const control = operation('cancel-control')
   ok(
@@ -1736,8 +1623,8 @@ async function cancelThrough(journal: AgentJournal<string>, s: SqlScene) {
   })
 }
 
-describe('R2-D35: the cancellation installation handed to the session-log Journal', () => {
-  it('R2-D35 hands the installation of its options to the Journal of the session: the policy judges once', async () => {
+describe('the cancellation installation handed to the session-log Journal', () => {
+  it('hands the installation of its options to the Journal of the session: the policy judges once', async () => {
     const s = await scene('d35-hand')
     let judged = 0
     const policy = createTestCancellationPolicy()
@@ -1761,7 +1648,7 @@ describe('R2-D35: the cancellation installation handed to the session-log Journa
     expect(judged).toBe(1)
   })
 
-  it('R2-D35 without an installation in its options the cancellation variants answer unavailable, as before', async () => {
+  it('without an installation in its options the cancellation variants answer unavailable, as before', async () => {
     const s = await scene('d35-none')
     const { routed } = await routedDirect(s)
     ok(await routed.journal.open(s.openInput))
@@ -1771,8 +1658,8 @@ describe('R2-D35: the cancellation installation handed to the session-log Journa
   })
 })
 
-describe('R2-D35: the plugin factory carries the installation the entry hands in', () => {
-  it('R2-D35 a plugin made with an installation loads on real Cordis, hands it to the session Journal: the policy judges once, and stops with the three keys', async () => {
+describe('the plugin factory carries the installation the entry hands in', () => {
+  it('a plugin made with an installation loads on real Cordis, hands it to the session Journal: the policy judges once, and stops with the three keys', async () => {
     const s = await scene('d35-plugin')
     let judged = 0
     const policy = createTestCancellationPolicy()
@@ -1804,7 +1691,7 @@ describe('R2-D35: the plugin factory carries the installation the entry hands in
     ['without an input', undefined],
     ['with an input that holds no installation', {}],
   ] as const)
-    it(`R2-D35 a plugin made ${label} answers unavailable for the cancellation variants`, async () => {
+    it(`a plugin made ${label} answers unavailable for the cancellation variants`, async () => {
       const s = await scene(`d35-plugin-none-${input === undefined ? 'a' : 'b'}`)
       const { journal } = await assembled(s, {}, createSessionAgentJournalPlugin(input))
       ok(await journal().open(s.openInput))
@@ -1814,8 +1701,8 @@ describe('R2-D35: the plugin factory carries the installation the entry hands in
     })
 })
 
-describe('K-9: a material to preserve names an execution, and goes to its session', () => {
-  it('K-9 preserve with an execution is saved in the session of that execution and read back from its source', async () => {
+describe('a material to preserve names an execution, and goes to its session', () => {
+  it('preserve with an execution is saved in the session of that execution and read back from its source', async () => {
     const s = await scene('k9-save')
     const b = await secondSession(s, 'k9-save-b')
     const { journal, materials } = await assembled(s)
@@ -1831,7 +1718,6 @@ describe('K-9: a material to preserve names an execution, and goes to its sessio
         value,
       }),
     )
-    // The source names the session of the execution, not the scene's other session.
     expect(materialSessionOf(source)).toEqual({
       tenant: textOf(b.access.tenant),
       session: b.access.session,
@@ -1839,7 +1725,7 @@ describe('K-9: a material to preserve names an execution, and goes to its sessio
     expect(ok(await materials().read({ ...b.access, source }))).toEqual(value)
   })
 
-  it('K-9 an execution of another tenant and one no Run started are denied and nothing is written', async () => {
+  it('an execution of another tenant and one no Run started are denied and nothing is written', async () => {
     const s = await scene('k9-denied')
     const { journal, materials } = await assembled(s)
     ok(await journal().open(s.openInput))
@@ -1865,13 +1751,12 @@ describe('K-9: a material to preserve names an execution, and goes to its sessio
     expect(s.commits.length).toBe(commits)
   })
 
-  it('K-9 an execution index that cannot be read is unavailable, not denied, and nothing is written', async () => {
+  it('an execution index that cannot be read is unavailable, not denied, and nothing is written', async () => {
     const s = await scene('k9-index')
     const { journal, materials, wiring } = await assembled(s)
     ok(await journal().open(s.openInput))
     const commits = s.commits.length
     wiring.failIndex = true
-    // A route the plugin has not cached yet: another tenant's, which the lookup knows.
     const answer = await materials().preserve({
       ...other,
       execution: s.execution,
@@ -1883,7 +1768,7 @@ describe('K-9: a material to preserve names an execution, and goes to its sessio
     expect(s.commits.length).toBe(commits)
   })
 
-  it('K-9 preserve with an execution after the plugin stopped is unavailable and writes nothing', async () => {
+  it('preserve with an execution after the plugin stopped is unavailable and writes nothing', async () => {
     const s = await scene('k9-stopped')
     const { journal, materials, plugin } = await assembled(s)
     ok(await journal().open(s.openInput))
@@ -1903,11 +1788,10 @@ describe('K-9: a material to preserve names an execution, and goes to its sessio
   })
 })
 
-describe('AD-02 trigger: the plugin names each successful write of the Journal', () => {
+describe('trigger: the plugin names each successful write of the Journal', () => {
   const PUBLISHED = 'session-adapters/agent-published'
   type Published = [tenant: unknown, session: unknown, execution: unknown]
 
-  /** Lets the not-awaited dispatch of an event reach its listeners. */
   const flush = () => new Promise<void>(resolve => setTimeout(resolve, 10))
 
   async function listening(name: string) {
@@ -1920,14 +1804,14 @@ describe('AD-02 trigger: the plugin names each successful write of the Journal',
     return { s, seen, ...assembly }
   }
 
-  it('AD-02 trigger: one successful write is followed by exactly one event naming tenant, session and execution', async () => {
+  it('trigger: one successful write is followed by exactly one event naming tenant, session and execution', async () => {
     const { s, seen, journal } = await listening('ad02-one')
     ok(await journal().open(s.openInput))
     await flush()
     expect(seen).toEqual([[s.access.tenant, s.access.session, s.execution]])
   })
 
-  it('AD-02 trigger: an entries write is one event too, and a read is none', async () => {
+  it('trigger: an entries write is one event too, and a read is none', async () => {
     const { s, seen, journal, entries } = await listening('ad02-entries')
     ok(await journal().open(s.openInput))
     await flush()
@@ -1956,7 +1840,7 @@ describe('AD-02 trigger: the plugin names each successful write of the Journal',
     expect(seen).toEqual([[s.access.tenant, s.access.session, s.execution]])
   })
 
-  it('AD-02 trigger: a write that fails and a call that was never routed send no event', async () => {
+  it('trigger: a write that fails and a call that was never routed send no event', async () => {
     const { s, seen, journal } = await listening('ad02-fail')
     const opened = ok(await journal().open(s.openInput))
     await flush()
@@ -1986,7 +1870,7 @@ describe('AD-02 trigger: the plugin names each successful write of the Journal',
     expect(seen).toEqual([])
   })
 
-  it('AD-02 trigger: a write through a reference held after the plugin stopped sends no event', async () => {
+  it('trigger: a write through a reference held after the plugin stopped sends no event', async () => {
     const { s, seen, journal, plugin } = await listening('ad02-stopped')
     const held = journal()
     await plugin.dispose()
@@ -1995,7 +1879,7 @@ describe('AD-02 trigger: the plugin names each successful write of the Journal',
     expect(seen).toEqual([])
   })
 
-  it('AD-02 trigger: a write in flight when the plugin stops sends no event', async () => {
+  it('trigger: a write in flight when the plugin stops sends no event', async () => {
     const { s, seen, journal, plugin, wiring } = await listening('ad02-inflight')
     let reached!: () => void
     const writing = new Promise<void>(resolve => {
@@ -2015,7 +1899,7 @@ describe('AD-02 trigger: the plugin names each successful write of the Journal',
     expect(seen).toEqual([])
   })
 
-  it('AD-02 trigger: a listener that throws does not change the answer of the write', async () => {
+  it('trigger: a listener that throws does not change the answer of the write', async () => {
     const s = await scene('ad02-throws')
     const { ctx, journal } = await assembled(s)
     ctx.on(PUBLISHED, () => {
@@ -2025,7 +1909,7 @@ describe('AD-02 trigger: the plugin names each successful write of the Journal',
     await flush()
   })
 
-  it('AD-02 trigger: a callback of the options that throws does not change the answer either', async () => {
+  it('trigger: a callback of the options that throws does not change the answer either', async () => {
     const s = await scene('ad02-callback')
     const { routed } = await routedDirect(s, {
       published: () => {

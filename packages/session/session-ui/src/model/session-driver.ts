@@ -1,6 +1,3 @@
-// Runs the state machine against a `session/v1` client: holds the state, runs each effect, and
-// turns each answer into the next event. It owns the observations it opens and the timers it sets,
-// and releases them all on `dispose`. No React, no DOM: the view subscribes to it.
 import type { TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import type { SessionProtocol } from '@omne-harness/session-protocol'
@@ -16,18 +13,13 @@ import {
 export type SessionDriverDeps = Readonly<{
   client: ClientOf<SessionProtocol>
   tenant: TenantId
-  /** Fresh ids: input, acceptance, create call, control. Defaults to `crypto.randomUUID()`. */
   newId?: () => string
-  /** Timer for reconnecting. Defaults to `setTimeout`. */
   schedule?: (run: () => void, delayMs: number) => () => void
 }>
 
 const HISTORY_PAGE_BYTES = '65536'
 
-/**
- * The client throws only before anything is sent (a body the contract cannot write). Such a call
- * provably did not leave, which is what the local `unavailable` says.
- */
+// The client throws only before anything is sent, so such a call provably did not leave: local unavailable.
 function notSent<T>(call: () => Promise<T>): Promise<T | { readonly outcome: 'unavailable' }> {
   return Promise.resolve()
     .then(call)
@@ -60,7 +52,6 @@ export class SessionDriver {
 
   getState = (): Workspace => this.#state
 
-  /** The first page of the session list: on mount, and for「重试」. */
   loadList(): void {
     this.dispatch({ kind: 'list-load' })
   }
@@ -118,7 +109,6 @@ export class SessionDriver {
     const { client, tenant } = this.#deps
     switch (effect.kind) {
       case 'list-sessions': {
-        // Neither `limit` nor `includeArchived`: the deployment's page size, archived ones left out.
         const { token, cursor } = effect
         void notSent(() => client['list-sessions']({ tenant, cursor })).then(answer =>
           this.dispatch({ kind: 'list-read', token, answer }),
@@ -219,7 +209,6 @@ export class SessionDriver {
         this.dispatch({ kind: 'frame', session, generation, frame: next.value })
       }
     } catch {
-      // The transport threw instead of ending: nothing is known about the stream any more.
       this.dispatch({ kind: 'observation-ended', session, generation, end: { kind: 'uncertain' } })
     } finally {
       if (this.#observations.get(generation) === controller) this.#observations.delete(generation)

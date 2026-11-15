@@ -1,6 +1,3 @@
-// The session list of one tenant on the port side (SPEC「提交的时刻与会话列表」): one access check with
-// the tenant as the target, then one read of `session.list`. The cursor seals the key of the last
-// row the page scanned; the handler continues after it.
 import { succeed } from '@omne-harness/operation-result'
 import type { SessionDirectory, SessionId, SessionListItem } from '@omne-harness/session-contract'
 import { domainOf, failure, qualify, readHandler, type Context } from './context.ts'

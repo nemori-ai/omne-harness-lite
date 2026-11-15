@@ -25,8 +25,8 @@
 | --- | --- | --- |
 | `WorkspaceId` 的含义 | 哪个工作区 | 工作区域 |
 | `WorkspaceId` 的文本形式 | legal-identity 第六族文本，前缀 `wsp_` | [legal-identity](../../../packages/common/SPEC.md#合法身份) |
-| 工作区附着 `WorkspaceAttachment` | 实例标识 `instance` 与装载依据 `basis` | 语义归工作区域。形状暂由 [session-contract](../../../packages/session/session-contract/SPEC.md#消费者资格与输入) 持有 |
-| Session 创建、`DeclarationChange` 的 `workspace` 分支、SE05 `session.workspace-changed` | 身份加附着 | [session-contract](../../../packages/session/session-contract/SPEC.md#消费者资格与输入) |
+| 工作区附着 `WorkspaceAttachment` | 实例标识 `instance` 与装载依据 `basis` | 语义归工作区域。形状暂由 [session-contract](../../../packages/session/SPEC.md#受理与输入) 持有 |
+| Session 创建、`DeclarationChange` 的 `workspace` 分支、SE05 `session.workspace-changed` | 身份加附着 | [session-contract](../../../packages/session/SPEC.md#受理与输入) |
 | Tool 的 `SourceLayer`、`FixedToolRequest` | 只承载身份 | [tool-contract](../../../packages/tool/SPEC.md) |
 | `AssemblyContext.workspace` | 只承载文本，不解析 | [request-context-contract](../../../packages/context/SPEC.md#应然设计) |
 | 工具运行的实例与版本 | 执行环境的放置 | [执行环境域](../execution-environments/README.md)。承载改造落地前 Tool 不承载实例与版本 |

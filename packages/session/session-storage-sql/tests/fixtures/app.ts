@@ -1,8 +1,4 @@
 import { SESSION_LOG_PARTICIPANTS } from '../../src/participants.ts'
-// The composition of one test application: two tenants with their own transaction domains, a tenant
-// domain directory, an explicit access policy, a fixed cursor signing double, and over the SQLite
-// test provider the Session storage port, the pair of a public port and a delegated entry, and the
-// session binding source.
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { RoutedInput, SessionCommand, SessionAccess } from '@omne-harness/session-contract'
 import {
@@ -56,10 +52,8 @@ export async function app(
   options: {
     directory?: readonly TenantId[]
     now?: () => number
-    /** The bounds of the work cache of the storage (SPEC RT-04); the member's defaults when absent. */
     workCache?: SessionStorageOptions<string>['workCache']
     intakeLimits?: SessionStorageOptions<string>['intakeLimits']
-    /** The Session clock that dates commits; absent, commits have no time. */
     clock?: SessionStorageOptions<string>['clock']
   } = {},
 ) {
@@ -122,7 +116,6 @@ export async function app(
     ...(options.clock === undefined ? {} : { clock: options.clock }),
   }
   const port = createSessionStorage<string>(storageOptions)
-  // The pair over the same options and storage: its public port and its delegated entry.
   const pair = createSessionStoragePair<string>(storageOptions)
   const bindings = createSessionPrincipalBindings({ storage: provider.storage, domains })
   const access = (tenant: TenantId, session = 'session-1'): SessionAccess<string> => ({
@@ -147,7 +140,6 @@ export async function app(
     ]
     return port.commit({ access: access(tenant, session), command, guards })
   }
-  /** Accepts the ordinary input `name`; by default it came through the login entry. */
   const accept = (
     tenant: TenantId,
     session: string,
@@ -167,7 +159,6 @@ export async function app(
       },
       guards: [],
     })
-  /** Registers a tenant in its own new domain; the directory publishes a new revision. */
   const register = async (tenant: TenantId) => {
     const entry: TenantDomain = {
       tenant: textOf(tenant),
@@ -190,7 +181,6 @@ export async function app(
   return {
     port,
     pair,
-    /** The options of both ports, for a test that opens another port instance. */
     storageOptions,
     bindings,
     provider,

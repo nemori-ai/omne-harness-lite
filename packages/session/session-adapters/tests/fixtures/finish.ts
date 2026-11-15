@@ -9,7 +9,6 @@ import { ok, operation } from './common-journal.ts'
 import { MODEL_CALL } from './main-reply.ts'
 import { handed, type SqlScene } from './sql-scene.ts'
 
-/** The failure of a candidate whose Model call the Model refused (RFC-0013 A2). */
 export const refusedByModel = (): FailureCandidate => ({
   step: null,
   at: '2026-11-05T00:00:00Z',
@@ -19,7 +18,6 @@ export const refusedByModel = (): FailureCandidate => ({
   failure: { kind: 'denied', action: 'admit' },
 })
 
-/** The failure of a candidate whose Model call settled as failed upstream, with the settlement's fault. */
 export const noReplyWithFault = (): FailureCandidate => ({
   step: null,
   at: '2026-11-05T00:00:00Z',
@@ -35,12 +33,6 @@ export const noReplyWithFault = (): FailureCandidate => ({
   fault: { cause: 'upstream-unavailable', upstreamStatus: '504', diagnostic: 'gateway timeout' },
 })
 
-/**
- * Drives the scene's execution to its end with a failed candidate through `journal`: the hand-over
- * of the initial input (so the Session finish check of PA-02 passes), the take, F1 with `failure`,
- * F2, prepareFinish and tryFinish. Answers what `readFinish` saw at each of the three points: before
- * any candidate, while settling, and after the end, with the intents the Journal itself projected.
- */
 export async function endWithFailure(
   s: SqlScene,
   journal: AgentJournal<string>,

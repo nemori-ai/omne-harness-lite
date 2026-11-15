@@ -1,7 +1,3 @@
-// One session service over one backend, with doubles for every port and a counting delegated
-// entry. Principals are texts that carry their tenant: `a:` for tenant A, `b:` for tenant B, and
-// `system:` for the internal principals. The access policy allows a principal on its own tenant
-// only, and a test may script the next decisions ahead of the policy.
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -65,7 +61,6 @@ function prefixOf(tenant: TenantId): string {
   return tenantEquals(tenant, TENANT_A) ? 'a' : 'b'
 }
 
-/** A principal acts on its own tenant; `system:` principals act on any tenant and the system scope. */
 export function policy(request: SessionAccessRequest<string>): SessionAccessScript {
   const principal = request.access.principal
   const allowed: SessionAccessScript = {
@@ -78,23 +73,19 @@ export function policy(request: SessionAccessRequest<string>): SessionAccessScri
   return tenantEquals(request.access.tenant, own) ? allowed : { kind: 'denied' }
 }
 
-/** One delegated-view call, by method name, with the face operation it served. */
 export type ViewCall = Readonly<{ method: string; bound: string }>
 
 type CommitInput = Parameters<SessionTransactionPort<string>['commit']>[0]
 type CommitAnswer = Promise<Outcome<unknown, SessionFailure>>
 
-/** Stands in front of the commit of a view: it may move the tail, drop the answer, or throw. */
 export type CommitHook = (input: CommitInput, next: () => CommitAnswer) => CommitAnswer
 
 export type HarnessOptions = Readonly<{
   backend: BackendFactory
-  /** Bind each created session in the binding source, so the coordinators may act on it. */
   advance?: boolean
   policy?: Partial<SchedulingPolicy>
   admission?: readonly BeforeAdmitSlot[] | null
   drive?: boolean
-  /** The observer of the measurement events; absent leaves the instance without one. */
   measure?: SessionMeasure
 }>
 
@@ -116,7 +107,6 @@ export async function harness(options: HarnessOptions) {
       }
       return {
         ...view,
-        // The hook sees every kind of commit, so it speaks the untyped outcome; the view keeps its type.
         commit: ((input: CommitInput): CommitAnswer => {
           log('commit')
           const next = (): CommitAnswer => view.commit(input)
@@ -164,20 +154,16 @@ export async function harness(options: HarnessOptions) {
     },
   }
 
-  /** Guards relayed by operation (the port facade of the transaction suite), ahead of the doubles. */
   const relayed = new Map<string, readonly GuardCommand[]>()
   const baseEvidence = createMemorySessionEvidenceBridge()
   let evidenceCalls = 0
   const evidenceAccesses: SessionAccess<string>[] = []
   const evidenceBridge: SessionEvidenceBridge<string> & {
     calls(): number
-    /** The access of every call that reached the bridge, in order. */
     accesses(): readonly SessionAccess<string>[]
   } = {
     prepare: async (command, access) => {
       evidenceCalls += 1
-      // Session always passes the access of the original call. A bridge that gets none, or the
-      // access of another session, is a Session defect, so it answers unavailable and the case fails.
       if (access === undefined || access.session !== command.input.session)
         return fail({
           kind: 'unavailable',
@@ -240,7 +226,6 @@ export async function harness(options: HarnessOptions) {
     principals: { coordinator: 'system:coordinator', maintainer: 'system:maintainer' },
     admission: { current: () => admission },
   }
-  // Every named diagnostic of the instance (SessionDiagnostic), oldest first.
   const diagnostics: SessionDiagnostic[] = []
   const instance: SessionInstance<string> = createSessionInstance(
     dependencies,
@@ -343,7 +328,6 @@ export async function harness(options: HarnessOptions) {
 
 export type Harness = Awaited<ReturnType<typeof harness>>
 
-/** The command of a face call, as the handler builds it: the input without the principal. */
 export function commandOf<K extends SessionCommand['kind']>(
   kind: K,
   input: Readonly<Record<string, unknown>>,

@@ -1,22 +1,3 @@
-// The history index that the pure layer reads from a snapshot (session-contract SPEC FR-01,
-// SessionHistoryIndex), assembled inside the commit transaction (or one read snapshot) from the
-// rows of both participants of the Session log combination. The Session side comes from the
-// Session log: the routed inputs, and each attempt with the Run it started under. The Agent side
-// (K-5) comes from the same-root index tables of `execution-record`: the execution boundaries,
-// the fact boundaries, the batches and the original input directory. The root position is the
-// common log root of both participants (log-root.ts).
-//
-// The index covers only the relations of this decision (FR-01: "集合只需覆盖本次决定及其完整批次
-// 涉及的关系"): the inputs of the scope, the executions that admitted them, the executions the
-// caller names (the execution of a log observation), and the inputs of the batches of those
-// executions, to closure. Every Agent row is read by a point or range lookup on its key; no
-// statement reads every execution of the session. A relation that cannot be proved is left out,
-// so the pure layer answers `unavailable` for it; nothing is guessed from the current advance.
-//
-// The Session side is kept per session in this Worker module and grows by the rows after its
-// cursor only (C-WORKCACHE A3): the Session log is append-only and a stored row does not change,
-// so the rows folded once stay true. Each use proves the cursor first, and a fold never keeps rows
-// of a transaction that has not committed. See `sessionRows`.
 import {
   executionReadThrough,
   type DurableEvidence,
@@ -49,14 +30,8 @@ import { big, oneRow, packed, rowsOf, text, type Executor, type Row } from './su
 
 const OWNER = '@omne-harness/session-storage-sql'
 const MAX_ROWS = 100_000
-/** The page of the backward scan for the latest interpretation row of one Run. */
 const PROGRESS_PAGE = 16
 
-/**
- * The kinds a fact boundary may carry: the consequence kinds, and `deferred` for a control event
- * whose consequences Session decides when it interprets it. A row with another kind is not a
- * boundary.
- */
 const CONSEQUENCE_KINDS: Readonly<Record<SessionFactKind, true>> = {
   'call-registration': true,
   'call-association': true,
@@ -73,11 +48,6 @@ const CONSEQUENCE_KINDS: Readonly<Record<SessionFactKind, true>> = {
 const isConsequenceKind = (kind: unknown): kind is SessionFactKind =>
   typeof kind === 'string' && Object.hasOwn(CONSEQUENCE_KINDS, kind)
 
-/**
- * What the decision names beyond its input scope: the executions it reads itself (the execution of
- * a log observation), and the event of that observation, whose fact row is read even when its
- * sequence is already interpreted (the pure layer recalls it against that row).
- */
 export type HistoryFocus = Readonly<{
   executions: readonly string[]
   event: Readonly<{ execution: string; sequence: string }> | null
@@ -85,20 +55,10 @@ export type HistoryFocus = Readonly<{
 
 export const NO_FOCUS: HistoryFocus = { executions: [], event: null }
 
-/**
- * The input range and focus of the history read a batch was judged and reduced on: a read Worker
- * reads the same index and reads again from it (C-TOPOLOGY §2.9 H2).
- */
 export type HistoryBasis = Readonly<{ scope: SessionInputScope; focus: HistoryFocus }>
 
-/** The execution of a Run as the history index reads it. */
 type ExecutionReference = Readonly<{ execution: string; readThrough: string }>
 
-/**
- * The fields of a snapshot that the history index reads: tenant, session, revision, pending inputs,
- * and the execution and read-through of the current Run and of the earlier ones. The work cache
- * sends only these to `session.work-index` and `session.work-reads`; a whole snapshot has them too.
- */
 export type WorkIndexInput = Readonly<{
   tenant: WorkSnapshot['tenant']
   session: WorkSnapshot['session']
@@ -117,34 +77,17 @@ type Planted = Readonly<{
   revision: string
   entry: HistoryEntry
   data: Record<string, unknown>
-  /** The grant of an SE15 row (`sl_attempt_grant`, R2-D349); absent for other rows or a legacy row. */
   grant?: DurableEvidence
 }>
 type Start = Readonly<{ run: RunId; started: DurableEvidence }>
 type Scope = Readonly<{ tenant: string; session: string }>
 
-/** Raised when the rows of one index exceed the read bound: the index would be partial. */
 class TooMany extends Error {}
 
-/**
- * A read bounded at a position below what this Worker already folded for the session: the kept
- * index cannot be rolled back, so the read is not answered (C-TOPOLOGY §2.9 H2).
- */
 export class BelowKept extends Error {}
 
-/**
- * Rows after the cursor of the kept index that do not continue it: the log was not only appended
- * to. The kept index is dropped, so the next read builds it again from the log; a commit that meets
- * this fails for now and may be made again (SPEC 参加者失败的定性).
- */
 export class LogGap extends Error {}
 
-/**
- * Every statement reads at most what is left of one shared row bound, and counts against it. A
- * statement with its own `page` reads at most that many rows and is complete at fewer. Each
- * statement ends with `LIMIT ?`, and the reader binds that last parameter. `charge` counts rows
- * that the index holds already as if this call read them, so the bound answers as a whole read.
- */
 type Reader = ((sql: string, params: readonly SqlValue[], page?: number) => Row[]) &
   Readonly<{ charge(rows: number): void }>
 
@@ -168,7 +111,6 @@ function boundedReader(port: Executor, limit: number): Reader {
 const parsed = (cell: SqlCell | undefined): unknown =>
   decodeValue(JSON.parse(text(cell)) as JsonValue)
 
-/** The decoded JSON of a cell, or `undefined` when it does not parse. */
 function readable(cell: SqlCell | undefined): unknown {
   try {
     return parsed(cell)
@@ -177,11 +119,9 @@ function readable(cell: SqlCell | undefined): unknown {
   }
 }
 
-/** The text of a nullable column: null for an absent value (a legacy row) and for an empty one. */
 const optionalText = (cell: SqlCell | undefined): string | null =>
   cell === null || cell === undefined || text(cell) === '' ? null : text(cell)
 
-/** A complete durable evidence: four non-empty texts. */
 function evidenceOf(value: unknown): DurableEvidence | null {
   if (typeof value !== 'object' || value === null) return null
   const { owner, record, revision, digest } = value as Record<string, unknown>
@@ -190,11 +130,6 @@ function evidenceOf(value: unknown): DurableEvidence | null {
     : null
 }
 
-/**
- * The evidence of one Session log row: its position, revision and the digest of its content. The
- * receipt of a log commit names its interpretation row with this function, so the saved fact and
- * the index agree.
- */
 export function entryEvidence(
   tenant: string,
   session: string,
@@ -224,7 +159,6 @@ function plant(row: Row, grants?: ReadonlyMap<string, DurableEvidence>): Planted
   }
 }
 
-/** One SE15 row as folded: its Run is resolved against the SE13 rows when the index is answered. */
 type AttemptRow = Readonly<{
   run: unknown
   attempt: unknown
@@ -233,14 +167,6 @@ type AttemptRow = Readonly<{
   grant?: DurableEvidence
 }>
 
-/**
- * The Session rows of the index of one session, folded in log order up to `through` (C-WORKCACHE
- * A3). `anchor` is the fingerprint of the log row at `through`; `count` is the number of rows of
- * the five kinds folded in, which the row bound of a call counts as if it read them again.
- * `active` is the execution of the Run active after the last folded row (SE24). An SE15 row whose
- * Run has no SE13 is kept in `attemptRows` and left out of `attempts`, as a whole read leaves it
- * out; an SE13 row that comes later resolves it.
- */
 type SessionRowsIndex = {
   through: bigint
   anchor: string
@@ -255,7 +181,6 @@ type SessionRowsIndex = {
   active: string | null
 }
 
-/** What one decision reads of the Session rows. The maps are read only; the arrays are its own. */
 type SessionRowsView = Readonly<{
   routed: ReadonlyMap<string, DurableEvidence>
   starts: ReadonlyMap<string, Start>
@@ -264,12 +189,9 @@ type SessionRowsView = Readonly<{
   controls: SessionControlOrigin[]
 }>
 
-/** The sessions whose Session rows this Worker keeps. Over the bound the least recently used goes. */
 const INDEX_CACHE_SESSIONS = 256
-/** The rows of the five kinds that this Worker keeps over all sessions. */
 const INDEX_CACHE_ROWS = 262_144
 
-/** The kept Session rows by `[tenant, session]`, in least recently used order (C-WORKCACHE A3). */
 const kept = new Map<string, SessionRowsIndex>()
 
 const INDEXED_KINDS =
@@ -304,7 +226,6 @@ function cloneIndex(index: SessionRowsIndex): SessionRowsIndex {
   }
 }
 
-/** Resolves one SE15 row against the SE13 rows folded so far; null while its Run has none. */
 function resolved(index: SessionRowsIndex, row: AttemptRow): SessionAttemptRecord | null {
   const execution = index.runs.get(String(row.run))
   return execution === undefined
@@ -326,10 +247,6 @@ function addAttempt(index: SessionRowsIndex, record: SessionAttemptRecord): void
   else list.push(record)
 }
 
-/**
- * Folds `rows` (after `index.through`, in log order) into `index`. An SE13 row of a Run that
- * already has SE15 rows changes how those resolve, so every SE15 row is resolved again then.
- */
 function fold(index: SessionRowsIndex, scope: Scope, rows: readonly Planted[]): void {
   const added: AttemptRow[] = []
   let again = false
@@ -347,10 +264,6 @@ function fold(index: SessionRowsIndex, scope: Scope, rows: readonly Planted[]): 
   }
 }
 
-/**
- * Folds one row into `index`; an SE15 row goes to `added` too. True for an SE13 row of a Run that
- * already has SE15 rows: those resolve otherwise now.
- */
 function foldRow(
   index: SessionRowsIndex,
   scope: Scope,
@@ -379,7 +292,6 @@ function foldRow(
   return false
 }
 
-/** An SE13 row: the Run starts its execution, which is active from now on. */
 function foldStart(index: SessionRowsIndex, scope: Scope, row: Planted): boolean {
   const { data } = row
   const run = String(data['run'])
@@ -408,7 +320,6 @@ function attemptRowOf(scope: Scope, row: Planted): AttemptRow {
   })
 }
 
-/** A Session control names the execution active when it was requested. */
 function foldControl(index: SessionRowsIndex, row: Planted): void {
   const progress = row.data['progress'] as { operation?: unknown } | undefined
   if (typeof progress?.operation === 'string')
@@ -420,7 +331,6 @@ function foldControl(index: SessionRowsIndex, row: Planted): void {
     )
 }
 
-/** The fingerprint of the log row at `position`: its revision, kind and the digest of its text. */
 function anchorAt(port: Executor, scope: Scope, position: bigint): string | null {
   const row = oneRow(
     port,
@@ -432,7 +342,6 @@ function anchorAt(port: Executor, scope: Scope, position: bigint): string | null
     : `${text(row['revision'])}/${text(row['kind'])}/${sha256(packed(row['entry']))}`
 }
 
-/** Keeps `index` as the most recently used, then drops the least recently used over the bounds. */
 function keep(key: string, index: SessionRowsIndex): void {
   kept.delete(key)
   if (index.count > INDEX_CACHE_ROWS) return
@@ -454,28 +363,8 @@ const viewOf = (index: SessionRowsIndex): SessionRowsView => ({
   controls: [...index.controls],
 })
 
-/**
- * The Session rows of the index: the routed inputs, the SE13 of each execution, the SE15 rows, and
- * the original execution of each Session control (C-WORKCACHE A3, R2-D90).
- *
- * The rows of the five kinds after the kept cursor are read and folded into the kept index; the
- * answer is the one a read of every row gives (the row bound counts the kept rows too). The kept
- * index is used only when the log row at its cursor still has the fingerprint it had: otherwise
- * this Worker sees another log than it folded (a database replaced or rolled back, or one module
- * that serves several databases), and the index is built again from the first row. The log rows
- * after the cursor must continue it without a gap; a gap is a log that was not only appended to,
- * so the kept index is dropped and the call fails (a commit rolls back, a read is unavailable);
- * the next call builds again. Rows of a revision past the journal tail are rows of the open
- * transaction: they are folded into a copy for this call and never kept, since that transaction
- * may still roll back.
- *
- * A row whose revision is not past the journal tail is taken as committed. That holds only because
- * the `session` participant is `grouping: 'singleton'`: each write transaction carries one
- * operation, and the participant reads the index before it moves the tail. In a group commit a
- * later operation would see the tail that an earlier operation of the group moved, and keep rows
- * that the group can still roll back. A groupable `session` participant needs another design of
- * this cache first (SPEC 已知限制第 21 条).
- */
+// Rows at or below the journal tail count as committed only because the session participant is grouping: 'singleton'; a groupable participant needs another cache design first.
+// Rows past the tail belong to the open transaction: fold them into a copy and never keep them.
 function sessionRows(read: Reader, port: Executor, scope: Scope, upto?: bigint): SessionRowsView {
   if (upto !== undefined) return sessionRowsThrough(read, port, scope, upto)
   const { key, base, after } = loadBase(read, port, scope)
@@ -499,11 +388,6 @@ function sessionRows(read: Reader, port: Executor, scope: Scope, upto?: bigint):
   return viewOf(index)
 }
 
-/**
- * The Session rows up to position `upto`, as a decision saw them when the log ended there
- * (C-TOPOLOGY §2.9 H2). The rows after the kept cursor up to `upto` are folded into a copy, which is
- * never kept. A kept cursor past `upto` cannot be rolled back: the read throws `BelowKept`.
- */
 function sessionRowsThrough(
   read: Reader,
   port: Executor,
@@ -521,16 +405,8 @@ function sessionRowsThrough(
   return viewOf(index)
 }
 
-/** The kept index of a session, proven, and the rows of its log after the cursor of that index. */
 type Loaded = Readonly<{ key: string; base: SessionRowsIndex | undefined; after: RowsAfter }>
 
-/**
- * The kept index of the session when its fingerprint still holds (`provenBase`), charged against
- * the row bound, and the rows after its cursor, up to `upto` when given. A kept cursor past `upto`
- * cannot be rolled back: it throws `BelowKept`. Rows after the cursor that do not continue it
- * without a gap are a log that was not only appended to: it throws `LogGap`, and a read of the
- * whole log drops the kept index first.
- */
 function loadBase(read: Reader, port: Executor, scope: Scope, upto?: bigint): Loaded {
   const key = JSON.stringify([scope.tenant, scope.session])
   const base = provenBase(port, scope, key)
@@ -539,7 +415,6 @@ function loadBase(read: Reader, port: Executor, scope: Scope, upto?: bigint): Lo
   const from = base?.through ?? 0n
   read.charge(base?.count ?? 0)
   const after = rowsAfter(read, port, scope, from, upto)
-  // No row after the cursor ends at the cursor: `last - from` is then 0 as `added` is.
   if (base !== undefined && after.last - from !== after.added) {
     if (upto === undefined) kept.delete(key)
     throw new LogGap(
@@ -549,7 +424,6 @@ function loadBase(read: Reader, port: Executor, scope: Scope, upto?: bigint): Lo
   return { key, base, after }
 }
 
-/** The kept index of `key` when the log row at its cursor still has its fingerprint; else none. */
 function provenBase(port: Executor, scope: Scope, key: string): SessionRowsIndex | undefined {
   const base = kept.get(key)
   if (base === undefined || anchorAt(port, scope, base.through) === base.anchor) return base
@@ -557,10 +431,6 @@ function provenBase(port: Executor, scope: Scope, key: string): SessionRowsIndex
   return undefined
 }
 
-/**
- * The rows after `from`: those of the five kinds with the grants of the SE15 rows among them
- * (`sl_attempt_grant`, by position), and the count, last position and top revision of all.
- */
 type RowsAfter = Readonly<{
   rows: readonly Row[]
   grants: ReadonlyMap<string, DurableEvidence>
@@ -569,7 +439,6 @@ type RowsAfter = Readonly<{
   top: bigint
 }>
 
-/** The grants written at the SE15 positions in `(from, upto]`, by position; a malformed row is left out. */
 function grantsAfter(
   read: Reader,
   scope: Scope,
@@ -629,10 +498,6 @@ function journalTail(port: Executor, scope: Scope): bigint {
   return journal === undefined ? 0n : big(journal['tail'])
 }
 
-/**
- * The evidence of the latest interpretation row (`history.annotated` with an execution) of `run`:
- * the saved fact that the execution progress of the snapshot came from. Read backward in pages.
- */
 function interpretedOf(
   read: Reader,
   scope: Scope,
@@ -658,11 +523,6 @@ function interpretedOf(
   }
 }
 
-/** The facts of one execution: a row with an unknown kind is not a boundary, so it fails the execution. */
-/**
- * The event projection of one `er_fact` row (source, consequences, control and the batch of an
- * input-taken event), or undefined when it does not parse.
- */
 function projectionOf(row: Row): Readonly<Record<string, unknown>> | undefined {
   const value = readable(row['event'])
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -676,7 +536,6 @@ function factsOf(rows: readonly Row[]): SessionFactBoundary[] | null {
     const kinds = readable(row['kinds'])
     if (!Array.isArray(kinds) || !kinds.every(isConsequenceKind)) return null
     const source = projectionOf(row)?.['source']
-    // An unreadable source is a missing row: the range has a gap there.
     if (source === undefined) continue
     facts.push({ sequence: text(row['sequence']), source: source as DurableEvidence, kinds })
   }
@@ -700,23 +559,14 @@ type Context = Readonly<{
   snapshot: WorkIndexInput
   starts: ReadonlyMap<string, Start>
   focus: HistoryFocus
-  /** The last Session position the decision saw; the whole log when absent. */
   upto?: bigint
 }>
 
-/** The sequence below the unread range that this decision still reads: the focused event, or none. */
 function focusedSequence(context: Context, execution: string): bigint {
   const event = context.focus.event
   return event !== null && event.execution === execution ? BigInt(event.sequence) : -1n
 }
 
-/**
- * The execution boundary of one execution, from its row in `er_execution` (a point lookup) and the
- * unread events in `er_fact`, with the batches of the same event rows. Left out (null) when it has
- * no SE13 in this session, its head receipt is a placeholder (digest `unknown`) or does not parse,
- * its ended event does not parse, a fact names an unknown kind, or the progress has no
- * interpretation row.
- */
 function boundaryOf(
   context: Context,
   execution: string,
@@ -734,7 +584,6 @@ function boundaryOf(
   if (receipt === null || receipt.digest === 'unknown') return null
   const ended = endedOf(row['ended'])
   if (ended === 'malformed') return null
-  // It reads only the Run and the executions of the snapshot, which `WorkIndexInput` carries.
   const readThrough = executionReadThrough(snapshot as WorkSnapshot, start.run, execution) ?? '0'
   const events = read(
     `SELECT eseq AS sequence, event, kinds FROM er_fact
@@ -770,12 +619,6 @@ function boundaryOf(
   }
 }
 
-/**
- * The batches among the unread events of one execution and the focused event: the input-taken
- * events, whose projection carries the batch. An interpreted batch is not listed: its taken effect
- * is not indexed in this wave (`taken` stays empty), and a listed batch without its taken effect
- * reads as a contradiction.
- */
 function batchesOf(events: readonly Row[], run: RunId, execution: string): SessionBatchRecord[] {
   return events.flatMap(row => {
     const event = projectionOf(row)
@@ -801,7 +644,6 @@ type Closure = {
   batches: SessionBatchRecord[]
 }
 
-/** The inputs of the scope, their admitting executions and the batch inputs of those, to closure. */
 function closeOver(context: Context, inputs: readonly string[]): Closure {
   const { read, scope } = context
   const closure: Closure = { admissions: new Map(), executions: new Map(), batches: [] }
@@ -840,12 +682,6 @@ function closeOver(context: Context, inputs: readonly string[]): Closure {
   return closure
 }
 
-/**
- * The attempt of one admission: the SE15 the row names (`attempt`), else the SE15 the grant names,
- * else the only SE15 of the Run. A row that names an attempt is never matched any other way: when
- * that SE15 is not of the Run the admission is not provable. Attempts are never removed, so a Run
- * with one SE15 had that one when the admission was granted.
- */
 function attemptOf(
   attemptsByRun: ReadonlyMap<unknown, readonly SessionAttemptRecord[]>,
   run: RunId,
@@ -858,12 +694,6 @@ function attemptOf(
   return named ?? (ofRun.length === 1 ? (ofRun[0] ?? null) : null)
 }
 
-/**
- * Whether `grant` names the attempt (R2-D349): it is the receipt source of the commit that wrote
- * its SE15 (`sl_attempt_grant`), or the evidence of the SE15 row itself. The receipt is a different
- * evidence than the row's (the commit sequence and the digest of the batch, against the position
- * and the digest of one row), so the written relation is what resolves a grant the Agent holds.
- */
 export function grantNames(attempt: SessionAttemptRecord, grant: DurableEvidence): boolean {
   const text = canonicalText(grant)
   return (
@@ -872,7 +702,6 @@ export function grantNames(attempt: SessionAttemptRecord, grant: DurableEvidence
   )
 }
 
-/** The original admissions of one input, or null when one of them names no provable Run or attempt. */
 function admissionsOf(
   rows: readonly Row[],
   starts: ReadonlyMap<string, Start>,
@@ -903,12 +732,6 @@ function admissionsOf(
   return records
 }
 
-/**
- * The input directory of every input of the closure. An input whose admissions cannot all be
- * proved is left out of both the index and the reads. A routed input outside the closure is listed
- * with its empty directory only when the session has no admission at all (`unadmitted`): an empty
- * directory is a claim that the input was never admitted, and that row absence proves it.
- */
 function directoriesOf(
   scope: Scope,
   closure: Closure,
@@ -960,11 +783,6 @@ function directoriesOf(
   return { inputs, admissions }
 }
 
-/**
- * The observed-only tail of one execution (R2-D28 candidate C): the longest run of facts after its
- * progress that is continuous, has a readable source and only `observed` kinds. Null when the first
- * unread fact is missing, empty, mixed or not observed; the pure layer decides whether it suffices.
- */
 export function observedPrefix(
   boundary: Pick<ExecutionHistoryBoundary, 'run' | 'execution' | 'readThrough' | 'facts'>,
 ): SessionExecutionPrefix | null {
@@ -999,14 +817,6 @@ export function observedPrefix(
       }
 }
 
-/**
- * The history index and reads of one decision. `scope` is the input range of the decision and
- * `focus` what it names besides; `limit` bounds the rows of every statement together.
- */
-/**
- * How far one history read reaches: `limit` bounds the rows of every statement together, `focus`
- * is what the decision names besides its scope, and `upto` the last Session position it reads.
- */
 export type HistoryReadOptions = Readonly<{ limit?: number; focus?: HistoryFocus; upto?: bigint }>
 
 export function readHistory(
@@ -1067,15 +877,8 @@ export function readHistory(
   }
 }
 
-/** The rows the index of a work answer may read in one handler call, below the handler row bound. */
 const WORK_INDEX_ROWS = 1000
 
-/**
- * The history index of a `readWork` answer: the pending inputs of `snapshot`, under one row bound.
- * The whole work read and the index read of the work cache both build it here, so their answers
- * are equal. Of the snapshot it reads `tenant`, `session`, `revision`, `pending`, `run` and
- * `executions`.
- */
 export function workIndexOf(
   port: Executor,
   tenant: string,

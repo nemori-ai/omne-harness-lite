@@ -1,5 +1,3 @@
-// S1 after a failed Run: the inputs the Run took and did not answer are pending again, and no new
-// Run starts until a person sends an input. The next Run then hands the returned input in first.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { turn } from './fixtures/control-fixture.ts'
 import { failedAfterTaking, read } from './fixtures/failed-run.ts'

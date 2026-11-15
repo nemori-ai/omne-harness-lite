@@ -1,12 +1,3 @@
-// The crash-point scan of the production Journal (R2-D294 invariant 5, recovery equivalence; SPEC
-// "事实族存储"): a script of writes with Tool effects and a main-purpose M0 runs once without a
-// fault; then once per publication point k, the storage commit of write k runs but its reply is
-// lost, the provider that wrote it is gone, and a cold provider retries the same operation and
-// then runs the rest of the script. After every scan the facts of the session are the facts of the
-// run without the fault, row for row: the retry was recognized from its batch and appended no
-// second batch, so no effect intent was published twice and no decision of a later write was lost.
-// A commit that brings no new fact (R2-D307) appends one envelope row, moves no revision, and its
-// bytes are a small constant.
 import { describe, expect, it } from 'vitest'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { AgentCheckpoint, AgentJournal } from '@omne-harness/agent-contract'
@@ -26,7 +17,6 @@ type Authority = Parameters<Journal['commit']>[0]['authority']
 const scope = ok(decodeScopeRef({ ref: 'scope:crash-scan' }))
 const targetOf = (s: SqlScene): ContextTarget => ({ tenant: s.access.tenant, scope })
 
-/** The Journal options of the scene, for a provider that did not write anything (a cold one). */
 function sceneOptions(s: SqlScene) {
   return {
     storage: s.storage,
@@ -45,11 +35,6 @@ const cold = (s: SqlScene): Journal =>
 
 type CommitInput = Parameters<Journal['commit']>[0]
 
-/**
- * One commit of the scene's execution: the loaded checkpoint with `change`, and `effects`. The
- * input is built once, at the first run, and the same input is given to every later run: a retry
- * after a lost reply is the same operation with the same content.
- */
 function commitStep(
   s: SqlScene,
   authority: Authority,
@@ -81,10 +66,8 @@ function commitStep(
   }
 }
 
-/** One write of the script: the same operation whichever provider runs it. */
 type Step = (journal: Journal) => Promise<Outcome<unknown, unknown>>
 
-/** The script: two Tool effects on two commits, a main-purpose M0 between them, a last move. */
 function scriptOf(s: SqlScene, authority: Authority): Step[] {
   const a = toolCall(s.access.tenant, 'scan-a')
   const b = toolCall(s.access.tenant, 'scan-b')
@@ -108,7 +91,6 @@ function scriptOf(s: SqlScene, authority: Authority): Step[] {
 
 type FactRow = Readonly<{ pub: number; ord: number; kind: string }>
 
-/** Every fact row of the session, in publication order: the shape of the log, without bodies. */
 function factRows(s: SqlScene): FactRow[] {
   const rows = s.controls?.select(
     `SELECT pub, ord, kind FROM er_fact WHERE session = '${s.access.session}' ORDER BY pub, ord`,
@@ -127,7 +109,6 @@ function published(s: SqlScene): number {
   return Number(row?.[0] ?? 0)
 }
 
-/** What a scan compares: the log's shape and the execution as it loads. */
 async function outcomeOf(s: SqlScene, journal: Journal) {
   const loaded = ok(await journal.load({ ...s.access, execution: s.execution }))
   return {
@@ -151,7 +132,6 @@ describe('the crash-point scan: a lost reply at each publication, a cold provide
     const script = scriptOf(base.s, base.authority)
     for (const step of script) ok(await step(base.s.view.journal))
     const expected = await outcomeOf(base.s, base.s.view.journal)
-    // The script published both effects once; the scan compares against that.
     expect(expected.intents).toBe(2)
     expect(expected.published).toBeGreaterThanOrEqual(script.length + 1)
 
@@ -160,10 +140,8 @@ describe('the crash-point scan: a lost reply at each publication, a cold provide
       const steps = scriptOf(s, authority)
       const warm = s.view.journal
       for (const step of steps.slice(0, k)) ok(await step(warm))
-      // The storage commit of write k runs; its reply does not reach the provider.
       s.controls?.loseNextReply()
       expect(await steps[k]!(warm)).toMatchObject({ failure: { kind: 'commit-unknown' } })
-      // The provider that wrote it is gone: a cold one retries the same operation.
       const after = cold(s)
       expect(await steps[k]!(after)).toHaveProperty('ok')
       for (const step of steps.slice(k + 1)) ok(await step(after))
@@ -172,7 +150,6 @@ describe('the crash-point scan: a lost reply at each publication, a cold provide
       expect(got.published, `scan ${String(k)}`).toBe(expected.published)
       expect(got.revision, `scan ${String(k)}`).toBe(expected.revision)
       expect(got.checkpoint, `scan ${String(k)}`).toEqual(expected.checkpoint)
-      // The retry was recognized at the revision the lost write reached: `query` names it too.
       const known = ok(
         await after.query({ ...s.access, execution: s.execution, operation: operation(nameOf(k)) }),
       )
@@ -183,11 +160,10 @@ describe('the crash-point scan: a lost reply at each publication, a cold provide
 
 const nameOf = (k: number): string => ['c1-effect-a', 'c2-m0', 'c3-effect-b', 'c4-move'][k]!
 
-/** The rows of the fact family of publication `pub`: the bridge's `core.*` rows left out (K-23). */
 const familyRows = (s: SqlScene, pub: number): FactRow[] =>
   factRows(s).filter(row => row.pub === pub && !row.kind.startsWith('core.'))
 
-describe('a commit that brings no new fact (R2-D307)', () => {
+describe('a commit that brings no new fact', () => {
   it('appends the envelope row only, its bytes are a small constant, and a cold provider recognizes it', async () => {
     const { s, authority } = await opened('scan-envelope')
     ok(await commitStep(s, authority, 'moved', c => ({ ...c, position: 'E2' }))(s.view.journal))
@@ -217,9 +193,6 @@ describe('a commit that brings no new fact (R2-D307)', () => {
     expect(known.kind).toBe('committed')
   })
 
-  // The revision rule of R2-D307 (an envelope-only batch moves no revision) is the core's to keep:
-  // until `commit` is written as facts by the core (session-adapters SPEC K-23), the reader
-  // projection the core still advances names one more revision than the fold. Enable with K-23.
   it('moves no revision', async () => {
     const { s, authority } = await opened('scan-envelope-rev')
     const revision = ok(await s.view.journal.load({ ...s.access, execution: s.execution })).revision

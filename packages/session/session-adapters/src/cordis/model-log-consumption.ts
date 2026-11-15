@@ -1,31 +1,3 @@
-// AD-05, Model log consumption: the plugin reads the Model results and accounts that the Agent host
-// result receiver already wrote into the same session log, and commits what they mean for Session
-// as one batch of the entries channel. It never injects or calls Model.
-//
-// One call reads the Run that owns the execution as `coordinator`, loads the execution from the
-// same AgentJournal, and takes the `received` entries of producer `model` in commit order: that
-// list is the `model-received` channel. From the saved progress of the channel on, every entry is
-// checked and translated, in order: its call reference names the tenant of the call, Session holds
-// the producer binding of the call with the same consumption and consumer, and the material that
-// the entry names reads, through the same provider's AgentMaterials, as the facts material the
-// receiver kept for exactly this delivery (Agent J02 item 11). A result becomes the `execution`
-// fact of the call, and also its `account` fact when a dispatch reported an account; an account
-// delivery becomes the `account` fact. No report stays no fact, never a zero.
-//
-// The translated items go to `commitEntries` in one observation: the consequences, the progress
-// and the answer of the operation are one Session commit, after the Agent commit and apart from
-// it. A failure of that commit takes nothing back from the Agent records. The operation identity
-// is derived from the observation, so the same reading is the same operation: a lost reply is
-// recognized by sending it again, and a later read starts after the saved progress and commits
-// nothing new. An entry whose call Session has not bound yet stops the batch there: it waits,
-// unknown, and is not committed as an empty item. Model release confirmation is not read here: the
-// MODEL-ACK-ARRIVAL duty of Session JC-Release is open, so `saved` never becomes a release.
-//
-// The plugin keeps nothing but the current generation of its dependencies and one queue per
-// session. It is woken by `session-adapters/agent-published`, the event of the Journal plugin after
-// each successful write, and consumes the execution the event names; `consume` stays callable. A
-// call made while the plugin is pending or stopped, or one that was waiting when it stopped,
-// answers `unavailable` and commits nothing.
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type {
@@ -73,15 +45,9 @@ import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
 import { subscribePublished } from './published-queue.ts'
 
 const OWNER = 'session-adapters/model-log'
-/** The event of the Journal plugin after each successful write (AD-05 trigger). */
 const CHANNEL = 'model-received'
-/** The reads after a `changed`: another commit moved the channel between the read and the commit. */
 const ROUNDS = 3
 
-/**
- * The adoption of the facts material in which the Agent result receiver keeps a Model delivery
- * (Agent J02 item 11; the exact adoption is published in the Agent implementation's public API).
- */
 const MODEL_DELIVERY_SCHEMA = Object.freeze({
   owner: 'agent',
   name: 'received-model-delivery',
@@ -89,54 +55,36 @@ const MODEL_DELIVERY_SCHEMA = Object.freeze({
   digest: 'agent:received-model-delivery/1',
 })
 
-/** One call: the execution of one Session whose Model entries are read. */
 export type ModelLogTarget = Readonly<{
   tenant: TenantId
   session: SessionId
   execution: AgentExecutionId
 }>
 
-/**
- * The answer of one call. `progress` is the saved progress of the execution's Model channel after
- * the call, null when no batch of it was ever saved. `committed` tells whether this call committed
- * a batch (or recognized its own commit whose reply was lost). `waiting` counts the Model entries
- * after the progress that wait for Session to bind their call.
- */
 export type ModelLogConsumed = Readonly<{
   progress: Readonly<{ through: string; interpreted: DurableEvidence }> | null
   committed: boolean
   waiting: number
 }>
 
-/**
- * What the assembly hands to AD-05: the principal that it issues to the coordinator of one session,
- * as for AD-14. The assembly entry answers it with `forSession({ actor: 'coordinator', ... })`.
- */
 export type SessionModelLogConsumptionInput<P> = Readonly<{
   coordinator(
     input: Readonly<{ tenant: TenantId; session: SessionId }>,
   ): Promise<Outcome<P, SessionCoordinatorPrincipalFailure>>
 }>
 
-/** The four dependencies of one generation of the plugin. */
 type Ports<P> = Readonly<{
   readWork(access: SessionAccess<P>): Reply<WorkSnapshot>
   load: AgentJournal<P>['load']
   entries: AgentJournalEntries<P>['read']
   read: AgentMaterials<P, ContentBlock>['read']
   commitEntries: SessionTransactionPort<P>['commitEntries']
-  /** True once the generation stopped; checked before the commit. */
   stopped(): boolean
 }>
 
 type Answer<T> = Outcome<T, SessionFailure>
-/** The most entries one page of the entries read asks for. */
 const ENTRY_PAGE = 256
 
-/**
- * Every committed receiving entry of the execution, page by page through the entries port of the
- * same Journal provider: the snapshot carries none (agent-contract SPEC "日志条目" 6).
- */
 async function committedEntries<P>(
   read: AgentJournalEntries<P>['read'],
   input: Readonly<{ principal: P; tenant: TenantId; execution: AgentExecutionId }>,
@@ -170,7 +118,6 @@ function describe(cause: unknown): string {
   }
 }
 
-/** An Agent read failure in Session's terms: refusals stay refusals, the rest is unavailable. */
 function agentFailure(read: string, failure: Failure): Answer<never> {
   switch (failure.kind) {
     case 'denied':
@@ -186,13 +133,11 @@ function isModelReceived(entry: AgentJournalEntry): entry is ModelEntry {
   return entry.kind === 'received' && entry.delivery.producer === 'model'
 }
 
-/** The Run that owns `execution` in the snapshot: the active Run or an earlier one. */
 function runOf(work: WorkSnapshot, execution: string): RunId | null {
   if (work.run.kind === 'active' && work.run.execution.execution === execution) return work.run.run
   return work.executions?.find(item => item.execution.execution === execution)?.run ?? null
 }
 
-/** Session and Agent brand the same consumption text differently. */
 const sameText = (left: string, right: string): boolean => left === right
 
 const object = (value: unknown): value is Record<string, unknown> =>
@@ -200,7 +145,6 @@ const object = (value: unknown): value is Record<string, unknown> =>
 
 type Json = Extract<Material<ContentBlock>, { kind: 'facts' }>['value']
 
-/** The plain value of a facts tree; numbers stay their lexeme, a value that is no tree is null. */
 function plain(value: Json): unknown {
   switch (value.kind) {
     case 'null':
@@ -224,11 +168,6 @@ function plain(value: Json): unknown {
   }
 }
 
-/**
- * The Agent J02 read check of the material of one Model entry: the adopted schema, the tenant of
- * the call, the delivery key, the frozen consumer, the account snapshots or account of the entry,
- * and the version relation that Model's own judgment checks. Answers null when it holds.
- */
 function materialRefusal(
   tenant: TenantId,
   tenantText: string,
@@ -259,8 +198,6 @@ function materialRefusal(
       ? canonical(delivery.accounts) === canonical(entry.delivery.accounts)
       : canonical(delivery.account) === canonical(entry.delivery.account)
   if (!kept) return invalid(field, 'the material holds other accounts than the entry')
-  // Key, consumer and accounts equal the typed entry; Model's judgment reads the settlement, and a
-  // settlement that is not there makes it throw, which is a material that does not decode.
   let judged
   try {
     judged = judgeModelDelivery({ tenant, delivery: delivery as unknown as ModelDelivery })
@@ -272,7 +209,6 @@ function materialRefusal(
   return null
 }
 
-/** The operation identity of one observation: the same reading is the same operation. */
 function operationOf(
   tenantText: string,
   observation: Omit<SessionEntriesObservation, 'operation' | 'tenant'>,
@@ -283,10 +219,6 @@ function operationOf(
   return `ad05_${digest}` as SessionOperationId
 }
 
-/**
- * The consumption of one generation. It reads, translates and commits; it keeps nothing between
- * calls, so a new generation starts from the saved progress.
- */
 function createModelLogConsumption<P>(
   given: SessionModelLogConsumptionInput<P>,
   ports: Ports<P>,
@@ -348,7 +280,6 @@ function createModelLogConsumption<P>(
     })
   }
 
-  /** One read of the channel and, when it has items, one commit. `changed` goes back to the caller. */
   async function round(
     access: SessionAccess<P>,
     tenantText: string,
@@ -372,8 +303,6 @@ function createModelLogConsumption<P>(
       execution: target.execution,
     })
     if ('failure' in read) return agentFailure('load', read.failure)
-    // The entries and the revision come from two reads: a revision that moved between them is
-    // read again on the next publication, not bound to entries of another revision.
     const again = await ports.load({
       principal: access.principal,
       tenant: access.tenant,
@@ -428,7 +357,6 @@ function createModelLogConsumption<P>(
     return commit(observation, start, waiting)
   }
 
-  /** The Session commit; a lost reply is sent again once under the same operation. */
   async function commit(
     observation: SessionEntriesObservation,
     start: SessionEntriesStart,
@@ -440,7 +368,6 @@ function createModelLogConsumption<P>(
       try {
         answer = await ports.commitEntries({ observation, start })
       } catch {
-        // The write may have happened: the outcome is unknown, never a plain failure.
         return fail({ kind: 'commit-unknown', operation: observation.operation })
       }
       if ('ok' in answer)
@@ -466,11 +393,6 @@ function createModelLogConsumption<P>(
   }
 }
 
-/**
- * The evidence of the execution head that the channel boundary records: the load revision and the
- * Model entries of the channel at that revision. The Agent snapshot carries no head evidence of its
- * own, so the plugin derives it, the same value for the same load.
- */
 function headEvidence(
   tenantText: string,
   execution: string,
@@ -487,7 +409,6 @@ function headEvidence(
   }
 }
 
-/** A failure as the log names it: its kind, and the diagnostic or the field it carries. */
 function failureText(failure: Failure | SessionFailure): string {
   const detail =
     'diagnostic' in failure
@@ -498,14 +419,6 @@ function failureText(failure: Failure | SessionFailure): string {
   return detail === null ? failure.kind : `${failure.kind}: ${detail}`
 }
 
-/**
- * The AD-05 plugin and the call that reaches it. The plugin provides no key: it needs `session`
- * with the `coordinator` caller class, `agentJournal`, `agentMaterials` and `sessionTransactions`,
- * and stays pending while any of them is absent. A new provider of any of them runs the plugin
- * again. It subscribes to `session-adapters/agent-published` and consumes the named execution after
- * each event, one session at a time; an event that names no Model entry commits nothing. `consume`
- * reaches the current generation; while there is none it answers `unavailable`.
- */
 export function createSessionModelLogConsumptionPlugin<P>(
   input: SessionModelLogConsumptionInput<P>,
 ) {
@@ -544,12 +457,6 @@ export function createSessionModelLogConsumptionPlugin<P>(
             return unavailable(`a dependency threw: ${describe(cause)}`)
           }
         }
-        // AD-05 trigger: each successful write of the Journal names its execution; a consume after
-        // it commits what was received since the saved progress, and nothing when nothing was.
-        // A failure is logged when it appears and when it changes, not on every event: the events
-        // of one step come faster than the entries settle (the execution changes while its entries
-        // are read, and the next event reads them again), and a failure that stays the same across
-        // events is one failure. A consumption that succeeds clears it, so its return is logged.
         const failing = new Map<string, string>()
         subscribePublished(
           ctx,

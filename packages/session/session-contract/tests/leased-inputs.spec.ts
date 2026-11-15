@@ -1,6 +1,3 @@
-// Taking an input leases it to the Run. The lease closes when a complete assistant message is
-// written after the taking. A Run that fails returns the inputs whose lease is still open to the
-// head of the pending inputs, and no new Run starts until a person sends an input.
 import { describe, expect, it } from 'vitest'
 import type { Message } from '@omne-harness/message'
 import {
@@ -125,7 +122,6 @@ async function fail(s: Scene) {
   return s.read()
 }
 
-/** The first Run took `first` and failed with no answer; `first` is pending again. */
 async function failedWithFirstTaken() {
   const s = await open()
   await handIn(s, 'first')

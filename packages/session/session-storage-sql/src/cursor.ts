@@ -1,19 +1,9 @@
-// Signed continuation tokens (RD-CURSOR). A token carries its kind, the tenant and session it was
-// issued for, an expiry and the continuation state. The signing capability seals it; a token that
-// was altered, issued for another tenant or session or kind, expired, or signed by a rotated-out
-// key is `invalid`, and an unreadable key is `unavailable`. Nothing is accepted unverified.
 import type { SessionCursorSigning } from '@omne-harness/session-cordis-contract'
 import type { SessionFailure } from '@omne-harness/session-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 
 export const OWNER = '@omne-harness/session-storage-sql'
 
-/**
- * What a token is bound to. `revision` is the tenant domain directory revision, bound only where
- * the read protocol says so (R10 references); a token without it binds no revision. `key` is the
- * read subject a continuation belongs to (the resident key of R10); a token without it binds none.
- * The system reads have no tenant or session, so the key does not travel in those fields.
- */
 export type CursorBinding = Readonly<{
   kind: string
   tenant: string | null
@@ -29,11 +19,6 @@ export type CursorOptions = Readonly<{
 
 const encoder = new TextEncoder()
 
-/**
- * The fixed protocol domain separator (RD-CURSOR). The signature covers this prefix and then the
- * payload, so a signature that the same key made for another protocol, or over the bare payload,
- * never verifies as a Session cursor. The token carries the payload only.
- */
 const DOMAIN = encoder.encode('omne-harness/session-storage-sql/cursor/v1\u0000')
 const signed = (payload: Uint8Array): Uint8Array => {
   const out = new Uint8Array(DOMAIN.length + payload.length)
@@ -66,7 +51,6 @@ export async function seal(
   return succeed(`${b64(payload)}.${b64(encoder.encode(keyId))}.${b64(signature)}`)
 }
 
-/** Why a payload does not belong to this binding, or null when it does. */
 function bindingMismatch(parsed: Record<string, unknown>, binding: CursorBinding): string | null {
   if (
     parsed['kind'] !== binding.kind ||

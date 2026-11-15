@@ -1,6 +1,6 @@
 # 设计与 Agent 工具入口
 
-本目录维护现行设计导航、领域对象对账，以及 skills 的宿主生成和接入。模块接口、完整必要行为规格及验证资源由实际包／应用拥有，工具不建立另一份中央契约或实现映射。
+本目录维护现行设计导航、统一语言对账，以及 skills 的宿主生成和接入。模块接口、完整必要行为规格及验证资源由实际包／应用拥有，工具不建立另一份中央契约或实现映射。
 
 ## 现行源检查
 
@@ -33,14 +33,13 @@ spec、realization、registry 三个旧根不得重新出现，空目录、普�
 收尾发现变化时失败。图片等二进制目标只读字节，Markdown 必须能按 UTF-8 解码。
 持续正控与拒绝反例位于 `tests/test_source_links.py`。
 
-该工具不判断条款等价性、采用状态、实现符合性或模型覆盖。公开 Schema 身份、规范输入及形式模型的正负控由真实拥有者维护并执行；单次原始输出归执行工作树 tmp。根 `pnpm run check:design` 组合本检查与领域对象对账，不隐式执行形式模型。
+该工具不判断条款等价性、采用状态、实现符合性或模型覆盖。公开 Schema 身份、规范输入及形式模型的正负控由真实拥有者维护并执行；单次原始输出归执行工作树 tmp。根 `pnpm run check:design` 组合本检查与统一语言对账，不隐式执行形式模型。
 
-## 领域对象对账
+## 统一语言对账
 
-出处锚点读取复用已安装的项目`omne-harness-lite-spec-tools`及其Markdown解析依赖；执行仓库用锁定的uv环境提供。对象对账不维护另一套围栏或标题解析。
+出处锚点读取复用已安装的项目`omne-harness-lite-spec-tools`及其Markdown解析依赖；执行仓库用锁定的uv环境提供。统一语言对账不维护另一套围栏或标题解析。
 
-`domain_objects.py` 对账三家之间的对应关系——统一语言词条、领域对象条目、产品 topic——
-并生成派生总表 `design/views/domain-object-map.md`：
+`ubiquitous_language.py` 对账统一语言词条、词条索引与产品 topic 之间的对应关系。
 
 在仓库根运行，有两种写法。`pnpm run check:design` 先跑上面的现行源检查，再对账；
 `--stale <值>` 只交给对账：
@@ -53,9 +52,8 @@ pnpm run check:design --stale report
 只要对账时，直接调用脚本，由锁定的 uv 环境提供解释器与依赖：
 
 ```sh
-uv run --locked python .meta_harness/tooling/src/domain_objects.py --root .meta_harness/design                  # 对账，并核对总表是不是最新
-uv run --locked python .meta_harness/tooling/src/domain_objects.py --root .meta_harness/design --write          # 重新生成总表
-uv run --locked python .meta_harness/tooling/src/domain_objects.py --root .meta_harness/design --stale report   # rev 落后只列出，不判失败
+uv run --locked python .meta_harness/tooling/src/ubiquitous_language.py --root .meta_harness/design                  # 对账
+uv run --locked python .meta_harness/tooling/src/ubiquitous_language.py --root .meta_harness/design --stale report   # rev 落后只列出，不判失败
 ```
 
 `tests/test_readme_commands.py` 读本 README 代码块里每条 `uv run --locked python <脚本> …` 命令，查两件事：
@@ -65,24 +63,27 @@ uv run --locked python .meta_harness/tooling/src/domain_objects.py --root .meta_
 
 它不验证脚本收到参数之后做什么，也不验证 `pnpm run`、`pytest` 等其他命令。
 
-它查什么、为什么查，权威正文在 [domain_objects/conventions.md](../design/domain_objects/conventions.md#对账)；
-被点名之后怎么逐条复核，归 `ubiquitous-language` 与 `domain-objects` 两份 skill。这里只记工具自己的边界：
+它查什么、为什么查，权威正文在[统一语言的 conventions](../design/ubiquitous_language/conventions.md#对账器替这里守着什么)；
+被点名之后怎么逐条复核，归 `ubiquitous-language` skill。这里只记工具自己的边界：
 
+- 词条标题写成 `### UL-<id> · 中文名 · English name`，ID 不重复；「形态」必填，取值在取值表里；
+  变体的「父」指向一个词条（写了「无词条」的除外），顺着「父」往上走得到一个形态为对象的词条。
+- 索引 `ubiquitous_language/index.md` 的每一行与分卷标题在 ID、链接、中文名、英文名上一致，分卷里的词条都登记进索引。
+- 形态「未定」的词条必须在 `ubiquitous_language/conflicts.md` 里被提到。
 - **rev 的权威是各 topic `README.md` front-matter 的 `revision`。**`design.md` 抬头
-  若写了 rev，必须与它相等；没写不算错。当前产品从slug目录的README元数据发现，核对PD身份、正整数修订、状态、正文及根内路径。封存PF出处另核修订、文件与锚点，不进入当前采用或反链。
+  若写了 rev，必须与它相等；没写不算错。当前产品从slug目录的README元数据发现，核对PD身份、正整数修订、状态、正文及根内路径。封存PF出处另核修订、文件与锚点，修订对照 `ubiquitous_language/sealed-revisions.json`，不进入当前采用。
 - `ubiquitous_language/conflicts.md` 里的 rev **不查**：那是记下冲突时看到的那一版，是一条观察的时间戳，不是对齐凭据。
-- 词条「出处」、条目「依据」、待裁「牵涉」读的是[同一条写法](../design/ubiquitous_language/conventions.md#rev-怎么写怎么读)：
+- 词条「出处」按[这条写法](../design/ubiquitous_language/conventions.md#rev-怎么写怎么读)读：
   指向产品正文的链接后面跟着它那个 topic 的 `（rev N）`，同一个 topic 连着的几条链接可以共用后面那一个；
   一个括号里并列几个 rev 的，按前面 topic 出现的次序配，个数配不上就报错。
-- 总表比对时**忽略生成时间那一行**，所以隔天重跑不会因为日期而判过期。
 - `--stale report` 供本地迭代看待复核队列，**不是通过的证据**。
 - 当前导航的链接与锚点由`check_sources.py`核对；封存出处的文件和锚点由本工具在明确legacy根核对；
-  它也**不判断任何条目的内容对不对**，更查不出产品正文里新冒出来、却没人立词条的对象。
+  它也**不判断任何词条的内容对不对**，更查不出产品正文里新冒出来、却没人立词条的概念。
 
-测试用一棵含一个 topic、一卷四个词条（含一个变体）、三条对象条目与一项待裁的小型设计树，覆盖：
-一致时通过且总表可往返、只改生成时间不判过期、对象词条缺条目与条目缺对象词条、条目缺词条或缺必填字段、
-rev落后及topic内已声明修订不一致及其 report 模式、依据缺 rev 或指向非产品正文、
-形态缺失/非法/变体的父无效、未定词条须同时出现在 pending 与 conflicts、索引与分卷不一致、待裁缺 owner。
+测试用一棵含一个 topic、一卷四个词条（含一个变体）的小型设计树，覆盖：
+一致时通过、不一致时失败的输出，rev落后及topic内已声明修订不一致及其 report 模式、出处缺 rev、
+形态缺失/非法/变体的父无效或往上找不到对象、未定词条须出现在 conflicts、词条 ID 重复、索引与分卷不一致、
+封存修订表与封存出处、产品 topic 元数据与别名路径。
 
 ## Agent 编译
 

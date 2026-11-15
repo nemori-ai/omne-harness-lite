@@ -31,11 +31,6 @@ const evidence = (value: unknown) =>
       typeof value[key as keyof typeof value] === 'string' &&
       String(value[key as keyof typeof value]).length > 0,
   )
-/**
- * Whether the fixed Tool request that the judgment preserved allows background: the request lives
- * in its material, not in the checkpoint (agent-contract SPEC "工具执行与结果承接" 10). A material
- * that is not kept, or not a fixed request, allows nothing.
- */
 function backgroundAllowed(root: CommonRoot, request: DurableEvidence): boolean {
   const kept = root.receiving.materials.get(canonical(request))
   if (kept === undefined || kept.value.kind !== 'facts') return false
@@ -47,7 +42,6 @@ function backgroundAllowed(root: CommonRoot, request: DurableEvidence): boolean 
   return node?.kind === 'boolean' && node.value
 }
 
-/** Captured only inside the authenticated original Agent commit, before the common publication. */
 export function captureBackground(
   root: CommonRoot,
   execution: MemoryExecution,

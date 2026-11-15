@@ -1,5 +1,3 @@
-// The root entry of the Session contract: the values and identities, the four faces, the ports,
-// the pure domain services, `decide`, `reduce` and the block declaration. No Cordis here.
 export type {
   Adoption,
   AdvanceRef,

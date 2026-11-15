@@ -17,7 +17,7 @@ relations:
 
 - [产品正文](design.md)保留需求、能力、状态、阶段及未决。
 - [领域责任](../../../../docs/domains/sessions-and-work/README.md)定位业务归属。
-- [能力组](../../../../packages/session/README.md)定位成员行为与机制。
+- [能力组](../../../../packages/session/SPEC.md#总体架构)定位成员行为与机制。
 
 ## 维护
 

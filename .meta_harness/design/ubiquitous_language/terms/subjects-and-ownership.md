@@ -295,7 +295,7 @@
 - **别混 ①**：**不是[租户角色](#ul-tenant-role--租户角色--tenant-role)。**角色答「这个身份**能做什么**」，效力答「这个身份**此刻算不算数**」。有效时两样同时成立，[角色调整不改变效力](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/flows.md#33-成员关系)
 - **别混 ②**：**不是[租户](#ul-tenant--租户--tenant)本身。**租户身份是 (组织, 账号) 这一组合**确定的值，不生不灭**；**有效性才是有状态、有写路径、有并发约束的那一面**
 - **别混 ③**：**[PF-001 flows §3.3 把这件事叫作「成员关系」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/flows.md#33-成员关系)**，那一节画的「无 → 成员 → 无」正是这两个取值。
-  [领域对象那边已把「成员关系」并入租户](../../domain_objects/objects.md#ul-tenant--租户)，分界是**身份是值、有效性是记录**；**本词条就是「有效性」那一面的正式名**，不是第二个对象
+  它与租户的分界是**身份是值、有效性是记录**；**本词条就是「有效性」那一面的正式名**，不是第二个对象
 - **⚠️ 注意 ①**：**「目标范围不可用」不是它的第三个取值。**[§6.4 把「目标范围不可用」与「成员失权」并列](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)，
   两者**收场相同**——**明确失败，不静默回退到个人范围**；但**前者是这一次判不出来，后者是判出来的结果是无效**。
   把不可用读成无效，写出来的就是「那就降级到个人范围」这类静默回退
@@ -445,7 +445,7 @@
 > The session uses it to show its origin to capabilities such as Agent while it does its work.
 
 - **形态**：属性
-- **出处**：[ID-16 签发与核验](../../../../packages/identity/SPEC.md#主体的签发与核验) · [Session 契约的端口表](../../../../packages/session/session-contract/SPEC.md)；[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)
+- **出处**：[ID-16 签发与核验](../../../../packages/identity/SPEC.md#主体的签发与核验) · [Session 契约的端口表](../../../../packages/session/SPEC.md#领域边界)；[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)
 - **别混**：原工作关联为登录的代租户行事主体不是它——那一种的 `work.owner` 是 `identity-login`，工作拥有者是 identity。它也不是[系统主体](#ul-system-principal--系统主体--system-principal)：它带租户
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

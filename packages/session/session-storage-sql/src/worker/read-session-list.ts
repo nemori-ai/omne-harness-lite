@@ -1,6 +1,3 @@
-// The session list of one tenant (SPEC「提交的时刻与会话列表」): latest activity first, the session
-// as the second key, sessions without a time after the others. Keyset pages: the key of a row is its
-// time and its session. Three segments, each one bounded range scan of the activity index.
 import type { SqlValue } from '@omne-harness/sql-contract/worker'
 import { SESSION_LIST_SCAN_ROWS } from './schema.ts'
 import { handler, rowsOf, text, type Executor, type Row } from './support.ts'
@@ -24,7 +21,6 @@ const COLUMNS = 'session, created_at, last_activity_at, lifecycle, title'
 const nullable = (cell: Row[string] | undefined): string | null =>
   cell === null || cell === undefined ? null : text(cell)
 
-/** The segments after `after`, in page order: each a WHERE clause after the tenant and its parameters. */
 function segments(after: Key | null): readonly (readonly [string, readonly SqlValue[]])[] {
   const timed = 'last_activity_at IS NOT NULL ORDER BY last_activity_at DESC, session'
   const untimed = 'last_activity_at IS NULL AND session > ? ORDER BY session'
@@ -41,7 +37,6 @@ function segments(after: Key | null): readonly (readonly [string, readonly SqlVa
   ]
 }
 
-/** The rows after `after` in page order, at most `bound` of them. */
 function* scan(port: Executor, tenant: string, after: Key | null, bound: number): Iterable<Row> {
   let left = bound
   for (const [where, params] of segments(after)) {
@@ -69,9 +64,7 @@ export default handler('session.list', (raw, port) => {
     throw new Error('invalid input')
   const items: Item[] = []
   let scanned = 0
-  // Where the next page goes on: the last scanned row while the page fills, then its last item.
   let last: Key | null = null
-  // One row beyond the scan bound tells a full scan from the end of the list.
   for (const row of scan(port, input.tenant, input.after, SESSION_LIST_SCAN_ROWS + 1)) {
     const key = { at: nullable(row['last_activity_at']), session: text(row['session']) }
     const full = items.length === input.limit

@@ -1,6 +1,4 @@
 import type { TodoMutationReceipt, TodoPage, TodoPageCursor } from './todos.ts'
-// The four caller faces and their results (SPEC「四个面与公开操作」). Behavior, eligibility and
-// recall are in the SPEC; this file gives the shapes only.
 import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { Message } from '@omne-harness/message'
@@ -61,7 +59,6 @@ export type SessionFailure =
   | Readonly<{ kind: 'commit-unknown'; operation: SessionOperationId }>
   | Readonly<{ kind: 'unavailable'; owner: string; diagnostic: string }>
   | Readonly<{ kind: 'quarantined'; diagnostic: string }>
-  /** Only `stopCall` returns it: the Tool target is refused until the settlement schema is adopted. */
   | Readonly<{ kind: 'unsupported' }>
   | Readonly<{ kind: 'terminal'; terminal: RunTerminal }>
   | Readonly<{ kind: 'stale-advance'; current: AdvanceRef | null }>
@@ -98,7 +95,6 @@ export type StartedRun = Readonly<{
   first: InputId
   execution: string
 }>
-/** The processed hand-over of one result version. The message, if any, arrives by the message hand-over. */
 export type Completion = Readonly<{
   consumption: ConsumptionId
   result: ProducedResult
@@ -118,11 +114,6 @@ export type AdmittedMessage = Readonly<{
   consumption: ConsumptionId | null
 }>
 
-/**
- * The adoption material of `startRun` and `reload`, with the freeze verdict that the adoption
- * point proved. A verdict makes the decision answer `frozen` and commit nothing. `create` takes
- * the bare `ResidentAdoption`: a new session has no resident shape to lose.
- */
 export type StartAdoption = ResidentAdoption & Readonly<{ verdict?: FreezeVerdict }>
 
 export interface SessionWork<P> {
@@ -146,10 +137,6 @@ export interface SessionWork<P> {
         residentAdoption?: StartAdoption
       }>,
   ): Reply<StartedRun>
-  /**
-   * `expected` is the Run-layer revision the claimant read (SPEC PM-05, R2-D327, R2-D343). Of two
-   * claimants that read the same Run layer only the first holds; the second gets `stale-advance`.
-   */
   claim(
     input: Mutation<P> &
       Readonly<{
@@ -229,13 +216,10 @@ export interface SessionWork<P> {
     input: SessionAccess<P> & Readonly<{ operation: SessionOperationId }>,
   ): Reply<OperationResolution>
   loadRecovery(input: SessionAccess<P>): Reply<WorkSnapshot>
-  /** The saved model selection and its original evidence; never the call permit (XC-MODELSEL). */
   readModelSelection(input: SessionAccess<P>): Reply<SessionModelSelection>
-  /** Failures: denied, invalid, conflict, commit-unknown, unavailable, quarantined. */
   cancelRun(
     input: Mutation<P> & Readonly<{ run: RunId; urgency: 'graceful' | 'force' }>,
   ): Reply<SessionControlReceipt<RunTerminal>>
-  /** Failures: those of `cancelRun`, and `unsupported` for a Tool target. */
   stopCall(
     input: Mutation<P> & Readonly<{ producer: ProducerRef }>,
   ): Reply<SessionControlReceipt<SessionCallTerminal>>
@@ -275,11 +259,9 @@ export interface SessionManagement<P> {
         decision: DurableEvidence
       }>,
   ): Reply<Readonly<{ receipt: CommitReceipt; progress: ControlProgress }>>
-  /** Idempotent by state: a frozen session returns the original receipt with recovered = true. */
   freeze(input: Mutation<P> & Readonly<{ verdict: FreezeVerdict }>): Reply<CommitReceipt>
 }
 
-/** Producer reports. Agent log interpretation uses the Session-owned projection seam, not an event-copy input. */
 export type ProducerFact =
   | Readonly<{
       kind: 'input-handover'
@@ -317,7 +299,6 @@ export type ProducerFact =
       source: DurableEvidence
     }>
 
-/** Every value is decided from the snapshot alone, so the index stays exact at commit time. unresolved: unknown operations; controls: a control stays propagating; tasks: tasks non-empty; inputs: pending inputs non-empty; run: an unfinished Run exists; idle-armed: auto-archive is enabled, not exempt, and no Run is unfinished, so the scanner asks judgeIdle whether it is due; release: a preserved or processed result still waits for delivery release. */
 export type PendingReason =
   | 'initialization'
   | 'unresolved'
@@ -327,14 +308,12 @@ export type PendingReason =
   | 'run'
   | 'idle-armed'
   | 'release'
-/** One session that references a resident key. Carries the first-loaded shape, never the definition body. */
 export type ResidentReference = Readonly<{
   tenant: TenantId
   session: SessionId
   capability: string
   shape: JsonValue
 }>
-/** One scope that an archive released, read back from SE25. task is the original scope-release operation. */
 export type ReleasedScope = Readonly<{
   tenant: TenantId
   session: SessionId
@@ -352,7 +331,6 @@ export interface SessionReconciliation<P> {
       reason?: PendingReason
     }>,
   ): Reply<Readonly<{ sessions: readonly SessionId[]; next: string | null }>>
-  /** System scope. No SessionAccess<P>: the query spans tenants and returns identities and shapes only. */
   references(
     input: Readonly<{
       principal: P
@@ -362,7 +340,6 @@ export interface SessionReconciliation<P> {
       limit: number
     }>,
   ): Reply<Readonly<{ sessions: readonly ResidentReference[]; next: string | null }>>
-  /** System scope. Pages through scopes that archives released, for re-release after an execution-environment provider change. */
   releasedScopes(
     input: Readonly<{ principal: P; scope: 'system'; after: string | null; limit: number }>,
   ): Reply<Readonly<{ scopes: readonly ReleasedScope[]; next: string | null }>>
@@ -384,10 +361,8 @@ export type HistoryPage = Readonly<{
   scannedThrough: string
   next: string | null
   exhausted: boolean
-  /** SE33 entries committed up to upper whose target lies in this page but which are not in entries. */
   annotations: readonly HistoryEntry[]
 }>
-/** One model-visible sequence between two compactions. upper is the last row committed when the basis was taken. */
 export type ModelViewBasis = Readonly<{ epoch: string; upper: string }>
 export type ModelViewRow = Readonly<{
   seq: string
@@ -419,16 +394,11 @@ export interface SessionHistory<P> {
     input: SessionAccess<P> &
       Readonly<{ after: EntryId; kinds: readonly string[]; pageBytes: number }>,
   ): Reply<HistoryPage>
-  /** basis null reads the current epoch. A basis whose epoch is no longer current returns epoch-changed. */
   readModelView(
     input: SessionAccess<P> &
       Readonly<{ basis: ModelViewBasis | null; after: string | null; pageBytes: number }>,
   ): Reply<ModelViewRead>
 }
-/**
- * One row of the session list: a projection from the session log and the commit times (SPEC
- * 「会话列表」). A time is UTC text, or null when the commit carries no time.
- */
 export type SessionListItem = Readonly<{
   session: SessionId
   createdAt: string | null
@@ -436,7 +406,6 @@ export type SessionListItem = Readonly<{
   lifecycle: WorkSnapshot['lifecycle']
   title: string | null
 }>
-/** The read face over the sessions of one tenant. Eligibility: a principal of the target tenant. */
 export interface SessionDirectory<P> {
   list(
     input: Readonly<{
@@ -454,7 +423,6 @@ export interface SessionDirectory<P> {
     }>
   >
 }
-/** The four faces as one value. The Cordis abstract class SessionService in session-cordis-contract exposes them under the key `session`. */
 export type SessionFaces<P> = Readonly<{
   work: SessionWork<P>
   management: SessionManagement<P>

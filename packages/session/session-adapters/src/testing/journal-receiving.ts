@@ -53,12 +53,6 @@ export type Stored = {
 }
 type Qualification = 'allowed' | 'denied' | 'unavailable'
 export type JournalReceivingControls<P> = ReturnType<typeof createJournalReceiving<P>>['controls']
-/**
- * The scripted fault of the next `record` of one execution that reaches its write step; the same
- * shape as the conformance suite's `RecordFault`. `commit-unknown` with outcome `applied`: the
- * entry and its event are written, only the reply is lost. `unavailable`: the call fails before
- * publication and leaves neither.
- */
 export type RecordFault =
   | Readonly<{ kind: 'commit-unknown'; outcome: 'applied' }>
   | Readonly<{ kind: 'unavailable' }>
@@ -75,7 +69,6 @@ type Hooks<P> = {
   mutate<T>(action: () => T): T
   touch(): void
   namespace: string
-  /** Whether the batch of `operation` is in the folded view, so a new operation can recognize it. */
   indexed(operation: AgentOperationId): boolean
   operationKey(
     tenant: TenantId,
@@ -100,13 +93,7 @@ type Hooks<P> = {
     evidence: DurableEvidence,
     state: CommandReceipt['state'],
   ): CommandReceipt
-  /** The evidence of the batch the running write appends under `key`, reaching `revision`. */
   ownEvidence(execution: AgentExecutionId, key: string, revision: number): DurableEvidence
-  /**
-   * Allocates the `entry` event of a written entry inside the same transaction (SPEC "日志条目"
-   * 6): the next sequence under the latest established attachment, `cause` the evidence of the
-   * receipt; nothing after the execution ended.
-   */
   projectEntry(execution: MemoryExecution, entry: AgentJournalEntry, cause: DurableEvidence): void
 }
 const unavailable = (diagnostic: string): Failure => ({
@@ -136,16 +123,10 @@ const deliveryText = <P>(
     entry.delivery.producer,
     entry.delivery.key,
   ])
-/**
- * The semantic key of a received commit: the digest of the entry and the material, never their
- * text. The key is the envelope digest of the batch (one fact row of at most 4 KiB), and a material
- * is larger than that.
- */
 const textOf = <P>(input: Input<P>) =>
   `received:sha256:${createHash('sha256')
     .update(canonical({ entry: input.entry, material: input.material }))
     .digest('hex')}`
-/** The producer call a received entry refers to: the delivery key without the material. */
 function receivedCall(entry: ReceivedEntry): ProducerCall {
   const key = entry.delivery.key
   return {
@@ -157,10 +138,6 @@ function receivedCall(entry: ReceivedEntry): ProducerCall {
   }
 }
 
-/**
- * The `result.received` fact of a saved entry: identities, the custody reference, saved, and the
- * material the delivery carried (a reference to its block; null for a record without it).
- */
 function receivedFact(
   entry: ReceivedEntry,
   saved: DurableEvidence,
@@ -227,10 +204,8 @@ export type ReceivingState = {
   targets: Map<string, ModelReceptionTarget>
   callTargets: Map<string, ModelReceptionTarget>
   executionTargets: Map<string, ModelReceptionTarget[]>
-  /** The original binding of each associated Tool call, by tenant and call reference (R2-D273). */
   toolTargets: Map<string, ToolReceptionTarget>
 }
-/** The evidence a material key names: the key is the canonical text of the evidence, plain JSON. */
 const materialSourceOf = (key: string): DurableEvidence => JSON.parse(key) as DurableEvidence
 
 export function emptyReceivingState(): ReceivingState {
@@ -292,12 +267,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     if (kept.saved === null) return fail({ kind: 'unsupported' })
     return succeed(structuredClone({ entry: kept.entry, receipt: kept.receipt, saved: kept.saved }))
   }
-  /**
-   * The answer of the original commit of `input`'s operation, when it holds an alias. The same
-   * operation with the same input is that commit: it is answered without a write. An alias written
-   * again would change the records, and the session-log provider would publish a change that holds
-   * nothing new.
-   */
   const recommitted = (
     input: Input<P>,
     previous: ReturnType<ReturnType<Hooks<P>['operations']>['get']>,
@@ -326,14 +295,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       ? undefined
       : conflict(input)
   }
-  /**
-   * Another operation for a saved delivery recognizes the operation that saved it (R2-D292
-   * "原操作认回"): one `op.recognized` batch that recalls, so the receipt derived from it is the
-   * saving operation's own (JC-Release: one delivery, one receipt), warm or cold; no new revision;
-   * the original value as its answer; and the new operation an alias of the delivery in the reader
-   * records. The saving operation is in the folded view, which is the fold of the whole published
-   * log; one the view lacks is a defect of the fold, answered as unavailable.
-   */
   const recognizing = <R>(input: ExecutionMutation<P>, kept: Kept, value: () => R): Attempt<R> => {
     if (!hooks.indexed(kept.receipt.operation))
       return {
@@ -499,8 +460,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     async record(original) {
       const input = { ...original, entry: structuredClone(original.entry) }
       const text = semanticKey('record', { entry: input.entry, authority: input.authority })
-      // The scripted fault this call consumed at its write step, if any; a refused call and a
-      // call that recalls an original receipt never reach that step.
       let scripted: RecordFault | undefined
       const outcome = await hooks.write('record', input, text, () => {
         const found = qualified(input, input.entry.kind === 'received')
@@ -541,7 +500,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
             return recognizing(input, kept, () => structuredClone(kept.receipt))
           }
         }
-        // The write step: the only place a scripted fault of this execution is consumed.
         scripted = recordFaults.get(executionText(input))
         if (scripted !== undefined) {
           recordFaults.delete(executionText(input))
@@ -586,8 +544,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           },
         }
       })
-      // A lost reply: the write took effect, the caller gets commit-unknown and recalls it by
-      // the same operation.
       return scripted?.kind === 'commit-unknown' && 'ok' in outcome
         ? fail({ kind: 'commit-unknown', operation: input.operation })
         : outcome
@@ -627,13 +583,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     },
   }
   const materialPort: AgentMaterials<P, ContentBlock> = {
-    /**
-     * A preserve is a write of the log like every other: a new material appends a batch of one
-     * `material.preserved` fact naming its source and the block that holds it (no revision), under
-     * an operation derived from the material's identity, so a retry recognizes it and a material
-     * kept already answers its source without a batch. The position of the publication is the
-     * batch's.
-     */
     async preserve(input) {
       if (!tenantCodec.encode(input.tenant).ok) return fail(denied())
       const source = journalEvidence(
@@ -678,9 +627,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           if ('failure' in permission) return answer(permission)
         }
         if (old) return answer(succeed(source))
-        // Addressed by content (agent-contract SPEC "扩展、卡片与材料"): the same content of the same
-        // execution is the material already kept, under whatever identity it was first preserved.
-        // This bridge finds it by a scan; the content-addressed store is the provider's obligation.
         const content = canonical(input.value)
         for (const [kept, record] of hooks.state().materials)
           if (
@@ -715,9 +661,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     async read(input) {
       return readMaterial(input, input.source)
     },
-    // The bridge of the content description (agent-contract SPEC "扩展、卡片与材料"): the digest of
-    // the canonical content, its size in bytes and its kind. Addressing the store by content is
-    // the obligation of the provider's own store; this bridge only describes what it keeps.
     async describe(input) {
       const material = readMaterial(input, input.source)
       if ('failure' in material) return material
@@ -772,11 +715,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     fault(input: ExecutionMutation<P>, point: 'before-publish' | 'after-publish') {
       faults.set(operationKey(input), point)
     },
-    /**
-     * Scripts the next `record` on `execution` that reaches its write step. A refused call and a
-     * call that recalls an original receipt do not consume it; the fault of a later arrangement
-     * replaces an unconsumed one.
-     */
     failNextRecord(input: Access<P> & { execution: AgentExecutionId }, fault: RecordFault) {
       recordFaults.set(executionText(input), fault)
     },
@@ -832,21 +770,17 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       const requested = resolveModelInvocationRef(input.reference, input.access.tenant)
       if ('failure' in requested) return fail(denied())
       const found = hooks.state().callTargets.get(targetKey(input.access, requested.ok.call))
-      // A route names the execution whose records are read; a binding of another one is absent.
       if (!found || (input.execution !== undefined && input.execution !== found.execution))
         return fail(denied())
       const permission = qualified({ ...input.access, execution: found.execution })
       return 'failure' in permission ? permission : succeed(structuredClone(found))
     },
   }
-  // The Tool bindings are kept from the committed associated PendingCalls (`remember`). The provider
-  // checks the access of the routed execution before it reveals a binding or its absence.
   const toolTargetPort: ToolReceptionTargets<P> = {
     async forExecution(input) {
       const access = { ...input.access, execution: input.execution }
       const permission = qualified(access)
       if ('failure' in permission) return permission
-      // The reference carries its tenant: a binding of another tenant does not resolve under this one.
       return succeed(
         structuredClone(
           [...hooks.state().toolTargets.values()].filter(
@@ -862,12 +796,10 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
         return fail(denied())
       const found = hooks.state().toolTargets.get(targetKey(input.access, input.reference))
       const route = input.execution ?? found?.execution
-      // Without a route an absent binding names no execution to check the access on.
       if (route === undefined) return fail(denied())
       const permission = qualified({ ...input.access, execution: route })
       if ('failure' in permission) return permission
       if (found === undefined) return succeed(null)
-      // A route names the execution whose records are read; a binding of another one is absent.
       if (found.execution !== route) return fail(denied())
       return succeed(structuredClone(found))
     },
@@ -887,13 +819,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     controls,
     targets: targetPort,
     toolTargets: toolTargetPort,
-    /**
-     * The bindings an open or a commit establishes, as facts of its batch: one `target.bound` per
-     * pending call the execution holds (a Tool intent not yet associated apart) that no earlier
-     * batch bound for this execution. Computed before the batch from the checkpoint and effects
-     * the write commits; `applyBindings` projects the same facts into the receiving state, and a
-     * cold start folds them from the family (`bindOf` in `journal-records.ts`).
-     */
     newBindings(
       execution: Pick<MemoryExecution, 'id' | 'tenant' | 'checkpoint' | 'effects'>,
       instance: AgentInstanceId,
@@ -931,7 +856,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
         pendings,
       }
     },
-    /** Projects the bindings of a batch of `execution` into the receiving state. */
     applyBindings(execution: Pick<MemoryExecution, 'id' | 'tenant'>, bound: NewBindings) {
       for (const pending of bound.pendings)
         bindTarget(hooks.state(), execution, bound.instance, bound.definition, pending)
@@ -939,7 +863,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
   }
 }
 
-/** The bindings an open or a commit establishes: the facts of its batch, their blocks, the values. */
 export type NewBindings = Readonly<{
   instance: AgentInstanceId
   definition: Adoption
@@ -948,12 +871,6 @@ export type NewBindings = Readonly<{
   pendings: readonly PendingCall[]
 }>
 
-/**
- * One binding applied to a receiving state (the writer's at a commit, the projection's at a cold
- * start, the same way): the pending list of the reference, the consumer position of the call, the
- * first Tool binding of an associated call, and the first Model target of the reference with its
- * call key and the execution's list.
- */
 export function bindTarget(
   state: ReceivingState,
   execution: Pick<MemoryExecution, 'id' | 'tenant'>,
@@ -961,7 +878,6 @@ export function bindTarget(
   definition: Adoption,
   pending: import('@omne-harness/agent-contract').PendingCall,
 ): void {
-  // A Tool intent not yet associated has no reference to bind.
   if (pending.kind === 'tool' && pending.association !== 'associated') return
   const tenant = tenantText(execution.tenant)
   const keyOf = (reference: string) => canonical([tenant, reference])

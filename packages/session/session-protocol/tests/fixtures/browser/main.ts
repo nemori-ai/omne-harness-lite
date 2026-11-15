@@ -1,6 +1,3 @@
-// A browser consumer of session/v1. It imports only the root entry, so the `source` condition
-// compiles the contract and its dependencies with the DOM library and without Node types
-// (RFC-0015 I-18).
 import { sessionProtocol, type ObserveSessionFrame } from '@omne-harness/session-protocol'
 
 const limits = {
@@ -12,7 +9,6 @@ const limits = {
   maxNumberLength: 32,
 }
 
-/** Writes a `refreshing` frame, reads it back, and returns one line for each step. */
 export function run(): readonly string[] {
   const { frame } = sessionProtocol.observations['observe-session']
   const refreshing: ObserveSessionFrame = { kind: 'refreshing' }

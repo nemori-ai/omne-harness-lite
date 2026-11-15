@@ -1,7 +1,7 @@
 import { compositeManifestDigest } from '../session-storage/composite.ts'
 import { storageCatalog } from '../storage/catalog.ts'
 
-export const COMBINATION_VERSION = 'session-composite/12'
+export const COMBINATION_VERSION = 'session-composite/13'
 
 export type AgentJournalCombination = Readonly<{
   combinationVersion: string

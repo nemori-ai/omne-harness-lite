@@ -1,7 +1,3 @@
-// The explicit access check at the public transaction boundary of the common-journal double
-// (session-contract SPEC「当前操作的访问裁定」): `createMemorySessionJournal` requires `accessCheck`,
-// `transactions.commit` carries the caller's access, every public read and write asks once before
-// any effect, and the internal commit paths are not exposed on the public transactions object.
 import { describe, expect, expectTypeOf, it } from 'vitest'
 import type { ResidentKey, SessionCommand } from '@omne-harness/session-contract'
 import {
@@ -143,7 +139,6 @@ describe('the common-journal double requires the explicit access check', () => {
     expect(await s.port.queryOperation({ ...access, operation })).toMatchObject({
       failure: { kind: 'unavailable', diagnostic: expect.stringContaining('directory down') },
     })
-    // The same reads answer once the check allows them: the refusals above hid real answers.
     expect(await s.port.readInput({ ...access, input })).toMatchObject({ ok: { input } })
     expect(await s.port.queryOperation({ ...access, operation })).toMatchObject({
       ok: { kind: 'committed' },

@@ -1,8 +1,3 @@
-// `contextScopesOf` answers the Context scopes of a session from its SE27/SE28 entries alone. What is
-// checked: over archive and unarchive cycles it gives the same generations, references and ends as
-// the reduced snapshot, whatever the order of the entries; a binding minted for another session, an
-// entry of another kind and a payload that does not decode fail the whole; `contextScopeOf` is the
-// reference that the reducer mints.
 import { describe, expect, it } from 'vitest'
 import {
   CONTEXT_SCOPE_KINDS,
@@ -46,7 +41,6 @@ describe('contextScopesOf', () => {
     expect(succeeded(contextScopesOf(s.base, [...changing].reverse()), 'backward')).toEqual(
       expected,
     )
-    // The two kinds read apart, as a reader of the kind index reads them, give the same answer.
     const byKind = CONTEXT_SCOPE_KINDS.flatMap(kind => changing.filter(item => item.kind === kind))
     expect(succeeded(contextScopesOf(s.base, byKind), 'by kind')).toEqual(expected)
   })

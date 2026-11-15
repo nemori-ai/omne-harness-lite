@@ -9,12 +9,12 @@ symbols:
   - "fiber.ts: 取出后由 Promise.all 并发驱动，异常只写日志不上抛"
   - "fiber.ts: UNLOADING 或已 dispose 后再建 effect 抛 CordisError('INACTIVE_EFFECT')"
 lines:
-  - "fiber.ts:80-82"
+  - "fiber.ts:427-442"
   - "utils.ts:27-31"
   - "fiber.ts:675-686"
-  - "fiber.ts:349-353"
+  - "fiber.ts:351-354, 418-422"
 probe: packages/assembly/kernel-basis/tests/effect-disposal-concurrent-not-ordered.spec.ts
-checked: 2026-09-22
+checked: 2026-11-15
 ---
 
 # effect 之间的释放是并发的，逆序只约束取出
@@ -39,13 +39,14 @@ checked: 2026-09-22
 
 | symbol / 语义位置 | 读到了什么 | 怎样复核 |
 |---|---|---|
-| `fiber.ts` 单 effect 内 | disposer 逆序释放 | 一个 effect 注册多个 disposer，观察释放顺序 |
-| `utils.ts` + `fiber.ts` 卸载 | 逆注册序取出，`Promise.all` 并发驱动 | 注册两个耗时不同的 effect，观察后者未必先完成 |
-| `fiber.ts` 异常处理 | 异常只写日志不上抛 | 令一个 disposer 抛错，观察卸载照常完成且调用方无感 |
+| `fiber.ts` 单 effect 内（427–442 行） | disposer 逆序释放 | 一个 effect 注册多个 disposer，观察释放顺序 |
+| `utils.ts` + `fiber.ts` 卸载（27–31、675–686 行） | 逆注册序取出，`Promise.all` 并发驱动 | 注册两个耗时不同的 effect，观察后者未必先完成 |
+| `fiber.ts` 异常处理（683–685 行） | 异常只写日志不上抛 | 令一个 disposer 抛错，观察卸载照常完成且调用方无感 |
+| `fiber.ts` 建 effect（351–354、418–422 行） | fiber 已 dispose 或处于 UNLOADING 时抛 `INACTIVE_EFFECT` | 卸载后在其 ctx 上再建 effect |
 
-## probe 断言什么
+## 探针断言什么
 
-probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行。对 4.0.4 通过（2026-09-22）；2026-10-22 迁入该成员后对 4.0.4 复跑通过：
+探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
 
 1. 先注册的 effect 其 disposer 延时 50ms，后注册的延时 0ms；卸载后完成顺序是「快的先」——
    逆注册序只约束取出，完成顺序由耗时决定，即并发。若上游改为顺序 await，此断言失败，本条目失效。
@@ -58,7 +59,7 @@ probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行�
 **把需要持久的状态放进 effect。**effect 是**内存生命周期**：卸载即释放。
 任何要在插件重启后依然成立的事实都不能只存在于 effect 中。
 
-本项目的一个具体例子：登录态的**撤销**若实现为 effect 的释放，
+一个具体例子：登录态的**撤销**若实现为 effect 的释放，
 则插件重启后撤销记录消失，「退出登录后不得再访问」的安全性质在重启后失守——
 而这不会有任何报错。撤销必须是持久记录。
 

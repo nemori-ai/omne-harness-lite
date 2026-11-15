@@ -1,5 +1,4 @@
 // @module-tag slow
-// Why slow: Session faces over the real SQLite provider and its Workers.
 import { afterEach, expect, it } from 'vitest'
 import { operationId, succeeded } from '@omne-harness/session-contract/testing'
 import { harness, type Harness } from './fixtures/harness.ts'

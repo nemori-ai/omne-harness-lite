@@ -12,7 +12,6 @@ import {
   type InitializationGuardResult,
 } from './initialization-schema.ts'
 
-/** Assumes adoption of the named definition and caller-supplied resident keys. Missing keys default to an empty list. */
 export function adoptedInitializationFixture(
   command: Extract<InitializationCommand, { kind: 'create' }>,
 ): InitialAdoption {
@@ -33,7 +32,6 @@ export function adoptedInitializationFixture(
   }
 }
 
-/** Produces materials only. A transaction still requires its explicitly registered test source. */
 export function initializationFixtureFacts(
   command: InitializationCommand,
   snapshot: WorkSnapshot | null,

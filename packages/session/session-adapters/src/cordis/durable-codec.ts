@@ -1,7 +1,3 @@
-// The durable form of a plain data value of the Agent side, for the records this member keeps
-// outside the fact family (the preadmission records of `message-handoff.ts`): maps, sets, minted
-// identities, bigints and undefined have marked forms, so a decoded value equals the encoded one.
-// A function and a class instance are not data: they are refused.
 import { tenantCodec, workspaceCodec } from '@omne-harness/legal-identity'
 import type { JsonValue } from '@omne-harness/sql-contract'
 

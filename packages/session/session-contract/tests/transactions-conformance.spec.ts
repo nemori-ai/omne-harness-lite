@@ -1,6 +1,3 @@
-// Self-proof of the SessionTransactionPort suite: it passes on the conforming in-memory port and
-// on the same port without the second tenant (the cross-tenant case is then not applicable), and
-// each case fails under a violating variant that breaks the rule of that case.
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
 import type { SessionCommand, SessionTransactionPort } from '@omne-harness/session-contract'
@@ -57,7 +54,6 @@ const NAMES = {
 type Fixture = SessionTransactionsFixture<string>
 type Port = SessionTransactionPort<string>
 
-/** A fixture whose port is the conforming port with `build(real)` laid over it. */
 function variant(build: (real: Port) => Partial<Port>): () => Fixture {
   return () => {
     const base = memorySessionTransactionsFixture()
@@ -267,7 +263,6 @@ const variants: readonly Variant<Fixture>[] = [
     name: 'startRun opens an interactive Run without reading the origin of its first input',
     fails: [NAMES.login],
     fixture: variant(real => ({
-      // The provider skips the gate: it decides every start as a dispatch start.
       commit: (async input =>
         real.commit(
           input.command.kind === 'startRun'

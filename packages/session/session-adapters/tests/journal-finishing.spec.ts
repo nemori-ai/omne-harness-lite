@@ -1,9 +1,3 @@
-// The finishing rules of the session-log Journal as the public ports answer them (Agent SPEC
-// "条件终结", "终结责任清单", "取消路线上的 tryFinish", "commitSettlement 的变体"; the judgment
-// order table of the S2/S3 gate rulings): the shape of a settling commit, the closure that
-// prepareFinish issues and tryFinish rebuilds, and the order of the answers. The shared
-// conformance suite of agent-contract holds both Journals to the same rules; these cases pin the
-// session-log binding meanwhile.
 import { describe, expect, it } from 'vitest'
 import {
   decodeActionId,
@@ -32,7 +26,6 @@ type Scene = Awaited<ReturnType<typeof scene>>
 const load = async (s: Scene) =>
   ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
 
-/** One commit of the current attachment on the loaded snapshot; `change` overrides its members. */
 async function commit(
   s: Scene,
   name: string,
@@ -57,7 +50,6 @@ async function commit(
   })
 }
 
-/** The F1 content of an ordinary completion on `snapshot`. */
 function completion(snapshot: ExecutionSnapshot, name: string): JournalCommit<string>['finish'] {
   return {
     origin: evidence(`${name}-origin`),
@@ -68,7 +60,6 @@ function completion(snapshot: ExecutionSnapshot, name: string): JournalCommit<st
   }
 }
 
-/** The Agent cancel `control` accepted and its intent reached: an effective cancel. */
 async function effectiveCancel(s: Scene, control: AgentOperationId) {
   ok(
     await s.view.journal.control({
@@ -159,7 +150,6 @@ function settlingIntent(snapshot: Snapshot) {
   return snapshot.state.intent
 }
 
-/** tryFinish of the projection of `ready` under `authorization` (an advancement by default). */
 function finish(
   s: Scene,
   ready: Snapshot,
@@ -185,7 +175,6 @@ function cancelAuthorization(snapshot: Snapshot, control: AgentOperationId) {
   return { kind: 'cancel' as const, control, source: record.stages.accepted.source }
 }
 
-/** The members every candidate and judgment request shares, at the current revision. */
 async function settlementCommon(s: Scene, name: string, control: AgentOperationId) {
   const snapshot = await load(s)
   return {
@@ -237,7 +226,6 @@ async function prepare(
   })
 }
 
-/** A cancel `control` whose intent is still unresolved: a pending controls item. */
 async function unresolvedCancel(s: Scene, control: AgentOperationId) {
   ok(
     await s.view.journal.control({
@@ -274,7 +262,6 @@ async function reachIntent(s: Scene, control: AgentOperationId) {
   )
 }
 
-/** The internal request of a Model reply at I3 of the loaded step. */
 function replyRequest(s: Scene, snapshot: Snapshot, name: string): PendingHandoff {
   const call = ok(decodeModelCallId(`mcall_${'0'.repeat(20)}${name.slice(-2).padStart(2, '0')}`))
   return {
@@ -365,7 +352,6 @@ describe('the author route reads the closure tryFinish rebuilds', () => {
     expect(snapshot.results).toEqual([])
     const ready = await prepareEnd(s)
     const calls = ready.finishObligations?.items.filter(item => item.kind === 'call')
-    // Only the call whose consumption the entry names is settled; the other stays unknown.
     expect(calls?.find(item => item.key === tool.pending.action)?.disposition).toMatchObject({
       kind: 'settled',
       completion: received.value.entry.material,

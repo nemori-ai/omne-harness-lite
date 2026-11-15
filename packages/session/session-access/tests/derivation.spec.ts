@@ -1,7 +1,3 @@
-// The derived identities are pinned to the server entry's: the same inputs give the same bytes, so a
-// message sent again through `session/v1` finds the session and the operations the session location
-// derived (RFC-0015 §7「派生标识用的文本不改」). The entry's functions are read from its source, as
-// its package entry does not export them.
 import { describe, expect, it } from 'vitest'
 import * as entry from '../../../access/server-entry/src/derivation.ts'
 import * as moved from '../src/derivation.ts'

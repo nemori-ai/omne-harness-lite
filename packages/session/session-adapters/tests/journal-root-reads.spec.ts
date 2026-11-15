@@ -1,8 +1,3 @@
-// When the session-log Journal reads the common root of a session (SPEC「已发布计数由本进程保管」).
-// The publication count has one writer in a process: the publications of the Journal providers
-// over one storage. So what they published and read is the count, and a call reads the root only
-// when the process cannot know it: nothing was read yet, or a publication did not answer plainly.
-// On the node:sqlite double that records every handler read.
 import { expect, it } from 'vitest'
 import { ok } from './fixtures/common-journal.ts'
 import { admitted, applied, load, opened, prepared } from './fixtures/main-reply.ts'
@@ -12,7 +7,6 @@ const ROOT = 'session.history-root'
 const rootReads = (s: SqlScene): number =>
   (s.controls?.reads ?? []).filter(handler => handler === ROOT).length
 
-/** A scene whose provider published once: the main reply Ja. */
 async function published(name: string) {
   const { s, authority } = await opened(name)
   const request = await prepared(s, authority, 'model-reply')
@@ -46,7 +40,6 @@ it('a publication whose outcome is unknown makes the next call read the root', a
   const before = rootReads(s)
   await load(s)
   expect(rootReads(s)).toBeGreaterThan(before)
-  // The lost reply committed: the root read confirms the count, and the calls after it trust it.
   const confirmed = rootReads(s)
   await load(s)
   expect(rootReads(s)).toBe(confirmed)

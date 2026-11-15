@@ -1,5 +1,3 @@
-// Development only, not published: bundles demo/main.tsx in memory and serves the demo page.
-// `pnpm --filter @omne-harness/session-ui run demo`, then open the printed address.
 import { context } from 'esbuild'
 import { fileURLToPath } from 'node:url'
 

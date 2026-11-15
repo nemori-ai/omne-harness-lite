@@ -55,8 +55,6 @@ it('registers multiple producers with their original purposes and keeps event se
       finish: null,
     }),
   )
-  // The first head commit moves the checkpoint back and writes; the next two establish no new
-  // fact, so they recognize the current revision without a write (Agent SPEC "执行修订").
   let written = receipt
   for (let i = 0; i < 3; i++) {
     receipt = ok(

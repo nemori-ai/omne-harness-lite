@@ -1,6 +1,3 @@
-// The explicit access check at the public transaction boundary (SPEC「当前操作的访问裁定」): the
-// memory factory requires `accessCheck`, commit carries the caller's access, every public read and
-// write asks once at its execution point, and a denied, unavailable or throwing check leaves no entry.
 import { describe, expect, expectTypeOf, it } from 'vitest'
 import type {
   ResidentKey,
@@ -57,7 +54,6 @@ const tenantAccess = { principal: access.principal, tenant: access.tenant }
 describe('the memory transaction factory requires the explicit access check', () => {
   it('cannot be built without one and cannot commit without the caller access', async () => {
     const s = await scene([allowed('never-used')])
-    // Type-level only: these calls are never executed.
     const rejectedAtCompileTime = () => {
       // @ts-expect-error accessCheck is a required dependency; there is no default permission
       createMemorySessionTransactions<string>({
@@ -68,7 +64,6 @@ describe('the memory transaction factory requires the explicit access check', ()
     }
     expectTypeOf(rejectedAtCompileTime).toBeFunction()
     expectTypeOf<Parameters<SessionTransactionPort<string>['commit']>[0]>().toHaveProperty('access')
-    // A caller outside the type system that omits the access is refused before any write.
     const untyped = s.port.commit as unknown as (input: object) => ReturnType<typeof s.create>
     expect(refused(await untyped({ command: s.command, guards: s.guards }), 'no access')).toEqual({
       kind: 'denied',
@@ -152,7 +147,6 @@ describe('the memory transaction factory requires the explicit access check', ()
     expect(
       refused(await s.port.queryOperation({ ...access, operation }), 'unavailable queryOperation'),
     ).toMatchObject({ kind: 'unavailable', diagnostic: expect.stringContaining('directory down') })
-    // The same reads answer once the check allows them: the refusals above hid real answers.
     expect(succeeded(await s.port.readInput({ ...access, input }), 'allowed readInput').input).toBe(
       input,
     )

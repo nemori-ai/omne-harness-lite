@@ -1,8 +1,3 @@
-// The removal of the plugin (SPEC property 9; verification 8) on real Cordis. Two triggers run the
-// same four steps: the stop handle that the ordered shutdown calls, and the effect of the fiber
-// (removal of the plugin, a provider change). The session factory is wrapped by a spy that counts
-// `close`, `maintain` and the release of each scanner and changes nothing else; every other part is
-// the real one. A gate in front of the delegated commit keeps one command in flight.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { assemble, type Assembly } from './fixtures/assembly.ts'
 import { resetSpies, spies } from './fixtures/session-spy.ts'
@@ -22,7 +17,6 @@ const ROW = 'session-provider'
 async function build(options: Parameters<typeof assemble>[0] = {}): Promise<Assembly> {
   const assembly = await assemble(options)
   open.push(assembly)
-  // The configuration check and the first load built probe instances; count from here.
   resetSpies()
   return assembly
 }
@@ -37,8 +31,6 @@ async function withScanner(options: Parameters<typeof assemble>[0] = {}) {
   const intake = await a.caller('intake')
   await a.create(intake)
   await expect.poll(() => spies.maintained).toBeGreaterThanOrEqual(1)
-  // A pending input is work, so the scanner of the tenant stays (session SPEC「扫描者的生灭」). The
-  // notice of this commit reaches a running scanner, or starts a new one that finds the input.
   const signals = spies.maintained
   await a.accept(intake, 'work')
   await expect.poll(() => spies.maintained).toBeGreaterThan(signals)
@@ -54,7 +46,6 @@ describe('the two triggers run the steps once', () => {
     expect(spies).toMatchObject({ closed: 1, released: 1 })
     expect(provides(a)).toBe(false)
     expect(a.handles.has(ROW)).toBe(false)
-    // A reference taken before the removal answers unavailable, not a result and not a throw.
     expect(await held.work.readWork(a.access())).toMatchObject({
       failure: { kind: 'unavailable', owner: 'session' },
     })
@@ -93,7 +84,6 @@ describe('the two triggers run the steps once', () => {
     await a.provide('sessionPrincipals')
     await a.provider.await()
     const closedBefore = spies.closed
-    // The new instance serves, and serving closes nothing.
     const intake = await a.caller('intake')
     await a.create(intake, 'session-2')
     expect(spies.closed).toBe(closedBefore)
@@ -109,8 +99,6 @@ describe('a provider change while a command is in flight', () => {
     const withdrawing = a.withdraw('sessionPrincipals')
     const providing = a.provide('sessionPrincipals')
     await delay(150)
-    // The replacement is mounted, yet the old removal still waits for its command: the new body
-    // has not registered with the lifecycle and no service is offered.
     expect(a.handles.size).toBe(0)
     expect(provides(a)).toBe(false)
 
@@ -144,12 +132,9 @@ describe('what a removal in progress does', () => {
     await expect
       .poll(async () => await service.work.readWork(a.access()), { timeout: 2000 })
       .toMatchObject({ failure: { kind: 'unavailable', owner: 'session' } })
-    // The faces refuse every class of caller, not only the one that was reading.
     expect(await service.history.next({ ...a.access(), cursor: '' as never })).toMatchObject({
       failure: { kind: 'unavailable', owner: 'session' },
     })
-    // A notice neither wakes the instance nor binds a scanner: not for another tenant, and not for
-    // the bound session of this instance, whose input is now accepted and would start a Run.
     a.emitCommitted(
       a.other().tenant,
       a.sessionId('x'),
@@ -166,14 +151,11 @@ describe('what a removal in progress does', () => {
     )
     await delay(100)
     expect(a.hooks.pendingTenants.length).toBe(scanners)
-    // The removal waits for the command in flight.
     expect(removed).toBe(false)
     const dispatched = a.events.length
 
     gate.release()
     await removing
-    // The command ended with its receipt. The store tells its batch like any other, once; the
-    // plugin that is being removed is not woken by it and sends no outbound call.
     const receipt = await inflight
     await delay(100)
     expect(a.events.slice(dispatched).map(payload => payload[2])).toEqual([receipt.revision])
@@ -183,7 +165,6 @@ describe('what a removal in progress does', () => {
 
 describe('a scanner that is still starting when the removal begins', () => {
   it('is released with the others and reads nothing more once its startup read answers', async () => {
-    // The startup read is a command in flight to the instance, so the wait for close ends by its limit.
     const a = await build({ provider: { admission: 'none', disposeWaitMs: 50 } })
     const intake = await a.caller('intake')
     let open!: () => void
@@ -191,7 +172,6 @@ describe('a scanner that is still starting when the removal begins', () => {
       open = resolve
     })
     await a.create(intake)
-    // The startup scan of the new tenant is waiting for its first page; maintain did not wait for it.
     await expect.poll(() => a.hooks.pendingTenants.length).toBe(1)
     await expect.poll(() => spies.maintained).toBeGreaterThanOrEqual(1)
     await a.provider.dispose()
@@ -218,7 +198,6 @@ describe('the wait for close', () => {
     expect(waited).toBeLessThan(1500)
     expect(diagnostics(a).some(text => text.includes('did not stop within 60 ms'))).toBe(true)
 
-    // The timeout is not a stop: the command in flight ends with a receipt after the gate opens.
     gate.release()
     expect((await inflight).revision).toBeDefined()
   })
@@ -261,7 +240,6 @@ describe('the ordered shutdown', () => {
 
     const shutting = a.shutdown()
     await delay(100)
-    // The storage row has not been asked to stop while the provider still waits for its command.
     expect(a.log).toContain(`stop:${ROW}`)
     expect(a.log).not.toContain('stop:session-storage')
 
@@ -269,7 +247,6 @@ describe('the ordered shutdown', () => {
     const results = await shutting
     expect((await inflight).revision).toBeDefined()
     expect(results[ROW]).toEqual({ kind: 'settled' })
-    // The commit settled before the provider reported stopped, and the storage closed after that.
     const order = [
       'commit-settled',
       `stopped:${ROW}`,

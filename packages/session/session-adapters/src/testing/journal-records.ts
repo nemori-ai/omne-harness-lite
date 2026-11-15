@@ -1,10 +1,3 @@
-// The reader records of one execution projected from the folded view and the content blocks
-// (session-adapters SPEC "事实族存储"): what the K-23 bridge rebuilds from its `core.*` facts,
-// derived from the fact family instead. The projection is field by field, so that its parity with
-// the writer's records can be measured one field at a time (tests/journal-records-parity.spec.ts):
-// `projectExecution` answers the fields it derives, `fieldsDiff` names the fields that equal the
-// writer's, differ from them, or are not derived yet. A field derived here no longer needs the
-// bridge; the bridge is removed once every field is.
 import type {
   AcceptedInput,
   Adoption,
@@ -54,7 +47,6 @@ import { journalEvidence, revisionOf, semanticKey } from './journal-values.ts'
 import { captureHuman } from './human.ts'
 import type { CommonRoot } from './root.ts'
 
-/** Every field of the reader record, in the order the bridge serializes them. */
 export const EXECUTION_FIELDS = [
   'id',
   'tenant',
@@ -86,27 +78,22 @@ export const EXECUTION_FIELDS = [
 
 export type ExecutionField = (typeof EXECUTION_FIELDS)[number]
 
-/** What the projection reads besides the view: the blocks, the tenant, and the batch mint. */
 export type ProjectionContext = Readonly<{
   tenant: TenantId
   blobs: BlobStore
   mint: Mint
-  /** The schema the Journal stamps on every event (its `eventSchema` option). */
   eventSchema: Adoption
-  /** The reply admission rule of the Journal (its `replyAdmissionRule` option). */
   admissionRule: Adoption
 }>
 
 type CustodyAttempt = MemoryExecution['custodyAttempts'] extends Map<unknown, infer V> ? V : never
 
-/** The operation entries of the execution by the publication of their batch (recognitions apart). */
 function opsByPub(view: ExecutionView): Map<number, [AgentOperationId, OperationEntry]> {
   const out = new Map<number, [AgentOperationId, OperationEntry]>()
   for (const [op, entry] of view.ops) if (entry.target === null) out.set(entry.pub, [op, entry])
   return out
 }
 
-/** The receipt of the batch at `pub`, as `append` derived it when the batch was written. */
 function receiptAt(
   view: ExecutionView,
   byPub: ReadonlyMap<number, [AgentOperationId, OperationEntry]>,
@@ -129,17 +116,11 @@ function receiptAt(
   }
 }
 
-/** The publication a batch evidence names, or null for another evidence. */
 function pubOf(evidence: DurableEvidence): number | null {
   const found = /\/pub\/(\d+)$/u.exec(evidence.record)
   return found === null ? null : Number(found[1])
 }
 
-/**
- * The value a reference names. A `blobOf` pair (`[digest, value]`, which the core's `open` still
- * writes for the accepted message, K-23) carries its value; a reference is looked up by digest.
- */
-/** The reader's ProducedResult of a fact's ProducerCall. */
 function producedOf(
   result: Readonly<{
     producer: 'model' | 'tool'
@@ -157,7 +138,6 @@ function producedOf(
   }
 }
 
-/** The event body a fact projects (the reader's AgentEventBody), or null for a fact that is none. */
 function bodyOf(
   fact: ExecutionView['events'][number]['fact'],
   blobs: BlobStore,
@@ -214,13 +194,6 @@ function blob<T>(blobs: BlobStore, ref: unknown): T {
   return value as T
 }
 
-/** The state of the execution as the reader records keep it (the settling intent apart). */
-/**
- * The committed state: the latest of the facts that set it. The end stands; a detach with its
- * handoff suspends; a candidate established (settling), an attach (reconciling, after the first)
- * and the `state` member of the cursor (what a commit committed, with the waits of a waiting state
- * from the wait entered then) each at their pub, the latest wins.
- */
 function stateOf(view: ExecutionView, blobs: BlobStore): MemoryExecution['state'] {
   const ended = view.finish.ended
   if (ended !== null)
@@ -254,10 +227,6 @@ function stateOf(view: ExecutionView, blobs: BlobStore): MemoryExecution['state'
   }
 }
 
-/**
- * The reader record of `view`, field by field. A field this projection does not derive yet is
- * absent; `fieldsDiff` reports it as missing.
- */
 export function projectExecution(
   view: ExecutionView,
   context: ProjectionContext,
@@ -286,8 +255,6 @@ export function projectExecution(
     retainedFrom: 1,
     acknowledged: view.acknowledged,
     acknowledgedAt: view.acknowledgedAt,
-    // The writer's record carries a Tool reference only when the control has one: the fact
-    // stores null for none, and a null reference is not a reference (`toolInvocationOf`).
     controls: [...view.controls.values()].map(
       item =>
         ({
@@ -298,7 +265,6 @@ export function projectExecution(
           stages: item.stages,
         }) as unknown as ControlRecord,
     ),
-    // A responsibility is on record once `recordResult` reached a stage; a reception alone is not.
     results: [...view.results.values()]
       .filter(item => Object.keys(item.stages).length > 0)
       .map((item): ResultResponsibility => ({
@@ -368,8 +334,6 @@ export function projectExecution(
   try {
     projected.checkpoint = checkpointOf(view, context.blobs)
   } catch (error) {
-    // An execution whose cursor was never moved whole (no checkpoint yet): the field stays absent.
-    // Any other failure is a defect of the records, not a missing checkpoint.
     if (
       !(error instanceof TypeError && error.message.startsWith('the folded cursor has no member'))
     )
@@ -389,8 +353,6 @@ export function projectExecution(
   }
   const revisionAt = (pub: number): number | undefined => byPub.get(pub)?.[1].revision
   const opAt = (pub: number): AgentOperationId | undefined => byPub.get(pub)?.[0]
-  // Events: the AgentEvent of each event fact, caused by the receipt evidence of its batch (the
-  // end by its disposition).
   projected.events = view.events.flatMap((event): AgentEvent[] => {
     const body = bodyOf(event.fact, context.blobs)
     const found = receipt(event.pub)
@@ -406,7 +368,6 @@ export function projectExecution(
       },
     ]
   })
-  // The finishing records, projected from the folded facts with the batch mint.
   projected.finishing = finishingOf(view, context.blobs, {
     receipt: (op, pub, revision) => ({
       operation: op,
@@ -429,7 +390,6 @@ export function projectExecution(
         revision,
       ),
   })
-  // The revision each result responsibility last reached: the batch of its latest stage.
   projected.resultRevisions = new Map(
     [...view.results.values()].flatMap(item => {
       const pubs = Object.values(item.stages).flatMap(stage =>
@@ -445,7 +405,6 @@ export function projectExecution(
       return [[key, revision] as [string, number]]
     }),
   )
-  // The reply admission ledger: the origin the open minted, and the projection folded from it.
   const parts = [...(JSON.parse(context.mint.session) as string[]), view.execution]
   const originRevision = view.opened === null ? 1 : (revisionAt(view.opened.pub) ?? 1)
   const origin = journalEvidence(
@@ -479,7 +438,6 @@ export function projectExecution(
           }
   const ledger: AdmissionLedger = { origin, retainedFrom: 1, rangesFrom: 0, projection }
   projected.admissionLedger = ledger
-  // Handoffs: each H as the reader records keep it.
   projected.handoffs = [...view.handoffs.values()].flatMap((item): HandoffRecord[] => {
     const outcome =
       item.resolved === null ? null : blob<HandoffOutcome>(context.blobs, item.resolved.outcome)
@@ -527,7 +485,6 @@ export function projectExecution(
       },
     ]
   })
-  // The Rh custody attempts, by operation: the original and the custody the attempt carried.
   projected.custodyAttempts = new Map(
     [...view.handoffs.values()].flatMap(item =>
       item.recorded.map((attempt): [AgentOperationId, CustodyAttempt] => [
@@ -540,26 +497,15 @@ export function projectExecution(
       ]),
     ),
   )
-  // The evidence serial starts at the open's publication and is advanced only by the legacy
-  // seeding controls of the tests.
   projected.serial = view.opened === null ? 0 : view.opened.pub
   return projected
 }
 
-/** The method a semantic key names: its prefix before the first colon. */
 const methodOf = (key: string): string => key.split(':')[0] ?? ''
 
-/** The receipt state a method's receipt names: an accepting command answers `accepted`. */
 const stateOf2 = (method: string): CommandReceipt['state'] =>
   method === 'submit' || method === 'control' ? 'accepted' : 'applied'
 
-/**
- * The operation records of one execution projected from the fold: a committed record for every
- * operation of the index, with the answer its batch derives (by the method the semantic key names,
- * from what the view and the blocks hold of that batch), an excluded record for every exclusion,
- * and a rejected record for every persistent rejection. The key of an excluded record is the
- * semantic key of a write that never published; the facts do not hold it, so it is empty here.
- */
 export function projectOperations(
   view: ExecutionView,
   context: ProjectionContext,
@@ -601,7 +547,6 @@ export function projectOperations(
     receipt: CommandReceipt,
   ): unknown => {
     const method = methodOf(entry.digest)
-    // A recognition answers from the batch it recognized.
     const at = entry.target === null ? entry.pub : (view.ops.get(entry.target)?.pub ?? entry.pub)
     switch (method) {
       case 'open':
@@ -696,7 +641,6 @@ export type FieldsDiff = Readonly<{
 const text = (value: unknown): string =>
   canonical(value instanceof Map ? [...value.entries()].sort() : value)
 
-/** Compares the writer's record with a projection, field by field, by canonical text. */
 export function fieldsDiff(
   expected: MemoryExecution,
   actual: Partial<MemoryExecution>,
@@ -714,7 +658,6 @@ export function fieldsDiff(
   return { equal, differ, missing }
 }
 
-/** The two texts of one differing field, for a report. */
 export function fieldTexts(
   expected: MemoryExecution,
   actual: Partial<MemoryExecution>,
@@ -725,12 +668,6 @@ export function fieldTexts(
 
 export type { ExecutionState }
 
-// ---------------------------------------------------------------------------------------------
-// The records beside the executions (K-23 end state): the original fragments of the events, the
-// receiving state, and the whole root of a session, derived from the fold and the blocks the
-// same way at a cold start of the provider and in the parity measurement.
-
-/** The original fragments of the events the normalization reads, and the event index. */
 export type EventFragments = Pick<
   CommonRoot['agent'],
   'eventReceipts' | 'pendingEvents' | 'callOrigins' | 'human' | 'indexedEvents'
@@ -744,7 +681,6 @@ export const emptyFragments = (): EventFragments => ({
   indexedEvents: new Map(),
 })
 
-/** The Pending calls one event names: the producer waits of a waiting event, the origin of a producer event. */
 function pendingsOf(
   origins: EventFragments['callOrigins'],
   execution: MemoryExecution,
@@ -760,7 +696,6 @@ function pendingsOf(
   return []
 }
 
-/** Keeps the first call event of a consumption, and the event that associates a Tool intent with its call. */
 function originOf(
   origins: EventFragments['callOrigins'],
   execution: MemoryExecution,
@@ -786,14 +721,6 @@ function originOf(
     })
 }
 
-/**
- * The original fragments of the events of one execution: the receipt of the batch that appended
- * each event, the Pending calls it names, the first call event of each consumption with its Tool
- * association, and the human material of a human wait, read from the passages of the checkpoint
- * as it stands (the writer read them when the event was appended; a passage no longer held leaves
- * its fragment out, as a fragment that cannot be read is left out at the write). `indexedEvents`
- * is the count of the events held.
- */
 export function projectFragments(
   execution: MemoryExecution,
   view: ExecutionView,
@@ -815,26 +742,14 @@ export function projectFragments(
     if (event.body.kind === 'waiting' && event.body.waits.some(wait => wait.kind === 'human')) {
       try {
         out.human.set(key, captureHuman(event, execution.checkpoint, receipt))
-      } catch {
-        // A human wait whose passage the checkpoint no longer holds: its fragment is left out.
-      }
+      } catch {}
     }
   }
   return out
 }
 
-/** One projected execution with the view it was projected from. */
 export type ProjectedExecution = Readonly<{ view: ExecutionView; execution: MemoryExecution }>
 
-/**
- * The receiving state of a session from the facts of its executions, applied in publication
- * order as the writes applied them: the bindings of the pending calls (`target.bound`), the
- * saved deliveries with their aliases and materials (`result.received`, with `saved` only for a
- * delivery the receiver committed, as the writer keeps it), the aliases of the operations that
- * recalled a delivery (`op.recognized` with `recalls`), and the materials kept (`material.preserved`,
- * under the execution of their consumer as bound then). The test-only bindings (`bind`) and the
- * losses are not facts.
- */
 export function projectReceiving(
   executions: readonly ProjectedExecution[],
   context: ProjectionContext,
@@ -927,7 +842,6 @@ export function projectReceiving(
   return state
 }
 
-/** The records of a session projected from its fold: what a provider restores at a cold start. */
 export type ProjectedRecords = Readonly<{
   executions: ReadonlyMap<string, MemoryExecution>
   operations: ReadonlyMap<string, OperationRecord>
@@ -943,11 +857,6 @@ const FRAGMENT_NAMES = [
   'indexedEvents',
 ] as const
 
-/**
- * Every record of the session from its fold and blocks: the executions (by the key the root keeps
- * them under, `[tenant, execution]`), the operation records, the event fragments and the receiving
- * state. A view of an execution never opened projects no record.
- */
 export function projectRecords(
   view: SessionJournalView,
   context: ProjectionContext,

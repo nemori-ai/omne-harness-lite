@@ -1,27 +1,15 @@
-// One recovery scanner for each tenant (SPEC property 7). The first version keeps this guarantee
-// by installing one copy of the plugin in the assembly (IC-19), so this table is the only
-// bookkeeping. Every notice of a tenant calls `maintain` once: it is the demand signal of the
-// scanner, which starts one when the tenant has none (session SPEC「扫描者的生灭」). A scanner that
-// stops because its tenant has no work leaves the table; removal releases the rest. The table is
-// derived data; after a reload it is built again from new notices.
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { MaintenanceHandle, SessionInstance } from '@omne-harness/session'
 import { describe, type Diagnose } from './diagnostics.ts'
 
 export type Scanners = Readonly<{
-  /** Signals demand for the scanner of `tenant`, which starts one if needed. Never throws, never waits. */
   bind(tenant: TenantId): void
-  /**
-   * Releases every scanner and returns what went wrong, one text each. A failure is recorded and
-   * does not stop the others. A scanner that arrives later releases itself.
-   */
   releaseAll(): Promise<readonly string[]>
 }>
 
 export function createScanners(
   input: Readonly<{
     instance: SessionInstance<unknown>
-    /** True from the first step of removal: no new scanner may stay. */
     removing(): boolean
     diagnose: Diagnose
   }>,
@@ -29,7 +17,6 @@ export function createScanners(
   const { instance, removing, diagnose } = input
   const handles = new Map<string, MaintenanceHandle>()
 
-  /** The problem text of a failed release, or null. */
   const release = async (handle: MaintenanceHandle, tenant: string): Promise<string | null> => {
     try {
       await handle.release()
@@ -45,7 +32,6 @@ export function createScanners(
     try {
       const started = await instance.maintain(tenant)
       if ('failure' in started) {
-        // Only a closed instance answers a failure; it starts no scanner.
         diagnose(`maintain for tenant ${key} answered ${JSON.stringify(started.failure)}`)
         return
       }

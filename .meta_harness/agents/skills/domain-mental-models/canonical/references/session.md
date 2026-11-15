@@ -54,6 +54,6 @@
 - `docs/domains/sessions-and-work/README.md`「协作与依赖」「主路径与交接」
 - `docs/architecture/runtime/session-and-run.md`
 - `docs/domains/core-supply-demand.md`「核心链路与事实归属」
-- `packages/session/session-contract/SPEC.md`
+- `packages/session/SPEC.md`
 - `docs/architecture/data-and-state.md`「每类权威事实有唯一写入者」
-- `packages/session/session-storage-sql/docs/commit-basis.md`：唯一写入者与提交方；`packages/session/session-storage-sql/SPEC.md` 的 W6
+- `packages/session/SPEC.md`「日志与提交」「存储」：唯一写入者与提交方；不变式 SE-16

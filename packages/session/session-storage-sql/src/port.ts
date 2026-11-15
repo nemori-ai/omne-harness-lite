@@ -1,5 +1,3 @@
-// The transaction port over one context. The public port and every delegated view are this one
-// surface; they differ only in the access step of their context (see `qualify`).
 import type { SessionTransactionPort } from '@omne-harness/session-contract'
 import { commit, queryControlOperation, queryOperation } from './commit.ts'
 import type { Context } from './context.ts'

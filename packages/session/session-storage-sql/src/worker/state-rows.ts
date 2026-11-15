@@ -1,78 +1,38 @@
-// The stored form of a Session snapshot (SPEC W1, 快照的存储形态, R2-D292): one head row in
-// `sl_state` and the items of its collections in chunk rows of `sl_state_item`. A commit writes the
-// head row and only the chunks whose items it added, changed or removed, so the bytes one commit
-// writes do not grow with the number of items a session holds.
-//
-// - A collection is an array member of the snapshot, or an array member of an object member of the
-//   snapshot (`workEntryIndex.calls`). The head keeps an empty array in its place, so the head still
-//   tells a present collection from an absent one, and the member order of the head stays.
-// - A chunk row holds a run of consecutive items of one collection as a JSON array, at most
-//   `CHUNK_BYTES` of text unless one item is larger. It is keyed by the collection path and a
-//   sequence number; the chunks of one path in sequence order are the array in its order. A chunk
-//   whose items all stay, in order and side by side, is not written again. A new chunk takes a
-//   number between its kept neighbours; when there is no room, or the path has too many small
-//   chunks, the whole path is written again. An append writes the new item and, like the carry of
-//   a binary counter, now and then the small chunks before it.
-// - An object member whose text (collections left out) is over `MEMBER_BYTES` is a member row of
-//   its own (path `=member`), written only when its text changes; the head keeps `{"$row":true}`
-//   in its place. So the head row stays small (`initialization` alone is several KB).
-// - The head carries a token of the stored content in its member `$items`: the digest of the
-//   previous token, the head and the chunk changes of the write. So equal head text gives an equal
-//   snapshot, whatever the path that led to it. A write of chunk rows outside this module must
-//   write a new head.
+// Equal head text must mean equal chunk rows: a write of chunk rows outside this module must write a new head.
 import type { WorkSnapshot } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { decodeValue, encodeValue, sha256 } from '../codec.ts'
 import { packText } from '@omne-harness/sql-contract/worker'
 import { big, oneRow, packed, rowsOf, text, type Executor } from './support.ts'
 
-/** The text one chunk row holds before the next item starts a new chunk. */
 export const CHUNK_BYTES = 16 * 1024
-/** The most chunk rows one snapshot may have; more is a failure of the read, never a shorter read. */
 export const MAX_STATE_CHUNKS = 100_000
-/** The small chunks a path may keep beyond twice its full ones before it is written again. */
 const SMALL_CHUNKS = 16
-/** The gap a fresh sequence number leaves, so that later chunks in the middle find room. */
 const STEP = 1024
-/** The member of the head text that holds the token of the stored content. */
 const TOKEN = '$items'
-/** The text of an object member over which the member is a row of its own. */
 export const MEMBER_BYTES = 1024
-/** The place of a member row in the head. */
 const MEMBER_ROW = '$row'
 
-/** One chunk row of a path: its sequence number, item count and text length. */
 type Chunk = Readonly<{ seq: number; count: number; length: number }>
-/** The chunks of one collection path, in array order. */
 type PathLayout = readonly Chunk[]
 
-/** How a snapshot is stored: its head text and token, and the chunks of each collection path. */
 export type StateLayout = Readonly<{
   head: string
   token: string
   paths: ReadonlyMap<string, PathLayout>
-  /** The members stored as rows of their own, with their row text. */
   members: ReadonlyMap<string, string>
-  /** The head text length plus the text lengths of all chunks: the stored size of the snapshot. */
   bytes: number
 }>
 
-/** A snapshot with the layout it is stored in. */
 export type StoredState = Readonly<{ snapshot: WorkSnapshot; layout: StateLayout }>
 
-/**
- * The layout of each snapshot object that this module read or wrote, so that a commit on it writes
- * only what changed. A snapshot without a layout (it did not come from these rows) is written whole.
- */
 const layouts = new WeakMap<object, StateLayout>()
 
-/** The stored state of a snapshot that this module read or wrote, or null. */
 export function storedOf(snapshot: WorkSnapshot): StoredState | null {
   const layout = layouts.get(snapshot)
   return layout === undefined ? null : { snapshot, layout }
 }
 
-/** Freezes a value and every object and array in it; a value that is frozen already is skipped. */
 export function deepFreeze<T>(value: T): T {
   if (typeof value !== 'object' || value === null || Object.isFrozen(value)) return value
   for (const member of Object.values(value)) deepFreeze(member)
@@ -83,11 +43,9 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' &&
   value !== null &&
   !Array.isArray(value) &&
-  // A minted identity is a value, not a container of collections.
   (value as { name?: unknown }).name !== 'TenantId' &&
   (value as { name?: unknown }).name !== 'WorkspaceId'
 
-/** The collection paths of a snapshot, as `member` or `member.inner`. */
 function collectionPaths(snapshot: WorkSnapshot | null): string[] {
   if (snapshot === null) return []
   const paths: string[] = []
@@ -110,7 +68,6 @@ function arrayAt(snapshot: object | null, path: string): readonly unknown[] | un
   return Array.isArray(nested) ? nested : undefined
 }
 
-/** The head of a snapshot: every collection replaced by an empty array. */
 function headOf(snapshot: WorkSnapshot): Record<string, unknown> {
   const head: Record<string, unknown> = {}
   for (const [member, value] of Object.entries(snapshot)) {
@@ -127,10 +84,6 @@ function headOf(snapshot: WorkSnapshot): Record<string, unknown> {
 
 const itemText = (item: unknown): string => JSON.stringify(encodeValue(item))
 
-/**
- * Reads the stored snapshot of a session when its head row covers `tail`, else `behind`. A chunk
- * of a collection the head does not have, or more chunks than the bound, throws.
- */
 export function readState(
   port: Executor,
   tenant: string,
@@ -146,11 +99,6 @@ export function readState(
   return assemble(port, tenant, session, text(row['snapshot']))
 }
 
-/**
- * One top-level member of a stored snapshot, in its stored JSON form, from the head text or, for a
- * member that is a row of its own, by one primary-key read of that row. Collections inside it are
- * empty: a reader that needs them reads the whole snapshot.
- */
 export function readMember(
   port: Executor,
   tenant: string,
@@ -169,7 +117,6 @@ export function readMember(
   return JSON.parse(packed(row['value'])) as JsonValue
 }
 
-/** The snapshot of a head text and the chunk rows of the session. */
 export function assemble(
   port: Executor,
   tenant: string,
@@ -226,12 +173,6 @@ export function assemble(
   return { snapshot: snapshot as WorkSnapshot, layout }
 }
 
-/**
- * For each item of `next`, the index of the same item of `previous`, taken in increasing order so
- * that the kept items keep their relative order. The same item is the same object or an equal
- * primitive; failing that, the next unmatched item of `previous` when its text is equal (a reduce
- * that copies an unchanged item). Only the items in a stored chunk (`stored`) can be kept.
- */
 function matchItems(
   previous: readonly unknown[],
   stored: number,
@@ -270,23 +211,15 @@ function matchItems(
 
 type Change = readonly [path: string, seq: number, value: string | null]
 
-/** A part of the new array: a stored chunk that stays, or a run of items to write. */
 type Segment =
   | Readonly<{ kind: 'kept'; chunk: Chunk; at: number }>
   | { kind: 'run'; from: number; to: number }
 
-/**
- * The segments of the new array: the chunks whose items all stay in place, and the runs between.
- * A run takes in the kept chunk before it while that chunk is at most twice the run and the two fit
- * in `CHUNK_BYTES`, like the carry of a binary counter: an append then writes the new item and now
- * and then a few small chunks before it, never a full chunk, and a path keeps few small chunks.
- */
 function segmentsOf(
   chunks: PathLayout,
   matched: readonly (number | null)[],
   textOf: (index: number) => string,
 ): Segment[] {
-  // The new index of each kept item of the previous array.
   const placed = new Map<number, number>()
   matched.forEach((index, at) => {
     if (index !== null) placed.set(index, at)
@@ -323,7 +256,6 @@ function segmentsOf(
     for (;;) {
       const before = segments[index - 1]
       if (before?.kind === 'run') {
-        // Two runs side by side (a chunk between them was taken in) become one run.
         run.from = before.from
         for (let item = before.from; item < before.to; item += 1) length += textOf(item).length + 1
         segments.splice(index - 1, 1)
@@ -345,7 +277,6 @@ function segmentsOf(
   return segments
 }
 
-/** The chunk texts of a run of items: greedy, at most `CHUNK_BYTES` unless one item is larger. */
 function pack(
   textOf: (index: number) => string,
   from: number,
@@ -368,7 +299,6 @@ function pack(
   return out
 }
 
-/** The item texts of an array, each encoded once. */
 function textsOf(items: readonly unknown[]): (index: number) => string {
   const texts = new Map<number, string>()
   return index => {
@@ -381,7 +311,6 @@ function textsOf(items: readonly unknown[]): (index: number) => string {
   }
 }
 
-/** The whole path in fresh chunks. */
 function rewritePath(path: string, chunks: PathLayout, after: readonly unknown[]) {
   const changes: Change[] = chunks.map(chunk => [path, chunk.seq, null] as const)
   const written: Chunk[] = []
@@ -392,7 +321,6 @@ function rewritePath(path: string, chunks: PathLayout, after: readonly unknown[]
   return { changes, chunks: written }
 }
 
-/** The chunk writes of one path, and its new chunks. */
 function diffPath(
   path: string,
   previous: readonly unknown[] | undefined,
@@ -402,7 +330,6 @@ function diffPath(
   const before = previous ?? []
   const after = next ?? []
   const stored = chunks.reduce((sum, chunk) => sum + chunk.count, 0)
-  // Items that are not all in chunks (a head that still holds them inline): the path is written whole.
   if (stored !== before.length) return rewritePath(path, chunks, after)
   const textOf = textsOf(after)
   const segments = segmentsOf(chunks, matchItems(before, stored, after, textOf), textOf)
@@ -430,18 +357,12 @@ function diffPath(
       written.push({ seq, count: part.count, length: part.text.length })
     })
   }
-  // Too many small chunks (changes in the middle leave them): the path is written again, packed.
   const total = written.reduce((sum, chunk) => sum + chunk.length, 0)
   if (written.length > 2 * Math.ceil(total / CHUNK_BYTES) + SMALL_CHUNKS)
     return rewritePath(path, chunks, after)
   return { changes, chunks: written }
 }
 
-/**
- * Writes the snapshot of a session: the chunk rows that differ from `before`, then the head row.
- * `before` is the snapshot the commit was judged on, or null for a new session. When this module
- * holds no layout of it, every chunk row of the session is written again. Returns the stored state.
- */
 export function writeState(
   port: Executor,
   key: Readonly<{ tenant: string; session: string; covered: bigint }>,
@@ -453,7 +374,6 @@ export function writeState(
   if (before !== null && previous === null)
     port.execute('DELETE FROM sl_state_item WHERE tenant = ? AND session = ?', [tenant, session])
   const encoded = encodeValue(headOf(snapshot)) as Record<string, JsonValue>
-  // The large object members: a row of their own, written when their text changes.
   const members = new Map<string, string>()
   const memberChanges: Change[] = []
   for (const [member, value] of Object.entries(encoded)) {
@@ -498,7 +418,6 @@ export function writeState(
       bytes += diff.chunks.reduce((sum, chunk) => sum + chunk.length, 0)
     }
   }
-  // Removals first: a new chunk may take the number of a removed one.
   for (const [path, seq, value] of changes)
     if (value === null)
       port.execute(

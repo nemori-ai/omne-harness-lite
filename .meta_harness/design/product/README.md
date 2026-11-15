@@ -14,7 +14,7 @@
 | --- | --- | --- | --- |
 | [身份与授权](identity-and-authorization/design.md) | [未决](identity-and-authorization/design.md#未决问题与待定事项) | [领域](../../../docs/domains/identity-and-authorization/README.md) | [工程与规格](../../../packages/identity/SPEC.md) |
 | [资产与规则](assets-and-rules/design.md) | [未决](assets-and-rules/design.md#未决问题与待定事项) | [领域](../../../docs/domains/assets-and-rules/README.md) | [工程与规格](../../../packages/assets/SPEC.md#总体架构) |
-| [会话与工作的产品设计](sessions-and-work/design.md) | [未决](sessions-and-work/design.md#未决问题与待定事项) | [领域](../../../docs/domains/sessions-and-work/README.md) | [工程与规格](../../../packages/session/README.md) |
+| [会话与工作的产品设计](sessions-and-work/design.md) | [未决](sessions-and-work/design.md#未决问题与待定事项) | [领域](../../../docs/domains/sessions-and-work/README.md) | [工程与规格](../../../packages/session/SPEC.md#总体架构) |
 | [Agent 定义与工作推进](agent-progression/design.md) | [未决](agent-progression/design.md#未决问题与待定事项) | [领域](../../../docs/domains/agent-progression/README.md) | [工程与规格](../../../packages/agent/SPEC.md#领域边界) |
 | [模型调用的产品设计](model-invocation/design.md) | [未决](model-invocation/design.md#未决问题与待定事项) | [领域](../../../docs/domains/model-invocation/README.md) | [工程与规格](../../../packages/model/SPEC.md) |
 | [工具执行](tool-execution/design.md) | [未决](tool-execution/design.md#未决问题与待定事项) | [领域](../../../docs/domains/tool-execution/README.md) | [工程与规格](../../../packages/tool/SPEC.md) |
@@ -40,7 +40,7 @@ Skill、Slash Command、MCP 的工程分解已维护在对应能力组，完整�
 
 topic 按独立产品问题、读者和变化原因组织，不要求与工程能力组一一对应。新 topic 使用[模板](.templates/topic/README.md)。产品拥有者维护需求、旅程、能力、阶段和未决；实现拥有者依据绑定版本与覆盖的证据维护状态。配置范围、生效条件、领域职责和阶段版本写明确，没有实现证据时记录未核实。
 
-起草沿 `product-design`。写前加载 pqw `clear-writing`，照它的规则写，写后按实际正文复核。概念沿[统一语言](../ubiquitous_language/README.md)，有身份的对象沿[领域对象](../domain_objects/README.md)。已答问题落实正文并退出活动问题；原问答与评审留任务 tmp。技术细节在所属组或成员维护，产品末块保留必要影响与跳转。
+起草沿 `product-design`。写前加载 pqw `clear-writing`，照它的规则写，写后按实际正文复核。概念沿[统一语言](../ubiquitous_language/README.md)。已答问题落实正文并退出活动问题；原问答与评审留任务 tmp。技术细节在所属组或成员维护，产品末块保留必要影响与跳转。
 
 活动交付按[卡就是交接信息包](../../agents/skills/omne-card/canonical/SKILL.md#卡就是交接信息包)。长期规格承载当前决定版行为，不以单次任务材料替代；本区不保存过程账本或第二份技术契约。
 

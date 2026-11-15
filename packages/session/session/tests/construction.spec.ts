@@ -1,5 +1,3 @@
-// The factory checks its start conditions and its configuration before it builds or calls anything
-// (docs/public-api.md「依赖」「配置」, SPEC「资源与替换」, SR-3).
 import { describe, expect, it } from 'vitest'
 import {
   createSessionInstance,
@@ -8,7 +6,6 @@ import {
   type SessionDependencies,
 } from '../src/index.ts'
 
-/** Dependencies whose every method call is counted; the factory must call none at construction. */
 function countedDependencies(): { dependencies: SessionDependencies<string>; calls: () => number } {
   let calls = 0
   const port = new Proxy(
@@ -61,7 +58,7 @@ describe('start conditions', () => {
   })
 })
 
-describe('configuration (SR-3)', () => {
+describe('configuration', () => {
   it('the defaults are the SPEC SchedulingPolicy seeds', () => {
     expect(defaultSchedulingPolicy).toEqual({
       command: { retriesOnChanged: 3 },
@@ -82,7 +79,6 @@ describe('configuration (SR-3)', () => {
     })
   })
 
-  /** Replaces one field at `path` of the default policy. */
   function withField(path: string, value: unknown): SchedulingPolicy {
     const policy = structuredClone(defaultSchedulingPolicy) as Record<string, unknown>
     const keys = path.split('.')

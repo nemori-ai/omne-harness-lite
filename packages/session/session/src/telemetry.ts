@@ -1,8 +1,3 @@
-// The projection of the measurement events and the named diagnostics onto the telemetry port (SPEC
-// 「遥测投影」). Whoever assembles the instance builds this facade over the port of the provider and
-// hands `measure` and `diagnose` to the factory. The facade keeps no clock: the provider times a
-// segment between `startSegment` and `end`. It depends on the root entry of telemetry-contract
-// only, never on a provider or on Cordis.
 import { systemScope, tenantScope, type TenantId } from '@omne-harness/legal-identity'
 import type { RunId, SessionId } from '@omne-harness/session-contract'
 import {
@@ -20,22 +15,12 @@ import type { SessionMeasure, SessionRoundCompleteEvent, SessionSegmentEvent } f
 
 const OWNER = 'session'
 const COMPONENT = 'session'
-/** The owner of every reference this facade writes: the session as work, the Run as attempt. */
 const REF_OWNER = '@omne-harness/session'
 const SEGMENT_PREFIX = 'omne.session.'
 
-/**
- * How many distinct operation names get a cached segment definition. The face operations are a
- * closed set well under this; the bound only keeps an unexpected name from growing the cache. An
- * operation over it gets its definition made again on each start.
- */
 export const SESSION_SEGMENT_DEFINITION_LIMIT = 64
 
 const ROUND_OUTCOMES = ['completed', 'failed', 'cancelled', 'unknown'] as const
-/**
- * The reasons a diagnostic carries: this member's own four, then the closed failure kinds a Session
- * port answers (session-contract `SessionFailure`), so an `unavailable` stays `unavailable`.
- */
 const DIAGNOSTIC_REASONS = [
   'retries-exhausted',
   'agent-absent',
@@ -60,7 +45,6 @@ const DIAGNOSTIC_REASONS = [
   'other',
 ] as const
 
-/** A Run reached its terminal entry (SPEC「测量事件」round-complete). `attempt` is the Run. */
 export const sessionRoundCompleteEvent = defineEvent({
   owner: OWNER,
   name: 'omne.session.round-complete',
@@ -72,7 +56,6 @@ export const sessionRoundCompleteEvent = defineEvent({
   },
 })
 
-/** A coordinator step stopped on a failure (SPEC「诊断出口」). The detail text is not projected. */
 export const sessionDiagnosticEvent = defineEvent({
   owner: OWNER,
   name: 'omne.session.diagnostic',
@@ -101,7 +84,6 @@ export const sessionDiagnosticEvent = defineEvent({
 })
 
 export type SessionTelemetryBase = Readonly<{
-  /** The instance of the binding: the row or process that runs this session instance. */
   instance: OwnedRef
 }>
 
@@ -118,14 +100,7 @@ function diagnosticReason(reason: string): (typeof DIAGNOSTIC_REASONS)[number] {
   return DIAGNOSTIC_REASONS.find(known => known === reason) ?? 'other'
 }
 
-/**
- * Creates the facade. Every record is bound on its own, because the scope of a binding cannot be
- * patched (TC-15) and each event names its own tenant. A segment of a system-scope read is a fact of
- * the service and is bound to the `system` scope. A record of tenant work without a tenant is handed
- * to `port.discard` as `invalid` (TC-4), so the provider counts it. Nothing here throws.
- *
- * The provider's release notification removes the paired handle, including on expiry and close.
- */
+// Bind each record on its own: the scope of a binding cannot be patched and each event names its own tenant.
 export function createSessionTelemetry(
   port: TelemetryPort,
   base: SessionTelemetryBase,
@@ -134,7 +109,6 @@ export function createSessionTelemetry(
   const open = new Map<number, { segment: Segment; lifetime: { released: boolean } }>()
   const definitions = new Map<string, SegmentDefinition>()
 
-  /** The binding of one record, or undefined for a tenant that legal-identity did not mint. */
   function bindingOf(
     tenant: TenantId | undefined,
     session: SessionId | null,
@@ -154,10 +128,6 @@ export function createSessionTelemetry(
     }
   }
 
-  /**
-   * The segment definition of an operation, cached up to the limit. `checked` is false when the
-   * contract refuses the name: the definition then only names the record for `discard`.
-   */
   function definitionOf(
     operation: string,
   ): Readonly<{ definition: SegmentDefinition; checked: boolean }> {
@@ -174,15 +144,12 @@ export function createSessionTelemetry(
     }
   }
 
-  /** The binding of a system-scope read: no tenant and no work, since such a read names no session. */
   function systemBinding(): Binding {
     return { scope: systemScope(), component: COMPONENT, instance }
   }
 
   function start(event: Extract<SessionSegmentEvent, { phase: 'start' }>): void {
     const { definition, checked } = definitionOf(event.operation)
-    // An event that names both a tenant and the system scope is malformed: tenant work is never
-    // relabelled as `system` (TC-4), so it is discarded like a record without a tenant.
     const binding =
       event.scope !== 'system'
         ? bindingOf(event.tenant, event.session)
@@ -203,7 +170,6 @@ export function createSessionTelemetry(
     if (isSegment(segment) && !lifetime.released) open.set(event.span, { segment, lifetime })
   }
 
-  /** An end without an open start (dropped by the provider, or never started) ends nothing. */
   function end(event: Extract<SessionSegmentEvent, { phase: 'end' }>): void {
     const entry = open.get(event.span)
     if (entry === undefined) return

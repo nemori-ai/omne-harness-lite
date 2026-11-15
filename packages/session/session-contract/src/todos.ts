@@ -26,7 +26,6 @@ export type SessionTodos<P> = Pick<
   'addTodo' | 'removeTodo' | 'markTodoComplete' | 'listTodos'
 >
 
-/** The same bound applies to commands and to replayed log payloads. */
 export function validTodoText(text: unknown): text is string {
   return (
     typeof text === 'string' && text.trim().length > 0 && Buffer.byteLength(text, 'utf8') <= 4096

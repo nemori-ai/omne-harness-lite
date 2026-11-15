@@ -8,7 +8,6 @@ import type {
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { digestOf } from './session-values.ts'
 
-/** The loader has no Agent records: only an actually empty admission directory can be supplied. */
 export function emptyHistory(
   snapshot: WorkSnapshot,
   scope: SessionInputScope,

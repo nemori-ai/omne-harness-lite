@@ -1,9 +1,3 @@
-// AD-14 into AD-01 on real Cordis: the AcceptedInput that `sessionAgentDrive` builds reaches the
-// read-only check of the session-log Journal unchanged, and the check holds on it. The Session side
-// is session-storage-sql over the node:sqlite double; the Session work faces read it. The Agent
-// runtime is a double whose `invoke` and handle `submit` call the real session-log Journal with
-// what AD-14 gave them, so the source basis travels the production path from the drive port to the
-// `session` participant. The double does not prove the Agent runtime, Workers or durability.
 import { Context, Service } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import type {
@@ -38,11 +32,6 @@ afterEach(async () => {
   for (const dispose of disposers.splice(0).reverse()) await dispose()
 })
 
-/**
- * The drive plugin over the scene: the Session work faces read the scene's storage, and every
- * runtime opens and submits through the scene's session-log Journal. `given` keeps each
- * AcceptedInput exactly as AD-14 handed it to the runtime.
- */
 async function assembled(s: SqlScene) {
   const ctx = new Context()
   const given: AcceptedInput[] = []
@@ -119,7 +108,6 @@ async function assembled(s: SqlScene) {
     readonly control: AgentExecutionControlService<unknown>['control'] = async () =>
       fail({ kind: 'unsupported' })
   }
-  // The scene's storage allows every principal; the coordinator principal of AD-14 is not checked here.
   const workFace: Pick<SessionFaces<unknown>['work'], 'readWork' | 'readInput'> = {
     readWork: () => s.port.readWork(s.sessionAccess),
     readInput: input => s.port.readInput({ ...s.sessionAccess, input: input.input }),
@@ -150,7 +138,6 @@ async function mountOn(ctx: Context, plugin: Parameters<Context['plugin']>[0]) {
   return () => fiber.dispose()
 }
 
-/** Session accepts the ordinary input `name`; the source of the answer is its SE11 receipt. */
 async function accept(s: SqlScene, name: string): Promise<DurableEvidence> {
   const value = ordinaryInput(name)
   const accepted = ok(
@@ -171,13 +158,12 @@ async function accept(s: SqlScene, name: string): Promise<DurableEvidence> {
   return (accepted as { source: DurableEvidence }).source
 }
 
-describe('the source basis from AD-14 to the read-only check (PA-01 items 1 and 2)', () => {
-  it('invoke opens the execution on the SE13 receipt, and submit hands an input in on its SE11 receipt', async () => {
+describe('the source basis from AgentDrivePort to the read-only check', () => {
+  it('invoke opens the execution on the run.started receipt, and submit hands an input in on its intake.routed receipt', async () => {
     const s = await sqlScene('drive-source', { instance: 'slot' })
     const { drive, given, receipts } = await assembled(s)
     const target = { tenant: s.access.tenant, session: s.access.session, execution: s.execution }
     const first = s.initial.id as unknown as InputId
-    // What the Session coordinator sends: the startRun receipt is the SE13 source and the grant.
     const invoke = deriveDriveOperation({
       kind: 'invoke',
       execution: s.execution,
@@ -194,7 +180,6 @@ describe('the source basis from AD-14 to the read-only check (PA-01 items 1 and 
     expect(invoked).toEqual({
       ok: { revision: expect.any(String), evidence: receipts.get(invoke) },
     })
-    // The AcceptedInput reached the Journal as AD-14 built it: SE13 receipt, not the origin.
     expect(given[0]?.source).toEqual(s.grant)
     expect(given[0]?.source).not.toEqual(ordinaryInput('input-1').origin)
 
@@ -217,7 +202,6 @@ describe('the source basis from AD-14 to the read-only check (PA-01 items 1 and 
     const first = s.initial.id as unknown as InputId
     const written = () => s.controls?.select('SELECT COUNT(*) AS n FROM er_operation').rows[0]?.[0]
     const before = written()
-    // The C24 counterexample: the origin of the first input in place of the SE13 receipt.
     const origin = ordinaryInput('input-1').origin
     const refused = await drive.invoke({
       ...target,
@@ -231,7 +215,6 @@ describe('the source basis from AD-14 to the read-only check (PA-01 items 1 and 
       source: origin,
       grant: s.grant,
     })
-    // The runtime got the input, so the refusal is the Journal's check, not an earlier step.
     expect(given).toHaveLength(1)
     expect(refused).toEqual({ failure: { kind: 'denied' } })
     expect(written()).toBe(before)

@@ -1,11 +1,3 @@
-// The contribution of `session/v1`: one handler for each of the nine operations and the frame
-// source of `observe-session`. The handlers are moved from the server entry's session location
-// (`packages/access/server-entry/src/session.ts`), except `list-sessions`, which is new and reaches
-// the session list through the `SessionListing` port; they reach Session through the same faces and
-// derived identities, and map Session's results to the same outcomes. Only `create-session` acts
-// for the acting tenant the pipeline gave; the other operations carry a target tenant in the body,
-// and `TargetTenantPrincipals` turns the login into a principal for it. Every port is taken at the
-// call: one that is not there answers `basis-unavailable`.
 import type {
   AccessContribution,
   EndOf,
@@ -52,7 +44,6 @@ import type {
 import type { RequestDrain } from './request-drain.ts'
 import { querySendInput, sendInput } from './send-input.ts'
 
-/** What the contribution reads. Each function is called at the moment of a call. */
 export type SessionContributionInput = Readonly<{
   faces: () => SessionAccessFaces | undefined
   observation: () => SessionObservation<Principal> | undefined
@@ -66,10 +57,8 @@ export type SessionContributionInput = Readonly<{
 
 type ObserveSession = SessionProtocol['observations']['observe-session']
 
-/** The principal for a target tenant, or the refusal identity gave. */
 type TenantPrincipal = Readonly<{ principal: Principal; tenantText: string }>
 
-/** Whether a `pageBytes` text (digits only, no leading zero) is within the deployment bound. */
 function withinPageBound(pageBytes: string, bound: number): boolean {
   const boundText = String(bound)
   return (
@@ -98,15 +87,10 @@ function pageOf(page: HistoryPage) {
     next: page.next,
     exhausted: page.exhausted,
     scannedThrough: page.scannedThrough,
-    // The traversal's pinned revision: the same quantity a state frame's `revision` is.
     upper: page.upper,
   }
 }
 
-/**
- * The frames of an opened observation, each written as a frame of the contract, and its end reason.
- * Closing these frames closes the observation's own.
- */
 async function* framesOf(
   frames: AsyncGenerator<SessionObservationFrame, SessionObservationEnd | undefined>,
 ): AsyncGenerator<FrameOf<ObserveSession>, EndOf<ObserveSession>> {
@@ -117,9 +101,6 @@ async function* framesOf(
         yield frameOf(step.value)
         continue
       }
-      // `undefined` comes only after the signal was aborted. The hub aborts it after it has
-      // already ended the observation, and it no longer reads the reason (`observation-hub/hub.ts`
-      // `open`), so the reason given here is never written out.
       return step.value ?? 'unavailable'
     }
   } finally {
@@ -127,10 +108,6 @@ async function* framesOf(
   }
 }
 
-/**
- * One frame of session observation as a frame of `observe-session`, field by field. A kind that
- * session observation adds and the contract lacks does not compile here.
- */
 function frameOf(frame: SessionObservationFrame): FrameOf<ObserveSession> {
   switch (frame.kind) {
     case 'state':
@@ -156,7 +133,6 @@ export function createSessionContribution(
 ): Omit<AccessContribution<SessionProtocol>, 'protocol'> {
   const { principals, facts, settings } = input
 
-  /** The principal for the target tenant of the body. */
   async function principalFor(
     login: LoginIdentity,
     tenant: TenantId,
@@ -172,7 +148,6 @@ export function createSessionContribution(
     return { principal: issued.ok, tenantText }
   }
 
-  /** The principal for the target tenant, and the session the body names. */
   async function target(
     login: LoginIdentity,
     tenant: TenantId,
@@ -184,7 +159,6 @@ export function createSessionContribution(
     return { access, tenantText: issued.tenantText }
   }
 
-  /** The target, then Session as it is on the tree now. */
   async function admit(
     login: LoginIdentity,
     tenant: TenantId,
@@ -196,7 +170,6 @@ export function createSessionContribution(
     return faces === undefined ? UNAVAILABLE : { ...admitted, faces }
   }
 
-  /** The tenant, account and login of a principal; `undefined` when identity cannot tell them. */
   const factOf = (principal: Principal) => describedBy(facts, principal)
   const sending = { target, factOf, faces: input.faces, requests: input.requests }
 
@@ -210,8 +183,6 @@ export function createSessionContribution(
     if (name === undefined) return { outcome: 'invalid', body: {} }
     const resolved = definitions(name)
     if (resolved === undefined) return { outcome: 'invalid', body: {} }
-    // A mapped definition without an initial model selection is a gap of the deployment: the
-    // session could never start a run, so it is refused before Session is called.
     const initialModelSelection = resolved.initialModelSelection
     if (initialModelSelection === undefined) return UNAVAILABLE
     const fact = factOf(principal)
@@ -269,7 +240,6 @@ export function createSessionContribution(
       case 'committed':
         return { outcome: 'succeeded', body: { session: access.session } }
       case 'not-committed':
-        // A creation that never committed means the session does not exist: denied, not disclosed.
         return { outcome: 'denied' }
       case 'attempt-rejected':
       case 'unknown':
@@ -396,8 +366,6 @@ export function createSessionContribution(
     const caller = factOf(access.principal)
     if (caller === undefined) return UNAVAILABLE
     const { controlId, producer } = body
-    // Session judges the access first, so `denied` and unavailability come from it. For a Tool
-    // target the answer is `unsupported` whatever else Session says.
     const result = await commitCall(() =>
       faces.work.stopCall({
         ...access,

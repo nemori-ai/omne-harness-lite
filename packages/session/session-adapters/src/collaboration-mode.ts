@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { Adoption, DurableEvidence, Modes } from '@omne-harness/session-contract'
 
-/** What the meta-capability host may offer the model in each collaboration mode. */
 const interactions = {
   'co-work': Object.freeze({ humanInteraction: true, requestApproval: true }),
   'auto-drive': Object.freeze({ humanInteraction: false, requestApproval: false }),
@@ -9,7 +8,6 @@ const interactions = {
   Record<Modes['collaboration'], Readonly<{ humanInteraction: boolean; requestApproval: boolean }>>
 >
 
-/** Names this exact translation table, for the evidence of every projection. */
 export const SESSION_COLLABORATION_MODE_TRANSLATION: Adoption = Object.freeze({
   owner: '@omne-harness/session-adapters',
   name: 'collaboration-mode',
@@ -24,7 +22,6 @@ export type SessionInteraction = Readonly<{
   translation: Adoption
 }>
 
-/** Runs when a committed mode is published or restored, never as a per-call mode interpreter. */
 export function projectSessionCollaborationMode(
   mode: Modes['collaboration'],
   source: DurableEvidence,

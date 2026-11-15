@@ -1,5 +1,3 @@
-// The page builds the `send-input` message with WebCrypto; the SDK builds it with `node:crypto`.
-// Both are held to the same vectors, here and in `packages/access/sdk/tests/user-message.spec.ts`.
 import { expect, it } from 'vitest'
 import { userMessageId, userTextMessage } from '../src/model/user-message.ts'
 

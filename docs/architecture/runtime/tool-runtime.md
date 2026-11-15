@@ -32,9 +32,9 @@ Agent runtime 只持有工具执行的访问和控制句柄。最后一个句柄
 
 1. [装配协调者](../../domains/assembly-and-handoff/README.md#模块角色与事实归属)（领域角色「采用协调」）为本会话收集采用点事实，调用 Tool 的纯函数 `planAdoption`。判定为冻结时，输出是 `FreezeVerdict { cause: 'tool-shape-lost', evidence }`。
 2. 装配协调者把判定放进本次候选采用材料。
-3. Session 的协调器取得这份材料，以该会话的访问依据（`SessionAccess`）和调用方类 `coordinator` 调用 Session 的 `startRun` 或 `reload`。`startRun` 分支由推进触发调度器（[S1](../../../packages/session/session/SPEC.md#s1-推进触发调度器)）触发，由 Agent 推进协调器（[C2](../../../packages/session/session/SPEC.md#c2-agent-推进协调器)）提交。`reload` 分支也由 C2 提交。C2 的换代顺序产出 `reload`，C2 的冻结判定行同时覆盖 `startRun` 与 `reload` 返回 `frozen` 的情形。调度器与协调器的分工见[协调器与调度器](session-and-run.md#协调器与调度器)。它们在 `session-provider` 行（[插件树](application-assembly.md#插件树)），以 `SessionInternalPrincipals` 提交命令。
+3. Session 的协调器取得这份材料，以该会话的访问依据（`SessionAccess`）和调用方类 `coordinator` 调用 Session 的 `startRun` 或 `reload`。`startRun` 分支由推进触发调度器（[S1](../../../packages/session/SPEC.md#协调器与调度器)）触发，由 Agent 推进协调器（[C2](../../../packages/session/SPEC.md#协调器与调度器)）提交。`reload` 分支也由 C2 提交。C2 的换代顺序产出 `reload`，C2 的冻结判定行同时覆盖 `startRun` 与 `reload` 返回 `frozen` 的情形。调度器与协调器的分工见[协调器与调度器](session-and-run.md#协调器与调度器)。它们在 `session-provider` 行（[插件树](application-assembly.md#插件树)），以 `SessionInternalPrincipals` 提交命令。
 4. 材料带冻结判定时，命令返回 `frozen`，不提交。
-5. 收到 `frozen` 的同一协调器以同一判定、同一 `SessionAccess` 和调用方类 `coordinator` 调用 Session 的 `freeze`。`freeze` 是冻结的唯一提交点，同一会话只成立一次冻结，见[常驻工具与会话冻结](../../../packages/session/session-contract/SPEC.md#常驻工具与会话冻结)。
+5. 收到 `frozen` 的同一协调器以同一判定、同一 `SessionAccess` 和调用方类 `coordinator` 调用 Session 的 `freeze`。`freeze` 是冻结的唯一提交点，同一会话只成立一次冻结，见[常驻工具与会话冻结](../../../packages/session/SPEC.md#模式自动归档与冻结)。
 
 会话初始化不判冻结。`create` 的候选采用材料只列出新纳入的常驻工具，不带冻结判定。Tool 不定义向会话交付冻结判定的端口。换代协调者也不判冻结：`sweep` 只记录重装失败，由下一个采用点判定。Tool 只给判定与原因 `tool-shape-lost`，冻结的状态转换由会话执行。
 
@@ -49,7 +49,7 @@ Agent runtime 只持有工具执行的访问和控制句柄。最后一个句柄
 
 精确形状与服务键 `toolResidencyReader` 归 [tool-cordis-contract](../../../packages/tool/SPEC.md#装载登记与换代)。
 
-Tool 契约不导入 Session 契约（规则见[依赖方向与 Cordis 集成](../layers-and-dependencies.md#依赖方向与cordis集成)，机读约束 `DIR-TOOL-SESSION` 见 [constraints](../constraints.json)），Session 也不实现 Tool 的端口。所以 `toolResidencyReader` 由应用装配提供。应用成员的桥接插件以调用方类 `maintainer` 调用 Session 的公开操作 [`references`](../../../packages/session/session-contract/SPEC.md#常驻工具与会话冻结)，并出示装配入口签发的系统主体，作为系统作用域的读取资格。桥接插件把每个引用会话投影为一个持有者引用。`references` 的任何失败都交为 `unavailable`，不交空页。桥接插件的行归[应用装配的插件树](application-assembly.md#插件树)，它使用的运行时对象归[应用装配的运行时对象](application-assembly.md#运行时对象)。
+Tool 契约不导入 Session 契约（规则见[依赖方向与 Cordis 集成](../layers-and-dependencies.md#依赖方向与cordis集成)，机读约束 `DIR-TOOL-SESSION` 见 [constraints](../constraints.json)），Session 也不实现 Tool 的端口。所以 `toolResidencyReader` 由应用装配提供。应用成员的桥接插件以调用方类 `maintainer` 调用 Session 的公开操作 [`references`](../../../packages/session/SPEC.md#模式自动归档与冻结)，并出示装配入口签发的系统主体，作为系统作用域的读取资格。桥接插件把每个引用会话投影为一个持有者引用。`references` 的任何失败都交为 `unavailable`，不交空页。桥接插件的行归[应用装配的插件树](application-assembly.md#插件树)，它使用的运行时对象归[应用装配的运行时对象](application-assembly.md#运行时对象)。
 
 两种情形下协调者都不撤除贡献：
 

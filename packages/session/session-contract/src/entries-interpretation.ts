@@ -1,8 +1,3 @@
-// The range check of the same-log entries interpretation (docs/same-log-pure.md「entries 通道的解释
-// 提交」). It is pure: it reads no store and no clock, and it does not throw; every refusal is a
-// `rejected` decision. The rules run in a fixed order and the first failure decides the kind. The
-// saved progress of the session is an input, so the check does not depend on where a provider
-// keeps it. Every provider of `commitEntries` calls these two functions; none writes its own check.
 import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
 import type { SessionFailure } from './faces.ts'
 import type { Decision, EncodedEntry, OperationRecord } from './judgments.ts'
@@ -25,10 +20,6 @@ import {
   unavailableAt,
 } from './session-validation.ts'
 
-/**
- * The `via` of every row that an entries commit writes. It is not `same-log`: the event channel
- * pairs each `same-log` consequence with an execution progress row, and an entries row has none.
- */
 export const SAME_LOG_ENTRIES_VIA = 'same-log-entries'
 
 type EntriesDecision = Exclude<Decision, { kind: 'control-answer' }>
@@ -36,12 +27,6 @@ type ChannelKey = Pick<SessionEntriesProgress, 'run' | 'execution' | 'channel'>
 
 const refuse = (failure: SessionFailure): EntriesDecision => ({ kind: 'rejected', failure })
 
-/**
- * The stable digest of one observation: the same operation with the same digest recalls, with
- * another digest it is a conflict. The operation identity is not part of it, and neither is the
- * start, which is a claim about the state and not the intent. The `entries` label keeps it apart
- * from the digest of every command. Throws a TypeError for a tenant that legal-identity did not mint.
- */
 export function digestSessionEntries(observation: SessionEntriesObservation): string {
   const { operation: _operation, tenant, ...rest } = observation
   const text = tenantCodec.encode(tenant)
@@ -50,32 +35,23 @@ export function digestSessionEntries(observation: SessionEntriesObservation): st
   return digestOf({ kind: 'entries', input: { ...rest, tenant: text.value } })
 }
 
-/**
- * The decision of one `commitEntries`. `saved` is the progress that the provider saved for the
- * session, one item per (run, execution, channel); `record` is the provider's record of the
- * operation identity, or null. A legal range gives `entries`: the consequence rows, then one
- * `entries.interpreted` progress row, with `progress` and `interpreted` echoing that row.
- */
 export function projectSessionEntries(
   snapshot: WorkSnapshot,
   input: Readonly<{
     observation: SessionEntriesObservation
-    /** The progress that the caller claims is saved: the `start` of the port. */
     start: SessionEntriesStart
     saved: readonly SessionEntriesProgress[]
     record: OperationRecord | null
   }>,
 ): EntriesDecision {
   const { observation, start, saved, record } = input
-  // EI-01
   if (
     !tenantEquals(snapshot.tenant, observation.tenant) ||
     snapshot.session !== observation.session
   )
     return refuse({ kind: 'denied', action: 'commitEntries' })
   try {
-    nonempty(observation.operation, 'operation') // EI-02
-    // EI-03 and EI-04: the recall comes before every state check (SL07).
+    nonempty(observation.operation, 'operation')
     if (record !== null)
       return record.operation === observation.operation &&
         record.digest === digestSessionEntries(observation)
@@ -95,7 +71,6 @@ export function projectSessionEntries(
   }
 }
 
-/** EI-05 canonical decimals, then EI-06 complete evidence. */
 function checkForm(observation: SessionEntriesObservation): void {
   decimal(observation.after, 'after')
   decimal(observation.through, 'through')
@@ -115,7 +90,6 @@ function checkForm(observation: SessionEntriesObservation): void {
   })
 }
 
-/** EI-07 to EI-10: the execution, its Run and the boundary. */
 function checkBinding(snapshot: WorkSnapshot, observation: SessionEntriesObservation): void {
   const current =
     snapshot.run.kind === 'active'
@@ -137,7 +111,6 @@ function checkBinding(snapshot: WorkSnapshot, observation: SessionEntriesObserva
     invalidAt('boundary.channel', 'not the channel of the observation')
 }
 
-/** EI-11 and EI-12. */
 function checkRange(observation: SessionEntriesObservation): void {
   const through = BigInt(observation.through)
   if (through <= BigInt(observation.after))
@@ -146,7 +119,6 @@ function checkRange(observation: SessionEntriesObservation): void {
     invalidAt('through', 'passes the entry count of the channel')
 }
 
-/** EI-13 to EI-15: the start against the saved progress of the channel. */
 function checkStart(
   snapshot: WorkSnapshot,
   observation: SessionEntriesObservation,
@@ -173,7 +145,6 @@ function checkStart(
     invalidAt('start', 'is ahead of the saved progress or names another commit evidence')
 }
 
-/** EI-16 to EI-20. */
 function checkItems(observation: SessionEntriesObservation): void {
   const after = BigInt(observation.after)
   const { items } = observation
@@ -200,7 +171,6 @@ function checkItems(observation: SessionEntriesObservation): void {
   })
 }
 
-/** EI-21 through the one producer-fact encoding, EI-23, then the rows. */
 function interpret(
   snapshot: WorkSnapshot,
   observation: SessionEntriesObservation,

@@ -1,7 +1,3 @@
-// The generic part of `decide : (View, Command) -> Answer | Batch | Rejection` (R2-D292): the cursor
-// difference that `cursor.moved` carries, the rule that a command without a new fact appends no
-// batch, and the batch builder that refuses a repeated fact. The judgement of each command stays
-// with the command; this file only shapes what a judgement that passed writes.
 import type {
   AgentCheckpoint,
   AgentOperationId,
@@ -21,16 +17,10 @@ import {
 } from './facts.ts'
 import type { ExecutionView } from './fold.ts'
 
-/**
- * The cursor members of one commit: the small members of the checkpoint as they are, the members
- * that carry content as references, and the committed state kind. Every member is present, so a
- * difference against the folded cursor finds exactly the members that changed.
- */
 export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState): CursorMembers {
   return {
     position: checkpoint.position,
     step: checkpoint.step,
-    // The batch itself is the `step.begun` of its step; the cursor names it (R2-D292).
     inputBatch: checkpoint.inputBatch === null ? null : checkpoint.inputBatch.id,
     guard: checkpoint.guard === null ? null : refOf(checkpoint.guard),
     priorConditions: checkpoint.priorConditions,
@@ -58,15 +48,12 @@ export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState)
   }
 }
 
-/** A content-addressed store of the values the facts refer to: the custody blocks. */
 export type BlobStore = ReadonlyMap<string, unknown>
 
-/** One block to put with a batch: its digest and the value. */
 export type Blob = readonly [digest: string, value: unknown]
 
 export const blobOf = (value: unknown): Blob => [refOf(value).digest, value]
 
-/** The blocks a checkpoint's cursor refers to: every member that enters a fact as a reference. */
 export function blobsOf(checkpoint: AgentCheckpoint): Blob[] {
   const out: Blob[] = [blobOf(checkpoint.passages), blobOf(checkpoint.calls)]
   if (checkpoint.guard !== null) out.push(blobOf(checkpoint.guard))
@@ -86,15 +73,6 @@ function held<T>(blobs: BlobStore, ref: Readonly<{ digest: string }>, what: stri
   return structuredClone(blobs.get(ref.digest)) as T
 }
 
-/**
- * The checkpoint a complete folded view names: the inverse of `cursorOf`, reading the referred
- * members from the blocks. Two members are not in the cursor because facts of their own hold them
- * (R2-D292): `inputBatch` is the batch of the `step.begun` the cursor names, and `voided` lists the
- * `intent.voided` facts in their order, a request with the action of its `call.intended`. A member
- * the cursor lacks, a block the store does not hold, a batch no `step.begun` holds, or a voided
- * request without its intended call is a defect of the writer that folded it, not a value to
- * invent: it throws.
- */
 export function checkpointOf(
   view: Pick<ExecutionView, 'cursor' | 'steps' | 'requests' | 'voided' | 'intents'>,
   blobs: BlobStore,
@@ -161,7 +139,6 @@ export function checkpointOf(
     : { ...withAdopted, modelRetry: structuredClone(cursor.modelRetry) }
 }
 
-/** The members of `after` whose canonical text differs from the folded cursor `before`. */
 export function movedMembers(
   before: Readonly<Partial<CursorMembers>>,
   after: CursorMembers,
@@ -174,7 +151,6 @@ export function movedMembers(
   return moved as Partial<CursorMembers>
 }
 
-/** The `cursor.moved` fact of a commit, or null when no member moved. */
 export function cursorMoved(
   view: ExecutionView,
   checkpoint: AgentCheckpoint,
@@ -187,23 +163,10 @@ export function cursorMoved(
 
 export type BatchRefusal =
   | Readonly<{ kind: 'repeated'; key: string }>
-  /** More facts than one batch may carry (`BATCH_MAX_FACTS`). */
   | Readonly<{ kind: 'too-many'; facts: number; limit: number }>
-  /**
-   * The operation was excluded earlier by a fence, a custody chain or a reception; its write is
-   * refused, not revived (R2-D307). A dropped or no-write exclusion is revivable (`REVIVABLE_EXCLUSIONS`).
-   */
   | Readonly<{ kind: 'excluded'; operation: AgentOperationId }>
-  /** An `exec.opened` must travel with the `exec.attached` that names the Authority (R2-D307). */
   | Readonly<{ kind: 'incomplete'; reason: 'open-without-attachment' }>
 
-/**
- * Builds the batch of one command from the facts its judgement produced. A command with no new
- * fact appends a batch of the envelope alone (R2-D307): it advances no revision, it is a small
- * constant in bytes, and it is what a retry and `query` recognize the operation by. A fact whose
- * key the view already holds, or that repeats within the batch, is refused, because a fact is
- * written once; an excluded operation is refused; an open without its attachment is refused.
- */
 export function batchOf(
   view: ExecutionView,
   envelope: BatchEnvelope,
@@ -229,7 +192,6 @@ export function batchOf(
   return { execution: view.execution, envelope, facts }
 }
 
-/** Whether the view already holds a fact of `key`: the kinds whose key is unique per execution. */
 export function keyKnown(view: ExecutionView, key: string): boolean {
   const [kind, ...rest] = key.split('/')
   const name = rest.join('/')

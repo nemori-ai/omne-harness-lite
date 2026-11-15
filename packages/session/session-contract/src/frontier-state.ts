@@ -21,7 +21,6 @@ import {
   unique,
 } from './session-validation.ts'
 
-/** Command and replay share the complete final release check. */
 export function validateFrontierBatch(
   snapshot: WorkSnapshot,
   entries: readonly SessionEntry[],
@@ -161,7 +160,6 @@ function interpretationRuns(
           ))
       )
     })
-    // A deferred control fact that Session decided as observed saves its progress alone.
     const deferredProgress = boundary.facts.some(
       fact =>
         fact.sequence === entry.execution.readThrough &&
@@ -174,7 +172,6 @@ function interpretationRuns(
   return runs
 }
 
-/** Apply the original event's Run constraint against the evolving batch, including new registrations. */
 export function validateInterpretationEntry(
   snapshot: WorkSnapshot,
   entry: SessionEntry,
@@ -261,14 +258,12 @@ export function validateReplayHistory(
           ? [kind]
           : []
       })
-      // Session decided a deferred control fact in this batch: only `control` rows, any number.
       if (isDeferredFact(fact.kinds)) {
         if (actual.some(kind => kind !== 'control'))
           inconsistent('interpretation of a deferred control fact writes other consequences')
         continue
       }
       const required = fact.kinds.filter(kind => kind !== 'observed')
-      // The legacy forms normalize to their registration-backed equivalents.
       const normalize = (kind: string) =>
         kind === 'call' ? 'call-registration' : kind === 'waiting' ? 'registered-waiting' : kind
       if (!equalValue(actual.map(normalize), required.map(normalize)))

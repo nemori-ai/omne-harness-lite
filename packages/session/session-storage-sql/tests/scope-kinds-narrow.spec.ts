@@ -1,9 +1,3 @@
-// The read that AD-03 makes for the Context scopes of a session (SCOPE-NARROW, R2-D229): a history
-// read of one kind of `CONTEXT_SCOPE_KINDS` (SE27, SE28). What is checked: it asks only the history
-// handler, runs no SQL on the state row, and its page statement is served from the kind index
-// `sl_kind_idx`, so the rows it visits are the entries of that kind, not the history of the
-// session. A read of two kinds is not served from the kind index, which is why the reader asks each
-// kind alone. The plan is that of the node:sqlite test double, the same engine as the provider.
 import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it } from 'vitest'
 import {
@@ -29,7 +23,6 @@ const control = (a: App, kind: 'archive' | 'unarchive', name: string) =>
     guards: [],
   })
 
-/** A session with a long history and one archive cycle. */
 async function cycled() {
   const a = await app()
   expect(kindOf(await a.create(TENANT_A))).toBeUndefined()
@@ -52,10 +45,6 @@ async function readKinds(a: App, kinds: readonly string[]) {
   return page.ok
 }
 
-/**
- * The plan of the page statement (the one that filters on the kinds) of the reads since `from`, on
- * a database with the Session log tables: the fixture's own port runs only row reads.
- */
 function pagePlan(a: App, from: number): string {
   const statement = a.provider.readSql.slice(from).find(sql => /\bkind IN\b/.test(sql))
   if (statement === undefined) throw new Error('no page statement')
@@ -85,7 +74,6 @@ describe('the scope read of one kind', () => {
       .flatMap(call => (call.kind === 'read' ? [call.handler] : []))
     expect(new Set(handlers)).toEqual(new Set(['session.history']))
     expect(a.provider.readSql.slice(sql).filter(text => /sl_state/.test(text))).toEqual([])
-    // The two entries are all the read returns, and they fold to the snapshot's scopes.
     expect(entries.map(entry => entry.kind)).toEqual(['session.archived', 'session.unarchived'])
     const work = await a.port.readWork(a.access(TENANT_A))
     if (!('ok' in work)) throw new Error('readWork failed')

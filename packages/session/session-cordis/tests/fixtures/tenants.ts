@@ -1,5 +1,3 @@
-// Two tenants and the access policy of the tests. A principal is a text that carries its tenant:
-// `a:` for tenant A, `b:` for tenant B, and `system:` for the internal principals.
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import type { SessionAccessRequest } from '@omne-harness/session-contract'
 import {
@@ -22,7 +20,6 @@ export function prefixOf(tenant: TenantId): string {
   return tenantEquals(tenant, TENANT_A) ? 'a' : 'b'
 }
 
-/** A principal acts on its own tenant; `system:` principals act on any tenant and the system scope. */
 export function policy(request: SessionAccessRequest<string>): SessionAccessScript {
   const principal = request.access.principal
   const allowed: SessionAccessScript = {

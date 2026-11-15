@@ -20,11 +20,6 @@ export const sourceOf = (operation: SessionOperationId, what: string): DurableEv
   revision: '1',
   digest: `sha256:${digestOf({ operation, what })}`,
 })
-/**
- * The Run that the control `operation` ended as cancelled in its own commit: a cancel of the Run,
- * or an archive of a session whose Run was active. Null when the control ended no Run, or when the
- * session has started a later Run since.
- */
 export function runCancelledBy(
   snapshot: WorkSnapshot,
   operation: SessionOperationId,

@@ -1,6 +1,3 @@
-// The session interface as a pure state machine: `step(state, event)` gives the next state and the
-// effects the driver runs against the protocol client. Every cell of the totalized table in
-// SPEC.md「全化表」is one branch here; the tests are named after the rows.
 import type { ClientOf, ObservationEnd as ClientObservationEnd } from '@omne-harness/sdk/core'
 import type { ObserveSessionFrame, SessionProtocol } from '@omne-harness/session-protocol'
 import {
@@ -27,7 +24,6 @@ export type ObservationEnd = ClientObservationEnd<
   SessionProtocol['observations']['observe-session']
 >
 
-/** A sentence for a person, and which of the three kinds of trouble it is. */
 export type Notice = Readonly<{ kind: 'refused' | 'unavailable' | 'unknown'; text: string }>
 
 export type InputStatus =
@@ -57,11 +53,8 @@ export type Observation =
   | Readonly<{ kind: 'reconnecting'; generation: number; attempt: number }>
 
 export type History = Readonly<{
-  /** The read in flight, by token; null when none is. */
   reading: number | null
-  /** The last token issued: a new read takes the next one, so a stale answer never matches. */
   issued: number
-  /** A newer revision arrived while reading: read again when this one is done. */
   again: boolean
   failure: Notice | null
 }>
@@ -72,7 +65,6 @@ export type Open = Readonly<{
   run: Run
   observation: Observation
   history: History
-  /** The highest revision a state frame has reported. */
   revision: string | null
   content: Content
   inputs: readonly PendingInput[]
@@ -144,7 +136,6 @@ export function reconnectDelay(attempt: number): number {
 
 const same = (state: State): Step => ({ state, effects: [] })
 
-// The sentences people read. One place, so every refusal reads the same wherever it shows.
 const SENTENCES: Readonly<Record<string, string>> = {
   limited: '超过了服务端的限额。',
   invalid: '服务端认为这个请求的内容不合规定。',
@@ -197,7 +188,6 @@ function opened(session: string): Step {
   }
 }
 
-/** Leaving an open session: its observation stops; answers still on their way are dropped. */
 function leave(state: State): Effect[] {
   return state.kind === 'open'
     ? [{ kind: 'stop-observing', generation: state.observation.generation }]
@@ -239,15 +229,10 @@ export function step(state: State, event: Event): Step {
   }
 }
 
-/**
- * A create or its confirmation is on its way: opening a session waits for the answer (R30). A create
- * still unknown has nothing on its way, so leaving it drops no answer and claims nothing.
- */
 export function createInFlight(state: State): boolean {
   return state.kind === 'creating' && state.confirm !== 'unknown'
 }
 
-/** The same way in as after a create succeeds. */
 function onOpenSession(state: State, session: string): Step {
   if (createInFlight(state)) return same(state)
   if (state.kind === 'open' && state.session === session) return same(state)
@@ -286,7 +271,6 @@ function onCreateAnswered(state: State, event: Extract<Event, { kind: 'create-an
 
 type Creating = Extract<State, { kind: 'creating' }>
 
-/** Confirm by the same create call id; the create itself is never sent again. */
 function askCreate(state: Creating): Step {
   return {
     state: { ...state, confirm: 'asking', notice: UNKNOWN('建会话') },
@@ -350,7 +334,6 @@ function updateInput(
   }
 }
 
-/** The open session holding this input in this status, or null: any other answer is stale. */
 function holding(
   state: State,
   session: string | null,
@@ -362,7 +345,6 @@ function holding(
   return input?.status === status ? state : null
 }
 
-/** Confirm by the same acceptance id; the input itself is never sent again. */
 function askSend(state: Open, acceptId: string): Step {
   return {
     state: updateInput(state, acceptId, { status: 'confirming', notice: UNKNOWN('发送') }),
@@ -424,7 +406,6 @@ function onCancel(state: State, controlId: string): Step {
   const run = state.run
   if (run.kind === 'idle') return same(state)
   if (run.kind === 'cancelling' && !run.unknown) return same(state)
-  // An unknown cancel is asked again under the same control id: the same operation, not a new one.
   const control = run.kind === 'cancelling' ? run.controlId : controlId
   return {
     state: {
@@ -444,7 +425,6 @@ function onCancelAnswered(state: State, event: Extract<Event, { kind: 'cancel-an
   const answer = event.answer
   switch (answer.outcome) {
     case 'succeeded':
-      // `requested`: the run ends later and a state frame says so. `ended`: it already ended.
       return answer.body.kind === 'ended' ? same({ ...state, run: { kind: 'idle' } }) : same(state)
     case 'unknown':
     case 'uncertain':
@@ -512,7 +492,6 @@ function onFrame(state: State, event: Extract<Event, { kind: 'frame' }>): Step {
       const applied = applyDelta(live.content, frame.value)
       if (applied.kind === 'applied') return same({ ...live, content: applied.content })
       if (applied.kind === 'unreadable') return same({ ...live, notice: UNREADABLE })
-      // The base is not what is held: do not apply; observe again for a fresh snapshot.
       return reobserve(live, 0)
     }
     case 'gap':
@@ -521,9 +500,6 @@ function onFrame(state: State, event: Extract<Event, { kind: 'frame' }>): Step {
         content: { ...live.content, liveStatus: { kind: 'gap', reason: frame.reason } },
       })
     case 'refreshing':
-      // The observation has no reply stream to forward and looked again. With no run in progress
-      // that says nothing about a reply; during a run it means the reply's content is awaited. It
-      // follows every gap and does not take the gap back: only the next snapshot does.
       return live.run.kind === 'idle' || live.content.liveStatus !== null
         ? same(live)
         : same({ ...live, content: { ...live.content, liveStatus: { kind: 'refreshing' } } })
@@ -532,7 +508,6 @@ function onFrame(state: State, event: Extract<Event, { kind: 'frame' }>): Step {
 
 const UNREADABLE: Notice = { kind: 'refused', text: '正在生成的内容读不懂，已忽略这一帧。' }
 
-/** The run axis after a state frame names the current run (or none). */
 function runAfter(run: Run, current: string | null): Run {
   if (current === null) return { kind: 'idle' }
   if (run.kind === 'cancelling' && run.run === current) return run
@@ -591,7 +566,6 @@ function onReconnectDue(state: State, event: Extract<Event, { kind: 'reconnect-d
   const observation = state.observation
   if (observation.kind !== 'reconnecting' || observation.generation !== event.generation)
     return same(state)
-  // Stays `reconnecting` until the first frame: a failure right away backs off further.
   return {
     state,
     effects: [{ kind: 'observe', session: state.session, generation: event.generation }],
@@ -632,8 +606,6 @@ function onHistoryRead(state: State, event: Extract<Event, { kind: 'history-read
         },
       ],
     }
-  // The traversal from the tail reached what was held (or the start of the log): everything the
-  // log had at the page's pinned revision is here.
   const read = readThroughTo(merged.content, page.upper)
   const done: Open = {
     ...merged,
@@ -648,7 +620,6 @@ function onHistoryRead(state: State, event: Extract<Event, { kind: 'history-read
     : same(done)
 }
 
-/** A pending input whose message is now in history is committed: history shows it from here on. */
 function uncommittedInputs(
   content: Content,
   inputs: readonly PendingInput[],

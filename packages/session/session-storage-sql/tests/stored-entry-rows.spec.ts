@@ -1,7 +1,3 @@
-// The `sl_entry` rows through the port (src/entry-codec.ts): a committed row holds the codec text
-// in the packed text form of sql-contract §10.1 and its true UTF-8 size in `bytes`; a row the codec cannot read, such as a row of the retired
-// value-tree encoding, answers `unavailable` with its diagnostic on the read and on the commit that
-// reads it, and is never read as a plain payload.
 import { describe, expect, it } from 'vitest'
 import type { HistoryEntry } from '@omne-harness/session-contract'
 import { sessionId } from '@omne-harness/session-contract/testing'
@@ -20,7 +16,6 @@ const failureOf = (value: unknown): Record<string, unknown> => {
   return (value as { failure: Record<string, unknown> }).failure
 }
 
-/** The rows of the session: position, kind, the stored text, its size and its format marker. */
 const rows = (a: App) =>
   (
     a.provider.select(
@@ -41,7 +36,6 @@ const begin = (a: App) =>
     pageBytes: 1 << 20,
   })
 
-/** Rewrites the row of `kind` into the retired encoding: the whole entry as `encodeValue` JSON. */
 function retire(a: App, kind: string): bigint {
   const row = rows(a).find(item => item[1] === kind)
   if (row === undefined) throw new Error(`no ${kind} row`)

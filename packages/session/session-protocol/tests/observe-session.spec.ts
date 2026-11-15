@@ -1,5 +1,3 @@
-// observe-session (card #1266 C7, RFC-0015 §8): a login opens it on a tenant and a session; it
-// sends five kinds of frame; its own end reason is only `refresh-exhausted`.
 import { describe, expect, it } from 'vitest'
 import { sessionProtocol } from '@omne-harness/session-protocol'
 import { expectRoundTrip, readSample, session, tenant } from './fixtures/samples.ts'

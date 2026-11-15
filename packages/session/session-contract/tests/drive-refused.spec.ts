@@ -1,9 +1,3 @@
-// The bounded close on a drive refusal (SPEC PM-02, PM-05, VC-A10, VC-R03): the Agent answered
-// `invoke` or `resume` with a definite failure, so the Run ends as failed on the basis that the
-// close itself records. On `invoke` the first input is rejected with `drive-refused` and leaves the
-// pending set; on `resume` no input is named and every pending input keeps its eligibility. Each
-// case fails when the close keeps the first input pending, writes no SE35, loses the refusal's
-// kind, field or reason from the terminal cause, or accepts an input that is not the first one.
 import { describe, expect, it } from 'vitest'
 import { expectedRevision, type BoundedClose, type InputId } from '@omne-harness/session-contract'
 import { operationId, refused, succeeded } from '@omne-harness/session-contract/testing'
@@ -45,7 +39,7 @@ function written(s: Scene, kind: SessionEntry['kind']): SessionEntry[] {
     })
 }
 
-describe('a drive refusal closes the Run as failed (VC-A10)', () => {
+describe('a drive refusal closes the Run as failed', () => {
   it('on invoke, the first input is rejected with drive-refused and is no longer pending', async () => {
     const s = await open()
     await s.accept('second')
@@ -87,7 +81,7 @@ describe('a drive refusal closes the Run as failed (VC-A10)', () => {
     expect(terminal.cause?.record).toContain('unsupported')
   })
 
-  it('on resume, no input is named: no SE35 is written and the pending inputs stay', async () => {
+  it('on resume, no input is named: no intake.handed-over entry is written and the pending inputs stay', async () => {
     const s = await open()
     await s.accept('second')
     const before = await s.read()
@@ -103,7 +97,7 @@ describe('a drive refusal closes the Run as failed (VC-A10)', () => {
   })
 })
 
-describe('a drive refusal that does not hold leaves the Run active (VC-R03)', () => {
+describe('a drive refusal that does not hold leaves the Run active', () => {
   it('an input that is not the first input of the Run is invalid', async () => {
     const s = await open()
     await s.accept('second')

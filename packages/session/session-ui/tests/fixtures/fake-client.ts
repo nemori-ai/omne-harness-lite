@@ -1,5 +1,3 @@
-// A `session/v1` client with no transport: each call is recorded and answered by the test, and the
-// observation yields the frames the test pushes. Used by the component test and the demo page.
 import type { ClientOf, ObservationEnd } from '@omne-harness/sdk/core'
 import type { ObserveSessionFrame, SessionProtocol } from '@omne-harness/session-protocol'
 
@@ -14,7 +12,6 @@ export type Call = Readonly<{
 }>
 
 export type FakeObservation = {
-  /** The opening body: which session it observes. */
   readonly open: unknown
   push(frame: ObserveSessionFrame): void
   end(value: End): void
@@ -25,7 +22,6 @@ export type FakeClient = Readonly<{
   client: Client
   calls: Call[]
   observations: FakeObservation[]
-  /** The next call of this operation, waiting until it is made. */
   next(operation: Operation): Promise<Call>
 }>
 

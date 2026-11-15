@@ -1,8 +1,3 @@
-// The judgment of one entries interpretation commit inside the write transaction (session-contract
-// docs/same-log-pure.md「entries 通道的解释提交」). It reads the inputs of the shared pure check from
-// the tables (the snapshot with its saved progress, and the record of the operation identity),
-// calls `projectSessionEntries`, assigns the positions and reduces the batch. It writes nothing:
-// the participant publishes the batch with the same steps as a command batch.
 import {
   digestSessionEntries,
   projectSessionEntries,
@@ -23,10 +18,8 @@ import { decodeValue } from '../codec.ts'
 import { readCoveringSnapshot, type CoveringSnapshot } from './log.ts'
 import { assignPositions, big, oneRow, packed, text, type DefiniteFailure } from './support.ts'
 
-/** The journal row of the session before the batch. */
 export type JournalRow = Readonly<{ tail: bigint; seq: bigint; epoch: string }>
 
-/** A legal range, ready to publish: the rows with their positions, and the reduced snapshot. */
 export type EntriesBatch = Readonly<{
   tenant: string
   session: string
@@ -83,7 +76,6 @@ export function judgeEntries(
     'SELECT tail, commit_seq, epoch FROM sl_journal WHERE tenant = ? AND session = ? LIMIT 1',
     [tenant, session],
   )
-  // No log of (tenant, session): the answer does not tell whether another tenant has it.
   if (journalRow === undefined)
     return { kind: 'stopped', failure: { kind: 'denied', action: 'commitEntries' } }
   const journal: JournalRow = {
@@ -95,8 +87,6 @@ export function judgeEntries(
   if (previous === 'behind')
     return { kind: 'failed', diagnostic: 'sl_state does not cover the tail' }
 
-  // Every form of record takes part: a batch, control or answer record has another digest, so
-  // the pure check answers conflict for it (SL07).
   const held = oneRow(
     port,
     'SELECT input_digest, receipt, result FROM sl_operation WHERE tenant = ? AND session = ? AND operation = ? LIMIT 1',
@@ -141,7 +131,6 @@ export function judgeEntries(
   const revision = String(journal.tail + 1n)
   const entries = assignPositions(port, { tenant, session }, revision, decision.entries)
   const reduced = reduce(previous, { revision, entries } as never)
-  // RD-1 to RD-3 and every other contradiction: nothing is written.
   if (reduced.kind === 'quarantined')
     return {
       kind: 'stopped',

@@ -1,6 +1,3 @@
-// The scheduling policy of the factory configuration (SPEC SchedulingPolicy, SR-3). Every interval,
-// limit and backoff lives here; the defaults are configuration seeds, not contract promises.
-
 export type SchedulingPolicy = Readonly<{
   command: Readonly<{ retriesOnChanged: number }>
   advance: Readonly<{ retryDelaysMs: readonly [number, ...number[]] }>
@@ -8,14 +5,12 @@ export type SchedulingPolicy = Readonly<{
   recoveryScan: Readonly<{
     periodMs: number
     pageSize: number
-    /** The backoff of a startup scan that did not finish; the last delay repeats (SPEC S3). */
     startupRetryDelaysMs: readonly [number, ...number[]]
     sessionBackoff: Readonly<{ initialMs: number; multiplier: number; maxMs: number }>
   }>
   pendingResolution: Readonly<{ retryIntervalMs: number; maxAttempts: number }>
   controlReplay: Readonly<{ intervalMs: number; maxReplays: number }>
   cascade: Readonly<{ intervalMs: number; maxDrives: number }>
-  /** prewarm stays false until the Agent host instance-creation entry exists (contract P-7). */
   preEvaluation: Readonly<{ concurrency: number; prewarm: false }>
   boundedRecovery: Readonly<{ maxInspectAttempts: number; retryIntervalMs: number }>
   cache: Readonly<{ entryBudgetBytes: number; snapshotSessions: number }>
@@ -23,7 +18,6 @@ export type SchedulingPolicy = Readonly<{
 
 export type SessionConfiguration = Readonly<{ policy: SchedulingPolicy }>
 
-/** Initial values from SPEC SchedulingPolicy. They are configuration seeds, not contract promises. */
 export const defaultSchedulingPolicy: SchedulingPolicy = Object.freeze({
   command: Object.freeze({ retriesOnChanged: 3 }),
   advance: Object.freeze({ retryDelaysMs: Object.freeze([1000, 5000, 30000] as const) }),
@@ -42,7 +36,6 @@ export const defaultSchedulingPolicy: SchedulingPolicy = Object.freeze({
   cache: Object.freeze({ entryBudgetBytes: 67108864, snapshotSessions: 1024 }),
 })
 
-/** A configuration the factory refuses. `field` is the path of the first offending field. */
 export class SessionConfigurationError extends Error {
   readonly field: string
   constructor(field: string, reason: string) {
@@ -54,7 +47,6 @@ export class SessionConfigurationError extends Error {
 
 type Rule = 'count' | 'interval' | 'delay'
 
-/** The rule of every numeric field, by path. A count and an interval must be positive; a delay may be zero. */
 const NUMERIC_FIELDS: readonly (readonly [string, Rule])[] = [
   ['command.retriesOnChanged', 'count'],
   ['idle.checkIntervalMs', 'interval'],
@@ -77,7 +69,6 @@ const NUMERIC_FIELDS: readonly (readonly [string, Rule])[] = [
   ['cache.snapshotSessions', 'count'],
 ]
 
-/** The backoff sequences: each must be non-empty, and each delay may be zero. */
 const DELAY_SEQUENCES = ['advance.retryDelaysMs', 'recoveryScan.startupRetryDelaysMs'] as const
 
 function at(root: unknown, path: string): unknown {
@@ -97,11 +88,6 @@ function refusal(value: unknown, rule: Rule): string | null {
   return null
 }
 
-/**
- * Checks a configuration given by the assembly. It throws `SessionConfigurationError` naming the
- * first offending field: a negative value, a zero limit or interval, an empty backoff sequence, a
- * non-finite number, or a prewarm switch that P-7 does not allow yet.
- */
 export function checkSessionConfiguration(configuration: unknown): SessionConfiguration {
   const policy = at(configuration, 'policy')
   if (typeof policy !== 'object' || policy === null)
@@ -125,6 +111,5 @@ export function checkSessionConfiguration(configuration: unknown): SessionConfig
       'policy.preEvaluation.prewarm',
       'must stay false until the Agent host instance-creation entry exists',
     )
-  // Every field was checked above against the shape of SchedulingPolicy.
   return configuration as SessionConfiguration
 }

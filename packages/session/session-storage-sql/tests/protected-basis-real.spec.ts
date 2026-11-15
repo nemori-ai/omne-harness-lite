@@ -1,7 +1,4 @@
 // @module-tag slow
-// Real SQLite Workers commit a permission assignment under the combination of a protected basis
-// source. The basis producer is a named fixture; the Session writer and the commit path are the
-// production modules.
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -91,7 +88,6 @@ function qualificationOf(command: Change) {
   }
 }
 
-/** The access policy of the fixture: an assignment gets the write qualification of its command. */
 function qualifying(qualify: () => boolean) {
   return (request: SessionAccessRequest<string>) => {
     const allowed = { kind: 'allowed' as const, evidence: evidence(`access/${request.operation}`) }
@@ -143,7 +139,6 @@ async function world(configured = true) {
       },
     },
   })
-  /** The plan of the fixture: one producer command that states the basis of this commit. */
   const plan =
     (holds: boolean): Source =>
     commit =>
@@ -178,7 +173,6 @@ async function world(configured = true) {
         identityOf(TENANT_A, app.domainOf(TENANT_A), operationId(name), attempt),
       ),
     )
-  /** From now on the storage cannot place any operation: every `query` answers unknown. */
   const loseSight = () => {
     app.storage.query = identity =>
       Promise.resolve({ kind: 'unknown', identity, diagnostic: 'queued' })
@@ -216,7 +210,6 @@ it('commits a permission assignment on the basis of the protected source and rec
     session: { participant: 'session' },
   })
   const commits = w.app.opCount()
-  // The operation is committed. The redelivery gets the original result and asks no source.
   w.use(() => Promise.resolve(fail(unavailable)))
   expect(await w.commit(command)).toMatchObject({ ok: { recovered: true } })
   expect(w.state.asked).toHaveLength(1)
@@ -242,7 +235,6 @@ it('recalls a delivery that committed while the source could not form the basis'
   const w = await world()
   const command = w.assignment('raced', 'allow')
   w.use(async () => {
-    // Another delivery of the same operation commits before this source answers.
     w.use(w.plan(true))
     expect(await w.commit(command)).toMatchObject({ ok: { recovered: false } })
     return fail(unavailable)
@@ -359,7 +351,6 @@ it('refuses a permission assignment in the ordinary producer when no source is c
   const w = await world(false)
   const answer = await w.commit(w.assignment('no-source', 'allow'))
   expect(answer).toHaveProperty('failure')
-  // The commit reached the storage under the ordinary combination and was rolled back there.
   expect(await w.kindOf('no-source', 1)).toBe('rolled_back')
   expect(await w.app.port.readWork(w.access)).toMatchObject({
     ok: { permissions: { revision: '0', assignments: [] } },

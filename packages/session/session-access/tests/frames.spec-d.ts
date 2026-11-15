@@ -1,5 +1,3 @@
-// The frame kinds of session observation and of `observe-session` are the same set, so the
-// field-by-field writing in `frameOf` covers every kind and sends no kind outside the contract.
 import { expectTypeOf, it } from 'vitest'
 import type { FrameOf } from '@omne-harness/access-cordis-contract'
 import type {

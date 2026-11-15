@@ -1,6 +1,3 @@
-// The `./participants` entry: the participant vocabulary that a committer outside this member uses.
-// The command facts it builds are the ones the `session` module executes, its decoder reads every
-// reply kind, and the entry pulls no provider implementation in.
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -21,7 +18,6 @@ import type { ParticipantModule } from '@omne-harness/sql-contract/worker'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { migratedPort } from './fixtures/sqlite-storage.ts'
 
-// Module-level tests execute both owned participants with transaction-local facts.
 const participant: ParticipantModule = {
   ...rawParticipant,
   execute(facts, port) {
@@ -136,7 +132,6 @@ describe('the ./participants entry', () => {
     ])
   })
 
-  /** The modules a source file of this member imports values from, in order. */
   const valuesOf = (file: string): (string | undefined)[] =>
     [
       ...readFileSync(join(root, 'src', file), 'utf8').matchAll(

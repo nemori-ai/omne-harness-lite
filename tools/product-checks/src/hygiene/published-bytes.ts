@@ -4,4 +4,11 @@ export const PUBLISHED_BYTES: ReadonlyMap<string, string> = new Map([
   ['packages/identity/identity-sql/src/worker/migration-governance.ts', MIGRATION],
   ['packages/identity/identity-sql/src/worker/migration.ts', MIGRATION],
   ['packages/model/model-storage-sql/src/schema.ts', MIGRATION],
+  ['packages/session/session-storage-sql/src/worker/admission-attempt-migration.ts', MIGRATION],
+  ['packages/session/session-storage-sql/src/worker/attempt-grant-migration.ts', MIGRATION],
+  ['packages/session/session-storage-sql/src/worker/fact-blob-migration.ts', MIGRATION],
+  ['packages/session/session-storage-sql/src/worker/fact-body-migration.ts', MIGRATION],
+  ['packages/session/session-storage-sql/src/worker/preadmission-migration.ts', MIGRATION],
+  ['packages/session/session-storage-sql/src/worker/session-list-migration.ts', MIGRATION],
+  ['packages/session/session-storage-sql/src/worker/state-part-migration.ts', MIGRATION],
 ])

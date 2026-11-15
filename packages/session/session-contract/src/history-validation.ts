@@ -250,7 +250,6 @@ function requireObservedTail(
     unavailableAt(`history.prefix.${boundary.execution}.committedConsequences`)
 }
 
-/** Final decisions require committed effects; a validated observed-only tail needs no cursor write. */
 export function requirePrepared(context: HistoryContext, scope: SessionInputScope): void {
   if (context.reads !== undefined && !equalValue(context.reads.scope, scope))
     invalidAt('history.scope', 'does not equal the command input range')

@@ -1,8 +1,3 @@
-// The one encoding of commands into log entries and back (SPEC「领域服务与归约」: "命令到条目的编码只
-// 此一份"). The `kind` short names follow the event catalog (docs/object-model/session-log-events.md);
-// the SE numbers are navigation only. `decide` encodes with `encodeEntry`; `reduce` decodes with
-// `decodeEntry`. A payload is plain JSON: the tenant and the workspace of the creation travel as
-// their legal-identity text, and every other value as it is.
 import type { JsonValue } from '@omne-harness/json-text'
 import {
   tenantCodec,
@@ -60,11 +55,6 @@ import { member } from './payload-members.ts'
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
 import type { SessionEntriesChannel } from './interpretation-values.ts'
 
-/**
- * The interpreter of this member: the adoption that every snapshot and entry schema names.
- * Revision 3 records verified initial adoption and the bound initialization plan. Revision 4 keeps
- * that content and stores each repeated value once (SPEC「条目的存储形式」).
- */
 export const SESSION_INTERPRETER: Adoption = Object.freeze({
   owner: '@omne-harness/session-contract',
   name: 'session-log',
@@ -72,7 +62,6 @@ export const SESSION_INTERPRETER: Adoption = Object.freeze({
   digest: SESSION_RELEASE_DIGEST,
 })
 
-/** The initialization item of one required identity (SE01 → `tasks.initialization`). */
 export type InitializationItem = Omit<
   Extract<RecoveryTask, { kind: 'initialization' }>,
   'kind' | 'originalOperation' | 'state' | 'diagnostic'
@@ -266,7 +255,6 @@ export type SessionEntry =
   | Readonly<{ kind: 'history.annotated'; targets: readonly string[]; source: DurableEvidence }>
   | Readonly<{ kind: 'history.annotated'; run: RunId; execution: ExecutionRef }>
   | Readonly<{ kind: 'history.annotated'; run: RunId; terminal: RunTerminal }>
-  /** The progress row of one entries interpretation commit (docs/same-log-pure.md「entries 通道的解释提交」). */
   | Readonly<{
       kind: 'entries.interpreted'
       run: RunId
@@ -280,10 +268,6 @@ export type SessionEntry =
 
 export type SessionEntryKind = SessionEntry['kind']
 
-/**
- * The json-text tree of a plain value: strings, finite numbers, booleans, null, arrays and plain
- * objects. `undefined` members are left out. Keys keep their order.
- */
 export function toJsonValue(plain: unknown): JsonValue {
   if (plain === null || plain === undefined) return { kind: 'null' }
   if (typeof plain === 'string') return { kind: 'string', value: plain }
@@ -300,7 +284,6 @@ export function toJsonValue(plain: unknown): JsonValue {
   return { kind: 'object', entries }
 }
 
-/** The plain value of a json-text tree: the inverse of `toJsonValue`. */
 export function fromJsonValue(tree: JsonValue): unknown {
   switch (tree.kind) {
     case 'null':
@@ -320,24 +303,14 @@ export function fromJsonValue(tree: JsonValue): unknown {
   }
 }
 
-/**
- * What the stored form of revision 4 names instead of repeating (SPEC「条目的存储形式」). Both
- * targets are earlier or same-batch entries of the same session, which the log only appends.
- */
 export type EntryReferences = Readonly<{
-  /** The verified initial adoption of the SE01 of this session (the snapshot keeps it). */
   created?: InitialAdoption | null
-  /** The residents that the SE36 entries of the batch admitted: the holders of each first shape. */
   residents?: readonly ResidentTool[]
 }>
 
-/** A `fact.source` that equals the origin source of its entry. */
 const FROM_ORIGIN = '=origin.source'
-/** An initial SE08 adoption that equals the SE01 initial adoption without its candidate. */
 const FROM_CREATED = '=session.created.initialAdoption'
-/** An SE01 `input` that equals the create command which the same SE01 records. */
 const FROM_COMMAND = '=session.created.command'
-/** An SE01 resident shape: SE36 of the same batch holds it; capability, version and admitted match. */
 const FROM_RESIDENT = '=session.tool-resident-admitted'
 
 const FACT_KINDS: ReadonlySet<string> = new Set([
@@ -345,18 +318,12 @@ const FACT_KINDS: ReadonlySet<string> = new Set([
   'account.linked',
   'control.progress',
 ])
-/** The kinds whose stored form may hold a marker. */
 const REFERRING_KINDS: ReadonlySet<string> = new Set([
   ...FACT_KINDS,
   'session.created',
   'session.adoption',
 ])
 
-/**
- * The entry envelope of one decoded entry: the catalog kind, this member's schema, the origin. The
- * payload is the stored form: a value that the origin, the SE01 of the session or an SE36 of the
- * batch already holds is named by a marker. `references.created` lets an SE08 name the SE01.
- */
 export function encodeEntry(
   entry: SessionEntry,
   origin: HistoryEntry['origin'],
@@ -397,7 +364,6 @@ export function encodeEntry(
   return { kind, schema: SESSION_INTERPRETER, payload: toJsonValue(plain), origin }
 }
 
-/** The create command input that an SE01 records, from its stored fields (tenant text included). */
 function commandOf(plain: Readonly<Record<string, unknown>>): JsonValue {
   return toJsonValue({
     tenant: plain['tenant'],
@@ -407,7 +373,6 @@ function commandOf(plain: Readonly<Record<string, unknown>>): JsonValue {
   })
 }
 
-/** Exact equality of two json-text trees: kinds, lexemes, keys and their order. */
 function sameTree(left: JsonValue, right: JsonValue): boolean {
   if (left === right) return true
   if (left.kind !== right.kind) return false
@@ -445,7 +410,6 @@ const sameKeys = (left: object, right: object): boolean => {
   return a.length === b.length && a.every((key, index) => key === b[index])
 }
 
-/** The four evidence texts and their key order are the same. */
 function sameEvidence(left: DurableEvidence, right: DurableEvidence): boolean {
   if (left === right) return true
   return (
@@ -457,10 +421,6 @@ function sameEvidence(left: DurableEvidence, right: DurableEvidence): boolean {
   )
 }
 
-/**
- * The adoption is the SE01 initial adoption without its candidate: the same members, in the same
- * order, each the same object. A copy with equal content is stored in full, never guessed equal.
- */
 function sameAdoption(adoption: InitializationAdoption, created: InitialAdoption): boolean {
   const keys = Object.keys(adoption)
   const expected = Object.keys(created).filter(key => key !== 'candidate')
@@ -474,7 +434,6 @@ function sameAdoption(adoption: InitializationAdoption, created: InitialAdoption
   )
 }
 
-/** The SE01 initial adoption without its candidate, in its member order. */
 function withoutCandidate(created: InitialAdoption): InitializationAdoption {
   const { candidate: _candidate, ...adoption } = created
   return adoption
@@ -488,11 +447,6 @@ function workspaceText(workspace: WorkspaceId | null): string | null {
   return encoded.value
 }
 
-/**
- * The creation of a decoded payload with its workspace text parsed back, or the diagnostic of why
- * it is malformed. The `workspaceAttachment` key must be present (null or an object), so a row of
- * revision 1, which has no such key, is refused instead of read in the new shape.
- */
 function decodeCreation(
   creation: unknown,
 ): Readonly<{ ok: SessionCreation }> | Readonly<{ malformed: string }> {
@@ -571,18 +525,9 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
   'entries.interpreted',
 ])
 
-/** The row of a decode: its kind and stored payload; the schema and origin when the caller has them. */
 export type StoredEntry = Pick<HistoryEntry, 'kind' | 'payload'> &
   Partial<Pick<HistoryEntry, 'schema' | 'origin'>>
 
-/**
- * The decoded entry of one log row. A kind this interpreter does not know is `unknown`, so the
- * reducer quarantines instead of skipping (SL12). A payload that is not an object, or a creation
- * whose tenant or workspace text does not parse or that lacks its workspace attachment, is
- * `malformed`. A row whose schema names another revision of this interpreter is `malformed`: its
- * bytes are not read in the revision 4 form. A marker whose target is absent or does not match is
- * `malformed` too; `references` gives the targets (`decodeEntries` gives them for a batch).
- */
 export function decodeEntry(entry: StoredEntry, references: EntryReferences = {}): DecodedEntry {
   if (!KNOWN_KINDS.has(entry.kind)) return { unknown: entry.kind }
   const schema = entry.schema
@@ -627,11 +572,6 @@ export function decodeEntry(entry: StoredEntry, references: EntryReferences = {}
   return { ok: { ...payload, kind: entry.kind } as unknown as SessionEntry }
 }
 
-/**
- * The decoded entries of one committed batch, in order. The SE36 entries of the batch are the
- * shape holders an SE01 names; an SE01 of the batch is the creation a later SE08 names, else
- * `created` (the initial adoption of the snapshot before the batch).
- */
 export function decodeEntries(
   rows: readonly StoredEntry[],
   created: InitialAdoption | null,
@@ -656,13 +596,6 @@ export function decodeEntries(
   })
 }
 
-/**
- * The history rows with every marker replaced by the value it names, so a reader sees the payload
- * that the full form holds. `created` is the initial adoption of the session (the snapshot keeps
- * it); only an SE01 or an initial SE08 needs it. Without it such a row answers `missing`, so a
- * caller reads the snapshot only for a page that holds one. A row that does not resolve answers
- * `malformed`.
- */
 export function expandHistoryEntries(
   rows: readonly HistoryEntry[],
   created: InitialAdoption | null,
@@ -687,7 +620,6 @@ export function expandHistoryEntries(
   return { ok: out ?? rows }
 }
 
-/** Which targets a stored row names: none, only itself or its origin, or the SE01 of the session. */
 function storedReferences(row: HistoryEntry): 'none' | 'origin' | 'created' {
   if (row.kind === 'session.created') {
     const residents = member(member(row.payload, 'initialAdoption'), 'newResidents')
@@ -705,10 +637,6 @@ function storedReferences(row: HistoryEntry): 'none' | 'origin' | 'created' {
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-/**
- * Replaces each marker of the plain stored payload with the value it names, in place and in the
- * member order of the full form. Null when it resolves, else the diagnostic of the malformed row.
- */
 function resolveStored(
   kind: string,
   payload: Record<string, unknown>,

@@ -1,8 +1,3 @@
-// C2 续入 and the tail of 开 Run (SPEC C2, contract PM-02 item 3, PA-06 item 3, PA-09, PA-03): an
-// input that waits for the active Run without a hand-over (SE35) is submitted to the Agent with the
-// identity derived from the execution and the input and the source of its routed entry, then
-// recorded with receive(input-handover). Its pending eligibility ends when the Agent takes it, not
-// here; once handed in, a conditional finish of the Run is no longer blocked by it (PA-02).
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
@@ -39,7 +34,6 @@ const read = async (h: Harness): Promise<WorkSnapshot> =>
 
 type Submitted = Parameters<AgentDrivePort['submit']>[0]
 
-/** Records every submit; `answer` may replace the double's answer, `original` sends it on. */
 function recordSubmits(
   h: Harness,
   answer?: (
@@ -56,7 +50,6 @@ function recordSubmits(
   return submitted
 }
 
-/** Accepts an input through the public port, so no local wake-up of this instance follows. */
 async function acceptDirectly(h: Harness, input: string): Promise<void> {
   succeeded(
     await h.backend.transactions.commit({
@@ -75,7 +68,6 @@ async function acceptDirectly(h: Harness, input: string): Promise<void> {
   )
 }
 
-/** A commit notice of another process that names an accepted input. */
 async function notice(h: Harness): Promise<void> {
   const snapshot = await read(h)
   h.instance.committed({
@@ -87,7 +79,6 @@ async function notice(h: Harness): Promise<void> {
   })
 }
 
-/** Opens the Run with `input-1` and waits until its hand-over is recorded. */
 async function running(h: Harness): Promise<string> {
   await h.create()
   await h.accept('input-1')
@@ -183,7 +174,7 @@ describe('C2 续入: an input accepted while the Run is active is handed in', ()
 })
 
 describe('C2 续入: the failure branches of submit', () => {
-  it('a submit refused by the message admission records a rejected hand-over; the input leaves pending and the next one is still handed in (PA-09)', async () => {
+  it('a submit refused by the message admission records a rejected hand-over; the input leaves pending and the next one is still handed in', async () => {
     const h = await service()
     await running(h)
     const submitted = recordSubmits(h, (input, original) =>
@@ -205,7 +196,7 @@ describe('C2 续入: the failure branches of submit', () => {
     expect(submitted.map(item => item.input)).toEqual(['input-2', 'input-3'])
   })
 
-  it('a submit answered terminal is not retried and records nothing; it and the later inputs stay pending (PA-03)', async () => {
+  it('a submit answered terminal is not retried and records nothing; it and the later inputs stay pending', async () => {
     const h = await service({ policy: { advance: { retryDelaysMs: [1000] } } })
     await running(h)
     const submitted = recordSubmits(h, () => Promise.resolve(fail({ kind: 'terminal' as const })))
@@ -305,7 +296,6 @@ describe('C2 续入: the failure branches of submit', () => {
 })
 
 describe('an answer of the Agent that this instance read is not asked for again', () => {
-  /** No hand-over can be recorded, as with an evidence source that does not answer. */
   function unrecorded(h: Harness): void {
     const bridge = h.evidence as { prepare: Harness['evidence']['prepare'] }
     const prepare = bridge.prepare
@@ -330,7 +320,6 @@ describe('an answer of the Agent that this instance read is not asked for again'
 
     await h.accept('input-1')
     await vi.waitFor(() => expect(invoked).toHaveLength(1))
-    // Each later input is a new trigger of S1, which reads the same pending inputs again.
     await h.accept('input-2')
     await vi.waitFor(() => expect(submitted.map(item => item.input)).toContain('input-2'))
     await h.accept('input-3')

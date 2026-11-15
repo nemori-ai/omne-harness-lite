@@ -1,9 +1,3 @@
-// Shared by the read handlers of the Agent fact family: the gate of a session read, the output form
-// of a fact row and the grouping of rows into whole batches. A session that is not of the tenant
-// of the call answers `denied`, the same as a session that does not exist, so a read tells nothing
-// of another tenant. A session whose publications are older than `execution-record/006-fact-blob`
-// has a publication count but no batch at publication 1 (the migration dropped its records and
-// moved none): it answers `missing`, and its reader answers `unavailable`.
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { SqlValue } from '@omne-harness/sql-contract/worker'
 import { EXECUTION_BATCH_MAX_FACTS } from '../codec.ts'
@@ -18,14 +12,11 @@ import {
   type Scope,
 } from './support.ts'
 
-/** The most fact rows one page reads: two whole batches of the largest size fit. */
 export const FACT_PAGE_ROWS = 2 * EXECUTION_BATCH_MAX_FACTS
-/** The text length after which a page takes no further batch (it always takes one). */
 export const FACT_PAGE_TEXT = 256 * 1024
 
 export const FACT_COLUMNS = 'pub, ord, execution, kind, eseq, op, kinds, event, body'
 
-/** The rows of a `FACT_COLUMNS` statement, with the packed `event` and `body` as their texts. */
 export function factRows(port: Executor, sql: string, params: readonly SqlValue[]): Row[] {
   return rowsOf(port, sql, params).map(row => ({
     ...row,
@@ -34,7 +25,6 @@ export function factRows(port: Executor, sql: string, params: readonly SqlValue[
   }))
 }
 
-/** One fact row as a reader gets it. `event` and `body` are the JSON the writer gave. */
 export type FactOutput = {
   ord: number
   execution: string
@@ -61,7 +51,6 @@ export function factOutput(row: Row): FactOutput {
   }
 }
 
-/** The text a row adds to a page. */
 const rowText = (row: Row): number =>
   text(row['body']).length + (row['event'] === null ? 0 : text(row['event']).length)
 
@@ -70,7 +59,6 @@ export type SessionHead =
   | Readonly<{ kind: 'missing'; published: string }>
   | Readonly<{ kind: 'held'; published: bigint }>
 
-/** The gate of every session read of the fact family: one point read per table. */
 export function sessionHead(port: Executor, scope: Scope): SessionHead {
   const journal = oneRow(
     port,
@@ -95,13 +83,6 @@ export function sessionHead(port: Executor, scope: Scope): SessionHead {
     : { kind: 'held', published }
 }
 
-/**
- * The rows grouped into batches, in publication order. `full` says the read hit its row bound (it
- * read one row past `FACT_PAGE_ROWS`): the last batch may then be cut, so it is left for the next
- * page; a batch holds at most half the bound, so whole batches remain. A page stops before the batch
- * that takes it past `FACT_PAGE_TEXT`, but always holds the first batch. `more` says a next page
- * follows.
- */
 export function batchesOf(
   rows: readonly Row[],
   full: boolean,
@@ -134,7 +115,6 @@ export function batchesOf(
   return { batches, more }
 }
 
-/** Whole batches: each starts at `ord` 0 and has no gap in its places. */
 export function wholeBatches(batches: readonly BatchOutput[]): boolean {
   return batches.every(batch => batch.facts.every((fact, index) => fact.ord === index))
 }

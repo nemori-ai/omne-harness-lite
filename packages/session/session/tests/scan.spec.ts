@@ -1,9 +1,3 @@
-// The life of the S3 scanner of one tenant (SPEC「扫描者的生灭」). A scanner stays only while its
-// tenant has work: a round that read every page, listed no session and saw no `maintain` since it
-// began stops it, and the next `maintain` (a commit notice) starts a new one. A startup scan that
-// did not finish backs off by `recoveryScan.startupRetryDelaysMs`; a periodic round with a failed
-// read did not finish and stops nothing. The scanner is observed through the `pending` reads of the
-// public transaction port, on the memory clock.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fail } from '@omne-harness/operation-result'
 import type { SessionTransactionPort, WorkSnapshot } from '@omne-harness/session-contract'
@@ -27,19 +21,16 @@ async function service(options: Partial<HarnessOptions> = {}): Promise<Harness> 
   return h
 }
 
-/** Lets every microtask and reply of the memory backend run, so the scanner reaches its next wait. */
 async function settle(): Promise<void> {
   for (let round = 0; round < 10; round += 1) await turn()
 }
 
-/** Moves the memory clock once the scanner waits on it. */
 async function elapse(h: Harness, milliseconds: number): Promise<void> {
   await settle()
   h.clock.controls.advance(milliseconds)
   await settle()
 }
 
-/** Whether the handle's scanner has stopped. */
 function watchEnd(handle: MaintenanceHandle): () => boolean {
   let ended = false
   void handle.ended.then(() => {
@@ -48,10 +39,6 @@ function watchEnd(handle: MaintenanceHandle): () => boolean {
   return () => ended
 }
 
-/**
- * Wraps the public port of the harness: records each `pending` read by its reason (`union` for the
- * startup scan), can hold reads behind a gate, and can fail the next reads or one reason.
- */
 function watchPending(h: Harness) {
   const reads: string[] = []
   let gate: Promise<void> | null = null
@@ -85,7 +72,6 @@ function watchPending(h: Harness) {
   }
   return {
     reads: () => [...reads],
-    /** Holds every later read until the returned function is called. */
     hold: (): (() => void) => {
       let release!: () => void
       gate = new Promise<void>(resolve => {
@@ -108,7 +94,6 @@ function watchPending(h: Harness) {
 const read = async (h: Harness): Promise<WorkSnapshot> =>
   succeeded(await h.backend.transactions.readWork(h.access()), 'read')
 
-/** Accepts an input on the backend directly: the session has work and nothing is woken. */
 async function acceptDirectly(h: Harness, input: string): Promise<void> {
   succeeded(
     await h.backend.transactions.commit({
@@ -128,7 +113,6 @@ async function acceptDirectly(h: Harness, input: string): Promise<void> {
   )
 }
 
-/** A scanner that finished its startup round and runs: a notice arrived during that round. */
 async function runningScanner(h: Harness, pending: ReturnType<typeof watchPending>) {
   const release = pending.hold()
   const handle = succeeded(await h.instance.maintain(TENANT_A), 'maintain')
@@ -205,7 +189,6 @@ describe('a read that fails', () => {
     await h.accept('input-1')
     pending.failNext(4)
     const handle = succeeded(await h.instance.maintain(TENANT_A), 'maintain')
-    // Each retry comes exactly at its delay: 1 s, 5 s, 30 s, and then 30 s again.
     for (const [count, delay] of [
       [2, 1000],
       [3, 5000],
@@ -217,7 +200,6 @@ describe('a read that fails', () => {
       await elapse(h, 1)
       expect(pending.reads()).toHaveLength(count)
     }
-    // The fifth read answered and listed the session, so the scanner runs.
     await elapse(h, PERIOD)
     expect(pending.reads()).toEqual([...Array(5).fill('union'), ...PERIODIC])
     await handle.release()
@@ -232,7 +214,6 @@ describe('a read that fails', () => {
     await elapse(h, PERIOD)
     expect(pending.reads()).toEqual(['union', ...PERIODIC])
     expect(ended()).toBe(false)
-    // The next round reads every reason, lists nothing, and stops the scanner.
     await elapse(h, PERIOD)
     expect(pending.reads()).toEqual(['union', ...PERIODIC, ...PERIODIC])
     await vi.waitFor(() => expect(ended()).toBe(true))

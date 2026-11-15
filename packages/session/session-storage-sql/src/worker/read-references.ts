@@ -1,4 +1,3 @@
-// R10: the sessions of one tenant that hold a resident key, one page after (session, capability).
 import { handler, rowsOf, text } from './support.ts'
 
 type Input = Readonly<{

@@ -1,6 +1,4 @@
 // @vitest-environment happy-dom
-// The main scene through the component and a fake protocol client: create a session, send one
-// sentence, see the reply stream in, see it replaced by the committed message, cancel the run.
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { parseInstant } from '@omne-harness/utc-instant'
 import { StrictMode } from 'react'
@@ -31,7 +29,7 @@ async function settle(): Promise<void> {
   })
 }
 
-it('W1 主场景：新建会话、发一句话、流式回复、被历史替换、取消', async () => {
+it('主场景：新建会话、发一句话、流式回复、被历史替换、取消', async () => {
   const fake = createFakeClient()
   render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
 
@@ -95,7 +93,6 @@ it('W1 主场景：新建会话、发一句话、流式回复、被历史替换�
   expect(screen.getByText('正在生成')).toBeTruthy()
   expect(screen.getByText(/正在回答你/)).toBeTruthy()
 
-  // Still running: typing goes on, and Stop is there.
   fireEvent.change(input, { target: { value: '再说一句' } })
   expect((input as HTMLTextAreaElement).value).toBe('再说一句')
 
@@ -124,7 +121,7 @@ it('W1 主场景：新建会话、发一句话、流式回复、被历史替换�
   expect(screen.queryByRole('button', { name: /停止/ })).toBeNull()
 })
 
-it('W2 发送结果未知：显示未知，用同一个受理编号认回，不重发', async () => {
+it('发送结果未知：显示未知，用同一个受理编号认回，不重发', async () => {
   const fake = createFakeClient()
   render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
   fireEvent.click(screen.getByRole('button', { name: '新建会话' }))
@@ -152,7 +149,7 @@ it('W2 发送结果未知：显示未知，用同一个受理编号认回，不�
   expect(screen.getByText('发送的结果仍然未知。可以再确认一次。')).toBeTruthy()
 })
 
-it('W4 StrictMode 下挂上、收掉、再挂上之后仍能用，只发一次建会话', async () => {
+it('StrictMode 下挂上、收掉、再挂上之后仍能用，只发一次建会话', async () => {
   const fake = createFakeClient()
   render(
     <StrictMode>
@@ -170,7 +167,7 @@ it('W4 StrictMode 下挂上、收掉、再挂上之后仍能用，只发一次�
   expect(screen.getByRole('textbox', { name: '输入消息' })).toBeTruthy()
 })
 
-it('W5 回复增长时，已提交的那几条在 DOM 里一点不变', async () => {
+it('回复增长时，已提交的那几条在 DOM 里一点不变', async () => {
   const fake = createFakeClient()
   render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
   await settle()
@@ -228,7 +225,7 @@ it('W5 回复增长时，已提交的那几条在 DOM 里一点不变', async ()
   expect(mutations).toEqual([])
 })
 
-it('W6 列表项有最近活动时刻时显示它，机读的值是那个 UTC 时刻', async () => {
+it('列表项有最近活动时刻时显示它，机读的值是那个 UTC 时刻', async () => {
   const fake = createFakeClient()
   render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
   const at = parseInstant('2026-11-13T07:00:00Z')
@@ -242,7 +239,7 @@ it('W6 列表项有最近活动时刻时显示它，机读的值是那个 UTC �
   expect(time?.textContent).toBe(new Date('2026-11-13T07:00:00Z').toLocaleString())
 })
 
-it('W6 列表项：无标题写「未命名的会话」与标识前 8 位，无时刻不显示，已冻结标出；更多接在后面', async () => {
+it('列表项：无标题写「未命名的会话」与标识前 8 位，无时刻不显示，已冻结标出；更多接在后面', async () => {
   const fake = createFakeClient()
   render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
   const first = await fake.next('list-sessions')
@@ -278,7 +275,7 @@ it('W6 列表项：无标题写「未命名的会话」与标识前 8 位，无�
   expect(screen.queryByRole('button', { name: '更多' })).toBeNull()
 })
 
-it('W7 刷新之后：列表里点一个旧会话，看得到历史，能接着发消息，受理后列表重读', async () => {
+it('刷新之后：列表里点一个旧会话，看得到历史，能接着发消息，受理后列表重读', async () => {
   const fake = createFakeClient()
   render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
   ;(await fake.next('list-sessions')).answer(listPage([listed(SESSION, '旧会话')]))
@@ -310,7 +307,7 @@ it('W7 刷新之后：列表里点一个旧会话，看得到历史，能接着�
   expect((await fake.next('list-sessions')).body).toMatchObject({ cursor: null })
 })
 
-it('W8 换会话：停掉原会话的观察，新会话从头开始', async () => {
+it('换会话：停掉原会话的观察，新会话从头开始', async () => {
   const fake = createFakeClient()
   render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
   ;(await fake.next('list-sessions')).answer(
@@ -332,7 +329,7 @@ it('W8 换会话：停掉原会话的观察，新会话从头开始', async () =
   expect((await fake.next('read-history')).body).toMatchObject({ session: 'ses_two' })
 })
 
-it('W9 列表读失败：如实写在列表区，已打开的会话照常；暂时读不到可以重试', async () => {
+it('列表读失败：如实写在列表区，已打开的会话照常；暂时读不到可以重试', async () => {
   const fake = createFakeClient()
   render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
   const mounted = await fake.next('list-sessions')
@@ -364,13 +361,13 @@ it('W9 列表读失败：如实写在列表区，已打开的会话照常；暂�
   expect(screen.getByText('会话里的内容')).toBeTruthy()
 })
 
-it('W3 外壳给的租户读不懂：如实说出来', () => {
+it('外壳给的租户读不懂：如实说出来', () => {
   const fake = createFakeClient()
   render(<SessionWorkspace client={fake.client} tenant="not-a-tenant" />)
   expect(screen.getByRole('alert').textContent).toContain('租户读不懂')
 })
 
-it('W10 外壳重新渲染而租户没变：不重读列表，开着的会话还在', async () => {
+it('外壳重新渲染而租户没变：不重读列表，开着的会话还在', async () => {
   const fake = createFakeClient()
   const view = render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
   ;(await fake.next('list-sessions')).answer(listPage([]))

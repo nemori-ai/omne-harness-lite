@@ -1,9 +1,3 @@
-// The fact family of the Agent Journal (R2-D292, R2-D294): the kinds of facts one Journal command
-// appends, the batch that one command appends them in, the row the `execution-record` participant
-// stores one fact in, and the codec between the two. A fact holds identities, evidence, small values
-// and references only; the content an external owner keeps (a message, a produced result, a tool
-// request, a fixed model request, a journal entry) never enters a fact. The type `NoContent` refuses
-// such a value at compile time; `encodeBatch` refuses a fact above `FACT_MAX_BYTES` at run time.
 import { createHash } from 'node:crypto'
 import type {
   ActionBatchId,
@@ -47,24 +41,15 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { EXECUTION_BATCH_MAX_FACTS } from '@omne-harness/session-storage-sql/participants'
 import { canonical } from '../testing/canonical.ts'
 
-/** The most bytes one encoded fact body may take: six times a `DurableEvidence` of about 650 B. */
 export const FACT_MAX_BYTES = 4096
-/** The constant part of one batch besides its facts: the envelope row. */
 export const BATCH_OVERHEAD_BYTES = 512
-/** Business facts share the storage budget with one envelope row. */
 export const BATCH_MAX_FACTS = EXECUTION_BATCH_MAX_FACTS - 1
 
 declare const refTag: unique symbol
-/**
- * A content-addressed reference to a value of type `X` kept outside the fact family: in a custody
- * block, in the session history or by a producer. The fact holds the digest and the size; the value
- * is read by the owner of the block at use time, never copied into the fact.
- */
 export type Ref<X = unknown> = Readonly<{ digest: string; size: number }> & {
   readonly [refTag]?: X
 }
 
-/** The content types of external owners; a fact body never holds one (F5). */
 export type ContentType =
   | Message
   | ProducedResult
@@ -73,10 +58,6 @@ export type ContentType =
   | AgentJournalEntry
 
 type IsRef<T> = T extends Readonly<{ digest: string; size: number }> ? true : false
-/**
- * Whether a content type occurs anywhere in `T`, to a depth of eight members. A fact body is at
- * most four members deep, so the bound only keeps a recursive type (a JSON value) from looping.
- */
 type HasContent<T, Depth extends readonly unknown[] = []> = Depth['length'] extends 8
   ? false
   : T extends ContentType
@@ -92,21 +73,14 @@ type HasContent<T, Depth extends readonly unknown[] = []> = Depth['length'] exte
               ? true
               : false
             : false
-/**
- * `T` when no part of it is a content type, `never` otherwise. The codec and the batch builders
- * take their facts through it, so a fact that carries a message or a request fails to type-check.
- */
 export type NoContent<T> = HasContent<T> extends true ? never : T
 
-/** The attempt ordinal of a model intent of one step: `0` for the first, `+1` after each voiding. */
 export type Attempt = number
 
-/** How an `exec.attached` came to be: the open, or a recovery with or without takeover. */
 export type AttachmentBasis =
   | Readonly<{ kind: 'open' }>
   | Readonly<{ kind: 'recovery'; recovery: DurableEvidence; takeover: DurableEvidence | null }>
 
-/** The producer of a result and the version received, without the result's own body. */
 export type ProducerCall = Readonly<{
   producer: 'model' | 'tool'
   call: string
@@ -115,7 +89,6 @@ export type ProducerCall = Readonly<{
   source: DurableEvidence
 }>
 
-/** The top-level checkpoint members a `cursor.moved` may carry; a member absent did not change. */
 export type CursorMembers = Readonly<{
   position: string
   step: StepId
@@ -135,21 +108,12 @@ export type CursorMembers = Readonly<{
   definition: Adoption
   adoptedRequest: Ref | null
   modelRetry?: ModelRetryState | null
-  /** The committed `JournalCommitState`; the waits of a waiting state are in `wait.entered`. */
   state: 'reconciling' | 'advancing' | 'waiting' | 'settling' | 'suspended'
 }>
 export type CursorMember = keyof CursorMembers
 
-/**
- * The stage of one `result.handled`: the responsibility recorded before any transfer, custody
- * taken, processed, or released by the producer.
- */
 export type ResultStage = 'recorded' | 'custody' | 'processed' | 'released'
 
-/**
- * Every fact kind, with the key of each kind in its first members. One fact is one irreducible
- * transition of the responsibility ledger; nothing derived has a kind of its own.
- */
 export type FactBody =
   | Readonly<{
       kind: 'exec.opened'
@@ -229,7 +193,6 @@ export type FactBody =
       consumer: ConsumerRef
       custody: Ref<AgentJournalEntry>
       saved: DurableEvidence
-      /** The material the delivery carried, kept under `custody.material`; null for a record without it. */
       material: Ref | null
     }>
   | Readonly<{
@@ -238,10 +201,6 @@ export type FactBody =
       result: ProducerCall
       stage: ResultStage
       evidence: DurableEvidence
-      /**
-       * The step whose commit applied the result (the `producer` event of that commit); null for
-       * a stage a `recordResult` reaches, which is no event.
-       */
       step: StepId | null
     }>
   | Readonly<{
@@ -250,15 +209,10 @@ export type FactBody =
       fact: ModelReplyAdmission
       basis: DurableEvidence
       publication: DurableEvidence
-      /** The admitted reply as the step published it, and the source of that message event. */
       message: Ref<Message> | null
       source: DurableEvidence | null
       history: DurableEvidence | null
     }>
-  /**
-   * A message the step published without a handoff or a reply admission to project it: the
-   * message is kept by the Session history and the event stream, the fact only refers to it.
-   */
   | Readonly<{
       kind: 'message.published'
       step: StepId
@@ -282,7 +236,6 @@ export type FactBody =
       kind: 'handoff.retired'
       handoff: HandoffReference
       reason: DurableEvidence
-      /** The excluded resolution the retire fixes (a block of the HandoffResolution). */
       excluded: Ref
     }>
   | Readonly<{
@@ -291,7 +244,6 @@ export type FactBody =
       resolution: 'recorded' | 'excluded'
       outcome: Ref
       predecessor: AgentOperationId | null
-      /** The custody derivation the attempt carried (a block of the HandoffCustody), null at the root. */
       custody: Ref | null
     }>
   | Readonly<{
@@ -337,11 +289,6 @@ export type FactBody =
       stage: ControlStage
       state: 'reached' | 'unresolved'
       source: DurableEvidence
-      /**
-       * The step whose commit reported the stage (the `control` event of that commit, always an
-       * event); null for a stage a `control` or `recordControl` records, an event unless the
-       * execution ended or the stage is the same fact already reached (`eventOf` in the fold).
-       */
       step: StepId | null
     }>
   | Readonly<{
@@ -349,17 +296,7 @@ export type FactBody =
       control: AgentOperationId
       audit: DurableEvidence
     }>
-  /**
-   * The waits are a list that grows with what the step waits for (one per call sent side by side),
-   * so the fact holds a reference and the list is a block, like the cursor's `calls`.
-   */
   | Readonly<{ kind: 'wait.entered'; step: StepId; waits: Ref<readonly Waiting[]> }>
-  /**
-   * The first binding of a pending call the execution holds at a commit or an open: the reference
-   * the producer answers to, the call as pending, and the instance that holds it. The receiving
-   * side routes a late delivery of the reference to the execution by it (R2-D273, K-23 end state:
-   * the bindings are facts, not a state the provider keeps beside them).
-   */
   | Readonly<{
       kind: 'target.bound'
       reference: string
@@ -369,41 +306,20 @@ export type FactBody =
   | Readonly<{
       kind: 'finish.candidate'
       candidate: AgentOperationId
-      /** The candidate content with its failure as a reference: a failure names a produced result. */
       claim: Omit<FinishCandidateContent, 'failure'> &
         Readonly<{ failure: Readonly<{ kind: string; detail: Ref }> | null }>
-      /**
-       * The checkpoint of the candidate as a cursor reference (R2-D297): the block holds the cursor
-       * members, which are themselves small values and references to the blocks `cursor.moved`
-       * refers to. The candidate never carries a copy of the checkpoint.
-       */
       cursor: Ref<CursorMembers>
-      /** The record of the route the candidate is established on. */
       route: DurableEvidence
-      /** The route itself, as a block: the author or cancellation route of the candidate. */
       path: Ref<FinishRoute>
       supersedes: AgentOperationId | null
     }>
   | Readonly<{ kind: 'finish.proved'; route: DurableEvidence; beforeTerminal: DurableEvidence }>
-  /**
-   * The current form of one obligation of the execution (R2-D297, R2-D322), appended in the step
-   * that changed it: the item is a block in its read-revision-free form, so the fact is small
-   * whatever the item holds and an unchanged item is never written again. `item` null: the
-   * obligation left the execution. `id` is the kind and key of the item.
-   */
   | Readonly<{
       kind: 'finish.obligation'
       id: string
-      /** The kind of the obligation item. */
       category: string
       item: Ref | null
     }>
-  /**
-   * The close of one issue of obligations: how many items, the list evidence, the coverage block,
-   * and the block that lists the items by id and block digest, in list order. It refers to the
-   * obligation facts already appended; it carries no item. `list` is the ordinal of the issue for
-   * the candidate: a later prepareFinish issues a new list.
-   */
   | Readonly<{
       kind: 'finish.obligations'
       candidate: AgentOperationId
@@ -433,27 +349,13 @@ export type FactBody =
       observed: DurableEvidence
     }>
   | Readonly<{ kind: 'ack.through'; sequence: number }>
-  /**
-   * A new operation that recognizes the fact `target` established (R2-D292 "原操作认回"): no
-   * revision, the answer at the recognized batch's revision. With `recalls`, the answer is the
-   * recognized operation's own receipt (a new operation for a saved delivery recalls the delivery's
-   * receipt), the same whether read warm or derived from the stored batch.
-   */
   | Readonly<{ kind: 'op.recognized'; target: AgentOperationId; recalls?: true }>
-  /** A material kept by `preserve`: its source evidence and the block that holds it. No revision. */
   | Readonly<{
       kind: 'material.preserved'
       source: DurableEvidence
       value: Ref
-      /** The consumer the material was kept for: the execution of that consumer may read it. */
       consumer: ConsumerRef
     }>
-  /**
-   * The permanent exclusion of an operation (R2-D307): the fence of a takeover over a write of the
-   * old generation, a write the storage dropped, a predecessor of a handoff custody chain, or the
-   * excluded conclusion of a reception. After it, a write of the operation is refused by decide;
-   * exclusion is a fact of the log, never inferred from a missing batch.
-   */
   | Readonly<{
       kind: 'op.excluded'
       operation: AgentOperationId
@@ -461,7 +363,6 @@ export type FactBody =
       evidence: DurableEvidence
       predecessor: AgentOperationId | null
     }>
-  /** The Tool start fence took effect (R2-D307): the entry `AgentJournalEntries.record` writes. */
   | Readonly<{
       kind: 'fence.started'
       operation: ToolOperationId
@@ -521,7 +422,6 @@ export const FACT_KINDS: readonly FactKind[] = Object.freeze([
   'target.bound',
 ])
 
-/** The event kind a fact projects, or null for a fact that is no event. */
 export const EVENT_OF: Readonly<Partial<Record<FactKind, string>>> = Object.freeze({
   'step.begun': 'input-taken',
   'result.received': 'entry',
@@ -534,31 +434,13 @@ export const EVENT_OF: Readonly<Partial<Record<FactKind, string>>> = Object.free
   'finish.ended': 'ended',
 })
 
-/**
- * Why an operation is excluded: a takeover fence, a held write the storage dropped, a handoff
- * attempt its successor replaced, a reception, or a held write whose re-run answered without
- * writing (`no-write`).
- */
 export type ExclusionReason = 'fence' | 'dropped' | 'handoff' | 'reception' | 'no-write'
 
-/**
- * The exclusions a later write of the same operation may still commit once: a held write the
- * storage never ran, and a re-run that answered without writing. The fence of a takeover, the
- * predecessor of a custody chain and a reception's exclusion refuse every later write of the
- * operation (`batchOf`); a custody attempt is permanently excluded by `recordHandoff` itself.
- */
 export const REVIVABLE_EXCLUSIONS: ReadonlySet<ExclusionReason> = new Set<ExclusionReason>([
   'dropped',
   'no-write',
 ])
 
-/**
- * The event kind one fact projects by what the fact alone says, or null: a fact of a kind that is
- * no event, a `reply.judged` of a rejected reply (no message enters the history), a
- * `result.handled` of a stage a record reached (no step applied it). A `control.stage` without a
- * step depends on the view as well: `eventOf` in the fold decides it. The fold numbers the events
- * by this rule, and the provider matches the events a write appended to the fold's events.
- */
 export function eventKindOf(fact: FactBody): string | null {
   const kind = EVENT_OF[fact.kind]
   if (kind === undefined) return null
@@ -567,14 +449,8 @@ export function eventKindOf(fact: FactBody): string | null {
   return kind
 }
 
-/** The participation kinds of one batch: the Session commands the same commit carries. */
 export type ParticipationKind = 'message' | 'context-transition' | 'custody' | 'processed'
 
-/**
- * The envelope of one batch, in the row `ord = 0`: the operation that appended it, the semantic
- * digest of its input, the revision the batch reaches, the authority generation that wrote it and
- * the participations. `rev` repeats the revision before the batch for a recognition.
- */
 export type BatchEnvelope = Readonly<{
   op: AgentOperationId
   digest: string
@@ -583,22 +459,14 @@ export type BatchEnvelope = Readonly<{
   kinds: readonly ParticipationKind[]
 }>
 
-/** One batch: the envelope and the facts of one command, as one atomic append. */
 export type Batch = Readonly<{
   execution: AgentExecutionId
   envelope: BatchEnvelope
   facts: readonly FactBody[]
 }>
 
-/** A committed batch with its publication ordinal in the session. */
 export type PublishedBatch = Batch & Readonly<{ pub: number }>
 
-/**
- * One row of `er_fact`, as the participant stores it: the key `(tenant, session, pub, ord)`, the
- * execution, the kind, the event sequence of a fact that is an event, the operation of the
- * envelope row, the participation kinds and the encoded body. The envelope row has `ord = 0`,
- * `kind = 'batch'` and the envelope as its body; the facts follow from `ord = 1`.
- */
 export type FactRow = Readonly<{
   tenant: string
   session: string
@@ -617,17 +485,14 @@ export type FactFailure =
   | Readonly<{ kind: 'oversize'; ord: number; factKind: FactKind; bytes: number }>
   | Readonly<{ kind: 'too-many'; facts: number; limit: number }>
 
-/** The bytes of the canonical UTF-8 text of a value. */
 export function bytesOf(value: unknown): number {
   return Buffer.byteLength(canonical(value), 'utf8')
 }
 
-/** A short digest of a canonical text, for cursor members and semantic digests. */
 export function digestOf(value: unknown): string {
   return createHash('sha256').update(canonical(value)).digest('hex')
 }
 
-/** The reference of a value held outside the facts: its digest and size. */
 export function refOf<X>(value: X): Ref<X> {
   const text = canonical(value)
   return {
@@ -638,11 +503,6 @@ export function refOf<X>(value: X): Ref<X> {
 
 const CONTENT_KEYS: ReadonlySet<string> = new Set(['role', 'content', 'messages', 'system'])
 
-/**
- * The run-time counterpart of `NoContent`: the first path at which a value carries a discriminating
- * member of a content type (`role`, `content`, `messages`, `system`), or null. A reference, an
- * evidence and an identity never carry one.
- */
 export function contentPath(value: unknown, path = ''): string | null {
   if (value === null || typeof value !== 'object') return null
   if (Array.isArray(value)) {
@@ -661,7 +521,6 @@ export function contentPath(value: unknown, path = ''): string | null {
   return null
 }
 
-/** The key of one fact: what the ledger it transitions is keyed by. Two facts of one key repeat. */
 export function factKey(fact: FactBody): string {
   switch (fact.kind) {
     case 'exec.opened':
@@ -673,9 +532,6 @@ export function factKey(fact: FactBody): string {
     case 'input.accepted':
       return `input/${fact.input}`
     case 'step.begun':
-      // One per input-taken event: a step may take more than one batch (an empty take, then a
-      // new input), and consecutive steps may take the same empty batch (one identity names
-      // the empty range), so the step and the batch together are the key.
       return `step/${fact.step}#${fact.batch.id}`
     case 'request.adopted':
       return `request/${fact.step}/${fact.attempt}`
@@ -687,7 +543,6 @@ export function factKey(fact: FactBody): string {
     case 'call.associated':
       return `associated/${fact.action}`
     case 'result.received':
-      // An account delivery follows the result of the same consumption: its own key.
       return fact.result.delivery === 'account'
         ? `account/${fact.delivery}`
         : `received/${fact.consumption}`
@@ -751,18 +606,12 @@ export function factKey(fact: FactBody): string {
   }
 }
 
-/** The batch's own bytes: the envelope overhead and the encoded facts; no custody block. */
 export function batchBytes(batch: Batch): number {
   return batch.facts.reduce((sum, fact) => sum + bytesOf(fact), BATCH_OVERHEAD_BYTES)
 }
 
 type Scope = Readonly<{ tenant: string; session: string }>
 
-/**
- * Encodes one batch as its rows at publication `pub`. The event sequence of each event fact is
- * assigned from `eseqFrom` upward, so one execution's event sequence stays dense. A fact above
- * `FACT_MAX_BYTES` or carrying a content member is refused; nothing of the batch is encoded.
- */
 export function encodeBatch(
   scope: Scope,
   pub: number,
@@ -845,11 +694,6 @@ function envelopeOf(value: unknown, kinds: string): BatchEnvelope | null {
   }
 }
 
-/**
- * Decodes the rows of one publication back into the batch. The rows must be one publication, with
- * the envelope at `ord = 0` and the facts dense from `ord = 1`; anything else is `invalid`, never a
- * shorter batch.
- */
 export function decodeBatch(rows: readonly FactRow[]): Outcome<PublishedBatch, FactFailure> {
   const [head] = rows
   if (head === undefined) return fail({ kind: 'invalid', field: 'rows', reason: 'empty' })
@@ -878,7 +722,6 @@ export function decodeBatch(rows: readonly FactRow[]): Outcome<PublishedBatch, F
   })
 }
 
-/** Groups the rows of a range read `pub > head ORDER BY pub, ord` into their batches. */
 export function decodeRows(
   rows: readonly FactRow[],
 ): Outcome<readonly PublishedBatch[], FactFailure> {

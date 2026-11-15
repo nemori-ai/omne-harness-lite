@@ -1,10 +1,3 @@
-// The one landing of a commit (`afterSessionCommit`, SPEC「本批与提交通知」), cell by cell: the
-// storage answer (fresh, recalled, not committed) against the reply of the writer (a batch, a
-// recovered answer, no entry, no Session participation, a result the caller cannot decode). A
-// Journal commit folds one count up or replaces the index; a commit of the Session participant
-// alone folds at the same count. Only a fresh batch is told, and nothing here ever throws. The
-// fold is seen through the fold counts of the database (no snapshot is held, so a fold or an index
-// replacement that is tried counts as skipped); the notice through a registered notifier.
 import type { SessionCommand, SessionNotifier, WorkSnapshot } from '@omne-harness/session-contract'
 import {
   guard,
@@ -52,7 +45,6 @@ const batch = {
   kinds: ['message.assistant'],
 }
 
-/** A storage that holds nothing and is never asked: only its database identity matters here. */
 const storageOf = (): SqlStorage =>
   ({
     database: {},
@@ -89,7 +81,6 @@ afterEach(() => {
   for (const unregister of unregisters.splice(0)) unregister()
 })
 
-/** Lands one answer on a storage of its own: what was told, and the change of the fold counts. */
 async function land(
   answer: { receipt: ReceiptV2; recalled: boolean } | null,
   journal?: { published: string | null },
@@ -113,8 +104,6 @@ async function land(
     ...(journal === undefined ? {} : { journal }),
   })
   await new Promise(resolve => setTimeout(resolve, 0))
-  // Every count: a fold or a replacement that is tried on no held snapshot counts as skipped, one
-  // that fails as stale; either is a try.
   const counts = workFoldCounts(storage)
   return { notices, tried: Object.values(counts).reduce((sum, value) => sum + value, 0) }
 }
@@ -203,7 +192,6 @@ describe('not a fresh commit', () => {
   })
 })
 
-/** The reads of `handler` the storage of `a` served since `from` (an index into its call log). */
 const readsOf = (a: App, handler: string, from: number): number =>
   a.provider.calls.slice(from).filter(call => call.kind === 'read' && call.handler === handler)
     .length
@@ -267,7 +255,6 @@ describe('the landing on a real store', () => {
   it('the bounds of the port reach the cache that a commit before any read creates', async () => {
     const a = await app()
     okOf(await a.create(TENANT_A))
-    // A storage object of a database identity of its own: no cache exists for it yet.
     const storage: SqlStorage = { ...a.provider.storage, database: {} }
     const port = createSessionStorage<string>({
       ...a.storageOptions,

@@ -1,9 +1,7 @@
 import type { ObserveSessionFrame } from '@omne-harness/session-protocol'
 
-/** The json-text tree the contract reads `json` values into (the `value` of a snapshot frame). */
 export type JsonTree = Extract<ObserveSessionFrame, { kind: 'snapshot' }>['value']
 
-/** A JSON value as plain data. Numbers keep only what `Number` reads; the view shows them as text. */
 export type Plain =
   | null
   | boolean
@@ -55,11 +53,6 @@ export function listOf(value: Plain | undefined): readonly Plain[] {
   return Array.isArray(value) ? (value as readonly Plain[]) : []
 }
 
-/**
- * Orders two decimal texts (session revisions, entry ids, output cursors) without turning them into
- * numbers: the shorter one is smaller, equal lengths compare as text. Non-decimal texts fall back
- * to the same rule, which is still a total order.
- */
 export function compareDecimal(left: string, right: string): number {
   if (left.length !== right.length) return left.length < right.length ? -1 : 1
   return left < right ? -1 : left > right ? 1 : 0
