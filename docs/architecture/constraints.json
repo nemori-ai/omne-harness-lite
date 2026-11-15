@@ -458,6 +458,22 @@
       "source": "packages/assets/SPEC.md"
     },
     {
+      "id": "packages/human-intervention/human-intervention-protocol",
+      "paths": ["packages/human-intervention/human-intervention-protocol/src/**"],
+      "layer": "contract",
+      "domains": [],
+      "status": "candidate",
+      "source": "packages/human-intervention/SPEC.md"
+    },
+    {
+      "id": "packages/human-intervention/human-intervention-access",
+      "paths": ["packages/human-intervention/human-intervention-access/src/**"],
+      "layer": "unknown",
+      "domains": [],
+      "status": "candidate",
+      "source": "packages/human-intervention/SPEC.md"
+    },
+    {
       "id": "packages/common/stream-arrival",
       "paths": ["packages/common/stream-arrival/src/**"],
       "layer": "contract",

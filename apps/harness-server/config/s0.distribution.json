@@ -294,6 +294,11 @@
       "id": "assets-access",
       "plugin": "stubPlugin",
       "config": {}
+    },
+    {
+      "id": "human-intervention-access",
+      "plugin": "stubPlugin",
+      "config": {}
     }
   ]
 }

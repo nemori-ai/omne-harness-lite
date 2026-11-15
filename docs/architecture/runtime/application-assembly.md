@@ -82,6 +82,7 @@
 | `identity-access` | `@omne-harness/identity-access` 的 `./cordis` 插件 `identityAccessPlugin` | 无服务；把 `identity/v1` 挂上 `accessRegistry`，新地址由此开放身份的六个操作（装这一行就是开放这个协议，卸下这一行协议随之撤下） | `accessRegistry` | `identityOperations`；`identityGovernance`（受信）。两项每次调用现取，缺席时调用答 `basis-unavailable`，协议不撤 | 无 |
 | `session-access` | `@omne-harness/session-access` 的 `./cordis` 插件 `createSessionAccessPlugin`：`session/v1` 的接入插件。装上这一行，新地址才开放 `session/v1` | 无。插件把 `session/v1` 的贡献（7 个操作与观察 `observe-session`）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations` 构造身份的 `createAccessIdentity`，只用它的 `actFor` 为目标租户换主体） | `session`（`caller: 'intake'` 取管理与工作面，`'reader'` 取历史面）；`sessionObservation`；`definitionMappings`（受信）。任一项缺席时，需要它的调用答 `basis-unavailable`，协议不撤下 | `defaultDefinition`（不给定义名的「建会话」用它；缺席时这样的调用答 `invalid`）；`maxPageBytes`（初值 1048576）；`historyKinds`（初值运维者层 `LOCAL_HISTORY_KINDS`） |
 | `assets-access` | `@omne-harness/assets-access` 的 `./cordis` 插件 `createAssetsAccessPlugin`：`assets/v1` 的接入插件。装上这一行，新地址才开放 `assets/v1` | 无。插件把 `assets/v1` 的贡献（设置的 4 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations` 构造身份的 `createAccessIdentity`，只用它的 `actFor` 为目标租户换主体） | `tenantSettings`（[租户层设置读写面](#tenant-settings)）。缺席时调用答 `basis-unavailable`，协议不撤下 | 无 |
+| `human-intervention-access` | `@omne-harness/human-intervention-access` 的 `./cordis` 插件 `createHitlAccessPlugin`：`human-intervention/v1` 的接入插件。装上这一行，新地址才开放 `human-intervention/v1` | 无。插件把 `human-intervention/v1` 的贡献（列卡、读卡、提交答复、认回提交 4 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations` 构造身份的 `createAccessIdentity`，只用它的 `actFor` 核对登录可为目标租户行事；入口主体经 `createHitlEntryPrincipals` 签发） | HITL 入口面（工具人工介入宿主的 `holder`）。取不到时调用答 `basis-unavailable`，协议不撤下 | `locationRef`：HITL 位置引用，缺省为 HITL 宿主的位置 |
 
 每行装一个插件（[IC-16](../cordis-integration-conventions.md#ic-16)）；插件自己的子插件随父插件装载。`session-ad*` 各行的 `inject` 以 [session-adapters 的 Cordis 页](../../../packages/session/SPEC.md#领域边界)为准，运维者可以按行 id 单独替换其中一行。
 
@@ -196,6 +197,8 @@ flowchart LR
   server-entry --> assets-access
   identity -.-> assets-access
   governance -.-> assets-access
+  server-entry --> human-intervention-access
+  identity -.-> human-intervention-access
   authorization --> session-handoff
   storage --> agent-journal
   session-storage --> agent-journal
@@ -315,6 +318,7 @@ flowchart LR
 | `identity-access` | `identityGovernance` |
 | `session-access` | `principalIssuer`、`definitionMappings` |
 | `assets-access` | `principalIssuer` |
+| `human-intervention-access` | `principalIssuer` |
 
 表中未列的行可见集合为空。受信子树内的行提供的其他服务名不受隔离，根上的行照常 `inject`。
 

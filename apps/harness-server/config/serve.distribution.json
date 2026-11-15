@@ -559,6 +559,11 @@
       "id": "assets-access",
       "plugin": "assetsAccessRow",
       "config": {}
+    },
+    {
+      "id": "human-intervention-access",
+      "plugin": "humanInterventionAccessRow",
+      "config": {}
     }
   ]
 }
