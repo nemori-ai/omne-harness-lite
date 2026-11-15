@@ -78,10 +78,6 @@ function credentialsOf(
     : { proof: login.proof, tenant: login.tenant }
 }
 
-/**
- * The answer body is kept as the wire carried it, so the command prints what the server said and
- * not what a local codec made of it. The client still decides whether the answer fits the contract.
- */
 export function openLink(environment: CommandEnvironment, origin: string, login?: Login): Opened {
   if (!isLoopbackOrigin(origin)) return { kind: 'refused' }
   let credentials: Credentials = {}
