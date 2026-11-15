@@ -47,8 +47,26 @@ function Expandable({
   )
 }
 
-function json(value: Plain): string {
-  return JSON.stringify(value, null, 2) ?? 'null'
+function entriesOf(value: Plain): readonly (readonly [string, Plain])[] | null {
+  if (Array.isArray(value))
+    return (value as readonly Plain[]).map((item, at) => [String(at), item] as const)
+  if (typeof value === 'object' && value !== null) return Object.entries(value)
+  return null
+}
+
+function ValueView({ name, value }: { readonly name: string; readonly value: Plain }) {
+  const entries = entriesOf(value)
+  if (entries === null) return <span className="omne-argument-value">{String(value)}</span>
+  return (
+    <ul className="omne-arguments" aria-label={name}>
+      {entries.map(([key, item]) => (
+        <li key={key}>
+          <span className="omne-argument-name">{key}</span>
+          <ValueView name={key} value={item} />
+        </li>
+      ))}
+    </ul>
+  )
 }
 
 const ASK_STATUS: Readonly<Record<AskView['status'], string>> = {
@@ -121,7 +139,11 @@ function ToolCall({ part }: { readonly part: Extract<Part, { kind: 'tool-call' }
       badge={badge}
     >
       <p className="omne-card-label">参数</p>
-      <pre className="omne-pre">{part.raw ?? json(part.arguments)}</pre>
+      {part.raw === null ? (
+        <ValueView name="参数" value={part.arguments} />
+      ) : (
+        <pre className="omne-pre">{part.raw}</pre>
+      )}
       {part.result === null ? null : (
         <>
           <p className="omne-card-label">结果</p>

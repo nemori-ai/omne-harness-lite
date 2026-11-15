@@ -1,5 +1,5 @@
 import { terminalOf, type Content, type HistoryEntry, type LiveBlock } from './content.ts'
-import { isRecord, listOf, textOf, type Plain } from './plain.ts'
+import { isRecord, listOf, plainOfTree, textOf, type Plain } from './plain.ts'
 
 export type AskOption = Readonly<{ label: string; description: string }>
 export type AskQuestion = Readonly<{
@@ -83,12 +83,16 @@ function toolCall(
     key,
     callId: textOf(block['callId']) ?? null,
     name: textOf(block['name']) ?? null,
-    arguments: state === 'complete' ? (block['arguments'] ?? null) : null,
+    arguments: state === 'complete' ? argumentsOf(block['arguments'] ?? null) : null,
     raw,
     state,
     result: null,
     ask: null,
   }
+}
+
+function argumentsOf(value: Plain): Plain {
+  return plainOfTree(value) ?? value
 }
 
 function messageParts(blocks: readonly Plain[], prefix: string): Part[] {
