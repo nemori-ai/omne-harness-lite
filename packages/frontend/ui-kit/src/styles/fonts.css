@@ -1,0 +1,41 @@
+@font-face {
+  font-family: 'Inter';
+  src: url('../../resources/fonts/Inter.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: block;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../../resources/fonts/JetBrainsMono.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: block;
+}
+
+:root {
+  --omne-font-han: 'Kaiti SC', 'STKaiti', 'KaiTi', 'Noto Serif CJK SC', 'Songti SC', 'SimSun';
+  --omne-font-ui: 'Inter', var(--omne-font-han), -apple-system, sans-serif;
+  --omne-font-reading: 'Charter', var(--omne-font-han), Georgia, serif;
+  --omne-font-mono: 'JetBrains Mono', var(--omne-font-han), monospace;
+  --omne-font-wordmark: 'Charter', var(--omne-font-han), Georgia, serif;
+  --omne-weight-regular: 400;
+  --omne-weight-strong: 500;
+  --omne-weight-heading: 700;
+  --omne-reading-tracking: 0;
+}
+:root:lang(zh) {
+  --omne-font-ui: var(--omne-font-han), 'Inter', serif;
+  --omne-font-reading: var(--omne-font-han), 'Charter', serif;
+  --omne-weight-strong: 500;
+  --omne-weight-heading: 500;
+  --omne-reading-tracking: 0.015em;
+}
+
+[data-typeface='sans'] {
+  --omne-font-han:
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Source Han Sans SC';
+}
+[data-typeface='serif'] {
+  --omne-font-han: 'Songti SC', 'STSong', 'SimSun', 'Noto Serif CJK SC', 'Source Han Serif SC';
+}
