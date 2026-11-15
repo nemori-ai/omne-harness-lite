@@ -493,6 +493,10 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
       { requestJournalFile: path.join(locations.storageRoot, 'request-queue.jsonl') },
     ],
     [
+      'session-diagnostics-access',
+      { diagnosticsKinds: [...LOCAL_DIAGNOSTICS_KINDS], ...LOCAL_DIAGNOSTICS_LIMITS },
+    ],
+    [
       'server-entry',
       {
         listenPort: settings.port,
