@@ -61,7 +61,7 @@ function expected(state: SessionState, port: CausePort) {
   const cause = port === 'answers a cause' ? CAUSE : null
   return {
     outcome: 'succeeded',
-    body: { waiting: { run: RUN, pending: String(PENDING[state]), cause } },
+    body: { waiting: { run: RUN, pending: PENDING[state], cause } },
   }
 }
 
@@ -117,7 +117,7 @@ describe('read-waiting asks for the cause', () => {
     world.causes.answer(SCRIPT['answers a cause'])
     expect(await readWaiting(world, session)).toEqual({
       outcome: 'succeeded',
-      body: { waiting: { run: RUN, pending: '1', cause: null } },
+      body: { waiting: { run: RUN, pending: 1, cause: null } },
     })
     expect(world.causes.calls()).toEqual([])
   })

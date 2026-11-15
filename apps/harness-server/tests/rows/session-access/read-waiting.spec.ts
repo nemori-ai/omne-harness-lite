@@ -9,7 +9,7 @@ type Answer = Readonly<{ status: number; outcome: string; body: Record<string, u
 
 type Waiting = Readonly<{
   run: string
-  pending: string
+  pending: number
   cause: Readonly<{ kind: string; detail: string | null }> | null
 }>
 
@@ -87,7 +87,7 @@ describe('read-waiting on the release tree', () => {
           () => readWaiting(tree, session),
           value => value !== null,
         )
-        expect(waiting).toMatchObject({ pending: '1', cause: { kind: 'no-reply' } })
+        expect(waiting).toMatchObject({ pending: 1, cause: { kind: 'no-reply' } })
         expect(waiting?.run).toMatch(/.+/)
         gateway.open()
         const retried = await call(tree, 'retry-run', {
