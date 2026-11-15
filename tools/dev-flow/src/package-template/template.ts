@@ -83,7 +83,7 @@ function variantFiles(value: unknown): boolean {
   )
 }
 function historicalRuleSet(rules: Record<string, unknown>): boolean {
-  if (rules['ruleSet'] === 2) return rules['topics'] === undefined
+  if (rules['ruleSet'] === 2 || rules['ruleSet'] === 4) return rules['topics'] === undefined
   const topics = rules['topics']
   return (
     rules['ruleSet'] === 3 &&

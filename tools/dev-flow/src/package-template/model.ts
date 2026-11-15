@@ -38,7 +38,7 @@ export interface TemplateManifest {
         readonly requiredFiles: readonly string[]
         readonly variantRequiredFiles: Readonly<Record<Variant, readonly string[]>>
         readonly layout: LayoutRules
-        readonly ruleSet: 2 | 3
+        readonly ruleSet: 2 | 3 | 4
         readonly topics?: readonly string[]
       }
     >

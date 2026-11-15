@@ -74,7 +74,7 @@ it('runs real preview/write/scan paths and rejects a Cordis leak despite a curre
   const manifestPath = join(root, member, 'package.json')
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
   manifest.omneHarness = {
-    packageTemplate: { id: 'typescript-package', version: '4.0.0', variant: 'module' },
+    packageTemplate: { id: 'typescript-package', version: '5.0.0', variant: 'module' },
   }
   writeFileSync(manifestPath, JSON.stringify(manifest))
   const clean = run(root, ['scan', '--member', member, '--check', '--json'])
