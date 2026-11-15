@@ -474,6 +474,14 @@
       "source": "packages/assets/SPEC.md"
     },
     {
+      "id": "packages/frontend/ui-kit",
+      "paths": ["packages/frontend/ui-kit/src/**"],
+      "layer": "unknown",
+      "domains": [],
+      "status": "candidate",
+      "source": "packages/frontend/SPEC.md"
+    },
+    {
       "id": "packages/human-intervention/human-intervention-protocol",
       "paths": ["packages/human-intervention/human-intervention-protocol/src/**"],
       "layer": "contract",
@@ -514,6 +522,14 @@
       "source": "packages/access/SPEC.md"
     },
     {
+      "id": "packages/frontend/shell-contract",
+      "paths": ["packages/frontend/shell-contract/src/**"],
+      "layer": "interaction",
+      "domains": [],
+      "status": "candidate",
+      "source": "packages/frontend/SPEC.md"
+    },
+    {
       "id": "packages/access/public-contract",
       "paths": ["packages/access/public-contract/src/**"],
       "layer": "contract",
@@ -551,6 +567,14 @@
       "layer": "unknown",
       "domains": ["identity"],
       "status": "adopted",
+      "source": "packages/identity/SPEC.md"
+    },
+    {
+      "id": "packages/identity/identity-ui",
+      "paths": ["packages/identity/identity-ui/src/**"],
+      "layer": "unknown",
+      "domains": ["identity"],
+      "status": "candidate",
       "source": "packages/identity/SPEC.md"
     },
     {
@@ -842,6 +866,18 @@
         "packages/session/session",
         "packages/session/session-cordis",
         "packages/session/session-storage-sql"
+      ],
+      "source": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向"
+    },
+    {
+      "id": "DIR-IDENTITY-UI-SERVER",
+      "from": ["packages/identity/identity-ui"],
+      "to": [
+        "packages/access/access-cordis-contract",
+        "packages/access/server-entry",
+        "packages/identity/authorization",
+        "packages/identity/identity",
+        "packages/identity/identity-sql"
       ],
       "source": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向"
     },

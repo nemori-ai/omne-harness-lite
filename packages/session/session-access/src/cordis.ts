@@ -11,6 +11,7 @@ import type {
   DefinitionResolver,
   PrincipalFacts,
   RequestJournal,
+  RunFailureCauses,
   SessionAccessFaces,
   SessionAccessSettings,
   SessionListing,
@@ -27,6 +28,7 @@ export type SessionAccessPluginInput<S = SessionAccessSettings> = Readonly<{
   facts: PrincipalFacts
   definitions: (ctx: Context) => DefinitionResolver | undefined
   listing: (directory: SessionDirectory<Principal>) => SessionListing
+  causes?: (ctx: Context) => RunFailureCauses | undefined
   prepareCreation?: (input: SessionCreateInput) => SessionCreateInput
 }>
 
@@ -88,6 +90,7 @@ export function createSessionAccessPlugin<S extends SessionAccessSettings>(
                 const directory = sessionOf(ctx, 'reader')?.directory
                 return directory === undefined ? undefined : input.listing(directory)
               },
+              causes: () => input.causes?.(ctx),
               principals,
               facts: input.facts,
               settings,

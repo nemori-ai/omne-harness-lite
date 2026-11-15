@@ -30,6 +30,7 @@ it('exports exactly the declared root runtime surface', () => {
     'judgeIdle',
     'judgeRunStart',
     'judgeSessionIntake',
+    'judgeWaiting',
     'mutationAccessRequest',
     'openWork',
     'projectSessionEntries',

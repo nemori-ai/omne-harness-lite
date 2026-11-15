@@ -140,13 +140,14 @@ type SessionOutcomes = {
     | 'unsupported'
 }
 
-test('the operations are exactly the nine of session/v1', () => {
+test('the operations are exactly the ten of session/v1', () => {
   expectTypeOf<Name>().toEqualTypeOf<
     | 'create-session'
     | 'query-create-session'
     | 'send-input'
     | 'query-send-input'
     | 'read-history'
+    | 'read-waiting'
     | 'list-sessions'
     | 'cancel-run'
     | 'stop-call'
@@ -269,6 +270,24 @@ test('the outcome names are the old ones plus protocol-rejected', () => {
   expectTypeOf<ResultBody<'retry-run', 'succeeded'>>().toEqualTypeOf<{
     readonly recovered: boolean
   }>()
+  expectTypeOf<Names<'read-waiting'>>().toEqualTypeOf<
+    'succeeded' | 'invalid' | 'denied' | 'basis-unavailable' | 'protocol-rejected'
+  >()
+})
+
+test('read-waiting names a session and answers the waiting Run, the pending count and the cause', () => {
+  expectTypeOf<BodyOf<'read-waiting'>>().toEqualTypeOf<{
+    readonly tenant: TenantId
+    readonly session: string
+  }>()
+  expectTypeOf<ResultBody<'read-waiting', 'succeeded'>>().toEqualTypeOf<{
+    readonly waiting: {
+      readonly run: string
+      readonly pending: number
+      readonly cause: { readonly kind: string; readonly detail: string | null } | null
+    } | null
+  }>()
+  expectTypeOf<ResultBody<'read-waiting', 'invalid'>>().toExtend<Empty>()
 })
 
 test('fixed outcomes are declared as true, so their body is always empty', () => {

@@ -248,12 +248,15 @@ function nullLeaf(input: unknown, direction: Direction): Converted | undefined {
   return isNull ? { local: null, wire: { kind: 'null' } } : undefined
 }
 
-function boundedInteger(max: number): Leaf {
+function boundedInteger(max: number, least = 1): Leaf {
   return (input, direction) => {
     const node = direction === 'decode' ? nodeOf(input) : undefined
     const value =
       direction === 'decode' ? (node?.kind === 'number' ? Number(node.lexeme) : undefined) : input
-    return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 && value <= max
+    return typeof value === 'number' &&
+      Number.isSafeInteger(value) &&
+      value >= least &&
+      value <= max
       ? { local: value, wire: { kind: 'number', lexeme: String(value) } }
       : undefined
   }
@@ -274,8 +277,19 @@ function pageLimit(
   return withinPageLimit(input, direction, limits)
 }
 
+const withinCount = boundedInteger(Number.MAX_SAFE_INTEGER, 0)
+
+function count(input: unknown, direction: Direction, limits: JsonLimits): Converted | undefined {
+  if (direction === 'decode') {
+    const node = nodeOf(input)
+    if (node?.kind !== 'number' || !/^(0|[1-9][0-9]*)$/.test(node.lexeme)) return undefined
+  }
+  return withinCount(input, direction, limits)
+}
+
 const leaves: { readonly [K in LeafKind]: Leaf } = {
   'positive-integer': boundedInteger(Number.MAX_SAFE_INTEGER),
+  count,
   'page-limit': pageLimit,
   text: textLeaf(value => value !== ''),
   string: textLeaf(() => true),

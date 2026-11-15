@@ -46,6 +46,7 @@ import type {
   RunTerminal,
   ScopeReleaseDisposition,
   SessionCreation,
+  SessionWaiting,
   WorkSnapshot,
 } from './values.ts'
 
@@ -125,6 +126,7 @@ export interface SessionWork<P> {
   ): Reply<TodoPage>
   accept(input: Mutation<P> & Readonly<{ value: RoutedInput }>): Reply<CommitReceipt>
   readWork(input: SessionAccess<P>): Reply<WorkSnapshot>
+  readWaiting(input: SessionAccess<P>): Reply<SessionWaiting | null>
   readInput(
     input: SessionAccess<P> & Readonly<{ input: InputId }>,
   ): Reply<Extract<RoutedInput, { kind: 'ordinary' }>>

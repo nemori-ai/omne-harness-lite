@@ -27,6 +27,7 @@ type LeafValues = {
   readonly tenant: TenantId
   readonly instant: Instant
   readonly 'positive-integer': number
+  readonly count: number
   readonly 'page-limit': number
   readonly parameters: JsonObject
   readonly json: JsonValue

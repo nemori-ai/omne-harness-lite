@@ -14,7 +14,10 @@ const userMessage = { role: 'user', blocks: [{ type: 'text', text: 'hello' }], w
 const producer = { kind: 'model', call: 'call-1' }
 const source = { owner: 'agent', record: 'record-1', revision: '4', digest: 'digest-1' }
 
-type Name = Exclude<keyof typeof sessionProtocol.operations, 'list-sessions' | 'retry-run'>
+type Name = Exclude<
+  keyof typeof sessionProtocol.operations,
+  'list-sessions' | 'retry-run' | 'read-waiting'
+>
 type Samples = Readonly<Record<Name, readonly Record<string, unknown>[]>>
 
 const validBodies: Samples = {

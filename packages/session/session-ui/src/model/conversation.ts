@@ -1,5 +1,5 @@
-import type { Content, HistoryEntry, LiveBlock } from './content.ts'
-import { isRecord, listOf, textOf, type Plain } from './plain.ts'
+import { terminalOf, type Content, type HistoryEntry, type LiveBlock } from './content.ts'
+import { isRecord, listOf, plainOfTree, textOf, type Plain } from './plain.ts'
 
 export type AskOption = Readonly<{ label: string; description: string }>
 export type AskQuestion = Readonly<{
@@ -39,56 +39,56 @@ export type Item =
       live: boolean
     }>
   | Readonly<{ kind: 'note'; key: string; label: string; parts: readonly Part[] }>
-  | Readonly<{ kind: 'marker'; key: string; label: string }>
+  | Readonly<{ kind: 'marker'; key: string; label: string; failedRun: string | null }>
   | Readonly<{ kind: 'unknown'; key: string; entryKind: string }>
 
 const ASK_TOOL = 'Ask'
 
+type Block = { readonly [key: string]: Plain }
+type PartFrom = (block: Block, key: string, kind: string) => Part
+
+const media: PartFrom = (block, key, kind) => ({
+  kind: 'media',
+  key,
+  media: kind,
+  detail: textOf(block['transcript']) ?? textOf(block['mediaType']) ?? '',
+})
+
+const PART: ReadonlyMap<string, PartFrom> = new Map<string, PartFrom>([
+  ['text', (block, key) => ({ kind: 'text', key, text: textOf(block['text']) ?? '' })],
+  ['thinking', (block, key) => ({ kind: 'thinking', key, text: textOf(block['text']) ?? '' })],
+  ['image', media],
+  ['file', media],
+  ['voice', media],
+  ['tool_call', (block, key) => toolCall(key, block, 'complete')],
+  ['tool_call_incomplete', (block, key) => toolCall(key, block, 'incomplete')],
+  ['tool_call_unparsed', (block, key) => toolCall(key, block, 'unparsed')],
+])
+
 function contentPart(block: Plain, key: string): Part {
   if (!isRecord(block)) return { kind: 'unknown', key, partKind: typeof block }
   const kind = textOf(block['kind']) ?? '(none)'
-  switch (kind) {
-    case 'text':
-      return { kind: 'text', key, text: textOf(block['text']) ?? '' }
-    case 'thinking':
-      return { kind: 'thinking', key, text: textOf(block['text']) ?? '' }
-    case 'image':
-    case 'file':
-    case 'voice':
-      return {
-        kind: 'media',
-        key,
-        media: kind,
-        detail: textOf(block['transcript']) ?? textOf(block['mediaType']) ?? '',
-      }
-    case 'tool_call':
-      return toolCall(key, block, 'complete')
-    case 'tool_call_incomplete':
-      return toolCall(key, block, 'incomplete')
-    case 'tool_call_unparsed':
-      return toolCall(key, block, 'unparsed')
-    default:
-      return { kind: 'unknown', key, partKind: kind }
-  }
+  const build = PART.get(kind)
+  return build === undefined ? { kind: 'unknown', key, partKind: kind } : build(block, key, kind)
 }
 
-function toolCall(
-  key: string,
-  block: { readonly [key: string]: Plain },
-  state: 'complete' | 'incomplete' | 'unparsed',
-): Part {
+function toolCall(key: string, block: Block, state: 'complete' | 'incomplete' | 'unparsed'): Part {
   const raw = textOf(block['partial']) ?? textOf(block['raw']) ?? null
   return {
     kind: 'tool-call',
     key,
     callId: textOf(block['callId']) ?? null,
     name: textOf(block['name']) ?? null,
-    arguments: state === 'complete' ? (block['arguments'] ?? null) : null,
+    arguments: state === 'complete' ? argumentsOf(block['arguments'] ?? null) : null,
     raw,
     state,
     result: null,
     ask: null,
   }
+}
+
+function argumentsOf(value: Plain): Plain {
+  return plainOfTree(value) ?? value
 }
 
 function messageParts(blocks: readonly Plain[], prefix: string): Part[] {
@@ -194,129 +194,147 @@ function askQuestions(args: Plain): readonly AskQuestion[] | null {
   })
 }
 
-function terminalLabel(entry: HistoryEntry): string {
-  const payload = isRecord(entry.payload) ? entry.payload : {}
-  const terminal = isRecord(payload['terminal']) ? payload['terminal'] : {}
-  switch (textOf(terminal['outcome'])) {
-    case 'completed':
-      return '这一轮已完成'
-    case 'failed':
-      return '这一轮失败了'
-    case 'cancelled':
-      return '这一轮已取消'
-    default:
-      return '这一轮已结束'
+const TERMINAL: Readonly<Record<string, string>> = {
+  completed: '这一轮已完成',
+  failed: '这一轮失败了',
+  cancelled: '这一轮已取消',
+}
+
+function terminalMarker(entry: HistoryEntry): Item {
+  const terminal = terminalOf(entry)
+  const outcome = terminal?.outcome ?? ''
+  return {
+    kind: 'marker',
+    key: entry.entryId,
+    label: TERMINAL[outcome] ?? '这一轮已结束',
+    failedRun: outcome === 'failed' ? (terminal?.run ?? null) : null,
   }
 }
 
-export function conversationItems(content: Content, runActive: boolean): readonly Item[] {
-  const items: Item[] = []
-  const results = new Map<string, ToolResultView>()
-  const toolParts = new Map<string, Part[]>()
-  for (const entry of content.entries) {
+type Walk = {
+  readonly results: Map<string, ToolResultView>
+  readonly toolParts: Map<string, Part[]>
+  readonly callIds: Set<string>
+  readonly endedCalls: Set<string>
+  readonly openCalls: string[]
+}
+
+function walkOf(entries: readonly HistoryEntry[]): Walk {
+  const walk: Walk = {
+    results: new Map(),
+    toolParts: new Map(),
+    callIds: new Set(),
+    endedCalls: new Set(),
+    openCalls: [],
+  }
+  for (const entry of entries) {
     const message = entry.kind === 'message.tool' ? messageOf(entry) : null
     if (message === null) continue
     const parts = messageParts(message.blocks, entry.entryId)
-    toolParts.set(entry.entryId, parts)
+    walk.toolParts.set(entry.entryId, parts)
     for (const part of parts)
-      if (part.kind === 'tool-result' && !results.has(part.callId))
-        results.set(part.callId, part.result)
+      if (part.kind === 'tool-result' && !walk.results.has(part.callId))
+        walk.results.set(part.callId, part.result)
   }
-  const callIds = new Set<string>()
-  const endedCalls = new Set<string>()
-  const openCalls: string[] = []
+  return walk
+}
 
-  const withResults = (parts: readonly Part[]): Part[] =>
-    parts.map(part => {
-      if (part.kind !== 'tool-call') return part
-      if (part.callId !== null) {
-        callIds.add(part.callId)
-        openCalls.push(part.callId)
-      }
-      const result = part.callId === null ? null : (results.get(part.callId) ?? null)
-      const questions = part.name === ASK_TOOL ? askQuestions(part.arguments) : null
-      return {
-        ...part,
-        result,
-        ask:
-          questions === null
-            ? null
-            : { questions, status: result === null ? 'waiting' : 'answered' },
-      }
-    })
+function linkCall(walk: Walk, part: Part): Part {
+  if (part.kind !== 'tool-call') return part
+  if (part.callId !== null) {
+    walk.callIds.add(part.callId)
+    walk.openCalls.push(part.callId)
+  }
+  const result = part.callId === null ? null : (walk.results.get(part.callId) ?? null)
+  const questions = part.name === ASK_TOOL ? askQuestions(part.arguments) : null
+  return {
+    ...part,
+    result,
+    ask:
+      questions === null ? null : { questions, status: result === null ? 'waiting' : 'answered' },
+  }
+}
 
+const withResults = (walk: Walk, parts: readonly Part[]): Part[] =>
+  parts.map(part => linkCall(walk, part))
+
+type ItemFrom = (walk: Walk, entry: HistoryEntry) => Item | null
+
+const unknownItem: ItemFrom = (_walk, entry) => ({
+  kind: 'unknown',
+  key: entry.entryId,
+  entryKind: entry.kind,
+})
+
+const chatItem: ItemFrom = (walk, entry) => {
+  const message = messageOf(entry)
+  if (message === null) return unknownItem(walk, entry)
+  return {
+    kind: 'message',
+    key: entry.entryId,
+    role: entry.kind === 'message.user' ? 'user' : 'assistant',
+    parts: withResults(walk, messageParts(message.blocks, entry.entryId)),
+    live: false,
+  }
+}
+
+const toolItem: ItemFrom = (walk, entry) => {
+  const unpaired = (walk.toolParts.get(entry.entryId) ?? []).filter(
+    part =>
+      part.kind !== 'tool-result' ||
+      !walk.callIds.has(part.callId) ||
+      walk.results.get(part.callId) !== part.result,
+  )
+  if (unpaired.length === 0) return null
+  return { kind: 'message', key: entry.entryId, role: 'tool', parts: unpaired, live: false }
+}
+
+const noteItem: ItemFrom = (walk, entry) => {
+  const message = messageOf(entry)
+  return {
+    kind: 'note',
+    key: entry.entryId,
+    label: entry.kind === 'message.system_reminder' ? '系统提醒' : '内部工具消息',
+    parts: message === null ? [] : withResults(walk, messageParts(message.blocks, entry.entryId)),
+  }
+}
+
+const markerItem =
+  (label: string): ItemFrom =>
+  (_walk, entry) => ({ kind: 'marker', key: entry.entryId, label, failedRun: null })
+
+const terminalItem: ItemFrom = (walk, entry) => {
+  for (const callId of walk.openCalls.splice(0)) walk.endedCalls.add(callId)
+  return terminalMarker(entry)
+}
+
+const ENTRY_ITEM: ReadonlyMap<string, ItemFrom> = new Map([
+  ['message.user', chatItem],
+  ['message.assistant', chatItem],
+  ['message.tool', toolItem],
+  ['message.tool_internal', noteItem],
+  ['message.system_reminder', noteItem],
+  ['message.compaction', markerItem('前面的对话已压缩')],
+  ['run.started', markerItem('新的一轮开始')],
+  ['run.terminal', terminalItem],
+])
+
+export function conversationItems(content: Content, runActive: boolean): readonly Item[] {
+  const walk = walkOf(content.entries)
+  const items: Item[] = []
   for (const entry of content.entries) {
-    switch (entry.kind) {
-      case 'message.user':
-      case 'message.assistant': {
-        const message = messageOf(entry)
-        if (message === null) {
-          items.push({ kind: 'unknown', key: entry.entryId, entryKind: entry.kind })
-          break
-        }
-        items.push({
-          kind: 'message',
-          key: entry.entryId,
-          role: entry.kind === 'message.user' ? 'user' : 'assistant',
-          parts: withResults(messageParts(message.blocks, entry.entryId)),
-          live: false,
-        })
-        break
-      }
-      case 'message.tool': {
-        const parts = toolParts.get(entry.entryId) ?? []
-        const unpaired = parts.filter(
-          part =>
-            part.kind !== 'tool-result' ||
-            !callIds.has(part.callId) ||
-            results.get(part.callId) !== part.result,
-        )
-        if (unpaired.length > 0)
-          items.push({
-            kind: 'message',
-            key: entry.entryId,
-            role: 'tool',
-            parts: unpaired,
-            live: false,
-          })
-        break
-      }
-      case 'message.tool_internal':
-      case 'message.system_reminder': {
-        const message = messageOf(entry)
-        items.push({
-          kind: 'note',
-          key: entry.entryId,
-          label: entry.kind === 'message.system_reminder' ? '系统提醒' : '内部工具消息',
-          parts: message === null ? [] : withResults(messageParts(message.blocks, entry.entryId)),
-        })
-        break
-      }
-      case 'message.compaction':
-        items.push({ kind: 'marker', key: entry.entryId, label: '前面的对话已压缩' })
-        break
-      case 'run.started':
-        items.push({ kind: 'marker', key: entry.entryId, label: '新的一轮开始' })
-        break
-      case 'run.terminal':
-        for (const callId of openCalls.splice(0)) endedCalls.add(callId)
-        items.push({ kind: 'marker', key: entry.entryId, label: terminalLabel(entry) })
-        break
-      default:
-        items.push({ kind: 'unknown', key: entry.entryId, entryKind: entry.kind })
-    }
+    const item = (ENTRY_ITEM.get(entry.kind) ?? unknownItem)(walk, entry)
+    if (item !== null) items.push(item)
   }
-
   if (content.live !== null)
     items.push({
       kind: 'message',
       key: 'live',
       role: 'assistant',
-      parts: withResults(liveParts(content.live.blocks)),
+      parts: withResults(walk, liveParts(content.live.blocks)),
       live: true,
     })
-
-  return items.map(item => expireAsks(item, endedCalls, runActive))
+  return items.map(item => expireAsks(item, walk.endedCalls, runActive))
 }
 
 function expireAsks(item: Item, ended: ReadonlySet<string>, runActive: boolean): Item {

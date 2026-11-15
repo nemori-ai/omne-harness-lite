@@ -18,7 +18,7 @@ catalog:
   # 检查器与配置预设：仓库检查运行 npm 上的这两个精确版本，不运行工作区 tools/ 下的同名成员。
   # 升级先发新版本，再开只改这两行的 PR，见 omne-card 技能的 references/toolchain-upgrade.md。
   '@omne-harness/repo-toolchain': 0.0.20
-  '@omne-harness/repo-config': 0.0.6
+  '@omne-harness/repo-config': 0.0.7
   '@babel/helper-validator-identifier': 8.0.6
   validate-npm-package-name: 8.0.0
   '@types/validate-npm-package-name': 4.0.2
@@ -66,6 +66,19 @@ catalog:
   '@types/react-dom': 19.3.0
   # session-ui：流式 Markdown、组件测试与它的 DOM 环境。
   streamdown: 2.7.1
+  # ui-kit：控件、样式与流式 Markdown 的插件。版本取自参考项目锁文件里实际解析到的那一版；tailwind-merge 例外，沿用锁文件里已有的 3.7.0。
+  radix-ui: 1.6.7
+  class-variance-authority: 0.7.1
+  clsx: 2.1.1
+  tailwind-merge: 3.7.0
+  tailwindcss: 4.3.3
+  # 桌面应用的页面构建用它把 ui-kit 汇总样式里的 Tailwind 编出来；版本与 tailwindcss 相同。
+  '@tailwindcss/vite': 4.3.3
+  '@streamdown/cjk': 1.0.4
+  '@streamdown/code': 1.1.1
+  '@streamdown/math': 1.0.3
+  '@streamdown/mermaid': 1.0.3
+  katex: 0.16.27
   '@testing-library/react': 16.3.3
   '@testing-library/dom': 10.4.2
   happy-dom: 21.0.4
@@ -74,6 +87,8 @@ catalog:
   vite: 8.3.0
   '@vitejs/plugin-react': 6.3.0
   antd: 6.6.5
+  # 桌面应用的 Electron 外壳（apps/desktop）。这个版本的包没有安装脚本：二进制在第一次起窗口时下载。
+  electron: 45.3.2
   esbuild: 0.28.2
   '@eslint-community/regexpp': 4.12.2
   '@jscpd/core': 4.0.1

@@ -1,4 +1,4 @@
-import { Context } from '@deepseek-ai/cordis'
+import { Context, type Plugin } from '@deepseek-ai/cordis'
 import {
   connectionPlugin,
   defineProtocolClient,
@@ -11,6 +11,7 @@ import { readRetryDelayMs } from './read-retry.ts'
 
 export type ClientTree = {
   watch(service: string, listener: (value: unknown) => void): () => void
+  install(plugin: Plugin.Object): Promise<void>
   dispose(): Promise<void>
 }
 
@@ -44,6 +45,9 @@ export async function startClientTree(options: {
       return () => {
         void fiber.dispose()
       }
+    },
+    async install(plugin) {
+      await root.plugin(plugin)
     },
     dispose: () => root.fiber.dispose().then(() => undefined),
   }

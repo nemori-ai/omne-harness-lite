@@ -10,6 +10,7 @@ import {
   type SettingsBasis,
   type SettingsChange,
   type SettingsFailure,
+  type SettingsGrant,
   type SettingsState,
   type SettingsTargetView,
   type TenantSettingsPermissions,
@@ -117,6 +118,9 @@ function world() {
     organizationPick: null as string | null,
     organizationReadable: true,
     lose: false,
+    tenantActions: ['set', 'clear'] as SettingsGrant['actions'],
+    reject: null as SettingsFailure['reason'] | null,
+    copyAsset: { category: 'tool', name: 'Shell' } as { category: string; name: string },
     between: null as (() => void) | null,
   }
   const roots = new Map<string, { digest: string; result: TenantSettingsWriteResult }>()
@@ -143,7 +147,7 @@ function world() {
     state,
     grants: [
       { sourceId: 'organization', actions: ['set', 'clear', 'lock', 'unlock'] },
-      { sourceId: 'tenant', actions: ['set', 'clear'] },
+      { sourceId: 'tenant', actions: flags.tenantActions },
     ],
   })
   const own = (itemId: string): Value | null => {
@@ -243,12 +247,16 @@ function world() {
           unavailableProviders: [],
         }
       },
-      assetOf: () => ({ category: 'tool', name: 'Shell' }),
+      assetOf: candidate =>
+        candidate.target.targetRef === 'tool.Shell.copy'
+          ? flags.copyAsset
+          : { category: 'tool', name: 'Shell' },
     },
     permissions,
     writer: {
       async write({ command, beforeWrite }) {
         calls.push('writer.write')
+        if (flags.reject !== null) return { kind: 'rejected', reason: flags.reject }
         const { requestId: _requestId, ...stable } = command
         const digest = canonicalize(stable)!
         const known = roots.get(command.operationId)
@@ -671,5 +679,300 @@ describe('list and describe', () => {
     expect(await face.describe(item())).toEqual({ kind: 'unavailable' })
     expect(await face.set(pick('deny'))).toEqual({ kind: 'unavailable' } satisfies WriteOutcome)
     expect(w.calls).toEqual([])
+  })
+})
+
+describe('AS-19 the revision of a write is the revision of the view it was judged on', () => {
+  const verbose = (operation: string, expectedRevision: string, value = true) => ({
+    ...item(undefined, undefined, 'verbose'),
+    operation,
+    expectedRevision,
+    value: { kind: 'ordinary' as const, value },
+  })
+
+  it('a permission item whose revision is newer than the judged view: conflict even if storage would accept it, nothing written', async () => {
+    const w = world()
+    w.flags.between = () => w.assign('tenant', 'verbose', true)
+    expect(await w.face.set(pick('auto', 'newer', '1'))).toEqual({ kind: 'conflict' })
+    expect(w.writes).toEqual([])
+    expect(w.own('invoke')).toBeNull()
+  })
+
+  it('an ordinary item is held to the same comparison', async () => {
+    const w = world()
+    w.flags.between = () => w.assign('tenant', 'invoke', { pick: 'ask', allowedSet: null })
+    expect(await w.face.set(verbose('newer', '1'))).toEqual({ kind: 'conflict' })
+    expect(w.writes).toEqual([])
+    expect(w.state().revision).toBe(0)
+  })
+
+  it('a revision older than the judged view: conflict, nothing written', async () => {
+    const w = world()
+    w.assign('tenant', 'invoke', { pick: 'ask', allowedSet: null })
+    w.assign('tenant', 'invoke', { pick: 'ask', allowedSet: null })
+    expect(await w.face.set(verbose('older', '1'))).toEqual({ kind: 'conflict' })
+    expect(w.writes).toEqual([])
+  })
+
+  it('the comparison comes before the bound judgement: a stale pick that is out of bound answers conflict', async () => {
+    const w = world()
+    w.flags.organizationBound = ['deny']
+    expect(await w.face.set(pick('auto', 'stale-out', '1'))).toEqual({ kind: 'conflict' })
+    expect(w.calls).not.toContain('permissions.judge')
+  })
+
+  it('an operation the writer already knows is recalled with the revision it was sent with, not compared with the newer view', async () => {
+    const w = world()
+    expect(await w.face.set(pick('deny', 'known', '0'))).toEqual({ kind: 'written', revision: '1' })
+    expect(await w.face.set(pick('deny', 'known', '0'))).toEqual({ kind: 'written', revision: '1' })
+    expect(w.writes).toHaveLength(1)
+  })
+})
+
+describe('the right to write the tenant source', () => {
+  const setVerbose = (operation: string) => ({
+    ...item(undefined, undefined, 'verbose'),
+    operation,
+    expectedRevision: '0',
+    value: { kind: 'ordinary' as const, value: true },
+  })
+
+  it('a tenant source granted clear only: set is not-writable not-a-source and the writer is not reached', async () => {
+    const w = world()
+    w.flags.tenantActions = ['clear']
+    expect(await w.face.set(setVerbose('s'))).toEqual({
+      kind: 'not-writable',
+      reason: 'not-a-source',
+    })
+    expect(w.calls).not.toContain('writer.write')
+  })
+
+  it('a tenant source granted set only: clear is not-writable not-a-source', async () => {
+    const w = world()
+    w.flags.tenantActions = ['set']
+    expect(
+      await w.face.clear({
+        ...item(undefined, undefined, 'verbose'),
+        operation: 'c',
+        expectedRevision: '0',
+      }),
+    ).toEqual({ kind: 'not-writable', reason: 'not-a-source' })
+  })
+
+  it('a tenant source with no grant while another source holds one: not-writable not-a-source', async () => {
+    const w = world()
+    w.flags.tenantActions = []
+    expect(await w.face.set(setVerbose('s'))).toEqual({
+      kind: 'not-writable',
+      reason: 'not-a-source',
+    })
+  })
+
+  it('a tenant source granted set only: the item is editable in the view', async () => {
+    const w = world()
+    w.flags.tenantActions = ['set']
+    expect(await w.face.describe(item(undefined, undefined, 'verbose'))).toMatchObject({
+      item: { editable: { kind: 'yes' } },
+    })
+  })
+
+  it('a tenant source granted clear only: the item is not editable in the view', async () => {
+    const w = world()
+    w.flags.tenantActions = ['clear']
+    expect(await w.face.describe(item(undefined, undefined, 'verbose'))).toMatchObject({
+      item: { editable: { kind: 'no', reason: 'not-a-source' } },
+    })
+  })
+})
+
+describe('the answer to a rejection of the writer', () => {
+  const rejections: readonly (readonly [SettingsFailure['reason'], WriteOutcome])[] = [
+    ['invalid_input', { kind: 'invalid' }],
+    ['limit_exceeded', { kind: 'invalid' }],
+    ['incompatible', { kind: 'invalid' }],
+    ['forbidden', { kind: 'denied' }],
+    ['revision_conflict', { kind: 'conflict' }],
+    ['definition_changed', { kind: 'conflict' }],
+    ['operation_conflict', { kind: 'conflict' }],
+    ['locked', { kind: 'not-writable', reason: 'locked' }],
+    ['unsupported', { kind: 'not-writable', reason: 'not-a-source' }],
+    ['unavailable', { kind: 'unavailable' }],
+    ['basis_changed', { kind: 'unavailable' }],
+    ['closing', { kind: 'unavailable' }],
+  ]
+  it.each(rejections)('%s', async (reason, outcome) => {
+    const w = world()
+    w.flags.reject = reason
+    expect(await w.face.set(pick('deny'))).toEqual(outcome)
+  })
+})
+
+describe('an ordinary item in the view', () => {
+  const view = async (w: ReturnType<typeof world>) => {
+    const described = await w.face.describe(item(undefined, undefined, 'verbose'))
+    if (described.kind !== 'described') throw new Error(JSON.stringify(described))
+    return described.item
+  }
+
+  it('a value of the tenant layer: own is set, and the tenant supplies the effective value', async () => {
+    const w = world()
+    w.assign('tenant', 'verbose', true)
+    expect(await view(w)).toMatchObject({
+      own: { kind: 'set', value: true },
+      effective: { value: { kind: 'set', value: true }, source: 'tenant' },
+      lockedBy: null,
+      editable: { kind: 'yes' },
+    })
+  })
+
+  it('a value of the organization layer: own stays unset, the organization supplies the effective value, not locked', async () => {
+    const w = world()
+    w.assign('organization', 'verbose', true)
+    expect(await view(w)).toMatchObject({
+      own: { kind: 'unset' },
+      effective: { value: { kind: 'set', value: true }, source: 'organization' },
+      lockedBy: null,
+      editable: { kind: 'yes' },
+    })
+  })
+
+  it('no value in any layer: the default supplies the effective value', async () => {
+    const w = world()
+    expect(await view(w)).toMatchObject({ effective: { source: 'default' } })
+  })
+
+  it('locked by the organization: lockedBy organization and the item is not editable, locked', async () => {
+    const w = world()
+    w.assign('organization', 'verbose', true, true)
+    expect(await view(w)).toMatchObject({
+      lockedBy: 'organization',
+      effective: { source: 'organization' },
+      editable: { kind: 'no', reason: 'locked' },
+    })
+  })
+
+  it('locked by the tenant layer itself: not reported as locked by the organization, still editable', async () => {
+    const w = world()
+    w.assign('tenant', 'verbose', true, true)
+    expect(await view(w)).toMatchObject({ lockedBy: null, editable: { kind: 'yes' } })
+  })
+
+  it('locked above but the tenant has no right to set: not-a-source takes precedence over locked', async () => {
+    const w = world()
+    w.flags.tenantActions = []
+    w.assign('organization', 'verbose', true, true)
+    expect(await view(w)).toMatchObject({ editable: { kind: 'no', reason: 'not-a-source' } })
+  })
+})
+
+describe('the numbers the face accepts are whole strings', () => {
+  const stale = ['x0', '0x', ' 0', '0 ', '0\n', '00', '-1', '1000000000000000']
+  it.each(stale)('expected revision %j: invalid, nothing read for the write', async revision => {
+    const w = world()
+    expect(await w.face.set(pick('deny', 'bad', revision))).toEqual({ kind: 'invalid' })
+    expect(w.calls).not.toContain('writer.write')
+  })
+
+  it('the largest revision of fifteen digits is a revision', async () => {
+    const w = world()
+    expect(await w.face.set(pick('deny', 'big', '999999999999999'))).toEqual({ kind: 'conflict' })
+  })
+
+  const cursors = ['x1', '1x', ' 1', '1\n', '01', '1000000000']
+  it.each(cursors)('page cursor %j: unavailable', async after => {
+    const w = world()
+    expect(await w.face.list({ principal: LOGIN_A, tenant: tenantA, after, limit: 1 })).toEqual({
+      kind: 'unavailable',
+    })
+  })
+
+  it('a cursor of nine digits is a cursor', async () => {
+    const w = world()
+    expect(
+      await w.face.list({ principal: LOGIN_A, tenant: tenantA, after: '999999999', limit: 1 }),
+    ).toMatchObject({ kind: 'listed', items: [], next: null })
+  })
+})
+
+describe('which asset a query names', () => {
+  const named = (category: string | undefined, name: string) => ({
+    ...item(),
+    asset: category === undefined ? { name } : { category, name },
+  })
+
+  it('a name with another category: not-visible', async () => {
+    const w = world()
+    expect(await w.face.describe(named('other', 'Shell'))).toEqual({ kind: 'not-visible' })
+  })
+
+  it('a category with another name: not-visible', async () => {
+    const w = world()
+    expect(await w.face.describe(named('tool', 'Other'))).toEqual({ kind: 'not-visible' })
+  })
+
+  it('a name without a category names the asset of any category', async () => {
+    const w = world()
+    expect(await w.face.describe(named(undefined, 'Shell'))).toMatchObject({ kind: 'described' })
+  })
+
+  it('two holdings that differ in the category only: the query with the category finds one, the query without it conflicts', async () => {
+    const w = world()
+    w.flags.catalog = 'duplicate'
+    w.flags.copyAsset = { category: 'other', name: 'Shell' }
+    expect(await w.face.describe(named('tool', 'Shell'))).toMatchObject({
+      item: { asset: { category: 'tool', name: 'Shell' } },
+    })
+    expect(await w.face.describe(named('other', 'Shell'))).toMatchObject({
+      item: { asset: { category: 'other', name: 'Shell' } },
+    })
+    expect(await w.face.describe(named(undefined, 'Shell'))).toEqual({ kind: 'conflict' })
+  })
+
+  it('two holdings that differ in the name only: each query finds its own', async () => {
+    const w = world()
+    w.flags.catalog = 'duplicate'
+    w.flags.copyAsset = { category: 'tool', name: 'Other' }
+    expect(await w.face.describe(named('tool', 'Shell'))).toMatchObject({
+      item: { asset: { name: 'Shell' } },
+    })
+    expect(await w.face.describe(named(undefined, 'Other'))).toMatchObject({
+      item: { asset: { name: 'Other' } },
+    })
+  })
+
+  it('a list with an asset query keeps only the matching asset', async () => {
+    const w = world()
+    w.flags.catalog = 'duplicate'
+    w.flags.copyAsset = { category: 'other', name: 'Shell' }
+    const listed = await w.face.list({
+      principal: LOGIN_A,
+      tenant: tenantA,
+      asset: { category: 'other', name: 'Shell' },
+      after: null,
+      limit: 10,
+    })
+    if (listed.kind !== 'listed') throw new Error(JSON.stringify(listed))
+    expect(listed.items.map(value => value.asset.category)).toEqual(['other', 'other', 'other'])
+  })
+
+  it('a list across assets orders by category, then name, then item', async () => {
+    const w = world()
+    w.flags.catalog = 'duplicate'
+    w.flags.copyAsset = { category: 'tool', name: 'Alpha' }
+    const listed = await w.face.list({
+      principal: LOGIN_A,
+      tenant: tenantA,
+      after: null,
+      limit: 10,
+    })
+    if (listed.kind !== 'listed') throw new Error(JSON.stringify(listed))
+    expect(listed.items.map(value => `${value.asset.name}/${value.item}`)).toEqual([
+      'Alpha/apiKey',
+      'Alpha/invoke',
+      'Alpha/verbose',
+      'Shell/apiKey',
+      'Shell/invoke',
+      'Shell/verbose',
+    ])
   })
 })
