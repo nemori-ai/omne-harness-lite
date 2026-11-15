@@ -8,13 +8,6 @@ import type { Context } from '@deepseek-ai/cordis'
 import { ListPoolSchema, type PoolItem } from '@omne-harness/human-intervention'
 import { standingPrincipalRef, type ActingForTenantPrincipal } from '@omne-harness/identity'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import {
-  encodeHitlRequest,
-  readHitlResponse,
-  type HitlOperation,
-  type HitlRequest,
-  type HitlResponse,
-} from '@omne-harness/public-contract'
 import type { SessionId, SessionOperationId } from '@omne-harness/session-contract'
 import { sessionKey, type SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import { toolRuntimeKey } from '@omne-harness/tool-cordis-contract/cordis'
@@ -32,7 +25,6 @@ import {
 import { runServe, type S0Record } from '../../src/run.ts'
 import type { EntryEnv, EntryObjectModule } from '../../src/types.ts'
 import { startModelGateway, type GatewayScript } from '../fixtures/model-gateway.ts'
-import { SESSION_PATH } from '../r9/flow.ts'
 import {
   bodyOf,
   freePort,
@@ -43,6 +35,12 @@ import {
   savedTenant,
 } from '../r9/support.ts'
 import { connectable, until } from '../rows/server-entry/support.ts'
+import {
+  readHistoryPage,
+  savedClients,
+  type HistoryEntry,
+  type ProtocolClients,
+} from './protocol-clients.ts'
 
 export function releaseDistribution(modes: ReleaseModes = {}): unknown {
   const distribution = JSON.parse(
@@ -113,7 +111,7 @@ function withHistoryKinds(layer: unknown): unknown {
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
   return {
     ops: ops.map(op =>
-      op.id === 'server-entry'
+      op.id === 'session-access'
         ? {
             ...op,
             config: {
@@ -167,37 +165,15 @@ function withAgentWaitInterval(layer: unknown): unknown {
   }
 }
 
-async function post(port: number, body: unknown): Promise<{ status: number; body: string }> {
-  const response = await fetch(`http://127.0.0.1:${String(port)}${SESSION_PATH}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  return { status: response.status, body: await response.text() }
-}
-
-export type Entry = Readonly<{ kind: string; payload: Record<string, unknown> }>
+export type Entry = HistoryEntry
 
 export async function history(
   port: number,
   home: string,
   session: string,
 ): Promise<readonly Entry[]> {
-  const answer = await post(port, {
-    protocolVersion: 'session-public/1',
-    messageId: `ask-history-${String(Date.now())}`,
-    operation: 'read-history',
-    body: {
-      tenant: savedTenant(home),
-      session,
-      cursor: null,
-      direction: 'forward',
-      pageBytes: '262144',
-    },
-    loginProof: savedLoginProof(home),
-  })
-  if (answer.status !== 200) return []
-  return (JSON.parse(answer.body) as { body: { entries: Entry[] } }).body.entries
+  const answer = await readHistoryPage(savedClients(port, home), savedTenant(home), session)
+  return answer.outcome === 'succeeded' ? answer.body.entries : []
 }
 
 function sqliteFiles(storageRoot: string): string[] {
@@ -360,52 +336,12 @@ export function toolLedger(storageRoot: string): readonly ToolCallLedger[] {
   })
 }
 
-export const HITL_PATH = '/hitl-public/1'
-const HITL_LIMITS = {
-  maxBytes: 4_194_304,
-  maxDepth: 64,
-  maxItems: 100_000,
-  maxMembers: 1_000,
-  maxStringLength: 1_048_576,
-  maxNumberLength: 100,
-}
-
-export type HitlExchange = Readonly<{
-  status: number
-  headers: readonly (readonly [string, string])[]
-  bytes: string
-  response: HitlResponse<HitlOperation> | undefined
-}>
-
-export async function hitlPublic(port: number, request: HitlRequest): Promise<HitlExchange> {
-  const encoded = encodeHitlRequest({ request, limits: HITL_LIMITS })
-  if (encoded.kind !== 'encoded')
-    throw new Error(`the HITL request does not encode: ${encoded.kind}`)
-  const answer = await fetch(`http://127.0.0.1:${String(port)}${HITL_PATH}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: encoded.bytes,
-  })
-  const bytes = new Uint8Array(await answer.arrayBuffer())
-  const read = readHitlResponse({
-    bytes,
-    operation: request.operation,
-    expectedMessageId: request.messageId,
-    limits: HITL_LIMITS,
-  })
-  return {
-    status: answer.status,
-    headers: [...answer.headers].filter(([name]) => name !== 'date'),
-    bytes: new TextDecoder().decode(bytes),
-    response: read.kind === 'response' ? read.response : undefined,
-  }
-}
-
 export type ReleaseToolRuntime = ToolRuntime<unknown, ToolMessageContentBlock>
 
 export type ReleaseTree = Readonly<{
   port: number
   home: string
+  clients: ProtocolClients
   storageRoot: string
   env: EntryEnv
   scope: Context
@@ -604,6 +540,7 @@ async function serveOnce(
     await body({
       port,
       home,
+      clients: savedClients(port, home),
       storageRoot: dir.storageRoot,
       env,
       scope,

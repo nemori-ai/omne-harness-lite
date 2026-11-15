@@ -1,17 +1,10 @@
 import { randomUUID } from 'node:crypto'
-import { identityProtocol } from '@omne-harness/identity-protocol'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import { userTextMessage } from '@omne-harness/sdk'
-import {
-  createClient,
-  createHttpProtocolTransport,
-  type ClientOf,
-  type Credentials,
-} from '@omne-harness/sdk/core'
-import { sessionProtocol, type ObserveSessionFrame } from '@omne-harness/session-protocol'
+import type { ClientOf, Credentials } from '@omne-harness/sdk/core'
+import type { ObserveSessionFrame, sessionProtocol } from '@omne-harness/session-protocol'
+import { clientsOver, protocolTransport, userTextMessage } from '../protocol-clients.ts'
 
 type SessionClient = ClientOf<typeof sessionProtocol>
-type IdentityClient = ClientOf<typeof identityProtocol>
 type SendBody = Parameters<SessionClient['send-input']>[0]
 type Tenant = SendBody['tenant']
 type Session = SendBody['session']
@@ -85,23 +78,21 @@ export function createProtocolDriver(origin: string, account?: Account): Protoco
     loginIdentifier: `matrix-${randomUUID().slice(0, 8)}`,
     credential: `pw-${randomUUID()}`,
   }
-  const transport = createHttpProtocolTransport({
-    origin,
-    credentials: (): Credentials => credentials,
-  })
-  const identity: IdentityClient = createClient(identityProtocol, transport)
-  const session: SessionClient = createClient(sessionProtocol, transport)
+  const transport = protocolTransport(origin, (): Credentials => credentials)
+  const { identity, session } = clientsOver(transport)
   let reasks = 0
-  const asShipped: SessionClient = createClient(sessionProtocol, transport, {
-    readRetry: {
-      delayMs: (failures, elapsedMs) => {
-        if (elapsedMs > READ_RETRY_MS) return null
-        reasks = failures
-        return Math.min(250 * 2 ** (failures - 1), 4_000)
+  const asShipped: SessionClient = clientsOver(transport, {
+    session: {
+      readRetry: {
+        delayMs: (failures, elapsedMs) => {
+          if (elapsedMs > READ_RETRY_MS) return null
+          reasks = failures
+          return Math.min(250 * 2 ** (failures - 1), 4_000)
+        },
+        wait: ms => new Promise(resolve => setTimeout(resolve, ms)),
       },
-      wait: ms => new Promise(resolve => setTimeout(resolve, ms)),
     },
-  })
+  }).session
   const controllers = new Set<AbortController>()
   const tenant = () => credentials.tenant ?? ''
   const tenantValue = () => tenantId as unknown as Tenant

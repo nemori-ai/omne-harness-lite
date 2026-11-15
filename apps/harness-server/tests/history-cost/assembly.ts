@@ -15,15 +15,9 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import * as cordis from '../../src/cordis.ts'
 import { runServe } from '../../src/run.ts'
 import { startModelGateway } from '../fixtures/model-gateway.ts'
-import {
-  bodyOf,
-  freePort,
-  operatorLayer,
-  runOmne,
-  savedLoginProof,
-  savedTenant,
-} from '../r9/support.ts'
+import { bodyOf, freePort, operatorLayer, runOmne, savedTenant } from '../r9/support.ts'
 import { connectable, until } from '../rows/server-entry/support.ts'
+import { protocolClients, readHistoryPage, savedCredentials } from '../support/protocol-clients.ts'
 import {
   INLINE_THRESHOLD,
   PAGE_BYTES,
@@ -90,7 +84,7 @@ export async function startAssembly(
     ...layer,
     ops: layer.ops.map(op => {
       const config = op.config ?? {}
-      if (op.id === 'server-entry')
+      if (op.id === 'session-access')
         return {
           ...op,
           config: { ...config, historyKinds: [...(options.historyKinds ?? ['run.terminal'])] },
@@ -174,29 +168,15 @@ export async function startAssembly(
   }
 
   async function terminal(home: string, session: string): Promise<string | null> {
-    const response = await fetch(`${server}/session-public/1`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        protocolVersion: 'session-public/1',
-        messageId: 'history-cost-terminal',
-        operation: 'read-history',
-        body: {
-          tenant: savedTenant(home),
-          session,
-          cursor: null,
-          direction: 'forward',
-          pageBytes: '262144',
-        },
-        loginProof: savedLoginProof(home),
-      }),
-    })
-    if (response.status === 503) return null
-    if (response.status !== 200) throw new Error(`read-history ${String(response.status)}`)
-    const value = (await response.json()) as {
-      body: { entries: { payload: { terminal?: { outcome?: string } } }[] }
-    }
-    const reached = value.body.entries[0]?.payload.terminal
+    const answer = await readHistoryPage(
+      protocolClients(server, savedCredentials(home)),
+      savedTenant(home),
+      session,
+    )
+    if (answer.outcome === 'basis-unavailable') return null
+    if (answer.outcome !== 'succeeded') throw new Error(`read-history ${answer.outcome}`)
+    const reached = (answer.body.entries[0]?.payload as { terminal?: { outcome?: string } })
+      ?.terminal
     if (reached?.outcome === undefined) return null
     return reached.outcome === 'completed' ? 'completed' : JSON.stringify(reached)
   }

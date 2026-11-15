@@ -16,17 +16,16 @@ import { sessionWorkIssuerOf } from '../../../src/entry/principals.ts'
 import { createSessionWorkPrincipals } from '../../../src/entry/session-work-principals.ts'
 import { runServe, type S0Record } from '../../../src/run.ts'
 import type { EntryObjectModule } from '../../../src/types.ts'
-import { SESSION_PATH } from '../../r9/flow.ts'
 import {
   bodyOf,
   freePort,
   newScratch,
   operatorLayer,
   runOmne,
-  savedLoginProof,
   savedTenant,
 } from '../../r9/support.ts'
 import { startModelGateway } from '../../fixtures/model-gateway.ts'
+import { readHistoryPage, savedClients } from '../../support/protocol-clients.ts'
 import { connectable, until } from '../server-entry/support.ts'
 
 const CREDENTIAL = 'carol-pw-RUNSTART-7c41'
@@ -36,30 +35,13 @@ const release: unknown = JSON.parse(
   readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
 )
 
-async function post(port: number, body: unknown): Promise<{ status: number; body: string }> {
-  const response = await fetch(`http://127.0.0.1:${String(port)}${SESSION_PATH}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  return { status: response.status, body: await response.text() }
-}
-
-const readHistory = (tenant: string, session: string, loginProof: string) => ({
-  protocolVersion: 'session-public/1',
-  messageId: 'run-start-read-history',
-  operation: 'read-history',
-  body: { tenant, session, cursor: null, direction: 'forward', pageBytes: '65536' },
-  loginProof,
-})
-
 type Issued = Readonly<{ actor: string; session: string; outcome: string }>
 
 function withHistoryKinds(layer: unknown): unknown {
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
   return {
     ops: ops.map(op =>
-      op.id === 'server-entry'
+      op.id === 'session-access'
         ? {
             ...op,
             config: {
@@ -99,7 +81,7 @@ function observedWorkPrincipals(issued: Issued[]): EntryObjectModule {
   }
 }
 
-function kindsOf(body: string): string[] {
+function kindsOf(answer: unknown): string[] {
   const kinds: string[] = []
   const visit = (value: unknown): void => {
     if (Array.isArray(value)) for (const item of value) visit(item)
@@ -110,7 +92,7 @@ function kindsOf(body: string): string[] {
       for (const item of Object.values(record)) visit(item)
     }
   }
-  visit(JSON.parse(body))
+  visit(answer)
   return kinds
 }
 
@@ -178,24 +160,25 @@ describe('the release tree with the release session ownership read', () => {
         steps.push(await cli(['send-input', '--session', session, '--text', INPUT_TEXT]))
         for (const step of steps) expect(step.status, step.stderr).toBe(0)
 
-        const request = readHistory(savedTenant(home), session, savedLoginProof(home))
+        const clients = savedClients(port, home)
+        const readHistory = () => readHistoryPage(clients, savedTenant(home), session, '65536')
         const mine = () => issued.filter(entry => entry.session === session)
         for (
           const end = Date.now() + 30_000;
           Date.now() < end && !mine().some(entry => entry.actor === 'coordinator');
           await sleep(100)
         );
-        let history = await post(port, request)
+        let history = await readHistory()
         for (
           const end = Date.now() + 30_000;
-          Date.now() < end && !kindsOf(history.body).includes('run.started');
+          Date.now() < end && !kindsOf(history).includes('run.started');
           await sleep(200)
         )
-          history = await post(port, request)
-        expect(history.status, history.body).toBe(200)
-        expect(kindsOf(history.body)).toContain('message.user')
-        expect(kindsOf(history.body)).toContain('run.started')
-        expect(history.body).toContain(INPUT_TEXT)
+          history = await readHistory()
+        expect(history.outcome, JSON.stringify(history)).toBe('succeeded')
+        expect(kindsOf(history)).toContain('message.user')
+        expect(kindsOf(history)).toContain('run.started')
+        expect(JSON.stringify(history)).toContain(INPUT_TEXT)
         const answers = mine()
         expect(answers.some(entry => entry.actor === 'maintainer')).toBe(true)
         expect(answers.some(entry => entry.actor === 'coordinator')).toBe(true)

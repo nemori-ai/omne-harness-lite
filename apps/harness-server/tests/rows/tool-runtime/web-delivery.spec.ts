@@ -9,16 +9,15 @@ import { runServe, type S0Record } from '../../../src/run.ts'
 import { exaResult, exaResults, startExaStub } from '../../fixtures/exa-stub.ts'
 import { startModelGateway, type GatewayScript } from '../../fixtures/model-gateway.ts'
 import { PAGE_BODY_MARKER, PAGE_TITLE_MARKER, startWebPages } from '../../fixtures/web-pages.ts'
-import { SESSION_PATH } from '../../r9/flow.ts'
 import {
   bodyOf,
   freePort,
   newScratch,
   operatorLayer,
   runOmne,
-  savedLoginProof,
   savedTenant,
 } from '../../r9/support.ts'
+import { entriesOf, readHistoryPage, savedClients } from '../../support/protocol-clients.ts'
 import { connectable, until } from '../server-entry/support.ts'
 
 const release: unknown = JSON.parse(
@@ -80,7 +79,7 @@ function withHistoryKinds(layer: unknown): unknown {
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
   return {
     ops: ops.map(op =>
-      op.id === 'server-entry'
+      op.id === 'session-access'
         ? {
             ...op,
             config: {
@@ -99,26 +98,7 @@ function withHistoryKinds(layer: unknown): unknown {
   }
 }
 
-async function post(port: number, body: unknown): Promise<{ status: number; body: string }> {
-  const response = await fetch(`http://127.0.0.1:${String(port)}${SESSION_PATH}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  return { status: response.status, body: await response.text() }
-}
-
-const readHistory = (tenant: string, session: string, loginProof: string) => ({
-  protocolVersion: 'session-public/1',
-  messageId: 'web-delivery-read-history',
-  operation: 'read-history',
-  body: { tenant, session, cursor: null, direction: 'forward', pageBytes: '262144' },
-  loginProof,
-})
-
 type Entry = Readonly<{ kind: string; payload: Record<string, unknown> }>
-const entriesOf = (body: string): readonly Entry[] =>
-  (JSON.parse(body) as { body: { entries: Entry[] } }).body.entries
 const blocksOf = (entry: Entry | undefined): readonly Record<string, unknown>[] =>
   ((entry?.payload['message'] as { blocks?: Record<string, unknown>[] } | undefined)?.blocks ??
     []) as readonly Record<string, unknown>[]
@@ -178,22 +158,23 @@ async function turnOnRelease(calls: readonly Call[], exaKey: string) {
     const session = String(bodyOf(created)['session'])
     const sent = await cli(['send-input', '--session', session, '--text', 'read the fixture page'])
     expect(sent.status, sent.stderr).toBe(0)
-    const request = readHistory(savedTenant(home), session, savedLoginProof(home))
-    let history = await post(port, request)
+    const clients = savedClients(port, home)
+    const readHistory = () => readHistoryPage(clients, savedTenant(home), session)
+    let history = await readHistory()
     for (
       const end = Date.now() + 120_000;
       Date.now() < end &&
-      !(history.status === 200 && entriesOf(history.body).some(e => e.kind === 'run.terminal'));
+      !(history.outcome === 'succeeded' && entriesOf(history).some(e => e.kind === 'run.terminal'));
       await sleep(500)
     )
-      history = await post(port, request)
-    expect(history.status, history.body).toBe(200)
+      history = await readHistory()
+    expect(history.outcome, JSON.stringify(history)).toBe('succeeded')
     controller.abort('test: stop')
     stopped = true
     const result = await finished
     const unsettled = records.filter(record => record.kind === 'shutdown-result')
     expect(result.exitCode, JSON.stringify(unsettled)).toBe(0)
-    return { entries: entriesOf(history.body), seen, exaRequests: exa.requests() }
+    return { entries: entriesOf(history), seen, exaRequests: exa.requests() }
   } finally {
     if (!stopped) controller.abort('test: stop')
     await finished.catch(() => undefined)

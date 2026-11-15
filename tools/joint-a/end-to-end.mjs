@@ -3,7 +3,6 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   holdTestSlot,
-  SESSION_PATH,
   blockedCount,
   doubleRows,
   evidenceDirFor,
@@ -15,8 +14,7 @@ import {
   newScratch,
   notActive,
   operatorLayer,
-  post,
-  readHistoryRequest,
+  readHistoryReply,
   report,
   runOmne,
   runS0Process,
@@ -255,17 +253,14 @@ async function s1(scratch, port, treeDouble) {
 
   const ownerTenant = savedTenant(homes.alice)
   const ownerProof = savedLoginProof(homes.alice)
-  observed.history = await post(
-    port,
-    SESSION_PATH,
-    readHistoryRequest(ownerTenant, session, ownerProof),
-  )
-  const historyOk = observed.history.status === 200 && observed.history.body.includes(INPUT_TEXT)
+  observed.history = await readHistoryReply(port, ownerTenant, session, ownerProof)
+  const historyOk =
+    observed.history.outcome === 'succeeded' && observed.history.text.includes(INPUT_TEXT)
   if (treeDouble)
     blocked(
       'S1',
       'S1-2 读历史看到这条输入',
-      `替身上的观察：状态 ${String(observed.history.status)}，` +
+      `替身上的观察：outcome ${observed.history.outcome}，` +
         `正文${historyOk ? '含' : '不含'}输入文本；会话历史仍由契约替身保管，不是真实 SQL`,
       REAL_ROWS_AWAIT,
     )
@@ -274,20 +269,16 @@ async function s1(scratch, port, treeDouble) {
       'S1',
       'S1-2 读历史看到这条输入',
       historyOk ? 'pass' : 'fail',
-      `状态 ${String(observed.history.status)}，正文 ${observed.history.body.slice(0, 240)}`,
+      `outcome ${observed.history.outcome}，正文 ${observed.history.text.slice(0, 240)}`,
     )
 
   const registerBob = cli('bob', ['register', '--login-identifier', 'bob'], CREDENTIALS.bob)
   const loginBob = cli('bob', ['login', '--login-identifier', 'bob'], CREDENTIALS.bob)
-  observed.refused = await post(
-    port,
-    SESSION_PATH,
-    readHistoryRequest(ownerTenant, session, savedLoginProof(homes.bob)),
-  )
-  const refusedOk = isDenied(observed.refused) && !observed.refused.body.includes(INPUT_TEXT)
+  observed.refused = await readHistoryReply(port, ownerTenant, session, savedLoginProof(homes.bob))
+  const refusedOk = isDenied(observed.refused) && !observed.refused.text.includes(INPUT_TEXT)
   const refusalDetail =
     `bob 注册/登录 ${String(registerBob.status)}/${String(loginBob.status)}，` +
-    `读历史状态 ${String(observed.refused.status)}，正文 ${observed.refused.body.slice(0, 200)}`
+    `读历史 outcome ${observed.refused.outcome}，正文 ${observed.refused.text.slice(0, 200)}`
   if (treeDouble)
     blocked(
       'S1',

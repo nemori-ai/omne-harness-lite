@@ -2,20 +2,21 @@
 import { setTimeout as sleep } from 'node:timers/promises'
 import type { PoolItem } from '@omne-harness/human-intervention'
 import { describe, expect, it } from 'vitest'
-import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { HitlCardItem, HitlReply, HitlReplyResult } from '@omne-harness/public-contract'
-import { savedLoginProof, savedTenant } from '../../r9/support.ts'
+import type {
+  HumanInterventionCardItem,
+  HumanInterventionReplyResult,
+} from '@omne-harness/human-intervention-protocol'
+import { savedTenant } from '../../r9/support.ts'
 import type { GatewayScript } from '../../fixtures/model-gateway.ts'
 import {
-  hitlPublic,
   historyOf,
   onReleaseTree,
   pollUntil,
   toolCallsThenText,
   toolResults,
-  type HitlExchange,
   type ReleaseTree,
 } from '../../support/release-tree.ts'
+import { pageLimit, sessionRef, tenantOf } from '../../support/protocol-clients.ts'
 
 const question = (title: string) => ({
   title,
@@ -60,36 +61,28 @@ function recordedScript(): Readonly<{ script: GatewayScript; bodies: string[] }>
   }
 }
 
-const tenantOf = (text: string): TenantId => {
-  const parsed = tenantCodec.parse(text)
-  if (!parsed.ok) throw new Error('the saved tenant does not parse')
-  return parsed.value
-}
-const proofOf = (world: ReleaseTree) =>
-  ({ kind: 'present', value: savedLoginProof(world.home) }) as const
+type HitlReply = Parameters<ReleaseTree['clients']['humanIntervention']['submit-reply']>[0]['reply']
+type HitlCardItem = HumanInterventionCardItem
+type HitlReplyResult = HumanInterventionReplyResult
+type Listed = Awaited<ReturnType<ReleaseTree['clients']['humanIntervention']['list-cards']>>
 
-function itemsOf(exchange: HitlExchange): readonly HitlCardItem[] {
-  const response = exchange.response
-  if (response?.outcome !== 'succeeded') return []
-  return (response.body as { items: readonly HitlCardItem[] }).items
+function itemsOf(listed: Listed): readonly HitlCardItem[] {
+  return listed.outcome === 'succeeded' ? listed.body.items : []
 }
 
 function listing(
   world: ReleaseTree,
   states: readonly ('pending' | 'decided')[],
   session?: string,
-): Promise<HitlExchange> {
-  return hitlPublic(world.port, {
-    protocolVersion: 'hitl-public/1',
-    messageId: 'm-list',
-    operation: 'list-cards',
-    proof: proofOf(world),
-    body: {
-      tenant: tenantOf(savedTenant(world.home)),
-      filter: { states: [...states], ...(session === undefined ? {} : { sessionRef: session }) },
-      cursor: null,
-      limit: 50,
+): Promise<Listed> {
+  return world.clients.humanIntervention['list-cards']({
+    tenant: tenantOf(savedTenant(world.home)),
+    filter: {
+      states: [...states],
+      ...(session === undefined ? {} : { sessionRef: sessionRef(session) }),
     },
+    cursor: null,
+    limit: pageLimit(50),
   })
 }
 
@@ -100,19 +93,19 @@ async function pending(
   count: number,
 ): Promise<readonly HitlCardItem[]> {
   let items: readonly HitlCardItem[] = []
+  let outcome = ''
   for (const end = Date.now() + 120_000; Date.now() < end; await sleep(250)) {
-    const listed = itemsOf(
-      await listing(world, ['pending'], entry === 'session' ? session : undefined),
-    )
-    items = listed.filter(item => item.origin.sessionRef === session)
+    const answer = await listing(world, ['pending'], entry === 'session' ? session : undefined)
+    outcome = answer.outcome
+    items = itemsOf(answer).filter(item => item.origin.sessionRef === session)
     if (items.length >= count) return items
   }
   throw new Error(
-    `the ${String(count)} cards of the session did not come: ${JSON.stringify(items)}`,
+    `the ${String(count)} cards of the session did not come (${outcome}): ${JSON.stringify(items)}`,
   )
 }
 
-type Submitted = Readonly<{ status: number; outcome?: string; body?: HitlReplyResult }>
+type Submitted = Readonly<{ outcome: string; body?: HitlReplyResult }>
 
 async function submit(
   world: ReleaseTree,
@@ -120,25 +113,16 @@ async function submit(
   reply: HitlReply,
   replyId: string,
 ): Promise<Submitted> {
-  const answer = await hitlPublic(world.port, {
-    protocolVersion: 'hitl-public/1',
-    messageId: `m-${replyId}`,
-    operation: 'submit-reply',
-    proof: proofOf(world),
-    body: {
-      tenant: tenantOf(savedTenant(world.home)),
-      card: item.card.ref,
-      expectedRevision: item.card.revision,
-      reply,
-      replyId,
-    },
+  const answer = await world.clients.humanIntervention['submit-reply']({
+    tenant: tenantOf(savedTenant(world.home)),
+    card: item.card.ref,
+    expectedRevision: item.card.revision,
+    reply,
+    replyId,
   })
-  return {
-    status: answer.status,
-    ...(answer.response === undefined
-      ? {}
-      : { outcome: answer.response.outcome, body: answer.response.body as HitlReplyResult }),
-  }
+  return answer.outcome === 'succeeded'
+    ? { outcome: answer.outcome, body: answer.body }
+    : { outcome: answer.outcome }
 }
 
 const settled = (world: ReleaseTree, session: string) =>
@@ -194,7 +178,6 @@ describe('a person answers an Ask on the release tree and the call resumes once'
               replyId,
             )
             expect(answered).toMatchObject({
-              status: 200,
               outcome: 'succeeded',
               body: { kind: 'decided', decisionRef: { card: item!.card.ref } },
             })
@@ -323,8 +306,7 @@ describe('a person answers an Ask on the release tree and the call resumes once'
             submit(world, viaSession!, { kind: 'selection', optionId: 'o1' }, 'race-session'),
             submit(world, viaPool!, { kind: 'selection', optionId: 'o2' }, 'race-pool'),
           ])
-          for (const answer of answers)
-            expect(answer).toMatchObject({ status: 200, outcome: 'succeeded' })
+          for (const answer of answers) expect(answer).toMatchObject({ outcome: 'succeeded' })
           const decided = answers.filter(answer => answer.body?.kind === 'decided')
           const told = answers.filter(answer => answer.body?.kind === 'already-decided')
           expect([decided.length, told.length]).toEqual([1, 1])

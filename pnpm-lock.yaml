@@ -522,12 +522,18 @@ importers:
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../packages/common/content-block
+      '@omne-harness/human-intervention-protocol':
+        specifier: workspace:*
+        version: link:../../packages/human-intervention/human-intervention-protocol
       '@omne-harness/identity-protocol':
         specifier: workspace:*
         version: link:../../packages/identity/identity-protocol
       '@omne-harness/sdk':
         specifier: workspace:*
         version: link:../../packages/access/sdk
+      '@omne-harness/session-diagnostics-protocol':
+        specifier: workspace:*
+        version: link:../../packages/session/session-diagnostics-protocol
       '@omne-harness/session-protocol':
         specifier: workspace:*
         version: link:../../packages/session/session-protocol
