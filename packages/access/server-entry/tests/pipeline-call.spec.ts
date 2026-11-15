@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { send, startFixture, type Fixture, type HttpReply } from './support/harness.ts'
+import { send, startEntry, type Entry, type HttpReply } from './support/entry.ts'
 import {
   MESSAGE_ID,
   PROOF,
@@ -11,9 +11,9 @@ import {
   startAccessFixture,
   turn,
   type AccessFixture,
-} from './support/pipeline-kit.ts'
+} from './support/access-kit.ts'
 
-let fixture: AccessFixture | Fixture
+let fixture: AccessFixture | Entry
 
 afterEach(async () => {
   await fixture.stop()
@@ -50,13 +50,23 @@ describe('the new address answers', () => {
   })
 
   it('an entry without access answers 404 at the same address', async () => {
-    fixture = await startFixture()
+    fixture = await startEntry()
     const reply = await send(fixture.port, '/api/notes/v1/read-note', {
       headers: { authorization: `Bearer ${PROOF}`, 'omne-message-id': MESSAGE_ID },
       body: '{"noteId":"n-1"}',
     })
     expect(reply.status).toBe(404)
     expect(reply.text).toBe('')
+  })
+
+  it('an entry given no old faces answers 404 at the three old paths and serves the new one', async () => {
+    const entry = await access()
+    for (const path of ['/governance-public/1', '/session-public/1', '/hitl-public/1']) {
+      const reply = await send(entry.port, path, { body: '{}' })
+      expect([path, reply.status, reply.text]).toEqual([path, 404, ''])
+    }
+    const reply = await call(entry.port, 'read-note', { body: '{"noteId":"n-1"}' })
+    expectAnswer(reply, 200, '{"outcome":"succeeded","body":{"noteId":"n-1","title":"first note"}}')
   })
 })
 

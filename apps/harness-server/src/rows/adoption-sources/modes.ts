@@ -5,7 +5,7 @@ import type {
   SessionAccess,
   SessionFailure,
 } from '@omne-harness/session-contract'
-import { canonicalText } from '@omne-harness/server-entry/cordis'
+import { canonicalText } from '../agent-adoptions/definition-mappings.ts'
 import {
   modesInitialization,
   modesPreparationRecord,

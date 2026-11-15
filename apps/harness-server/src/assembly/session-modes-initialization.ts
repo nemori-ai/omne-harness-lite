@@ -1,5 +1,5 @@
 import { tenantCodec } from '@omne-harness/legal-identity'
-import { contentDigest } from '@omne-harness/server-entry/cordis'
+import { contentDigest } from '../rows/agent-adoptions/definition-mappings.ts'
 import { SESSION_MODES_PUBLICATION } from '@omne-harness/session-adapters'
 import {
   encodeInitialContextRegistration,

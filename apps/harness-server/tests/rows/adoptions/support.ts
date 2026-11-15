@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Principal } from '@omne-harness/identity'
 import { succeed } from '@omne-harness/operation-result'
-import type { DefinitionMappings } from '@omne-harness/server-entry/cordis'
+import type { DefinitionMappings } from '../../../src/rows/agent-adoptions/definition-mappings.ts'
 import {
   SessionWorkPrincipalsService,
   sessionWorkPrincipalsKey,

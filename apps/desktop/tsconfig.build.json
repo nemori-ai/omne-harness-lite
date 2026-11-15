@@ -6,5 +6,11 @@
     "erasableSyntaxOnly": true,
     "rewriteRelativeImportExtensions": true
   },
-  "include": ["src/main-core/**/*.ts", "src/web-host/**/*.ts", "src/shared/**/*.ts"]
+  "include": [
+    "src/main-core/**/*.ts",
+    "src/web-host/**/*.ts",
+    "src/shared/**/*.ts",
+    "src/electron-host/**/*.ts"
+  ],
+  "exclude": ["src/electron-host/preload.ts"]
 }

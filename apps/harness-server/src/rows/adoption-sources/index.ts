@@ -1,5 +1,5 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
-import { definitionMappingsKey } from '@omne-harness/server-entry/cordis'
+import { definitionMappingsKey } from '../agent-adoptions/definition-mappings.ts'
 import {
   sessionAdoptionSourceKey,
   sessionWorkPrincipalsKey,

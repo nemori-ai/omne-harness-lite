@@ -434,6 +434,22 @@
       "source": "packages/session/SPEC.md"
     },
     {
+      "id": "packages/session/session-diagnostics-protocol",
+      "paths": ["packages/session/session-diagnostics-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["session"],
+      "status": "candidate",
+      "source": "packages/session/SPEC.md"
+    },
+    {
+      "id": "packages/session/session-diagnostics-access",
+      "paths": ["packages/session/session-diagnostics-access/src/**"],
+      "layer": "unknown",
+      "domains": ["session"],
+      "status": "candidate",
+      "source": "packages/session/SPEC.md"
+    },
+    {
       "id": "packages/assets/assets-protocol",
       "paths": ["packages/assets/assets-protocol/src/**"],
       "layer": "contract",
@@ -458,6 +474,30 @@
       "source": "packages/assets/SPEC.md"
     },
     {
+      "id": "packages/frontend/ui-kit",
+      "paths": ["packages/frontend/ui-kit/src/**"],
+      "layer": "unknown",
+      "domains": [],
+      "status": "candidate",
+      "source": "packages/frontend/SPEC.md"
+    },
+    {
+      "id": "packages/human-intervention/human-intervention-protocol",
+      "paths": ["packages/human-intervention/human-intervention-protocol/src/**"],
+      "layer": "contract",
+      "domains": [],
+      "status": "candidate",
+      "source": "packages/human-intervention/SPEC.md"
+    },
+    {
+      "id": "packages/human-intervention/human-intervention-access",
+      "paths": ["packages/human-intervention/human-intervention-access/src/**"],
+      "layer": "unknown",
+      "domains": [],
+      "status": "candidate",
+      "source": "packages/human-intervention/SPEC.md"
+    },
+    {
       "id": "packages/common/stream-arrival",
       "paths": ["packages/common/stream-arrival/src/**"],
       "layer": "contract",
@@ -480,6 +520,14 @@
       "domains": [],
       "status": "candidate",
       "source": "packages/access/SPEC.md"
+    },
+    {
+      "id": "packages/frontend/shell-contract",
+      "paths": ["packages/frontend/shell-contract/src/**"],
+      "layer": "interaction",
+      "domains": [],
+      "status": "candidate",
+      "source": "packages/frontend/SPEC.md"
     },
     {
       "id": "packages/access/public-contract",
@@ -519,6 +567,14 @@
       "layer": "unknown",
       "domains": ["identity"],
       "status": "adopted",
+      "source": "packages/identity/SPEC.md"
+    },
+    {
+      "id": "packages/identity/identity-ui",
+      "paths": ["packages/identity/identity-ui/src/**"],
+      "layer": "unknown",
+      "domains": ["identity"],
+      "status": "candidate",
       "source": "packages/identity/SPEC.md"
     },
     {
@@ -810,6 +866,18 @@
         "packages/session/session",
         "packages/session/session-cordis",
         "packages/session/session-storage-sql"
+      ],
+      "source": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向"
+    },
+    {
+      "id": "DIR-IDENTITY-UI-SERVER",
+      "from": ["packages/identity/identity-ui"],
+      "to": [
+        "packages/access/access-cordis-contract",
+        "packages/access/server-entry",
+        "packages/identity/authorization",
+        "packages/identity/identity",
+        "packages/identity/identity-sql"
       ],
       "source": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向"
     },

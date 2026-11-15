@@ -9,7 +9,10 @@ import {
 } from '@omne-harness/agent-cordis-contract/cordis'
 import { createSessionConditionsPlugin } from '@omne-harness/session-adapters/cordis'
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
-import { contentDigest, definitionMappingsKey } from '@omne-harness/server-entry/cordis'
+import {
+  contentDigest,
+  definitionMappingsKey,
+} from '../../../src/rows/agent-adoptions/definition-mappings.ts'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { describe, expect, it } from 'vitest'
 import * as cordis from '../../../src/cordis.ts'

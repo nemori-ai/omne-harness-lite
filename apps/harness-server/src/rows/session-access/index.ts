@@ -5,7 +5,10 @@ import { accessRegistryKey } from '@omne-harness/access-cordis-contract/cordis'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import { createAccessIdentity } from '@omne-harness/identity-access'
-import { definitionMappingsKey, definitionResolverOf } from '@omne-harness/server-entry/cordis'
+import {
+  definitionMappingsKey,
+  definitionResolverOf,
+} from '../agent-adoptions/definition-mappings.ts'
 import {
   openRequestJournal,
   type PrincipalFacts,
@@ -31,6 +34,7 @@ import {
 import { LOCAL_HISTORY_KINDS } from '../../local/operator-defaults.ts'
 import { defineRow } from '../../row.ts'
 import { governanceOfCall, identityOfCall } from '../server-entry/identity.ts'
+import { runFailureCauses } from './causes.ts'
 
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
 
@@ -140,6 +144,7 @@ const plugin = createSessionAccessPlugin({
   facts: principalFacts,
   definitions: definitionsOf,
   listing: sessionListingOf,
+  causes: runFailureCauses,
   prepareCreation,
 })
 

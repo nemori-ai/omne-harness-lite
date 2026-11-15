@@ -51,6 +51,7 @@ const SESSION_GOLDEN = {
   freeze: WORK_ONLY,
   receive: [D, M, 'matrix scope-release-receive [fact scope-release]'],
   readWork: WORK_ONLY,
+  readWaiting: [M, D, D],
   readInput: WORK_ONLY,
   queryOperation: BOTH,
   readModelSelection: BOTH,
@@ -137,8 +138,8 @@ compare('Session', SESSION_POLICY, SESSION_GOLDEN)
 compare('Agent', AGENT_POLICY, AGENT_GOLDEN)
 
 describe('the golden itself', () => {
-  it('has the 45 Session rows and 26 Agent rows of the baseline enumerations', () => {
-    expect(Object.keys(SESSION_GOLDEN)).toHaveLength(45)
+  it('has the 46 Session rows and 26 Agent rows of the baseline enumerations', () => {
+    expect(Object.keys(SESSION_GOLDEN)).toHaveLength(46)
     expect(Object.keys(AGENT_GOLDEN)).toHaveLength(26)
   })
 })

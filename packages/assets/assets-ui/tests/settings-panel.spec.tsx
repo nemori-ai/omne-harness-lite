@@ -1,13 +1,16 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, beforeAll, expect, it } from 'vitest'
 import type { SettingView } from '@omne-harness/assets-protocol'
 import { SettingsPanel } from '../src/index.ts'
+import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 import { ordinaryView, permissionView, secretView } from './fixtures/views.ts'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
+
+beforeAll(stubAnimation)
 
 afterEach(cleanup)
 
@@ -190,4 +193,30 @@ it('P9 外壳重新渲染而租户没变：不重读整张列表', async () => {
   view.rerender(<SettingsPanel client={fake.client} tenant={TENANT} />)
   await settle()
   expect(reads()).toBe(1)
+})
+
+it('P10 左边一列分组：默认全部，挑一组只留这一组的项，别的组的项不渲染', async () => {
+  await listed([permissionView(), ordinaryView(), secretView()])
+  const rail = within(screen.getByRole('navigation', { name: '设置分组' }))
+  expect(rail.getAllByRole('button').map(button => button.textContent)).toEqual([
+    '全部3',
+    '工具2',
+    '模型1',
+  ])
+  expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(3)
+
+  fireEvent.click(rail.getByRole('button', { name: /模型/ }))
+  expect(screen.getAllByRole('heading', { level: 3 }).map(heading => heading.textContent)).toEqual([
+    '模型供应商的密钥',
+  ])
+  expect(rail.getByRole('button', { name: /模型/ }).getAttribute('aria-current')).toBe('true')
+
+  fireEvent.click(rail.getByRole('button', { name: /全部/ }))
+  expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(3)
+})
+
+it('P11 没有本层的值时清除不可用；秘密项不显示值', async () => {
+  await listed([secretView({ editable: { kind: 'yes' } })])
+  expect(screen.getByText('这一层的秘密').nextElementSibling?.textContent).toBe('未配置')
+  expect((screen.getByRole('button', { name: '清除' }) as HTMLButtonElement).disabled).toBe(true)
 })

@@ -109,13 +109,16 @@ function hitlInstallation(
   return { faces: dependencies.hitl, locationRef: config.hitlLocationRef }
 }
 
-export function createServerEntry(input: {
-  readonly config: ServerEntryConfig
-  readonly dependencies: ServerEntryDependencies
-  readonly access?: ServerEntryAccess
-}): ServerEntry {
-  const config = checkConfig(input.config)
-  const { dependencies } = input
+type OldLocations = Readonly<{
+  known: readonly Location[]
+  answerOf: (location: Location, bytes: Uint8Array) => Promise<Answer>
+  endAll: () => Promise<void>
+}>
+
+function oldLocations(
+  config: ServerEntryConfig,
+  dependencies: ServerEntryDependencies,
+): OldLocations {
   const hitl = hitlInstallation(config, dependencies)
   const diagnostics = dependencies.diagnostics
   const steps = createIdentitySteps({
@@ -131,7 +134,7 @@ export function createServerEntry(input: {
   })
   const ports: DiagnosticPorts<ActingForTenantPrincipal> = dependencies
   const cursors = createDiagnosticsCursors()
-  const locations: readonly Location[] = [
+  const known: readonly Location[] = [
     {
       path: GOVERNANCE_PATH,
       maxBytes: config.maxBodyBytes.small,
@@ -148,6 +151,54 @@ export function createServerEntry(input: {
       protocolRejected: () => hitlProtocolRejected(),
     },
   ]
+
+  const answerOf = async (location: Location, bytes: Uint8Array): Promise<Answer> => {
+    switch (location.path) {
+      case GOVERNANCE_PATH:
+        return handleGovernance(bytes, {
+          identity: dependencies.identity,
+          governance: dependencies.governance,
+          steps,
+          endObservationsOf: loginText => registry.endLogin(loginText, 'denied'),
+          settings: dependencies.settings,
+          readLimits: readLimits(config, location.maxBytes),
+          diagnostics,
+        })
+      case SESSION_PATH:
+        return handleSession(bytes, {
+          config,
+          faces: dependencies.session,
+          steps,
+          resolveDefinition: dependencies.resolveDefinition,
+          registry,
+          readLimits: readLimits(config, location.maxBytes),
+          diagnostics,
+          ports,
+          cursors,
+        })
+      case HITL_PATH:
+        return handleHitl(bytes, {
+          installation: hitl,
+          entryPrincipals: dependencies.hitlEntryPrincipals,
+          steps,
+          readLimits: readLimits(config, location.maxBytes),
+          diagnostics,
+        })
+    }
+  }
+
+  return { known, answerOf, endAll: () => registry.endAll('unavailable') }
+}
+
+export function createServerEntry(input: {
+  readonly config: ServerEntryConfig
+  readonly dependencies?: ServerEntryDependencies
+  readonly access?: ServerEntryAccess
+}): ServerEntry {
+  const config = checkConfig(input.config)
+  const locations =
+    input.dependencies === undefined ? undefined : oldLocations(config, input.dependencies)
+  const diagnostics = input.dependencies?.diagnostics
 
   let server: Server | undefined
   let listening: Listening | undefined
@@ -189,41 +240,6 @@ export function createServerEntry(input: {
     if (inFlight === 0) for (const resolve of drained.splice(0)) resolve()
   }
 
-  const answerOf = async (location: Location, bytes: Uint8Array): Promise<Answer> => {
-    switch (location.path) {
-      case GOVERNANCE_PATH:
-        return handleGovernance(bytes, {
-          identity: dependencies.identity,
-          governance: dependencies.governance,
-          steps,
-          endObservationsOf: loginText => registry.endLogin(loginText, 'denied'),
-          settings: dependencies.settings,
-          readLimits: readLimits(config, location.maxBytes),
-          diagnostics,
-        })
-      case SESSION_PATH:
-        return handleSession(bytes, {
-          config,
-          faces: dependencies.session,
-          steps,
-          resolveDefinition: dependencies.resolveDefinition,
-          registry,
-          readLimits: readLimits(config, location.maxBytes),
-          diagnostics,
-          ports,
-          cursors,
-        })
-      case HITL_PATH:
-        return handleHitl(bytes, {
-          installation: hitl,
-          entryPrincipals: dependencies.hitlEntryPrincipals,
-          steps,
-          readLimits: readLimits(config, location.maxBytes),
-          diagnostics,
-        })
-    }
-  }
-
   const write = (res: ServerResponse, answer: Answer): void => {
     switch (answer.kind) {
       case 'json':
@@ -247,8 +263,12 @@ export function createServerEntry(input: {
     const url = req.url ?? ''
     const query = url.indexOf('?')
     const path = query === -1 ? url : url.slice(0, query)
-    const location = locations.find(known => known.path === path)
-    if (location === undefined || (query !== -1 && url.length > query + 1)) {
+    const location = locations?.known.find(known => known.path === path)
+    if (
+      locations === undefined ||
+      location === undefined ||
+      (query !== -1 && url.length > query + 1)
+    ) {
       writeEmpty(res, 404)
       return
     }
@@ -279,14 +299,14 @@ export function createServerEntry(input: {
         writeJson(res, { ...location.protocolRejected(), status: 413 }, true)
         return
       }
-      write(res, await answerOf(location, body.bytes))
+      write(res, await locations.answerOf(location, body.bytes))
     } finally {
       releaseSlot()
     }
   }
 
   const isLocation = (target: string): boolean =>
-    locations.some(known => known.path === pathOf(target))
+    locations?.known.some(known => known.path === pathOf(target)) === true
 
   const onRequest = (req: IncomingMessage, res: ServerResponse): void => {
     if (stopping) {
@@ -361,7 +381,7 @@ export function createServerEntry(input: {
       const closed = new Promise<void>(resolve => {
         current.close(() => resolve())
       })
-      await Promise.all([registry.endAll('unavailable'), pipeline?.endObservations()])
+      await Promise.all([locations?.endAll(), pipeline?.endObservations()])
       if (inFlight > 0) await new Promise<void>(resolve => drained.push(resolve))
       const takeDown = takeDownAccess
       takeDownAccess = undefined

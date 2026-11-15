@@ -1,8 +1,9 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { readFile } from 'node:fs/promises'
-import { extname, join, normalize, sep } from 'node:path'
+import { join } from 'node:path'
 import type { AddressInfo } from 'node:net'
 import type { LoginSession } from '../main-core/index.ts'
+import { answerPageFile } from '../shared/page-files.ts'
 import {
   BRIDGE,
   WIRE_LIMITS,
@@ -25,29 +26,6 @@ export type WebHostOptions = {
 export interface WebHost {
   listen(port: number): Promise<number>
   close(): Promise<void>
-}
-
-const CONTENT_SECURITY_POLICY = [
-  "default-src 'none'",
-  "script-src 'self'",
-  "style-src 'self'",
-  "img-src 'self' data:",
-  "font-src 'self'",
-  "connect-src 'self'",
-  "base-uri 'none'",
-  "form-action 'none'",
-  "frame-ancestors 'none'",
-].join('; ')
-
-const TYPES: Readonly<Record<string, string>> = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.ico': 'image/x-icon',
-  '.json': 'application/json',
-  '.woff2': 'font/woff2',
 }
 
 // A loopback name with any port. The name is what stops a rebinding page (its own name is in
@@ -170,27 +148,15 @@ export function createWebHost(options: WebHostOptions): WebHost {
   async function page(path: string, response: ServerResponse): Promise<void> {
     const root = options.pageRoot
     if (root === undefined) return send(response, 404, 'text/plain', 'not found')
-    const relative = normalize(decodeURIComponent(path === '/' ? '/index.html' : path))
-    const file = join(root, relative)
-    if (!file.startsWith(root.endsWith(sep) ? root : root + sep))
-      return send(response, 404, 'text/plain', 'not found')
-    let content: Buffer
-    try {
-      content = await readFile(file)
-    } catch {
-      return send(response, 404, 'text/plain', 'not found')
-    }
-    const type = TYPES[extname(file)] ?? 'application/octet-stream'
-    response.writeHead(200, {
-      'content-type': type,
-      'cache-control': 'no-store',
-      'x-content-type-options': 'nosniff',
-      'referrer-policy': 'no-referrer',
-      ...(type.startsWith('text/html')
-        ? { 'content-security-policy': CONTENT_SECURITY_POLICY }
-        : {}),
-    })
-    response.end(content)
+    const answer = await answerPageFile(path, segments =>
+      readFile(join(root, ...segments)).then(
+        content => new Uint8Array(content),
+        () => undefined,
+      ),
+    )
+    if (answer.status === 404) return send(response, 404, 'text/plain', 'not found')
+    response.writeHead(200, answer.headers)
+    response.end(answer.body)
   }
 
   async function route(request: IncomingMessage, response: ServerResponse): Promise<void> {

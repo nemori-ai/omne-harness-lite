@@ -1,4 +1,4 @@
-import { empty, type Family, type Rule } from './operation-rules.ts'
+import { empty, type Family, type Rule } from './rule.ts'
 import type { SessionOperation, SessionOutcomes } from './session-messages.ts'
 
 const text: Rule = { kind: 'text' }

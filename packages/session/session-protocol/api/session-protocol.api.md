@@ -332,6 +332,32 @@ export declare const sessionProtocol: {
             }>;
             readonly countsAsAccess: true;
         };
+        readonly 'read-waiting': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly waiting: {
+                        readonly cause: {
+                            readonly detail: string | null;
+                            readonly kind: string;
+                        } | null;
+                        readonly pending: number;
+                        readonly run: string;
+                    } | null;
+                }>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly identity: "login";
+            readonly effect: "read";
+            readonly limit: "small";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly session: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+            readonly countsAsAccess: true;
+        };
         readonly 'list-sessions': {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{

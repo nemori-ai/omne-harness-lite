@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, workspaceCodec } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import { canonicalText } from '@omne-harness/server-entry/cordis'
+import { canonicalText } from '../agent-adoptions/definition-mappings.ts'
 import type {
   Adoption,
   AdoptionEvidenceCommand,

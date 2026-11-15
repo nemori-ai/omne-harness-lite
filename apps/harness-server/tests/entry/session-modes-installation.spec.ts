@@ -1,4 +1,4 @@
-import { canonicalText } from '@omne-harness/server-entry/cordis'
+import { canonicalText } from '../../src/rows/agent-adoptions/definition-mappings.ts'
 import { decide } from '@omne-harness/session-contract'
 import { modesInitialization } from '../../src/assembly/session-modes-initialization.ts'
 import { AdoptionSourcesImpl } from '../../src/rows/adoption-sources/sources.ts'

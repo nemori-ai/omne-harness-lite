@@ -60,7 +60,7 @@
 - `HitlStageNotProvided` · `hitl-messages.d.ts`
 - `HitlSubmissionRef` · `hitl-messages.d.ts`
 - `HitlSuccessBodies` · `hitl-messages.d.ts`
-- `LeafKind` · `operation-rules.d.ts`
+- `LeafKind` · `rule.d.ts`
 - `LoginStateId` · 包 `@omne-harness/legal-identity`
 - `OUTCOMES` · `outcome.d.ts`
 - `ObservationContract` · `protocol.d.ts`
@@ -70,7 +70,7 @@
 - `OutcomeBodies` · `protocol.d.ts`
 - `ProofInput` · `messages.d.ts`
 - `ProtocolContract` · `protocol.d.ts`
-- `Rule` · `operation-rules.d.ts`
+- `Rule` · `rule.d.ts`
 - `RuleValue` · `rule-codec.d.ts`
 - `SessionAdoptionRef` · `session-messages.d.ts`
 - `SessionCallAccountView` · `session-messages.d.ts`
@@ -283,14 +283,8 @@ export {};
 ## 声明文件 `codec.d.ts`
 
 ```ts
-import { type JsonLimits, type JsonValue } from '@omne-harness/json-text';
-import { type Family } from './operation-rules.ts';
+import { type Family } from './rule.ts';
 import type { EmptyBody, GovernanceCodecLimits, GovernanceDiagnostic, GovernanceEncodeResult, GovernanceOperation, GovernanceProtocolResult, GovernanceRequest, GovernanceRequestRead, GovernanceResponseEncodeInput, GovernanceResponseRead } from './messages.ts';
-type Converted = {
-    readonly local: unknown;
-    readonly wire: JsonValue;
-};
-type Direction = 'encode' | 'decode';
 type RefusalOutcome = 'protocol-rejected' | 'stage-not-provided';
 type Refusal<V extends string, K extends RefusalOutcome> = {
     readonly protocolVersion: V;
@@ -323,7 +317,6 @@ export type ResponseRead = {
     readonly kind: 'unreadable';
     readonly diagnostic: GovernanceDiagnostic;
 };
-export declare function convert(rule: import('./operation-rules.ts').Rule, input: unknown, direction: Direction, limits: JsonLimits): Converted | undefined;
 export declare function readRequest<V extends string, P extends string, S extends string>(family: Family<V, P, S>, input: unknown): RequestRead<V, S>;
 export declare function readGovernanceRequest(input: {
     readonly bytes: Uint8Array;
@@ -609,7 +602,7 @@ export {};
 ## 声明文件 `hitl-rules.d.ts`
 
 ```ts
-import { type Family } from './operation-rules.ts';
+import { type Family } from './rule.ts';
 import type { HitlOperation, HitlOutcomes } from './hitl-messages.ts';
 declare const outcomes: {
     readonly 'list-cards': readonly [
@@ -686,11 +679,32 @@ export { OUTCOMES } from './outcome.ts';
 export type { FixedOutcome, Outcome } from './outcome.ts';
 export { ruleCodec } from './rule-codec.ts';
 export type { Codec, CodecResult, RuleValue } from './rule-codec.ts';
-export type { LeafKind, Rule } from './operation-rules.ts';
+export type { LeafKind, Rule } from './rule.ts';
 export { defineProtocol } from './protocol.ts';
 export { accessProtocol } from './access-protocol.ts';
 export type { AccessProtocol, AvailabilityFrame } from './access-protocol.ts';
 export type { DefinedProtocol, ObservationContract, OperationContract, OutcomeBodies, ProtocolContract, } from './protocol.ts';
+```
+
+## 声明文件 `leaf-codec.d.ts`
+
+```ts
+import { type JsonLimits, type JsonValue } from '@omne-harness/json-text';
+import type { Rule } from './rule.ts';
+export type Fields = Readonly<Record<string, unknown>>;
+export type Converted = {
+    readonly local: unknown;
+    readonly wire: JsonValue;
+};
+export type Direction = 'encode' | 'decode';
+export declare function fields(value: unknown): Fields | undefined;
+export declare function exact(value: Fields, required: readonly string[], optional?: readonly string[]): boolean;
+export declare function objectWire(value: JsonValue | undefined): Readonly<Record<string, JsonValue>> | undefined;
+export declare function textWire(value: JsonValue | undefined): string | undefined;
+export declare function stringWire(value: string): JsonValue;
+export declare function wireObject(value: Readonly<Record<string, JsonValue>>): JsonValue;
+export declare function nodeOf(input: unknown): JsonValue | undefined;
+export declare function convert(rule: Rule, input: unknown, direction: Direction, limits: JsonLimits): Converted | undefined;
 ```
 
 ## 声明文件 `messages.d.ts`
@@ -1199,42 +1213,7 @@ export {};
 
 ```ts
 import type { GovernanceProvidedOperation, GovernanceStageOperation } from './messages.ts';
-export type LeafKind = 'text' | 'string' | 'boolean' | 'null' | 'account' | 'organization' | 'login' | 'tenant' | 'instant' | 'session' | 'page-bytes' | 'revision' | 'positive-integer' | 'page-limit' | 'parameters' | 'json' | 'user-message';
-export type Rule = {
-    readonly kind: LeafKind;
-} | {
-    readonly kind: 'literal';
-    readonly values: readonly (string | boolean)[];
-} | {
-    readonly kind: 'object';
-    readonly fields: Readonly<Record<string, {
-        readonly rule: Rule;
-        readonly optional?: true;
-    }>>;
-} | {
-    readonly kind: 'array';
-    readonly item: Rule;
-    readonly nonempty?: true;
-    readonly max?: number;
-} | {
-    readonly kind: 'one-of';
-    readonly rules: readonly Rule[];
-};
-export type RequestRule = {
-    readonly body: Rule;
-    readonly proof: boolean;
-    readonly tenant: boolean;
-};
-export type Family<V extends string, P extends string, S extends string> = {
-    readonly version: V;
-    readonly error: string;
-    readonly stages: readonly S[];
-    readonly declarable: boolean;
-    readonly isProvided: (value: unknown) => value is P;
-    readonly requestRule: (operation: P) => RequestRule;
-    readonly responseRule: (operation: P, outcome: string) => Rule | undefined;
-};
-export declare const empty: Rule;
+import { type Family, type RequestRule, type Rule } from './rule.ts';
 export declare const stages: readonly [
     "disable-subject",
     "restore-subject",
@@ -1355,7 +1334,7 @@ export {};
 import { type JsonLimits, type JsonValue } from '@omne-harness/json-text';
 import type { Instant } from '@omne-harness/utc-instant';
 import type { AccountId, LoginStateId, OrganizationId, TenantId } from './identity-text.ts';
-import type { LeafKind, Rule } from './operation-rules.ts';
+import type { LeafKind, Rule } from './rule.ts';
 export type CodecResult<T> = {
     readonly ok: true;
     readonly value: T;
@@ -1383,6 +1362,7 @@ type LeafValues = {
     readonly tenant: TenantId;
     readonly instant: Instant;
     readonly 'positive-integer': number;
+    readonly count: number;
     readonly 'page-limit': number;
     readonly parameters: JsonObject;
     readonly json: JsonValue;
@@ -1421,6 +1401,47 @@ export type RuleValue<R extends Rule> = R extends {
 } ? RuleValue<O> : never;
 export declare function ruleCodec<const R extends Rule>(rule: R): Codec<RuleValue<R>>;
 export {};
+```
+
+## 声明文件 `rule.d.ts`
+
+```ts
+export type LeafKind = 'text' | 'string' | 'boolean' | 'null' | 'account' | 'organization' | 'login' | 'tenant' | 'instant' | 'session' | 'page-bytes' | 'revision' | 'positive-integer' | 'count' | 'page-limit' | 'parameters' | 'json' | 'user-message';
+export type Rule = {
+    readonly kind: LeafKind;
+} | {
+    readonly kind: 'literal';
+    readonly values: readonly (string | boolean)[];
+} | {
+    readonly kind: 'object';
+    readonly fields: Readonly<Record<string, {
+        readonly rule: Rule;
+        readonly optional?: true;
+    }>>;
+} | {
+    readonly kind: 'array';
+    readonly item: Rule;
+    readonly nonempty?: true;
+    readonly max?: number;
+} | {
+    readonly kind: 'one-of';
+    readonly rules: readonly Rule[];
+};
+export type RequestRule = {
+    readonly body: Rule;
+    readonly proof: boolean;
+    readonly tenant: boolean;
+};
+export type Family<V extends string, P extends string, S extends string> = {
+    readonly version: V;
+    readonly error: string;
+    readonly stages: readonly S[];
+    readonly declarable: boolean;
+    readonly isProvided: (value: unknown) => value is P;
+    readonly requestRule: (operation: P) => RequestRule;
+    readonly responseRule: (operation: P, outcome: string) => Rule | undefined;
+};
+export declare const empty: Rule;
 ```
 
 ## 声明文件 `session-codec.d.ts`
@@ -1842,7 +1863,7 @@ export type SessionResponseEncodeInput<O extends SessionOperation = SessionOpera
 ## 声明文件 `session-rules.d.ts`
 
 ```ts
-import { type Family } from './operation-rules.ts';
+import { type Family } from './rule.ts';
 import type { SessionOperation, SessionOutcomes } from './session-messages.ts';
 declare const outcomes: {
     readonly 'create-session': readonly [

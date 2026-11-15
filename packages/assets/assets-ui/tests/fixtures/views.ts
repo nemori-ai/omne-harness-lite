@@ -56,7 +56,9 @@ export function ordinaryView(): SettingView {
   }
 }
 
-export function secretView(): SettingView {
+export function secretView(
+  overrides: Partial<Extract<SettingView, { kind: 'secret' }>> = {},
+): SettingView {
   return {
     kind: 'secret',
     asset: { category: 'model', name: 'openai' },
@@ -71,5 +73,6 @@ export function secretView(): SettingView {
     own: 'unset',
     official: 'available',
     editable: { kind: 'no', reason: 'not-a-source' },
+    ...overrides,
   }
 }

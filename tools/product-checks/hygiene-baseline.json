@@ -122,7 +122,7 @@
       },
       "apps/harness-server/src/rows/session-provider/faces.ts": {
         "count": 1,
-        "longest": 322
+        "longest": 305
       },
       "apps/harness-server/src/rows/tool-hitl/bridge.ts": {
         "count": 1,
@@ -142,7 +142,7 @@
       },
       "packages/access/server-entry/src/http.ts": {
         "count": 1,
-        "longest": 262
+        "longest": 201
       },
       "packages/access/server-entry/src/pipeline/pipeline.ts": {
         "count": 1,
@@ -218,7 +218,7 @@
       },
       "packages/assets/settings/src/tenant-settings.ts": {
         "count": 1,
-        "longest": 248
+        "longest": 245
       },
       "packages/calendar/calendar-local/src/runner/index.ts": {
         "count": 1,
@@ -538,7 +538,7 @@
       },
       "packages/session/session-access/src/contribution.ts": {
         "count": 1,
-        "longest": 314
+        "longest": 310
       },
       "packages/session/session-adapters/src/cordis/agent-journal-provider.ts": {
         "count": 1,
@@ -638,7 +638,7 @@
       },
       "packages/session/session/src/faces.ts": {
         "count": 1,
-        "longest": 167
+        "longest": 162
       },
       "packages/skills/skill-contract/src/testing-access.ts": {
         "count": 1,

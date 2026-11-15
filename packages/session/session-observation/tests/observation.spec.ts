@@ -584,3 +584,97 @@ describe('the refresh budget', () => {
     expect((await afterInterval(w, frames)).value).toMatchObject({ kind: 'state', run: null })
   })
 })
+
+describe('a page that says it is the last', () => {
+  type Page = Awaited<ReturnType<World['ports']['history']['begin']>>
+
+  function marked(
+    w: World,
+    face: 'begin' | 'since',
+    marks: Readonly<{ exhausted: boolean; next: string | null }>,
+  ): World {
+    const remark = (read: Page): Page => ('ok' in read ? { ok: { ...read.ok, ...marks } } : read)
+    const { history } = w.ports
+    return {
+      ...w,
+      ports: {
+        ...w.ports,
+        history: {
+          begin: async input => {
+            const read = await history.begin(input)
+            return face === 'begin' ? remark(read) : read
+          },
+          since: async input => {
+            const read = await history.since(input)
+            return face === 'since' ? remark(read) : read
+          },
+          next: input => history.next(input),
+        },
+      },
+    }
+  }
+
+  const soon = <T>(next: Promise<T>) =>
+    Promise.race([next, settle().then(() => 'nothing' as const)])
+
+  it.each([
+    ['exhausted, though it names a next page', { exhausted: true, next: 'elsewhere' }],
+    ['not exhausted, though it names no next page', { exhausted: false, next: null }],
+  ])('reading backward, a page that is %s ends the read', async (_, marks) => {
+    const log = new FakeLog(started('run_1'), mainCall('m-1'))
+    log.pageSize = 1
+    const w = marked(world(log), 'begin', marks)
+    expect(await frame(await open(w))).toMatchObject({ run: null })
+    expect(w.model.asked).toEqual(['m-1'])
+    expect(log.reads('next')).toBe(0)
+  })
+
+  it.each([
+    ['exhausted, though it names a next page', { exhausted: true, next: 'elsewhere' }],
+    ['not exhausted, though it names no next page', { exhausted: false, next: null }],
+  ])('reading forward, a page that is %s ends the read', async (_, marks) => {
+    const log = new FakeLog(started('run_0'), ended('run_0'))
+    const w = marked(world(log), 'since', marks)
+    const frames = await open(w)
+    expect(await frame(frames)).toMatchObject({ run: null })
+    log.append(started('run_1'), started('run_2'))
+    log.pageSize = 1
+    w.notices.commit('run.started')
+    expect(await soon(frames.next())).toMatchObject({ value: { kind: 'state', run: 'run_1' } })
+    expect(log.reads('next')).toBe(0)
+  })
+})
+
+describe('the waits of an observation', () => {
+  it('the wait that bounds the question to the Model is cancelled once the Model answers', async () => {
+    const log = new FakeLog(started('run_1'))
+    const w = world(log)
+    w.model.answer('m-1', stream('s1'))
+    const frames = await open(w)
+    await frame(frames)
+    log.append(mainCall('m-1'))
+    expect(await afterInterval(w, frames)).toMatchObject({
+      value: { kind: 'state', target: { projection: 'model-output-v1' } },
+    })
+    expect(w.model.asked).toEqual(['m-1'])
+    expect(w.clock.waits).toEqual([1000, 5000])
+    expect(w.clock.pending).toBe(0)
+  })
+
+  it('an abort while the Model has not answered does not turn the cancelled wait into a timeout', async () => {
+    const controller = new AbortController()
+    const log = new FakeLog(started('run_1'))
+    const w = world(log)
+    w.model.answer('m-1', 'hang')
+    const frames = await open(w, controller.signal)
+    await frame(frames)
+    log.append(mainCall('m-1'))
+    void afterInterval(w, frames)
+    await settle()
+    expect(w.model.asked).toEqual(['m-1'])
+    controller.abort()
+    await settle()
+    expect(w.diagnostics).toEqual([])
+    expect([w.notices.active, w.clock.pending]).toEqual([0, 0])
+  })
+})
