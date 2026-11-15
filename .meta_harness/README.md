@@ -6,7 +6,7 @@
 
 本项目已采用[项目要求](../docs/requirements.md)、[系统架构](../docs/architecture/README.md)与[领域责任](../docs/domains/README.md)顶层正文。
 产品、语言、对象、持续研究及独有 agent 能力仍在本区。
-共同集成规则与采用映射归执行仓库架构区，成员精确承诺归实际拥有者；尚未承接的专题、完整 Session 候选和剩余 PF 详细技术从[保留技术源入口](design/architecture/README.md)读取。已落位产品、领域及成员设计从[产品地图](design/product/README.md)定位当前拥有者。
+共同集成规则与采用映射归执行仓库架构区，成员精确承诺归实际拥有者。已落位产品、领域及成员设计从[产品地图](design/product/README.md)定位当前拥有者。
 顶层采用不表示技术迁移、实现或验证完成。
 
 ## 知识归属只有一条规则
@@ -27,7 +27,7 @@
 │   ├── ubiquitous_language/  同一个概念只有一个词——失效于「某个概念的含义变了」
 │   ├── product/              概念、模型、产品规则、验收——失效于产品方向改变
 │   ├── foundation/           项目要求的薄导航，正文归执行仓库 docs/requirements.md
-│   └── basis/                内核与上游的机制语义条目及其 probe——失效于上游换版本
+│   └── architecture/ basis/  留存设计：给统筹用，不约束实现，做事不用读
 ├── agents/                   技能、钩子、云端环境与外部技能集的源
 ├── tooling/                  确定性生成、设计检查与项目根链接
 ├── human/                    人类协作者的学习指南与流程草稿，不是规则，agent 不自动加载
@@ -47,12 +47,12 @@
 | 收到产品需求或系统能力声明 | 加载 `harness-design-handbook` skill，从 intake、能力覆盖或当前缺口进入 |
 | 在 [design/product](design/product/AGENTS.md) 起草或修订产品正文 | 加载 `product-design` skill；**只把产品正文当输入读的技术工作不加载它** |
 | 要用到某个概念，或要引入新概念 | [统一语言](design/ubiquitous_language/README.md)。**先有词条，再动正文** |
-| 查证上游机制到底保证什么 | [basis/](design/basis/README.md) 的条目 |
+| 查证上游 Cordis 到底保证什么 | [Cordis 集成约定](../docs/architecture/cordis-integration-conventions.md)的规则，与 `packages/assembly/kernel-basis/tests/` 下的探针用例 |
 | 新建长期设计材料 | 先过 [准入与停止条件](design/README.md#准入与停止条件)，再用目标目录的本地 `.templates/` |
 | 维护 skills | 从 [agents/](agents/README.md) 改 canonical 源，**不手改生成产物** |
 | 生成、检查或接入宿主入口 | [tooling/](tooling/README.md)。编译、项目根链接、发布是三个动作 |
 | 学习怎样给 agent 布置或评审一类设计 | [human/](human/README.md)。这是写给人的学习材料，规则以它引用的拥有者为准 |
-| 判断公开承诺及其采用范围 | [系统架构入口](../docs/architecture/README.md)定位实际成员；[原架构入口](design/architecture/README.md)定位未迁精确源。目录或绿测不表示接受 |
+| 判断公开承诺及其采用范围 | [系统架构入口](../docs/architecture/README.md)定位实际成员。目录或绿测不表示接受 |
 
 ## 自包含与发布边界
 

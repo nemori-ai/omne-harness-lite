@@ -17,6 +17,11 @@ const ALWAYS: readonly RegExp[] = [
   /^\.github\/.+/u,
 ]
 
+const RESERVED_DESIGN: readonly RegExp[] = [
+  /^\.meta_harness\/design\/architecture\/.+/u,
+  /^\.meta_harness\/design\/basis\/.+/u,
+]
+
 const PUBLIC_README = /^(packages\/[^/]+\/[^/]+|apps\/[^/]+|tools\/[^/]+)\/README\.md$/u
 
 export const DOCUMENT_MESSAGE =
@@ -26,7 +31,9 @@ export function isAllowedDocument(
   path: string,
   isPrivateMember: (directory: string) => boolean,
 ): boolean {
-  if (FIXED.has(path) || ALWAYS.some(pattern => pattern.test(path))) return true
+  if (FIXED.has(path)) return true
+  if (ALWAYS.some(pattern => pattern.test(path))) return true
+  if (RESERVED_DESIGN.some(pattern => pattern.test(path))) return true
   const readme = PUBLIC_README.exec(path)
   return readme?.[1] !== undefined && !isPrivateMember(readme[1])
 }

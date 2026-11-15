@@ -2,11 +2,11 @@
 
 本页拥有IC-1至IC-19的系统集成规则；各能力的形状和类型外行为由公开接口拥有者维护。目录及包边界按[组织原则](structure.md#组织原则)，Service定义不再固定集中core，跨包方向也不再由core/util路径许可决定。服务唯一性、独立根入口、依赖换代、提交及在途责任保持各自约束。Cordis约束集成，不决定领域语义。
 
-系统使用Cordis提供装配、组合、依赖注入和生命周期能力。机制事实按已采用版本核对 [basis](../../.meta_harness/design/basis/README.md) 中的 Cordis 条目。模型、探针和测试均须声明成立前提，不把有限证据写成整体符合。
+系统使用Cordis提供装配、组合、依赖注入和生命周期能力。机制事实由 `packages/assembly/kernel-basis/tests/` 下的探针用例守着，每份用例的文件名就是它守的那条事实，按已采用的版本核对。模型、探针和测试均须声明成立前提，不把有限证据写成整体符合。
 
 这些规则不新增合并硬线。静态读数区分有限静态符合、偏离和 unknown；行为及责任仍需真实消费者证据和独立判断。不得放宽预期、扩大装配例外或改写声明来消除红项。
 
-本页约束新写或修订的提供者及装配，不据规则发布自动宣称存量代码合规。实现方案或上游版本改变时复核相应规则；Cordis 升版先运行 basis 的全部相关 probe，失败条目必须回到对应集成要求重新判断。
+本页约束新写或修订的提供者及装配，不据规则发布自动宣称存量代码合规。实现方案或上游版本改变时复核相应规则；Cordis 升版先运行全部探针用例，失败的那一条对应的集成要求必须重新判断。
 
 ## IC-1
 
@@ -82,7 +82,7 @@ Tool 的绑定登记表采用目录写法，但不使用后继登记的原子取
 
 ## IC-14
 
-插件配置用 Standard Schema 校验（函数插件经 kernel-basis 的 `definePlugin`，`Service` 子类写静态 `Config`；校验与失败行为的机制事实见 basis 条目 [plugin-throw-fails-fiber](../../.meta_harness/design/basis/cordis/plugin-throw-fails-fiber.md)，该条目按函数插件核验，`Service` 子类静态 `Config` 的路径没有单独核验）。重试、退避、超时、限流和阈值等可调参数写成配置字段，默认值只是初值。配置错误时，插件加载失败，fiber 进入 `FAILED`。不能静默跳过缺失的引用。
+插件配置用 Standard Schema 校验（函数插件经 kernel-basis 的 `definePlugin`，`Service` 子类写静态 `Config`；校验与失败行为的机制事实由探针用例 `plugin-throw-fails-fiber.spec.ts` 守着，它按函数插件核验，`Service` 子类静态 `Config` 的路径没有单独核验）。重试、退避、超时、限流和阈值等可调参数写成配置字段，默认值只是初值。配置错误时，插件加载失败，fiber 进入 `FAILED`。不能静默跳过缺失的引用。
 
 ## IC-15
 
