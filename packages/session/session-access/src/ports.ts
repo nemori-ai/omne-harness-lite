@@ -71,10 +71,23 @@ export type SessionAccessFaces = Readonly<{
   management: Pick<SessionManagement<Principal>, 'create'>
   work: Pick<
     SessionWork<Principal>,
-    'accept' | 'queryOperation' | 'cancelRun' | 'stopCall' | 'retryRun'
+    'accept' | 'queryOperation' | 'cancelRun' | 'stopCall' | 'retryRun' | 'readWaiting'
   >
   history: Pick<SessionHistory<Principal>, 'begin' | 'next'>
 }>
+
+export type RunFailureCause = Readonly<{ kind: string; detail: string | null }>
+
+export type RunFailureReading =
+  | Readonly<{ kind: 'cause'; cause: RunFailureCause }>
+  | Readonly<{ kind: 'none' }>
+  | Readonly<{ kind: 'unavailable' }>
+
+export interface RunFailureCauses {
+  read(
+    input: Readonly<{ principal: Principal; tenant: TenantId; execution: string }>,
+  ): Promise<RunFailureReading>
+}
 
 export type ResolvedDefinition = Readonly<{
   candidate: Adoption

@@ -21,6 +21,8 @@ import type {
   PrincipalFacts,
   RequestJournal,
   ResolvedDefinition,
+  RunFailureCauses,
+  RunFailureReading,
   SessionAccessSettings,
   SessionListing,
   SessionListPage,
@@ -98,6 +100,10 @@ export type ListingScript =
 
 export type ListingCall = Parameters<SessionListing['list']>[0]
 
+export type CauseScript = RunFailureReading | 'throw'
+
+export type CauseCall = Parameters<RunFailureCauses['read']>[0]
+
 export type ObservationScript =
   | Readonly<{
       kind: 'opened'
@@ -113,8 +119,8 @@ export type World = Readonly<{
   refuseTargets(refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined): void
   refuseResumes(refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined): void
   resumes(): readonly Readonly<{ tenant: string; login: string }>[]
-  remove(port: 'faces' | 'observation' | 'definitions' | 'listing'): void
-  put(port: 'faces' | 'observation' | 'definitions' | 'listing'): void
+  remove(port: 'faces' | 'observation' | 'definitions' | 'listing' | 'causes'): void
+  put(port: 'faces' | 'observation' | 'definitions' | 'listing' | 'causes'): void
   journal: JournalDouble
   requests: RequestDrain
   admissions(): readonly QueuedRequest[]
@@ -122,6 +128,10 @@ export type World = Readonly<{
   listing: Readonly<{
     calls(): readonly ListingCall[]
     answer(script: ListingScript): void
+  }>
+  causes: Readonly<{
+    calls(): readonly CauseCall[]
+    answer(script: CauseScript): void
   }>
   script(script: ObservationScript): void
   opens(): readonly SessionAccess<Principal>[]
@@ -149,6 +159,8 @@ export function createWorld(
   let closed = false
   const listingCalls: ListingCall[] = []
   let listed: ListingScript = { ok: { items: [], next: null, completeness: 'complete' } }
+  const causeCalls: CauseCall[] = []
+  let caused: CauseScript = { kind: 'none' }
 
   const issue = (login: FixtureLogin, target: TenantId = login.tenant): Principal => {
     const key = memberKey(target)
@@ -225,6 +237,14 @@ export function createWorld(
     },
   }
 
+  const causes: RunFailureCauses = {
+    async read(call) {
+      causeCalls.push(call)
+      if (caused === 'throw') throw new Error('agent journal fault')
+      return caused
+    },
+  }
+
   const faces = () => (removed.has('faces') ? undefined : session.faces)
   const complete: SessionAccessSettings = {
     maxPageBytes: 65536,
@@ -251,6 +271,7 @@ export function createWorld(
       observation: () => (removed.has('observation') ? undefined : observation),
       definitions: () => (removed.has('definitions') ? undefined : resolveDefinition),
       listing: () => (removed.has('listing') ? undefined : listing),
+      causes: () => (removed.has('causes') ? undefined : causes),
       principals,
       facts,
       settings: complete,
@@ -289,6 +310,12 @@ export function createWorld(
       calls: () => [...listingCalls],
       answer: next => {
         listed = next
+      },
+    },
+    causes: {
+      calls: () => [...causeCalls],
+      answer: next => {
+        caused = next
       },
     },
     script: next => {

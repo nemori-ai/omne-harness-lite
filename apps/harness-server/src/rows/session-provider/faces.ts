@@ -322,6 +322,7 @@ export function createSessionProviderFaces(
     },
 
     readWork: unimplemented,
+    readWaiting: unimplemented,
     readInput: unimplemented,
     startRun: unimplemented,
     claim: unimplemented,

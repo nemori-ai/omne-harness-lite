@@ -158,6 +158,7 @@ describe('the session access plugin on real Cordis', () => {
       'send-input',
       'query-send-input',
       'read-history',
+      'read-waiting',
       'list-sessions',
       'cancel-run',
       'stop-call',

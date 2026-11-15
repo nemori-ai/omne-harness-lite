@@ -104,6 +104,20 @@ const historyPage = object({
   scannedThrough: { rule: anyText },
 })
 
+const waiting = object({
+  waiting: {
+    rule: nullable(
+      object({
+        run: { rule: text },
+        pending: { rule: { kind: 'revision' } },
+        cause: {
+          rule: nullable(object({ kind: { rule: text }, detail: { rule: nullable(text) } })),
+        },
+      }),
+    ),
+  },
+})
+
 const modelOutput = { rule: literal('model-output-v1') } as const
 const projected = <const K extends string>(kind: K) =>
   object({ kind: { rule: literal(kind) }, projection: modelOutput, value: { rule: json } })
@@ -199,6 +213,14 @@ export const sessionProtocol = defineProtocol({
       limit: 'small',
       body: ruleCodec(readHistory),
       outcomes: { succeeded: ruleCodec(historyPage), invalid: empty },
+      countsAsAccess: true,
+    },
+    'read-waiting': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(object(target)),
+      outcomes: { succeeded: ruleCodec(waiting), invalid: empty },
       countsAsAccess: true,
     },
     'list-sessions': {

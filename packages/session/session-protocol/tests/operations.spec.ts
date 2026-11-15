@@ -7,6 +7,7 @@ const table = {
   'send-input': { identity: 'login', effect: 'commit', limit: 'input' },
   'query-send-input': { identity: 'login', effect: 'read', limit: 'small' },
   'read-history': { identity: 'login', effect: 'read', limit: 'small' },
+  'read-waiting': { identity: 'login', effect: 'read', limit: 'small' },
   'list-sessions': { identity: 'login', effect: 'read', limit: 'small' },
   'cancel-run': { identity: 'login', effect: 'commit', limit: 'small' },
   'stop-call': { identity: 'login', effect: 'commit', limit: 'small' },
@@ -19,6 +20,7 @@ const outcomes = {
   'send-input': ['limited', 'invalid', 'archived', 'frozen', 'conflict', 'unknown'],
   'query-send-input': ['not-committed', 'unknown'],
   'read-history': ['invalid'],
+  'read-waiting': ['invalid'],
   'list-sessions': ['invalid'],
   'cancel-run': ['invalid', 'conflict', 'not-found', 'unknown'],
   'stop-call': ['invalid', 'conflict', 'not-found', 'unknown', 'unsupported'],
@@ -29,7 +31,7 @@ const always = ['succeeded', 'protocol-rejected', 'basis-unavailable', 'denied']
 const operations = sessionProtocol.operations
 
 describe('session/v1', () => {
-  it('is session major 1 with exactly the nine operations and one observation', () => {
+  it('is session major 1 with exactly the ten operations and one observation', () => {
     expect(sessionProtocol.name).toBe('session')
     expect(sessionProtocol.major).toBe(1)
     expect(Object.keys(operations).sort()).toEqual(Object.keys(table).sort())
