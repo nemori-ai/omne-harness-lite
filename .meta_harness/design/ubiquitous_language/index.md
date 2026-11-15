@@ -398,7 +398,7 @@
 | [UL-business-flow-extension-point](terms/interaction-and-dispatch.md#ul-business-flow-extension-point--业务流程拓展点--business-flow-extension-point) | 业务流程拓展点 | Business Flow Extension Point | 拦得住请求，**碰不到已经落定的事实**；**与 Loop 拓展点并列的另一类** |
 | [UL-control-command](terms/interaction-and-dispatch.md#ul-control-command--控制指令--control-command) | 控制指令 | Control Command | 对正在发生的事或队列本身的直接处置，**不是内容、不排队** |
 | [UL-queue-jump](terms/interaction-and-dispatch.md#ul-queue-jump--插队--queue-jump) | 插队 | Queue Jump | 「这句话我要现在就被看到」，**插的是时间不是位置**；**不终止运行** |
-| [UL-delivery-surface](terms/interaction-and-dispatch.md#ul-delivery-surface--交付面--delivery-surface) | 交付面 | Delivery Surface | 把日志投影给人看、把人做的事送进受理的那一面，**不持有领域事实、没有自己的领域语义**；本版只有一种 |
+| [UL-delivery-surface](terms/interaction-and-dispatch.md#ul-delivery-surface--交付面--delivery-surface) | 交付面 | Delivery Surface | 把日志投影给人看、把人做的事送进受理的那一面，**不持有领域事实、没有自己的领域语义**；有命令行应用与桌面应用两种 |
 | [UL-presentation-form](terms/interaction-and-dispatch.md#ul-presentation-form--呈现形式--presentation-form) | 呈现形式 | Presentation Form | 同一份事实交给读者的形式，**恰两种**：人读 / 机读；**别混会话运行模式** |
 | [UL-look-and-feel-preference](terms/interaction-and-dispatch.md#ul-look-and-feel-preference--观感偏好--look-and-feel-preference) | 观感偏好 | Look-and-Feel Preference | 只影响好不好看、顺不顺手的那些选择，**loop 内三个角色都不消费它**；个人 context 的一部分，不是 agent 要感知的界面偏好 |
 | [UL-public-observation](terms/interaction-and-dispatch.md#ul-public-observation--公开观察--public-observation) | 公开观察 | Public Observation | 公开协议里与操作并列的一类成员：一次建立，服务端一帧一帧送出进行中的投影，带原因结束；**不另存，断了重建**；不是实时媒体的通道 |
