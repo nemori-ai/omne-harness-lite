@@ -52,7 +52,7 @@ const WALK = `(async () => {
   }
   await wait('the login gate', () => document.querySelector('input[name=loginIdentifier]'))
   log('the login gate is shown; sandbox page has require=' + typeof require + ' process=' + typeof process)
-  byText('button[role=tab]', '第一次使用').click()
+  byText('button[data-segment]', '第一次使用').click()
   await wait('the register form', () => byText('button[type=submit]', '注册并登录'))
   fill(document.querySelector('input[name=loginIdentifier]'), 'alice')
   fill(document.querySelector('input[name=credential]'), 'alice-pw-MARKER-7f3a')
