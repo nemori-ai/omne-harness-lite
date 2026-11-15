@@ -99,6 +99,19 @@ describe('边界', () => {
     expect(naming).toEqual(['page/assembly.tsx'])
   })
 
+  it('装配文件列出四个界面模块', () => {
+    const modules = imports(join(SRC, 'page', 'assembly.tsx'))
+      .filter(specifier => specifier.endsWith('-ui/cordis'))
+      .sort()
+    expect(modules).toEqual([
+      '@omne-harness/assets-ui/cordis',
+      '@omne-harness/human-intervention-ui/cordis',
+      '@omne-harness/identity-ui/cordis',
+      '@omne-harness/session-ui/cordis',
+    ])
+    expect(modules.every(specifier => DOMAIN_MEMBERS.has(memberOf(specifier)))).toBe(true)
+  })
+
   it('领域成员的名单读得到', () => {
     expect(DOMAIN_MEMBERS.has('@omne-harness/session-ui')).toBe(true)
     expect(DOMAIN_MEMBERS.has('@omne-harness/identity-protocol')).toBe(true)
