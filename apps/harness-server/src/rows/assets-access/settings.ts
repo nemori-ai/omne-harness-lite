@@ -58,15 +58,17 @@ export function unifySettings(sources: SettingsSources): TenantSettingsPort {
     room: number,
   ): Promise<ListAnswer> {
     const catalog = sources.catalog()
-    if (catalog === undefined) return UNAVAILABLE
     const { asset } = input
-    const listed = await catalog.list({
-      principal: input.principal,
-      tenant: input.tenant,
-      ...(asset === undefined ? {} : { asset }),
-      after,
-      limit: room,
-    })
+    const listed =
+      catalog === undefined
+        ? UNAVAILABLE
+        : await catalog.list({
+            principal: input.principal,
+            tenant: input.tenant,
+            ...(asset === undefined ? {} : { asset }),
+            after,
+            limit: room,
+          })
     if (listed.kind === 'listed')
       return {
         kind: 'listed',
@@ -74,6 +76,8 @@ export function unifySettings(sources: SettingsSources): TenantSettingsPort {
         next: listed.next === null ? null : `c:${listed.next}`,
         completeness: listed.completeness,
       }
+    if (listed.kind === 'unavailable' && page.length > 0)
+      return { kind: 'listed', items: page, next: null, completeness: 'partial' }
     if (listed.kind !== 'not-visible' || asset === undefined) return listed
     if (secrets === 0) return listed
     return { kind: 'listed', items: page, next: null, completeness: 'complete' }
@@ -96,8 +100,8 @@ export function unifySettings(sources: SettingsSources): TenantSettingsPort {
     if (cursor.segment === 'catalog') return catalogPage(input, [], count, cursor.after, limit)
     const page = secrets.items.slice(cursor.at, cursor.at + limit)
     const end = cursor.at + page.length
-    if (end < count) return partial(page, `s:${String(end)}`)
-    if (page.length === limit) return partial(page, 'c:')
+    if (end < count) return secretPage(page, `s:${String(end)}`)
+    if (page.length === limit) return secretPage(page, 'c:')
     return catalogPage(input, page, count, null, limit - page.length)
   }
 
@@ -159,6 +163,6 @@ export function unifySettings(sources: SettingsSources): TenantSettingsPort {
   } satisfies TenantSettingsPort)
 }
 
-function partial(items: readonly SecretView[], next: string): Listed {
-  return { kind: 'listed', items, next, completeness: 'partial' }
+function secretPage(items: readonly SecretView[], next: string): Listed {
+  return { kind: 'listed', items, next, completeness: 'complete' }
 }

@@ -291,7 +291,10 @@ describe('the unified settings port: a source that is not there', () => {
       }),
     ).toEqual({ kind: 'unavailable' })
     expect(await p.port.clear(write(SHELL, 'limits.lines', '3'))).toEqual({ kind: 'unavailable' })
-    expect(await p.port.list(listOf(null, 10))).toEqual({ kind: 'unavailable' })
+    const listed = await p.port.list(listOf(null, 10))
+    expect(listed).toMatchObject({ kind: 'listed', next: null, completeness: 'partial' })
+    expect(names(listed).length).toBeGreaterThan(0)
+    expect(await p.port.list(listOf('c:', 10))).toEqual({ kind: 'unavailable' })
   })
 
   it('without the secret face, every step that needs it is unavailable', async () => {
@@ -324,7 +327,7 @@ describe('the unified settings port: list pages', () => {
     const p = port({ secrets: three, catalog })
     const first = await p.port.list(listOf(null, 3))
     expect(names(first)).toEqual(['s.a', 's.b', 's.c'])
-    expect(first).toMatchObject({ next: 'c:', completeness: 'partial' })
+    expect(first).toMatchObject({ next: 'c:', completeness: 'complete' })
     expect(p.calls).toEqual(['secret.list'])
     const second = await p.port.list(listOf('c:', 3))
     expect(names(second)).toEqual(['c.a', 'c.b', 'c.c'])
@@ -335,7 +338,7 @@ describe('the unified settings port: list pages', () => {
     const p = port({ secrets: three, catalog })
     const first = await p.port.list(listOf(null, 2))
     expect(names(first)).toEqual(['s.a', 's.b'])
-    expect(first).toMatchObject({ next: 's:2', completeness: 'partial' })
+    expect(first).toMatchObject({ next: 's:2', completeness: 'complete' })
     const second = await p.port.list(listOf('s:2', 2))
     expect(names(second)).toEqual(['s.c', 'c.a'])
     expect(second).toMatchObject({ next: 'c:1', completeness: 'complete' })
@@ -351,9 +354,17 @@ describe('the unified settings port: list pages', () => {
     expect(p.calls.filter(call => call.startsWith('catalog'))).toEqual([])
   })
 
-  it('a catalog that cannot be read makes the whole list unavailable, not a page of secret items', async () => {
+  it('a catalog that cannot be read: a page that carries secret items is listed as partial and ends there; a page without them is unavailable', async () => {
     const p = port({ secrets: three, catalog, catalogRefuse: { kind: 'unavailable' } })
-    expect(await p.port.list(listOf(null, 10))).toEqual({ kind: 'unavailable' })
+    const first = await p.port.list(listOf(null, 10))
+    expect(names(first)).toEqual(['s.a', 's.b', 's.c'])
+    expect(first).toMatchObject({ kind: 'listed', next: null, completeness: 'partial' })
+    expect(await p.port.list(listOf('c:', 10))).toEqual({ kind: 'unavailable' })
+    expect(
+      await port({ secrets: [], catalog, catalogRefuse: { kind: 'unavailable' } }).port.list(
+        listOf(null, 10),
+      ),
+    ).toEqual({ kind: 'unavailable' })
     for (const kind of ['denied', 'conflict'] as const)
       expect(
         await port({ secrets: three, catalog, catalogRefuse: { kind } }).port.list(
