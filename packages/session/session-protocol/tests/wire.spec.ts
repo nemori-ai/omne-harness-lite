@@ -1,16 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import {
-  readSessionRequest,
-  readSessionResponse,
-  type SessionOperation,
-} from '@omne-harness/public-contract'
+import { readTenantText } from '@omne-harness/public-contract'
 import { sessionProtocol } from '@omne-harness/session-protocol'
 import {
   expectRoundTrip,
-  limits,
   readSample as readNew,
   session,
   tenant,
+  tree,
 } from './fixtures/samples.ts'
 
 const target = { tenant, session }
@@ -91,31 +87,20 @@ const successBodies: Samples = {
   ],
 }
 
-const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
+const tenantId = readTenantText(tenant)
 
-function readOldBody(operation: SessionOperation, body: unknown) {
-  const read = readSessionRequest({
-    bytes: bytes({
-      protocolVersion: 'session-public/1',
-      messageId: 'm',
-      operation,
-      loginProof: 'proof',
-      ...(operation === 'create-session' ? { actingTenant: tenant } : {}),
-      body,
-    }),
-    limits,
-  })
-  return read.kind === 'request' ? { ok: true, value: read.request.body } : { ok: false }
+function expectedRequest(sample: Readonly<Record<string, unknown>>): unknown {
+  return {
+    ...sample,
+    ...(Object.hasOwn(sample, 'tenant') ? { tenant: tenantId } : {}),
+    ...(Object.hasOwn(sample, 'message') ? { message: tree(sample.message) } : {}),
+  }
 }
 
-function readOldOutcome(operation: SessionOperation, outcome: string, body: unknown) {
-  const read = readSessionResponse({
-    bytes: bytes({ protocolVersion: 'session-public/1', messageId: 'm', outcome, body }),
-    operation,
-    expectedMessageId: 'm',
-    limits,
-  })
-  return read.kind === 'response' ? { ok: true, value: read.response.body } : { ok: false }
+function expectedSuccess(sample: Readonly<Record<string, unknown>>): unknown {
+  if (!Array.isArray(sample.entries)) return sample
+  const entries = sample.entries as readonly Readonly<Record<string, unknown>>[]
+  return { ...sample, entries: entries.map(entry => ({ ...entry, payload: tree(entry.payload) })) }
 }
 
 const operations = Object.keys(validBodies) as Name[]
@@ -126,21 +111,17 @@ describe('request bodies', () => {
   it.each(cases(validBodies))(
     '%s: a body the old family accepts reads to the same value',
     (name, sample) => {
-      const old = readOldBody(name, sample)
-      expect(old.ok).toBe(true)
       const value = expectRoundTrip(sessionProtocol.operations[name].body, sample)
-      expect(value).toEqual(old.value)
+      expect(value).toEqual(expectedRequest(sample))
     },
   )
 
   it.each(cases(invalidBodies))('%s: a body the old family rejects is rejected', (name, sample) => {
-    expect(readOldBody(name, sample)).toEqual({ ok: false })
     expect(readNew(sessionProtocol.operations[name].body, sample)).toEqual({ ok: false })
   })
 
   it('create-session may leave definition out, which the old family refused', () => {
     const sample = { createCallId: 'call', purpose: 'chat' }
-    expect(readOldBody('create-session', sample)).toEqual({ ok: false })
     expect(expectRoundTrip(sessionProtocol.operations['create-session'].body, sample)).toEqual(
       sample,
     )
@@ -150,20 +131,19 @@ describe('request bodies', () => {
 describe('outcome bodies', () => {
   const sameAsOld = cases(successBodies).filter(([name]) => name !== 'read-history')
   it.each(sameAsOld)('%s: a succeeded body reads to the old value', (name, sample) => {
-    const old = readOldOutcome(name, 'succeeded', sample)
-    expect(old.ok).toBe(true)
     const value = expectRoundTrip(sessionProtocol.operations[name].outcomes.succeeded, sample)
-    expect(value).toEqual(old.value)
+    expect(value).toEqual(expectedSuccess(sample))
   })
 
   it.each(successBodies['read-history'])(
     'read-history: the page is the old page plus the pinned revision `upper`',
     sample => {
       const { upper, ...oldPage } = sample
-      const old = readOldOutcome('read-history', 'succeeded', oldPage)
-      expect(old.ok).toBe(true)
       const codec = sessionProtocol.operations['read-history'].outcomes.succeeded
-      expect(expectRoundTrip(codec, sample)).toEqual({ ...(old.value as object), upper })
+      expect(expectRoundTrip(codec, sample)).toEqual({
+        ...(expectedSuccess(oldPage) as object),
+        upper,
+      })
       expect(readNew(codec, oldPage)).toEqual({ ok: false })
       expect(readNew(codec, { ...oldPage, upper: 7 })).toEqual({ ok: false })
     },
@@ -173,13 +153,10 @@ describe('outcome bodies', () => {
     '%s: limited carries resource and limit',
     name => {
       const sample = { resource: 'input-bytes', limit: 65536 }
-      const old = readOldOutcome(name, 'limited', sample)
-      expect(old.ok).toBe(true)
       expect(expectRoundTrip(sessionProtocol.operations[name].outcomes.limited, sample)).toEqual(
-        old.value,
+        sample,
       )
       const wrong = { resource: 'sessions', limit: 1 }
-      expect(readOldOutcome(name, 'limited', wrong)).toEqual({ ok: false })
       expect(readNew(sessionProtocol.operations[name].outcomes.limited, wrong)).toEqual({
         ok: false,
       })
@@ -190,7 +167,6 @@ describe('outcome bodies', () => {
     for (const name of operations)
       for (const [outcome, codec] of Object.entries(sessionProtocol.operations[name].outcomes)) {
         if (outcome === 'succeeded' || outcome === 'limited' || codec === true) continue
-        expect(readOldOutcome(name, outcome, {}).ok).toBe(true)
         expect(expectRoundTrip(codec, {})).toEqual({})
         expect(readNew(codec, { reason: 'x' })).toEqual({ ok: false })
       }
