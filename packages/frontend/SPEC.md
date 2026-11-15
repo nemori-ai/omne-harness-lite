@@ -59,7 +59,7 @@
 
 ### 技术栈
 
-React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名映射到 `--omne-*` 变量）、Radix、class-variance-authority、Streamdown。这套栈只在本组使用，不进项目顶层的[技术基础](../../docs/architecture/technical-foundations.md)页（负责人 2026-11-12 定）。用本成员的应用负责装 `@tailwindcss/vite`，本成员不带构建插件。
+React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名映射到 `--omne-*` 变量）、Radix、class-variance-authority、Streamdown。这套栈只在本组使用，不进项目顶层的[技术基础](../../docs/architecture/technical-foundations.md)页（负责人已定）。用本成员的应用负责装 `@tailwindcss/vite`，本成员不带构建插件。
 
 ### 来历与取舍
 

@@ -18,9 +18,7 @@
   },
   "files": [
     "dist",
-    "src/styles.css",
-    "src/styles",
-    "src/patterns/**/*.css",
+    "src/**/*.css",
     "resources/fonts"
   ],
   "scripts": {
