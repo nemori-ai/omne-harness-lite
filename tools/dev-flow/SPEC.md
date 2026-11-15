@@ -133,8 +133,8 @@ dev-flow 是开发流程工具，不发布。它由四部分组成：
 - 5.0.0 只允许成员根的可选 `README.md`、`UPSTREAM.md` 与 `api/*.api.md` 这几份 Markdown。
 - 5.0.0 比 4.0.0 多认界面成员的四种文件：`src/` 下任意层的 `*.tsx` 与 `*.css`，`tests/` 下任意层的 `*.tsx`，`resources/` 下任意层的 `*.woff2`。「至少一份用例」一组另算 `tests/**/*.spec.tsx`。别的文件种类不认。
 - 验收配置跟随可执行场景：`acceptance/` 下（不含 `acceptance/fixtures/`）有 `*.acceptance.ts` 时，必须有 `vitest.acceptance.config.ts` 与 `acceptance` 脚本。有配置时必须有场景。违反时报 `acceptance`。
-- 资源导出：4.0.0 只认指到成员里一份存在的 `.json` 的字符串导出。5.0.0 另认两样：指到 `src/` 或 `resources/` 下一份真实 `.css` 文件的导出；指到 `resources/` 下至少一层目录的通配导出，写法是 `./resources/<目录>/*`，目录必须真实存在。路径逃出成员、指到不存在的文件或目录、指到 `src/` 与 `resources/` 之外、`resources/*` 本身、半截通配与双星号通配都报 `resource-export`。
-- 发布：`files` 必须含 `dist`，每个导出指到的文件都要被 `files` 的某一项盖住：路径相同，或在某个列出的目录之下。5.0.0 另允许一种通配：`src/` 或 `resources/` 之下某个目录（目录名里没有通配）后面接 `/**/*.css`，盖住那个目录下的 `.css` 导出。别的通配不盖。样式表之间的 `@import` 不核对。
+- 资源导出：4.0.0 只认指到成员里一份存在的 `.json` 的字符串导出。5.0.0 另认两样：指到 `src/` 下一份真实 `.css` 文件的导出（样式表的家是 `src/`，与布局一致）；指到 `resources/` 下至少一层目录的通配导出，写法是 `./resources/<目录>/*`，目录必须真实存在。路径逃出成员、指到不存在的文件或目录、`resources/` 下的 `.css`、`src/` 与 `resources/` 之外、`resources/*` 本身、半截通配与双星号通配都报 `resource-export`。
+- 发布：`files` 必须含 `dist`，每个导出指到的文件都要被 `files` 的某一项盖住：路径相同，或在某个列出的目录之下。5.0.0 另允许一种通配：`src/` 或它之下某个目录（目录名里没有通配）后面接 `/**/*.css`，盖住那个目录下的 `.css` 导出。别的通配不盖。样式表之间的 `@import` 不核对。
 - 同时核对 ESM、导出源与条件、产物、发布、脚本与草稿占位。
 - 集成结果另列：`deviation`、`unknown` 或 `static-pass`。事实来自现有的架构抽取器，覆盖限制保持明示。已知偏离禁止采用。`unknown` 须人工核对适用性与证据，不自动放行。
 

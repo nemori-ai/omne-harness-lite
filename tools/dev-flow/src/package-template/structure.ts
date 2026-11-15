@@ -10,9 +10,9 @@ export function readObject(path: string): Record<string, unknown> {
   if (!object(value)) throw new Error(`${path}: expected JSON object`)
   return value
 }
-const STYLESHEET = /^(?:src|resources)\/.+\.css$/u
+const STYLESHEET = /^src\/.+\.css$/u
 const RESOURCE_DIRECTORY = /^resources\/(?:[^*/]+\/)*[^*/]+$/u
-const STYLESHEET_GLOB = /^((?:src|resources)(?:\/[^*/]+)*)\/\*\*\/\*\.css$/u
+const STYLESHEET_GLOB = /^(src(?:\/[^*/]+)*)\/\*\*\/\*\.css$/u
 
 function realNode(root: string, member: string, path: string, kind: 'file' | 'directory'): boolean {
   const stat = lstatSync(join(root, member, path), { throwIfNoEntry: false })

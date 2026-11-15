@@ -948,11 +948,10 @@ describe('template 5.0.0 resource exports and publication', () => {
       member,
       {
         './styles.css': './src/view/a.css',
-        './theme.css': './resources/theme.css',
         './fonts/*': './resources/fonts/*',
       },
-      ['src/**/*.css', 'resources/theme.css', 'resources/fonts'],
-      { files: ['src/view/a.css', 'resources/theme.css'], directories: ['resources/fonts'] },
+      ['src/**/*.css', 'resources/fonts'],
+      { files: ['src/view/a.css'], directories: ['resources/fonts'] },
     )
     expect(
       codes(root, member).filter(item => /^(resource-export|publication)/u.test(item)),
@@ -972,10 +971,13 @@ describe('template 5.0.0 resource exports and publication', () => {
     ['a stylesheet that leaves the member', './src/../../outside/x.css'],
     ['an absolute path', '/etc/x.css'],
     ['a directory instead of a file', './src/view.css'],
+    ['an existing stylesheet under resources', './resources/theme.css'],
   ])('rejects an export that points to %s', (_name, target) => {
     const root = repository(),
       member = adopted(root)
     fs.writeFileSync(join(root, member, 'styles.css'), 'x\n')
+    fs.mkdirSync(join(root, member, 'resources'), { recursive: true })
+    fs.writeFileSync(join(root, member, 'resources/theme.css'), 'x\n')
     fs.mkdirSync(join(root, member, 'src/view.css'), { recursive: true })
     publish(root, member, { './x.css': target }, [])
     expect(codes(root, member)).toContainEqual(
