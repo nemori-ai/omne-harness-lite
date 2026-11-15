@@ -1,54 +1,52 @@
-import { memo, useState, type ReactNode } from 'react'
-import { Streamdown } from 'streamdown'
+import { Disclosure, Prose, Shimmer, StatusPill } from '@omne-harness/ui-kit'
+import { memo, type ReactNode } from 'react'
 import type { AskView, Item, Part, ToolResultView } from '../model/conversation.ts'
 import type { Plain } from '../model/plain.ts'
-
-function Markdown({ text, live }: { readonly text: string; readonly live: boolean }) {
-  return (
-    <Streamdown
-      className="omne-markdown"
-      mode={live ? 'streaming' : 'static'}
-      isAnimating={live}
-      controls={false}
-    >
-      {text}
-    </Streamdown>
-  )
-}
 
 function Expandable({
   title,
   badge,
-  open: initiallyOpen = false,
   children,
 }: {
   readonly title: ReactNode
   readonly badge?: string | undefined
-  readonly open?: boolean
   readonly children: ReactNode
 }) {
-  const [open, setOpen] = useState(initiallyOpen)
   return (
-    <div className="omne-card" data-open={open}>
-      <button
-        type="button"
-        className="omne-card-head"
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-      >
-        <span className="omne-card-chevron" aria-hidden="true">
-          ▸
-        </span>
-        <span className="omne-card-title">{title}</span>
-        {badge === undefined ? null : <span className="omne-badge">{badge}</span>}
-      </button>
-      {open ? <div className="omne-card-body">{children}</div> : null}
-    </div>
+    <Disclosure
+      className="omne-card"
+      label={
+        <>
+          {title}
+          {badge === undefined ? null : <StatusPill tone="neutral">{badge}</StatusPill>}
+        </>
+      }
+    >
+      {children}
+    </Disclosure>
   )
 }
 
-function json(value: Plain): string {
-  return JSON.stringify(value, null, 2) ?? 'null'
+function entriesOf(value: Plain): readonly (readonly [string, Plain])[] | null {
+  if (Array.isArray(value))
+    return (value as readonly Plain[]).map((item, at) => [String(at), item] as const)
+  if (typeof value === 'object' && value !== null) return Object.entries(value)
+  return null
+}
+
+function ValueView({ name, value }: { readonly name: string; readonly value: Plain }) {
+  const entries = entriesOf(value)
+  if (entries === null) return <span className="omne-argument-value">{String(value)}</span>
+  return (
+    <ul className="omne-arguments" aria-label={name}>
+      {entries.map(([key, item]) => (
+        <li key={key}>
+          <span className="omne-argument-name">{key}</span>
+          <ValueView name={key} value={item} />
+        </li>
+      ))}
+    </ul>
+  )
 }
 
 const ASK_STATUS: Readonly<Record<AskView['status'], string>> = {
@@ -68,9 +66,9 @@ function AskCard({
     <section className="omne-ask" data-status={ask.status} aria-label="问题卡">
       <header className="omne-ask-head">
         <span>Agent 在问你</span>
-        <span className="omne-badge" data-tone={ask.status}>
+        <StatusPill tone={ask.status === 'waiting' ? 'caution' : 'neutral'}>
           {ASK_STATUS[ask.status]}
-        </span>
+        </StatusPill>
       </header>
       {ask.questions.map((question, at) => (
         <div className="omne-ask-question" key={at}>
@@ -121,7 +119,11 @@ function ToolCall({ part }: { readonly part: Extract<Part, { kind: 'tool-call' }
       badge={badge}
     >
       <p className="omne-card-label">参数</p>
-      <pre className="omne-pre">{part.raw ?? json(part.arguments)}</pre>
+      {part.raw === null ? (
+        <ValueView name="参数" value={part.arguments} />
+      ) : (
+        <pre className="omne-pre">{part.raw}</pre>
+      )}
       {part.result === null ? null : (
         <>
           <p className="omne-card-label">结果</p>
@@ -135,11 +137,11 @@ function ToolCall({ part }: { readonly part: Extract<Part, { kind: 'tool-call' }
 function PartView({ part, live }: { readonly part: Part; readonly live: boolean }) {
   switch (part.kind) {
     case 'text':
-      return <Markdown text={part.text} live={live} />
+      return <Prose text={part.text} isAnimating={live} />
     case 'thinking':
       return (
         <Expandable title="推理" badge={live ? '进行中' : undefined}>
-          <div className="omne-thinking">{part.text}</div>
+          <Prose text={part.text} isAnimating={live} />
         </Expandable>
       )
     case 'tool-call':
@@ -186,7 +188,7 @@ export const ItemView = memo(function ItemView({ item }: { readonly item: Item }
         <article className="omne-message" data-role={item.role} data-live={item.live}>
           <header className="omne-message-head">
             <span>{ROLE[item.role]}</span>
-            {item.live ? <span className="omne-generating">正在生成</span> : null}
+            {item.live ? <Shimmer active>正在生成</Shimmer> : null}
           </header>
           <div className="omne-message-body">
             <PartList parts={item.parts} live={item.live} />

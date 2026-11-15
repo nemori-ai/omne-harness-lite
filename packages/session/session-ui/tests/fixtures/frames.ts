@@ -86,7 +86,14 @@ export function assistantEntry(entryId: string, revision: string, text: string):
 }
 
 export function toolCallBlock(callId: string, name: string, args: Plain): Plain {
-  return { kind: 'tool_call', id: `t_${callId}`, visibility, callId, name, arguments: args }
+  return {
+    kind: 'tool_call',
+    id: `t_${callId}`,
+    visibility,
+    callId,
+    name,
+    arguments: toTree(args) as unknown as Plain,
+  }
 }
 
 export function toolResultEntry(

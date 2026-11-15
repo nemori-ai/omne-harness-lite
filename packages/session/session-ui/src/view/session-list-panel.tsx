@@ -1,4 +1,5 @@
-import { encodeInstant } from '@omne-harness/utc-instant'
+import { AddIcon, Button, StatusPill } from '@omne-harness/ui-kit'
+import { encodeInstant, type Instant } from '@omne-harness/utc-instant'
 import { useSyncExternalStore } from 'react'
 import type { SessionDriver } from '../model/session-driver.ts'
 import { shownBy, type ListedSession, type SessionList } from '../model/session-list.ts'
@@ -15,7 +16,7 @@ export type SessionListPanelProps = Readonly<{
 
 export function SessionListPanel({ workspaces, scope, onShow }: SessionListPanelProps) {
   const handle = useSession(workspaces, scope)
-  if (handle.kind !== 'ready') return <div className="omne-session" />
+  if (handle.kind !== 'ready') return <div className="omne-session-sidebar" />
   return <Panel driver={handle.driver} onShow={onShow} />
 }
 
@@ -29,18 +30,19 @@ function Panel({
   const { session: state, list } = useSyncExternalStore(driver.subscribe, driver.getState)
   const current = state.kind === 'open' || state.kind === 'unavailable' ? state.session : null
   return (
-    <div className="omne-session omne-session-sidebar">
-      <button
-        type="button"
-        className="omne-button"
+    <div className="omne-session-sidebar">
+      <Button
+        variant="outline"
+        size="compact"
         disabled={state.kind === 'creating'}
         onClick={() => {
           driver.createSession()
           onShow()
         }}
       >
+        <AddIcon aria-hidden="true" />
         新建会话
-      </button>
+      </Button>
       <SessionListView
         list={list}
         current={current}
@@ -65,6 +67,80 @@ function itemTitle(item: ListedSession): string {
   return item.title ?? `未命名的会话 ${item.session.slice(0, 8)}`
 }
 
+function Moment({ label, at }: { readonly label: string; readonly at: Instant | null }) {
+  if (at === null) return null
+  const text = encodeInstant(at)
+  return (
+    <span>
+      {label} <time dateTime={text}>{new Date(text).toLocaleString()}</time>
+    </span>
+  )
+}
+
+function SessionRow({
+  item,
+  current,
+  locked,
+  onOpen,
+}: {
+  readonly item: ListedSession
+  readonly current: boolean
+  readonly locked: boolean
+  readonly onOpen: () => void
+}) {
+  const lifecycle = LIFECYCLE[item.lifecycle]
+  const dated = item.createdAt !== null || item.lastActivityAt !== null
+  return (
+    <li>
+      <button
+        type="button"
+        className="omne-session-item"
+        aria-current={current ? 'true' : undefined}
+        disabled={locked}
+        onClick={onOpen}
+      >
+        <span className="omne-session-item-title">{itemTitle(item)}</span>
+        {dated || lifecycle !== undefined ? (
+          <span className="omne-session-item-meta">
+            <Moment label="最近活动" at={item.lastActivityAt} />
+            <Moment label="创建" at={item.createdAt} />
+            {lifecycle === undefined ? null : <StatusPill tone="neutral">{lifecycle}</StatusPill>}
+          </span>
+        ) : null}
+      </button>
+    </li>
+  )
+}
+
+function ListFooter({
+  list,
+  driver,
+}: {
+  readonly list: SessionList
+  readonly driver: SessionDriver
+}) {
+  switch (list.kind) {
+    case 'unread':
+      return null
+    case 'reading':
+      return <p className="omne-sessions-note">正在读会话列表……</p>
+    case 'failed':
+      return (
+        <NoticeLine
+          notice={list.notice}
+          action={list.retry ? { label: '重试', onClick: () => driver.loadList() } : undefined}
+        />
+      )
+    case 'read':
+      if (list.page.sessions.length === 0) return <p className="omne-sessions-note">还没有会话。</p>
+      return list.page.next === null ? null : (
+        <Button variant="ghost" size="compact" onClick={() => driver.loadMoreSessions()}>
+          更多
+        </Button>
+      )
+  }
+}
+
 function SessionListView({
   list,
   current,
@@ -83,58 +159,18 @@ function SessionListView({
     <nav className="omne-sessions" aria-label="会话列表">
       {shown === null ? null : (
         <ul className="omne-session-items">
-          {shown.sessions.map(item => {
-            const lifecycle = LIFECYCLE[item.lifecycle]
-            return (
-              <li key={item.session}>
-                <button
-                  type="button"
-                  className="omne-session-item"
-                  aria-current={item.session === current ? 'true' : undefined}
-                  disabled={locked}
-                  onClick={() => onOpen(item.session)}
-                >
-                  <span className="omne-session-item-title">{itemTitle(item)}</span>
-                  {item.lastActivityAt === null ? null : (
-                    <time
-                      className="omne-session-item-time"
-                      dateTime={encodeInstant(item.lastActivityAt)}
-                    >
-                      {new Date(encodeInstant(item.lastActivityAt)).toLocaleString()}
-                    </time>
-                  )}
-                  {lifecycle === undefined ? null : <span className="omne-badge">{lifecycle}</span>}
-                </button>
-              </li>
-            )
-          })}
+          {shown.sessions.map(item => (
+            <SessionRow
+              key={item.session}
+              item={item}
+              current={item.session === current}
+              locked={locked}
+              onOpen={() => onOpen(item.session)}
+            />
+          ))}
         </ul>
       )}
-      {list.kind === 'read' && list.page.sessions.length === 0 ? (
-        <p className="omne-sessions-note">还没有会话。</p>
-      ) : null}
-      {list.kind === 'reading' ? <p className="omne-sessions-note">正在读会话列表……</p> : null}
-      {list.kind === 'failed' ? (
-        <NoticeLine
-          notice={list.notice}
-          action={
-            list.retry ? (
-              <button type="button" className="omne-link" onClick={() => driver.loadList()}>
-                重试
-              </button>
-            ) : undefined
-          }
-        />
-      ) : null}
-      {list.kind === 'read' && list.page.next !== null ? (
-        <button
-          type="button"
-          className="omne-button omne-sessions-more"
-          onClick={() => driver.loadMoreSessions()}
-        >
-          更多
-        </button>
-      ) : null}
+      <ListFooter list={list} driver={driver} />
       {shown?.completeness === 'partial' ? (
         <p className="omne-sessions-note">列表可能不全</p>
       ) : null}

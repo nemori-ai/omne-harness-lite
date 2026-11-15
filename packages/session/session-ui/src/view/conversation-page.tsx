@@ -1,14 +1,19 @@
-import { useMemo, useState, useSyncExternalStore, type KeyboardEvent } from 'react'
-import { stopFace, type StopFace } from '../model/composer.ts'
+import { StatusPill, Textarea } from '@omne-harness/ui-kit'
+import { Fragment, useMemo, useState, useSyncExternalStore, type KeyboardEvent } from 'react'
+import { stopFace } from '../model/composer.ts'
 import { EMPTY_CONTENT } from '../model/content.ts'
 import { conversationItems } from '../model/conversation.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
 import type { Open, PendingInput, State } from '../model/session-machine.ts'
 import type { SessionWorkspaces } from '../model/session-workspaces.ts'
+import type { Waiting } from '../model/waiting.ts'
+import { ComposerActionSlot } from './composer-action-slot.tsx'
 import { NoticeLine } from './notice.tsx'
 import { ItemView } from './parts.tsx'
 import { useFollowBottom } from './scroll.ts'
+import { TranscriptRow, usePublication } from './transcript-arrivals.tsx'
 import { useSession } from './use-session.ts'
+import { WaitingNotice, waitingAnchor } from './waiting-notice.tsx'
 
 export type ConversationPageProps = Readonly<{
   workspaces: SessionWorkspaces
@@ -19,10 +24,10 @@ export function ConversationPage({ workspaces, scope }: ConversationPageProps) {
   const handle = useSession(workspaces, scope)
   switch (handle.kind) {
     case 'waiting':
-      return <div className="omne-session" />
+      return <div className="omne-session-page" />
     case 'unreadable':
       return (
-        <div className="omne-session">
+        <div className="omne-session-page">
           <NoticeLine
             notice={{ kind: 'refused', text: '外壳给的租户读不懂，会话界面不能工作。' }}
           />
@@ -36,12 +41,12 @@ export function ConversationPage({ workspaces, scope }: ConversationPageProps) {
 function Page({ driver }: { readonly driver: SessionDriver }) {
   const { session: state } = useSyncExternalStore(driver.subscribe, driver.getState)
   return (
-    <div className="omne-session">
+    <div className="omne-session-page">
+      <header className="omne-session-bar">
+        <h2 className="omne-session-title">{titleOf(state)}</h2>
+        <ConnectionBadge state={state} />
+      </header>
       <div className="omne-session-main">
-        <header className="omne-session-bar">
-          <h2 className="omne-session-title">{titleOf(state)}</h2>
-          <ConnectionBadge state={state} />
-        </header>
         <Body state={state} driver={driver} />
       </div>
     </div>
@@ -67,12 +72,10 @@ function ConnectionBadge({ state }: { readonly state: State }) {
     case 'live':
       return null
     case 'connecting':
-      return <span className="omne-badge">正在连接</span>
+      return <StatusPill tone="neutral">正在连接</StatusPill>
     case 'reconnecting':
       return (
-        <span className="omne-badge" data-tone="unknown">
-          观察断开，正在重连（第 {observation.attempt} 次）
-        </span>
+        <StatusPill tone="caution">观察断开，正在重连（第 {observation.attempt} 次）</StatusPill>
       )
   }
 }
@@ -95,15 +98,9 @@ function Body({ state, driver }: { readonly state: State; readonly driver: Sessi
             <NoticeLine
               notice={state.notice}
               action={
-                state.confirm === 'unknown' ? (
-                  <button
-                    type="button"
-                    className="omne-link"
-                    onClick={() => driver.confirmCreate()}
-                  >
-                    再确认一次
-                  </button>
-                ) : undefined
+                state.confirm === 'unknown'
+                  ? { label: '再确认一次', onClick: () => driver.confirmCreate() }
+                  : undefined
               }
             />
           )}
@@ -113,7 +110,14 @@ function Body({ state, driver }: { readonly state: State; readonly driver: Sessi
       return (
         <>
           <NoticeLine notice={state.notice} />
-          <Conversation content={state.content} runActive={false} inputs={[]} driver={driver} />
+          <Conversation
+            epoch={state.session}
+            content={state.content}
+            runActive={false}
+            inputs={[]}
+            waiting={null}
+            driver={driver}
+          />
         </>
       )
     case 'open':
@@ -127,9 +131,11 @@ function OpenSession({ state, driver }: { readonly state: Open; readonly driver:
       {state.notice === null ? null : <NoticeLine notice={state.notice} />}
       {state.history.failure === null ? null : <NoticeLine notice={state.history.failure} />}
       <Conversation
+        epoch={state.session}
         content={state.content}
         runActive={state.run.kind !== 'idle'}
         inputs={state.inputs}
+        waiting={state.waiting}
         driver={driver}
       />
       <Composer state={state} driver={driver} />
@@ -138,14 +144,18 @@ function OpenSession({ state, driver }: { readonly state: Open; readonly driver:
 }
 
 function Conversation({
+  epoch,
   content,
   runActive,
   inputs,
+  waiting,
   driver,
 }: {
+  readonly epoch: string
   readonly content: Open['content']
   readonly runActive: boolean
   readonly inputs: readonly PendingInput[]
+  readonly waiting: Waiting | null
   readonly driver: SessionDriver
 }) {
   const committed = useMemo(
@@ -159,17 +169,36 @@ function Conversation({
         : conversationItems({ ...EMPTY_CONTENT, live: content.live }, runActive),
     [content.live, runActive],
   )
-  const { scroller, onScroll } = useFollowBottom(committed, live, inputs)
+  const { scroller, onScroll } = useFollowBottom(committed, live, inputs, waiting)
+  const keys = [
+    ...committed.map(item => item.key),
+    ...inputs.map(input => `input:${input.acceptId}`),
+    ...live.map(item => item.key),
+  ]
+  const publication = usePublication(epoch, keys, content.readThrough !== null)
+  const arriving = (key: string) => publication.arrivals.has(key)
+  const anchor = waitingAnchor(committed, waiting)
+  const notice = <WaitingNotice waiting={waiting} driver={driver} />
   return (
     <div className="omne-conversation" ref={scroller} onScroll={onScroll}>
       {committed.map(item => (
-        <ItemView key={item.key} item={item} />
+        <Fragment key={item.key}>
+          <TranscriptRow arriving={arriving(item.key)}>
+            <ItemView item={item} />
+          </TranscriptRow>
+          {item.key === anchor ? notice : null}
+        </Fragment>
       ))}
+      {anchor === null ? notice : null}
       {inputs.map(input => (
-        <PendingInputView key={input.acceptId} input={input} driver={driver} />
+        <TranscriptRow key={input.acceptId} arriving={arriving(`input:${input.acceptId}`)}>
+          <PendingInputView input={input} driver={driver} />
+        </TranscriptRow>
       ))}
       {live.map(item => (
-        <ItemView key={item.key} item={item} />
+        <TranscriptRow key={item.key} arriving={arriving(item.key)}>
+          <ItemView item={item} />
+        </TranscriptRow>
       ))}
       {content.liveStatus === null ? null : (
         <p className="omne-live-status">
@@ -191,6 +220,15 @@ const INPUT_STATUS: Readonly<Record<PendingInput['status'], string>> = {
   refused: '没有发出',
 }
 
+const INPUT_TONE = {
+  sending: 'neutral',
+  accepted: 'neutral',
+  confirming: 'info',
+  unknown: 'info',
+  'not-committed': 'caution',
+  refused: 'danger',
+} as const
+
 function PendingInputView({
   input,
   driver,
@@ -202,24 +240,16 @@ function PendingInputView({
     <article className="omne-message" data-role="user" data-pending={input.status}>
       <header className="omne-message-head">
         <span>你</span>
-        <span className="omne-badge" data-tone={input.status}>
-          {INPUT_STATUS[input.status]}
-        </span>
+        <StatusPill tone={INPUT_TONE[input.status]}>{INPUT_STATUS[input.status]}</StatusPill>
       </header>
-      <div className="omne-message-body omne-plain">{input.text}</div>
+      <div className="omne-message-body">{input.text}</div>
       {input.notice === null ? null : (
         <NoticeLine
           notice={input.notice}
           action={
-            input.status === 'unknown' ? (
-              <button
-                type="button"
-                className="omne-link"
-                onClick={() => driver.confirmSend(input.acceptId)}
-              >
-                再确认一次
-              </button>
-            ) : undefined
+            input.status === 'unknown'
+              ? { label: '再确认一次', onClick: () => driver.confirmSend(input.acceptId) }
+              : undefined
           }
         />
       )}
@@ -227,15 +257,8 @@ function PendingInputView({
   )
 }
 
-const STOP_LABEL: Readonly<Record<Exclude<StopFace, 'none'>, string>> = {
-  stop: '停止',
-  stopping: '正在停止',
-  'confirm-stop': '再确认停止',
-}
-
 function Composer({ state, driver }: { readonly state: Open; readonly driver: SessionDriver }) {
   const [text, setText] = useState('')
-  const face = stopFace(state.run)
   const submit = () => {
     if (text.trim().length === 0) return
     void driver.send(text)
@@ -254,8 +277,7 @@ function Composer({ state, driver }: { readonly state: Open; readonly driver: Se
         submit()
       }}
     >
-      <textarea
-        className="omne-input"
+      <Textarea
         aria-label="输入消息"
         placeholder="输入消息，Enter 发送，Shift+Enter 换行"
         rows={3}
@@ -264,25 +286,11 @@ function Composer({ state, driver }: { readonly state: Open; readonly driver: Se
         onKeyDown={onKeyDown}
       />
       <div className="omne-composer-actions">
-        {face === 'none' ? null : (
-          <button
-            type="button"
-            className="omne-button"
-            data-tone="stop"
-            disabled={face === 'stopping'}
-            onClick={() => driver.cancel()}
-          >
-            {STOP_LABEL[face]}
-          </button>
-        )}
-        <button
-          type="submit"
-          className="omne-button"
-          data-tone="primary"
-          disabled={text.trim().length === 0}
-        >
-          发送
-        </button>
+        <ComposerActionSlot
+          face={stopFace(state.run)}
+          canSend={text.trim().length > 0}
+          onStop={() => driver.cancel()}
+        />
       </div>
     </form>
   )

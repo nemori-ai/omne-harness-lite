@@ -38,7 +38,7 @@ describe('read-waiting', () => {
       {
         waiting: {
           run: 'run-1',
-          pending: '2',
+          pending: 2,
           cause: { kind: 'no-reply', detail: 'upstream 503' },
         },
       },
@@ -46,13 +46,13 @@ describe('read-waiting', () => {
     [
       'waiting with a cause and no detail',
       {
-        waiting: { run: 'run-1', pending: '1', cause: { kind: 'guard', detail: null } },
+        waiting: { run: 'run-1', pending: 1, cause: { kind: 'guard', detail: null } },
       },
     ],
     [
       'waiting with nothing pending and no cause',
       {
-        waiting: { run: 'run-1', pending: '0', cause: null },
+        waiting: { run: 'run-1', pending: 0, cause: null },
       },
     ],
   ])('answers succeeded %s and writes it back as it was', (_label, sample) => {
@@ -61,26 +61,26 @@ describe('read-waiting', () => {
 
   it.each([
     ['without waiting', {}],
-    ['with a negative count', { waiting: { run: 'run-1', pending: '-1', cause: null } }],
-    ['with a count that is not decimal', { waiting: { run: 'run-1', pending: '01', cause: null } }],
-    ['with a count as a number', { waiting: { run: 'run-1', pending: 1, cause: null } }],
-    ['with an empty run', { waiting: { run: '', pending: '0', cause: null } }],
+    ['with a negative count', { waiting: { run: 'run-1', pending: -1, cause: null } }],
+    ['with a fractional count', { waiting: { run: 'run-1', pending: 1.5, cause: null } }],
+    ['with a count as text', { waiting: { run: 'run-1', pending: '1', cause: null } }],
+    ['with an empty run', { waiting: { run: '', pending: 0, cause: null } }],
     [
       'with an empty cause kind',
       {
-        waiting: { run: 'run-1', pending: '0', cause: { kind: '', detail: null } },
+        waiting: { run: 'run-1', pending: 0, cause: { kind: '', detail: null } },
       },
     ],
     [
       'with an empty detail',
       {
-        waiting: { run: 'run-1', pending: '0', cause: { kind: 'guard', detail: '' } },
+        waiting: { run: 'run-1', pending: 0, cause: { kind: 'guard', detail: '' } },
       },
     ],
     [
       'with the whole session state',
       {
-        waiting: { run: 'run-1', pending: '0', cause: null, inputs: ['input-1'] },
+        waiting: { run: 'run-1', pending: 0, cause: null, inputs: ['input-1'] },
       },
     ],
   ])('refuses a succeeded body %s', (_label, sample) => {
