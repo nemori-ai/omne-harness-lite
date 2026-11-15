@@ -76,7 +76,7 @@ describe('list-sessions', () => {
   })
 })
 
-describe('C8', () => {
+describe('the query operations', () => {
   it('the two queries are reads that still answer unknown', () => {
     for (const name of ['query-create-session', 'query-send-input'] as const) {
       expect(operations[name].effect).toBe('read')

@@ -337,7 +337,7 @@ describe('a Model received entry becomes one entries-channel Session batch', () 
   })
 })
 
-describe('AD-05 trigger: the event of the Journal plugin wakes the consumption', () => {
+describe('trigger: the event of the Journal plugin wakes the consumption', () => {
   const settle = () => new Promise<void>(resolve => setTimeout(resolve, 50))
   const published = (f: Awaited<ReturnType<typeof assembled>>, s: ModelScene) =>
     f.ctx.parallel(

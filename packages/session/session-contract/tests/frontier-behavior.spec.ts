@@ -541,7 +541,7 @@ describe('whole release batches and historical taken', () => {
     expect(reduce(snapshot, standalone, material.reads)).toMatchObject({ kind: 'quarantined' })
     expect(snapshot.pending).toEqual(['first', 'second'])
   })
-  it('late original SE14 removes only its input and leaves a successor advance, taken and waiting intact', async () => {
+  it('late original run.batch-taken removes only its input and leaves a successor advance, taken and waiting intact', async () => {
     const s = await open()
     const { run, advance } = await s.active()
     await s.commit({

@@ -63,7 +63,7 @@ describe('the attempt generations of one operation have no bound', () => {
     )
   })
 
-  it(`R7 asks past ${ROLLED_BACK} rolled back generations and finds the attempt still in flight`, async () => {
+  it(`asks past ${ROLLED_BACK} rolled back generations and finds the attempt still in flight`, async () => {
     const a = await started()
     await refuseAccept(a, 'pending', ROLLED_BACK)
     const { storage } = a.provider

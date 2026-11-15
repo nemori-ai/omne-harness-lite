@@ -207,7 +207,7 @@ describe('the access evidence through the real write Worker', () => {
 })
 
 describe('an identity that was never committed', () => {
-  it('is not_committed with all five proofs in a ready domain, and queryOperation says unknown, not not-committed (R7)', async () => {
+  it('is not_committed with all five proofs in a ready domain, and queryOperation says unknown, not not-committed', async () => {
     const app = await open()
     ok(await app.create(TENANT_A))
     const asked = await app.storage.query(identityOf(TENANT_A, 'dom_0', 'sop_never'))

@@ -128,7 +128,7 @@ async function folds(a: App, commit: () => Promise<unknown>) {
   expect(canonicalText(encodeValue(held))).toBe(canonicalText(encodeValue(whole)))
 }
 
-describe('T-F1: a folded snapshot is the answer of a whole read', () => {
+describe('a folded snapshot is the answer of a whole read', () => {
   it('commit: accept, startRun and a cancel-run control', async () => {
     const a = await app()
     ok(await a.create(TENANT_A))
@@ -237,7 +237,7 @@ describe('T-F1: a folded snapshot is the answer of a whole read', () => {
   })
 })
 
-describe('T-F1: a batch whose reduction reads the history reads', () => {
+describe('a batch whose reduction reads the history reads', () => {
   it('startRun on an input handed to an ended execution with an observed tail folds as a whole read', async () => {
     const a = await app()
     const agent = agentPublisher({
@@ -293,7 +293,7 @@ describe('T-F1: a batch whose reduction reads the history reads', () => {
   })
 })
 
-describe('T-F1 (H2): the basis of a batch is read again as it was before the batch', () => {
+describe('the basis of a batch is read again as it was before the batch', () => {
   it('session.work-reads at the position before a startRun answers the index and reads read then', async () => {
     const a = await app()
     ok(await a.create(TENANT_A))
@@ -339,7 +339,7 @@ describe('T-F1 (H2): the basis of a batch is read again as it was before the bat
   })
 })
 
-describe('T-F2: only a fresh commit onto the version just below folds', () => {
+describe('only a fresh commit onto the version just below folds', () => {
   it('no held snapshot: nothing folds, and the next read is whole', async () => {
     const a = await app()
     ok(await a.create(TENANT_A))
@@ -452,8 +452,8 @@ describe('a fold that the cache does not keep', () => {
   })
 })
 
-describe('T-F3: a publication between the commit and its fold', () => {
-  it('the index read at the folded tail finds a newer count: the fold registers at that count with its index (P-4)', async () => {
+describe('a publication between the commit and its fold', () => {
+  it('the index read at the folded tail finds a newer count: the fold registers at that count with its index', async () => {
     const a = await app()
     const agent = agentPublisher({
       storage: a.provider.storage,
@@ -511,7 +511,7 @@ describe('T-F3: a publication between the commit and its fold', () => {
   })
 })
 
-describe('T-F3: a publication takes the index of the folded tail over the row bound', () => {
+describe('a publication takes the index of the folded tail over the row bound', () => {
   it('the fold registers at the answered count; readers that waited for it answer as a whole read', async () => {
     const a = await app()
     const { port, storage, hooks } = portOver(a)
@@ -553,7 +553,7 @@ describe('T-F3: a publication takes the index of the folded tail over the row bo
   })
 })
 
-describe('T-F3 (H2): a publication before the basis of the batch is read again', () => {
+describe('a publication before the basis of the batch is read again', () => {
   it('the basis read finds another count: nothing is registered, and the next read is whole', async () => {
     const a = await app()
     const agent = agentPublisher({
@@ -591,7 +591,7 @@ describe('T-F3 (H2): a publication before the basis of the batch is read again',
   })
 })
 
-describe('T-F3 (H2): the index of this Worker went past the position before the batch', () => {
+describe('the index of this Worker went past the position before the batch', () => {
   it('the basis read is stale, nothing is registered, and the next read is whole', async () => {
     const a = await app()
     const { port, storage, hooks } = portOver(a)
@@ -610,7 +610,7 @@ describe('T-F3 (H2): the index of this Worker went past the position before the 
   })
 })
 
-describe('T-F7: a fold that throws', () => {
+describe('a fold that throws', () => {
   it('a reader waiting for it reads whole and answers the new tail', async () => {
     const a = await app()
     const { port, storage, hooks, rewrites } = portOver(a)
@@ -639,7 +639,7 @@ describe('T-F7: a fold that throws', () => {
   })
 })
 
-describe('T-F4: a batch that reduce quarantines on the held snapshot', () => {
+describe('a batch that reduce quarantines on the held snapshot', () => {
   it('is not registered; the quarantine is counted and the next read is whole', async () => {
     const a = await app()
     const { port, storage, hooks } = portOver(a)
@@ -669,7 +669,7 @@ describe('T-F4: a batch that reduce quarantines on the held snapshot', () => {
   })
 })
 
-describe('T-F5: reads of the new version while the fold runs', () => {
+describe('reads of the new version while the fold runs', () => {
   it('wait for the fold: no whole read, and every answer is at the new tail', async () => {
     const a = await app()
     const { port, hooks } = portOver(a)
@@ -690,7 +690,7 @@ describe('T-F5: reads of the new version while the fold runs', () => {
   })
 })
 
-describe('T-F6: a decision over the bound of the reply', () => {
+describe('a decision over the bound of the reply', () => {
   it('is left out of the reply: nothing folds, and the next read is whole', async () => {
     const a = await app()
     ok(await a.create(TENANT_A))

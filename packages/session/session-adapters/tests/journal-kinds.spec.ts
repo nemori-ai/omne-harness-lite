@@ -267,7 +267,7 @@ describe('an event whose consequences the publication does not decide', () => {
   })
 })
 
-describe('path P: AD-02 reads the events after its progress from the fact rows (C-WORKCACHE)', () => {
+describe('path P: the interpretation plugin reads the events after its progress from the fact rows', () => {
   async function eventful(name: string) {
     const s = await scene(name)
     await started(s)
@@ -409,7 +409,7 @@ describe('path P: AD-02 reads the events after its progress from the fact rows (
     expect(asked).toEqual(['0', '1', '2', '3'])
   })
 
-  it('T-P7: a head that moves between pages starts the read again; one that keeps moving is unavailable after three tries', async () => {
+  it('a head that moves between pages starts the read again; one that keeps moving is unavailable after three tries', async () => {
     const s = await eventful('facts-moving')
     const whole = await interpretation(s)
     let firsts = 0
@@ -447,7 +447,7 @@ describe('path P: AD-02 reads the events after its progress from the fact rows (
   })
 })
 
-describe('a publication replaces the index of the held Session snapshot (session-storage-sql RT-04)', () => {
+describe('a publication replaces the index of the held Session snapshot', () => {
   it('the next readWork reads no whole snapshot, and answers what a whole read gives', async () => {
     const s = await scene('publish-index')
     if (s.controls === null) throw new Error('the double storage is expected')
@@ -473,7 +473,7 @@ describe('a publication replaces the index of the held Session snapshot (session
   })
 })
 
-describe('a joint commit with a Session participation folds its batch (session-storage-sql RT-04)', () => {
+describe('a joint commit with a Session participation folds its batch', () => {
   it('the next readWork reads no whole snapshot, and answers what a whole read gives', async () => {
     const s = await scene('joint-fold')
     if (s.controls === null) throw new Error('the double storage is expected')

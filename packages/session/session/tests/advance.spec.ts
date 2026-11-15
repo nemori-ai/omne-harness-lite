@@ -87,7 +87,7 @@ async function acceptDirectly(h: Harness, input: string): Promise<void> {
   )
 }
 
-describe('the session slot reference (XC-AGINST 第 2.1 节, AD-14 rule)', () => {
+describe('the session slot reference', () => {
   const samples: readonly (readonly [string, SessionId, ReturnType<typeof adoption>, string])[] = [
     [
       'plain texts',
@@ -103,7 +103,7 @@ describe('the session slot reference (XC-AGINST 第 2.1 节, AD-14 rule)', () =>
     ],
   ]
   for (const [name, session, adopted, text] of samples)
-    it(`${name}: the reference text equals the sample, and the AD-14 parse rule accepts it`, () => {
+    it(`${name}: the reference text equals the sample, and the AgentDrivePort parse rule accepts it`, () => {
       const reference = sessionSlotReference(session, adopted)
       expect(reference).toEqual({ owner: 'agent', id: text })
       const parsed: unknown = JSON.parse(text)
@@ -282,7 +282,7 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
     'archived',
     'closed',
   ] as const)
-    it(`SC-01 ${withdrawal} 后原 invoke 不再发送`, async () => {
+    it(`${withdrawal} 后原 invoke 不再发送`, async () => {
       const h = await service({ policy: { advance: { retryDelaysMs: [1000] } } })
       await h.create()
       const invoke = vi.fn<AgentDrivePort['invoke']>(async () => fail({ kind: 'busy' }))
@@ -340,7 +340,7 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
       expect(invoke.mock.calls.filter(([input]) => input.execution === execution)).toHaveLength(1)
     })
 
-  it('SC-01 重新读取期间实例关闭则不发送', async () => {
+  it('重新读取期间实例关闭则不发送', async () => {
     const h = await service({ policy: { advance: { retryDelaysMs: [1000] } } })
     await h.create()
     const invoke = vi.fn<AgentDrivePort['invoke']>(async () => fail({ kind: 'busy' }))
@@ -366,7 +366,7 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
     expect(invoke).toHaveBeenCalledTimes(1)
   })
 
-  it('SC-01 commit-unknown 查询后立即重试仍重新核资格', async () => {
+  it('commit-unknown 查询后立即重试仍重新核资格', async () => {
     const h = await service()
     await h.create()
     h.drive.query = async () => {
@@ -398,7 +398,7 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
     expect(invoke).toHaveBeenCalledTimes(1)
   })
 
-  it('SC-01 busy 后取消禁止第二次 invoke', async () => {
+  it('busy 后取消禁止第二次 invoke', async () => {
     const h = await service({ policy: { advance: { retryDelaysMs: [1000] } } })
     await h.create()
     const invoke = vi.fn<AgentDrivePort['invoke']>(async () => fail({ kind: 'busy' as const }))
@@ -525,7 +525,7 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
     expect(snapshot.run.terminal.outcome).toBe('failed')
   })
 
-  it('a drive refusal closes the Run as failed, rejects the first input with drive-refused and does not replay it (VC-A10)', async () => {
+  it('a drive refusal closes the Run as failed, rejects the first input with drive-refused and does not replay it', async () => {
     const h = await service({ policy: { advance: { retryDelaysMs: [1000] } } })
     await h.create()
     let invoked = 0
@@ -621,7 +621,7 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
   })
 })
 
-describe('S4: an unknown commit is resolved with the same identity', () => {
+describe('an unknown commit is resolved with the same identity', () => {
   it('a startRun whose answer was lost is found committed, recalled, and the Run is invoked', async () => {
     const h = await service({
       policy: { pendingResolution: { retryIntervalMs: 500, maxAttempts: 3 } },
@@ -652,7 +652,7 @@ describe('S4: an unknown commit is resolved with the same identity', () => {
   })
 })
 
-describe('S1 from a notice of another process, and S3 after a restart', () => {
+describe('the advance trigger from a notice of another process, and the recovery scan after a restart', () => {
   it('a commit notice with an accepted input wakes S1', async () => {
     const h = await service()
     await h.create()

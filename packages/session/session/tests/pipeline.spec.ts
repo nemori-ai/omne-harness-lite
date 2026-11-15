@@ -303,7 +303,7 @@ describe('step 5: the commit', () => {
     expect(after.run.kind).toBe('active')
   })
 
-  it('an unrelated commit after the read does not make the Run-layer expected stale (R2-D327)', async () => {
+  it('an unrelated commit after the read does not make the Run-layer expected stale', async () => {
     const h = await service({ policy: { command: { retriesOnChanged: 1 } } })
     await h.create()
     await h.accept('input-1')

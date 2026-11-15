@@ -215,7 +215,7 @@ describe('tenant and advance', () => {
     expect(await f.read(stale)).toEqual({ failure: { kind: 'stale-advance' } })
   })
 
-  it('negative control (R2-D348): after a takeover by the same instance, the Authority of the previous attempt is stale-advance and the current one reads', async () => {
+  it('negative control: after a takeover by the same instance, the Authority of the previous attempt is stale-advance and the current one reads', async () => {
     const f = await provided('conditions-takeover')
     ok(await f.read())
     const before = ok(await f.s.port.readWork(f.s.sessionAccess))

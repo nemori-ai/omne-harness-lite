@@ -103,7 +103,7 @@ describe('the materials of the execution index', () => {
 })
 
 describe('the startRun commit writes the index in its own transaction', () => {
-  it('maps the execution of the new Run to its session, Run and the position of its SE13', async () => {
+  it('maps the execution of the new Run to its session, Run and the position of its run.started entry', async () => {
     const a = await app()
     const { execution, run } = await started(a, 'session-1')
     const se13 = rows(
@@ -132,7 +132,7 @@ describe('the startRun commit writes the index in its own transaction', () => {
     ['at the index row', /INSERT INTO sl_execution_idx/],
     ['at the operation record, after the index row', /INSERT INTO sl_operation/],
   ] as const)
-    it(`a startRun that fails ${where} leaves no index row and no SE13; the same command then commits once`, async () => {
+    it(`a startRun that fails ${where} leaves no index row and no run.started entry; the same command then commits once`, async () => {
       const a = await app()
       await ready(a, 'session-1')
       a.provider.failWrite(pattern)

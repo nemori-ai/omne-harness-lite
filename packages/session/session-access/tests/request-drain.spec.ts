@@ -126,7 +126,7 @@ describe('one lane for each session', () => {
     ])
   })
 
-  it('settles the requests of one session while the head of another is being retried (R3)', async () => {
+  it('settles the requests of one session while the head of another is being retried', async () => {
     const { drain, admitted, script } = rig()
     script('a', ...Array.from({ length: 50 }, () => RETRY))
     void drain.enqueue(candidate('a', 'session-1'))

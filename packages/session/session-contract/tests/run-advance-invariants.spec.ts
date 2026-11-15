@@ -241,7 +241,7 @@ describe('RunAdvance guard: decide and reduce keep the Run and attempt invariant
   })
 })
 
-describe('the Run-layer expected of the advance commands (I-R2, PM-02, PM-05, R2-D327)', () => {
+describe('the Run-layer expected of the advance commands (I-R2, PM-02)', () => {
   function startedRun() {
     const commit = log()
     let s = commit(null, {
@@ -365,7 +365,7 @@ describe('the Run-layer expected of the advance commands (I-R2, PM-02, PM-05, R2
     })
   })
 
-  it('a claim that sends the snapshot revision after an unrelated commit is refused (R2-D343)', () => {
+  it('a claim that sends the snapshot revision after an unrelated commit is refused', () => {
     const { commit, s } = startedRun()
     const released = commit(s, release(s))
     if (released === null) throw new Error('release')

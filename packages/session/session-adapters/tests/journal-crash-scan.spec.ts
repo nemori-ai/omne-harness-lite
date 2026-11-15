@@ -163,7 +163,7 @@ const nameOf = (k: number): string => ['c1-effect-a', 'c2-m0', 'c3-effect-b', 'c
 const familyRows = (s: SqlScene, pub: number): FactRow[] =>
   factRows(s).filter(row => row.pub === pub && !row.kind.startsWith('core.'))
 
-describe('a commit that brings no new fact (R2-D307)', () => {
+describe('a commit that brings no new fact', () => {
   it('appends the envelope row only, its bytes are a small constant, and a cold provider recognizes it', async () => {
     const { s, authority } = await opened('scan-envelope')
     ok(await commitStep(s, authority, 'moved', c => ({ ...c, position: 'E2' }))(s.view.journal))

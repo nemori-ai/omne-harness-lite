@@ -174,7 +174,7 @@ describe('C2 续入: an input accepted while the Run is active is handed in', ()
 })
 
 describe('C2 续入: the failure branches of submit', () => {
-  it('a submit refused by the message admission records a rejected hand-over; the input leaves pending and the next one is still handed in (PA-09)', async () => {
+  it('a submit refused by the message admission records a rejected hand-over; the input leaves pending and the next one is still handed in', async () => {
     const h = await service()
     await running(h)
     const submitted = recordSubmits(h, (input, original) =>
@@ -196,7 +196,7 @@ describe('C2 续入: the failure branches of submit', () => {
     expect(submitted.map(item => item.input)).toEqual(['input-2', 'input-3'])
   })
 
-  it('a submit answered terminal is not retried and records nothing; it and the later inputs stay pending (PA-03)', async () => {
+  it('a submit answered terminal is not retried and records nothing; it and the later inputs stay pending', async () => {
     const h = await service({ policy: { advance: { retryDelaysMs: [1000] } } })
     await running(h)
     const submitted = recordSubmits(h, () => Promise.resolve(fail({ kind: 'terminal' as const })))

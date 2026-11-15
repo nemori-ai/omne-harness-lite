@@ -792,7 +792,7 @@ describe('the operation identity', () => {
   })
 })
 
-describe('a result that arrives after its Run is terminal (EC-08)', () => {
+describe('a result that arrives after its Run is terminal', () => {
   it('is committed under the original consumption binding; what it means for the ended Run is Session’s', async () => {
     const s = await toolScene('late')
     const before = ok(await s.backend.transactions.readWork(s.access))

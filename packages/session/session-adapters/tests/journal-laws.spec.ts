@@ -389,7 +389,7 @@ describe('P3 bounded commit: a batch carries this step alone', () => {
     expect(batchBytes(intends[19]!)).toBeLessThanOrEqual(batchBytes(intends[1]!) + 64)
   })
 
-  it('the reception targets are a projection: a call opens on call.intended and closes on result.received (R2-D297)', () => {
+  it('the reception targets are a projection: a call opens on call.intended and closes on result.received', () => {
     const { log, executions } = scene(random(23), { rounds: 3, executions: 1, finish: false })
     let view = emptySessionView()
     for (const batch of log) {
@@ -407,7 +407,7 @@ describe('P3 bounded commit: a batch carries this step alone', () => {
     expect(execution.intents.size).toBeGreaterThanOrEqual(3)
   })
 
-  it('the terminal batches are constant in the number of tool calls; the steps append the obligations (R2-D297, R2-D322)', () => {
+  it('the terminal batches are constant in the number of tool calls; the steps append the obligations', () => {
     const small = scene(random(31), { rounds: 4, executions: 1, finish: true })
     const large = scene(random(31), { rounds: 16, executions: 1, finish: true })
     const smallFinish = small.finishes.get(small.executions[0]!)!
@@ -429,7 +429,7 @@ describe('P3 bounded commit: a batch carries this step alone', () => {
   })
 })
 
-describe('R2-D307: an unchanged commit appends the envelope alone', () => {
+describe('an unchanged commit appends the envelope alone', () => {
   it('an envelope-only batch advances no revision, is indexed, and answers the revision at its time', () => {
     forAll('envelope-only', {
       runs: 40,
@@ -486,7 +486,7 @@ describe('R2-D307: an unchanged commit appends the envelope alone', () => {
   })
 })
 
-describe('R2-D307: exclusion is a fact of the log', () => {
+describe('exclusion is a fact of the log', () => {
   it('an excluded operation answers excluded, its write is refused, and a committed operation cannot be excluded', () => {
     forAll('excluded', {
       runs: 40,
@@ -533,7 +533,7 @@ describe('R2-D307: exclusion is a fact of the log', () => {
   })
 })
 
-describe('R2-D307: the Tool start fence is a fact and an entry event', () => {
+describe('the Tool start fence is a fact and an entry event', () => {
   it('fence.started folds into the fences, projects an entry event and survives the rows', () => {
     const { log } = scene(random(47), { rounds: 3, executions: 1, finish: false })
     const view = foldAll(log)
@@ -551,7 +551,7 @@ describe('R2-D307: the Tool start fence is a fact and an entry event', () => {
   })
 })
 
-describe('R2-D307: an open batch carries the attachment that names its Authority', () => {
+describe('an open batch carries the attachment that names its Authority', () => {
   it('every exec.opened travels with an exec.attached, and the generation is set from it', () => {
     forAll('open-attached', {
       runs: 40,
@@ -737,7 +737,7 @@ async function finished(calls: number, options: { reissue?: boolean } = {}) {
   }
 }
 
-describe('R2-D322: the issue of obligations does not grow with the Tool calls', () => {
+describe('the issue of obligations does not grow with the Tool calls', () => {
   it('after 150 Tool calls prepareFinish succeeds, its batch is the size it is after 1, and the end batch too', async () => {
     const small = await finished(1)
     const large = await finished(150)
@@ -786,7 +786,7 @@ describe('R2-D322: the issue of obligations does not grow with the Tool calls', 
   }, 30_000)
 })
 
-describe('R2-D297: the finishing records are the projection of the folded facts', () => {
+describe('the finishing records are the projection of the folded facts', () => {
   it('a cancellation route rebuilt from the view and the blocks is the settlement and the list that load answers', async () => {
     const s = await journalScene('projection')
     ok(await handed(s))

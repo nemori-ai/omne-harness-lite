@@ -122,7 +122,7 @@ async function readAll(h: Harness): Promise<number> {
   return pages
 }
 
-describe(`SS-02: the counts of each face operation at ${String(SMALL)} and ${String(LARGE)} inputs`, () => {
+describe(`the counts of each face operation at ${String(SMALL)} and ${String(LARGE)} inputs`, () => {
   it('every face operation causes the same counts at both sizes', async () => {
     const small = await profile(SMALL)
     const large = await profile(LARGE)

@@ -119,7 +119,7 @@ describe('query', () => {
   })
 })
 
-describe('the tenant and the session together are the key (R5)', () => {
+describe('the tenant and the session together are the key', () => {
   it('keeps the same session and identity of two tenants apart', () => {
     const other = { tenant: 'tenant-b', message: '{"text":"other"}' }
     const queue = queueOf(candidate('a'))

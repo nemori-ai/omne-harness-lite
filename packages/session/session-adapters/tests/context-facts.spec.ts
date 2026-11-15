@@ -218,8 +218,8 @@ async function world(options: Readonly<{ mount?: readonly 'session'[] }> = {}) {
   }
 }
 
-describe('R2-D14 the scope lookup of the facts plugin', () => {
-  it('R2-D14 a scope that the notice showed and the bindings list is known with the generation of the bindings', async () => {
+describe('the scope lookup of the facts plugin', () => {
+  it('a scope that the notice showed and the bindings list is known with the generation of the bindings', async () => {
     const f = await world()
     await f.committed()
     expect(await f.lookup(f.ownScope)).toEqual({
@@ -230,7 +230,7 @@ describe('R2-D14 the scope lookup of the facts plugin', () => {
     })
   })
 
-  it('R2-D29 a known answer names an owner and nothing else; every read is a history read as reader with the principal of the session, none reads the snapshot', async () => {
+  it('a known answer names an owner and nothing else; every read is a history read as reader with the principal of the session, none reads the snapshot', async () => {
     const f = await world()
     await f.committed()
     const answer = await f.lookup(f.ownScope)
@@ -246,7 +246,7 @@ describe('R2-D14 the scope lookup of the facts plugin', () => {
     ).toBe(true)
   })
 
-  it('R2-D14 a forged scope text is unknown', async () => {
+  it('a forged scope text is unknown', async () => {
     const f = await world()
     await f.committed()
     expect(await f.lookup(scopeRef('session-scope:forged'))).toEqual({
@@ -254,7 +254,7 @@ describe('R2-D14 the scope lookup of the facts plugin', () => {
     })
   })
 
-  it('R2-D14 a scope of another tenant that a session log names is unknown, never the tenant of that log', async () => {
+  it('a scope of another tenant that a session log names is unknown, never the tenant of that log', async () => {
     const foreign = await scene('context-facts-foreign', undefined, undefined, undefined, 'other')
     const theirs = ok(await foreign.backend.transactions.readWork(foreign.access))
       .contextScopes?.[0]
@@ -269,7 +269,7 @@ describe('R2-D14 the scope lookup of the facts plugin', () => {
     expect((await f.lookup(f.ownScope)).kind).toBe('known')
   })
 
-  it('R2-D14 a generation the session has not minted yet is unknown, and known once it is minted', async () => {
+  it('a generation the session has not minted yet is unknown, and known once it is minted', async () => {
     const f = await world()
     const second = scopeRef(
       contextScopeOf({ tenant: f.s.access.tenant, session: f.s.access.session, generation: '2' }),
@@ -286,13 +286,13 @@ describe('R2-D14 the scope lookup of the facts plugin', () => {
     })
   })
 
-  it('R2-D14 a scope not seen since the plugin started is unknown, not absent from the store', async () => {
+  it('a scope not seen since the plugin started is unknown, not absent from the store', async () => {
     const f = await world()
     expect(await f.lookup(f.ownScope)).toEqual({ kind: 'unknown' })
     expect(f.calls).toEqual([])
   })
 
-  it('R2-D14 a notice still in flight is waited for before a scope is called unknown', async () => {
+  it('a notice still in flight is waited for before a scope is called unknown', async () => {
     const f = await world()
     const dispatched = f.committed()
     const answer = await f.lookup(f.ownScope)
@@ -300,7 +300,7 @@ describe('R2-D14 the scope lookup of the facts plugin', () => {
     expect(answer.kind).toBe('known')
   })
 
-  it('R2-D202 the first notice of a session indexes its open scope without reading the context records, and a later one reads nothing', async () => {
+  it('the first notice of a session indexes its open scope without reading the context records, and a later one reads nothing', async () => {
     const f = await world()
     await f.committed(['run.terminal'])
     expect(await f.lookup(f.ownScope)).toMatchObject({ kind: 'known' })
@@ -312,7 +312,7 @@ describe('R2-D14 the scope lookup of the facts plugin', () => {
     expect(f.calls).toHaveLength(before)
   })
 
-  it('R2-D14 a scope of an older generation keeps its own generation after the session moved on', async () => {
+  it('a scope of an older generation keeps its own generation after the session moved on', async () => {
     const f = await world()
     const { scope: next } = await f.cycle('older')
     await f.committed([CREATED, ADOPTION, 'session.unarchived'])
@@ -326,8 +326,8 @@ describe('R2-D14 the scope lookup of the facts plugin', () => {
   })
 })
 
-describe('R2-D14 unknown and unavailable stay apart', () => {
-  it('R2-D14 a failed scope read is unavailable, and the same scope is known once the read works', async () => {
+describe('unknown and unavailable stay apart', () => {
+  it('a failed scope read is unavailable, and the same scope is known once the read works', async () => {
     const f = await world()
     f.faults.scopes = true
     await f.committed()
@@ -336,7 +336,7 @@ describe('R2-D14 unknown and unavailable stay apart', () => {
     expect((await f.lookup(f.ownScope)).kind).toBe('known')
   })
 
-  it('R2-D14 a coordinator principal that cannot be had is unavailable', async () => {
+  it('a coordinator principal that cannot be had is unavailable', async () => {
     const f = await world()
     f.faults.scopes = true
     await f.committed()
@@ -345,7 +345,7 @@ describe('R2-D14 unknown and unavailable stay apart', () => {
     expect(await f.lookup(f.ownScope)).toEqual({ kind: 'unavailable' })
   })
 
-  it('R2-D14 a binding that is not minted for the session asked is unavailable, not known', async () => {
+  it('a binding that is not minted for the session asked is unavailable, not known', async () => {
     const f = await world()
     f.faults.extra = {
       id: 'entry-elsewhere' as EntryId,
@@ -370,7 +370,7 @@ describe('R2-D14 unknown and unavailable stay apart', () => {
     expect(await f.lookup(f.ownScope)).toEqual({ kind: 'unavailable' })
   })
 
-  it('R2-D14 a missing session service keeps the plugin pending: no service, and the lookup is unavailable', async () => {
+  it('a missing session service keeps the plugin pending: no service, and the lookup is unavailable', async () => {
     const f = await world({ mount: [] })
     expect(f.ctx[sessionScopeLookupKey]).toBeUndefined()
     expect(f.ctx[sessionReplayFactsKey]).toBeUndefined()
@@ -396,8 +396,8 @@ describe('SCOPE-NARROW the owner of a scope never changes', () => {
   })
 })
 
-describe('R2-D29 the two facts services on real Cordis', () => {
-  it('R2-D29 sessionScopeLookup and sessionReplayFacts are provided under their keys while the facts plugin runs', async () => {
+describe('the two facts services on real Cordis', () => {
+  it('sessionScopeLookup and sessionReplayFacts are provided under their keys while the facts plugin runs', async () => {
     const f = await world()
     await f.committed()
     expect(f.ctx[sessionScopeLookupKey]).toBeInstanceOf(SessionScopeLookupService)
@@ -409,7 +409,7 @@ describe('R2-D29 the two facts services on real Cordis', () => {
     })
   })
 
-  it('R2-D29 a stopped facts plugin withdraws both services, and a caller that holds the old reference gets unavailable', async () => {
+  it('a stopped facts plugin withdraws both services, and a caller that holds the old reference gets unavailable', async () => {
     const f = await world()
     await f.committed()
     const heldLookup = f.ctx[sessionScopeLookupKey]
@@ -425,8 +425,8 @@ describe('R2-D29 the two facts services on real Cordis', () => {
   })
 })
 
-describe('R2-D14 replayFacts without the replay sub-plugin', () => {
-  it('R2-D14 answers from the facts plugin while no replay sub-plugin and no Runtime Context run', async () => {
+describe('replayFacts without the replay sub-plugin', () => {
+  it('answers from the facts plugin while no replay sub-plugin and no Runtime Context run', async () => {
     const f = await world()
     await f.committed()
     const facts = f.holder.replayFacts
@@ -440,7 +440,7 @@ describe('R2-D14 replayFacts without the replay sub-plugin', () => {
     })
   })
 
-  it('R2-D14 replayFacts is unavailable for a scope the plugin has not seen, a history that cannot be read, and a stopped plugin', async () => {
+  it('replayFacts is unavailable for a scope the plugin has not seen, a history that cannot be read, and a stopped plugin', async () => {
     const f = await world()
     const facts = f.holder.replayFacts
     expect(await facts.stepCommittedBlocks(f.ownScope, null)).toEqual({ kind: 'unavailable' })

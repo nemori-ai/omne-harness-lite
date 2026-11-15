@@ -15,7 +15,7 @@ async function build(): Promise<Assembly> {
   return assembly
 }
 
-describe('CP1: create, append through the work face, query; another tenant is denied', () => {
+describe('create, append through the work face, query; another tenant is denied', () => {
   it('commits both commands to the real SQL storage and answers committed on query', async () => {
     const a = await build()
     const intake = await a.caller('intake')

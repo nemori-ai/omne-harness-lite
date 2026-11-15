@@ -164,7 +164,7 @@ describe('each face operation asks the access check exactly once', () => {
   })
 })
 
-describe('the failure branches of the decision (CP-01 第 1 步)', () => {
+describe('the failure branches of the decision', () => {
   const unavailableCheck = { kind: 'unavailable', diagnostic: 'policy store down' } as const
   const throwingCheck = { kind: 'throw', error: new Error('policy crashed') } as const
 
@@ -234,7 +234,7 @@ describe('the failure branches of the decision (CP-01 第 1 步)', () => {
     expect(h.view.calls().map(call => call.method)).toEqual(['queryOperation', 'commit'])
   })
 
-  it('a caller class outside the operation is denied before any decision (VC-O05)', async () => {
+  it('a caller class outside the operation is denied before any decision', async () => {
     const h = await service()
     await h.create()
     expect(
@@ -265,7 +265,7 @@ describe('the failure branches of the decision (CP-01 第 1 步)', () => {
   })
 })
 
-describe('another tenant (R3.4)', () => {
+describe('another tenant', () => {
   it('a principal of tenant B reading or writing session-1 of tenant A is denied, the same as a session that never was', async () => {
     const h = await service()
     await h.create()

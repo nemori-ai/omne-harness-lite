@@ -68,7 +68,7 @@ async function refusedStart(a: App, name: string): Promise<void> {
   expect(failureOf(await startRun(a, name)).kind).not.toBe('unavailable')
 }
 
-describe('T-A2-1: two commits that read the same snapshot parse it once', () => {
+describe('two commits that read the same snapshot parse it once', () => {
   it('the second refused commit reads the row again but reuses the parsed snapshot', async () => {
     const a = await app()
     ok(await a.create(TENANT_A))
@@ -107,7 +107,7 @@ describe('T-A2-1: two commits that read the same snapshot parse it once', () => 
   })
 })
 
-describe('T-A2-2: the snapshot of a commit that fails is kept, but the next commit does not use it', () => {
+describe('the snapshot of a commit that fails is kept, but the next commit does not use it', () => {
   const IGNORE_TAIL =
     'CREATE TRIGGER ignore_tail BEFORE UPDATE ON sl_journal BEGIN SELECT RAISE(IGNORE); END'
 
@@ -175,7 +175,7 @@ describe('T-A2-2: the snapshot of a commit that fails is kept, but the next comm
   })
 })
 
-describe('T-A2-3: the snapshot that a commit starts from is deep-frozen', () => {
+describe('the snapshot that a commit starts from is deep-frozen', () => {
   it('every object of the kept snapshot is frozen, and a write into it throws', async () => {
     const a = await app()
     ok(await a.create(TENANT_A))
@@ -207,7 +207,7 @@ describe('the key of a kept snapshot', () => {
   })
 })
 
-describe('T-A2-4: the kept snapshot is checked against the row, not only by its revision', () => {
+describe('the kept snapshot is checked against the row, not only by its revision', () => {
   it('two databases at the same revision with other rows: each commit starts from its own row', async () => {
     const a = await app()
     const b = await app()

@@ -301,7 +301,7 @@ describe('queryOperation', () => {
     )
   })
 
-  it('an operation without a receipt is asked of the storage under its original identity and is unknown, not not-committed (R7)', async () => {
+  it('an operation without a receipt is asked of the storage under its original identity and is unknown, not not-committed', async () => {
     const a = await started()
     const mark = a.provider.calls.length
     const resolved = ok<{ kind: string; exclusion?: { owner: string } }>(

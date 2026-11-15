@@ -60,7 +60,7 @@ const accept = (a: App, port: App['port'], name: string) =>
     guards: [guard('login', 'login-entry', 'present')],
   })
 
-describe('T-1: readWork at one version', () => {
+describe('readWork at one version', () => {
   it('reads the whole snapshot once and the version on every read', async () => {
     const a = await app()
     await a.create(TENANT_A)
@@ -86,7 +86,7 @@ describe('T-1: readWork at one version', () => {
   })
 })
 
-describe('T-12: the session binding source does not use the work cache', () => {
+describe('the session binding source does not use the work cache', () => {
   it('after a readWork of the port, a binding read asks neither the version nor the whole snapshot, and it answers bound', async () => {
     const a = await app()
     await a.create(TENANT_A)
@@ -150,7 +150,7 @@ describe('one cache per database, never across databases', () => {
   })
 })
 
-describe('T-2: readWork after a commit', () => {
+describe('readWork after a commit', () => {
   it('a commit of this port: the commit folds its batch, and the next read gives the new revision without a whole read', async () => {
     const a = await app()
     await a.create(TENANT_A)
@@ -175,7 +175,7 @@ describe('T-2: readWork after a commit', () => {
   })
 })
 
-describe('T-3: an Agent publication at the same Session tail', () => {
+describe('an Agent publication at the same Session tail', () => {
   it('the history index of the next read shows the published row', async () => {
     const a = await app()
     const agent = agentPublisher({
@@ -209,7 +209,7 @@ describe('T-3: an Agent publication at the same Session tail', () => {
   })
 })
 
-describe('T-4: two tenants with the same session name', () => {
+describe('two tenants with the same session name', () => {
   it('each tenant reads its own snapshot, before and after a write of the other', async () => {
     const a = await app()
     await a.create(TENANT_A)
@@ -232,7 +232,7 @@ describe('T-4: two tenants with the same session name', () => {
   })
 })
 
-describe('T-5: reads and commits of one process interleaved', () => {
+describe('reads and commits of one process interleaved', () => {
   it('no answer is older than the commits that ended before it began, nor newer than the store', async () => {
     const a = await app()
     await a.create(TENANT_A)
@@ -287,7 +287,7 @@ describe('single-flight: concurrent reads of one version share one whole read', 
   })
 })
 
-describe('T-6: the bounds of the cache', () => {
+describe('the bounds of the cache', () => {
   const read = async (a: App, session: string) => {
     const from = a.provider.calls.length
     okOf(await a.port.readWork(a.access(TENANT_A, session)))
@@ -348,7 +348,7 @@ describe('T-6: the bounds of the cache', () => {
   })
 })
 
-describe('T-7: a tail that moved backwards', () => {
+describe('a tail that moved backwards', () => {
   it('answers unavailable, drops the entry, and the next read is whole', async () => {
     const a = await app()
     await a.create(TENANT_A)
@@ -391,7 +391,7 @@ describe('a snapshot row behind the tail', () => {
   })
 })
 
-describe('T-7b: a publication count that moved backwards while the tail moved on', () => {
+describe('a publication count that moved backwards while the tail moved on', () => {
   it('answers unavailable with the backwards diagnostic, and the next read is whole', async () => {
     const a = await app()
     await a.create(TENANT_A)
@@ -414,7 +414,7 @@ describe('T-7b: a publication count that moved backwards while the tail moved on
   })
 })
 
-describe('T-8: the answer of a hit is frozen', () => {
+describe('the answer of a hit is frozen', () => {
   it('a reader that writes to it throws, and the next reader sees the snapshot unchanged', async () => {
     const a = await app()
     await a.create(TENANT_A)
@@ -432,7 +432,7 @@ describe('T-8: the answer of a hit is frozen', () => {
   })
 })
 
-describe('T-10: the version is not known', () => {
+describe('the version is not known', () => {
   it('a failed version read: the whole snapshot is read and answered, the cache is not used', async () => {
     const a = await app()
     await a.create(TENANT_A)
@@ -454,7 +454,7 @@ describe('T-10: the version is not known', () => {
   })
 })
 
-describe('T-11: the key reads the position, never the content', () => {
+describe('the key reads the position, never the content', () => {
   it('a snapshot row changed without its tail: this cache keeps the old answer, a new instance reads the row', async () => {
     const a = await app()
     await a.create(TENANT_A)

@@ -70,7 +70,7 @@ async function scan(h: Harness): Promise<void> {
   await handle.release()
 }
 
-describe('the recovery of an active Run (PM-14)', () => {
+describe('the recovery of an active Run', () => {
   it('claims a new attempt for an execution that was handed over and resumes it under that grant', async () => {
     const { h, run } = await acceptedRun()
     const agent = handedOver(h)
@@ -250,7 +250,7 @@ describe('the recovery of an active Run (PM-14)', () => {
   })
 })
 
-describe('what a step of the recovery leaves when it fails (PM-05)', () => {
+describe('what a step of the recovery leaves when it fails', () => {
   const reported = (h: Harness) =>
     h
       .diagnostics()
@@ -459,7 +459,7 @@ describe('what a step of the recovery leaves when it fails (PM-05)', () => {
   })
 })
 
-describe('the Run that the Agent accepted (PM-14, PA-06 item 2)', () => {
+describe('the Run that the Agent accepted', () => {
   const shaped = async (pending: readonly string[], handed: readonly string[]) => {
     const { h } = await acceptedRun()
     return { ...(await read(h)), pending, handed } as unknown as WorkSnapshot

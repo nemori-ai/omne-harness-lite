@@ -97,7 +97,7 @@ async function prepareEnd(
   return load(s)
 }
 
-describe('tryFinish on the production session-log Journal with the PA-02 finish check', () => {
+describe('tryFinish on the production session-log Journal with the pending-input finish check', () => {
   for (const storage of ['double', 'real'] as const) {
     it(
       `node failure retains the original untaken input and candidate across a cold provider (${storage})`,

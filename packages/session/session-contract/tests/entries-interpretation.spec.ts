@@ -252,7 +252,7 @@ describe('digestSessionEntries', () => {
 })
 
 describe('projectSessionEntries: one case per rule', () => {
-  it('EI-01 another session or tenant is denied for commitEntries', () => {
+  it('another session or tenant is denied for commitEntries', () => {
     for (const observation of [
       { ...b0(c), session: sessionId('S2') },
       { ...b0(c), tenant: memoryOtherAccess('other').tenant },
@@ -263,7 +263,7 @@ describe('projectSessionEntries: one case per rule', () => {
       })
   })
 
-  it('EI-02 an empty operation is invalid', () => {
+  it('an empty operation is invalid', () => {
     expectInvalid(
       judge(c, { observation: { ...b0(c), operation: '' as SessionOperationId } }),
       'operation',
@@ -279,12 +279,12 @@ describe('projectSessionEntries: one case per rule', () => {
     source: evidence('provider/receipt'),
   }
 
-  it('EI-03 the same operation with the same observation recalls the original receipt', () => {
+  it('the same operation with the same observation recalls the original receipt', () => {
     const record = { operation: operationId('op-1'), digest: digestSessionEntries(b0(c)), receipt }
     expect(judge(c, { record })).toEqual({ kind: 'recovered', receipt })
   })
 
-  it('EI-04 the same operation with another input, or of another form, is a conflict', () => {
+  it('the same operation with another input, or of another form, is a conflict', () => {
     const conflict = { kind: 'conflict', operation: operationId('op-1') }
     const record = { operation: operationId('op-1'), digest: digestSessionEntries(b0(c)), receipt }
     const changed = { ...b0(c), items: [item('1', 'k9', [execution('call-1')]), b0(c).items[1]!] }
@@ -293,7 +293,7 @@ describe('projectSessionEntries: one case per rule', () => {
     expect(failureOf(judge(c, { record: batch }))).toEqual(conflict)
   })
 
-  it('EI-05 counts and ordinals are canonical decimals', () => {
+  it('counts and ordinals are canonical decimals', () => {
     const observation = b0(c)
     const cases: readonly [SessionEntriesObservation, string][] = [
       [{ ...observation, after: '00' }, 'after'],
@@ -321,7 +321,7 @@ describe('projectSessionEntries: one case per rule', () => {
     for (const [edited, field] of cases) expectInvalid(judge(c, { observation: edited }), field)
   })
 
-  it('EI-06 every evidence of the observation is complete', () => {
+  it('every evidence of the observation is complete', () => {
     const observation = b0(c)
     const first = observation.items[0]!
     const cases: readonly [SessionEntriesObservation, string][] = [
@@ -362,7 +362,7 @@ describe('projectSessionEntries: one case per rule', () => {
     for (const [edited, field] of cases) expectInvalid(judge(c, { observation: edited }), field)
   })
 
-  it('EI-07 an execution that Session never recorded is unavailable, not guessed', () => {
+  it('an execution that Session never recorded is unavailable, not guessed', () => {
     const observation = b0(c)
     const failure = failureOf(
       judge(c, {
@@ -377,11 +377,11 @@ describe('projectSessionEntries: one case per rule', () => {
     expect(failure.kind === 'unavailable' && failure.diagnostic).toMatch(/^execution:/u)
   })
 
-  it('EI-08 the execution belongs to the run of the observation', () => {
+  it('the execution belongs to the run of the observation', () => {
     expectInvalid(judge(c, { observation: { ...b0(c), run: c.r0 } }), 'run')
   })
 
-  it('EI-09 the boundary names the execution of the observation', () => {
+  it('the boundary names the execution of the observation', () => {
     const observation = b0(c)
     expectInvalid(
       judge(c, {
@@ -391,7 +391,7 @@ describe('projectSessionEntries: one case per rule', () => {
     )
   })
 
-  it('EI-10 the boundary names the channel of the observation', () => {
+  it('the boundary names the channel of the observation', () => {
     const observation = b0(c)
     expectInvalid(
       judge(c, {
@@ -404,11 +404,11 @@ describe('projectSessionEntries: one case per rule', () => {
     )
   })
 
-  it('EI-11 an empty or inverted range is invalid', () => {
+  it('an empty or inverted range is invalid', () => {
     expectInvalid(judge(c, { observation: { ...b0(c), through: '0', items: [] } }), 'through')
   })
 
-  it('EI-12 the range does not pass the channel count', () => {
+  it('the range does not pass the channel count', () => {
     const observation = b0(c)
     expectInvalid(
       judge(c, {
@@ -418,11 +418,11 @@ describe('projectSessionEntries: one case per rule', () => {
     )
   })
 
-  it('EI-13 after agrees with the start', () => {
+  it('after agrees with the start', () => {
     expectInvalid(judge(c, { observation: { ...b0(c), after: '1', items: oneItem('2') } }), 'after')
   })
 
-  it('EI-14 a start behind the saved progress is changed, at the snapshot revision', () => {
+  it('a start behind the saved progress is changed, at the snapshot revision', () => {
     const changed = { kind: 'changed', revision: c.snapshot.revision }
     expect(
       failureOf(
@@ -449,7 +449,7 @@ describe('projectSessionEntries: one case per rule', () => {
     ).toEqual(changed)
   })
 
-  it('EI-15 a start that is not behind equals the saved progress', () => {
+  it('a start that is not behind equals the saved progress', () => {
     const progress = saved1(c)[0]!
     const next = { ...b0(c), after: '2', through: '3', items: oneItem('3') }
     const cases: readonly [readonly SessionEntriesProgress[], SessionEntriesStart][] = [
@@ -464,11 +464,11 @@ describe('projectSessionEntries: one case per rule', () => {
       expectInvalid(judge(c, { saved, start, observation: next }), 'start')
   })
 
-  it('EI-16 the items fill the range', () => {
+  it('the items fill the range', () => {
     expectInvalid(judge(c, { observation: { ...b0(c), items: [b0(c).items[0]!] } }), 'items')
   })
 
-  it('EI-17 item i has ordinal after + 1 + i', () => {
+  it('item i has ordinal after + 1 + i', () => {
     const observation = b0(c)
     const withOrdinals = (ordinals: readonly string[]) =>
       ordinals.map((ordinal, at) =>
@@ -483,7 +483,7 @@ describe('projectSessionEntries: one case per rule', () => {
     for (const [edited, field] of cases) expectInvalid(judge(c, { observation: edited }), field)
   })
 
-  it('EI-18 every key is non-empty', () => {
+  it('every key is non-empty', () => {
     const observation = b0(c)
     expectInvalid(
       judge(c, {
@@ -496,7 +496,7 @@ describe('projectSessionEntries: one case per rule', () => {
     )
   })
 
-  it('EI-19 a key appears once in a batch', () => {
+  it('a key appears once in a batch', () => {
     const observation = b0(c)
     expectInvalid(
       judge(c, {
@@ -509,7 +509,7 @@ describe('projectSessionEntries: one case per rule', () => {
     )
   })
 
-  it('EI-20 an interpretation is non-empty, and observed stands alone', () => {
+  it('an interpretation is non-empty, and observed stands alone', () => {
     const observation = b0(c)
     for (const interpretation of [[], [observed, execution('call-1')]])
       expectInvalid(
@@ -523,7 +523,7 @@ describe('projectSessionEntries: one case per rule', () => {
       )
   })
 
-  it('EI-21 a producer fact needs the original binding of the producer', () => {
+  it('a producer fact needs the original binding of the producer', () => {
     const observation = b0(c)
     expectInvalid(
       judge(c, {
@@ -536,7 +536,7 @@ describe('projectSessionEntries: one case per rule', () => {
     )
   })
 
-  it('EI-23 a range of only observed items is invalid: it carries over to the next batch', () => {
+  it('a range of only observed items is invalid: it carries over to the next batch', () => {
     const observation = b0(c)
     expectInvalid(
       judge(c, {
@@ -697,7 +697,7 @@ describe('reduce: the progress chain in WorkSnapshot.entriesProgress', () => {
     expect(reduce(one, first)).toEqual({ kind: 'reduced', snapshot: one })
   })
 
-  it('RD-1 a progress row that does not start at the saved through quarantines', () => {
+  it('a progress row that does not start at the saved through quarantines', () => {
     const answer = reduce(
       c.snapshot,
       progressRow({ run: c.r1, execution: c.ex1, after: '1', through: '2' }, next(c.snapshot)),
@@ -708,7 +708,7 @@ describe('reduce: the progress chain in WorkSnapshot.entriesProgress', () => {
     })
   })
 
-  it('RD-1 a progress row that starts at 0 after a saved progress of its channel quarantines', () => {
+  it('a progress row that starts at 0 after a saved progress of its channel quarantines', () => {
     const { one } = twoBatches()
     const answer = reduce(
       one,
@@ -720,7 +720,7 @@ describe('reduce: the progress chain in WorkSnapshot.entriesProgress', () => {
     })
   })
 
-  it('RD-2 a progress row that does not advance quarantines', () => {
+  it('a progress row that does not advance quarantines', () => {
     const answer = reduce(
       c.snapshot,
       progressRow({ run: c.r1, execution: c.ex1, after: '0', through: '0' }, next(c.snapshot)),
@@ -731,7 +731,7 @@ describe('reduce: the progress chain in WorkSnapshot.entriesProgress', () => {
     })
   })
 
-  it('RD-3 a progress row whose execution is not of its run quarantines', () => {
+  it('a progress row whose execution is not of its run quarantines', () => {
     const answer = reduce(
       c.snapshot,
       progressRow({ run: c.r0, execution: c.ex1, after: '0', through: '2' }, next(c.snapshot)),

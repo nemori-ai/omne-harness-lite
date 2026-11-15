@@ -287,8 +287,8 @@ describe('the later interpretation commit', () => {
   })
 })
 
-describe('the Session side reaches the Journal as the AD-01 answer and writes nothing', () => {
-  it('a submit of an input Session never admitted is denied by the read-only check (PA-01 item 2)', async () => {
+describe('the Session side reaches the Journal as the commit participant answer and writes nothing', () => {
+  it('a submit of an input Session never admitted is denied by the read-only check', async () => {
     const { s } = await opened('submit-check')
     const value = ordinaryInput('never-admitted')
     const before = count(s, 'er_operation')

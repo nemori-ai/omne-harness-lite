@@ -1123,7 +1123,7 @@ function rewrite(payload: JsonValue, key: string, value: JsonValue): JsonValue {
   }
 }
 
-describe('the translation drives AD-03 replay on real Session entries', () => {
+describe('the translation drives the holder replay on real Session entries', () => {
   it('recovers the scope from the initial registration, the later change and the step commit, then applies the end', async () => {
     const log = await sessionLog({ archive: false })
     const ctx = new Context()

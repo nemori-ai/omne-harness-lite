@@ -292,7 +292,7 @@ function scriptedAdoptedRequests() {
   return { state, Plugin }
 }
 
-describe('contextHolderSources conformance against the AD-04 source sub-plugin', () => {
+describe('contextHolderSources conformance against the history source sub-plugin', () => {
   const fixture: ContextHolderSourcesFixture<unknown> = {
     async start(ctx) {
       const w = await world({ ctx })
@@ -753,7 +753,7 @@ function savedOf(target: ContextTarget, tag: string, order: string, values: Fixe
   return { saved, record }
 }
 
-describe('the narrow adoption source reads the a part of the session (RQ-14)', () => {
+describe('the narrow adoption source reads the a part of the session', () => {
   async function adoptedWorld() {
     const w = await world()
     const { parts } = await w.borrow()
@@ -921,7 +921,7 @@ describe('the narrow adoption source reads the a part of the session (RQ-14)', (
     })
   })
 
-  it('RQ-14: the window usage of the real accounting is not-fixed before the first M0 and an estimate after it', async () => {
+  it('the window usage of the real accounting is not-fixed before the first M0 and an estimate after it', async () => {
     const { w, parts, target } = await adoptedWorld()
     const accounting = createContextAccounting<unknown>({
       sourceAuthority: { check: async () => ({ kind: 'allowed' }) },
@@ -965,7 +965,7 @@ describe('the narrow adoption source reads the a part of the session (RQ-14)', (
 
 const CALLS_PER_TAIL_READ = 2
 
-describe('SS-21: a page after the cursor costs the same at N = 10 and N = 100 rows', () => {
+describe('a page after the cursor costs the same at N = 10 and N = 100 rows', () => {
   type Tail = Readonly<{ calls: number; rows: number; returned: readonly string[] }>
   type TailRead = (
     parts: ContextHolderParts<unknown>,

@@ -223,7 +223,7 @@ async function rounds(w: World, rows: number, count: number) {
   return served
 }
 
-describe('AD-04 over the cursors session-storage-sql issues', () => {
+describe('over the cursors session-storage-sql issues', () => {
   it('reads across pages and sends Session only the cursors Session issued', async () => {
     const w = await world()
     const parts = await w.borrow()

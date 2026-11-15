@@ -105,8 +105,8 @@ function claim(a: App, read: ReturnType<typeof activeRun>, name: string) {
   })
 }
 
-describe('T-A3-1: the kept index answers as a whole read after every commit', () => {
-  it('routed inputs, SE13, SE15, the controls and their original executions are equal', async () => {
+describe('the kept index answers as a whole read after every commit', () => {
+  it('routed inputs, run.started, run.attempt-started, the controls and their original executions are equal', async () => {
     const a = await app()
     const answers: Answer[] = []
     const step = async (commit: () => Promise<unknown>) => {
@@ -222,7 +222,7 @@ const read = (db: Db | Port, session: string, scope: SessionInputScope = pending
   answered(readHistory(db as Port, 't', session, snapshotOf(session), scope))
 const inputsOf = (answer: Answer) => answer.index.inputs.map(item => item.input)
 
-describe('T-A3-2: a gap after the cursor fails the call, and the next call builds again', () => {
+describe('a gap after the cursor fails the call, and the next call builds again', () => {
   it('module level: the read with the gap throws; the next one lists the row', () => {
     const { port: db } = migratedPort()
     insert(db, 'gap', 1, 1, 'intake.routed', { input: 'in-1' })
@@ -266,7 +266,7 @@ describe('T-A3-2: a gap after the cursor fails the call, and the next call build
   })
 })
 
-describe('T-A3-3: the inputs are those of the scope', () => {
+describe('the inputs are those of the scope', () => {
   it('a routed input outside the scope is not listed once the session has an admission, kept or not', async () => {
     const { port: db } = migratedPort()
     for (const [n, input] of [
@@ -293,8 +293,8 @@ describe('T-A3-3: the inputs are those of the scope', () => {
   })
 })
 
-describe('T-A3-4: an SE15 row whose Run has no SE13 is left out, as a whole read leaves it out', () => {
-  it('until the SE13 of its Run is folded in a later call', async () => {
+describe('a run.attempt-started row whose Run has no run.started entry is left out, as a whole read leaves it out', () => {
+  it('until the run.started entry of its Run is folded in a later call', async () => {
     const { port: db } = migratedPort()
     insert(db, 'attempts', 1, 1, 'run.attempt-started', {
       run: 'r-1',

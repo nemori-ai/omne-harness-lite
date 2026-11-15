@@ -86,7 +86,7 @@ const ended = (producer: ProducerRef): SessionCallTerminal => ({
 })
 
 describe('one operation table for every form (SL07)', () => {
-  it('OD-1: a batch identity reused by cancelRun is a conflict and the Run is untouched', async () => {
+  it('a batch identity reused by cancelRun is a conflict and the Run is untouched', async () => {
     const { s, run } = await withCall()
     succeeded(await change(s, 'X', 'model-b'), 'change')
     const failure = refused(await cancel(s, 'X', run), 'cancelRun')
@@ -94,7 +94,7 @@ describe('one operation table for every form (SL07)', () => {
     expect((await s.read()).run.kind).toBe('active')
   })
 
-  it('OD-2: an answer-only control identity reused by another command is a conflict', async () => {
+  it('an answer-only control identity reused by another command is a conflict', async () => {
     const s = await open()
     const answer = succeeded(await cancel(s, 'X', 'run_never'), 'cancelRun')
     expect(answer.answer).toEqual({ kind: 'not-found' })
@@ -102,13 +102,13 @@ describe('one operation table for every form (SL07)', () => {
     expect((await s.read()).lifecycle).not.toBe('archived')
   })
 
-  it('OD-3: cancelRun and stopCall share the identity space', async () => {
+  it('cancelRun and stopCall share the identity space', async () => {
     const { s, run } = await withCall()
     succeeded(await cancel(s, 'C', run), 'cancelRun')
     expect(refused(await stop(s, 'C', MODEL), 'stopCall')).toMatchObject({ kind: 'conflict' })
   })
 
-  it('OD-4: queryOperation on a control identity is a conflict and leaks nothing', async () => {
+  it('queryOperation on a control identity is a conflict and leaks nothing', async () => {
     const { s } = await withCall()
     s.port.controls.recordCallTerminal(s.base.tenant, s.base.session, ended(MODEL))
     succeeded(await stop(s, 'X', MODEL), 'stopCall')
@@ -119,14 +119,14 @@ describe('one operation table for every form (SL07)', () => {
     })
   })
 
-  it('OD-5: two commands racing for one identity leave exactly one committed', async () => {
+  it('two commands racing for one identity leave exactly one committed', async () => {
     const { s, run } = await withCall()
     const both = await Promise.all([change(s, 'X', 'model-b'), cancel(s, 'X', run)])
     expect(both.filter(item => 'ok' in item)).toHaveLength(1)
     expect(both.find(item => 'failure' in item)).toMatchObject({ failure: { kind: 'conflict' } })
   })
 
-  it('OD-6: the same cancelRun twice recalls the original answer', async () => {
+  it('the same cancelRun twice recalls the original answer', async () => {
     const { s, run } = await withCall()
     const first = succeeded(await cancel(s, 'X', run), 'first')
     const second = succeeded(await cancel(s, 'X', run), 'second')
@@ -134,7 +134,7 @@ describe('one operation table for every form (SL07)', () => {
     expect(first.answer.kind).toBe('requested')
   })
 
-  it('OD-8: each query port answers conflict for the other form', async () => {
+  it('each query port answers conflict for the other form', async () => {
     const { s, run } = await withCall()
     const batch = succeeded(await change(s, 'B', 'model-b'), 'change')
     succeeded(await cancel(s, 'K', run), 'cancelRun')
@@ -159,7 +159,7 @@ describe('one operation table for every form (SL07)', () => {
 })
 
 describe('Tool targets of stopCall', () => {
-  it('OD-7: unsupported is returned before the identity lookup', async () => {
+  it('unsupported is returned before the identity lookup', async () => {
     const { s } = await withCall(TOOL)
     succeeded(await change(s, 'X', 'model-b'), 'change')
     expect(refused(await stop(s, 'X', TOOL), 'stopCall')).toEqual({ kind: 'unsupported' })

@@ -118,12 +118,12 @@ it('a trigger during an in-flight judgment runs S1 again, and the input accepted
   })
 })
 
-describe('GrantedInvoked: a granted Run whose invoke was not accepted is invoked again (PA-06 item 2)', () => {
+describe('GrantedInvoked: a granted Run whose invoke was not accepted is invoked again', () => {
   for (const [name, backend] of [
     ['memory', memoryBackend],
     ['sql', sqlBackend],
   ] as const)
-    it(`${name}: after the retries run out on an unavailable Agent, the S3 scan invokes it with the same identity`, async () => {
+    it(`${name}: after the retries run out on an unavailable Agent, the recovery scan invokes it with the same identity`, async () => {
       const h = await service({ backend, policy: { advance: { retryDelaysMs: [1000] } } })
       await h.create()
       let down = true
@@ -268,7 +268,7 @@ describe('NoSilentGiveUp: a step that stops on a failure leaves a named diagnost
   })
 })
 
-describe('the bounded close is not starved by unrelated commits (contract I-R2, R2-D327)', () => {
+describe('the bounded close is not starved by unrelated commits (contract I-R2)', () => {
   it('an accept between its read and its commit does not stop the close of a refused first input', async () => {
     const h = await service({ policy: { command: { retriesOnChanged: 1 } } })
     await h.create()

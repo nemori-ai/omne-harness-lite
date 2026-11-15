@@ -273,7 +273,7 @@ describe('the binding declares coordinated and co-checks open and submit', () =>
     ).toBe('applied')
   })
 
-  it('submit without the SE11 source is denied; with it the input is accepted', async () => {
+  it('submit without the intake.routed source is denied; with it the input is accepted', async () => {
     const s = await scene('submit-denied')
     const value = await accept(s, 'input-2')
     expect(
@@ -294,7 +294,7 @@ describe('the binding declares coordinated and co-checks open and submit', () =>
   })
 })
 
-describe('attach follows PA-01 item 3', () => {
+describe('attach follows the source check of the attempt grant', () => {
   it('ordinary advance: the grant of the current attempt attaches; a superseded attempt is denied, not changed or stale-advance', async () => {
     const s = await scene('attach-advance')
     const first = await claim(s, 'first')
@@ -308,7 +308,7 @@ describe('attach follows PA-01 item 3', () => {
     expect(attached.authority.instance).toBe(instance('current'))
   })
 
-  it('cancel wind-down: after the Run is cancelled the last attempt granted before the cancel attaches with cancel authority only, and ends cancelled under the control SE26 names', async () => {
+  it('cancel wind-down: after the Run is cancelled the last attempt granted before the cancel attaches with cancel authority only, and ends cancelled under the control the run.terminal entry names', async () => {
     const s = await scene('attach-cancel')
     ok(await handed(s))
     await take(s)
@@ -400,7 +400,7 @@ describe('tryFinish takes the Session participant into the same conditional comm
     ).not.toBe('ended')
   })
 
-  it('PA-02: on the cancelled Run the judgment under a control that SE26 does not name carries the Session fact changed, is blocked, and tryFinish does not end', async () => {
+  it('on the cancelled Run the judgment under a control that the run.terminal entry does not name carries the Session fact changed, is blocked, and tryFinish does not end', async () => {
     const s = await scene('finish-cancel-other-control')
     ok(await handed(s))
     await take(s)
@@ -447,7 +447,7 @@ describe('tryFinish takes the Session participant into the same conditional comm
     })
   })
 
-  it('a judgment under the control SE26 names carries the Session fact ready', async () => {
+  it('a judgment under the control the run.terminal entry names carries the Session fact ready', async () => {
     const s = await scene('judge-session-cancel')
     ok(await handed(s))
     await take(s)
@@ -459,7 +459,7 @@ describe('tryFinish takes the Session participant into the same conditional comm
     })
   })
 
-  it('PA-02: on the cancelled Run a cancel end that presents the complete candidate fixed before the cancel is denied by the Journal and writes nothing', async () => {
+  it('on the cancelled Run a cancel end that presents the complete candidate fixed before the cancel is denied by the Journal and writes nothing', async () => {
     const s = await scene('finish-cancel-complete')
     ok(await handed(s))
     await take(s)
@@ -485,7 +485,7 @@ describe('tryFinish takes the Session participant into the same conditional comm
     ).not.toBe('ended')
   })
 
-  it('PA-08 item 3: after SE26 cancelled the advancement end is stale-advance, the cancel route ends the execution, and the read end event is recognized; one SE26 throughout', async () => {
+  it('after the run.terminal entry cancelled, the advancement end is stale-advance, the cancel route ends the execution, and the read end event is recognized; one run.terminal entry throughout', async () => {
     const s = await scene('pa08-cancel-first')
     ok(await handed(s))
     await take(s)

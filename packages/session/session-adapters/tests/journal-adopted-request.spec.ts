@@ -207,7 +207,7 @@ describe('a provider that did not write the request reads it as the writer does'
     expect(await adoptedOf(s)).toEqual(await adoptedOf(s, cold))
   })
 
-  it('the loser of a publication race (K-20) reads the request of the winner after it reads the batches it missed', async () => {
+  it('the loser of a publication race reads the request of the winner after it reads the batches it missed', async () => {
     const { s, authority } = await opened('adopted-race')
     const winner = s.view.journal
     let race: ReturnType<typeof m0> | null = null

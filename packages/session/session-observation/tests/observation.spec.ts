@@ -39,7 +39,7 @@ async function afterInterval(w: World, frames: Frames) {
   return step
 }
 
-describe('the domain face (C8)', () => {
+describe('the domain face', () => {
   it('open subscribes to the commit notices of this tenant and this session only', async () => {
     const w = world(new FakeLog(started('run_1')))
     await frame(await open(w))
@@ -92,7 +92,7 @@ describe('the domain face (C8)', () => {
   })
 })
 
-describe('the run in progress (C6)', () => {
+describe('the run in progress', () => {
   it('a run that started is in progress; its own terminal ends it', async () => {
     const log = new FakeLog(started('run_1'))
     const w = world(log)
@@ -130,7 +130,7 @@ describe('the run in progress (C6)', () => {
   })
 })
 
-describe('the locate axis (C9a)', () => {
+describe('the locate axis', () => {
   it('opened-idle: the first locate reads backward from the newest entry', async () => {
     const w = world(new FakeLog(started('run_1')))
     await open(w)
@@ -170,7 +170,7 @@ describe('the locate axis (C9a)', () => {
     expect((await after).value).toEqual({ kind: 'refreshing' })
   })
 
-  it('notice-busy (不丢唤醒, C10a): a notice while the locate reads is kept, and the locate runs again at once', async () => {
+  it('notice-busy (不丢唤醒): a notice while the locate reads is kept, and the locate runs again at once', async () => {
     const log = new FakeLog(started('run_1'))
     const w = world(log)
     const frames = await open(w)
@@ -433,7 +433,7 @@ describe('the locate axis (C9a)', () => {
   })
 })
 
-describe('abort (C11a)', () => {
+describe('abort', () => {
   it('an abort while waiting ends the frames without a reason and leaves no notice, wait or read', async () => {
     const controller = new AbortController()
     const w = world(new FakeLog(started('run_1')))
@@ -527,7 +527,7 @@ describe('abort (C11a)', () => {
   })
 })
 
-describe('the refresh budget (C12)', () => {
+describe('the refresh budget', () => {
   it('interval-driven locates back off by the policy up to 30 times the interval', async () => {
     const w = world(new FakeLog(started('run_1')), { interval: 100, backoff: 10, maxAttempts: 10 })
     const frames = await open(w)

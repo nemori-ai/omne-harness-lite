@@ -90,7 +90,7 @@ const page = async (h: Harness, kinds: readonly string[]): Promise<HistoryPage> 
   )
 
 describe('history pages give the payload of the full form', () => {
-  it('a page without the SE01 expands the initial SE08 from the snapshot, read once through the same view', async () => {
+  it('a page without the session.created entry expands the initial session.adoption from the snapshot, read once through the same view', async () => {
     const h = await created()
     const work = succeeded(await h.faces('coordinator').work.readWork(h.access()), 'readWork')
     h.view.reset()
@@ -112,7 +112,7 @@ describe('history pages give the payload of the full form', () => {
     expect(h.view.calls().map(call => call.method)).toEqual(['history.begin'])
   })
 
-  it('the SE01 gets its resident shapes back; a page of messages reads no snapshot', async () => {
+  it('the session.created entry gets its resident shapes back; a page of messages reads no snapshot', async () => {
     const h = await created()
     h.view.reset()
     const all = await page(h, [])

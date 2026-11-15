@@ -253,7 +253,7 @@ function logOperations(s: SqlScene): string[] {
     .rows.map(row => String(row[0]))
 }
 
-describe('AD-02: an Agent publication is interpreted after its event', () => {
+describe('an Agent publication is interpreted after its event', () => {
   it('the take publishes input-taken; the plugin commits it and the Session command that reads the history passes', async () => {
     const f = await interpreted('ad02-open')
     const journal = f.c.journal()
@@ -327,7 +327,7 @@ describe('AD-02: an Agent publication is interpreted after its event', () => {
   })
 })
 
-describe('AD-02: the execution head moves between the read and the commit', () => {
+describe('the execution head moves between the read and the commit', () => {
   const moveHead = (f: Awaited<ReturnType<typeof interpreted>>, label: string) =>
     committed(f.s, f.s.view.journal, label, [
       { kind: 'message', message: assistantMessage(label), source: evidence(label) },
@@ -427,7 +427,7 @@ async function takeNothing(s: Where, journal: AgentJournal<string>, label: strin
   )
 }
 
-describe('AD-02: a step that took no input', () => {
+describe('a step that took no input', () => {
   const waits = [dependency('after-empty-take')]
 
   it('the empty input-taken is not committed; the next committed event covers it', async () => {
@@ -474,7 +474,7 @@ describe('AD-02: a step that took no input', () => {
   })
 })
 
-describe('AD-02: a Session participant rollback that answers unavailable (KL-146, #1216 E1a)', () => {
+describe('a Session participant rollback that answers unavailable', () => {
   const rollback = async () =>
     fail<SessionFailure>({
       kind: 'unavailable',
@@ -535,7 +535,7 @@ describe('AD-02: a Session participant rollback that answers unavailable (KL-146
   })
 })
 
-describe('AD-02: the backoff of the event queue and its one retry per execution (#1216 E1a)', () => {
+describe('the backoff of the event queue and its one retry per execution (#1216 E1a)', () => {
   const rollback = async () =>
     fail<SessionFailure>({
       kind: 'unavailable',
@@ -684,7 +684,7 @@ describe('AD-02: the backoff of the event queue and its one retry per execution 
   })
 })
 
-describe('AD-02: what commits nothing', () => {
+describe('what commits nothing', () => {
   it('a stopped plugin commits nothing, and a call through it answers unavailable', async () => {
     const f = await interpreted('ad02-stopped')
     await f.fiber?.dispose()
@@ -781,7 +781,7 @@ describe('AD-02: what commits nothing', () => {
   })
 })
 
-describe('R2-D28 with the production Journal: a cancelled Run with a non-observed tail', () => {
+describe('with the production Journal: a cancelled Run with a non-observed tail', () => {
   it('the next startRun answers unavailable until the plugin committed the tail, then passes', async () => {
     const f = await interpreted('ad02-r2d28')
     const journal = f.c.journal()
@@ -831,7 +831,7 @@ describe('R2-D28 with the production Journal: a cancelled Run with a non-observe
   })
 })
 
-describe('AD-02 commits per round do not grow with the rounds before it', () => {
+describe('commits per round do not grow with the rounds before it', () => {
   async function counted(rounds: number) {
     const f = await interpreted(`ad02-count-${rounds}`)
     const journal = f.c.journal()
@@ -857,7 +857,7 @@ describe('AD-02 commits per round do not grow with the rounds before it', () => 
   })
 })
 
-describe('AD-02 interprets the control events of a Session cancel (deferred control facts)', () => {
+describe('interprets the control events of a Session cancel (deferred control facts)', () => {
   type Progress = Readonly<{ state: string; pending: number }> | null
   const stages = ['intent-established', 'qualification-revoked'] as const
 
@@ -1010,7 +1010,7 @@ describe('AD-02 interprets the control events of a Session cancel (deferred cont
     ok(await startRun(f.s, 'start-after-cancel'))
   })
 
-  it('the memory double and the production AD-02 give the same progress of K, the one Session decides', async () => {
+  it('the memory double and the production interpretation plugin give the same progress of K, the one Session decides', async () => {
     const produced = await production('ad02-cancel-pair')
     const reference = await memory('memory-cancel-pair')
     expect(produced.progress).toEqual(reference)

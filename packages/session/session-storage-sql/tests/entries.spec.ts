@@ -174,7 +174,7 @@ describe('commitEntries writes in one transaction', () => {
     },
   )
 
-  it('AT-4 a lost reply is commit-unknown; the original is then committed, recalled and written once', async () => {
+  it('a lost reply is commit-unknown; the original is then committed, recalled and written once', async () => {
     const { a, input } = await opened()
     const before = tables(a)
     a.provider.loseNextReply()

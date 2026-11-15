@@ -1207,7 +1207,7 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
   })
 })
 
-describe('readFinish: the finish candidate of a settling or ended execution (RFC-0013 A2)', () => {
+describe('readFinish: the finish candidate of a settling or ended execution', () => {
   it('through the plugin, a model-refused end: null before any candidate, the current intent while settling, the final intent with the capacity refusal after the end', async () => {
     const s = await scene('finish-refused')
     const { journal } = await assembled(s)
@@ -1623,8 +1623,8 @@ async function cancelThrough(journal: AgentJournal<string>, s: SqlScene) {
   })
 }
 
-describe('R2-D35: the cancellation installation handed to the session-log Journal', () => {
-  it('R2-D35 hands the installation of its options to the Journal of the session: the policy judges once', async () => {
+describe('the cancellation installation handed to the session-log Journal', () => {
+  it('hands the installation of its options to the Journal of the session: the policy judges once', async () => {
     const s = await scene('d35-hand')
     let judged = 0
     const policy = createTestCancellationPolicy()
@@ -1648,7 +1648,7 @@ describe('R2-D35: the cancellation installation handed to the session-log Journa
     expect(judged).toBe(1)
   })
 
-  it('R2-D35 without an installation in its options the cancellation variants answer unavailable, as before', async () => {
+  it('without an installation in its options the cancellation variants answer unavailable, as before', async () => {
     const s = await scene('d35-none')
     const { routed } = await routedDirect(s)
     ok(await routed.journal.open(s.openInput))
@@ -1658,8 +1658,8 @@ describe('R2-D35: the cancellation installation handed to the session-log Journa
   })
 })
 
-describe('R2-D35: the plugin factory carries the installation the entry hands in', () => {
-  it('R2-D35 a plugin made with an installation loads on real Cordis, hands it to the session Journal: the policy judges once, and stops with the three keys', async () => {
+describe('the plugin factory carries the installation the entry hands in', () => {
+  it('a plugin made with an installation loads on real Cordis, hands it to the session Journal: the policy judges once, and stops with the three keys', async () => {
     const s = await scene('d35-plugin')
     let judged = 0
     const policy = createTestCancellationPolicy()
@@ -1691,7 +1691,7 @@ describe('R2-D35: the plugin factory carries the installation the entry hands in
     ['without an input', undefined],
     ['with an input that holds no installation', {}],
   ] as const)
-    it(`R2-D35 a plugin made ${label} answers unavailable for the cancellation variants`, async () => {
+    it(`a plugin made ${label} answers unavailable for the cancellation variants`, async () => {
       const s = await scene(`d35-plugin-none-${input === undefined ? 'a' : 'b'}`)
       const { journal } = await assembled(s, {}, createSessionAgentJournalPlugin(input))
       ok(await journal().open(s.openInput))
@@ -1701,8 +1701,8 @@ describe('R2-D35: the plugin factory carries the installation the entry hands in
     })
 })
 
-describe('K-9: a material to preserve names an execution, and goes to its session', () => {
-  it('K-9 preserve with an execution is saved in the session of that execution and read back from its source', async () => {
+describe('a material to preserve names an execution, and goes to its session', () => {
+  it('preserve with an execution is saved in the session of that execution and read back from its source', async () => {
     const s = await scene('k9-save')
     const b = await secondSession(s, 'k9-save-b')
     const { journal, materials } = await assembled(s)
@@ -1725,7 +1725,7 @@ describe('K-9: a material to preserve names an execution, and goes to its sessio
     expect(ok(await materials().read({ ...b.access, source }))).toEqual(value)
   })
 
-  it('K-9 an execution of another tenant and one no Run started are denied and nothing is written', async () => {
+  it('an execution of another tenant and one no Run started are denied and nothing is written', async () => {
     const s = await scene('k9-denied')
     const { journal, materials } = await assembled(s)
     ok(await journal().open(s.openInput))
@@ -1751,7 +1751,7 @@ describe('K-9: a material to preserve names an execution, and goes to its sessio
     expect(s.commits.length).toBe(commits)
   })
 
-  it('K-9 an execution index that cannot be read is unavailable, not denied, and nothing is written', async () => {
+  it('an execution index that cannot be read is unavailable, not denied, and nothing is written', async () => {
     const s = await scene('k9-index')
     const { journal, materials, wiring } = await assembled(s)
     ok(await journal().open(s.openInput))
@@ -1768,7 +1768,7 @@ describe('K-9: a material to preserve names an execution, and goes to its sessio
     expect(s.commits.length).toBe(commits)
   })
 
-  it('K-9 preserve with an execution after the plugin stopped is unavailable and writes nothing', async () => {
+  it('preserve with an execution after the plugin stopped is unavailable and writes nothing', async () => {
     const s = await scene('k9-stopped')
     const { journal, materials, plugin } = await assembled(s)
     ok(await journal().open(s.openInput))
@@ -1788,7 +1788,7 @@ describe('K-9: a material to preserve names an execution, and goes to its sessio
   })
 })
 
-describe('AD-02 trigger: the plugin names each successful write of the Journal', () => {
+describe('trigger: the plugin names each successful write of the Journal', () => {
   const PUBLISHED = 'session-adapters/agent-published'
   type Published = [tenant: unknown, session: unknown, execution: unknown]
 
@@ -1804,14 +1804,14 @@ describe('AD-02 trigger: the plugin names each successful write of the Journal',
     return { s, seen, ...assembly }
   }
 
-  it('AD-02 trigger: one successful write is followed by exactly one event naming tenant, session and execution', async () => {
+  it('trigger: one successful write is followed by exactly one event naming tenant, session and execution', async () => {
     const { s, seen, journal } = await listening('ad02-one')
     ok(await journal().open(s.openInput))
     await flush()
     expect(seen).toEqual([[s.access.tenant, s.access.session, s.execution]])
   })
 
-  it('AD-02 trigger: an entries write is one event too, and a read is none', async () => {
+  it('trigger: an entries write is one event too, and a read is none', async () => {
     const { s, seen, journal, entries } = await listening('ad02-entries')
     ok(await journal().open(s.openInput))
     await flush()
@@ -1840,7 +1840,7 @@ describe('AD-02 trigger: the plugin names each successful write of the Journal',
     expect(seen).toEqual([[s.access.tenant, s.access.session, s.execution]])
   })
 
-  it('AD-02 trigger: a write that fails and a call that was never routed send no event', async () => {
+  it('trigger: a write that fails and a call that was never routed send no event', async () => {
     const { s, seen, journal } = await listening('ad02-fail')
     const opened = ok(await journal().open(s.openInput))
     await flush()
@@ -1870,7 +1870,7 @@ describe('AD-02 trigger: the plugin names each successful write of the Journal',
     expect(seen).toEqual([])
   })
 
-  it('AD-02 trigger: a write through a reference held after the plugin stopped sends no event', async () => {
+  it('trigger: a write through a reference held after the plugin stopped sends no event', async () => {
     const { s, seen, journal, plugin } = await listening('ad02-stopped')
     const held = journal()
     await plugin.dispose()
@@ -1879,7 +1879,7 @@ describe('AD-02 trigger: the plugin names each successful write of the Journal',
     expect(seen).toEqual([])
   })
 
-  it('AD-02 trigger: a write in flight when the plugin stops sends no event', async () => {
+  it('trigger: a write in flight when the plugin stops sends no event', async () => {
     const { s, seen, journal, plugin, wiring } = await listening('ad02-inflight')
     let reached!: () => void
     const writing = new Promise<void>(resolve => {
@@ -1899,7 +1899,7 @@ describe('AD-02 trigger: the plugin names each successful write of the Journal',
     expect(seen).toEqual([])
   })
 
-  it('AD-02 trigger: a listener that throws does not change the answer of the write', async () => {
+  it('trigger: a listener that throws does not change the answer of the write', async () => {
     const s = await scene('ad02-throws')
     const { ctx, journal } = await assembled(s)
     ctx.on(PUBLISHED, () => {
@@ -1909,7 +1909,7 @@ describe('AD-02 trigger: the plugin names each successful write of the Journal',
     await flush()
   })
 
-  it('AD-02 trigger: a callback of the options that throws does not change the answer either', async () => {
+  it('trigger: a callback of the options that throws does not change the answer either', async () => {
     const s = await scene('ad02-callback')
     const { routed } = await routedDirect(s, {
       published: () => {

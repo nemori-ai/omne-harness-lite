@@ -95,7 +95,7 @@ function indexOf(a: App, work: WorkSnapshot, execution: string) {
   return history
 }
 
-describe('K-5: the Agent rows of a decision in its own transaction', () => {
+describe('the Agent rows of a decision in its own transaction', () => {
   it('the index holds the boundary, the facts, the batch and the admissions of the rows as written', async () => {
     const s = await created()
     const run = await open(s, 1)
@@ -245,7 +245,7 @@ describe('K-5: the Agent rows of a decision in its own transaction', () => {
     expect(first).not.toBe(second)
   })
 
-  it('a row without the attempt on a Run with two SE15 is proved by the grant of its attempt (R2-D349)', async () => {
+  it('a row without the attempt on a Run with two SE15 is proved by the grant of its attempt', async () => {
     const s = await created()
     ok(await s.a.accept(TENANT_A, SESSION, 'input-1'))
     const started = ok<{ receipt: CommitReceipt }>(await startRun(s.a, 'start-run-1'))
@@ -381,7 +381,7 @@ describe('K-5: the Agent rows of a decision in its own transaction', () => {
   })
 })
 
-describe('R2-D28: the observed-only tail of an earlier execution', () => {
+describe('the observed-only tail of an earlier execution', () => {
   async function handedTail(tail: (s: Scene, run: ReturnType<typeof activeRun>) => Promise<void>) {
     const s = await created()
     const run = await open(s, 1)

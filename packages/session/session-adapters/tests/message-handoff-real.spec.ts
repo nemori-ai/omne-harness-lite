@@ -52,7 +52,7 @@ async function prepareThenKill(
   return { ...line, input: { ...line.input, principal: own.principal, tenant: own.tenant } }
 }
 
-describe('J06: recovery after a child is killed', () => {
+describe('recovery after a child is killed', () => {
   for (const stopAfter of ['intent', 'outcome'] as const)
     it(`a new provider recovers a 24 KiB candidate after kill at ${stopAfter}`, async () => {
       const root = await realpath(await mkdtemp(join(tmpdir(), 'message-handoff-')))

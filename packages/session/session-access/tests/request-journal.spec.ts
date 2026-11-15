@@ -87,7 +87,7 @@ describe('the request journal file', () => {
     await reopened.close()
   })
 
-  it('takes a leave only from the session and the tenant it names (R5)', async () => {
+  it('takes a leave only from the session and the tenant it names', async () => {
     const journal = await openRequestJournal(file)
     const elsewhere = { ...request('a', 0), tenant: 'tenant-b' }
     for (const record of [
@@ -299,7 +299,7 @@ describe('emptying the file', () => {
   })
 })
 
-describe('what the file holds of a record (R6)', () => {
+describe('what the file holds of a record', () => {
   const SENTINEL = 'login-proof-sentinel-3f9c'
 
   it('writes the named fields of a record and nothing else it carries', async () => {

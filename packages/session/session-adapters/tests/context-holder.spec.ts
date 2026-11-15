@@ -616,7 +616,7 @@ describe('a scope seen for the first time is recovered with the complete materia
       )
   })
 
-  it('finishes ready through C18 trust: the facts the replay asks name exactly the step-committed checkpointed blocks', async () => {
+  it('finishes ready through the Runtime Context trust: the facts the replay asks name exactly the step-committed checkpointed blocks', async () => {
     const f = await assembled()
     seedA(f)
     await f.committed(A, [REGISTRATION, STEP])
@@ -849,7 +849,7 @@ describe('replayFacts.stepCommittedBlocks', () => {
     })
   })
 
-  it('makes C18 trust answer replay-incomplete for a finish that leaves out a step-committed block (N5)', async () => {
+  it('makes the Runtime Context trust answer replay-incomplete for a finish that leaves out a step-committed block', async () => {
     const f = await assembled()
     seedA(f)
     await f.committed(A, [REGISTRATION, STEP])
@@ -962,7 +962,7 @@ describe('the runtimeContextReaderEligibility provider', () => {
     })
   })
 
-  it('recovers a newly minted scope that has no context record with the empty material and issues an empty eligibility (AD-03 1a)', async () => {
+  it('recovers a newly minted scope that has no context record with the empty material and issues an empty eligibility', async () => {
     const f = await assembled()
     await f.committed(A, ['session.created'])
     const answer = await f.handoff()!.current(modelRequest)
@@ -1000,7 +1000,7 @@ describe('the runtimeContextReaderEligibility provider', () => {
     expect(f.methods()).toEqual([])
   })
 
-  it('R2-D219 B1 P1: a new scope that ended before its first eligibility is absent, not recovered open, even when no record of its end is read', async () => {
+  it('B1 P1: a new scope that ended before its first eligibility is absent, not recovered open, even when no record of its end is read', async () => {
     const f = await assembled()
     await f.committed(A, ['session.created'])
     f.endScope(A, scopeA, null)
@@ -1009,7 +1009,7 @@ describe('the runtimeContextReaderEligibility provider', () => {
     expect(f.methods()).toEqual([])
   })
 
-  it('R2-D219 B1: the end of a scope with no other record reaches Runtime Context with the tenant of its session', async () => {
+  it('B1: the end of a scope with no other record reaches Runtime Context with the tenant of its session', async () => {
     const f = await assembled()
     await f.committed(A, ['session.created'])
     f.endScope(A, scopeA, session => end({ scope: scopeA, tenant: session.tenant }, 'end-1'))
@@ -1024,7 +1024,7 @@ describe('the runtimeContextReaderEligibility provider', () => {
     })
   })
 
-  it('R2-D219 B1 P2: a new scope recovered with the empty material and then archived is absent, and Runtime Context ends it', async () => {
+  it('B1 P2: a new scope recovered with the empty material and then archived is absent, and Runtime Context ends it', async () => {
     const f = await assembled()
     await f.committed(A, ['session.created'])
     const first = await f.handoff()!.current(modelRequest)
@@ -1039,7 +1039,7 @@ describe('the runtimeContextReaderEligibility provider', () => {
     expect(read).toMatchObject({ kind: 'refused', reason: 'scope-ended' })
   })
 
-  it('R2-D219 B1: a new scope whose scopes cannot be read is unavailable, and recovered once they read', async () => {
+  it('B1: a new scope whose scopes cannot be read is unavailable, and recovered once they read', async () => {
     const f = await assembled()
     await f.committed(A, ['session.created'])
     f.faults.scopes = true
@@ -1055,7 +1055,7 @@ describe('the runtimeContextReaderEligibility provider', () => {
     ).toBe(true)
   })
 
-  it('R2-D219: a first-notice scope read that failed is read again on demand, and while it fails its own reason is the answer', async () => {
+  it('a first-notice scope read that failed is read again on demand, and while it fails its own reason is the answer', async () => {
     const f = await assembled()
     f.faults.scopes = true
     await f.committed(A, ['session.created'])
@@ -1079,14 +1079,14 @@ describe('the runtimeContextReaderEligibility provider', () => {
     expect(f.sessionCalls.length).toBe(before)
   })
 
-  it('R2-D219 P3: two concurrent first notices of a session share one scope read', async () => {
+  it('P3: two concurrent first notices of a session share one scope read', async () => {
     const f = await assembled()
     await Promise.all([f.committed(A, ['intake.routed']), f.committed(A, ['run.terminal'])])
     expect(scopeReadsOf(f.factsHistoryCalls)).toBe(1)
     expect((await f.handoff()!.current(modelRequest)).kind).toBe('current')
   })
 
-  it('SCOPE-NARROW: the scopes are read from SE27 and SE28, one kind per read, never from the work snapshot', async () => {
+  it('SCOPE-NARROW: the scopes are read from the session.archived and session.unarchived entries, one kind per read, never from the work snapshot', async () => {
     const f = await assembled()
     await f.committed(A, ['session.created'])
     expect((await f.handoff()!.current(modelRequest)).kind).toBe('current')
@@ -1112,7 +1112,7 @@ describe('the runtimeContextReaderEligibility provider', () => {
     expect(f.methods()).toEqual(['beginReplay', 'finishReplay'])
   })
 
-  it('SCOPE-NARROW: a new generation is found from its SE28, and the ended one stays absent', async () => {
+  it('SCOPE-NARROW: a new generation is found from its session.unarchived entry, and the ended one stays absent', async () => {
     const f = await assembled()
     await f.committed(A, ['session.created'])
     f.endScope(A, scopeA, null)
@@ -1236,7 +1236,7 @@ describe('on real Cordis', () => {
     })
   })
 
-  it('a stopped replay sub-plugin no longer listens, and the replay facts still answer from the facts plugin (R2-D29)', async () => {
+  it('a stopped replay sub-plugin no longer listens, and the replay facts still answer from the facts plugin', async () => {
     const f = await assembled()
     seedA(f)
     await f.replayFiber.dispose()
@@ -1251,7 +1251,7 @@ describe('on real Cordis', () => {
     expect((await f.handoff()!.current(modelRequest)).kind).toBe('unavailable')
   })
 
-  it('a stopped facts plugin no longer listens, and the replay facts and the lookup are unavailable (R2-D29)', async () => {
+  it('a stopped facts plugin no longer listens, and the replay facts and the lookup are unavailable', async () => {
     const f = await assembled()
     seedA(f)
     await f.committed(A, [REGISTRATION, STEP])

@@ -158,8 +158,8 @@ async function accept(s: SqlScene, name: string): Promise<DurableEvidence> {
   return (accepted as { source: DurableEvidence }).source
 }
 
-describe('the source basis from AD-14 to the read-only check (PA-01 items 1 and 2)', () => {
-  it('invoke opens the execution on the SE13 receipt, and submit hands an input in on its SE11 receipt', async () => {
+describe('the source basis from AgentDrivePort to the read-only check', () => {
+  it('invoke opens the execution on the run.started receipt, and submit hands an input in on its intake.routed receipt', async () => {
     const s = await sqlScene('drive-source', { instance: 'slot' })
     const { drive, given, receipts } = await assembled(s)
     const target = { tenant: s.access.tenant, session: s.access.session, execution: s.execution }

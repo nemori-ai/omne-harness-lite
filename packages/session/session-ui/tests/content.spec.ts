@@ -28,7 +28,7 @@ function withLive(blocks: readonly (readonly [string, string])[], anchor = '5'):
 }
 
 describe('内容的合并', () => {
-  it('C1 历史按日志次序合并，同一条目以新读到的为准', () => {
+  it('历史按日志次序合并，同一条目以新读到的为准', () => {
     const first = mergeHistory(EMPTY_CONTENT, [userEntry('2', '2', 'b'), userEntry('1', '1', 'a')])
     const second = mergeHistory(first, [userEntry('2', '2', 'b2'), userEntry('10', '10', 'c')])
     expect(second.entries.map(entry => entry.entryId)).toEqual(['1', '2', '10'])
@@ -49,7 +49,7 @@ describe('内容的合并', () => {
       blocks: [{ value: '新' }],
     })
   })
-  it('C3 增量按 index 替换已有块、追加新块', () => {
+  it('增量按 index 替换已有块、追加新块', () => {
     const content = withLive([['0', '你']])
     const applied = applyDelta(
       content,
@@ -63,7 +63,7 @@ describe('内容的合并', () => {
         applied.content.live?.blocks.map(block => block.kind === 'growing' && block.value),
     ).toEqual(['你好', '！'])
   })
-  it('C4 增量的基线对不上，或还没有快照：不应用', () => {
+  it('增量的基线对不上，或还没有快照：不应用', () => {
     expect(
       applyDelta(withLive([]), deltaTree({ cursor: '1', revision: '0' }, '2', '2', [])).kind,
     ).toBe('base-mismatch')
@@ -74,18 +74,18 @@ describe('内容的合并', () => {
       applyDelta(EMPTY_CONTENT, deltaTree({ cursor: '1', revision: '1' }, '2', '2', [])).kind,
     ).toBe('base-mismatch')
   })
-  it('C5 读不懂的值：不应用', () => {
+  it('读不懂的值：不应用', () => {
     expect(applySnapshot(EMPTY_CONTENT, toTree({ projection: 'other' }), '1').kind).toBe(
       'unreadable',
     )
     expect(applyDelta(withLive([]), snapshotTree('1', '1', [])).kind).toBe('unreadable')
   })
-  it('C6 锚点之后提交的助手消息替换进行中的回复；之前的不替换', () => {
+  it('锚点之后提交的助手消息替换进行中的回复；之前的不替换', () => {
     const content = withLive([['0', '你好']], '5')
     expect(mergeHistory(content, [assistantEntry('1', '5', '旧的')]).live).not.toBeNull()
     expect(mergeHistory(content, [assistantEntry('2', '6', '你好')]).live).toBeNull()
   })
-  it('C7 这一轮结束且历史读到了最后的修订：进行中的回复收起', () => {
+  it('这一轮结束且历史读到了最后的修订：进行中的回复收起', () => {
     const content = { ...withLive([['0', 'x']]), readThrough: '8' }
     expect(settleLive(content, '9').live).not.toBeNull()
     expect(settleLive(content, '8').live).toBeNull()

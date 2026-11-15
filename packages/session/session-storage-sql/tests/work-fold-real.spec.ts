@@ -9,7 +9,7 @@ afterEach(async () => {
   for (const app of opened.splice(0)) await app.dispose()
 })
 
-describe('T-F6: a basis past the response bound of the provider', () => {
+describe('a basis past the response bound of the provider', () => {
   it('the commit still commits, and its receipt holds no basis', async () => {
     const a = await openRealApp()
     opened.push(a)

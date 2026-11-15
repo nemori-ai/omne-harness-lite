@@ -56,7 +56,7 @@ async function commit(
   )
 }
 
-describe('the commands of the memory Journal append their facts (R2-D308)', () => {
+describe('the commands of the memory Journal append their facts', () => {
   it('each write is one batch; the log folds to the held view, its revision and checkpoint', async () => {
     const s = await scene('command-facts')
     const opened = await agree(s)

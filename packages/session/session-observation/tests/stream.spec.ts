@@ -87,7 +87,7 @@ async function observing(w: World, signal?: AbortSignal): Promise<Frames> {
   return frames
 }
 
-describe('the result table with the Model (C9b)', () => {
+describe('the result table with the Model', () => {
   it('result, new main call, stream given, no target: state, then subscribe and snapshot; the budget resets', async () => {
     const w = world(new FakeLog())
     await observing(w)
@@ -98,7 +98,7 @@ describe('the result table with the Model (C9b)', () => {
     stop()
   })
 
-  it('result, new main call, stream given, has target (不发旧帧, C10b): the old subscription goes, its late frame does not come', async () => {
+  it('result, new main call, stream given, has target (不发旧帧): the old subscription goes, its late frame does not come', async () => {
     const w = world(new FakeLog())
     const frames = await observing(w)
     const gate = w.log.hold()
@@ -134,7 +134,7 @@ describe('the result table with the Model (C9b)', () => {
     stop()
   })
 
-  it('result, new main call, no stream, has target (不停在旧的调用上, C10b): the old target goes; state and refreshing', async () => {
+  it('result, new main call, no stream, has target (不停在旧的调用上): the old target goes; state and refreshing', async () => {
     const w = world(new FakeLog())
     const frames = await observing(w)
     w.log.append(mainCall('m-2'))
@@ -298,7 +298,7 @@ describe('the result table with the Model (C9b)', () => {
   })
 })
 
-describe('the stream axis (C9b)', () => {
+describe('the stream axis', () => {
   it('stream, observing, delta with a new phase: state first, then the delta; same phase: only the delta', async () => {
     const w = world(new FakeLog())
     const frames = await observing(w)
@@ -479,7 +479,7 @@ describe('the stream axis (C9b)', () => {
   })
 })
 
-describe('abort while observing (C11b)', () => {
+describe('abort while observing', () => {
   it('an abort while the observer holds a frame ends at the next read, with no subscription or wait left', async () => {
     const controller = new AbortController()
     const w = world(new FakeLog())

@@ -36,7 +36,7 @@ async function open(root: string): Promise<Cp2World> {
   return world
 }
 
-describe('CP2: the Journal and the Session log commit together on the real sqlite-provider', () => {
+describe('the Journal and the Session log commit together on the real sqlite-provider', () => {
   it('one storage commit holds the Agent records and the Session participation, and both sides show it', async () => {
     const world = await open(await newRoot())
     const { execution, open: opening } = await seedCp2(world)
@@ -125,7 +125,7 @@ async function commitThenKill(root: string): Promise<ChildLine> {
   return { ...line, request: { ...line.request, ...own } }
 }
 
-describe('CP2: a process killed after the commit', () => {
+describe('a process killed after the commit', () => {
   it('a new process answers the original operation with the original receipt, and the revision moved once', async () => {
     const root = await newRoot()
     const line = await commitThenKill(root)

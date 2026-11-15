@@ -58,7 +58,7 @@ describe('start conditions', () => {
   })
 })
 
-describe('configuration (SR-3)', () => {
+describe('configuration', () => {
   it('the defaults are the SPEC SchedulingPolicy seeds', () => {
     expect(defaultSchedulingPolicy).toEqual({
       command: { retriesOnChanged: 3 },

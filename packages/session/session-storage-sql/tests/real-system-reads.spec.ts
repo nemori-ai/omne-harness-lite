@@ -102,22 +102,22 @@ async function walk(read: (after: string | null) => Promise<unknown>): Promise<P
   throw new Error('the walk did not end')
 }
 
-describe('R9 SS-17 references over two tenants on the real provider', () => {
-  it('SS-17 one page lists the rows of the key of both tenants in tenant order', async () => {
+describe('references over two tenants on the real provider', () => {
+  it('one page lists the rows of the key of both tenants in tenant order', async () => {
     const app = await open()
     const page = ok<Page>(await references(app, null, 100))
     expect(page.labels).toEqual(REFERENCES)
     expect(page.next).toBeNull()
   })
 
-  it('SS-17 pages of one row walk every row exactly once, across the tenant boundary', async () => {
+  it('pages of one row walk every row exactly once, across the tenant boundary', async () => {
     const app = await open()
     const pages = await walk(after => references(app, after, 1))
     expect(pages.flatMap(page => page.labels)).toEqual(REFERENCES)
     expect(pages.every(page => page.rows.length <= 1)).toBe(true)
   })
 
-  it('SS-17 the rows of one tenant come from its own domain and carry its tenant', async () => {
+  it('the rows of one tenant come from its own domain and carry its tenant', async () => {
     const app = await open()
     const page = ok<Page>(await references(app, null, 100))
     expect(page.rows.some(row => row.session === 'stray')).toBe(false)
@@ -131,7 +131,7 @@ describe('R9 SS-17 references over two tenants on the real provider', () => {
     ])
   })
 
-  it('SS-17 a cursor of one key is invalid for another key and goes on for its own key', async () => {
+  it('a cursor of one key is invalid for another key and goes on for its own key', async () => {
     const app = await open()
     const first = ok<Page>(await references(app, null, 1))
     if (first.next === null) throw new Error('fixture: more than one page')
@@ -143,7 +143,7 @@ describe('R9 SS-17 references over two tenants on the real provider', () => {
     expect(rest.labels).toEqual(['A/a2/cap'])
   })
 
-  it('SS-17 a cursor after a new directory revision is invalid', async () => {
+  it('a cursor after a new directory revision is invalid', async () => {
     const app = await open()
     const first = ok<Page>(await references(app, null, 1))
     if (first.next === null) throw new Error('fixture: more than one page')
@@ -155,22 +155,22 @@ describe('R9 SS-17 references over two tenants on the real provider', () => {
   })
 })
 
-describe('R9 SS-17 releasedScopes over two tenants on the real provider', () => {
-  it('SS-17 pages of one row walk the scopes of both tenants exactly once', async () => {
+describe('releasedScopes over two tenants on the real provider', () => {
+  it('pages of one row walk the scopes of both tenants exactly once', async () => {
     const app = await open()
     const pages = await walk(after => scopes(app, after, 1))
     expect(pages.flatMap(page => page.labels)).toEqual(SCOPES)
     expect(pages.every(page => page.rows.length <= 1)).toBe(true)
   })
 
-  it('SS-17 the scopes of one tenant come from its own domain and carry its tenant', async () => {
+  it('the scopes of one tenant come from its own domain and carry its tenant', async () => {
     const app = await open()
     const page = ok<Page>(await scopes(app, null, 100))
     expect(page.labels).toEqual(SCOPES)
     expect(page.rows.some(row => row.session === 'stray')).toBe(false)
   })
 
-  it('SS-17 a cursor goes on after a new directory revision', async () => {
+  it('a cursor goes on after a new directory revision', async () => {
     const app = await open()
     const first = ok<Page>(await scopes(app, null, 1))
     if (first.next === null) throw new Error('fixture: more than one page')
@@ -180,8 +180,8 @@ describe('R9 SS-17 releasedScopes over two tenants on the real provider', () => 
   })
 })
 
-describe('R9 SS-17 a system read without access or without a directory', () => {
-  it('SS-17 an access decision that does not allow the system read answers denied and reads no domain', async () => {
+describe('a system read without access or without a directory', () => {
+  it('an access decision that does not allow the system read answers denied and reads no domain', async () => {
     const app = await open()
     app.deny('references')
     app.deny('releasedScopes')
@@ -196,7 +196,7 @@ describe('R9 SS-17 a system read without access or without a directory', () => {
     expect(app.reads).toEqual([])
   })
 
-  it('SS-17 a directory that cannot be read is unavailable, not an empty page', async () => {
+  it('a directory that cannot be read is unavailable, not an empty page', async () => {
     const app = await open()
     app.directory.readable = false
     expect(failureOf(await references(app, null, 10))).toMatchObject({ kind: 'unavailable' })

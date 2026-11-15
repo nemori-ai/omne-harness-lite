@@ -350,7 +350,7 @@ describe('a request that is in the queue', () => {
   })
 })
 
-describe('what a send-input call leaves in the journal file (R6)', () => {
+describe('what a send-input call leaves in the journal file', () => {
   const SENTINEL = 'login-proof-sentinel-3f9c'
 
   it('writes the login text and nothing else of the login', async () => {

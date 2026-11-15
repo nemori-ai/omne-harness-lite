@@ -394,7 +394,7 @@ describe('the guards of an execution-record write', () => {
   })
 })
 
-describe('the read-only checks of the session participant (JC-26, JC-27)', () => {
+describe('the read-only checks of the session participant', () => {
   it('a check that holds participates and writes no Session row; the Agent side is saved', async () => {
     const a = await app()
     const { execution, grant } = await running(a)
@@ -476,7 +476,7 @@ describe('the read-only checks of the session participant (JC-26, JC-27)', () =>
     expect((await attach('aop_attach_2', grant)).kind).toBe('committed')
   })
 
-  it('after a cancel the last attempt granted before it attaches for the wind-down, an earlier one is stale (PA-01 item 3)', async () => {
+  it('after a cancel the last attempt granted before it attaches for the wind-down, an earlier one is stale', async () => {
     const a = await app()
     const { execution, grant: first, work } = await running(a)
     if (work.run.kind !== 'active') throw new Error('no active Run')
@@ -527,7 +527,7 @@ describe('the read-only checks of the session participant (JC-26, JC-27)', () =>
     })
   })
 
-  it('a wind-down attach of a cancelled Run whose SE26 row is missing is a definite failure (missing-row)', async () => {
+  it('a wind-down attach of a cancelled Run whose run.terminal row is missing is a definite failure (missing-row)', async () => {
     const a = await app()
     const { execution, grant, work } = await running(a)
     await cancel(a, work)
@@ -551,7 +551,7 @@ describe('the read-only checks of the session participant (JC-26, JC-27)', () =>
     })
   })
 
-  it('a cancelled finish participates only under the control the SE26 of the Run refers to (PA-02)', async () => {
+  it('a cancelled finish participates only under the control the run.terminal entry of the Run refers to', async () => {
     const a = await app()
     const { execution, work } = await running(a)
     await cancel(a, work)
@@ -588,7 +588,7 @@ describe('the read-only checks of the session participant (JC-26, JC-27)', () =>
     expect((await finish('aop_fin_own', own)).kind).toBe('committed')
   })
 
-  it('a finish while an input Session accepted for this Run is not handed over is changed (PA-02)', async () => {
+  it('a finish while an input Session accepted for this Run is not handed over is changed', async () => {
     const a = await app()
     const { execution } = await running(a)
     ok(await a.accept(TENANT_A, 'session-1', 'input-2'))
@@ -611,7 +611,7 @@ describe('the read-only checks of the session participant (JC-26, JC-27)', () =>
   })
 })
 
-describe('the source basis of open and submit (PA-01 items 1 and 2)', () => {
+describe('the source basis of open and submit', () => {
   const open = (
     a: App,
     name: string,
@@ -636,7 +636,7 @@ describe('the source basis of open and submit (PA-01 items 1 and 2)', () => {
       ? decodeSessionReply(result.responses.find(item => item.participant === 'session')!.reply)
       : result.kind
 
-  it('open holds on the receipt of the SE13 Session handed to invoke, not on the origin of the input', async () => {
+  it('open holds on the receipt of the run.started entry Session handed to invoke, not on the origin of the input', async () => {
     const a = await app()
     const { execution, grant } = await running(a)
     expect(grant.record).not.toBe(ordinaryInput('input-1').origin.record)
@@ -657,7 +657,7 @@ describe('the source basis of open and submit (PA-01 items 1 and 2)', () => {
     })
   })
 
-  it('open holds on the evidence of the SE13 entry itself', async () => {
+  it('open holds on the evidence of the run.started entry itself', async () => {
     const a = await app()
     const { execution, grant } = await running(a)
     const row = a.provider.select(
@@ -682,7 +682,7 @@ describe('the source basis of open and submit (PA-01 items 1 and 2)', () => {
     expect(result.kind).toBe('committed')
   })
 
-  it('open is denied when the source names no SE13 of this execution, or the input is not the first one it records', async () => {
+  it('open is denied when the source names no run.started entry of this execution, or the input is not the first one it records', async () => {
     const a = await app()
     const { execution, grant } = await running(a)
     const other = await running(a, TENANT_A, 'session-2', 'other-1')
@@ -719,7 +719,7 @@ describe('the source basis of open and submit (PA-01 items 1 and 2)', () => {
     expect(count(a, 'er_operation')).toBe(0)
   })
 
-  it('open of the next Run is denied on the SE13 of the Run before it, though both record the same first input', async () => {
+  it('open of the next Run is denied on the run.started entry of the Run before it, though both record the same first input', async () => {
     const a = await app()
     const { grant: before, work } = await running(a)
     await cancel(a, work)
@@ -786,7 +786,7 @@ describe('the source basis of open and submit (PA-01 items 1 and 2)', () => {
     })
   })
 
-  it('submit holds on the SE11 receipt of the input; the receipt of another input or the origin is denied', async () => {
+  it('submit holds on the intake.routed receipt of the input; the receipt of another input or the origin is denied', async () => {
     const a = await app()
     const { execution } = await running(a)
     const second = await admitted(a, 'input-2')

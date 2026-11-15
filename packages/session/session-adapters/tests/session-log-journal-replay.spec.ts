@@ -203,7 +203,7 @@ function routed(next: () => AgentJournal<string>): AgentJournal<string> {
 }
 
 for (const mode of ['kept', 'durable'] as const)
-  describe(`the production session-log Journal replays the traces of the finishing model (AG-23, ${mode} copy)`, () => {
+  describe(`the production session-log Journal replays the traces of the finishing model (${mode} copy)`, () => {
     for (const entry of agentJournalReplayConformance(fixtureOf(mode))) {
       it(entry.name, async () => {
         await entry.run()

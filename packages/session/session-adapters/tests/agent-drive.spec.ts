@@ -78,7 +78,7 @@ const samples = [
   },
 ] as const
 
-describe('the session slot reference (SPEC AD-14)', () => {
+describe('the session slot reference', () => {
   for (const sample of samples)
     it(`${sample.name}: encodes to the sample text and parses back to its slot`, () => {
       const ref = encodeSessionSlotRef({ session: sample.session, adoption: sample.adoption })
@@ -607,7 +607,7 @@ describe('the Agent answers map by the result table', () => {
       ['no rejection record', {}],
       ['a rejection that is not evidence', { rejection: { owner: 'admission' } }],
     ])(
-      'a refusal of the message admission with %s is refused, and no record is made (NP-12)',
+      'a refusal of the message admission with %s is refused, and no record is made',
       async (_name, extra) => {
         const f = await assembled()
         f.script.invoke.push(() =>
@@ -736,7 +736,7 @@ describe('submit uses the handle that invoke or resume kept', () => {
     source: evidence('se11-receipt'),
   }
 
-  it('without a handle it answers unavailable and calls nothing (NP-03)', async () => {
+  it('without a handle it answers unavailable and calls nothing', async () => {
     const f = await assembled()
     expect(await f.drive().submit(submitInput)).toEqual({
       failure: { kind: 'unavailable', diagnostic: 'no execution handle for submit (NP-03)' },
@@ -744,7 +744,7 @@ describe('submit uses the handle that invoke or resume kept', () => {
     expect(f.calls).toHaveLength(0)
   })
 
-  it('after invoke it submits the read content with its SE11 source on the kept handle', async () => {
+  it('after invoke it submits the read content with its intake.routed source on the kept handle', async () => {
     const f = await assembled()
     await f.drive().invoke(invokeInput())
     const answer = await f.drive().submit(submitInput)
@@ -944,7 +944,7 @@ describe('control goes to the long-term control entry, without a handle', () => 
     expect(f.errors()).toHaveLength(1)
   })
 
-  it('cannot name another tenant in a Model or Tool reference (R2-D357)', () => {
+  it('cannot name another tenant in a Model or Tool reference', () => {
     expect(modelReference(B.tenant)).toBe(modelReference(A.tenant))
     expect(toolReference(B.tenant)).toBe(toolReference(A.tenant))
   })
@@ -1173,7 +1173,7 @@ describe('inspect maps the snapshot and never says missing', () => {
 })
 
 describe('the two operations that have no Agent entry', () => {
-  it('recordResult answers unavailable (NP-04) and prewarm unsupported (P-7), calling nothing', async () => {
+  it('recordResult answers unavailable and prewarm unsupported, calling nothing', async () => {
     const f = await assembled()
     const recorded = await f.drive().recordResult({
       ...target(),

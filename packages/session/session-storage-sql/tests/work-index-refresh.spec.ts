@@ -240,7 +240,7 @@ describe('the index of the held snapshot is replaced after a publication', () =>
     expect(after.pending).toContain('input-other')
   })
 
-  it('the count moves on during the index read: the answer is registered at that count (P-4)', async () => {
+  it('the count moves on during the index read: the answer is registered at that count', async () => {
     const { a, run, admit, observe } = await scene()
     const { port, storage, hooks } = portOver(a)
     await readWork(port, a)
