@@ -15,7 +15,7 @@ lines:
   - "fiber.ts:646-696"
   - "fiber.ts:704-710"
 probe: packages/assembly/kernel-basis/tests/plugin-throw-fails-fiber.spec.ts
-checked: 2026-09-23
+checked: 2026-11-15
 ---
 
 # 插件体抛出或 config 校验不过，fiber 就是 `FAILED`，什么服务都不出现
@@ -40,7 +40,7 @@ checked: 2026-09-23
 | `fiber.ts` 状态读取（574–579 行）与 `await`（704–710 行） | 记有错误 ⇒ `FAILED`；`await` 以该错误拒绝 | 插件体 `throw`，读 `fiber.state` |
 | `fiber.ts` 失败收场（646–696 行） | 已 provide 的服务不可见 | 失败插件体里先 `provide('offers')` 再抛，`ctx.get('offers')` 为 `undefined` |
 
-## probe 断言什么
+## 探针断言什么
 
 探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
 

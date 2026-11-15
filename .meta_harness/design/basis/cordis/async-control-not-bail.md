@@ -14,7 +14,7 @@ lines:
   - "events.ts:194-196"
   - "events.ts:204-209"
 probe: packages/assembly/kernel-basis/tests/async-control-not-bail.spec.ts
-checked: 2026-09-22
+checked: 2026-11-15
 ---
 
 # `bail` 不能承载异步控制判定
@@ -47,7 +47,7 @@ checked: 2026-09-22
 
 派发模式因此是**事件契约的一部分**，不是实现细节：换一种派发会改变「谁决定结果」。
 
-## probe 断言什么
+## 探针断言什么
 
 探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
 

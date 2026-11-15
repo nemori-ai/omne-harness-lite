@@ -5,7 +5,7 @@
 
 ## 条目形状
 
-`basis/<upstream>/<entry-id>.md`。YAML 头存结构化字段，正文四节：读数、证据、probe 断言什么、已知的误用。已知的误用没有内容时可以省略。
+`basis/<upstream>/<entry-id>.md`。YAML 头存结构化字段，正文四节：读数、证据、探针断言什么、已知的误用。已知的误用没有内容时可以省略。
 
 ```yaml
 ---

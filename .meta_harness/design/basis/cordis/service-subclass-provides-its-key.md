@@ -12,7 +12,7 @@ lines:
   - "service.ts:104-113"
   - "reflect.ts:277-305"
 probe: packages/assembly/kernel-basis/tests/service-subclass-provides-its-key.spec.ts
-checked: 2026-10-02
+checked: 2026-11-15
 ---
 
 # 抽象 `Service` 子类作为插件加载，就在抽象类给的键上提供服务
@@ -42,10 +42,10 @@ checked: 2026-10-02
 | symbol / 语义位置 | 读到了什么 | 怎样复核 |
 |---|---|---|
 | `service.ts` 构造函数 | `name ??= this.constructor['provide']`；设 `tracker`（`property: 'ctx'`）；末尾 `self.ctx.reflect.provide(name, self, this[symbols.check])` | 读源码 42–58 行 |
-| `reflect.ts` `provide` | 在当前 fiber 的 effect 里登记，撤除时删掉并通知依赖者 | 读源码，或跑 probe 第 1 条的撤除断言 |
+| `reflect.ts` `provide` | 在当前 fiber 的 effect 里登记，撤除时删掉并通知依赖者 | 读源码，或跑探针第 1 条的撤除断言 |
 | `service.ts` `Symbol.hasInstance` | 沿构造函数链判定 | 子类实例对抽象类做 `instanceof` |
 
-## probe 断言什么
+## 探针断言什么
 
 探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
 

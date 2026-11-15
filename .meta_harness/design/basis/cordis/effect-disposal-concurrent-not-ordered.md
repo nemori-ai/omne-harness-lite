@@ -14,7 +14,7 @@ lines:
   - "fiber.ts:675-686"
   - "fiber.ts:351-354, 418-422"
 probe: packages/assembly/kernel-basis/tests/effect-disposal-concurrent-not-ordered.spec.ts
-checked: 2026-09-22
+checked: 2026-11-15
 ---
 
 # effect 之间的释放是并发的，逆序只约束取出
@@ -44,7 +44,7 @@ checked: 2026-09-22
 | `fiber.ts` 异常处理（683–685 行） | 异常只写日志不上抛 | 令一个 disposer 抛错，观察卸载照常完成且调用方无感 |
 | `fiber.ts` 建 effect（351–354、418–422 行） | fiber 已 dispose 或处于 UNLOADING 时抛 `INACTIVE_EFFECT` | 卸载后在其 ctx 上再建 effect |
 
-## probe 断言什么
+## 探针断言什么
 
 探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
 

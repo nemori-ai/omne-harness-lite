@@ -12,7 +12,7 @@ lines:
   - "logger.ts:154-158"
   - "logger.ts:232-238"
 probe: packages/assembly/kernel-basis/tests/logger-level-order-error-lowest.spec.ts
-checked: 2026-09-23
+checked: 2026-11-15
 ---
 
 # logger 的级别序是 ERROR 0 < INFO 1 < WARN 2 < DEBUG 3，缺省只导出到 INFO
@@ -36,7 +36,7 @@ exporter 的阈值是「最多导出到哪一级」，**缺省是 INFO**。于�
 | `_method` 的阈值判断 | 缺省 INFO | 无阈值的 exporter 只收到 error 与 info |
 | `levels.default` | 可放宽 | 阈值 2 时 warn 可见、debug 不可见 |
 
-## probe 断言什么
+## 探针断言什么
 
 探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
 

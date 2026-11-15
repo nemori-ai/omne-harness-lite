@@ -16,7 +16,7 @@ lines:
   - "fiber.ts:611-623"
   - "reflect.ts:314-330"
 probe: packages/assembly/kernel-basis/tests/late-plugin-load-unload-does-not-rerun-others.spec.ts
-checked: 2026-10-21
+checked: 2026-11-15
 ---
 
 # 根已 ACTIVE 后装载并撤除一个带登记的插件，不重跑其他插件体
@@ -50,7 +50,7 @@ fiber 的状态是 `DISPOSED`。整个过程中，注册表提供者与已有消
 | `reflect.ts` `notify` | 只刷新 inject 里含被通知键的 fiber | 读源码 314–330 行 |
 | `fiber.ts` `effect` | disposer 在显式撤除或 fiber 卸载时运行 | 读源码 418–560 行（登记）与 675–686 行（卸载时运行），或跑探针 |
 
-## probe 断言什么
+## 探针断言什么
 
 探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
 

@@ -4,12 +4,12 @@ upstream: cordis
 version: 4.0.4
 kind: negative
 symbols:
-  - "events.ts: Lifecycle.emit 是 this.dispatch('emit', args).map(cb => cb(...args))——同步逐个调用，没有 try/catch"
+  - "events.ts: EventsService.emit 是 this.dispatch('emit', args).map(cb => cb(...args))——同步逐个调用，没有 try/catch"
   - "events.ts: 监听者抛出即中断本轮派发，异常同步传给 emit 的调用方；后面的监听者不再被调用"
 lines:
   - "events.ts:194-196"
 probe: packages/assembly/kernel-basis/tests/emit-listener-throw-propagates.spec.ts
-checked: 2026-09-23
+checked: 2026-11-15
 ---
 
 # `emit` 不隔离监听者：处理者抛出会同步传回发事件的一方，并截断本轮派发
@@ -32,7 +32,7 @@ checked: 2026-09-23
 |---|---|---|
 | `events.ts` `emit`（194–196 行） | `dispatch(...).map(cb => cb(...args))`，无捕获 | 两个监听者，第一个抛出：`emit` 抛出同一个错误，第二个没被调用 |
 
-## probe 断言什么
+## 探针断言什么
 
 探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
 

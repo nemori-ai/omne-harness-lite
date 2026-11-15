@@ -13,7 +13,7 @@ lines:
   - "reflect.ts:241"
   - "reflect.ts:277"
 probe: packages/assembly/kernel-basis/tests/plugin-body-reruns-on-provider-change.spec.ts
-checked: 2026-09-22
+checked: 2026-11-15
 ---
 
 # 必需服务换提供者会使插件体重跑
@@ -41,7 +41,7 @@ checked: 2026-09-22
 | `fiber.ts` 代际（597–696 行） | 由各提供者 fiber uid 拼成；变化即卸载重跑；`check` 谓词返回假同样触发（601 行） | 卸载并重新装载提供者插件，观察消费者插件体重新执行 |
 | `reflect.ts`（241 行） | 提供者非 ACTIVE 时该服务读不到 | 令提供者进入非 ACTIVE 状态，观察消费者被卸载 |
 
-## probe 断言什么
+## 探针断言什么
 
 探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
 
