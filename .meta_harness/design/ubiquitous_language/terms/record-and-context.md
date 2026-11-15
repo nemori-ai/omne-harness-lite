@@ -1039,7 +1039,7 @@
 - **别混 ①**：**不是[运行](agent-runtime-loop.md#ul-run--运行--run)、[工具执行](execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)或[一次模型调用](execution-and-outcome.md#ul-model-call--一次模型调用--model-call)本身。**段是对这些工作的一段工程投影，一项工作可以对应几段。段丢了，业务事实不受影响
 - **别混 ②**：**段的结局不是业务终态。**`ok` 不证明工作完成，`unknown` 也不改变原工作的结局
 - **注意**：Node 提供者可以把段映射为 OTel span。span 是输出端的表示，不是本词的定义
-- **待裁决**：它是不是领域对象还没有人裁过，见 [C-73](../conflicts.md#c-73遥测段是不是对象) 与[领域对象的待裁](../../domain_objects/pending.md#遥测段)
+- **待裁决**：它是不是领域对象还没有人裁过，见 [C-73](../conflicts.md#c-73遥测段是不是对象)
 
 ## 跨拥有者的诊断读取
 
