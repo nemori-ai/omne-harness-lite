@@ -339,6 +339,28 @@ const text = (value: string) => value as SecretText
 const unconfiguredLine =
   'unconfigured reason=no search key is configured; set the Web setting exa.apiKey'
 
+const NEW_TENANT_LIST =
+  'a tenant with no session yet has no transaction domain: the catalog cannot be read, so the list carries the secret items and says it is partial'
+
+const exaView = (own: string, official: string) => ({
+  asset: { category: 'tool', name: WEB_ASSET },
+  item: EXA_KEY_ITEM,
+  revision: '0',
+  declaration: {
+    title: 'Exa API key',
+    purpose: expect.any(String),
+    appliesAt: expect.any(String),
+    clearEffect: expect.any(String),
+  },
+  kind: 'secret',
+  own,
+  official,
+  editable: { kind: 'yes' },
+})
+const itemsOf = (run: CliRun): readonly Record<string, unknown>[] =>
+  bodyOf(run)['items'] as Record<string, unknown>[]
+const exaOf = (run: CliRun) => itemsOf(run).find(item => item['item'] === EXA_KEY_ITEM)
+
 describe('the Web search key through `omne setting` on the release tree (web-meta-tool slice 04)', () => {
   it(
     'set, show, list and unset the key; search uses it; the custody is the one fact; no sentinel leaves the vault',
@@ -357,27 +379,18 @@ describe('the Web search key through `omne setting` on the release tree (web-met
           '--json',
         ])
         expect(shown0.status, shown0.stderr).toBe(0)
-        expect(bodyOf(shown0)).toEqual({
-          own: { state: 'unbound' },
-          official: { state: 'unbound' },
-        })
+        expect(bodyOf(shown0)).toEqual({ item: exaView('unset', 'unset') })
         const listed0 = await tools.cli('alice', ['setting', 'list', WEB_ASSET])
-        expect(listed0.status, listed0.stderr).toBe(0)
-        expect(bodyOf(listed0)).toEqual({
-          items: [
-            {
-              asset: { category: 'tool', name: WEB_ASSET },
-              item: EXA_KEY_ITEM,
-              title: 'Exa API key',
-              sensitivity: 'secret',
-              state: { state: 'unbound' },
-              official: { state: 'unbound' },
-            },
-          ],
-          completeness: 'complete',
-        })
+        expect(listed0.status, NEW_TENANT_LIST).toBe(0)
+        expect(bodyOf(listed0), NEW_TENANT_LIST).toMatchObject({ completeness: 'partial' })
+        expect(itemsOf(listed0)).toEqual([exaView('unset', 'unset')])
 
         const session = await tools.session('alice')
+        const listedAfterSession = await tools.cli('alice', ['setting', 'list', WEB_ASSET])
+        expect(listedAfterSession.status, listedAfterSession.stderr).toBe(0)
+        expect(bodyOf(listedAfterSession)).toMatchObject({ completeness: 'complete' })
+        expect(exaOf(listedAfterSession)).toEqual(exaView('unset', 'unset'))
+        expect(itemsOf(listedAfterSession)[0]).toEqual(exaView('unset', 'unset'))
         const first = await tools.turn('alice', session, [
           searchCall('call_search_0', 'omne harness'),
           fetchCall('call_fetch_0', tools.pages.pageUrl),
@@ -388,9 +401,7 @@ describe('the Web search key through `omne setting` on the release tree (web-met
 
         const set = await tools.cli('alice', ['setting', 'set', WEB_ASSET, EXA_KEY_ITEM], key)
         expect(set.status, set.stderr).toBe(0)
-        const configuredAt = bodyOf(set)['configuredAt']
-        expect(typeof configuredAt).toBe('string')
-        expect(Object.keys(bodyOf(set))).toEqual(['configuredAt'])
+        expect(bodyOf(set)).toEqual({ revision: '0' })
         const shown1 = await tools.cli('alice', [
           'setting',
           'show',
@@ -398,16 +409,9 @@ describe('the Web search key through `omne setting` on the release tree (web-met
           EXA_KEY_ITEM,
           '--json',
         ])
-        expect(bodyOf(shown1)).toEqual({
-          own: { state: 'usable', tenantId: tenant, configuredAt },
-          official: { state: 'unbound' },
-        })
+        expect(bodyOf(shown1)).toEqual({ item: exaView('available', 'unset') })
         const listed1 = await tools.cli('alice', ['setting', 'list', WEB_ASSET])
-        expect(bodyOf(listed1)).toMatchObject({
-          items: [
-            { item: EXA_KEY_ITEM, state: { state: 'usable', tenantId: tenant, configuredAt } },
-          ],
-        })
+        expect(exaOf(listed1)).toEqual(exaView('available', 'unset'))
 
         tools.exa.answer(() => exaResults([exaResult('Hit title', RESULT_URL, 'Hit excerpt')]))
         const second = await tools.turn('alice', session, [
@@ -437,9 +441,9 @@ describe('the Web search key through `omne setting` on the release tree (web-met
         expect(tools.vault().unbind(tenantKey)).toBe('removed')
         expect(
           bodyOf(await tools.cli('alice', ['setting', 'show', WEB_ASSET, EXA_KEY_ITEM, '--json'])),
-        ).toMatchObject({ own: { state: 'unbound' } })
-        expect(bodyOf(await tools.cli('alice', ['setting', 'list', WEB_ASSET]))).toMatchObject({
-          items: [{ item: EXA_KEY_ITEM, state: { state: 'unbound' } }],
+        ).toMatchObject({ item: { own: 'unset' } })
+        expect(exaOf(await tools.cli('alice', ['setting', 'list', WEB_ASSET]))).toMatchObject({
+          own: 'unset',
         })
 
         expect(
@@ -452,7 +456,7 @@ describe('the Web search key through `omne setting` on the release tree (web-met
         expect(unset.result?.['outcome']).toBe('succeeded')
         expect(
           bodyOf(await tools.cli('alice', ['setting', 'show', WEB_ASSET, EXA_KEY_ITEM, '--json'])),
-        ).toMatchObject({ own: { state: 'unbound' } })
+        ).toMatchObject({ item: { own: 'unset' } })
         const again = await tools.cli('alice', ['setting', 'unset', WEB_ASSET, EXA_KEY_ITEM])
         expect(again.result?.['outcome']).toBe('no-change')
 
@@ -493,6 +497,11 @@ describe('the Web search key through `omne setting` on the release tree (web-met
       ]
       const { value, run } = await withTree(async tools => {
         await tools.login('alice')
+        expect(
+          (await tools.cli('alice', ['setting', 'set', WEB_ASSET, EXA_KEY_ITEM], key)).status,
+        ).toBe(0)
+        const unset = await tools.cli('alice', ['setting', 'unset', WEB_ASSET, EXA_KEY_ITEM])
+        expect(unset.result?.['outcome'], unset.stderr).toBe('succeeded')
         expect(
           (await tools.cli('alice', ['setting', 'set', WEB_ASSET, EXA_KEY_ITEM], key)).status,
         ).toBe(0)
@@ -554,7 +563,10 @@ describe('the Web search key through `omne setting` on the release tree (web-met
         ).toBe(0)
         expect(
           bodyOf(await tools.cli('bob', ['setting', 'show', WEB_ASSET, EXA_KEY_ITEM, '--json'])),
-        ).toMatchObject({ own: { state: 'usable', tenantId: tools.tenant('bob') } })
+        ).toMatchObject({ item: { own: 'available' } })
+        expect(
+          bodyOf(await tools.cli('alice', ['setting', 'show', 'openrouter', 'apiKey', '--json'])),
+        ).toMatchObject({ item: { own: 'available' } })
         tools.exa.answer(() => exaResults([exaResult('T', RESULT_URL, 'E')]))
         const alice = await tools.session('alice')
         const bob = await tools.session('bob')
@@ -644,7 +656,7 @@ describe('the Web search key through `omne setting` on the release tree (web-met
       const deployment = `Bearer ${TEST_DEPLOYMENT_KEY}`
       expect(value.official.length).toBeGreaterThan(0)
       expect(new Set(value.official)).toEqual(new Set([deployment]))
-      expect(value.shown).toMatchObject({ own: { state: 'usable' } })
+      expect(value.shown).toMatchObject({ item: { kind: 'secret', own: 'available' } })
       expect(value.withOwn.length).toBeGreaterThan(0)
       expect(new Set(value.withOwn)).toEqual(new Set([`Bearer ${own}`]))
       expect(value.afterClear.length).toBeGreaterThan(0)
