@@ -59,7 +59,7 @@ uv() {
     *link_agents.py*) record links ;;
     *check_docs*) record docs ;;
     *check_sources.py*) record sources ;;
-    *domain_objects.py*) record objects ;;
+    *ubiquitous_language.py*) record objects ;;
     *) return 97 ;;
   esac
 }

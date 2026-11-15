@@ -345,7 +345,7 @@ describe('check-design.sh', () => {
     expect(ran.lines).toHaveLength(2)
     expect(ran.lines[0]).toContain('check_sources.py')
     expect(ran.lines[0]).not.toContain('--stale')
-    expect(ran.lines[1]).toMatch(/domain_objects\.py .* --stale report$/u)
+    expect(ran.lines[1]).toMatch(/ubiquitous_language\.py .* --stale report$/u)
     expect((await run('check-design.sh', [])).lines[1]).not.toContain('--stale')
     expect((await run('check-design.sh', ['--stale'])).status).toBe(2)
     expect((await run('check-design.sh', ['--bogus'])).status).toBe(2)
