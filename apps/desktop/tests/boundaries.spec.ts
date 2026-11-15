@@ -17,7 +17,7 @@ function files(directory: string): string[] {
 
 function imports(file: string): string[] {
   const text = readFileSync(file, 'utf8')
-  return [...text.matchAll(/(?:^|\n)\s*(?:import|export)[^'"]*?from\s+'([^']+)'/g)].map(
+  return [...text.matchAll(/(?:^|\n)\s*(?:import|export)(?:[^'"]*?from)?\s*'([^']+)'/g)].map(
     match => match[1]!,
   )
 }
@@ -35,13 +35,31 @@ function offending(directory: string, bad: (specifier: string) => boolean): stri
 describe('边界', () => {
   it('页面与共享类型不导入宿主一侧，也不导入 Node 内置', () => {
     const bad = (specifier: string) =>
-      NODE.has(specifier) || /(^|\/)(main-core|web-host)(\/|$)/.test(specifier)
+      NODE.has(specifier) ||
+      specifier === 'electron' ||
+      /(^|\/)(main-core|web-host|electron-host)(\/|$)/.test(specifier)
     expect([...offending('page', bad), ...offending('shared', bad)]).toEqual([])
   })
 
   it('宿主一侧不导入页面', () => {
     const bad = (specifier: string) => /(^|\/)page(\/|$)/.test(specifier)
-    expect([...offending('main-core', bad), ...offending('web-host', bad)]).toEqual([])
+    expect([
+      ...offending('main-core', bad),
+      ...offending('web-host', bad),
+      ...offending('electron-host', bad),
+    ]).toEqual([])
+  })
+
+  it('预加载只导入 electron 与共享类型，不导入宿主核心或主进程一侧', () => {
+    const preload = join(SRC, 'electron-host', 'preload.ts')
+    const bad = (specifier: string) =>
+      specifier !== 'electron' && !specifier.startsWith('../shared/')
+    expect(imports(preload).filter(bad)).toEqual([])
+  })
+
+  it('主进程一侧的桥不导入 electron，换成替身就能测', () => {
+    const bridge = join(SRC, 'electron-host', 'ipc-host.ts')
+    expect(imports(bridge).filter(specifier => specifier === 'electron')).toEqual([])
   })
 
   it('外壳不导入任何领域', () => {
