@@ -15,6 +15,5 @@ it('exports the identity text codecs, the common contract, the user message and 
     'readOrganizationIdText',
     'readTenantText',
     'ruleCodec',
-    'userTextMessage',
   ])
 })

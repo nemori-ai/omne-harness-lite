@@ -1,7 +1,10 @@
 import type { TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
-import type { SessionProtocol } from '@omne-harness/session-protocol'
-import { userMessageId, userTextMessage } from './user-message.ts'
+import {
+  userMessageId,
+  userTextMessage,
+  type SessionProtocol,
+} from '@omne-harness/session-protocol'
 import {
   INITIAL_WORKSPACE,
   stepWorkspace,

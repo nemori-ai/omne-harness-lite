@@ -1,8 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { ClientOf, Credentials } from '@omne-harness/sdk/core'
-import type { ObserveSessionFrame, sessionProtocol } from '@omne-harness/session-protocol'
-import { userTextMessage } from '@omne-harness/public-contract'
+import {
+  userTextMessage,
+  type ObserveSessionFrame,
+  type sessionProtocol,
+} from '@omne-harness/session-protocol'
 import { clientsOver, protocolTransport } from '../protocol-clients.ts'
 
 type SessionClient = ClientOf<typeof sessionProtocol>
@@ -149,7 +152,7 @@ export function createProtocolDriver(origin: string, account?: Account): Protoco
         ...target(id),
         acceptId: randomUUID(),
         inputId,
-        message: userTextMessage(text, inputId),
+        message: await userTextMessage(text, inputId),
       } as SendBody)
       return answer.outcome
     },

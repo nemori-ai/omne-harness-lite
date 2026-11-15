@@ -25,7 +25,6 @@
 - `Rule` · `rule.d.ts`
 - `RuleValue` · `rule-codec.d.ts`
 - `TenantId` · 包 `@omne-harness/legal-identity`
-- `UserMessage` · `user-message.d.ts`
 - `accessProtocol` · `access-protocol.d.ts`
 - `defineProtocol` · `protocol.d.ts`
 - `encodeAccountIdText` · `identity-text.d.ts`
@@ -37,7 +36,6 @@
 - `readOrganizationIdText` · `identity-text.d.ts`
 - `readTenantText` · `identity-text.d.ts`
 - `ruleCodec` · `rule-codec.d.ts`
-- `userTextMessage` · `user-message.d.ts`
 
 ## 声明文件 `access-protocol.d.ts`
 
@@ -206,8 +204,6 @@ export type { FixedOutcome, Outcome } from './outcome.ts';
 export { ruleCodec } from './rule-codec.ts';
 export type { Codec, CodecResult, RuleValue } from './rule-codec.ts';
 export type { LeafKind, Rule } from './rule.ts';
-export { userTextMessage } from './user-message.ts';
-export type { UserMessage } from './user-message.ts';
 export { defineProtocol } from './protocol.ts';
 export { accessProtocol } from './access-protocol.ts';
 export type { AccessProtocol, AvailabilityFrame } from './access-protocol.ts';
@@ -451,14 +447,4 @@ export type Family<V extends string, P extends string, S extends string> = {
     readonly responseRule: (operation: P, outcome: string) => Rule | undefined;
 };
 export declare const empty: Rule;
-```
-
-## 声明文件 `user-message.d.ts`
-
-```ts
-import type { JsonValue } from '@omne-harness/json-text';
-export type UserMessage = Extract<JsonValue, {
-    readonly kind: 'object';
-}>;
-export declare function userTextMessage(text: string, inputId: string): UserMessage;
 ```

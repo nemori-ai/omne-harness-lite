@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Common access contract: protocol definitions, rule codecs, outcomes, identity text and the user message",
+  "description": "Common access contract: protocol definitions, rule codecs, outcomes and identity text",
   "engines": {
     "node": ">=24"
   },

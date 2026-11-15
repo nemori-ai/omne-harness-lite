@@ -1,6 +1,6 @@
 import { identityProtocol } from '@omne-harness/identity-protocol'
-import { encodeTenantText, userTextMessage, type TenantId } from '@omne-harness/public-contract'
-import { sessionProtocol } from '@omne-harness/session-protocol'
+import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
+import { sessionProtocol, userTextMessage } from '@omne-harness/session-protocol'
 import type { CliOutput, CommandEnvironment, CommandSpec, ExitCode } from './cli-types.ts'
 import {
   loadLogin,
@@ -249,7 +249,7 @@ const sendInput: ExistingCommand<
     const acceptId = parsed.acceptId ?? newId()
     const inputId = parsed.inputId ?? newId()
     return {
-      send: link =>
+      send: async link =>
         link.call(
           sessionProtocol,
           'send-input',
@@ -258,7 +258,7 @@ const sendInput: ExistingCommand<
             session: parsed.session,
             acceptId,
             inputId,
-            message: userTextMessage(parsed.text, inputId),
+            message: await userTextMessage(parsed.text, inputId),
           },
           messageId,
         ),

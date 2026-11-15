@@ -13,7 +13,7 @@ import { join, resolve } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { parseArgs } from 'node:util'
 import { writeHeapSnapshot } from 'node:v8'
-import { userTextMessage } from '@omne-harness/public-contract'
+import { userTextMessage } from '@omne-harness/session-protocol'
 import { startAssembly } from '../history-cost/assembly.ts'
 import { PAYLOAD_FILE } from '../history-cost/payload.ts'
 import { bodyOf, savedTenant } from '../r9/support.ts'
@@ -251,7 +251,7 @@ try {
       session: sessionRef(session),
       acceptId: randomUUID(),
       inputId,
-      message: userTextMessage(`long session round ${String(round)}`, inputId),
+      message: await userTextMessage(`long session round ${String(round)}`, inputId),
     } as Parameters<ReturnType<typeof clients>['session']['send-input']>[0])
     if (sent.outcome !== 'succeeded')
       throw new Error(`send-input: ${JSON.stringify(sent).slice(0, 300)}`)

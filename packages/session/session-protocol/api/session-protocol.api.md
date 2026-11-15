@@ -9,12 +9,16 @@
 - `ObserveSessionFrame` · `session-protocol.d.ts`
 - `ObserveSessionOpen` · `session-protocol.d.ts`
 - `SessionProtocol` · `session-protocol.d.ts`
+- `UserMessage` · `user-message.d.ts`
 - `sessionProtocol` · `session-protocol.d.ts`
+- `userMessageId` · `user-message.d.ts`
+- `userTextMessage` · `user-message.d.ts`
 
 ## 声明文件 `index.d.ts`
 
 ```ts
 export { sessionProtocol, type ObserveSessionFrame, type ObserveSessionOpen, type SessionProtocol, } from './session-protocol.ts';
+export { userMessageId, userTextMessage, type UserMessage } from './user-message.ts';
 ```
 
 ## 声明文件 `session-protocol.d.ts`
@@ -544,5 +548,17 @@ export declare const sessionProtocol: {
     };
 };
 export type SessionProtocol = typeof sessionProtocol;
+export {};
+```
+
+## 声明文件 `user-message.d.ts`
+
+```ts
+import type { Codec } from '@omne-harness/public-contract';
+import type { SessionProtocol } from './session-protocol.ts';
+type SendInputBody = SessionProtocol['operations']['send-input']['body'] extends Codec<infer Body> ? Body : never;
+export type UserMessage = SendInputBody['message'];
+export declare function userMessageId(inputId: string): Promise<string>;
+export declare function userTextMessage(text: string, inputId: string): Promise<UserMessage>;
 export {};
 ```
