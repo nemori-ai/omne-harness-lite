@@ -3741,6 +3741,12 @@ importers:
 
   packages/session/session-ui:
     dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness/client-assembly':
+        specifier: workspace:*
+        version: link:../../access/client-assembly
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../../access/public-contract
@@ -3750,6 +3756,12 @@ importers:
       '@omne-harness/session-protocol':
         specifier: workspace:*
         version: link:../session-protocol
+      '@omne-harness/shell-contract':
+        specifier: workspace:*
+        version: link:../../frontend/shell-contract
+      '@omne-harness/ui-kit':
+        specifier: workspace:*
+        version: link:../../frontend/ui-kit
       '@omne-harness/utc-instant':
         specifier: workspace:*
         version: link:../../common/utc-instant
