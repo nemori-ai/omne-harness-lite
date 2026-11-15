@@ -13,6 +13,7 @@ import { join, resolve } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { parseArgs } from 'node:util'
 import { writeHeapSnapshot } from 'node:v8'
+import { userTextMessage } from '@omne-harness/public-contract'
 import { startAssembly } from '../history-cost/assembly.ts'
 import { PAYLOAD_FILE } from '../history-cost/payload.ts'
 import { bodyOf, savedTenant } from '../r9/support.ts'
@@ -23,7 +24,6 @@ import {
   savedCredentials,
   sessionRef,
   tenantOf,
-  userTextMessage,
 } from '../support/protocol-clients.ts'
 import { judge } from './judge.ts'
 import { installWorkerCount, type PhaseCounts } from './worker-count.ts'

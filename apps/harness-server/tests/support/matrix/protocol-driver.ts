@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { ClientOf, Credentials } from '@omne-harness/sdk/core'
 import type { ObserveSessionFrame, sessionProtocol } from '@omne-harness/session-protocol'
-import { clientsOver, protocolTransport, userTextMessage } from '../protocol-clients.ts'
+import { userTextMessage } from '@omne-harness/public-contract'
+import { clientsOver, protocolTransport } from '../protocol-clients.ts'
 
 type SessionClient = ClientOf<typeof sessionProtocol>
 type SendBody = Parameters<SessionClient['send-input']>[0]

@@ -1,5 +1,5 @@
 import { identityProtocol } from '@omne-harness/identity-protocol'
-import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
+import { encodeTenantText, userTextMessage, type TenantId } from '@omne-harness/public-contract'
 import { sessionProtocol } from '@omne-harness/session-protocol'
 import type { CliOutput, CommandEnvironment, CommandSpec, ExitCode } from './cli-types.ts'
 import {
@@ -28,7 +28,6 @@ import { readOptions } from './options.ts'
 import { report, type RequestEcho } from './report.ts'
 import { readSessionOwners, writeSessionOwners } from './session-owners.ts'
 import { settingCommand } from './setting-command.ts'
-import { userTextMessage } from './user-message.ts'
 
 async function runAccount(
   name: 'register' | 'login',
