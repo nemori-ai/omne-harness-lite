@@ -20,7 +20,7 @@ const NOT_EDITABLE: Readonly<Record<'locked' | 'not-a-source' | 'prohibited-abov
 const SECRET: Readonly<Record<'unset' | 'available' | 'revoked' | 'unreadable', string>> = {
   unset: '未配置',
   available: '可用',
-  revoked: '已撤销',
+  revoked: '已吊销',
   unreadable: '读不出',
 }
 
