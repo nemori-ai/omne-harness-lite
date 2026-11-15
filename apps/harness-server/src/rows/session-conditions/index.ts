@@ -9,7 +9,7 @@ import {
   definitionMappingsKey,
   modesAdoptionOf,
   type DefinitionMappings,
-} from '@omne-harness/server-entry/cordis'
+} from '../agent-adoptions/definition-mappings.ts'
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { defineRow } from '../../row.ts'

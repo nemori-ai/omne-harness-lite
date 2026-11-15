@@ -21,7 +21,7 @@ import {
   DefinitionMappingsService,
   definitionMappingsKey,
   type DefinitionMappingEntry,
-} from '@omne-harness/server-entry/cordis'
+} from '../../../src/rows/agent-adoptions/definition-mappings.ts'
 import { evidence } from '@omne-harness/session-contract/testing'
 import { SessionService, sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { parseDuration, parseInstant } from '@omne-harness/utc-instant'

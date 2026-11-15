@@ -3,7 +3,7 @@ import {
   modesAdoptionOf,
   type DefinitionMappingEntry,
   type DefinitionMappings,
-} from '@omne-harness/server-entry/cordis'
+} from '../../../src/rows/agent-adoptions/definition-mappings.ts'
 import { memoryAccess } from '@omne-harness/session-contract/testing'
 import { describe, expect, test } from 'vitest'
 import { defaultModesOf, sessionConditionsRow } from '../../../src/rows/session-conditions/index.ts'

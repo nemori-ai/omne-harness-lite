@@ -5,7 +5,10 @@ import { accessRegistryKey } from '@omne-harness/access-cordis-contract/cordis'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import { createAccessIdentity } from '@omne-harness/identity-access'
-import { definitionMappingsKey, definitionResolverOf } from '@omne-harness/server-entry/cordis'
+import {
+  definitionMappingsKey,
+  definitionResolverOf,
+} from '../agent-adoptions/definition-mappings.ts'
 import {
   openRequestJournal,
   type PrincipalFacts,

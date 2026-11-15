@@ -16,7 +16,7 @@ import {
 } from '@omne-harness/session-cordis-contract/cordis'
 import { z } from 'zod'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
-import { definitionMappingsKey } from '@omne-harness/server-entry/cordis'
+import { definitionMappingsKey } from '../agent-adoptions/definition-mappings.ts'
 import { sessionModesPrincipalsKey } from '../../entry/session-modes-principals.ts'
 import { defaultModesOf } from '../session-conditions/index.ts'
 import { SessionModesInstallation, sessionModesInstallationKey } from './modes.ts'

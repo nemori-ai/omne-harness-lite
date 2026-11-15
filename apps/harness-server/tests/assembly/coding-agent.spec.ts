@@ -11,7 +11,7 @@ import { definitionContributions, definitionSourceOf } from '@omne-harness/agent
 import { officialOpenAiProfiles } from '@omne-harness/pi-ai-openai'
 import { assembleSystemPrompt } from '@omne-harness/request-context-contract'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
-import { contentDigest } from '@omne-harness/server-entry/cordis'
+import { contentDigest } from '../../src/rows/agent-adoptions/definition-mappings.ts'
 import { agentAdoptionsConfig } from '../../src/rows/agent-adoptions/config.ts'
 import { AgentAdoptionsImpl } from '../../src/rows/agent-adoptions/services.ts'
 import { buildTable } from '../../src/rows/agent-adoptions/table.ts'

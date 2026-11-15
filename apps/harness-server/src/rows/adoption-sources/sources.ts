@@ -8,7 +8,7 @@ import {
   modesAdoptionOf,
   type DefinitionMappingEntry,
   type DefinitionMappings,
-} from '@omne-harness/server-entry/cordis'
+} from '../agent-adoptions/definition-mappings.ts'
 import {
   INITIALIZATION_PROTOCOL,
   type AdoptionEvidenceCommand,

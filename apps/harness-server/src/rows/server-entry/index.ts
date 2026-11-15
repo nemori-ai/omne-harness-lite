@@ -11,7 +11,10 @@ import {
   type ServerEntryDependencies,
   type ToolCallReader,
 } from '@omne-harness/server-entry'
-import { definitionMappingsKey, definitionResolverOf } from '@omne-harness/server-entry/cordis'
+import {
+  definitionMappingsKey,
+  definitionResolverOf,
+} from '../agent-adoptions/definition-mappings.ts'
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
 import { toolRuntimeKey, type ToolRuntimeService } from '@omne-harness/tool-cordis-contract/cordis'
