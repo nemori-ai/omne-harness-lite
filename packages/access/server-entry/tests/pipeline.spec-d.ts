@@ -2,7 +2,7 @@ import { expectTypeOf, test } from 'vitest'
 import { admit } from '../src/pipeline/pipeline.ts'
 import { createServerEntry, type ServerEntryAccess } from '../src/index.ts'
 import { createAccessRegistry } from '../src/index.ts'
-import { testIdentity } from './support/pipeline-kit.ts'
+import { testIdentity } from './support/access-kit.ts'
 
 test('steps 1 to 5 return no promise: looking up and entering cannot be split by a take-down', () => {
   type Admitted = ReturnType<typeof admit>

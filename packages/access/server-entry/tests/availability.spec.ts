@@ -3,8 +3,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { AvailabilityFrame } from '@omne-harness/public-contract'
 import { accessContribution, availabilitySource } from '../src/availability/availability.ts'
 import { createAccessRegistry, type AccessRegistry } from '../src/registry/registry.ts'
-import type { SseClient } from './support/harness.ts'
-import { openSse, startFixture } from './support/harness.ts'
+import type { SseClient } from './support/entry.ts'
+import { openStream, startEntry } from './support/entry.ts'
 import {
   PROOF,
   observe,
@@ -12,7 +12,7 @@ import {
   testIdentity,
   turn,
   type AccessFixture,
-} from './support/pipeline-kit.ts'
+} from './support/access-kit.ts'
 import { notesContribution } from './support/test-contribution.ts'
 
 type View = { revision: number; protocols: Set<string> }
@@ -241,7 +241,7 @@ async function entry(options?: Parameters<typeof startAccessFixture>[0]): Promis
 const AVAILABILITY = '/api/access/v1/availability'
 
 function watchAvailability(port: number, authorization?: string): SseClient {
-  return openSse(port, '{}', {
+  return openStream(port, '{}', {
     path: AVAILABILITY,
     headers: {
       'omne-message-id': 'm-1',
@@ -274,7 +274,7 @@ describe('availability at the entry', () => {
     const registry = createAccessRegistry()
     try {
       await expect(
-        startFixture({
+        startEntry({
           config: { listenPort: port },
           access: {
             registry,

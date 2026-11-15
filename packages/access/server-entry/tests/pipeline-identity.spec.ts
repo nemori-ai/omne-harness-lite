@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { HttpReply } from './support/harness.ts'
+import type { HttpReply } from './support/entry.ts'
 import {
   MESSAGE_ID,
   PROOF,
@@ -7,7 +7,7 @@ import {
   rawCall,
   startAccessFixture,
   type AccessFixture,
-} from './support/pipeline-kit.ts'
+} from './support/access-kit.ts'
 
 const DENIED = '{"outcome":"denied","body":{}}'
 const UNAVAILABLE = '{"outcome":"basis-unavailable","body":{}}'
