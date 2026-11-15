@@ -564,6 +564,11 @@
       "id": "human-intervention-access",
       "plugin": "humanInterventionAccessRow",
       "config": {}
+    },
+    {
+      "id": "session-diagnostics-access",
+      "plugin": "sessionDiagnosticsAccessRow",
+      "config": {}
     }
   ]
 }

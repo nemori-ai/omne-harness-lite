@@ -60,7 +60,8 @@
     "identity-access",
     "session-access",
     "assets-access",
-    "human-intervention-access"
+    "human-intervention-access",
+    "session-diagnostics-access"
   ],
   "trusted": [
     {
@@ -337,6 +338,12 @@
     },
     {
       "row": "human-intervention-access",
+      "names": [
+        "principalIssuer"
+      ]
+    },
+    {
+      "row": "session-diagnostics-access",
       "names": [
         "principalIssuer"
       ]

@@ -337,6 +337,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'session-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'assets-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'human-intervention-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'session-diagnostics-access': { injects: ['accessRegistry', 'principalIssuer'] },
 }
 
 export const rowManifests: ReadonlyMap<RowId, RowManifest> = new Map(

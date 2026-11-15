@@ -299,6 +299,11 @@
       "id": "human-intervention-access",
       "plugin": "stubPlugin",
       "config": {}
+    },
+    {
+      "id": "session-diagnostics-access",
+      "plugin": "stubPlugin",
+      "config": {}
     }
   ]
 }
