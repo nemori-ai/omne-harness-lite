@@ -336,6 +336,10 @@ export function scriptedNotes(): ScriptedNotes {
           body: { noteId: body.noteId, title: 'first note' },
         })),
         'save-note': handler('save-note', async () => ({ outcome: 'succeeded', body: {} })),
+        'open-note': handler('open-note', async (_call, body) => ({
+          outcome: 'succeeded',
+          body: { noteId: body.noteId, title: 'first note' },
+        })),
         ping: handler('ping', async () => ({ outcome: 'succeeded', body: {} })),
         'tag-note': handler('tag-note', async () => ({ outcome: 'succeeded', body: {} })),
       },

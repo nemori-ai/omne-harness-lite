@@ -23,8 +23,11 @@ export type SettleInput = {
   readonly clock: Clock
   readonly respond: (answer: SettledAnswer) => void | Promise<void>
   readonly reportAccess?: () => void
+  readonly confirm?: () => Promise<Confirmation>
   readonly note?: (code: SettleNote) => void
 }
+
+export type Confirmation = 'valid' | 'denied' | 'unavailable'
 
 export type SettleNote = 'access.basis-unavailable' | 'access.request-fault'
 
@@ -58,17 +61,33 @@ async function handled(
   handler: OperationHandler<any>,
   contract: OperationContract,
 ): Promise<SettledAnswer> {
+  let settled: SettledAnswer | undefined
   try {
     const answer: unknown = await handler(
       { principal: input.principal, messageId: input.messageId, signal: input.entered.signal },
       input.body,
     )
-    const settled = written(contract, answer, input.limits)
-    if (settled?.outcome === 'basis-unavailable') noted(input, 'access.basis-unavailable')
-    return settled ?? failureOf(contract)
+    settled = written(contract, answer, input.limits)
   } catch {
     noted(input, 'access.request-fault')
     return failureOf(contract)
+  }
+  if (settled === undefined) return failureOf(contract)
+  if (settled.outcome === 'basis-unavailable') noted(input, 'access.basis-unavailable')
+  return input.confirm === undefined ? settled : confirmed(settled, input.confirm)
+}
+
+async function confirmed(
+  answer: SettledAnswer,
+  confirm: () => Promise<Confirmation>,
+): Promise<SettledAnswer> {
+  switch (await confirm()) {
+    case 'valid':
+      return answer
+    case 'denied':
+      return emptyAnswer('denied')
+    case 'unavailable':
+      return emptyAnswer('basis-unavailable')
   }
 }
 

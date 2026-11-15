@@ -1,5 +1,10 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { AccessIdentity, LoginIdentity } from '@omne-harness/access-cordis-contract'
+import { isDeepStrictEqual } from 'node:util'
+import type {
+  AccessIdentity,
+  LoginIdentity,
+  LoginResult,
+} from '@omne-harness/access-cordis-contract'
 import { readJsonBytes, type JsonLimits } from '@omne-harness/json-text'
 import type { Codec, OperationContract } from '@omne-harness/public-contract'
 import {
@@ -9,7 +14,13 @@ import {
 } from '../observation-hub/hub.ts'
 import type { LoginCheck } from '../observation-hub/records.ts'
 import type { AccessRegistry, Entered, RegistryForPipeline } from '../registry/registry.ts'
-import { settleCall, systemClock, type Clock, type SettleNote } from '../settle/settle.ts'
+import {
+  settleCall,
+  systemClock,
+  type Clock,
+  type Confirmation,
+  type SettleNote,
+} from '../settle/settle.ts'
 import { parseAddress, pathOf, type Address } from './address.ts'
 import { EMPTY_BODY, writeAnswer, writeBare } from './answer.ts'
 import { readBody } from './body.ts'
@@ -42,6 +53,7 @@ export type PipelineDiagnosticCode =
   | 'access.identity-denied'
   | 'access.identity-unavailable'
   | 'access.identity-fault'
+  | 'access.login-revoked-before-answer'
   | 'access.body-over-limit'
   | 'access.body-rejected'
   | 'access.aborted'
@@ -156,6 +168,28 @@ async function checkLogin(identity: AccessIdentity, login: SignedIn): Promise<Lo
   const result = await identity.identifyLogin(login.proof)
   if (result.outcome === 'identified') return 'valid'
   return result.outcome === 'denied' ? 'denied' : 'unavailable'
+}
+
+async function confirmLogin(
+  identity: AccessIdentity,
+  login: SignedIn,
+  note: (code: PipelineDiagnosticCode) => void,
+): Promise<Confirmation> {
+  let result: LoginResult
+  try {
+    result = await identity.identifyLogin(login.proof)
+  } catch {
+    note('access.identity-fault')
+    return 'unavailable'
+  }
+  if (result.outcome === 'basis-unavailable') {
+    note('access.identity-unavailable')
+    return 'unavailable'
+  }
+  if (result.outcome === 'identified' && isDeepStrictEqual(result.login, login.identity))
+    return 'valid'
+  note('access.login-revoked-before-answer')
+  return 'denied'
 }
 
 function report(
@@ -310,6 +344,9 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
       ...(login === undefined
         ? {}
         : { reportAccess: () => report(access.identity, login.identity, note) }),
+      ...(login === undefined || member.contract.effect !== 'read'
+        ? {}
+        : { confirm: () => confirmLogin(access.identity, login, note) }),
       note,
     })
   }
