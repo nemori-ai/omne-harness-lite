@@ -11,6 +11,7 @@
 | 基线样式 | `styles.css` 的基线层、关键帧、减少动效、焦点、日期控件，以及折叠、空状态、页头、页列、分段、浮层的规则 | `src/styles/base.css`、`src/controls/controls.css`、`src/patterns/patterns.css` |
 | 图标 | `design/icons/{brush,glyphs,glyph,index}.ts`、`icons.css` | `src/icons/`、`src/styles/icons.css` |
 | 字体 | `public/fonts/` 的 Inter、JetBrains Mono 与各自的 OFL 文本，`assets/fonts/fonts.css` | `resources/fonts/`、`src/styles/fonts.css` |
+| 霞鹜文楷 | `public/fonts/lxgw-wenkai/`（1.7.0，常规与粗体，按字符范围切成 194 片）与它的 OFL 文本，`assets/fonts/wenkai.css` | `resources/fonts/lxgw-wenkai/`、`resources/fonts/LICENSE.LXGWWenKai`、`src/styles/wenkai.css`（只改了字体文件的地址）。约 9 MB，负责人 2026-11-15 定纳入。它排在中文字体栈的第一位，页面只取用到的那几片 |
 | 基础控件 | `components/ui/*.tsx`（十三个）、`components/ui.tsx`、`lib/utils.ts`、`keyboard/focus.ts` | `src/controls/`、`src/lib/` |
 | 通用件 | `components/ai/*`、`disclosure`、`empty-state`、`loading-state`、`loading-ink`、`page-header`、`page-column`、`save-receipt`、`fact-list`、`code-surface`、`confirm/*`、`icon-button`、`inline-notice`、`ago`、`conversation/time.ts`，连同各自的 CSS | `src/patterns/` |
 | 流式 Markdown | `conversation/prose.tsx`、`code-highlight.ts`、`markdown-diagrams.ts`，`conversation.css` 里 Markdown 的规则 | `src/prose/`、`src/styles/prose.css` |
@@ -35,10 +36,9 @@
 ## 没取的
 
 - 仓颉今楷：许可不许作为应用资产发布。
-- 霞鹜文楷：字体文件有 9 MB，放不放进仓库等负责人定。中文先用系统字体，见 `src/styles/fonts.css`。
 - 对话的气泡、输入框、转写区、会话列表、设置页的版式，壳的导航与侧栏。它们归各领域的界面模块与应用的外壳。
 - `lucide-react`、`tw-animate-css`、路由库、react-query、多语言库。
 
 ## 许可
 
-基础控件改自 shadcn/ui 的 new-york-v4 风格，MIT，声明在 [LICENSE.shadcn](LICENSE.shadcn)，这些文件的第一行写了许可标识。Inter 与 JetBrains Mono 是 SIL OFL 1.1，许可文本放在 `resources/fonts/` 里字体旁边。
+基础控件改自 shadcn/ui 的 new-york-v4 风格，MIT，声明在 [LICENSE.shadcn](LICENSE.shadcn)，这些文件的第一行写了许可标识。Inter、JetBrains Mono 与霞鹜文楷是 SIL OFL 1.1，许可文本放在 `resources/fonts/` 里字体旁边。

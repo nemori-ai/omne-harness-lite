@@ -6,11 +6,11 @@
     "LICENSE.shadcn": "MIT, copyright shadcn; the base controls derive from shadcn/ui new-york-v4",
     "resources/fonts/LICENSE.Inter": "SIL OFL 1.1",
     "resources/fonts/LICENSE.JetBrainsMono": "SIL OFL 1.1",
+    "resources/fonts/LICENSE.LXGWWenKai": "SIL OFL 1.1; LXGW WenKai 1.7.0 from the lxgw-wenkai-webfont package",
     "upstream_repository": "The upstream repository carries no LICENSE file; reuse rests on the authorization above."
   },
   "not_taken": [
-    "TsangerJinKai02 fonts (licence forbids shipping as an application asset)",
-    "LXGW WenKai fonts (9 MB, owner has not decided)"
+    "TsangerJinKai02 fonts (licence forbids shipping as an application asset)"
   ],
   "sources": [
     {
@@ -292,6 +292,20 @@
     {
       "path": "desktop/src/renderer/public/fonts/JetBrainsMono-OFL.txt",
       "sha256": "b2fe5e8987594e9ffd1d2ca52a2f5d73eb8335243893c5d6254b5ad69269591d"
+    },
+    {
+      "path": "desktop/src/renderer/public/fonts/lxgw-wenkai/OFL.txt",
+      "sha256": "fe4ddef88d2705569740a4b6c59e1a73315e1a55fb0a0d054bd791977681f8cb"
+    },
+    {
+      "path": "desktop/src/renderer/src/assets/fonts/wenkai.css",
+      "sha256": "b702545025befced4d4dbd1f089645e00da675d32ae148c05286480affb10631"
+    },
+    {
+      "path": "desktop/src/renderer/public/fonts/lxgw-wenkai/*.woff2",
+      "files": 194,
+      "sha256": "39ca9c767772280f9621aa43d130e60f388b84b918f2db98291b572592ea946c",
+      "sha256_of": "the output of `sha256sum *.woff2` run in that directory"
     }
   ]
 }

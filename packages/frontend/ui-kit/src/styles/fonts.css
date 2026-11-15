@@ -14,7 +14,8 @@
 }
 
 :root {
-  --omne-font-han: 'Kaiti SC', 'STKaiti', 'KaiTi', 'Noto Serif CJK SC', 'Songti SC', 'SimSun';
+  --omne-font-han:
+    'LXGW WenKai', 'Kaiti SC', 'STKaiti', 'KaiTi', 'Noto Serif CJK SC', 'Songti SC', 'SimSun';
   --omne-font-ui: 'Inter', var(--omne-font-han), -apple-system, sans-serif;
   --omne-font-reading: 'Charter', var(--omne-font-han), Georgia, serif;
   --omne-font-mono: 'JetBrains Mono', var(--omne-font-han), monospace;
