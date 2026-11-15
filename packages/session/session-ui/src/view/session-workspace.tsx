@@ -26,9 +26,7 @@ import { ItemView } from './parts.tsx'
 import { useFollowBottom } from './scroll.ts'
 
 export type SessionWorkspaceProps = Readonly<{
-  /** session/v1 的协议客户端。外壳从客户端装配的树上取到才渲染这个组件。 */
   client: ClientOf<SessionProtocol>
-  /** 当前租户。外壳用 identity/v1 的 query-current-tenant 得到。 */
   tenant: string
 }>
 
@@ -45,10 +43,6 @@ export function SessionWorkspace(props: SessionWorkspaceProps): JSX.Element {
   return <Workspace client={props.client} tenant={tenant} />
 }
 
-/**
- * The driver lives exactly as long as the effect: React may run an effect, clean it up and run it
- * again (StrictMode), and a new client or tenant is a new driver. Its cleanup aborts what it opened.
- */
 function Workspace({
   client,
   tenant,
@@ -68,7 +62,6 @@ function Workspace({
 
 function Session({ driver }: { readonly driver: SessionDriver }) {
   const { session: state, list } = useSyncExternalStore(driver.subscribe, driver.getState)
-  // Only below 720px wide does the list fold away; there this opens it as a drop-down.
   const [listOpen, setListOpen] = useState(false)
   return (
     <div className="omne-session" data-list-open={listOpen}>
@@ -284,7 +277,6 @@ function Body({ state, driver }: { readonly state: State; readonly driver: Sessi
         </>
       )
     case 'open':
-      // Another session starts from scratch: its own scroll position and an empty input box.
       return <OpenSession key={state.session} state={state} driver={driver} />
   }
 }
@@ -316,7 +308,6 @@ function Conversation({
   readonly inputs: readonly PendingInput[]
   readonly driver: SessionDriver
 }) {
-  // Committed items depend on the entries only, so a growing reply leaves them untouched.
   const committed = useMemo(
     () => conversationItems({ ...EMPTY_CONTENT, entries: content.entries }, runActive),
     [content.entries, runActive],

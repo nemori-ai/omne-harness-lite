@@ -1,9 +1,3 @@
-// The conformance cases of `SessionTransactionPort.commitEntries` (docs/same-log-pure.md「entries
-// 通道的解释提交」). Every provider runs the same cases on a fixture that it builds through the
-// public commit: an active Run with its execution and a bound external Tool call. The cases read
-// the result only through the public port: the receipt, `readWork` with its `entriesProgress`,
-// `history` and the two query methods. A caller that lost its memory takes its start from
-// `readWork` alone, as the interpreter does after a restart.
 import assert from 'node:assert/strict'
 import type { SessionHistory } from './faces.ts'
 import type { TenantId } from '@omne-harness/legal-identity'
@@ -29,7 +23,6 @@ import { evidence, sessionId } from './testing-values.ts'
 
 const CALL = 'entries-call-1'
 
-/** Opens the Run and binds the external Tool call `CALL`; returns the run and the execution. */
 async function opened<P>(fixture: SessionTransactionsFixture<P>) {
   const s = scene(fixture)
   await s.openRun()
@@ -72,14 +65,12 @@ const item = (
   interpretation,
 })
 
-/** The channel of a fixture: the session, the run and the execution that the observations name. */
 type Opened = Readonly<{
   base: Readonly<{ tenant: TenantId; session: SessionId }>
   run: RunId
   execution: string
 }>
 
-/** The base observation: the range (0, 2] of the Tool channel, one producer fact and one observed item. */
 function observation(
   o: Opened,
   operation: SessionOperationId,
@@ -106,10 +97,6 @@ function observation(
   }
 }
 
-/**
- * The start of the Tool channel of `o`, taken from a snapshot only: the saved item of the channel,
- * or `initial` when the snapshot holds none.
- */
 function startOf(o: Opened, snapshot: WorkSnapshot): SessionEntriesStart {
   const progress = (snapshot.entriesProgress ?? []).find(
     item =>
@@ -118,7 +105,6 @@ function startOf(o: Opened, snapshot: WorkSnapshot): SessionEntriesStart {
   return progress === undefined ? { kind: 'initial' } : { kind: 'saved', progress }
 }
 
-/** The range (2, 3] that continues from `start`. */
 function next(o: Opened, operation: SessionOperationId, start: SessionEntriesStart) {
   return {
     observation: observation(o, operation, {
@@ -151,10 +137,6 @@ async function allEntries<P>(
   return page.entries
 }
 
-/**
- * What a refused commit must leave unchanged: the revision, the saved progress, the log and the
- * operation identity.
- */
 async function state<P>(fixture: SessionTransactionsFixture<P>, operation: SessionOperationId) {
   const snapshot = succeeded(await fixture.port.readWork(fixture.access), 'readWork')
   return {
@@ -241,7 +223,6 @@ export function sessionEntriesConformance<P>(): readonly ConformanceCase<
           }),
           'first range',
         )
-        // The caller keeps nothing of the first commit: the start comes from readWork alone.
         const start = startOf(o, await o.s.readWork())
         const second = succeeded(
           await fixture.port.commitEntries(next(o, fixture.operation('entries-2'), start)),
@@ -362,8 +343,6 @@ export function sessionEntriesConformance<P>(): readonly ConformanceCase<
           assert.equal(failure.kind, kind)
           const { query, ...after } = await state(fixture, operation)
           assert.deepEqual(after, before, `${kind} changed nothing`)
-          // The refused identity stays unknown. A provider that keeps its rolled back attempts
-          // answers attempt-rejected, which leaves the original unknown as well (SL09).
           assert.ok(
             query.kind === 'unknown' || query.kind === 'attempt-rejected',
             `${kind} left the identity unknown, not ${query.kind}`,
@@ -440,8 +419,6 @@ export function sessionEntriesConformance<P>(): readonly ConformanceCase<
         }
         const before = asked()
         succeeded(await fixture.port.commitEntries(input), 'commitEntries')
-        // The answers of the recall and of the stale start belong to CF-04 and CF-03; this case
-        // counts only the access checks.
         await fixture.port.commitEntries(input)
         await fixture.port.commitEntries({
           ...input,

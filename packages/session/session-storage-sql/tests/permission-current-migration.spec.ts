@@ -83,7 +83,6 @@ async function beforeMigration(withAssignment = false) {
       },
     }
     const facts = sessionCommandFacts(command, [])
-    // This is a named qualification fixture for the original writer, not a login-policy test.
     const basis = {
       kind: 'permission-change',
       commandsDigest: sessionCommitDigest([facts]),
@@ -152,7 +151,6 @@ describe('permission relation migration from the original event log', () => {
     const stored = readState(w.port, tenant, scope.session, tail)
     if (stored === 'behind') throw new Error('fixture snapshot')
     const digest = 'sha256:3abcec48c42a0f45922018403bc73b3c57490af537ae8a4257980350fa7f5875'
-    // This fixture represents the supported pre-assignment format; it is not an archived production database.
     const original = rowsOf(
       w.port,
       'SELECT entry FROM sl_entry WHERE tenant = ? AND session = ? ORDER BY position LIMIT 100',

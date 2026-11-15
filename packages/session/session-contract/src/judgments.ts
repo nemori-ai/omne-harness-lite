@@ -1,9 +1,5 @@
 import type { SessionPermissionChangeBasis } from './permission-values.ts'
 import type { SessionIntakeLimits } from './intake.ts'
-// The nine pure domain services and the shapes they share with `decide` and `reduce`
-// (SPEC「领域服务与归约」). Inputs are the work snapshot and command parameters only: no time,
-// random number, connection or outside state. The outcome sets are closed discriminated unions.
-//
 import { originalAttempt } from './history-validation.ts'
 import { waitKey } from './call-state.ts'
 import { digestOf } from './operations.ts'
@@ -71,7 +67,6 @@ export type RunStartJudgment =
         | 'no-input'
         | 'login-required'
     }>
-/** Original work sets and control responsibilities, all derived from the snapshot. taken: inputs the Agent took with no model call registered (SE18) after them, so no model request has read them yet. unreadEvents: Agent events after readThrough count as open work. */
 export type OpenWork = Readonly<{
   unassociatedWaiting?: readonly SessionCallWait[]
   unsettledControls?: readonly SessionOperationId[]
@@ -119,56 +114,41 @@ export type CommittedBatch = Readonly<{
 export type ReduceResult =
   | Readonly<{ kind: 'reduced'; snapshot: WorkSnapshot }>
   | Readonly<{ kind: 'quarantined'; diagnostic: string }>
-/** Entries without id and revision; the storage provider assigns both at commit. */
 export type EncodedEntry = Omit<HistoryEntry, 'id' | 'revision'>
 export type Decision =
   | Readonly<{
       kind: 'entries'
       entries: readonly EncodedEntry[]
-      /** Only entries interpretation fills it: the new continuous progress of the channel. */
       progress?: Readonly<{
         run: RunId
         execution: string
         channel: SessionEntriesChannel
         through: string
       }>
-      /** The channel ordinal and delivery key of every interpreted item. */
       interpreted?: readonly Readonly<{ ordinal: string; key: string }>[]
     }>
-  /** An answer-only control operation: no entry, no revision, no CommitReceipt. */
   | Readonly<{
       kind: 'control-answer'
       answer: Exclude<
         SessionControlAnswer<RunTerminal | SessionCallTerminal>,
         { kind: 'requested' }
       >
-      /** The source of the fact the answer rests on: the ended terminal's evidence, or the snapshot source. */
       source: DurableEvidence
     }>
   | Readonly<{ kind: 'recovered'; receipt: CommitReceipt }>
   | Readonly<{ kind: 'rejected'; failure: SessionFailure }>
-/** Transaction-bound materials. Each branch requires only its original history, compaction or management inputs. */
 export type DecideReads = Readonly<{
   permissionChange?: SessionPermissionChangeBasis
   intakeLimits?: SessionIntakeLimits
   history?: SessionHistoryReads
   compaction: CompactionContext | null
-  /** Missing material does not assert any external children or idle coverage. */
   children?: readonly SessionId[]
   idleObservation?: IdleObservation
   idleCoverage?: IdleCoverage
   frozenReceipt?: CommitReceipt
-  /** Original receipts from the same committed root, required only for initialization result recall. */
   initializationReceipts?: readonly CommitReceipt[]
-  /** `stopCall`: the same-root call lookup. Exactly one item must match the target. */
   calls?: readonly SessionCallLookup[]
-  /** `cancelRun`: the same-root Run lookup. Exactly one item must match the target. */
   runs?: readonly SessionRunLookup[]
-  /**
-   * `startRun`: the stored first input of the new Run, read from the same committed root as the
-   * snapshot. Its `origin` is the login gate of an interactive start; absent, or naming another
-   * input, it confirms no login.
-   */
   firstInput?: Readonly<{ input: InputId; origin: DurableEvidence }>
 }>
 
@@ -184,7 +164,6 @@ function terminalOf(snapshot: WorkSnapshot): RunTerminal | null {
   return snapshot.run.kind === 'terminal' ? snapshot.run.terminal : null
 }
 
-/** The commands whose `expected` names the Run-layer revision (SPEC I-R2, R2-D327). */
 const RUN_LAYER_EXPECTED: ReadonlySet<MutationName> = new Set([
   'claim',
   'reload',
@@ -192,25 +171,11 @@ const RUN_LAYER_EXPECTED: ReadonlySet<MutationName> = new Set([
   'finishRun',
 ])
 
-/**
- * The revision that `expected` of a command of `kind` is compared with (SPEC I-R2, R2-D327). The
- * advance commands `claim`, `reload`, `release` and `finishRun` name the Run-layer revision: the
- * revision of the last commit that started the active Run or changed its advance or adoption, so
- * an unrelated commit (an `accept`, a hand-over, an Agent fact) does not move it. Every other
- * command names the snapshot revision. Without an active Run there is no Run layer, so it is the
- * snapshot revision.
- */
 export function expectedRevision(snapshot: WorkSnapshot, kind: MutationName): SessionRevision {
   if (!RUN_LAYER_EXPECTED.has(kind) || snapshot.run.kind !== 'active') return snapshot.revision
   return snapshot.run.revision
 }
 
-/**
- * Whether `expected` of a command of `kind` still holds: it equals the revision that
- * `expectedRevision` names, and nothing else. An advance command that read the snapshot and sends
- * the snapshot revision does not hold once an unrelated commit moved the snapshot but not the Run
- * layer; accepting it would let a stale claimant pass beside a fresh one (SPEC I-R2, R2-D343).
- */
 export function expectedHolds(
   snapshot: WorkSnapshot,
   kind: MutationName,
@@ -219,13 +184,7 @@ export function expectedHolds(
   return expected === expectedRevision(snapshot, kind)
 }
 
-/**
- * The advance judgment (ST08–ST11, ST20): the attempt claim compares run, attempt and `expected`,
- * not the instance (PM-01); the bounded claim compares run and `expected`; the participation
- * claim compares the execution. `expected` is the Run-layer revision (`expectedHolds`). An
- * archived session, a terminal Run and a stale attempt are refused before the revision is
- * compared, so a late writer learns the state that replaced it.
- */
+// Archived, terminal and stale-attempt refusals come before the revision comparison, so a late writer learns the state that replaced it.
 export function judgeAdvance(snapshot: WorkSnapshot, claim: AdvanceClaim): AdvanceJudgment {
   if (snapshot.lifecycle === 'archived') return { kind: 'archived' }
   const terminal = terminalOf(snapshot)
@@ -255,10 +214,6 @@ export function judgeAdvance(snapshot: WorkSnapshot, claim: AdvanceClaim): Advan
   }
 }
 
-/**
- * Where an input goes (ST03–ST05). An ordinary input of a frozen session has a destination only
- * while a Run is unfinished (I-F4); otherwise it queues for the current Run or the next one.
- */
 export function routeInput(snapshot: WorkSnapshot, input: RoutedInput): RouteJudgment {
   if (snapshot.lifecycle === 'archived') return { kind: 'rejected', reason: 'archived' }
   switch (input.kind) {
@@ -276,12 +231,6 @@ export function routeInput(snapshot: WorkSnapshot, input: RoutedInput): RouteJud
   }
 }
 
-/**
- * Whether a new Run may start (ST06, I-R1, I-F2). The first eligible input is the earliest
- * pending one. `login-required` is decided by `decide` from the origin that the first input was
- * saved with, read in the same transaction as `DecideReads.firstInput` (R2-D198), not from guard
- * material; the snapshot holds no login state, so this function never returns it.
- */
 export function judgeRunStart(snapshot: WorkSnapshot, _entry: EntryClass): RunStartJudgment {
   if (snapshot.lifecycle === 'archived') return { kind: 'archived' }
   if (snapshot.frozen !== null) return { kind: 'frozen' }
@@ -308,9 +257,6 @@ export function judgeRetryRun(
   return snapshot.pending.length === 0 ? 'nothing-pending' : null
 }
 
-/**
- * The open work of one committed snapshot (EC-03, ST20, ST24b).
- */
 export function openWork(snapshot: WorkSnapshot): OpenWork {
   const unassociated = (snapshot.callWaits ?? []).filter(wait =>
     snapshot.callRegistrations?.some(
@@ -357,11 +303,6 @@ export function openWork(snapshot: WorkSnapshot): OpenWork {
   }
 }
 
-/**
- * The read-only participation in a conditional finish (PA-02): the inputs that Session accepted
- * for this Run and has not handed over block it; a cancelled terminal answers `cancelled`; another
- * terminal answers `terminal`. Without an active Run of this execution nothing of Session blocks.
- */
 export function judgeCompletion(snapshot: WorkSnapshot, execution: string): CompletionJudgment {
   const terminal =
     snapshot.executions?.find(item => item.execution.execution === execution)?.terminal ??
@@ -522,11 +463,6 @@ export function judgeIdle(
   }
 }
 
-/**
- * The recall of one operation (SL07): no record is a new operation; the same identity with the
- * same normalized parameters recalls the original receipt; the same identity with other
- * parameters is a conflict that names the committed operation.
- */
 export function resolveOperation(
   record: OperationRecord | null,
   operation: SessionOperationId,

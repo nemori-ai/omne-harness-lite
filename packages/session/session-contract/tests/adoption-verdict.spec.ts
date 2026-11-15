@@ -1,6 +1,3 @@
-// The freeze verdict of the adoption point (R2-D13 Q1): `startRun` and `reload` that carry a verdict
-// in their resident adoption are decided `frozen{verdict}` and produce no entry. The same command
-// without the verdict is decided, so the verdict is the only cause.
 import { describe, expect, it } from 'vitest'
 import { expectedRevision } from '@omne-harness/session-contract'
 import type {
@@ -44,14 +41,12 @@ describe('the freeze verdict of the adoption material', () => {
         residentAdoption,
       },
     })
-    // The first input came through the login entry: the stored fact the provider reads.
     const first = snapshot.pending[0]!
     const login = { ...reads, firstInput: { input: first, origin: ordinaryInput('first').origin } }
     expect(decide(snapshot, command({ ...empty, verdict }), [], null, login)).toEqual({
       kind: 'rejected',
       failure: { kind: 'frozen', verdict },
     })
-    // The same material without the verdict starts the Run: the verdict is the only cause.
     expect(decide(snapshot, command(empty), [], null, login).kind).toBe('entries')
   })
 
@@ -98,7 +93,6 @@ describe('the freeze verdict of the adoption material', () => {
       kind: 'rejected',
       failure: { kind: 'frozen', verdict },
     })
-    // The same reload without the verdict is decided: the verdict is the only cause.
     expect(decide(snapshot, reload(empty), [], null, reads).kind).toBe('entries')
   })
 })

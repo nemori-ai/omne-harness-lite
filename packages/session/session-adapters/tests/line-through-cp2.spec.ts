@@ -1,17 +1,4 @@
-// CP2, the second in-line checkpoint (E.1): the Agent Journal and the Session log commit together
-// in one tenant transaction domain on the real sqlite-provider, and a process killed after the
-// commit is answered by its original operation identity in a new process.
-//
-// Real: the sqlite-provider (real write Worker, read Workers, files in a temporary directory); the
-// Session storage port of session-storage-sql (create and startRun, which writes the execution
-// index); the `agentJournal` plugin `SessionLogAgentJournalProvider` on real Cordis 4.0.4, which
-// routes by tenant and execution to `createSessionLogJournal`; a child process started with plain
-// `node` and killed with SIGKILL. Doubles: the plugin's `storage` key forwards to the real storage
-// and counts its commits; `tenantDomainLookup` knows the two registered tenants; `sessionAccessCheck`
-// allows every request; the Session domain resolution and cursor signing of the storage port are
-// doubles of session-contract and session-cordis-contract. See fixtures/line-through-cp2.ts.
 // @module-tag slow
-// Why slow: real Workers, real files and a killed child process.
 import { spawn } from 'node:child_process'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -63,7 +50,6 @@ describe('CP2: the Journal and the Session log commit together on the real sqlit
       await world.journal().commit(messageCommit(execution, opened.authority, loaded)),
     )
 
-    // One storage commit, with a command of each participant, committed as one.
     expect(world.commits).toHaveLength(1)
     const [seen] = world.commits
     expect([...seen!.participants].sort()).toEqual([
@@ -78,8 +64,6 @@ describe('CP2: the Journal and the Session log commit together on the real sqlit
       ['session-ordinary-basis', 'participated'],
       ['session', 'participated'],
     ])
-    // The publication moved the common root once: the Agent count and the Session root read the
-    // same number, one past the one before.
     const after = await world.published()
     expect(after.agent).toBe(String(BigInt(before.agent) + 1n))
     expect(after.session).toBe(after.agent)
@@ -119,7 +103,6 @@ type ChildLine = Readonly<{
   sessionRevision: string
 }>
 
-/** Runs the child on `root` until it printed its line, then kills it with SIGKILL. */
 async function commitThenKill(root: string): Promise<ChildLine> {
   const child = spawn(
     process.execPath,
@@ -139,7 +122,6 @@ async function commitThenKill(root: string): Promise<ChildLine> {
   await exited
   if (!text.startsWith('CP2 ')) throw new Error(`unexpected child output: ${text}`)
   const line = JSON.parse(text.slice('CP2 '.length)) as ChildLine
-  // A tenant is only valid as the minted value: the text form of the line names the same tenant.
   return { ...line, request: { ...line.request, ...own } }
 }
 
@@ -150,18 +132,15 @@ describe('CP2: a process killed after the commit', () => {
 
     const world = await open(root)
     const execution = line.request.execution
-    // The new process reads the durable records: the commit of the killed process is there.
     expect(ok(await world.journal().load({ ...own, execution })).revision).toBe(
       line.receipt.revision,
     )
     expect(await world.published()).toEqual(line.published)
 
-    // The same request, under the same operation identity, is recognized: the original receipt.
     world.commits.length = 0
     const again = await world.journal().commit(line.request)
     expect(again).toEqual({ ok: line.receipt })
 
-    // Nothing moved a second time: the Agent revision, the common root and the Session revision.
     expect(ok(await world.journal().load({ ...own, execution })).revision).toBe(
       line.receipt.revision,
     )
@@ -169,7 +148,6 @@ describe('CP2: a process killed after the commit', () => {
     expect(await world.sessionRevision()).toBe(line.sessionRevision)
     expect(world.commits.filter(seen => seen.result.kind === 'committed')).toEqual([])
 
-    // Another tenant is denied for the recovered execution, as for one it never had.
     expect(await world.journal().load({ ...other, execution })).toEqual({
       failure: { kind: 'denied', action: 'load' },
     })

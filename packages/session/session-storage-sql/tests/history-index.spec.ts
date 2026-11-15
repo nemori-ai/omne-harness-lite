@@ -1,11 +1,4 @@
 import { sessionCommitCommands } from '../src/participants.ts'
-// K-5 and the observed-only prefixes (R2-D28 candidate C) over the node:sqlite test provider. The
-// history index of a decision is read in its own write transaction from the same-root index of
-// `execution-record`: the execution boundary, the fact boundaries, the batches and the original
-// input directory of the relations the decision names, by point and range lookups. A placeholder
-// head receipt, a missing fact row, an empty or unknown kind and a mixed tail are not proofs: the
-// pure layer answers `unavailable` for them. The prefix rule is a pure function; its table runs
-// every small input.
 import { afterEach, describe, expect, it } from 'vitest'
 import type {
   CommitReceipt,
@@ -53,8 +46,6 @@ const commitLog = (a: App, observation: Parameters<NonNullable<App['port']['comm
 type Scene = Readonly<{ a: App; agent: AgentPublisher }>
 
 async function created(): Promise<Scene> {
-  // These cases count rows over hundreds of Runs whose inputs stay pending; the intake limit of
-  // pending inputs is another property, so it is set out of their way.
   const a = await app({ intakeLimits: { maxPendingInputs: 100_000, maxInputBytes: 1_048_576 } })
   const agent = agentPublisher({
     storage: a.provider.storage,
@@ -65,14 +56,12 @@ async function created(): Promise<Scene> {
   return { a, agent }
 }
 
-/** Opens Run `n` on the first pending input: accepts `input-<n>` first when `accept` is set. */
 async function open(s: Scene, n: number, accept = true) {
   if (accept) ok(await s.a.accept(TENANT_A, SESSION, `input-${String(n)}`))
   ok(await startRun(s.a, `start-run-${String(n)}`))
   return activeRun(await workOf(s.a))
 }
 
-/** Publishes event `n` of the Run and interprets it with one registration. */
 async function interpreted(s: Scene, run: ReturnType<typeof activeRun>, n: number) {
   const event = eventOf(
     run,
@@ -84,7 +73,6 @@ async function interpreted(s: Scene, run: ReturnType<typeof activeRun>, n: numbe
   return ok<SessionLogReceipt>(await commitLog(s.a, { observation: event }))
 }
 
-/** The history index of session-1 as one decision reads it, over the committed rows. */
 function indexOf(a: App, work: WorkSnapshot, execution: string) {
   const port = {
     execute: (sql: string, params: readonly unknown[]) =>
@@ -182,7 +170,6 @@ describe('K-5: the Agent rows of a decision in its own transaction', () => {
     ])
   })
 
-  /** Opens Run 1, then claims a second SE15 of the same Run and returns both attempts. */
   async function twoAttempts(s: Scene) {
     const run = await open(s, 1)
     const claimed = ok(
@@ -218,7 +205,6 @@ describe('K-5: the Agent rows of a decision in its own transaction', () => {
       input: input as never,
       operation: `aop-submit-${input}`,
       accepted: evidence(`agent/accepted/${input}`),
-      // The Agent's own receipt of the acceptance: it is not an SE15 and names no attempt.
       grant: evidence(`agent/receipt/${input}`),
       attachment: 'attachment-1',
       ...(attempt === undefined ? {} : { attempt }),
@@ -238,7 +224,6 @@ describe('K-5: the Agent rows of a decision in its own transaction', () => {
     expect(attemptOf('input-3')).toEqual([second])
     const records = reads.admissions.flatMap(page => page.records)
     expect(records.map(item => item.attempt).sort()).toEqual([first, second].sort())
-    // The SE15 of the record is the one of that attempt, not the one the grant happens to be.
     expect(records.find(item => item.attempt === first)?.attemptStarted).not.toEqual(
       records.find(item => item.attempt === second)?.attemptStarted,
     )
@@ -252,7 +237,6 @@ describe('K-5: the Agent rows of a decision in its own transaction', () => {
     ok(await s.a.accept(TENANT_A, SESSION, 'input-4'))
     await submitted(s, run, 'input-2')
     await submitted(s, run, 'input-3', second)
-    // An attempt that is not an SE15 of the Run proves nothing either.
     await submitted(s, run, 'input-4', 'attempt-of-another-run')
     const { index } = indexOf(s.a, await workOf(s.a), run.execution)
     expect(index.inputs.map(item => item.input)).not.toContain('input-2')
@@ -288,7 +272,6 @@ describe('K-5: the Agent rows of a decision in its own transaction', () => {
     expect(later.attempt).not.toBe(run.attempt)
     ok(await s.a.accept(TENANT_A, SESSION, 'input-2'))
     ok(await s.a.accept(TENANT_A, SESSION, 'input-3'))
-    // The grants are the receipt sources the Session gave out, not the evidence of the SE15 rows.
     const granted = (input: string, grant: CommitReceipt['source']) =>
       s.agent.admit({
         tenant: TENANT_A,
@@ -366,7 +349,6 @@ describe('K-5: the Agent rows of a decision in its own transaction', () => {
     expect(result.kind).toBe('committed')
     const work = await workOf(s.a)
     expect(work.run.kind === 'active' ? work.run.execution.readThrough : null).toBe('1')
-    // Without the Agent row a commit has no fact boundary of the event to judge on.
     const unpublished = eventOf(
       run,
       2,
@@ -400,11 +382,6 @@ describe('K-5: the Agent rows of a decision in its own transaction', () => {
 })
 
 describe('R2-D28: the observed-only tail of an earlier execution', () => {
-  /**
-   * The counterexample of R2-D28: execution E reads through 1; input-2 is handed over to it and
-   * not taken; E emits events 2 and 3; a forced cancel ends the Run. The next startRun selects
-   * input-2, so it needs the tail (1, 3] of E.
-   */
   async function handedTail(tail: (s: Scene, run: ReturnType<typeof activeRun>) => Promise<void>) {
     const s = await created()
     const run = await open(s, 1)
@@ -489,7 +466,6 @@ describe('R2-D28: the observed-only tail of an earlier execution', () => {
       await s.agent.publish(agentEventOf(eventOf(run, 3, [], 'unused'), ['observed']))
     })
     expect(failureOf(await startRun(s.a, 'start-run-2'))).toMatchObject({ kind: 'unavailable' })
-    // The event is interpreted at the current head of the execution: the head of event 3.
     const event = {
       ...eventOf(run, 2, [{ kind: 'observed' }, registrationOf(run.attempt, 'late')], 'log-late'),
       revision: '3',
@@ -522,8 +498,6 @@ describe('the prefix rule (a pure function)', () => {
     ['observed', 'observed'],
   ]
 
-  // Every input with progress 0 or 1 and up to three facts over sequences 1 to 4, each fact taking
-  // one of the kinds above and a readable or unreadable source.
   it('gives the longest continuous, readable, observed-only run after the progress, or none', () => {
     let cases = 0
     for (const readThrough of ['0', '1'])
@@ -534,8 +508,6 @@ describe('the prefix rule (a pure function)', () => {
               (sequence, at) => [String(sequence), kinds[at]!, readable[at]!] as const,
             )
             const prefix = observedPrefix(boundary(readThrough, facts))
-            // The expectation, written independently of the walk: the longest k with every
-            // sequence of (readThrough, k] present once, observed-only, non-empty and readable.
             let through = Number(readThrough)
             for (;;) {
               const next = facts.find(([sequence]) => Number(sequence) === through + 1)
@@ -577,7 +549,6 @@ function product<T>(values: readonly T[], length: number): T[][] {
   return product(values, length - 1).flatMap(rest => values.map(value => [...rest, value]))
 }
 
-/** The rows a participant read inside one call, split into the Agent index tables and the Session log. */
 async function counted(a: App, call: () => Promise<unknown>) {
   const from = a.provider.participantReads.length
   ok(await call())
@@ -593,7 +564,6 @@ async function counted(a: App, call: () => Promise<unknown>) {
 }
 
 describe('the rows a decision reads per Run', () => {
-  /** `rounds` Runs: each one opens, interprets one event, and is cancelled. */
   async function rounds(count: number) {
     const s = await created()
     const per: {
@@ -618,7 +588,6 @@ describe('the rows a decision reads per Run', () => {
     return per
   }
 
-  // Why slow: it drives 220 Runs through the real participant (heavy CPU).
   it(
     '20 and 200 Runs read the same Agent rows in the same round, and the same in every round',
     { tags: ['slow'], timeout: 600_000 },
@@ -632,7 +601,6 @@ describe('the rows a decision reads per Run', () => {
       expect(new Set(long.map(item => item.log.agent))).toEqual(new Set([long[0]?.log.agent]))
       expect(new Set(long.map(item => item.start.agent))).toEqual(new Set([long[0]?.start.agent]))
       expect(long.every(item => item.log.execution === 1)).toBe(true)
-      // The Session log rows of the index grow with the Runs; recorded, not asserted constant.
       const report = [0, 19, 199].map(at => ({
         round: at + 1,
         start: long[at]?.start,
@@ -676,7 +644,6 @@ describe('readWork carries the history index of its snapshot', () => {
     for (const real of reals.splice(0)) await real.dispose()
   })
 
-  // Why slow: real write and read Workers over real files in a temporary directory.
   it(
     'on the real provider the attempt of a call names its original execution',
     { tags: ['slow'] },
@@ -688,8 +655,6 @@ describe('readWork carries the history index of its snapshot', () => {
       ok(await startRun(real, 'start-run-1'))
       const work = await workOf(real)
       const run = activeRun(work)
-      // What Session's stopCall propagation reads (session/src/control.ts): the one SE15 record of
-      // the initiating attempt, and the execution it started under.
       expect(work.historyIndex?.attempts.filter(item => item.attempt === run.attempt)).toEqual([
         expect.objectContaining({ run: run.run, attempt: run.attempt, execution: run.execution }),
       ])
@@ -697,8 +662,6 @@ describe('readWork carries the history index of its snapshot', () => {
     },
   )
 
-  // Why slow: the migration that creates the attempt table and the write that fills it run in the
-  // real Workers; the node:sqlite fixture would also accept an `ALTER TABLE` the provider refuses.
   it(
     'on the real provider the attempt a row names is written with it and read back',
     { tags: ['slow'] },

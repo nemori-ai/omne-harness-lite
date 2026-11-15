@@ -1,6 +1,3 @@
-// The frame source of `observe-session` over a session observation stand-in (seam three): the three
-// results of `open` become `succeeded`, `denied` and `basis-unavailable`; frames pass as they are;
-// `refresh-exhausted` ends as it is; a cancelled observation ends without a reason of its own.
 import { describe, expect, it } from 'vitest'
 import type { SessionObservationFrame } from '@omne-harness/session-observation'
 import type { RunId, SessionRevision } from '@omne-harness/session-contract'
@@ -79,7 +76,6 @@ describe('observe-session', () => {
     expect(await opened.frames.next()).toEqual({ done: false, value: FRAMES[0] })
     const pending = opened.frames.next()
     controller.abort()
-    // The hub aborted the signal itself and no longer reads this reason.
     expect(await pending).toEqual({ done: true, value: 'unavailable' })
     expect(await opened.frames.next()).toEqual({ done: true, value: undefined })
   })

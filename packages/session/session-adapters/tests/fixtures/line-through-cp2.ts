@@ -1,11 +1,3 @@
-// The world of CP2, shared by the checkpoint test and its child process. Real: the sqlite-provider
-// on the files under `root` (real write Worker, read Workers and files), the Session storage port of
-// session-storage-sql, and the `agentJournal` plugin `SessionLogAgentJournalProvider` on a real
-// Cordis 4.0.4 root, which routes by tenant and execution to `createSessionLogJournal`. Doubles: the
-// three keys the plugin injects are test service classes: `storage` forwards to the real storage and
-// counts its commits, `tenantDomainLookup` knows the two registered tenants only, and
-// `sessionAccessCheck` allows every request. The Session domain resolution and cursor signing of the
-// storage port are the doubles of session-contract and session-cordis-contract.
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import {
@@ -78,10 +70,8 @@ import { checkpoint, instance, ok, openInput, operation } from './common-journal
 import { realConfig } from './sql-real-config.ts'
 
 const COMBINATION = 'c1'
-/** The session of the checkpoint; the same name in the test and in the child. */
 export const CP2_SESSION = 'cp2-session'
 
-/** The adopted implementation that the handoff provider of this world names in its outcomes. */
 export const HANDOFF_ADOPTION = Object.freeze({
   owner: '@omne-harness/session-adapters',
   name: 'session-message-handoff',
@@ -122,13 +112,8 @@ function catalogOf(): { catalog: SqlMaterialCatalog; digest: string } {
   return { catalog, digest: manifestDigest(manifest.manifest) }
 }
 
-/** One storage commit as the storage saw it: the participants of its commands and its answer. */
 export type SeenCommit = Readonly<{ participants: readonly string[]; result: CommitResultV2 }>
 
-/**
- * Opens the real provider on `root` (a new directory or the one of an earlier process), registers
- * both tenants' domains, and mounts the plugin on a new Cordis root.
- */
 export async function openCp2(root: string) {
   const { catalog, digest } = catalogOf()
   const created = await createSqliteStorage({
@@ -218,7 +203,6 @@ export async function openCp2(root: string) {
     return found as AgentJournal<string>
   }
 
-  /** The Agent publication count and the Session common root, read on the real read Workers. */
   async function published(): Promise<{ agent: string; session: string }> {
     const read = async (handler: string, protocol: string) => {
       const result = await real.read({
@@ -242,11 +226,6 @@ export async function openCp2(root: string) {
     return { agent: agent.published, session: root.published }
   }
 
-  /**
-   * Mounts the message handoff provider (row `session-handoff`) on the same root once, with
-   * `session` that reads as the scene's principal and an `agentAccessCheck` that allows every
-   * request, and returns `agentMessageHandoff`.
-   */
   async function handoff(): Promise<MessageHandoff<string>> {
     if (ctx.get(agentMessageHandoffKey) === undefined) {
       const work = { readWork: port.readWork }
@@ -299,10 +278,6 @@ export async function openCp2(root: string) {
 
 export type Cp2World = Awaited<ReturnType<typeof openCp2>>
 
-/**
- * Creates the session and starts its Run through the Session storage port: `startRun` writes the
- * execution index in the same commit. Returns the Run's execution and the Agent open request.
- */
 export async function seedCp2(world: Cp2World) {
   const access: SessionAccess<string> = own
   const value = creation({ initial: ordinaryInput('input-1') })
@@ -352,7 +327,6 @@ export async function seedCp2(world: Cp2World) {
   const initial: AcceptedInput = {
     id: ok(decodeInputId(admitted.input)),
     content: admitted.message,
-    // The source basis of the opening input is the SE13 receipt of startRun (AD-14, C26).
     source: started.receipt.source,
     priority: 'ordinary',
   }
@@ -372,7 +346,6 @@ export async function seedCp2(world: Cp2World) {
 
 export type JournalCommitRequest = Parameters<AgentJournal<string>['commit']>[0]
 
-/** The message commit after `loaded`: the first publication point of an assistant message. */
 export function messageCommit(
   execution: AgentExecutionId,
   authority: JournalCommitRequest['authority'],
@@ -401,10 +374,6 @@ export function messageCommit(
   }
 }
 
-/**
- * The invoke-branch prepare of the initial input of the seeded Run: the request of the open's
- * original acceptance, and the runtime context whose scope is the session's slot scope (AD-14).
- */
 export function invokePrepare(
   seeded: Awaited<ReturnType<typeof seedCp2>>,
 ): Parameters<MessageHandoff<string>['prepare']>[0] {

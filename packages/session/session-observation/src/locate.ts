@@ -1,6 +1,3 @@
-// 定位 (RFC-0015 §8, §13): reads the Session log as the observer and keeps where it read up to, the
-// run in progress, the newest main Model call and the log revision. Pure reading; it owns the flag
-// 「有新提交待看」 so that a notice during a locate is not lost.
 import { decodeModelInvocationRef, type ModelInvocationRef } from '@omne-harness/model-contract'
 import {
   readCallRegistration,
@@ -15,37 +12,26 @@ import {
 } from '@omne-harness/session-contract'
 import type { SessionObservationPorts } from './ports.ts'
 
-/** The kinds a locate reads. */
 export const LOCATE_KINDS = ['call.bound', 'run.started', 'run.terminal'] as const
 
 const PAGE_BYTES = 65_536
 
 export type Located = Readonly<{
   revision: SessionRevision
-  /** The run in progress: the newest run.started with no run.terminal of the same run after it. */
   run: RunId | null
-  /** The reference of the newest main Model call. */
   mainCall: ModelInvocationRef | null
 }>
 
 export type LocateResult =
-  /** `transient`: the log could not be read this time; the view is the one before. */
   | Readonly<{ kind: 'located'; view: Located; transient?: true }>
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'unavailable' }>
 
 type Read = Awaited<ReturnType<SessionObservationPorts<unknown>['history']['begin']>>
 
-/** A read that failed, and the face that answered: `since` and `next` carry a cursor of this observation, `begin` carries none. */
 type Failed = Readonly<{ failure: SessionFailure; face: 'begin' | 'since' | 'next' }>
 type Scanned = Readonly<{ ok: Located }> | Failed
 
-/**
- * The reference of a main Model call registration. `readCallRegistration` answers null for a
- * payload that is no call registration, and `main` is a purpose of the Model branch only. The
- * session contract keeps a `ModelInvocationRef` text there; a text that does not decode is no main
- * call.
- */
 function mainCallOf(entry: HistoryEntry): ModelInvocationRef | undefined {
   const found = readCallRegistration(entry.payload)
   if (found?.purpose !== 'main') return undefined
@@ -53,10 +39,8 @@ function mainCallOf(entry: HistoryEntry): ModelInvocationRef | undefined {
   return 'ok' in decoded ? decoded.ok : undefined
 }
 
-/** What a backward read found so far, newest entry first. */
 class BackwardScan {
   newest: EntryId | null = null
-  /** The newest run.started; undefined until one is seen. */
   run: RunId | undefined
   open = false
   mainCall: ModelInvocationRef | undefined
@@ -95,22 +79,16 @@ export class Locator<P> {
     this.#ports = ports
   }
 
-  /** A notice with a matching kind came. */
   note(): void {
     this.#pending = true
   }
 
-  /** Takes the flag down; true when a notice came since the last take. */
   take(): boolean {
     const pending = this.#pending
     this.#pending = false
     return pending
   }
 
-  /**
-   * The first locate: a backward read. Every failure ends the observation before it opens; an
-   * invalid answer is the session or tenant identity, so it reads as denied.
-   */
   async open(): Promise<LocateResult> {
     const read = await this.#backward()
     if ('failure' in read)
@@ -118,12 +96,6 @@ export class Locator<P> {
     return { kind: 'located', view: read.ok }
   }
 
-  /**
-   * A later locate: only the entries after the last one read. Session `unavailable` and an invalid
-   * cursor of its own count as nothing new (the cursor is dropped, so the next locate reads
-   * backward again); `denied` ends. An `invalid` of `since` or `next` is the cursor of this
-   * observation; an `invalid` of `begin`, which carries no cursor, is another reason and ends.
-   */
   async locate(): Promise<LocateResult> {
     const view = this.#view
     if (view === undefined) throw new Error('locate before open')

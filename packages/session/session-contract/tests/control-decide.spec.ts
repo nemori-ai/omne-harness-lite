@@ -1,5 +1,3 @@
-// The pure rules of cancelRun and stopCall over the lookups that the provider fills inside the
-// transaction (FR-01: a missing item is unknown, never absence).
 import { describe, expect, it } from 'vitest'
 import {
   decide,

@@ -1,5 +1,3 @@
-// cancelRun and stopCall (Session r2.2 section 4): one operation table for every form (SL07), the
-// closed failure sets, the answer-only branch and the Tool refusal before any lookup.
 import { describe, expect, it } from 'vitest'
 import type {
   ConsumptionId,
@@ -44,7 +42,6 @@ const archive = (s: Scene, name: string) =>
     input: { ...s.base, operation: operationId(name), intent: { kind: 'archive' } },
   })
 
-/** An open Run with one bound call. */
 async function withCall(producer: ProducerRef = MODEL) {
   const s = await open()
   const { run, advance } = await s.active()

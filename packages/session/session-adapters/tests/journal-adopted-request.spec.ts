@@ -1,12 +1,3 @@
-// The adopted request of a session in the fact family (FIXED-FACTS F4, R2-D292): the publication
-// of a main-purpose M0 (a checkpoint whose `adoptedRequest` is new) appends one `request.adopted`
-// fact that names the request record by its content block, in the same batch as the other facts of
-// the commit. What is checked, on the node:sqlite double that runs the published modules: a
-// failure at the block write leaves neither the fact nor the block; a publication that does not
-// change an `adoptedRequest` appends no such fact; the order goes up by one across executions and
-// is not an execution revision; a cold provider reads what the warm one wrote, and the loser of a
-// publication race reads the same after it read the batches it missed; over 200 rounds the bytes
-// of the fact do not grow and each round appends the same number of rows.
 import { describe, expect, it } from 'vitest'
 import type { AgentCheckpoint, AgentJournal } from '@omne-harness/agent-contract'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
@@ -31,7 +22,6 @@ async function opened(name: string) {
   return { s, authority: open.authority }
 }
 
-/** One commit of `s.execution` whose checkpoint is the loaded one with `change` applied. */
 async function commit(
   s: SqlScene,
   journal: Journal,
@@ -57,12 +47,10 @@ async function commit(
   })
 }
 
-/** A checkpoint change that moves the position: a commit that makes a new revision. */
 const moved =
   (position: string) =>
   (checkpoint: AgentCheckpoint): AgentCheckpoint => ({ ...checkpoint, position })
 
-/** The commit of one main-purpose M0: a new `adoptedRequest` and its `adoptedContext`. */
 function m0(s: SqlScene, journal: Journal, authority: Authority, tag: string) {
   const { adoptedRequest, adoptedContext } = m0Checkpoint(targetOf(s), tag)
   return commit(s, journal, authority, `m0-${tag}`, checkpoint => ({
@@ -74,7 +62,6 @@ function m0(s: SqlScene, journal: Journal, authority: Authority, tag: string) {
 
 type AdoptedRow = Readonly<{ pub: bigint; body: string }>
 
-/** The `request.adopted` rows of the scene's session, in publication order. */
 function adoptedRows(s: SqlScene): AdoptedRow[] {
   const rows = s.controls?.select(
     `SELECT pub, body FROM er_fact WHERE session = '${s.access.session}' AND kind = 'request.adopted' ORDER BY pub`,
@@ -85,7 +72,6 @@ function adoptedRows(s: SqlScene): AdoptedRow[] {
   }))
 }
 
-/** The publication count of the scene's session. */
 function published(s: SqlScene): bigint {
   const row = s.controls?.select(
     `SELECT published FROM er_root WHERE session = '${s.access.session}'`,
@@ -93,7 +79,6 @@ function published(s: SqlScene): bigint {
   return (row?.[0] as bigint | undefined) ?? 0n
 }
 
-/** The number of rows the last publication of the scene's session appended. */
 function rowsWritten(s: SqlScene): number {
   const count = published(s)
   const rows = s.controls?.select(
@@ -102,7 +87,6 @@ function rowsWritten(s: SqlScene): number {
   return Number(rows?.[0]?.[0] ?? -1)
 }
 
-/** Whether the tenant holds the block a fact names by `digest` (the row names it with its prefix). */
 function blobHeld(s: SqlScene, digest: string): boolean {
   const rows = s.controls?.select(
     `SELECT digest FROM sl_blob WHERE digest = 'sha256:${digest}'`,
@@ -110,7 +94,6 @@ function blobHeld(s: SqlScene, digest: string): boolean {
   return (rows?.length ?? 0) > 0
 }
 
-/** The adopted request as the provider reads it back. */
 async function adoptedOf(s: SqlScene, journals = s.journals) {
   const read = await journals.readAdopted({ tenant: s.access.tenant, session: s.access.session })
   if (read.kind !== 'value') throw new Error(`not read: ${read.diagnostic}`)
@@ -131,7 +114,6 @@ describe('a main-purpose M0 appends the request.adopted fact in the same batch a
     })
     const failed = await m0(s, s.view.journal, authority, '1')
     expect(failed).toHaveProperty('failure')
-    // The injected failure hit the block write after the fact rows of the same transaction.
     expect(fired).toBe(true)
     expect(factsWritten).toBe(true)
     expect(adoptedRows(s)).toEqual([])
@@ -163,7 +145,6 @@ describe('a main-purpose M0 appends the request.adopted fact in the same batch a
     ok(await m0(s, s.view.journal, authority, '1'))
     const written = adoptedRows(s)
     const count = published(s)
-    // Two later publications of the same execution keep the request of the checkpoint as it is.
     ok(await commit(s, s.view.journal, authority, 'plain-2'))
     ok(await commit(s, s.view.journal, authority, 'plain-3', c => ({ ...c, position: 'E4' })))
     expect(published(s)).toBe(count + 2n)
@@ -175,8 +156,6 @@ describe('a main-purpose M0 appends the request.adopted fact in the same batch a
 describe('the adoption order', () => {
   it('goes up by one with each M0 across two executions, and is not an execution revision', async () => {
     const { s, authority } = await opened('adopted-order')
-    // The first M0 comes at revision 4 of its execution, the second at revision 3 of its own: an
-    // order made of execution revisions would go down.
     ok(await commit(s, s.view.journal, authority, 'plain-1', moved('E4')))
     ok(await commit(s, s.view.journal, authority, 'plain-2', moved('E5')))
     ok(await m0(s, s.view.journal, authority, '1'))
@@ -202,7 +181,6 @@ describe('the adoption order', () => {
   })
 })
 
-/** The Journal options of the scene, over `storage` (the scene's storage when absent). */
 function sceneOptions(s: SqlScene, storage: SqlStorage = s.storage) {
   return {
     storage,
@@ -223,7 +201,6 @@ describe('a provider that did not write the request reads it as the writer does'
     const warm = await adoptedOf(s)
     const cold = createSessionLogJournal<string>(sceneOptions(s))
     expect(await adoptedOf(s, cold)).toEqual(warm)
-    // The cold provider folds its view from the facts, the adopted request with them.
     const coldView = cold.forSession(s.access)
     ok(await m0(s, coldView.journal, authority, '2'))
     expect((await adoptedOf(s, cold))?.order).toBe('2')
@@ -233,15 +210,12 @@ describe('a provider that did not write the request reads it as the writer does'
   it('the loser of a publication race (K-20) reads the request of the winner after it reads the batches it missed', async () => {
     const { s, authority } = await opened('adopted-race')
     const winner = s.view.journal
-    // The loser prepared its M0 on a copy; the winner commits another M0 just before the loser's
-    // commit reaches the storage, so the loser's publication loses the count (K-20).
     let race: ReturnType<typeof m0> | null = null
     const outcomes: string[] = []
     const raced: SqlStorage = {
       database: s.storage.database,
       registerCombination: input => s.storage.registerCombination(input),
       query: identity => s.storage.query(identity),
-      // The same database as the scene's storage: the two providers share what is kept for it.
       read: s.storage.read,
       commit: async request => {
         if (race === null) {
@@ -257,13 +231,11 @@ describe('a provider that did not write the request reads it as the writer does'
     const loser = losing.forSession(s.access).journal
     const lost = await m0(s, loser, authority, 'l')
     expect(outcomes[0]).toBe('rolled_back')
-    // Read again, the loser's M0 names a revision that is gone: the Journal refuses it.
     expect(lost).toHaveProperty('failure')
     const won = await adoptedOf(s)
     expect(won?.order).toBe('1')
     expect(won?.reference).toBe(m0Checkpoint(targetOf(s), 'w').adoptedRequest.reference)
     expect(await adoptedOf(s, losing)).toEqual(won)
-    // The loser's next M0, on the batches it read again, takes the next order; both read it.
     ok(await m0(s, loser, authority, 'l2'))
     expect((await adoptedOf(s, losing))?.order).toBe('2')
     expect(await adoptedOf(s)).toEqual(await adoptedOf(s, losing))
@@ -283,8 +255,6 @@ describe('the request.adopted fact does not grow with the rounds of a session', 
         sizes.push(adoptedRows(s).at(-1)?.body.length ?? -1)
         rows.push(rowsWritten(s))
       }
-      // Every round names its request by a tag of the same length; the fact names the record by
-      // its digest, so its bytes do not depend on the round.
       expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(2)
       expect(sizes.at(-1)! - sizes[19]!).toBeLessThanOrEqual(1)
       expect(new Set(rows.slice(1))).toEqual(new Set([rows[1]]))
@@ -293,8 +263,6 @@ describe('the request.adopted fact does not grow with the rounds of a session', 
   )
 })
 
-// session-storage-sql RT-06: the provider reads the common root only when this process cannot know
-// the publication count. The two cases below are the ones a publication of this process leaves.
 describe('the publication count after a publication that did not commit plainly', () => {
   const rootReads = (s: SqlScene): number =>
     (s.controls?.reads ?? []).filter(handler => handler === 'session.history-root').length
@@ -302,13 +270,9 @@ describe('the publication count after a publication that did not commit plainly'
   it('a publication of a provider that does not share the count is found at the refused publication, and the next M0 commits', async () => {
     const { s, authority } = await opened('adopted-foreign')
     ok(await m0(s, s.view.journal, authority, '1'))
-    // A storage object that names another database: the members that keep the count keep
-    // another one for it, so its provider publishes as a provider of another process would.
     const foreign: SqlStorage = { ...s.storage, database: {} }
     const other = createSessionLogJournal<string>(sceneOptions(s, foreign))
     ok(await m0(s, other.forSession(s.access).journal, authority, 'f'))
-    // The scene's provider still knows the count before `f`: its M0 is decided there, the storage
-    // refuses it, and the provider reads the root. The M0 names a revision that is gone.
     expect(await m0(s, s.view.journal, authority, '2')).toHaveProperty('failure')
     ok(await m0(s, s.view.journal, authority, '3'))
     expect((await adoptedOf(s))?.order).toBe('3')
@@ -318,8 +282,6 @@ describe('the publication count after a publication that did not commit plainly'
     const { s, authority } = await opened('adopted-pending')
     let lose = true
     const lost = new Set<string>()
-    // The same database as the scene's storage (it shares the provider's `read`). Its next commit
-    // does not run and answers unknown, and the storage cannot tell what became of it.
     const pending: SqlStorage = {
       ...s.storage,
       commit: request => {

@@ -1,5 +1,3 @@
-// The participant module's own judgments that the port cannot reach through a commit: an answer
-// it cannot build is a reported failure, never a throw.
 import { describe, expect, it } from 'vitest'
 import {
   type CommitReceipt,
@@ -33,7 +31,6 @@ describe('the result of a committed control command', () => {
     })
 })
 
-/** The json-text tree that the Session entries store their payloads as (read back by plainOf). */
 function tree(value: unknown): unknown {
   if (value === null) return { kind: 'null' }
   if (typeof value === 'string') return { kind: 'string', value }
@@ -46,8 +43,6 @@ function tree(value: unknown): unknown {
   }
 }
 
-// N2: a bounded read inside the commit that reaches its bound answers unavailable; it never goes on
-// with the rows it happened to read. The bound is lowered per call here; production keeps its own.
 describe('a bounded read inside the commit', () => {
   const LIMIT = 2
 

@@ -1,33 +1,3 @@
-// AD-02, the event channel interpretation: the plugin reads the Agent events that the session-log
-// Journal published into the same log and commits what each means for Session, one event per
-// `commitLog`. It is woken by `session-adapters/agent-published`, the event of the Journal plugin,
-// and it never writes an Agent record.
-//
-// One call reads, as `coordinator`, the Run that owns the execution and the execution's saved event
-// progress (`readThrough`). It then reads the execution from the durable Agent records of the
-// session, in one read of one publication: the head revision, the head receipt that the boundary
-// row names, and each event after the progress with the consequences that the Journal normalized
-// when it wrote the event, the same ones whose kinds the fact row holds. Every event becomes one
-// observation in order, except an event that is only observed, which has no Session row and is
-// covered by the next committed event; the operation identity is derived from the observation, so
-// the same read of the same event is the same operation. A lost reply is sent again under the same operation and
-// recalls the original receipt (C-STORAGE answers `conflict` to `queryOperation` for this form, so
-// it is not asked). A `changed` answer reads again once. A call of the event queue that ends in a
-// transient failure (`unavailable`, `changed`, or an outcome still unknown after its sends: a Session
-// participant rolled the commit back, KL-146) is made again at once and then after a backoff, until it commits, ends
-// in a determinate failure, or the plugin stops; each call reads the saved progress and the
-// execution again, so nothing of a failure is kept. A determinate refusal is logged and not retried. A control
-// event is a deferred fact: it is sent with the Agent evidence the Journal kept and no
-// consequences, and Session decides them in the commit. An event whose consequences were not
-// decided otherwise (an original the Journal did not keep) stops the call there: it is not
-// committed as anything else.
-//
-// The plugin keeps nothing but the current generation of its dependencies and one queue per
-// session, so the events of one session are interpreted one after the other; an event waiting for
-// to be called again does not hold the queue: it is queued again at once, or when the backoff ends. A call made while the plugin is pending or stopped answers
-// `unavailable` and commits nothing. It does not scan the storage when it starts: an event it missed
-// is interpreted by the next event of the same execution. The durable record of what is left is the
-// gap between the saved progress and the execution's events, so a later scan can make the same call.
 import { createHash } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import type { Context } from '@deepseek-ai/cordis'
@@ -54,30 +24,21 @@ import { readExecutionInterpretation, type InterpretationRead } from './agent-jo
 import { subscribePublished } from './published-queue.ts'
 
 const OWNER = 'session-adapters/journal-interpretation'
-/** The reads of one call: the first, and one more after a `changed`. */
 const ROUNDS = 2
-/** The sends of one observation whose outcome stays unknown, all under the same operation. */
 const SENDS = 3
 
-/**
- * The backoff of the event queue between calls that ended in a transient failure, after the first
- * call again, which is queued at once: the first wait, the factor of each next one and the longest wait. There is no count limit: the event is
- * interpreted until it commits or the answer is determinate (#1216 E1a).
- */
 export type JournalInterpretationRetry = Readonly<{
   initialMs: number
   multiplier: number
   maxMs: number
 }>
 
-/** The default backoff: 50 ms, doubling, at most 5 s between calls. */
 export const DEFAULT_JOURNAL_INTERPRETATION_RETRY: JournalInterpretationRetry = Object.freeze({
   initialMs: 50,
   multiplier: 2,
   maxMs: 5000,
 })
 
-/** A failure after which the same call may commit: a rollback, a moved head or an unknown outcome. */
 function transient(failure: SessionFailure): boolean {
   return (
     failure.kind === 'unavailable' ||
@@ -86,44 +47,31 @@ function transient(failure: SessionFailure): boolean {
   )
 }
 
-/** One call: the execution of one Session whose events are interpreted. */
 export type JournalInterpretationTarget = Readonly<{
   tenant: TenantId
   session: SessionId
   execution: AgentExecutionId
 }>
 
-/**
- * The answer of one call. `readThrough` is the saved event progress of the execution after the
- * call (an observed-only tail stays after it); `committed` counts the events this call committed
- * or recalled; `waiting` counts the events from the first one whose consequences are not decided.
- */
 export type JournalInterpreted = Readonly<{
   readThrough: string
   committed: number
   waiting: number
 }>
 
-/**
- * What the assembly hands to AD-02: the principal it issues to the coordinator of one session, as
- * for AD-05 and AD-14.
- */
 export type SessionJournalInterpretationInput<P> = Readonly<{
   coordinator(
     input: Readonly<{ tenant: TenantId; session: SessionId }>,
   ): Promise<Outcome<P, SessionCoordinatorPrincipalFailure>>
-  /** The backoff after a transient failure; absent: `DEFAULT_JOURNAL_INTERPRETATION_RETRY`. */
   retry?: JournalInterpretationRetry
 }>
 
-/** The dependencies of one generation of the plugin. */
 type Ports<P> = Readonly<{
   readWork(access: SessionAccess<P>): Reply<WorkSnapshot>
   read(
     target: Readonly<{ tenant: TenantId; session: SessionId; execution: string; after: string }>,
   ): Promise<InterpretationRead>
   commitLog: NonNullable<SessionTransactionPort<P>['commitLog']>
-  /** True once the generation stopped; checked before every send. */
   stopped(): boolean
 }>
 
@@ -140,7 +88,6 @@ function describe(cause: unknown): string {
   }
 }
 
-/** The Run that owns `execution` in the snapshot and the saved event progress of the execution. */
 function progressOf(
   work: WorkSnapshot,
   execution: string,
@@ -151,7 +98,6 @@ function progressOf(
   return held === undefined ? null : { run: held.run, readThrough: held.execution.readThrough }
 }
 
-/** The operation identity of one observation: the same read of the same event is the same operation. */
 function operationOf(
   tenantText: string,
   observation: Omit<SessionLogCommitObservation, 'operation' | 'tenant'>,
@@ -162,12 +108,10 @@ function operationOf(
   return `ad02_${digest}` as SessionOperationId
 }
 
-/** The interpretation of one generation. It keeps nothing between calls. */
 function createJournalInterpretation<P>(
   given: SessionJournalInterpretationInput<P>,
   ports: Ports<P>,
 ): (target: JournalInterpretationTarget) => Reply<JournalInterpreted> {
-  /** One observation; an unknown outcome is sent again under the same operation. */
   async function send(
     observation: SessionLogCommitObservation,
   ): Promise<Answer<SessionLogReceipt>> {
@@ -180,7 +124,6 @@ function createJournalInterpretation<P>(
       try {
         answer = await ports.commitLog({ observation })
       } catch {
-        // The write may have happened: the outcome is unknown, never a plain failure.
         answer = fail({ kind: 'commit-unknown', operation: observation.operation })
       }
       if ('ok' in answer || answer.failure.kind !== 'commit-unknown') return answer
@@ -188,7 +131,6 @@ function createJournalInterpretation<P>(
     return answer
   }
 
-  /** One read of the execution and one commit per event after the saved progress. */
   async function round(
     access: SessionAccess<P>,
     tenantText: string,
@@ -207,12 +149,8 @@ function createJournalInterpretation<P>(
     let committed = 0
     for (const [at, event] of view.events.entries()) {
       const waiting = view.events.length - at
-      // A deferred control fact carries no consequences: Session decides them in the commit.
       if (event.consequences === null && event.control === null)
         return succeed({ readThrough, committed, waiting })
-      // An event that is only observed has no Session row: it is not committed, and the next
-      // committed event names it in its gap (session-contract FR-03; the observed tail is the
-      // prefix that a later startRun reads, R2-D28).
       if (event.consequences?.every(item => item.kind === 'observed') === true) continue
       if (view.head === null)
         return unavailable('the head of the execution was written by another execution')
@@ -252,10 +190,8 @@ function createJournalInterpretation<P>(
   }
 }
 
-/** The next wait of a retry (0: queued again at once) and how many calls of the target came before it. */
 type Retry = Readonly<{ wait: number; calls: number }>
 
-/** Writes what a call left behind when it will not be made again. */
 function reportEnd(
   logger: ReturnType<Context['logger']>,
   execution: string,
@@ -267,14 +203,6 @@ function reportEnd(
     logger.warn(`${answer.ok.waiting} events of ${execution} have no decided consequences`)
 }
 
-/**
- * The AD-02 plugin and the call that reaches it. The plugin provides no key: it needs `session`
- * with the `coordinator` caller class, `sessionTransactions` (with `commitLog`), `storage` and the
- * trusted `tenantDomainLookup`, and stays pending while any of them is absent. It subscribes to
- * `session-adapters/agent-published` and interprets the named execution after each event, one
- * session at a time. `interpret` reaches the current generation; while there is none it answers
- * `unavailable`.
- */
 export function createSessionJournalInterpretationPlugin<P>(
   input: SessionJournalInterpretationInput<P>,
 ) {
@@ -323,15 +251,7 @@ export function createSessionJournalInterpretationPlugin<P>(
             return unavailable(`a dependency threw: ${describe(cause)}`)
           }
         }
-        // The interpretations of one session run one after the other. A call that ended in a
-        // transient failure does not hold the queue: the same target is queued again behind
-        // whatever came meanwhile, the first time at once and then after the backoff. The first one
-        // goes at once because a moved head is readable right after the write that moved it, and a
-        // wait lets another execution's write replace it with a placeholder head (KL-146: with a
-        // first wait CP3 lost 9 of 30 such events under load, against 2 of 30 for one requeue at
-        // once). One execution has at most one such retry pending;
-        // an event that fails while it waits leaves the retry to it. Every call reads from the saved
-        // progress, so nothing is committed twice.
+        // Requeue the first retry at once: a moved head is readable right after its write; a wait lets another execution's write replace it with a placeholder head.
         const retrying = new Set<string>()
         const attempt = async (target: JournalInterpretationTarget, retry: Retry | null) => {
           const key = JSON.stringify([target.session, target.execution])
@@ -358,7 +278,6 @@ export function createSessionJournalInterpretationPlugin<P>(
             calls,
           }
           if (retry.wait === 0) return enqueue(target, () => attempt(target, next))
-          // A stop aborts the wait; the rejection is the end of the retry, not a failure.
           void delay(retry.wait, undefined, { signal: stopping.signal }).then(
             () => enqueue(target, () => attempt(target, next)),
             () => undefined,

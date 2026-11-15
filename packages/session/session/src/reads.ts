@@ -1,6 +1,3 @@
-// The read operations of the faces (SPEC CP-03). A single-session read asks `check` once and reads
-// through its view; `pending`, `references` and `releasedScopes` name no session, so they go to the
-// public port, whose method asks `check` once at the real execution point.
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import {
   readAccessRequest,
@@ -19,17 +16,12 @@ import type { SegmentOwner, SessionMeasurer } from './measure.ts'
 import { qualify } from './qualify.ts'
 
 export type Reads<P> = Readonly<{
-  /** One single-session read: one check, one view, then `read` through the view. */
   session<T>(
     caller: SessionCallerClass,
     operation: SessionReadAccessOperation,
     access: SessionAccess<P>,
     read: (view: SessionTransactionPort<P>) => Reply<T>,
   ): Reply<T>
-  /**
-   * One directory read on the public port, resolved at the call. `whose` is the tenant input of
-   * `pending`, or `system` for the two reads the contract puts in system scope.
-   */
   directory<T>(
     caller: SessionCallerClass,
     operation: Extract<

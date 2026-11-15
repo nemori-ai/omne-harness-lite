@@ -1,6 +1,4 @@
 import { listTodos } from './todos.ts'
-// The four faces as one caller class sees them (contract「四个面与公开操作」). Every mutation goes
-// through the command handler (SPEC CP-01); every read through the read paths (SPEC CP-03).
 import { fail } from '@omne-harness/operation-result'
 import type {
   MutationName,
@@ -25,7 +23,6 @@ type FaceMutations<P> = Pick<
   MutationName
 >
 
-/** The four faces and the session list of a tenant (contract「会话列表」). */
 export type SessionFacesWithDirectory<P> = SessionFaces<P> &
   Readonly<{ directory: SessionDirectory<P> }>
 
@@ -47,7 +44,6 @@ export function createFaces<P>(
     <K extends MutationName>(kind: K) =>
     (value: Parameters<FaceMutations<P>[K]>[0]): ReturnType<FaceMutations<P>[K]> => {
       const { principal, ...rest } = value
-      // The face input is the command input plus the principal; the kind fixes which command it is.
       const command = { kind, input: rest } as SessionCommand
       return handle(caller, command, principal) as ReturnType<FaceMutations<P>[K]>
     }
@@ -182,8 +178,6 @@ export function createFaces<P>(
       ),
   }
 
-  // The list names no session, so it goes to the public port like `pending`. A port without the
-  // optional member answers unavailable, never an empty page.
   const directory: SessionDirectory<P> = {
     list: value =>
       reads.directory(caller, 'directory.list', value.tenant, port =>

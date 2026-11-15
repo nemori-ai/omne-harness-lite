@@ -1,8 +1,3 @@
-// AD-09: the identity bridge on real Cordis. What is checked: the bridge needs the identity
-// verifier and is absent without it; it provides the `sessionIdentity` key and removes it on stop;
-// a verified principal gets material bound to tenant, session, operation and command; a forged
-// principal, a principal of another tenant and a value that identity never issued get `denied`;
-// an identity source that cannot answer gets `unavailable`, never material.
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { inProcessPrincipalAuthority, type PrincipalVerifier } from '@omne-harness/identity'
@@ -31,7 +26,6 @@ const createCommand = (
   input: { tenant: base.tenant, session, operation, creation: creation() },
 })
 
-/** An identity verifier service whose answer the test scripts. */
 function verifierService(verify: PrincipalVerifier['verify']) {
   class Verifier extends PrincipalVerifierService {
     readonly verify = verify
@@ -44,7 +38,6 @@ afterEach(async () => {
   await Promise.all(disposers.splice(0).map(dispose => dispose()))
 })
 
-/** Mounts a plugin on the root and disposes its fiber after the test. */
 async function mount(ctx: Context, plugin: Parameters<Context['plugin']>[0]) {
   const fiber = await ctx.plugin(plugin)
   disposers.push(() => fiber.dispose())
@@ -52,7 +45,6 @@ async function mount(ctx: Context, plugin: Parameters<Context['plugin']>[0]) {
 }
 const provides = (ctx: Context) => ctx.get(sessionIdentityKey) !== undefined
 
-/** A real Cordis root with the in-process verifier and the bridge installed. */
 async function assembled() {
   const authority = inProcessPrincipalAuthority()
   const ctx = new Context()
@@ -140,7 +132,6 @@ describe('material for a verified principal', () => {
     }
     const base = await material(acting(access.tenant), createCommand())
     expect(base).toMatchObject({ owner: 'identity', participant: 'identity-bridge' })
-    // The same bound inputs give the same material, whichever verified principal carries them.
     expect(await material(system, createCommand())).toEqual(base)
 
     const sessionB = sessionId('another-session')
@@ -161,7 +152,6 @@ describe('material for a verified principal', () => {
           },
         },
       }),
-      // The same input under another command kind.
       await material(system, {
         kind: 'setRelation',
         input: createCommand().input,
@@ -185,7 +175,6 @@ describe('material for a verified principal', () => {
 describe('refusal', () => {
   it('denies a hand-built copy of an issued principal', async () => {
     const { acting, prepare } = await assembled()
-    // The copy has the shape of the issued principal but not its issue.
     const copy = { ...acting(access.tenant) }
     expect(await prepare(copy, createCommand())).toEqual(denied)
   })

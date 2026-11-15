@@ -50,13 +50,11 @@ it('backfills original Session rows in a real migration Worker and retains the q
       },
     }),
   ).toHaveProperty('ok')
-  // Seed only the original Session rows. The production migration must derive both permission tables.
   const inserts = ['sl_journal', 'sl_state', 'sl_state_item', 'sl_entry', 'sl_operation'].flatMap(
     table => {
       const result = a.provider.select('dom_0', `SELECT * FROM ${table} LIMIT 100`, [])
       return result.rows.map(row => ({
         sql: `INSERT INTO ${table} (${result.columns.join(',')}) VALUES (${result.columns.map(() => '?').join(',')})`,
-        // A packed text column is a BLOB; JSON carries it as base64.
         params: row.map(value =>
           typeof value === 'bigint'
             ? String(value)

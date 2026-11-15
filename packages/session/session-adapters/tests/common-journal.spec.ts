@@ -142,9 +142,6 @@ it('can finalize after scanning an observed-only tail without a cursor-only writ
   expect(final).toHaveProperty('ok')
 })
 
-// Red when the `entry` event of a recorded condition is normalized to anything but `observed`: the
-// Session has no consequence of its own for it (session-contract EC-01), and a later decision that
-// scans the uninterpreted tail accepts only a tail whose every event is observed.
 it('interprets the entry event of a recorded condition as observed, with no Session consequence', async () => {
   const { backend, view, access, execution, opened } = await scene('entry-observed')
   ok(

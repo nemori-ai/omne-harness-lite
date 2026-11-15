@@ -179,7 +179,6 @@ function PartList({ parts, live }: { readonly parts: readonly Part[]; readonly l
 
 const ROLE: Readonly<Record<string, string>> = { user: '你', assistant: 'Agent', tool: '工具' }
 
-/** One conversation item. Memoized: a reply that grows re-renders only its own item. */
 export const ItemView = memo(function ItemView({ item }: { readonly item: Item }) {
   switch (item.kind) {
     case 'message':

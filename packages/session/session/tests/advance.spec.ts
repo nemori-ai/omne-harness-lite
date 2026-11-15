@@ -1,7 +1,3 @@
-// The scheduler and coordinator subset of SS-01: S1 wakes on a commit and hands a session that may
-// start a Run to C2; C2 opens the Run, invokes the Agent with the derived outbound identity and
-// records the hand-over; S4 resolves an unknown commit with the same identity; S3 finds pending
-// inputs after a restart. C2 computes the session slot reference by the AD-14 rule (XC-AGINST 2.1).
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fail } from '@omne-harness/operation-result'
 import {
@@ -55,7 +51,6 @@ const plainOf = (tree: HistoryEntry['payload']): unknown => {
   }
 }
 
-/** The session log entries of `kinds`, oldest first, as a reader sees them. */
 async function historyOf(
   h: Harness,
   kinds: readonly string[],
@@ -73,7 +68,6 @@ async function historyOf(
   return page.entries.map(entry => ({ kind: entry.kind, value: plainOf(entry.payload) }))
 }
 
-/** Accepts an input through the public port, so no local wake-up of this instance follows. */
 async function acceptDirectly(h: Harness, input: string): Promise<void> {
   succeeded(
     await h.backend.transactions.commit({
@@ -459,7 +453,6 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
         started: call?.source ?? evidence('none'),
       }),
     )
-    // Coordinators and schedulers take a principal per face operation, with the actor of their role.
     const actors = h.workPrincipals.controls.asked().map(request => request.actor)
     expect(actors).toContain('maintainer')
     expect(actors).toContain('coordinator')
@@ -573,7 +566,6 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
     expect(cause).toEqual(expect.stringContaining('storage'))
     expect(cause).toEqual(expect.stringContaining('command_limit'))
 
-    // The refused input is not offered again, neither after the backoff nor by a new Run.
     h.clock.controls.advance(1000)
     await new Promise(resolve => setImmediate(resolve))
     expect(invoked).toBe(1)

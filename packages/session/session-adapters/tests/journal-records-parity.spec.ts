@@ -1,9 +1,3 @@
-// The parity of the reader records projected from the fold with the records the writer keeps
-// (session-adapters SPEC "事实族存储", K-23): the fields `PROJECTED` names must equal the writer's
-// after a scenario that opens, moves the cursor, waits on a Model call, records its received
-// result, keeps a material, acknowledges and detaches; the fields not yet projected are the gap the
-// K-23 bridge still covers, printed as a report so the gap is measured, not guessed. A field that
-// joins `PROJECTED` leaves the bridge; the bridge is removed once every field has.
 import { describe, expect, it } from 'vitest'
 import type { PendingCall } from '@omne-harness/agent-contract'
 import { decodeActionId } from '@omne-harness/agent-contract'
@@ -23,7 +17,6 @@ import { canonical } from '../src/testing/canonical.ts'
 import { JOURNAL_OWNER } from '../src/testing/journal-values.ts'
 import { ok, operation, scene } from './fixtures/common-journal.ts'
 
-/** The fields whose projection equals the writer's records; the rest are the bridge's. */
 const PROJECTED: readonly ExecutionField[] = [
   'id',
   'tenant',
@@ -92,7 +85,6 @@ describe('the reader records projected from the fold', () => {
       position: result.consumer,
       fixed: evidence('request'),
     }
-    // A second Model call of the same step: the receiver commits its delivery with the material.
     const second = sampleReceivedModelResult(s.access.tenant, 'records-parity-2')
     if (second.delivery.producer !== 'model') throw new Error('fixture: a Model entry')
     const pending2: Extract<PendingCall, { kind: 'model' }> = {
@@ -140,7 +132,6 @@ describe('the reader records projected from the fold', () => {
       }),
     )
     if (committed.kind !== 'committed') throw new Error(`received ${committed.kind}`)
-    // Another operation recalls the saved delivery: an alias of it in the receiving state.
     ok(
       await s.view.entries.record({
         ...s.access,
@@ -206,7 +197,6 @@ describe('the reader records projected from the fold', () => {
     }
     const projected = projectExecution(folded, context)
     const diff = fieldsDiff(written, projected)
-    // The operation records: every record of the execution the writer keeps, against the fold's.
     const writtenOps = [...s.view.controls.operations().entries()]
       .filter(([, record]) => record.kind !== 'pending')
       .map(([key, record]) => [key, record.kind === 'excluded' ? { ...record, key: '' } : record])
@@ -236,8 +226,6 @@ describe('the reader records projected from the fold', () => {
     expect(opsDiff, report).toEqual([])
     expect(projectedOps.length).toBe(writtenOps.length)
 
-    // The event fragments and the receiving state: every map the writer keeps, against the
-    // projection's, as sorted canonical entries.
     const execution = projected as Parameters<typeof projectFragments>[0]
     const fragments = projectFragments(execution, folded, context)
     const receiving = projectReceiving([{ view: folded, execution }], context)
@@ -276,7 +264,6 @@ describe('the reader records projected from the fold', () => {
     ]
     console.log(`fragments and receiving parity\n${lines.join('\n')}`)
     expect(lines.filter(line => line.includes('DIFFER'))).toEqual([])
-    // The scenario exercises what it compares: a delivery with its material, an alias and a binding.
     expect(writtenReceiving.deliveries.size).toBeGreaterThanOrEqual(2)
     expect(writtenReceiving.materials.size).toBeGreaterThanOrEqual(2)
     expect(writtenReceiving.aliases.size).toBeGreaterThan(writtenReceiving.deliveries.size)

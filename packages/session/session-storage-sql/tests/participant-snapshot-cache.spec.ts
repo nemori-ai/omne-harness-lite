@@ -1,10 +1,3 @@
-// C-WORKCACHE A2: the participant keeps the parsed snapshot of each session and reuses it when the
-// head row that the transaction read holds the same text (R2-D96: by content, not only by the
-// revision). The head carries the token of the chunk rows (R2-D292), and the participant keeps the
-// snapshot that a commit wrote under the head it wrote. These cases run the real participant over
-// the node:sqlite test provider, which runs every database of a test file in one module instance.
-// Each case starts with no kept snapshot, but no result depends on that: T-A2-4 runs two databases
-// in one case. The cases cover the commit path (`commandStart`) and the log path (`judgeLog`).
 import { beforeEach, describe, expect, it } from 'vitest'
 import type {
   SessionFailure,
@@ -40,7 +33,6 @@ const failureOf = (value: unknown): SessionFailure => {
   return (value as { failure: SessionFailure }).failure
 }
 
-/** The `sl_state` row of `tenant`'s session-1, read outside any transaction. */
 function stored(a: App, tenant = TENANT_A): Readonly<{ covered: bigint; text: string }> {
   const row = a.provider.select(
     tenant === TENANT_A ? 'dom_0' : 'dom_1',
@@ -51,7 +43,6 @@ function stored(a: App, tenant = TENANT_A): Readonly<{ covered: bigint; text: st
   return { covered: BigInt(row[0] as bigint), text: String(row[1]) }
 }
 
-/** The snapshot that the head row and the chunk rows of `tenant`'s session-1 hold. */
 function storedSnapshot(a: App, tenant = TENANT_A): WorkSnapshot {
   const domain = tenant === TENANT_A ? 'dom_0' : 'dom_1'
   const port = {
@@ -60,23 +51,19 @@ function storedSnapshot(a: App, tenant = TENANT_A): WorkSnapshot {
   return assemble(port, textOf(tenant), SESSION, stored(a, tenant).text).snapshot
 }
 
-/** How many times a participant read the chunk rows so far. */
 const chunkReads = (a: App): number =>
   a.provider.participantReads.filter(read => /FROM sl_state_item\b/u.test(read.sql)).length
 
 const keptOf = (tenant = TENANT_A) => parsedSnapshots.peek(textOf(tenant), SESSION)
 
-/** How many times a participant read `sl_state` so far. */
 const stateReads = (a: App): number =>
   a.provider.participantReads.filter(read => /FROM sl_state\b/u.test(read.sql)).length
 
-/** Every object and array reachable from `value` is frozen. */
 function deeplyFrozen(value: unknown): boolean {
   if (typeof value !== 'object' || value === null) return true
   return Object.isFrozen(value) && Object.values(value).every(member => deeplyFrozen(member))
 }
 
-/** A commit that reads the snapshot and is refused: no pending input to start a Run on. */
 async function refusedStart(a: App, name: string): Promise<void> {
   expect(failureOf(await startRun(a, name)).kind).not.toBe('unavailable')
 }
@@ -92,7 +79,6 @@ describe('T-A2-1: two commits that read the same snapshot parse it once', () => 
     const reads = stateReads(a)
     const chunks = chunkReads(a)
     await refusedStart(a, 'start-2')
-    // A parse makes a new snapshot; the same one is the one of revision 1.
     expect(keptOf()?.snapshot).toBe(first?.snapshot)
     expect(stateReads(a)).toBe(reads + 1)
     expect(chunkReads(a)).toBe(chunks)
@@ -104,7 +90,6 @@ describe('T-A2-1: two commits that read the same snapshot parse it once', () => 
     await refusedStart(a, 'start-1')
     const before = keptOf()
     ok(await a.accept(TENANT_A, SESSION, 'input-1'))
-    // accept started from the kept revision 1, committed revision 2 and kept what it wrote.
     const second = stored(a)
     expect(second.covered).toBe(2n)
     const written = keptOf()
@@ -123,8 +108,6 @@ describe('T-A2-1: two commits that read the same snapshot parse it once', () => 
 })
 
 describe('T-A2-2: the snapshot of a commit that fails is kept, but the next commit does not use it', () => {
-  // A BEFORE UPDATE trigger that ignores the row makes the conditional tail update change no row,
-  // so the participant answers failed and the storage rolls the transaction back.
   const IGNORE_TAIL =
     'CREATE TRIGGER ignore_tail BEFORE UPDATE ON sl_journal BEGIN SELECT RAISE(IGNORE); END'
 
@@ -139,12 +122,9 @@ describe('T-A2-2: the snapshot of a commit that fails is kept, but the next comm
     failureOf(await a.accept(TENANT_A, SESSION, 'input-2'))
     a.provider.seed('dom_0', 'DROP TRIGGER ignore_tail')
 
-    // The failed commit left the stored row. The kept snapshot is the one it computed, under a head
-    // text that the row does not hold.
     expect(stored(a)).toEqual(committed)
     expect(keptOf()?.text).not.toBe(committed.text)
 
-    // The next commit starts from the stored snapshot: input-2 was never admitted.
     const chunks = chunkReads(a)
     ok(await a.accept(TENANT_A, SESSION, 'input-3'))
     expect(chunkReads(a)).toBe(chunks + 1)
@@ -179,7 +159,6 @@ describe('T-A2-2: the snapshot of a commit that fails is kept, but the next comm
     if (a.port.commitLog === undefined) throw new Error('the SQL port offers no commitLog')
 
     a.provider.failWrite(/UPDATE sl_journal/u)
-    // An environment error inside the transaction is unknown (sql-contract §7.6).
     expect(failureOf(await a.port.commitLog({ observation })).kind).toBe('commit-unknown')
     a.provider.failWrite(null)
     expect(stored(a)).toEqual(committed)
@@ -188,7 +167,6 @@ describe('T-A2-2: the snapshot of a commit that fails is kept, but the next comm
     const reads = stateReads(a)
     const chunks = chunkReads(a)
     ok(await a.port.commitLog({ observation }))
-    // The retry read the stored rows again, then committed the next revision.
     expect(stateReads(a)).toBe(reads + 1)
     expect(chunkReads(a)).toBe(chunks + 1)
     expect(stored(a).covered).toBe(committed.covered + 1n)
@@ -209,7 +187,6 @@ describe('T-A2-3: the snapshot that a commit starts from is deep-frozen', () => 
     expect(() => {
       ;(kept as unknown as { pending: unknown[] }).pending.push('x')
     }).toThrow(TypeError)
-    // The failed write changed nothing that a later reader sees.
     expect(keptOf()?.snapshot).toEqual(storedSnapshot(a))
   })
 })
@@ -225,15 +202,12 @@ describe('the key of a kept snapshot', () => {
     ok(await a.accept(TENANT_B, SESSION, 'second-in-tenant-b'))
     expect(keptOf(TENANT_A)?.snapshot).toBe(ofA?.snapshot)
     expect(ofA?.snapshot.pending).toEqual([])
-    // Tenant B's commit wrote B's revision 3, with B's two pending inputs.
     expect(keptOf(TENANT_B)?.covered).toBe(3n)
     expect(keptOf(TENANT_B)?.snapshot.pending).toHaveLength(2)
   })
 })
 
 describe('T-A2-4: the kept snapshot is checked against the row, not only by its revision', () => {
-  // Two databases in one module instance (the test provider), with no clear between them: the same
-  // tenant, the same session and the same revision, with other rows. The commits alternate.
   it('two databases at the same revision with other rows: each commit starts from its own row', async () => {
     const a = await app()
     const b = await app()
@@ -256,7 +230,6 @@ describe('T-A2-4: the kept snapshot is checked against the row, not only by its 
 })
 
 describe('the parsed snapshots against the rows of one database', () => {
-  /** A database with session `s` at `covered`, whose snapshot text names the revision. */
   function database(sessions: readonly string[], covered = 1n) {
     const { port } = migratedPort()
     for (const session of sessions) {
@@ -312,7 +285,6 @@ describe('the parsed snapshots against the rows of one database', () => {
     cache.covering(port, 't', 's1', 5n)
     move(port, 's1', 6n)
     expect(cache.covering(port, 't', 's1', 6n)).toEqual({ session: 's1', revision: '6' })
-    // A tail that moved back (a restored database) is read again, never answered from revision 6.
     move(port, 's1', 3n)
     expect(cache.covering(port, 't', 's1', 3n)).toEqual({ session: 's1', revision: '3' })
     expect(cache.peek('t', 's1')?.covered).toBe(3n)

@@ -1,6 +1,3 @@
-// The end of a Run answers its open tool calls (SPEC "Run 结束时关上未答的调用"): the commit that
-// writes the terminal of a Run first writes one tool message for every call of the Run that has
-// none, so a terminal Run has no open call and the next model request reads a whole history.
 import { describe, expect, it } from 'vitest'
 import { judgeMessage, type Message } from '@omne-harness/message'
 import {
@@ -43,7 +40,6 @@ const answer = (callId: string): Message =>
     ],
   }) as unknown as Message
 
-/** Records one message of the active Run through the message hand-over. */
 async function record(s: Scene, name: string, message: Message, written: string) {
   const { run } = await s.active()
   return s.commit({
@@ -74,7 +70,6 @@ const cancel = (s: Scene, run: RunId) =>
     input: { ...s.base, operation: operationId('cancel'), run, urgency: 'graceful' },
   })
 
-/** The entries of the session in commit order; an entry that needs its SE01 to decode has no kind. */
 function rows(s: Scene) {
   return s.port.controls.entriesOf(s.base.tenant, s.base.session).map(row => {
     const decoded = decodeEntry(row)
@@ -82,7 +77,6 @@ function rows(s: Scene) {
   })
 }
 
-/** The tool messages that the commits after `from` wrote, with the call each one answers. */
 function closings(s: Scene, from: number) {
   return rows(s)
     .slice(from)

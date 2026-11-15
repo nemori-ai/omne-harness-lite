@@ -5,11 +5,6 @@ import {
   type MemorySessionHistorySource,
 } from './testing-history-source.ts'
 import type { SessionInputScope } from './history-values.ts'
-// The SessionTransactionPort conformance suite and a non-durable double that conforms to it. The
-// double commits in memory by running `decide` and `reduce`, assigns entry ids and revisions, and
-// keys every session by (tenant, session), so a foreign tenant reads `denied` and cannot tell a
-// session of another tenant from one that never was (J40). It declares `durability: 'none'` and
-// proves nothing about a real store, cross-process commits or the retention of entries.
 import assert from 'node:assert/strict'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
@@ -121,10 +116,6 @@ import {
   sessionId,
 } from './testing-values.ts'
 
-// ---------------------------------------------------------------------------------------------
-// The non-durable double
-// ---------------------------------------------------------------------------------------------
-
 type Recall = (receipt: CommitReceipt) => unknown
 
 type Store = {
@@ -137,13 +128,10 @@ type Store = {
       record: OperationRecord
       recall: Recall
       decision: DurableEvidence | null
-      /** `control` marks a cancelRun/stopCall that has a business batch; it recalls a control receipt. */
       form?: 'control'
-      /** The event channel commit that this record saved: its execution and the progress it reached. */
       log?: Readonly<{ execution: string; readThrough: string }>
     }>
   >
-  /** The answer-only control operations (ended, not-found): one row, no batch, no revision. */
   readonly answers: Map<
     SessionOperationId,
     Readonly<{
@@ -167,12 +155,9 @@ type Cursor = Readonly<{
 
 export interface MemorySessionTransactions<P> extends SessionTransactionPort<P> {
   readonly durability: 'none'
-  /** The double always offers the event channel commit, so a suite calls it without a check. */
   readonly commitLog: NonNullable<SessionTransactionPort<P>['commitLog']>
   readonly controls: Readonly<{
-    /** The entries of one session as committed, for a reader that checks the log itself. */
     entriesOf(tenant: TenantId, session: SessionId): readonly HistoryEntry[]
-    /** The access decision evidence that the commit of `operation` recorded; `null` when there is none. */
     decisionOf(
       tenant: TenantId,
       session: SessionId,
@@ -181,7 +166,6 @@ export interface MemorySessionTransactions<P> extends SessionTransactionPort<P> 
   }>
 }
 
-/** The extra controls of this factory; the original provider fixture interface stays implementable. */
 export interface MemorySessionLogTransactions<P> extends MemorySessionTransactions<P> {
   readonly controls: MemorySessionTransactions<P>['controls'] &
     Readonly<{
@@ -190,10 +174,6 @@ export interface MemorySessionLogTransactions<P> extends MemorySessionTransactio
         operation: SessionOperationId,
       ): Promise<Outcome<CommitReceipt, SessionFailure>>
       directoryAvailable(available: boolean): void
-      /**
-       * Models the first committed SE19 that ended a call. The entry codec of this segment has no
-       * outcome field, so the double takes the end as a control and `stopCall` reads it as a lookup.
-       */
       recordCallTerminal(tenant: TenantId, session: SessionId, terminal: SessionCallTerminal): void
     }>
 }
@@ -252,9 +232,6 @@ function decodeCursor(text: string): Cursor | null {
   }
 }
 
-/**
- * The reasons of one snapshot (SPEC「SessionReconciliation」): decided from the snapshot alone.
- */
 export function pendingReasonsOf(snapshot: WorkSnapshot): readonly PendingReason[] {
   const reasons: PendingReason[] = []
   if (snapshot.tasks.some(task => task.kind === 'initialization')) reasons.push('initialization')
@@ -274,7 +251,6 @@ export function pendingReasonsOf(snapshot: WorkSnapshot): readonly PendingReason
   return reasons
 }
 
-/** The receipt of one committed batch: its evidence binds operation, range, kinds and payload digest. */
 function receiptOf(
   session: SessionId,
   operation: SessionOperationId,
@@ -292,16 +268,10 @@ function receiptOf(
   return { operation, revision, first: first.id, last: last.id, recovered: false, source }
 }
 
-/** The saved receipt of one event channel record, answered again as a recall. */
 function recalled(record: NonNullable<ReturnType<Store['operations']['get']>>): SessionLogReceipt {
   return { ...(record.recall(record.record.receipt) as SessionLogReceipt), recovered: true }
 }
 
-/**
- * The recall by operation identity (LC-03, LC-04): null when the identity is new. A recorded
- * identity of another form, or of another observation, is a conflict, and an answer-only control
- * identity is a conflict too.
- */
 function recallLogOperation(
   store: Store,
   observation: SessionLogCommitObservation,
@@ -315,11 +285,6 @@ function recallLogOperation(
     : fail({ kind: 'conflict', operation })
 }
 
-/**
- * The projection wrote no row (LC-06, LC-07). An event at or below the saved progress recalls the
- * original commit that covers it, and a store without that commit is `unavailable`. Any other event
- * has no Session consequence and is not committed.
- */
 function interpretedWithoutRows(
   store: Store,
   prepared: WorkSnapshot,
@@ -350,7 +315,6 @@ function interpretedWithoutRows(
     : succeed(recalled(covering))
 }
 
-/** The execution progress row that the batch wrote for the Run of the observation. */
 function progressRowOf(
   entries: readonly HistoryEntry[],
   observation: SessionLogCommitObservation,
@@ -366,7 +330,6 @@ function progressRowOf(
   })
 }
 
-/** The store after one event channel commit: rows, snapshot, operation record and model view in one value. */
 function publishedLog(
   store: Store,
   snapshot: WorkSnapshot,
@@ -397,8 +360,6 @@ function publishedLog(
   }
 }
 
-/** The result of a commit for each mutation kind, built from the snapshot after the batch. */
-/** A control that left no progress item is not reachable, but it answers `null` (unavailable), never throws. */
 function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall | null {
   const kind = command.kind
   switch (command.kind) {
@@ -468,7 +429,6 @@ function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall | nul
   }
 }
 
-/** `startRun`: the stored first pending input with its origin, from the same store as the snapshot. */
 function firstInputRead(
   command: SessionCommand,
   store:
@@ -484,7 +444,6 @@ function firstInputRead(
   return stored === undefined ? {} : { firstInput: { input: stored.input, origin: stored.origin } }
 }
 
-/** The ordinary input that a command admits, if any, for `readInput`. */
 function admittedInput(command: SessionCommand): Extract<RoutedInput, { kind: 'ordinary' }> | null {
   if (command.kind === 'accept' && command.input.value.kind === 'ordinary')
     return command.input.value
@@ -497,7 +456,6 @@ function sameProducer(left: ProducerRef, right: ProducerRef): boolean {
   return left.kind === right.kind && left.call === right.call
 }
 
-/** The Run lookup of one snapshot, covering exactly that snapshot. */
 function runLookup(snapshot: WorkSnapshot, run: RunId): SessionRunLookup {
   const history = snapshot.executions?.find(item => item.run === run)
   const current =
@@ -519,25 +477,13 @@ export type MemorySessionTransactionOptions<P> = Readonly<{
   intakeLimits?: SessionIntakeLimits
   initialization?: MemoryInitializationSource
   history?: MemorySessionHistorySource
-  /**
-   * The current access decision of every public read and write (SPEC「当前操作的访问裁定」). The
-   * fixture supplies it explicitly; the double has no default permission.
-   */
   accessCheck: SessionAccessCheck<P>
 }>
-/**
- * The public port and the delegated entry of one in-memory core (SPEC「当前操作的访问裁定」). Both
- * read and write the same stores. The public port asks `accessCheck` at each public call. A view
- * from `delegated.bind` never asks it: it answers each call by its binding (see
- * `SessionDelegatedTransactions`) and stores the bound evidence with the operation record, where
- * `controls.decisionOf` reads it back.
- */
 export type MemorySessionTransactionPair<P> = Readonly<{
   transactions: MemoryInitializationTransactions<P>
   delegated: SessionDelegatedTransactions<P>
 }>
 
-/** True when `request` stays inside the face operation that `bound` checked. */
 function withinBinding<P>(
   bound: SessionAccessRequest<P>,
   request: SessionAccessRequest<P>,
@@ -552,7 +498,6 @@ function withinBinding<P>(
   )
 }
 
-/** The same command up to `expected`: a `changed` retry of the face operation stays bound. */
 function sameCheckedCommand(left: SessionCommand, right: SessionCommand): boolean {
   const strip = (command: SessionCommand): SessionCommand => {
     const { expected: _expected, ...input } = command.input as Record<string, unknown>
@@ -565,7 +510,6 @@ function sameCheckedCommand(left: SessionCommand, right: SessionCommand): boolea
   )
 }
 
-/** The decision source of a delegated view: the binding answers, the access check is not asked. */
 function boundAccessCheck<P>(checked: SessionCheckedAccess<P>): SessionAccessCheck<P> {
   return {
     check: async request =>
@@ -610,11 +554,6 @@ export function createMemorySessionTransactionPair<P>(
         }
       : { kind: 'absent', producer, covered: snapshot.revision }
 
-  /**
-   * The pure projection of one observation over the store: the history material, the snapshot
-   * that carries its index, and the decision of `projectSessionLog`. The controls `project` and
-   * `commitLog` share it, so the two paths cannot read the history differently.
-   */
   const projectFor = (store: Store, observation: SessionLogObservation) => {
     const selected = observation.consequences.find(item => item.kind === 'input-taken')
     const material = options.history?.read(
@@ -635,14 +574,9 @@ export function createMemorySessionTransactionPair<P>(
     }
   }
 
-  /**
-   * The port surface over the shared stores. `accessCheck` answers every public call of this
-   * surface: the public port gets the configured check, a delegated view gets its binding.
-   */
   const surface = (
     accessCheck: SessionAccessCheck<P>,
   ): SessionTransactionPort<P> & Pick<MemorySessionTransactions<P>, 'commitLog'> => {
-    /** One current decision for one public call. A throwing or unavailable source does not continue. */
     const qualify = async (
       request: SessionAccessRequest<P>,
     ): Promise<Outcome<DurableEvidence, SessionFailure>> => {
@@ -700,7 +634,6 @@ export function createMemorySessionTransactionPair<P>(
       const qualification = await qualify(mutationAccessRequest(input.access, command))
       if ('failure' in qualification) return fail(qualification.failure)
       const accessEvidence = qualification.ok
-      // Before the session, the identity table or any lookup: the answer must not tell what exists.
       if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
         return fail({ kind: 'unsupported' })
       const key = keyOf(command.input.tenant, command.input.session)
@@ -918,12 +851,6 @@ export function createMemorySessionTransactionPair<P>(
       return succeed(recall(receipt))
     }
 
-    /**
-     * The entries interpretation commit (docs/same-log-pure.md「entries 通道的解释提交」): no access
-     * check, the shared pure check, then the consequence rows, the progress row, the operation record
-     * and the snapshot with its saved progress in one replacement of the store. Nothing between the read of the store
-     * and that replacement awaits, and nothing is written before every check and the reduction pass.
-     */
     const commitEntries = (
       input: Readonly<{ observation: SessionEntriesObservation; start: SessionEntriesStart }>,
     ): Outcome<SessionEntriesReceipt, SessionFailure> => {
@@ -996,14 +923,6 @@ export function createMemorySessionTransactionPair<P>(
       return succeed(answer)
     }
 
-    /**
-     * The event channel interpretation commit (docs/same-log-pure.md「事件通道的解释提交」): no
-     * access check, the recall by operation, the pure projection and reduction, then one replacement
-     * of the store that holds the consequence rows, the progress row and the operation record. The
-     * double yields once between its read and its publication, as a provider that awaits its store
-     * does, and re-reads the head before it publishes: a store that moved meanwhile answers
-     * `changed`, and nothing was written.
-     */
     const commitLog = async (
       input: Readonly<{ observation: SessionLogCommitObservation }>,
     ): Promise<Outcome<SessionLogReceipt, SessionFailure>> => {
@@ -1037,7 +956,6 @@ export function createMemorySessionTransactionPair<P>(
       if (progress === undefined || readThrough === null)
         return fail(unavailable('a log commit without its execution progress'))
       await Promise.resolve()
-      // The head check before publication: another writer that replaced the store meanwhile wins.
       const current = stores.get(key.ok)
       if (current !== store)
         return fail({ kind: 'changed', revision: (current ?? store).snapshot.revision })
@@ -1060,8 +978,6 @@ export function createMemorySessionTransactionPair<P>(
       const taken: HistoryEntry[] = []
       let scanned = cursor.scanned
       let bytes = 0
-      // `scanned` is a position: forward, the count of entries scanned from the start; backward, the
-      // count scanned from the upper bound. A page ends when the next match would exceed the bytes.
       while (forward ? scanned < upper : scanned < upper) {
         const index = forward ? scanned : upper - scanned - 1
         const entry = store.entries[index] as HistoryEntry
@@ -1232,8 +1148,6 @@ export function createMemorySessionTransactionPair<P>(
         const store = await storeOf(input, 'queryOperation')
         if ('failure' in store) return store
         const held = store.ok.operations.get(input.operation)
-        // A control record and an event channel record are not batch records: the identity belongs
-        // to the other form, so this query answers conflict, as for a control record.
         if (
           held?.form === 'control' ||
           held?.log !== undefined ||
@@ -1511,23 +1425,12 @@ export function createMemorySessionTransactionPair<P>(
   return Object.freeze({ transactions, delegated })
 }
 
-/** The public port of {@link createMemorySessionTransactionPair}, for a fixture that needs no view. */
 export function createMemorySessionTransactions<P>(
   options: MemorySessionTransactionOptions<P>,
 ): MemoryInitializationTransactions<P> {
   return createMemorySessionTransactionPair(options).transactions
 }
 
-// ---------------------------------------------------------------------------------------------
-// The conformance suite
-// ---------------------------------------------------------------------------------------------
-
-/**
- * What the transaction suite needs. A fresh fixture serves one case. `access` names the tenant
- * and the session that the case creates; `otherAccess`, when offered, names another tenant for
- * the cross-tenant cases. `creation` is a creation that the port accepts with no required
- * identity. `operation` mints an operation identity from a name, distinct per name.
- */
 export interface SessionTransactionsFixture<P> {
   readonly port: SessionTransactionPort<P>
   readonly access: SessionAccess<P>
@@ -1542,7 +1445,6 @@ export interface SessionTransactionsFixture<P> {
       receipt: DurableEvidence
     }>,
   ): Promise<void>
-  /** Publishes the original execution record and Session participation in one real commit. */
   publishMessageParticipation?(
     input: Readonly<{
       execution: string
@@ -1553,13 +1455,11 @@ export interface SessionTransactionsFixture<P> {
   initializationGuards?(
     command: Extract<SessionCommand, { kind: 'create' }>,
   ): Promise<readonly GuardCommand[]>
-  /** The count of access checks that the port asked so far, for a case that asserts none is asked. */
   readonly askedAccessChecks?: () => number
 }
 
 type Commit<K extends MutationName> = Awaited<ReturnType<Mutations[K]>>
 
-/** The steps of a case over one fixture; shared with the delegated-view suite. */
 export function scene<P>(fixture: SessionTransactionsFixture<P>) {
   const { port, access } = fixture
   const base = { tenant: access.tenant, session: access.session }
@@ -1718,7 +1618,6 @@ export function scene<P>(fixture: SessionTransactionsFixture<P>) {
     )
     return participation
   }
-  /** Closes the Run by a bounded close of this Session (PM-02): the only terminal on the first path. */
   const finish = async (
     name = 'finish',
     bounded: BoundedClose = {
@@ -1740,7 +1639,6 @@ export function scene<P>(fixture: SessionTransactionsFixture<P>) {
     })
   }
   const readWork = async () => succeeded(await port.readWork(access), 'readWork')
-  /** Creates the session, accepts `input-1` and opens the Run; returns the execution. */
   const openRun = async (): Promise<string> => {
     succeeded(await create(), 'create')
     succeeded(await accept('input-1'), 'accept')
@@ -1927,13 +1825,11 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
       async fixture => {
         const s = scene(fixture)
         succeeded(await s.create(), 'create')
-        // The first input came from another origin; a later one came through the login.
         succeeded(await s.accept('input-1', 'accept-input-1', intakeInput('input-1')), 'accept')
         succeeded(await s.accept('input-2'), 'accept login input')
         const refusal = refused(await s.startRun('start-interactive'), 'interactive startRun')
         expectKind(refusal, 'login-required', 'interactive startRun')
         assert.equal((await s.readWork()).run.kind, 'none', 'the refusal opens no Run')
-        // A dispatch entry asks for no login.
         succeeded(await s.startRun('start-dispatch', 'dispatch'), 'dispatch startRun')
       },
     ),
@@ -2570,16 +2466,10 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
 type MemoryTransactionsFixture = SessionTransactionsFixture<string> &
   Readonly<{ port: MemoryInitializationTransactions<string> }>
 
-/** A fresh fixture over a fresh in-memory port, with the second tenant for the cross-tenant case. */
 export function memorySessionTransactionsFixture(): SessionTransactionsFixture<string> {
   return memoryFixtureParts().fixture
 }
 
-/**
- * The fixture of {@link memorySessionTransactionsFixture} with the two handles that other suites
- * build on: the history source that the fixture's Agent side writes to, and the delegated entry
- * over the same stores.
- */
 export function memoryFixtureParts(): Readonly<{
   fixture: SessionTransactionsFixture<string> &
     Readonly<{ port: MemoryInitializationTransactions<string> }>
@@ -2589,10 +2479,6 @@ export function memoryFixtureParts(): Readonly<{
   const initialization = createMemoryInitializationSource()
   const history = createMemorySessionHistorySource()
   const access = memoryAccess('tester')
-  // The suite tests transaction semantics; this fixture states one explicit policy: only the
-  // fixture's tenant may touch a session. The tenant keying of the double refuses the other tenant
-  // as well, and J40 observes only that both answers are the same, not which one refused.
-  // Tenant and system directories stay open.
   const accessCheck = createPolicySessionAccessCheck<string>(request =>
     request.target.kind === 'session' &&
     'tenant' in request.access &&
@@ -2667,7 +2553,6 @@ export function memoryFixtureParts(): Readonly<{
   return { fixture, history, delegated }
 }
 
-/** The initialization guards of a memory fixture: registers the adopted fixture, then prepares. */
 export function memoryInitializationGuards(
   initialization: MemoryInitializationSource,
 ): (command: Extract<SessionCommand, { kind: 'create' }>) => Promise<readonly GuardCommand[]> {

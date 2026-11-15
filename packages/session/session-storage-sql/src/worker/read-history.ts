@@ -1,7 +1,3 @@
-// R2: one byte-bounded page of the log, in either direction, by position. The continuation is the
-// last position examined; the port seals it. The entries and annotations travel as their stored
-// `entry` texts, so the output of a page is as large as its rows; the port reads them with
-// `readEntryText` (entry-codec.ts).
 import { readEntryText } from '../entry-codec.ts'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { big, handler, oneRow, packed, PAGE_ROWS, rowsOf, scopeOf } from './support.ts'

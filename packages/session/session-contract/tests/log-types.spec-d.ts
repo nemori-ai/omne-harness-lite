@@ -1,6 +1,3 @@
-// The type controls of the additive contract: what the commit must carry cannot be left out, what
-// `create` does not take is not there, and an implementation written before the additions still
-// fits the interfaces that grew.
 import { expectTypeOf, it } from 'vitest'
 import type { Outcome } from '@omne-harness/operation-result'
 import type {

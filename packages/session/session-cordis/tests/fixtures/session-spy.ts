@@ -1,7 +1,3 @@
-// A spy over the real session factory. It counts `close`, `maintain` and the release of each
-// scanner, can hold or fail them, and changes nothing else: the instance underneath is the real
-// one. A spec installs it with
-// `vi.mock('@omne-harness/session', async importOriginal => spyOnSession(await importOriginal()))`.
 import type * as Session from '@omne-harness/session'
 
 export const spies = {
@@ -11,11 +7,9 @@ export const spies = {
   released: 0,
   releaseThrows: false,
   closeThrows: false,
-  /** When set, a release waits for it before it releases. */
   releaseGate: null as null | Promise<void>,
 }
 
-/** Counting starts from zero: the configuration check and the first load build probe instances. */
 export function resetSpies(): void {
   Object.assign(spies, {
     closed: 0,

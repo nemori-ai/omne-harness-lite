@@ -1,7 +1,3 @@
-// readCallRegistration (SPEC「稳定调用引用的读取」, #1248 C5): kind, reference and purpose of a
-// `call.bound` payload in either stored shape. The in-run sample is a payload the release tree
-// wrote in a real run (tests/fixtures/call-bound-in-run.json); the out-of-run shape has no writer
-// in the server yet, so it is built with this member's own entry encoder.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'

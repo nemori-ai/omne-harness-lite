@@ -1,6 +1,3 @@
-// What the conversation shows: the committed entries read from history, and at most one reply still
-// being generated (the `model-output-v1` projection of the current main model call). History is the
-// authority; the live reply is a projection that a committed assistant message replaces.
 import {
   compareDecimal,
   isRecord,
@@ -18,7 +15,6 @@ export type HistoryEntry = Readonly<{
   payload: Plain
 }>
 
-/** One block of the live projection, as plain data. `index` orders the blocks. */
 export type LiveBlock =
   | Readonly<{ kind: 'sealed'; index: string; block: Plain }>
   | Readonly<{
@@ -34,26 +30,18 @@ export type Live = Readonly<{
   revision: string
   phase: string
   blocks: readonly LiveBlock[]
-  /** The session revision the reply was seen at: a committed assistant message after it replaces it. */
   anchor: string
 }>
 
-/** Why the live reply is not moving: the observation reported a gap, or is refreshing. */
 export type LiveStatus =
   | Readonly<{ kind: 'gap'; reason: 'buffer' | 'source-history' }>
   | Readonly<{ kind: 'refreshing' }>
   | null
 
 export type Content = Readonly<{
-  /** Committed entries in log order, unique by `entryId`. */
   entries: readonly HistoryEntry[]
   live: Live | null
   liveStatus: LiveStatus
-  /**
-   * The session revision history is read through: the pinned revision (`upper`) of the last
-   * traversal from the tail that reached what was held, or null before the first one. A state
-   * frame at or below it names no commit the entries lack (session-protocol SPEC「会话修订号与读历史」).
-   */
   readThrough: string | null
 }>
 
@@ -81,17 +69,12 @@ function maxDecimal(left: string | null, right: string): string {
   return left === null || compareDecimal(left, right) < 0 ? right : left
 }
 
-/** Whether a page brings no entry the content does not have yet: catching up can stop there. */
 export function reachesKnown(content: Content, page: readonly WireEntry[]): boolean {
   if (content.entries.length === 0) return false
   const known = new Set(content.entries.map(entry => entry.entryId))
   return page.some(entry => known.has(entry.entryId))
 }
 
-/**
- * Merges one history page. An entry already held is replaced by the page's copy. A committed
- * assistant message newer than the live reply's anchor means the reply was committed: it goes.
- */
 export function mergeHistory(content: Content, page: readonly WireEntry[]): Content {
   const byId = new Map(content.entries.map(entry => [entry.entryId, entry]))
   for (const entry of page)
@@ -117,15 +100,10 @@ export function mergeHistory(content: Content, page: readonly WireEntry[]): Cont
   }
 }
 
-/** A traversal from the tail reached what was held: history is read through its pinned revision. */
 export function readThroughTo(content: Content, upper: string): Content {
   return { ...content, readThrough: maxDecimal(content.readThrough, upper) }
 }
 
-/**
- * No run is in progress. Once history is read through the run's last revision, nothing is live any
- * more; and with nothing live, a status about the live reply has nothing to describe.
- */
 export function settleLive(content: Content, revision: string): Content {
   if (content.live === null)
     return content.liveStatus === null ? content : { ...content, liveStatus: null }
@@ -185,9 +163,7 @@ function projectionOf(tree: JsonTree): Projection | null {
 
 export type LiveApplied =
   | Readonly<{ kind: 'applied'; content: Content }>
-  /** The delta's base is not the reply held: the client does not apply it and observes again. */
   | Readonly<{ kind: 'base-mismatch' }>
-  /** The value is not a `model-output-v1` projection the view can read. */
   | Readonly<{ kind: 'unreadable' }>
 
 export function applySnapshot(content: Content, tree: JsonTree, anchor: string): LiveApplied {
@@ -210,7 +186,6 @@ export function applySnapshot(content: Content, tree: JsonTree, anchor: string):
   }
 }
 
-/** A delta replaces the blocks it names by index and appends the new ones, after its base. */
 export function applyDelta(content: Content, tree: JsonTree): LiveApplied {
   const projection = projectionOf(tree)
   if (projection === null || projection.base === undefined) return { kind: 'unreadable' }

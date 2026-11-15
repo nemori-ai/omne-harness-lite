@@ -1,8 +1,3 @@
-// The `core.*` rows of the former K-23 bridge do not decode (session-adapters SPEC "事实族存储",
-// K-23 end state, R2-D347): a copy is projected from the fact family alone. Negative control: a
-// session whose records hold one row of a bridge kind is unavailable to a cold provider and to
-// the reader outside the provider, with the diagnostic that names the records; the same session
-// without that row loads. Nothing is read past the row, nothing is repaired in place.
 import { describe, expect, it } from 'vitest'
 import { readExecutionRecords } from '../src/cordis/agent-journal.ts'
 import { ok } from './fixtures/common-journal.ts'
@@ -18,7 +13,6 @@ describe('the rows of the former core bridge', () => {
       .rows[0]?.[0]
     expect(Number(before)).toBe(0)
 
-    // One fact of the open batch becomes a bridge row, as an older writer would have left it.
     const changed = s.controls?.select(
       "UPDATE er_fact SET kind = 'core.execution' WHERE pub = 1 AND ord = 1",
     ).changes

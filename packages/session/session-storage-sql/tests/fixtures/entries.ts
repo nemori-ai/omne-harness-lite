@@ -1,4 +1,3 @@
-// One call per public entry of the transaction port, for the tenant and session it is given.
 import type { EntryId, InputId, RunId, SessionId } from '@omne-harness/session-contract'
 import { evidence, operationId } from '@omne-harness/session-contract/testing'
 import type { TenantId } from '@omne-harness/legal-identity'
@@ -11,7 +10,6 @@ export type EntryCall = Readonly<{
 
 const bytes = 100_000
 
-/** The entries that name a tenant and a session. */
 export const SESSION_ENTRIES: readonly EntryCall[] = [
   { name: 'commit', call: (a, t, s) => a.accept(t, s, 'late') },
   { name: 'readWork', call: (a, t, s) => a.port.readWork(a.access(t, s)) },
@@ -71,7 +69,6 @@ export const SESSION_ENTRIES: readonly EntryCall[] = [
   },
 ]
 
-/** The system entries: no tenant, every tenant domain. */
 export const SYSTEM_ENTRIES: readonly EntryCall[] = [
   {
     name: 'references',
@@ -94,11 +91,6 @@ export const SYSTEM_ENTRIES: readonly EntryCall[] = [
 export const kindOf = (value: unknown): string | undefined =>
   (value as { failure?: { kind: string } }).failure?.kind
 
-/**
- * The interpreter entries: they ask no access check (the caller is the trusted interpreter), so
- * they are not in `SESSION_ENTRIES`, whose cases expect an access refusal before any storage call.
- * For another tenant's session they answer `denied`, the same as for a session that never was.
- */
 export const INTERPRETER_ENTRIES: readonly EntryCall[] = [
   {
     name: 'commitLog',

@@ -1,17 +1,4 @@
-// The speed of the `sl_entry` text codec on a fixed session (tests/fixtures/session-scenario.ts,
-// 30 turns, 541 entries), over one migrated node:sqlite database in memory. Four measures, each run
-// many times after a warm-up; the mean, the median and the 95th percentile are printed as one JSON line
-// (`entry-codec-bench`) so that two trees can be compared by running this file in each:
-//
-// - write: the text of one entry and its INSERT, per entry;
-// - decode: the entry of one stored text, per entry;
-// - index: the Session rows of the history index built from nothing (a fresh module instance);
-// - pages: `session.history` read forward to the end in 256 KiB pages, with the port-side decode.
-//
-// The file asserts only that each measure did its work; a time bound here would be a flaky test.
-// The comparison against a baseline is the reader's, with both trees on one machine.
 // @module-tag slow
-// Why slow: heavy CPU, several thousand timed repetitions.
 import { describe, expect, it, vi } from 'vitest'
 import type { SessionInputScope, WorkSnapshot } from '@omne-harness/session-contract'
 import historyHandler from '../src/worker/read-history.ts'
@@ -40,7 +27,6 @@ const stats = (values: readonly number[]) => ({
 const INSERT =
   'INSERT INTO sl_entry (tenant, session, position, revision, kind, entry, bytes) VALUES (?, ?, ?, ?, ?, ?, ?)'
 
-/** Writes the scenario into `db`; the time of each entry (text and INSERT) in microseconds. */
 function writeAll(db: Db, session: string, entries: readonly Record<string, unknown>[]): number[] {
   const times: number[] = []
   for (const entry of entries) {
@@ -69,7 +55,6 @@ const snapshotOf = (session: string) =>
   ({ tenant: 't', session, revision: '1' }) as unknown as WorkSnapshot
 const scope = { kind: 'pending', inputs: [] } as unknown as SessionInputScope
 
-/** Reads the session forward to its end; the number of entries decoded. */
 function readPages(db: Db, session: string): number {
   let input: Record<string, unknown> = {
     tenant: 't',

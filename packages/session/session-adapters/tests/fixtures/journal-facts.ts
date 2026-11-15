@@ -1,8 +1,3 @@
-// A generator of Agent fact logs for the Journal laws: a session with one or two executions, each
-// opened, attached, advanced through producer rounds (intend, receive, judge, with the optional
-// recognitions, controls, waits, passages, handoffs, crashes and recoveries), and ended through a
-// candidate, its obligations and the terminal batch. Every batch is one operation, every fact key
-// appears once, and the facts hold identities, evidence and references only.
 import {
   decodeActionBatchId,
   decodeActionId,
@@ -50,18 +45,14 @@ export const evidence = (record: string, revision = 0): DurableEvidence => ({
   digest: `laws:${record}@${revision}`,
 })
 
-/** A reference to any fixture value: the laws never read the block, only its digest and size. */
 const blob = (value: unknown): Ref<never> => refOf(value) as Ref<never>
 
 const adoption = (name: string) => ({ owner: 'laws', name, revision: '1', digest: `laws:${name}` })
 
 export type Scene = Readonly<{
-  /** The batches in publication order, `pub` from 1. */
   log: readonly PublishedBatch[]
   executions: readonly AgentExecutionId[]
-  /** The intend batches of each tool round, by execution, for the growth assertions. */
   rounds: ReadonlyMap<AgentExecutionId, readonly PublishedBatch[]>
-  /** The candidate, obligations and ended batches of each execution that finished. */
   finishes: ReadonlyMap<
     AgentExecutionId,
     Readonly<{ candidate: PublishedBatch; obligations: PublishedBatch; ended: PublishedBatch }>
@@ -70,11 +61,8 @@ export type Scene = Readonly<{
 
 export type SceneOptions = Readonly<{
   executions?: 1 | 2
-  /** The rounds of each execution; absent: random 1 to 6. */
   rounds?: number
-  /** Whether each execution ends; absent: random. */
   finish?: boolean
-  /** Whether to interleave the two executions' batches; absent: random. */
   interleave?: boolean
 }>
 
@@ -93,7 +81,6 @@ type Builder = {
   batches: Batch[]
   intends: Batch[]
   finish: { candidate: Batch; obligations: Batch; ended: Batch } | null
-  /** The obligations the steps appended, by id, for the close to list. */
   obligations: string[]
 }
 
@@ -134,7 +121,6 @@ function batch(
     envelope: {
       op: operation,
       digest: refOf({ what, facts }).digest,
-      // The revision the batch reaches is set once the log is ordered (see `scene`).
       rev: 0,
       gen: String(builder.gen),
       kinds,
@@ -291,7 +277,6 @@ function roundBatches(builder: Builder, rng: Random): void {
       saved: evidence(`${builder.execution}/saved/${builder.step}`),
       material: null,
     },
-    // R2-D322: the step that settles a call appends the call's obligation in its current form.
     obligation(builder, `call/${builder.step}`, 'call'),
   ])
   builder.admissions += 1
@@ -532,7 +517,6 @@ function roundBatches(builder: Builder, rng: Random): void {
     batch(builder, 'ack', [{ kind: 'ack.through', sequence: builder.step }])
   }
   if (rng.chance(1, 6)) {
-    // A crash: the successor attaches with the next generation.
     builder.gen += 1
     builder.attachment += 1
     builder.authority = authorityOf(builder)
@@ -559,7 +543,6 @@ function roundBatches(builder: Builder, rng: Random): void {
   }
 }
 
-/** One obligation in its current form, a block of a size no fact could carry. */
 function obligation(builder: Builder, id: string, category: string): FactBody {
   builder.obligations.push(id)
   return {
@@ -591,8 +574,6 @@ function finishBatches(builder: Builder): void {
     },
     { kind: 'cursor.moved', step, members: { state: 'settling', position: 'F1' } },
   ])
-  // The steps appended the obligations of their calls; the issue is the close alone, which lists
-  // them by reference through a block (R2-D322).
   const obligations = batch(builder, 'obligations', [
     {
       kind: 'finish.obligations',
@@ -615,7 +596,6 @@ function finishBatches(builder: Builder): void {
   builder.finish = { candidate: candidateBatch, obligations, ended }
 }
 
-/** Generates a scene: the batches of one or two executions, interleaved or not, with `pub` set. */
 export function scene(rng: Random, options: SceneOptions = {}): Scene {
   const count = options.executions ?? (rng.chance(1, 2) ? 1 : 2)
   const builders: Builder[] = []
@@ -659,13 +639,11 @@ export function scene(rng: Random, options: SceneOptions = {}): Scene {
       cursors[index] = at + 1
     }
   } else for (const builder of builders) ordered.push(...builder.batches)
-  // The envelope names the revision the batch reaches: fold the ordered log once to learn it.
   const log: PublishedBatch[] = []
   let view = emptySessionView()
   for (const [index, value] of ordered.entries()) {
     const draft = { ...value, pub: index + 1 }
     view = fold(view, draft)
-    // A recognition repeats the revision before it; its answer takes the recognized batch's.
     const rev = view.executions.get(value.execution)!.revision
     log.push({ ...draft, envelope: { ...draft.envelope, rev } })
   }

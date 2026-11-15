@@ -1,8 +1,3 @@
-// The history pages a reader sees (session-contract SPEC「条目的存储形式」, R2-D357): the storage view
-// pages the stored form of revision 4; the faces give the payload of the full form. A page that
-// names the SE01 reads the snapshot once through the same view; any other page reads nothing more.
-// Each case fails when a marker reaches a reader, or when a page without such a row reads the
-// snapshot.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { HistoryEntry, HistoryPage } from '@omne-harness/session-contract'
 import { creation, evidence, operationId, succeeded } from '@omne-harness/session-contract/testing'
@@ -112,7 +107,6 @@ describe('history pages give the payload of the full form', () => {
         .initialization.adoption,
     ).toEqual(JSON.parse(JSON.stringify(adoption)))
     expect(h.view.calls().map(call => call.method)).toEqual(['history.begin', 'readWork'])
-    // The SE01 does not change: a later page of the same session takes the kept adoption.
     h.view.reset()
     await page(h, ['session.adoption'])
     expect(h.view.calls().map(call => call.method)).toEqual(['history.begin'])
@@ -142,8 +136,6 @@ describe('history pages give the payload of the full form', () => {
     'times a page that needs the snapshot against one that does not, on the real SQL pair',
     { tags: ['slow'] },
     async () => {
-      // Slow: real sqlite-provider Workers and many timed reads.
-      // No resident: the SQL fixture bounds the statements of one commit (command_limit).
       const h = await created(sqlBackend, 0)
       const time = async (kinds: readonly string[]) => {
         for (let i = 0; i < 20; i++) await page(h, kinds)
@@ -165,11 +157,8 @@ describe('history pages give the payload of the full form', () => {
         return Number((Number(process.hrtime.bigint() - start) / 1000).toFixed(1))
       }
       const result = {
-        // The first page of the session that holds the initial SE08: one snapshot read.
         firstWithSnapshotRead: await firstPage(),
-        // Later pages with the initial SE08: the kept adoption, no read.
         withReference: await time(['session.adoption']),
-        // A page of the same size class without a reference.
         withoutReference: await time(['message.user']),
       }
       console.log(`HISTORY-PAGES ${JSON.stringify(result)}`)

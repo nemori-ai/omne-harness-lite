@@ -1,7 +1,3 @@
-// The pure rules of the two named controls (SPEC「XC-INTERRUPT」). They read the lookups that the
-// provider fills inside the commit transaction; a missing or stale item is unknown (FR-01), never
-// absence. The answers that need no entry are `control-answer` decisions; a live target goes through
-// the same `resolveControlScope`/`decideControl` as the older `control`.
 import type { SessionFailure } from './faces.ts'
 import type { SessionCommand } from './ports.ts'
 import type { WorkSnapshot } from './values.ts'
@@ -30,7 +26,6 @@ const unknownLookup = (what: string): Decision =>
     diagnostic: `${what} is missing or does not cover this snapshot`,
   })
 
-/** The failures that `cancelRun` and `stopCall` may return; every other kind is an unknown state here. */
 const CANCEL_KINDS: ReadonlySet<SessionFailure['kind']> = new Set([
   'denied',
   'invalid',
@@ -41,7 +36,6 @@ const CANCEL_KINDS: ReadonlySet<SessionFailure['kind']> = new Set([
 ])
 const STOP_KINDS: ReadonlySet<SessionFailure['kind']> = new Set([...CANCEL_KINDS, 'unsupported'])
 
-/** Keeps the failure set of the two controls closed: an outside kind is an unknown state, not a new answer. */
 export function closeControlFailure(decision: Decision, command: SessionCommand): Decision {
   if (command.kind !== 'cancelRun' && command.kind !== 'stopCall') return decision
   const allowed = command.kind === 'cancelRun' ? CANCEL_KINDS : STOP_KINDS
@@ -59,7 +53,6 @@ export function decideCancelRun(
   reads: DecideReads,
 ): Decision {
   const { run, urgency, operation } = command.input
-  // A format refusal is no business answer: it is returned before any lookup and saved nowhere (r2.2 4.2).
   if (typeof run !== 'string' || run.length === 0)
     return invalid('run', 'empty or not a Run identity')
   if (urgency !== 'graceful' && urgency !== 'force')

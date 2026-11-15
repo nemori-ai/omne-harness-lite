@@ -1,11 +1,3 @@
-// J06 on real Cordis 4.0.4: the current conditions provider over the node:sqlite double of the
-// storage (real participants, migrations and read handlers). What is checked: with every source
-// present the fields are the committed Session facts (the Run adoption, the collaboration mode as
-// the directive, the saved route, the open context scope, the residents) and the same facts give the
-// same `source`; a declared collaboration change wins over the tenant default; each absent source
-// closes the read with `unavailable` and no default takes its place; another tenant's Access finds
-// nothing; a superseded Authority is `stale-advance` whatever `previous` says; a stopped provider
-// answers `unavailable`.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Authority, DurableEvidence } from '@omne-harness/agent-contract'
 import { agentConditionsKey } from '@omne-harness/agent-cordis-contract/cordis'
@@ -25,7 +17,6 @@ import { instance, ok, operation } from './fixtures/common-journal.ts'
 import { cordisScene, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 
 const MODES_BASIS = evidence('tenant-defaults/modes')
-/** Its record differs from the route name, so the projection of `name` is told apart from it. */
 const ROUTE_BASIS = evidence('route-a/saving-commit')
 
 const modesOf = (collaboration: Modes['collaboration']): Modes => ({
@@ -34,7 +25,6 @@ const modesOf = (collaboration: Modes['collaboration']): Modes => ({
   collaboration,
 })
 
-/** The Agent access of the scene: its principal and tenant, without the session. */
 const agentAccess = (s: SqlScene) => ({ principal: s.access.principal, tenant: s.access.tenant })
 
 const scenes: SqlScene[] = []
@@ -45,13 +35,10 @@ afterEach(async () => {
 })
 
 type Options = Readonly<{
-  /** What the tenant-default resolver answers; `co-work` modes with `MODES_BASIS` when absent. */
   defaults?: 'co-work' | 'auto-drive' | 'unavailable'
-  /** Leaves the saved model selection out. */
   selection?: 'absent'
 }>
 
-/** The scene, its Cordis root, the provider and the Authority of the opened execution. */
 async function provided(name: string, options: Options = {}) {
   const s = await sqlScene(name)
   scenes.push(s)
@@ -80,7 +67,6 @@ async function provided(name: string, options: Options = {}) {
   return { s, c, fiber, asked, advance: opened.authority, read }
 }
 
-/** One declaration change of the scene's session, committed through the Session port. */
 function change(s: SqlScene, operation: string, declaration: DeclarationChange) {
   return s.port.commit({
     access: s.sessionAccess,
@@ -125,7 +111,6 @@ describe('the conditions of a current Authority', () => {
       owner: 'session-adapters/conditions',
       record: `${f.s.tenantText(f.s.access.tenant)}/${f.s.access.session}/${work.run.run}`,
     })
-    // The resolver was asked for exactly the source the creation named, with the definition.
     expect(f.asked).toEqual([
       {
         tenant: f.s.access.tenant,
@@ -156,7 +141,6 @@ describe('the conditions of a current Authority', () => {
     const read = ok(await f.read())
     expect(read.progression).toEqual({ kind: 'continue', basis: authorization })
     expect(f.asked).toEqual([])
-    // The directive is part of the facts, so the source moved with it.
     ok(
       await change(f.s, 'mode-2', {
         kind: 'collaboration-mode',

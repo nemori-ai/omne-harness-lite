@@ -1,4 +1,3 @@
-// RT-06: the publication count of the Agent records as this process knows it.
 import { describe, expect, it } from 'vitest'
 import type { SqlStorage } from '@omne-harness/sql-contract'
 import {

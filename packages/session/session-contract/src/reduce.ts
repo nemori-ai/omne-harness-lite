@@ -10,9 +10,6 @@ import {
   invalidAt,
 } from './session-validation.ts'
 import { CallConflict } from './call-state.ts'
-// The pure batch reduction (SPEC SL12, SL13, SL18; docs/object-model「纯批次归约算法」). It
-// interprets committed entries only, in batch order, and publishes no partial state: an unknown
-// kind, a missing origin or a contradiction quarantines the session.
 import type { Adoption, DurableEvidence, InputId } from './identity.ts'
 import type { RecoveryTask, RunTerminal, WorkSnapshot } from './values.ts'
 import { pendingAfterTerminal } from './input-leases.ts'
@@ -27,7 +24,6 @@ import { initializationProjection, validateInitializationBatch } from './reduce-
 import { sameInitializationValue } from './initialization-plan.ts'
 import { adoption, InitializationInvalid } from './initialization-parse.ts'
 
-/** The evidence of one committed batch: the session, its revision and the digest of the complete entries, including their exact interpretation adoption. */
 export function batchEvidence(batch: CommittedBatch, session: string): DurableEvidence {
   return {
     owner: '@omne-harness/session-contract',
@@ -37,11 +33,6 @@ export function batchEvidence(batch: CommittedBatch, session: string): DurableEv
   }
 }
 
-/**
- * The entries that change the Run layer of an active Run (SPEC I-R2, R2-D327): its start, an
- * attempt that starts or gives the advance back, and an adoption change. The batch that holds one
- * sets the Run-layer revision; an accept, a hand-over or an Agent fact does not.
- */
 const RUN_LAYER_KINDS: ReadonlySet<string> = new Set([
   'run.started',
   'run.attempt-started',
@@ -81,7 +72,6 @@ function settleLeases(draft: Draft, outcome: RunTerminal['outcome']): string | n
   return null
 }
 
-/** Applies one decoded entry. Returns a diagnostic when the entry contradicts the state. */
 function apply(
   draft: Draft,
   entry: SessionEntry,
@@ -198,8 +188,6 @@ function apply(
       if (draft.run.advance !== null) return 'a terminal while an attempt still holds the advance'
       if (hasUnansweredCalls(draft))
         return 'a terminal while a tool call of the Run has no tool message'
-      // The hand-over state belongs to the execution of the Run: a successor Run re-hands every
-      // input that kept its eligibility (PA-08 item 2), so the terminal releases `handed`.
       draft.executions = (draft.executions ?? []).map(item =>
         item.run === entry.terminal.run ? { ...item, terminal: entry.terminal } : item,
       )
@@ -276,12 +264,6 @@ function created(
   }
 }
 
-/**
- * The snapshot after one committed batch. `previous` is null before the first batch, whose first
- * entry must be the creation. The same batch applied again recalls the saved state (SL12). A
- * batch that does not follow the previous revision, an unknown kind or a contradiction gives
- * `quarantined` and no partial state.
- */
 function reduceBatch(
   previous: WorkSnapshot | null,
   batch: CommittedBatch,
@@ -407,7 +389,6 @@ function reduceBatch(
       entry.kind === 'entries.interpreted',
   )
   if (progressRows.length > 0) {
-    // RD-1: the progress rows of the batch continue the saved progress of their channel.
     const progress = advanceEntriesProgress(
       previous?.entriesProgress ?? [],
       progressRows,

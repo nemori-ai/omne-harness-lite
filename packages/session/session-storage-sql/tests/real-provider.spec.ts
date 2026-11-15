@@ -1,9 +1,5 @@
 import { sessionCommitCommands } from '../src/participants.ts'
-// The Session storage over the real sqlite-provider: a real write Worker and read Worker pool, real
-// files in a temporary directory, built only through the public entry of the provider. The
-// node:sqlite double of the other specs of this member does not appear here.
 // @module-tag slow
-// Why slow: real Workers, real files, a killed child process and real waits.
 import { spawn } from 'node:child_process'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -159,7 +155,6 @@ describe('the process is killed after the receipt came back', () => {
       })
       child.once('exit', () => reject(new Error(`child ended before the receipt: ${text}`)))
     })
-    // The receipt of the write is back in the child. Only now is the child killed.
     expect(line).toBe('RECEIPT ok')
     child.kill('SIGKILL')
     await exited
@@ -262,7 +257,6 @@ describe('limits', () => {
     const app = await open({ config: { maxCommandBytes: 65536, maxRequestBytes: 131072 } })
     ok(await app.create(TENANT_A))
     const refused = failureOf(await app.accept(TENANT_A, 'session-1', 'big', 'x'.repeat(200_000)))
-    // command_limit is definite (sql-contract commitRejectionNature): the same command never fits.
     expect(refused).toMatchObject({ kind: 'invalid', field: 'storage', reason: 'command_limit' })
     expect(
       queryKindOf(await app.storage.query(identityOf(TENANT_A, 'dom_0', 'sop_accept-big'))),
@@ -306,7 +300,6 @@ describe('concurrent sessions in one transaction domain', () => {
     for (const result of results) ok(result)
     const after = walSample(file)
     const ops = app.opCount() - opsBefore
-    // The WAL restarting would make the two samples incomparable; the fixture config keeps it still.
     expect(after.generation).toBe(before.generation)
     const physical = after.commits - before.commits
     console.log(
@@ -318,8 +311,6 @@ describe('concurrent sessions in one transaction domain', () => {
 })
 
 describe('reads through the real read Worker', () => {
-  // The read port of the provider refuses a statement without LIMIT (sql-contract SPEC §9.4):
-  // a handler that ran one answered read_port_violation instead of a page.
   it('history.begin and history.readModelView answer a page, not a read port violation', async () => {
     const app = await open()
     ok(await app.create(TENANT_A))

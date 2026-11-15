@@ -1,11 +1,3 @@
-// Machine guard of the RunAdvance model (verification/models/run-advance/RunAdvance.tla): a seeded
-// random sequence of accept, startRun, input hand-over, finishRun and probes by a stale attempt is
-// committed through decide and reduce, as a storage participant would, and every step checks
-//   I-R1 a startRun never commits while a Run is active,
-//   I-R2 an attempt that does not hold the advance is answered stale-advance,
-//   I-R3 an input is handed over at most once,
-//   I-R4 the first terminal of a Run is the one it keeps.
-// A failure prints the seed and the step.
 import { describe, expect, it } from 'vitest'
 import { createMemorySessionHistorySource } from '@omne-harness/session-contract/testing'
 import {
@@ -29,7 +21,6 @@ import { initializationGuards } from './initialization-fixture.ts'
 const access = memoryAccess('tester')
 const base = { tenant: access.tenant, session: access.session }
 
-/** mulberry32: a small seeded generator, so a red run names the seed that reproduces it. */
 function random(seed: number) {
   let a = seed >>> 0
   const next = () => {
@@ -42,7 +33,6 @@ function random(seed: number) {
   return { below: (n: number) => Math.floor(next() * n) }
 }
 
-/** One session's log: decide and reduce over a memory history, as decide-reduce.spec.ts does. */
 function log() {
   const history = createMemorySessionHistorySource()
   const rows: HistoryEntry[] = []
@@ -52,7 +42,6 @@ function log() {
       ? {}
       : { firstInput: { input: first, origin: ordinaryInput(first).origin } }
   }
-  /** The next snapshot, or null when decide refuses the command. */
   return (previous: WorkSnapshot | null, command: SessionCommand): WorkSnapshot | null => {
     const guards = command.kind === 'startRun' ? [] : initializationGuards(command, previous)
     const material =
@@ -98,7 +87,6 @@ function log() {
   }
 }
 
-/** How often each committed command and probe was reached over all seeds. */
 const reached: Record<string, number> = {}
 
 async function run(seed: number, length: number): Promise<string[]> {
@@ -140,7 +128,6 @@ async function run(seed: number, length: number): Promise<string[]> {
         },
       }
     } else if (roll < 7 && active !== null && s.pending.length + s.handed.length > 0) {
-      // Already handed inputs are offered again: a second hand-over must be refused.
       const offered = [...s.pending, ...s.handed]
       const input = offered[rnd.below(offered.length)]
       if (input !== undefined)
@@ -158,7 +145,6 @@ async function run(seed: number, length: number): Promise<string[]> {
           },
         }
     } else if (roll < 9) {
-      // A finishRun on an ended Run must not change its terminal (I-R4).
       const target = active?.run ?? (s.run.kind === 'terminal' ? s.run.terminal.run : null)
       if (target !== null)
         command = {
@@ -172,7 +158,6 @@ async function run(seed: number, length: number): Promise<string[]> {
           },
         }
     } else if (active !== null && active.advance !== null) {
-      // I-R2: an attempt that does not hold the advance is stale, whatever the revision.
       const stale = { ...active.advance, attempt: `stale-${String(step)}` as never }
       const judged = judgeAdvance(s, {
         kind: 'attempt',
@@ -229,7 +214,6 @@ describe('RunAdvance guard: decide and reduce keep the Run and attempt invariant
   })
 
   it('the sequences start Runs, hand inputs over and end Runs', async () => {
-    // The schedule reaches the interesting states: without them the invariants hold vacuously.
     const commit = log()
     let s = commit(null, {
       kind: 'create',
@@ -258,7 +242,6 @@ describe('RunAdvance guard: decide and reduce keep the Run and attempt invariant
 })
 
 describe('the Run-layer expected of the advance commands (I-R2, PM-02, PM-05, R2-D327)', () => {
-  /** A session with one accepted input and a started Run, committed through decide and reduce. */
   function startedRun() {
     const commit = log()
     let s = commit(null, {
@@ -371,7 +354,6 @@ describe('the Run-layer expected of the advance commands (I-R2, PM-02, PM-05, R2
     const released = commit(s, release(s))
     if (released === null) throw new Error('release')
     const read = expectedRevision(released, 'claim')
-    // An unrelated accept between the read and the claims does not stop the first.
     const busy = commit(released, accept('input-2'))
     if (busy === null) throw new Error('accept')
     const first = commit(busy, claim('r1', busy, read))
@@ -387,8 +369,6 @@ describe('the Run-layer expected of the advance commands (I-R2, PM-02, PM-05, R2
     const { commit, s } = startedRun()
     const released = commit(s, release(s))
     if (released === null) throw new Error('release')
-    // An accept moves the snapshot revision, not the Run-layer revision. A claim that names the
-    // snapshot revision of its read is not a Run-layer expected, so it does not hold.
     const busy = commit(released, accept('input-2'))
     if (busy === null || busy.run.kind !== 'active') throw new Error('accept')
     expect(busy.revision).not.toBe(expectedRevision(busy, 'claim'))
@@ -396,7 +376,6 @@ describe('the Run-layer expected of the advance commands (I-R2, PM-02, PM-05, R2
       kind: 'changed',
       revision: expectedRevision(busy, 'claim'),
     })
-    // The same claim with the Run-layer revision it read holds.
     expect(commit(busy, claim('fresh', busy, expectedRevision(released, 'claim')))?.run.kind).toBe(
       'active',
     )

@@ -1,9 +1,3 @@
-// The bounded close on a drive refusal (SPEC PM-02, PM-05, VC-A10, VC-R03): the Agent answered
-// `invoke` or `resume` with a definite failure, so the Run ends as failed on the basis that the
-// close itself records. On `invoke` the first input is rejected with `drive-refused` and leaves the
-// pending set; on `resume` no input is named and every pending input keeps its eligibility. Each
-// case fails when the close keeps the first input pending, writes no SE35, loses the refusal's
-// kind, field or reason from the terminal cause, or accepts an input that is not the first one.
 import { describe, expect, it } from 'vitest'
 import { expectedRevision, type BoundedClose, type InputId } from '@omne-harness/session-contract'
 import { operationId, refused, succeeded } from '@omne-harness/session-contract/testing'

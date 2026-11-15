@@ -1,5 +1,3 @@
-// The session list as a pure state machine, the third axis of SPEC.md「会话管理」. Its events never
-// touch the session axis; `workspace.ts` joins the two.
 import type { ClientOf } from '@omne-harness/sdk/core'
 import type { SessionProtocol } from '@omne-harness/session-protocol'
 import type { Notice } from './session-machine.ts'
@@ -13,15 +11,9 @@ export type ListPage = Readonly<{
   completeness: Listed['completeness']
 }>
 
-/**
- * `issued` is the last read token: every read takes the next one, so an answer to a read that a
- * newer one replaced never matches. A reading's token is always `issued`.
- */
 export type SessionList =
   | Readonly<{ kind: 'unread'; issued: number }>
-  /** The first page: it replaces what is shown. */
   | Readonly<{ kind: 'reading'; issued: number; cursor: null; shown: ListPage | null }>
-  /** The page after `shown`, from its `next`: it goes after what is shown. */
   | Readonly<{ kind: 'reading'; issued: number; cursor: string; shown: ListPage }>
   | Readonly<{ kind: 'read'; issued: number; page: ListPage }>
   | Readonly<{
@@ -43,7 +35,6 @@ export type ListStep = Readonly<{ list: SessionList; effects: readonly ListEffec
 
 export const UNREAD: SessionList = { kind: 'unread', issued: 0 }
 
-/** What the list shows now: the last page read, kept while a newer read is on its way. */
 export function shownBy(list: SessionList): ListPage | null {
   switch (list.kind) {
     case 'unread':
@@ -79,7 +70,6 @@ function readMore(list: SessionList): ListStep {
   })
 }
 
-/** A later page goes after what is shown; a session already there keeps its place. */
 function append(shown: ListPage, page: ListPage): ListPage {
   const held = new Set(shown.sessions.map(item => item.session))
   return {

@@ -1,7 +1,4 @@
 import { createMemorySessionHistorySource } from '@omne-harness/session-contract/testing'
-// `decide` and `reduce` on the first-path kinds, read directly: the creation with required
-// identities, the initialization items, the recall and the conflict of one operation, the
-// tenant check, the quarantine of an unknown entry kind, and the pure judgments at their edges.
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import { accountCodec, workspaceEquals } from '@omne-harness/legal-identity'
@@ -46,8 +43,6 @@ const history = createMemorySessionHistorySource()
 const historyRows: HistoryEntry[] = []
 const base = { tenant: access.tenant, session: access.session }
 
-/** Commits `command` on `previous` through decide and reduce, as a storage participant would. */
-/** The stored first input of a start, as a provider reads it: every input here came through the login. */
 function loginRead(previous: WorkSnapshot | null) {
   const first = previous?.pending[0]
   return first === undefined
@@ -229,12 +224,10 @@ function decisionOf(
   return decide(previous, command, guards, null, { compaction: null })
 }
 
-/** The member `key` of a json-text object tree, or undefined. */
 function member(tree: JsonValue | undefined, key: string): JsonValue | undefined {
   return tree?.kind === 'object' ? tree.entries.find(entry => entry.key === key)?.value : undefined
 }
 
-/** The batch of one decided creation as log rows, with `edit` applied to each payload. */
 function createdRows(edit: (payload: JsonValue) => JsonValue): CommittedBatch {
   const decision = decisionOf(createCommand({ workspace: workspace(), workspaceAttachment }))
   if (decision.kind !== 'entries') throw new Error(JSON.stringify(decision))
@@ -275,7 +268,6 @@ describe('the workspace selection: a sixth-family WorkspaceId with its attachmen
     expect(kept !== null && workspaceEquals(kept, workspace())).toBe(true)
   })
 
-  /** The payload with the member `key` of its creation replaced by `value`, or removed. */
   const editCreation =
     (key: string, value?: JsonValue) =>
     (payload: JsonValue): JsonValue => {
@@ -708,7 +700,6 @@ describe('the pure judgments at their edges', () => {
     expect(decided('interactive', { firstInput: { input: first, origin: login } }).kind).toBe(
       'entries',
     )
-    // No read, another origin, or a read of another input: no login is confirmed.
     expect(decided('interactive', {})).toEqual(refusal)
     expect(
       decided('interactive', { firstInput: { input: first, origin: evidence('intake') } }),
@@ -716,19 +707,16 @@ describe('the pure judgments at their edges', () => {
     expect(decided('interactive', { firstInput: { input: 'other-input', origin: login } })).toEqual(
       refusal,
     )
-    // A guard named after the login entry confirms nothing: the gate is the stored input fact.
     expect(
       decide(previous, command('interactive'), [guard('bridge', 'login-entry', 'x')], null, {
         compaction: null,
       }),
     ).toEqual(refusal)
-    // A dispatch start asks for no login.
     expect(decided('dispatch', {}).kind).toBe('entries')
   })
 
   it('names no Run for a control that ended none', () => {
     const snapshot = dormant()
-    // No Run at all, and a Run that another source ended as cancelled.
     expect(runCancelledBy(snapshot, operationId('archive'))).toBeNull()
     const run = 'run_other' as never
     const ended = {
@@ -822,7 +810,6 @@ describe('the pure judgments at their edges', () => {
         null,
         { compaction: null },
       )
-    // The current advance names this attempt, so a different Run or instance is a forged relation.
     const forged: (typeof advance)[] = [
       { ...advance, run: 'no-such-run' as typeof advance.run },
       { ...advance, instance: { owner: 'agent', id: 'another-instance' } },
@@ -832,15 +819,12 @@ describe('the pure judgments at their edges', () => {
         kind: 'rejected',
         failure: { kind: 'invalid', field: 'fact.advance' },
       })
-    // An attempt the history index does not cover is unknown (FR-01), not refused as invalid.
     expect(
       exit(active, { ...advance, attempt: 'never-started' as typeof advance.attempt }),
     ).toMatchObject({
       kind: 'rejected',
       failure: { kind: 'unavailable', owner: 'session-history' },
     })
-    // A late report for an attempt that no longer holds the advance stays an observation of the
-    // original Run: the history index proves the attempt started.
     const ended = commit(active, {
       kind: 'finishRun',
       input: {
@@ -856,12 +840,10 @@ describe('the pure judgments at their edges', () => {
     expect(late.kind).toBe('entries')
     if (late.kind === 'entries')
       expect(late.entries.map(row => row.kind)).toEqual(['run.attempt-exited'])
-    // The index records each attempt once, so the same attempt under another Run is forged.
     expect(exit(ended, forged[0] ?? advance)).toMatchObject({
       kind: 'rejected',
       failure: { kind: 'invalid', field: 'fact.advance' },
     })
-    // An attempt the index does not record stays unknown after the Run ended.
     expect(
       exit(ended, { ...advance, attempt: 'never-started' as typeof advance.attempt }),
     ).toMatchObject({

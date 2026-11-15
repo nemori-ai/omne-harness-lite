@@ -1,6 +1,3 @@
-// Session observation, block 1 of #1248: the domain face (C8), the run in progress (C6), the locate
-// axis cell by cell (C9a, cells of RFC-0015 §13), no lost wake-up (C10a), teardown on abort (C11a)
-// and the refresh budget (C12). The case names start with the cell they cover.
 import { describe, expect, it } from 'vitest'
 import {
   createSessionObservation,
@@ -35,7 +32,6 @@ async function frame(frames: Frames): Promise<SessionObservationFrame> {
   return step.value
 }
 
-/** The next step once the oldest pending wait runs out. */
 async function afterInterval(w: World, frames: Frames) {
   const step = frames.next()
   await settle()
@@ -379,7 +375,6 @@ describe('the locate axis (C9a)', () => {
     const log = new FakeLog(started('run_1'), ended('run_1'), started('run_2'))
     log.pageSize = 1
     log.failures.since = [{ kind: 'invalid', field: 'from', reason: 'expired' }]
-    // The backward read of open takes two more pages; the third `next` is the one that fails.
     log.failures.next = [
       undefined as never,
       undefined as never,
@@ -475,7 +470,6 @@ describe('abort (C11a)', () => {
     w.model.answer('m-1', stream('s1'))
     const frames = await open(w, controller.signal)
     await frame(frames)
-    // The held read takes its answer when it is asked, so the new main call is in the log before.
     log.append(mainCall('m-1'))
     const gate = log.hold()
     const step = afterInterval(w, frames)

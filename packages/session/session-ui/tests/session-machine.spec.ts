@@ -1,4 +1,3 @@
-// One case per reachable cell of SPEC.md「全化表」. Case names start with the row id.
 import { describe, expect, it } from 'vitest'
 import {
   INITIAL,
@@ -514,7 +513,6 @@ describe('R20–R22 观察的帧', () => {
     ])
   })
   it('R20 历史新不新只看这一轮读取的 upper：读到了就不再读，不看扫描位置', () => {
-    // The page's scan position (the fixture's 900) is on another axis and decides nothing.
     const read = step(open(), {
       kind: 'history-read',
       session: S,
@@ -592,7 +590,6 @@ describe('R20–R22 观察的帧', () => {
     expect(asOpen(step(running(), refreshingFrame).state).content.liveStatus).toEqual({
       kind: 'refreshing',
     })
-    // The observation sends it on every idle interval too: it says nothing about a reply then.
     const idle = step(open(), refreshingFrame).state
     expect(asOpen(idle).content.liveStatus).toBeNull()
   })
@@ -743,7 +740,6 @@ describe('R27–R29 读历史', () => {
     expect(next.effects).toEqual([
       { kind: 'read-history', session: S, token: 1, request: { cursor: 'cur-2' } },
     ])
-    // The traversal is not finished: history is not yet read through its pinned revision.
     expect(asOpen(next.state).content.readThrough).toBeNull()
   })
   it('R27 读完：条目合并；已提交的输入不再挂着', () => {
@@ -903,7 +899,6 @@ describe('R30 打开会话', () => {
       expect(next.effects).toEqual([{ kind: 'stop-observing', generation: 1 }, ...opening])
       expect(next.state).toMatchObject({ kind: 'open', session: OTHER, inputs: [] })
       expect(asOpen(next.state).content.entries).toEqual([])
-      // The old session's answers carry its id and are dropped, as after R1.
       const late = step(next.state, {
         kind: 'send-answered',
         session: S,

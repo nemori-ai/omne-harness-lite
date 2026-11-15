@@ -1,4 +1,3 @@
-// Tenant isolation and default deny at every entry of the transaction port (C6, L3).
 import { describe, expect, it } from 'vitest'
 import { operationId } from '@omne-harness/session-contract/testing'
 import { tenantEquals } from '@omne-harness/legal-identity'
@@ -168,7 +167,6 @@ describe('the transaction domain of a call', () => {
       tenant: textOf(TENANT_A),
       domain: {
         ...own.domain,
-        // A malformed scope that still names tenant A: only its kind is wrong.
         scope: { kind: 'system', tenant: textOf(TENANT_A) } as never,
       },
     }

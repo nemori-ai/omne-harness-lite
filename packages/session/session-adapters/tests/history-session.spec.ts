@@ -1,8 +1,3 @@
-// R2-D14: `historySessionOf` reads the (tenant, session) that a history evidence names. What is
-// checked: the history evidence that the Journal core mints for an execution decodes to the tenant
-// text and the session of the cell it lives in; an evidence that another owner minted, a record
-// that is not namespace, execution and `/history`, and a namespace that is not a two-element array
-// of text decode to null. The decoder grants nothing: it names a session, nothing more.
 import { describe, expect, it } from 'vitest'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type { DurableEvidence } from '@omne-harness/agent-contract'
@@ -77,7 +72,6 @@ describe('historySessionOf', () => {
 
   it('R2-D14 historySessionOf does not read the consumer or a session out of an execution name', async () => {
     const { head, tenant, session } = await minted()
-    // An execution text that looks like a namespace names no other session.
     const forged = evidenceOf(
       `${JSON.stringify([tenant, session])}/${JSON.stringify(['other-tenant', 'other'])}/history`,
       head.owner,

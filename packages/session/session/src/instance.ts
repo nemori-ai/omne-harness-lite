@@ -1,6 +1,3 @@
-// The factory (docs/public-api.md「工厂与实例」). It checks the start conditions and the configuration
-// before it builds or calls anything, then wires the command handler, the faces of each caller
-// class and the scheduler subset of this member.
 import type {
   MutationName,
   Reply,
@@ -27,21 +24,13 @@ import { createScheduling, type TenantId } from './scheduling.ts'
 
 export type { MaintenanceHandle } from './scan.ts'
 
-/** Optional parameters of the factory. They are not configuration: they carry no policy. */
 export type SessionInstanceOptions = Readonly<{
-  /** The observer of the measurement events (SPEC「测量事件」). Absent means no event is built. */
   measure?: SessionMeasure
-  /**
-   * The observer of the named diagnostics (`SessionDiagnostic`): every coordinator step that stops
-   * on a failure reports one. Absent, the instance keeps them only in memory.
-   */
   diagnose?: SessionDiagnose
 }>
 
 export type SessionInstance<P> = Readonly<{
-  /** The four faces and the session list as one caller class sees them. */
   facesFor(caller: SessionCallerClass): SessionFacesWithDirectory<P>
-  /** Wakes S1, S2 and C5 from a commit notice that another process or a participant commit produced. */
   committed(
     notice: Readonly<{
       tenant: TenantId
@@ -51,7 +40,6 @@ export type SessionInstance<P> = Readonly<{
       kinds: readonly string[]
     }>,
   ): void
-  /** Wakes S7 from an asset, workspace or settings change notice. */
   changed(
     notice: Readonly<{
       tenant: TenantId
@@ -59,12 +47,10 @@ export type SessionInstance<P> = Readonly<{
       counters: Readonly<Record<string, string>>
     }>,
   ): void
-  /** Starts the S3 scanner for one tenant, with a startup scan. One scanner per tenant. */
   maintain(tenant: TenantId): Reply<MaintenanceHandle>
   close(): Promise<void>
 }>
 
-/** Commands of this instance whose commit may let a new Run start: S1 is woken locally after them. */
 const WAKES_ADVANCE: ReadonlySet<MutationName> = new Set([
   'accept',
   'finishRun',
@@ -88,7 +74,7 @@ export function createSessionInstance<P>(
   const lifecycle = new Lifecycle(options.diagnose)
   const measurer = createSessionMeasurer(options.measure)
   const reads = createReads(dependencies, lifecycle, measurer)
-  // Bound below; the handler only calls it after a commit, never during construction.
+  // Bound below; the handler calls it only after a commit, never during construction.
   let advance: Advance | null = null
   let controls: ControlPropagation | null = null
   const handle = createCommandHandler({
@@ -171,7 +157,6 @@ export function createSessionInstance<P>(
       if (interrupted || notice.kinds.some(kind => ADVANCE_KINDS.has(kind)))
         wired.trigger({ tenant: notice.tenant, session: notice.session })
     },
-    // S7 is not in this member yet (SPEC「实现现状」): the notice wakes nothing.
     changed: () => undefined,
     maintain: tenant => scan.maintain(tenant),
     close: async () => {

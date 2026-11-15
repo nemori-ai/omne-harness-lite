@@ -23,7 +23,6 @@ const confirmation = (request: ResultRequest, name: string): ResultRequest => ({
   release: { kind: 'confirmed', receipt: evidence(name) },
 })
 function releaseRows(s: ResultScene) {
-  // The controls page the stored form of session-log revision 4; a reader sees the full form.
   const stored = s.backend.controls.entriesOf(s.access.tenant, s.access.session)
   const expanded = expandHistoryEntries(
     stored.filter(row => row.kind === 'call.execution-fact'),
@@ -351,7 +350,6 @@ it('projects late custody release on an ended execution and its original Run aft
   const s = await resultCall('release-old-run')
   ok(await s.view.journal.recordResult(s.request))
   await take(s)
-  // The Session participant's conflict is FinishResult.changed (Agent SPEC "条件终结", PA-02).
   expect(await end(s)).toMatchObject({ ok: { kind: 'changed' } })
   expect(ok(await s.view.journal.load(s.request)).state.kind).not.toBe('ended')
   ok(
@@ -482,8 +480,6 @@ it('rechecks a gap raised during the one access decision of the release before p
   expect(await s.backend.controls.reconcile(s.reconcile)).toMatchObject({
     failure: { kind: 'quarantined' },
   })
-  // One release, one access decision (session-contract SPEC: once per actual write); the gap
-  // that the decision raised is still caught by the gate before publication.
   expect(reads).toBe(1)
   expect(s.view.controls.root()).toBe(root)
   expect(releaseRows(s)).toEqual([])

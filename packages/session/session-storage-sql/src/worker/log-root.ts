@@ -1,7 +1,3 @@
-// The common log root of one session (FR-01): the Session position, the last entry position of the
-// Session log, plus the publication count of the Agent records, so a publication of either side
-// moves it forward. The participant inside a commit and the root read handler build it with this
-// one function, from rows of one transaction or one snapshot.
 import type { DurableEvidence } from '@omne-harness/session-contract'
 import { canonicalText, sha256 } from '../codec.ts'
 import { big, oneRow, type Executor } from './support.ts'
@@ -15,10 +11,6 @@ export type LogRoot = Readonly<{
   source: DurableEvidence
 }>
 
-/**
- * `revision` is the Session revision the root is read at; the source covers it and both parts.
- * `upto` bounds the Session position: the root as it was when the log ended there.
- */
 export function logRoot(
   port: Executor,
   tenant: string,

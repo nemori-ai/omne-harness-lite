@@ -1,7 +1,3 @@
-// Read and write equivalence with the `session-public/1` family (card #1266 C6). A body the old
-// family accepts reads, through the new contract, to the same value; a body it rejects, the new
-// contract rejects too. Two allowed differences: `create-session` may leave `definition` out, and
-// the `read-history` page also carries the pinned revision `upper`.
 import { describe, expect, it } from 'vitest'
 import {
   readSessionRequest,
@@ -22,8 +18,6 @@ const userMessage = { role: 'user', blocks: [{ type: 'text', text: 'hello' }], w
 const producer = { kind: 'model', call: 'call-1' }
 const source = { owner: 'agent', record: 'record-1', revision: '4', digest: 'digest-1' }
 
-// `list-sessions` and `retry-run` have no old family to compare with; their own cases are at the
-// end of this file.
 type Name = Exclude<keyof typeof sessionProtocol.operations, 'list-sessions' | 'retry-run'>
 type Samples = Readonly<Record<Name, readonly Record<string, unknown>[]>>
 
@@ -154,7 +148,6 @@ describe('request bodies', () => {
 })
 
 describe('outcome bodies', () => {
-  // `read-history` differs from the old family in one field, `upper`; the case after this one.
   const sameAsOld = cases(successBodies).filter(([name]) => name !== 'read-history')
   it.each(sameAsOld)('%s: a succeeded body reads to the old value', (name, sample) => {
     const old = readOldOutcome(name, 'succeeded', sample)
@@ -171,7 +164,6 @@ describe('outcome bodies', () => {
       expect(old.ok).toBe(true)
       const codec = sessionProtocol.operations['read-history'].outcomes.succeeded
       expect(expectRoundTrip(codec, sample)).toEqual({ ...(old.value as object), upper })
-      // A page without it cannot be matched against a state frame: the contract refuses it.
       expect(readNew(codec, oldPage)).toEqual({ ok: false })
       expect(readNew(codec, { ...oldPage, upper: 7 })).toEqual({ ok: false })
     },

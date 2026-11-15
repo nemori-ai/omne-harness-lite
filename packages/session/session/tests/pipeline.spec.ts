@@ -1,5 +1,3 @@
-// The command handler pipeline (SPEC CP-01 steps 1 to 6, VM-01): recall, the early refusal, the
-// material owners, the `changed` retry and its limit, unknown outcomes and the notice.
 import { afterEach, describe, expect, it } from 'vitest'
 import { fail } from '@omne-harness/operation-result'
 import {
@@ -63,10 +61,6 @@ function finishRun(h: Harness, started: StartedRun, expected: string, name = 'fi
   })
 }
 
-/**
- * Gives the advance of the started attempt back through the public port: a commit that moves the
- * Run-layer revision, which an advance command's `expected` names (contract I-R2, R2-D327).
- */
 async function releaseDirectly(h: Harness, started: StartedRun, name = 'release-concurrent') {
   const now = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
   succeeded(
@@ -89,7 +83,6 @@ async function releaseDirectly(h: Harness, started: StartedRun, name = 'release-
   )
 }
 
-/** Moves the tail through the public port before every commit of the face operation. */
 function moveTailBeforeEachCommit(h: Harness): () => number {
   let moves = 0
   h.view.onCommit(async (_input, next) => {
@@ -275,7 +268,6 @@ describe('step 5: the commit', () => {
     await h.accept('input-1')
     const started = await startRun(h)
     const stale = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
-    // Another writer moves the Run layer before the caller acts on its old revision.
     await releaseDirectly(h, started)
     const current = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
     expect(current.revision).not.toBe(stale.revision)
@@ -295,7 +287,6 @@ describe('step 5: the commit', () => {
     await h.accept('input-1')
     const started = await startRun(h)
     const snapshot = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
-    // The Run layer moves between the read of the pipeline and its commit.
     let moves = 0
     h.view.onCommit(async (_input, next) => {
       moves += 1
@@ -318,7 +309,6 @@ describe('step 5: the commit', () => {
     await h.accept('input-1')
     const started = await startRun(h)
     const read = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
-    // Accepts and their notices move the snapshot revision, not the Run layer.
     await h.accept('input-2')
     await h.accept('input-3')
     const finished = succeeded(
@@ -366,8 +356,6 @@ describe('step 5: the commit', () => {
     expect(failureOf(answer)).toMatchObject({ kind: 'changed' })
     const methods = h.view.calls().map(call => call.method)
     expect(methods.filter(method => method === 'commit')).toHaveLength(3)
-    // Every redo reads the authoritative snapshot again through the same view, and no redo asks
-    // for a second access decision.
     expect(methods.filter(method => method === 'readWork')).toHaveLength(3)
     expect(h.checks.count() - asked).toBe(1)
   })
@@ -438,8 +426,6 @@ describe('step 5: the commit', () => {
 })
 
 describe('step 6: no notice from the instance', () => {
-  // The one writer of the session log tells each batch (session-storage-sql「本批与提交通知」); the
-  // instance has no notifier, and without an observer it reads nothing back after a commit.
   it('a commit reads no entry back without an observer', async () => {
     const h = await service()
     await h.create()

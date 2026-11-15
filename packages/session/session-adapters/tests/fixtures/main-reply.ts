@@ -1,6 +1,3 @@
-// The main reply and the tool result of one H on the production session-log Journal of a
-// `sqlScene`, as the coordinator writes them (Agent SPEC "真实历史的提交点"): P saves the complete
-// request, Ja commits the fixed outcome with the real history of its source.
 import {
   decodeActionId,
   type AgentJournal,
@@ -65,7 +62,6 @@ export async function load(s: SqlScene) {
   return ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
 }
 
-/** P: the complete request of one H of `source`, saved at the Journal before any prepare. */
 export async function prepared(s: SqlScene, authority: Commit['authority'], source: Source) {
   const loaded = await load(s)
   const candidate = judgeMessage(
@@ -126,10 +122,6 @@ export async function prepared(s: SqlScene, authority: Commit['authority'], sour
   return request
 }
 
-/**
- * Ja: the fixed outcome of H with the real history of its source. The main reply carries its
- * admission fact and a caller of none; the tool result carries the `message` hand-over.
- */
 export async function applied(
   s: SqlScene,
   authority: Commit['authority'],

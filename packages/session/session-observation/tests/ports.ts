@@ -1,5 +1,3 @@
-// Fake ports for session observation: a Session log in memory behind the reader history face, a
-// notice hub, a wait that the case drives, and counters for what is still held.
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import { decodeModelInvocationRef, type ModelInvocationRef } from '@omne-harness/model-contract'
 import type {
@@ -47,11 +45,6 @@ export const ended = (run: string) => ({
   kind: 'run.terminal',
   payload: { terminal: { run, outcome: 'completed' } },
 })
-/**
- * Cases name a main Model call (`'m-1'`); the log and the Model ports carry the
- * `ModelInvocationRef` text of that call, as the session contract stores it. The fakes translate
- * at their edge: the Model is answered and asked by name, and a diagnostic names the call.
- */
 const NAMES = new Map<string, string>()
 
 export function invocation(name: string): ModelInvocationRef {
@@ -63,7 +56,6 @@ export function invocation(name: string): ModelInvocationRef {
   return decoded.ok
 }
 
-/** The case's name of a reference the fakes saw; any other text as it is. */
 function nameOf(reference: string): string {
   return NAMES.get(reference) ?? reference
 }
@@ -82,11 +74,6 @@ export const mainCall = (name: string) => ({
   },
 })
 export const message = (text: string) => ({ kind: 'message.user', payload: { text } })
-/**
- * A call registration that is not the main call: a tool call, or a Model call for another purpose.
- * A Model call carries a real `ModelInvocationRef`, so only its purpose keeps it from being the
- * main call.
- */
 export const otherCall = (kind: 'model' | 'tool', reference: string | null, purpose: string) => ({
   kind: 'call.bound',
   payload: {
@@ -110,7 +97,6 @@ type Planned = Readonly<{ kind: string; payload: unknown }>
 type Call = Readonly<{ face: 'begin' | 'next' | 'since'; input: Readonly<Record<string, unknown>> }>
 type Gate = { release: () => void; promise: Promise<void> }
 
-/** A Session log in memory. Pages hold `pageSize` matching entries; `upper` is the newest revision. */
 export class FakeLog {
   readonly entries: HistoryEntry[] = []
   readonly calls: Call[] = []
@@ -130,7 +116,6 @@ export class FakeLog {
     return String(this.entries.length) as SessionRevision
   }
 
-  /** One commit: the entries get the next revisions. */
   append(...planned: Planned[]): void {
     for (const { kind, payload } of planned) {
       const n = this.entries.length + 1
@@ -145,7 +130,6 @@ export class FakeLog {
     }
   }
 
-  /** The next read takes its answer from the log now and hands it over when the case releases it. */
   hold(): Gate {
     let release = (): void => undefined
     const promise = new Promise<void>(resolve => {
@@ -231,7 +215,6 @@ export class FakeLog {
   }
 }
 
-/** Waits that the case ends one by one. */
 export class FakeClock {
   readonly waits: number[] = []
   #pending: { resolve: (value: 'elapsed' | 'cancelled') => void; signal: AbortSignal }[] = []
@@ -253,7 +236,6 @@ export class FakeClock {
     return this.#pending.length
   }
 
-  /** The oldest pending wait runs out. */
   elapse(): void {
     const held = this.#pending.shift()
     if (held === undefined) throw new Error('no pending wait')
@@ -264,7 +246,6 @@ export class FakeClock {
 export class FakeNotices {
   readonly #listeners = new Set<(kinds: readonly string[]) => void>()
   subscriptions = 0
-  /** The tenant and session of each subscription. */
   readonly targets: unknown[] = []
 
   port: SessionObservationPorts<string>['notices'] = (target, onCommit) => {
@@ -295,7 +276,6 @@ type ModelAnswer =
   | Readonly<{ failure: Readonly<{ kind: string; reason?: string }> }>
   | 'hang'
 
-/** One subscription the fake Model handed out: the case pushes frames and ends it. */
 export class FakeStream {
   readonly ref: string
   readonly signal: AbortSignal
@@ -314,7 +294,6 @@ export class FakeStream {
     this.#poke()
   }
 
-  /** The iterator returns without an `ended` frame. */
   stop(): void {
     this.#done = true
     this.#poke()
@@ -342,11 +321,9 @@ export class FakeStream {
   }
 }
 
-/** The public Model stream: `current` answers per reference, `observe` hands out FakeStreams. */
 export class FakeModel {
   readonly answers = new Map<string, ModelAnswer[]>()
   readonly asked: string[] = []
-  /** The access of each call to `current` and `observe`, in order. */
   readonly accesses: unknown[] = []
   readonly streams: FakeStream[] = []
   fallback: ModelAnswer = { ok: { state: { phase: 'accepted' }, current: null } }
@@ -357,7 +334,6 @@ export class FakeModel {
     this.answers.set(reference, [...(this.answers.get(reference) ?? []), ...answers])
   }
 
-  /** The next `current` of `reference` answers `answer` only once the case releases it. */
   hold(reference: string, answer: ModelAnswer): Readonly<{ release: () => void }> {
     let release = (): void => undefined
     const gate = new Promise<void>(resolve => {
@@ -367,7 +343,6 @@ export class FakeModel {
     return { release }
   }
 
-  /** The newest subscription to `ref`. */
   stream(ref: string): FakeStream {
     const found = this.streams.filter(stream => stream.ref === ref).at(-1)
     if (found === undefined) throw new Error(`no subscription to ${ref}`)
@@ -409,7 +384,6 @@ export class FakeModel {
 
 const cursor = (n: number) => String(n)
 
-/** A Model snapshot value of `phase` at output cursor `n`. */
 export function snapshot(ref: string, n: number, phase = 'running') {
   return {
     kind: 'snapshot',
@@ -427,7 +401,6 @@ export function snapshot(ref: string, n: number, phase = 'running') {
   }
 }
 
-/** A Model delta value from cursor `n - 1` to `n`, now in `phase`. */
 export function delta(ref: string, n: number, phase = 'running') {
   return {
     kind: 'delta',
@@ -481,7 +454,6 @@ export function world(
   return { log, clock, notices, model, diagnostics, ports }
 }
 
-/** Lets every queued promise job run. */
 export async function settle(): Promise<void> {
   for (let i = 0; i < 5; i++) await new Promise(resolve => setImmediate(resolve))
 }

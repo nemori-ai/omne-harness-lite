@@ -1,7 +1,3 @@
-// The narrow read of the session binding source (D-AUTH r4 4.1): the ownership of a session and
-// the evidence that established it never change, so the read asks the journal row and the first
-// batch through `session.binding` and never the work snapshot, keeps a `bound` answer in the
-// process, and keeps nothing else. Each case counts the handler reads that the storage served.
 import { describe, expect, it } from 'vitest'
 import { sessionId } from '@omne-harness/session-contract/testing'
 import {
@@ -72,7 +68,6 @@ describe('a bound answer is kept', () => {
     expect(kindOf(await a.accept(TENANT_A, 'session-1', 'later'))).toBeUndefined()
     const work = await a.port.readWork(a.access(TENANT_A))
     if (!('ok' in work)) throw new Error('readWork failed')
-    // The snapshot moved to the evidence of the later batch; the binding did not.
     expect(work.ok.source).not.toEqual(first.source)
     expect(boundOf(await a.bindings.read({ tenant: TENANT_A, session: SESSION })).source).toEqual(
       first.source,

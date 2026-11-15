@@ -27,7 +27,6 @@ export function scene(extra: Partial<MemorySessionTransactionOptions<string>> = 
   const access = memoryAccess('tester')
   const initialization = createMemoryInitializationSource()
   const history = createMemorySessionHistorySource()
-  // The scene tests Session behavior; its access policy is stated open and every request is logged.
   const accessCheck = createPolicySessionAccessCheck<string>(() => ({
     kind: 'allowed',
     evidence: evidence('access'),
@@ -79,7 +78,6 @@ export function scene(extra: Partial<MemorySessionTransactionOptions<string>> = 
         }
         const directory = original.inputs.find(item => item.input === fact.input)
         if (!directory?.members.some(item => item.operation === complete.input.operation)) {
-          // These are explicit offline grant/attachment fixtures, never production authority.
           history.admit(base, fact.input, {
             ordinal: directory?.count ?? '0',
             run: run.run,

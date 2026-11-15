@@ -1,5 +1,3 @@
-// 刷新的预算 (RFC-0015 §8): the wait tier, the consecutive attempts without anything new and the
-// accumulated refresh waiting. It is the policy only; the observation decides when to ask it.
 import {
   INTERVAL_FLOOR,
   type ObservationDiagnostic,
@@ -30,23 +28,19 @@ export class RefreshBudget {
     this.#tier = interval
   }
 
-  /** The wait before the next locate. */
   delay(): number {
     return this.#tier
   }
 
-  /** A wait of `milliseconds` ran out. */
   waited(milliseconds: number): void {
     this.#waited += milliseconds
   }
 
-  /** An interval-driven locate found nothing new: one attempt, and the next tier. */
   tick(): void {
     this.#attempts += 1
     this.#tier = Math.min(this.#tier * this.#policy.backoff, this.#policy.interval * CEILING)
   }
 
-  /** A new target, or a new snapshot or delta after observing again. */
   reset(): void {
     this.#attempts = 0
     this.#waited = 0

@@ -1,8 +1,3 @@
-// The four derived Session participations of an Agent commit (`message`→`recordMessage`,
-// `context-transition`→`commitDerived`, `custody`→`preserveResult`, `processed`→`completeConsumption`)
-// are Session mutation commands: each public Agent write asks the Session access check once, before
-// the joint publication; denied and unavailable leave both sides unwritten; the allowed evidence is
-// recorded with the Session operation of the same commit (#680 ruling on review B-1).
 import { expect, it } from 'vitest'
 import {
   decodeActionId,
@@ -31,9 +26,6 @@ import { resultCall } from './fixtures/result-call.ts'
 import { accept, take } from './fixtures/progression.ts'
 
 type Scene = Awaited<ReturnType<typeof scene>>
-// The answer of a write whose participation decision a concurrent write of the same execution
-// outran: retryable unavailable from the Session qualification, never a failure outside the
-// `recordResult` set.
 const outrun = {
   failure: {
     kind: 'unavailable',
@@ -244,8 +236,6 @@ for (const joint of ['message', 'context-transition', 'custody', 'processed'] as
       },
     })
     const after = await observed(p)
-    // A first custody or processed hand-over also publishes the result preparation of the Pending
-    // before the joint commit, so the root advances by one or two positions.
     expect(after.root).toBeGreaterThan(before.root)
     expect(after.rows.length).toBeGreaterThan(before.rows.length)
     expect(after.agentAnswer).toEqual({ ok: { kind: 'committed', receipt } })
@@ -294,8 +284,6 @@ it('the scene policy itself refuses a Session read of another tenant', async () 
   expect(await s.backend.transactions.readWork(foreign)).toEqual({
     failure: { kind: 'denied', action: 'readWork' },
   })
-  // The conclusion of the check itself, not only the answer of the store: the double's tenant
-  // keying would also refuse the foreign tenant, so the answer alone cannot tell them apart.
   expect(s.accessCheck.controls.decided().slice(from)).toEqual([
     {
       request: {
@@ -327,8 +315,6 @@ it('a participation decided before a concurrent write advanced the execution sto
   }
   const pending = s.view.journal.recordResult(first)
   await reached.promise
-  // While the Session decision of the custody hand-over is outstanding, a write that needs no
-  // participation advances the same execution.
   ok(await s.view.journal.recordResult(second))
   const before = {
     root: s.view.controls.root(),
@@ -373,8 +359,6 @@ it('a participation whose decided command a write during the result preparation 
   })
   const pending = s.view.journal.recordResult(first)
   await pause.reached
-  // The decision is in hand and the preparation is waiting to publish: a write that needs no
-  // participation advances the execution, so the decided command names a passed revision.
   ok(await s.view.journal.recordResult(second))
   pause.release()
   expect(await pending).toEqual(outrun)
@@ -387,8 +371,6 @@ it('a participation whose decided command a write during the result preparation 
 
 for (const answer of ['denied', 'unavailable'] as const)
   it(`a participation the Session check answers ${answer} leaves the Agent receipts of later writes unchanged`, async () => {
-    // Two scenes over separate backends, the same names: one first refuses a custody hand-over,
-    // the other never asks. The next write of each issues the same receipt.
     async function later(refuse: boolean) {
       const qualification: SceneQualification = { agent: true, session: true }
       const s = await resultCall('refused-receipt', qualification)
@@ -418,7 +400,6 @@ it('a write refused inside its transaction and accepted on retry does not reuse 
   }
   const submit = (name: string, input: typeof value) =>
     s.view.journal.submit(submitInput(s.access, s.execution, operation(name), input))
-  // The Session side has not accepted input-2 yet: the participant refuses inside the transaction.
   expect(await submit('submit-1', value)).toHaveProperty('failure.kind', 'denied')
   await accept(s, 'input-2')
   const first = ok(await submit('submit-1', value))

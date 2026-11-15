@@ -1,13 +1,3 @@
-// AD-12 on real Cordis: the Context input and its translation protocol. What is checked: the
-// plugin provides `sessionContextInput` only while `runtimeContext` is present, removes it on stop
-// and runs again on a new Runtime Context provider; it refuses a command or a material of another
-// tenant before it asks anyone; it prepares a registration change with `prepareRegistration` under
-// the coordinator principal, never calls `applyCommit`, and turns a rejection into `invalid` and
-// every other non-success into `unavailable`; the materials it encodes come back as the same
-// change, step commit and scope end from the entries that the Session decision really writes.
-//
-// Runtime Context is the contract's memory double behind a Cordis service, with the test authority
-// ports. The Session log is the memory transaction port of session-contract `./testing`.
 import { Context, Service } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
@@ -70,8 +60,6 @@ import type { SessionFaces } from '@omne-harness/session-contract'
 import { SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import { createSessionContextHolder, type RecordedCommit } from '../src/cordis/context-holder.ts'
 import { createSessionRuntimeContextTrust } from '../src/runtime-context-trust.ts'
-
-// --- values --------------------------------------------------------------------------------------
 
 const A = memoryAccess<unknown>('caller')
 const B = memoryOtherAccess<unknown>('caller', 'session-b')
@@ -147,7 +135,6 @@ function toolNeed(key: ContextBlockKey): NeedBinding {
   }
 }
 
-/** The exact adopted definition that the materials reference, with its bindings and declarations. */
 const definition: Adoption = adoption('agent-definition')
 const notesDeclaration = stateful(NOTES, 'checkpointed')
 const objectShape = {
@@ -160,7 +147,6 @@ const objectShape = {
         : { issues: [{ message: 'Expected object' }] },
   },
 }
-/** DRAFT takes scope-level parameters, so a registration of it can carry a parameter value. */
 const draftDeclaration = { ...stateful(DRAFT, 'untracked'), parameterSchema: objectShape }
 const notesModel = modelNeed(NOTES)
 const notesTool = toolNeed(NOTES)
@@ -259,8 +245,6 @@ function stepOf(at: ScopeRef, name: string, value: number): StepCommit {
   }
 }
 
-// --- the Cordis fixture -------------------------------------------------------------------------
-
 const disposers: (() => Promise<unknown>)[] = []
 afterEach(async () => {
   await Promise.all(disposers.splice(0).map(dispose => dispose()))
@@ -273,7 +257,6 @@ async function mount(ctx: Context, plugin: Parameters<Context['plugin']>[0]) {
 
 type PrepareScript = RuntimeContextOperations<unknown>['prepareRegistration']
 
-/** A Runtime Context service over the memory double that records every holder call. */
 function runtimeContextService(
   calls: { method: string; principal: unknown; input: unknown }[],
   script: { prepare?: PrepareScript } = {},
@@ -352,8 +335,6 @@ async function assembled(
 }
 const provides = (ctx: Context) => ctx.get(sessionContextInputKey) !== undefined
 
-// --- loading -------------------------------------------------------------------------------------
-
 describe('loading and stopping on real Cordis', () => {
   it('provides sessionContextInput and removes the key when the plugin stops', async () => {
     const { ctx, plugin } = await assembled()
@@ -401,8 +382,6 @@ describe('loading and stopping on real Cordis', () => {
   })
 })
 
-// --- preparing -----------------------------------------------------------------------------------
-
 describe('preparing a registration change', () => {
   it('prepares under the coordinator principal and hands Session one material, never applyCommit', async () => {
     const { prepare, calls, principals } = await assembled()
@@ -413,7 +392,6 @@ describe('preparing a registration change', () => {
     expect(calls.map(call => call.method)).toEqual(['prepareRegistration'])
     expect(calls[0]!.principal).toBe(coordinatorOf(A.tenant, A.session))
     expect(principals).toEqual([{ tenant: A.tenant, session: A.session }])
-    // The change given to Runtime Context is the encoded one, functions restored.
     expect(calls[0]!.input).toEqual(addNotes(scopeA, A.tenant))
     expect((calls[0]!.input as { bindings: NeedBinding[] }).bindings[1]).toBe(notesTool)
   })
@@ -431,7 +409,6 @@ describe('preparing a registration change', () => {
 
   it('refuses a material that names another tenant than the access, before it asks anyone', async () => {
     const { prepare, calls, principals } = await assembled()
-    // The command is A's, but the encoded change registers into B's tenant.
     const command = registrationCommand(A, 'smuggled', addNotes(scopeA, B.tenant))
     expect(await prepare(A, command)).toEqual(fail({ kind: 'denied', action: 'change' }))
     expect(calls).toEqual([])
@@ -706,8 +683,6 @@ describe('preparing a step commit, a creation and the other commands', () => {
   })
 })
 
-// --- the encoders ---------------------------------------------------------------------------------
-
 describe('the encoders', () => {
   it('refuse a binding or a declaration that the adopted definition does not give back', () => {
     const copied = { ...notesTool }
@@ -759,9 +734,6 @@ describe('the encoders', () => {
   })
 })
 
-// --- the translation on real Session entries ------------------------------------------------------
-
-/** A JSON tree of a plain value, for entries this test writes by hand. */
 function tree(plain: unknown): JsonValue {
   if (plain === null || plain === undefined) return { kind: 'null' }
   if (typeof plain === 'string') return { kind: 'string', value: plain }
@@ -776,12 +748,6 @@ function tree(plain: unknown): JsonValue {
   }
 }
 
-/**
- * A session in the memory transaction port that goes through the real Session decision: a creation
- * with one registration source, its completion (initial SE07), a later registration change, a step
- * commit and, unless `archive` is false, the archive (SE27). Returns the history read after these
- * commits, the port, and the values that went in.
- */
 async function sessionLog(options: Readonly<{ archive?: boolean }> = {}) {
   const access = memoryAccess<string>('tester')
   const base = { tenant: access.tenant, session: access.session }
@@ -1054,14 +1020,11 @@ describe('the translation of committed Session entries', () => {
       },
     ]
     expect(inputs).toEqual(expected)
-    // The functions come back from the adopted definition, not as copies.
     const first = inputs[0] as Extract<RecordedCommit, { kind: 'registration' }>
     expect(first.change.kind === 'add' && first.change.declaration).toBe(notesDeclaration)
     expect(new Set(translation.kinds)).toEqual(new Set(log.entries.map(entry => entry.kind)))
   })
 
-  // R2-D219 B1: a scope with no registration and no step commit is recovered with the empty
-  // material (AD-03 1a), so its end must reach Runtime Context too. The tenant is the session's.
   it('gives the end of a scope that it has no other record of, with the tenant of its session, and null for other entries', async () => {
     const log = await sessionLog()
     const archived = log.entries.find(entry => entry.kind === 'session.archived')!
@@ -1083,29 +1046,24 @@ describe('the translation of committed Session entries', () => {
     const log = await sessionLog()
     const [initial, later] = log.entries
     const translation = createSessionContextTranslation(definitions)
-    // An initial registration recorded under another scope than its SE07 decision names.
     const misplaced: HistoryEntry = {
       ...initial!,
       payload: rewrite(initial!.payload, 'scope', tree('session-scope:elsewhere')),
     }
     expect(translation.commitOf(misplaced, log.access)).toHaveProperty('failure')
-    // A definition that no longer gives back the binding.
     const forgetful = createSessionContextTranslation({ ...definitions, binding: () => undefined })
     expect(forgetful.commitOf(initial!, log.access)).toHaveProperty('failure')
-    // A later registration recorded under another scope than its material names.
     const moved: HistoryEntry = {
       ...later!,
       payload: rewrite(later!.payload, 'scope', tree('session-scope:elsewhere')),
     }
     expect(translation.commitOf(moved, log.access)).toHaveProperty('failure')
-    // A step commit recorded under another scope than its head names.
     const step = log.entries.find(entry => entry.kind === 'session.recovery-input-adopted')!
     const strayStep: HistoryEntry = {
       ...step,
       payload: rewrite(step.payload, 'scope', tree('session-scope:elsewhere')),
     }
     expect(translation.commitOf(strayStep, log.access)).toHaveProperty('failure')
-    // A payload that is not a JSON tree.
     expect(
       translation.commitOf({ ...later!, payload: { kind: 'object' } as never }, log.access),
     ).toHaveProperty('failure')
@@ -1137,7 +1095,6 @@ describe('the translation of committed Session entries', () => {
       ),
     }
     expect(translation.commitOf(theirs, log.access)).toHaveProperty('failure')
-    // The same record is the other tenant's own when its session is.
     expect(translation.commitOf(theirs, B)).toMatchObject({
       ok: { kind: 'step', tenant: B.tenant },
     })
@@ -1154,12 +1111,10 @@ describe('the translation of committed Session entries', () => {
       scope: log.scope,
       tenant: log.access.tenant,
     })
-    // No derivative of earlier reads decides the tenant, so none can be evicted or go stale.
     expect(ok(translation.commitOf(archived, B), 'end for B')).toMatchObject({ tenant: B.tenant })
   })
 })
 
-/** The payload with one top-level member replaced. */
 function rewrite(payload: JsonValue, key: string, value: JsonValue): JsonValue {
   if (payload.kind !== 'object') throw new Error('fixture: payload')
   return {
@@ -1215,7 +1170,6 @@ describe('the translation drives AD-03 replay on real Session entries', () => {
       }
       readonly bind: RuntimeContextService<unknown>['bind'] = id => memory.bind(id)
     }
-    // The session service serves the history face of the memory port to the coordinator principal.
     class Session extends SessionService<unknown> {
       get history(): SessionFaces<unknown>['history'] {
         void this[Service.resolveConfig]()
@@ -1250,7 +1204,6 @@ describe('the translation drives AD-03 replay on real Session entries', () => {
       log.initialCommit,
       contextChangeCommit({ scope: log.scope, operation: log.laterOperation, key: DRAFT }).commit,
     ])
-    // NOTES is checkpointed and has the step commit; DRAFT is untracked.
     expect(finished.input.material.checkpoints).toEqual([
       {
         commit: contextStepCommit({ scope: log.scope, operation: log.stepOperation }),
@@ -1268,7 +1221,6 @@ describe('the translation drives AD-03 replay on real Session entries', () => {
       keys: [NOTES],
     })
 
-    // The archive commits SE27; its end goes to applyCommit under the derived commit identity.
     await log.archiveNow()
     await committed(['session.archived'])
     const applied = rcCalls.filter(call => call.method === 'applyCommit')

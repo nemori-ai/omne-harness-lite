@@ -1,8 +1,3 @@
-// The entries interpretation commit (session-contract docs/same-log-pure.md「entries 通道的解释提交」)
-// on the port side. It is not a face method: the caller is the trusted interpreter, so it asks no
-// access check. The participant judges the range with the shared pure check inside the write
-// transaction; this side encodes the facts and settles the storage answer through the same attempt
-// generations as `commit`.
 import {
   digestSessionEntries,
   type SessionEntriesObservation,
@@ -22,7 +17,6 @@ export async function commitEntries<P>(
   input: Readonly<{ observation: SessionEntriesObservation; start: SessionEntriesStart }>,
 ): Promise<Outcome<SessionEntriesReceipt, SessionFailure>> {
   const { observation, start } = input
-  // An unminted tenant is refused here, before any storage call and before the digest needs it.
   const domain = await domainOf(context, observation.tenant)
   if ('failure' in domain) return domain
   let facts: FactCommandV2

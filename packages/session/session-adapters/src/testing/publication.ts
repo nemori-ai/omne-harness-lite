@@ -1,4 +1,3 @@
-/** Test scheduling lives outside the business root and never supplies a committed answer. */
 export function publicationHooks() {
   const pauses = new Map<string, { reached(): void; released: Promise<void> }>()
   const faults = new Map<string, 'before-publish' | 'after-publish'>()

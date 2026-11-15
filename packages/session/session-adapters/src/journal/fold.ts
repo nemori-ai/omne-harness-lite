@@ -1,8 +1,3 @@
-// The pure fold of the Agent fact family into the in-process view (R2-D292): `fold(view, batch)`
-// reads its two arguments and nothing else, so two folds of one fact sequence are one view, a cached
-// view plus the batches it missed equals the fold from the start, and a successor process folds the
-// same view the predecessor had. Every structure here is a projection; it can be dropped and rebuilt
-// from the rows. The memory stand-in and the production provider fold through this one function.
 import type {
   ActionBatchId,
   ActionId,
@@ -46,14 +41,12 @@ import {
 } from './facts.ts'
 import { foldVoided } from './voided.ts'
 
-/** One attachment as the view keeps it: active until a detach or the next attach supersedes it. */
 export type AttachmentView = Readonly<{
   authority: Authority
   grant: DurableEvidence | null
   basis: AttachmentBasis
   status: 'active' | 'detached' | 'superseded'
   handoff: DurableEvidence | null
-  /** The revision the detach that set `handoff` reached; 0 while attached. */
   handoffRevision: number
   pub: number
 }>
@@ -81,7 +74,6 @@ export type RequestView = Readonly<{
   pub: number
 }>
 
-/** One intended call and everything the ledger learned about it since. */
 export type IntentView = Readonly<{
   action: ActionId
   step: StepId
@@ -111,7 +103,6 @@ export type ResultView = Readonly<{
     pub: number
   }> | null
   stages: Readonly<Partial<Record<ResultStage, DurableEvidence>>>
-  /** The pub of the last fact of this consumption. */
   pub: number
 }>
 
@@ -143,7 +134,6 @@ export type HandoffView = Readonly<{
     pub: number
     revision: number
   }> | null
-  /** The Rh chain: each recorded attempt in order, with its predecessor. */
   recorded: readonly Readonly<{
     resolution: 'recorded' | 'excluded'
     outcome: Ref
@@ -188,10 +178,8 @@ export type ControlView = Readonly<{
 export type CandidateView = Readonly<{
   candidate: AgentOperationId
   claim: FactOf<'finish.candidate'>['claim']
-  /** The cursor reference of the candidate's checkpoint (R2-D297); never a checkpoint copy. */
   cursor: Ref
   route: DurableEvidence
-  /** The block of the route the candidate was established on. */
   path: Ref
   supersedes: AgentOperationId | null
   beforeTerminal: DurableEvidence | null
@@ -199,11 +187,6 @@ export type CandidateView = Readonly<{
   revision: number
 }>
 
-/**
- * One issued obligation list of a candidate (R2-D297): the close of the issue, which names its items
- * by the block of their ids and digests. A list is its own entry, keyed by candidate and ordinal;
- * it is never rewritten, a later issue is a new list.
- */
 export type ObligationListView = Readonly<{
   candidate: AgentOperationId
   list: number
@@ -218,17 +201,13 @@ export type ObligationListView = Readonly<{
   }>
 }>
 
-/** The current form of one obligation of the execution, as its last `finish.obligation` left it. */
 export type ObligationView = Readonly<{ category: string; item: Ref | null; pub: number }>
 
-/** The key of an obligation list in `FinishView.lists`. */
 export const listKey = (candidate: AgentOperationId, list: number): string => `${candidate}/${list}`
 
 export type FinishView = Readonly<{
   candidates: readonly CandidateView[]
-  /** The issued obligation lists, by `listKey`, in the order they were issued. */
   lists: ReadonlyMap<string, ObligationListView>
-  /** The obligations of the execution by id, each in its current form (R2-D322). */
   obligations: ReadonlyMap<string, ObligationView>
   current: AgentOperationId | null
   ended: Readonly<{
@@ -240,7 +219,6 @@ export type FinishView = Readonly<{
   }> | null
 }>
 
-/** One projected event: the fact that is the event, with its dense sequence in the execution. */
 export type EventView = Readonly<{
   eseq: number
   kind: string
@@ -251,7 +229,6 @@ export type EventView = Readonly<{
   fact: FactBody
 }>
 
-/** One binding of a pending call: the reference, the call, the holding instance and its pub. */
 export type BindingView = Readonly<{
   definition: Adoption
   reference: string
@@ -260,7 +237,6 @@ export type BindingView = Readonly<{
   pub: number
 }>
 
-/** One excluded operation (R2-D307): why, on what evidence, and at which publication. */
 export type ExclusionEntry = Readonly<{
   execution: AgentExecutionId
   reason: ExclusionReason
@@ -269,21 +245,16 @@ export type ExclusionEntry = Readonly<{
   pub: number
 }>
 
-/** The entry of the operation index: where the batch of an operation is and what it reached. */
 export type OperationEntry = Readonly<{
   execution: AgentExecutionId
   digest: string
   pub: number
-  /** The revision the answer names: the batch's own, or the recognized batch's. */
   revision: number
-  /** The recognized operation, for a recognition batch; null otherwise. */
   target: AgentOperationId | null
-  /** Whether the recognition recalls the target's own receipt (`op.recognized.recalls`). */
   recalls: boolean
   kinds: readonly ParticipationKind[]
 }>
 
-/** One persistent rejection of a recordControl: the audit, and the batch that fixed it. */
 export type RejectionEntry = Readonly<{
   control: AgentOperationId
   audit: DurableEvidence
@@ -294,9 +265,7 @@ export type RejectionEntry = Readonly<{
 export type ExecutionView = Readonly<{
   execution: AgentExecutionId
   revision: number
-  /** The last publication folded into this execution. */
   head: number
-  /** The authority generation of the active attachment, or the last one. */
   gen: string
   opened: Readonly<{
     definition: Adoption
@@ -309,12 +278,10 @@ export type ExecutionView = Readonly<{
   }> | null
   attachments: readonly AttachmentView[]
   cursor: Readonly<Partial<CursorMembers>>
-  /** The pub of the last cursor move of each member. */
   cursorMoved: Readonly<Partial<Record<keyof CursorMembers, number>>>
   inputs: readonly InputView[]
   steps: readonly Readonly<{ step: StepId; batch: InputBatch; pub: number }>[]
   requests: readonly RequestView[]
-  /** The latest request not voided: AD-04's adopted request; its order is its pub. */
   adopted: RequestView | null
   voided: readonly FactOf<'intent.voided'>[]
   intents: ReadonlyMap<ActionId, IntentView>
@@ -324,7 +291,6 @@ export type ExecutionView = Readonly<{
   batches: ReadonlyMap<ActionBatchId, BatchView>
   passages: ReadonlyMap<PassageId, PassageView>
   controls: ReadonlyMap<AgentOperationId, ControlView>
-  /** The waits of the latest `wait.entered`, as the reference to their block. */
   waits: Readonly<{ step: StepId; waits: Ref<readonly Waiting[]>; pub: number }> | null
   finish: FinishView
   settlements: readonly Readonly<{
@@ -342,9 +308,7 @@ export type ExecutionView = Readonly<{
     pub: number
   }>[]
   acknowledged: number
-  /** The revision at which the acknowledged prefix last advanced. */
   acknowledgedAt: number
-  /** The Tool start fences recorded, in pub order. */
   fences: readonly Readonly<{
     operation: string
     guard: Readonly<{
@@ -357,28 +321,18 @@ export type ExecutionView = Readonly<{
     pub: number
   }>[]
   events: readonly EventView[]
-  /** The bindings of the pending calls the execution held, in pub order (`target.bound`). */
   bindings: readonly BindingView[]
-  /** The materials kept for this execution, by the canonical text of their source. */
   materials: ReadonlyMap<
     string,
     Readonly<{ source: DurableEvidence; value: Ref; consumer: ConsumerRef; pub: number }>
   >
-  /** The operations that wrote this execution, in pub order. */
   ops: ReadonlyMap<AgentOperationId, OperationEntry>
-  /** The operations excluded in this execution. */
   excluded: ReadonlyMap<AgentOperationId, ExclusionEntry>
-  /** The operations whose recordControl was persistently rejected, by the rejecting operation. */
   rejections: ReadonlyMap<AgentOperationId, RejectionEntry>
-  /**
-   * The operation whose batch advanced the execution to each revision: one batch advances to each
-   * revision, so a recognition finds the batch it recognizes by the revision, without a scan.
-   */
   reached: ReadonlyMap<number, AgentOperationId>
 }>
 
 export type SessionJournalView = Readonly<{
-  /** The last publication folded: `er_root.published` when the view is current. */
   head: number
   executions: ReadonlyMap<AgentExecutionId, ExecutionView>
   ops: ReadonlyMap<AgentOperationId, OperationEntry>
@@ -437,22 +391,14 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
   }
 }
 
-/** The key of a handoff reference in `handoffs`. */
 export const handoffKey = (reference: HandoffReference): string => canonical(reference)
 
-/** The facts that advance no revision: a recognition, and a material kept. */
 const NO_REVISION: ReadonlySet<string> = new Set([
   'op.recognized',
   'material.preserved',
   'op.excluded',
 ])
 
-/**
- * Whether a batch advances the revision: a batch with a fact other than a recognition, a kept
- * material or an exclusion does, and so does a batch that carries a Session participation, which
- * is a joint commit of its own. A pure recognition, a material kept, the exclusions a batch carries
- * along and the envelope alone of a command that changed nothing do not.
- */
 export function advances(batch: PublishedBatch): boolean {
   return batch.envelope.kinds.length > 0 || batch.facts.some(fact => !NO_REVISION.has(fact.kind))
 }
@@ -526,13 +472,6 @@ function active(draft: Draft): Authority | null {
   return latest?.status === 'active' ? latest.authority : null
 }
 
-/** Applies one fact to the draft at `pub`, `ord`, after the revision of the batch is known. */
-/**
- * The event kind `fact` projects when applied to `draft`, or null (SPEC "事实族与折叠核", the event
- * rule): what the fact alone says (`eventKindOf`), and for a `control.stage` a record wrote, no
- * event after the execution ended, and none for the same stage fact already reached (the writer
- * recognizes it and appends no event).
- */
 function eventOf(draft: Draft, fact: FactBody): string | null {
   const kind = eventKindOf(fact)
   if (kind === null || fact.kind !== 'control.stage' || fact.step !== null) return kind
@@ -694,7 +633,6 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
         ]
       break
     case 'message.published':
-      // Only an event: the message is the Session history's and the event stream's.
       break
     case 'handoff.prepared': {
       const handoff = handoffOf(draft, fact.handoff)
@@ -815,7 +753,6 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
           source: DurableEvidence
         }>
       } = { ...known?.stages }
-      // A stage is a transition: unresolved may become reached; reached never changes.
       const current = stages[fact.stage]
       if (current === undefined || (current.state === 'unresolved' && fact.state === 'reached'))
         stages[fact.stage] = { state: fact.state, source: fact.source }
@@ -971,7 +908,6 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
       break
     }
     case 'op.excluded':
-      // A committed operation is never excluded; the first exclusion of an operation stands.
       if (!draft.ops.has(fact.operation) && !draft.excluded.has(fact.operation))
         draft.excluded.set(fact.operation, {
           execution: draft.execution,
@@ -1017,19 +953,10 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
     ]
 }
 
-/**
- * Folds one published batch into the session view: the execution's revision advances by one unless
- * the batch is a pure recognition, every fact is applied in order, the operation index gains the
- * batch's operation, and the head moves to the batch's pub. A batch already folded (`pub <= head`)
- * or an operation already indexed leaves the view as it is: the log, not the caller, is the truth.
- */
 export function fold(view: SessionJournalView, batch: PublishedBatch): SessionJournalView {
   if (batch.pub <= view.head) return view
   const draft = draftOf(view.executions.get(batch.execution) ?? emptyExecutionView(batch.execution))
-  // The index is written before the facts, so the facts that name the batch's op can read it.
-  // The envelope names the revision the batch reaches, computed by the writer under `expected`
-  // (for a batch that advances none, the revision before it); a writer that left it at 0 lets the
-  // fold compute it: one more unless the batch is a recognition or the envelope alone.
+  // Write the operation index before the facts, so facts that name this batch's op can read it.
   const moves = advances(batch)
   const revision =
     batch.envelope.rev >= 1 ? batch.envelope.rev : moves ? draft.revision + 1 : draft.revision
@@ -1065,7 +992,6 @@ export function fold(view: SessionJournalView, batch: PublishedBatch): SessionJo
   return { head: batch.pub, executions, ops, excluded }
 }
 
-/** Folds the batches in order, from `view` or from the empty view. */
 export function foldAll(
   batches: Iterable<PublishedBatch>,
   view: SessionJournalView = emptySessionView(),
@@ -1075,11 +1001,6 @@ export function foldAll(
   return current
 }
 
-/**
- * The reception targets of one execution (R2-D297): the intended calls whose result has not been
- * received, each with its consumer position. A projection of `intents` and `results`; nothing is
- * stored per execution and nothing is rewritten when a call is added.
- */
 export function openCalls(view: ExecutionView): readonly IntentView[] {
   return [...view.intents.values()].filter(
     intent => view.results.get(intent.pending.consumption)?.received == null,
@@ -1095,12 +1016,10 @@ function plain(value: unknown): unknown {
   return value
 }
 
-/** The canonical digest of a view: equal digests mean equal views (F1, F3). */
 export function viewDigest(view: SessionJournalView): string {
   return digestOf(plain(view))
 }
 
-/** The canonical text of a view, for a failing comparison to show. */
 export function viewText(view: SessionJournalView): string {
   return canonical(plain(view))
 }

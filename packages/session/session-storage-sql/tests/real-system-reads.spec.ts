@@ -1,10 +1,4 @@
-// R9 / SS-17: the system reads of the Session storage (R10 references, R11 releasedScopes) over
-// the real sqlite-provider: real files, the real read Worker pool and tenant domains that hold
-// their own rows. The index rows are written straight into the domain files, so these cases
-// verify the read path only, not the maintenance of the index by a commit (W3). Session storage
-// adapters, the application seams and a revocation across processes are not covered here.
 // @module-tag slow
-// Why slow: real Workers and real files; every case opens a provider twice.
 import { afterEach, describe, expect, it } from 'vitest'
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import {
@@ -20,7 +14,6 @@ afterEach(async () => {
   for (const app of opened.splice(0)) await app.dispose()
 })
 
-// Tenant A sorts before tenant B. The domain of A holds one row of B that no walk may return.
 const ROWS: SystemRows = {
   residents: [
     { domain: TENANT_A, session: 'a1', key: 'k', capability: 'cap' },
@@ -127,7 +120,6 @@ describe('R9 SS-17 references over two tenants on the real provider', () => {
   it('SS-17 the rows of one tenant come from its own domain and carry its tenant', async () => {
     const app = await open()
     const page = ok<Page>(await references(app, null, 100))
-    // The domain of A holds a row of the tenant B (`stray`); it appears in no result.
     expect(page.rows.some(row => row.session === 'stray')).toBe(false)
     expect(page.rows.filter(row => tenantOf(row.tenant) === 'A').map(row => row.session)).toEqual([
       'a1',

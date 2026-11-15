@@ -1,4 +1,3 @@
-// The canonical identity of the ingress families (r2.2 section 4.3, ID-01).
 import { describe, expect, it } from 'vitest'
 import { INGRESS_FAMILIES, deriveIngressOperation } from '@omne-harness/session-contract'
 

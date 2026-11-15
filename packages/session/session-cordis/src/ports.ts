@@ -1,7 +1,3 @@
-// The ports that the plugin reads at each call through its own Context (SPEC「端口接线」). A port
-// that is absent or that throws makes the operation that needs it answer `unavailable` with the
-// service key of the port as `owner`. Nothing here fills in a default: no system time for the
-// clock, no empty material for the evidence.
 import type { Context } from '@deepseek-ai/cordis'
 import { fail } from '@omne-harness/operation-result'
 import type { Current, SessionDependencies } from '@omne-harness/session'
@@ -27,13 +23,8 @@ export type CurrentPorts = Pick<
   | 'scopeRelease'
 >
 
-/**
- * Builds the ports of the factory from `ctx`. `ctx` is the Context that the plugin captured at
- * load: in a service method `this.ctx` is the caller's Context and sees the caller's isolate, so
- * it is not used here. Nothing is kept between calls; each call reads the service table again.
- */
+// Use the Context captured at load: in a service method this.ctx is the caller's Context and sees the caller's isolate.
 export function createPorts(ctx: Context, diagnose: Diagnose): CurrentPorts {
-  /** One call through a port that must answer. Absence and a throw become `unavailable`. */
   const through = async <K extends CheckedKey, T>(
     key: K,
     call: (service: NonNullable<Context[K]>) => Reply<T>,
@@ -50,7 +41,6 @@ export function createPorts(ctx: Context, diagnose: Diagnose): CurrentPorts {
     }
   }
 
-  /** A port that is read when it is needed and may be absent now. */
   const current = <K extends 'sessionTransactions' | 'sessionAgentDrive' | 'sessionScopeRelease'>(
     key: K,
   ): Current<NonNullable<Context[K]>> => ({ current: () => ctx.get(key) ?? null })
@@ -71,8 +61,6 @@ export function createPorts(ctx: Context, diagnose: Diagnose): CurrentPorts {
     },
     clock: {
       sample: () => through('sessionClock', s => s.sample()),
-      // The result type has no unavailable branch: an absent clock rejects the promise, and the
-      // scheduler of session treats a rejection as a refused clock (SPEC「明确缺项」).
       waitUntil: async (instant, signal) => {
         const clock = ctx.get('sessionClock')
         if (clock === undefined) throw new Error('sessionClock is absent')

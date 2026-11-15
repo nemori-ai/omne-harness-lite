@@ -1,4 +1,3 @@
-// Frames, pages and entries as the `session/v1` client hands them over: `json` values are trees.
 import type { ObserveSessionFrame } from '@omne-harness/session-protocol'
 import type { Instant } from '@omne-harness/utc-instant'
 import type { WireEntry } from '../../src/model/content.ts'
@@ -111,10 +110,6 @@ export function plainEntry(
   return { entryId, revision, kind, payload: toTree(payload) }
 }
 
-/**
- * A history page whose traversal is pinned to the session revision `upper`. `scannedThrough` is a
- * scan position on another axis: a value that would mislead any code comparing it with a revision.
- */
 export function page(
   entries: readonly WireEntry[],
   upper: string,
@@ -131,7 +126,6 @@ export function page(
 
 type Lifecycle = 'initializing' | 'dormant' | 'active' | 'frozen' | 'archived'
 
-/** One `list-sessions` item. The two instants stay null: tests have no way to mint an `Instant`. */
 export function listed(
   session: string,
   title: string | null = null,

@@ -1,9 +1,3 @@
-// The work cache of `readWork` (SPEC RT-04). The store stays the authority: every read first reads
-// the version of the session (`session.work-version`: the Session tail and the Agent publication
-// count, two primary-key point reads), and a cached snapshot is answered only
-// when that version equals the version it was read at. Each case counts the handler reads the port
-// sent, so a cache that answers without the check, keys without the tenant, ignores the Agent
-// publications, keeps more than its bounds or reads the whole snapshot on every call turns red.
 import { readAccessRequest, type WorkSnapshot } from '@omne-harness/session-contract'
 import {
   evidence,
@@ -34,14 +28,12 @@ function okOf(answer: Answer): WorkSnapshot {
 const WHOLE = 'session.work'
 const VERSION = 'session.work-version'
 
-/** The reads of `handler` the storage served since `from` (an index into the call log). */
 function readsOf(a: App, handler: string, from = 0): number {
   return a.provider.calls
     .slice(from)
     .filter(call => call.kind === 'read' && call.handler === handler).length
 }
 
-/** Another port instance over the same data that names another database: a cache of its own. */
 function otherInstance(a: App) {
   const storage: SqlStorage = {
     database: {},
@@ -53,7 +45,6 @@ function otherInstance(a: App) {
   return createSessionStorage<string>({ ...a.storageOptions, storage })
 }
 
-/** `accept` of tenant A's session-1 through `port`, as the fixture's own `accept` sends it. */
 const accept = (a: App, port: App['port'], name: string) =>
   port.commit({
     access: a.access(TENANT_A),
@@ -108,7 +99,6 @@ describe('T-12: the session binding source does not use the work cache', () => {
 })
 
 describe('one cache per database, never across databases', () => {
-  /** A proxy as Cordis hands a service to a plugin: methods rebound on every access. */
   const cordisProxy = (target: SqlStorage): SqlStorage =>
     new Proxy(target, {
       get: (inner, prop, receiver) => {
@@ -309,7 +299,6 @@ describe('T-6: the bounds of the cache', () => {
     for (const session of ['s-1', 's-2', 's-3']) await a.create(TENANT_A, session)
     expect(await read(a, 's-1')).toBe('whole')
     expect(await read(a, 's-2')).toBe('whole')
-    // s-1 is used again, so s-2 is now the least recently used session.
     expect(await read(a, 's-1')).toBe('cached')
     expect(await read(a, 's-3')).toBe('whole')
     expect(await read(a, 's-1')).toBe('cached')
@@ -331,7 +320,6 @@ describe('T-6: the bounds of the cache', () => {
   it('over the byte bound the least recently used session goes, and is read whole again', async () => {
     const probe = await app()
     await probe.create(TENANT_A, 's-1')
-    // The stored size of one snapshot: its head row and its chunk rows (R2-D292).
     const head = probe.provider.select(
       'dom_0',
       'SELECT snapshot FROM sl_state WHERE tenant = ? AND session = ? LIMIT 1',
@@ -344,7 +332,6 @@ describe('T-6: the bounds of the cache', () => {
         's-1',
       ])
       .rows.reduce((sum, [value]) => sum + unpacked(value).length, String(head).length)
-    // Room for one snapshot and a half: the second session pushes the first one out.
     const a = await app({ workCache: { bytes: Math.floor(Number(one) * 1.5) } })
     for (const session of ['s-1', 's-2']) await a.create(TENANT_A, session)
     expect(await read(a, 's-1')).toBe('whole')
@@ -460,7 +447,6 @@ describe('T-10: the version is not known', () => {
     const a = await app()
     await a.create(TENANT_A)
     okOf(await a.port.readWork(a.access(TENANT_A)))
-    // Another port instance commits: this cache holds the older version and has nothing folded.
     expect(await accept(a, otherInstance(a), 'i-1')).toHaveProperty('ok')
     a.provider.failReads(WHOLE)
     const failed = await a.port.readWork(a.access(TENANT_A))
@@ -492,7 +478,6 @@ describe('T-11: the key reads the position, never the content', () => {
 })
 
 describe('the version read', () => {
-  /** One session whose stored snapshot is `bytes` long, and the statements the handler ran on it. */
   function versionRead(bytes: number) {
     const { port } = migratedPort()
     const tenant = textOf(TENANT_A)

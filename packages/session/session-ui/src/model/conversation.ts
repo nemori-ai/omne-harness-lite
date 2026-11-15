@@ -1,6 +1,3 @@
-// The conversation as the view draws it: committed entries and the live reply turned into items and
-// parts. The three sources are closed (RFC-0015 §10「对话」): history kinds, message parts, live
-// blocks. Anything outside them becomes a visible placeholder that names its kind.
 import type { Content, HistoryEntry, LiveBlock } from './content.ts'
 import { isRecord, listOf, textOf, type Plain } from './plain.ts'
 
@@ -23,7 +20,6 @@ export type Part =
       key: string
       callId: string | null
       name: string | null
-      /** The arguments as data, or the raw text when they did not (yet) decode. */
       arguments: Plain
       raw: string | null
       state: 'complete' | 'incomplete' | 'unparsed' | 'generating'
@@ -42,7 +38,6 @@ export type Item =
       parts: readonly Part[]
       live: boolean
     }>
-  /** A system note the producer marked for people: one collapsed line, opened on demand. */
   | Readonly<{ kind: 'note'; key: string; label: string; parts: readonly Part[] }>
   | Readonly<{ kind: 'marker'; key: string; label: string }>
   | Readonly<{ kind: 'unknown'; key: string; entryKind: string }>
@@ -96,7 +91,6 @@ function toolCall(
   }
 }
 
-/** The parts of one message. A tool result marker takes the content blocks after it as its body. */
 function messageParts(blocks: readonly Plain[], prefix: string): Part[] {
   const parts: Part[] = []
   let body: Part[] | null = null
@@ -215,16 +209,10 @@ function terminalLabel(entry: HistoryEntry): string {
   }
 }
 
-/**
- * Builds the items. Tool calls and their results pair by call id only, never by position; the
- * first result for a call is its result. A tool message whose results all paired is not drawn on
- * its own. An Ask call is a question card whose status comes from the conversation itself.
- */
 export function conversationItems(content: Content, runActive: boolean): readonly Item[] {
   const items: Item[] = []
   const results = new Map<string, ToolResultView>()
   const toolParts = new Map<string, Part[]>()
-  // Collect every result first: a call is answered by a later tool message.
   for (const entry of content.entries) {
     const message = entry.kind === 'message.tool' ? messageOf(entry) : null
     if (message === null) continue
@@ -235,7 +223,6 @@ export function conversationItems(content: Content, runActive: boolean): readonl
         results.set(part.callId, part.result)
   }
   const callIds = new Set<string>()
-  // Which calls are followed by the end of a run: an Ask without a result there has expired.
   const endedCalls = new Set<string>()
   const openCalls: string[] = []
 

@@ -1,8 +1,3 @@
-// The `execution-record` participant and the joint commit of the Session log combination, over the
-// node:sqlite test provider: one storage commit with an `execution-record` and a `session` command
-// is all or nothing; the publication count and the head revision guard the write; an operation
-// has one batch; a read-only check writes no row and its conflict stops the batch;
-// the common root moves on a publication of either side and is read in one snapshot.
 import { describe, expect, it } from 'vitest'
 import {
   combinationManifest,
@@ -128,10 +123,6 @@ const root = async (a: App) =>
   decodeSessionHistoryRoot(
     await read(a, 'session.history-root', { tenant: textOf(TENANT_A), session: SESSION }),
   )
-/**
- * The publication count of the session and the envelope body of its last batch (null: no batch), or
- * the refusal of the read.
- */
 const state = async (a: App, tenant: TenantId = TENANT_A) => {
   const page = decodeExecutionRecordFacts(
     await read(
@@ -159,11 +150,6 @@ const acceptCommand = (name: string): SessionCommand => ({
 })
 const login = [guard('login', 'login-entry', 'present')]
 
-/**
- * A session with input `input-1` accepted and an active Run that started execution E. `grant` is
- * the receipt of the startRun batch: Session hands it to `invoke` as the SE15 grant and as the SE13
- * source basis (PA-01 item 1).
- */
 async function running(
   a: App,
   tenant: TenantId = TENANT_A,
@@ -194,19 +180,16 @@ async function running(
   return { execution: work.run.execution.execution, grant: started.receipt.source, work }
 }
 
-/** Accepts the ordinary input `name`: the source of the receipt is its SE11 receipt (PA-01 item 2). */
 async function admitted(a: App, name: string): Promise<DurableEvidence> {
   return ok<{ source: DurableEvidence }>(await a.accept(TENANT_A, 'session-1', name)).source
 }
 
-/** The input as the Agent accepted it: its identity, its message and the source basis Session gave. */
 const acceptedAs = (name: string, source: DurableEvidence) => ({
   input: inputId(name),
   origin: source,
   message: ordinaryInput(name).message,
 })
 
-/** Cancels the active Run of `work` by a forced cancel-run control. */
 async function cancel(a: App, work: WorkSnapshot) {
   if (work.run.kind !== 'active') throw new Error('no active Run')
   ok(
@@ -289,7 +272,6 @@ describe('the first publication: one commit with an execution-record and a sessi
       const a = await app()
       ok(await a.create(TENANT_A))
       const entries = count(a, 'sl_entry')
-      // A constraint failure: a data error, so the commit rolls back explicitly (sql-contract §7.6).
       a.provider.failWrite(pattern, 1, 19)
       const result = await joint(a, 'aop_fail', [
         executionRecordFacts(write()),
@@ -367,8 +349,6 @@ describe('the guards of an execution-record write', () => {
     ok(await a.create(TENANT_A))
     expect((await joint(a, 'aop_first', [executionRecordFacts(write())])).kind).toBe('committed')
     const elsewhere = sessionId('session-2')
-    // The head revision and the publication count of the other session both look right: the
-    // execution belongs to session-1.
     const stolen = await joint(a, 'aop_stolen', [
       executionRecordFacts(
         write({
@@ -551,7 +531,6 @@ describe('the read-only checks of the session participant (JC-26, JC-27)', () =>
     const a = await app()
     const { execution, grant, work } = await running(a)
     await cancel(a, work)
-    // Committed data lacks a row its invariant needs: waiting does not bring it back.
     a.provider.seed('dom_0', `DELETE FROM sl_entry WHERE kind = 'run.terminal'`)
     const result = await joint(a, 'aop_wind_missing', [
       executionRecordFacts(write({ execution, operation: 'aop_wind_missing' })),
@@ -592,7 +571,6 @@ describe('the read-only checks of the session participant (JC-26, JC-27)', () =>
         }),
       ])
     const own = deriveDriveOperation({ kind: 'control', execution, control: control.operation })
-    // The refusals first: they write nothing, so the accepted finish below is the first write.
     for (const [name, by] of [
       [
         'aop_fin_other',
@@ -661,7 +639,6 @@ describe('the source basis of open and submit (PA-01 items 1 and 2)', () => {
   it('open holds on the receipt of the SE13 Session handed to invoke, not on the origin of the input', async () => {
     const a = await app()
     const { execution, grant } = await running(a)
-    // The C24 counterexample: the source is the startRun receipt, the stored origin is intake/input-1.
     expect(grant.record).not.toBe(ordinaryInput('input-1').origin.record)
     const result = await open(a, 'aop_open_se13', {
       tenant: TENANT_A,
@@ -767,7 +744,6 @@ describe('the source basis of open and submit (PA-01 items 1 and 2)', () => {
     if (current.run.kind !== 'active') throw new Error('no active Run')
     const execution = current.run.execution.execution
     const check = { tenant: TENANT_A, session: SESSION, execution, grant: next }
-    // The input the cancel left pending is the first input of the next Run as well.
     expect(String(current.run.first)).toBe('input-1')
     const refused = await open(a, 'aop_open_previous', {
       ...check,
@@ -850,7 +826,6 @@ describe('the source basis of open and submit (PA-01 items 1 and 2)', () => {
       origin: { ...second, revision: '777' },
     })
     expect(result.kind).toBe('rolled_back')
-    // The log only grows: the bound is passed for good (SPEC 参加者失败的定性, `read-bound`).
     expect(stoppedAs(result)).toEqual({
       kind: 'stopped',
       failure: { kind: 'invalid', field: 'storage', reason: 'read-bound' },

@@ -1,12 +1,3 @@
-// Test resources of the Session Cordis definitions. The cursor signing has a fixed HMAC-SHA-256
-// double and its conformance suite. The keys are public test bytes. The double reads no
-// environment, disk or real key and must not enter a production plugin tree.
-//
-// The two trusted narrow ports of D-AUTH r4 4.1, the session ownership read
-// (`sessionPrincipalBindings`) and the per-session work principals (`sessionWorkPrincipals`),
-// each have a non-durable double that answers from an explicit table and records its requests,
-// and a conformance suite. The work principals double follows the failure mapping of r4 over a
-// binding source. It proves the mapping in memory, not the issuer of the assembly entry.
 import assert from 'node:assert/strict'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
@@ -35,13 +26,9 @@ const KEYS = [
   { keyId: 'test-session-cursor-2', bytes: keyFrom(0x20) },
 ] as const
 
-/** The controls of the double. They are not part of the production service. */
 export interface FixedSessionCursorSigningControls {
-  /** Switch to the second public key (`test-session-cursor-2`). */
   rotate(): void
-  /** The key source cannot be read: sign and verify answer `unavailable`. */
   setUnavailable(unavailable: boolean): void
-  /** The provider unloads: every later and every pending call answers `unavailable`. */
   unload(): void
 }
 export interface FixedSessionCursorSigning extends SessionCursorSigning {
@@ -58,7 +45,6 @@ export function createFixedSessionCursorSigning(): FixedSessionCursorSigning {
   return Object.freeze({
     durability: 'none' as const,
     async sign(payload: Uint8Array): Promise<SessionCursorSignResult> {
-      // Input bytes are captured and the key is chosen before the first await.
       const bytes = Uint8Array.from(payload)
       const key = KEYS[current]!
       const closedNow = unavailable || unloaded
@@ -79,7 +65,6 @@ export function createFixedSessionCursorSigning(): FixedSessionCursorSigning {
       const closedNow = unavailable || unloaded
       await Promise.resolve()
       if (closedNow || unloaded) return { kind: 'unavailable' }
-      // A rotation during the call makes the key chosen before the await stale: not a success of the old key.
       if (keyId !== key.keyId || KEYS[current] !== key) return { kind: 'invalid' }
       const expected = mac(key.bytes, payload)
       return given.length === expected.length && timingSafeEqual(given, expected)
@@ -221,7 +206,6 @@ export function sessionCursorSigningConformance(): readonly ConformanceCase<Sess
   ]
 }
 
-// The member does not depend on operation-result; outcomes are written in its plain shape.
 type Outcome<T, F> = { ok: T } | { failure: F }
 const succeed = <T>(value: T): { ok: T } => ({ ok: value })
 const fail = <F>(failure: F): { failure: F } => ({ failure })
@@ -230,7 +214,6 @@ type BindingRead = Awaited<ReturnType<SessionPrincipalBindingSource['read']>>
 type WorkRequest = Parameters<SessionWorkPrincipals<unknown>['forSession']>[0]
 type SessionRef = Readonly<{ tenant: TenantId; session: SessionId }>
 
-/** One scripted answer of the binding read: a result, or a throw of `error`. */
 export type SessionPrincipalBindingsScript =
   | BindingRead
   | Readonly<{ kind: 'throw'; error: unknown }>
@@ -238,16 +221,12 @@ export type SessionPrincipalBindingsScript =
 export interface MemorySessionPrincipalBindings extends SessionPrincipalBindingSource {
   readonly durability: 'none'
   readonly controls: Readonly<{
-    /** Records `session` as established under `tenant`. */
     bind(tenant: TenantId, session: SessionId): void
-    /** The next read answers `script` instead of the table. Scripts queue in call order. */
     answerNext(script: SessionPrincipalBindingsScript): void
-    /** The received requests in call order. */
     asked(): readonly SessionRef[]
   }>
 }
 
-/** A table of established sessions. A session not in the table, or under another tenant, is not bound. */
 export function createMemorySessionPrincipalBindings(
   bound: readonly SessionRef[] = [],
 ): MemorySessionPrincipalBindings {
@@ -290,19 +269,13 @@ export function createMemorySessionPrincipalBindings(
 export interface MemorySessionWorkPrincipals<P> extends SessionWorkPrincipals<P> {
   readonly durability: 'none'
   readonly controls: Readonly<{
-    /** The next issue fails, as an `IssueFailure` of the identity issuer would. */
     failNextIssue(): void
-    /** The received requests in call order. */
     asked(): readonly WorkRequest[]
   }>
 }
 
 type WorkFailure = Extract<SessionFailure, { kind: 'denied' | 'unavailable' | 'quarantined' }>
 
-/**
- * Per-session principals over `bindings`, in the failure mapping of D-AUTH r4 4.1. `issue` makes
- * the principal of one checked request; the double calls it only after the binding matched.
- */
 export function createMemorySessionWorkPrincipals<P>(
   input: Readonly<{
     bindings: SessionPrincipalBindingSource
@@ -351,7 +324,6 @@ export function createMemorySessionWorkPrincipals<P>(
   })
 }
 
-/** What the binding suite needs: a source where `bound` is established, and another tenant. */
 export interface SessionPrincipalBindingsFixture {
   readonly source: SessionPrincipalBindingSource
   readonly bound: SessionRef
@@ -391,11 +363,6 @@ export function sessionPrincipalBindingsConformance(): readonly ConformanceCase<
   ]
 }
 
-/**
- * What the work principals suite needs. `principals` reads a binding source where `bound` is
- * established. `answerNextRead`, when offered, scripts the next read of that source;
- * `failNextIssue` makes the next issue fail.
- */
 export interface SessionWorkPrincipalsFixture<P> {
   readonly principals: SessionWorkPrincipals<P>
   readonly bound: SessionRef

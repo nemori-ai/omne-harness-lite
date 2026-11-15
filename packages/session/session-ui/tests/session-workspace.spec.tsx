@@ -1,6 +1,4 @@
 // @vitest-environment happy-dom
-// The main scene through the component and a fake protocol client: create a session, send one
-// sentence, see the reply stream in, see it replaced by the committed message, cancel the run.
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { parseInstant } from '@omne-harness/utc-instant'
 import { StrictMode } from 'react'
@@ -95,7 +93,6 @@ it('W1 主场景：新建会话、发一句话、流式回复、被历史替换�
   expect(screen.getByText('正在生成')).toBeTruthy()
   expect(screen.getByText(/正在回答你/)).toBeTruthy()
 
-  // Still running: typing goes on, and Stop is there.
   fireEvent.change(input, { target: { value: '再说一句' } })
   expect((input as HTMLTextAreaElement).value).toBe('再说一句')
 

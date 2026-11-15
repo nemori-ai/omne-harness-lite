@@ -1,22 +1,3 @@
-// AD-06 on real Cordis 4.0.4: the Tool log consumption plugin. Session and the Agent Journal are the
-// `./testing` memory provider of this member; the plugin reaches them only through the four injected
-// services. What is checked: a Tool `received` entry of the same Journal becomes one entries-channel
-// Session batch through `receive(execution)` and `receive(account)` (`call.execution-fact`,
-// `account.linked` when an account was reported, and the progress row), read as `coordinator`; a
-// second read commits nothing and a lost reply is recognized under the original operation; without
-// an adopted reading of the Tool delivery material (TOOL-SETTLEMENT-SCHEMA) every Tool entry answers
-// unavailable and nothing is committed; an unknown schema, a missing material, entries absent, a
-// binding that disagrees with Session, a material of another kind or key, a result material without
-// its complete settlement and a delivery that fails Tool's own check fail without a commit; two
-// independent reads derive the same operation; a late result after a terminal Run is committed under
-// the original binding and left to Session; an unbound call waits; another tenant is denied; Model
-// entries are not this channel; a dependency that does not answer in the configured time is
-// unavailable; the plugin is pending while a dependency is absent and answers unavailable after it
-// stops, except after a commit-unknown, which stays commit-unknown.
-//
-// The reader of the Tool delivery material is a stand-in of this test: no Agent owner has adopted
-// the facts schema of a received Tool delivery yet (AGENT-M06). It decodes the envelope that the
-// Agent result receiver uses for Model deliveries, `{ tenant, delivery }`, under a test schema.
 import { Context, Service } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import type {
@@ -52,9 +33,6 @@ import { evidence, ok, operation, operationId, scene } from './fixtures/common-j
 import { cancel } from './fixtures/progression.ts'
 import { toolCall } from './fixtures/tool-call.ts'
 
-// --- the Tool delivery material ------------------------------------------------------------------
-
-/** The schema this test keeps its Tool delivery facts under; no owner has adopted one. */
 const SCHEMA = { owner: 'test', name: 'tool-delivery', revision: '1', digest: 'test:tool-delivery' }
 type Json = Extract<Material<ContentBlock>, { kind: 'facts' }>['value']
 type Draft = Omit<ReceivedEntry, 'material'>
@@ -97,7 +75,6 @@ function textOf(tenant: TenantId): string {
   return encoded.value
 }
 
-/** The full Tool delivery that the receiver kept for one `received` draft. */
 function deliveryOf(draft: Draft): Record<string, unknown> {
   const { delivery } = draft
   if (delivery.producer !== 'tool') throw new Error('fixture: a Tool entry')
@@ -130,7 +107,6 @@ function materialOf(
   }
 }
 
-/** The stand-in reading of the test schema: the envelope, or null for any other material. */
 const reader: ToolDeliveryReader = material => {
   if (material.kind !== 'facts' || material.schema.digest !== SCHEMA.digest) return null
   const value = plain(material.value) as { tenant?: unknown; delivery?: unknown }
@@ -138,9 +114,6 @@ const reader: ToolDeliveryReader = material => {
   return { tenant: value.tenant, delivery: value.delivery as ToolDelivery<ContentBlock> }
 }
 
-// --- the scene -----------------------------------------------------------------------------------
-
-/** A Tool result entry of the call of `account`, with the account the runtime completed, or null. */
 function resultEntry(account: ReceivedEntry, reported = true): ReceivedEntry {
   if (account.delivery.producer !== 'tool' || account.delivery.key.kind !== 'account')
     throw new Error('fixture: a Tool account entry')
@@ -159,10 +132,6 @@ function resultEntry(account: ReceivedEntry, reported = true): ReceivedEntry {
   }
 }
 
-/**
- * One session with an open execution that waits on one Tool call. With `bind`, Session has
- * interpreted the waiting event, so it holds the call's producer binding.
- */
 async function toolScene(name: string, bind = true) {
   const s = await scene(name)
   const tool = toolCall(s.access.tenant, name)
@@ -200,7 +169,6 @@ async function toolScene(name: string, bind = true) {
 }
 type ToolScene = Awaited<ReturnType<typeof toolScene>>
 
-/** The Agent result receiver saves one delivery: entry, material and saved in one commit. */
 async function receive(
   s: ToolScene,
   entry: ReceivedEntry,
@@ -221,7 +189,6 @@ async function receive(
   )
 }
 
-/** The Session rows that the entries channel wrote, by kind. */
 function entriesKinds(s: ToolScene): string[] {
   return s.backend.controls
     .entriesOf(s.access.tenant, s.access.session)
@@ -242,20 +209,14 @@ type Options = Readonly<{
   mountOnly?: readonly (typeof ALL)[number][]
   reader?: ToolDeliveryReader | null
   config?: Readonly<{ timeoutMs?: number; retryBackoffMs?: number }>
-  /** The coordinator principal of the published-event trigger; without it the plugin has no trigger. */
   coordinator?: SessionToolLogConsumptionInput['coordinator']
 }>
 
-/**
- * A real Cordis root with the four dependencies of AD-06 over the scene's memory provider, and the
- * plugin. `wraps` replace one dependency call; `mountOnly` limits the dependencies that are present.
- */
 async function assembled(s: ToolScene, options: Options = {}) {
   const { wraps = {}, mountOnly = ALL } = options
   const ctx = new Context()
   const logged: { type: string; text: string }[] = []
   ctx.logger.exporter({
-    // Level 2 takes warn; the exporter default of 1 takes only error and success.
     levels: { default: 2 },
     export: message => logged.push({ type: message.type, text: String(message.args[0]) }),
   })
@@ -286,7 +247,6 @@ async function assembled(s: ToolScene, options: Options = {}) {
       return (wraps.load ?? s.view.journal.load)(input)
     }
   }
-  // The entries port of the same Journal provider, mounted with the Journal.
   class Entries extends Service {
     constructor(scope: Context) {
       super(scope, agentJournalEntriesKey)
@@ -314,7 +274,6 @@ async function assembled(s: ToolScene, options: Options = {}) {
   }
   const services = { Session, Journal, Materials, Transactions } as const
   for (const name of mountOnly) await mount(ctx, services[name])
-  // The entries port is always present: the cases of an absent dependency name the four above.
   await mount(ctx, Entries)
   const consumption = createSessionToolLogConsumptionPlugin({
     toolDeliveries: options.reader === undefined ? reader : options.reader,
@@ -355,8 +314,6 @@ function progressOf(s: ToolScene) {
     .readWork(s.access)
     .then(work => ok(work).entriesProgress?.find(item => item.channel === 'tool-received'))
 }
-
-// --- interpretation ------------------------------------------------------------------------------
 
 describe('a Tool received entry becomes one entries-channel Session batch', () => {
   it('a result with an account: receive(execution) and receive(account), and the progress, read as coordinator', async () => {
@@ -566,7 +523,6 @@ describe('failures stay failures and commit nothing', () => {
   })
 
   it.each([
-    // A well-formed key of another result version of the same call: only the key check tells it.
     [
       'key',
       (value: Record<string, unknown>) => {
@@ -686,10 +642,6 @@ function withDelivery(value: Record<string, unknown>, change: Record<string, unk
   return { ...value, delivery: { ...(value.delivery as Record<string, unknown>), ...change } }
 }
 
-/**
- * Wraps that show the plugin `entry` changed by `change`, both in the Journal load and in the
- * material it reads, so that only the plugin's own checks of the entry can refuse it.
- */
 function changedEntry(
   s: ToolScene,
   entry: ReceivedEntry,
@@ -945,12 +897,10 @@ describe('another tenant', () => {
 })
 
 describe('AD-06 trigger: the event of the Journal plugin wakes the consumption', () => {
-  /** Lets the not-awaited dispatch of an event and the queued consumption finish. */
   const settle = () => new Promise<void>(resolve => setTimeout(resolve, 50))
   const coordinator = (s: ToolScene): SessionToolLogConsumptionInput['coordinator'] => {
     return async () => succeed(s.access.principal as unknown)
   }
-  /** What the Journal plugin sends after a successful write; the memory Journal does not. */
   const published = (f: Awaited<ReturnType<typeof assembled>>, s: ToolScene) =>
     f.ctx.parallel(
       'session-adapters/agent-published',
@@ -1117,7 +1067,6 @@ describe('loading and stopping on real Cordis 4.0.4', () => {
     let stop!: () => Promise<unknown>
     const f = await assembled(s, {
       wraps: {
-        // The commit lands, its reply is lost, and the plugin stops before it sends again.
         commitEntries: async input => {
           ok(await s.backend.transactions.commitEntries(input))
           await stop()

@@ -1,10 +1,3 @@
-// What a joint commit of the Journal provider hands on (session-storage-sql「本批与提交通知」,
-// RT-04): the storage answer goes to the one landing of session-storage-sql, which folds the batch
-// of the Session participation and tells it to the notifiers registered on the database. The
-// Session participation of an Agent journal commit is the fourth committer of the session log (the
-// main reply and the tool messages go through it), so its batch is told like any other: once, with
-// the revision, the batch evidence and the kinds the writer gave; a recall of the same Agent
-// operation tells nothing. A Session reply the Journal cannot decode changes no Agent answer.
 import type { SessionNotifier } from '@omne-harness/session-contract'
 import { assistantMessage } from '@omne-harness/session-contract/testing'
 import { registerSessionNotifier } from '@omne-harness/session-storage-sql'
@@ -34,7 +27,6 @@ async function scene(name: string) {
 const loadOf = async (s: SqlScene) =>
   ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
 
-/** One Agent commit at the current head; `change` gives what differs from an empty commit. */
 async function commitInput(s: SqlScene, label: string, change: Partial<CommitInput>) {
   const loaded = await loadOf(s)
   const authority = loaded.executionAttachment
@@ -57,7 +49,6 @@ async function commitInput(s: SqlScene, label: string, change: Partial<CommitInp
   } as CommitInput
 }
 
-/** Open, the handover of the initial input and the take of it. */
 async function started(s: SqlScene) {
   const opened = ok(await s.view.journal.open(s.openInput))
   ok(await handed(s, String(s.initial.id), opened.receipt.evidence))
@@ -79,7 +70,6 @@ async function started(s: SqlScene) {
   )
 }
 
-/** The kinds of the entries of `revision` in the session log, without repeats, sorted. */
 async function kindsOf(s: SqlScene, revision: string): Promise<readonly string[]> {
   const page = ok(
     await s.port.history.begin({
@@ -127,7 +117,6 @@ describe('the Session participation of an Agent journal commit, the fourth commi
     expect(notice.kinds).toEqual(['message.assistant'])
     expect([...notice.kinds].sort()).toEqual(await kindsOf(s, notice.revision))
 
-    // The same Agent operation again: the storage recalls it, and nothing more is told.
     ok(await s.view.journal.commit(input))
     await new Promise(resolve => setTimeout(resolve, 0))
     expect(notices).toHaveLength(1)

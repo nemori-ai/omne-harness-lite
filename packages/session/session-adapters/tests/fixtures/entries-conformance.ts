@@ -85,8 +85,6 @@ export function entriesFixture() {
       ? view.materials.read(input)
       : fail({ kind: 'unavailable', owner: 'material', diagnostic: 'no original material route' })
   }
-  // The events as `AgentJournal.read` pages them; `denied` is the answer for an execution that
-  // does not exist (or belongs to another tenant), any other failure is a defect of the run.
   const listEvents = async (
     who: Access<string>,
     execution: AgentExecutionId,
@@ -180,9 +178,6 @@ export function entriesFixture() {
           finish: null,
         }),
       )
-      // The Session hands the pending input over by interpreting the input-taken event; its
-      // sequence depends on what the case wrote before (an entry written after a takeover already
-      // holds an earlier one), so it is looked up by content, not fixed.
       const taken = (await listEvents(who, execution))?.find(
         event => event.body.kind === 'input-taken' && event.body.batch.id === page.batch.id,
       )
@@ -196,8 +191,6 @@ export function entriesFixture() {
           sequence: taken.sequence,
         }),
       )
-      // F1, F2, prepareFinish, load and tryFinish (Agent SPEC "条件终结"): the Journal fixes the
-      // candidate, sets the proof and issues the obligations; this end writes neither.
       const settle = async (step: string, finish: boolean) => {
         const current = ok(await provider.journal.load({ ...who, execution }))
         ok(
@@ -261,8 +254,6 @@ export function entriesFixture() {
       return 'ok' in read ? read.ok.items.map(item => item.entry) : undefined
     },
     events: listEvents,
-    // Detaches the current attachment through the public port, as `AgentJournalAttachment.detach`
-    // does; the execution stays open (suspended) and the detached attachment stays the latest one.
     async detach(who, execution) {
       const loaded = ok(await provider.journal.load({ ...who, execution }))
       const authority = loaded.executionAttachment
@@ -277,8 +268,6 @@ export function entriesFixture() {
         }),
       )
     },
-    // Scripts the next `record` of that execution that reaches its write step; see the control of
-    // the same name on the session journal's receiving controls.
     async failNextRecord(who, execution, fault) {
       bound({ ...who, execution }).controls.failNextRecord({ ...who, execution }, fault)
     },

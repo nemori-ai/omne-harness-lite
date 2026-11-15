@@ -46,7 +46,6 @@ function openScopes(
   return scopes
 }
 
-/** One tenant's adapter lifecycle. Runtime Context owns generations and the actual published state. */
 export function createSessionModesPublisher<P>(input: SessionModesPublisherInput<P>) {
   let closed = false
   let handle: Handle | undefined

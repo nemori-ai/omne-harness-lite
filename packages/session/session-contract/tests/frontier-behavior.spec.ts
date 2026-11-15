@@ -75,7 +75,6 @@ async function registered() {
       },
     ],
   }
-  // A separate original source supplies this event; the first fixture only supplied observed.
   const index = fixture.snapshot.historyIndex
   if (index === undefined) throw new Error('history fixture')
   const snapshot = {
@@ -695,8 +694,6 @@ describe('original admission directory pages', () => {
       expect(projectSessionLog(snapshot, observation, { ...reads, admissions }).kind).toBe(
         'rejected',
       )
-    // The head revision is compared as an integer, not a float: one below it is an expired
-    // same-root basis (changed, read again), one above it was never a head (invalid).
     expect(
       projectSessionLog(snapshot, { ...observation, revision: '9007199254740992' }, reads),
     ).toMatchObject({ kind: 'rejected', failure: { kind: 'changed' } })

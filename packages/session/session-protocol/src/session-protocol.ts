@@ -1,9 +1,5 @@
 import { defineProtocol, ruleCodec, type Rule, type RuleValue } from '@omne-harness/public-contract'
 
-// The rule texts are copied from the `session-public/1` family of the public contract
-// (`session-rules.ts`), so that Session owns them. That copy goes with the run that removes the
-// old family. The rules stay literals: the value types come from them through `RuleValue`.
-
 type Fields = Readonly<Record<string, { readonly rule: Rule; readonly optional?: true }>>
 
 const text = { kind: 'text' } as const
@@ -20,7 +16,6 @@ const literal = <const V extends readonly string[]>(...values: V) =>
 const nullable = <const R extends Rule>(rule: R) =>
   ({ kind: 'one-of', rules: [rule, nothing] }) as const
 
-/** Every operation but `create-session` names its target tenant in the body, not in the envelope. */
 const target = { tenant: { rule: tenant }, session: { rule: session } } as const
 
 const producer = object({ kind: { rule: literal('model', 'tool') }, call: { rule: text } })
@@ -31,7 +26,6 @@ const terminalSource = object({
   digest: { rule: text },
 })
 
-/** `requested` and `ended` differ in the literal `kind`, so the two options are disjoint. */
 function controlAnswer<const T extends Fields, const R extends Rule>(controlled: T, terminal: R) {
   return {
     kind: 'one-of',
@@ -55,8 +49,6 @@ const limited = ruleCodec(
   }),
 )
 
-// RFC-0015「列出会话」. `cursor` is the `next` of the page before, or null for the first page. Without
-// `limit` the deployment's default applies; without `includeArchived` archived sessions are left out.
 const listSessions = object({
   tenant: { rule: tenant },
   cursor: { rule: nullable(text) },
@@ -64,9 +56,6 @@ const listSessions = object({
   includeArchived: { rule: boolean, optional: true },
 })
 
-// A session list is a projection, most recent activity first. The two instants are null for a
-// session that was created before commit times were recorded; `title` is null until the session has
-// a user message with text. `partial` means the page reached the row bound of one read.
 const sessionList = object({
   sessions: {
     rule: {
@@ -84,7 +73,6 @@ const sessionList = object({
   completeness: { rule: literal('complete', 'partial') },
 })
 
-// The first page has a null `cursor` with `direction` and `pageBytes`; a later page has only the cursor.
 const readHistory = {
   kind: 'one-of',
   rules: [
@@ -98,11 +86,7 @@ const readHistory = {
   ],
 } as const
 
-// entryId is a non-empty RecordEntryRef. Two axes appear here as opaque decimal text and never
-// compare with each other (SPEC.md「会话修订号与读历史」): a session revision (an entry's
-// `revision`, the page's `upper`, a state frame's `revision`) and a scan position (`scannedThrough`).
 const historyPage = object({
-  // The session revision this traversal is pinned to: the same on every page of one cursor chain.
   upper: { rule: anyText },
   entries: {
     rule: {
@@ -145,12 +129,9 @@ const observeSessionFrame = {
   ],
 } as const
 
-/** The opening body of `observe-session` (RFC-0015 §8 `ObserveSessionOpen`). */
 export type ObserveSessionOpen = RuleValue<typeof observeSessionOpen>
-/** One frame of `observe-session` (RFC-0015 §8 `ObserveSessionFrame`). */
 export type ObserveSessionFrame = RuleValue<typeof observeSessionFrame>
 
-/** `session/v1`. SPEC.md gives the operation table and the four differences from `session-public/1`. */
 export const sessionProtocol = defineProtocol({
   name: 'session',
   major: 1,
@@ -179,7 +160,6 @@ export const sessionProtocol = defineProtocol({
       effect: 'read',
       limit: 'small',
       body: ruleCodec(object({ tenant: { rule: tenant }, createCallId: { rule: text } })),
-      // A read, but it can find that the create it asks about has no known result.
       outcomes: { succeeded: ruleCodec(object({ session: { rule: session } })), unknown: true },
       countsAsAccess: true,
     },
@@ -210,7 +190,6 @@ export const sessionProtocol = defineProtocol({
       effect: 'read',
       limit: 'small',
       body: ruleCodec(object({ ...target, acceptId: { rule: text } })),
-      // A read, but it can find that the input it asks about has no known result.
       outcomes: { succeeded: empty, 'not-committed': empty, unknown: true },
       countsAsAccess: true,
     },

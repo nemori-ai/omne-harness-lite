@@ -1,5 +1,3 @@
-// The session axis and the session list side by side (SPEC.md「会话管理」). Each event goes to the
-// axis it belongs to. The only coupling: an activity seen on the session axis reloads the list.
 import {
   stepList,
   UNREAD,
@@ -41,11 +39,6 @@ export function stepWorkspace(workspace: Workspace, event: WorkspaceEvent): Work
   }
 }
 
-/**
- * The three commits the server counts as activity (RFC-0015 §8「列出会话」), as the session axis
- * sees them: a create that succeeded, an input newly accepted, a run that ended. Judged from the
- * states, so a stale answer, which leaves the state as it was, never counts.
- */
 function isActivity(before: State, after: State): boolean {
   if (before.kind === 'creating') return after.kind === 'open'
   if (before.kind !== 'open' || after.kind !== 'open' || before.session !== after.session)

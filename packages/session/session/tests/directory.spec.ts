@@ -1,5 +1,3 @@
-// The session list face (contract「会话列表」): it admits the reader class only, asks the access check
-// once at the public port, and answers unavailable when the port offers no directory.
 import { afterEach, describe, expect, it } from 'vitest'
 import { memoryBackend } from './fixtures/backends.ts'
 import { harness, type Harness } from './fixtures/harness.ts'

@@ -1,5 +1,3 @@
-// The eight handlers of `session/v1` against the Session double: one success each, each refusal of
-// the operation's contract, the target tenant refused by identity, and a service not on the tree.
 import { describe, expect, it } from 'vitest'
 import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
@@ -469,7 +467,6 @@ describe('read-history', () => {
       cursor: 'cursor:1',
     })
     expect(next).toMatchObject({ outcome: 'succeeded', body: { exhausted: true } })
-    // Both pages carry the traversal's pinned revision, as Session gave it (one commit: the create).
     expect(page).toMatchObject({ body: { upper: '1' } })
     expect(next).toMatchObject({ body: { upper: '1' } })
   })
@@ -719,7 +716,6 @@ describe('list-sessions', () => {
   const body = { tenant: ALICE.tenant, cursor: null }
   const entry = (session: string, over: Partial<SessionListEntry> = {}): SessionListEntry => ({
     session,
-    // The stand-in list hands the rows through; the handler never reads the instants.
     createdAt: '2026-11-13T01:00:00Z' as unknown as SessionListEntry['createdAt'],
     lastActivityAt: '2026-11-13T02:00:00Z' as unknown as SessionListEntry['lastActivityAt'],
     lifecycle: 'dormant',

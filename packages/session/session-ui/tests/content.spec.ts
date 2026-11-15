@@ -1,4 +1,3 @@
-// The content merge and the conversation built from it: one case per situation of SPEC.md「内容的合并」.
 import { describe, expect, it } from 'vitest'
 import {
   applyDelta,
@@ -33,7 +32,6 @@ describe('内容的合并', () => {
     const first = mergeHistory(EMPTY_CONTENT, [userEntry('2', '2', 'b'), userEntry('1', '1', 'a')])
     const second = mergeHistory(first, [userEntry('2', '2', 'b2'), userEntry('10', '10', 'c')])
     expect(second.entries.map(entry => entry.entryId)).toEqual(['1', '2', '10'])
-    // Merging a page does not move how far history is read: only a finished traversal does.
     expect(second.readThrough).toBeNull()
   })
   it('历史读到哪个修订：取读完的那一轮固定的上界，只增不减', () => {

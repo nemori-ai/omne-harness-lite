@@ -16,7 +16,6 @@ export const tenant = JSON.stringify({
 })
 export const session = '0123456789abcdef'.repeat(4)
 
-/** Any codec of the contract; the samples are untyped JSON, so the value type is not checked. */
 type AnyCodec = Codec<any>
 
 export function tree(value: unknown) {
@@ -29,7 +28,6 @@ export function readSample(codec: AnyCodec, sample: unknown) {
   return codec.read(tree(sample), limits)
 }
 
-/** Reads the sample, writes the value back, and checks the written JSON is the sample. */
 export function expectRoundTrip(codec: AnyCodec, sample: unknown): unknown {
   const read = readSample(codec, sample)
   if (!read.ok) throw new Error('sample not accepted')

@@ -218,18 +218,8 @@ export type JointFact = Readonly<{
 
 type Qualification<P, X> = (input: Access<P> & X) => boolean
 
-/**
- * The current decision of the joint participation one public `commit` or `recordResult` derives:
- * the evidence of the allowed decision and the digest of the command it decided. The journal
- * hands it to the participant of the same call only.
- */
 export type JointDecision = Readonly<{ evidence: DurableEvidence; digest: string }>
 
-/**
- * The answer of a public write whose participation was decided for a revision that a concurrent
- * write of the same execution has since passed: nothing of this call is committed, the decision is
- * not asked again within the call, and a retry decides the participation at the current revision.
- */
 export const outrunParticipation: Failure = {
   kind: 'unavailable',
   owner: 'session-qualification',
@@ -243,34 +233,18 @@ export type MemoryAgentJournalOptions<P> = Readonly<{
     method: 'commit' | 'recordResult',
   ) => Promise<Failure | undefined>
 
-  /**
-   * Asked once per public `commit` or `recordResult` whose caller participates, after the Agent
-   * qualification and before any Session preparation or the joint publication. `receipt` is the
-   * receipt this call will issue: the same operation at the same revision issues the same evidence,
-   * so the decided command and the published command carry the same participation.
-   */
   qualifyParticipation?: (
     input: ExecutionMutation<P>,
     method: 'commit' | 'recordResult',
     receipt: CommandReceipt,
   ) => Promise<Outcome<JointDecision, Failure>>
 
-  /**
-   * Whether one public `commit` or `recordResult` derives a Session participation, so that
-   * `qualifyParticipation` decides it. Absent: the call participates when its caller is not none.
-   * A binding whose fixed history combination also writes the main reply of a caller-none Ja
-   * (Agent SPEC "真实历史的提交点") says so here.
-   */
   participates?: (input: ExecutionMutation<P>, method: 'commit' | 'recordResult') => boolean
 
   retainedToolInvocationFaults?: boolean
 
   participants?: Iterable<JointCommitKind>
 
-  /**
-   * The Session co-check of the grant of `open` or `attach` (PA-01 items 1 and 3), run in the same
-   * write. This binding is coordinated: a null grant, or a grant the check refuses, is denied.
-   */
   grant?: Qualification<
     P,
     Readonly<{ execution: AgentExecutionId; grant: DurableEvidence; method: 'open' | 'attach' }>
@@ -286,29 +260,13 @@ export type MemoryAgentJournalOptions<P> = Readonly<{
 
   replyAdmissionRule?: Adoption
 
-  /**
-   * The trusted cancellation judgment this binding holds (Agent SPEC "安装记录与资格"): the
-   * installation governance issued and the pure implementation it names, taken at the assembly
-   * entry, never from a caller. Absent: the candidate, migration and judgment variants of
-   * commitSettlement answer `unavailable`.
-   */
   cancellation?: Readonly<{
     installation: CancellationPolicyInstallation
     policy: CancellationPolicy
   }>
 
-  /**
-   * The trusted host reads the three custody variants of commitSettlement resolve a source to,
-   * by the record text of the source evidence; read at each call. A source no record answers is
-   * unreadable: the variant answers `unavailable`.
-   */
   hostRecords?: ReadonlyMap<string, TestHostRecord>
 
-  /**
-   * The read-only terminal condition of the Session participant of this coordinated binding
-   * (AD-01, PA-02) for the cancel `control`: the participant fact of a judgment input, read again
-   * by tryFinish on the cancellation route. Absent: a judgment carries no participant fact.
-   */
   terminalParticipant?: (
     input: Readonly<{ execution: AgentExecutionId; control: AgentOperationId }>,
   ) => TerminalParticipantFact
@@ -354,13 +312,6 @@ export type MemoryAgentJournal<P> = Readonly<{
 
   joint(): readonly JointFact[]
 
-  /**
-   * Seeds a legacy cancelled candidate as a writer of the old protocol left it (Agent SPEC
-   * "旧取消记录的迁移"): a candidate whose conclusion is cancelled, on an author route whose
-   * before-terminal proof is set, with one new revision. It writes the Journal records directly,
-   * not through `commit`: the protocol fence does not accept such an F1 any more. Answers false
-   * when the execution is not held or already ended.
-   */
   seedLegacyCandidate(
     execution: AgentExecutionId,
     candidate: AgentOperationId,
@@ -369,28 +320,14 @@ export type MemoryAgentJournal<P> = Readonly<{
 
   applyRetention(execution: AgentExecutionId, tenant?: TenantId): number
 
-  /** The reply admission controls of the Agent D5 tests (Agent SPEC "回复准入的已核实前缀"). */
   replyAdmissions: SessionReplyAdmissionControls
 }>
 
-/** The reply admission controls of this Journal; `tenant` names the tenant when two could match. */
 export type SessionReplyAdmissionControls = Readonly<{
-  /**
-   * Admits `count` admitted model reply facts in one new revision, as original Ja commits would:
-   * each with its sequence, basis, publication and the incremental projection. Answers false
-   * when the execution is not held or ended.
-   */
   seed(execution: AgentExecutionId, count: number, tenant?: TenantId): boolean
-  /** Removes ledger material as a storage fault would. Answers false when it names nothing. */
   damage(execution: AgentExecutionId, damage: AdmissionDamage, tenant?: TenantId): boolean
-  /** Sets this Journal's own page bounds; null leaves a bound out. Default: none. */
   limitPages(limits: AdmissionPageLimits): void
-  /** The read counters of this Journal since it was created. */
   statistics(): Readonly<AdmissionCounters>
-  /**
-   * Changes the projection rule. `rebuild` converts the projection of the execution by folding
-   * its facts from the origin; `none` leaves it, so `load` answers `unavailable`.
-   */
   changeRule(
     execution: AgentExecutionId,
     rule: Adoption,
@@ -401,21 +338,14 @@ export type SessionReplyAdmissionControls = Readonly<{
 
 type Attachment = {
   authority: Authority
-  /** The grant the Session handed out for this attachment (`exec.attached.grant`), as given. */
   grant: DurableEvidence | null
   status: 'active' | 'detached' | 'superseded'
   handoff: DurableEvidence | null
-  /** The revision at which the handoff was established, for a later detach that recognizes it. */
   handoffRevision: number
 }
 
 type Range = Readonly<{ from: number; to: number }>
 
-/**
- * The input range of a batch that an execution took, when the in-process index is rebuilt from the
- * events: from the position of its first input, or, for an empty batch (a step that took no input),
- * the range its identity names, which `inputs` issued as `batchIdOf(execution, from, to)`.
- */
 function takenRange(
   execution: Readonly<{ id: AgentExecutionId; inputs: readonly Readonly<{ id: InputId }>[] }>,
   batch: Readonly<{ id: InputBatchId; ordered: readonly InputId[] }>,
@@ -436,7 +366,6 @@ function takenRange(
     : undefined
 }
 
-/** The schema the Journal stamps on every event unless the options name one. */
 export const DEFAULT_EVENT_SCHEMA: Adoption = Object.freeze({
   owner: JOURNAL_OWNER,
   name: 'agent-event',
@@ -444,7 +373,6 @@ export const DEFAULT_EVENT_SCHEMA: Adoption = Object.freeze({
   digest: 'memory:agent-event',
 })
 
-/** The reply admission rule of the Journal unless the options name one. */
 export const DEFAULT_REPLY_ADMISSION_RULE: Adoption = Object.freeze({
   owner: JOURNAL_OWNER,
   name: 'reply-admission-projection',
@@ -456,22 +384,18 @@ export type MemoryExecution = {
   id: AgentExecutionId
   tenant: TenantId
   revision: number
-  /** The committed state; the FinishIntent of a settling execution is projected from `finishing`. */
   state: JournalCommitState | Extract<ExecutionState, { kind: 'ended' }>
   checkpoint: AgentCheckpoint
   attachments: Attachment[]
   inputs: AcceptedInput[]
-  /** The revision at which each input was accepted, for a later submit that recognizes it. */
   inputRevisions: Map<InputId, number>
 
   events: AgentEvent[]
   retainedFrom: number
   acknowledged: number
-  /** The revision at which the acknowledged prefix last advanced. */
   acknowledgedAt: number
   controls: ControlRecord[]
   results: ResultResponsibility[]
-  /** The revision at which each result responsibility was last established, by result and consumption. */
   resultRevisions: Map<string, number>
   effects: EffectIntent[]
   observations: TerminalObservation[]
@@ -479,20 +403,15 @@ export type MemoryExecution = {
   stageReceipts: Map<string, CommandReceipt>
 
   observed: Map<TerminalObservation['passage'], CommandReceipt>
-  /** The reply admission facts: index i holds the sequence i + 1. */
   admissions: AdmissionRecord[]
   admissionLedger: AdmissionLedger
   entries: AgentJournalEntry[]
-  /** The handoff responsibilities of the execution, as `load.handoffs` projects them (SPEC "消息准入"). */
   handoffs: HandoffRecord[]
-  /** Every Rh attempt that reached the write step, by operation, for the custody chain of its H. */
   custodyAttempts: Map<AgentOperationId, CustodyAttempt>
-  /** The candidate, route, obligation, judgment and custody records (Agent SPEC "条件终结"). */
   finishing: FinishingRecords
   serial: number
 }
 
-/** One handoff responsibility; a write of the common root changes it in place on its draft copy. */
 export type HandoffRecord = {
   handoff: HandoffReference
   request: HandoffRequest
@@ -516,11 +435,6 @@ type Committed = Readonly<{
   value: unknown
   receipt: CommandReceipt
 }>
-/**
- * An excluded operation. The record names its execution, operation and reason so that the next
- * batch of the execution carries the exclusion as an `op.excluded` fact when the view does not
- * hold it yet (a held write the storage dropped, a re-run that answered without writing).
- */
 type Excluded = Readonly<{
   kind: 'excluded'
   key: string
@@ -529,7 +443,6 @@ type Excluded = Readonly<{
   reason: ExclusionReason
   evidence: DurableEvidence
 }>
-/** The persistent rejection of a recordControl (Agent SPEC "查询的四种结论与持久拒绝"). */
 type Rejected = Readonly<{
   kind: 'rejected'
   key: string
@@ -544,7 +457,6 @@ type Pending = Readonly<{
   execution: AgentExecutionId
   operation: AgentOperationId
   run: () => void
-  /** What a drop of the held write records besides the exclusion; the attempt reached the write. */
   drop?: () => void
 }>
 export type OperationRecord = Committed | Rejected | Excluded | Pending
@@ -553,11 +465,6 @@ export type Attempt<R> =
   | Readonly<{ kind: 'answer'; value: Outcome<R, Failure> }>
   | Readonly<{ kind: 'unknown' }>
   | Readonly<{ kind: 'write'; value: R; receipt: CommandReceipt; apply: () => void }>
-  /**
-   * A command of the fact family (SPEC "事实族与折叠核"): the facts its judgement produced, the
-   * blocks they refer to, the participation kinds of the batch, the answer derived from the
-   * appended batch, and the projection of the batch onto the reader view of the execution.
-   */
   | Readonly<{
       kind: 'batch'
       facts: readonly FactBody[]
@@ -565,13 +472,8 @@ export type Attempt<R> =
       kinds: readonly ParticipationKind[]
       derive: (answer: Answer) => R
       project: (batch: PublishedBatch, view: ExecutionView) => void
-      /** The state the receipt names: `applied` unless the command accepts (submit, control). */
       receiptState?: CommandReceipt['state']
     }>
-  /**
-   * Contradicting evidence: the audit is a fact of one batch with one new revision, and the
-   * conflict is fixed under the operation.
-   */
   | Readonly<{
       kind: 'reject'
       failure: Extract<Failure, { kind: 'conflict' }>
@@ -671,7 +573,6 @@ function controlTarget(
   return succeed({ command, toolInvocation: matched.reference, toolOperation: null })
 }
 
-/** The interrupt and background controls that name the call of `effect`, by their operations. */
 function interruptionsOf(
   effect: EffectIntent,
   controls: readonly ControlRecord[],
@@ -721,7 +622,6 @@ type RetainedFaultInput = Parameters<
   MemoryAgentJournal<unknown>['setRetainedToolInvocationFault']
 >[0]
 
-/** The key of one operation record: the encoded tenant, the execution and the operation. */
 export function operationText(
   tenant: string,
   execution: AgentExecutionId,
@@ -832,25 +732,13 @@ function attachedRecord(
   }
 }
 
-// ---------------------------------------------------------------------------------------------
-// The reply admission ledger (Agent SPEC "回复准入的已核实前缀"): the same rules as the ledger of
-// the Agent memory Journal (packages/agent/agent/src/testing/journal-admissions.ts), kept here so
-// that this provider answers the Agent conformance suite on its own. A write replaces the records
-// list and the ledger value; it never changes one in place, so the copy of an execution in a
-// common-root draft stays apart from the published one.
-
-/** One reply admission fact as the Journal keeps it, at index `sequence - 1`. */
 export type AdmissionRecord = Readonly<{
   fact: ModelReplyAdmission
-  /** The receipt evidence of the original Ja that published the fact. */
   publication: DurableEvidence
-  /** The basis of the prefix that ends with this fact; null when a test removed it. */
   basis: DurableEvidence | null
-  /** False when a test removed the fact itself. */
   present: boolean
 }>
 
-/** The projection the original Ja maintains: the counts under `rule` and the end prefix. */
 export type AdmissionProjection = Readonly<{
   rule: Adoption
   consecutive: number
@@ -860,40 +748,26 @@ export type AdmissionProjection = Readonly<{
   basis: DurableEvidence
 }>
 
-/** The per-execution state of the ledger besides the facts. A write replaces it whole. */
 export type AdmissionLedger = Readonly<{
-  /** The basis of the zero prefix, formed by the original open; null when a test removed it. */
   origin: DurableEvidence | null
-  /** The first sequence whose fact is still kept; 1 keeps every fact. */
   retainedFrom: number
-  /** The smallest `through` sequence that still resolves; 0 resolves every range. */
   rangesFrom: number
   projection: AdmissionProjection
 }>
 
-/**
- * Where a ledger belongs: `parts` are the tenant text first, then the scope texts of the provider,
- * then the execution. Every basis, range and cursor the ledger mints names them.
- */
 export type AdmissionScope = Readonly<{
   parts: readonly string[]
   owner: string
   mint(record: string, revision: number): DurableEvidence
 }>
 
-/** What the reads of one Journal did, for the complexity tests (Agent SPEC D5 第 8 节). */
 export type AdmissionCounters = {
-  /** Range positions: one per page that reads at least one row. */
   seeks: number
-  /** Rows a read touched, including rows it then skipped. */
   scanned: number
-  /** Facts a read decoded into a page. */
   decoded: number
   pages: number
-  /** Facts a projection rebuild folded. */
   folds: number
   loads: number
-  /** Commits that wrote a checkpoint. */
   checkpointWrites: number
 }
 
@@ -901,14 +775,12 @@ function admissionCounters(): AdmissionCounters {
   return { seeks: 0, scanned: 0, decoded: 0, pages: 0, folds: 0, loads: 0, checkpointWrites: 0 }
 }
 
-/** A test removal of ledger material, as a storage fault or an operator error would leave it. */
 export type AdmissionDamage =
   | Readonly<{ kind: 'missing-fact'; sequence: number }>
   | Readonly<{ kind: 'missing-basis'; sequence: number }>
   | Readonly<{ kind: 'retention'; from: number }>
   | Readonly<{ kind: 'range-unavailable'; below: number }>
 
-/** How the provider limits one page by itself, besides the caller's `limit`. */
 export type AdmissionPageLimits = Readonly<{ items: number | null; bytes: number | null }>
 
 const PREFIX = 'reply-admission-prefix'
@@ -921,12 +793,10 @@ function sequenceText(value: number): ReplyAdmissionSequence {
   return decoded.ok
 }
 
-/** The record text of a basis or range: the scope parts, the kind and the sequence. */
 function recordOf(scope: AdmissionScope, kind: string, sequence: number): string {
   return `${JSON.stringify(scope.parts)}/${kind}/${sequence}`
 }
 
-/** The scope parts and the sequence a record text names, or undefined when it is not one. */
 function parseRecord(
   record: string,
   kind: string,
@@ -945,7 +815,6 @@ function parseRecord(
   }
 }
 
-/** Another tenant is `denied`, any other scope `invalid` (Agent SPEC "判定次序与失败映射" 1). */
 function scopeFailure(
   scope: AdmissionScope,
   parts: readonly string[],
@@ -958,7 +827,6 @@ function scopeFailure(
   return undefined
 }
 
-/** The ledger of a new execution: the zero prefix formed by the original open at `revision`. */
 function originLedger(scope: AdmissionScope, rule: Adoption, revision: number) {
   const origin = scope.mint(recordOf(scope, PREFIX, 0), revision)
   const ledger: AdmissionLedger = {
@@ -970,7 +838,6 @@ function originLedger(scope: AdmissionScope, rule: Adoption, revision: number) {
   return ledger
 }
 
-/** The projection after one more fact: the incremental step of the original Ja. */
 function stepProjection(
   projection: AdmissionProjection,
   fact: ModelReplyAdmission,
@@ -993,10 +860,6 @@ function stepProjection(
       }
 }
 
-/**
- * The record and the next ledger of one new fact, published by the Ja at `revision` with the
- * receipt evidence `publication`. The caller writes both in the same write as the Ja.
- */
 function admit(
   scope: AdmissionScope,
   ledger: AdmissionLedger,
@@ -1012,18 +875,15 @@ function admit(
   }
 }
 
-/** The key of the deduplication of SPEC:598: the original call and result version. */
 function admissionKey(fact: ModelReplyAdmission): string {
   return JSON.stringify([fact.call, fact.resultVersion])
 }
 
-/** The fixed range of the current facts, as `load` names it. */
 function throughOf(scope: AdmissionScope, ledger: AdmissionLedger): DurableEvidence {
   const sequence = ledger.projection.sequence
   return scope.mint(recordOf(scope, RANGE, sequence), sequence)
 }
 
-/** The projection `load` returns, or a failure when the rule changed without a conversion. */
 function admissionProjectionOf(
   scope: AdmissionScope,
   ledger: AdmissionLedger,
@@ -1046,7 +906,6 @@ function admissionProjectionOf(
   })
 }
 
-/** Every row from index `start`, `count` rows; each row touched is counted. */
 function rowsOf(
   records: readonly (AdmissionRecord | undefined)[],
   start: number,
@@ -1062,10 +921,6 @@ function rowsOf(
   return rows
 }
 
-/**
- * The projection of every fact under `rule`, folded from the origin: the cold path of a rule
- * change (Agent SPEC D5 第 4 节). Undefined when a fact is missing: there is no trusted start.
- */
 function rebuild(
   records: readonly (AdmissionRecord | undefined)[],
   ledger: AdmissionLedger,
@@ -1089,17 +944,11 @@ function rebuild(
   return projection
 }
 
-/** The resolution of a basis: its sequence, a refusal, or material the Journal lost. */
 type Resolved =
   | Readonly<{ kind: 'resolved'; sequence: number }>
   | Readonly<{ kind: 'refused'; failure: Failure }>
   | Readonly<{ kind: 'missing'; sequence: number }>
 
-/**
- * Resolves `prefix` by a point read of its basis: another tenant is `denied`, another execution,
- * an unknown or forged basis, or a sequence that does not match is `invalid`, a lawful basis whose
- * material the Journal lost is `missing`.
- */
 function resolvePrefix(
   scope: AdmissionScope,
   records: readonly (AdmissionRecord | undefined)[],
@@ -1130,15 +979,10 @@ function resolvePrefix(
   return { kind: 'resolved', sequence }
 }
 
-/** A short digest of a text, so that a cursor stays within the identity length. */
 function digestOf(text: string): string {
   return createHash('sha256').update(text).digest('hex').slice(0, 24)
 }
 
-/**
- * The cursor of the next page: digests of the tenant and of the full scope with the execution
- * origin, the lower bound, the range and the end of the page before. It carries no grant.
- */
 function cursorOf(
   scope: AdmissionScope,
   origin: DurableEvidence | null,
@@ -1155,7 +999,6 @@ function cursorOf(
   return decoded.ok
 }
 
-/** The end of the page before that a cursor names, after checking it against the request. */
 function cursorPosition(
   scope: AdmissionScope,
   origin: DurableEvidence | null,
@@ -1180,7 +1023,6 @@ function cursorPosition(
   return succeed(position)
 }
 
-/** The fixed range a `through` names, a refusal, or the gap of a range no longer resolvable. */
 function resolveThrough(
   scope: AdmissionScope,
   ledger: AdmissionLedger,
@@ -1207,12 +1049,6 @@ export type AdmissionReadRequest = Readonly<{
   limit: number
 }>
 
-/**
- * One page of the fixed range `(from, through]` (Agent SPEC "回复准入的已核实前缀", 3.3): at most
- * `limit` facts and at most the provider's own item and byte limits, at least one fact unless the
- * range is complete, a gap for a missing fact, a missing basis, retention or a range that no
- * longer resolves.
- */
 function readAdmissionPage(
   scope: AdmissionScope,
   records: readonly (AdmissionRecord | undefined)[],
@@ -1283,7 +1119,6 @@ function readAdmissionPage(
   const count = Math.min(request.limit, limits.items ?? request.limit, target - start)
   const items: ReplyAdmissionItem[] = []
   let bytes = 0
-  // The basis of each row, for the end of the page: only the last fact of a page needs one.
   const bases: (DurableEvidence | null)[] = []
   for (const [offset, row] of rowsOf(records, start, count, counters).entries()) {
     if (row === undefined || !row.present) {
@@ -1291,7 +1126,6 @@ function readAdmissionPage(
       break
     }
     const size = canonical(row.fact).length
-    // A fact larger than the provider's byte limit still gets a page of its own.
     if (limits.bytes !== null && items.length > 0 && bytes + size > limits.bytes) break
     bytes += size
     counters.decoded += 1
@@ -1302,7 +1136,6 @@ function readAdmissionPage(
     })
     bases.push(row.basis)
   }
-  // A page ends at its last fact whose prefix basis the Journal still holds.
   while (items.length > 0 && bases.at(-1) === null) {
     items.pop()
     bases.pop()
@@ -1324,12 +1157,6 @@ function readAdmissionPage(
   })
 }
 
-/**
- * The commit-time check of a checkpoint's read position (Agent SPEC D5 5.1, 预防): when it changes,
- * the new value is verified, its basis resolves to this execution, it does not pass the published
- * facts and it does not go back. Another tenant's basis is `denied`; a lawful basis whose material
- * the Journal lost is `unavailable` with the diagnostic `missing-basis`. A point read; no scan.
- */
 function checkReadPosition(
   scope: AdmissionScope,
   records: readonly (AdmissionRecord | undefined)[],
@@ -1356,7 +1183,6 @@ function checkReadPosition(
   return undefined
 }
 
-/** The records and ledger after `damage`; the records are replaced, never changed in place. */
 function damagedLedger(
   records: readonly (AdmissionRecord | undefined)[],
   ledger: AdmissionLedger,
@@ -1395,7 +1221,6 @@ function sameEvidence(left: DurableEvidence | null, right: DurableEvidence | nul
   )
 }
 
-/** Whether two data values are the same content, by their canonical text. */
 function sameShape(checkpoint: AgentCheckpoint): AgentCheckpoint {
   return {
     ...checkpoint,
@@ -1404,7 +1229,6 @@ function sameShape(checkpoint: AgentCheckpoint): AgentCheckpoint {
   }
 }
 
-/** The producer call of a produced result: the identities a result fact refers to it by. */
 function producerCallOf(result: ProducedResult): ProducerCall {
   return {
     producer: result.producer.kind,
@@ -1419,7 +1243,6 @@ function sameValue(left: unknown, right: unknown): boolean {
   return canonical(left) === canonical(right)
 }
 
-/** The handoff record of `reference` in the execution, or `undefined`. */
 function handoffRecord(
   execution: Execution,
   reference: HandoffReference,
@@ -1427,22 +1250,17 @@ function handoffRecord(
   return execution.handoffs.find(record => sameValue(record.handoff, reference))
 }
 
-/** Whether the handoff is still undetermined: no history applied and no retirement (SPEC "消息准入"). */
 function undetermined(record: HandoffRecord): boolean {
   return record.history.kind === 'pending' && record.retirement === null
 }
 
-/** The `load.handoffs` projection: every record with the custody chain `custody` derives. */
 function handoffsOf(
   execution: Execution,
   custody: (handoff: HandoffReference) => ExecutionHandoff['custody'],
 ): readonly ExecutionHandoff[] {
-  // A record's members are replaced, never changed in place: one level of copy keeps a snapshot
-  // apart from the later writes of the record.
   return execution.handoffs.map(record => ({ ...record, custody: custody(record.handoff) }))
 }
 
-/** The original acceptance that `open` or a new-input `submit` carries, checked against the method. */
 function acceptanceFailure(
   method: 'open' | 'submit',
   input: ExecutionMutation<unknown>,
@@ -1478,7 +1296,6 @@ function acceptanceFailure(
   return undefined
 }
 
-/** The record of an external H that the original open or submit publishes as its real history. */
 function inputHandoff(
   acceptance: OriginalInputAcceptance,
   operation: AgentOperationId,
@@ -1555,11 +1372,6 @@ export function createJournal<P>(
     return text.ok ? operationText(text.value, execution, operation) : undefined
   }
 
-  /**
-   * The qualification names one call is checked under (Agent SPEC "commitSettlement 的变体"): the
-   * candidate and judgment variants need settle, a migration needs settle and
-   * migrate-cancellation, the custody variants need reconcile; every other call its own method.
-   */
   function qualificationsOf(action: string, input: object): readonly string[] {
     if (action === 'preserve') return ['materials.preserve']
     if (action !== 'commitSettlement' || !('kind' in input)) return [action]
@@ -1570,7 +1382,6 @@ export function createJournal<P>(
       case 'migrate-cancellation':
         return ['settle', 'migrate-cancellation']
       default:
-        // The request type closes the six kinds, so the rest are the three custody variants.
         return ['reconcile']
     }
   }
@@ -1599,20 +1410,12 @@ export function createJournal<P>(
     const at = operationKey(input.tenant, input.execution, input.operation)
     const record = at === undefined ? undefined : state().operations.get(at)
     if (record?.kind === 'rejected') {
-      // A persistent rejection answers its fixed conflict again; another input conflicts too, and
-      // neither writes a second audit.
       return fail(record.key === key ? copy(record.failure) : conflict(input.operation))
     }
     if (record?.kind !== 'committed') return undefined
     return record.key === key ? succeed(copy(record.value) as R) : fail(conflict(input.operation))
   }
 
-  /**
-   * The evidence of the next write of `execution`. Inside a common-root transaction it advances the
-   * serial of the transaction's copy, which a refused transaction discards. Outside one (the
-   * reservation and the preview before a result preparation) it only reads: the published root
-   * is not written.
-   */
   function nextEvidence(execution: Execution, what: string, revision: number): DurableEvidence {
     const serial = execution.serial + 1
     if (cell.writing()) execution.serial = serial
@@ -1621,12 +1424,6 @@ export function createJournal<P>(
     )
   }
 
-  /**
-   * The receipt a public write would issue if it committed now, or the one it recognizes, before
-   * its transaction. It runs outside any transaction, so it only reads the published root; the
-   * transaction's own preparation advances the serial, and a refused or outrun call leaves
-   * nothing behind.
-   */
   function reservedReceipt(
     method: 'commit' | 'recordResult',
     input: ExecutionMutation<P>,
@@ -1638,7 +1435,6 @@ export function createJournal<P>(
     const execution = state().executions.get(executionKey(input.tenant, input.execution))
     if (execution === undefined) return undefined
     const revision = execution.revision + 1
-    // The write appends a batch: its receipt is minted from the batch it would append now.
     return receiptOf(
       execution,
       input.operation,
@@ -1690,12 +1486,9 @@ export function createJournal<P>(
     cause: DurableEvidence,
   ): void {
     const attachment = latestAttachment(execution)
-    // `open` establishes the first attachment before anything is written, so an execution without
-    // one is a defect of this Journal, not a case to pass over in silence.
     if (attachment === undefined) {
       throw new TypeError('the session Journal has an execution without an attachment')
     }
-    // The ended event is the last event of an execution; nothing is appended after it.
     if (execution.events.at(-1)?.body.kind === 'ended') return
     for (const body of bodies) {
       execution.events.push({
@@ -1722,8 +1515,6 @@ export function createJournal<P>(
   ): Promise<Outcome<R, Failure>> {
     const entered = enter(method, input)
     if ('failure' in entered) return entered
-    // The pause point of the testing controls: everything this call does on the Session side
-    // (the participation decision, result preparation, the joint publication) comes after it.
     await cell.wait(input, method)
     let decision: JointDecision | null = null
     if (method === 'commit' || method === 'recordResult') {
@@ -1733,15 +1524,10 @@ export function createJournal<P>(
           : (input as Parameters<AgentJournal<P>['recordResult']>[0]).transfer
       const participates = options.participates?.(input, method) ?? caller.kind !== 'none'
       if (participates && options.qualifyParticipation) {
-        // The Session decision of the derived participation: once per public call, before any
-        // Session preparation, the pause point and the joint publication; a recognized operation
-        // is decided again with its original receipt.
         const receipt = reservedReceipt(method, input, key)
         if (receipt === undefined) return fail(denied(method))
         const qualified = await options.qualifyParticipation(input, method, receipt)
         if ('failure' in qualified) return qualified
-        // A write of the same execution committed while the decision was outstanding: stop before
-        // any Session preparation. The joint publication checks the decided command again.
         const current = reservedReceipt(method, input, key)
         if (
           current === undefined ||
@@ -1754,7 +1540,6 @@ export function createJournal<P>(
       if (options.prepareResult && (caller.kind === 'custody' || caller.kind === 'processed')) {
         const refused = beforeRecognition?.()
         if (refused) return fail(refused)
-        // The same validator handles both initial requests and retries. A held answer never prepares history.
         const preview = prepare()
         if (preview.kind === 'answer')
           return cell.transact(input, method, () =>
@@ -1785,9 +1570,6 @@ export function createJournal<P>(
     input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
   ): Outcome<Readonly<{ fault: WriteFault | undefined }>, Failure> {
     const fault = writeFaults.get(method)?.shift()
-    // Another tenant's write, or a write on an execution that does not exist (other than `open`),
-    // is denied with the method before any qualification is asked for: the answer is the same for
-    // an existing and a missing execution (Agent SPEC "判定次序与失败映射" 1).
     const target = state().executions.get(executionKey(input.tenant, input.execution))
     const foreign =
       target === undefined ? method !== 'open' : !tenantEquals(target.tenant, input.tenant)
@@ -1853,7 +1635,6 @@ export function createJournal<P>(
     type Run =
       | Readonly<{ kind: 'wrote'; value: R }>
       | Readonly<{ kind: 'answered'; value: Outcome<R, Failure> }>
-      /** The persistent rejection saved its audit: the transaction publishes it. */
       | Readonly<{ kind: 'rejected'; failure: Extract<Failure, { kind: 'conflict' }> }>
       | Readonly<{ kind: 'unknown' }>
     const attempt = (): Run => {
@@ -1886,12 +1667,9 @@ export function createJournal<P>(
         const appended = append(input, key, prepared)
         if ('failure' in appended) return { kind: 'answered', value: appended }
         const { value, receipt, advanced } = appended.ok
-        // A batch that advances no revision (a recognition, or the envelope alone) changes no
-        // reader record and carries no participation: it is saved as the operation's answer only.
         if (advanced) {
           const captured = cell.committed(input, method, receipt)
           if (captured) return { kind: 'answered', value: fail(captured) }
-          // tryFinish asked the participant before preparing its batch (see the port).
           if (method !== 'tryFinish') {
             const participation = cell.participate(input, method, receipt, decision)
             if (participation !== undefined) return { kind: 'answered', value: fail(participation) }
@@ -1904,7 +1682,6 @@ export function createJournal<P>(
       prepared.apply()
       const captured = cell.committed(input, method, prepared.receipt)
       if (captured) return { kind: 'answered', value: fail(captured) }
-      // tryFinish asked the participant before preparing its write (see the port).
       if (method !== 'tryFinish') {
         const participation = cell.participate(input, method, prepared.receipt, decision)
         if (participation !== undefined) return { kind: 'answered', value: fail(participation) }
@@ -1954,7 +1731,6 @@ export function createJournal<P>(
         decide(attempt())
         return answered(commitUnknown)
       case 'dropped':
-        // The write reached the provider and was dropped: the attempt exists, nothing applied.
         onDropped?.()
         exclude('dropped')
         return answered(commitUnknown)
@@ -1968,21 +1744,12 @@ export function createJournal<P>(
     }
   }
 
-  /** Where the batch evidence of this Journal is minted from: the owner and the session namespace. */
   const mint = { owner: JOURNAL_OWNER, session: cell.namespace }
 
-  /** The fact-level view of an execution, before anything was appended for it. */
   function viewOf(execution: AgentExecutionId): ExecutionView {
     return state().view.executions.get(execution) ?? emptyExecutionView(execution)
   }
 
-  /**
-   * Appends the batch of one command (SPEC "事实族与折叠核"): the envelope names the operation, the
-   * semantic key as its digest, the revision the batch reaches and the generation that writes it;
-   * the blocks are put by digest; the batch is folded into the session view; the answer and the
-   * receipt are derived from the appended batch; the projection updates the reader view. A refused
-   * batch (a repeated fact, an excluded operation, an open without its attachment) writes nothing.
-   */
   function append<R>(
     input: ExecutionMutation<P>,
     key: string,
@@ -1996,8 +1763,6 @@ export function createJournal<P>(
         : (before.attachments.findLast(item => item.status === 'active')?.authority.generation ??
           before.gen)
     const envelope = { op: input.operation, digest: key, rev: 0, gen, kinds: prepared.kinds }
-    // The exclusions this process holds in memory and the view does not: facts of this batch, so
-    // a copy rebuilt from the records holds them too. They move no revision.
     const facts = [...unpublishedExclusions(input, before, prepared.facts), ...prepared.facts]
     const built = buildBatch(before, envelope, facts)
     if ('kind' in built) {
@@ -2005,12 +1770,7 @@ export function createJournal<P>(
       return fail(conflict(input.operation))
     }
     const agent = state()
-    // The position of the batch is the next one after the folded view: the view is the fold of the
-    // published log (the provider brings it to the publication count), so the position has one
-    // source. The log of this process holds only the batches appended since the view was set.
     const pub = agent.view.head + 1
-    // The revision the batch reaches. Until every command appends facts, the reader projection
-    // is where the commands not yet migrated advance the revision; the batch continues from it.
     const current =
       agent.executions.get(executionKey(input.tenant, input.execution))?.revision ?? before.revision
     const advanced = advances({ ...built, pub })
@@ -2026,7 +1786,6 @@ export function createJournal<P>(
       throw new TypeError('the fold did not reach the revision the envelope names')
     const derived = answerOf(mint, agent.view, batch)
     const minted = batchReceiptOf(mint, agent.view, batch)
-    // A planned evidence (the testing controls' `planEvidence`) names this write's receipt.
     const receipt: CommandReceipt = {
       ...minted,
       evidence: cell.issueEvidence(minted.evidence),
@@ -2036,8 +1795,6 @@ export function createJournal<P>(
       'receipt' in derived ? ({ ...derived, receipt } as Answer) : derived,
     )
     prepared.project(batch, folded)
-    // R2-D322: the obligations the step changed join its own batch, read after its projection.
-    // They answer nothing and move no revision; the batch is folded again with them.
     const owed = advanced
       ? ledgerChanges(
           input.tenant,
@@ -2056,7 +1813,6 @@ export function createJournal<P>(
     return succeed({ value, receipt, advanced })
   }
 
-  /** One stage of a control as the fact that records it, with the control's target. */
   function controlStageOf(
     record: ControlRecord,
     stage: ControlStage,
@@ -2077,15 +1833,6 @@ export function createJournal<P>(
     }
   }
 
-  /**
-   * The batch of a new operation that recognizes the fact `target` established at `revision`
-   * (R2-D292 "原操作认回"): one `op.recognized`, no new revision, and `value` as its answer. The
-   * answer is derived from the batch, whose revision is the recognized batch's; the revision the
-   * reader records name is checked against it, so a recognition never answers another revision
-   * than the fact it recognizes. The view is the fold of the whole published log (K-23), so the
-   * target is in it; a target the view lacks is a defect of the fold, answered as unavailable,
-   * never a fact recognized from the reader records alone.
-   */
   function recognitionOf<R>(
     target: AgentOperationId | undefined,
     revision: number,
@@ -2116,7 +1863,6 @@ export function createJournal<P>(
     }
   }
 
-  /** The recognition that answers its own receipt: the common case. */
   function recognitionBatch(
     target: AgentOperationId | undefined,
     revision: number,
@@ -2125,27 +1871,15 @@ export function createJournal<P>(
     return recognitionOf(target, revision, receipt => receipt, receiptState)
   }
 
-  /**
-   * The operation whose batch reached `revision` of an execution, if the log of this process holds
-   * it: one batch advances an execution to each revision, so the revision names the batch.
-   */
   function reachedBy(execution: AgentExecutionId, revision: number): AgentOperationId | undefined {
     return state().view.executions.get(execution)?.reached.get(revision)
   }
 
-  /** The receipt an answer carries: every command but a detach answers one. */
   function receiptIn(derived: Answer): CommandReceipt {
     if (!('receipt' in derived)) throw new TypeError(`a ${derived.kind} answer carries no receipt`)
     return derived.receipt
   }
 
-  /**
-   * The evidence of the batch the running write is about to append, minted from the coordinates
-   * that batch will have (the next pub of the log, the semantic key, the revision it reaches): the
-   * evidence `append` answers the receipt with. A fact or a reader record that names its own batch
-   * (an accepted control stage, the publication of a reply admission) carries it. Outside a
-   * transaction it only reads, so it also reserves the receipt of a participation decision.
-   */
   function ownEvidence(
     execution: AgentExecutionId,
     key: string,
@@ -2155,7 +1889,6 @@ export function createJournal<P>(
     return cell.issueEvidence(batchEvidence(mint, coordinates as PublishedBatch, revision))
   }
 
-  /** The evidence of an attachment or a detach: from stable elements, never from a counter. */
   function attachmentEvidence(
     execution: AgentExecutionId,
     what: 'attach' | 'handoff',
@@ -2167,12 +1900,6 @@ export function createJournal<P>(
     )
   }
 
-  /**
-   * The receipt the batch of a write will derive, before the batch exists: the next publication,
-   * the next revision (the same one when the batch is a pure recognition) and the semantic key as
-   * its digest. A finishing record that names its own receipt (a list, a judgment, a disposition)
-   * is built with it; `derive` checks the derived receipt against it, so a drift is a defect.
-   */
   function plannedReceipt(
     execution: Execution,
     operation: AgentOperationId,
@@ -2187,14 +1914,12 @@ export function createJournal<P>(
     return receiptOf(execution, operation, revision, evidence, 'applied')
   }
 
-  /** The derived receipt of a finishing batch; one that is not the planned receipt is a defect. */
   function plannedOf(derived: Answer, planned: CommandReceipt): CommandReceipt {
     if (!('receipt' in derived) || !sameValue(derived.receipt, planned))
       throw new TypeError('the finishing batch derived another receipt than the planned one')
     return derived.receipt
   }
 
-  /** The evidence a list names its candidate's checkpoint by. */
   function candidateCheckpoint(
     execution: AgentExecutionId,
     candidate: AgentOperationId,
@@ -2206,11 +1931,6 @@ export function createJournal<P>(
     )
   }
 
-  /**
-   * The `op.excluded` facts of the exclusions recorded in memory for `input.execution` that the
-   * view does not hold, and `facts` do not carry: a held write the storage dropped, a re-run that
-   * answered without writing, a fence whose fact was not written with it.
-   */
   function unpublishedExclusions(
     input: Pick<ExecutionMutation<P>, 'tenant' | 'execution'>,
     before: ExecutionView,
@@ -2240,7 +1960,6 @@ export function createJournal<P>(
     return out
   }
 
-  /** The `op.excluded` facts of a takeover: every write of this execution still pending. */
   function fencedOperations(execution: Execution): FactBody[] {
     const out: FactBody[] = []
     for (const record of state().operations.values()) {
@@ -2295,7 +2014,6 @@ export function createJournal<P>(
     }
   }
 
-  /** This binding is coordinated: the grant is required and the Session check decides it. */
   function grantHolds(
     input: Access<P> & Readonly<{ execution: AgentExecutionId; grant: DurableEvidence | null }>,
     method: 'open' | 'attach',
@@ -2319,11 +2037,6 @@ export function createJournal<P>(
     return { from, to: execution.inputs.length }
   }
 
-  /**
-   * The range a watermark names: the one this Journal issued, or, when the in-process index was
-   * rebuilt from durable records, the range its record names if this execution could have issued
-   * it: the start is 0 or the end of a known batch, and the end is within the accepted inputs.
-   */
   function watermarkRange(execution: Execution, record: string): Range | undefined {
     const issued = cache(execution).watermarks.get(record)
     if (issued !== undefined) return issued
@@ -2351,7 +2064,6 @@ export function createJournal<P>(
     return evidence
   }
 
-  /** The ledger scope of an execution: its tenant, Session and id name every basis and range. */
   function admissionScope(tenant: TenantId, id: AgentExecutionId): AdmissionScope {
     const encoded = tenantCodec.encode(tenant)
     return {
@@ -2376,11 +2088,7 @@ export function createJournal<P>(
     }
     const emitted = execution.events.length
     const groups = custodyGroups(execution)
-    // The members that grow with the history (effects, results, controls, observations,
-    // handoffs) are copied one level deep: the core replaces their elements and the members of a
-    // handoff record, it never changes an element in place, so a snapshot keeps what it saw. A
-    // deep copy of them cost every `load` the whole history (a 200-step run spent half its time
-    // in it). The members of one step's size are copied deep as before.
+    // One-level copy is enough: the core replaces elements and never mutates them in place, so a snapshot keeps what it saw. A deep copy cost every `load` the whole history.
     return succeed<ExecutionSnapshot>({
       ...copy({
         execution: execution.id,
@@ -2444,7 +2152,6 @@ export function createJournal<P>(
     })
   }
 
-  /** The public state: a settling execution carries the FinishIntent projection of its candidate. */
   function stateOf(execution: Execution): ExecutionState {
     if (execution.state.kind !== 'settling') return execution.state
     const intent = intentOf(execution.finishing)
@@ -2453,7 +2160,6 @@ export function createJournal<P>(
     return { kind: 'settling', intent }
   }
 
-  /** The writes of `execution` still undecided, except `operation`. */
   function pendingWrites(execution: Execution, operation: AgentOperationId) {
     const found: { operation: AgentOperationId; method: string }[] = []
     for (const record of state().operations.values()) {
@@ -2463,8 +2169,6 @@ export function createJournal<P>(
     return found
   }
 
-  /** The obligations of `candidate` from this Journal's own records at the current revision. */
-  /** The call and result obligations of `execution` as its reader records hold them now. */
   function ledgerSource(execution: Execution) {
     return {
       id: execution.id,
@@ -2485,11 +2189,6 @@ export function createJournal<P>(
     }
   }
 
-  /**
-   * The `finish.obligation` facts a step owes the ledger (R2-D322): the call and result
-   * obligations whose form the step changed, read from the reader records after the step's
-   * projection, at most `room` of them. An execution the step did not leave in the reader owes none.
-   */
   function ledgerChanges(
     tenant: TenantId,
     id: AgentExecutionId,
@@ -2564,7 +2263,6 @@ export function createJournal<P>(
     )
   }
 
-  /** The coordinated participant facts of a judgment of `execution` under the cancel `control`. */
   function participantsOf(
     execution: Execution,
     control: AgentOperationId,
@@ -2577,19 +2275,10 @@ export function createJournal<P>(
     }
   }
 
-  /** The association evidence of the coordinated binding of `execution`. */
   function coordination(execution: Execution): DurableEvidence {
     return journalEvidence(`${cell.namespace}/${execution.id}/coordination`, 0)
   }
 
-  /**
-   * The checks of a cancel authorization that prepareFinish, tryFinish and the candidate,
-   * migration and judgment variants share (Agent SPEC "条件终结", "commitSettlement 的变体" 3): the
-   * cancel names a saved control whose intent is reached (`denied` otherwise); the cancel carries
-   * the source of that control (`invalid` otherwise). Answers the effective control. The settle
-   * qualification is checked first, before the original operation is recognized: `settleRefusal`
-   * for prepareFinish and tryFinish, the qualification names of commitSettlement for the variants.
-   */
   function cancelCheck(
     execution: Execution,
     authorization: Extract<FinishAuthorization, { kind: 'cancel' }>,
@@ -2609,11 +2298,6 @@ export function createJournal<P>(
     return { kind: 'held', control }
   }
 
-  /**
-   * A cancel authorization of prepareFinish or tryFinish needs the caller's current settle
-   * qualification. It is checked with the tenant, before the original operation is recognized and
-   * before stale-advance or terminal (Agent SPEC "判定次序与失败映射" 1 and 2).
-   */
   function settleRefusal(
     input: Access<P> &
       Readonly<{ execution: AgentExecutionId; authorization: FinishAuthorization }>,
@@ -2621,10 +2305,6 @@ export function createJournal<P>(
     return input.authorization.kind === 'cancel' ? cell.authorize(input, 'settle') : undefined
   }
 
-  /**
-   * The finish check of `candidate` over the closure rebuilt now (Agent SPEC "条件终结"); the
-   * cancellation route compares its judgment with the Session participant fact read now.
-   */
   function blockedReason(
     execution: Execution,
     candidate: FinishCandidate,
@@ -2646,16 +2326,8 @@ export function createJournal<P>(
     )
   }
 
-  // ------------------------------------------------------------------------------------------
-  // Message admission (Agent SPEC "消息准入", "真实历史的提交点", "内部 H 的排除与退役")
-
   type HandoffApply = (revision: number, evidence: DurableEvidence) => void
 
-  /**
-   * Checks the handoff part of one commit against the records of the execution and returns what
-   * the write applies. A commit without a handoff change must keep `currentHandoff` as it is: only
-   * P sets it and only a Ja clears or moves it.
-   */
   function handoffWrite(
     execution: Execution,
     input: JournalCommit<P>,
@@ -2681,7 +2353,6 @@ export function createJournal<P>(
     }
   }
 
-  /** P: the complete PendingHandoff is saved and `currentHandoff` points at its H. */
   function preparedHandoff(
     execution: Execution,
     input: JournalCommit<P>,
@@ -2690,7 +2361,6 @@ export function createJournal<P>(
     const reference = request.reference
     if (reference.execution !== execution.id)
       return fail(invalid('handoff', 'the request is not of this execution'))
-    // Only a Ja clears or moves the pointer: P needs none set (Agent SPEC "消息准入").
     if (execution.checkpoint.currentHandoff !== null)
       return fail(invalid('checkpoint.currentHandoff', 'another H is still the current one'))
     if (!sameValue(input.checkpoint.currentHandoff, reference))
@@ -2699,8 +2369,6 @@ export function createJournal<P>(
       return fail(invalid('handoff', 'the predecessor of P is the expected revision'))
     if (handoffRecord(execution, reference) !== undefined)
       return fail(invalid('handoff', 'the H is already prepared'))
-    // Agent SPEC "消息准入": the same source position cannot take another H while the old one is
-    // undetermined. 待 U-18: the failure kind of this refusal is not fixed by the contract yet.
     const occupied = execution.handoffs.find(
       record =>
         record.request.kind === 'execution' &&
@@ -2726,7 +2394,6 @@ export function createJournal<P>(
     })
   }
 
-  /** Ja resolve: the fixed outcome of H is committed with the real history of its source. */
   function resolvedHandoff(
     execution: Execution,
     input: JournalCommit<P>,
@@ -2803,7 +2470,6 @@ export function createJournal<P>(
     })
   }
 
-  /** Ja retire: a trusted excluded internal H retires without publishing anything. */
   function retiredHandoff(
     execution: Execution,
     input: JournalCommit<P>,
@@ -2843,8 +2509,6 @@ export function createJournal<P>(
     })
   }
 
-  /** The custody projection of one H, rebuilt from the attempts and their operation records. */
-  /** The custody attempts of an execution grouped by the handoff they are attempts of. */
   function custodyGroups(
     execution: Execution,
   ): ReadonlyMap<string, readonly (readonly [AgentOperationId, CustodyAttempt])[]> {
@@ -2858,10 +2522,6 @@ export function createJournal<P>(
     return groups
   }
 
-  /**
-   * The custody chain of one handoff. A snapshot of an execution with many handoffs passes the
-   * groups built once (`custodyGroups`): one pass over the attempts, not one per handoff.
-   */
   function custodyOf(
     execution: Execution,
     handoff: HandoffReference,
@@ -2896,9 +2556,6 @@ export function createJournal<P>(
     return { root: root[0], chain, committed }
   }
 
-  // ------------------------------------------------------------------------------------------
-  // The settlement variants (Agent SPEC "commitSettlement 的变体")
-
   type CandidateVariant = Extract<
     SettlementRequest<P>,
     { kind: 'establish-cancellation' | 'migrate-cancellation' | 'judge-cancellation' }
@@ -2906,11 +2563,6 @@ export function createJournal<P>(
   type CustodyVariant = Exclude<SettlementRequest<P>, CandidateVariant>
   type CancellationRoute = Extract<FinishRoute, { kind: 'cancellation' }>
 
-  /**
-   * The batch of a settlement record (R2-D297): one `settlement.recorded` with the record as a block
-   * without its receipt. The answer and the reader records are read back from the block with the
-   * receipt the batch derives, so nothing but the fact and the block makes them.
-   */
   function recordedBatch(
     execution: Execution,
     planned: CommandReceipt,
@@ -2951,13 +2603,6 @@ export function createJournal<P>(
     }
   }
 
-  /**
-   * The candidate, migration and judgment variants in the order of Agent SPEC "commitSettlement
-   * 的变体": no installation is unavailable; ended is terminal; the cancel must be effective
-   * (`denied`) with the source of its saved control (`invalid`); another installation is invalid; a
-   * stale expected, a candidate or route that is no longer current is changed; a candidate or route
-   * the Journal does not hold, or one that the variant cannot apply to, is invalid.
-   */
   function settleCandidate(
     execution: Execution,
     input: CandidateVariant,
@@ -2967,15 +2612,12 @@ export function createJournal<P>(
     if (installed === undefined)
       return answer(fail(damaged('no cancellation policy is installed on this binding')))
     if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
-    // The settle and migrate-cancellation qualifications were checked with the request (step 1).
     const checked = cancelCheck(execution, input.authorization, 'commitSettlement')
     if (checked.kind === 'failure') return answer(fail(checked.failure))
     const control = checked.control
     if (control.command.kind !== 'cancel')
       throw new Error('session Journal defect: an effective cancel without a cancel command')
     const cause = control.command.reason
-    // Step 4: an installation that no longer applies, a stale expected and a candidate that is no
-    // longer current are changed; a target the variant cannot apply to is invalid after them.
     const installation = installed.installation
     if (!sameEvidence(installation.record, input.installation))
       return answer(fail({ kind: 'changed' }))
@@ -2984,7 +2626,6 @@ export function createJournal<P>(
     const current = currentCandidate(finishing)
     const route = currentRoute(finishing)
     const revision = execution.revision + 1
-    // Every record of the variant names the receipt of its batch, as its own evidence too.
     const receipt = plannedReceipt(execution, input.operation, key)
     const evidence = receipt.evidence
     const cancellationRoute = (
@@ -3005,8 +2646,6 @@ export function createJournal<P>(
           return answer(fail(invalid('predecessor', 'not a candidate of this execution')))
         if ((current?.candidate ?? null) !== input.predecessor)
           return answer(fail({ kind: 'changed' }))
-        // establish supersedes a complete or failed candidate only: a cancelled one stays, on a
-        // cancellation route, or migrates from an author route (rulings-S3B).
         if (current?.conclusion.kind === 'cancelled')
           return answer(
             fail(invalid('predecessor', 'a cancelled candidate is not superseded by establish')),
@@ -3027,7 +2666,6 @@ export function createJournal<P>(
           operation: input.operation,
         })
         const supersession = supersessionOf(finishing, candidate.candidate, established, revision)
-        // R2-D297: the candidate enters with a cursor reference, never a checkpoint copy.
         const settling = { kind: 'settling' } as const
         const establishedFact = candidateFact(
           candidate,
@@ -3042,7 +2680,6 @@ export function createJournal<P>(
             step: execution.checkpoint.step,
             members: { state: 'settling' },
           })
-        /** The candidate and route the folded fact names, read back from the blocks. */
         const folded = () => {
           const view = viewOf(execution.id).finish.candidates.find(
             item => item.candidate === candidate.candidate,
@@ -3090,7 +2727,6 @@ export function createJournal<P>(
           return answer(fail(invalid('originalRoute', 'not a route of this execution')))
         if (from.kind !== 'author')
           return answer(fail(invalid('originalRoute', 'not an author route')))
-        // Only a route that has not switched migrates: a second migration is changed.
         if (route === undefined || route.record.record !== from.record.record)
           return answer(fail({ kind: 'changed' }))
         const switched = cancellationRoute(candidate.candidate, {
@@ -3211,12 +2847,6 @@ export function createJournal<P>(
     }
   }
 
-  /**
-   * The target of one custody variant (Agent SPEC "commitSettlement 的变体" table): the card round,
-   * the before-terminal passage or the Tool intent of this execution, with the candidate and route
-   * the request names. It is checked before the source is read, so a target the Journal does not
-   * hold is `invalid` whatever the host answers.
-   */
   function custodyTargetFailure(execution: Execution, input: CustodyVariant): Failure | undefined {
     const finishing = execution.finishing
     const known = (candidate: AgentOperationId, route: DurableEvidence): Failure | undefined =>
@@ -3262,14 +2892,6 @@ export function createJournal<P>(
     }
   }
 
-  /**
-   * The three custody variants under the current reconcile qualification, without expected and
-   * also after ended: the target is checked first (`invalid` when the Journal does not hold it),
-   * then the source must resolve through the trusted host reads (`unavailable` otherwise) to a
-   * record of this tenant (`denied` otherwise, before anything of it is compared), of this execution
-   * (`invalid` otherwise) and of the named passage, round or intent (`invalid` otherwise). None
-   * changes the candidate, the route or a passage.
-   */
   function settleCustody(
     execution: Execution,
     input: CustodyVariant,
@@ -3282,8 +2904,6 @@ export function createJournal<P>(
     const record = options.hostRecords?.get(source.record)
     if (record === undefined)
       return answer(fail(damaged(`the host answers no record for ${source.record}`)))
-    // A tool-return record carries no tenant, and its returned reference names none either
-    // (R2-D357): its tenant isolation is not a check of this stub (R2-D372).
     if (record.kind !== 'tool-return') {
       if (!tenantEquals(record.tenant, execution.tenant))
         return answer(fail(denied('commitSettlement')))
@@ -3298,7 +2918,6 @@ export function createJournal<P>(
         )
     }
     const revision = execution.revision + 1
-    // Every record of the variant names the receipt of its batch, as its own evidence too.
     const receipt = plannedReceipt(execution, input.operation, key)
     const evidence = receipt.evidence
     switch (input.kind) {
@@ -3330,8 +2949,6 @@ export function createJournal<P>(
           custodian: null,
           purpose: 'reconcile',
         }
-        // A result the card owner could not determine keeps the round unknown under the reason
-        // the host gave; only a known result is held by the card owner.
         const result = record.result
         const reconciliation: CardReconciliationRecord = {
           operation: input.operation,
@@ -3419,8 +3036,6 @@ export function createJournal<P>(
           return answer(fail(invalid('source', 'the returned reference is malformed')))
         if (!sameValue(record.intent, input.intent) || !sameEvidence(record.request, input.request))
           return answer(fail(invalid('source', 'not the return of this intent')))
-        // A known reference of the same intent with another call or admission conflicts: the
-        // original association stays as it is (Agent SPEC "record-tool-association").
         const parts = reference.ok
         const contradicted = finishing.toolAssociations.some(known => {
           if (known.intent.action !== input.intent.action) return false
@@ -3453,7 +3068,6 @@ export function createJournal<P>(
           custodian,
           purpose: 'reconcile',
         }
-        // A commit-unknown return names the call but leaves its acceptance unknown.
         const disposition: ObligationDisposition =
           record.returned.kind === 'accepted'
             ? {
@@ -3513,7 +3127,6 @@ export function createJournal<P>(
   }
 
   const port: AgentJournal<P> = {
-    // The session-log binding is Agent's coordinated binding (AD-01, PA-04).
     capabilities: Object.freeze({ coordination: 'coordinated' as const, participants }),
 
     open(input) {
@@ -3529,8 +3142,6 @@ export function createJournal<P>(
         const original = recognized<{ receipt: CommandReceipt; authority: Authority }>(input, key)
         if (original !== undefined) return answer(original)
         if (existing !== undefined) return answer(fail(conflict(input.operation)))
-        // The two parts of the acceptance must agree with each other and with this operation
-        // (Agent SPEC "输入内容与水位线"): the first open uses the fixed adoption of the invoke origin.
         const malformed = acceptanceFailure('open', input, acceptance)
         if (malformed !== undefined) return answer(fail(malformed))
         if (entry.kind !== 'invoke') return answer(fail(invalid('original.entry', 'not an invoke')))
@@ -3545,8 +3156,6 @@ export function createJournal<P>(
           )
         if (!grantHolds({ ...input, grant: runtime.grant }, 'open'))
           return answer(fail(denied('open')))
-        // The Session source (SE13) is co-checked by the participant in the same write; a null
-        // source cannot pass it (PA-01 item 1).
         if (initial.source === null) return answer(fail(denied('open')))
         const authority: Authority = {
           execution: input.execution,
@@ -3585,8 +3194,6 @@ export function createJournal<P>(
             priority: initial.priority,
             watermark: outcome.record,
           },
-          // The external H is published by this acceptance (Agent SPEC "消息准入": the real
-          // history of an external input is the original open or submit).
           {
             kind: 'handoff.resolved',
             handoff: acceptance.handoff,
@@ -3672,7 +3279,6 @@ export function createJournal<P>(
         const execution = found.ok
         const original = recognized<{ receipt: CommandReceipt; authority: Authority }>(input, key)
         if (original !== undefined) return answer(original)
-        // An ended execution answers terminal before the Session check (PA-01 item 3).
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         if (!grantHolds(input, 'attach')) return answer(fail(denied('attach')))
         const old = activeAttachment(execution)
@@ -3691,8 +3297,6 @@ export function createJournal<P>(
           generation: String(ordinal),
           source: attachmentEvidence(execution.id, 'attach', ordinal, revision),
         }
-        // A takeover fences every write of the old generation still pending (R2-D307): each is an
-        // `op.excluded` fact of this batch, and the reader projection marks its record excluded.
         const fenced = fencedOperations(execution)
         return {
           kind: 'batch',
@@ -3747,7 +3351,6 @@ export function createJournal<P>(
         )
         if (target === undefined) return answer(fail(denied('detach')))
         if (target.status === 'superseded') return answer(fail({ kind: 'stale-advance' }))
-        // A detached target only recognizes the existing handoff at the revision it was established.
         if (target.handoff !== null) {
           const handoff = target.handoff
           return recognitionOf(
@@ -3798,8 +3401,6 @@ export function createJournal<P>(
         const found = owned(input, 'commit')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        // The type excludes these bodies; a caller that bypasses it gets invalid (SPEC
-        // "AgentJournal.commit" row): `entry` is allocated by the entry ports, `ended` by tryFinish.
         const allocated = input.events.find(
           body => (body.kind as string) === 'entry' || (body.kind as string) === 'ended',
         )
@@ -3807,9 +3408,6 @@ export function createJournal<P>(
           return answer(
             fail(invalid('events', `the Journal allocates the ${allocated.kind} event body`)),
           )
-        // The pure shape comes before recognition and the lifecycle (Agent SPEC "判定次序与失败映
-        // 射" 1): only a settling commit carries a candidate, and an admission fact is complete. A
-        // settling commit without any candidate depends on the records and is checked below.
         if (input.finish !== null && input.state.kind !== 'settling')
           return answer(fail(invalid('finish', 'only a settling commit carries a candidate')))
         const fact = input.replyAdmission
@@ -3824,30 +3422,21 @@ export function createJournal<P>(
           return answer(fail(invalid('replyAdmission', 'incomplete original admission')))
         const original = recognized<CommandReceipt>(input, key)
         if (original !== undefined) return answer(original)
-        // Agent SPEC "判定次序与失败映射": stale-advance before terminal, terminal before changed.
         if (!holds(execution, input.authority)) return answer(fail({ kind: 'stale-advance' }))
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         if (input.expected !== revisionOf(execution.revision)) {
           return answer(fail({ kind: 'changed' }))
         }
-        // Agent SPEC "条件终结": only a settling commit carries a candidate, and a settling commit
-        // needs one, its own or the current one.
         const finishing = execution.finishing
         const current = currentCandidate(finishing)
         if (input.state.kind === 'settling' && input.finish === null && current === undefined)
           return answer(fail(invalid('state', 'a settling commit before any candidate')))
-        // An effective cancel takes precedence over an ordinary completion or failure (Agent SPEC
-        // "条件终结"): a new candidate that is not cancelled is changed.
         if (
           input.finish !== null &&
           input.finish.conclusion.kind !== 'cancelled' &&
           effectiveCancels(execution).length > 0
         )
           return answer(fail({ kind: 'changed' }))
-        // F1: other content than the current candidate establishes a new candidate under this
-        // operation, with its author route; the same content keeps the current one. F2: the first
-        // plain settling commit after the candidate with no before-terminal passage left open is
-        // the proof of the author route.
         const establishes =
           input.finish !== null &&
           (current === undefined ||
@@ -3872,8 +3461,6 @@ export function createJournal<P>(
           }
           if (known === undefined) newEffect = true
         }
-        // SPEC:598: one fact per original call and result version. The same key with the same
-        // decision recognizes the original fact and its sequence; another decision conflicts.
         let admission: ModelReplyAdmission | null = null
         if (input.replyAdmission !== null) {
           const fact = input.replyAdmission
@@ -3885,7 +3472,6 @@ export function createJournal<P>(
           if (known === undefined) admission = copy(fact)
         }
         const scope = admissionScope(execution.tenant, execution.id)
-        // Agent SPEC D5 5.1: a changed read position is checked by a point read of its basis.
         const readFailure = checkReadPosition(
           scope,
           execution.admissions,
@@ -3923,8 +3509,6 @@ export function createJournal<P>(
             }
           }
         }
-        // A commit that establishes no new fact does not advance the revision and writes no event:
-        // its receipt names the current revision (Agent SPEC "执行修订").
         const unchanged =
           semanticKey('checkpoint', sameShape(execution.checkpoint)) ===
             semanticKey('checkpoint', sameShape(input.checkpoint)) &&
@@ -3936,9 +3520,6 @@ export function createJournal<P>(
           admission === null &&
           input.caller.kind === 'none' &&
           input.handoff === null
-        // A commit that establishes no new fact does not advance the revision and writes no event:
-        // it appends the envelope alone, whose receipt names the current revision (Agent SPEC
-        // "执行修订"; SPEC "事实族与折叠核").
         if (unchanged)
           return {
             kind: 'batch',
@@ -3954,9 +3535,6 @@ export function createJournal<P>(
         const facts: FactBody[] = []
         const blobs: Blob[] = []
         const view = viewOf(execution.id)
-        // Every input-taken event is one `step.begun`, written in the loop below in the order of
-        // the events (the fold numbers the events by the facts). A commit whose cursor names a
-        // batch no event took (R2-D292) writes it whole here, so `checkpointOf` finds it.
         const taken = input.checkpoint.inputBatch
         if (
           taken !== null &&
@@ -3964,8 +3542,6 @@ export function createJournal<P>(
           !input.events.some(body => body.kind === 'input-taken')
         )
           facts.push({ kind: 'step.begun', step: input.checkpoint.step, batch: copy(taken) })
-        // A main-purpose M0 adopts its final request; the attempt of the step is the number of
-        // its voided intents.
         const adopted = input.checkpoint.adoptedRequest ?? null
         const adoptedBefore = execution.checkpoint.adoptedRequest ?? null
         if (adopted !== null && canonical(adopted) !== canonical(adoptedBefore)) {
@@ -3981,8 +3557,6 @@ export function createJournal<P>(
             coverage: input.checkpoint.adoptedContext,
           })
         }
-        // Each newly voided intent closes the adopted request it names (R2-D292); `voided` is
-        // never a cursor member, so it is not rewritten with each voiding.
         const voidedNow = input.checkpoint.voided.slice(execution.checkpoint.voided.length)
         const closed = voidedFacts(view, voidedNow)
         if (closed === null)
@@ -3992,7 +3566,6 @@ export function createJournal<P>(
           if (body.kind === 'input-taken')
             facts.push({ kind: 'step.begun', step: input.checkpoint.step, batch: copy(body.batch) })
           if (body.kind === 'waiting') {
-            // The list of waits is a block: its size follows the number of calls waited for.
             blobs.push(blobOf(body.waits))
             facts.push({
               kind: 'wait.entered',
@@ -4000,8 +3573,6 @@ export function createJournal<P>(
               waits: refOf(body.waits),
             })
           }
-          // A reply admission projects its message (`reply.judged`); any other message is
-          // referred to by its own fact.
           if (body.kind === 'message' && admission === null) {
             blobs.push(blobOf(body.message))
             facts.push({
@@ -4011,7 +3582,6 @@ export function createJournal<P>(
               source: copy(body.source),
             })
           }
-          // The Agent applied a produced result: the processed stage of its consumption.
           if (body.kind === 'producer')
             facts.push({
               kind: 'result.handled',
@@ -4050,11 +3620,8 @@ export function createJournal<P>(
             ? null
             : admit(scope, execution.admissionLedger, admission, revision, evidence)
         if (admitted !== null) {
-          // `admit` mints the basis of the new prefix; only a test that removes it leaves null.
           if (admitted.record.basis === null)
             throw new TypeError('a new reply admission has no prefix basis')
-          // The admitted reply is the message event of this commit: the fact refers to it, so the
-          // event is projected from the fact and its block (K-23 item 四).
           const reply = input.events.find(body => body.kind === 'message')
           if (reply?.kind === 'message') blobs.push(blobOf(reply.message))
           facts.push({
@@ -4095,14 +3662,10 @@ export function createJournal<P>(
             excluded: refOf(handoff.excluded),
           })
         }
-        // The author route of a new candidate is named by the candidate, never by a counter.
         const routeRecord = journalEvidence(
           `${cell.namespace}/${execution.id}/route/${input.operation}`,
           revision,
         )
-        // F1: the candidate, its author route and the supersession of the current one enter as
-        // `finish.candidate` with a cursor reference (R2-D297); the reader records are projected
-        // from the folded fact, never written from the input.
         const established =
           establishes && input.finish !== null
             ? (() => {
@@ -4143,9 +3706,6 @@ export function createJournal<P>(
           blobs.push(...blobsOf(input.checkpoint))
           facts.push(moved)
         }
-        // The bindings this commit establishes: the pending calls of the checkpoint it commits
-        // and of the effects it already holds (its new effects bind at the next commit, as the
-        // writer always remembered them), under the committing instance.
         const bound = receiving.newBindings(
           { ...execution, checkpoint: input.checkpoint, effects: execution.effects },
           input.authority.instance,
@@ -4162,8 +3722,6 @@ export function createJournal<P>(
             if (folded.revision !== revision)
               throw new TypeError('the commit batch reached another revision than it judged')
             handoffChange.ok(revision, evidence)
-            // The checkpoint is the one the folded facts name; a commit whose facts do not name
-            // its checkpoint is a defect of this writer, never a silent difference.
             const checkpoint = checkpointOf(folded, state().blobs)
             if (
               semanticKey('checkpoint', sameShape(checkpoint)) !==
@@ -4197,8 +3755,6 @@ export function createJournal<P>(
                 beforeTerminal: evidence,
               }
             if (admitted !== null) {
-              // The fact, its sequence, basis, publication and the projection step are written in
-              // this same write as the Ja (Agent SPEC D5 第 4 节).
               execution.admissions = [...execution.admissions, admitted.record]
               execution.admissionLedger = admitted.ledger
             }
@@ -4228,8 +3784,6 @@ export function createJournal<P>(
         const found = owned(input, 'submit')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        // Agent SPEC per-operation table, input.submit: the original O is recognized first, then a
-        // new input after ended is terminal, then a new operation may recognize an accepted input.
         const original = recognized<CommandReceipt>(input, key)
         if (original !== undefined) return answer(original)
         const lineage = input.lineage
@@ -4257,7 +3811,6 @@ export function createJournal<P>(
                 diagnostic: 'the original acceptance of the recognized input is not on record',
               }),
             )
-          // The same input identity with other content conflicts (Agent SPEC "输入内容与水位线").
           if (semanticKey('input', known) !== semanticKey('input', input.value))
             return answer(fail(conflict(input.operation)))
           const stored = handoffRecord(execution, lineage.original.handoff)
@@ -4271,14 +3824,9 @@ export function createJournal<P>(
           const at = execution.inputRevisions.get(known.id)
           if (at === undefined)
             throw new Error('session Journal defect: an accepted input has no revision')
-          // A recognition appends `op.recognized` of the accepting operation: it advances no
-          // revision and answers with the revision of the batch it recognizes.
           return recognitionBatch(entry.operation, at, 'accepted')
         }
-        // A new input under an identity the execution already accepted is another entry for the
-        // same InputId: it conflicts, it does not recognize (Agent SPEC "输入内容与水位线").
         if (known !== undefined) return answer(fail(conflict(input.operation)))
-        // The Session source (SE11) is co-checked by the participant; a null source cannot pass it.
         if (input.value.source === null) return answer(fail(denied('submit')))
         const acceptance = lineage.original
         const outcome = acceptance.outcome
@@ -4294,7 +3842,6 @@ export function createJournal<P>(
               priority: input.value.priority,
               watermark: copy(outcome.record),
             },
-            // The external H is published by this acceptance (Agent SPEC "消息准入").
             {
               kind: 'handoff.resolved',
               handoff: copy(acceptance.handoff),
@@ -4335,7 +3882,6 @@ export function createJournal<P>(
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         const target = controlTarget(input.command, pendingCalls(execution), execution.tenant)
         if ('failure' in target) return answer(target)
-        // The accepted stage names this batch: its source is the batch's own evidence.
         const evidence = ownEvidence(execution.id, key, execution.revision + 1)
         const record: ControlRecord = {
           operation: input.operation,
@@ -4382,7 +3928,6 @@ export function createJournal<P>(
         if (through === undefined || through < 1 || through > execution.events.length) {
           return answer(fail(invalid('through', 'beyond the emitted events')))
         }
-        // A `through` within the acknowledged prefix recognizes that prefix and never moves it back.
         if (through <= execution.acknowledged)
           return recognitionBatch(
             reachedBy(execution.id, execution.acknowledgedAt),
@@ -4471,7 +4016,6 @@ export function createJournal<P>(
           input.result.version,
           input.consumption,
         ])
-        // No new responsibility fact: a new operation recognizes the existing one at its revision.
         if (
           known !== undefined &&
           semanticKey('responsibility', known) === semanticKey('responsibility', responsibility)
@@ -4479,8 +4023,6 @@ export function createJournal<P>(
           const at = execution.resultRevisions.get(resultKey) ?? execution.revision
           return recognitionBatch(reachedBy(execution.id, at), at, 'applied')
         }
-        // Each stage the responsibility newly reaches is one `result.handled`; a responsibility
-        // recorded before any transfer is its `recorded` stage.
         const evidence = ownEvidence(execution.id, key, execution.revision + 1)
         const call = producerCallOf(input.result)
         const handled = (stage: ResultStage, basis: DurableEvidence): FactBody => ({
@@ -4578,7 +4120,6 @@ export function createJournal<P>(
             fact.state === input.state &&
             sameEvidence(fact.source, input.source)
           if (sameFact && !referenceAdded) {
-            // The same stage fact is recognized by the new operation at the fact's revision.
             const first = execution.stageReceipts.get(stageKey)
             if (first !== undefined) {
               const at = Number(first.revision)
@@ -4586,10 +4127,6 @@ export function createJournal<P>(
             }
           }
           const ended = execution.state.kind === 'ended'
-          // After a lawful ended only the three late duty stages may be saved; a new intent or
-          // revocation answers terminal (Agent SPEC "六个阶段", Q1b). Evidence that contradicts a
-          // stage already reached is not a new intent: it takes the persistent rejection below
-          // (Agent SPEC "判定次序与失败映射" 8).
           if (
             ended &&
             !sameFact &&
@@ -4599,8 +4136,6 @@ export function createJournal<P>(
             return answer(fail({ kind: 'terminal' }))
           }
           if (!sameFact && fact !== undefined && fact.state === 'reached') {
-            // Contradicting evidence: the persistent rejection saves an audit with one revision;
-            // the audit is the evidence of its own batch.
             const audit = ownEvidence(execution.id, key, execution.revision + 1)
             return {
               kind: 'reject',
@@ -4660,10 +4195,6 @@ export function createJournal<P>(
       const request =
         input.original.kind === 'recorded' ? input.original.outcome.request : input.original.request
       const reference = request.reference
-      /**
-       * The attempt that this Rh is, once it is the root or the one direct successor of the chain
-       * of its H (Agent SPEC "准入结果保管"); otherwise the refusal.
-       */
       const validated = (execution: Execution): Outcome<CustodyAttempt, Failure> => {
         const record = handoffRecord(execution, reference)
         if (record === undefined || !sameValue(record.request, request))
@@ -4678,7 +4209,6 @@ export function createJournal<P>(
         const chain = custodyOf(execution, reference)
         const custody = input.custody
         if (custody === null) {
-          // The root: the first Rh of this H. Another root for the same H is not a derivation.
           if (chain !== null && chain.root !== input.operation)
             return fail(invalid('operation', 'the H already has its custody root'))
           return succeed(attempt)
@@ -4711,8 +4241,6 @@ export function createJournal<P>(
         const execution = found.ok
         const original = recognized<CommandReceipt>(input, key)
         if (original !== undefined) return answer(original)
-        // Agent SPEC "准入结果保管" 4: a permanently excluded attempt can never commit under this
-        // operation; the fence answers before any new write.
         const at = operationKey(input.tenant, input.execution, input.operation)
         const fixed = at === undefined ? undefined : state().operations.get(at)
         if (fixed?.kind === 'excluded')
@@ -4721,13 +4249,9 @@ export function createJournal<P>(
         if ('failure' in checked) return answer(checked)
         const record = handoffRecord(execution, reference)
         if (record === undefined) throw new Error('recordHandoff: the validated record is missing')
-        // The attempt reaches the write step: it is part of the chain whether it commits or is
-        // dropped, because a dropped attempt is permanently excluded under its operation.
         execution.custodyAttempts.set(input.operation, checked.ok)
         const custody = input.custody
         const facts: FactBody[] = []
-        // A successor names its permanently excluded predecessor: the exclusion is a fact of the
-        // log, written with the attempt that succeeds it unless a takeover fence wrote it (R2-D307).
         if (custody !== null && !viewOf(execution.id).excluded.has(custody.predecessor.operation)) {
           const prior = custody.priorExcluded.at(-1)
           facts.push({
@@ -4755,14 +4279,12 @@ export function createJournal<P>(
           derive: receiptIn,
           project: (_batch, view) => {
             if (record.resolution === null) record.resolution = copy(input.original)
-            // An unpublished prepared message is retained after the end; Rh never publishes.
             if (execution.state.kind === 'ended' && record.history.kind === 'pending')
               record.history = { kind: 'retained', disposition: execution.state.disposition }
             execution.revision = view.revision
           },
         }
       }
-      /** A dropped Rh still reached the write: a valid attempt joins the chain as excluded. */
       const dropped = () => {
         const found = owned(input, 'recordHandoff')
         if ('failure' in found) return
@@ -4788,11 +4310,6 @@ export function createJournal<P>(
           const original = recognized<Issued>(input, key)
           if (original !== undefined) return answer(original)
           const authorization = input.authorization
-          // A cancel without settle was denied before the recognition (`settleRefusal`). Then Agent
-          // SPEC "判定次序与失败映射" 4 to 6 and the prepareFinish row of the judgment order:
-          // stale-advance, terminal, the cancel checks, the kind of the authorization against the
-          // named candidate, an advancement under an effective cancel, then changed, then a
-          // candidate this Journal does not hold.
           if (authorization.kind === 'advancement' && !holds(execution, authorization.authority))
             return answer(fail({ kind: 'stale-advance' }))
           if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
@@ -4802,7 +4319,6 @@ export function createJournal<P>(
           }
           const finishing = execution.finishing
           const candidate = candidateOf(finishing, input.candidate)
-          // A cancel issues the list of a cancelled candidate only, an advancement never.
           if (
             candidate !== undefined &&
             (candidate.conclusion.kind === 'cancelled') !== (authorization.kind === 'cancel')
@@ -4816,13 +4332,9 @@ export function createJournal<P>(
           if (candidate === undefined)
             return answer(fail(invalid('candidate', 'not a candidate of this execution')))
           if (candidate.candidate !== finishing.current) return answer(fail({ kind: 'changed' }))
-          // The list evidence is the receipt evidence of its batch: one list per batch.
           const planned = plannedReceipt(execution, input.operation, key)
           const evidence = planned.evidence
           const built = obligationsOf(execution, candidate, input.operation)
-          // R2-D322: the ledger kept the obligations current step by step; the issue appends the
-          // ones whose form still differs and the close that lists them all by reference. A
-          // re-issue is a new list of the same candidate and rewrites no unchanged obligation.
           const ordinal = listsIssued(finishing, candidate.candidate) + 1
           const issued = issueFacts(
             candidate.candidate,
@@ -4834,7 +4346,6 @@ export function createJournal<P>(
             `${cell.namespace}/${execution.id}`,
             execution.revision,
           )
-          // One new revision, no event, the checkpoint and the candidate as they were.
           return {
             kind: 'batch',
             facts: issued.facts,
@@ -4854,7 +4365,6 @@ export function createJournal<P>(
                 candidateCheckpoint(execution.id, candidate.candidate, view.revision),
                 state().blobs,
               )
-              // The list read back from the facts is the list the builder issued, or a defect.
               if (!sameValue(list.items, built.items) || !sameValue(list.coverage, built.coverage))
                 throw new TypeError('the issued list read back from its facts is another list')
               finishing.issued.set(list.evidence.record, list)
@@ -4883,10 +4393,6 @@ export function createJournal<P>(
             succeed({ kind: 'changed', revision: revisionOf(execution.revision) }),
           )
           const authorization = input.authorization
-          // A cancel without settle was denied before the recognition (`settleRefusal`). Then the
-          // tryFinish row of the judgment order: stale-advance, terminal, the cancel checks,
-          // the kind of the authorization, an advancement under an effective cancel, then changed,
-          // then the list, then the closure.
           if (authorization.kind === 'advancement' && !holds(execution, authorization.authority))
             return answer(fail({ kind: 'stale-advance' }))
           if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
@@ -4901,7 +4407,6 @@ export function createJournal<P>(
               )
           }
           const candidate = currentCandidate(finishing)
-          // A cancel ends with cancelled only, and an advancement never ends a cancelled candidate.
           if (
             candidate !== undefined &&
             (candidate.conclusion.kind === 'cancelled') !== (authorization.kind === 'cancel')
@@ -4917,7 +4422,6 @@ export function createJournal<P>(
           )
             return changed
           if (input.expected !== revisionOf(execution.revision)) return changed
-          // The list must be issued by this Journal for this candidate (Agent SPEC "条件终结").
           const given = input.intent.obligations
           if (given === null)
             return answer(fail(invalid('intent.obligations', 'the obligations are not issued')))
@@ -4926,11 +4430,8 @@ export function createJournal<P>(
             return answer(fail(invalid('intent.obligations', 'not a list this Journal issued')))
           if (list.candidate !== candidate.candidate)
             return answer(fail(invalid('intent.obligations', 'the list of another candidate')))
-          // The intent is compared with the projection for equality only.
           if (semanticKey('finish-intent', intent) !== semanticKey('finish-intent', input.intent))
             return changed
-          // The closure is rebuilt by the builder prepareFinish used; the list stays usable while
-          // the responsibility projection is unchanged.
           const closure = obligationsOf(execution, candidate, input.operation).items
           if (projectionOf(closure) !== projectionOf(list.items)) return changed
           const boundary = watermarkRange(execution, candidate.inputWatermark.record)
@@ -4939,16 +4440,11 @@ export function createJournal<P>(
           if (check.kind === 'changed') return changed
           if (check.kind === 'blocked') return answer(succeed(copy(check.value)))
           if (check.kind === 'unknown') return answer(fail(damaged(check.diagnostic)))
-          // The terminal disposition is the receipt evidence of the batch that ends.
           const receipt = plannedReceipt(execution, input.operation, key)
-          // The Session participant is read-only, so it is asked before the write: its conflict is
-          // FinishResult.changed, not a failure (Agent SPEC "条件终结", PA-02).
           const participation = cell.participate(input, 'tryFinish', receipt, null)
           if (participation !== undefined) {
             return participation.kind === 'changed' ? changed : answer(fail(participation))
           }
-          // R2-D297: the end is one constant fact; the pending observations and the retained
-          // handoffs are what it implies for the passages and the handoffs, not facts of their own.
           return {
             kind: 'batch',
             facts: [
@@ -4982,8 +4478,6 @@ export function createJournal<P>(
                   implementation: copy(passage.implementation),
                   observed: null,
                 }))
-              // A prepared message that no Ja published is retained by the terminal disposition
-              // (Agent SPEC "准入结果保管"); nothing publishes it after the end.
               for (const record of execution.handoffs) {
                 if (record.history.kind === 'pending')
                   record.history = { kind: 'retained', disposition }
@@ -5049,8 +4543,6 @@ export function createJournal<P>(
         if (item.observed !== null) {
           if (!sameEvidence(item.observed, input.observed))
             return answer(fail(conflict(input.operation)))
-          // The same value is recognized by the new operation at the revision of the registration:
-          // an `op.recognized` batch, which advances no revision and answers the registration's.
           const first = execution.observed.get(input.passage)
           if (first !== undefined)
             return recognitionBatch(first.operation, Number(first.revision), 'applied')
@@ -5111,10 +4603,6 @@ export function createJournal<P>(
       return snapshotOf(found.ok)
     },
 
-    // Agent SPEC "条件终结", the readFinish clause: the same read qualification as `load`; the
-    // current candidate's projection while settling, the final one after ended, null before any
-    // candidate. The finishing records keep the candidate past the end, so the projection is the
-    // one tryFinish compared.
     async readFinish(input) {
       const fault = readFault('readFinish')
       if (fault !== undefined) return fault
@@ -5163,7 +4651,6 @@ export function createJournal<P>(
     async readReplyAdmissions(input): Promise<Outcome<ReplyAdmissionPage, Failure>> {
       const fault = readFault('readReplyAdmissions')
       if (fault !== undefined) return fault
-      // `owned` checks the current read qualification on every page; a cursor grants nothing.
       const found = owned(input, 'readReplyAdmissions')
       if ('failure' in found) return found
       const execution = found.ok
@@ -5484,7 +4971,6 @@ export function createJournal<P>(
     },
   }
 
-  /** The one held execution `id` names, of `tenant` when given. */
   function only(id: AgentExecutionId, tenant: TenantId | undefined): Execution | undefined {
     const matches = [...state().executions.values()].filter(
       value => value.id === id && (tenant === undefined || tenantEquals(tenant, value.tenant)),

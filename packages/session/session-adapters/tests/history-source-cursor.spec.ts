@@ -1,11 +1,3 @@
-// AD-04 reads the model view with the cursors session-storage-sql issues (K-18). The Session here
-// is the session-storage-sql port over the node:sqlite double that runs the published modules, so
-// its `readModelView` cursors are sealed and opaque; the memory session of `./testing` continues
-// after a row number and hides what these cases check. What is checked: a read across pages sends
-// Session only the cursors Session issued; a reader that holds the cursor of its previous read
-// reads, round after round, a number of rows that does not grow with the history (E9); without a
-// kept cursor (another source fiber, a cursor Session refuses, another epoch) the read starts at
-// the beginning of the epoch and still answers exactly the rows after the cursor.
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { judgeMessage } from '@omne-harness/message'
@@ -27,11 +19,8 @@ import { sqlScene } from './fixtures/sql-scene.ts'
 type ModelViewInput = Parameters<SessionFaces<unknown>['history']['readModelView']>[0]
 type Sent = Readonly<{ after: string | null; rows: number }>
 
-/** What the Session service of one world does besides answering. */
 type Script = {
-  /** Answer `invalid` to the next call that carries a cursor. */
   refuseNextCursor: boolean
-  /** The epoch text a reader sees in place of the real one, from now on. */
   alias: string | null
 }
 
@@ -108,7 +97,6 @@ async function world() {
   await mount(ad04.lowerBound)
   const fiber = await mount(ad04.source)
 
-  /** One lease of the current source fiber. */
   async function borrow(): Promise<ContextHolderParts<unknown>> {
     let parts: ContextHolderParts<unknown> | undefined
     await mount({
@@ -126,7 +114,6 @@ async function world() {
     return parts
   }
 
-  /** Replaces the source fiber: the new one has kept no cursor. */
   async function restart() {
     await fiber.dispose()
     const again = source()
@@ -134,7 +121,6 @@ async function world() {
     await mount(again.source)
   }
 
-  /** Commits `count` model-visible system reminders; each one is a new model view row. */
   async function remind(count: number, tag: string) {
     for (let index = 0; index < count; index++) {
       const judged = judgeMessage({
@@ -181,7 +167,6 @@ async function world() {
     return answer.value
   }
 
-  /** The history rows after `cursor` under `ev`, page by page, and what Session was asked. */
   async function readAfter(
     parts: ContextHolderParts<unknown>,
     ev: HistoryEvidence,
@@ -220,7 +205,6 @@ const cursorAfter = (ev: HistoryEvidence, after: string | null): HistoryCursor |
 const seqsFrom = (first: number, last: number) =>
   Array.from({ length: last - first + 1 }, (_, index) => String(first + index))
 
-/** The rows Session served for each of `rounds` rounds of two new rows after `rows` rows. */
 async function rounds(w: World, rows: number, count: number) {
   const parts = await w.borrow()
   await w.remind(rows - 1, 'base')
@@ -256,8 +240,6 @@ describe('AD-04 over the cursors session-storage-sql issues', () => {
     const small = await rounds(await world(), 4, 3)
     const large = await rounds(await world(), 40, 3)
     expect(large).toEqual(small)
-    // Each round: the row before the cursor and the two new rows, then the row before the new
-    // upper bound once more for the cursor of the next round.
     for (const count of small) expect(count).toBeLessThanOrEqual(5)
   })
 
@@ -309,9 +291,6 @@ describe('AD-04 over the cursors session-storage-sql issues', () => {
   })
 
   it('a read from the start still advances when the cursor table is full of higher cursors', async () => {
-    // 420 rows are more than two store pages of 200. Eighteen rounds of one new row each leave the
-    // table full of cursors above the first page; the first page's own cursor is the lowest, and
-    // the cursor table keeps 16 of them.
     const w = await world()
     const parts = await w.borrow()
     await w.remind(420, 'full')
@@ -326,10 +305,7 @@ describe('AD-04 over the cursors session-storage-sql issues', () => {
     const upper = Number(upperOf(ev))
     const cold = await w.readAfter(parts, ev, null)
     expect(cold.seqs).toEqual(seqsFrom(0, upper))
-    // One call for each page of 200 rows, and a call or two for the cursor of the next round.
     expect(cold.asked.length).toBeLessThanOrEqual(Math.ceil((upper + 1) / 200) + 3)
-    // The cursors the cold read just got are the ones kept, not the lowest of them dropped at
-    // once: a read after the second page starts at the cursor Session issued there.
     const tail = await w.readAfter(parts, ev, cursorAfter(ev, '399'))
     expect(tail.seqs).toEqual(seqsFrom(400, upper))
     expect(tail.asked[0]?.after).not.toBeNull()

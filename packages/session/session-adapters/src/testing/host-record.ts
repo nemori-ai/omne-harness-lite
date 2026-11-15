@@ -13,34 +13,21 @@ import type {
   ToolIntentKey,
 } from '@omne-harness/agent-contract'
 
-// A local copy of a conformance-suite type that the session-log Journal takes as fixture input.
-// `src` does not import another package's `/testing` entry, so the copy lives here.
-// `tests/host-record.spec-d.ts` keeps it assignable both ways with the suite's type.
-
-/**
- * One record of the trusted host reads that the double serves to the custody variants of
- * commitSettlement. A fixture registers it under a source evidence; a source that no record
- * answers is unreadable.
- */
 export type TestHostRecord =
   | Readonly<{
-      /** The late return of an author invocation that started before the cancellation fence. */
       kind: 'legacy-return'
-      /** The tenant and the execution of the original invocation. */
       tenant: TenantId
       execution: AgentExecutionId
       passage: PassageId
       input: DurableEvidence
       mode: ExtensionInvocationMode
       implementation: Adoption
-      /** The proof that the call started before the fence. */
       started: DurableEvidence
       result: ExtensionInvocationResult
       received: DurableEvidence
       custody: DurableEvidence
     }>
   | Readonly<{
-      /** The immutable return of an original Tool invoke the host kept. */
       kind: 'tool-return'
       intent: ToolIntentKey
       request: DurableEvidence
@@ -51,9 +38,7 @@ export type TestHostRecord =
       custody: DurableEvidence
     }>
   | Readonly<{
-      /** The result of an original lookup or invalidate of one card round, as the card owner kept it. */
       kind: 'card-reconciliation'
-      /** The tenant and the execution of the original card round. */
       tenant: TenantId
       execution: AgentExecutionId
       passage: PassageId

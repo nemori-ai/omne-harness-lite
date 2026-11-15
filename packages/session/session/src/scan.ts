@@ -1,12 +1,3 @@
-// S3, the recovery scanner of one tenant (SPEC S3), in the subset this member hands work to: a
-// session with pending inputs goes to S1, each unknown operation goes to S4, a control that
-// propagates goes to C3, and an active Run goes to the recovery of C2. The startup scan reads the
-// union of reasons; the periodic scan reads `inputs`, `unresolved`, `controls` and `run`. The other
-// reasons have no handler in this member yet (SPEC「实现现状」). The cursor is not persistent.
-//
-// A scanner stays only while its tenant has work (SPEC「扫描者的生灭」): a round that read every page,
-// listed no session and saw no `maintain` since it began stops it. `maintain` is the demand signal
-// of each commit notice; it starts a scanner again after one stopped.
 import { fail, succeed } from '@omne-harness/operation-result'
 import type {
   PendingReason,
@@ -31,7 +22,6 @@ import {
 
 export type MaintenanceHandle = Readonly<{
   release(): Promise<void>
-  /** Settles once the scanner stopped: released, closed, or stopped because its tenant had no work. */
   ended: Promise<void>
 }>
 
@@ -42,14 +32,12 @@ export type Scan = Readonly<{
 
 const PERIODIC_REASONS: readonly PendingReason[] = ['inputs', 'unresolved', 'controls', 'run']
 
-/** The outcome of one round (SPEC「扫描者的生灭」): it read every page, and listed a session or none. */
 type Outcome = 'found' | 'empty' | 'incomplete'
 
 type Scanner = {
   readonly handle: MaintenanceHandle
   readonly stop: AbortController
   readonly settle: () => void
-  /** A `maintain` arrived since the current round began (SPEC「有需求」). */
   demand: boolean
 }
 
@@ -79,7 +67,6 @@ export function createScan<P>(
       ...(reason === undefined ? {} : { reason }),
     })
 
-  /** Hands one session to its handlers, by the reasons its snapshot decides. */
   const dispatch = async (ref: SessionRef): Promise<void> => {
     const principal = await scheduling.principal('maintainer', ref)
     if ('failure' in principal) return
@@ -95,10 +82,6 @@ export function createScan<P>(
       })
   }
 
-  /**
-   * All pages of one reading; each session is handed over once per round. A page that answered is
-   * handed over even after a stop; a stop only keeps the next page from being read.
-   */
   const read = async (
     tenant: TenantId,
     seen: Set<string>,
@@ -123,7 +106,6 @@ export function createScan<P>(
     return cursor === null ? (found ? 'found' : 'empty') : 'incomplete'
   }
 
-  /** One periodic round: every reason is read even after one fails; the round then did not finish. */
   const periodic = async (tenant: TenantId, stop: AbortSignal): Promise<Outcome> => {
     const seen = new Set<string>()
     const outcomes: Outcome[] = []
@@ -135,24 +117,18 @@ export function createScan<P>(
     return outcomes.includes('found') ? 'found' : 'empty'
   }
 
-  /** Stops `scanner`: out of the table, its handle ended. A second call changes nothing. */
   const end = (key: string, scanner: Scanner): void => {
     scanner.stop.abort()
     if (scanners.get(key) === scanner) scanners.delete(key)
     scanner.settle()
   }
 
-  /**
-   * The life of one scanner (SPEC「扫描者的生灭」). Each return ends it in the same synchronous step
-   * as the decision, so a `maintain` either arrived before the decision or finds no scanner.
-   */
+  // Each return ends the scanner in the same synchronous step as the decision, so a maintain either arrived before the decision or finds no scanner.
   const run = async (key: string, tenant: TenantId, scanner: Scanner): Promise<void> => {
     const { signal } = scanner.stop
     const { periodMs, startupRetryDelaysMs: delays } = policy.recoveryScan
-    /** Whether the scanner stops after a round: its tenant had no work and sent no notice. */
     const idle = (outcome: Outcome): boolean => outcome === 'empty' && !scanner.demand
     try {
-      // Starting, and backing off while the startup scan did not finish.
       for (let attempt = 0; ; attempt += 1) {
         scanner.demand = false
         const outcome = await read(tenant, new Set(), signal)
@@ -161,7 +137,6 @@ export function createScan<P>(
         const delay = delays[attempt] ?? delays.reduce((_, last) => last)
         if ((await scheduling.wait(delay, signal)) !== 'elapsed') return
       }
-      // Running: a wait for the period, then a periodic round.
       for (;;) {
         if ((await scheduling.wait(periodMs, signal)) !== 'elapsed') return
         scanner.demand = false

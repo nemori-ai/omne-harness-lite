@@ -1,7 +1,3 @@
-// The stored form of session-log revision 4 (SPEC「条目的存储形式」, R2-D357): every value that the
-// origin, the SE01 of the session or an SE36 of the batch holds is stored once, and a read gives the
-// value of the full form. Each case fails when a marker is lost, resolved against the wrong target,
-// accepted without its target, or when bytes of another revision are read in the new form.
 import { describe, expect, it } from 'vitest'
 import { tenantCodec, workspaceCodec } from '@omne-harness/legal-identity'
 import type { ResidentKey, SessionCommand } from '@omne-harness/session-contract'
@@ -29,7 +25,6 @@ const rows: HistoryEntry[] = SAMPLES.map((sample, index) => ({
 const byKind = (kind: string) => rows.filter(row => row.kind === kind)
 const plain = (row: HistoryEntry) => fromJsonValue(row.payload) as Record<string, any>
 
-/** The payload of the full form: what revision 3 stored for the same entry. */
 function fullPayload(entry: SessionEntry): HistoryEntry['payload'] {
   const { kind: _kind, ...body } = entry
   const out: Record<string, unknown> = { ...body }
@@ -60,7 +55,6 @@ describe('the stored form holds each repeated value once', () => {
           item => item.capability === plain(row)['resident'].capability,
         )?.shape,
       )
-    // A message keeps its own source: public history readers page it as stored.
     expect(plain(byKind('message.tool')[0]!)['source']).toEqual(SAMPLES.at(-1)!.origin.source)
     expect(rows.every(row => row.schema.revision === '4')).toBe(true)
   })
@@ -213,11 +207,9 @@ describe('the first resident shape stays whole while its holder lives', () => {
         } as SessionCommand & { kind: 'startRun' },
         guards: [],
       })
-    // Version 2 changes the shape: Session compares it with the first one and refuses it.
     expect(
       refused(await startWith('changed', [resident('Files', '2', shapeB)]), 'changed'),
     ).toEqual(expect.objectContaining({ kind: 'invalid', field: 'residentAdoption.residents' }))
-    // Version 2 with the same shape and a new capability: one new SE36, for the new capability only.
     const started = await startWith('same', [
       resident('Files', '2', shapeA),
       resident('Shell', '1', shapeB),

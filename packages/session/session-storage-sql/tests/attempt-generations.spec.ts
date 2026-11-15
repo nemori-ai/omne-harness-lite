@@ -1,9 +1,3 @@
-// The attempt generations of one Session operation and the nature of a storage refusal (SPEC W1
-// steps 2 and 9, W1 attempts, R7; VS-W12). Every refusal of the participant rolls back and uses up
-// a generation, and the caller comes again with the same operation, so the search has no bound:
-// these cases fail when a write or the R7 lookup stops after a fixed number of generations, when
-// the process forgets the generations it saw rolled back, or when a temporary storage refusal or
-// participant failure is answered as definite, or a definite storage refusal as temporary.
 import { describe, expect, it } from 'vitest'
 import type {
   CommitRequestV2,
@@ -14,9 +8,7 @@ import type {
 import { operationId } from '@omne-harness/session-contract/testing'
 import { app, TENANT_A, textOf, type App } from './fixtures/app.ts'
 
-/** More rolled back generations than the eight that the old bound allowed. */
 const ROLLED_BACK = 9
-/** The SQLite result code of a constraint failure: a data error (sql-contract §7.6). */
 const SQLITE_CONSTRAINT = 19
 
 const identityOf = (operation: string, attempt: number): SqlIdentity => ({
@@ -33,17 +25,14 @@ async function started(): Promise<App> {
   return a
 }
 
-/** Makes the participant refuse `accept-<name>` `times` times in a row: each one is rolled back. */
 async function refuseAccept(a: App, name: string, times: number): Promise<void> {
   for (let refused = 0; refused < times; refused += 1) {
-    // A constraint failure: a data error, so the attempt is rolled back (sql-contract §7.6).
     a.provider.failWrite(/INSERT/, 1, SQLITE_CONSTRAINT)
     expect(await a.accept(TENANT_A, 'session-1', name)).toHaveProperty('failure')
   }
   a.provider.failWrite(null)
 }
 
-/** Answers the next storage commit with `result` instead of running it. */
 function answerNextCommit(a: App, result: (request: CommitRequestV2) => CommitResultV2): void {
   const { storage } = a.provider
   const commit = storage.commit.bind(storage)
@@ -64,8 +53,6 @@ describe('the attempt generations of one operation have no bound', () => {
 
     const mark = a.provider.calls.length
     expect(await a.accept(TENANT_A, 'session-1', 'again')).toHaveProperty('ok')
-    // The process remembers the generations it saw rolled back: it sends the next one alone, and
-    // asks the storage nothing before it.
     const after = a.provider.calls.slice(mark)
     expect(after.filter(call => call.kind === 'query')).toEqual([])
     expect(
@@ -121,7 +108,6 @@ describe('a storage refusal keeps its nature (sql-contract 提交拒绝原因的
     })
   })
 
-  /** A rolled back receipt whose stopping reply is a `failed` of `category`. */
   const failedAs =
     (category: FailureCategory, diagnostic: string) =>
     (request: CommitRequestV2): CommitResultV2 =>
@@ -139,8 +125,6 @@ describe('a storage refusal keeps its nature (sql-contract 提交拒绝原因的
     expect(answer).toHaveProperty('failure.diagnostic', expect.stringContaining('not yet'))
   })
 
-  // W1 step 9: the provider decides these from the input and the committed data, so the same
-  // operation fails the same way.
   it.each([
     'port_violation',
     'fact_violation',

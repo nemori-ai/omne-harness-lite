@@ -1,25 +1,4 @@
 import { sessionCommitCommands } from '@omne-harness/session-storage-sql/participants'
-// The production Agent Journal provider on the Session log (AG-07, AD-01, R2-D292): the Agent
-// facts of one session are the second append-only family of the Session log, in the
-// `execution-record` participant of the session's transaction domain, and the Journal provider is
-// itself the committer of the first publication point (P5, split X).
-//
-// The Agent rules (the decision order, recognition, revisions, the finishing protocol) are the
-// Journal core of this member, the same one the `./testing` double runs. Per session the provider
-// keeps one view folded from the facts (`../journal`), one head position, and the core over a
-// disposable in-process copy built from that view. Before each call it reads the publication count
-// of the session: equal to its head, it reads nothing; behind, it reads the batches after its head
-// and folds them (K-20 is a range read); without a head it reads the open executions and their
-// facts (the cold start). A write prepares the next state in the copy; the provider then appends
-// one batch: the envelope, the facts of this write and the content blocks they name, with the head
-// rows and the derived Session participation, in one storage commit. No answer is stored: the
-// answer of an operation is derived from its batch. A publication the storage did not commit
-// leaves the copy to be rebuilt from the facts.
-//
-// K-23 end state (R2-D347 to R2-D349): the core appends the batches of the fact family; the
-// reader records of a copy (`MemoryExecution`, the operation records, the event fragments and
-// the receiving state) are projected from the fold and the blocks (`../testing/journal-records`),
-// never stored beside the facts. A row of the former `core.*` bridge does not decode (malformed).
 import { createHash, randomUUID } from 'node:crypto'
 import type {
   AgentExecutionId,
@@ -164,89 +143,42 @@ import { attemptOfAuthority, attemptOfGrant } from './attempt-grant.ts'
 
 export type SessionLogJournalOptions<P> = Readonly<{
   storage: SqlStorage
-  /** The trusted lookup of the tenant's transaction domain; it never registers a tenant. */
   tenantDomainLookup: TenantDomainLookup
-  /** Decides each derived Session participation as the Session operation it is (P6). */
   sessionAccessCheck: SessionAccessCheck<P>
-  /** The combination version and manifest digest of the Session log combination. */
   combination: JournalCombination
   cancellation?: MemoryAgentJournalOptions<P>['cancellation']
   hostRecords?: MemoryAgentJournalOptions<P>['hostRecords']
-  /**
-   * Called with a diagnostic for a programming error (a `TypeError`) that the Journal read past
-   * while it normalized an event: the event is then left undecided, as for a missing original, and
-   * the Agent write keeps its answer. The owner logs it at error level.
-   */
   fault?: Fault
-  /**
-   * Called once for each publication the provider sent to the storage, after the storage answered:
-   * the bytes of its commands and the outcome. An `unavailable` or `commit-unknown` outcome carries
-   * the diagnostic the call answers with, so a write that the storage refused is visible to the
-   * owner (it logs it). A throw is swallowed: the report never changes the answer of the call.
-   */
   report?: (report: JournalPublicationReport) => void
 }>
 
-/** The channel a defect that the Journal went on past is reported through. */
 type Fault = (diagnostic: string) => void
 
-/**
- * One publication of the Agent records (SPEC "发布观测"): who wrote, the UTF-8 bytes of the
- * commands it sent, what of them is the batch and what the blocks, and how the storage answered.
- */
 export type JournalPublicationReport = Readonly<{
-  /** The tenant text of the session. */
   tenant: string
   session: SessionId
-  /** The execution of the write; `-` for a write that names none. */
   execution: string
-  /** The Agent operation of the write; null for a write without one (the material port). */
   operation: string | null
-  /** The storage operation of the commit. */
   storageOperation: string
-  /** The Journal method of the write. */
   method: string
-  /** The bytes of the `execution-record` command (the one the storage limits by `maxCommandBytes`). */
   recordBytes: number
-  /** The bytes of every command of the commit. */
   bytes: number
-  /** The bytes of the batch's own facts: the envelope and the fact bodies, without the blocks. */
   batchBytes: number
-  /** The bytes of the content blocks the commit carries. */
   blobBytes: number
-  /** How many facts the batch holds, the envelope included. */
   facts: number
-  /**
-   * `committed`: this call committed it; `recalled`: an earlier generation did; `rolled-back`: a
-   * participant stopped it; `commit-unknown`: its outcome is not known; `unavailable`: the storage
-   * refused it before accepting it.
-   */
   outcome: 'committed' | 'recalled' | 'rolled-back' | 'commit-unknown' | 'unavailable'
-  /** The diagnostic of a `commit-unknown` or `unavailable` outcome; null otherwise. */
   diagnostic: string | null
 }>
 
-/** The UTF-8 bytes of the JSON text of a command. */
 const commandBytes = (command: FactCommandV2): number =>
   Buffer.byteLength(JSON.stringify(command), 'utf8')
 
 export type SessionLogJournalProvider<P> = AgentReceivedProvider<P, ContentBlock> & {
   received: NonNullable<AgentReceivedProvider<P, ContentBlock>['received']>
-  /**
-   * The original consumption bindings of this session's executions (agent-contract J02 item 1):
-   * the bindings that the committed PendingCalls established, kept in the session's Agent records
-   * after the checkpoint dropped the call or the attachment ended.
-   */
   targets: ModelReceptionTargets<P>
-  /** The same bindings of the associated Tool calls (R2-D273). */
   toolTargets: ToolReceptionTargets<P>
 }
 
-/**
- * The request that the last main-purpose M0 of the session recorded (FIXED-FACTS F4), read from
- * the `request.adopted` fact of the latest adoption and its record block. `order` is the
- * publication of that fact: the adoption order of the session is the publication order.
- */
 export type AdoptedPart = Readonly<{
   order: string
   execution: string
@@ -257,7 +189,6 @@ export type AdoptedPart = Readonly<{
   record: JsonValue
 }>
 
-/** What the adopted request read gives: the request, none, or why it could not be read. */
 export type AdoptedRead =
   | Readonly<{ kind: 'value'; value: AdoptedPart | null }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
@@ -276,65 +207,35 @@ type Copy<P> = Readonly<{
 type CustodyAttempt =
   MemoryExecution['custodyAttempts'] extends Map<infer _Operation, infer Attempt> ? Attempt : never
 
-/**
- * A write of this process whose storage outcome stayed unknown. The durable records know nothing
- * of it until the storage decides, so the provider keeps what the call left and puts it back into
- * every copy it rebuilds: while the storage has not decided, the operation is pending in the copy
- * (a `query` answers unknown and the finishing list of its execution carries an unknown operation
- * item); once the storage proves the generation never ran, it is excluded, with the custody
- * attempt the write had reached. A committed generation needs no entry: the durable records hold it.
- */
 type Held = {
   readonly execution: AgentExecutionId
   readonly operation: AgentOperationId
-  /** The record key the Journal core gave the write: it tells a retry of it from another write. */
   readonly key: string
   readonly storageOperation: string
   readonly attempt: number
-  /** The custody attempt of a recordHandoff that reached the write step; its chain needs it. */
   readonly custody: CustodyAttempt | null
   standing: 'unknown' | 'excluded'
 }
 
 type Book<P> = {
-  /** The session among the sessions of the storage: the tenant text and the session. */
   readonly key: string
   readonly tenant: TenantId
   readonly tenantText: string
   readonly session: SessionId
-  /** The view folded from the facts up to `published`. */
   view: SessionJournalView
-  /** The content blocks read or written, by row digest: the stored payload text. */
   readonly blobs: Map<string, string>
-  /**
-   * The blocks decoded, by the digest the facts name. A block is immutable under its digest, so
-   * it is decoded once per book, not once per copy built (a copy is rebuilt whenever another
-   * writer published; decoding every block again made each rebuild cost the whole history).
-   */
   readonly parsed: Map<string, unknown>
-  /** The copy of the core over the records at `published`; null when it must be built. */
   copy: Copy<P> | null
-  /** The publication the view reflects; null when nothing was read yet (a cold start follows). */
   published: number | null
-  /** The executions whose facts were read whole (the open ones at the cold start, and on demand). */
   readonly loaded: Set<string>
   scratch: Scratch | null
   queue: Promise<void>
-  /** The serial tasks not finished yet and the event observations open on the copy. */
   users: number
-  /** The unknown writes of this process, by the Journal core's operation key. */
   readonly held: Map<string, Held>
 }
 
 const PARTICIPANTS = ['message', 'context-transition', 'custody', 'processed'] as const
-/**
- * The rounds one call may redo itself when its publication loses a race (a revision or publication
- * count conflict, or a recalled operation). A fixed policy of this provider, not a configuration:
- * four lost races in a row is a session under contention that a fifth round does not help, and the
- * call then answers `unavailable` (session-adapters SPEC, "生产提供者的实现现状" step 6).
- */
 const ROUNDS = 4
-/** The calls that only read: they need no Session snapshot for the advance check. */
 const READS: ReadonlySet<string> = new Set([
   'load',
   'readCancellationInstallation',
@@ -353,11 +254,6 @@ const READS: ReadonlySet<string> = new Set([
   'toolTargets.resolve',
 ])
 const OWNER = 'session-log-journal'
-/**
- * The bytes of content blocks one publication carries beside its batch before the blocks go in a
- * commit of their own, first (R2-D292 3.4): a block without a fact that names it is not a fact, so
- * the order is safe, and the batch then stays under the command limit of the storage.
- */
 const BLOBS_WITH_BATCH_BYTES = 256 * 1024
 
 const unavailable = (diagnostic: string): Failure => ({
@@ -369,15 +265,6 @@ const unavailable = (diagnostic: string): Failure => ({
 type OpenInput<P> = Parameters<AgentJournal<P>['open']>[0]
 type AttachInput<P> = Parameters<AgentJournal<P>['attach']>[0]
 
-/**
- * The hand-over the Session participation of one write derives from (AD-01 table). It is the
- * caller of a `commit` or the transfer of a `recordResult`, except for the main reply: a `commit`
- * whose caller is none and that applies the prepared outcome of a model-reply H (the Ja of
- * `handoff.resolve` with its `replyAdmission`) writes the reply into the Session history in the same
- * storage commit, through the same `recordMessage` writer as the `message` hand-over. Its source is
- * the original handoff record and its admission the prepared result (Agent SPEC "真实历史的提交点":
- * the main reply is a core history duty of the Journal and never a CallerCommit.message).
- */
 function historyCaller<P>(input: ExecutionMutation<P>, method: JournalWrite): CallerCommit {
   if (method === 'recordResult')
     return (input as Parameters<AgentJournal<P>['recordResult']>[0]).transfer
@@ -401,7 +288,6 @@ function historyCaller<P>(input: ExecutionMutation<P>, method: JournalWrite): Ca
   }
 }
 
-/** The storage operation of one Agent operation of one execution. */
 function storageOperation(execution: string, operation: string): string {
   return `aop_${createHash('sha256')
     .update(JSON.stringify([execution, operation]))
@@ -409,7 +295,6 @@ function storageOperation(execution: string, operation: string): string {
     .slice(0, 40)}`
 }
 
-/** What a write of `method` changed: its execution, operation and semantic digest. */
 type Written = Readonly<{
   method: string
   execution: string | null
@@ -417,10 +302,6 @@ type Written = Readonly<{
   digest: string
 }>
 
-/**
- * A material preserve names an execution only as its route (K-9): it writes the session's received
- * state and never that execution's records, so it is not a write of the execution.
- */
 const ROUTE_ONLY: ReadonlySet<string> = new Set(['preserve'])
 
 function writtenOf(method: string, input: object): Written {
@@ -453,13 +334,6 @@ function receiptOf(answer: Outcome<unknown, Failure>): CommandReceipt | null {
     : null
 }
 
-/**
- * The result of reading an original fragment, or null when the fragments do not give it. A missing
- * original (`HistoryFailure`) is the expected reason, and nothing is invented for it. A
- * `TypeError` is a defect of the reader, not a fact about the data: it is reported through `fault`
- * and the read still answers null, so the Agent write that triggered it is not lost. Any other
- * error is not this function's to hide.
- */
 export function readOrNull<T>(what: string, fault: Fault | undefined, read: () => T): T | null {
   try {
     return read()
@@ -473,11 +347,6 @@ export function readOrNull<T>(what: string, fault: Fault | undefined, read: () =
   }
 }
 
-/**
- * The Session consequences of one event as the shared normalization of the memory reference gives
- * them, from the original fragments of the same root; null when the fragments do not decide them
- * (a control event, an original that this root does not hold). Nothing is invented for a null.
- */
 function consequencesOf(
   root: CommonRoot,
   execution: MemoryExecution,
@@ -489,11 +358,6 @@ function consequencesOf(
   )
 }
 
-/**
- * The Agent evidence of a control event, whose consequences Session decides when it interprets
- * the event (its row has the deferred marker); null for any other event, or when the original
- * fragments do not give the evidence (the row then keeps empty kinds).
- */
 function deferredOf(
   root: CommonRoot,
   execution: MemoryExecution,
@@ -506,7 +370,6 @@ function deferredOf(
   )
 }
 
-/** The placeholder head of an execution that another execution's call changed (SPEC K-5). */
 function placeholderHead(execution: MemoryExecution): DurableEvidence {
   return {
     owner: OWNER,
@@ -516,15 +379,9 @@ function placeholderHead(execution: MemoryExecution): DurableEvidence {
   }
 }
 
-/** The JSON a projection member takes: the consequences or the control evidence as data. */
 const projected = (value: unknown): JsonValue =>
   value === null || value === undefined ? null : (JSON.parse(JSON.stringify(value)) as JsonValue)
 
-/**
- * The event projection of one new event of `execution` (AD-02 table, Agent side): the kinds of
- * its normalized consequences, the consequences and the deferred control evidence, the batch of
- * an input-taken event. The row's `event` column keeps it; AD-02 reads what the row says.
- */
 function projectionOf(
   root: CommonRoot,
   execution: MemoryExecution,
@@ -543,7 +400,6 @@ function projectionOf(
   }
 }
 
-/** The head rows of the executions a write changed (the Agent side of the execution boundary). */
 function boundariesOf(
   changed: readonly MemoryExecution[],
   receipt: CommandReceipt | null,
@@ -564,12 +420,6 @@ function boundariesOf(
   })
 }
 
-/**
- * Captures the original fragments of the events that one write of `execution` appended, with the
- * write's receipt, as the memory double does in its commit hook. A fragment that cannot be read is
- * left out, not the write: the event's consequences are then not decided, and its row says so
- * with empty kinds.
- */
 function captureFresh(
   root: CommonRoot,
   execution: string,
@@ -586,13 +436,6 @@ function captureFresh(
   root.agent.indexedEvents.set(execution, found.events.length)
 }
 
-/**
- * The tenant text and session that a material source of this provider names, or null for a source
- * it did not make. The Journal core makes every material source (a `materials.preserve` and the
- * material of a `received` commit) with `journalEvidence`: its record is a canonical array that
- * opens with the namespace of the session's cell, the JSON text `[tenant, session]`, and the kind
- * of the material.
- */
 export function materialSessionOf(
   source: DurableEvidence,
 ): Readonly<{ tenant: string; session: SessionId }> | null {
@@ -612,21 +455,13 @@ export function materialSessionOf(
     : null
 }
 
-/** One event of an execution with what its interpretation commits (AD-02). */
 export type InterpretableEvent = Readonly<{
   sequence: string
   source: DurableEvidence
-  /** The normalized consequences, the same the row's kinds name; null: not decided. */
   consequences: readonly SessionLogConsequence[] | null
-  /** The Agent evidence of a deferred control fact, which Session decides; null otherwise. */
   control: SessionControlEvidence | null
 }>
 
-/**
- * One execution of a session's durable Agent records as AD-02 interprets it: its head revision, the
- * head receipt its head row names (null: the placeholder, which the Session side answers
- * `unavailable` for), and its events after a sequence, all from one read of one head.
- */
 export type ExecutionInterpretation = Readonly<{
   revision: string
   head: DurableEvidence | null
@@ -638,15 +473,10 @@ export type InterpretationRead =
   | Readonly<{ kind: 'read'; execution: ExecutionInterpretation | null }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-/** The transaction domain of a tenant, or why there is none. */
 type DomainResolution =
   | Readonly<{ kind: 'ready'; domain: DomainRef }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-/**
- * Asks the trusted lookup for the transaction domain of `tenant` (its minted text). A throw and an
- * unregistered tenant are both `unavailable`: nothing is read or written for a tenant without one.
- */
 async function resolveDomain(
   lookup: TenantDomainLookup,
   tenant: string,
@@ -665,7 +495,6 @@ async function resolveDomain(
   }
 }
 
-/** The storage and the trusted domain lookup that a reader of the Agent records needs. */
 export type JournalStateSource = Readonly<{
   storage: SqlStorage
   tenantDomainLookup: TenantDomainLookup
@@ -689,14 +518,6 @@ async function resolvedOf(
   }
 }
 
-/**
- * Reads the events of one execution after `after` (C-WORKCACHE design §5, path P): the head row of
- * the execution and its event rows after `after` by the event index, with the projection each
- * row carries (the consequences the Journal normalized when it wrote the event). Only the events
- * after the reader's progress are read, so a read does not grow with the session or with the
- * records of the execution. `null` execution: the session's records hold no such execution. It
- * reads only; it never writes.
- */
 export async function readExecutionInterpretation(
   options: JournalStateSource,
   target: Readonly<{ tenant: TenantId; session: SessionId; execution: string; after: string }>,
@@ -728,10 +549,6 @@ export async function readExecutionInterpretation(
   }
 }
 
-/**
- * Fetches into `into` every block of `digests` that it does not hold. The first digest the tenant
- * does not hold, or null when all are there.
- */
 async function fetchBlobClosure(
   read: Reader,
   tenant: string,
@@ -747,14 +564,12 @@ async function fetchBlobClosure(
   return null
 }
 
-/** The records of one execution a reader outside the provider needs: its handoffs and attachments. */
 export type ExecutionRecordsRead =
   | Readonly<{ kind: 'read'; execution: MemoryExecution | null }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 const HEX_DIGEST = /^[0-9a-f]{64}$/
 
-/** The digests of the block references (`{ digest, size }` of `refOf`) anywhere in `value`. */
 function refsIn(value: unknown, into = new Set<string>()): Set<string> {
   if (value === null || typeof value !== 'object') return into
   if (value instanceof Map) {
@@ -776,7 +591,6 @@ function refsIn(value: unknown, into = new Set<string>()): Set<string> {
   return into
 }
 
-/** The obligation block digests an issued list names: `[id, digest]` pairs in its list block. */
 function listedDigests(payload: string): string[] {
   const value = JSON.parse(payload) as unknown
   if (!Array.isArray(value)) return []
@@ -785,12 +599,6 @@ function listedDigests(payload: string): string[] {
   )
 }
 
-/**
- * Fetches the blocks the facts of `executions` name (the cursor members, the custody of results,
- * the finish records, the materials), then the obligation blocks their issued lists name through
- * the list block (R2-D322: a close names its items by id and digest in a block, not by reference).
- * The digest of the first block that is not readable, or null.
- */
 async function fetchNamed(
   read: Reader,
   tenant: string,
@@ -807,17 +615,13 @@ async function fetchNamed(
   }
   const missing = await fetchBlobClosure(read, tenant, named, into)
   if (missing !== null) return missing
-  // The blocks that only another block names. The view names the list block and the cursor block
-  // of a candidate; their members are references inside those blocks.
   const items = new Set<string>()
   for (const digest of lists) {
     const payload = into.get(blobRowDigest(digest))
     if (payload === undefined) continue
     for (const item of listedDigests(payload)) items.add(blobRowDigest(item))
   }
-  // A candidate keeps the cursor of the step it was established on. When the execution went on
-  // after it (a finish that new input interrupted), the view's own cursor names later blocks, and
-  // only the cursor block of the candidate still names the member blocks of that step.
+  // A candidate keeps the cursor of the step it was established on; after later steps only that cursor block names the member blocks of that step.
   for (const digest of cursors) {
     const payload = into.get(blobRowDigest(digest))
     if (payload === undefined) continue
@@ -826,35 +630,18 @@ async function fetchNamed(
   return fetchBlobClosure(read, tenant, items, into)
 }
 
-/**
- * The fold one reader outside the provider keeps of a session, up to `head`: the facts of the
- * executions it was asked about. The next read folds only the batches after the head (and, for an
- * execution asked about for the first time, that execution's facts), so a read does not grow with
- * the session.
- */
 type RecordsFold = {
   head: number
   view: SessionJournalView
   blobs: Map<string, string>
-  /** The blocks decoded, by the digest the facts name (see `Book.parsed`). */
   parsed: Map<string, unknown>
   executions: Set<string>
 }
 
-/**
- * The folds kept per storage, by tenant and session. A reader does not learn that an execution
- * ended, so a fold leaves by age: the least recently read leave when the folds are more than
- * `RECORDS_FOLDS`, or when the text of their blocks is more than `RECORDS_FOLD_TEXT`. The count
- * alone bounds no memory, because one fold holds every block of its executions.
- */
 const recordsFolds = new WeakMap<SqlStorage, Map<string, RecordsFold>>()
 const RECORDS_FOLDS = 256
 const RECORDS_FOLD_TEXT = 16 * 1024 * 1024
 
-/**
- * Drops the least recently read of `folds` (a map in order of last use) until the text of the
- * blocks they hold is at most `limit`. The fold `used` stays whatever its size: it is being read.
- */
 export function dropFoldsOver<Fold extends { blobs: ReadonlyMap<string, string> }>(
   folds: Map<string, Fold>,
   used: Fold,
@@ -883,7 +670,6 @@ function recordsFoldOf(storage: SqlStorage, key: string): RecordsFold {
   }
   let found = folds.get(key)
   if (found !== undefined) {
-    // Touched: the most recently used fold is the last of the map.
     folds.delete(key)
     folds.set(key, found)
     return found
@@ -904,14 +690,6 @@ function recordsFoldOf(storage: SqlStorage, key: string): RecordsFold {
   return found
 }
 
-/**
- * Reads the records of one execution from its facts: what `message-handoff` and the conditions of
- * AD-05 read of a P and the grant of the attachment an Authority names. The first read of an
- * execution folds its facts from the first publication; a later read folds only the batches after
- * the publication the kept fold reached (session-storage-sql RT-04 owner list, item 3), so one
- * read is bounded by the step, not by the session. It reads only: the record is projected from
- * the fold and the blocks it names, as the provider's own copy is.
- */
 export async function readExecutionRecords(
   options: JournalStateSource,
   target: Readonly<{ tenant: TenantId; session: SessionId; execution: string }>,
@@ -950,7 +728,6 @@ export async function readExecutionRecords(
   }
 }
 
-/** What a projection reads besides the view: the blocks by the digest the facts name, and the mint. */
 function projectionContext(
   tenant: TenantId,
   tenantText: string,
@@ -958,7 +735,6 @@ function projectionContext(
   rows: ReadonlyMap<string, string>,
   parsed: Map<string, unknown>,
 ): ProjectionContext {
-  // The blocks not decoded yet join the decoded ones; the rest are kept as they are.
   for (const [row, payload] of rows) {
     const digest = factDigestOf(row)
     if (!parsed.has(digest)) parsed.set(digest, JSON.parse(payload) as unknown)
@@ -974,9 +750,7 @@ function projectionContext(
 
 export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>) {
   const books = new Map<string, Book<P>>()
-  /** The publication counts this process knows, shared by every provider over the storage. */
   const counts = publishedCountsOf(options.storage)
-  /** Whether a write of the book has an unknown outcome: the count may have moved unanswered. */
   const undecided = (book: Book<P>): boolean => {
     for (const held of book.held.values()) if (held.standing === 'unknown') return true
     return false
@@ -1010,21 +784,12 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return book
   }
 
-  /** A book with no open execution and no unknown write: it holds nothing the records do not. */
   const quiescent = (book: Book<P>): boolean =>
     book.held.size === 0 &&
     book.view.executions.size > 0 &&
     [...book.view.executions.values()].every(execution => execution.finish.ended !== null)
 
-  /**
-   * The one quiescent book that keeps its working copy. The loop of an ended execution still reads
-   * it for its steps after the terminal, so the book of the session that worked last stays warm.
-   * When another session works, the resting book returns to the state of a cold start, and its
-   * next call reads what it needs. A resting book with a task or an observation of its own is
-   * left alone: its own last user puts it to rest again. So the copies held grow with the sessions in flight, not with
-   * the sessions that ended. The book itself stays: the calls already queued keep the one serial
-   * order of the session.
-   */
+  // Reset only the working copy of the resting book. Keep the book itself: queued calls rely on its one serial order.
   let resting: Book<P> | null = null
   function rest(book: Book<P>): void {
     if (resting !== null && resting !== book) {
@@ -1041,7 +806,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     if (quiescent(book)) resting = book
   }
 
-  /** Runs `task` after every earlier task of the same book: one writer per session in-process. */
   function serial<T>(book: Book<P>, task: () => Promise<T>): Promise<T> {
     book.users += 1
     const run = book.queue.then(task, task).finally(() => {
@@ -1056,7 +820,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   }
 
   async function domainOf(book: Book<P>): Promise<Outcome<DomainRef, Failure>> {
-    // An unregistered tenant is not registered here; nothing is written (assembly page :307).
     const resolved = await resolveDomain(options.tenantDomainLookup, book.tenantText)
     return resolved.kind === 'ready'
       ? succeed(resolved.domain)
@@ -1064,20 +827,11 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   }
 
   const scopeOf = (book: Book<P>) => ({ tenant: book.tenantText, session: book.session })
-  // The mint of the batch evidence is the core's (its owner and the session namespace): what the
-  // provider derives from a stored batch is what the core answered when it wrote it.
   const mintOf = (book: Book<P>) => ({
     owner: JOURNAL_OWNER,
     session: JSON.stringify([book.tenantText, book.session]),
   })
 
-  /**
-   * The Session snapshot the `advances` check of this call reads, through the work cache of the
-   * storage (session-storage-sql RT-04): a version read, and a whole read only after a commit.
-   * A read the storage does not answer now, or a state that does not cover the tail yet, is
-   * `unavailable`, as the Session read face answers it: the check judges no Authority on a
-   * snapshot it does not have. A session the tenant does not have gives null.
-   */
   async function snapshotOf(
     book: Book<P>,
     domain: DomainRef,
@@ -1169,7 +923,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return undefined
   }
 
-  /** The Session command one `commit` or `recordResult` derives from its caller (AD-01 table). */
   function jointCommand(
     book: Book<P>,
     cell: JournalCell<P>,
@@ -1261,7 +1014,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     }
   }
 
-  /** P6: the derived participation is decided as the Session operation it is, once per call. */
   async function qualify(
     book: Book<P>,
     cell: JournalCell<P>,
@@ -1287,7 +1039,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return succeed({ evidence: decision.evidence, digest: commandDigest(derived.ok) })
   }
 
-  /** The terminal condition of the Session participant for a cancellation judgment (AD-01). */
   function terminalParticipant(
     book: Book<P>,
     cell: JournalCell<P>,
@@ -1329,7 +1080,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       case 'terminal':
         return fact(judged.terminal.evidence, { kind: 'changed' })
       case 'cancelled': {
-        // The cancel control of this Run as the snapshot records it; SE26 refers to that control.
         const cancels = snapshot.controls.filter(
           item => item.intent.kind === 'control' && item.intent.value.kind === 'cancel-run',
         )
@@ -1342,16 +1092,12 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     }
   }
 
-  /** Fills a new root with the records of the session, projected from its fold and blocks. */
   function restore(book: Book<P>, cell: JournalCell<P>, records: ProjectedRecords): void {
     cell.mutate(() => {
       const root = cell.state()
       const into = <K, V>(target: Map<K, V>, source: ReadonlyMap<K, V>) => {
         for (const [key, value] of source) target.set(key, value)
       }
-      // The fact family of the core is the book's: the view at the publication count, the blocks
-      // by the digest the facts name. The core appends at `view.head + 1`; its log holds only the
-      // batches it appends from here, which the provider publishes.
       root.agent.view = book.view
       root.agent.log = []
       for (const [digest, value] of book.parsed) root.agent.blobs.set(digest, value)
@@ -1371,12 +1117,9 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     })
   }
 
-  /** The copy of `book` over the records its fold holds: a new cell and core. */
   function build(book: Book<P>): Copy<P> {
     const cell: JournalCell<P> = createCell<P>(book.tenant, book.session, {
       authorize: () => undefined,
-      // R2-D348: the Authority's attachment names its grant; the Session's attempt records of
-      // the snapshot name the attempt that grant was issued for (R2-D349); it must be the advance.
       advances(execution, authority): boolean {
         const snapshot = book.scratch?.snapshot ?? null
         if (snapshot === null || snapshot.run.kind !== 'active' || snapshot.run.advance === null)
@@ -1418,15 +1161,12 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return { cell, core }
   }
 
-  /** Puts the held writes back into a rebuilt copy, unless the durable records already decided them. */
   function putBack(book: Book<P>, cell: JournalCell<P>): void {
     if (book.held.size === 0) return
     cell.mutate(() => {
       const root = cell.state()
       for (const [at, held] of book.held) {
         if (root.agent.operations.has(at)) continue
-        // The reference core keeps the custody attempt of a write while it is pending and after it
-        // is excluded, so the custody chain of the H goes on from it in both cases.
         if (held.custody !== null) {
           const found = [...root.agent.executions].find(([, item]) => item.id === held.execution)
           if (found !== undefined) {
@@ -1443,7 +1183,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
             tenant: book.tenant,
             execution: held.execution,
             operation: held.operation,
-            // The storage, not the copy, decides a held write; there is nothing to run or drop here.
             run: () => undefined,
           })
           continue
@@ -1467,10 +1206,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     })
   }
 
-  /**
-   * Asks the storage about each held write that is still undecided. True when one of them turned
-   * out excluded, so the cached copy, which still holds it as pending, must be rebuilt.
-   */
   async function settleHeld(book: Book<P>, domain: DomainRef): Promise<boolean> {
     let changed = false
     for (const [at, held] of book.held) {
@@ -1490,7 +1225,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return changed
   }
 
-  /** The common root of the session in one read, or the diagnostic of why it is not readable. */
   async function readRoot(book: Book<P>, domain: DomainRef) {
     const output = await readOutput(options.storage, {
       domain,
@@ -1503,7 +1237,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return decodeSessionHistoryRoot(output.output) ?? unreadable
   }
 
-  /** Folds the batches read into the view; the copy is then stale. */
   function foldRead(book: Book<P>, batches: readonly ReadBatch[], published: number): void {
     for (const batch of batches) if (batch.batch !== null) book.view = fold(book.view, batch.batch)
     book.view = { ...book.view, head: Math.max(book.view.head, published) }
@@ -1511,11 +1244,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     book.copy = null
   }
 
-  /**
-   * Folds the facts of one execution read whole, after the view's head moved past them (an ended
-   * execution the cold start did not read): they fold into a view of their own, which is then
-   * joined to the book's.
-   */
   function foldExecution(book: Book<P>, batches: readonly ReadBatch[]): void {
     let side = emptySessionView()
     for (const batch of batches) if (batch.batch !== null) side = fold(side, batch.batch)
@@ -1528,11 +1256,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     book.copy = null
   }
 
-  /**
-   * Reads the facts of `execution` when the view does not hold it: an execution that ended before
-   * the cold start, which read the open ones only. Read once per execution; nothing is read for an
-   * execution the session never had, beyond the one read that finds no fact of it.
-   */
   async function loadExecution(
     book: Book<P>,
     domain: DomainRef,
@@ -1555,9 +1278,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return succeed(book.copy)
   }
 
-  /** Fetches the content blocks the facts of the view name that the book does not hold yet. */
   async function fetchBlobs(book: Book<P>, read: Reader): Promise<Failure | null> {
-    // The blocks the facts of the view refer to: the core reads them by digest.
     const missing = await fetchNamed(
       read,
       book.tenantText,
@@ -1569,12 +1290,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       : unavailable(`the content block ${missing} of the Agent records is not readable`)
   }
 
-  /**
-   * Brings the copy of `book` to the durable records of its session: the publication count, read
-   * from the storage only when this process does not know it (session-storage-sql RT-06); nothing
-   * more when the view is at it; the batches after the head when behind; the open executions and
-   * their facts when nothing was read yet.
-   */
   async function sync(book: Book<P>, domain: DomainRef): Promise<Outcome<Copy<P>, Failure>> {
     const plan = planPublishedCount(counts.get(book.key), undecided(book))
     let published: number
@@ -1609,10 +1324,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return succeed(book.copy)
   }
 
-  /**
-   * The request the last main-purpose M0 of the session recorded, at the publication count of this
-   * read: the latest `request.adopted` fact across the executions of the view and its record block.
-   */
   async function readAdopted(
     scope: Readonly<{ tenant: TenantId; session: SessionId }>,
   ): Promise<AdoptedRead> {
@@ -1641,7 +1352,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         )
           latest = { execution: execution.execution, request: execution.adopted }
       if (latest === null) return { kind: 'value', value: null }
-      // The adoption order of the session: one more for each request adopted up to this one.
       let order = 0
       for (const execution of book.view.executions.values())
         for (const request of execution.requests) if (request.pub <= latest.request.pub) order += 1
@@ -1691,7 +1401,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       : null
   }
 
-  /** Keeps the write the call prepared in its copy, whose storage outcome stayed unknown. */
   function hold(
     book: Book<P>,
     after: CommonRoot,
@@ -1718,12 +1427,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     })
   }
 
-  /**
-   * The reverse input directory rows of an open or a submit: the accepted input, its original grant
-   * and attachment, and the original attempt of that attachment: the attempt the Session issued
-   * the attachment's grant for, in the snapshot of this write (R2-D349). An attachment whose grant
-   * names no attempt has none; nothing is guessed from the current advance.
-   */
   function admissionsOf(
     written: Written,
     own: MemoryExecution | undefined,
@@ -1759,17 +1462,14 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     ]
   }
 
-  /** The batch of one write, prepared: the rows the store takes, the blocks and the family's batch. */
   type Prepared = Readonly<{
     envelope: BatchEnvelope
     derived: readonly DerivedFact[]
     records: readonly ExecutionFactRecord[]
     blobs: readonly ExecutionBlobRecord[]
-    /** The bytes of the envelope and the fact bodies, without the blocks. */
     batchBytes: number
   }>
 
-  /** The participation kinds of the batch: the Session commands the same commit carries. */
   function kindsOf(scratch: Scratch): ParticipationKind[] {
     const kinds: ParticipationKind[] = []
     for (const command of scratch.commands)
@@ -1792,14 +1492,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return kinds
   }
 
-  /**
-   * Prepares the batch of one write: the facts of the family the core appended, each fact that is
-   * an event with the projection of that event (the Session reads it from the row), the envelope,
-   * and the blocks the facts name. A family fact that carries content or exceeds `FACT_MAX_BYTES`
-   * is refused as `invalid` (the run-time guard of P3); a batch of more facts than the store takes
-   * is `unavailable`; facts that do not name the events the write appended, in order, are a defect
-   * of the writer and `unavailable`.
-   */
   function prepare(
     book: Book<P>,
     after: CommonRoot,
@@ -1809,13 +1501,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     scratch: Scratch,
   ): Outcome<Prepared, Failure> {
     const blobs = new Map<string, ExecutionBlobRecord>()
-    // The batches the core appended in this write: its facts are the family's facts, its blocks
-    // the rows to store.
     coreBlobRows(after.agent.blobs, row => book.blobs.has(row), blobs)
-    // The event each event fact projects: the fold decides which facts are events and numbers
-    // them (`eventOf`, the one place of the rule); the core's view after the write holds the
-    // fold of the appended batches. The writer numbers its events the same way
-    // (`tests/journal-records-parity.spec.ts` holds the two equal).
     const execution = appended[0]!.execution
     const events = new Map(
       (after.agent.view.executions.get(execution)?.events ?? []).map(
@@ -1854,9 +1540,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       if (Buffer.byteLength(canonical(item.fact), 'utf8') > FACT_MAX_BYTES)
         return fail({ kind: 'invalid', field: `facts[${String(index)}]`, reason: 'oversize' })
     }
-    // The envelope is the core's: the answer the core derived was minted on it, and a reader
-    // derives the same answer from the stored batch. The participation kinds are the provider's:
-    // the Session commands this commit carries.
     const envelope: BatchEnvelope = { ...appended.at(-1)!.envelope, kinds: kindsOf(scratch) }
     const records: ExecutionFactRecord[] = [
       { execution, kind: 'batch', body: envelope as unknown as JsonValue },
@@ -1886,10 +1569,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     })
   }
 
-  /**
-   * Stores the blocks that do not go with the batch, in commits of their own before it (R2-D292
-   * 3.4). A block of its own above the storage's command limit cannot be stored: `unavailable`.
-   */
   async function storeBlobsFirst(
     book: Book<P>,
     domain: DomainRef,
@@ -1959,8 +1638,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     scratch: Scratch,
     answer: Outcome<T, Failure>,
   ): Promise<Settled<T>> {
-    // From here on the copy holds an unpublished state: whatever happens, rebuild it from the
-    // facts next time. The view and its head stay: a rebuild folds only what is after the head.
+    // The copy now holds an unpublished state: drop it so the next call rebuilds from the facts. The view and its head stay.
     const published = book.published ?? 0
     book.copy = null
     const changed = changedExecutions(before, after)
@@ -1970,9 +1648,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         ? undefined
         : [...before.agent.executions.values()].find(item => item.id === own.id)
     const receipt = receiptOf(answer)
-    // The batches the core appended in this write: those after the publication count the view is
-    // at. A write that changed the records without a batch is a defect of the core, not a
-    // publication the provider makes up.
     const appended = after.agent.log.filter(batch => batch.pub > book.view.head)
     if (appended.length === 0)
       return {
@@ -1980,8 +1655,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         value: fail(unavailable(`a ${written.method} changed the Agent records without a batch`)),
       }
     const execution = appended[0]!.execution
-    // The storage operation of the write is derived from the execution and the Agent operation
-    // alone, so a reader with those two (`query`) finds the batch of the operation.
     const operation = storageOperation(
       execution,
       written.operation ?? `${written.method}\0${randomUUID()}`,
@@ -2046,10 +1719,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       operation,
       outcome,
     )
-    // What follows the commit hangs on the one writer of the session log: the landing of
-    // session-storage-sql judges a fresh commit, folds the batch of a Session participation of the
-    // same commit (or replaces the index after the publication) and tells the batch to the
-    // notifiers of the database (session-storage-sql「本批与提交通知」, RT-04).
     await afterSessionCommit({
       storage: options.storage,
       domain,
@@ -2064,7 +1733,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return settled
   }
 
-  /** Tells the owner about one publication the storage answered; a failing report is ignored. */
   function reportPublication(
     book: Book<P>,
     written: Written,
@@ -2106,12 +1774,9 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         diagnostic: null,
         ...known,
       })
-    } catch {
-      // The report is an observation; the answer of the call does not depend on it.
-    }
+    } catch {}
   }
 
-  /** What one publication needs to turn a storage outcome into the call's answer. */
   type Published<T> = Readonly<{
     book: Book<P>
     copy: Copy<P>
@@ -2119,20 +1784,14 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     prepared: Prepared
     execution: string
     written: Written
-    /** The revision of the written execution before the write; null when the write opened it. */
     prior: ExecutionRevision | null
     scratch: Scratch
     answer: Outcome<T, Failure>
   }>
   type Settling<T> = Published<T> &
     Readonly<{
-      /** The Agent operation of the write; null for a write without one (the material port). */
       agentOperation: AgentOperationId | null
     }>
-  /**
-   * A write without an Agent operation (the material port) has no identity to name or to recall
-   * by: wherever an answer would name one, it is `unavailable`, never an invented identity.
-   */
   function nameless<T>(what: string): Settled<T> {
     return {
       kind: 'answer',
@@ -2140,7 +1799,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     }
   }
 
-  /** A conflict on the operation of the write: the same digest is the write itself, again. */
   function conflicting<T>(job: Settling<T>, digest: string): Settled<T> {
     if (digest === job.written.digest) return { kind: 'again' }
     return job.agentOperation === null
@@ -2148,7 +1806,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       : { kind: 'answer', value: fail({ kind: 'conflict', operation: job.agentOperation }) }
   }
 
-  /** The write committed: the call's answer, and the view and copy then reflect it. */
   function settleCommitted<T>(
     job: Settling<T>,
     receipt: Extract<Awaited<ReturnType<typeof commitJournal>>, { kind: 'committed' }>,
@@ -2160,7 +1817,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         kind: 'answer',
         value: fail(unavailable('a committed receipt without the Agent records')),
       }
-    // An earlier generation committed this operation: the durable records answer it.
     if (receipt.recalled) return conflicting(job, reply.digest)
     const { book, prepared } = job
     const pub = Number(reply.published)
@@ -2175,9 +1831,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     for (const blob of prepared.blobs) book.blobs.set(blob.digest, blob.payload)
     book.published = pub
     counts.confirm(book.key, pub)
-    // The published fold is the one source of position: the core's view is set to it, and the
-    // batches the core appended for this publication leave its log; the next command appends at
-    // the next publication count. (The cell keeps a draft only when it is touched.)
     job.copy.cell.mutate(() => {
       const root = job.copy.cell.state()
       root.agent.view = book.view
@@ -2187,7 +1840,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         root.agent.blobs.set(factDigestOf(blob.digest), JSON.parse(blob.payload) as unknown)
     })
     book.copy = job.copy
-    // What the copy holds is now durable: an excluded write, and one the Journal core fenced.
     for (const at of book.held.keys()) {
       const record = job.after.agent.operations.get(at)
       if (record !== undefined && record.kind !== 'pending') book.held.delete(at)
@@ -2195,7 +1847,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return { kind: 'answer', value: job.answer }
   }
 
-  /** The `execution-record` participant stopped the write: a lost race is `again`. */
   function settleRecordStop<T>(
     job: Settling<T>,
     reply: ReturnType<typeof decodeExecutionRecordReply>,
@@ -2217,20 +1868,13 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     }
   }
 
-  /**
-   * PA-02: the conflict of the finish check is `FinishResult.changed` at the revision the call was
-   * checked against, never `Failure.changed` (Agent SPEC "条件终结" result table). The caller
-   * reloads and evaluates again; nothing was written.
-   */
   function finishChanged<T>(job: Settling<T>): Settled<T> {
     if (job.prior === null)
       return { kind: 'answer', value: fail(unavailable('a finish check without its execution')) }
     const changed: FinishResult = { kind: 'changed', revision: job.prior }
-    // The written method is tryFinish, whose answer is a FinishResult.
     return { kind: 'answer', value: succeed(changed) as Outcome<T, Failure> }
   }
 
-  /** The Session participant stopped the write. */
   function settleSessionStop<T>(
     job: Settling<T>,
     stop: Parameters<typeof decodeSessionReply>[0],
@@ -2264,11 +1908,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     }
   }
 
-  /**
-   * What one storage outcome of a publication answers: the call's answer once the write committed
-   * (the copy then reflects it), `again` for a lost race or a recalled own write, and the failure
-   * the outcome means otherwise. An unknown outcome keeps the write as held.
-   */
   function settle<T>(
     published: Published<T>,
     operation: string,
@@ -2277,8 +1916,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     const { book, after, written } = published
     const agentOperation = written.operation as AgentOperationId | null
     const job: Settling<T> = { ...published, agentOperation }
-    // Only a publication that committed in this call tells the count (`settleCommitted`). After any
-    // other outcome the next call asks the storage.
     counts.doubt(book.key)
     switch (outcome.kind) {
       case 'committed':
@@ -2335,9 +1972,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         if ('failure' in snapshot) return snapshot
         const scratch: Scratch = { checks: [], commands: [], snapshot: snapshot.ok }
         book.scratch = scratch
-        // The Session's attempt records of this call's snapshot, with the grant each was issued
-        // for (R2-D349): the core resolves an Authority's attempt through them (`history.ts`).
-        // Adopted before `before` is taken, so adopting alone is not a write.
         const attempts = scratch.snapshot?.historyIndex?.attempts
         if (attempts !== undefined) copy.cell.mutate(() => copy.cell.adoptAttemptRecords(attempts))
         const before = copy.cell.current()
@@ -2367,11 +2001,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     })
   }
 
-  /**
-   * The cold path of `query` (R2-D292 6.4): an operation the copy does not hold (an ended
-   * execution the cold start did not read) is looked up by its key; its batch answers `committed`
-   * with the receipt derived from the batch.
-   */
   async function queryCold(
     book: Book<P>,
     input: Parameters<AgentJournal<P>['query']>[0],
@@ -2456,9 +2085,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
             yield fail<Failure>(refused('output.events'))
             return
           }
-          // Brought to the durable records first; the stream then reads the in-process copy. The
-          // observation counts as a user of the book from inside that task, so the copy it reads
-          // stays the book's copy until the observation ends.
           const copy = await serial(book, async () => {
             const domain = await domainOf(book)
             if ('failure' in domain) return domain
@@ -2497,8 +2123,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         commit: input => run(input, 'received', core => core.provider.received.commit(input)),
         query: input => run(input, 'received.query', core => core.provider.received.query(input)),
       },
-      // The bindings are durable records of the session, so a copy rebuilt after a restart answers
-      // as the copy that committed them did.
       targets: {
         forExecution: input =>
           run(input.access, 'targets.forExecution', core => core.targets.forExecution(input)),

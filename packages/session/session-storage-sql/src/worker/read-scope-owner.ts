@@ -1,4 +1,3 @@
-// The session that minted one Context scope of one tenant: one point read of `sl_scope_idx`.
 import { handler, oneRow, text } from './support.ts'
 
 export default handler('session.scope-owner', (raw, port) => {

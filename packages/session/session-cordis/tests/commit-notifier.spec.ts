@@ -1,8 +1,3 @@
-// The notifier of commit notices on real Cordis (SPEC「提交通知」, #1230): the function that the
-// session storage row registers on its storage. Each batch it is told it dispatches once as
-// `session-cordis-contract/committed`, with the five values of the batch and nothing else; it hands
-// the same batch to `sessionNotifier` when there is one. It does not wait for listeners, and no
-// failure of a listener or of `sessionNotifier` leaves it: they are recorded as diagnostics.
 import { Context } from '@deepseek-ai/cordis'
 import type { SessionNotifier } from '@omne-harness/session-contract'
 import { evidence } from '@omne-harness/session-contract/testing'

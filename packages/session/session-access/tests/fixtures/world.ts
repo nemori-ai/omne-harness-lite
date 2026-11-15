@@ -1,7 +1,3 @@
-// The world of the handler cases: the Session double, the in-process principal authority of
-// identity, stand-ins for the two principal ports that follow the server entry's identity steps (a
-// target tenant's account must be the login's account; the principal acts for the target tenant on
-// the work of the login), a definition mapping, and a session observation stand-in.
 import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
 import { inProcessPrincipalAuthority, type ActingForTenantPrincipal } from '@omne-harness/identity'
 import {
@@ -60,11 +56,9 @@ function definitionOf(name: string): ResolvedDefinition {
   }
 }
 
-/** The fixture mapping: `assistant` and `coding`. */
 export const resolveDefinition: DefinitionResolver = name =>
   name === DEFINITION || name === DEFAULT_DEFINITION ? definitionOf(name) : undefined
 
-/** A recognised login as the stand-in identity knows it. The handlers see it as opaque. */
 export type FixtureLogin = Readonly<{
   account: AccountId
   loginText: string
@@ -79,7 +73,6 @@ function parsed<T>(result: { ok: true; value: T } | { ok: false }, text: string)
 
 const BODY = 'abcdefghjkmnpqrstvwxyz2345'
 
-/** A login of the account `acc_<letter><body>` acting for its own personal-organization tenant. */
 export function fixtureLogin(letter: string, loginText = `login-${letter}`): FixtureLogin {
   const suffix = `${letter}${BODY.slice(1)}`
   const account = parsed(accountCodec.parse(`acc_${suffix}`), suffix)
@@ -94,12 +87,10 @@ export function loginIdentity(login: FixtureLogin): LoginIdentity {
   return login as unknown as LoginIdentity
 }
 
-/** The membership key of the Session double. */
 export function memberKey(target: TenantId): string {
   return `${target.organization.text}/${target.account.text}`
 }
 
-/** What the stand-in `SessionListing` answers from now on. */
 export type ListingScript =
   | Readonly<{ ok: SessionListPage }>
   | Readonly<{ refused: 'invalid' | 'denied' | 'basis-unavailable' }>
@@ -111,7 +102,6 @@ export type ObservationScript =
   | Readonly<{
       kind: 'opened'
       frames: readonly SessionObservationFrame[]
-      /** `undefined`: the frames end only when the signal is aborted, without a reason. */
       end?: SessionObservationEnd
     }>
   | Readonly<{ kind: 'denied' }>
@@ -120,25 +110,21 @@ export type ObservationScript =
 export type World = Readonly<{
   session: SessionDouble
   issue(login: FixtureLogin, target?: TenantId): Principal
-  /** The principal-port refusal to answer from now on; `undefined` answers by the account rule. */
   refuseTargets(refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined): void
   refuseResumes(refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined): void
   resumes(): readonly Readonly<{ tenant: string; login: string }>[]
-  /** Takes Session, the observation, the mapping or the session list off the tree. */
   remove(port: 'faces' | 'observation' | 'definitions' | 'listing'): void
   put(port: 'faces' | 'observation' | 'definitions' | 'listing'): void
   journal: JournalDouble
   requests: RequestDrain
   admissions(): readonly QueuedRequest[]
   restart(): void
-  /** The calls the stand-in session list has had, and the answer it gives from now on. */
   listing: Readonly<{
     calls(): readonly ListingCall[]
     answer(script: ListingScript): void
   }>
   script(script: ObservationScript): void
   opens(): readonly SessionAccess<Principal>[]
-  /** Whether the frames of the last opened observation were closed. */
   closed(): boolean
   contribution: ReturnType<typeof createSessionContribution>
 }>

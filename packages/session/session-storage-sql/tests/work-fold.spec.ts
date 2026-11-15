@@ -1,12 +1,3 @@
-// The commit path of this process folds its batch into the work cache (SPEC RT-04, C-TOPOLOGY §2.9):
-// the participant replies with the version, the positions, and the input range and focus of the
-// history read of the batch; the port reads the batch rows, reproduces that index and those reads
-// with `session.work-reads` at the position before the batch (H2), runs the same `reduce` on the
-// held snapshot and reads the new index with `session.work-index`. What it registers must be the answer a whole read gives (F-1); it folds only
-// a fresh commit onto the version just below (F-2); a publication in between (F-3), a quarantine
-// (F-4) or a basis over the bound (F-6) registers nothing and the next read is whole; readers of the
-// new version wait for the fold instead of reading whole (F-5). Each case counts the handler reads
-// the storage served and the fold counts of this process.
 import type {
   SessionEntriesObservation,
   SessionInputScope,
@@ -50,12 +41,10 @@ const ok = <T>(value: unknown): T => {
   return (value as { ok: T }).ok
 }
 
-/** The reads of `handler` the storage served since `from` (an index into the call log). */
 const readsOf = (a: App, handler: string, from: number): number =>
   a.provider.calls.slice(from).filter(call => call.kind === 'read' && call.handler === handler)
     .length
 
-/** The change of the fold counts of the database behind `storage` since `before`. */
 function since(storage: SqlStorage, before: WorkFoldCounts): WorkFoldCounts {
   const now = workFoldCounts(storage)
   return {
@@ -76,13 +65,8 @@ const none: WorkFoldCounts = {
   republished: 0,
 }
 
-/**
- * A port over a storage object of its own (a work cache of its own). `hooks` run once, before the
- * read of their handler goes to the storage.
- */
 function portOver(a: App, workCache?: WorkCacheBounds) {
   const hooks = new Map<string, () => Promise<void> | void>()
-  /** Changes the next answer of a handler, once. */
   const rewrites = new Map<string, (output: Record<string, unknown>) => Record<string, unknown>>()
   const storage: SqlStorage = {
     database: {},
@@ -114,13 +98,11 @@ function portOver(a: App, workCache?: WorkCacheBounds) {
   }
 }
 
-/** `a` with its port replaced, for the scene commands of the fixtures. */
 const portLike = (a: App, port: Port): App => ({ ...a, port })
 
 const readWork = async (port: Port, a: App): Promise<WorkSnapshot> =>
   ok<WorkSnapshot>(await port.readWork(a.access(TENANT_A)))
 
-/** The answer of a whole read: a new port instance has an empty cache. */
 const wholeRead = (a: App): Promise<WorkSnapshot> => readWork(portOver(a).port, a)
 
 const accept = (a: App, port: Port, name: string) =>
@@ -133,10 +115,6 @@ const accept = (a: App, port: Port, name: string) =>
     guards: [guard('login', 'login-entry', 'present')],
   })
 
-/**
- * One commit of this process onto a held snapshot: it folds, the next read of the port reads no
- * whole snapshot, and its answer is byte for byte the answer of a whole read.
- */
 async function folds(a: App, commit: () => Promise<unknown>) {
   await readWork(a.port, a)
   const before = workFoldCounts(a.provider.storage)
@@ -308,7 +286,6 @@ describe('T-F1: a batch whose reduction reads the history reads', () => {
         guards: [],
       }),
     )
-    // Events 2 and 3 of the execution are observed only: the next Run needs that tail (prefixes).
     for (const n of [2, 3])
       await agent.publish(agentEventOf(eventOf(run, n, [], 'unused'), ['observed']))
     ok(await cancelRun(a, run.run, 'cancel-1'))
@@ -336,7 +313,6 @@ describe('T-F1 (H2): the basis of a batch is read again as it was before the bat
       'SELECT MAX(position) FROM sl_entry WHERE tenant = ? AND session = ?',
       [textOf(TENANT_A), 'session-1'],
     ).rows as unknown as [[bigint]]
-    // The batch adds a Run start, an attempt and the taken input after that position.
     ok(await startRun(a, 'start-run-1'))
     const read = await a.provider.storage.read({
       domain: { scope: { kind: 'tenant', tenant: textOf(TENANT_A) }, transactionDomain: 'dom_0' },
@@ -424,7 +400,6 @@ describe('T-F2: only a fresh commit onto the version just below folds', () => {
     ok(await a.accept(TENANT_A, 'session-1', 'input-1'))
     ok(await startRun(a, 'start-run-1'))
     const scene = activeRun(await readWork(a.port, a))
-    // A publication that this cache did not see: the held version has the older count.
     await agent.publish(
       agentEventOf(eventOf(scene, 1, [registrationOf(scene.attempt, 1)], 'log-1')),
     )
@@ -468,9 +443,7 @@ describe('a fold that the cache does not keep', () => {
       'SELECT value FROM sl_state_item WHERE tenant = ? AND session = ?',
       [textOf(TENANT_A), 'session-1'],
     ).rows as unknown as [Uint8Array][]
-    // The stored size is the head text and the chunk texts (R2-D292).
     const bytes = chunks.reduce((sum, [value]) => sum + unpacked(value).length, stored.length)
-    // The bound holds the snapshot read now, and not the larger one of the next commit.
     const { port, storage } = portOver(a, { bytes })
     await readWork(port, a)
     const before = workFoldCounts(storage)
@@ -530,7 +503,6 @@ describe('T-F3: a publication between the commit and its fold', () => {
     const otherBefore = workFoldCounts(other.storage)
     ok(await accept(a, port, 'input-1'))
     expect(since(storage, before)).toEqual({ ...none, stale: 1 })
-    // The other port holds nothing, so its own commit skips its fold, in its own counts.
     expect(since(other.storage, otherBefore)).toEqual({ ...none, skipped: 1 })
     const from = a.provider.calls.length
     const after = await readWork(port, a)
@@ -548,10 +520,7 @@ describe('T-F3: a publication takes the index of the folded tail over the row bo
     let readers: Promise<WorkSnapshot>[] = []
     hooks.set('session.work-index', async () => {
       readers = Array.from({ length: 3 }, () => readWork(port, a))
-      // The readers read the folded version, the count before the publication, and wait.
       await new Promise(resolve => setTimeout(resolve, 20))
-      // One publication: the count moves on, and the pending input gets more admission rows than
-      // the index of a work answer may read (`WORK_INDEX_ROWS`), so the index read is `too-many`.
       a.provider.seed(
         'dom_0',
         `INSERT INTO er_admission_idx
@@ -577,7 +546,6 @@ describe('T-F3: a publication takes the index of the folded tail over the row bo
     expect(whole.historyIndex).toBeUndefined()
     for (const answer of answers)
       expect(canonicalText(encodeValue(answer))).toBe(canonicalText(encodeValue(whole)))
-    // The cache holds the version the store is at: the next read reads no whole snapshot.
     const from = a.provider.calls.length
     const after = await readWork(port, a)
     expect(readsOf(a, WHOLE, from)).toBe(0)
@@ -616,7 +584,6 @@ describe('T-F3 (H2): a publication before the basis of the batch is read again',
     const committing = a.provider.calls.length
     ok(await accept(a, port, 'input-3'))
     expect(since(storage, before)).toEqual({ ...none, stale: 1 })
-    // The fold stops at the basis read: it reads no index for a version it cannot prove.
     expect(readsOf(a, 'session.work-index', committing)).toBe(0)
     const from = a.provider.calls.length
     await readWork(port, a)
@@ -631,7 +598,6 @@ describe('T-F3 (H2): the index of this Worker went past the position before the 
     ok(await a.create(TENANT_A))
     ok(await a.accept(TENANT_A, 'session-1', 'input-1'))
     await readWork(port, a)
-    // An unbounded whole read in the same Worker moves its kept index past the batch.
     hooks.set('session.work-reads', async () => {
       await wholeRead(a)
     })
@@ -653,10 +619,8 @@ describe('T-F7: a fold that throws', () => {
     const readers: Promise<WorkSnapshot>[] = []
     hooks.set('session.history', async () => {
       readers.push(readWork(port, a))
-      // The reader reads the new version while the fold waits for its batch.
       await new Promise(resolve => setTimeout(resolve, 20))
     })
-    // The batch read answers entries without their ids: the fold throws on them.
     rewrites.set('session.history', output => ({
       ...output,
       entries: (output['entries'] as string[]).map(text => {
@@ -714,7 +678,6 @@ describe('T-F5: reads of the new version while the fold runs', () => {
     let readers: Promise<WorkSnapshot>[] = []
     hooks.set('session.work-index', async () => {
       readers = Array.from({ length: 10 }, () => readWork(port, a))
-      // The readers read the version while the fold still waits for its index.
       await new Promise(resolve => setTimeout(resolve, 20))
     })
     const from = a.provider.calls.length
@@ -731,7 +694,6 @@ describe('T-F6: a decision over the bound of the reply', () => {
   it('is left out of the reply: nothing folds, and the next read is whole', async () => {
     const a = await app()
     ok(await a.create(TENANT_A))
-    // Pending inputs with long names: the input range of the decision passes 16 KiB.
     for (let n = 0; n < 12; n += 1)
       ok(await a.accept(TENANT_A, 'session-1', `input-${String(n)}-${'x'.repeat(2000)}`))
     await readWork(a.port, a)

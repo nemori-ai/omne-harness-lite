@@ -78,7 +78,6 @@ it('SC-02 归档只向它自己终结的那个 Run 的执行发送', async () =>
   open.push(f.h)
   await f.cancel()
   await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(1))
-  // The cancel ended the first Run. The pending input starts a later Run, and the archive ends it.
   await vi.waitFor(async () => {
     const { run } = await readControlWork(f.h)
     if (run.kind !== 'active' || run.run === f.original.run) throw new Error('waiting for Run')
@@ -292,10 +291,8 @@ it('SC-06 离开传播的控制不再重放，且不留重放记录', async () =
   f.h.clock.controls.advance(100)
   await turn()
   await turn()
-  // A running replay that finds the control settled stops without asking or sending again.
   expect(f.control).toHaveBeenCalledTimes(1)
   expect(f.query).toHaveBeenCalledTimes(1)
-  // Its record is gone: seen propagating again, the control starts over with a send, not a query.
   settled = false
   await f.notice()
   await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(2))
@@ -566,7 +563,6 @@ it('SC-07 周期找回遗漏通知的控制', async () => {
     },
   })
   open.push(f.h)
-  // Without this, the pending input of the Run would name the session by the inputs reason.
   hideReasons(f.h, ['inputs', 'unresolved'])
   succeeded(await f.h.instance.maintain(TENANT_A), 'maintain')
   await turn()

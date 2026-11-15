@@ -1,5 +1,3 @@
-// The fact family of the Agent Journal: the facts, the batch and row shapes, the pure fold, the
-// answer derivation and the generic part of decide. See SPEC "事实族与折叠核".
 export {
   BATCH_MAX_FACTS,
   BATCH_OVERHEAD_BYTES,

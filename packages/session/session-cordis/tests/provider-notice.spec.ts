@@ -1,8 +1,3 @@
-// The commit notice and the scanner binding (SPEC properties 5 and 7; verification 5 and 6) on real
-// Cordis. The plugin dispatches no notice: it listens for `session-cordis-contract/committed`,
-// wakes its instance on each notice and binds one recovery scanner for each tenant it sees. The
-// scanner is observed through the `pending` reads of its startup scan on the public transaction
-// port.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   SessionTenantSourceService,
@@ -31,14 +26,10 @@ async function build(options: Parameters<typeof assemble>[0] = {}): Promise<Asse
 
 const COMMITTED = 'session-cordis-contract/committed'
 
-/** Diagnostics of the plugin, as the Cordis logger recorded them. */
 const diagnostics = (a: Assembly): string[] =>
   a.ctx.logger.buffer.filter(m => m.name === 'session-provider').map(m => String(m.args[0]))
 
 describe('the plugin sends no notice of its own', () => {
-  // The one writer of the session log tells each batch; the application registers the notifier of
-  // `createSessionCommitNotifier` on its storage (tests/commit-notifier.spec.ts). The store here
-  // registers none, so a commit through the plugin dispatches nothing and hands nothing on.
   it('a commit through the plugin dispatches no event and hands nothing to sessionNotifier', async () => {
     const a = await build({ notices: false })
     await a.listen()
@@ -58,12 +49,10 @@ describe('a notice wakes the instance, whoever dispatched it', () => {
     a.bindings.controls.bind(a.tenant, a.sessionId('session-1'))
     await a.create(intake)
     const accepted = await a.accept(intake, 'wake-twice')
-    // The instance advances the session once: one Run starts and the Agent drive is invoked.
     await expect.poll(() => a.hooks.invoked.length, { timeout: 5000 }).toBe(1)
     await new Promise(resolve => setTimeout(resolve, 200))
     const commits = () => a.log.filter(step => step === 'commit-settled').length
     const before = commits()
-    // The notice the writer gives for the accept batch reaches the plugin as well: it wakes again.
     await a.ctx.parallel(
       COMMITTED,
       a.tenant,
@@ -82,7 +71,6 @@ describe('a notice from any dispatcher', () => {
   it('wakes the instance: a session whose principal was refused is advanced after the notice', async () => {
     const a = await build()
     const intake = await a.caller('intake')
-    // The session is not bound yet, so the work principal is refused and S1 cannot advance it.
     await a.create(intake)
     const accepted = await a.accept(intake, 'wait-for-wake')
     await new Promise(resolve => setTimeout(resolve, 100))
@@ -131,7 +119,6 @@ describe('one scanner for each tenant', () => {
     const calls = spies.maintainCalls
     await a.accept(intake, 'one')
     await a.accept(intake, 'two')
-    // Each notice signals demand to the scanner that is reading; none starts another.
     await expect.poll(() => spies.maintainCalls).toBeGreaterThanOrEqual(calls + 2)
     await new Promise(resolve => setTimeout(resolve, 150))
     expect(a.hooks.pendingTenants).toHaveLength(1)
@@ -147,7 +134,6 @@ describe('one scanner for each tenant', () => {
     a.emitCommitted(tenant, a.sessionId('elsewhere'), '2', evidence('y'), [])
     await expect.poll(() => a.hooks.pendingTenants.length).toBe(2)
     await new Promise(resolve => setTimeout(resolve, 50))
-    // Both scanners stopped and left the table, so the removal has nothing to release.
     await a.provider.dispose()
     expect(spies.released).toBe(0)
   })
@@ -170,7 +156,6 @@ describe('one scanner for each tenant', () => {
     await expect.poll(() => a.hooks.pendingTenants.length).toBe(1)
     await new Promise(resolve => setTimeout(resolve, 150))
     expect(a.hooks.pendingTenants).toHaveLength(1)
-    // The scanner waits on the session clock for the first delay of startupRetryDelaysMs.
     a.clock.controls.advance(1000)
     await expect.poll(() => a.hooks.pendingTenants.length).toBe(2)
     expect(diagnostics(a).some(text => text.includes('maintain for tenant'))).toBe(false)
@@ -178,7 +163,6 @@ describe('one scanner for each tenant', () => {
 })
 
 describe('the start scans the tenants of the deployment', () => {
-  /** Mounts the tenant source of the application assembly with this answer. */
   const source = (a: Assembly, enumerate: SessionTenantSource['enumerate']) =>
     a.mount(serviceOf(SessionTenantSourceService, { enumerate }, 'Tenants'))
   const start = (a: Assembly) => {

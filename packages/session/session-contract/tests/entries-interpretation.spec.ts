@@ -1,7 +1,3 @@
-// The range check of the same-log entries interpretation (docs/same-log-pure.md「entries 通道的解释
-// 提交」). Every refusal case changes one field of the base input B0 so that exactly one rule fails,
-// and asserts the failure kind and its field. The reduction cases replay the progress rows of the
-// channel and quarantine a broken chain.
 import { describe, expect, it, beforeAll } from 'vitest'
 import { expectedRevision } from '@omne-harness/session-contract'
 import type {
@@ -36,10 +32,6 @@ import { open } from './scene.ts'
 
 type Context = Readonly<{ snapshot: WorkSnapshot; r0: RunId; ex0: string; r1: RunId; ex1: string }>
 
-/**
- * Σ0 through real commits: Run R0 with execution ex-0 ended, Run R1 with execution ex-1 active,
- * and the external Tool calls call-0 and call-1 bound.
- */
 async function sigma0(): Promise<Context> {
   const s = await open()
   const bind = async (call: string) =>
@@ -130,7 +122,6 @@ function b0(c: Context): SessionEntriesObservation {
   }
 }
 
-/** Σ1: the channel of B0 saved through 2. */
 const saved1 = (c: Context): readonly SessionEntriesProgress[] => [
   { run: c.r1, execution: c.ex1, channel: 'tool-received', through: '2', interpreted: P2 },
 ]
@@ -559,7 +550,6 @@ describe('projectSessionEntries: one case per rule', () => {
   })
 })
 
-/** The committed batch of one decision at `revision`. */
 function batchOf(decision: Decision, revision: bigint) {
   if (decision.kind !== 'entries') throw new Error(JSON.stringify(decision))
   const text = String(revision) as SessionRevision

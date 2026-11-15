@@ -1,9 +1,3 @@
-// The conformance suite of the delegated entry `SessionDelegatedTransactions` (SPEC
-// 「当前操作的访问裁定」) and a fixture over the in-memory pair. The Session execution boundary checks one face
-// operation once, then binds a view; the suite proves that the view does not ask the access check
-// again, that it refuses a call outside the checked tenant, session or command, and that the
-// bound evidence goes with the operation record. A passing double proves the in-memory behavior,
-// not a real store.
 import assert from 'node:assert/strict'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -46,13 +40,6 @@ import {
   sessionId,
 } from './testing-values.ts'
 
-/**
- * What the delegated suite needs. A fresh fixture serves one case. `transactions` is the public
- * port over the same store as `delegated`; the suite creates sessions through it. `access` names
- * the tenant and session of the case, `otherAccess` another tenant. `checks` counts the calls that
- * the access check of `transactions` received so far. `decisionOf`, when offered, reads the access
- * evidence stored with an operation record.
- */
 export interface SessionDelegatedTransactionsFixture<P> {
   readonly transactions: SessionTransactionPort<P>
   readonly delegated: SessionDelegatedTransactions<P>
@@ -375,11 +362,9 @@ export function sessionDelegatedTransactionsConformance<P>(): readonly Conforman
   ]
 }
 
-/** A fresh fixture over a fresh in-memory pair, with a counting policy check. */
 export function memorySessionDelegatedTransactionsFixture(): SessionDelegatedTransactionsFixture<string> {
   const initialization = createMemoryInitializationSource()
   const access = memoryAccess('tester')
-  // The same explicit policy as the transaction fixture: only the fixture's tenant may touch a session.
   const accessCheck = createPolicySessionAccessCheck<string>(request =>
     request.target.kind === 'session' &&
     'tenant' in request.access &&

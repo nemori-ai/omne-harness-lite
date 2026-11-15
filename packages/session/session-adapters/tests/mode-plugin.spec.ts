@@ -197,8 +197,6 @@ it('publishes original Session mode changes through a coordinator Cordis fiber a
         },
       }),
     ).toHaveProperty('ok')
-    // The batches every committer now tells change no mode: the plugin does not read the session
-    // for them, so the mode committed above is not seen until something asks for it.
     for (const kinds of TOLD_BATCHES) await notify([...kinds])
     expect(await bound.reader.read([need])).toMatchObject({
       kind: 'success',
