@@ -97,7 +97,8 @@
         "standingDestinationResolver",
         "toolInvocationQualification",
         "currentToolPermission",
-        "sessionModesInstallation"
+        "sessionModesInstallation",
+        "tenantDomainRegistration"
       ]
     },
     {
@@ -120,7 +121,8 @@
         "sessionScopeOwners",
         "sessionDelegatedTransactions",
         "systemActionAuthorization",
-        "sessionPermissionBackend"
+        "sessionPermissionBackend",
+        "tenantDomainRegistration"
       ]
     },
     {
