@@ -152,6 +152,27 @@ async function readBodyOf(
   return decoded.ok ? { kind: 'read', value: decoded.value } : { kind: 'rejected' }
 }
 
+async function checkLogin(identity: AccessIdentity, login: SignedIn): Promise<LoginCheck> {
+  const result = await identity.identifyLogin(login.proof)
+  if (result.outcome === 'identified') return 'valid'
+  return result.outcome === 'denied' ? 'denied' : 'unavailable'
+}
+
+function report(
+  identity: AccessIdentity,
+  login: LoginIdentity,
+  note: (code: PipelineDiagnosticCode) => void,
+): void {
+  let pending: Promise<void>
+  try {
+    pending = identity.reportAccess(login)
+  } catch {
+    note('access.report-fault')
+    return
+  }
+  Promise.resolve(pending).catch(() => note('access.report-fault'))
+}
+
 export type Pipeline = Readonly<{
   handle: (req: IncomingMessage, res: ServerResponse) => Promise<void>
   endObservations: () => Promise<void>
@@ -268,10 +289,10 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
         key: observationKey(address, messageId, login),
         ...(login === undefined
           ? {}
-          : { loginKey: login.proof, checkLogin: () => checkLogin(login) }),
+          : { loginKey: login.proof, checkLogin: () => checkLogin(access.identity, login) }),
         ...(login === undefined || member.contract.countsAsAccess !== true
           ? {}
-          : { reportAccess: () => report(login.identity, note) }),
+          : { reportAccess: () => report(access.identity, login.identity, note) }),
         note,
         res,
       })
@@ -286,26 +307,11 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
       config: { graceMs: access.graceMs },
       clock,
       respond: answer => writeAnswer(res, { ...answer, messageId, close: false }),
-      ...(login === undefined ? {} : { reportAccess: () => report(login.identity, note) }),
+      ...(login === undefined
+        ? {}
+        : { reportAccess: () => report(access.identity, login.identity, note) }),
       note,
     })
-  }
-
-  async function checkLogin(login: SignedIn): Promise<LoginCheck> {
-    const result = await access.identity.identifyLogin(login.proof)
-    if (result.outcome === 'identified') return 'valid'
-    return result.outcome === 'denied' ? 'denied' : 'unavailable'
-  }
-
-  function report(login: LoginIdentity, note: (code: PipelineDiagnosticCode) => void): void {
-    let pending: Promise<void>
-    try {
-      pending = access.identity.reportAccess(login)
-    } catch {
-      note('access.report-fault')
-      return
-    }
-    Promise.resolve(pending).catch(() => note('access.report-fault'))
   }
 
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
