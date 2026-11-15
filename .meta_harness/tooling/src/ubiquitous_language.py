@@ -434,7 +434,7 @@ class Reconciler:
         for uid, term in sorted(self.terms.items()):
             if term.morph == "变体" and term.parent and self.root_object(uid) is None:
                 self.error(f"{uid}: 顺着「父」往上找不到一个形态为对象的词条")
-            self._cited(f"{self.rel(term.path)} {term.id}「出处」", term.path, term.fields.get("出处", ""), strict=False)
+            self._cited(f"{self.rel(term.path)} {term.id}「出处」", term.path, term.fields.get("出处", ""))
         self._undecided()
 
     def root_object(self, uid: str) -> str | None:
@@ -459,22 +459,17 @@ class Reconciler:
             if term.morph == "未定" and uid.lower() not in text:
                 self.error(f"{uid}「{term.zh}」形态未定，ubiquitous_language/conflicts.md 却没有提到它")
 
-    def _cited(self, where: str, source: Path, text: str, *, strict: bool) -> None:
+    def _cited(self, where: str, source: Path, text: str) -> None:
         """核对一段引用里的 rev，比如词条「出处」：
 
         指向产品正文的链接，后面要跟着它那个 topic 的「（rev N）」。同一个 topic 连着的几条链接
         可以共用后面那一个；一个括号里并列几个 rev 的，按 topic 出现的次序配。
-        strict 时每条链接都必须指向产品正文，且至少有一条。
         """
         waiting: list[tuple[str, bool]] = []
-        cited = False
         for href, group in CITE_TOKEN_RE.findall(text):
             if href:
                 reference = self._product_reference(source, href, where)
-                if reference is None:
-                    if strict:
-                        self.error(f"{where}: {href} 不是某个 topic 的 design.md 或 flows.md 有效出处")
-                elif reference not in waiting:
+                if reference is not None and reference not in waiting:
                     waiting.append(reference)
                 continue
             if not waiting:
@@ -485,7 +480,6 @@ class Reconciler:
             if len(revs) != len(waiting):
                 self.error(f"{where}:「（{group}）」前面是 {len(waiting)} 个 topic 的链接，却写了 {len(revs)} 个 rev，配不上对")
             for (topic, sealed), rev in zip(waiting, revs):
-                cited = True
                 current = (self.sealed_revisions if sealed else self.revisions).get(topic)
                 if sealed:
                     self.sealed_citations.add(topic)
@@ -496,8 +490,6 @@ class Reconciler:
             waiting = []
         if waiting:
             self.error(f"{where}: 指向 {'、'.join(topic for topic, _ in waiting)} 的链接后面没有「（rev N）」")
-        elif strict and not cited:
-            self.error(f"{where}: 至少要有一条指向产品正文、带 rev 的依据")
 
     def _stale(self, message: str) -> None:
         (self.errors if self.stale == "fail" else self.notes).append(message)

@@ -115,14 +115,6 @@ def test_every_citation_must_carry_a_revision(tree: Path) -> None:
     assert any("UL-account「出处」" in e and "后面没有「（rev N）」" in e for e in errors(tree))
 
 
-def test_strict_citation_must_point_at_product_text(tree: Path) -> None:
-    reconciler = Reconciler(tree)
-    reconciler._load_revisions()
-    reconciler._cited('probe', tree / PROBE, f'[basis](../{TOPIC}/changelog.md)（rev 2）', strict=True)
-    assert any('不是某个 topic 的 design.md 或 flows.md' in e for e in reconciler.errors)
-    assert any('至少要有一条' in e for e in reconciler.errors)
-
-
 def test_links_into_one_topic_may_share_a_revision_or_each_carry_their_own(tree: Path) -> None:
     one = "[PD-identity §4](../../product/identity/design.md#账号)"
     other = "[§4 登录状态](../../product/identity/design.md#登录状态)"
@@ -333,8 +325,8 @@ def test_sealed_citation_file_topic_and_anchor_must_exist(
 def test_link_off_the_sealed_commit_or_root_is_not_provenance(sealed_tree: Path, href: str) -> None:
     reconciler = Reconciler(sealed_tree)
     reconciler._load_revisions()
-    reconciler._cited('probe', sealed_tree / PROBE, f'[basis]({href})（rev 2）', strict=True)
-    assert any('不是某个 topic 的 design.md 或 flows.md 有效出处' in item for item in reconciler.errors)
+    reconciler._cited('probe', sealed_tree / PROBE, f'[basis]({href})（rev 2）')
+    assert reconciler.errors == []
     assert reconciler.sealed_citations == set()
 
 
@@ -481,7 +473,7 @@ def test_markdown_code_cannot_supply_citation_anchor(tree: Path, body: str, seal
     reconciler = Reconciler(tree)
     reconciler._load_revisions()
     reconciler._cited('probe', tree / PROBE,
-        f'[basis]({base}#fake)（rev 2）', strict=True)
+        f'[basis]({base}#fake)（rev 2）')
     assert any('引用锚点 #fake 不存在' in error for error in reconciler.errors)
     assert reconciler.sealed_citations == set()
 
@@ -502,7 +494,7 @@ def test_markdown_closed_fences_and_existing_explicit_anchors_are_legal(tree: Pa
     reconciler = Reconciler(tree)
     reconciler._load_revisions()
     reconciler._cited('probe', tree / PROBE,
-        f'[basis](../{TOPIC}/design.md#visible)（rev 2）', strict=True)
+        f'[basis](../{TOPIC}/design.md#visible)（rev 2）')
     assert reconciler.errors == []
 
 
@@ -513,10 +505,10 @@ def test_markdown_duplicate_heading_suffixes_remain_citable(tree: Path, sealed: 
     reconciler._load_revisions()
     for fragment in ('same', 'same-1', 'same-2'):
         reconciler._cited('probe', tree / PROBE,
-            f'[basis]({base}#{fragment})（rev 2）', strict=True)
+            f'[basis]({base}#{fragment})（rev 2）')
     assert reconciler.errors == []
     reconciler._cited('probe', tree / PROBE,
-        f'[basis]({base}#same-3)（rev 2）', strict=True)
+        f'[basis]({base}#same-3)（rev 2）')
     assert any('引用锚点 #same-3 不存在' in error for error in reconciler.errors)
 
 

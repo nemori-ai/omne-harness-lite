@@ -81,7 +81,7 @@ uv run --locked python .meta_harness/tooling/src/ubiquitous_language.py --root .
   它也**不判断任何词条的内容对不对**，更查不出产品正文里新冒出来、却没人立词条的概念。
 
 测试用一棵含一个 topic、一卷四个词条（含一个变体）的小型设计树，覆盖：
-一致时通过、不一致时失败的输出，rev落后及topic内已声明修订不一致及其 report 模式、出处缺 rev 或指向非产品正文、
+一致时通过、不一致时失败的输出，rev落后及topic内已声明修订不一致及其 report 模式、出处缺 rev、
 形态缺失/非法/变体的父无效或往上找不到对象、未定词条须出现在 conflicts、词条 ID 重复、索引与分卷不一致、
 封存修订表与封存出处、产品 topic 元数据与别名路径。
 
