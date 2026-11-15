@@ -4,6 +4,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   realpathSync,
   rmSync,
   writeFileSync,
@@ -132,8 +133,15 @@ describe('读 git 的传感器', { timeout: 30_000 }, () => {
     })
   })
 
-  it('rev 翻动：真实当前 17 个 PD 均进入 HEAD 历史计数', () => {
+  it('rev 翻动：真实当前每个 PD 都进入 HEAD 历史计数', () => {
     const root = fileURLToPath(new URL('../../../', import.meta.url))
+    const product = join(root, '.meta_harness/design/product')
+    const topics = readdirSync(product, { withFileTypes: true }).filter(
+      entry =>
+        entry.isDirectory() &&
+        !entry.name.startsWith('.') &&
+        existsSync(join(product, entry.name, 'README.md')),
+    )
     const result = readTopicChurn(
       root,
       '.meta_harness/design/product',
@@ -141,7 +149,8 @@ describe('读 git 的传感器', { timeout: 30_000 }, () => {
     )
     expect(result.status).toBe('data')
     if (result.status !== 'data') throw new Error(result.reason)
-    expect(result.data).toHaveLength(17)
+    expect(topics.length).toBeGreaterThan(0)
+    expect(result.data).toHaveLength(topics.length)
     expect(result.data.every(topic => topic.topic.startsWith('PD-'))).toBe(true)
     expect(result.data.some(topic => topic.path.includes('legacy'))).toBe(false)
   })
