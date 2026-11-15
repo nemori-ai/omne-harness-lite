@@ -7,41 +7,19 @@ import { nativeTree } from './native-tree.ts'
 import { nativeWrite } from './native-write.ts'
 import { parseReplyFrame, requestFrame, type NativeInput, type NativeReply } from './protocol.ts'
 
-/**
- * The resident Windows files helper process and its request transport. Each step below is one
- * action of `verification/models/FilesHelper.tla` and runs in one synchronous section:
- *
- * - `request`: Enqueue.
- * - `pump`: Dispatch, Start and Restart.
- * - `received`: StartOk on the ready frame, ReceiveFrame on a reply. `startFailed`: StartFail.
- * - `expired`: RequestTimeout. `invalidate`: the host side of Terminate (frames read after it are
- *   dropped; the process is killed).
- * - `exited`, on the child's `close` event: HelperExit.
- *
- * The helper knows no engine, acquisition or owner. Sealing is the facade's admission: a sealed
- * facade answers `closed` before a request is made, and a drain waits for the admitted operations
- * to end. The helper does not check a seal at Enqueue or Dispatch.
- */
+/** Each step here is one action of `verification/models/FilesHelper.tla` in one synchronous section;
+ *  the map is in `verification/formal-mapping.md`. Sealing is the facade's admission, not the helper's. */
 
-/** A reply of the native operation, a native failure, or the helper's own answer. */
 export type HelperAnswer = NativeReply | Failure
 
 export type FilesHelper = Readonly<{
-  /**
-   * Runs one native operation. `unavailable` when the helper does not start, `unknown` when the
-   * helper exits, is invalidated or exceeds `boundMs` after the request was written to it.
-   */
   request(input: NativeInput, boundMs?: number): Promise<HelperAnswer>
 }>
 
 export type FilesHelperOptions = Readonly<{
-  /** The command of a new helper process. A rejection answers the waiting requests `unavailable`. */
   launch(): Promise<Readonly<{ command: string; args: readonly string[] }>>
-  /** The bound of one written request; the initial value is 30000, as on macOS. */
   requestBoundMs?: number
-  /** The bound from spawning the process to its ready frame. */
   startBoundMs?: number
-  /** At most this many requests are written and not yet answered; the rest wait in order. */
   inFlightLimit?: number
 }>
 
@@ -59,7 +37,6 @@ type Request = {
   readonly settle: (answer: HelperAnswer) => void
 }
 
-/** One start of the helper process. Frames match a request only while `phase` is `ready`. */
 type Incarnation = {
   readonly number: number
   phase: 'starting' | 'ready' | 'killing'
@@ -67,7 +44,6 @@ type Incarnation = {
   startTimer: ReturnType<typeof setTimeout> | undefined
 }
 
-/** Request numbers are unique in the process, across helpers and their restarts. */
 let nextRequest = 1
 let nextIncarnation = 1
 
@@ -88,7 +64,6 @@ export function createFilesHelper(options: FilesHelperOptions): FilesHelper {
     request.settle(value)
   }
 
-  /** The process keeps the event loop alive only while a request waits for it. */
   const hold = (): void => {
     const child = current?.child
     if (child === undefined) return
@@ -128,7 +103,6 @@ export function createFilesHelper(options: FilesHelperOptions): FilesHelper {
     incarnation.child?.kill()
   }
 
-  /** The waiting requests answer `unavailable`; none of them was written to a process. */
   const startFailed = (incarnation: Incarnation): void => {
     if (current !== incarnation || incarnation.phase !== 'starting') return
     for (const request of queue) answer(request, 'unavailable')
@@ -171,7 +145,6 @@ export function createFilesHelper(options: FilesHelperOptions): FilesHelper {
     pump()
   }
 
-  /** The host saw the process's `close`: every request written to it and unanswered is unknown. */
   const exited = (incarnation: Incarnation): void => {
     if (current !== incarnation) return
     startFailed(incarnation)
@@ -267,7 +240,6 @@ const filesExecutable = windowsNativeExecutable({
 
 let shared: FilesHelper | undefined
 
-/** The one files helper of this process, shared by every engine. It starts with its first request. */
 export function getWindowsFilesHelper(): FilesHelper {
   shared ??= createFilesHelper({
     launch: async () => ({ command: await filesExecutable(), args: [] }),

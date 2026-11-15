@@ -6,12 +6,6 @@ export type {
   SealedToolBody,
 } from './body-writer.ts'
 export type { ToolBodyReader } from './body-reads.ts'
-// The `./provider` entry of the Tool contract package: the provider protocol that only the Tool
-// implementation members use (SPEC「公开入口的分组」rules 2 and 3): ports that outside providers
-// implement, protocol records between providers, custody and account read/write ports, loading
-// and the binding registry, executor binding and start records, the author adapters, and the
-// value types only they reference. Every name is defined once, in the same modules as the root
-// entry; a name is exported from one entry only. It does not import Cordis or another Tool package.
 export {
   decodeToolInstant,
   manifestOf,
@@ -100,7 +94,11 @@ export {
   toolStreamCallCodec,
 } from './reference.ts'
 export { defineCommandTool, defineFunctionTool, defineToolOperation } from './registration.ts'
-export { defineToolWaitContract } from './wait-contract.ts'
+export {
+  defineToolWaitContract,
+  WAIT_REQUEST_MAX_BYTES,
+  WAIT_RESPONSE_MAX_BYTES,
+} from './wait-contract.ts'
 export { createDefaultParameterCodec, judgeToolArguments } from './parameter-codec.ts'
 export type { ParsedToolArguments, ToolArgumentsRejection } from './parameter-codec.ts'
 export { renderToolResult } from './result-rendering.ts'
@@ -134,6 +132,18 @@ export type {
   ToolWaiter,
 } from './author-context.ts'
 export type {
+  AuthorSegment,
+  AuthorWait,
+  CheckpointedToolExecutor,
+  ToolCheckpointDeclaration,
+  ToolSegmentContext,
+} from './checkpointed-author.ts'
+export {
+  authorDecision,
+  CHECKPOINT_STATE_MAX_BYTES,
+  CLOSED_RESULT_MAX_BYTES,
+} from './checkpointed-author.ts'
+export type {
   ResultPolicy,
   TextRenderer,
   ToolCommands,
@@ -165,6 +175,7 @@ export type {
   ParameterCodec,
   TextResultFactory,
   ToolAuthor,
+  ToolAuthorExecutor,
   ToolAuthority,
   ToolBindingDrain,
   ToolBindingEntry,

@@ -1,4 +1,3 @@
-// 架构符合性报告的方向行取依赖事实时，哪些失败记成「依赖事实不可得」：只有 dependency-cruiser 或 Git 的已知失败。
 import { describe, expect, it } from 'vitest'
 import { directionFacts } from '../src/arch/directions.ts'
 import { DependencyGraphUnavailable, type DependencyGraph } from '../src/deps/graph.ts'

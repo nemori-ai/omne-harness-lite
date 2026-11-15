@@ -1,5 +1,3 @@
-// Test support: a temporary workspace, real module files with SQL, a catalog that describes them,
-// and request builders. The participants here run real SQL against the provider's connection.
 import { createHash } from 'node:crypto'
 import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -29,6 +27,7 @@ export function defaultConfig(storageRoot: string): SqliteStorageConfig {
     storageRoot,
     admissionQueueLimit: 64,
     globalAdmissionLimit: 256,
+    admissionWaitMs: 1000,
     lockWaitMs: 5000,
     maxCommandsPerCommit: 16,
     maxCommandBytes: 1048576,
@@ -73,7 +72,6 @@ export function defaultConfig(storageRoot: string): SqliteStorageConfig {
 
 const sha = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex')
 
-/** Participant that writes `t_ledger`. The facts of the command pick the behavior. */
 const LEDGER = (extra: string): string => `${extra}
 export default {
   participant: 'ledger', protocol: '1',
@@ -185,11 +183,8 @@ export async function makeWorkspace(): Promise<Workspace> {
 export type MaterialsOptions = Readonly<{
   migration?: 'ok' | 'throw' | 'verify-fails'
   suffix?: string
-  /** Appended to the ledger participant source, so its code digest and manifest change. */
   ledgerExtra?: string
-  /** Adds a journal participant with a migration, and declares the combination with it. */
   journal?: 'ok' | 'throw'
-  /** The combination version that the build declares for tenants. Default v1, or v2 with journal. */
   declaredVersion?: string
 }>
 
@@ -373,7 +368,6 @@ export const leases: CloseLeasePort & { admitted: string[]; released: number } =
 
 export type Provider = Readonly<{ storage: SqlStorage; control: StorageControl }>
 
-/** A lease port that records the order of admit and release, so a test can see when a lease ends. */
 export type RecordingLeases = CloseLeasePort & { admitted: string[]; released: string[] }
 
 export function recordingLeases(): RecordingLeases {

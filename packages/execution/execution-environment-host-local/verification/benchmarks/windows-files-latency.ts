@@ -1,17 +1,3 @@
-/**
- * Latency of single Windows file operations through `createWindowsFiles`: `stat`, `read` (4 KiB),
- * `list` (100 entries) and `write` (4 KiB replacement). The first request of the process, which
- * loads or compiles and starts the files helper, is reported on its own: it is the `hostObjectToken`
- * of the first named object, since the helper reads object tokens on Windows. Then every operation
- * warms up and runs `--iterations` times (200 by default) in sequence, and the script prints the
- * p50, p95, min and max in milliseconds.
- *
- * Run on Windows from the package directory, after the workspace dependencies are built:
- *
- *   node verification/benchmarks/windows-files-latency.ts [--iterations 200] [--warmup 20]
- *
- * Results are single-run measurements; keep raw output in the task's tmp, not here.
- */
 import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { cpus, release, tmpdir } from 'node:os'
 import { join } from 'node:path'

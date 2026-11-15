@@ -1,6 +1,6 @@
-# 进程归属与终端段模型的规模上限与映射
+# 进程归属与终端段模型的对照
 
-本页说明 [ProcessCustody.tla](models/ProcessCustody.tla) 与 [TerminalSegments.tla](models/TerminalSegments.tla) 怎样对应本包 [SPEC](../SPEC.md) 的条款，模型在什么规模上限内检查，依赖哪些前提，以及哪些实现与模型动作对应。运行记录见 [formal-runs.md](formal-runs.md)，配置与判读规则见 [models/README.md](models/README.md)。
+本页说明 [ProcessCustody.tla](models/ProcessCustody.tla) 与 [TerminalSegments.tla](models/TerminalSegments.tla) 怎样对应包组[规格](../../SPEC.md)的条款，每份配置的预期是什么，模型在什么规模上限内检查，依赖哪些前提，以及哪些实现与模型动作对应。
 
 ## 结论的边界
 
@@ -8,23 +8,56 @@ TLC 对有限状态做穷举。本页的任何结论只在下文的规模上限�
 
 证据分五种，分别陈述，互不代替：
 
-| 证据 | 能支持的结论 |
-| --- | --- |
-| 正控（TLC 完成且没有违反） | 在所列配置的全部可达状态中，所列性质都成立 |
-| 归纳性检查 | 从满足 `IndInv` 的每个状态走一步，`IndInv` 仍成立。只覆盖 1 个执行域 |
-| 负控（故意改坏的配置） | 所列性质能检出对应的错误，并给出反例轨迹 |
-| 可达见证 | 性质涉及的状态确实可达，性质不是空洞成立 |
-| 手写证明 | [proofs/](proofs/README.md) 对不变式做动作归纳，推广到任意有限的执行域数。它不是机器检查的证明 |
+| 证据                       | 能支持的结论                                                                                                              |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| 正控（TLC 完成且没有违反） | 在所列配置的全部可达状态中，所列性质都成立                                                                                |
+| 归纳性检查                 | 从满足 `IndInv` 的每个状态走一步，`IndInv` 仍成立。只覆盖 1 个执行域                                                      |
+| 负控（故意改坏的配置）     | 所列性质能检出对应的错误，并给出反例轨迹                                                                                  |
+| 可达见证                   | 性质涉及的状态确实可达，性质不是空洞成立                                                                                  |
+| 手写证明                   | [proofs/process-custody.md](proofs/process-custody.md) 对不变式做动作归纳，推广到任意有限的执行域数。它不是机器检查的证明 |
+
+## 配置预期
+
+[models/run-tlc.sh](models/run-tlc.sh) 运行两个模型的全部配置与可达见证，每份配置的结果按下列规则判读：
+
+- 正控：TLC 退出 0，并且没有报告违反。正控穷举全部可达状态，读数与 worker 数无关。
+- 负控：TLC 报告违反的性质是配置文件 `INVARIANT` 一行所列性质之一。TLC 非零退出本身不算符合预期。负控在第一个违反处停止，状态数随调度变化，不能比对。
+- 可达见证：模型里以 `Never` 开头的算子各生成一份配置，常量取同名模块的目标配置，只检查这一个算子。被违反才算符合预期，表示对应的状态可达，目标性质不是空洞成立。
+
+ProcessCustody 的常量：`Containment`（目标 `sealed`，负控 `pgroup`）、`Policy`（目标 `retain`，负控 `stop` 与 `hangup`）、`RecheckClosed` 与 `RecheckPhase`（目标 `TRUE`）、`EvictOldest`（目标 `FALSE`）、`HonestEnum`（目标 `TRUE`，负控为 `FALSE`：任意子集都当作完整）。TerminalSegments 的常量：`Drain`（目标 `sentinel`，负控 `eagain`）、`Completion`（目标 `control`，负控 `quiet`）、`InvalidateOnExtra`（目标 `FALSE`）。
+
+| 配置                                        | 类别           | 改动                                           | 预期                                                                                         |
+| ------------------------------------------- | -------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `ProcessCustody`                            | 正控           | 目标取值，`Bound = TRUE`                       | 全部安全性质与两条步骤性质成立                                                               |
+| `ProcessCustody-unbound`                    | 正控           | `Bound = FALSE`                                | 同上                                                                                         |
+| `ProcessCustody-live`                       | 正控（活性）   | `MaxCrash = 0`，弱公平                         | `ClosureEnds`、`ReleaseEnds`、`RetainedSettles` 成立                                         |
+| `ProcessCustody-inductive`                  | 正控（归纳性） | 1 个执行域；初始状态是满足 `IndInv` 的全部状态 | 走一步后 `IndInv` 仍成立                                                                     |
+| `ProcessCustody-unsafe-stop`（N1）          | 负控           | `Policy = "stop"`                              | 违反 `KeepWhenPermitted`                                                                     |
+| `ProcessCustody-unsafe-pgroup`（N2）        | 负控           | `Containment = "pgroup"`                       | 违反 `NoLeak`                                                                                |
+| `ProcessCustody-unsafe-evict`（N3）         | 负控           | `EvictOldest = TRUE`                           | 违反 `NoEviction`                                                                            |
+| `ProcessCustody-unsafe-enum`（N4）          | 负控           | `HonestEnum = FALSE`                           | 违反 `ClosureTruth` 或 `SettleTruth`                                                         |
+| `ProcessCustody-unsafe-enum-closure`（N4b） | 负控           | `HonestEnum = FALSE`，只查封闭一侧             | 违反 `ClosureTruth`                                                                          |
+| `ProcessCustody-unsafe-commit-closed`（N5） | 负控           | `RecheckClosed = FALSE`                        | 违反 `NoEntryAfterClose`                                                                     |
+| `ProcessCustody-unsafe-commit-phase`（N6）  | 负控           | `RecheckPhase = FALSE`                         | 违反 `OneDisposition`                                                                        |
+| `ProcessCustody-unsafe-hangup`（N10）       | 负控           | `Policy = "hangup"`                            | 违反 `KeepWhenPermitted`                                                                     |
+| `TerminalSegments`                          | 正控           | 目标取值                                       | `CompletionTruth`、`FgInSegment`、`Monotone`、`NothingLost`、`StaysValid`、`OneSegment` 成立 |
+| `TerminalSegments-unsafe-eagain`（N7）      | 负控           | `Drain = "eagain"`                             | 违反 `FgInSegment`                                                                           |
+| `TerminalSegments-unsafe-quiet`（N8）       | 负控           | `Completion = "quiet"`                         | 违反 `CompletionTruth`                                                                       |
+| `TerminalSegments-unsafe-invalidate`（N9）  | 负控           | `InvalidateOnExtra = TRUE`                     | 违反 `StaysValid`                                                                            |
+
+可达见证：ProcessCustody 七个（保留执行域活着、保留执行域活过获取、保留执行域自行结清、崩溃后封闭完成、崩溃后获取结清、满额走停止、保留终端随封闭停止），TerminalSegments 四个（后台字节进段内、段间字节、两段都完成、第二段的前台字节）。全部须被违反。
+
+负控的反例就是设计中预想的竞态。N5 的轨迹是 `PlanAcq → Launch → PrimExit → Dispose → CloseScope → Commit`：处置在封闭之前预留，提交在封闭之后发生。N7 的轨迹是前台写出字节、前台退出、结束帧到达，而最后的字节在提供者读到暂时无数据之后才可读。N4 的轨迹是 `PlanAcq → Crash → Recover → Settle`：恢复只认回一部分执行域，却当作完整，获取就结清了。
 
 ## 规模上限
 
-| 配置 | 执行域 | 容量 | 每种留下的进程 | 崩溃 | 保留范围 | 其他 |
-| --- | --- | --- | --- | --- | --- | --- |
-| `ProcessCustody` | 2 | 1 | 1 | 1 | 有 | — |
-| `ProcessCustody-unbound` | 2 | 1 | 1 | 1 | 无 | — |
-| `ProcessCustody-live` | 2 | 1 | 1 | 0 | 有 | 弱公平 |
-| `ProcessCustody-inductive` | 1 | 1 | 1 | 1 | 有 | 初始状态是满足 `IndInv` 的全部状态 |
-| `TerminalSegments` | — | — | — | — | — | 2 段；每段前台至多写 2 字节，后台在整次运行中共写 2 字节 |
+| 配置                       | 执行域 | 容量 | 每种留下的进程 | 崩溃 | 保留范围 | 其他                                                     |
+| -------------------------- | ------ | ---- | -------------- | ---- | -------- | -------------------------------------------------------- |
+| `ProcessCustody`           | 2      | 1    | 1              | 1    | 有       | —                                                        |
+| `ProcessCustody-unbound`   | 2      | 1    | 1              | 1    | 无       | —                                                        |
+| `ProcessCustody-live`      | 2      | 1    | 1              | 0    | 有       | 弱公平                                                   |
+| `ProcessCustody-inductive` | 1      | 1    | 1              | 1    | 有       | 初始状态是满足 `IndInv` 的全部状态                       |
+| `TerminalSegments`         | —      | —    | —              | —    | —        | 2 段；每段前台至多写 2 字节，后台在整次运行中共写 2 字节 |
 
 只有一份获取与一个保留范围。两个获取共用一个保留范围、多个保留范围、租户之间的隔离都不在模型里。
 
@@ -32,55 +65,55 @@ TLC 对有限状态做穷举。本页的任何结论只在下文的规模上限�
 
 ProcessCustody 的性质。「编号」一列是本页给每条性质的名字，命题在同一行：T 开头的是定理，I 开头的是不变式，L 开头的是活性。括号里的 I 编号是支持该定理的不变式。[proofs/process-custody.md](proofs/process-custody.md) 按同一编号引用，它的「不变式」与「定理」两节给出 I1 至 I8 与 T3、T5、T8 的证明。
 
-| 模型中的名字 | 编号 | 命题 | SPEC 条款 | 违反的后果 | 守卫（负控） |
-| --- | --- | --- | --- | --- | --- |
-| `NoLeak` | T1 | 平台满足封闭收纳时，没有进程活在所有执行域之外 | [收纳](../SPEC.md#收纳) | 留下的进程失去归属，没有人能列出或停止它 | N2（`pgroup`） |
-| `UniqueOwner` | T2（I1、I3、I4） | 每个活着的执行域恰有一个归属方，且该归属方没有结束责任 | [一次性命令留下的进程](../SPEC.md#一次性命令留下的进程)首段 | 活着的进程没有人负责 | 由 I1、I3、I4 的证明支持 |
-| `OneDisposition` | T3 | 主进程退出后，执行域或者被停止，或者被移交，不会两者都发生 | [移交](../SPEC.md#移交)第 2、3 项 | 一个执行域既被停止又被保留，`residue` 与实际不符 | N6（提交不复核阶段） |
-| `StopTruth` | T4（I4） | 报告已停的执行域里没有活进程 | [停止](../SPEC.md#停止)第 5 项；[保留进程的恢复](../SPEC.md#保留进程的恢复) | 未停的进程被当作已停，责任被提前解除 | 由 I4 的证明支持 |
-| `NoEntryAfterClose` | T5（I5） | 范围封闭之后，没有执行域进入该范围 | [移交](../SPEC.md#移交)第 2 项 | 保留范围封闭之后仍有进程被保留下来，无人收尾 | N5（提交不复核封闭） |
-| `ClosureTruth` | T5、T8 | 报告封闭完成时，该范围名下的执行域都已停止 | [保留进程的恢复](../SPEC.md#保留进程的恢复)；[恢复](../SPEC.md#恢复) | 封闭完成却仍有保留进程活着 | N4b（枚举不全当完整，只查封闭一侧） |
-| `NoEviction` | T6（I7） | 占用不超过容量；容量不足从不停止已保留的执行域 | [容量](../SPEC.md#容量) | 新的保留挤掉旧的保留进程 | N3（满额停最旧的） |
-| `SettleTruth` | T8 | 报告获取结清时，该获取名下的执行域都已停止 | [恢复](../SPEC.md#恢复) | 崩溃后获取结清，但它名下仍有进程活着 | N4 |
-| `KeepWhenPermitted` | T10 | 可以保留且有留下的进程时，处置不停止它们 | [处置](../SPEC.md#处置) | 调用方用 `&` 起的服务在下一次调用前就被停止 | N1（全部停止）、N10（先挂断） |
-| `ReservedFromAcq` | I8 | 预留中的执行域仍归获取，且是命令执行域 | [移交](../SPEC.md#移交)第 1 项 | 终端或已移交的执行域被再次移交 | 由 I8 的证明支持 |
-| `OwnerOnlyForward`（步骤性质） | I2 | 归属只能从未定义改为某一方，或从获取改为保留范围（TLC 检查）。只经移交提交这一点由[证明](proofs/process-custody.md#不变式)给出，TLC 不检查是哪个动作改的 | [移交](../SPEC.md#移交) | 保留进程被改回获取，随获取释放而停止 | 由 I2 的证明支持 |
-| `RetainedSurvivesRelease`（步骤性质） | T7（I6） | 获取的释放、排空与结清不改变保留执行域的阶段 | [移交](../SPEC.md#移交)第 3 项之后一段 | 释放获取时停掉了已经移交的进程 | 由 I6 的证明支持 |
-| `ClosureEnds`（活性） | L1 | 范围封闭之后，名下的执行域最终都停止 | [保留进程的恢复](../SPEC.md#保留进程的恢复) | 封闭永远完成不了 | — |
-| `ReleaseEnds`（活性） | L2 | 获取开始排空之后，最终结清 | [获取与租约](../SPEC.md#获取与租约)的释放 | 获取永远结清不了 | — |
-| `RetainedSettles`（活性） | L3 | 保留执行域的进程全部退出之后，它最终结清 | [移交](../SPEC.md#移交)第 3 项之后一段 | 空的保留执行域一直占着名额 | — |
+| 模型中的名字                          | 编号             | 命题                                                                                                                                                     | SPEC 条款                                                                                               | 违反的后果                                       | 守卫（负控）                        |
+| ------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------- |
+| `NoLeak`                              | T1               | 平台满足封闭收纳时，没有进程活在所有执行域之外                                                                                                           | [收纳](../../SPEC.md#一次性命令留下的进程)                                                              | 留下的进程失去归属，没有人能列出或停止它         | N2（`pgroup`）                      |
+| `UniqueOwner`                         | T2（I1、I3、I4） | 每个活着的执行域恰有一个归属方，且该归属方没有结束责任                                                                                                   | [一次性命令留下的进程](../../SPEC.md#一次性命令留下的进程)首段                                          | 活着的进程没有人负责                             | 由 I1、I3、I4 的证明支持            |
+| `OneDisposition`                      | T3               | 主进程退出后，执行域或者被停止，或者被移交，不会两者都发生                                                                                               | [移交](../../SPEC.md#一次性命令留下的进程)第 2、3 项                                                    | 一个执行域既被停止又被保留，`residue` 与实际不符 | N6（提交不复核阶段）                |
+| `StopTruth`                           | T4（I4）         | 报告已停的执行域里没有活进程                                                                                                                             | [停止](../../SPEC.md#一次性命令留下的进程)第 5 项；[保留进程的恢复](../../SPEC.md#一次性命令留下的进程) | 未停的进程被当作已停，责任被提前解除             | 由 I4 的证明支持                    |
+| `NoEntryAfterClose`                   | T5（I5）         | 范围封闭之后，没有执行域进入该范围                                                                                                                       | [移交](../../SPEC.md#一次性命令留下的进程)第 2 项                                                       | 保留范围封闭之后仍有进程被保留下来，无人收尾     | N5（提交不复核封闭）                |
+| `ClosureTruth`                        | T5、T8           | 报告封闭完成时，该范围名下的执行域都已停止                                                                                                               | [保留进程的恢复](../../SPEC.md#一次性命令留下的进程)；[恢复](../../SPEC.md#恢复)                        | 封闭完成却仍有保留进程活着                       | N4b（枚举不全当完整，只查封闭一侧） |
+| `NoEviction`                          | T6（I7）         | 占用不超过容量；容量不足从不停止已保留的执行域                                                                                                           | [容量](../../SPEC.md#一次性命令留下的进程)                                                              | 新的保留挤掉旧的保留进程                         | N3（满额停最旧的）                  |
+| `SettleTruth`                         | T8               | 报告获取结清时，该获取名下的执行域都已停止                                                                                                               | [恢复](../../SPEC.md#恢复)                                                                              | 崩溃后获取结清，但它名下仍有进程活着             | N4                                  |
+| `KeepWhenPermitted`                   | T10              | 可以保留且有留下的进程时，处置不停止它们                                                                                                                 | [处置](../../SPEC.md#一次性命令留下的进程)                                                              | 调用方用 `&` 起的服务在下一次调用前就被停止      | N1（全部停止）、N10（先挂断）       |
+| `ReservedFromAcq`                     | I8               | 预留中的执行域仍归获取，且是命令执行域                                                                                                                   | [移交](../../SPEC.md#一次性命令留下的进程)第 1 项                                                       | 终端或已移交的执行域被再次移交                   | 由 I8 的证明支持                    |
+| `OwnerOnlyForward`（步骤性质）        | I2               | 归属只能从未定义改为某一方，或从获取改为保留范围（TLC 检查）。只经移交提交这一点由[证明](proofs/process-custody.md#不变式)给出，TLC 不检查是哪个动作改的 | [移交](../../SPEC.md#一次性命令留下的进程)                                                              | 保留进程被改回获取，随获取释放而停止             | 由 I2 的证明支持                    |
+| `RetainedSurvivesRelease`（步骤性质） | T7（I6）         | 获取的释放、排空与结清不改变保留执行域的阶段                                                                                                             | [移交](../../SPEC.md#一次性命令留下的进程)第 3 项之后一段                                               | 释放获取时停掉了已经移交的进程                   | 由 I6 的证明支持                    |
+| `ClosureEnds`（活性）                 | L1               | 范围封闭之后，名下的执行域最终都停止                                                                                                                     | [保留进程的恢复](../../SPEC.md#一次性命令留下的进程)                                                    | 封闭永远完成不了                                 | —                                   |
+| `ReleaseEnds`（活性）                 | L2               | 获取开始排空之后，最终结清                                                                                                                               | [获取与租约](../../SPEC.md#租约与逐操作门)的释放                                                        | 获取永远结清不了                                 | —                                   |
+| `RetainedSettles`（活性）             | L3               | 保留执行域的进程全部退出之后，它最终结清                                                                                                                 | [移交](../../SPEC.md#一次性命令留下的进程)第 3 项之后一段                                               | 空的保留执行域一直占着名额                       | —                                   |
 
 T9（租户隔离：`stop` 与 `list` 只作用于本范围）不在模型里。登记表的门先核对请求的租户等于获取方的租户，再问守卫。守卫放行之后，提供者的索引只列出本保留范围与本租户的项，并按保留范围、租户、`id` 与 `generation` 匹配要停止的引用。这些用契约用例验证。
 
 TerminalSegments 的性质。S1 至 S5 是本页给每条性质的名字，命题在同一行：
 
-| 模型中的名字 | 编号 | 命题 | SPEC 条款 | 违反的后果 | 守卫（负控） |
-| --- | --- | --- | --- | --- | --- |
-| `CompletionTruth` | S1 | 报告完成的段，前台进程已经退出 | [终端段的完成与字节归属](../SPEC.md#终端段的完成与字节归属)第 1 项 | 前台还在运行就报告完成 | N8（静默即完成） |
-| `FgInSegment` | S2 | 前台进程写出的每个字节都归本段 | 同节第 3 项 | 本段输出缺最后几个字节，它们落进下一段 | N7（读到暂时无数据即交出） |
-| `Monotone`、`NothingLost` | S3 | 每个读出的字节恰有一个归属，归属沿读出次序单调；没有字节丢失 | 同节第 3、4 项 | 字节被重复归属、乱序或丢失 | 由正控支持 |
-| `StaysValid` | S4 | 后台写入不使终端失效 | 同节第 2 项 | `cmd &` 之后终端不可用 | N9（多出进程即失效） |
-| `OneSegment` | S5 | 一个终端同时只有一段在运行 | [保留终端](../SPEC.md#保留终端)的 `execute` | 两段输出交错 | 由正控支持 |
+| 模型中的名字              | 编号 | 命题                                                         | SPEC 条款                                             | 违反的后果                             | 守卫（负控）               |
+| ------------------------- | ---- | ------------------------------------------------------------ | ----------------------------------------------------- | -------------------------------------- | -------------------------- |
+| `CompletionTruth`         | S1   | 报告完成的段，前台进程已经退出                               | [终端段的完成与字节归属](../../SPEC.md#终端段)第 1 项 | 前台还在运行就报告完成                 | N8（静默即完成）           |
+| `FgInSegment`             | S2   | 前台进程写出的每个字节都归本段                               | 同节第 3 项                                           | 本段输出缺最后几个字节，它们落进下一段 | N7（读到暂时无数据即交出） |
+| `Monotone`、`NothingLost` | S3   | 每个读出的字节恰有一个归属，归属沿读出次序单调；没有字节丢失 | 同节第 3、4 项                                        | 字节被重复归属、乱序或丢失             | 由正控支持                 |
+| `StaysValid`              | S4   | 后台写入不使终端失效                                         | 同节第 2 项                                           | `cmd &` 之后终端不可用                 | N9（多出进程即失效）       |
+| `OneSegment`              | S5   | 一个终端同时只有一段在运行                                   | [保留终端](../../SPEC.md#保留终端)的 `execute`        | 两段输出交错                           | 由正控支持                 |
 
 ## 动作对应
 
 模型的动作与 SPEC 中的操作：
 
-| 数学模型的动作 | TLA+ 动作 | SPEC 中的操作或事件 |
-| --- | --- | --- |
-| Plan | `PlanAcq`、`PlanRet` | 账本 `plan`；保留终端在首个异步等待前预留 |
-| Launch、Refuse | `Launch`、`Refuse` | 账本 `permit` 之后发出首个外部效果；许可不成立时记停止 |
+| 数学模型的动作         | TLA+ 动作                                       | SPEC 中的操作或事件                                                   |
+| ---------------------- | ----------------------------------------------- | --------------------------------------------------------------------- |
+| Plan                   | `PlanAcq`、`PlanRet`                            | 账本 `plan`；保留终端在首个异步等待前预留                             |
+| Launch、Refuse         | `Launch`、`Refuse`                              | 账本 `permit` 之后发出首个外部效果；许可不成立时记停止                |
 | Fork、Escape、RestExit | `ForkPlain`、`ForkImmune`、`Escape`、`RestExit` | 命令自己派生与退出进程。`Escape` 只在 `Containment = "pgroup"` 时可用 |
-| PrimExit | `PrimExit` | 主进程退出；终端的 shell 死亡使终端失效 |
-| Dispose | `Dispose` | [处置](../SPEC.md#处置) |
-| Commit、Abort | `Commit`、`Abort` | [移交](../SPEC.md#移交)第 2、3 项 |
-| Stop、Kill、Confirm | `Stop`、`Kill`、`Confirm` | 命令设施的停止；终端 `close`；保留进程的 `stop`；监督者确认 |
-| Drain | `Drain` | 保留执行域的进程全部自行退出后结清 |
-| Expire | `Expire` | 无人值守期限。SPEC 现在没有这项配置 |
-| Release | `Release`、`DrainSweep` | 获取的释放与排空。`DrainSweep` 处理崩溃后由恢复放回内存的执行域 |
-| Settle | `Settle` | 获取结清 |
-| CloseScope | `CloseScope`、`CloseSweep`、`ClosureDone` | `releaseScope` 的封闭信号、回收与完成报告 |
-| Crash、Recover | `Crash`、`Recover` | 提供者崩溃或换代；冷恢复的枚举 |
+| PrimExit               | `PrimExit`                                      | 主进程退出；终端的 shell 死亡使终端失效                               |
+| Dispose                | `Dispose`                                       | [处置](../../SPEC.md#一次性命令留下的进程)                            |
+| Commit、Abort          | `Commit`、`Abort`                               | [移交](../../SPEC.md#一次性命令留下的进程)第 2、3 项                  |
+| Stop、Kill、Confirm    | `Stop`、`Kill`、`Confirm`                       | 命令设施的停止；终端 `close`；保留进程的 `stop`；监督者确认           |
+| Drain                  | `Drain`                                         | 保留执行域的进程全部自行退出后结清                                    |
+| Expire                 | `Expire`                                        | 无人值守期限。SPEC 现在没有这项配置                                   |
+| Release                | `Release`、`DrainSweep`                         | 获取的释放与排空。`DrainSweep` 处理崩溃后由恢复放回内存的执行域       |
+| Settle                 | `Settle`                                        | 获取结清                                                              |
+| CloseScope             | `CloseScope`、`CloseSweep`、`ClosureDone`       | `releaseScope` 的封闭信号、回收与完成报告                             |
+| Crash、Recover         | `Crash`、`Recover`                              | 提供者崩溃或换代；冷恢复的枚举                                        |
 
 ## 前提
 
@@ -93,19 +126,19 @@ TerminalSegments 的性质。S1 至 S5 是本页给每条性质的名字，命�
 - P5：控制通道与哨兵不被同一用户的恶意进程伪造。宿主提供者不声称同一用户之间的隔离。
 - P6：提供者在 `adopt` 确认之后把执行域写入耐久索引，并且只在读全耐久索引时列出保留进程或推进恢复。模型的 `Recover` 对应读全耐久索引，模型里已移交的执行域都可被认回。
 
-SPEC [保留进程的恢复](../SPEC.md#保留进程的恢复)的已知限制所写的崩溃窗口不满足 P6：`adopt` 确认之后、写入耐久索引之前提供者崩溃，或者提供者写不成耐久索引时，这个执行域不在耐久索引里，`Recover` 认不回它。窗口内的执行域不被列为保留进程，也不自行结清，只经请求方作用域的恢复结束。
+SPEC [保留进程的恢复](../../SPEC.md#一次性命令留下的进程)的已知限制所写的崩溃窗口不满足 P6：`adopt` 确认之后、写入耐久索引之前提供者崩溃，或者提供者写不成耐久索引时，这个执行域不在耐久索引里，`Recover` 认不回它。窗口内的执行域不被列为保留进程，也不自行结清，只经请求方作用域的恢复结束。
 
-各平台怎样满足 P3、P4 与冷索引、活过提供者崩溃、变空通知这几项原语，归宿主提供者的 SPEC，见 [host-local 的兑现](../../execution-environment-host-local/SPEC.md#留下的进程的兑现)。
+各平台怎样满足 P3、P4 与冷索引、活过提供者崩溃、变空通知这几项原语，归宿主提供者，见包组规格的[宿主提供者](../../SPEC.md#宿主提供者)与宿主提供者的[形式对照](../../execution-environment-host-local/verification/formal-mapping.md)。
 
 ## 未覆盖
 
 - 多份获取共用一个保留范围、多个保留范围、多个租户。
 - 归纳性检查只覆盖 1 个执行域。
-- 保留进程的输出读取。SPEC 现在不定义它。
+- 保留进程的输出读取。它只读，不改变归属。
 - 终端段的哨兵被同一用户的进程伪造（P5）。
 - 无人值守期限（`Expire`）在模型里是可选动作，SPEC 现在没有这项配置。
 - 活性只在无崩溃（`MaxCrash = 0`）下检查。崩溃之后封闭与结清最终完成，没有模型检查。
-- 模型的移交提交是原子的。SPEC [移交](../SPEC.md#移交)第 4 项的「提交结果未知时按原移交身份查询」不在模型里。
+- 模型的移交提交是原子的。SPEC [移交](../../SPEC.md#一次性命令留下的进程)第 4 项的「提交结果未知时按原移交身份查询」不在模型里。
 
 ## 实现对应
 
@@ -115,17 +148,17 @@ SPEC [保留进程的恢复](../SPEC.md#保留进程的恢复)的已知限制所
 
 实现是宿主提供者的 Linux 终端（`execution-environment-host-local`）。路径相对该包的 `src/`。
 
-| 模型动作 | 实现位置 | 说明 |
-| --- | --- | --- |
-| `GateStart` | `host-terminal.ts` 的 `execute`；`terminal-gate.ts` 的 `message()` 的 execute 分支 | gate 设当前段并开始按本段随机数扫描 |
-| `ShellBegin` | `terminal-gate.ts` 的 `legSource()`：段首哨兵，再报告开始 | 哨兵由 Bash 内建 `printf` 写到 `/dev/tty` |
-| `FgWrite`、`BgWrite` | 脚本与后台进程自己的写入 | 不在提供者代码里 |
-| `FgExit` | `legSource()`：脚本返回、恢复临时目录之后写段尾哨兵，再报告完成 | |
-| `Deliver` | 内核的 PTY 缓冲 | |
-| `GateRead` | `terminal-gate.ts` 的 `readPty()` → `terminal-sentinels.ts` 的 `scanSentinels()` → `attribute()` | |
-| `GateEnd` | `terminal-gate.ts` 的 `observe()` 收到完成观察 | |
-| `GateComplete` | `terminal-gate.ts` 的 `poll()`：完成观察与段尾哨兵都到之后交出 | 对应 `Drain = "sentinel"` |
-| `Finish` | `host-terminal.ts` 的帧处理与 `settleLeg()` | |
+| 模型动作             | 实现位置                                                                                         | 说明                                      |
+| -------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------- |
+| `GateStart`          | `host-terminal.ts` 的 `execute`；`terminal-gate.ts` 的 `message()` 的 execute 分支               | gate 设当前段并开始按本段随机数扫描       |
+| `ShellBegin`         | `terminal-gate.ts` 的 `legSource()`：段首哨兵，再报告开始                                        | 哨兵由 Bash 内建 `printf` 写到 `/dev/tty` |
+| `FgWrite`、`BgWrite` | 脚本与后台进程自己的写入                                                                         | 不在提供者代码里                          |
+| `FgExit`             | `legSource()`：脚本返回、恢复临时目录之后写段尾哨兵，再报告完成                                  |                                           |
+| `Deliver`            | 内核的 PTY 缓冲                                                                                  |                                           |
+| `GateRead`           | `terminal-gate.ts` 的 `readPty()` → `terminal-sentinels.ts` 的 `scanSentinels()` → `attribute()` |                                           |
+| `GateEnd`            | `terminal-gate.ts` 的 `observe()` 收到完成观察                                                   |                                           |
+| `GateComplete`       | `terminal-gate.ts` 的 `poll()`：完成观察与段尾哨兵都到之后交出                                   | 对应 `Drain = "sentinel"`                 |
+| `Finish`             | `host-terminal.ts` 的帧处理与 `settleLeg()`                                                      |                                           |
 
 实现里有、模型里没有的行为：
 
@@ -140,23 +173,23 @@ SPEC [保留进程的恢复](../SPEC.md#保留进程的恢复)的已知限制所
 
 实现是宿主提供者的 Linux 一次性命令（`execution-environment-host-local`）。收纳是 systemd 用户 scope 单元，即模型的 `Containment = "cgroup"`。路径相对该包的 `src/`。
 
-| 模型动作 | 实现位置 | 说明 |
-| --- | --- | --- |
-| `PlanAcq` | `host-command.ts` 的 `start`：获取账本 `plan` | 先于起门进程 |
-| `Launch`、`Refuse` | `start`：门报就绪后获取账本 `permit`，`confirmed` 才发 GO；否则强制停止单元并记 `stopped` | |
-| `ForkPlain`、`ForkImmune`、`RestExit` | 命令自己的进程 | 不在提供者代码里。`Escape` 在 cgroup 收纳下不可用 |
-| `PrimExit` | `command-gate.ts` 的 `finish()` 发退出帧，带单元里门以外的进程数；`host-command.ts` 的 `onExit` | 门在退出帧之后留在单元里 |
-| `Dispose` | `host-command.ts` 的 `dispose` → `decideDisposition` | 五项条件按契约的次序判定 |
-| `PlanRet` | `decideDisposition`：先 `reserve()`（`host-retained-processes.ts`，同步占名额），再保留进程账本 `plan` | 预留在首个异步等待之前 |
-| `Commit` | `commitHandover`：保留进程账本 `adopt`；`apply` 的 `retained` 分支 → `enterIndex` | 归属在 `enterIndex` 里同步改为 `handedOver`，之后写标记文件，再改为 `retained` |
-| `Abort` | `reservation.abort()`：在 `decideDisposition`、`commitHandover` 与 `apply` 的 `retainedInterrupted` 分支 | |
-| `Stop`、`Kill`、`Confirm` | `forceStop`、`gracefulStop`；`host-scope.ts` 的 `forceStopScope`（`systemctl kill`、`stop`、`show`）；保留的执行域走索引的 `stop`；保留进程扩展的 `stop` 经登记表的门核对资格后落到同一个索引停止，每个执行域只有一个在途停止，重复的 `stop` 等它的读数（模型里 `stopping` 上 `Stop` 不可用） | 停止的记账去当前承担责任的账本：获取账本或保留进程账本 |
-| `Drain` | 索引的 `maintain()` → `observe()`：`readScopeMembers` 读单元的 `cgroup.procs`，门以外没有进程或单元已不在时停止并记 `stopped` | 每 `retainedPollMs` 读一次。读不到不当作空 |
-| `Expire` | 没有实现 | SPEC 没有这项配置 |
-| `Release`、`DrainSweep` | `stopAll`：获取排空时强制停止 `live` 里的执行域。已移交的执行域不在 `live` 里 | `DrainSweep` 对应冷恢复的 `listRecoveryResources` 与 `recover` |
-| `Settle` | 责任域的 `drain`：停止全部确认并记账后结清 | |
-| `CloseScope`、`CloseSweep`、`ClosureDone` | 索引的 `watchClosure`：保留范围的释放信号或保留进程账本的 `closed` 信号触发 `closeScope`，停止该范围的全部保留进程 | 未确认的项留在索引里，`maintain()` 再试 |
-| `Crash`、`Recover` | 新的提供者实例：索引 `ready()` 读 `<stateDirectory>/retained-processes/` 下的标记文件；`listRecoveryResources` 与 `recover` 带上索引里的资源 | 别的启动身份与已不在的单元的标记被删去 |
+| 模型动作                                  | 实现位置                                                                                                                                                                                                                                                                                      | 说明                                                                           |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `PlanAcq`                                 | `host-command.ts` 的 `start`：获取账本 `plan`                                                                                                                                                                                                                                                 | 先于起门进程                                                                   |
+| `Launch`、`Refuse`                        | `start`：门报就绪后获取账本 `permit`，`confirmed` 才发 GO；否则强制停止单元并记 `stopped`                                                                                                                                                                                                     |                                                                                |
+| `ForkPlain`、`ForkImmune`、`RestExit`     | 命令自己的进程                                                                                                                                                                                                                                                                                | 不在提供者代码里。`Escape` 在 cgroup 收纳下不可用                              |
+| `PrimExit`                                | `command-gate.ts` 的 `finish()` 发退出帧，带单元里门以外的进程数；`host-command.ts` 的 `onExit`                                                                                                                                                                                               | 门在退出帧之后留在单元里                                                       |
+| `Dispose`                                 | `host-command.ts` 的 `dispose` → `decideDisposition`                                                                                                                                                                                                                                          | 五项条件按契约的次序判定                                                       |
+| `PlanRet`                                 | `decideDisposition`：先 `reserve()`（`host-retained-processes.ts`，同步占名额），再保留进程账本 `plan`                                                                                                                                                                                        | 预留在首个异步等待之前                                                         |
+| `Commit`                                  | `commitHandover`：保留进程账本 `adopt`；`apply` 的 `retained` 分支 → `enterIndex`                                                                                                                                                                                                             | 归属在 `enterIndex` 里同步改为 `handedOver`，之后写标记文件，再改为 `retained` |
+| `Abort`                                   | `reservation.abort()`：在 `decideDisposition`、`commitHandover` 与 `apply` 的 `retainedInterrupted` 分支                                                                                                                                                                                      |                                                                                |
+| `Stop`、`Kill`、`Confirm`                 | `forceStop`、`gracefulStop`；`host-scope.ts` 的 `forceStopScope`（`systemctl kill`、`stop`、`show`）；保留的执行域走索引的 `stop`；保留进程扩展的 `stop` 经登记表的门核对资格后落到同一个索引停止，每个执行域只有一个在途停止，重复的 `stop` 等它的读数（模型里 `stopping` 上 `Stop` 不可用） | 停止的记账去当前承担责任的账本：获取账本或保留进程账本                         |
+| `Drain`                                   | 索引的 `maintain()` → `observe()`：`readScopeMembers` 读单元的 `cgroup.procs`，门以外没有进程或单元已不在时停止并记 `stopped`                                                                                                                                                                 | 每 `retainedPollMs` 读一次。读不到不当作空                                     |
+| `Expire`                                  | 没有实现                                                                                                                                                                                                                                                                                      | SPEC 没有这项配置                                                              |
+| `Release`、`DrainSweep`                   | `stopAll`：获取排空时强制停止 `live` 里的执行域。已移交的执行域不在 `live` 里                                                                                                                                                                                                                 | `DrainSweep` 对应冷恢复的 `listRecoveryResources` 与 `recover`                 |
+| `Settle`                                  | 责任域的 `drain`：停止全部确认并记账后结清                                                                                                                                                                                                                                                    |                                                                                |
+| `CloseScope`、`CloseSweep`、`ClosureDone` | 索引的 `watchClosure`：保留范围的释放信号或保留进程账本的 `closed` 信号触发 `closeScope`，停止该范围的全部保留进程                                                                                                                                                                            | 未确认的项留在索引里，`maintain()` 再试                                        |
+| `Crash`、`Recover`                        | 新的提供者实例：索引 `ready()` 读 `<stateDirectory>/retained-processes/` 下的标记文件；`listRecoveryResources` 与 `recover` 带上索引里的资源                                                                                                                                                  | 别的启动身份与已不在的单元的标记被删去                                         |
 
 实现里有、模型里没有的行为：
 
@@ -171,27 +204,27 @@ SPEC [保留进程的恢复](../SPEC.md#保留进程的恢复)的已知限制所
 
 ### macOS 的 ProcessCustody
 
-实现是宿主提供者的 macOS 一次性命令与终端（`execution-environment-host-local` 的 `src/macos-execution/`）。执行域是 POSIX 会话。进程可以用 `setsid` 离开会话，所以 macOS 不满足前提 P4（封闭收纳，原语 Π1）。这对应模型里 `Containment = "pgroup"` 的情形：`Escape` 可用。提供者因此不声称保留，命令设施没有 `retention` 扩展，没有执行域进入保留范围。机制见 host-local 的 [macOS 的兑现](../../execution-environment-host-local/SPEC.md#macos-的兑现)。测试路径相对 host-local 包的 `tests/macos-execution/`。
+实现是宿主提供者的 macOS 一次性命令与终端（`execution-environment-host-local` 的 `src/macos-execution/`）。执行域是 POSIX 会话。进程可以用 `setsid` 离开会话，所以 macOS 不满足前提 P4（封闭收纳，原语 Π1）。这对应模型里 `Containment = "pgroup"` 的情形：`Escape` 可用。提供者因此不声称保留，命令设施没有 `retention` 扩展，没有执行域进入保留范围。机制见 host-local 的 [macOS 的兑现](../../SPEC.md#宿主提供者)。测试路径相对 host-local 包的 `tests/macos-execution/`。
 
 适用的性质与钉住它的测试：
 
-| 性质 | 在 macOS 上的含义 | 测试 |
-| --- | --- | --- |
-| `StopTruth`（T4） | 报告已停的会话里没有活成员：连续两次读到空才答 `confirmed`，读不出时答 `unconfirmed` | `commands.spec.ts` 的「leftovers are stopped: StopTruth and the reasons」（四种原因下按进程号核对每个留下的进程都已不在）；`primitives.spec.ts` 的 Π3；`session.spec.ts` 的读取失败按未知处理 |
-| `OneDisposition`（T3） | 主进程退出后执行域只被停止，从不被移交 | `commands.spec.ts` 的 C11 与「leftovers are stopped」；`decisions.spec.ts` 的 `residue` 判定只有 `none` 与 `stopping` |
-| `UniqueOwner`（T2） | 每个活着的执行域归本次获取，停止未确认时留在获取的待停止集合 | `commands.spec.ts` 的释放与强制停止 |
-| `SettleTruth`（T8） | 获取结清时，名下的执行域都已停止；提供者崩溃后冷恢复按标记停止 | `commands.spec.ts` 的「the release of the acquisition stops what it still runs before it settles」与「a provider killed with SIGKILL leaves nothing running; a fresh provider lists and recovers」；`terminals.spec.ts` 的释放与提供者被 `SIGKILL` 之后的恢复；`domain-index.spec.ts` 的完整或 `unavailable` 列举 |
-| `CompletionTruth`、`FgInSegment`、`Monotone`、`NothingLost`、`StaysValid`、`OneSegment`（S1 至 S5） | Linux 的 Bash 驱动与分段源码不改动，在 `/bin/bash` 3.2.57 上运行，`TerminalSegments` 的实现对应同上一节 | `terminals.spec.ts` 的 C7、C8（200 段）、C9 与哨兵用例；`primitives.spec.ts` 的 Πt；`terminal-conformance.spec.ts` |
+| 性质                                                                                                | 在 macOS 上的含义                                                                                       | 测试                                                                                                                                                                                                                                                                                                              |
+| --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `StopTruth`（T4）                                                                                   | 报告已停的会话里没有活成员：连续两次读到空才答 `confirmed`，读不出时答 `unconfirmed`                    | `commands.spec.ts` 的「leftovers are stopped: StopTruth and the reasons」（四种原因下按进程号核对每个留下的进程都已不在）；`primitives.spec.ts` 的 Π3；`session.spec.ts` 的读取失败按未知处理                                                                                                                     |
+| `OneDisposition`（T3）                                                                              | 主进程退出后执行域只被停止，从不被移交                                                                  | `commands.spec.ts` 的 C11 与「leftovers are stopped」；`decisions.spec.ts` 的 `residue` 判定只有 `none` 与 `stopping`                                                                                                                                                                                             |
+| `UniqueOwner`（T2）                                                                                 | 每个活着的执行域归本次获取，停止未确认时留在获取的待停止集合                                            | `commands.spec.ts` 的释放与强制停止                                                                                                                                                                                                                                                                               |
+| `SettleTruth`（T8）                                                                                 | 获取结清时，名下的执行域都已停止；提供者崩溃后冷恢复按标记停止                                          | `commands.spec.ts` 的「the release of the acquisition stops what it still runs before it settles」与「a provider killed with SIGKILL leaves nothing running; a fresh provider lists and recovers」；`terminals.spec.ts` 的释放与提供者被 `SIGKILL` 之后的恢复；`domain-index.spec.ts` 的完整或 `unavailable` 列举 |
+| `CompletionTruth`、`FgInSegment`、`Monotone`、`NothingLost`、`StaysValid`、`OneSegment`（S1 至 S5） | Linux 的 Bash 驱动与分段源码不改动，在 `/bin/bash` 3.2.57 上运行，`TerminalSegments` 的实现对应同上一节 | `terminals.spec.ts` 的 C7、C8（200 段）、C9 与哨兵用例；`primitives.spec.ts` 的 Πt；`terminal-conformance.spec.ts`                                                                                                                                                                                                |
 
 不适用的性质。前提 P4 不成立，所以没有执行域被保留：
 
-| 性质 | 不适用的理由 |
-| --- | --- |
-| `KeepWhenPermitted`（T10） | 本提供者从不保留。可以保留的条件都成立时，`residue` 是 `stopping`，原因 `uncontained`（`commands.spec.ts` 与 `decisions.spec.ts`） |
-| `NoEntryAfterClose`（T5）、`ClosureTruth`（T5、T8）、`NoEviction`（T6）、`ReservedFromAcq`（I8）、`OwnerOnlyForward`（I2）、`RetainedSurvivesRelease`（T7） | 都关于保留范围里的执行域、预留、名额或移交。macOS 上没有移交，这些性质空洞成立 |
-| `ClosureEnds`（L1）、`RetainedSettles`（L3） | 同上，没有保留执行域 |
+| 性质                                                                                                                                                        | 不适用的理由                                                                                                                       |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `KeepWhenPermitted`（T10）                                                                                                                                  | 本提供者从不保留。可以保留的条件都成立时，`residue` 是 `stopping`，原因 `uncontained`（`commands.spec.ts` 与 `decisions.spec.ts`） |
+| `NoEntryAfterClose`（T5）、`ClosureTruth`（T5、T8）、`NoEviction`（T6）、`ReservedFromAcq`（I8）、`OwnerOnlyForward`（I2）、`RetainedSurvivesRelease`（T7） | 都关于保留范围里的执行域、预留、名额或移交。macOS 上没有移交，这些性质空洞成立                                                     |
+| `ClosureEnds`（L1）、`RetainedSettles`（L3）                                                                                                                | 同上，没有保留执行域                                                                                                               |
 
-`NoLeak`（T1）在 macOS 上不成立。调用 `setsid` 的进程离开执行域，它不被停止，也不被列出，终端的 `close` 仍答 `confirmed`。这是 host-local 记下的已知偏离（[已知偏离](../../execution-environment-host-local/SPEC.md#留下的进程的兑现)），`terminals.spec.ts` 的用例「known deviation: a process that called setsid outlives the close, which still confirms」断言它。这与负控 N2（`Containment = "pgroup"` 违反 `NoLeak`）的结论一致。所以上表的 `StopTruth` 只对仍在会话里的成员成立。
+`NoLeak`（T1）在 macOS 上不成立。调用 `setsid` 的进程离开执行域，它不被停止，也不被列出，终端的 `close` 仍答 `confirmed`。这与规格[终端段](../../SPEC.md#终端段)第 6 项不符，是一处差距，`terminals.spec.ts` 的用例「known deviation: a process that called setsid outlives the close, which still confirms」断言它。这与负控 N2（`Containment = "pgroup"` 违反 `NoLeak`）的结论一致。所以上表的 `StopTruth` 只对仍在会话里的成员成立。
 
 实现里有、模型里没有的行为：
 

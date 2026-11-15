@@ -1,5 +1,4 @@
 // @module-tag slow — starts an openssl child process and a real local HTTPS server, and waits
-// for real idle timeouts and physical socket closure.
 import type { ServerResponse } from 'node:http'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { startExchange } from '../src/http.ts'
@@ -25,9 +24,9 @@ afterAll(() => certificate.dispose())
 describe('closing the network resources', () => {
   it('close stops every in-flight exchange and resolves only after each has physically stopped', async () => {
     const server = await startHttpsServer(certificate, (res, request) => {
-      if (request.headers['x-answer'] === 'never') return // Never answered.
+      if (request.headers['x-answer'] === 'never') return
       res.writeHead(200)
-      res.write('streaming') // Never ends.
+      res.write('streaming')
     })
     const resources = network(server.ca, { maxConnections: 2 })
     try {
@@ -136,7 +135,7 @@ describe('the socket pool', () => {
   })
 
   it('concurrent exchanges up to the capacity each get their own socket', async () => {
-    const server = await startHttpsServer(certificate, () => {}) // Keeps every request pending.
+    const server = await startHttpsServer(certificate, () => {})
     const resources = network(server.ca, { maxConnections: 2 })
     try {
       const exchanges = [
@@ -179,7 +178,7 @@ describe('the socket pool', () => {
       )
       expect(await readToEnd(claimed(await toFirst.result))).toBe('first')
       await toFirst.stopped
-      expect(first.closedSockets()).toBe(0) // The kept-alive socket stays idle in the pool.
+      expect(first.closedSockets()).toBe(0)
 
       const arrival = second.nextRequest()
       const toSecond = started(
@@ -189,7 +188,6 @@ describe('the socket pool', () => {
           new AbortController().signal,
         ),
       )
-      // The second recipient reports the request before the caller touches the exchange.
       expect((await arrival).path).toBe(REQUEST_PATH)
       expect(await readToEnd(claimed(await toSecond.result))).toBe('second')
       await toSecond.stopped
@@ -204,9 +202,6 @@ describe('the socket pool', () => {
 })
 
 describe('the capacity as the only limit of the exchanges in flight', () => {
-  // `Keep-Alive: timeout=1` is below the reuse margin of Node's agent: the pool destroys the
-  // socket at the request's close and takes it out of its count only when the socket's close
-  // arrives, on a later turn of the loop. The slot is back at the request's close already.
   function answerWithoutKeepingTheSocket(res: ServerResponse, body: string): void {
     res.setHeader('keep-alive', 'timeout=1')
     res.end(body)
@@ -241,8 +236,6 @@ describe('the capacity as the only limit of the exchanges in flight', () => {
     let mostPending = 0
     const answers: (() => void)[] = []
     let answering: NodeJS.Timeout | undefined
-    // The server answers once the whole capacity is in use, after a pause in which one request
-    // too many would still arrive and be counted; much later if fewer ever arrive together.
     const server = await startHttpsServer(certificate, res => {
       pending += 1
       mostPending = Math.max(mostPending, pending)

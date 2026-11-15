@@ -1,10 +1,3 @@
-// The first official Agent of the release: the `coding` entry of the `agent-adoptions` mapping
-// (R2-D117, R2-D124, R2-D125). These tests read `config/serve.distribution.json` and judge what a
-// consumer of the release observes: the definition and its prompt, the adoption digest computed from
-// the definition, the model route, the adoption face, and the system prompt that agent-context
-// derives from the definition through the real adoption face. No process is started here; the
-// release rows that carry the prompt to a model (`request-context`, `agent-context`, `agent-host`)
-// are still stand-ins in this tree, so the composition stops at the assembled system prompt.
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -45,7 +38,7 @@ async function adoptionsFace() {
   return new AgentAdoptionsImpl(new Context(), table)
 }
 
-describe('the coding entry of the release mapping (R2-D124)', () => {
+describe('the coding entry of the release mapping', () => {
   it('is a legal definition: five release tools resident, the model attribute, ten ordered sections, no extension', async () => {
     const table = await buildTable(config)
     expect(table.mappings.byName('coding')?.candidate).toEqual(entry.candidate)
@@ -56,6 +49,7 @@ describe('the coding entry of the release mapping (R2-D124)', () => {
       { capability: { category: 'Tool', name: 'Shell' }, resident: true },
       { capability: { category: 'Tool', name: 'Tools' }, resident: true },
       { capability: { category: 'Tool', name: 'TodoItems' }, resident: true },
+      { capability: { category: 'Tool', name: 'Ask' }, resident: true },
       { capability: { category: 'Tool', name: 'Web' }, resident: true },
     ])
     expect(configured.attributes).toEqual([{ item: 'model' }])
@@ -87,11 +81,10 @@ describe('the coding entry of the release mapping (R2-D124)', () => {
       instructions: [{ ...first, text: `${first.text}.` }, ...rest],
     }
     expect(contentDigest(changed)).not.toBe(entry.candidate.digest)
-    // The same definition with the same text gives the same digest: the digest is the content.
     expect(contentDigest(JSON.parse(JSON.stringify(entry.definition)))).toBe(entry.candidate.digest)
   })
 
-  it('the initial model route names an official OpenAI profile (R2-D125: openai/gpt-6.1-sol)', () => {
+  it('the initial model route names an official OpenAI profile (openai/gpt-6.1-sol)', () => {
     expect(entry.initialModelSelection?.name).toBe('openai/gpt-6.1-sol')
     const routes = officialOpenAiProfiles({
       retryPolicy: { owner: 'test', name: 'retry', revision: '1', digest: '0'.repeat(64) },
@@ -103,28 +96,24 @@ describe('the coding entry of the release mapping (R2-D124)', () => {
     )
   })
 
-  it('every mapped definition of the release carries an initial model selection (R2-D236)', () => {
-    // The server entry refuses a creation without it, so a missing one would make the definition unusable.
+  it('every mapped definition of the release carries an initial model selection', () => {
     expect(config.mappings.length).toBeGreaterThan(0)
     for (const mapping of config.mappings)
       expect(mapping.initialModelSelection?.name, mapping.name).toBeTruthy()
   })
 
-  it('the prompt names no model vendor, the five resident tools, and carries the guardrails and the state words', () => {
+  it('the prompt names no model vendor, the six resident tools, and carries the guardrails and the state words', () => {
     for (const forbidden of ['Claude', 'Anthropic', 'OpenAI', 'GPT', 'Gemini', 'Codex'])
       expect(fullText, forbidden).not.toContain(forbidden)
     for (const word of ['Verified', 'Partly verified', 'Not verified', 'Failed'])
       expect(fullText).toContain(word)
     for (const word of ['已验证', '部分验证', '未验证', '失败']) expect(fullText).toContain(word)
     expect(fullText).toContain(
-      'You have five resident tools: Files, Shell, Tools, TodoItems and Web.',
+      'You have six resident tools: Files, Shell, Tools, TodoItems, Ask and Web.',
     )
-    // The Web section tells the model what search needs and that web content is data.
     expect(fullText).toContain('## Web')
     expect(fullText).toContain('exa.apiKey')
     expect(fullText).toContain('external data')
-    // Four guardrail classes (R2-D124): denied is final; secrets; consent for destructive and
-    // visible actions; honest reporting. Six sentences start with the marker.
     expect(fullText.match(/Guardrail:/gu)).toHaveLength(6)
     expect(fullText).not.toContain('{{')
     for (const section of instructions)
@@ -183,9 +172,6 @@ describe('the coding entry of the release mapping (R2-D124)', () => {
 })
 
 describe('the permission mode of the coding entry', () => {
-  // `never` refuses every action that still needs a decision: with Shell asking by default, the
-  // coding Agent could run no shell command at all. `bypass-permissions` skips that inquiry and lets
-  // the action continue through the remaining admission checks; an explicit prohibition still denies.
   it('skips the inquiry for an action that still needs a decision', () => {
     expect(entry.modes.permission).toBe('bypass-permissions')
     expect(entry.modes.collaboration).toBe('co-work')

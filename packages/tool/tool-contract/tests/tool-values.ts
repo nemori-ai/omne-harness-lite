@@ -1,5 +1,3 @@
-// Builders of legal Tool values for the contract-function tests. Each builder returns a fresh
-// plain value, so a test can change one field and keep the rest legal.
 import type { BlockId, ContentReference, TextContentBlock } from '@omne-harness/content-block'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -65,12 +63,10 @@ export function declarations(): ToolDeclarations {
   }
 }
 
-/** The asset side of `read_file`: identity, version and governance. */
 export function governance(name = 'read_file'): ToolGovernance {
   return { asset: { name, adoption: adoption(name) }, requiredCapabilities: ['file-system'] }
 }
 
-/** The implementation side an author declares: description, background permission, declarations. */
 export function declaration(): ToolImplementationDeclaration {
   return { description: 'Reads one file.', backgroundAllowed: false, declarations: declarations() }
 }
@@ -80,7 +76,6 @@ type DefinitionMetadata = Omit<
   'kind' | 'parameters' | 'returns'
 >
 
-/** The shared fields of a definition, as `deriveDefinition(governance(), …)` writes them. */
 export function metadata(): DefinitionMetadata {
   return {
     adoption: adoption('read_file'),
@@ -164,7 +159,6 @@ export function result(
   return { content, data: { kind: 'none' }, original: { kind: 'none' }, attachments }
 }
 
-/** A text factory that gives every rendered text the same fixed block identity. */
 export const textFactory: TextResultFactory<ToolMessageContentBlock> = {
   text: value => succeed(result([text('rendered', value)])),
 }
@@ -185,7 +179,6 @@ const capabilities = {
   output: { adoption: adoption('return-check'), check: () => fail({ reason: 'not used' }) },
 }
 
-/** An ordinary author whose renderer writes the JSON text of the value. */
 export function ordinaryAuthor(): Author<'ordinary'> {
   return {
     ...capabilities,

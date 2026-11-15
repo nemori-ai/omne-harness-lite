@@ -1,6 +1,3 @@
-// The maintenance grant table (DP-4 §4.1): a release constant, looked up by the component text of
-// a principal that the verifier already trusted, holding a record for the agent host. Run against
-// the real reference system action authorization so the grant reaches the matrix step.
 import { describe, expect, it } from 'vitest'
 import {
   noArguments,

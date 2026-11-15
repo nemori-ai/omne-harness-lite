@@ -46,7 +46,6 @@ describe('o200k ranks supplied by the caller', () => {
   })
 
   it('joins adjacent text segments before encoding', async () => {
-    // "hel" and "lo" are one token each; "hello" is one token.
     expect(await tokenizer.count([text('hel'), text('lo')])).toEqual({ ok: { tokens: '1' } })
   })
 
@@ -96,7 +95,6 @@ describe('a second, synthetic vocabulary', () => {
   })
 
   it('counts the special token of that vocabulary only as an explicit segment', async () => {
-    // "<|", "fim" and "|>" have no merges: 2 + 3 + 2 single-byte tokens.
     expect(await tokenizer.count([text('<|fim|>')])).toEqual({ ok: { tokens: '7' } })
     expect(await tokenizer.count([special('<|fim|>')])).toEqual({ ok: { tokens: '1' } })
   })

@@ -1,6 +1,3 @@
-// Self-proof of the delegated-view suite: it passes on the in-memory pair, and each case fails
-// under a variant that breaks the rule of that case (one check per face operation, no call outside
-// the checked tenant, session or command, the bound evidence on the record).
 import { fail } from '@omne-harness/operation-result'
 import { describe, it } from 'vitest'
 import type {
@@ -40,7 +37,6 @@ const NAMES = {
   refusals: 'a view answers denied to pending, references, releasedScopes and commitEntries',
 } as const
 
-/** A fixture whose `delegated.bind` is the real one with `build` laid over the bound view. */
 function variant(
   build: (view: Port, fixture: Fixture, checked: SessionCheckedAccess<string>) => Partial<Port>,
 ): () => Fixture {

@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "lib": ["ES2024", "DOM"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "customConditions": ["source"],
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": false,
+    "rewriteRelativeImportExtensions": true,
+    "types": [],
+    "typeRoots": [],
+    "noEmit": true
+  },
+  "include": ["*.ts"]
+}

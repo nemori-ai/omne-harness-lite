@@ -51,7 +51,6 @@ definePlugin({
   provide: 'clock',
 })
 
-// registerInCallerFiber: two generics, success type from Entry['registration'], sync callbacks.
 type Entry = { readonly registration: { readonly token: string }; readonly key: string }
 type Failure = { readonly kind: 'conflict' }
 declare const ctx: Context

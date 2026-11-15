@@ -1,6 +1,3 @@
-// `identityClock`（identity `./cordis` 的 `IdentityClockService`，R1-D27 的 AAP-8 替代路径）：根上的入口对象，
-// `identity` 行 inject 它。读数取自 `session-clock.ts` 的系统时间来源，经 utc-instant 校验后才交出；
-// 校验不过时答 `unavailable`，不编造读数。本文件不自己读墙钟。
 import type { Context } from '@deepseek-ai/cordis'
 import type { ClockReading, IdentityClock } from '@omne-harness/identity'
 import { IdentityClockService, identityClockKey } from '@omne-harness/identity/cordis'

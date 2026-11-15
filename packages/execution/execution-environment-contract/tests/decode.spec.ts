@@ -1,6 +1,3 @@
-// Boundary decoding through the public schemas: requirements, the two block values, the tool need
-// declaration, tenant text and the small identity helpers. Each refusal is checked by the path of
-// its one issue, which is what a caller sees as the per-item reason.
 import { expect, it } from 'vitest'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {

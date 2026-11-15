@@ -1,12 +1,3 @@
-// The growth rule of the E9 measurement (R2-D17), taken for the timed counts of J6 (R2-D118): the
-// rounds 11 to 200 in blocks of 10, the median of each block, a least-squares line through the 19
-// medians. A count grows when the slope is positive, R² is at least 0.95 and the growth over 180
-// rounds exceeds three times the median absolute deviation of the residuals.
-//
-// The rule is the same as `METHOD.growth` of `tools/e9/metrics.mjs` (R2-D17). This module is a copy
-// in code, not an import: a test of this member does not depend on the runtime of tools. The fast
-// case `growth.spec.ts` reads that file and checks that the constants are equal item by item.
-
 export const GROWTH = {
   firstRound: 11,
   lastRound: 200,
@@ -16,7 +7,6 @@ export const GROWTH = {
   span: 180,
 }
 
-/** The negative control of R2-D118: this much per round added to a count must be judged growth. */
 export const CONTROL_PER_ROUND = 0.1
 
 export const median = (values: readonly number[]): number => {
@@ -27,7 +17,6 @@ export const median = (values: readonly number[]): number => {
 
 export type Growth = Readonly<{ grows: boolean; slope: number; r2: number; residualMAD: number }>
 
-/** Judges one count per round (index 0 is round 1) by the rule of `GROWTH`. */
 export function roundGrowthOf(values: readonly number[]): Growth {
   const samples = values.slice(GROWTH.firstRound - 1, GROWTH.lastRound)
   const xs: number[] = []

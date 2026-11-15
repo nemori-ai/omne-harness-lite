@@ -284,7 +284,6 @@ describe('together with json-text', () => {
     expect(judgePart({ ...call, arguments: cyclic })).toEqual({ rejected: 'arguments' })
   })
 
-  // Slow: building and walking a tree past the default visit limit of one million takes seconds.
   it('maps a budget failure to arguments', { tags: ['slow'] }, () => {
     let tree: unknown = { kind: 'null' }
     for (let level = 0; level < 1_000_001; level += 1) tree = { kind: 'array', items: [tree] }

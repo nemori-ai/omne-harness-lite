@@ -44,10 +44,12 @@ import {
 } from './judgments.ts'
 import { judgeCompaction } from '@omne-harness/message'
 import { decideManagement, decideControl } from './decide-management.ts'
-import { closeControlFailure, decideCancelRun, decideStopCall } from './decide-control.ts'
+import { closeControlFailure, decideNamedControl } from './decide-control.ts'
 import { decideResults } from './decide-results.ts'
 import { decideProducerFact } from './decide-receive.ts'
 import { residentEntries, completeEvidence } from './decision-support.ts'
+import { closingEntries } from './run-closure.ts'
+import { pendingAfterTerminal } from './input-leases.ts'
 import { digestOf } from './operations.ts'
 import { canonicalInitializationValue, creationInput, tenantText } from './initialization-plan.ts'
 import { InitializationInvalid } from './initialization-parse.ts'
@@ -88,23 +90,15 @@ function emptyEvidence(evidence: DurableEvidence): boolean {
   )
 }
 
-/** True when legal-identity minted `workspace`: its codec encodes only the values it minted. */
 function mintedWorkspace(workspace: WorkspaceId): boolean {
   return workspaceCodec.encode(workspace).ok
 }
 
-/** Why one attachment field is not a non-empty text, or null when it is one. */
 function textRefusal(value: unknown): string | null {
   if (typeof value !== 'string') return 'type'
   return value.length === 0 ? 'empty' : null
 }
 
-/**
- * The workspace selection of a creation or a `workspace` change: a `WorkspaceId` with its
- * workspace attachment, or neither. The attachment fields are non-empty text; their format belongs
- * to the workspace domain, so nothing more is read here. `path` names the two fields in the refusal.
- * An input that crossed an untyped boundary may lack the attachment key, so `undefined` is refused.
- */
 function judgeWorkspace(
   workspace: WorkspaceId | null,
   attachment: WorkspaceAttachment | null | undefined,
@@ -125,17 +119,14 @@ function judgeWorkspace(
   return null
 }
 
-/** The deterministic Run identity of (session, first input, predecessor): the OP-00 elements of `startRun`. */
 export function runIdOf(session: SessionId, first: InputId, predecessor: RunId | null): RunId {
   return `run_${digestOf({ session, first, predecessor })}` as RunId
 }
 
-/** The deterministic encoding of (run, ordinal) that `AttemptId` promises. */
 export function attemptIdOf(run: RunId, ordinal: string): AttemptId {
   return `${run}#${ordinal}` as AttemptId
 }
 
-/** The execution identity that Session allocates for a Run before the Agent accepts it (PM-01). */
 export function executionIdOf(run: RunId): string {
   return `${run}/execution`
 }
@@ -144,7 +135,6 @@ function sessionOrigin(source: DurableEvidence, via: Origin['via'] = 'direct'): 
   return { owner: 'session', via, source }
 }
 
-/** Evidence of the command itself, for entries whose source is the Session's own decision. */
 function commandEvidence(operation: SessionOperationId, what: string): DurableEvidence {
   return {
     owner: '@omne-harness/session-contract',
@@ -271,18 +261,8 @@ function decideAccept(
   }
 }
 
-/**
- * The owner of the `origin` that the server entry writes on an ordinary input accepted after a
- * recognized login (handoff「普通输入的来源与登录门」). An interactive Run starts only from such an input.
- */
 export const LOGIN_ENTRY_OWNER = 'login-entry'
 
-/**
- * The adoption entries of a `startRun` or `reload`: the new resident tools, then the adoption
- * entry when the candidate differs from the current adoption or the material names resident keys.
- * A `verdict` in the material means the adoption point proved the resident shape lost: nothing is
- * committed and the caller freezes.
- */
 function adoptionEntries(
   snapshot: WorkSnapshot,
   material: StartAdoption | undefined,
@@ -302,11 +282,6 @@ function adoptionEntries(
   ])
 }
 
-/**
- * The login gate (R2-D198): an interactive start needs a first input that came through the login
- * entry. The origin is the stored input fact, read in the commit transaction (`reads.firstInput`),
- * so the check and the commit see the same input.
- */
 function loggedIn(reads: DecideReads, first: InputId): boolean {
   const stored = reads.firstInput
   return stored !== undefined && stored.input === first && stored.origin.owner === LOGIN_ENTRY_OWNER
@@ -320,6 +295,7 @@ function decideStartRun(
   const judgment = judgeRunStart(snapshot, command.input.entry)
   if (judgment.kind !== 'eligible') {
     if (judgment.kind === 'frozen') return rejected({ kind: 'frozen', verdict: null })
+    if (judgment.kind === 'awaiting-person') return rejected({ kind: 'no-input' })
     return rejected({ kind: judgment.kind })
   }
   if (command.input.entry === 'interactive' && !loggedIn(reads, judgment.first))
@@ -436,6 +412,8 @@ function decideFinishRun(
         rejects.origin,
       ),
     )
+  const terminal: RunTerminal = { run, outcome: 'failed', evidence: basis.evidence }
+  out.push(...closingEntries(snapshot, terminal, source, sessionOrigin(source)))
   if (active.advance !== null)
     out.push(
       encodeEntry(
@@ -443,7 +421,6 @@ function decideFinishRun(
         sessionOrigin(source),
       ),
     )
-  const terminal: RunTerminal = { run, outcome: 'failed', evidence: basis.evidence }
   out.push(
     encodeEntry(
       {
@@ -457,26 +434,14 @@ function decideFinishRun(
       sessionOrigin(source),
     ),
   )
-  if (snapshot.frozen !== null && snapshot.pending.length > 0)
-    out.push(
-      encodeEntry(
-        {
-          kind: 'intake.released',
-          inputs: snapshot.pending.filter(input => input !== rejects?.input),
-        },
-        sessionOrigin(source),
-      ),
-    )
+  const remaining = pendingAfterTerminal(snapshot, terminal.outcome)
+  if (snapshot.frozen !== null && remaining.length > 0) {
+    const inputs = remaining.filter(input => input !== rejects?.input)
+    out.push(encodeEntry({ kind: 'intake.released', inputs }, sessionOrigin(source)))
+  }
   return entries(out)
 }
 
-/**
- * What a bounded close rests on (SPEC「Run 两层状态机与不变量」, three grounds): the evidence, the
- * command field that carries it, and the first input the close rejects with its SE35 reason and
- * origin, or null when it rejects none. A drive refusal has no outside record: the close records it
- * itself, and the record names the failure kind, field and reason, so the history shows why the
- * Run failed (PM-02, PM-05).
- */
 type BoundedBasis = Readonly<{
   evidence: DurableEvidence
   field: string
@@ -681,9 +646,6 @@ function decideAttempt(
     return rejected({ kind: 'frozen', verdict: snapshot.frozen })
   if (command.kind === 'reload' && !expectedHolds(snapshot, 'reload', command.input.expected))
     return rejected({ kind: 'changed', revision: expectedRevision(snapshot, 'reload') })
-  // Two recoverers that read the same Run layer: the first claim moves the Run-layer revision, so
-  // the second finds a successor (stale-advance), or a released advance (changed) (SPEC PM-05,
-  // R2-D343).
   if (command.kind === 'claim' && !expectedHolds(snapshot, 'claim', command.input.expected))
     return rejected(
       snapshot.run.advance !== null
@@ -817,10 +779,6 @@ function decideDerived(
   ])
 }
 
-/**
- * The normalized parameter digest of one command: the command without its operation identity,
- * so the same intent under the same identity recalls and another intent conflicts (SL07).
- */
 export function commandDigest(command: SessionCommand): string {
   const { operation: _operation, ...rest } = command.input as Record<string, unknown> & {
     operation: SessionOperationId
@@ -844,26 +802,12 @@ export function commandDigest(command: SessionCommand): string {
   })
 }
 
-/**
- * Runs the domain services for one command and encodes the batch. `previous` is null only for
- * `create`. `reads` supplies transaction-bound compaction and management observations.
- */
-function decideCommand(
+function recallOperation(
   previous: WorkSnapshot | null,
   command: SessionCommand,
   guards: readonly GuardCommand[],
   record: OperationRecord | null,
-  reads: DecideReads,
-): Decision {
-  // The Tool target is refused before the session, the identity or any lookup is read (r2.2 4.3).
-  if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
-    return rejected({ kind: 'unsupported' })
-  if (
-    previous !== null &&
-    (previous.session !== command.input.session ||
-      !tenantEquals(previous.tenant, command.input.tenant))
-  )
-    return rejected({ kind: 'denied', action: command.kind })
+): Decision | null {
   let digest = ''
   if (record !== null) {
     try {
@@ -883,14 +827,77 @@ function decideCommand(
     return { kind: 'recovered', receipt: recall.receipt }
   }
   if (recall.kind === 'conflict') return rejected({ kind: 'conflict', operation: recall.operation })
+  return null
+}
+
+function decideInterrupt(
+  previous: WorkSnapshot,
+  command: Extract<SessionCommand, { kind: 'interrupt' }>,
+  reads: DecideReads,
+  limits: SessionIntakeLimits,
+): Decision {
+  if (
+    command.input.urgent.message.blocks.length === 0 ||
+    previous.pending.includes(command.input.urgent.input)
+  )
+    return invalid('urgent', 'empty or duplicate input')
+  const limited = judgeSessionIntake(pendingIntakeCount(previous), command.input.urgent, limits)
+  if (limited !== null) return rejected(limited)
+  const control = decideControl(
+    previous,
+    {
+      kind: 'interrupt',
+      run: command.input.run,
+      urgent: command.input.urgent,
+      decision: command.input.decision,
+    },
+    command.input.operation,
+    reads,
+  )
+  return control.kind === 'entries'
+    ? entries([
+        ...acceptedOrdinary(command.input.urgent, 'current-run', command.input.run),
+        ...control.entries,
+      ])
+    : control
+}
+
+function decideFreeze(
+  previous: WorkSnapshot,
+  command: Extract<SessionCommand, { kind: 'freeze' }>,
+  reads: DecideReads,
+): Decision {
+  if (previous.frozen !== null)
+    return reads.frozenReceipt === undefined
+      ? rejected({
+          kind: 'unavailable',
+          owner: 'session-history',
+          diagnostic: 'the original freeze receipt is required for state recall',
+        })
+      : { kind: 'recovered', receipt: reads.frozenReceipt }
+  return decideManagement(previous, command, reads)
+}
+
+function decideCommand(
+  previous: WorkSnapshot | null,
+  command: SessionCommand,
+  guards: readonly GuardCommand[],
+  record: OperationRecord | null,
+  reads: DecideReads,
+): Decision {
+  if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
+    return rejected({ kind: 'unsupported' })
+  if (
+    previous !== null &&
+    (previous.session !== command.input.session ||
+      !tenantEquals(previous.tenant, command.input.tenant))
+  )
+    return rejected({ kind: 'denied', action: command.kind })
+  const recalled = recallOperation(previous, command, guards, record)
+  if (recalled !== null) return recalled
   const limits = reads.intakeLimits ?? DEFAULT_SESSION_INTAKE_LIMITS
   if (command.kind === 'create') return decideCreate(previous, command, guards, limits)
   if (previous === null) return rejected({ kind: 'denied', action: command.kind })
-  if (
-    previous.session !== command.input.session ||
-    !tenantEquals(previous.tenant, command.input.tenant)
-  )
-    return rejected({ kind: 'denied', action: command.kind })
   switch (command.kind) {
     case 'addTodo':
     case 'removeTodo':
@@ -921,46 +928,14 @@ function decideCommand(
       return decideResults(previous, command)
     case 'commitDerived':
       return decideDerived(previous, command, reads)
-    case 'interrupt': {
-      if (
-        command.input.urgent.message.blocks.length === 0 ||
-        previous.pending.includes(command.input.urgent.input)
-      )
-        return invalid('urgent', 'empty or duplicate input')
-      const limited = judgeSessionIntake(pendingIntakeCount(previous), command.input.urgent, limits)
-      if (limited !== null) return rejected(limited)
-      const control = decideControl(
-        previous,
-        {
-          kind: 'interrupt',
-          run: command.input.run,
-          urgent: command.input.urgent,
-          decision: command.input.decision,
-        },
-        command.input.operation,
-        reads,
-      )
-      return control.kind === 'entries'
-        ? entries([
-            ...acceptedOrdinary(command.input.urgent, 'current-run', command.input.run),
-            ...control.entries,
-          ])
-        : control
-    }
+    case 'interrupt':
+      return decideInterrupt(previous, command, reads, limits)
     case 'cancelRun':
-      return decideCancelRun(previous, command, reads)
     case 'stopCall':
-      return decideStopCall(previous, command, reads)
+    case 'retryRun':
+      return decideNamedControl(previous, command, reads)
     case 'freeze':
-      if (previous.frozen !== null)
-        return reads.frozenReceipt === undefined
-          ? rejected({
-              kind: 'unavailable',
-              owner: 'session-history',
-              diagnostic: 'the original freeze receipt is required for state recall',
-            })
-          : { kind: 'recovered', receipt: reads.frozenReceipt }
-      return decideManagement(previous, command, reads)
+      return decideFreeze(previous, command, reads)
     case 'control':
     case 'setRelation':
     case 'configureAutoArchive':

@@ -1,24 +1,3 @@
-// The `settings` row (application assembly, Settings secret items): the registry of the setting
-// definitions the official holdings declare, the secret-item entry of `@omne-harness/settings`
-// over the trusted custody, and the admitted setting management the public operations use. It
-// provides the trusted key `settingsSecretItems`: a service in the shape of server-entry's
-// `SettingsGovernance`, which only the `server-entry` row reads, per call.
-//
-// Registration follows the release. The model providers are fixed bodies of the release
-// (`releaseProviders`): each table registers them when it starts. A tool's definition,
-// declarations included, is known to this process only after the `tool-host` row loaded its
-// author (`releaseDefinitionOf`). The row keeps
-// no copy of its own and asks for it on every read of the registry: a definition that became known
-// since the last read is registered then, under the holding `officialHolding` derives from its
-// asset. The row knows no category: every holding comes from the category hooks of `src/assets/`.
-// The table belongs to one release generation: when the release authority reloads at another
-// generation, the table is closed and a new one starts, so the definitions of the new generation
-// register again. The registry closes with the row, so a reloaded row starts from an empty table
-// (IC-13).
-//
-// Why the key is defined here: the provider and its one consumer are rows of this application,
-// and settings has no Cordis entry. When a member outside this application needs the key, it
-// moves to the `./cordis` entry of the member that then owns it.
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
 import { referenceAdmissionCheck } from '@omne-harness/authorization'
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
@@ -61,8 +40,6 @@ declare module '@deepseek-ai/cordis' {
 
 const LOGGER = 'settings'
 
-// The service keeps closures only: a method reached through a caller proxy has a `this` that is
-// not the instance (docs/real-mode.md).
 class SettingsSecretItemsImpl extends SettingsSecretItemsService {
   readonly list: SettingsGovernance['list']
   readonly set: SettingsGovernance['set']
@@ -77,7 +54,6 @@ class SettingsSecretItemsImpl extends SettingsSecretItemsService {
   }
 }
 
-/** The verifier and the standing source of the tree, read on every call (as `model-credential` does). */
 function identityPorts(ctx: Context) {
   const verifier: PrincipalVerifier = {
     verify: value => {
@@ -104,10 +80,6 @@ type Known =
 
 type Trusted = Extract<ToolRelease, { kind: 'trusted' }>
 
-/**
- * The table of one release generation: its registry, the holdings of the release providers, and
- * what it registered or refused by tool name.
- */
 type Table = Readonly<{
   generation: string | null
   registry: ReturnType<typeof createSettingsRegistry>
@@ -134,14 +106,6 @@ function tableOf(release: ToolRelease): Table {
   }
 }
 
-/**
- * The registry of this row, kept in step with the release definitions this process knows. Every
- * read registers the definitions that became known since the last read; a tool that declares no
- * settings or whose declaration the registry refuses is remembered so that it is not tried again
- * and the refusal is logged once. The table is the one of the current release generation: a
- * trusted release at another generation closes it and starts a new one. `holdings` is the
- * `resolve` of the secret-item entry.
- */
 export function createReleaseSettingsRegistry(ctx: Context) {
   let table = tableOf(releaseOf(ctx))
 

@@ -51,7 +51,6 @@ function canonicalObject(value: object): string {
 export function digest(value: unknown): string {
   return createHash('sha256').update(canonical(value)).digest('hex')
 }
-/** The digest that identifies a fixed request: the one the call record keeps. */
 export function modelRequestDigest(request: FixedModelRequest): string {
   return digest(request)
 }

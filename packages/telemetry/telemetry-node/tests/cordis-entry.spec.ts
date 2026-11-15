@@ -7,7 +7,6 @@ import { harness, loginFailed, nextTurn, systemBinding } from './support.ts'
 
 const FIELDS = { code: 'identity.fault', retried: false, attempts: 1, request: 'req-1' } as const
 
-/** Loads a consumer that injects `telemetry` and emits one event through it. */
 async function emitThroughService(ctx: Context): Promise<unknown[]> {
   const answers: unknown[] = []
   await ctx.plugin({

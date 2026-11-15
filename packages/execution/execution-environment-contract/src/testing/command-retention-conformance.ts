@@ -16,77 +16,35 @@ import { bounded, NotApplicable, type ConformanceCase } from './case.ts'
 
 type StartRequest = Parameters<CommandFacility<unknown>['start']>[0]
 
-/** What a command asks for; the suite adds the request identity. Platform shells differ, so the subject writes it. */
 export type CommandRetentionBody = Pick<
   StartRequest,
   'executable' | 'args' | 'cwd' | 'env' | 'outputMode'
 >
 
-/** One acquisition's command facility and the identity it asks with. */
 export type CommandRetentionAcquisition = Readonly<{
   facility: CommandFacility<unknown>
-  /** A legal base request of this acquisition: its tenant, origin and binding, and a fresh `requestId` per call. */
   request(): FacilityRequest<unknown>
 }>
 
-/**
- * What the suite needs from the integrator. The suite does not know the platform: how a command is
- * written, how a scope closes and how a stopped domain is read all come from here.
- */
 export type CommandRetentionSubject = Readonly<{
-  /**
-   * An acquisition with a trusted retention scope and a retention process ledger view, so its
-   * `facility.retention` exists and a leftover is retained.
-   */
   acquisition: CommandRetentionAcquisition
-  /**
-   * Another acquisition that also retains, in another retention scope or for another tenant. It
-   * must also have `facility.retention`, so that the suite can show it lists its own and only its own.
-   */
   elsewhere: CommandRetentionAcquisition
   commands: Readonly<{
-    /** A command that ends with nothing left in its execution domain. */
     clean(): CommandRetentionBody
-    /** A command whose main process exits and leaves one process running. */
     leftover(): CommandRetentionBody
-    /**
-     * A command whose main process writes at least one byte to stdout and exits, and leaves one
-     * process that writes `after` to stdout once the domain was handed over, then keeps running.
-     * Without it `V-EE31.tail-keeps-the-byte-relation` is not applicable.
-     */
     writing?(): Readonly<{ body: CommandRetentionBody; after: Uint8Array }>
   }>
-  /** Closes the retention scope of `acquisition` (not of `elsewhere`). Returns when the close was issued. */
   closeScope(): Promise<void>
-  /** True once the execution domain of the retained process is known to be stopped. Read, never assumed. */
   domainStopped(process: RetainedProcessRef): Promise<boolean>
-  /**
-   * How many stops of the retained process's domain the provider issued so far. Read, never
-   * assumed. Without it the stop cases still run but do not count the stops.
-   */
   stopsIssued?(process: RetainedProcessRef): Promise<number>
-  /**
-   * An acquisition in the same retention scope and for the same tenant as `acquisition` whose
-   * facility guard refuses `stop` and `output`. Without it the guard cases are not applicable.
-   */
   refusing?: CommandRetentionAcquisition
-  /**
-   * An acquisition that retains in a retention scope whose retained process ledger view has no
-   * `ended`. Without it `V-EE30.stop-without-ended-is-unavailable` is not applicable.
-   */
   withoutEnded?: CommandRetentionAcquisition
-  /**
-   * An acquisition without a retention process ledger view. A leftover there is stopped, not retained.
-   * Without it, `V-EE28.no-ledger-stops-with-reason` is not applicable.
-   */
   unbound?: CommandRetentionAcquisition
-  /** Stops everything the case left and frees the subject. Runs after every case, also after a failure. */
   dispose?(): Promise<void>
 }>
 
 export type CommandRetentionOptions = Readonly<{
   subject(): CommandRetentionSubject | Promise<CommandRetentionSubject>
-  /** The upper bound of one case, including the wait for the stop after a scope closed. Default 5000. */
   waitMs?: number
 }>
 
@@ -109,7 +67,6 @@ async function outcomeOf(handle: ProcessHandle): Promise<CommandOutcome> {
   return handle.result
 }
 
-/** Runs the command to its end and returns the disposition its outcome reports. */
 async function ended(a: CommandRetentionAcquisition, body: CommandRetentionBody) {
   const { handle, request } = await begin(a, body)
   const outcome = await outcomeOf(handle)
@@ -242,7 +199,6 @@ async function output(
   return retention.output({ ...a.request(), process, ...(from === undefined ? {} : { from }) })
 }
 
-/** References that no handover in any scope produced: the same id with another generation, and another id. */
 const absent = (ref: RetainedProcessRef): readonly RetainedProcessRef[] => [
   { id: ref.id, generation: `${ref.generation}-absent` },
   { id: `${ref.id}-absent`, generation: ref.generation },
@@ -301,7 +257,6 @@ async function checkStopAfterEnd(s: CommandRetentionSubject): Promise<void> {
     kept,
   )
   if (s.stopsIssued) assert.equal(await s.stopsIssued(process), issued, 'no second stop is issued')
-  // The qualification still holds after the end (item 7): the end fact answers its own scope only.
   if (s.elsewhere.facility.retention?.stop)
     refused(
       await stop(s.elsewhere, process, 'forced'),
@@ -337,7 +292,6 @@ async function checkStopRefusedByGuard(s: CommandRetentionSubject): Promise<void
 
 const continuation = (byte: number) => byte >= 0x80 && byte <= 0xbf
 
-/** `from` is what the read asked for this stream; without it the tail starts at the first saved byte. */
 function checkStreamTail(tail: RetainedStreamTail, from?: number): void {
   for (const field of ['savedFrom', 'start', 'end', 'discardedBytes'] as const)
     assert.ok(Number.isInteger(tail[field]) && tail[field] >= 0, `${field} is a byte offset`)
@@ -449,10 +403,8 @@ async function checkOutputRefusedByGuard(s: CommandRetentionSubject): Promise<vo
   refused(await output(a, process), 'notAuthorized', 'the guard decides the read')
 }
 
-/** A payload outside the operation's type, as a caller outside TypeScript can send it. */
 const malformed = <T>(payload: unknown): T => payload as T
 
-/** The guard lets them through; the shape is checked before the index is read, so nothing stops. */
 async function checkMalformedRequest(s: CommandRetentionSubject): Promise<void> {
   const retention = s.acquisition.facility.retention
   if (!retention || (!retention.stop && !retention.output))
@@ -497,12 +449,6 @@ async function checkNoLedger(s: CommandRetentionSubject): Promise<void> {
   assert.deepEqual(residue, { kind: 'stopping', reason: 'unbound' })
 }
 
-/**
- * Cases for what a one-shot command leaves behind: the disposition, the listing, the handover, the
- * closure of the scope, and the extension's `stop` and `output`. Cases allocate fresh subjects when
- * run, and use only the public command operations and the retention extension. Case names start
- * with their obligation id: `V-EE28.`, `V-EE30.` (stop) or `V-EE31.` (output).
- */
 export function commandRetentionConformance(
   options: CommandRetentionOptions,
 ): readonly ConformanceCase[] {

@@ -81,6 +81,12 @@ function fixture(runtime?: SessionModesPublisherInput<string>['runtime']) {
         source: evidence('mode'),
         translation: adoption('translation'),
       },
+      interaction: {
+        humanInteraction: true,
+        requestApproval: true,
+        source: evidence('mode'),
+        translation: adoption('collaboration-translation'),
+      },
       basis: {
         tenant: encoded.value,
         session,

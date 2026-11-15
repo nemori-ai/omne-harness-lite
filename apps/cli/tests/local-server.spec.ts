@@ -1,6 +1,3 @@
-// The default server of `register` and `login`: the address `harness-server setup` configured on this
-// host, when neither `--server` nor `OMNE_SERVER` names one. The place rule runs for Windows and Linux
-// on any host, with an injected file reader.
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

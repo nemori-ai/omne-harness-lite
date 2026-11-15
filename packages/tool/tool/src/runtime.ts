@@ -19,6 +19,7 @@ import {
   type ToolOperationId,
   type ToolOperationRef,
   type ToolRuntime,
+  type Reply,
 } from '@omne-harness/tool-contract'
 import {
   describedAdoption,
@@ -30,12 +31,12 @@ import { admitResolvedInvocation, scheduleAcceptedCallBestEffort } from './runti
 import { callOffloadingRefusal } from './result-offloading.ts'
 import { checkToolConfiguration, driverRetryDelayMs, driverStepsPerRun } from './configuration.ts'
 import type { ToolConfiguration, ToolDependencies } from './construction.ts'
+import { contactCall } from './contact.ts'
 import { createToolDriver } from './driver.ts'
 import { controlIntent } from './control-intent.ts'
 import { invocationInput, operationInput } from './invocation-access.ts'
 import { createStreamFacade } from './stream-facade.ts'
 
-/** The identity of this runtime implementation, named in its `unsupported` answers. */
 export const toolRuntimeAdoption: Adoption = describedAdoption({
   owner: '@omne-harness/tool',
   name: 'tool-runtime',
@@ -88,11 +89,55 @@ function redactedPortExceptionDiagnostic(dependency: string): string {
   return `${dependency} threw an exception; its message is not reported`
 }
 
+const RECOVER_PAGE = 100
+
+async function recoverPending<P, B extends ContentBlock, E>(
+  dependencies: ToolDependencies<P, B, E>,
+  input: Parameters<ToolProvider<P, B>['recover']>[0],
+): Reply<Readonly<{ scheduled: string }>> {
+  const { commands, instances } = dependencies
+  let after: string | null = null
+  let scheduled = 0n
+  for (;;) {
+    let page: Awaited<ReturnType<typeof commands.scanPending>>
+    try {
+      page = await commands.scanPending({
+        principal: input.principal,
+        tenant: input.tenant,
+        after,
+        limit: RECOVER_PAGE,
+      })
+    } catch {
+      return fail({
+        kind: 'unavailable',
+        dependency: 'commands',
+        diagnostic: redactedPortExceptionDiagnostic('commands'),
+      })
+    }
+    if ('failure' in page) return page
+    for (const call of page.ok.calls) {
+      let queued: Awaited<ReturnType<typeof instances.schedule>>
+      try {
+        queued = await instances.schedule({ tenant: input.tenant, call })
+      } catch {
+        return fail({
+          kind: 'unavailable',
+          dependency: 'instances',
+          diagnostic: redactedPortExceptionDiagnostic('instances'),
+        })
+      }
+      if ('failure' in queued) return queued
+      scheduled += 1n
+    }
+    if (page.ok.next === null) return succeed({ scheduled: String(scheduled) })
+    after = page.ok.next
+  }
+}
+
 function rejected(failure: ToolDefiniteFailure): ToolInvokeOutcome {
   return { kind: 'rejected', failure }
 }
 
-/** The request as the caller fixed it, admitted under the system offloading bounds. */
 function admittedRequest(
   supplied: unknown,
   configuration: ToolConfiguration,
@@ -110,7 +155,6 @@ function admittedRequest(
     : fail({ kind: 'invalid', field: 'request.returns.offloading', reason: refusal })
 }
 
-/** The identities the source issuer bound, decoded, with the reference the caller keeps. */
 function resolvedIdentity(
   tenant: ToolInvocationParts['tenant'],
   bound: Readonly<{ call: string; admission: string }>,
@@ -173,11 +217,6 @@ async function commandReference(
   return succeed({ operation: operation.ok, reference: reference.ok })
 }
 
-/**
- * Builds the provider and installs the driver on the instance host. The installation admits no
- * business: the host wakes the driver for a call when the runtime schedules it after an
- * admission, and the driver reads the ledger before it does anything.
- */
 export function createToolRuntime<P, B extends ContentBlock, E>(
   dependencies: ToolDependencies<P, B, E>,
   configuration: ToolConfiguration,
@@ -188,27 +227,25 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
     retryDelayMs: driverRetryDelayMs(configuration),
   })
   dependencies.instances.install(driver)
-  return Object.freeze({
+  const provider: ToolProvider<P, B> = {
     runtime,
-    recover: () => unsupported('recover', 'recovery scan'),
+    recover: input => recoverPending(dependencies, input),
     quiesce: () => unsupported('quiesce', 'drain and handover'),
     inspectDrain: () => unsupported('inspectDrain', 'drain and handover'),
     handover: () => unsupported('handover', 'drain and handover'),
-  })
+  }
+  return Object.freeze(provider)
 }
 
-/** Builds the ordinary API without taking ownership of an executor installation. */
 export function createToolRuntimeFacade<P, B extends ContentBlock, E>(
   dependencies: ToolDependencies<P, B, E>,
   configuration: ToolConfiguration,
 ): ToolRuntime<P, B> {
   checkToolConfiguration(configuration)
   checkDependencies(dependencies)
-  const { commands, reads, instances, catalog } = dependencies
-  const { operationIdentities, sourceIssuer } = dependencies
+  const { commands, reads, instances, catalog, operationIdentities, sourceIssuer } = dependencies
   const stream = createStreamFacade<P, B>({ directory: instances.directory, reads })
 
-  /** The source issuer's binding of a call; an issuer that throws leaves the association unknown. */
   const resolveSource = async (
     input: Parameters<typeof sourceIssuer.resolve>[0],
   ): Promise<Awaited<ReturnType<typeof sourceIssuer.resolve>>> => {
@@ -243,14 +280,13 @@ export function createToolRuntimeFacade<P, B extends ContentBlock, E>(
 
   const runtime: ToolRuntime<P, B> = {
     invoke,
-    // The current availability is the Catalog's answer (P16: without a Catalog, inspect is
-    // unavailable with dependency toolCatalog); the runtime adds nothing to it.
     inspect: input => catalog.inspect(input),
     queries: Object.freeze<ToolInvocationQueries<P, B>>({
       lookup: async input => {
         const resolved = invocationInput<P>(input, 'lookup')
         return 'failure' in resolved ? resolved : reads.lookup(resolved.ok)
       },
+      contact: input => contactCall(dependencies, input),
       queryOperation: async input => {
         const resolved = operationInput<P>(input, 'query-operation')
         return 'failure' in resolved ? resolved : reads.operation(resolved.ok)

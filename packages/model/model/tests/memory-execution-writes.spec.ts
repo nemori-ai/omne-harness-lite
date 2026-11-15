@@ -5,10 +5,6 @@ import type { TransportFact, WriteContext } from '@omne-harness/model-contract/p
 import { createMemoryModelCommands } from '../src/testing/memory.ts'
 import { fixture, instance, op, proof, unbox } from './memory-fixture.ts'
 
-// What the execution writes record once their expected call is found: the settlement source,
-// the window that preserve requires, the block capacity of a preserved batch, and the retry
-// position with the state it moves the call to.
-
 type Principal = ReturnType<typeof fixture>['admit']['principal']
 
 function block(id: string) {

@@ -1,6 +1,3 @@
-// APP-2: the `agent-adoptions` and `adoption-sources` rows. The table of the deployment mapping is
-// parsed once from the row configuration. These tests go through the serve tree and the service keys
-// that the other rows use, and they judge what a consumer can observe.
 import { agentEvaluator } from '@omne-harness/agent'
 import type { AdoptionEvidenceCommand } from '@omne-harness/session-contract'
 import { modesAdoptionOf } from '@omne-harness/server-entry/cordis'
@@ -23,11 +20,6 @@ import {
   type Captured,
 } from './support.ts'
 
-/**
- * The consumers of the two faces, reduced to the one rule that matters here: they write only when
- * the adoption side answered with material or a resolved definition. The counters stand for the
- * Session transaction port and the Agent instance host. They are replacements, not the real ports.
- */
 function consumers(services: Captured) {
   const sessionCommits: unknown[] = []
   const agentReservations: unknown[] = []
@@ -75,7 +67,6 @@ describe('one table, one content identity', () => {
       expect(prepared.ok).toHaveLength(1)
       expect(factsOf(prepared.ok[0]!)).toMatchObject({ version: 1, table: value.identity })
     }
-    // The create material is the initialization guard: the table is the boundary of the adoption.
     if (!('ok' in value.created)) throw new Error('expected material')
     expect(value.created.ok).toHaveLength(1)
     expect(factsOf(value.created.ok[0]!)).toMatchObject({
@@ -108,7 +99,6 @@ describe('one table, one content identity', () => {
   })
 
   test('changing only the mode default of one definition changes the material of that definition alone', async () => {
-    // The creation names the modes adoption of the table it is prepared against, as the server entry does.
     const materialOf = async (config: unknown) =>
       (
         await withLiveTree(config, async ({ mappings, source }) => {
@@ -121,7 +111,6 @@ describe('one table, one content identity', () => {
               }),
             )
             if (!('ok' in prepared)) throw new Error('expected material')
-            // The entry digest is the source of the initial adoption that the create guard states.
             const initial = factsOf(prepared.ok[0]!)['initialAdoption'] as {
               source: { digest: string }
             }
@@ -150,7 +139,6 @@ describe('an unknown definition produces no business write', () => {
     })
     expect(failureOf(value.unknown)).toMatchObject({ kind: 'invalid', field: 'definition' })
     expect(value.writesAfterUnknown).toBe(0)
-    // Positive control: the same consumer does write for a known definition.
     expect('ok' in value.known).toBe(true)
     expect(value.writesAfterKnown).toBe(1)
   })
@@ -255,7 +243,6 @@ describe('an unknown definition produces no business write', () => {
     })
     expect(failureOf(value.unknown)).toMatchObject({ kind: 'invalid', field: 'adoption' })
     expect(value.writesAfterUnknown).toBe(0)
-    // Positive control: the same consumer does reserve for the known adoption.
     if (!('ok' in value.known)) throw new Error('expected a resolution')
     expect(value.reservations).toEqual(['alpha'])
     expect(value.known.ok).toMatchObject({

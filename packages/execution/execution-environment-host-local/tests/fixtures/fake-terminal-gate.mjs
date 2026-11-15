@@ -1,24 +1,4 @@
 #!/usr/bin/env node
-// A stand-in for `systemd-run`, for the fast-tier tests of the terminal's control frames. It acts
-// as the terminal gate of unit `--unit=<unit>`, without a PTY and without a shell: it reads the
-// control channel (descriptor 3) the way the real gate does and answers with the frames the test
-// wrote into `<FAKE_DIR>/gate-script.json`. The test, not this file, decides what the gate says;
-// this file only keeps the wire shape of the real gate (`src/terminal-gate.ts`): one JSON object
-// per line on stdout, every frame carrying the generation of the request line, byte fields in
-// base64 under `b`.
-//
-// The script, read again at every trigger so a test may change it between legs:
-//   ready:    frames sent when the request line (the first line) arrives; default `[{ t: 'ready' }]`
-//   go:       frames sent for `{ c: 'go' }`; default `[{ t: 'opened', cwd: '/tmp' }]`
-//   executes: one frame list per `{ c: 'execute' }` message, in order; a leg without a list gets no answer
-// A frame is an object with `t` and its fields. `leg` defaults to the id of the execute message,
-// `text` stands for `b` (the text in base64), `delayMs` waits that long after the previous frame,
-// `raw` writes that text as the whole line (for lines that are not frames), and `joined: true`
-// puts the frame into the same write as the previous one, so the host reads both in one chunk.
-//
-// It also writes its pid to `<FAKE_DIR>/<unit>.pid` (the stand-in `systemctl` of
-// `fake-supervisor.mjs` kills it by that file) and appends every control line it reads to
-// `<FAKE_DIR>/received.log`.
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { Socket } from 'node:net'
 

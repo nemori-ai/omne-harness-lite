@@ -1,6 +1,3 @@
-// The row configuration of `agent-adoptions`: the definition name mapping of the deployment. The
-// schema is synchronous and strict. It checks shape only. The definition bodies and the extension
-// declarations get their meaning check from Agent's own judges when the table is built.
 import { z } from 'zod'
 
 const text = z.string().min(1)
@@ -21,9 +18,7 @@ const entry = z.strictObject({
   requiredIdentities: z.array(z.strictObject({ capability: text, name: text })),
   modes,
   initialModelSelection: z.strictObject({ name: text, basis: evidence }).optional(),
-  /** The AgentDefinition body that `candidate` names. Judged by Agent's `judgeAgentDefinition`. */
   definition: z.record(z.string(), z.unknown()),
-  /** The loop extension declarations of the definition. Judged by `judgeLoopExtensions`. */
   extensions: z.array(z.unknown()).default([]),
 })
 

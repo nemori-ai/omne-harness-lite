@@ -1,10 +1,8 @@
-// The commit notice and the scanner binding (SPEC properties 5 and 7; verification 5 and 6) on real
-// Cordis. The plugin dispatches `session-cordis-contract/committed` once for each commit, hands the
-// same payload to `sessionNotifier` when there is one, listens for notices of other dispatchers,
-// and binds one recovery scanner for each tenant it sees. The scanner is observed through the
-// `pending` reads of its startup scan on the public transaction port.
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { SessionNotifierService } from '@omne-harness/session-cordis-contract/cordis'
+import {
+  SessionTenantSourceService,
+  type SessionTenantSource,
+} from '@omne-harness/session-cordis-contract/cordis'
 import { evidence } from '@omne-harness/session-contract/testing'
 import { assemble, serviceOf, type Assembly } from './fixtures/assembly.ts'
 import { resetSpies, spies } from './fixtures/session-spy.ts'
@@ -28,100 +26,51 @@ async function build(options: Parameters<typeof assemble>[0] = {}): Promise<Asse
 
 const COMMITTED = 'session-cordis-contract/committed'
 
-/** Diagnostics of the plugin, as the Cordis logger recorded them. */
 const diagnostics = (a: Assembly): string[] =>
   a.ctx.logger.buffer.filter(m => m.name === 'session-provider').map(m => String(m.args[0]))
 
-describe('the notice of a commit', () => {
-  it('is dispatched once for each commit, with identities, revision, evidence and kinds, and no text', async () => {
-    const a = await build()
-    await a.listen()
-    const intake = await a.caller('intake')
-    const created = await a.create(intake)
-    await expect.poll(() => a.events.length).toBe(1)
-    const [tenant, session, revision, source, kinds] = a.events[0]!
-    expect(tenant).toEqual(a.tenant)
-    expect(session).toBe('session-1')
-    expect(revision).toBe(created.revision)
-    expect(source).toEqual(created.source)
-    expect(Array.isArray(kinds) && kinds.length > 0).toBe(true)
-
-    const accepted = await a.accept(intake, 'one', 'session-1', 'secret-text-of-the-message')
-    await expect.poll(() => a.events.length).toBe(2)
-    expect(a.events[1]![2]).toBe(accepted.revision)
-    expect(
-      JSON.stringify(a.events, (_key, value: unknown) =>
-        typeof value === 'bigint' ? String(value) : value,
-      ),
-    ).not.toContain('secret-text-of-the-message')
-  })
-
-  it('a listener that throws changes neither the receipt nor the next commit, and the fault is recorded', async () => {
-    const a = await build()
-    await a.mount({
-      name: 'failing-listener',
-      apply: (inner: import('@deepseek-ai/cordis').Context) => {
-        inner.on(COMMITTED, () => {
-          throw new Error('listener exploded')
-        })
-      },
-    })
-    const intake = await a.caller('intake')
-    const created = await a.create(intake)
-    expect(created.revision).toBeDefined()
-    await expect
-      .poll(() => diagnostics(a).some(text => text.includes('listener exploded')))
-      .toBe(true)
-    // The commit path was not waiting: the next command is served as before.
-    expect((await a.accept(intake, 'next')).revision).toBeDefined()
-  })
-
-  it('is handed to sessionNotifier with the same payload', async () => {
-    const a = await build()
-    const intake = await a.caller('intake')
-    const created = await a.create(intake)
-    await expect.poll(() => a.notifier.controls.notifications().length).toBe(1)
-    const [notice] = a.notifier.controls.notifications()
-    expect(notice).toMatchObject({
-      tenant: a.tenant,
-      session: 'session-1',
-      revision: created.revision,
-      source: created.source,
-    })
-  })
-
-  it('goes on without sessionNotifier', async () => {
-    const a = await build({ omit: ['sessionNotifier'] })
+describe('the plugin sends no notice of its own', () => {
+  it('a commit through the plugin dispatches no event and hands nothing to sessionNotifier', async () => {
+    const a = await build({ notices: false })
     await a.listen()
     const intake = await a.caller('intake')
     expect((await a.create(intake)).revision).toBeDefined()
-    await expect.poll(() => a.events.length).toBe(1)
-  })
-
-  it('a sessionNotifier that fails changes no receipt, and the dispatch to listeners is not lost', async () => {
-    const a = await build({ omit: ['sessionNotifier'] })
-    await a.provide(
-      'sessionNotifier',
-      serviceOf(
-        SessionNotifierService,
-        { committed: () => Promise.reject(new Error('relay is down')) },
-        'FailingNotifier',
-      ),
-    )
-    await a.listen()
-    const intake = await a.caller('intake')
-    const created = await a.create(intake)
-    expect(created.revision).toBeDefined()
-    await expect.poll(() => a.events.length).toBe(1)
-    await expect.poll(() => diagnostics(a).some(text => text.includes('relay is down'))).toBe(true)
+    expect((await a.accept(intake, 'one')).revision).toBeDefined()
+    await new Promise(resolve => setTimeout(resolve, 100))
+    expect(a.events).toEqual([])
+    expect(a.notifier.controls.notifications()).toEqual([])
   })
 })
 
-describe('a notice from another dispatcher', () => {
+describe('a notice wakes the instance, whoever dispatched it', () => {
+  it('a notice of a commit of this instance wakes it once more and commits nothing it does not ask for', async () => {
+    const a = await build()
+    const intake = await a.caller('intake')
+    a.bindings.controls.bind(a.tenant, a.sessionId('session-1'))
+    await a.create(intake)
+    const accepted = await a.accept(intake, 'wake-twice')
+    await expect.poll(() => a.hooks.invoked.length, { timeout: 5000 }).toBe(1)
+    await new Promise(resolve => setTimeout(resolve, 200))
+    const commits = () => a.log.filter(step => step === 'commit-settled').length
+    const before = commits()
+    await a.ctx.parallel(
+      COMMITTED,
+      a.tenant,
+      a.sessionId('session-1'),
+      accepted.revision,
+      accepted.source,
+      ['message.user', 'intake.routed'],
+    )
+    await new Promise(resolve => setTimeout(resolve, 200))
+    expect(commits()).toBe(before)
+    expect(a.hooks.invoked).toHaveLength(1)
+  })
+})
+
+describe('a notice from any dispatcher', () => {
   it('wakes the instance: a session whose principal was refused is advanced after the notice', async () => {
     const a = await build()
     const intake = await a.caller('intake')
-    // The session is not bound yet, so the work principal is refused and S1 cannot advance it.
     await a.create(intake)
     const accepted = await a.accept(intake, 'wait-for-wake')
     await new Promise(resolve => setTimeout(resolve, 100))
@@ -158,17 +107,35 @@ describe('a notice from another dispatcher', () => {
 })
 
 describe('one scanner for each tenant', () => {
-  it('starts when a tenant is first seen and not again for its later commits', async () => {
+  it('starts when a tenant is first seen; its later notices while it runs start no second one', async () => {
     const a = await build()
     const intake = await a.caller('intake')
+    let open!: () => void
+    a.hooks.pendingGate = new Promise<void>(resolve => {
+      open = resolve
+    })
     await a.create(intake)
     await expect.poll(() => a.hooks.pendingTenants.length).toBe(1)
+    const calls = spies.maintainCalls
     await a.accept(intake, 'one')
     await a.accept(intake, 'two')
+    await expect.poll(() => spies.maintainCalls).toBeGreaterThanOrEqual(calls + 2)
     await new Promise(resolve => setTimeout(resolve, 150))
     expect(a.hooks.pendingTenants).toHaveLength(1)
-    // The table answers the later notices; the instance is not asked again.
-    expect(spies.maintainCalls).toBe(1)
+    open()
+  })
+
+  it('a tenant without work keeps no scanner: it leaves the table, and the next notice starts a new one', async () => {
+    const a = await build()
+    const tenant = a.other().tenant
+    a.emitCommitted(tenant, a.sessionId('elsewhere'), '1', evidence('x'), [])
+    await expect.poll(() => a.hooks.pendingTenants.length).toBe(1)
+    await new Promise(resolve => setTimeout(resolve, 50))
+    a.emitCommitted(tenant, a.sessionId('elsewhere'), '2', evidence('y'), [])
+    await expect.poll(() => a.hooks.pendingTenants.length).toBe(2)
+    await new Promise(resolve => setTimeout(resolve, 50))
+    await a.provider.dispose()
+    expect(spies.released).toBe(0)
   })
 
   it('starts one more for another tenant', async () => {
@@ -181,24 +148,63 @@ describe('one scanner for each tenant', () => {
     expect(JSON.stringify(first)).not.toBe(JSON.stringify(second))
   })
 
-  it('after a failed start the tenant is tried again at its next notice, and then once', async () => {
+  it('a startup read that fails is tried again after the first delay, without waiting for a notice', async () => {
     const a = await build()
     const intake = await a.caller('intake')
     a.hooks.failPending = 1
     await a.create(intake)
     await expect.poll(() => a.hooks.pendingTenants.length).toBe(1)
-    await expect
-      .poll(() => diagnostics(a).some(text => text.includes('maintain for tenant')))
-      .toBe(true)
-    // No retry on its own.
     await new Promise(resolve => setTimeout(resolve, 150))
     expect(a.hooks.pendingTenants).toHaveLength(1)
-
-    await a.accept(intake, 'second-notice')
+    a.clock.controls.advance(1000)
     await expect.poll(() => a.hooks.pendingTenants.length).toBe(2)
-    await a.accept(intake, 'third-notice')
-    await new Promise(resolve => setTimeout(resolve, 150))
-    expect(a.hooks.pendingTenants).toHaveLength(2)
+    expect(diagnostics(a).some(text => text.includes('maintain for tenant'))).toBe(false)
+  })
+})
+
+describe('the start scans the tenants of the deployment', () => {
+  const source = (a: Assembly, enumerate: SessionTenantSource['enumerate']) =>
+    a.mount(serviceOf(SessionTenantSourceService, { enumerate }, 'Tenants'))
+  const start = (a: Assembly) => {
+    const entry = a.handles.get('session-provider')
+    if (entry === undefined) throw new Error('the provider registered no handle')
+    return entry.handle.start()
+  }
+
+  it('binds a scanner for each tenant the source names, before any notice', async () => {
+    const a = await build()
+    await source(a, () => Promise.resolve({ ok: [a.tenant, a.other().tenant] }))
+    await start(a)
+    await expect.poll(() => a.hooks.pendingTenants.length).toBe(2)
+    expect(a.hooks.pendingTenants.map(tenant => JSON.stringify(tenant)).sort()).toEqual(
+      [JSON.stringify(a.tenant), JSON.stringify(a.other().tenant)].sort(),
+    )
     expect(spies.maintainCalls).toBe(2)
+  })
+
+  it('without the source the start binds nothing and says so; notices still bind', async () => {
+    const a = await build()
+    await start(a)
+    expect(diagnostics(a).some(text => text.includes('sessionTenants is absent'))).toBe(true)
+    expect(a.hooks.pendingTenants).toHaveLength(0)
+    const intake = await a.caller('intake')
+    await a.create(intake)
+    await expect.poll(() => a.hooks.pendingTenants.length).toBe(1)
+  })
+
+  it('a source that fails or throws binds nothing and is recorded', async () => {
+    const a = await build()
+    const fiber = await source(a, () =>
+      Promise.resolve({ failure: { kind: 'unavailable', diagnostic: 'the directory is closed' } }),
+    )
+    await start(a)
+    expect(
+      diagnostics(a).some(text => text.includes('answered unavailable: the directory is closed')),
+    ).toBe(true)
+    await fiber.dispose()
+    await source(a, () => Promise.reject(new Error('boom')))
+    await start(a)
+    expect(diagnostics(a).some(text => text.includes('sessionTenants threw'))).toBe(true)
+    expect(a.hooks.pendingTenants).toHaveLength(0)
   })
 })

@@ -1,9 +1,3 @@
-// SS-21 at the Journal read layer (perf-baseline 2.1 to 2.3, two sizes): reading the unread prefix
-// after a progress mark costs the same number of storage reads and returns the same number of
-// events whether the execution has N or 10 N events before the mark. A read from the start is the
-// negative control: it grows with N. The counts are deterministic: storage calls and events, not
-// time. They cover the provider's reads on a kept copy; the rebuild of a copy reads the whole
-// state of the session once (SPEC K-8) and is counted separately.
 import { describe, expect, it } from 'vitest'
 import { assistantMessage, evidence } from '@omne-harness/session-contract/testing'
 import type { EventPage } from '@omne-harness/agent-contract'
@@ -44,7 +38,6 @@ async function withEvents(name: string, events: number) {
   return s
 }
 
-/** One page after `after`: the storage reads it took and the events it returned. */
 async function page(s: SqlScene, after: string | null) {
   const reads = s.controls?.reads ?? []
   const start = reads.length
@@ -63,7 +56,6 @@ describe('reading the unread prefix after the progress mark', () => {
     const counts = [await page(small, tailOf(10)), await page(large, tailOf(100))]
     expect(counts[0]).toEqual(counts[1])
     expect(counts[0]!.events).toBeLessThanOrEqual(PAGE)
-    // The publication count is known in this process: the page costs no read of the root.
     expect(counts[0]!.reads).toBe(0)
   })
 

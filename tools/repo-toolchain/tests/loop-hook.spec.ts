@@ -1,5 +1,3 @@
-// 收工钩子的判断：放行的几种情形、反馈文字、条数与字数上限、只报比上一次新出现或变差的、出错不拦人但给用户一句警告。
-// 外部动作全用替身（hook.ts 的 HookDeps）；入口与量读数的子进程在 loop-stop-hook.spec.ts 用临时仓库测。
 import { describe, expect, it } from 'vitest'
 import type { HookConfig } from '../src/loop/config.ts'
 import {
@@ -18,7 +16,6 @@ import {
 } from '../src/loop/hook.ts'
 import type { ExplainedFunction } from '../src/loop/against-base.ts'
 
-/** 一个碰过、比基线涨了的函数（原 34 → 现 35）。 */
 const fn = (over: Partial<ExplainedFunction>): ExplainedFunction => ({
   path: 'apps/cli/src/x.ts',
   member: 'apps/cli',
@@ -36,7 +33,6 @@ const fn = (over: Partial<ExplainedFunction>): ExplainedFunction => ({
 
 const site = (path: string, line: number) => ({ path, line, specifier: '@omne-harness/b' })
 
-/** 五类各一条，外加一个只超 warn 的函数（不该出现）。 */
 const readings = (): HookReadings => ({
   alert: 12,
   hardLines: {
@@ -86,7 +82,6 @@ const HOOK: HookConfig = {
   stateLimit: 200,
 }
 
-/** 替身：状态与日志记在内存里，调用次数可查。 */
 function fakes(over: {
   readonly readings?: HookReadings | undefined
   readonly branch?: string
@@ -332,7 +327,6 @@ describe('收工钩子的判断', () => {
       '架构依据字节变化：docs/a.md；须核对含义，哈希不证明语义变化或符合',
       '新增架构偏离 · ROLE：packages/a k-new（packages/a/src/x.ts:3）；理由',
     ])
-    // 键是「比上一次」去重的身份：同一处改动在两次收工之间要得到同一个键。
     expect(found.map(finding => finding.key)).toEqual([
       'intent\u0000C-1\u0000x\u0000y',
       'intent-source\u0000docs/a.md\u0000x\u0000y',

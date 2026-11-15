@@ -1,4 +1,3 @@
-// 趋势快照：干净才写、同一提交不重复写、坏行跳过并报出、上一次与基线快照按祖先关系找。
 import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -32,7 +31,6 @@ const snapshot = (commit: string, value = 1): Snapshot => ({
   },
 })
 
-/** 一条直线历史 c5 → c4 → … → c1（c5 最新）；`ancestry('c3')` 是 c3 及其祖先。 */
 const ancestry = (tip: string): Ancestry => {
   const line = ['c5', 'c4', 'c3', 'c2', 'c1']
   return new Map(line.slice(line.indexOf(tip)).map((sha, index) => [sha, index]))

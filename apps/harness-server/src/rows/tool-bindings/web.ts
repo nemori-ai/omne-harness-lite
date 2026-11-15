@@ -1,15 +1,3 @@
-// The Web attachment of the release (web-meta-tool slices 02 and 04): every call of the release
-// `Web` gets one `WebAccess` from `createWebAccess`, built per call so that the key source follows
-// the call identity. The provider values (Exa endpoint, timeouts, byte and redirect limits) come
-// from the operator layer of the `tool-bindings` row; the release layer writes no numbers.
-//
-// The search key is the Web setting `exa.apiKey` of the calling tenant, read from the trusted
-// secret custody through `createLocalToolCredentials` (tool-host-local): the reference is selected
-// once per call in the order tenant, organization, official, and the secret is read again at the
-// moment of use; a selected reference that is gone by then fails the call and never selects
-// another layer (I-4, I-8). The organization layer is always "not configured": the custody has no
-// organization scope until there is a legal write path for it. The official layer is held by every
-// legal tenant (assets-and-rules F7), so a tenant without its own key uses the official one.
 import { tenantEquals } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type {
@@ -36,7 +24,6 @@ import { holdingKey, officialHolding, toolAsset } from '../../assets/official-ho
 type Parent = CallAccess<unknown> & Readonly<{ request: FixedToolRequest }>
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
 
-/** The operator values of the Web provider (`tool-bindings.web`). Absent: Web is not attached. */
 export const webBindingConfig = z.strictObject({
   search: z.strictObject({
     endpoint: z.url(),
@@ -52,10 +39,8 @@ export const webBindingConfig = z.strictObject({
 })
 export type WebBindingConfig = z.output<typeof webBindingConfig>
 
-/** The Web setting item that search needs (the author names it; the host resolves it). */
 export const EXA_KEY_ITEM = 'exa.apiKey'
 
-/** The two faces of the trusted custody the attachment reads; `undefined` when the row is absent. */
 export type SecretCustodyReader = () => (SecretCustodyManagement & SecretCustodyUse) | undefined
 
 const CUSTODY_DEPENDENCY = 'settingsSecretCustody'
@@ -63,23 +48,12 @@ const CUSTODY_DEPENDENCY = 'settingsSecretCustody'
 const unavailable = (dependency: string, diagnostic: string) =>
   fail({ kind: 'unavailable' as const, dependency, diagnostic })
 
-/** The reference of a selected layer: which scope the custody is asked for at the moment of use. */
 type Reference = 'tenant' | 'official'
 
 function scopeOf(reference: Reference, tenant: Parent['tenant']): SecretScope {
   return reference === 'official' ? { layer: 'official' } : { layer: 'tenant', tenant }
 }
 
-/**
- * The three ports of `createLocalToolCredentials` over the custody for the holding of one Web
- * definition.
- * - `access`: the principal is the login principal or the session work principal that acts for the
- *   tenant of the call. Anything else is denied before the custody is asked.
- * - `references`: the tenant layer and the official layer read the management face (`describe`),
- *   the organization layer is never configured. A bound item is "configured" whatever its life:
- *   a revoked or unreadable secret fails at use and selects no other layer.
- * - `secrets`: the use face (`use`) at the moment of use, for the reference selected before.
- */
 function custodyPorts(
   holding: SettingsHolding,
   custody: SecretCustodyReader,
@@ -135,7 +109,6 @@ function custodyPorts(
       return succeed({
         binding: { ...input.usage, tenant: input.tenant },
         capability: used.value,
-        // The custody hands out a value, not a lease: there is nothing to give back.
         revoke: () => undefined,
       })
     },
@@ -143,11 +116,6 @@ function custodyPorts(
   return { access, references, secrets }
 }
 
-/**
- * The search key source of one call: the restricted capability over the Web setting `exa.apiKey`
- * of the tenant of `parent`, resolved through the custody ports above. A call whose definition is
- * not available, or whose definition declares no settings, has no key.
- */
 export function releaseExaKey(parent: Parent, custody: SecretCustodyReader): ExaKeySource {
   const availability = parent.request.availability
   if (availability.kind !== 'available')
@@ -173,7 +141,6 @@ export function releaseExaKey(parent: Parent, custody: SecretCustodyReader): Exa
     })
 }
 
-/** Attaches `WebAccess` to the scope of one release Web call; `finish` removes it again. */
 export function bindReleaseWeb(
   parent: Parent,
   scope: ToolExecutionScope,

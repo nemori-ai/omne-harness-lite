@@ -1,4 +1,3 @@
-// 以 `serve` 模式装真实的 `storage`、`session-storage` 行与两个真实入口对象（acceptance 5 的有序关闭；密钥不进输出）。
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -130,7 +129,6 @@ describe('serve with the real storage rows', () => {
       run.stderr.join('\n'),
       JSON.stringify(rowDeclarationOf(sessionStorageRow)),
     ].join('\n')
-    // 正控：搜索本身能找到放进去的密钥文本。
     for (const needle of needles) expect(`${haystack}\n${needle}`).toContain(needle)
     for (const needle of needles) expect(haystack).not.toContain(needle)
     expect(haystack).not.toContain(key.toString('latin1'))

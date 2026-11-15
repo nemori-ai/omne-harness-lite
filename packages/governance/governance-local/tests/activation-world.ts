@@ -75,7 +75,6 @@ export function activationCatalog(
   }
 }
 export const plannerMembers = {
-  // The owner is a member because the snapshot reads its tables; the planner provides its plan fact.
   catalog: [
     'fixture.governance-catalog-current',
     CATALOG_SNAPSHOT.participant,
@@ -195,10 +194,6 @@ export async function openActivation(
       commands: businessCommands(mode, request, evidence),
     }
   }
-  /**
-   * A test double of the projection read: it commits the commands under the catalog combination
-   * and answers the last response. The application tests cover the real read host.
-   */
   const projection = (via: Pick<typeof storage, 'commit'> = storage): GovernanceProjectionRead => ({
     read: async commands => {
       const result = await via.commit({

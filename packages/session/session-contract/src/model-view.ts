@@ -8,6 +8,7 @@ import {
 } from '@omne-harness/message'
 import type { HistoryEntry, ModelViewRow } from './faces.ts'
 import { decodeEntry } from './entries.ts'
+import { writesCall } from './run-closure.ts'
 import { digestOf } from './operations.ts'
 import type { WorkSnapshot } from './values.ts'
 
@@ -83,7 +84,6 @@ export function compactionReads(
     const boundary = covered.findIndex(row => row.ref === prior.covers.to)
     window = covered.filter((row, index) => index > boundary || prior.retained.includes(row.ref))
   }
-  // Pair witnesses come from the original history, including calls hidden by earlier compaction.
   const original = [...covered, ...after]
   const pairings = [...window, ...after].flatMap(row => {
     if (row.message?.role !== 'tool') return []
@@ -97,9 +97,7 @@ export function compactionReads(
       .reverse()
       .find(candidate =>
         candidate.message?.blocks.some(
-          block =>
-            (block.kind === 'tool_call' || block.kind === 'tool_call_unparsed') &&
-            block.callId === marker.callId,
+          block => writesCall(block) && block.callId === marker.callId,
         ),
       )
     return [{ result: row.ref, call: before?.ref ?? null }]

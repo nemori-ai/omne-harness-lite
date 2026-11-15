@@ -1,15 +1,4 @@
 /** @module-tag slow */
-// Slow: every case starts a real systemd user scope (some with a real PTY and Bash) and waits for
-// real detached processes to appear and to be stopped.
-// Closed containment on Linux (contract SPEC "收纳", host SPEC "收纳"): a process that left its
-// session with `setsid`, or its parent by a double fork, is still in the execution domain. It is
-// counted, kept when the retention scope keeps the domain, and stopped with the domain. The
-// processes are found by the pids their own scripts wrote, never by a command-line search, and are
-// observed only through `/proc`, `ps` and `systemctl --user show`. The double fork also covers the
-// reparenting case: its process loses its parent when the middle shell exits, and the test checks
-// that it is no longer a child of the script's shell. The command cases run only with
-// `OMNE_HOST_COMMAND_LINUX=1` and the terminal case only with `OMNE_HOST_TERMINAL_LINUX=1`;
-// elsewhere they are skipped, and a skip is not a pass.
 import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises'
@@ -48,7 +37,6 @@ const commandEnabled =
   process.platform === 'linux' && process.env['OMNE_HOST_COMMAND_LINUX'] === '1'
 const terminalEnabled =
   process.platform === 'linux' && process.env['OMNE_HOST_TERMINAL_LINUX'] === '1'
-/** The upper bound of every wait for a process or a unit to appear or to go. */
 const bound = 20_000
 
 const parsed = tenantCodec.parse(
@@ -75,7 +63,6 @@ function freshScope(): ScopeRef {
 
 type Stop = [string, 'confirmed' | 'unconfirmed']
 
-/** The acquisition's own ledger, recording. */
 function acquisitionLedger() {
   const stopped: Stop[] = []
   const plans: ManagedResource[] = []
@@ -95,7 +82,6 @@ function acquisitionLedger() {
   return { ledger, stopped, plans }
 }
 
-/** The retention scope's process ledger view, recording. */
 function processLedger() {
   const stopped: Stop[] = []
   const ledger: RetainedProcessLedger = {
@@ -129,9 +115,7 @@ afterEach(async () => {
       if (pid === undefined) continue
       try {
         process.kill(pid, 'SIGKILL')
-      } catch {
-        /* Already gone: the intended outcome. */
-      }
+      } catch {}
     }
   }
   for (const unit of units) await run('systemctl', ['--user', 'stop', unit]).catch(() => undefined)
@@ -180,14 +164,8 @@ async function unitGone(unit: string): Promise<void> {
   )
 }
 
-/** The scripts' unit name for a domain key: what `process.id` of a command already is. */
 const unitSuffix = /^omne-host-[0-9a-f-]{36}\.scope$/u
 
-// What the leftovers' own scripts publish, and the script that starts them. Detached processes
-// write to /dev/null so none of them holds a command pipe or adds bytes to a terminal segment.
-// `setsid` forks or not depending on job control, so the pid is written from inside the new
-// session by a shell that then `exec`s the sleeper: the pid stays the same either way.
-/** The single-line script: two detached sleepers, the shell's own pid and session, then a check. */
 function detachScript(directory: string): string {
   const publish = (name: string, value: string) =>
     `echo ${value} > "$1/${name}.tmp"; mv "$1/${name}.tmp" "$1/${name}"`
@@ -225,7 +203,6 @@ async function pidFile(directory: string, name: string): Promise<number> {
   return pid
 }
 
-/** Reads what the script published: the two leftovers and the shell that started them. */
 async function detached(directory: string): Promise<Detached> {
   const setsidPid = await pidFile(directory, 'setsid.pid')
   const forkPid = await pidFile(directory, 'fork.pid')
@@ -233,12 +210,10 @@ async function detached(directory: string): Promise<Detached> {
   const shellSession = Number((await readFile(join(directory, 'shell.sid'), 'utf8')).trim())
   expect(Number.isSafeInteger(shellSession) && shellSession > 0, 'shell session').toBe(true)
   expect(new Set([setsidPid, forkPid, shellPid]).size).toBe(3)
-  // The script saw both leftovers alive before it ended.
   expect(await readFile(join(directory, 'ok'), 'utf8').catch(() => 'missing')).toBe('')
   return { directory, setsidPid, forkPid, shellPid, shellSession }
 }
 
-/** `/proc/<pid>/stat`: session (field 6), parent (field 4) and state (field 3). */
 async function procStat(pid: number) {
   const text = await readFile(`/proc/${pid}/stat`, 'utf8')
   // The command name sits in parentheses and may hold spaces: split after the last ')'.
@@ -246,7 +221,6 @@ async function procStat(pid: number) {
   return { state: fields[0], ppid: Number(fields[1]), session: Number(fields[3]) }
 }
 
-/** The path of the unified (`0::`) cgroup line of a live process. */
 async function cgroupPath(pid: number): Promise<string> {
   const text = await readFile(`/proc/${pid}/cgroup`, 'utf8')
   const line = text.split('\n').find(l => l.startsWith('0::'))
@@ -254,7 +228,6 @@ async function cgroupPath(pid: number): Promise<string> {
   return line.slice('0::'.length)
 }
 
-/** Both leftovers live, each in the unit's cgroup; the sessions and parentage are the detached ones. */
 async function expectContained(d: Detached, unit: string): Promise<void> {
   expect(unit).toMatch(unitSuffix)
   for (const [name, pid] of [
@@ -266,10 +239,8 @@ async function expectContained(d: Detached, unit: string): Promise<void> {
   }
   const setsid = await procStat(d.setsidPid)
   const fork = await procStat(d.forkPid)
-  // `setsid` leader of a session of its own; the shell's session is not it.
   expect(setsid.session).toBe(d.setsidPid)
   expect(setsid.session).not.toBe(d.shellSession)
-  // The double fork lost its parent (the middle shell exited): it is not a child of the script's shell.
   expect(fork.ppid).not.toBe(d.shellPid)
   expect(fork.ppid).not.toBe(0)
 }
@@ -342,7 +313,6 @@ function commandOf(lease: EnvironmentLease): CommandFacility<unknown> {
   return command
 }
 
-/** Starts the detaching script as a one-shot command and waits for its outcome. */
 async function detaching(command: CommandFacility<unknown>, directory: string) {
   const answer = await command.start({
     requestId: `start-${randomUUID()}`,
@@ -392,12 +362,10 @@ describe('closed containment of a one-shot command, on Linux', { skip: !commandE
     const residue = outcome.residue
     if (residue?.kind !== 'retained') throw new Error('expected retained')
     const counted = residue.processes
-    // The gate and both leftovers are in the unit; a count that could not be read is 'unknown'.
     expect(counted === 'unknown' || (Number.isInteger(counted) && counted >= 2)).toBe(true)
 
     const d = await detached(directory)
     await expectContained(d, handle.process.id)
-    // The handover survives the release of the acquisition: the leftovers are kept, not stopped.
     expect(await lease.release()).toEqual({ kind: 'released' })
     await expectContained(d, handle.process.id)
     expect(own.stopped).toEqual([])
@@ -425,7 +393,6 @@ describe('closed containment of a one-shot command, on Linux', { skip: !commandE
       exit: { code: 0 },
       residue: { kind: 'stopping', reason: 'unbound' },
     })
-    // Both leftovers were alive inside the script before it ended (the `ok` file); now they are not.
     const d = await detached(directory)
     const key = handle.process.id.slice('omne-host-'.length, -'.scope'.length)
     await vi.waitFor(() => expect(own.stopped).toEqual([[key, 'confirmed']]), { timeout: bound })
@@ -482,7 +449,6 @@ describe('closed containment of a persistent terminal, on Linux', () => {
       }),
     )
     for await (const chunk of handle.output) decoder.decode(chunk.data)
-    // Leftovers in the unit do not veto the segment's completion.
     expect(await handle.result).toMatchObject({ kind: 'completed', exit: { code: 0 } })
 
     const d = await detached(directory)

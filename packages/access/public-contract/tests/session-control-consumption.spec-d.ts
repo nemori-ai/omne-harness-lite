@@ -12,7 +12,6 @@ import {
 } from '@omne-harness/public-contract'
 
 declare const tenant: TenantId
-/** Flattens an intersection so the exact-shape comparison does not see how it was composed. */
 type Flat<T> = { [K in keyof T]: T[K] }
 const limits = {
   maxBytes: 1000,

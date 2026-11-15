@@ -1,13 +1,4 @@
 // @module-tag slow
-// Slow tier: it times thousands of encodings and decodings of each representative entry (heavy CPU,
-// several seconds), so the fast tier does not run it.
-//
-// The cost of the revision 4 stored form (SPEC「条目的存储形式」, R2-D357, R2-D353): per entry, the
-// encode time, the decode time with the reference targets already in memory, and the expansion of a
-// history page that holds references. It prints one JSON table (median and p95 in microseconds, and
-// the plain JSON bytes of each payload) so a later run can be compared with the figures recorded at
-// adoption. The assertions guard the relative claim inside one run: resolving a reference never
-// costs more than decoding the full value it stands for.
 import { describe, expect, it } from 'vitest'
 import { decodeEntry, encodeEntry, fromJsonValue, toJsonValue } from '../src/entries.ts'
 import * as entries from '../src/entries.ts'
@@ -18,7 +9,6 @@ const BATCH = 10
 const ROUNDS = 400
 const WARMUP = 200
 
-/** Median and p95 of one operation, in microseconds, over ROUNDS batches of BATCH calls. */
 function timed(run: () => unknown): Readonly<{ median: number; p95: number }> {
   for (let i = 0; i < WARMUP; i++) run()
   const samples: number[] = []
@@ -56,7 +46,6 @@ describe('the stored form of revision 4 costs no more than the full form', () =>
         storedBytes: Buffer.byteLength(JSON.stringify(row), 'utf8'),
         encode: timed(() => encode(sample.entry, sample.origin, refs)),
         decode: timed(() => decode(row, refs)),
-        // The full form as revision 3 stored it: the codec of the whole plain payload.
         fullCodec: timed(() => fromJsonValue(toJsonValue(sample.entry))),
       }
     })

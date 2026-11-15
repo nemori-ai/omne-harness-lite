@@ -17,7 +17,7 @@
 > ```
 >
 > **最要紧的是第三段绑在会话上**，不绑 agent runtime 、也不绑发起它的那次运行。
-> 见 [PF-006 §5.2](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同)。
+> 见 [PF-006 §5.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同)。
 
 ## 一次执行
 
@@ -28,7 +28,7 @@
 > **EN**: The optional `programmable` property of a tool definition. It permits an agent to call the tool from a script that combines or orchestrates tool calls. Only explicit `true` permits this use. An omitted value or `false` does not.
 
 - **形态**：属性
-- **出处**：[工具执行：可编程调用许可](../../product/tool-execution/design.md#可编程调用许可)（rev 8）
+- **出处**：[工具执行：可编程调用许可](../../product/tool-execution/design.md#可编程调用许可)（rev 9）
 - **别混**：不是当前动作授权、常驻标记或后台许可。独立程序消费 SDK 不自动属于 Agent 脚本编排；脚本经 SDK 或通用调用入口间接调用工具，仍属于该许可的范围。
 
 ### UL-tool-definition · 工具定义 · Tool Definition
@@ -67,9 +67,9 @@
 > name and the definition name must match; the system refuses to load a mismatch.
 
 - **形态**：视图
-- **出处**：[PF-006 §5.2](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同) · [§5.3](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#53-一份工具定义长什么样) ·
-  [工具说明与每个参数的说明，必填](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#工具说明与每个参数的说明必填) ·
-  [多命令工具的定义里带多少](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 24） · 多命令工具在模型面前的清单与出错时的用法见[工具执行：工具作者必须说明什么](../../product/tool-execution/design.md#工具作者必须说明什么)（rev 8） · [PF-002 §4 Tool](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）；装载时派生与各字段的来源见已采用的 [RFC-0012 对象链](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#对象链)，形态由属性改为视图的理由见 [C-66](../conflicts.md#c-71工具定义由长期数据改为装载时派生)
+- **出处**：[PF-006 §5.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同) · [§5.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#53-一份工具定义长什么样) ·
+  [工具说明与每个参数的说明，必填](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#工具说明与每个参数的说明必填) ·
+  [多命令工具的定义里带多少](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 24） · 多命令工具在模型面前的清单与出错时的用法见[工具执行：工具作者必须说明什么](../../product/tool-execution/design.md#工具作者必须说明什么)（rev 9） · [PF-002 §4 Tool](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）；装载时派生与各字段的来源见已采用的 [RFC-0012 对象链](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#对象链)，形态由属性改为视图的理由见 [C-66](../conflicts.md#c-71工具定义由长期数据改为装载时派生)
 - **别混**：与[工具](capabilities-and-composition.md#ul-tool--工具--tool)不是一回事——
   工具是那一类资产，**工具定义是资产与实现合成出的那一份表示**；
   同一个身份下，官方、组织、租户、工作区各层的资产各自派生自己的一份，形状可以不同
@@ -97,9 +97,9 @@
 > and the new coroutine resumes waiting.
 
 - **形态**：对象
-- **出处**：[PF-006 §4 Tool Execution](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#tool-execution)（rev 24） · [§5.2](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同)（rev 24） · [§6.5](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 24）
+- **出处**：[PF-006 §4 Tool Execution](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#tool-execution)（rev 24） · [§5.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同)（rev 24） · [§6.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 24）
 - **注意 ①**：**是哪次运行、哪个 agent runtime 发起的，都记得下来，但都不绑生命周期**；取消一次运行时前台的落「被中断」、原因「运行被取消」，是因为那一步不要了
-- **注意 ②**：**[会话被归档](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#63-归档先停活儿再落状态)时仍未结束的，不论前后台，收场都是[被中断](#ul-execution-outcome--执行收场--execution-outcome)**——
+- **注意 ②**：**[会话被归档](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#63-归档先停活儿再落状态)时仍未结束的，不论前后台，收场都是[被中断](#ul-execution-outcome--执行收场--execution-outcome)**——
   收件人都没了；**这一刀不可逆**，撤销归档不会把它接回来
 - **注意 ③**：**同一个会话里同一个工具同时在执行的次数有上限时，超出的排队、不被拒**——[工具并发上限](#ul-tool-concurrency-limit--工具并发上限--tool-concurrency-limit)按会话算，前台后台一起数
 
@@ -117,14 +117,14 @@
 > values. It is **a dimension separate from the wait state** — all four combinations are possible.
 
 - **形态**：状态
-- **出处**：[PF-006 §6.6](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)（rev 24）
+- **出处**：[PF-006 §6.6](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)（rev 24）
 - **注意 ①**：**默认往保守的那一边倒**——**没表过态，不等于表了同意**
 - **注意 ②**：**「发起时就在后台」与「中途转后台」的决定权不同**——
   前者[由 agent 自己定](../../product/meta-capabilities/design.md#meta-shell)，前台那一次调用当场以转后台收场，**不算一次「转」**；
-  后者[有三个触发源](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)：
+  后者[有三个触发源](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)：
   **跑到转后台时长或前台上限时自动转 · 用户手动切 · 用户插队时系统顺带触发**
 - **注意 ③**：**哪条路都不绕开声明**——工具没声明允许后台，插队或到了前台上限时它是[被中断](#ul-execution-outcome--执行收场--execution-outcome)，不是被转后台；发起时就要后台，也起不来
-- **注意 ④**：**本版要等应答的执行只在前台等**——[「后台 × 在等待」这一格关着](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)；两个维度仍然正交，关着的是这一版的用法
+- **注意 ④**：**本版要等应答的执行只在前台等**——[「后台 × 在等待」这一格关着](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)；两个维度仍然正交，关着的是这一版的用法
 
 ### UL-foreground-time-limit · 前台上限 · Foreground Time Limit
 
@@ -141,9 +141,9 @@
 > limit**.
 
 - **形态**：属性
-- **出处**：[PF-006 §6.6 前台上限与并发上限](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#前台上限与并发上限)（rev 24） ·
-  [PF-002 §4 Tool](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）
-- **别混**：**不是「前台跑多久自动转后台」那一项**——那是允许后台的工具[另一项偏好设置](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#其中两项声明的是设置项)；前台上限对不许后台的工具同样起作用，到点被中断
+- **出处**：[PF-006 §6.6 前台上限与并发上限](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#前台上限与并发上限)（rev 24） ·
+  [PF-002 §4 Tool](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）
+- **别混**：**不是「前台跑多久自动转后台」那一项**——那是允许后台的工具[另一项偏好设置](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#其中两项声明的是设置项)；前台上限对不许后台的工具同样起作用，到点被中断
 - **注意**：**等人的时间不算，是有意的**——[`Ask()`](../../product/meta-capabilities/design.md#meta-ask) 停在前台等人永不过期，把等人算进来，它就成了一个替人签字的到点
 
 ### UL-tool-concurrency-limit · 工具并发上限 · Tool Concurrency Limit
@@ -157,8 +157,8 @@
 > holding layer may change it; **left unset, there is no such limit**.
 
 - **形态**：属性
-- **出处**：[PF-006 §6.6 前台上限与并发上限](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#前台上限与并发上限)（rev 24） ·
-  [PF-002 §4 Tool](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）
+- **出处**：[PF-006 §6.6 前台上限与并发上限](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#前台上限与并发上限)（rev 24） ·
+  [PF-002 §4 Tool](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）
 - **别混**：**裸写「并发上限」不作数**——它只数同一个会话里的同一个工具，不是会话、租户或整个系统的并发
 
 ### UL-model-call · 一次模型调用 · Model Call
@@ -175,22 +175,22 @@
 > that belongs to no run are model calls too**, under the same rules.
 
 - **形态**：对象
-- **出处**：[PF-013 flows §3.2 一次模型调用](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)（rev 17） ·
-  [PF-013 §5.13](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 17） ·
-  [PF-011 §5.3](../../product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#53-层的顺序不是排出来的是推出来的)（rev 5） ·
-  [PF-012 §5.4](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#54-一步的骨架)（rev 25）
-- **别混**：**不是那次请求的内容**——请求体怎么攒出来归 [PF-010](../../product.0.0.1.legacy/PF-010-context-management-and-assembly/README.md)；
-  **也不是回复怎么流式拼起来**，那归 [PF-009](../../product.0.0.1.legacy/PF-009-context-message-types/README.md)
-- **注意**：**这一层归 [PF-013](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/README.md)**——
-  它的三个终态（**完整一份 · 上交 · 被中断**）、失败怎么分类、[什么时候算试尽](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#什么时候算试尽)，都在那里
+- **出处**：[PF-013 flows §3.2 一次模型调用](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)（rev 17） ·
+  [PF-013 §5.13](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 17） ·
+  [PF-011 §5.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#53-层的顺序不是排出来的是推出来的)（rev 5） ·
+  [PF-012 §5.4](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#54-一步的骨架)（rev 25）
+- **别混**：**不是那次请求的内容**——请求体怎么攒出来归 [PF-010](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-010-context-management-and-assembly/README.md)；
+  **也不是回复怎么流式拼起来**，那归 [PF-009](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-009-context-message-types/README.md)
+- **注意**：**这一层归 [PF-013](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/README.md)**——
+  它的三个终态（**完整一份 · 上交 · 被中断**）、失败怎么分类、[什么时候算试尽](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#什么时候算试尽)，都在那里
 - **注意 ②**：**每一次调用的执行由它自己的运行时承载；执行收场与模型侧结果保管、确认后的清理责任分别判断**——
-  [正文叫它「模型请求的运行时」，当同一物用](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)，
-  [对象条目已并入](../../domain_objects/objects.md#ul-model-call--一次模型调用)，**不另立词条**（与工具执行各自的运行时并入[工具执行](#ul-tool-execution--工具执行--tool-execution)同一分寸）；
+  [正文叫它「模型请求的运行时」，当同一物用](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)，
+  **不另立词条**（与工具执行各自的运行时并入[工具执行](#ul-tool-execution--工具执行--tool-execution)同一分寸）；
   它受 [`runtime` 那条写死的规矩](../conventions.md#runtime-这个词本系统写死了)约束：**生命周期归会话，工作归所属 Run（已有 Run 外调用直接归会话）；Agent runtime 只持有句柄**。主流程仍等待结果，不另引入模型“转后台”模式。
-  消费方确认结果已处理后，模型侧清理无用副本，原身份、真实收场和账仍保留；清理状态不使调用重新进入执行。依据 [PF-013 §6.19](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#619-消费方确认结果后清理模型侧不再需要的副本)（rev 17）。
+  消费方确认结果已处理后，模型侧清理无用副本，原身份、真实收场和账仍保留；清理状态不使调用重新进入执行。依据 [PF-013 §6.19](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#619-消费方确认结果后清理模型侧不再需要的副本)（rev 17）。
   **这里说的是「这一次调用的那个协程」，不是承载所有这类协程的那项系统能力**——规格里以「模型请求运行时」为名的能力是另一层的东西，读到时按所在层分清（[C-31](../conflicts.md#现有冲突)）
 - **注意 ③**：**完整的一份在[消息准入](agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)被拒收，这次调用仍停在「完整一份」**——
-  [只记下被谁否决、没有成为消息](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)，不是故障、不交给重试挂件；
+  [只记下被谁否决、没有成为消息](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)，不是故障、不交给重试挂件；
   loop 退避之后**另起一次新的模型调用**，不是这一次回到在途；连续拒收不设次数上限，也不因此使 Run 失败（原[连续否决上限](#ul-consecutive-veto-limit--连续否决上限--consecutive-veto-limit)已弃用）
 
 ### UL-upstream-send · 一次发出 · Upstream Send
@@ -208,9 +208,9 @@
 > several sends but has only one reply.**
 
 - **形态**：过程
-- **出处**：[PF-013 §5.5 试过又失败的那几次，留痕，不进方程](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程) ·
-  [§5.12 系统自带一件默认的](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试) ·
-  [§5.13 停机之后](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 17）
+- **出处**：[PF-013 §5.5 试过又失败的那几次，留痕，不进方程](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程) ·
+  [§5.12 系统自带一件默认的](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试) ·
+  [§5.13 停机之后](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 17）
 - **别混 ①**：**不是一次模型调用**——调用有头有尾、有三个终态；发出是调用里的一次尝试
 - **别混 ②**：**不是[执行尝试](agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)**——那是一次运行里第几次起 agent runtime
 - **注意 ①**：**[首 token](#ul-first-token--首-token--first-token) 之后不再有第二次发出**——「说话中」不回「在途」
@@ -232,9 +232,9 @@
 > after it, never, and it does not return to in transit.
 
 - **形态**：规则
-- **出处**：[PF-013 §5.4「已经开口说话了」优先于其余各类](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类) ·
-  [§5.13 停机之后](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 17） ·
-  [PF-009 §9.2](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息)（rev 9）
+- **出处**：[PF-013 §5.4「已经开口说话了」优先于其余各类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类) ·
+  [§5.13 停机之后](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 17） ·
+  [PF-009 §9.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息)（rev 9）
 - **注意 ①**：**「已经开口」是账，不是在途**——它在第一份内容交到任何人眼前之前，就作为那次调用[账目](#ul-call-account--调用账目--call-account)里的一笔落进日志、带着开口的时刻；停机之后靠它判断
 - **注意 ②**：**判据挂在到达方式上，不挂在模态清单上**——将来多一种内容块，它归哪种到达方式，首 token 就落在哪个时刻
 - **注意 ③**：**首 token 之后的任何故障一律不重试**，而且**优先于策略**——重试挂件也推翻不了；用户插队中断不是故障，不走这一条
@@ -257,13 +257,13 @@
 > read them. The reply is separate: **the reply becomes a message; this record does not**.
 
 - **形态**：对象
-- **出处**：[PF-013 §5.5 试过又失败的那几次，留痕，不进方程](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程) ·
-  [§5.13 停机之后](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 17）
+- **出处**：[PF-013 §5.5 试过又失败的那几次，留痕，不进方程](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程) ·
+  [§5.13 停机之后](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 17）
 - **⚠️ 别混 ①**：**裸写「响应体」在跨 topic 的文字里不作数**——HTTP 里那个词指上游回来的那段字节；那段字节至多是本条身上的一项留存（注意 ②），不是本条
 - **别混 ②**：**不是[一次发出](#ul-upstream-send--一次发出--upstream-send)**——发出是过程，本条是请求责任的收场留痕，不能据本条存在反推实际发送；**也不是[调用账目](#ul-call-account--调用账目--call-account)**——账是「花了什么」，一次发出的用量与费用落在哪一条上归规格
 - **注意 ①**：**数量随每份已确认的请求责任计，不据记录条数推断实际发送次数**——[首 token](#ul-first-token--首-token--first-token) 之后不再有第二次发出，所以带回复的至多一条、且是最后一条；停机后照常再发的那一次也是新的一条，两笔钱两条都照实记
-- **注意 ②**：**规格里的「上游原始响应留存」（响应头、原始字节）是它身上的一项属性，排查用，不进上下文、不进任何给人的呈现——不另立词条**；产品正文只要求[状态码原样带着](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它)、[错误信息外泄之前脱敏](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#616-错误信息外泄之前要脱敏)
-- **注意 ③**：正文对失败那几次的叫法是「留痕」；成功那一次「实际用了哪条档案、带了什么参数」的留痕，正文放在「那次请求的可追溯组成」里（[PF-004 §6.6](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#66-模型在每次请求时确定)、[PF-013 §4 模型档案](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模型档案)）——**两者是不是同一条记录，正文未述**，[对象条目](../../domain_objects/objects.md#ul-model-response--模型响应体)记为未裁
+- **注意 ②**：**规格里的「上游原始响应留存」（响应头、原始字节）是它身上的一项属性，排查用，不进上下文、不进任何给人的呈现——不另立词条**；产品正文只要求[状态码原样带着](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它)、[错误信息外泄之前脱敏](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#616-错误信息外泄之前要脱敏)
+- **注意 ③**：正文对失败那几次的叫法是「留痕」；成功那一次「实际用了哪条档案、带了什么参数」的留痕，正文放在「那次请求的可追溯组成」里（[PF-004 §6.6](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#66-模型在每次请求时确定)、[PF-013 §4 模型档案](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模型档案)）——**两者是不是同一条记录，正文未述**
 
 ## 跑的过程中，跟外面说的两种话
 
@@ -292,7 +292,7 @@
 > system knows it is waiting, and knows what shape it waits for.**
 
 - **形态**：状态
-- **出处**：[PF-006 §4 等待态](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#等待态)（rev 24）
+- **出处**：[PF-006 §4 等待态](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#等待态)（rev 24）
 - **⚠️ 别混**：**裸写「等待态」不作数。**它有两个所指——
   这一条挂在**一次工具执行**上，另一条
   [运行等待态](interaction-and-dispatch.md#ul-run-wait-state--运行等待态--run-wait-state)挂在**一个运行**上，
@@ -322,8 +322,8 @@
 > opened, how it is to be filled), **with nothing declared up front**.
 
 - **形态**：过程
-- **出处**：[PF-006 §4 发帧](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#发帧)（rev 24） ·
-  [PF-009 §5.8](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量)（rev 9）
+- **出处**：[PF-006 §4 发帧](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#发帧)（rev 24） ·
+  [PF-009 §5.8](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量)（rev 9）
 - **注意**：它补的是一个具体的窟窿——用户看着界面写着「正在调用某个工具」，**然后就没有下文了**：
   **它是卡住了，还是在正常地跑一件慢活，此前分不出来**
 
@@ -343,8 +343,8 @@
 > separately identifiable thing.**
 
 - **形态**：过程
-- **出处**：[PF-009 §5.5](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#到达的过程有它自己的语法) ·
-  [§5.8](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量)（rev 9）
+- **出处**：[PF-009 §5.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-009-context-message-types/design.md#到达的过程有它自己的语法) ·
+  [§5.8](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量)（rev 9）
 - **别混**：**裸写「帧」不作数**——那个词在别处指视频帧、网络帧
 - **注意 ①**：**它落进日志的是结果，不是过程**——日志里留的是收尾之后那条完整的消息
   （封口后的块）；**到达的过程不留**。**执行怎么收场，这条消息都照常收尾**：
@@ -373,7 +373,7 @@
 > cannot see at all**.
 
 - **形态**：总称
-- **出处**：[PF-006 §4 工具的产出](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#工具的产出)（rev 24）
+- **出处**：[PF-006 §4 工具的产出](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#工具的产出)（rev 24）
 - **注意 ①**：前两部分要分，**是因为有些产出根本不适合进对话**——一张图、一个几十兆的文件。
   硬塞进去，**一条消息就把上下文吃光了**
 - **注意 ②**：**帧不顶替结果。**一个工具把过程播报得再细，**跑完照样要给结果**——
@@ -400,17 +400,17 @@
 > latest known `billable`. Itemised per attempt, summed per run.
 
 - **形态**：属性
-- **出处**：[PF-006 §5.4 每一次执行都留一份账](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#每一次执行都留一份账)（rev 24） ·
-  [PF-009 §5.5](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#到达的过程有它自己的语法)（rev 9） ·
-  [PF-012 成本两层](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#成本两层缺哪一层都会算错)（rev 25） ·
-  [PF-013 §5.13](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 17） ·
-  [PF-001 §6.4](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 26）
+- **出处**：[PF-006 §5.4 每一次执行都留一份账](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#每一次执行都留一份账)（rev 24） ·
+  [PF-009 §5.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-009-context-message-types/design.md#到达的过程有它自己的语法)（rev 9） ·
+  [PF-012 成本两层](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#成本两层缺哪一层都会算错)（rev 25） ·
+  [PF-013 §5.13](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 17） ·
+  [PF-001 §6.4](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 26）
 - **别混**：**不是[工具产出](#ul-tool-output--工具产出--tool-output)**——产出是给读者的东西，账是关于这次的事实
 - **注意**：工具内部调外部服务产生的费用也记在这里，一次执行可以有多笔
 - **注意 ②**：**一次模型调用「已经开口」也是它账目里的一笔**——第一份内容交到任何人眼前之前落进日志，
-  带着开口的时刻；[停机之后靠它判断能不能重发](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类)
+  带着开口的时刻；[停机之后靠它判断能不能重发](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类)
 - **注意 ③**：**运行终结之后才到的账照样落、归那个运行，并标明是迟到的**——
-  [I-11](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式) 只禁止终结之后再发起新动作，不禁止补记已发起的那些
+  [I-11](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式) 只禁止终结之后再发起新动作，不禁止补记已发起的那些
 - **字段**：一份账是 JSON。`subject.kind` 是 `model_call` 或 `tool_execution`。`usage`、`cost`、`trimmed` 各自成组。`place` 是落点。`duration` 是 `utc-instant` 能解析的时长字符串，或 `{ "state": "unknown" }`。它与用量词法分属两个字段。`receipt` 是 `received` 或 `late`。`revision` 是十进制数字字符串，从 `0` 起。
 - **金额**：`state` 为 `known` 或 `provisional` 时带十进制 `lexeme` 和 `unit`。`state` 为 `unknown` 时只带 `unit`。一份账是某个 `subject` 在某个 `revision` 上的整份快照。`cost` 数组里的每一项是这一份快照上的一笔独立费用，身份是它在数组中的位置。两笔相同 `source` 的费用是两笔账，都进入该来源在这份快照上的小计。
 - **修订**：更大的 `revision` 整份替换同一 `subject` 的旧快照。新快照里不是 `known` 的金额不进入求和，被替换的旧 `known` 也不再进入。同一 `subject` 与同一 `revision` 再次送达且内容相同，不另加金额。内容不同则保持第一份，不在同一修订里静默替换。
@@ -459,7 +459,7 @@
 > agent fetches it itself**.
 
 - **形态**：对象
-- **出处**：[PF-006 §4 工具的产出](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#工具的产出)（rev 24）
+- **出处**：[PF-006 §4 工具的产出](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#工具的产出)（rev 24）
 - **注意**：**产出带附件的工具需要[声明自己依赖的存储](reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration)**，
   并且得有一个能从那个存储把它读出来的工具
 
@@ -470,7 +470,7 @@
 > **EN**: Storing a tool result's model-facing body separately and presenting the author's summary or a mechanical preview with a retrieval reference in the first model message. Program data and native resource references are separate result components.
 
 - **形态**：过程
-- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 9）
 - **别混**：裸写「卸载」不作为本词的跨领域简称，插件卸载是另一过程。原生图片、文件或数据集引用不属于结果卸载。
 - **注意**：首次追加的是预览，不是在 Session 日志中改写已存在的全文。后续读取追加新返回，不替换旧预览，也不重做原工具效果。
 - **注意**：结果卸载与执行的前后台关系、内部等待分别判断。正文按披露的期限保管，读回支持按声明格式分页。
@@ -484,7 +484,7 @@
 
 - **留存边界**：有限期限和当前读取资格由工具执行契约约束。正文到期后不可新读且自动回收，读取、ACK、压缩、Run 结束和归档不刷新期限。每读取一页都单独核对期限，到期判定的时钟偏差见[读回到期窗口](#ul-read-expiry-window--读回到期窗口--read-expiry-window)。
 - **形态**：对象
-- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 9）
 - **别混 ①**：它不是进入消息的作者摘要或[机械预览](#ul-mechanical-preview--机械预览--mechanical-preview)，也不是未经校验的作者原返回或完整 ToolResult 封装。
 - **别混 ②**：它不是原生[附件](#ul-attachment--附件--attachment)。附件本来就以资源引用交付，不能仅因结果正文到期而删除目标。
 - **弃用**：「工具原件」。该说法与模型模态转换中的原件混淆。
@@ -496,7 +496,7 @@
 > **EN**: The largest model-facing body, in bytes, that a tool operation may present to the model directly. It is the smaller of the cap the author declares for that operation and the system cap set at assembly. Without a smaller author cap it equals the system cap. A body larger than it is offloaded. It decides only whether a body is offloaded, not how much the model sees first after offloading.
 
 - **形态**：属性
-- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 9）
 - **别混 ①**：不是[卸载预览预算](#ul-offload-preview-budget--卸载预览预算--offload-preview-budget)。卸载预览预算约束卸载后首次呈现的大小，卸载触发阈值只用来判断是否卸载。
 - **别混 ②**：裸写「触发阈值」不作为本词的简称。工具的自动转后台阈值是另一项声明。
 
@@ -507,7 +507,7 @@
 > **EN**: The byte limit on the preview part the model sees first after a body is offloaded. The preview part is the author content and author summary, or the excerpts of the mechanical preview. The header is metadata and does not count. It is the smallest of three values: the author's preview cap, the system preview cap, and the offloading threshold divided by k and rounded down. Without an author preview cap it is the smaller of the last two. Assembly sets k. Author content, the author summary and the excerpts of the mechanical preview count against it; the header has its own fixed bound.
 
 - **形态**：属性
-- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 9）
 - **别混**：不是读回分页的页预算。后续页是新的返回，按页预算分页。
 - **注意**：它与正文大小无关。作者内容或摘要超出它时，结果明确报告不能采用，不被截断。
 
@@ -518,7 +518,7 @@
 > **EN**: The structured preview that the system computes from an offloaded body, by the body's format, when the author supplies no summary. It appears in the first model message. It has a header and excerpts. The header gives the body's format, total bytes, line or record count, schema identity, expiry time and how to read the body back. The excerpts follow the format and stay within the offload preview budget: text gives the head and tail cut at line boundaries; JSON Lines gives the first and last complete records; a JSON document gives an outline of keys, value types and array lengths. The header is metadata outside that budget; it holds only fixed fields and the schema identity, so its size has a fixed bound. It contains no semantic summary and no truncated JSON text.
 
 - **形态**：视图
-- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 9）
 - **别混 ①**：不是作者摘要。作者摘要由作者提供，系统不编造语义摘要。
 - **别混 ②**：不是[被卸载的原始结果](#ul-offloaded-result--被卸载的原始结果--offloaded-result)截到某个长度的前缀。
 - **注意**：系统在作者内容之后追加的描述头，与机械预览的描述头说明同样的内容。
@@ -530,7 +530,7 @@
 > **EN**: The span from ε before to ε after the expiry time of an offloaded result, where ε is the clock-skew bound between participants declared at assembly. Inside the span a read may already be refused, or it may still succeed. Outside the span the result depends only on the expiry time. A read that crosses the expiry time after the body is reclaimed answers not found, never an integrity failure.
 
 - **形态**：规则
-- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 9）
 - **别混**：不是期限的延长。窗口不刷新期限，到期前已获准的读取也不延续到期限之后。
 
 ### UL-body-entry · 正文条目 · Body Entry
@@ -540,7 +540,7 @@
 > **EN**: The ledger's authoritative record of one offloaded body. It is kept in the call domain of the tool call that opened the body. It records the write intent, the seal, the link to exactly one result, and the reclaim. Its states are opened, sealed, linked and reclaimed, in that order. When the call settles, a body that has no link goes from opened or sealed to orphaned, and then to reclaimed. Each entry has one body identity. The system does not reuse, share or deduplicate a body identity. The entry decides whether a body exists and whether it can be read. It holds no body bytes and no expiry. The body descriptor of the result and the due index hold the expiry.
 
 - **形态**：对象
-- **出处**：[Tool 领域的结果卸载领域模型](../../../../docs/domains/tool-execution/architecture.md#领域模型) · [工具执行组的部署无关原则](../../../../packages/tool/docs/architecture.md#部署无关原则)；卸载正文与期限的产品规则见[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **出处**：[Tool 领域的结果卸载领域模型](../../../../docs/domains/tool-execution/architecture.md#领域模型) · [工具执行组的部署无关原则](../../../../packages/tool/SPEC.md#正文卸载与保管)；卸载正文与期限的产品规则见[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 9）
 - **别混 ①**：不是[被卸载的原始结果](#ul-offloaded-result--被卸载的原始结果--offloaded-result)。被卸载的原始结果是已关联到结果、可以读回的完整正文；正文条目在关联之前已经存在，从未关联的正文条目成为孤儿后被回收，不成为被卸载的原始结果。
 - **别混 ②**：不是[记录条目](record-and-context.md#ul-record-entry--记录条目--record-entry)。记录条目在会话日志中，正文条目在 Tool 的账本中。
 - **注意**：账本只在确认调用的执行仍活跃、执行代次匹配且调用未结算后，才提交开启并签发[写入许可](#ul-write-permit--写入许可--write-permit)。回收先删除[正文字节](#ul-body-bytes--正文字节--body-bytes)，再在账本中记录已回收；回收之后不留行。
@@ -552,7 +552,7 @@
 > **EN**: The immutable bytes of one offloaded body that the body store keeps. The store writes them in chunks and confirms with a seal manifest that all chunks are present. The body store has no business state. It does not know the result, the expiry or the read authorization of a body. Bytes in the store do not make a body readable. The body entry in the ledger and its linked result decide that.
 
 - **形态**：对象
-- **出处**：[Tool 领域的结果卸载领域模型](../../../../docs/domains/tool-execution/architecture.md#领域模型) · [工具执行组的部署无关原则](../../../../packages/tool/docs/architecture.md#部署无关原则)
+- **出处**：[Tool 领域的结果卸载领域模型](../../../../docs/domains/tool-execution/architecture.md#领域模型) · [工具执行组的部署无关原则](../../../../packages/tool/SPEC.md#正文卸载与保管)
 - **别混**：不是[被卸载的原始结果](#ul-offloaded-result--被卸载的原始结果--offloaded-result)。字节只是正文的内容部分，正文的存在、关联与期限都在账本中。
 - **注意**：存储只在有效[写入许可](#ul-write-permit--写入许可--write-permit)下接受写入和封存，所有操作幂等；同一序号写入不同内容时，存储以条件写报告冲突。存储报告封存成功，表示字节已耐久。
 
@@ -563,7 +563,7 @@
 > **EN**: The ledger primitive that schedules reclaim. A ledger commit can schedule or unschedule one body. The reclaimer queries due items by tenant and due time. It is the only scheduling source for reclaim. At result commit, a linked body is scheduled at the expiry that the result fixes. At call settlement, an orphaned body is scheduled at the settlement time plus the grace period G. A completed reclaim unschedules the body.
 
 - **形态**：规则
-- **出处**：[工具执行组的部署无关原则](../../../../packages/tool/docs/architecture.md#部署无关原则) · [Tool 领域的结果卸载领域模型](../../../../docs/domains/tool-execution/architecture.md#领域模型)
+- **出处**：[工具执行组的部署无关原则](../../../../packages/tool/SPEC.md#正文卸载与保管) · [Tool 领域的结果卸载领域模型](../../../../docs/domains/tool-execution/architecture.md#领域模型)
 - **别混**：不是[日程](#ul-schedule--日程--schedule)或定时作业。它只为正文回收排期，不发起工作。
 - **注意**：期限在结果提交的同一次账本提交中写入结果的正文描述和到期索引；[正文条目](#ul-body-entry--正文条目--body-entry)与正文存储都不保存期限。
 
@@ -574,7 +574,7 @@
 > **EN**: A write authorization for one body, with a deadline, that the ledger issues. The ledger issues it only after it confirms that the execution of the call is still active, the execution generation matches and the call is not settled, and after it durably commits the opening of the body entry. It binds the tenant, the call, the body and the execution generation, and it has a deadline. It is signed with a key that assembly supplies. The body store checks the signature and the deadline itself. It refuses a write or a seal that has no valid permit. While the execution is active, the ledger renews the permit for the same body.
 
 - **形态**：属性
-- **出处**：[工具执行组的部署无关原则](../../../../packages/tool/docs/architecture.md#部署无关原则) · [BodyLifecycle 模型的动作](../../../../packages/tool/tool-contract/verification/models/body-lifecycle/README.md#3-动作)（`Renew`）
+- **出处**：[工具执行组的部署无关原则](../../../../packages/tool/SPEC.md#正文卸载与保管) · [BodyLifecycle 模型的动作](../../../../packages/tool/tool-contract/verification/formal-mapping.md#bodylifecycle)（`Renew`）
 - **别混 ①**：不是[资源账本](grounding-and-isolation.md#ul-resource-ledger--资源账本--resource-ledger)中的许可。那种许可准许受管资源的首个外部效果；写入许可只准许向正文存储写入一份正文。
 - **别混 ②**：不是读回授权。读回授权由访问守卫在每次读回时判定，写入许可不授予读取。
 - **注意**：许可时长 W 由装配给定。孤儿宽限期 G 和正文保留期限都必须大于 W + 2ε，否则截止时间内的迟到写入可能在回收后把字节写回。
@@ -590,10 +590,10 @@
 > **EN**: **The release of a producer's duty to deliver a settled result, where the producer is one model call or one tool execution. It takes effect once the current legitimate consumer has finished processing the result, or has durably saved the content, original identity and processing position that later work needs.** There are two paths: finish processing and save the completion fact, or save the content first and process it later. Reading, displaying, receiving a reference and starting to process are not enough. On the model side the release is the ACK. It also requires the whole call to have truly settled, and it cannot happen while a retry or a retry decision is pending. On the tool side it releases the matching hand-over obligation. Material release follows each component's custody duties and retention period. After the release, continuation proceeds from the data the consumer saved.
 
 - **形态**：过程
-- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 4）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 4）
+- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 4）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 9）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 5）
 - **别混 ①**：**不是[执行收场](#ul-execution-outcome--执行收场--execution-outcome)**——收场是一次执行的终局，解除发生在收场之后，由消费侧的保管或处理触发
-- **别混 ②**：**不是读取方对事件流的确认**——Agent 契约的 `acknowledge` 只清理满足保留政策且责任已交清的事件，不证明任何结果已处理，也不证明业务终态，见 [Agent 契约的确认](../../../../packages/agent/agent-contract/SPEC.md#确认)
-- **注意**：产品正文与 Model 契约用 ACK 指模型一侧的解除；本词表的正式名是「交付责任解除」，英文 Delivery Release，ACK 是它在模型一侧的通称。工具一侧的两条路径归 [Tool 契约](../../../../packages/tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)
+- **别混 ②**：**不是读取方对事件流的确认**——Agent 契约的 `acknowledge` 只清理满足保留政策且责任已交清的事件，不证明任何结果已处理，也不证明业务终态，见 [Agent 契约的确认](../../../../packages/agent/SPEC.md#事件与读取)
+- **注意**：产品正文与 Model 契约用 ACK 指模型一侧的解除；本词表的正式名是「交付责任解除」，英文 Delivery Release，ACK 是它在模型一侧的通称。工具一侧的两条路径归 [Tool 契约](../../../../packages/tool/SPEC.md#交付与调用状态的寿命)
 
 ### UL-consumption-position · 消费位置 · Consumption Position
 
@@ -610,7 +610,7 @@
 > attempt, a rebuilt instance or a recovery does not change it.
 
 - **形态**：属性
-- **出处**：[会话与工作：会话治理工作，三个 runtime 分别承担实际运行](../../product/sessions-and-work/design.md#会话治理工作三个-runtime-分别承担实际运行) · [一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 8）；[工具执行：定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 8）；[模型调用：每次真实发出和失败](../../product/model-invocation/design.md#每次真实发出和失败)（rev 4）
+- **出处**：[会话与工作：会话治理工作，三个 runtime 分别承担实际运行](../../product/sessions-and-work/design.md#会话治理工作三个-runtime-分别承担实际运行) · [一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 9）；[工具执行：定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 9）；[模型调用：每次真实发出和失败](../../product/model-invocation/design.md#每次真实发出和失败)（rev 4）
 - **别混**：不是 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)。拓展点是设计时穷举的固定位点；消费位置随每次调用产生，指那次调用的接收处
 - **注意**：[交付责任解除](#ul-delivery-release--交付责任解除--delivery-release)要求消费侧保存原身份与处理位置，那个处理位置就是消费位置
 
@@ -638,16 +638,16 @@
 > arrives as a reminder) carrying the semantics; **not one of them is raised at it as an error.**
 
 - **形态**：状态
-- **出处**：[PF-006 §5.5](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)（rev 24） · [§6.7](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#67-用户可以中断而中断不是失败)（rev 24）
+- **出处**：[PF-006 §5.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)（rev 24） · [§6.7](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#67-用户可以中断而中断不是失败)（rev 24）
 - **别混**：**与 [Run 的「收束」不是一回事](agent-runtime-loop.md#ul-run--运行--run)**——
   **粒度差着好几层**。**裸写「收场」只指工具这一层的这六种**
 - **注意 ①**：**四种「非完成」里只有一种是失败。**混成一种，agent 的下一步必然错：
   **该绕路时死磕，该等待时重来，用户刚叫停它又跑一遍**
 - **注意 ②**：**报错不带语义，agent 只能猜**——这是六种都走正常返回的理由
 - **注意 ③**：**「异常中断」属于失败那一格写给 agent 的原因，不是「被中断」**——
-  据点停机时没了的工具执行[停了就不重来](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#停机之后它不重来)（rev 24），
-  恢复时[对账追补](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#先对账再进方程)的那一条收场是失败、原因写异常中断（rev 14）
-- **注意 ④**：**参数说完了却解析不了的调用，收场是失败**——[不执行，原因写参数解析不了，照常回给 agent](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#参数说完了却解析不了的调用不执行以失败回给-agent)；
+  据点停机时没了的工具执行[停了就不重来](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#停机之后它不重来)（rev 24），
+  恢复时[对账追补](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#先对账再进方程)的那一条收场是失败、原因写异常中断（rev 14）
+- **注意 ④**：**参数说完了却解析不了的调用，收场是失败**——[不执行，原因写参数解析不了，照常回给 agent](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#参数说完了却解析不了的调用不执行以失败回给-agent)；
   与流断在半路时没长完的半截调用不是一回事
 - **注意 ⑤**：**「原因」是这几种收场上的取值，不是更多的收场**——
   [占位与提醒的原因](record-and-context.md#ul-placeholder-reason--占位原因--placeholder-reason)落在转后台、被中断、失败三格上，一格都没多
@@ -663,8 +663,8 @@
 > rejection ends that model call normally, and a new model call starts after back-off.
 
 - **形态**：属性
-- **出处**：[产品页 模型回复与工具结果](../../product/agent-progression/design.md#模型回复与工具结果)（rev 4）；
-  原定义见封存 [PF-012 §5.8 否决按消息是谁产生的分三路](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)（rev 25）
+- **出处**：[产品页 模型回复与工具结果](../../product/agent-progression/design.md#模型回复与工具结果)（rev 5）；
+  原定义见封存 [PF-012 §5.8 否决按消息是谁产生的分三路](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)（rev 25）
 - **别混**：**不是[试尽](#ul-retry-exhaustion--试尽--retry-exhaustion)**——试尽只管故障；被拒收的回复不是故障，不交给重试挂件，也不算试过一家
 - **弃用**：~~连续否决上限~~ ~~Consecutive Veto Limit~~——现行规则没有这项上限，不另起替代词；已接受系统页 [Agent runtime](../../../../docs/architecture/runtime/agent-runtime.md#回复准入与动作处理) 写法相同
 
@@ -682,7 +682,7 @@
 > outcome is unknown still counts as open.
 
 - **形态**：视图
-- **出处**：[会话与工作：一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用) · [管理主子关系和自动归档](../../product/sessions-and-work/design.md#管理主子关系和自动归档)（rev 8）；[运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 5）
+- **出处**：[会话与工作：一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用) · [管理主子关系和自动归档](../../product/sessions-and-work/design.md#管理主子关系和自动归档)（rev 9）；[运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 5）
 - **别混**：不是[运行等待态](interaction-and-dispatch.md#ul-run-wait-state--运行等待态--run-wait-state)。运行等待态说一次运行此刻停在哪里；未结工作说整个会话还欠着什么，运行终结后仍在执行的后台工具也算
 - **注意**：同一份未结工作供三处判断：运行能否完成、会话是否连续空闲、压缩时哪些历史条目必须留在[保留名单](record-and-context.md#ul-retained-set--保留名单--retained-set)里或覆盖范围之后
 
@@ -701,12 +701,12 @@
 > take an inner layer off its path while the outer layer proceeds untroubled.
 
 - **形态**：属性
-- **出处**：[PF-011 §4 主路径](../../product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#主路径)（rev 5）
+- **出处**：[PF-011 §4 主路径](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#主路径)（rev 5）
 - **注意 ①**：**中文取好懂的说法，英文取航天惯用的 `nominal`**——
   两边各自成立，**不是互译**
 - **⚠️ 注意 ②**：**稳态式照样会偏离。**租户那一层的主路径是「作为可用的归属边界持续成立」——
   **不写明这第二种形态，给那一层填四要素时会卡在第一格**
-- **注意 ③**：**每一层都有自己的主路径**，而[层数不固定](../../product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#52-一层要声明四样)
+- **注意 ③**：**每一层都有自己的主路径**，而[层数不固定](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#52-一层要声明四样)
 
 ### UL-off-nominal · 非常态 · Off-Nominal
 
@@ -720,8 +720,8 @@
 > **Two faces of one and the same thing.**
 
 - **形态**：状态
-- **出处**：[PF-011 §4 非常态](../../product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#非常态)（rev 5） ·
-  [§5.1](../../product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#51-非常态与发生的事是同一件事的两个面)（rev 5）
+- **出处**：[PF-011 §4 非常态](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#非常态)（rev 5） ·
+  [§5.1](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#51-非常态与发生的事是同一件事的两个面)（rev 5）
 - **⚠️ 注意 ①**：**它与报错无关。**绝大多数非常态**根本不报错**——用户叫停、
   能力此刻够不着、等不到回音、执行转后台；**反过来，有些报错不构成非常态**——
   工具内部捕获并自行重试成功，主路径一步没偏
@@ -739,10 +739,10 @@
 > never the tried things themselves**. **Escalating halts**: the handing layer stops where it is.
 
 - **形态**：过程
-- **出处**：[PF-011 §4 上交](../../product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#上交)（rev 5） ·
-  [§5.8](../../product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#58-上交交的是什么)（rev 5） ·
-  [§6.2](../../product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#62-上交即打断)（rev 5）
-- **注意 ⑤**：**「外面一层」＝[层的树](../../product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#53-层的顺序不是排出来的是推出来的)上的父节点**——
+- **出处**：[PF-011 §4 上交](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#上交)（rev 5） ·
+  [§5.8](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#58-上交交的是什么)（rev 5） ·
+  [§6.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#62-上交即打断)（rev 5）
+- **注意 ⑤**：**「外面一层」＝[层的树](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#53-层的顺序不是排出来的是推出来的)上的父节点**——
   层之间是包含关系，而包含关系形成的是树，不一定是一条链。
   **接手的那一层此刻不存在时，直接交给再外面一层，这不算跳级**
 - **注意 ⑥**：**阶梯到[租户](subjects-and-ownership.md#ul-tenant--租户--tenant)为止**——
@@ -752,7 +752,7 @@
   新条目的**寿命宿主取接收层那一档或更长**
 - **注意 ②**：**中文不用「升级」**——那个词在版本与权限语境里都有正常用法
 - **注意 ③**：**起点可以是任何一层**（看缺的那样东西在谁手上），**但往上不许跳**
-- **注意 ④**：**问人不是上交**——它[横切所有层](../../product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#59-问人横切所有层)，
+- **注意 ④**：**问人不是上交**——它[横切所有层](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#59-问人横切所有层)，
   是每一层都能用的了结手段
 
 ### UL-retry-exhaustion · 试尽 · Retry Exhaustion
@@ -768,8 +768,8 @@
 > fallback are inputs to it, not its definition.
 
 - **形态**：状态
-- **出处**：[PF-013 §4 什么时候算试尽](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#什么时候算试尽) ·
-  [§5.12](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#512-重试站在一个已经存在的位置上)（rev 17）
+- **出处**：[PF-013 §4 什么时候算试尽](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#什么时候算试尽) ·
+  [§5.12](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#512-重试站在一个已经存在的位置上)（rev 17）
 - **别混 ①**：**不是「这一次失败了」**——失败之后还有手段可试，这一层就还没了结不了
 - **别混 ②**：**「所有模型都试过了」不是试尽**——换模型是用户的命令，不是这一层的手段
 - **注意 ①**：**只管故障这一维**——被消息准入拒收的回复不算；连续拒收不设次数上限（原[连续否决上限](#ul-consecutive-veto-limit--连续否决上限--consecutive-veto-limit)已弃用）
@@ -789,8 +789,8 @@
 > travels alongside unchanged, and **neither stands in for the other**.
 
 - **形态**：属性
-- **出处**：[PF-013 §5.7 上交带什么](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它) ·
-  [§6.14](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#614-上交带的成因是封闭枚举外加一个诚实的兜底状态码另外原样带着)（rev 17）
+- **出处**：[PF-013 §5.7 上交带什么](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它) ·
+  [§6.14](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#614-上交带的成因是封闭枚举外加一个诚实的兜底状态码另外原样带着)（rev 17）
 - **别混**：**被中断不在这里**——用户中断不是非常态，不产出任何成因；被消息准入拒收的回复同样不带成因
 - **注意 ①**：**只按「下一步不同」分取值**——「连不上」「超时」「5xx」「被限流」答案一律是「没人，等」，并成一个；差在哪由状态码说
 - **注意 ②**：**成因给分层处置用，状态码给排查的人与重试策略用**
@@ -807,7 +807,7 @@
 > reaches this end is the condition itself, not the layer that was holding it.**
 
 - **形态**：状态
-- **出处**：[PF-011 §4 终局](../../product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#终局)（rev 5）
+- **出处**：[PF-011 §4 终局](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#终局)（rev 5）
 - **别混 ①**：**不是失败的同义词**——算不算失败，**由落终局的那一层按自己的语义决定**
 - **别混 ②**：**不是[运行终态](agent-runtime-loop.md#ul-run-terminal-state--运行终态--run-terminal-state)**——
   一次 Run 早就落了终态，那件非常态**照样可能还在往外交**
@@ -821,7 +821,7 @@
 > **EN**: An identifiable schedule containing its own routine description together with one-off or recurring timing rules, temporal bounds, and catch-up and overlap declarations. Actual work instances are represented by scheduled jobs.
 
 - **形态**：对象
-- **出处**：[PF-021 §4 日程](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#日程)（rev 8）
+- **出处**：[日程与作业：安排与单次工作](../../product/schedules-and-jobs/design.md#schedule-job-model)（rev 4）
 - **别混**：Routine 是它所包含的工作描述；Scheduled Job 是据它开展的某一次工作，不是日程自身。
 
 ### UL-system-schedule · 系统日程 · System Schedule
@@ -831,28 +831,38 @@
 > **EN**: A schedule owned by the system itself for its own predefined mechanical operations. It belongs to no account, organization, or tenant, retains schedule identity and lifecycle semantics, and does not start an agent session for execution.
 
 - **形态**：变体（父：[日程](#ul-schedule--日程--schedule)）
-- **出处**：[PF-021 §4 系统日程与出厂内容](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#系统日程与出厂内容)（rev 8）
+- **出处**：[日程与作业 J-SJ07](../../product/schedules-and-jobs/design.md#j-sj07-系统按部署条件做机械工作)（rev 4）
 - **别混**：系统出厂提供 Routine，不使采用它的租户日程归系统；系统负责调度一份日程也不决定其所有者。
+
+### UL-job · 作业 · Job
+
+> **中**：经准入接受的一份单次工作，以独立作业身份保存冻结要求、创建来源和本次结果。人或 agent 可以直接发起，系统调度器可以按日程到期发起。它承担执行、通知或两者，执行可调用程序或由 agent 在新会话、已有会话中完成。
+>
+> **EN**: One admitted unit of work with its own identity, frozen requirements, creation provenance, and outcomes. A human or agent can request it directly. A scheduler can request it for a schedule occurrence. It performs execution, notification, or both. Execution uses a program or an agent in a new or existing session.
+
+- **形态**：对象
+- **出处**：[日程与作业：安排与单次工作](../../product/schedules-and-jobs/design.md#schedule-job-model)（rev 4）
+- **别混**：来源会话、执行会话与结果回传目标分别表达。Job 不等于 Session 或 Run，也不要求必须有 Schedule。
 
 ### UL-scheduled-job · 定时作业 · Scheduled Job
 
-> **中**：一份日程在某个具体到期时刻对应的单次工作实例，支持执行、通知、执行并通知三种工作类型，有可指认的来源和本次处置结果；agent 执行使用专属新会话，系统自用的机械执行不创建会话，包含通知时按本次声明承担目标租户的通知。
+> **中**：系统调度器按一份日程的有效时刻发起并经最终校验接受的作业变体。它保留日程、时隙及安排作者，沿用作业身份、执行和结果生命周期。
 >
-> **EN**: An identifiable instance of work due under a schedule at a particular occurrence. Its work type is execution, notification, or execution with notification. Agent execution uses a newly created dedicated session, while mechanical execution for the system itself creates no session; work that includes notification fulfils its declared notification obligations to the target tenant.
+> **EN**: A job admitted for a valid schedule occurrence. It retains the schedule, occurrence, and schedule author, using the identity and lifecycle of a job.
 
-- **形态**：对象
-- **出处**：[PF-021 §4 定时作业](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#定时作业)（rev 8）
-- **别混**：agent 执行的 Job 关联会话，不以单个 Run 作为直接业务承接单位；机械执行无作业会话，执行并通知仍是同一个 Job。
+- **形态**：变体（父：[作业](#ul-job--作业--job)）
+- **出处**：[日程与作业：安排与单次工作](../../product/schedules-and-jobs/design.md#schedule-job-model)（rev 4）
+- **别混**：调度器是这次 Job 的触发者，不替代安排作者，也不改变工作所有者。
 
 ### UL-scheduled-execution · 定时执行 · Scheduled Execution
 
-> **中**：日程到期后履行执行工作的过程；系统自用日程触发机械操作，租户日程为本次作业新建专属会话并装配 agent 来完成工作目标。
+> **中**：履行已接受定时作业中执行部分的过程，按冻结意图调用已注册程序，或将指令交给新建或指定的已有 agent 会话。
 >
-> **EN**: The process of carrying out due work: schedules owned by the system itself trigger mechanical actions, while tenant-owned schedules create a dedicated new session and assemble an agent for the job objective.
+> **EN**: The process of executing an accepted scheduled job according to its frozen intent, by invoking a registered program or delivering instructions to a new or specified existing agent session.
 
 - **形态**：过程
-- **出处**：[PF-021 §4 两种定时动作](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#两种定时动作)（rev 8）
-- **别混**：agent 执行时，成果工具与完成检查不随 AgentDefinition 被省略；系统自用日程不借机械执行之名调用 agent。
+- **出处**：[日程与作业：执行意图](../../product/schedules-and-jobs/design.md#execution-modes)（rev 4）
+- **别混**：谁创建安排不决定执行路径。输入已受理或会话空闲都不等于本次目标已完成。
 
 ### UL-scheduled-notification · 定时通知 · Scheduled Notification
 
@@ -861,7 +871,7 @@
 > **EN**: The process of notifying a target tenant as part of scheduled work, either in a notification-only job or combined with execution in the same job. The notification action does not create an additional agent work session.
 
 - **形态**：过程
-- **出处**：[PF-021 §4 两种定时动作](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#两种定时动作)（rev 8）
+- **出处**：[日程与作业：提醒与事件通知](../../product/schedules-and-jobs/design.md#reminder)（rev 4）
 - **别混**：执行并通知同时承担两部分工作，不等于纯通知，也不拆成两个到期 Job；通知时机与送达判据由产品规则定义。
 
 ### UL-schedule-date-policy · 日程日期处理策略 · Schedule Date Policy
@@ -871,7 +881,7 @@
 > **EN**: A property of a schedule specifying whether a base candidate on a non-working date is retained, skipped, or moved to the preceding or following working date. It is distinct from recurrence rules, explicit excluded dates, and catch-up policy.
 
 - **形态**：属性
-- **出处**：[PF-021 §6.2 线性与非线性表达](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#62-线性与非线性表达)（rev 8）
+- **出处**：[日程与作业：时间与日期规则](../../product/schedules-and-jobs/design.md#time-rules)（rev 4）
 - **别混**：它改变未接受候选的日期，不移动已有 Job，也不把未来候选提前接受为工作。
 
 ### UL-schedule-catch-up-policy · 日程补跑策略 · Schedule Catch-up Policy
@@ -881,7 +891,7 @@
 > **EN**: A schedule property specifying whether missed occurrences that have not produced jobs may be caught up and, when enabled, the maximum number of most recent missed occurrences selected relative to the recovery processing time. It does not rerun existing jobs.
 
 - **形态**：属性
-- **出处**：[PF-021 §6.11 日历重算与补跑](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#611-日历重算与补跑)（rev 8）
+- **出处**：[日程与作业：恢复与补跑](../../product/schedules-and-jobs/design.md#recovery)（rev 4）
 - **别混**：补跑上限不是时间长度，也不是一次分页大小；已经创建但等待执行的 Job 不是漏过时刻。
 
 ### UL-schedule-overlap-policy · 日程重叠策略 · Schedule Overlap Policy
@@ -891,18 +901,29 @@
 > **EN**: A schedule property choosing how new due work interacts with earlier unfinished actions of the same schedule: skip the new occurrence, stop prior work before starting it, run independently in parallel, or wait and execute in order. Job identities and result ownership remain separate.
 
 - **形态**：属性
-- **出处**：[PF-021 §6.12 重叠处理](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#612-重叠处理)（rev 8）
+- **出处**：[日程与作业 J-SJ05](../../product/schedules-and-jobs/design.md#j-sj05-遇到前序尚未结束的动作)（rev 4）
 - **别混**：并行不合并会话或结果；停止是新增控制事实，不回写先前 Job 的工作要求或撤销已发生外部效果。
 
 ### UL-job-notification-policy · 作业通知策略 · Job Notification Policy
 
-> **中**：日程内工作例程的属性，声明执行并通知工作在哪些执行事件发生时通知目标租户，以及各事件的通知内容要求；每个作业采用自身创建时的声明，不把通知投递失败再次当作执行失败通知事件。
+> **中**：工作意图的属性，声明执行并通知工作在哪些执行事件发生时通知目标租户，以及各事件的通知内容要求；每个作业采用自身创建时的声明，不把通知投递失败再次当作执行失败通知事件。
 >
-> **EN**: A property of the routine contained in a schedule that declares which execution events trigger notifications to the target tenant and the content requirements for each event. Each job retains its creation-time declaration; notification delivery failure does not recursively trigger an execution-failure notification.
+> **EN**: A property of the work intent that declares which execution events trigger notifications to the target tenant and the content requirements for each event. Each job retains its creation-time declaration; notification delivery failure does not recursively trigger an execution-failure notification.
 
 - **形态**：属性
-- **出处**：[PF-021 §6.13 通知声明与完成](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#613-通知声明与完成)（rev 8）
+- **出处**：[日程与作业：提醒与事件通知](../../product/schedules-and-jobs/design.md#reminder)（rev 4）
 - **别混**：纯通知在到期时发送已定义内容；通知事件、发送尝试、送达与已读是不同事实。此属性不另立可管理对象。
+
+
+### UL-schedule-subscription · 日程订阅 · Schedule Subscription
+
+> **中**：一名 owner 对系统日程定义的独立采用关系，具有可指认身份、所选定义版本、参数、管理状态和接受历史。取消阻止该订阅的新接受，已有 Job 保持各自责任。
+>
+> **EN**: An identifiable adoption of a system schedule definition by one owner, retaining the selected version, parameters, management state, and acceptance history. Cancellation prevents new admissions while existing jobs retain their responsibilities.
+
+- **形态**：对象
+- **出处**：[日程与作业：系统功能订阅](../../product/schedules-and-jobs/design.md#subscriptions)（rev 4）
+- **别混**：它不是连接件的事件订阅，也不复制或修改系统功能定义。不同订阅者的同刻工作分别去重。
 
 ## 工程遥测的输出怎么换
 
@@ -922,10 +943,10 @@
 > generation. Domain code does not change, and the plugins that emit records do not run again.
 
 - **形态**：未定
-- **出处**：[#1140 的决定记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6663579066)（chenyize 2026-11-05，D01 的配套词条）；状态与协议见审议中的 [RFC-0013 输出代与关闭](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md#输出代与关闭)（status `review`，未采用）；换输出不中断业务的目标见[项目要求 SYS-DYNAMIC](../../../../docs/requirements.md#完全动态目标sys-dynamic)
+- **出处**：[#1140 的决定记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6663579066)（chenyize 2026-11-05，D01 的配套词条）；状态与协议见审议中的 [RFC-0013 输出代与关闭](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0013-engineering-telemetry.md#输出代与关闭)（status `review`，未采用）；换输出不中断业务的目标见[项目要求 SYS-DYNAMIC](../../../../docs/requirements.md#完全动态目标sys-dynamic)
 - **别混 ①**：**不是 Cordis 插件换代。**输出代在同一个遥测服务实例里切换，插件树不变，依赖遥测服务的插件不重跑；Cordis 换代会重跑消费者插件，见[依赖换代与就绪](../../../../docs/architecture/deployment/cordis-and-lifecycle.md#依赖换代与就绪)
 - **别混 ②**：**不是[环境提供者](grounding-and-isolation.md#ul-environment-provider--环境提供者--environment-provider)的「代」或[生产者句柄](scope-and-resolution.md#ul-producer-handle--生产者句柄--producer-handle)的代际。**那些代属于别的对象，与工程遥测的输出无关
 - **注意**：已经开始的[遥测段](record-and-context.md#ul-telemetry-segment--遥测段--telemetry-segment)留在原代，到结束或截止；新记录进入新代。旧代排空有期限，超期截断并计数
-- **待裁决**：它是不是领域对象还没有人裁过，见 [C-74](../conflicts.md#c-74输出代是不是对象) 与[领域对象的待裁](../../domain_objects/pending.md#输出代)
+- **待裁决**：它是不是领域对象还没有人裁过，见 [C-74](../conflicts.md#c-74输出代是不是对象)
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

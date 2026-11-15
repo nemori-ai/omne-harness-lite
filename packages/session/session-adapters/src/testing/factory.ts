@@ -80,12 +80,10 @@ import type { SessionDirectory } from './session-directory.ts'
 type OpenInput<P> = Parameters<AgentJournal<P>['open']>[0]
 type AttachInput<P> = Parameters<AgentJournal<P>['attach']>[0]
 
-/** The grant of an open or attach: an open carries it in the runtime context of its invoke. */
 function grantOf<P>(input: OpenInput<P> | AttachInput<P>): DurableEvidence | null {
   return 'runtime' in input ? input.runtime.grant : input.grant
 }
 
-/** The initial input of an open: the accepted input of the invoke entry of its acceptance. */
 function initialOf<P>(input: OpenInput<P>): AcceptedInput {
   const entry = input.original.entry
   return entry.kind === 'invoke' ? entry.initial : entry.value
@@ -93,32 +91,13 @@ function initialOf<P>(input: OpenInput<P>): AcceptedInput {
 
 export type MemorySessionJournalOptions<P> = Readonly<{
   initialization: InitializationSource
-  /**
-   * The current access decision of every public Session read and write on `transactions`
-   * (session-contract SPEC「当前操作的访问裁定」). Required; the double has no default permission.
-   */
   accessCheck: SessionAccessCheck<P>
-  /**
-   * The current qualification of the Agent Journal operations on the same log (open, submit,
-   * commit, load, query, the materials and the testing controls). This is the Agent side of the
-   * double; it does not decide Session public operations.
-   */
   authorize(input: SessionAccess<P>, action: string): 'allowed' | 'denied' | 'unavailable'
   budget?: Readonly<{ entries: number; bytes: number; capacityBytes: number }>
-  /**
-   * The cancellation policy installation the Agent Journal of every session holds (Agent SPEC
-   * "安装记录与资格"), from the assembly entry. Absent: the candidate, migration and judgment
-   * variants of commitSettlement answer `unavailable`.
-   */
   cancellation?: MemoryAgentJournalOptions<P>['cancellation']
-  /** The trusted host reads of the custody variants of commitSettlement, by source record text. */
   hostRecords?: MemoryAgentJournalOptions<P>['hostRecords']
 }>
 const denied = (action: string): Failure => ({ kind: 'denied', action })
-/**
- * The protocol the Session participant fact of a cancellation judgment follows: the read-only
- * completion check of session-contract PA-02 (AD-01).
- */
 const PA02_PROTOCOL = Object.freeze({
   owner: '@omne-harness/session-contract',
   name: 'pa-02-terminal-participation',
@@ -287,7 +266,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
               try {
                 captureEventOriginal(root, execution, event, receipt)
               } catch (error) {
-                // Only the human material check refuses here; any other throw is the outer catch's.
                 if (!(error instanceof TypeError) || error instanceof HistoryFailure) throw error
                 return {
                   kind: 'invalid',
@@ -374,10 +352,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     cells.set(key, cell)
     return cell
   }
-  /**
-   * The Session command one `commit` or `recordResult` derives from its caller: `undefined` when
-   * the caller does not participate, otherwise the command or the Agent failure that stops it.
-   */
   function jointCommand(
     cell: JournalCell<P>,
     input: ExecutionMutation<P>,
@@ -461,11 +435,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       }
     }
   }
-  /**
-   * The current Session decision of the participation this public call derives (session-contract
-   * SPEC「命令表」: every mutation command is decided first). The access is the caller's own
-   * principal and tenant on this cell's session.
-   */
   async function qualifyJoint(
     cell: JournalCell<P>,
     input: ExecutionMutation<P>,
@@ -501,15 +470,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       return fail(agentFailure(qualification.failure, input.operation))
     return succeed({ evidence: qualification.ok, digest: commandDigest(command) })
   }
-  /**
-   * PA-01 item 1 (open) and item 3 (attach): whether the grant names the attempt that may hold
-   * this execution now. The terminal of the execution is read as `judgeCompletion` reads it, from
-   * the Run of this execution, not from the current Run of the session. Ordinary advance: that
-   * Run has no terminal, the current Run is active for this execution and the attempt is
-   * `run.active.advance`. Cancel wind-down (attach only): the Run of this execution is the
-   * cancelled terminal and the attempt is the last one granted for the execution before the
-   * cancel; such an attachment carries cancel authority only, which `advances` denies.
-   */
   function grantHoldsFor(
     root: CommonRoot,
     execution: AgentExecutionId,
@@ -518,7 +478,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
   ): boolean {
     const state = root.session
     if (!state || grant === null) return false
-    // Only a grant that does not identify SE15 is a refusal; any other error is a defect and throws.
     const attempt = findGrantAttempt(root, execution, grant)
     if (attempt === undefined) return false
     const judged = judgeCompletion(state.snapshot, execution)
@@ -534,8 +493,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     if (method !== 'attach') return false
     const original = root.sources.runs.get(execution)
     if (!original || original.run !== judged.terminal.run) return false
-    // rulings 7d B-1: the last attempt granted before the cancel (SE26), whose SE16 the cancel
-    // batch wrote or an earlier batch wrote; an attempt granted earlier cannot wind down.
     const at = Number(cancelBatchRow(root, judged.terminal).revision)
     const last = (root.sources.attemptsByExecution.get(execution) ?? [])
       .filter(item => Number(item.started.revision) <= at)
@@ -543,8 +500,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     if (last === undefined)
       throw new Error('session double defect: a cancelled Run without an attempt before the cancel')
     if (last.attempt !== attempt.attempt) return false
-    // The Session reducer releases the advance before a terminal (SE16 before SE26), so a missing
-    // release is a broken history, not a refusal of this grant.
     const released = [...root.sources.rowsById.values()].some(
       row =>
         row.kind === 'run.attempt-released' &&
@@ -556,14 +511,12 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     return true
   }
 
-  /** The member `key` of a decoded row value, or `undefined` when the value is not an object. */
   function fieldOf(value: unknown, key: string): unknown {
     return typeof value === 'object' && value !== null && !Array.isArray(value)
       ? Object.entries(value).find(([name]) => name === key)?.[1]
       : undefined
   }
 
-  /** The SE26 row of `terminal`: the run.terminal row of the batch its evidence names. */
   function cancelBatchRow(root: CommonRoot, terminal: RunTerminal): HistoryEntry {
     for (const row of root.sources.rowsById.values())
       if (
@@ -574,11 +527,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     throw new Error('session double defect: a Run terminal without its SE26 row')
   }
 
-  /**
-   * The Agent cancel control that SE26 of a cancelled Run refers to (PA-02): the
-   * `control.requested` written by the same Session control as the terminal evidence, mapped to
-   * the Agent operation the coordinator derives for it.
-   */
   function terminalControl(
     root: CommonRoot,
     execution: AgentExecutionId,
@@ -588,7 +536,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       if (row.kind !== 'control.requested') continue
       if (canonical(row.origin.source) !== canonical(terminal.evidence)) continue
       const operation = fieldOf(rowData(row)['progress'], 'operation')
-      // The typed identity comes from the reduced projection of the same control.
       const control = root.session?.snapshot.controls.find(item => item.operation === operation)
       if (control === undefined) return undefined
       return deriveDriveOperation({ kind: 'control', execution, control: control.operation })
@@ -596,14 +543,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     return undefined
   }
 
-  /**
-   * The Session terminal condition of a cancelled candidate under the Agent cancel `control`
-   * (AD-01 judge-cancellation row, PA-02): `judgeCompletion` on the Run of this execution, the
-   * same read tryFinish co-checks. allowed is ready; inputs Session accepted for this Run and did
-   * not hand over block it with the SE11 evidence of the first one; a cancelled Run is ready when
-   * its SE26 names `control` and changed otherwise; another terminal is changed; a failed read is
-   * unknown.
-   */
   function terminalParticipant(
     cell: JournalCell<P>,
     execution: AgentExecutionId,
@@ -670,7 +609,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     if (!state) return denied(method)
     if (method === 'open' || method === 'attach') {
       const value = input as OpenInput<P> | AttachInput<P>
-      // PA-01 items 1 and 3: a conflict of the grant co-check is Agent's denied (AD-01).
       if (!grantHoldsFor(cell.state(), input.execution, grantOf(value), method))
         return denied(method)
       if (method === 'open') {
@@ -706,9 +644,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     if (method === 'tryFinish') {
       const finish = input as Parameters<AgentJournal<P>['tryFinish']>[0]
       const checked = judgeCompletion(state.snapshot, input.execution)
-      // PA-02: a cancel authorization on the cancelled Run (SE26) participates when the
-      // conclusion is cancelled and its control is the one SE26 refers to; every other answer
-      // that is not allowed is a conflict.
       if (finish.authorization.kind === 'cancel' && checked.kind === 'cancelled') {
         if (
           finish.intent.conclusion.kind !== 'cancelled' ||
@@ -722,11 +657,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     if (derived === undefined) return undefined
     if ('failure' in derived) return derived.failure
     const command = derived.ok
-    // The Session half commits with the decision this public call obtained before publication,
-    // and only for the command that was decided. A write of the same execution that committed
-    // while the decision was outstanding changes the revision the participation names; this call
-    // then commits nothing and is not decided again (one decision per public write), and a retry
-    // decides the participation at the current revision.
     if (decision === null)
       return {
         kind: 'unavailable',
@@ -814,8 +744,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         owner: 'session-history',
         diagnostic: 'original event',
       })
-    // An observed-only event has no Session row; `commitLog` does not commit it (session-contract
-    // FR-03), and the next committed event names it in its gap.
     if (fact.consequences.every(item => item.kind === 'observed')) return succeed(null)
     const observation: SessionLogCommitObservation = {
       tenant: cell.tenant,
@@ -835,8 +763,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       : result
   }
   const frontier = createFrontier<P>(options.budget ?? defaultBudget, interpretEvent)
-  // Only the public port methods are exposed; the internal `prepareCommand` and
-  // `prepareReconciliation` paths of `base` stay behind this boundary.
   const transactions: SessionTransactionPort<P> = {
     readInput: base.readInput,
     queryOperation: base.queryOperation,
@@ -869,7 +795,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
           field: 'tenant',
           reason: 'not a tenant minted by legal-identity',
         })
-      // One decision for this call, before the frontier interprets anything on this root.
       const qualification = await qualifyAccess(
         options.accessCheck,
         mutationAccessRequest(input.access, command),
@@ -880,7 +805,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         guards: input.guards,
         decision: qualification.ok,
       }
-      // After the access decision, before the frontier or any lookup: nothing of the session shows.
       if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
         return fail<SessionFailure>({ kind: 'unsupported' })
       const cell = cellOf(command.input.tenant, command.input.session)
@@ -1021,10 +945,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         faultWrite: cell.fault,
         quarantine: cell.quarantine,
         root: () => cell.current().position,
-        /**
-         * The Agent fact family of this session as published (R2-D292): the appended batches, their
-         * fold, the blocks, and the namespace the batch evidence is minted under. Read only.
-         */
         facts: () => {
           const agent = cell.current().agent
           return {
@@ -1034,11 +954,8 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             namespace: cell.namespace,
           }
         },
-        /** The reader records of this session as the core keeps them: the executions by key. Read only. */
         records: () => cell.current().agent.executions as ReadonlyMap<string, MemoryExecution>,
-        /** The operation records of this session as the core keeps them. Read only. */
         operations: () => cell.current().agent.operations as ReadonlyMap<string, OperationRecord>,
-        /** The original fragments of the events (receipts, pendings, call origins, human) and the event index. Read only. */
         fragments: () => {
           const agent = cell.current().agent
           return {
@@ -1049,7 +966,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             indexedEvents: agent.indexedEvents as ReadonlyMap<string, number>,
           }
         },
-        /** The receiving state of this session as the core keeps it. Read only. */
         receiving: () => cell.current().receiving,
       },
       durability: 'none' as const,
@@ -1093,8 +1009,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             state.snapshot.run.kind === 'active' ? (state.snapshot.run.advance?.attempt ?? '') : '',
           )
         if (!attempt || attempt.execution !== input.execution) return fail(denied('originalGrant'))
-        // The grant the Session issued for the attempt (R2-D349); the evidence of the SE15 row is
-        // not one, and none stands in for a grant that was not issued.
         const receipt = cell.current().sources.grantByAttempt.get(attempt.attempt)
         return receipt === undefined
           ? fail<Failure>({
@@ -1242,8 +1156,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             })
           }
           const releases = toolReleases(root, execution)
-          // Each release the reconciliation would commit is a `receive` write of this caller:
-          // one current decision per fact, before anything is prepared or published.
           for (const fact of releases) {
             const qualification = await qualifyAccess(
               options.accessCheck,
@@ -1393,9 +1305,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         }
         cell.mutate(() => {
           cell.replaceSession(state)
-          // A seeded history was not committed through this double, so no commit receipt granted
-          // its attempts. The double issues the grant of each seeded attempt here, at seed time
-          // (R2-D349): a grant of this seed, which is not the evidence of the SE15 row.
           cell.adoptAttemptRecords(
             [...cell.state().sources.attempts.values()].map(attempt => ({
               ...attempt,

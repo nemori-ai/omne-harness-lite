@@ -1,6 +1,3 @@
-// Edge results of the host files facility on the real file system: refusals before any open,
-// unmapped and permission errors, multi-chunk reads, end-of-file at the limit, and versions that
-// agree across operations.
 import { chmod, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, parse } from 'node:path'
@@ -106,9 +103,6 @@ it('answers notFound when the parent directory of a create does not exist', asyn
   expect(result).toEqual(refused('orphan', 'notFound'))
 })
 
-// Windows has no portable way to deny this process access: chmod only toggles the read-only
-// attribute, and an ACL deny does not hold in an elevated session, where SeBackupPrivilege is
-// enabled and libuv opens files with backup semantics.
 it.skipIf(process.platform === 'win32')(
   'answers notAuthorized when the host denies access, for read and for create',
   async () => {
@@ -133,15 +127,11 @@ it.skipIf(process.platform === 'win32')(
   },
 )
 
-// Windows: the files backend opens a path one segment at a time from its drive root, so no OS
-// error says the path is too long; a missing segment answers unresolved, which is mapped.
 it.skipIf(process.platform === 'win32')(
   'answers unknown for an open error it does not map',
   async () => {
     const { root } = await namedFile('x')
     const files = createHostFiles()
-    // POSIX refuses a 300-byte name with ENAMETOOLONG. Windows answers ENOENT for it (a mapped code)
-    // and gives ENAMETOOLONG only for a path longer than its 32767-character limit.
     const tooLong =
       process.platform === 'win32'
         ? join(root, ...Array.from({ length: 200 }, () => 'n'.repeat(200)))
@@ -246,7 +236,6 @@ it('gives a created file the same version a later stat reports', async () => {
 
 it('stats the root directory by its own path', async () => {
   const files = createHostFiles()
-  // The root of the file system of this platform: `/` on POSIX, the drive root such as `C:\` on Windows.
   const root = parse(process.cwd()).root
   const named = await hostObjectToken(root)
   expect(await files.stat(request(root, named, 'root'))).toMatchObject({

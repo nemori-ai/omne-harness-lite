@@ -1,10 +1,8 @@
 import { closedFields, hasDuplicates, nonEmpty, readDataItems } from './values.ts'
 
 declare const recordEntryRefBrand: unique symbol
-/** Opaque reference to one record entry. The history holder mints it; consumers compare it exactly. */
 export type RecordEntryRef = string & { readonly [recordEntryRefBrand]: true }
 
-/** Durable evidence of how the summary and the retained set were derived. This package does not interpret it. */
 export type CompactionDerivation = Readonly<{
   owner: string
   record: string
@@ -14,7 +12,6 @@ export type CompactionDerivation = Readonly<{
 
 export type CompactedRange = Readonly<{ from: RecordEntryRef; to: RecordEntryRef }>
 
-/** The three keys that only a `compaction` message has. */
 export interface CompactionKeys {
   readonly covers: CompactedRange
   readonly retained: readonly RecordEntryRef[]
@@ -33,8 +30,6 @@ export type CompactionKeysJudgment =
   | { readonly ok: CompactionKeys }
   | { readonly rejected: CompactionKeyRejection }
 
-// A listed key that the type lacks fails to compile. A key that the type has and the list lacks
-// fails where `readCovers` and `readDerivation` build the value.
 const COVERS_KEYS = ['from', 'to'] as const satisfies readonly (keyof CompactedRange)[]
 const DERIVATION_KEYS = [
   'owner',
@@ -47,7 +42,6 @@ function isRecordEntryRef(raw: string): raw is RecordEntryRef {
   return raw.length > 0
 }
 
-/** Parse an entry reference from the history holder. Any non-empty text is kept as it is. */
 export function parseRecordEntryRef(raw: string): RecordEntryRef | null {
   return isRecordEntryRef(raw) ? raw : null
 }
@@ -80,10 +74,6 @@ function readDerivation(raw: unknown): CompactionDerivation | undefined {
   return Object.freeze({ owner, record, revision, digest })
 }
 
-/**
- * The three keys of a `compaction` message, in the order covers, retained, derivation. The first
- * failure is returned. Each success value is a frozen copy that shares nothing with the input.
- */
 export function judgeCompactionKeys(
   fields: Readonly<Record<string, unknown>>,
 ): CompactionKeysJudgment {

@@ -1,7 +1,3 @@
-// The open executions of one session: the head rows without an ended event, in execution order,
-// one page at a time, with the publication count of the same snapshot. The cold start of a view
-// reads them and then the facts of each (`execution-record.facts` with `execution`); it reads no
-// fact of an ended execution.
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { sessionHead } from './fact-rows.ts'
 import { handler, PAGE_ROWS, rowsOf, scopeOf, text } from './support.ts'

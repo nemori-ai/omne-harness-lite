@@ -1,9 +1,7 @@
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import { classify } from '../rows/authorization/principals.ts'
 
-/** The component of the Model host system actor (DP5-C5: the service key of the holder). */
 export const MODEL_HOST_COMPONENT = 'modelHostAuthority'
-/** The `work.owner` of M: the Model domain owns the work, the work text is the call id. */
 export const MODEL_WORK_OWNER = 'model'
 
 export type PrincipalClass = 'login' | 'work' | 'host'
@@ -24,7 +22,6 @@ function isModelWork(value: unknown): value is ActingForTenantPrincipal {
   )
 }
 
-/** The policy class of a verified principal, by shape; a shape outside these classes has none. */
 export function classOf(
   principal: unknown,
 ): Readonly<{ kind: PrincipalClass; principal: ActingForTenantPrincipal }> | null {

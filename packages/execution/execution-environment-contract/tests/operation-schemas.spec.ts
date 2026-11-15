@@ -123,6 +123,17 @@ const cases = () =>
       },
     ],
     ['releaseScope', [scope, recovery], rejection],
+    [
+      'recoverResources',
+      [scope, recovery, [{ key: 'unit', provider: 'host', reference: { kind: 'null' } }]],
+      {
+        kind: 'recovered',
+        scope,
+        stopped: [{ key: 'unit', provider: 'host', reference: { kind: 'null' } }],
+        pending: [],
+        unsupported: [],
+      },
+    ],
     ['registerFacility', [contract.commandFacility]],
     ['registerProvider', [createScriptedEnvironmentProvider()]],
   ] as const
@@ -134,6 +145,7 @@ for (const name of [
   'describe',
   'recoverOwned',
   'releaseScope',
+  'recoverResources',
   'registerFacility',
   'registerProvider',
 ] as const)
@@ -153,9 +165,9 @@ for (const name of [
       )
     }
   })
-it('has only ten parameter and eight result schemas; no invented request envelope', () => {
-  expect(Object.keys(contract.operationSchemas)).toHaveLength(10)
-  expect(Object.values(contract.operationSchemas).filter(s => 'result' in s)).toHaveLength(8)
+it('has only eleven parameter and nine result schemas; no invented request envelope', () => {
+  expect(Object.keys(contract.operationSchemas)).toHaveLength(11)
+  expect(Object.values(contract.operationSchemas).filter(s => 'result' in s)).toHaveLength(9)
   expect('facilityRequestSchema' in contract).toBe(false)
 })
 it('gives nested item reasons and does not coerce runtime ports or recovery access', async () => {

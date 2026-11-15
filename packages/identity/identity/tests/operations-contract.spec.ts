@@ -36,7 +36,6 @@ const doubleFixture: IdentityContractFixture = {
   injectsRecordFaults: true,
 }
 
-// Two configurations far apart: whole seconds across a day boundary, and fractions near a year end.
 const CONFIGURATIONS: readonly (readonly [string, IdentityContractOptions])[] = [
   [
     'one minute and one day',
@@ -63,7 +62,6 @@ describe('the contract suite on the reference double', () => {
     expect(failed).toEqual([])
     expect(report.passed).toBe(true)
     expect(report.cases.map(result => result.id)).toEqual(IDENTITY_CONTRACT_CASES.map(c => c.id))
-    // The double activates on registration, so it has no inactive account to offer.
     expect(
       report.cases.filter(result => result.status === 'not-applicable').map(result => result.id),
     ).toEqual(['login-inactive-uniform'])
@@ -97,7 +95,6 @@ describe('the contract suite on the reference double', () => {
   })
 })
 
-// Each broken provider wraps the double and breaks one rule; the suite must name that rule.
 type Breakage = (real: IdentityOperations, options: IdentityOperationsOptions) => IdentityOperations
 
 const BREAKAGES: readonly (readonly [string, string, Breakage])[] = [
@@ -123,7 +120,6 @@ const BREAKAGES: readonly (readonly [string, string, Breakage])[] = [
             reading.kind !== 'read'
           )
             return outcome
-          // Judges the earlier reading against the deadlines alone, as if it had never moved on.
           const live =
             compareInstants(reading.instant, login.maxDeadline) < 0 &&
             compareInstants(reading.instant, login.idleDeadline) < 0
@@ -287,7 +283,6 @@ describe('the contract suite on broken providers', () => {
   it('fails a provider that ignores the login store fault and answers from a stale copy', async () => {
     const fixture: IdentityContractFixture = {
       injectsRecordFaults: true,
-      // The provider is built without the suite's faults, so its stores always answer.
       create: ({ clock, terms }) => inProcessIdentityOperations({ clock, terms }),
     }
     const report = await checkIdentityOperationsContract(fixture, CONFIGURATIONS[0]![1])
@@ -302,7 +297,6 @@ describe('the contract suite on broken providers', () => {
   it('runs the inactive-account case when the fixture can leave a registration inactive', async () => {
     const fixture: IdentityContractFixture = {
       create: inProcessIdentityOperations,
-      // Stands in for a provider with a separate activation step: nothing is registered.
       registerWithoutActivation: async () => undefined,
     }
     const report = await checkIdentityOperationsContract(fixture, CONFIGURATIONS[0]![1])

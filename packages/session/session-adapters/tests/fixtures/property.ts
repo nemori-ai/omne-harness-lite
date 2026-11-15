@@ -1,16 +1,7 @@
-// A seeded property harness for the Journal laws: a deterministic generator (xorshift32) and a
-// `forAll` that runs a predicate over `runs` generated values and reports the seed and the value of
-// the first failure. fast-check is not a dependency of this repository (its catalog and lockfile are
-// shared files outside this lane), so the laws use this harness; it has no shrinking, so a failure
-// reports the seed to replay.
 export type Random = Readonly<{
-  /** An integer in `[0, bound)`. */
   int(bound: number): number
-  /** One of the items. */
   pick<T>(items: readonly T[]): T
-  /** True with probability `numerator / denominator`. */
   chance(numerator: number, denominator: number): boolean
-  /** A shuffled copy of the items. */
   shuffle<T>(items: readonly T[]): T[]
   seed: number
 }>
@@ -48,18 +39,12 @@ export function random(seed: number): Random {
 }
 
 export type Property<T> = Readonly<{
-  /** The number of generated values; the seed of run `i` is `base + i`. */
   runs?: number
   seed?: number
   generate: (rng: Random) => T
-  /** Returns null when the value satisfies the property, or the reason it does not. */
   check: (value: T, rng: Random) => string | null
 }>
 
-/**
- * Runs the property. Throws with the seed and the reason of the first failing run, so that the
- * run can be replayed with `seed`.
- */
 export function forAll<T>(name: string, property: Property<T>): void {
   const runs = property.runs ?? 100
   const base = property.seed ?? 0x2545f491

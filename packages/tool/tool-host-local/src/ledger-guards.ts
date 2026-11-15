@@ -1,8 +1,3 @@
-// The assembly of the ledger guards of the local Tool host (TL-11, the guard table). The
-// factories of the table live in their own files; this one fixes the argument budgets, checks the
-// parts that the assembly gives, and puts the eight rows together. It creates no store and keeps
-// no state. The qualification adapter, the principal comparison and the principal codec are the
-// parts of other owners; they enter as parameters of the factories, never from here.
 import {
   createToolFactAcknowledgementGuard,
   type AccessVerdict,
@@ -24,10 +19,6 @@ import type { StartCoordinatorAccess } from './start-coordinator.ts'
 import { createLocalStartGuard } from './start-guard.ts'
 import { createLocalTextResults } from './text-results.ts'
 
-/**
- * The initial argument budgets of an admission: the json-text limits of the argument parse. Like
- * `ToolConfiguration`, they are initial values of configuration, not a rule of the product.
- */
 export const localArgumentLimits: ToolLedgerBudgets['arguments'] = Object.freeze({
   maxBytes: 1_048_576,
   maxDepth: 32,
@@ -37,38 +28,24 @@ export const localArgumentLimits: ToolLedgerBudgets['arguments'] = Object.freeze
   maxNumberLength: 32,
 })
 
-/**
- * A value that the request policy gives with an allowed verdict. The host does not read it; the
- * conditional commit of the store decodes it. The acceptance of the start and this condition take
- * effect in one transaction, or neither does.
- */
 export type StartCondition = Readonly<Record<string, unknown>>
 
 export type RequestAccessVerdict =
   | Readonly<{ kind: 'allowed'; condition: StartCondition | null }>
   | Exclude<AccessVerdict, { kind: 'allowed' }>
 
-/** The current policy for a complete fixed target, separate from call identity qualification. */
 export interface ToolRequestAccess<P> {
   qualify(
     input: CallAccess<P> & Readonly<{ request: FixedToolRequest }>,
   ): Promise<RequestAccessVerdict>
 }
 
-/**
- * Commits ledger writes together with one start condition. `condition-failed` means the condition
- * no longer holds and nothing took effect: the caller reads again and asks the policy again.
- */
 export interface ConditionalLedgerCommit {
   commit(
     input: Readonly<{ condition: StartCondition; ledger: LedgerCommitInput }>,
   ): Promise<LedgerCommit | Readonly<{ kind: 'condition-failed' }>>
 }
 
-/**
- * The ledger asks for call actions; the coordinator and start guard ask for starts. The optional
- * complete-request policy has the same provider in both start consumers.
- */
 export type ToolHostAccess<P> = Readonly<{
   guard: ToolAccessGuard<P>
   start: StartCoordinatorAccess<P>
@@ -77,13 +54,9 @@ export type ToolHostAccess<P> = Readonly<{
 
 export type LocalToolLedgerGuardsInput<P, E = unknown> = Readonly<{
   access: ToolHostAccess<P>
-  /** The value of `createLocalInvocationSource`; its `guard` becomes `guards.sources`. */
   sources: LocalInvocationSource<P>
-  /** Recovers the original source confirmation; it answers `unavailable` when it cannot. */
   bindings: Pick<ToolBindings<P, E>, 'recover'>
-  /** The value of `createLocalGrantVerifiers`. */
   grants: ReadonlyMap<string, ToolGrantVerifier<P>>
-  /** Defaults to `localArgumentLimits`. */
   budgets?: ToolLedgerBudgets
 }>
 
@@ -104,12 +77,6 @@ function present(value: unknown, field: string): void {
   if (typeof value !== 'function') throw new TypeError(`${field}: missing`)
 }
 
-/**
- * Puts the eight guards of the ledger together. A part that is missing, or a budget that is not a
- * positive safe integer, is a defect of the assembly and throws a `TypeError`. The result policy is
- * `defaultResultPolicy`: pass the same object to the runtime as `resultPolicy`, so the ledger and
- * the runtime judge every result alike.
- */
 export function createLocalToolLedgerGuards<P, E = unknown>(
   input: LocalToolLedgerGuardsInput<P, E>,
 ): ToolLedgerGuards<P, ToolMessageContentBlock> {

@@ -1,5 +1,4 @@
 // covers: PD-tool-execution S1
-// Oracle: product/tool-execution/acceptance.md S1; Tool SPEC 16, 20–26.
 import assert from 'node:assert/strict'
 import { it } from 'vitest'
 import { assembly, expectedParagraphs } from './fixtures/assembly.ts'
@@ -59,8 +58,6 @@ it('S1 executes once, reads every original page, processes and releases its deli
       record => record.kind === 'fact-event' && record.fact.fact.kind === 'final',
     )
     assert.ok(savedFinal?.kind === 'fact-event' && savedFinal.fact.fact.kind === 'final')
-    // Ruling 1 (03f3b0479): the ledger plans the result when the final is recorded, so the
-    // recorded final carries the planned result instead of a sealed-material pointer.
     assert.deepEqual(
       savedFinal.fact.fact.result.content.map(block => (block.kind === 'text' ? block.text : null)),
       expectedParagraphs,

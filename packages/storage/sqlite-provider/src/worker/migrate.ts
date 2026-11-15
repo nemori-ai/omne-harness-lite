@@ -1,5 +1,3 @@
-// Migrations inside DO-1 (SPEC 5.4). Order, markers, the migration port and the failure rule: an
-// `up` that throws or a `verify` that fails rolls back the whole migration transaction.
 import type { DatabaseSync } from 'node:sqlite'
 import type {
   ManifestMigration,
@@ -11,7 +9,6 @@ import type { MigrationModule, MigrationPort } from '@omne-harness/sql-contract/
 import type { ModuleCache } from './modules.ts'
 import { SqlGateway, migrationDecision } from './ports.ts'
 
-/** A failure that migrations decide: static, so the domain does not retry it. */
 export class MigrationFailed extends Error {}
 
 const refId = (ref: MigrationRef): string => JSON.stringify([ref.owner, ref.id])
@@ -23,10 +20,6 @@ function descriptorOf(catalog: SqlMaterialCatalog, ref: MigrationRef): Migration
   return found
 }
 
-/**
- * Topological order by `requires`. When several migrations are ready, the first by (owner, id)
- * in UTF-16 code units runs first. The manifest of a combination already holds the closure.
- */
 export function orderMigrations(
   entries: readonly ManifestMigration[],
   catalog: SqlMaterialCatalog,
@@ -45,7 +38,6 @@ export function orderMigrations(
   return ordered
 }
 
-/** A marker whose checksum differs from the catalog, or that the catalog lacks, is a fault. */
 export function markerFault(db: DatabaseSync, catalog: SqlMaterialCatalog): string | null {
   const rows = db.prepare('select owner, id, checksum from _sql_migration').all() as {
     owner: string
@@ -107,7 +99,6 @@ function narrow(gateway: SqlGateway): MigrationPort {
   return { execute: (sql, params) => gateway.execute(sql, params) }
 }
 
-/** Runs pending migrations in the open transaction and writes their markers. */
 export function runMigrations(
   db: DatabaseSync,
   catalog: SqlMaterialCatalog,
@@ -132,7 +123,6 @@ export function runMigrations(
         return result
       } catch (error) {
         if (error instanceof MigrationFailed) throw error
-        // An environment error keeps its identity so that the caller can judge it as transient.
         if (gateway.environmentFailure !== null) throw gateway.environmentFailure
         throw new MigrationFailed(gateway.violated ? `${name}_port_violation` : `${name}_failed`)
       } finally {

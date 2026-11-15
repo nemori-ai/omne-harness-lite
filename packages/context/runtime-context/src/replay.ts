@@ -83,7 +83,6 @@ function ownMaterial(material: ReplayMaterial): ReplayMaterial | undefined {
 }
 
 export function createReplay<P>(world: World<P>) {
-  /** The success entry the scope still keeps: at most one (R2-D319). */
   function appliedCommits(s: ScopeState): AppliedCommit[] {
     return [...s.successes.values()].map(entry => ({
       commit: entry.input.commit,
@@ -274,7 +273,6 @@ export function createReplay<P>(world: World<P>) {
     s.revision = staged.revision
     s.epoch++
     s.checkpoint = session.through
-    // The replay's last record is the new head; an entry that is not at the head is released.
     s.head = session.through
     for (const commit of s.successes.keys())
       if (commit !== session.through?.commit) s.successes.delete(commit)

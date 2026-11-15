@@ -1,14 +1,4 @@
 import { openTokenizerExecutor } from './support.ts'
-// One request to an Anthropic model through OpenRouter, with the real shared transport.
-//
-// The history holds an earlier tool turn written as data: an assistant message that has only a tool
-// call and no reasoning state, then a tool result without content. That turn cannot continue, and
-// reasoning stays on: the plan records the requested effort `low` as it is, the body has
-// `reasoning.effort: "low"`, and no `reasoning-disabled` diagnostic comes back. The request also
-// carries a small image and stop sequences.
-//
-// Run from the package directory after building: node --experimental-strip-types examples/anthropic-request.ts
-// HTTPS_PROXY must point to the proxy that adds the OpenRouter credential.
 import {
   officialAnthropicProfiles,
   createAnthropicFamily,
@@ -24,11 +14,9 @@ import {
   RETRY_POLICY,
 } from './support.ts'
 
-/** A reasoning model that refuses reasoning off. No record turns reasoning off. */
 const MODEL = 'anthropic/claude-opus-5.5'
 
 const SHOWN = { toHuman: true, toModel: true }
-/** A 16 by 16 red PNG. */
 const RED_SQUARE =
   'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR4nGO4IydHEmIY1TCqYfhqAACaMxgQdGu1YAAAAABJRU5ErkJggg=='
 
@@ -67,7 +55,6 @@ try {
         ],
       },
       {
-        // Only a tool call: the body writes its content as an empty list.
         id: 'msg_example-assistant-tool-1',
         role: 'assistant',
         blocks: [
@@ -85,7 +72,6 @@ try {
         ],
       },
       {
-        // A tool result without content: the body writes its content as an empty list.
         id: 'msg_example-tool-result-01',
         role: 'tool',
         blocks: [{ kind: 'tool_result', id: 'r1', visibility: SHOWN, callId: 'call_lookup_1' }],

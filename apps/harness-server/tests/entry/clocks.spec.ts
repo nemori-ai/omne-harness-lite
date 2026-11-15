@@ -1,5 +1,3 @@
-// 两个时钟入口对象（验收 6）：`sessionClock` 按 session-contract 的 `SessionClock` 形状（`sample`、`waitUntil`），
-// `agentClock` 按 agent-contract 的 `AgentClock` 形状（`now`、`waitUntil`）。它们读宿主系统时间，经服务键调用。
 import { describe, expect, it } from 'vitest'
 import { parseInstant } from '@omne-harness/utc-instant'
 import { AgentClockService, agentClockKey } from '@omne-harness/agent-cordis-contract/cordis'

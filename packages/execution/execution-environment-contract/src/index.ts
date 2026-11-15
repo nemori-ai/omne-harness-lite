@@ -124,6 +124,7 @@ export type {
   ProviderRegistrations,
   RecoveryListing,
   ResourceRecovery,
+  ResourcesRecovery,
   Retirement,
   UnsupportedRecovery,
 } from './environment.ts'
@@ -153,6 +154,7 @@ export {
   observeRetainedParamsSchema,
   recoverOwnedParamsSchema,
   releaseScopeParamsSchema,
+  recoverResourcesParamsSchema,
   registerFacilityParamsSchema,
   registerProviderParamsSchema,
   resolvePlacementResultSchema,
@@ -163,6 +165,7 @@ export {
   observeRetainedResultSchema,
   recoverOwnedResultSchema,
   releaseScopeResultSchema,
+  recoverResourcesResultSchema,
   operationSchemas,
   providerFactsSchema,
   managedResourceSchema,

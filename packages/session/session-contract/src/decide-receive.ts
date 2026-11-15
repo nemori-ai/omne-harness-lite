@@ -9,11 +9,6 @@ import { digestOf } from './operations.ts'
 import { resultRefusal } from './decide-results.ts'
 import { equalValue } from './session-validation.ts'
 
-/**
- * The decision of one producer fact. `origin` is the origin its entries carry, the fact source by
- * default; the entries interpretation gives the interpreted item's, so the stored form names the
- * origin that the entry really keeps.
- */
 export function decideProducerFact(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'receive' }>,
@@ -107,12 +102,6 @@ export function decideProducerFact(
   return entries([encodeEntry({ kind: 'control.progress', progress: null, fact }, origin)])
 }
 
-/**
- * The exit report keeps its original association: the current advance proves run, attempt and
- * instance; an attempt that no longer holds the advance is proved by its original SE15 in the
- * history index, which records each attempt once with its run. A missing index item is unknown
- * (FR-01), not a forged relation.
- */
 function startedAttempt(
   snapshot: WorkSnapshot,
   advance: AdvanceRef,

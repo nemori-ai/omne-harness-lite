@@ -1,8 +1,3 @@
-// SPEC「测量事件」and「遥测投影」: the Agent segment names the tenant of the runtime binding, and the
-// facade over the telemetry port turns each pass into a telemetry segment of that tenant with the
-// execution as attempt. The port is the capturing double of telemetry-contract, so what it admits
-// is what a provider would admit (TC-2, TC-4). A pass without a tenant goes to the port's
-// `discard`, so the provider counts it; the test records each discard by name and reason.
 import { actingScopeEquals, tenantScope } from '@omne-harness/legal-identity'
 import type { Emitter, TelemetryPort } from '@omne-harness/telemetry-contract'
 import { createCapturingTelemetry } from '@omne-harness/telemetry-contract/testing'
@@ -14,7 +9,6 @@ import { eventsOf, invoke, loopAssembly } from './loop-support.ts'
 
 const instance = { owner: '@omne-harness/harness-server', ref: 'agent-host' }
 
-/** The facade over the capturing double, with every `discard` the facade makes, by name and reason. */
 function facade(options: Readonly<{ capacity?: number }> = {}) {
   const capture = createCapturingTelemetry(options)
   const discards: Array<readonly [string, string]> = []
@@ -29,7 +23,6 @@ function facade(options: Readonly<{ capacity?: number }> = {}) {
   return { capture, discards, telemetry }
 }
 
-/** The execution and, unless a case leaves it out, the tenant of the binding. */
 function who(withTenant: boolean) {
   return withTenant ? { execution: execution(), tenant: tenantA } : { execution: execution() }
 }

@@ -1,5 +1,3 @@
-// A real loopback `ServerResponse` held open for a unit case, with the client side in hand: the
-// body the client received so far, the end of the response, and a disconnect before any byte.
 import {
   createServer,
   request,
@@ -10,13 +8,9 @@ import {
 
 export type HeldResponse = Readonly<{
   res: ServerResponse
-  /** The body text the client has received so far. */
   received(): string
-  /** Resolves when the client saw the response end or the connection close. */
   ended: Promise<void>
-  /** Destroys the client side and resolves when the server response saw `close`. */
   disconnect(): Promise<void>
-  /** Closes the server and every connection. */
   dispose(): Promise<void>
 }>
 

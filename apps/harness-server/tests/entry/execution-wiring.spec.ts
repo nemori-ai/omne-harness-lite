@@ -1,6 +1,3 @@
-// 生产入口对 Runtime Context 收窄与 Execution 授权三件的接线：四个模块都在清单里各一次，
-// 共用一份 Scope 来源；`sessionScopeLookup` 与 AD-15 的来源缺席时，绑定与恢复授权答 unavailable，不因会话归属读口可读而放行。
-// Scope 归属只读受信作用域里的 `sessionScopeLookup`（R2-D168、R2-D189 B1）：根上的同名提供者读不到。
 import { expect, it } from 'vitest'
 import {
   executionEnvironmentAuthorityKey,
@@ -14,6 +11,7 @@ import { runtimeContextTrustKey } from '@omne-harness/runtime-context-cordis-con
 import {
   sessionPrincipalBindingsKey,
   sessionScopeLookupKey,
+  sessionScopeOwnersKey,
 } from '@omne-harness/session-cordis-contract/cordis'
 import { entryObjects } from '../../src/entry/index.ts'
 import {
@@ -44,7 +42,7 @@ it('registers the runtime-context narrowing and the three execution modules once
   ])
 })
 
-it('answers unavailable for scope bindings and recovery while sessionScopeLookup and AD-15 have no provider', async () => {
+it('answers unavailable for scope bindings and recovery while their sources have no provider', async () => {
   const keys = [
     principalIssuerKey,
     runtimeContextTrustKey,
@@ -54,7 +52,6 @@ it('answers unavailable for scope bindings and recovery while sessionScopeLookup
     sessionPrincipalBindingsKey,
   ]
   const fixture = fixtureEnv(keys)
-  // The session side is readable and says bound: the missing scope owner alone must keep the answer closed.
   fixture.scopeOf(sessionPrincipalBindingsKey).provide(sessionPrincipalBindingsKey, {
     read: async (input: { tenant: typeof tenant; session: string }) => ({
       ok: {
@@ -85,7 +82,6 @@ it('answers unavailable for scope bindings and recovery while sessionScopeLookup
   expect(await recovery.authorizeRecovery(createRecoveryAccess(), scope, [])).toBe('unavailable')
 })
 
-/** The installed wiring with the session side readable and saying bound for any (tenant, session). */
 async function wired() {
   const fixture = fixtureEnv([
     principalIssuerKey,
@@ -95,6 +91,7 @@ async function wired() {
     executionRecoveryAuthorityKey,
     sessionPrincipalBindingsKey,
     sessionScopeLookupKey,
+    sessionScopeOwnersKey,
   ])
   fixture.scopeOf(sessionPrincipalBindingsKey).provide(sessionPrincipalBindingsKey, {
     read: async (input: { tenant: typeof tenant; session: string }) => ({
@@ -119,7 +116,6 @@ async function wired() {
   return { fixture, bindings, trust }
 }
 
-/** A scope lookup that answers every scope as session `session` of `owner`. */
 const lookupAs = (owner: typeof tenant, session: string) => ({
   lookup: async () => ({ kind: 'known', tenant: owner, session, generation: 'g1' }),
 })
@@ -131,12 +127,33 @@ it('reads the scope owner from the trusted sessionScopeLookup: the binding is bo
   expect(await trust.bindings.lookup(scope)).toEqual({ kind: 'bound', tenant })
 })
 
-it('does not read a same-name sessionScopeLookup on the root: a scope of tenant A is never bound to tenant B (R2-D189 B1)', async () => {
+it('does not read a same-name sessionScopeLookup on the root: a scope of tenant A is never bound to tenant B (B1)', async () => {
   const { fixture, bindings, trust } = await wired()
   fixture.root.provide(sessionScopeLookupKey, lookupAs(tenantB, 'ses-b'))
   expect(await bindings.lookup(scope)).toEqual({ kind: 'unavailable' })
   expect(await trust.bindings.lookup(scope)).toEqual({ kind: 'unavailable' })
-  // With the trusted provider present, the root one still does not replace it.
   fixture.scopeOf(sessionScopeLookupKey).provide(sessionScopeLookupKey, lookupAs(tenant, 'ses-a'))
+  expect(await bindings.lookup(scope)).toEqual({ kind: 'bound', tenant })
+})
+
+const ownersAs = (owner: typeof tenant, session: string) => ({
+  lookup: async () => ({ ok: { kind: 'owned', tenant: owner, session, generation: '1' } }),
+})
+const unknownLookup = { lookup: async () => ({ kind: 'unknown' }) }
+
+it('reads the durable owner when the in-process index has not seen the scope, as after a restart', async () => {
+  const { fixture, bindings, trust } = await wired()
+  fixture.scopeOf(sessionScopeLookupKey).provide(sessionScopeLookupKey, unknownLookup)
+  expect(await bindings.lookup(scope)).toEqual({ kind: 'unknown' })
+  fixture.scopeOf(sessionScopeOwnersKey).provide(sessionScopeOwnersKey, ownersAs(tenant, 'ses-a'))
+  expect(await bindings.lookup(scope)).toEqual({ kind: 'bound', tenant })
+  expect(await trust.bindings.lookup(scope)).toEqual({ kind: 'bound', tenant })
+})
+
+it('reads the durable owner when the index is absent, and never a same-name owner source on the root', async () => {
+  const { fixture, bindings } = await wired()
+  fixture.root.provide(sessionScopeOwnersKey, ownersAs(tenantB, 'ses-b'))
+  expect(await bindings.lookup(scope)).toEqual({ kind: 'unavailable' })
+  fixture.scopeOf(sessionScopeOwnersKey).provide(sessionScopeOwnersKey, ownersAs(tenant, 'ses-a'))
   expect(await bindings.lookup(scope)).toEqual({ kind: 'bound', tenant })
 })

@@ -1,5 +1,3 @@
-// The memory double, registration side: registerCombination (SPEC 6), query (SPEC 8), read
-// (SPEC 9), partition by scope (SPEC 2.5, 5.5) and close. Each case violates one rule only.
 import { describe, expect, it } from 'vitest'
 import type {
   CombinationRegistrationV2,
@@ -98,7 +96,6 @@ describe('registerCombination', () => {
     expect(rejected(result)).toBe('participant_empty')
   })
 
-  // SPEC 3.1 makes a name non-empty, and 6.2 step 2 judges that before step 3 (Reduce ruling).
   it.each([[['']], [['session', '']], [['', '']]])(
     'field_missing: the empty participant name in %j, not participant_empty',
     async participants => {
@@ -173,7 +170,6 @@ describe('registerCombination', () => {
     expect((await h.storage.commit(commitRequest(fx.fixture()))).kind).toBe(
       'rejected_before_accept',
     )
-    // The domain is still free for another scope.
     const other = await h.storage.registerCombination(
       registration(fx.fixture(), { scope: TENANT_B }),
     )

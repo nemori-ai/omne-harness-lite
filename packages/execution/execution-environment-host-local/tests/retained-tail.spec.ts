@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import type { RetainedStreamTail } from '@omne-harness/execution-environment-contract'
 import { createRetainedTail, type TailStream } from '../src/retained-tail.ts'
 
-/** A small deterministic generator, so a failing round can be replayed from its seed. */
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0
   return () => {
@@ -14,10 +13,8 @@ function mulberry32(seed: number): () => number {
   }
 }
 
-/** The reference: every observed byte of one stream after `savedFrom`, `null` for a dropped one. */
 type Model = { savedFrom: number; observed: (number | null)[] }
 
-/** What the tail must save: the newest unbroken run of observed bytes, cut to the capacity. */
 function expectedSaved(model: Model, capacity: number): number[] {
   const run: number[] = []
   for (let i = model.observed.length - 1; i >= 0 && run.length < capacity; i--) {
@@ -28,7 +25,6 @@ function expectedSaved(model: Model, capacity: number): number[] {
   return run
 }
 
-// Bytes that make multi-byte UTF-8 likely: ASCII, a two-byte and a three-byte character.
 const alphabet = [...new TextEncoder().encode('abé✓\n')]
 
 function checkStream(
@@ -82,7 +78,6 @@ describe('the retained output tail against a reference model', () => {
       for (let step = 0; step < 30; step++) {
         const stream: TailStream = random() < 0.7 ? 'stdout' : 'stderr'
         const model = models[stream]
-        // An empty append and a drop of zero bytes leave the tail as it was.
         let changed: boolean
         if (random() < 0.15) {
           const count = Math.floor(random() * 5)

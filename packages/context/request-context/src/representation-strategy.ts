@@ -1,5 +1,3 @@
-// The default representation strategy: for one block, take the first acceptable form in the
-// configured order of its modality. The order is a configuration field; these are initial values.
 import type { ContentBlock } from '@omne-harness/content-block'
 import type * as M from '@omne-harness/model-contract'
 import {
@@ -20,11 +18,9 @@ export const DEFAULT_REPRESENTATION_CONFIG: RepresentationPolicyConfig = Object.
 })
 
 export type DefaultRepresentationOptions = Readonly<{
-  /** Replaces the order of the named modalities; the others keep their initial order. */
   preferences?: Partial<RepresentationPolicyConfig['preferences']>
 }>
 
-/** The modality a block needs, by its media type; null when the model has no such modality. */
 function modalityOf(block: ContentBlock): M.ModelModality | null {
   if (block.kind === 'text' || block.kind === 'thinking') return 'text'
   const media = 'ref' in block ? block.ref.mediaType : block.mediaType

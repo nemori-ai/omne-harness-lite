@@ -49,7 +49,6 @@ const CONFIGURATIONS: readonly (readonly [string, IdentityGovernanceContractOpti
   ],
 ]
 
-// The acceptance names of identity/spec.md groups A, B, C and F3 that the suite owns.
 const SPEC_CASES = [
   'create-team-atomic',
   'create-call-replay',

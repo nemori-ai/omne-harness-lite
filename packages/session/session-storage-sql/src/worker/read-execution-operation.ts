@@ -1,7 +1,3 @@
-// The original batch of one operation of the execution record provider, or null: the operation key
-// (`er_operation`) and the facts of the batch it names, in one snapshot. No answer is stored; the
-// provider derives the answer of a recalled operation from this batch. An operation of another
-// tenant reads as null, the same as one that was never written.
 import { EXECUTION_BATCH_MAX_FACTS } from '../codec.ts'
 import { FACT_COLUMNS, factOutput, factRows } from './fact-rows.ts'
 import { big, handler, oneRow, text } from './support.ts'

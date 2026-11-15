@@ -1,0 +1,4 @@
+# Source evidence is hash-addressed. Preserve its original bytes.
+* -text
+raw/** -whitespace
+evidence/** -whitespace

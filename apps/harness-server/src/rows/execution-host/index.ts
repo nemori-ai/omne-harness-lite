@@ -22,7 +22,6 @@ const rowConfig = z
   })
   .passthrough()
 
-/** Binds the released factory once, before any row can run. */
 export function createExecutionHostBinding(runtime: HostFilesRuntime) {
   const factory = createHostFilesPlugin(runtime.domain)
   function parseConfig(value: unknown) {
@@ -50,7 +49,6 @@ export function createExecutionHostBinding(runtime: HostFilesRuntime) {
       },
     },
   })
-  // Preserve the factory's provider caller until the shared row wrapper carries it.
   plugin.inject = factory.inject
   return { plugin, parseConfig }
 }

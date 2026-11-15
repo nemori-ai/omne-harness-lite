@@ -1,11 +1,6 @@
 import { syntheticChannels } from './ledger-decider.ts'
 import type { PreparedSynthetic, SyntheticDecision } from './ledger-result-preparation.ts'
 
-// The pure deciders of the way from an accepted call to a recorded start (P02, P03, P04): the
-// queue domain (order, readiness, head and slot, release) and the call domain (preparation plan
-// and confirmation, enqueue, start intent, start record, first-start rejection). Each decision
-// reads one domain snapshot and one command and answers a reply or a set of writes; the ledger
-// sequences the two domains as docs/architecture.md describes. Nothing here reads a port.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -55,31 +50,22 @@ import {
   type ReleaseBasis,
   type StartRejection,
   type TenantId,
+  CHECKPOINT_STATE_KEY,
+  WAIT_REQUEST_KEY,
 } from './ledger-store.ts'
 
-// ---------------------------------------------------------------------------------------------
-// The queue domain
-// ---------------------------------------------------------------------------------------------
-
-/**
- * The FIFO key of a request within its tenant (P02): the scope owner, the scope key and the tool's
- * asset name. The tenant is part of the queue domain identity, so it is not in the key.
- */
 export function queueKeyOf(request: FixedToolRequest): string {
   const { scope } = request
-  return JSON.stringify([scope.owner, scope.key, request.availability.definition.name])
+  return JSON.stringify([scope.owner, scope.key])
 }
 
 export type QueueSnapshot = Readonly<{
   domain: Extract<LedgerDomain, { kind: 'queue' }>
   revision: ToolRevision
-  /** The entries by call: every call that holds a place in this queue. */
   entries: ReadonlyMap<string, QueueEntryRecord>
-  /** The ordinal the next entry takes. */
   next: string
 }>
 
-/** The first ordinal of a queue is `1`. */
 const FIRST_ORDINAL = '1'
 
 export function queueSnapshotOf(
@@ -100,7 +86,6 @@ function nextOrdinal(ordinal: string): string {
   return (BigInt(ordinal) + 1n).toString()
 }
 
-/** Whether `left` comes before `right` in the FIFO: ordinals are decimal counts, not texts. */
 export function isEarlier(left: string, right: string): boolean {
   return BigInt(left) < BigInt(right)
 }
@@ -113,10 +98,6 @@ function entryWrite(entry: QueueEntryRecord): LedgerWrite {
   return put({ kind: 'queue-entry', entry })
 }
 
-/**
- * The answer of a step on an entry that is past it: the operation that moved the entry recalls it,
- * another operation is a conflict (P01).
- */
 function recalledBy<T>(
   entry: QueueEntryRecord,
   operation: ToolOperationId,
@@ -125,19 +106,15 @@ function recalledBy<T>(
   return entry.operation === operation ? succeed(answer) : fail({ kind: 'conflict', operation })
 }
 
-/**
- * Gives the call its place in the order (admit, planPreparation). The entry is created once, at
- * the next ordinal, in the `preparing` stage. Whether the call may still take a place is not
- * this domain's to know: the ledger judges the call domain before this decision and asserts the
- * revision it judged in the commit that lands these writes (SPEC 22). An entry that is still
- * `preparing` is recalled by call: the two steps that create it, the admission and the plan, are
- * interchangeable, and this step never moves it. An entry that is past `preparing` was moved by
- * a later step, so only that step's own operation recalls it; another operation answers
- * `conflict`.
- */
 export function decideQueueOrder(
   snapshot: QueueSnapshot,
-  command: Readonly<{ call: ToolCallId; operation: ToolOperationId; limit: number | null }>,
+  command: Readonly<{
+    call: ToolCallId
+    operation: ToolOperationId
+    tool: string
+    limit: number | null
+    scopeBudget: number | null
+  }>,
 ): Decision<QueueEntryRecord> {
   const existing = snapshot.entries.get(command.call)
   if (existing !== undefined)
@@ -151,7 +128,9 @@ export function decideQueueOrder(
     ordinal: snapshot.next,
     stage: 'preparing',
     operation: command.operation,
+    tool: command.tool,
     limit: command.limit,
+    scopeBudget: command.scopeBudget,
   }
   return {
     kind: 'commit',
@@ -163,12 +142,6 @@ export function decideQueueOrder(
   }
 }
 
-/**
- * Makes the call eligible for the head (enqueue): a `preparing` entry becomes `ready`. An entry
- * already past that stage is recalled by the operation that moved it; another operation answers
- * `conflict`. A missing entry is not made up, because the order was assigned when the
- * preparation was planned.
- */
 export function decideQueueReady(
   snapshot: QueueSnapshot,
   command: Readonly<{ call: ToolCallId; operation: ToolOperationId }>,
@@ -182,55 +155,118 @@ export function decideQueueReady(
   return { kind: 'commit', writes: [entryWrite(entry)], value: entry }
 }
 
-/** What the queue answers a start intent: the held entry, or why the call still waits. */
 export type HoldOutcome =
   | Readonly<{ kind: 'held'; entry: QueueEntryRecord }>
   | Readonly<{
       kind: 'waiting'
       entry: QueueEntryRecord
-      /** How many entries that do not hold a slot yet come before this one. */
       ahead: number
-      /** How many entries hold a slot. */
+      toolHeld: number
       held: number
     }>
 
-/**
- * Decides head and slot in one queue transaction (P02 prepareStart): the entry must be `ready`,
- * no earlier entry may still be `preparing` or `ready` (an earlier call that has not reached a
- * slot is not overtaken; an earlier call that holds one is not in the way), and the held entries
- * must be fewer than the concurrency the call fixed, null being no limit. A held entry is
- * recalled. Nothing is written when the call waits.
- */
+function aheadOf(snapshot: QueueSnapshot, entry: QueueEntryRecord): number {
+  let ahead = 0
+  for (const other of snapshot.entries.values())
+    if (
+      (other.stage === 'preparing' || other.stage === 'ready') &&
+      isEarlier(other.ordinal, entry.ordinal)
+    )
+      ahead += 1
+  return ahead
+}
+
+function heldCount(snapshot: QueueSnapshot, tool: string | null): number {
+  let held = 0
+  for (const other of snapshot.entries.values())
+    if (other.stage === 'held' && (tool === null || other.tool === tool)) held += 1
+  return held
+}
+
+function belowLimit(count: number, limit: number | null): boolean {
+  return limit === null || count < limit
+}
+
 export function decideQueueHold(
   snapshot: QueueSnapshot,
-  command: Readonly<{ call: ToolCallId; operation: ToolOperationId }>,
+  command: Readonly<{ call: ToolCallId; operation: ToolOperationId; keep?: boolean }>,
 ): Decision<HoldOutcome> {
   const existing = snapshot.entries.get(command.call)
   if (existing === undefined)
     return reply(queueUnavailable(`call ${command.call} has no entry in this queue`))
+  if (
+    existing.stage === 'held' &&
+    existing.operation !== command.operation &&
+    command.keep === true
+  ) {
+    const entry: QueueEntryRecord = { ...existing, operation: command.operation }
+    return { kind: 'commit', writes: [entryWrite(entry)], value: { kind: 'held', entry } }
+  }
   if (existing.stage === 'held')
     return reply(recalledBy(existing, command.operation, { kind: 'held', entry: existing }))
   if (existing.stage === 'preparing')
     return reply(queueUnavailable(`call ${command.call} was not enqueued`))
-  let ahead = 0
-  let held = 0
-  for (const other of snapshot.entries.values()) {
-    if (other.stage === 'held') held += 1
-    else if (isEarlier(other.ordinal, existing.ordinal)) ahead += 1
-  }
-  if (ahead > 0 || (existing.limit !== null && held >= existing.limit))
-    return reply(succeed({ kind: 'waiting', entry: existing, ahead, held }))
+  if (existing.stage === 'parked')
+    return reply(queueUnavailable(`call ${command.call} is parked until its decision is accepted`))
+  const ahead = aheadOf(snapshot, existing)
+  const toolHeld = heldCount(snapshot, existing.tool)
+  const held = heldCount(snapshot, null)
+  if (ahead > 0 || !belowLimit(toolHeld, existing.limit) || !belowLimit(held, existing.scopeBudget))
+    return reply(succeed({ kind: 'waiting', entry: existing, ahead, toolHeld, held }))
   const entry: QueueEntryRecord = { ...existing, stage: 'held', operation: command.operation }
   return { kind: 'commit', writes: [entryWrite(entry)], value: { kind: 'held', entry } }
 }
 
-/**
- * The basis a call domain holds for releasing its call's queue place, or null: this is the one
- * place that says what releases a place. A start rejection is one (the fence excluded the whole
- * invocation); a call that merely settled is not, because the logical end does not prove that the
- * place is free (P02). An ended execution also needs its exact original saved final and result.
- * The minimal failure terminal of a call that never started is one too (SPEC 23).
- */
+export type ParkOutcome =
+  | Readonly<{ kind: 'parked'; entry: QueueEntryRecord }>
+  | Readonly<{ kind: 'not-parked'; reason: 'no-entry' | 'not-held' }>
+
+export function decideQueuePark(
+  snapshot: QueueSnapshot,
+  command: Readonly<{ call: ToolCallId; operation: ToolOperationId; holder: ToolOperationId }>,
+): Decision<ParkOutcome> {
+  const existing = snapshot.entries.get(command.call)
+  if (existing === undefined) return reply(succeed({ kind: 'not-parked', reason: 'no-entry' }))
+  if (existing.stage === 'parked' && existing.operation === command.operation)
+    return reply(succeed({ kind: 'parked', entry: existing }))
+  if (existing.stage !== 'held' || existing.operation !== command.holder)
+    return reply(succeed({ kind: 'not-parked', reason: 'not-held' }))
+  const entry: QueueEntryRecord = { ...existing, stage: 'parked', operation: command.operation }
+  return { kind: 'commit', writes: [entryWrite(entry)], value: { kind: 'parked', entry } }
+}
+
+export type RequeueOutcome =
+  | Readonly<{ kind: 'requeued'; entry: QueueEntryRecord }>
+  | Readonly<{ kind: 'kept'; entry: QueueEntryRecord }>
+
+export function decideQueueRequeue(
+  snapshot: QueueSnapshot,
+  command: Readonly<{ call: ToolCallId; operation: ToolOperationId }>,
+): Decision<RequeueOutcome> {
+  const existing = snapshot.entries.get(command.call)
+  if (existing === undefined)
+    return reply(queueUnavailable(`call ${command.call} has no entry in this queue`))
+  if (existing.stage === 'held') return reply(succeed({ kind: 'kept', entry: existing }))
+  if (existing.stage === 'ready' && existing.operation === command.operation)
+    return reply(succeed({ kind: 'requeued', entry: existing }))
+  if (existing.stage !== 'parked')
+    return reply(queueUnavailable(`call ${command.call} is ${existing.stage}, not parked`))
+  const entry: QueueEntryRecord = {
+    ...existing,
+    stage: 'ready',
+    ordinal: snapshot.next,
+    operation: command.operation,
+  }
+  return {
+    kind: 'commit',
+    writes: [
+      entryWrite(entry),
+      put({ kind: 'queue-counter', counter: { next: nextOrdinal(snapshot.next) } }),
+    ],
+    value: { kind: 'requeued', entry },
+  }
+}
+
 export function releaseBasisOf(snapshot: Snapshot): ReleaseBasis | null {
   const record = snapshot.call
   if (record === null) return null
@@ -238,6 +274,10 @@ export function releaseBasisOf(snapshot: Snapshot): ReleaseBasis | null {
     return { kind: 'pre-start-rejection', exclusion: record.startRejection.exclusion }
   const rejected = ledgerRejectedResult(snapshot)
   if (rejected !== null) return { kind: 'ledger-rejected', result: rejected }
+  if (record.state.phase === 'settled' && record.state.execution.kind === 'suspended')
+    return suspendedExclusionOf(snapshot, record.state.execution.checkpoint)
+  if (record.state.phase === 'settled' && record.state.execution.kind === 'lost')
+    return { kind: 'lost-continuity', continuity: record.state.execution.evidence }
   if (
     record.state.phase !== 'settled' ||
     record.state.execution.kind !== 'ended' ||
@@ -264,11 +304,6 @@ export function releaseBasisOf(snapshot: Snapshot): ReleaseBasis | null {
   return { kind: 'physical-end', proof }
 }
 
-/**
- * The result evidence of the minimal failure terminal (SPEC 23), or null. The call holds no start
- * record, so nothing ever ran, and its result was settled by a committed `ledger-rejected`
- * operation of this call.
- */
 function ledgerRejectedResult(snapshot: Snapshot): DurableEvidence | null {
   const record = snapshot.call
   if (record === null || record.start !== null || record.state.phase !== 'settled') return null
@@ -278,14 +313,16 @@ function ledgerRejectedResult(snapshot: Snapshot): DurableEvidence | null {
   return settled?.receipt.kind === 'ledger-rejected' ? result.source : null
 }
 
-/**
- * Releases the places of the calls the caller names, in one commit: each entry is deleted and
- * nothing else is written, so the queue domain holds nothing for a released call. The caller
- * names only calls whose call domain holds a release basis (`releaseBasisOf`). A call without an
- * entry has nothing to release here: an entry that a step creates after this commit is kept out
- * by that step's assertion on the call domain, not by a record of this domain. The answer lists
- * the calls whose entry this commit deleted.
- */
+function suspendedExclusionOf(
+  snapshot: Snapshot,
+  checkpoint: DurableEvidence,
+): ReleaseBasis | null {
+  for (const { checkpoint: committed } of snapshot.suspensions.values())
+    if (committed !== null && digestOf(committed.payload) === digestOf(checkpoint))
+      return { kind: 'suspended-exclusion', checkpoint, exclusion: committed.exclusion }
+  return null
+}
+
 export function decideQueueRelease(
   snapshot: QueueSnapshot,
   calls: readonly ToolCallId[],
@@ -299,11 +336,6 @@ export function decideQueueRelease(
   }
 }
 
-// ---------------------------------------------------------------------------------------------
-// The call domain
-// ---------------------------------------------------------------------------------------------
-
-/** The identity and the revision gate every write command carries (WriteContext). */
 export type WriteCommand = Readonly<{
   tenant: TenantId
   call: ToolCallId
@@ -312,32 +344,31 @@ export type WriteCommand = Readonly<{
   inputDigest: string
 }>
 
-/**
- * The call a write command addresses, after P01's gate: the call must exist and its state
- * revision must be the expected one. The gate comes after the recall, so a resend of a
- * committed operation answers its receipt whatever revision it names.
- */
-function gate(snapshot: Snapshot, command: WriteCommand): Outcome<CallRecord, ToolFailure> {
+export function gate(snapshot: Snapshot, command: WriteCommand): Outcome<CallRecord, ToolFailure> {
   if (snapshot.call === null) return invalid('call', 'unknown-call')
   if (stateRevision(snapshot) !== command.expected)
     return fail({ kind: 'stale-revision', current: stateRevision(snapshot) })
   return succeed(snapshot.call)
 }
 
-/** A call that is not in one of the phases the command expects. */
 export function wrongPhase(phase: ToolState['phase']): Outcome<never, ToolFailure> {
   return invalid('call', `phase:${phase}`)
 }
 
-/** The pending tasks of the kinds that a step of the way to a start replaces. */
-function deleteTasks(snapshot: Snapshot, kinds: readonly ToolTask['kind'][]): LedgerWrite[] {
+export function deleteTasks(snapshot: Snapshot, kinds: readonly ToolTask['kind'][]): LedgerWrite[] {
   return snapshot.tasks
     .filter(task => kinds.includes(task.kind))
     .map(task => ({ kind: 'delete', key: taskKey(task) }))
 }
 
-/** The fields every variant of ToolState shares; a transition changes some of them. */
-type CommonState = Pick<
+export function dropSuspensionContent(snapshot: Snapshot): LedgerWrite[] {
+  const writes: LedgerWrite[] = []
+  if (snapshot.waitRequest !== null) writes.push({ kind: 'delete', key: WAIT_REQUEST_KEY })
+  if (snapshot.checkpointState !== null) writes.push({ kind: 'delete', key: CHECKPOINT_STATE_KEY })
+  return writes
+}
+
+export type CommonState = Pick<
   ToolState,
   | 'call'
   | 'revision'
@@ -351,15 +382,13 @@ type CommonState = Pick<
   | 'supplements'
 >
 
-/** The body of a state before its evidence: one variant of ToolState without `source`. */
-type StateBody = ToolState extends infer S
+export type StateBody = ToolState extends infer S
   ? S extends ToolState
     ? Omit<S, 'source'>
     : never
   : never
 
-/** The common fields of the current state, which every transition starts from. */
-function commonOf(state: ToolState): CommonState {
+export function commonOf(state: ToolState): CommonState {
   const { call, revision, foreground, effect, execution, timing, queue, controls, delivery } = state
   return {
     call,
@@ -375,8 +404,7 @@ function commonOf(state: ToolState): CommonState {
   }
 }
 
-/** The next state: the body with the new revision and a fresh state evidence. */
-function nextState(record: CallRecord, body: StateBody, revision: ToolRevision): ToolState {
+export function nextState(record: CallRecord, body: StateBody, revision: ToolRevision): ToolState {
   const place = { tenant: record.tenant, call: record.call }
   const next: StateBody = { ...body, revision }
   return { ...next, source: mintEvidence('state', place, revision, next) }
@@ -384,7 +412,6 @@ function nextState(record: CallRecord, body: StateBody, revision: ToolRevision):
 
 type PendingPhase = 'accepted' | 'preparing' | 'queued' | 'starting'
 
-/** A state of a phase before the start: no wait, the relation unchanged, the given changes. */
 function pendingState(
   record: CallRecord,
   phase: PendingPhase,
@@ -405,40 +432,21 @@ export type PlanPreparationCommand = WriteCommand &
   Readonly<{
     request: FixedToolRequest
     environmentAdoption: Adoption
-    purpose: 'initial' | 'resume'
-    /** The entry the queue domain gave the call before this decision. */
     entry: QueueEntryRecord
     key: string
   }>
 
-/**
- * Why a preparation cannot be planned for the call now, or nothing. The ledger asks this before
- * it gives the call a queue entry, so a refused plan leaves no entry behind; the decider asks it
- * again under the transaction's snapshot.
- */
 export function refusePlan(
   record: CallRecord,
-  command: Pick<PlanPreparationCommand, 'request' | 'purpose'>,
+  command: Pick<PlanPreparationCommand, 'request'>,
   requestDigest: (request: FixedToolRequest) => string,
 ): Outcome<void, ToolFailure> {
   if (record.state.phase !== 'accepted') return wrongPhase(record.state.phase)
-  if (command.purpose === 'resume')
-    return fail({
-      kind: 'unsupported',
-      adoption: record.request.availability.definition.adoption,
-      reason: 'a resume preparation needs a checkpointed executor (later increment)',
-    })
   if (requestDigest(command.request) !== requestDigest(record.request))
     return invalid('request', 'not-the-fixed-request')
   return succeed(undefined)
 }
 
-/**
- * Plans the initial preparation (P03): the fixed request must be the admitted one, the call must
- * be `accepted`, and the resume purpose waits for checkpointed executors. One commit saves the
- * preparation record, the `prepare` task, the state `preparing` with the call's queue position,
- * and removes the task that carried the call to the queue.
- */
 export function decidePlanPreparation(
   snapshot: Snapshot,
   command: PlanPreparationCommand,
@@ -498,11 +506,6 @@ function preparationOf(receipt: OperationReceipt): PreparationRecord {
 export type PreparedCommand = WriteCommand &
   Readonly<{ preparation: PreparationRecord; resources: DurableEvidence }>
 
-/**
- * Confirms the environment (P03 prepared): the preparation must be one this call planned, the
- * call must still be `preparing` without a confirmed environment. One commit records the
- * resources, removes the `prepare` task and writes the `queue` task that asks for the enqueue.
- */
 export function decidePrepared(
   snapshot: Snapshot,
   command: PreparedCommand,
@@ -515,8 +518,6 @@ export function decidePrepared(
   const gated = gate(snapshot, command)
   if ('failure' in gated) return reply(gated)
   const record = gated.ok
-  if (record.state.phase !== 'preparing') return reply(wrongPhase(record.state.phase))
-  if (record.environment !== null) return reply(invalid('call', 'already-prepared'))
   const planned = record.preparations.find(
     candidate => candidate.operation === command.preparation.operation,
   )
@@ -525,6 +526,9 @@ export function decidePrepared(
     preparationDigest(planned) !== preparationDigest(command.preparation)
   )
     return reply(invalid('preparation', 'not-planned-for-this-call'))
+  if (planned.purpose === 'resume') return decideResumePrepared(snapshot, command, record, mint)
+  if (record.state.phase !== 'preparing') return reply(wrongPhase(record.state.phase))
+  if (record.environment !== null) return reply(invalid('call', 'already-prepared'))
   const state = pendingState(record, 'preparing', {}, mint.revision)
   const environment = { preparation: planned.operation, resources: command.resources }
   return {
@@ -539,12 +543,41 @@ export function decidePrepared(
   }
 }
 
+function decideResumePrepared(
+  snapshot: Snapshot,
+  command: PreparedCommand,
+  record: CallRecord,
+  mint: Mint,
+): Decision<ToolState> {
+  const current = record.state
+  if (current.phase !== 'suspended') return reply(wrongPhase(current.phase))
+  if (record.preparations.at(-1)?.operation !== command.preparation.operation)
+    return reply(invalid('preparation', 'not-the-current-preparation'))
+  const body: StateBody = {
+    ...commonOf(current),
+    phase: 'suspended',
+    checkpoint: current.checkpoint,
+    relation: 'foreground',
+    wait: current.wait,
+  }
+  const state = nextState(record, body, mint.revision)
+  const environment = { preparation: command.preparation.operation, resources: command.resources }
+  return {
+    kind: 'commit',
+    writes: [
+      put({ kind: 'call', call: { ...record, state, environment } }),
+      put(operationRecord(command, { kind: 'prepared', state }, mint)),
+      ...deleteTasks(snapshot, ['prepare']),
+    ],
+    value: state,
+  }
+}
+
 function stateOf(receipt: OperationReceipt): ToolState {
   if (!('state' in receipt)) throw new Error('recall checked the receipt kind')
   return receipt.state
 }
 
-/** Why the call cannot be enqueued now, or nothing: it must be `preparing` with an environment. */
 export function refuseEnqueue(record: CallRecord): Outcome<void, ToolFailure> {
   if (record.state.phase !== 'preparing') return wrongPhase(record.state.phase)
   if (record.environment === null) return invalid('call', 'not-prepared')
@@ -553,11 +586,6 @@ export function refuseEnqueue(record: CallRecord): Outcome<void, ToolFailure> {
 
 export type EnqueueCommand = WriteCommand & Readonly<{ entry: QueueEntryRecord }>
 
-/**
- * Records that the queue domain made the call ready (P02 enqueue): the call must be `preparing`
- * with a confirmed environment. One commit writes `queued` and the `queue` task that asks for
- * the start intent.
- */
 export function decideEnqueue(
   snapshot: Snapshot,
   command: EnqueueCommand,
@@ -584,7 +612,6 @@ export function decideEnqueue(
   }
 }
 
-/** Why the call cannot take a start intent now, or nothing (P02, P04). */
 export function refuseStart(record: CallRecord): Outcome<void, ToolFailure> {
   if (record.startRejection !== null) return invalid('call', 'start-rejected')
   if (record.state.phase !== 'queued') return wrongPhase(record.state.phase)
@@ -600,22 +627,18 @@ export type StartIntent = Readonly<{
   start: Extract<ToolStartRecord, { kind: 'start' }>
 }>
 
-/** The answer of a start intent while the call waits for the head or a slot (P02). */
 export function waitingInQueue(hold: Extract<HoldOutcome, { kind: 'waiting' }>): ToolFailure {
-  const { entry, ahead, held } = hold
-  const limit = entry.limit === null ? 'no limit' : `limit ${entry.limit}`
+  const { entry, ahead, toolHeld, held } = hold
+  const limit = entry.limit === null ? 'no tool limit' : `tool limit ${entry.limit}`
+  const budget =
+    entry.scopeBudget === null ? 'no scope budget' : `scope budget ${entry.scopeBudget}`
   return {
     kind: 'unavailable',
     dependency: 'tool-queue',
-    diagnostic: `call ${entry.call} waits at ordinal ${entry.ordinal}: ${ahead} ahead, ${held} held, ${limit}`,
+    diagnostic: `call ${entry.call} waits at ordinal ${entry.ordinal}: ${ahead} ahead, ${toolHeld} held of this tool (${limit}), ${held} held in the scope (${budget})`,
   }
 }
 
-/**
- * Saves the unique start intent (P02, P04): the call must be `queued`, never rejected, and the
- * queue domain must have given it the head and a slot in this very step. One commit writes the
- * start record, `starting` with the held position, the `start` task, and removes the queue task.
- */
 export function decidePrepareStart(
   snapshot: Snapshot,
   command: PrepareStartCommand,
@@ -667,15 +690,14 @@ function intentOf(receipt: OperationReceipt): StartIntent {
   return { state: receipt.state, start: receipt.start }
 }
 
-/** The text factory of a terminal the ledger forms itself (dummy, first-start rejection). */
 export type TerminalText<B extends ContentBlock> = (
   terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
 ) => Outcome<ToolRenderedResult<B>, ToolFailure>
 
-/**
- * The settled state of a call that never started: the given logical terminal, nothing started,
- * the position released on `release` (the start exclusion, or the minimal terminal's result).
- */
+export type ClosedWaitText<B extends ContentBlock> = (
+  closedResult: string,
+) => Outcome<ToolRenderedResult<B>, ToolFailure>
+
 function rejectedState(
   record: CallRecord,
   version: Extract<ToolState, { phase: 'settled' }>['result'],
@@ -713,14 +735,6 @@ function rejectedState(
   return nextState(record, body, revision)
 }
 
-/**
- * The writes of a first-start rejection (P04): the permanent rejection, the unavailable terminal
- * with `effect: not-started`, its delivery, the replacement account, and the release of the
- * queue position with the exclusion as its basis. The call domain settles first; the `queue`
- * task then asks the queue domain to drop the entry. A real tool always gets that task, even
- * when the state holds no position: an entry that the queue domain created before a crash
- * (planPreparation's second step) is dropped the same way.
- */
 function rejectionWrites(
   snapshot: Snapshot,
   record: CallRecord,
@@ -733,13 +747,6 @@ function rejectionWrites(
   return unstartedWrites(snapshot, record, command, terminal, rejection, prepared, mint)
 }
 
-/**
- * The writes that settle a call that never started on a logical terminal: the terminal with
- * `effect: not-started`, its delivery, the replacement account, the release of the queue
- * position and the `queue` task that drops the entry. A start rejection releases on its
- * exclusion and is kept on the call; without one, the position is released on the terminal's
- * own result (the minimal failure terminal, SPEC 23).
- */
 function unstartedWrites(
   snapshot: Snapshot,
   record: CallRecord,
@@ -776,22 +783,17 @@ function unstartedWrites(
       put({ kind: 'call', call: { ...record, state, startRejection } }),
       ...settled.writes,
       ...deleteTasks(snapshot, ['queue', 'prepare', 'start']),
+      ...dropSuspensionContent(snapshot),
       ...queue,
     ],
     value: state,
   }
 }
 
-/** The pending phases a rejection without a start record applies to. */
 const PENDING_PHASES: readonly ToolState['phase'][] = ['accepted', 'preparing', 'queued']
 
 export type RejectPendingCommand = WriteCommand & StartRejection
 
-/**
- * Rejects a call that never reached a start record (P04 rejectPending): the current host has
- * excluded the whole pending invocation. The call must be `accepted`, `preparing` or `queued`
- * and hold no start record; a call with a start record is rejected through recordStart.
- */
 export function decideRejectPending(
   snapshot: Snapshot,
   command: RejectPendingCommand,
@@ -815,17 +817,10 @@ export function decideRejectPending(
   )
 }
 
-/** The diagnostic of the minimal failure terminal names the store's reason after this text. */
 export const LEDGER_REJECTED_DIAGNOSTIC = 'ledger-store rejected: '
 
 export type LedgerRejectedCommand = WriteCommand & Readonly<{ reason: string }>
 
-/**
- * The minimal failure terminal (SPEC 23): the store rejected a commit of a step for good, and the
- * call never started (no start record, so nothing runs). The call settles `failed` with cause
- * `runtime-lost` and the store's reason, without raw output or result pages, and its queue
- * position is released on the terminal's result. A call with a start record is not settled here.
- */
 export function decideLedgerRejected(
   snapshot: Snapshot,
   command: LedgerRejectedCommand,
@@ -853,7 +848,6 @@ export function decideLedgerRejected(
   )
 }
 
-/** Adds the operation receipt of a settlement decision to its writes. */
 function withReceipt(
   decided: SyntheticDecision<ToolState>,
   command: WriteCommand,
@@ -869,16 +863,10 @@ export type RecordStartCommand = WriteCommand &
   Readonly<{
     invocation: ToolStartRecord
     outcome: StartProgress
-    /** The clock segment of a foreground start, begun by the ledger before this decision. */
     segment: ClockSegment | null
-    /** The instance and generation that record the start: the write context's. */
     execution: ToolExecutionRef
   }>
 
-/**
- * The call a recordStart addresses, after the revision gate: it holds exactly the start record
- * the command names, and it is still `starting`.
- */
 function startingCall(
   snapshot: Snapshot,
   command: RecordStartCommand,
@@ -893,15 +881,6 @@ function startingCall(
   return succeed({ ...gated.ok, start })
 }
 
-/**
- * Records the outcome of the start fence for the call's start record (P04 recordStart):
- * `started` makes the call `running` with the live execution and the timing segment;
- * `rejected` settles it as unavailable with `effect: not-started` and releases the position;
- * `not-started` keeps the intent so the same identity may be started after a new permit;
- * `unknown` marks the execution unknown and keeps the task for reconciliation. Every outcome
- * commits an operation receipt, so a caller that records a non-final outcome and later a final
- * one must use a new operation for the second record.
- */
 export function decideRecordStart(
   snapshot: Snapshot,
   command: RecordStartCommand,
@@ -925,7 +904,6 @@ export function decideRecordStart(
       return withReceipt(decided, command, 'record-start', mint)
     }
     case 'not-started':
-      // The exclusion is proven, so the start may be tried again under a new permit (P04).
       return kept(
         record,
         command,
@@ -946,7 +924,6 @@ export function decideRecordStart(
   }
 }
 
-/** The call is running: the live execution, the instance that recorded it, the timing segment. */
 function started(
   snapshot: Snapshot,
   record: CallRecord,
@@ -997,7 +974,6 @@ function started(
   }
 }
 
-/** The outcome is recorded; the start record and its task stay for a later attempt or query. */
 function kept(
   record: CallRecord,
   command: RecordStartCommand,
@@ -1015,10 +991,6 @@ function kept(
   }
 }
 
-/**
- * Closes a cross-domain step: removes the `queue` task of `operation` after the queue domain
- * confirmed the transition. A task that is already gone was closed before.
- */
 export function decideCloseQueueTask(
   snapshot: Snapshot,
   operation: ToolOperationId,

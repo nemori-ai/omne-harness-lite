@@ -1,8 +1,3 @@
-// Representative entries of one session log, sized like the 2026-11-04 e2e sample
-// (parallel-handover/sl-shrink-design.md section 0): a creation batch with two resident tools whose
-// shapes hold JSON Schema texts, and the producer facts and a tool message of one model call. The
-// evidence records embed the tenant text the way the Journal stub mints them today, so the byte
-// counts of `fact.source` are of the real order of magnitude.
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type { HistoryEntry } from '../src/faces.ts'
 import type { DurableEvidence, SessionOperationId, SessionId } from '../src/identity.ts'
@@ -25,7 +20,6 @@ export const OPERATION = `sop_${'b'.repeat(64)}` as SessionOperationId
 
 const hex = (seed: string): string => seed.repeat(64).slice(0, 64)
 
-/** One command table of a resident tool: names, descriptions and a JSON Schema text per command. */
 function shapeOf(tool: string, commands: readonly string[]): HistoryEntry['payload'] {
   return toJsonValue({
     tool,
@@ -116,7 +110,6 @@ const createdInput = toJsonValue({
   creation: { ...CREATION, workspace: null },
 })
 
-/** The Journal evidence of one received material, with the tenant nested the way it is today. */
 function journalEvidence(what: string): DurableEvidence {
   const namespace = JSON.stringify([TENANT_TEXT, SESSION])
   const reference = JSON.stringify(['model-invocation', 1, TENANT_TEXT, `call_${what}`, 'adm_1'])
@@ -159,7 +152,6 @@ const releaseSource = journalEvidence('release')
 const toolSource = journalEvidence('tool-result')
 const { candidate: _candidate, ...adoptionWithoutCandidate } = INITIAL_ADOPTION
 
-/** The creation batch in commit order, then the entries of one model call. */
 export const SAMPLES: readonly Sample[] = [
   {
     name: 'session.created (SE01)',

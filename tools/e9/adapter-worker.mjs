@@ -39,7 +39,6 @@ try {
   adapter = await wait(module.open({ root, out, abortSignal: controller.signal }))
   if (typeof adapter?.nextRound !== 'function' || typeof adapter.close !== 'function')
     throw new Error('adapter requires nextRound and close')
-  // 短跑由适配器声明计划轮数；缺窗由判定记等件，不会冒充完整的 200 轮。
   plannedRounds = adapter.plannedRounds ?? 200
   await driveRounds(
     async round => {

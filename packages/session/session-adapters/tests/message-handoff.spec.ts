@@ -1,12 +1,3 @@
-// J06 on real Cordis 4.0.4: the message admission provider of the Session log combination over the
-// node:sqlite double of the storage (real participants, migrations and read handlers). What is
-// checked: the invoke and submit branches bind their request through trusted facts (the session
-// slot scope, the execution index and the Session snapshot) and save the intent before the
-// outcome; the same Ki recalls the original H and outcome with no new write; the execution branch
-// recalls the P of the Journal, answers stale-advance for a superseded advance, and a fixed outcome
-// is recalled before the advance is judged; the outcome is fixed once; lookup reads and writes
-// nothing; a forged scope, another tenant's scope, an execution of no Run and a denied qualification
-// are refused with nothing written; another tenant does not read the record.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   decodeAgentExecutionId,
@@ -55,7 +46,6 @@ const PROVIDER = {
   digest: 'session-adapters:session-message-handoff/1',
 }
 
-/** The Agent access of the scene: its principal and tenant, without the session. */
 const agentAccess = (s: SqlScene) => ({ principal: s.access.principal, tenant: s.access.tenant })
 
 const scenes: SqlScene[] = []
@@ -66,10 +56,6 @@ afterEach(async () => {
   for (const s of scenes.splice(0)) await s.close()
 })
 
-/**
- * The scene, its Cordis root and the provider; `decision` scripts `agentAccessCheck`. With
- * `refuse`, the storage refuses every commit before accepting it, for that reason.
- */
 async function provided(
   name: string,
   decision: 'allowed' | 'denied' = 'allowed',
@@ -151,7 +137,6 @@ const lookupInput = (s: SqlScene, input: ReturnType<typeof submit>) => ({
   operation: input.request.reference.entry,
 })
 
-/** The invoke-branch prepare of the scene's initial input, with the session slot scope. */
 function invoke(
   s: SqlScene,
   scope = sessionScopeEvidence(s.tenantText(s.access.tenant), s.access.session),
@@ -166,7 +151,6 @@ function invoke(
   }
 }
 
-/** The submit-branch prepare of a new input into `execution`. */
 function submit(s: SqlScene, execution = s.execution) {
   const value = {
     id: ok(decodeInputId('input-2')),
@@ -179,7 +163,6 @@ function submit(s: SqlScene, execution = s.execution) {
   return { ...agentAccess(s), kind: 'submit' as const, request }
 }
 
-/** The preadmission records the storage holds, by Ki. */
 async function recordOf(s: SqlScene, entry: string) {
   const read = await s.storage.read({
     domain: s.domain,
@@ -192,7 +175,6 @@ async function recordOf(s: SqlScene, entry: string) {
   return decodePreadmissionRecord(read.output)
 }
 
-/** The writes of the preadmission records (commits of the execution-record participant alone). */
 const writes = (s: SqlScene) =>
   s.commits.filter(item => item.length === 1 && item[0] === 'execution-record').length
 
@@ -476,8 +458,6 @@ describe('the invoke and submit branches', () => {
     expect(f.checked).toEqual(['invoke'])
   })
 
-  // sql-contract "提交拒绝原因的定性": the preadmission write translates a refusal like the
-  // Journal does; a definite one is not answered as unavailable.
   it.each([
     ['command_limit', { kind: 'invalid', field: 'storage', reason: 'command_limit' }],
     ['combination_unregistered', { kind: 'unsupported' }],
@@ -546,7 +526,6 @@ describe('the invoke and submit branches', () => {
       const f = await provided(`handoff-ended-${branch}`)
       const snapshot = ok(await f.s.port.readWork(f.s.sessionAccess))
       if (snapshot.run.kind !== 'active') throw new Error('fixture: an active Run is expected')
-      // Session ends the Run; the execution index still names the execution and the session.
       ok(
         await f.s.port.commit({
           access: f.s.sessionAccess,
@@ -567,7 +546,6 @@ describe('the invoke and submit branches', () => {
       expect(await f.handoff().prepare(branch === 'invoke' ? invoke(f.s) : submit(f.s))).toEqual({
         failure: { kind: 'denied', action: branch },
       })
-      // The qualification is the Session snapshot, so the access check is never asked.
       expect(f.checked).toEqual([])
       expect(writes(f.s)).toBe(before)
     })
@@ -596,8 +574,6 @@ describe('the invoke and submit branches', () => {
             : input.request.entry,
       },
     }
-    // The shape check of the branch already reads the candidate: a malformed one never reaches
-    // the provider's records.
     expect(await f.handoff().prepare(bad)).toMatchObject({ failure: { kind: 'invalid' } })
     expect(writes(f.s)).toBe(0)
   })
@@ -719,7 +695,6 @@ describe('lookup', () => {
   })
 })
 
-/** The internal request of a main reply: P of the snapshot's step. */
 function replyRequest(s: SqlScene, snapshot: ExecutionSnapshot, name: string): PendingHandoff {
   const call = ok(decodeModelCallId(`mcall_${'0'.repeat(20)}${name.slice(-2).padStart(2, '0')}`))
   return {

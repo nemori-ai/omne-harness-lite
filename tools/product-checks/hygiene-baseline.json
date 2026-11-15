@@ -1,0 +1,861 @@
+{
+  "limits": {
+    "fileLines": 1000,
+    "functionLines": 150,
+    "specLines": 600,
+    "commentRunLines": 3,
+    "commentFloorLines": 6,
+    "commentPercent": 1
+  },
+  "documents": [
+    ".meta_harness/AGENTS.md",
+    ".meta_harness/CLAUDE.md",
+    ".meta_harness/README.md",
+    ".meta_harness/agents/README.md",
+    ".meta_harness/agents/adapters/README.md",
+    ".meta_harness/agents/cloud/README.md",
+    ".meta_harness/agents/cloud/claude-code/README.md",
+    ".meta_harness/agents/cloud/cursor/README.md",
+    ".meta_harness/agents/hooks/README.md",
+    ".meta_harness/agents/pqw/plan-addendum.md",
+    ".meta_harness/agents/pqw/spec-addendum.md",
+    ".meta_harness/agents/roles/engineering-taste.md",
+    ".meta_harness/design/AGENTS.md",
+    ".meta_harness/design/CLAUDE.md",
+    ".meta_harness/design/README.md",
+    ".meta_harness/design/foundation/README.md",
+    ".meta_harness/human/README.md",
+    ".meta_harness/human/delivery-pitfalls.md",
+    ".meta_harness/human/milestone-planning.md",
+    ".meta_harness/human/stable-contracts.md",
+    ".meta_harness/tooling/README.md",
+    "apps/harness-server/tests/fixtures/aa/bad-id-cell.md",
+    "apps/harness-server/tests/fixtures/aa/base.md",
+    "apps/harness-server/tests/fixtures/aa/duplicate-id.md",
+    "apps/harness-server/tests/fixtures/aa/extra-row.md",
+    "apps/harness-server/tests/fixtures/aa/missing-row.md",
+    "apps/harness-server/tests/fixtures/aa/no-section.md",
+    "apps/harness-server/tests/fixtures/aa/renamed.md",
+    "apps/harness-server/tests/fixtures/aa/reordered.md",
+    "apps/harness-server/tests/fixtures/aa/scope-changed.md",
+    "apps/harness-server/tests/fixtures/aa/trusted-unknown-row.md",
+    "packages/agent/agent/acceptance/README.md",
+    "packages/agent/agent/acceptance/fixtures/README.md",
+    "packages/model/model/acceptance/README.md",
+    "packages/model/model/acceptance/fixtures/README.md",
+    "packages/model/model/acceptance/fixtures/index.md",
+    "packages/model/model/acceptance/index.md",
+    "packages/skills/skill-contract/tests/fixtures/packages/format-stops-declaration/SKILL.md",
+    "packages/skills/skill-contract/tests/fixtures/packages/format-unsupported/SKILL.md",
+    "packages/skills/skill-contract/tests/fixtures/packages/full-skill/SKILL.md",
+    "packages/skills/skill-contract/tests/fixtures/packages/full-skill/references/deep/guide.md",
+    "packages/skills/skill-contract/tests/fixtures/packages/malformed-duplicate-key/SKILL.md",
+    "packages/skills/skill-contract/tests/fixtures/packages/mismatch-before-format/SKILL.md",
+    "packages/skills/skill-contract/tests/fixtures/packages/name-mismatch/SKILL.md",
+    "packages/skills/skill-contract/tests/fixtures/packages/outside-before-malformed/SKILL.md",
+    "packages/skills/skill-contract/tests/fixtures/packages/plain-skill/SKILL.md",
+    "packages/skills/skill-contract/tests/fixtures/packages/script-outside/SKILL.md",
+    "packages/skills/skill-contract/tests/fixtures/packages/setting-category-unknown/SKILL.md",
+    "packages/skills/skill-contract/tests/fixtures/packages/tool-before-setting/SKILL.md",
+    "packages/skills/skill-contract/tests/fixtures/packages/tool-ref-invalid/SKILL.md",
+    "packages/skills/skill-host-local/examples/sample-skill/SKILL.md",
+    "packages/skills/skill-host-local/examples/sample-skill/references/guide.md",
+    "packages/tool/tool/acceptance/README.md",
+    "packages/tool/tool/acceptance/fixtures/README.md",
+    "tools/repo-toolchain/resources/clean-loop-entries.md",
+    "tools/repo-toolchain/tests/fixtures/loop-canary/README.md",
+    "tools/repo-toolchain/tests/fixtures/loop-canary/repo/.meta_harness/design/product/canary/README.md",
+    "tools/repo-toolchain/tests/fixtures/loop-canary/repo/.meta_harness/design/product/canary/design.md"
+  ],
+  "comments": {
+    "packages/session/session-storage-sql/src/worker/attempt-grant-migration.ts": 1
+  },
+  "sizes": {
+    "files": {
+      "apps/m2-contract-skeleton/src/path.ts": 1987,
+      "packages/agent/agent-contract/src/testing-journal-core.ts": 1948,
+      "packages/agent/agent-contract/src/testing-journal-finishing.ts": 4160,
+      "packages/agent/agent-contract/src/testing-received-conformance.ts": 1055,
+      "packages/agent/agent-host-local/src/host.ts": 1053,
+      "packages/agent/agent/src/loop/coordinator.ts": 3471,
+      "packages/agent/agent/src/testing/journal.ts": 3613,
+      "packages/execution/execution-environment-contract/src/testing/environment-conformance.ts": 1055,
+      "packages/execution/execution-environment/src/registry.ts": 1046,
+      "packages/identity/identity/src/testing/governance-contract.ts": 2224,
+      "packages/mcp/mcp-contract/src/testing-transport.ts": 2537,
+      "packages/model/model-host-local/src/plugins/runtime.ts": 1012,
+      "packages/model/model-storage-sql/src/commit.ts": 1127,
+      "packages/model/model/src/commands/commands.ts": 1149,
+      "packages/session/session-adapters/src/cordis/agent-journal.ts": 2143,
+      "packages/session/session-adapters/src/cordis/context-holder.ts": 1168,
+      "packages/session/session-adapters/src/cordis/context-input.ts": 1111,
+      "packages/session/session-adapters/src/cordis/history-source.ts": 1029,
+      "packages/session/session-adapters/src/testing/factory.ts": 1324,
+      "packages/session/session-adapters/src/testing/journal-finishing.ts": 1370,
+      "packages/session/session-adapters/src/testing/journal.ts": 4980,
+      "packages/session/session-adapters/src/testing/session.ts": 1294,
+      "packages/session/session-contract/src/testing-transactions.ts": 2568,
+      "packages/session/session-storage-sql/src/worker/participant.ts": 1435,
+      "packages/tool/tool-contract/src/testing-executor-binding.ts": 1022,
+      "packages/tool/tool-cordis-contract/src/testing.ts": 1388,
+      "packages/tool/tool-host-local/src/start-coordinator.ts": 1059,
+      "packages/tool/tool/src/ledger-start.ts": 1002,
+      "packages/tool/tool/src/ledger.ts": 2072,
+      "tools/repo-toolchain/src/arch/extract.ts": 1098
+    },
+    "functions": {
+      "apps/harness-server/src/model/qualification.ts": {
+        "count": 1,
+        "longest": 185
+      },
+      "apps/harness-server/src/rows/agent-cards/provider.ts": {
+        "count": 1,
+        "longest": 320
+      },
+      "apps/harness-server/src/rows/governance/tenant-settings-permissions.ts": {
+        "count": 1,
+        "longest": 214
+      },
+      "apps/harness-server/src/rows/model-records/index.ts": {
+        "count": 1,
+        "longest": 151
+      },
+      "apps/harness-server/src/rows/session-provider/faces.ts": {
+        "count": 1,
+        "longest": 322
+      },
+      "apps/harness-server/src/rows/tool-hitl/bridge.ts": {
+        "count": 1,
+        "longest": 292
+      },
+      "apps/harness-server/src/rows/tool-runtime/environment.ts": {
+        "count": 1,
+        "longest": 165
+      },
+      "apps/harness-server/src/run.ts": {
+        "count": 1,
+        "longest": 173
+      },
+      "apps/m2-contract-skeleton/src/governance.ts": {
+        "count": 1,
+        "longest": 164
+      },
+      "packages/access/server-entry/src/http.ts": {
+        "count": 1,
+        "longest": 262
+      },
+      "packages/access/server-entry/src/pipeline/pipeline.ts": {
+        "count": 1,
+        "longest": 177
+      },
+      "packages/agent/agent-contract/src/testing-journal-core.ts": {
+        "count": 2,
+        "longest": 1128
+      },
+      "packages/agent/agent-contract/src/testing-journal-entries.ts": {
+        "count": 1,
+        "longest": 605
+      },
+      "packages/agent/agent-contract/src/testing-journal-finishing.ts": {
+        "count": 2,
+        "longest": 3422
+      },
+      "packages/agent/agent-contract/src/testing-journal-replay.ts": {
+        "count": 2,
+        "longest": 213
+      },
+      "packages/agent/agent-contract/src/testing-received-conformance.ts": {
+        "count": 1,
+        "longest": 1003
+      },
+      "packages/agent/agent-contract/src/testing-received-memory.ts": {
+        "count": 1,
+        "longest": 477
+      },
+      "packages/agent/agent-cordis-contract/src/cordis.ts": {
+        "count": 1,
+        "longest": 251
+      },
+      "packages/agent/agent-host-local/src/host.ts": {
+        "count": 1,
+        "longest": 766
+      },
+      "packages/agent/agent/src/loop/coordinator.ts": {
+        "count": 1,
+        "longest": 2951
+      },
+      "packages/agent/agent/src/provider.ts": {
+        "count": 1,
+        "longest": 628
+      },
+      "packages/agent/agent/src/receiving.ts": {
+        "count": 1,
+        "longest": 327
+      },
+      "packages/agent/agent/src/testing/journal-finishing.ts": {
+        "count": 1,
+        "longest": 347
+      },
+      "packages/agent/agent/src/testing/journal-receiving.ts": {
+        "count": 1,
+        "longest": 480
+      },
+      "packages/agent/agent/src/testing/journal.ts": {
+        "count": 6,
+        "longest": 2922
+      },
+      "packages/agent/agent/src/testing/model-receiver.ts": {
+        "count": 1,
+        "longest": 176
+      },
+      "packages/agent/agent/src/tool-receiving.ts": {
+        "count": 1,
+        "longest": 374
+      },
+      "packages/assets/settings-local/src/catalog.ts": {
+        "count": 1,
+        "longest": 238
+      },
+      "packages/assets/settings/src/tenant-settings.ts": {
+        "count": 1,
+        "longest": 248
+      },
+      "packages/calendar/calendar-local/src/runner/index.ts": {
+        "count": 1,
+        "longest": 169
+      },
+      "packages/common/json-text/src/read.ts": {
+        "count": 1,
+        "longest": 152
+      },
+      "packages/context/agent-context/src/model-context.ts": {
+        "count": 1,
+        "longest": 252
+      },
+      "packages/context/agent-context/src/requests.ts": {
+        "count": 1,
+        "longest": 630
+      },
+      "packages/context/request-context-contract/src/testing/conformance.ts": {
+        "count": 1,
+        "longest": 256
+      },
+      "packages/context/request-context-contract/src/testing/history-source.ts": {
+        "count": 1,
+        "longest": 187
+      },
+      "packages/context/request-context-cordis-contract/src/testing/index.ts": {
+        "count": 1,
+        "longest": 183
+      },
+      "packages/context/request-context/src/accounting.ts": {
+        "count": 1,
+        "longest": 256
+      },
+      "packages/context/request-context/src/registry.ts": {
+        "count": 1,
+        "longest": 224
+      },
+      "packages/context/runtime-context-contract/src/testing/memory-holder.ts": {
+        "count": 1,
+        "longest": 246
+      },
+      "packages/context/runtime-context-contract/src/testing/memory-producer.ts": {
+        "count": 1,
+        "longest": 389
+      },
+      "packages/context/runtime-context-contract/src/testing/memory-reader.ts": {
+        "count": 2,
+        "longest": 382
+      },
+      "packages/context/runtime-context-contract/src/testing/memory-replay.ts": {
+        "count": 1,
+        "longest": 265
+      },
+      "packages/context/runtime-context/src/holder.ts": {
+        "count": 1,
+        "longest": 259
+      },
+      "packages/context/runtime-context/src/producer.ts": {
+        "count": 1,
+        "longest": 425
+      },
+      "packages/context/runtime-context/src/reader.ts": {
+        "count": 2,
+        "longest": 480
+      },
+      "packages/context/runtime-context/src/replay.ts": {
+        "count": 1,
+        "longest": 273
+      },
+      "packages/context/runtime-context/src/world.ts": {
+        "count": 1,
+        "longest": 218
+      },
+      "packages/execution/execution-environment-contract/src/testing/doubles.ts": {
+        "count": 1,
+        "longest": 209
+      },
+      "packages/execution/execution-environment-contract/src/testing/environment-conformance.ts": {
+        "count": 1,
+        "longest": 159
+      },
+      "packages/execution/execution-environment-contract/src/testing/memory-files.ts": {
+        "count": 1,
+        "longest": 262
+      },
+      "packages/execution/execution-environment-contract/src/testing/scripted-terminal.ts": {
+        "count": 1,
+        "longest": 162
+      },
+      "packages/execution/execution-environment-host-local/src/host-command.ts": {
+        "count": 1,
+        "longest": 358
+      },
+      "packages/execution/execution-environment-host-local/src/host-file-batch.ts": {
+        "count": 1,
+        "longest": 321
+      },
+      "packages/execution/execution-environment-host-local/src/host-file-tree.ts": {
+        "count": 1,
+        "longest": 751
+      },
+      "packages/execution/execution-environment-host-local/src/host-files.ts": {
+        "count": 2,
+        "longest": 654
+      },
+      "packages/execution/execution-environment-host-local/src/host-paths.ts": {
+        "count": 2,
+        "longest": 251
+      },
+      "packages/execution/execution-environment-host-local/src/host-provider.ts": {
+        "count": 1,
+        "longest": 422
+      },
+      "packages/execution/execution-environment-host-local/src/host-retained-processes.ts": {
+        "count": 1,
+        "longest": 444
+      },
+      "packages/execution/execution-environment-host-local/src/host-retained-terminals.ts": {
+        "count": 2,
+        "longest": 366
+      },
+      "packages/execution/execution-environment-host-local/src/host-terminal.ts": {
+        "count": 1,
+        "longest": 414
+      },
+      "packages/execution/execution-environment-host-local/src/macos-execution/command-gate-run.ts": {
+        "count": 1,
+        "longest": 166
+      },
+      "packages/execution/execution-environment-host-local/src/macos-execution/commands.ts": {
+        "count": 1,
+        "longest": 319
+      },
+      "packages/execution/execution-environment-host-local/src/macos-execution/terminal-gate-run.ts": {
+        "count": 1,
+        "longest": 230
+      },
+      "packages/execution/execution-environment-host-local/src/macos-files/facility.ts": {
+        "count": 1,
+        "longest": 221
+      },
+      "packages/execution/execution-environment-host-local/src/windows-execution/index.ts": {
+        "count": 2,
+        "longest": 425
+      },
+      "packages/execution/execution-environment-host-local/src/windows-execution/terminal.ts": {
+        "count": 1,
+        "longest": 487
+      },
+      "packages/execution/execution-environment-host-local/src/windows-files/batch.ts": {
+        "count": 1,
+        "longest": 263
+      },
+      "packages/execution/execution-environment-host-local/src/windows-files/facility.ts": {
+        "count": 1,
+        "longest": 346
+      },
+      "packages/execution/execution-environment-host-local/src/windows-files/helper.ts": {
+        "count": 1,
+        "longest": 180
+      },
+      "packages/execution/execution-environment/src/lease-view.ts": {
+        "count": 1,
+        "longest": 153
+      },
+      "packages/execution/execution-environment/src/registry.ts": {
+        "count": 1,
+        "longest": 810
+      },
+      "packages/human-intervention/human-intervention-local/src/application.ts": {
+        "count": 1,
+        "longest": 202
+      },
+      "packages/human-intervention/human-intervention-local/src/identity.ts": {
+        "count": 1,
+        "longest": 162
+      },
+      "packages/identity/identity-access/src/operations.ts": {
+        "count": 1,
+        "longest": 280
+      },
+      "packages/identity/identity-sql/src/coordination.ts": {
+        "count": 1,
+        "longest": 387
+      },
+      "packages/identity/identity-sql/src/governance.ts": {
+        "count": 1,
+        "longest": 511
+      },
+      "packages/identity/identity-sql/src/provider.ts": {
+        "count": 1,
+        "longest": 286
+      },
+      "packages/identity/identity/src/testing/governance-double.ts": {
+        "count": 1,
+        "longest": 510
+      },
+      "packages/identity/scrypt/src/gate.ts": {
+        "count": 1,
+        "longest": 224
+      },
+      "packages/mcp/mcp-contract/src/testing-transport.ts": {
+        "count": 5,
+        "longest": 395
+      },
+      "packages/mcp/mcp/src/calls.ts": {
+        "count": 1,
+        "longest": 170
+      },
+      "packages/mcp/mcp/src/discovery.ts": {
+        "count": 1,
+        "longest": 197
+      },
+      "packages/mcp/mcp/src/internal/build.ts": {
+        "count": 1,
+        "longest": 194
+      },
+      "packages/mcp/mcp/src/internal/table.ts": {
+        "count": 1,
+        "longest": 282
+      },
+      "packages/model/model-contract/src/conformance/conformance-admission.ts": {
+        "count": 1,
+        "longest": 244
+      },
+      "packages/model/model-contract/src/conformance/conformance-observation.ts": {
+        "count": 1,
+        "longest": 214
+      },
+      "packages/model/model-contract/src/conformance/conformance-routes.ts": {
+        "count": 1,
+        "longest": 242
+      },
+      "packages/model/model-contract/src/conformance/conformance-settlement.ts": {
+        "count": 1,
+        "longest": 361
+      },
+      "packages/model/model-contract/src/conformance/conformance-stream.ts": {
+        "count": 2,
+        "longest": 189
+      },
+      "packages/model/model-contract/src/testing/controller.ts": {
+        "count": 1,
+        "longest": 164
+      },
+      "packages/model/model-contract/src/testing/pusher.ts": {
+        "count": 1,
+        "longest": 343
+      },
+      "packages/model/model-contract/src/testing/stream-observation.ts": {
+        "count": 1,
+        "longest": 214
+      },
+      "packages/model/model-cordis-contract/src/converters.ts": {
+        "count": 1,
+        "longest": 159
+      },
+      "packages/model/model-cordis-contract/src/testing/index.ts": {
+        "count": 1,
+        "longest": 164
+      },
+      "packages/model/model-host-local/src/plugins/host.ts": {
+        "count": 1,
+        "longest": 185
+      },
+      "packages/model/model-host-local/src/plugins/runtime.ts": {
+        "count": 1,
+        "longest": 659
+      },
+      "packages/model/model-storage-sql/src/commit.ts": {
+        "count": 1,
+        "longest": 298
+      },
+      "packages/model/model/src/commands/commands.ts": {
+        "count": 3,
+        "longest": 466
+      },
+      "packages/model/model/src/commands/initial.ts": {
+        "count": 1,
+        "longest": 188
+      },
+      "packages/model/model/src/commands/observation.ts": {
+        "count": 1,
+        "longest": 164
+      },
+      "packages/model/model/src/driver.ts": {
+        "count": 1,
+        "longest": 603
+      },
+      "packages/model/model/src/observation.ts": {
+        "count": 1,
+        "longest": 183
+      },
+      "packages/model/model/src/receive.ts": {
+        "count": 1,
+        "longest": 343
+      },
+      "packages/model/model/src/send/attempt.ts": {
+        "count": 1,
+        "longest": 451
+      },
+      "packages/model/model/src/stream-observation.ts": {
+        "count": 3,
+        "longest": 252
+      },
+      "packages/model/model/src/stream-source.ts": {
+        "count": 1,
+        "longest": 473
+      },
+      "packages/model/pi-ai-transport/src/http.ts": {
+        "count": 1,
+        "longest": 294
+      },
+      "packages/schedule/schedule-tools/src/details.ts": {
+        "count": 1,
+        "longest": 164
+      },
+      "packages/session/session-access/src/contribution.ts": {
+        "count": 1,
+        "longest": 314
+      },
+      "packages/session/session-adapters/src/cordis/agent-journal-provider.ts": {
+        "count": 1,
+        "longest": 292
+      },
+      "packages/session/session-adapters/src/cordis/agent-journal.ts": {
+        "count": 1,
+        "longest": 1393
+      },
+      "packages/session/session-adapters/src/cordis/context-holder.ts": {
+        "count": 1,
+        "longest": 289
+      },
+      "packages/session/session-adapters/src/cordis/message-handoff.ts": {
+        "count": 1,
+        "longest": 427
+      },
+      "packages/session/session-adapters/src/cordis/model-log-consumption.ts": {
+        "count": 1,
+        "longest": 173
+      },
+      "packages/session/session-adapters/src/cordis/tool-log-consumption.ts": {
+        "count": 1,
+        "longest": 187
+      },
+      "packages/session/session-adapters/src/testing/factory.ts": {
+        "count": 3,
+        "longest": 1192
+      },
+      "packages/session/session-adapters/src/testing/journal-finishing.ts": {
+        "count": 1,
+        "longest": 270
+      },
+      "packages/session/session-adapters/src/testing/journal-receiving.ts": {
+        "count": 1,
+        "longest": 639
+      },
+      "packages/session/session-adapters/src/testing/journal-records.ts": {
+        "count": 1,
+        "longest": 273
+      },
+      "packages/session/session-adapters/src/testing/journal.ts": {
+        "count": 6,
+        "longest": 3667
+      },
+      "packages/session/session-adapters/src/testing/root.ts": {
+        "count": 1,
+        "longest": 284
+      },
+      "packages/session/session-adapters/src/testing/session.ts": {
+        "count": 2,
+        "longest": 918
+      },
+      "packages/session/session-contract/src/projection.ts": {
+        "count": 1,
+        "longest": 174
+      },
+      "packages/session/session-contract/src/testing-delegated.ts": {
+        "count": 1,
+        "longest": 233
+      },
+      "packages/session/session-contract/src/testing-entries.ts": {
+        "count": 1,
+        "longest": 279
+      },
+      "packages/session/session-contract/src/testing-history-source.ts": {
+        "count": 2,
+        "longest": 206
+      },
+      "packages/session/session-contract/src/testing-log.ts": {
+        "count": 1,
+        "longest": 234
+      },
+      "packages/session/session-contract/src/testing-transactions.ts": {
+        "count": 5,
+        "longest": 899
+      },
+      "packages/session/session-observation/src/observation.ts": {
+        "count": 2,
+        "longest": 282
+      },
+      "packages/session/session-storage-sql/src/materials.ts": {
+        "count": 1,
+        "longest": 204
+      },
+      "packages/session/session/src/advance.ts": {
+        "count": 1,
+        "longest": 522
+      },
+      "packages/session/session/src/command.ts": {
+        "count": 1,
+        "longest": 262
+      },
+      "packages/session/session/src/control.ts": {
+        "count": 1,
+        "longest": 187
+      },
+      "packages/session/session/src/faces.ts": {
+        "count": 1,
+        "longest": 167
+      },
+      "packages/skills/skill-contract/src/testing-access.ts": {
+        "count": 1,
+        "longest": 332
+      },
+      "packages/skills/skill-contract/src/testing-catalog.ts": {
+        "count": 1,
+        "longest": 160
+      },
+      "packages/skills/skill-contract/src/testing-resolution.ts": {
+        "count": 1,
+        "longest": 180
+      },
+      "packages/storage/sqlite-provider/src/worker/group.ts": {
+        "count": 1,
+        "longest": 213
+      },
+      "packages/telemetry/telemetry-contract/src/testing/index.ts": {
+        "count": 1,
+        "longest": 199
+      },
+      "packages/telemetry/telemetry-node/src/emitter.ts": {
+        "count": 1,
+        "longest": 199
+      },
+      "packages/telemetry/telemetry-node/src/pipeline.ts": {
+        "count": 1,
+        "longest": 180
+      },
+      "packages/tool/tool-contract/src/testing-environment.ts": {
+        "count": 1,
+        "longest": 261
+      },
+      "packages/tool/tool-contract/src/testing-executor-binding.ts": {
+        "count": 2,
+        "longest": 413
+      },
+      "packages/tool/tool-contract/src/testing-external.ts": {
+        "count": 1,
+        "longest": 395
+      },
+      "packages/tool/tool-contract/src/testing-resource-responses.ts": {
+        "count": 2,
+        "longest": 299
+      },
+      "packages/tool/tool-contract/src/testing-start-authority.ts": {
+        "count": 1,
+        "longest": 186
+      },
+      "packages/tool/tool-cordis-contract/src/testing.ts": {
+        "count": 2,
+        "longest": 318
+      },
+      "packages/tool/tool-host-local/src/author-environment.ts": {
+        "count": 1,
+        "longest": 199
+      },
+      "packages/tool/tool-host-local/src/author-generations.ts": {
+        "count": 1,
+        "longest": 221
+      },
+      "packages/tool/tool-host-local/src/bindings.ts": {
+        "count": 1,
+        "longest": 184
+      },
+      "packages/tool/tool-host-local/src/catalog.ts": {
+        "count": 1,
+        "longest": 202
+      },
+      "packages/tool/tool-host-local/src/control-subject-adapter.ts": {
+        "count": 1,
+        "longest": 177
+      },
+      "packages/tool/tool-host-local/src/environment-state.ts": {
+        "count": 1,
+        "longest": 426
+      },
+      "packages/tool/tool-host-local/src/execution-environment.ts": {
+        "count": 1,
+        "longest": 348
+      },
+      "packages/tool/tool-host-local/src/executor-binding.ts": {
+        "count": 2,
+        "longest": 495
+      },
+      "packages/tool/tool-host-local/src/invocation-forwarding.ts": {
+        "count": 1,
+        "longest": 297
+      },
+      "packages/tool/tool-host-local/src/invocation-source.ts": {
+        "count": 1,
+        "longest": 292
+      },
+      "packages/tool/tool-host-local/src/recovery-scans.ts": {
+        "count": 1,
+        "longest": 183
+      },
+      "packages/tool/tool-host-local/src/result-delivery.ts": {
+        "count": 1,
+        "longest": 515
+      },
+      "packages/tool/tool-host-local/src/runtime-author.ts": {
+        "count": 2,
+        "longest": 324
+      },
+      "packages/tool/tool-host-local/src/runtime-cordis.ts": {
+        "count": 1,
+        "longest": 204
+      },
+      "packages/tool/tool-host-local/src/runtime-executor.ts": {
+        "count": 1,
+        "longest": 340
+      },
+      "packages/tool/tool-host-local/src/runtime-publication.ts": {
+        "count": 1,
+        "longest": 337
+      },
+      "packages/tool/tool-host-local/src/scheduled-environment.ts": {
+        "count": 1,
+        "longest": 478
+      },
+      "packages/tool/tool-host-local/src/start-coordinator.ts": {
+        "count": 1,
+        "longest": 492
+      },
+      "packages/tool/tool-host-local/src/tool-forwarding.ts": {
+        "count": 2,
+        "longest": 302
+      },
+      "packages/tool/tool/src/driver-facts.ts": {
+        "count": 1,
+        "longest": 304
+      },
+      "packages/tool/tool/src/driver-suspension.ts": {
+        "count": 1,
+        "longest": 284
+      },
+      "packages/tool/tool/src/driver.ts": {
+        "count": 1,
+        "longest": 831
+      },
+      "packages/tool/tool/src/ledger-body-reads.ts": {
+        "count": 1,
+        "longest": 188
+      },
+      "packages/tool/tool/src/ledger-body-writer.ts": {
+        "count": 1,
+        "longest": 428
+      },
+      "packages/tool/tool/src/ledger.ts": {
+        "count": 1,
+        "longest": 1649
+      },
+      "packages/tool/tool/src/runtime.ts": {
+        "count": 1,
+        "longest": 163
+      },
+      "packages/tool/tool/src/stream-facade.ts": {
+        "count": 1,
+        "longest": 201
+      },
+      "packages/tool/tool/src/testing-ledger-assembly.ts": {
+        "count": 1,
+        "longest": 210
+      },
+      "packages/tool/tool/src/testing-ledger-composition-cases.ts": {
+        "count": 1,
+        "longest": 346
+      },
+      "packages/tool/tool/src/testing-ledger-due-cases.ts": {
+        "count": 1,
+        "longest": 176
+      },
+      "packages/tool/tool/src/testing-ledger-store-cases.ts": {
+        "count": 1,
+        "longest": 389
+      },
+      "packages/tool/tool/src/testing-ledger-store-fault-cases.ts": {
+        "count": 1,
+        "longest": 172
+      },
+      "packages/tool/tool/src/testing-source.ts": {
+        "count": 1,
+        "longest": 177
+      },
+      "packages/tool/tool/src/testing-store.ts": {
+        "count": 1,
+        "longest": 189
+      },
+      "tools/product-checks/src/rules/model-credential-boundary.ts": {
+        "count": 1,
+        "longest": 547
+      },
+      "tools/repo-toolchain/src/arch/conformance.ts": {
+        "count": 1,
+        "longest": 345
+      },
+      "tools/repo-toolchain/src/loop/run.ts": {
+        "count": 1,
+        "longest": 188
+      },
+      "tools/repo-toolchain/src/report/architecture-browser.ts": {
+        "count": 1,
+        "longest": 576
+      },
+      "tools/repo-toolchain/src/report/conformance-browser.ts": {
+        "count": 1,
+        "longest": 179
+      },
+      "tools/repo-toolchain/src/report/matrix.ts": {
+        "count": 1,
+        "longest": 189
+      },
+      "tools/test-runner/src/testing/check.ts": {
+        "count": 1,
+        "longest": 181
+      }
+    }
+  }
+}

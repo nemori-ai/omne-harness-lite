@@ -43,7 +43,6 @@ import {
 import { encodeEntry, type SessionEntry } from './entries.ts'
 import { entries, invalid, originOf, rejected, terminalEntries } from './decision-support.ts'
 
-/** Session consequences normalized by the adapter from the same log's public Agent read shapes. */
 export type SessionLogConsequence =
   | Readonly<{
       kind: 'call-registration'
@@ -82,21 +81,15 @@ export type SessionLogObservation = Omit<SessionAccess<never>, 'principal'> &
   Readonly<{
     run: RunId
     execution: string
-    /** Only the public AgentEvent sequence. Snapshot reads leave this null. */
     sequence: string | null
     revision: string
     executionEvidence?: DurableEvidence
     operation?: SessionOperationId
     source: DurableEvidence
     consequences: readonly SessionLogConsequence[]
-    /**
-     * The Agent evidence of a deferred control fact. Its consequences are then empty: Session
-     * decides them on the snapshot of the commit.
-     */
     control?: SessionControlEvidence
   }>
 
-/** Pure preparation for one atomic Session interpretation commit. */
 export function projectSessionLog(
   snapshot: WorkSnapshot,
   observation: SessionLogObservation,
@@ -282,8 +275,6 @@ function projectObservation(
       }
     }
   }
-  // A deferred control fact decided as observed still saves its progress: no later commit could
-  // name it in a gap, because a gap may hold only facts whose kinds are `observed`.
   if (out.length === 0 && !checked.deferred) return entries([])
   out.push(
     encodeEntry(
@@ -303,7 +294,6 @@ function projectObservation(
   return entries(out)
 }
 
-/** The consequences Session decides for a deferred control fact on the snapshot of this commit. */
 function deferredConsequences(
   snapshot: WorkSnapshot,
   observation: SessionLogObservation,

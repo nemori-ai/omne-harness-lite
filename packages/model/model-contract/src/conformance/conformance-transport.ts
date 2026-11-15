@@ -1,5 +1,3 @@
-// The checks of a transport: nothing leaves it before `start`, a step runs once, the receipt
-// grants nothing, the fact stream ends once, and closing is safe to repeat.
 import { isReplayTag } from '@omne-harness/message'
 import type { Supplier, FixedModelRequest } from '../index.ts'
 import type { MaterializedTransport, PreparedTransport, TransportFact } from '../provider/index.ts'
@@ -17,7 +15,6 @@ import type { Check, ConformanceTransport, Scene } from './conformance-types.ts'
 
 type Attempt<T> = Readonly<{ threw: true }> | Readonly<{ threw: false; value: T }>
 
-/** Runs a step whose refusal may be a thrown error or a returned failure; the contract does not say which. */
 async function attempt<T>(step: () => Promise<T>): Promise<Attempt<T>> {
   try {
     return { threw: false, value: await step() }
@@ -31,7 +28,6 @@ function inputOf<P>(scene: Scene<P>): Readonly<{ request: FixedModelRequest; sup
   return { request: given.request ?? scene.request, supplier: given.supplier ?? DEFAULT_SUPPLIER }
 }
 
-/** Prepares once, and closes what it prepared however the body ends. */
 async function viaPrepared<P, T>(
   scene: Scene<P>,
   body: (prepared: PreparedTransport, given: ConformanceTransport) => Promise<T>,
@@ -49,7 +45,6 @@ async function viaPrepared<P, T>(
   }
 }
 
-/** Materializes once, and closes it however the body ends. */
 async function viaMaterialized<T>(
   prepared: PreparedTransport,
   signal: AbortSignal,
@@ -79,8 +74,6 @@ async function collect<P>(
     }
     return facts
   } finally {
-    // A stream that ended has nothing left to release. Otherwise a failure of the release adds
-    // nothing to the finding that brought the suite here.
     if (!finished)
       await releaseIterator(iterator, scene.waitMs, 'the release of the fact stream').catch(
         () => undefined,
@@ -88,7 +81,6 @@ async function collect<P>(
   }
 }
 
-/** Reads the whole stream of a materialization that the check does not own, and closes it. */
 async function collectThenClose<P>(
   scene: Scene<P>,
   materialized: MaterializedTransport,
@@ -174,8 +166,6 @@ export function transportChecks<P>(): readonly Check<P>[] {
               `the receipt names the representation ${show(receipt.representation)}`,
             )
             expect(same(receipt, materialized.receipt), 'the receipt changes between two reads')
-            // Absent: the adapter produces no reasoning state. Present: the replay tag that the
-            // settlement writes into the message, so every read gives the same legal tag.
             const format = receipt.replayFormat
             expect(
               format === undefined || isReplayTag(format),

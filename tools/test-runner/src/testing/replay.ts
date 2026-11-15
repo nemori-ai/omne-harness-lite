@@ -1,8 +1,3 @@
-// 回放：对一条分支上最近的若干个 first-parent 提交，各以父提交为基线、以它本身为改动算一次计划（只算不跑）。
-// 成员清单取那个提交上的（当时的 workspace），路径规则取现在的配置——回放量的是现行规则放在过去会怎么判。
-// 受影响的成员由 turbo 比较父提交与该提交给出；turbo 的包依赖图取当前工作树的，这是一个近似：
-// 那之后改过的依赖关系会按现在的算，现在已不存在的成员没有下游。
-// 用来在改规则前后看「判全量的有几个、是不是该全量」，不进 `pnpm run check`。
 import { git, nulSeparated } from '@omne-harness/repo-toolchain/core/git'
 import { lockfileImpactBetween } from './steps.ts'
 import { planCheck, sample, type CheckPlan } from './scope.ts'
@@ -23,18 +18,15 @@ export interface ReplayRow {
   readonly tests: number
   readonly python: boolean
   readonly reason: string
-  /** 判全量时命中全局或未归类的文件（全量才有）。 */
   readonly fullBecause?: readonly string[]
 }
 
-/** 一个提交相对它第一个父提交改动的路径（改名拆成删与增，两侧都算）。 */
 export function commitChanges(root: string, commit: string): string[] {
   return nulSeparated(
     git(root, ['diff', '--no-renames', '--name-only', '-z', `${commit}^1`, commit]),
   )
 }
 
-/** 现行规则放到过去：那时还不存在的成员从读者与常驻构建里拿掉（那时没有这个读者），其余照旧。 */
 export function rulesAt(rules: AffectedRules, members: readonly WorkspaceMember[]): AffectedRules {
   const known = new Set(members.map(member => member.path))
   return {
@@ -120,7 +112,6 @@ export function replay(
 
 const cell = (text: string) => text.replaceAll('|', '\\|').replaceAll('\n', ' ')
 
-/** Markdown 表格，最后一行是各模式的计数。 */
 export function replayTable(rows: readonly ReplayRow[]): string[] {
   const lines = [
     '| 提交 | 主题 | 改动文件 | 模式 | 测试成员数 | pytest | 理由摘要 |',

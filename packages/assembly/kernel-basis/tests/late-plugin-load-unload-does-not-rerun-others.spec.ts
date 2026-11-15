@@ -1,6 +1,3 @@
-// basis `late-plugin-load-unload-does-not-rerun-others`（@deepseek-ai/cordis 4.0.4）。
-// 根已经 ACTIVE 之后，再装载一个带登记的插件，然后撤除它。
-// 登记随该插件的 fiber 出现和消失；注册表提供者与已有消费者的插件体都不重跑，fiber uid 不变。
 import { Context, Service } from '@deepseek-ai/cordis'
 import { expect, it } from 'vitest'
 

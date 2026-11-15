@@ -1,8 +1,6 @@
 /**
  * @module-tag slow
- * 归慢层：每条用例真起一次 turbo，跑一个小 workspace 里几个成员的测试任务。
  */
-// 成员测试交给 turbo：退出码与耗时取自运行摘要，输出按成员拆开，报告里有嵌套归档目录的文件就判失败。
 import {
   existsSync,
   mkdirSync,
@@ -30,7 +28,6 @@ function put(root: string, path: string, text: string): void {
   writeFileSync(join(root, path), text)
 }
 
-// 成员的测试脚本：打一行输出，按第一个参数往报告目录写一份 vitest 形状的报告，再按第二个参数退出。
 const FAKE_VITEST = `
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -45,21 +42,16 @@ process.exit(Number(code))
 `
 
 interface FixtureMember {
-  /** 报告里写的测试文件（相对成员目录）。 */
   readonly file: string
   readonly code: number
-  /** 成员所在的目录，缺省 `members`。 */
   readonly dir?: 'members' | 'apps' | 'packages'
-  /** 有 `build` 脚本时它的退出码。 */
   readonly build?: number
 }
 
-/** 一个 workspace：每个成员的 `test:fast` 调上面的脚本，写哪个文件、退出码几由参数定。 */
 function workspace(members: Readonly<Record<string, FixtureMember>>): {
   root: string
   targets: TestMember[]
 } {
-  // native：Windows 上 tmpdir() 可能是 8.3 短名，JS 版 realpath 保留它；vitest 报告里的文件名是长名。
   const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'omne-turbo-tests-')))
   roots.push(root)
   put(
@@ -147,7 +139,6 @@ describe('用 turbo 跑成员测试', { timeout: 60_000 }, () => {
       () => {},
     )
     expect(run?.exitCode).toBe(1)
-    // 问题里的文件名相对成员目录，按本机分隔符拼。
     expect(run?.problem).toContain(join('src/archive.legacy/x.spec.ts'))
     expect(readFileSync(join(runDir, 'members__old.log'), 'utf8')).toContain('嵌套归档目录')
   })
@@ -246,7 +237,6 @@ describe('成员目录下的 turbo.json', { timeout: 60_000 }, () => {
 
   it('合成定义与比对基准都取检查器仓库的根配置：被检查检出里的根 turbo.json 不参与', async () => {
     const { root, targets } = workspace({ app: { file: 'tests/a.spec.ts', code: 0, dir: 'apps' } })
-    // 检出自带的根配置放宽了测试任务；若 dry run 读它，成员原样继承的定义会开缓存、少了根的依赖。
     put(
       root,
       'turbo.json',
@@ -263,7 +253,6 @@ describe('成员目录下的 turbo.json', { timeout: 60_000 }, () => {
     put(root, 'apps/app/turbo.json', JSON.stringify({ extends: ['//'], tasks: {} }))
     const { runs } = await run(root, targets)
     expect(runs[0]?.exitCode).toBe(0)
-    // 比对基准若取检出自带的根配置，test:fast 的 dependsOn 本就为空，这里不会被拒。
     put(
       root,
       'apps/app/turbo.json',

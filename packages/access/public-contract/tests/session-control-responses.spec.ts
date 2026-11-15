@@ -75,7 +75,6 @@ const encodeWire = (operation: SessionOperation, wire: unknown) =>
 const unreadable = { kind: 'unreadable', diagnostic: { code: 'field' } }
 const invalid = { kind: 'invalid', diagnostic: { code: 'field' } }
 
-/** Both the reader and the encoder must refuse the same message. */
 function expectRefused(operation: SessionOperation, wire: unknown) {
   expect(readWire(operation, wire)).toEqual(unreadable)
   expect(encodeWire(operation, wire)).toEqual(invalid)

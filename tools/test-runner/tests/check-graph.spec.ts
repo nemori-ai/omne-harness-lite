@@ -1,4 +1,3 @@
-// 步骤图运行器：依赖顺序、轻步骤并发上限、一步失败其余终止、日志与退出码；逐步表与关键路径是纯函数。
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -21,7 +20,6 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
 })
 
-/** 一步：睡 `ms` 毫秒、打印名字、以 `code` 退出。 */
 const step = (
   name: string,
   ms: number,
@@ -88,13 +86,11 @@ describe('运行', () => {
         options(8),
       )
       expect(serialized(heavyLane)).toBe(true)
-      // 轻步骤名额只剩 1 时，重步骤照常起，轻步骤与它同时跑。
       const mixed = await runGraph(
         [step('heavy', OVERLAP_MS, 0, [], true), step('light', OVERLAP_MS)],
         options(1),
       )
       expect(serialized(mixed)).toBe(false)
-      // 放宽重步骤的并发后两个重步骤同时跑。
       const twoLanes = await runGraph(
         [step('x', OVERLAP_MS, 0, [], true), step('y', OVERLAP_MS, 0, [], true)],
         {
@@ -180,7 +176,6 @@ describe('逐步表与关键路径', () => {
   })
 
   it('关键路径按时间回溯：每步退到它开始前结束得最晚的那一步，重步骤排队也算在内', () => {
-    // typecheck 与 test 都只依赖 build，但重步骤一次一个：test 实际等的是 typecheck。
     const results = [
       result('build', 0, 10),
       result('docs', 0, 30),
@@ -190,11 +185,9 @@ describe('逐步表与关键路径', () => {
       result('loop', 260, 290),
     ]
     expect(criticalPath(results)).toEqual(['build', 'typecheck', 'test', 'acceptance', 'loop'])
-    // 轻步骤与关键路径重叠时不进路径。
     expect(criticalPath([result('build', 0, 10), result('docs', 0, 30)])).toEqual(['docs'])
   })
 
-  // criticalPath 是同步函数，挂死时 vitest 的用例超时拦不住；所以放进子进程，由 spawnSync 的 timeout 强杀。
   const runCriticalPaths = (cases: StepResult[][]): string[][] => {
     const module = pathToFileURL(join(import.meta.dirname, '../src/testing/check.ts')).href
     const script = `import(${JSON.stringify(module)}).then(m => {
@@ -235,7 +228,6 @@ describe('逐步表与关键路径', () => {
   })
 
   it('关键路径性质：200 组起止取 0 到 5 的随机结果都返回、不重复、不超过输入长度', () => {
-    // 确定的伪随机数发生器（mulberry32），保证可复现。
     let seed = 953
     const random = () => {
       seed = (seed + 0x6d2b79f5) | 0

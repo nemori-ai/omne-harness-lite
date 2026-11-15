@@ -1,9 +1,3 @@
-// The `./testing` entry: a non-durable ledger store for tests (G6). It declares
-// `durability: 'none'` and must not be assembled into production. It evaluates the revision
-// condition and the read-set assertions of a commit together, as a durable provider does inside
-// one transaction. Fault injection lets a test make one read fail, or one commit answer unknown
-// (applied, dropped, or held to land later), unavailable or conflict.
-
 import type { ToolRevision } from '@omne-harness/tool-contract'
 import type { ToolInstant } from '@omne-harness/tool-contract/provider'
 import { INITIAL_REVISION } from './evidence.ts'
@@ -13,74 +7,66 @@ import {
   type LedgerCommit,
   type LedgerCommitInput,
   type LedgerDomain,
+  type LedgerPendingScan,
+  type LedgerPendingScanInput,
   type LedgerDueRead,
   type LedgerRecord,
+  type PendingCall,
   type TenantId,
   type ToolLedgerStore,
 } from './ledger-store.ts'
 
 export type MemoryReadFault = 'unavailable'
 export type MemoryCommitFault =
-  /** The writes take effect, but the answer is `unknown`. */
   | 'unknown-applied'
-  /** Nothing is written, and the answer is `unknown`. */
   | 'unknown-dropped'
-  /**
-   * Nothing is written now, and the answer is `unknown`. The commit stays in flight until
-   * `landDelayed`, which applies it only if the domain revision is still its `expected`.
-   */
   | 'unknown-delayed'
   | 'unavailable'
-  /** Nothing is written, and the answer is `conflict`, as if another writer had committed. */
   | 'conflict'
-  /** The store throws after it applied the writes, as a crashed provider would. */
   | 'throw-applied'
 
-/** What happened to one held commit when it landed. */
 export type MemoryLanding = Readonly<{ kind: 'committed' }> | Readonly<{ kind: 'conflict' }>
 
 export interface MemoryToolLedgerStore extends ToolLedgerStore {
   readonly durability: 'none'
-  /** The next reads consume these faults in order; a read without a fault succeeds. */
   injectRead(...faults: readonly MemoryReadFault[]): void
-  /** The next commits consume these faults in order; a commit without a fault is ordinary. */
   injectCommit(...faults: readonly MemoryCommitFault[]): void
-  /**
-   * Lands every commit held by `unknown-delayed`, in the order they were made. Each one checks
-   * its expected revision when it lands, as a real store evaluates the condition then.
-   */
   landDelayed(): readonly MemoryLanding[]
-  /** How many commits were attempted, faults included. */
   readonly commits: number
-  /** How many reads were attempted, faults included. */
   readonly reads: number
+  scanPending(input: LedgerPendingScanInput): Promise<LedgerPendingScan>
 }
 
 type Domain = {
   revision: ToolRevision
   records: Map<string, LedgerRecord>
-  /** The due index entries this domain scheduled, by key. */
   due: Map<string, ToolInstant>
 }
 
 const tenantKey = (tenant: TenantId): string =>
   JSON.stringify([tenant.organization.text, tenant.account.text])
 
-/** The key of a domain: the JSON of its parts, so no identity text can collide with another. */
 function domainKey(domain: LedgerDomain): string {
   const tenant = [domain.tenant.organization.text, domain.tenant.account.text]
   return JSON.stringify([domain.kind, ...tenant, domain.kind === 'call' ? domain.call : domain.key])
 }
 
-/** A deep copy that keeps no reference to the caller's value, as a real store would. */
+function tenantOrder(tenant: TenantId): string {
+  return JSON.stringify([tenant.organization.text, tenant.account.text])
+}
+
+function pendingOrder(entry: PendingCall): string {
+  return JSON.stringify([tenantOrder(entry.tenant), entry.call])
+}
+
 function copy<T>(value: T): T {
   return structuredClone(value)
 }
 
 export function createMemoryToolLedgerStore(): MemoryToolLedgerStore {
   const domains = new Map<string, Domain>()
-  /** The ledger domain of each key of `domains`, for the due read. */
   const addresses = new Map<string, LedgerDomain>()
+  const pending = new Map<string, PendingCall>()
   const readFaults: MemoryReadFault[] = []
   const commitFaults: MemoryCommitFault[] = []
   const held: LedgerCommitInput[] = []
@@ -127,6 +113,28 @@ export function createMemoryToolLedgerStore(): MemoryToolLedgerStore {
     target.records = records
     target.due = due
     target.revision = input.revision
+    const { domain } = input
+    if (domain.kind !== 'call' || input.pending === undefined) return
+    const entry: PendingCall = { tenant: domain.tenant, call: domain.call }
+    if (input.pending) pending.set(pendingOrder(entry), entry)
+    else pending.delete(pendingOrder(entry))
+  }
+
+  const scanPending = (input: LedgerPendingScanInput): LedgerPendingScan => {
+    const tenant = input.tenant === null ? null : tenantOrder(input.tenant)
+    const after = input.after === null ? null : pendingOrder(input.after)
+    const listed = [...pending.entries()]
+      .filter(
+        ([key, entry]) =>
+          (after === null || key > after) &&
+          (tenant === null || tenantOrder(entry.tenant) === tenant),
+      )
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    return {
+      kind: 'page',
+      calls: listed.slice(0, input.limit).map(([, entry]) => ({ ...entry })),
+      more: listed.length > input.limit,
+    }
   }
 
   const dueOf = (tenant: TenantId, now: ToolInstant, limit: number): LedgerDueRead => {
@@ -143,7 +151,6 @@ export function createMemoryToolLedgerStore(): MemoryToolLedgerStore {
     return { kind: 'complete', entries: entries.slice(0, limit) }
   }
 
-  /** Whether every assertion names a domain of the written domain's tenant. */
   const sameTenant = (input: LedgerCommitInput): boolean => {
     const tenant = JSON.stringify([
       input.domain.tenant.organization.text,
@@ -158,12 +165,10 @@ export function createMemoryToolLedgerStore(): MemoryToolLedgerStore {
     )
   }
 
-  /** A commit with `drop` holds nothing else and leaves the domain at the initial revision. */
   const wellFormedDrop = (input: LedgerCommitInput): boolean =>
     !input.writes.some(write => write.kind === 'drop') ||
     (input.writes.length === 1 && input.revision === INITIAL_REVISION)
 
-  /** The condition of a commit: the written domain at `expected` and every assertion holding. */
   const holds = (input: LedgerCommitInput): boolean =>
     domainOf(input.domain).revision === input.expected &&
     (input.asserts ?? []).every(
@@ -244,5 +249,6 @@ export function createMemoryToolLedgerStore(): MemoryToolLedgerStore {
         return Promise.resolve({ kind: 'unavailable', diagnostic: 'injected' })
       return Promise.resolve(dueOf(tenant, now, limit))
     },
+    scanPending: input => Promise.resolve(scanPending(input)),
   }
 }

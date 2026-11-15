@@ -120,7 +120,6 @@ export async function runProcess(command, args, options = {}) {
   return launchProcess(command, args, options).done
 }
 
-/** limit：适配器声明的计划轮数，1～200 的整数，缺省 200。短跑只能少跑，不能多跑。 */
 export async function driveRounds(next, onRound = () => {}, limit = 200) {
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 200)
     throw new RangeError('planned rounds must be an integer from 1 to 200')

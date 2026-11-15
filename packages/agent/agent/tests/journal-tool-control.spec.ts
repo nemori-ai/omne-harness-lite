@@ -134,8 +134,6 @@ async function observeRetained(journal: AgentJournal<string>, execution: Recordi
 }
 
 describe('public retained invocation faults', () => {
-  // A retained reference of another tenant cannot be written since R2-D357: the text carries no
-  // tenant. Only the malformed fault remains.
   const faults = [{ kind: 'malformed' }] as const
 
   describe.each(['interrupt-tool', 'background-tool'] as const)('%s', kind => {
@@ -275,7 +273,6 @@ describe('pending control operation custody', () => {
       expect(held.snapshot.unresolved).toContain(control.operation)
       const replacement = { ...control, command: { ...control.command, call: secondCall } }
       if (retry !== undefined) {
-        // The call that takes the fault answers with it, and the held write stays as it is.
         memory.failNext('control', { kind: 'commit-unknown', outcome: retry })
         expect(failure(await journal.control(replacement))).toEqual({
           kind: 'commit-unknown',
@@ -329,7 +326,6 @@ describe('pending control operation custody', () => {
         toolOperation: operationRef({ operation: ok(tools.decodeToolOperationId('replacement')) }),
       }
       if (retry !== undefined) {
-        // The call that takes the fault answers with it, and the held write stays as it is.
         memory.failNext('recordControl', { kind: 'commit-unknown', outcome: retry })
         expect(failure(await journal.recordControl(replacement))).toEqual({
           kind: 'commit-unknown',
@@ -561,8 +557,6 @@ describe('shared pending recognition prerequisites', () => {
     })
     const settled = await observe(journal, opened.execution)
     expect(settled.snapshot.unresolved).not.toContain(resumed.operation)
-    // The same responsibility already holds: the settled operation recognizes it at its revision
-    // and establishes no new fact (SPEC "执行修订").
     expect(resumedReceipt).toMatchObject({
       operation: resumed.operation,
       revision: receipt.revision,
@@ -893,8 +887,6 @@ describe('Tool operation attachment', () => {
   })
 
   it('rejects a caller of another tenant before target lookup and before original operation recognition', async () => {
-    // An attachment cannot name another tenant since R2-D357 (the text carries no tenant); the
-    // caller's tenant is the only tenant check.
     const { journal, opened, control, recording } = await setup()
     ok(await journal.control(control))
     ok(await journal.recordControl(recording))
@@ -1112,7 +1104,6 @@ describe('Tool operation attachment', () => {
     expect(after.events).toEqual(before.events)
     expect(after.snapshot.controls[0]).toMatchObject({ toolInvocation: invocation, toolOperation })
     expect(ok(await journal.recordControl(recording))).toEqual(first)
-    // A new operation recognizes the same stage fact: its own receipt at the fact's revision.
     expect(
       ok(await journal.recordControl({ ...recording, operation: operation('same-stage') })),
     ).toMatchObject({ operation: operation('same-stage'), revision: first.revision })
@@ -1236,8 +1227,6 @@ it('does not attach a reference when the stage is inapplicable or a reached fact
   expect(await observe(journal, opened.execution)).toEqual(before)
   ok(await journal.recordControl(recording))
   const saved = await observe(journal, opened.execution)
-  // Another source for the reached fact is contradicting evidence: the persistent rejection saves
-  // an audit and one revision, attaches nothing and projects no event (SPEC "查询的四种结论与持久拒绝").
   expect(
     failure(
       await journal.recordControl({
@@ -1258,8 +1247,6 @@ it('does not attach a reference when the stage is inapplicable or a reached fact
 })
 
 describe('retained Tool operation corruption', () => {
-  // The original R attaches the reference with permitted whitespace, so the stored bytes differ from
-  // every reference a later caller supplies; only the Journal's read of the stored bytes is damaged.
   const stored = ` ${toolOperation} ` as tools.ToolOperationRef
   const resolve = tools.resolveToolOperationRef
   const unavailable = {
@@ -1294,7 +1281,6 @@ describe('retained Tool operation corruption', () => {
         reference === stored ? damaged : resolve(reference, tenant),
       )
       const before = await observe(journal, opened.execution)
-      // SPEC: the original R is recognized before any retained reference is read.
       expect(ok(await journal.recordControl({ ...original, toolOperation }))).toEqual(receipt)
       const stopped = {
         ...recording,
@@ -1338,7 +1324,6 @@ describe('scripted faults on recordControl', () => {
       expect(failure(await journal.recordControl(recording)).kind).toBe(answer)
       expect(await observe(journal, opened.execution)).toEqual(held)
       expect(ok(await journal.query(recording))).toEqual({ kind: 'unknown' })
-      // The fault is used up; the next re-send meets the held write without it.
       expect(await journal.recordControl(recording)).toEqual(unknown)
       expect(memory.settle(opened.execution, recording.operation, 'applied')).toBe(true)
       const receipt = ok(await journal.recordControl(recording))
@@ -1376,7 +1361,6 @@ describe('scripted faults on recordControl', () => {
       expect(after.snapshot.unresolved).not.toContain(recording.operation)
       expect(ok(await journal.query(recording))).toEqual({ kind: 'unknown' })
       expect(memory.settle(opened.execution, recording.operation, 'applied')).toBe(false)
-      // The next call of the method meets no fault.
       const receipt = ok(await journal.recordControl(recording))
       expect(ok(await journal.query(recording))).toEqual({ kind: 'committed', receipt })
     },
@@ -1405,8 +1389,6 @@ it('never asks the custodian about an execution for a tenant that does not own i
   }
   memory.failNext('recordResult', { kind: 'commit-unknown', outcome: 'pending' })
   expect(failure(await journal.recordResult(input)).kind).toBe('commit-unknown')
-  // The caller still holds its request object; whatever it changes later, the held write must not
-  // turn into a qualification question about another tenant.
   Object.assign(input, { tenant: otherTenant.tenant })
   expect(memory.settle(opened.execution, operation('held-result'), 'applied')).toBe(true)
   expect(asked.some(tenant => tenantEquals(tenant, otherTenant.tenant))).toBe(false)

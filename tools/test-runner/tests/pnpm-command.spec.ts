@@ -1,5 +1,3 @@
-// `pnpmCommand` 怎样选起 pnpm：Windows 上按 PATH 顺序找 pnpm.exe，或旁边有 pnpm.cjs 的 pnpm.cmd；POSIX 上就是 pnpm。
-// 只看文件在不在、命令怎样拼，不起子进程。布局造在临时目录里，平台、PATH 与 Node 路径都由调用方注入。
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -9,7 +7,6 @@ import { pnpmCommand } from '../src/testing/support.ts'
 const NODE = 'node-under-test'
 const EXE = 'pnpm.exe'
 const CMD = 'pnpm.cmd'
-/** npm 全局安装的布局：pnpm.cmd 旁边的 pnpm.cjs。 */
 const CJS = join('node_modules', 'pnpm', 'bin', 'pnpm.cjs')
 
 let root: string
@@ -22,7 +19,6 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true })
 })
 
-/** 在临时目录下建 `name` 目录，放进 `files`（相对该目录的路径，内容为空）。返回目录的路径。 */
 function directory(name: string, files: readonly string[] = []): string {
   const dir = join(root, name)
   mkdirSync(dir, { recursive: true })
@@ -33,12 +29,10 @@ function directory(name: string, files: readonly string[] = []): string {
   return dir
 }
 
-/** 按给定的 PATH 目录顺序、平台与 Node 路径选命令。 */
 function pickPnpm(dirs: readonly string[], platform: NodeJS.Platform = 'win32') {
   return pnpmCommand({ platform, path: dirs.join(';'), execPath: NODE })
 }
 
-/** 取报错的消息；没有报错就让用例失败。 */
 function errorOf(dirs: readonly string[]): string {
   try {
     pickPnpm(dirs)

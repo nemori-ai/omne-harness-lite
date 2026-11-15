@@ -7,7 +7,7 @@
 // 层只经 mode 传递，不读环境变量：turbo 的 Strict Mode 会滤掉未声明的变量，外面环境里的残留也不会漏进来。
 // 命令行带了过滤（`-t` 用例名或文件）时，这一次运行要么选中用例，要么非零退出（#737），见 `cliFilters`。
 // 归慢层：整个测试文件在开头的注释里写 `@module-tag slow`，单条用例写 `{ tags: ['slow'] }`，
-// 并写一句为什么慢（起子进程、真实等待、重 CPU、网络）。怎么划、谁来跑见 docs/verification.md「测试分层」。
+// 并写一句为什么慢（起子进程、真实等待、重 CPU、网络）。怎么划、谁来跑见 docs/architecture/assurance.md「包级测试责任与边界」。
 import { basename, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -19,9 +19,17 @@ const DEFAULT_MODE = 'test'
 
 /**
  * 慢层用例的时限（毫秒）。它盖过成员配置的 `testTimeout`；用例自己写的时限（选项里的 `timeout`
- * 或 `test(名字, 函数, 毫秒)`）又盖过它。快层用 vitest 的默认时限。负责人 2026-10-02 定的初值。
+ * 或 `test(名字, 函数, 毫秒)`）又盖过它。负责人 2026-10-02 定的初值。
  */
 export const SLOW_TEST_TIMEOUT_MS = 120_000
+
+/**
+ * 快层用例的时限（毫秒），也就是没有 `slow` 标签的用例的 `testTimeout`。vitest 的默认值是 5 秒：机器上同时有
+ * 别的检查在跑时，起子进程、读写文件的用例会贴着 5 秒超时，一处超时就让整次检查失败、整次重来。
+ * 负责人 2026-11-12 定放宽，初值 15 秒。成员配置里自己写的 `testTimeout` 盖过它，用例自己写的时限又盖过成员的。
+ * 一条用例稳定地要 15 秒以上，它该归慢层。
+ */
+export const FAST_TEST_TIMEOUT_MS = 15_000
 
 /** 嵌套归档目录：名字以 `.legacy` 结尾的目录里的测试既不运行，也不做类型测试。 */
 export const ARCHIVE_EXCLUDE = '**/*.legacy/**'
@@ -241,6 +249,8 @@ export interface TestTiers extends Reporting {
     readonly description: string
     readonly timeout: number
   }[]
+  /** 没有 `slow` 标签的用例的时限。 */
+  readonly testTimeout: number
   readonly exclude: string[]
   readonly typecheck: { readonly exclude: string[] }
   readonly tagsFilter?: string[]
@@ -296,6 +306,7 @@ export function testTiers(
         timeout: SLOW_TEST_TIMEOUT_MS,
       },
     ],
+    testTimeout: FAST_TEST_TIMEOUT_MS,
     exclude: [...VITEST_DEFAULT_EXCLUDE, ARCHIVE_EXCLUDE],
     typecheck: { exclude: [...VITEST_DEFAULT_EXCLUDE, ARCHIVE_EXCLUDE] },
     ...guarded(reporting(env[TEST_REPORT_DIR_ENV], memberDirectory), filters),

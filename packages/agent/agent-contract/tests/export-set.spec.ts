@@ -1,18 +1,22 @@
 import { expect, it } from 'vitest'
 import * as agent from '@omne-harness/agent-contract'
 
-// The whole runtime surface of the package entry. Every type is erased, so a new value export
-// (function or constant) has to be added here on purpose; a helper that two modules share
-// (`attributeItem`, `refused`, `copyPlain`) must stay out of the entry.
 it('exports exactly the judgments, the constants, the identity decoders and the body contract', () => {
   expect(Object.keys(agent).sort()).toEqual([
+    'ACTION_ADMISSION_DECLARATION',
+    'ACTION_ADMISSION_IMPLEMENTATION',
     'AGENT_IDENTITY_MAX_LENGTH',
     'ATTRIBUTE_ITEMS',
+    'DECISION_CARD_DRAFT_SCHEMA',
     'INSTRUCTION_LIMITS',
     'POSITIONS',
     'POSITION_OUTPUTS',
     'POWERS',
+    'admissionActionOf',
+    'admissionPassageOf',
     'agentBodyContract',
+    'cardDraftOf',
+    'cardRequestOf',
     'decodeActionBatchId',
     'decodeActionId',
     'decodeAgentExecutionId',

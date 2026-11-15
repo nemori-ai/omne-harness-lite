@@ -16,7 +16,6 @@ import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { ok, evidence } from './common-journal.ts'
 
-/** Original Model/Tool facts are offline fixtures; every Agent and Session commit is real. */
 export function toolCall(tenant: TenantId, name = 'tool') {
   const entry = sampleReceivedToolAccount(tenant, name),
     model = sampleReceivedModelResult(tenant, name)
@@ -97,7 +96,6 @@ import type { AgentExecutionId, AgentMaterials, Material } from '@omne-harness/a
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
 
-/** The JSON tree of a plain value, keys in order: how the Agent preserves a fixed request. */
 function jsonOf(value: unknown): JsonValue {
   if (value === null) return { kind: 'null' }
   if (typeof value === 'string') return { kind: 'string', value }
@@ -113,11 +111,6 @@ function jsonOf(value: unknown): JsonValue {
   }
 }
 
-/**
- * The Tool call of `toolCall` whose allowed request is a preserved material, as the Agent keeps it
- * (agent-contract SPEC "工具执行与结果承接" 10): the request body is in the material, the judgment
- * names it. The Journal reads the background permission from that material.
- */
 export async function keptToolCall(
   s: Readonly<{
     view: Readonly<{ materials: AgentMaterials<string, ContentBlock> }>
@@ -205,6 +198,6 @@ function request(consumer: PendingCall['position']): ToolInvokeRequest {
     consumer,
     batchDecision: null,
     mode: 'foreground',
-    limits: { concurrency: 1, foregroundMs: null, backgroundAfterMs: null },
+    limits: { concurrency: 1, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
   }
 }

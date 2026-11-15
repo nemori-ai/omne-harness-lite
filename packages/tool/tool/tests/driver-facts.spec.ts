@@ -3,7 +3,6 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import { type ToolStartRecord } from '@omne-harness/tool-contract'
 import {
   decodeToolResultVersion,
-  decodeToolWaitId,
   readToolInvocationRef,
   type ToolLiveExecution,
   type ToolRecoveryBinding,
@@ -135,10 +134,9 @@ function fixture(
                               {
                                 event: 'unsupported',
                                 fact: {
-                                  kind: 'continued',
-                                  wait: ok(decodeToolWaitId('wait')),
-                                  response: operationId('answer'),
-                                  timing: evidence('timing'),
+                                  kind: 'account',
+                                  event: 'unsupported',
+                                  value: {} as never,
                                 },
                               },
                             ],
@@ -797,7 +795,6 @@ describe('reader isolation and command outcomes', () => {
       ok(await f.h.commands.loadRecovery(c.access)).tasks.some(task => task.kind === 'facts'),
     ).toBe(true)
     const resumed = new AbortController()
-    // Disable the one aborted connection's injected timing for a legal reconnect.
     await f.h.runOnce(c.call, resumed.signal)
     resumed.abort()
     await flush()

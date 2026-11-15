@@ -71,6 +71,47 @@ export type {
   SessionResponseEncodeInput,
 } from './session-messages.ts'
 export {
+  readHitlRequest,
+  readHitlResponse,
+  encodeHitlRequest,
+  encodeHitlResponse,
+} from './hitl-codec.ts'
+export type {
+  HitlOperation,
+  HitlRequestBodies,
+  HitlRequest,
+  HitlCardRef,
+  HitlReply,
+  HitlCardState,
+  HitlOriginKind,
+  HitlCardFilter,
+  HitlReplySubmission,
+  HitlOption,
+  HitlQuestion,
+  HitlSubmissionRef,
+  HitlDecisionRef,
+  HitlDecision,
+  HitlCardDelivery,
+  HitlCard,
+  HitlCardOrigin,
+  HitlCardItem,
+  HitlCardPage,
+  HitlReplyResult,
+  HitlOutcomes,
+  HitlSuccessBodies,
+  HitlLimitedBody,
+  HitlResponse,
+  HitlProtocolRejected,
+  HitlStageNotProvided,
+  HitlProtocolResult,
+  HitlCodecLimits,
+  HitlDiagnostic,
+  HitlRequestRead,
+  HitlResponseRead,
+  HitlEncodeResult,
+  HitlResponseEncodeInput,
+} from './hitl-messages.ts'
+export {
   readTenantText,
   encodeTenantText,
   readOrganizationIdText,
@@ -81,3 +122,18 @@ export {
   encodeLoginStateIdText,
 } from './identity-text.ts'
 export type { AccountId, LoginStateId, OrganizationId, TenantId } from './identity-text.ts'
+export { OUTCOMES } from './outcome.ts'
+export type { FixedOutcome, Outcome } from './outcome.ts'
+export { ruleCodec } from './rule-codec.ts'
+export type { Codec, CodecResult, RuleValue } from './rule-codec.ts'
+export type { LeafKind, Rule } from './operation-rules.ts'
+export { defineProtocol } from './protocol.ts'
+export { accessProtocol } from './access-protocol.ts'
+export type { AccessProtocol, AvailabilityFrame } from './access-protocol.ts'
+export type {
+  DefinedProtocol,
+  ObservationContract,
+  OperationContract,
+  OutcomeBodies,
+  ProtocolContract,
+} from './protocol.ts'

@@ -4,13 +4,9 @@ import type { TelemetryRecord } from './record.ts'
 
 export type TransportResult = 'closed' | 'failed' | 'unconfirmed'
 
-/** The runtime's handle on one outlet. No member throws. */
 export type Outlet = Readonly<{
-  /** Hands one record to the local sink. True when the sink returned without a failure. */
   write(record: TelemetryRecord): boolean
-  /** Ends the transport and waits at most `waitMs` for the sink to confirm it. */
   close(waitMs: number): Promise<TransportResult>
-  /** Ends the transport without waiting: the deadline has passed. */
   abandon(): void
 }>
 
@@ -24,7 +20,6 @@ function writerOutlet(write: (record: TelemetryRecord) => void): Outlet {
         return false
       }
     },
-    // The application owns the stream behind its write function; the runtime only stops calling it.
     close: () => Promise.resolve<TransportResult>('closed'),
     abandon: () => undefined,
   })
@@ -51,9 +46,7 @@ function fileOutlet(path: string): Outlet {
   function end(): void {
     try {
       destination.end()
-    } catch {
-      // The destination was already destroyed.
-    }
+    } catch {}
   }
 
   return Object.freeze({
@@ -82,7 +75,6 @@ function fileOutlet(path: string): Outlet {
   })
 }
 
-/** Opens the outlet. Throws for a file that cannot be opened: telemetry does not degrade silently. */
 export function openOutlet(outlet: TelemetryOutlet): Outlet {
   return outlet.kind === 'writer' ? writerOutlet(outlet.write) : fileOutlet(outlet.path)
 }

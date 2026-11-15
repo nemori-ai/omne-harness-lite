@@ -108,18 +108,14 @@ function readFailure(failure: ModelFailure): StreamEndReason {
 type Target = NonNullable<ConfirmedObservationRecord['target']>
 type Material = ObservationFacts['material']
 type Delta = ReturnType<typeof diffModelStream> | null
-/** Why confirmed facts install nothing; only a conflict makes the call unavailable. */
 type Refusal = 'older' | 'conflict' | 'unchanged'
-/** Confirmed facts judged against the record already held for their call. */
 type Plan = Readonly<{
   key: string
   facts: ObservationFacts
   old: Entry | undefined
   dispatch: DispatchId | null
   outputCursor: OutputCursor | null
-  /** The attached publication, when it still names the execution of the facts. */
   publication: Publication | null
-  /** The old public target, when the publication and the dispatch continue it. */
   continued: Target | null
 }>
 type Draft = Readonly<{
@@ -132,7 +128,6 @@ type Draft = Readonly<{
 type Held = Readonly<{ measured: StreamMeasure; scratch(): void; reservation(): void }>
 type Frozen = Readonly<{ state: CallState; saved: Snapshot | null; target: Target | null }>
 
-/** Facts must carry the call and the admission that their own reference encodes. */
 function checkBinding(facts: ObservationFacts): void {
   const resolved = resolveModelInvocationRef(facts.reference, facts.tenant)
   if (
@@ -142,7 +137,6 @@ function checkBinding(facts: ObservationFacts): void {
   )
     throw new TypeError('observation facts binding')
 }
-/** Metadata that contradicts the call itself or the reference already held for it. */
 function contradicts(facts: ObservationFacts, old: Entry | undefined): boolean {
   if (old && old.record.reference !== facts.reference) return true
   if (
@@ -164,7 +158,6 @@ function outputCursorOf(material: Material): OutputCursor | null {
   if (material.kind === 'before-dispatch') return null
   return material.kind === 'retained' ? material.snapshot.cursor : material.cursor
 }
-/** A same-revision confirmation may only repeat the held one; a forced or unavailable repeat reinstalls. */
 function sameRevision(
   old: Entry,
   facts: ObservationFacts,
@@ -199,7 +192,6 @@ function continuation(
       : null
   return { publication, continued }
 }
-/** Blocks are reused only for the same execution, dispatch and content cursor. */
 function reusable(plan: Plan): Snapshot | null {
   const { old } = plan
   return old?.saved &&
@@ -209,7 +201,6 @@ function reusable(plan: Plan): Snapshot | null {
     ? old.saved
     : null
 }
-/** The private snapshot of the confirmed state, from retained material or from reused blocks. */
 function snapshotOf(facts: ObservationFacts, reuse: Snapshot | null): Snapshot | null {
   const material = facts.material.kind === 'retained' ? facts.material.snapshot : reuse
   return material
@@ -221,7 +212,6 @@ function snapshotOf(facts: ObservationFacts, reuse: Snapshot | null): Snapshot |
       }
     : null
 }
-/** Freezes the drafted values that the record shares with its readers and watchers. */
 function freezeDraft(plan: Plan, draft: Draft): Frozen {
   const state = freezeStreamValue(plan.facts.state)
   const raw = draft.snapshot
@@ -239,7 +229,6 @@ function freezeDraft(plan: Plan, draft: Draft): Frozen {
       : null
   return { state, saved, target }
 }
-/** A continued target keeps its live stream and watchers; another target starts a new stream. */
 function liveStream(
   old: Entry | undefined,
   continued: Target | null,
@@ -250,7 +239,6 @@ function liveStream(
     ? old.stream
     : { snapshot: target.snapshot, cursor: target.cursor, watchers: new Set() }
 }
-/** Moves the live stream to the target; only a delta tells the watchers of the change. */
 function advance(stream: StreamTarget, target: Target, delta: Delta): void {
   const from = stream.cursor
   stream.snapshot = target.snapshot
@@ -261,7 +249,6 @@ function advance(stream: StreamTarget, target: Target, delta: Delta): void {
     watcher.push({ kind: 'delta', from, cursor: target.cursor, value })
 }
 
-/** The call that a public stream reference names; `unresolved` when it names no call of the tenant. */
 function observedCall(
   ref: StreamRef,
   tenant: TenantId,
@@ -275,12 +262,10 @@ function observedCall(
   const parts = resolveModelInvocationRef(readStreamRef(judged.ok).call, tenant)
   return 'failure' in parts ? { failure: 'unresolved' } : parts
 }
-/** A reference that does not resolve: tenant faults deny, a malformed reference is invalid. */
 function referenceFailure(failure: ModelReferenceFailure): ModelFailure {
   if (failure.kind === 'invalid-tenant') return { kind: 'denied', action: 'tenant' }
   return { kind: 'invalid', field: 'reference', reason: `reference-${failure.rejection.reason}` }
 }
-/** The storage bridge alone calls confirm; public readers cannot register call facts. */
 export function createModelObservationSource<P>(
   input: Readonly<{
     authority: ModelCommandsAuthority<P>
@@ -384,7 +369,6 @@ export function createModelObservationSource<P>(
       ),
     )
   }
-  /** Judges confirmed facts against the held record; older, contradictory and unchanged facts install nothing. */
   function judge(key: string, facts: ObservationFacts, force: boolean): Plan | Refusal {
     const old = records.get(key)
     const relation = old ? compareRevisions(facts.state.revision, old.record.state.revision) : 1
@@ -405,12 +389,10 @@ export function createModelObservationSource<P>(
       ...continuation(publications.get(key), facts, old, dispatch),
     }
   }
-  /** The continued stream keeps its reference; a new publication or dispatch mints one. */
   function publicRef(plan: Plan, snapshot: Snapshot | null): StreamRef | null {
     if (!plan.publication || !snapshot || !plan.dispatch) return null
     return plan.continued ? plan.continued.snapshot.ref : newRef(plan.facts)
   }
-  /** Drafts the next record: its private snapshot, its public stream and the next public position. */
   function draftRecord(plan: Plan): Draft | null {
     const reuse = reusable(plan)
     const snapshot = snapshotOf(plan.facts, reuse)
@@ -423,7 +405,6 @@ export function createModelObservationSource<P>(
       ref && plan.dispatch && snapshot ? { ref, dispatch: plan.dispatch, value: snapshot } : null
     return { reuse, snapshot, stream, serial, cursor }
   }
-  /** Measures the drafted record, makes room for it and reserves its bytes and the diff scratch. */
   function reserveRecord(plan: Plan, draft: Draft): Held | null {
     const { facts, old } = plan
     const measured = measureStreamValue(
@@ -448,7 +429,6 @@ export function createModelObservationSource<P>(
     }
     return { measured, scratch, reservation }
   }
-  /** Replaces the held record and moves its live stream to the new target. */
   function adoptRecord(plan: Plan, draft: Draft, frozen: Frozen, held: Held, delta: Delta): void {
     const { key, facts, old, continued } = plan
     const { target } = frozen
@@ -481,7 +461,6 @@ export function createModelObservationSource<P>(
     old?.release()
     if (stream && target) advance(stream, target, continued ? delta : null)
   }
-  /** Installs the drafted record under its reservation; a failed diff or a throw makes the call unavailable. */
   function commitRecord(plan: Plan, draft: Draft, held: Held): void {
     try {
       const frozen = freezeDraft(plan, draft)
@@ -538,7 +517,6 @@ export function createModelObservationSource<P>(
             : { kind: 'before-dispatch' },
     }
   }
-  /** A reference that names no call of the tenant only tells whether the observer may observe the tenant. */
   function unknownCall(access: Access<P>): { failure: StreamCheckFailure } {
     try {
       const auth = input.authority.authorize({
@@ -551,7 +529,6 @@ export function createModelObservationSource<P>(
       return { failure: 'unavailable' }
     }
   }
-  /** The live stream of the held record, while the reference and the publication still name it. */
   function heldStream(
     ref: StreamRef,
     tenant: TenantId,
@@ -571,7 +548,6 @@ export function createModelObservationSource<P>(
       return { failure: 'stale-stream' }
     return entry.stream ? { ok: entry.stream } : { failure: 'unavailable' }
   }
-  /** The confirmed state of the held record and its public stream; reading it renews its LRU place. */
   function confirmedCurrent(
     tenant: TenantId,
     parts: ModelInvocationParts,
@@ -597,7 +573,15 @@ export function createModelObservationSource<P>(
       },
     }
   }
-  /** Reserves the bytes of a publication; a new call beyond the retained calls has no room. */
+  function heldSelection(
+    tenant: TenantId,
+    parts: ModelInvocationParts,
+  ): Outcome<ModelStreamSelection, ModelFailure> | null {
+    const held = records.get(identity(tenant, parts.call))
+    return held && !held.unavailable && held.record.admission === parts.admission
+      ? confirmedCurrent(tenant, parts)
+      : null
+  }
   function reservePublication(publication: Publication, replacing: boolean): () => void {
     if (!replacing && publications.size >= limits.maxRetainedCalls)
       throw new RangeError('observation publication capacity')
@@ -684,6 +668,8 @@ export function createModelObservationSource<P>(
             const denied = authorize(access, parts.ok.call, 'facts')
             if (denied) return { failure: denied }
             if (closed || hostClosed) return { failure: unavailable() }
+            const hot = heldSelection(access.tenant, parts.ok)
+            if (hot) return hot
             const refreshed = await refresh({
               access,
               reference: original.reference,

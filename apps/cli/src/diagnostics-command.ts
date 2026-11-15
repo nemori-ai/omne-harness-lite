@@ -26,10 +26,8 @@ import { exitCodeOf } from './report.ts'
 
 const name = 'read-session-diagnostics'
 const defaultPageBytes = '65536'
-/** No honest session has this many pages. A server that keeps answering past it is not advancing. */
 const maxPages = 10_000
 
-/** What the read collects across the pages: the Runs in page order and every gap a page reported. */
 interface Collected {
   readonly runs: readonly SessionRunDiagnostic[]
   readonly gaps: readonly SessionDiagnosticGap[]
@@ -37,11 +35,6 @@ interface Collected {
 
 type Page = Collected & { readonly next: string | null; readonly exhausted: boolean }
 
-/**
- * The SDK hands a body over only after the public contract read it as a diagnostics page, so the
- * Runs and gaps already have the contract's shape. This read takes the page controls the loop
- * needs and refuses a body that is not a page at all.
- */
 function pageOf(body: unknown): Page | undefined {
   if (typeof body !== 'object' || body === null) return undefined
   const { runs, gaps, next, exhausted } = body as Record<string, unknown>
@@ -58,11 +51,8 @@ function pageOf(body: unknown): Page | undefined {
 
 type Reading =
   | ({ readonly kind: 'complete' } & Collected)
-  /** A page was answered with something other than `succeeded`, or not answered at all. */
   | ({ readonly kind: 'stopped'; readonly result: CallerResult; readonly page: number } & Collected)
-  /** A page succeeded but the read cannot go on from it. */
   | ({ readonly kind: 'broken'; readonly reason: string } & Collected)
-  /** The contract refused to encode a request. Nothing was sent for that page. */
   | { readonly kind: 'refused' }
 
 interface DiagnosticsRequest {
@@ -74,11 +64,6 @@ interface DiagnosticsRequest {
   readonly newId: () => string
 }
 
-/**
- * Only the first request names the Run filter and the page size. A later request carries the
- * `next` of the page before it and nothing else: the public contract refuses `run` and
- * `pageBytes` beside a cursor.
- */
 function requestFor(
   request: DiagnosticsRequest,
   messageId: string,
@@ -91,7 +76,6 @@ function requestFor(
     : { ...head, body: { tenant, session, cursor } }
 }
 
-/** Reads the pages one after another until a page says the read is exhausted. */
 async function readAll(
   client: ReturnType<typeof createSessionClient>,
   request: DiagnosticsRequest,
@@ -136,10 +120,6 @@ function incompleteReason(reading: Exclude<Reading, { kind: 'complete' | 'refuse
     : `page ${page} was answered ${result.message.outcome}`
 }
 
-/**
- * The `--json` result object, in the keys of the other commands. `body` has the Runs and gaps as
- * the wire carries them and `complete`. `outcome` is the one of the page that stopped the read.
- */
 function resultObject(
   reading: Exclude<Reading, { kind: 'refused' }>,
   request: Readonly<Record<string, string>>,
@@ -154,13 +134,6 @@ function resultObject(
   return { result: 'response', outcome, body, request }
 }
 
-/**
- * `read-session-diagnostics`: reads the diagnostics projection of a session, page by page. The
- * tenant of the request is the owner of the session, as for `read-history`. Standard output is one
- * block for each Run as text for a person, or with `--json` one result object. A gap in the page is
- * part of the result, not a failure. A read that did not reach the end exits non-zero and says why
- * on standard error. The Runs read so far are still written.
- */
 type Arguments =
   | {
       readonly kind: 'arguments'
@@ -172,7 +145,6 @@ type Arguments =
     }
   | { readonly kind: 'usage'; readonly message: string }
 
-/** The values of the command line that need no state. A usage error names its message. */
 function readArguments(args: readonly string[]): Arguments {
   const read = readOptions(args, {
     accepted: ['--session', '--run', '--tenant', '--page-bytes', serverOption],

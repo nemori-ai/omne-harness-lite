@@ -1,8 +1,3 @@
-// The replay fixtures of the OpenAI family (#463 C1): every record has its fixture, the request
-// fixture encodes to its body and the stream fixture decodes to the facts that the sealed tests
-// expect, translated to contract facts. The extra cases each check one record. A captured stream
-// of the real gateway checks the decoding of the real shape: many summary pieces and an encrypted
-// item with a real id (#466).
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -27,7 +22,6 @@ const root = fileURLToPath(FIXTURES_ROOT)
 const SHOWN = { toHuman: true, toModel: true }
 const rendered = renderedCases()
 
-/** A family with one record of the OpenAI family; its acquire is the acquire of the full family. */
 function oneRecordFamily(name: string) {
   const contributions = composeFamilies([FAMILY])
   return defineFamily({
@@ -73,7 +67,6 @@ describe('checkChatCompletionsFixtures', () => {
   })
 })
 
-/** The data frames of an SSE body as JSON, without comments and without the end marker. */
 function dataFrames(stream: string): readonly unknown[] {
   return stream
     .split('\n\n')
@@ -82,7 +75,6 @@ function dataFrames(stream: string): readonly unknown[] {
     .map(line => JSON.parse(line.slice('data: '.length)))
 }
 
-/** The `reasoning_details` items of the frames, in arrival order. */
 function detailsOf(frames: readonly unknown[]): readonly Readonly<Record<string, unknown>>[] {
   return frames.flatMap(frame => {
     const [choice] = Reflect.get(Object(frame), 'choices') ?? []

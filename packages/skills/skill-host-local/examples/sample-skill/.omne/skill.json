@@ -1,0 +1,6 @@
+{
+  "formatVersion": 1,
+  "dependencies": [{ "category": "tool", "name": "read_file" }],
+  "scripts": [{ "entry": "scripts/report.sh", "runKind": "shell", "facilities": [] }],
+  "settings": [{ "name": "tone", "category": "preference" }]
+}

@@ -1,13 +1,5 @@
 import type { LifecyclePhase, RowId, RowManifest } from '../types.ts'
 
-/**
- * Human projection of the provide and inject columns of the AA plugin-tree table.
- * Names are the formal AA keys; the S0 private service name is `s0.<key>`.
- * Keys that the table gives only in prose are written out where a real row of `./cordis` injects
- * them (`session-ad10`: the three evidence sources; `session-ad06`: the Journal views and
- * `sessionTransactions`), so that `real-manifests-sync` compares the real row with this table.
- * When AA changes the rows, regenerate aa-rows.json, then update this table by hand.
- */
 type Entry = {
   provides?: readonly string[]
   injects?: readonly string[]
@@ -39,7 +31,12 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['tenantStanding', 'principalVerifier', 'identityClock', 'identityGovernance'],
   },
   governance: {
-    provides: ['sessionPermissionBackend', 'standingDestinationResolver', 'currentToolPermission'],
+    provides: [
+      'sessionPermissionBackend',
+      'standingDestinationResolver',
+      'currentToolPermission',
+      'tenantSettings',
+    ],
     injects: [
       'storage',
       'tenantDomainLookup',
@@ -60,6 +57,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'tenantDomains',
       'tenantDomainLookup',
       'sessionPrincipalBindings',
+      'sessionScopeOwners',
     ],
     injects: ['storage', 'sessionAccessCheck'],
     phase: 'composition',
@@ -72,6 +70,8 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'sessionPrincipals',
       'sessionWorkPrincipals',
       'telemetry',
+      'tenantDomains',
+      'tenantDomainScannerPrincipal',
     ],
     phase: 'business',
   },
@@ -181,6 +181,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['definitionMappings', 'sessionWorkPrincipals'],
   },
   'agent-model-selection': { provides: ['agentModelSelection'], injects: ['modelProfiles'] },
+  'agent-cards': { provides: ['agentDecisionCards'], injects: ['session'] },
   'agent-host': {
     provides: [
       'agentPublicationAuthority',
@@ -214,7 +215,12 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['agentPublicationAuthority', 'agentAccessCheck'],
   },
   'model-host': {
-    provides: ['modelRuntime', 'modelInstanceHost'],
+    provides: [
+      'modelRuntime',
+      'modelInstanceHost',
+      'modelStreamReferences',
+      'modelStreamObservation',
+    ],
     injects: ['modelCommands', 'modelClock', 'modelHostAuthority'],
     phase: 'business',
   },
@@ -242,7 +248,13 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'toolStartFence',
       'toolInvocationQualification',
     ],
-    injects: ['storage', 'tenantDomainLookup', 'telemetry'],
+    injects: [
+      'storage',
+      'tenantDomainLookup',
+      'tenantDomains',
+      'tenantDomainScannerPrincipal',
+      'telemetry',
+    ],
     group: 'tool-start',
   },
   'tool-bindings': {
@@ -304,7 +316,12 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['requestContext', 'contextAccountingInbox'],
   },
   'runtime-context': { provides: ['runtimeContext'], injects: ['runtimeContextTrust'] },
+  'session-observation': {
+    provides: ['sessionObservation'],
+    injects: ['session', 'modelStreamReferences', 'modelStreamObservation'],
+  },
   'server-entry': {
+    provides: ['accessRegistry'],
     injects: [
       'session',
       'principalIssuer',
@@ -316,6 +333,9 @@ const TABLE: Readonly<Record<string, Entry>> = {
     ],
     phase: 'entry',
   },
+  'identity-access': { injects: ['accessRegistry'] },
+  'session-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'assets-access': { injects: ['accessRegistry', 'principalIssuer'] },
 }
 
 export const rowManifests: ReadonlyMap<RowId, RowManifest> = new Map(

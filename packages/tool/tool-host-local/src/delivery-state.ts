@@ -82,10 +82,6 @@ function decodeFingerprint(value: unknown): ToolCanonicalFingerprint | null {
   return { codec, algorithm, digest, bytes }
 }
 
-/**
- * The body descriptor of a frozen offloaded original, judged by the committed result judge: the
- * descriptor is that original without its summary.
- */
 function decodeOriginal(value: unknown): ResultValueCommitment['original'] | null {
   if (!object(value)) return null
   if (value.kind === 'none') return { kind: 'none' }
@@ -100,14 +96,6 @@ function decodeOriginal(value: unknown): ResultValueCommitment['original'] | nul
   return description
 }
 
-/**
- * The value commitment a record froze. A later run recognises its record by the key of `base`,
- * not by the value the ledger holds now: the release replaces the released channels of the
- * result record with the summary (C6), so a base read after the release carries another
- * fingerprint. The frozen push still compares the ledger value with this commitment. The decoded
- * commitment is rebuilt from its judged parts, so a stored field it does not know fails the
- * record digest.
- */
 function frozenCommitment(payload: Record<string, unknown>): ResultValueCommitment | null {
   const value = payload.value
   if (!object(value)) return null
@@ -116,7 +104,6 @@ function frozenCommitment(payload: Record<string, unknown>): ResultValueCommitme
   return fingerprint === null || original === null ? null : { fingerprint, original }
 }
 
-/** The frozen payload: the key of `base`, the stored commitment and account, bound to the call. */
 function frozenPayload(
   stored: Record<string, unknown>,
   base: DeliveryBase,
@@ -170,7 +157,6 @@ function parseDeliveryRecord(
 }
 
 export function createDeliveryState(store: ToolLedgerStore) {
-  /** The delivery facts of one call live in that call's `delivery@<call>` host domain. */
   const domain = (access: CallAccess<unknown>) =>
     callHostDomain(access.tenant, 'delivery', access.call)
   const key = (access: CallAccess<unknown>, base: DeliveryBase) =>

@@ -1,5 +1,3 @@
-// Builders and controllable ports for the independent-scope tests. Each builder returns a fresh
-// value, so a test can change one field and keep the rest legal.
 import type { BlockId, TextContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { type Adoption, type ToolDecision } from '@omne-harness/tool-contract'
@@ -32,7 +30,6 @@ export function deferred<T>(): Deferred<T> {
   return { promise, resolve }
 }
 
-/** Lets every queued microtask run. */
 export async function settled(): Promise<void> {
   for (let round = 0; round < 10; round += 1) await Promise.resolve()
 }
@@ -66,7 +63,6 @@ export function replace(index: string, value: string, close = false): ToolProces
 
 export type Received = Readonly<{ sequence: string; update: ToolProcessUpdate }>
 
-/** A receiver that confirms every update at once. */
 export function immediateReceiver(): Readonly<{
   receiver: ToolProcessReceiver
   calls: Received[]
@@ -83,7 +79,6 @@ export function immediateReceiver(): Readonly<{
   }
 }
 
-/** A receiver that holds every update until the test releases it by sequence. */
 export function manualReceiver(): Readonly<{
   receiver: ToolProcessReceiver
   calls: Received[]
@@ -173,7 +168,6 @@ export const answer: ToolDecision<string> = { kind: 'answer', value: 'yes' }
 
 type AnyAnswer = Outcome<ToolDecision<unknown> | ToolResourceReply<unknown>, Failure>
 
-/** A wait provider whose answers the test resolves one by one, in call order. */
 export function manualWaiter(): Readonly<{
   waits: ToolWaiter
   requests: (ToolAskRequest<unknown> | ToolResourceWaitRequest<unknown>)[]
@@ -187,7 +181,6 @@ export function manualWaiter(): Readonly<{
     answers.push(next)
     return next.promise
   }
-  // The provider answers whatever the scope forwards; the overloads only narrow the reply type.
   return { requests, answers, waits: { wait } as ToolWaiter }
 }
 

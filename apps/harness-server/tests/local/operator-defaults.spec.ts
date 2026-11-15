@@ -1,11 +1,14 @@
-// The operator layer of the local single-user profile, built over the release distribution that
-// ships with the application. The process test (`setup-serve-process.spec.ts`) proves that the
-// whole tree loads with it. These cases pin what the layer holds and what it never holds.
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
+import {
+  CHECKPOINT_STATE_MAX_BYTES,
+  WAIT_REQUEST_MAX_BYTES,
+  WAIT_RESPONSE_MAX_BYTES,
+} from '@omne-harness/tool-contract/provider'
 import { resolveLocations } from '../../src/local/locations.ts'
 import { captureShellEnvironment, isSecretName } from '../../src/local/settings.ts'
 import {
@@ -20,6 +23,8 @@ import {
   storageCloseDeadlineMs,
   type LocalOperatorInput,
 } from '../../src/local/operator-defaults.ts'
+import { sessionAccessConfig } from '../../src/rows/session-access/index.ts'
+import { toolRowsOperatorConfig } from '../r9/support.ts'
 
 const memberDir = fileURLToPath(new URL('../..', import.meta.url))
 const distribution = JSON.parse(
@@ -27,7 +32,6 @@ const distribution = JSON.parse(
 ) as { rows: { id: string; plugin: string; config?: Record<string, unknown> }[] }
 const releaseRow = (id: string) => distribution.rows.find(row => row.id === id)
 
-/** A host environment with secrets in it: none of them may reach the shell. */
 function hostEnvironment(platform: NodeJS.Platform): Record<string, string> {
   const secrets = {
     OPENROUTER_API_KEY: 'sk-or-must-not-leak',
@@ -81,9 +85,6 @@ describe('localOperatorLayer over the bundled distribution', () => {
     }
   })
 
-  // A fixed tool request holds the arguments twice (original and effective), and its admission is
-  // one storage command (Tool SPEC「固定请求只保存一份」). The model bounds the arguments of a call;
-  // with this relation the storage never refuses an admission for its size.
   it('bounds the arguments of a tool call so that an admission fits one storage command', () => {
     const limits = z.object({
       preparation: z.object({
@@ -100,14 +101,18 @@ describe('localOperatorLayer over the bundled distribution', () => {
     })
     const argumentBytes = preparation.openai.limits.toolArguments.maxBytes
     const commandBytes = storage.maxCommandBytes
-    // A JSON string escapes to at most six bytes for one, so the two texts take at most twelve
-    // times the argument bound inside the command; the rest of the request is far below the rest.
     expect(argumentBytes * 12).toBeLessThan(commandBytes)
   })
 
+  it('bounds the suspension content of a tool call so that each of its commits fits one storage command', () => {
+    const config = layer.ops.find(item => item.id === 'storage')?.config
+    const commandBytes = z.object({ maxCommandBytes: z.number() }).parse(config).maxCommandBytes
+    expect(WAIT_REQUEST_MAX_BYTES * 2).toBeLessThanOrEqual(commandBytes / 2)
+    expect(Math.ceil(CHECKPOINT_STATE_MAX_BYTES / 3) * 4).toBeLessThanOrEqual(commandBytes / 2)
+    expect(WAIT_RESPONSE_MAX_BYTES).toBeLessThanOrEqual(commandBytes / 2)
+  })
+
   it('names only the vault path for the secret custody, and no secret anywhere', () => {
-    // The model credential row reads the vault through the custody row; it and the `settings` row
-    // take no operator value.
     expect(configOf(layer, 'model-credential')).toBeUndefined()
     expect(configOf(layer, 'secret-custody')).toEqual({ path: '/h/state/model-vault.json' })
     expect(configOf(layer, 'settings')).toBeUndefined()
@@ -125,6 +130,56 @@ describe('localOperatorLayer over the bundled distribution', () => {
     })
   })
 
+  it('gives the Agent the retry budget of a failed main model call', () => {
+    expect(configOf(layer, 'agent-host')).toMatchObject({
+      modelRetry: {
+        maxAttempts: 4,
+        maxElapsedMs: 120_000,
+        delaysMs: [1_000, 5_000, 30_000],
+        jitter: 0.2,
+      },
+    })
+  })
+
+  describe('the storage thread limits of the settings', () => {
+    const threadLimits = (config: Record<string, unknown> | undefined) => ({
+      maxWorkers: config?.['maxWorkers'],
+      reservedWriterSlots: config?.['reservedWriterSlots'],
+      maxReadWorkersPerDomain: config?.['maxReadWorkersPerDomain'],
+    })
+    const withStorage = (storage?: Record<string, number>) => {
+      const base = input('linux')
+      return localOperatorLayer({
+        ...base,
+        settings: { ...base.settings, ...(storage === undefined ? {} : { storage }) },
+      })
+    }
+
+    it('are 16, 4 and 2 when the settings give no storage object', () => {
+      expect(threadLimits(configOf(withStorage(), 'storage'))).toEqual({
+        maxWorkers: 16,
+        reservedWriterSlots: 4,
+        maxReadWorkersPerDomain: 2,
+      })
+    })
+
+    it('take the value of each key that the settings give, and keep the default of the others', () => {
+      expect(threadLimits(configOf(withStorage({ maxWorkers: 32 }), 'storage'))).toEqual({
+        maxWorkers: 32,
+        reservedWriterSlots: 4,
+        maxReadWorkersPerDomain: 2,
+      })
+      expect(
+        threadLimits(
+          configOf(
+            withStorage({ maxWorkers: 8, reservedWriterSlots: 0, maxReadWorkersPerDomain: 3 }),
+            'storage',
+          ),
+        ),
+      ).toEqual({ maxWorkers: 8, reservedWriterSlots: 0, maxReadWorkersPerDomain: 3 })
+    })
+  })
+
   it('admits LOCAL_CONCURRENT_MODEL_CALLS model calls of one tenant at once on every bound', () => {
     const calls = LOCAL_CONCURRENT_MODEL_CALLS
     expect(calls).toBe(20)
@@ -138,7 +193,6 @@ describe('localOperatorLayer over the bundled distribution', () => {
         }),
       })
       .parse(configOf(layer, 'model-records'))
-    // The tenant's share holds exactly `calls` unacknowledged results.
     expect(records.limits.unacknowledgedResults).toBe(calls)
     expect(records.send.maxClaims).toBe(calls)
     expect(records.sendStage.materialization.maxRecords).toBe(calls)
@@ -154,7 +208,6 @@ describe('localOperatorLayer over the bundled distribution', () => {
   })
 
   it('does not overwrite any key that the release gives a replaced row', () => {
-    // A key in both would let the profile change a release value without anyone noticing.
     const profileOnly = localOperatorLayer({
       ...input('linux'),
       distribution: { rows: [{ id: 'session-handoff', config: { combinationVersion: 'v' } }] },
@@ -175,6 +228,14 @@ describe('localOperatorLayer over the bundled distribution', () => {
       expect(configOf(layer, id)?.['combinationVersion'], id).toBe(version)
   })
 
+  it('puts the request journal of session-access in the storage root, beside the release values', () => {
+    expect(configOf(layer, 'session-access')).toEqual({
+      ...releaseRow('session-access')?.config,
+      requestJournalFile: `${input('linux').locations.storageRoot}/request-queue.jsonl`,
+    })
+    expect(sessionAccessConfig.safeParse(configOf(layer, 'session-access')).success).toBe(true)
+  })
+
   it('lists the Run frame and the tool messages in the history and uses the settings port', () => {
     expect(configOf(layer, 'server-entry')).toEqual({
       listenPort: 8965,
@@ -190,6 +251,44 @@ describe('localOperatorLayer over the bundled distribution', () => {
         'message.system_reminder',
       ]),
     )
+  })
+
+  const resultBounds = z.record(z.string(), z.object({ resultMaxBytes: z.number() }))
+  const localBounds = () =>
+    resultBounds.parse(
+      z.object({ construction: z.unknown() }).parse(configOf(layer, 'tool-host')).construction,
+    )
+
+  it('bounds every tool result above the inline threshold, and the Tools reply within it', () => {
+    const inline = z
+      .object({
+        configuration: z.object({ offloading: z.object({ maxInlineUtf8Bytes: z.number() }) }),
+      })
+      .parse(configOf(layer, 'tool-records')).configuration.offloading.maxInlineUtf8Bytes
+    const bounds = localBounds()
+    expect(Object.keys(bounds).sort()).toEqual([
+      'Ask',
+      'Files',
+      'Shell',
+      'TodoItems',
+      'Tools',
+      'Web',
+    ])
+    for (const tool of ['Shell', 'Files', 'Web', 'TodoItems', 'Ask'])
+      expect(bounds[tool]?.resultMaxBytes, tool).toBeGreaterThan(inline)
+    expect(bounds['Tools']?.resultMaxBytes).toBeLessThanOrEqual(inline)
+  })
+
+  it('gives the test operator layer the tool result bounds of the local profile', () => {
+    const base = realpathSync(mkdtempSync(join(tmpdir(), 'omne-result-bounds-')))
+    try {
+      const { construction } = toolRowsOperatorConfig({ storageRoot: join(base, 'storage') })
+      const tests = resultBounds.parse(construction)
+      for (const [tool, bound] of Object.entries(localBounds()))
+        expect(tests[tool]?.resultMaxBytes, tool).toBe(bound.resultMaxBytes)
+    } finally {
+      rmSync(base, { recursive: true, force: true })
+    }
   })
 
   it('puts the workspace under both tools and the execution host', () => {
@@ -286,8 +385,6 @@ describe('shellArguments', () => {
     ['linux', '/bin/sh', 'posix'],
   ] as const)('%s %s takes the %s arguments', (platform, executable, kind) => {
     const expected = {
-      // Windows: the default execution policy refuses local scripts, so this process bypasses it.
-      // The prelude sets UTF-8 output in this one process; it is the last argument before the script.
       ps: [
         '-NoLogo',
         '-NoProfile',

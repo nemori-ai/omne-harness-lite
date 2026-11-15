@@ -7,10 +7,6 @@ const dist = fileURLToPath(new URL('../dist/', import.meta.url))
 const IMPORT_SPECIFIER =
   /(?:^|[\s;])(?:import|export)\s*(?:type\s+)?(?:[^'";]*?\s+from\s*)?['"]([^'"]+)['"]|\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g
 
-/**
- * Every module specifier that the built entry reaches, following relative imports. Declarations
- * keep the `.ts` extension of the source, so a relative specifier is mapped to the entry's suffix.
- */
 function reach(entry: string): { files: string[]; specifiers: string[] } {
   const suffix = entry.endsWith('.d.ts') ? '.d.ts' : '.js'
   const files: string[] = []

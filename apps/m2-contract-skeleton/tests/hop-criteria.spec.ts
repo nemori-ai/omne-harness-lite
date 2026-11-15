@@ -1,6 +1,3 @@
-// The connection criterion of each hop, seen as its callers see it: the kind of the observation
-// and the evidence labels that name the step where a hop stopped. The cases inject the failure at
-// the public entry that owns it, through the doubles of first-path-doubles.ts.
 import { describe, expect, it } from 'vitest'
 import {
   evidenceOf,
@@ -229,7 +226,6 @@ describe('a probe that stops in its own session names the step that stopped it',
   })
 })
 
-/** The Agent of the main rounds with its own scripted replies; the probes keep their scripts. */
 function mainAgent(
   parts: (ordinal: number) => ReturnType<typeof replyParts> | null,
 ): PathDependencies['agent'] {
@@ -300,7 +296,6 @@ describe('H09, the later rounds of the main session', () => {
   })
 })
 
-/** The Agent of the reassembly probe, changed by `change`; the other probes and rounds stay. */
 function reassemblyAgent(change: (agent: PathAgent) => PathAgent): PathDependencies['agent'] {
   const original = agentDouble()
   return async input => {
@@ -329,7 +324,9 @@ describe('H11, the reassembly probe', () => {
   it('does not name a timeout of the admission wait when the Model admitted the call', async () => {
     const observed = await runFirstTenantPath(pathDependencies({ replyTurns: 50 }))
     expect(evidenceAt(observed, 'H11').join(' ')).not.toContain('admitted no call')
-    expect(evidenceAt(observed, 'H11').join(' ')).not.toContain('no reply within')
+    expect(evidenceAt(observed, 'H11')).toContain(
+      'agent:no reply within 50 event-loop turns after the Model was released',
+    )
   })
 
   it('names the journal state where the execution stopped when the reply never came', async () => {
@@ -340,7 +337,7 @@ describe('H11, the reassembly probe', () => {
       }),
     )
     expect(evidenceAt(observed, 'H11')).toContain(
-      'agent:journal state waiting at M6 after the Model settled',
+      'agent:journal state suspended at M6 after the Model settled',
     )
     expect(evidenceAt(observed, 'H11').join(' ')).not.toContain('execution ended')
     expect(evidenceAt(observed, 'H11').join(' ')).not.toContain('original driver')

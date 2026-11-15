@@ -1,6 +1,3 @@
-// 运行器：成员测试交给 turbo 跑一层任务（`test:fast`、`test:slow` 或 `test`），可执行验收仍逐成员跑它的
-// `acceptance` 脚本；两种都按给定的并行度、一个失败不拦其余的。每个成员的输出落到运行目录里的日志，
-// vitest 的 JSON 报告与计时报告落在旁边，供账本与失败归因读取。
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import {
   closeSync,
@@ -36,7 +33,6 @@ export const slugOf = (member: string) => member.replaceAll('/', '__')
 const children = new Set<ChildProcess>()
 let forwarding = false
 
-/** 运行器被终止时把信号转给还在跑的成员，不留孤儿进程。 */
 function forwardTermination(): void {
   if (forwarding) return
   forwarding = true
@@ -56,20 +52,11 @@ export interface SpawnLoggedOptions {
   readonly cwd: string
   readonly env: NodeJS.ProcessEnv
   readonly logPath: string
-  /**
-   * 子进程标准输出与标准错误的每一行（不含换行符与行尾的 `\r`），在写进日志之后交给它。
-   * 不给时子进程直接写日志文件，不经本进程。
-   */
   readonly onLine?: (line: string) => void
 }
 
-/**
- * 子进程退出后等它的输出管道关上的时限。孙进程继承了管道又没退出时，管道一直不关；
- * 过了时限就不再读，按子进程的退出码收尾。
- */
 const PIPE_DRAIN_MS = 10_000
 
-/** 起一个子进程，输出全部进日志文件；起不来或被信号杀掉都记为非零退出码，不抛。 */
 export function spawnLogged(
   command: string,
   args: readonly string[],
@@ -101,7 +88,6 @@ export function spawnLogged(
       child.once('exit', code => finish(code ?? -1))
       return
     }
-    // 两条管道各自按行切；读到的字节先原样写日志，再把完整的行交出去。
     const flushes = [child.stdout, child.stderr].map(stream => {
       let pending = ''
       const emit = (line: string) => onLine(line.endsWith('\r') ? line.slice(0, -1) : line)
@@ -138,7 +124,6 @@ export function spawnLogged(
   })
 }
 
-/** vitest 的 JSON 报告；没写出来或写了一半都当作没有。 */
 export function readReport(path: string): VitestJsonReport | undefined {
   if (!existsSync(path)) return undefined
   try {
@@ -149,7 +134,6 @@ export function readReport(path: string): VitestJsonReport | undefined {
   }
 }
 
-/** 计时报告；没写出来或写了一半都当作没有，账本退回只用 JSON 报告。 */
 export function readTiming(path: string): TimingReport | undefined {
   if (!existsSync(path)) return undefined
   try {
@@ -168,9 +152,6 @@ async function runMember(
   script: RunScript,
 ): Promise<MemberRun> {
   const slug = slugOf(member.path)
-  // 只有 vitest 的脚本才认这几个参数；别的脚本原样跑，账本里只有成员一级的耗时。
-  // 计时报告器的输出路径只能写在配置里（命令行给不了报告器选项），验收的账本因此没有导入耗时，贴线按缺省时限判。
-  // 命令行的 `--reporter` 替换配置里的报告器，`vitest.tiers.mts` 的过滤守卫因此不在场；这里不带过滤，也用不到它。
   const args = /\bvitest\b/u.test(member.script)
     ? [
         '--exclude',
@@ -208,7 +189,6 @@ async function runMember(
   return { member: member.path, ...result, ...reportsOf(runDir, slug) }
 }
 
-/** 同时最多跑 `memberConcurrency` 个成员，各跑它的 `script` 脚本（验收用）；返回顺序与传入顺序一致。 */
 export async function runMembers(
   root: string,
   members: readonly TestMember[],
@@ -236,7 +216,6 @@ export async function runMembers(
   return runs
 }
 
-/** 成员在运行目录里的两份报告；没写出来的就不带。 */
 function reportsOf(runDir: string, slug: string): Pick<MemberRun, 'report' | 'timing'> {
   const report = readReport(join(runDir, `${slug}.json`))
   const timing = readTiming(join(runDir, `${slug}.timing.json`))
@@ -246,7 +225,6 @@ function reportsOf(runDir: string, slug: string): Pick<MemberRun, 'report' | 'ti
   }
 }
 
-/** turbo 运行摘要里这里用到的部分：每个任务的包名、任务名与执行结果（没执行的任务没有 `execution`）。 */
 interface TurboSummary {
   readonly tasks: readonly {
     readonly package: string
@@ -259,12 +237,10 @@ interface TurboSummary {
   }[]
 }
 
-// turbo 在输出末尾写一行 `Summary: <路径>`。
 const SUMMARY_LINE = /^\s*Summary:\s+(\S.*\.json)\s*$/mu
 
 const isNumber = (value: unknown): value is number => typeof value === 'number'
 
-/** 摘要里的一个任务；执行记录的起止时间不是数就当作没有执行记录。 */
 function summaryTask(value: unknown): TurboSummary['tasks'][number] | undefined {
   if (typeof value !== 'object' || value === null) return undefined
   const { package: name, task, execution } = value as Record<string, unknown>
@@ -275,10 +251,6 @@ function summaryTask(value: unknown): TurboSummary['tasks'][number] | undefined 
     : { package: name, task }
 }
 
-/**
- * 读 turbo 的运行摘要并挪进运行目录（不让它在被测检出的 `.turbo/runs` 里越攒越多）。
- * 拿不到时给出原因，写进各成员的问题，不只说「没有执行记录」。
- */
 function takeSummary(
   root: string,
   output: string,
@@ -302,7 +274,6 @@ function takeSummary(
   }
 }
 
-/** turbo 的输出按 `<包名>:<任务>: ` 前缀拆给各成员，去掉颜色码（turbo 给子进程的输出强制着色）。 */
 function memberLogs(output: string, names: readonly string[], task: string): Map<string, string[]> {
   const logs = new Map(names.map(name => [name, [] as string[]]))
   for (const line of stripVTControlCharacters(output).split('\n')) {
@@ -312,7 +283,6 @@ function memberLogs(output: string, names: readonly string[], task: string): Map
   return logs
 }
 
-/** 成员清单里有没有这个脚本；读不出清单当作没有。 */
 function hasScript(memberDirectory: string, script: string): boolean {
   try {
     const manifest = JSON.parse(readFileSync(join(memberDirectory, 'package.json'), 'utf8')) as {
@@ -324,7 +294,6 @@ function hasScript(memberDirectory: string, script: string): boolean {
   }
 }
 
-/** 报告里落在嵌套归档目录（名字以 `.legacy` 结尾）里的测试文件；成员配置该排除它们。 */
 export function archivedReportFiles(
   memberDirectory: string,
   report: VitestJsonReport | undefined,
@@ -334,13 +303,6 @@ export function archivedReportFiles(
     .filter(file => file.split(/[\\/]/u).some(segment => segment.endsWith('.legacy')))
 }
 
-/**
- * 用 turbo 跑一批成员的 `tier` 那一层，同时最多 `memberConcurrency` 个成员；`build` 定由谁构建（见 turboTestCommand）。
- * 整份输出落 `turbo.log`，再按成员拆成各自的日志；退出码与耗时取自 turbo 的运行摘要，摘要里没有执行记录的成员记为 -1
- * （它或上游的构建失败时就是这样，失败的构建点名写进它的问题）。
- * 报告里出现嵌套归档目录里的文件就判这个成员失败：排除没生效，跑了不该跑的测试。退出码 0 却没有报告也判失败：
- * 报告由成员配置挂上，缺了就看不出跑了什么。返回顺序与传入顺序一致。
- */
 export async function runTurboTests(
   root: string,
   members: readonly TestMember[],
@@ -350,13 +312,11 @@ export async function runTurboTests(
   build: TestBuild,
   onDone: (run: MemberRun, finished: number) => void,
 ): Promise<MemberRun[]> {
-  // 成员目录下的 turbo.json 能给测试任务开缓存，第二次就回放日志、报告通过；`--all` 不经计划，这里再核一次。
   checkMemberTurboConfigs(root, members)
   const names = members.map(member => member.name)
   const task = TIER_TASKS[tier]
   const command = turboTestCommand(names, tier, parallel, runDir, build)
   const turboLog = join(runDir, 'turbo.log')
-  // turbo 的输出按成员成组，整层跑完才逐个报结果；跑的时候看这份日志。
   console.log(`$ turbo ${command.args.join(' ')}（输出写进 ${turboLog}）`)
   const turbo = await spawnLogged(TURBO_BIN, command.args, {
     cwd: root,

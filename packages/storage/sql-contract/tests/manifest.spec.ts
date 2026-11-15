@@ -1,4 +1,3 @@
-// combinationManifest (SPEC 4.3): the order of the checks and one case per problem kind.
 import { describe, expect, it } from 'vitest'
 import {
   combinationManifest,

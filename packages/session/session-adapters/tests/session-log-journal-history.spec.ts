@@ -1,9 +1,3 @@
-// The Session history rows a Ja of the production session-log Journal writes (Agent SPEC
-// "真实历史的提交点"; AD-01): the main reply, whose caller is none and whose admission fact the Ja
-// carries, enters the Session history as `message.assistant`; a tool result whose caller is the
-// `message` hand-over enters it as `message.tool`. Either row and the Agent records are one storage
-// commit: a failure of either write leaves neither, and the same operation then commits once. A
-// rejected reply writes no row. On the node:sqlite double that runs the published modules.
 import { describe, expect, it } from 'vitest'
 import { ok } from './fixtures/common-journal.ts'
 import type { SqlScene } from './fixtures/sql-scene.ts'
@@ -20,7 +14,6 @@ import {
 
 const count = (s: SqlScene, table: string): number =>
   Number(s.controls?.select(`SELECT COUNT(*) AS n FROM ${table}`).rows[0]?.[0] ?? -1)
-/** The history rows a Ja writes: the message rows other than the user's initial input. */
 const written = (s: SqlScene): string[] =>
   (s.controls?.select(`SELECT kind FROM sl_entry ORDER BY position`).rows ?? [])
     .map(row => String(row[0]))
@@ -32,7 +25,6 @@ type Tagged =
   | { kind: 'number'; lexeme: string }
   | { kind: 'array'; items: Tagged[] }
   | { kind: 'object'; entries: { key: string; value: Tagged }[] }
-/** The plain value of the tagged JSON tree in which an entry stores its payload. */
 function plainOf(tree: Tagged): unknown {
   switch (tree.kind) {
     case 'null':
@@ -49,10 +41,6 @@ function plainOf(tree: Tagged): unknown {
   }
 }
 
-/**
- * The payload of the history row a Ja wrote, read through the public history read of the Session
- * storage (not from the stored row text, whose encoding is the storage's own).
- */
 const writtenEntry = async (s: SqlScene, kind: string): Promise<Record<string, unknown>> => {
   const page = ok(
     await s.port.history.begin({
@@ -92,7 +80,6 @@ describe('a Ja writes the real history of its source into the Session log', () =
       ok(await s.view.journal.commit(await applied(s, authority, request, admitted(request))))
       const entry = await writtenEntry(s, role)
       expect(entry.message).toEqual(request.candidate)
-      // The record of the handoff and the admission of the prepared result: not one for the other.
       expect(entry.source).toEqual(proof('record/h'))
       expect(entry.admission).toEqual(proof('admission/h'))
     })

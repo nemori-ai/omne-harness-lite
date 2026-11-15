@@ -15,7 +15,7 @@ import {
 } from './coordinator-values.ts'
 import { createLiveAuthorExecution } from '../src/live-author-execution.ts'
 
-describe('real author binding N7', () => {
+describe('real author binding', () => {
   it('stopping one author leaves another invocation live', async () => {
     const fixture = await bindingFixture()
     if (fixture.request?.availability.kind !== 'available' || fixture.permit === undefined)
@@ -81,7 +81,7 @@ describe('real author binding N7', () => {
       kind: 'passed',
     })
   })
-  it('does not enter the author or replay when consume has an unknown outcome', async () => {
+  it('does not enter the author when consume has an unknown outcome, and asks the fence again', async () => {
     let consumed = 0
     const fixture = await bindingFixture(async () => {
       consumed += 1
@@ -115,9 +115,9 @@ describe('real author binding N7', () => {
       'failure.kind',
       'commit-unknown',
     )
-    expect(unbox(await fixture.binding.inspectStart(input)).kind).toBe('unknown')
+    expect(unbox(await fixture.binding.inspectStart(input)).kind).toBe('not-started')
     expect(fixture.launches?.()).toBe(0)
-    expect(consumed).toBe(1)
+    expect(consumed).toBe(2)
     expect(fixture.pins()).toBe('1')
   })
   it('releases the pin after a definite start denial', async () => {

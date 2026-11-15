@@ -10,7 +10,6 @@ type Completed = Pick<Context, 'tenant' | 'call' | 'consumer' | 'result'> &
     outcome: string
   }>
 
-/** Consumer-owned test records simulate completion storage, not production durability. */
 export function completionRecords() {
   const records = new Map<string, Completed & { proof: DurableEvidence }>()
   return {

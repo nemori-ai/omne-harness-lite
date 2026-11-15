@@ -1,4 +1,3 @@
-// Facts cross from a trusted execution producer, but their data still needs a fixed, closed view.
 import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-block'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -19,9 +18,12 @@ import {
   type ResultPolicy,
   type ToolExecutionFact,
   type ToolFinalEnvelope,
+  WAIT_REQUEST_MAX_BYTES,
+  WAIT_RESPONSE_MAX_BYTES,
 } from '@omne-harness/tool-contract/provider'
 
 import { readOwnSlot } from '@omne-harness/tool-contract/binding'
+import { digestOf } from './evidence.ts'
 import {
   invalid,
   isTenantShape,
@@ -48,7 +50,6 @@ function decimal(value: unknown): value is string {
   return typeof value === 'string' && /^[0-9]+$/u.test(value)
 }
 
-/** Own data properties only. The copy never evaluates accessors or serializes credentials. */
 export function copyData(value: unknown, path = new Set<object>()): unknown {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return value
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -83,6 +84,10 @@ export function copyData(value: unknown, path = new Set<object>()): unknown {
   } finally {
     path.delete(value)
   }
+}
+
+export function judgeStartRecord(value: unknown): Outcome<ToolStartRecord, ToolFailure> {
+  return start(value)
 }
 
 function start(value: unknown): Outcome<ToolStartRecord, ToolFailure> {
@@ -211,6 +216,107 @@ function effect(value: unknown): value is Effect {
     'ok' in judgeEvidenceField(value.evidence, 'effect.evidence')
   )
 }
+function positive(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
+}
+function schemaIdentity(value: unknown): value is { id: string; revision: string; digest: string } {
+  return (
+    closed(value, ['id', 'revision', 'digest']) &&
+    text(value.id) &&
+    text(value.revision) &&
+    text(value.digest)
+  )
+}
+function askWait(
+  value: Data,
+  adoption: Adoption,
+): Outcome<Extract<ToolExecutionFact, { kind: 'wait' }>, ToolFailure> {
+  if (!object(value.value)) return invalid('batch.events.fact', 'shape')
+  const intent = value.value
+  if (intent.kind !== 'ask')
+    return {
+      failure: {
+        kind: 'unsupported',
+        adoption,
+        reason: 'receiveFacts supports Ask waits only; a resource wait blocks the complete batch',
+      },
+    }
+  if (!closed(value, ['kind', 'value', 'request'])) return invalid('batch.events.fact', 'shape')
+  if (!closed(intent, ['wait', 'resume', 'schemas', 'kind', 'request']))
+    return invalid('batch.events.fact.value', 'shape')
+  const wait = decodeToolWaitId(intent.wait)
+  if ('failure' in wait) return invalid('batch.events.fact.value.wait', wait.failure.reason)
+  const resume = judgeEvidenceField(intent.resume, 'batch.events.fact.value.resume')
+  if ('failure' in resume) return resume
+  const request = judgeEvidenceField(intent.request, 'batch.events.fact.value.request')
+  if ('failure' in request) return request
+  const schemas = intent.schemas
+  const keys = [
+    'contract',
+    'request',
+    'response',
+    'requestMaxBytes',
+    'responseMaxBytes',
+    'expiry',
+    'source',
+  ]
+  if (
+    !closed(schemas, keys) ||
+    !schemaIdentity(schemas.request) ||
+    !schemaIdentity(schemas.response) ||
+    !positive(schemas.requestMaxBytes) ||
+    !positive(schemas.responseMaxBytes) ||
+    schemas.expiry !== 'forbidden'
+  )
+    return invalid('batch.events.fact.value.schemas', 'shape')
+  if (
+    schemas.requestMaxBytes > WAIT_REQUEST_MAX_BYTES ||
+    schemas.responseMaxBytes > WAIT_RESPONSE_MAX_BYTES
+  )
+    return invalid('batch.events.fact.value.schemas', 'range')
+  const contract = judgeAdoptionField(schemas.contract, 'batch.events.fact.value.schemas.contract')
+  if ('failure' in contract) return contract
+  const source = judgeEvidenceField(schemas.source, 'batch.events.fact.value.schemas.source')
+  if ('failure' in source) return source
+  const original = value.request
+  if (typeof original !== 'string') return invalid('batch.events.fact.request', 'type')
+  if (Buffer.byteLength(original) > schemas.requestMaxBytes)
+    return invalid('batch.events.fact.request', 'too-large')
+  if (digestOf(original) !== request.ok.digest)
+    return invalid('batch.events.fact.request', 'digest-mismatch')
+  return succeed({
+    kind: 'wait',
+    request: original,
+    value: {
+      kind: 'ask',
+      wait: wait.ok,
+      resume: resume.ok,
+      request: request.ok,
+      schemas: {
+        contract: contract.ok,
+        request: schemas.request,
+        response: schemas.response,
+        requestMaxBytes: schemas.requestMaxBytes,
+        responseMaxBytes: schemas.responseMaxBytes,
+        expiry: 'forbidden',
+        source: source.ok,
+      },
+    },
+  })
+}
+function continued(
+  value: Data,
+): Outcome<Extract<ToolExecutionFact, { kind: 'continued' }>, ToolFailure> {
+  if (!closed(value, ['kind', 'wait', 'response', 'timing']))
+    return invalid('batch.events.fact', 'shape')
+  const wait = decodeToolWaitId(value.wait)
+  if ('failure' in wait) return invalid('batch.events.fact.wait', wait.failure.reason)
+  const response = decodeToolOperationId(value.response)
+  if ('failure' in response) return invalid('batch.events.fact.response', response.failure.reason)
+  const timing = judgeEvidenceField(value.timing, 'batch.events.fact.timing')
+  if ('failure' in timing) return timing
+  return succeed({ kind: 'continued', wait: wait.ok, response: response.ok, timing: timing.ok })
+}
 function fact<B extends ContentBlock>(
   value: unknown,
   policy: ResultPolicy<B>,
@@ -228,13 +334,15 @@ function fact<B extends ContentBlock>(
     }
     return succeed({ kind: 'process', blocks })
   }
+  if (value.kind === 'wait') return askWait(value, adoption)
+  if (value.kind === 'continued') return continued(value)
   if (value.kind !== 'final') {
-    if (['wait', 'continued', 'account', 'program-scheduling'].includes(String(value.kind)))
+    if (['account', 'program-scheduling'].includes(String(value.kind)))
       return {
         failure: {
           kind: 'unsupported',
           adoption,
-          reason: `receiveFacts supports process/final; ${String(value.kind)} blocks the complete batch`,
+          reason: `receiveFacts supports process, final, Ask wait and continued; ${String(value.kind)} blocks the complete batch`,
         },
       }
     return invalid('batch.events.fact.kind', 'variant')
@@ -245,7 +353,6 @@ function fact<B extends ContentBlock>(
     !effect(value.effect)
   )
     return invalid('batch.events.fact', 'shape')
-  // The result policy owns runtime validation and the narrower B, just as in result rendering.
   const result = policy.judgeResult(value.result as Parameters<typeof policy.judgeResult>[0])
   if ('failure' in result) return invalid('batch.events.fact.result', 'policy')
   return succeed({
@@ -290,7 +397,6 @@ export function fixFactInput<B extends ContentBlock>(
       if ('failure' in checked) return checked
       events.push({ event: event.event, fact: checked.ok })
     }
-    // Fix policy-produced data too. A provider cannot mutate the accepted result during access.
     const batch = {
       start: original.ok,
       source: source.ok,
@@ -318,7 +424,6 @@ export function fixFactBasis(input: unknown) {
   }
 }
 
-/** Fixes acknowledgement data before qualification or any external confirmation call. */
 export function fixFactAcknowledgement(
   input: unknown,
 ): Outcome<Readonly<{ receipt: FactReceipt; sourceReceipt: DurableEvidence }>, ToolFailure> {

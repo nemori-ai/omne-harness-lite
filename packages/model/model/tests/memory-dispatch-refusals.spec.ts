@@ -1,6 +1,3 @@
-// The refusals of the in-memory ModelCommands at the dispatch boundary: which supplier a call may
-// prepare a first dispatch for, which receipt binds a dispatch, and which completed terminal forms
-// a message. Each refusal is a named `invalid` and leaves the call as it was.
 import { describe, expect, it } from 'vitest'
 import {
   decodeDispatchId,
@@ -29,7 +26,6 @@ const second = {
   credential: { layer: 'official' },
 } as const
 
-/** A request that may fall back to a second supplier. */
 const twoSuppliers: FixedModelRequest = {
   ...request,
   suppliers: [request.suppliers[0], second],
@@ -37,7 +33,6 @@ const twoSuppliers: FixedModelRequest = {
   declarations: [request.declarations[0], request.declarations[0]],
 }
 
-/** An admitted and claimed call over `fixed`, with no dispatch yet. */
 async function claimed(fixed: FixedModelRequest = request) {
   const f = fixture()
   const admit = { ...f.admit, request: fixed }
@@ -153,17 +148,67 @@ describe('the receipt of a dispatch', () => {
     async (_name, receipt) => {
       const f = await prepared()
       expect(
-        await f.commands.recordMaterialization({ ...(await f.write()), dispatch, receipt }),
+        await f.commands.recordMaterialization({
+          ...(await f.write()),
+          dispatch,
+          receipt,
+          window: 'w',
+        }),
       ).toEqual({ failure: { kind: 'invalid', field: 'receipt', reason: 'binding' } })
       const [record] = unbox(await f.commands.dispatches(f.admit))
       expect(record?.materialization).toBeNull()
+      unbox(await f.commands.openReceiveWindow({ ...(await f.write()), dispatch, window: 'w' }))
     },
   )
 
   it('is recorded when it names the dispatch supplier, the request representation and a digest', async () => {
     const f = await prepared()
     unbox(
-      await f.commands.recordMaterialization({ ...(await f.write()), dispatch, receipt: bound }),
+      await f.commands.recordMaterialization({
+        ...(await f.write()),
+        dispatch,
+        receipt: bound,
+        window: 'w',
+      }),
+    )
+    const [record] = unbox(await f.commands.dispatches(f.admit))
+    expect(record?.materialization?.receipt).toEqual(bound)
+    expect(
+      await f.commands.openReceiveWindow({ ...(await f.write()), dispatch, window: 'w' }),
+    ).toEqual({ failure: { kind: 'invalid', field: 'window', reason: 'duplicate-or-terminal' } })
+  })
+
+  it.each([
+    ['is already open', 'taken'],
+    ['is empty', ''],
+    ['is one byte over 256 bytes encoded', 'x'.repeat(255)],
+  ])(
+    'records nothing when the window %s: the receipt does not stand alone',
+    async (_name, window) => {
+      const f = await prepared()
+      unbox(await f.commands.openReceiveWindow({ ...(await f.write()), dispatch, window: 'taken' }))
+      expect(
+        await f.commands.recordMaterialization({
+          ...(await f.write()),
+          dispatch,
+          receipt: bound,
+          window,
+        }),
+      ).toEqual({ failure: { kind: 'invalid', field: 'window', reason: 'duplicate-or-terminal' } })
+      const [record] = unbox(await f.commands.dispatches(f.admit))
+      expect(record?.materialization).toBeNull()
+    },
+  )
+
+  it('is recorded with a window of exactly 256 bytes encoded', async () => {
+    const f = await prepared()
+    unbox(
+      await f.commands.recordMaterialization({
+        ...(await f.write()),
+        dispatch,
+        receipt: bound,
+        window: 'x'.repeat(254),
+      }),
     )
     const [record] = unbox(await f.commands.dispatches(f.admit))
     expect(record?.materialization?.receipt).toEqual(bound)
@@ -245,6 +290,9 @@ describe('a completed terminal that forms no message', () => {
       ]),
     )
     expect(snapshot.blocks).toEqual([{ kind: 'sealed', index: '0', block }])
+    expect(
+      await f.commands.openReceiveWindow({ ...(await f.write()), dispatch, window: 'w2' }),
+    ).toEqual({ failure: { kind: 'invalid', field: 'window', reason: 'duplicate-or-terminal' } })
   })
 
   it('a reply cut at the output limit ends without forming a message, even when it holds no block', async () => {

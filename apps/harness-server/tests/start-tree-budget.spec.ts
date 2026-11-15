@@ -1,6 +1,3 @@
-// startTree shares one readiness deadline between loading the rows and waiting for them: the wait
-// gets what loading left of it, never less than zero. Time is read from a controlled clock, and the
-// wait is observed at its entry point, so the case needs no real waiting.
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { startTree } from '../src/loader.ts'
@@ -17,7 +14,6 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-/** Starts a one-row tree whose loading takes `loadingMs` on the controlled clock. */
 async function waitGiven(readinessTimeoutMs: number, loadingMs: number) {
   let now = 1_000
   vi.spyOn(Date, 'now').mockImplementation(() => now)

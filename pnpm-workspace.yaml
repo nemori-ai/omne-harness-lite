@@ -16,9 +16,9 @@ linkWorkspacePackages: false
 # 版本只在这里钉一次；成员用 `catalog:` 引用。改版本先改这里，再重生锁文件。
 catalog:
   # 检查器与配置预设：仓库检查运行 npm 上的这两个精确版本，不运行工作区 tools/ 下的同名成员。
-  # 升级先发新版本，再开只改这两行的 PR，见 docs/development.md「仓库工具链的版本」。
-  '@omne-harness/repo-toolchain': 0.0.18
-  '@omne-harness/repo-config': 0.0.3
+  # 升级先发新版本，再开只改这两行的 PR，见 omne-card 技能的 references/toolchain-upgrade.md。
+  '@omne-harness/repo-toolchain': 0.0.20
+  '@omne-harness/repo-config': 0.0.6
   '@babel/helper-validator-identifier': 8.0.6
   validate-npm-package-name: 8.0.0
   '@types/validate-npm-package-name': 4.0.2
@@ -46,6 +46,16 @@ catalog:
   turbo: 2.11.7
   '@vitest/coverage-v8': 4.1.11
   zod: 4.6.5
+  # 官方 MCP TypeScript SDK：mcp-host-local 只复用它的常量与帧的写法（client），测试用它的真实服务端夹具（server）；
+  # node 把服务端挂到 node:http，只作测试依赖。哪些部分不复用及理由见 mcp-host-local 的 SPEC。
+  '@modelcontextprotocol/client': 2.4.0
+  '@modelcontextprotocol/server': 2.4.0
+  '@modelcontextprotocol/node': 2.1.2
+  # SSE 事件解析，与 SDK 用同一个实现：mcp-host-local 读 text/event-stream 的应答。
+  eventsource-parser: 3.1.1
+  # 官方参考 MCP 服务端：只作 mcp-host-local 的测试依赖，做生态兼容与回归的真实对端。
+  '@modelcontextprotocol/server-everything': 2.1.0
+  '@modelcontextprotocol/server-filesystem': 2.1.0
   '@standard-schema/spec': 1.1.0
   yaml: 2.9.1
   jsonc-parser: 3.3.1
@@ -54,7 +64,15 @@ catalog:
   react-dom: 19.3.0
   '@types/react': 19.3.0
   '@types/react-dom': 19.3.0
+  # session-ui：流式 Markdown、组件测试与它的 DOM 环境。
+  streamdown: 2.7.1
+  '@testing-library/react': 16.3.3
+  '@testing-library/dom': 10.4.2
+  happy-dom: 21.0.4
   '@xyflow/react': 12.12.0
+  # 桌面应用页面的构建与界面测试（apps/desktop）。vite 取 vitest 已经装着的同一个版本，不另起一份。
+  vite: 8.3.0
+  '@vitejs/plugin-react': 6.3.0
   antd: 6.6.5
   esbuild: 0.28.2
   '@eslint-community/regexpp': 4.12.2
@@ -71,6 +89,7 @@ onlyBuiltDependencies:
 # node-pty 1.1.0 的 macOS 预编译包里 spawn-helper 没有可执行位，postinstall 也不补；补丁只把它改成 0755。
 patchedDependencies:
   node-pty@1.1.0: patches/node-pty@1.1.0.patch
+  rrule@2.8.1: patches/rrule@2.8.1.patch
 
 # dependency-cruiser 18 只认 TypeScript 6 以下的编译器，没有它就不解析 .ts。只给它补一份 TypeScript 6，成员仍用 catalog 的 TypeScript 7。
 packageExtensions:

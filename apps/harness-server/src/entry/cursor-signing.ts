@@ -1,6 +1,3 @@
-// 入口对象 `sessionCursorSigning`（装配页「运行时对象 · 游标签名密钥」，线包 2.5「保管」）：密钥是状态根下的一个
-// 32 字节文件。首次启动生成，之后复用，不轮换（轮换是已知限制）。密钥只在本模块的闭包里：不进配置、不进记录、
-// 不挂在服务实例的属性上。`session-storage` 行按调用现取这个服务（IC-9），所以它不在任何行的 inject 里。
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -14,7 +11,6 @@ import type { EntryObjectModule } from '../types.ts'
 
 export const CURSOR_KEY_FILE = 'session-cursor-signing.key'
 const KEY_BYTES = 32
-/** 当前密钥的公开选择器。不轮换，所以只有这一个。 */
 const KEY_ID = 'state-root/1'
 
 function errorCode(error: unknown): string | undefined {
@@ -38,7 +34,6 @@ function readKey(path: string): Buffer | null {
   return bytes
 }
 
-/** 读状态根下的密钥文件；没有时原子地创建（`wx`，权限 0600），并发创建时读回先到者写下的文件。 */
 function loadOrCreateKey(stateRoot: string): Buffer {
   const path = join(stateRoot, CURSOR_KEY_FILE)
   const existing = readKey(path)

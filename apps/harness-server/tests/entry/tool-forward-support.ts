@@ -9,7 +9,7 @@ import { deriveDefinition, judgeToolDefinition } from '@omne-harness/tool-contra
 import { sessionWorkIssuerOf } from '../../src/entry/principals.ts'
 import { releaseOf } from '../../src/entry/tool-release.ts'
 import { governanceOf } from '../../src/entry/tool-release-manifest.ts'
-import { RELEASE_REQUEST_CONTEXT, RELEASE_TOOL_SCOPE } from '../../src/rows/tool-runtime/scope.ts'
+import { RELEASE_REQUEST_CONTEXT, runToolScope } from '../../src/rows/tool-runtime/scope.ts'
 import { releaseFixture, TEST_CONSTRUCTION, tree } from '../rows/tool-host/support.ts'
 import { fixtureTenant, okOf } from './support.ts'
 
@@ -34,6 +34,12 @@ export async function forwardWorld() {
     'principal',
   )
   const call = okOf(decodeToolCallId('forward-parent'), 'call')
+  const consumer = {
+    owner: '@omne-harness/agent',
+    work: 'forward-test',
+    position: '1',
+    purpose: 'action',
+  }
   const request = (name: keyof typeof TEST_CONSTRUCTION | 'ToyEcho'): FixedToolRequest => {
     const entry = release.manifest.entries.find(item => item.asset.name === name)
     if (entry === undefined) throw new Error('no release entry')
@@ -74,16 +80,11 @@ export async function forwardWorld() {
       environment: definition.declarations.environment,
       requesterScope: okOf(decodeScopeRef({ ref: 'forward-test-scope' }), 'scope'),
       resources: [],
-      scope: RELEASE_TOOL_SCOPE,
-      consumer: {
-        owner: '@omne-harness/agent',
-        work: 'forward-test',
-        position: '1',
-        purpose: 'action',
-      },
+      scope: runToolScope(tenant, consumer),
+      consumer,
       batchDecision: null,
       mode: 'foreground',
-      limits: { concurrency: 1, foregroundMs: 234, backgroundAfterMs: null },
+      limits: { concurrency: 1, scopeBudget: null, foregroundMs: 234, backgroundAfterMs: null },
     }
   }
   const catalog: ToolCatalog<unknown> = {

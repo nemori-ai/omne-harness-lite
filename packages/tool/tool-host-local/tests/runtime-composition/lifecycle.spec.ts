@@ -7,7 +7,7 @@ import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { succeed } from '@omne-harness/operation-result'
 import { accepted, fixture, unbox } from './fixture.ts'
 
-it('C05 requires a declared durable store and keeps foreign tenant reads in their own partition', async () => {
+it('requires a declared durable store and keeps foreign tenant reads in their own partition', async () => {
   const world = await fixture()
   try {
     expect(() =>
@@ -18,8 +18,6 @@ it('C05 requires a declared durable store and keeps foreign tenant reads in thei
     ).toThrow('durable')
     const reference = accepted(await world.api.invoke(world.invocation('isolation')))
     await world.settled(reference)
-    // R2-D357: the reference carries no tenant. Tenant B's partition has no such call, so it gets
-    // the answer of a call that was never accepted, never tenant A's state.
     expect(await world.api.queries.lookup(world.query(reference, world.tenantB))).toMatchObject({
       ok: { kind: 'not-accepted' },
     })
@@ -27,6 +25,20 @@ it('C05 requires a declared durable store and keeps foreign tenant reads in thei
     await world.close()
   }
 })
+
+it.each(['capacity', 'observersPerCall', 'observerQueueFrames', 'observerResidenceMs'] as const)(
+  'refuses a runtime whose %s is no positive safe integer, and takes the least legal one',
+  async key => {
+    const world = await fixture()
+    try {
+      for (const value of [0, -1, 1.5, Number.NaN, Number.MAX_SAFE_INTEGER + 1])
+        expect(() => createLocalToolRuntimePlugins({ ...world.input, [key]: value })).toThrow(key)
+      expect(() => createLocalToolRuntimePlugins({ ...world.input, [key]: 1 })).not.toThrow()
+    } finally {
+      await world.close()
+    }
+  },
+)
 
 it('receiver withdrawal preserves delivery, then restoration saves the original result', async () => {
   const world = await fixture()
@@ -63,7 +75,7 @@ it('missing execution provider leaves preparation pending and never invokes the 
   }
 })
 
-it('C07 retirement rejects new work while preserving unresolved delivery for reads', async () => {
+it('retirement rejects new work while preserving unresolved delivery for reads', async () => {
   const world = await fixture()
   try {
     await world.removeReceiver()
@@ -116,7 +128,7 @@ it('completed and definitely rejected calls release the bounded scheduling capac
   }
 })
 
-it('a new executor reads the original call but never attaches or restarts its old execution', async () => {
+it('a new executor finds the original call by its recovery scan but never attaches or restarts its live execution', async () => {
   let complete: (value: string) => void = () => {}
   const world = await fixture(
     () =>
@@ -131,13 +143,17 @@ it('a new executor reads the original call but never attaches or restarts its ol
     await expect.poll(() => world.launches()).toBe(1)
     await world.plugins.close()
     reopened = await world.newExecutor()
-    expect(accepted(await reopened.api.invoke(request))).toBe(reference)
     const next = reopened
-    const parts = unbox(resolveToolInvocationRef(reference, world.tenantA))
-    await next.schedule({ tenant: world.tenantA, call: parts.call })
     await expect
-      .poll(() => next.plugins.diagnostics().executor?.unownedRuns ?? 0)
+      .poll(() => next.plugins.diagnostics().executor?.foreignExecutionRuns ?? 0)
       .toBeGreaterThan(0)
+    expect(next.plugins.diagnostics().executor).toMatchObject({
+      recoveryScan: 'done',
+      recoveredCalls: 1,
+      unownedRuns: 0,
+      knownCalls: 0,
+    })
+    expect(accepted(await next.api.invoke(request))).toBe(reference)
     expect(world.launches()).toBe(1)
     expect(unbox(await next.api.instances.current(world.streamQuery(reference))).current).toBeNull()
     expect(world.signals.get('{"value":"old-execution"}')?.aborted).toBe(false)
@@ -211,7 +227,7 @@ it('reports current source policy denial during recovery without creating anothe
   }
 })
 
-it('does not claim an old admitted call that never acquired an execution', async () => {
+it('takes over an old admitted call that never acquired an execution and starts it once', async () => {
   const world = await fixture()
   let reopened: Awaited<ReturnType<typeof world.newExecutor>> | null = null
   try {
@@ -225,16 +241,23 @@ it('does not claim an old admitted call that never acquired an execution', async
       })
       .toBe('preparing')
     await world.plugins.close()
+    expect(world.launches()).toBe(0)
     reopened = await world.newExecutor()
     const next = reopened
-    expect(accepted(await next.api.invoke(request))).toBe(reference)
     await expect
-      .poll(() => next.plugins.diagnostics().executor?.unownedRuns ?? 0)
-      .toBeGreaterThan(0)
-    expect(world.launches()).toBe(0)
-    expect(unbox(await next.api.queries.lookup(world.query(reference)))).toMatchObject({
-      state: { phase: 'preparing' },
+      .poll(async () => {
+        const read = unbox(await next.api.queries.lookup(world.query(reference)))
+        return read.kind === 'found' ? read.state.phase : null
+      })
+      .toBe('settled')
+    expect(world.launches()).toBe(1)
+    expect(next.plugins.diagnostics().executor).toMatchObject({
+      recoveredCalls: 1,
+      unownedRuns: 0,
+      foreignExecutionRuns: 0,
     })
+    expect(accepted(await next.api.invoke(request))).toBe(reference)
+    expect(world.launches()).toBe(1)
   } finally {
     await reopened?.close()
     await world.close()

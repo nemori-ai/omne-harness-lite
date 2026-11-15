@@ -104,7 +104,6 @@ describe('result rendering', () => {
   })
 
   it('result rendering: program data of exactly maxBytes fits, one byte more is too large', () => {
-    // `{"count":3}` is 11 bytes of JSON text.
     const program = (maxBytes: number) =>
       ({
         kind: 'json',

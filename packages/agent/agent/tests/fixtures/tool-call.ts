@@ -23,7 +23,7 @@ import {
   decodeToolResultVersion,
   judgeToolInvokeRequest,
 } from '@omne-harness/tool-contract/provider'
-import { adoption, evidence, execution, ok } from '../journal-support.ts'
+import { adoption, evidence, execution, instance, ok } from '../journal-support.ts'
 import { alice, eventually } from '../loop-support.ts'
 import { controlAssembly } from './control-assembly.ts'
 
@@ -88,7 +88,7 @@ export function fixedToolRequest(consumer: ToolInvokeRequest['consumer']): ToolI
       consumer,
       batchDecision: null,
       mode: 'foreground',
-      limits: { concurrency: 1, foregroundMs: null, backgroundAfterMs: null },
+      limits: { concurrency: 1, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
     }),
   )
 }
@@ -97,10 +97,6 @@ type ToolRequests = NonNullable<
   Parameters<NonNullable<Parameters<typeof controlAssembly>[1]>>[0]['toolRequests']
 >
 
-/**
- * The assembly of the tool tests. `requests` replaces faces of the trusted Tool request source;
- * `null` leaves the source out of the dependencies.
- */
 export async function toolAssembly(
   configuration: Parameters<typeof controlAssembly>[2] = {},
   journal: Parameters<typeof controlAssembly>[0] = {},
@@ -115,26 +111,23 @@ export async function toolAssembly(
     },
     ...requests,
   }
-  return controlAssembly(
+  const assembly = await controlAssembly(
     journal,
     dependencies => (requests === null ? dependencies : { ...dependencies, toolRequests: source }),
     configuration,
   )
+  assembly.controls.tools.queries.contact.always(() => ({ ok: { kind: 'holding' } }))
+  return assembly
 }
 
 async function load(assembly: Assembly): Promise<ExecutionSnapshot> {
   return ok(await assembly.dependencies.journal.load({ ...alice, execution: execution() }))
 }
 
-/**
- * Settles the open main Model call of the execution with `parts`, under a result version of its
- * own, and pushes the result to the receiver. Waits for the call to be saved and admitted first.
- */
 export async function deliverModelReply(
   assembly: Assembly,
   parts: readonly (ContentBlock | ActionToolCall)[],
   name: string,
-  /** The input token count the dispatch reports as its account; none when omitted. */
   accountLexeme?: string,
 ) {
   let pending: PendingCall | undefined
@@ -155,7 +148,6 @@ export async function deliverModelReply(
     firstContent: 'observed',
   })
   if (accountLexeme !== undefined) {
-    // The scripted provider keeps only the dispatches a test records; this one reports an account.
     const { admission } = ok(resolveModelInvocationRef(pending.reference, alice.tenant))
     assembly.controls.models.recordDispatch({
       ...alice,
@@ -208,12 +200,10 @@ export async function deliverToolSuggestion(
   await deliverModelReply(assembly, calls, 'tools', accountLexeme)
 }
 
-/** The plain text reply of a later step. */
 export function textBlock(text: string, id = 'blk_text'): ContentBlock {
   return { kind: 'text', id, visibility: { toHuman: true, toModel: true }, text } as ContentBlock
 }
 
-/** Waits until every listed Tool call is associated, and returns them in the order of the batch. */
 export async function associatedTools(assembly: Assembly, count: number) {
   let found: AssociatedTool[] = []
   await eventually(async () => {
@@ -226,7 +216,6 @@ export async function associatedTools(assembly: Assembly, count: number) {
   return found
 }
 
-/** A real Agent Tool receiver over the same memory Journal, resolving targets from its calls. */
 export function toolReceiver(assembly: Assembly): AgentToolReceiver<string> {
   const targetOf = async (
     snapshot: ExecutionSnapshot,
@@ -241,10 +230,14 @@ export function toolReceiver(assembly: Assembly): AgentToolReceiver<string> {
       (call): call is AssociatedTool =>
         call.kind === 'tool' && call.association === 'associated' && match(call),
     )
-    const instance = snapshot.executionAttachment?.instance
-    return pending === undefined || instance === undefined
+    return pending === undefined
       ? null
-      : { execution: execution(), instance, definition: snapshot.checkpoint.definition, pending }
+      : {
+          execution: execution(),
+          instance: instance(),
+          definition: snapshot.checkpoint.definition,
+          pending,
+        }
   }
   const made = createAgentToolReceiver<string>(
     {
@@ -297,7 +290,6 @@ export function toolAccount(pending: AssociatedTool, lexeme = '7'): CallAccount 
   }
 }
 
-/** The original result delivery of one associated Tool call. */
 export function toolDelivery(
   pending: AssociatedTool,
   input: Readonly<{

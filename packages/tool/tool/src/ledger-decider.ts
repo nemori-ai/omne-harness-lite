@@ -8,10 +8,6 @@ import type {
   SyntheticNeed,
 } from './ledger-result-preparation.ts'
 import { releasedResultValue, type ResultValue } from './ledger-result-material.ts'
-// The pure admission decider (P01, P02) and the delivery release decider (P08). A decision reads
-// the domain snapshot and the command, and answers either a reply without writes or a set of
-// writes with the value to reply after the commit. It reads no port, runs no tool and mints no
-// time of its own.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -59,6 +55,7 @@ import {
   type AccountRecord,
   type CallAccount,
   type CallRecord,
+  type CheckpointStateRecord,
   type ExclusionRecord,
   type LedgerDomain,
   type LedgerRead,
@@ -68,12 +65,13 @@ import {
   type OperationRecord,
   type ResultRecord,
   type ResultCustody,
+  type SuspensionLedgerRecord,
   type TenantId,
+  type WaitLedgerRecord,
+  type WaitRequestRecord,
 } from './ledger-store.ts'
 
-/** The records of one domain, indexed for the deciders and the read projections. */
 export type Snapshot = Readonly<{
-  /** The body entries of the call by body identity (BodyLifecycle `status`). */
   bodies: ReadonlyMap<string, BodyEntryRecord>
   resultPolicies: ReadonlyMap<string, ResultPolicyRecord>
   resultPreparations: ReadonlyMap<string, ResultPreparationRecord>
@@ -89,11 +87,13 @@ export type Snapshot = Readonly<{
   process: readonly ProcessRecord[]
   accounts: readonly AccountRecord[]
   tasks: readonly ToolTask[]
-  /** The exclusion fences by operation; the ledger reads them, the deciders do not. */
+  suspensions: ReadonlyMap<string, SuspensionLedgerRecord>
+  waits: ReadonlyMap<string, WaitLedgerRecord>
+  waitRequest: WaitRequestRecord | null
+  checkpointState: CheckpointStateRecord | null
   exclusions: ReadonlyMap<string, ExclusionRecord>
 }>
 
-/** Indexes the records of a call domain. A record of another domain kind is not expected here. */
 export function snapshotOf(
   domain: LedgerDomain,
   read: Extract<LedgerRead, { kind: 'complete' }>,
@@ -112,6 +112,10 @@ export function snapshotOf(
   const accounts: AccountRecord[] = []
   const tasks: ToolTask[] = []
   const exclusions = new Map<string, ExclusionRecord>()
+  const suspensions = new Map<string, SuspensionLedgerRecord>()
+  const waits = new Map<string, WaitLedgerRecord>()
+  let waitRequest: WaitRequestRecord | null = null
+  let checkpointState: CheckpointStateRecord | null = null
   for (const record of read.records) {
     switch (record.kind) {
       case 'body-entry':
@@ -159,6 +163,18 @@ export function snapshotOf(
       case 'exclusion':
         exclusions.set(record.exclusion.operation, record.exclusion)
         break
+      case 'suspension':
+        suspensions.set(record.suspension.suspension.operation, record.suspension)
+        break
+      case 'wait':
+        waits.set(record.wait.record.intent.wait, record.wait)
+        break
+      case 'wait-request':
+        waitRequest = record.waitRequest
+        break
+      case 'checkpoint-state':
+        checkpointState = record.checkpointState
+        break
       default:
         throw new Error(`a ${record.kind} record does not belong to a call domain`)
     }
@@ -179,6 +195,10 @@ export function snapshotOf(
     results,
     accounts,
     tasks,
+    suspensions,
+    waits,
+    waitRequest,
+    checkpointState,
     exclusions,
   }
 }
@@ -187,7 +207,6 @@ export type Decision<T> =
   | Readonly<{ kind: 'reply'; outcome: Outcome<T, ToolFailure> }>
   | Readonly<{ kind: 'commit'; writes: readonly LedgerWrite[]; value: T }>
 
-/** What the ledger mints for one attempt: the revision the commit will set. */
 export type Mint = Readonly<{ revision: ToolRevision }>
 
 export function reply<T>(outcome: Outcome<T, ToolFailure>): Decision<T> {
@@ -198,16 +217,8 @@ export function put(record: LedgerRecord): LedgerWrite {
   return { kind: 'put', record }
 }
 
-/**
- * CallLifecycle `Admit`: a domain that held only an exclusion fence was due for removal; a domain
- * that holds the call is due again only when its delivery is released.
- */
 const ADMITTED_NOT_DUE: LedgerWrite = { kind: 'unschedule', key: CALL_DUE_KEY }
 
-/**
- * P01: a committed operation answers again with its original receipt when the input is the same,
- * and `conflict` when the input differs. An `undefined` success means the operation is new.
- */
 export function recall(
   snapshot: Snapshot,
   operation: ToolOperationId,
@@ -227,31 +238,16 @@ export type AdmitCommand = Readonly<{
   operation: ToolOperationId
   request: FixedToolRequest
   inputDigest: string
-  /**
-   * The queue of the request's FIFO key as read before this decision: how many unreleased calls
-   * it holds and the configured capacity. Null when the ledger did not read it (a dummy).
-   */
   queue: Readonly<{ load: number; capacity: number }> | null
 }>
 
-/** The pure functions the admit decision needs: the strict argument parse and the text result. */
 export type AdmitTools<B extends ContentBlock> = Readonly<{
   arguments(input: ToolArguments): Outcome<ParsedToolArguments, ToolArgumentsRejection>
   text(reason: string): Outcome<ToolRenderedResult<B>, Readonly<{ reason: string }>>
 }>
 
-/** What an admission decision answers: the state, and whether it recalled a committed admission. */
 export type Admitted = Readonly<{ state: ToolState; recovered: boolean }>
 
-/**
- * Decides one admission. Order: recall by operation; a call admitted under another operation is
- * `stale-revision` (admit expects "not admitted yet"); a background start needs the author's
- * permission, for a logical terminal too; a known-unavailable target settles as unavailable
- * without reading the arguments; a script call to a tool without `programmable` is
- * `unsupported`; incomplete arguments are `invalid`; a failed strict parse of either text
- * settles as an arguments failure; a real tool whose queue is at capacity is refused before any
- * commitment (P02); otherwise the call is accepted with the task that carries it to the queue.
- */
 export function decideAdmit<B extends ContentBlock>(
   snapshot: Snapshot,
   command: AdmitCommand,
@@ -289,10 +285,6 @@ export function decideAdmit<B extends ContentBlock>(
   return acceptWithinCapacity(command, mint)
 }
 
-/**
- * Accepts the call, or refuses an admission whose queue holds as many unreleased calls as its
- * capacity (P02: a capacity refusal comes before any commitment).
- */
 function acceptWithinCapacity(command: AdmitCommand, mint: Mint): Decision<Admitted> {
   const { queue } = command
   if (queue === null || queue.load < queue.capacity) return accept(command, mint)
@@ -300,16 +292,11 @@ function acceptWithinCapacity(command: AdmitCommand, mint: Mint): Decision<Admit
     fail({
       kind: 'unavailable',
       dependency: 'tool-queue',
-      diagnostic: `the queue of this scope and tool holds ${queue.load} unreleased calls, its capacity`,
+      diagnostic: `the queue of this scope holds ${queue.load} unreleased calls, its capacity`,
     }),
   )
 }
 
-/**
- * The state of a real tool call that was accepted and has not reached the queue: no execution,
- * no effect, no timing segment, no queue position, no delivery. A background start fixes its
- * placeholder together with the relation (P02).
- */
 function acceptedState(command: AdmitCommand, revision: ToolRevision): ToolState {
   const { tenant, call, request } = command
   const body = {
@@ -333,7 +320,6 @@ function acceptedState(command: AdmitCommand, revision: ToolRevision): ToolState
   return { ...body, source: mintEvidence('state', { tenant, call }, revision, body) }
 }
 
-/** Accepts a real tool call: the call record, the receipt and the task that carries it on. */
 function accept(command: AdmitCommand, mint: Mint): Decision<Admitted> {
   const state = acceptedState(command, mint.revision)
   return {
@@ -348,12 +334,10 @@ function accept(command: AdmitCommand, mint: Mint): Decision<Admitted> {
   }
 }
 
-/** The task that says the queue domain still owes the call a step (architecture: cross-domain). */
 export function queueTask(operation: ToolOperationId, basis: DurableEvidence): ToolTask {
   return { kind: 'queue', operation, state: 'pending', diagnostic: null, basis }
 }
 
-/** A fresh call record: nothing planned, confirmed, started or rejected yet. */
 function callRecord(command: AdmitCommand, state: ToolState): CallRecord {
   const { tenant, call, operation, request } = command
   const { source } = request.invocation
@@ -372,11 +356,6 @@ function callRecord(command: AdmitCommand, state: ToolState): CallRecord {
   }
 }
 
-/**
- * The revision a write context compares with is the revision of the call's current state. An
- * exclusion fence advances the domain revision without a new state, so it does not make the
- * holder of the current state stale.
- */
 export function stateRevision(snapshot: Snapshot): ToolRevision {
   return snapshot.call?.state.revision ?? INITIAL_REVISION
 }
@@ -436,14 +415,8 @@ function describeTerminal(terminal: ToolTerminal): string {
   }
 }
 
-/** The account event of the replacement processing recorded at admission. */
 const ADMISSION_EVENT = 'admission'
 
-/**
- * The replacement-processing account of a logical terminal (P09): no original tool ran, so no
- * usage or cost is invented. The processing duration is not measured in this increment, so it is
- * unknown rather than zero.
- */
 function replacementAccount(call: ToolCallId): CallAccount {
   return {
     subject: { kind: 'tool_execution', id: call },
@@ -457,12 +430,18 @@ function replacementAccount(call: ToolCallId): CallAccount {
   }
 }
 
-/** The text of a terminal that no tool produced, made by the trusted factory (P02). */
 export function terminalText<B extends ContentBlock>(
   terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
   text: AdmitTools<B>['text'],
 ): Outcome<ToolRenderedResult<B>, ToolFailure> {
-  const made = text(describeTerminal(terminal))
+  return ledgerText(describeTerminal(terminal), text)
+}
+
+export function ledgerText<B extends ContentBlock>(
+  words: string,
+  text: AdmitTools<B>['text'],
+): Outcome<ToolRenderedResult<B>, ToolFailure> {
+  const made = text(words)
   if ('ok' in made) return made
   return fail({
     kind: 'unavailable',
@@ -471,17 +450,12 @@ export function terminalText<B extends ContentBlock>(
   })
 }
 
-/** The first result version of a call and its pending delivery. */
 export type FirstVersion = Readonly<{
   version: ToolResultVersion
   delivery: Extract<DeliveryState, { kind: 'pending' }>
   record: ResultRecord
 }>
 
-/**
- * The first original result and its delivery relation. Execution and synthetic settlement add
- * their own state, custody duties and accounting without duplicating the result identity.
- */
 export function firstResultWrites(
   place: Readonly<{ tenant: TenantId; call: ToolCallId; operation: ToolOperationId }>,
   consumer: ConsumerRef,
@@ -524,20 +498,20 @@ export function firstResultWrites(
   }
 }
 
-/** Synthetic settlement additionally records the work of producing a replacement result. */
 export function settlementWrites(
   snapshot: Snapshot,
   place: Readonly<{ tenant: TenantId; call: ToolCallId; operation: ToolOperationId }>,
   consumer: ConsumerRef,
-  terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
+  terminal: SyntheticNeed['terminal'],
   value: ResultValue,
   mint: Mint,
+  effect: Effect = { kind: 'not-started' },
 ): Outcome<Readonly<{ version: FirstVersion; writes: readonly LedgerWrite[] }>, ToolFailure> {
   const first = firstResultWrites(
     place,
     consumer,
     terminal,
-    { kind: 'not-started' },
+    effect,
     value,
     { kind: 'synthetic' },
     mint,
@@ -570,7 +544,6 @@ export function settlementWrites(
   })
 }
 
-/** A logical terminal formed at admission: dummy unavailable or an arguments failure (P02). */
 function settle(
   snapshot: Snapshot,
   command: AdmitCommand,
@@ -634,11 +607,6 @@ export function operationRecord(
   }
 }
 
-/**
- * The authoritative state of a call that settled before any execution. It is a foreground final
- * result: no execution, no effect, no timing segment and no queue position (342 values; the
- * `judgeToolState` rules for an unavailable terminal).
- */
 function logicalState(
   tenant: TenantId,
   call: ToolCallId,
@@ -695,7 +663,6 @@ function handoffEvidence(handoff: Handoff): Readonly<{ field: string; value: Dur
     : { field: 'evidence.completion', value: handoff.completion }
 }
 
-/** The result version a release names, or why the release cannot proceed (P08). */
 function releaseTarget(
   snapshot: Snapshot,
   command: ReleaseCommand,
@@ -713,18 +680,6 @@ function releaseTarget(
   return succeed(record)
 }
 
-/**
- * Decides one delivery release. Order: recall by operation; the version, delivery and consumer
- * must be the recorded ones; the handoff evidence must belong to the consumer; an already
- * released delivery answers its released state; otherwise the release is committed with a
- * Tool-side receipt, the channel values of the record give way to their summary (C6), and the
- * deliver task of that version is done.
- */
-/**
- * The instant after which the domain of a released call may be dropped (CallLifecycle `Ack`): the
- * grace after the acknowledgement, or the expiry of an offloaded body when that is later, so the
- * body stays readable for its whole retention.
- */
 function removalInstant(snapshot: Snapshot, graceEnd: ToolInstant): ToolInstant {
   let latest = graceEnd
   for (const record of snapshot.results.values()) {
@@ -735,10 +690,6 @@ function removalInstant(snapshot: Snapshot, graceEnd: ToolInstant): ToolInstant 
   return latest
 }
 
-/**
- * `graceEnd` is the acknowledgement instant plus G on the ledger's clock; null when the ledger has
- * no instant clock, and then the domain is not scheduled.
- */
 export function decideRelease(
   snapshot: Snapshot,
   command: ReleaseCommand,
@@ -797,7 +748,6 @@ function deliveryOf(record: OperationRecord): ReleasedDelivery {
   return record.receipt.delivery
 }
 
-/** The state after a release: the original delivery or the supplement of that version changes. */
 function withDelivery(
   call: CallRecord,
   record: ResultRecord,

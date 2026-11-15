@@ -1,6 +1,11 @@
 import { UNMAPPED_PERMISSION_SNAPSHOT } from './unmapped-permission-snapshot.ts'
 import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/participants'
-import { SETTINGS_RECOVERY_PARTICIPANTS } from '@omne-harness/settings-local/preparation'
+import {
+  SETTINGS_CHECKPOINT_PARTICIPANTS,
+  SETTINGS_COMMIT_PARTICIPANTS,
+  SETTINGS_READY_PARTICIPANTS,
+  SETTINGS_RECOVERY_PARTICIPANTS,
+} from '@omne-harness/settings-local/preparation'
 import {
   combinationManifest,
   manifestDigest,
@@ -12,6 +17,7 @@ import { CATALOG_CURRENT_PARTICIPANT } from './catalog-current.ts'
 import { TARGET_SNAPSHOT } from './target-snapshot.ts'
 import { PERMISSION_BASIS, PERMISSION_BASIS_GUARD } from './permission-basis.ts'
 import { sessionPermissionBasisProducer } from './session-permission-basis.ts'
+import { tenantSettingsCurrentParticipant } from './tenant-settings-current.ts'
 
 const publications = [
   'assets.settings',
@@ -28,7 +34,6 @@ const snapshot = [
   'settings.value-projection',
   TARGET_SNAPSHOT.participant,
 ]
-/** The members that compute the permission basis of a mapped and of an unmapped target. */
 const basisRead = [...snapshot, ...SESSION_LOG_PARTICIPANTS, 'session-permission-guard']
 const unmappedBasisRead = [
   'assets.settings',
@@ -39,10 +44,6 @@ const unmappedBasisRead = [
   ...SESSION_LOG_PARTICIPANTS,
   'session-permission-guard',
 ]
-/**
- * The members of the projection read. Their commands compute the permission basis, in a read or
- * in a commit, and the pages of the governance catalog.
- */
 export const PROJECTION_READ_MEMBERS = [
   ...snapshot,
   'governance.selected-definition-projection',
@@ -52,11 +53,6 @@ export const PROJECTION_READ_MEMBERS = [
   CATALOG_CURRENT_PARTICIPANT.participant,
   'governance.catalog-snapshot',
 ]
-/**
- * A Tool start commits its acceptance with the basis commands and the basis guard. The Governance
- * writer is a member because it owns the tables that the projections read; it gets no command.
- * The metadata planner is a member because the manifest needs a provider of the plan fact.
- */
 const startCondition = (read: readonly string[]) => [
   ...read,
   'governance.activation',
@@ -65,23 +61,22 @@ const startCondition = (read: readonly string[]) => [
   PERMISSION_BASIS_GUARD.participant,
   'tool',
 ]
-/**
- * A Session permission assignment commits with the producer of its basis. The Session members are
- * the execution record and the Session writer; the ordinary basis producer is not a member.
- */
 const permissionWrite = (mode: 'clear' | 'unmapped' | 'mapped') => [
   'execution-record',
   'session',
   sessionPermissionBasisProducer(mode),
 ]
-/** The definition projection reads Governance tables: their writer and its planner are members. */
+const settingsWriteRead = [...snapshot, 'governance.metadata-plan', 'governance.activation'].filter(
+  value => !SETTINGS_RECOVERY_PARTICIPANTS.includes(value),
+)
 const definitionProjection = [
   'governance.definition-projection',
   'governance.activation',
   'governance.metadata-plan',
 ]
 
-/** Each combination has one writer per table and one provider per required fact. */
+export const VERSION_DIGEST_LENGTH = 16
+
 export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
   const definitions = {
     toolStart: startCondition(basisRead),
@@ -105,16 +100,32 @@ export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
     sessionClear: permissionWrite('clear'),
     sessionUnmapped: [...permissionWrite('unmapped'), ...definitionProjection],
     sessionMapped: [...permissionWrite('mapped'), ...snapshot, ...definitionProjection],
+    tenantSettingsSnapshot: [...settingsWriteRead, ...SETTINGS_RECOVERY_PARTICIPANTS],
+    tenantSettingsCheckpoint: [...SETTINGS_CHECKPOINT_PARTICIPANTS],
+    tenantSettingsReady: [
+      ...settingsWriteRead,
+      ...SETTINGS_READY_PARTICIPANTS,
+      tenantSettingsCurrentParticipant('ready'),
+    ],
+    tenantSettingsCommit: [
+      ...settingsWriteRead,
+      ...SETTINGS_COMMIT_PARTICIPANTS,
+      tenantSettingsCurrentParticipant('commit'),
+    ],
+    tenantSettingsRecovery: [...SETTINGS_RECOVERY_PARTICIPANTS],
   }
   function build(name: keyof typeof definitions) {
     const participants = [...new Set(definitions[name])]
     const result = combinationManifest({ catalog, participants })
     if (result.kind !== 'manifest')
       throw new Error(`Invalid governance combination ${name}: ${JSON.stringify(result)}`)
+    // The version follows the manifest: these manifests change when other owners' participants change,
+    // and storage refuses one version with another manifest, so a hand-written version breaks tenants.
+    const digest = manifestDigest(result.manifest)
     return {
       participants,
-      combinationVersion: `harness-governance-${name}/1`,
-      manifestDigest: manifestDigest(result.manifest),
+      combinationVersion: `harness-governance-${name}/${digest.slice(0, VERSION_DIGEST_LENGTH)}`,
+      manifestDigest: digest,
     }
   }
   return {
@@ -128,5 +139,10 @@ export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
     sessionClear: build('sessionClear'),
     sessionUnmapped: build('sessionUnmapped'),
     sessionMapped: build('sessionMapped'),
+    tenantSettingsSnapshot: build('tenantSettingsSnapshot'),
+    tenantSettingsCheckpoint: build('tenantSettingsCheckpoint'),
+    tenantSettingsReady: build('tenantSettingsReady'),
+    tenantSettingsCommit: build('tenantSettingsCommit'),
+    tenantSettingsRecovery: build('tenantSettingsRecovery'),
   }
 }

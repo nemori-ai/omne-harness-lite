@@ -1,4 +1,3 @@
-// The release Web definition, derived as `tool-host` derives it after it loaded the author.
 import type { ToolDefinition } from '@omne-harness/tool-contract'
 import { deriveDefinition, judgeToolDefinition } from '@omne-harness/tool-contract/provider'
 import { loadProductionRelease } from '../../src/entry/tool-release.ts'

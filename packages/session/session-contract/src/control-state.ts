@@ -55,7 +55,7 @@ export function requestControl(draft: Draft, progress: ControlProgress): void {
   const target =
     intent.kind === 'interrupt'
       ? { kind: 'run', run: intent.run }
-      : value?.kind === 'cancel-run'
+      : value?.kind === 'cancel-run' || value?.kind === 'retry-run'
         ? { kind: 'run', run: value.run }
         : value?.kind === 'stop-call' || value?.kind === 'background-tool'
           ? { kind: 'producer', producer: value.producer }
@@ -77,4 +77,5 @@ export function requestControl(draft: Draft, progress: ControlProgress): void {
       !progress.pending.some(producer => equalValue(producer, item.binding.producer)),
   )
   draft.controls = [...draft.controls, progress]
+  if (value?.kind === 'retry-run') delete draft.awaitingPerson
 }

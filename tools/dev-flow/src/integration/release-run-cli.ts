@@ -30,7 +30,7 @@ export async function releaseRunMain(
   if (new Set(names).size !== names.length) throw new InputError('release-run-duplicate-option')
   if (values.help) {
     process.stdout.write(
-      'Usage: release-run-cli.ts --input release.json --journal DIR [--approve --note FILE] [--timeout SECONDS]\nDispatches gate-release.yml on github-gate once. Input: schemaVersion=1, repo, operationId, package, commit, issue, dryRun, workflowHead. The exact workflowHead must match github-gate. Approval is limited to npm-release and current GitHub permission. This command is distinct from whole-wave release. Resume with the exact same input and journal.\n',
+      'Usage: release-run-cli.ts --input release.json --journal DIR [--approve --note FILE] [--timeout SECONDS]\nDispatches gate-release.yml on github-gate once. Input: schemaVersion=1, repo, operationId, package, commit, issue, dryRun, workflowHead. The exact workflowHead must match github-gate. Approval is limited to npm-release and current GitHub permission. This command is distinct from whole-wave release. Resume with the exact same input and journal.\nRoot script: pnpm run release-run. Paths must be absolute. Without --approve the command only observes the approval. --timeout defaults to 5400 seconds and does not cancel the remote run. Without an exact dispatch receipt the result stays unknown and the command does not dispatch again.\nExit 0: the exact run completed with conclusion success. Exit 1: another observed result. Exit 2: input or command error.\n',
     )
     return 0
   }

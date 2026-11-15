@@ -17,7 +17,7 @@ relations:
 
 - [产品正文](design.md)保留需求、能力、状态、阶段及未决。
 - [领域责任](../../../../docs/domains/identity-and-authorization/README.md)定位业务归属。
-- [能力组](../../../../packages/identity/README.md)定位成员行为与机制。
+- [能力组](../../../../packages/identity/SPEC.md)定位成员行为与机制。
 
 ## 维护
 

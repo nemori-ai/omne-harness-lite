@@ -1,8 +1,3 @@
-// The values of one adopted request (FIXED-FACTS F4, F5): a coverage of the Request Context shape,
-// the fixed request record that agent-context keeps at fixing, the evidence that agent-context
-// mints for that coverage (SHA-256 of the canonical text, base64url, agent-context SPEC record
-// table), and a model invocation reference. The values are built here, not by agent-context: the
-// tests of this member read them back, they do not prove how agent-context makes them.
 import { createHash } from 'node:crypto'
 import type { TenantId } from '@omne-harness/legal-identity'
 import {
@@ -28,7 +23,6 @@ function must<T>(value: { ok: T } | { failure: unknown }): T {
 const adoption = (name: string) => ({ owner: 'test', name, revision: '1', digest: `test:${name}` })
 const evidence = (record: string) => ({ owner: 'test', record, revision: '1', digest: 'd' })
 
-/** A coverage of the Request Context shape; `tag` changes its digests, not its size. */
 export function sampleCoverage(target: ContextTarget, tag = '1'): Coverage {
   const value = {
     history: { epoch: 'epoch:1', upper: { kind: 'entry', seq: '2' }, anchors: [] },
@@ -63,7 +57,6 @@ export function sampleCoverage(target: ContextTarget, tag = '1'): Coverage {
   return value as unknown as Coverage
 }
 
-/** The canonical text that agent-context digests: object keys sorted, array order kept. */
 function canonical(value: unknown): string {
   if (value === undefined) return 'null'
   if (value === null || typeof value !== 'object') return JSON.stringify(value)
@@ -75,7 +68,6 @@ function canonical(value: unknown): string {
     .join(',')}}`
 }
 
-/** The digest of the coverage evidence that agent-context mints (agent-context SPEC). */
 export function coverageDigest(coverage: Coverage): string {
   return createHash('sha256').update(canonical(coverage)).digest('base64url')
 }
@@ -86,7 +78,6 @@ export type FixedValues = Readonly<{
   candidate?: string
 }>
 
-/** The fixed request record of one request on `target`, as agent-context encodes it. */
 export function fixedRecord(target: ContextTarget, tag = '1', values: FixedValues = {}) {
   const record: FixedRequestRecord = {
     schema: 'request-context/fixed-request/1',
@@ -99,12 +90,10 @@ export function fixedRecord(target: ContextTarget, tag = '1', values: FixedValue
     continuation: null,
   }
   const encoded = encodeFixedRequestRecord(record) as JsonValue
-  // The fixture is a record the format accepts, or every test that reads it back is void.
   must(decodeFixedRequestRecord(encoded))
   return { record, encoded }
 }
 
-/** The model invocation reference of the call `call` of `tenant`. */
 export function invocation(tenant: TenantId, call: string): string {
   return must(
     encodeModelInvocationRef({
@@ -115,7 +104,6 @@ export function invocation(tenant: TenantId, call: string): string {
   )
 }
 
-/** The `adoptedRequest` and `adoptedContext` that one main-purpose M0 writes into its checkpoint. */
 export function m0Checkpoint(target: ContextTarget, tag: string, values: FixedValues = {}) {
   const { record, encoded } = fixedRecord(target, tag, values)
   const fixed = {

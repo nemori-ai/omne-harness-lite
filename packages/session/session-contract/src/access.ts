@@ -1,5 +1,3 @@
-// Current-operation access requests. Qualification policy belongs to the authorization adapter;
-// the Session execution boundary binds each decision to this operation and its fixed input.
 import type { SessionPermissionWriteQualification } from './permission-values.ts'
 import type { Access, TenantId } from '@omne-harness/legal-identity'
 import type { DurableEvidence, ResidentKey, SessionAccess, SessionId } from './identity.ts'
@@ -44,6 +42,11 @@ export type SessionAccessRequest<P> =
       target: Readonly<{ kind: 'tenant'; tenant: TenantId }>
     }>
   | Readonly<{
+      access: Access<P>
+      operation: 'directory.list'
+      target: Readonly<{ kind: 'tenant'; tenant: TenantId }>
+    }>
+  | Readonly<{
       access: Readonly<{ principal: P; scope: 'system' }>
       operation: 'references'
       target: Readonly<{ kind: 'resident-references'; key: ResidentKey }>
@@ -65,32 +68,20 @@ export type SessionAccessDecision =
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-/** One current decision. An allowed answer cannot authorize a later operation. */
 export interface SessionAccessCheck<P> {
   check(input: SessionAccessRequest<P>): Promise<SessionAccessDecision>
 }
 
-/** The allowed decision of one face operation, fixed before its first await. */
 export type SessionCheckedAccess<P> = Readonly<{
   request: SessionAccessRequest<P>
   evidence: DurableEvidence
   writeQualification?: SessionPermissionWriteQualification
 }>
 
-/**
- * The internal path from the Session execution boundary to storage (SPEC「当前操作的访问裁定」).
- * Only the Session service instance receives it, through a trusted name. A bound view serves one
- * face operation and does not ask the access check: it answers `denied` to any call whose tenant
- * or session differs from the request target, to a commit whose command (kind, operation and the
- * OP-00 digest without `expected`) differs from the command of a mutation request, and to
- * `pending`, `references`, `releasedScopes` and `commitEntries`. The view stores `evidence` with
- * the operation record.
- */
 export interface SessionDelegatedTransactions<P> {
   bind(checked: SessionCheckedAccess<P>): SessionTransactionPort<P>
 }
 
-/** The request of one public read on the session that `access` names. */
 export function readAccessRequest<P>(
   access: SessionAccess<P>,
   operation: SessionReadAccessOperation,
@@ -102,11 +93,6 @@ export function readAccessRequest<P>(
   }
 }
 
-/**
- * The request of one commit: the operation is the command kind and the target carries the original
- * command, so the authorization adapter judges the actual control, setting or mode change. The
- * caller has already matched `access` to the tenant and session of the command.
- */
 export function mutationAccessRequest<P>(
   access: SessionAccess<P>,
   command: SessionCommand,

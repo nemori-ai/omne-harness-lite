@@ -1,9 +1,4 @@
 // @module-tag slow
-// AC-2 (identity spec), first half: two super administrators remove or demote each other at once,
-// 50 times on the real SQLite provider. Every run: at most one call succeeds, the other is
-// `denied`, and the organization keeps at least one active super administrator. Slow: 50 teams,
-// each with three registrations, and 100 concurrent commits. With IDENTITY_SQL_EVIDENCE_DIR set,
-// the test writes the outcome of every run there.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterAll, expect, it } from 'vitest'
@@ -114,8 +109,6 @@ it(
           ? governance.removeMember(base)
           : governance.changeMemberRole({ ...base, targetRole: DEFAULT_TEAM_ROLES.member })
       }
-      // Both calls are in flight before either answers. Which call starts first alternates every
-      // two runs, so each administrator is the first one in half of the runs.
       const first = run % 4 < 2 ? 'ada' : 'bob'
       const outcomes =
         first === 'ada'

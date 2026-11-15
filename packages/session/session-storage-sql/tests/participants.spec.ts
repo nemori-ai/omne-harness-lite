@@ -1,6 +1,3 @@
-// The `./participants` entry: the participant vocabulary that a committer outside this member uses.
-// The command facts it builds are the ones the `session` module executes, its decoder reads every
-// reply kind, and the entry pulls no provider implementation in.
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -21,7 +18,6 @@ import type { ParticipantModule } from '@omne-harness/sql-contract/worker'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { migratedPort } from './fixtures/sqlite-storage.ts'
 
-// Module-level tests execute both owned participants with transaction-local facts.
 const participant: ParticipantModule = {
   ...rawParticipant,
   execute(facts, port) {
@@ -78,6 +74,7 @@ describe('the ./participants entry', () => {
       'EXECUTION_RECORD_HANDLERS',
       'EXECUTION_RECORD_PARTICIPANT',
       'EXECUTION_RECORD_PROTOCOL',
+      'RunLiveSchema',
       'SESSION_COMMIT_BASIS',
       'SESSION_EXECUTION_HANDLER',
       'SESSION_HISTORY_ROOT_HANDLER',
@@ -91,8 +88,11 @@ describe('the ./participants entry', () => {
       'SESSION_PERMISSION_MODE_HANDLER',
       'SESSION_PROTOCOL',
       'SESSION_READ_PROTOCOL',
+      'SESSION_RUN_LIVE_FACT',
+      'SESSION_RUN_LIVE_GUARD',
       'SESSION_WORK_HANDLER',
       'SessionCommitBasisSchema',
+      'afterSessionCommit',
       'blobDigest',
       'decodeExecutionBlobsReply',
       'decodeExecutionRecordBlob',
@@ -116,7 +116,8 @@ describe('the ./participants entry', () => {
       'preadmissionFacts',
       'publishedCountsOf',
       'readCachedSessionWork',
-      'registerSessionWorkIndex',
+      'registerSessionNotifier',
+      'runLiveGuardFacts',
       'sessionCheckDigest',
       'sessionCheckFacts',
       'sessionCommandFacts',
@@ -131,17 +132,28 @@ describe('the ./participants entry', () => {
     ])
   })
 
-  it('imports pure intake rules, the codec and the work cache: no port, context or commit module', () => {
-    const text = readFileSync(join(root, 'src', 'participants.ts'), 'utf8')
-    const values = [...text.matchAll(/^import (?!type )[\s\S]*?from '([^']+)'/gm)].map(
-      match => match[1],
-    )
-    expect(values).toEqual([
+  const valuesOf = (file: string): (string | undefined)[] =>
+    [
+      ...readFileSync(join(root, 'src', file), 'utf8').matchAll(
+        /^import (?!type )[\s\S]*?from '([^']+)'/gm,
+      ),
+    ].map(match => match[1])
+
+  it('imports pure intake rules, the codec, the reply reader and the work cache: no port, context or commit module', () => {
+    expect(valuesOf('participants.ts')).toEqual([
       './commit-basis.ts',
       '@omne-harness/session-contract',
       './codec.ts',
       './work-cache.ts',
+      './session-reply.ts',
     ])
+  })
+
+  it('re-exports the one landing, which takes values only from the reply reader and the work cache', () => {
+    const text = readFileSync(join(root, 'src', 'participants.ts'), 'utf8')
+    expect(text).toContain("} from './committed.ts'")
+    expect(valuesOf('committed.ts')).toEqual(['./session-reply.ts', './work-cache.ts'])
+    expect(valuesOf('session-reply.ts')).toEqual(['@omne-harness/legal-identity', './codec.ts'])
   })
 })
 

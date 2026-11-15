@@ -3,7 +3,6 @@ import type { SourceFile } from './rule.ts'
 
 const cache = new WeakMap<SourceFile, ts.SourceFile>()
 
-/** 只解析 TypeScript 语法，不构造 Program，也不声称完成跨文件类型分析。 */
 export function syntaxOf(file: SourceFile): ts.SourceFile {
   let syntax = cache.get(file)
   if (syntax === undefined) {
@@ -32,7 +31,6 @@ export interface SyntaxImport {
   readonly index: number
 }
 
-/** 解码字面量说明符，覆盖 import/export、import type、import()、require() 与 import = require()。 */
 export function syntaxImports(syntax: ts.SourceFile): SyntaxImport[] {
   const refs: SyntaxImport[] = []
   const add = (expression: ts.Node | undefined, node: ts.Node) => {

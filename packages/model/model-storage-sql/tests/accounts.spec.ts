@@ -1,6 +1,3 @@
-// M4-2: the accounts conformance suite of ModelCommands, run once against the in-memory
-// ModelCommands and once against the SQL ModelCommands, over the same core options. The two reports
-// must agree obligation by obligation. Both raw reports are printed for the record.
 import { describe, expect, it } from 'vitest'
 import type { ModelCommands } from '@omne-harness/model-contract/provider'
 import {
@@ -21,7 +18,6 @@ import {
 } from './fixture.ts'
 
 const A = tenantOf('a')
-/** A principal of tenant A with the claims of a trusted one, which the authority did not mint. */
 const OUTSIDER: Principal = Object.freeze({ subject: 'trusted-0' })
 
 type Kind = 'memory' | 'sql'
@@ -49,11 +45,6 @@ function subjectOf(kind: Kind, alter: Alter = commands => commands) {
   }
 }
 
-/**
- * The report with the generated values that differ by implementation made equal. The shared core
- * writes `settlement.source.owner` as `model-memory` for both (D3b-4); a detail that quotes it is
- * normalized so a later per-storage owner does not count as a difference.
- */
 function normalized(report: CommandsAccountsReport): CommandsAccountsReport {
   return {
     ok: report.ok,
@@ -83,7 +74,6 @@ describe('checkCommandsAccounts on the memory and the SQL ModelCommands', () => 
   it('tells the two apart when the SQL commands lose the result of one method', async () => {
     const { memory, sql } = await reports(commands => ({
       ...commands,
-      // Answers every dispatch read with no records, as a storage that lost the rows.
       dispatches: async input => {
         const read = await commands.dispatches(input)
         return 'failure' in read ? read : { ok: [] }

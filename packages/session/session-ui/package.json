@@ -1,0 +1,50 @@
+{
+  "name": "@omne-harness/session-ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The session interface module: list, open or create a session, chat, watch the reply stream, cancel a run",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./session-ui.css": "./src/view/session-ui.css"
+  },
+  "files": [
+    "dist",
+    "src/view/session-ui.css"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false",
+    "demo": "node demo/serve.mjs"
+  },
+  "dependencies": {
+    "@omne-harness/public-contract": "workspace:*",
+    "@omne-harness/sdk": "workspace:*",
+    "@omne-harness/session-protocol": "workspace:*",
+    "@omne-harness/utc-instant": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "streamdown": "catalog:"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "esbuild": "catalog:",
+    "happy-dom": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

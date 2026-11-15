@@ -69,9 +69,13 @@ it('records materialization once, preserves original revisions and rejects stale
       representation: f.admit.request.representation,
       payloadDigest: 'a'.repeat(64),
     },
+    window: 'w',
   }
   const receipt = unbox(await f.commands.recordMaterialization(input))
   expect(unbox(await f.commands.recordMaterialization(input))).toEqual(receipt)
+  expect(await f.commands.recordMaterialization({ ...input, window: 'other' })).toMatchObject({
+    failure: { kind: 'conflict' },
+  })
   const sent = { ...(await f.write()), dispatch: f.dispatch, state: 'started' as const }
   unbox(await f.commands.recordSend(sent))
   expect(unbox(await f.commands.recordMaterialization(input))).toEqual(receipt)
@@ -568,7 +572,6 @@ it('atomically saves supplier accounts with the call and the receipt, recognizes
   const window = 'account'
   unbox(await f.commands.openReceiveWindow({ ...(await f.write()), dispatch: f.dispatch, window }))
   const before = await f.commands.loadRecovery(f.admit)
-  // A provider that still names the call or the receipt is refused: the runtime adds them.
   for (const named of [
     Object.assign({}, report, { subject: { kind: 'model_call', id: 'mcall_other' } }),
     Object.assign({}, report, { subject }),
@@ -602,7 +605,6 @@ it('atomically saves supplier accounts with the call and the receipt, recognizes
     source: proof(`${f.admit.call}/${f.dispatch}`, 'supplier'),
     fact: { kind: 'account', event: 'original', value: report },
   } satisfies Parameters<typeof f.commands.recordLateFact>[0]
-  // The same event with the same report is the same account on either path.
   unbox(await f.commands.recordLateFact(late))
   expect(unbox(await f.commands.dispatches(f.admit))[0]?.account).toEqual(account)
   const revision = unbox(await f.commands.loadRecovery(f.admit)).state.revision
@@ -677,7 +679,6 @@ it('accepts an account after terminal in the same batch and rejects later conten
   })
 })
 
-/** A running call whose memory state the test can read, to see what a dispatch keeps. */
 async function inspectable() {
   let state: MemoryState<Principal> | undefined
   const f = await running(options => {
@@ -816,6 +817,5 @@ it('read-only actions cannot replay admission or write a valid late account fact
   })
   f.denied.clear()
   expect(unbox(await f.commands.loadRecovery(f.admit))).toEqual(before)
-  // The same input succeeds with write qualification, so invalid evidence cannot hide a leak.
   expect(await f.commands.recordLateFact(late)).toHaveProperty('ok')
 })

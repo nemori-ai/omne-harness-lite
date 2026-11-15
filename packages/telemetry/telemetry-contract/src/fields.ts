@@ -8,7 +8,6 @@ import {
   type ValidationResult,
 } from './limits.ts'
 
-/** A reference value: a valid token of at most `maxBytes` UTF-8 bytes (ASCII, so bytes = characters). */
 export function isRef(value: unknown, maxBytes: number): value is string {
   return isToken(value, Math.min(maxBytes, TELEMETRY_LIMITS.refMaxBytes))
 }
@@ -40,7 +39,6 @@ function checkValue(rule: FieldRule, value: unknown): ValidationResult {
     case 'ref':
       return checkRef(rule.maxBytes, value)
     default:
-      // Only a definition made without defineEvent or defineMetric reaches this arm.
       return invalid('definition')
   }
 }
@@ -64,10 +62,6 @@ function check(schema: FieldSchema, fields: unknown): ValidationResult {
   return OK
 }
 
-/**
- * Checks actual field values (or metric labels) against the schema of a definition. Never throws:
- * an input that throws while it is read is `malformed`.
- */
 export function validateFields(
   definition: Readonly<{ schema: FieldSchema }>,
   fields: unknown,

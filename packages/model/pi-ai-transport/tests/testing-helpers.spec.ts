@@ -1,5 +1,3 @@
-// The `./testing` entry: the fixture check and the adoption fingerprints, with a tiny family of
-// engine-test records in a temporary directory.
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -68,7 +66,6 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true })
 })
 
-/** Writes the three fixture files of a record whose expectations match the engine. */
 async function writeFixture(record: ChatCompletionsRecord): Promise<string> {
   const directory = join(root, fixtureDirectory(record))
   mkdirSync(directory, { recursive: true })

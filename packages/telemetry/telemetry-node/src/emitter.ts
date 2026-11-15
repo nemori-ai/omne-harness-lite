@@ -30,10 +30,8 @@ type Bound = Readonly<{ binding: Binding; scope: RecordScope }>
 const PATCH_KEYS = ['work', 'attempt', 'call', 'adopted', 'links'] as const
 const OUTCOMES: readonly unknown[] = ['ok', 'failure', 'unknown']
 const DISCARDABLE: readonly unknown[] = DISCARD_REASONS
-// A list longer than any binding limit is not copied: validation rejects it as it is.
 const COPY_LIMIT = Math.max(TELEMETRY_LIMITS.maxLinks, TELEMETRY_LIMITS.maxAdopted)
 
-/** The own data members of a plain object, or undefined for anything else. Never calls a getter. */
 function ownData(value: unknown): Map<PropertyKey, unknown> | undefined {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
   const prototype: unknown = Object.getPrototypeOf(value)
@@ -47,11 +45,8 @@ function ownData(value: unknown): Map<PropertyKey, unknown> | undefined {
   return members
 }
 
-/**
- * A frozen copy of plain data, so that later changes by the caller do not reach a record and what
- * was validated is what is kept. A value that is not plain data stays as it is: validation rejects
- * it.
- */
+// Validate the frozen copy, not the input: what was validated is what is written.
+// A value that is not plain data is kept as it is, and validation rejects it.
 function copyData(value: unknown): unknown {
   if (Array.isArray(value))
     return value.length > COPY_LIMIT ? value : Object.freeze(value.map(copyData))
@@ -60,17 +55,14 @@ function copyData(value: unknown): unknown {
   return Object.freeze(Object.fromEntries([...members].map(([key, item]) => [key, copyData(item)])))
 }
 
-/** A validated snapshot of a binding with the record form of its scope, or undefined. */
 function snapshot(input: unknown): Bound | undefined {
   const members = ownData(input)
   if (members === undefined) return undefined
-  // The scope keeps its identity: legal-identity recognizes the minted object, not a copy.
   const copy = Object.freeze(
     Object.fromEntries(
       [...members].map(([key, value]) => [key, key === 'scope' ? value : copyData(value)]),
     ),
   )
-  // Validation reads the copy, so the checked members are the kept members.
   const binding = copy as Binding
   if (validateBinding(binding).kind !== 'ok') return undefined
   const scope = recordScope(binding.scope)
@@ -88,13 +80,11 @@ function patched(bound: Bound, patch: unknown): Bound | undefined {
   return snapshot(next)
 }
 
-/** Validated field values as a frozen record, or undefined. */
 function checkedValues(
   schema: Readonly<{ schema: FieldSchema }>,
   values: unknown,
 ): RecordValues | undefined {
   const copy = copyData(values)
-  // validateFields admitted these values: string keys with string, number or boolean values.
   return validateFields(schema, copy).kind === 'ok' ? (copy as RecordValues) : undefined
 }
 
@@ -130,10 +120,6 @@ function segmentOptions(options: unknown): Parameters<Emitter['startSegment']>[1
   }
 }
 
-/**
- * Re-checks a definition with the contract's own `define*`, so that a definition made by hand is
- * held to the same rules. The checked copy of a frozen definition is kept by identity.
- */
 function checker<D extends object>(
   signal: string,
   define: (input: D) => D,
@@ -146,7 +132,6 @@ function checker<D extends object>(
     if (ownData(value)?.get('signal') !== signal) return undefined
     let copy: D
     try {
-      // The signal member was checked above; define* checks every other member.
       copy = define(value as D)
     } catch {
       return undefined
@@ -160,7 +145,6 @@ const eventDefinition = checker<EventDefinition<FieldSchema>>('event', defineEve
 const metricDefinition = checker<MetricDefinition<LabelSchema>>('metric', defineMetric)
 const segmentDefinition = checker<SegmentDefinition>('segment', defineSegment)
 
-/** True for a definition of any of the three signals that the contract accepts. */
 function isDefinition(value: unknown): boolean {
   return (
     eventDefinition(value) !== undefined ||
@@ -179,15 +163,12 @@ export type EmitterDeps = Readonly<{
 function hex(bytes: Uint8Array, length: number): string | undefined {
   const text = Buffer.from(bytes).toString('hex')
   if (text.length !== length) return undefined
-  // An identity that is all zero is not valid; one bit keeps it a random identity.
   return /^0+$/.test(text) ? `${text.slice(0, -1)}1` : text
 }
 
-/** The telemetry port of one runtime. Every operation is synchronous and never throws (TC-1). */
 export function createPort(deps: EmitterDeps): TelemetryPort {
   const { pipeline, clock } = deps
 
-  /** Runs one operation; an input that throws while it is read is dropped as invalid. */
   function guarded<T>(operation: () => T | Dropped): T | Dropped {
     try {
       return operation()
@@ -196,7 +177,6 @@ export function createPort(deps: EmitterDeps): TelemetryPort {
     }
   }
 
-  /** A record operation: once the runtime closes, it answers `dropped(closed)` before any check. */
   function admitting<T>(operation: () => T | Dropped): T | Dropped {
     return guarded(() => (pipeline.accepting() ? operation() : pipeline.drop('closed')))
   }
@@ -270,7 +250,6 @@ export function createPort(deps: EmitterDeps): TelemetryPort {
               signal: 'segment-end',
               trace: ids.trace,
               span: ids.span,
-              // OUTCOMES holds exactly the three outcomes.
               outcome: outcome as SegmentOutcome,
               durationMs: clock.monotonicMs() - place.openedAt,
             }),
@@ -358,7 +337,6 @@ export function createPort(deps: EmitterDeps): TelemetryPort {
     })
   }
 
-  /** The emitter of an invalid binding: every record is `dropped(invalid)`. */
   const invalidEmitter: Emitter = Object.freeze({
     event: () => admitting(() => pipeline.drop('invalid')),
     record: () => admitting(() => pipeline.drop('invalid')),
@@ -378,12 +356,10 @@ export function createPort(deps: EmitterDeps): TelemetryPort {
         return invalidEmitter
       }
     },
-    /** A record the caller could not form: counted under its reason, never queued (TN-2). */
     discard(definition: unknown, reason: unknown): Dropped {
       return admitting(() => {
         if (!isDefinition(definition) || !DISCARDABLE.includes(reason))
           return pipeline.drop('invalid')
-        // DISCARDABLE holds exactly the discard reasons.
         return pipeline.drop(reason as DiscardReason)
       })
     },

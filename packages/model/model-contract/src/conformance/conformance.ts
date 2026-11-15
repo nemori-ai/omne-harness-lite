@@ -1,7 +1,6 @@
-// The conformance entry: runs every check against a subject and reports, for each obligation,
-// whether the subject kept it. It reports; it does not throw for a violation.
 import { admissionChecks } from './conformance-admission.ts'
 import { boundedSubject } from './conformance-bounded.ts'
+import { contactChecks } from './conformance-contact.ts'
 import { controlChecks } from './conformance-control.ts'
 import { DEFAULT_CONSUMER, DEFAULT_REQUEST } from './conformance-defaults.ts'
 import { within } from './conformance-kit.ts'
@@ -28,13 +27,13 @@ function checksOf<P>(): readonly Check<P>[] {
     ...admissionChecks<P>(),
     ...settlementChecks<P>(),
     ...controlChecks<P>(),
+    ...contactChecks<P>(),
     ...observationChecks<P>(),
     ...routeChecks<P>(),
     ...transportChecks<P>(),
   ]
 }
 
-/** The requirements that the subject does not meet, by name. */
 function unmet<P>(subject: ConformanceSubject<P>, requires: readonly Requirement[]): string[] {
   return requires.filter(
     name => (name === 'transport' ? subject.transport : subject.hooks?.[name]) === undefined,
@@ -53,7 +52,6 @@ function verdictOf(error: unknown): Pick<ObligationResult, 'status' | 'detail'> 
 
 type Built<P> = Readonly<{ subject: ConformanceSubject<P> }> | Readonly<{ detail: string }>
 
-/** Builds the subject for one check. A factory that throws or hangs fails that check only. */
 async function build<P>(options: ConformanceOptions<P>, waitMs: number): Promise<Built<P>> {
   try {
     const subject = await within(waitMs, (async () => options.subject())(), 'the subject factory')
@@ -67,7 +65,6 @@ async function build<P>(options: ConformanceOptions<P>, waitMs: number): Promise
   }
 }
 
-/** Releases the subject. The reason it could not be released, or null when it was. */
 async function release<P>(subject: ConformanceSubject<P>, waitMs: number): Promise<string | null> {
   try {
     await within(waitMs, (async () => subject.dispose?.())(), 'the dispose of the subject')
@@ -79,7 +76,6 @@ async function release<P>(subject: ConformanceSubject<P>, waitMs: number): Promi
   }
 }
 
-/** A release that failed fails the check; a failure the check found stays beside it. */
 function withReleaseFailure(result: ObligationResult, reason: string): ObligationResult {
   return {
     ...result,
@@ -127,13 +123,6 @@ async function runCheck<P>(
   return failed === null ? result : withReleaseFailure(result, failed)
 }
 
-/**
- * Checks a provider, and optionally a transport, against the obligations of the Model contract
- * that can be seen through the public face. A check that needs a hook or a transport that the
- * subject does not give is reported as not applicable, as are the three read checks when the
- * provider gives the whole result as one page. A failure of the subject, including a thrown error
- * or a wait past `waitMs`, is reported as a failure of that check with its reason.
- */
 export async function checkModelProviderConformance<P>(
   options: ConformanceOptions<P>,
 ): Promise<ConformanceReport> {

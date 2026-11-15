@@ -1,6 +1,3 @@
-// Packs a workspace member and its workspace closure, installs only those tarballs and their
-// third-party dependencies into an isolated consumer directory, then proves from inside that
-// directory that every entry resolves, imports and type-checks without leaving it.
 import { copyFileSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -48,16 +45,13 @@ export type Report = {
   workspaceRoot: string
   consumerDirectory: string
   closure: { workspace: string[]; external: string[] }
-  /** Which attempt installed the dependencies. `network` only when the caller allowed it. */
   install: { mode: 'offline' | 'network'; allowNetwork: boolean }
   installed: string[]
   forbidden: Violation[]
   tarballs: { name: string; file: string; files: string[] }[]
   probe: { specifier: string; resolved: string; exports: string[] }[]
   typeCheck: { files: number }
-  /** Present only when a scenario script was given. */
   scenario?: { script: string; output: string }
-  /** Present only when a fixture was given and its process reported. */
   fixture?: { role: string; directory: string; paths: FixtureOutcome['paths'] }
   checks: Check[]
   ok: boolean
@@ -68,22 +62,21 @@ export type Options = Readonly<{
   workspaceRoot: string
   policy: Policy
   consumerDirectory: string
-  /** Lets the install step fall back from `--offline` to a run that may reach the registry. */
   allowNetwork?: boolean
-  /** A pnpm store other than the default one. */
   storeDirectory?: string
-  /** A script that runs inside the consumer directory after the probe; a non-zero exit fails the run. */
   scenarioScript?: string
-  /**
-   * A role fixture directory. The consumer then installs only what the fixture declares, and the
-   * run compiles and runs the fixture where the member's own entries would have been imported.
-   */
   fixtureDirectory?: string
 }>
 
 type Tree = Readonly<{
   version: string
+  path?: string
   dependencies?: Readonly<Record<string, Tree>>
+}>
+
+type Listing = Readonly<{
+  versions: Map<string, Set<string>>
+  directories: Map<string, string>
 }>
 
 type CheckFn = (id: string, ok: boolean, detail: string) => boolean
@@ -99,8 +92,7 @@ function exists(path: string): boolean {
   }
 }
 
-/** Every package that `pnpm ls --prod` finds below a directory, with its resolved versions. */
-function listed(directory: string, standalone = false): Map<string, Set<string>> {
+function listed(directory: string, standalone = false): Listing {
   // The consumer lives below the repository, so pnpm would otherwise adopt the workspace root.
   const flags = standalone ? ['--ignore-workspace'] : []
   const result = exec(
@@ -109,12 +101,13 @@ function listed(directory: string, standalone = false): Map<string, Set<string>>
     directory,
   )
   if (result.status !== 0) throw new Error(`pnpm ls failed in ${directory}: ${tail(result.stderr)}`)
-  const found = new Map<string, Set<string>>()
+  const found: Listing = { versions: new Map(), directories: new Map() }
   const visit = (dependencies: Readonly<Record<string, Tree>> | undefined): void => {
     for (const [name, tree] of Object.entries(dependencies ?? {})) {
-      const versions = found.get(name) ?? new Set<string>()
+      const versions = found.versions.get(name) ?? new Set<string>()
       versions.add(tree.version)
-      found.set(name, versions)
+      found.versions.set(name, versions)
+      if (tree.path !== undefined) found.directories.set(`${name}@${tree.version}`, tree.path)
       visit(tree.dependencies)
     }
   }
@@ -134,22 +127,18 @@ export type InstallResult = Readonly<{
   detail: string
 }>
 
-/**
- * Installs the tarballs and the pinned third-party versions. The pnpm store already holds those
- * exact tarballs, so the install runs with `--offline`. When that fails the run fails too, unless
- * the caller allowed the network: then a second attempt (`--prefer-offline`) may reach the
- * registry, and the result says `network`.
- */
 export function installDependencies(
   project: string,
-  options: Readonly<{ allowNetwork: boolean; storeDirectory?: string }>,
+  options: Readonly<{ allowNetwork: boolean; storeDirectory: string; cacheDirectory: string }>,
   run: Runner = exec,
 ): InstallResult {
   const flags = [
     'install',
     '--ignore-workspace',
     '--ignore-scripts',
-    ...(options.storeDirectory === undefined ? [] : ['--store-dir', options.storeDirectory]),
+    '--store-dir',
+    options.storeDirectory,
+    `--config.cache-dir=${options.cacheDirectory}`,
   ]
   const offline = run('pnpm', [...flags, '--offline'], project)
   if (offline.status === 0) return { ok: true, mode: 'offline', detail: 'installed with --offline' }
@@ -173,17 +162,14 @@ function exportSpecifiers(manifest: Manifest): string[] {
     .map(([subpath]) => (subpath === '.' ? manifest.name : `${manifest.name}/${subpath.slice(2)}`))
 }
 
-/** What a run judges against the policy: the member's whole closure, or only what a fixture declares. */
 type Plan = Readonly<{
   fixture: FixtureSpec | null
   policy: Policy
   declared: readonly Readonly<{ name: string; via: readonly string[] }>[]
 }>
 
-/** What every step of a run shares: where it reports and what it was asked to do. */
 type Run = Readonly<{ options: Options; manifest: Manifest; report: Report; check: CheckFn }>
 
-/** The plan of the run, or null when the fixture is unreadable or reaches outside the closure. */
 function planOf(
   run: Run,
   closure: DeclaredClosure,
@@ -214,7 +200,6 @@ function planOf(
 
 type Declared = Readonly<{ closure: DeclaredClosure; plan: Plan }>
 
-/** Reads the closure, judges what the run declares against the policy, and checks the builds. */
 function declare(run: Run): Declared | null {
   const { options, report, check } = run
   if (!check('node-path-unset', (process.env['NODE_PATH'] ?? '') === '', 'NODE_PATH is not set'))
@@ -244,10 +229,9 @@ function declare(run: Run): Declared | null {
 type Packed = Readonly<{
   project: string
   tarballs: ReadonlyMap<string, string>
-  pins: ReadonlyMap<string, ReadonlySet<string>>
+  pins: Listing
 }>
 
-/** Packs one closure member and judges the tarball; false when it could not be packed. */
 function packMember(
   run: Run,
   member: DeclaredClosure['workspace'][number],
@@ -264,7 +248,6 @@ function packMember(
   report.tarballs.push({ name: member.name, file: info.filename, files })
   const source = sourceFiles(files)
   check(`tarball-no-source:${member.name}`, source.length === 0, source.join(', ') || 'no source')
-  // A name relative to `packs`: GNU tar reads an absolute `C:\…` name as a remote `host:file` archive.
   const archive = relative(packs, resolve(packs, info.filename))
   const text = exec('tar', ['-xzOf', archive, 'package/package.json'], packs).stdout
   const residue = workspaceResidue(JSON.parse(text) as Manifest)
@@ -276,10 +259,8 @@ function packMember(
   return true
 }
 
-/** Prepares the consumer directory and packs every closure member into it. */
 function pack(run: Run, closure: DeclaredClosure): Packed | null {
   const { options, report } = run
-  // The directory is deleted below, so it is vetted first (the caller sees a usage error).
   assertWorkDirectory(options.consumerDirectory, options.memberDirectory, options.workspaceRoot)
   const pins = listed(options.memberDirectory)
   rmSync(options.consumerDirectory, { recursive: true, force: true })
@@ -293,31 +274,25 @@ function pack(run: Run, closure: DeclaredClosure): Packed | null {
   return report.checks.some(item => !item.ok) ? null : { project, tarballs, pins }
 }
 
-/** Pins every third-party package of the workspace that has one version, and every member to its tarball. */
 function overridesOf(run: Run, closure: DeclaredClosure, packed: Packed): Record<string, string> {
   const overrides: Record<string, string> = {}
   for (const member of closure.workspace)
     if (member.name !== run.manifest.name)
       overrides[member.name] = `file:${packed.tarballs.get(member.name)}`
-  for (const [name, versions] of packed.pins) {
+  for (const [name, versions] of packed.pins.versions) {
     const version = [...versions][0] as string
-    if (!packed.tarballs.has(name) && versions.size === 1 && !version.startsWith('link:'))
-      overrides[name] = version
+    const directory = packed.pins.directories.get(`${name}@${version}`)
+    if (!packed.tarballs.has(name) && versions.size === 1 && directory !== undefined)
+      if (!version.startsWith('link:')) overrides[name] = `file:${directory}`
   }
   return overrides
 }
 
-/**
- * The direct dependencies of the consumer project, or null when a fixture needs a package that
- * the workspace does not pin to one version. A scenario imports closure members other than the
- * target, and pnpm only links direct dependencies. Without a scenario the consumer stays as thin
- * as the target alone.
- */
 function directOf(run: Run, declared: Declared, packed: Packed): Record<string, string> | null {
   const { options, manifest, check } = run
   const { plan, closure } = declared
   if (plan.fixture !== null) {
-    const chosen = directDependencies(plan.fixture, packed.tarballs, packed.pins)
+    const chosen = directDependencies(plan.fixture, packed.tarballs, packed.pins.versions)
     const unpinned = chosen.kind === 'unpinned' ? chosen.names.join(', ') : ''
     check(
       'fixture-pins',
@@ -333,7 +308,6 @@ function directOf(run: Run, declared: Declared, packed: Packed): Record<string, 
   return Object.fromEntries(names.map(name => [name, `file:${packed.tarballs.get(name)}`]))
 }
 
-/** Installs the consumer project and judges the lockfile and what was installed. */
 function install(run: Run, declared: Declared, packed: Packed): boolean {
   const { options, manifest, report, check } = run
   const { closure, plan } = declared
@@ -347,6 +321,7 @@ function install(run: Run, declared: Declared, packed: Packed): boolean {
         version: '0.0.0',
         private: true,
         type: 'module',
+        packageManager: readManifest(options.workspaceRoot).packageManager,
         dependencies,
         pnpm: { overrides: overridesOf(run, closure, packed) },
       },
@@ -354,9 +329,12 @@ function install(run: Run, declared: Declared, packed: Packed): boolean {
       2,
     )}\n`,
   )
+  const cacheDirectory = join(options.consumerDirectory, 'pnpm-cache')
+  mkdirSync(cacheDirectory, { recursive: true })
   const result = installDependencies(packed.project, {
     allowNetwork: report.install.allowNetwork,
-    ...(options.storeDirectory === undefined ? {} : { storeDirectory: options.storeDirectory }),
+    storeDirectory: options.storeDirectory ?? join(options.consumerDirectory, 'pnpm-store'),
+    cacheDirectory,
   })
   report.install.mode = result.mode
   if (!check('install', result.ok, result.detail)) return false
@@ -367,7 +345,7 @@ function install(run: Run, declared: Declared, packed: Packed): boolean {
     residue.join(' | ') || 'consumer lockfile has no workspace or link specifier',
   )
 
-  report.installed = [...listed(packed.project, true).keys()].sort()
+  report.installed = [...listed(packed.project, true).versions.keys()].sort()
   const wanted = plan.fixture?.dependencies ?? [
     manifest.name,
     ...closure.external.map(item => item.name),
@@ -382,7 +360,6 @@ function install(run: Run, declared: Declared, packed: Packed): boolean {
   return true
 }
 
-/** Imports and type-checks the entries of the member, and runs the scenario when one was given. */
 function exerciseMember(run: Run, project: string): void {
   const { options, manifest, report, check } = run
   const specifiers = exportSpecifiers(manifest)
@@ -399,7 +376,6 @@ function exerciseMember(run: Run, project: string): void {
   for (const item of typed.checks) check(item.id, item.ok, item.detail)
 }
 
-/** Compiles the fixture against what was installed and runs its paths in the consumer directory. */
 function exerciseFixture(run: Run, spec: FixtureSpec, project: string): void {
   const { report, check } = run
   copyFixture({ project, directory: spec.directory })
@@ -438,8 +414,6 @@ function startRun(options: Options): Run {
 }
 
 function finish({ options, report, check }: Run): Report {
-  // Every early return follows a failed check. A run that passes all of its checks must also
-  // have reported all of them, or a judgment that is no longer wired in would go unnoticed.
   if (report.checks.every(item => item.ok)) {
     const missing = missingCheckIds(
       report.checks,
@@ -465,10 +439,6 @@ export function runConsumerInstall(options: Options): Report {
   return finish(run)
 }
 
-/**
- * Imports every entry in a child process whose resolve hook records each resolution, ESM and
- * CommonJS, then judges the records against the consumer directory.
- */
 export function probeEntries(
   project: string,
   specifiers: readonly string[],
@@ -509,11 +479,6 @@ export function probeEntries(
   }
 }
 
-/**
- * Copies a scenario script into the consumer directory and runs it there, with the same clean
- * environment as the probe. The script sees only what was installed, so it exercises the member
- * the way an outside caller would.
- */
 export function runScenario(
   project: string,
   script: string,
@@ -532,7 +497,6 @@ export function runScenario(
   }
 }
 
-/** Compiles one file that imports the type of every entry, then judges which files tsc loaded. */
 export function typeCheck(
   project: string,
   memberDirectory: string,

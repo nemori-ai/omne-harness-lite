@@ -1,4 +1,3 @@
-// 成员测试一步的两层顺序：快层失败时结论已定，不再跑慢层。
 import { describe, expect, it } from 'vitest'
 import { fastThenSlow, resumeFilesToRun } from '../src/testing/steps.ts'
 

@@ -4,7 +4,6 @@ import type {
   GovernanceStageOperation,
 } from './messages.ts'
 
-/** Rule kinds that convert one value without nested rules. */
 export type LeafKind =
   | 'text'
   | 'string'
@@ -17,7 +16,9 @@ export type LeafKind =
   | 'instant'
   | 'session'
   | 'page-bytes'
+  | 'revision'
   | 'positive-integer'
+  | 'page-limit'
   | 'parameters'
   | 'json'
   | 'user-message'
@@ -28,21 +29,19 @@ export type Rule =
       readonly kind: 'object'
       readonly fields: Readonly<Record<string, { readonly rule: Rule; readonly optional?: true }>>
     }
-  | { readonly kind: 'array'; readonly item: Rule; readonly nonempty?: true }
-  /**
-   * The options must be disjoint: the first option that converts wins, and the local value does
-   * not record which option matched.
-   */
+  | {
+      readonly kind: 'array'
+      readonly item: Rule
+      readonly nonempty?: true
+      readonly max?: number
+    }
   | { readonly kind: 'one-of'; readonly rules: readonly Rule[] }
 export type RequestRule = { readonly body: Rule; readonly proof: boolean; readonly tenant: boolean }
-/**
- * One protocol version with its closed operation table, read and written by the shared codec core.
- * A family without stage operations has no `stage-not-provided` outcome.
- */
 export type Family<V extends string, P extends string, S extends string> = {
   readonly version: V
   readonly error: string
   readonly stages: readonly S[]
+  readonly declarable: boolean
   readonly isProvided: (value: unknown) => value is P
   readonly requestRule: (operation: P) => RequestRule
   readonly responseRule: (operation: P, outcome: string) => Rule | undefined
@@ -799,6 +798,7 @@ export const governanceFamily: Family<
   version: 'governance-public/1',
   error: 'Invalid governance codec arguments',
   stages,
+  declarable: true,
   isProvided,
   requestRule,
   responseRule,

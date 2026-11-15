@@ -28,17 +28,10 @@ export type ModelReferenceRejection = Readonly<{
     | 'reserved'
     | 'unreadable'
 }>
-/**
- * Why a reference does not resolve for the presented tenant. Version 2 carries no tenant (R2-D357),
- * so no failure names another tenant: a reference of another tenant resolves to the caller's tenant
- * and locates nothing in its partition, and the store-backed entry answers it as it answers a call
- * that does not exist (R2-D370).
- */
 export type ModelReferenceFailure =
   | Readonly<{ kind: 'malformed'; rejection: ModelReferenceRejection }>
   | Readonly<{ kind: 'invalid-tenant' }>
 
-/** The only reference version this codec reads or writes. Version 1 texts are refused. */
 const VERSION = 2
 
 type Field = ModelReferenceRejection['field']
@@ -111,7 +104,6 @@ function captureDescriptors(
   }
   return succeed(descriptors)
 }
-/** Capture closed data fields without reading accessors or invoking toJSON. */
 function capture(value: unknown, field: Field): Outcome<Parsed, ModelReferenceRejection> {
   if (typeof value !== 'object' || value === null) return reject(field, 'shape')
   const keys =
@@ -123,7 +115,6 @@ function capture(value: unknown, field: Field): Outcome<Parsed, ModelReferenceRe
   const descriptors = captured.ok
   if (keys.some(key => !descriptors[key]?.enumerable || !('value' in descriptors[key]!)))
     return reject(field, 'shape')
-  // The tenant is not part of the text, but a reference is encoded only for a minted tenant.
   if (!tenantCodec.encode(descriptors.tenant!.value).ok) return reject(field, 'identity')
   return partsOf(
     descriptors.call!.value,
@@ -132,7 +123,6 @@ function capture(value: unknown, field: Field): Outcome<Parsed, ModelReferenceRe
     field,
   )
 }
-/** The text carries no tenant: the caller's Access and its storage partition locate the tenant. */
 function canonical(parts: Parsed): string {
   return JSON.stringify(
     parts.operation === null
@@ -140,7 +130,6 @@ function canonical(parts: Parsed): string {
       : ['model-operation', VERSION, parts.call, parts.admission, parts.operation],
   )
 }
-/** Available before admit. The reference locates an invocation and grants no access. */
 export function encodeModelInvocationRef(
   parts: ModelInvocationParts,
 ): Outcome<ModelInvocationRef, ModelReferenceRejection> {
@@ -165,11 +154,6 @@ export function decodeModelOperationRef(
   const parsed = parse(text, 'ModelOperationRef')
   return 'failure' in parsed ? parsed : succeed(mintOperationReference(canonical(parsed.ok)))
 }
-/**
- * Locate the reference in the presented tenant. The reference has no tenant of its own, so a
- * reference of another tenant resolves here to parts of the caller's tenant and the store-backed
- * entry finds no such call: the same answer as for a call that never existed.
- */
 function resolve(
   reference: unknown,
   tenant: TenantId,
@@ -179,7 +163,6 @@ function resolve(
   const parsed = parse(reference, field)
   return 'failure' in parsed ? fail({ kind: 'malformed', rejection: parsed.failure }) : parsed
 }
-/** Return the current minted tenant object, never a reconstructed credential. */
 export function resolveModelInvocationRef(
   reference: unknown,
   tenant: TenantId,

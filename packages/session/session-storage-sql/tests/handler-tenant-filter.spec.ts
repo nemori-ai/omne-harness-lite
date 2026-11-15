@@ -1,6 +1,3 @@
-// Defence in depth: every read handler filters on the tenant itself, not only through the domain
-// the port picked. Rows of tenant B are planted in the domain of tenant A (a corrupt or mixed
-// store, which the port must not turn into a read across tenants).
 import { describe, expect, it } from 'vitest'
 import { operationId } from '@omne-harness/session-contract/testing'
 import { app, TENANT_A, TENANT_B, textOf, type App } from './fixtures/app.ts'

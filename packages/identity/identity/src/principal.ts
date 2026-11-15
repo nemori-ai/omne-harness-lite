@@ -1,8 +1,3 @@
-// The two system-side principals (SPEC ID-16): a system principal that acts for no tenant, and a
-// principal that acts for one tenant on behalf of the tenant's own account. Identity issues them;
-// the application assembly only installs the issuer and the verifier. A consumer re-checks an acting principal by
-// the current standing of `tenant.account` in `tenant.organization`, so a revoked membership makes
-// the next check deny.
 import {
   systemScope,
   tenantCodec,
@@ -12,17 +7,10 @@ import {
 } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 
-/** A part of the system that acts for no tenant: a scanner, a directory reader, a coordinator. */
 export type SystemPrincipal = Readonly<{ kind: 'system'; component: string }>
 
-/** The original work that an acting principal acts for. Opaque text that the work owner gave. */
 export type WorkRef = Readonly<{ owner: string; work: string }>
 
-/**
- * A system part acting for one tenant. The original subject is the tenant's own account; it is
- * kept inside `tenant`, so a check reads that account's current standing, not the actor's. There
- * is no form without a tenant.
- */
 export type ActingForTenantPrincipal = Readonly<{
   kind: 'acting-for-tenant'
   actor: SystemPrincipal
@@ -32,21 +20,11 @@ export type ActingForTenantPrincipal = Readonly<{
 
 export type Principal = SystemPrincipal | ActingForTenantPrincipal
 
-/** Why an issue request was refused. `field` names the input member. */
 export type IssueFailure = Readonly<{
   field: 'component' | 'actor' | 'tenant' | 'work.owner' | 'work.work'
   reason: 'type' | 'empty' | 'unissued' | 'unminted'
 }>
 
-/**
- * Issues principals. Issuing belongs to identity: only principals from its issuer pass
- * verification. The assembly installs the issuer with the named holders it declares (identity's
- * own login and session-establishment flows, and the system components that act with a system
- * principal) and installs the verifier with the consumers. Before issuing for a tenant, the
- * trusted holder must ask the work owner to verify the subject, tenant and work relationship.
- * Failed, unavailable or absent verification prevents issuance. The reference authority does
- * not provide that verification; see SPEC ID-16.
- */
 export interface PrincipalIssuer {
   issueSystem(input: Readonly<{ component: string }>): Outcome<SystemPrincipal, IssueFailure>
   issueActingForTenant(
@@ -59,18 +37,12 @@ export type PrincipalVerification =
   | Readonly<{ kind: 'rejected' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-/**
- * Verifies that a value is a principal this authority issued. Verification judges the given value
- * and hands that same object back as `principal`; it does not decode. A hand-built copy of the
- * same shape is `rejected`. A verifier that cannot answer says `unavailable`, never `verified`.
- */
 export interface PrincipalVerifier {
   verify(value: unknown): Promise<PrincipalVerification>
 }
 
 export type PrincipalAuthority = Readonly<{ issuer: PrincipalIssuer; verifier: PrincipalVerifier }>
 
-/** Extracts the scope without checking provenance or current standing. Throws TypeError for an unminted tenant. */
 export function scopeOf(principal: Principal): ActingScope {
   return principal.kind === 'system' ? systemScope() : tenantScope(principal.tenant)
 }
@@ -93,16 +65,9 @@ function isMintedTenant(value: TenantId): boolean {
   return tenantCodec.encode(value).ok
 }
 
-/**
- * The in-process authority: a registry of the principals it issued. Verification is membership in
- * that registry, so it holds inside one process and one loaded copy of this module. A principal
- * does not keep its issue through JSON, a structured clone, a worker message or another process;
- * cross-process proof is a later provider's job.
- */
 export function inProcessPrincipalAuthority(): PrincipalAuthority {
   const issued = new WeakSet<object>()
 
-  // Only values built below enter the registry, so membership proves the claim.
   const isIssued = (value: unknown): value is Principal =>
     typeof value === 'object' && value !== null && issued.has(value)
 
@@ -111,8 +76,6 @@ export function inProcessPrincipalAuthority(): PrincipalAuthority {
     return principal
   }
 
-  // The inputs are typed, but an issuer sits at a boundary: a malformed value is a failure
-  // result, never an exception.
   const issueSystem: PrincipalIssuer['issueSystem'] = input => {
     const component = textMember(isObject(input) ? input.component : undefined, 'component')
     if ('failure' in component) return component

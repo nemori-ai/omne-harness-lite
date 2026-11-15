@@ -23,7 +23,6 @@ import { measureCandidate } from './measurement.js'
 import type { CandidateMeasure } from './measurement-session.js'
 import { decimalParts, measuredAmount } from './internal.js'
 
-/** The projected messages of the window: the model view rows whose entry is in the window. */
 export function projectWindow(view: ProjectedHistory, window: CompactionContext): ProjectedHistory {
   const refs = new Set([...window.covered, ...window.after].map(entry => entry.ref))
   return { ...view, messages: view.messages.filter(item => refs.has(item.entry)) }
@@ -35,7 +34,6 @@ export function projectedOf(
   const wanted = new Set(entries)
   return projected.messages.filter(item => wanted.has(item.entry))
 }
-/** The summary material: covered entries with their model-visible projection, or null. */
 export function materialOf(
   projected: ProjectedHistory,
   covered: readonly CoveredEntry[],
@@ -49,7 +47,6 @@ export function materialOf(
   }
 }
 
-/** The retention budget of the policy, in tokens of the selected model window. */
 export function retentionLimit(
   retain: import('./ports.js').RetainBudget,
   selection: SelectedModel,
@@ -65,11 +62,6 @@ export type CompactionCandidate = Readonly<{
   selection: SelectedModel
   source: Adoption
 }>
-/**
- * Measures one compaction candidate with `auto` tool choice and its own lineage (RQ-05). The
- * retention probe and the summary request have an empty system prompt and no tools. The check
- * after a summary passes the frame of the request, so it measures the whole request.
- */
 export async function measureCompactionCandidate<P>(
   context: OperationContext<P>,
   candidate: CompactionCandidate,
@@ -96,7 +88,6 @@ export async function measureCompactionCandidate<P>(
   )
 }
 
-/** The callback a compaction policy receives: one complete measurement per retained set. */
 export function retentionMeasure<P>(
   context: OperationContext<P>,
   candidate: CompactionCandidate,

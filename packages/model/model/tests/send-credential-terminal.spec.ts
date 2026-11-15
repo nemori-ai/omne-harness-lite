@@ -8,8 +8,6 @@ import {
   operation,
 } from '../acceptance/fixtures/runtime.ts'
 
-// A missing or unreadable tenant credential does not come back by itself. The real driver must
-// end the call as a failure with cause `credential`; a caller that waits on `unavailable` hangs.
 for (const [kind, diagnostic] of [
   ['missing', 'credential-missing'],
   ['unreadable', 'credential-unreadable'],
@@ -62,8 +60,6 @@ for (const [kind, diagnostic] of [
     }
   })
 
-// A failed read of the dispatch record does not prove that there is no terminal. The driver keeps
-// a stage that reads the record again, so a later drive still settles the call.
 for (const read of ['answers unavailable', 'throws'] as const)
   it(`settles on a later drive when the dispatch record read ${read} once`, async () => {
     const f = createAcceptanceAssembly({
@@ -77,8 +73,6 @@ for (const read of ['answers unavailable', 'throws'] as const)
     })
     let failures = 1
     const commands = f.dependencies.commands
-    // Only the driver reads through this copy. The sender keeps the original commands, so the
-    // failure starts after the sender wrote the terminal.
     const driverCommands: typeof commands = {
       ...commands,
       async dispatches(input) {

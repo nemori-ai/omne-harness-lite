@@ -126,7 +126,7 @@ describe('public persistent intent recovery over shared non-durable source and l
     const queue = await assembly.store.read({
       kind: 'queue',
       tenant: tenantA,
-      key: JSON.stringify(['scope-owner', 'scope-1', 'read_file']),
+      key: JSON.stringify(['scope-owner', 'scope-1']),
     })
     expect(
       queue.kind === 'complete' && queue.records.filter(record => record.kind === 'queue-entry'),
@@ -319,7 +319,6 @@ describe('public persistent intent recovery over shared non-durable source and l
         [field]: `${base.consumer[field as keyof typeof base.consumer]}|other`,
       },
     }))
-    // An explicit authority accepts these owners for this key-encoding-only test.
     const authority = invokeAuthority()
     const b = paired({
       ...authority,
@@ -443,7 +442,6 @@ describe('public persistent intent recovery over shared non-durable source and l
       a.store.injectCommit(fault)
       const lost = await a.one.invoke(input())
       if (lost.kind !== 'commit-unknown') throw new Error(JSON.stringify(lost))
-      // No lookup empty-read shortcut. Re-submit the original admission, including a delayed write.
       const recovered = accepted(await a.two.invoke(input()))
       a.store.landDelayed()
       expect(recovered.reference).toBe(lost.reference)
@@ -545,7 +543,7 @@ describe('public persistent intent recovery over shared non-durable source and l
     expect(a.source.bindings()[0]?.principal).toEqual(principalA)
     const different = { ...principalA, subject: 'another-subject' }
     const conflict = dummyRequest({
-      limits: { concurrency: 2, foregroundMs: null, backgroundAfterMs: null },
+      limits: { concurrency: 2, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
     })
     for (const attempt of [
       input(conflict, different),
@@ -589,7 +587,7 @@ describe('public persistent intent recovery over shared non-durable source and l
       const admissions = vi.spyOn(a.dependencies.admissions, 'admit')
       failing = true
       const conflicting = dummyRequest({
-        limits: { concurrency: 2, foregroundMs: null, backgroundAfterMs: null },
+        limits: { concurrency: 2, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
       })
       for (const payload of [dummyRequest(), conflicting]) {
         samePrincipal.mockClear()
@@ -664,7 +662,6 @@ it.each(['unknown', 'throw'] as const)(
   async fault => {
     const a = paired()
     const invoked = accepted(await a.one.invoke(input(dummyRequest())))
-    // This commands/reads pair models operation records only. It does not stop an execution.
     const operations = new Map<ToolOperationId, OperationResolution>()
     const control = vi.fn(async (access: Parameters<typeof a.dependencies.commands.control>[0]) => {
       if (operations.size === 0) {

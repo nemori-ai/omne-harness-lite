@@ -2,7 +2,6 @@ import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { requestHead } from '@omne-harness/model-contract/provider'
 import { expectTypeOf, it } from 'vitest'
 import type {
-  Access,
   CallAccess,
   CallState,
   MaterializationReceipt,
@@ -463,7 +462,8 @@ it('ModelCommands writes with the generation and the expected revision, and read
   expectTypeOf<ModelCommands<string>['recordMaterialization']>()
     .parameter(0)
     .toEqualTypeOf<
-      WriteContext & Readonly<{ dispatch: typeof dispatch; receipt: MaterializationReceipt }>
+      WriteContext &
+        Readonly<{ dispatch: typeof dispatch; receipt: MaterializationReceipt; window: string }>
     >()
   expectTypeOf<ModelCommands<string>['acquireRead']>()
     .parameter(0)
@@ -507,6 +507,7 @@ it('a ModelProvider exposes the ordinary runtime and the operator entries, and n
           if ('failure' in resolved) throw new Error('bad fixture')
           return commands.recall({ principal: input.principal, ...resolved.ok })
         },
+        contact: async () => ({ ok: { kind: 'unknown' } }),
         dispatches: commands.dispatches,
         cancel: commands.control,
       },
@@ -522,10 +523,8 @@ it('a ModelProvider exposes the ordinary runtime and the operator entries, and n
       },
       instances: { connect: async () => ({ ok: { kind: 'no-live-route' } }) },
     },
-    recover: async () => ({ ok: { scheduled: '0' } }),
     quiesce: async () => ({ ok: { pending: '0', running: '0' } }),
   }
-  expectTypeOf<ModelProvider<string>['recover']>().parameter(0).toEqualTypeOf<Access<string>>()
   expectTypeOf<ModelProvider<string>['quiesce']>().parameters.toEqualTypeOf<[]>()
   // @ts-expect-error a provider hands out no driver
   void provider.driver

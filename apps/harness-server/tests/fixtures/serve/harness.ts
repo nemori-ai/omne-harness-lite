@@ -1,6 +1,3 @@
-// 测试级装载入口：在同一进程里以 `serve` 模式跑一棵树，看到 `startup-result` 后发起计划停止，返回全部记录。
-// 行闭包用它只装本行与它依赖的替身：`plugins` 替代 `./cordis` 导出，`entryObjects` 替代 `src/entry/index.ts`。
-// 用法见 `docs/real-mode.md`「测试级装载入口」。
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -18,7 +15,6 @@ export type ServeOnceOptions = Omit<
   Readonly<{
     readinessTimeoutMs?: number
     shutdownDeadlineMs?: number
-    /** 默认 true：看到 `startup-result` 就请求停止。false 时由调用方经 `stop` 请求。 */
     stopAfterStartup?: boolean
     stop?: AbortSignal
   }>

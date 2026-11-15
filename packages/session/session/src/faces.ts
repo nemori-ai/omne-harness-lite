@@ -1,12 +1,11 @@
 import { listTodos } from './todos.ts'
-// The four faces as one caller class sees them (contract「四个面与公开操作」). Every mutation goes
-// through the command handler (SPEC CP-01); every read through the read paths (SPEC CP-03).
 import { fail } from '@omne-harness/operation-result'
 import type {
   MutationName,
   SessionAccess,
   SessionCallerClass,
   SessionCommand,
+  SessionDirectory,
   SessionFaces,
   SessionManagement,
   SessionReconciliation,
@@ -14,7 +13,7 @@ import type {
 } from '@omne-harness/session-contract'
 import type { CommandHandler } from './command.ts'
 import type { SessionDependencies } from './dependencies.ts'
-import { guarded, OWNERS } from './failures.ts'
+import { guarded, OWNERS, unavailable } from './failures.ts'
 import { createHistoryPages } from './history-pages.ts'
 import { readSnapshot } from './qualify.ts'
 import type { Reads } from './reads.ts'
@@ -23,6 +22,9 @@ type FaceMutations<P> = Pick<
   SessionWork<P> & SessionManagement<P> & SessionReconciliation<P>,
   MutationName
 >
+
+export type SessionFacesWithDirectory<P> = SessionFaces<P> &
+  Readonly<{ directory: SessionDirectory<P> }>
 
 function accessOf<P>(input: SessionAccess<P>): SessionAccess<P> {
   return { principal: input.principal, tenant: input.tenant, session: input.session }
@@ -35,16 +37,14 @@ export function createFaces<P>(
     reads: Reads<P>
     dependencies: SessionDependencies<P>
   }>,
-): SessionFaces<P> {
+): SessionFacesWithDirectory<P> {
   const { caller, handle, reads, dependencies } = input
 
   const mutation =
     <K extends MutationName>(kind: K) =>
     (value: Parameters<FaceMutations<P>[K]>[0]): ReturnType<FaceMutations<P>[K]> => {
       const { principal, ...rest } = value
-      // The face input is the command input plus the principal; the kind fixes which command it is.
       const command = { kind, input: rest } as SessionCommand
-      // The handler answers with the result of the commit of this very command kind.
       return handle(caller, command, principal) as ReturnType<FaceMutations<P>[K]>
     }
 
@@ -88,6 +88,7 @@ export function createFaces<P>(
       ),
     cancelRun: mutation('cancelRun'),
     stopCall: mutation('stopCall'),
+    retryRun: mutation('retryRun'),
     queryControlOperation: value =>
       reads.session(caller, 'queryControlOperation', value, view =>
         view.queryControlOperation({ ...accessOf(value), operation: value.operation }),
@@ -177,10 +178,22 @@ export function createFaces<P>(
       ),
   }
 
+  const directory: SessionDirectory<P> = {
+    list: value =>
+      reads.directory(caller, 'directory.list', value.tenant, port =>
+        port.directory === undefined
+          ? Promise.resolve(
+              fail(unavailable(OWNERS.directory, 'the transaction port offers no directory')),
+            )
+          : port.directory.list(value),
+      ),
+  }
+
   return Object.freeze({
     work: Object.freeze(work),
     management: Object.freeze(management),
     reconciliation: Object.freeze(reconciliation),
     history: Object.freeze(history),
+    directory: Object.freeze(directory),
   })
 }

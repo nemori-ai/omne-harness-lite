@@ -6,8 +6,5 @@
     "@omne-harness/model-contract",
     "@omne-harness/operation-result"
   ],
-  "forbidden": [
-    "@omne-harness/model",
-    "@omne-harness/model-host-local"
-  ]
+  "forbidden": ["@omne-harness/model", "@omne-harness/model-host-local"]
 }

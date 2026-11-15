@@ -57,7 +57,7 @@ it('retains the planned final in author recovery, with its first screen and no b
   }
 })
 
-it('C04 retries the same payload and only releases after saved matches its original key and owner', async () => {
+it('retries the same payload and only releases after saved matches its original key and owner', async () => {
   const payloads: ToolDelivery<ToolMessageContentBlock>[] = []
   let save = false
   const world = await fixture(undefined, {

@@ -1,9 +1,3 @@
-// N2 through the public port, at the production bounds: a read inside the commit that would pass its
-// bound fails the commit for good and writes nothing; it never judges on the rows it happened to
-// read. The log only grows, so waiting does not help: the participant answers the definite failure
-// `read-bound`, and the port gives `invalid` on the field `storage` (SPEC 参加者失败的定性). The
-// model view bound is reached only by a compaction, which this member cannot commit yet (its
-// compaction reads are null), so that bound is covered at module level in participant.spec.ts.
 import { describe, expect, it } from 'vitest'
 import type { SessionCommand } from '@omne-harness/session-contract'
 import { operationId, sessionId } from '@omne-harness/session-contract/testing'
@@ -17,7 +11,6 @@ const failureOf = (value: unknown): Record<string, unknown> => {
   return (value as { failure: Record<string, unknown> }).failure
 }
 
-/** The diagnostic the participant kept beside its definite failure, in the rolled back receipt. */
 async function diagnosticOf(a: App, operation: string): Promise<string> {
   const receipt = await a.provider.storage.query({
     scope: { kind: 'tenant', tenant: textOf(TENANT_A) },
@@ -36,7 +29,6 @@ const ok = <T>(value: unknown): T => {
   return (value as { ok: T }).ok
 }
 
-/** Inserts `count` rows with one statement: a recursive sequence 1..count fed into `insert`. */
 const series = (count: number, insert: string): string =>
   `${insert} WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ${count}) SELECT ${'$COLUMNS'} FROM n`
 

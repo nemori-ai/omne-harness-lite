@@ -1,16 +1,4 @@
 // @module-tag slow — starts openssl child processes and real local HTTPS servers, writes vault
-// files, and drives Model calls through the assembled send path.
-//
-// The C9 evidence over the real recordings, one set per family. The first round X is replayed,
-// settles, is read, acknowledged and cleaned up. The next request continues X and carries X's
-// reply; it is metered through `host.preparation` of the same host, which reads X as the anchor.
-// The continued round is then replayed, and its real input total is set against the estimate.
-// The difference is a measurement of the estimate, recorded and never a threshold. The payable
-// amounts of both rounds are added as exact decimals, and a decimal adder of this file, which
-// shares no code with the system under test, checks the sum.
-//
-// With `OMNE_EVIDENCE_OUT=<directory>` each family writes one JSON file there. The file holds
-// digests, numbers and units, and no request body, no reply and no header.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -28,11 +16,9 @@ import {
 import { acknowledgeAndClean, onlyDispatch, openReplay } from './support/replay.ts'
 
 type Family = Readonly<{
-  /** The directory name of the evidence file. */
   file: string
   first: RecordCaseName
   continued: RecordCaseName
-  /** The method name of the family for a unit replaced by the output count of its source. */
   outputGroup: string
 }>
 
@@ -52,10 +38,6 @@ const FAMILIES: readonly Family[] = [
 ]
 const ANCHORED = '+continuation-anchored/1'
 
-/**
- * An exact decimal sum of non-negative decimal strings, by scaled integers. It shares nothing
- * with `call-account`: the result has no trailing zero after the point and no point when whole.
- */
 function sumDecimals(lexemes: readonly string[]): string {
   const parts = lexemes.map(lexeme => {
     const [whole = '', fraction = ''] = lexeme.split('.')
@@ -92,8 +74,6 @@ describe('C9: the estimate of the continued request against the real input of th
       const firstCase = RECORD_CASES[family.first]
       const first = firstRoundRequest(firstCase)
 
-      // Round one: X settles, is read, acknowledged and cleaned up; the next request is metered
-      // by the lease of the same host, which reads X from ModelCommands.
       const opened = await openReplay({
         request: first,
         name: family.first,
@@ -155,7 +135,6 @@ describe('C9: the estimate of the continued request against the real input of th
         await opened.close()
       }
 
-      // Round two: the continued request is replayed; its account holds the real input.
       const second = await openReplay({
         request: next,
         name: family.continued,
@@ -175,7 +154,6 @@ describe('C9: the estimate of the continued request against the real input of th
         const difference = realInput - BigInt(metering.amount)
         const secondPayable = payable(record.account)
 
-        // Both rounds are payable, in one unit; the cumulative amount is their exact sum.
         expect(secondPayable.unit).toBe(firstRound.payable.unit)
         const cumulative = payable({
           ...record.account,

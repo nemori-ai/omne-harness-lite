@@ -1,7 +1,3 @@
-// The delegated entry (session-contract SPEC「当前操作的访问裁定」, R1-D14 O1). The Session execution
-// boundary checks one face operation once and binds a view with the allowed decision. The view is
-// the port surface over the same context, with the binding as its access step: it never asks the
-// access check, and it answers `denied` to a call outside the checked tenant, session or command.
 import { tenantEquals } from '@omne-harness/legal-identity'
 import { succeed } from '@omne-harness/operation-result'
 import {
@@ -21,11 +17,6 @@ export function delegatedOf<P>(context: Context<P>): SessionDelegatedTransaction
   }
 }
 
-/**
- * The port surface of one view. `pending`, `references` and `releasedScopes` name no session, so
- * the binding denies them; `commitEntries` and `commitLog` ask no access on the port, so the view
- * denies them here.
- */
 function viewOf<P>(port: SessionTransactionPort<P>): SessionTransactionPort<P> {
   return {
     ...port,
@@ -34,7 +25,6 @@ function viewOf<P>(port: SessionTransactionPort<P>): SessionTransactionPort<P> {
   }
 }
 
-/** The access step of a view: the bound evidence for a call inside the binding, else `denied`. */
 function boundStep<P>(checked: SessionCheckedAccess<P>): AccessStep<P> {
   const { request: bound, evidence, writeQualification } = checked
   const allowed = writeQualification === undefined ? { evidence } : { evidence, writeQualification }
@@ -46,7 +36,6 @@ function boundStep<P>(checked: SessionCheckedAccess<P>): AccessStep<P> {
     )
 }
 
-/** True when `request` names the tenant and session of `bound`, and for a commit its command. */
 function withinBinding<P>(
   bound: SessionAccessRequest<P>,
   request: SessionAccessRequest<P>,
@@ -59,7 +48,6 @@ function withinBinding<P>(
   return 'command' in bound.target && sameCommand(bound.target.command, request.target.command)
 }
 
-/** The same command up to `expected`: a `changed` retry of the face operation stays bound. */
 function sameCommand(left: SessionCommand, right: SessionCommand): boolean {
   return (
     left.kind === right.kind &&

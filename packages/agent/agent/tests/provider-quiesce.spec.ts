@@ -1,8 +1,3 @@
-// AgentRuntimeControl.quiesce of the factory runtime (SPEC "四种控制" 停用, "交接与停用" and the
-// failure table row of quiesce; public API "quiesce 与执行槽的同步义务"). What is delivered: the runtime
-// drains before the first await, a new invoke and resume answer unavailable, a free slot withdraws
-// the registration through the handle and answers drained, and an execution in the slot is reported
-// as remaining (`unresolved`), never drained. Its detach and handover are #502 stage 5 and not here.
 import { describe, expect, it } from 'vitest'
 import type {
   AgentAccessDecision,
@@ -40,7 +35,6 @@ const registered = (state: Registration['state']): Registration => {
   return { registration: id.ok, state }
 }
 
-/** A registration handle that logs each withdrawal and answers the queued reply, else withdrawn. */
 function withdrawals() {
   const calls: WithdrawInput[] = []
   const queued: (() => Reply<Registration | null>)[] = []
@@ -79,7 +73,6 @@ const resumeOf = (assembly: LoopAssembly) =>
 const drainingDiagnostic = (operationName: 'invoke' | 'resume') =>
   `the runtime is draining after quiesce; a new ${operationName} is not accepted`
 
-/** A promise and the function that settles it. */
 function deferred<T>() {
   let settle: (value: T) => void = () => {}
   const promise = new Promise<T>(resolve => (settle = resolve))
@@ -138,7 +131,6 @@ describe('quiesce of an idle runtime', () => {
       const { assembly, host } = await assembled()
       host.queued.push(answer)
       expect(failure(await quiesceOf(assembly))).toMatchObject({ kind: 'unavailable' })
-      // Still draining after the failed step: no new invoke is accepted.
       expect(failure(await invoke(assembly))).toEqual({
         kind: 'unavailable',
         owner: '@omne-harness/agent',
@@ -176,12 +168,10 @@ describe('a draining runtime refuses new invoke and resume', () => {
     ).not.toMatchObject({ ok: { kind: 'committed' } })
   })
 
-  it('before quiesce, resume still answers the stage-temporary unavailable, not draining', async () => {
+  it('before quiesce, resume reaches the Journal, which answers for the execution; it is not the draining refusal', async () => {
     const { assembly } = await assembled()
-    const answer = failure(await resumeOf(assembly))
-    expect(answer.kind === 'unavailable' && answer.diagnostic).toBe(
-      'resume is not implemented until #502 stage 5',
-    )
+    expect(failure(await resumeOf(assembly))).toMatchObject({ kind: 'denied' })
+    expect(await shown(assembly)).toMatchObject({ kind: 'idle' })
   })
 
   it('drains before its first await: an invoke that arrives while the quiesce check runs is refused', async () => {
@@ -219,27 +209,58 @@ describe('a draining runtime refuses new invoke and resume', () => {
 })
 
 describe('quiesce with an execution in flight', () => {
-  it('answers unresolved with the remaining execution, keeps the registration and does not stop the run', async () => {
+  it('waits for the pass of the drive to end, hands the execution over on its wait for the Model call, and cancels nothing', async () => {
     const { assembly, host } = await assembled()
     const handle = ok(await invoke(assembly))
     const answer = ok(await quiesceOf(assembly))
-    expect(answer).toMatchObject({ kind: 'unresolved', remaining: [handle.execution] })
-    expect(host.calls).toEqual([])
-    expect(await shown(assembly)).toMatchObject({ kind: 'occupied', execution: handle.execution })
+    expect(answer).toMatchObject({ kind: 'drained', remaining: [] })
+    expect(host.calls).toHaveLength(1)
 
-    // The run goes on: quiesce cancels no Model call and ends no execution.
-    assembly.release.open()
-    await eventually(async () => (await shown(assembly)).kind === 'idle')
-    const ended = ok(
+    const handed = ok(
       await assembly.controls.journal.port.load({ ...alice, execution: handle.execution }),
     )
-    expect(ended.state).toMatchObject({ kind: 'ended' })
-    expect(ended.state.kind === 'ended' && ended.state.conclusion.kind).not.toBe('cancelled')
-    expect(ended.controls).toEqual([])
+    expect(handed.state.kind).toBe('suspended')
+    expect(handed.controls).toEqual([])
+    expect(handed.checkpoint.calls.some(call => call.kind === 'model')).toBe(true)
+  })
+})
 
-    // The retry of the same operation goes on and answers the current remainder: none.
-    expect(ok(await quiesceOf(assembly))).toMatchObject({ kind: 'drained', remaining: [] })
-    expect(host.calls).toHaveLength(1)
+describe('quiesce with an execution whose wait is not saved', () => {
+  it('does not hand the execution over while its wait is only in the process; the drive goes on and ends it', async () => {
+    let offline = true
+    let refused = 0
+    const assembly = await loopAssembly([execution()], dependencies => ({
+      ...dependencies,
+      journal: {
+        ...dependencies.journal,
+        commit: input => {
+          if (!offline || !input.operation.startsWith('W0/'))
+            return dependencies.journal.commit(input)
+          refused += 1
+          return Promise.resolve(
+            fail({ kind: 'unavailable', owner: 'agentJournal', diagnostic: 'offline' }),
+          )
+        },
+      },
+    }))
+    const access = { ...alice, execution: execution() }
+    const loaded = async () => ok(await assembly.dependencies.journal.load(access))
+    ok(await invoke(assembly))
+    await eventually(async () => refused > 0)
+
+    expect(ok(await quiesceOf(assembly, 'quiesce-1'))).toMatchObject({
+      kind: 'unresolved',
+      remaining: [execution()],
+    })
+    expect(await shown(assembly)).toMatchObject({ kind: 'occupied' })
+    const kept = await loaded()
+    expect(kept.state.kind).not.toBe('suspended')
+    expect(kept.executionAttachment).not.toBeNull()
+
+    offline = false
+    assembly.release.open()
+    await eventually(async () => (await loaded()).state.kind === 'ended')
+    expect(ok(await quiesceOf(assembly, 'quiesce-2')).kind).toBe('drained')
   })
 })
 
@@ -274,7 +295,6 @@ describe('operation identity of quiesce', () => {
     const [a, b] = [ok(await first), ok(await second)]
     expect(b).toEqual(a)
     expect(host.calls.map(call => call.operation)).toEqual([operation('quiesce-1')])
-    // After the drain, a new operation also answers the one quiesce that happened.
     expect(ok(await quiesceOf(assembly, 'quiesce-3'))).toEqual(a)
     expect(host.calls).toHaveLength(1)
   })
@@ -282,10 +302,10 @@ describe('operation identity of quiesce', () => {
   it('a new quiesce after an unresolved one goes on with the same handover', async () => {
     const { assembly, host } = await assembled()
     ok(await invoke(assembly))
+    assembly.controls.journal.failNext('detach', { kind: 'unavailable' })
     const unresolved = ok(await quiesceOf(assembly, 'quiesce-1'))
     expect(unresolved.kind).toBe('unresolved')
-    assembly.release.open()
-    await eventually(async () => (await shown(assembly)).kind === 'idle')
+    expect(await shown(assembly)).toMatchObject({ kind: 'occupied' })
     expect(ok(await quiesceOf(assembly, 'quiesce-2')).kind).toBe('drained')
     expect(host.calls.map(call => call.operation)).toEqual([operation('quiesce-1')])
   })

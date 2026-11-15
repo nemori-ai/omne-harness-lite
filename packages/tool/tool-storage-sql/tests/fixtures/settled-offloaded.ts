@@ -1,5 +1,3 @@
-// A settled call over the real SQL ledger and body store whose final planned a text body over the
-// inline threshold: the offloaded original with its body entry, due index entry and fixed expiry.
 import { randomBytes } from 'node:crypto'
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { decodeToolOperationId } from '@omne-harness/tool-contract'
@@ -24,7 +22,6 @@ export const evidence = {
   digest: 'sha256:source',
 }
 
-/** A settled call whose final planned a 70 KiB text body, over the SQL ledger and body store. */
 export async function settledOffloaded(
   app: Pick<App, 'store' | 'options'>,
   tenant = TENANT_A,
@@ -124,7 +121,6 @@ export async function settledOffloaded(
   const value = ok(await ledger.delivery.read({ ...access, result: state.result }))
   return {
     ledger,
-    /** The body store, permit key and clock the ledger was built with; a second ledger can share them. */
     bodies,
     access,
     planned,

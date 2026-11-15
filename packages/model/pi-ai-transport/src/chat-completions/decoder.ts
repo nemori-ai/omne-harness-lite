@@ -1,11 +1,6 @@
 // Derived from pi 1.0.0, commit a13d35a742c6ef8462812a28fbe1d8c8b7431c32 (the chunk loop of
 // `stream`, finishBlock, mapStopReason; the source file is named in provenance.json). Copyright
 // (c) 2025 Mario Zechner. MIT: ../../LICENSE.pi. See provenance.json.
-//
-// The stream decoder of the gateway engine: a phase union and one pure reduce step per frame.
-// The decoder object only holds the phase. The single `ended` of the fact stream stays guarded by
-// the fact stream; the decoder gives its termination once, from `end()`. A response that failed
-// after its finish still gives the account of the usage it received, from `end()`.
 import { judgeBlockIdentity, type BlockId } from '@omne-harness/content-block'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { ModelBlock, ModelFault } from '@omne-harness/model-contract'
@@ -45,24 +40,15 @@ import type {
 
 export type DecoderInput = Readonly<{
   record: ChatCompletionsRecord
-  /** The accounting of the route the response comes from: the place prefix and the cost unit. */
   accounting: RouteAccounting
   hooks: VendorHooks
   limits: ChatCompletionsLimits
-  /** The tool names of the request this decoder reads the response of. */
   names: ToolNames
 }>
 
-/**
- * The most UTF-16 code units that the payload of a reasoning state part may have: the value of
- * `REASONING_STATE_PAYLOAD_MAX_LENGTH` of `@omne-harness/message`, which this package does not
- * depend on. A sealed payload beyond it gives no part.
- */
 const REASONING_STATE_PAYLOAD_MAX_LENGTH = 1048576
 
-/** The event of the one account of a dispatch. */
 const ACCOUNT_EVENT = 'usage'
-/** The usage of a response that reported none: every count unknown. */
 const NO_USAGE: GatewayUsage = Object.freeze({
   promptTokens: null,
   completionTokens: null,
@@ -74,38 +60,29 @@ const NO_USAGE: GatewayUsage = Object.freeze({
 const SHOWN = Object.freeze({ toHuman: true, toModel: true })
 const HIDDEN = Object.freeze({ toHuman: false, toModel: true })
 
-/** A block that the decoder opened and fills by appending. */
 type OpenBlock = Readonly<{ index: string; value: string }>
 
-/** One tool call of the response, keyed by its stream `index`. */
 type ToolCall = Readonly<{
   key: string
   id: string | null
   name: string | null
-  /** The argument text that arrived before the name. */
   pending: string
-  /** UTF-8 bytes of all argument text so far. */
   bytes: number
-  /** `null` until the name arrives. */
   block: OpenBlock | null
 }>
 
-/** Where the visible reasoning of this response comes from. The first non-empty source wins. */
 type VisibleSource = 'plain' | 'reasoning.text' | 'reasoning.summary'
 
 type Serving = Readonly<{ model: string; provider: string }>
 
 type Streaming = Readonly<{
   kind: 'streaming'
-  /** Fixed by the first chunk. */
   serving: Serving | null
-  /** The index of the next block. */
   next: number
   text: OpenBlock | null
   thinking: OpenBlock | null
   source: VisibleSource | null
   details: readonly JoinedDetail[]
-  /** What the reasoning buffer holds, in UTF-16 code units. */
   reasoningText: number
   tools: readonly ToolCall[]
   usage: GatewayUsage | null
@@ -116,15 +93,10 @@ type Finished = Readonly<{
   serving: Serving
   finish: string
   termination: TransportTermination
-  /** Tail frames accepted after the finish chunk. */
   tail: number
   usage: GatewayUsage | null
 }>
 
-/**
- * A finished response whose later frame the decoder refused. `end()` still gives the account of
- * the usage received before the fault, then the fault as the termination.
- */
 type Faulted = Readonly<{ kind: 'faulted'; finished: Finished; fault: ModelFault }>
 
 type Ended = Readonly<{ kind: 'ended' }>
@@ -133,7 +105,6 @@ type Phase = Streaming | Finished | Faulted | Ended
 
 type Step = Readonly<{ phase: Phase; facts: readonly TransportFact[] }>
 
-/** A step that refuses the frame. The fact stream ends with this fault. */
 type Refusal = Readonly<{ fault: ModelFault }>
 
 type StepResult = Step | Refusal
@@ -153,7 +124,6 @@ const START: Streaming = Object.freeze({
 
 const ENDED: Ended = Object.freeze({ kind: 'ended' })
 
-/** Creates the decoder of one dispatch. Each call has its own phase; nothing is shared. */
 export function createChatCompletionsDecoder(input: DecoderInput): PiResponseDecoder {
   let phase: Phase = START
   const settle = (
@@ -176,7 +146,6 @@ export function createChatCompletionsDecoder(input: DecoderInput): PiResponseDec
   })
 }
 
-/** A refused frame ends the decoding; a finished response keeps its usage for the account. */
 function afterFault(phase: Phase, fault: ModelFault): Phase {
   switch (phase.kind) {
     case 'finished':
@@ -195,18 +164,12 @@ function afterFault(phase: Phase, fault: ModelFault): Phase {
 
 function accept(input: DecoderInput, phase: Phase, frame: PiProtocolFrame): StepResult {
   if (phase.kind === 'ended' || phase.kind === 'faulted') return protocol('frame-after-end')
-  // The end marker only ends the protocol; `end()` gives the termination.
   if (frame.kind === 'end-marker') return { phase, facts: [] }
   const chunk = readChunk(frame.value)
   if ('failure' in chunk) return protocol(chunk.failure)
   return reduce(input, phase, chunk.ok)
 }
 
-/**
- * EOF, the end marker, or the end of a failed read: the account of a finished response, its usage
- * diagnostics and its termination, or a lost stream. A response faulted after its finish ends
- * with the account and that fault.
- */
 function end(input: DecoderInput, phase: Phase): StepResult {
   switch (phase.kind) {
     case 'streaming':
@@ -226,7 +189,6 @@ function end(input: DecoderInput, phase: Phase): StepResult {
   }
 }
 
-/** The account of the usage kept so far, its usage diagnostics, then the termination. */
 function accounted(
   input: DecoderInput,
   finished: Finished,
@@ -252,7 +214,6 @@ function accounted(
   }
 }
 
-/** The one reduce step: the phase and one chunk give the next phase and the facts. Pure. */
 function reduce(input: DecoderInput, phase: Streaming | Finished, chunk: Chunk): StepResult {
   if (chunk.error !== null) return inBandError(chunk.error.code)
   const serving = servingOf(input.record, phase.serving, chunk)
@@ -278,7 +239,6 @@ function servingOf(
   return { ok: fixed }
 }
 
-/** The error member of a frame: the gateway code maps like an HTTP status; the text is never read. */
 function inBandError(code: number | null): Refusal {
   if (code === null)
     return { fault: { cause: 'unclassified', diagnostic: 'in-band-error', upstreamStatus: null } }
@@ -291,11 +251,8 @@ function inBandError(code: number | null): Refusal {
   }
 }
 
-// --- streaming -------------------------------------------------------------------------------
-
 type Serves = Streaming & Readonly<{ serving: Serving }>
 
-/** Facts and the phase while a chunk is applied. */
 type Work = { phase: Serves; facts: TransportFact[] }
 
 function stream(input: DecoderInput, phase: Serves, chunk: Chunk): StepResult {
@@ -325,7 +282,6 @@ function applyDelta(input: DecoderInput, work: Work, delta: Delta): Refusal | nu
   return null
 }
 
-/** Opens a block at the next index. */
 function open(work: Work, content: 'text' | 'thinking' | 'tool-arguments'): OpenBlock {
   const index = String(work.phase.next)
   work.phase = { ...work.phase, next: work.phase.next + 1 }
@@ -338,7 +294,6 @@ function filled(work: Work, block: OpenBlock, delta: string): OpenBlock {
   return { index: block.index, value: block.value + delta }
 }
 
-/** Content and refusal share one text channel; a refusal does not decide the termination. */
 function appendText(work: Work, piece: string): void {
   const block = work.phase.text ?? open(work, 'text')
   work.phase = { ...work.phase, text: filled(work, block, piece) }
@@ -349,7 +304,6 @@ function appendThinking(work: Work, piece: string): void {
   work.phase = { ...work.phase, thinking: filled(work, block, piece) }
 }
 
-/** The visible reasoning of a delta from the source of this response, chosen on first use. */
 function visiblePieces(work: Work, delta: Delta): readonly string[] {
   const plain = delta.reasoning !== null && delta.reasoning !== REDACTED ? [delta.reasoning] : []
   const fromDetails = (type: DetailFragment['type']): readonly string[] =>
@@ -386,7 +340,6 @@ function addDetail(
   return null
 }
 
-/** Buffers argument text until the name arrives, then streams it into a tool-arguments block. */
 function addToolFragment(
   limits: ChatCompletionsLimits,
   work: Work,
@@ -425,7 +378,6 @@ function addToolFragment(
   return null
 }
 
-/** The name arrived: the block opens and takes the buffered argument text. */
 function named(work: Work, call: ToolCall, name: string): ToolCall {
   const block = open(work, 'tool-arguments')
   return {
@@ -436,9 +388,6 @@ function named(work: Work, call: ToolCall, name: string): ToolCall {
   }
 }
 
-// --- finish ----------------------------------------------------------------------------------
-
-/** How a finish value ends the response. */
 type Ending =
   | Readonly<{ kind: 'completed'; reason: 'stop' | 'tool-suggestions' | 'limit' }>
   | Readonly<{ kind: 'failed' }>
@@ -456,7 +405,6 @@ function endingOf(finish: string): Ending {
   }
 }
 
-/** A finish value is written into the diagnostic only when it is a short plain word. */
 const FINISH_WORD = /^[a-z][a-z_]{0,63}$/
 
 function finish(input: DecoderInput, work: Work, value: string): StepResult {
@@ -473,12 +421,6 @@ function finish(input: DecoderInput, work: Work, value: string): StepResult {
   }
 }
 
-/**
- * The termination of a finish. A `stop` or `tool_calls` finish completes only with content: at
- * least one block, and for `tool_calls` at least one tool call. Without it the finish fails as
- * `upstream-protocol`, because a completed reply must hold a valid block. A failed finish seals
- * nothing; the tail frames and the account still follow.
- */
 function finishTermination(phase: Serves, ending: Ending, value: string): TransportTermination {
   if (ending.kind === 'failed')
     return failedFinish(
@@ -501,11 +443,6 @@ function failedFinish(
   return { kind: 'failed', fault: { cause, diagnostic, upstreamStatus: null } }
 }
 
-/**
- * Seals every open block in index order, then the reasoning state parts at new indices. After a
- * `length` finish a tool-arguments block stays open: its arguments may be cut, so it never
- * becomes an executable call.
- */
 function sealAll(input: DecoderInput, work: Work, truncated: boolean): Refusal | null {
   const { text, thinking, tools } = work.phase
   const thinkingId = thinking === null ? null : blockId(thinking.index)
@@ -546,19 +483,12 @@ function toolCall(input: DecoderInput, call: ToolCall, block: OpenBlock): ModelB
   }
 }
 
-/** Empty argument text is an empty object, as upstream reads it. */
 function decodeArguments(limits: ChatCompletionsLimits, text: string): JsonValue | null {
   if (text.length === 0) return { kind: 'object', entries: [] }
   const read = readJsonText(text, limits.toolArguments)
   return read.kind === 'ok' ? read.value : null
 }
 
-/**
- * All joined details go to the reasoning hook once. Each payload it gives becomes one reasoning
- * state part, sealed whole at a new index and paired with the thinking block. An empty payload
- * gives no part; a payload longer than the message limit gives a `reasoning-state-dropped`
- * diagnostic with its length instead.
- */
 function sealReasoning(
   input: DecoderInput,
   work: Work,
@@ -598,12 +528,6 @@ function sealReasoning(
   return null
 }
 
-// --- tail ------------------------------------------------------------------------------------
-
-/**
- * A frame after the finish chunk: at most `usageTail.maxFrames` of them. Each may carry usage and
- * may repeat the same finish with an empty delta; content or another finish is a protocol fault.
- */
 function tail(record: ChatCompletionsRecord, phase: Finished, chunk: Chunk): StepResult {
   const count = phase.tail + 1
   if (count > record.wire.usageTail.maxFrames) return protocol('usage-tail-too-long')
@@ -628,9 +552,6 @@ function isEmptyDelta(delta: Delta): boolean {
   )
 }
 
-// --- values ----------------------------------------------------------------------------------
-
-/** The identity of the block at `index`. Unique inside the reply of one dispatch. */
 function blockId(index: string): BlockId {
   const judged = judgeBlockIdentity({ id: `b${index}`, visibility: SHOWN })
   if ('rejected' in judged) throw new Error(`block identity b${index} was refused`)
@@ -641,12 +562,6 @@ function diagnosticFact(value: ProviderDiagnostic): TransportFact {
   return { kind: 'diagnostic', value }
 }
 
-/**
- * The cost of the account: the gateway `usage.cost` as billable cost, because the gateway charges
- * this amount and call-account takes the payable amount from `ledger` or `billable` only. A
- * non-negative number gives its exact plain decimal lexeme (an exponent form is written out); another
- * form gives an unknown billable item; and a usage without a cost gives no item.
- */
 function costOf(usage: GatewayUsage | null, costUnit: string): CallAccountReport['cost'] {
   const cost = usage?.raw['cost']
   if (cost === undefined || cost.kind === 'null') return []

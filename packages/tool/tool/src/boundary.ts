@@ -1,6 +1,3 @@
-// The boundary checks of every ledger command and read: the tenant shape, the branded call and
-// operation identities, and the write context. A missing or malformed tenant is `denied`, so the
-// answer does not tell whether the call exists (342 identity, scope and qualification).
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolCallId,
@@ -45,15 +42,10 @@ function filledText(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0
 }
 
-/** The text that keys a tenant inside the store: organization and account, never the object. */
 export function tenantKey(tenant: TenantId): string {
   return `${tenant.organization.text}/${tenant.account.text}`
 }
 
-/**
- * The shape of a tenant identity: the two atomic halves with filled texts. Whether the value was
- * minted by legal-identity is proven by the access guard, which the host builds with that package.
- */
 export function isTenantShape(value: unknown): value is TenantId {
   if (!isObject(value) || Reflect.get(value, 'name') !== 'TenantId') return false
   const organization: unknown = Reflect.get(value, 'organization')
@@ -75,7 +67,6 @@ function identityField<T>(
   return 'ok' in decoded ? decoded : invalid(field, decoded.failure.reason)
 }
 
-/** Principal, tenant and call. The principal is opaque here and judged by the access guard. */
 export function judgeCallInput<P>(
   input: unknown,
   action: ToolLedgerAction,
@@ -85,7 +76,6 @@ export function judgeCallInput<P>(
   if (!isTenantShape(tenant) || !('principal' in input)) return denied(action)
   const call = identityField(decodeToolCallId(Reflect.get(input, 'call')), 'call')
   if ('failure' in call) return call
-  // The principal type is the caller's; the ledger passes it to the guard unchanged.
   return succeed({ principal: Reflect.get(input, 'principal') as P, tenant, call: call.ok })
 }
 
@@ -103,7 +93,6 @@ export function judgeMutationInput<P>(
   return succeed({ ...base.ok, operation: operation.ok })
 }
 
-/** A closed record of filled texts: every key is an own data property, and no other key exists. */
 function judgeTexts<K extends string>(
   value: unknown,
   keys: readonly K[],
@@ -120,14 +109,9 @@ function judgeTexts<K extends string>(
   const known: ReadonlySet<PropertyKey> = new Set(keys)
   const extra = Reflect.ownKeys(value).find(key => !known.has(key))
   if (extra !== undefined) return invalid(`${field}.${String(extra)}`, 'unknown-field')
-  // Every key was written above with a filled text.
   return succeed(Object.freeze(copy as Record<K, string>))
 }
 
-/**
- * A durable evidence reference given by a caller: four filled texts and nothing else. It is a
- * reference only; whether its record exists is the business of the owner it names.
- */
 export function judgeEvidenceField(
   value: unknown,
   field: string,
@@ -135,12 +119,10 @@ export function judgeEvidenceField(
   return judgeTexts(value, ['owner', 'record', 'revision', 'digest'], field)
 }
 
-/** An adoption given back by a caller: owner, name, revision and digest, and nothing else. */
 export function judgeAdoptionField(value: unknown, field: string): Outcome<Adoption, ToolFailure> {
   return judgeTexts(value, ['owner', 'name', 'revision', 'digest'], field)
 }
 
-/** A write context: tenant, call, operation, the expected revision and the instance binding. */
 export function judgeWriteInput(input: unknown): Outcome<WriteInput, ToolFailure> {
   if (!isObject(input)) return invalid('input', 'type')
   const tenant: unknown = Reflect.get(input, 'tenant')

@@ -1,6 +1,3 @@
-// The access check of the `session-provider` contract double: each method asks the injected
-// `sessionAccessCheck` first, passes `denied` and `unavailable` on as the face failure, and
-// changes no state when the check does not allow.
 import type { SessionAccessRequest } from '@omne-harness/session-contract'
 import {
   creation,
@@ -20,7 +17,6 @@ afterEach(async () => {
 
 type Mode = 'allow' | Extract<SessionAccessScript, { kind: 'denied' | 'unavailable' | 'throw' }>
 
-/** A policy whose answer for a chosen operation the test switches during the run. */
 function switchable() {
   const state: { mode: Mode; only: string | undefined } = { mode: 'allow', only: undefined }
   const policy = (request: SessionAccessRequest<unknown>): SessionAccessScript => {
@@ -129,7 +125,6 @@ describe('session-provider: access check', () => {
             },
       )
       control.state.mode = 'allow'
-      // Nothing was written: the input is not in the history and the operation is still new.
       const page = await t.reader.history.begin({
         principal,
         tenant: TENANT_A,

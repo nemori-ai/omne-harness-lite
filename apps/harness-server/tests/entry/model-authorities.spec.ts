@@ -1,9 +1,3 @@
-// Model 的三个权威入口对象（AA 运行时对象表「Model 与 Tool 的原事实、权威与时钟适配对象」）：`modelHostAuthority`、
-// `modelPublicationAuthority`、`modelConverterAuthority` 在根上 provide，model-host-local 的三个插件静态 inject。
-// 发布与转换器登记一律 `denied`。`modelHostAuthority.resolve` 是波 2 真件（`tmp/wire-model/design.md` §3）：
-// 读原受理 → 核关系 → 签 M → `channel.prepare`，每步失败各答 `unavailable` 或 `denied`；关系不成立时一次也不签发（E3）。
-// 本文件用 model 成员首次执行记录的契约替身（`initial` 与 channel 都是脚本对象），只核入口的步骤与次序；
-// 真实 `createModelInitialRun` 上的组合见 `tests/rows/model/records-host.spec.ts`。
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import type {
@@ -46,7 +40,9 @@ import type {
   ModelAcceptedOrigin,
   ModelInitialExecution,
   ModelInitialHostChannel,
+  ModelObservationSource,
 } from '@omne-harness/model/commands'
+import type { ModelCommands } from '@omne-harness/model-contract/provider'
 import {
   modelConverterAuthority,
   modelHostAuthority,
@@ -109,7 +105,16 @@ type Scripted = {
   onRead?: (target: Parameters<ModelInitialExecution<unknown>['readAcceptance']>[0]) => void
 }
 
-/** 首次执行记录与通道的脚本替身：只记录被调用的次序与入参。 */
+function scriptedObservation() {
+  const source: ModelObservationSource<unknown> = {
+    openHost: () => ({
+      failure: { kind: 'unavailable', dependency: 'scripted-source', diagnostic: 'not-opened' },
+    }),
+    close: () => {},
+  }
+  return { commands: {} as ModelCommands<unknown>, source, recheckMs: 100 }
+}
+
 function scriptedInitial(script: Scripted): ModelInitialExecution<unknown> {
   return {
     readAcceptance: target => {
@@ -135,7 +140,6 @@ function scriptedInitial(script: Scripted): ModelInitialExecution<unknown> {
   }
 }
 
-/** 签发计数：包在真签发者的服务实例上，签发闭包按调用现查方法，所以安装前包上就数得到全部签发。 */
 type IssueCounts = { system: number; acting: number }
 
 function countIssues(issuer: PrincipalIssuer): IssueCounts {
@@ -154,7 +158,6 @@ function countIssues(issuer: PrincipalIssuer): IssueCounts {
 }
 
 async function installed(options: { withIssuer?: boolean; standing?: TenantStandingReading } = {}) {
-  // `tenantStanding` is a trusted name (R2-D203 P-9): the provider stands in its trusted scope.
   const fixture = fixtureEnv([principalIssuerKey, tenantStandingKey])
   await fixture.install(principalVerifier)
   let issues: IssueCounts = { system: 0, acting: 0 }
@@ -199,7 +202,6 @@ async function installed(options: { withIssuer?: boolean; standing?: TenantStand
   }
 }
 
-/** 一个记录行的附着与一个宿主行的绑定，像两行在装载时做的那样。 */
 async function attachedAndBound(scene: Awaited<ReturnType<typeof installed>>) {
   const { fixture, script, records } = scene
   const verifier = got(fixture.root.get('principalVerifier'), 'verifier') as PrincipalVerifier
@@ -207,8 +209,10 @@ async function attachedAndBound(scene: Awaited<ReturnType<typeof installed>>) {
     verifier,
     standing: { read: () => Promise.resolve(script.standing) },
   })
+  const observation = scriptedObservation()
   const attached = records.attach(fixture.root, {
     initial: scriptedInitial(script),
+    observation,
     qualification,
   })
   if ('failure' in attached) throw new Error('fixture: attach failed')
@@ -222,7 +226,7 @@ async function attachedAndBound(scene: Awaited<ReturnType<typeof installed>>) {
   await fiber
   if (hostCtx === undefined) throw new Error('fixture: no host context')
   const binding = scene.hostPort.bindHost(hostCtx)
-  return { qualification, binding, hostFiber: fiber, handle: attached.ok }
+  return { qualification, binding, hostFiber: fiber, handle: attached.ok, observation }
 }
 
 describe('the three model authorities on a real Cordis context', () => {
@@ -346,7 +350,6 @@ describe('modelHostAuthority.resolve: read the acceptance, check the relation, i
       tenant: TENANT,
       work: { owner: MODEL_WORK_OWNER, work: CALL },
     })
-    // M is captured for the synchronous authority and bound to this call.
     expect(
       bound.qualification.authority.authorize({
         action: 'send',
@@ -449,7 +452,7 @@ describe('modelHostAuthority.resolve: read the acceptance, check the relation, i
     expect(scene.script.prepares).toHaveLength(0)
   })
 
-  it('reads the standing in its trusted scope: a root provider of the same name is not seen (P-9)', async () => {
+  it('reads the standing in its trusted scope: a root provider of the same name is not seen', async () => {
     const scene = await installed()
     await attachedAndBound(scene)
     class Impostor extends TenantStandingSourceService {
@@ -457,7 +460,6 @@ describe('modelHostAuthority.resolve: read the acceptance, check the relation, i
         Promise.resolve({ kind: 'not-member', evidence: { record: 'impostor', revision: '0' } })
     }
     new Impostor(scene.fixture.root)
-    // The trusted provider answers member, so the call resolves; a root read would see `not-member`.
     expect(await scene.host.resolve({ tenant: TENANT, call: CALL })).toHaveProperty('ok')
     expect(scene.script.prepares).toHaveLength(1)
   })
@@ -466,7 +468,6 @@ describe('modelHostAuthority.resolve: read the acceptance, check the relation, i
     const scene = await installed()
     await attachedAndBound(scene)
     const target = { tenant: TENANT, call: CALL }
-    // The one system principal of the host is signed when the entry installs; M is signed per call.
     expect(scene.issues).toEqual({ system: 1, acting: 0 })
     const denials: readonly (() => void)[] = [
       () => (scene.script.acceptance = { ok: { ...ACCEPTED, tenant: OTHER } }),
@@ -494,7 +495,6 @@ describe('modelHostAuthority.resolve: read the acceptance, check the relation, i
     }
     expect(scene.issues.acting).toBe(0)
     expect(scene.script.prepares).toHaveLength(0)
-    // The counter is live: a call whose relation holds is signed exactly once.
     scene.script.acceptance = { ok: ACCEPTED }
     scene.script.standing = MEMBER
     expect(await scene.host.resolve(target)).toHaveProperty('ok')
@@ -567,10 +567,22 @@ describe('modelHostAuthority.resolve: read the acceptance, check the relation, i
     expect(bound.binding.executionChannel()).toMatchObject(unavailable)
     expect(bound.handle.executionChannel()).toMatchObject(unavailable)
     expect(await scene.host.resolve({ tenant: TENANT, call: CALL })).toMatchObject(unavailable)
-    // The host's own finally and the records row's effect close again idempotently.
     await bound.binding.releaseExecution()
     bound.handle.detach()
     expect(scene.script.closes).toBe(1)
+  })
+
+  it('the host gets the observation pair of the attachment: the same commands, the source behind the admission point; none after detach', async () => {
+    const scene = await installed()
+    const bound = await attachedAndBound(scene)
+    const pair = okOf(bound.binding.observation(), 'observation pair')
+    expect(pair.commands).toBe(bound.observation.commands)
+    expect(pair.source).not.toBe(bound.observation.source)
+    expect(pair.source.openHost()).toEqual(bound.observation.source.openHost())
+    bound.handle.detach()
+    expect(bound.binding.observation()).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: 'records-not-attached' },
+    })
   })
 
   it('a second records attachment is refused while one is attached; after detach the next one is accepted', async () => {
@@ -578,6 +590,7 @@ describe('modelHostAuthority.resolve: read the acceptance, check the relation, i
     const bound = await attachedAndBound(scene)
     const again = scene.records.attach(scene.fixture.root, {
       initial: scriptedInitial(scene.script),
+      observation: scriptedObservation(),
       qualification: bound.qualification,
     })
     expect(again).toMatchObject({ failure: { kind: 'unavailable' } })
@@ -592,6 +605,7 @@ describe('modelHostAuthority.resolve: read the acceptance, check the relation, i
     expect(
       scene.records.attach(scene.fixture.root, {
         initial: scriptedInitial(scene.script),
+        observation: scriptedObservation(),
         qualification: bound.qualification,
       }),
     ).toHaveProperty('ok')

@@ -1,6 +1,5 @@
 import { expectTypeOf, it } from 'vitest'
 
-// The implementation names belong to `@omne-harness/model`. The contract must not export them.
 // @ts-expect-error executeModel is an implementation function of model
 import type { executeModel } from '@omne-harness/model-contract'
 // @ts-expect-error createModelRuntime is an implementation factory of model

@@ -18,7 +18,6 @@ export type AssetHoldingDecision =
   | Readonly<{ kind: 'changed' | 'no_change'; holding: AssetHolding }>
   | Readonly<{ kind: 'rejected'; reason: 'revision_conflict' | 'removed' | 'invalid_selection' }>
 
-/** The owner supplies current qualification separately. Removing a holding never deletes work. */
 export function decideAssetHoldingChange(
   holding: AssetHolding,
   change: AssetHoldingChange,

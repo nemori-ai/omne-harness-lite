@@ -99,7 +99,6 @@ function ArchNodeView({ data }: NodeProps<ArchNode>) {
   )
 }
 
-/** The path is ELK's routed polyline; the island never computes geometry of its own. */
 function ElkEdgeView({ id, data, markerEnd, style }: EdgeProps<ArchEdge>) {
   if (data === undefined) return null
   return (
@@ -125,7 +124,6 @@ function ElkEdgeView({ id, data, markerEnd, style }: EdgeProps<ArchEdge>) {
   )
 }
 
-/** ⌘ on macOS, Ctrl elsewhere. Held: the wheel zooms the canvas. Released: the wheel scrolls the page. */
 export const ZOOM_KEYS = ['Meta', 'Control']
 
 const NODE_TYPES = { arch: ArchNodeView }
@@ -154,7 +152,6 @@ export function elementsOf(props: FlowProps): FlowElements {
       height: NODE_HEIGHT,
       ariaLabel: node.member ?? node.label,
       selected: node.id === props.focus,
-      // External code dependencies have no group to expand into; they are drawn, not navigated.
       selectable: node.kind !== 'external',
       focusable: node.kind !== 'external',
       data: {

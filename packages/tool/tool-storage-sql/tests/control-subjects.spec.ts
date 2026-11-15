@@ -119,7 +119,6 @@ it('preserves an opaque controller reference and its original source through a r
   const world = await ledgerWorld(TENANT_A)
   ok(await world.ledgerOver(first.store).admissions.admit(world.input))
   const operation = ok(decodeToolOperationId('controller-b-stop'))
-  // This reference is a fixture-issued locator, never a serialized production principal.
   const subject = {
     owner: 'test-identity-directory',
     record: 'controller-b',

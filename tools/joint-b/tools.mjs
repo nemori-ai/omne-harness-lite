@@ -1,18 +1,3 @@
-// 联调 B 的 S4 脚本：模型经 `Shell()` 与 `Files()` 在宿主上做事。
-// 判据来源：`slices.md` 的 S4 与波 2 边界页第五节「S4-1～S4-5、S4-7、S4-9」。
-//
-// 用法：
-//   node tools/joint-b/tools.mjs [--platform windows|linux] [--model-source real|replay]
-//                                [--evidence <目录>] [--keep]
-//
-// `--platform` 只标注证据，并核对与本机一致；跨平台由调用方分别在 Windows 宿主与 WSL 独立检出上各跑一遍，
-// 结果分别报告。没跑的一侧不算通过。
-// `--model-source` 与 `conversation.mjs` 相同：真实模型或获准回放要有授权。
-//
-// 判定三种：通过、失败、等件。观察不到的一律等件，不假通过。
-// 退出码：全部通过 0；有失败 1；只剩等件 3。
-//
-// 不改实现，不构造替身：只经构建产物起真进程，读宿主文件系统与只读打开的 SQLite 域文件。
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -42,13 +27,21 @@ import {
   REPLY_TIMEOUT_MS,
 } from './support.mjs'
 
-holdTestSlot(import.meta.url)
+holdTestSlot(
+  import.meta.url,
+  [
+    '用法：node tools/joint-b/tools.mjs [--definition <名>] [--platform windows|linux] [--model-source real|replay] [--evidence <目录>] [--keep]',
+    '联调 B 的工具判据（S4-1 到 S4-9）：Shell 同一会话执行两次并继承工作目录、命令记录、Files 读写与精确编辑、结果块、取消 Run。',
+    '--platform 只标注证据，并核对与本机一致，不一致记失败。--definition 缺省 coding。--model-source 同 conversation.mjs。',
+    'OMNE_JOINT_B_REPLY_MS 是单轮回复的等待上限（缺省 90000 毫秒）。先占一个运行名额，经构建产物起进程，产物不在时每步记等件。',
+    '证据缺省写到 tmp/m2-joint-b/tools/。退出码：全部通过 0，有失败 1，只剩等件 3。',
+  ].join('\n'),
+)
 
 const args = parseArgs(process.argv.slice(2))
 const HOST_PLATFORM = process.platform === 'win32' ? 'windows' : process.platform
 const PLATFORM = args.platform ?? HOST_PLATFORM
 
-/** 默认两类之外加 `run.started`：S4-7 靠它读 Run 标识。 */
 const HISTORY_KINDS = ['message.user', 'message.assistant', 'run.started']
 
 const READ_TOKEN = 'joint-b-read-token-7f3c9'
@@ -64,7 +57,7 @@ const BUILD_AWAIT =
 const REAL_ROWS_AWAIT =
   '树上替身行换进真件：模型侧同 conversation.mjs，加 tool-records、tool-runtime、tool-executor、' +
   'tool-instances、tool-environments 与 execution-environment、execution-files、execution-command、' +
-  'execution-host（见 README「S2～S4 依赖哪些行是真件」）；替身清单见证据文件的 doubleRows'
+  'execution-host；替身清单见证据文件的 doubleRows'
 const MODEL_SOURCE_AWAIT =
   '真实模型或获准回放的授权：以 --model-source real|replay 重跑，并在运维层给出模型凭据或回放记录'
 const RECORD_AWAIT =
@@ -108,7 +101,6 @@ async function main() {
   }
 }
 
-/** 一轮：发消息，等历史条目增长并稳定。返回这一轮之后的历史，没等到为 undefined。 */
 async function driveRound(tree, session, text, waitMs) {
   const before = (await readHistory(tree, session)).entries.length
   const sent = sendInput(tree, session, text)
@@ -131,7 +123,6 @@ async function driveRound(tree, session, text, waitMs) {
 const requestsOf = storageRoot => (modelCalls(storageRoot) ?? []).map(call => call.request)
 const TOOL_RESULT = /tool[_-]?result|function_call_output|toolResult/i
 
-/** 在目录下递归找文件名。 */
 function findFile(root, name) {
   for (const entry of readdirSync(root, { withFileTypes: true })) {
     const path = join(root, entry.name)
@@ -177,7 +168,6 @@ async function run(scratch) {
     const settle = (name, ok, detail, wait) =>
       rec.settle(name.slice(0, 4), name, ok, detail, wait ?? awaiting, doubles)
 
-    // ---- Shell
     await driveRound(
       tree,
       opened.session,
@@ -221,7 +211,6 @@ async function run(scratch) {
       REQUEST_AWAIT,
     )
 
-    // ---- Files
     await driveRound(
       tree,
       opened.session,
@@ -275,10 +264,8 @@ async function run(scratch) {
       REQUEST_AWAIT,
     )
 
-    // ---- 取消
     await cancelLongCommand(tree, scratch, opened.session, settle, doubles, waitMs)
 
-    // ---- 平台
     const stepChecks = checks.filter(entry => entry.step !== 'S4-9')
     const mismatch = PLATFORM !== HOST_PLATFORM
     if (mismatch)
@@ -305,7 +292,6 @@ async function run(scratch) {
   }
 }
 
-/** S4-7：发长命令，找到 Run，取消，核对终态与之后没有新动作。 */
 async function cancelLongCommand(tree, scratch, session, settle, doubles, waitMs) {
   const callsBefore = () => (modelCalls(scratch.storageRoot) ?? []).length
   const recordsBefore = () => (rowsOf(scratch.storageRoot, 'tl_record') ?? []).length

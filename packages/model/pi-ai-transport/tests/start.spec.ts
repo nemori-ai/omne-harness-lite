@@ -1,10 +1,8 @@
-// The starts that send nothing. The starts that send are in transport-exchange.spec.ts.
 import { afterEach, describe, expect, it } from 'vitest'
 import { openNetwork, type NetworkInternals } from '../src/network.ts'
 import type { PiTransport } from '../src/transport.ts'
 import { collect, slotFree, transportOver, type TransportUnderTest } from './support/transport.ts'
 
-// Nothing listens here: these starts never reach the network.
 const ROUTE_URL = 'https://127.0.0.1:9/v1/chat/completions'
 
 const networks: NetworkInternals[] = []
@@ -20,7 +18,6 @@ function setup(
 ): TransportUnderTest & { network: NetworkInternals } {
   const network = openNetwork({ maxConnections: 1, idleConnectionTimeoutMs: 1_000 })
   networks.push(network)
-  // The slot holds the one credential item of the test route, or nothing.
   const read = () => {
     const secret = credential()
     return secret === undefined ? undefined : new Map([['apiKey', secret]])

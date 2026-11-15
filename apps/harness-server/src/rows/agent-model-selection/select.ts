@@ -1,7 +1,3 @@
-// The selection itself, apart from the Cordis wiring: read the route that the Session saved, resolve
-// it through the profiles, and give the Agent a `SelectedModel`. Every failure is a failure. No
-// path here gives a model that the Session did not save, and none asks the profiles about a route
-// other than the saved one (Agent SPEC "模型选择" 3; Session SPEC "模型选择与切换": no silent swap).
 import type { Failure, ModelSelection } from '@omne-harness/agent-contract'
 import type { ModalityRequirement } from '@omne-harness/model-contract'
 import type { ModelProfilesService } from '@omne-harness/model-cordis-contract/cordis'
@@ -23,26 +19,11 @@ type ProfilesFailure = Extract<
   { failure: unknown }
 >['failure']
 
-/** The two things in a `select` call that the Agent does not state and the row must not guess. */
 export type SelectionBindings = Readonly<{
-  /**
-   * The session whose saved selection applies to this call. `select` carries an execution
-   * (`advance.execution`) but no session. The default binding locates the active Run of the
-   * execution through the execution index of the tenant and the Session snapshot
-   * (`../session-adapters/run-of-execution.ts`, see `index.ts`); a test passes its own.
-   */
   sessionOf(input: SelectInput): Promise<Outcome<SessionId, Failure>>
-  /**
-   * The modality the request needs, which the Agent contract says the selection port takes from the
-   * history evidence. The default asks for text only, with the history as the source.
-   */
   requirementOf(input: SelectInput): ModalityRequirement
 }>
 
-/**
- * What the row asks of the tree on every call. A `undefined` answer means the service is absent
- * now: the row does not keep a reference across calls.
- */
 export type SelectionPorts = Readonly<{
   readSelection(
     access: SessionAccess<unknown>,
@@ -59,7 +40,6 @@ const unavailable = (owner: string, diagnostic: string): Failure => ({
   diagnostic,
 })
 
-/** The Session read failures, in the Agent's words. The Session's own diagnostic text stays there. */
 function fromSession(failure: SessionFailure): Failure {
   switch (failure.kind) {
     case 'not-ready':
@@ -88,8 +68,6 @@ export async function selectModel(
   ports: SelectionPorts,
   input: SelectInput,
 ): Promise<Outcome<Selected, Failure>> {
-  // An alteration (an extension's `select_model` output) would have to be checked against locks and
-  // modalities. Nothing here can do that, so it is refused and not dropped.
   if (input.alterations.length > 0) return fail({ kind: 'unsupported' })
 
   const session = await ports.bindings.sessionOf(input)
@@ -138,8 +116,6 @@ export async function selectModel(
     recipient: { route, profile: resolution.profile.adoption },
     resolution: { ...resolution, selectable: true },
     parameters: resolution.profile.definition.parameters,
-    // The tools come from the runtime's own scope, which `select` receives. This row reads no tool
-    // description (known limitation); the evidence is the commit that saved the selection.
     tools: input.scope,
     evidence: saved.ok.source,
   })

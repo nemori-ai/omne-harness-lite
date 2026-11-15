@@ -19,7 +19,6 @@ const unavailable = () =>
     diagnostic: 'The original Agent source is not assembled.',
   })
 
-/** Each owner is read only for the branch that needs it; no runtime startup dependency. */
 export function permissionOriginsOf(ctx: Context): PermissionOrigins {
   return {
     action: {

@@ -18,7 +18,6 @@ export type SettingsSqlTerminal = z.infer<typeof terminalSchema>
 export type SettingsSqlTerminalResult =
   | Readonly<{ kind: 'terminal'; terminal: SettingsSqlTerminal }>
   | Readonly<{ kind: 'absent' | 'unavailable' | 'conflict' }>
-/** The storage, the domain and the registered combination that a Settings client commits with. */
 export type SettingsSqlTerminalOptions = Readonly<{
   storage: SqlStorage
   domain: DomainRef

@@ -12,7 +12,16 @@ try {
     bindingPort: base => ({
       ...base,
       start: async () =>
-        fail({ kind: 'unavailable', dependency: 'executor', diagnostic: 'refused' }),
+        fail({
+          kind: 'unsupported',
+          adoption: {
+            owner: 'test-owner',
+            name: 'executor',
+            revision: '1',
+            digest: 'sha256:executor',
+          },
+          reason: 'refused',
+        }),
     }),
     commands: base => ({
       ...base,

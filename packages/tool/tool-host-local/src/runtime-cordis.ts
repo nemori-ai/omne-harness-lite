@@ -2,11 +2,9 @@ import { createToolForwardRuntime } from '@omne-harness/tool'
 import type { ToolForwardRuntime } from '@omne-harness/tool-contract/provider'
 import type { Context } from '@deepseek-ai/cordis'
 import { fail } from '@omne-harness/operation-result'
-import type {
-  ToolInstanceHost,
-  ToolMessageContentBlock,
-} from '@omne-harness/tool-contract/provider'
+import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 import { ToolInstanceHostService } from '@omne-harness/tool-cordis-contract/cordis'
+import { executorCalls } from './call-liveness.ts'
 import { createRuntimeAuthorExecution, type RuntimeAuthorExecution } from './runtime-author.ts'
 import {
   createRuntimeDependencies,
@@ -19,7 +17,7 @@ import {
   type RuntimeEnvironment,
 } from './runtime-composition.ts'
 import { createRuntimeExecutor } from './runtime-executor.ts'
-import { publishRuntimeEnvironment } from './runtime-environments.ts'
+import { createMaintenanceEnvironment, publishRuntimeEnvironment } from './runtime-environments.ts'
 import { publishRuntimeFacade } from './runtime-facade.ts'
 import { publishRuntimeInstances } from './runtime-instances.ts'
 import {
@@ -27,14 +25,17 @@ import {
   publishRuntimeRecords,
   type RuntimeRecords,
 } from './runtime-records.ts'
-import { createLocalToolInstanceHost, createLocalToolInstanceIdentities } from './instance-host.ts'
+import {
+  createLocalToolInstanceHost,
+  createLocalToolInstanceIdentities,
+  type LocalToolInstanceHost,
+} from './instance-host.ts'
 import type { DeliveryPosition } from './result-delivery.ts'
 import { createLocalToolControlSubjects } from './control-subject-adapter.ts'
 
 export type { LocalToolRuntimeInput } from './runtime-composition.ts'
 export type { RuntimeAuthorExecution } from './runtime-author.ts'
 
-/** Each returned plugin belongs to its own fiber. All share one durable Tool ordering domain. */
 export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   const lifetime = new AbortController()
   const resolveSource = createRuntimeSourceAccess({
@@ -65,11 +66,19 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   }))
     if (!Number.isSafeInteger(value) || value < 1)
       throw new TypeError(`${key}: expected a positive safe integer`)
+  const rescan = input.recoveryRescanMs
+  if (
+    rescan !== undefined &&
+    (!Number.isSafeInteger(rescan) || rescan < 1 || rescan > 2_147_483_647)
+  )
+    throw new TypeError('recoveryRescanMs: expected an integer from 1 to 2147483647')
   let environment: RuntimeEnvironment | null = null
   let records: RuntimeRecords | null = null
-  let host: ToolInstanceHost<unknown> | null = null
+  let host: LocalToolInstanceHost<unknown> | null = null
   let executor: ReturnType<typeof createRuntimeExecutor> | null = null
   let retired = false
+  const calls = executorCalls({ executor: () => executor, retired: () => retired })
+  const maintenance = createMaintenanceEnvironment()
   let forwarding: ToolForwardRuntime<unknown> | undefined
   const bodyUnavailable = (operation: string) =>
     Promise.resolve(
@@ -108,19 +117,7 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   }
   const dependencies = (ctx: Context) => {
     if (records === null) throw new Error('Tool records are not ready.')
-    return createRuntimeDependencies(
-      ctx,
-      input,
-      stages,
-      records,
-      () => host,
-      (wake, purpose) =>
-        !retired &&
-        executor !== null &&
-        (wake === null ? executor.live() : executor.remember(wake, purpose)),
-      wake => executor?.rejectAdmission(wake),
-      wake => executor?.knows(wake) ?? false,
-    )
+    return createRuntimeDependencies(ctx, input, stages, records, () => host, calls)
   }
   const close = async () => {
     retired = true
@@ -133,8 +130,6 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
         `Tool body custody remains unresolved during retirement: ${bodyClose.failure.kind}`,
       )
   }
-  // A named type keeps the declaration on RuntimeAuthorExecution; an inferred one would inline
-  // exchange-refs types that this member does not depend on.
   const publicAuthorExecution: RuntimeAuthorExecution = {
     scope: authorExecution.scope,
     settle: authorExecution.settle,
@@ -202,6 +197,8 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
       apply(ctx: Context) {
         if (executor !== null || retired)
           throw new Error('This Tool executor generation has retired.')
+        const recovery = records?.ledger.recovery
+        if (recovery === undefined) throw new Error('Tool records are not ready.')
         executor = createRuntimeExecutor({
           ctx,
           settings: input,
@@ -213,6 +210,9 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
                 : records.ledger.delivery.read(request),
           },
           receiver: consumer => receivers.current(consumer),
+          recovery,
+          instance: () => host?.instance ?? null,
+          maintenance: maintenance.current,
         })
         ctx.effect(() => close)
       },
@@ -229,6 +229,7 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
         })
       },
     },
+    maintenance: maintenance.plugin,
     close,
     diagnostics: () => ({
       retired,

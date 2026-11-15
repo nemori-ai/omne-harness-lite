@@ -4,8 +4,6 @@ import { fileURLToPath } from 'node:url'
 import ts from '@typescript/typescript6'
 import { expect, it } from 'vitest'
 
-// The root entry must not reach Cordis, directly or through a leaf file. The check walks the
-// relative imports of the built entry, so a type re-export from a leaf that imports Cordis is found.
 const dist = fileURLToPath(new URL('../dist/', import.meta.url))
 
 function reach(entry: string, suffix: string): { files: string[]; specifiers: string[] } {

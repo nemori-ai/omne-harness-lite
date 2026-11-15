@@ -1,8 +1,4 @@
 // @module-tag slow
-// Tool commits on the real SQLite provider keep no SQL receipt (sql-contract §3.1, acceptance C10):
-// the ledger recognises its own outcomes from its records and the body store from its manifests,
-// so a whole call (admission, preparation, start, final with an offloaded body, settlement) adds
-// no row to `_sql_receipt` of the tenant database.
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -37,14 +33,18 @@ it('a settled call with an offloaded body adds no SQL receipt to the tenant data
           return opened.storage.commit(...args)
         },
       }
-      const options = { storage, domains: opened.domains, combination: opened.combination }
+      const options = {
+        storage,
+        domains: opened.domains,
+        tenants: opened.tenants,
+        combination: opened.combination,
+      }
       const before = receipts(root, domain)
       const live = await settledOffloaded(
         { store: createSqlToolLedgerStore(options), options },
         TENANT_A,
       )
       expect(live.value.original.kind).toBe('offloaded')
-      // Admission, preparation, start, the body (chunks and seal), the final and the settlement.
       expect(commits).toBeGreaterThanOrEqual(8)
       expect(receipts(root, domain)).toBe(before)
     } finally {

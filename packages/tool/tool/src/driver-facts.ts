@@ -209,6 +209,7 @@ export function createFactDriver<P, B extends ContentBlock, E>(
     step: Step<P>,
     recovery: ToolRecovery,
     cancelled: () => boolean,
+    ended: () => Promise<Result | null> = () => Promise.resolve(null),
   ): Promise<Result> => {
     const start = recovery.start
     if (start === null) return { kind: 'blocked', diagnostic: 'a facts task has no original start' }
@@ -278,6 +279,10 @@ export function createFactDriver<P, B extends ContentBlock, E>(
         return result
       }
       close(key, session)
+      if (ready.kind === 'ended') {
+        const next = await ended()
+        if (next !== null) return next
+      }
       void session.closing?.then(() => {
         if (!session.signal.aborted && !step.signal.aborted)
           wake({ ...step, signal: session.signal }, true)

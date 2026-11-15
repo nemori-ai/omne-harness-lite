@@ -23,7 +23,7 @@ async function assembly(register: SqlStorage['registerCombination']) {
   const registered = vi.fn()
   const dependency = await root.plugin({
     apply(ctx: Context) {
-      ctx.provide('storage', { registerCombination: register })
+      ctx.provide('storage', { database: {}, registerCombination: register })
       ctx.provide('sessionAccessCheck', {})
       ctx.provide('s0.assemblyLifecycle', { register: registered })
     },

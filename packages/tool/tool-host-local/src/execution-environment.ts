@@ -43,7 +43,6 @@ import {
 } from './environment-state.ts'
 
 export type EnvPreparationInput<P> = Parameters<ToolEnvironment<P, unknown>['prepare']>[0]
-/** Without `processes` no one-shot command is retained. */
 export type EnvironmentRetention = Readonly<{
   scope: ScopeRef
   ledger: RetainedTerminalLedger
@@ -97,7 +96,10 @@ export function createLocalEnvironmentPlanResolver<P>(
         { principal: request.principal, tenant: request.tenant },
         { scope: binding.ok.scope, requirement: required.ok },
       )
-      if (placement.kind !== 'placement') return environmentFailure(`placement ${placement.kind}`)
+      if (placement.kind === 'rejected')
+        return environmentFailure(`placement rejected: ${placement.reason}`)
+      if (placement.kind === 'unknown')
+        return environmentFailure(`placement unknown: ${placement.cause}`)
       if (canonicalDigest(placement.requirement) !== canonicalDigest(required.ok))
         return environmentFailure('placement requirement mismatch')
       const facts = await input.facts(placement)
@@ -173,6 +175,17 @@ function terminalPreparation(
     default:
       return undefined
   }
+}
+
+function coldPreparation(record: EnvironmentState): PreparationProgress<ToolEnvironmentValue> {
+  return (
+    terminalPreparation(record) ?? {
+      kind: 'lost',
+      evidence: record.evidence,
+      diagnostic:
+        'the environment was acquired by a process that is gone; its record keeps the cleanup',
+    }
+  )
 }
 
 function inspectedState(
@@ -398,7 +411,7 @@ export function createLocalExecutionEnvironment<P>(
       return fail({ kind: 'conflict', operation: request.preparation.operation })
     if (existing.ok?.closed) return environmentFailure('original acquisition is closed')
     const local = live.get(key(request.preparation))
-    if (existing.ok && !local) return inspect(request, existing.ok)
+    if (existing.ok && !local) return succeed(coldPreparation(existing.ok))
     const plan = await input.plans.resolve(request)
     if ('failure' in plan) return plan
     if (
@@ -549,9 +562,6 @@ export function createLocalExecutionEnvironment<P>(
         ...record,
         closed: true,
         release: { record: record.release.record, confirmed: true },
-        // The acquisition's duty for every resource ends here: the release stopped the ones it
-        // still owned, and a handed-over one belongs to its retention scope, which shows it as
-        // `handedOver` for as long as it holds it.
         resources: record.resources.map(resource => ({ ...resource, stop: 'confirmed' })),
         evidence: record.release.confirmed
           ? record.evidence
@@ -588,6 +598,7 @@ export function createLocalExecutionEnvironment<P>(
       if (!found.ok) return unknown('original preparation unavailable')
       if (found.ok.digest !== digest(checked.ok))
         return fail({ kind: 'conflict', operation: checked.ok.preparation.operation })
+      if (!live.has(key(checked.ok.preparation))) return succeed(coldPreparation(found.ok))
       return inspect(checked.ok, found.ok)
     },
     release: request => release(request, false),

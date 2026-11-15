@@ -1,32 +1,21 @@
-// The facts that the adapters put into one `tool` command, the answers the participant gives, and
-// the inputs and outputs of the read handlers. The adapters build these values and the Worker
-// modules parse them, so the protocol has one definition. Every value is strict JSON.
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { countOf, isObject, textOf, type JsonObject } from './support.ts'
 
-/** The three ledger domain kinds; `name` is the call, the queue key or the host key. */
 export type DomainKind = 'call' | 'queue' | 'host'
 
 export type DomainAddress = Readonly<{ tenant: string; kind: DomainKind; name: string }>
 
-/**
- * The part of a record that never changes after its first write. `given` carries it; `kept` says
- * that the store already holds it, so the command does not carry it again.
- */
 export type FixedPart = Readonly<{ kind: 'given'; value: JsonValue }> | Readonly<{ kind: 'kept' }>
 
 export type LedgerWriteFact =
-  /** `record` is the part that changes. A record with no fixed part has no `fixed`. */
   | Readonly<{ op: 'put'; key: string; record: JsonValue; fixed?: FixedPart }>
   | Readonly<{ op: 'delete'; key: string }>
   | Readonly<{ op: 'schedule'; key: string; dueAt: string }>
   | Readonly<{ op: 'unschedule'; key: string }>
   | Readonly<{ op: 'drop' }>
 
-/** A domain of the same tenant whose revision must still hold when the commit is applied. */
 export type LedgerAssertionFact = Readonly<{ kind: DomainKind; name: string; revision: string }>
 
-/** One revision-conditioned commit of one ledger domain, with its read-set assertions. */
 export type LedgerFacts = DomainAddress &
   Readonly<{
     intent: 'ledger'
@@ -34,9 +23,9 @@ export type LedgerFacts = DomainAddress &
     revision: string
     writes: readonly LedgerWriteFact[]
     asserts: readonly LedgerAssertionFact[]
+    pending?: boolean
   }>
 
-/** The address of one body of the body store. */
 export type BodyAddress = Readonly<{ tenant: string; call: string; body: string }>
 
 export type BodyPutFacts = BodyAddress & Readonly<{ intent: 'body-put'; seq: number; data: string }>
@@ -50,16 +39,11 @@ export type BodyFacts = BodyPutFacts | BodySealFacts | BodyDeleteFacts
 
 export type ToolFacts = LedgerFacts | BodyFacts
 
-/** Why the participant stopped a command; the adapters map each reason to one port answer. */
 export type StopBasis =
   | Readonly<{ reason: 'revision'; current: string }>
-  /** An assertion did not hold; `current` is the revision of the written domain. */
   | Readonly<{ reason: 'assertion'; current: string }>
-  /** A `put` said `kept`, and the store holds no fixed part under the key. */
   | Readonly<{ reason: 'fixed-missing' }>
-  /** The body holds other bytes at the sequence number, or another manifest seals it. */
   | Readonly<{ reason: 'body-conflict' }>
-  /** The chunks do not hold what the manifest declares. */
   | Readonly<{ reason: 'body-not-ready'; diagnostic: string }>
 
 export type ParticipantAnswer =
@@ -68,16 +52,18 @@ export type ParticipantAnswer =
   | Readonly<{ kind: 'body-sealed' }>
   | Readonly<{ kind: 'body-deleted' }>
 
-/**
- * One stored record with the key it is stored under, so the reader can check the two agree.
- * `fixed` is the fixed part of the record, when it has one.
- */
 export type StoredRecord = Readonly<{ key: string; record: JsonValue; fixed?: JsonValue }>
 
 export type LedgerReadOutput = Readonly<{
   revision: string | null
   records: readonly StoredRecord[]
 }>
+
+export type PendingReadInput = Readonly<{ tenant: string; after: string | null; limit: number }>
+
+export type PendingReadOutput = Readonly<{ calls: readonly string[]; more: boolean }>
+
+export const PENDING_READ_LIMIT = 1000
 
 export type BodyReadInput = BodyAddress & Readonly<{ first: number; count: number }>
 
@@ -91,10 +77,6 @@ export type DueReadInput = Readonly<{ tenant: string; now: string; limit: number
 export type DueReadOutput = Readonly<{
   entries: readonly Readonly<{ kind: DomainKind; name: string; key: string; dueAt: string }>[]
 }>
-
-// ---------------------------------------------------------------------------------------------
-// The parse of the facts and handler inputs, where they enter a Worker module
-// ---------------------------------------------------------------------------------------------
 
 const isDomainKind = (value: JsonValue | undefined): value is DomainKind =>
   value === 'call' || value === 'queue' || value === 'host'
@@ -200,10 +182,13 @@ function ledgerOf(value: JsonObject): LedgerFacts | null {
   if (!parsed.every((write): write is LedgerWriteFact => write !== null)) return null
   const assertions = asserts.map(assertionOf)
   if (!assertions.every((item): item is LedgerAssertionFact => item !== null)) return null
-  return { ...domain, intent: 'ledger', expected, revision, writes: parsed, asserts: assertions }
+  const facts = { ...domain, intent: 'ledger', expected, revision, writes: parsed } as const
+  const pending = value['pending']
+  if (pending === undefined) return { ...facts, asserts: assertions }
+  if (typeof pending !== 'boolean' || domain.kind !== 'call') return null
+  return { ...facts, asserts: assertions, pending }
 }
 
-/** The facts of one `tool` command, or null when they are not a command of this protocol. */
 export function parseFacts(facts: JsonObject): ToolFacts | null {
   switch (facts['intent']) {
     case 'ledger':
@@ -219,6 +204,15 @@ export function parseFacts(facts: JsonObject): ToolFacts | null {
 
 export function parseDomainAddress(value: JsonValue): DomainAddress | null {
   return isObject(value) ? domainOf(value) : null
+}
+
+export function parsePendingInput(value: JsonValue): PendingReadInput | null {
+  if (!isObject(value)) return null
+  const tenant = textOf(value, 'tenant')
+  const after = value['after'] === null ? null : textOf(value, 'after')
+  const limit = countOf(value, 'limit')
+  if (tenant === null || (after === null && value['after'] !== null) || limit === null) return null
+  return limit < 1 || limit > PENDING_READ_LIMIT ? null : { tenant, after, limit }
 }
 
 export function parseBodyReadInput(value: JsonValue): BodyReadInput | null {

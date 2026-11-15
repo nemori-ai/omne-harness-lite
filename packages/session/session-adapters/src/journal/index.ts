@@ -1,5 +1,3 @@
-// The fact family of the Agent Journal: the facts, the batch and row shapes, the pure fold, the
-// answer derivation and the generic part of decide. See SPEC "事实族与折叠核".
 export {
   BATCH_MAX_FACTS,
   BATCH_OVERHEAD_BYTES,
@@ -39,17 +37,15 @@ export type {
   Ref,
   ResultStage,
 } from './facts.ts'
+export { advances, fold, foldAll } from './fold.ts'
 export {
-  advances,
   emptyExecutionView,
   emptySessionView,
-  fold,
-  foldAll,
   handoffKey,
   openCalls,
   viewDigest,
   viewText,
-} from './fold.ts'
+} from './view.ts'
 export type {
   AdmissionView,
   AttachmentView,
@@ -68,7 +64,7 @@ export type {
   RequestView,
   ResultView,
   SessionJournalView,
-} from './fold.ts'
+} from './view.ts'
 export {
   answer,
   answeredRevision,
@@ -88,4 +84,5 @@ export {
   keyKnown,
   movedMembers,
 } from './decide.ts'
+export { modelAttempt, voidedFacts } from './voided.ts'
 export type { BatchRefusal, Blob, BlobStore } from './decide.ts'

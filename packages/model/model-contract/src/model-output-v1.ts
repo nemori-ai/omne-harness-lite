@@ -1,3 +1,4 @@
+import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { VisibleBlock } from './call-surface.ts'
 import type { CallState } from './result.ts'
@@ -109,6 +110,64 @@ function fromInternal(
   )
 }
 
+function jsonOf(plain: unknown): JsonValue {
+  if (plain === null) return { kind: 'null' }
+  switch (typeof plain) {
+    case 'string':
+      return { kind: 'string', value: plain }
+    case 'boolean':
+      return { kind: 'boolean', value: plain }
+    case 'number':
+      return Number.isFinite(plain)
+        ? { kind: 'number', lexeme: JSON.stringify(plain) }
+        : { kind: 'null' }
+    case 'object':
+      if (Array.isArray(plain))
+        return {
+          kind: 'array',
+          items: plain.map(item => (written(item) ? jsonOf(item) : { kind: 'null' })),
+        }
+      return {
+        kind: 'object',
+        entries: Object.entries(plain)
+          .filter(([, value]) => written(value))
+          .map(([key, value]) => ({ key, value: jsonOf(value) })),
+      }
+    default:
+      throw new TypeError(`a ${typeof plain} is not JSON data`)
+  }
+}
+
+function written(value: unknown): boolean {
+  return value !== undefined && typeof value !== 'function' && typeof value !== 'symbol'
+}
+
+function project(
+  input: ModelOutputV1 | ModelStreamSnapshot | ModelStreamDelta,
+  basePhase: CallState['phase'] | undefined,
+): Outcome<JsonValue, ModelOutputV1Failure> {
+  try {
+    const result = 'projection' in input ? projection(input, true) : fromInternal(input, basePhase)
+    return 'failure' in result ? result : { ok: jsonOf(result.ok) }
+  } catch {
+    return reject('unreadable')
+  }
+}
+
+export function projectModelOutputV1(
+  input: ModelOutputV1 | ModelStreamSnapshot,
+): Outcome<JsonValue, ModelOutputV1Failure>
+export function projectModelOutputV1(
+  input: ModelStreamDelta,
+  basePhase: CallState['phase'],
+): Outcome<JsonValue, ModelOutputV1Failure>
+export function projectModelOutputV1(
+  input: ModelOutputV1 | ModelStreamSnapshot | ModelStreamDelta,
+  basePhase?: CallState['phase'],
+): Outcome<JsonValue, ModelOutputV1Failure> {
+  return project(input, basePhase)
+}
+
 export function encodeModelOutputV1(
   input: ModelOutputV1 | ModelStreamSnapshot,
 ): Outcome<string, ModelOutputV1Failure>
@@ -120,15 +179,10 @@ export function encodeModelOutputV1(
   input: ModelOutputV1 | ModelStreamSnapshot | ModelStreamDelta,
   basePhase?: CallState['phase'],
 ): Outcome<string, ModelOutputV1Failure> {
-  try {
-    const result = 'projection' in input ? projection(input, true) : fromInternal(input, basePhase)
-    return 'failure' in result ? result : { ok: JSON.stringify(result.ok) }
-  } catch {
-    return reject('unreadable')
-  }
+  const value = project(input, basePhase)
+  return 'failure' in value ? value : { ok: writeJsonText(value.ok) }
 }
 
-/** Decode the display value only: omitted CallState facts cannot be reconstructed. */
 export function decodeModelOutputV1(text: unknown): Outcome<ModelOutputV1, ModelOutputV1Failure> {
   if (typeof text !== 'string') return reject('type')
   let value: unknown

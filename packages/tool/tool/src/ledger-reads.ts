@@ -1,7 +1,3 @@
-// The read projections of one domain snapshot: lookup, operation resolution, result pages and the
-// call account (P01, P08, P09). They project `not-accepted` or `not-committed` only from a
-// complete snapshot; the ledger answers such a negative only after its exclusion fence commits,
-// and answers `unavailable` when the read itself failed.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -12,27 +8,23 @@ import type {
   ToolLookup,
   ToolOperationId,
   ToolResultVersion,
+  ToolStartRecord,
   ToolResult,
 } from '@omne-harness/tool-contract'
 import type { ToolRecovery } from '@omne-harness/tool-contract/provider'
 import { invalid } from './boundary.ts'
 import { pageToolResult } from './result-page.ts'
 import { factProgress } from './ledger-facts.ts'
-import { mintEvidence } from './evidence.ts'
+import { digestOf, mintEvidence } from './evidence.ts'
 import type { Snapshot } from './ledger-decider.ts'
 import type { CallAccount, ResultRecord } from './ledger-store.ts'
 
-/**
- * The current call state located by `admission`.
- * An absent admission in a complete snapshot is not accepted.
- */
 export function lookupCall(snapshot: Snapshot, admission: ToolOperationId): ToolLookup {
   const call = snapshot.call
   if (call !== null && call.admission === admission) return { kind: 'found', state: call.state }
   return { kind: 'not-accepted', operation: admission }
 }
 
-/** The resolution of one operation. The receipt evidence points at the operation record. */
 export function resolveOperation(
   snapshot: Snapshot,
   operation: ToolOperationId,
@@ -54,7 +46,6 @@ export type PageInput = Readonly<{
   adoption: Adoption
 }>
 
-/** The result record a read names, or why it cannot be read: not settled, or unknown version. */
 export function resultRecord(
   snapshot: Snapshot,
   version: ToolResultVersion,
@@ -67,11 +58,6 @@ export function resultRecord(
   return fail({ kind: 'not-found', target: 'result', reason: 'missing' })
 }
 
-/**
- * One page of a result version (P08). Pages cut between whole content blocks; every page carries
- * the same data, original and attachments of the version; `next` binds tenant, call, version,
- * projection and the next block position.
- */
 export function readResultPage<B extends ContentBlock>(
   snapshot: Snapshot,
   input: PageInput,
@@ -95,12 +81,6 @@ export function readResultPage<B extends ContentBlock>(
   )
 }
 
-/**
- * The complete recovery read of a call (P01 loadRecovery): what the call domain holds of its
- * way to a start, its tasks and its first result. Waits, controls, suspensions, raw outputs,
- * program closure and scheduling are empty until their increments record them. Fact streams
- * project the saved cursor and the original receipts whose source confirmation is pending.
- */
 export function readRecovery(snapshot: Snapshot): Outcome<ToolRecovery, ToolFailure> {
   const call = snapshot.call
   if (call === null) return invalid('call', 'unknown-call')
@@ -112,16 +92,18 @@ export function readRecovery(snapshot: Snapshot): Outcome<ToolRecovery, ToolFail
     admission: call.admission,
     initiator: call.initiator,
     execution: call.execution,
-    checkpoint: null,
+    checkpoint: call.state.phase === 'suspended' ? call.state.checkpoint : null,
     start: call.start,
     startRejection: call.startRejection,
-    invocations: call.start === null ? [] : [call.start],
+    invocations: invocationChain(snapshot),
     controls: call.state.controls,
     result: original === undefined ? null : { version: original.result, source: original.source },
     unresolved: [],
     preparations: call.preparations,
-    waits: [],
-    suspensions: [],
+    waits: [...snapshot.waits.values()].map(wait => wait.record),
+    waitRequest: snapshot.waitRequest,
+    suspensions: [...snapshot.suspensions.values()].map(entry => entry.suspension),
+    checkpointState: snapshot.checkpointState,
     tasks: snapshot.tasks,
     program: null,
     scheduling: null,
@@ -129,7 +111,22 @@ export function readRecovery(snapshot: Snapshot): Outcome<ToolRecovery, ToolFail
   })
 }
 
-/** The current account of the call: the latest revision of the one recorded source. */
+function invocationChain(snapshot: Snapshot): ToolStartRecord[] {
+  const chain: ToolStartRecord[] = []
+  let current = snapshot.call?.start ?? null
+  while (current !== null && chain.length <= snapshot.suspensions.size) {
+    chain.unshift(current)
+    if (current.kind !== 'resume') break
+    const { checkpoint } = current
+    const before = [...snapshot.suspensions.values()].find(
+      entry =>
+        entry.checkpoint !== null && digestOf(entry.checkpoint.payload) === digestOf(checkpoint),
+    )
+    current = before?.suspension.start ?? null
+  }
+  return chain
+}
+
 export function readAccount(snapshot: Snapshot): Outcome<CallAccount, ToolFailure> {
   if (snapshot.call === null) return invalid('call', 'unknown-call')
   const latest = snapshot.accounts.at(-1)

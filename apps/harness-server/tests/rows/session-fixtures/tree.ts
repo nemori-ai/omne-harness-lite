@@ -1,8 +1,3 @@
-// Assembly fixture of the session-side row tests. `loadTree` starts the given rows with the given
-// entry objects under the trust table of the release (`serveProfile().visibility`), as
-// `loadStorageTree` does for the storage rows, and hands out the root, the row states and the
-// ordered shutdown. `storageRows` is the real storage, the authorization double and the real
-// `session-storage` row that most session-side rows need below them. It does not import vitest.
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -17,6 +12,7 @@ import {
 import { sessionWorkPrincipals } from '../../../src/entry/session-work-principals.ts'
 import { storageHost } from '../../../src/entry/storage-host.ts'
 import { LifecycleRegistry, S0AssemblyLifecycleService } from '../../../src/lifecycle.ts'
+import { tenantDomainScannerPrincipal } from '../../../src/entry/tenant-domain-scanner.ts'
 import { disposeTree, startTree, type EntryObject, type RowSpec } from '../../../src/loader.ts'
 import { serveProfile } from '../../../src/profile.ts'
 import { sessionStorageRow } from '../../../src/rows/session-storage/index.ts'
@@ -42,7 +38,6 @@ import {
 
 export { declared }
 
-/** The entry objects of the storage rows and of the principals, which every tree below needs. */
 export const BASE_ENTRY_OBJECTS: readonly EntryObjectModule[] = [
   storageHost,
   cursorSigning,
@@ -50,11 +45,11 @@ export const BASE_ENTRY_OBJECTS: readonly EntryObjectModule[] = [
   principalIssuer,
   sessionPrincipals,
   sessionWorkPrincipals,
+  tenantDomainScannerPrincipal,
 ]
 
 export type Base = Readonly<{ stateRoot: string; storageRoot: string; directoryFile: string }>
 
-/** A fresh state and storage directory; `release` removes it. */
 export function makeBase(): Base & Readonly<{ release(): void }> {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'rows-session-')))
   const stateRoot = dir
@@ -72,7 +67,6 @@ export type StorageRows = Readonly<{
   check: ScriptedSessionAccessCheck<string>
 }>
 
-/** `storage`, the `authorization` contract double and `session-storage`, in load order. */
 export function storageRows(base: Base, policy: AccessPolicy = allowAll): StorageRows {
   const access = accessPolicyRow(policy)
   return {
@@ -94,7 +88,6 @@ export type TreeOptions = Readonly<{
   rows: readonly RowSpec[]
   entryObjects?: readonly EntryObjectModule[]
   readinessTimeoutMs?: number
-  /** Extra trusted names for a probe row of this test, on top of the table of the release. */
   visibility?: ReadonlyMap<RowId, readonly ServiceName[]>
 }>
 

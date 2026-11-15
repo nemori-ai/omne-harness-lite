@@ -1,5 +1,3 @@
-// The bounded capturing double of the telemetry port, for tests of the emitting domains. It does
-// not import Cordis.
 import {
   DISCARD_REASONS,
   TELEMETRY_LIMITS,
@@ -24,7 +22,6 @@ import { dataMembers } from '../limits.ts'
 type CapturedValues = Readonly<Record<string, string | number | boolean>>
 type SegmentOutcome = 'ok' | 'failure' | 'unknown'
 
-/** One admitted record, with the snapshot of the binding that it was made under. */
 export type CapturedRecord =
   | Readonly<{
       kind: 'event'
@@ -70,7 +67,6 @@ const PATCH_KEYS = ['work', 'attempt', 'call', 'adopted', 'links'] as const
 const OUTCOMES: readonly unknown[] = ['ok', 'failure', 'unknown']
 const SIGNALS: readonly unknown[] = ['event', 'metric', 'segment']
 const DISCARDABLE: readonly unknown[] = DISCARD_REASONS
-// A list longer than any binding limit is not copied: validation rejects it as it is.
 const COPY_LIMIT = Math.max(TELEMETRY_LIMITS.maxLinks, TELEMETRY_LIMITS.maxAdopted)
 
 function signalOf(definition: unknown): unknown {
@@ -82,7 +78,6 @@ function hasSignal(definition: unknown, signal: string): boolean {
   return signalOf(definition) === signal
 }
 
-/** A frozen copy of plain data, so that later changes by the caller do not reach a record. */
 function copyData(value: unknown): unknown {
   if (Array.isArray(value))
     return value.length > COPY_LIMIT ? value : Object.freeze(value.map(copyData))
@@ -93,18 +88,15 @@ function copyData(value: unknown): unknown {
   )
 }
 
-/** A frozen, validated copy of a binding, or undefined when the binding is not valid. */
 function snapshot(input: unknown): Binding | undefined {
   try {
     const read = dataMembers(input)
     if (read.kind !== 'members') return undefined
-    // The scope keeps its identity: legal-identity recognizes the minted object, not a copy.
     const copy = Object.freeze(
       Object.fromEntries(
         [...read.members].map(([key, value]) => [key, key === 'scope' ? value : copyData(value)]),
       ),
     )
-    // Validation reads the copy, so what was checked is what is kept.
     const binding = copy as Binding
     return validateBinding(binding).kind === 'ok' ? binding : undefined
   } catch {
@@ -126,17 +118,9 @@ function patched(binding: Binding, patch: unknown): Binding | undefined {
 function copyValues(values: unknown): CapturedValues {
   const read = dataMembers(values)
   if (read.kind !== 'members') return Object.freeze({})
-  // validateFields admitted these values: string keys with string, number or boolean values.
   return Object.freeze(Object.fromEntries(read.members)) as CapturedValues
 }
 
-/**
- * Creates a capturing double of the telemetry port. It admits records in call order up to
- * `capacity` (default 1024) and drops the rest with `capacity`. It checks bindings with
- * `validateBinding` and fields with `validateFields`: an invalid record is dropped with `invalid`
- * and is not captured. `dropped()` counts every dropped record, including each `discard`. No
- * operation throws. Throws TypeError for a capacity that is not a positive integer.
- */
 export function createCapturingTelemetry(options: Readonly<{ capacity?: number }> = {}): {
   readonly port: TelemetryPort
   records(): readonly CapturedRecord[]
@@ -162,7 +146,6 @@ export function createCapturingTelemetry(options: Readonly<{ capacity?: number }
     return ADMITTED
   }
 
-  /** Runs one operation; an input that throws while it is read is dropped as invalid. */
   function guarded<T>(operation: () => T | Dropped): T | Dropped {
     try {
       return operation()
@@ -219,9 +202,7 @@ export function createCapturingTelemetry(options: Readonly<{ capacity?: number }
     place.onRelease = undefined
     try {
       notify?.()
-    } catch {
-      // Release is complete even when its observer fails.
-    }
+    } catch {}
   }
 
   function startedSegment(
@@ -261,7 +242,6 @@ export function createCapturingTelemetry(options: Readonly<{ capacity?: number }
             binding,
             definition,
             segment: carrier,
-            // OUTCOMES holds exactly the three outcomes.
             outcome: outcome as SegmentOutcome,
           })
           return ended
@@ -321,12 +301,10 @@ export function createCapturingTelemetry(options: Readonly<{ capacity?: number }
     })
   }
 
-  /** A record the caller could not form: counted under its reason; nothing is captured. */
   function discard(definition: unknown, reason: unknown): Dropped {
     return guarded(() => {
       if (!SIGNALS.includes(signalOf(definition)) || !DISCARDABLE.includes(reason))
         return drop('invalid')
-      // DISCARDABLE holds exactly the discard reasons.
       return drop(reason as Dropped['reason'])
     })
   }

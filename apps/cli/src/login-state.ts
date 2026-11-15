@@ -3,7 +3,6 @@ import { readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:
 import { join } from 'node:path'
 import { parseTenantText } from '@omne-harness/sdk'
 
-/** The content of `login.json` in the state directory. `loginProof` exists nowhere else. */
 export interface LoginState {
   readonly version: 1
   readonly server: string
@@ -11,7 +10,6 @@ export interface LoginState {
   readonly issuedAt: string
   readonly tenantId: string
   readonly loginProof: string
-  /** The identifier of this login, kept so `revoke-login` can end it. Absent when the server sent none. */
   readonly loginId?: string
 }
 
@@ -40,16 +38,10 @@ function errorCode(error: unknown): string | undefined {
   return typeof error.code === 'string' ? error.code : undefined
 }
 
-/** True when the mode lets the group or any other user read, write, or run the file. */
 export function otherUsersCanRead(mode: number): boolean {
   return (mode & 0o077) !== 0
 }
 
-/**
- * Writes the file through a temporary file in the same directory and a rename, so a failure
- * leaves the old file as it was. The file is created with mode 0600. On Windows the mode has no
- * effect and the file keeps the access rules of its directory.
- */
 export function writeLoginState(directory: string, state: LoginState): LoginStateWrite {
   const path = loginStatePath(directory)
   const temporary = join(directory, `${fileName}.${randomBytes(6).toString('hex')}.tmp`)
@@ -63,7 +55,6 @@ export function writeLoginState(directory: string, state: LoginState): LoginStat
   }
 }
 
-/** Deletes the file. A file that is already gone counts as removed. */
 export function removeLoginState(directory: string): LoginStateRemove {
   const path = loginStatePath(directory)
   try {
@@ -91,15 +82,9 @@ function shapeOf(value: unknown): LoginState | undefined {
 }
 
 export interface LoginStateReadOptions {
-  /** Refuse a file that other users can read. The default is on for every platform except Windows. */
   readonly checkPermissions?: boolean
 }
 
-/**
- * Reads the login file. A missing file or directory is "not logged in". On POSIX the file must not
- * be readable by group or others. On Windows no permission is checked, because the mode bits there
- * say nothing about the access control list.
- */
 export function readLoginState(
   directory: string,
   options: LoginStateReadOptions = {},

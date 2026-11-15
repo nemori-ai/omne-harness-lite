@@ -1,0 +1,60 @@
+{
+  "name": "@omne-harness/schedule-local",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local Schedule application, calculation workers and SQL management persistence",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "source": "./src/cordis.ts",
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/schedule": "workspace:*",
+    "@omne-harness/schedule-contract": "workspace:*",
+    "@omne-harness/schedule-cordis-contract": "workspace:*",
+    "@omne-harness/sql-contract": "workspace:*",
+    "canonicalize": "5.1.0",
+    "piscina": "5.3.2",
+    "zod": "catalog:",
+    "@omne-harness/calendar-cordis-contract": "workspace:*",
+    "@omne-harness/calendar": "workspace:*"
+  },
+  "devDependencies": {
+    "@omne-harness/sqlite-provider": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "@omne-harness/calendar-contract": "workspace:*",
+    "@omne-harness/calendar-local": "workspace:*",
+    "@omne-harness/calendar-tools": "workspace:*",
+    "@omne-harness/schedule-tools": "workspace:*",
+    "@omne-harness/tool": "workspace:*",
+    "@omne-harness/tool-contract": "workspace:*",
+    "@omne-harness/tool-cordis-contract": "workspace:*",
+    "@omne-harness/tool-host-local": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/runtime-context-contract": "workspace:*"
+  }
+}

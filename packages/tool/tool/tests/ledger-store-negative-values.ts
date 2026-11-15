@@ -2,6 +2,7 @@ import type {
   LedgerCommitInput,
   LedgerDomain,
   LedgerRead,
+  PendingCall,
   ToolLedgerStore,
 } from '@omne-harness/tool'
 import {
@@ -181,4 +182,59 @@ export function stateUsesDomainRevision(): ToolLedgerStoreFixture {
         }
       : read,
   )
+}
+
+export function separateMarker(when: 'before' | 'answered'): ToolLedgerStoreFixture {
+  return wrappedFixture(store => {
+    const markers = new Map<string, PendingCall>()
+    const mark = (input: LedgerCommitInput) => {
+      const { domain, pending } = input
+      if (domain.kind !== 'call' || pending === undefined) return
+      const key = JSON.stringify([
+        domain.tenant.organization.text,
+        domain.tenant.account.text,
+        domain.call,
+      ])
+      if (pending) markers.set(key, { tenant: domain.tenant, call: domain.call })
+      else markers.delete(key)
+    }
+    return {
+      ...store,
+      commit: async input => {
+        if (when === 'before') mark(input)
+        const answer = await store.commit(input)
+        if (when === 'answered' && answer.kind === 'committed') mark(input)
+        return answer
+      },
+      scanPending: async input => {
+        const listed = [...markers.values()].filter(
+          entry =>
+            input.tenant === null ||
+            (entry.tenant.organization.text === input.tenant.organization.text &&
+              entry.tenant.account.text === input.tenant.account.text),
+        )
+        return { kind: 'page', calls: listed, more: false }
+      },
+    }
+  })
+}
+
+export function firstPageOnly(): ToolLedgerStoreFixture {
+  return wrappedFixture(store => ({
+    ...store,
+    scanPending: async input => {
+      const answer = await store.scanPending?.(input)
+      return answer === undefined || answer.kind !== 'page' ? answer! : { ...answer, more: false }
+    },
+  }))
+}
+
+export function neverUnmark(): ToolLedgerStoreFixture {
+  return wrappedFixture(store => ({
+    ...store,
+    commit: ({ pending, ...input }) =>
+      store.commit(
+        pending === false ? input : { ...input, ...(pending === undefined ? {} : { pending }) },
+      ),
+  }))
 }

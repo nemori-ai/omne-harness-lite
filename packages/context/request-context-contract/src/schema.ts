@@ -135,10 +135,6 @@ function decodePlanRange(
 function messages(v: unknown): boolean {
   return Array.isArray(v) && v.every(m => record(m) && 'ok' in judgeMessage(m.message))
 }
-/**
- * The basis is checked for its required fields and its digest; a missing basis is an old plan
- * value and is rejected, never filled by reading history again.
- */
 function isBasis(v: unknown): v is CompactionBasis {
   if (!record(v) || typeof v.digest !== 'string') return false
   if (
@@ -183,7 +179,6 @@ const decodeCompactionPlan: Decoder<CompactionPlan> = (v, path) => {
       bound: v.bound,
       policy: { identity: v.policy.identity, configDigest: v.policy.configDigest },
       shape: { kind: 'summarize', trimFirst: v.shape.trimFirst },
-      // Tenant identities are minted values; the basis is kept by reference, not cloned.
       basis: v.basis,
     },
   }

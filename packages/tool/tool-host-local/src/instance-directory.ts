@@ -52,7 +52,6 @@ type Publication<P> = Readonly<{
   registration: string
 }>
 
-/** Live routes only. Publication generations remain pinned until this directory is discarded. */
 export function createLocalToolInstanceDirectory<P>(
   input: Readonly<{
     access: ToolAccessGuard<P>

@@ -1,5 +1,4 @@
 // @module-tag slow
-// Actual Git sources exercise metadata changes, unknowns and version-local fact identity.
 import { afterEach, describe, expect, it } from 'vitest'
 import { renameSync, rmSync } from 'node:fs'
 import { join } from 'node:path'

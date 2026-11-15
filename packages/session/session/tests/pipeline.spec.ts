@@ -1,5 +1,3 @@
-// The command handler pipeline (SPEC CP-01 steps 1 to 6, VM-01): recall, the early refusal, the
-// material owners, the `changed` retry and its limit, unknown outcomes and the notice.
 import { afterEach, describe, expect, it } from 'vitest'
 import { fail } from '@omne-harness/operation-result'
 import {
@@ -63,10 +61,6 @@ function finishRun(h: Harness, started: StartedRun, expected: string, name = 'fi
   })
 }
 
-/**
- * Gives the advance of the started attempt back through the public port: a commit that moves the
- * Run-layer revision, which an advance command's `expected` names (contract I-R2, R2-D327).
- */
 async function releaseDirectly(h: Harness, started: StartedRun, name = 'release-concurrent') {
   const now = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
   succeeded(
@@ -89,7 +83,6 @@ async function releaseDirectly(h: Harness, started: StartedRun, name = 'release-
   )
 }
 
-/** Moves the tail through the public port before every commit of the face operation. */
 function moveTailBeforeEachCommit(h: Harness): () => number {
   let moves = 0
   h.view.onCommit(async (_input, next) => {
@@ -116,12 +109,11 @@ function moveTailBeforeEachCommit(h: Harness): () => number {
 }
 
 describe('step 1: recall of a held operation', () => {
-  it('the same operation and input recalls the original receipt with no material and no notice', async () => {
+  it('the same operation and input recalls the original receipt with no material', async () => {
     const h = await service()
     await h.create()
     const first = await h.accept('one')
     const asked = h.identity.controls.asked().length
-    const notices = h.notifier.controls.notifications().length
     h.view.reset()
     const again = succeeded(
       await h.faces('intake').work.accept({
@@ -134,7 +126,6 @@ describe('step 1: recall of a held operation', () => {
     expect(again).toEqual({ ...first, recovered: true })
     expect(h.view.calls().map(call => call.method)).toEqual(['queryOperation', 'commit'])
     expect(h.identity.controls.asked().length).toBe(asked)
-    expect(h.notifier.controls.notifications().length).toBe(notices)
   })
 
   it('the same operation with another input is a conflict and commits nothing', async () => {
@@ -277,7 +268,6 @@ describe('step 5: the commit', () => {
     await h.accept('input-1')
     const started = await startRun(h)
     const stale = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
-    // Another writer moves the Run layer before the caller acts on its old revision.
     await releaseDirectly(h, started)
     const current = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
     expect(current.revision).not.toBe(stale.revision)
@@ -297,7 +287,6 @@ describe('step 5: the commit', () => {
     await h.accept('input-1')
     const started = await startRun(h)
     const snapshot = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
-    // The Run layer moves between the read of the pipeline and its commit.
     let moves = 0
     h.view.onCommit(async (_input, next) => {
       moves += 1
@@ -314,13 +303,12 @@ describe('step 5: the commit', () => {
     expect(after.run.kind).toBe('active')
   })
 
-  it('an unrelated commit after the read does not make the Run-layer expected stale (R2-D327)', async () => {
+  it('an unrelated commit after the read does not make the Run-layer expected stale', async () => {
     const h = await service({ policy: { command: { retriesOnChanged: 1 } } })
     await h.create()
     await h.accept('input-1')
     const started = await startRun(h)
     const read = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
-    // Accepts and their notices move the snapshot revision, not the Run layer.
     await h.accept('input-2')
     await h.accept('input-3')
     const finished = succeeded(
@@ -368,8 +356,6 @@ describe('step 5: the commit', () => {
     expect(failureOf(answer)).toMatchObject({ kind: 'changed' })
     const methods = h.view.calls().map(call => call.method)
     expect(methods.filter(method => method === 'commit')).toHaveLength(3)
-    // Every redo reads the authoritative snapshot again through the same view, and no redo asks
-    // for a second access decision.
     expect(methods.filter(method => method === 'readWork')).toHaveLength(3)
     expect(h.checks.count() - asked).toBe(1)
   })
@@ -390,10 +376,9 @@ describe('step 5: the commit', () => {
     expect(h.view.calls().filter(call => call.method === 'commit')).toHaveLength(1)
   })
 
-  it('commit-unknown is passed on as it is, with no notice', async () => {
+  it('commit-unknown is passed on as it is', async () => {
     const h = await service()
     await h.create()
-    const notices = h.notifier.controls.notifications().length
     h.view.onCommit(async (input, next) => {
       await next()
       return fail({ kind: 'commit-unknown' as const, operation: input.command.input.operation })
@@ -407,7 +392,6 @@ describe('step 5: the commit', () => {
       kind: 'commit-unknown',
       operation: operationId('accept-x'),
     })
-    expect(h.notifier.controls.notifications().length).toBe(notices)
   })
 
   it('a commit that throws leaves the outcome unknown', async () => {
@@ -441,100 +425,13 @@ describe('step 5: the commit', () => {
   })
 })
 
-describe('step 6: the notice after a durable commit', () => {
-  it('carries the tenant, session, revision, source and the event kinds of that commit', async () => {
-    const h = await service()
-    const created = await h.create()
-    const accepted = await h.accept('one')
-    await new Promise(resolve => setImmediate(resolve))
-    const notices = h.notifier.controls.notifications()
-    expect(notices.map(notice => notice.revision)).toEqual([created.revision, accepted.revision])
-    const last = notices.at(-1)
-    expect(last?.source).toEqual(accepted.source)
-    expect(last?.kinds).toContain('intake.routed')
-    expect(last?.session).toBe(h.access().session)
-  })
-
-  it('notifies the event of a one-entry commit, including the first entry', async () => {
+describe('step 6: no notice from the instance', () => {
+  it('a commit reads no entry back without an observer', async () => {
     const h = await service()
     await h.create()
-    const changed = succeeded(
-      await h.faces('intake').management.change({
-        ...h.access(),
-        operation: operationId('single-declaration'),
-        declaration: { kind: 'declaration', item: 'test', value: null, basis: evidence('test') },
-      }),
-      'change',
-    )
-    expect(changed.first).toBe(changed.last)
-    await new Promise(resolve => setImmediate(resolve))
-    expect(
-      h.notifier.controls.notifications().find(notice => notice.revision === changed.revision)
-        ?.kinds,
-    ).toEqual(['session.declaration-adopted'])
-  })
-
-  it('keeps a commit notice complete across history pages and later commits', async () => {
-    const h = await service({
-      backend: {
-        name: 'memory with one-entry history pages',
-        async open(accessCheck) {
-          const backend = await memoryBackend.open(accessCheck)
-          return {
-            ...backend,
-            delegated: {
-              bind(checked) {
-                const view = backend.delegated.bind(checked)
-                return {
-                  ...view,
-                  history: {
-                    ...view.history,
-                    begin: input => view.history.begin({ ...input, pageBytes: 1 }),
-                  },
-                }
-              },
-            },
-          }
-        },
-      },
-    })
-    const created = await h.create()
-    h.view.onCommit(async (_input, next) => {
-      const result = await next()
-      h.view.onCommit(null)
-      await h.accept('later')
-      return result
-    })
-    const changed = succeeded(
-      await h.faces('intake').management.change({
-        ...h.access(),
-        operation: operationId('before-later-commit'),
-        declaration: { kind: 'declaration', item: 'test', value: null, basis: evidence('test') },
-      }),
-      'change',
-    )
-    await new Promise(resolve => setImmediate(resolve))
-    const notices = h.notifier.controls.notifications()
-    expect(notices.find(notice => notice.revision === created.revision)?.kinds).toContain(
-      'session.created',
-    )
-    expect(notices.find(notice => notice.revision === changed.revision)?.kinds).toEqual([
-      'session.declaration-adopted',
-    ])
-  })
-
-  it('an absent notifier changes no answer', async () => {
-    const h = await service({ notifier: false })
-    await h.create()
+    h.view.reset()
     expect((await h.accept('one')).recovered).toBe(false)
-    expect(h.notifier.controls.notifications()).toEqual([])
-  })
-
-  it('a notifier that fails changes no answer', async () => {
-    const h = await service()
-    await h.create()
-    h.notifier.committed = () => Promise.reject(new Error('bus down'))
-    expect((await h.accept('one')).recovered).toBe(false)
+    expect(h.view.calls().map(call => call.method)).not.toContain('history.begin')
   })
 })
 

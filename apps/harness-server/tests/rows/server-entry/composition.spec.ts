@@ -1,6 +1,3 @@
-// The row composed with the identity, Session and definition mapping rows and the real entry
-// objects: a registered account logs in, and the session operations reach the Session faces with a
-// principal that `principalIssuer` signed and `principalVerifier` verifies.
 import { describe, expect, it } from 'vitest'
 import {
   GOVERNANCE_PATH,
@@ -71,10 +68,8 @@ describe('server-entry row: composition', () => {
     expect(run.result.exitCode).toBe(0)
     const calls = tree.recorder.calls
     expect(calls.map(call => call.face)).toEqual(['create', 'accept', 'begin'])
-    // Every principal is verified, and the only system component behind them is the entry's own.
     expect(calls.map(call => call.verdict)).toEqual(['verified', 'verified', 'verified'])
     expect(new Set(calls.map(call => call.actorComponent))).toEqual(new Set(['server-entry']))
-    // The caller classes of the assembly page: intake for management and work, reader for history.
     expect(calls.map(call => call.caller)).toEqual(['intake', 'intake', 'reader'])
   })
 
@@ -86,7 +81,6 @@ describe('server-entry row: composition', () => {
     await post(port, SESSION_PATH, createSessionBody(who, 'create-1'))
     const run = await tree.stop()
 
-    // Positive control: the proof and the credential exist and the issue reply carried the proof.
     expect(who.loginProof.length).toBeGreaterThan(8)
     expect(who.reply.body).toContain(who.loginProof)
 
@@ -105,7 +99,6 @@ describe('server-entry row: composition', () => {
       GOVERNANCE_PATH,
       governance('issue-login', { loginIdentifier: 'carol', credential: CREDENTIAL }),
     )
-    // `basis-unavailable` says the basis cannot answer: not a wrong credential, not a success.
     expect(issued.status).toBe(503)
     expect((issued.json as { outcome: string }).outcome).toBe('basis-unavailable')
     expect(issued.body).not.toContain(CREDENTIAL)

@@ -1,12 +1,4 @@
 /** @module-tag slow */
-// Slow: every test starts real processes in real systemd user scopes and waits for them.
-// What a one-shot command leaves behind, on Linux through the real gate and the real supervisor:
-// the handover of the whole scope to the retention scope (C1), the listing and the stop on closure
-// (C2), the capacity that never evicts (C3), the refusal after closure (C4), the recovery of a
-// retained process by a fresh provider in a fresh domain (C6), the isolation of the listing (C14),
-// self-settlement, and the reasons a domain is stopped instead. Only the two ledgers are test
-// recorders: they are the integrator's ports. The tests run only on Linux with
-// `OMNE_HOST_COMMAND_LINUX=1`; elsewhere they are skipped, and a skip is not a pass.
 import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, readdir, realpath, rm } from 'node:fs/promises'
@@ -65,7 +57,6 @@ const freshScope = () => scopeOf(`scope-residue-${randomUUID()}`)
 
 type Stop = [string, 'confirmed' | 'unconfirmed']
 
-/** The acquisition's own ledger, recording. */
 function acquisitionLedger() {
   const stopped: Stop[] = []
   const plans: ManagedResource[] = []
@@ -85,7 +76,6 @@ function acquisitionLedger() {
   return { ledger, stopped, plans }
 }
 
-/** The retention scope's process ledger view, recording; `adopt` answers what the test sets. */
 function processLedger() {
   const stopped: Stop[] = []
   const plans: ManagedResource[] = []
@@ -182,7 +172,6 @@ async function freePort(): Promise<number> {
   })
 }
 
-/** True when a TCP connection to the port succeeds. */
 function reachable(port: number): Promise<boolean> {
   return new Promise(resolve => {
     const socket = connect({ port, host: '127.0.0.1' })
@@ -198,7 +187,6 @@ async function serving(port: number): Promise<void> {
   await vi.waitFor(async () => expect(await reachable(port)).toBe(true), { timeout: 15_000 })
 }
 
-/** A server that stays after the shell exits. */
 const serverScript = (port: number) =>
   `python3 -m http.server ${port} --bind 127.0.0.1 >/dev/null 2>&1 & echo started`
 
@@ -327,7 +315,6 @@ async function listed(command: CommandFacility<unknown>, who = tenant) {
   return answer.value
 }
 
-/** A retaining acquisition with its ledgers, its scope and the state directory of its provider. */
 async function retaining(options: Partial<HostFilesProviderOptions> = {}, stateDirectory?: string) {
   const state = stateDirectory ?? (await workDirectory('omne-host-residue-state-'))
   const provider = hostProvider(state, options)
@@ -353,7 +340,7 @@ async function retainServer(f: Awaited<ReturnType<typeof retaining>>) {
 }
 
 describe('what a one-shot command leaves behind, on Linux', { skip: !enabled }, () => {
-  it('C1: hands the whole scope over, the server outlives the call and the release of the acquisition', async () => {
+  it('hands the whole scope over, the server outlives the call and the release of the acquisition', async () => {
     const f = await retaining()
     const { port, handle, residue } = await retainServer(f)
     expect(residue).toEqual({
@@ -390,7 +377,7 @@ describe('what a one-shot command leaves behind, on Linux', { skip: !enabled }, 
     await unitGone(handle.process.id)
   })
 
-  it('C2: lists the retained process; closing the scope stops its unit, confirms it and records it', async () => {
+  it('lists the retained process; closing the scope stops its unit, confirms it and records it', async () => {
     const f = await retaining()
     const { port, handle, residue } = await retainServer(f)
     if (residue?.kind !== 'retained') throw new Error('expected retained')
@@ -417,7 +404,7 @@ describe('what a one-shot command leaves behind, on Linux', { skip: !enabled }, 
     expect(await readdir(join(f.state, 'retained-processes'))).toEqual([])
   })
 
-  it('C3: a full retention scope stops the newcomer for capacity and keeps the retained one', async () => {
+  it('a full retention scope stops the newcomer for capacity and keeps the retained one', async () => {
     const f = await retaining({ command: { retainedPerScope: 1 } })
     const first = await retainServer(f)
     expect(first.residue).toMatchObject({ kind: 'retained' })
@@ -436,7 +423,7 @@ describe('what a one-shot command leaves behind, on Linux', { skip: !enabled }, 
     await unitGone(first.handle.process.id)
   })
 
-  it('C4: after the scope closed, a new leftover is stopped for closure and the stop is confirmed', async () => {
+  it('after the scope closed, a new leftover is stopped for closure and the stop is confirmed', async () => {
     const f = await retaining()
     f.released.abort()
     const { handle, residue } = await retainServer(f)
@@ -449,12 +436,11 @@ describe('what a one-shot command leaves behind, on Linux', { skip: !enabled }, 
     expect(f.processes.plans).toEqual([])
   })
 
-  it('C6: a fresh provider in a fresh domain finds the retained process by its marker, and closing stops it', async () => {
+  it('a fresh provider in a fresh domain finds the retained process by its marker, and closing stops it', async () => {
     const f = await retaining()
     const { port, handle, residue } = await retainServer(f)
     if (residue?.kind !== 'retained') throw new Error('expected retained')
     await serving(port)
-    // The old instance is neither retired nor asked to stop anything: a crash leaves it behind.
     const successor = hostProvider(f.state)
     const processes = processLedger()
     const released = new AbortController()
@@ -489,7 +475,7 @@ describe('what a one-shot command leaves behind, on Linux', { skip: !enabled }, 
     expect(await readdir(join(f.state, 'retained-processes'))).toEqual([])
   })
 
-  it('C14: another retention scope and another tenant do not see the retained process', async () => {
+  it('another retention scope and another tenant do not see the retained process', async () => {
     const f = await retaining()
     const { residue } = await retainServer(f)
     if (residue?.kind !== 'retained') throw new Error('expected retained')
@@ -528,7 +514,6 @@ describe('what a one-shot command leaves behind, on Linux', { skip: !enabled }, 
     await unitGone(handle.process.id)
     expect(await readdir(join(f.state, 'retained-processes'))).toEqual([])
     expect(await listed(f.command)).toEqual([])
-    // The slot is free again: the next leftover is retained, not stopped for capacity.
     const next = await retainServer(f)
     expect(next.residue).toMatchObject({ kind: 'retained' })
     f.released.abort()
@@ -543,7 +528,6 @@ describe('what a one-shot command leaves behind, on Linux', { skip: !enabled }, 
     const key = handle.process.id.slice('omne-host-'.length, -'.scope'.length)
     expect(f.processes.adopts).toEqual([key])
     expect(await unitState(handle.process.id)).toMatchObject({ activeState: 'active' })
-    // The release asks the commit again, and does not stop a domain whose owner is unread.
     expect(await f.lease.release()).toEqual({ kind: 'pending', resources: [f.own.plans[0]] })
     expect(f.processes.adopts).toEqual([key, key])
     expect(await unitState(handle.process.id)).toMatchObject({ activeState: 'active' })

@@ -1,11 +1,3 @@
-// C-WORKCACHE A3 (R2-D90): the Session rows of the history index are kept in the Worker module and
-// grow by the rows after their cursor. The answer of a kept index is the answer of a whole read
-// (T-A3-1); a gap after the cursor fails the call and the next call builds again (T-A3-2); the
-// inputs stay those of the scope (T-A3-3); an SE15 row without its SE13 is left out as before, and
-// a later SE13 brings it in (T-A3-4). Rows of an open transaction are never kept, a log that is not
-// the folded one is built again, and the kept sessions have a bound.
-//
-// The whole read is the same function in a fresh module instance: its kept map is empty.
 import { describe, expect, it, vi } from 'vitest'
 import type {
   SessionHistoryIndex,
@@ -31,7 +23,6 @@ const ok = <T>(value: unknown): T => {
   return (value as { ok: T }).ok
 }
 
-/** The rows each statement on `port` returned, and the rows of the five kinds read in total. */
 function counting(port: Port) {
   const reads: { sql: string; rows: number }[] = []
   const counted: Port = {
@@ -48,7 +39,6 @@ function counting(port: Port) {
   return { port: counted, reads, indexed }
 }
 
-/** `readHistory` of a fresh module instance: nothing is kept, so it reads every row. */
 async function wholeRead(...args: Parameters<typeof readHistory>) {
   vi.resetModules()
   const fresh = await import('../src/worker/history-index.ts')
@@ -59,9 +49,6 @@ const answered = (value: ReturnType<typeof readHistory>): Answer => {
   if (value === 'too-many') throw new Error('too many rows')
   return value
 }
-
-// ---------------------------------------------------------------------------------------------
-// Through the port: every commit of a scene, the kept index against a whole read.
 
 const SESSION = 'session-1'
 const DOMAIN = 'dom_0'
@@ -88,7 +75,6 @@ async function readBoth(a: App) {
   return { kept, whole, work }
 }
 
-/** `a` with a port over a storage object of its own: a work cache of its own (SPEC RT-04). */
 function apart(a: App): App {
   const storage: SqlStorage = {
     database: {},
@@ -119,8 +105,8 @@ function claim(a: App, read: ReturnType<typeof activeRun>, name: string) {
   })
 }
 
-describe('T-A3-1: the kept index answers as a whole read after every commit', () => {
-  it('routed inputs, SE13, SE15, the controls and their original executions are equal', async () => {
+describe('the kept index answers as a whole read after every commit', () => {
+  it('routed inputs, run.started, run.attempt-started, the controls and their original executions are equal', async () => {
     const a = await app()
     const answers: Answer[] = []
     const step = async (commit: () => Promise<unknown>) => {
@@ -143,8 +129,6 @@ describe('T-A3-1: the kept index answers as a whole read after every commit', ()
 
     const last = answers[answers.length - 1]
     if (last === undefined) throw new Error('no answer')
-    // The original execution of each control is the Run that was active when it was requested,
-    // folded in an earlier call than the control row itself.
     expect((last.reads.controls ?? []).map(item => item.execution)).toEqual([
       first.execution,
       second.execution,
@@ -169,8 +153,6 @@ describe('T-A3-1: the kept index answers as a whole read after every commit', ()
     expect(again.indexed()).toBe(0)
 
     const before = maxPosition(a)
-    // Through a port with a cache of its own and no held snapshot, so the commit folds nothing
-    // into the work cache and reads no index (SPEC RT-04): the next read is the first after it.
     ok(await cancelRun(apart(a), activeRun(work).run, 'cancel-1'))
     const [[written]] = a.provider.select(
       DOMAIN,
@@ -179,17 +161,12 @@ describe('T-A3-1: the kept index answers as a whole read after every commit', ()
       [textOf(TENANT_A), SESSION, before],
     ).rows as unknown as [[bigint]]
     expect(written).toBeGreaterThan(0n)
-    // Nothing has read since the cancel committed: this read folds exactly the rows it wrote.
     const next = counting(selectPort(a))
     answered(readHistory(next.port, textOf(TENANT_A), SESSION, work, scope))
     expect(next.indexed()).toBe(Number(written))
   })
 })
 
-// ---------------------------------------------------------------------------------------------
-// Module level, over one migrated database: rows written directly.
-
-/** The json-text tree that the Session entries store their payloads as (read back by plainOf). */
 function tree(value: unknown): unknown {
   if (value === null) return { kind: 'null' }
   if (typeof value === 'string') return { kind: 'string', value }
@@ -202,7 +179,6 @@ function tree(value: unknown): unknown {
 
 type Db = ReturnType<typeof migratedPort>['port']
 
-/** The stored `entry` cell of one row: the codec text in the packed text form. */
 function entryText(position: number, revision: number, kind: string, data: object): Uint8Array {
   return packText(
     storedText({ id: String(position), revision: String(revision), kind, payload: tree(data) }),
@@ -246,14 +222,13 @@ const read = (db: Db | Port, session: string, scope: SessionInputScope = pending
   answered(readHistory(db as Port, 't', session, snapshotOf(session), scope))
 const inputsOf = (answer: Answer) => answer.index.inputs.map(item => item.input)
 
-describe('T-A3-2: a gap after the cursor fails the call, and the next call builds again', () => {
+describe('a gap after the cursor fails the call, and the next call builds again', () => {
   it('module level: the read with the gap throws; the next one lists the row', () => {
     const { port: db } = migratedPort()
     insert(db, 'gap', 1, 1, 'intake.routed', { input: 'in-1' })
     insert(db, 'gap', 2, 1, 'intake.routed', { input: 'in-2' })
     tail(db, 'gap', 1)
     expect(inputsOf(read(db, 'gap'))).toEqual(['in-1', 'in-2'])
-    // Position 3 is missing: the log was not only appended to.
     insert(db, 'gap', 4, 2, 'intake.routed', { input: 'in-4' })
     tail(db, 'gap', 2)
     expect(() => read(db, 'gap')).toThrow(/gap in the Session log after position 2/u)
@@ -285,14 +260,13 @@ describe('T-A3-2: a gap after the cursor fails the call, and the next call build
     expect(ok<{ revision: string }>(await a.port.readWork(a.access(TENANT_A))).revision).toBe(
       before.revision,
     )
-    // The kept index was dropped: the next commit builds it again from the first row.
     ok(await a.accept(TENANT_A, SESSION, 'input-2'))
     const { kept, whole } = await readBoth(a)
     expect(kept).toEqual(whole)
   })
 })
 
-describe('T-A3-3: the inputs are those of the scope', () => {
+describe('the inputs are those of the scope', () => {
   it('a routed input outside the scope is not listed once the session has an admission, kept or not', async () => {
     const { port: db } = migratedPort()
     for (const [n, input] of [
@@ -309,7 +283,6 @@ describe('T-A3-3: the inputs are those of the scope', () => {
     const args = [db as Port, 't', 'scope', snapshotOf('scope'), pending('in-1')] as const
     expect(inputsOf(answered(await wholeRead(...args)))).toEqual(['in-1'])
     expect(inputsOf(read(db, 'scope', pending('in-1')))).toEqual(['in-1'])
-    // Kept now; a new routed row is folded and still listed only when in scope.
     insert(db, 'scope', 4, 2, 'intake.routed', { input: 'in-4' })
     tail(db, 'scope', 2)
     expect(inputsOf(read(db, 'scope', pending('in-1')))).toEqual(['in-1'])
@@ -320,8 +293,8 @@ describe('T-A3-3: the inputs are those of the scope', () => {
   })
 })
 
-describe('T-A3-4: an SE15 row whose Run has no SE13 is left out, as a whole read leaves it out', () => {
-  it('until the SE13 of its Run is folded in a later call', async () => {
+describe('a run.attempt-started row whose Run has no run.started entry is left out, as a whole read leaves it out', () => {
+  it('until the run.started entry of its Run is folded in a later call', async () => {
     const { port: db } = migratedPort()
     insert(db, 'attempts', 1, 1, 'run.attempt-started', {
       run: 'r-1',
@@ -354,14 +327,12 @@ describe('what is kept', () => {
     insert(db, 'open', 1, 1, 'intake.routed', { input: 'in-1' })
     insert(db, 'open', 2, 1, 'intake.routed', { input: 'in-2' })
     expect(inputsOf(read(db, 'open'))).toEqual(['in-1', 'in-2'])
-    // The transaction rolled back and another wrote a different row 1 under the same row 2.
     db.execute('UPDATE sl_entry SET entry = ? WHERE tenant = ? AND session = ? AND position = 1', [
       entryText(1, 1, 'intake.routed', { input: 'in-x' }),
       't',
       'open',
     ])
     expect(inputsOf(read(db, 'open'))).toEqual(['in-x', 'in-2'])
-    // Committed now: the rows are kept, and a stored row is not read again (the log is append-only).
     tail(db, 'open', 1)
     expect(inputsOf(read(db, 'open'))).toEqual(['in-x', 'in-2'])
     db.execute('UPDATE sl_entry SET entry = ? WHERE tenant = ? AND session = ? AND position = 1', [
@@ -377,11 +348,9 @@ describe('what is kept', () => {
     insert(db, 'clone', 1, 1, 'intake.routed', { input: 'in-1' })
     tail(db, 'clone', 1)
     expect(inputsOf(read(db, 'clone'))).toEqual(['in-1'])
-    // An open transaction past the kept cursor: rows 2 and 3 of revision 2, read over the kept index.
     insert(db, 'clone', 2, 2, 'intake.routed', { input: 'in-2' })
     insert(db, 'clone', 3, 2, 'intake.routed', { input: 'in-3' })
     expect(inputsOf(read(db, 'clone'))).toEqual(['in-1', 'in-2', 'in-3'])
-    // It rolled back; another transaction committed a different row 2 and the same row 3.
     db.execute('DELETE FROM sl_entry WHERE tenant = ? AND session = ? AND position > 1', [
       't',
       'clone',

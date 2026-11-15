@@ -23,11 +23,8 @@ export type {
 } from './view.ts'
 
 export interface ActualArchitectureInput {
-  /** Git repository top-level directory. A pnpm workspace and named manifests are required. */
   readonly root: string
-  /** Absent means current filesystem, including uncommitted files. Otherwise read only this commit. */
   readonly revision?: string
-  /** Exact comparison revision; never replaced by a merge-base. */
   readonly base?: string
 }
 export interface ObservedFact extends Fact {
@@ -51,7 +48,6 @@ export interface ActualArchitecture {
     readonly configuration: {
       readonly read: readonly string[]
       readonly appliedToResolution: readonly string[]
-      /** Package-name extends that were not applied, as `<config> -> <specifier>`. */
       readonly installedExtends: readonly string[]
       readonly policy: string
     }
@@ -149,7 +145,6 @@ function candidates(facts: readonly ObservedFact[]): ActualArchitecture['candida
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, facts]) => ({ key, facts, runtimeSelection: 'not-observed' }))
 }
-/** Project the shared AST extraction; never read intent or execute product code. */
 export function actualArchitectureOf(input: ArchitectureSource): ActualArchitecture {
   const extraction = extractArchitecture(input.snapshot)
   const products = input.members.filter(member => member.category === 'product')
@@ -224,7 +219,6 @@ function identityDifference<T extends { readonly id: string }>(
     removed: before.filter(item => !next.has(item.id)),
   }
 }
-/** Positions and occurrence counts are evidence, not semantic relationship identity. */
 export function compareActualArchitectures(
   before: ActualArchitecture,
   after: ActualArchitecture,

@@ -2,7 +2,7 @@
 id: PD-mcp
 title: MCP
 status: draft
-revision: 2
+revision: 3
 relations:
   supersedes: []
   depends-on: []
@@ -17,7 +17,7 @@ relations:
 
 - [产品正文](design.md)提供需求、能力、阶段与第四章未决。
 - [领域责任](../../../../docs/domains/mcp/README.md)提供已接受的范围与协作。
-- [工程入口](../../../../packages/mcp/README.md)定位逻辑责任、流程及尚未分配的完整行为候选。
+- [包组规格](../../../../packages/mcp/SPEC.md)定位逻辑责任与应然设计。
 
 ## 维护
 

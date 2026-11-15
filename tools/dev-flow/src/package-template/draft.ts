@@ -81,7 +81,6 @@ export function writeDraft(plan: DraftPlan): void {
   }
   try {
     parents(dirname(plan.target))
-    // This mkdir claims the target exclusively, including against a dangling link.
     mkdirSync(plan.target)
     remember(plan.target, true)
     for (const [file, text] of plan.files) {

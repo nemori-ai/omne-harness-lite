@@ -1,6 +1,3 @@
-// The stop that a committed cancel fires reaches only the send of its own tenant and call, joins
-// the drive's signal, and ends with the facts of that send. The inner boundary here records the
-// signal it gets and hands out a stream that the test ends.
 import { expect, it } from 'vitest'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ModelCallId } from '@omne-harness/model-contract'
@@ -15,7 +12,6 @@ import { callId, identity } from './memory-fixture.ts'
 
 type Demand = SendDemand<unknown>
 
-/** A demand with only the fields the wrapper reads; the inner boundary never looks further. */
 function demandOf(tenant: TenantId, call: ModelCallId): Demand {
   return { tenant, call } as unknown as Demand
 }

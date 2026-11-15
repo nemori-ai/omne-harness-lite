@@ -42,7 +42,6 @@ export class PieceCache {
       this.leases.set(lease, cache)
     }
     this.evict(cache, bytes)
-    // Copy a match so the cache cannot retain the full ordinary run through a sliced string.
     piece = Buffer.from(piece, 'utf16le').toString('utf16le')
     const entry = { lease, piece, tokens, bytes }
     cache.entries.set(piece, entry)

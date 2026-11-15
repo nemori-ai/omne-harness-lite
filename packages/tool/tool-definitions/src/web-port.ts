@@ -1,10 +1,6 @@
-// The narrow port of the Web author. The author owns it; the host implements it and attaches one
-// instance per call. The author does not know the search supplier, the HTTP client, credentials or
-// tenants: it reads the port from the execution context and writes the result text.
 import type { Outcome } from '@omne-harness/operation-result'
 import type { ToolExecutionContext, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
 
-/** One search result. `excerpt` is a short extract, never the whole page. */
 export type SearchHit = Readonly<{
   title: string
   url: string
@@ -12,7 +8,6 @@ export type SearchHit = Readonly<{
   excerpt: string
 }>
 
-/** One fetched page. `truncated` is true when the provider cut the body at its byte limit. */
 export type FetchedPage = Readonly<{
   finalUrl: string
   mediaType: string
@@ -20,11 +15,6 @@ export type FetchedPage = Readonly<{
   truncated: boolean
 }>
 
-/**
- * The closed set of Web failures (I-9). Zero search results are a success with an empty array, not
- * a failure. `too-large` is only for a body that cannot be cut; a body that can be cut succeeds with
- * `truncated: true`.
- */
 export type WebFailure =
   | Readonly<{ kind: 'unconfigured' }>
   | Readonly<{ kind: 'denied' }>

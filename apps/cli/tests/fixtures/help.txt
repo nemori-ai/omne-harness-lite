@@ -1,0 +1,47 @@
+omne
+
+Show help or version, or run a command.
+
+  omne --help
+  omne --version
+
+Commands
+
+  omne register --login-identifier <id>                                                                           Register and activate an account.
+  omne login --login-identifier <id>                                                                              Issue a login and save it in the state directory.
+  omne create-session --definition <name>                                                                         Create a session.
+  omne send-input --session <id> --text <text>                                                                    Send a user message to a session.
+  omne read-history --session <id>                                                                                Read the whole history of a session.
+  omne read-session-diagnostics --session <id>                                                                    Read the diagnostics of the runs of a session.
+  omne cancel-run --session <id> --run <id>                                                                       Cancel a run.
+  omne stop-call --session <id> --producer-kind <kind> --call <id>                                                Stop a model or tool call.
+  omne list-cards                                                                                                 List the cards that wait for a person.
+  omne read-card --request <id> --card <id>                                                                       Read one card.
+  omne submit-reply --request <id> --card <id> --revision <name>                                                  Reply to a card with an option, a text or a decline.
+  omne create-organization --name <name> --governance-model-id <id>                                               Create an organization.
+  omne query-create-organization --target-create-call-id <id> --name <name> --governance-model-id <id>            Ask what an earlier create-organization call did.
+  omne issue-member-invitation --invited-login-identifier <id>                                                    Invite an account to the organization of the acting tenant.
+  omne accept-member-invitation --invitation-id <id>                                                              Accept an invitation.
+  omne reject-member-invitation --invitation-id <id>                                                              Reject an invitation.
+  omne withdraw-member-invitation --invitation-id <id>                                                            Withdraw an invitation that this tenant issued.
+  omne query-invitation --invitation-id <id>                                                                      Read one invitation.
+  omne query-received-invitations                                                                                 List the invitations this account received.
+  omne query-issued-invitations                                                                                   List the invitations this tenant issued.
+  omne query-own-memberships                                                                                      List the memberships of this account.
+  omne query-organization-members --organization-id <id>                                                          List the members of an organization.
+  omne leave-organization                                                                                         Leave the organization of the acting tenant.
+  omne remove-member --organization-id <id> --account-id <id> --expected-role <role>                              Remove a member from an organization.
+  omne change-member-role --organization-id <id> --account-id <id> --expected-role <role> --target-role <role>    Change the role of a member.
+  omne switch-current-tenant --tenant-id <tenant>                                                                 Switch the current tenant of this login.
+  omne query-current-tenant                                                                                       Read the current tenant of this login.
+  omne revoke-login                                                                                               Revoke a login. Without --target-login, log out of this one.
+  omne query-own-valid-logins                                                                                     List the valid logins of this account.
+  omne setting list|set|show|unset                                                                                List the settings of the acting tenant, or set, show or unset a secret one.
+
+  --home <directory>    State directory. Overrides OMNE_HOME.
+  OMNE_HOME             State directory when --home is absent.
+  --server <url>        Server address. Overrides OMNE_SERVER.
+  OMNE_SERVER           Server address when --server is absent.
+
+The default state directory is $HOME/.omne.
+--help and --version do not open or create a state directory.

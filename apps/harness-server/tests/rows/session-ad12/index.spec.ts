@@ -1,12 +1,4 @@
 // @module-tag slow
-// The `session-ad12` row: the real Context input of Session over the assembly's adopted
-// definitions. The row is ACTIVE and provides `sessionContextInput` on a `runtimeContext`
-// provider, and stays PENDING naming the key without one. A `create` with no registration source
-// has nothing to restore and gets an empty material list; a `create` whose source references a
-// block that no adopted definition declares is `invalid`, not restored from somewhere else. A
-// registration `change` needs the coordinator principal, which this assembly has no source for:
-// the row answers `unavailable` and names the port instead of signing a principal itself.
-// Slow: it loads a Cordis tree per case.
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   decodeScopeRef,
@@ -57,7 +49,6 @@ const numberShape = {
   },
 }
 const NOTES: ContextBlockKey = 'test.notes'
-/** A definition nobody adopted, with one binding, so that materials can be encoded against it. */
 const foreign: Adoption = adoption('foreign-definition')
 const notesNeed: NeedBinding = {
   key: NOTES,
@@ -92,7 +83,6 @@ function createCommand(name: string, sources: readonly InitializationSource[] = 
   return command
 }
 
-/** A `create` whose one source is a registration of the foreign definition's binding. */
 function createWithForeignRegistration() {
   const encoded = encodeInitialContextRegistration(
     { definition: foreign, key: NOTES, bindings: [notesNeed], parameters: undefined },
@@ -110,7 +100,6 @@ function createWithForeignRegistration() {
   ])
 }
 
-/** A `change` that removes a block: it carries no binding and no declaration, so it encodes. */
 function removeCommand(name: string) {
   const scope = scopeRef('session-scope:ad12')
   const change: RegistrationChange = {

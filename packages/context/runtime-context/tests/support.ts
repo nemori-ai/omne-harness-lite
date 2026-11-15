@@ -68,7 +68,6 @@ export function supplied<K extends ContextBlockKey>(
   }
 }
 
-/** A promise with its resolver, to hold one port answer while the test interleaves. */
 export function deferred<T>(): { promise: Promise<T>; resolve(value: T): void } {
   let resolve: (value: T) => void = () => {}
   const promise = new Promise<T>(r => {
@@ -101,7 +100,6 @@ export function harness(config: RuntimeContextConfig = {}): Harness {
   return { rc, ports, diagnostics, changes }
 }
 
-/** Binds the scope to the tenant and completes an empty replay so the fence opens. */
 export async function open(h: Harness, target: ScopeRef, tenant: TenantId): Promise<void> {
   h.ports.bind(target, tenant)
   const begun = await h.rc.beginReplay('holder', {
@@ -118,7 +116,6 @@ export async function open(h: Harness, target: ScopeRef, tenant: TenantId): Prom
   if (ready.kind !== 'ready') throw new Error(`finishReplay: ${ready.kind}`)
 }
 
-/** The last commit `register` applied in each scope of a harness: the next one chains after it (RC-02). */
 const heads = new WeakMap<Harness, Map<string, string>>()
 
 export async function register(
@@ -153,7 +150,6 @@ export async function register(
   scopes.set(target.ref, commit)
 }
 
-/** The declaration object passes through unchanged, so a test controls when the catalog entry changes. */
 function isStable(
   declaration: SuppliedBlockDescriptor<ContextBlockKey, unknown>,
 ): declaration is SuppliedBlockDescriptor<ContextBlockKey, unknown> & {
@@ -217,7 +213,6 @@ export async function reader(h: Harness, eligibility: Eligibility<string>): Prom
   return bound.reader
 }
 
-/** The state of the first block of a successful snapshot, or the failed result itself. */
 export async function firstBlock(r: ContextReader): Promise<unknown> {
   const s = await r.snapshot()
   if (s.kind !== 'success') return s

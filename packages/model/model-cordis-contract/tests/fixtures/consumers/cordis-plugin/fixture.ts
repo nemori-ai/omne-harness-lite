@@ -1,8 +1,4 @@
 import { invocationReference, reservedReference } from './values.ts'
-// A Cordis plugin that follows model calls. The assembly (the host plugin in host.ts) provides a
-// scripted runtime on the `modelRuntime` key and sends `model-cordis-contract/call-changed`; the
-// plugin in plugin.ts depends on the service through the definition entry, asks the runtime for the
-// authoritative revision and keeps the newest one. Everything runs in a real Cordis Context.
 import { Context, Service } from '@deepseek-ai/cordis'
 import { type ModelOperationId, type ModelRuntime } from '@omne-harness/model-contract'
 import { compareRevisions } from '@omne-harness/model-contract/provider'
@@ -28,7 +24,6 @@ type Path = Readonly<{
   run: () => Promise<void>
 }>
 
-/** An assembly that serves one call and a plugin that follows it from the revision of its admission. */
 async function followedCall() {
   const provider = newProvider()
   const admitted = await provider.admit('a')
@@ -58,7 +53,6 @@ async function refreshesToTheAuthoritativeRevision(): Promise<void> {
     const second = await provider.change('a')
     expect(compareRevisions(first, admitted) > 0, 'the first change did not commit a revision')
     expect(compareRevisions(second, first) > 0, 'the second change did not commit a revision')
-    // The notification names the first change; the runtime already holds the second.
     await assembly.announce(tenantA, call('a'), first)
     expect(assembly.diagnostics().length === 0, `the listener failed: ${assembly.diagnostics()}`)
     expect(followed.refreshed.length === 1, `${followed.refreshed.length} refreshes were recorded`)
@@ -98,7 +92,6 @@ async function staleNotificationIsNotRefreshed(): Promise<void> {
     await assembly.announce(tenantA, call('a'), second)
     expect(followed.known.get(call('a')) === second, 'the newer notification did not refresh')
     const asked = assembly.inspections()
-    // A late notification for an older revision, and a repeat of the one already taken.
     await assembly.announce(tenantA, call('a'), first)
     await assembly.announce(tenantA, call('a'), second)
     expect(followed.known.get(call('a')) === second, 'a stale notification moved the revision back')
@@ -148,11 +141,6 @@ async function refusedLookupStopsFollowingTheCall(): Promise<void> {
   }
 }
 
-/**
- * The plugin follows the call under an admission that makes its lookup end without a call state;
- * the sender must see the failure of the listener while the committed change and the plugin's own
- * state stay as they were.
- */
 async function lookupEndsWithoutAStateAndTheSenderKeepsTheCommit(
   trackedAdmission: ModelOperationId,
   runtimeAnswer?: 'invalid',
@@ -163,7 +151,6 @@ async function lookupEndsWithoutAStateAndTheSenderKeepsTheCommit(
     ? reservedReference({ tenant: tenantA, call: call('a'), admission: trackedAdmission })
     : invocationReference({ tenant: tenantA, call: call('a'), admission: trackedAdmission })
   if (runtimeAnswer !== undefined) {
-    // Ask the runtime itself, not through the assembly, so the count of the plugin's lookups is unchanged.
     const answer: Awaited<ReturnType<typeof provider.runtime.calls.inspect>> = await Reflect.apply(
       provider.runtime.calls.inspect,
       provider.runtime.calls,
@@ -214,11 +201,9 @@ async function lookupEndsWithoutAStateAndTheSenderKeepsTheCommit(
   }
 }
 
-// An existing call with another valid admission is invalid, never authoritatively unaccepted.
 const unacceptedAdmissionIsRaisedToTheSender = () =>
   lookupEndsWithoutAStateAndTheSenderKeepsTheCommit(operation('admit-unknown'), 'invalid')
 
-// A value that starts with `--` is reserved, so the runtime fails the lookup with `invalid`.
 const failedLookupIsLeftToTheSender = () =>
   lookupEndsWithoutAStateAndTheSenderKeepsTheCommit(operation('--reserved'))
 
@@ -241,12 +226,6 @@ async function theServiceIsTheDefinitionOnItsKey(): Promise<void> {
   }
 }
 
-/**
- * A class with the members of the runtime that does not extend the definition, provided on the
- * key of the definition. Cordis serves it to the plugin all the same: the key is all that the
- * injection checks. It is the plugin that tells the two apart, by `instanceof` against the one
- * class that the definition entry exports, and refuses to run.
- */
 class LookAlike extends Service {
   static readonly provide = modelRuntimeKey
   readonly calls: ModelRuntime<Principal>['calls']
@@ -308,7 +287,6 @@ async function lookAlikeOnTheKeyIsRefusedByThePlugin(): Promise<void> {
     expect(other.started === 0, 'the plugin ran against a service that is not the definition')
     expect(other.received.length === 0, 'the plugin took the look-alike as its runtime')
     expect(other.known.size === 0, 'the refused plugin left state behind')
-    // Nothing listens: a notification that would refresh a running plugin changes nothing.
     const changed = await provider.change('a')
     await root.parallel('model-cordis-contract/call-changed', tenantA, call('a'), changed)
     expect(other.refreshed.length === 0, 'the refused plugin followed a notification')

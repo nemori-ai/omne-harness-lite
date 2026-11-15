@@ -52,7 +52,6 @@ type Refusal<V extends string, K extends RefusalOutcome> = {
 type StageRead<V extends string, S extends string> = [S] extends [never]
   ? never
   : { readonly kind: 'stage-not-provided'; readonly response: Refusal<V, 'stage-not-provided'> }
-/** Family-neutral read result. Each public wrapper narrows only `request` to its validated model. */
 export type RequestRead<V extends string, S extends string> =
   | { readonly kind: 'request'; readonly request: unknown }
   | {
@@ -61,7 +60,6 @@ export type RequestRead<V extends string, S extends string> =
       readonly diagnostic: GovernanceDiagnostic
     }
   | StageRead<V, S>
-/** Family-neutral response read. Each public wrapper narrows only `response` to its operation's model. */
 export type ResponseRead =
   | { readonly kind: 'response'; readonly response: unknown }
   | { readonly kind: 'unmatched' }
@@ -174,7 +172,6 @@ function bytesOf(value: unknown, error: string): Uint8Array {
       Object.getPrototypeOf(Uint8Array.prototype),
       'byteLength',
     )?.get
-    // A missing intrinsic getter makes this call throw TypeError, which the catch reports.
     const bytes = new Uint8Array(byteLength!.call(value))
     Uint8Array.prototype.set.call(bytes, value)
     return bytes
@@ -190,14 +187,13 @@ function isStage<V extends string, P extends string, S extends string>(
   return family.stages.some(stage => stage === value)
 }
 
-/** `protocol-rejected` belongs to every family, `stage-not-provided` only to one with stages. */
 function isRefusal<V extends string, P extends string, S extends string>(
   family: Family<V, P, S>,
   outcome: string,
 ): boolean {
   return (
     outcome === 'protocol-rejected' ||
-    (outcome === 'stage-not-provided' && family.stages.length > 0)
+    (outcome === 'stage-not-provided' && (family.stages.length > 0 || family.declarable))
   )
 }
 
@@ -234,7 +230,6 @@ function identity<T>(
     const parsed = codec.parse(input)
     return parsed.ok ? { local: parsed.value, wire: stringWire(input) } : undefined
   }
-  // Identity codecs accept only their own minted values, including when a caller forges the static type.
   const encoded = codec.encode(input as T)
   return encoded.ok ? { local: input, wire: stringWire(encoded.value) } : undefined
 }
@@ -245,7 +240,6 @@ function instant(input: unknown, direction: Direction): Converted | undefined {
     const parsed = parseInstant(input)
     return parsed.ok ? { local: parsed.value, wire: stringWire(input) } : undefined
   }
-  // The provider's private brand check throws TypeError for non-minted values without reading user properties.
   try {
     return { local: input, wire: stringWire(encodeInstant(input as Instant)) }
   } catch (error) {
@@ -316,7 +310,6 @@ function snapshotTree(input: unknown, maxItems: number): unknown {
   return root
 }
 
-/** Decoding walks json-text nodes; encoding walks caller values. */
 function nodeOf(input: unknown): JsonValue | undefined {
   return input as JsonValue | undefined
 }
@@ -327,7 +320,6 @@ function primitive(input: unknown, direction: Direction): unknown {
   return node?.kind === 'string' || node?.kind === 'boolean' ? node.value : undefined
 }
 
-/** Both directions check the inner tenant text; when decoding, that text is the input itself. */
 function tenant(input: unknown, direction: Direction, limits: JsonLimits): Converted | undefined {
   const converted = identity(tenantCodec, input, direction)
   return converted?.wire.kind === 'string' && tenantText(converted.wire.value, limits)
@@ -389,19 +381,40 @@ function nullLeaf(input: unknown, direction: Direction): Converted | undefined {
   return isNull ? { local: null, wire: { kind: 'null' } } : undefined
 }
 
-const leaves: { readonly [K in LeafKind]: Leaf } = {
-  'positive-integer': (input, direction) => {
+function boundedInteger(max: number): Leaf {
+  return (input, direction) => {
     const node = direction === 'decode' ? nodeOf(input) : undefined
     const value =
       direction === 'decode' ? (node?.kind === 'number' ? Number(node.lexeme) : undefined) : input
-    return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
+    return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 && value <= max
       ? { local: value, wire: { kind: 'number', lexeme: String(value) } }
       : undefined
-  },
+  }
+}
+
+const HITL_PAGE_LIMIT = 100
+const withinPageLimit = boundedInteger(HITL_PAGE_LIMIT)
+
+function pageLimit(
+  input: unknown,
+  direction: Direction,
+  limits: JsonLimits,
+): Converted | undefined {
+  if (direction === 'decode') {
+    const node = nodeOf(input)
+    if (node?.kind !== 'number' || !/^[1-9][0-9]*$/.test(node.lexeme)) return undefined
+  }
+  return withinPageLimit(input, direction, limits)
+}
+
+const leaves: { readonly [K in LeafKind]: Leaf } = {
+  'positive-integer': boundedInteger(Number.MAX_SAFE_INTEGER),
+  'page-limit': pageLimit,
   text: textLeaf(value => value !== ''),
   string: textLeaf(() => true),
   session: textLeaf(value => /^[0-9a-f]{64}$/.test(value)),
   'page-bytes': textLeaf(value => /^[1-9][0-9]*$/.test(value)),
+  revision: textLeaf(value => /^(0|[1-9][0-9]*)$/.test(value)),
   boolean: onPrimitive(value =>
     typeof value === 'boolean' ? { local: value, wire: { kind: 'boolean', value } } : undefined,
   ),
@@ -454,7 +467,12 @@ function convertList(
   direction: Direction,
   limits: JsonLimits,
 ): Converted | undefined {
-  if (data === undefined || data.length > limits.maxItems || (rule.nonempty && data.length === 0))
+  if (
+    data === undefined ||
+    data.length > limits.maxItems ||
+    (rule.nonempty && data.length === 0) ||
+    (rule.max !== undefined && data.length > rule.max)
+  )
     return undefined
   const values: Converted[] = []
   for (const item of data) {
@@ -487,8 +505,8 @@ function itemsOf(input: unknown, direction: Direction): readonly unknown[] | und
   return node?.kind === 'array' ? node.items : undefined
 }
 
-function convert(
-  rule: Rule,
+export function convert(
+  rule: import('./operation-rules.ts').Rule,
   input: unknown,
   direction: Direction,
   limits: JsonLimits,
@@ -542,7 +560,6 @@ function stageRead<V extends string, S extends string>(
   version: V,
   messageId: string | undefined,
 ): RequestRead<V, S> {
-  // Callers reach this only after narrowing an operation to S, so S is not `never` here.
   const read = {
     kind: 'stage-not-provided',
     response: refusal(version, 'stage-not-provided', messageId),
@@ -587,7 +604,6 @@ function envelopeKeys(rule: RequestRule): string[] {
   ]
 }
 
-/** Converts the closed envelope and body of a provided operation; any failure is a field failure. */
 function requestModelFromWire<V extends string, P extends string, S extends string>(
   family: Family<V, P, S>,
   operation: P,
@@ -664,7 +680,6 @@ function write(wire: JsonValue, limits: JsonLimits): GovernanceEncodeResult {
     : { kind: 'invalid', diagnostic: { code: checked.kind === 'budget' ? 'budget' : 'field' } }
 }
 
-/** Converts a local request model of a provided operation; any failure is an invalid model. */
 function requestModelToWire<V extends string, P extends string, S extends string>(
   family: Family<V, P, S>,
   operation: P,
@@ -721,13 +736,9 @@ function responseBody<V extends string, P extends string, S extends string>(
 ): Rule | undefined {
   if (!isRefusal(family, outcome))
     return family.isProvided(operation) ? family.responseRule(operation, outcome) : undefined
-  // A refusal has an empty body for every operation. `isRefusal` admits `stage-not-provided` only
-  // for a family with stages. In that family a deployment may declare any provided operation
-  // unprovided, so a provided operation also accepts it.
   return empty
 }
 
-/** Reads version, outcome and correlation of a response, closing its top-level fields. */
 function responseHead<V extends string, P extends string, S extends string>(
   family: Family<V, P, S>,
   data: Fields,

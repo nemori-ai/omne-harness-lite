@@ -1,10 +1,8 @@
 import { defaultResultPolicy } from '@omne-harness/tool-contract/provider'
 import { TOOL_READ_ARGUMENTS } from '../../entry/tool-read-budget.ts'
 import { releaseCatalogViewOf } from '../tool-bindings/catalog-view.ts'
-// 建 Tool 运行时组的唯一 bundle（B 段，R2-D66 第 3 项，L-TOOL 事实清单 §3）：`createLocalToolRuntimePlugins` 的
-// 每个输入只取已核来源，缺席时由各自的窄代理答 `unavailable`。`tool-records` 行按运维者配置调用一次；同一运行的
-// 后续调用配置必须相同，否则装载失败（不建第二份 bundle，也不悄悄沿用旧配置）。
 import type { Context } from '@deepseek-ai/cordis'
+import { createRecoveryAccess } from '@omne-harness/execution-environment-contract'
 import { canonicalDigest } from '@omne-harness/tool'
 import {
   toolBindingsKey,
@@ -12,7 +10,6 @@ import {
   toolStartAuthorityKey,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import {
-  createLocalGrantVerifiers,
   createLocalInvocationSource,
   createLocalInvocationQualifier,
   type LocalInvocationSourceInput,
@@ -21,6 +18,7 @@ import {
   createLocalToolRuntimePlugins,
   type LocalToolRuntimeInput,
 } from '@omne-harness/tool-host-local/cordis'
+import { admitMaintainer } from '../../entry/execution-authorities.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
 import { isReleaseToolsRequest } from '../../entry/tool-forward-requests.ts'
 import { toolTargetPolicyOf } from '../authorization/tool-target-policy.ts'
@@ -40,14 +38,11 @@ import {
   type ToolRuntimeBundle,
   type ToolRuntimeHolder,
 } from './holder.ts'
-import { RELEASE_TOOL_SCOPE } from './scope.ts'
+import { runScopeGrants } from './scope.ts'
+import { toolHitlHolder } from '../tool-hitl/holder.ts'
 
 const OWNER = '@omne-harness/harness-server'
 
-/**
- * 启动许可需求（`permitRequirements`）：发行内置的官方 Shell、Files，调用方是本租户的会话工作主体时不需要另取许可，
- * 证据指名这次启动；其余答 unavailable，启动不进行。动作本身的准入归 `authorization` 行的动作规则。
- */
 function releasePermitRequirements(
   root: Context,
   identity: ReturnType<typeof createReleaseToolIdentity>,
@@ -64,8 +59,13 @@ function releasePermitRequirements(
         availability.layer.kind === 'official' &&
         release.manifest.entries.some(entry => entry.asset.name === name)
       if (!inRelease) return { kind: 'unavailable', diagnostic: 'not a release built-in tool' }
-      const session = await identity.sessionOf(input.principal, input.tenant)
-      if (session === undefined)
+      const work = await identity.sessionWork(input.principal, input.tenant)
+      if (work.kind === 'unavailable')
+        return {
+          kind: 'unavailable',
+          diagnostic: `the session work principal could not be verified: ${work.diagnostic}`,
+        }
+      if (work.kind !== 'session')
         return { kind: 'unavailable', diagnostic: 'not a session work principal of the tenant' }
       return {
         kind: 'not-required',
@@ -80,7 +80,14 @@ function releasePermitRequirements(
   }
 }
 
-function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeConfig) {
+export type ToolLostContact = NonNullable<LocalToolRuntimeInput['lostContact']>
+
+function inputFor(
+  root: Context,
+  holder: ToolRuntimeHolder,
+  config: ToolRuntimeConfig,
+  lostContact: ToolLostContact | undefined,
+) {
   const identity = createReleaseToolIdentity(holder)
   const store = lateStore(holder)
   const requestAccess = currentTargetPolicy({
@@ -103,10 +110,13 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
     },
   }
   const sources = createLocalInvocationSource(sourceInput)
+  const recoveryAccess = createRecoveryAccess()
+  admitMaintainer(root, recoveryAccess)
   const environment = createReleaseEnvironment(holder, identity, {
     filesRoot: config.filesRoot,
     commitAttempts: config.configuration.ledgerCommitAttempts,
     schemaProvider: () => holder.schemaProvider,
+    warn: text => root.logger('tool-runtime').warn(text),
   })
   const input: LocalToolRuntimeInput = {
     store,
@@ -131,28 +141,29 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
     sources: { ...sources, guard: withTargetAdmissionPolicy(sources.guard, store, requestAccess) },
     access: { ...identity.access, request: admittedTargetAccess(store, requestAccess) },
     subjects: identity.subjects,
-    grants: createLocalGrantVerifiers(RELEASE_TOOL_SCOPE),
+    grants: runScopeGrants(),
     guardsOf: () => [],
     permitRequirements: releasePermitRequirements(root, identity),
     clock: holder.clock,
     configuration: { ...config.configuration, readResultArguments: TOOL_READ_ARGUMENTS },
-    // The bindings row is built for any environment value; at run time the value it hands to the
-    // authors is the environment this bundle prepares, so the narrower type is the same object.
     bindings: () => root.get(toolBindingsKey) as ReturnType<LocalToolRuntimeInput['bindings']>,
     catalog: () => root.get(toolCatalogKey),
+    decisions: () => toolHitlHolder(root).bridge ?? undefined,
     environment: environment.input,
     capacity: config.capacity,
     observersPerCall: config.observersPerCall,
     observerQueueFrames: config.observerQueueFrames,
     observerResidenceMs: config.observerResidenceMs,
+    recoveryAccess,
+    ...(lostContact === undefined ? {} : { lostContact }),
   }
   return { input, qualification: createLocalInvocationQualifier(sourceInput) }
 }
 
-/** 本运行的 bundle：第一次按 `config` 建；之后配置不同就抛出（行 FAILED）。 */
 export function ensureToolRuntimeBundle(
   ctx: Context,
   config: ToolRuntimeConfig,
+  lostContact?: ToolLostContact,
 ): ToolRuntimeBundle {
   const holder = toolRuntimeHolder(ctx)
   const digest = canonicalDigest(config)
@@ -161,7 +172,7 @@ export function ensureToolRuntimeBundle(
       throw new Error('tool runtime: this run already built its bundle with another configuration')
     return holder.bundle.value
   }
-  const { input, qualification } = inputFor(ctx.root, holder, config)
+  const { input, qualification } = inputFor(ctx.root, holder, config, lostContact)
   const value = Object.freeze({ ...createLocalToolRuntimePlugins(input), qualification })
   holder.bundle = Object.freeze({ value, configDigest: digest })
   holder.resolve(value)

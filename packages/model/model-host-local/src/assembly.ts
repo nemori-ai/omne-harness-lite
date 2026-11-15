@@ -1,7 +1,3 @@
-// The local Model assembly: credential custody, the Model send boundary, the pi transport with the
-// given families, the injected ModelCommands, and the preparation resources over the same families
-// and Commands. It only composes; every limit, route, proxy and margin comes from the configuration.
-// Its `close` is the one end of both parts: after it starts, neither gives out a new resource.
 import {
   createModelPreparationResources,
   createModelSendBoundary,
@@ -33,10 +29,6 @@ import type {
   PiMaterializationOptions,
 } from './materialization-proof.ts'
 
-/**
- * The refusal of a preparation lease after the assembly's `close` starts. It names the assembly,
- * not the send resources: the send resources can close on their own and keep their own name.
- */
 const ASSEMBLY_CLOSED: ModelFailure = Object.freeze({
   kind: 'unavailable',
   dependency: 'model-host-local',
@@ -44,35 +36,19 @@ const ASSEMBLY_CLOSED: ModelFailure = Object.freeze({
 })
 
 export type LocalModelConfig<P> = Readonly<{
-  /** The credential port, e.g. `createSecretCredentialPort`. The send boundary resolves through it. */
   credentials: CredentialPort<P>
-  /** The authority of calls, dispatches and accounts. The caller owns it and keeps it open. */
   commands: ModelCommands<P>
   coordinator: SendCoordinator<P>
-  /** The composed family contributions, e.g. `composeFamilies([openAi, anthropic])`. */
   families: PiFamilyContributions
-  /** The assembly creates the network resources from this and closes them in `close`. */
   network: NetworkConfig
-  /** The route of every provider, by provider name, e.g. `openrouter`. The package holds no URL. */
   routes: Readonly<Record<string, PiRoute>>
   transportLimits: PiTransportLimits
   maxRetainedAttempts: number
   materialization: PiMaterializationOptions
   requestDisclosure?: PiSendResourcesConfig['requestDisclosure']
-  /**
-   * Told before each retry of a send whose request bytes had not left (`transportLimits.connectRetry`),
-   * with the call, the dispatch, which retry it is, the wait before it and why. A throw is dropped.
-   * Absent: nobody is told.
-   */
   onConnectRetry?: (retry: ConnectRetryReport) => void
-  /**
-   * The preparation resources: the leases read call facts from `commands` and take bindings from
-   * `families`. The margin is the family's own configuration; this package adds no default.
-   */
   preparation: Readonly<{
-    /** The most distinct calls one lineage may name. */
     maxCitedCalls: number
-    /** Fixes the credential layer of a profile supplier, as request preparation does. */
     supplierOf: SupplierPort<P>
   }>
 }>
@@ -80,29 +56,12 @@ export type LocalModelConfig<P> = Readonly<{
 export type LocalModel<P> = Readonly<{
   send: ModelSendBoundary<P>
   materialization: ModelMaterializationEvidenceReader
-  /**
-   * The production `ModelPreparationResources` over `families` and `commands`. The caller releases
-   * every lease it acquires. After `close` starts, `acquire` returns `unavailable` with the
-   * dependency `model-host-local` and the diagnostic `assembly-closed`. A lease acquired before
-   * keeps its bindings until its own `release`.
-   */
   preparation: ModelPreparationResources<P>
-  /**
-   * Refuses new send resources and new preparation leases, releases the open send resources, then
-   * closes the network resources and waits for every exchange to stop. Both closes run to the end:
-   * one failure rejects with that failure, two with one `AggregateError` of both. It does not
-   * close `commands` or `credentials`, and it does not release a lease. Idempotent.
-   */
   close(): Promise<void>
 }>
 
-/** What the assembly needs of the network it creates: its close. */
 type ClosableNetwork = Readonly<{ close(): Promise<void> }>
 
-/**
- * The network and the send resources over it, as factories, so a test can observe their closes.
- * `assembleLocalModel` gives the pi factories.
- */
 export type AssemblyFactories<P, N extends ClosableNetwork> = Readonly<{
   createNetwork(config: NetworkConfig): N
   createSendResources(
@@ -110,11 +69,6 @@ export type AssemblyFactories<P, N extends ClosableNetwork> = Readonly<{
   ): PiSendResources<P>
 }>
 
-/**
- * Composes the local Model send path and the preparation resources. Throws `RangeError`
- * synchronously for a configuration that the network, the transport, the send boundary or the
- * preparation resources refuse.
- */
 export function assembleLocalModel<P>(config: LocalModelConfig<P>): LocalModel<P> {
   return assembleOver<P, NetworkResources>({
     config,
@@ -125,24 +79,16 @@ export function assembleLocalModel<P>(config: LocalModelConfig<P>): LocalModel<P
   })
 }
 
-/**
- * Closes what a refused assembly opened: the send resources, if they were built, then the network.
- * No exchange ever ran on this network, so its close only ends the capacity and the idle pool. The
- * caller receives the configuration error; a failure of this close cannot change that answer, so it
- * is dropped here, on purpose, and never left as an unhandled rejection.
- */
 function abandon<P>(network: ClosableNetwork, resources: PiSendResources<P> | undefined): void {
   const released = resources === undefined ? Promise.resolve() : resources.close()
   released.finally(() => network.close()).catch(() => undefined)
 }
 
-/** The rejection reason of a settled close, or nothing when it resolved. */
 async function failureOf(closing: Promise<void>): Promise<readonly unknown[]> {
   const [settled] = await Promise.allSettled([closing])
   return settled?.status === 'rejected' ? [settled.reason] : []
 }
 
-/** `assembleLocalModel` over the given factories. */
 export function assembleOver<P, N extends ClosableNetwork>(
   input: Readonly<{ config: LocalModelConfig<P>; factories: AssemblyFactories<P, N> }>,
 ): LocalModel<P> {
@@ -155,7 +101,6 @@ export function assembleOver<P, N extends ClosableNetwork>(
     typeof config.materialization.execution !== 'function'
   )
     throw new RangeError('materialization.maxRecords must cover maxRetainedAttempts')
-  // What needs no network is checked and built first, so its refusal leaves nothing open.
   const options = config.preparation
   if (typeof options !== 'object' || options === null)
     throw new RangeError('preparation must be an object')
@@ -199,8 +144,6 @@ export function assembleOver<P, N extends ClosableNetwork>(
       return leases.acquire(acquireInput)
     },
   }
-  // The send resources release their transports before the network stops. Both closes run to the
-  // end; one failure is thrown as it is, two as one `AggregateError`.
   async function closeAll(): Promise<void> {
     const failures = [...(await failureOf(opened.close())), ...(await failureOf(network.close()))]
     const [only, ...more] = failures

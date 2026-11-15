@@ -56,7 +56,6 @@ describe('engineering sensor applicability', () => {
         hardLinesBroken({
           direction: [],
           cycles: [],
-          exceptedCycles: [],
           acceptanceLock: { status: 'judged', violations: [] },
           sensors: line,
         }),

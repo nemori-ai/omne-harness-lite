@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-// `pnpm run lint:deps`：dependency-cruiser 的规则违规、成员与组之间的环，以及 `constraints.json`（schema 3）方向行的命中。
-// 每条跨组成员边都在 `groupCycleExceptions` 登记的组环按例外放行，另写一行说明；登记的边没出现在任何组环里的例外也算一项。
-// 有任何一项退出 1，工具出错退出 2。与 clean loop、`pnpm run metrics` 读同一张图（deps/graph.ts）；
-// 预设与方向行都只从运行检查器的仓库读（core/subject.ts），`--root` 只改变被检查的树。
 import { resolve } from 'node:path'
 import { readRunnerConstraints, type RunnerConstraints } from '../arch/constraints.ts'
 import {
@@ -12,18 +8,14 @@ import {
   memberPairCount,
   type DirectionFinding,
 } from '../arch/directions.ts'
-import {
-  exceptedLine,
-  judgeGroupCycles,
-  runnerGroupCycleExceptions,
-  type GroupCycleExceptionFinding,
-} from '../arch/group-cycles.ts'
-import { subjectIsRunner } from '../core/subject.ts'
 import { workingGraph, type DependencyFinding, type DependencyGraph } from './graph.ts'
 
-const USAGE = '用法：[--root <检出目录>]'
+const USAGE = `用法：omne-deps [--root <检出目录>]
+按依赖规则、constraints.json 的方向行与成员之间的环检查依赖图。
+  --root  被检查的树，缺省为当前目录。规则、方向行与解析选项只从运行检查器的仓库读（OMNE_RUNNER_ROOT，缺省为被检查的仓库）。
+环境变量：OMNE_DEP_GRAPH_CACHE=0 不读不写依赖图缓存；OMNE_ADMISSION=1 不读缓存，照常计算并写入，不设或空串为非准入，其他值报错。
+退出 0 没有发现；1 有依赖违规、方向命中、角色没有文件或成员之间的环；2 用法错误、constraints.json 坏了或两份并存、依赖图算不出。`
 
-/** 方向行的检查结果与给人看的那一行；runner 没有 constraints.json 或文件是 schema 1、2 时不检查。 */
 function directionCheck(
   constraints: RunnerConstraints,
   graph: DependencyGraph,
@@ -50,38 +42,29 @@ function main(argv: readonly string[]): number {
     root = resolve(value)
     index += 1
   }
-  // 先读 runner 的方向行：文件坏了直接退出 2，不先跑一遍 dependency-cruiser。
   const constraints = readRunnerConstraints()
   const graph = workingGraph(root)
   const directions = directionCheck(constraints, graph)
-  const cycles = judgeGroupCycles(
-    graph.findings,
-    runnerGroupCycleExceptions(constraints),
-    subjectIsRunner(root),
-  )
-  const findings: readonly (DependencyFinding | DirectionFinding | GroupCycleExceptionFinding)[] = [
-    ...cycles.findings,
-    ...cycles.unused,
+  const findings: readonly (DependencyFinding | DirectionFinding)[] = [
+    ...graph.findings,
     ...directions.findings,
   ]
   for (const finding of findings) {
     const at = finding.sites[0]
     console.log(`  error ${finding.message}${at === undefined ? '' : `（${at.path}:${at.line}）`}`)
   }
-  for (const item of cycles.excepted) console.log(`  excepted ${exceptedLine(item)}`)
   console.log(directions.summary)
-  const excepted =
-    cycles.excepted.length === 0 ? '' : `；${cycles.excepted.length} 个组环按具名例外放行`
-  const clean =
-    cycles.excepted.length === 0
-      ? '没有依赖违规、方向命中，也没有成员或组之间的环'
-      : '没有依赖违规、方向命中、成员之间的环，也没有未放行的组环'
   console.log(
     findings.length === 0
-      ? `✔ ${clean}（${graph.members.length} 个成员、${graph.edges.length} 条成员边${excepted}）`
-      : `✗ ${findings.length} 处依赖违规、方向命中或环${excepted}`,
+      ? `✔ 没有依赖违规、方向命中，也没有成员之间的环（${graph.members.length} 个成员、${graph.edges.length} 条成员边）`
+      : `✗ ${findings.length} 处依赖违规、方向命中或环`,
   )
   return findings.length === 0 ? 0 : 1
+}
+
+if (process.argv.includes('--help')) {
+  console.log(USAGE)
+  process.exit(0)
 }
 
 try {

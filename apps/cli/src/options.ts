@@ -1,9 +1,6 @@
 export interface OptionRules {
-  /** Every option name the command accepts, with its leading dashes. */
   readonly accepted: readonly string[]
-  /** The options the command requires, in the order a missing one is named. */
   readonly required: readonly string[]
-  /** Options that take no value, such as `--json`. One that is present reads as `''`. */
   readonly switches?: readonly string[]
 }
 
@@ -12,12 +9,6 @@ export type OptionRead =
   | { readonly kind: 'unrecognized' }
   | { readonly kind: 'missing'; readonly option: string }
 
-/**
- * Reads `--name value` pairs, and the switches of the command, which stand alone. A value is the next word, even when it starts with a dash, unless
- * that word is itself an option of this command. A repeated option, an unknown word, `--name=value`,
- * and a stray word all count as unrecognized. A required option that is absent is named only
- * after the whole list has been read, so unrecognized words win over a missing option.
- */
 export function readOptions(args: readonly string[], rules: OptionRules): OptionRead {
   const values = new Map<string, string>()
   const switches = rules.switches ?? []

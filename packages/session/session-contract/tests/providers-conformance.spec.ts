@@ -92,6 +92,7 @@ describe('effective provider conformance on non-durable doubles', () => {
             revision: null,
             state: 'missing',
             attachment: null,
+            lost: null,
             conclusion: null,
             evidence: evidence('false'),
           },

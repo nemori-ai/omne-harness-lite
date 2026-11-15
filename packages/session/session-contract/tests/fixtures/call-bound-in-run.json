@@ -1,0 +1,29 @@
+{
+  "consumption": "2af366bd146621493b9493655b0a8f83c81d498f/step-1/main/reply",
+  "registration": {
+    "binding": {
+      "action": "step-1/main",
+      "consumer": {
+        "owner": "@omne-harness/agent",
+        "position": "I3",
+        "purpose": "main",
+        "work": "run_b79eb03229794cc2dc89c9ed8a977f824eedeadc157db21b09ece1b9c6990aaf/execution/step-1"
+      },
+      "initiatingAttempt": "run_b79eb03229794cc2dc89c9ed8a977f824eedeadc157db21b09ece1b9c6990aaf#1",
+      "producer": {
+        "call": "[\"model-invocation\",2,\"mcall_2af366bd146621493b9493655b0a8f83c81d498f_1\",\"mop_2af366bd146621493b9493655b0a8f83c81d498f_1_admit\"]",
+        "kind": "model"
+      },
+      "request": {
+        "digest": "28KGuEn5C3dk6Q7q9dvJbn8xHb5UZowS9jrcY0rxv60",
+        "owner": "agent-context:{\"digest\":\"harness-server:agent-context/1\",\"name\":\"agent-context\",\"owner\":\"@omne-harness/harness-server/agent-context\",\"revision\":\"1\"}",
+        "record": "{\"attachment\":\"run_b79eb03229794cc2dc89c9ed8a977f824eedeadc157db21b09ece1b9c6990aaf/execution/attachment/1\",\"execution\":\"run_b79eb03229794cc2dc89c9ed8a977f824eedeadc157db21b09ece1b9c6990aaf/execution\",\"instance\":\"126b6b1a-5449-4331-8318-acf34cae7dd0\",\"kind\":\"preparation\",\"scope\":\"session-scope:fe88a06c2f53eebd569e3a8a8ad148f00d6063a83204f3bd0177bf20e0d6edb6\",\"sequence\":9,\"tenant\":\"{\\\"organization\\\":\\\"org_0vswhcyxs05fdhnns7wf6y4p1a\\\",\\\"account\\\":\\\"acc_wje09q0jq9vcr4arzchn9n481q\\\"}\"}",
+        "revision": "1"
+      }
+    },
+    "kind": "associated",
+    "purpose": "main"
+  },
+  "association": null,
+  "kind": "model"
+}

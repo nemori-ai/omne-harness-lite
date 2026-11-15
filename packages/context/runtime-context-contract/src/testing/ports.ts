@@ -11,31 +11,20 @@ import type {
   Eligibility,
 } from '../index.js'
 
-/** Which face of the authority port one recorded call used. */
 export type AuthorityFace = 'holder' | 'producer' | 'reader'
 export type AuthorityCall<P> =
   | Readonly<{ face: 'holder'; principal: P; action: HolderAction<P> }>
   | Readonly<{ face: 'producer'; principal: P; action: ProducerAction }>
   | Readonly<{ face: 'reader'; principal: P; eligibility: Eligibility<P> }>
 
-/** A scripted answer; `undefined` keeps the default authorized answer. */
 export type AuthorityScript<P> = (call: AuthorityCall<P>) => HolderDecision<P> | undefined
 
-/**
- * Test doubles of the two authority ports. Not for production: the binding table trusts whatever the
- * test binds, and the default authority authorizes every call until a script or `revokeAll` says
- * otherwise. `current()` of every earlier answer turns false after `revokeAll`.
- */
 export type TestAuthorityPorts<P> = Readonly<{
   authority: RuntimeContextAuthority<P>
   bindings: ScopeBindingSource
-  /** Records a trusted binding of a scope to a tenant. */
   bind(scope: ScopeRef, tenant: TenantId): void
-  /** Answers every later lookup of this scope with the given binding answer. */
   answerBinding(scope: ScopeRef, answer: ScopeBinding): void
-  /** Replaces the authority script; pass `undefined` to authorize again. */
   script(next: AuthorityScript<P> | undefined): void
-  /** Makes every answer given so far stale: its `current()` returns false. */
   revokeAll(): void
   readonly calls: readonly AuthorityCall<P>[]
 }>

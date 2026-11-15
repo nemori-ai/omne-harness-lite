@@ -1,13 +1,3 @@
-// Scripted doubles of the Agent ports that the generic implementation consumes, apart from the
-// Journal, the clock and the Tool runtime. Each double gives the port and one `Script` per method.
-// A double does not implement the semantics of its port: it answers what the test scripted, or its
-// default. Four doubles default to a success, because almost every path of a test passes through
-// them and the test would otherwise script the same answer each time: access answers `allowed`,
-// admission `allow`, handoff `prepared`, and request preparation a `ready` preparation; model context reads
-// `full` for the same reason. Each such default is visible in the `calls` log of its script. The
-// other doubles answer `unavailable` until scripted (selection, adoptions and conditions outside
-// their tables, extensions, cards, materials and reads; `derive` and `resume` answer
-// `unsupported`), so an unscripted path there cannot look like a success.
 import { createHash } from 'node:crypto'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
@@ -40,19 +30,12 @@ import { decodeProviderName, type ProviderName } from '@omne-harness/model-contr
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { scriptedMethod, type In, type Out, type ScriptOf } from './script.ts'
 
-/** The owner name of every evidence and adoption that a double mints. */
 export const TEST_OWNER = 'agent-testing'
 
-/** An evidence value that a double mints for a test. It proves nothing outside the test. */
 export function testEvidence(record: string): DurableEvidence {
   return { owner: TEST_OWNER, record, revision: '1', digest: `test:${record}` }
 }
 
-/**
- * An adoption value that a double mints for a test. It names no real artifact. Its digest is the
- * SHA-256 of the name in lowercase hex, the form that the Model contract's request judgment
- * requires, so an adoption from here can stand in a fixed Model request.
- */
 export function testAdoption(name: string): Adoption {
   return {
     owner: TEST_OWNER,
@@ -62,7 +45,6 @@ export function testAdoption(name: string): Adoption {
   }
 }
 
-/** The failure of a port whose answer the test did not script. */
 export function notScripted(owner: string): Failure {
   return { kind: 'unavailable', owner, diagnostic: `${owner} has no scripted answer` }
 }
@@ -71,12 +53,8 @@ function unavailable(owner: string): () => Outcome<never, Failure> {
   return () => fail(notScripted(owner))
 }
 
-// ---------------------------------------------------------------------------------------------
-// Access, admission and message handoff
-
 export type ScriptedAccessCheck<P> = Readonly<{
   port: AgentAccessCheck<P>
-  /** Default: `allowed`, with a test evidence. */
   check: ScriptOf<AgentAccessCheck<P>['check']>
 }>
 
@@ -90,7 +68,6 @@ export function createScriptedAccessCheck<P>(): ScriptedAccessCheck<P> {
 
 export type ScriptedActionAdmission<P> = Readonly<{
   port: ActionAdmission<P>
-  /** Default: `allow`, with a test evidence. */
   admit: ScriptOf<ActionAdmission<P>['admit']>
 }>
 
@@ -104,21 +81,13 @@ export function createScriptedActionAdmission<P>(): ScriptedActionAdmission<P> {
 
 export type ScriptedMessageHandoff<P> = Readonly<{
   port: MessageHandoff<P>
-  /**
-   * Default: `prepared` with the candidate as the exact message and a test admission evidence; the
-   * outcome echoes the request, with an invoke or submit origin for an external request.
-   */
   prepare: ScriptOf<MessageHandoff<P>['prepare']>
-  /** Default: `unknown` with no original material. */
   lookup: ScriptOf<MessageHandoff<P>['lookup']>
-  /** Default: `unknown` with the original request. */
   exclude: ScriptOf<MessageHandoff<P>['exclude']>
 }>
 
-/** A message of the history, named through the contract so this entry needs no message import. */
 type Message = Extract<HandoffOutcome['decision'], { kind: 'prepared' }>['message']
 
-/** The candidate message of a prepare request: the internal candidate or the external input. */
 function candidateOf(request: HandoffRequest): Message {
   if (request.kind === 'execution') return request.candidate
   return request.entry.kind === 'invoke'
@@ -126,7 +95,6 @@ function candidateOf(request: HandoffRequest): Message {
     : request.entry.value.content
 }
 
-/** The origin a double fixes for a request: the runtime binding of an invoke, the durable view of a submit. */
 function originOf(input: HandoffPrepare): InputOrigin | null {
   switch (input.kind) {
     case 'execution':
@@ -142,7 +110,6 @@ function originOf(input: HandoffPrepare): InputOrigin | null {
   }
 }
 
-/** The identity text of a request's H, for the records a double mints. */
 function handoffText(request: HandoffRequest): string {
   const reference = request.reference
   return reference.kind === 'execution'
@@ -195,16 +162,10 @@ export function createScriptedMessageHandoff<P>(): ScriptedMessageHandoff<P> {
   }
 }
 
-// ---------------------------------------------------------------------------------------------
-// Request preparation, model selection and model context
-
 export type ScriptedRequestPreparation<P> = Readonly<{
   port: RequestPreparation<P>
-  /** Default: assembled on the first prepare, ready when previous is present (#558 S-11). */
   prepare: ScriptOf<RequestPreparation<P>['prepare']>
-  /** Default: `unsupported`. */
   derive: ScriptOf<RequestPreparation<P>['derive']>
-  /** Default: `unsupported`. */
   resume: ScriptOf<RequestPreparation<P>['resume']>
 }>
 
@@ -214,13 +175,6 @@ type ReadyPreparation = Extract<
   { kind: 'ready' }
 >
 
-/**
- * The `ready` preparation of the default `prepare`: one test supplier for the selected profile, the
- * selected parameters, no system blocks, messages or tools, and a fixed result capacity. It carries
- * the action, purpose, position, recipient and coverage of the input, so a test can tell which call
- * it answers. It is a well-formed value, not a request that a real model would accept.
- */
-/** The test supplier's provider: the route of the selected recipient, as a provider name. */
 function providerOf(route: string): ProviderName {
   const decoded = decodeProviderName(route)
   if ('failure' in decoded) throw new RangeError(`test route ${route} is not a provider name`)
@@ -254,7 +208,6 @@ export function readyPreparation<P>(input: PrepareInput<P>): ReadyPreparation {
       messages: [],
       tools: [],
       toolChoice: 'auto',
-      // The default replay declaration of the test supplier, expanded.
       declarations: [
         {
           produces: `${input.selection.recipient.route}/test-model`,
@@ -301,7 +254,6 @@ export function createScriptedRequestPreparation<P>(): ScriptedRequestPreparatio
 
 export type ScriptedModelSelection<P> = Readonly<{
   port: ModelSelection<P>
-  /** Default: `unavailable`. A selected model carries a resolved profile that only the test knows. */
   select: ScriptOf<ModelSelection<P>['select']>
 }>
 
@@ -314,7 +266,6 @@ export function createScriptedModelSelection<P>(): ScriptedModelSelection<P> {
 
 export type ScriptedModelContext<P> = Readonly<{
   port: ModelContextReader<P>
-  /** Default: a `full` read for the recipient of the input, with test evidences. */
   read: ScriptOf<ModelContextReader<P>['read']>
 }>
 
@@ -333,18 +284,12 @@ export function createScriptedModelContext<P>(): ScriptedModelContext<P> {
   return { port: { read: read.call }, read: read.script }
 }
 
-// ---------------------------------------------------------------------------------------------
-// Adoptions and current conditions: tables looked up by exact key
-
 type Resolution = Extract<Out<AgentAdoptions<unknown>['resolve']>, { ok: unknown }>['ok']
 
 export type TableAdoptions<P> = Readonly<{
   port: AgentAdoptions<P>
-  /** Puts one exact adoption in the table. A later call for the same adoption replaces it. */
   define(adoption: Adoption, resolution: Resolution): void
-  /** Default: the table entry whose four fields equal the input adoption; otherwise `unavailable`. */
   resolve: ScriptOf<AgentAdoptions<P>['resolve']>
-  /** Default: `unavailable`. */
   handover: ScriptOf<AgentAdoptions<P>['handover']>
 }>
 
@@ -377,9 +322,7 @@ export function createTableAdoptions<P>(): TableAdoptions<P> {
 
 export type TableConditions<P> = Readonly<{
   port: CurrentConditions<P>
-  /** Puts the current conditions of one execution in the table. */
   define(execution: AgentExecutionId, conditions: RuntimeConditions): void
-  /** Default: the table entry of the execution that `advance` names; otherwise `unavailable`. */
   read: ScriptOf<CurrentConditions<P>['read']>
 }>
 
@@ -399,9 +342,6 @@ export function createTableConditions<P>(): TableConditions<P> {
     read: read.script,
   }
 }
-
-// ---------------------------------------------------------------------------------------------
-// Ports that only some paths need: every method answers `unavailable` until a test scripts it
 
 export type ScriptedExtensions<P> = Readonly<{
   port: ExtensionImplementations<P>

@@ -1,6 +1,3 @@
-// The self-proof harness of the conformance suites. It runs every case of a suite on a fresh
-// fixture and sorts the outcome: passed, not applicable, failed by an assertion. Any other error is
-// rethrown, because a violating variant must be caught by an assertion, not by a crash.
 import { AssertionError } from 'node:assert/strict'
 import { appendFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
@@ -12,17 +9,10 @@ export type Verdicts = Readonly<{
   notApplicable: Readonly<Record<string, string>>
 }>
 
-/** How a piece of late work ended: it is kept as a value, so it never rejects unhandled. */
 type LateEnd = Readonly<{ failed: false } | { failed: true; error: unknown }>
 
-/** The late work that the fixtures of the running case started and do not await. */
 const lateWork: Promise<LateEnd>[] = []
 
-/**
- * Keeps `work`, which a fixture started and does not await (a landing that comes later, a handle
- * that resolves early): the case that is running awaits it when it ends, so the work never
- * outlives the case, and a rejection of it fails the case as an assertion.
- */
 export function keep(work: PromiseLike<unknown>): void {
   lateWork.push(
     Promise.resolve(work).then(
@@ -32,12 +22,10 @@ export function keep(work: PromiseLike<unknown>): void {
   )
 }
 
-/** Runs `work` after `count` turns of the event loop, and keeps it (see `keep`). */
 export function later(count: number, work: () => unknown): void {
   keep(new Promise<void>(resolve => turns(count, resolve)).then(work))
 }
 
-/** Awaits all late work, the work that it starts included; an assertion failure if any rejected. */
 async function lateFailure(): Promise<AssertionError | undefined> {
   let failure: AssertionError | undefined
   while (lateWork.length > 0)
@@ -51,10 +39,6 @@ async function lateFailure(): Promise<AssertionError | undefined> {
 
 type CaseEnd = Readonly<{ thrown: false } | { thrown: true; error: unknown }>
 
-/**
- * Runs one case, then awaits the late work that it left. A rejected late work fails a case that
- * did not already fail by an assertion.
- */
 async function endOf(run: () => Promise<void>): Promise<CaseEnd> {
   let end: CaseEnd = { thrown: false }
   try {
@@ -85,10 +69,6 @@ export async function judge<F>(
   return { passed, failed, notApplicable }
 }
 
-/**
- * A case table entry: the variant, the names of the cases that it must make fail, and the cases
- * that it must leave not applicable with the handle each one names (none unless listed).
- */
 export type Variant<F> = Readonly<{
   name: string
   fails: readonly string[]
@@ -96,7 +76,6 @@ export type Variant<F> = Readonly<{
   fixture: () => F
 }>
 
-/** The verdict of a variant is exactly its table entry: the listed failures, the listed gaps. */
 export async function expectVariantVerdict<F>(
   cases: readonly ConformanceCase<F>[],
   variant: Variant<F>,
@@ -111,13 +90,11 @@ export async function expectVariantVerdict<F>(
   expect(verdict.notApplicable).toEqual(variant.notApplicable ?? {})
 }
 
-/** Every case name of a suite is unique and names a clause of the SPEC. */
 export function expectWellFormed<F>(cases: readonly ConformanceCase<F>[]): void {
   expect(new Set(cases.map(item => item.name)).size).toBe(cases.length)
   for (const item of cases) expect(item.clause).toMatch(/^P\d{2}$/u)
 }
 
-/** Every case fails under at least one variant, so none of them is a check that cannot fail. */
 export function expectEveryCaseIsCaught<F>(
   cases: readonly ConformanceCase<F>[],
   variants: readonly Variant<F>[],
@@ -128,10 +105,6 @@ export function expectEveryCaseIsCaught<F>(
   expect([...caught].filter(name => !known.has(name))).toEqual([])
 }
 
-/**
- * One test per variant, titled with the whole name of the variant: the verdict of the variant is
- * exactly its table entry (the title is also how a mutation run names the variant).
- */
 export function itFailsExactly<F>(
   cases: readonly ConformanceCase<F>[],
   variants: readonly Variant<F>[],
@@ -142,18 +115,12 @@ export function itFailsExactly<F>(
     })
 }
 
-/**
- * A provider that the contract allows, with the cases that it leaves not applicable (none unless
- * listed). `fixture` builds it from the port of a double and the one handle that the provider may
- * wrap: it cannot reach the controls of the double.
- */
 export type LegalProvider<F> = Readonly<{
   name: string
   fixture: () => F
   notApplicable?: Readonly<Record<string, string>>
 }>
 
-/** One test per legal provider: no case fails, and the not applicable set is exactly the listed one. */
 export function itPassesLegal<F>(
   cases: readonly ConformanceCase<F>[],
   providers: readonly LegalProvider<F>[],
@@ -167,10 +134,6 @@ export function itPassesLegal<F>(
     })
 }
 
-/**
- * The cases that need a handle, found by use and not by a list: each case runs on a fixture whose
- * handle `spy` has wrapped, and the cases that called it are the ones that need it.
- */
 export async function casesUsingHandle<F>(
   cases: readonly ConformanceCase<F>[],
   fixture: () => F,
@@ -187,11 +150,6 @@ export async function casesUsingHandle<F>(
   return using
 }
 
-/**
- * A provider that is legal but offers no `handleName`: every case that needs the handle is not
- * applicable and none of them is passed, and no other case is held back. `withHandle` is the
- * same provider with the handle, which tells which cases need it.
- */
 export function itNeedsTheHandle<F>(
   cases: readonly ConformanceCase<F>[],
   provider: Readonly<{
@@ -217,17 +175,11 @@ export function itNeedsTheHandle<F>(
   })
 }
 
-/** Calls `then` after `count` turns of the event loop: the delay of a handle that resolves too early. */
 export const turns = (count: number, then: () => void): void => {
   if (count === 0) then()
   else setImmediate(() => turns(count - 1, then))
 }
 
-/**
- * The fixture of `make` with its handle `name` resolving at once and starting its work 3 turns
- * later: a fixture that breaks the completion contract of that handle (it resolves before the
- * work landed).
- */
 export function resolvesEarly<F extends object>(make: () => F, name: keyof F & string): () => F {
   return () => {
     const base = make()

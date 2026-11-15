@@ -1,14 +1,19 @@
 #!/usr/bin/env node
-// 回路状态的命令行外壳：解析参数、调 run.ts、打印、给退出码。
-// 退出码 1 只在硬线被破时；2 是工具自己出错（参数、配置、git）。
 import { resolve } from 'node:path'
 import { runLoopStatus, type RunOptions } from './run.ts'
 import { parseScope } from './product-inputs.ts'
 import { subjectRoot } from '../core/subject.ts'
 
-const USAGE =
-  '用法：loop-status [--base <ref>] [--snapshot] [--out <dir>] [--strict] [--scope all|engineering] [--root <检出目录>]'
-/** 被量的检出缺省是本工具所在的检出；测试用 `--root` 指向临时仓库。 */
+const USAGE = `用法：loop-status [--base <ref>] [--snapshot] [--out <dir>] [--strict] [--scope all|engineering] [--root <检出目录>]
+整洁的各项指标在哪条带上、这次变更里要解释的红项、超预算的成员。
+  --base      另列这次变更里要解释的红项，并核验收锁。
+  --snapshot  在干净的工作树上追加一条趋势快照。
+  --strict    严格模式：开着的传感器都要有数据。要同时给 --base 与 --out，不能与 --snapshot 同用。
+  --scope     all（缺省）或 engineering；engineering 只与 --strict 同用。
+  --out       状态与草稿的目录，缺省为回路目录下的 status/<提交短号>[-dirty]/。
+  --root      被检查的检出，缺省取 OMNE_SUBJECT_ROOT，再取当前目录所在 Git 仓库的根。
+回路目录取 OMNE_METRICS_HOME，缺省为主检出的 tmp/clean-loop/。配置：repo-toolchain.config.json 的 loop 一节。
+退出 0 硬线没破；1 硬线被破（依赖违规或环、给了 --base 时验收锁被破、严格模式下开着的传感器没数据）；2 参数、配置或 Git 出错。`
 
 function parseArgs(argv: readonly string[]): RunOptions {
   const values = new Map<string, string>()
@@ -35,6 +40,11 @@ function parseArgs(argv: readonly string[]): RunOptions {
     ...(base === undefined ? {} : { base }),
     ...(out === undefined ? {} : { out }),
   }
+}
+
+if (process.argv.includes('--help')) {
+  console.log(USAGE)
+  process.exit(0)
 }
 
 try {

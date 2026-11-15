@@ -1,9 +1,3 @@
-// commitEntries on the real participant over the SQLite test provider: the consequence rows, the
-// progress row, `sl_state`, `sl_operation` and the tail are one transaction (session-contract
-// docs/same-log-pure.md「互斥与原子性由谁给」, first row). A write that fails inside the transaction
-// leaves every one of them as it was, and the same input then commits once. A lost reply is
-// `commit-unknown`, and the original operation is found again. The shared cases run in
-// conformance.spec.ts; this file holds what only a SQL transaction can show.
 import { describe, expect, it } from 'vitest'
 import type {
   RunId,
@@ -37,7 +31,6 @@ async function work(a: App): Promise<WorkSnapshot> {
   return ok<WorkSnapshot>(await a.port.readWork(a.access(TENANT_A)))
 }
 
-/** An active Run with its execution and the bound external Tool call `CALL`; the range (0, 2]. */
 async function opened() {
   const a = await app()
   ok(await a.create(TENANT_A))
@@ -124,7 +117,6 @@ async function opened() {
   return { a, input: { observation, start: { kind: 'initial' as const } } }
 }
 
-/** The rows of every table that a commitEntries writes, read in the domain of tenant A. */
 function tables(a: App) {
   const count = (sql: string) => Number(a.provider.select('dom_0', sql).rows[0]?.[0] ?? -1)
   return {
@@ -152,7 +144,6 @@ describe('commitEntries writes in one transaction', () => {
     ])
   })
 
-  // AT-1 to AT-3, and the operation row: the write fails at one statement inside the participant.
   it.each([
     ['AT-1 after the consequence row, before the progress row', /INSERT INTO sl_entry/u, 2],
     ['AT-2 after the progress row, before sl_state', /INSERT OR REPLACE INTO sl_state/u, 1],
@@ -165,13 +156,10 @@ describe('commitEntries writes in one transaction', () => {
       const before = tables(a)
       const progress = (await work(a)).entriesProgress
       a.provider.failWrite(pattern, nth)
-      // An environment error inside the transaction: the real provider answers unknown and keeps
-      // no rolled back receipt (sql-contract §7.6).
       const refused = failureOf(await a.port.commitEntries(input))
       expect(refused.kind).toBe('commit-unknown')
       expect(tables(a)).toEqual(before)
       expect((await work(a)).entriesProgress).toEqual(progress)
-      // No receipt is kept for the attempt: the original stays unknown (session-contract SL09).
       expect(
         ok(
           await a.port.queryOperation({
@@ -186,7 +174,7 @@ describe('commitEntries writes in one transaction', () => {
     },
   )
 
-  it('AT-4 a lost reply is commit-unknown; the original is then committed, recalled and written once', async () => {
+  it('a lost reply is commit-unknown; the original is then committed, recalled and written once', async () => {
     const { a, input } = await opened()
     const before = tables(a)
     a.provider.loseNextReply()

@@ -79,7 +79,12 @@ describe('durable control progression', () => {
     const f = fixture()
     const abort = new AbortController()
     try {
-      const limits = { concurrency: 2, foregroundMs: null, backgroundAfterMs: null }
+      const limits = {
+        concurrency: 2,
+        scopeBudget: null,
+        foregroundMs: null,
+        backgroundAfterMs: null,
+      }
       await admitCall(f.h, 'controlled', { limits })
       await f.h.runOnce('controlled', abort.signal)
       await admitCall(f.h, 'other', { limits })

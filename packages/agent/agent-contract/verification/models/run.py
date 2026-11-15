@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Run TLC on Finishing.tla serially and keep the evidence; export the replay traces.
+"""Run TLC on Finishing.tla and CardRounds.tla serially and keep the evidence; export the replay traces.
 
 Usage, from the repository root, through the test slot:
 
     node scripts/with-test-slot.mjs python3 packages/agent/agent-contract/verification/models/run.py [case ...]
+    node scripts/with-test-slot.mjs python3 packages/agent/agent-contract/verification/models/run.py cardrounds
     node scripts/with-test-slot.mjs python3 packages/agent/agent-contract/verification/models/run.py traces
 
 A case is the name of a configuration file without `.cfg`. Without a case every control and every
-probe runs. The exit code is 0 when every control passed; a probe only records what TLC observed.
+probe runs. `cardrounds` runs only the controls of CardRounds.tla. The exit code is 0 when every
+control passed; a probe only records what TLC observed.
 `traces` runs the trace configurations and writes finishing-traces.json next to this file.
 See README.md for the judgment rules and ../formal-runs.md for the recorded runs.
 """
@@ -24,6 +26,10 @@ import time
 
 ROOT = Path(__file__).resolve().parent
 MODEL = ROOT / 'Finishing.tla'
+# CardRounds.tla has its own configurations, all named cardrounds-*. Its terminal states (the batch
+# applied, the cards settled) are not deadlocks, so TLC runs it with -deadlock.
+CARD_ROUNDS = ROOT / 'CardRounds.tla'
+CARD_PREFIX = 'cardrounds-'
 
 # Each check case: the configuration and what TLC must report. None is a positive control; a
 # string names the property whose violation the negative control must hit.
@@ -44,6 +50,31 @@ CHECKS = {
     'bad-release-while-issued': 'OneCustodian',
     'bad-recheck-before-recognize': 'ReplayOriginal',
     'bad-new-run-blocks-cancel': 'CancelSettles',
+    # CardRounds.tla: positive controls, reachability witnesses (a "Never..." invariant that a
+    # reachable path must violate) and negative controls. See README.md, "等人状态点模型".
+    'cardrounds-safety': None,
+    'cardrounds-safety-wide': None,
+    'cardrounds-progress': None,
+    'cardrounds-settle': None,
+    'cardrounds-reach-two-rounds': 'NeverTwoRoundsApplied',
+    'cardrounds-reach-exclusion': 'NeverPresentAfterExclusion',
+    'cardrounds-reach-lookup': 'NeverLookupAfterCrash',
+    'cardrounds-reach-mixed': 'NeverMixedSettlement',
+    'cardrounds-reach-fail-after-answer': 'NeverFailAfterAnswer',
+    'cardrounds-reach-denied': 'NeverDeniedInvalidation',
+    'cardrounds-reach-late-creation': 'NeverLateCreationSettled',
+    'cardrounds-bad-nobarrier': 'BarrierBeforePresent',
+    'cardrounds-bad-newround': 'OncePresent',
+    'cardrounds-bad-noinvalidate': 'ClosedLeavesNoLiveCard',
+    'cardrounds-bad-asnone': 'ClosedLeavesNoLiveCard',
+    'cardrounds-bad-rehandback': 'OnceHandBack',
+    'cardrounds-bad-partial': 'AllAnsweredBeforeHandBack',
+    'cardrounds-bad-late': 'NoAdoptAfterStop',
+    'cardrounds-bad-invalidasanswer': 'NoAnswerAfterInvalidate',
+    'cardrounds-bad-timeout': 'NoFabricatedAnswer',
+    'cardrounds-bad-holdslot': 'WaitHoldsNoSlot',
+    'cardrounds-bad-rewind': 'RecoveryMonotone',
+    'cardrounds-bad-noresume': 'Progress',
 }
 # Probes are not controls: each one records whether its property holds on a reading the owner has
 # not settled, and takes no part in the exit code. probe-keep-cancelled is the reading of the
@@ -53,7 +84,7 @@ PROBES = {
 }
 # The liveness property is the only PROPERTY of its configurations; TLC's temporal report does not
 # name it, so the negative control is read through that configuration.
-TEMPORAL = {'CancelSettles'}
+TEMPORAL = {'CancelSettles', 'Progress'}
 
 # The trace configurations: (name, configuration, mode, seed). A simulation run walks at random
 # until the goal invariant of its configuration is violated; a model-checking run gives the
@@ -85,7 +116,7 @@ repo = Path(subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], cwd
 output = Path(os.environ.get('FORMAL_OUTPUT_DIR', str(repo / 'tmp/formal/agent-contract-finishing/runs'))).resolve()
 run_dir = output / dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')
 run_dir.mkdir(parents=True)
-for source in [MODEL, Path(__file__).resolve(), *ROOT.glob('*.cfg')]:
+for source in [MODEL, CARD_ROUNDS, Path(__file__).resolve(), *ROOT.glob('*.cfg')]:
     shutil.copy2(source, run_dir / source.name)
 sha = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
 env = {**os.environ, 'LC_ALL': 'C', 'TERM': 'dumb', 'NO_COLOR': '1'}
@@ -93,6 +124,7 @@ metadata = {
     'java': java,
     'javaVersion': subprocess.run([java, '-version'], capture_output=True, text=True, env=env).stderr,
     'jar': str(jar), 'jarSha256': sha(jar), 'modelSha256': sha(MODEL),
+    'cardRoundsSha256': sha(CARD_ROUNDS),
     'sourceHead': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
     'slot': os.environ['OMNE_TEST_SLOT_HELD'], 'heap': heap, 'workers': workers,
     'perCaseBudgetSeconds': budget, 'requested': sys.argv[1:], 'results': [],
@@ -103,9 +135,12 @@ def tlc(case, extra, folder_name=None, worker_count=None):
     """Runs TLC on one configuration and answers the exit code, the log and the time."""
     folder = run_dir / (folder_name or case)
     folder.mkdir(exist_ok=True)
+    model = CARD_ROUNDS if case.startswith(CARD_PREFIX) else MODEL
+    if model is CARD_ROUNDS:
+        extra = ['-deadlock', *extra]
     cmd = [java, heap, '-XX:+UseParallelGC', '-cp', str(jar), 'tlc2.TLC', '-workers', worker_count or workers,
            '-fp', '0', '-metadir', str(folder / 'states'), *extra,
-           '-config', str(run_dir / f'{case}.cfg'), str(run_dir / MODEL.name)]
+           '-config', str(run_dir / f'{case}.cfg'), str(run_dir / model.name)]
     started = dt.datetime.now(dt.timezone.utc).isoformat()
     tick = time.monotonic()
     timed_out = False
@@ -298,6 +333,8 @@ def embed(document):
 
 
 cases = sys.argv[1:] or [*CHECKS, *PROBES]
+if cases == ['cardrounds']:
+    cases = [case for case in CHECKS if case.startswith(CARD_PREFIX)]
 if cases == ['traces']:
     traces()
 else:

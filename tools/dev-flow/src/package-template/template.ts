@@ -82,6 +82,19 @@ function variantFiles(value: unknown): boolean {
     VARIANTS.every(key => stringArray(value[key]))
   )
 }
+function historicalRuleSet(rules: Record<string, unknown>): boolean {
+  if (rules['ruleSet'] === 2) return rules['topics'] === undefined
+  const topics = rules['topics']
+  return (
+    rules['ruleSet'] === 3 &&
+    Array.isArray(topics) &&
+    topics.length > 0 &&
+    topics.every(
+      topic => typeof topic === 'string' && /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u.test(topic),
+    ) &&
+    new Set(topics).size === topics.length
+  )
+}
 export function readTemplate(directory = TEMPLATE_DIRECTORY): TemplateManifest {
   const value: unknown = JSON.parse(readFileSync(join(directory, 'manifest.json'), 'utf8'))
   if (
@@ -89,13 +102,7 @@ export function readTemplate(directory = TEMPLATE_DIRECTORY): TemplateManifest {
     value['format'] !== 1 ||
     value['id'] !== 'typescript-package' ||
     !version(value['version']) ||
-    value['ruleSet'] !== 3 ||
-    !Array.isArray(value['topics']) ||
-    value['topics'].length === 0 ||
-    !value['topics'].every(
-      topic => typeof topic === 'string' && /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u.test(topic),
-    ) ||
-    new Set(value['topics']).size !== value['topics'].length ||
+    value['ruleSet'] !== 4 ||
     !fileList(value['common']) ||
     !stringArray(value['requiredFiles']) ||
     !layoutRules(value['layout']) ||
@@ -117,7 +124,7 @@ export function readTemplate(directory = TEMPLATE_DIRECTORY): TemplateManifest {
       !stringArray(rules['requiredFiles']) ||
       !layoutRules(rules['layout']) ||
       !variantFiles(rules['variantRequiredFiles']) ||
-      rules['ruleSet'] !== 2 ||
+      !historicalRuleSet(rules) ||
       !older(key, value['version'])
     )
       throw new Error('Invalid historical template rules')

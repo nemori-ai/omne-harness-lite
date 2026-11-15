@@ -1,7 +1,6 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolControl, ToolDefiniteFailure } from '@omne-harness/tool-contract'
 
-/** Copies the closed intent before operation allocation or any asynchronous delegation. */
 export function controlIntent(input: object): Outcome<ToolControl, ToolDefiniteFailure> {
   const invalid = () => fail({ kind: 'invalid', field: 'intent', reason: 'type' } as const)
   try {

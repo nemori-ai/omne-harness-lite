@@ -2,7 +2,7 @@
 id: PD-slash-commands
 title: Slash Command
 status: draft
-revision: 2
+revision: 3
 relations:
   supersedes: []
   depends-on: []
@@ -17,7 +17,7 @@ relations:
 
 - [产品正文](design.md)提供需求、能力、阶段与第四章未决。
 - [领域责任](../../../../docs/domains/slash-commands/README.md)提供已接受的范围与协作。
-- [工程入口](../../../../packages/slash-command/README.md)定位逻辑责任、流程及尚未分配的完整行为候选。
+- [包组规格](../../../../packages/slash-command/SPEC.md)维护逻辑责任、应然设计与不变式。
 
 ## 维护
 

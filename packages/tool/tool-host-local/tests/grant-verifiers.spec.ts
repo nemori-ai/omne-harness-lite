@@ -1,6 +1,3 @@
-// The grant verifier of the local Tool host (row 4 of the guard table, D1 conclusion 1): the
-// assembly passes one scope value, and the verifier accepts exactly that scope. The ledger side
-// (an owner that no verifier declares) is in `ledger-guards.spec.ts`, over the real ledger.
 import { describe, expect, it } from 'vitest'
 import type { DurableEvidence, ResourceScope } from '@omne-harness/tool-contract'
 import { createLocalGrantVerifiers, type LocalGrantScope } from '@omne-harness/tool-host-local'
@@ -28,17 +25,17 @@ async function verify(scope: ResourceScope, declaredScope: LocalGrantScope = dec
   })
 }
 
-describe('TL-11 A6 grant verifier', () => {
-  it('TL-11 the map holds exactly the verifier of the declared owner', () => {
+describe('grant verifier', () => {
+  it('the map holds exactly the verifier of the declared owner', () => {
     const verifiers = createLocalGrantVerifiers(declared)
     expect([...verifiers.keys()]).toEqual([declared.owner])
   })
 
-  it('TL-11 the declared scope is granted', async () => {
+  it('the declared scope is granted', async () => {
     expect(await verify({ ...declared })).toEqual({ kind: 'granted' })
   })
 
-  it('TL-11 a copy of the declared evidence is granted whatever its key order', async () => {
+  it('a copy of the declared evidence is granted whatever its key order', async () => {
     const grant: DurableEvidence = {
       digest: declared.grant.digest,
       revision: declared.grant.revision,
@@ -48,11 +45,11 @@ describe('TL-11 A6 grant verifier', () => {
     expect(await verify({ ...declared, grant })).toEqual({ kind: 'granted' })
   })
 
-  it('TL-11 another key is refused', async () => {
+  it('another key is refused', async () => {
     expect(await verify({ ...declared, key: 'another-key' })).toMatchObject({ kind: 'refused' })
   })
 
-  it('TL-11 another owner is refused', async () => {
+  it('another owner is refused', async () => {
     expect(await verify({ ...declared, owner: 'another-owner' })).toMatchObject({
       kind: 'refused',
     })
@@ -63,7 +60,7 @@ describe('TL-11 A6 grant verifier', () => {
     ['record', { record: 'other' }],
     ['revision', { revision: '2' }],
     ['digest', { digest: 'sha256:other' }],
-  ] as const)('TL-11 a grant whose %s differs is refused', async (_field, change) => {
+  ] as const)('a grant whose %s differs is refused', async (_field, change) => {
     expect(await verify({ ...declared, grant: { ...declared.grant, ...change } })).toMatchObject({
       kind: 'refused',
     })
@@ -74,7 +71,7 @@ describe('TL-11 A6 grant verifier', () => {
     ['scope.key', { ...declared, key: '' }],
     ['scope.grant', { ...declared, grant: { ...declared.grant, digest: '' } }],
     ['scope', undefined],
-  ] as const)('TL-11 a declared scope without a filled %s is a TypeError', (field, scope) => {
+  ] as const)('a declared scope without a filled %s is a TypeError', (field, scope) => {
     expect(() => createLocalGrantVerifiers(scope as never)).toThrow(
       new TypeError(`${field}: ${scope === undefined ? 'missing' : 'not a filled value'}`),
     )

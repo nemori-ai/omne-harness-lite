@@ -1,5 +1,3 @@
-// The root entry of the Session contract: the values and identities, the four faces, the ports,
-// the pure domain services, `decide`, `reduce` and the block declaration. No Cordis here.
 export type {
   Adoption,
   AdvanceRef,
@@ -78,9 +76,11 @@ export type {
   ReleasedScope,
   Reply,
   ResidentReference,
+  SessionDirectory,
   SessionFaces,
   SessionFailure,
   SessionHistory,
+  SessionListItem,
   SessionManagement,
   SessionReconciliation,
   SessionWork,
@@ -148,6 +148,7 @@ export type {
   SessionInternalPrincipals,
   SessionNotifier,
   SessionPrincipalBindingSource,
+  SessionScopeOwnerSource,
   SessionTransactionPort,
   SessionWorkPrincipals,
 } from './ports.ts'
@@ -181,6 +182,7 @@ export {
   type RunStartJudgment,
 } from './judgments.ts'
 export { decide, commandDigest } from './decide.ts'
+export { runCancelledBy } from './decision-support.ts'
 export { batchEvidence, reduce } from './reduce.ts'
 export { expandHistoryEntries } from './entries.ts'
 export {
@@ -240,6 +242,10 @@ export type {
   SessionPrefixFact,
 } from './history-values.ts'
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts'
+export { readCallRegistration } from './call-registration.ts'
+export type { CallRegistrationView } from './call-registration.ts'
+export { readRunBoundary } from './run-boundary.ts'
+export type { RunBoundaryView } from './run-boundary.ts'
 
 export type {
   SessionWorkEntryIndex,

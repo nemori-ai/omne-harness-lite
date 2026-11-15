@@ -10,10 +10,6 @@ import {
 
 const TABLE = 'governance_center'
 
-/**
- * 查询构建器上点名表的方法。verification 点名的是前四个；其余几个点名的也是「碰哪张表」，
- * 同一条约束（本包只碰一张表）的同一种文本形式，一并查。
- */
 const TABLE_METHODS = [
   'selectFrom',
   'insertInto',
@@ -32,12 +28,6 @@ const TABLE_METHODS = [
   'lockRow',
 ]
 
-/**
- * 入口 verification「只碰一张表」、design「本节点约束」第 4 条（契约 S-28）：入口层包源码里
- * 点名表的调用，表名只能是 `governance_center`，写法限两种——字面量（可带 `as 别名`），
- * 或本包源码里定义为这个字面量的常量名（`const X = 'governance_center'`）。
- * 成员表达式、拼接、数组等判不出是哪张表的写法一律报出；不出现 `sql` 模板与 `sql.raw(`（不写原始 SQL）。
- */
 export const singleTableEntry: Rule = {
   id: 'single-table-entry',
   source:

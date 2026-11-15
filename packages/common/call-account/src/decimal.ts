@@ -1,4 +1,3 @@
-/** Exact decimal kept as a coefficient and an exponent. Parsing never uses Number. */
 export type Decimal = {
   readonly coefficient: bigint
   readonly exponent: bigint

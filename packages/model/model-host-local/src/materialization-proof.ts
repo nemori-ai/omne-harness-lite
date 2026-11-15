@@ -55,7 +55,6 @@ function key(
   ])
 }
 
-/** Kept inside the resource factory. Only its reader is exposed to consumers. */
 export function materializationRecords(options: PiMaterializationOptions) {
   if (
     !options ||

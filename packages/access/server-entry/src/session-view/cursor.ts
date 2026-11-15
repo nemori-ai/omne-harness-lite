@@ -1,12 +1,7 @@
-// The continuation cursor of read-session-diagnostics (SPEC「会话诊断投影」). A cursor seals the
-// scan position with the tenant, the session, the Run filter, the page size and the Session upper
-// bound it was issued under. The key is random per entry instance, so a cursor cannot be forged or
-// altered, and one issued by another instance is `invalid`, never continued at a guessed position.
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 
 export type DiagnosticsCursorBinding = Readonly<{ tenant: string; session: string }>
 export type DiagnosticsCursorState = Readonly<{
-  /** The entry the next page starts before (Session `begin` with `from`, backward). */
   from: string
   run: string | null
   pageBytes: number
@@ -15,7 +10,6 @@ export type DiagnosticsCursorState = Readonly<{
 
 export interface DiagnosticsCursors {
   seal(binding: DiagnosticsCursorBinding, state: DiagnosticsCursorState): string
-  /** The state of a cursor this instance sealed for `binding`; undefined for any other text. */
   open(binding: DiagnosticsCursorBinding, cursor: string): DiagnosticsCursorState | undefined
 }
 

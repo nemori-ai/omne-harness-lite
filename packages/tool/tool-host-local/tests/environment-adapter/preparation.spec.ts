@@ -38,7 +38,6 @@ import {
   type Principal,
 } from '../coordinator-values.ts'
 
-/** `wrap` puts a store double between the adapter and the memory store. */
 function fixture(wrap: (memory: ToolLedgerStore) => ToolLedgerStore = memory => memory) {
   const store = createMemoryToolLedgerStore()
   const ledgerStore = wrap(store)
@@ -135,6 +134,7 @@ function fixture(wrap: (memory: ToolLedgerStore) => ToolLedgerStore = memory => 
       kind: 'unknown',
       cause: 'provider',
     })),
+    recoverResources: async () => ({ kind: 'unknown', cause: 'provider' }),
   }
   const build = () =>
     createLocalExecutionEnvironment({
@@ -326,12 +326,14 @@ it('recognizes a committed original whose receipt was lost', async () => {
   expect(f.acquire).toHaveBeenCalledTimes(1)
 })
 
-it('keeps cold inspection and cold prepare lease-free and cold release pending', async () => {
+it('answers lost to cold inspection and cold prepare, stays lease-free and keeps cold release pending', async () => {
   const f = fixture()
   await f.build().prepare(f.prepare)
   const cold = f.build()
-  expect(await cold.inspectPreparation(f.prepare)).toMatchObject({ ok: { kind: 'unknown' } })
-  expect(await cold.prepare(f.prepare)).toMatchObject({ ok: { kind: 'unknown' } })
+  expect(await cold.inspectPreparation(f.prepare)).toMatchObject({
+    ok: { kind: 'lost', diagnostic: expect.stringContaining('a process that is gone') },
+  })
+  expect(await cold.prepare(f.prepare)).toMatchObject({ ok: { kind: 'lost' } })
   expect(f.acquire).toHaveBeenCalledTimes(1)
   expect(await cold.release(await f.release())).toMatchObject({ ok: { kind: 'pending' } })
   expect(f.execution.releaseScope).not.toHaveBeenCalled()
@@ -419,6 +421,7 @@ const applicable = new Set([
   'inspectRelease of a release never submitted is not released',
   'a preparation operation reused with another input is a conflict that changes nothing',
   'a release operation reused with another input is a conflict that changes nothing',
+  'an environment prepared before a restart is lost to the new process and not allocated again',
 ])
 for (const test of toolEnvironmentConformance<Principal, ToolEnvironmentValue>().filter(test =>
   applicable.has(test.name),
@@ -430,6 +433,7 @@ for (const test of toolEnvironmentConformance<Principal, ToolEnvironmentValue>()
       access: { tenant: tenantA, principal: principalA },
       request: f.prepare.request,
       allocations: () => f.acquire.mock.calls.length,
+      restart: () => Promise.resolve(f.build()),
     })
   })
 }

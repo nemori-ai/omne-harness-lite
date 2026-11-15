@@ -1,19 +1,3 @@
-// A literal golden table of the two policy tables, cell by cell (policy draft §5 and §6). Each
-// cell writes the kind of verdict and its branch condition. The tables in `src/` are compared to
-// it one cell at a time, so a cell that changes, two cells that swap and a row that is added or
-// removed each fail here. Row completeness against the enumerations is `policy.spec-d.ts`; this
-// file pins what each cell decides. The golden is typed over the same enumerations, so it cannot
-// miss a row either.
-//
-// Cell notation:
-//   deny                            denied (a written basis, no dependency called)
-//   member                          the tenant admission check, any request of the operation
-//   member [routed a|b]             the same, only when the RoutedInput kind is one of the listed
-//   matrix <purpose>                the system action authorization on the purpose
-//   matrix <purpose> [fact a]       the same, only when the fact kind is the listed one
-//   pending <D item>                denied until the D item is decided
-// Column order of every row is login, work, system. The policy draft prints the Agent columns as
-// W, L, S; the golden uses the order of `PrincipalColumn` for both tables.
 import { describe, expect, it } from 'vitest'
 import type { AgentAccessOperation } from '@omne-harness/agent-contract'
 import type { SessionAccessOperation } from '@omne-harness/session-contract'
@@ -63,6 +47,7 @@ const SESSION_GOLDEN = {
   interrupt: [M, D, D],
   cancelRun: BOTH,
   stopCall: BOTH,
+  retryRun: BOTH,
   freeze: WORK_ONLY,
   receive: [D, M, 'matrix scope-release-receive [fact scope-release]'],
   readWork: WORK_ONLY,
@@ -77,6 +62,7 @@ const SESSION_GOLDEN = {
   'history.since': BOTH,
   'history.readModelView': WORK_ONLY,
   pending: [D, M, 'matrix pending-sessions'],
+  'directory.list': [M, D, D],
   references: [D, D, 'matrix resident-references'],
   releasedScopes: [D, D, 'matrix released-scopes'],
 } as const satisfies Readonly<Record<SessionAccessOperation, Golden>>
@@ -110,7 +96,6 @@ const AGENT_GOLDEN = {
   'migrate-cancellation': NOT_MEMBER_ROW,
 } as const satisfies Readonly<Record<AgentAccessOperation, Golden>>
 
-/** The cell in the notation of the golden table. */
 function describeCell(cell: PolicyCell): string {
   switch (cell.verdict) {
     case 'deny':
@@ -152,8 +137,8 @@ compare('Session', SESSION_POLICY, SESSION_GOLDEN)
 compare('Agent', AGENT_POLICY, AGENT_GOLDEN)
 
 describe('the golden itself', () => {
-  it('has the 43 Session rows and 26 Agent rows of the baseline enumerations', () => {
-    expect(Object.keys(SESSION_GOLDEN)).toHaveLength(43)
+  it('has the 45 Session rows and 26 Agent rows of the baseline enumerations', () => {
+    expect(Object.keys(SESSION_GOLDEN)).toHaveLength(45)
     expect(Object.keys(AGENT_GOLDEN)).toHaveLength(26)
   })
 })

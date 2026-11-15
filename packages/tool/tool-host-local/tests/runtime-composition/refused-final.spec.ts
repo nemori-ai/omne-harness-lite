@@ -1,8 +1,6 @@
 import { expect, it } from 'vitest'
 import { accepted, fixture } from './fixture.ts'
 
-// The ledger refuses for good a final it cannot plan (here the first screen of the offloaded text
-// does not fit one result page). The call still ends: its final says why the result was not kept.
 it(
   'ends a call with a failed final when the ledger refuses the result of the author for good',
   { timeout: 15_000 },

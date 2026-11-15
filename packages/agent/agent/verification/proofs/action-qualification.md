@@ -1,6 +1,6 @@
 # 原动作资格的局部安全性
 
-本证明对应 [成员契约](../../SPEC.md#原动作资格读取)及 `createAgentActionQualification`。这是条件式手写证明，不是整个 C3b 的实现接受，也不是机器检查或活性证明。
+本证明对应 成员契约及 `createAgentActionQualification`。这是条件式手写证明，不是整个 C3b 的实现接受，也不是机器检查或活性证明。
 
 ## 对象与前提
 

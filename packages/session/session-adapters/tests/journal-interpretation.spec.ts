@@ -1,16 +1,3 @@
-// AD-02 on real Cordis 4.0.4 over the Session log combination in SQL: the session-log Journal
-// plugin publishes Agent events and sends `session-adapters/agent-published`; the journal
-// interpretation plugin reads the events after the execution's saved progress and commits each
-// through `commitLog`. What is checked: one Agent write is interpreted without a call from the
-// test, the progress reaches the head and the Session command that reads the history passes (it
-// answers unavailable without the plugin); a lost reply is sent again under the same operation and
-// recalls; the same event twice commits once; a head that another writer moved after the read
-// answers changed and the call reads again once, then commits; a call of the event queue that still
-// ends in changed is made again once and no more (R2-D157); a stopped plugin and a plugin without
-// `sessionTransactions` commit nothing; another tenant's event and a refusing view commit nothing;
-// the R2-D28 counterexample passes once the plugin committed the non-observed tail; the commits of
-// one round do not grow with the rounds before it. The storage is the node:sqlite double of the
-// combination (real participants, migrations and read handlers).
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   decodeInputId,
@@ -37,7 +24,10 @@ import {
 } from '@omne-harness/session-contract/testing'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { EXECUTION_RECORD_HANDLERS } from '@omne-harness/session-storage-sql/participants'
-import { createSessionJournalInterpretationPlugin } from '../src/cordis/journal-interpretation.ts'
+import {
+  createSessionJournalInterpretationPlugin,
+  DEFAULT_JOURNAL_INTERPRETATION_RETRY,
+} from '../src/cordis/journal-interpretation.ts'
 import { ok, operation, scene, submitInput } from './fixtures/common-journal.ts'
 import { cordisScene, handed, nextRun, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 
@@ -51,23 +41,19 @@ afterEach(async () => {
   for (const s of scenes.splice(0)) await s.close()
 })
 
-/**
- * The scene, its Cordis root and the AD-02 plugin. `sent` records every `commitLog` call;
- * `script` may answer one call instead of the port (after running it, or without running it).
- */
 async function interpreted(
   name: string,
-  options: Readonly<{ transactions?: 'absent'; plugin?: 'later' }> = {},
+  options: Readonly<{
+    transactions?: 'absent'
+    plugin?: 'later'
+    retry?: Readonly<{ initialMs: number; multiplier: number; maxMs: number }>
+  }> = {},
 ) {
   const s = await sqlScene(name)
   scenes.push(s)
-  // `heads.unwritten` makes the Agent records read as if another execution's call had changed the
-  // execution (SPEC K-5): the head receipt the boundary row names is then not the execution's own.
-  const heads = { unwritten: false }
-  // The JSON size of every execution-record command committed and of every Agent records read.
+  const heads = { unwritten: false, undecided: false }
   const bytes = { written: [] as number[], read: [] as number[] }
   const base = s.storage
-  // The same database as `base`: the scene's own provider and the plugin share what is kept for it.
   s.storage = {
     ...base,
     commit: request => {
@@ -80,11 +66,11 @@ async function interpreted(
       const result = await base.read(request, readOptions)
       if (result.kind === 'read' && request.handler.startsWith('execution-record.'))
         bytes.read.push(JSON.stringify(result.output).length)
-      if (!heads.unwritten || result.kind !== 'read') return result
-      // The head row as another execution's call leaves it: its receipt is the placeholder.
-      if (request.handler === EVENTS_HANDLER)
-        return { ...result, output: withPlaceholderHead(result.output) }
-      return result
+      if (result.kind !== 'read' || request.handler !== EVENTS_HANDLER) return result
+      let output = result.output
+      if (heads.unwritten) output = withPlaceholderHead(output)
+      if (heads.undecided) output = withUndecidedEvents(output)
+      return { ...result, output }
     },
   }
   const sent: Sent[] = []
@@ -100,12 +86,23 @@ async function interpreted(
   disposers.push(() => c.dispose())
   const interpretation = createSessionJournalInterpretationPlugin<string>({
     coordinator: async () => succeed(s.access.principal),
+    retry: options.retry ?? QUICK_RETRY,
+  })
+  const logged: string[] = []
+  c.ctx.logger.exporter({
+    levels: { default: 2 },
+    export: message => {
+      if (message.name === 'session-adapters/journal-interpretation' && message.type !== 'info')
+        logged.push(message.args.map(String).join(' '))
+    },
   })
   const mountPlugin = () => c.mount(interpretation.plugin)
   const fiber = options.plugin === 'later' ? null : await mountPlugin()
   const target = { tenant: s.access.tenant, session: s.access.session, execution: s.execution }
-  return { s, c, sent, script, interpretation, fiber, mountPlugin, target, heads, bytes }
+  return { s, c, sent, script, interpretation, fiber, mountPlugin, target, heads, bytes, logged }
 }
+
+const QUICK_RETRY = { initialMs: 1, multiplier: 2, maxMs: 4 } as const
 
 const BATCHES_HANDLER = EXECUTION_RECORD_HANDLERS.facts
 const EVENTS_HANDLER = EXECUTION_RECORD_HANDLERS.events
@@ -116,7 +113,15 @@ function withPlaceholderHead(output: JsonValue): JsonValue {
   return copy as JsonValue
 }
 
-/** How many times the batches of the session or the events of an execution were read. */
+function withUndecidedEvents(output: JsonValue): JsonValue {
+  const copy = structuredClone(output) as { events?: { consequences: unknown; control: unknown }[] }
+  for (const event of copy.events ?? []) {
+    event.consequences = null
+    event.control = null
+  }
+  return copy as JsonValue
+}
+
 const stateReads = (s: SqlScene) =>
   s.controls?.reads.filter(handler => handler === BATCHES_HANDLER || handler === EVENTS_HANDLER)
     .length ?? 0
@@ -124,7 +129,6 @@ const stateReads = (s: SqlScene) =>
 const work = async (s: SqlScene): Promise<WorkSnapshot> =>
   ok(await s.port.readWork(s.sessionAccess))
 
-/** The saved event progress of the scene's execution. */
 async function readThrough(s: SqlScene): Promise<string> {
   const snapshot = await work(s)
   if (snapshot.run.kind === 'active' && snapshot.run.execution.execution === s.execution)
@@ -134,15 +138,12 @@ async function readThrough(s: SqlScene): Promise<string> {
   return held.execution.readThrough
 }
 
-/** Lets the not-awaited dispatch of an event and the queued interpretation finish. */
 const settle = () => new Promise<void>(resolve => setTimeout(resolve, 50))
 
-/** Waits until the saved progress of the execution is `through`. */
 async function reaches(s: SqlScene, through: string) {
   await vi.waitFor(async () => expect(await readThrough(s)).toBe(through), { timeout: 5000 })
 }
 
-/** Session accepts input `label` (SE11) and the Agent submits it into the scene's execution. */
 async function submitted(s: SqlScene, journal: AgentJournal<string>, label: string) {
   const value = ordinaryInput(`input-${label}`)
   const accepted = ok(
@@ -172,8 +173,6 @@ async function submitted(s: SqlScene, journal: AgentJournal<string>, label: stri
   return { input, receipt }
 }
 
-/** One Agent commit of the scene's execution with `events`, at its current head. */
-/** Where an Agent write goes: the scene's access and execution, of the SQL scene or the memory one. */
 type Where = Pick<SqlScene, 'access' | 'execution'>
 
 async function committed(
@@ -205,7 +204,6 @@ async function committed(
   )
 }
 
-/** The Agent takes the pending inputs, as the coordinator's first step does: event input-taken. */
 async function take(s: Where, journal: AgentJournal<string>) {
   const loaded = ok(await journal.load({ ...s.access, execution: s.execution }))
   const authority = loaded.executionAttachment
@@ -232,21 +230,14 @@ async function take(s: Where, journal: AgentJournal<string>) {
   )
 }
 
-/** Open, the handover of the initial input, and the take of it (event 1). */
 async function started(s: SqlScene, journal: AgentJournal<string>) {
   const opened = ok(await journal.open(s.openInput))
   ok(await handed(s, String(s.initial.id), opened.receipt.evidence))
   await take(s, journal)
 }
 
-/** A wait on a dependency: its event has the non-observed consequence `registered-waiting`. */
 const dependency = (position: string): Waiting => ({ kind: 'dependency', owner: 'test', position })
 
-/**
- * One round of the Agent: an observed message event, then a waiting event, each in its own commit.
- * (Events of one commit share their source, and the Session cursor check cannot tell an observed
- * event from a committed one of the same source; see the closure's known limitations.)
- */
 async function round(s: SqlScene, journal: AgentJournal<string>, n: number) {
   await committed(s, journal, `round-${n}-message`, [
     { kind: 'message', message: assistantMessage(`round ${n}`), source: evidence(`message-${n}`) },
@@ -255,7 +246,6 @@ async function round(s: SqlScene, journal: AgentJournal<string>, n: number) {
   await committed(s, journal, `round-${n}-waiting`, [{ kind: 'waiting', waits }], waits)
 }
 
-/** The event channel commits the Session log keeps, by operation. */
 function logOperations(s: SqlScene): string[] {
   if (s.controls === null) throw new Error('the double storage is expected')
   return s.controls
@@ -263,7 +253,7 @@ function logOperations(s: SqlScene): string[] {
     .rows.map(row => String(row[0]))
 }
 
-describe('AD-02: an Agent publication is interpreted after its event', () => {
+describe('an Agent publication is interpreted after its event', () => {
   it('the take publishes input-taken; the plugin commits it and the Session command that reads the history passes', async () => {
     const f = await interpreted('ad02-open')
     const journal = f.c.journal()
@@ -337,12 +327,7 @@ describe('AD-02: an Agent publication is interpreted after its event', () => {
   })
 })
 
-// session-contract SPEC: an expired same-root basis answers `changed` and the provider prepares
-// again. Another writer of the session (the receivers write through their own Journal copy, which
-// sends no `agent-published`) can move the execution head after the plugin read it; the plugin then
-// reads again once in the same call, and no later event is needed for the interpretation to go on.
-describe('AD-02: the execution head moves between the read and the commit', () => {
-  /** A write of the scene's execution through a Journal copy that sends no event. */
+describe('the execution head moves between the read and the commit', () => {
   const moveHead = (f: Awaited<ReturnType<typeof interpreted>>, label: string) =>
     committed(f.s, f.s.view.journal, label, [
       { kind: 'message', message: assistantMessage(label), source: evidence(label) },
@@ -384,15 +369,10 @@ describe('AD-02: the execution head moves between the read and the commit', () =
     })
     expect(f.sent).toHaveLength(2)
     expect(await readThrough(f.s)).toBe('0')
-    // The head stays still now: the next call commits.
     expect(ok(await f.interpretation.interpret(f.target))).toMatchObject({ readThrough: '1' })
   })
 
-  // R2-D157, a patch of this line: the head moves twice and no later event comes, because the
-  // receivers write through their own Journal copy, which sends no `agent-published`. The event
-  // queue calls the same execution again once. The real gap is that wake contract, recorded for
-  // wave 3 and owned by L-RUN.
-  it('a call of the event queue that ends in changed is made again once, and the event commits', async () => {
+  it('a call of the event queue that ends in changed is made again after the backoff, and the event commits', async () => {
     const f = await interpreted('ad02-requeued')
     for (const label of ['requeued-1', 'requeued-2'])
       f.script.push(async (inner, input) => {
@@ -401,13 +381,12 @@ describe('AD-02: the execution head moves between the read and the commit', () =
       })
     await started(f.s, f.c.journal())
     await reaches(f.s, '1')
-    // Two sends of the first call answered changed; the call made again sent once and committed.
     expect(f.sent).toHaveLength(3)
     expect(new Set(f.sent.map(item => item.observation.sequence))).toEqual(new Set(['1']))
     expect(logOperations(f.s)).toEqual([f.sent[2]?.observation.operation])
   })
 
-  it('the call is made again at most once: a head that keeps moving stops after 2 x 2 sends', async () => {
+  it('a head that moves more often than 2 x 2 sends still commits once it stands still, from the saved progress', async () => {
     const f = await interpreted('ad02-requeue-bound')
     for (const label of ['bound-1', 'bound-2', 'bound-3', 'bound-4', 'bound-5'])
       f.script.push(async (inner, input) => {
@@ -415,19 +394,12 @@ describe('AD-02: the execution head moves between the read and the commit', () =
         return inner(input)
       })
     await started(f.s, f.c.journal())
-    await vi.waitFor(() => expect(f.sent).toHaveLength(4), { timeout: 5000 })
-    await settle()
-    // ROUNDS (2) sends per call, for the call and the one call made again (REQUEUES = 1).
-    expect(f.sent).toHaveLength(4)
-    expect(await readThrough(f.s)).toBe('0')
-    expect(logOperations(f.s)).toEqual([])
+    await reaches(f.s, '1')
+    expect(f.sent).toHaveLength(6)
+    expect(logOperations(f.s)).toEqual([f.sent[5]?.observation.operation])
   })
 })
 
-/**
- * A step that takes no input, as the step after a Tool result does: the Agent writes input-taken
- * with an empty batch.
- */
 async function takeNothing(s: Where, journal: AgentJournal<string>, label: string) {
   const loaded = ok(await journal.load({ ...s.access, execution: s.execution }))
   const authority = loaded.executionAttachment
@@ -455,10 +427,7 @@ async function takeNothing(s: Where, journal: AgentJournal<string>, label: strin
   )
 }
 
-// An empty batch has no Session acceptance (SE14 refuses it): the shared normalization gives the
-// event only `observed`, so the next committed event covers it, in the production AD-02 and in the
-// memory double alike.
-describe('AD-02: a step that took no input', () => {
+describe('a step that took no input', () => {
   const waits = [dependency('after-empty-take')]
 
   it('the empty input-taken is not committed; the next committed event covers it', async () => {
@@ -472,16 +441,11 @@ describe('AD-02: a step that took no input', () => {
     expect(f.sent.map(item => item.observation.sequence)).toEqual(['1', '3'])
   })
 
-  // The in-process index of a Journal copy rebuilt from the durable records (another writer of the
-  // session changed its publication count) must still know the range of the empty batch that the
-  // checkpoint names, or every later load fails (#502 D4, defect E).
   it('a Journal copy rebuilt from the durable records loads after the empty take and goes on', async () => {
     const f = await interpreted('ad02-empty-rebuilt')
     const journal = f.c.journal()
     await started(f.s, journal)
     await takeNothing(f.s, journal, 'take-nothing')
-    // Another writer (a receiver's own Journal copy) moves the publication count, so the plugin's
-    // copy is rebuilt from the durable records at its next call.
     await committed(f.s, f.s.view.journal, 'other-writer', [
       { kind: 'message', message: assistantMessage('other'), source: evidence('other-writer') },
     ])
@@ -510,7 +474,217 @@ describe('AD-02: a step that took no input', () => {
   })
 })
 
-describe('AD-02: what commits nothing', () => {
+describe('a Session participant rollback that answers unavailable', () => {
+  const rollback = async () =>
+    fail<SessionFailure>({
+      kind: 'unavailable',
+      owner: 'session-storage-sql',
+      diagnostic: 'rolled back',
+    })
+
+  it('the event is interpreted again after a backoff, with no later event, and commits once', async () => {
+    const f = await interpreted('ad02-rollback')
+    f.script.push(rollback)
+    await started(f.s, f.c.journal())
+    await reaches(f.s, '1')
+    expect(f.sent).toHaveLength(2)
+    expect(f.sent[1]?.observation).toEqual(f.sent[0]?.observation)
+    expect(logOperations(f.s)).toEqual([f.sent[1]?.observation.operation])
+  })
+
+  it('rollbacks one after the other are tried again until the commit goes through', async () => {
+    const f = await interpreted('ad02-rollbacks')
+    for (let n = 0; n < 6; n += 1) f.script.push(rollback)
+    await started(f.s, f.c.journal())
+    await reaches(f.s, '1')
+    expect(f.sent).toHaveLength(7)
+    expect(logOperations(f.s)).toHaveLength(1)
+  })
+
+  it('an event that comes during the backoff is not held behind it: the queue goes on and commits', async () => {
+    const f = await interpreted('ad02-rollback-queue', {
+      retry: { initialMs: 60_000, multiplier: 2, maxMs: 60_000 },
+    })
+    f.script.push(rollback, rollback)
+    await started(f.s, f.c.journal())
+    await vi.waitFor(() => expect(f.sent).toHaveLength(2), { timeout: 5000 })
+    await f.c.ctx.serial(
+      'session-adapters/agent-published',
+      f.target.tenant,
+      f.target.session,
+      f.target.execution,
+    )
+    await reaches(f.s, '1')
+    expect(f.sent).toHaveLength(3)
+    expect(logOperations(f.s)).toEqual([f.sent[2]?.observation.operation])
+  })
+
+  it('a plugin that stops during the backoff sends no more', async () => {
+    const f = await interpreted('ad02-rollback-stop')
+    for (let n = 0; n < 1000; n += 1) f.script.push(rollback)
+    await started(f.s, f.c.journal())
+    await vi.waitFor(() => expect(f.sent.length).toBeGreaterThan(2), { timeout: 5000 })
+    await f.fiber?.dispose()
+    const sent = f.sent.length
+    await settle()
+    expect(f.sent.length).toBeLessThanOrEqual(sent + 1)
+    const after = f.sent.length
+    await settle()
+    expect(f.sent).toHaveLength(after)
+    expect(await readThrough(f.s)).toBe('0')
+  })
+})
+
+describe('the backoff of the event queue and its one retry per execution (#1216 E1a)', () => {
+  const rollback = async () =>
+    fail<SessionFailure>({
+      kind: 'unavailable',
+      owner: 'session-storage-sql',
+      diagnostic: 'rolled back',
+    })
+  const retries = (logged: readonly string[]) =>
+    logged.flatMap(line => {
+      const found =
+        /^call (\d+) of the interpretation of .* answered (\S+); again in (\S+) ms$/.exec(line)
+      return found === null ? [] : [[Number(found[1]), found[2], found[3]]]
+    })
+
+  it('a backoff outside 0 < initialMs <= maxMs < infinity with multiplier >= 1 is refused when the plugin is made', () => {
+    const made = (retry: { initialMs: number; multiplier: number; maxMs: number }) => () =>
+      createSessionJournalInterpretationPlugin<string>({
+        coordinator: async () => succeed('coordinator'),
+        retry,
+      })
+    for (const retry of [
+      { initialMs: 0, multiplier: 2, maxMs: 10 },
+      { initialMs: Number.NaN, multiplier: 2, maxMs: 10 },
+      { initialMs: 1, multiplier: 0.99, maxMs: 10 },
+      { initialMs: 10, multiplier: 2, maxMs: 9 },
+      { initialMs: 1, multiplier: 2, maxMs: Number.POSITIVE_INFINITY },
+    ])
+      expect(made(retry), JSON.stringify(retry)).toThrow(
+        new RangeError(
+          'the journal interpretation retry needs 0 < initialMs <= maxMs and multiplier >= 1',
+        ),
+      )
+    expect(made({ initialMs: 1, multiplier: 1, maxMs: 1 })).not.toThrow()
+    expect(made({ initialMs: 0.5, multiplier: 3, maxMs: 0.5 })).not.toThrow()
+    expect(() =>
+      createSessionJournalInterpretationPlugin<string>({ coordinator: async () => succeed('c') }),
+    ).not.toThrow()
+    expect(DEFAULT_JOURNAL_INTERPRETATION_RETRY).toEqual({
+      initialMs: 50,
+      multiplier: 2,
+      maxMs: 5000,
+    })
+  })
+
+  it('the first call again goes at once; then the waits grow by the multiplier up to maxMs, and the calls are counted', async () => {
+    const f = await interpreted('ad02-backoff', {
+      retry: { initialMs: 1, multiplier: 3, maxMs: 5 },
+    })
+    for (let n = 0; n < 4; n += 1) f.script.push(rollback)
+    await started(f.s, f.c.journal())
+    await reaches(f.s, '1')
+    expect(retries(f.logged)).toEqual([
+      [1, 'unavailable', '0'],
+      [2, 'unavailable', '1'],
+      [3, 'unavailable', '3'],
+      [4, 'unavailable', '5'],
+    ])
+  })
+
+  it('a call whose outcome stays unknown after its sends is made again, and the event commits once', async () => {
+    const f = await interpreted('ad02-unknown')
+    const lost = async () => {
+      throw new Error('the reply was lost')
+    }
+    for (let n = 0; n < 3; n += 1) f.script.push(lost)
+    await started(f.s, f.c.journal())
+    await reaches(f.s, '1')
+    expect(f.sent).toHaveLength(4)
+    expect(new Set(f.sent.map(item => item.observation.operation)).size).toBe(1)
+    expect(retries(f.logged)).toEqual([[1, 'commit-unknown', '0']])
+    expect(logOperations(f.s)).toHaveLength(1)
+  })
+
+  it('an execution has one retry waiting: a failure while it waits leaves the retry to it, even after a commit in between', async () => {
+    const f = await interpreted('ad02-one-retry', {
+      retry: { initialMs: 60_000, multiplier: 2, maxMs: 60_000 },
+    })
+    const publish = () =>
+      f.c.ctx.serial(
+        'session-adapters/agent-published',
+        f.target.tenant,
+        f.target.session,
+        f.target.execution,
+      )
+    f.script.push(rollback, rollback)
+    await started(f.s, f.c.journal())
+    await vi.waitFor(() => expect(retries(f.logged)).toHaveLength(2), { timeout: 5000 })
+    f.script.push(rollback)
+    await publish()
+    await vi.waitFor(() => expect(f.sent).toHaveLength(3), { timeout: 5000 })
+    await publish()
+    await reaches(f.s, '1')
+    f.script.push(rollback)
+    await round(f.s, f.c.journal(), 1)
+    await vi.waitFor(() => expect(f.sent).toHaveLength(5), { timeout: 5000 })
+    await settle()
+    expect(retries(f.logged)).toHaveLength(2)
+    expect(await readThrough(f.s)).toBe('1')
+  })
+
+  it('once a retry committed, a later failure of the execution gets a retry of its own', async () => {
+    const f = await interpreted('ad02-retry-again')
+    f.script.push(rollback)
+    await started(f.s, f.c.journal())
+    await reaches(f.s, '1')
+    f.script.push(rollback)
+    await round(f.s, f.c.journal(), 1)
+    await reaches(f.s, '3')
+    expect(retries(f.logged).map(([calls]) => calls)).toEqual([1, 1])
+  })
+
+  it('a stop ends the timer of the backoff at once', async () => {
+    const f = await interpreted('ad02-stop-timer', {
+      retry: { initialMs: 60_000, multiplier: 2, maxMs: 60_000 },
+    })
+    f.script.push(rollback, rollback)
+    await started(f.s, f.c.journal())
+    await vi.waitFor(() => expect(retries(f.logged)).toHaveLength(2), { timeout: 5000 })
+    const timers = () => process.getActiveResourcesInfo().filter(kind => kind === 'Timeout').length
+    const waiting = timers()
+    await f.fiber?.dispose()
+    expect(timers()).toBeLessThan(waiting)
+  })
+
+  it('a call that ends without a retry logs what it left: a refusal, or events with no decided consequences', async () => {
+    const f = await interpreted('ad02-ends')
+    f.script.push(async () => fail<SessionFailure>({ kind: 'denied', action: 'commitLog' }))
+    await started(f.s, f.c.journal())
+    await vi.waitFor(() => expect(f.logged).toHaveLength(1), { timeout: 5000 })
+    expect(f.logged[0]).toBe(`the interpretation of ${f.s.execution} answered denied`)
+    await f.c.ctx.serial(
+      'session-adapters/agent-published',
+      f.target.tenant,
+      f.target.session,
+      f.target.execution,
+    )
+    await reaches(f.s, '1')
+    expect(f.logged).toHaveLength(1)
+    f.heads.undecided = true
+    await round(f.s, f.c.journal(), 1)
+    await vi.waitFor(() => expect(f.logged).toHaveLength(3), { timeout: 5000 })
+    expect(f.logged.slice(1)).toEqual([
+      `1 events of ${f.s.execution} have no decided consequences`,
+      `2 events of ${f.s.execution} have no decided consequences`,
+    ])
+    expect(await readThrough(f.s)).toBe('1')
+  })
+})
+
+describe('what commits nothing', () => {
   it('a stopped plugin commits nothing, and a call through it answers unavailable', async () => {
     const f = await interpreted('ad02-stopped')
     await f.fiber?.dispose()
@@ -525,8 +699,6 @@ describe('AD-02: what commits nothing', () => {
 
   it('an event that reaches the listener after the plugin stopped starts no interpretation', async () => {
     const f = await interpreted('ad02-late-event', { plugin: 'later' })
-    // This listener comes before the plugin's and holds a serial dispatch open, so the dispatch has
-    // already collected the plugin's listener when the plugin stops.
     let release: () => void = () => undefined
     const held = new Promise<void>(resolve => {
       release = resolve
@@ -609,7 +781,7 @@ describe('AD-02: what commits nothing', () => {
   })
 })
 
-describe('R2-D28 with the production Journal: a cancelled Run with a non-observed tail', () => {
+describe('with the production Journal: a cancelled Run with a non-observed tail', () => {
   it('the next startRun answers unavailable until the plugin committed the tail, then passes', async () => {
     const f = await interpreted('ad02-r2d28')
     const journal = f.c.journal()
@@ -617,7 +789,6 @@ describe('R2-D28 with the production Journal: a cancelled Run with a non-observe
     await reaches(f.s, '1')
     const { input, receipt } = await submitted(f.s, journal, 'two')
     ok(await handed(f.s, String(input.id), receipt.evidence))
-    // The plugin stops; the Agent then writes a non-observed event and an observed one.
     await f.fiber?.dispose()
     await round(f.s, journal, 1)
     const snapshot = await work(f.s)
@@ -660,7 +831,7 @@ describe('R2-D28 with the production Journal: a cancelled Run with a non-observe
   })
 })
 
-describe('AD-02 commits per round do not grow with the rounds before it', () => {
+describe('commits per round do not grow with the rounds before it', () => {
   async function counted(rounds: number) {
     const f = await interpreted(`ad02-count-${rounds}`)
     const journal = f.c.journal()
@@ -686,17 +857,10 @@ describe('AD-02 commits per round do not grow with the rounds before it', () => 
   })
 })
 
-/**
- * K-12 direction D: an Agent control event has the deferred marker instead of kinds, and Session
- * decides its consequences in the interpretation commit with `decideControlConsequences`. The
- * sequence is a Session cancel of the Run (K), the Agent cancel under the drive of K (accepted),
- * then its intent and its qualification.
- */
-describe('AD-02 interprets the control events of a Session cancel (deferred control facts)', () => {
+describe('interprets the control events of a Session cancel (deferred control facts)', () => {
   type Progress = Readonly<{ state: string; pending: number }> | null
   const stages = ['intent-established', 'qualification-revoked'] as const
 
-  /** The Session cancel of the active Run: SE24 of K. */
   async function cancelRun(
     port: SessionTransactionPort<string>,
     access: SqlScene['sessionAccess'],
@@ -722,7 +886,6 @@ describe('AD-02 interprets the control events of a Session cancel (deferred cont
     return control
   }
 
-  /** The Agent side of K: the cancel under the drive of K, then each stage. */
   function agentSteps(
     journal: AgentJournal<string>,
     access: SqlScene['access'],
@@ -762,13 +925,11 @@ describe('AD-02 interprets the control events of a Session cancel (deferred cont
     return found === undefined ? null : { state: found.state, pending: found.pending.length }
   }
 
-  /** The production Journal with AD-02: the progress of K after each Agent step is interpreted. */
   async function production(name: string) {
     const f = await interpreted(name)
     const journal = f.c.journal()
     await started(f.s, journal)
     await reaches(f.s, '1')
-    // A handed input that the cancelled Run did not take: the successor starts with it.
     const { input, receipt } = await submitted(f.s, journal, 'two')
     ok(await handed(f.s, String(input.id), receipt.evidence))
     await round(f.s, journal, 1)
@@ -785,7 +946,6 @@ describe('AD-02 interprets the control events of a Session cancel (deferred cont
     return { f, control, progress }
   }
 
-  /** The memory double on the same sequence: each event interpreted by an explicit call. */
   async function memory(name: string) {
     const m = await scene(name)
     const loaded = ok(await m.view.journal.load({ ...m.access, execution: m.execution }))
@@ -841,7 +1001,6 @@ describe('AD-02 interprets the control events of a Session cancel (deferred cont
     if (snapshot.run.kind !== 'terminal') throw new Error('a terminal Run is expected')
     expect(snapshot.run.terminal.outcome).toBe('cancelled')
     expect(snapshot.controls.find(item => item.operation === control)?.state).toBe('reconciled')
-    // The content written before the cancel stays readable: the cancel withdraws nothing.
     const output = ok(
       await f.c
         .journal()
@@ -851,7 +1010,7 @@ describe('AD-02 interprets the control events of a Session cancel (deferred cont
     ok(await startRun(f.s, 'start-after-cancel'))
   })
 
-  it('the memory double and the production AD-02 give the same progress of K, the one Session decides', async () => {
+  it('the memory double and the production interpretation plugin give the same progress of K, the one Session decides', async () => {
     const produced = await production('ad02-cancel-pair')
     const reference = await memory('memory-cancel-pair')
     expect(produced.progress).toEqual(reference)
@@ -868,7 +1027,6 @@ function readThroughOf(snapshot: WorkSnapshot, execution: string): string | unde
     .readThrough
 }
 
-/** A successor Run with a new first input: the decision that reads the cancelled execution's tail. */
 function startRun(s: SqlScene, name: string) {
   return s.port.commit({
     access: s.sessionAccess,
@@ -887,20 +1045,10 @@ function startRun(s: SqlScene, name: string) {
   })
 }
 
-/**
- * K-8: one session, Runs one after the other (cancel, accept the next input, startRun). The records
- * of the earlier executions stay in the session; a publication of the current one writes only its
- * own parts, AD-02 reads only the part of the execution it interprets, and a copy that another
- * provider's write made stale reads only the parts written since. Two providers write each Run, as
- * the Agent's Journal and the receiver's do. With the whole state in one row, the writes and the
- * reads grew with every Run before (C-FIX-ROUNDS: past 1 MiB at round 4 of C-JOINT).
- */
 describe('a session with earlier Runs: the bytes of one Run do not grow with the Runs before it', () => {
   async function runs(count: number) {
     const f = await interpreted('ad02-runs')
     const journal = f.c.journal()
-    // A second provider of the same session over the same storage: its writes make the copy of the
-    // first one stale.
     const other = f.s.view.journal
     const perRun: { written: number; read: number }[] = []
     const executions: SqlScene['execution'][] = []
@@ -934,7 +1082,6 @@ describe('a session with earlier Runs: the bytes of one Run do not grow with the
     { timeout: 60_000 },
     async () => {
       const { perRun } = await runs(4)
-      // Every Run writes and reads the same shapes; the identities have the same lengths.
       expect(perRun[3]!.written).toBeLessThanOrEqual(perRun[1]!.written + 64)
       expect(perRun[3]!.read).toBeLessThanOrEqual(perRun[1]!.read + 1024)
     },
@@ -954,7 +1101,6 @@ describe('a session with earlier Runs: the bytes of one Run do not grow with the
   )
 })
 
-/** The saved event progress of `execution`, whether its Run is active or ended. */
 async function readThroughOf2(s: SqlScene, execution: string): Promise<string | undefined> {
   const snapshot = await work(s)
   if (snapshot.run.kind === 'active' && snapshot.run.execution.execution === execution)

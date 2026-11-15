@@ -122,11 +122,10 @@ function invokeRequest(): ToolInvokeRequest {
     },
     batchDecision: null,
     mode: 'foreground',
-    limits: { concurrency: 1, foregroundMs: null, backgroundAfterMs: null },
+    limits: { concurrency: 1, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
   }
 }
 
-/** A real ledger with a fixed non-production trust model; the provider supplies only the store. */
 export async function ledgerAssembly(
   fixture: ToolLedgerStoreFixture,
   deps: LedgerAssemblyDependencies,
@@ -226,6 +225,7 @@ export async function ledgerAssembly(
   let commits = 0
   const store: Parameters<Factory>[0] = {
     durability: fixture.store.durability,
+    scanPending: input => fixture.store.scanPending(input),
     read: domain => {
       reads += 1
       return fixture.store.read(domain)
@@ -302,7 +302,6 @@ export async function ledgerAssembly(
       revoked = true
     },
     query: (operation = input.operation) => ledger.reads.operation({ ...access, operation }),
-    /** A second complete trusted internal binding for the same operation, as in named-source tests. */
     changedInput: () => {
       const fixed: FixedToolRequest = {
         ...input.request,

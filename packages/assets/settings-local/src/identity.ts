@@ -9,11 +9,6 @@ import { canonical } from './encoding.ts'
 import { domainSchema } from './schema.ts'
 import type { SettingsSqlTerminalOptions } from './terminal-schema.ts'
 
-/**
- * The destination of the standing reservations that a catalog capture takes. Install it with
- * Identity's resolver holder, never with a Settings client. It seals the receipt of the original
- * capture and answers its outcome.
- */
 export function createSettingsCatalogDestination(
   input: SettingsSqlTerminalOptions & Readonly<{ destination: string }>,
 ): StandingDestinationResolver {

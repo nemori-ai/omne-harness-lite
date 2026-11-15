@@ -1,13 +1,6 @@
-// 回路状态的判定与文字：各指标的带位、要解释的红项、超预算的成员，渲染成终端与 status.md 共用的几十行。
-// 这里只有纯函数；读 git、跑传感器、写文件都在 cli.ts。
 import { basename } from 'node:path'
 import type { AssemblyDelta, AssemblyObservations } from './sensors/assembly.ts'
 import type { DependencyFinding } from '../deps/graph.ts'
-import {
-  exceptedLine,
-  type ExceptedGroupCycle,
-  type GroupCycleExceptionFinding,
-} from '../arch/group-cycles.ts'
 import { describeFunction } from '../metrics/report.ts'
 import { BAND_WORDS, judgeIndicator, type Band, type Comparison } from './bands.ts'
 import { BUDGET_LABELS, type ItemComparison, type MemberBudget } from './budget.ts'
@@ -51,7 +44,6 @@ export const INDICATOR_LABELS: Readonly<Record<IndicatorId, string>> = {
   acceptanceSlowestSeconds: '最慢一份验收的耗时（秒）',
 }
 
-/** 一个指标这次的读数，`note` 是跟在行尾的简短事实（例如达到提醒线的 topic）。 */
 export interface IndicatorInput {
   readonly reading: Reading<number>
   readonly note?: string
@@ -61,9 +53,7 @@ export interface IndicatorRow {
   readonly id: IndicatorId
   readonly label: string
   readonly reading: Reading<number>
-  /** 有数据且有绝对线或与基线比时才有带位。 */
   readonly band?: Band
-  /** 配置里与基线比的指标才有。 */
   readonly comparison?: Comparison
   readonly baselineValue?: number
   readonly note?: string
@@ -122,13 +112,11 @@ export function indicatorSnapshots(
   )
 }
 
-/** 开着却没数据的传感器与原因。 */
 export interface SilentSensor {
   readonly sensor: SwitchedSensor
   readonly reason: string
 }
 
-/** 硬线「传感器有数据」：只在严格模式下判；配置里关掉的不算，单列出来。 */
 export type SensorLine =
   | { readonly status: 'unjudged'; readonly reason: string }
   | {
@@ -162,17 +150,13 @@ export function judgeSensors(
   return { status: 'judged', silent, off, notApplicable }
 }
 
-/** 对一段提交范围判的硬线：没给基线时不判。 */
 export type RangeLine =
   | { readonly status: 'unjudged'; readonly reason: string }
   | { readonly status: 'judged'; readonly violations: readonly string[] }
 
 export interface HardLines {
   readonly direction: readonly DependencyFinding[]
-  /** 成员、组、文件之间的环，以及没命中任何组环的具名组环例外。 */
-  readonly cycles: readonly (DependencyFinding | GroupCycleExceptionFinding)[]
-  /** 按 runner `constraints.json` 的具名例外放行的组环：不算硬线，只列出来。 */
-  readonly exceptedCycles: readonly ExceptedGroupCycle[]
+  readonly cycles: readonly DependencyFinding[]
   readonly acceptanceLock: RangeLine
   readonly sensors: SensorLine
 }
@@ -188,12 +172,9 @@ export function hardLinesBroken(lines: HardLines): boolean {
   )
 }
 
-/** 这次变更里要解释的红项，五类；全量，终端只列前 explainTop 条。 */
 export interface Explain {
   readonly conformance?: Reading<import('../arch/conformance-model.ts').Conformance>
-  /** 碰过、带位不是 ok，且比基线涨了、新出现或拿不准的函数。 */
   readonly functions: readonly ExplainedFunction[]
-  /** 碰过、原来就在线外、这次没有变差的函数：不要解释，但数出来。 */
   readonly functionsNotWorse: readonly ExplainedFunction[]
   readonly newEdges: Reading<readonly EdgeChange[]>
   readonly newStableOnUnstable: Reading<readonly StabilityEdge[]>
@@ -204,7 +185,6 @@ export interface Explain {
 
 export interface OverBudget {
   readonly budget: MemberBudget
-  /** 生成了草稿时是它的路径；结构问题不生成。 */
   readonly proposal?: string
 }
 
@@ -214,18 +194,14 @@ export interface StatusView {
   readonly dirty: boolean
   readonly base?: { readonly ref: string; readonly mergeBase: string }
   readonly baseline: BaselineSnapshot
-  /** 找基线快照时用的合并点，以及它从哪来。 */
   readonly baselineFrom: string
-  /** 抬头里的事实行：趋势文件、上一次的带位、快照写没写、坏行、产物位置。 */
   readonly notes: readonly string[]
   readonly hardLines: HardLines
   readonly indicators: readonly IndicatorRow[]
   readonly explain: Explain | undefined
   readonly explainTop: number
   readonly overBudget: readonly OverBudget[]
-  /** 判过预算的全部成员；列「比基线变差的成员」用。 */
   readonly budgets: readonly MemberBudget[]
-  /** 配置里成员预算与不与基线比（`memberBudget.baseline`）。 */
   readonly budgetBaseline: boolean
   readonly proposalDir: string
   readonly catalogue: CatalogueStatus
@@ -259,7 +235,6 @@ function headerLines(view: StatusView): string[] {
   ]
 }
 
-/** status.md 与终端里「硬线」一段。 */
 export function hardLineLines(lines: HardLines): string[] {
   const finding = (label: string, found: readonly DependencyFinding<string>[]) => {
     const first = found[0]
@@ -277,7 +252,6 @@ export function hardLineLines(lines: HardLines): string[] {
     '## 硬线',
     finding('依赖违规', lines.direction),
     finding('环', lines.cycles),
-    ...lines.exceptedCycles.map(item => `    不算硬线：${exceptedLine(item)}`),
     range(lines.acceptanceLock, '验收锁', '无未解决违规', '破'),
     sensorLine(lines.sensors),
   ]
@@ -378,7 +352,6 @@ function explainLines(view: StatusView): string[] {
     )
   }
   if (out.length === 1) out.push('  无')
-  // 不要解释、但不让它们无声消失：放在最后，不影响上面「无」的判断。
   if (explain.functionsNotWorse.length > 0)
     out.push(
       `  另有 ${explain.functionsNotWorse.length} 个碰过的函数原来就在线外、这次没有变差（见 status.json）`,
@@ -395,7 +368,6 @@ function budgetLines(view: StatusView): string[] {
       `  ${view.overBudget.length} 个，其中结构问题 ${view.overBudget.length - drafted} 个；草稿在 ${view.proposalDir}/`,
     )
   }
-  // 结构问题排前面，再按超了几项、成员路径。
   const ordered = [...view.overBudget].sort(
     (a, b) =>
       Number(b.budget.structural) - Number(a.budget.structural) ||
@@ -434,7 +406,6 @@ function itemWithComparison(budget: MemberBudget, item: BudgetItem): string {
   return comparison === undefined ? text : `${text}（${comparisonText(comparison)}）`
 }
 
-/** 每个成员一行，列出满足 `pick` 的那几项；没有这样的项的成员不列。按成员路径排。 */
 function memberItemLines(
   budgets: readonly MemberBudget[],
   pick: (budget: MemberBudget, item: BudgetItem) => string | undefined,
@@ -450,10 +421,6 @@ function memberItemLines(
     })
 }
 
-/**
- * 成员预算与基线比的那一段：比基线变差的成员（基线值 → 现值），与过了提醒线的新成员。
- * 配置里不比时整段不出，输出与不比时的旧样子逐字相同。
- */
 function baselineBudgetLines(view: StatusView): string[] {
   if (!view.budgetBaseline) return []
   const title = '  比基线变差的成员'

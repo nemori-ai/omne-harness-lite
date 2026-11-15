@@ -293,9 +293,6 @@ for (const point of ['before-publish', 'after-publish'] as const)
     expect(recovered.work.run).toEqual(before.work.run)
   })
 
-// The Session half of a `custody`/`processed` participation is a Session mutation of its own: after
-// the pause, the Session access check decides it once before anything is prepared, and the Agent
-// qualification and the gap gate are checked again at the publication point.
 for (const kind of ['custody', 'processed'] as const)
   for (const boundary of ['agent', 'session', 'gap'] as const)
     it(`preserves the ${boundary} failure when ${kind} is paused before publication`, async () => {

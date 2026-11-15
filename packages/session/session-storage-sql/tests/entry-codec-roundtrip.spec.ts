@@ -1,9 +1,3 @@
-// Round trips of the `sl_entry` text codec at its edges (src/entry-codec.ts). Each case writes an
-// entry and reads it back, and the payload tree read back is deeply equal to the tree written: the
-// key order of every object, the lexeme of every number and every string unit included. The real
-// rows are the rows the session-contract conformance suites commit through this member: each reads
-// back to an entry that writes the same text again, and its evidence digest is the one the retired
-// encoding gave for the same entry.
 import { describe, expect, it } from 'vitest'
 import { readJsonText, type JsonValue as JsonTree } from '@omne-harness/json-text'
 import {
@@ -46,14 +40,12 @@ const LIMITS = {
   maxNumberLength: 1024,
 }
 
-/** The tree of a JSON text, as json-text reads it (lexemes and key order as written). */
 function treeOfText(raw: string): JsonTree {
   const read = readJsonText(raw, LIMITS)
   if (read.kind !== 'ok') throw new Error(`the case does not read: ${read.kind}`)
   return read.value
 }
 
-/** Writes an entry with `payload`, reads it back and returns the payload tree read back. */
 function roundTrip(payload: JsonTree): JsonTree {
   const entry = { ...ENVELOPE, payload } as unknown as HistoryEntry
   const back = readEntryText(writeEntryText(entry))
@@ -61,7 +53,6 @@ function roundTrip(payload: JsonTree): JsonTree {
   return back.payload as unknown as JsonTree
 }
 
-/** Deep equality that also compares the order of object keys (toEqual on arrays of entries does). */
 const expectSame = (payload: JsonTree): void => {
   expect(roundTrip(payload)).toStrictEqual(payload)
 }
@@ -192,7 +183,6 @@ describe('the rows the conformance suites commit', () => {
       ...sessionEntriesConformance<string>(),
     ])
       await test.run(await fixture())
-    // A tool message the session admits as an ordinary input: the row is `message.tool`.
     const tool = await app()
     apps.push(tool)
     expect(await tool.create(TENANT_A)).toHaveProperty('ok')

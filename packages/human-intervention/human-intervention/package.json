@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft human-intervention package; complete the accepted public contract before delivery",
+  "description": "Human intervention protocol and pure request decision model",
   "engines": {
     "node": ">=24"
   },
@@ -24,7 +24,9 @@
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
-  "dependencies": {},
+  "dependencies": {
+    "zod": "catalog:"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",

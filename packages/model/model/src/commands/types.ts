@@ -44,7 +44,6 @@ import type {
   TransportFact,
 } from '@omne-harness/model-contract/provider'
 
-/** The access purposes for which the commands ask the current authority. */
 export type CommandAction =
   | 'admit'
   | 'inspect'
@@ -70,12 +69,10 @@ export type EvidenceContext = Readonly<{
   execution: ExecutionRef | null
   call: ModelCallId
   consumer: ConsumerRef
-  /** The head of the fixed request, and the digest of the whole request. */
   request: FixedRequestHead
   requestDigest: string
 }> &
   Pick<ExecutionRef, 'tenant'>
-/** What the commands give the consumer owner's evidence adapter for one ACK. */
 export type HandoffEvidenceInput = Omit<EvidenceContext, 'request' | 'requestDigest'> &
   Readonly<{
     result: ResultVersion
@@ -108,13 +105,6 @@ export interface ModelCommandsEvidence {
     input: EvidenceContext &
       Readonly<{ position: RetryPosition; decision: RetryDecision; source: DurableEvidence }>,
   ): Outcome<DurableEvidence, ModelFailure>
-  /**
-   * The consumer owner's confirmation of an ACK's evidence. It may answer later: the commands read
-   * it before the write fence, because the owner reads its own durable record, and the write then
-   * keeps it only for the same call, consumer, result and evidence. `reference` is the call's
-   * invocation reference, by which the owner names the delivery it saved; `principal` is the access
-   * of the ACK. A failure that cannot be read stays a failure, never a confirmation.
-   */
   handoff(input: HandoffEvidenceInput): HandoffEvidenceAnswer
   receive(
     input: EvidenceContext &
@@ -129,11 +119,6 @@ export interface ModelCommandsEvidence {
     ModelFailure
   >
 }
-/**
- * `unacknowledgedResults` bounds the count that the storage reports from `held`: the calls that
- * were admitted and whose result the consumer has not acknowledged and released. The storage
- * decides the scope of that count: the memory storage counts the whole assembly.
- */
 export type ModelCommandsLimits = Readonly<{
   scanPageCalls: number
   resultPageParts: number
@@ -192,11 +177,6 @@ export const MODEL_WRITE_METHODS = [
 ] as const
 export type ModelWriteMethod = (typeof MODEL_WRITE_METHODS)[number]
 
-/**
- * A trusted send source registration. `official` says whether the profile is an official one,
- * which alone lets a supplier send on the official credential layer. `current` runs inside the
- * storage's synchronous fence.
- */
 export type ModelSendSource<P> = Readonly<{
   profile: Adoption
   supplier: Adoption
@@ -206,7 +186,6 @@ export type ModelSendSource<P> = Readonly<{
   current(input: SendDemand<P>): Outcome<Readonly<{ authorized: boolean }>, ModelFailure>
 }>
 
-/** What a committed write keeps, so that a repeat of the same operation recovers its value. */
 export type Receipt =
   | Readonly<{ kind: 'revision'; revision: Revision }>
   | Readonly<{ kind: 'admit'; admission: Admission }>
@@ -218,7 +197,6 @@ export type Receipt =
   | Readonly<{ kind: 'late'; revision: Revision }>
   | Readonly<{ kind: 'read'; read: ReadId | null }>
   | Readonly<{ kind: 'control' | 'handoff' | 'cleanup' }>
-/** The binding of one operation, before the storage gives it a commit status. */
 export type BindingBase = Readonly<{
   call: ModelCallId
   method: ModelWriteMethod
@@ -248,13 +226,10 @@ export type DispatchDocument = {
   nextSeq: Map<string, string>
   trims: Map<string, readonly ResultTrim[]>
   hadContent: Set<string>
-  /** The provider diagnostics of this dispatch, in the order they arrived. */
   diagnostics: readonly ProviderDiagnostic[]
 }
-/** One call, as the commands read and write it. */
 export type CallDocument = {
   state: CallState
-  /** The head of the fixed request; null once the material is released. The body is apart. */
   request: FixedRequestHead | null
   requestDigest: string
   initiator: ActorRef
@@ -271,7 +246,6 @@ export type CallDocument = {
   cleanupFailure: string | null
   resultPaging: ResultPaging
 }
-/** The documents of one tenant that one command attempt reads. */
 export type TenantDocuments = Readonly<{
   calls: ReadonlyMap<ModelCallId, CallDocument>
   operations: ReadonlyMap<ModelOperationId, Binding>
@@ -280,5 +254,4 @@ export type WriteIdentity = Pick<ExecutionRef, 'tenant' | 'call'> & {
   readonly operation: ModelOperationId
 }
 export type Draft = { tenant: TenantDocuments; call: CallDocument | undefined }
-/** What a write changes. `body` is the whole request of the call that the write admits. */
 export type Applied<T> = { value: T; receipt: Receipt; body?: FixedModelRequest }

@@ -25,7 +25,6 @@ import type { CallRecord, LedgerDomain } from './ledger-store.ts'
 const unavailable = (diagnostic: string): Outcome<never, ToolFailure> =>
   fail({ kind: 'unavailable', dependency: 'control-subjects', diagnostic })
 
-/** Every CAS retry compares against that snapshot's winner before the intent is recalled. */
 export async function controlSubject<P>(
   snapshot: Snapshot,
   context: MutationInput<P>,
@@ -62,7 +61,6 @@ type ControlTransaction = (
   unknown: Outcome<ControlRecord, ToolFailure>,
 ) => Reply<ControlRecord>
 
-/** Resolve only the durable binding here; current qualification belongs to the provider. */
 function pendingController(
   snapshot: Snapshot,
   call: CallRecord,

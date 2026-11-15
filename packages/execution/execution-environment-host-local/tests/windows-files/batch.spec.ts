@@ -96,7 +96,6 @@ it('recognizes an uncertain publication without replaying it or overwriting a la
   })
 }, 30_000)
 
-/** The staged writes and removals of a batch, with failures put in for the entries named. */
 function stagingFailures(failures: { write?: number; remove?: number }) {
   const create = windows.createWindowsFiles
   return vi.spyOn(windows, 'createWindowsFiles').mockImplementation(options => {

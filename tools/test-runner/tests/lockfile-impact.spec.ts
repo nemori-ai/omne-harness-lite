@@ -1,13 +1,10 @@
-// 锁文件影响面：两份 pnpm-lock.yaml 的差异落到哪些成员上。守的是三种结论的边界——
-// 能映射的只命中对应成员，判不准的（顶层设置、根依赖、解析失败、解释不了的引用）全量，等价的无影响。
-// 另用仓库真实的锁文件核对解析器认得 pnpm 9 实际写出的格式、importer 与成员清单对得上。解析器自身的用例在 pnpm-lockfile.spec.ts。
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { fileTree, listWorkspaceMembers } from '@omne-harness/repo-toolchain/core/workspace'
 import { readTestRunsConfig } from '../src/testing/config.ts'
-import { lockfileImpact } from '../src/testing/lockfile-impact.ts'
+import { lockfileImpact, workspaceImpact } from '../src/testing/lockfile-impact.ts'
 import { parseLockfileYaml } from '../src/testing/pnpm-lockfile.ts'
 import {
   ALIAS_DEPENDENCY,
@@ -23,6 +20,12 @@ import {
 } from './fixtures/lockfiles.ts'
 
 const ROOT = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
+
+const withCatalogEntry = (lockfile: string): string =>
+  lockfile.replace(
+    'catalogs:\n  default:\n',
+    'catalogs:\n  default:\n    extra:\n      specifier: 1.0.0\n      version: 1.0.0\n',
+  )
 
 describe('lockfileImpact', () => {
   it('只改一个成员的依赖：只命中那个成员，并记下它新依赖的包', () => {
@@ -66,6 +69,19 @@ describe('lockfileImpact', () => {
     })
   })
 
+  it('只有顶层 catalogs 有变化：不单独判，importer 没变就是没有影响', () => {
+    const head = withCatalogEntry(BASE)
+    expect(head).not.toBe(BASE)
+    expect(lockfileImpact(BASE, head, MEMBERS)).toMatchObject({ kind: 'unchanged' })
+  })
+
+  it('catalogs 与一个成员的依赖一起变：只命中那个成员，catalogs 不把它抬成全量', () => {
+    const result = lockfileImpact(BASE, withCatalogEntry(ONE_MEMBER_DEPENDENCY), MEMBERS)
+    expect(result.kind).toBe('members')
+    if (result.kind === 'members')
+      expect(result.members.map(member => member.path)).toEqual(['packages/c'])
+  })
+
   it('lockfileVersion 有变化：全量', () => {
     const head = BASE.replace("lockfileVersion: '9.0'", "lockfileVersion: '10.0'")
     expect(lockfileImpact(BASE, head, MEMBERS)).toMatchObject({
@@ -101,7 +117,6 @@ describe('lockfileImpact', () => {
   })
 
   it('变化的包被根 importer 间接依赖：全量，原因写出那个包', () => {
-    // 根的 tooling 改为依赖 leaf，再升级 leaf：根 importer 条目不变，但它经 tooling 依赖了变化的包。
     const base = BASE.replace(
       '  tooling@1.0.0: {}',
       '  tooling@1.0.0:\n    dependencies:\n      leaf: 1.0.0',
@@ -147,7 +162,6 @@ describe('lockfileImpact', () => {
   })
 
   it('packages 里变化的包没有对应的 snapshot：全量', () => {
-    // 两份都多一个没有 snapshot、没人依赖的包，HEAD 里它的 integrity 变了。
     const orphan = (integrity: string) =>
       BASE.replace(
         'snapshots:',
@@ -187,6 +201,83 @@ snapshots:`,
   })
 })
 
+describe('workspaceImpact', () => {
+  const WORKSPACE = [
+    'packages:',
+    "  - 'packages/*/*'",
+    "  - 'tools/*'",
+    '',
+    '# 版本只在这里写一次',
+    'catalog:',
+    '  zod: 4.6.5',
+    "  '@vitest/coverage-v8': 4.1.11",
+    '',
+    'onlyBuiltDependencies:',
+    '  - esbuild',
+    '',
+  ].join('\n')
+
+  it('两份相同：没有变化', () => {
+    expect(workspaceImpact(WORKSPACE, WORKSPACE)).toEqual({ kind: 'unchanged' })
+  })
+
+  it('只改了注释与空行：没有变化', () => {
+    const head = WORKSPACE.replace('# 版本只在这里写一次', '# 版本只写一次\n')
+    expect(workspaceImpact(WORKSPACE, head)).toEqual({ kind: 'unchanged' })
+  })
+
+  it('catalog 加一项：只有 catalog 有变化，影响面交给锁文件', () => {
+    const head = WORKSPACE.replace('  zod: 4.6.5', '  zod: 4.6.5\n  yaml: 2.9.1')
+    expect(workspaceImpact(WORKSPACE, head)).toEqual({
+      kind: 'catalog-only',
+      reason: 'pnpm-workspace.yaml 只有 catalog 有变化',
+    })
+  })
+
+  it('catalog 改一项的版本：同样只有 catalog 有变化', () => {
+    const head = WORKSPACE.replace('zod: 4.6.5', 'zod: 4.7.0')
+    expect(workspaceImpact(WORKSPACE, head)).toMatchObject({ kind: 'catalog-only' })
+  })
+
+  it('成员的目录模式有变化：全量，原因写出键名', () => {
+    const head = WORKSPACE.replace("  - 'tools/*'", "  - 'tools/*'\n  - 'apps/*'")
+    expect(workspaceImpact(WORKSPACE, head)).toEqual({
+      kind: 'full',
+      reason: 'pnpm-workspace.yaml 的 packages 有变化，判为全量',
+    })
+  })
+
+  it('catalog 与构建许可一起变：全量，原因只写 catalog 之外的键', () => {
+    const head = WORKSPACE.replace('zod: 4.6.5', 'zod: 4.7.0').replace('  - esbuild', '  - sharp')
+    expect(workspaceImpact(WORKSPACE, head)).toEqual({
+      kind: 'full',
+      reason: 'pnpm-workspace.yaml 的 onlyBuiltDependencies 有变化，判为全量',
+    })
+  })
+
+  it('多出一个顶层键：全量', () => {
+    const head = `${WORKSPACE}overrides:\n  left-pad: 1.3.0\n`
+    expect(workspaceImpact(WORKSPACE, head)).toMatchObject({
+      kind: 'full',
+      reason: expect.stringContaining('overrides'),
+    })
+  })
+
+  it('解析失败：全量，原因写明哪一份', () => {
+    expect(workspaceImpact(WORKSPACE, 'catalog:\n\tzod: 1\n')).toMatchObject({
+      kind: 'full',
+      reason: expect.stringMatching(/^HEAD 的 pnpm-workspace\.yaml 解析失败/u),
+    })
+  })
+
+  it('仓库真实的 pnpm-workspace.yaml：解析器认得它的写法；改一项 catalog 的版本只算 catalog 的变化', () => {
+    const text = readFileSync(resolve(ROOT, 'pnpm-workspace.yaml'), 'utf8')
+    const bumped = text.replace(/^  zod: .+$/mu, '  zod: 0.0.0-probe')
+    expect(bumped).not.toBe(text)
+    expect(workspaceImpact(text, bumped)).toMatchObject({ kind: 'catalog-only' })
+  })
+})
+
 describe('仓库真实的 pnpm-lock.yaml', () => {
   const text = readFileSync(resolve(ROOT, 'pnpm-lock.yaml'), 'utf8')
   const members = listWorkspaceMembers(fileTree(ROOT), readTestRunsConfig().affected.excludeRoots)
@@ -208,7 +299,6 @@ describe('仓库真实的 pnpm-lock.yaml', () => {
   })
 
   it('改一个 snapshot 条目时，每条依赖引用都能在 snapshots 里找到', () => {
-    // 给 snapshots 段里第一个带 dependencies 的条目加一行：结论是哪种取决于谁依赖它，但不能是「解释不了」。
     const marker = /^(  '?[^\s].*'?:)\n(    dependencies:\n)/mu
     const start = text.indexOf('\nsnapshots:\n')
     expect(start).toBeGreaterThan(0)

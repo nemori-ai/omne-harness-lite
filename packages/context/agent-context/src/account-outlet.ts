@@ -1,5 +1,3 @@
-// The account outlet of Agent as a Request Context account fact (AG-17). It translates one handoff
-// into one fact for the accounting inbox and keeps nothing between calls.
 import type {
   AgentAccountHandoff,
   AgentAccountOutcome,
@@ -15,20 +13,14 @@ import type {
   ContextTarget,
 } from '@omne-harness/request-context-contract'
 
-/**
- * Names the account target (tenant and scope) that one call belongs to, or null when it cannot.
- * It never guesses a scope from the call or the execution text.
- */
 export type AccountTargetResolver<P> = (
   input: Readonly<{ access: Access<P>; call: ModelInvocationParts }>,
 ) => Promise<ContextTarget | null>
 
-/** The resolver of the first wave: no call has a known target. */
 export const absentAccountTarget: AccountTargetResolver<unknown> = async () => null
 
 export type AgentAccountOutletOptions<P> = Readonly<{
   inbox: ContextAccountingInbox<P>
-  /** The adoption identity that this outlet gives as the sender of every fact. */
   sender: Adoption
   resolveTarget: AccountTargetResolver<P>
 }>
@@ -38,7 +30,6 @@ const unavailable = (diagnostic: string): AgentAccountOutcome => ({
   diagnostic,
 })
 
-/** The answer of the inbox, by name. Nothing is added and no class changes into another. */
 function outcomeOf(receipt: AccountReceipt): AgentAccountOutcome {
   switch (receipt.kind) {
     case 'received':
@@ -55,7 +46,6 @@ function outcomeOf(receipt: AccountReceipt): AgentAccountOutcome {
   }
 }
 
-/** Creates the outlet. The tenant of the call is checked first; a foreign call reaches nothing. */
 export function createAgentAccountOutlet<P>(
   options: AgentAccountOutletOptions<P>,
 ): AgentAccountOutlet<P> {
@@ -98,7 +88,6 @@ export function createAgentAccountOutlet<P>(
           }),
         )
       } catch {
-        // The write may have happened: the receiver keeps its duty and retries the same handoff.
         return { kind: 'unknown' }
       }
     },

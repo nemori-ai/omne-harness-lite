@@ -1,10 +1,3 @@
-// AD-10 on real Cordis: the evidence bridge. What is checked: the bridge needs all three narrow
-// sources and is absent while one of them is absent; it provides `sessionEvidence` and removes it
-// on stop; it asks exactly the sources that the material table names for the command; a source
-// failure comes back as the source gave it, a throw or a malformed answer is `unavailable` with the
-// source's key, and a command with no material at all is `unavailable`, not an empty success; a
-// command whose tenant was not minted, and an initialization material bound to another tenant or
-// session, get `denied`.
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -43,7 +36,6 @@ type Answer = (
   access?: SessionAccess<unknown>,
 ) => Promise<{ ok: readonly GuardCommand[] } | { failure: SessionFailure }>
 
-/** A command of the given kind; the bridge reads only the kind, the tenant and the session. */
 function command(kind: SessionCommand['kind'], base: typeof A = A): SessionCommand {
   return {
     kind,
@@ -75,10 +67,8 @@ async function mount(ctx: Context, plugin: Parameters<Context['plugin']>[0]) {
   return fiber
 }
 
-/** The three source services; each records the commands it was asked and answers by script. */
 function sources(scripts: Partial<Record<SourceName, Answer>> = {}) {
   const asked: { source: SourceName; kind: string }[] = []
-  /** The access that each source received, by arity: a source that never got a second argument has none. */
   const received: { source: SourceName; given: readonly unknown[] }[] = []
   const answer =
     (source: SourceName): Answer =>
@@ -225,7 +215,6 @@ describe('the material table, split by command', () => {
 describe('the access of the original call', () => {
   it('gives the adoption source the access object of the call as it came, and no other source', async () => {
     const { received, prepare } = await assembled()
-    // `startRun` takes adoption material; `preserveResult` takes production and custody material.
     expect(await prepare(command('startRun'), A)).toHaveProperty('ok')
     expect(await prepare(command('preserveResult'), A)).toHaveProperty('ok')
     const adoption = received.filter(item => item.source === 'adoption')
@@ -300,7 +289,6 @@ describe('failures of the sources', () => {
     expect(await prepare(command('preserveResult'))).toMatchObject({
       failure: { kind: 'unavailable' },
     })
-    // One empty source next to one with material is fine.
     const { prepare: partly } = await assembled({ production: async () => succeed([]) })
     expect(await partly(command('preserveResult'))).toEqual(
       succeed([guard('custody-source', 'custody', 'preserveResult')]),

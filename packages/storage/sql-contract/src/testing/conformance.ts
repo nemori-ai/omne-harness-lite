@@ -1,7 +1,3 @@
-// The conformance suite of `SqlStorage` (SPEC 16.1). It runs through the public interface only, so
-// it fits the memory double and any provider. It covers the scenarios that need no database:
-// C01 to C07, C12, C14, C16 and C24. The scenarios that need SQLite, Workers or files (C08 to C11, C13,
-// C15, C17 to C23) belong to the provider package. A pass of this suite does not show them.
 import { canonicalJson } from '../canonical.ts'
 import { inputDigestV2 } from '../digest.ts'
 import type {
@@ -28,11 +24,9 @@ import {
 import { createFixtureMaterials } from './fixtures.ts'
 
 export type SqlConformanceSubject = Readonly<{
-  /** Creates a fresh provider for one scenario. The suite closes it. */
   create(
     input: Readonly<{ materials: SqlMaterialCatalog }>,
   ): Promise<Readonly<{ storage: SqlStorage; control: StorageControl }>>
-  /** Declared durability of the subject. A memory double declares 'none'. */
   durability: 'none' | 'process' | 'power-loss-tested'
 }>
 
@@ -50,7 +44,6 @@ function expect(condition: boolean, message: string): void {
   if (!condition) throw new Error(message)
 }
 
-/** Equality by RFC 8785 text, so the order of keys does not matter. */
 function same(actual: unknown, expected: unknown, message: string): void {
   const text = (value: unknown): string => {
     try {
@@ -74,14 +67,12 @@ function committed(result: CommitResultV2): Extract<CommitResultV2, { kind: 'com
   return result
 }
 
-/** The stored receipt of a commit answer: the answer without its `recalled` mark. */
 function stored(answer: CommitResultV2): unknown {
   if (answer.kind !== 'committed' && answer.kind !== 'rolled_back') return answer
   const { recalled: _mark, ...receipt } = answer
   return receipt
 }
 
-/** Whether the answer is a receipt that the storage recognised without running this call. */
 const recalled = (answer: CommitResultV2): boolean | null =>
   answer.kind === 'committed' || answer.kind === 'rolled_back' ? answer.recalled : null
 
@@ -499,15 +490,10 @@ const SCENARIOS: readonly Scenario[] = [
   },
 ]
 
-/** The ids of the scenarios that this entry runs. */
 export const CONFORMANCE_SCENARIO_IDS: readonly string[] = SCENARIOS.map(scenario => scenario.id)
 
 const DURABILITIES = ['none', 'process', 'power-loss-tested']
 
-/**
- * Runs the scenarios against a subject. Every scenario creates its own provider and closes it.
- * Rejects with an Error whose `failures` lists every failed scenario, not only the first.
- */
 export async function runSqlStorageConformance(subject: SqlConformanceSubject): Promise<void> {
   if (!DURABILITIES.includes(subject.durability))
     throw new Error(`unknown durability: ${String(subject.durability)}`)

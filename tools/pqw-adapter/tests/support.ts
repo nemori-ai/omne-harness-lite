@@ -1,4 +1,3 @@
-// 用例共用的假仓库、假执行器与成员。
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -9,7 +8,6 @@ import type { ChangedMember } from '../src/members.ts'
 import type { Command, Executor, Outcome } from '../src/process.ts'
 import type { Repo } from '../src/repo.ts'
 
-// 只在用例体内调用：目录随这条用例结束而删除。
 export function scratch(): string {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'pqw-adapter-test-')))
   onTestFinished(() => rmSync(dir, { recursive: true, force: true }))
@@ -56,7 +54,6 @@ export function fakeRepo(overrides: Partial<Repo> = {}): Repo {
   }
 }
 
-/** 值后面的参数：`--json <路径>` 取路径。 */
 export const valueOf = (args: readonly string[], flag: string): string | undefined => {
   const index = args.indexOf(flag)
   return index === -1 ? undefined : args[index + 1]
@@ -67,7 +64,6 @@ export function writeJson(path: string, value: unknown): void {
   writeFileSync(path, JSON.stringify(value))
 }
 
-/** 记下每次调用；`respond` 决定返回什么，也可以顺手写出被调方该写的文件。 */
 export function recorder(
   respond: (command: Command) => Partial<Outcome> | Promise<Partial<Outcome>> = () => ({}),
 ) {

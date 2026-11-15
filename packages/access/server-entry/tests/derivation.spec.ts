@@ -1,5 +1,3 @@
-// The field-level cases of the identity derivation: each family changes with one field, and the
-// messageId enters no identity. The digest algorithm itself is Session's `deriveIngressOperation`.
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   acceptOperation,

@@ -21,6 +21,8 @@
 | [UL-cordis-service-consumer](terms/architecture-core-and-extension.md#ul-cordis-service-consumer--cordis-服务消费者--cordis-service-consumer) | Cordis 服务消费者 | Cordis Service Consumer | 接缝里按服务键取用能力的那个角色；直接 import 函数不经服务键的不算 |
 | [UL-cordis-plugin-tree](terms/architecture-core-and-extension.md#ul-cordis-plugin-tree--cordis-插件树--cordis-plugin-tree) | Cordis 插件树 | Cordis Plugin Tree | 一个进程启动时挂上的全部 Cordis 插件及配置，**由插件树层叠出，不随租户或会话变** |
 | [UL-plugin-tree-layer](terms/architecture-core-and-extension.md#ul-plugin-tree-layer--插件树层--plugin-tree-layer) | 插件树层 | Plugin Tree Layer | 叠成插件树的一级数据，**本版恰两格：发行层、运维者层**；不是作用域层 |
+| [UL-public-protocol](terms/architecture-core-and-extension.md#ul-public-protocol--公开协议--public-protocol) | 公开协议 | Public Protocol | 一个领域对外的一整套操作与公开观察，有名字和主版本；入口上可被指名的位点，**同名同主版本至多挂一份接入贡献**；弃用 ~~治理位置~~ 这一类「某某位置」的叫法 |
+| [UL-access-contribution](terms/architecture-core-and-extension.md#ul-access-contribution--接入贡献--access-contribution) | 接入贡献 | Access Contribution | 接入插件挂到入口登记表上的那一包：协议契约加处理函数与帧来源；随插件挂上与撤下，**有贡献不等于开放** |
 
 ## [主体与归属](terms/subjects-and-ownership.md)
 
@@ -121,8 +123,9 @@
 | [UL-setting-category](terms/capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category) | 设置项类别 | Setting Category | 每项设置必标的四类之一：偏好 / 绑定 / 落点与身份 / 治理（管别的设置与权限怎么起作用）；决定值能从哪些层来 |
 | [UL-permission](terms/capabilities-and-composition.md#ul-permission--权限--permission) | 权限 | Permission | 资产的一种属性，管「能做什么」 |
 | [UL-skill](terms/capabilities-and-composition.md#ul-skill--技能--skill) | 技能 | Skill | 一段可复用的工作方法 |
+| [UL-meta-skill](terms/capabilities-and-composition.md#ul-meta-skill--元技能--meta-skill) | 元技能 | Meta Skill | 官方层发行、常驻、声明不可替换的那份教 agent 写 Skill 的普通 Skill；**不是 meta 能力** |
 | [UL-tool](terms/capabilities-and-composition.md#ul-tool--工具--tool) | 工具 | Tool | 一个可被调用的动作，**身份是这一类里的那个 name**；资产只带身份、治理声明与实现引用，形状由实现提供 |
-| [UL-mcp](terms/capabilities-and-composition.md#ul-mcp--mcp--mcp) | MCP | MCP | 一个外部工具来源的接入点；对端每个动作是一个工具条目，一次执行尝试之内不变 |
+| [UL-mcp](terms/capabilities-and-composition.md#ul-mcp--mcp--mcp) | MCP | MCP | 一个外部工具来源的接入点，只按地址接入；对端每个动作是一个工具条目，按当下事实现算；标了常驻的接入点，动作在采用点成为常驻工具；弃用 ~~端点~~ |
 | [UL-connection-target](terms/capabilities-and-composition.md#ul-connection-target--连接目标--connection-target) | 连接目标 | Connection Target | MCP 接入点连到对端哪里，**落点与身份类**，工作区配不了；**不是身份** |
 | [UL-connector](terms/capabilities-and-composition.md#ul-connector--连接件--connector) | 连接件 | Connector | 一个外部消息来源的接入件，**方向相反**；声明事件目录、持有上配事件订阅；两种投递方式（已有会话开口接收 / 事件开新会话，后者必配触发会话的默认运行模式）；带身份鉴权，接哪个账号是持有上的落点与身份类设置 |
 | [UL-connector-event-type](terms/capabilities-and-composition.md#ul-connector-event-type--连接件事件类型--connector-event-type) | 连接件事件类型 | Connector Event Type | 连接件正文里声明的一种会送进来的外部事件：类型名 + 说明 + 消息包形状；每条外部消息恰属一种 |
@@ -137,6 +140,11 @@
 | [UL-agent-type](terms/capabilities-and-composition.md#ul-agent-type--agent-类型--agent-type) | agent 类型 | Agent Type | 这份定义**具不具备 master 的那一整套机制**：`master` / `non-master`；**不是「子 agent」那个意思** |
 | [UL-master-category](terms/capabilities-and-composition.md#ul-master-category--master-类目--master-category) | master 类目 | Master Category | master 主要干什么的，五类；**只出厂加**，**不是会话类型** |
 | [UL-asset-version](terms/capabilities-and-composition.md#ul-asset-version--资产版本--asset-version) | 资产版本 | Asset Version | 一个资产某一次发布定下的那份内容，已发布即不可变；已有会话的常驻工具只在采用点跟随同形的新版 |
+| [UL-package-manifest](terms/capabilities-and-composition.md#ul-package-manifest--包的清单--package-manifest) | 包的清单 | Package Manifest | 正文是目录的资产版本所带的文件清单：每个文件的路径、大小、摘要；**不是装配清单** |
+| [UL-package-reader](terms/capabilities-and-composition.md#ul-package-reader--包的读口--package-reader) | 包的读口 | Package Reader | 资产按层、能力标识、版本交出的读取入口：给清单，按路径与摘要读文件；**不给宿主机路径** |
+| [UL-skill-package](terms/capabilities-and-composition.md#ul-skill-package--skill-包--skill-package) | Skill 包 | Skill Package | 技能一份完整内容的形式：以 `SKILL.md` 为根的目录树；**不是身份，不是插件，也不是代码成员包** |
+| [UL-package-snapshot](terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot) | Skill 包快照 | Skill Package Snapshot | Skill 包某一时刻全部条目的不可变清单及其内容摘要；**内容摘要是散列值，不是文字摘要**；读已发布版本时由包的清单封出 |
+| [UL-material-basis](terms/capabilities-and-composition.md#ul-material-basis--skill-材料依据--skill-material-basis) | Skill 材料依据 | Skill Material Basis | 调用方手里指明此前读到哪一份 Skill 材料的值：能力标识、来源层、资产版本（工作区来源可缺省）与 Skill 包快照的内容摘要四项，凭能力标识、来源层与内容摘要确定同一份材料；**不含包的位置，不授予访问，不是采用依据** |
 | [UL-asset-composition](terms/capabilities-and-composition.md#ul-asset-composition--资产组合--asset-composition) | 资产组合 | Asset Composition | 资产之间、资产与 agent 之间的同一种关系 |
 | [UL-agent-constitution](terms/capabilities-and-composition.md#ul-agent-constitution--agent-构成--agent-constitution) | agent 构成 | Agent Constitution | 装配清单里「它是什么」的那部分；旧名 ~~实例构成~~ |
 | [UL-action-space](terms/capabilities-and-composition.md#ul-action-space--动作空间--action-space) | 动作空间 | Action Space | 会话已知能力的动作视图；身份单调保留，可用性与准入另判 |
@@ -158,8 +166,9 @@
 | [UL-model-switch](terms/capabilities-and-composition.md#ul-model-switch--模型切换--model-switch) | 模型切换 | Model Switch | 用户把选中模型换成另一个合法目标路由名，**先是日志里一条事实**（记的是名字），下一次请求前生效，不添分支 |
 | [UL-scheduling-capability](terms/capabilities-and-composition.md#ul-scheduling-capability--日程能力--scheduling-capability) | 日程能力 | Scheduling Capability | 创建和管理跨时间工作安排、调度到期工作并触发对应执行或通知动作的可插拔能力，供系统安排自身机械工作，也供 harness agent 与用户推进短、中、长期事务与目标。 |
 | [UL-routine](terms/capabilities-and-composition.md#ul-routine--工作例程--routine) | 工作例程 | Routine | Schedule 内的工作描述数据，无独立身份或生命周期；各次 Job 共用其工作定义，执行状态与成果分别记录。 |
+| [UL-system-schedule-definition](terms/capabilities-and-composition.md#ul-system-schedule-definition--系统日程定义--system-schedule-definition) | 系统日程定义 | System Schedule Definition | 系统提供的一项定期产品功能的版本化定义，说明工作模板、时间规则、可控性、参数默认值及适用人群。用户通过日程订阅采用它，各次工作按订阅独立展开。 |
 | [UL-notification-capability](terms/capabilities-and-composition.md#ul-notification-capability--通知能力--notification-capability) | 通知能力 | Notification Capability | 系统和 agent 发送通知并送达到明确目标租户；不要求先有 Schedule 或 Job。 |
-| [UL-calendar-service](terms/capabilities-and-composition.md#ul-calendar-service--日历服务--calendar-service) | 日历服务 | Calendar Service | 支持日历配置、管理、选择切换和数据更新维护，供应业务日历及其版本并提供日期计算的服务统称；作为独立产品应用交付，是日程能力的计算依赖。 |
+| [UL-calendar-service](terms/capabilities-and-composition.md#ul-calendar-service--日历服务--calendar-service) | 日历服务 | Calendar Service | 供应业务日历及不可变版本、维护数据并提供日期知识与计算的独立能力统称。消费者选择由设置拥有者保存，日历按获授权的选择解析依据。 |
 
 
 ## [流转与授权](terms/circulation-and-entitlement.md)
@@ -238,7 +247,7 @@
 | [UL-cancellation-follows-host](terms/agent-runtime-loop.md#ul-cancellation-follows-host--取消跟着宿主走--cancellation-follows-host) | 取消跟着宿主走 | Cancellation Follows Host | 三类 runtime 归会话；按 Session／Run／调用目标取消，释放 Agent runtime 句柄不取消执行 |
 | [UL-graceful-cancellation](terms/agent-runtime-loop.md#ul-graceful-cancellation--优雅取消--graceful-cancellation) | 优雅取消 | Graceful Cancellation | 显式动作：先不接新活，等停当，再释放（旧名**实例退役**） |
 | [UL-forced-stop](terms/agent-runtime-loop.md#ul-forced-stop--强制停止--forced-stop) | 强制停止 | Forced Stop | 立刻撤销执行资格，**外部效果收不回来** |
-| [UL-job-session](terms/agent-runtime-loop.md#ul-job-session--作业会话--job-session) | 作业会话 | Job Session | 为一个需要 agent 执行的定时作业新建并专属承接其执行部分的会话子类型；沿用会话身份与生命周期，强制附加面向该作业的成果提交或上报工具，以及检查其目标完成情况的 Loop 拓展。 |
+| [UL-job-session](terms/agent-runtime-loop.md#ul-job-session--作业会话--job-session) | 作业会话 | Job Session | 为选择新会话执行的一个作业建立并专属承接其执行部分的会话子类型，沿用会话身份与生命周期，并附加该作业的成果上报与目标完成检查能力。 |
 
 
 ## [落地与隔离](terms/grounding-and-isolation.md)
@@ -282,6 +291,7 @@
 | [UL-deployment-parameter](terms/grounding-and-isolation.md#ul-deployment-parameter--部署参数--deployment-parameter) | 部署参数 | Deployment Parameter | 「按部署配置」那些值的统称，运维者给值、缺一不可、改了只影响此后；**不是范围化对象** |
 | [UL-subprocess-environment-allowlist](terms/grounding-and-isolation.md#ul-subprocess-environment-allowlist--子进程环境变量名单--subprocess-environment-allowlist) | 子进程环境变量名单 | Subprocess Environment Allowlist | 只从父进程复制名单内且存在的变量，不自动继承其余变量 |
 | [UL-credential-custodian](terms/grounding-and-isolation.md#ul-credential-custodian--凭据保管方--credential-custodian) | 凭据保管方 | Credential Custodian | 拿着凭据本体的那一方，**只按条件交出、不拿别的顶上**，落地只以密文；**只保管，不决定配哪一把**；本版只在据点 |
+| [UL-package-source](terms/grounding-and-isolation.md#ul-package-source--skill-包来源--skill-package-source) | Skill 包来源 | Skill Package Source | 按内容摘要交出 Skill 包字节的那一方；**不是资产来源，也不是来源层**，不判定用哪一份、谁能读；已发布版本由包的读口经适配担任 |
 
 ## [取用与可用性](terms/reach-and-availability.md)
 
@@ -289,9 +299,11 @@
 
 | ID | 中文 | English | 一句话 |
 |---|---|---|---|
-| [UL-residency](terms/reach-and-availability.md#ul-residency--常驻--residency) | 常驻 | Residency | 能力身份始终对 agent 可见；**是引用上的一项偏好类设置，不是资产的属性**；可见时展示什么归装配策略；会话里的常驻工具组成常驻工具集合 |
+| [UL-residency](terms/reach-and-availability.md#ul-residency--常驻--residency) | 常驻 | Residency | 能力身份始终对 agent 可见；**是引用上的一项偏好类设置，不是资产的属性**；可见时展示什么归装配策略；可以是工具、Skill 简介或常驻 MCP 接入点的动作；会话里的常驻工具组成常驻工具集合 |
 | [UL-residency-holder](terms/reach-and-availability.md#ul-residency-holder--常驻持有者--residency-holder) | 常驻持有者 | Residency Holder | 保存首次 shape 并在采用点供给它的角色，会话是一种；不另建身份或生命周期 |
 | [UL-resident-tool-set](terms/reach-and-availability.md#ul-resident-tool-set--常驻工具集合--resident-tool-set) | 常驻工具集合 | Resident Tool Set | 常驻持有者的全部常驻工具及各自首次 shape；**只增不减，名字与参数形状在持有者存续期间不变**；不是主会话的「常驻」 |
+| [UL-tool-entry](terms/reach-and-availability.md#ul-tool-entry--工具条目--tool-entry) | 工具条目 | Tool Entry | 工具入口里可发现、可调用的一项；**是视图**，按主体此刻的事实现算 |
+| [UL-tool-entry-source](terms/reach-and-availability.md#ul-tool-entry-source--工具条目来源--tool-entry-source) | 工具条目来源 | Tool Entry Source | 另一个领域向工具入口登记、按需交出工具条目的那个角色；MCP 是一个；**不登记工具** |
 | [UL-current-availability](terms/reach-and-availability.md#ul-current-availability--当下可用性--current-availability) | 当下可用性 | Current Availability | **依赖解析的结果，不是开关**；每一次执行尝试开始前重算。**可见但用了一定失败**，与禁用不同 |
 | [UL-stand-in](terms/reach-and-availability.md#ul-stand-in--替换件--stand-in) | 替换件 | Stand-in | 不可用时占在原位的**同形呈现**：只换说明，调用必得「不可用」；常驻工具的形状取首次定义 |
 | [UL-same-shape](terms/reach-and-availability.md#ul-same-shape--同形--same-shape) | 同形 | Same Shape | 两份工具定义的名字、种类、参数契约与命令表都相等；说明、返回、声明、版本与执行者不参与 |
@@ -299,6 +311,10 @@
 | [UL-session-asset-registry](terms/reach-and-availability.md#ul-session-asset-registry--会话资产注册表--session-asset-registry) | 会话资产注册表 | Session Asset Registry | 会话里一类资产此刻认得的那一批，**经它取**；reload 只重填对应那一张；权限收回不等 reload——**命令即时去掉，装进运行的资产自下一次运行起**；常驻工具的名字与参数形状在会话内不变 |
 | [UL-governance-center-health-check](terms/reach-and-availability.md#ul-governance-center-health-check--治理中心体检--governance-center-health-check) | 治理中心体检 | Governance Center Health Check | 中心「我在不在、能不能答」的自述；公开部分恰三样、登录前可读，**不含治理事实与秘密** |
 | [UL-governance-center-reachability](terms/reach-and-availability.md#ul-governance-center-reachability--治理中心可达性--governance-center-reachability) | 治理中心可达性 | Governance Center Reachability | 据点对所属中心**此刻在不在应答**的观察，答复说什么不影响它；**不作任何准入依据**，不可达时开着的会话照常干活 |
+| [UL-protocol-availability](terms/reach-and-availability.md#ul-protocol-availability--协议可用性--protocol-availability) | 协议可用性 | Protocol Availability | 一个部署此刻挂着哪些公开协议，加只增不减的修订号；**和调用者无关、不需要登录**；只说存在，不说允不允许；不是当下可用性 |
+| [UL-mcp-connection](terms/reach-and-availability.md#ul-mcp-connection--mcp-连接--mcp-connection) | MCP 连接 | MCP Connection | 接入点为一个租户、以一个对端账号与对端的接通，是协商得到的一组结果，不带进程；**按租户与账号分开，不是连接件** |
+| [UL-mcp-action-catalog](terms/reach-and-availability.md#ul-mcp-action-catalog--mcp-动作清单--mcp-action-catalog) | MCP 动作清单 | MCP Action Catalog | 按租户、对端账号与接入点持有保存的最近合法动作集合；对端不再提供的动作从中消失；**整份更新，不是动作空间** |
+| [UL-mcp-known-action](terms/reach-and-availability.md#ul-mcp-known-action--mcp-已知动作--mcp-known-action) | MCP 已知动作 | MCP Known Action | 动作清单里由合法发现取得的一个对端动作，在工具入口里是一个工具条目；**不可用在接入点这一级说明**，只有常驻接入点的动作有同形替换件 |
 
 ## [执行与收场](terms/execution-and-outcome.md)
 
@@ -345,13 +361,15 @@
 | [UL-terminal-disposition](terms/execution-and-outcome.md#ul-terminal-disposition--终局--terminal-disposition) | 终局 | Terminal Disposition | 交到头也回不去了；**落终局的是那件事，不是那一层** |
 | [UL-schedule](terms/execution-and-outcome.md#ul-schedule--日程--schedule) | 日程 | Schedule | 包含一份工作例程描述的日程安排，同时持有一次性或重复的时间规则、边界与补跑／重叠声明；每次实际形成的工作以定时作业区分。 |
 | [UL-system-schedule](terms/execution-and-outcome.md#ul-system-schedule--系统日程--system-schedule) | 系统日程 | System Schedule | 系统自身拥有、只触发机械操作的日程；不归账号、组织或租户，不启动 agent 会话。 |
-| [UL-scheduled-job](terms/execution-and-outcome.md#ul-scheduled-job--定时作业--scheduled-job) | 定时作业 | Scheduled Job | 一份日程在某个具体到期时刻对应的单次工作实例，支持执行、通知、执行并通知三种工作类型，有可指认的来源和本次处置结果；agent 执行使用专属新会话，系统自用的机械执行不创建会话，包含通知时按本次声明承担目标租户的通知。 |
-| [UL-scheduled-execution](terms/execution-and-outcome.md#ul-scheduled-execution--定时执行--scheduled-execution) | 定时执行 | Scheduled Execution | 日程到期后履行执行工作的过程；系统自用日程触发机械操作，租户日程为本次作业新建专属会话并装配 agent 来完成工作目标。 |
+| [UL-job](terms/execution-and-outcome.md#ul-job--作业--job) | 作业 | Job | 人、agent 或系统调度器发起并经准入接受的单次工作，具有独立身份、冻结要求、来源和结果。 |
+| [UL-scheduled-job](terms/execution-and-outcome.md#ul-scheduled-job--定时作业--scheduled-job) | 定时作业 | Scheduled Job | 系统调度器按日程有效时刻接受的作业变体，保留安排作者及来源，沿用作业身份与生命周期。 |
+| [UL-schedule-subscription](terms/execution-and-outcome.md#ul-schedule-subscription--日程订阅--schedule-subscription) | 日程订阅 | Schedule Subscription | 一名 owner 对系统日程定义的独立采用关系，具有可指认身份、所选定义版本、参数、管理状态和接受历史。取消阻止该订阅的新接受，已有 Job 保持各自责任。 |
+| [UL-scheduled-execution](terms/execution-and-outcome.md#ul-scheduled-execution--定时执行--scheduled-execution) | 定时执行 | Scheduled Execution | 履行已接受定时作业中执行部分的过程，按冻结意图调用已注册程序，或将指令交给新建或指定的已有 agent 会话。 |
 | [UL-scheduled-notification](terms/execution-and-outcome.md#ul-scheduled-notification--定时通知--scheduled-notification) | 定时通知 | Scheduled Notification | 日程到期工作中向目标租户发送通知的过程，可由纯通知作业承担，也可与执行组合在同一个作业中；通知动作本身不另建 agent 工作会话。 |
 | [UL-schedule-date-policy](terms/execution-and-outcome.md#ul-schedule-date-policy--日程日期处理策略--schedule-date-policy) | 日程日期处理策略 | Schedule Date Policy | 基础候选遇非工作日时保持、跳过或向前／向后移到工作日。 |
 | [UL-schedule-catch-up-policy](terms/execution-and-outcome.md#ul-schedule-catch-up-policy--日程补跑策略--schedule-catch-up-policy) | 日程补跑策略 | Schedule Catch-up Policy | 日程声明是否补跑及当前时刻前最近最多补多少次；不重跑已有 Job。 |
 | [UL-schedule-overlap-policy](terms/execution-and-outcome.md#ul-schedule-overlap-policy--日程重叠策略--schedule-overlap-policy) | 日程重叠策略 | Schedule Overlap Policy | 同一日程的新工作遇到先前未结束动作时，选择跳过、停止先前后执行、独立并行或等待执行。 |
-| [UL-job-notification-policy](terms/execution-and-outcome.md#ul-job-notification-policy--作业通知策略--job-notification-policy) | 作业通知策略 | Job Notification Policy | Routine 内声明执行事件与通知内容要求，各 Job 持有自身采用的声明。 |
+| [UL-job-notification-policy](terms/execution-and-outcome.md#ul-job-notification-policy--作业通知策略--job-notification-policy) | 作业通知策略 | Job Notification Policy | 工作意图声明执行事件与通知内容要求，各 Job 持有自身采用的声明。 |
 | [UL-output-generation](terms/execution-and-outcome.md#ul-output-generation--输出代--output-generation) | 输出代 | Output Generation | 工程遥测提供者里整体准备、启用、排空、关闭的一组输出实现；**不是 Cordis 插件换代**；形态未定 |
 
 
@@ -383,6 +401,10 @@
 | [UL-delivery-surface](terms/interaction-and-dispatch.md#ul-delivery-surface--交付面--delivery-surface) | 交付面 | Delivery Surface | 把日志投影给人看、把人做的事送进受理的那一面，**不持有领域事实、没有自己的领域语义**；本版只有一种 |
 | [UL-presentation-form](terms/interaction-and-dispatch.md#ul-presentation-form--呈现形式--presentation-form) | 呈现形式 | Presentation Form | 同一份事实交给读者的形式，**恰两种**：人读 / 机读；**别混会话运行模式** |
 | [UL-look-and-feel-preference](terms/interaction-and-dispatch.md#ul-look-and-feel-preference--观感偏好--look-and-feel-preference) | 观感偏好 | Look-and-Feel Preference | 只影响好不好看、顺不顺手的那些选择，**loop 内三个角色都不消费它**；个人 context 的一部分，不是 agent 要感知的界面偏好 |
+| [UL-public-observation](terms/interaction-and-dispatch.md#ul-public-observation--公开观察--public-observation) | 公开观察 | Public Observation | 公开协议里与操作并列的一类成员：一次建立，服务端一帧一帧送出进行中的投影，带原因结束；**不另存，断了重建**；不是实时媒体的通道 |
+| [UL-app-shell](terms/interaction-and-dispatch.md#ul-app-shell--界面外壳--app-shell) | 界面外壳 | App Shell | 一种应用形态自己的界面代码：窗口、导航与它声明的界面插入位置；**不含任何领域的代码**；不是 Shell 工具 |
+| [UL-ui-module](terms/interaction-and-dispatch.md#ul-ui-module--界面模块--ui-module) | 界面模块 | UI Module | 一个领域在客户端的界面部分，客户端装配树上的插件；**随它依赖的协议在协议可用性里出现与消失而加载与卸载** |
+| [UL-ui-slot](terms/interaction-and-dispatch.md#ul-ui-slot--界面插入位置--ui-slot) | 界面插入位置 | UI Slot | 界面外壳声明的、界面模块可以往里放东西的具名位点；**设计时列出，不在运行期创建**；只放一个或放一列 |
 
 ## [记录与上下文](terms/record-and-context.md)
 
@@ -446,6 +468,7 @@
 | [UL-telemetry-record](terms/record-and-context.md#ul-telemetry-record--遥测记录--telemetry-record) | 遥测记录 | Telemetry Record | 交给工程遥测端口的一条事件、一个指标测量值或一个遥测段的开始或结束；**准入不是送达**，单条没有系统身份 |
 | [UL-telemetry-segment](terms/record-and-context.md#ul-telemetry-segment--遥测段--telemetry-segment) | 遥测段 | Telemetry Segment | 工程遥测里一段有起止的工作记录，可被因果链接引用；**结局不是业务终态**；形态未定 |
 | [UL-session-diagnostics-projection](terms/record-and-context.md#ul-session-diagnostics-projection--会话诊断投影--session-diagnostics-projection) | 会话诊断投影 | Session Diagnostics Projection | 一个会话的只读组合视图：以会话日志为骨架，读各拥有者的只读记录，读不到写缺口；**不是会话日志投影**，不是工程遥测 |
+| [UL-session-observation](terms/record-and-context.md#ul-session-observation--会话观察--session-observation) | 会话观察 | Session Observation | 一个会话的进行中视图，以公开观察送出：当前一轮、日志修订、模型调用阶段、模型输出的快照与增量；**历史是权威**，它不另存 |
 
 | [UL-model-adaptation-binding](terms/capabilities-and-composition.md#ul-model-adaptation-binding--模型适配绑定--model-adaptation-binding) | 模型适配绑定 | Model Adaptation Binding | 调用所持有的精确适配版本与配置属性，更新不改变旧绑定 |
 | [UL-model-prefix-cache-policy](terms/capabilities-and-composition.md#ul-model-prefix-cache-policy--模型前缀缓存策略--model-prefix-cache-policy) | 模型前缀缓存策略 | Model Prefix Cache Policy | 绑定内的缓存配置属性，不代表真实缓存命中 |

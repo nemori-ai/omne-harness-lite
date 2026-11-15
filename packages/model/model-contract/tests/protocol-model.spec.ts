@@ -1,5 +1,4 @@
 // @module-tag slow
-// The complete finite graph and negative controls run in child processes.
 import assert from 'node:assert/strict'
 import { fork } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -45,9 +44,6 @@ function absent(pid: number): boolean {
   }
 }
 
-// The supervisor reaps the model through its POSIX process group and refuses to start on Windows
-// (tests/protocol-model/README.md); there the second test checks the refusal. The skips are made at
-// run time: vitest's pre-parse drops a slow file whose every test is a static skipIf or runIf.
 const posixGroups = process.platform !== 'win32'
 
 test('checks the complete result delivery protocol model', async ({ skip }) => {
@@ -163,7 +159,6 @@ test('refuses to start the model where POSIX process groups are missing', async 
   assert.ok(report && typeof report === 'object' && 'status' in report && 'reason' in report)
   assert.equal(report.status, 'failed')
   assert.match(String(report.reason), /POSIX process groups are required/)
-  // It refused before it copied the sources or started the model: no model PID, no target directory.
   assert.equal('pid' in report, false)
   assert.equal(existsSync(target), false)
   assert.deepEqual(sourceSnapshot(), before)

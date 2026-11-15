@@ -1,7 +1,3 @@
-// The command handler pipeline of a command that Session commits (SPEC CP-01). One face operation
-// asks the access check once, binds one delegated view, and does every later port call through
-// that view, the `changed` retries included. `decide` is the only encoding of a command: the step
-// outside the transaction only finds a refusal early; the storage participant decides again inside.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decide,
@@ -17,7 +13,6 @@ import {
   type SessionCallerClass,
   type SessionCommand,
   type SessionFailure,
-  type SessionNotifier,
   type SessionTransactionPort,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
@@ -29,7 +24,6 @@ import { terminalOf, type SessionMeasurer } from './measure.ts'
 import type { SchedulingPolicy } from './policy.ts'
 import { qualify, readSnapshot } from './qualify.ts'
 
-/** The commands that carry `expected` and so may meet `changed` at the commit (SPEC CP-01). */
 const OPTIMISTIC: ReadonlySet<MutationName> = new Set([
   'claim',
   'reload',
@@ -41,11 +35,6 @@ const OPTIMISTIC: ReadonlySet<MutationName> = new Set([
   'commitDerived',
 ])
 
-/**
- * Refusals that `decide` reads from the snapshot alone. The step outside the transaction returns
- * only these: any other refusal may come from material or same-root reads that only the storage
- * participant has, so the commit decides it.
- */
 const STATE_REFUSALS: ReadonlySet<SessionFailure['kind']> = new Set([
   'archived',
   'frozen',
@@ -56,7 +45,6 @@ const STATE_REFUSALS: ReadonlySet<SessionFailure['kind']> = new Set([
   'stale-advance',
 ])
 
-/** Commands whose material includes the evidence bridge (contract「身份桥、证据桥与 Context 输入」). */
 const EVIDENCE: ReadonlySet<MutationName> = new Set([
   'create',
   'completeInitialization',
@@ -70,13 +58,11 @@ const EVIDENCE: ReadonlySet<MutationName> = new Set([
   'completeConsumption',
   'completeExternalConsumption',
 ])
-/** The initialization recall still verifies its source guard (contract「结果同批与认回顺序」). */
 const RECALL_WITH_MATERIAL: ReadonlySet<MutationName> = new Set([
   'create',
   'completeInitialization',
 ])
 
-/** Kinds of committed entries that wake the advance trigger S1 (SPEC S1 触发源). */
 export const ADVANCE_KINDS: ReadonlySet<string> = new Set([
   'intake.routed',
   'run.terminal',
@@ -84,8 +70,7 @@ export const ADVANCE_KINDS: ReadonlySet<string> = new Set([
   'session.initialization-item',
 ])
 
-/** The page budget of the one history read that collects the event kinds of a notice. */
-const NOTICE_PAGE_BYTES = 1_048_576
+const ROUND_PAGE_BYTES = 1_048_576
 
 export type CommandAnswer = Outcome<unknown, SessionFailure>
 
@@ -94,7 +79,6 @@ export type CommandHandlerInput<P> = Readonly<{
   policy: SchedulingPolicy
   lifecycle: Lifecycle
   measurer: SessionMeasurer
-  /** Called after a commit of this instance that is not a recall, before the answer returns. */
   committed(command: SessionCommand): void
 }>
 
@@ -122,7 +106,6 @@ function preparesIdle(command: SessionCommand): command is IdleCommand {
   return command.kind === 'recordIdle' || command.kind === 'considerAutoArchive'
 }
 
-/** The `expected` the caller asserted, or undefined for a command that carries none. */
 function expectedOf(command: SessionCommand): WorkSnapshot['revision'] | undefined {
   if (!OPTIMISTIC.has(command.kind) || !('expected' in command.input)) return undefined
   return command.input.expected
@@ -141,7 +124,6 @@ function isReceipt(value: unknown): value is CommitReceipt {
   )
 }
 
-/** The commit receipt inside a command answer, when the answer carries one. */
 export function receiptOf(value: unknown): CommitReceipt | null {
   if (isReceipt(value)) return value
   if (typeof value === 'object' && value !== null && 'receipt' in value) {
@@ -154,7 +136,6 @@ export function receiptOf(value: unknown): CommitReceipt | null {
 export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandHandler<P> {
   const { dependencies, policy, lifecycle, measurer } = input
 
-  /** Step 1, the recall part: one point lookup through the view. */
   const lookUp = async (
     view: SessionTransactionPort<P>,
     access: SessionAccess<P>,
@@ -172,10 +153,8 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     if ('ok' in answer)
       return succeed(answer.ok.kind === 'committed' ? { kind: 'held' } : { kind: 'new' })
     switch (answer.failure.kind) {
-      // The identity belongs to the other form of record: the commit answers the conflict.
       case 'conflict':
         return succeed({ kind: 'held' })
-      // No session under this tenant: indistinguishable from another tenant. Only create starts one.
       case 'denied':
         return command.kind === 'create' ? succeed({ kind: 'new' }) : fail(denied(command.kind))
       default:
@@ -183,7 +162,6 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     }
   }
 
-  /** The evidence, Context and idle owners whose material the kind of this command asks for. */
   const guardSteps = (
     access: SessionAccess<P>,
     command: SessionCommand,
@@ -209,7 +187,6 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     return steps
   }
 
-  /** Step 4: the guard material of the command, from the owners its kind fixes. */
   const materials = async (
     access: SessionAccess<P>,
     command: SessionCommand,
@@ -232,12 +209,6 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     return succeed(guards)
   }
 
-  /**
-   * EX-1 at the accept of an ordinary input. Null means admission is unavailable. An empty list
-   * runs no slot. A non-empty list is not orchestrated yet: a slot may expand the submission, and
-   * the delegated view is bound to the command that was checked, so an expanded command has no
-   * accepted path (reported to the dispatcher; M2 assembles `admission: 'none'`).
-   */
   const admission = (): Outcome<null, SessionFailure> => {
     let slots
     try {
@@ -257,13 +228,11 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     return succeed(null)
   }
 
-  /** Step 3: a refusal that the snapshot alone decides, or null to go on. */
   const refusalOf = (snapshot: WorkSnapshot, command: SessionCommand): SessionFailure | null => {
     let decision
     try {
       decision = decide(snapshot, command, [], null, { compaction: null })
     } catch {
-      // A defect of the early step must not refuse: the commit decides again.
       return null
     }
     return decision.kind === 'rejected' && STATE_REFUSALS.has(decision.failure.kind)
@@ -271,12 +240,6 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
       : null
   }
 
-  /**
-   * Steps 2 and 3: the authoritative read, then the early refusal. Null means go on. The caller's
-   * `expected` is its own assertion: it is never replaced by the revision just read. A tail that
-   * has moved on answers `changed` and commits nothing (SPEC CP-01 step 2); a state refusal comes
-   * first, in the order of `decide`.
-   */
   const readAndRefuse = async (
     view: SessionTransactionPort<P>,
     access: SessionAccess<P>,
@@ -287,14 +250,11 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     const refusal = refusalOf(snapshot.ok, command)
     if (refusal !== null) return fail(refusal)
     const expected = expectedOf(command)
-    // The advance commands compare the Run-layer revision, the others the snapshot revision
-    // (contract I-R2, R2-D327).
     return expected !== undefined && !expectedHolds(snapshot.ok, command.kind, expected)
       ? fail({ kind: 'changed', revision: expectedRevision(snapshot.ok, command.kind) })
       : null
   }
 
-  /** Step 5: the commit through the view. A throw leaves the outcome unknown. */
   const commit = async (
     view: SessionTransactionPort<P>,
     access: SessionAccess<P>,
@@ -308,7 +268,6 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     }
   }
 
-  /** The entries that one commit wrote, read back through the view. Empty when the read fails. */
   const entriesOf = async (
     view: SessionTransactionPort<P>,
     access: SessionAccess<P>,
@@ -320,7 +279,7 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
         kinds: [],
         from: null,
         direction: 'backward',
-        pageBytes: NOTICE_PAGE_BYTES,
+        pageBytes: ROUND_PAGE_BYTES,
       }),
     )
     const entries: HistoryEntry[] = []
@@ -336,24 +295,13 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     return []
   }
 
-  /**
-   * Step 6: the notice after a durable commit. Its absence or failure changes no answer. The same
-   * read of the committed entries serves the round-complete event, so an instance with an observer
-   * and no notifier reads them for that event alone.
-   */
   const afterCommit = async (
     view: SessionTransactionPort<P>,
     access: SessionAccess<P>,
     command: SessionCommand,
     receipt: CommitReceipt,
   ): Promise<void> => {
-    let notifier: SessionNotifier | null = null
-    try {
-      notifier = dependencies.notifier.current()
-    } catch {
-      // A failing notifier gives no notice.
-    }
-    if (notifier === null && !measurer.active) return
+    if (!measurer.active) return
     const entries = await entriesOf(view, access, receipt)
     for (const entry of entries.filter(candidate => candidate.kind === 'run.terminal'))
       measurer.roundComplete({
@@ -364,21 +312,8 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
         entry: entry.id,
         operation: command.input.operation,
       })
-    if (notifier === null) return
-    const kinds = [...new Set(entries.map(entry => entry.kind))]
-    const target = notifier
-    lifecycle.spawn(() =>
-      target.committed({
-        tenant: access.tenant,
-        session: access.session,
-        revision: receipt.revision,
-        source: receipt.source,
-        kinds,
-      }),
-    )
   }
 
-  /** A held operation: the original answer comes back from the record; nothing new is committed. */
   const recall = async (
     view: SessionTransactionPort<P>,
     access: SessionAccess<P>,
@@ -389,14 +324,12 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     return 'failure' in recalled ? recalled : commit(view, access, command, recalled.ok)
   }
 
-  /** Whether a `changed` answer is redone: only a command that asserted no `expected`, within the budget. */
   const redoable = (command: SessionCommand, failure: SessionFailure, retries: number): boolean =>
     failure.kind === 'changed' &&
     OPTIMISTIC.has(command.kind) &&
     expectedOf(command) === undefined &&
     retries < policy.command.retriesOnChanged
 
-  /** Step 6 and the hand-over of a commit that succeeded; a recovered commit is neither. */
   const settle = async (
     view: SessionTransactionPort<P>,
     access: SessionAccess<P>,
@@ -410,14 +343,12 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     return answer
   }
 
-  /** Steps 1 (recall part) to 6 over one bound view. `retries` counts the `changed` redos so far. */
   const run = async (
     view: SessionTransactionPort<P>,
     access: SessionAccess<P>,
     command: SessionCommand,
     retries: number,
   ): Promise<CommandAnswer> => {
-    // The Tool target is refused before the session or the operation is read (contract 控制与模型选择).
     if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
       return commit(view, access, command, [])
     const lookup = await lookUp(view, access, command)
@@ -448,7 +379,6 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
       tenant: command.input.tenant,
       session: command.input.session,
     }
-    // Fixed before the first await: the decision covers exactly this command (contract 当前操作的访问裁定).
     const request: SessionAccessRequest<P> = mutationAccessRequest(access, command)
     return lifecycle.track(
       measurer.segment(

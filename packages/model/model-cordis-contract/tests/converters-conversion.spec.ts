@@ -23,11 +23,6 @@ const unavailable = {
   },
 }
 
-/**
- * Remembers every abort signal that gets an `abort` listener while the watch runs. The listeners
- * of the catalog sit on a signal of its own that no converter can reach, so this is the way to
- * count them from outside.
- */
 function watchAbortListeners(): Set<AbortSignal> {
   const watched = new Set<AbortSignal>()
   const add = EventTarget.prototype.addEventListener
@@ -43,7 +38,6 @@ function watchAbortListeners(): Set<AbortSignal> {
 
 afterEach(() => vi.restoreAllMocks())
 
-/** The outcome of a conversion that the test settles by hand, as soon as it is settled. */
 async function outcomeOf(conversion: Promise<ConvertResult>): Promise<ConvertResult | 'in flight'> {
   return Promise.race([
     conversion,

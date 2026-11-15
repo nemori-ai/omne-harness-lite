@@ -41,15 +41,10 @@ import {
   type Outcome,
 } from './host-paths.ts'
 
-/** Bounds of listing and searching. Their values are configuration; these are the initial values. */
 export type HostFilesLimits = Readonly<{
-  /** The most entries one `list` or `search` page returns. */
   listPageLimit: number
-  /** The most directory entries one `search` looks at. */
   searchEntryBudget: number
-  /** The most content bytes one `search` reads. */
   searchByteBudget: number
-  /** The largest file one `search` reads; a larger file is skipped. */
   searchFileBytes: number
 }>
 
@@ -60,7 +55,6 @@ export const defaultHostFilesLimits: HostFilesLimits = Object.freeze({
   searchFileBytes: 8 * 1024 * 1024,
 })
 
-/** The limits with the overrides applied. Every limit must be a positive safe integer. */
 export function hostFilesLimits(overrides: Partial<HostFilesLimits> = {}): HostFilesLimits {
   const limits = { ...defaultHostFilesLimits, ...overrides }
   for (const [name, value] of Object.entries(limits))
@@ -69,15 +63,11 @@ export function hostFilesLimits(overrides: Partial<HostFilesLimits> = {}): HostF
   return Object.freeze(limits)
 }
 
-/** What the tree operations need from the engine that owns the facade. */
 export type FileTreeEnvironment = Readonly<{
   paths: HostPaths
   limits: HostFilesLimits
-  /** Closes a descriptor; one that fails to close stays with the owner of the facade. */
   close: CloseHandle
-  /** Registers an object in the handle table of the engine. */
   issue(object: ObjectToken): HandleGeneration
-  /** Retries the failed closes of the facade's owner. */
   drain(): Promise<void>
 }>
 
@@ -103,10 +93,6 @@ function pageOf(
 const byBytes = (left: string, right: string) =>
   Buffer.compare(Buffer.from(left), Buffer.from(right))
 
-/**
- * The names in a directory in byte order. A name that is not valid UTF-8 cannot be written in a
- * path of this contract; it is left out and `lossy` says so.
- */
 async function entryNames(
   directory: FileHandle,
 ): Promise<Readonly<{ names: string[]; lossy: boolean }>> {
@@ -121,7 +107,6 @@ async function entryNames(
   return { names: names.sort(byBytes), lossy }
 }
 
-/** The entry as it is, or undefined when it cannot be read. */
 async function lstatOrUndefined(
   directory: FileHandle,
   name: string,
@@ -138,14 +123,12 @@ function typeOf(stat: FileStats): FileInformation['type'] {
   return stat.isDirectory() ? 'directory' : 'file'
 }
 
-/** A path with no trailing slash, for naming entries below it. */
 function directoryPrefix(path: string): string {
   let current = path
   while (current.length > 1 && current.endsWith('/')) current = current.slice(0, -1)
   return current === '/' ? '' : current
 }
 
-/** The tree operations of the host files facility: list, search, mkdir, remove, move and copy. */
 export function createHostFileTree(env: FileTreeEnvironment): FileTree {
   const { paths, limits } = env
 
@@ -161,7 +144,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     modifiedMs: Number(stat.mtimeMs),
   })
 
-  /** The checks every operation makes before it opens anything. */
   async function begin(
     requestId: string,
     bindingKind: EnvironmentBinding['kind'],
@@ -262,7 +244,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       const hits: Hit[] = []
       const spent = { entries: 0, bytes: 0, truncated: false }
 
-      /** Reads a file for the pattern, within the budgets; a hit is added to `hits`. */
       const readFor = async (
         directory: FileHandle,
         name: string,
@@ -303,7 +284,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
         }
       }
 
-      /** Records a name match, or reads a file for the pattern; `continue` unless the walk must stop. */
       const examine = async (
         directory: FileHandle,
         name: string,
@@ -318,7 +298,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
         return info.isFile() ? readFor(directory, name, entryPath, info) : 'continue'
       }
 
-      /** Walks into a directory below `directory`; one that vanished or became another kind is skipped. */
       const enter = async (
         directory: FileHandle,
         name: string,
@@ -340,7 +319,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
         }
       }
 
-      /** Whether the walk goes below an entry: only a directory on the device the search started on. */
       const descends = (info: FileStats): boolean =>
         request.recursive && info.isDirectory() && info.dev === startStat.dev
 
@@ -390,7 +368,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     }
   }
 
-  /** The new directory below `parent`, opened without following a link, as an identity. */
   async function newDirectoryIdentity(
     parent: FileHandle,
     name: string,
@@ -481,7 +458,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     return request.parents ? mkdirChain(request) : mkdirOne(request)
   }
 
-  /** Checks a whole subtree can be removed: no entry on another device, no name that cannot be written. */
   async function verifyTree(directory: FileHandle, dev: bigint): Promise<Failure | undefined> {
     let listing: Awaited<ReturnType<typeof entryNames>>
     try {
@@ -515,7 +491,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     return undefined
   }
 
-  /** Removes everything below a directory, leaves first; throws at the first error. */
   async function deleteTree(directory: FileHandle, dev: bigint): Promise<boolean> {
     for (const name of (await entryNames(directory)).names) {
       const info = await lstat(fdPath(directory, name), { bigint: true })
@@ -537,7 +512,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
 
   type Removal = FacilityResult<{ removed: ObjectToken }>
 
-  /** The object a remove names, found and checked against the token and version of the request. */
   async function removalTarget(
     request: Parameters<FileSystemFacility<unknown>['remove']>[0],
     parent: FileHandle,
@@ -555,7 +529,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     return { stat, object }
   }
 
-  /** Removes a file or link, or an empty directory, with one system call. */
   async function removeEntry(
     requestId: string,
     target: string,
@@ -570,7 +543,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     return { kind: 'done', requestId, value: { removed: object } }
   }
 
-  /** Empties a directory, leaves first, then removes it. Anything that fails after a start is unknown. */
   async function removeSubtree(
     requestId: string,
     target: string,
@@ -616,7 +588,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       const found = await removalTarget(request, parent, name)
       if ('kind' in found) return found
       const { stat, object } = found
-      // A mount point inside the root: its subtree check would compare against the other device.
       if (paths.rooted && stat.dev !== (await parent.stat({ bigint: true })).dev)
         return reject(requestId, 'notAuthorized')
       const target = fdPath(parent, name)
@@ -634,7 +605,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     source: Located
     sourceStat: FileStats
     target: Located
-    /** The object at the target name, when there is one. */
     targetStat: FileStats | undefined
     release(): Promise<void>
   }>
@@ -648,7 +618,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     readonly expectedVersion?: FileVersion
   }
 
-  /** The source object as it is now, checked against the token and version the request names. */
   async function checkSource(
     request: EndpointRequest,
     source: Located,
@@ -665,10 +634,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     return stat
   }
 
-  /**
-   * The target name: an existing object that `replace` allows and the request names, or a free name
-   * whose parent directory the request names.
-   */
   async function checkTarget(
     request: EndpointRequest,
     target: Located,
@@ -687,12 +652,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     return { stat }
   }
 
-  /**
-   * Opens the directories of the source and of the target of a move or copy and checks what the
-   * request names: the source object and version, and either the target object (when it exists and
-   * `replace` is true) or the target's parent directory (when it does not). A refusal has already
-   * closed what it opened; an opened pair is released by the operation that uses it.
-   */
   async function openEndpoints(request: EndpointRequest): Promise<Opened> {
     const { requestId } = request
     const held: FileHandle[] = []
@@ -775,7 +734,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     }
   }
 
-  /** Copies the bytes of one open file into another, a chunk at a time. */
   async function pump(from: FileHandle, to: FileHandle): Promise<void> {
     const buffer = Buffer.allocUnsafe(64 * 1024)
     let position = 0
@@ -815,7 +773,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     }
   }
 
-  /** Copies from the opened source to the opened target; the endpoints are released by the caller. */
   async function copyBetween(
     request: Parameters<FileSystemFacility<unknown>['copy']>[0],
     { source, target, sourceStat, targetStat }: Endpoints,
@@ -841,7 +798,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     }
   }
 
-  /** Copies the open source file to the target; the source must still be the object that was named. */
   async function copyFrom(
     request: Parameters<FileSystemFacility<unknown>['copy']>[0],
     input: FileHandle,
@@ -863,7 +819,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     return { kind: 'done', requestId, value: { source: tokenOf(sourceStat), target: identity } }
   }
 
-  /** Writes the target exclusively; undefined is success. */
   async function copyNew(
     requestId: string,
     input: FileHandle,
@@ -880,14 +835,12 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       await pump(input, output)
       return undefined
     } catch {
-      // The target name exists and holds a part of the bytes.
       return unknown(requestId)
     } finally {
       await env.close(output)
     }
   }
 
-  /** Writes a temporary file beside the target, then renames it over the target; undefined is success. */
   async function copyReplacing(
     requestId: string,
     input: FileHandle,
@@ -901,7 +854,6 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     } catch (error) {
       return failed(requestId, changeFailure(error), 'notFound')
     }
-    /** The temporary file is gone and the target is as it was, or the state is not known. */
     const discard = async (error: unknown): Promise<FacilityResult<never>> => {
       try {
         await unlink(temporary)

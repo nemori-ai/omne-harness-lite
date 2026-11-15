@@ -1,8 +1,3 @@
-// The read-only participations of the `session` participant (session-contract JC-26, JC-27): the
-// source checks of PA-01 for open, submit and attach, and the pending-input check of PA-02 for a
-// conditional finish. They read the authoritative rows of the same commit transaction and write no
-// row. A check that holds participates; one that fails stops with the Session failure that is its
-// basis, and the execution record provider maps it (session-adapters AD-01).
 import {
   deriveDriveOperation,
   judgeCompletion,
@@ -72,7 +67,6 @@ function plantedRow(row: Row): Planted {
   }
 }
 
-/** The batch receipts of one revision: the grant a Session commit gave out is one of their sources. */
 function batchSources(
   port: ParticipantPort,
   tenant: string,
@@ -91,7 +85,6 @@ function batchSources(
   })
 }
 
-/** The evidence of one committed entry, as the history index gives it out. */
 function entryEvidence(tenant: string, session: string, row: Planted): DurableEvidence {
   return {
     owner: OWNER,
@@ -101,10 +94,6 @@ function entryEvidence(tenant: string, session: string, row: Planted): DurableEv
   }
 }
 
-/**
- * Whether `receipt` is a receipt of the committed entry `row`: the source of the receipt of the
- * batch that wrote it, or the evidence of the entry itself.
- */
 function receiptNames(
   port: ParticipantPort,
   tenant: string,
@@ -118,10 +107,6 @@ function receiptNames(
   )
 }
 
-/**
- * The SE15 attempt of `execution` that `grant` names: the grant is the source of the batch that
- * wrote the SE15 entry, or the evidence of the entry itself. Null when the grant names none.
- */
 function grantAttempt(
   port: ParticipantPort,
   tenant: string,
@@ -148,17 +133,6 @@ function grantAttempt(
   return { found, attempts }
 }
 
-/**
- * The source check of PA-01 items 1 and 2. The source basis is a receipt of a committed entry of
- * this session: for `open` the SE13 (`run.started`) of the execution, whose first input is the
- * initial input; for `submit` the SE11 (`intake.routed`) of the input. It is never compared with
- * the origin of the input. The message is the one Session admitted for the input.
- *
- * Both forms of a receipt carry the revision of the entry, so only the entries of that revision
- * are read; the full comparison then decides, and a receipt with another revision names nothing.
- * The rows of one revision are one batch, so the read bound is not reached in practice; past it
- * the check fails rather than judging on part of the rows.
- */
 function sourceHolds(
   port: ParticipantPort,
   tenant: string,
@@ -166,9 +140,7 @@ function sourceHolds(
   check: Extract<SessionCheck, { kind: 'open' | 'submit' }>,
 ): boolean | 'too-many' {
   const value = check.kind === 'open' ? check.initial : check.value
-  // `origin` of the checked input carries the source basis of the Agent's AcceptedInput.
   const source = value.origin
-  // The facts come from the committer: a source without a decimal revision names no entry.
   const revision = (source as Partial<DurableEvidence> | null)?.revision
   if (!isCount(revision)) return false
   const kind = check.kind === 'open' ? 'run.started' : 'intake.routed'
@@ -190,7 +162,6 @@ function sourceHolds(
   return named && admittedMessage(port, tenant, session, value)
 }
 
-/** Whether Session admitted `value.input` in this session with this message. */
 function admittedMessage(
   port: ParticipantPort,
   tenant: string,
@@ -207,7 +178,6 @@ function admittedMessage(
   return same(admitted.message, value.message)
 }
 
-/** The revision of the batch that wrote the SE26 of `terminal`, and the control that asked for it. */
 function terminalOrigin(
   port: ParticipantPort,
   tenant: string,
@@ -238,7 +208,6 @@ function terminalOrigin(
 const tooMany = (): ParticipantReply =>
   definite('read-bound', 'the history of the session exceeds the read bound of a check')
 
-/** PA-01 item 1 (open) and item 3 (attach): the attempt the grant names may hold the execution. */
 function grantCheck(
   port: ParticipantPort,
   scope: Readonly<{ tenant: string; session: string; execution: string }>,
@@ -261,7 +230,6 @@ function grantCheck(
       ? checked(attempt.attempt, 'ordinary')
       : stopped({ kind: 'stale-advance', current: run.advance })
   }
-  // Cancel wind-down (attach only): the last attempt granted for the execution before the cancel.
   if (method !== 'attach') return stopped({ kind: 'terminal', terminal: judged.terminal })
   if (attempt.run !== String(judged.terminal.run))
     return stopped({ kind: 'stale-advance', current: null })
@@ -328,7 +296,6 @@ function runCheck(port: ParticipantPort, check: SessionCheck): ParticipantReply 
         case 'terminal':
           return stopped({ kind: 'terminal', terminal: judged.terminal })
         case 'cancelled': {
-          // PA-02: a cancelled conclusion under the control SE26 refers to participates.
           if (check.conclusion !== 'cancelled' || check.control === null) return changed
           const origin = terminalOrigin(port, tenant, session, execution, snapshot, judged.terminal)
           if (origin === 'too-many') return tooMany()
@@ -349,7 +316,6 @@ function runCheck(port: ParticipantPort, check: SessionCheck): ParticipantReply 
 
 const KINDS = new Set(['open', 'submit', 'attach', 'finish'])
 
-/** The check intent: the answer carries the digest of the check facts it answers. */
 export function runChecks(
   facts: Readonly<Record<string, JsonValue>>,
   port: ParticipantPort,

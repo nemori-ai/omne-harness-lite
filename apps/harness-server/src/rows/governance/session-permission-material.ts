@@ -16,7 +16,6 @@ import {
 } from '@omne-harness/permissions'
 import type { TargetSnapshot } from './target-snapshot.ts'
 
-/** The content of one permission assignment declaration. A null rule clears the assignment. */
 export type SessionPermissionAssignment = Readonly<{
   capabilityId: string
   enforcementKey: string
@@ -30,7 +29,6 @@ export type SessionPermissionMaterialInput = Readonly<{
   scope: PermissionScope
   change: SessionPermissionAssignment
   values: TargetSnapshot | null
-  /** The organization layer as the caller read it in its own domain; null when it read none. */
   organization: PermissionSource | null
   requiredConstraintIds: readonly string[]
   constraints: readonly PermissionConstraint[]
@@ -127,7 +125,6 @@ function tenantSource(
   return result.kind === 'invalid-input' ? unavailable('tenant') : result
 }
 
-/** Joins same-capture owner facts under the local settings-projection-only/1 policy. */
 export function sessionPermissionMaterial(
   input: SessionPermissionMaterialInput,
 ): PermissionEvaluation | undefined {

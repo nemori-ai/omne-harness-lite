@@ -1,6 +1,3 @@
-// Entry of a read Worker: one Worker, one read connection (SPEC 9.5). Requests run one at a time.
-// The connection is read-only and query_only. It never creates the database file. The Worker has
-// no Cordis Context and reads no global state.
 import { parentPort, workerData } from 'node:worker_threads'
 import { DatabaseSync } from 'node:sqlite'
 import { ModuleCache } from './modules.ts'
@@ -41,9 +38,7 @@ function open(): ReaderReply {
 function closeQuietly(): void {
   try {
     state.db?.close()
-  } catch {
-    // The Worker ends next. SQLite recovers a connection that did not close.
-  }
+  } catch {}
   state.db = null
 }
 

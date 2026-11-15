@@ -88,7 +88,25 @@ async function metadata(root, kind) {
   }
 }
 
+const USAGE = [
+  'Usage:',
+  '  node tools/e9/cli.mjs run --root <checkout> --out <new archive> [--adapter <absolute module path>] [--timeout-ms <ms>] [--threshold <n>]',
+  '  node tools/e9/cli.mjs compare --before <archive> --after <archive>',
+  '  node tools/e9/cli.mjs selftest --out <new directory>',
+  'run holds a run slot through scripts/with-test-slot.mjs of the target checkout. Queue time does not count against --timeout-ms.',
+  '--timeout-ms is the total adapter time limit (default 1800000). --threshold is the median gate threshold (default 1.5).',
+  'Without --adapter, run uses the product probe: register, log in and create a session through the built serve and CLI.',
+  'compare recomputes both summaries and checks that the archives are comparable. selftest writes synthetic controls only.',
+  'The archive directory must be new. Tests: node --test tools/e9/*.test.mjs (not part of admission).',
+  'Exit 0: pass. Exit 1: failure found or damaged input. Exit 2: argument error. Exit 3: waiting for a missing part, or not comparable.',
+  'Rules: tools/e9/SPEC.md.',
+].join('\n')
+
 async function main() {
+  if (process.argv[2] === '--help') {
+    process.stdout.write(`${USAGE}\n`)
+    return 0
+  }
   let parsed
   try {
     parsed = parse(process.argv.slice(2))

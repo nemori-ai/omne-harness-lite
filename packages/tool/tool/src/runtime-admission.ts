@@ -20,7 +20,6 @@ export async function scheduleAcceptedCallBestEffort<P>(
   } catch {}
 }
 
-/** Admission shared by ordinary invocation and provider-only source forwarding. */
 export async function admitResolvedInvocation<P, B extends ContentBlock, E>(
   dependencies: Pick<ToolDependencies<P, B, E>, 'admissions' | 'reads' | 'instances'>,
   input: Access<P> &

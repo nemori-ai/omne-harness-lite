@@ -1,6 +1,3 @@
-// What the SQL body store answers when its commit does not land: every commit answer of the SQL
-// storage contract other than `committed` maps to the port's `conflict`, `not-ready` or
-// `unavailable`, and an unavailable answer names the operation and why it did not land.
 import { randomBytes } from 'node:crypto'
 import { afterEach, expect, it } from 'vitest'
 import type { CommitRequestV2, CommitResultV2, StoppingReply } from '@omne-harness/sql-contract'

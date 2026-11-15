@@ -1,6 +1,3 @@
-// The port answers the coordinator treats as a dependency wait (Agent SPEC 依赖不可用时的等待):
-// only failures a port answered are noted. Production ports are frozen objects, so the noting
-// wrapper must work over them too.
 import { describe, expect, it } from 'vitest'
 import type { Failure } from '@omne-harness/agent-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -35,6 +32,36 @@ describe('notingPorts', () => {
     expect('nested' in noted && !('missing' in noted)).toBe(true)
     expect(Object.getPrototypeOf(noted)).toBe(Object.getPrototypeOf(port))
     expect(Object.getOwnPropertyDescriptor(noted, 'missing')).toBe(undefined)
+  })
+
+  it('reaches and notes a method under a callable namespace, as the stage port of the host gives it', async () => {
+    const provider = {
+      commands: {
+        control: (reason: string) => Promise.resolve(fail({ ...down, diagnostic: reason })),
+      },
+    }
+    const at = (path: readonly string[]): unknown =>
+      new Proxy(function member() {}, {
+        get: (_target, key) => (typeof key === 'string' ? at([...path, key]) : undefined),
+        apply: (_target, _receiver, args: unknown[]) => {
+          const member = path.reduce<unknown>(
+            (owner, step) => Reflect.get(Object(owner), step),
+            provider,
+          )
+          return Reflect.apply(member as (...given: unknown[]) => unknown, undefined, args)
+        },
+      })
+    const noted = notingPorts(at([]) as typeof provider)
+    const answer = await noted.commands.control('stopped')
+    expect(answer).toEqual(fail({ ...down, diagnostic: 'stopped' }))
+    expect('failure' in answer && answeredByPort(answer.failure)).toBe(true)
+  })
+
+  it('notes the answer of a method that the caller bound or applied', async () => {
+    const port = Object.freeze({ admit: () => Promise.resolve(fail(down)) })
+    const noted = notingPorts(port)
+    for (const answer of [await noted.admit.bind(noted)(), await noted.admit.call(noted)])
+      expect('failure' in answer && answeredByPort(answer.failure)).toBe(true)
   })
 
   it('does not note a failure that no port answered', () => {

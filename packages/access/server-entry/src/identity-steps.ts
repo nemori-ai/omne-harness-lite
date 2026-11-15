@@ -1,9 +1,3 @@
-// Steps 2 and 4 of the session judgment order (public contract「会话判断次序」, handoff「登录到
-// Access」), also step 4 of the governance judgment order: the login proof goes to identity, and
-// the acting principal is issued only when the target tenant's account is the recognized account.
-// Identity's `denied` and `basis-unavailable` are not rewritten; a throwing identity or issuer is
-// `basis-unavailable` (SPEC「服务端的 HTTP 层责任」). The report of a successful business access
-// (identity ID-18) goes through here too: its result never changes an answer.
 import {
   accountEquals,
   tenantEquals,
@@ -22,13 +16,11 @@ import type { ProofInput } from '@omne-harness/public-contract'
 import { loginTextOf } from './derivation.ts'
 import { emit, type DiagnosticSink } from './diagnostics.ts'
 
-/** The caller a recognized login proof stands for. */
 export type Caller = Readonly<{
   account: AccountId
   accountText: string
   login: LoginStateId
   loginText: string
-  /** The login's current tenant selection. */
   tenant: TenantId
 }>
 
@@ -41,7 +33,6 @@ export function isRefusal(value: unknown): value is StepRefusal {
   return typeof value === 'object' && value !== null && 'outcome' in value
 }
 
-/** The component name of this entry's own system principal. */
 export const COMPONENT = 'server-entry'
 export const LOGIN_WORK_OWNER = 'identity-login'
 
@@ -49,10 +40,6 @@ export interface IdentitySteps {
   recognize(proof: ProofInput): Promise<Caller | StepRefusal>
   recheck(proof: ProofInput, caller: Caller, target: TenantId): Promise<StepRefusal | undefined>
   actingFor(caller: Caller, target: TenantId): Promise<ActingForTenantPrincipal | StepRefusal>
-  /**
-   * Reports one successful business access of the caller's login. It settles after identity
-   * answered and never rejects: a failed report leaves a diagnostic and changes no answer.
-   */
   reportBusinessAccess(caller: Caller): Promise<void>
 }
 
@@ -77,7 +64,6 @@ export function createIdentitySteps(input: IdentityStepsInput): IdentitySteps {
 
   return {
     async recognize(proof) {
-      // A missing or empty proof still goes to identity: the entry keeps no login table of its own.
       const loginProof = proof.kind === 'present' ? proof.value : ''
       let recognition
       try {

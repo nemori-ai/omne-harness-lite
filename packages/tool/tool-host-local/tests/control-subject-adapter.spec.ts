@@ -418,7 +418,6 @@ describe('persistent control subjects', () => {
   })
 })
 
-/** The real ledger runs over memory; identity and external providers below are test doubles. */
 function ledgerFor(f: ReturnType<typeof fixture>) {
   const never = () => {
     throw new Error('unused fixture provider')

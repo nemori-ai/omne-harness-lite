@@ -27,7 +27,6 @@ function selectedWait(index: SessionWorkEntryIndex, wait: SessionCallWait) {
   }
 }
 
-/** Computes the lower bound from trusted projections, before inspecting caller compaction reads. */
 export function requiredWorkEntries(snapshot: WorkSnapshot): readonly EntryId[] {
   const waits = (snapshot.callWaits ?? []).filter(wait =>
     snapshot.callRegistrations?.some(
@@ -74,7 +73,6 @@ export function requiredWorkEntries(snapshot: WorkSnapshot): readonly EntryId[] 
   return [...new Set(refs)]
 }
 
-/** Only actual committed row IDs enter the index. The temporary preparation never mints them. */
 export function projectWorkEntries(
   before: WorkSnapshot,
   after: WorkSnapshot,

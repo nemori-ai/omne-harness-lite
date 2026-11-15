@@ -121,6 +121,11 @@
       "config": {}
     },
     {
+      "id": "agent-cards",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "agent-host",
       "plugin": "stubPlugin",
       "config": {}
@@ -266,7 +271,27 @@
       "config": {}
     },
     {
+      "id": "session-observation",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "server-entry",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "identity-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "session-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "assets-access",
       "plugin": "stubPlugin",
       "config": {}
     }

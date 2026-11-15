@@ -4,12 +4,12 @@ upstream: cordis
 version: 4.0.4
 kind: negative
 symbols:
-  - "events.ts: Lifecycle.emit 是 this.dispatch('emit', args).map(cb => cb(...args))——同步逐个调用，没有 try/catch"
+  - "events.ts: EventsService.emit 是 this.dispatch('emit', args).map(cb => cb(...args))——同步逐个调用，没有 try/catch"
   - "events.ts: 监听者抛出即中断本轮派发，异常同步传给 emit 的调用方；后面的监听者不再被调用"
 lines:
   - "events.ts:194-196"
 probe: packages/assembly/kernel-basis/tests/emit-listener-throw-propagates.spec.ts
-checked: 2026-09-23
+checked: 2026-11-15
 ---
 
 # `emit` 不隔离监听者：处理者抛出会同步传回发事件的一方，并截断本轮派发
@@ -24,10 +24,19 @@ checked: 2026-09-23
 
 **实际（4.0.4 取证）**：发通知的一方若不自己 `try/catch`，一个坏掉的订阅者会让它的操作在**事实已提交之后**抛出——
 调用方看到失败、存储里却已经变了。所以持事实的节点发通知一律包住 `emit`：处理者抛出只记一条诊断，不改变操作结果，
-也不影响其他监听者（要让其他监听者仍被调用，得自己逐个调或换派发模式）。account-identity 节点的三个事件按此实现（W1-B，2026-09-23）。
+也不影响其他监听者（要让其他监听者仍被调用，得自己逐个调或换派发模式）。
 
 ## 证据
 
 | symbol / 语义位置 | 读到了什么 | 怎样复核 |
 |---|---|---|
-| `events.ts` `emit` | `dispatch(...).map(cb => cb(...args))`，无捕获 | 两个监听者，第一个抛出：`emit` 抛出同一个错误，第二个没被调用 |
+| `events.ts` `emit`（194–196 行） | `dispatch(...).map(cb => cb(...args))`，无捕获 | 两个监听者，第一个抛出：`emit` 抛出同一个错误，第二个没被调用 |
+
+## 探针断言什么
+
+探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
+
+1. 同一事件上先注册一个抛出的监听者、再注册一个记录调用的监听者：`emit` 同步抛出同一个错误，只有第一个监听者跑过。
+2. 发方自己 `try/catch` 接住这个错误后，第二个监听者仍然没有被调用。
+
+上游若让 `emit` 捕获监听者的异常，第 1 条的抛出消失；若捕获后继续调用后面的监听者，第 2 条失败。本条目随之失效。

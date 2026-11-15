@@ -2,8 +2,8 @@ name: Check
 
 # 远程 CI 目前关闭：检查结论以本地跑的 pnpm run check 为准（2026-10-01 定）。
 # 这份工作流只留手动触发，仓库设置里也已停用；没有注册 runner 时任务只会排队。
-# 要恢复自动触发：注册自托管 runner（见 scripts/README.md），在仓库设置里启用本工作流，
-# 再把下面注释掉的三种触发放回 on: 之下。
+# 要恢复自动触发：注册自托管 runner，在仓库设置里启用本工作流，
+# 再把下面注释掉的三种触发放回 on: 之下。步骤见 omne-card 技能的 references/ci-runner.md。
 #   pull_request:
 #   push:
 #     branches: [main]
@@ -51,7 +51,7 @@ jobs:
         run: uv run --locked python .meta_harness/tooling/src/initialize_agents.py --project-root .
         env:
           PYTHONDONTWRITEBYTECODE: '1'
-      # 并行度由运行器按 runner 主机的核数、空闲率与内存推出来（策略在 tools/test-runner/test-runs.config.json）；
+      # 并行度由运行器按 runner 主机的核数与内存推出来（策略在 tools/test-runner/test-runs.config.json）；
       # 这三个仓库变量留空即用推出的值，要钉死时再设：OMNE_WORKER_BUDGET 钉整份预算，另两个分别钉成员数与每成员进程数。pnpm run check 自己会占一个运行名额，与主机上别的全量检查排队。
       - name: pnpm run check
         run: nice -n 10 pnpm run check

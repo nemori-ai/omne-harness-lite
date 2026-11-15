@@ -1,5 +1,4 @@
 /** @module-tag slow */
-// Slow: it starts a provider process that runs a real terminal broker, then kills that provider.
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
@@ -13,8 +12,6 @@ import { bundledConpty } from '../../src/windows-execution/terminal.ts'
 import { stopWindowsJob } from '../../src/windows-execution/supervision.ts'
 import { psString } from './terminal-fixture.ts'
 
-// A provider stand-in: it drives the broker through its private protocol up to one finished
-// invocation, reports that, and then waits to be killed.
 const provider = String.raw`
 import { spawn } from 'node:child_process'
 import { readFileSync } from 'node:fs'

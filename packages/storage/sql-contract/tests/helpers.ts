@@ -1,4 +1,3 @@
-// Test helpers: a fixture directory per file, a memory double per test, and loose-typed values.
 import { afterAll, beforeAll } from 'vitest'
 import type { SqlStorage, StorageControl } from '@omne-harness/sql-contract'
 import {
@@ -46,7 +45,6 @@ export async function open(
 export const small = (h: Harness): Promise<void> => registerSmall(h.storage, h.fixture)
 export const all = (h: Harness): Promise<void> => registerAll(h.storage, h.fixture)
 
-/** Sorts object keys by UTF-16 code units, the order of RFC 8785 for these small ASCII values. */
 function sortedKeys(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sortedKeys)
   if (typeof value !== 'object' || value === null) return value
@@ -57,12 +55,10 @@ function sortedKeys(value: unknown): unknown {
   )
 }
 
-/** UTF-8 bytes of the RFC 8785 text of a small JSON value, written here and not by the code under test. */
 export function canonicalBytes(value: unknown): number {
   return Buffer.byteLength(JSON.stringify(sortedKeys(value)), 'utf8')
 }
 
-/** A value that is not typed as valid, for the tests of the field rules. */
 export function loose<T>(value: unknown): T {
   return value as T
 }

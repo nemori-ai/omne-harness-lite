@@ -1,4 +1,3 @@
-// 覆盖率跨成员并行的并发度：两数之积不超过预算，每成员工作进程数按并行策略分。
 import { describe, expect, it } from 'vitest'
 import { coverageParallelism } from '../src/testing/coverage-parallel.ts'
 import type { Budget, ParallelPolicy } from '../src/testing/parallelism.ts'
@@ -10,6 +9,8 @@ const POLICY: ParallelPolicy = {
   minimum: 2,
   memoryPerWorkerMiB: 512,
   sampleMs: 0,
+  reserveCores: 2,
+  concurrentRuns: 2,
 }
 
 const budget = (workers: number, cores = 24): Budget => ({

@@ -167,7 +167,6 @@ function canonicalEntry(value: unknown, stem: string): boolean {
     value['import'] === `./dist/${stem}.js`
   )
 }
-/** File contents and publishing checks accompany the complete tree comparison. */
 export function checkStructure(
   root: string,
   member: string,
@@ -246,7 +245,6 @@ function realFile(root: string, member: string, tree: readonly TreeNode[], path:
     readFileSync(join(root, member, path), 'utf8').trim() !== ''
   )
 }
-/** Rule set 3: each docs topic lives in exactly one place, a file or a directory with entries. */
 export function checkTopics(
   root: string,
   member: string,
@@ -282,7 +280,6 @@ export function checkTopics(
   }
   return findings
 }
-/** Executable scenarios: *.acceptance.ts files under acceptance/, outside acceptance/fixtures/. */
 export function acceptanceScenarios(tree: readonly TreeNode[]): string[] {
   return tree
     .filter(
@@ -294,7 +291,6 @@ export function acceptanceScenarios(tree: readonly TreeNode[]): string[] {
     )
     .map(node => node.path)
 }
-/** Rule set 3: configuration follows executable scenarios, not the acceptance directory. */
 export function checkAcceptance(
   member: string,
   manifest: Record<string, unknown>,

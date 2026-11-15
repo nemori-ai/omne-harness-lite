@@ -1,5 +1,3 @@
-// Answers outside the contract never become a permission (SPEC AU-12): a clock, a grant source
-// or a grant record that does not answer in the agreed shape is `unavailable`, never `allowed`.
 import { describe, expect, it } from 'vitest'
 import {
   decideSystemAction,

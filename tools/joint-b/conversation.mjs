@@ -1,16 +1,3 @@
-// 联调 B 的 S2 补齐与 S3 脚本。
-// 判据来源：`slices.md` 的 S2-1～S2-3（单轮真实回复）与 S3（同一会话多轮），以及波 2 边界页第五节。
-//
-// 用法：
-//   node tools/joint-b/conversation.mjs [--model-source real|replay] [--evidence <目录>] [--keep]
-//
-// `--model-source` 只在发行树上模型侧全是真件时才用：真实模型调用或获准回放要有授权，
-// 不给这个参数就不发会触到真实模型的消息，相关步骤记等件。它只标注证据，不改变脚本行为。
-//
-// 判定三种：通过、失败、等件。观察不到的一律等件，不假通过。
-// 退出码：全部通过 0；有失败 1；只剩等件 3。
-//
-// 不改实现，不构造替身：只经构建产物起真进程，读它们的行为与只读打开的 SQLite 域文件。
 import {
   REPLY_TIMEOUT_MS,
   blockAll,
@@ -40,7 +27,16 @@ import {
   waitFor,
 } from './support.mjs'
 
-holdTestSlot(import.meta.url)
+holdTestSlot(
+  import.meta.url,
+  [
+    '用法：node tools/joint-b/conversation.mjs [--definition <名>] [--model-source real|replay] [--evidence <目录>] [--keep]',
+    '联调 B 的对话判据（S2-1 到 S3-3）：发消息等回复、读历史、Model 账目、Journal 条目、修订号连续、三轮递增、回放块。',
+    '--definition 是建会话用的定义，缺省 coding。--model-source 标注真实模型或获准的回放；不给时会发消息的步骤记等件。',
+    'OMNE_JOINT_B_REPLY_MS 是单轮回复的等待上限（缺省 90000 毫秒）。先占一个运行名额，经构建产物起进程，产物不在时每步记等件。',
+    '证据缺省写到 tmp/m2-joint-b/conversation/。退出码：全部通过 0，有失败 1，只剩等件 3。',
+  ].join('\n'),
+)
 
 const args = parseArgs(process.argv.slice(2))
 const ROUND_TEXTS = ['joint-b round one', 'joint-b round two', 'joint-b round three']
@@ -50,7 +46,7 @@ const BUILD_AWAIT =
   ' 与 pnpm --filter @omne-harness/cli... run build'
 const REAL_ROWS_AWAIT =
   '树上模型侧替身行换进真件：session-conditions（SC1）、agent-host、agent-instances、session-ad14（SC4），' +
-  '以及 G-SELECT、G-TOOLS6 的修复（见 README「S2～S4 依赖哪些行是真件」）；替身清单见证据文件的 doubleRows'
+  '以及 G-SELECT、G-TOOLS6 的修复；替身清单见证据文件的 doubleRows'
 const MODEL_SOURCE_AWAIT =
   '真实模型或获准回放的授权：以 --model-source real|replay 重跑，并在运维层给出模型凭据或回放记录'
 const COUNT_EVENT_AWAIT =
@@ -114,7 +110,6 @@ async function run(scratch) {
       blockAll(rec, STEPS, `建会话没有成功（${opened.detail}），后面的判据走不到`, REAL_ROWS_AWAIT)
       return
     }
-    // 树上还有替身时没有真实回复，等得短些；真实模型按上限等。
     const waitMs = doubles.length > 0 ? 3000 : REPLY_TIMEOUT_MS
     const rounds = []
     for (const [index, text] of ROUND_TEXTS.entries()) {
@@ -136,7 +131,6 @@ async function run(scratch) {
   }
 }
 
-/** S2：第一轮之后立即观察，账目与日志此时只应有这一轮。 */
 function round1(tree, scratch, session, round, doubles) {
   const awaiting = doubles.length > 0 ? REAL_ROWS_AWAIT : 'E1 的真件环节'
   const none = '第一轮没有得到回复'
@@ -215,7 +209,6 @@ function round1(tree, scratch, session, round, doubles) {
   }
 }
 
-/** S3：三轮之后观察账目里三次请求的输入消息数与回放块。 */
 function rounds23(scratch, rounds, doubles) {
   const awaiting = doubles.length > 0 ? REAL_ROWS_AWAIT : 'E1 多轮的真件环节'
   const done = rounds.filter(round => round.history !== undefined).length

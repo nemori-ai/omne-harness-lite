@@ -1,6 +1,3 @@
-// What the coordinators and schedulers of this member share: the per-session principal of each
-// face operation (SPEC cp-access), clock waits that never fall back to system time (SPEC 时钟被拒),
-// and the per-session serial lanes of SR-2.
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type {
@@ -42,22 +39,18 @@ function waitOnClock(
   })
 }
 
-/** A key unique per tenant and session: a SessionId is unique only within its tenant. */
 export function sessionKey(ref: SessionRef): string {
   return `${tenantKey(ref.tenant)}\u0000${ref.session}`
 }
 
-/** The canonical text of a tenant; a value that legal-identity did not mint has none. */
 export function tenantKey(tenant: TenantId): string {
   const text = tenantCodec.encode(tenant)
   return text.ok ? text.value : 'unminted'
 }
 
 export type Scheduling<P> = Readonly<{
-  /** The principal of one face operation on an established session. A throw is `unavailable`. */
   principal(actor: Actor, ref: SessionRef): Promise<Outcome<P, SessionFailure>>
   wait(milliseconds: number, stop?: AbortSignal): Promise<WaitResult>
-  /** Runs `work` for `key` after the work already queued for it: one actor per session at a time. */
   serial(key: string, work: () => Promise<void>): Promise<void>
 }>
 

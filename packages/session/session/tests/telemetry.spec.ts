@@ -1,8 +1,3 @@
-// SPEC「遥测投影」: the facade over the telemetry port. A measurement event becomes a telemetry
-// segment or event of the tenant whose work it measures, or of the system for a system-scope read; a
-// diagnostic becomes an event without its text. The port is the capturing double of telemetry-contract, so what it admits is what a
-// provider would admit (TC-2, TC-4). A record of tenant work without a tenant goes to the port's
-// `discard`, so the provider counts it; the test records each discard by name and reason.
 import {
   actingScopeEquals,
   systemScope,
@@ -40,7 +35,6 @@ const session: SessionId = sessionId('session-1')
 const run = 'run_abc' as RunId
 const instance = { owner: '@omne-harness/harness-server', ref: 'session-provider' }
 
-/** The facade over the capturing double, with every `discard` the facade makes, by name and reason. */
 function facade(options: Readonly<{ capacity?: number }> = {}) {
   const capture = createCapturingTelemetry(options)
   const discards: Array<readonly [string, string]> = []
@@ -55,7 +49,6 @@ function facade(options: Readonly<{ capacity?: number }> = {}) {
   return { capture, discards, telemetry }
 }
 
-/** The parts of an event a case varies: the tenant (absent for the no-tenant cases) and the session. */
 type Where = Readonly<{ tenant?: TenantId | undefined; session?: SessionId | null }>
 
 function where(input: Where): Readonly<{ session: SessionId | null; tenant?: TenantId }> {

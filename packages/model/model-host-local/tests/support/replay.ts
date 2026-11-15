@@ -1,7 +1,3 @@
-// Test support: a recorded round replayed through the assembled local path, with the host kept
-// open so a spec can read the facts, the dispatch and the preparation of the same host. The local
-// HTTPS server answers every request on the route with the recorded body; nothing leaves the
-// machine. `replayRound` of `recording-cases.ts` is the short form that closes the host at once.
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -22,7 +18,6 @@ import {
   type RecordingNote,
 } from './recording-cases.ts'
 
-/** The recordings of the transport package, one directory per case. */
 const RECORDINGS = fileURLToPath(
   new URL('../../../pi-ai-transport/tests/fixtures/recordings/', import.meta.url),
 )
@@ -32,33 +27,19 @@ export const recordingDirectory = (name: RecordCaseName): string => join(RECORDI
 export type OpenReplay = Readonly<{
   local: LocalHost
   note: RecordingNote
-  /** The result of driving the call to its end. */
   driven: Awaited<ReturnType<LocalHost['drive']>>['driven']
   reference: Awaited<ReturnType<LocalHost['drive']>>['reference']
-  /** The requests that reached the server, with their headers. */
   requests: readonly ReceivedRequest[]
-  /** The reply blocks of the settled call. Reads the reply once. */
   readBlocks: () => ReturnType<typeof readReply>
-  /**
-   * Closes the host, the server, the certificate and the vault directory, in this order. Each one
-   * is closed even when an earlier one fails. Safe to call once.
-   */
   close: () => Promise<void>
 }>
 
-/**
- * Drives `request` through a new local host against a local server that answers with the body of
- * the recording `name`. The caller closes the result. When opening or driving fails, everything
- * opened so far is closed before the failure surfaces.
- */
 export async function openReplay(
   input: Readonly<{ request: FixedModelRequest; name: RecordCaseName; label: string }>,
 ): Promise<OpenReplay> {
   const recording = recordingDirectory(input.name)
   const note = readRecordingNote(recording)
   const stream = readFileSync(join(recording, RECORDING_FILES.stream))
-  // What is open, in opening order. `close` ends each of them in reverse order, all of them even
-  // when one fails, and then throws the failure (one) or an AggregateError (several).
   const closers: (() => unknown)[] = []
   const close = async () => {
     const failures: unknown[] = []
@@ -113,11 +94,6 @@ export async function openReplay(
 
 const labelOf = (name: string) => name.replace(/[^a-z0-9]/gu, '-')
 
-/**
- * The request of a recording. A first round has its own request. A continued round continues
- * the replay of its first round, which settles, is read, acknowledged and cleaned up, and goes
- * into the next request.
- */
 export async function recordedRequest(name: RecordCaseName): Promise<FixedModelRequest> {
   const item = RECORD_CASES[name]
   if (item.round.kind === 'first') return firstRoundRequest(item)
@@ -138,12 +114,10 @@ export async function recordedRequest(name: RecordCaseName): Promise<FixedModelR
   }
 }
 
-/** A label for the call of a replay, from a case name and a purpose. */
 export function replayLabel(purpose: string, name: RecordCaseName): string {
   return `${purpose}-${labelOf(name)}`
 }
 
-/** The one dispatch of the call of a local host. Throws when there is not exactly one. */
 export async function onlyDispatch(local: LocalHost) {
   const records = decoded(await local.commands.dispatches({ ...local.access, call: local.call }))
   const [record, ...others] = records
@@ -152,11 +126,6 @@ export async function onlyDispatch(local: LocalHost) {
   return record
 }
 
-/**
- * Acknowledges the settled result as processed and releases the request material of the call,
- * as the consumer does after it has read the reply. The call keeps its dispatch with the receipt
- * and the account; the recovery material is gone.
- */
 export async function acknowledgeAndClean(open: Pick<OpenReplay, 'local' | 'reference'>) {
   const { local } = open
   const callAccess = { ...local.access, call: local.call }

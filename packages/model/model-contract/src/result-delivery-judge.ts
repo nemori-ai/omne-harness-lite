@@ -20,8 +20,6 @@ export function judgeModelDelivery(
 ): Outcome<ModelDelivery, ModelDeliveryRejection> {
   const { delivery } = input
   const reference = resolveModelInvocationRef(delivery.key.reference, input.tenant)
-  // The reference carries no tenant (R2-D357): it resolves in the presented tenant, and the
-  // receiver's own partition answers whether that tenant has the call.
   if ('failure' in reference)
     return reference.failure.kind === 'malformed'
       ? fail({ field: 'key.reference', reason: 'reference-malformed' })

@@ -43,12 +43,12 @@
 > its own right; settings and permissions are two kinds of **attribute on** it.
 > **The catalog retains eight entries; Connector is on hold pending a decision on whether it remains an asset, while the other seven remain in scope. The model provider is one more kind of asset.**
 
-- **目录状态**：Connector 的资产存在性及相关设计搁置，其余七类继续成立；保留的 Connector 列项不是当前交付承诺。[模型供应商](#ul-model-provider--模型供应商--model-provider)不在八个列项里，归[资产与规则的类别清单](../../product/assets-and-rules/design.md#产品需求描述)（rev 8）。
+- **目录状态**：Connector 的资产存在性及相关设计搁置，其余七类继续成立；保留的 Connector 列项不是当前交付承诺。[模型供应商](#ul-model-provider--模型供应商--model-provider)不在八个列项里，归[资产与规则的类别清单](../../product/assets-and-rules/design.md#产品需求描述)（rev 9）。
 - **形态**：对象
-- **出处**：[PF-001 §4 设置、权限、资产](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#设置权限资产)（rev 26） · [资产的种类](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26）
+- **出处**：[PF-001 §4 设置、权限、资产](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#设置权限资产)（rev 26） · [资产的种类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26）
 - **别混**：知识、经验、报告、附件与文件**都不是资产**——它们是 agent **读写的对象**，**不参与组装**
 - **注意 ①**：判据是**它在 agent definition 里（或经 agent 所用的模型档案引用）被声明、被持有、被授权、按层级求值**——**这四件事**，不是「它提供动作」
-- **注意 ②**：**规格里的「资产记录」指的是同一个[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)下的一份具体资产**——所有者、来源、草稿与版本线都挂在它身上；它是本条身份的下层（[对象条目](../../domain_objects/objects.md#ul-asset--资产)），**不另立词条**。**草稿是它身上还没发布的那份内容**，[不是版本](#ul-asset-version--资产版本--asset-version)，也不另立
+- **注意 ②**：**规格里的「资产记录」指的是同一个[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)下的一份具体资产**——所有者、来源、草稿与版本线都挂在它身上；它是本条身份的下层，**不另立词条**。**草稿是它身上还没发布的那份内容**，[不是版本](#ul-asset-version--资产版本--asset-version)，也不另立
 
 ### UL-setting · 设置 · Setting
 
@@ -57,7 +57,7 @@
 > **EN**: A configurable aspect of how a capability works, declared by its owner. A setting can be used independently or composed into an asset definition. Its declaration defines meaning and valid values. Assignments follow the management authority, sources and lifetime of their target; evaluation does not authorize an action.
 
 - **形态**：属性
-- **出处**：[资产与规则：设置独立使用与资产组合](../../product/assets-and-rules/design.md#settings-composition)（rev 8）
+- **出处**：[资产与规则：设置独立使用与资产组合](../../product/assets-and-rules/design.md#settings-composition)（rev 9）
 - **注意 ①**：资产设置的配值依附合法持有；独立设置不要求创建资产或持有。两者复用设置契约，不复用未经采用的资格或来源链。
 - **注意 ②**：资产声明哪些部分可配置。未声明部分仍按资产编辑与发布规则维护；配值不改写已发布定义。
 - **注意 ③**：属性锁、持有替换锁和定义的不可替换声明分别处理；不得因同名而合并。
@@ -88,7 +88,7 @@
 > holds, what happens at the moment a person should be asked) **— if so, governance**.
 
 - **形态**：属性
-- **出处**：[资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 8）；[PF-002 §5.2 设置项分四类](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32）
+- **出处**：[资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 9）；[PF-002 §5.2 设置项分四类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32）
 - **别混**：与[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)里的「类别」不是一回事——
   那是**资产**的类别（工具、技能、模型供应商……），这是**设置项**的四类之一；正文里裸写「类别」指前者
 - **注意**：工作区**自己带来的**资产，其落点类声明随资产一起来——这条限定挡的是**改别人资产的落点**。独立设置按其目标策略确定来源，不自动继承资产层序。
@@ -110,12 +110,12 @@
 > is a bound whether locked or not.**
 
 - **形态**：属性
-- **出处**：[PF-001 §4 设置、权限、资产](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#设置权限资产)（rev 26） · [§6.2](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#62-三种合成语义)（rev 26） · [PF-002 §5.3](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#53-两个例子两种合成)（rev 32）
+- **出处**：[PF-001 §4 设置、权限、资产](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#设置权限资产)（rev 26） · [§6.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#62-三种合成语义)（rev 26） · [PF-002 §5.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#53-两个例子两种合成)（rev 32）
 - **别混**：**不是[租户角色](subjects-and-ownership.md#ul-tenant-role--租户角色--tenant-role)**——角色是**身份**的属性，权限是**资产**的属性
 - **注意 ①**：**执行权限取值变化本身不改变[动作空间](#ul-action-space--动作空间--action-space)**；已知能力失去使用资格时保留不可用条目，未曾纳入的能力继续按资格筛选
 - **注意 ②**：**不锁的配值不是界**——组织配「问一下」而不锁，成员挑「自动」就生效；组织要守的边界必须锁（「禁止」除外）
-- **注意 ③**：**同标识替换之后，外层为这个身份锁下的界照样管着替换它的那一份**；那一份少声明了锁住的某一项，那一项按最严算（[PF-002 §5.5](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#替换是一条路径不是一扇后门)）
-- **注意 ④**：**权限项有哪几项由资产的类别定，作者不能自加**；[「谁可以使用它」](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限)是各类共用的一项
+- **注意 ③**：**同标识替换之后，外层为这个身份锁下的界照样管着替换它的那一份**；那一份少声明了锁住的某一项，那一项按最严算（[PF-002 §5.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#替换是一条路径不是一扇后门)）
+- **注意 ④**：**权限项有哪几项由资产的类别定，作者不能自加**；[「谁可以使用它」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限)是各类共用的一项
 
 ## 八类资产
 
@@ -131,10 +131,26 @@
 > it automatically load all of its attachments.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-002 §4 Skill](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#skill)（rev 32） · [PF-006 §4 技能的说明](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#技能的说明)（rev 24）
+- **出处**：[PF-002 §4 Skill](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#skill)（rev 32） · [PF-006 §4 技能的说明](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#技能的说明)（rev 24）
 - **别混**：Skill 说**怎么做**，[Tool](#ul-tool--工具--tool) 是**做的那个动作**。「代码审查该看哪些地方」是 skill，「读文件」是 tool
 - **注意**：它的**说明**是触发与路由的依据——[常驻](reach-and-availability.md#ul-residency--常驻--residency)时进系统提示词的是 name 与说明，`Skills().search` 按它找，替换件换掉的也是它；正文与资源按需取
 - **能组合**：Tool
+
+### UL-meta-skill · 元技能 · Meta Skill
+
+> **中**：官方层发行的、教 agent 怎样写 [Skill](#ul-skill--技能--skill) 的那份 Skill。
+> 它是一份普通的 Skill，没有特殊机制，按普通 Skill 发现、读取与治理。
+> 它常驻，并在自己的资产定义里声明不可替换，下层不能用同名的 Skill 盖住它。
+>
+> **EN**: The Skill, shipped at the official layer, that teaches the agent how to write a Skill.
+> It is an ordinary Skill with no special mechanism, and it is discovered, read and governed like
+> any other Skill. It is resident, and its own asset definition declares it non-replaceable, so no
+> lower layer can shadow it with a Skill of the same name.
+
+- **形态**：变体（父：[技能](#ul-skill--技能--skill)）
+- **出处**：[Skill 产品：元技能](../../product/skills/design.md#元技能)（rev 4）
+- **⚠️ 别混**：**不是 [meta 能力](#ul-meta-capability--meta-能力--meta-capability)**——meta 能力是一整类能力的统一入口（`Tools()`、`Skills()` 这类元工具）；元技能是那扇门后的一份方法，经 `Skills()` 读取。名字只差一个字，跨 topic 引用写全称
+- **注意**：它的「不可替换」来自它自己的 `immutable` 声明，不是 meta 能力的那条规则。租户自己写的、同样教人写 Skill 的 Skill 不是元技能
 
 ### UL-tool · 工具 · Tool
 
@@ -152,7 +168,7 @@
 > **multi-command**, and **the whole command set occupies a single slot** at assembly time.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-002 §4 Tool](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）；资产、实现与定义的分工见已采用的 [RFC-0012 对象链](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#对象链)
+- **出处**：[PF-002 §4 Tool](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）；资产、实现与定义的分工见已采用的 [RFC-0012 对象链](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#对象链)
 - **别混**：**子命令是 tool 的内部结构，不是独立资产**——随这个 tool 一起被持有、配置与授权
 - **⚠️ 别混**：**「工具」这个词指三样东西，寿命各不相同**——
   [工具定义](execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)（装载时派生）、
@@ -167,22 +183,31 @@
 > **中**：**一个外部工具来源的接入点。**接进来之后，它提供的动作可被 agent 使用。
 > **接入点本身是资产，它带来的那些动作不单独成为资产**——随它一起被持有、授权与治理。
 > **对端的可用性与版本不由本系统掌握**：它提供的动作可能今天有明天没有，**而这不是故障**。
-> **对端的每一个动作在动作空间里是一个工具条目**——不常驻、经取用入口发现；
-> 动作集**每一次[执行尝试](agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)开始前与可用性一起重算；合法显式刷新可更新后续采用值，已知身份保留、单次调用输入固定**。
+> **对端的每一个动作在工具入口里是一个[工具条目](reach-and-availability.md#ul-tool-entry--工具条目--tool-entry)**，经 MCP 登记的[工具条目来源](reach-and-availability.md#ul-tool-entry-source--工具条目来源--tool-entry-source)交出。
+> 动作一般不常驻，经取用入口发现；**例外是标了[常驻](reach-and-availability.md#ul-residency--常驻--residency)的接入点，它的动作在采用点成为常驻工具**。
+> 动作集**按当下事实现算，清单变了下一次发现就不同；每一次[执行尝试](agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)开始前同样与可用性一起重算；合法显式刷新可更新后续采用值，已知身份保留、单次调用输入固定**。
+> 对端服务在本系统之外运行，本系统只按地址与它通信。
 >
 > **EN**: **An access point to an external source of tools.** Once connected, the
 > actions it offers become usable by the agent. **The access point is the asset; the
 > actions it brings are not assets of their own** — they are held, authorized and
 > governed along with it. **Availability and versioning on the far side lie outside
 > this system's control**, so an action present today may be gone tomorrow — **and
-> that is not a fault**. **Each action on the far side is one tool entry in the action
-> space** — not resident, found through the discovery entry; the action set is
-> **recomputed before each run attempt together with availability; lawful explicit refresh may update later uses while known identities remain and each started call keeps its inputs**.
+> that is not a fault**. **Each action on the far side is one tool entry in the tool
+> entry point**, handed over by the tool entry source that MCP registers. Actions are
+> normally not resident and are found through the discovery entry; **the exception is an
+> access point marked resident, whose actions become resident tools at the adoption point**.
+> The action set is **computed from the facts at the moment, so a changed catalog shows at
+> the next discovery; it is also recomputed before each run attempt together with availability;
+> lawful explicit refresh may update later uses while known identities remain and each started call keeps its inputs**.
+> The far-side service runs outside this system, which talks to it only by its address.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 资产的种类](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 MCP](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#mcp)（rev 32） · [PF-006 §6.13](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)（rev 24）
+- **出处**：[PF-001 §4 资产的种类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 MCP](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#mcp)（rev 32） · [PF-006 §6.13](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)（rev 24） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 3）
 - **别混**：Tool 是**一个动作**，MCP 是**一批动作的来源**——**MCP 本身不可被调用**
 - **注意**：它连对端用的是 [MCP 凭据](#ul-mcp-credential--mcp-凭据--mcp-credential)，挂在持有上，不是[模型凭据](#ul-model-credential--模型凭据--model-credential)
+- **注意 ②**：正文里的「接入点」「MCP 接入点」指的就是本条。命令型（stdio）接入不在 `0.0.0 → 0.1.0` 阶段，见出处
+- **弃用**：~~「端点」~~、~~Endpoint~~（指本条时；指对端地址时不是术语）
 - **能组合**：**不组合任何资产**
 
 ### UL-connection-target · 连接目标 · Connection Target
@@ -197,10 +222,10 @@
 > cannot set it**. **It is not the access point's identity** — that is the access point's name.
 
 - **形态**：属性
-- **出处**：[PF-002 §4 MCP](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#mcp) ·
-  [§5.2 设置项分四类](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32）
+- **出处**：[PF-002 §4 MCP](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#mcp) ·
+  [§5.2 设置项分四类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32）
 - **别混**：**不是[投递目标](interaction-and-dispatch.md#ul-inbound-target--投递目标--inbound-target)**——那是连接件把外面的消息送进哪个会话，方向相反
-- **注意**：连不上（含凭据还没取或已失效），这个接入点带来的动作[一律不可用](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#接入点连不上它的动作就是不可用)（PF-006 rev 23）
+- **注意**：连不上（含凭据还没取或已失效），这个接入点带来的动作[一律不可用](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#接入点连不上它的动作就是不可用)（PF-006 rev 23）
 
 ### UL-connector · 连接件 · Connector
 
@@ -237,13 +262,13 @@
 
 - **产品状态**：搁置。是否继续作为资产存在尚未定论；本条及关联的事件目录、订阅、投递与创建入口仅保留条件性定义，不构成当前交付承诺。
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 资产的种类](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 Connector](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#connector) · [两种投递方式](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#两种投递方式动作主体不同) · [触发会话的默认运行模式](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#触发会话的默认运行模式)（rev 32）
+- **出处**：[PF-001 §4 资产的种类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 Connector](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#connector) · [两种投递方式](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#两种投递方式动作主体不同) · [触发会话的默认运行模式](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#触发会话的默认运行模式)（rev 32）
 - **注意 ①**：**一人多账户不立新对象**——同一租户身份要接同一服务的两个账号，就是两份 name 不同的连接件
 - **注意 ②**：「能不能安装」的取值与其余「谁可以……」[同一种](circulation-and-entitlement.md#ul-usable-by--谁可以使用它--usable-by)：一组租户角色，外加一个「自己」
 - **别混**：MCP 是**我出去调它**，Connector 是**它进来找我**
 - **能组合**：**不组合任何资产**
 - **注意 ③**：**事件目录不是它的身份**——身份仍是 name，换一份实现目录可以不同；消息包整份随信封进来（厚信封），只送一个标识回头去拉本版不支持
-- **注意 ④**：**② 那一路本 topic 只定它存在与它这一侧的配置**——受理怎么开新会话、同一件事来两次怎么办归 [PF-014](../../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)（rev 14）；新会话以哪个 agent definition、哪个租户身份建归 PF-015；同一份连接件的一条事件走哪一路由什么决定，PF-002 记为待裁（D-6）
+- **注意 ④**：**② 那一路本 topic 只定它存在与它这一侧的配置**——受理怎么开新会话、同一件事来两次怎么办归 [PF-014](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)（rev 14）；新会话以哪个 agent definition、哪个租户身份建归 PF-015；同一份连接件的一条事件走哪一路由什么决定，PF-002 记为待裁（D-6）
 - **注意 ⑤**：触发会话的默认运行模式**只管此后开出来的新会话**，与 ① 那一路无关；租户可调，组织的值与锁照默认与强制那一套管着；工作区配不了
 
 ### UL-connector-event-type · 连接件事件类型 · Connector Event Type
@@ -259,7 +284,7 @@
 > composes this connector.
 
 - **形态**：属性（连接件正文的一项声明；与工具定义里的命令表同一种东西）
-- **出处**：[PF-002 §4 事件目录与事件订阅](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#事件目录与事件订阅)（rev 32）
+- **出处**：[PF-002 §4 事件目录与事件订阅](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#事件目录与事件订阅)（rev 32）
 - **别混**：不是[入站到达](interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival)——到达是一次事实，类型是它属于哪一类
 - **注意 ①**：消息包**整份随信封进来**（厚信封）；连接件没有读取面，接收方无处回拉
 - **注意 ②**：**目录不是连接件的身份**——换一份实现，目录可以不同；目录是结构化的，说明给模型读、形状给受理对
@@ -277,7 +302,7 @@
 > by the layers holding the connector, not an agent action. Its category is **preference**.
 
 - **形态**：属性（一项[设置](#ul-setting--设置--setting)）
-- **出处**：[PF-002 §4 事件目录与事件订阅](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#事件目录与事件订阅) · [§5.2 设置项分四类](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32）
+- **出处**：[PF-002 §4 事件目录与事件订阅](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#事件目录与事件订阅) · [§5.2 设置项分四类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32）
 - **注意 ①**：未订阅的类型送来，受理拒绝，不是静默丢弃
 - **注意 ②**：组合了这份连接件的 agent，上下文里**只带被订阅的那几种**的说明——怎么带归 PF-010
 
@@ -307,12 +332,12 @@
 > its own thing; their order is their order in the assembly manifest.**
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-002 §4 Loop Extension](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#loop-extension) · [不可用处置是这一件自己的声明](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#不可用处置是这一件自己的声明)（rev 32） ·
-  [PF-012 §4 拓展件](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#拓展件) · [§5.8](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#58-loop-拓展点)（rev 25）
+- **出处**：[PF-002 §4 Loop Extension](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#loop-extension) · [不可用处置是这一件自己的声明](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#不可用处置是这一件自己的声明)（rev 32） ·
+  [PF-012 §4 拓展件](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#拓展件) · [§5.8](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#58-loop-拓展点)（rev 25）
 - **注意 ④**：**不可用处置是这一件自己的一项声明，不是设置，也不是权限**——持有它的各层不给它配值、也收窄不了它；取值与谁能用哪一种归 PF-012。声明了否决，也要干预力求出来是可否决才算数
 - **注意 ③**：**外来 hook**（Claude Code / Codex 格式）导入为拓展件时按其声明的输出能力定档；**工作区带来的一律只观察**
 - **⚠️ 别混**：**它不是[拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)**——
-  **拓展点是位置，拓展件是挂上去的东西**。位置由[状态点](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#53-改日志的动作与纯派生的动作)推出、数目有限；**挂什么没有上限**
+  **拓展点是位置，拓展件是挂上去的东西**。位置由[状态点](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#53-改日志的动作与纯派生的动作)推出、数目有限；**挂什么没有上限**
 - **注意 ①**：**干预力是它的[权限](#ul-permission--权限--permission)，不是[设置](#ul-setting--设置--setting)**——
   **装一个拓展件、却只给它「只观察」，是成立的配法**
 - **注意 ②**：**它只能靠改[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)起作用**，不能不留痕地改变下一步
@@ -354,14 +379,14 @@
 > running text: *converter*.
 
 - **形态**：变体（父：[拓展件](#ul-loop-extension--拓展件--loop-extension)）
-- **出处**：[PF-013 §4 转换件](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 17） ·
-  [PF-012 §5.8 模态转换为什么必须落在这里](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)（rev 25）
+- **出处**：[PF-013 §4 转换件](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 17） ·
+  [PF-012 §5.8 模态转换为什么必须落在这里](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)（rev 25）
 - **⚠️ 别混 ①**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)**——
   那是把**太大**的工具结果换成占位、原件离开消息；转换件处理的是**读不懂**，**原件一步没动**
 - **⚠️ 别混 ②**：**父词条是资产的一类，它本版却不是资产**——它不被持有、不按层配值，
   也不站在拓展点上；「未来是否升为资产」是 PF-013 记下的显式缺口
 - **注意 ①**：**非 Tool ref 来源的执行时点已由项目负责人接受（C-58），契约归 PF-013**——有哪些模态、哪个模型收得下哪些，是大语言模型域定的
-- **注意 ②**：**非 Tool ref 来源转换失败，按[消息准入](agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)的来源特定拒收处理**（封存原文 [PF-012 §5.8 否决按消息是谁产生的分三路](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)）——拒绝或失败，不补偿；**被拒收的模型回复不是一次调模型失败**
+- **注意 ②**：**非 Tool ref 来源转换失败，按[消息准入](agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)的来源特定拒收处理**（封存原文 [PF-012 §5.8 否决按消息是谁产生的分三路](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)）——拒绝或失败，不补偿；**被拒收的模型回复不是一次调模型失败**
 - **注意 ③**：**没登记转换件、因而没有 transcript 的块进[模态投影](record-and-context.md#ul-modality-projection--模态投影--modality-projection)**，把收不下它的模型挡在合法目标之外——这是有意的兜底方向
 
 ### UL-slash-command · 斜杠命令 · Slash Command
@@ -381,7 +406,7 @@
 > shell commands.**
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-002 §4 Slash Command](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#slash-command)（rev 32）
+- **出处**：[PF-002 §4 Slash Command](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#slash-command)（rev 32）
 - **别混**：Skill 是方法本身，Slash Command 是**发起它的入口**。绑定是**多对多**——一个 skill 可以有多个入口，也可以完全没有
 - **注意 ①**：**名字**——交付面自己的动作名与系统业务流程型命令名是**系统保留名**，**一律在 `omne-official` 前缀下**；前两种绑定的命令**不得使用这个前缀**；同能力标识按资产替换规则
 - **注意 ②**：**为什么单独是一类资产**：为将来的可编程性留口子——出处同上
@@ -402,8 +427,8 @@
 > one free-form argument**. The same rule holds for all three binding targets.
 
 - **形态**：属性
-- **出处**：[PF-002 §4 Slash Command](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#slash-command)（rev 32） ·
-  [PF-016 §5.7 人要做的事分三族](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)（rev 13）
+- **出处**：[PF-002 §4 Slash Command](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#slash-command)（rev 32） ·
+  [PF-016 §5.7 人要做的事分三族](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)（rev 13）
 - **别混**：**不是工具调用的参数**——那是模型给出、按工具定义收齐之后才解析的；这里解析的是人敲进交付面的那一行
 - **注意**：② 型命令里，人附带的参数**另成一个内容块**，不拼进 skill 的正文
 
@@ -419,7 +444,7 @@
 > single skill out of a plugin.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 资产的种类](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 Plugin](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#plugin)（rev 32）
+- **出处**：[PF-001 §4 资产的种类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 Plugin](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#plugin)（rev 32）
 - **别混 ①**：**不是 Cordis plugin**——那是运行时的代码装载单元，属技术设计。指它时**必须写全 `Cordis plugin`**
 - **别混 ②**：Plugin 组合出来的**还是资产**，可以继续被组合；[Agent Definition](#ul-agent-definition--agent-定义--agent-definition) 组合出来的是**一个能跑的 agent**
 - **能组合**：Skill、Tool、Slash Command、MCP、Connector、[拓展件](#ul-loop-extension--拓展件--loop-extension)，以及 Rules 这类声明性成员
@@ -431,11 +456,11 @@
 > **EN**: An agent's data definition, describing its composition and working behavior. A session fixes the definition identity while newer valid content of that identity may be adopted at run assembly boundaries. The definition is neither a session nor a live coroutine; updates do not rewrite the versions used by past executions.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 资产的种类](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 Agent Definition](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#agent-definition)（rev 32）
-- **注意**：身份固定不等于内容永远固定；普通恢复保留当前已采用版本；新 Run 或同一 Run 内显式 reload 的安全交接可以采用同身份新版，具体边界由 [PF-004 §6.2](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#62-装配)（rev 20）明确。
+- **出处**：[PF-001 §4 资产的种类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 Agent Definition](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#agent-definition)（rev 32）
+- **注意**：身份固定不等于内容永远固定；普通恢复保留当前已采用版本；新 Run 或同一 Run 内显式 reload 的安全交接可以采用同身份新版，具体边界由 [PF-004 §6.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#62-装配)（rev 20）明确。
 - **能组合**：**全部八类**（含其他 Agent Definition 作为 sub-agent）——**它是唯一能组合全部八类的**
 - **注意 ②**：定义的显式能力要求与[能力自动继承](#ul-capability-auto-inheritance--能力自动继承--capability-auto-inheritance)声明参与装配；定义不是完整装配结果，会话类型的必须依赖仍独立成立。
-- **注意 ③**：official Agent Definition 不可被组织、租户、工作区替换；三层自定义只允许 non-master，见 [PF-004 §6.8](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#68-两类-agent谁能被谁自定义)（rev 20）。
+- **注意 ③**：official Agent Definition 不可被组织、租户、工作区替换；三层自定义只允许 non-master，见 [PF-004 §6.8](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#68-两类-agent谁能被谁自定义)（rev 20）。
 
 ### UL-capability-auto-inheritance · 能力自动继承 · Capability Auto-Inheritance
 
@@ -444,9 +469,10 @@
 > **EN**: An Agent Definition's declaration of whether assembly selects additional Skill, Tool, and MCP capability identifiers, which source layers contribute identifiers, and which inherited capabilities it excludes. The scope is organization, tenant including organization, or workspace including tenant and organization. Exclusions do not remove capabilities required by the session type or explicitly required by the definition. This scope limits capability selection, not the source of implementations bound to the selected capabilities. The switch defaults to false. The declaration belongs to the effective Agent Definition, rather than being merged from independent per-layer settings.
 
 - **形态**：属性
-- **出处**：[PF-004 §4 能力自动继承](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#能力自动继承)（rev 20）
+- **出处**：[PF-004 §4 能力自动继承](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#能力自动继承)（rev 20）
 - **别混**：不是执行权限，也不是父子会话间的历史继承；声明没有独立身份。
-- **注意**：同名不同类别仍是不同能力；MCP 按接入点资产选择，其动作不因此成为独立资产。
+- **注意 ①**：同名不同类别仍是不同能力；MCP 按接入点资产选择，其动作不因此成为独立资产。
+- **注意 ②**：自动继承在 `0.0.0 → 0.1.0` 阶段不承诺，规则保留为目标，现在没有实现也不交付，见 [Agent 定义与工作推进：额外能力的选择](../../product/agent-progression/design.md#额外能力的选择)（rev 5）。这一阶段能力进会话靠会话执行类型的必需身份集合与 Agent 定义的引用两处叠加。
 
 ### UL-agent-type · agent 类型 · Agent Type
 
@@ -466,17 +492,17 @@
 > itself**, independent of what any one assembly of it produces.
 
 - **形态**：属性
-- **出处**：[PF-004 §4 agent 类型](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#agent-类型)（rev 20） · [§6.8](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#68-两类-agent谁能被谁自定义)（rev 20）
+- **出处**：[PF-004 §4 agent 类型](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#agent-类型)（rev 20） · [§6.8](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#68-两类-agent谁能被谁自定义)（rev 20）
 - **⚠️ 别混**：**`non-master` 不是[子 agent](interaction-and-dispatch.md#ul-subagent--子-agent--subagent)。**
   后者说的是**它在派发关系里的角色**（被 `spawn`/`delegate` 派出去的那个）。
   **一个是这份定义带着哪套机制，一个是此刻在扮演什么。**
   **取这个名正是为了让两者不撞**（[C-14](../conflicts.md)）
-- **注意 ①**：**[master 必定是 official](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#68-两类-agent谁能被谁自定义)**；
+- **注意 ①**：**[master 必定是 official](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#68-两类-agent谁能被谁自定义)**；
   **组织、租户、工作区能自定义的只有 `non-master`；official Agent Definition 不可被这些层替换**
 - **派发准入**：spawn／delegate 可选 master 或 non-master，仍产生子会话；handoff 选 master 并产生独立主会话。
 - **注意 ②**：**它不决定这个 agent 能做什么**——[动作空间只由构成决定](#ul-action-space--动作空间--action-space)。
   **一个 `non-master` 照样可以装得很强**
-- **注意 ③**：类型差异只取 [PF-004 明确条款](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#agent-类型)：用户以 master 开主会话、master 带类目、master 只能官方提供；不把未来完整机制清单作为前置条件，也不推断 master 的任意能力都不属于 non-master。
+- **注意 ③**：类型差异只取 [PF-004 明确条款](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#agent-类型)：用户以 master 开主会话、master 带类目、master 只能官方提供；不把未来完整机制清单作为前置条件，也不推断 master 的任意能力都不属于 non-master。
 
 ### UL-master-category · master 类目 · Master Category
 
@@ -489,10 +515,10 @@
 > only** — a non-master opens no collaboration, so the property means nothing for it.
 
 - **形态**：属性
-- **出处**：[PF-004 §4 master 类目](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#master-类目)（rev 20）
+- **出处**：[PF-004 §4 master 类目](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#master-类目)（rev 20）
 - **⚠️ 别混**：**它不是[会话类型](agent-runtime-loop.md#ul-session-type--会话类型--session-type)。**
   会话类型是**会话**的属性，**由它算出来**——
-  [算，不是拷贝](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#53-会话类型怎么算出来)。
+  [算，不是拷贝](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#53-会话类型怎么算出来)。
   **映射改了，已存在的会话一个都不跟着变**
 - **注意 ①**：**只能由产品出厂增补，租户加不了新的一类**——
   这是「[master 只能官方提供](#ul-agent-type--agent-类型--agent-type)」的推论，不是一条独立限制
@@ -516,13 +542,118 @@
 > line**, so the source's v7 may be v2 over there.
 
 - **形态**：对象
-- **出处**：[PF-002 flows §3.3 一个资产定义的版本](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)（rev 32） ·
-  [PF-003 §6.4 可复制的对象](../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#64-可复制的对象)（rev 6）
+- **出处**：[PF-002 flows §3.3 一个资产定义的版本](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)（rev 32） ·
+  [PF-003 §6.4 可复制的对象](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#64-可复制的对象)（rev 6）
 - **别混 ①**：**不是[版本选用](circulation-and-entitlement.md#ul-version-selection--版本选用--version-selection)**——
   那说的是**某个范围当前选了哪一个**，是一条关系；这一条说的是**被选的那个东西**
 - **别混 ②**：**草稿不是版本**——它还在变，**复制与分享都只认已发布的**
 - **注意**：**发现有新版本不静默替换已选用的那个**——选哪一版是消费方的决定；持有选了「追随当前版」的，新版一发布就用上，那是持有上写明的选择，不算静默替换
-- **例外**：已有会话的[常驻工具](reach-and-availability.md#ul-resident-tool-set--常驻工具集合--resident-tool-set)只在[采用点](agent-runtime-loop.md#ul-adoption-point--采用点--adoption-point)跟随新版本，而且新版本派生的定义必须与会话首次采用的定义[同形](reach-and-availability.md#ul-same-shape--同形--same-shape)。不同形时，原实现仍装载且可用就留在原实现；没有同形可用实现、原实现耐久地不可装载时，会话进入[冻结](agent-runtime-loop.md#ul-session-freeze--会话冻结--session-freeze)。依据见 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
+- **例外**：已有会话的[常驻工具](reach-and-availability.md#ul-resident-tool-set--常驻工具集合--resident-tool-set)只在[采用点](agent-runtime-loop.md#ul-adoption-point--采用点--adoption-point)跟随新版本，而且新版本派生的定义必须与会话首次采用的定义[同形](reach-and-availability.md#ul-same-shape--同形--same-shape)。不同形时，原实现仍装载且可用就留在原实现；没有同形可用实现、原实现耐久地不可装载时，会话进入[冻结](agent-runtime-loop.md#ul-session-freeze--会话冻结--session-freeze)。依据见 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
+
+### UL-package-manifest · 包的清单 · Package Manifest
+
+> **中**：正文是一个目录的[资产版本](#ul-asset-version--资产版本--asset-version)所带的文件清单：目录里每个文件一行，写它在目录里的路径、大小与摘要。
+> 它是这个版本的记录的一部分，版本发布时定下，之后不变。读内容的一方靠它知道包里有什么，并逐个文件核对读到的字节。
+>
+> **EN**: The file list carried by an asset version whose body is a directory: one line per file,
+> giving the file's path inside the directory, its size and its digest. It is part of that
+> version's record, fixed when the version is published and never changed afterwards. A reader
+> uses it to know what the package holds and to check the bytes of each file it reads.
+
+- **形态**：属性
+- **出处**：[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 9）
+- **别混**：**不是[装配清单](agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest)**——那是「当时那个 agent 是什么样」；这一条只列一个版本里的文件。也不是 MCP 对端的动作清单
+- **注意**：清单在记录里，字节在内容存放处；两边靠摘要对上，对不上答材料不可用
+- **注意**：Skill 这一侧对应的值是 [Skill 包快照](#ul-package-snapshot--skill-包快照--skill-package-snapshot)。读已发布版本时，快照由包的清单封出，两者列的是同一批文件
+
+### UL-package-reader · 包的读口 · Package Reader
+
+> **中**：资产按（层、[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)、版本）交给类别领域的读取入口，用来读一个已发布版本的内容。
+> 它只做两件事：给出这个版本的[包的清单](#ul-package-manifest--包的清单--package-manifest)；按清单里的一个路径与摘要读出那个文件的字节。
+> 它不给宿主机上的路径，读不出清单之外的东西，也不交出与摘要对不上的字节。
+>
+> **EN**: The reading entry that the asset domain hands to a category domain for one (layer,
+> capability identifier, version), used to read the content of one published version. It does two
+> things only: it returns that version's package manifest, and it reads the bytes of one file named
+> by a path and digest in the manifest. It never exposes a host path, cannot read anything outside
+> the manifest, and never hands over bytes that do not match the digest.
+
+- **形态**：视图
+- **出处**：[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 9）
+- **别混**：**不是[绑定读者](scope-and-resolution.md#ul-bound-reader--绑定读者--bound-reader)**——那是 Runtime Context 里按读取资格建立、带游标的读取入口；这一条读的是一份不变的已发布内容，没有游标，丢了按同一组（层、能力标识、版本）再取一个即可
+- **注意**：「许不许读」不由它回答。主体能不能读一份 Skill，仍由使用资格与授权每次判断
+- **注意**：它不给路径，这一条不变。「这份目录加载到本机之后在哪」是另一件事：单机装配下它是一个事实，`Skills` 把它告诉 agent，供 Shell 使用
+- **注意**：Skill 这一侧声明的需要是 [Skill 包来源](grounding-and-isolation.md#ul-package-source--skill-包来源--skill-package-source)。已发布版本由包的读口经适配担任 Skill 包来源
+
+### UL-skill-package · Skill 包 · Skill Package
+
+> **中**：一个[技能](#ul-skill--技能--skill)的一份完整内容所取的形式：以 `SKILL.md` 为根的一棵目录树。
+> `SKILL.md` 带这个技能的名称、说明与指引正文。可选的 `.omne/skill.json` 带本系统认的声明。
+> 树中其余文件是这个技能的资源，按需读取。
+> 这棵树以外的路径不属于这个包。包内的格式规则归技能这一类别。
+>
+> **EN**: The form that one complete content of a skill takes: a directory tree rooted at
+> `SKILL.md`. `SKILL.md` carries the skill's name, description and guidance text. An optional
+> `.omne/skill.json` carries the declarations that this system reads. The other files in the tree
+> are the skill's resources, read on demand. A path outside the tree is not part of the package.
+> The format rules inside the package belong to the skill kind.
+
+- **形态**：属性
+- **出处**：[Skill 产品页 J-SK01](../../product/skills/design.md#j-sk01-将合法方法来源交给消费者) · [J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 4） · [工作区产品页 J-WS04](../../product/workspaces/design.md#j-ws04-从共享与实例本地来源取得可解释的材料)（rev 5）
+- **别混 ①**：**不是技能的身份**。身份是[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)（类别 ＋ name）。同一个身份下，不同层、不同版本的内容可以是不同的 Skill 包
+- **别混 ②**：**不是[资产版本](#ul-asset-version--资产版本--asset-version)**。资产版本说的是哪一次发布定下的内容；Skill 包说的是技能内容的形式
+- **别混 ③**：**不是[插件](#ul-plugin--插件--plugin)，也不是代码仓库里的成员包**（例如 `packages/skills` 下的成员）。插件打包分发若干资产；一个 Skill 包只是一个技能的内容
+- **注意**：读取包中的正文不等于运行包中的脚本，也不自动读取包中的全部资源，见[技能](#ul-skill--技能--skill)
+
+### UL-package-snapshot · Skill 包快照 · Skill Package Snapshot
+
+> **中**：一个 [Skill 包](#ul-skill-package--skill-包--skill-package)在某一时刻的全部条目的清单，
+> 以及由这份清单算出的一个内容摘要。每个条目记下它的包内路径、它是文本还是二进制、它的大小，以及它自己的内容摘要。
+> 快照算出之后不再改变。包中任一条目改变后，算出的是另一个快照，内容摘要也不同。
+> 内容摘要相同的两个快照指同一份内容，所以引用一个快照只需要它的内容摘要。
+>
+> **EN**: The list of all entries of a Skill package at one point in time, together with one
+> content digest computed from that list. Each entry records its path inside the package,
+> whether it is text or binary, its size and its own content digest. A snapshot does not change
+> after it is computed. When any entry of the package changes, the result is a different snapshot
+> with a different content digest. Two snapshots with the same content digest denote the same
+> content, so a reference to a snapshot needs only its content digest.
+
+- **形态**：属性
+- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 4）只要求一次读取对应一个可成立的版本和范围，不把旧正文与新资源拼成成功。条目清单与内容摘要的做法来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出 Skill 包快照，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决。已发布版本一侧的文件清单见[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 9），那是[包的清单](#ul-package-manifest--包的清单--package-manifest)的出处
+- **别混 ①**：**不是[资产版本](#ul-asset-version--资产版本--asset-version)**。资产版本按发布计数，内容摘要按内容计算。工作区目录中的技能没有发布，也有 Skill 包快照
+- **别混 ②**：**不是[上下文快照提醒](record-and-context.md#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder)**，与 runtime context 的快照无关
+- **注意 ①**：**这里的「内容摘要」指按内容算出的散列值（digest），不是文字摘要**。不要裸写「摘要」指它，见 [C-82](../conflicts.md#c-82摘要的两种意思)
+- **注意 ②**：[采用依据](agent-runtime-loop.md#ul-adoption-basis--采用依据--adoption-basis)与读取结果引用一个 Skill 包时，记的是它的 Skill 包快照的内容摘要
+- **注意 ③**：已发布版本的文件清单是资产这一侧的[包的清单](#ul-package-manifest--包的清单--package-manifest)。Skill 包快照是 Skill 这一侧的值，工作区目录没有发布版本也有。读已发布版本时，快照由包的清单封出，两者列的是同一批文件
+
+### UL-material-basis · Skill 材料依据 · Skill Material Basis
+
+> **中**：调用方手里的一个值，指明它此前读到的一份具体 Skill 材料。这个值只含四项：
+> 这个[技能](#ul-skill--技能--skill)的[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)、
+> 那份材料的[来源层](scope-and-resolution.md#ul-source-layer--来源层--source-layer)、
+> 一个[资产版本](#ul-asset-version--资产版本--asset-version)，以及那份材料的 [Skill 包快照](#ul-package-snapshot--skill-包快照--skill-package-snapshot)的内容摘要。
+> 来源层为工作区时，资产版本可以缺省。其他三项总是存在。
+> 读取 Skill 材料的结果把它交给调用方。调用方在后续读取时带回它，要求读到同一份材料。
+> 它不含包的位置。它不授予访问：带着它的读取，仍按读取当时的条件核对读取权。
+> 能力标识、来源层与内容摘要都相同的两个 Skill 材料依据，指同一份材料。
+>
+> **EN**: A value in the caller's hands that identifies one specific Skill material that the
+> caller read before. The value holds only four items: the skill's capability identifier, the
+> source layer of that material, an asset version, and the content digest of that material's
+> package snapshot. When the source layer is the workspace, the asset version can be absent. The
+> other three items are always present. A result that reads Skill material gives it to the caller.
+> The caller brings it back in a later read to ask for the same material. It holds no package
+> location. It grants no access: a read that carries it still checks the right to read under the
+> conditions at the time of that read. Two material bases with the same capability identifier,
+> source layer and content digest identify the same material.
+
+- **形态**：属性
+- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 4）只要求读取返回实际取得内容的来源、版本及范围，并要求「历史可见性不授予新的访问」。把版本写成能力标识、来源层、资产版本与内容摘要四项，并交给调用方带回，这一做法来自 Skill 组的技术设计，那不是本词表的合法出处。工作区来源的资产版本可以缺省，这一点是负责人对 [C-83](../conflicts.md#c-83工作区目录技能的-skill-材料依据中的资产版本) 的裁定（2026-11-03）。出处缺口由产品负责人闭合：在 Skill 产品页写出 Skill 材料依据，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
+- **⚠️ 别混 ①**：**不是[采用依据](agent-runtime-loop.md#ul-adoption-basis--采用依据--adoption-basis)**。采用依据是一次执行在采用时实际取用了什么的记录，由系统保留。Skill 材料依据是一次读取交给调用方的值，由调用方保管与带回
+- **别混 ②**：**不是 [Skill 包快照](#ul-package-snapshot--skill-包快照--skill-package-snapshot)本身**。Skill 包快照是全部条目的清单；Skill 材料依据只带它的内容摘要，另带能力标识、来源层与资产版本
+- **别混 ③**：**不是 Skill 包的位置**。位置不在 Skill 材料依据里，调用方不能用它指定从哪里读取
+- **注意 ①**：「内容摘要」指散列值，不是文字摘要，见 [C-82](../conflicts.md#c-82摘要的两种意思)
 
 ## 构成关系
 
@@ -538,10 +669,10 @@
 > acyclic**, and **composition transfers no definition ownership**.
 
 - **形态**：属性
-- **出处**：[PF-002 §5.1](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#51-组合是一种关系不是几种)（rev 32）
+- **出处**：[PF-002 §5.1](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#51-组合是一种关系不是几种)（rev 32）
 - **别混**：与[作用域合成语义](scope-and-resolution.md#ul-scope-composition-semantics--作用域合成语义--scope-composition-semantics)不是一回事——**裸写「组合」不作数**
 - **注意 ①**：这一节在 PF-002 里标着「**PM 推导，待产品负责人确认**」
-- **注意 ②**：**「环」指沿引用展开会回到自己、展开不完的那一种**；[Skill 与 Tool 互相引用不算](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#谁能组合谁)——两边各装一份就完
+- **注意 ②**：**「环」指沿引用展开会回到自己、展开不完的那一种**；[Skill 与 Tool 互相引用不算](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#谁能组合谁)——两边各装一份就完
 
 ### UL-agent-constitution · agent 构成 · Agent Constitution
 
@@ -550,20 +681,21 @@
 > **EN**: The agent composition recorded in an assembly manifest: the adopted AgentDefinition, loop and extensions, prompt composition rules and access to session capabilities. The manifest records adoption inputs; it does not freeze later capability data, implementations or availability for the lifetime of an Agent runtime. Replacing the runtime’s own captured composition preserves the session’s fixed agent identity.
 
 - **形态**：属性
-- **出处**：[PF-004 §4 注入](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#注入)（rev 20） · [§5.3](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#53-三个时刻)（rev 20）
+- **出处**：[PF-004 §4 注入](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#注入)（rev 20） · [§5.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#53-三个时刻)（rev 20）
 - **弃用的说法**：**「agent 构成 / Instance Constitution」**——
   2026-09-20 之前的名字，主语是已退役的「运行实例」，见 [现行词义](../index.md)
 - **别混**：构成记录、会话能力的当前采用值和单次调用的实际输入是不同时间粒度；能力条目变化本身不等于 runtime 的直接依赖变化。
 
 ### UL-action-space · 动作空间 · Action Space
 
-> **中**：一个会话中 agent 能识别并尝试发起的动作集合，由合法纳入会话的能力条目投影得到。能力身份的可见性在同一 Session 内单调增加；定义变更、禁用、卸载或撤权使已知条目不可用，不删除该身份。可尝试发起不等于获准执行；不可用时由替换件返回原因。
+> **中**：一个会话中 agent 能识别并尝试发起的动作集合。它有两个来路：装进上下文的常驻条目，是采用点上定下的记录，会话内只增不减；经取用入口能发现的条目，按主体此刻的事实现算，不是存下来的集合。常驻条目遇到定义变更、禁用、卸载或撤权时变成不可用，不删除该身份。可尝试发起不等于获准执行；不可用时由替换件返回原因。
 >
-> **EN**: The actions an agent can recognize and attempt in a session, projected from capabilities lawfully admitted to that session. Capability-identity visibility is monotonic within a Session; definition changes, disablement, unloading or revocation make known entries unavailable rather than erase their identities. An attempt is not execution authorization; an unavailable entry returns its reason through a stand-in.
+> **EN**: The actions an agent can recognize and attempt in a session. It has two sources: resident entries placed in the context, which are a record fixed at the adoption point and only grow within a session; and entries discoverable through the access entry point, computed from the subject's facts at that moment and never stored as a set. A resident entry becomes unavailable, and keeps its identity, when its definition changes or it is disabled, unloaded or revoked. An attempt is not execution authorization; an unavailable entry returns its reason through a stand-in.
 
 - **形态**：视图
-- **出处**：[PF-004 §4 动作空间](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#动作空间) · [§6.3 三类变化背后只有一条判据](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#三类变化背后只有一条判据系统提示词的成分会不会变) · [§6.5](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#65-权限变化动作空间不变)（rev 20）
-- **别混**：能力身份可见不等于定义内容、实现绑定或可执行集合不变；也不要求每次提示词包含全部已知能力。未曾合法纳入的能力仍受选入与访问边界限制。
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 9） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 7） · [PF-004 §4 动作空间](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#动作空间) · [§6.3 三类变化背后只有一条判据](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#三类变化背后只有一条判据系统提示词的成分会不会变) · [§6.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#65-权限变化动作空间不变)（rev 20）
+- **别混**：能力身份可见不等于定义内容、实现绑定或可执行集合不变；也不要求每次提示词包含全部已知能力。能发现的那部分就是[工具条目](reach-and-availability.md#ul-tool-entry--工具条目--tool-entry)与此刻合法可用的 Skill，主体此刻没有使用资格的不出现。
+- **注意**：封存的 PF-004 把它写成「由合法纳入会话的能力条目投影、整体单调增加」。现行产品里只有常驻那部分是这样，见 [C-79](../conflicts.md#c-79能发现的范围与会话已知能力)。
 
 ### UL-session-slash-command-set · 会话斜杠命令集 · Session Slash-Command Set
 
@@ -583,7 +715,7 @@
 > by itself; it lives in a session registry and **changes only when the matching reload hot-updates that registry** (refreshed automatically after a type-③ failure; a full re-assembly refills it too).
 
 - **形态**：视图
-- **出处**：[PF-002 §4 会话认得哪些命令，什么时候变](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变)（rev 32）
+- **出处**：[PF-002 §4 会话认得哪些命令，什么时候变](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变)（rev 32）
 - **别混**：[动作空间](#ul-action-space--动作空间--action-space)在权限变了时**不变**，agent 因此知道「存在，只是不许」；
   会话斜杠命令集**恰好相反**——无权使用的**就不在里面**，人得到的回答是「没有这个命令」
 - **注意**：**收窄即时，放宽要等 reload**——权限一收回，那条命令此刻起就不在；
@@ -603,7 +735,7 @@
 > necessarily resident, and can be neither disabled nor replaced.**
 
 - **形态**：对象
-- **出处**：[元能力：meta](../../product/meta-capabilities/design.md#使用者与范围)（rev 6） · [meta 与常驻的关系](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 6）
+- **出处**：[元能力：meta](../../product/meta-capabilities/design.md#使用者与范围)（rev 7） · [meta 与常驻的关系](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 7）
 - **⚠️ 注意 ①**：**「不可禁用」说的是那扇门，不是门后的每一条命令。**
   [权限照常作用在命令这一级](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)——
   **一条命令可以被关掉，而那扇门关不掉**。
@@ -620,7 +752,7 @@
 - **别混**：**具体是哪几扇门（`Tools()` `Shell()` …）是它的实例，不是概念**——
   词表定义 meta 能力，**不为每一扇门各立一条**
 
-- **注意 ⑥**：`Tools()` 这扇门也按[工具](#ul-tool--工具--tool)的对象链实现：官方资产引用一个实现包，实现包导出作者插件，系统装载时派生它的工具定义。它仍是官方的，仍不可替换。它与 example 同一波迁移，依据见 [RFC-0012 对象链](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#对象链)。卸载与会话冻结的规则对 meta 能力豁免：它不参与卸载与冻结判定，经它发现和使用非常驻工具只是对它的一次调用，依据见 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6332679272)。
+- **注意 ⑥**：`Tools()` 这扇门也按[工具](#ul-tool--工具--tool)的对象链实现：官方资产引用一个实现包，实现包导出作者插件，系统装载时派生它的工具定义。它仍是官方的，仍不可替换。它与 example 同一波迁移，依据见 [RFC-0012 对象链](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#对象链)。卸载与会话冻结的规则对 meta 能力豁免：它不参与卸载与冻结判定，经它发现和使用非常驻工具只是对它的一次调用，依据见 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6332679272)。
 - **注意 ⑦**：Run 中途新装载的工具不进[常驻工具集合](reach-and-availability.md#ul-resident-tool-set--常驻工具集合--resident-tool-set)，agent 经 `Tools()` 够到它们
 - **运行期边界**：Ask() 可被会话协作模式关闭人交互能力；这不删除、替换或解除 meta 资产的必需绑定。命令是否可用仍受各自权限限制。
 - **采用范围**：必需绑定及常驻约束作用于已采用并提供的入口。未实现定义、候选及纯占位不因此进入模型工具清单；多命令约定不替未定义占位发明命令。
@@ -640,7 +772,7 @@
 > resident budget is **on entry points, not on individual actions**.
 
 - **形态**：视图
-- **出处**：[PF-006 §4 槽位](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [元能力：产品规则](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 6）
+- **出处**：[PF-006 §4 槽位](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [元能力：产品规则](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 7）
 - **别混**：**裸写「槽位」不作数**——它专指系统提示词里的那种占位
 - **注意**：**不占槽位不等于不在[动作空间](#ul-action-space--动作空间--action-space)里**——见[三层正交](reach-and-availability.md#三层正交这是本卷的地基)
 
@@ -684,10 +816,10 @@
 > decided by the layer order, never picked by whoever references it**.
 
 - **形态**：对象
-- **出处**：[PF-013 §4 模型档案](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模型档案) ·
-  [上游限制与档案提供的上限](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#上游限制与档案提供的上限) ·
-  [档案的身份：所在范围加路由名](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名) ·
-  [PF-013 flows §3.1 一条模型档案](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 17）
+- **出处**：[PF-013 §4 模型档案](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模型档案) ·
+  [上游限制与档案提供的上限](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#上游限制与档案提供的上限) ·
+  [档案的身份：所在范围加路由名](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名) ·
+  [PF-013 flows §3.1 一条模型档案](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 17）
 - **⚠️ 别混 ①**：**官方档案 / 自建档案**（谁建的、落在哪一层）**不是
   [官方件](circulation-and-entitlement.md#ul-official-asset--官方件--official-asset) /
   [自定义件](circulation-and-entitlement.md#ul-customized-asset--自定义件--customized-asset)**——
@@ -718,9 +850,9 @@
 > as custom profiles, and **a custom profile under the same routing name overrides it by layer**.
 
 - **形态**：变体（父：[模型档案](#ul-model-profile--模型档案--model-profile)）
-- **出处**：[PF-013 §4 官方档案 / 自建档案](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#官方档案--自建档案) ·
-  [§5.6](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上) ·
-  [§6.3](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#63-官方与自建在同一份列表里)（rev 17）
+- **出处**：[PF-013 §4 官方档案 / 自建档案](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#官方档案--自建档案) ·
+  [§5.6](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上) ·
+  [§6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#63-官方与自建在同一份列表里)（rev 17）
 - **⚠️ 别混**：**不是[官方件](circulation-and-entitlement.md#ul-official-asset--官方件--official-asset)**——官方件说的是资产的来源，而档案不是资产；**所以这里叫「档案」不叫「件」**
 
 ### UL-custom-model-profile · 自建档案 · Custom Model Profile
@@ -740,9 +872,9 @@
 > are all valid; **same-named profiles override by layer** — tenant over organization, custom over official.
 
 - **形态**：变体（父：[模型档案](#ul-model-profile--模型档案--model-profile)）
-- **出处**：[PF-013 §4 官方档案 / 自建档案](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#官方档案--自建档案) ·
-  [§5.6](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上)（rev 17） ·
-  [flows §四 角色与操作](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)（rev 17）
+- **出处**：[PF-013 §4 官方档案 / 自建档案](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#官方档案--自建档案) ·
+  [§5.6](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上)（rev 17） ·
+  [flows §四 角色与操作](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)（rev 17）
 - **⚠️ 别混**：**不是[自定义件](circulation-and-entitlement.md#ul-customized-asset--自定义件--customized-asset)**——理由同上
 - **注意**：**组织层建的档案，成员在自己这一层配上凭据之前用不上**——列表上标明缺的是什么；组织那一层给不了他兜底的凭据
 
@@ -765,9 +897,9 @@
 > pointing at it reconnects without switching. **Both transitions are open; neither value is terminal.**
 
 - **形态**：状态
-- **出处**：[PF-013 §4 在册 / 已撤回](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#在册--已撤回) ·
-  [§6.4](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#64-撤回不删行会话指向被撤回的档案时说已下架)（rev 17） ·
-  [flows §3.1](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 17）
+- **出处**：[PF-013 §4 在册 / 已撤回](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#在册--已撤回) ·
+  [§6.4](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#64-撤回不删行会话指向被撤回的档案时说已下架)（rev 17） ·
+  [flows §3.1](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 17）
 - **别混**：**「这个范围不允许它」不是这里的取值**——那是求值的结果，档案照样在册；两者要用户做的事不同：已下架要换一个，不被允许要去找管理员
 - **注意**：**同一个范围里想再用一个已撤回档案的路由名，走的是「恢复在册」，不是「建档」**——那个名字在这个范围里只对应这一条
 
@@ -781,8 +913,8 @@
 > the retry extension tries them**, each send going through exactly one. Set when the profile is created; may be changed.
 
 - **形态**：属性
-- **出处**：[PF-013 §4 模型档案](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模型档案) ·
-  [§5.12 系统自带一件默认的](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 17） ·
+- **出处**：[PF-013 §4 模型档案](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模型档案) ·
+  [§5.12 系统自带一件默认的](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 17） ·
   [模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 4）
 - **注意**：它是[试尽](execution-and-outcome.md#ul-retry-exhaustion--试尽--retry-exhaustion)这个判断的**输入**，不是试尽的定义
 - **别混**：**列表里的每一项是对一家[模型供应商](#ul-model-provider--模型供应商--model-provider)的引用，不是模型供应商本身**——
@@ -800,8 +932,8 @@
 > switching provider, not retrying. Set when the profile is created; may be changed.
 
 - **形态**：属性
-- **出处**：[PF-013 §4 模型档案](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模型档案) ·
-  [§5.12 系统自带一件默认的](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 17）
+- **出处**：[PF-013 §4 模型档案](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模型档案) ·
+  [§5.12 系统自带一件默认的](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 17）
 - **注意**：它同样只是[试尽](execution-and-outcome.md#ul-retry-exhaustion--试尽--retry-exhaustion)的输入；租户换掉默认重试件之后，怎么读它由那一件定
 
 ### UL-model-provider · 模型供应商 · Model Provider
@@ -823,7 +955,7 @@
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
 - **出处**：[模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 4） ·
-  [资产与规则：让共同能力可治理，也让具体资产独立发展](../../product/assets-and-rules/design.md#让共同能力可治理也让具体资产独立发展)（rev 8）
+  [资产与规则：让共同能力可治理，也让具体资产独立发展](../../product/assets-and-rules/design.md#让共同能力可治理也让具体资产独立发展)（rev 9）
 - **别混 ①**：**不是[允许的供应商](#ul-allowed-providers--允许的供应商--allowed-providers)里的一项**——那一项是档案对它的引用；档案不是资产，模型供应商是
 - **别混 ②**：**不是 [Cordis 服务提供者](architecture-core-and-extension.md#ul-cordis-service-provider--cordis-服务提供者--cordis-service-provider)、
   [环境提供者](grounding-and-isolation.md#ul-environment-provider--环境提供者--environment-provider)这类「提供者」**——那些是系统里兑现一项能力的角色；
@@ -851,7 +983,7 @@
 
 - **形态**：属性
 - **出处**：[模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 4） ·
-  [资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 8）
+  [资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 9）
 - **⚠️ 别混 ①**：**不在档案上**——[档案](#ul-model-profile--模型档案--model-profile)不是资产，自身不存凭据；
   凭据是模型供应商这份资产的设置值，依附对它的持有
 - **别混 ②**：**裸写「凭据」不作数**——账号的登录凭据、[连接件](#ul-connector--连接件--connector)的接入凭据、
@@ -874,7 +1006,7 @@
 > at "before the model call" may override them for that one request.
 
 - **形态**：属性
-- **出处**：[PF-013 §4 模型档案](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模型档案)（rev 17）
+- **出处**：[PF-013 §4 模型档案](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模型档案)（rev 17）
 - **别混**：**不是[模型凭据](#ul-model-credential--模型凭据--model-credential)**——凭据是模型供应商声明的秘密设置在某一层的值，档案不存；参数挂档案、一档案一组
 - **注意**：词表里有哪些参数、各取什么值，归规格，不归产品正文
 
@@ -899,9 +1031,9 @@
 > renews into stays with the same holding.
 
 - **形态**：属性
-- **出处**：[PF-002 §4 MCP](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#mcp) ·
-  [MCP 凭据：一份持有一份](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的) ·
-  [§5.2 设置项分四类](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32）
+- **出处**：[PF-002 §4 MCP](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#mcp) ·
+  [MCP 凭据：一份持有一份](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的) ·
+  [§5.2 设置项分四类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32）
 - **⚠️ 别混**：**不是[模型凭据](#ul-model-credential--模型凭据--model-credential)**——两者都是资产持有上的设置值，但挂在不同类别的资产上：
   模型凭据是[模型供应商](#ul-model-provider--模型供应商--model-provider)声明的凭据项在租户层或官方层的值；
   MCP 凭据是 **MCP 接入点持有**上的一项落点与身份类设置、一份持有一份。**两者同一条路：组织那一层都不持有**
@@ -925,13 +1057,13 @@
 > with**: that is the effective model.
 
 - **形态**：属性
-- **出处**：[PF-013 §4 选中模型 与 有效模型](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型) ·
-  [档案的身份：所在范围加路由名](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名) ·
-  [§5.9](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支)（rev 17）
+- **出处**：[PF-013 §4 选中模型 与 有效模型](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型) ·
+  [档案的身份：所在范围加路由名](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名) ·
+  [§5.9](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支)（rev 17）
 - **⚠️ 别混**：用户界面上「你正在用 X」说的是它；**「刚才那句话是 X 说的」说的是另一件事**，两者完全可以不是同一个答案
 - **注意**：它是「用哪个模型」这项[设置](#ul-setting--设置--setting)在**会话那一格**的值；切换就是改这一格，**从没切换过时那一格没有值**，所以初值取沿层级求值的那一条
-- **注意 ②**：**它的每一次改变，都先是会话日志里的一条[切换](#ul-model-switch--模型切换--model-switch)事实**——[条目落盘即改变](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/flows.md#33-一个会话的选中模型)（PF-013 rev 12），没有「自动从 A 变成别的」这条转移
-- **注意 ③**：**最具体那一条撤回了、链上另有同名在册的，它没变**——变的是这个名字落到哪一条，那不是改选；[§6.1](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#61-档案是一个对象那项设置的取值是对它的引用)（rev 16）标题里的「引用」指名字背后必须有一条档案，不指某一行
+- **注意 ②**：**它的每一次改变，都先是会话日志里的一条[切换](#ul-model-switch--模型切换--model-switch)事实**——[条目落盘即改变](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/flows.md#33-一个会话的选中模型)（PF-013 rev 12），没有「自动从 A 变成别的」这条转移
+- **注意 ③**：**最具体那一条撤回了、链上另有同名在册的，它没变**——变的是这个名字落到哪一条，那不是改选；[§6.1](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#61-档案是一个对象那项设置的取值是对它的引用)（rev 16）标题里的「引用」指名字背后必须有一条档案，不指某一行
 
 ### UL-effective-model · 有效模型 · Effective Model
 
@@ -952,12 +1084,12 @@
 > reply"** — that is a trace, the answer of an earlier evaluation.
 
 - **形态**：视图
-- **出处**：[PF-013 §4 选中模型 与 有效模型](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型) ·
-  [§5.10](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事) ·
-  [§6.9](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选)（rev 17）
-- **注意**：拓展件改掉它**不是静默的**——它[必须留下结论](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论)
+- **出处**：[PF-013 §4 选中模型 与 有效模型](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型) ·
+  [§5.10](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事) ·
+  [§6.9](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选)（rev 17）
+- **注意**：拓展件改掉它**不是静默的**——它[必须留下结论](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论)
 - **注意 ②**：**出门之前核的是它，不是选中模型**——上层锁死了另一条，请求就用锁定的那条照常发出，不算失败；
-  [只有它算不出来、或不是合法目标，这一次才失败](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选)
+  [只有它算不出来、或不是合法目标，这一次才失败](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选)
 
 ### UL-model-switch · 模型切换 · Model Switch
 
@@ -976,15 +1108,15 @@
 > the switch adds no branch to the loop.
 
 - **形态**：过程
-- **出处**：[PF-013 §5.9 换模型](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支) ·
-  [§6.5](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#65-切换是用户的直接命令合法目标不得拒绝) ·
-  [§6.6](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#66-切换先是一条要被记录的事实) ·
-  [§6.7](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#67-生效点收到那条事实之后下一次模型请求之前)（rev 17） ·
-  [flows §3.3](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/flows.md#33-一个会话的选中模型)（rev 17）
+- **出处**：[PF-013 §5.9 换模型](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支) ·
+  [§6.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#65-切换是用户的直接命令合法目标不得拒绝) ·
+  [§6.6](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#66-切换先是一条要被记录的事实) ·
+  [§6.7](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#67-生效点收到那条事实之后下一次模型请求之前)（rev 17） ·
+  [flows §3.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/flows.md#33-一个会话的选中模型)（rev 17）
 - **别混 ①**：**选中模型变了，不等于[有效模型](#ul-effective-model--有效模型--effective-model)变了**——上层锁死过，求值出来的可能仍是别的
 - **别混 ②**：**不是[当前租户身份](subjects-and-ownership.md#ul-current-tenant-identity--当前租户身份--current-tenant-identity)的切换**。裸写「切换」不作数
 - **注意 ①**：**窗口更小、看着更「差」都不构成拒绝**——装不装得下，下一次请求前照常量、照常压缩
-- **注意 ②**：**agent 可以代用户执行一条明确的切换指令，但不能为了绕开一次失败自己换**——[换模型不是模型调用那一层的手段](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)
+- **注意 ②**：**agent 可以代用户执行一条明确的切换指令，但不能为了绕开一次失败自己换**——[换模型不是模型调用那一层的手段](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)
 - **弃用**：~~「切换事实」~~作为概念名——那是这个动作落下的那条[记录条目](record-and-context.md#ul-record-entry--记录条目--record-entry)，不另立
 
 
@@ -995,7 +1127,7 @@
 > **EN**: A pluggable capability for creating and managing work arranged over time, scheduling due work, and triggering execution or notification actions, supporting the system’s own mechanical work as well as short-, medium-, and long-term undertakings for harness agents and users.
 
 - **形态**：总称
-- **出处**：[PF-021 §4 日程能力](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#日程能力)（rev 8）
+- **出处**：[日程与作业：产品需求](../../product/schedules-and-jobs/design.md#产品需求描述)（rev 4）
 - **别混**：能力本身不同于一份 Schedule。
 
 ### UL-routine · 工作例程 · Routine
@@ -1005,18 +1137,18 @@
 > **EN**: The work-description data held within a schedule, specifying the mechanical action or agent objective and applicable notification content and target tenant for its jobs. It excludes timing rules and per-job progress or results, and has no independent identity or lifecycle. Factory-provided forms are preset descriptions used to populate this data.
 
 - **形态**：属性
-- **出处**：[PF-021 §4 工作例程](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#工作例程)（rev 8）
+- **出处**：[日程与作业：产品需求](../../product/schedules-and-jobs/design.md#产品需求描述)（rev 4）
 - **别混**：各次 Job 共用工作定义，不共享执行状态；不同 Schedule 不共同引用一个可变 Routine 对象。
 
 ### UL-calendar-service · 日历服务 · Calendar Service
 
-> **中**：支持日历配置、管理、选择切换和数据更新维护，供应业务日历及其版本并提供日期计算的服务统称；作为独立产品应用交付，是日程能力的计算依赖。
+> **中**：供应业务日历及不可变版本、维护数据并提供日期知识与计算的独立能力统称。消费者选择由设置拥有者保存，日历按获授权的选择解析依据。
 >
-> **EN**: The service capability for calendar configuration, management, selection and switching, data maintenance, versioned calendar supply, and date calculations. It is delivered as an independent product application and serves as a computational dependency of scheduling.
+> **EN**: The independent capability that supplies business calendars and immutable versions, maintains their data, and provides date knowledge and calculations. Settings owners retain consumer selections; the calendar resolves authorized selections.
 
 - **形态**：总称
-- **出处**：[PF-021 §4 日历服务](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#日历服务)（rev 8）
-- **别混**：独立产品应用与部署位置是不同维度；“计算器”是日程讨论中的简称。
+- **出处**：[日历：产品需求](../../product/calendars/design.md#产品需求描述)（rev 3）
+- **别混**：独立能力不表示必须独立部署。日历不拥有用户环境设置、Schedule 或 Job。
 
 ### UL-notification-capability · 通知能力 · Notification Capability
 
@@ -1025,7 +1157,18 @@
 > **EN**: A capability used by both the system and agents to send notifications and deliver them to an explicitly identified target tenant, with or without a schedule or scheduled job as their source.
 
 - **形态**：总称
-- **出处**：[PF-021 §4 通知能力](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#通知能力)（rev 8）
+- **出处**：[PF-021 §4 通知能力](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#通知能力)（rev 8）
 - **别混**：不是成果上报、普通会话回复或复制通知邀约本身；目标租户沿既有租户身份，送达不自动等于已读。
+
+
+### UL-system-schedule-definition · 系统日程定义 · System Schedule Definition
+
+> **中**：系统提供的一项定期产品功能的版本化定义，说明工作模板、时间规则、可控性、参数默认值及适用人群。用户通过日程订阅采用它，各次工作按订阅独立展开。
+>
+> **EN**: A versioned definition of a recurring product feature, specifying its work template, timing, controllability, parameter defaults, and applicability. Schedule subscriptions adopt the definition and produce work independently.
+
+- **形态**：对象
+- **出处**：[日程与作业：系统功能订阅](../../product/schedules-and-jobs/design.md#subscriptions)（rev 4）
+- **别混**：它不是平台机械维护的系统日程，也不是某份 Schedule 内无独立身份的 Routine 属性。
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

@@ -80,23 +80,18 @@ function route(at: AgentCheckpoint, change: Partial<ExecutionSnapshot> = {}) {
   return recoveryRoute({ checkpoint: at, unresolved: [], state: { kind: 'advancing' }, ...change })
 }
 
-/**
- * Whether `operation` is the commit of `node` on the normal path: node commits carry the node as
- * their prefix; the Ja of Q2 derives from its H and the stage `resolve` (SPEC "消息准入").
- */
 function isCommitOf(node: string, operation: string): boolean {
   return node === 'Q2' ? operation.endsWith('/resolve') : operation.startsWith(`${node}/commit@`)
 }
 
 describe('E4 recovery routing', () => {
-  it.each(['E4', 'I0'])('NA-E4-1: input boundary %s delegates I0 to the evaluator', position => {
+  it.each(['E4', 'I0'])('input boundary %s delegates I0 to the evaluator', position => {
     expect(ok(route(checkpoint(position)))).toBe('evaluate')
   })
 
   it.each([
     ['E3', 'E3'],
     ['I1', 'I1'],
-    // R2-D292: the positions before the final request record prepare again at I1.
     ['P0', 'I1'],
     ['P1', 'I1'],
     ['I2', 'I1'],
@@ -109,24 +104,21 @@ describe('E4 recovery routing', () => {
     ['I3', 'I3'],
     ['I4', 'I4'],
     ['I8', 'I8'],
-    ['F1', 'F1'],
+    ['F1', 'I8'],
     ['F2', 'F2'],
     ['F3', 'F3'],
     ['F4', 'F4'],
     ['O0', 'O0'],
     ['E9', 'E9'],
-  ])(
-    'NA-E4-2: saved position %s resumes at %s without changing its facts',
-    (position, expected) => {
-      const at = checkpoint(position)
-      const before = structuredClone(at)
-      expect(ok(route(at))).toBe(expected)
-      expect(route(at)).toEqual(route(before))
-      expect(at).toEqual(before)
-    },
-  )
+  ])('saved position %s resumes at %s without changing its facts', (position, expected) => {
+    const at = checkpoint(position)
+    const before = structuredClone(at)
+    expect(ok(route(at))).toBe(expected)
+    expect(route(at)).toEqual(route(before))
+    expect(at).toEqual(before)
+  })
 
-  it('NA-E4-2: the input batch and the saved preparation determine the recovery point', async () => {
+  it('the input batch and the saved preparation determine the recovery point', async () => {
     const preparationsSaved: AgentCheckpoint[] = []
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
@@ -144,13 +136,11 @@ describe('E4 recovery routing', () => {
     ok(await c.runExecution())
     const preparations = assembly.controls.requests.prepare.calls
     expect(preparations).toHaveLength(2)
-    // R2-D292: an assembled or ready preparation is never written; the route prepares again.
     expect(preparationsSaved).toEqual([])
     const at = (await load(assembly)).checkpoint
     expect(at.requestPreparation).toBeNull()
     expect(ok(route({ ...at, position: 'I2', calls: [] }))).toBe('I1')
     expect(ok(route({ ...checkpoint('I0'), inputBatch: inputBatch(1) }))).toBe('I1')
-    // The saved kinds still decide: cannot-fit goes to F1.
     const cannotFit = {
       id: preparations[0]!.action,
       purpose: 'main',
@@ -168,13 +158,13 @@ describe('E4 recovery routing', () => {
     expect(ok(route({ ...at, position: 'I8', calls: [] }))).toBe('I8')
   })
 
-  it('NA-E4-3: a pending operation goes to R0 and a settled operation resumes the main call at M1', () => {
+  it('a pending operation goes to R0 and a settled operation resumes the main call at M1', () => {
     const at = { ...checkpoint('M1'), calls: [pendingCall] }
     expect(ok(route(at, { unresolved: [operation('M1/commit@1')] }))).toBe('R0')
     expect(ok(route(at))).toBe('M1')
   })
 
-  it.each(['F2', 'F3'])('NA-E4-2: settling resumes %s from the saved finish intent', position => {
+  it.each(['F2', 'F3'])('settling resumes %s from the saved finish intent', position => {
     const intent = {
       candidate: operation('F1/commit@1'),
       conclusion: { kind: 'complete' as const },
@@ -187,7 +177,7 @@ describe('E4 recovery routing', () => {
   })
 
   it.each(['C0', 'C1', 'C2', 'C3', 'C4', 'X0', 'X1', 'X2', 'X3', 'X4', 'X5'])(
-    'NA-E4-2: unfinished node %s has a named stage owner',
+    'unfinished node %s has a named stage owner',
     position => {
       expect(failure(route(checkpoint(position)))).toMatchObject({
         kind: 'unsupported',
@@ -227,7 +217,6 @@ describe('E4 recovery routing', () => {
     const at = (position: string, saved: ActionBatch) => ({ ...checkpoint(position), batch: saved })
     const two = [action('a', 'allowed', pendingCall), action('b', 'allowed')]
     expect(ok(route(at('A1', batch('closed', two, []))))).toBe('A1')
-    // b has no slot yet: only A2 may send it, even if a result of a is kept.
     expect(ok(route(at('T2', batch('open', two, [slot('a', 'result')]))))).toBe('A2')
     expect(
       ok(route(at('T3', batch('open', two, [slot('a', 'dispatched'), slot('b', 'result')])))),
@@ -245,7 +234,7 @@ describe('E4 recovery routing', () => {
     ).toBe('T2')
   })
 
-  it('NA-E4-2: a saved extension passage takes precedence over the E3 position', () => {
+  it('a saved extension passage takes precedence over the E3 position', () => {
     expect(failure(route(checkpoint('E3', [afterTerminalPassage('extension')])))).toMatchObject({
       kind: 'unsupported',
       node: 'X2',
@@ -254,7 +243,7 @@ describe('E4 recovery routing', () => {
 })
 
 describe('E1 and E2 read-only recognition', () => {
-  it('NA-E1-1: allowed enters E2 with no extra access check or business write', async () => {
+  it('allowed enters E2 with no extra access check or business write', async () => {
     let evaluations = 0
     const assembly = await loopAssembly([execution()])
     const c = coordinator(assembly, {
@@ -276,7 +265,7 @@ describe('E1 and E2 read-only recognition', () => {
     expect(assembly.controls.access.check.calls).toHaveLength(0)
   })
 
-  it('NA-E1-3: ended goes to F4 without entering E2', async () => {
+  it('ended goes to F4 without entering E2', async () => {
     let reads = 0
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
@@ -301,7 +290,7 @@ describe('E1 and E2 read-only recognition', () => {
   })
 
   it.each(['load', 'inputs', 'readReplyAdmissions', 'query'] as const)(
-    'NA-E2-2: unavailable %s waits on the dependency instead of reading empty facts',
+    'unavailable %s waits on the dependency instead of reading empty facts',
     async method => {
       const assembly = await loopAssembly([execution()], d => ({
         ...d,
@@ -318,7 +307,6 @@ describe('E1 and E2 read-only recognition', () => {
       const c = coordinator(assembly)
       ok(await c.accept())
       if (method === 'load') {
-        // E1 succeeds. Its wrapper schedules the fault for the separate E2 load.
         const original = assembly.dependencies.journal.load
         let first = true
         assembly.dependencies.journal.load = async input => {
@@ -332,8 +320,6 @@ describe('E1 and E2 read-only recognition', () => {
       } else assembly.controls.journal.failNextRead(method)
       const ran = await c.runExecution()
       if (method === 'query') {
-        // An unresolved original is waiting for its outcome: the wait stays in memory and saves
-        // nothing over it (Agent SPEC 依赖不可用时的等待).
         ok(ran)
         expect((await load(assembly)).state.kind).toBe('advancing')
         return
@@ -346,7 +332,7 @@ describe('E1 and E2 read-only recognition', () => {
     },
   )
 
-  it('NA-E2-2: a reply projection gap saves waiting', async () => {
+  it('a reply projection gap saves waiting', async () => {
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
       journal: {
@@ -364,7 +350,7 @@ describe('E1 and E2 read-only recognition', () => {
 
 describe('R0 and W0 coordination', () => {
   it.each(['unknown', 'applied', 'dropped'] as const)(
-    'NA-E4-3: R0 keeps the original operation when its result is %s',
+    'R0 keeps the original operation when its result is %s',
     async outcome => {
       const pending = operation('original-commit')
       const queried: string[] = []
@@ -417,14 +403,10 @@ describe('R0 and W0 coordination', () => {
     },
   )
 
-  // SPEC "查询的四种结论与持久拒绝": R0 branches on rejected explicitly. For an unresolved operation of
-  // another writer it is a settled refusal, so R0 goes on; for the coordinator's own commit it is a
-  // violation of the Journal provider, reported as unavailable, never waited on.
   it.each(['own-commit', 'other-operation'] as const)(
-    'NA-E4-3: R0 treats a rejected %s as settled or as a provider violation, not as unknown',
+    'R0 treats a rejected %s as settled or as a provider violation, not as unknown',
     async which => {
       const other = operation('other-ack')
-      // For `own-commit`, the first commit of the coordinator is held pending and named here.
       let target: ReturnType<typeof operation> | null = which === 'other-operation' ? other : null
       const assembly = await loopAssembly([execution()], d => ({
         ...d,
@@ -497,7 +479,7 @@ describe('R0 and W0 coordination', () => {
     },
   )
 
-  it('NA-E4-3: recovery of the original main call reaches I3 without another admission', async () => {
+  it('recovery of the original main call reaches I3 without another admission', async () => {
     let connects = 0
     let admits = 0
     const assembly = await loopAssembly([execution()], d => ({
@@ -646,8 +628,6 @@ describe('R0 and W0 coordination', () => {
       expect(acknowledgements).toBe(0)
       expect(processed).toBe(0)
       expect(assembly.controls.pusher?.acknowledgements()).toHaveLength(1)
-      // The outcome of the reply was fixed by prepare at Q1 (SPEC "消息准入"): the Ja retried
-      // after a dropped commit applies that outcome again and asks the provider nothing new.
       expect(assembly.controls.handoff.prepare.calls).toHaveLength(2)
       const replies = assembly.controls.handoff.prepare.calls.filter(
         call => call.request.source.kind === 'model-reply',
@@ -707,7 +687,7 @@ describe('R0 and W0 coordination', () => {
     },
   )
 
-  it('NA-E1-1: detach between E1 and E2 stops before another Model connection', async () => {
+  it('detach between E1 and E2 stops before another Model connection', async () => {
     let connects = 0
     let reentryLoads = 0
     let resuming = false
@@ -769,7 +749,7 @@ describe('R0 and W0 coordination', () => {
     expect(saved.checkpoint).toEqual(before.checkpoint)
   })
 
-  it('NA-E1-3: a terminal E2 snapshot takes priority over unresolved business continuation', async () => {
+  it('a terminal E2 snapshot takes priority over unresolved business continuation', async () => {
     let reentry = false
     let loads = 0
     let idle = 0
@@ -780,7 +760,6 @@ describe('R0 and W0 coordination', () => {
       ...d,
       journal: {
         ...d.journal,
-        // A refusal stops the run at F3; an unavailable tryFinish would go to R0 instead.
         tryFinish: async input => {
           finish = input
           return fail({ kind: 'denied', action: 'pause before terminal' })
@@ -819,9 +798,7 @@ describe('R0 and W0 coordination', () => {
     )
   })
 
-  // Agent SPEC 依赖不可用时的等待: the wait stays in the process, the drive yields and nothing
-  // is saved; the check time goes through E1.
-  it('NA-W0-1: a waiting commit answered unavailable keeps the wait in the process and saves no event', async () => {
+  it('a waiting commit answered unavailable keeps the wait in the process and saves no event', async () => {
     const assembly = await loopAssembly([execution()])
     const c = coordinator(assembly)
     ok(await c.accept())
@@ -832,7 +809,7 @@ describe('R0 and W0 coordination', () => {
     expect(await load(assembly)).toEqual(before)
   })
 
-  it('NA-E2-1: load, query, inputs and reply admissions reclaim facts without a revision change', async () => {
+  it('load, query, inputs and reply admissions reclaim facts without a revision change', async () => {
     const queried: string[] = []
     let inputReads = 0
     let admissionReads = 0
@@ -878,13 +855,12 @@ describe('R0 and W0 coordination', () => {
 })
 
 describe('saved waiting through invoke', () => {
-  it('NA-W0-1: state, basis and event commit once while observe remains occupied', async () => {
+  it('state, basis and event commit once while observe remains occupied', async () => {
     const writes: Parameters<ExecutionEntry<Principal>['ports']['journal']['commit']>[0][] = []
     const assembly = await loopAssembly([execution(), execution('exec-2')], d => ({
       ...d,
       journal: {
         ...d.journal,
-        // Hold the failure through W0's readiness reread; a one-shot read now recovers immediately.
         inputs: async () =>
           fail({ kind: 'unavailable', owner: 'test-inputs', diagnostic: 'offline' }),
         commit: input => {
@@ -907,7 +883,7 @@ describe('saved waiting through invoke', () => {
     expect(failure(await invoke(assembly, 'exec-2'))).toEqual({ kind: 'busy' })
   })
 
-  it('NA-E1-2: unavailable E1 load preserves the original continuation in a dependency wait', async () => {
+  it('unavailable E1 load preserves the original continuation in a dependency wait', async () => {
     const assembly = await loopAssembly([execution()])
     const c = coordinator(assembly)
     ok(await c.accept())
@@ -919,7 +895,7 @@ describe('saved waiting through invoke', () => {
     })
   })
 
-  it('NA-E1-1: a replaced attachment goes to E9 without a business write', async () => {
+  it('a replaced attachment goes to E9 without a business write', async () => {
     let idle = 0
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
@@ -945,7 +921,7 @@ describe('saved waiting through invoke', () => {
 })
 
 describe('the recovered input boundary', () => {
-  it('NA-E4-1: I0 takes the input content saved by acceptance', async () => {
+  it('I0 takes the input content saved by acceptance', async () => {
     const initial = acceptedInput('persisted-input', 'the saved input')
     const messages: unknown[] = []
     const assembly = await loopAssembly([execution()], d => ({
@@ -970,11 +946,7 @@ describe('the recovered input boundary', () => {
 })
 
 describe('a saved admission position in a new coordinator', () => {
-  // The recovery route names Q2 for a saved P, but no delivered path reaches that resume: a new
-  // coordinator with the same operation recognizes the original open and ends at E1 with
-  // found-existing, and the public resume is not delivered. The admission frame of Q2 is rebuilt
-  // only in memory by the coordinator that wrote the P (#502 stage 5 for a new one).
-  it('NA-E4-1: a new coordinator over a saved Q2 position recognizes the original open and ends at E1; the P and currentHandoff stay as saved', async () => {
+  it('a new coordinator over a saved Q2 position recognizes the original open and ends at E1; the P and currentHandoff stay as saved', async () => {
     let replies = 0
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
@@ -988,14 +960,18 @@ describe('a saved admission position in a new coordinator', () => {
       },
     }))
     assembly.release.open()
-    const first = coordinator(assembly)
+    const waits: string[] = []
+    const first = coordinator(assembly, {
+      waiting: (step, node, failure) =>
+        waits.push(`${step} ${node} ${failure.owner}: ${failure.diagnostic}`),
+    })
     ok(await first.accept())
-    // The admission is unavailable: the run waits at Q1 (Agent SPEC 依赖不可用时的等待).
     ok(await first.runExecution())
+    expect(waits).toEqual(['step-1 Q1 test-handoff: injected'])
     const saved = await load(assembly)
     expect(saved.checkpoint.position).toBe('Q2')
     expect(saved.checkpoint.currentHandoff).not.toBeNull()
-    expect(ok(recoveryRoute({ ...saved, unresolved: [] }))).toBe('Q2')
+    expect(ok(recoveryRoute({ ...saved, unresolved: [] }))).toBe('I3')
     const again = coordinator(assembly)
     ok(await again.accept())
     ok(await again.runExecution())
@@ -1010,12 +986,8 @@ describe('a saved admission position in a new coordinator', () => {
   })
 })
 
-describe('the Access of the admission calls (#963 N-2)', () => {
-  // Q1 and Q2 hand the Access of the execution's entry to the message handoff. The unavailable
-  // prepare took no effect, so the same coordinator at Q2 prepares the same request again and does
-  // not read it back with lookup (#1174 qa D1). Red when a call carries another tenant than the
-  // caller's.
-  it('NA-Q2-2: each prepare carries the tenant of the execution that calls it, and the unavailable one is not looked up', async () => {
+describe('the Access of the admission calls', () => {
+  it('each prepare carries the tenant of the execution that calls it, and the unavailable one is not looked up', async () => {
     const prepared: (readonly [kind: string, tenant: unknown])[] = []
     let replies = 0
     const assembly = await loopAssembly([execution('exec-a'), execution('exec-b')], d => ({
@@ -1043,7 +1015,6 @@ describe('the Access of the admission calls (#963 N-2)', () => {
         initial: acceptedInput(`input-${id}`, `hello ${id}`),
       })
       ok(await entry.accept())
-      // The admission is unavailable: the run waits at Q1, and the next pass prepares again.
       ok(await entry.runExecution())
       ok(await entry.runExecution())
     }
@@ -1060,14 +1031,13 @@ describe('the Access of the admission calls (#963 N-2)', () => {
 })
 
 describe('checkpoint positions saved by the current assembly', () => {
-  it('NA-E4-2: every checkpoint written on the normal path has the specified recovery destination', async () => {
+  it('every checkpoint written on the normal path has the specified recovery destination', async () => {
     const saved: Pick<ExecutionSnapshot, 'checkpoint' | 'state' | 'unresolved'>[] = []
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
       journal: {
         ...d.journal,
         commit: input => {
-          // A committed settling state carries no intent; the route reads only the kind.
           const state: ExecutionState =
             input.state.kind === 'settling'
               ? {
@@ -1089,19 +1059,18 @@ describe('checkpoint positions saved by the current assembly', () => {
     }))
     const expected: Record<string, string> = {
       E4: 'evaluate',
-      // R2-D292: before the final request record nothing of the preparation is saved.
       I1: 'I1',
       P0: 'I1',
       P1: 'I1',
       I2: 'I1',
       M6: 'M6',
       M4: 'M4',
-      Q2: 'Q2',
-      Q4: 'Q4',
+      Q2: 'I3',
+      Q4: 'I3',
       I3: 'I3',
       I4: 'I4',
       I8: 'I8',
-      F1: 'F1',
+      F1: 'I8',
       F2: 'F2',
       F3: 'F3',
     }

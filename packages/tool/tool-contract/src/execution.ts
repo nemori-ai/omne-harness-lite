@@ -1,4 +1,3 @@
-// Executors, result policy, execution references, recovery input and the ledger command port.
 import type { CallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -93,7 +92,9 @@ export type ToolRecovery = Readonly<{
   unresolved: readonly ToolOperationId[]
   preparations: readonly PreparationRecord[]
   waits: readonly WaitRecord[]
+  waitRequest: Readonly<{ wait: ToolWaitId; request: string }> | null
   suspensions: readonly SuspensionRecord[]
+  checkpointState: Readonly<{ payload: DurableEvidence; state: string }> | null
   tasks: readonly ToolTask[]
   program: ProgramClosure | null
   scheduling: ProgramScheduling | null
@@ -101,7 +102,6 @@ export type ToolRecovery = Readonly<{
 }>
 export interface ToolCommands<P, B extends ContentBlock> {
   admit(input: Mutation<P> & Readonly<{ request: FixedToolRequest }>): Reply<ToolState>
-  /** Same operation and fixed intent recall the original receipt; public control allocates a new operation. */
   control(input: Mutation<P> & Readonly<{ intent: ToolControl }>): Reply<ControlReceipt>
   acceptDecision(
     input: Mutation<P> & Readonly<{ wait: ToolWaitId; decision: DurableEvidence }>,
@@ -163,7 +163,8 @@ export interface ToolCommands<P, B extends ContentBlock> {
     input: WriteContext & Readonly<{ start: ToolStartRecord; schema: Adoption }>,
   ): Reply<SuspensionRecord>
   suspend(
-    input: WriteContext & Readonly<{ suspension: SuspensionRecord; checkpoint: Checkpoint }>,
+    input: WriteContext &
+      Readonly<{ suspension: SuspensionRecord; checkpoint: Checkpoint; state: string }>,
   ): Reply<ToolState>
   preserveResult(input: WriteContext & Readonly<{ basis: DurableEvidence }>): Reply<ToolState>
   recordResponse(

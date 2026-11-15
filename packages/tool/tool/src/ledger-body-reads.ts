@@ -1,9 +1,3 @@
-// Read-back of an offloaded body (BodyLifecycle `ReadBegin`/`ReadRefuse`, `ReadFinish`): the
-// ledger check of authorization, result version, body entry and `now < expiresAt`; the store read
-// of a chunk range; on a miss the ledger re-check (`reclaimed`, `orphaned` or within ε of expiry
-// answers `expired`, only a linked body clearly before expiry reports integrity); after the bytes
-// arrive the expiry is checked again on the reader's clock, so a stalled read never breaks the
-// window. Reading never extends retention and takes no lease.
 import { readJsonBytes, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -33,7 +27,6 @@ export type BodyReadInput<P> = Parameters<ToolBodyReader<P>['read']>[0]
 type Projection = 'text-utf8-v1' | 'body-bytes-v1'
 type BodyStore = NonNullable<ToolLedgerPorts<unknown>['bodies']>['store']
 
-/** Where a page starts: the chunk, the offset inside it, and the position in the whole body. */
 type Position = Readonly<{ seq: number; offset: number; position: number }>
 
 const CHUNKS_PER_READ = 16
@@ -66,7 +59,6 @@ export function fixBodyRead<P>(input: unknown): Outcome<BodyReadInput<P>, ToolFa
 
 type Located = Readonly<{ body: ToolOffloadedBody; entry: BodyEntryRecord }>
 
-/** The ledger check: the result version holds this body and the entry is linked to it. */
 function locate<P>(snapshot: Snapshot, input: BodyReadInput<P>): Outcome<Located, ToolFailure> {
   const result = resultRecord(snapshot, input.result)
   if ('failure' in result) return result
@@ -81,7 +73,6 @@ function locate<P>(snapshot: Snapshot, input: BodyReadInput<P>): Outcome<Located
   return succeed({ body: original, entry })
 }
 
-/** Every cursor is signed over its whole content, so a cursor of another tenant, result or body fails. */
 function cursorScope<P>(input: BodyReadInput<P>, projection: Projection, at: Position): string {
   return digestOf({
     tenant: input.tenant,
@@ -97,7 +88,6 @@ function encodeCursor<P>(input: BodyReadInput<P>, projection: Projection, at: Po
   return JSON.stringify({ version: 2, ...at, scope: cursorScope(input, projection, at) })
 }
 
-/** The five fields of a version 2 cursor, with a position strictly inside the body. */
 function cursorPosition(cursor: object, total: number): Position | null {
   const seq: unknown = Reflect.get(cursor, 'seq')
   const offset: unknown = Reflect.get(cursor, 'offset')
@@ -130,7 +120,6 @@ function decodeCursor<P>(
     : notCursor('another-body-or-invalid-position')
 }
 
-/** Where a run of page bytes came from, and whether it reached the end of its chunk. */
 type Segment = Readonly<{ seq: number; offset: number; length: number; chunkEnd: boolean }>
 type Range =
   | Readonly<{
@@ -141,7 +130,6 @@ type Range =
     }>
   | Readonly<{ kind: 'absent' }>
 
-/** The bytes taken so far from the store, chunk by chunk, with where each byte came from. */
 class Taken {
   readonly parts: Buffer[] = []
   readonly segments: Segment[] = []
@@ -157,7 +145,6 @@ class Taken {
   get full(): boolean {
     return this.length >= this.budget
   }
-  /** Takes what the budget allows from one chunk; answers whether the chunk was read to its end. */
   take(chunk: Uint8Array): boolean {
     const slice = Buffer.from(
       chunk.subarray(this.offset, this.offset + (this.budget - this.length)),
@@ -177,7 +164,6 @@ class Taken {
     this.offset = 0
     return true
   }
-  /** Takes from the chunks of one store answer; stops at the budget or at a chunk not read to its end. */
   takeAll(
     chunks: readonly Readonly<{ seq: number; bytes: Uint8Array }>[],
   ): 'missing' | 'partial' | 'done' {
@@ -194,7 +180,6 @@ class Taken {
   }
 }
 
-/** Model `ReadStore`: up to `budget` bytes from `at`, chunk by chunk, with where each byte came from. */
 async function readRange(
   store: BodyStore,
   ref: ToolBodyRef,
@@ -216,7 +201,6 @@ async function readRange(
   return succeed(taken.range(manifest))
 }
 
-/** The position after `consumed` bytes of the range. */
 function advance(at: Position, segments: readonly Segment[], consumed: number): Position {
   let remaining = consumed
   let next: Position = at
@@ -239,7 +223,6 @@ function advance(at: Position, segments: readonly Segment[], consumed: number): 
   return next
 }
 
-/** The longest prefix that ends on a UTF-8 character boundary. */
 function characterPrefix(bytes: Buffer): number {
   let end = bytes.length
   for (let back = 1; back <= 3 && end - back >= 0; back += 1) {
@@ -251,7 +234,6 @@ function characterPrefix(bytes: Buffer): number {
   return end
 }
 
-/** The store's manifest must be the one the ledger sealed, and the body the size the result says. */
 function manifestMatches(entry: BodyEntryRecord, stored: ToolBodyManifest, total: number): boolean {
   const manifest = sealedManifest(entry)
   return (
@@ -290,10 +272,6 @@ export function createLedgerBodyReads<P>(
     total: number
   }>
 
-  /**
-   * Model `ReadRefuse` on a miss: the entry re-read; reclaimed, orphaned or within ε of expiry is
-   * `expired`; a linked body clearly before its expiry without bytes is an integrity failure.
-   */
   const missed = async (
     input: BodyReadInput<P>,
     body: ToolOffloadedBody,
@@ -309,7 +287,6 @@ export function createLedgerBodyReads<P>(
       : unavailable('integrity: a linked body before its expiry has no bytes in the store')
   }
 
-  /** Model `ReadStore` then `ReadFinish`: the bytes, checked against the entry, the expiry and the reader again. */
   const storedRange = async (
     bodies: NonNullable<ToolLedgerPorts<P>['bodies']>,
     input: BodyReadInput<P>,
@@ -328,7 +305,6 @@ export function createLedgerBodyReads<P>(
     return 'failure' in current ? current : succeed(range.ok)
   }
 
-  /** The ledger check, the store read, the re-check on a miss and the re-check after the bytes. */
   const readPage = async (
     input: BodyReadInput<P>,
     projection: Projection,
@@ -363,7 +339,6 @@ export function createLedgerBodyReads<P>(
       : encodeCursor(input, projection, advance(page.at, page.segments, consumed))
   }
 
-  /** The fields every body page carries. */
   const pageFields = (input: BodyReadInput<P>, page: Page, consumed: number) => ({
     result: input.result,
     bodyId: input.bodyId,
@@ -373,7 +348,6 @@ export function createLedgerBodyReads<P>(
     next: next(input, 'text-utf8-v1', page, consumed),
   })
 
-  /** The bytes of a text page that end on a character boundary; the last page takes everything. */
   const textConsumed = (page: Page): Outcome<number, ToolFailure> => {
     const first = page.bytes[0]
     if (page.at.position > 0 && first !== undefined && (first & 0xc0) === 0x80)

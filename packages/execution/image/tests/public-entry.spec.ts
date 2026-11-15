@@ -542,9 +542,6 @@ it(
       maxInFlightBytes: 2048 * 2048 * 4,
     })
     const pending = open({ bytes, budget: gate })
-    // The reservation is taken before the decode runs, so it is observable before the first await.
-    // A caller that stops waiting here (a timeout) leaves it held until the handle closes; racing a
-    // 1 ms timer against the decode asserted the same thing but lost on hosts that decode faster.
     expect(gate.heldReservation()).toEqual({ count: 1, bytes: 2048 * 2048 * 4 })
     const opened = await pending
     expect(opened.kind).toBe('opened')

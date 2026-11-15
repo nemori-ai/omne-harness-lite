@@ -1,6 +1,3 @@
-// The `telemetry` row next to the real `server-entry` row and in the real release: an entry
-// diagnostic as a telemetry record (A2), the entry PENDING without the row (A11), and the `serve`
-// process whose stdout is one complete JSON record per line with `shutdown-result` last (A1, A4, A9).
 import { spawn } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -26,7 +23,6 @@ import {
 
 type Rec = { kind: string } & Record<string, unknown>
 
-/** Test budgets for the release tree. The release row carries none (A12). */
 const BUDGETS = {
   maxRecordBytes: 65_536,
   maxQueueItems: 1024,
@@ -36,10 +32,6 @@ const BUDGETS = {
   summaryIntervalMs: 1000,
 }
 
-/**
- * The test operator layer of `tests/r9/support.ts` plus the `telemetry` replace: a `replace` swaps
- * the whole row, so it restates the release implementation and outlet and adds the budgets.
- */
 function withTelemetry(layer: unknown): unknown {
   const { ops } = layer as { ops: unknown[] }
   return {
@@ -93,15 +85,12 @@ describe('A2: the server-entry diagnostic through telemetry', () => {
     expect(printed).not.toContain(who.loginProof)
     expect(printed).not.toContain('SECRET')
     expect(printed).not.toContain('create-1')
-    // The thrown error's text stays out of stdout entirely (a fault code, not a message).
     expect(JSON.stringify(run.records)).not.toContain('IDENTITY-FAULT-TEXT')
   })
 })
 
 describe('M2: the path of an entry diagnostic', () => {
   it('keeps only the path of the request URL: a query or fragment the client sent never reaches the record', () => {
-    // `request.fault` carries `req.url` as the member received it. The entry 404s a query before
-    // anything can throw, so the facade is where a client's text is cut, whatever the member hands in.
     const capture = createCapturingTelemetry()
     const sink = entryDiagnostics(capture.port)
 
@@ -148,7 +137,6 @@ describe('the serve process with the release', () => {
       plugin: 'telemetry',
       config: { implementation: 'node', outlet: { kind: 'stdout' } },
     })
-    // The entry needs its provider before it loads.
     const ids = release.rows.map(r => r['id'])
     expect(ids.indexOf('telemetry')).toBeLessThan(ids.indexOf('server-entry'))
   })
@@ -157,7 +145,6 @@ describe('the serve process with the release', () => {
     'A1, A4, A9: every stdout line is one JSON record, telemetry is in the tree, shutdown-result is last and readable',
     { tags: ['slow'] },
     async () => {
-      // Slow: starts `dist/bin.js serve` on the whole release tree (real SQLite storage).
       const base = realpathSync(mkdtempSync(join(tmpdir(), 'telemetry-serve-')))
       scratches.push(base)
       const stateRoot = join(base, 'state')
@@ -200,8 +187,6 @@ describe('the serve process with the release', () => {
         stdout += chunk
         if (!stopped && stdout.includes('"kind":"startup-result"')) {
           stopped = true
-          // No request is sent: the release rows write a few WARN and INFO messages while they
-          // load, and those `log` records are what this run checks the line protocol on.
           child.stdin.end()
         }
       })
@@ -211,7 +196,6 @@ describe('the serve process with the release', () => {
       const code = await new Promise<number | null>(resolve => child.on('close', resolve))
       expect(code, stderr).toBe(0)
 
-      // A4: every line is one complete JSON object; the output ends with a newline.
       expect(stdout.endsWith('\n')).toBe(true)
       const lines = stdout.slice(0, -1).split('\n')
       const records = lines.map(line => JSON.parse(line) as Rec)
@@ -219,7 +203,6 @@ describe('the serve process with the release', () => {
       expect(records.at(-1)?.kind).toBe('shutdown-result')
       expect(records.filter(record => record.kind === 'shutdown-result')).toHaveLength(1)
 
-      // A1: the telemetry row is in the tree, real, node on stdout; startup is ready.
       expect(records.find(r => r.kind === 'tree' && r['id'] === 'telemetry')).toMatchObject({
         plugin: 'telemetry',
         implementation: 'real',
@@ -233,7 +216,6 @@ describe('the serve process with the release', () => {
         outcome: 'ready',
       })
 
-      // A9: the close report of the runtime is readable from the process output.
       expect(records.at(-1)?.['telemetry']).toMatchObject({
         kind: 'closed',
         flush: 'completed-to-boundary',

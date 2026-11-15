@@ -32,7 +32,6 @@ async function started(f: ReturnType<typeof commandFixture>, args: string[]) {
   return result.value
 }
 
-/** Reads a pid the command wrote to a file once it exists. */
 async function pidIn(path: string): Promise<number> {
   for (let attempt = 0; attempt < 200; attempt++) {
     const text = await readFile(path, 'utf8').catch(() => '')

@@ -150,7 +150,6 @@ describe('batch identities and continuity', () => {
       record => record.kind === 'task' && record.task.kind === 'fact-ack',
     )
     if (batch?.kind !== 'fact-batch' || ack?.kind !== 'task') throw new Error('fixture')
-    // B owns the confirmation command. Stage its documented committed record to test A recall.
     const confirmed: FactBatchRecord = {
       ...batch.batch,
       acknowledgement: { kind: 'confirmed', sourceReceipt: evidence('ack') },
@@ -234,20 +233,21 @@ describe('batch identities and continuity', () => {
       expect(harness.memory.commits).toBe(count)
     },
   )
-  it.each(['wait', 'continued', 'account', 'program-scheduling'] as const)(
+  it.each(['resource wait', 'account', 'program-scheduling'] as const)(
     'rejects an entire batch containing unsupported %s',
     async kind => {
       const { harness, access, batch } = await running()
       const count = harness.memory.commits
+      const fact =
+        kind === 'resource wait' ? { kind: 'wait', value: { kind: 'resource' } } : { kind }
       const unsupported = {
         ...batch,
         events: [
           ...batch.events,
-          { event: 'unsupported', fact: { kind } },
+          { event: 'unsupported', fact },
           { event: 'last', fact: finalFact() },
         ],
       }
-      // Exercise the untyped producer boundary for variants that A deliberately cannot consume.
       const answer = await Reflect.apply(harness.commands.receiveFacts, null, [
         { ...access, start: batch.start, batch: unsupported },
       ])
@@ -256,6 +256,28 @@ describe('batch identities and continuity', () => {
       expect((await records(harness)).some(record => record.kind.startsWith('fact-'))).toBe(false)
     },
   )
+  it('rejects an entire batch whose continued fact belongs to no resume (P06)', async () => {
+    const { harness, access, batch } = await running()
+    const count = harness.memory.commits
+    const continued = {
+      kind: 'continued',
+      wait: `${batch.start.operation}/wait`,
+      response: `${batch.start.operation}/wait/accept`,
+      timing: { owner: 'test-host', record: 'timing', revision: '1', digest: 'sha256:timing' },
+    }
+    const rejected = {
+      ...batch,
+      events: [...batch.events, { event: 'continued', fact: continued }],
+    }
+    const answer = await Reflect.apply(harness.commands.receiveFacts, null, [
+      { ...access, start: batch.start, batch: rejected },
+    ])
+    expect(answer).toMatchObject({
+      failure: { kind: 'invalid', reason: 'continued-without-resume' },
+    })
+    expect(harness.memory.commits).toBe(count)
+    expect((await records(harness)).some(record => record.kind.startsWith('fact-'))).toBe(false)
+  })
 })
 
 describe('atomic custody and recovery', () => {
@@ -714,7 +736,6 @@ describe('fixed producer boundary and current access', () => {
     if (stored.kind !== 'complete') throw new Error('fixture')
     const call = stored.records.find(record => record.kind === 'call')
     if (call?.kind !== 'call' || call.call.execution === null) throw new Error('fixture')
-    // Existing claim is not delivered. Model only its changed coordinator execution binding.
     await harness.memory.commit({
       domain,
       expected: stored.revision,
@@ -734,7 +755,7 @@ describe('fixed producer boundary and current access', () => {
     })
     ok(await receive())
     await admitCall(harness, 'other', {
-      limits: { concurrency: 2, foregroundMs: null, backgroundAfterMs: null },
+      limits: { concurrency: 2, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
     })
     await harness.drive('other')
     const otherAccess = { ...access, call: callId('other') }

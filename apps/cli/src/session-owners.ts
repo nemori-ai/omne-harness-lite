@@ -3,11 +3,6 @@ import { readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseTenantText } from '@omne-harness/sdk'
 
-/**
- * The content of `sessions.json` in the state directory: for each session this CLI created, the
- * tenant that owns it. The owner of a session is fixed when it is created, and the session id is a
- * hash that does not show it, so the client keeps the pair. Nothing else is stored.
- */
 export interface SessionOwners {
   readonly version: 1
   readonly sessions: Readonly<Record<string, string>>
@@ -47,11 +42,8 @@ function shapeOf(value: unknown): Map<string, string> | undefined {
   return owners
 }
 
-/**
- * Reads the records. A missing file is an empty record: no session has been created yet. A file
- * that cannot be read or has an unexpected shape is a failure, never an empty record, so a damaged
- * file cannot make a known session look unknown.
- */
+// A missing file is an empty record. An unreadable or malformed file is a failure, never an empty
+// record, so a damaged file cannot make a known session look unknown.
 export function readSessionOwners(directory: string): SessionOwnersRead {
   const path = sessionOwnersPath(directory)
   let content: string
@@ -75,11 +67,6 @@ export function readSessionOwners(directory: string): SessionOwnersRead {
     : { kind: 'owners', owners }
 }
 
-/**
- * Writes the records through a temporary file in the same directory and a rename, so a failure
- * leaves the old file as it was. The file is created with mode 0600. On Windows the mode has no
- * effect and the file keeps the access rules of its directory.
- */
 export function writeSessionOwners(
   directory: string,
   owners: ReadonlyMap<string, string>,

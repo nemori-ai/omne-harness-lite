@@ -1,10 +1,3 @@
-// The construction ports that a provider supplies, the outbound ports that Session calls, the
-// command and guard shapes that cross the transaction port, and the block declaration
-// (SPEC「构造依赖端口与出站端口」,「会话块声明与设置值的固定时点」). The outbound ports carry only
-// this member's values and opaque evidence: no Agent, Model or Tool type appears here. The
-// superseded `ToolStartFencePort` and `DeliveryReleasePort` are not declared: the delivery release
-// goes through the Agent host's result receiver (CA-06), the tool start fence is the Agent journal
-// `start-fence` entry (#672 J03).
 import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -46,6 +39,7 @@ import type {
   ReleasedScope,
   Reply,
   ResidentReference,
+  SessionDirectory,
   SessionHistory,
   SessionManagement,
   SessionReconciliation,
@@ -84,6 +78,7 @@ export type ExecutionStatus = Readonly<{
   revision: string | null
   state: 'missing' | 'open' | 'suspended' | 'ended'
   attachment: 'active' | 'detached' | 'superseded' | null
+  lost: DurableEvidence | null
   conclusion: Readonly<{
     outcome: 'complete' | 'fail' | 'cancelled'
     cause: DurableEvidence | null
@@ -122,7 +117,6 @@ export interface AgentDrivePort {
   ): DriveReply<DriveReceipt>
   query(input: DriveTarget): DriveReply<'committed' | 'excluded' | 'unknown'>
   inspect(input: Omit<DriveTarget, 'operation'>): DriveReply<ExecutionStatus>
-  /** Not called until the Agent host instance-creation entry exists (SPEC P-7). */
   prewarm(
     input: Readonly<{
       tenant: TenantId
@@ -182,9 +176,9 @@ export type MutationName =
   | 'interrupt'
   | 'cancelRun'
   | 'stopCall'
+  | 'retryRun'
   | 'freeze'
   | 'receive'
-/** The mutation methods of the three faces, with the principal erased. */
 export type Mutations = Pick<
   SessionWork<never> & SessionManagement<never> & SessionReconciliation<never>,
   MutationName
@@ -211,11 +205,6 @@ export type GuardCommand = Readonly<{
 export interface SessionIdentityBridge<P> {
   prepare(input: SessionAccess<P>, command: SessionCommand): Reply<GuardCommand>
 }
-/**
- * The guard material of the commands that need evidence. `access` is the access of the original
- * call. Session always passes it; a caller that predates it may omit it, and the bridge then
- * authorizes nothing by its absence.
- */
 export interface SessionEvidenceBridge<P = unknown> {
   prepare(command: SessionCommand, access?: SessionAccess<P>): Reply<readonly GuardCommand[]>
 }
@@ -236,7 +225,6 @@ export interface SessionContextInput<P> {
     command: Extract<SessionCommand, { kind: 'create' | 'change' | 'startRun' | 'reload' }>,
   ): Reply<readonly GuardCommand[]>
 }
-/** The commands whose guard material the Context adoption source prepares. */
 export type AdoptionEvidenceCommand = Extract<
   SessionCommand,
   { kind: 'create' | 'startRun' | 'reload' | 'completeInitialization' | 'change' | 'freeze' }
@@ -249,7 +237,6 @@ export type CustodyEvidenceCommand = Extract<
   SessionCommand,
   { kind: 'preserveResult' | 'completeConsumption' | 'completeExternalConsumption' }
 >
-/** One recorded resident of the session, as the adoption point reads it: the capability, its key and its stored shape. */
 export type SessionAdoptionRecorded = Readonly<{
   capability: string
   key: string
@@ -259,16 +246,10 @@ export type SessionAdoptionPlanInput = Readonly<{
   recorded: readonly SessionAdoptionRecorded[]
   capabilities: readonly string[]
 }>
-/** The adoption material of one planned start, and the freeze verdict when the plan proved the shape lost. */
 export type SessionAdoptionPlanAnswer = Readonly<{
   material: ResidentAdoption
   verdict: FreezeVerdict | null
 }>
-/**
- * The three narrow consumption ports of the evidence bridge (XC-ADOPTSRC). They prepare guard
- * material only. `plan` is the adoption point that Session calls before `startRun`; its failure
- * is the plain `unavailable` of the frozen shape, not a `SessionFailure`.
- */
 export interface SessionAdoptionSource<P = unknown> {
   prepare(
     command: AdoptionEvidenceCommand,
@@ -286,11 +267,6 @@ export interface SessionCustodySource {
   prepare(command: CustodyEvidenceCommand): Reply<readonly GuardCommand[]>
 }
 export interface SessionTransactionPort<P> {
-  /**
-   * Commits one command under the explicit access of this call (SPEC「当前操作的访问裁定」). The
-   * access must name the tenant and session of the command; the provider asks the access check
-   * once before any effect, including the recall of an operation it already holds.
-   */
   commit<K extends MutationName>(
     input: Readonly<{
       access: SessionAccess<P>
@@ -309,19 +285,9 @@ export interface SessionTransactionPort<P> {
   queryControlOperation(
     input: SessionAccess<P> & Readonly<{ operation: SessionOperationId }>,
   ): Reply<ControlOperationResolution>
-  /**
-   * The same-log entries interpretation commit. It is not a public face method and has no access
-   * check: the caller is the trusted interpreter, and the facts are already committed producer facts.
-   */
   commitEntries(
     input: Readonly<{ observation: SessionEntriesObservation; start: SessionEntriesStart }>,
   ): Reply<SessionEntriesReceipt>
-  /**
-   * The same-log event interpretation commit, the counterpart of `commitEntries` for the event
-   * channel. It is not a public face method and has no access check: the caller is the trusted
-   * interpreter, and the events are already committed producer facts. A provider that does not
-   * offer it omits it. A delegated view that has it answers `denied`.
-   */
   commitLog?: (
     input: Readonly<{ observation: SessionLogCommitObservation }>,
   ) => Reply<SessionLogReceipt>
@@ -335,6 +301,7 @@ export interface SessionTransactionPort<P> {
       reason?: PendingReason
     }>,
   ): Reply<Readonly<{ sessions: readonly SessionId[]; next: string | null }>>
+  readonly directory?: SessionDirectory<P>
   references(
     input: Readonly<{
       principal: P
@@ -344,21 +311,11 @@ export interface SessionTransactionPort<P> {
       limit: number
     }>,
   ): Reply<Readonly<{ sessions: readonly ResidentReference[]; next: string | null }>>
-  /** System scope. Pages through scopes that archives released, for re-release after an execution-environment provider change. */
   releasedScopes(
     input: Readonly<{ principal: P; scope: 'system'; after: string | null; limit: number }>,
   ): Reply<Readonly<{ scopes: readonly ReleasedScope[]; next: string | null }>>
 }
-/** Principals the application assembly issues for commands that Session's own coordinators and schedulers submit. The identity bridge verifies them. */
 export type SessionInternalPrincipals<P> = Readonly<{ coordinator: P; maintainer: P }>
-/**
- * The tenant ownership of an established session (D-AUTH r4 4.1). It proves only the tenant and the
- * established identity, and does not ask `SessionAccessCheck`. `source` is the evidence of the batch
- * that established the session (`batchEvidence` of its creating batch). It does not change when later
- * batches commit, unlike `WorkSnapshot.source`, which is the evidence of the latest batch. An unknown
- * session and a session of another tenant both answer `not-bound`. Only the trusted issuing closure
- * of the assembly reads it.
- */
 export interface SessionPrincipalBindingSource {
   read(
     input: Readonly<{ tenant: TenantId; session: SessionId }>,
@@ -370,13 +327,17 @@ export interface SessionPrincipalBindingSource {
     >
   >
 }
-/**
- * The per-session principal of a coordinator or maintainer (D-AUTH r4 4.1). The assembly entry
- * issues it after it read `SessionPrincipalBindingSource`: `not-bound` answers `denied`; a `bound`
- * answer for another tenant or session answers `quarantined`; a failed or throwing read passes its
- * failure on (a throw as `unavailable`); a failed issue answers `unavailable` with owner `identity`.
- * No failure issues a principal.
- */
+export interface SessionScopeOwnerSource {
+  lookup(
+    input: Readonly<{ scope: string }>,
+  ): Promise<
+    Outcome<
+      | Readonly<{ kind: 'owned'; tenant: TenantId; session: SessionId; generation: string }>
+      | Readonly<{ kind: 'unknown' }>,
+      Extract<SessionFailure, { kind: 'unavailable' }>
+    >
+  >
+}
 export interface SessionWorkPrincipals<P> {
   forSession(
     input: Readonly<{ actor: 'coordinator' | 'maintainer'; tenant: TenantId; session: SessionId }>,

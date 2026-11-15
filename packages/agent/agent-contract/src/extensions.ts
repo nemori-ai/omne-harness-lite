@@ -1,5 +1,3 @@
-// The extension author protocol: types of docs/public-api/extensions.md, the single place that
-// declares them. Judgments live in judge-extensions.ts and judge-output.ts.
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Message } from '@omne-harness/message'
 import type * as M from '@omne-harness/model-contract'
@@ -45,11 +43,6 @@ export type ExtensionImplementationDeclaration =
       matcher?: string
       timeout?: string
     }>
-/**
- * One need of an extension: one capability or one named read that assembly delivers at the call.
- * `name` is the key of the delivery, `schema` the exact adoption of the contract the delivered
- * value follows, `required` whether the call may start without it (SPEC, "声明判断", `needs`).
- */
 export type NeedDeclaration = Readonly<{ name: string; schema: Adoption; required: boolean }>
 export type LoopExtensionDeclaration = Readonly<{
   name: string
@@ -61,6 +54,18 @@ export type LoopExtensionDeclaration = Readonly<{
   onError?: ErrorPolicy
   unavailability?: UnavailabilityPolicy
 }>
+export const ACTION_ADMISSION_DECLARATION: LoopExtensionDeclaration = Object.freeze({
+  name: 'action_admission',
+  position: 'before_action',
+  power: 'veto',
+  implementation: Object.freeze({ kind: 'builtin', builtinName: 'action_admission' }),
+})
+export const ACTION_ADMISSION_IMPLEMENTATION: Adoption = Object.freeze({
+  owner: 'agent',
+  name: 'action-admission',
+  revision: '1',
+  digest: 'agent:action-admission/1',
+})
 
 export type ExtensionInput = Readonly<{
   position: Position
@@ -166,12 +171,6 @@ export type ExtensionReplayBinding = Readonly<{
   }>[]
   control: 'valid' | 'replayInconsistent' | 'unavailable'
 }>
-/**
- * The non-final result of an invocation whose physical start or end the host cannot tell
- * (extensions.md, "调用协议"): the host handed control back, the Passage stays requested or asked,
- * and `recovery` binds the original execution, Passage, exact implementation, mode and the host's
- * execution record for the next lawful replay. `started` only proves real entry.
- */
 export type InvocationUnresolved = Readonly<{
   kind: 'invocationUnresolved'
   start: Readonly<{ kind: 'unknown' }> | Readonly<{ kind: 'started'; evidence: DurableEvidence }>

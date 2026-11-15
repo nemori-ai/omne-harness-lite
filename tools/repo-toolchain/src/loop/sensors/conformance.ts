@@ -21,10 +21,8 @@ export interface ArchitectureReadings {
   readonly conformance: Reading<Conformance>
 }
 
-/** BASE 一侧的观测；BASE 提交里没有 pnpm-workspace.yaml 时为 undefined。收工钩子换成按提交缓存的那一份。 */
 export type BaselineReader = (root: string, base: string) => BaselineObservation | undefined
 
-/** 每次都从 BASE 提交重算。 */
 export function observeBaselineAt(root: string, base: string): BaselineObservation | undefined {
   const hasWorkspace = git(root, [
     'ls-tree',
@@ -39,11 +37,6 @@ export function observeBaselineAt(root: string, base: string): BaselineObservati
   return hasWorkspace ? observeBaseline(root, readArchitectureSource(root, base)) : undefined
 }
 
-/**
- * Read each complete source version once. No manual node declaration oracle remains.
- * `graph` 是调用方已经算过的工作树依赖图：符合性的方向行读它，不再跑一次 dependency-cruiser。
- * `readBaseline` 给出 BASE 一侧；默认每次重算。
- */
 export function readArchitectureSensors(
   root: string,
   config: { readonly enabled: boolean },
@@ -62,7 +55,6 @@ export function readArchitectureSensors(
     ? readArchitectureSource(root)
     : undefined
   const baseline = base === undefined ? undefined : readBaseline(root, base)
-  // Validate each present version before reporting the other version's absence.
   if (currentSource === undefined || (base !== undefined && baseline === undefined)) {
     const reason =
       currentSource === undefined

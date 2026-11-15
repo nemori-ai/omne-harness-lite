@@ -87,7 +87,6 @@ const denied = (): ModelFailure => ({ kind: 'denied', action: 'execution-channel
 const keyOf = (tenant: string, call: InitialTarget['call']) => JSON.stringify([tenant, call])
 const initialRunAccess = Object.freeze({})
 
-/** A recovery read of a call that the storage does not hold has no initial record either. */
 function recordMissing<T>(result: Outcome<T, ModelFailure>): Outcome<T, ModelFailure> {
   return 'failure' in result &&
     result.failure.kind === 'invalid' &&
@@ -97,7 +96,6 @@ function recordMissing<T>(result: Outcome<T, ModelFailure>): Outcome<T, ModelFai
     : result
 }
 type ContinuityInput = Parameters<ModelCommandsEvidence['continuity']>[0]
-/** The stored call is still the one that the record admitted, for the same consumer and request. */
 function matchesCall(call: CallDocument, record: BoundRecord, input: ContinuityInput): boolean {
   return (
     call.admission === record.admission &&
@@ -106,7 +104,6 @@ function matchesCall(call: CallDocument, record: BoundRecord, input: ContinuityI
     input.requestDigest === call.requestDigest
   )
 }
-/** The call, operation and binding that one confirmed pass wrote or saw for the record's call. */
 type ConfirmedWrite = Readonly<{
   call: CallDocument
   operation: ModelOperationId | undefined
@@ -120,7 +117,6 @@ function passWrite(pass: ModelConfirmationPass, scope: RunScope) {
     binding: staged?.binding ?? pass.seen?.operation,
   }
 }
-/** The write of the pass, when it names the record's call and admission under a committed binding. */
 function confirmedWrite(
   pass: ModelConfirmationPass,
   scope: RunScope,
@@ -137,7 +133,6 @@ function confirmedWrite(
     return null
   return { call, operation, binding }
 }
-/** The pending record's own admit, under its admission operation and fingerprint. */
 function admitsPending(record: LocalAdmission, write: ConfirmedWrite): boolean {
   const { binding } = write
   return (
@@ -147,7 +142,6 @@ function admitsPending(record: LocalAdmission, write: ConfirmedWrite): boolean {
     binding.fingerprint === record.admissionFingerprint
   )
 }
-/** The execution of the bound record's own claim, for its instance and the claimed generation. */
 function claimedExecution(record: BoundRecord, write: ConfirmedWrite): ExecutionRef | null {
   const { binding, call } = write
   return write.operation === record.operation &&
@@ -240,7 +234,6 @@ class InitialRun<P> implements ModelInitialRun<P> {
       throw error
     }
   }
-  /** A confirmed admit makes the pending record admitted; a confirmed claim gives the bound one its execution. */
   #confirmRecord(key: string, record: InitialRecord, write: ConfirmedWrite): void {
     if (record.kind === 'admission-pending' && admitsPending(record, write))
       this.#records.set(key, { ...record, kind: 'admitted' })
@@ -255,7 +248,6 @@ class InitialRun<P> implements ModelInitialRun<P> {
   #boundAccess(bound: BoundCommandAccess<P> | undefined): BoundCommandAccess<P> | null {
     return bound !== undefined && this.#gates.has(bound) ? bound : null
   }
-  /** A random operation and continuity record that no bound record of this run uses yet. */
   #mintIdentity(
     record: LocalAdmission,
     instance: ModelInstanceId,
@@ -292,7 +284,6 @@ class InitialRun<P> implements ModelInitialRun<P> {
       return { failure: failure('identity-unavailable') }
     }
   }
-  /** The live binding's own successor, continuing from its own continuity before any execution. */
   #continues(record: BoundRecord, input: ContinuityInput): boolean {
     return (
       this.#bindings.get(record.instance) === record.binding &&
@@ -391,7 +382,6 @@ class InitialRun<P> implements ModelInitialRun<P> {
             return checkedActor(core.options.authority.execution(input))
           },
         }
-        /** This binding's prepared input again, while the record is still its own original execution. */
         const rebound = (
           record: BoundRecord,
           access: CallAccess<P>,
@@ -411,7 +401,6 @@ class InitialRun<P> implements ModelInitialRun<P> {
             },
           }
         }
-        /** Binds an admitted call to this channel under a fresh operation and continuity. */
         const bindFirst = (
           key: string,
           record: AdmittedRecord,
@@ -439,7 +428,6 @@ class InitialRun<P> implements ModelInitialRun<P> {
             ok: { ...access, instance, operation, continuity: structuredClone(continuity) },
           }
         }
-        /** The input of a recovery read: the bound one again, or a first binding of an admitted call. */
         const recover = (
           access: CallAccess<P>,
           call: CallDocument,

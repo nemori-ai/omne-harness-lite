@@ -1,6 +1,4 @@
 import { decodeProviderName, encodeModelInvocationRef } from '@omne-harness/model-contract'
-// The values that the paths of this fixture send and read. Every identity comes from a decoder of
-// a public package, and every block from the content-block judge, so no value is made by an assertion.
 import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-block'
 import {
   accountCodec,
@@ -74,7 +72,6 @@ const supplier: Supplier = {
   credential: { layer: 'official' },
 }
 
-/** The request that the owner fixed before admitting; the fixture does not look inside it. */
 const request: FixedModelRequest = {
   profile: adoption('profile'),
   suppliers: [supplier],
@@ -118,7 +115,6 @@ export function textBlock(id: string, text: string): ContentBlock {
   return judged.ok
 }
 
-/** The text of the text blocks, in order; a tool suggestion has no text. */
 export function textsOf(parts: readonly ResultPart[]): string[] {
   return parts.flatMap(part =>
     part.kind === 'sealed' && part.block.kind === 'text' ? [part.block.text] : [],
@@ -149,7 +145,6 @@ export const admission = (name: string): Admit<Principal> => ({
   consumer,
 })
 
-/** The scripted provider that stands for whatever serves the calls, with the helpers that read it. */
 export function newWorld() {
   const scripted = createScriptedModelProvider<Principal>({
     instance: must(decodeModelInstanceId('minst_one')),
@@ -160,9 +155,7 @@ export function newWorld() {
     consumption,
     instances,
     controller: scripted.controller,
-    /** Admits the call `name` under the operation `admit-<name>`. */
     admit: async (name: string) => must(await calls.admit(admission(name))),
-    /** The state of the call, looked up through its own admission operation. */
     async state(name: string, principal: Principal = owner): Promise<CallState> {
       const found = must(
         await calls.inspect({
@@ -181,7 +174,6 @@ export function newWorld() {
 
 export type World = ReturnType<typeof newWorld>
 
-/** This fixture constructs its own locator through the installed public codec. */
 export function invocationReference<T extends Parameters<typeof encodeModelInvocationRef>[0]>(
   parts: T,
 ) {

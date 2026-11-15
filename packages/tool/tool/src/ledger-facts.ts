@@ -1,4 +1,3 @@
-// Pure custody decisions. A batch advances only with its complete facts and downstream duties.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -66,7 +65,6 @@ function updateProcess(
   return succeed(undefined)
 }
 
-/** The event history decides duplicate sequences, including historical updates after closure. */
 function processWrites(
   snapshot: Snapshot,
   batch: StoredFactBatch,
@@ -131,6 +129,46 @@ function factPlace(call: CallRecord, batch: Pick<FactBatch, 'start' | 'source'>)
     owner: batch.source.owner,
   }
 }
+function refuseOrder(
+  call: CallRecord,
+  fact: FactEventRecord['fact'],
+  seen: Readonly<{ final: boolean; wait: boolean; continued: boolean }>,
+): Outcome<void, ToolFailure> {
+  if (fact.kind === 'wait') {
+    if (seen.final) return invalid('batch.events.fact', 'wait-after-final')
+    if (seen.wait) return invalid('batch.events.fact', 'second-wait-of-a-segment')
+    if (call.state.relation !== 'foreground')
+      return invalid('batch.events.fact', 'background-cannot-wait')
+    return succeed(undefined)
+  }
+  if (seen.wait) return invalid('batch.events.fact', 'fact-after-wait')
+  if (fact.kind === 'continued') {
+    if (seen.final) return invalid('batch.events.fact', 'continued-after-final')
+    if (seen.continued) return invalid('batch.events.fact', 'second-continued-of-a-segment')
+  }
+  return succeed(undefined)
+}
+
+function continuedWrite(
+  snapshot: Snapshot,
+  start: ToolStartRecord,
+  record: FactEventRecord,
+): Outcome<LedgerWrite, ToolFailure> {
+  const { fact } = record
+  if (fact.kind !== 'continued') throw new Error('the caller checked the fact kind')
+  if (start.kind !== 'resume') return invalid('batch.events.fact', 'continued-without-resume')
+  const found = snapshot.waits.get(fact.wait)
+  if (
+    found === undefined ||
+    found.record.phase !== 'responding' ||
+    !sameFactValue(found.record.intent.resume, start.checkpoint) ||
+    found.record.response.operation !== fact.response
+  )
+    return invalid('batch.events.fact', 'not-the-responding-wait-of-this-resume')
+  const progress = { kind: 'continued', receipt: record.evidence, timing: fact.timing } as const
+  return succeed(put({ kind: 'wait', wait: { ...found, record: { ...found.record, progress } } }))
+}
+
 function planEvents(
   snapshot: Snapshot,
   call: CallRecord,
@@ -142,9 +180,15 @@ function planEvents(
   const facts = new Map(snapshot.facts)
   const fresh: FactEventRecord[] = []
   const writes: LedgerWrite[] = []
-  let final = [...facts.values()].find(
-    record => record.start.operation === start.operation && record.fact.kind === 'final',
-  )
+  const ofStart = (kind: string) =>
+    [...facts.values()].find(
+      record => record.start.operation === start.operation && record.fact.kind === kind,
+    )
+  let final = ofStart('final')
+  const seen = {
+    wait: ofStart('wait') !== undefined,
+    continued: ofStart('continued') !== undefined,
+  }
   for (const event of batch.events) {
     const key = factKey(start, batch.source.owner, event.event)
     const known = facts.get(key)
@@ -152,14 +196,17 @@ function planEvents(
       if (!sameFactValue(known.value, event.value)) return invalid('batch.events', 'event-conflict')
       continue
     }
+    const ordered = refuseOrder(call, event.fact, { ...seen, final: final !== undefined })
+    if ('failure' in ordered) return ordered
     const evidence = mintEvidence('fact-event', { ...place, event: event.event }, mint.revision, {
       start,
       source: batch.source,
       event: event.event,
       value: event.value,
     })
+    const { request, ...kept } = event
     let record: FactEventRecord = {
-      ...event,
+      ...kept,
       key,
       start,
       source: batch.source,
@@ -185,6 +232,19 @@ function planEvents(
           }),
         )
       } else if (final.fact.kind === 'final') record = { ...record, fact: final.fact }
+    }
+    if (event.fact.kind === 'continued') {
+      const resumed = continuedWrite(snapshot, start, record)
+      if ('failure' in resumed) return resumed
+      writes.push(resumed.ok)
+      seen.continued = true
+    }
+    if (event.fact.kind === 'wait') {
+      seen.wait = true
+      if (request !== null)
+        writes.push(
+          put({ kind: 'wait-request', waitRequest: { wait: event.fact.value.wait, request } }),
+        )
     }
     facts.set(key, record)
     fresh.push(record)

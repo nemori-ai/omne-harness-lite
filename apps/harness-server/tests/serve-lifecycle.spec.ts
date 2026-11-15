@@ -1,4 +1,3 @@
-// `serve` 模式下的可见性与关闭登记落点（R1-4，DP1-C15）：直接用装载器与登记表，能看到根、fiber 与在册句柄。
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { identityClock } from '../src/entry/identity-clock.ts'
@@ -57,7 +56,6 @@ function treeRow(id: string, plugin: string, source: TreeRow['source'] = 'distri
   return { id: id as RowId, plugin, config: {}, source }
 }
 
-/** 真实导出的 RowSpec，按 `runServe` 的办法从声明读回。 */
 function declared(id: string, plugin: Plugin, source?: TreeRow['source']): RowSpec {
   const declaration = rowDeclarationOf(plugin)
   if (declaration === undefined) throw new Error('not a declared row')
@@ -138,7 +136,7 @@ function injected(events: readonly StubEvent[], row: string, name: ServiceName):
   return hit !== undefined && 'value' in hit ? hit.value : 'NOT-OBSERVED'
 }
 
-describe('serve visibility (R1-4, same mechanism as trust.spec, formal names)', () => {
+describe('serve visibility (same mechanism as trust.spec, formal names)', () => {
   test('the fixture storage row provides under the label: the root cannot get it, the identity double gets the instance', async () => {
     const events: StubEvent[] = []
     const loaded = await load(
@@ -184,7 +182,7 @@ describe('serve visibility (R1-4, same mechanism as trust.spec, formal names)', 
   })
 })
 
-describe('entry-object-borne registration lands on the row fiber (DP1-C15 kind 2)', () => {
+describe('entry-object-borne registration lands on the row fiber', () => {
   test('attachControl registers for the storage row: the handle leaves with the storage fiber', async () => {
     const loaded = await load([declared('storage', fixtureStorage)], [fixtureStorageHost()])
     if (loaded.result.kind !== 'started') throw new Error('not started')
@@ -201,7 +199,6 @@ describe('entry-object-borne registration lands on the row fiber (DP1-C15 kind 2
       row: 'storage',
       result: { kind: 'disposed-before-stop' },
     })
-    // 撤除时 disposer 发起了一次关闭；协调者没有再调用它。
     expect(storageEvents.filter(e => e === 'close:assembly')).toHaveLength(1)
   })
 

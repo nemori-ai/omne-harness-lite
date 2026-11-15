@@ -79,7 +79,6 @@ function toolCall(args: JsonValue): ModelBlock {
   return judged.ok
 }
 
-/** Plays the facts into a running call and returns the blocks that a new observer sees. */
 async function shown(facts: readonly TransportFact[]): Promise<readonly VisibleBlock[]> {
   const scripted = scriptedProvider()
   await admitCall(scripted, 'a')

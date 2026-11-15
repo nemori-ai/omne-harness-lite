@@ -25,6 +25,7 @@
     "agent-adoptions",
     "adoption-sources",
     "agent-model-selection",
+    "agent-cards",
     "agent-host",
     "agent-instances",
     "model-host",
@@ -54,7 +55,11 @@
     "agent-context",
     "agent-account-outlet",
     "runtime-context",
-    "server-entry"
+    "session-observation",
+    "server-entry",
+    "identity-access",
+    "session-access",
+    "assets-access"
   ],
   "trusted": [
     {
@@ -89,7 +94,8 @@
         "sessionPermissionBackend",
         "standingDestinationResolver",
         "toolInvocationQualification",
-        "currentToolPermission"
+        "currentToolPermission",
+        "sessionModesInstallation"
       ]
     },
     {
@@ -109,6 +115,7 @@
         "storage",
         "tenantDomainLookup",
         "sessionPrincipalBindings",
+        "sessionScopeOwners",
         "sessionDelegatedTransactions",
         "systemActionAuthorization",
         "sessionPermissionBackend"
@@ -118,7 +125,8 @@
       "row": "session-provider",
       "names": [
         "sessionWorkPrincipals",
-        "sessionDelegatedTransactions"
+        "sessionDelegatedTransactions",
+        "tenantDomainScannerPrincipal"
       ]
     },
     {
@@ -177,6 +185,12 @@
       "row": "session-ad14",
       "names": [
         "sessionWorkPrincipals"
+      ]
+    },
+    {
+      "row": "agent-host",
+      "names": [
+        "sessionModesInstallation"
       ]
     },
     {
@@ -239,6 +253,7 @@
       "names": [
         "storage",
         "tenantDomainLookup",
+        "tenantDomainScannerPrincipal",
         "toolInvocationQualification"
       ]
     },
@@ -298,6 +313,25 @@
         "definitionMappings",
         "identityGovernance",
         "settingsSecretItems"
+      ]
+    },
+    {
+      "row": "identity-access",
+      "names": [
+        "identityGovernance"
+      ]
+    },
+    {
+      "row": "session-access",
+      "names": [
+        "principalIssuer",
+        "definitionMappings"
+      ]
+    },
+    {
+      "row": "assets-access",
+      "names": [
+        "principalIssuer"
       ]
     }
   ]

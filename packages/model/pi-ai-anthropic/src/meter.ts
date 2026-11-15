@@ -1,10 +1,3 @@
-// The input meter of the Anthropic family. `represent` turns the projection that encode writes
-// into the token input of `anthropic-visible-json/1` and the message side table of its units;
-// `measure` counts the NFKC form of that text with the legacy Claude BPE, adds the 28-pixel patch
-// rule per measured image, and reports an estimate with the configured margin. Signed reasoning
-// is never tokenized and never dropped: a unit that carries a signed group is counted as the
-// output tokens of the call that produced it when a preparation lease hands that count over, else
-// the request has no estimate.
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { MediaMeasurementFact, TransportFailure } from '@omne-harness/model-contract'
 import type { ModelTextTokenizer } from '@omne-harness/model-contract/provider'
@@ -23,19 +16,11 @@ import { IMAGE_MEDIA_TYPES, IMAGE_RULES } from './images.ts'
 import { ANTHROPIC_OWNER } from './owner.ts'
 import type { AnthropicRecord } from './record.ts'
 
-/**
- * The sealed method of the output-count substitution (input-meters/anthropic-replay.ts,
- * `ANTHROPIC_REPLAY_REVISION`): the method name suffix of a measurement that counted a unit as the
- * output of its source. The anchored suffix is the shared `ANCHORED_METHOD`.
- */
 export const OUTPUT_GROUP_METHOD =
   'anthropic-complete-signed-encrypted-output-zero-framing-estimated/1'
 export { ANCHORED_METHOD, type MeterMargin } from '@omne-harness/pi-ai-transport/chat-completions'
 
-/** What the token input writes in place of image data. */
 const IMAGE_PLACEHOLDER = '[image]'
-
-// --- the token input -------------------------------------------------------------------------
 
 function str(value: string): JsonValue {
   return { kind: 'string', value }
@@ -60,7 +45,6 @@ function call(id: string, name: string, args: string): JsonValue {
   })
 }
 
-/** The members of one wire message that its parts give: content, tool calls and tool call id. */
 function partsJson(turn: ProjectedTurn): Readonly<Record<string, JsonValue | undefined>> {
   const content: JsonValue[] = []
   const calls: JsonValue[] = []
@@ -84,8 +68,6 @@ function partsJson(turn: ProjectedTurn): Readonly<Record<string, JsonValue | und
       case 'tool_result':
         toolCallId = str(part.callId)
         break
-      // A thinking part goes out through the replay member only. Foreign thinking that the
-      // projection writes as text reaches the meter as a text part.
       case 'thinking':
       case 'tool_call_incomplete':
       case 'voice':
@@ -111,7 +93,6 @@ function replayJson(turn: ProjectedTurn): Readonly<Record<string, JsonValue>> {
     case 'plain':
       return { reasoning: str(turn.replay.text) }
     case 'details':
-      // Only the count: a signed group is not text this meter can count.
       return {
         reasoning_details: obj({
           opaque: { kind: 'number', lexeme: String(turn.replay.details.length) },
@@ -128,12 +109,6 @@ function turnJson(turn: ProjectedTurn): JsonValue {
   return obj({ role: str(turn.role), ...partsJson(turn), ...replayJson(turn) })
 }
 
-/**
- * The token input of `anthropic-visible-json/1`: the wire messages and the tools, in wire order.
- * Images are `[image]` placeholders without data; cache markers select reuse, not prompt text, so
- * they are not part of it. The units name the message of each member of `messages`, built from
- * the same list, so the two stay aligned by construction; the instruction unit is `null`.
- */
 export function representationOf(
   record: AnthropicRecord,
   view: ProjectedRequest,
@@ -172,17 +147,8 @@ export function representationOf(
   return { tokenInput, units: units.map(unit => unit.message) }
 }
 
-// --- reading the token input -----------------------------------------------------------------
-
-/** What the meter reads from one message unit of the token input. */
 type UnitContent = Readonly<{
   images: number
-  /**
-   * True when the unit carries a `reasoning_details` member. The family codec wrote it only for
-   * a whole group it can replay (sealed classifyAnthropicReasoning: format `anthropic-claude-v1`,
-   * signed `reasoning.text` or `reasoning.encrypted` with ciphertext that is not `[REDACTED]`),
-   * so this is the sealed whole-group condition seen from the meter.
-   */
   reasoning: boolean
 }>
 
@@ -190,7 +156,6 @@ function memberOf(value: JsonValue, key: string): JsonValue | undefined {
   return value.kind === 'object' ? value.entries.find(entry => entry.key === key)?.value : undefined
 }
 
-/** The image count and the reasoning of each unit of a token input, or `null` when it is not this schema. */
 function contentOf(tokenInput: JsonValue): readonly UnitContent[] | null {
   const messages = memberOf(tokenInput, 'messages')
   if (messages?.kind !== 'array') return null
@@ -209,8 +174,6 @@ function contentOf(tokenInput: JsonValue): readonly UnitContent[] | null {
   return units
 }
 
-// --- measuring -------------------------------------------------------------------------------
-
 function unavailable(diagnostic: string): Outcome<never, TransportFailure> {
   return { failure: { kind: 'unavailable', dependency: ANTHROPIC_OWNER, diagnostic } }
 }
@@ -219,10 +182,6 @@ function isImageMediaType(mediaType: string): boolean {
   return IMAGE_MEDIA_TYPES.some(item => item === mediaType)
 }
 
-/**
- * The estimated tokens of the measured images, per unit and in order, or the failure that keeps
- * one out. The facts stand for the images of the whole token input, in image order.
- */
 function imageTokens(
   record: AnthropicRecord,
   units: readonly UnitContent[],
@@ -252,11 +211,6 @@ function imageTokens(
   return { ok: extras }
 }
 
-/**
- * The meter of one record over an initialized tokenizer. Pure: no file, network or environment.
- * The shared meter of pi-ai-transport does the checks, the arithmetic and the budget; this family
- * gives its adoptions, its unit reading, its image rule, its tokenizer and its method names.
- */
 export function createAnthropicMeter(
   record: AnthropicRecord,
   tokenizer: ModelTextTokenizer,

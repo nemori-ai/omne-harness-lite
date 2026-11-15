@@ -29,7 +29,6 @@ afterEach(async () => {
   for (const close of cleanup.splice(0)) await close()
 })
 
-/** A trusted fixture directory. It is not the missing production directory or holder. */
 async function setup(source: ToolBackgroundCallsSource = complete()) {
   const authority = createTestAuthorityPorts<string>()
   authority.bind(input.scope, input.tenant)

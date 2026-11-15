@@ -1,10 +1,3 @@
-// The governance location (SPEC「治理位置」): `register-and-activate` and `issue-login` go to
-// identity's public operations without a login check; the four stage operations and the operations
-// this deployment declares not provided get `stage-not-provided` before any login check; the other
-// eighteen take steps 4 and 6 of the judgment order here and go to identity's governance port; the
-// four setting operations take the same steps and go to the settings port. A thrown identity call
-// leaves the entry with no trustworthy answer, except `create-organization`, whose result set has
-// the wire `unknown`.
 import type { JsonLimits } from '@omne-harness/json-text'
 import type {
   IdentityGovernance,
@@ -31,11 +24,6 @@ import { isRefusal, type Caller, type IdentitySteps } from './identity-steps.ts'
 import type { SettingsAccess, SettingsGovernance } from './settings.ts'
 import { STATUS_BY_OUTCOME, type PublicOutcome } from './status.ts'
 
-/**
- * The governance operations this deployment declares not provided (public contract「部署声明不提供
- * 的操作」). A request for one of them that passed the closed field check answers
- * `stage-not-provided` with an empty body; no login is checked and no record is read.
- */
 export const NOT_PROVIDED_GOVERNANCE_OPERATIONS = Object.freeze([
   'public-health',
   'replace-credential',
@@ -55,10 +43,6 @@ export const NOT_PROVIDED_GOVERNANCE_OPERATIONS = Object.freeze([
 
 type NotProvided = (typeof NOT_PROVIDED_GOVERNANCE_OPERATIONS)[number]
 
-/**
- * The setting operations (SPEC「设置项」). The entry provides them only when the assembly gives a
- * `settings` port; without it they answer `stage-not-provided` like the declared ones.
- */
 export const SETTING_OPERATIONS = Object.freeze([
   'list-settings',
   'set-setting',
@@ -68,19 +52,13 @@ export const SETTING_OPERATIONS = Object.freeze([
 
 type SettingOperation = (typeof SETTING_OPERATIONS)[number]
 
-/**
- * The operations this location answers itself: the two without a login, the eighteen governed
- * ones and the four setting ones.
- */
 type Handled = Exclude<GovernanceProvidedOperation, NotProvided>
 
 export type GovernanceContext = Readonly<{
   identity: IdentityOperations
   governance: IdentityGovernance
   steps: IdentitySteps
-  /** Ends every observation of one login on this instance with `ended(denied)` (SPEC「登录失效时结束观察」). */
   endObservationsOf: (loginText: string) => void
-  /** Absent: the four setting operations are not provided by this deployment. */
   settings: SettingsGovernance | undefined
   readLimits: JsonLimits
   diagnostics: DiagnosticSink | undefined
@@ -92,7 +70,6 @@ const VERSION = 'governance-public/1'
 const NOT_PROVIDED: ReadonlySet<string> = new Set(NOT_PROVIDED_GOVERNANCE_OPERATIONS)
 const SETTING: ReadonlySet<string> = new Set(SETTING_OPERATIONS)
 
-/** The business responses of one operation without the head: the outcome and its body. */
 type Wire<O extends GovernanceProvidedOperation> =
   Exclude<GovernanceResponse<O>, GovernanceProtocolResult> extends infer R
     ? R extends { readonly outcome: infer K; readonly body: infer B }
@@ -106,7 +83,6 @@ function encoded(bytes: Uint8Array, outcome: PublicOutcome): JsonAnswer {
   return { kind: 'json', status: STATUS_BY_OUTCOME[outcome], bytes }
 }
 
-/** Encodes one of the two common refusals. */
 export function governanceRefusal(response: GovernanceProtocolResult): JsonAnswer {
   const result = encodeGovernanceResponse({ response, limits: OUTPUT_LIMITS })
   if (result.kind !== 'encoded')
@@ -114,15 +90,10 @@ export function governanceRefusal(response: GovernanceProtocolResult): JsonAnswe
   return encoded(result.bytes, response.outcome)
 }
 
-/** The location's own `protocol-rejected`, for the HTTP steps before the message is read. */
 export function governanceProtocolRejected(): JsonAnswer {
   return governanceRefusal({ protocolVersion: VERSION, outcome: 'protocol-rejected', body: {} })
 }
 
-/**
- * Encodes one business response. The codec checks the outcome and the body against the operation,
- * so the loose input type is checked at run time; an encode failure is this member's own fault.
- */
 function respond(
   operation: Handled,
   messageId: string,
@@ -147,8 +118,6 @@ const EMPTY = Object.freeze({})
 function bare(outcome: PublicOutcome): LooseWire {
   return { outcome, body: EMPTY }
 }
-
-// --- the two operations without a login --------------------------------------------------------
 
 async function registerAndActivate(
   request: GovernanceRequest<'register-and-activate'>,
@@ -198,8 +167,6 @@ async function issueLogin(
   return respond(request.operation, request.messageId, wire, context.diagnostics)
 }
 
-// --- the governed operations ------------------------------------------------------------------
-
 type GovernedRequest = Readonly<{
   operation: Handled
   messageId: string
@@ -207,16 +174,8 @@ type GovernedRequest = Readonly<{
   actingTenant?: TenantId
 }>
 
-/**
- * What a rejected governance call answers: `unknown` where the operation's result set has it,
- * otherwise no answer, because the effect may have committed (SPEC「服务端的 HTTP 层责任」).
- */
 type OnRejected = 'unknown' | 'no-answer'
 
-/**
- * Step 4 (the login goes to identity, its refusals unchanged), step 6 (the acting tenant must be
- * the login's current selection), then the governance port, which checks both again at commit.
- */
 async function governed(
   request: GovernedRequest,
   context: GovernanceContext,
@@ -243,16 +202,8 @@ async function governed(
   return answer(wire)
 }
 
-/** The setting operations whose rejected port call may have written. */
 const SETTING_WRITES: ReadonlySet<string> = new Set(['set-setting', 'clear-setting'])
 
-/**
- * The setting operations: step 4 (the login), step 6 (the acting tenant is the login's current
- * selection), then the acting principal for that tenant, issued only when its account is the
- * login's account; then the settings port. A rejected `set` or `clear` may have written, so it answers `unknown`; a rejected `list` or
- * `describe` wrote nothing and answers `basis-unavailable`. The diagnostic names the operation
- * only, never the item, the body or the port's error text.
- */
 async function setting(
   request: GovernanceRequest<SettingOperation>,
   context: GovernanceContext,
@@ -261,7 +212,6 @@ async function setting(
   const answer = (wire: LooseWire): Reply =>
     respond(request.operation, request.messageId, wire, context.diagnostics)
   const port = context.settings
-  // Only a request for a provided operation reaches a handler; this guards the type.
   if (port === undefined) return answer(bare('basis-unavailable'))
   const caller = await context.steps.recognize(request.proof)
   if (isRefusal(caller)) return answer(bare(caller.outcome))
@@ -382,8 +332,6 @@ const HANDLERS: { readonly [O in Handled]: Handler<O> } = {
 
   'issue-member-invitation': (request, context) =>
     governed(request, context, async (port, caller) => {
-      // The duration text is the deployment's to read (public contract「body 字段」); text that is
-      // not an SI-second duration is outside the authorized range: denied, no invitation.
       let duration
       if (request.body.duration !== undefined) {
         const parsed = parseDuration(request.body.duration)
@@ -538,8 +486,6 @@ const HANDLERS: { readonly [O in Handled]: Handler<O> } = {
     governed(request, context, async (port, caller) => {
       const target = request.body.targetLoginId
       const outcome = await port.revokeLogin({ login: caller.login, target })
-      // `succeeded` and `no-change` both say the target is not valid now: its observations on
-      // this instance end at once instead of at their next login check.
       if (outcome.kind === 'succeeded' || outcome.kind === 'no-change')
         context.endObservationsOf(loginTextOf(target))
       return bare(outcome.kind)
@@ -555,7 +501,6 @@ const HANDLERS: { readonly [O in Handled]: Handler<O> } = {
         maxDeadline: item.maxDeadline,
         idleDeadline: item.idleDeadline,
       }))
-      // The list holds at least the calling login; an empty list is not a list the wire can carry.
       if (first === undefined) return bare('basis-unavailable')
       return { outcome: 'succeeded', body: { logins: [first, ...rest], completeness: 'complete' } }
     }),
@@ -608,7 +553,6 @@ function dispatch<O extends Handled>(
   return handler(request, context)
 }
 
-/** Answers one governance message. */
 export async function handleGovernance(
   bytes: Uint8Array,
   context: GovernanceContext,
@@ -626,8 +570,6 @@ export async function handleGovernance(
   try {
     return await dispatch(request, context)
   } catch {
-    // `register-and-activate` and `issue-login`: activation or issue may have committed and their
-    // result sets have no wire `unknown`. A governed call catches its own port's rejection.
     emit(context.diagnostics, { code: 'identity.fault', operation: request.operation })
     return { kind: 'no-answer' }
   }

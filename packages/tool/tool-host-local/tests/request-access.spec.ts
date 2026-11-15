@@ -35,6 +35,7 @@ function fixture(answer: () => Promise<RequestAccessVerdict>) {
   let onConflict = () => {}
   const store: ToolLedgerStore = {
     durability: 'none',
+    scanPending: input => memory.scanPending(input),
     readRecord: (domain, key) => memory.readRecord(domain, key),
     due: memory.due,
     read: memory.read,

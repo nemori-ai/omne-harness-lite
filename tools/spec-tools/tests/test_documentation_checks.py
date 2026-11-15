@@ -219,7 +219,7 @@ def test_process_keyword_in_agents_needs_owner_link(tmp_path):
     result = run(tmp_path)
     assert result.returncode == 1
     assert ("docs/AGENTS.md:3: process keyword '准入' without owner link; "
-            "链到拥有者，见 docs/engineering/README.md#流程事实在哪") in result.stdout
+            "链到拥有者，见 AGENTS.md#研发流程") in result.stdout
 
 
 def test_process_keyword_with_link_or_outside_agents_passes(tmp_path):

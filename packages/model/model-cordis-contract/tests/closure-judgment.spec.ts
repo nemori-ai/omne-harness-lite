@@ -3,7 +3,6 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { findForbidden, readPolicy } from './install/closure.ts'
 
-// Pure judgments on declared dependencies; nothing here packs, installs or spawns a process.
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
 const policyPath = join(packageDirectory, 'tests/fixtures/install-policy.json')
 

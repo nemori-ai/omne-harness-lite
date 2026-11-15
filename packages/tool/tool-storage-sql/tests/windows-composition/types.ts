@@ -71,10 +71,6 @@ export interface WindowsAssembly {
   resources(): readonly ObservedResource[]
   acquisitions(): readonly AcquisitionEvidence[]
   authorExecutions(): Readonly<Record<string, number>>
-  /**
-   * Narrows the real provider's next acquisitions for the negative cases. `null` restores the real
-   * facilities; every positive case must run with `null` active.
-   */
   readonly negativeFacilities: NegativeFixtureControl
   record(event: string, facts: unknown): Promise<void>
   close(): Promise<CleanupEvidence>

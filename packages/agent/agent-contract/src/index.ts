@@ -1,11 +1,22 @@
 export { agentBodyContract } from './body-contract.ts'
 export { obligationCategoryOf } from './finishing.ts'
 export { ATTRIBUTE_ITEMS, INSTRUCTION_LIMITS } from './definition.ts'
-export { POSITIONS, POWERS } from './extensions.ts'
+export {
+  ACTION_ADMISSION_DECLARATION,
+  ACTION_ADMISSION_IMPLEMENTATION,
+  POSITIONS,
+  POWERS,
+} from './extensions.ts'
 export { judgeAgentDefinition } from './judge-definition.ts'
 export { judgeLoopExtensions } from './judge-extensions.ts'
 export { judgeHandoffPrepare, judgeInputOrigin } from './judge-handoff.ts'
-export { judgeExtensionOutput, POSITION_OUTPUTS } from './judge-output.ts'
+export {
+  DECISION_CARD_DRAFT_SCHEMA,
+  POSITION_OUTPUTS,
+  cardDraftOf,
+  cardRequestOf,
+  judgeExtensionOutput,
+} from './judge-output.ts'
 export type {
   ExtensionOutputJudgeInput,
   PositionOutputKey,
@@ -21,6 +32,8 @@ export type {
 } from './definition.ts'
 export {
   AGENT_IDENTITY_MAX_LENGTH,
+  admissionActionOf,
+  admissionPassageOf,
   decodeActionBatchId,
   decodeActionId,
   decodeAgentExecutionId,

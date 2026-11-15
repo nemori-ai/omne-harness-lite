@@ -49,6 +49,7 @@ function hooked() {
   let label = ''
   const store: ToolLedgerStore = {
     durability: 'none',
+    scanPending: input => memory.scanPending(input),
     readRecord: memory.readRecord,
     due: memory.due,
     read: d => memory.read(d),

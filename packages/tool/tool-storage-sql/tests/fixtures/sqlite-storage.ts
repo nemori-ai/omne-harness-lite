@@ -1,12 +1,3 @@
-// A test provider of `SqlStorage` on node:sqlite. The memory double of sql-contract has no SQL, so
-// it cannot run the `tool` participant or the read handlers; this one runs the real Worker modules
-// of this member against one database file per transaction domain. It keeps the receipts in the
-// same file and commits them in the same transaction as the participant's writes, so a closed and
-// reopened storage over the same directory recalls every committed operation. An identity that is
-// never recalled keeps no receipt and its query answers not_recallable. It models receipts,
-// rollback by a stopping reply or a throwing participant, recognition by the full identity, scope
-// partition, strict JSON facts and the command bound. It does not model Workers, queues, the group
-// commit, read ordering under concurrency or power loss, and a pass proves none of those.
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -33,24 +24,23 @@ import type {
   SqlValue,
 } from '@omne-harness/sql-contract/worker'
 import migration from '../../src/worker/migration.ts'
+import pendingMigration from '../../src/worker/migration-pending.ts'
 import participant from '../../src/worker/participant.ts'
 import readLedger from '../../src/worker/read-ledger.ts'
 import readBody from '../../src/worker/read-body.ts'
 import readDue from '../../src/worker/read-due.ts'
+import readPending from '../../src/worker/read-pending.ts'
 import { READ_OUTPUT_BYTES } from '../../src/worker/schema.ts'
 
-const HANDLERS: readonly ReadHandlerModule[] = [readLedger, readBody, readDue]
+const HANDLERS: readonly ReadHandlerModule[] = [readLedger, readPending, readBody, readDue]
+const MIGRATIONS = [migration, pendingMigration] as const
 
 export type SqliteStorageOptions = Readonly<{
-  /** The directory that holds one database file per transaction domain. */
   directory: string
-  /** The command bound of sql-contract §7.2 step 7. Default 1048576, the provider's initial value. */
   maxCommandBytes?: number
-  /** Sees every statement the participant and the read handlers of this member run, after it ran. */
   observe?: StatementObserver
 }>
 
-/** One statement of the participant or of a read handler, with its parameters and its result. */
 export type ObservedStatement = Readonly<{
   sql: string
   params: readonly SqlValue[]
@@ -63,13 +53,9 @@ export type Row = Readonly<Record<string, SqlCell>>
 
 export type SqliteStorage = Readonly<{
   storage: SqlStorage
-  /** Runs one statement on the raw database of a domain: test inspection and planting only. */
   inspect(transactionDomain: string, sql: string, params?: readonly SqlValue[]): Row[]
-  /** Makes the statement number `ordinal` (from 1) of the next participant call throw. */
   failStatement(ordinal: number): void
-  /** How many participant commands ran, by intent. */
   executed(): Readonly<Record<string, number>>
-  /** Closes every database file. A new storage over the same directory reopens them. */
   close(): void
 }>
 
@@ -106,7 +92,7 @@ const identityText = (identity: SqlIdentity): string =>
 function execute(db: DatabaseSync, sql: string, params: readonly SqlValue[]): QueryRows {
   const statement = db.prepare(sql)
   statement.setReadBigInts(true)
-  if (/^\s*(SELECT|WITH)/iu.test(sql)) {
+  if (/^\s*(SELECT|WITH|EXPLAIN)/iu.test(sql)) {
     const rows = statement.all(...(params as never[])) as Record<string, SqlCell>[]
     const columns = rows[0] === undefined ? [] : Object.keys(rows[0])
     return {
@@ -132,7 +118,6 @@ function rowsOf(db: DatabaseSync, sql: string, params: readonly SqlValue[] = [])
   )
 }
 
-/** Strict JSON in the sense of sql-contract §3.2: nothing JSON cannot carry, at any depth. */
 function isJson(value: unknown): boolean {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return true
   if (typeof value === 'number') return Number.isFinite(value)
@@ -141,7 +126,6 @@ function isJson(value: unknown): boolean {
   return Object.values(value).every(isJson)
 }
 
-/** RFC 8785 for the values these tests write: keys sorted, no white space. */
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
   if (typeof value === 'object' && value !== null)
@@ -161,7 +145,6 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
 
   const file = (name: string) => join(options.directory, `${name}.db`)
 
-  /** The domain bound to `scope`, opening its file when it exists; another scope gets nothing. */
   const domainOf = (scope: StorageScope, name: string, create: boolean): Domain | null => {
     let domain = domains.get(name)
     if (domain === undefined) {
@@ -175,7 +158,7 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
         }
         rowsOf(db, 'INSERT INTO _sql_binding (scope) VALUES (?)', [scopeText(scope)])
       }
-      for (const step of [migration]) {
+      for (const step of MIGRATIONS) {
         const done = rowsOf(db, 'SELECT 1 AS done FROM _sql_migration WHERE owner = ? AND id = ?', [
           step.owner,
           step.id,
@@ -221,7 +204,6 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
     ])
   }
 
-  /** Runs one statement of the member and shows it to the observer. */
   const observed = (db: DatabaseSync, sql: string, params: readonly SqlValue[]): QueryRows => {
     const result = execute(db, sql, params)
     options.observe?.({ sql, params, result })
@@ -243,7 +225,6 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
     }
   }
 
-  /** One command in one transaction; the receipt is written in the same transaction. */
   const run = (domain: Domain, request: CommitRequestV2): ReceiptV2 => {
     const identity = request.identity
     const base = {
@@ -361,8 +342,6 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
         return unavailable('read_failed')
       }
       if (outcome.kind !== 'read' || !isJson(outcome.output)) return unavailable('read_failed')
-      // The provider's `maxReadResultBytes` (sqlite-provider SPEC 12.1): an output above the
-      // handler's declared bound is refused, never truncated.
       if (Buffer.byteLength(JSON.stringify(outcome.output), 'utf8') > READ_OUTPUT_BYTES)
         return unavailable('read_failed')
       return Promise.resolve({
@@ -391,12 +370,10 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
   }
 }
 
-/** The domain of `scope` named `transactionDomain`, as the directory publishes it. */
 export function domainRef(tenant: string, transactionDomain: string): DomainRef {
   return { scope: { kind: 'tenant', tenant }, transactionDomain }
 }
 
-/** One migrated in-memory database and a participant port over it, for module-level tests. */
 export function migratedPort(): Readonly<{
   port: ParticipantPort
   rows(sql: string, params?: readonly SqlValue[]): Row[]
@@ -407,6 +384,6 @@ export function migratedPort(): Readonly<{
     requireFact: () => null,
     provideFact: () => undefined,
   }
-  migration.up(port)
+  for (const step of MIGRATIONS) step.up(port)
   return { port, rows: (sql, params = []) => rowsOf(db, sql, params) }
 }

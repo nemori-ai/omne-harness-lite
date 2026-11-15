@@ -1,21 +1,3 @@
-// J06, the current conditions provider of the Session log combination (row `session-conditions`,
-// R2-D145). It provides `agentConditions` and answers `CurrentConditions.read` from committed
-// Session facts only. Nothing here is a default: a source that is absent closes the read with
-// `unavailable`, an Authority that the Session does not hold as the current one is `stale-advance`,
-// and another tenant's call cannot find the execution at all.
-//
-// The read follows the J06 row of the SPEC ("以原 Authority/grant 定位当前 Session Run"):
-// 1. the tenant of the Access, its transaction domain and the execution index name the session of
-//    `advance.execution`; the Session snapshot is read through the `session` face with the caller's
-//    own Access, so the Session execution boundary checks the access (this plugin does not inject
-//    `agentAccessCheck`, SPEC J06);
-// 2. the active Run must hold the execution, and the attempt the Session issued the grant of this
-//    Authority's attachment for (R2-D348, R2-D349) must be the Run's current attempt, as
-//    `message-handoff.ts` checks it;
-// 3. the fields come from the facts: the Run adoption (`configuration`), the collaboration mode of
-//    the session (`progression`), the saved model selection (`model`), the open Runtime Context scope
-//    of the session (`context`) and the resident tools (`bindings`). `source` is a digest of the five,
-//    so the same facts give the same evidence; `previous` is compared and grants nothing.
 import { createHash, randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type {
@@ -56,18 +38,10 @@ const OWNER = 'session-adapters/conditions'
 const LOGGER = 'session-adapters/conditions'
 const ACTION = 'read-conditions'
 
-/** The default modes of a session: the value its tenant-default source stands for, and its basis. */
 export type DefaultModes = Readonly<{ modes: Modes; basis: DurableEvidence }>
 
-/** Why the default modes cannot be given: the owner of the source has no value for it now. */
 export type DefaultModesFailure = Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-/**
- * What the assembly hands to the provider: the resolver of a session's tenant-default modes. A
- * session created with `modes: { kind: 'tenant-default', source }` holds the source adoption only;
- * the resolver gives the modes that this exact source stands for, or `unavailable`. It never gives
- * the modes of another source, and it is a runtime object, not configuration.
- */
 export type SessionConditionsInput = Readonly<{
   defaultModes(
     input: Readonly<{
@@ -102,14 +76,12 @@ function sha256(text: string): string {
   return createHash('sha256').update(text).digest('hex')
 }
 
-/** A Session read failure in the Agent's words: a refusal stays a refusal, the rest is unavailable. */
 function fromSession(failure: SessionFailure, what: string): Failure {
   return failure.kind === 'denied'
     ? denied
     : unavailable(`${what} is not readable (${failure.kind})`)
 }
 
-/** The collaboration mode as the progression directive (session-and-run.md「协作」, mechanisms.md). */
 function directiveOf(
   collaboration: Modes['collaboration'],
   basis: DurableEvidence,
@@ -117,13 +89,11 @@ function directiveOf(
   return { kind: collaboration === 'auto-drive' ? 'continue' : 'evaluate-completion', basis }
 }
 
-/** The open Runtime Context scope of the session: the binding that has not ended. */
 function openScope(work: WorkSnapshot): ContextScopeBinding | null {
   const open = (work.contextScopes ?? []).filter(binding => binding.ended === null)
   return open.length === 0 ? null : (open[open.length - 1] ?? null)
 }
 
-/** The evidence of one open scope binding: it names the scope, its generation and the commit. */
 function scopeEvidence(
   tenantText: string,
   work: WorkSnapshot,
@@ -139,13 +109,11 @@ function scopeEvidence(
   }
 }
 
-/** The settings-side adoption basis of the saved model route (Agent SPEC「模型选择」1). */
 function modelOf(saved: SessionModelSelection): Adoption {
   const { name, basis } = saved.selection
   return { owner: basis.owner, name, revision: basis.revision, digest: basis.digest }
 }
 
-/** A resident tool as the adoption that binds it: its admission names the owner and the digest. */
 function bindingOf(resident: WorkSnapshot['residents'][number]): Adoption {
   return {
     owner: resident.admitted.owner,
@@ -155,7 +123,6 @@ function bindingOf(resident: WorkSnapshot['residents'][number]): Adoption {
   }
 }
 
-/** The provider of one generation. */
 function createConditions<P>(given: SessionConditionsInput, ports: Ports<P>): CurrentConditions<P> {
   async function domainOf(tenantText: string): Promise<Outcome<DomainRef, Failure>> {
     const found = await ports.tenantDomainLookup.lookup({ tenant: tenantText })
@@ -170,7 +137,6 @@ function createConditions<P>(given: SessionConditionsInput, ports: Ports<P>): Cu
         )
   }
 
-  /** The session that started `execution` for the tenant, by the execution index. */
   async function sessionOf(
     tenantText: string,
     domain: DomainRef,
@@ -189,12 +155,6 @@ function createConditions<P>(given: SessionConditionsInput, ports: Ports<P>): Cu
     return indexed === null ? fail(denied) : succeed(indexed.session as SessionId)
   }
 
-  /**
-   * The current Run must hold the execution, and the Authority must be its current attempt: the
-   * attempt the Session issued the grant of the Authority's attachment for. An attachment the
-   * Agent did not record, or a grant the Session issued no attempt for, is stale; a snapshot
-   * without its attempt records cannot prove it.
-   */
   async function current(
     tenant: TenantId,
     session: SessionId,
@@ -226,7 +186,6 @@ function createConditions<P>(given: SessionConditionsInput, ports: Ports<P>): Cu
       : fail(stale)
   }
 
-  /** The collaboration mode the session holds now, with the evidence that declared it. */
   async function progressionOf(
     tenant: TenantId,
     session: SessionId,
@@ -288,15 +247,12 @@ function createConditions<P>(given: SessionConditionsInput, ports: Ports<P>): Cu
       revision: '1',
       digest: sha256(canonical(facts)),
     }
-    // `previous` is the basis of the last preparation. The same facts give the same source; a
-    // different one makes the Agent recompute its unrecorded candidate. Neither grants anything.
     return succeed({ source, ...facts })
   }
 
   return { read }
 }
 
-/** `agentConditions`, made by the body of the plugin. */
 class SessionConditions extends CurrentConditionsService<unknown> {
   readonly read: CurrentConditions<unknown>['read']
   constructor(ctx: Context, conditions: CurrentConditions<unknown>) {
@@ -307,16 +263,8 @@ class SessionConditions extends CurrentConditionsService<unknown> {
 
 type ReadSelection = Ports<unknown>['readModelSelection']
 
-/** Where the selection sub-plugin of the current generation leaves its read; empty while it is not running. */
 type SelectionLink = { read: ReadSelection | undefined }
 
-/**
- * The sub-plugin `session-conditions-selection`: the saved model selection is a read of the
- * `intake` and `maintainer` classes (session-contract SPEC「控制与模型选择」), and a plugin calls
- * `session` with one caller class only (AD-00 rule 1). So this sub-plugin injects `session` as
- * `maintainer` and reads nothing else; the caller's own Access goes through, so the access check
- * stays the Session's. While it is not running, the selection read answers `unavailable`.
- */
 function createSelectionPlugin(link: SelectionLink) {
   return {
     name: 'session-conditions-selection',
@@ -332,13 +280,6 @@ function createSelectionPlugin(link: SelectionLink) {
   }
 }
 
-/**
- * The plugin of `agentConditions` (row `session-conditions`). It needs `storage`, the trusted
- * `tenantDomainLookup` and `session` with the `coordinator` class; while any is absent it stays
- * pending and provides nothing. Its sub-plugin `session-conditions-selection` reads the saved model
- * selection with the `maintainer` class. It has no configuration. Stopping makes every call, also
- * through a reference held from before, answer `unavailable`.
- */
 export function createSessionConditionsPlugin<P>(input: SessionConditionsInput) {
   return {
     name: 'session-conditions',

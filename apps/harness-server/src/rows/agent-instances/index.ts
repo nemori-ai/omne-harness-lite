@@ -1,7 +1,3 @@
-// The `agent-instances` row: the Agent instance directory. The plugin is `agentInstancesPlugin` of
-// `@omne-harness/agent-cordis-contract/cordis`. It injects `agentPublicationAuthority` and
-// `agentAccessCheck` and provides `agentInstances`. It has no configuration (its `Config` refuses
-// any member) and no shutdown phase. With either inject absent the row stays `PENDING`.
 import {
   agentAccessCheckKey,
   agentInstancesKey,

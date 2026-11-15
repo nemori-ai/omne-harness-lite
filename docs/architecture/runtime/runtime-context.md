@@ -2,10 +2,6 @@
 
 Runtime Context 是作用域内共享数据的供给中介与合并协议。它按块供给当前值与变化，核对读取资格，维护观察链，把变化材料交给作用域持有者；它不拥有任何块的事实，不判权限，不选落点，不组装请求。它既不是作用域历史的别名，也不是把所有信息一次交给模型的大对象。
 
-状态：基线段落已接受。依据产品正文第 4 版扩充的节是候选，随产品第 4 版确认与本页技术接受生效。候选节是：「数据块与消费边界」的对象表及其下的「两类块」「声明归语义拥有者」；「需要、绑定与集成原则」；「更新、通知与读取」的时序图及其下的「读取：完整与增量」；「注册、移除与恢复」里的步提交；「作用域链」；「成员与 Cordis 落位」。
-
-实现状态：当前纯契约与 Cordis 服务定义已有源码及包内验证；机制实现与 Service 实现仍未实现。 源码和包测试不改变本页候选部分的技术接受状态。
-
 本页拥有块的两类、声明与登记、需要与绑定、读取与观察、更新与步提交、恢复规则，以及成员切分与 Cordis 落位。一次模型请求怎样使用这些信息归[请求 context](request-context.md)。本页只认通用角色：作用域持有者、生产者、写者、消费者类、集成方。本版的作用域持有者是会话。
 
 ## 数据块与消费边界
@@ -124,10 +120,10 @@ sequenceDiagram
 
 | 成员 | 变体 | 责任 |
 |---|---|---|
-| [runtime-context-contract](../../../packages/context/runtime-context-contract/SPEC.md) | module | 作用域引用、块键、两类块声明、空块表、需要、绑定、注册、资格、读者、快照与变化、更新与步提交、变化材料，以及通用权威端口、可信绑定来源与恢复材料的形状；纯函数 `judgeNeed`、`judgeBinding`、`judgeRegistration`、`reduceStep`、`diffForReminder` 与解码 |
-| [runtime-context-cordis-contract](../../../packages/context/runtime-context-cordis-contract/SPEC.md) | service-contract | 唯一服务定义 `runtimeContext`、intercept 配置 `{ consumer }`、事件 `runtime-context-cordis-contract/changed` |
-| [runtime-context](../../../packages/context/runtime-context/SPEC.md) | module | 登记表、生产者表（租户加块键为槽）、资格表、需要绑定解析、当前投影、观察链与游标、资格核对、步合并、作用域结束与恢复会话 |
-| [runtime-context-cordis](../../../packages/context/runtime-context-cordis/SPEC.md) | service-provider | Service 实现：一个 isolate 一个服务，作用域为参数；按作用域过滤唤醒；登记即效应 |
+| [runtime-context-contract](../../../packages/context/SPEC.md#应然设计) | module | 作用域引用、块键、两类块声明、空块表、需要、绑定、注册、资格、读者、快照与变化、更新与步提交、变化材料，以及通用权威端口、可信绑定来源与恢复材料的形状；纯函数 `judgeNeed`、`judgeBinding`、`judgeRegistration`、`reduceStep`、`diffForReminder` 与解码 |
+| [runtime-context-cordis-contract](../../../packages/context/SPEC.md#cordis-装配) | service-contract | 唯一服务定义 `runtimeContext`、intercept 配置 `{ consumer }`、事件 `runtime-context-cordis-contract/changed` |
+| [runtime-context](../../../packages/context/SPEC.md#生产者与供值) | module | 登记表、生产者表（租户加块键为槽）、资格表、需要绑定解析、当前投影、观察链与游标、资格核对、步合并、作用域结束与恢复会话 |
+| [runtime-context-cordis](../../../packages/context/SPEC.md#cordis-装配) | service-provider | Service 实现：一个 isolate 一个服务，作用域为参数；按作用域过滤唤醒；登记即效应 |
 
 服务分三面。除 `bind` 以外，每个操作的第一个参数是调用方的可信主体：
 
@@ -137,7 +133,7 @@ sequenceDiagram
 | 持有者面 | `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`、`beginReplay`、`finishReplay` |
 | 读者面 | `bind`，按资格身份建立并返回绑定读者 |
 
-Runtime Context 不签发身份，也不保存许可。它经两个由调用方提供的端口核对访问：可信绑定来源回答作用域属于哪个租户，权威端口按动作回答授权判定。每个带目标的入口先问权威端口，再问可信绑定来源，最后核对作用域的状态、注册、生产者代际与恢复围栏。未绑定、租户不符与拒绝对外一律是无权。精确顺序见 [RC-01](../../../packages/context/runtime-context-contract/SPEC.md#通用权威端口)。
+Runtime Context 不签发身份，也不保存许可。它经两个由调用方提供的端口核对访问：可信绑定来源回答作用域属于哪个租户，权威端口按动作回答授权判定。每个带目标的入口先问权威端口，再问可信绑定来源，最后核对作用域的状态、注册、生产者代际与恢复围栏。未绑定、租户不符与拒绝对外一律是无权。精确顺序见 [RC-01](../../../packages/context/SPEC.md#访问核对)。
 
 读取资格有资格身份。持有者使读者游标作废的操作是重签该读者的资格：`issueEligibility` 带「取代的资格身份」签发新资格，旧资格随之失效，读者沿新资格继续，游标作废。压缩提交之后，持有者对模型类读者这样做。收窄授权范围也经重签，不必先撤销。重签不拒绝读取。撤销资格用 `revokeEligibility`，之后该资格的读取按拒绝（无权）。
 
@@ -145,11 +141,11 @@ Runtime Context 不签发身份，也不保存许可。它经两个由调用方�
 
 Cordis 承载机制，不承载数据。生产者登记在调用方 fiber 的效应里。生产者槽是租户加块键，一个插件为几个租户供值时为每个租户分别登记。代际由 Runtime Context 每次登记新取，卸载即撤本代登记（[IC-13](../cordis-integration-conventions.md#ic-13)）。`runtime-context-cordis-contract/changed` 只作唤醒，载荷只有作用域引用与修订，派发方按作用域过滤监听者。作用域、资格、值、修订、观察都在服务自己的进程内状态里。每次获取不开 fiber，不用 `inject` 表达需要。
 
-读取资格是消费者类的权威。调用方 intercept 配置里的消费者类只是装配者对该插件的声明，两者不一致即拒绝读取。这条核对是一致性检查，不是访问控制；访问边界是读取资格。这条核对依赖的 Cordis 机制读数还是假设，待补的探针见 [runtime-context-cordis-contract 的机制读数与假设](../../../packages/context/runtime-context-cordis-contract/docs/cordis.md#机制读数与假设)。
+读取资格是消费者类的权威。调用方 intercept 配置里的消费者类只是装配者对该插件的声明，两者不一致即拒绝读取。这条核对是一致性检查，不是访问控制；访问边界是读取资格。
 
 发布带作用域与租户：生产者句柄的每次发布指明作用域引用与租户，块键由句柄的登记确定，租户必须等于句柄的租户。使当前值失效的目标是指定作用域，或句柄租户的全部作用域。作用域无关的供给块（宿主事实、租户元信息、当前档案）由 Runtime Context 驱动供值：生产者登记时给出按作用域供值的回调，回调收到作用域、租户与本次供值的代租户主体。Runtime Context 在四种时点调用回调：持有者注册该块、生产者后登记、生产者使当前值失效，以及作用域恢复完成之后第一次合法的普通读取遇到待刷新标记。生产者不需要知道作用域列表。
 
-Runtime Context 不持有耐久状态，也没有存储端口。`persisted` 供给块的权威持久者是生产者，重启后由生产者重新发布；注册、自有值与步提交由作用域持有者保存；注册修订的唯一权威是持有者的耐久提交，Runtime Context 的表是按提交顺序应用的投影；进程内表重启后，持有者用[恢复会话](../../../packages/context/runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值)把耐久事实装回作用域：先开始恢复会话，再交一份完整恢复材料，材料含全部注册提交的耐久顺序、每个 `checkpointed` 块最近一次步提交的全值与已经确认的作用域结束。恢复完成之后持有者重新签发资格，生产者重新登记（[IC-19](../cordis-integration-conventions.md#ic-19)）。
+Runtime Context 不持有耐久状态，也没有存储端口。`persisted` 供给块的权威持久者是生产者，重启后由生产者重新发布；注册、自有值与步提交由作用域持有者保存；注册修订的唯一权威是持有者的耐久提交，Runtime Context 的表是按提交顺序应用的投影；进程内表重启后，持有者用[恢复会话](../../../packages/context/SPEC.md#提交链与恢复会话)把耐久事实装回作用域：先开始恢复会话，再交一份完整恢复材料，材料含全部注册提交的耐久顺序、每个 `checkpointed` 块最近一次步提交的全值与已经确认的作用域结束。恢复完成之后持有者重新签发资格，生产者重新登记（[IC-19](../cordis-integration-conventions.md#ic-19)）。
 
 ## 观测与性能责任
 
@@ -159,10 +155,6 @@ Runtime Context 不持有耐久状态，也没有存储端口。`persisted` 供�
 
 遥测可以报告更新延迟、读取失败和缺口，但不能因此发送块中全部用户数据。访问、保留与对外传送继续受[项目数据保护要求](../../requirements.md#数据保护sys-data-protection)约束。
 
-## 依据
-
-块的两类、声明、需要与绑定、登记、资格、更新与步提交、首次注入与提醒的产品规则见[运行感知与一次模型请求](../../../.meta_harness/design/product/runtime-context/design.md)（§2、§5）。数据块、模式与恢复中作用域持有者一侧的责任见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)。本页承诺按项目要求及实际接受范围执行。
-
 ## 未决问题与待办事项
 
 以下事项沿本页已接受要求继续承接。来源定位不表示现行契约已经完整或验证已通过。
@@ -170,7 +162,7 @@ Runtime Context 不持有耐久状态，也没有存储端口。`persisted` 供�
 <a id="runtime-context-t01"></a>
 ### RUNTIME-CONTEXT-T01 注册与读取行为契约承接
 
-本项为契约承接待办。注册身份、当前块值、修订条件、消费者资格、移除与恢复的现行精确契约由 [runtime-context-contract](../../../packages/context/runtime-context-contract/SPEC.md) 承接。必需注册、来源所有权及历史采用不能替代当前读取资格。
+本项为契约承接待办。注册身份、当前块值、修订条件、消费者资格、移除与恢复的现行精确契约由 [runtime-context-contract](../../../packages/context/SPEC.md#应然设计) 承接。必需注册、来源所有权及历史采用不能替代当前读取资格。
 
 承接责任为 Runtime Context、作用域持有者、原来源与读取协调者。待办是核验并发更新、撤权、初始化、主动移除及恢复，不将可重算值或活体资源误作持久事实。
 

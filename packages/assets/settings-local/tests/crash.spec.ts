@@ -38,7 +38,6 @@ it('recovers confirmed facts after a writer process is killed without disposing 
       expect(counts()).toEqual([1, 1, 1])
       expect(stored(first.root).state).toMatchObject({ state: { revision: 1 } })
       expect(await recovered.service.getOperation(recovered.context, operation)).toEqual(result)
-      // The same command after the restart is recognized as the original operation.
       expect(await recovered.service.prepareChange(recovered.context, recovered.command)).toEqual(
         result,
       )

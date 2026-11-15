@@ -1,10 +1,4 @@
 // @module-tag slow
-// AC-2 (identity spec), second half, and the 001 to 002 upgrade (SPEC IS-09). Slow: every phase is
-// a separate Node process over one storage root (`fixtures/governance-child.ts`).
-//   A revocation outlives the process: the first process revokes a login and exits, the second
-//   finds it invalid and the other login recognized. Both processes exit with 0.
-//   Upgrade: the first process is the published 001 build; the second is this build over the same
-//   files, whose registration runs 002; the third opens them again with nothing left to migrate.
 import { execFile } from 'node:child_process'
 import { readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -21,7 +15,6 @@ afterAll(async () => {
   for (const root of roots) await rm(root, { recursive: true, force: true })
 })
 
-/** Runs one phase; a non-zero exit rejects. Returns the exit code and the one JSON line. */
 async function phase(storageRoot: string, name: string, stateFile: string) {
   const { stdout, stderr } = await run(process.execPath, [CHILD, storageRoot, name, stateFile], {
     timeout: 60_000,
@@ -73,7 +66,6 @@ describe('governance records across processes', () => {
       const legacy = await phase(storageRoot, 'legacy-first', stateFile)
       expect(legacy.output).toMatchObject({ registered: 'registered', register: 'committed' })
       expect(legacy.output['issue']).toBe('committed')
-      // The 001 build registered another combination version than this build.
       expect(legacy.output['legacyVersion']).not.toBe(legacy.output['currentVersion'])
 
       const upgraded = await phase(storageRoot, 'upgrade-second', stateFile)

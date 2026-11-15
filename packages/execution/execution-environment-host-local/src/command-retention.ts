@@ -1,6 +1,3 @@
-// The retention side of the command facility that does not depend on the platform: which retention
-// binding an acquisition may use, the binding a disposition sees, and the retention extension's
-// `list`, `stop` and `output`, all answered by the retained-process index.
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type {
@@ -21,7 +18,6 @@ type ListRequest = Parameters<CommandRetention<unknown>['list']>[0]
 type StopRetainedRequest = Parameters<NonNullable<CommandRetention<unknown>['stop']>>[0]
 type OutputRetainedRequest = Parameters<NonNullable<CommandRetention<unknown>['output']>>[0]
 
-/** A retention binding the acquisition can use: bound, same scope as the requester, indexed. */
 export type RetentionBinding = Readonly<{
   scope: ScopeRef
   released: AbortSignal
@@ -30,7 +26,6 @@ export type RetentionBinding = Readonly<{
   tenant: TenantId
 }>
 
-/** The acquisition's usable retention binding; the index watches its two closure signals. */
 export function retentionBindingOf(input: {
   retention: ProviderAcquireInput['retention'] | undefined
   retained: RetainedProcessIndex | undefined
@@ -58,11 +53,9 @@ export function retentionBindingOf(input: {
   return binding
 }
 
-/** The retention scope is closed: its release signal or its ledger's close signal fired. */
 export const retentionScopeClosed = (binding: RetentionBinding | undefined): boolean =>
   binding !== undefined && (binding.released.aborted || binding.processes.closed.aborted)
 
-/** The binding of one exited domain, as `decideDisposition` sees it. */
 export function custodyBindingOf(input: {
   policy: ResiduePolicy
   retention: ProviderAcquireInput['retention'] | undefined
@@ -82,10 +75,6 @@ export function custodyBindingOf(input: {
   }
 }
 
-/**
- * The binding after the index loaded its markers, within `deadline`. Markers not read completely
- * within the bound leave no place to take, as when there is no index.
- */
 export async function loadedCustodyBinding(
   custody: CustodyBinding | 'policy' | 'unbound',
   binding: RetentionBinding | undefined,
@@ -109,7 +98,6 @@ const rejected = (requestId: string, reason: FacilityReason): FacilityResult<nev
 
 const nonEmptyText = (value: unknown): value is string => typeof value === 'string' && value !== ''
 
-/** A retained process reference is an object whose `id` and `generation` are non-empty text. */
 const invalidProcessRef = (value: unknown) =>
   typeof value !== 'object' ||
   value === null ||
@@ -118,7 +106,6 @@ const invalidProcessRef = (value: unknown) =>
 
 const outputStreams: readonly string[] = ['stdout', 'stderr', 'terminal']
 
-/** An offset of `from`: a known stream, and a whole number of bytes, zero or more. A stream without an offset has no key. */
 const invalidOffset = ([stream, offset]: readonly [string, unknown]) =>
   !outputStreams.includes(stream) || !(Number.isSafeInteger(offset) && Number(offset) >= 0)
 
@@ -129,27 +116,23 @@ const invalidFrom = (value: unknown) =>
     Array.isArray(value) ||
     Object.entries(value).some(invalidOffset))
 
-/** The shape of a retained-process stop, checked before the index is asked (the contract's `invalidInput`). */
 function stopRetainedIssue(request: StopRetainedRequest): FacilityReason | undefined {
   if (invalidProcessRef(request.process)) return 'invalidInput'
   if (request.mode !== 'graceful' && request.mode !== 'forced') return 'invalidInput'
   return undefined
 }
 
-/** The shape of a retained-process output request, checked before the index is asked. */
 function outputRetainedIssue(request: OutputRetainedRequest): FacilityReason | undefined {
   if (invalidProcessRef(request.process) || invalidFrom(request.from)) return 'invalidInput'
   return undefined
 }
 
-/** The retention extension of one acquisition; a sealed facade answers `closed`. */
 export function retentionExtension(
   binding: RetentionBinding,
   sealed: () => boolean,
 ): CommandRetention<unknown> {
   const { index, scope, tenant, processes: view } = binding
 
-  /** The retained processes of the retention scope, from the index; an unreadable index is not empty. */
   const list = async (
     request: ListRequest,
   ): Promise<FacilityResult<readonly RetainedProcessInformation[]>> => {
@@ -159,10 +142,6 @@ export function retentionExtension(
     return { kind: 'done', requestId: request.requestId, value: listed }
   }
 
-  /**
-   * Stops a retained process of the retention scope. Both modes run the forced stop sequence: the
-   * main process a graceful stop would signal has exited already.
-   */
   const stop = async (
     request: StopRetainedRequest,
   ): Promise<FacilityResult<{ readonly status: 'confirmed' | 'unconfirmed' }>> => {
@@ -175,7 +154,6 @@ export function retentionExtension(
     return { kind: 'done', requestId: request.requestId, value: { status: answer } }
   }
 
-  /** What a retained process of the retention scope wrote after the handover, from its tail. */
   const output = async (
     request: OutputRetainedRequest,
   ): Promise<FacilityResult<RetainedOutput>> => {

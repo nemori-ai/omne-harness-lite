@@ -1,6 +1,3 @@
-// DO-1 inside the Worker (SPEC 5.3): domain open (path A), domain creation (path B) and the
-// registration of a new combination version in an open domain (SPEC 6.1). Nothing becomes visible
-// to the control side until the whole transaction has committed.
 import { DatabaseSync } from 'node:sqlite'
 import {
   combinationManifest,
@@ -13,7 +10,7 @@ import {
 } from '@omne-harness/sql-contract'
 import { decodeScope } from '../fields.ts'
 import { canonicalJson } from '../json.ts'
-import { DataError, describeError, isTransientError } from './errors.ts'
+import { DataError, describeError, isTransientError, loadFailure } from './errors.ts'
 import {
   MigrationFailed,
   markerFault,
@@ -30,14 +27,9 @@ import { PROVIDER_SCHEMA, findSingletons } from './schema.ts'
 export type WorkerState = {
   db: DatabaseSync | null
   readonly modules: ModuleCache
-  /**
-   * The write generation that this Worker wrote into `_sql_generation` when it opened the domain.
-   * Null until then. A group commit checks it after BEGIN IMMEDIATE (SPEC 7.5 step 1).
-   */
   writeGeneration: number | null
 }
 
-/** The write generation in the file. Read it inside a transaction to get a stable value. */
 export function readWriteGeneration(db: DatabaseSync): number {
   const row = db.prepare('select generation from _sql_generation where singleton = 1').get() as
     | { generation: number | bigint }
@@ -46,20 +38,15 @@ export function readWriteGeneration(db: DatabaseSync): number {
   return Number(row.generation)
 }
 
-/** A COMMIT that failed: the transaction may or may not be durable. */
 class CommitUncertain extends Error {}
-/** A fault in the domain that retrying does not repair. */
 class DomainFault extends Error {}
 
 export function rollbackQuietly(db: DatabaseSync): void {
   try {
     if (db.isTransaction) db.exec('ROLLBACK')
-  } catch {
-    // The connection is unusable. The caller reports the outcome it can prove.
-  }
+  } catch {}
 }
 
-/** BEGIN IMMEDIATE, body, COMMIT. A body error rolls back. A COMMIT error is uncertain. */
 export function transact<T>(db: DatabaseSync, body: () => T): T {
   db.exec('BEGIN IMMEDIATE')
   let result: T
@@ -83,7 +70,6 @@ type Plan = Readonly<{
   migrations: readonly MigrationDescriptor[]
 }>
 
-/** The union of participants and migrations of several combinations, migrations in order. */
 function buildPlan(
   catalog: SqlMaterialCatalog,
   combinations: readonly (readonly string[])[],
@@ -146,10 +132,6 @@ function sameRegistration(stored: StoredRegistration, spec: RegistrationSpec): b
   )
 }
 
-/**
- * Path A step 7 input: the declared combination of the bound scope, plus every registered
- * combination whose digest still equals the value that this catalog computes for it.
- */
 function targetCombinations(
   db: DatabaseSync,
   catalog: SqlMaterialCatalog,
@@ -196,11 +178,11 @@ function failure(step: string, error: unknown, creating: boolean): OpenReply {
   if (error instanceof CommitUncertain)
     return creating ? { kind: 'unknown', diagnostic } : { kind: 'transient', diagnostic }
   if (creating) return { kind: 'create_failed', diagnostic }
-  if (!isStatic(error) && isTransientError(error)) return { kind: 'transient', diagnostic }
+  if (!isStatic(error) && (isTransientError(error) || loadFailure(error) === 'transient'))
+    return { kind: 'transient', diagnostic }
   return { kind: 'quarantined', diagnostic }
 }
 
-/** Path B steps 2: provider tables, migrations, binding and registration in one transaction. */
 async function createDomain(
   env: WorkerEnv,
   state: WorkerState,
@@ -227,7 +209,6 @@ async function createDomain(
   }
 }
 
-/** Path A steps 6 and 7. */
 async function reopenDomain(
   env: WorkerEnv,
   state: WorkerState,
@@ -286,7 +267,6 @@ export async function openDomain(
   }
 }
 
-/** Registers a new combination version in an open domain (SPEC 6.1). */
 export async function registerInDomain(
   env: WorkerEnv,
   state: WorkerState,

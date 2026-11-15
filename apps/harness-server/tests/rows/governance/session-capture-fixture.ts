@@ -18,7 +18,6 @@ import {
 import type { SessionCommand } from '@omne-harness/session-contract'
 import type { settingsPreparationWorld } from './settings-preparation-world.ts'
 
-/** Actual Session writer; initialization and write authority are named fixtures, not production admission. */
 export async function createCaptureSession(
   w: Pick<
     Awaited<ReturnType<typeof settingsPreparationWorld>>,

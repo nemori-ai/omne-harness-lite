@@ -71,7 +71,6 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return proto === Object.prototype || proto === null
 }
 
-/** True when a getter, a setter, or a non-enumerable key would hide what a read does. */
 function hasUnreadableOwn(value: object): boolean {
   return Object.getOwnPropertyNames(value).some(key => {
     const descriptor = Object.getOwnPropertyDescriptor(value, key)
@@ -79,7 +78,6 @@ function hasUnreadableOwn(value: object): boolean {
   })
 }
 
-/** Admit one streaming-delivery step. Cordis dispatch and inbound intake are not steps. */
 function isStep(step: string): step is StreamArrivalStep {
   return STREAM_ARRIVAL_STEPS.some(known => known === step)
 }
@@ -126,17 +124,14 @@ export type StreamTerminal =
       readonly trims: readonly TrimRecord[]
     }
 
-/** Callers see `live`, or `ended` with a terminal. Continuation state is not part of this type. */
 export type StreamAssembly =
   | { readonly phase: 'live' }
   | { readonly phase: 'ended'; readonly terminal: StreamTerminal }
 
 export interface AssembleInput {
   readonly target: AssemblyTarget
-  /** A prior result. Omitted starts a live assembly. */
   readonly from?: StreamAssembly
   readonly steps: readonly unknown[]
-  /** Applied after `steps`. Not a stream step. Observer disconnect is not an input. */
   readonly end?: StreamEnd
 }
 
@@ -185,11 +180,6 @@ const STEP_KEYS: Readonly<Record<StreamArrivalStep, readonly string[]>> = {
 type PartKind = (typeof PART_KINDS)[number]
 type AppendKind = 'text' | 'thinking' | 'voice' | 'tool_call'
 
-/**
- * Body field for a fill. Image, file, tool_result, and reasoning_state have no append form. The `arguments` field of
- * `tool_call` only exists to refuse a head that carries arguments: an implicit close of a
- * `tool_call` is always refused, because the accumulated text is not a value tree.
- */
 const BODY: Readonly<Record<PartKind, { readonly field?: 'text' | 'inline' | 'arguments' }>> = {
   text: { field: 'text' },
   thinking: { field: 'text' },
@@ -201,10 +191,6 @@ const BODY: Readonly<Record<PartKind, { readonly field?: 'text' | 'inline' | 'ar
   reasoning_state: {},
 }
 
-/**
- * The admitted head of a block. `rest` holds the head keys that carry text: `callId`, `name`,
- * `mediaType`, `storage` and `key`, whichever the kind has.
- */
 interface Head {
   readonly kind: PartKind
   readonly id: BlockId
@@ -275,7 +261,6 @@ interface FillStep {
 interface CloseStep {
   readonly step: 'close'
   readonly index: string
-  /** Present means this judged part is the sealed part. Absent seals the fragments. */
   readonly block?: MessagePart
 }
 
@@ -286,7 +271,6 @@ interface TrimStep {
   readonly reason: string
 }
 
-/** The replay scope and format that a `finish` brings. The assembly writes `at` itself. */
 interface ReplayRange {
   readonly scope: string
   readonly format: string
@@ -295,7 +279,6 @@ interface ReplayRange {
 interface FinishStep {
   readonly step: 'finish'
   readonly index: string
-  /** Present only when the step carries it. An absent key is never an own `undefined`. */
   readonly replay?: ReplayRange
 }
 
@@ -312,10 +295,6 @@ type Applied =
   | { readonly state: InternalState }
   | { readonly rejected: AssemblyRejection; readonly detail?: string }
 
-/**
- * Ledger and open blocks stay off the public value. A later `from` still finds them.
- * `ended` keeps the ledger and drops open drafts.
- */
 const CONTINUATION: unique symbol = Symbol('stream-assembly-continuation')
 
 function carried(assembly: StreamAssembly): InternalState | undefined {
@@ -345,7 +324,6 @@ function isPartKind(kind: string): kind is PartKind {
   return (PART_KINDS as readonly string[]).includes(kind)
 }
 
-/** Append image, file, tool_result, and reasoning_state cannot be constructed. */
 function appendKind(kind: PartKind): AppendKind | undefined {
   switch (kind) {
     case 'text':
@@ -381,10 +359,6 @@ function stable(value: unknown): string {
   return JSON.stringify(value)
 }
 
-/**
- * The fingerprint of a step. `stable` only sees values that hold no value tree. The arguments of a
- * `tool_call` are held as the text `writeJsonText` writes for them, whose walk keeps its own stack.
- */
 function fingerprint(step: AssemblyStep): string {
   if (step.step !== 'close' || step.block === undefined) return stable(step)
   const { block } = step
@@ -456,13 +430,11 @@ function refuse(detail: string): HeadRefusal {
   return { rejected: 'step', detail }
 }
 
-/** The head keys of each kind. A tool kind needs all of its keys. A content kind may carry its own. */
 const TOOL_HEAD_KEYS: Readonly<Record<'tool_call' | 'tool_result', readonly string[]>> = {
   tool_call: ['kind', 'id', 'visibility', 'callId', 'name'],
   tool_result: ['kind', 'id', 'visibility', 'callId'],
 }
 
-/** A reasoning state head has the identity keys only. `payload` and `pairs` arrive in the close. */
 const REASONING_STATE_HEAD_KEYS: readonly string[] = ['kind', 'id', 'visibility']
 
 function headKeysOf(kind: PartKind): readonly string[] {
@@ -475,12 +447,10 @@ function isToolHeadKind(kind: PartKind): boolean {
   return kind === 'tool_call' || kind === 'tool_result'
 }
 
-/** The head keys that `judgeBlockIdentity` judges. `headText` reads every other head key. */
 const IDENTITY_KEYS: readonly string[] = ['kind', 'id', 'visibility']
 
 type HeadTextRead = { readonly text: string | undefined } | HeadRefusal
 
-/** One text key of a head. A content head may leave it out; a tool head may not. */
 function headTextOf(kind: PartKind, value: Record<string, unknown>, key: string): HeadTextRead {
   const text = value[key]
   if (typeof text === 'string')
@@ -489,7 +459,6 @@ function headTextOf(kind: PartKind, value: Record<string, unknown>, key: string)
   return { text: undefined }
 }
 
-/** The text-valued head keys. A tool head must have them, and `callId` is not empty. */
 function headText(
   kind: PartKind,
   value: Record<string, unknown>,
@@ -504,11 +473,6 @@ function headText(
   return { ok: rest }
 }
 
-/**
- * A head is judged before anything is copied or fingerprinted: the keys must be closed, and
- * every value is text except `visibility`, which `judgeBlockIdentity` rebuilds. A deep value
- * under any key is refused at the key, and no walk reaches it.
- */
 function judgeHead(value: unknown): { readonly ok: Head } | HeadRefusal {
   if (!isPlainRecord(value) || hasUnreadableOwn(value)) return refuse('json')
   const kind = value.kind
@@ -538,22 +502,15 @@ function parseClose(value: Record<string, unknown>, index: string): Parsed {
 
 const REPLAY_KEYS: readonly string[] = ['scope', 'format']
 
-/**
- * The `replay` of a `finish`: a plain object with exactly `scope` and `format`, both text. Whether
- * the text is empty or too long is `judgeMessage`'s rule, so it is judged when the message is made.
- */
 function parseReplay(raw: unknown): ReplayRange | undefined {
   if (!isPlainRecord(raw) || hasUnreadableOwn(raw)) return undefined
-  // A missing key reads as a non-string below, so only unknown keys are checked here.
   if (hasUnknownKey(raw, REPLAY_KEYS)) return undefined
   const { scope, format } = raw
   if (typeof scope !== 'string' || typeof format !== 'string') return undefined
   return { scope, format }
 }
 
-/** A `replay` of `undefined` is no replay, the same as `judgeMessage` reads it. */
 function parseFinish(value: Record<string, unknown>, index: string): Parsed {
-  // The key is read once, so the check and the copy see the same value even from an accessor.
   const raw: unknown = Object.hasOwn(value, 'replay') ? value.replay : undefined
   if (raw === undefined) return { step: { step: 'finish', index } }
   const replay = parseReplay(raw)
@@ -649,7 +606,6 @@ function fieldsOf(part: MessagePart): ReadonlyMap<string, unknown> {
   return new Map(Object.entries(part))
 }
 
-/** The sealed part carries the head: the same identity, the same visibility, the same text keys. */
 function sameHead(head: Head, part: MessagePart): boolean {
   if (part.id !== head.id) return false
   if (part.visibility.toHuman !== head.visibility.toHuman) return false
@@ -658,10 +614,6 @@ function sameHead(head: Head, part: MessagePart): boolean {
   return Object.entries(head.rest).every(([key, text]) => fields.get(key) === text)
 }
 
-/**
- * The accumulated text must be what the part holds. A `tool_call` part holds a value tree, not
- * the text, so its `arguments` are not compared. The text of an unparsed call is `raw`.
- */
 function bodyConflicts(block: OpenBlock, sealed: MessagePart): boolean {
   if (
     block.mode === 'replace' &&
@@ -679,12 +631,6 @@ function hasTrim(state: LiveState, block: OpenBlock): boolean {
   return state.trims.some(trim => decimalIndex(trim.index) === block.index)
 }
 
-/**
- * A `tool_call` head is sealed as a `tool_call`, or as a `tool_call_unparsed`, which is the one
- * exception to equal kinds. A `tool_call_incomplete` is never sealed: the settling side builds
- * it after the stream. A `tool_call` block with a trim record is never sealed either: the text
- * left may decode, and that does not show that the model had finished.
- */
 function sealRefusal(
   state: LiveState,
   block: OpenBlock,
@@ -708,7 +654,6 @@ function seal(state: LiveState, block: OpenBlock, part: MessagePart): Applied {
   return { state: { ...state, blocks: replaceBlock(state.blocks, closed) } }
 }
 
-/** The part that the head and the fragments make, for a close that has no block. */
 function fragmentsOf(block: OpenBlock): Readonly<Record<string, unknown>> {
   const { head } = block
   const base = { kind: head.kind, id: head.id, visibility: { ...head.visibility }, ...head.rest }
@@ -734,12 +679,10 @@ function applyTrim(state: LiveState, step: TrimStep): Applied {
   return { state: { ...state, trims: [...state.trims, record] } }
 }
 
-/** The positions of the reasoning state parts among the sealed parts, in order. */
 function reasoningStateAt(blocks: readonly MessagePart[]): readonly number[] {
   return blocks.flatMap((part, at) => (part.kind === 'reasoning_state' ? [at] : []))
 }
 
-/** The message input for `judgeMessage`. `replay` is in it only when the `finish` carried it. */
 function messageInput(state: LiveState, blocks: readonly MessagePart[], step: FinishStep) {
   const { id, role } = state.target
   if (step.replay === undefined) return { id, role, blocks }
@@ -766,7 +709,6 @@ function applyFinish(state: LiveState, step: FinishStep): Applied {
   }
 }
 
-/** One step table. `assembleStream` does not switch on the step name. */
 const APPLY: Readonly<
   Record<StreamArrivalStep, (state: LiveState, step: AssemblyStep) => Applied>
 > = {
@@ -850,7 +792,6 @@ function takeEnd(fold: Fold, end: StreamEnd | undefined, at: number): AssembleRe
   return { ok: publish(remember(settled.state, 'end', endFp)) }
 }
 
-/** Pure fold of one target. A novel step after a terminal returns `late` and the previous assembly. */
 export function assembleStream(input: AssembleInput): AssembleResult {
   const started = resume(input)
   if (!('fold' in started)) return started

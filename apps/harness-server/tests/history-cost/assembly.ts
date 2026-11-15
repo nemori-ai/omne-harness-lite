@@ -1,8 +1,3 @@
-// The assembly that the history-cost runs drive (C8): the release distribution, real SQLite storage,
-// the `omne` CLI and the local model gateway, all as `rows/tool-runtime/release-tool-delivery.spec.ts`
-// assembles them. The payload comes from the release Shell, which prints a file of its working
-// directory. The server runs in this process, so `sql-probe.ts` sees its statements. One call is one Shell call in a new session, so the Agent's history stays one call
-// long and only the tenant's history grows.
 import {
   mkdirSync,
   mkdtempSync,
@@ -41,7 +36,6 @@ import { createTraversal } from './traversal.ts'
 
 type Op = Readonly<{ kind: string; id: string; config?: Record<string, unknown> }>
 
-/** The payload kind named on the command line. */
 export function payloadKind(value: string | undefined): PayloadKind {
   if (value !== 'inline' && value !== 'text') throw new Error('give a payload kind: inline or text')
   return value
@@ -52,13 +46,19 @@ const setPhase = (value: number) => {
   if (typeof mark === 'function') mark(value)
 }
 
-/** Starts the server and returns what a run needs to drive calls and to end the assembly. */
-/** A change of the operator configuration of one row, for a measurement that varies one setting. */
 export type Tuning = (row: string, config: Record<string, unknown>) => Record<string, unknown>
 
-export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, config) => config) {
-  // The state lives in a short temporary path (socket paths have a length limit) and is removed at
-  // the end; the evidence goes to the output directory of the run.
+export type AssemblyOptions = Readonly<{
+  historyKinds?: readonly string[]
+  record?: (record: unknown) => void
+  script?: () => string
+}>
+
+export async function startAssembly(
+  kind: PayloadKind,
+  tune: Tuning = (_row, config) => config,
+  options: AssemblyOptions = {},
+) {
   const base = realpathSync(mkdtempSync(join(tmpdir(), 'history-cost-')))
   const stateRoot = join(base, 'state')
   const storageRoot = join(stateRoot, 'storage')
@@ -67,10 +67,18 @@ export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, con
   const author = payload(kind)
   const model = createTraversal({
     body: author.body,
-    script: PAYLOAD_SCRIPT,
+    script: options.script ?? PAYLOAD_SCRIPT,
     pageBytes: PAGE_BYTES,
   })
-  const gateway = await startModelGateway(model.script)
+  let modelMs = 0
+  const gateway = await startModelGateway(request => {
+    const started = performance.now()
+    try {
+      return model.script(request)
+    } finally {
+      modelMs += performance.now() - started
+    }
+  })
   gateway.trustInProcess()
   const release: unknown = JSON.parse(
     readFileSync(new URL('../../config/serve.distribution.json', import.meta.url), 'utf8'),
@@ -83,14 +91,16 @@ export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, con
     ops: layer.ops.map(op => {
       const config = op.config ?? {}
       if (op.id === 'server-entry')
-        return { ...op, config: { ...config, historyKinds: ['run.terminal'] } }
+        return {
+          ...op,
+          config: { ...config, historyKinds: [...(options.historyKinds ?? ['run.terminal'])] },
+        }
       if (op.id === 'tool-bindings') {
         const tools = config['tools'] as Record<string, unknown>
         return {
           ...op,
           config: {
             ...config,
-            // A Tools reply fits the inline threshold, or the reply that carries a page offloads again.
             tools: {
               ...tools,
               contentPageBytes: PAGE_BYTES,
@@ -104,8 +114,6 @@ export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, con
       if (construction?.['Shell'] !== undefined) {
         const shell = construction['Shell'] as Record<string, unknown>
         writeFileSync(join(String(shell['cwd']), PAYLOAD_FILE), author.body)
-        // The operator layer of the tests bounds a Shell result at 32 KiB; the payload and its
-        // frame need more.
         return {
           ...op,
           config: {
@@ -145,7 +153,7 @@ export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, con
     stop: controller.signal,
     readinessTimeoutMs: 15_000,
     shutdownDeadlineMs: 10_000,
-    write: () => undefined,
+    write: record => options.record?.(record),
     stderr: line => {
       stderr.push(line)
       if (stderr.length > 100) stderr.shift()
@@ -165,10 +173,6 @@ export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, con
     return value
   }
 
-  /**
-   * Null until the only Run of `session` reaches its terminal; then `completed`, or the whole
-   * terminal as text, so a failed call reports its reason.
-   */
   async function terminal(home: string, session: string): Promise<string | null> {
     const response = await fetch(`${server}/session-public/1`, {
       method: 'POST',
@@ -199,22 +203,21 @@ export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, con
 
   return {
     base,
+    stateRoot,
+    storageRoot,
+    server,
+    cli,
+    model,
+    modelMs: () => modelMs,
     author,
     stderr,
     ready: () => until(() => connectable('127.0.0.1', port), 'the server to listen', 20_000),
 
-    /** Registers the account `name` and logs it in; `home` then holds its tenant and proof. */
     async enrol(home: string, name: string) {
       await cli(home, ['register', '--login-identifier', name], 'history-cost-password-1')
       await cli(home, ['login', '--login-identifier', name], 'history-cost-password-1')
     },
 
-    /**
-     * One Shell call of the tenant of `home` in a new session, as SQL phase `ordinal`: from
-     * `send-input` to the terminal of its Run. With `readBack` the model reads the whole body back
-     * page by page and the digest is checked. `settleMs` keeps the work the call leaves behind (the
-     * release of its delivered values) in its phase.
-     */
     async call(home: string, ordinal: number, options: { readBack: boolean; settleMs: number }) {
       const session = String(
         bodyOf(await cli(home, ['create-session', '--definition', 'coding']))['session'],
@@ -251,10 +254,6 @@ export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, con
       return { elapsedMs, pages: result.pages, requests: result.requests }
     },
 
-    /**
-     * Writes to `file`, for every database under the storage root: the bytes of the file with its
-     * write-ahead log, the rows of each table, and the bytes of each table and index.
-     */
     storageSnapshot(file: string) {
       const files: unknown[] = []
       const visit = (dir: string) => {
@@ -297,7 +296,6 @@ export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, con
       writeFileSync(file, `${JSON.stringify(files, null, 2)}\n`)
     },
 
-    /** Stops the server and the gateway and removes the state; answers the server's exit code. */
     async close(): Promise<number> {
       controller.abort('history cost run complete')
       const shutdown = await finished

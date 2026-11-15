@@ -15,7 +15,6 @@ import { evidence, must, textBlock } from './scripted-support.ts'
 
 const zeroCursor = must(decodeOutputCursor('0'))
 
-/** Changes the blocks of every snapshot that an observation carries. */
 function reshaped(change: (block: VisibleBlock) => VisibleBlock): ObservationMap {
   return item =>
     item.kind === 'ended'

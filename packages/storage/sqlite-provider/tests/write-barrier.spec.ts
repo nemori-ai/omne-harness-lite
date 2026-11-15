@@ -1,17 +1,12 @@
-// The write barrier (SQL contract SPEC 9.3): writes and domain-serial barriers of one domain share
-// one arrival order, so neither side can starve the other, and every wait is bounded by its caller.
-// Each case names the defect that turns it red.
 import { describe, expect, it } from 'vitest'
 import { WriteBarrier, type BarrierOutcome } from '../src/write-barrier.ts'
 
 const DOMAIN = 'd'
 
-/** Lets every settled promise run its continuation. */
 const flush = (): Promise<void> => new Promise(resolve => setImmediate(resolve))
 
 const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
-/** A request in the order: what it got, in the log, and how to release it. */
 type Tracked = Readonly<{
   outcome: Promise<BarrierOutcome>
   release(): void
@@ -27,7 +22,6 @@ function track(log: string[], name: string, pending: Promise<BarrierOutcome>): T
   return { outcome, release: () => granted?.() }
 }
 
-/** `pending` within `ms`, else the outcome. */
 async function within(ms: number, outcome: Promise<BarrierOutcome>): Promise<string> {
   const result = await Promise.race([
     outcome.then(item => item.kind),
@@ -38,8 +32,6 @@ async function within(ms: number, outcome: Promise<BarrierOutcome>): Promise<str
 
 describe('one arrival order for writes and barriers', () => {
   it('grants a barrier after the writes ahead of it, and a later write only after that barrier', async () => {
-    // Defect: the barrier counts "queued" and a write waits while any barrier is queued (the old
-    // implementation): b2 would be granted before w2.
     const barrier = new WriteBarrier()
     const log: string[] = []
     const w1 = track(log, 'w1', barrier.enterWrite(DOMAIN, {}))
@@ -63,14 +55,11 @@ describe('one arrival order for writes and barriers', () => {
   })
 
   it('barriers that keep arriving do not starve a write: it enters at its turn', async () => {
-    // Defect: a write waits while any barrier is queued (the old implementation), so with
-    // barriers queued behind it the write never enters: b1 would be granted instead of w.
     const barrier = new WriteBarrier()
     const log: string[] = []
     const held = track(log, 'b0', barrier.acquire(DOMAIN, {}))
     await flush()
     const write = track(log, 'w', barrier.enterWrite(DOMAIN, {}))
-    // Three more barriers queue behind the write while b0 is still held.
     const later = [1, 2, 3].map(round =>
       track(log, `b${String(round)}`, barrier.acquire(DOMAIN, {})),
     )
@@ -88,9 +77,6 @@ describe('one arrival order for writes and barriers', () => {
   })
 
   it('writes that keep arriving do not starve a barrier: later writes wait behind it', async () => {
-    // Defect: a write enters whenever no barrier is held, ignoring a barrier that waits ahead of
-    // it (`advance` not stopping at the first barrier): w3 would enter at once and b would wait
-    // for ever while writes keep coming.
     const barrier = new WriteBarrier()
     const log: string[] = []
     const w1 = track(log, 'w1', barrier.enterWrite(DOMAIN, {}))
@@ -126,8 +112,6 @@ describe('one arrival order for writes and barriers', () => {
 
 describe('bounded waits', () => {
   it('withdraws a write that waited longer than its time limit, and keeps no place for it', async () => {
-    // Defect: no time limit (the wait never ends while the barrier is held), or the expired entry
-    // stays in the order (b2 would wait behind it for ever).
     const barrier = new WriteBarrier()
     const log: string[] = []
     const b1 = track(log, 'b1', barrier.acquire(DOMAIN, {}))
@@ -145,8 +129,6 @@ describe('bounded waits', () => {
   })
 
   it('withdraws a barrier that is aborted while it waits, so the writes behind it enter', async () => {
-    // Defect: an abort is ignored (the barrier waits on), or the aborted entry stays in the order
-    // (w2 would never enter).
     const barrier = new WriteBarrier()
     const log: string[] = []
     const w1 = track(log, 'w1', barrier.enterWrite(DOMAIN, {}))
@@ -180,8 +162,6 @@ describe('bounded waits', () => {
   })
 
   it('ignores the time limit and the signal once the request was granted', async () => {
-    // Defect: the timer or the abort listener survives the grant and withdraws an active entry,
-    // which would release what the caller still holds.
     const barrier = new WriteBarrier()
     const log: string[] = []
     const abort = new AbortController()

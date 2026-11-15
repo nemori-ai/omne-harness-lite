@@ -1,7 +1,3 @@
-// The `session-provider` row in a `serve` tree beside the real `server-entry` row and the real
-// principal entry objects: a login, a created session and a sent input cross the loopback port and
-// arrive at the double with a principal that the assembly signed. Nothing of the login reaches the
-// double or any record.
 import { describe, expect, it } from 'vitest'
 import { stubPlugin } from '../../../src/cordis.ts'
 import { entryObjects } from '../../../src/entry/index.ts'
@@ -40,7 +36,6 @@ function userMessage(text: string) {
   }
 }
 
-/** Whether `haystack` holds any of the `secrets`. */
 function leaks(haystack: string, secrets: readonly string[]): boolean {
   return secrets.some(secret => haystack.includes(secret))
 }
@@ -115,7 +110,6 @@ describe('session-provider row: serve tree', () => {
     )
     expect(sent.status).toBe(200)
 
-    // The input is in the history that the double keeps for the session.
     const history = await post(
       port,
       SESSION_PATH,
@@ -135,7 +129,6 @@ describe('session-provider row: serve tree', () => {
     expect(run.state('server-entry')).toMatchObject({ state: 'ACTIVE' })
     expect(run.tree('session-provider')).toMatchObject({ implementation: 'contract-double' })
 
-    // The principal that arrived: classification only, as the entry's own system component.
     const accepted = arrivals.filter(
       arrival => arrival.method === 'work.accept' && arrival.outcome === 'ok',
     )
@@ -154,11 +147,9 @@ describe('session-provider row: serve tree', () => {
       'history.begin',
     ])
 
-    // No secret of the login in what the double reported, in the run records or in stderr.
     const secrets = [CREDENTIAL, who.loginProof]
     const output = JSON.stringify({ arrivals, records: run.records, stderr: run.stderr })
     expect(leaks(output, secrets)).toBe(false)
-    // Positive control: the search does find the secrets where they are, in the requests.
     const sentBody = sessionMessage('send-input', {}, { loginProof: who.loginProof })
     expect(leaks(sentBody, secrets)).toBe(true)
     expect(leaks(JSON.stringify({ credential: CREDENTIAL }), secrets)).toBe(true)

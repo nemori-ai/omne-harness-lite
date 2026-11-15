@@ -1,7 +1,3 @@
-// `session-storage` 行的受信会话归属读口 `sessionPrincipalBindings`（session-contract「会话归属读口与会话工作主体」，
-// D-AUTH r4 4.1）在真实 SQLite 与真实目录上：session-cordis-contract 的读口套件；读到的是存储记录的租户、会话与来源，
-// 不带会话内容；不问访问裁定；未知会话与已登记的别的租户都答 `not-bound`，两者相同；目录没有该租户、树停止后存储
-// 正在关闭，都答 `unavailable`，不答 `not-bound`，也不登记。
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -73,7 +69,6 @@ describe('the binding suite of session-cordis-contract on the release row', () =
     test(`${item.clause}: ${item.name}`, async () => {
       const tree = await load()
       await create(tree, TENANT_A, 's1')
-      // Tenant B is registered too: its foreign read goes all the way to its own domain.
       await create(tree, TENANT_B, 's2')
       const fixture = {
         source: bindings(tree),

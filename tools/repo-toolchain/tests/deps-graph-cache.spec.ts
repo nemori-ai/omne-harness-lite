@@ -1,6 +1,3 @@
-// 工作树依赖图的缓存：指纹对每一类能改变图的输入都失效（取掉指纹里的某一类，对应用例变红），
-// 命中读缓存、未命中重算并写缓存、坏文件按未命中、开关关掉后不读不写、只留最近几份。
-// 指纹用例只跑 git，归快层；真起 dependency-cruiser 的用例单条标 slow。
 import { createHash } from 'node:crypto'
 import {
   mkdirSync,
@@ -32,7 +29,6 @@ import {
   write,
 } from './fixtures/loop-canary/repository.ts'
 
-/** 三个成员：a 导入 b，c 独立；提交过一次，工作树干净。不登记进 removeTemporaries，整个文件共用，最后删。 */
 let template: string
 beforeAll(() => {
   template = repository(
@@ -61,7 +57,6 @@ const digest = (root: string): string => {
   return key?.digest ?? ''
 }
 
-/** 把 `env` 里的键临时设成给定值（undefined 为删掉），跑完恢复。 */
 function withEnv<T>(values: Record<string, string | undefined>, run: () => T): T {
   const saved = Object.fromEntries(Object.keys(values).map(key => [key, process.env[key]]))
   for (const [key, value] of Object.entries(values)) {
@@ -102,7 +97,6 @@ describe('工作树依赖图的指纹', () => {
     expect(added).not.toBe(before)
     rmSync(join(root, 'packages/model/c/src/extra.ts'))
     expect(digest(root)).toBe(before)
-    // dependency-cruiser 会解析扫描根之外的导入目标，所以根下的未跟踪文件也要进指纹。
     write(root, 'docs/note.md', 'note\n')
     expect(digest(root)).not.toBe(before)
   })
@@ -190,7 +184,6 @@ describe('工作树依赖图的指纹', () => {
     commit(root, 'ignore one generated file')
     write(root, 'packages/model/a/src/gen/g.ts', 'export const g = 1\n')
     const fileOnly = workingGraphFingerprint(root)
-    // 改 `.git/info/exclude`：它不在 `git status` 里，也不在工作树里，两种写法下 ls-files 列出的被忽略路径相同。
     write(root, '.git/info/exclude', 'packages/model/a/src/gen/**\n')
     const wholeDir = workingGraphFingerprint(root)
     const others = (inputs: readonly string[] = []) =>
@@ -246,7 +239,6 @@ describe('工作树依赖图的指纹', () => {
     const other = fileURLToPath(new URL('./deps-graph-cache.spec.ts', import.meta.url))
     const codeLine = (key: ReturnType<typeof workingGraphFingerprint>) =>
       key?.inputs.filter(line => line.startsWith('code '))
-    // 默认取当前运行的 graph 模块文件。
     expect(codeLine(workingGraphFingerprint(root))).toEqual([
       `code ${createHash('sha256').update(readFileSync(self)).digest('hex')}`,
     ])
@@ -295,27 +287,22 @@ describe('工作树依赖图的缓存', () => {
       const file = join(cacheDir(root), entries(root)[0] ?? '')
       expect(JSON.stringify(workingGraph(root))).toBe(computed)
 
-      // 缺陷：命中时仍起 dependency-cruiser——换掉缓存里的图，命中就该读到换掉的那张。
       const entry = JSON.parse(readFileSync(file, 'utf8')) as { graph: DependencyGraph }
       writeFileSync(file, JSON.stringify({ ...entry, graph: marker }))
       expect(workingGraph(root).members.map(member => member.path)).toEqual([
         'packages/model/marker',
       ])
-      // 关掉开关：不读也不写，缓存里的标记图留在原处。
       expect(
         JSON.stringify(withEnv({ [WORKING_CACHE_SWITCH]: '0' }, () => workingGraph(root))),
       ).toBe(computed)
       expect((JSON.parse(readFileSync(file, 'utf8')) as { graph: DependencyGraph }).graph).toEqual(
         marker,
       )
-      // JSON 坏了按未命中：重算、重写。
       writeFileSync(file, '{"format":')
       expect(JSON.stringify(workingGraph(root))).toBe(computed)
       expect(JSON.parse(readFileSync(file, 'utf8'))).toMatchObject({ fingerprint: key?.digest })
-      // 形状不对（没有 edges 等数组）也按未命中。
       writeFileSync(file, JSON.stringify({ ...entry, graph: { members: [] } }))
       expect(JSON.stringify(workingGraph(root))).toBe(computed)
-      // 指纹对不上（文件名对、内容是别的指纹）也按未命中。
       writeFileSync(file, JSON.stringify({ ...entry, fingerprint: 'other', graph: marker }))
       expect(JSON.stringify(workingGraph(root))).toBe(computed)
     },
@@ -406,7 +393,6 @@ describe('工作树依赖图的缓存', () => {
     expect(() => withEnv({ OMNE_ADMISSION: '0' }, () => workingGraph(root))).toThrow(
       /OMNE_ADMISSION 只能是 1/u,
     )
-    // 报错发生在读缓存与出图之前。
     expect(() => readdirSync(cacheDir(root))).toThrow()
   })
 
@@ -423,7 +409,6 @@ describe('工作树依赖图的缓存', () => {
       expect(JSON.stringify(withEnv({ OMNE_ADMISSION: '1' }, () => workingGraph(root)))).toBe(
         computed,
       )
-      // 准入照常写：缓存里的标记图被真图覆盖。
       expect(
         (JSON.parse(readFileSync(file, 'utf8')) as { graph: DependencyGraph }).graph,
       ).not.toEqual(marker)
@@ -492,7 +477,6 @@ describe('工作树依赖图的缓存', () => {
   )
 
   describe('被忽略目录里的导入目标', () => {
-    /** c 导入被忽略目录 `packages/model/c/src/gen` 里的 r.mts；目录里另放 keep.txt，删掉 r.mts 后目录仍在。 */
     const importsIgnoredDirectory = () => {
       const root = copyRepository(template)
       write(root, '.gitignore', 'node_modules/\npackages/model/c/src/gen/\n')

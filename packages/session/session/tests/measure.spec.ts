@@ -1,5 +1,3 @@
-// SPEC「测量事件」: the Session segment of each face operation, the round-complete fact of a Run
-// terminal, and the absence of any change when no observer is given.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { ResidentKey, StartedRun } from '@omne-harness/session-contract'
 import { creation, operationId, succeeded } from '@omne-harness/session-contract/testing'
@@ -175,8 +173,8 @@ describe('the round-complete event', () => {
     expect(events.filter(event => event.kind === 'round-complete')).toHaveLength(1)
   })
 
-  it('an instance with an observer and no notifier still reads the committed entries for it', async () => {
-    const { h, events } = await service({ notifier: false })
+  it('an instance with an observer reads the committed entries for it', async () => {
+    const { h, events } = await service()
     await h.create()
     await h.accept('input-1')
     const started = await startRun(h)
@@ -186,8 +184,8 @@ describe('the round-complete event', () => {
 })
 
 describe('no observer, or an observer that fails', () => {
-  it('no observer builds nothing and reads no entries when there is no notifier either', async () => {
-    const h = await harness({ backend: memoryBackend, notifier: false })
+  it('no observer builds nothing and reads no entries', async () => {
+    const h = await harness({ backend: memoryBackend })
     open.push(h)
     await h.create()
     await h.accept('input-1')

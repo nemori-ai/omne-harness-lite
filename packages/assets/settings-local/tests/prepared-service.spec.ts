@@ -47,7 +47,6 @@ it('keeps the state, the original operation and value-free changes across reopen
   expect(
     await reopened.service.getOperation(reopened.context, prepared.preparation.operation),
   ).toEqual(committed)
-  // A change names the item and the source and carries no value.
   expect(
     await reopened.service.readChanges(reopened.context, { target, afterRevision: 0, limit: 10 }),
   ).toEqual({
@@ -65,7 +64,6 @@ it('keeps the state, the original operation and value-free changes across reopen
   })
 })
 
-/** The tables of every database under the root that hold the text in some row. */
 function tablesHolding(root: string, text: string): string[] {
   const directory = `${root}/domains`
   return readdirSync(directory)
@@ -117,12 +115,10 @@ it('refuses a secret write before it allocates anything, and keeps the plaintext
     kind: 'rejected',
     reason: 'unsupported',
   })
-  // No Identity reservation, no transaction and no row: the value never left the caller.
   expect(w.requests).toHaveLength(0)
   expect(JSON.stringify(responses)).not.toContain(secret)
   expect(tablesHolding(w.root, secret)).toEqual([])
   expect(stored(w.root)).toMatchObject({ state: null, operations: 0, changes: 0, terminals: 0 })
-  // An ordinary item of the same world is prepared as before.
   w.updateDefinition(definition)
   w.updateCurrent(current => ({ ...current, basis: { ...current.basis, definitionRef } }))
   expect(
@@ -233,7 +229,6 @@ it('refuses a malformed command and a malformed history read before authorizatio
       },
     },
   }))
-  // A member that the contract does not have, such as a principal that the caller names.
   const forged: typeof w.command = Object.assign({}, w.command, { principal: 'admin' })
   expect(await w.service.prepareChange(w.context, forged)).toEqual({
     kind: 'rejected',
@@ -258,7 +253,6 @@ it('seals the attempt when the source layout of the plan is not the stored one',
   const first = await w.service.prepareChange(w.context, w.command)
   if (first.kind !== 'prepared') throw new Error(JSON.stringify(first))
   await w.service.commitChange(w.context, { requestId: 'commit', preparation: first.preparation })
-  // The owner now names an organization source before the tenant source.
   w.updateCurrent(current => ({
     ...current,
     basis: {
@@ -290,7 +284,6 @@ it('seals the attempt when the source layout of the plan is not the stored one',
       preparation: prepared.preparation,
     }),
   ).toEqual({ kind: 'rejected', reason: 'basis_changed' })
-  // The stored value and its revision are those of the first write.
   expect(stored(w.root)).toMatchObject({
     state: {
       state: {
@@ -320,8 +313,6 @@ it('admits one of two operations that compete for the same expected revision', a
     w.service.commitChange(w.context, { requestId: 'commit-1', preparation: first.preparation }),
     w.service.commitChange(w.context, { requestId: 'commit-2', preparation: second.preparation }),
   ])
-  // The reason the loser gets comes from the current producer; the revision rule itself is
-  // pinned at the SQL combination (business-combination.spec.ts, revision_conflict).
   expect(results.filter(result => result.kind === 'committed')).toHaveLength(1)
   expect(stored(w.root)).toMatchObject({ state: { state: { revision: 1 } }, operations: 1 })
 })

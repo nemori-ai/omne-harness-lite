@@ -1,10 +1,4 @@
-// The host part of `ModelRuntimeLocalPlugin` on real Cordis 4.0.4. Test objects stand in for what
-// the assembly supplies: the host authority, the clock, the commands service (the in-memory
-// ModelCommands from `@omne-harness/model/testing`, a store without durability), the runtime
-// provider (here a driver and a quiesce that record what the host does to them) and the observer
-// qualification. The real runtime provider joins when the runtime facade plugin does; until then
-// nothing here proves a real driver.
-import { Context, symbols } from '@deepseek-ai/cordis'
+import { Context, Service, symbols } from '@deepseek-ai/cordis'
 import {
   accountCodec,
   organizationCodec,
@@ -63,7 +57,6 @@ async function until(check: () => boolean, label: string): Promise<void> {
   throw new Error(`timed out waiting for ${label}`)
 }
 
-// The commands service over the in-memory commands. Its fields are the commands' own functions.
 function commandsServiceOver(commands: ModelCommands<unknown>) {
   return class extends ModelCommandsService<unknown> {
     declare readonly admit: ModelCommands<unknown>['admit']
@@ -160,8 +153,6 @@ function memoryCommands() {
 
 type Gate = { started: boolean; open: () => void; signalAborted: boolean; signalSeen: boolean }
 
-// One fixture per test: the services the plugin injects, a driver that waits on a gate per call,
-// and a log of what the host did.
 function fixture(
   settings: Partial<typeof SETTINGS> = {},
   options: Partial<ModelHostPluginOptions> = {},
@@ -239,8 +230,6 @@ function fixture(
   const ctx = new Context()
   const errors: unknown[][] = []
   const messages: string[] = []
-  // Cordis ranks warn above info and drops what ranks above the exporter level, so the level is
-  // raised to see the warnings of the host.
   ctx.logger.exporter({
     colors: 0,
     levels: { default: 3 },
@@ -500,7 +489,6 @@ it('closes the channel and reports a safe diagnostic when the entry release fail
 
 const wake = (call: string) => ({ tenant: TENANT, call: callOf(call) })
 
-// Cordis fibers are thenables that Vitest's matchers probe as injected values, so wrap the await.
 async function loadError(fiber: PromiseLike<unknown>): Promise<unknown> {
   try {
     await fiber
@@ -516,9 +504,8 @@ it('publishes modelInstanceHost only after the bind has returned: a consumer tha
   await f.ctx.plugin(f.Authority)
   await f.ctx.plugin(f.Clock)
   await f.ctx.plugin(f.Commands)
-  // Both fibers are started before either settles, the way a plugin tree loads its rows. That the
-  // consumer still sees the host can then only come from the bind having returned before the
-  // contribution was created: a contribution made earlier is published to both at once.
+  // Both fibers start before either settles, as a plugin tree loads: the consumer can see the
+  // host only if the bind returned before the contribution was created.
   const host = f.ctx.plugin(f.Plugin, { ...SETTINGS })
   const consumer = f.ctx.plugin({
     inject: [modelInstanceHostKey],
@@ -549,7 +536,6 @@ it('fails to load when a bound is missing or out of range, and gives no number a
     await f.ctx.plugin(f.Authority)
     await f.ctx.plugin(f.Clock)
     await f.ctx.plugin(f.Commands)
-    // The values are wrong on purpose: the cast only lets them through the type of the class.
     const invalid = config as typeof SETTINGS
     expect(await loadError(f.ctx.plugin(f.Plugin, invalid)), name).toBeInstanceOf(Error)
     expect(f.ctx.modelInstanceHost, name).toBeUndefined()
@@ -596,7 +582,6 @@ it('merges repeated wakes of one call into one bit, also while the call is runni
   const host = f.ctx.modelInstanceHost
   await host.schedule(wake('a'))
   await until(() => f.driven.length === 1, 'the first drive')
-  // Three wakes while it runs set one bit, and a full capacity of one still takes the first.
   for (let n = 0; n < 3; n += 1)
     expect(await host.schedule(wake('a'))).toEqual({ ok: { queued: true } })
 
@@ -652,7 +637,6 @@ it('does not drive a call without trusted input, and the durable pending work st
       consumer: { owner: 'consumer', work: 'work', position: 'position', purpose: 'test' },
     }),
   )
-  // The restarted process cannot show that the old one ended: the authority has no input to give.
   f.state.resolve = async () => ({
     failure: {
       kind: 'unavailable',
@@ -698,7 +682,6 @@ it('shuts down in order: quiesce, then stop dispatching and wait for the drives,
   await until(() => gate.signalAborted, 'the stop signal of the drive')
   f.log.push(`dispatch stopped (service ${f.ctx.modelInstanceHost ? 'present' : 'gone'})`)
   await new Promise(resolve => setTimeout(resolve, 20))
-  // The drive has not handed back, so the unload has not finished and the service is still there.
   f.log.push(`waiting (service ${f.ctx.modelInstanceHost ? 'present' : 'gone'})`)
   gate.open()
   await unloading
@@ -710,12 +693,105 @@ it('shuts down in order: quiesce, then stop dispatching and wait for the drives,
     'waiting (service present)',
     'unloaded (service gone)',
   ])
-  // What was woken but not dispatched stays with the successor: it was never driven, and the host
-  // says so without calling it done.
   expect(f.driven).toEqual([callOf('running')])
   expect(f.messages.some(line => line.includes('1 woken calls were not dispatched'))).toBe(true)
   expect(await host.schedule(wake('late'))).toMatchObject({
     failure: { kind: 'unavailable', diagnostic: 'host-closed' },
+  })
+})
+
+describe('drain: the first half of a planned stop, while the callers are still alive', () => {
+  async function loadInstance(
+    f: ReturnType<typeof fixture>,
+    overrides: Partial<typeof SETTINGS> = {},
+  ) {
+    await f.ctx.plugin(f.Authority)
+    await f.ctx.plugin(f.Clock)
+    await f.ctx.plugin(f.Commands)
+    let instance: InstanceType<typeof f.Plugin> | undefined
+    await f.ctx.plugin({
+      name: 'keeps-the-instance',
+      inject: f.Plugin.inject,
+      apply(child: Context) {
+        instance = new f.Plugin(child, { ...SETTINGS, ...overrides })
+        return instance[Service.init]()
+      },
+    })
+    if (instance === undefined) throw new Error('the plugin was not built')
+    return instance
+  }
+
+  it('closes the admission first, then lets the drive in flight and the woken call run to their end without a stop signal', async () => {
+    const f = fixture()
+    const instance = await loadInstance(f, { concurrencyLimit: 1, wakeCapacity: 2 })
+    const host = f.ctx.modelInstanceHost
+    await host.schedule(wake('running'))
+    await host.schedule(wake('queued'))
+    await until(() => f.driven.length === 1, 'the running drive')
+
+    let drained: unknown
+    const draining = instance.drain(new AbortController().signal).then(answer => (drained = answer))
+    await until(() => f.log.includes('quiesce'), 'the quiesce of the drain')
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(drained).toBeUndefined()
+
+    f.gateOf(callOf('running')).open()
+    await until(() => f.driven.length === 2, 'the queued drive')
+    expect(drained).toBeUndefined()
+    f.gateOf(callOf('queued')).open()
+    await draining
+
+    expect(drained).toEqual({ quiesced: true, inFlight: 0 })
+    expect(f.gateOf(callOf('running')).signalSeen).toBe(false)
+    expect(f.gateOf(callOf('queued')).signalSeen).toBe(false)
+    expect(await host.schedule(wake('late'))).toEqual({ ok: { queued: true } })
+  })
+
+  it('answers how many drives still run when the signal aborts, and aborts none of them', async () => {
+    const f = fixture()
+    const instance = await loadInstance(f)
+    await f.ctx.modelInstanceHost.schedule(wake('slow'))
+    await until(() => f.driven.length === 1, 'the drive')
+
+    const expired = new AbortController()
+    const draining = instance.drain(expired.signal)
+    expired.abort()
+    expect(await draining).toEqual({ quiesced: true, inFlight: 1 })
+    expect(f.gateOf(callOf('slow')).signalAborted).toBe(false)
+    f.gateOf(callOf('slow')).open()
+  })
+
+  it('answers at once when nothing is in flight', async () => {
+    const f = fixture()
+    const instance = await loadInstance(f)
+    expect(await instance.drain(new AbortController().signal)).toEqual({
+      quiesced: true,
+      inFlight: 0,
+    })
+    expect(f.log).toEqual(['quiesce'])
+  })
+
+  it('says so when the runtime does not close its admission, and still waits for the drives', async () => {
+    const f = fixture()
+    const instance = await loadInstance(f)
+    f.hooks.quiesce = async () => {
+      throw new Error('the gate is stuck')
+    }
+    await f.ctx.modelInstanceHost.schedule(wake('a'))
+    await until(() => f.driven.length === 1, 'the drive')
+    const draining = instance.drain(new AbortController().signal)
+    f.gateOf(callOf('a')).open()
+    expect(await draining).toEqual({ quiesced: false, inFlight: 0 })
+    expect(f.messages.some(line => line.includes('quiesce threw'))).toBe(true)
+  })
+
+  it('has nothing in flight before the plugin started', async () => {
+    const f = fixture()
+    const instance = new f.Plugin(f.ctx, { ...SETTINGS })
+    expect(await instance.drain(new AbortController().signal)).toEqual({
+      quiesced: true,
+      inFlight: 0,
+    })
   })
 })
 
@@ -735,7 +811,6 @@ it('keeps the host that a consumer holds from reaching a successor, and the driv
   expect(successor).toBeDefined()
   expect(f.ctx.modelInstanceHost).not.toBe(old)
 
-  // The old reference answers for the old host: closed. It does not forward to the new one.
   expect(await old.schedule(wake('b'))).toMatchObject({ failure: { diagnostic: 'host-closed' } })
   expect(f.driven).toEqual([callOf('a')])
   expect(await f.ctx.modelInstanceHost.schedule(wake('b'))).toEqual({ ok: { queued: true } })
@@ -765,7 +840,6 @@ it('closes the bound host and publishes nothing when the fiber unloads while it 
   await f.ctx.plugin(f.Commands)
   let fiber: ReturnType<Context['plugin']> | undefined
   let built: ModelInstanceHost<unknown> | undefined
-  // The provider runs inside the start, before the bind: the unload lands in that window.
   const Plugin = createModelRuntimeLocalPlugin({
     provider: input => {
       built = input.host
@@ -820,7 +894,6 @@ it('serves a route only to an observer that is currently qualified, and only a l
   const second = handle('two')
   expect(await host.publish(execution('two', '2'), second)).toMatchObject({ ok: {} })
   expect(await host.directory.connect(observer)).toEqual({ ok: { kind: 'live', handle: second } })
-  // The registration of the replaced route no longer removes anything.
   expect(await host.withdraw(published.ok)).toEqual({ ok: { removed: false } })
   expect(await host.directory.connect(observer)).toEqual({ ok: { kind: 'live', handle: second } })
 })
@@ -844,7 +917,6 @@ describe('what the host keeps apart, and what it refuses to share', () => {
     expect(await host.schedule({ tenant: TENANT, call })).toEqual({ ok: { queued: true } })
     expect(await host.schedule({ tenant: OTHER, call })).toEqual({ ok: { queued: true } })
 
-    // The first drive is still running, so a wake that merged with it would wait and not start.
     await until(() => f.driven.length === 2, 'one drive for each tenant')
     expect(resolvedFor).toHaveLength(2)
     expect(resolvedFor).toContainEqual(TENANT)
@@ -859,7 +931,6 @@ describe('what the host keeps apart, and what it refuses to share', () => {
     await host.schedule(wake('a'))
     await until(() => f.driven.length === 1, 'the first drive')
     expect(await host.schedule(wake('b'))).toEqual({ ok: { queued: true } })
-    // The queue holds b and is full: b again sets the bit that is set, a new call c has no room.
     expect(await host.schedule(wake('b'))).toEqual({ ok: { queued: true } })
     expect(await host.schedule(wake('c'))).toMatchObject({
       failure: { kind: 'unavailable', diagnostic: 'queue-full' },
@@ -881,7 +952,6 @@ describe('what the host keeps apart, and what it refuses to share', () => {
 
     const unloading = first.dispose()
     await until(() => gate.signalAborted, 'the old host to stop dispatching')
-    // The old host still waits for its drive, so its service key is still taken.
     const rejected = await loadError(f.ctx.plugin(f.Plugin, { ...SETTINGS }))
     expect(rejected).toBeInstanceOf(Error)
 
@@ -890,7 +960,6 @@ describe('what the host keeps apart, and what it refuses to share', () => {
     await new Promise(resolve => setTimeout(resolve, 20))
     expect(f.ctx.modelInstanceHost).toBeUndefined()
 
-    // The way out is to wait for the old host to leave and load again.
     await f.ctx.plugin(f.Plugin, { ...SETTINGS })
     expect(await f.ctx.modelInstanceHost.schedule(wake('b'))).toEqual({ ok: { queued: true } })
     await until(() => f.driven.length === 2, 'the drive of the reloaded host')
@@ -899,7 +968,6 @@ describe('what the host keeps apart, and what it refuses to share', () => {
 })
 
 describe('a drive that ended without ending the call', () => {
-  /** A fixture whose driver answers the scripted outcomes in order, then succeeds. */
   function scripted(outcomes: Awaited<ReturnType<ModelDriver<unknown>['drive']>>[]) {
     const drives: string[] = []
     const f = fixture(

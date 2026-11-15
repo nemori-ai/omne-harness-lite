@@ -10,14 +10,13 @@ import {
   invalidAt,
 } from './session-validation.ts'
 import { CallConflict } from './call-state.ts'
-// The pure batch reduction (SPEC SL12, SL13, SL18; docs/object-model「纯批次归约算法」). It
-// interprets committed entries only, in batch order, and publishes no partial state: an unknown
-// kind, a missing origin or a contradiction quarantines the session.
 import type { Adoption, DurableEvidence, InputId } from './identity.ts'
-import type { RecoveryTask, WorkSnapshot } from './values.ts'
+import type { RecoveryTask, RunTerminal, WorkSnapshot } from './values.ts'
+import { pendingAfterTerminal } from './input-leases.ts'
 import { SESSION_INTERPRETER, decodeEntries, type SessionEntry } from './entries.ts'
 import type { CommittedBatch, ReduceResult } from './judgments.ts'
 import { advanceEntriesProgress, applyExtended } from './reduce-extended.ts'
+import { hasUnansweredCalls, trackCalls } from './run-closure.ts'
 import { scopeBinding } from './decide-management.ts'
 import { digestOf } from './operations.ts'
 import { applyParticipation } from './result-state.ts'
@@ -25,7 +24,6 @@ import { initializationProjection, validateInitializationBatch } from './reduce-
 import { sameInitializationValue } from './initialization-plan.ts'
 import { adoption, InitializationInvalid } from './initialization-parse.ts'
 
-/** The evidence of one committed batch: the session, its revision and the digest of the complete entries, including their exact interpretation adoption. */
 export function batchEvidence(batch: CommittedBatch, session: string): DurableEvidence {
   return {
     owner: '@omne-harness/session-contract',
@@ -35,11 +33,6 @@ export function batchEvidence(batch: CommittedBatch, session: string): DurableEv
   }
 }
 
-/**
- * The entries that change the Run layer of an active Run (SPEC I-R2, R2-D327): its start, an
- * attempt that starts or gives the advance back, and an adoption change. The batch that holds one
- * sets the Run-layer revision; an accept, a hand-over or an Agent fact does not.
- */
 const RUN_LAYER_KINDS: ReadonlySet<string> = new Set([
   'run.started',
   'run.attempt-started',
@@ -68,7 +61,175 @@ function without(list: readonly InputId[], removed: readonly InputId[]): readonl
   return list.filter(input => !gone.has(input))
 }
 
-/** Applies one decoded entry. Returns a diagnostic when the entry contradicts the state. */
+function settleLeases(draft: Draft, outcome: RunTerminal['outcome']): string | null {
+  const returned = draft.unanswered ?? []
+  delete draft.unanswered
+  if (outcome !== 'failed') return null
+  if (returned.some(input => draft.pending.includes(input)))
+    return 'a returned input is already pending'
+  draft.pending = pendingAfterTerminal({ pending: draft.pending, unanswered: returned }, outcome)
+  draft.awaitingPerson = true
+  return null
+}
+
+function applyInitializationItem(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'session.initialization-item' }>,
+): string | null {
+  const { item, owner, result } = entry.result
+  const index = draft.tasks.findIndex(
+    task => task.kind === 'initialization' && task.item === item && task.owner === owner,
+  )
+  if (index === -1) return `initialization item ${owner}/${item} is not pending`
+  const task = draft.tasks[index] as Extract<RecoveryTask, { kind: 'initialization' }>
+  const rest = draft.tasks.filter((_, at) => at !== index)
+  draft.tasks =
+    result.kind === 'ready'
+      ? rest
+      : [...rest, { ...task, state: 'failed', diagnostic: result.diagnostic }]
+  return null
+}
+
+function applyAdoption(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'session.adoption' }>,
+): string | null {
+  draft.definition = { name: draft.definition.name, adopted: entry.adopted }
+  if (draft.run.kind === 'active') draft.run = { ...draft.run, adoption: entry.adopted }
+  if (entry.residentKeys !== undefined) draft.residentKeys = entry.residentKeys
+  return null
+}
+
+function applyMessage(
+  draft: Draft,
+  entry: Extract<
+    SessionEntry,
+    {
+      kind:
+        | 'message.user'
+        | 'message.assistant'
+        | 'message.tool'
+        | 'message.tool_internal'
+        | 'message.system_reminder'
+        | 'message.compaction'
+    }
+  >,
+): string | null {
+  trackCalls(draft, entry.message)
+  if (entry.kind === 'message.assistant' && draft.run.kind === 'active') delete draft.unanswered
+  return entry.participation === null ? null : applyParticipation(draft, entry.participation)
+}
+
+function applyIntakeRouted(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'intake.routed' }>,
+): string | null {
+  if ('task' in entry) {
+    draft.tasks = [...draft.tasks, entry.task]
+    return null
+  }
+  if (draft.pending.includes(entry.input)) return `input ${entry.input} accepted twice`
+  draft.pending = [...draft.pending, entry.input]
+  draft.idle = null
+  delete draft.awaitingPerson
+  return null
+}
+
+function applyHandedOver(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'intake.handed-over' }>,
+): string | null {
+  if (!draft.pending.includes(entry.input)) return `hand-over of an input that is not pending`
+  if (entry.result.kind === 'accepted') {
+    if (!draft.handed.includes(entry.input)) draft.handed = [...draft.handed, entry.input]
+  } else {
+    draft.pending = without(draft.pending, [entry.input])
+    draft.handed = without(draft.handed, [entry.input])
+  }
+  return null
+}
+
+function applyRunStarted(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'run.started' }>,
+  revision: WorkSnapshot['revision'],
+): string | null {
+  if (draft.tasks.some(task => task.kind === 'initialization'))
+    return 'a Run started before every initialization item was ready'
+  if (draft.run.kind === 'active') return 'a second Run started while one is unfinished'
+  if (!draft.pending.includes(entry.first)) return 'the first input of the Run is not pending'
+  draft.run = {
+    kind: 'active',
+    run: entry.run,
+    adoption: entry.adoption,
+    first: entry.first,
+    advance: null,
+    ordinal: '0',
+    execution: { execution: entry.execution, revision: null, evidence: null, readThrough: '0' },
+    revision,
+  }
+  draft.executions = [
+    ...(draft.executions ?? []),
+    { run: entry.run, execution: draft.run.execution, terminal: null },
+  ]
+  draft.idle = null
+  delete draft.awaitingPerson
+  delete draft.unanswered
+  return null
+}
+
+function applyAttemptStarted(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'run.attempt-started' }>,
+): string | null {
+  if (draft.run.kind !== 'active' || draft.run.run !== entry.run)
+    return 'an attempt started outside the active Run'
+  if (draft.run.advance !== null) return 'an attempt started while one holds the advance'
+  if (
+    decimal(entry.ordinal, 'attempt.ordinal') !==
+    decimal(draft.run.ordinal, 'attempt.ordinal') + 1n
+  )
+    return `attempt ordinal ${entry.ordinal} does not follow ${draft.run.ordinal}`
+  draft.run = {
+    ...draft.run,
+    ordinal: entry.ordinal,
+    advance: { run: entry.run, attempt: entry.attempt, instance: entry.instance },
+  }
+  return null
+}
+
+function applyAttemptReleased(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'run.attempt-released' }>,
+): string | null {
+  if (draft.run.kind !== 'active' || draft.run.run !== entry.run)
+    return 'an attempt released outside the active Run'
+  if (draft.run.advance === null || draft.run.advance.attempt !== entry.attempt)
+    return 'the released attempt does not hold the advance'
+  draft.run = { ...draft.run, advance: null }
+  return null
+}
+
+function applyRunTerminal(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'run.terminal' }>,
+): string | null {
+  if (draft.run.kind !== 'active' || draft.run.run !== entry.terminal.run)
+    return 'a terminal outside the active Run'
+  if (draft.run.advance !== null) return 'a terminal while an attempt still holds the advance'
+  if (hasUnansweredCalls(draft))
+    return 'a terminal while a tool call of the Run has no tool message'
+  draft.executions = (draft.executions ?? []).map(item =>
+    item.run === entry.terminal.run ? { ...item, terminal: entry.terminal } : item,
+  )
+  draft.run = { kind: 'terminal', terminal: entry.terminal }
+  draft.handed = []
+  draft.taken = []
+  draft.waiting = []
+  draft.callWaits = []
+  return settleLeases(draft, entry.terminal.outcome)
+}
+
 function apply(
   draft: Draft,
   entry: SessionEntry,
@@ -82,114 +243,29 @@ function apply(
       return applyTodo(draft, entry, revision)
     case 'session.created':
       return 'session.created after the first entry'
-    case 'session.initialization-item': {
-      const { item, owner, result } = entry.result
-      const index = draft.tasks.findIndex(
-        task => task.kind === 'initialization' && task.item === item && task.owner === owner,
-      )
-      if (index === -1) return `initialization item ${owner}/${item} is not pending`
-      const task = draft.tasks[index] as Extract<RecoveryTask, { kind: 'initialization' }>
-      const rest = draft.tasks.filter((_, at) => at !== index)
-      draft.tasks =
-        result.kind === 'ready'
-          ? rest
-          : [...rest, { ...task, state: 'failed', diagnostic: result.diagnostic }]
-      return null
-    }
+    case 'session.initialization-item':
+      return applyInitializationItem(draft, entry)
     case 'session.adoption':
-      draft.definition = { name: draft.definition.name, adopted: entry.adopted }
-      if (draft.run.kind === 'active') draft.run = { ...draft.run, adoption: entry.adopted }
-      if (entry.residentKeys !== undefined) draft.residentKeys = entry.residentKeys
-      return null
+      return applyAdoption(draft, entry)
     case 'message.user':
     case 'message.assistant':
     case 'message.tool':
     case 'message.tool_internal':
     case 'message.system_reminder':
-    case 'message.compaction': {
-      return entry.participation === null ? null : applyParticipation(draft, entry.participation)
-    }
+    case 'message.compaction':
+      return applyMessage(draft, entry)
     case 'intake.routed':
-      if ('task' in entry) {
-        draft.tasks = [...draft.tasks, entry.task]
-        return null
-      }
-      if (draft.pending.includes(entry.input)) return `input ${entry.input} accepted twice`
-      draft.pending = [...draft.pending, entry.input]
-      draft.idle = null
-      return null
-    case 'intake.handed-over': {
-      if (!draft.pending.includes(entry.input)) return `hand-over of an input that is not pending`
-      if (entry.result.kind === 'accepted') {
-        if (!draft.handed.includes(entry.input)) draft.handed = [...draft.handed, entry.input]
-      } else {
-        draft.pending = without(draft.pending, [entry.input])
-        draft.handed = without(draft.handed, [entry.input])
-      }
-      return null
-    }
-    case 'run.started': {
-      if (draft.tasks.some(task => task.kind === 'initialization'))
-        return 'a Run started before every initialization item was ready'
-      if (draft.run.kind === 'active') return 'a second Run started while one is unfinished'
-      if (!draft.pending.includes(entry.first)) return 'the first input of the Run is not pending'
-      draft.run = {
-        kind: 'active',
-        run: entry.run,
-        adoption: entry.adoption,
-        first: entry.first,
-        advance: null,
-        ordinal: '0',
-        execution: { execution: entry.execution, revision: null, evidence: null, readThrough: '0' },
-        revision,
-      }
-      draft.executions = [
-        ...(draft.executions ?? []),
-        { run: entry.run, execution: draft.run.execution, terminal: null },
-      ]
-      draft.idle = null
-      return null
-    }
-    case 'run.attempt-started': {
-      if (draft.run.kind !== 'active' || draft.run.run !== entry.run)
-        return 'an attempt started outside the active Run'
-      if (draft.run.advance !== null) return 'an attempt started while one holds the advance'
-      if (
-        decimal(entry.ordinal, 'attempt.ordinal') !==
-        decimal(draft.run.ordinal, 'attempt.ordinal') + 1n
-      )
-        return `attempt ordinal ${entry.ordinal} does not follow ${draft.run.ordinal}`
-      draft.run = {
-        ...draft.run,
-        ordinal: entry.ordinal,
-        advance: { run: entry.run, attempt: entry.attempt, instance: entry.instance },
-      }
-      return null
-    }
-    case 'run.attempt-released': {
-      if (draft.run.kind !== 'active' || draft.run.run !== entry.run)
-        return 'an attempt released outside the active Run'
-      if (draft.run.advance === null || draft.run.advance.attempt !== entry.attempt)
-        return 'the released attempt does not hold the advance'
-      draft.run = { ...draft.run, advance: null }
-      return null
-    }
-    case 'run.terminal': {
-      if (draft.run.kind !== 'active' || draft.run.run !== entry.terminal.run)
-        return 'a terminal outside the active Run'
-      if (draft.run.advance !== null) return 'a terminal while an attempt still holds the advance'
-      // The hand-over state belongs to the execution of the Run: a successor Run re-hands every
-      // input that kept its eligibility (PA-08 item 2), so the terminal releases `handed`.
-      draft.executions = (draft.executions ?? []).map(item =>
-        item.run === entry.terminal.run ? { ...item, terminal: entry.terminal } : item,
-      )
-      draft.run = { kind: 'terminal', terminal: entry.terminal }
-      draft.handed = []
-      draft.taken = []
-      draft.waiting = []
-      draft.callWaits = []
-      return null
-    }
+      return applyIntakeRouted(draft, entry)
+    case 'intake.handed-over':
+      return applyHandedOver(draft, entry)
+    case 'run.started':
+      return applyRunStarted(draft, entry, revision)
+    case 'run.attempt-started':
+      return applyAttemptStarted(draft, entry)
+    case 'run.attempt-released':
+      return applyAttemptReleased(draft, entry)
+    case 'run.terminal':
+      return applyRunTerminal(draft, entry)
     default:
       return applyExtended(draft, entry, source)
   }
@@ -256,12 +332,6 @@ function created(
   }
 }
 
-/**
- * The snapshot after one committed batch. `previous` is null before the first batch, whose first
- * entry must be the creation. The same batch applied again recalls the saved state (SL12). A
- * batch that does not follow the previous revision, an unknown kind or a contradiction gives
- * `quarantined` and no partial state.
- */
 function reduceBatch(
   previous: WorkSnapshot | null,
   batch: CommittedBatch,
@@ -387,7 +457,6 @@ function reduceBatch(
       entry.kind === 'entries.interpreted',
   )
   if (progressRows.length > 0) {
-    // RD-1: the progress rows of the batch continue the saved progress of their channel.
     const progress = advanceEntriesProgress(
       previous?.entriesProgress ?? [],
       progressRows,

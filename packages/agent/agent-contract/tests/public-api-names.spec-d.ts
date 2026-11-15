@@ -74,6 +74,7 @@ import type {
   CompactionState,
   SavedPreparation,
   VoidedIntent,
+  ModelRetryState,
   ConsumerRef,
   ConsumptionId,
   ContextContent,
@@ -218,8 +219,6 @@ import type {
   TerminalObservation,
   Waiting,
 } from '@omne-harness/agent-contract'
-// J09: the definition has no version, so the entry no longer names a version choice. The import
-// is the assertion; the name is not used.
 // @ts-expect-error `VersionChoice` left the entry with `AgentDefinition.version`.
 import type { VersionChoice as _VersionChoice } from '@omne-harness/agent-contract'
 
@@ -345,6 +344,7 @@ type Landed = {
   StructureFailure: StructureFailure
   Subject: Subject
   VoidedIntent: VoidedIntent
+  ModelRetryState: ModelRetryState
   Waiting: Waiting
   AcceptedInput: AcceptedInput
   AgentAccessCheck: AgentAccessCheck<string>
@@ -428,12 +428,6 @@ type Landed = {
   TerminalObservation: TerminalObservation
 }
 
-/*
- * Every name of the chapters of docs/public-api/README.md that this package implements, imported
- * from the package entry. A name that the entry does not export fails the type check of this
- * file. `IdentityFailure` and `StructureFailure` are this package's own judgment failures, not
- * design-page names.
- */
 describe('the names of the design page', () => {
   it('resolve to concrete types from the package entry', () => {
     expectTypeOf<Landed>().not.toBeAny()
@@ -442,7 +436,6 @@ describe('the names of the design page', () => {
 })
 
 type KindOf<U extends { kind: string }> = U['kind']
-/** Every member name of every member of a union of object types. */
 type KeysOfUnion<U> = U extends unknown ? keyof U & string : never
 
 describe('the identity brands', () => {
@@ -774,7 +767,6 @@ describe('the discriminants of the request chapter', () => {
     >()
     expectTypeOf<ContextContent>().toEqualTypeOf<'full' | 'incremental'>()
     expectTypeOf<CompactionState['ended']>().toEqualTypeOf<'committed' | 'failed' | null>()
-    // R2-D292: the step request is derived again, never kept.
     expectTypeOf<CompactionState>().not.toHaveProperty('stepRequest')
   })
 
@@ -782,6 +774,32 @@ describe('the discriminants of the request chapter', () => {
     expectTypeOf<AgentCheckpoint['requestPreparation']>().toEqualTypeOf<SavedPreparation | null>()
     expectTypeOf<KindOf<SavedPreparation>>().toEqualTypeOf<'needs-compaction' | 'cannot-fit'>()
     expectTypeOf<AgentCheckpoint['voided']>().toEqualTypeOf<readonly VoidedIntent[]>()
+  })
+
+  it('a voided intent names the answer that closed it', () => {
+    expectTypeOf<VoidedIntent['cause']>().toEqualTypeOf<'not-accepted' | 'lost'>()
+    expectTypeOf<VoidedIntent>().toHaveProperty('cause')
+    expectTypeOf<{ cause?: undefined }>().not.toMatchTypeOf<Pick<VoidedIntent, 'cause'>>()
+  })
+
+  it('a voided intent is of the main Model call or of a Tool call, and only a Model call is lost', () => {
+    type Of<K extends VoidedIntent['kind']> = Extract<VoidedIntent, { kind: K }>
+    expectTypeOf<VoidedIntent['kind']>().toEqualTypeOf<'model' | 'tool'>()
+    expectTypeOf<Of<'model'>['cause']>().toEqualTypeOf<'not-accepted' | 'lost'>()
+    expectTypeOf<Of<'tool'>['cause']>().toEqualTypeOf<'not-accepted'>()
+    expectTypeOf<Of<'model'>['reference']>().toEqualTypeOf<M.ModelInvocationRef>()
+    expectTypeOf<Of<'tool'>['reference']>().toEqualTypeOf<undefined>()
+    expectTypeOf<Of<'tool'>['action']>().toEqualTypeOf<ActionId>()
+  })
+
+  it('a checkpoint may hold the retry state of the main model call of its step', () => {
+    expectTypeOf<AgentCheckpoint['modelRetry']>().toEqualTypeOf<
+      ModelRetryState | null | undefined
+    >()
+    expectTypeOf<keyof ModelRetryState>().toEqualTypeOf<'failures' | 'since' | 'notBefore'>()
+    expectTypeOf<ModelRetryState['since']>().toEqualTypeOf<AgentInstant>()
+    expectTypeOf<ModelRetryState['notBefore']>().toEqualTypeOf<AgentInstant>()
+    expectTypeOf<ModelRetryState['failures']>().toEqualTypeOf<number>()
   })
 
   it('prepare excludes the compaction purpose', () => {
@@ -831,9 +849,6 @@ describe('the subject of each position', () => {
   })
 
   it('has one variant for each row of the subject table of extensions.md, and no other', () => {
-    // Each row as the table of docs/public-api/extensions.md, "位置与作者可见的 subject", writes it.
-    // A row equals exactly one variant: `Extract` keeps every variant assignable to the row, so a
-    // second match or a drifted shape makes the two sides differ.
     type Started = Readonly<{ execution: AgentExecutionId; conditions: DurableEvidence }>
     type BeforeCompaction = Readonly<{
       preparation: Extract<Preparation, { kind: 'needs-compaction' }>
@@ -1037,7 +1052,6 @@ describe('the discriminants of the passage ledger', () => {
     expectTypeOf<Extract<HandoffPrepare, { kind: 'invoke' }>>().toEqualTypeOf<
       Readonly<{ kind: 'invoke'; request: InputHandoff; runtime: InvokeRuntimeContext }>
     >()
-    // The submit branch has no advance, runtime, current or grant member.
     expectTypeOf<Extract<HandoffPrepare, { kind: 'submit' }>>().toEqualTypeOf<
       Readonly<{ kind: 'submit'; request: InputHandoff }>
     >()
@@ -1057,7 +1071,6 @@ describe('the discriminants of the passage ledger', () => {
     expectTypeOf<KindOf<SubmitDelivery>>().toEqualTypeOf<'runtime-view' | 'durable-view'>()
     expectTypeOf<KindOf<InputEntry>>().toEqualTypeOf<'invoke' | 'submit'>()
     expectTypeOf<Extract<InputEntry, { kind: 'submit' }>>().not.toHaveProperty('checkpoint')
-    // R2-D292: the initial checkpoint is an input of `open`, never a part of the entry.
     expectTypeOf<Extract<InputEntry, { kind: 'invoke' }>>().not.toHaveProperty('checkpoint')
     expectTypeOf<PendingHandoff['source']>().toEqualTypeOf<
       Exclude<MessageSource, { kind: 'external-input' }>
@@ -1192,7 +1205,6 @@ describe('the discriminants of the coordination chapter', () => {
     expectTypeOf<
       Extract<AgentAccessDecision, { kind: 'unavailable' }>['diagnostic']
     >().toEqualTypeOf<string>()
-    // SPEC "主体资格核验": four target branches; the execution target is the logical execution alone.
     expectTypeOf<KindOf<AgentAccessTarget>>().toEqualTypeOf<
       'scope' | 'instance' | 'execution' | 'input-entry'
     >()
@@ -1257,7 +1269,6 @@ describe('the discriminants of the Journal chapter', () => {
     expectTypeOf<JournalCapabilities['participants']>().toEqualTypeOf<
       ReadonlySet<'message' | 'context-transition' | 'custody' | 'processed'>
     >()
-    // SPEC "提交参加者协议": the binding declares its coordination mode; there is no implicit default.
     expectTypeOf<JournalCapabilities['coordination']>().toEqualTypeOf<
       'standalone' | 'coordinated'
     >()
@@ -1351,7 +1362,6 @@ describe('the discriminants of the Journal chapter', () => {
     expectTypeOf<HandoffCustody['factSource']>().toEqualTypeOf<HandoffFactSource>()
     expectTypeOf<HandoffCustodyAttempt['state']>().toEqualTypeOf<'committed' | 'excluded'>()
     expectTypeOf<ExecutionHandoff['retirement']>().toEqualTypeOf<HandoffRetirement | null>()
-    // Q14: the transition keeps its original candidate, plan, basis material and epoch.
     expectTypeOf<keyof PreparedContextTransition>().toEqualTypeOf<
       | 'preparation'
       | 'message'
@@ -1373,7 +1383,6 @@ describe('the discriminants of the Journal chapter', () => {
     expectTypeOf<ReturnType<AgentJournalReading<string>['query']>>().toEqualTypeOf<
       ReturnType<AgentExecutionRecovery<string>['query']>
     >()
-    // SPEC "查询的四种结论与持久拒绝": rejected carries the fixed conflict, the audit and its revision.
     type QueryConclusion =
       Awaited<ReturnType<AgentExecutionRecovery<string>['query']>> extends Outcome<
         infer Conclusion,
@@ -1540,7 +1549,6 @@ describe('S3: the finish projection, the candidate commit, the obligations and t
     expectTypeOf<ObligationCategory>().toEqualTypeOf<
       'inputs' | 'controls' | 'operations' | 'passages' | 'custody'
     >()
-    // The category is not a member of the head: the SPEC table fixes it per kind.
     expectTypeOf<KeysOfUnion<FinishObligation>>().not.toExtend<'category'>()
     expectTypeOf<
       Extract<FinishObligation, { kind: 'operation' }>['result']
@@ -1566,8 +1574,6 @@ describe('S3: the finish projection, the candidate commit, the obligations and t
     >().toEqualTypeOf<RecoveryContinuation>()
     expectTypeOf<'required-judgment'>().toExtend<PendingReason>()
     expectTypeOf<'handoff-history'>().toExtend<PendingReason>()
-    // RecoveryContinuation is a closed union by action (SPEC "终结责任清单"): each variant carries the
-    // request of its original public operation, the owner, the custodian and the purpose.
     expectTypeOf<KindOf<RecoveryContinuation>>().toEqualTypeOf<RecoveryAction>()
     expectTypeOf<RecoveryAction>().toEqualTypeOf<
       | 'original-operation-query'

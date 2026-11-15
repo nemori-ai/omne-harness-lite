@@ -28,48 +28,53 @@ import { createFactDriver } from './driver-facts.ts'
 import { createBindingInvoker } from './driver-binding.ts'
 import { createControlDriver } from './driver-control.ts'
 import { preserveSavedFinal } from './driver-settlement.ts'
+import { createResumptionDriver } from './driver-resumption.ts'
+import { createSuspensionDriver } from './driver-suspension.ts'
 import { isExcludedFailure } from './ledger-exclusion.ts'
+import { resumePreparationOperation } from './ledger-resumption.ts'
 import { LEDGER_REJECTED_DIAGNOSTIC, queueKeyOf } from './ledger-start.ts'
 import type { TenantId } from './ledger-store.ts'
 
-/**
- * The coordination generation of every execution reference this driver records. `claim` of the
- * recovery increment mints real generations; until then one instance holds one fixed generation.
- */
-export const PLACEHOLDER_GENERATION = '1'
+export const COORDINATION_GENERATION = '1'
 
-/** Where a run stopped, for the driver's own bookkeeping; the host sees only the promise. */
 export type DriverStop =
   | Readonly<{ kind: 'idle' }>
   | Readonly<{ kind: 'waiting'; key: string }>
   | Readonly<{ kind: 'failed'; failure: ToolFailure }>
   | Readonly<{ kind: 'blocked'; diagnostic: string }>
-  /**
-   * The step budget ran out with work left. `progressed` is true only when a step of the run
-   * committed or recalled a commit: an excluded, stale or unknown answer moves nothing.
-   */
   | Readonly<{ kind: 'yielded'; progressed: boolean }>
 
-/** The policy of a driver: how many steps one run takes, and how long a failed run waits. */
 export type DriverPolicy = Readonly<{ stepsPerRun: number; retryDelayMs: number }>
 
+const MAX_RETRY_DELAY_MS = 60_000
+
+export function laterRunDelayMs(retryDelayMs: number, level: number): number {
+  const cap = Math.max(retryDelayMs, MAX_RETRY_DELAY_MS)
+  return Math.min(retryDelayMs * 2 ** Math.min(level, 32), cap)
+}
+
+function runsAgainLater(stop: DriverStop): boolean {
+  return (
+    stop.kind === 'blocked' ||
+    (stop.kind === 'yielded' && !stop.progressed) ||
+    (stop.kind === 'failed' && transient(stop.failure))
+  )
+}
+
 type Step<P> = CallAccess<P> & Readonly<{ instance: ToolInstanceId; signal: AbortSignal }>
-/**
- * The run goes on. `progressed` is true when the step committed, or recalled a commit of its own
- * operation. A step that was excluded, found its revision stale or could not learn whether it
- * committed goes on too, but nothing is known to have moved: a run of such steps only is no
- * progress, however many steps it took.
- */
 type Continue = Readonly<{ kind: 'continue'; progressed: boolean }>
 type StepResult = Continue | DriverStop
-type RunFailures = { skipped: Set<string>; first: DriverStop | null; retry: boolean }
-/** The phases of a call that holds no start record; nothing of it ever ran. */
+type RunFailures = {
+  skipped: Set<string>
+  first: DriverStop | null
+  retry: boolean
+  progressed: boolean
+}
 const UNSTARTED: readonly ToolRecovery['state']['phase'][] = ['accepted', 'preparing', 'queued']
 const CONTINUE: Continue = { kind: 'continue', progressed: true }
 const STALLED: Continue = { kind: 'continue', progressed: false }
 const IDLE: DriverStop = { kind: 'idle' }
 
-/** The suffixes of the operations the driver derives from the admission operation. */
 type Suffix =
   | 'plan'
   | 'prepared'
@@ -94,13 +99,6 @@ function callKey(tenant: TenantId, call: ToolCallId): string {
   return `${tenantKey(tenant)}\u0000${call}`
 }
 
-/**
- * Whether a failure asks the driver to read again rather than to stop. None of them is progress
- * (`STALLED`). An excluded command (SPEC 14) is resubmitted with the same identity: the redo
- * recalls the queue step the excluded one left. When the redo does not finish in the same run
- * (the step budget ends, a read fails, the run is aborted), the held slot waits for one of the
- * triggers of SPEC 22 and 23.
- */
 function retryable(failure: ToolFailure): boolean {
   return (
     failure.kind === 'commit-unknown' ||
@@ -113,19 +111,14 @@ function blocked(diagnostic: string): DriverStop {
   return { kind: 'blocked', diagnostic }
 }
 
-/**
- * Whether a run that ended on this failure is run again later: the store or a port could not
- * answer, which says nothing about the call. Every other failure is a verdict, and running the
- * call again would repeat it.
- */
 function transient(failure: ToolFailure): boolean {
   return failure.kind === 'unavailable'
 }
 
 export type ToolDriverHandle<P> = ToolDriver<P> &
   Readonly<{
-    /** Runs the call and tells where it stopped. `run` is this, without the answer. */
     advance(input: Step<P>): Promise<DriverStop>
+    later(input: Step<P>): void
   }>
 
 export function createToolDriver<P, B extends ContentBlock, E>(
@@ -134,15 +127,11 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 ): ToolDriverHandle<P> {
   const { commands, queues, rejections, environments, authority, instances } = dependencies
   const environmentsPrepared = new Map<string, E>()
-  // Original preparations already sent in this process. Unconfirmed answers retain their query
-  // responsibility; only a matching allocated fact permits one bounded adoption attempt.
   const environmentsAsked = new Set<string>()
-  // This driver's observations survive an unknown marker write, but not process loss.
-  // Neither this set nor a committed marker grants or revokes another driver's permit.
   const unconfirmedBindingFailures = new Set<string>()
   const waiting = new Map<string, Map<string, Readonly<{ tenant: TenantId; call: ToolCallId }>>>()
   const runs = new Map<string, Promise<unknown>>()
-  // One unreferenced retry per call. An aborted signal cannot initiate another wake.
+  const backoff = new Map<string, number>()
   const retrying = new Map<
     string,
     { timer: ReturnType<typeof setTimeout>; signals: readonly AbortSignal[] }
@@ -152,15 +141,16 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     tenant: step.tenant,
     call: step.call,
     instance: step.instance,
-    generation: PLACEHOLDER_GENERATION,
+    generation: COORDINATION_GENERATION,
   })
 
   const context = (
     step: Step<P>,
     recovery: ToolRecovery,
     suffix: Suffix,
+    base: ToolOperationId = recovery.admission,
   ): Outcome<WriteContext & Readonly<{ principal: P }>, ToolFailure> => {
-    const operation = derivedOperation(recovery.admission, suffix)
+    const operation = derivedOperation(base, suffix)
     if ('failure' in operation) return operation
     return succeed({
       ...executionOf(step),
@@ -170,12 +160,19 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     })
   }
 
+  const startContext = (
+    step: Step<P>,
+    recovery: ToolRecovery,
+    start: ToolStartRecord,
+    suffix: Suffix,
+  ) =>
+    context(step, recovery, suffix, start.kind === 'start' ? recovery.admission : start.operation)
+
   const after = (reply: Outcome<unknown, ToolFailure>): StepResult => {
     if ('ok' in reply) return CONTINUE
     return retryable(reply.failure) ? STALLED : { kind: 'failed', failure: reply.failure }
   }
 
-  /** Asks the host to run the call; false when the host could not take the request. */
   const scheduleNow = async (tenant: TenantId, call: ToolCallId): Promise<boolean> => {
     try {
       return 'ok' in (await instances.schedule({ tenant, call }))
@@ -184,7 +181,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     }
   }
 
-  /** Asks the host to run the call after `policy.retryDelayMs`; a refused request is asked again. */
   const scheduleLater = (
     tenant: TenantId,
     call: ToolCallId,
@@ -198,40 +194,34 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       clearTimeout(old.timer)
       retrying.delete(key)
     }
-    const timer = setTimeout(() => {
-      retrying.delete(key)
-      if (signals.some(signal => signal.aborted)) return
-      void scheduleNow(tenant, call).then(accepted => {
-        if (!accepted) scheduleLater(tenant, call, signals)
-      })
-    }, policy.retryDelayMs)
+    const level = backoff.get(key) ?? 0
+    backoff.set(key, level + 1)
+    const timer = setTimeout(
+      () => {
+        retrying.delete(key)
+        if (signals.some(signal => signal.aborted)) return
+        void scheduleNow(tenant, call).then(accepted => {
+          if (!accepted) scheduleLater(tenant, call, signals)
+        })
+      },
+      laterRunDelayMs(policy.retryDelayMs, level),
+    )
     timer.unref()
     retrying.set(key, { timer, signals })
   }
 
-  /**
-   * What follows a run (SPEC 23): nothing else runs a call that a stop left with work, so the
-   * driver does. A run that used its whole step budget goes on at once, if at least one of its
-   * steps committed or recalled a commit. A run that used its budget with no such step (every
-   * answer was excluded, stale or an unknown commit), one that ended because the store or a
-   * port could not answer, and one whose environment the provider answered `pending` or
-   * `unknown` (mapped to `unavailable`), go on after the retry delay, so a store that never answers, or a
-   * reader that keeps excluding the step, is not spun on. A run that ends waiting, idle or
-   * aborted, or on a verdict, is left: the wake-up of a released slot, the waiter's reconcile
-   * and the queue pass of the recovery scan (`scanPending`) own those.
-   */
   const retrigger = async (
     step: Step<P>,
     stop: DriverStop,
     signals: readonly AbortSignal[],
+    progressed: boolean,
   ): Promise<void> => {
     if (signals.some(signal => signal.aborted)) return
+    if (progressed || !runsAgainLater(stop)) backoff.delete(callKey(step.tenant, step.call))
     if (stop.kind === 'yielded' && stop.progressed) {
       if (!(await scheduleNow(step.tenant, step.call)))
         scheduleLater(step.tenant, step.call, signals)
-    } else if (stop.kind === 'yielded' || (stop.kind === 'failed' && transient(stop.failure))) {
-      scheduleLater(step.tenant, step.call, signals)
-    }
+    } else if (runsAgainLater(stop)) scheduleLater(step.tenant, step.call, signals)
   }
 
   const wake = async (tenant: TenantId, request: FixedToolRequest): Promise<void> => {
@@ -242,9 +232,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     for (const waiter of waiters.values()) {
       try {
         await instances.schedule(waiter)
-      } catch {
-        // A wake-up is a hint; a lost hint is compensated by the recovery scan (`scanPending`).
-      }
+      } catch {}
     }
   }
 
@@ -256,13 +244,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return { kind: 'waiting', key }
   }
 
-  /**
-   * A call that waits for its place asks the queue domain once to reconcile its key (SPEC 22),
-   * because the call in its way may be one that nothing runs any more: an entry whose call holds
-   * a release basis is gone after the reconcile, and the waiters of the key are woken; a call
-   * ahead or holding a slot that still owes the queue a step is run. The waiter changes no
-   * other call's entry. A refused request to run a call is a store-like failure of this run.
-   */
   const awaitPlace = async (step: Step<P>, recovery: ToolRecovery): Promise<StepResult> => {
     const stop = noteWaiting(step, recovery.request)
     const reconciled = await queues.reconcile({
@@ -286,7 +267,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return stop
   }
 
-  /** Settles a pending call whose invocation the host excluded (P04 rejectPending). */
   const rejectPending = async (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -300,11 +280,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return after(settled)
   }
 
-  /**
-   * Writes, or recalls and finishes, the minimal failure terminal (SPEC 23). A recalled receipt
-   * proves the call commit only, so the step counts as progress once its `queue` task is closed
-   * (SPEC 26), and the waiters of the key are woken then.
-   */
   const settleRejected = async (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -323,12 +298,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return CONTINUE
   }
 
-  /**
-   * SPEC 23: a step whose commit the store rejected for good (`invalid`, `field: storage`) is not
-   * repeated. A call that never started (no start record) settles with the minimal failure
-   * terminal instead. A call with a start record keeps the failure: its execution may run, and
-   * this increment writes no terminal for it.
-   */
   const afterRejected = async (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -341,10 +310,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return settleRejected(step, recovery, failure.reason)
   }
 
-  /**
-   * The store's reason when a settled call's open `queue` task belongs to its minimal failure
-   * terminal, or null: the release of that terminal is redone by resending it.
-   */
   const ledgerRejectedReason = (recovery: ToolRecovery, task: ToolOperationId): string | null => {
     const operation = derivedOperation(recovery.admission, 'ledger-rejected')
     const { state } = recovery
@@ -356,7 +321,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       : null
   }
 
-  /** The host excludes the whole pending invocation, then the call settles (P04). */
   const excludeAndReject = async (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -408,7 +372,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       : checkedPreparationProgress(adopted.ok, request.preparation)
   }
 
-  /** One preparation step may continue first adoption once, always with the original input. */
   const askEnvironment = async (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -425,14 +388,66 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       request: recovery.request,
     }
     const inspect = environmentsAsked.has(key)
-    environmentsAsked.add(key)
     const read = await (inspect
       ? environments.inspectPreparation(request)
       : environments.prepare(request))
+    if ('ok' in read) environmentsAsked.add(key)
     const progress = await continueAllocation(step, request, read)
-    if ('ok' in progress && ['prepared', 'excluded', 'rejected'].includes(progress.ok.kind))
+    if ('ok' in progress && ['prepared', 'excluded', 'rejected', 'lost'].includes(progress.ok.kind))
       environmentsAsked.delete(key)
     return progress
+  }
+
+  const replanResume = async (
+    step: Step<P>,
+    recovery: ToolRecovery,
+    lost: PreparationRecord,
+  ): Promise<StepResult> => {
+    environmentsPrepared.delete(callKey(step.tenant, step.call))
+    const accepted = recovery.waits.find(wait => wait.phase === 'responding')
+    if (accepted === undefined)
+      return blocked('the lost environment of the resume segment has no accepted decision')
+    const operation = resumePreparationOperation(recovery.preparations, accepted.intent.wait)
+    if ('failure' in operation) return { kind: 'failed', failure: operation.failure }
+    const write = {
+      ...executionOf(step),
+      principal: step.principal,
+      operation: operation.ok,
+      expected: recovery.state.revision,
+    }
+    return after(
+      await commands.planPreparation({
+        ...write,
+        request: recovery.request,
+        purpose: 'resume',
+        environmentAdoption: lost.adoption,
+      }),
+    )
+  }
+
+  const resumeEnvironment = async (
+    step: Step<P>,
+    recovery: ToolRecovery,
+  ): Promise<StepResult | null> => {
+    const preparation = recovery.preparations.at(-1)
+    if (preparation?.purpose !== 'resume') return null
+    if (environmentsPrepared.has(callKey(step.tenant, step.call))) return null
+    const matching = matchEnvironmentAdoption(environments, preparation.adoption)
+    if ('failure' in matching) return { kind: 'failed', failure: matching.failure }
+    const read = await environments.inspectPreparation({
+      principal: step.principal,
+      tenant: step.tenant,
+      call: step.call,
+      preparation,
+      request: recovery.request,
+    })
+    if ('failure' in read) return { kind: 'failed', failure: read.failure }
+    if (read.ok.kind === 'lost') return replanResume(step, recovery, preparation)
+    const checked = checkedPreparationProgress(read.ok, preparation)
+    if ('failure' in checked) return { kind: 'failed', failure: checked.failure }
+    if (checked.ok.kind === 'prepared')
+      environmentsPrepared.set(callKey(step.tenant, step.call), checked.ok.environment.value)
+    return null
   }
 
   const prepare = async (
@@ -446,7 +461,8 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     switch (prepared.kind) {
       case 'prepared': {
         environmentsPrepared.set(callKey(step.tenant, step.call), prepared.environment.value)
-        const write = context(step, recovery, 'prepared')
+        const base = task.preparation.purpose === 'resume' ? task.preparation.operation : undefined
+        const write = context(step, recovery, 'prepared', base)
         if ('failure' in write) return { kind: 'failed', failure: write.failure }
         return after(
           await commands.prepared({
@@ -457,13 +473,17 @@ export function createToolDriver<P, B extends ContentBlock, E>(
         )
       }
       case 'rejected':
-        // Rejection does not prove zero allocation. The adapter retains original cleanup, while
-        // the start authority excludes this Tool invocation before its failure is recorded.
+        if (task.preparation.purpose === 'resume')
+          return blocked(`the environment of the resume segment was rejected: ${prepared.reason}`)
         return excludeAndReject(step, recovery, `environment: ${prepared.reason}`)
       case 'excluded':
         return blocked(
           'the preparation was excluded; the driver does not request it again (P03 reading pending)',
         )
+      case 'lost':
+        if (task.preparation.purpose === 'resume')
+          return replanResume(step, recovery, task.preparation)
+        return excludeAndReject(step, recovery, `environment: ${prepared.diagnostic}`)
       case 'allocated':
         return {
           kind: 'failed',
@@ -475,8 +495,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
         }
       case 'pending':
       case 'unknown':
-        // The provider has not decided: the task stays, and the call is run again after the
-        // retry delay to read the provider's record, like a provider that could not answer.
         return {
           kind: 'failed',
           failure: {
@@ -516,7 +534,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     invocation: ToolStartRecord,
     outcome: StartProgress,
   ): Promise<StepResult> => {
-    const write = context(step, recovery, 'started')
+    const write = startContext(step, recovery, invocation, 'started')
     if ('failure' in write) return { kind: 'failed', failure: write.failure }
     const recorded = await commands.recordStart({ ...write.ok, invocation, outcome })
     if ('ok' in recorded && (outcome.kind === 'started' || outcome.kind === 'rejected'))
@@ -525,7 +543,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return after(recorded)
   }
 
-  /** The environment of the call: the value prepared in this process, or the provider's record. */
   const environmentOf = async (
     step: CallAccess<P>,
     recovery: ToolRecovery,
@@ -556,6 +573,8 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 
   const binding = createBindingInvoker(dependencies, environmentOf)
   const controls = createControlDriver(dependencies)
+  const suspensions = createSuspensionDriver(dependencies, executionOf, wake)
+  const resumptions = createResumptionDriver(dependencies, executionOf)
   const facts = createFactDriver(dependencies, binding, (step, delayed) => {
     if (step.signal.aborted) return
     if (delayed) scheduleLater(step.tenant, step.call, [step.signal])
@@ -586,7 +605,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     if ('failure' in found) return { kind: 'failed', failure: found.failure }
     if (found.ok.kind !== 'not-started' || binding.hasLive(step, start))
       return blocked(`the start exclusion conflicts with the binding: ${found.ok.kind}`)
-    const write = context(step, recovery, 'exclude')
+    const write = startContext(step, recovery, start, 'exclude')
     if ('failure' in write) return { kind: 'failed', failure: write.failure }
     const reason = 'the executor binding failed to start'
     const excluded = await authority.exclude({
@@ -600,13 +619,48 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return recordStart(step, recovery, start, { kind: 'rejected', reason, exclusion: excluded.ok })
   }
 
+  const reconcileInvocation = async (
+    step: Step<P>,
+    recovery: ToolRecovery,
+    start: ToolStartRecord,
+    invoked: Exclude<Awaited<ReturnType<typeof binding.invoke>>, { kind: 'port-failed' }>,
+    recordBindingFailureMarker: () => Promise<StepResult>,
+  ): Promise<StepResult> => {
+    const afterStart = await authority.inspect({
+      principal: step.principal,
+      tenant: step.tenant,
+      call: step.call,
+      start,
+    })
+    if (
+      'ok' in afterStart &&
+      (afterStart.ok.kind === 'started' || afterStart.ok.kind === 'rejected')
+    )
+      return recordStart(step, recovery, start, afterStart.ok)
+    if (invoked.kind === 'binding-failed' || invoked.kind === 'binding-threw')
+      return recordBindingFailureMarker()
+    if ('failure' in afterStart) return { kind: 'failed', failure: afterStart.failure }
+    if (afterStart.ok.kind === 'unknown')
+      return unknownStart(step, recovery, start, afterStart.ok.diagnostic)
+    if (invoked.kind === 'binding-unanswered')
+      return {
+        kind: 'failed',
+        failure: {
+          kind: 'unavailable',
+          dependency: 'toolBindings',
+          diagnostic: `the start was not accepted: the binding answered ${invoked.failure.kind}`,
+        },
+      }
+    return blocked('the authority excludes a start with a known live execution')
+  }
+
   const fence = async (
     step: Step<P>,
     recovery: ToolRecovery,
-    start: Extract<ToolStartRecord, { kind: 'start' }>,
+    start: ToolStartRecord,
   ): Promise<StepResult> => {
     const access = { principal: step.principal, tenant: step.tenant, call: step.call }
-    const marker = context(step, recovery, 'start-failed')
+    const marker = startContext(step, recovery, start, 'start-failed')
     if ('failure' in marker) return { kind: 'failed', failure: marker.failure }
     const failed = await dependencies.reads.operation({
       ...access,
@@ -643,22 +697,9 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     if (invoked.kind === 'port-failed') return { kind: 'failed', failure: invoked.failure }
     if (invoked.kind === 'binding-failed' || invoked.kind === 'binding-threw')
       unconfirmedBindingFailures.add(callKey(step.tenant, step.call))
-    const afterStart = await authority.inspect({ ...access, start })
-    if (
-      'ok' in afterStart &&
-      (afterStart.ok.kind === 'started' || afterStart.ok.kind === 'rejected')
-    )
-      return recordStart(step, recovery, start, afterStart.ok)
-    if (invoked.kind === 'binding-failed' || invoked.kind === 'binding-threw') {
-      return recordBindingFailureMarker()
-    }
-    if ('failure' in afterStart) return { kind: 'failed', failure: afterStart.failure }
-    return afterStart.ok.kind === 'unknown'
-      ? unknownStart(step, recovery, start, afterStart.ok.diagnostic)
-      : blocked('the authority excludes a start with a known live execution')
+    return reconcileInvocation(step, recovery, start, invoked, recordBindingFailureMarker)
   }
 
-  /** A settled call with a `queue` task still owes the queue domain its release (crash repair). */
   const repairRelease = async (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -669,13 +710,30 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       const task = recovery.tasks.find(task => task.kind === 'queue')
       if (task?.kind !== 'queue') return IDLE
       const reason = ledgerRejectedReason(recovery, task.operation)
-      return reason === null
-        ? settle(step, recovery, task, cancelled)
-        : settleRejected(step, recovery, reason)
+      if (reason !== null) return settleRejected(step, recovery, reason)
+      return ['suspended', 'lost'].includes(recovery.state.execution.kind)
+        ? releaseSuspended(step, recovery, task)
+        : settle(step, recovery, task, cancelled)
     }
     if (recovery.start !== null)
       return recordStart(step, recovery, recovery.start, { kind: 'rejected', ...rejection })
     return rejectPending(step, recovery, rejection.reason, rejection.exclusion)
+  }
+
+  const releaseSuspended = async (
+    step: Step<P>,
+    recovery: ToolRecovery,
+    task: Extract<ToolTask, { basis: DurableEvidence }>,
+  ): Promise<StepResult> => {
+    const released = await queues.release({
+      principal: step.principal,
+      tenant: step.tenant,
+      call: step.call,
+      operation: task.operation,
+    })
+    if ('failure' in released) return after(released)
+    await wake(step.tenant, recovery.request)
+    return CONTINUE
   }
 
   const settle = async (
@@ -691,7 +749,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     const current = await commands.loadRecovery(step)
     if (cancelled()) return blocked('the run was aborted')
     if ('failure' in current) return { kind: 'failed', failure: current.failure }
-    // The immutable preserve receipt proves the call commit, not completion of its queue tail.
     if (current.ok.tasks.some(item => item.kind === 'queue' && item.operation === task.operation))
       return blocked('the original queue release is still unconfirmed')
     await wake(step.tenant, recovery.request)
@@ -700,23 +757,109 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 
   type Action = (step: Step<P>, recovery: ToolRecovery) => Promise<StepResult>
 
-  /**
-   * The step of each phase while the call domain owes the queue domain a step (a `queue` task).
-   * Running facts and saved finals use their own task steps.
-   */
-  const queueSteps: Readonly<Partial<Record<ToolRecovery['state']['phase'], Action>>> = {
-    accepted: plan,
-    preparing: enqueue,
-    queued: prepareStart,
-  }
+  const owesQueue = (recovery: ToolRecovery) => recovery.tasks.some(task => task.kind === 'queue')
+  const owing =
+    (action: Action): Action =>
+    (step, recovery) =>
+      owesQueue(recovery) ? action(step, recovery) : Promise.resolve(IDLE)
 
-  /** A `starting` call with its `start` task goes through the start fence. */
   const startStep: Action = async (step, recovery) => {
     const owesStart = recovery.tasks.some(task => task.kind === 'start')
-    return owesStart && recovery.start?.kind === 'start'
-      ? fence(step, recovery, recovery.start)
-      : IDLE
+    return owesStart && recovery.start !== null ? fence(step, recovery, recovery.start) : IDLE
   }
+
+  const resumeStep: Action = async (step, recovery) => {
+    const resumed = await resumptions.resume(step, recovery)
+    return resumed === 'waiting' ? awaitPlace(step, recovery) : resumed
+  }
+
+  const phaseSteps: Readonly<Partial<Record<ToolRecovery['state']['phase'], Action>>> = {
+    accepted: owing(plan),
+    preparing: (step, recovery) => {
+      const task = recovery.tasks.find(item => item.kind === 'prepare')
+      return task?.kind === 'prepare'
+        ? prepare(step, recovery, task)
+        : owing(enqueue)(step, recovery)
+    },
+    queued: owing(prepareStart),
+    starting: startStep,
+    suspended: async (step, recovery) => {
+      const task = recovery.tasks.find(item => item.kind === 'prepare')
+      if (task?.kind === 'prepare') return prepare(step, recovery, task)
+      if (!owesQueue(recovery)) return resumptions.decide(step, recovery)
+      return (await resumeEnvironment(step, recovery)) ?? resumeStep(step, recovery)
+    },
+  }
+
+  type Duty = Readonly<{ key: string; run: () => Promise<StepResult> }>
+  type DutyRule = (
+    step: Step<P>,
+    recovery: ToolRecovery,
+    cancelled: () => boolean,
+  ) => readonly Duty[]
+
+  const duties: readonly DutyRule[] = [
+    (step, recovery, cancelled) =>
+      recovery.state.phase === 'settled' && owesQueue(recovery)
+        ? [{ key: 'queue', run: () => repairRelease(step, recovery, cancelled) }]
+        : [],
+    (step, recovery) =>
+      recovery.tasks.flatMap(task =>
+        ((task.kind === 'stop' && recovery.state.execution.kind !== 'starting') ||
+          task.kind === 'release') &&
+        task.state !== 'blocked'
+          ? [
+              {
+                key: `${task.kind}:${task.operation}`,
+                run: async () =>
+                  after(
+                    task.kind === 'stop'
+                      ? await controls.stop(step, recovery, task)
+                      : await controls.release(step, task),
+                  ),
+              },
+            ]
+          : [],
+      ),
+    (step, recovery) =>
+      resumptions.continued(recovery).map(wait => ({
+        key: `close:${wait.intent.wait}`,
+        run: () => resumptions.close(step, recovery, wait),
+      })),
+    (step, recovery, cancelled) => {
+      const task = recovery.tasks.find(item => item.kind === 'settle')
+      return recovery.state.phase !== 'settled' && task?.kind === 'settle'
+        ? [{ key: 'settle', run: () => settle(step, recovery, task, cancelled) }]
+        : []
+    },
+    (step, recovery, cancelled) =>
+      recovery.tasks.flatMap(task =>
+        task.kind === 'fact-ack'
+          ? [{ key: `ack:${task.operation}`, run: () => facts.acknowledge(step, task, cancelled) }]
+          : [],
+      ),
+    (step, recovery) =>
+      recovery.tasks.flatMap(task => {
+        const run =
+          task.kind === 'suspend'
+            ? suspensions.suspension(step, recovery, task)
+            : task.kind === 'wait-registration'
+              ? suspensions.registration(step, recovery, task)
+              : null
+        return run === null ? [] : [{ key: `${task.kind}:${task.operation}`, run }]
+      }),
+    (step, recovery, cancelled) =>
+      !recovery.tasks.some(task => task.kind === 'fact-ack') &&
+      recovery.tasks.some(task => task.kind === 'facts' && task.state !== 'blocked')
+        ? [
+            {
+              key: 'facts',
+              run: () =>
+                facts.receive(step, recovery, cancelled, () => suspensions.plan(step, recovery)),
+            },
+          ]
+        : [],
+  ]
 
   const stepOf = async (
     step: Step<P>,
@@ -726,72 +869,24 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   ): Promise<StepResult> => {
     if (cancelled()) return blocked('the run was aborted')
     facts.closeFinished(step, recovery)
-    const { phase } = recovery.state
     let stalled = false
-    const attempt = async (
-      key: string,
-      action: () => Promise<StepResult>,
-    ): Promise<Continue | null> => {
-      if (failures.skipped.has(key)) return null
-      const result = await action()
-      if (result.kind === 'continue') {
-        if (result.progressed) return result
-        stalled = true
-        return null
+    for (const rule of duties)
+      for (const duty of rule(step, recovery, cancelled)) {
+        if (failures.skipped.has(duty.key)) continue
+        const result = await duty.run()
+        if (result.kind === 'continue') {
+          if (result.progressed) return result
+          stalled = true
+        } else {
+          failures.skipped.add(duty.key)
+          failures.first ??= result
+          failures.retry ||= result.kind === 'failed' && transient(result.failure)
+        }
+        if (cancelled()) return blocked('the run was aborted')
       }
-      failures.skipped.add(key)
-      failures.first ??= result
-      failures.retry ||= result.kind === 'failed' && transient(result.failure)
-      return null
-    }
-    if (phase === 'settled' && recovery.tasks.some(task => task.kind === 'queue')) {
-      const result = await attempt('queue', () => repairRelease(step, recovery, cancelled))
-      if (result !== null) return result
-    }
-    for (const task of recovery.tasks) {
-      if (task.kind !== 'stop' && task.kind !== 'release') continue
-      if (task.state === 'blocked') continue
-      const result = await attempt(`${task.kind}:${task.operation}`, async () =>
-        after(
-          task.kind === 'stop'
-            ? await controls.stop(step, recovery, task)
-            : await controls.release(step, task),
-        ),
-      )
-      if (result !== null) return result
-      if (cancelled()) return blocked('the run was aborted')
-    }
-    const settlement = recovery.tasks.find(task => task.kind === 'settle')
-    if (phase !== 'settled' && settlement?.kind === 'settle') {
-      const result = await attempt('settle', () => settle(step, recovery, settlement, cancelled))
-      if (result !== null) return result
-    }
-    if (cancelled()) return blocked('the run was aborted')
-    const acknowledgements = recovery.tasks.filter(task => task.kind === 'fact-ack')
-    for (const task of acknowledgements) {
-      const result = await attempt(`ack:${task.operation}`, () =>
-        facts.acknowledge(step, task, cancelled),
-      )
-      if (result !== null) return result
-      if (cancelled()) return blocked('the run was aborted')
-    }
-    // An unconfirmed batch still owns the cursor barrier, even when settlement can proceed.
-    if (
-      acknowledgements.length === 0 &&
-      recovery.tasks.some(task => task.kind === 'facts' && task.state !== 'blocked')
-    ) {
-      const result = await attempt('facts', () => facts.receive(step, recovery, cancelled))
-      if (result !== null) return result
-    }
     if (stalled) return STALLED
     if (failures.first !== null) return failures.first
-    const preparation = recovery.tasks.find(task => task.kind === 'prepare')
-    if (phase === 'preparing' && preparation?.kind === 'prepare')
-      return prepare(step, recovery, preparation)
-    if (phase === 'starting') return startStep(step, recovery)
-    const queueStep = queueSteps[phase]
-    const owesQueue = recovery.tasks.some(task => task.kind === 'queue')
-    return queueStep !== undefined && owesQueue ? queueStep(step, recovery) : IDLE
+    return phaseSteps[recovery.state.phase]?.(step, recovery) ?? IDLE
   }
 
   const advance = async (
@@ -799,7 +894,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     cancelled: () => boolean,
     failures: RunFailures,
   ): Promise<DriverStop> => {
-    let progressed = false
     for (let steps = 0; steps < policy.stepsPerRun; steps += 1) {
       if (cancelled()) return blocked('the run was aborted')
       const recovery = await commands.loadRecovery({
@@ -814,23 +908,26 @@ export function createToolDriver<P, B extends ContentBlock, E>(
         await stepOf(step, recovery.ok, cancelled, failures),
       )
       if (result.kind !== 'continue') return result
-      progressed ||= result.progressed
+      failures.progressed ||= result.progressed
     }
-    return { kind: 'yielded', progressed }
+    return { kind: 'yielded', progressed: failures.progressed }
   }
 
-  /** One run, then what its stop asks for. */
   const runOnce = async (step: Step<P>): Promise<DriverStop> => {
     const signals = facts.signalsForRun(step)
     const cancelled = () => signals.some(signal => signal.aborted)
-    const failures: RunFailures = { skipped: new Set(), first: null, retry: false }
+    const failures: RunFailures = {
+      skipped: new Set(),
+      first: null,
+      retry: false,
+      progressed: false,
+    }
     const stop = await advance(step, cancelled, failures)
-    await retrigger(step, stop, signals)
+    await retrigger(step, stop, signals, failures.progressed)
     if (failures.retry) scheduleLater(step.tenant, step.call, signals)
     return stop
   }
 
-  /** Runs of the same call do not overlap in this process; the ledger orders them across it. */
   const serialized = (step: Step<P>): Promise<DriverStop> => {
     const key = callKey(step.tenant, step.call)
     const previous = runs.get(key) ?? Promise.resolve()
@@ -848,6 +945,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 
   const handle: ToolDriverHandle<P> = {
     advance: serialized,
+    later: step => scheduleLater(step.tenant, step.call, [step.signal]),
     run: async step => {
       await serialized(step)
     },

@@ -324,7 +324,6 @@ export async function modelHost(
         },
         command,
         consumer: { ...request().consumer, position },
-        // A command of Tools is named in the call; the source tool is a function tool.
         arguments: (() => {
           const text = JSON.stringify(command === null ? args : { command, params: args })
           return { original: text, effective: text, complete: true }

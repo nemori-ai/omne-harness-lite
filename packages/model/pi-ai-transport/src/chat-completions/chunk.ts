@@ -1,37 +1,26 @@
 // Derived from pi 1.0.0, commit a13d35a742c6ef8462812a28fbe1d8c8b7431c32 (the chunk loop of
 // `stream`, parseChunkUsage; the source file is named in provenance.json). Copyright (c) 2025
 // Mario Zechner. MIT: ../../LICENSE.pi. See provenance.json.
-//
-// The boundary of the stream decoder: one data frame of the gateway stream becomes one typed
-// chunk, or a named shape failure. Nothing after this file reads a raw frame.
 import type { JsonEntry, JsonValue } from '@omne-harness/json-text'
 import type { GatewayUsage, ReasoningDetail } from './vocabulary.ts'
 
-/** A non-negative decimal integer without leading zeros. */
 const DECIMAL = /^(0|[1-9][0-9]*)$/
 
-/** One `reasoning_details` item as it arrived, before any joining. */
 export type DetailFragment = Readonly<{
   type: ReasoningDetail['type']
-  /** `null`: the item has no `id` member, or it is `null` or empty. */
   id: string | null
-  /** The decimal `index`; `null` when the item has none. */
   index: string | null
   format: string | null
   raw: Readonly<Record<string, JsonValue>>
 }>
 
-/** One `tool_calls` item as it arrived. */
 export type ToolFragment = Readonly<{
-  /** The decimal `index`: the identity of the call inside the response. */
   index: string
   id: string | null
   name: string | null
-  /** `null`: the item carries no argument text. */
   arguments: string | null
 }>
 
-/** The delta of the choice. Empty strings are `null`. */
 export type Delta = Readonly<{
   content: string | null
   refusal: string | null
@@ -42,18 +31,14 @@ export type Delta = Readonly<{
 
 export type Choice = Readonly<{ finish: string | null; delta: Delta }>
 
-/** One data frame of the gateway stream. */
 export type Chunk = Readonly<{
   model: string | null
   provider: string | null
-  /** Present when the frame carries an in-band error. Only the numeric code is kept. */
   error: Readonly<{ code: number | null }> | null
-  /** `null`: the frame has no choice. */
   choice: Choice | null
   usage: GatewayUsage | null
 }>
 
-/** Why a data frame is not a chunk of the gateway stream. */
 export type ChunkFailure =
   | 'chunk-not-object'
   | 'choices-shape'
@@ -68,7 +53,6 @@ export type ChunkFailure =
 
 export type ChunkRead = Readonly<{ ok: Chunk }> | Readonly<{ failure: ChunkFailure }>
 
-/** A thrown shape failure inside the reader; `readChunk` turns it into its result. */
 class ChunkShapeError extends Error {
   readonly reason: ChunkFailure
 
@@ -79,10 +63,8 @@ class ChunkShapeError extends Error {
   }
 }
 
-/** Delta members that would carry output this engine does not decode. */
 const UNSUPPORTED_DELTA_MEMBERS = ['images', 'audio'] as const
 
-/** Reads one data frame. Unknown members are ignored, except the unsupported output members. */
 export function readChunk(value: JsonValue): ChunkRead {
   try {
     return { ok: chunkOf(value) }
@@ -195,7 +177,6 @@ function toolFragmentOf(value: JsonValue): ToolFragment {
   }
 }
 
-/** The usage object of the gateway. A count that is not a decimal integer is unknown (`null`). */
 function usageOf(value: JsonValue | undefined): GatewayUsage | null {
   if (value === undefined || value.kind === 'null') return null
   const members = membersOf(value, 'usage-shape')
@@ -221,7 +202,6 @@ function membersOf(value: JsonValue, failure: ChunkFailure): ReadonlyMap<string,
   return memberMap(value)
 }
 
-/** The members of an object. The JSON reader refuses repeated keys, so each key is unique. */
 function memberMap(value: Extract<JsonValue, { kind: 'object' }>): Map<string, JsonValue> {
   return new Map(value.entries.map((entry: JsonEntry) => [entry.key, entry.value]))
 }
@@ -232,7 +212,6 @@ function itemsOf(value: JsonValue | undefined, failure: ChunkFailure): readonly 
   return value.items
 }
 
-/** A string member; absent, `null` and the empty string are `null`. */
 function optionalText(value: JsonValue | undefined, failure: ChunkFailure): string | null {
   if (value === undefined || value.kind === 'null') return null
   if (value.kind !== 'string') throw new ChunkShapeError(failure)
@@ -245,7 +224,6 @@ function optionalIndex(value: JsonValue | undefined, failure: ChunkFailure): str
   return value.lexeme
 }
 
-/** True for a member that carries something: not absent, `null`, `""`, `[]` or `{}`. */
 function isFilled(value: JsonValue | undefined): boolean {
   if (value === undefined) return false
   switch (value.kind) {

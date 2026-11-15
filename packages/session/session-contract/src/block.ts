@@ -1,9 +1,6 @@
-// The one block that Session declares to Runtime Context (SPEC「会话块声明与设置值的固定时点」).
-// session-adapters translates it into the Runtime Context declaration.
 import { digestOf } from './operations.ts'
 import type { SessionBlockDeclaration } from './ports.ts'
 
-/** The members of `Modes`, in the order of the type. The digest of the schema covers them. */
 const MODES_SCHEMA = {
   name: 'session.modes',
   members: ['permission', 'environment', 'collaboration'],

@@ -67,9 +67,7 @@ function manifestText(input: CreateInput): string {
       files: ['dist'],
       scripts: {
         build: 'rm -rf dist && tsc -p tsconfig.build.json',
-        // RFC-0003: type checking reads sources through the `source` condition and never builds first.
         typecheck: 'tsc -p tsconfig.test.json',
-        // RFC-0002: turbo builds the member and its dependencies before these run; the tier is the vitest mode.
         test: 'vitest run',
         'test:fast': 'vitest run --mode fast',
         'test:slow': 'vitest run --mode slow --typecheck.enabled=false',
@@ -81,7 +79,6 @@ function manifestText(input: CreateInput): string {
     2,
   )
 }
-/** Preview by default. Creation never installs dependencies or runs package code. */
 export function createPackage(input: CreateInput): Creation {
   const target = checkLocation(input)
   const template = readTemplate(input.templateDirectory ?? TEMPLATE_DIRECTORY)

@@ -1,6 +1,4 @@
 // @module-tag slow
-// The fixed request of a call is written once (SPEC TS-17). A call whose arguments nearly fill one
-// SQL command is admitted and then settles: no later commit carries the request again.
 import { randomBytes } from 'node:crypto'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -15,7 +13,6 @@ import { settledOffloaded } from './fixtures/settled-offloaded.ts'
 
 const MAX_COMMAND_BYTES = 1_048_576
 
-/** Arguments that do not compress, so the size of a stored row shows what the row holds. */
 const argumentsOf = (bytes: number) =>
   JSON.stringify({ text: randomBytes(bytes / 2).toString('hex') })
 
@@ -37,7 +34,6 @@ it(
       const text = argumentsOf(480_000)
       const live = await settledOffloaded(app, TENANT_A, 'done', text)
       expect(live.value.content).toMatchObject([{ kind: 'text', text: 'done' }])
-      // The request is in one place: the fixed part of the call record. No other row holds it.
       const fixed = app.sqlite.inspect(
         domainNameOf(TENANT_A),
         'SELECT key, length(fixed) AS bytes FROM tl_record WHERE fixed IS NOT NULL',
@@ -94,7 +90,6 @@ it(
         if (!('ok' in decoded)) throw new Error('invalid fixture revision')
         return decoded.ok
       }
-      // The first commit of the domain holds no call record, so the next one cannot keep a request.
       expect(
         await app.store.commit({
           domain,

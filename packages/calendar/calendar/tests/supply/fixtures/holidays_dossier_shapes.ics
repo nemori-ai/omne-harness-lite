@@ -1,0 +1,897 @@
+BEGIN:VCALENDAR
+PRODID:-//github.com/rianjs/ical.net//NONSGML ical.net 2.2//EN
+VERSION:2.0
+X-OMNE-FIXTURE-NOTE:Reproduces omne_harness/requirements/intake/business-
+ calendar-source-research/us-calendar-source-dossier.md measured shapes
+ (2026-08-19): observed-only DTSTART dates; SUMMARY apostrophe codepoints
+ mixed inside one file (U+0027 in 2021-2023 blocks and Washington's
+ Birthday 2025, U+2019 in 2024+ blocks); 2021-12-31 cross-year New Year
+ spillover; 2025-01-20 dual VEVENT (MLK + Inauguration Day); Inauguration
+ Day present 2021/2025 only. Dates computed from 6103(a)/(b)(1)+EO 11582
+ rules and cross-checked against dossier appendix A per-year counts and
+ the verbatim 2026 list.
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20210101-28059@opm.gov
+DTSTART;VALUE=DATE:20210101
+SUMMARY:New Year's Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2021/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20210118-38136@opm.gov
+DTSTART;VALUE=DATE:20210118
+SUMMARY:Birthday of Martin Luther King, Jr.
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2021/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20210120-45325@opm.gov
+DTSTART;VALUE=DATE:20210120
+SUMMARY:Inauguration Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2021/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20210215-83909@opm.gov
+DTSTART;VALUE=DATE:20210215
+SUMMARY:Washington's Birthday
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2021/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20210531-16775@opm.gov
+DTSTART;VALUE=DATE:20210531
+SUMMARY:Memorial Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2021/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20210618-98137@opm.gov
+DTSTART;VALUE=DATE:20210618
+SUMMARY:Juneteenth National Independence Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2021/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20210705-15831@opm.gov
+DTSTART;VALUE=DATE:20210705
+SUMMARY:Independence Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2021/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20210906-06877@opm.gov
+DTSTART;VALUE=DATE:20210906
+SUMMARY:Labor Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2021/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20211011-20412@opm.gov
+DTSTART;VALUE=DATE:20211011
+SUMMARY:Columbus Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2021/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20211111-46874@opm.gov
+DTSTART;VALUE=DATE:20211111
+SUMMARY:Veterans Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2021/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20211125-37526@opm.gov
+DTSTART;VALUE=DATE:20211125
+SUMMARY:Thanksgiving Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2021/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20211224-59371@opm.gov
+DTSTART;VALUE=DATE:20211224
+SUMMARY:Christmas Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2021/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20211231-28059@opm.gov
+DTSTART;VALUE=DATE:20211231
+SUMMARY:New Year's Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2021/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20220117-38136@opm.gov
+DTSTART;VALUE=DATE:20220117
+SUMMARY:Birthday of Martin Luther King, Jr.
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2022/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20220221-83909@opm.gov
+DTSTART;VALUE=DATE:20220221
+SUMMARY:Washington's Birthday
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2022/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20220530-16775@opm.gov
+DTSTART;VALUE=DATE:20220530
+SUMMARY:Memorial Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2022/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20220620-98137@opm.gov
+DTSTART;VALUE=DATE:20220620
+SUMMARY:Juneteenth National Independence Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2022/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20220704-15831@opm.gov
+DTSTART;VALUE=DATE:20220704
+SUMMARY:Independence Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2022/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20220905-06877@opm.gov
+DTSTART;VALUE=DATE:20220905
+SUMMARY:Labor Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2022/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20221010-20412@opm.gov
+DTSTART;VALUE=DATE:20221010
+SUMMARY:Columbus Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2022/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20221111-46874@opm.gov
+DTSTART;VALUE=DATE:20221111
+SUMMARY:Veterans Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2022/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20221124-37526@opm.gov
+DTSTART;VALUE=DATE:20221124
+SUMMARY:Thanksgiving Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2022/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20221226-59371@opm.gov
+DTSTART;VALUE=DATE:20221226
+SUMMARY:Christmas Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2022/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20230102-28059@opm.gov
+DTSTART;VALUE=DATE:20230102
+SUMMARY:New Year's Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2023/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20230116-38136@opm.gov
+DTSTART;VALUE=DATE:20230116
+SUMMARY:Birthday of Martin Luther King, Jr.
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2023/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20230220-83909@opm.gov
+DTSTART;VALUE=DATE:20230220
+SUMMARY:Washington's Birthday
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2023/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20230529-16775@opm.gov
+DTSTART;VALUE=DATE:20230529
+SUMMARY:Memorial Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2023/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20230619-98137@opm.gov
+DTSTART;VALUE=DATE:20230619
+SUMMARY:Juneteenth National Independence Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2023/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20230704-15831@opm.gov
+DTSTART;VALUE=DATE:20230704
+SUMMARY:Independence Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2023/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20230904-06877@opm.gov
+DTSTART;VALUE=DATE:20230904
+SUMMARY:Labor Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2023/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20231009-20412@opm.gov
+DTSTART;VALUE=DATE:20231009
+SUMMARY:Columbus Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2023/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20231110-46874@opm.gov
+DTSTART;VALUE=DATE:20231110
+SUMMARY:Veterans Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2023/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20231123-37526@opm.gov
+DTSTART;VALUE=DATE:20231123
+SUMMARY:Thanksgiving Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2023/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20231225-59371@opm.gov
+DTSTART;VALUE=DATE:20231225
+SUMMARY:Christmas Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2023/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20240101-28327@opm.gov
+DTSTART;VALUE=DATE:20240101
+SUMMARY:New Year’s Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2024/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20240115-38136@opm.gov
+DTSTART;VALUE=DATE:20240115
+SUMMARY:Birthday of Martin Luther King, Jr.
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2024/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20240219-30327@opm.gov
+DTSTART;VALUE=DATE:20240219
+SUMMARY:Washington’s Birthday
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2024/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20240527-16775@opm.gov
+DTSTART;VALUE=DATE:20240527
+SUMMARY:Memorial Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2024/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20240619-98137@opm.gov
+DTSTART;VALUE=DATE:20240619
+SUMMARY:Juneteenth National Independence Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2024/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20240704-15831@opm.gov
+DTSTART;VALUE=DATE:20240704
+SUMMARY:Independence Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2024/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20240902-06877@opm.gov
+DTSTART;VALUE=DATE:20240902
+SUMMARY:Labor Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2024/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20241014-20412@opm.gov
+DTSTART;VALUE=DATE:20241014
+SUMMARY:Columbus Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2024/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20241111-46874@opm.gov
+DTSTART;VALUE=DATE:20241111
+SUMMARY:Veterans Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2024/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20241128-37526@opm.gov
+DTSTART;VALUE=DATE:20241128
+SUMMARY:Thanksgiving Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2024/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20241225-59371@opm.gov
+DTSTART;VALUE=DATE:20241225
+SUMMARY:Christmas Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2024/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20250101-28327@opm.gov
+DTSTART;VALUE=DATE:20250101
+SUMMARY:New Year’s Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2025/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20250120-38136@opm.gov
+DTSTART;VALUE=DATE:20250120
+SUMMARY:Birthday of Martin Luther King, Jr.
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2025/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20250120-45325@opm.gov
+DTSTART;VALUE=DATE:20250120
+SUMMARY:Inauguration Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2025/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20250217-83909@opm.gov
+DTSTART;VALUE=DATE:20250217
+SUMMARY:Washington's Birthday
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2025/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20250526-16775@opm.gov
+DTSTART;VALUE=DATE:20250526
+SUMMARY:Memorial Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2025/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20250619-98137@opm.gov
+DTSTART;VALUE=DATE:20250619
+SUMMARY:Juneteenth National Independence Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2025/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20250704-15831@opm.gov
+DTSTART;VALUE=DATE:20250704
+SUMMARY:Independence Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2025/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20250901-06877@opm.gov
+DTSTART;VALUE=DATE:20250901
+SUMMARY:Labor Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2025/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20251013-20412@opm.gov
+DTSTART;VALUE=DATE:20251013
+SUMMARY:Columbus Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2025/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20251111-46874@opm.gov
+DTSTART;VALUE=DATE:20251111
+SUMMARY:Veterans Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2025/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20251127-37526@opm.gov
+DTSTART;VALUE=DATE:20251127
+SUMMARY:Thanksgiving Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2025/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20251225-59371@opm.gov
+DTSTART;VALUE=DATE:20251225
+SUMMARY:Christmas Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2025/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20260101-28327@opm.gov
+DTSTART;VALUE=DATE:20260101
+SUMMARY:New Year’s Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2026/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20260119-38136@opm.gov
+DTSTART;VALUE=DATE:20260119
+SUMMARY:Birthday of Martin Luther King, Jr.
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2026/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20260216-30327@opm.gov
+DTSTART;VALUE=DATE:20260216
+SUMMARY:Washington’s Birthday
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2026/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20260525-16775@opm.gov
+DTSTART;VALUE=DATE:20260525
+SUMMARY:Memorial Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2026/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20260619-98137@opm.gov
+DTSTART;VALUE=DATE:20260619
+SUMMARY:Juneteenth National Independence Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2026/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20260703-15831@opm.gov
+DTSTART;VALUE=DATE:20260703
+SUMMARY:Independence Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2026/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20260907-06877@opm.gov
+DTSTART;VALUE=DATE:20260907
+SUMMARY:Labor Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2026/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20261012-20412@opm.gov
+DTSTART;VALUE=DATE:20261012
+SUMMARY:Columbus Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2026/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20261111-46874@opm.gov
+DTSTART;VALUE=DATE:20261111
+SUMMARY:Veterans Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2026/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20261126-37526@opm.gov
+DTSTART;VALUE=DATE:20261126
+SUMMARY:Thanksgiving Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2026/
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20260818T212045Z
+UID:fixture-20261225-59371@opm.gov
+DTSTART;VALUE=DATE:20261225
+SUMMARY:Christmas Day
+DESCRIPTION:If a holiday falls on a Saturday, for most Federal employees, 
+ the preceding Friday will be treated as a holiday for pay and leave purpo
+ ses. (See 5 U.S.C. 6103(b).) If a holiday falls on a Sunday, for most Fed
+ eral employees, the following Monday will be treated as a holiday for pay
+  and leave purposes. (See Section 3(a) of Executive Order 11582, February
+  11, 1971.) See also https://www.opm.gov/policy-data-oversight/pay-leave/
+ federal-holidays/tabs/2026/
+END:VEVENT
+END:VCALENDAR

@@ -21,8 +21,6 @@ export default {
         ? targetSnapshotSchema.parse(port.requireFact(targetSnapshotFact))
         : null,
     )
-    // The Session commit answers a reported failure as temporary: the caller comes again and the
-    // source forms the basis from the facts of that time.
     if (basis === null)
       return { kind: 'failed', diagnostic: 'the Session permission basis does not hold' }
     port.provideFact(SESSION_COMMIT_BASIS, basis)

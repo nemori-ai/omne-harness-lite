@@ -1,6 +1,3 @@
-// The `./cordis` entry: every key constant equals the `provide` of its class and matches the key
-// table of docs/cordis.md; a real subclass loads under the `session` key in a real Context and is
-// removed on unload; the superseded keys are not exported.
 import { Context, Service } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import * as cordis from '@omne-harness/session-cordis-contract/cordis'
@@ -13,7 +10,6 @@ import {
   sessionScopeLookupKey,
 } from '@omne-harness/session-cordis-contract/cordis'
 
-/** The key table of docs/cordis.md: key constant to its class. */
 const documentedPairs = {
   sessionKey: 'SessionService',
   sessionAccessCheckKey: 'SessionAccessCheckService',
@@ -22,6 +18,7 @@ const documentedPairs = {
   sessionDelegatedTransactionsKey: 'SessionDelegatedTransactionsService',
   sessionWorkPrincipalsKey: 'SessionWorkPrincipalsService',
   sessionPrincipalBindingsKey: 'SessionPrincipalBindingsService',
+  sessionScopeOwnersKey: 'SessionScopeOwnersService',
   sessionIdentityKey: 'SessionIdentityBridgeService',
   sessionEvidenceKey: 'SessionEvidenceBridgeService',
   sessionClockKey: 'SessionClockService',
@@ -30,6 +27,7 @@ const documentedPairs = {
   sessionNotifierKey: 'SessionNotifierService',
   sessionAgentDriveKey: 'AgentDrivePortService',
   sessionScopeReleaseKey: 'ScopeReleasePortService',
+  sessionTenantsKey: 'SessionTenantSourceService',
   sessionAdoptionSourceKey: 'SessionAdoptionSourceService',
   sessionProductionSourceKey: 'SessionProductionSourceService',
   sessionCustodySourceKey: 'SessionCustodySourceService',
@@ -47,6 +45,7 @@ const documentedKeys = {
   sessionDelegatedTransactionsKey: 'sessionDelegatedTransactions',
   sessionWorkPrincipalsKey: 'sessionWorkPrincipals',
   sessionPrincipalBindingsKey: 'sessionPrincipalBindings',
+  sessionScopeOwnersKey: 'sessionScopeOwners',
   sessionIdentityKey: 'sessionIdentity',
   sessionEvidenceKey: 'sessionEvidence',
   sessionClockKey: 'sessionClock',
@@ -55,6 +54,7 @@ const documentedKeys = {
   sessionNotifierKey: 'sessionNotifier',
   sessionAgentDriveKey: 'sessionAgentDrive',
   sessionScopeReleaseKey: 'sessionScopeRelease',
+  sessionTenantsKey: 'sessionTenants',
   sessionAdoptionSourceKey: 'sessionAdoptionSource',
   sessionProductionSourceKey: 'sessionProductionSource',
   sessionCustodySourceKey: 'sessionCustodySource',
@@ -108,7 +108,6 @@ describe('the ./cordis entry', () => {
   })
 
   it('loads a subclass that omits the optional commitLog and plan, and one that gives them', async () => {
-    // The optional members are not abstract: a provider written before them still compiles.
     class Transactions extends SessionTransactionPortService<string> {
       readonly commit = (() =>
         undefined) as unknown as SessionTransactionPortService<string>['commit']

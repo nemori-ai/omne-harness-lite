@@ -34,7 +34,6 @@ it('uses the pre-admission reference and returns the original reference on repla
     expect(
       await f.provider.runtime.calls.admit({ ...f.admit, operation: op('different-admission') }),
     ).toMatchObject({ failure: { kind: 'conflict' } })
-    // Dropping the first receipt loses no identity. Inspect uses the locator saved before admit.
     expect(
       await f.provider.runtime.calls.inspect({
         principal: f.principal,
@@ -98,9 +97,6 @@ it('distinguishes original-admission facts from call-only observation and readin
 })
 
 it('answers another tenant at all three real entry boundaries as for a call that never existed', async () => {
-  // R2-D357 negative control: tenant 6 presents tenant A's reference. The text carries no tenant
-  // and tenant 6's partition has no such call, so each entry answers byte for byte as a runtime in
-  // which no tenant ever admitted it.
   const f = runtimeFixture()
   const empty = runtimeFixture()
   try {

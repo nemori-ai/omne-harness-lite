@@ -1,30 +1,43 @@
-// 发行的并发作用域与固定请求的上下文采用（B 段）。tool-host-local 的授予核验器只认装配给它的一个作用域值，
-// 填请求的一方（Tool 请求供给者）交同一个值（`createLocalGrantVerifiers` 的 D1 决定）。所以作用域只在这里定义一次，
-// 两边都从这里取。已知限制（tool-host-local 同一条）：M2 一个装配只有一个作用域，全部调用共用一个 FIFO 键前缀。
-import type { ResourceScope } from '@omne-harness/tool-contract'
+import type { TenantId } from '@omne-harness/legal-identity'
+import { canonicalDigest, type ToolGrantVerifier } from '@omne-harness/tool'
+import type { ConsumerRef, ResourceScope } from '@omne-harness/tool-contract'
 import { describedAdoption } from '@omne-harness/tool-contract/provider'
 
 const OWNER = '@omne-harness/harness-server'
+const GRANT_RECORD = 'harness-server#run-tool-scope'
+const GRANT_REVISION = '1'
 
-const grantAdoption = describedAdoption({
-  owner: OWNER,
-  name: 'release-tool-scope',
-  revision: '1',
-})
+const grantDigest = (tenant: TenantId, key: string) => canonicalDigest({ tenant, key })
 
-/** 发行唯一的并发作用域：拥有者、键与固定的授予证据。 */
-export const RELEASE_TOOL_SCOPE: ResourceScope = Object.freeze({
-  owner: OWNER,
-  key: 'release-tool-scope',
-  grant: Object.freeze({
+export function runToolScope(tenant: TenantId, consumer: ConsumerRef): ResourceScope {
+  const key = JSON.stringify([consumer.owner, consumer.work])
+  return Object.freeze({
     owner: OWNER,
-    record: 'harness-server#release-tool-scope',
-    revision: grantAdoption.revision,
-    digest: grantAdoption.digest,
-  }),
-})
+    key,
+    grant: Object.freeze({
+      owner: OWNER,
+      record: GRANT_RECORD,
+      revision: GRANT_REVISION,
+      digest: grantDigest(tenant, key),
+    }),
+  })
+}
 
-/** 固定请求的 `context` 采用：本发行的 Tool 请求供给者。 */
+export function runScopeGrants(): ReadonlyMap<string, ToolGrantVerifier<unknown>> {
+  const verifier: ToolGrantVerifier<unknown> = {
+    verifyGrant: ({ tenant, scope }) =>
+      Promise.resolve(
+        scope.grant.owner === OWNER &&
+          scope.grant.record === GRANT_RECORD &&
+          scope.grant.revision === GRANT_REVISION &&
+          scope.grant.digest === grantDigest(tenant, scope.key)
+          ? { kind: 'granted' }
+          : { kind: 'refused', reason: 'scope-not-granted' },
+      ),
+  }
+  return new Map([[OWNER, verifier]])
+}
+
 export const RELEASE_REQUEST_CONTEXT = describedAdoption({
   owner: OWNER,
   name: 'tool-request-source',

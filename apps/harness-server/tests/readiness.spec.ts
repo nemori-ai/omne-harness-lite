@@ -125,7 +125,7 @@ describe('startup readiness (spec 5.2, section 8)', () => {
     expect(r.barrierCalls()).toBe(0)
   })
 
-  test('G-1 a construction check fails at startup with its tag', async () => {
+  test('a construction check fails at startup with its tag', async () => {
     const r = await run([
       { id: 'agent-host', config: { constructionCheck: 'joint-commits-mismatch' } },
     ])
@@ -135,7 +135,7 @@ describe('startup readiness (spec 5.2, section 8)', () => {
     expect(r.barrierCalls()).toBe(0)
   })
 
-  test('G-2 an unknown mapping selection fails server-entry at startup', async () => {
+  test('an unknown mapping selection fails server-entry at startup', async () => {
     const r = await run([
       { id: 'agent-adoptions', provides: ['s0.mappings'], config: { mappingIds: ['m1', 'm2'] } },
       {

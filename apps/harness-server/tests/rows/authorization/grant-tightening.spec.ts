@@ -1,9 +1,3 @@
-// The operator's tightening of the maintenance grant table (R2-D204 item 2, IC-18). The table is
-// built into the release; the operator can revoke a record or give it an end time, and cannot add,
-// widen or rename anything. The cases run the real row on a Cordis context with the real reference
-// authorization; the verifier is the in-process authority and the injected `identityClock` is a test
-// clock that the case moves. Each case has a control that must not change: the same request without the
-// tightening, or the tightening on another record.
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { decodeAgentInstanceId } from '@omne-harness/agent-contract'
@@ -48,7 +42,6 @@ function instantOf(text: string) {
   return parsed.value
 }
 
-/** A clock the case moves. */
 function testClock(initial: string) {
   let reading: ClockReading = { kind: 'read', instant: instantOf(initial) }
   const clock: IdentityClock = { now: () => Promise.resolve(reading) }
@@ -63,10 +56,8 @@ function testClock(initial: string) {
   }
 }
 
-/** A clock for the cases that set no end time: the row asks it only for a record with one. */
 const STILL = testClock('2026-01-01T00:00:00Z').clock
 
-/** Mounts the real row; `publish` asks the row's Agent access check as the named system component. */
 async function mount(config: unknown, clock: IdentityClock = STILL) {
   const ctx = new Context()
   const authority = inProcessPrincipalAuthority()
@@ -185,7 +176,6 @@ describe('the table with the tightening', () => {
     expect(table[TOOL_RESIDENCY_COMPONENT]).toBe(MAINTENANCE_GRANTS[TOOL_RESIDENCY_COMPONENT])
     expect(Object.isFrozen(table)).toBe(true)
     expect(Object.isFrozen(table[AGENT_HOST_COMPONENT])).toBe(true)
-    // The release table is not written through.
     expect(MAINTENANCE_GRANTS[AGENT_HOST_COMPONENT].revoked).toBe(false)
   })
 
@@ -277,9 +267,7 @@ describe('the row with the tightening', () => {
       expect(await ended.publish(AGENT_HOST_COMPONENT)).toEqual({ kind: 'denied' })
       time.set('2027-06-01T00:00:00Z')
       expect(await ended.publish(AGENT_HOST_COMPONENT)).toEqual({ kind: 'denied' })
-      // The control has no end time, so the same clock does not end it.
       expect((await control.publish(AGENT_HOST_COMPONENT)).kind).toBe('allowed')
-      // The clock moves back: the next check is allowed again, nothing was kept from before.
       time.set('2026-12-31T00:00:00Z')
       expect((await ended.publish(AGENT_HOST_COMPONENT)).kind).toBe('allowed')
     } finally {

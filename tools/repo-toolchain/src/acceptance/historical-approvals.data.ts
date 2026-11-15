@@ -1,24 +1,13 @@
-// Compiled historical acceptance-lock approvals. Only the reviewed tool artifact owns this list.
-// Repository inputs, configuration, environment variables and arguments cannot add approvals.
-
 export interface HistoricalApproval {
   readonly commit: string
-  /**
-   * The parent that the change is registered against. The tool checks only that it is one of the
-   * commit's parents. By registration convention a merge entry names the one parent where the path
-   * differs. That convention is not checked. The lock lists such a path only in its `-m` listing
-   * (no task context); its `--cc` listing (task context) shows no paths for a clean merge.
-   */
   readonly parent: string
   readonly path: string
-  /** NULL_OBJECT_ID when the path does not exist on that side, as `git diff --raw` reports it. */
   readonly oldBlob: string
   readonly newBlob: string
   readonly diffSha256: string
   readonly decisionUrl: string
 }
 
-/** Git's null object id: the side of a change where the path does not exist. */
 export const NULL_OBJECT_ID = '0000000000000000000000000000000000000000'
 
 const D010_DECISION =
@@ -28,11 +17,8 @@ const ISSUE_769_DECISION =
 const MODEL_ACCEPTANCE = 'packages/model/model/acceptance'
 const TRANSPORT_ACCEPTANCE = 'packages/model/pi-ai-transport/acceptance'
 
-// One entry for each (commit, path). A commit receives approval only when the protected paths that
-// the lock lists for it are exactly the paths registered here for that commit.
 export const HISTORICAL_APPROVALS: readonly HistoricalApproval[] = Object.freeze(
   [
-    // D010.
     {
       commit: '48ad37d292796326d65055a75e8a1fde44fe4233',
       parent: 'e7aab8ec73002713d2ef6486401816850c984fb1',
@@ -42,8 +28,6 @@ export const HISTORICAL_APPROVALS: readonly HistoricalApproval[] = Object.freeze
       diffSha256: 'eee5be00ebfdf300db6978cb2981a1b989dcd977846fc3de2669bb835edf3a2c',
       decisionUrl: D010_DECISION,
     },
-    // #769: six commits from 2026-10-20 to 10-23 that entered the track through the gate of that time.
-    // 19f457a15: #645 sync merge; the path differs only from its first parent.
     {
       commit: '19f457a1501aca70baae7ff573bddb86089c93ae',
       parent: '2726a8c8bd3b04f65bab4785dbcca21e02f87024',
@@ -53,7 +37,6 @@ export const HISTORICAL_APPROVALS: readonly HistoricalApproval[] = Object.freeze
       diffSha256: 'eee5be00ebfdf300db6978cb2981a1b989dcd977846fc3de2669bb835edf3a2c',
       decisionUrl: ISSUE_769_DECISION,
     },
-    // 9f3967cc5: #461 member documents.
     {
       commit: '9f3967cc5ec8e8eda4febfacaff50f78d5206b2b',
       parent: '26b6c74e1b15f126425e2996475b7ab1fd043d5b',
@@ -90,7 +73,6 @@ export const HISTORICAL_APPROVALS: readonly HistoricalApproval[] = Object.freeze
       diffSha256: '3b449877945335d1a5981587d3b47e0b4798207bb5d6345c6a6a5cca904773f9',
       decisionUrl: ISSUE_769_DECISION,
     },
-    // 69bdedfab: toolchain sync merge; the paths differ only from its first parent.
     {
       commit: '69bdedfabc097585cea516ccec8a6ba1d58003ae',
       parent: '3f10ac0d71f69677e6dd4d05def905231a64a298',
@@ -163,7 +145,6 @@ export const HISTORICAL_APPROVALS: readonly HistoricalApproval[] = Object.freeze
       diffSha256: '0ca167590ccedbff242697ac7f7bb707e9afc57b36ec2a0d5a2a3db360735140',
       decisionUrl: ISSUE_769_DECISION,
     },
-    // 837d333fd: toolchain sync merge; the paths differ only from its first parent.
     {
       commit: '837d333fdac65e6d2f7b62f7bd4bf73c066c857d',
       parent: 'cced1ffbfaec385e05d4d8466fea659c4ab8cfbc',
@@ -236,7 +217,6 @@ export const HISTORICAL_APPROVALS: readonly HistoricalApproval[] = Object.freeze
       diffSha256: '0ca167590ccedbff242697ac7f7bb707e9afc57b36ec2a0d5a2a3db360735140',
       decisionUrl: ISSUE_769_DECISION,
     },
-    // 14b0fcfcb: Node engine merge for #549; the paths differ only from its second parent.
     {
       commit: '14b0fcfcb1effda5d41f40bc5293c51eee5c4b6e',
       parent: '6dd1fefa1dcb6646d4221d01767220e2bfc04b05',
@@ -264,7 +244,6 @@ export const HISTORICAL_APPROVALS: readonly HistoricalApproval[] = Object.freeze
       diffSha256: '9f70ab6cf123d62b3520e418ff9afc43e46f238e277a74372084c63c20bcf9cd',
       decisionUrl: ISSUE_769_DECISION,
     },
-    // 06acd53ca: toolchain merge for #549; the paths differ only from its second parent.
     {
       commit: '06acd53ca13e66fc7867a7daec0ff7683c2ee6ac',
       parent: 'ec0de1dba1f7e02cdbef6f35815c23f41c5a9b68',
@@ -295,7 +274,6 @@ export const HISTORICAL_APPROVALS: readonly HistoricalApproval[] = Object.freeze
   ].map(approval => Object.freeze(approval)),
 )
 
-/** Each (commit, path) has at most one entry; a duplicate is an artifact defect, not a choice. */
 export function assertUniqueApprovals(list: readonly HistoricalApproval[]): void {
   const keys = new Set(list.map(item => `${item.commit}\0${item.path}`))
   if (keys.size !== list.length)

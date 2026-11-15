@@ -1,8 +1,3 @@
-// A register service for the self-proof of the registration suite. It has the semantics of the
-// conforming double of `./testing` with no flaw set, and one rule broken for each flaw that is
-// set. A service cannot be broken from outside, because the rules are the order of its own steps,
-// so the variants are built here and not laid over the double. With no flaw it must pass the
-// suite, which keeps this copy from drifting from the double.
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { TenantId } from '@omne-harness/legal-identity'
@@ -18,94 +13,50 @@ import type {
   ToolRegistrationInput,
 } from '@omne-harness/tool-cordis-contract/cordis'
 
-/** Each flag breaks one rule of IC-3. */
 export type Flaws = Readonly<
   Partial<{
-    /** The receipt names another execution. */
     receiptOtherExecution: boolean
-    /** The token of the receipt is empty. */
     emptyToken: boolean
-    /** A register that recalls the registration takes a new token. */
     recallFresh: boolean
-    /** A recall that meets another register in flight answers another token. */
     crowdedRecallFresh: boolean
-    /** A recall that comes alone (no other register in flight) answers another token. */
     loneRecallFresh: boolean
-    /** After any release, a recall answers another token. */
     recallFreshAfterRelease: boolean
-    /** Another handle is refused as unavailable, not as a conflict. */
     otherHandleUnavailable: boolean
-    /** Another fiber is refused as unavailable, not as a conflict. */
     otherFiberUnavailable: boolean
-    /** A release of a registration that is no longer current mutes the current one. */
     lateReleaseMutesSuccessor: boolean
-    /** A release of a registration that is no longer current answers removed true, and keeps the current one. */
     lateReleaseClaimsRemoval: boolean
-    /** The first release of a registration removes the entry and answers removed false. */
     firstReleaseAnswersFalse: boolean
-    /** The second release of a registration answers removed true. */
     secondReleaseRemoves: boolean
-    /** The third release of a registration answers removed true. */
     thirdReleaseRemoves: boolean
-    /** A refusal of the kind denied is reported as unavailable. */
     deniedAsUnavailable: boolean
-    /** A refused check leaves the entry that was written before it. */
     keepOnRefusal: boolean
-    /** A release gives the registrations of the other tenants for the same call another token. */
     foreignReleaseRewrites: boolean
-    /** A release mutes the registrations of the other tenants for the same call. */
     foreignReleaseMutes: boolean
-    /** Another handle takes the identity over instead of conflicting. */
     overwriteOtherHandle: boolean
-    /** The qualification of the registration (its authority) is not compared on a recall. */
     ignoreAuthority: boolean
-    /** Another qualification of the same identity is refused as unavailable, not as conflict. */
     otherQualificationUnavailable: boolean
-    /** Another qualification of the same identity removes the registration it conflicts with. */
     conflictSpoilsEntry: boolean
-    /** The generation of the publication is not compared: the receipt of the first is recalled. */
     ignoreGeneration: boolean
-    /** Another generation of the identity takes the registration over. */
     generationOverwrites: boolean
-    /** The fiber is not compared: any fiber recalls the registration of another. */
     shareAcrossFibers: boolean
-    /** A release removes the entry of the identity, whichever registration holds it. */
     releaseByIdentity: boolean
-    /** A repeated release answers removed true again. */
     repeatedReleaseRemoves: boolean
-    /** The release of a registration of another tenant than the first one removes nothing. */
     foreignReleaseRemovesNothing: boolean
-    /** After a release the identity is burned for every other fiber. */
     burnedAfterRelease: boolean
-    /** A release ends the observation of the original work. */
     releaseTouchesWork: boolean
-    /** A refused check is written and taken back after the answer is on its way. */
     writeThenRollback: boolean
-    /** A register that sees the check change while it is in flight rejects instead of answering. */
     rejectsWhenCheckChanges: boolean
-    /** A refused check is written this many milliseconds after the answer, and kept. */
     writeAfterAnswerMs: number
-    /** The directory entry is written before the check is made. */
     writeBeforeCheck: boolean
-    /** The check is made, the register yields, and the entry is written without a second check. */
     checkThenYield: boolean
-    /** A register yields between the test for a conflict and the write. */
     yieldBeforeWrite: boolean
-    /** Registers that meet in flight all take the conflict, so none registers. */
     bothLose: boolean
-    /** Every refusal of the check is reported as denied. */
     refusalAsDenied: boolean
-    /** A recall that the check refuses answers conflict, not the refusal. */
     recallRefusedAsConflict: boolean
-    /** A recall does not consult the check. */
     skipCheckOnRecall: boolean
-    /** A fiber that has exited can still register. */
     exitedFiberRegisters: boolean
-    /** The end of a fiber leaves its registration behind. */
     fiberEndKeepsEntry: boolean
-    /** The key ignores the tenant. */
     tenantBlind: boolean
-    /** The check accepts an authority for a publication of any tenant. */
     authorityTenantBlind: boolean
   }>
 >
@@ -126,7 +77,6 @@ const tenantText = (tenant: TenantId): string =>
 const sameEvidence = (left: DurableEvidence, right: DurableEvidence): boolean =>
   left.owner === right.owner && left.record === right.record && left.digest === right.digest
 
-/** A fixture over a register service that has the given flaws. */
 export function flawedFixture(flaws: Flaws = {}): ToolRegistrationFixture<string> {
   const base = memoryToolRegistrationFixture()
   const grants: readonly (readonly [DurableEvidence, TenantId])[] = [
@@ -231,7 +181,6 @@ export function flawedFixture(flaws: Flaws = {}): ToolRegistrationFixture<string
       await Promise.resolve()
       if (refusal !== before) throw new Error('the check changed while the register was in flight')
     }
-    // The flaw yields first, so that registers meet in flight; the one that meets another is crowded.
     const crowded = flaws.crowdedRecallFresh === true && inflight > 0
     const flight = { met: false }
     if (flaws.crowdedRecallFresh === true || flaws.loneRecallFresh === true) {
@@ -272,7 +221,6 @@ export function flawedFixture(flaws: Flaws = {}): ToolRegistrationFixture<string
       entries.set(key, entry)
       return entry
     }
-    // The flaw writes the entry before the check; it takes the entry back if the check refuses.
     const early = flaws.writeBeforeCheck === true && existing === undefined ? write() : null
     const skipsCheck = recalled && flaws.skipCheckOnRecall === true
     if (!skipsCheck) checks.push(listing())
@@ -304,7 +252,6 @@ export function flawedFixture(flaws: Flaws = {}): ToolRegistrationFixture<string
       return fail({ kind: 'unavailable', diagnostic: 'the caller fiber has exited' })
     }
     if (flaws.checkThenYield === true) {
-      // The check was made above; the write below does not make it again.
       await Promise.resolve()
       const taken = entries.get(key)
       if (taken !== undefined)
@@ -338,7 +285,6 @@ export function flawedFixture(flaws: Flaws = {}): ToolRegistrationFixture<string
       return succeed(fresh.registration)
     }
     if (existing !== undefined && sameWork && flaws.ignoreGeneration !== true) {
-      // The same work under another qualification or another generation.
       if (flaws.conflictSpoilsEntry === true) entries.delete(key)
       if (
         flaws.generationOverwrites === true &&

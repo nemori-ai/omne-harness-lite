@@ -1,8 +1,3 @@
-// The Agent side of a control event in Session words (AD-02 控制归一). The rule that decides the
-// Session consequences is Session's `decideControlConsequences` (session-contract); this module
-// only translates the Agent control records, the call settlements and the urgent inputs of one
-// execution into its neutral evidence. The memory double and the production Journal build the
-// evidence with the same function, from the records of the same root.
 import type {
   AgentEvent,
   ControlRecord,
@@ -35,7 +30,6 @@ const STAGES: readonly SessionControlStage[] = [
   'duty-released',
 ]
 
-/** The invocation reference of one original effect and the call it resolves to, or null. */
 function effectCall(
   execution: MemoryExecution,
   effect: EffectIntent,
@@ -52,7 +46,6 @@ function effectCall(
   return 'ok' in value ? { kind: 'tool', reference: pending.reference, call: value.ok.call } : null
 }
 
-/** The Tool invocation of a Tool control, checked against its call and its Tool operation. */
 function toolInvocationOf(execution: MemoryExecution, record: ControlRecord): string | null {
   if (record.toolInvocation === undefined) return null
   const invocation = resolveToolInvocationRef(record.toolInvocation, execution.tenant)
@@ -71,7 +64,6 @@ function toolInvocationOf(execution: MemoryExecution, record: ControlRecord): st
     : null
 }
 
-/** The revision of the original control command of `record`, from the operation records. */
 function acceptedOf(root: CommonRoot, execution: MemoryExecution, record: ControlRecord): string {
   const tenant = tenantCodec.encode(execution.tenant)
   if (!tenant.ok) corrupt('tenant')
@@ -84,7 +76,6 @@ function acceptedOf(root: CommonRoot, execution: MemoryExecution, record: Contro
 
 type Commanded = ControlRecord & { command: { kind: SessionControlRecordEvidence['command'] } }
 
-/** The invocation references of the execution's original effects that resolve to `call`. */
 function referencesOf(
   execution: MemoryExecution,
   family: 'model' | 'tool',
@@ -119,7 +110,6 @@ function recordEvidence(
   }
 }
 
-/** The settlements of the execution's calls that its commits up to `through` recorded. */
 function settledOf(
   root: CommonRoot,
   execution: MemoryExecution,
@@ -150,7 +140,6 @@ function settledOf(
   return [...background, ...model]
 }
 
-/** The urgent inputs that the Agent accepted under their drive operation. */
 function urgentOf(root: CommonRoot, execution: MemoryExecution): SessionControlEvidence['urgent'] {
   const tenant = tenantCodec.encode(execution.tenant)
   if (!tenant.ok) corrupt('tenant')
@@ -170,10 +159,6 @@ function urgentOf(root: CommonRoot, execution: MemoryExecution): SessionControlE
   })
 }
 
-/**
- * The neutral evidence of control `records` of `execution` as of revision `through`. It throws a
- * HistoryFailure for a missing or contradictory original.
- */
 export function controlEvidence(
   root: CommonRoot,
   execution: MemoryExecution,
@@ -182,7 +167,6 @@ export function controlEvidence(
 ): SessionControlEvidence {
   return {
     through: String(through),
-    // A suspend names no Session responsibility and is never the drive of a Session control.
     records: records
       .filter((record): record is Commanded => record.command.kind !== 'suspend')
       .map(record => recordEvidence(root, execution, record)),
@@ -191,7 +175,6 @@ export function controlEvidence(
   }
 }
 
-/** The evidence of one control event: the control records captured with it, at its revision. */
 export function controlEventEvidence(
   root: CommonRoot,
   execution: MemoryExecution,
@@ -205,7 +188,6 @@ export function controlEventEvidence(
   return controlEvidence(root, execution, records, Number(original.revision))
 }
 
-/** Session's decision on `evidence` against the Session state of the root (memory reference). */
 export function decideOnRoot(
   root: CommonRoot,
   execution: MemoryExecution,

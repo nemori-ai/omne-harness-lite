@@ -1,9 +1,6 @@
-// 过滤守卫的判定：带过滤的运行一条用例都没跑时失败并说明过滤条件；被打断、watch 模式、文件失败时不出声。
-// 真起 vitest 的组合见 test-tiers.spec.ts；这里直接调报告器的两个回调。
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import FilterGuard from '../src/testing/filter-guard.ts'
 
-/** 一个测试模块：`states` 是各用例的结果，`failed` 为真时模块本身失败（如加载出错）。 */
 const module = (states: readonly string[], failed = false) => ({
   ok: () => !failed,
   children: { allTests: () => states.map(state => ({ result: () => ({ state }) })) },

@@ -1,4 +1,3 @@
-// History paging and the signed continuation tokens (SPEC SL10, RD-CURSOR, SQL r2 section 17).
 import { describe, expect, it } from 'vitest'
 import type { EntryId } from '@omne-harness/session-contract'
 import { app, TENANT_A, TENANT_B, type App } from './fixtures/app.ts'
@@ -151,7 +150,6 @@ describe('the continuation token of history.next', () => {
     const a = await seeded()
     const cursor = await firstCursor(a)
     const body = cursor.split('.')[0] as string
-    // The same signing key over the bare payload, as a signature made for another protocol would be.
     const signed = await a.signing.sign(new Uint8Array(Buffer.from(body, 'base64url')))
     if (signed.kind !== 'signed') throw new Error('fixture: the signing double signs')
     const bare = [

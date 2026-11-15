@@ -1,7 +1,3 @@
-// The qualification registry of the Model application module (`src/model/qualification.ts`,
-// `tmp/wire-model/design.md` §2, §4): the synchronous `authorize`, `execution` and `current` only
-// read what an asynchronous admission point captured. Real identity issuer and verifier; the
-// standing source is scripted per test. Each case names the defect that turns it red.
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import {
@@ -84,11 +80,48 @@ function scene(reading: TenantStandingReading | 'throw' = MEMBER) {
   return { authority, qualification, work, host, alive, authorize }
 }
 
-describe('login diagnostic qualification', () => {
-  it('admits issued login only for inspect and read-account, then releases the capture', async () => {
+const ALL_ACTIONS = [
+  'admit',
+  'facts',
+  'inspect',
+  'read-account',
+  'content',
+  'control',
+  'handoff',
+  'account',
+  'recovery',
+  'observe',
+  'send',
+] as const satisfies readonly CommandAction[]
+
+type PrincipalClassName = 'login' | 'work' | 'host'
+type Table = Readonly<Record<(typeof ALL_ACTIONS)[number], readonly PrincipalClassName[]>>
+
+const BEFORE: Table = {
+  admit: ['work'],
+  facts: ['work', 'host'],
+  inspect: ['login', 'work', 'host'],
+  'read-account': ['login', 'work', 'host'],
+  content: ['work', 'host'],
+  control: ['work'],
+  handoff: ['work', 'host'],
+  account: ['work', 'host'],
+  recovery: ['host'],
+  observe: ['work', 'host'],
+  send: ['host'],
+}
+
+const EXPECTED: Table = {
+  ...BEFORE,
+  facts: ['login', 'work', 'host'],
+  observe: ['login', 'work', 'host'],
+}
+
+describe('the Model authorization table', () => {
+  it('answers every action for each principal class as the expected table, and differs from the start in two cells only', async () => {
     const s = scene()
     const actor = okOf(s.authority.issuer.issueSystem({ component: 'server-entry' }), 'actor')
-    const principal = okOf(
+    const login = okOf(
       s.authority.issuer.issueActingForTenant({
         actor,
         tenant: TENANT,
@@ -96,25 +129,58 @@ describe('login diagnostic qualification', () => {
       }),
       'login',
     )
-    const release = await s.qualification.qualify({ principal, tenant: TENANT }, s.alive)
-    for (const action of ['inspect', 'read-account'] as const)
-      expect(s.authorize(action, principal), action).toHaveProperty('ok')
-    for (const action of [
-      'admit',
-      'facts',
-      'content',
-      'control',
-      'handoff',
-      'account',
-      'recovery',
-      'observe',
-      'send',
-    ] as const)
-      expect(s.authorize(action, principal), action).toEqual({
-        failure: { kind: 'denied', action },
-      })
-    release()
-    expect(s.authorize('inspect', principal)).toMatchObject({ failure: { kind: 'unavailable' } })
+    const work = s.work()
+    const host = s.host()
+    const releaseLogin = await s.qualification.qualify(
+      { principal: login, tenant: TENANT },
+      s.alive,
+    )
+    await s.qualification.qualify({ principal: work, tenant: TENANT }, s.alive)
+    s.qualification.captureHost({
+      principal: host,
+      tenant: TENANT,
+      call: CALL,
+      actor: { owner: ACTOR_OWNER, subject: 'standing:abc', revision: '7' },
+      current: s.alive,
+    })
+    const principals = { login, work, host } as const
+    const actual = Object.fromEntries(
+      ALL_ACTIONS.map(action => [
+        action,
+        (['login', 'work', 'host'] as const).filter(name => {
+          const answer = s.authorize(action, principals[name])
+          if ('ok' in answer) return true
+          expect(answer, `${action} ${name}`).toEqual({ failure: { kind: 'denied', action } })
+          return false
+        }),
+      ]),
+    )
+    expect(actual).toEqual(EXPECTED)
+    const changed = ALL_ACTIONS.flatMap(action =>
+      (['login', 'work', 'host'] as const)
+        .filter(name => BEFORE[action].includes(name) !== EXPECTED[action].includes(name))
+        .map(name => `${action}/${name}`),
+    )
+    expect(changed).toEqual(['facts/login', 'observe/login'])
+    releaseLogin()
+    expect(s.authorize('inspect', login)).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
+
+  it('denies the login principal the admission of a call (defect: the reads let a person start a Model call)', async () => {
+    const s = scene()
+    const actor = okOf(s.authority.issuer.issueSystem({ component: 'server-entry' }), 'actor')
+    const login = okOf(
+      s.authority.issuer.issueActingForTenant({
+        actor,
+        tenant: TENANT,
+        work: { owner: 'identity-login', work: 'login-1' },
+      }),
+      'login',
+    )
+    await s.qualification.qualify({ principal: login, tenant: TENANT }, s.alive)
+    expect(s.authorize('admit', login, OTHER_CALL)).toEqual({
+      failure: { kind: 'denied', action: 'admit' },
+    })
   })
 })
 
@@ -152,7 +218,6 @@ describe('read leases', () => {
     const blocked = Promise.withResolvers<TenantStandingReading>()
     s.setRead(() => blocked.promise)
     const revoked = lease.check('inspect', { kind: 'tenant' })
-    // Let the verifier enter the held standing read before the competing qualification.
     await Promise.resolve()
     s.setRead(async () => MEMBER)
     const other = await s.qualification.qualifyRead(access, s.alive)
@@ -440,7 +505,7 @@ describe('authorize for M: what resolve captured', () => {
       })
   })
 
-  it('M is bound to one call: another call is denied, the tenant-level scan is unavailable', () => {
+  it('M is bound to one call: another call and the tenant-level scan are denied', () => {
     const s = scene()
     const principal = s.host()
     s.qualification.captureHost({
@@ -459,7 +524,7 @@ describe('authorize for M: what resolve captured', () => {
         access: { principal, tenant: TENANT },
         resource: { kind: 'tenant' },
       }),
-    ).toMatchObject({ failure: { kind: 'unavailable', dependency: 'model-recovery-scan' } })
+    ).toEqual({ failure: { kind: 'denied', action: 'recovery' } })
   })
 
   it('an M-shaped principal that resolve did not capture is not admitted by qualify (defect: shape admits M)', async () => {
@@ -537,7 +602,6 @@ describe('the synchronous bridges: execution and current', () => {
     s.qualification.dropHostBindings()
     for (const call of calls)
       expect(execution(call)).toEqual({ failure: { kind: 'denied', action: 'execution-channel' } })
-    // A retired host's bindings go on the next record, even without an explicit drop.
     let live = true
     const retiring = () => live
     record(calls[0]!, retiring)

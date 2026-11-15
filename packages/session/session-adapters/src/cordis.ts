@@ -3,6 +3,8 @@ export {
   sessionModesDescriptor,
   sessionModesProducer,
   sessionInquiryBinding,
+  sessionInteractionBinding,
+  sessionModesBindings,
 } from './cordis/mode-block.ts'
 export { createSessionModesPlugin, type SessionModesPluginInput } from './cordis/mode-plugin.ts'
 export type {
@@ -29,6 +31,7 @@ export {
 export { createSessionContextHolder } from './cordis/context-holder.ts'
 export {
   createSessionJournalInterpretationPlugin,
+  type JournalInterpretationRetry,
   type JournalInterpretationTarget,
   type JournalInterpreted,
   type SessionJournalInterpretationInput,

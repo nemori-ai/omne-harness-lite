@@ -32,8 +32,6 @@ afterEach(async () => {
   rmSync(root, { recursive: true, force: true })
 })
 
-// Fixtures in the wire shape of the public contract's `SessionDiagnosticsPage`. The SDK hands a
-// page over only after the contract read it, so every field a rule requires is present.
 const adapter = {
   owner: '@omne-harness/model',
   name: 'openai-compatible',
@@ -85,7 +83,6 @@ const run = (fields: Record<string, unknown>) => ({
   ...fields,
 })
 
-/** A Run that Model refused to accept: the smoke case the RFC starts from. */
 const refused = run({
   terminal: {
     outcome: 'failed',
@@ -97,7 +94,6 @@ const refused = run({
   modelCalls: [modelCall({})],
 })
 
-/** A Run whose upstream answered 504 in the stream: the other smoke case. */
 const noReply = run({
   run: 'run-2',
   execution: 'exec-2',
@@ -185,10 +181,6 @@ const page = (
   gaps: pageGaps,
 })
 
-/**
- * A service that serves `pages` for `read-session-diagnostics`. It answers like the public
- * contract: a first page request has `run` and `pageBytes`, and a request with a cursor has neither.
- */
 function diagnosticsService(
   pages: readonly PageBody[],
   extra?: (seen: Seen) => Answer | undefined,

@@ -46,7 +46,7 @@ class ProbeInbox extends ContextAccountingInboxService<string> {
   }
 }
 
-describe('request context trust service (C2)', () => {
+describe('request context trust service', () => {
   it('derives its key from the one static field', () => {
     expect(RequestContextTrustService.provide).toBe('requestContextTrust')
     expect(requestContextTrustKey).toBe(RequestContextTrustService.provide)

@@ -12,7 +12,6 @@ import {
 import { validateControlIdentity } from './control-state.ts'
 import { equalValue, evidenceFields, nonempty, unavailableAt } from './session-validation.ts'
 
-/** The original event is already committed; validate identity without restoring old mutable state. */
 export function validateReplayedConsequences(
   snapshot: WorkSnapshot,
   observation: SessionLogObservation,

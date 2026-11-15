@@ -1,6 +1,3 @@
-// Parameter planning over the table of one record: explicit values are checked against the record,
-// omitted supported kinds take the record default, nothing is dropped. The same table writes the
-// applied values into the gateway fields.
 import type {
   Adoption,
   Parameter,
@@ -17,7 +14,6 @@ import type {
   ParameterTable,
 } from './vocabulary.ts'
 
-/** Every parameter kind in the order the adoptions list them. */
 export const PARAMETER_KINDS = [
   'temperature',
   'top-p',
@@ -30,7 +26,6 @@ export const PARAMETER_KINDS = [
 ] as const satisfies readonly ParameterKind[]
 
 type MissingKind = Exclude<ParameterKind, (typeof PARAMETER_KINDS)[number]>
-/** Fails to compile when the contract adds a parameter kind that the list lacks. */
 const _everyKind: [MissingKind] extends [never] ? true : never = true
 
 type Unified = Exclude<Parameter, Readonly<{ kind: 'extension' }>>
@@ -39,7 +34,6 @@ type Extension = Extract<Parameter, Readonly<{ kind: 'extension' }>>
 const DECIMAL = /^(0|[1-9][0-9]*)$/
 const POSITIVE = /^[1-9][0-9]*$/
 
-/** Compares two decimal integer texts without leading zeros. */
 function compareDecimal(left: string, right: string): number {
   if (left.length !== right.length) return left.length - right.length
   if (left < right) return -1
@@ -48,9 +42,7 @@ function compareDecimal(left: string, right: string): number {
 
 export type ParameterContext = Readonly<{
   record: ChatCompletionsRecord
-  /** The adoption of the record: the adapter of an `unsupported` failure, the source of a default. */
   adapter: Adoption
-  /** `context.output.provided` of the profile. `null` in encode: the plan compared it already. */
   outputLimit: string | null
 }>
 
@@ -62,7 +54,6 @@ function invalid(field: string, reason: string): TransportFailure {
   return { kind: 'invalid', field, reason }
 }
 
-/** Why an explicit or default unified value cannot go out, or `null`. */
 export function judgeParameter(param: Unified, context: ParameterContext): TransportFailure | null {
   const table = context.record.parameters
   switch (param.kind) {
@@ -118,7 +109,6 @@ export function judgeParameter(param: Unified, context: ParameterContext): Trans
   }
 }
 
-/** The value that a record sends for an omitted kind, or `null` when it sends none. */
 export function defaultParameter(table: ParameterTable, kind: ParameterKind): Unified | null {
   switch (kind) {
     case 'temperature':
@@ -156,7 +146,6 @@ export function defaultParameter(table: ParameterTable, kind: ParameterKind): Un
   }
 }
 
-/** The extension rule whose definition equals the whole adoption, or `undefined`. */
 export function extensionRuleOf(
   rules: readonly ExtensionRule[],
   definition: Adoption,
@@ -170,7 +159,6 @@ export function extensionRuleOf(
   )
 }
 
-/** The gateway parameter of an extension, or the failure that keeps it from going out. */
 export function extensionParam(
   param: Extension,
   rules: readonly ExtensionRule[],
@@ -182,14 +170,6 @@ export function extensionParam(
   return read === null ? { failure: invalid('extension', 'value') } : { ok: read }
 }
 
-/**
- * Plans the parameters of one supplier. The first failure in the order of the request wins:
- * a repeated kind or extension is `invalid`; an explicit kind the record does not support is
- * `unsupported`; a value out of the record range is `invalid`; `max-output-tokens` above the
- * output limit of the profile is `invalid`. Every omitted supported kind with a default is
- * recorded with origin `default`. The adoptions list the kinds in `PARAMETER_KINDS` order, then
- * the extensions in request order.
- */
 export function planParameters(
   input: ParameterContext &
     Readonly<{ requested: readonly Parameter[]; supplier: Adoption; source: Adoption }>,
@@ -247,11 +227,6 @@ function defaultAdoption(
   return { supplier: input.supplier, applied, origin: { kind: 'default', source: input.adapter } }
 }
 
-/**
- * The gateway parameter of one applied value, or the failure that keeps it from going out.
- * `applied` came from a plan, so a failure here means the request was not planned by this
- * record.
- */
 export function wireParameter(
   param: Parameter,
   context: ParameterContext,

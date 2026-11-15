@@ -1,7 +1,3 @@
-// The read-session-diagnostics operation on the session location (SPEC「会话位置」,「会话诊断投影」):
-// the judgment order of read-history, `denied` byte for byte, the deployment bound, the sealed
-// cursor and its re-judged continuation, the absent ports and configuration, and the read-only
-// promise against the Session, Model and Tool doubles.
 import { afterEach, describe, expect, it } from 'vitest'
 import type {
   ActingForTenantPrincipal,
@@ -93,14 +89,9 @@ type Doubles = Readonly<{
   writes: () => number
   entries: HistoryEntry[]
   begins: unknown[]
-  /** Moves the Session upper bound the next page reports, as an append after the first page would. */
   setUpper: (upper: string) => void
 }>
 
-/**
- * A fixture whose Session faces delegate to the harness double, except that a history read that
- * the double admits answers the entries of this file. The ports count their writes.
- */
 async function diagnosticsFixture(
   options: Readonly<{
     config?: Partial<ServerEntryConfig>
@@ -109,7 +100,6 @@ async function diagnosticsFixture(
     afterRead?: () => Promise<void>
     governance?: (base: IdentityGovernance) => IdentityGovernance
     identity?: (base: IdentityOperations) => IdentityOperations
-    /** False leaves the three projection fields out of the configuration. */
     configured?: boolean
   }> = {},
 ): Promise<Fixture & { doubles: Doubles }> {
@@ -567,7 +557,6 @@ describe('the cursor', () => {
     const first = bodyOf((await firstPage(who, session)).json)
     expect(first.basis).toEqual({ upper: '7' })
     if (first.next === null) throw new Error('expected a cursor')
-    // Entries appended after the first page move the Session upper bound; the scan reads older entries.
     fixture.doubles.setUpper('8')
     const second = bodyOf(
       (await diagnostics(who, { tenant: who.tenantText, session, cursor: first.next })).json,
@@ -581,7 +570,6 @@ describe('the cursor', () => {
     expect(third.runs.map(run => run.run)).toEqual(['r1'])
     expect(third.basis).toEqual({ upper: '7' })
     expect(third.exhausted).toBe(true)
-    // A new first page reads the current bound.
     expect(bodyOf((await firstPage(who, session)).json).basis).toEqual({ upper: '8' })
   })
 
@@ -593,8 +581,6 @@ describe('the cursor', () => {
     fixture.doubles.entries.push(...runEntries('r1', 1), ...runEntries('r2', 4))
     const cursor = bodyOf((await firstPage(who, session)).json).next
     if (cursor === null) throw new Error('expected a cursor')
-    // Flip a character in the middle of the payload part. The last character of a base64url text
-    // may differ only in padding bits, which decode to the same bytes, so the end is no place to tamper.
     const payloadEnd = cursor.indexOf('.')
     const middle = Math.floor(payloadEnd / 2)
     const tampered = `${cursor.slice(0, middle)}${cursor[middle] === 'A' ? 'B' : 'A'}${cursor.slice(middle + 1)}`
@@ -612,7 +598,6 @@ describe('the cursor', () => {
     const revoked = await diagnostics(who, { tenant: who.tenantText, session, cursor })
     expect(revoked.status).toBe(403)
     expect(outcomeOf(revoked.json)).toBe('denied')
-    // The continuation reached Session, which judged the eligibility again.
     expect(fixture.session.controls.calls().length).toBe(calls + 1)
   })
 })
@@ -625,7 +610,6 @@ describe('absent ports and the read-only promise', () => {
     fixture.doubles.entries.push(...runEntries('r1', 1))
     const page = bodyOf((await firstPage(who, session)).json)
     const gaps = page.gaps as readonly { reason: string }[]
-    // The deployment discloses four kinds, so the other projected kinds are not-disclosed gaps.
     expect(gaps.filter(gap => gap.reason === 'not-disclosed')).toHaveLength(11)
     expect(gaps.filter(gap => gap.reason !== 'not-disclosed')).toEqual([
       { source: 'agent', subject: 'exec-r1', reason: 'unsupported' },

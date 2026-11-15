@@ -22,10 +22,13 @@ import {
   defineFunctionTool,
   defineCommandTool,
   defineToolOperation,
+  type CheckpointedToolExecutor,
   type ToolBindings,
+  type ToolDecisionBridge,
   type ToolImplementationModule,
   type ToolMessageContentBlock,
   type ToolExecutionContext,
+  type ToolWaitContract,
 } from '@omne-harness/tool-contract/provider'
 import {
   ToolClockService,
@@ -115,7 +118,6 @@ export type Author = (
   execution: ToolExecutionContext,
 ) => Promise<string>
 
-/** Frozen external contracts. The in-memory store's declaration tests assembly, not durability. */
 export async function fixture(
   author: Author = async value => `answer:${value}`,
   receiver?: ToolResultReceiver<unknown, ToolMessageContentBlock>,
@@ -128,6 +130,11 @@ export async function fixture(
     schemas: LocalToolRuntimeInput['bodySchemas']
   }>,
   configure: (base: ToolConfiguration) => ToolConfiguration = base => base,
+  checkpointed?: Readonly<{
+    executor: CheckpointedToolExecutor<string, string, ToolEnvironmentValue>
+    waits: readonly ToolWaitContract<unknown, 'ask'>[]
+    decisions: ToolDecisionBridge<unknown>
+  }>,
 ) {
   const root = new Context()
   const memory = createMemoryToolLedgerStore()
@@ -137,6 +144,7 @@ export async function fixture(
     readRecord: memory.readRecord,
     due: memory.due,
     commit: memory.commit,
+    scanPending: memory.scanPending,
   }
   const clock = createLocalToolClock()
   const deliveries: ToolDelivery<ToolMessageContentBlock>[] = []
@@ -289,8 +297,8 @@ export async function fixture(
             adoption: adoption('arguments'),
             parse: input => succeed(input.effective),
           },
-          waits: [],
-          executor: {
+          waits: forwarding ? [] : (checkpointed?.waits ?? []),
+          executor: (!forwarding ? checkpointed?.executor : undefined) ?? {
             async execute(args, environment, context) {
               if (forwarding) {
                 const capability = toolsCapabilityOf(context)
@@ -388,6 +396,9 @@ export async function fixture(
     continuity: { kind: 'not_guaranteed' },
     requirement: { allowedBindings: [{ kind: 'host_machine' }], facilities: [], isolation: [] },
   }
+  const resourceRecovery: { answer: ExecutionEnvironment<unknown>['recoverResources'] } = {
+    answer: async () => ({ kind: 'unknown', cause: 'provider' }),
+  }
   const execution: ExecutionEnvironment<unknown> = {
     resolvePlacement: async () => placement,
     acquire: async (_access, input) => ({
@@ -419,11 +430,11 @@ export async function fixture(
     observeRetained: async () => [],
     recoverOwned: async () => ({ kind: 'unknown', cause: 'provider' }),
     releaseScope: async () => ({ kind: 'unknown', cause: 'provider' }),
+    recoverResources: (...args) => resourceRecovery.answer(...args),
   }
   const input: LocalToolRuntimeInput = {
     store,
     bodies: createMemoryToolBodies(),
-    // No verdict of this fixture carries a condition.
     conditionalCommit: { commit: async ({ ledger }) => store.commit(ledger) },
     content: null,
     ...(body === undefined ? {} : { bodySchemas: body.schemas }),
@@ -431,6 +442,7 @@ export async function fixture(
     access,
     clock,
     configuration: configure(configuration),
+    recoveryRescanMs: 600,
     guardsOf: () => [],
     permitRequirements: {
       check: async () => ({ kind: 'not-required', source: evidence('frozen-no-permit-action') }),
@@ -438,6 +450,7 @@ export async function fixture(
     grants: createLocalGrantVerifiers(fixed.scope),
     bindings: () => bindings,
     catalog: () => catalog,
+    ...(checkpointed === undefined ? {} : { decisions: () => checkpointed.decisions }),
     subjects: {
       async project(value) {
         try {
@@ -726,6 +739,7 @@ export async function fixture(
     store,
     deliveries,
     signals,
+    resourceRecovery,
     launches: () => launches,
     forwarded,
     forwarding,
@@ -786,9 +800,14 @@ export async function fixture(
       consumer = receive()
       await consumer
     },
-    async newExecutor() {
+    async newExecutor(overrides: Partial<LocalToolRuntimeInput> = {}) {
       const nextRoot = new Context()
-      const next = createLocalToolRuntimePlugins(input)
+      let nextBindings: typeof bindings
+      const next = createLocalToolRuntimePlugins({
+        ...input,
+        ...overrides,
+        bindings: () => nextBindings,
+      })
       const external = nextRoot.plugin({
         name: 'frozen-reopened-external',
         apply(ctx: Context) {
@@ -803,12 +822,35 @@ export async function fixture(
         nextRoot.plugin(next.instanceHost),
         nextRoot.plugin(next.instances),
         nextRoot.plugin(next.environments),
-        nextRoot.plugin(next.executor),
-        nextRoot.plugin(next.runtime),
+        nextRoot.plugin(next.maintenance),
       ])
+      nextBindings = createLocalToolBindings({
+        registry,
+        catalog,
+        authority: nextRoot.toolStartAuthority,
+        ...next.authorExecution,
+      })
+      await Promise.all([nextRoot.plugin(next.executor), nextRoot.plugin(next.runtime)])
+      const received: ToolDelivery<ToolMessageContentBlock>[] = []
       return {
         api: nextRoot.toolRuntime,
         plugins: next,
+        commands: nextRoot.toolCommands,
+        received,
+        receive: () =>
+          nextRoot.plugin({
+            name: 'reopened-consumer',
+            inject: ['toolRuntime'],
+            apply(ctx: Context) {
+              const capture: ToolResultReceiver<unknown, ToolMessageContentBlock> = {
+                async push(value) {
+                  received.push(structuredClone(value.delivery))
+                  return defaultReceiver.push(value)
+                },
+              }
+              ctx.toolRuntime.registerResultReceiver('consumer', capture)
+            },
+          }),
         schedule: (wake: Parameters<typeof nextRoot.toolInstanceHost.schedule>[0]) =>
           nextRoot.toolInstanceHost.schedule(wake),
         close: async () => {

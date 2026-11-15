@@ -140,7 +140,6 @@ async function executeCommand(
       const parent = args.flag('parents') ? parentOf(path) : undefined
       if (parent !== undefined) {
         const made = await files.mkdir({ path: parent, parents: true })
-        // `conflict` means the directory is there already; the write itself reports any other.
         if (made.kind !== 'done' && !(made.kind === 'rejected' && made.reason === 'conflict'))
           return confirmation(made, () => '')
       }
@@ -229,11 +228,9 @@ async function executeCommand(
     )
   }
   const operation = operations[command]
-  // The command table and this table name the same commands, so a miss is a defect, not a result.
   if (operation === undefined) throw new Error(`Files has no operation for command ${command}`)
   return operation()
 }
-/** The directory part of a request path, or undefined when it names no directory to create. */
 function parentOf(path: string): string | undefined {
   const cut = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'))
   const parent = path.slice(0, cut)

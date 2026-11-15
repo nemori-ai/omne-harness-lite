@@ -1,6 +1,3 @@
-// The four setting governance operations (SPEC「设置项」): the envelope, the closed bodies with the
-// optional asset category, the result sets with `not-writable`, the item views, and that no
-// response or rejection can carry the secret.
 import {
   encodeGovernanceRequest,
   encodeGovernanceResponse,
@@ -68,7 +65,6 @@ function read(operation: GovernanceProvidedOperation, outcome: string, body: unk
   })
 }
 
-/** Reads a success, encodes it again and returns the body that went back on the wire. */
 function roundTrip(operation: SettingOperation, body: unknown): unknown {
   const result = read(operation, 'succeeded', body)
   expect(result.kind, JSON.stringify(body)).toBe('response')
@@ -98,8 +94,6 @@ describe('requests', () => {
     expect(encoded.kind).toBe('encoded')
     if (encoded.kind === 'encoded') expect(JSON.parse(text(encoded.bytes))).toEqual(wire)
 
-    // Controls: without the acting tenant the request is not this protocol; without the proof it
-    // is a request, and identity answers the missing proof.
     expect(
       readRequest(requestWire(operation, bodies[operation], { actingTenant: undefined })),
     ).toEqual({

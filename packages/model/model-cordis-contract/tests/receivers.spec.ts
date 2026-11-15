@@ -11,9 +11,14 @@ async function unused(): Promise<never> {
   throw new Error('not called')
 }
 
-// A provider that fills only the three abstract members and passes no table.
 class BareRuntime extends ModelRuntimeService<unknown> {
-  readonly calls = { admit: unused, inspect: unused, dispatches: unused, cancel: unused }
+  readonly calls = {
+    admit: unused,
+    inspect: unused,
+    contact: unused,
+    dispatches: unused,
+    cancel: unused,
+  }
   readonly consumption = {
     beginRead: unused,
     readNext: unused,
@@ -58,7 +63,6 @@ describe('ModelRuntimeService.registerResultReceiver', () => {
         keys.push(...Object.keys(service))
       },
     })
-    // `ctx` and `name` come from the Service base class.
     expect(keys.sort()).toEqual(
       ['calls', 'consumption', 'ctx', 'instances', 'name', 'registerResultReceiver'].sort(),
     )

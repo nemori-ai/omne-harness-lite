@@ -1,11 +1,13 @@
-// The durable ToolLedgerStore (G1) over the SQL storage contract. A ledger domain (`call`, `queue`
-// or `host`) is a group of rows with its own revision inside the transaction domain of its tenant.
-// `read` is one `domain-serial` read; `commit` is one SQL commit whose participant checks the
-// expected revision and the read-set assertions, applies the writes in order and sets the new
-// revision, or writes nothing.
 import { randomUUID } from 'node:crypto'
 
-import type { FactCommandV2, JsonValue, SqlStorage } from '@omne-harness/sql-contract'
+import { tenantCodec } from '@omne-harness/legal-identity'
+import type {
+  DomainRef,
+  FactCommandV2,
+  JsonValue,
+  SqlStorage,
+  TenantDomainListing,
+} from '@omne-harness/sql-contract'
 import {
   recordKey,
   type DueEntry,
@@ -13,9 +15,12 @@ import {
   type LedgerCommitInput,
   type LedgerDomain,
   type LedgerDueRead,
+  type LedgerPendingScan,
+  type LedgerPendingScanInput,
   type LedgerRead,
   type LedgerRecordRead,
   type LedgerRecord,
+  type PendingCall,
   type TenantId,
   type ToolLedgerStore,
 } from '@omne-harness/tool'
@@ -40,20 +45,22 @@ import {
   unavailable,
   writesOf,
 } from './ledger-wire.ts'
-import type { SqlToolStorageOptions } from './options.ts'
-import { requestOf, resolveTenant } from './tenant.ts'
-import type { LedgerFacts } from './worker/facts.ts'
+import type { SqlToolLedgerStoreOptions, SqlToolStorageOptions } from './options.ts'
+import { requestOf, resolveTenant, tenantText } from './tenant.ts'
+import type { LedgerFacts, PendingReadInput, PendingReadOutput } from './worker/facts.ts'
 import {
   DUE_READ_ENTRIES,
   DUE_READ_HANDLER,
   LEDGER_READ_HANDLER,
+  PENDING_READ_HANDLER,
   PROTOCOL,
 } from './worker/schema.ts'
 import { isObject } from './worker/support.ts'
 
 export type SqlToolLedgerStore = ToolLedgerStore & Readonly<{ durability: 'durable' }>
 
-/** Storage keeps a stored value opaque until Tool checks its format. */
+type Listed = Readonly<{ calls: readonly string[]; more: boolean }>
+
 type StoredRecord = Readonly<{ key: string; record: unknown }>
 
 function storedRecordsOf(rows: JsonValue | undefined): StoredRecord[] | null {
@@ -66,7 +73,6 @@ function storedRecordsOf(rows: JsonValue | undefined): StoredRecord[] | null {
   return records
 }
 
-/** A row key check before exposing records; the migration baseline keeps old formats out. */
 function recordsOf(rows: readonly StoredRecord[]): LedgerRecord[] | null {
   const records: LedgerRecord[] = []
   for (const row of rows) {
@@ -102,7 +108,6 @@ async function readStored(
   return { kind: 'read', revision: revision.ok, rows: records } as const
 }
 
-/** A due row as the handler returns it, read back into the port's entry; null when malformed. */
 function dueEntryOf(tenant: TenantId, row: JsonValue): DueEntry | null {
   if (!isObject(row)) return null
   const kind = row['kind']
@@ -117,14 +122,8 @@ function dueEntryOf(tenant: TenantId, row: JsonValue): DueEntry | null {
   return 'ok' in call ? { domain: { kind, tenant, call: call.ok }, key, dueAt: dueAt.ok } : null
 }
 
-/** The revision of a domain that was never committed (`INITIAL_REVISION` of the ledger). */
 const INITIAL_REVISION = '0'
 
-/**
- * One keeper for each database (`SqlStorage.database`). Every ledger store of this process over the same
- * database commits through it, so the stores of the Tool runtime and of the sweep answer reads
- * from one snapshot, whichever storage object each of them was given.
- */
 const keepers = new WeakMap<object, LedgerKeeper>()
 
 function keeperOf(storage: SqlStorage): LedgerKeeper {
@@ -137,27 +136,18 @@ function keeperOf(storage: SqlStorage): LedgerKeeper {
   return keeper
 }
 
-/**
- * Commands of other participants that run before the ledger write in the same SQL transaction,
- * and the registered combination that holds those participants together with the Tool participant.
- */
 export type LedgerCommitCondition = Readonly<{
   combinationVersion: string
   manifestDigest: string
   commands: readonly FactCommandV2[]
 }>
 
-/**
- * The commit of the ledger store over the SQL storage. With `condition`, its commands run first in
- * the same transaction; `answerOf` reads the answer of the storage.
- */
 function ledgerCommitOver(
   options: SqlToolStorageOptions,
   condition?: LedgerCommitCondition,
   answerOf: (answer: CommitAnswer) => LedgerCommit = ledgerAnswer,
 ) {
   return async (input: LedgerCommitInput): Promise<LedgerCommit> => {
-    // The assertion is part of the commit, so the same commit is refused whenever it is sent.
     if (!(input.asserts ?? []).every(assertion => sameTenant(input.domain, assertion.domain)))
       return { kind: 'rejected', reason: 'an assertion names a domain of another tenant' }
     if (
@@ -175,6 +165,9 @@ function ledgerCommitOver(
         revision: input.revision,
         writes: writesOf(input, fixed),
         asserts: assertsOf(input),
+        ...(input.domain.kind === 'call' && input.pending !== undefined
+          ? { pending: input.pending }
+          : {}),
       }
       const request = requestOf(options, resolved.at, facts)
       return options.storage.commit(
@@ -189,8 +182,6 @@ function ledgerCommitOver(
       )
     }
     try {
-      // A domain that was never committed holds no record, so its first commit gives the fixed
-      // part. Every later commit leaves it out; the participant says so when it holds none.
       const answer = await sent(input.expected === INITIAL_REVISION ? 'given' : 'kept')
       return answerOf(lacksFixed(answer) ? await sent('given') : answer)
     } catch (error) {
@@ -200,10 +191,6 @@ function ledgerCommitOver(
   }
 }
 
-/**
- * The ledger commit with a condition, through the keeper of the database: the snapshot a read
- * answers from follows this commit as it follows every other commit of the process.
- */
 export function conditionalLedgerCommit(
   options: SqlToolStorageOptions,
   condition: LedgerCommitCondition,
@@ -212,14 +199,14 @@ export function conditionalLedgerCommit(
   return storeOver(options, ledgerCommitOver(options, condition, answerOf)).commit
 }
 
-export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToolLedgerStore {
-  return storeOver(options, ledgerCommitOver(options))
+export function createSqlToolLedgerStore(options: SqlToolLedgerStoreOptions): SqlToolLedgerStore {
+  return { ...storeOver(options, ledgerCommitOver(options)), scanPending: pendingScanOver(options) }
 }
 
 function storeOver(
   options: SqlToolStorageOptions,
   commit: (input: LedgerCommitInput) => Promise<LedgerCommit>,
-): SqlToolLedgerStore {
+): Omit<SqlToolLedgerStore, 'scanPending'> {
   const read = async (domain: LedgerDomain): Promise<LedgerRead> => {
     const answer = await readStored(options, domain, null)
     if (answer.kind !== 'read') return answer
@@ -260,4 +247,117 @@ function storeOver(
   }
   const kept = keeping(keeperOf(options.storage), { read, readRecord, commit })
   return { durability: 'durable', ...kept, due }
+}
+
+function pendingScanOver(
+  options: SqlToolLedgerStoreOptions,
+): (input: LedgerPendingScanInput) => Promise<LedgerPendingScan> {
+  const readPending = async (
+    domain: DomainRef,
+    input: PendingReadInput,
+  ): Promise<Listed | LedgerPendingScan> => {
+    const answer = await options.storage.read({
+      domain,
+      handler: PENDING_READ_HANDLER,
+      protocol: PROTOCOL,
+      requestKey: randomUUID(),
+      input,
+    })
+    if (answer.kind !== 'read')
+      return unavailable(
+        `pending read: ${answer.kind === 'cancelled' ? 'cancelled' : answer.reason}`,
+      )
+    const output = answer.output
+    const calls = isObject(output) ? output['calls'] : undefined
+    const more = isObject(output) ? output['more'] : undefined
+    if (
+      !Array.isArray(calls) ||
+      !calls.every(call => typeof call === 'string') ||
+      typeof more !== 'boolean'
+    )
+      return unavailable('pending read: the rows do not hold a pending page')
+    return { calls, more } satisfies PendingReadOutput
+  }
+
+  const callsOf = (
+    tenant: PendingCall['tenant'],
+    listed: Listed,
+  ): readonly PendingCall[] | null => {
+    const calls: PendingCall[] = []
+    for (const text of listed.calls) {
+      const call = decodeToolCallId(text)
+      if (!('ok' in call)) return null
+      calls.push({ tenant, call: call.ok })
+    }
+    return calls
+  }
+
+  const scanTenant = async (input: LedgerPendingScanInput): Promise<LedgerPendingScan> => {
+    if (input.tenant === null) return unavailable('not a legal tenant')
+    const resolved = await resolveTenant(options, input.tenant)
+    if (resolved.kind !== 'ready') return unavailable(resolved.diagnostic)
+    const after =
+      input.after === null || tenantText(input.after.tenant) !== resolved.at.tenant
+        ? null
+        : input.after.call
+    if (input.after !== null && after === null)
+      return unavailable('the scan cursor names another tenant')
+    const listed = await readPending(resolved.at.domain, {
+      tenant: resolved.at.tenant,
+      after,
+      limit: input.limit,
+    })
+    if ('kind' in listed) return listed
+    const calls = callsOf(input.tenant, listed)
+    if (calls === null) return unavailable('pending read: a row holds no call identity')
+    return { kind: 'page', calls, more: listed.more }
+  }
+
+  const scanTenants = async (input: LedgerPendingScanInput): Promise<LedgerPendingScan> => {
+    let listed: TenantDomainListing
+    try {
+      listed = await options.tenants()
+    } catch {
+      return unavailable('tenant directory: the listing threw')
+    }
+    if (listed.kind === 'denied') return unavailable('tenant directory: the listing was denied')
+    if (listed.kind !== 'ready') return unavailable(`tenant directory: ${listed.diagnostic}`)
+    const from =
+      input.after === null
+        ? null
+        : { tenant: tenantText(input.after.tenant), call: input.after.call }
+    if (from !== null && from.tenant === null) return unavailable('not a legal tenant')
+    const entries = [...listed.entries]
+      .filter(entry => from === null || entry.tenant >= (from.tenant as string))
+      .sort((a, b) => (a.tenant < b.tenant ? -1 : a.tenant > b.tenant ? 1 : 0))
+    const calls: PendingCall[] = []
+    for (const [index, entry] of entries.entries()) {
+      const parsed = tenantCodec.parse(entry.tenant)
+      if (
+        !parsed.ok ||
+        entry.domain.scope.kind !== 'tenant' ||
+        entry.domain.scope.tenant !== entry.tenant
+      )
+        return unavailable('the tenant domain directory holds an entry of no tenant')
+      const page = await readPending(entry.domain, {
+        tenant: entry.tenant,
+        after: from !== null && from.tenant === entry.tenant ? from.call : null,
+        limit: input.limit - calls.length,
+      })
+      if ('kind' in page)
+        return page.kind === 'unavailable'
+          ? unavailable(`tenant ${entry.tenant}: ${page.diagnostic}`)
+          : page
+      const found = callsOf(parsed.value, page)
+      if (found === null)
+        return unavailable(`tenant ${entry.tenant}: pending read: a row holds no call identity`)
+      calls.push(...found)
+      if (page.more) return { kind: 'page', calls, more: true }
+      if (calls.length >= input.limit)
+        return { kind: 'page', calls, more: index < entries.length - 1 }
+    }
+    return { kind: 'page', calls, more: false }
+  }
+
+  return input => (input.tenant === null ? scanTenants(input) : scanTenant(input))
 }

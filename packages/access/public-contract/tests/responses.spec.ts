@@ -244,8 +244,6 @@ it.each(Object.entries(allowed))(
   },
 )
 
-// A deployment may declare a provided operation unprovided. The contract reads that answer for
-// every provided operation, so a client does not mistake it for a response it cannot read.
 it.each(Object.keys(successes))(
   'stage-not-provided-readable-for-declared: %s reads, encodes and correlates the declared answer',
   name => {
@@ -261,7 +259,6 @@ it.each(Object.keys(successes))(
     expect(encoded.kind).toBe('encoded')
     if (encoded.kind === 'encoded')
       expect(JSON.parse(new TextDecoder().decode(encoded.bytes))).toEqual(wire)
-    // Controls: a different `messageId` is another call's answer, and the body stays empty.
     expect(
       readGovernanceResponse({
         bytes: bytes(wire),
@@ -284,8 +281,6 @@ it.each(Object.keys(successes))(
 )
 
 it('stage-not-provided-readable-for-declared: the request reader does not know the declaration', () => {
-  // The declaration belongs to the deployment. A valid request for a declared operation still
-  // reads as a request, and only the four fixed stage operations read as `stage-not-provided`.
   const request = {
     protocolVersion: 'governance-public/1',
     messageId: 'm',
@@ -312,7 +307,6 @@ it('issue-login success round trips the optional loginId', () => {
   expect(encoded.kind).toBe('encoded')
   if (encoded.kind === 'encoded')
     expect(JSON.parse(new TextDecoder().decode(encoded.bytes))).toEqual(wire)
-  // Controls: the field stays optional, strict, and specific to the sign-in success.
   expect(response('issue-login', 'succeeded', successes['issue-login']).result.kind).toBe(
     'response',
   )

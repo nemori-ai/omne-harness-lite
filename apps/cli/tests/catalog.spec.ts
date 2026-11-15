@@ -62,7 +62,7 @@ describe('command catalog', () => {
     expect(renderHelp(empty)).toBe(expectedEmptyHelp)
   })
 
-  it('registers exactly the commands of the spec, the governance commands, then setting last', () => {
+  it('registers exactly the commands of the spec, the HITL and governance commands, then setting last', () => {
     expect(productionCatalog.commands.map(command => command.name)).toEqual([
       'register',
       'login',
@@ -72,6 +72,9 @@ describe('command catalog', () => {
       'read-session-diagnostics',
       'cancel-run',
       'stop-call',
+      'list-cards',
+      'read-card',
+      'submit-reply',
       'create-organization',
       'query-create-organization',
       'issue-member-invitation',

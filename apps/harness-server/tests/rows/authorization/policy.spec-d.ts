@@ -1,5 +1,3 @@
-// The two policy tables are generated against the type enumerations: the keys of each table are
-// exactly the access operations of its contract. One row more or less fails here and in `tsc`.
 import { expectTypeOf, test } from 'vitest'
 import type { AgentAccessOperation } from '@omne-harness/agent-contract'
 import type { SessionAccessOperation } from '@omne-harness/session-contract'

@@ -59,6 +59,7 @@ export function createLiveAuthorExecution(
       cursor,
       events: [{ event, fact }],
     })
+    if (fact.kind === 'wait') ended = true
     if (fact.kind === 'final') {
       ended = true
       lookup = { kind: 'settled', source, event, fact }

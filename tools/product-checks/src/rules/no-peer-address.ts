@@ -2,11 +2,6 @@ import type { Rule } from '@omne-harness/repo-toolchain/core/rule'
 import { ENTRY_SRC, productSourceIn } from '../layout.ts'
 import { scanCode } from '@omne-harness/repo-toolchain/core/source-text'
 
-/**
- * 入口 verification「不读对端地址」、design「本节点约束」第 2 条（契约 S-16 不按来者区别对待）：
- * 入口层包源码不出现对端地址一类读取——套接字的 `remoteAddress`／`remotePort`／`remoteFamily`，
- * 以及转发头 `x-forwarded-for`、`x-real-ip`、`forwarded`（字面量或 `.forwarded` 成员，大小写不论）。
- */
 export const noPeerAddress: Rule = {
   id: 'no-peer-address',
   source: 'composition.governance-center-entry v1 S-16 · governance-center-entry 节点约束第 2 条',

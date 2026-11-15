@@ -38,7 +38,6 @@ export type KeptDelivery = {
 }
 export type MemoryExecution = {
   authority: Authority
-  /** Whether the current attachment has been detached; it stays the latest established one. */
   detached: boolean
   ended: boolean
   revision: number
@@ -46,7 +45,6 @@ export type MemoryExecution = {
   events: AgentEvent[]
   operations: Map<string, KeptOperation>
   qualifications: Map<unknown, 'allowed' | 'denied' | 'unavailable'>
-  /** The scripted faults of this execution, used in order by the record calls that write. */
   recordFaults: RecordFault[]
 }
 export type KeptMaterial<B extends ContentBlock> = {

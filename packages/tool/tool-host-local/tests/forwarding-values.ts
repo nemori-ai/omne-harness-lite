@@ -77,6 +77,7 @@ export async function forwardingFixture(
   let allowed = true
   const store: ToolLedgerStore = {
     durability: options.durableDeclaration ? 'durable' : 'none',
+    scanPending: input => memory.scanPending(input),
     read: memory.read,
     readRecord: memory.readRecord,
     due: memory.due,
@@ -128,7 +129,6 @@ export async function forwardingFixture(
   }
   const source = createLocalInvocationSource(input)
   const business = parentRequest()
-  // Rebuild without function-only declaration fields when using a command definition.
   const definition = business.availability.definition
   if (definition.kind !== 'commands') throw new Error('commands required')
   const cleaned = {

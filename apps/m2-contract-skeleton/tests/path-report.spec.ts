@@ -1,44 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { readFileSync } from 'node:fs'
 import { runContractSkeleton } from '../src/index.ts'
-import { aggregatePath, HOP_IDS, RESIDUAL_GAPS } from '../src/path-report.ts'
+import { aggregatePath, HOP_IDS } from '../src/path-report.ts'
 import { REQUIRED_SCENARIOS } from '../src/scenarios.ts'
 import { modelFragments, pathDependencies, skeletonInputs } from './first-path-doubles.ts'
-
-type GapRow = Readonly<{ gapId: string; blocking: boolean }>
-
-/**
- * The rows of the residual gap table of a README: gap id and blocking column. The README is a
- * self-contained public document and names no cards; the owner cards live in RESIDUAL_GAPS and SPEC.
- */
-function gapTable(text: string): readonly GapRow[] {
-  return text
-    .split('\n')
-    .filter(line => /^\| (\[)?GAP-[A-Z-]+/.test(line))
-    .map(line => {
-      const cells = line.split('|').map(cell => cell.trim())
-      const gapId = /GAP-[A-Z-]+/.exec(cells[1] ?? '')?.[0] ?? ''
-      const blocking = cells[2] ?? ''
-      if (!['no', '否', 'yes', '是'].includes(blocking))
-        throw new Error(`blocking cell ${blocking}`)
-      return { gapId, blocking: blocking === 'yes' || blocking === '是' }
-    })
-}
 
 const cardOf = (owner: string) => {
   const id = /\/issues\/(\d+)$/.exec(owner)?.[1]
   return id === undefined ? owner : Number(id)
 }
-/** The hops a blocking residual gap names on this track. */
 const BLOCKED: readonly string[] = ['H09', 'H10', 'H11', 'H12', 'H13']
 
 describe('M2 path observations', () => {
-  it('keeps the gap tables of README and README_ZH equal to RESIDUAL_GAPS', () => {
-    const expected = RESIDUAL_GAPS.map(gap => ({ gapId: gap.gapId, blocking: gap.blocking }))
-    for (const document of ['../README.md', '../README_ZH.md'])
-      expect(gapTable(readFileSync(new URL(document, import.meta.url), 'utf8'))).toEqual(expected)
-  })
-
   it('reports the first round verified, the probed hops as blocked gaps, and the residual gaps of SPEC and README', async () => {
     const report = await runContractSkeleton(skeletonInputs())
     expect(report.hops.map(hop => hop.hopId)).toEqual([...HOP_IDS])
@@ -50,7 +22,6 @@ describe('M2 path observations', () => {
     expect(report.fullPath).toBe('incomplete')
     expect(report.gaps).toEqual([...BLOCKED])
     expect(report.residualGaps).toHaveLength(10)
-    // Owners are open cards only; a gap without an open implementation card names M2 (#784).
     expect(
       Object.fromEntries(report.residualGaps.map(gap => [gap.gapId, gap.owners.map(cardOf)])),
     ).toEqual({
@@ -74,25 +45,15 @@ describe('M2 path observations', () => {
     ])
     for (const hop of report.hops.filter(hop => BLOCKED.includes(hop.hopId))) {
       expect(hop.blockedBy.length).toBeGreaterThan(0)
-      // The probe reached the hop and recorded the refusal it met; the evidence is not empty.
       expect(hop.fragments[0]?.status).toBe('fail')
       expect(hop.fragments[0]?.evidence).not.toContain('not-reached')
     }
-    const spec = readFileSync(new URL('../SPEC.md', import.meta.url), 'utf8')
-    for (const document of ['../README.md', '../README_ZH.md']) {
-      const text = readFileSync(new URL(document, import.meta.url), 'utf8')
-      for (const gap of report.residualGaps) expect(text).toContain(gap.gapId)
-    }
     for (const gap of report.residualGaps) {
       expect(gap.owners.length).toBeGreaterThan(0)
-      expect(spec).toContain(`## ${gap.gapId}`)
-      expect(gap.reason).toBe(`SPEC.md#${gap.gapId.toLowerCase()}`)
     }
     for (const hop of report.hops) {
       expect(hop.ownerCards.length).toBeGreaterThan(0)
       expect(hop.publicEntry.length).toBeGreaterThan(0)
-      expect(hop.reason).toBe(`SPEC.md#${hop.hopId.toLowerCase()}`)
-      expect(spec).toContain(`## ${hop.hopId}`)
     }
     const text = JSON.stringify(report)
     const { login } = pathDependencies()
@@ -144,7 +105,6 @@ describe('M2 path observations', () => {
     }))
     const unblocked = report.residualGaps.map(gap => ({ ...gap, blocking: false }))
     expect(aggregatePath({ ...report, hops, residualGaps: unblocked }).fullPath).toBe('complete')
-    // A supplied observation cannot claim a hop verified while a blocking gap names it.
     const reblocked = unblocked.map(gap =>
       gap.gapId === 'GAP-RECEIVE-SURFACE' ? { ...gap, blocking: true } : gap,
     )

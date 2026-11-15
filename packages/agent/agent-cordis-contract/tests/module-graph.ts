@@ -1,8 +1,3 @@
-// Walks the import graph of one module file. It reads static imports and re-exports, bare
-// side-effect imports and dynamic `import()` calls. It follows relative imports and the root entry
-// of `@omne-harness/*` workspace packages. It records every other bare specifier without
-// following it. The scanner reads text and needs no compiler API: the `typescript` of this package
-// is the native compiler, which has no script interface.
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -10,9 +5,7 @@ import { fileURLToPath } from 'node:url'
 export type ModuleKind = 'javascript' | 'declaration'
 
 export type ModuleGraph = Readonly<{
-  /** Absolute paths of every module that the walk reached, the entry included. */
   files: ReadonlySet<string>
-  /** Every specifier that the walk saw, with the file that imports it. */
   imports: readonly Readonly<{ from: string; specifier: string }>[]
 }>
 
@@ -40,7 +33,6 @@ export function walkModules(entry: string, kind: ModuleKind): ModuleGraph {
   return { files, imports }
 }
 
-/** Removes comments and masks string and template literals, except a string that names a module. */
 function withoutComments(text: string): string {
   let out = ''
   for (let i = 0; i < text.length;) {
@@ -65,7 +57,6 @@ function withoutComments(text: string): string {
   return out
 }
 
-/** True when the text so far ends where a module specifier string can start. */
 function namesModule(before: string): boolean {
   return /(?:\bfrom|\bimport)\s*$|\bimport\s*\(\s*$/u.test(before)
 }
@@ -76,7 +67,6 @@ const forms = [
   /\bimport\s*\(\s*(['"])([^'"]+)\1\s*\)/gu,
 ]
 
-/** Lists the module specifiers of one source text, in the order that they appear. */
 export function specifiersOf(text: string): string[] {
   const clean = withoutComments(text)
   return forms
@@ -91,7 +81,6 @@ function relativeTarget(from: string, specifier: string, kind: ModuleKind): stri
   return path.replace(/\.ts$/u, '.js')
 }
 
-/** Resolves `@omne-harness/<name>` through the `exports` of its manifest; other names stay unfollowed. */
 function workspaceTarget(from: string, specifier: string, kind: ModuleKind): string | undefined {
   const match = /^(@omne-harness\/[^/]+)(\/.+)?$/u.exec(specifier)
   if (match === null) return undefined
@@ -116,7 +105,6 @@ function packageDirectory(from: string, name: string): string {
   }
 }
 
-/** Describes an import edge for an assertion message. */
 export function describeImport(edge: Readonly<{ from: string; specifier: string }>): string {
   return `${relative(memberRoot, edge.from)} -> ${edge.specifier}`
 }

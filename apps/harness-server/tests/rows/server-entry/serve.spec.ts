@@ -1,5 +1,3 @@
-// The `server-entry` row in a `serve` tree: it listens on the loopback port only after every row is
-// ACTIVE, never while a row is PENDING, and a malformed configuration fails the row.
 import { request } from 'node:http'
 import { networkInterfaces } from 'node:os'
 import { describe, expect, it } from 'vitest'
@@ -15,7 +13,6 @@ import {
   waitListening,
 } from './support.ts'
 
-// A local network proxy can accept TCP without reaching this HTTP listener.
 function answersHttp(host: string, port: number): Promise<boolean> {
   return new Promise(resolve => {
     const req = request({ host, port, path: '/', headers: { host: `127.0.0.1:${port}` } }, res => {
@@ -32,11 +29,6 @@ function stderrOf(run: { stderr: readonly string[] }): string {
   return run.stderr.filter(line => !line.startsWith('serve: stop requested: test')).join('\n')
 }
 
-/**
- * A row that loads right after `server-entry` and reports whether the port already answers. The
- * loader creates rows in order and waits for each one, so the probe sees the state the assembly
- * is in at that moment: the body of `server-entry` has run, the barrier has not been called.
- */
 function portProbe(port: number, seen: boolean[]) {
   return defineRow({
     row: 'port-probe',
@@ -73,7 +65,6 @@ describe('server-entry row: listening', () => {
     expect(run.state('server-entry')).toMatchObject({ state: 'ACTIVE' })
     expect(run.startup).toMatchObject({ accepting: true })
     expect(run.startup['startedRows']).toContain('server-entry')
-    // While the later row was loading, the body of `server-entry` had run and nothing listened.
     expect(seen).toEqual([false])
     expect(stderrOf(run)).toBe('')
   })
@@ -81,7 +72,6 @@ describe('server-entry row: listening', () => {
   it('does not listen while another row is PENDING, although its own body has run', async () => {
     const port = await freePort()
     const seen: boolean[] = []
-    // A row that injects a name nothing provides stays PENDING, so the barrier is never called.
     const blocked = syntheticRow({ id: 'blocked', injects: ['nothing-provides-this'] })
     const tree = startTree({
       config: { listenPort: port },
@@ -129,7 +119,6 @@ describe('server-entry row: listening', () => {
     const reachable = await Promise.all(others.map(address => answersHttp(address, port)))
     const ipv6 = await answersHttp('::1', port)
     await tree.stop()
-    // The positive control proves the real HTTP listener answers; a bare proxy handshake does not.
     expect(reachable.every(accepted => !accepted)).toBe(true)
     expect(ipv6).toBe(false)
   })
@@ -175,8 +164,6 @@ describe('server-entry row: configuration', () => {
   })
 
   it('takes initial values for every key it is not given', async () => {
-    // An empty configuration is valid; it asks for port 8787. Only the shape is checked here, so
-    // the port is not bound: the test reads the parsed result of the schema directly.
     const { serverEntryConfig } = await import('../../../src/rows/server-entry/config.ts')
     expect(serverEntryConfig.parse({})).toEqual({
       listenPort: 8787,

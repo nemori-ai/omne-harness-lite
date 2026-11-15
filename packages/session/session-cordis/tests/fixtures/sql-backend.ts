@@ -1,9 +1,3 @@
-// The real SQL pair under the session provider: session-storage-sql's `createSessionStoragePair`
-// over the real sqlite-provider, with real files in a temporary directory, a real write Worker per
-// transaction domain and the real read Worker pool. Everything is built through public entries;
-// there is no `node:sqlite` double here. Two tenants, each with its own transaction domain. The
-// setup follows the fixture of the session member (tests/fixtures/sql.ts) and that of
-// session-storage-sql (tests/real-provider.spec.ts).
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -11,6 +5,7 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { createFixedSessionCursorSigning } from '@omne-harness/session-cordis-contract/testing'
 import {
   createSessionStoragePair,
+  registerSessionNotifier,
   sessionStorageMaterials,
 } from '@omne-harness/session-storage-sql'
 import {
@@ -34,12 +29,12 @@ function textOf(tenant: TenantId): string {
   return encoded.value
 }
 
-/** The provider configuration: the values of session-storage-sql's own real-provider fixture. */
 function config(storageRoot: string): SqliteStorageConfig {
   return {
     storageRoot,
     admissionQueueLimit: 64,
     globalAdmissionLimit: 256,
+    admissionWaitMs: 1000,
     lockWaitMs: 5000,
     maxCommandsPerCommit: 16,
     maxCommandBytes: 1048576,
@@ -157,6 +152,7 @@ export const sqlBackend: BackendFactory = {
       transactions,
       delegated,
       initializationGuards: command => Promise.resolve([fixtureInitializationGuard(command)]),
+      register: notifier => registerSessionNotifier(created.storage, notifier),
       dispose: async () => {
         await created.control.close({ initiator: 'disposal' }).catch(() => undefined)
         await rm(root, { recursive: true, force: true })

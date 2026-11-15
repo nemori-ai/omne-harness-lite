@@ -1,13 +1,3 @@
-// R2-D348 and R2-D349: an Authority is resolved to its Session attempt through the grant of the
-// attachment it names. The Agent records only the grant (`exec.attached.grant`), the Session
-// records the grant it issued for each attempt (`SessionAttemptRecord.grant`), and nothing is
-// guessed from the current advance. Both the SQL provider (`sl_attempt_grant` through the history
-// index) and the memory double (`session-sources.ts`) are checked, the same way:
-// 1. a second attempt of the same Run (claim, then attach with the claim's receipt) gives two
-//    grants, each resolving to its own attempt; the grant is not the evidence of the SE15 row;
-// 2. the negative control: the Authority of the previous attempt, same instance, commits after the
-//    takeover and answers stale-advance; the Authority of the current attempt commits;
-// 3. the admission of an input submitted under the second attempt names that attempt.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Authority, DurableEvidence } from '@omne-harness/agent-contract'
 import type { SessionAttemptRecord, WorkSnapshot } from '@omne-harness/session-contract'
@@ -31,7 +21,6 @@ afterEach(async () => {
   for (const s of scenes.splice(0)) await s.close()
 })
 
-/** What the two scenes share: the Session port, the Journal, the execution and its first Authority. */
 type Lane = Readonly<{
   name: string
   access: SqlScene['access']
@@ -43,7 +32,6 @@ type Lane = Readonly<{
   journal: SqlScene['view']['journal']
   commit: SqlScene['port']['commit']
   readWork(): Promise<WorkSnapshot>
-  /** The SE11 source basis a submit of the accepted input must carry (AD-14 for the SQL scene). */
   submitSource: 'receipt' | 'origin'
 }>
 
@@ -83,7 +71,6 @@ async function memoryLane(name: string): Promise<Lane> {
   }
 }
 
-/** The claim of a second attempt of the active Run by the same instance, then the attach under its grant. */
 async function takeover(lane: Lane, label: string) {
   const before = await lane.readWork()
   if (before.run.kind !== 'active') throw new Error('an active Run is expected')
@@ -97,7 +84,6 @@ async function takeover(lane: Lane, label: string) {
           session: lane.access.session,
           operation: operationId(`claim-${label}`),
           run: before.run.run,
-          // The same instance as the open: the attempt changes, the instance does not.
           instance: { owner: 'agent', id: 'instance-1' },
           continuity: evidence(`continuity-${label}`),
           expected: before.run.revision,
@@ -170,7 +156,6 @@ for (const [kind, lane] of [
 
       const attempts = attemptsOf(await l.readWork())
       expect(attempts.map(item => item.attempt)).toEqual([firstAttempt, second.attempt.attempt])
-      // The grant is what the Session handed out, which is not the evidence of the SE15 row.
       for (const item of attempts) {
         expect(item.grant).toBeDefined()
         expect(canonical(item.grant)).not.toBe(canonical(item.started))
@@ -179,8 +164,6 @@ for (const [kind, lane] of [
       expect(attemptOfGrant(attempts, l.execution, second.grant)?.attempt).toBe(
         second.attempt.attempt,
       )
-      // A grant the Session issued no attempt for names none: no fallback to the single or
-      // current attempt.
       expect(
         attemptOfGrant(attempts, l.execution, { ...l.grant, digest: 'sha256:' + '0'.repeat(64) }),
       ).toBeUndefined()
@@ -240,3 +223,25 @@ for (const [kind, lane] of [
     })
   })
 }
+
+describe('the SQL provider: the Session snapshot of a write cannot be read', () => {
+  it('answers unavailable to the current Authority, not stale-advance; the same commit goes through once the read answers', async () => {
+    const l = await sqlLane('grant-unreadable')
+    const s = scenes.at(-1) as SqlScene
+    const loaded = ok(await l.journal.load({ ...l.access, execution: l.execution }))
+    const input = commitInput(l, l.authority, 'during', loaded.revision)
+    s.rewriteReads.current = (request, answer) =>
+      request.handler.startsWith('session.work')
+        ? {
+            kind: 'unavailable',
+            requestKey: request.requestKey,
+            reason: 'queue_full',
+            diagnostic: null,
+          }
+        : answer
+    const refused = await l.journal.commit(input)
+    s.rewriteReads.current = null
+    expect(refused).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(ok(await l.journal.commit(input)).state).toBe('applied')
+  })
+})

@@ -16,7 +16,6 @@ function deferred<T>() {
   })
   return { promise, resolve }
 }
-/** A runtime whose host accepts wake-ups but never drives: admitted calls stay pending. */
 function idle(wrap?: (commands: ModelCommands<Principal>) => ModelCommands<Principal>) {
   const f = fixture()
   const assembly = createTestModelDependencies({
@@ -92,7 +91,6 @@ it('reports a call in drive as running rather than pending, and drops it once se
   try {
     unbox(await f.provider.runtime.calls.admit(f.admit))
     expect(unbox(await f.provider.quiesce())).toEqual({ pending: '0', running: '1' })
-    // Quiesce does not stop the accepted work: the drive still sends, receives and settles.
     await f.start(f.admit.call)
     f.channel(f.admit.call).push(answer)
     await eventually(() => f.results.has(f.admit.call))

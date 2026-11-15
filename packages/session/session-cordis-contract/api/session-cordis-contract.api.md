@@ -20,6 +20,7 @@
 - `BoundedClose` · 包 `@omne-harness/session-contract`
 - `CONTEXT_SCOPE_KINDS` · 包 `@omne-harness/session-contract`
 - `CallBinding` · 包 `@omne-harness/session-contract`
+- `CallRegistrationView` · 包 `@omne-harness/session-contract`
 - `ClockSample` · 包 `@omne-harness/session-contract`
 - `CommitReceipt` · 包 `@omne-harness/session-contract`
 - `CommittedBatch` · 包 `@omne-harness/session-contract`
@@ -111,6 +112,7 @@
 - `ResultConsumption` · 包 `@omne-harness/session-contract`
 - `RouteJudgment` · 包 `@omne-harness/session-contract`
 - `RoutedInput` · 包 `@omne-harness/session-contract`
+- `RunBoundaryView` · 包 `@omne-harness/session-contract`
 - `RunExecution` · 包 `@omne-harness/session-contract`
 - `RunId` · 包 `@omne-harness/session-contract`
 - `RunStartJudgment` · 包 `@omne-harness/session-contract`
@@ -164,6 +166,7 @@
 - `SessionCursorVerifyResult` · `cursor-signing.d.ts`
 - `SessionCustodySource` · 包 `@omne-harness/session-contract`
 - `SessionDelegatedTransactions` · 包 `@omne-harness/session-contract`
+- `SessionDirectory` · 包 `@omne-harness/session-contract`
 - `SessionEntriesBoundary` · 包 `@omne-harness/session-contract`
 - `SessionEntriesChannel` · 包 `@omne-harness/session-contract`
 - `SessionEntriesInterpretation` · 包 `@omne-harness/session-contract`
@@ -190,6 +193,7 @@
 - `SessionInputScope` · 包 `@omne-harness/session-contract`
 - `SessionIntakeLimits` · 包 `@omne-harness/session-contract`
 - `SessionInternalPrincipals` · 包 `@omne-harness/session-contract`
+- `SessionListItem` · 包 `@omne-harness/session-contract`
 - `SessionLogCommitObservation` · 包 `@omne-harness/session-contract`
 - `SessionLogConsequence` · 包 `@omne-harness/session-contract`
 - `SessionLogObservation` · 包 `@omne-harness/session-contract`
@@ -215,6 +219,7 @@
 - `SessionRunLookup` · 包 `@omne-harness/session-contract`
 - `SessionScopeLookup` · `context-facts.d.ts`
 - `SessionScopeLookupAnswer` · `context-facts.d.ts`
+- `SessionScopeOwnerSource` · 包 `@omne-harness/session-contract`
 - `SessionTakenRecord` · 包 `@omne-harness/session-contract`
 - `SessionTodos` · 包 `@omne-harness/session-contract`
 - `SessionTransactionPort` · 包 `@omne-harness/session-contract`
@@ -260,12 +265,15 @@
 - `projectSessionEntries` · 包 `@omne-harness/session-contract`
 - `projectSessionLog` · 包 `@omne-harness/session-contract`
 - `readAccessRequest` · 包 `@omne-harness/session-contract`
+- `readCallRegistration` · 包 `@omne-harness/session-contract`
+- `readRunBoundary` · 包 `@omne-harness/session-contract`
 - `rebuildSessionPermissions` · 包 `@omne-harness/session-contract`
 - `reduce` · 包 `@omne-harness/session-contract`
 - `resolveCascade` · 包 `@omne-harness/session-contract`
 - `resolveControlScope` · 包 `@omne-harness/session-contract`
 - `resolveOperation` · 包 `@omne-harness/session-contract`
 - `routeInput` · 包 `@omne-harness/session-contract`
+- `runCancelledBy` · 包 `@omne-harness/session-contract`
 - `sessionInputBytes` · 包 `@omne-harness/session-contract`
 - `sessionIntakeLimits` · 包 `@omne-harness/session-contract`
 - `sessionModesBlock` · 包 `@omne-harness/session-contract`
@@ -292,7 +300,10 @@
 - `SessionProductionSourceService` · `cordis.d.ts`
 - `SessionReplayFactsService` · `cordis.d.ts`
 - `SessionScopeLookupService` · `cordis.d.ts`
+- `SessionScopeOwnersService` · `cordis.d.ts`
 - `SessionService` · `cordis.d.ts`
+- `SessionTenantSource` · `cordis.d.ts`
+- `SessionTenantSourceService` · `cordis.d.ts`
 - `SessionTransactionPortService` · `cordis.d.ts`
 - `SessionWorkPrincipalsService` · `cordis.d.ts`
 - `sessionAccessCheckKey` · `cordis.d.ts`
@@ -314,7 +325,9 @@
 - `sessionProductionSourceKey` · `cordis.d.ts`
 - `sessionReplayFactsKey` · `cordis.d.ts`
 - `sessionScopeLookupKey` · `cordis.d.ts`
+- `sessionScopeOwnersKey` · `cordis.d.ts`
 - `sessionScopeReleaseKey` · `cordis.d.ts`
+- `sessionTenantsKey` · `cordis.d.ts`
 - `sessionTransactionsKey` · `cordis.d.ts`
 - `sessionWorkPrincipalsKey` · `cordis.d.ts`
 
@@ -403,7 +416,7 @@ export interface SessionScopeLookup {
 ```ts
 import { type Context, Service } from '@deepseek-ai/cordis';
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { AgentDrivePort, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, SessionDelegatedTransactions, SessionPrincipalBindingSource, SessionWorkPrincipals, DurableEvidence, ScopeReleasePort, SessionAccessCheck, SessionCallerClass, SessionClock, SessionContextInput, SessionEvidenceBridge, SessionFaces, SessionId, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionRevision, SessionTransactionPort } from '@omne-harness/session-contract';
+import type { AgentDrivePort, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, SessionDelegatedTransactions, SessionPrincipalBindingSource, SessionScopeOwnerSource, SessionWorkPrincipals, DurableEvidence, ScopeReleasePort, SessionAccessCheck, SessionCallerClass, SessionClock, SessionContextInput, SessionDirectory, SessionEvidenceBridge, SessionFaces, SessionId, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionRevision, SessionTransactionPort } from '@omne-harness/session-contract';
 import type { SessionAdoptedRequests } from './adopted-request.ts';
 import type { SessionCursorSigning } from './cursor-signing.ts';
 import type { SessionReplayFacts, SessionScopeLookup } from './context-facts.ts';
@@ -417,6 +430,7 @@ export declare abstract class SessionService<P = unknown> extends Service<Sessio
     abstract readonly management: SessionFaces<P>['management'];
     abstract readonly reconciliation: SessionFaces<P>['reconciliation'];
     abstract readonly history: SessionFaces<P>['history'];
+    get directory(): SessionDirectory<P> | undefined;
 }
 export declare const sessionKey = "session";
 export declare abstract class SessionAccessCheckService<P = unknown> extends Service implements SessionAccessCheck<P> {
@@ -438,6 +452,7 @@ export declare abstract class SessionTransactionPortService<P = unknown> extends
     readonly commitLog?: NonNullable<SessionTransactionPort<P>['commitLog']>;
     abstract readonly history: SessionTransactionPort<P>['history'];
     abstract readonly pending: SessionTransactionPort<P>['pending'];
+    readonly directory?: NonNullable<SessionTransactionPort<P>['directory']>;
     abstract readonly references: SessionTransactionPort<P>['references'];
     abstract readonly releasedScopes: SessionTransactionPort<P>['releasedScopes'];
 }
@@ -467,6 +482,12 @@ export declare abstract class SessionPrincipalBindingsService extends Service im
     abstract readonly read: SessionPrincipalBindingSource['read'];
 }
 export declare const sessionPrincipalBindingsKey = "sessionPrincipalBindings";
+export declare abstract class SessionScopeOwnersService extends Service implements SessionScopeOwnerSource {
+    static readonly provide = "sessionScopeOwners";
+    constructor(ctx: Context);
+    abstract readonly lookup: SessionScopeOwnerSource['lookup'];
+}
+export declare const sessionScopeOwnersKey = "sessionScopeOwners";
 export declare abstract class SessionIdentityBridgeService<P = unknown> extends Service implements SessionIdentityBridge<P> {
     static readonly provide = "sessionIdentity";
     constructor(ctx: Context);
@@ -525,6 +546,22 @@ export declare abstract class ScopeReleasePortService extends Service implements
     abstract readonly release: ScopeReleasePort['release'];
 }
 export declare const sessionScopeReleaseKey = "sessionScopeRelease";
+export type SessionTenantSource = Readonly<{
+    enumerate(): Promise<Readonly<{
+        ok: readonly TenantId[];
+    }> | Readonly<{
+        failure: Readonly<{
+            kind: 'unavailable' | 'denied';
+            diagnostic: string;
+        }>;
+    }>>;
+}>;
+export declare abstract class SessionTenantSourceService extends Service implements SessionTenantSource {
+    static readonly provide = "sessionTenants";
+    constructor(ctx: Context);
+    abstract readonly enumerate: SessionTenantSource['enumerate'];
+}
+export declare const sessionTenantsKey = "sessionTenants";
 export declare abstract class SessionAdoptionSourceService<P = unknown> extends Service implements SessionAdoptionSource<P> {
     static readonly provide = "sessionAdoptionSource";
     constructor(ctx: Context);
@@ -578,6 +615,7 @@ declare module '@deepseek-ai/cordis' {
         sessionDelegatedTransactions: SessionDelegatedTransactionsService<unknown>;
         sessionWorkPrincipals: SessionWorkPrincipalsService<unknown>;
         sessionPrincipalBindings: SessionPrincipalBindingsService;
+        sessionScopeOwners: SessionScopeOwnersService;
         sessionIdentity: SessionIdentityBridgeService<unknown>;
         sessionEvidence: SessionEvidenceBridgeService<unknown>;
         sessionClock: SessionClockService;
@@ -586,6 +624,7 @@ declare module '@deepseek-ai/cordis' {
         sessionNotifier: SessionNotifierService;
         sessionAgentDrive: AgentDrivePortService;
         sessionScopeRelease: ScopeReleasePortService;
+        sessionTenants: SessionTenantSourceService;
         sessionAdoptionSource: SessionAdoptionSourceService<unknown>;
         sessionProductionSource: SessionProductionSourceService;
         sessionCustodySource: SessionCustodySourceService;

@@ -22,7 +22,6 @@ import { renderPage } from '../src/report/render.ts'
 import { buildReport } from '../src/metrics/report.ts'
 
 const bands = { green: 8, yellow: 12, red: 20 }
-// Slow: runs the architecture view CLI as a child process. 2.1 s on the full-admission fast-tier ledger, 4.4 s under load, which is over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
 it(
   'rejects JSON output paths that would overwrite report artifacts before writing',
   { tags: ['slow'] },
@@ -247,7 +246,6 @@ describe('architecture view projection', () => {
     ).toBe(true)
     const ids = new Set(view.nodes.map(node => node.id))
     expect(view.edges.every(edge => ids.has(edge.from) && ids.has(edge.to))).toBe(true)
-    // Removing one identical provide occurrence is an evidence change, not a removed semantic relationship.
     expect(
       graph.edges.find(edge => edge.kind === 'provides' && edge.from.includes('/sql'))?.change,
     ).toBe('present')
@@ -405,7 +403,6 @@ describe('architecture view projection', () => {
     expect(added.edges[0]?.kind).toBe('type-import')
     expect(added.edges[0]?.evidence.every(item => item.version === 'current')).toBe(true)
   })
-  // Slow: renders the whole view page and reads the existing metric page. 1.5 s on the full-admission fast-tier ledger, 3.9 s under load, which is over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
   it(
     'embeds an inert payload and preserves the existing metric page without external resources',
     { tags: ['slow'] },
@@ -435,7 +432,6 @@ describe('architecture view projection', () => {
         },
         view,
       )
-      // 架构数据以 gzip + base64 内联，解压后与渲染前的投影逐字节一致。
       const packed =
         /<script type="application\/gzip" id="architecture-data" data-encoding="base64">([A-Za-z0-9+/=]+)<\/script>/u.exec(
           html,
@@ -450,7 +446,6 @@ describe('architecture view projection', () => {
       expect(html).toContain('architecture-pane')
       expect(html).toContain('metrics-pane')
       expect(html).toContain('确认配置选择与实际运行绑定：未观测')
-      // elkjs, the React Flow island, the embedded data, the metrics script and the page script.
       expect(html.match(/<\/script>/gu)).toHaveLength(6)
       expect(html).toContain('window.ArchitectureFlow')
       expect(html).toContain('.react-flow')

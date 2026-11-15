@@ -1,9 +1,3 @@
-// The lifecycle of a retention scope on the real SQLite store (tool-host-local SPEC, section
-// 环境准备的租户调度): open, then closed, never open again, and never deleted. A closed scope keeps its
-// record across a restart of the storage, so a view made after it starts closed and its plan,
-// permit and adopt answer `closed`. A reservation stays in its creator's acquisition record, so
-// the creator records the stop of its own untaken reservation after the scope closed, and the
-// closed scope keeps the end facts of its stopped processes.
 import { afterEach, expect, it } from 'vitest'
 import { succeed } from '@omne-harness/operation-result'
 import { canonicalDigest, hostKey, type ToolLedgerStore } from '@omne-harness/tool'
@@ -38,7 +32,6 @@ const SCOPE = REQUEST.requesterScope
 const SCOPE_DOMAIN = retentionHostDomain(TENANT_A, canonicalDigest(SCOPE))
 const authorize = async () => 'authorized' as const
 
-/** A running call of the scope with its acquisition record, on `store`. */
 async function seededCall(store: ToolLedgerStore, name: string) {
   const call = callIdOf(name)
   const preparation = preparationOf(TENANT_A, call, REQUEST)
@@ -68,13 +61,11 @@ async function seededCall(store: ToolLedgerStore, name: string) {
   return { preparation, state }
 }
 
-/** The scope's view of a call seeded on `store`. */
 async function scopeView(store: ToolLedgerStore, name: string) {
   const { preparation, state } = await seededCall(store, name)
   return createRetainedTerminalLedger({ state, address: preparation, scope: SCOPE, authorize })
 }
 
-/** The stored state of the scope's record and the host keys of the scope's domain. */
 async function scopeDomain(store: ToolLedgerStore) {
   const record = await store.readRecord(SCOPE_DOMAIN, hostKey('scope'))
   if (record.kind !== 'complete') throw new Error(`scope record: ${record.diagnostic}`)

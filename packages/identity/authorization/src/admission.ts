@@ -1,6 +1,3 @@
-// The admission decision (SPEC AU-11): a pure judgment over the input and the facts that the
-// caller read for it. It never reads anything itself and keeps no state, so the same input with
-// changed facts gives a changed decision: an allowed answer is never cached.
 import { tenantEquals, type Access, type TenantId } from '@omne-harness/legal-identity'
 import type {
   Principal,
@@ -21,15 +18,11 @@ export type AdmissionInput = Readonly<{
   access: Access<Principal>
   operation: AdmissionOperation
   target: AdmissionTarget
-  /** The digest of the effective arguments the action will run with; `noArguments()` for an operation without any. */
   arguments: EffectiveArguments
-  /** The named qualifications the resource owner requires for this operation; empty when membership is enough. */
   requires: readonly Qualification[]
-  /** The permit the caller presents, or null when the resource owner needs none for this operation. */
   permit: PermitRef | null
 }>
 
-/** The facts read for one input. `standing` is read for `access.tenant`; `permit` for `input.permit` under `access.tenant`. */
 export type AdmissionFacts = Readonly<{
   principal: PrincipalVerification
   standing: TenantStandingReading | null
@@ -38,7 +31,6 @@ export type AdmissionFacts = Readonly<{
 
 export type StandingBasis = Exclude<TenantStandingReading, { kind: 'unavailable' }>
 
-/** Everything the decision rested on. A reader checks it against the owners' records. */
 export type AdmissionBasis = Readonly<{
   operation: AdmissionOperation
   target: AdmissionTarget
@@ -68,10 +60,8 @@ export type AdmissionDecision =
       evidence: DecisionEvidence
       basis: AdmissionBasis
     }>
-  /** A necessary fact could not be read. Not a denial, and never a permission. */
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-/** The port the consumer contracts adapt: one check, answered by the facts of now. */
 export interface AdmissionCheck {
   check(input: AdmissionInput): Promise<AdmissionDecision>
 }
@@ -123,7 +113,6 @@ function initialBasis(input: AdmissionInput): AdmissionBasis {
   })
 }
 
-/** Why the verified principal cannot act in the tenant of the access, or null when it can. */
 function scopeDenial(principal: Principal, tenant: TenantId): DenialReason | null {
   if (principal.kind === 'system') return 'scope-mismatch'
   return tenantEquals(principal.tenant, tenant) ? null : 'tenant-mismatch'
@@ -133,7 +122,6 @@ function hasAll(held: readonly Qualification[], required: readonly Qualification
   return required.every(qualification => held.includes(qualification))
 }
 
-/** Null when the permit step passes; otherwise the denial or the unavailable fact. */
 type PermitFailure =
   | Readonly<{ kind: 'denied'; reason: DenialReason }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
@@ -160,14 +148,12 @@ function permitFailure(input: AdmissionInput, lookup: PermitLookup | null): Perm
   return null
 }
 
-/** The outcome of one step: the basis to continue with, or the decision that ends the judgment. */
 type Step = Readonly<{ kind: 'continue'; basis: AdmissionBasis }> | AdmissionDecision
 
 function next(basis: AdmissionBasis): Step {
   return { kind: 'continue', basis }
 }
 
-/** Steps 1 and 2: the verifier verified the very principal of the access, and it acts in the tenant of the access. */
 function principalStep(input: AdmissionInput, facts: AdmissionFacts, basis: AdmissionBasis): Step {
   const verified = facts.principal
   if (verified.kind === 'unavailable') return unavailable(verified.diagnostic)
@@ -198,7 +184,6 @@ export function standingSnapshot(standing: StandingBasis): StandingBasis {
   })
 }
 
-/** Steps 3 and 4: the tenant's account is a member now and holds every required qualification. */
 function membershipStep(input: AdmissionInput, facts: AdmissionFacts, basis: AdmissionBasis): Step {
   const standing = facts.standing
   if (standing === null) return unavailable('the standing of the tenant was not read')
@@ -210,7 +195,6 @@ function membershipStep(input: AdmissionInput, facts: AdmissionFacts, basis: Adm
   return next(known)
 }
 
-/** Step 5: a presented permit is known, bound to the same operation, target and arguments, and open. */
 function permitStep(
   input: AdmissionInput,
   facts: AdmissionFacts,
@@ -226,14 +210,6 @@ function permitStep(
   }
 }
 
-/**
- * Decides one admission from the input and the facts read for it. The order is fixed: the
- * principal of the access must be the one the verifier verified, it must act in the tenant of
- * the access, the tenant's account must be a member now, it must hold every required
- * qualification, and a presented permit must be known, bound to the same operation, target and
- * arguments, and still open. The first failed step gives the denial; a fact that could not be
- * read gives `unavailable` at its step.
- */
 export function decideAdmission(input: AdmissionInput, facts: AdmissionFacts): AdmissionDecision {
   const principal = principalStep(input, facts, initialBasis(input))
   if (principal.kind !== 'continue') return principal

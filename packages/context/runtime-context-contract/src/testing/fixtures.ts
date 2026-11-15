@@ -52,7 +52,6 @@ export function declaration(
   }
 }
 
-/** Binds the scope to the tenant in the trusted table and completes an empty replay, so the fence opens (RC-09). */
 export async function openScope<P>(
   subject: RuntimeContextOperations<P>,
   ports: TestAuthorityPorts<P>,
@@ -164,7 +163,6 @@ export async function setup<P>(
   }
 }
 
-/** Reads the one stable value the reader sees, or undefined. */
 export async function snapshotValue(reader: ContextReader): Promise<unknown> {
   const r = await reader.snapshot()
   assert.ok(r.kind === 'success', `snapshot: ${r.kind}`)

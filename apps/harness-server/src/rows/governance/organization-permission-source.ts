@@ -1,6 +1,3 @@
-// The organization layer of one permission, from a read of the organization source. The source is
-// in another domain than the tenant facts. A permission check and a Session permission write both
-// read it at the time they need it and keep nothing.
 import {
   readPermissionSettingsSource,
   type PermissionDefinition,

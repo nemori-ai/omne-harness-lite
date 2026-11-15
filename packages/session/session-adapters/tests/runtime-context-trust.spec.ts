@@ -58,7 +58,6 @@ const sourceFaces = {
   advanceBridgeGeneration: ['holder', 'producer', 'reader'],
 } as const satisfies Record<keyof RuntimeContextTrustControls, readonly Face[]>
 
-/** A test bridge: one monotonic generation per source, a captured view watches the sources its face depends on. */
 function generations() {
   const sources = Object.keys(sourceFaces) as (keyof typeof sourceFaces)[]
   const current = Object.fromEntries(sources.map(source => [source, 0])) as Record<
@@ -90,7 +89,6 @@ const noStepCommits: SessionReplayFacts = {
 }
 
 describe('the trust satisfies the Runtime Context trust conformance suite', () => {
-  // A per-face bridge is wired through three instances of the factory, one per authority face.
   const fixture: RuntimeContextTrustFixture<string> = {
     tenant,
     otherTenant,
@@ -122,7 +120,6 @@ describe('the trust satisfies the Runtime Context trust conformance suite', () =
   }
   for (const c of runtimeContextTrustConformance<string>())
     it(c.name, async () => {
-      // The known gap (#677) has no fixture that passes it; every other case passes.
       expect(await runConformanceCase(c, fixture)).toEqual(
         c.name === 'async-notification-pending-revoked'
           ? { kind: 'not-applicable', handle: 'synchronous revocation source (known gap #677)' }
@@ -159,7 +156,6 @@ function finish(built: ReplayMaterial): FinishReplayAction {
   }
 }
 
-/** The original ports of the test plus a facts port that records every ask. */
 function holder(answer: StepCommittedBlocks = { kind: 'known', keys: [] }) {
   const ports = createTestAuthorityPorts<string>()
   ports.bind(target, tenant)
@@ -189,7 +185,6 @@ describe('finishing a recovery: the holder authority covers every block that has
   })
 
   it('accepts material that leaves out a block that has no step commit yet', async () => {
-    // suite.b is registered but never step-committed, so the holder facts do not list it.
     const h = holder({ kind: 'known', keys: ['suite.a'] })
     const decision = await h.trust.authority.holder(principal, finish(material(['suite.a'])))
     expect(decision.kind).toBe('authorized')

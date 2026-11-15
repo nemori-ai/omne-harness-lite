@@ -51,7 +51,7 @@ def main():
         entries, scope, token = witness
         negative[fault] = {"entries": sorted(entries), "trustedScope": scope, "token": token}
     path = Path(__file__).resolve()
-    contract = path.parents[3] / "assets/docs/governance-contributions.md"
+    contract = path.parents[3] / "assets/SPEC.md"
     print(json.dumps({"kind": "finite-contract-oracle", "partitions": len(partitions),
                       "negativeControls": negative,
                       "inputs": {str(p): hashlib.sha256(p.read_bytes()).hexdigest()

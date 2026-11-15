@@ -1,6 +1,3 @@
-// The tables of the Session log. Every table is keyed by tenant first, and every statement of the
-// participant and the read handlers filters on it. Positions are 64-bit integers (read as BigInt).
-// The first five tables are authoritative; the rest are derived in the same commit.
 export const SCHEMA_STATEMENTS: readonly string[] = [
   `CREATE TABLE sl_journal (
     tenant TEXT NOT NULL, session TEXT NOT NULL, tail INTEGER NOT NULL, commit_seq INTEGER NOT NULL,
@@ -55,8 +52,6 @@ export const SESSION_TABLES: readonly string[] = [
 export const MIGRATION = Object.freeze({ owner: 'session', id: '001-session-log' })
 export const PROTOCOL = '1'
 
-// The execution index, derived from SE13 in the commit that writes it: the session, the Run and
-// the position of the SE13 entry of each execution. An execution is unique within its tenant.
 export const EXECUTION_INDEX_STATEMENTS: readonly string[] = [
   `CREATE TABLE sl_execution_idx (
     tenant TEXT NOT NULL, execution TEXT NOT NULL, session TEXT NOT NULL, run TEXT NOT NULL,
@@ -70,11 +65,6 @@ export const EXECUTION_INDEX_MIGRATION = Object.freeze({
   id: '002-execution-index',
 })
 
-// The access evidence of an operation (session-contract SPEC「当前操作的访问裁定」): the allowed
-// decision that a commit carried is stored with the operation record, one row per operation, in
-// the same transaction. It is a side table, not a column of `sl_operation`: the provider denies
-// the `ALTER TABLE` of a STRICT table (SQLite checks the table with a pragma that the migration
-// port forbids). An operation whose commit carried no decision has no row.
 export const OPERATION_EVIDENCE_STATEMENTS: readonly string[] = [
   `CREATE TABLE sl_operation_evidence (
     tenant TEXT NOT NULL, session TEXT NOT NULL, operation TEXT NOT NULL, evidence TEXT NOT NULL,
@@ -88,10 +78,6 @@ export const OPERATION_EVIDENCE_MIGRATION = Object.freeze({
   id: '003-operation-evidence',
 })
 
-// The chunk rows of the collections of a snapshot (SPEC W1, 快照的存储形态, R2-D292): the head
-// stays in `sl_state`, and each run of consecutive items of one collection is one row here, so a
-// commit writes only the chunks it changed. Derived in the same commit as `sl_state`, never read
-// without its head row.
 export const STATE_ITEM_STATEMENTS: readonly string[] = [
   `CREATE TABLE sl_state_item (
     tenant TEXT NOT NULL, session TEXT NOT NULL, path TEXT NOT NULL, seq INTEGER NOT NULL,
@@ -105,14 +91,6 @@ export const STATE_ITEM_MIGRATION = Object.freeze({
   id: '004-state-items',
 })
 
-// The grant of an attempt (R2-D349): the source of the batch receipt of the commit that wrote the
-// SE15 row. The Session hands that receipt source to the Agent as the `grant` of the invoke or
-// resume of the attempt (`AgentDrivePort`); the Agent holds it opaque and gives it back, and the
-// Session resolves it to the attempt here. The receipt is a different evidence than the row's own
-// (`entryEvidence`: one row, its position, its digest; the receipt: the commit sequence and the
-// digest of the whole batch), so the relation is written in the commit that gives the grant out,
-// not inferred when it is read. Written in the same transaction as the `sl_entry` row; `position`
-// is the SE15 row's, so the history index reads the grants after its cursor as it reads the rows.
 export const ATTEMPT_GRANT_STATEMENTS: readonly string[] = [
   `CREATE TABLE sl_attempt_grant (
     tenant TEXT NOT NULL, session TEXT NOT NULL, attempt TEXT NOT NULL, position INTEGER NOT NULL,
@@ -121,6 +99,34 @@ export const ATTEMPT_GRANT_STATEMENTS: readonly string[] = [
 ]
 
 export const ATTEMPT_GRANT_TABLES: readonly string[] = ['sl_attempt_grant']
+
+export const SCOPE_INDEX_STATEMENTS: readonly string[] = [
+  `CREATE TABLE sl_scope_idx (
+    tenant TEXT NOT NULL, scope TEXT NOT NULL, session TEXT NOT NULL, generation TEXT NOT NULL,
+    PRIMARY KEY (tenant, scope)) STRICT`,
+]
+
+export const SCOPE_INDEX_TABLES: readonly string[] = ['sl_scope_idx']
+
+export const SCOPE_INDEX_MIGRATION = Object.freeze({ owner: 'session', id: '007-scope-index' })
+
+export const SESSION_LIST_STATEMENTS: readonly string[] = [
+  `CREATE TABLE sl_commit_time (
+    tenant TEXT NOT NULL, session TEXT NOT NULL, commit_seq INTEGER NOT NULL, at TEXT,
+    PRIMARY KEY (tenant, session, commit_seq)) STRICT`,
+  `CREATE TABLE sl_session_list (
+    tenant TEXT NOT NULL, session TEXT NOT NULL, created_at TEXT, last_activity_at TEXT,
+    lifecycle TEXT NOT NULL, title TEXT, version INTEGER NOT NULL,
+    PRIMARY KEY (tenant, session)) STRICT`,
+  `CREATE INDEX sl_session_list_activity_idx
+    ON sl_session_list (tenant, last_activity_at DESC, session)`,
+]
+
+export const SESSION_LIST_TABLES: readonly string[] = ['sl_commit_time', 'sl_session_list']
+
+export const SESSION_LIST_MIGRATION = Object.freeze({ owner: 'session', id: '008-session-list' })
+
+export const SESSION_LIST_SCAN_ROWS = 1000
 
 export const ATTEMPT_GRANT_MIGRATION = Object.freeze({
   owner: 'session',

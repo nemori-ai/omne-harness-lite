@@ -1,4 +1,3 @@
-// Declarations of the public-api chapter "普通调用面与实例观察".
 import type {
   Access,
   ModelReferenceAccess,
@@ -18,6 +17,7 @@ import type {
   AckInput,
   AckReceipt,
   Admission,
+  CallContact,
   ControlState,
   CustodyState,
   Lookup,
@@ -91,17 +91,12 @@ export type DispatchRecord = Readonly<{
   terminal: Termination | null
   account: CallAccount | null
   materialization: Readonly<{ receipt: MaterializationReceipt; source: DurableEvidence }> | null
-  /**
-   * The message identities of the fixed request this dispatch sent, in request order. The
-   * provider copies them when it prepares the dispatch and keeps them as long as the account and
-   * the receipt, also after it releases the request material. Absent on a record written before
-   * this field existed.
-   */
   messages?: readonly MessageId[]
 }>
 export interface ModelCalls<P> {
   admit(input: Admit<P>): Reply<Admission>
   inspect(input: ModelReferenceAccess<P>): Reply<Lookup>
+  contact(input: ModelReferenceAccess<P>): Reply<CallContact>
   dispatches(input: CallAccess<P>): Reply<readonly DispatchRecord[]>
   cancel(input: Mutation<P>): Reply<ControlState>
 }

@@ -1,0 +1,303 @@
+import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
+import { inProcessPrincipalAuthority, type ActingForTenantPrincipal } from '@omne-harness/identity'
+import {
+  accountCodec,
+  accountEquals,
+  organizationCodec,
+  tenant,
+  tenantCodec,
+  type AccountId,
+  type TenantId,
+} from '@omne-harness/legal-identity'
+import type {
+  SessionObservation,
+  SessionObservationEnd,
+  SessionObservationFrame,
+} from '@omne-harness/session-observation'
+import type { SessionAccess } from '@omne-harness/session-contract'
+import { createSessionContribution } from '../../src/contribution.ts'
+import type {
+  DefinitionResolver,
+  PrincipalFacts,
+  RequestJournal,
+  ResolvedDefinition,
+  SessionAccessSettings,
+  SessionListing,
+  SessionListPage,
+  TargetTenantPrincipals,
+} from '../../src/ports.ts'
+import { createRequestDrain, type RequestDrain } from '../../src/request-drain.ts'
+import type { QueuedRequest } from '../../src/request-queue.ts'
+import { admitRequest } from '../../src/send-input.ts'
+import { createJournalDouble, type JournalDouble } from './journal-double.ts'
+import { createSessionDouble, type SessionDouble } from './session-double.ts'
+
+export const DEFINITION = 'assistant'
+export const DEFAULT_DEFINITION = 'coding'
+
+export const INITIAL_MODEL_SELECTION = {
+  name: 'fixture/model',
+  basis: { owner: 'fixture', record: 'model-selection', revision: '1', digest: 'sha256:selection' },
+} as const
+
+function definitionOf(name: string): ResolvedDefinition {
+  return {
+    candidate: { owner: 'fixture', name: `${name}@1`, revision: '1', digest: `sha256:${name}` },
+    execution: { owner: 'fixture', name: 'execution', revision: '1', digest: 'sha256:execution' },
+    entryContract: { owner: 'fixture', name: 'entry', revision: '1', digest: 'sha256:entry' },
+    requiredIdentities: [],
+    tenantDefaults: {
+      owner: 'fixture',
+      name: 'defaults',
+      revision: '1',
+      digest: 'sha256:defaults',
+    },
+    initialModelSelection: INITIAL_MODEL_SELECTION,
+  }
+}
+
+export const resolveDefinition: DefinitionResolver = name =>
+  name === DEFINITION || name === DEFAULT_DEFINITION ? definitionOf(name) : undefined
+
+export type FixtureLogin = Readonly<{
+  account: AccountId
+  loginText: string
+  tenant: TenantId
+  tenantText: string
+}>
+
+function parsed<T>(result: { ok: true; value: T } | { ok: false }, text: string): T {
+  if (!result.ok) throw new Error(`fixture ${text} did not parse`)
+  return result.value
+}
+
+const BODY = 'abcdefghjkmnpqrstvwxyz2345'
+
+export function fixtureLogin(letter: string, loginText = `login-${letter}`): FixtureLogin {
+  const suffix = `${letter}${BODY.slice(1)}`
+  const account = parsed(accountCodec.parse(`acc_${suffix}`), suffix)
+  const organization = parsed(organizationCodec.parse(`org_${suffix}`), suffix)
+  const minted = tenant(organization, account)
+  const tenantText = tenantCodec.encode(minted)
+  if (!tenantText.ok) throw new Error('fixture tenant did not encode')
+  return { account, loginText, tenant: minted, tenantText: tenantText.value }
+}
+
+export function loginIdentity(login: FixtureLogin): LoginIdentity {
+  return login as unknown as LoginIdentity
+}
+
+export function memberKey(target: TenantId): string {
+  return `${target.organization.text}/${target.account.text}`
+}
+
+export type ListingScript =
+  | Readonly<{ ok: SessionListPage }>
+  | Readonly<{ refused: 'invalid' | 'denied' | 'basis-unavailable' }>
+  | 'throw'
+
+export type ListingCall = Parameters<SessionListing['list']>[0]
+
+export type ObservationScript =
+  | Readonly<{
+      kind: 'opened'
+      frames: readonly SessionObservationFrame[]
+      end?: SessionObservationEnd
+    }>
+  | Readonly<{ kind: 'denied' }>
+  | Readonly<{ kind: 'unavailable' }>
+
+export type World = Readonly<{
+  session: SessionDouble
+  issue(login: FixtureLogin, target?: TenantId): Principal
+  refuseTargets(refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined): void
+  refuseResumes(refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined): void
+  resumes(): readonly Readonly<{ tenant: string; login: string }>[]
+  remove(port: 'faces' | 'observation' | 'definitions' | 'listing'): void
+  put(port: 'faces' | 'observation' | 'definitions' | 'listing'): void
+  journal: JournalDouble
+  requests: RequestDrain
+  admissions(): readonly QueuedRequest[]
+  restart(): void
+  listing: Readonly<{
+    calls(): readonly ListingCall[]
+    answer(script: ListingScript): void
+  }>
+  script(script: ObservationScript): void
+  opens(): readonly SessionAccess<Principal>[]
+  closed(): boolean
+  contribution: ReturnType<typeof createSessionContribution>
+}>
+
+export function createWorld(
+  settings: Partial<SessionAccessSettings> = {},
+  journal?: RequestJournal,
+): World {
+  const members = new Map<string, Set<string>>()
+  const session = createSessionDouble({ members })
+  const authority = inProcessPrincipalAuthority()
+  const system = authority.issuer.issueSystem({ component: 'session-access-fixture' })
+  if ('failure' in system) throw new Error('fixture system principal not issued')
+  let refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined
+  let resumeRefusal: 'denied' | 'basis-unavailable' | 'throw' | undefined
+  const resumes: { tenant: string; login: string }[] = []
+  const admissions: QueuedRequest[] = []
+  const store = createJournalDouble()
+  const removed = new Set<string>()
+  let scripted: ObservationScript = { kind: 'opened', frames: [], end: 'refresh-exhausted' }
+  const opens: SessionAccess<Principal>[] = []
+  let closed = false
+  const listingCalls: ListingCall[] = []
+  let listed: ListingScript = { ok: { items: [], next: null, completeness: 'complete' } }
+
+  const issue = (login: FixtureLogin, target: TenantId = login.tenant): Principal => {
+    const key = memberKey(target)
+    members.set(key, (members.get(key) ?? new Set()).add(login.account.text))
+    const issued = authority.issuer.issueActingForTenant({
+      actor: system.ok,
+      tenant: target,
+      work: { owner: 'identity-login', work: login.loginText },
+    })
+    if ('failure' in issued) throw new Error('fixture principal not issued')
+    return issued.ok as unknown as Principal
+  }
+
+  const principals: TargetTenantPrincipals = {
+    async actingFor(login, tenantText) {
+      if (refusal === 'throw') throw new Error('identity fault')
+      if (refusal !== undefined) return { refused: refusal }
+      const caller = login as unknown as FixtureLogin
+      const target = tenantCodec.parse(tenantText)
+      if (!target.ok || !accountEquals(target.value.account, caller.account))
+        return { refused: 'denied' }
+      return { ok: issue(caller, target.value) }
+    },
+    async resume(tenantText, loginText) {
+      resumes.push({ tenant: tenantText, login: loginText })
+      if (resumeRefusal === 'throw') throw new Error('identity fault')
+      if (resumeRefusal !== undefined) return { refused: resumeRefusal }
+      const target = tenantCodec.parse(tenantText)
+      if (!target.ok) return { refused: 'denied' }
+      const { account } = target.value
+      return { ok: issue({ account, loginText, tenant: target.value, tenantText }) }
+    },
+  }
+
+  const facts: PrincipalFacts = {
+    describe(principal) {
+      const acting = principal as unknown as ActingForTenantPrincipal
+      if (acting.kind !== 'acting-for-tenant' || acting.work.owner !== 'identity-login')
+        return undefined
+      return { tenant: acting.tenant, account: acting.tenant.account.text, login: acting.work.work }
+    },
+  }
+
+  const observation: SessionObservation<Principal> = {
+    async open({ access, signal }) {
+      opens.push(access)
+      const script = scripted
+      if (script.kind !== 'opened') return script
+      const frames = async function* (): AsyncGenerator<
+        SessionObservationFrame,
+        SessionObservationEnd | undefined
+      > {
+        try {
+          for (const frame of script.frames) yield frame
+          if (script.end !== undefined) return script.end
+          await new Promise<void>(resolve => {
+            if (signal.aborted) return resolve()
+            signal.addEventListener('abort', () => resolve(), { once: true })
+          })
+          return undefined
+        } finally {
+          closed = true
+        }
+      }
+      return { kind: 'opened', frames: frames() }
+    },
+  }
+
+  const listing: SessionListing = {
+    async list(call) {
+      listingCalls.push(call)
+      if (listed === 'throw') throw new Error('directory fault')
+      return listed
+    },
+  }
+
+  const faces = () => (removed.has('faces') ? undefined : session.faces)
+  const complete: SessionAccessSettings = {
+    maxPageBytes: 65536,
+    historyKinds: ['message.user', 'message.assistant'],
+    defaultListLimit: 50,
+    maxListLimit: 50,
+    requestQueueLimit: 8,
+    requestRetryDelaysMs: [1],
+    ...settings,
+  }
+
+  const assemble = (opened: RequestJournal) => {
+    const requests = createRequestDrain({
+      journal: opened,
+      admit: request => {
+        admissions.push(request)
+        return admitRequest({ principals, facts, faces }, request)
+      },
+      limit: complete.requestQueueLimit,
+      retryDelaysMs: complete.requestRetryDelaysMs,
+    })
+    const contribution = createSessionContribution({
+      faces,
+      observation: () => (removed.has('observation') ? undefined : observation),
+      definitions: () => (removed.has('definitions') ? undefined : resolveDefinition),
+      listing: () => (removed.has('listing') ? undefined : listing),
+      principals,
+      facts,
+      settings: complete,
+      requests,
+    })
+    return { requests, contribution }
+  }
+  let assembled = assemble(journal ?? store.open())
+
+  return {
+    session,
+    issue,
+    refuseTargets: next => {
+      refusal = next
+    },
+    refuseResumes: next => {
+      resumeRefusal = next
+    },
+    resumes: () => [...resumes],
+    remove: port => {
+      removed.add(port)
+    },
+    put: port => {
+      removed.delete(port)
+    },
+    journal: store,
+    get requests() {
+      return assembled.requests
+    },
+    admissions: () => [...admissions],
+    restart: () => {
+      assembled.requests.stop()
+      assembled = assemble(store.open())
+    },
+    listing: {
+      calls: () => [...listingCalls],
+      answer: next => {
+        listed = next
+      },
+    },
+    script: next => {
+      scripted = next
+    },
+    opens: () => [...opens],
+    closed: () => closed,
+    get contribution() {
+      return assembled.contribution
+    },
+  }
+}

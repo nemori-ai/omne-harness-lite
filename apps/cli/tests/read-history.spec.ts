@@ -92,10 +92,6 @@ const page = (entries: readonly unknown[], next: string | null): PageBody => ({
   scannedThrough: '0',
 })
 
-/**
- * A service that serves `pages` for `read-history`. It answers like the public contract: a first
- * page request has `direction` and `pageBytes`, and a request with a cursor has neither.
- */
 function historyService(pages: readonly PageBody[], extra?: (seen: Seen) => Answer | undefined) {
   return (seen: Seen): Answer => {
     const body = (seen.wire['body'] ?? {}) as Record<string, unknown>
@@ -202,9 +198,6 @@ describe('read-history', () => {
     })
 
     it('shows a page request that carries direction or pageBytes as protocol-rejected (control of the service model)', async () => {
-      // The test service refuses a cursor page that carries the first-page fields, as the public
-      // contract does. This shows that the service model can tell the two request shapes apart,
-      // so the assertions on the CLI's second request above can fail.
       const service = await serve(historyService(pages))
       const answer = await fetch(`${service.origin}/session-public/1`, {
         method: 'POST',

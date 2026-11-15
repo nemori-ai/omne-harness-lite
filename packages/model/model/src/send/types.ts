@@ -15,21 +15,15 @@ import type {
   TransportFact,
 } from '@omne-harness/model-contract/provider'
 
-/** The credential a send reads: the layer the request fixed for its supplier's provider. */
 export type CredentialSelection = Readonly<{
   provider: ProviderName
   layer: CredentialLayer
 }>
 export type SendStart =
   | Readonly<{ kind: 'started'; facts: AsyncIterable<TransportFact> }>
-  /**
-   * `fault` marks a final credential or transport refusal. The boundary records it as the
-   * terminal of the not-sent dispatch.
-   */
   | Readonly<{ kind: 'refused'; failure: ModelFailure; fault?: ModelFault }>
   | Readonly<{ kind: 'unknown'; diagnostic: string }>
 
-/** All current-qualification changes and dispatch claims use this same synchronous owner. */
 export interface SendCoordinator<P> {
   check(input: SendDemand<P>, stage: 'access' | 'prepare'): Outcome<void, ModelFailure>
   withinCurrent(
@@ -41,10 +35,6 @@ export interface SendCoordinator<P> {
 }
 export interface SendResource {
   readonly transport: ModelTransport
-  /**
-   * Uses a private credential slot, keyed by credential item, and clears that slot before
-   * returning, including on throw.
-   */
   startWithCredential(
     materialized: MaterializedTransport,
     secrets: ReadonlyMap<string, string>,

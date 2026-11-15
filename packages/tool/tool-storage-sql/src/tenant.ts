@@ -1,8 +1,3 @@
-// The transaction domain of a tenant. The tenant arrives in the shape of legal-identity's TenantId,
-// minted or as a copy that a record read back (the ledger passes both); its text is rebuilt and
-// parsed by legal-identity, so only a legal tenant text reaches the directory. The published
-// directory is the only source of the domain: a tenant it does not hold is not read and not
-// written, and an entry for another tenant is refused, never used.
 import { randomUUID } from 'node:crypto'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type { CommitRequestV2, DomainRef, SqlIdentity } from '@omne-harness/sql-contract'
@@ -50,12 +45,6 @@ export async function resolveTenant(
   }
 }
 
-/**
- * One command of the `tool` participant under a fresh operation key. Every call is a new SQL
- * operation: the ports recognise their own outcomes (the ledger by its records, the custody by its
- * manifests), so no SQL identity is ever reused, and the identity declares that it is never
- * recalled: the provider keeps no receipt of it (sql-contract §3.1).
- */
 export function requestOf(
   options: SqlToolStorageOptions,
   at: TenantDomain,

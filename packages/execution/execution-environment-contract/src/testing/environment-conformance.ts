@@ -32,7 +32,6 @@ import {
 } from './doubles.ts'
 import { bounded, NotApplicable, type ConformanceCase } from './case.ts'
 
-/** The two needed ports the suite gives the subject. The suite keeps the scripted control. */
 export type EnvironmentConformancePorts<P> = Readonly<{
   authority: EnvironmentAuthority<P>
   bindings: ScopeBindingSource
@@ -42,13 +41,11 @@ export type EnvironmentConformanceSubject<P> = Readonly<{
   access: Access<P>
   otherAccess?: Access<P>
   scope: ProviderAcquireInput['scope']
-  /** A recovery access the subject's recovery authority accepts. Recovery cases need it. */
   recoveryAccess?: RecoveryAccess
   hooks?: { close?(): Promise<void> }
   dispose?(): Promise<void>
 }>
 export type EnvironmentConformanceOptions<P> = Readonly<{
-  /** Builds the subject on the given ports; the suite binds `scope` to the tenant of `access`. */
   subject(
     ports: EnvironmentConformancePorts<P>,
   ): EnvironmentConformanceSubject<P> | Promise<EnvironmentConformanceSubject<P>>
@@ -499,7 +496,6 @@ async function checkOriginalOfOtherTenantIsNotAuthorized<P>(
   assert.equal(f.provider.calls.inspect, asked)
 }
 
-/** Rule 3 alone: the scope is the caller's own, but the description names another tenant. */
 async function checkOriginalNamingAnotherTenantIsNotAuthorized<P>(
   s: EnvironmentConformanceSubject<P>,
   f: EnvironmentFixture<P>,
@@ -519,7 +515,6 @@ async function checkOriginalNamingAnotherTenantIsNotAuthorized<P>(
   assert.equal(f.provider.calls.inspect, asked)
 }
 
-/** A revocation while the provider answers an original query withholds the answer. */
 async function checkRevokedDuringOriginalQueryIsNotDisclosed<P>(
   s: EnvironmentConformanceSubject<P>,
   ports: Ports<P>,
@@ -562,7 +557,6 @@ async function checkRecoverySettlesAcquisitionsWithoutClaimingRelease<P>(
     result.settledAcquisitions.map(item => [item.original.acquisition, item.outcome]),
     [[f.input.acquisition, 'settled']],
   )
-  // The scripted provider has no resource recovery: the resource path is unsupported, not empty.
   assert.equal(result.unsupported.length, 1)
 }
 
@@ -876,7 +870,6 @@ async function checkObserveIsCompleteOrUnavailable<P>(
     }),
     createScriptedEnvironmentProvider({ name: 'suite-b', retained: async () => second }),
     createScriptedEnvironmentProvider({ name: 'suite-c' }),
-    // A second generation of the same provider, holding the same retained process.
     createScriptedEnvironmentProvider({
       name: 'suite-a',
       generation: 'g2',

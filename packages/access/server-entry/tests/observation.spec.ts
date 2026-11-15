@@ -1,5 +1,3 @@
-// SSE observation: the confirmation before any frame, heartbeats through the same serial writer,
-// cancel and replacement, connection close as cancel, the hand-written closed read, and stop.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { ServerEntryConfig } from '../src/index.ts'
 import {
@@ -39,10 +37,6 @@ function cancel(who: Login, session: string, observationId = 'obs-1', messageId 
   )
 }
 
-/**
- * A second entry over the same identity whose `history.begin` waits on a gate. The eligibility
- * read of `observe-session` therefore stays pending until `release()`.
- */
 async function slowBeginFixture(
   base: Fixture,
   config: Partial<ServerEntryConfig> = {},
@@ -69,7 +63,6 @@ async function slowBeginFixture(
   return { fixture, release }
 }
 
-/** The byte positions of heartbeat lines never fall inside an event. */
 function assertHeartbeatsOutsideEvents(text: string): void {
   const blocks = text.split('\n\n')
   for (const block of blocks) {
@@ -150,7 +143,6 @@ describe('establishing an observation', () => {
         state: 'not-found',
       })
       release()
-      // Cancel as soon as the observation exists, without waiting for the confirmation to arrive.
       let state = 'not-found'
       while (state !== 'ended') {
         const reply = await send(second.port, SESSION_PATH, { body: cancel(who, session) })
@@ -225,7 +217,6 @@ describe('establishing an observation', () => {
       await sleep(30)
       release()
       await sleep(60)
-      // The slot of the disconnected observer is free again under perLogin = 1.
       const fresh = openSse(second.port, observe(who, session, 'obs-fresh', 'm-f'))
       expect(await fresh.status).toBe(200)
       await fresh.waitForEvents(1)

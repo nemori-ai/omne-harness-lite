@@ -29,21 +29,21 @@
 
 > **中**：系统里**立规矩**的那一部分——概念在这里定义、边界在这里划、
 > 其余部分必须遵守的协议在这里立；其余部分**消费**它们，不重新定义。
-> 它由[架构内核 PF 索引](../../product.0.0.1.legacy/architecture-core.md)登记的那批产品设计 topic
+> 它由[架构内核 PF 索引](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/architecture-core.md)登记的那批产品设计 topic
 > 所覆盖的对象、层与领域构成，**那份清单会随设计生长而增补**。
 >
 > **EN**: The part of the system that **establishes the rules** — where concepts are
 > defined, boundaries are drawn, and the protocols everything else must obey are
 > set. The rest **consumes** them rather than redefining them. It consists of the
 > objects, layers and domains covered by the product-design topics registered in
-> the [architecture-core PF index](../../product.0.0.1.legacy/architecture-core.md), a set that
+> the [architecture-core PF index](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/architecture-core.md), a set that
 > grows as the design grows.
 
 - **形态**：总称
 - **出处**：[现行词义](../index.md)（产品负责人 2026-09-20 直接裁决）
 - **判据**：拿一样东西问——**它是在立规矩，还是在用规矩？**立，在架构内核内；用，在外。
 - **别混 ①**：与**上游内核不是一回事**。本项目仅复用 Cordis 官方包，不复用 DSH `agent` 原语；
-  SYS-KERNEL约束这项技术底座——[它到底保证什么归 basis](../../basis/README.md)；
+  SYS-KERNEL约束这项技术底座——它到底保证什么见 [Cordis 集成约定](../../../../docs/architecture/cordis-integration-conventions.md)；
   **架构内核是我们自己定义的那部分架构**，站在那之上。
   **承载仓库的常驻指令把那层叫「内核层」**（[承载位置的约定不是本工作区的设计权威](../../../AGENTS.md)，
   这里只当撞名事实引用）。**正因为撞名，这个词不裸用「内核」二字**，正式名始终带「架构」。
@@ -166,5 +166,46 @@
   管[范围化对象](scope-and-resolution.md#ul-scoped-object--范围化对象--scoped-object)怎么求值；插件树层不参与求值，上面也不挂范围化对象。
   发行层也不是「出厂默认」那一层。
 - **注意**：「本版恰两格」是产品负责人定的；要加一格，回到产品负责人。
+
+### UL-public-protocol · 公开协议 · Public Protocol
+
+> **中**：**一个领域对外公开的一整套操作与[公开观察](interaction-and-dispatch.md#ul-public-observation--公开观察--public-observation)，
+> 有一个名字和一个主版本**，例如 `session/v1`。它是服务端入口上一个可以被指名的位点：
+> 一个部署里，同名同主版本的协议上至多挂着一份[接入贡献](#ul-access-contribution--接入贡献--access-contribution)；
+> 没有挂着时，对它的调用得到「不存在」。它的形状由它的协议契约给出，协议契约是纯数据，归这个领域。
+>
+> **EN**: **The full set of operations and public observations that one domain exposes to clients,
+> under one name and one major version**, for example `session/v1`. It is a nameable point on the
+> server entry. In one deployment, at most one access contribution is mounted on a protocol of the
+> same name and major version. A call to a protocol with no mounted contribution gets "not found".
+> Its shape is given by its protocol contract, which is pure data and belongs to the domain.
+
+- **形态**：位置
+- **出处**：[RFC-0015「概念」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0015-access-dynamic-registration.md#1-概念) ·
+  [「协议怎样划分」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0015-access-dynamic-registration.md#7-协议怎样划分)（revision 1，PanQiWei 2026-11-12 采用）
+- **别混 ①**：不是[能力接缝](#ul-capability-seam--能力接缝--capability-seam)。接缝是进程内按服务键接入一项能力的位点；
+  公开协议是客户端隔着网络、按名字与主版本调用的位点。
+- **别混 ②**：不是传输协议。字节怎样走（HTTP、SSE）由承载决定，公开协议不规定。
+- **弃用**：~~治理位置~~、~~会话位置~~、~~HITL 位置~~这一类「某某位置」的叫法，以及 ~~`<领域>-public/<n>`~~ 这种命名（上一版规则里的叫法）
+
+### UL-access-contribution · 接入贡献 · Access Contribution
+
+> **中**：**一个领域的接入插件挂到服务端入口登记表上的那一包**：一份协议契约，
+> 加契约里每个操作的处理函数和每个[公开观察](interaction-and-dispatch.md#ul-public-observation--公开观察--public-observation)的帧来源。
+> 它是领域在一个[公开协议](#ul-public-protocol--公开协议--public-protocol)上承接调用的那个角色。
+> 它随接入插件的 Cordis 作用域挂上与撤下；撤下时，它的每个在途调用和在途观察都有确定的结局。
+>
+> **EN**: **What the access plugin of a domain mounts on the registry of the server entry**: one
+> protocol contract, plus a handler for every operation and a frame source for every public
+> observation in that contract. It is the role that answers the calls on one public protocol. It
+> is mounted and unmounted with the Cordis scope of the access plugin. When it is unmounted, each
+> call in flight and each observation in flight gets a definite outcome.
+
+- **形态**：属性
+- **出处**：[RFC-0015「概念」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0015-access-dynamic-registration.md#1-概念) ·
+  [「登记表与贡献」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0015-access-dynamic-registration.md#登记表与贡献)（revision 1，PanQiWei 2026-11-12 采用）
+- **别混**：不是[提示词贡献](record-and-context.md#ul-prompt-contribution--提示词贡献--prompt-contribution)。
+  裸写「贡献」在本系统不止一个所指，跨题目引用时写正式名。
+- **注意**：有贡献不等于开放。一个部署装不装某个领域的接入插件，由服务端应用的装配决定。
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

@@ -1,7 +1,3 @@
-// The HTTP layer of the entry (binding page「请求与响应规则」, SPEC「服务端的 HTTP 层责任」): the
-// loopback listener, the five steps before the message, the body limit per path, the dispatch to
-// the two locations, the answer writing, and stop. A failure of this layer or of the entry itself
-// is the empty status 500 and a closed connection.
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type {
   ActingForTenantPrincipal,
@@ -12,130 +8,71 @@ import type {
 import type { Answer, JsonAnswer } from './answers.ts'
 import {
   LOOPBACK_ADDRESS,
+  OUTPUT_LIMITS,
   ServerEntryConfigError,
   checkConfig,
   readLimits,
   type ServerEntryConfig,
 } from './config.ts'
 import { emit, type DiagnosticSink } from './diagnostics.ts'
-import type { DefinitionResolver, SessionIngressFaces } from './faces.ts'
+import type {
+  DefinitionResolver,
+  HitlEntryPrincipals,
+  HitlIngressFaces,
+  SessionIngressFaces,
+} from './faces.ts'
 import { governanceProtocolRejected, handleGovernance } from './governance.ts'
+import { HITL_PATH, handleHitl, hitlProtocolRejected, type HitlInstallation } from './hitl.ts'
 import { createIdentitySteps } from './identity-steps.ts'
 import type { SettingsGovernance } from './settings.ts'
 import { createObservationRegistry } from './observation.ts'
 import { handleSession } from './session.ts'
 import { sessionProtocolRejected } from './session-codec.ts'
 import { createDiagnosticsCursors, type DiagnosticPorts } from './session-view/index.ts'
-import { SseStream } from './sse.ts'
+import { SseStream } from './observation-hub/sse.ts'
+import { accessContribution } from './availability/availability.ts'
+import { pathOf } from './pipeline/address.ts'
+import { readBody } from './pipeline/body.ts'
+import { contentTypeAccepted, hostAccepted } from './pipeline/headers.ts'
+import {
+  createPipeline,
+  type PipelineAccess,
+  type Pipeline,
+  type RequestSlots,
+} from './pipeline/pipeline.ts'
 
 export const GOVERNANCE_PATH = '/governance-public/1'
 export const SESSION_PATH = '/session-public/1'
 
 export type ServerEntryDependencies = Readonly<{
   identity: IdentityOperations
-  /**
-   * Identity's governance port over the same records as `identity`, so a revocation or a switch is
-   * what the next login recognition reads. The eighteen governed operations and the report of a
-   * successful business access go to it. An assembly that reads the provider per call answers
-   * `basis-unavailable` from the port while the provider is absent (R2-D235 S1).
-   */
   governance: IdentityGovernance
   issuer: PrincipalIssuer
   session: SessionIngressFaces<ActingForTenantPrincipal>
   resolveDefinition: DefinitionResolver
-  /**
-   * The settings of the acting tenant (SPEC「设置项」). Absent: the four setting operations answer
-   * `stage-not-provided`.
-   */
+  hitl?: HitlIngressFaces<ActingForTenantPrincipal>
+  hitlEntryPrincipals?: HitlEntryPrincipals
   settings?: SettingsGovernance
   diagnostics?: DiagnosticSink
 }> &
-  /**
-   * The read ports of the session diagnostics projection (SPEC「会话诊断投影」): Agent's finish
-   * read, Model's call lookup and attempt diagnostics, Tool's call lookup and account. Each may
-   * be absent; the projection then writes the corresponding gap with reason `unsupported`.
-   */
   DiagnosticPorts<ActingForTenantPrincipal>
 
 export type Listening = Readonly<{ address: string; port: number }>
 
+export type ServerEntryAccess = PipelineAccess
+
 export interface ServerEntry {
-  /** Listens on the loopback address. Rejects with `ServerEntryConfigError` for another address. Idempotent while listening. */
   start(): Promise<Listening>
-  /** Stops accepting, ends every observation with `ended(unavailable)`, waits for in-flight requests, closes. */
   stop(): Promise<void>
 }
 
 type Location = Readonly<{
-  path: typeof GOVERNANCE_PATH | typeof SESSION_PATH
+  path: typeof GOVERNANCE_PATH | typeof SESSION_PATH | typeof HITL_PATH
   maxBytes: number
   protocolRejected: () => JsonAnswer
 }>
 
 const JSON_CONTENT_TYPE = 'application/json; charset=utf-8'
-
-function countHeader(req: IncomingMessage, name: string): number {
-  let count = 0
-  for (let index = 0; index < req.rawHeaders.length; index += 2)
-    if (req.rawHeaders[index]?.toLowerCase() === name) count += 1
-  return count
-}
-
-/** Step 3: exactly one Host whose host name, port removed, is 127.0.0.1 or localhost. */
-function hostAccepted(req: IncomingMessage): boolean {
-  if (countHeader(req, 'host') !== 1) return false
-  const value = req.headers.host
-  if (value === undefined) return false
-  const host = value.replace(/:\d*$/, '').toLowerCase()
-  return host === LOOPBACK_ADDRESS || host === 'localhost'
-}
-
-/** Step 4: exactly one Content-Type of application/json, with at most a utf-8 charset parameter. */
-function contentTypeAccepted(req: IncomingMessage): boolean {
-  if (countHeader(req, 'content-type') !== 1) return false
-  const value = req.headers['content-type']
-  if (value === undefined) return false
-  const [media, ...parameters] = value.split(';').map(part => part.trim())
-  if (media?.toLowerCase() !== 'application/json') return false
-  if (parameters.length === 0) return true
-  if (parameters.length !== 1) return false
-  return /^charset=(?:utf-8|"utf-8")$/i.test(parameters[0] ?? '')
-}
-
-type BodyRead =
-  | Readonly<{ kind: 'ok'; bytes: Uint8Array }>
-  | Readonly<{ kind: 'over' }>
-  | Readonly<{ kind: 'aborted' }>
-
-/** Step 5: counts the bytes actually read; a Content-Length over the limit is refused unread. */
-function readBody(req: IncomingMessage, maxBytes: number): Promise<BodyRead> {
-  const declared = req.headers['content-length']
-  if (declared !== undefined && /^\d+$/.test(declared) && Number(declared) > maxBytes)
-    return Promise.resolve({ kind: 'over' })
-  return new Promise(resolve => {
-    const chunks: Uint8Array[] = []
-    let total = 0
-    let done = false
-    const finish = (result: BodyRead): void => {
-      if (done) return
-      done = true
-      req.removeAllListeners('data')
-      req.pause()
-      resolve(result)
-    }
-    req.on('data', (chunk: Uint8Array) => {
-      total += chunk.byteLength
-      if (total > maxBytes) {
-        finish({ kind: 'over' })
-        return
-      }
-      chunks.push(chunk)
-    })
-    req.on('end', () => finish({ kind: 'ok', bytes: Buffer.concat(chunks) }))
-    req.on('error', () => finish({ kind: 'aborted' }))
-    req.on('aborted', () => finish({ kind: 'aborted' }))
-  })
-}
 
 function writeEmpty(
   res: ServerResponse,
@@ -156,17 +93,30 @@ function writeJson(res: ServerResponse, answer: JsonAnswer, close: boolean): voi
   res.end(answer.bytes)
 }
 
-/** Status 500 with no body: the entry has no trustworthy answer. The connection closes. */
 function writeNoAnswer(res: ServerResponse): void {
   writeEmpty(res, 500, { connection: 'close' })
+}
+
+function hitlInstallation(
+  config: ServerEntryConfig,
+  dependencies: ServerEntryDependencies,
+): HitlInstallation | undefined {
+  if (dependencies.hitl === undefined) return undefined
+  if (config.hitlLocationRef === undefined)
+    throw new ServerEntryConfigError(
+      'server-entry: hitlLocationRef is required when the HITL faces are given',
+    )
+  return { faces: dependencies.hitl, locationRef: config.hitlLocationRef }
 }
 
 export function createServerEntry(input: {
   readonly config: ServerEntryConfig
   readonly dependencies: ServerEntryDependencies
+  readonly access?: ServerEntryAccess
 }): ServerEntry {
   const config = checkConfig(input.config)
   const { dependencies } = input
+  const hitl = hitlInstallation(config, dependencies)
   const diagnostics = dependencies.diagnostics
   const steps = createIdentitySteps({
     identity: dependencies.identity,
@@ -176,12 +126,10 @@ export function createServerEntry(input: {
   })
   const registry = createObservationRegistry({
     limits: config.observation,
-    // This stage has no locate or refresh round: one round is one heartbeat interval (docs/internals.md).
     loginCheckIntervalMs: config.heartbeatIntervalMs,
     diagnostics,
   })
   const ports: DiagnosticPorts<ActingForTenantPrincipal> = dependencies
-  // The cursor key lives as long as this entry: a cursor of another instance is `invalid`.
   const cursors = createDiagnosticsCursors()
   const locations: readonly Location[] = [
     {
@@ -194,6 +142,11 @@ export function createServerEntry(input: {
       maxBytes: config.maxBodyBytes.input,
       protocolRejected: () => sessionProtocolRejected(),
     },
+    {
+      path: HITL_PATH,
+      maxBytes: config.maxBodyBytes.input,
+      protocolRejected: () => hitlProtocolRejected(),
+    },
   ]
 
   let server: Server | undefined
@@ -203,14 +156,43 @@ export function createServerEntry(input: {
   let activeRequests = 0
   const drained: (() => void)[] = []
 
+  const slots: RequestSlots = {
+    take: res => {
+      if (activeRequests >= config.maxInFlightRequests) return undefined
+      activeRequests += 1
+      let held = true
+      const release = (): void => {
+        if (!held) return
+        held = false
+        activeRequests -= 1
+        res.off('close', release)
+      }
+      res.once('close', release)
+      return release
+    },
+  }
+  const pipeline: Pipeline | undefined =
+    input.access === undefined
+      ? undefined
+      : createPipeline(input.access, {
+          loopback: LOOPBACK_ADDRESS,
+          bodyLimits: config.maxBodyBytes,
+          readLimits: maxBytes => readLimits(config, maxBytes),
+          writeLimits: OUTPUT_LIMITS,
+          slots,
+          observations: config.observation,
+          heartbeatMs: config.heartbeatIntervalMs,
+        })
+
   const settle = (): void => {
     inFlight -= 1
     if (inFlight === 0) for (const resolve of drained.splice(0)) resolve()
   }
 
-  const answerOf = async (location: Location, bytes: Uint8Array): Promise<Answer> =>
-    location.path === GOVERNANCE_PATH
-      ? handleGovernance(bytes, {
+  const answerOf = async (location: Location, bytes: Uint8Array): Promise<Answer> => {
+    switch (location.path) {
+      case GOVERNANCE_PATH:
+        return handleGovernance(bytes, {
           identity: dependencies.identity,
           governance: dependencies.governance,
           steps,
@@ -219,7 +201,8 @@ export function createServerEntry(input: {
           readLimits: readLimits(config, location.maxBytes),
           diagnostics,
         })
-      : handleSession(bytes, {
+      case SESSION_PATH:
+        return handleSession(bytes, {
           config,
           faces: dependencies.session,
           steps,
@@ -230,13 +213,21 @@ export function createServerEntry(input: {
           ports,
           cursors,
         })
+      case HITL_PATH:
+        return handleHitl(bytes, {
+          installation: hitl,
+          entryPrincipals: dependencies.hitlEntryPrincipals,
+          steps,
+          readLimits: readLimits(config, location.maxBytes),
+          diagnostics,
+        })
+    }
+  }
 
   const write = (res: ServerResponse, answer: Answer): void => {
     switch (answer.kind) {
       case 'json':
         writeJson(res, answer, answer.close === true)
-        // The answer is out before any follow-up starts, so a follow-up that never settles cannot
-        // hold the answer or `stop()` (SPEC「成功业务访问的报告」).
         answer.afterWrite?.()
         return
       case 'no-answer':
@@ -265,7 +256,7 @@ export function createServerEntry(input: {
       writeEmpty(res, 405, { allow: 'POST' })
       return
     }
-    if (!hostAccepted(req)) {
+    if (!hostAccepted(req, LOOPBACK_ADDRESS)) {
       writeEmpty(res, 421)
       return
     }
@@ -273,19 +264,11 @@ export function createServerEntry(input: {
       writeJson(res, { ...location.protocolRejected(), status: 415 }, false)
       return
     }
-    if (activeRequests >= config.maxInFlightRequests) {
+    const releaseSlot = slots.take(res)
+    if (releaseSlot === undefined) {
       writeEmpty(res, 429, { connection: 'close', 'x-omne-limit': 'in-flight-requests' })
       return
     }
-    activeRequests += 1
-    let slotHeld = true
-    const releaseSlot = (): void => {
-      if (!slotHeld) return
-      slotHeld = false
-      activeRequests -= 1
-      res.off('close', releaseSlot)
-    }
-    res.once('close', releaseSlot)
     try {
       const body = await readBody(req, location.maxBytes)
       if (body.kind === 'aborted') {
@@ -302,6 +285,9 @@ export function createServerEntry(input: {
     }
   }
 
+  const isLocation = (target: string): boolean =>
+    locations.some(known => known.path === pathOf(target))
+
   const onRequest = (req: IncomingMessage, res: ServerResponse): void => {
     if (stopping) {
       res.destroy()
@@ -311,9 +297,10 @@ export function createServerEntry(input: {
     const finished = new Promise<void>(resolve => {
       res.once('close', resolve)
     })
-    handle(req, res)
+    const route = pipeline === undefined || isLocation(req.url ?? '') ? handle : pipeline.handle
+    route(req, res)
       .catch(() => {
-        emit(diagnostics, { code: 'request.fault', path: req.url ?? '' })
+        emit(diagnostics, { code: 'request.fault', path: pathOf(req.url ?? '') })
         if (!res.headersSent) writeNoAnswer(res)
         else res.destroy()
       })
@@ -322,6 +309,7 @@ export function createServerEntry(input: {
       })
   }
 
+  let takeDownAccess: (() => Promise<void>) | undefined
   return {
     start() {
       if (listening !== undefined) return Promise.resolve(listening)
@@ -332,19 +320,31 @@ export function createServerEntry(input: {
           ),
         )
       stopping = false
+      const access = input.access
+      try {
+        takeDownAccess = access?.registry.mount(
+          accessContribution(access.registry, access.availabilityBacklog),
+        )
+      } catch (error) {
+        return Promise.reject(error)
+      }
       const created = createServer(
-        // Step 3 of the binding page judges Host itself, so the host's own Host check is off.
         { requireHostHeader: false, requestTimeout: 0, headersTimeout: 60_000 },
         onRequest,
       )
       server = created
       return new Promise<Listening>((resolve, reject) => {
-        created.once('error', reject)
+        const failed = (error: Error): void => {
+          void takeDownAccess?.()
+          takeDownAccess = undefined
+          reject(error)
+        }
+        created.once('error', failed)
         created.listen(config.listenPort, LOOPBACK_ADDRESS, () => {
-          created.off('error', reject)
+          created.off('error', failed)
           const address = created.address()
           if (address === null || typeof address === 'string') {
-            reject(new ServerEntryConfigError('server-entry: the listener has no address'))
+            failed(new ServerEntryConfigError('server-entry: the listener has no address'))
             return
           }
           listening = { address: address.address, port: address.port }
@@ -361,8 +361,11 @@ export function createServerEntry(input: {
       const closed = new Promise<void>(resolve => {
         current.close(() => resolve())
       })
-      await registry.endAll('unavailable')
+      await Promise.all([registry.endAll('unavailable'), pipeline?.endObservations()])
       if (inFlight > 0) await new Promise<void>(resolve => drained.push(resolve))
+      const takeDown = takeDownAccess
+      takeDownAccess = undefined
+      await takeDown?.()
       current.closeAllConnections()
       await closed
     },

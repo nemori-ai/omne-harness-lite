@@ -1,0 +1,283 @@
+/* The settings interface. Every rule is scoped under .omne-settings; the host page imports this file
+   once (@omne-harness/assets-ui/assets-ui.css). Light and dark follow the system, or the host's
+   data-theme="light" | "dark" on an ancestor. */
+
+.omne-settings {
+  --omne-bg: #ffffff;
+  --omne-surface: #f6f7f9;
+  --omne-surface-strong: #eceef2;
+  --omne-border: #dde1e7;
+  --omne-text: #1d2129;
+  --omne-text-muted: #5c6370;
+  --omne-accent: #2f6fde;
+  --omne-accent-text: #ffffff;
+  --omne-warn-bg: #fff6e0;
+  --omne-warn-text: #7a5300;
+  --omne-error-bg: #fdecec;
+  --omne-error-text: #9b2121;
+  --omne-radius: 10px;
+  --omne-font: system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Noto Sans CJK SC', sans-serif;
+  --omne-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .omne-settings {
+    --omne-bg: #16181d;
+    --omne-surface: #1e2128;
+    --omne-surface-strong: #272b33;
+    --omne-border: #343944;
+    --omne-text: #e6e8ec;
+    --omne-text-muted: #9aa1ad;
+    --omne-accent: #5b8ff0;
+    --omne-warn-bg: #3a2f14;
+    --omne-warn-text: #f1d18a;
+    --omne-error-bg: #3d1d1f;
+    --omne-error-text: #f3a6a6;
+  }
+}
+
+[data-theme='dark'] .omne-settings {
+  --omne-bg: #16181d;
+  --omne-surface: #1e2128;
+  --omne-surface-strong: #272b33;
+  --omne-border: #343944;
+  --omne-text: #e6e8ec;
+  --omne-text-muted: #9aa1ad;
+  --omne-accent: #5b8ff0;
+  --omne-warn-bg: #3a2f14;
+  --omne-warn-text: #f1d18a;
+  --omne-error-bg: #3d1d1f;
+  --omne-error-text: #f3a6a6;
+}
+
+.omne-settings {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--omne-bg);
+  color: var(--omne-text);
+  font-family: var(--omne-font);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.omne-settings *,
+.omne-settings *::before,
+.omne-settings *::after {
+  box-sizing: border-box;
+}
+
+.omne-settings-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--omne-border);
+}
+
+.omne-settings-title {
+  flex: 1;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.omne-settings-scope {
+  color: var(--omne-text-muted);
+  font-size: 13px;
+}
+
+.omne-settings-empty {
+  margin: 40px auto;
+  color: var(--omne-text-muted);
+}
+
+.omne-settings-notice {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.omne-settings > .omne-settings-notice {
+  margin: 12px 20px 0;
+}
+
+.omne-settings-notice[data-kind='unknown'] {
+  background: var(--omne-warn-bg);
+  color: var(--omne-warn-text);
+}
+
+.omne-settings-notice[data-kind='refused'],
+.omne-settings-notice[data-kind='unavailable'] {
+  background: var(--omne-error-bg);
+  color: var(--omne-error-text);
+}
+
+.omne-settings-link {
+  margin-left: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--omne-accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.omne-settings-button {
+  padding: 6px 14px;
+  border: 1px solid var(--omne-border);
+  border-radius: 8px;
+  background: var(--omne-surface);
+  color: var(--omne-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.omne-settings-button:hover:not(:disabled) {
+  background: var(--omne-surface-strong);
+}
+
+.omne-settings-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.omne-settings-button[data-tone='primary'] {
+  border-color: var(--omne-accent);
+  background: var(--omne-accent);
+  color: var(--omne-accent-text);
+}
+
+.omne-settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 20px;
+  list-style: none;
+}
+
+.omne-setting {
+  padding: 14px 16px;
+  border: 1px solid var(--omne-border);
+  border-radius: var(--omne-radius);
+  background: var(--omne-surface);
+}
+
+.omne-setting-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.omne-setting-title {
+  flex: 1;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.omne-setting-asset {
+  color: var(--omne-text-muted);
+  font-family: var(--omne-mono);
+  font-size: 12px;
+}
+
+.omne-setting-purpose {
+  margin: 2px 0 10px;
+  color: var(--omne-text-muted);
+  font-size: 14px;
+}
+
+.omne-setting-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 14px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.omne-setting-facts[data-reading='true'] {
+  opacity: 0.6;
+}
+
+.omne-setting-facts dt {
+  color: var(--omne-text-muted);
+}
+
+.omne-setting-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.omne-setting-facts code {
+  font-family: var(--omne-mono);
+  font-size: 13px;
+}
+
+.omne-setting-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.omne-setting-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.omne-setting-choices legend {
+  margin-bottom: 4px;
+  padding: 0;
+  color: var(--omne-text-muted);
+  font-size: 13px;
+}
+
+.omne-setting-choice {
+  display: grid;
+  grid-template-columns: auto max-content 1fr;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--omne-border);
+  border-radius: 8px;
+  background: var(--omne-bg);
+  cursor: pointer;
+}
+
+.omne-setting-choice-label {
+  font-weight: 500;
+}
+
+.omne-setting-choice-text {
+  color: var(--omne-text-muted);
+  font-size: 13px;
+}
+
+.omne-setting-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.omne-setting-clear-effect,
+.omne-setting-status {
+  color: var(--omne-text-muted);
+  font-size: 13px;
+}
+
+.omne-setting-status {
+  margin: 8px 0 0;
+}

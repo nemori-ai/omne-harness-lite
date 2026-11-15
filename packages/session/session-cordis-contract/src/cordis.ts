@@ -1,10 +1,3 @@
-// The Cordis service definitions of Session (docs/cordis.md): the `session` service that exposes
-// the four faces, one abstract Service and one key for each construction port, outbound port and
-// the internal principals, the intercept configuration `{ caller }`, and the `committed` event.
-// The provider lives in `@omne-harness/session-cordis`; this entry imports no provider. The
-// superseded `sessionToolStartFence` and `sessionDeliveryRelease` keys are not here: the delivery
-// release goes through the Agent host's result receiver (CA-06) and the tool start fence is the
-// Agent journal `start-fence` entry (#672 J03).
 import { type Context, Service } from '@deepseek-ai/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
@@ -14,6 +7,7 @@ import type {
   SessionProductionSource,
   SessionDelegatedTransactions,
   SessionPrincipalBindingSource,
+  SessionScopeOwnerSource,
   SessionWorkPrincipals,
   DurableEvidence,
   ScopeReleasePort,
@@ -21,6 +15,7 @@ import type {
   SessionCallerClass,
   SessionClock,
   SessionContextInput,
+  SessionDirectory,
   SessionEvidenceBridge,
   SessionFaces,
   SessionId,
@@ -35,7 +30,6 @@ import type { SessionAdoptedRequests } from './adopted-request.ts'
 import type { SessionCursorSigning } from './cursor-signing.ts'
 import type { SessionReplayFacts, SessionScopeLookup } from './context-facts.ts'
 
-/** The intercept configuration of a caller plugin: `inject: { session: { caller } }`. */
 export type SessionIntercept = Readonly<{ caller: SessionCallerClass }>
 
 /** @owner packages/session/session-contract */
@@ -48,6 +42,9 @@ export abstract class SessionService<P = unknown> extends Service<SessionInterce
   abstract readonly management: SessionFaces<P>['management']
   abstract readonly reconciliation: SessionFaces<P>['reconciliation']
   abstract readonly history: SessionFaces<P>['history']
+  get directory(): SessionDirectory<P> | undefined {
+    return undefined
+  }
 }
 export const sessionKey = SessionService.provide
 
@@ -80,10 +77,10 @@ export abstract class SessionTransactionPortService<P = unknown>
   abstract readonly queryControlOperation: SessionTransactionPort<P>['queryControlOperation']
   abstract readonly readModelSelection: SessionTransactionPort<P>['readModelSelection']
   abstract readonly commitEntries: SessionTransactionPort<P>['commitEntries']
-  /** Optional like the port member, and not abstract: a provider without it omits it. */
   declare readonly commitLog?: NonNullable<SessionTransactionPort<P>['commitLog']>
   abstract readonly history: SessionTransactionPort<P>['history']
   abstract readonly pending: SessionTransactionPort<P>['pending']
+  declare readonly directory?: NonNullable<SessionTransactionPort<P>['directory']>
   abstract readonly references: SessionTransactionPort<P>['references']
   abstract readonly releasedScopes: SessionTransactionPort<P>['releasedScopes']
 }
@@ -156,6 +153,22 @@ export abstract class SessionPrincipalBindingsService
   abstract readonly read: SessionPrincipalBindingSource['read']
 }
 export const sessionPrincipalBindingsKey = SessionPrincipalBindingsService.provide
+
+/**
+ * The durable owner of a Context scope: the session that minted it, read from the record Session
+ * writes in the minting commit. Trusted: the `session-storage` row provides it, and only the
+ * assembly entry reads it, per call, where the holder's in-process index has not seen the scope.
+ *
+ * @owner packages/session/session-contract
+ */
+export abstract class SessionScopeOwnersService extends Service implements SessionScopeOwnerSource {
+  static readonly provide = 'sessionScopeOwners'
+  constructor(ctx: Context) {
+    super(ctx, SessionScopeOwnersService.provide)
+  }
+  abstract readonly lookup: SessionScopeOwnerSource['lookup']
+}
+export const sessionScopeOwnersKey = SessionScopeOwnersService.provide
 
 /** @owner packages/session/session-contract */
 export abstract class SessionIdentityBridgeService<P = unknown>
@@ -259,6 +272,23 @@ export abstract class ScopeReleasePortService extends Service implements ScopeRe
 }
 export const sessionScopeReleaseKey = ScopeReleasePortService.provide
 
+export type SessionTenantSource = Readonly<{
+  enumerate(): Promise<
+    | Readonly<{ ok: readonly TenantId[] }>
+    | Readonly<{ failure: Readonly<{ kind: 'unavailable' | 'denied'; diagnostic: string }> }>
+  >
+}>
+
+/** @owner packages/session/session-cordis-contract */
+export abstract class SessionTenantSourceService extends Service implements SessionTenantSource {
+  static readonly provide = 'sessionTenants'
+  constructor(ctx: Context) {
+    super(ctx, SessionTenantSourceService.provide)
+  }
+  abstract readonly enumerate: SessionTenantSource['enumerate']
+}
+export const sessionTenantsKey = SessionTenantSourceService.provide
+
 /** @owner packages/session/session-contract */
 export abstract class SessionAdoptionSourceService<P = unknown>
   extends Service
@@ -269,7 +299,6 @@ export abstract class SessionAdoptionSourceService<P = unknown>
     super(ctx, SessionAdoptionSourceService.provide)
   }
   abstract readonly prepare: SessionAdoptionSource<P>['prepare']
-  /** Optional like the port member, and not abstract: the adoption point that Session calls before `startRun`. */
   declare readonly plan?: NonNullable<SessionAdoptionSource<P>['plan']>
 }
 export const sessionAdoptionSourceKey = SessionAdoptionSourceService.provide
@@ -366,8 +395,6 @@ export abstract class SessionAdoptedRequestsService<P = unknown>
 export const sessionAdoptedRequestsKey = SessionAdoptedRequestsService.provide
 
 declare module '@deepseek-ai/cordis' {
-  // The trusted identity adapter of an assembly narrows the principal type. Providers still
-  // check every input at run time.
   interface Context {
     session: SessionService<unknown>
     sessionAccessCheck: SessionAccessCheckService<unknown>
@@ -376,6 +403,7 @@ declare module '@deepseek-ai/cordis' {
     sessionDelegatedTransactions: SessionDelegatedTransactionsService<unknown>
     sessionWorkPrincipals: SessionWorkPrincipalsService<unknown>
     sessionPrincipalBindings: SessionPrincipalBindingsService
+    sessionScopeOwners: SessionScopeOwnersService
     sessionIdentity: SessionIdentityBridgeService<unknown>
     sessionEvidence: SessionEvidenceBridgeService<unknown>
     sessionClock: SessionClockService
@@ -384,6 +412,7 @@ declare module '@deepseek-ai/cordis' {
     sessionNotifier: SessionNotifierService
     sessionAgentDrive: AgentDrivePortService
     sessionScopeRelease: ScopeReleasePortService
+    sessionTenants: SessionTenantSourceService
     sessionAdoptionSource: SessionAdoptionSourceService<unknown>
     sessionProductionSource: SessionProductionSourceService
     sessionCustodySource: SessionCustodySourceService
@@ -396,16 +425,24 @@ declare module '@deepseek-ai/cordis' {
     /**
      * A committed batch of one session. The payload has identities, the revision, the evidence of
      * the original commit and the entry kinds of the batch. It has no message text, credentials
-     * or attachment addresses. It is a wake-up only, not a source of fact: the sender dispatches
-     * after the commit, does not wait for listeners, and keeps the commit result when a listener
-     * fails. A missed notification is recovered by the authoritative scan.
+     * or attachment addresses. It is a wake-up only, not a source of fact.
+     *
+     * Where it is dispatched: the session log has one writer, and the one landing of its commits
+     * (session-storage-sql「本批与提交通知」) tells each fresh batch, once, to the notifiers
+     * registered on the database. The notifier that session-cordis makes
+     * (`createSessionCommitNotifier`) dispatches this event. A recall, a rollback and a commit that
+     * wrote no entry dispatch nothing. The dispatch comes after the commit, outside its
+     * transaction, does not wait for listeners, and keeps the commit result when a listener fails.
+     * The session provider only listens. A missed notification is recovered by the authoritative
+     * scan.
      *
      * @mode parallel
      * @param tenant - the tenant that owns the session.
      * @param session - the session that changed.
-     * @param revision - the session revision after the batch, as the original receipt gave it.
-     * @param source - the evidence of the original commit; a retry keeps the same value.
-     * @param kinds - the entry kinds that the batch wrote.
+     * @param revision - the revision of the batch, as the writer gave it; a retry keeps the same
+     *   value.
+     * @param source - the evidence of the batch receipt; a retry keeps the same value.
+     * @param kinds - the entry kinds that the batch wrote, without repeats.
      */
     'session-cordis-contract/committed'(
       tenant: TenantId,

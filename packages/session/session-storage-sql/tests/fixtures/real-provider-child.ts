@@ -1,7 +1,3 @@
-// Child process of the kill cases. It opens the real provider on the root in argv[2] and commits one
-// write: the `create` of one session (no argv[3]), or the preadmission intent of `handoff-1`
-// (argv[3] is `preadmission`). It prints one line when the answer came back, and then waits to be
-// killed. It is run by plain `node` (type stripping), so it imports no vitest.
 import { decodePreadmissionReply, preadmissionFacts } from '../../src/participants.ts'
 import { identityOf, openRealApp, preadmissionIntent, TENANT_A } from './real-provider.ts'
 

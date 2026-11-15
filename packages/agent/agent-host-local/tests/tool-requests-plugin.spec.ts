@@ -1,11 +1,4 @@
 import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
-// `createAgentHostLocalPlugin({ toolRequests })` on real Cordis 4.0.4 (agent-host-local SPEC
-// 「Tool 请求来源的插件入口」, R2-D36): the trusted Tool request source given to the plugin factory
-// reaches the dependencies of every runtime the host builds, so a Tool action that the Model
-// suggests is described, prepared and invoked through it. Without it the same action is not
-// invoked. The Model, Journal, action admission and Tool runtime are the non-durable doubles of
-// `@omne-harness/agent/testing`; the Tool request is a fixed value. Nothing here proves a real
-// Tool runtime or a real source of Tool requests.
 import { agentEvaluator } from '@omne-harness/agent'
 import { testAdoption } from '@omne-harness/agent/testing'
 import {
@@ -41,7 +34,16 @@ import {
 import { judgeToolInvokeRequest } from '@omne-harness/tool-contract/provider'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createAgentHostLocalPlugin } from '../src/cordis.ts'
-import { caller, definitions, ok, openWorld, slotOf, turns, type World } from './host-support.ts'
+import {
+  caller,
+  definitions,
+  ok,
+  openWorld,
+  slotOf,
+  turns,
+  type World,
+  type WorldOptions,
+} from './host-support.ts'
 
 const opened: World[] = []
 afterEach(async () => {
@@ -72,7 +74,6 @@ const conditions: RuntimeConditions = {
 }
 
 const selected = {
-  // A Model request accepts only an adoption whose digest is 64 hex digits, as testAdoption mints.
   recipient: { route: 'route-1', profile: testAdoption('profile') },
   resolution: { kind: 'resolved', selectable: true },
   parameters: [],
@@ -97,16 +98,16 @@ function input(): AcceptedInput {
   }
 }
 
-function toolCall(): ContentBlock {
+function toolCall(n = 1): ContentBlock {
   const identity = judgeBlockIdentity({
-    id: 'blk_tool_call_1',
+    id: `blk_tool_call_${n}`,
     visibility: { toHuman: true, toModel: true },
   })
   if ('rejected' in identity) throw new Error(identity.rejected)
   return {
     ...identity.ok,
     kind: 'tool_call',
-    callId: 'tool-call-1',
+    callId: `tool-call-${n}`,
     name: 'read_file',
     arguments: { kind: 'object', entries: [] },
   } as unknown as ContentBlock
@@ -153,12 +154,11 @@ function fixedRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeReques
     consumer,
     batchDecision: null,
     mode: 'foreground',
-    limits: { concurrency: 1, foregroundMs: null, backgroundAfterMs: null },
+    limits: { concurrency: 1, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
   } as never)
   return ok(judged as never)
 }
 
-/** A Tool request source that counts each face and answers a fixed request. */
 function countingSource() {
   const seen = { describe: 0, prepare: 0 }
   const source = {
@@ -174,16 +174,12 @@ function countingSource() {
   return { seen, source }
 }
 
-/**
- * The Tool runtime accepts the invoke with a new Tool call. Agent keeps the receipt as an original
- * fact and never reads it as the current state, so the test does not build a full ToolState.
- */
-function accepted(): ToolInvokeOutcome {
+function accepted(name = 'tool_request'): ToolInvokeOutcome {
   const reference = ok(
     encodeToolInvocationRef({
       tenant: caller('a').tenant,
-      call: ok(decodeToolCallId('tcall_tool_request')),
-      admission: ok(decodeToolOperationId('top_tool_request')),
+      call: ok(decodeToolCallId(`tcall_${name}`)),
+      admission: ok(decodeToolOperationId(`top_${name}`)),
     }),
   )
   return { kind: 'accepted', reference, state: {} as ToolState, recovered: false }
@@ -197,11 +193,15 @@ async function until(probe: () => boolean | Promise<boolean>, ms = 10_000): Prom
   }
 }
 
-/** A host that runs EXECUTION to the point where its Model suggests one Tool call, and delivers it. */
-async function suggestTool(plugin: ReturnType<typeof createAgentHostLocalPlugin>) {
+async function suggestTool(
+  plugin: ReturnType<typeof createAgentHostLocalPlugin>,
+  calls = 1,
+  journal?: WorldOptions['journal'],
+) {
   const host = await openWorld({
     stages: true,
     plugin,
+    ...(journal === undefined ? {} : { journal }),
     dependencies: {
       journal: {
         cancellation: {
@@ -220,7 +220,11 @@ async function suggestTool(plugin: ReturnType<typeof createAgentHostLocalPlugin>
   })
   host.controls.conditions.define(EXECUTION, conditions)
   host.controls.selection.select.always(() => ({ ok: selected }))
-  host.controls.tools.invoke.always(() => accepted())
+  let invoked = 0
+  host.controls.tools.invoke.always(() => {
+    invoked += 1
+    return accepted(`tool_request_${invoked}`)
+  })
   const { instance } = ok(await host.provision.acquire(slotOf('a')))
   const runtime = ok(await host.directory.resolve({ ...caller('a'), instance }))
   ok(
@@ -276,7 +280,11 @@ async function suggestTool(plugin: ReturnType<typeof createAgentHostLocalPlugin>
     call,
     version: ok(decodeResultVersion('mrver_tool_request')),
     termination: { kind: 'completed', reason: 'tool-suggestions' },
-    parts: [{ kind: 'sealed', trims: [], block: toolCall() }],
+    parts: Array.from({ length: calls }, (_, index) => ({
+      kind: 'sealed' as const,
+      trims: [],
+      block: toolCall(index + 1),
+    })),
     source: evidence('model-tool-request'),
     pageSize: 10,
     pageTargetBytes: 65536,
@@ -299,6 +307,39 @@ describe('createAgentHostLocalPlugin with a Tool request source', () => {
       effective: '{}',
       complete: true,
     })
+  })
+
+  it('sends both calls of a batch and commits nothing while it waits for their results', async () => {
+    const { source } = countingSource()
+    let commits = 0
+    const host = await suggestTool(
+      createAgentHostLocalPlugin({ toolRequests: source }),
+      2,
+      port => ({
+        ...port,
+        commit(input) {
+          commits += 1
+          return port.commit(input)
+        },
+      }),
+    )
+    await until(() => host.controls.tools.invoke.calls.length === 2, 3_000)
+    const requests = host.controls.tools.invoke.calls.map(call => call.request)
+    expect(requests.map(request => request.limits.scopeBudget)).toEqual([1, 1])
+    const load = async () =>
+      ok(await host.controls.journal.port.load({ ...caller('a'), execution: EXECUTION }))
+    await until(async () => (await load()).state.kind === 'waiting', 3_000)
+    const before = await load()
+    const committed = commits
+    const asked = host.controls.tools.queries.contact.calls
+    await until(() => asked.length > 2, 3_000)
+    const loads = host.journalCalls.length
+    await until(() => asked.length > 22, 3_000)
+    expect(host.journalCalls.length).toBe(loads)
+    const after = await load()
+    expect(commits).toBe(committed)
+    expect(after.revision).toBe(before.revision)
+    expect(host.controls.tools.invoke.calls).toHaveLength(2)
   })
 
   it('does not invoke the Tool action when no source was given', async () => {

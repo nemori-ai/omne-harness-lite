@@ -36,7 +36,12 @@
             { "name": "ModelRegistrationInput", "kind": "type", "sameAs": ".", "pending": false },
             { "name": "ModelRegistrationFailure", "kind": "type", "sameAs": ".", "pending": false },
             { "name": "ModelRegistration", "kind": "type", "sameAs": ".", "pending": false },
-            { "name": "ModelPublicationAuthority", "kind": "type", "sameAs": ".", "pending": false },
+            {
+              "name": "ModelPublicationAuthority",
+              "kind": "type",
+              "sameAs": ".",
+              "pending": false
+            },
             { "name": "ModelInstancesService", "kind": "class", "pending": false },
             { "name": "modelInstancesKey", "kind": "value", "pending": false }
           ]
@@ -68,9 +73,19 @@
             { "name": "modelHostAuthorityKey", "kind": "value", "pending": false },
             { "name": "ModelPublicationAuthorityService", "kind": "class", "pending": false },
             { "name": "modelPublicationAuthorityKey", "kind": "value", "pending": false },
-            { "name": "ModelConverterRegistrationInput", "kind": "type", "sameAs": ".", "pending": false },
+            {
+              "name": "ModelConverterRegistrationInput",
+              "kind": "type",
+              "sameAs": ".",
+              "pending": false
+            },
             { "name": "ModelConverterAuthority", "kind": "type", "sameAs": ".", "pending": false },
-            { "name": "ModelConverterRegistration", "kind": "type", "sameAs": ".", "pending": false },
+            {
+              "name": "ModelConverterRegistration",
+              "kind": "type",
+              "sameAs": ".",
+              "pending": false
+            },
             { "name": "ModelConverterAuthorityService", "kind": "class", "pending": false },
             { "name": "modelConverterAuthorityKey", "kind": "value", "pending": false },
             { "name": "ModelConvertersService", "kind": "class", "pending": false },
@@ -121,7 +136,11 @@
         {
           "title": "准备资源租约",
           "names": [
-            { "name": "createScriptedModelPreparationResources", "kind": "value", "pending": false },
+            {
+              "name": "createScriptedModelPreparationResources",
+              "kind": "value",
+              "pending": false
+            },
             { "name": "createModelPreparationResourcesPlugin", "kind": "value", "pending": false },
             { "name": "modelPreparationResourcesConformance", "kind": "value", "pending": false },
             { "name": "ScriptedModelPreparationResources", "kind": "type", "pending": false },
@@ -165,9 +184,7 @@
     {
       "module": "@deepseek-ai/cordis",
       "interface": "Events",
-      "members": [
-        "model-cordis-contract/call-changed"
-      ],
+      "members": ["model-cordis-contract/call-changed"],
       "pending": false
     }
   ]

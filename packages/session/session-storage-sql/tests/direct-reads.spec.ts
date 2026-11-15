@@ -1,9 +1,3 @@
-// The boundary of the direct readers of the Session current state (SPEC RT-04「当前状态的拥有者与直接读者」).
-// The work cache is the only in-memory owner of `session.work`: no other product source names the
-// `session.work` or `session.work-version` handler, so no other module reads the snapshot from the
-// store past the cache. The check runs `git grep` over the product sources of the repository
-// (every `src` of `packages` and `apps`, tracked and untracked, archives left out), so a new direct
-// reader anywhere turns it red, not only one in this package.
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -16,14 +10,12 @@ const PRODUCT_SOURCES = [
   ':(exclude,glob)**/*.legacy/**',
 ]
 
-/** The product source files, relative to the repository root, whose text matches `pattern`. */
 function filesNaming(pattern: string): string[] {
   const result = spawnSync(
     'git',
     ['grep', '--untracked', '-l', '-E', pattern, '--', ...PRODUCT_SOURCES],
     { cwd: ROOT, encoding: 'utf8' },
   )
-  // 0: matches, 1: none; anything else is a failure of the check itself, never a pass.
   if (result.status !== 0 && result.status !== 1)
     throw new Error(`git grep failed (${String(result.status)}): ${result.stderr}`)
   return result.stdout
@@ -52,22 +44,16 @@ describe('only the work cache reads the Session current state from the store', (
   })
   it('the snapshot row is named only by its schema, the commit path and the listed readers', () => {
     expect(filesNaming('(^|[^[:alnum:]_])sl_state([^[:alnum:]_]|$)')).toEqual([
-      // The table declarations of the materials and the migration.
       `${PACKAGE}/materials.ts`,
-      // The commit path, inside the write transaction (RT-04, the fifth kind).
       `${PACKAGE}/worker/check.ts`,
       `${PACKAGE}/worker/entries.ts`,
       `${PACKAGE}/worker/log.ts`,
       `${PACKAGE}/worker/participant.ts`,
-      // The model selection read: a known direct reader of the row (RT-04).
       `${PACKAGE}/worker/read-model-selection.ts`,
-      // A comment that says the version read does not read the row.
-      `${PACKAGE}/worker/read-work-version.ts`,
+      `${PACKAGE}/worker/run-live-guard.ts`,
       `${PACKAGE}/worker/schema.ts`,
-      // The stored form of the snapshot: its head row and chunk rows (R2-D292). The commit path and
-      // the whole read of the work cache (`read-work.ts`) read and write the snapshot through it.
+      `${PACKAGE}/worker/session-list-migration.ts`,
       `${PACKAGE}/worker/state-rows.ts`,
-      // A manifest vector of the SQL contract that names the table as data.
       'packages/storage/sql-contract/src/testing/manifest-vector.ts',
     ])
   })

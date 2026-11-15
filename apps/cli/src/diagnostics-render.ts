@@ -18,15 +18,10 @@ function at(depth: number, line: string): string {
   return `${'  '.repeat(depth)}${line}`
 }
 
-/**
- * A value the projection could not read, with the reason of that read. The reason is in
- * parentheses, so `unknown (unsupported)` is not read as two words of a closed field.
- */
 function unknown(value: SessionDiagnosticUnknown): string {
   return `unknown (${value.reason})`
 }
 
-/** A closed field that may be `unknown`. */
 function closedOrUnknown(value: string | SessionDiagnosticUnknown): string {
   return typeof value === 'string' ? value : unknown(value)
 }
@@ -35,11 +30,6 @@ function milliseconds(value: SessionDiagnosticMilliseconds): string {
   return value.kind === 'known' ? `${value.milliseconds} ms` : 'unknown'
 }
 
-/**
- * The `reason:` line of a Run that ended: the closed kind of Agent's finish candidate and its
- * closed fields, so the words of the owner are the words a person reads. `none` is a completed Run
- * whose finish the projection did not read; it has no reason line.
- */
 function reasonOf(cause: SessionRunCause): string | undefined {
   switch (cause.kind) {
     case 'none':
@@ -55,7 +45,6 @@ function reasonOf(cause: SessionRunCause): string | undefined {
     case 'cannot-fit':
       return `cannot-fit ${closedOrUnknown(cause.reason)}`
     default:
-      // The kinds without fields (`request-rejected`, `guard`, ...) are their name.
       return cause.kind
   }
 }
@@ -76,7 +65,6 @@ function attemptOutcome(outcome: SessionModelAttemptDiagnostic['outcome']): stri
   }
 }
 
-/** One usage or cost item: its name, its number or `unknown`, its unit and its state. */
 function amount(
   name: string,
   item: { readonly unit: string; readonly state: string; readonly lexeme: string | null },
@@ -84,7 +72,6 @@ function amount(
   return `${name} ${item.lexeme ?? 'unknown'} ${item.unit} ${item.state}`
 }
 
-/** The `account:` line of a model dispatch or a tool call. */
 function accountLine(view: SessionCallAccountView | SessionDiagnosticUnknown): string {
   if (view.kind === 'unknown') return `account: ${unknown(view)}`
   const usage = view.usage.map(item => amount(item.name, item)).join(', ') || 'none'
@@ -93,7 +80,6 @@ function accountLine(view: SessionCallAccountView | SessionDiagnosticUnknown): s
   return `account: ${usage}; cost: ${cost}; duration ${duration}; receipt ${view.receipt}`
 }
 
-/** `facts: <kind> <count>, ...` of a Run or a call; nothing when it has no execution fact. */
 function factsLines(depth: number, facts: readonly SessionFactCount[]): string[] {
   if (facts.length === 0) return []
   return [at(depth, `facts: ${facts.map(fact => `${fact.kind} ${fact.count}`).join(', ')}`)]
@@ -108,10 +94,6 @@ const releasedReasons = [
   'superseded',
 ] as const satisfies readonly (keyof SessionRunAttempts['released'])[]
 
-/**
- * `attempts: <started>`, and after it in parentheses each released reason and the exits whose
- * count is not zero: `attempts: 2 (released: ended 1, superseded 1; exited 1)`.
- */
 function attemptsLine(attempts: SessionRunAttempts): string {
   const released = releasedReasons
     .filter(reason => attempts.released[reason] !== '0')
@@ -172,7 +154,6 @@ function renderToolCall(call: SessionToolCallDiagnostic): string[] {
   ]
 }
 
-/** `diagnostics: <n>` and one line per entry, or `diagnostics: unknown (<reason>)`. */
 function toolDiagnosticsLines(
   diagnostics: readonly SessionToolDiagnosticEntry[] | SessionDiagnosticUnknown,
 ): string[] {
@@ -190,11 +171,6 @@ function renderControl(control: SessionRunControl): string {
   )
 }
 
-/**
- * The text a person reads for one Run: a header with how it ended, its attempts, the recorded
- * cause and its reason, each control, each model call with its dispatches and their accounts, each
- * tool call with its account and diagnostics, the message counts and the execution facts. A value a source did not give reads `unknown` with the reason of that read.
- */
 function renderRun(run: SessionRunDiagnostic): string[] {
   const { terminal } = run
   const reason = terminal === null ? undefined : reasonOf(terminal.cause.structured)
@@ -217,7 +193,6 @@ function renderRun(run: SessionRunDiagnostic): string[] {
   ]
 }
 
-/** The gaps of the whole read, one line each, after the Runs. Nothing when there is no gap. */
 function renderGaps(gaps: readonly SessionDiagnosticGap[]): string[] {
   if (gaps.length === 0) return []
   return [
@@ -226,7 +201,6 @@ function renderGaps(gaps: readonly SessionDiagnosticGap[]): string[] {
   ]
 }
 
-/** The whole text: one block for each Run in page order, then the gaps. Empty when there is neither. */
 export function renderDiagnostics(
   runs: readonly SessionRunDiagnostic[],
   gaps: readonly SessionDiagnosticGap[],

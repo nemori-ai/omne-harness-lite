@@ -1,7 +1,3 @@
-// The system reads across tenant domains (R10 references, R11 releasedScopes; Context r3.2
-// RD-CURSOR and the references flow): rows of two tenants in tenant order, the continuation across
-// the tenant boundary, the directory revision that a references cursor is bound to and a released
-// scopes cursor is not, and a directory entry whose domain belongs to another tenant.
 import { describe, expect, it } from 'vitest'
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import type { TenantDomainAccess } from '@omne-harness/sql-contract'
@@ -9,7 +5,6 @@ import { createSessionStorage } from '../src/index.ts'
 import { app, TENANT_A, TENANT_B, TENANT_C, textOf, type App } from './fixtures/app.ts'
 import { kindOf } from './fixtures/entries.ts'
 
-// Tenant text order is A < B < C. The fixture puts B in dom_0 and C in dom_1.
 const ok = <T>(value: unknown): T => {
   expect(value, JSON.stringify(value)).toHaveProperty('ok')
   return (value as { ok: T }).ok
@@ -149,7 +144,6 @@ describe('references over two tenants', () => {
       field: 'cursor',
     })
     expect(a.provider.calls.length).toBe(mark)
-    // A walk from the first page reads the new tenant too.
     const again = await walk<Reference>(after => references(a, after, 2))
     expect(again.flat().map(tenantOf)).toEqual(['A', 'B', 'B', 'C', 'C'])
   })
@@ -164,14 +158,12 @@ describe('a references cursor and its key', () => {
       kind: 'invalid',
       field: 'cursor',
     })
-    // The key that issued the cursor goes on from it.
     const rest = ok<Page<Reference>>(await references(a, first.next, 1))
     expect(rest.rows.map(row => label(row, row.capability))).toEqual(['B/s2/cap'])
   })
 })
 
 describe('a tenant domain directory that cannot be read', () => {
-  /** The same storage and access with a directory that answers `unavailable` to a snapshot. */
   const unreadable = (a: App) => {
     const domains: TenantDomainAccess = {
       resolve: () => Promise.resolve({ kind: 'unavailable', diagnostic: 'directory down' }),
@@ -244,7 +236,6 @@ describe('a directory entry whose domain is not the domain of its tenant', () =>
       const a = await twoTenants()
       const [b, c] = a.directory.entries
       if (b === undefined || c === undefined) throw new Error('fixture')
-      // C's entry names B's domain: a swap in the directory.
       a.directory.entries[1] = { tenant: c.tenant, domain: b.domain }
       const mark = a.provider.calls.length
       expect(kindOf(await read(a))).toBe('unavailable')
@@ -255,7 +246,6 @@ describe('a directory entry whose domain is not the domain of its tenant', () =>
   for (const [name, read] of reads)
     it(`${name}: an entry whose tenant text is not a minted tenant is unavailable, not skipped`, async () => {
       const a = await twoTenants()
-      // The domain really exists under that text, so only the tenant check of the walk refuses it.
       const domain = {
         scope: { kind: 'tenant' as const, tenant: 'not-a-tenant' },
         transactionDomain: 'dom_unminted',

@@ -1,5 +1,4 @@
 // @module-tag slow
-// Starts real process groups and waits for bounded failure and cleanup.
 import assert from 'node:assert/strict'
 import { fork, spawn, type ChildProcess } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -26,9 +25,6 @@ const evidenceRoot = fileURLToPath(
   new URL('../../../../tmp/model-contract-protocol/', import.meta.url),
 )
 const scripts = ['model.mjs', 'self-test.mjs', 'knowledge-test.mjs', 'boundary-test.mjs', 'run.mjs']
-// The supervisor reaps the model through its POSIX process group and refuses to start on Windows
-// (tests/protocol-model/README.md); protocol-model.spec.ts checks that refusal there. The skip is
-// made at run time: vitest's pre-parse drops a slow file whose every test is a static skipIf.
 beforeEach(({ skip }) => {
   skip(process.platform === 'win32', 'POSIX process groups are required')
 })
@@ -38,15 +34,8 @@ const limits = {
   settleMs: 3500,
   cleanupMs: 2000,
   hardMs: 18000,
-  // Budget from supervisor fork until the hanging fixture has written its start pids: root and
-  // descendant for the parent-death and signal cases, root and grandchild for `deadline`. The
-  // controller program uses the same value as its startMs.
   fixtureStartMs: 2500,
-  // Polling margin for grandchild.pid once the fixture started; the descendant writes it first. The
-  // controller program uses the same value as its readyMs. `deadline` has no separate ready wait.
   fixtureReadyMs: 300,
-  // Added to the `deadline` supervisor duration. The main safety margin is that the supervisor timer
-  // starts only after the supervisor spawns the fixture; see the `deadline` case.
   deadlineMarginMs: 200,
 }
 type ProcessExit = { code: number | null; signal: string | null }
@@ -257,16 +246,14 @@ function createSource(source: string, program: string): void {
   for (const file of scripts) copyFileSync(join(sourceDirectory, file), join(source, file))
   writeFileSync(join(source, 'run.mjs'), program)
 }
-// Fixture code that writes its own pid file through a binding named `fs`. writeFileSync creates the
-// file before it writes the content, so a reader that polls for the file can see it empty. The pid
-// goes to a temporary name in the same directory and is renamed into place, so an existing pid file
-// always holds the whole pid.
+// writeFileSync creates the file before it writes the content, so a poller can see it empty:
+// write to a temporary name and rename it into place.
 function writePidFile(name: string): string {
   const temporary = JSON.stringify(`${name}.tmp`)
   return `fs.writeFileSync(${temporary},String(process.pid));fs.renameSync(${temporary},${JSON.stringify(name)});`
 }
-// The descendant announces itself in grandchild.pid only when `announce` is set. It always writes
-// descendant.pid last, so once descendant.pid exists the announcement either exists or never will.
+// descendant.pid is always written last: once it exists, the grandchild announcement either
+// exists or never will.
 function hanging(announce = true): string {
   const announcement = announce ? writePidFile('grandchild.pid') : ''
   return `import { spawn } from 'node:child_process';
@@ -684,9 +671,8 @@ const failureCases = [
   {
     name: 'deadline',
     program: hanging(),
-    // The case waits up to fixtureStartMs from supervisor fork for root.pid and grandchild.pid. The
-    // supervisor timer starts only after the supervisor has started and spawned the fixture, so it
-    // fires later than that wait would expire; this, not deadlineMarginMs, is the main safety margin.
+    // The supervisor timer starts only after it has spawned the fixture, so it fires later than
+    // the wait for the pid files expires; that, not deadlineMarginMs, is the main safety margin.
     duration: limits.fixtureStartMs + limits.fixtureReadyMs + limits.deadlineMarginMs,
     reason: /^deadline$/,
   },
@@ -737,8 +723,6 @@ test.each(failureCases)(
       const cleanup: CleanupAction[] = []
       let report: unknown
       try {
-        // Fixture start and readiness have their own deadlines. A supervisor that exits before the
-        // fixture is ready fails with its own reason instead of a later assertion about pid files.
         const pidFilesWritten = (...files: [string, ...string[]]) => {
           if (files.every(file => existsSync(join(target, file)))) return true
           if (state.error) throw state.error

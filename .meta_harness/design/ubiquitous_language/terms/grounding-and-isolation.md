@@ -27,7 +27,7 @@
 > change the action space**.
 
 - **形态**：对象
-- **出处**：[PF-004 §4 执行环境](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#执行环境)（rev 20） · [PF-005 §4](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#执行环境)（rev 9） · [PF-005 §6.1](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 9）
+- **出处**：[PF-004 §4 执行环境](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#执行环境)（rev 20） · [PF-005 §4](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#执行环境)（rev 9） · [PF-005 §6.1](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 9）
 - **注意 ①**：**它的存活与 agent runtime 无关**——可能短得多（一次工具调用就结束），也可能长得多（绑定在租户）
 - **⚠️ 注意 ②**：**它不是一个被注入的取值。**装配留下的是
   「需要哪几类环境」与「装进来哪些[沙箱实现](#ul-sandbox-implementation--沙箱实现--sandbox-implementation)」两样，
@@ -49,7 +49,7 @@
 > possible.
 
 - **形态**：变体（父：[执行环境](#ul-execution-environment--执行环境--execution-environment)）
-- **出处**：[PF-005 §4 沙箱](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#沙箱)（rev 9）
+- **出处**：[PF-005 §4 沙箱](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#沙箱)（rev 9）
 - **别混**：与[沙箱实现](#ul-sandbox-implementation--沙箱实现--sandbox-implementation)不是一回事——**后者是装配进来的那个提供者**，前者是**这次执行落进去的那个隔离环境**
 - **注意**：**沙箱不是资产**
 
@@ -69,11 +69,11 @@
 > the host machine is not among them — it needs no plugging in.
 
 - **形态**：对象
-- **出处**：[PF-005 §4 沙箱实现](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#沙箱实现)（rev 9） · [§6.1](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 9）
+- **出处**：[PF-005 §4 沙箱实现](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#沙箱实现)（rev 9） · [§6.1](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 9）
 - **别混**：**不是[沙箱](#ul-sandbox--沙箱--sandbox)本身**——一个沙箱实现可以起出很多个沙箱
-- **注意 ①**：**它不是资产**——[理由与沙箱那条一样](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#67-沙箱不是资产)：资产约束 agent 由什么组装而成，它提供的是动作落地的地方
+- **注意 ①**：**它不是资产**——[理由与沙箱那条一样](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#67-沙箱不是资产)：资产约束 agent 由什么组装而成，它提供的是动作落地的地方
 - **注意 ②**：**这次执行要落隔离环境时，拿设施与层级去匹配已装配的这些；
-  [匹配不上就拒绝](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#69-落点不可用就是拒绝不降级)，不回退宿主机**
+  [匹配不上就拒绝](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#69-落点不可用就是拒绝不降级)，不回退宿主机**
 
 ### UL-host-machine · 宿主机 · Host Machine
 
@@ -94,13 +94,13 @@
 > an effect may land directly on it must be explicitly permitted**.
 
 - **形态**：变体（父：[执行环境](#ul-execution-environment--执行环境--execution-environment)）
-- **出处**：[PF-005 §4 宿主机](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#宿主机)（rev 9） · [§6.1](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 9） · [§6.2](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#62-宿主机不提供租户隔离因此必须被显式允许)（rev 9）
-- **⚠️ 别混 ①**：**不是[会话据点](#ul-session-base--会话据点--session-base)。**命令行交付形态下两者恰好是同一台机器（[PF-016](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#会话据点)），但宿主机回答「一次工具执行的作用落在哪」、每次执行现算，据点回答「这些会话的事实存在哪」
-- **⚠️ 别混 ②**：**裸写「宿主」不是它**——词表里「宿主」指承载一个协程或一段执行、它没了那一段就跟着没了的那一方（agent runtime、会话；见[取消跟着宿主走](agent-runtime-loop.md#ul-cancellation-follows-host--取消跟着宿主走--cancellation-follows-host)），在[领域对象条目](../../domain_objects/conventions.md#一条对象条目长什么样)里是「寿命跟着谁」那一栏；hooks 来自的第三方 agent 产品（Claude Code、Codex）也不是宿主，规格里另有称呼。这几个所指都不是宿主机
+- **出处**：[PF-005 §4 宿主机](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#宿主机)（rev 9） · [§6.1](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 9） · [§6.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#62-宿主机不提供租户隔离因此必须被显式允许)（rev 9）
+- **⚠️ 别混 ①**：**不是[会话据点](#ul-session-base--会话据点--session-base)。**命令行交付形态下两者恰好是同一台机器（[PF-016](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#会话据点)），但宿主机回答「一次工具执行的作用落在哪」、每次执行现算，据点回答「这些会话的事实存在哪」
+- **⚠️ 别混 ②**：**裸写「宿主」不是它**——词表里「宿主」指承载一个协程或一段执行、它没了那一段就跟着没了的那一方（agent runtime、会话；见[取消跟着宿主走](agent-runtime-loop.md#ul-cancellation-follows-host--取消跟着宿主走--cancellation-follows-host)）；hooks 来自的第三方 agent 产品（Claude Code、Codex）也不是宿主，规格里另有称呼。这几个所指都不是宿主机
 - **注意 ①**：**它不被装配**——要装配的是[沙箱实现](#ul-sandbox-implementation--沙箱实现--sandbox-implementation)，而且是可选的
 - **注意 ②**：**沙箱创建失败不得退回宿主机**——那等于绕过安全判断
 - **注意 ③**：**[工作区实例](scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance)的本地目录不是它上面的边界**——
-  作用允许落宿主机，范围就是整台宿主机，[目录内外走同一条放行判断](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#工作区的承载目录不是宿主机上的边界)
+  作用允许落宿主机，范围就是整台宿主机，[目录内外走同一条放行判断](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#工作区的承载目录不是宿主机上的边界)
 
 ### UL-stateless-sandbox · 无状态沙箱 · Stateless Sandbox
 
@@ -112,7 +112,7 @@
 > goes with it — there was never anything meant to be kept.
 
 - **形态**：对象
-- **出处**：[PF-005 §5.1 四种执行环境](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#51-四种执行环境)（rev 9）
+- **出处**：[PF-005 §5.1 四种执行环境](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#51-四种执行环境)（rev 9）
 - **别混**：它「不绑定」是因为**用完就扔**；宿主机「不绑定」是因为**大家共用**。
   **两个「不绑定」含义相反**，这正是分类必须拆成两维的原因
 
@@ -128,8 +128,8 @@
 > the session need one again, **a fresh one is built and the clock starts over**.
 
 - **形态**：对象
-- **出处**：[PF-005 §5.1 四种执行环境](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#51-四种执行环境)（rev 9） ·
-  [§6.3](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 9）
+- **出处**：[PF-005 §5.1 四种执行环境](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#51-四种执行环境)（rev 9） ·
+  [§6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 9）
 - **注意**：**同一个执行环境里的终端会话会一起消失**——环境是它们的宿主，agent **必须被告知**
 - **注意 ②**：寿命类名沿产品词；在执行环境的[绑定层](#ul-environment-binding--绑定层--environment-binding)里，它的归属字段是不透明的[作用域引用](scope-and-resolution.md#ul-scope-ref--作用域引用--scope-reference)，执行环境不解释它是不是会话
 
@@ -149,7 +149,7 @@
 > migratable**, lasting as long as the tenant does.
 
 - **形态**：对象
-- **出处**：[PF-005 §5.2](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事)（rev 9） · [§6.4](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#64-租户级沙箱共享的工作空间)（rev 9）
+- **出处**：[PF-005 §5.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事)（rev 9） · [§6.4](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#64-租户级沙箱共享的工作空间)（rev 9）
 
 ### UL-sandbox-data · 沙箱数据 · Sandbox Data
 
@@ -164,7 +164,7 @@
 > be lost" both hold.**
 
 - **形态**：对象
-- **出处**：[PF-005 §4 沙箱内的数据](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#沙箱内的数据)（rev 9） · [§5.2](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事)（rev 9）
+- **出处**：[PF-005 §4 沙箱内的数据](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#沙箱内的数据)（rev 9） · [§5.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事)（rev 9）
 
 ### UL-environment-facility · 环境设施 · Environment Facility
 
@@ -181,10 +181,10 @@
 > facilities.
 
 - **形态**：属性
-- **出处**：[PF-005 §4 设施](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#设施)（rev 9）
+- **出处**：[PF-005 §4 设施](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#设施)（rev 9）
 - **别混**：**裸写「设施」不作数**——它专指执行环境声明的这一层；某一种设施的协议是[设施声明](#ul-facility-descriptor--设施声明--facility-descriptor)，不是这一条
 - **注意**：**环境声明自己提供什么**归这里；**工具声明自己需要什么怎么声明**归工具那一块；
-  [匹配不上的后果归 PF-005](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#69-落点不可用就是拒绝不降级)
+  [匹配不上的后果归 PF-005](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#69-落点不可用就是拒绝不降级)
 - **注意**：**设施给不了时不降级、不绕道**
 - **注意 ③**：正文里的「命令行设施」是旧说法，它包括 `command` 与 `terminal` 两个独立的设施键；[终端会话](#ul-terminal-session--终端会话--terminal-session)开在 `terminal` 设施里
 
@@ -200,7 +200,7 @@
 > environment**, so when it goes, **all of them go with it**.
 
 - **形态**：对象
-- **出处**：[元能力：`Shell()`](../../product/meta-capabilities/design.md#meta-shell)（rev 6） · [PF-005 §6.3](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 9）
+- **出处**：[元能力：`Shell()`](../../product/meta-capabilities/design.md#meta-shell)（rev 7） · [PF-005 §6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 9）
 - **⚠️ 别混**：**不是[会话](agent-runtime-loop.md#ul-session--会话--session)。**
   两者**毫无关系**——一个是协作的归属边界，一个是执行环境里的一条命令行。
   **`Shell()` 的命令名 `create_session` / `close_session` 不改**（那是接口），
@@ -225,14 +225,14 @@
 > effect lands, never whether the action is permitted.**
 
 - **形态**：属性
-- **出处**：[PF-005 §4 执行环境权限](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#执行环境权限) ·
-  [§6.8](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#68-执行环境权限每个工具各配各的)（rev 9）
+- **出处**：[PF-005 §4 执行环境权限](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#执行环境权限) ·
+  [§6.8](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#68-执行环境权限每个工具各配各的)（rev 9）
 - **⚠️ 别混**：**不是[会话运行模式](agent-runtime-loop.md#ul-session-run-mode--会话运行模式--session-run-mode)。**
   **两者都是三态、都曾各有一个 `auto`**，但**一个决定「准不准」，一个决定「落在哪」**，
   而且**会在同一次执行里一前一后出现**。**两个名字特意分开取**：`auto_permission` 对 `auto_place`
 - **⚠️ 注意 ①**：**粒度是「门」这一级，不是命令级。**执行环境是配给一扇门的，
   门后命令共同受该工具的落点策略约束，每次调用仍按设施及当前条件选择合法环境，不保证历次调用落在同一实例；而[「能不能做」本来就是一条一条命令的事](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)
-- **⚠️ 注意 ②**：**[落点不可用就是拒绝，不降级](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#69-落点不可用就是拒绝不降级)。**
+- **⚠️ 注意 ②**：**[落点不可用就是拒绝，不降级](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#69-落点不可用就是拒绝不降级)。**
   `auto_place` 算出该进容器而容器起不来，**这次执行被拒**，**不回退宿主机**
 - **注意 ③**：**[meta tool](capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability) 一样受它管。**
   给 `Shell()` 配 `never-allow` **并没有关掉那扇门**，只是规定它的作用落在隔离环境里——
@@ -261,9 +261,9 @@
 > be met, the tool is unavailable — never satisfied by a lesser environment**.
 
 - **形态**：属性
-- **出处**：[PF-006 §6.8 工具怎么提执行环境的要求](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#68-工具怎么提执行环境的要求) ·
-  [§5.3 其中两项声明的是设置项](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#其中两项声明的是设置项)（rev 24） ·
-  [PF-002 §4 Tool](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）
+- **出处**：[PF-006 §6.8 工具怎么提执行环境的要求](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#68-工具怎么提执行环境的要求) ·
+  [§5.3 其中两项声明的是设置项](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#其中两项声明的是设置项)（rev 24） ·
+  [PF-002 §4 Tool](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）
 - **别混**：**它说的是「要什么」**；[执行环境权限](#ul-execution-environment-permission--执行环境权限--execution-environment-permission)说的是「许落在哪」；
   这次执行实际落在哪，是按两者**每次现算**出来的——执行环境权限改了，下一次执行按新值现算，不必重建任何东西
 - **注意**：**不声明就是没有特殊要求**——它是工具定义里那项「需要什么样的执行环境」声明落成的设置
@@ -275,7 +275,7 @@
 > **EN**: What the effects of an execution environment live with, one of four kinds: the host machine; a stateless sandbox, living with one original call inside a scope; a session-scoped sandbox, living with one scope; a tenant-scoped sandbox, living with one tenant. The kind plus the owner is its value. The owner is an opaque scope reference or a tenant identity, and the execution environment does not interpret what the scope is.
 
 - **形态**：属性
-- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 3）
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 4）
 - **别混**：不是[执行环境权限](#ul-execution-environment-permission--执行环境权限--execution-environment-permission)的三个策略词。策略词在执行环境之外求值，翻译成一份有序的绑定层清单后才交给执行环境
 - **注意**：寿命类名沿产品词「会话级沙箱」，归属字段是作用域引用，不是会话身份
 
@@ -286,7 +286,7 @@
 > **EN**: Whether an execution environment **can still be continued at this moment**: not guaranteed, continuous (with a data identity and revision), or lost (with the previous identity). The provider states it on every description or lease. It is not a lifetime. The lifetime is stated by the binding.
 
 - **形态**：状态
-- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 3）
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 4）
 - **别混**：不是[沙箱数据](#ul-sandbox-data--沙箱数据--sandbox-data)的保存承诺。连续说的是实例还接得上，不说数据会保存多久
 
 ### UL-environment-requirement · 环境要求 · Environment Requirement
@@ -296,7 +296,7 @@
 > **EN**: The three things an integrator translates for one acquisition: an **ordered** list of allowed bindings, the set of facility keys needed, and the set of isolation claims to confirm. The execution environment never selects a binding outside the list. The order inside the list is the integrator's preference.
 
 - **形态**：属性
-- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 3）
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 4）
 - **别混**：不是[目标环境](#ul-target-environment--目标环境--target-environment)。目标环境是工具声明的一项设置，说工具要什么。被求值的是[执行环境权限](#ul-execution-environment-permission--执行环境权限--execution-environment-permission)：发起协调者求出它的有效值（三个策略词之一），工具宿主把这个值与工具声明的目标环境翻译成允许清单。环境要求是翻译之后交给执行环境的结果。目标环境词条的旧出处另有说法，见 [conflicts C-68](../conflicts.md#c-68目标环境的求值结果是不是这次执行的要求)
 
 ### UL-facility-descriptor · 设施声明 · Facility Descriptor
@@ -306,7 +306,7 @@
 > **EN**: The protocol statement of one kind of environment facility, published by that facility's owner: the key, the list of operations, and which of them require per-operation authorization. One key has exactly one descriptor in the whole system. A provider can only declare keys that have a descriptor. An unregistered key yields no facility. Its identity is the key. It lives from registration to withdrawal.
 
 - **形态**：对象
-- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 3）
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 4）
 - **别混**：不是[环境设施](#ul-environment-facility--环境设施--environment-facility)。环境设施是「一个环境提供哪几种手段」那一维；设施声明是其中一种手段的协议
 - **注意**：声明只提供词汇，不安装设施，也不授权操作
 
@@ -317,7 +317,7 @@
 > **EN**: The identity carried by one operation on a facility: the request id, the access identity (principal plus tenant), the original call, the binding, plus the operation's own parameters. One request id has exactly one confirmation: done, unresolved, rejected (with a reason), or unknown. A later operation with the same parameters is another request.
 
 - **形态**：属性
-- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 3）
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 4）
 - **注意**：完成只表示这次请求确认的那一项成功：读取完成不表示写入完成；启动被接纳不表示进程已启动
 
 ### UL-placement · 落点 · Placement
@@ -327,7 +327,7 @@
 > **EN**: The binding and provider selected inside the allowed list of an environment requirement. It grants neither facilities nor resources. Resolving a placement and acquiring are not one atomic action. Acquisition checks again.
 
 - **形态**：属性
-- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 3）
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 4）
 - **别混**：不是[执行环境](#ul-execution-environment--执行环境--execution-environment)本身。落点是选择结果；执行环境是选中后实际在跑的那一个
 
 ### UL-environment-acquisition · 获取 · Environment Acquisition
@@ -337,7 +337,7 @@
 > **EN**: The transaction in which an integrator asks the execution environment for a lease at one placement. It is identified by the idempotency key the integrator supplies: a repeated request with the same key returns the same state and allocates nothing new. It runs from the placement, through the provider's provisional receipt, the execution environment's verification and the issue of an adoption record, to confirmed release. Its state is kept in the caller's durable ledger.
 
 - **形态**：对象
-- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 3）
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 4）
 - **注意**：提供者回执是临时的，核验通过才交付；核验失败尝试释放，释放待处置则保留在原提供者登记上
 
 ### UL-environment-adoption · 采用记录 · Environment Adoption
@@ -347,7 +347,7 @@
 > **EN**: The record the execution environment issues after one acquisition passes verification: the placement, the provider's name and generation, the instance identity and generation, the continuity, and the provider's evidence. The integrator persists it with its own preparation record. The provider's evidence is not a permission the provider signed for itself.
 
 - **形态**：属性
-- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 3）
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 4）
 - **别混**：不是[租约](#ul-environment-lease--租约--environment-lease)。租约是活的使用入口；采用记录是可以持久保存的事实
 
 ### UL-environment-lease · 租约 · Environment Lease
@@ -357,7 +357,7 @@
 > **EN**: The usage entry one acquisition hands to the integrator: it exposes only the facility keys in the environment requirement, every operation passes the facility guard first, it carries the instance identity and generation and the continuity, and invalidation is observable. Release applies to this acquisition only and ends as released, or as pending with the managed resources not yet stopped. Its identity is the acquisition plus the instance generation.
 
 - **形态**：对象
-- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 3）
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 4）
 - **注意**：丢掉引用不是释放；共享环境不因一次释放而销毁
 
 ### UL-managed-resource · 受管资源 · Managed Resource
@@ -367,7 +367,7 @@
 > **EN**: Something inside an execution environment that **may outlive the process** and is therefore recorded in the caller's durable ledger: a process, a terminal, a file batch. Its value is a key, the provider, and a JSON reference. The reference is for recognition during recovery. It is not a live handle or a bare process id. It moves from planned, permitted, optionally adopted, running, to stopped. Stopped is either confirmed or unconfirmed, and unconfirmed is never written as stopped.
 
 - **形态**：对象
-- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 3）
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 4）
 - **别混**：单项文件操作不是受管资源；批次是
 
 ### UL-resource-ledger · 资源账本 · Resource Ledger
@@ -377,7 +377,7 @@
 > **EN**: A durable commitment the execution environment requires from the integrator: every managed resource is planned, then permitted, and the first external effect is issued only after the permit is confirmed. Stops are confirmed separately. A closed ledger issues no new permit. Finality and permits are written in the same durable order. The integrator implements the ledger. The execution environment only calls it.
 
 - **形态**：规则
-- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 3）
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 4）
 - **注意**：独立调用者可以提供非耐久替身，后果自负；账本关闭不撤销已经发生的效果
 
 ### UL-facility-guard · 设施守卫 · Facility Guard
@@ -387,7 +387,7 @@
 > **EN**: The per-operation authorization the execution environment requires from the integrator: before every guarded facility operation is issued, it asks whether this operation is still allowed now, and gets authorized, not authorized, or unavailable. The integrator implements the guard from current authorization. The execution environment does not know the basis and only passes or rejects by the answer.
 
 - **形态**：规则
-- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 3）
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 4）
 - **别混**：不是动作准入。准入在发起前判一次动作准不准；守卫在每次设施操作时再判一次
 
 ### UL-recovery-authority · 恢复授权 · Recovery Authority
@@ -397,7 +397,7 @@
 > **EN**: The authority the integrator's maintenance owner issues, independent of user access, to stop, recognise and settle the managed resources of a scope after the scope is released or after a failure. It cannot be used to acquire an environment or to start new execution. A user's revocation or departure does not block recovery under it. It is a non-serializable original object.
 
 - **形态**：属性
-- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 3）
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 4）
 - **注意**：作用域级释放由应用装配层的协调者以维护者身份、凭恢复授权发起，不由执行环境从任何逻辑状态推断作用域已结束
 
 ### UL-isolation-claim · 隔离断言 · Isolation Claim
@@ -407,7 +407,7 @@
 > **EN**: A kind of isolation a provider declares it can confirm: process isolation, filesystem root, no network, restricted JS, and so on. The set is open and owners extend it. An environment requirement names which ones to confirm. If the provider cannot confirm one, the acquisition is rejected and is never written as isolated.
 
 - **形态**：属性
-- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 3）
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 4）
 - **别混**：不是[沙箱实现](#ul-sandbox-implementation--沙箱实现--sandbox-implementation)。名称本身不证明隔离
 
 ### UL-environment-provider · 环境提供者 · Environment Provider
@@ -417,7 +417,7 @@
 > **EN**: The party that registers with the execution environment and actually creates and controls environment instances: the host-machine provider or one sandbox implementation. It declares the bindings, continuity, facility keys and isolation claims it supports. It describes, acquires, recovers and retires. Its identity is a name plus a generation. Retirement first refuses new leases and then drains, and it never reports completion while cleanup is unfinished or durable responsibility has no taker.
 
 - **形态**：对象
-- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 3）
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 4）
 - **别混**：不是 Cordis 服务提供者。它是向本域登记表登记的一方；沙箱实现是它的一种
 
 ### UL-file-batch · 文件批次 · File Batch
@@ -427,7 +427,7 @@
 > **EN**: One multi-path write in the file facility: every target is pre-checked for the whole batch, then staged and published path by path, each path with its own publication receipt. Staging is not commit. A lost receipt means unknown and stops further publication. It is a managed resource whose identity is the batch id plus a generation. Recovery only reads the original manifest, the targets and the receipts, and recognises the batch as complete, partial, interrupted, conflicting or pending. It neither resumes publication nor rolls back.
 
 - **形态**：对象
-- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 3）
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 4）
 - **注意**：不承诺多路径原子提交或外部读写隔离；当前字节与暂存一致不等于有收据
 
 ### UL-session-base · 会话据点 · Session Base
@@ -453,17 +453,17 @@
 > admits nothing**.
 
 - **形态**：对象
-- **出处**：[PF-016 §4 会话据点](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#会话据点) ·
-  [§5.2](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#52-一个账号在一处怎么被装起来) ·
-  [§5.6](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#56-哪些东西在中心一侧哪些在据点一侧) ·
-  [§6.16](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#616-没人开着屏这一处照常发生事)（rev 13）
+- **出处**：[PF-016 §4 会话据点](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#会话据点) ·
+  [§5.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#52-一个账号在一处怎么被装起来) ·
+  [§5.6](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#56-哪些东西在中心一侧哪些在据点一侧) ·
+  [§6.16](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#616-没人开着屏这一处照常发生事)（rev 13）
 - **⚠️ 别混**：**不是[宿主机](#ul-host-machine--宿主机--host-machine)。**
   本交付形态下两者**恰好是同一台机器**，但**回答的问题不同**：
   宿主机回答「一次[工具执行](execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)的作用**落在哪**」，
   **每次执行现算**；据点回答「这些会话的事实**存在哪**」，**不现算**
 - **注意**：身份里**有意不带**[登录状态](subjects-and-ownership.md#ul-login-state--登录状态--login-state)与[租户](subjects-and-ownership.md#ul-tenant--租户--tenant)——
   同一个账号在这台机器上登录两次，看到的是**同一批会话**；一个账号的多个租户身份**共用这一份据点**，
-  [租户之间的隔离照 PF-001 在里面成立](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)
+  [租户之间的隔离照 PF-001 在里面成立](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)
 
 ### UL-governance-center · 治理中心 · Governance Center
 
@@ -489,13 +489,13 @@
 > be displayed but **never serve as the basis for a live check**.
 
 - **形态**：对象
-- **出处**：[PF-016 §4 治理中心](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#治理中心) ·
-  [§5.1](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#51-三处地方各自拥有什么) ·
-  [§5.6](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#56-哪些东西在中心一侧哪些在据点一侧)（rev 13）
+- **出处**：[PF-016 §4 治理中心](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#治理中心) ·
+  [§5.1](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#51-三处地方各自拥有什么) ·
+  [§5.6](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#56-哪些东西在中心一侧哪些在据点一侧)（rev 13）
 - **⚠️ 别混**：**不是[会话据点](#ul-session-base--会话据点--session-base)。**
   中心拥有治理事实，据点拥有会话事实；工作区实例独立于会话并可跨租户共用，不因物理位置在据点机器上而成为会话私有内容。
 - **注意**：本版承诺的部署形态只有「一个组织统一部署一个中心」；
-  [个人自托管一个中心不是产品形态](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#二目标与非目标)，
+  [个人自托管一个中心不是产品形态](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#二目标与非目标)，
   研发用的夹具不在这个词的承诺范围里——**但夹具起来的那个仍然是一个治理中心**，所指不变
 
 ### UL-deployment-key · 部署密钥 · Deployment Key
@@ -512,13 +512,13 @@
 > replacing it loses nothing.
 
 - **形态**：属性
-- **出处**：[PF-017 §4 部署密钥](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#部署密钥) ·
-  [§6.11](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#611-部署密钥运维者生成一次自己保管中心永不显示它)（rev 8）
+- **出处**：[PF-017 §4 部署密钥](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#部署密钥) ·
+  [§6.11](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#611-部署密钥运维者生成一次自己保管中心永不显示它)（rev 8）
 - **⚠️ 别混**：不是账号的凭据、不是[模型凭据](capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)、
   不是[登录状态](subjects-and-ownership.md#ul-login-state--登录状态--login-state)——那三样各归各的拥有者。
   也不是[治理中心标识](#ul-governance-center-identifier--治理中心标识--governance-center-identifier)：一个是秘密、可换，一个是名字、不换
 - **注意**：它具体给哪几句话背书归技术设计；本条以技术侧采用需要部署级秘密的路为前提
-  （[PF-017 decisions §二](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md)），改路则复核
+  （[PF-017 decisions §二](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md)），改路则复核
 
 ### UL-governance-center-identifier · 治理中心标识 · Governance Center Identifier
 
@@ -534,14 +534,14 @@
 > another center. Product text shortens it to "center identifier".
 
 - **形态**：属性
-- **出处**：[PF-017 §4 中心标识](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#中心标识) ·
-  [§6.12](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#612-同一个中心换了地址还是它另一个中心必须被认出来)（rev 8）
-- **注意**：首次启动成功后，正常重启、操作系统崩溃与断电都保留已确定的标识；灾备从同一份数据恢复仍是原中心，从零重立才是另一个中心（[§6.12](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#612-同一个中心换了地址还是它另一个中心必须被认出来)，rev 7）。
+- **出处**：[PF-017 §4 中心标识](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#中心标识) ·
+  [§6.12](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#612-同一个中心换了地址还是它另一个中心必须被认出来)（rev 8）
+- **注意**：首次启动成功后，正常重启、操作系统崩溃与断电都保留已确定的标识；灾备从同一份数据恢复仍是原中心，从零重立才是另一个中心（[§6.12](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#612-同一个中心换了地址还是它另一个中心必须被认出来)，rev 7）。
 - **⚠️ 别混**：不是地址（地址可变，它不变）；不是[部署密钥](#ul-deployment-key--部署密钥--deployment-key)；
   与[登录标识](subjects-and-ownership.md#ul-login-identifier--登录标识--login-identifier)同一取名模式，所指不同——一个指认中心，一个指认账号
 - **注意**：它只管「是不是同一个」，不证明「真的是它」——防冒充归传输那一层
-  （[PF-017 §8](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖)）；
-  同一份数据被拷贝后两处同时活着，它分不出，那是运维错误（[§6.12](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#612-同一个中心换了地址还是它另一个中心必须被认出来)）
+  （[PF-017 §8](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#八边界与依赖)）；
+  同一份数据被拷贝后两处同时活着，它分不出，那是运维错误（[§6.12](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#612-同一个中心换了地址还是它另一个中心必须被认出来)）
 
 ### UL-deployment-parameter · 部署参数 · Deployment Parameter
 
@@ -563,8 +563,8 @@
 > **Not a scoped object** — it hangs on no layer and takes no part in evaluation.
 
 - **形态**：总称
-- **出处**：[PF-017 §4 部署参数](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#部署参数) ·
-  [§6.15](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#615-部署参数由运维者给值起动时读缺一不可)（rev 8）
+- **出处**：[PF-017 §4 部署参数](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#部署参数) ·
+  [§6.15](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#615-部署参数由运维者给值起动时读缺一不可)（rev 8）
 - **⚠️ 别混**：不是范围化对象，也不是[设置](capabilities-and-composition.md#ul-asset--资产--asset)——设置挂在层上、按范围求值，它对全中心一律生效
 - **注意**：「统称」不是一张表——每一项各自有值、各归自己的 topic；本 topic 只说谁给、何时生效、改了怎么算
 
@@ -590,12 +590,12 @@
   也不是 [MCP 凭据](capabilities-and-composition.md#ul-mcp-credential--mcp-凭据--mcp-credential)**——
   那两样说的是「配的是哪一把」，是持有上的一项设置值；这一条说的是**那一把的值放在谁手里、谁取得到**
 - **注意 ①**：**本版只有[会话据点](#ul-session-base--会话据点--session-base)这一侧有它**：每个据点一份，
-  保管这个据点上各租户模型凭据的副本——[离线时用的就是手上这份](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#620-每台机器上只有自己那一把凭据)——
+  保管这个据点上各租户模型凭据的副本——[离线时用的就是手上这份](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#620-每台机器上只有自己那一把凭据)——
   和经 OAuth 取得的 MCP 凭据；中心那一侧的保管不在本版（`capability.credential-custodian` v2）
 - **注意 ②**：**它不判这把凭据在上游还算不算数**——据点上的副本是写下时的那一把，
   中心上换过、撤过，要等这台机器再连上中心、重写副本才知道
 - **注意 ③**：**加密挡的是没有密钥的拷贝与备份，以及另一个据点**；同一台机器上以同一个操作系统身份跑、
-  密钥与密文都够得着的进程，它不挡——[宿主机那一层不隔离](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#64-一台机器上账号之间互不可见但宿主机那一层不隔离)
+  密钥与密文都够得着的进程，它不挡——[宿主机那一层不隔离](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#64-一台机器上账号之间互不可见但宿主机那一层不隔离)
 
 ### UL-subprocess-environment-allowlist · 子进程环境变量名单 · Subprocess Environment Allowlist
 
@@ -604,7 +604,28 @@
 > **EN**: The set of variable names allowed to pass from a parent process environment to a child. Only listed variables actually present in the parent are copied; unlisted variables are never inherited automatically. The list grants neither credential access nor permission to run on the host.
 
 - **形态**：规则
-- **出处**：[PF-005 §6.10](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#610-hooks-子进程与环境变量传递)（rev 9）
+- **出处**：[PF-005 §6.10](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#610-hooks-子进程与环境变量传递)（rev 9）
 - **别混**：不是凭据配置；不同消费者可各配一份名单，名单的含义相同。
+
+### UL-package-source · Skill 包来源 · Skill Package Source
+
+> **中**：**按内容摘要交出 [Skill 包](capabilities-and-composition.md#ul-skill-package--skill-包--skill-package)字节的那一方。**
+> 给它一个包的位置，它给出这个包的 [Skill 包快照](capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot)。
+> 给它一个内容摘要和一个包内路径，它交出那个条目的字节。
+> 云端的内容存储与本机的工作区目录都可以担任它。
+> **它只交字节**：用哪一层的哪一份包、谁可以读，都不由它判定。
+>
+> **EN**: **The party that hands over the bytes of a Skill package by content digest.** Given the
+> location of a package, it gives the package snapshot of that package. Given a content digest and
+> a path inside the package, it hands over the bytes of that entry. A cloud content store and a
+> local workspace directory can each take this role. **It only hands over bytes**: it does not
+> decide which package from which layer to use, or who may read it.
+
+- **形态**：属性
+- **出处**：缺产品原文。[Skill 产品页 J-SK01](../../product/skills/design.md#j-sk01-将合法方法来源交给消费者)（rev 4）只要求来源不可读时报告具体失败，不当作空方法。按内容摘要交字节的这一方来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出它，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
+- **⚠️ 别混 ①**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official 还是 customized），
+  **也不是[来源层](scope-and-resolution.md#ul-source-layer--来源层--source-layer)**。用哪一层的哪一份，由资产求值与装配决定；Skill 包来源只按给定的内容摘要交出字节
+- **别混 ②**：产品正文说方法「来源」时，指的是方法从哪个工作区、哪种格式、哪一层来，是给人看的出处，不是这一方。**正文裸写「来源」不指它**
+- **注意**：资产这一侧给已发布版本的读取入口是[包的读口](capabilities-and-composition.md#ul-package-reader--包的读口--package-reader)。Skill 包来源是 Skill 这一侧声明的需要。已发布版本由包的读口经适配担任 Skill 包来源，工作区目录由本机目录担任
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

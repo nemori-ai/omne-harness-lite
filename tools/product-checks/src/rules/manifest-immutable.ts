@@ -7,7 +7,6 @@ const forbiddenMethods = new Set(['updateTable', 'deleteFrom', 'replaceInto', 'm
 const mutationSql =
   /\b(?:update|delete\s+from|replace\s+into|insert\s+or\s+replace\s+into|merge\s+into)\s+["`[]?assembly_manifest_(?:record|table)\b/iu
 
-/** Scoped AST check; it does not claim whole-program alias or generated SQL analysis. */
 export const manifestImmutable: Rule = {
   id: 'manifest-immutable',
   source: 'MF4 S-13/S-24; assembly-manifest-store V-4 / MG-V12',
@@ -29,7 +28,6 @@ export const manifestImmutable: Rule = {
           else if (ts.isComputedPropertyName(name) && ts.isStringLiteralLike(name.expression))
             forbidden = forbiddenMethods.has(name.expression.text)
         }
-        // Inspect literal SQL in raw calls and tagged templates, including renamed tags.
         if (
           ts.isCallExpression(node) &&
           ts.isPropertyAccessExpression(node.expression) &&

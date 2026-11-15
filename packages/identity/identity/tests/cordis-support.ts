@@ -30,7 +30,6 @@ export async function installOperations(options: IdentityContractProviderOptions
   return { ctx, operations, dispose: () => fiber.dispose() }
 }
 
-/** Installs the governance double behind the registered `identityGovernance` service. */
 export async function installGovernance(options: IdentityGovernanceContractProviderOptions) {
   const double = inProcessIdentity(options)
   const delegate: IdentityGovernance = double.governance

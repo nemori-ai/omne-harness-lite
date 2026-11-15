@@ -113,7 +113,6 @@ it('reads the JSON back after exit 1 and treats other exits as a failed call', a
   expect(failed.error).toBe('mutation.mjs 退出 2：找不到 Stryker')
 })
 
-/** 假执行器：每次调用挂起，直到用例按成员放行；记下开跑顺序、各自的 --workers 与同时在跑的进程数之和。 */
 function gated() {
   const started: { member: string; workers: number }[] = []
   const release = new Map<string, () => void>()

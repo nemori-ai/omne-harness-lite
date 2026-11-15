@@ -1,7 +1,4 @@
 // @module-tag slow
-// TS-06 on the real SQLite provider: body chunks and the manifest are not ledger records and live
-// in no ledger domain, so writing and sealing a body moves no ledger domain revision. A ledger
-// commit that expects the revisions read before the body writes still lands.
 import { createHash, randomBytes } from 'node:crypto'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -49,7 +46,7 @@ async function putHost(store: ToolLedgerStore, domain: LedgerDomain, key: string
   })
 }
 
-it('writing and sealing a body moves no ledger domain revision (TS-06)', async () => {
+it('writing and sealing a body moves no ledger domain revision', async () => {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'tool-body-revision-')))
   try {
     const opened = await openStorage(root, [TENANT_A])

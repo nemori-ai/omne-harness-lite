@@ -1,12 +1,9 @@
-// R2-D133：只转换调用者已经采到的事实；时钟读取、运行关联与发行接线归采集方。
 const STAGES = Object.freeze({
   session: 'sessionIO',
   context: 'projectionInterpretation',
   agent: 'agentProgression',
 })
 
-// 固定延迟替身的原事件形状：L-MODEL tests/support/model-measurement.ts，
-// L-TOOL packages/tool/tool/tests/support/tool-measurement.ts（批次E e44fea864）。
 const WAITS = Object.freeze({
   model: Object.freeze({ stage: 'model-fixed-delay', provider: 'measured-fixed-delay-model' }),
   tool: Object.freeze({ stage: 'tool-fixed-delay', provider: 'measured-fixed-delay-tool' }),
@@ -78,7 +75,6 @@ function stage(result, name, start, end, outcome, source) {
   )
 }
 
-/** 投影已经录制的单个完整区间，不推断其配对正确性、轮完成或日志数。 */
 export function projectSegmentInterval(input) {
   const result = resultFor(input)
   if (!Object.hasOwn(STAGES, input.segment))
@@ -131,7 +127,6 @@ function memberEvents(result, input, samples) {
       issue(result, 'session-mismatch', source)
       continue
     }
-    // 各成员各自计数；同号span不能跨成员或跨时钟配对。
     const key = JSON.stringify([
       sample.reading.process,
       sample.reading.clock,
@@ -176,8 +171,6 @@ function logCountMeasured(count) {
   )
 }
 
-// R2-D62 D7：AD-02 提交的 Run 终态不发 Session round-complete；本波轮边界改用读到的
-// `lastTerminal()`。观察时刻是终态之后的上界，含轮询延迟；仍须终态身份、结局与证据齐备。
 function observedEnd(result, input, observation) {
   const source = 'terminalObservation'
   const terminal = observation?.run?.kind === 'terminal' ? observation.run.terminal : undefined
@@ -223,7 +216,6 @@ function completion(result, input, completed) {
   let end
   if (completed.length === 1) {
     end = memberEnd(result, input, completed[0])
-    // 两个来源同时给出时，以提交时刻的成员事件为终点，但二者必须指向同一个Run。
     if (observation !== undefined && observation?.run?.terminal?.run !== completed[0].event.run)
       issue(result, 'round-end-sources-disagree', 'terminalObservation')
   } else if (observation !== undefined) end = observedEnd(result, input, observation)
@@ -266,7 +258,6 @@ function waitEvent(result, input, event, provider, source, invocations, terminal
     issue(result, `${provider}-wait-identity-or-delay-invalid`, source)
     return false
   }
-  // 归一器要求整轮的等待调用标识唯一，所以模型与工具共用一个集合。
   if (invocations.has(event.invocationId)) {
     issue(result, `${provider}-invocation-duplicate`, source)
     return false
@@ -340,11 +331,6 @@ function providerEvents(result, input, provider, events, terminal, invocations) 
   return waits
 }
 
-/**
- * 纯批投影。memberEvents是同步回调时附reading的原事件；采集者负责分轮与真实身份。
- * diagnostics非空时不发schema1轮完成，原始完成/失败/取消仍在sources保留。
- * 本轮实际有Tool调用时声明requiresToolWait，缺工具等待记诊断，不由模型等待顶替。
- */
 export function projectRound(input) {
   const result = resultFor(input)
   for (const name of ['memberEvents', 'modelEvents', 'toolEvents'])

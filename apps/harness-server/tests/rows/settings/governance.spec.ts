@@ -1,6 +1,3 @@
-// The two-layer reads of the settings governance (rows/settings/governance.ts) over a scripted
-// secret-item entry: a read that fails in either layer answers `basis-unavailable`, and the writes
-// reach the tenant scope only (I-7, I-8).
 import type { SecretItemView, SecretScope, SettingsSecretItems } from '@omne-harness/settings'
 import { describe, expect, it } from 'vitest'
 import { createSettingsGovernance } from '../../../src/rows/settings/governance.ts'
@@ -14,7 +11,6 @@ const access = { principal: {} as never, tenant: A }
 const view = (presence: Extract<SecretItemView, { sensitivity: 'secret' }>['presence']) =>
   ({ asset: WEB, itemId: ITEM, title: 'Exa API key', sensitivity: 'secret', presence }) as const
 
-/** An entry that answers by layer; `fail` names the layer whose reads fail. */
 function entry(
   fail: 'tenant' | 'official' | null,
   scopes: SecretScope[] = [],

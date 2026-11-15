@@ -1,9 +1,3 @@
-// The conformance cases of `SessionTransactionPort.commitLog` (docs/same-log-pure.md「事件通道的
-// 解释提交」). Every provider runs the same cases on a fixture that it builds through the public
-// commit: an active Run with its execution. The Agent side of the fixture is `observe`: it states
-// one original event of the execution to the provider's history, which the cases cannot write
-// through the Session port. The cases read the result only through the public port: the receipt,
-// `readWork`, `history` and `queryOperation`.
 import assert from 'node:assert/strict'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { readAccessRequest } from './access.ts'
@@ -36,13 +30,6 @@ import {
 } from './testing-transactions.ts'
 import { evidence, sessionId } from './testing-values.ts'
 
-/**
- * What the log suite needs. `port` offers `commitLog`: a provider that does not offer it has no
- * suite to run. `observe` states one original Agent event of the execution to the history of the
- * provider; the commit reads that event back and checks the observation against it. `delegatedView`,
- * when offered, gives a view of the same stores that the Session execution boundary bound to one
- * checked read of the fixture's session.
- */
 export interface SessionLogFixture<P> extends SessionTransactionsFixture<P> {
   readonly port: SessionTransactionPort<P> &
     Readonly<{ commitLog: NonNullable<SessionTransactionPort<P>['commitLog']> }>
@@ -57,7 +44,6 @@ type Opened = Readonly<{
   attempt: string
 }>
 
-/** Opens the Run of the fixture and names its first attempt, which the registrations of the events bind. */
 async function opened<P>(fixture: SessionLogFixture<P>) {
   const s = scene(fixture)
   const execution = await s.openRun()
@@ -67,7 +53,6 @@ async function opened<P>(fixture: SessionLogFixture<P>) {
   return { s, o }
 }
 
-/** The registration of the model call `n`, bound to the first attempt of the Run. */
 const registration = (o: Opened, n: number): SessionCallRegistration => ({
   kind: 'associated',
   binding: {
@@ -80,7 +65,6 @@ const registration = (o: Opened, n: number): SessionCallRegistration => ({
   purpose: 'main',
 })
 
-/** The original event `n` of the execution: its sequence and its head revision are both `n`. */
 function observation(
   o: Opened,
   n: number,
@@ -123,17 +107,12 @@ async function allEntries<P>(history: SessionHistory<P>, access: SessionAccess<P
   return page.entries
 }
 
-/**
- * What a refused or recalled commit must leave unchanged: the revision, the event progress of the
- * execution, the log and the operation identity.
- */
 async function state<P>(fixture: SessionLogFixture<P>, operation: SessionOperationId) {
   const snapshot = succeeded(await fixture.port.readWork(fixture.access), 'readWork')
   return {
     revision: snapshot.revision,
     readThrough: snapshot.run.kind === 'active' ? snapshot.run.execution.readThrough : null,
     entries: (await allEntries(fixture.port.history, fixture.access)).map(entry => entry.id),
-    // Raw: a committed log operation answers conflict here, which is also state.
     query: await fixture.port.queryOperation({ ...fixture.access, operation }),
   }
 }
@@ -141,7 +120,6 @@ async function state<P>(fixture: SessionLogFixture<P>, operation: SessionOperati
 const complete = (value: DurableEvidence): boolean =>
   [value.owner, value.record, value.revision, value.digest].every(part => part.length > 0)
 
-/** States event `n` to the provider, then commits it under `operation`. */
 async function interpret<P>(
   fixture: SessionLogFixture<P>,
   o: Opened,
@@ -177,8 +155,6 @@ export function sessionLogConformance<P>(): readonly ConformanceCase<SessionLogF
         const kinds = (await allEntries(fixture.port.history, fixture.access)).map(row => row.kind)
         assert.ok(kinds.includes('call.bound'), 'the consequence row is committed')
         assert.ok(kinds.includes('history.annotated'), 'the progress row is committed')
-        // The record of a log commit is neither a batch nor a control record: both queries answer
-        // conflict. A caller of unknown outcome retries `commitLog` with the same operation.
         assert.deepEqual(refused(after.query, 'queryOperation'), { kind: 'conflict', operation })
         assert.deepEqual(
           refused(
@@ -357,7 +333,6 @@ export function sessionLogConformance<P>(): readonly ConformanceCase<SessionLogF
         for (const answer of answers)
           if ('failure' in answer)
             assert.equal(answer.failure.kind, 'changed', 'the loser lost the head, nothing else')
-        // The loser retries from the new head and recalls the interpretation that won.
         const retry = succeeded(
           await fixture.port.commitLog({ observation: { ...event, operation: second } }),
           'the retry of the loser',
@@ -391,7 +366,6 @@ export function sessionLogConformance<P>(): readonly ConformanceCase<SessionLogF
   ]
 }
 
-/** A fresh fixture over a fresh in-memory port, with the second tenant and a delegated view. */
 export function memorySessionLogFixture(): SessionLogFixture<string> {
   const { fixture, history, delegated } = memoryFixtureParts()
   return {

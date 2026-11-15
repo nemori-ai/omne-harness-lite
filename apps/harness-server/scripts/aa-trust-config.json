@@ -5,7 +5,9 @@
     "apps/harness-server/src/entry/principals.ts",
     "apps/harness-server/src/entry/agent-host-principal.ts",
     "apps/harness-server/src/entry/model-authorities.ts",
-    "packages/access/server-entry/src/identity-steps.ts"
+    "apps/harness-server/src/entry/hitl-entry-principals.ts",
+    "packages/access/server-entry/src/identity-steps.ts",
+    "packages/identity/identity-access/src/access-identity.ts"
   ],
   "issuerDefinition": ["packages/identity/identity/src/principal.ts"]
 }

@@ -4,7 +4,6 @@ export interface ScryptCost {
   readonly p: number
 }
 
-/** Smallest maxmem OpenSSL 3.6.2 accepted. Measured, not 128*N*r. */
 export function memoryBytes(cost: ScryptCost): number | undefined {
   if (
     !Number.isSafeInteger(cost.N) ||

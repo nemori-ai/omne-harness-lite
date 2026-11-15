@@ -17,7 +17,7 @@ describe('allocation before first adoption conformance', () => {
   const names = [
     'allocation inspection preserves the original fact without adopting',
     'concurrent original adoption issues one lease for one allocation',
-    'lost local registration cannot adopt the original allocation',
+    'lost local registration answers lost and cannot adopt the original allocation',
     'failed original adoption remains failed with cleanup outstanding',
   ]
   for (const name of names) {

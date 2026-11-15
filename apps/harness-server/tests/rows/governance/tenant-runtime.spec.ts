@@ -2,7 +2,6 @@ import { toolAssetTarget } from '../../../src/rows/governance/tool-installation-
 import { canonicalText } from '@omne-harness/authorization'
 import { CurrentPermissionService } from '../../../src/rows/governance/current-permission-service.ts'
 // @module-tag slow
-// Real Identity and SQLite providers; only the clock and caller installation are test inputs.
 import { randomUUID } from 'node:crypto'
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -313,7 +312,6 @@ it('settles an original Settings catalog hold after SQL restart before opening t
           if (result.kind === 'held') held = result.reservation
           return result
         },
-        // Lose only settlement delivery; the original reservation and directory terminal persist.
         async settle() {
           return { kind: 'unavailable' as const, diagnostic: 'fixture-lost-settlement' }
         },
@@ -704,6 +702,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
   expect(catalog).toMatchObject({ kind: 'page', completeness: 'complete' })
   if (catalog.kind !== 'page') throw new Error(JSON.stringify(catalog))
   expect(catalog.items.map(item => item.declaration.reference.definitionId).sort()).toEqual([
+    'tool.Ask',
     'tool.Files',
     'tool.Shell',
     'tool.TodoItems',
@@ -723,7 +722,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
   })
   expect(settings).toMatchObject({ completeness: 'complete' })
   if ('kind' in settings) throw new Error(JSON.stringify(settings))
-  expect(settings.views).toHaveLength(5)
+  expect(settings.views).toHaveLength(6)
   const tool = w.release.manifest.entries.find(entry => entry.asset.name === 'Shell')!
   const principal = w.workPrincipal('request-session')
   const { ledgerWorld } =
@@ -756,7 +755,6 @@ it('installs the actual Tool release and adopts its original holdings before exp
   )
   expect(targets).toHaveLength(1)
   const target = targets[0]!.target
-  // The installation holds the tool at the address that consumers compute.
   expect(target).toEqual(toolAssetTarget(tool, w.options.scope.tenantRef))
   expect(request?.scope.targetId).toBe(canonicalText(target))
   expect(
@@ -1018,7 +1016,6 @@ it('preserves a nonempty Settings assignment across default tenant installation 
       domain: w.options.domain,
       destination: configuration.destination,
       registrations,
-      // The seed takes the target snapshot of the tenant domain and states it as the current facts.
       ...settingsSeedCurrent({
         configuration,
         snapshot: async () => {
@@ -1048,7 +1045,6 @@ it('preserves a nonempty Settings assignment across default tenant installation 
           )
         },
       }),
-      // This setup capability seeds one original tenant value; it does not test user editing policy.
       access: {
         async authorize(principal, request) {
           return {

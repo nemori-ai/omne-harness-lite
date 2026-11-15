@@ -1,6 +1,3 @@
-// The two trusted narrow ports of D-AUTH r4 4.1: the suites pass on the memory doubles, each case
-// fails under a variant that breaks its rule, and the three trusted services load under their keys
-// in a real Context and leave on unload.
 import { AssertionError } from 'node:assert/strict'
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
@@ -37,7 +34,6 @@ import {
 const bound = { tenant: memoryAccess('x').tenant, session: sessionId('session-1') }
 const otherTenant = memoryOtherAccess('x').tenant
 
-/** The verdict of each case on one fresh fixture: passed, failed by an assertion, or not applicable. */
 async function verdicts<F>(cases: readonly ConformanceCase<F>[], fixture: () => F) {
   const failed: string[] = []
   const notApplicable: string[] = []

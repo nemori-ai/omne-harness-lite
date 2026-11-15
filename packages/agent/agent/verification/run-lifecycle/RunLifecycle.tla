@@ -161,7 +161,7 @@ Wake ==
   /\ w' = [w EXCEPT !.asleep = FALSE, !.woken = FALSE]
   /\ UNCHANGED <<d, m, acts, env, run>>
 
-(* The check time of the wait (reconciliationDelayMs): the fallback wake. *)
+(* The check time of the wait (reconciliationDelaysMs): the fallback wake. *)
 CheckTime ==
   /\ ~env.crashed /\ w.asleep /\ ~w.woken /\ w.ticks < MaxTicks
   /\ w' = [w EXCEPT !.woken = TRUE, !.timerWakes = @ + 1, !.ticks = @ + 1]

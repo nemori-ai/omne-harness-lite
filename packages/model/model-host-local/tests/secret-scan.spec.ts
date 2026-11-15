@@ -1,6 +1,3 @@
-// The key pattern check of the recorder: every pattern is found, the placeholders that the proxy
-// replaces pass, and a finding names its pattern only. The fake keys are built at run time, so this
-// source holds none of them.
 import { describe, expect, it } from 'vitest'
 import { findSecrets, type SecretPattern } from './support/secret-scan.ts'
 
@@ -23,7 +20,6 @@ describe('the key pattern check of a replay file', () => {
     const frame = `data: ${JSON.stringify({ choices: [{ delta: { content: `x ${fake} y` } }] })}\n\n`
     const found = findSecrets(bytes(frame))
     expect(found).toEqual([pattern])
-    // The finding is the pattern name, not the text.
     expect(JSON.stringify(found)).not.toContain(fake)
   })
 

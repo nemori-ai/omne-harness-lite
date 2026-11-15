@@ -11,12 +11,8 @@ import {
   type World,
 } from './instances-harness.ts'
 
-// A bounded number of registrations is made and withdrawn. Afterwards the directory must hold
-// nothing of them. The handles are watched through weak references, which the garbage collector
-// clears only when the directory and the fibers hold no strong reference.
 const REGISTRATIONS = 64
 
-/** Even ones leave by release, odd ones by fiber disposal. */
 async function run(world: World) {
   const watched: WeakRef<ModelHandle<unknown>>[] = []
   const effectsLeft: number[] = []

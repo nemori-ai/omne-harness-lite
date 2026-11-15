@@ -104,7 +104,6 @@ function wireOf(received: { body: Buffer }): Record<string, unknown> {
   return JSON.parse(received.body.toString('utf8')) as Record<string, unknown>
 }
 
-/** An answer in the wire form of a session response, bound to the request's message id. */
 function answer(received: { body: Buffer }, outcome: string, body: unknown = {}): Reply {
   const wire = wireOf(received)
   return jsonReply(outcome === 'unknown' ? 500 : 200, {
@@ -436,7 +435,6 @@ describe('resend and correlation', () => {
   })
 
   it('keys each response to its own message id when a transport answers in swapped order', async () => {
-    // One shared channel that pairs each answer with the other caller: answers arrive crossed.
     const held: { bytes: Uint8Array; release: (report: TransportReport) => void }[] = []
     const transport: GovernanceTransport = {
       send: bytes =>

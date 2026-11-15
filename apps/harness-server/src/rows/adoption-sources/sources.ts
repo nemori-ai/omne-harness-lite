@@ -1,7 +1,3 @@
-// Session adoption material comes from the deployment mapping and the application's exact
-// Context adoption. A first creation prepares that Context registration without writing it;
-// Session commits the preparation and its initial registration together. A recalled creation
-// reads the original initialization before consulting current mappings or mounting producers.
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, workspaceCodec } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -38,7 +34,6 @@ import { plannedResidents } from './residents.ts'
 
 const OWNER = '@omne-harness/harness-server'
 
-/** The protocol of the material of this source. It names the shape of `facts`, not an authority. */
 export const MAPPING_EVIDENCE_PROTOCOL = Object.freeze({
   owner: OWNER,
   name: 'definition-mapping-evidence',
@@ -46,7 +41,6 @@ export const MAPPING_EVIDENCE_PROTOCOL = Object.freeze({
   digest: 'harness-server:definition-mapping-evidence/1',
 })
 
-/** The schema of `initialAdoption.inputSnapshot`: the lookup of one definition name in the table. */
 export const MAPPING_LOOKUP_SCHEMA = Object.freeze({
   owner: OWNER,
   name: 'definition-mapping-lookup',
@@ -54,7 +48,6 @@ export const MAPPING_LOOKUP_SCHEMA = Object.freeze({
   digest: 'harness-server:definition-mapping-lookup/1',
 })
 
-/** The schema of `initialAdoption.capabilities`: the complete mapping entry of the deployment. */
 export const MAPPING_ENTRY_SCHEMA = Object.freeze({
   owner: OWNER,
   name: 'definition-mapping-entry',
@@ -72,7 +65,6 @@ function invalid(field: string, reason: string): Prepared {
   return fail({ kind: 'invalid', field, reason })
 }
 
-/** The first part of a created session that disagrees with the entry, or `undefined`. */
 function creationMismatch(
   entry: DefinitionMappingEntry,
   creation: SessionCreation,
@@ -89,7 +81,6 @@ function creationMismatch(
   return expected ? undefined : 'modes'
 }
 
-/** What the creation declares and the mapping does not hold, or `undefined`. */
 function undeclaredByMapping(
   entry: DefinitionMappingEntry,
   command: CreateCommand,
@@ -140,7 +131,6 @@ function materialOf(
   }
 }
 
-/** The durable evidence of one mapping entry: its digest changes with any part of the entry. */
 const entryEvidence = (entry: DefinitionMappingEntry): DurableEvidence => ({
   owner: OWNER,
   record: `definition-mapping/${entry.name}`,
@@ -148,7 +138,6 @@ const entryEvidence = (entry: DefinitionMappingEntry): DurableEvidence => ({
   digest: contentDigest(entry),
 })
 
-/** The durable evidence of the whole table: the boundary within which the entry is adopted. */
 const tableEvidence = (mappings: DefinitionMappings): DurableEvidence => ({
   owner: OWNER,
   record: 'definition-mappings',
@@ -156,11 +145,6 @@ const tableEvidence = (mappings: DefinitionMappings): DurableEvidence => ({
   digest: mappings.identity,
 })
 
-/**
- * The initial adoption that the mapping states: the entry is the deployment's adoption of the
- * definition, and the resident tools are the planned material of the residents the entry names
- * (both lists empty when it names none).
- */
 function initialAdoptionOf(
   mappings: DefinitionMappings,
   entry: DefinitionMappingEntry,
@@ -186,11 +170,6 @@ function initialAdoptionOf(
   }
 }
 
-/**
- * The plan of the creation (SPEC「初始化来源与提交」, the identity items): one item per required
- * identity, owner = capability, item = name, protocol = the entry contract. The mapping has no
- * other sources, and a creation that declares some was refused before this.
- */
 function planOf(
   entry: DefinitionMappingEntry,
   preparation: ModesPreparationRecord | undefined,
@@ -218,11 +197,6 @@ function planOf(
       ]
 }
 
-/**
- * The requirements the mapping declares: one per required identity, planned to its item, with the
- * entry as the evidence of the requirement. The entry contract and the execution type of the
- * mapping declare no other requirement, so none is asserted satisfied.
- */
 function requirementsOf(
   entry: DefinitionMappingEntry,
   plan: readonly InitializationPlanItem[],
@@ -243,10 +217,6 @@ function requirementsOf(
   }))
 }
 
-/**
- * The complete fixed input of the command, as `initializationCommandInput` of session-contract
- * encodes it: the tenant and the workspace as their codec texts, everything else as given.
- */
 function commandInputOf(command: CreateCommand, tenant: string, workspace: string | null): Facts {
   return jsonOf({
     ...command.input,
@@ -334,8 +304,6 @@ async function prepareFrom<P>(
         return invalid('candidate', 'the candidate is not a definition adoption of this deployment')
       return succeed([materialOf(mappings, command.kind, entry)])
     }
-    // These commands carry no definition to evaluate. The adoption that they rely on was recorded
-    // when the session was created or the run started, and is not read again from the table.
     case 'completeInitialization':
     case 'change':
     case 'freeze':
@@ -344,7 +312,6 @@ async function prepareFrom<P>(
 }
 
 export class AdoptionSourcesImpl extends SessionAdoptionSourceService {
-  /** The table that this source reads. It is the `definitionMappings` service of the same row tree. */
   readonly mappings: DefinitionMappings
 
   readonly prepare: SessionAdoptionSource['prepare']
@@ -352,7 +319,6 @@ export class AdoptionSourcesImpl extends SessionAdoptionSourceService {
   constructor(ctx: Context, mappings: DefinitionMappings) {
     super(ctx)
     this.mappings = mappings
-    // The row's own context: the Tool services and the release are read through it on every call.
     this.prepare = (command, access) => prepareFrom(ctx, mappings, command, access)
   }
 }

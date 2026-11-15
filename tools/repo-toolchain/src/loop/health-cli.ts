@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// 只读、只报告：退出码 0 正常，2 是工具自己出错（参数、配置、git、写不了产物）。
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { coordinates, git } from '../core/git.ts'
@@ -23,7 +22,13 @@ import { readTrend } from './trend.ts'
 import { readConformanceSensor } from './sensors/conformance.ts'
 import { subjectRoot } from '../core/subject.ts'
 
-const USAGE = '用法：loop-health [--out <dir>] [--root <检出目录>]'
+const USAGE = `用法：loop-health [--out <dir>] [--root <检出目录>]
+把趋势快照、测试耗时账本与 Git 历史汇成一张离线可开的页面。
+  --out   产物目录，缺省为回路目录下的 health/，每次覆盖。
+  --root  被检查的检出，缺省取 OMNE_SUBJECT_ROOT，再取当前目录所在 Git 仓库的根。
+环境变量：OMNE_METRICS_HOME 改回路目录，缺省为主检出的 tmp/clean-loop/；OMNE_TEST_LEDGER_HOME 改测试耗时账本的根，缺省为主检出的 tmp/test-ledger/。
+窗口与条数在 repo-toolchain.config.json 的 loop.health 一段。
+退出 0 写出页面；2 参数、配置或 Git 出错。`
 interface Options {
   readonly out?: string
   readonly root: string
@@ -52,7 +57,6 @@ function readCommits(root: string, branch: string, count: number): Reading<Commi
   } catch {
     return noData(`没有 ${branch} 分支`)
   }
-  // 沿第一父链：主线上的每一个提交（含合并），合并提交按它对第一父的改动计（-m 配 --first-parent，旧版 git 也认）。
   const log = git(root, [
     'log',
     '--first-parent',
@@ -66,7 +70,6 @@ function readCommits(root: string, branch: string, count: number): Reading<Commi
   return commitsBlock(parseCommitLog(log), branch)
 }
 
-/** `<账本根>/<提交>/<时间>/ledger.json` 全部读进来；读不了的 JSON 记为 undefined，交给解析时报出。 */
 function readLedgers(home: string): { path: string; value: unknown }[] | undefined {
   if (statSync(home, { throwIfNoEntry: false })?.isDirectory() !== true) return undefined
   const found: { path: string; value: unknown }[] = []
@@ -94,7 +97,6 @@ function main(argv: readonly string[]): number {
   const { root } = options
   const at = coordinates(root, undefined)
   const home = loopHome(at.mainRoot, process.env)
-  // 测试的账本根，与 `src/testing/cli.ts` 同一取法；验收的账本另放一处，不混进来。
   const ledgerHome = resolve(testLedgerHome('test', at.mainRoot, process.env))
   const outDir = resolve(options.out ?? join(home, 'health'))
   const now = new Date()
@@ -139,6 +141,11 @@ function main(argv: readonly string[]): number {
   writeFileSync(join(outDir, 'summary.md'), `${summary.join('\n')}\n`)
   console.log(summary.join('\n'))
   return 0
+}
+
+if (process.argv.includes('--help')) {
+  console.log(USAGE)
+  process.exit(0)
 }
 
 try {

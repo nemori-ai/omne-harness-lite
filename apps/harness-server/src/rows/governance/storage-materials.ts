@@ -24,15 +24,15 @@ import { targetSnapshotParticipant } from './target-snapshot.ts'
 import { permissionBasisGuardParticipant, permissionBasisParticipant } from './permission-basis.ts'
 import { projectionReadHandler } from './projection-read.ts'
 import { PROJECTION_READ_MEMBERS } from './storage-combinations.ts'
+import {
+  TENANT_SETTINGS_CONFIGURATION,
+  tenantSettingsCurrentParticipants,
+} from './tenant-settings-current.ts'
 
 export const GOVERNANCE_PROJECTION_READ = 'harness.governance-projection-read'
 
 type Materials = Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'>
 
-/**
- * No handler when a member is absent, for example without a trusted release: permission checks
- * and catalog reads are then unavailable.
- */
 function projectionRead(all: Pick<SqlMaterialCatalog, 'participants' | 'migrations'>) {
   const members = PROJECTION_READ_MEMBERS.map(name =>
     all.participants.find(participant => participant.participant === name),
@@ -42,10 +42,6 @@ function projectionRead(all: Pick<SqlMaterialCatalog, 'participants' | 'migratio
     : []
 }
 
-/**
- * Materials do not publish assets, create holdings, or authorize an operation. `core` holds the
- * Session participants and migrations: the permission basis reads the Session permission.
- */
 export function governanceStorageMaterials(
   release: ToolRelease,
   core: Pick<SqlMaterialCatalog, 'participants' | 'migrations'>,
@@ -73,6 +69,7 @@ export function governanceStorageMaterials(
     ),
     permissionBasisParticipant(),
     permissionBasisGuardParticipant(),
+    ...tenantSettingsCurrentParticipants(TENANT_SETTINGS_CONFIGURATION),
   ]
   const migrations = owners.flatMap(owner => owner.migrations)
   return {

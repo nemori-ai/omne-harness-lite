@@ -1,6 +1,3 @@
-// Shared scaffolding of the macOS slow tests: a provider from the sources, recording ledgers, an
-// acquisition, a start request, and checks of processes by pid. Only the ledgers are stand-ins:
-// they are the integrator's ports.
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -168,7 +165,6 @@ export function commandOf(lease: EnvironmentLease): CommandFacility<unknown> {
   return command
 }
 
-/** The fields every terminal operation of these tests shares. */
 export const operationBase = {
   access: { principal: 'subject-a', tenant },
   binding: host,
@@ -207,7 +203,6 @@ export async function started(
   return answer.value
 }
 
-/** Reads the handle's whole output and its outcome. */
 export async function finished(
   handle: ProcessHandle,
 ): Promise<{ outcome: CommandOutcome; text: string }> {
@@ -240,12 +235,9 @@ export async function pidsIn(path: string): Promise<number[]> {
   return text.trim() === '' ? [] : text.trim().split(/\s+/u).map(Number)
 }
 
-/** Kills every pid by number; tests call it at their end so nothing they started survives. */
 export function killAll(pids: readonly number[]): void {
   for (const pid of pids)
     try {
       process.kill(pid, 'SIGKILL')
-    } catch {
-      /* Already gone. */
-    }
+    } catch {}
 }

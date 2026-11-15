@@ -14,7 +14,6 @@ const authority = {
 const bindings = { lookup: async () => ({ kind: 'unknown' as const }) }
 const Trust = trustOf({ authority, bindings })
 
-/** The test-only factory override records what the plugin hands to the mechanism factory. */
 function recording(seen: RuntimeContextTrust<unknown>[]) {
   return createRuntimeContextPlugin({
     mechanism: (options: RuntimeContextOptions<unknown>) => {

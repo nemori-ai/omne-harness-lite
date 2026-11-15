@@ -29,6 +29,8 @@ it('cordis entry exports the production plugins that have landed', async () => {
     'encodeInitialContextRegistration',
     'prepareContextRegistration',
     'sessionInquiryBinding',
+    'sessionInteractionBinding',
+    'sessionModesBindings',
     'sessionModesDescriptor',
     'sessionModesProducer',
     'sessionScopeEvidence',

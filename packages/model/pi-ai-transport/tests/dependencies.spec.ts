@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest'
 const memberDirectory = new URL('../', import.meta.url)
 const sourceDirectory = new URL('../src/', import.meta.url)
 
-/** The run-time dependencies that the group architecture allows for the pi transport. */
 const allowed = new Set([
   '@omne-harness/model-contract',
   '@omne-harness/operation-result',
@@ -12,7 +11,6 @@ const allowed = new Set([
   '@omne-harness/content-block',
 ])
 
-/** Names that must never enter the install closure of this member, in any dependency field. */
 function isForbidden(name: string): boolean {
   return (
     name === '@omne-harness/model' ||
@@ -55,7 +53,6 @@ function field(
   return value
 }
 
-/** Every module specifier in the source, type-only imports and re-exports included. */
 function sourceSpecifiers(): readonly string[] {
   const files = readdirSync(sourceDirectory, { recursive: true, encoding: 'utf8' }).filter(file =>
     file.endsWith('.ts'),

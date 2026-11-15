@@ -1,6 +1,3 @@
-// The ledger domain read (`domain-serial`): the revision and every record of one domain of one
-// tenant, each with the key it is stored under. A domain larger than the row bound is refused,
-// never truncated.
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ReadHandlerModule } from '@omne-harness/sql-contract/worker'
 import { parseDomainAddress, type LedgerReadOutput } from './facts.ts'

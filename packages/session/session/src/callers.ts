@@ -1,6 +1,3 @@
-// Which caller classes each face operation admits (session-contract SPEC「四个面与公开操作」tables,
-// 「控制与模型选择」). This is a consistency check of the assembly fact, not access control: the
-// access boundary is the current access decision of each operation (contract VC-O05).
 import type {
   MutationName,
   SessionCallerClass,
@@ -12,6 +9,7 @@ export type FaceOperation =
   | MutationName
   | SessionReadAccessOperation
   | 'pending'
+  | 'directory.list'
   | 'references'
   | 'releasedScopes'
 
@@ -45,6 +43,7 @@ const ADMITTED: Readonly<Record<FaceOperation, readonly SessionCallerClass[]>> =
   readModelSelection: [I, M],
   cancelRun: [I, M],
   stopCall: [I, M],
+  retryRun: [I],
   queryControlOperation: [I, M],
   inspectIdle: [M],
   recordIdle: [M],
@@ -58,6 +57,7 @@ const ADMITTED: Readonly<Record<FaceOperation, readonly SessionCallerClass[]>> =
   freeze: [C],
   receive: [C, M],
   pending: [M],
+  'directory.list': [R],
   references: [M],
   releasedScopes: [M],
   'history.begin': [R],
@@ -70,7 +70,6 @@ export function admits(caller: SessionCallerClass, operation: FaceOperation): bo
   return ADMITTED[operation].includes(caller)
 }
 
-/** `accept` admits `coordinator` too, for the business-input branch only. */
 export function admitsCommand(caller: SessionCallerClass, command: SessionCommand): boolean {
   if (command.kind === 'accept' && command.input.value.kind === 'business' && caller === C)
     return true

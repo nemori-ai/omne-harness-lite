@@ -42,7 +42,6 @@ export function executionKey(root: CommonRoot, execution: string): string {
   if (!encoded.ok) corrupt('tenant')
   return JSON.stringify([encoded.value, execution])
 }
-/** The attempt the grant names for `execution`, or `undefined` when it does not identify SE15. */
 export function findGrantAttempt(
   root: CommonRoot,
   execution: string,
@@ -61,10 +60,6 @@ export function grantAttempt(
     findGrantAttempt(root, execution, grant) ?? unavailable('grant does not identify original SE15')
   )
 }
-/**
- * The attempt the Authority was granted under (R2-D348): the Agent records the grant of the
- * attachment the Authority names, and the Session resolves that grant to its attempt.
- */
 export function authorityAttempt(
   root: CommonRoot,
   execution: string,
@@ -227,11 +222,6 @@ function callConsequences(
   }
   return result
 }
-/**
- * The consequences of an input-taken event. A step that took no input (the step after a Tool
- * result) has no Session acceptance: an empty batch is only observed, and Session's refusal of an
- * empty SE14 batch stays as it is.
- */
 function takenConsequences(
   batch: Extract<AgentEvent['body'], { kind: 'input-taken' }>['batch'],
 ): readonly SessionLogConsequence[] {
@@ -248,12 +238,6 @@ function takenConsequences(
   ]
 }
 
-/**
- * The consequences of one event that the original Agent fragments of the same root decide alone:
- * every event body but `control`, whose consequences read the Session state of the interpretation
- * and are refused here as unavailable. The production Journal, which holds no Session state in its
- * copy, normalizes with this function; the memory double reaches it through `normalize`.
- */
 export function normalizeAgentEvent(
   root: CommonRoot,
   execution: MemoryExecution,
@@ -267,8 +251,6 @@ export function normalizeAgentEvent(
   switch (body.kind) {
     case 'input-taken':
       return takenConsequences(body.batch)
-    // `message` is already saved by AD-01; `entry` tells of a condition the same Journal saved in
-    // the same commit. Neither has a Session consequence (session-contract EC-01).
     case 'message':
     case 'entry':
       return [{ kind: 'observed' }]
@@ -350,7 +332,6 @@ function normalizeOriginal(
     unavailable('event original commit')
   return normalizeControl(root, execution, event)
 }
-/** The Pending calls one event names: the producer waits of a waiting event, the original of a producer event. */
 function pendingOf(root: CommonRoot, execution: MemoryExecution, event: AgentEvent): PendingCall[] {
   if (event.body.kind === 'waiting')
     return event.body.waits.flatMap(wait => (wait.kind === 'producer' ? [wait.pending] : []))
@@ -359,10 +340,6 @@ function pendingOf(root: CommonRoot, execution: MemoryExecution, event: AgentEve
   return []
 }
 
-/**
- * Keeps the first call event of the consumption of `value`, and the event that associates a Tool
- * intent with its actual call.
- */
 function rememberCallOrigin(
   root: CommonRoot,
   execution: MemoryExecution,
@@ -389,14 +366,6 @@ function rememberCallOrigin(
     })
 }
 
-/**
- * Keeps, in the root of the write that appended `event`, the original fragments that the
- * normalization of the event reads: its commit receipt, its ended position, the control records of
- * a control event, the Pending of a waiting or producer event with the first call event of each
- * consumption, and the human material of a human wait. It throws as its reads throw: a
- * HistoryFailure for a missing original, a TypeError for human material without an original card
- * round. The caller decides whether that fails the write.
- */
 export function captureEventOriginal(
   root: CommonRoot,
   execution: MemoryExecution,

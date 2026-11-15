@@ -1,7 +1,3 @@
-// The message bridge of the path as the Agent sees it through `MessageHandoff`: every H that
-// `prepare` decides keeps its outcome, `lookup` reads that outcome back, and `exclude` never
-// turns a fixed outcome or a request it cannot fence into an exclusion. The cases take the bridge
-// that the path hands to the Agent and the calls the Agent made, then call the port directly.
 import { describe, expect, it } from 'vitest'
 import type { HandoffPrepare, MessageHandoff, PendingHandoff } from '@omne-harness/agent-contract'
 import { decodeAgentOperationId } from '@omne-harness/agent-contract'
@@ -25,7 +21,6 @@ import { agentDouble, pathDependencies } from './first-path-doubles.ts'
 
 type Prepared = Parameters<MessageHandoff<PathPrincipal>['prepare']>[0]
 
-/** Runs the path once and keeps the bridge of the main session with every `prepare` call. */
 async function bridgeOfOnePath() {
   const calls: Prepared[] = []
   let bridge: MessageHandoff<PathPrincipal> | null = null
@@ -171,11 +166,6 @@ describe('the message bridge (MessageHandoff of the path)', () => {
   })
 })
 
-/**
- * A bridge of its own over the H of one path run: one round for the execution of those H, and a
- * Session writer that answers each `recordMessage` from `script` in turn (then commits), counts the
- * writes, and can hold the next answer until `release` is called.
- */
 async function directBridge(script: (SessionFailure | 'commit')[] = []) {
   const { calls } = await bridgeOfOnePath()
   const invoke = ofKind(calls, 'invoke')

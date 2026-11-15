@@ -1,0 +1,3 @@
+positive.cfg pass
+negative-no-participant.cfg EndedClean
+negative-no-agent-check.cfg EndedClean

@@ -1,6 +1,3 @@
-// The scheduling policy of the factory configuration (SPEC SchedulingPolicy, SR-3). Every interval,
-// limit and backoff lives here; the defaults are configuration seeds, not contract promises.
-
 export type SchedulingPolicy = Readonly<{
   command: Readonly<{ retriesOnChanged: number }>
   advance: Readonly<{ retryDelaysMs: readonly [number, ...number[]] }>
@@ -8,12 +5,12 @@ export type SchedulingPolicy = Readonly<{
   recoveryScan: Readonly<{
     periodMs: number
     pageSize: number
+    startupRetryDelaysMs: readonly [number, ...number[]]
     sessionBackoff: Readonly<{ initialMs: number; multiplier: number; maxMs: number }>
   }>
   pendingResolution: Readonly<{ retryIntervalMs: number; maxAttempts: number }>
   controlReplay: Readonly<{ intervalMs: number; maxReplays: number }>
   cascade: Readonly<{ intervalMs: number; maxDrives: number }>
-  /** prewarm stays false until the Agent host instance-creation entry exists (contract P-7). */
   preEvaluation: Readonly<{ concurrency: number; prewarm: false }>
   boundedRecovery: Readonly<{ maxInspectAttempts: number; retryIntervalMs: number }>
   cache: Readonly<{ entryBudgetBytes: number; snapshotSessions: number }>
@@ -21,7 +18,6 @@ export type SchedulingPolicy = Readonly<{
 
 export type SessionConfiguration = Readonly<{ policy: SchedulingPolicy }>
 
-/** Initial values from SPEC SchedulingPolicy. They are configuration seeds, not contract promises. */
 export const defaultSchedulingPolicy: SchedulingPolicy = Object.freeze({
   command: Object.freeze({ retriesOnChanged: 3 }),
   advance: Object.freeze({ retryDelaysMs: Object.freeze([1000, 5000, 30000] as const) }),
@@ -29,6 +25,7 @@ export const defaultSchedulingPolicy: SchedulingPolicy = Object.freeze({
   recoveryScan: Object.freeze({
     periodMs: 30000,
     pageSize: 100,
+    startupRetryDelaysMs: Object.freeze([1000, 5000, 30000] as const),
     sessionBackoff: Object.freeze({ initialMs: 5000, multiplier: 2, maxMs: 300000 }),
   }),
   pendingResolution: Object.freeze({ retryIntervalMs: 5000, maxAttempts: 60 }),
@@ -39,7 +36,6 @@ export const defaultSchedulingPolicy: SchedulingPolicy = Object.freeze({
   cache: Object.freeze({ entryBudgetBytes: 67108864, snapshotSessions: 1024 }),
 })
 
-/** A configuration the factory refuses. `field` is the path of the first offending field. */
 export class SessionConfigurationError extends Error {
   readonly field: string
   constructor(field: string, reason: string) {
@@ -51,7 +47,6 @@ export class SessionConfigurationError extends Error {
 
 type Rule = 'count' | 'interval' | 'delay'
 
-/** The rule of every numeric field, by path. A count and an interval must be positive; a delay may be zero. */
 const NUMERIC_FIELDS: readonly (readonly [string, Rule])[] = [
   ['command.retriesOnChanged', 'count'],
   ['idle.checkIntervalMs', 'interval'],
@@ -74,6 +69,8 @@ const NUMERIC_FIELDS: readonly (readonly [string, Rule])[] = [
   ['cache.snapshotSessions', 'count'],
 ]
 
+const DELAY_SEQUENCES = ['advance.retryDelaysMs', 'recoveryScan.startupRetryDelaysMs'] as const
+
 function at(root: unknown, path: string): unknown {
   let value = root
   for (const key of path.split('.')) {
@@ -91,11 +88,6 @@ function refusal(value: unknown, rule: Rule): string | null {
   return null
 }
 
-/**
- * Checks a configuration given by the assembly. It throws `SessionConfigurationError` naming the
- * first offending field: a negative value, a zero limit or interval, an empty backoff sequence, a
- * non-finite number, or a prewarm switch that P-7 does not allow yet.
- */
 export function checkSessionConfiguration(configuration: unknown): SessionConfiguration {
   const policy = at(configuration, 'policy')
   if (typeof policy !== 'object' || policy === null)
@@ -104,19 +96,20 @@ export function checkSessionConfiguration(configuration: unknown): SessionConfig
     const reason = refusal(at(policy, path), rule)
     if (reason !== null) throw new SessionConfigurationError(`policy.${path}`, reason)
   }
-  const delays = at(policy, 'advance.retryDelaysMs')
-  if (!Array.isArray(delays) || delays.length === 0)
-    throw new SessionConfigurationError('policy.advance.retryDelaysMs', 'empty or not a sequence')
-  delays.forEach((delay: unknown, index) => {
-    const reason = refusal(delay, 'delay')
-    if (reason !== null)
-      throw new SessionConfigurationError(`policy.advance.retryDelaysMs.${String(index)}`, reason)
-  })
+  for (const path of DELAY_SEQUENCES) {
+    const delays = at(policy, path)
+    if (!Array.isArray(delays) || delays.length === 0)
+      throw new SessionConfigurationError(`policy.${path}`, 'empty or not a sequence')
+    delays.forEach((delay: unknown, index) => {
+      const reason = refusal(delay, 'delay')
+      if (reason !== null)
+        throw new SessionConfigurationError(`policy.${path}.${String(index)}`, reason)
+    })
+  }
   if (at(policy, 'preEvaluation.prewarm') !== false)
     throw new SessionConfigurationError(
       'policy.preEvaluation.prewarm',
       'must stay false until the Agent host instance-creation entry exists',
     )
-  // Every field was checked above against the shape of SchedulingPolicy.
   return configuration as SessionConfiguration
 }

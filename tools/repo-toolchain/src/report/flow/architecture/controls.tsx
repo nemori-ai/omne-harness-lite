@@ -1,6 +1,4 @@
 /// <reference lib="dom" preserve="true" />
-// 审讯页的表单控件、视图切换与折叠区由 antd 渲染。页面标记仍写原生控件：加载时逐个换成 antd 组件，
-// id、可见文字与选项照搬，脚本按 id 取句柄读写。这样标记在没有脚本时仍可读，文字只在标记里维护一份。
 import { useLayoutEffect, useRef, useSyncExternalStore, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
@@ -15,7 +13,6 @@ import type {
   ViewName,
 } from './controls-api.ts'
 
-/** 一个可订阅的值：句柄写它，组件经 useSyncExternalStore 读它。 */
 class Cell<T> {
   private readonly listeners = new Set<() => void>()
   constructor(private current: T) {}
@@ -35,7 +32,6 @@ const useCell = <T,>(cell: Cell<T>): T => useSyncExternalStore(cell.subscribe, c
 // 主题取页面 token 的同一组值；antd 的派生色需要具体色值，不能直接用 CSS 变量。
 const FONT =
   '-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif'
-// 主色是靛蓝：下拉选中项、复选框与按下态由它派生；色相与表示「本次变更」的蓝拉开。
 const LIGHT = {
   colorPrimary: '#4f5bd5',
   colorText: '#1c2128',
@@ -48,7 +44,6 @@ const LIGHT = {
   colorLink: '#1c2128',
   colorLinkHover: '#5f6772',
 }
-// 深色下主色提亮一档，复选框的白色对勾仍看得清。
 const DARK = {
   colorPrimary: '#6b74e6',
   colorText: '#e6e8eb',
@@ -79,7 +74,6 @@ function Themed({ children }: { readonly children: ReactNode }) {
   const dark = (media & 1) === 1
   return (
     <ConfigProvider
-      // 不在两个汉字的按钮文字中间插空格：控件名是规格点名的稳定文字。
       button={{ autoInsertSpace: false }}
       theme={{
         algorithm: dark ? theme.darkAlgorithm : theme.defaultAlgorithm,
@@ -98,7 +92,6 @@ function Themed({ children }: { readonly children: ReactNode }) {
   )
 }
 
-/** 同步渲染：脚本紧接着按 id 找元素、读句柄时，DOM 已经就位。 */
 function mount(host: HTMLElement, node: ReactNode): void {
   const root = createRoot(host)
   flushSync(() => root.render(<Themed>{node}</Themed>))
@@ -266,7 +259,6 @@ function upgradeButton(native: HTMLButtonElement): void {
   })
 }
 
-/** 把已有的 DOM 节点挪进 React 渲染的容器，节点本身（含 id 与脚本写入的内容）不变。 */
 function Adopt({ nodes }: { readonly nodes: readonly Node[] }) {
   const ref = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
@@ -303,7 +295,6 @@ const PANE_OF_VIEW: Readonly<Record<ViewName, string>> = {
 }
 const viewHandlers = new Map<ViewName, () => void>()
 
-/** 当前视图跟随面板的 hidden 属性：谁切换面板都不必另外通知导航。 */
 function upgradeNav(nav: HTMLElement): void {
   const tabs = [...nav.querySelectorAll('button')].flatMap(tab => {
     const view = VIEW_OF_TAB[tab.id]
@@ -327,7 +318,6 @@ function upgradeNav(nav: HTMLElement): void {
         onChange={activate}
         options={tabs.map(tab => ({
           value: tab.view,
-          // 点已选中的视图也重新进入它（例如符合性面板会重置筛选），与原来的按钮一致。
           label: (
             <span
               id={tab.id}
@@ -422,7 +412,6 @@ export const reportUi: ReportUiApi = {
     viewHandlers.set(view, handler)
   },
   functionTable(host, props) {
-    // 只挂载一次，之后换数据：点表头排序时表格不卸载重建，不闪。
     const state = new Cell(props)
     function View() {
       return <FunctionTable {...useCell(state)} />

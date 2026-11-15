@@ -1,4 +1,3 @@
-// The source registry (RQ-12): one source set per target, generations, borrows, publication.
 import { describe, expect, it } from 'vitest'
 import { createContextSourceRegistry } from '@omne-harness/request-context'
 import { tenantCodec } from '@omne-harness/legal-identity'
@@ -222,7 +221,6 @@ describe('replace and withdraw', () => {
     const result = await registry.assembly(f.target).assemble(f.call)
     expect(replaced).toMatchObject({ kind: 'registered' })
     expect(result).toMatchObject({ kind: 'unavailable', owner: 'source-registry' })
-    // The successor serves the next operation.
     expect((await registry.assembly(f.target).assemble(f.call)).kind).toBe(
       'candidate-before-extension',
     )
@@ -302,12 +300,11 @@ const planFails = () => ({
   failure: { kind: 'unavailable' as const, dependency: 'rules', diagnostic: 'no plan' },
 })
 
-describe('leases are recorded per generation (RQ-05, RQ-12)', () => {
+describe('leases are recorded per generation (RQ-12)', () => {
   it('a failed operation whose lease also fails to come back keeps both failures', async () => {
     const f = createAssemblyFixture({ preparation: { plan: planFails as never, release: stuck } })
     const registry = registryFor(f)
     await registered(registry, f)
-    // The main failure is returned; the give-back failure is not dropped.
     expect(await registry.assembly(f.target).assemble(f.call)).toMatchObject({
       kind: 'unavailable',
       owner: 'preparation',
@@ -536,7 +533,7 @@ describe('the decision is the last await before the registration changes', () =>
   })
 })
 
-describe('a hot cache keeps the borrow, publication and lease rules (CX-14)', () => {
+describe('a hot cache keeps the borrow, publication and lease rules', () => {
   it('an operation that reused cached material is not published after a replacement', async () => {
     const f = createAssemblyFixture()
     const registry = registryFor(f)
@@ -581,4 +578,46 @@ describe('a hot cache keeps the borrow, publication and lease rules (CX-14)', ()
     expect(f.preparation.calls().length).toBeGreaterThan(before)
     await expect(registry.close()).resolves.toEqual({ kind: 'unavailable', outstanding: [owner] })
   })
+})
+
+describe('a failure of the rules or the meter of a supplier keeps its kind', () => {
+  const assemble = async (preparation: object) => {
+    const f = createAssemblyFixture({ preparation: preparation as never })
+    const registry = registryFor(f)
+    await registered(registry, f)
+    return registry.assembly(f.target).assemble(f.call)
+  }
+  const failures = {
+    invalid: { kind: 'invalid', field: '/messages/1/blocks/0', reason: 'orphan-tool-call' },
+    unsupported: { kind: 'unsupported', field: 'image', adapter: owner },
+    denied: { kind: 'denied', action: 'plan' },
+    unavailable: { kind: 'unavailable', dependency: 'supplier', diagnostic: 'down' },
+  } as const
+  const answers = (step: 'preparation' | 'meter') => ({
+    invalid: {
+      kind: 'invalid',
+      field: `${step}./messages/1/blocks/0`,
+      reason: 'unsupported-format',
+    },
+    unsupported: { kind: 'invalid', field: `${step}.image`, reason: 'unsupported-format' },
+    denied: { kind: 'denied', action: 'assemble' },
+    unavailable: { kind: 'unavailable', owner: step },
+  })
+
+  it.each(['invalid', 'unsupported', 'denied', 'unavailable'] as const)(
+    'the rules answer %s',
+    async kind => {
+      const result = await assemble({ plan: () => ({ failure: failures[kind] }) })
+      expect(result).toMatchObject(answers('preparation')[kind])
+    },
+  )
+  it.each(['invalid', 'unsupported', 'denied', 'unavailable'] as const)(
+    'the meter answers %s',
+    async kind => {
+      const result = await assemble({
+        meter: { measure: async () => ({ failure: failures[kind] }) },
+      })
+      expect(result).toMatchObject(answers('meter')[kind])
+    },
+  )
 })

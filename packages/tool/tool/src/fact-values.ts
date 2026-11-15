@@ -15,6 +15,7 @@ export type StoredFactBatch = Omit<FactBatch, 'events'> &
       event: string
       fact: StoredExecutionFact
       value: ToolCanonicalFingerprint
+      request: string | null
     }>[]
   }>
 

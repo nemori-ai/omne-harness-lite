@@ -1,6 +1,3 @@
-// `pnpm run check` 里按计划执行的几步：pytest、构建、类型检查、成员测试（快慢两层）、可执行验收；
-// 以及它们共用的「跑一批成员的脚本并写耗时账本」。计划由 `scope.ts` 算（受影响的成员由 turbo 给出），
-// 这里只照着执行、照实说跳了什么。构建、类型检查与成员测试交给 turbo，可执行验收仍由本工具逐成员跑。
 import { baselines } from '@omne-harness/repo-toolchain/core/task-context'
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -13,8 +10,14 @@ import {
   fileAt,
   type Coordinates,
 } from '@omne-harness/repo-toolchain/core/git'
-import { lockfileImpact, type LockfileImpact } from './lockfile-impact.ts'
-import { describeCheckPlan, LOCKFILE_PATH, planCheck, type CheckPlan } from './scope.ts'
+import { lockfileImpact, workspaceImpact, type LockfileImpact } from './lockfile-impact.ts'
+import {
+  describeCheckPlan,
+  LOCKFILE_PATH,
+  planCheck,
+  WORKSPACE_PATH,
+  type CheckPlan,
+} from './scope.ts'
 import {
   admissionRequested,
   affectedMembers,
@@ -78,10 +81,6 @@ import {
 import { rerunInFile, type RerunOutcome } from './triage.ts'
 import { TIER_TASKS } from './turbo.ts'
 
-/**
- * `run` 的缓存策略：`FULL=1` 时不读；`build` 为本次调用是否为被选中的成员构建，没构建就不写。
- * 所以不带 `--build` 的 `FULL=1 pnpm run test`（`run --all`）既不读也不写。
- */
 export function runCachePolicy(
   env: Readonly<Record<string, string | undefined>>,
   options: { readonly noCache: boolean; readonly build: boolean },
@@ -89,7 +88,6 @@ export function runCachePolicy(
   return cachePolicy(env, { ...options, full: fullRequested(env) })
 }
 
-/** 环境变量 `FULL`：`1` 要全量，不设或空串不要；别的值报错，不猜。 */
 export function fullRequested(env: Readonly<Record<string, string | undefined>>): boolean {
   const value = env['FULL']
   if (value === undefined || value === '') return false
@@ -97,7 +95,6 @@ export function fullRequested(env: Readonly<Record<string, string | undefined>>)
   throw new Error(`环境变量 FULL 只能是 1 或不设，现在是 ${value}`)
 }
 
-/** 计划文件：计划连同它是对哪个提交、哪个基线算的。 */
 export interface PlanFile {
   readonly head: string
   readonly dirty: boolean
@@ -105,37 +102,40 @@ export interface PlanFile {
   readonly plan: CheckPlan
 }
 
-/**
- * 基线提交与 HEAD（`head` 为 undefined 时取工作树）两份 `pnpm-lock.yaml` 的影响面（lockfile-impact.ts）。
- * 哪一边没有锁文件就判全量并写明：没有可比的两份，不猜。
- */
 export function lockfileImpactBetween(
   root: string,
   base: string,
   head: string | undefined,
   members: readonly { readonly path: string }[],
 ): LockfileImpact {
-  const baseText = fileAt(root, base, LOCKFILE_PATH)
-  if (baseText === undefined)
-    return { kind: 'full', reason: `基线 ${base.slice(0, 9)} 上没有 ${LOCKFILE_PATH}，判为全量` }
-  const headText = head === undefined ? worktreeLockfile(root) : fileAt(root, head, LOCKFILE_PATH)
-  if (headText === undefined)
-    return {
-      kind: 'full',
-      reason: `${head === undefined ? '工作树' : `HEAD ${head.slice(0, 9)}`} 里没有 ${LOCKFILE_PATH}，判为全量`,
-    }
-  return lockfileImpact(baseText, headText, members)
+  const sides = (path: string): [string, string] | string => {
+    const baseText = fileAt(root, base, path)
+    if (baseText === undefined) return `基线 ${base.slice(0, 9)} 上没有 ${path}，判为全量`
+    const headText = head === undefined ? worktreeFile(root, path) : fileAt(root, head, path)
+    if (headText === undefined)
+      return `${head === undefined ? '工作树' : `HEAD ${head.slice(0, 9)}`} 里没有 ${path}，判为全量`
+    return [baseText, headText]
+  }
+  const workspace = sides(WORKSPACE_PATH)
+  if (typeof workspace === 'string') return { kind: 'full', reason: workspace }
+  const workspaceChange = workspaceImpact(...workspace)
+  if (workspaceChange.kind === 'full') return workspaceChange
+  const lockfile = sides(LOCKFILE_PATH)
+  if (typeof lockfile === 'string') return { kind: 'full', reason: lockfile }
+  const impact = lockfileImpact(...lockfile, members)
+  return workspaceChange.kind === 'catalog-only' && impact.kind !== 'full'
+    ? { ...impact, reason: `${workspaceChange.reason}；${impact.reason}` }
+    : impact
 }
 
-function worktreeLockfile(root: string): string | undefined {
+function worktreeFile(root: string, path: string): string | undefined {
   try {
-    return readFileSync(join(root, LOCKFILE_PATH), 'utf8')
+    return readFileSync(join(root, path), 'utf8')
   } catch {
     return undefined
   }
 }
 
-/** 算这个检出相对基线的计划。基线不存在、取不到改动都抛错（引擎出错不改判全量）。 */
 export function computePlan(root: string, baseRef: string, full: boolean): PlanFile {
   const config = readTestRunsConfig()
   const at = coordinates(root, baseRef)
@@ -166,7 +166,6 @@ export function writePlanFile(path: string, file: PlanFile): void {
   writeFileSync(path, `${JSON.stringify(file, null, 1)}\n`)
 }
 
-/** 读计划文件；它算的不是当前提交就报错——计划与执行之间提交变了，计划就不再描述这次改动。 */
 export function readPlanFile(root: string, path: string): PlanFile {
   if (!existsSync(path)) throw new Error(`计划文件 ${path} 不存在：先跑 cli.ts plan --json ${path}`)
   const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'))
@@ -180,7 +179,6 @@ export function readPlanFile(root: string, path: string): PlanFile {
   return parsed
 }
 
-/** 只核执行要用到的几栏；计划文件由本工具在同一次检查里刚写出。 */
 function isPlanFile(value: unknown): value is PlanFile {
   if (typeof value !== 'object' || value === null) return false
   const { head, base, plan } = value as Record<string, unknown>
@@ -196,7 +194,6 @@ function isPlanFile(value: unknown): value is PlanFile {
   )
 }
 
-/** 计划里的成员目录换成成员；目录已不是成员就报错。 */
 function membersAt(root: string, paths: readonly string[]): WorkspaceMember[] {
   const config = readTestRunsConfig()
   const members = listWorkspaceMembers(fileTree(root), config.affected.excludeRoots)
@@ -227,8 +224,6 @@ export function pythonStep(root: string, file: PlanFile): number {
   }
   console.log(`pytest：跑——${file.plan.python.reason}`)
   const runner = process.env['OMNE_RUNNER_ROOT']
-  // 与根脚本 test:python 一致：被检查的检出里没有 tooling 的 conftest 时，xdist 退回单进程。
-  // 只放进子进程的环境，不写本进程的 process.env；调用方已设的值照旧生效。
   const env: NodeJS.ProcessEnv = { PYTEST_XDIST_AUTO_NUM_WORKERS: '0', ...process.env }
   return runner === undefined
     ? spawnInherited(
@@ -263,12 +258,6 @@ export function pythonStep(root: string, file: PlanFile): number {
       )
 }
 
-/**
- * 构建：按计划点名，turbo 先构建它们的上游；`OMNE_ADMISSION=1` 时本地缓存只写不读。同时构建的成员数取预算。
- * 给了计划文件路径时，构建成功后在它旁边写构建记录（`built-from.json`）：每个被构建成员在构建开始前的输入摘要。
- * 摘要在构建开始前取，构建期间改动的文件算「这次构建没看到」。构建成功后再记产物摘要：本成员与上游成员 `dist/` 里全部文件的路径、字节数与 mtimeMs。
- * 构建失败或摘要取不到时不留记录，旧记录先删掉。
- */
 export function buildStep(root: string, file: PlanFile, budget: Budget, planPath?: string): number {
   const paths = file.plan.build.map(entry => entry.path)
   if (paths.length === 0) {
@@ -314,7 +303,6 @@ export function buildStep(root: string, file: PlanFile, budget: Budget, planPath
   return code
 }
 
-/** 没有可用构建记录时不写缓存的原因：没有记录文件、记录是另一个提交的、记录是旧格式，分开写。 */
 function unbuiltReason(read: Exclude<BuiltFromRead, { status: 'ok' }>, head: string): string {
   switch (read.status) {
     case 'missing':
@@ -326,10 +314,6 @@ function unbuiltReason(read: Exclude<BuiltFromRead, { status: 'ok' }>, head: str
   }
 }
 
-/**
- * `step test` 的缓存策略与构建记录。带计划文件时，前面的构建一步在另一个进程里构建，并在计划文件旁写了构建记录；
- * 没有记录（手工 `--plan`、前面没构建、记录是另一个提交的）就不写缓存。不带计划文件时由 turbo 先构建，记录取自这次运行自己。
- */
 export function stepTestCache(
   env: Readonly<Record<string, string | undefined>>,
   options: {
@@ -360,7 +344,6 @@ export function stepTestCache(
   }
 }
 
-/** 类型检查：按计划点名，由 turbo 运行；不依赖构建。先核对嵌套归档目录已在成员的 tsconfig 里排除。同时检查的成员数取预算。 */
 export function typecheckStep(root: string, file: PlanFile, budget: Budget): number {
   const paths = file.plan.typecheck
   if (paths.length === 0) {
@@ -380,27 +363,18 @@ export function typecheckStep(root: string, file: PlanFile, budget: Budget): num
   )
 }
 
-/** 一次记账本的运行：跑哪些成员、哪一层，以及账本抬头里写的范围。 */
 export interface RecordedRun {
   readonly script: RunScript
   readonly tier: RunTier
   readonly targets: readonly TestMember[]
-  /** 运行前构建目标连同依赖：测试由 turbo 按任务依赖在同一次运行里构建，验收在运行前构建。false 时调用方已经构建过。 */
   readonly build: boolean
   readonly out: string | undefined
   readonly at: Coordinates
-  /** 账本抬头的 `base`：跑的是全部成员时为 null。 */
   readonly base: RunMeta['base']
   readonly plan: RunMeta['plan']
   readonly scope?: RunMeta['scope']
-  /** 这一次运行的工作进程预算：并行度由它推出来（环境变量可盖过），账本记下它的来历。 */
   readonly budget: Budget
-  /**
-   * 构建记录（成员目录到构建时输入摘要）：调用方在别的进程里构建过时给，来自 `built-from.json`。
-   * 不给且 `build` 为真时，本进程的构建由这次运行自己做，记录取开跑前的输入摘要。
-   */
   readonly builtFrom?: ReadonlyMap<string, BuiltMember>
-  /** 成员测试的结果缓存策略（`test-cache.ts`）；不给就不查也不写（验收不缓存）。 */
   readonly cache?: CachePolicy
 }
 
@@ -415,25 +389,21 @@ function runDirOf(run: RecordedRun): string {
   )
 }
 
-/** 一次记账本的运行的结果：退出码只反映是否全过；账本里的失败清单交给调用方（定向重跑按它选文件）。 */
 export interface RecordedOutcome {
   readonly exitCode: number
   readonly failures: readonly Failure[]
   readonly runDir: string
 }
 
-/** 跑 `targets` 的脚本并写账本；退出码只反映是否全过。 */
 export async function recordedRun(root: string, run: RecordedRun): Promise<RecordedOutcome> {
   const { script, tier, targets, budget } = run
   const config = readTestRunsConfig()
   const parallel = effectiveParallelism(config, process.env, budget)
   const runDir = runDirOf(run)
   mkdirSync(runDir, { recursive: true })
-  // 测试的构建由 turbo 按任务依赖在同一次运行里做；验收不经 turbo，先在这里构建。
   if (script === 'acceptance' && run.build && !buildTargets(root, targets, runDir, budget.workers))
     return { exitCode: 1, failures: [], runDir }
 
-  // 成员测试先查缓存：命中的不跑；查不了（快照、依赖图取不到）就全部照跑、不写。
   const found =
     script === 'test' && run.cache !== undefined
       ? lookupCache({
@@ -446,7 +416,6 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
           env: process.env,
         })
       : undefined
-  // 构建记录：这次运行自己构建（turbo 在测试前构建）时，开跑前取的键就是「构建开始前」的输入。
   const builtFrom =
     found === undefined
       ? undefined
@@ -473,9 +442,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
     cores: budget.machine.cores,
     plan: run.plan,
     ...(run.scope === undefined ? {} : { scope: run.scope }),
-    // 这次覆盖的成员：跑了的与缓存命中的；哪些命中、来源在哪见 `cache`，成员一级的读数只有跑了的。
     members: targets.map(member => member.path),
-    // 账本类型来自钉住的 repo-toolchain；预算的来历作为额外一栏记下，供按机器比较账本。
     budget: {
       workers: budget.workers,
       idleFraction: Math.round(budget.machine.idleFraction * 100) / 100,
@@ -494,7 +461,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
   for (const [member, entry] of hits) {
     finishedBefore += 1
     console.log(
-      `[${finishedBefore}/${targets.length}] ✓ ${member} 缓存命中，${entry.tests} 条用例，来源 ${entry.ledger}`,
+      `[${finishedBefore}/${targets.length}] ✓ ${member} 缓存命中，${entry.tests} 条用例，取自 ${entry.head.slice(0, 9)} 在 ${entry.recordedAt} 的运行，来源 ${entry.ledger}`,
     )
   }
   const report = (done: MemberRun, finished: number) => {
@@ -525,7 +492,12 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
   const recorded =
     lookup === undefined
       ? undefined
-      : recordCache(lookup, runs, tier, { ledger: runDir, head: run.at.head, dirty: run.at.dirty })
+      : recordCache(lookup, runs, tier, {
+          ledger: runDir,
+          head: run.at.head,
+          dirty: run.at.dirty,
+          admission: admissionRequested(process.env),
+        })
   for (const line of recorded?.skipped ?? []) console.log(`测试缓存：${line}`)
   const cache =
     lookup === undefined || recorded === undefined ? {} : { cache: cacheMeta(lookup, recorded) }
@@ -556,7 +528,6 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
   }
 }
 
-/** 运行前说清缓存怎么用、命中了几个；整个缓存不可用时说原因。 */
 function describeLookup(lookup: CacheLookup, total: number): string[] {
   if (lookup.unavailable !== undefined)
     return [`测试缓存：不可用——${lookup.unavailable}；${total} 个成员全部照跑，不写缓存`]
@@ -573,11 +544,11 @@ function describeLookup(lookup: CacheLookup, total: number): string[] {
     ]
   return [
     `测试缓存：命中 ${lookup.hits.size} 个成员、跑 ${total - lookup.hits.size} 个` +
+      (lookup.policy.trustedOnly ? '（准入模式：只认准入模式下真跑出来的记录）' : '') +
       `（键与影响面规则同源：成员自己、上游、读者规则点名与全局文件的内容摘要；${lookup.home}）${skipped}${noWrite}`,
   ]
 }
 
-/** 摘要里的缓存一行：命中几个、来源哪些账本、这次写了几个、写不进去的。 */
 function describeCacheResult(
   lookup: CacheLookup,
   recorded: { readonly written: readonly string[]; readonly problems: readonly string[] },
@@ -597,8 +568,6 @@ function describeCacheResult(
 
 const planSummary = (plan: CheckPlan) => ({ mode: plan.mode, reason: plan.reason })
 
-/** 合并前的成员测试：计划里的成员的快层，快层全部通过才跑慢层；跑了的层各写一份账本，每层开始时各看一次机器。
- * 计划为空时说「没有要跑的成员」，不算跑过。`build` 为 true 时由 turbo 先构建（单独运行）；准入检查里构建一步已经构建过，不再构建。 */
 export async function testStep(
   root: string,
   file: PlanFile,
@@ -652,7 +621,6 @@ export async function testStep(
       return outcome.exitCode
     }, console.log)
   }
-  // 接续只跑必要的：H1 上失败的文件（都在慢层）各单独跑一次；所在成员这次已整个跑过的不重复。
   if (code === 0 && resumed !== undefined) {
     const covered = new Set(targets.map(member => member.path))
     const alone = resumeFilesToRun(resumed.files, covered)
@@ -674,7 +642,6 @@ export async function testStep(
   return code
 }
 
-/** 接续时要单独跑的失败文件：所在成员这次已整个跑过的不算（它的文件在成员运行里已经跑了）。 */
 export function resumeFilesToRun(
   files: readonly FailedFile[],
   coveredMembers: ReadonlySet<string>,
@@ -682,7 +649,6 @@ export function resumeFilesToRun(
   return files.filter(file => !coveredMembers.has(file.member))
 }
 
-/** 定向重跑一个失败的测试文件：经成员那一层的脚本（`test:fast`／`test:slow`）起 vitest，一个工作进程；日志落账本目录下的 retry/。 */
 async function rerunFailedFile(root: string, failed: FailedFile): Promise<RerunOutcome> {
   const base = join(
     ledgerHome('test', coordinates(root, undefined).mainRoot, process.env),
@@ -693,7 +659,6 @@ async function rerunFailedFile(root: string, failed: FailedFile): Promise<RerunO
   return rerunInFile(root, TIER_TASKS[failed.tier], failed.member, failed.file, undefined, base)
 }
 
-/** 快层失败时这一步的结论已定，不再跑慢层，也不写慢层账本；快层通过才跑慢层。 */
 export async function fastThenSlow(
   run: (tier: RetryTier) => Promise<number>,
   note: (text: string) => void,
@@ -705,10 +670,6 @@ export async function fastThenSlow(
   return (await run('slow')) === 0 ? 0 : 1
 }
 
-/**
- * 计划跳过了全部验收时，为当前提交写一份账本：没跑任何成员、`scope` 里写明跳了谁、为什么。
- * 回路状态的验收耗时传感器认它（读数是「本次影响面不含带验收的成员」），不再因为没有记录而判没数据。
- */
 export function recordSkippedAcceptance(
   at: Coordinates,
   env: Readonly<Record<string, string | undefined>>,
@@ -745,7 +706,6 @@ export function recordSkippedAcceptance(
   return path
 }
 
-/** 可执行验收：只跑计划里有验收的成员（驱动前面构建好的 dist，不再构建）；一个都没有时记一份「跳过」的账本。 */
 export async function acceptanceStep(
   root: string,
   file: PlanFile,

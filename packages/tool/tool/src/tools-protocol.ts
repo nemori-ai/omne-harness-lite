@@ -29,10 +29,6 @@ export type AttachmentReference = Readonly<{
   selector: number
 }>
 
-/**
- * A body reference shows its identities raw, separated by spaces the identity lexicon excludes, so
- * the first screen that carries it grows by at most one byte per identity character.
- */
 export function encodeBodyReference(value: BodyReference): string {
   const { call, admission } = readToolInvocationRef(value.reference)
   return `tb1.${[call, admission, value.result, value.bodyId].join(' ')}`

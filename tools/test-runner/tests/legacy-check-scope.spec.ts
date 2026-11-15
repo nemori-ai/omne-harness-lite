@@ -49,7 +49,6 @@ describe('legacy check boundaries', () => {
     expect(plan.typecheck).toEqual(['tools/live', 'tools/old.legacy-not'])
     expect(plan.test).toEqual(plan.typecheck)
     expect(plan.acceptance).toEqual(plan.typecheck)
-    // 退役成员不进构建清单；在役成员的上游由 turbo 构建。
     expect(plan.build).toEqual([
       { path: 'tools/live', reason: 'selected' },
       { path: 'tools/old.legacy-not', reason: 'selected' },
@@ -101,7 +100,6 @@ describe('legacy check boundaries', () => {
       'package.json',
       JSON.stringify({
         private: true,
-        // turbo 要读被检查仓库根的 packageManager 才能解析 workspace。
         packageManager: 'pnpm@10.28.1',
         scripts: { typecheck: "node -e \"require('fs').writeFileSync('root-shortcut', 'wrong')\"" },
       }),

@@ -1,5 +1,4 @@
 // @module-tag slow
-// Slow: builds declarations in temporary packages, runs the TypeScript checker on them (ts.createProgram) and starts the CLI as a child process. File total 9.3 s on the full-admission fast-tier ledger, 30.3 s under load; tagging its heaviest case alone still leaves 7.3 s (24.8 s under load), and two cases reached 5.4 s and 5.5 s under load against the 5 s timeout (tools/test-runner/README_ZH.md「归层」).
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -25,9 +24,6 @@ import {
   publicApiChapters,
 } from '../src/package-exports/page.ts'
 
-// The check is the measuring instrument for every package that keeps an export inventory. Each case
-// builds a tiny package or declaration file that breaks one rule and asserts that exactly that rule
-// is reported, so a weakened instrument turns a case red.
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 const cli = join(repo, 'tools/dev-flow/src/package-exports/cli.ts')
 const directory = realpathSync(mkdtempSync(join(tmpdir(), 'package-exports-')))
@@ -332,8 +328,6 @@ describe('decodeInventory and inventoryProblems', () => {
     expect(inventoryProblems(entries({ ...type('Gone'), sameAs: '.' }), ['.', './sub'])).toEqual([
       './sub: Gone is sameAs ., which does not list it',
     ])
-    // Kind belongs to the actual export, not its owner: the built-entry check rejects
-    // value projections of type-only declarations, while class -> type is legitimate.
     expect(inventoryProblems(entries({ ...value('Own'), sameAs: '.' }), ['.', './sub'])).toEqual([])
   })
 })

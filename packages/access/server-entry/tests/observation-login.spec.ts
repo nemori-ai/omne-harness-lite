@@ -1,8 +1,3 @@
-// Observations and the validity of their login (identity spec C5, D4): a revoke on this instance
-// ends every observation of the revoked login at once with `ended(denied)`; an idle or maximum
-// deadline that passes shows at the next round's login check and ends it the same way; an
-// unjudgeable login ends it with `ended(unavailable)`. `cancel-observation` from another login of
-// the same account finds nothing, ends nothing and calls no Session face.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { IdentityGovernance } from '@omne-harness/identity'
 import { parseDuration } from '@omne-harness/utc-instant'
@@ -63,7 +58,6 @@ function duration(text: string) {
 
 describe('observation-ended-on-revoke', () => {
   it('ends every observation of the revoked login at once, and keeps the other login observing', async () => {
-    // A long round: an end within the test can only come from the revoke itself.
     fixture = await startFixture({ config: { heartbeatIntervalMs: 60_000 } })
     const first = await login(fixture, 'alice')
     const second = await anotherLogin(fixture, first)
@@ -81,7 +75,6 @@ describe('observation-ended-on-revoke', () => {
     expect((await revokedB.waitForEvents(2))[1]).toEqual(endedFrame('obs-b', 'denied', 'm-b'))
     await Promise.all([revokedA.ended, revokedB.ended])
 
-    // Control: the revoking login's own observation, with the same observationId, goes on.
     await sleep(30)
     expect(kept.events()).toHaveLength(1)
     const cancelled = await send(fixture.port, SESSION_PATH, {
@@ -99,8 +92,6 @@ describe('observation-ended-on-revoke', () => {
   it('ends the target observations when the revoke answers no-change', async () => {
     fixture = await startFixture({
       config: { heartbeatIntervalMs: 60_000 },
-      // The port answers no-change and writes nothing: the target login stays valid in identity,
-      // so only the revoke branch can end its observation within the test.
       governance: (base): IdentityGovernance => ({
         ...base,
         revokeLogin: () => Promise.resolve({ kind: 'no-change' }),
@@ -143,10 +134,8 @@ describe('observation-ended-on-expiry', () => {
     const session = await createSession(fixture, alice)
     const stream = openSse(fixture.port, observe(alice, session, 'obs-1'))
     await stream.waitForEvents(1)
-    // Control: rounds pass while the login is valid, and the observation stays.
     await sleep(120)
     expect(stream.events()).toHaveLength(1)
-    // 601 s after the last successful business access, past the 600 s idle period.
     fixture.clock.advanceBy(duration('PT601S'))
     expect((await stream.waitForEvents(2))[1]).toEqual(endedFrame('obs-1', 'denied'))
     await stream.ended
@@ -187,7 +176,6 @@ describe('cancel-observation-other-login-not-found', () => {
     await sleep(30)
     expect(stream.events()).toHaveLength(1)
 
-    // Control: the login that established it does end it, still without a Session call.
     const own = await send(fixture.port, SESSION_PATH, { body: cancel(first, session, 'obs-1') })
     expect((own.json as { body: unknown }).body).toEqual({ observationId: 'obs-1', state: 'ended' })
     expect((await stream.waitForEvents(2))[1]).toEqual(endedFrame('obs-1', 'observer-cancelled'))

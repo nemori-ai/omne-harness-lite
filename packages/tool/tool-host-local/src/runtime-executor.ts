@@ -5,15 +5,21 @@ import {
   createToolDriver,
   type ToolDependencies,
   type ToolLedger,
+  type ToolLedgerRecovery,
 } from '@omne-harness/tool'
-import type { DurableEvidence } from '@omne-harness/tool-contract'
+import type { DurableEvidence, ToolInstanceId } from '@omne-harness/tool-contract'
 import type {
   ToolDriver,
   ToolInstanceHost,
   ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
+import { owesWork, waitsForPerson } from './call-dormancy.ts'
+import { attachCall } from './call-liveness.ts'
+import { createLostExecutions, type LostExecutionsInput } from './lost-execution.ts'
+import { createRecoveryScans } from './recovery-scans.ts'
 import { createLocalToolResultDelivery } from './result-delivery.ts'
 import { createRuntimePublication } from './runtime-publication.ts'
+import { createRunStopLog } from './run-stop-log.ts'
 import {
   waitRuntime,
   type RuntimeCallPurpose,
@@ -43,31 +49,52 @@ type Entry = {
   started: boolean
   retiring: boolean
   running: boolean
-  /**
-   * Judged from a fresh recovery after a delivery outcome: settled, no pending task, delivery
-   * done. A complete entry is not rescheduled and retires once no run is in progress.
-   */
   complete: boolean
+  dormant: boolean
   progress: string
 }
 
-export function createRuntimeExecutor(
-  input: Readonly<{
-    ctx: Context
-    settings: RuntimeCompositionInput
-    dependencies: ToolDependencies<unknown, ToolMessageContentBlock, ToolEnvironmentValue>
-    resultDelivery: ToolLedger<unknown, ToolMessageContentBlock>['delivery']
-    receiver: Parameters<
-      typeof createLocalToolResultDelivery<unknown, ToolMessageContentBlock>
-    >[0]['position']['receiver']
-  }>,
-) {
+function drivenLater(progress: string): boolean {
+  return (
+    progress === 'blocked' || progress === 'yielded' || progress.startsWith('failed/unavailable')
+  )
+}
+
+const RESCAN_MS = 60_000
+
+function logTo(ctx: Context): (level: 'warn' | 'info', message: string) => void {
+  return (level, message) => {
+    try {
+      ctx.logger('tool-executor')[level](message)
+    } catch {}
+  }
+}
+
+type ExecutorInput = Readonly<{
+  ctx: Context
+  settings: RuntimeCompositionInput
+  dependencies: ToolDependencies<unknown, ToolMessageContentBlock, ToolEnvironmentValue>
+  resultDelivery: ToolLedger<unknown, ToolMessageContentBlock>['delivery']
+  receiver: Parameters<
+    typeof createLocalToolResultDelivery<unknown, ToolMessageContentBlock>
+  >[0]['position']['receiver']
+  recovery: ToolLedgerRecovery
+  instance(): ToolInstanceId | null
+  maintenance: LostExecutionsInput['maintenance']
+}>
+
+const AT_REST: ReadonlySet<string> = new Set(['ended', 'not-started', 'lost'])
+
+export function createRuntimeExecutor(input: ExecutorInput) {
   const { settings, dependencies } = input
   const abort = new AbortController()
   const calls = new Map<string, Entry>()
+  const executorLog = logTo(input.ctx)
   let completed = 0
   let foreignExecutionRuns = 0
   let unownedRuns = 0
+  let dormantExits = 0
+  let reentries = 0
   const delivery = createLocalToolResultDelivery({
     store: settings.store,
     commands: dependencies.commands,
@@ -78,18 +105,11 @@ export function createRuntimeExecutor(
     position: { access: settings.resolveAccess, receiver: input.receiver },
     forwardedCopies: settings.sources.releaseReceivedCopies,
     capacity: settings.capacity,
-    // No receiver, or one that answers unavailable: the delivery stays owed, paced and named (R2-D273, R2-D282).
     pacing: {
       initialMs: settings.configuration.driverRetryDelayMs ?? 1000,
       maxMs: Math.max(settings.configuration.driverRetryDelayMs ?? 1000, 60_000),
     },
-    warn: message => {
-      try {
-        input.ctx.logger('tool-executor').warn(message)
-      } catch {
-        // The context has ended; there is nobody to tell.
-      }
-    },
+    warn: message => executorLog('warn', message),
     async accountAtFreeze(access) {
       const account = await dependencies.reads.account(access)
       return 'failure' in account &&
@@ -104,11 +124,14 @@ export function createRuntimeExecutor(
     stepsPerRun: settings.configuration.driverStepsPerRun ?? 16,
     retryDelayMs: settings.configuration.driverRetryDelayMs ?? 1000,
   })
+  const lost = createLostExecutions(input, step => driver.later(step))
   const keyOf = (wake: Wake) => canonicalDigest([wake.tenant, wake.call])
+  // `scans` is built below; `remember` reaches it only when it is called, after construction.
   const remember = (wake: Wake, purpose: RuntimeCallPurpose = 'execute'): boolean => {
     const key = keyOf(wake)
     if (calls.has(key)) return !abort.signal.aborted
     if (abort.signal.aborted || calls.size >= settings.capacity) return false
+    scans.registered(wake)
     calls.set(key, {
       wake,
       purpose,
@@ -118,10 +141,20 @@ export function createRuntimeExecutor(
       retiring: false,
       running: false,
       complete: false,
+      dormant: false,
       progress: 'not-run',
     })
     return true
   }
+  const scans = createRecoveryScans({
+    startup: input.recovery.scan,
+    pending: scan => settings.store.scanPending(scan),
+    rescanMs: settings.recoveryRescanMs ?? RESCAN_MS,
+    remember,
+    schedule: call => void dependencies.instances.schedule(call).catch(() => undefined),
+    warn: message => executorLog('warn', message),
+    signal: abort.signal,
+  })
   const publish = (
     step: Parameters<ToolDriver<unknown>['run']>[0],
     recovery: Recovered,
@@ -206,14 +239,14 @@ export function createRuntimeExecutor(
       },
     })
   }
-  /**
-   * Retires a complete entry once no run is in progress. The delivery outcome and the end of
-   * every run both call it, so the retirement does not depend on which of the two comes last
-   * (R2-D164). A failed cleanup keeps the entry and lets a later outcome judge it again.
-   */
+  const stops = createRunStopLog({
+    warn: message => executorLog('warn', message),
+    info: message => executorLog('info', message),
+  })
   const retire = async (wake: Wake, entry: Entry): Promise<void> => {
     const key = keyOf(wake)
-    if (!entry.complete || entry.running || entry.retiring || calls.get(key) !== entry) return
+    const leaving = entry.complete || entry.dormant
+    if (!leaving || entry.running || entry.retiring || calls.get(key) !== entry) return
     entry.retiring = true
     entry.publication?.close('closed')
     try {
@@ -221,6 +254,7 @@ export function createRuntimeExecutor(
     } catch {
       entry.retiring = false
       entry.complete = false
+      entry.dormant = false
       input.ctx
         .logger('tool-executor')
         .warn('Instance observation cleanup is unconfirmed; the local index is retained.')
@@ -228,15 +262,32 @@ export function createRuntimeExecutor(
     }
     if (calls.get(key) === entry) {
       calls.delete(key)
+      stops.forget(key)
       delivery.release(wake)
+      if (entry.complete) scans.ended(wake)
+      scans.roomMade()
     }
-    completed += 1
+    if (entry.complete) completed += 1
+    else dormantExits += 1
   }
-  /**
-   * Drives the delivery of the call and judges the outcome. The delivery worker owns its own
-   * wait; it never occupies the host's driver queue. A settled call whose delivery is done and
-   * whose fresh recovery shows nothing pending is complete: it retires once no run is in progress.
-   */
+  const entryOf = async (
+    step: Parameters<ToolDriver<unknown>['run']>[0],
+  ): Promise<Entry | null> => {
+    const known = calls.get(keyOf(step))
+    if (known !== undefined) return known
+    const recovery = await dependencies.commands.loadRecovery(step)
+    if ('failure' in recovery) return null
+    if (!owesWork(recovery.ok)) {
+      if (recovery.ok.state.phase === 'settled') scans.ended(step)
+      return null
+    }
+    if (remember(step)) {
+      reentries += 1
+      return calls.get(keyOf(step)) ?? null
+    }
+    scans.wanted(step)
+    return null
+  }
   const deliver = (
     step: Parameters<ToolDriver<unknown>['run']>[0],
     entry: Entry,
@@ -250,7 +301,7 @@ export function createRuntimeExecutor(
         const current = await dependencies.commands.loadRecovery(step)
         if ('failure' in current || calls.get(keyOf(step)) !== entry) return
         const { execution } = current.ok.state
-        if (execution.kind !== 'ended' && execution.kind !== 'not-started') return
+        if (!AT_REST.has(execution.kind)) return
         if (current.ok.tasks.some(task => task.state === 'pending')) return
         entry.complete = true
         await retire(step, entry)
@@ -259,31 +310,36 @@ export function createRuntimeExecutor(
   }
   const advancing: ToolDriver<unknown> = {
     async run(step) {
-      const entry = calls.get(keyOf(step))
-      if (entry === undefined) {
+      if (abort.signal.aborted) return
+      const entry = await entryOf(step)
+      if (entry === null) {
         unownedRuns += 1
         return
       }
       if (abort.signal.aborted) return
       if (entry.retiring) return
+      entry.dormant = false
       entry.running = true
       try {
         const before = await dependencies.commands.loadRecovery(step)
-        if ('failure' in before) return
-        entry.started = true
-        // A new executor cannot attach an old execution by resolving the latest providers.
-        const foreign =
-          before.ok.execution !== null && before.ok.execution.instance !== step.instance
-        if (foreign) {
-          foreignExecutionRuns += 1
-          if (calls.get(keyOf(step)) === entry) {
-            calls.delete(keyOf(step))
-            delivery.release(step)
+        if ('failure' in before) {
+          if (before.failure.kind === 'unavailable') {
+            entry.progress = `failed/unavailable/${before.failure.dependency}`
+            driver.later(step)
           }
           return
         }
-        // A saved final can release an unused writer while its fragment provider is unavailable.
+        entry.started = true
+        const forget = () => {
+          foreignExecutionRuns += 1
+          if (calls.get(keyOf(step)) !== entry) return
+          calls.delete(keyOf(step))
+          delivery.release(step)
+          scans.roomMade()
+        }
+        if (await lost.handled(step, before.ok, entry, forget)) return
         const progress = await driver.advance(step)
+        stops.stopped(keyOf(step), step.call, progress)
         entry.progress =
           progress.kind === 'failed'
             ? `${progress.kind}/${progress.failure.kind}${progress.failure.kind === 'unavailable' ? `/${progress.failure.dependency}` : ''}`
@@ -291,12 +347,20 @@ export function createRuntimeExecutor(
         if (abort.signal.aborted) return
         const after = await dependencies.commands.loadRecovery(step)
         if ('failure' in after) return
+        if (progress.kind === 'idle' && waitsForPerson(after.ok)) {
+          entry.dormant = true
+          return
+        }
         publish(step, after, entry)
         await entry.publication?.refresh(step, after.ok.admission)
         deliver(step, entry, after)
       } finally {
         entry.running = false
-        void retire(step, entry)
+        // A dormant call leaves before its run returns: the next run finds it gone and reloads it
+        // from the ledger, so a hint that came meanwhile is not lost.
+        const dormant = entry.dormant
+        const left = retire(step, entry)
+        if (dormant) await left
       }
     },
   }
@@ -306,36 +370,49 @@ export function createRuntimeExecutor(
     },
   })
   const retryMs = settings.configuration.driverRetryDelayMs ?? 1000
-  // Live calls only: a complete call has nothing left to drive and retires on its own.
   const timer = setInterval(() => {
     for (const entry of calls.values()) {
-      if (entry.retiring || entry.complete) continue
+      if (entry.retiring || entry.complete || entry.dormant || drivenLater(entry.progress)) continue
       void dependencies.instances.schedule(entry.wake).catch(() => undefined)
     }
   }, retryMs)
   timer.unref()
+  scans.start()
   let closing: Promise<void> | null = null
   return {
     remember,
     knows: (wake: Wake) => calls.has(keyOf(wake)),
+    attach: (wake: Wake) => attachCall(input, remember, wake),
     rejectAdmission(wake: Wake) {
       const entry = calls.get(keyOf(wake))
-      if (entry !== undefined && !entry.started) calls.delete(keyOf(wake))
+      if (entry === undefined || entry.started) return
+      calls.delete(keyOf(wake))
+      scans.ended(wake)
+      scans.roomMade()
     },
     live: () => !abort.signal.aborted,
-    diagnostics: () => ({
-      knownCalls: calls.size,
-      pacedDeliveries: delivery.pacedEntries(),
-      completed,
-      foreignExecutionRuns,
-      unownedRuns,
-      progress: [...new Set([...calls.values()].map(entry => entry.progress))],
-      retired: abort.signal.aborted,
-    }),
+    diagnostics: () => {
+      const scanned = scans.diagnostics()
+      return {
+        knownCalls: calls.size,
+        pacedDeliveries: delivery.pacedEntries(),
+        completed,
+        dormantExits,
+        reentries,
+        foreignExecutionRuns,
+        unownedRuns,
+        recoveryScan: scanned.startup,
+        recoveredCalls: scanned.recovered,
+        owedTenants: scanned.owedTenants,
+        progress: [...new Set([...calls.values()].map(entry => entry.progress))],
+        retired: abort.signal.aborted,
+      }
+    },
     close(): Promise<void> {
       if (closing !== null) return closing
       abort.abort()
       clearInterval(timer)
+      scans.close()
       for (const entry of calls.values()) entry.publication?.close('stale-instance')
       closing = Promise.all([
         installed.release(),

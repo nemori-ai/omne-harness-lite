@@ -1,5 +1,3 @@
-// The memory double, commit side: field rules, the rejection order (SPEC 7.2), execution order,
-// receipts, failure categories and recognition. Each case violates one rule and nothing else.
 import { describe, expect, it } from 'vitest'
 import type { CommitRequestV2, CommitResultV2 } from '@omne-harness/sql-contract'
 import {
@@ -284,7 +282,6 @@ describe('single rejection reasons of commit', () => {
     )
     for (const result of [version, absent, other])
       expect(rejection(result).reason).toBe('combination_unregistered')
-    // The result for another scope is the result for an absent domain, diagnostic included.
     if (absent.kind !== 'rejected_before_accept' || other.kind !== 'rejected_before_accept')
       throw new Error('unreachable')
     expect(other.diagnostic).toBe(absent.diagnostic)
@@ -616,7 +613,6 @@ describe('observation cancel (SPEC 7.1)', () => {
     controller.abort()
     const result = await pending
     expect(result).toMatchObject({ kind: 'unknown', diagnostic: 'observer_detached' })
-    // The caller recognizes the original identity afterwards.
     expect((await h.storage.query(identity())).kind).toBe('committed')
   })
 })

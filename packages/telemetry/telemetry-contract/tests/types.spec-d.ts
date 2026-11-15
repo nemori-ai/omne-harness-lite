@@ -1,5 +1,3 @@
-// Compile-time checks of the root contract. Each `@ts-expect-error` marks a call that the types
-// must reject; the run-time rules that back them are in the other test files.
 import { expectTypeOf, it } from 'vitest'
 import {
   defineEvent,

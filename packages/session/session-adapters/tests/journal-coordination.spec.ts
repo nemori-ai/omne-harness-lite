@@ -1,7 +1,3 @@
-// The coordinated binding of the session-log Journal (Agent SPEC "提交参加者协议"; AD-01; PA-01
-// of session-contract): the declaration, the co-checks of open, attach and submit in the same
-// write, the attach rules of PA-01 item 3 (ordinary advance and cancel wind-down), and the
-// participant answer of tryFinish as FinishResult.changed, with the cancel branch of PA-02.
 import { describe, expect, it } from 'vitest'
 import {
   decodeAgentExecutionId,
@@ -28,13 +24,11 @@ import { accept, cancel, end, handed, prepareEnd, start, take } from './fixtures
 type Scene = Awaited<ReturnType<typeof scene>>
 type Snapshot = ExecutionSnapshot
 type Request = SettlementRequest<string>
-/** The members every candidate and judgment request shares. */
 type Common = Pick<
   Extract<Request, { kind: 'judge-cancellation' }>,
   'principal' | 'tenant' | 'execution' | 'operation' | 'authorization' | 'expected' | 'installation'
 >
 
-/** The Agent cancel control the coordinator derives for the Session control `cancel` (PA-02). */
 function sessionCancelControl(s: Scene, name = 'cancel') {
   return ok(
     decodeAgentOperationId(
@@ -49,7 +43,6 @@ function cancelAuthorization(snapshot: Snapshot, control: AgentOperationId) {
   return { kind: 'cancel' as const, control, source: record.stages.accepted.source }
 }
 
-/** The Agent cancel `control` accepted and its intent reached: an effective cancel. */
 async function effective(s: Scene, control: AgentOperationId) {
   ok(
     await s.view.journal.control({
@@ -72,12 +65,6 @@ async function effective(s: Scene, control: AgentOperationId) {
   )
 }
 
-/**
- * The cancellation path up to tryFinish under the Agent cancel `control` (Agent SPEC "取消判断与路
- * 线"): establish the cancelled candidate over `predecessor` (the current candidate, null when
- * there is none), judge it with the installed test policy, prepareFinish; answers the snapshot
- * whose projection the cancel end presents.
- */
 async function windDown(
   s: Scene,
   control: AgentOperationId,
@@ -86,7 +73,6 @@ async function windDown(
 ): Promise<Snapshot> {
   await effective(s, control)
   const load = async () => ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
-  /** One candidate or judgment request: `build` adds the members of its variant to the common ones. */
   const settle = async (name: string, build: (common: Common) => Request) => {
     const snapshot = await load()
     const common: Common = {
@@ -128,7 +114,6 @@ async function windDown(
   return load()
 }
 
-/** The cancel tryFinish of the projection of `ready`. */
 function cancelFinish(s: Scene, ready: Snapshot, name: string) {
   if (ready.state.kind !== 'settling') throw new Error('settling expected')
   const control =
@@ -169,7 +154,6 @@ async function claim(s: Scene, label: string) {
   )
 }
 
-/** Starts the next Run on the Session side and returns the open input of its execution, without opening. */
 async function startWithoutOpen(s: Scene) {
   const command = {
     kind: 'startRun' as const,
@@ -261,7 +245,6 @@ describe('the binding declares coordinated and co-checks open and submit', () =>
       )
     }
     await accept(s, 'input-next')
-    // PA-03: the next Run gives a fresh execution, not yet opened on the Agent side.
     const fresh = await startWithoutOpen(s)
     expect(
       await s.view.journal.open(
@@ -290,7 +273,7 @@ describe('the binding declares coordinated and co-checks open and submit', () =>
     ).toBe('applied')
   })
 
-  it('submit without the SE11 source is denied; with it the input is accepted', async () => {
+  it('submit without the intake.routed source is denied; with it the input is accepted', async () => {
     const s = await scene('submit-denied')
     const value = await accept(s, 'input-2')
     expect(
@@ -311,7 +294,7 @@ describe('the binding declares coordinated and co-checks open and submit', () =>
   })
 })
 
-describe('attach follows PA-01 item 3', () => {
+describe('attach follows the source check of the attempt grant', () => {
   it('ordinary advance: the grant of the current attempt attaches; a superseded attempt is denied, not changed or stale-advance', async () => {
     const s = await scene('attach-advance')
     const first = await claim(s, 'first')
@@ -325,7 +308,7 @@ describe('attach follows PA-01 item 3', () => {
     expect(attached.authority.instance).toBe(instance('current'))
   })
 
-  it('cancel wind-down: after the Run is cancelled the last attempt granted before the cancel attaches with cancel authority only, and ends cancelled under the control SE26 names', async () => {
+  it('cancel wind-down: after the Run is cancelled the last attempt granted before the cancel attaches with cancel authority only, and ends cancelled under the control the run.terminal entry names', async () => {
     const s = await scene('attach-cancel')
     ok(await handed(s))
     await take(s)
@@ -333,7 +316,6 @@ describe('attach follows PA-01 item 3', () => {
     const work = ok(await s.backend.transactions.readWork(s.access))
     expect(work.run).toMatchObject({ kind: 'terminal', terminal: { outcome: 'cancelled' } })
     const attached = ok(await attach(s, 'wind-down', s.input.runtime.grant))
-    // The wind-down attachment carries no advance power (Agent SPEC "条件终结": two authorizations).
     expect(
       await s.view.journal.commit({
         ...s.access,
@@ -380,7 +362,6 @@ describe('attach follows PA-01 item 3', () => {
     await take(s)
     ok(await cancel(s))
     await accept(s, 'input-2')
-    // The next Run is active for another execution; the cancelled Run of E1 stays its own Run.
     const next = await start(s)
     if ('failure' in next) throw new Error(JSON.stringify(next.failure))
     expect(next.ok.execution).not.toBe(s.execution)
@@ -419,7 +400,7 @@ describe('tryFinish takes the Session participant into the same conditional comm
     ).not.toBe('ended')
   })
 
-  it('PA-02: on the cancelled Run the judgment under a control that SE26 does not name carries the Session fact changed, is blocked, and tryFinish does not end', async () => {
+  it('on the cancelled Run the judgment under a control that the run.terminal entry does not name carries the Session fact changed, is blocked, and tryFinish does not end', async () => {
     const s = await scene('finish-cancel-other-control')
     ok(await handed(s))
     await take(s)
@@ -466,7 +447,7 @@ describe('tryFinish takes the Session participant into the same conditional comm
     })
   })
 
-  it('a judgment under the control SE26 names carries the Session fact ready', async () => {
+  it('a judgment under the control the run.terminal entry names carries the Session fact ready', async () => {
     const s = await scene('judge-session-cancel')
     ok(await handed(s))
     await take(s)
@@ -478,11 +459,10 @@ describe('tryFinish takes the Session participant into the same conditional comm
     })
   })
 
-  it('PA-02: on the cancelled Run a cancel end that presents the complete candidate fixed before the cancel is denied by the Journal and writes nothing', async () => {
+  it('on the cancelled Run a cancel end that presents the complete candidate fixed before the cancel is denied by the Journal and writes nothing', async () => {
     const s = await scene('finish-cancel-complete')
     ok(await handed(s))
     await take(s)
-    // The complete candidate is fixed and its list issued under the original attachment.
     const complete = await prepareEnd(s)
     if (complete.state.kind !== 'settling') throw new Error('settling expected')
     ok(await cancel(s))
@@ -505,7 +485,7 @@ describe('tryFinish takes the Session participant into the same conditional comm
     ).not.toBe('ended')
   })
 
-  it('PA-08 item 3: after SE26 cancelled the advancement end is stale-advance, the cancel route ends the execution, and the read end event is recognized; one SE26 throughout', async () => {
+  it('after the run.terminal entry cancelled, the advancement end is stale-advance, the cancel route ends the execution, and the read end event is recognized; one run.terminal entry throughout', async () => {
     const s = await scene('pa08-cancel-first')
     ok(await handed(s))
     await take(s)
@@ -513,20 +493,16 @@ describe('tryFinish takes the Session participant into the same conditional comm
       s.backend.controls
         .entriesOf(s.access.tenant, s.access.session)
         .filter(row => row.kind === 'run.terminal')
-    // The complete candidate is fixed and its list issued under the advancement authorization.
     const complete = await prepareEnd(s)
     if (complete.state.kind !== 'settling') throw new Error('settling expected')
     ok(await cancel(s))
     expect(terminals()).toHaveLength(1)
     const cancelledRun = ok(await s.backend.transactions.readWork(s.access)).run
     expect(cancelledRun).toMatchObject({ kind: 'terminal', terminal: { outcome: 'cancelled' } })
-    // The Journal and the Session participant read one authority: SE26 withdrew the advance, so
-    // the Journal answers stale-advance by the Agent order and the participant is not asked.
     const root = s.view.controls.root()
     expect(await end(s, 'advance-end', complete)).toEqual({ failure: { kind: 'stale-advance' } })
     expect(s.view.controls.root()).toBe(root)
     expect(terminals()).toHaveLength(1)
-    // The Agent re-reads the facts and ends again on the saved cancel basis.
     const ready = await windDown(
       s,
       sessionCancelControl(s),
@@ -540,7 +516,6 @@ describe('tryFinish takes the Session participant into the same conditional comm
       ok(await s.view.journal.load({ ...s.access, execution: s.execution })).state,
     ).toMatchObject({ kind: 'ended', conclusion: { kind: 'cancelled' } })
     expect(terminals()).toHaveLength(1)
-    // The end event the Session then reads is only recognized (RS-10): no new SE26, same terminal.
     const page = ok(
       await s.view.journal.output.read({
         ...s.access,
@@ -565,7 +540,6 @@ describe('tryFinish takes the Session participant into the same conditional comm
           }),
         ),
       )
-    // The end event was read and its interpretation committed, not skipped as already read.
     expect(interpreted.get(ended.sequence)).not.toBeNull()
     expect(terminals()).toHaveLength(1)
     expect(ok(await s.backend.transactions.readWork(s.access)).run).toEqual(cancelledRun)

@@ -43,7 +43,6 @@ afterEach(async () => {
   rmSync(root, { recursive: true, force: true })
 })
 
-/** The login answers with the tenant of the identifier; a session is named after its acting tenant. */
 function answerByTenant(seen: Seen): Answer {
   const body = (seen.wire['body'] ?? {}) as Record<string, unknown>
   switch (seen.wire['operation']) {
@@ -88,7 +87,6 @@ const recordsFile = () => join(state, 'sessions.json')
 const bodyOfLast = (origin: FakeService) =>
   origin.seen.at(-1)?.wire['body'] as Record<string, unknown>
 
-/** Each command that acts on an existing session, as arguments for that session. */
 const existing: readonly (readonly [string, (session: string) => readonly string[]])[] = [
   ['send-input', session => ['--session', session, '--text', 'hello']],
   ['cancel-run', session => ['--session', session, '--run', 'run-7']],
@@ -172,7 +170,6 @@ describe.each(existing)('%s on an existing session', (name, argsFor) => {
     const origin = await serve()
     await login(origin, 'alice')
     await cli(['create-session', '--definition', 'default'])
-    // The current selection is now the other tenant.
     await login(origin, 'bob')
     const result = await cli([name, ...argsFor(sessionId)])
     expect(result.code).toBe(0)

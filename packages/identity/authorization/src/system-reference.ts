@@ -1,8 +1,3 @@
-// The in-process reference system action authorization (SPEC AU-12): reads the facts from the
-// installed identity verifier, the maintenance grant source and the expiry clock, then decides.
-// It keeps no state and reads again on every call. A dependency that throws is `unavailable`,
-// never `allowed`. A fact is read only when the steps before it passed, so a request outside the
-// matrix never reaches the grant source.
 import type { PrincipalVerification, PrincipalVerifier } from '@omne-harness/identity'
 import {
   decideSystemAction,
@@ -19,12 +14,10 @@ import {
 } from './system-action.ts'
 import type { SystemActionRow } from './system-matrix.ts'
 
-/** The injected expiry clock: whether the end time `expiresAt` of a grant is reached now. */
 export interface SystemActionClock {
   reached(expiresAt: string): Promise<ExpiryReading>
 }
 
-/** The read port for grant records. Authorization reads grants only through it; it has no write side. */
 export interface MaintenanceGrantSource {
   read(
     input: Readonly<{
@@ -37,9 +30,7 @@ export interface MaintenanceGrantSource {
 
 export type SystemActionDependencies = Readonly<{
   verifier: PrincipalVerifier
-  /** Null when no maintenance grant source is installed; every action of the matrix is then `unavailable`. */
   grants: MaintenanceGrantSource | null
-  /** Null when no expiry clock is installed; a grant with an end time is then `unavailable`. */
   clock: SystemActionClock | null
 }>
 
@@ -112,7 +103,6 @@ async function readExpiry(
   }
 }
 
-/** The row of the request when the steps before the grant passed: a verified request principal and a matrix match. */
 function rowToRead(
   request: SystemActionRequest,
   principal: PrincipalVerification,

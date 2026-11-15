@@ -1,7 +1,3 @@
-// The disk form of the secret vault and its reading. Version 2 is the one format: the reading
-// refuses a file that does not fit it, and the whole file is then `corrupt`; nothing is repaired.
-// A stored secret is taken as the file holds it: the boundary that wrote it checked it then, and
-// the consumer of the binding gets back the same bytes.
 import {
   accountCodec,
   organizationCodec,
@@ -18,7 +14,6 @@ import type {
 } from '@omne-harness/settings'
 import { encodeInstant, parseInstant, type Instant } from '@omne-harness/utc-instant'
 
-/** One binding as the vault keeps it in memory: the key, the secret, its life and its time. */
 export type SecretRecord = Readonly<{
   key: SecretBindingKey
   secret: SecretText
@@ -28,7 +23,6 @@ export type SecretRecord = Readonly<{
 
 export type SecretState = Readonly<{ bindings: readonly SecretRecord[] }>
 
-/** The version this code writes. */
 export const FILE_VERSION = 2
 
 type StoredScope =
@@ -65,12 +59,6 @@ function life(value: unknown): SecretLife | undefined {
   return value === 'active' || value === 'revoked' || value === 'unreadable' ? value : undefined
 }
 
-/**
- * The secret as the file holds it. Only the reading of a stored record makes a `SecretText` this
- * way: a non-empty string is accepted as it is, without the rules `parseSecretText` applies to new
- * text. An older writer may have stored whitespace around the text, a control character or a
- * longer text, and the binding's consumer needs those bytes back, not a `corrupt` vault.
- */
 function storedSecretText(raw: string): SecretText | undefined {
   return raw === '' ? undefined : (raw as SecretText)
 }
@@ -79,7 +67,6 @@ function secret(value: unknown): SecretText | undefined {
   return typeof value === 'string' ? storedSecretText(value) : undefined
 }
 
-/** Absent is an old row without a time. Present but not an instant text is corrupt: `undefined`. */
 function time(value: unknown): Instant | null | undefined {
   if (value === undefined) return null
   if (typeof value !== 'string') return undefined
@@ -144,7 +131,6 @@ function collect(
   return { bindings }
 }
 
-/** Reads a parsed file. `undefined` is a file this code cannot read as a vault: corrupt. */
 export function loadState(raw: unknown): SecretState | undefined {
   if (!isRecord(raw)) return undefined
   const version = fieldOf(raw, 'version')
@@ -192,9 +178,6 @@ export function sameKey(left: SecretBindingKey, right: SecretBindingKey): boolea
   )
 }
 
-// legal-identity has no separate mint check; equality with itself holds only for a minted tenant.
-// A copied tenant matches no stored row, and a write under it would re-mint it from text on the
-// next read, so every face refuses it before the lock or the file is touched.
 export function isMintedScope(scope: SecretScope): boolean {
   return scope.layer === 'official' || tenantEquals(scope.tenant, scope.tenant)
 }

@@ -73,7 +73,6 @@ type Recall = (receipt: CommitReceipt) => unknown
 
 type Store = SessionState
 
-/** The log receipt that a recorded operation recalls; null for a record of another form. */
 function logReceiptOf(
   held: NonNullable<ReturnType<Store['operations']['get']>>,
 ): SessionLogReceipt | null {
@@ -97,7 +96,6 @@ export interface MemorySessionTransactions<P> extends SessionTransactionPort<P> 
   readonly durability: 'none'
   readonly controls: Readonly<{
     entriesOf(tenant: TenantId, session: SessionId): readonly HistoryEntry[]
-    /** The access decision evidence that the public commit of `operation` recorded; `null` when there is none. */
     decisionOf(
       tenant: TenantId,
       session: SessionId,
@@ -106,11 +104,6 @@ export interface MemorySessionTransactions<P> extends SessionTransactionPort<P> 
   }>
 }
 
-/**
- * One current access decision for one public call (session-contract SPEC「当前操作的访问裁定」).
- * A throwing or unavailable source does not continue; the allowed evidence is only returned to
- * the call that asked.
- */
 export async function qualifyAccess<P>(
   check: SessionAccessCheck<P>,
   request: SessionAccessRequest<P>,
@@ -139,7 +132,6 @@ export async function qualifyAccess<P>(
   }
 }
 
-/** The access of a commit must name the tenant and the session of its command; a mismatch is refused without asking. */
 export function commitAccessMatches<P>(
   access: SessionAccess<P> | undefined,
   command: SessionCommand,
@@ -152,7 +144,6 @@ export function commitAccessMatches<P>(
 }
 
 export interface MemorySessionLogTransactions<P> extends MemorySessionTransactions<P> {
-  /** The event channel interpretation commit (session-contract `commitLog`). */
   readonly commitLog: NonNullable<SessionTransactionPort<P>['commitLog']>
   readonly controls: MemorySessionTransactions<P>['controls'] &
     Readonly<{
@@ -325,7 +316,6 @@ const mint = (record: string, content: unknown): DurableEvidence => ({
   digest: `sha256:${digestOf(content)}`,
 })
 
-/** The stored first input of a start, or nothing when the store holds none for it. */
 function firstInputOf(
   inputs: ReadonlyMap<InputId, Extract<RoutedInput, { kind: 'ordinary' }>>,
   first: InputId | undefined,
@@ -334,7 +324,6 @@ function firstInputOf(
   return stored === undefined ? {} : { firstInput: { input: stored.input, origin: stored.origin } }
 }
 
-/** The Run lookup of one snapshot, covering exactly that snapshot. */
 function runLookup(snapshot: WorkSnapshot, run: RunId): SessionRunLookup {
   const history = snapshot.executions?.find(item => item.run === run)
   const current =
@@ -352,7 +341,6 @@ function runLookup(snapshot: WorkSnapshot, run: RunId): SessionRunLookup {
   }
 }
 
-/** The double keeps no call terminals: a bound call has none, so a stop is always requested. */
 function callLookup(snapshot: WorkSnapshot, producer: ProducerRef): SessionCallLookup {
   return snapshot.consumptions.some(
     item =>
@@ -379,14 +367,8 @@ export type MemorySessionTransactionOptions<P> = Readonly<{
   initialization?: InitializationSource
   history?: HistorySource
   capacityBytes?: number
-  /** The current access decision of every public read and write; required, with no default permission. */
   accessCheck: SessionAccessCheck<P>
 }>
-/**
- * The internal commit input: the caller has already asked the access check once for this command
- * (the public `commit`, or the Agent write that derives a participation) and hands the allowed
- * decision over. No path commits without one.
- */
 export type PreparedCommit = Readonly<{
   command: SessionCommand
   guards: readonly GuardCommand[]
@@ -428,7 +410,6 @@ export function createSessionTransactions<P>(
 
   const commit = (input: PreparedCommit): Outcome<unknown, SessionFailure> => {
     const command: SessionCommand = input.command
-    // After the access decision, before the session or any lookup: the answer tells nothing of what exists.
     if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
       return fail({ kind: 'unsupported' })
     const key = keyOf(command.input.tenant, command.input.session)
@@ -506,7 +487,6 @@ export function createSessionTransactions<P>(
       ...(command.kind === 'stopCall' && store !== undefined
         ? { calls: [callLookup(store.snapshot, command.input.producer)] }
         : {}),
-      // `startRun`: the stored first input with its origin, the login gate of an interactive start.
       ...(command.kind === 'startRun' && store !== undefined
         ? firstInputOf(store.inputs, store.snapshot.pending[0])
         : {}),
@@ -657,12 +637,6 @@ export function createSessionTransactions<P>(
     return succeed(recall(receipt))
   }
 
-  /**
-   * The entries interpretation commit (session-contract docs/same-log-pure.md「entries 通道的解释提交」):
-   * no access check, the shared pure check, then the consequence rows, the progress row, the
-   * operation record and the snapshot with its saved progress in one synchronous step. Nothing between the read of
-   * the session and its replacement awaits, and nothing is written before every check passes.
-   */
   const commitEntries = (
     input: Readonly<{ observation: SessionEntriesObservation; start: SessionEntriesStart }>,
   ): Outcome<SessionEntriesReceipt, SessionFailure> => {
@@ -918,7 +892,6 @@ export function createSessionTransactions<P>(
       const store = await storeOf(input, 'queryOperation')
       if ('failure' in store) return store
       const held = store.ok.operations.get(input.operation)
-      // A control identity is not a batch identity (SL07): it answers conflict here.
       if (held?.form === 'control' || store.ok.answers.has(input.operation))
         return fail({ kind: 'conflict', operation: input.operation })
       const resolution: OperationResolution =
@@ -1092,11 +1065,6 @@ export function createSessionTransactions<P>(
     },
   }
 
-  /**
-   * The projection, reduction and publication of one observation that no record of `operation`
-   * holds yet: `null` when it wrote no row. The operation record keeps `digest` and recalls what
-   * `answerOf` gives for the published receipt and snapshot.
-   */
   const publishProjection = (
     key: string,
     store: Store,
@@ -1182,7 +1150,6 @@ export function createSessionTransactions<P>(
     return succeed(receipt)
   }
 
-  /** The store of the observation's session: refused for a quarantined or unknown session. */
   const storeFor = (
     observation: SessionLogObservation,
     action: string,
@@ -1222,14 +1189,6 @@ export function createSessionTransactions<P>(
     )
   }
 
-  /**
-   * The event channel interpretation commit (session-contract docs/same-log-pure.md, the event
-   * channel commit) with the pure checks of the projection: no access check, the recall by
-   * operation and digest, then one publication of the consequence rows, the progress row and the
-   * operation record. `interpreted` is the source of the commit, the evidence that the history
-   * index of this double names for the saved progress. An observation that writes no row recalls
-   * the commit that covers its sequence, as the session-contract double does.
-   */
   const commitLog = async (
     input: Readonly<{ observation: SessionLogCommitObservation }>,
   ): Promise<Outcome<SessionLogReceipt, SessionFailure>> => {
@@ -1272,11 +1231,6 @@ export function createSessionTransactions<P>(
     return answer === null ? fail(unavailable('a log commit without its receipt')) : succeed(answer)
   }
 
-  /**
-   * The observation wrote no row. An event at or below the saved progress recalls the event channel
-   * commit that covers it; a store without that commit is `unavailable`. Any other event has no
-   * Session consequence and is not committed.
-   */
   const logWithoutRows = (
     store: Store,
     observation: SessionLogCommitObservation,

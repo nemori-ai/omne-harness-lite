@@ -1,6 +1,3 @@
-// Fixtures of the authorization tests: parsed tenants, issued principals, an in-memory tenant
-// standing double, and the facts of a plain allowed case. The standing double is a test stand-in,
-// not a provider of durable identity facts.
 import {
   accountCodec,
   organizationCodec,
@@ -58,11 +55,9 @@ export type StandingTable = Readonly<{
   join(value: TenantId, role: string): void
   leave(value: TenantId): void
   fail(diagnostic: string): void
-  /** How many readings the source answered. */
   reads(): number
 }>
 
-/** An in-memory standing table that resolves roles through the default team mapping. */
 export function standingTable(): StandingTable {
   const roles = new Map<string, string>()
   let revision = 0
@@ -100,12 +95,10 @@ export function standingTable(): StandingTable {
 export type Issued = Readonly<{
   authority: PrincipalAuthority
   coordinator: SystemPrincipal
-  /** The coordinator acting for the admin tenant. */
   actingForAdmin: ActingForTenantPrincipal
   actingFor(value: TenantId): ActingForTenantPrincipal
 }>
 
-/** One authority with an issued coordinator and the principals it acts with. */
 export function issued(authority = inProcessPrincipalAuthority()): Issued {
   const coordinator = authority.issuer.issueSystem({ component: 'session-coordinator' })
   if ('failure' in coordinator) throw new Error('fixture coordinator did not issue')
@@ -126,7 +119,6 @@ export function issued(authority = inProcessPrincipalAuthority()): Issued {
   }
 }
 
-/** A read-history input of the coordinator acting for the given tenant, with no permit. */
 export function readHistoryInput(
   principal: ActingForTenantPrincipal | SystemPrincipal,
   value: TenantId,
@@ -145,10 +137,6 @@ export function readHistoryInput(
 
 export const DEFAULT_ROLES = DEFAULT_TEAM_ROLES
 
-/**
- * Waits until a paused dependency of the check is entered. If the check settles first, it never
- * reaches that dependency, so this fails at once instead of waiting for the test timeout.
- */
 export async function reached(entered: Promise<void>, pending: Promise<unknown>): Promise<void> {
   let paused = false
   const settledFirst = pending.then(

@@ -1,4 +1,3 @@
-// Declarations of the public-api chapter "受信宿主驱动".
 import type { Outcome } from '@omne-harness/operation-result'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { CallAccess, ModelCallId, ModelInstanceId, ModelOperationId } from './root.ts'

@@ -1,14 +1,4 @@
 // @module-tag slow
-// The `session-ad14` row: the real AD-14 `AgentDrivePort` of session-adapters on a real Cordis,
-// loaded with the real `agent-host` and `agent-instances` rows above the stand-ins of
-// `../agent-host/doubles.ts`. The current conditions `agentConditions` are a stand-in too: the
-// real provider is the `session-conditions` row (SC1). With them present the three rows reach
-// ACTIVE and `sessionAgentDrive` is provided; without them `agent-host` stays PENDING and names
-// `agentConditions`, and the two rows that need the host's keys stay PENDING behind it, so nothing
-// claims to be ready. The coordinator principal of a drive call is the one the trusted
-// `sessionWorkPrincipals` answers for that tenant and session, read per call; with no provider the
-// call answers `unavailable` and reaches no Agent entry. `session` and `sessionWorkPrincipals` are
-// stand-ins of this test.
 import type { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -45,7 +35,6 @@ afterEach(async () => {
   for (const close of release.splice(0).reverse()) await close()
 })
 
-/** The `session` stand-in: AD-14 injects it; `inspect` does not read it. */
 function sessionRow() {
   class Session extends SessionService<unknown> {
     readonly work = {} as SessionFaces<unknown>['work']
@@ -71,7 +60,6 @@ function sessionRow() {
 
 type ForSession = SessionWorkPrincipals<unknown>['forSession']
 
-/** The trusted session work principals: records every request, answers one principal per session. */
 function workPrincipals(requests: Parameters<ForSession>[0][]): EntryObjectModule {
   class Principals extends SessionWorkPrincipalsService<unknown> {
     readonly forSession: ForSession = input => {
@@ -198,7 +186,6 @@ describe('agent-host, agent-instances and session-ad14 on stand-in current condi
       expect(requests).toEqual([
         { actor: 'coordinator', tenant: target.tenant, session: target.session },
       ])
-      // The host's recovery read the Journal with that principal, and with no other.
       expect(doubles.loads).toEqual([`principal:coordinator:${target.session}`])
     },
   )

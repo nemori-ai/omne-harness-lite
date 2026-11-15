@@ -1,5 +1,3 @@
-// Real Cordis and the node:sqlite provider from fixture.ts. TestSendStage is a named
-// model-host-local send-stage substitute: it proves dependency/lifetime wiring, not transport.
 import { Context, symbols, type Fiber } from '@deepseek-ai/cordis'
 import type { SendCoordinator } from '@omne-harness/model'
 import { createModelInitialRun, type ModelObservationLimits } from '@omne-harness/model/commands'

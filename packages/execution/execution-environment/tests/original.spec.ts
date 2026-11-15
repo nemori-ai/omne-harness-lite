@@ -1,5 +1,3 @@
-// Original acquisitions: the local query and its cache table, the original and recovery queries,
-// same-key adoption after a lost response, and recovery over the acquisition path.
 import { expect, it } from 'vitest'
 import {
   createRecoveryAccess,
@@ -39,7 +37,6 @@ function originalOf(placement: Placement, key = 'acq-1'): OriginalAcquisition {
   }
 }
 
-/** A provider whose first allocation answer is lost; its original record still answers queries. */
 function lostResponse(
   inspect?: (original: OriginalAcquisition) => Promise<ProviderAcquisitionStatus>,
 ) {
@@ -67,7 +64,6 @@ it('answers an original query of another tenant as not authorized without asking
       original: originalOf(placement),
     }),
   ).toEqual({ kind: 'refused', reason: 'notAuthorized' })
-  // The scope is tenant B's, so only the description's tenant can refuse it (rule 3).
   const claimed = { ...originalOf(placement), scope: scopeB }
   expect(
     await registry.inspectAcquisition(accessB, { kind: 'original', original: claimed }),
@@ -291,7 +287,6 @@ it('settles a listed acquisition once per quota domain and releases the local re
   const twin = scriptedProvider({ generation: '2', quotaDomain: 'scripted' })
   const registry = registryWith([provider])
   const placement = await placed(registry, requirement([host], ['command']))
-  // A second registration of the same quota domain arrives after the placement.
   registry.registerProvider(twin)
   const acquired = await registry.acquire(accessA, acquireInput(placement))
   if (acquired.kind !== 'acquired') throw new Error('expected a lease')
@@ -324,8 +319,6 @@ it('refuses a local query whose access is revoked while the provider answers, an
   authority.revokeAll()
   answering()
   expect(await query).toEqual({ kind: 'refused', reason: 'notAuthorized' })
-  // The late notAllocated was not applied: the record still needs the original, so a fresh
-  // authorized query asks again instead of reading a final refusal.
   expect(await registry.inspectAcquisition(accessA, local('acq-1'))).toEqual({
     kind: 'queryUnknown',
     cause: 'provider',

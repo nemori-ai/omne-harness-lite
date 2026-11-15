@@ -31,7 +31,6 @@ import {
 import { readOptions } from './options.ts'
 import { report, type RequestEcho } from './report.ts'
 
-/** What a command may use once the login is loaded: the proof, the acting tenant, and the state file. */
 interface Context {
   readonly messageId: string
   readonly proof: ProofInput
@@ -44,17 +43,9 @@ interface Context {
 interface Built {
   readonly request: GovernanceRequest
   readonly echo: RequestEcho
-  /**
-   * Changes the local state after the response is read. Returns the text for standard error when
-   * the change failed. The command then exits 1 after it has printed the result.
-   */
   readonly local?: (result: CallerResult) => string | undefined
 }
 
-/**
- * The answer of a command to its option values: `undefined` is an unrecognized argument, a text is
- * the usage message to print, and a function builds the request once the login is known.
- */
 type Prepared = undefined | string | ((context: Context) => Built | string)
 
 interface GovernanceCommand {
@@ -62,7 +53,6 @@ interface GovernanceCommand {
   readonly summary: string
   readonly required: readonly string[]
   readonly optional: readonly string[]
-  /** Checks the values that need no state. */
   readonly prepare: (values: Option) => Prepared
 }
 
@@ -88,12 +78,10 @@ function removeFailure(name: string, removed: LoginStateRemove): string | undefi
 
 const protocolVersion = 'governance-public/1'
 
-/** The echo of a command that acts for the tenant of the login. */
 function actingEcho(context: Context): RequestEcho {
   return { messageId: context.messageId, tenant: tenantText(context.tenant) }
 }
 
-/** A command that sends an empty body and does not name a tenant. */
 function plain(
   name:
     | 'query-own-valid-logins'
@@ -120,7 +108,6 @@ function plain(
   }
 }
 
-/** A command that sends an empty body for the tenant of the login. */
 function acting(
   name: 'query-issued-invitations' | 'leave-organization',
   summary: string,
@@ -144,7 +131,6 @@ function acting(
   }
 }
 
-/** The three answers to an open invitation share one shape. */
 function invitationAnswer(
   name: 'accept-member-invitation' | 'reject-member-invitation' | 'withdraw-member-invitation',
   summary: string,
@@ -283,7 +269,6 @@ const queryOrganizationMembers: GovernanceCommand = {
   },
 }
 
-/** `remove-member` and `change-member-role` name the member by organization and account. */
 function memberChange(name: 'remove-member' | 'change-member-role'): GovernanceCommand {
   const change = name === 'change-member-role'
   return {
@@ -328,7 +313,6 @@ function memberChange(name: 'remove-member' | 'change-member-role'): GovernanceC
   }
 }
 
-/** Switching the tenant changes the tenant that the login file holds, once the server agrees. */
 const switchCurrentTenant: GovernanceCommand = {
   name: 'switch-current-tenant',
   summary: 'Switch the current tenant of this login.',
@@ -364,10 +348,6 @@ const switchCurrentTenant: GovernanceCommand = {
 const unknownLoginId =
   'omne revoke-login: the login id of this login is unknown\nRun omne login again, or add --target-login <id>.\n'
 
-/**
- * Without `--target-login` the target is this login, by the `loginId` that `login` saved. When the
- * target is this login and the server ends it or finds it already ended, the file is removed.
- */
 const revokeLogin: GovernanceCommand = {
   name: 'revoke-login',
   summary: 'Revoke a login. Without --target-login, log out of this one.',
@@ -459,7 +439,6 @@ async function runGovernance(
   return 1
 }
 
-/** The help names the value of an option by what it holds: an id, a tenant text, a role, or a name. */
 function placeholder(option: string): string {
   if (option === '--tenant-id') return '<tenant>'
   if (option.endsWith('-id') || option.endsWith('-identifier')) return '<id>'
@@ -471,7 +450,6 @@ function usageOf(command: GovernanceCommand): string {
   return command.required.map(option => `${option} ${placeholder(option)}`).join(' ')
 }
 
-/** The governance commands, in the order the help lists them. Each is named for its operation. */
 export const governanceCommands: readonly CommandSpec[] = commands.map(command => ({
   name: command.name,
   usage: usageOf(command),

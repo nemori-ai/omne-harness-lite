@@ -133,7 +133,7 @@ async function fixture(
   }
 }
 
-describe('R2-D60 start permit requirements', () => {
+describe('start permit requirements', () => {
   it('does not issue a permit without a requirement source', async () => {
     const store = createMemoryToolLedgerStore()
     const authority = createLocalStartCoordinator({
@@ -186,7 +186,6 @@ describe('R2-D60 start permit requirements', () => {
   ])('keeps malformed or unknown requirement %j pending without an author call', async value => {
     const f = await fixture()
     const permit = unbox(await f.prepare())
-    // Deliberately violate the provider boundary to exercise runtime validation.
     f.answer(value as StartPermitRequirement)
     expect(await f.prepare()).toMatchObject({
       failure: { kind: 'unavailable', dependency: 'start-permit-requirements' },
@@ -246,6 +245,7 @@ describe('R2-D60 start permit requirements', () => {
     const f = await fixture({
       wrap: memory => ({
         durability: 'none',
+        scanPending: input => memory.scanPending(input),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
         read: domain => memory.read(domain),
@@ -284,6 +284,7 @@ describe('R2-D60 start permit requirements', () => {
         },
         wrap: memory => ({
           durability: 'none',
+          scanPending: input => memory.scanPending(input),
           readRecord: (domain, key) => memory.readRecord(domain, key),
           due: (tenant, now, limit) => memory.due(tenant, now, limit),
           read: domain => memory.read(domain),
@@ -341,6 +342,7 @@ describe('R2-D60 start permit requirements', () => {
     const f = await fixture({
       wrap: memory => ({
         durability: 'none',
+        scanPending: input => memory.scanPending(input),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
         read: async domain => {
@@ -515,6 +517,7 @@ describe('R2-D60 start permit requirements', () => {
       const f = await fixture({
         wrap: memory => ({
           durability: 'none',
+          scanPending: input => memory.scanPending(input),
           readRecord: (domain, key) => memory.readRecord(domain, key),
           due: (tenant, now, limit) => memory.due(tenant, now, limit),
           commit: input => memory.commit(input),
@@ -557,6 +560,7 @@ describe('R2-D60 start permit requirements', () => {
     const f = await fixture({
       wrap: memory => ({
         durability: 'none',
+        scanPending: input => memory.scanPending(input),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
         commit: input => memory.commit(input),
@@ -592,11 +596,12 @@ describe('R2-D60 start permit requirements', () => {
     await f.finish()
   })
 
-  it('recognizes a committed acceptance after its reply is lost without replaying the author', async () => {
+  it('recognizes a committed acceptance after its reply is lost, and runs the author once', async () => {
     let lose = false
     const f = await fixture({
       wrap: memory => ({
         durability: 'none',
+        scanPending: input => memory.scanPending(input),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
         read: domain => memory.read(domain),
@@ -616,8 +621,12 @@ describe('R2-D60 start permit requirements', () => {
     expect(await f.acceptances()).toHaveLength(1)
     f.rebuild(true)
     expect(unbox(await f.consume(permit)).kind).toBe('started')
-    expect(await f.execute(permit)).toHaveProperty('failure.kind', 'commit-unknown')
     expect(f.launches()).toBe(0)
+    expect(await f.execute(permit)).toHaveProperty('ok')
+    expect(f.launches()).toBe(1)
+    expect(await f.execute(permit)).toHaveProperty('ok')
+    expect(f.launches()).toBe(1)
+    expect(await f.acceptances()).toHaveLength(1)
   })
 
   it('does not report a permanent rejection when its commit outcome is unknown', async () => {
@@ -625,6 +634,7 @@ describe('R2-D60 start permit requirements', () => {
     const f = await fixture({
       wrap: memory => ({
         durability: 'none',
+        scanPending: input => memory.scanPending(input),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
         read: domain => memory.read(domain),

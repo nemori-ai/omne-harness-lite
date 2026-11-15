@@ -1,7 +1,3 @@
-// The source adapters of the projection (SPEC「会话诊断投影」): the ports this member declares
-// toward Agent, Model and Tool in its own words, and the mapping of each port's answer to a value
-// or a gap reason. Every port may be absent; an absent port is `unsupported`. A port that throws
-// is `unavailable`. Nothing here writes: the ports are the read role groups of their owners.
 import type {
   AgentJournalReading,
   Failure as AgentFailure,
@@ -25,9 +21,7 @@ import type {
 } from '@omne-harness/tool-contract'
 import type { SessionDiagnosticUnknown } from '@omne-harness/public-contract'
 
-/** The finish read of Agent; `readFinish` stays optional, as the Agent contract declares it. */
 export type AgentFinishReader<P> = Pick<AgentJournalReading<P>, 'readFinish'>
-/** The reference resolution and the dispatch records of Model's calls: the records carry the account of each dispatch. */
 export type ModelCallInspector<P> = Pick<ModelCalls<P>, 'inspect' | 'dispatches'>
 export type ModelAttemptReader<P> = ModelDiagnostics<P>
 export type ToolCallReader<P> = Pick<
@@ -39,7 +33,6 @@ export type CallAccount = Extract<
   { ok: unknown }
 >['ok']
 
-/** The four read ports of the projection. Each may be absent in a deployment. */
 export type DiagnosticPorts<P> = Readonly<{
   agentJournal?: AgentFinishReader<P>
   modelCalls?: ModelCallInspector<P>
@@ -61,18 +54,10 @@ export const UNAVAILABLE: SourceAnswer<never> = Object.freeze({
   reason: 'unavailable',
 })
 
-/** The most dispatch records one call reads; more than this is a `truncated` gap of the call. */
 export const DISPATCH_LIMIT = 64
 
-/** A failure of one of the three owners the projection reads. */
 type OwnerFailure = AgentFailure | ModelFailure | ToolFailure
 
-/**
- * The gap reason of each failure kind of the three owners, except `invalid`, which depends on the
- * field. The table is total over the kinds the contracts declare: a kind one of them adds fails
- * here. The three that name a gap reason keep their name; `not-settled` means the owner has no
- * such record yet; every other kind says the owner could not answer this read now.
- */
 const GAP_OF: Readonly<Record<Exclude<OwnerFailure['kind'], 'invalid'>, SourceGapReason>> = {
   denied: 'denied',
   unavailable: 'unavailable',
@@ -92,15 +77,9 @@ const GAP_OF: Readonly<Record<Exclude<OwnerFailure['kind'], 'invalid'>, SourceGa
   changed: 'unavailable',
 }
 
-/**
- * `invalid` on the field that carried the reference is a reference the owner does not read: not
- * found (RFC-0013「组合规则」2). `invalid` on another field refuses this projection's own request,
- * which the view can only report as the owner not answering.
- */
 function reasonOf(failure: OwnerFailure, referenceField: string): SourceGapReason {
   if (failure.kind === 'invalid')
     return failure.field === referenceField ? 'not-found' : 'unavailable'
-  // A provider that answers outside its contract's kinds reads as not answering.
   return GAP_OF[failure.kind] ?? 'unavailable'
 }
 
@@ -126,11 +105,9 @@ export interface DiagnosticSources {
   listModelDispatches(call: string): Promise<SourceAnswer<readonly DispatchRecord[]>>
   lookupToolCall(reference: string): Promise<SourceAnswer<ToolLookup>>
   readToolAccount(reference: string): Promise<SourceAnswer<CallAccount>>
-  /** The first page of Tool's diagnostics of the call. */
   readToolDiagnostics(reference: string): Promise<SourceAnswer<DiagnosticPage>>
 }
 
-/** Binds the ports to one caller's access. Each read carries the acting principal and the tenant. */
 export function sourcesOf<P>(access: Access<P>, ports: DiagnosticPorts<P>): DiagnosticSources {
   const { agentJournal, modelCalls, modelDiagnostics, toolQueries } = ports
   const readFinish = agentJournal?.readFinish?.bind(agentJournal)

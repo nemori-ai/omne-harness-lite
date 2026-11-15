@@ -27,7 +27,7 @@ import {
 } from './ledger-decider.ts'
 import { planEnvironmentRelease, processCustodyCovered } from './ledger-environment-release.ts'
 
-import type { WriteCommand } from './ledger-start.ts'
+import { dropSuspensionContent, type WriteCommand } from './ledger-start.ts'
 import {
   taskKey,
   type CallRecord,
@@ -226,6 +226,7 @@ export function decidePreserveResult<B extends ContentBlock>(
     put({ kind: 'call', call: { ...call, state: state.ok } }),
     ...first.writes,
     ...uses.ok,
+    ...dropSuspensionContent(snapshot),
     put(operationRecord(command, { kind: 'preserve-result', state: state.ok }, mint)),
     put({
       kind: 'task',

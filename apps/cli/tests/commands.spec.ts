@@ -61,11 +61,6 @@ async function login(service: FakeService, identifier = 'alice') {
   return cli(['login', '--login-identifier', identifier, '--server', service.origin])
 }
 
-/**
- * A login that also owns `sessionId` as the tenant of that login. The commands that act on an
- * existing session need the owner: no `--tenant` and no record is a usage error, so the tests
- * that are not about the owner rule start from a state in which the owner is known.
- */
 async function loginOwningSession(service: FakeService) {
   const result = await login(service)
   const written = writeSessionOwners(state, new Map([[sessionId, tenantText]]))
@@ -168,7 +163,6 @@ describe('login', () => {
       tenantId: tenantText,
       loginProof: issuedProof,
     })
-    // Positive control: the proof and the credential do exist in this run, in the file and on the wire.
     expect(readFileSync(loginFile(), 'utf8')).toContain(issuedProof)
     expect(JSON.stringify(service.seen[0]?.wire)).toContain(credentialText)
     for (const text of [result.stdout, result.stderr]) {

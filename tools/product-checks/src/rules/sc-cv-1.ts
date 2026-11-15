@@ -2,15 +2,6 @@ import type { Rule, SourceFile, Violation } from '@omne-harness/repo-toolchain/c
 import { CREDENTIAL_VERIFICATION, tenancyPackageOf } from '../layout.ts'
 import { codeMatches, lineAt, viewsOf } from '@omne-harness/repo-toolchain/core/source-text'
 
-/**
- * SC-CV-1（credential-verification 节点 verification；AI 契约 S-8「凭据材料不以可读形式保存、消费者只存不读」）：
- * `CredentialMaterial` 是不透明品牌串，内部格式归凭据方案的 owner。`tenancy/*` 除 CV 包外的源码里，
- * 材料值上不得有任何成员访问（`.split(`、`.slice(`、`.length`、`[i]`……）、不得交给正则（`.exec(`／`.test(`）
- * 或 `JSON.parse(` 解析。**品牌断言 `x as CredentialMaterial` 本身不算违反**（那是把列值认成材料，不是读它的内部）。
- *
- * 文本规则认「材料值」的写法：本文件里标注为 `CredentialMaterial` 的名字；成员链末段为 `material`
- * 或 `credential_material` 的表达式；`(… as CredentialMaterial)` 括起来的断言结果。
- */
 export const scCv1: Rule = {
   id: 'sc-cv-1',
   source:
@@ -36,11 +27,9 @@ function checkFile(rule: string, file: SourceFile): Violation[] {
   )) {
     if (m[1] !== undefined) names.add(m[1])
   }
-  // 材料表达式：标注过的裸名 | 末段为 material／credential_material 的成员 | 括起来的品牌断言
   const bare = names.size === 0 ? '' : `(?<![\\w$.])(?:${[...names].join('|')})|`
   const expr = `(?:${bare}(?<![\\w$])(?:material|credential_material)|as\\s+CredentialMaterial\\s*\\))`
   const access = new RegExp(`(?:${expr})(?![\\w$])\\s*!?\\s*(\\?\\.|\\.|\\[)`)
-  // 实参可以是成员链（`snapshot.credential_material`）：链的前几段任意，末段按 expr 认
   const arg = `\\(\\s*(?:[\\w$]+\\s*[?!]?\\.\\s*)*(?:${expr})(?![\\w$])`
   const parse = new RegExp(`\\.\\s*(?:exec|test)\\s*${arg}|\\bJSON\\s*\\.\\s*parse\\s*${arg}`)
   const out: Violation[] = []

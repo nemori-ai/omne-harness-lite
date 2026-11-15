@@ -3,17 +3,11 @@
   "forbidden": [
     {
       "category": "model-runtime-provider",
-      "names": [
-        "@omne-harness/model",
-        "@omne-harness/model-host-local"
-      ]
+      "names": ["@omne-harness/model", "@omne-harness/model-host-local"]
     },
     {
       "category": "pi",
-      "names": [
-        "@earendil-works/pi-*",
-        "@mariozechner/pi-*"
-      ]
+      "names": ["@earendil-works/pi-*", "@mariozechner/pi-*"]
     },
     {
       "category": "vendor-sdk",
@@ -46,23 +40,11 @@
     },
     {
       "category": "vocabulary",
-      "names": [
-        "*-vocab",
-        "*-vocabulary",
-        "tiktoken-ranks"
-      ]
+      "names": ["*-vocab", "*-vocabulary", "tiktoken-ranks"]
     },
     {
       "category": "storage-engine",
-      "names": [
-        "kysely",
-        "pg",
-        "better-sqlite3",
-        "sqlite3",
-        "redis",
-        "ioredis",
-        "proper-lockfile"
-      ]
+      "names": ["kysely", "pg", "better-sqlite3", "sqlite3", "redis", "ioredis", "proper-lockfile"]
     }
   ]
 }

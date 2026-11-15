@@ -1,7 +1,3 @@
-// The four setting governance operations at the governance location (SPEC「设置项」): the login and
-// acting tenant steps, the principal and tenant handed to the port, a client that cannot name
-// another tenant, the mapping of every port outcome, the absent port, a rejected port, and a
-// secret that never reaches a response or a diagnostic.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { ActingForTenantPrincipal, IdentityOperations } from '@omne-harness/identity'
 import { tenantCodec } from '@omne-harness/legal-identity'
@@ -50,7 +46,6 @@ const textOf = (tenant: SettingsAccess['tenant']): string => {
   return encoded.value
 }
 
-/** An in-memory settings port keyed by tenant text and item. It records every call it receives. */
 function settingsDouble() {
   const configured = new Map<string, Instant>()
   const seen: Seen[] = []
@@ -191,7 +186,6 @@ describe('with a settings port', () => {
     expect(again.status).toBe(200)
     expect(outcomeOf(again)).toEqual({ outcome: 'no-change', body: {} })
 
-    // The port saw what the client selected, and nothing else from the body.
     expect(settings.seen.map(({ method, input }) => ({ method, input }))).toEqual([
       { method: 'set', input: { asset: WEB, item: ITEM, secret: SENTINEL } },
       { method: 'describe', input: { asset: WEB, item: ITEM } },
@@ -199,7 +193,6 @@ describe('with a settings port', () => {
       { method: 'clear', input: { asset: WEB, item: ITEM } },
       { method: 'clear', input: { asset: { name: 'Web' }, item: ITEM } },
     ])
-    // Each call carried the acting tenant and a principal issued for it from this login.
     for (const { access } of settings.seen) {
       const principal: ActingForTenantPrincipal = access.principal
       expect(textOf(access.tenant)).toBe(alice.tenantText)
@@ -230,7 +223,6 @@ describe('with a settings port', () => {
     const [filtered, unfiltered] = settings.seen
     expect(settings.seen.map(({ method }) => method)).toEqual(['list', 'list'])
     expect(filtered?.input).toEqual({ asset: WEB })
-    // An absent filter is absent on the port, not a key that holds undefined.
     expect(Object.keys(unfiltered?.input ?? { asset: 'present' })).toEqual([])
   })
 
@@ -240,11 +232,9 @@ describe('with a settings port', () => {
     const alice = await login(fixture, 'alice')
     const bob = await login(fixture, 'bob')
     for (const operation of OPERATIONS) {
-      // Another tenant as the acting tenant: the login's selection decides, not the client.
       const other = await call(alice, operation, BODIES[operation], bob.tenantText)
       expect(other.status, operation).toBe(403)
       expect(outcomeOf(other), operation).toEqual({ outcome: 'denied', body: {} })
-      // A target tenant in the body is not this protocol.
       const smuggled = await call(alice, operation, {
         ...BODIES[operation],
         tenant: bob.tenantText,
@@ -253,7 +243,6 @@ describe('with a settings port', () => {
       expect(other.text + smuggled.text).not.toContain(SENTINEL)
     }
     expect(settings.seen).toEqual([])
-    // Bob's own call reaches the port with Bob's tenant.
     await call(bob, 'describe-setting', BODIES['describe-setting'])
     expect(settings.seen.map(({ access }) => textOf(access.tenant))).toEqual([bob.tenantText])
   })
@@ -352,7 +341,6 @@ describe('with a settings port', () => {
     expect(fixture.diagnostics.filter(event => event.code === 'settings.fault')).toEqual(
       OPERATIONS.map(operation => ({ code: 'settings.fault', operation })),
     )
-    // The port's error text held the secret; neither the replies nor the diagnostics do.
     for (const reply of replies) expect(reply.text).not.toContain(SENTINEL)
     expect(JSON.stringify(fixture.diagnostics)).not.toContain(SENTINEL)
   })
@@ -360,7 +348,6 @@ describe('with a settings port', () => {
   it('a port result that echoes the secret is projected to the time only', async () => {
     const port: SettingsGovernance = {
       ...settingsDouble().port,
-      // A faulty port that echoes the secret where only presence may appear.
       set: async ({ secret }) =>
         ({ kind: 'succeeded', configuredAt: AT, secret }) as unknown as Awaited<
           ReturnType<SettingsGovernance['set']>
@@ -369,7 +356,6 @@ describe('with a settings port', () => {
     fixture = await startFixture({ dependencies: { settings: port } })
     const alice = await login(fixture, 'alice')
     const reply = await call(alice, 'set-setting', BODIES['set-setting'])
-    // The entry copies only the fields of the success body; the rest of the port result stays out.
     expect(reply.status).toBe(200)
     expect(outcomeOf(reply)).toEqual({ outcome: 'succeeded', body: { configuredAt: AT_TEXT } })
     expect(reply.text).not.toContain(SENTINEL)
@@ -429,11 +415,9 @@ describe('without a settings port', () => {
         expect(reply.text).not.toContain(SENTINEL)
       }
     expect(recognition.calls.length).toBe(before)
-    // A request that fails the closed field check is still protocol-rejected.
     expect(outcomeOf(await call(alice, 'set-setting', { asset: WEB, item: ITEM })).outcome).toBe(
       'protocol-rejected',
     )
-    // Control: a governed operation with the same proof does reach the recognition.
     await call(alice, 'query-current-tenant', {}, null)
     expect(recognition.calls.length).toBe(before + 1)
   })

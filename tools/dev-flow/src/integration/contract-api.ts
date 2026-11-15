@@ -8,13 +8,10 @@ import { IntegrationError, json, object, string } from './parse.ts'
 const TOOLCHAIN_PACKAGE = '@omne-harness/repo-toolchain'
 const CONTRACT_API_BIN = 'omne-contract-api'
 
-/** Why the pinned CLI could not run or answer. */
 export type Unavailable = { kind: 'unavailable'; reason: string }
 
-/** How to start the CLI: the executable and the arguments before the CLI's own. */
 export type ContractApiCommand = { file: string; args: readonly string[] }
 
-/** The result of one CLI process, reduced to the fields `runContractApi` judges. */
 export type ProcessResult = {
   error?: Error | undefined
   status: number | null
@@ -23,17 +20,14 @@ export type ProcessResult = {
   stderr: string | null
 }
 
-/** Starts a process and waits for it. The default is `spawnSync`; cases pass a stand-in. */
 export type ProcessRunner = (
   file: string,
   args: readonly string[],
   options: SpawnSyncOptionsWithStringEncoding,
 ) => ProcessResult
 
-/** Finds the `package.json` of `specifier` as `base` would import it. The default is `findPackageJSON`. */
 export type ManifestFinder = (specifier: string, base: string) => string | undefined
 
-/** The manifest of the installed repo-toolchain, or undefined when dev-flow cannot resolve it. */
 export function toolchainManifest(find: ManifestFinder = findPackageJSON): string | undefined {
   try {
     return find(TOOLCHAIN_PACKAGE, import.meta.url)
@@ -44,7 +38,6 @@ export function toolchainManifest(find: ManifestFinder = findPackageJSON): strin
   }
 }
 
-/** The pinned `omne-contract-api` script, resolved from this member's dependency. */
 export function contractApiCommand(): ContractApiCommand | Unavailable {
   const manifest = toolchainManifest()
   if (manifest === undefined)
@@ -66,16 +59,10 @@ export function contractApiCommand(): ContractApiCommand | Unavailable {
   return { file: process.execPath, args: [join(dirname(manifest), bin)] }
 }
 
-/** The CLI's environment: the configuration and the subject both come from the checkout. */
 export function contractApiEnv(root: string): NodeJS.ProcessEnv {
   return { ...repositoryEnv(process.env), OMNE_SUBJECT_ROOT: root, OMNE_RUNNER_ROOT: root }
 }
 
-/**
- * Runs `omne-contract-api` with `args` on the checkout `root`. Each failure has its own reason:
- * timeout, process error with its error code, exit code with standard error. `run` starts the
- * process; the default is `spawnSync`.
- */
 export function runContractApi(
   command: ContractApiCommand,
   args: readonly string[],
@@ -110,10 +97,6 @@ export function runContractApi(
   return { kind: 'ran', stdout: result.stdout }
 }
 
-/**
- * Runs `step`. A known failure (`IntegrationError`) becomes
- * `unavailable` with the reason `describe` gives; any other error propagates.
- */
 export function unavailableOnKnown<T>(
   step: () => T,
   describe: (error: IntegrationError) => string,

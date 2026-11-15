@@ -1,6 +1,3 @@
-// The output tail of one retained process: per stream, the newest bytes written after the handover,
-// bounded by a capacity, with the source offsets the contract's `output` reports. It lives in the
-// provider's memory only; nothing here is durable.
 import type {
   RetainedOutput,
   RetainedOutputFrom,
@@ -10,39 +7,25 @@ import type {
 export type TailStream = 'stdout' | 'stderr'
 
 export type RetainedTail = Readonly<{
-  /** Bytes of `stream` observed now; the oldest saved bytes go once the capacity is passed. */
   append(stream: TailStream, bytes: Uint8Array): void
   /** `count` bytes of `stream` were observed but never reached the tail: the saved bytes restart after the gap. */
   drop(stream: TailStream, count: number): void
   read(from?: RetainedOutputFrom): RetainedOutput
-  /** The provider observes the streams no longer: the readings stop here, and nothing is appended. */
   close(): void
   closed(): boolean
 }>
 
-/**
- * One stream's saved bytes in a ring of the capacity's size, allocated when the first byte arrives:
- * the saved bytes end right before `writeAt` and wrap around the ring's end.
- */
 type StreamState = {
   readonly savedFrom: number
-  /** Observed after `savedFrom` and no longer saved. */
   discarded: number
   ring: Uint8Array | undefined
   writeAt: number
-  /** Saved bytes, at most the capacity. */
   saved: number
 }
 
 const streams: readonly TailStream[] = ['stdout', 'stderr']
 const continuation = (byte: number) => byte >> 6 === 0b10
 
-/**
- * A tail whose streams start saving at `savedFrom`: the bytes each stream had observed when the
- * domain was handed over. `capacity` is the bound of saved bytes per stream and must be positive; a
- * provider that saves nothing keeps no tail at all. Each stream holds one buffer of the capacity's
- * size, allocated when its first byte arrives.
- */
 export function createRetainedTail(input: {
   capacity: number
   savedFrom: Readonly<Record<TailStream, number>>
@@ -65,7 +48,6 @@ export function createRetainedTail(input: {
   }
   const end = (s: StreamState) => s.savedFrom + s.discarded + s.saved
 
-  /** Writes `bytes` (fewer than the capacity) at `writeAt`, wrapping around the ring's end. */
   function write(s: StreamState, ring: Uint8Array, bytes: Uint8Array): void {
     const first = Math.min(bytes.length, capacity - s.writeAt)
     ring.set(bytes.subarray(0, first), s.writeAt)
@@ -86,7 +68,6 @@ export function createRetainedTail(input: {
     s.discarded += total - s.saved
   }
 
-  /** One copy of the saved bytes from `offset` on, read out of the ring in order. */
   function copyOut(s: StreamState, offset: number): Uint8Array {
     const length = s.saved - offset
     const data = new Uint8Array(length)

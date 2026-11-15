@@ -1,7 +1,3 @@
-// The Cordis service definitions of Tool: abstract Services, the service keys, the
-// `tool-cordis-contract/call-changed` and `binding-changed` events and the instance directory.
-// Provider plugins live in `@omne-harness/tool-host-local/cordis`. This entry does not import a
-// Tool implementation.
 import { type Context, type Fiber, Service } from '@deepseek-ai/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, type Outcome } from '@omne-harness/operation-result'
@@ -45,7 +41,6 @@ type CordisFiberState = typeof import('@deepseek-ai/cordis').FiberState
 const LOADING = 1 satisfies CordisFiberState['LOADING']
 const ACTIVE = 2 satisfies CordisFiberState['ACTIVE']
 
-/** A fiber that is neither disposed nor unloading still owns its registrations. */
 function isLive(fiber: Fiber): boolean {
   return fiber.uid !== null && (fiber.state === LOADING || fiber.state === ACTIVE)
 }
@@ -61,21 +56,11 @@ export abstract class ToolRuntimeService<P, B extends ContentBlock>
   implements ToolRuntime<P, B>
 {
   static readonly provide = 'toolRuntime'
-  /** The result receivers of this process, by consumer owner. Only this provider reads it. */
   private readonly resultReceivers = new Map<string, ResultReceiverEntry<P, B>>()
   constructor(ctx: Context) {
     super(ctx, ToolRuntimeService.provide)
   }
 
-  /**
-   * Assembles a result receiver for the push stage of this process under a consumer owner
-   * (docs/cordis.md「结果接收方的登记」). The registration is an effect on the caller's fiber
-   * (IC-13): it ends when that fiber is disposed, or when the returned function is called, which
-   * removes the entry synchronously. A registration of the same owner whose fiber is disposed or
-   * unloading is replaced. A registration of the same owner whose fiber is still live is an
-   * assembly error: the method throws, so a caller in a plugin body fails its fiber. The
-   * registration grants no qualification: the receiver still checks every push.
-   */
   registerResultReceiver(
     owner: ConsumerRef['owner'],
     receiver: ToolResultReceiver<P, B>,
@@ -88,7 +73,6 @@ export abstract class ToolRuntimeService<P, B extends ContentBlock>
       const entry: ResultReceiverEntry<P, B> = { receiver, fiber }
       this.resultReceivers.set(owner, entry)
       return () => {
-        // A late disposer of a replaced registration must not remove its successor.
         if (this.resultReceivers.get(owner) === entry) this.resultReceivers.delete(owner)
       }
     }, 'toolRuntime.registerResultReceiver')
@@ -97,10 +81,6 @@ export abstract class ToolRuntimeService<P, B extends ContentBlock>
     }
   }
 
-  /**
-   * The receiver the push stage reaches for the frozen consumer owner of a delivery, or undefined
-   * when none is registered: the push stage then keeps the delivery and its work (`no-receiver`).
-   */
   protected resultReceiver(owner: ConsumerRef['owner']): ToolResultReceiver<P, B> | undefined {
     return this.resultReceivers.get(owner)?.receiver
   }
@@ -185,22 +165,11 @@ export abstract class ToolBindingsService<P, B extends ContentBlock, E>
 export const toolBindingsKey = ToolBindingsService.provide
 
 declare const verifiedAuthority: unique symbol
-/**
- * The authority after the origin check: the same four fields, now trusted for the layer (G7). The
- * brand has no runtime constructor here: only an implementation of
- * `ToolContributionAuthority.verify` produces it, at that one boundary, so a plain `ToolAuthority`
- * cannot stand where a verified one is required.
- */
 export type VerifiedAuthority = ToolAuthority & { readonly [verifiedAuthority]: true }
 export type ToolAuthorityFailure =
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'invalid'; reason: string }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-/**
- * The synchronous origin check of a contribution (G7). `verify` gives the source layer from the
- * authority, never from the registrant; `admits` checks that the registrant may register at that
- * layer. Both are consulted inside the registering effect, so neither yields.
- */
 export interface ToolContributionAuthority<P> {
   verify(authority: ToolAuthority): Outcome<VerifiedAuthority, ToolAuthorityFailure>
   admits(
@@ -223,7 +192,6 @@ export abstract class ToolContributionAuthorityService<P>
 }
 export const toolContributionAuthorityKey = ToolContributionAuthorityService.provide
 
-/** A holder is opaque and is identified only within its tenant. */
 export type ToolResidencyReference = Readonly<{
   holder: string
   tenant: TenantId
@@ -233,7 +201,6 @@ export type ToolResidencyPage = Readonly<{
   items: readonly ToolResidencyReference[]
   next: string | null
 }>
-/** System-scope reads only. Failure never proves that a key has no holders. */
 export interface ToolResidencyReader {
   referencing(
     input: Readonly<{ scope: 'system'; key: ToolBindingKey; after: string | null }>,
@@ -250,12 +217,6 @@ export abstract class ToolResidencyReaderService extends Service implements Tool
 }
 export const toolResidencyReaderKey = ToolResidencyReaderService.provide
 
-/**
- * Why `ensureLoaded` did not load. `missing` and `rejected` are durable failures and carry the
- * evidence the coordinator minted for the adoption-point judgment; `unavailable` is temporary;
- * `denied` and `invalid` come from the origin check; `conflict` says another contribution holds
- * the key; `draining` says the same key is draining and is not recognised.
- */
 export type ToolLoadFailure =
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'invalid'; reason: string }>
@@ -265,7 +226,6 @@ export type ToolLoadFailure =
   | Readonly<{ kind: 'conflict' }>
   | Readonly<{ kind: 'draining' }>
 export type ToolLoadState = Readonly<{ key: ToolBindingKey; state: 'loaded' | 'recognized' }>
-/** Where `unload` stands: kept for referencing sessions, still draining, or released. */
 export type ToolUnloadState = Readonly<{ state: 'retained' | 'draining' | 'released' }>
 export type ToolSweepReport = Readonly<{
   reloaded: readonly ToolBindingKey[]
@@ -274,13 +234,6 @@ export type ToolSweepReport = Readonly<{
 export type ToolGenerationsFailure =
   | Readonly<{ kind: 'unknown-key' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-/**
- * The generation coordinator (G7): the only holder of the `ctx.plugin` handles of author plugins.
- * Each verb converges on its target state and may be repeated. `ensureLoaded` is called by the
- * assembly coordinator with the tenant's access, or by `sweep` with the system scope; `unload` and
- * `sweep` are system-scope operations. `loaderFor` gives the author plugin the trusted loader of
- * its authority. The contract is in docs/cordis.md「换代协调者契约」.
- */
 export interface ToolGenerations<P, E, B extends ContentBlock> {
   ensureLoaded(
     input: Readonly<{ authority: ToolAuthority; access: ToolBindingScope<P> }>,
@@ -344,7 +297,6 @@ export abstract class ToolDecisionBridgeService<P>
 }
 export const toolDecisionsKey = ToolDecisionBridgeService.provide
 
-/** What a successful `ToolInstanceHost.publish` returns. Registration reuses it as the receipt. */
 export type ToolPublication = Extract<
   Awaited<ReturnType<ToolInstanceHost<never>['publish']>>,
   { ok: unknown }
@@ -501,9 +453,6 @@ export abstract class ToolStartAuthorityService<P>
 }
 export const toolStartAuthorityKey = ToolStartAuthorityService.provide
 
-// The start fence of an outer caller (contract SPEC「外层调用方的启动围栏」): only `invalidate` of
-// the start authority. The provider of `toolStartAuthority` serves this key in the same ordering
-// domain; an assembly that serves the two keys from two domains has no start fence guarantee.
 /** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolStartFenceService<P> extends Service implements ToolStartFence<P> {
   static readonly provide = 'toolStartFence'
@@ -573,8 +522,6 @@ export abstract class ToolOffloaderService<P, B extends ContentBlock>
 export const toolOffloaderKey = ToolOffloaderService.provide
 
 declare module '@deepseek-ai/cordis' {
-  // The trusted identity adapter of an assembly narrows the principal type. Providers still
-  // check every input at run time.
   interface Context {
     toolResidencyReader: ToolResidencyReaderService
     toolRuntime: ToolRuntimeService<unknown, ContentBlock>

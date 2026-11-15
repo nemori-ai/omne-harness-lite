@@ -1,6 +1,3 @@
-// Type probes of the receiving surface (SPEC "生产者接收面"). They fail the type check when an entry
-// stops reusing the producer's own key, when an entry of the advancing side can be recorded
-// without an Authority, or when the snapshot field stops being optional.
 import { describe, expectTypeOf, it } from 'vitest'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {

@@ -1,6 +1,3 @@
-// The snapshot keeper of the ledger store (SPEC「读用保管的快照作答」; model SnapshotCache). The
-// raw store here is the memory store of `@omne-harness/tool/testing` with its round trips counted:
-// the keeper does not know SQL.
 import { describe, expect, it } from 'vitest'
 import {
   recordKey,
@@ -28,7 +25,6 @@ const host = (key: string, value: unknown = key): LedgerRecord => ({
 })
 const keyOf = (name: string) => recordKey(host(name))
 
-/** The memory store with its round trips counted, and stores that share one keeper. */
 function scene() {
   const memory = createMemoryToolLedgerStore()
   const trips = { read: 0, readRecord: 0, commit: 0 }
@@ -49,7 +45,6 @@ function scene() {
   const keeper = new LedgerKeeper()
   const store = keeping(keeper, raw)
   let next = 0
-  /** Commits `records` at the revision the store has, through `via`. */
   const put = async (via: typeof store, domain: LedgerDomain, ...records: LedgerRecord[]) => {
     const current = await memory.read(domain)
     if (current.kind !== 'complete') throw new Error('fixture read failed')
@@ -106,7 +101,6 @@ describe('reads after a whole read or a commit', () => {
     const reads = s.trips.read
     const kept = await s.store.read(DOMAIN)
     expect(s.trips.read).toBe(reads)
-    // The SQL read answers in key order; the memory store answers in the order of the writes.
     const cold = await s.memory.read(DOMAIN)
     if (cold.kind !== 'complete' || kept.kind !== 'complete') throw new Error('read failed')
     expect(kept.revision).toBe(cold.revision)
@@ -157,7 +151,6 @@ describe('a read of one record of a domain that was never read whole', () => {
     expect(await s.store.readRecord(DOMAIN, keyOf('a'))).toMatchObject({ record: host('a', 2) })
     expect(await s.store.readRecord(DOMAIN, keyOf('c'))).toMatchObject({ record: host('c') })
     expect(s.trips).toEqual(before)
-    // `b` was never read: the store answers it, at the revision the snapshot has.
     expect(await s.store.readRecord(DOMAIN, keyOf('b'))).toMatchObject({ record: host('b') })
     expect(s.trips.readRecord).toBe(before.readRecord + 1)
   })
@@ -167,7 +160,6 @@ describe('a read of one record of a domain that was never read whole', () => {
     await s.put(s.raw, DOMAIN, host('a', 1), host('b', 1))
     await s.store.readRecord(DOMAIN, keyOf('a'))
     await s.put(s.raw, DOMAIN, host('a', 2), host('b', 2))
-    // The answer for `b` is at a later revision: what was known of `a` is not kept.
     expect(await s.store.readRecord(DOMAIN, keyOf('b'))).toMatchObject({ record: host('b', 2) })
     expect(await s.store.readRecord(DOMAIN, keyOf('a'))).toMatchObject({ record: host('a', 2) })
   })
@@ -202,9 +194,6 @@ describe('the answer "absent"', () => {
 })
 
 describe('a commit that did not go through the keeper', () => {
-  // The storage lets one process write a database, so this does not happen in an assembly. The
-  // cases show that a deed still waits for its commit: a read answers the snapshot, and the first
-  // commit on it is refused.
   it('is not seen by a read of the snapshot', async () => {
     const s = scene()
     await s.put(s.store, DOMAIN, host('a'))
@@ -295,7 +284,6 @@ describe('a whole read that a commit of the same domain crossed', () => {
   it('does not become the snapshot', async () => {
     const s = scene()
     await s.put(s.store, DOMAIN, host('a'))
-    // The store answers the read with the content before the commit; the answer arrives after it.
     let release: (() => void) | undefined
     const gate = new Promise<void>(resolve => {
       release = resolve
@@ -342,7 +330,6 @@ describe('ledger stores over one database', () => {
   it('share one keeper when each was given its own storage object', async () => {
     const app = await openApp()
     try {
-      // An assembly hands each plugin its own object over the same provider (`SqlStorage.database`).
       const first = createSqlToolLedgerStore({
         ...app.options,
         storage: { ...app.options.storage },
@@ -366,7 +353,6 @@ describe('ledger stores over one database', () => {
         writes: [{ kind: 'put', record: host('b') }],
       })
       expect(moved.kind).toBe('committed')
-      // `first` answers the commit of `second` at once: they share one keeper.
       const answer = await first.read(DOMAIN)
       if (answer.kind !== 'complete') throw new Error('read failed')
       expect(answer.records.map(record => recordKey(record))).toEqual([keyOf('a'), keyOf('b')])

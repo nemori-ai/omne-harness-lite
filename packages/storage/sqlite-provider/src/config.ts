@@ -1,12 +1,10 @@
-// Provider configuration (SQL contract SPEC 12.1). Data only (IC-16). Every field is required.
-// Apart from storageRoot, every field is a finite positive integer, and only groupCollectMs may
-// be 0. The validation lists every problem, not only the first.
 import { isAbsolute } from 'node:path'
 
 export type SqliteStorageConfig = Readonly<{
   storageRoot: string
   admissionQueueLimit: number
   globalAdmissionLimit: number
+  admissionWaitMs: number
   lockWaitMs: number
   maxCommandsPerCommit: number
   maxCommandBytes: number
@@ -59,6 +57,7 @@ type NumericField = Exclude<keyof SqliteStorageConfig, 'storageRoot'>
 const NUMERIC_FIELDS: readonly NumericField[] = [
   'admissionQueueLimit',
   'globalAdmissionLimit',
+  'admissionWaitMs',
   'lockWaitMs',
   'maxCommandsPerCommit',
   'maxCommandBytes',
@@ -100,7 +99,6 @@ const NUMERIC_FIELDS: readonly NumericField[] = [
   'closeDeadlineMs',
 ]
 
-/** left <= right unless strict, then left < right. The problem is reported on the left field. */
 type Relation = readonly [left: NumericField, right: NumericField, strict: boolean, rule: string]
 
 const RELATIONS: readonly Relation[] = [
@@ -167,9 +165,11 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+const ZERO_ALLOWED: ReadonlySet<NumericField> = new Set(['groupCollectMs', 'admissionWaitMs'])
+
 function integerOk(value: unknown, field: NumericField): value is number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value)) return false
-  return field === 'groupCollectMs' ? value >= 0 : value > 0
+  return ZERO_ALLOWED.has(field) ? value >= 0 : value > 0
 }
 
 export function validateConfig(input: unknown): ConfigJudgement {
@@ -185,10 +185,9 @@ export function validateConfig(input: unknown): ConfigJudgement {
     bad.add(field)
     problems.push({
       field,
-      rule:
-        field === 'groupCollectMs'
-          ? 'must be a finite integer, 0 or more'
-          : 'must be a finite positive integer',
+      rule: ZERO_ALLOWED.has(field)
+        ? 'must be a finite integer, 0 or more'
+        : 'must be a finite positive integer',
     })
   }
   for (const [left, right, strict, rule] of RELATIONS) {

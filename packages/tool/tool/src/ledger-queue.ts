@@ -1,15 +1,10 @@
-// The queue maintenance entry of the ledger (SPEC 22): the reconcile that a waiting call asks for
-// its FIFO key. A queue entry repeats a fact that its call domain owns (the call's stage), and the
-// queue domain cannot read that domain, so an entry can outlive the step that should have moved
-// or removed it. The reconcile reads the call domains of the entries that stand in the waiter's
-// way and repairs only what the call domain proves: an entry whose call holds a release basis is
-// deleted, and a call that still owes the queue domain a step is reported so that the driver
-// runs it. It never changes the stage of another call's entry, and it reads the
-// call domains plainly: a fenced read would write an exclusion record and exclude the in-flight
-// redo of the call's owner.
-
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { ToolCallId, ToolFailure } from '@omne-harness/tool-contract'
+import {
+  decodeToolOperationId,
+  type ToolCallId,
+  type ToolFailure,
+  type ToolOperationId,
+} from '@omne-harness/tool-contract'
 import { invalid, type CallInput } from './boundary.ts'
 import type { QueueReconciliation, ToolLedgerQueues } from './construction.ts'
 import type { Decision, Snapshot } from './ledger-decider.ts'
@@ -24,9 +19,7 @@ import type { LedgerDomain, QueueEntryRecord } from './ledger-store.ts'
 
 type QueueDomain = Extract<LedgerDomain, { kind: 'queue' }>
 
-/** What the ledger gives the reconcile: its own authorization, reads and queue transaction. */
 export type QueueMaintenance<P> = Readonly<{
-  /** The boundary and the qualification of a `recover` entry. */
   authorize(input: unknown): Promise<Outcome<CallInput<P>, ToolFailure>>
   read(domain: LedgerDomain): Promise<Outcome<Snapshot, ToolFailure>>
   readQueue(domain: QueueDomain): Promise<Outcome<QueueSnapshot, ToolFailure>>
@@ -35,18 +28,24 @@ export type QueueMaintenance<P> = Readonly<{
     decide: (snapshot: QueueSnapshot) => Decision<T>,
     unknown: Outcome<T, ToolFailure>,
   ): Promise<Outcome<T, ToolFailure>>
+  park(
+    checked: CallInput<P>,
+    operation: ToolOperationId,
+  ): Promise<Outcome<Readonly<{ parked: boolean }>, ToolFailure>>
+  release(
+    checked: CallInput<P>,
+    operation: ToolOperationId,
+  ): Promise<Outcome<Readonly<{ released: boolean }>, ToolFailure>>
 }>
 
 const NOTHING: QueueReconciliation = { released: [], redrive: [] }
 
-/** A release commit whose outcome is unknown: nothing is claimed, the waiter asks again later. */
 const RELEASE_UNKNOWN: Outcome<never, ToolFailure> = fail({
   kind: 'unavailable',
   dependency: 'ledger-store',
   diagnostic: 'the release commit of the queue reconcile has an unknown outcome',
 })
 
-/** The entries that can stand in the waiter's way: earlier than its own, or holding a slot. */
 function inTheWay(queue: QueueSnapshot, call: ToolCallId): QueueEntryRecord[] {
   const mine = queue.entries.get(call)
   return [...queue.entries.values()].filter(
@@ -56,10 +55,6 @@ function inTheWay(queue: QueueSnapshot, call: ToolCallId): QueueEntryRecord[] {
   )
 }
 
-/**
- * What the call domains of `peers` prove, read plainly: the calls that hold a release basis, and
- * the calls that still owe the queue domain a step (an open `queue` task).
- */
 async function survey<P>(
   ops: QueueMaintenance<P>,
   tenant: CallInput<P>['tenant'],
@@ -72,7 +67,14 @@ async function survey<P>(
     if ('failure' in owned) return owned
     if (owned.ok.call === null) continue
     if (releaseBasisOf(owned.ok) !== null) releases.push(peer.call)
-    if (owned.ok.tasks.some(task => task.kind === 'queue')) redrive.push(peer.call)
+    if (
+      owned.ok.tasks.some(
+        task =>
+          task.kind === 'queue' ||
+          (task.kind === 'suspend' && owned.ok.call?.state.phase === 'suspended'),
+      )
+    )
+      redrive.push(peer.call)
   }
   return succeed({ releases, redrive })
 }
@@ -101,6 +103,20 @@ export function createQueueReconciler<P>(ops: QueueMaintenance<P>): ToolLedgerQu
         RELEASE_UNKNOWN,
       )
       return 'failure' in done ? done : succeed({ released: done.ok, redrive })
+    },
+    park: async input => {
+      const checked = await ops.authorize(input)
+      if ('failure' in checked) return checked
+      const operation = decodeToolOperationId(Reflect.get(input as object, 'operation'))
+      if ('failure' in operation) return invalid('operation', operation.failure.reason)
+      return ops.park(checked.ok, operation.ok)
+    },
+    release: async input => {
+      const checked = await ops.authorize(input)
+      if ('failure' in checked) return checked
+      const operation = decodeToolOperationId(Reflect.get(input as object, 'operation'))
+      if ('failure' in operation) return invalid('operation', operation.failure.reason)
+      return ops.release(checked.ok, operation.ok)
     },
   }
 }

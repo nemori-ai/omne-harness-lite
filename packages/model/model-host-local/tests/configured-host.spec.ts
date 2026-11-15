@@ -1,5 +1,3 @@
-// Real Cordis and runtime. The memory commands and manual clock come from model/testing.
-// The named authority and send boundary below stand in for the application adapters.
 import { Context } from '@deepseek-ai/cordis'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 import { createTestModelDependencies } from '@omne-harness/model/testing'
@@ -36,7 +34,6 @@ const TENANT = tenant(organization.value, account.value)
 const PRINCIPAL = Object.freeze({ subject: 'configured-host-test' })
 const CALL = unbox(decodeModelCallId('mcall_configured'))
 const ADOPTION = { owner: 'test', name: 'test', revision: '1', digest: '0'.repeat(64) }
-// Values from runtime-push.spec.ts, for a bounded in-process fixture. No production defaults.
 const CONFIG = {
   host: { concurrencyLimit: 4, wakeCapacity: 16, scanBatchSize: 10, scanIntervalMs: 25 },
   runtime: {
@@ -266,7 +263,7 @@ it('publishes ACTIVE services, checks the supplied observer authority and closes
   try {
     expect(f.Plugin.inject).toEqual([modelCommandsKey, modelClockKey, modelHostAuthorityKey])
     const fiber = await f.ctx.plugin(f.Plugin, CONFIG)
-    expect(fiber.state).toBe(2) // Cordis 4.0.4: FiberState.ACTIVE is an erased const enum.
+    expect(fiber.state).toBe(2)
     expect(f.ctx.modelRuntime.calls.admit).toBeTypeOf('function')
     const old = f.ctx.modelInstanceHost
     const access = { principal: PRINCIPAL, tenant: TENANT, call: CALL }

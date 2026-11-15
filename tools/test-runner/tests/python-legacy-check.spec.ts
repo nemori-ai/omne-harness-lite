@@ -36,7 +36,6 @@ it.each(['local', 'runner'])(
     const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-python-legacy-')))
     roots.push(root)
     put(root, 'package.json', readFileSync(join(repository, 'package.json'), 'utf8'))
-    // 根脚本 test:python 经运行名额。这里放一个只打已持有标记再执行命令的替身，用例不去占真实的机器级名额。
     put(
       root,
       'scripts/with-test-slot.sh',
@@ -94,7 +93,6 @@ it.each(['local', 'runner'])(
       process.env['UV_PROJECT'] = pythonToolingRoot
       process.env['UV_PROJECT_ENVIRONMENT'] = join(pythonToolingRoot, '.venv')
       process.env['UV_NO_SYNC'] = '1'
-      // pytest 按 shell 规则拆分 PYTEST_ADDOPTS；单引号保住 Windows 路径里的反斜杠。
       process.env['PYTEST_ADDOPTS'] = `--confcutdir='${root}'`
       expect(pythonStep(root, file)).toBe(0)
       put(
@@ -118,7 +116,6 @@ it.each(['local', 'runner'])(
 it('the Python step passes xdist settings to the child only and leaves process.env alone', () => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-python-env-')))
   roots.push(root)
-  // 只用到 python.run 与 python.reason；空目录里的 pnpm 命令立刻失败，退出码不在这里判断。
   const file = { plan: { python: { run: true, reason: 'test' } } } as unknown as PlanFile
   const before = process.env['PYTEST_XDIST_AUTO_NUM_WORKERS']
   const runner = process.env['OMNE_RUNNER_ROOT']
@@ -137,7 +134,6 @@ it('the Python step passes xdist settings to the child only and leaves process.e
 it('the runner Python step collects the spec-tools and tooling test directories and nothing else', () => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-python-paths-')))
   roots.push(root)
-  // pytest.ini 的 testpaths 只写一处：步骤要靠自己传的路径才收得到另一处，也不会被它收进目录之外的测试。
   put(root, 'pytest.ini', '[pytest]\ntestpaths = tools/spec-tools/tests\n')
   put(root, 'tools/spec-tools/tests/test_live.py', 'def test_live():\n    assert True\n')
   put(root, '.meta_harness/tooling/tests/test_tooling.py', 'def test_tooling():\n    assert True\n')
@@ -151,10 +147,8 @@ it('the runner Python step collects the spec-tools and tooling test directories 
   vi.stubEnv('PYTEST_ADDOPTS', `--confcutdir='${root}'`)
   try {
     expect(pythonStep(root, file)).toBe(0)
-    // 目录之外的失败测试不被收集。
     put(root, 'elsewhere/test_stray.py', failing)
     expect(pythonStep(root, file)).toBe(0)
-    // 两个目录里的失败测试都被收集：包括 testpaths 没写的那一处。
     put(root, '.meta_harness/tooling/tests/test_bad.py', failing)
     expect(pythonStep(root, file)).not.toBe(0)
   } finally {

@@ -1,6 +1,4 @@
 // @module-tag slow
-// Real IdentitySql, SessionProvider, SQLite workers and loopback HTTP. Only adoption/context
-// materials and the paid Agent execution are controlled by this fixture.
 import { request } from 'node:http'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
@@ -50,7 +48,6 @@ async function discardResponse(port: number, body: string): Promise<void> {
         headers: { 'content-type': 'application/json', 'content-length': String(bytes.length) },
       },
       incoming => {
-        // Close before consuming the receipt. Only a later query supplies the client with its outcome.
         incoming.destroy()
         resolve()
       },

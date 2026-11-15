@@ -18,7 +18,6 @@ declare global {
 
 const api: ArchitectureFlowApi = {
   mount(container: HTMLElement, props: FlowProps): FlowHandle {
-    // Geometry problems throw here, before React renders, so the page can show the failure state.
     const elements = elementsOf(props)
     const root = createRoot(container)
     const instance: { current: ArchInstance | null } = { current: null }

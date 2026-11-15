@@ -1,6 +1,3 @@
-// The `agent-adoptions` row. The plugin body parses the deployment mapping once, then builds the
-// two faces from the same table object: `agentAdoptions` on the root and the trusted
-// `definitionMappings`. A malformed mapping throws, the row is FAILED and startup fails.
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { agentAdoptionsKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { definitionMappingsKey } from '@omne-harness/server-entry/cordis'

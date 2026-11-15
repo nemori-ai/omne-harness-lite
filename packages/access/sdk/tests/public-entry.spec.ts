@@ -5,6 +5,7 @@ it('exports exactly the client entries, and no protocol codec of the contract', 
   expect(Object.keys(root).sort()).toEqual([
     'RequestInvalidError',
     'createGovernanceClient',
+    'createHitlClient',
     'createHttpTransport',
     'createSessionClient',
     'encodeAccountIdText',

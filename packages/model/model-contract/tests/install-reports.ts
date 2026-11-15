@@ -1,12 +1,8 @@
-// Reads what the entries of the install-closure facility print on stdout. A report that does not
-// have the fields the specs read is an error with a name, not a value of the wrong shape, so a
-// facility that printed something else turns the spec red where the report is read.
 import type { Violation } from './install/closure.ts'
 import type { Check, Report } from './install/consumer.ts'
 import { isPathResult, isRecord } from './install/fixture-run.ts'
 import type { FixtureSetReport, FixtureSummary } from './install/fixture-set.ts'
 
-/** The fields of a facility report that the specs of the entries look at. */
 export type EntryReport = Pick<Report, 'checks' | 'ok' | 'forbidden' | 'tarballs'>
 
 function isCheck(value: unknown): value is Check {
@@ -56,7 +52,6 @@ function isSummary(value: unknown): value is FixtureSummary {
   )
 }
 
-/** The report of `cli.ts`, or an error that says which field is wrong. */
 export function readEntryReport(text: string): EntryReport {
   const value: unknown = JSON.parse(text)
   if (!isRecord(value)) throw new Error('the report is not a JSON object')
@@ -71,7 +66,6 @@ export function readEntryReport(text: string): EntryReport {
   return { checks, ok, forbidden, tarballs }
 }
 
-/** The report of `fixtures.ts`, or an error that says which field is wrong. */
 export function readSetReport(text: string): FixtureSetReport {
   const value: unknown = JSON.parse(text)
   if (!isRecord(value)) throw new Error('the report is not a JSON object')

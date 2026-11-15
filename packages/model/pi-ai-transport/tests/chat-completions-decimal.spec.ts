@@ -1,4 +1,3 @@
-// The plain decimal lexeme of the gateway cost: exact string arithmetic over a JSON number lexeme.
 import { describe, expect, it } from 'vitest'
 import { MAX_PLAIN_DECIMAL_LENGTH, plainDecimal } from '../src/chat-completions/decimal.ts'
 

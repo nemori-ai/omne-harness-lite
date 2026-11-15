@@ -1,9 +1,11 @@
-import type { DurableEvidence, SessionOperationId } from './identity.ts'
+import type { DurableEvidence, RunId, SessionOperationId } from './identity.ts'
 import type { WorkSnapshot, ResidentAdoption, RunTerminal } from './values.ts'
 import type { HistoryEntry, SessionFailure } from './faces.ts'
 import { encodeEntry } from './entries.ts'
 import { digestOf } from './operations.ts'
 import type { Decision, EncodedEntry } from './judgments.ts'
+import { closingEntries } from './run-closure.ts'
+import { pendingAfterTerminal } from './input-leases.ts'
 
 export const rejected = (failure: SessionFailure): Decision => ({ kind: 'rejected', failure })
 export const invalid = (field: string, reason: string): Decision =>
@@ -18,6 +20,22 @@ export const sourceOf = (operation: SessionOperationId, what: string): DurableEv
   revision: '1',
   digest: `sha256:${digestOf({ operation, what })}`,
 })
+export function runCancelledBy(
+  snapshot: WorkSnapshot,
+  operation: SessionOperationId,
+): RunId | null {
+  if (snapshot.run.kind !== 'terminal') return null
+  const { terminal } = snapshot.run
+  const source = sourceOf(operation, 'control')
+  return terminal.outcome === 'cancelled' &&
+    terminal.evidence.owner === source.owner &&
+    terminal.evidence.record === source.record &&
+    terminal.evidence.revision === source.revision &&
+    terminal.evidence.digest === source.digest
+    ? terminal.run
+    : null
+}
+
 export const originOf = (source: DurableEvidence): HistoryEntry['origin'] => ({
   owner: 'session',
   via: 'direct',
@@ -75,7 +93,7 @@ export function terminalEntries(
     disposition: DurableEvidence
   }>,
 ): EncodedEntry[] {
-  const out: EncodedEntry[] = []
+  const out: EncodedEntry[] = closingEntries(snapshot, terminal, source, originOf(source))
   if (snapshot.run.kind === 'active' && snapshot.run.advance !== null)
     out.push(
       encodeEntry(
@@ -101,7 +119,8 @@ export function terminalEntries(
       originOf(source),
     ),
   )
-  if (snapshot.frozen !== null && snapshot.pending.length > 0)
-    out.push(encodeEntry({ kind: 'intake.released', inputs: snapshot.pending }, originOf(source)))
+  const remaining = pendingAfterTerminal(snapshot, terminal.outcome)
+  if (snapshot.frozen !== null && remaining.length > 0)
+    out.push(encodeEntry({ kind: 'intake.released', inputs: remaining }, originOf(source)))
   return out
 }

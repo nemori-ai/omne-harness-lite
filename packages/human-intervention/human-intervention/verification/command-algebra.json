@@ -1,0 +1,984 @@
+{
+  "version": 1,
+  "scope": "HJ0 candidate result closure and bounded observation partition. No production methods or state transitions are implemented here.",
+  "sources": [
+    "../docs/protocol.md",
+    "../docs/formal-model.md"
+  ],
+  "priority": [
+    "shape-and-budget",
+    "current-disclosure",
+    "original-operation-binding",
+    "current-object-state-and-valid-reply",
+    "plan",
+    "protected-commit"
+  ],
+  "operationEnvelope": {
+    "committed": [
+      "operationRef",
+      "method",
+      "inputDigest",
+      "result",
+      "commitReceipt"
+    ],
+    "not-committed": [
+      "operationRef",
+      "sealReceipt"
+    ],
+    "unknown": [
+      "operationRef"
+    ],
+    "conflict": [
+      "operationRef"
+    ]
+  },
+  "closedWriteUnion": [
+    "registered",
+    "decided",
+    "invalidated",
+    "acknowledged",
+    "already-decided",
+    "conflict",
+    "denied",
+    "invalid-input",
+    "limited",
+    "unavailable",
+    "unknown"
+  ],
+  "notes": [
+    "The shared write union does not assert that every tag is reachable for every method. Method rows list only supported business branches.",
+    "query projection/page/found are table labels for successful outputs, not additional proposed wire discriminants.",
+    "Business state transitions, authority protection, and SQL durability remain model and implementation obligations.",
+    "A process crash may produce no response; finite totalization assumes a running process and effective budget scheduling."
+  ],
+  "methods": [
+    {
+      "method": "registerRequest",
+      "kind": "write",
+      "source": "protocol.md#命令应用服务",
+      "success": [
+        "registered"
+      ],
+      "businessFailures": [],
+      "commonFailures": {
+        "invalid-input": "Wire shape, required value, or method input is invalid.",
+        "limited": "The explicit input, page, or work budget is exceeded.",
+        "denied": "Current trusted access or disclosure qualification is absent.",
+        "unavailable": "A required provider or current basis is unavailable.",
+        "conflict": "The original operation identity is bound to another method or input digest."
+      },
+      "observations": {
+        "registered": {
+          "tag": "registered",
+          "condition": "Request, cards, active original wait, and operation result committed together."
+        },
+        "provider-unavailable": {
+          "tag": "unavailable",
+          "condition": "Required provider cannot establish a definite result within the budget."
+        },
+        "uncertain-operation": {
+          "tag": "unknown",
+          "condition": "The original write may have committed but its definite receipt cannot be established. Keep the same operationRef."
+        }
+      },
+      "unknown": {
+        "allowed": true,
+        "condition": "The original write may have committed but its definite receipt cannot be established. Keep the same operationRef."
+      },
+      "idempotency": {
+        "currentDisclosureBeforeReadback": true,
+        "scope": "service + tenant + actor + operationId; method and canonical input digest are bound",
+        "sameIdentitySameDigest": "Return the original complete terminal result and its receipt, after current disclosure checks. Preserve assigned requestRef and all cardRefs.",
+        "sameIdentityDifferentDigest": "conflict",
+        "stableFields": [
+          "original-operation",
+          "original-method",
+          "original-input-digest",
+          "original-result",
+          "participant-receipt"
+        ],
+        "stableResultFields": [
+          "requestRef",
+          "revision",
+          "cards"
+        ]
+      }
+    },
+    {
+      "method": "submitReply",
+      "kind": "write",
+      "source": "protocol.md#命令应用服务",
+      "success": [
+        "decided"
+      ],
+      "businessFailures": [
+        "already-decided",
+        "invalidated"
+      ],
+      "commonFailures": {
+        "invalid-input": "Wire shape, required value, or method input is invalid.",
+        "limited": "The explicit input, page, or work budget is exceeded.",
+        "denied": "Current trusted access or disclosure qualification is absent.",
+        "unavailable": "A required provider or current basis is unavailable.",
+        "conflict": "The original operation identity is bound to another method or input digest."
+      },
+      "observations": {
+        "decided": {
+          "tag": "decided",
+          "condition": "The valid pending card reply and original wait inbox committed together."
+        },
+        "already-decided": {
+          "tag": "already-decided",
+          "condition": "Another human submission already decided the card; disclose only with current read access."
+        },
+        "invalidated": {
+          "tag": "invalidated",
+          "condition": "The original wait or pending card became terminal before the reply committed."
+        },
+        "provider-unavailable": {
+          "tag": "unavailable",
+          "condition": "Required provider cannot establish a definite result within the budget."
+        },
+        "uncertain-operation": {
+          "tag": "unknown",
+          "condition": "The original write may have committed but its definite receipt cannot be established. Keep the same operationRef."
+        }
+      },
+      "unknown": {
+        "allowed": true,
+        "condition": "The original write may have committed but its definite receipt cannot be established. Keep the same operationRef."
+      },
+      "idempotency": {
+        "currentDisclosureBeforeReadback": true,
+        "scope": "service + tenant + actor + operationId; method and canonical input digest are bound",
+        "sameIdentitySameDigest": "Return the original complete terminal result and its receipt, after current disclosure checks. Preserve decisionRef and its original reply.",
+        "sameIdentityDifferentDigest": "conflict",
+        "stableFields": [
+          "original-operation",
+          "original-method",
+          "original-input-digest",
+          "original-result",
+          "participant-receipt"
+        ],
+        "stableResultFields": [
+          "decisionRef",
+          "revision",
+          "delivery"
+        ]
+      }
+    },
+    {
+      "method": "invalidateWait",
+      "kind": "write",
+      "source": "protocol.md#命令应用服务",
+      "success": [
+        "invalidated"
+      ],
+      "businessFailures": [],
+      "commonFailures": {
+        "invalid-input": "Wire shape, required value, or method input is invalid.",
+        "limited": "The explicit input, page, or work budget is exceeded.",
+        "denied": "Current trusted access or disclosure qualification is absent.",
+        "unavailable": "A required provider or current basis is unavailable.",
+        "conflict": "The original operation identity is bound to another method or input digest."
+      },
+      "observations": {
+        "invalidated": {
+          "tag": "invalidated",
+          "condition": "Authorized original owner or control invalidated unanswered cards; retain historical decisions."
+        },
+        "provider-unavailable": {
+          "tag": "unavailable",
+          "condition": "Required provider cannot establish a definite result within the budget."
+        },
+        "uncertain-operation": {
+          "tag": "unknown",
+          "condition": "The original write may have committed but its definite receipt cannot be established. Keep the same operationRef."
+        }
+      },
+      "unknown": {
+        "allowed": true,
+        "condition": "The original write may have committed but its definite receipt cannot be established. Keep the same operationRef."
+      },
+      "idempotency": {
+        "currentDisclosureBeforeReadback": true,
+        "scope": "service + tenant + actor + operationId; method and canonical input digest are bound",
+        "sameIdentitySameDigest": "Return the original complete terminal result and its receipt, after current disclosure checks.",
+        "sameIdentityDifferentDigest": "conflict",
+        "stableFields": [
+          "original-operation",
+          "original-method",
+          "original-input-digest",
+          "original-result",
+          "participant-receipt"
+        ],
+        "stableResultFields": [
+          "affected",
+          "revision"
+        ]
+      }
+    },
+    {
+      "method": "acknowledgeDelivery",
+      "kind": "write",
+      "source": "protocol.md#命令应用服务",
+      "success": [
+        "acknowledged"
+      ],
+      "businessFailures": [],
+      "commonFailures": {
+        "invalid-input": "Wire shape, required value, or method input is invalid.",
+        "limited": "The explicit input, page, or work budget is exceeded.",
+        "denied": "Current trusted access or disclosure qualification is absent.",
+        "unavailable": "A required provider or current basis is unavailable.",
+        "conflict": "The original operation identity is bound to another method or input digest."
+      },
+      "observations": {
+        "acknowledged": {
+          "tag": "acknowledged",
+          "condition": "The bound wait owner supplied a durable ConsumerReceipt for protected original consumption."
+        },
+        "provider-unavailable": {
+          "tag": "unavailable",
+          "condition": "Required provider cannot establish a definite result within the budget."
+        },
+        "uncertain-operation": {
+          "tag": "unknown",
+          "condition": "The original write may have committed but its definite receipt cannot be established. Keep the same operationRef."
+        }
+      },
+      "unknown": {
+        "allowed": true,
+        "condition": "The original write may have committed but its definite receipt cannot be established. Keep the same operationRef."
+      },
+      "idempotency": {
+        "currentDisclosureBeforeReadback": true,
+        "scope": "service + tenant + actor + operationId; method and canonical input digest are bound",
+        "sameIdentitySameDigest": "Return the original complete terminal result and its receipt, after current disclosure checks. Preserve decisionRef and accepted or superseded outcome.",
+        "sameIdentityDifferentDigest": "conflict",
+        "stableFields": [
+          "original-operation",
+          "original-method",
+          "original-input-digest",
+          "original-result",
+          "participant-receipt"
+        ],
+        "stableResultFields": [
+          "decisionRef",
+          "outcome"
+        ]
+      }
+    },
+    {
+      "method": "getRequest",
+      "kind": "query",
+      "source": "protocol.md#查询应用服务",
+      "success": [
+        "projection"
+      ],
+      "businessFailures": [],
+      "commonFailures": {
+        "invalid-input": "Wire shape, required value, or method input is invalid.",
+        "limited": "The explicit input, page, or work budget is exceeded.",
+        "denied": "Current trusted access or disclosure qualification is absent.",
+        "unavailable": "A required provider or current basis is unavailable."
+      },
+      "observations": {
+        "projection": {
+          "tag": "projection",
+          "condition": "Return the currently authorized request projection; do not disclose unauthorized existence."
+        },
+        "provider-unavailable": {
+          "tag": "unavailable",
+          "condition": "Required provider cannot establish a definite result within the budget."
+        }
+      },
+      "unknown": {
+        "allowed": false,
+        "condition": "No commit is attempted or inspected. A read failure is unavailable."
+      },
+      "idempotency": {
+        "currentDisclosureBeforeReadback": true,
+        "scope": "Read current qualified projection; no write identity is allocated.",
+        "sameIdentitySameDigest": "Recheck current access and original work state for each read.",
+        "sameIdentityDifferentDigest": "not-applicable",
+        "stableFields": [],
+        "stableResultFields": []
+      }
+    },
+    {
+      "method": "getCard",
+      "kind": "query",
+      "source": "protocol.md#查询应用服务",
+      "success": [
+        "projection"
+      ],
+      "businessFailures": [],
+      "commonFailures": {
+        "invalid-input": "Wire shape, required value, or method input is invalid.",
+        "limited": "The explicit input, page, or work budget is exceeded.",
+        "denied": "Current trusted access or disclosure qualification is absent.",
+        "unavailable": "A required provider or current basis is unavailable."
+      },
+      "observations": {
+        "projection": {
+          "tag": "projection",
+          "condition": "Return the currently authorized card and context projection."
+        },
+        "provider-unavailable": {
+          "tag": "unavailable",
+          "condition": "Required provider cannot establish a definite result within the budget."
+        }
+      },
+      "unknown": {
+        "allowed": false,
+        "condition": "No commit is attempted or inspected. A read failure is unavailable."
+      },
+      "idempotency": {
+        "currentDisclosureBeforeReadback": true,
+        "scope": "Read current qualified projection; no write identity is allocated.",
+        "sameIdentitySameDigest": "Recheck current access; private reply content is not a tenant-wide grant.",
+        "sameIdentityDifferentDigest": "not-applicable",
+        "stableFields": [],
+        "stableResultFields": []
+      }
+    },
+    {
+      "method": "listPool",
+      "kind": "query",
+      "source": "protocol.md#查询应用服务",
+      "success": [
+        "page"
+      ],
+      "businessFailures": [],
+      "commonFailures": {
+        "invalid-input": "Wire shape, required value, or method input is invalid.",
+        "limited": "The explicit input, page, or work budget is exceeded.",
+        "denied": "Current trusted access or disclosure qualification is absent.",
+        "unavailable": "A required provider or current basis is unavailable."
+      },
+      "observations": {
+        "page": {
+          "tag": "page",
+          "condition": "Return bounded items, next, snapshotRef, and completeness with query-bound cursor."
+        },
+        "provider-unavailable": {
+          "tag": "unavailable",
+          "condition": "Required provider cannot establish a definite result within the budget."
+        }
+      },
+      "unknown": {
+        "allowed": false,
+        "condition": "No commit is attempted or inspected. A read failure is unavailable."
+      },
+      "idempotency": {
+        "currentDisclosureBeforeReadback": true,
+        "scope": "Read current qualified projection; no write identity is allocated.",
+        "sameIdentitySameDigest": "Recheck current access per page; cursor does not grant access or include later changes.",
+        "sameIdentityDifferentDigest": "not-applicable",
+        "stableFields": [],
+        "stableResultFields": []
+      }
+    },
+    {
+      "method": "getOperation",
+      "kind": "operation-query",
+      "source": "protocol.md#查询应用服务",
+      "success": [
+        "committed",
+        "not-committed"
+      ],
+      "businessFailures": [],
+      "commonFailures": {
+        "invalid-input": "Wire shape, required value, or method input is invalid.",
+        "limited": "The explicit input, page, or work budget is exceeded.",
+        "denied": "Current trusted access or disclosure qualification is absent.",
+        "unavailable": "A required provider or current basis is unavailable.",
+        "conflict": "The original operation identity is bound to another method or input digest."
+      },
+      "observations": {
+        "committed": {
+          "tag": "committed",
+          "condition": "Return original method, inputDigest, complete terminal result, and participant commitReceipt."
+        },
+        "not-committed": {
+          "tag": "not-committed",
+          "condition": "Return sealReceipt only after the original operation is sealed against every late commit."
+        },
+        "provider-unavailable": {
+          "tag": "unavailable",
+          "condition": "Required provider cannot establish a definite result within the budget."
+        },
+        "uncertain-operation": {
+          "tag": "unknown",
+          "condition": "The queried original write is not known committed or sealed. Absence of a row is insufficient for not-committed."
+        }
+      },
+      "unknown": {
+        "allowed": true,
+        "condition": "The queried original write is not known committed or sealed. Absence of a row is insufficient for not-committed."
+      },
+      "idempotency": {
+        "currentDisclosureBeforeReadback": true,
+        "scope": "service + tenant + actor + operationId; method and canonical input digest are bound",
+        "sameIdentitySameDigest": "Return the original complete terminal result and its receipt, after current disclosure checks. A missing record never substitutes for sealReceipt.",
+        "sameIdentityDifferentDigest": "conflict",
+        "stableFields": [
+          "original-operation",
+          "original-method",
+          "original-input-digest",
+          "original-result",
+          "participant-receipt"
+        ],
+        "stableResultFields": [
+          "original-complete-command-result",
+          "original-participant-receipt"
+        ]
+      }
+    },
+    {
+      "method": "listDeliveries",
+      "kind": "query",
+      "source": "protocol.md#查询应用服务",
+      "success": [
+        "page"
+      ],
+      "businessFailures": [],
+      "commonFailures": {
+        "invalid-input": "Wire shape, required value, or method input is invalid.",
+        "limited": "The explicit input, page, or work budget is exceeded.",
+        "denied": "Current trusted access or disclosure qualification is absent.",
+        "unavailable": "A required provider or current basis is unavailable."
+      },
+      "observations": {
+        "page": {
+          "tag": "page",
+          "condition": "Return only this qualified destination consumer's unaccepted decisions; reading does not remove them."
+        },
+        "provider-unavailable": {
+          "tag": "unavailable",
+          "condition": "Required provider cannot establish a definite result within the budget."
+        }
+      },
+      "unknown": {
+        "allowed": false,
+        "condition": "No commit is attempted or inspected. A read failure is unavailable."
+      },
+      "idempotency": {
+        "currentDisclosureBeforeReadback": true,
+        "scope": "Read current qualified projection; no write identity is allocated.",
+        "sameIdentitySameDigest": "Retry using stable decision identity; reading never acknowledges consumption.",
+        "sameIdentityDifferentDigest": "not-applicable",
+        "stableFields": [],
+        "stableResultFields": []
+      }
+    },
+    {
+      "method": "getWait",
+      "kind": "query",
+      "source": "protocol.md#恢复接收端口",
+      "success": [
+        "found"
+      ],
+      "businessFailures": [
+        "not-found"
+      ],
+      "commonFailures": {
+        "invalid-input": "Wire shape, required value, or method input is invalid.",
+        "limited": "The explicit input, page, or work budget is exceeded.",
+        "denied": "Current trusted access or disclosure qualification is absent.",
+        "unavailable": "A required provider or current basis is unavailable."
+      },
+      "observations": {
+        "found": {
+          "tag": "found",
+          "condition": "Return stable original wait, current state, adoptionRef, generation, cursor, and prior consume reference."
+        },
+        "not-found": {
+          "tag": "not-found",
+          "condition": "No wait is registered and the caller may receive this fact."
+        },
+        "provider-unavailable": {
+          "tag": "unavailable",
+          "condition": "Required provider cannot establish a definite result within the budget."
+        }
+      },
+      "unknown": {
+        "allowed": false,
+        "condition": "No commit is attempted or inspected. A read failure is unavailable."
+      },
+      "idempotency": {
+        "currentDisclosureBeforeReadback": true,
+        "scope": "Read current qualified projection; no write identity is allocated.",
+        "sameIdentitySameDigest": "Recheck current access. A missing wait does not seal a write operation.",
+        "sameIdentityDifferentDigest": "not-applicable",
+        "stableFields": [],
+        "stableResultFields": []
+      }
+    },
+    {
+      "method": "bindReceiver",
+      "kind": "write",
+      "source": "protocol.md#恢复接收端口",
+      "success": [
+        "bound"
+      ],
+      "businessFailures": [
+        "terminal",
+        "incompatible",
+        "conflict"
+      ],
+      "commonFailures": {
+        "invalid-input": "Wire shape, required value, or method input is invalid.",
+        "limited": "The explicit input, page, or work budget is exceeded.",
+        "denied": "Current trusted access or disclosure qualification is absent.",
+        "unavailable": "A required provider or current basis is unavailable.",
+        "conflict": "The original operation identity is bound to another method or input digest."
+      },
+      "observations": {
+        "bound": {
+          "tag": "bound",
+          "condition": "Compatible original owner CAS allocated a strictly increasing current receiverGeneration."
+        },
+        "terminal": {
+          "tag": "terminal",
+          "condition": "Original work is terminal before binding."
+        },
+        "incompatible": {
+          "tag": "incompatible",
+          "condition": "The implementation cannot compatibly restore the original adoption."
+        },
+        "conflict": {
+          "tag": "conflict",
+          "condition": "expectedGeneration does not match the authoritative current generation at CAS, or the operation identity has a different digest. Binding never returns stale-generation."
+        },
+        "provider-unavailable": {
+          "tag": "unavailable",
+          "condition": "Required provider cannot establish a definite result within the budget."
+        },
+        "uncertain-operation": {
+          "tag": "unknown",
+          "condition": "The original write may have committed but its definite receipt cannot be established. Keep the same operationRef."
+        }
+      },
+      "unknown": {
+        "allowed": true,
+        "condition": "The original write may have committed but its definite receipt cannot be established. Keep the same operationRef."
+      },
+      "idempotency": {
+        "currentDisclosureBeforeReadback": true,
+        "scope": "service + tenant + actor + operationId; method and canonical input digest are bound",
+        "sameIdentitySameDigest": "Return the original complete terminal result and its receipt, after current disclosure checks. Return the originally allocated generation even if a later binding exists.",
+        "sameIdentityDifferentDigest": "conflict",
+        "stableFields": [
+          "original-operation",
+          "original-method",
+          "original-input-digest",
+          "original-result",
+          "participant-receipt"
+        ],
+        "stableResultFields": [
+          "waitRef",
+          "receiverGeneration"
+        ]
+      }
+    },
+    {
+      "method": "readInbox",
+      "kind": "query",
+      "source": "protocol.md#恢复接收端口",
+      "success": [
+        "page"
+      ],
+      "businessFailures": [
+        "stale-generation",
+        "incompatible"
+      ],
+      "commonFailures": {
+        "invalid-input": "Wire shape, required value, or method input is invalid.",
+        "limited": "The explicit input, page, or work budget is exceeded.",
+        "denied": "Current trusted access or disclosure qualification is absent.",
+        "unavailable": "A required provider or current basis is unavailable."
+      },
+      "observations": {
+        "page": {
+          "tag": "page",
+          "condition": "Current generation reads durable decisions with fixed original position and adoption basis."
+        },
+        "stale-generation": {
+          "tag": "stale-generation",
+          "condition": "The supplied generation is no longer current."
+        },
+        "incompatible": {
+          "tag": "incompatible",
+          "condition": "The required original adoption is incompatible."
+        },
+        "provider-unavailable": {
+          "tag": "unavailable",
+          "condition": "Required provider cannot establish a definite result within the budget."
+        }
+      },
+      "unknown": {
+        "allowed": false,
+        "condition": "No commit is attempted or inspected. A read failure is unavailable."
+      },
+      "idempotency": {
+        "currentDisclosureBeforeReadback": true,
+        "scope": "Read current qualified projection; no write identity is allocated.",
+        "sameIdentitySameDigest": "Read-only retry does not confirm consumption or delete an inbox item.",
+        "sameIdentityDifferentDigest": "not-applicable",
+        "stableFields": [],
+        "stableResultFields": []
+      }
+    },
+    {
+      "method": "consumeDecision",
+      "kind": "write",
+      "source": "protocol.md#恢复接收端口",
+      "success": [
+        "accepted",
+        "superseded"
+      ],
+      "businessFailures": [
+        "stale-generation",
+        "incompatible"
+      ],
+      "commonFailures": {
+        "invalid-input": "Wire shape, required value, or method input is invalid.",
+        "limited": "The explicit input, page, or work budget is exceeded.",
+        "denied": "Current trusted access or disclosure qualification is absent.",
+        "unavailable": "A required provider or current basis is unavailable.",
+        "conflict": "The original operation identity is bound to another method or input digest."
+      },
+      "observations": {
+        "accepted": {
+          "tag": "accepted",
+          "condition": "Current generation, original consumption record, and original continuation position committed together."
+        },
+        "superseded": {
+          "tag": "superseded",
+          "condition": "The original work became terminal; record protected historical consumption without reviving it."
+        },
+        "stale-generation": {
+          "tag": "stale-generation",
+          "condition": "A new attempted consumption uses an old generation."
+        },
+        "incompatible": {
+          "tag": "incompatible",
+          "condition": "The original continuation implementation is incompatible."
+        },
+        "provider-unavailable": {
+          "tag": "unavailable",
+          "condition": "Required provider cannot establish a definite result within the budget."
+        },
+        "uncertain-operation": {
+          "tag": "unknown",
+          "condition": "The original write may have committed but its definite receipt cannot be established. Keep the same operationRef."
+        }
+      },
+      "unknown": {
+        "allowed": true,
+        "condition": "The original write may have committed but its definite receipt cannot be established. Keep the same operationRef."
+      },
+      "idempotency": {
+        "currentDisclosureBeforeReadback": true,
+        "scope": "service + tenant + actor + operationId; method and canonical input digest are bound",
+        "sameIdentitySameDigest": "Return the original complete terminal result and its receipt, after current disclosure checks. A prior legal consumption remains recognizable after generation replacement.",
+        "sameIdentityDifferentDigest": "conflict",
+        "stableFields": [
+          "original-operation",
+          "original-method",
+          "original-input-digest",
+          "original-result",
+          "participant-receipt"
+        ],
+        "stableResultFields": [
+          "outcome",
+          "consumerReceipt"
+        ]
+      }
+    },
+    {
+      "method": "getRecoveryOperation",
+      "kind": "operation-query",
+      "source": "protocol.md#恢复接收端口",
+      "success": [
+        "committed",
+        "not-committed"
+      ],
+      "businessFailures": [],
+      "commonFailures": {
+        "invalid-input": "Wire shape, required value, or method input is invalid.",
+        "limited": "The explicit input, page, or work budget is exceeded.",
+        "denied": "Current trusted access or disclosure qualification is absent.",
+        "unavailable": "A required provider or current basis is unavailable.",
+        "conflict": "The original operation identity is bound to another method or input digest."
+      },
+      "observations": {
+        "committed": {
+          "tag": "committed",
+          "condition": "Return original method, inputDigest, complete terminal result, and participant commitReceipt."
+        },
+        "not-committed": {
+          "tag": "not-committed",
+          "condition": "Return sealReceipt only after the original operation is sealed against every late commit."
+        },
+        "provider-unavailable": {
+          "tag": "unavailable",
+          "condition": "Required provider cannot establish a definite result within the budget."
+        },
+        "uncertain-operation": {
+          "tag": "unknown",
+          "condition": "The queried original write is not known committed or sealed. Absence of a row is insufficient for not-committed."
+        }
+      },
+      "unknown": {
+        "allowed": true,
+        "condition": "The queried original write is not known committed or sealed. Absence of a row is insufficient for not-committed."
+      },
+      "idempotency": {
+        "currentDisclosureBeforeReadback": true,
+        "scope": "service + tenant + actor + operationId; method and canonical input digest are bound",
+        "sameIdentitySameDigest": "Return the original complete terminal result and its receipt, after current disclosure checks. Include original bound generation or ConsumerReceipt.",
+        "sameIdentityDifferentDigest": "conflict",
+        "stableFields": [
+          "original-operation",
+          "original-method",
+          "original-input-digest",
+          "original-result",
+          "participant-receipt"
+        ],
+        "stableResultFields": [
+          "original-complete-command-result",
+          "original-participant-receipt"
+        ]
+      }
+    },
+    {
+      "method": "DecisionCommitter.register",
+      "kind": "commit",
+      "source": "protocol.md#提交协调与原等待端口",
+      "success": [
+        "committed"
+      ],
+      "businessFailures": [
+        "rejected"
+      ],
+      "commonFailures": {
+        "invalid-input": "Wire shape, required value, or method input is invalid.",
+        "limited": "The explicit input, page, or work budget is exceeded.",
+        "denied": "Current trusted access or disclosure qualification is absent.",
+        "unavailable": "A required provider or current basis is unavailable.",
+        "conflict": "The original operation identity is bound to another method or input digest."
+      },
+      "observations": {
+        "committed": {
+          "tag": "committed",
+          "condition": "Receipt contains the complete original registerRequest result; a durable definite rejection may also be a committed operation terminal result."
+        },
+        "rejected": {
+          "tag": "rejected",
+          "condition": "The coordinated business unit is definitely rejected and its reason is retained."
+        },
+        "provider-unavailable": {
+          "tag": "unavailable",
+          "condition": "Required provider cannot establish a definite result within the budget."
+        },
+        "uncertain-operation": {
+          "tag": "unknown",
+          "condition": "The original write may have committed but its definite receipt cannot be established. Keep the same operationRef."
+        }
+      },
+      "unknown": {
+        "allowed": true,
+        "condition": "The original write may have committed but its definite receipt cannot be established. Keep the same operationRef."
+      },
+      "idempotency": {
+        "currentDisclosureBeforeReadback": true,
+        "scope": "service + tenant + actor + operationId; method and canonical input digest are bound",
+        "sameIdentitySameDigest": "Return the original complete terminal result and its receipt, after current disclosure checks. Preserve the complete original registerRequest result.",
+        "sameIdentityDifferentDigest": "conflict",
+        "stableFields": [
+          "original-operation",
+          "original-method",
+          "original-input-digest",
+          "original-result",
+          "participant-receipt"
+        ],
+        "stableResultFields": [
+          "original-complete-command-result",
+          "original-participant-receipt"
+        ]
+      }
+    },
+    {
+      "method": "DecisionCommitter.commit",
+      "kind": "commit",
+      "source": "protocol.md#提交协调与原等待端口",
+      "success": [
+        "committed"
+      ],
+      "businessFailures": [
+        "rejected"
+      ],
+      "commonFailures": {
+        "invalid-input": "Wire shape, required value, or method input is invalid.",
+        "limited": "The explicit input, page, or work budget is exceeded.",
+        "denied": "Current trusted access or disclosure qualification is absent.",
+        "unavailable": "A required provider or current basis is unavailable.",
+        "conflict": "The original operation identity is bound to another method or input digest."
+      },
+      "observations": {
+        "committed": {
+          "tag": "committed",
+          "condition": "Receipt contains the complete original submitReply result; a durable definite rejection may also be a committed operation terminal result."
+        },
+        "rejected": {
+          "tag": "rejected",
+          "condition": "The coordinated business unit is definitely rejected and its reason is retained."
+        },
+        "provider-unavailable": {
+          "tag": "unavailable",
+          "condition": "Required provider cannot establish a definite result within the budget."
+        },
+        "uncertain-operation": {
+          "tag": "unknown",
+          "condition": "The original write may have committed but its definite receipt cannot be established. Keep the same operationRef."
+        }
+      },
+      "unknown": {
+        "allowed": true,
+        "condition": "The original write may have committed but its definite receipt cannot be established. Keep the same operationRef."
+      },
+      "idempotency": {
+        "currentDisclosureBeforeReadback": true,
+        "scope": "service + tenant + actor + operationId; method and canonical input digest are bound",
+        "sameIdentitySameDigest": "Return the original complete terminal result and its receipt, after current disclosure checks. Preserve the complete original submitReply result.",
+        "sameIdentityDifferentDigest": "conflict",
+        "stableFields": [
+          "original-operation",
+          "original-method",
+          "original-input-digest",
+          "original-result",
+          "participant-receipt"
+        ],
+        "stableResultFields": [
+          "original-complete-command-result",
+          "original-participant-receipt"
+        ]
+      }
+    },
+    {
+      "method": "DecisionCommitter.inspect",
+      "kind": "operation-query",
+      "source": "protocol.md#提交协调与原等待端口",
+      "success": [
+        "committed",
+        "not-committed"
+      ],
+      "businessFailures": [],
+      "commonFailures": {
+        "invalid-input": "Wire shape, required value, or method input is invalid.",
+        "limited": "The explicit input, page, or work budget is exceeded.",
+        "denied": "Current trusted access or disclosure qualification is absent.",
+        "unavailable": "A required provider or current basis is unavailable.",
+        "conflict": "The original operation identity is bound to another method or input digest."
+      },
+      "observations": {
+        "committed": {
+          "tag": "committed",
+          "condition": "Return original method, inputDigest, complete terminal result, and participant commitReceipt."
+        },
+        "not-committed": {
+          "tag": "not-committed",
+          "condition": "Return sealReceipt only after the original operation is sealed against every late commit."
+        },
+        "provider-unavailable": {
+          "tag": "unavailable",
+          "condition": "Required provider cannot establish a definite result within the budget."
+        },
+        "uncertain-operation": {
+          "tag": "unknown",
+          "condition": "The queried original write is not known committed or sealed. Absence of a row is insufficient for not-committed."
+        }
+      },
+      "unknown": {
+        "allowed": true,
+        "condition": "The queried original write is not known committed or sealed. Absence of a row is insufficient for not-committed."
+      },
+      "idempotency": {
+        "currentDisclosureBeforeReadback": true,
+        "scope": "service + tenant + actor + operationId; method and canonical input digest are bound",
+        "sameIdentitySameDigest": "Return the original complete terminal result and its receipt, after current disclosure checks. Seal returns not-committed only after blocking the late original commit.",
+        "sameIdentityDifferentDigest": "conflict",
+        "stableFields": [
+          "original-operation",
+          "original-method",
+          "original-input-digest",
+          "original-result",
+          "participant-receipt"
+        ],
+        "stableResultFields": [
+          "original-complete-command-result",
+          "original-participant-receipt"
+        ]
+      }
+    },
+    {
+      "method": "DecisionCommitter.seal",
+      "kind": "operation-query",
+      "source": "protocol.md#提交协调与原等待端口",
+      "success": [
+        "committed",
+        "not-committed"
+      ],
+      "businessFailures": [],
+      "commonFailures": {
+        "invalid-input": "Wire shape, required value, or method input is invalid.",
+        "limited": "The explicit input, page, or work budget is exceeded.",
+        "denied": "Current trusted access or disclosure qualification is absent.",
+        "unavailable": "A required provider or current basis is unavailable.",
+        "conflict": "The original operation identity is bound to another method or input digest."
+      },
+      "observations": {
+        "committed": {
+          "tag": "committed",
+          "condition": "Return original method, inputDigest, complete terminal result, and participant commitReceipt."
+        },
+        "not-committed": {
+          "tag": "not-committed",
+          "condition": "Return sealReceipt only after the original operation is sealed against every late commit."
+        },
+        "provider-unavailable": {
+          "tag": "unavailable",
+          "condition": "Required provider cannot establish a definite result within the budget."
+        },
+        "uncertain-operation": {
+          "tag": "unknown",
+          "condition": "The queried original write is not known committed or sealed. Absence of a row is insufficient for not-committed."
+        }
+      },
+      "unknown": {
+        "allowed": true,
+        "condition": "The queried original write is not known committed or sealed. Absence of a row is insufficient for not-committed."
+      },
+      "idempotency": {
+        "currentDisclosureBeforeReadback": true,
+        "scope": "service + tenant + actor + operationId; method and canonical input digest are bound",
+        "sameIdentitySameDigest": "Return the original complete terminal result and its receipt, after current disclosure checks. Seal returns not-committed only after blocking the late original commit.",
+        "sameIdentityDifferentDigest": "conflict",
+        "stableFields": [
+          "original-operation",
+          "original-method",
+          "original-input-digest",
+          "original-result",
+          "participant-receipt"
+        ],
+        "stableResultFields": [
+          "original-complete-command-result",
+          "original-participant-receipt"
+        ]
+      }
+    }
+  ]
+}

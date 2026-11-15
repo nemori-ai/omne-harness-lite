@@ -15,9 +15,12 @@ import {
   aliasOutput,
   collapseDomains,
   ignoreCas,
+  firstPageOnly,
   lateWithoutCas,
+  neverUnmark,
   oldPartialApply,
   readMap,
+  separateMarker,
   shallowOutput,
   stateUsesDomainRevision,
   withoutOperations,
@@ -172,7 +175,41 @@ const negatives = [
     message: 'rejected batch must preserve every record and the revision',
   },
   {
-    // A store that refuses every commit with an assertion, as one that never read them would.
+    name: 'store.pending-marker',
+    fixture: neverUnmark,
+    message: 'pending: false must delete it',
+  },
+  {
+    name: 'store.pending-conflict',
+    fixture: () => separateMarker('before'),
+    message: 'a conflict must keep the marker',
+  },
+  {
+    name: 'store.pending-commitUnavailable',
+    fixture: () => separateMarker('before'),
+    message: 'the marker must land exactly when the records land',
+  },
+  {
+    name: 'store.pending-unknownDropped',
+    fixture: () => separateMarker('before'),
+    message: 'the marker must land exactly when the records land',
+  },
+  {
+    name: 'store.pending-unknownApplied',
+    fixture: () => separateMarker('answered'),
+    message: 'the marker must land exactly when the records land',
+  },
+  {
+    name: 'store.pending-delayed',
+    fixture: () => separateMarker('before'),
+    message: 'a held delete must stay invisible',
+  },
+  {
+    name: 'store.pending-pages',
+    fixture: firstPageOnly,
+    message: 'every marked call once',
+  },
+  {
     name: 'store.asserts-hold',
     fixture: () =>
       wrappedFixture(store => ({
@@ -185,7 +222,6 @@ const negatives = [
     message: 'a commit whose assertion holds must commit',
   },
   {
-    // A store that drops the assertions and applies the writes.
     name: 'store.asserts-conflict',
     fixture: () =>
       wrappedFixture(store => ({
@@ -322,7 +358,6 @@ const negatives = [
     message: 'Expected values to be strictly',
   },
   {
-    // A store that deletes the records of a dropped domain and keeps its due entries.
     name: 'drop.leaves-the-domain-as-never-committed',
     fixture: () =>
       wrappedFixture(store => ({
@@ -341,7 +376,6 @@ const negatives = [
     message: 'Expected values to be strictly',
   },
   {
-    // A store that takes a drop with another write and applies the other write only.
     name: 'drop.is-the-only-write-and-resets-the-revision',
     fixture: () =>
       wrappedFixture(store => ({

@@ -1,11 +1,10 @@
-// The way from an admission to a recorded start through the real runtime, ledger and driver: the
-// preparation before the queue, the FIFO head and slot, the admission capacity, the start guard,
-// the start fence and the repair of a crash between the call domain and the queue domain.
 import { afterEach, describe, expect, it } from 'vitest'
+import { completedFinal } from '@omne-harness/tool-contract/testing'
 import {
   admission,
   adoption,
   callId,
+  evidence,
   failure,
   fixedOf,
   fixedRequestForNamedSourceGuard,
@@ -18,6 +17,7 @@ import {
   request,
   tenantA,
   tenantB,
+  text,
 } from './runtime-values.ts'
 import {
   admitCall,
@@ -29,7 +29,6 @@ import {
   type StartHarness,
 } from './start-values.ts'
 
-/** Whether a commit writes the operation record of `operation`: the commit of that operation. */
 function putsOperation(operation: string) {
   return (input: Parameters<Parameters<typeof losingCommits>[1]>[0]) =>
     input.writes.some(
@@ -40,21 +39,49 @@ function putsOperation(operation: string) {
     )
 }
 
-/** Whether a commit is a queue-domain commit that deletes the entry of `call`: its release. */
 function releasesEntry(call: string) {
   return (input: Parameters<Parameters<typeof losingCommits>[1]>[0]) =>
     input.domain.kind === 'queue' &&
     input.writes.some(write => write.kind === 'delete' && write.key === `entry:${call}`)
 }
 
-// Every scenario ends with every queue entry accounted for by its call domain (SPEC 22).
 afterEach(auditQueues)
 
 async function admitAll(harness: StartHarness, ...calls: readonly string[]): Promise<void> {
   for (const call of calls) await admitCall(harness, call)
 }
 
-describe('20 preparation and queue (P02, P03)', () => {
+type Limits = Readonly<{ concurrency: number | null; scopeBudget: number | null }>
+
+function toolIn(name: string, limits: Limits, key = 'scope-1') {
+  return {
+    availability: {
+      kind: 'available' as const,
+      definition: functionDefinition({ name, adoption: adoption(name) }),
+      executor: adoption('exec'),
+      layer: { kind: 'official' as const },
+    },
+    scope: { owner: 'scope-owner', key, grant: evidence('grant-1') },
+    limits: { ...limits, foregroundMs: null, backgroundAfterMs: null },
+  }
+}
+
+async function finish(harness: StartHarness, call: string): Promise<void> {
+  const access = { principal: principalA, tenant: tenantA, call: callId(call) }
+  const recovery = ok(await harness.commands.loadRecovery(access))
+  if (recovery.start?.kind !== 'start') throw new Error(`${call} has no start record`)
+  await harness.binding.controls.finish(recovery.start, {
+    ...completedFinal(),
+    result: {
+      ...completedFinal().result,
+      content: [text('answer', 'done')],
+      original: { kind: 'none' },
+    },
+  })
+  for (let i = 0; i < 30; i += 1) await Promise.resolve()
+}
+
+describe('20 preparation and queue (P03)', () => {
   it('20 order: an admitted call takes its ordinal before admit answers, in the order of admission', async () => {
     const harness = startHarness()
     await admitAll(harness, 'c1', 'c2', 'c3')
@@ -104,7 +131,6 @@ describe('20 preparation and queue (P02, P03)', () => {
       effect: { kind: 'not-started' },
       execution: { kind: 'not-started' },
     })
-    // The rejected call released its place, so the next call of the key starts.
     expect(await harness.queue()).toEqual([{ call: 'c2', ordinal: '2', stage: 'preparing' }])
     await harness.drive('c2')
     expect(harness.binding.executions).toEqual(['c2'])
@@ -124,7 +150,77 @@ describe('20 preparation and queue (P02, P03)', () => {
     expect(recovery.tasks.map(task => task.kind)).toEqual(['prepare'])
   })
 
-  it('20 preparation: the plan takes only the initial purpose and the admitted request, and leaves nothing when it refuses', async () => {
+  it('20 preparation: a provider that failed to answer is asked to prepare again, not to read a record it may not hold', async () => {
+    const harness = startHarness({ environment: new Map([['c1', 'unavailable']]) })
+    await admitCall(harness, 'c1')
+    await harness.drive('c1')
+    harness.environments.answer('c1', 'prepared')
+    await harness.drive('c1')
+    expect(harness.environments.prepared).toEqual(['c1', 'c1'])
+    expect(harness.environments.inspected).toEqual([])
+    expect(harness.binding.executions).toEqual(['c1'])
+  })
+
+  it.each(['prepared', 'rejected', 'lost', 'excluded'] as const)(
+    '20 preparation: after the answer %s, a run that could not record it asks the provider to prepare again',
+    async kind => {
+      let dropped = false
+      const down = {
+        failure: { kind: 'unavailable', dependency: 'test-ledger', diagnostic: 'answer lost' },
+      } as const
+      const said = {
+        lost: { kind: 'lost', evidence: evidence('environment-lost'), diagnostic: 'gone' },
+        excluded: { kind: 'excluded', exclusion: evidence('environment-excluded') },
+      } as const
+      const harness = startHarness({
+        environment: new Map([['c1', kind === 'rejected' ? 'rejected' : 'prepared']]),
+        environmentsPort: base => {
+          if (kind !== 'lost' && kind !== 'excluded') return base
+          const answer = said[kind]
+          return Object.assign(base, {
+            prepare: (input: Parameters<typeof base.prepare>[0]) => {
+              base.prepared.push(input.call)
+              return Promise.resolve({ ok: answer })
+            },
+            inspectPreparation: (input: Parameters<typeof base.inspectPreparation>[0]) => {
+              base.inspected.push(input.call)
+              return Promise.resolve({ ok: answer })
+            },
+          })
+        },
+        commands: base => ({
+          ...base,
+          prepared: input => {
+            if (dropped) return base.prepared(input)
+            dropped = true
+            return Promise.resolve(down)
+          },
+          rejectPending: input => {
+            if (dropped) return base.rejectPending(input)
+            dropped = true
+            return Promise.resolve(down)
+          },
+        }),
+      })
+      await admitCall(harness, 'c1')
+      await harness.drive('c1')
+      await harness.drive('c1')
+      expect(harness.environments.prepared).toEqual(['c1', 'c1'])
+      expect(harness.environments.inspected).toEqual([])
+    },
+  )
+
+  it('20 preparation: a provider that answered unknown is asked to read its record after that', async () => {
+    const harness = startHarness({ environment: new Map([['c1', 'unknown']]) })
+    await admitCall(harness, 'c1')
+    await harness.drive('c1')
+    harness.environments.answer('c1', 'prepared')
+    await harness.drive('c1')
+    expect(harness.environments.prepared).toEqual(['c1'])
+    expect(harness.environments.inspected).toEqual(['c1'])
+  })
+
+  it('20 preparation: an accepted call is planned only for its first segment and the admitted request, and a refused plan leaves nothing', async () => {
     const harness = startHarness()
     await admitCall(harness, 'c1')
     const commits = harness.memory.commits
@@ -134,7 +230,7 @@ describe('20 preparation and queue (P02, P03)', () => {
       purpose: 'resume',
       environmentAdoption: adoption('environment'),
     })
-    expect(failure(resume)).toMatchObject({ kind: 'unsupported' })
+    expect(failure(resume)).toEqual({ kind: 'invalid', field: 'call', reason: 'phase:accepted' })
     const other = {
       ...fixedOf(harness.internalRequests, 'c1'),
       arguments: { original: '{"path":"b"}', effective: '{"path":"b"}', complete: true },
@@ -192,10 +288,30 @@ describe('20 preparation and queue (P02, P03)', () => {
     ).toEqual({ kind: 'invalid', field: 'call', reason: 'already-prepared' })
   })
 
+  it('20 preparation: a confirmation that comes after the call ended is refused: a late one does not put it back to preparing', async () => {
+    const harness = startHarness({ environment: new Map([['c1', 'rejected']]) })
+    await admitCall(harness, 'c1')
+    await harness.drive('c1')
+    const ended = await harness.state('c1')
+    expect(ended.phase).toBe('settled')
+    const recovery = ok(await harness.commands.loadRecovery(admission('c1', 'op-c1')))
+    const [planned] = recovery.preparations
+    if (planned === undefined) throw new Error('the driver planned no preparation')
+    expect(
+      failure(
+        await harness.commands.prepared({
+          ...(await writeContext(harness, 'c1', 'c1/prepared-late')),
+          preparation: planned,
+          resources: { owner: 'o', record: 'env', revision: '1', digest: 'd' },
+        }),
+      ),
+    ).toEqual({ kind: 'invalid', field: 'call', reason: 'phase:settled' })
+    expect(await harness.state('c1')).toEqual(ended)
+  })
+
   it('20 queue: with limit 1, three calls attempt their starts strictly in admission order, whatever order their drivers run in', async () => {
     const harness = startHarness()
     await admitAll(harness, 'c1', 'c2', 'c3')
-    // The first two starts are refused by the fence, so each releases its slot to the next call.
     harness.authority.refuse('c1')
     harness.authority.refuse('c2')
     await harness.drive('c3', 'c2', 'c1')
@@ -224,8 +340,6 @@ describe('20 preparation and queue (P02, P03)', () => {
   it('20 queue: an earlier call that is still preparing is not overtaken', async () => {
     const harness = startHarness()
     await admitAll(harness, 'c1', 'c2')
-    // c2 waits behind c1, and its reconcile asks the host to run c1, which still owes a step:
-    // c1 starts, and c2 never starts ahead of it.
     await harness.drive('c2')
     expect(harness.binding.attempts).toEqual(['c1'])
     expect((await harness.state('c2')).phase).toBe('queued')
@@ -254,7 +368,6 @@ describe('20 preparation and queue (P02, P03)', () => {
       queue: { kind: 'held' },
       timing: { kind: 'paused' },
     })
-    // The queue domain still counts the background call's slot, so a later run of c2 still waits.
     expect(await harness.queue()).toEqual([
       { call: 'c1', ordinal: '1', stage: 'held' },
       { call: 'c2', ordinal: '2', stage: 'ready' },
@@ -266,11 +379,75 @@ describe('20 preparation and queue (P02, P03)', () => {
 
   it('20 queue: null concurrency is no limit, and still the FIFO order', async () => {
     const harness = startHarness()
-    const unlimited = { limits: { concurrency: null, foregroundMs: null, backgroundAfterMs: null } }
+    const unlimited = {
+      limits: { concurrency: null, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
+    }
     await admitCall(harness, 'c1', unlimited)
     await admitCall(harness, 'c2', unlimited)
     await harness.drive('c1', 'c2')
     expect([...harness.binding.executions].sort()).toEqual(['c1', 'c2'])
+  })
+
+  it('20 scope: with a scope budget of 1, a call of another tool in the scope waits until the first call releases its slot', async () => {
+    const harness = startHarness()
+    await admitCall(harness, 'a1', toolIn('read_file', { concurrency: null, scopeBudget: 1 }))
+    await admitCall(harness, 'b2', toolIn('write_file', { concurrency: null, scopeBudget: 1 }))
+    await harness.drive('a1', 'b2')
+    expect(harness.binding.executions).toEqual(['a1'])
+    expect(await harness.state('b2')).toMatchObject({
+      phase: 'queued',
+      queue: { kind: 'waiting', ordinal: '2' },
+    })
+    expect(await harness.queue()).toEqual([
+      { call: 'a1', ordinal: '1', stage: 'held' },
+      { call: 'b2', ordinal: '2', stage: 'ready' },
+    ])
+    await finish(harness, 'a1')
+    await harness.drive('a1')
+    expect((await harness.state('a1')).phase).toBe('settled')
+    expect(harness.binding.executions).toEqual(['a1', 'b2'])
+    expect(await harness.queue()).toEqual([{ call: 'b2', ordinal: '2', stage: 'held' }])
+  })
+
+  it('20 scope: a later call of another tool does not overtake an earlier ready call that waits for its own tool limit', async () => {
+    const harness = startHarness()
+    const limited = { concurrency: 1, scopeBudget: null }
+    await admitCall(harness, 'a1', toolIn('read_file', limited))
+    await admitCall(harness, 'a2', toolIn('read_file', limited))
+    await admitCall(harness, 'b3', toolIn('write_file', { concurrency: null, scopeBudget: null }))
+    await harness.drive('a1', 'a2', 'b3')
+    expect(harness.binding.executions).toEqual(['a1'])
+    expect((await harness.state('b3')).phase).toBe('queued')
+    expect(await harness.queue()).toEqual([
+      { call: 'a1', ordinal: '1', stage: 'held' },
+      { call: 'a2', ordinal: '2', stage: 'ready' },
+      { call: 'b3', ordinal: '3', stage: 'ready' },
+    ])
+  })
+
+  it('20 scope: a tool limit counts only the held slots of its own tool', async () => {
+    const harness = startHarness()
+    const one = { concurrency: 1, scopeBudget: null }
+    await admitCall(harness, 'a1', toolIn('read_file', one))
+    await admitCall(harness, 'b2', toolIn('write_file', one))
+    await admitCall(harness, 'a3', toolIn('read_file', one))
+    await harness.drive('a1', 'b2', 'a3')
+    expect([...harness.binding.executions].sort()).toEqual(['a1', 'b2'])
+    expect(await harness.queue()).toEqual([
+      { call: 'a1', ordinal: '1', stage: 'held' },
+      { call: 'b2', ordinal: '2', stage: 'held' },
+      { call: 'a3', ordinal: '3', stage: 'ready' },
+    ])
+  })
+
+  it('20 scope: calls in two scopes do not count against each other', async () => {
+    const harness = startHarness()
+    const one = { concurrency: 1, scopeBudget: 1 }
+    await admitCall(harness, 'x1', toolIn('read_file', one, 'scope-1'))
+    await admitCall(harness, 'y2', toolIn('read_file', one, 'scope-2'))
+    await harness.drive('x1', 'y2')
+    expect([...harness.binding.executions].sort()).toEqual(['x1', 'y2'])
+    expect(await harness.queue()).toEqual([{ call: 'x1', ordinal: '1', stage: 'held' }])
   })
 
   it('20 capacity: an admission over the queue capacity is unavailable and not committed; a release makes room', async () => {
@@ -284,7 +461,7 @@ describe('20 preparation and queue (P02, P03)', () => {
       failure: {
         kind: 'unavailable',
         dependency: 'tool-queue',
-        diagnostic: 'the queue of this scope and tool holds 2 unreleased calls, its capacity',
+        diagnostic: 'the queue of this scope holds 2 unreleased calls, its capacity',
       },
     })
     expect(harness.memory.commits).toBe(commits)
@@ -297,6 +474,29 @@ describe('20 preparation and queue (P02, P03)', () => {
     if (admitted.kind !== 'accepted')
       throw new Error(`expected accepted: ${JSON.stringify(admitted)}`)
     expect(admitted.state.phase).toBe('accepted')
+  })
+
+  it('20 capacity: the capacity counts the unreleased calls of every tool in the scope', async () => {
+    const harness = startHarness({ queueCapacity: 2 })
+    const limited = { concurrency: 1, scopeBudget: null }
+    await admitCall(harness, 'a1', toolIn('read_file', limited))
+    await admitCall(harness, 'b2', toolIn('write_file', limited))
+    const commits = harness.memory.commits
+    expect(
+      await harness.runtime.invoke({
+        principal: principalA,
+        tenant: tenantA,
+        request: request(toolIn('list_dir', limited)),
+      }),
+    ).toEqual({
+      kind: 'rejected',
+      failure: {
+        kind: 'unavailable',
+        dependency: 'tool-queue',
+        diagnostic: 'the queue of this scope holds 2 unreleased calls, its capacity',
+      },
+    })
+    expect(harness.memory.commits).toBe(commits)
   })
 
   it('20 capacity: a dummy is not counted and not refused', async () => {
@@ -378,10 +578,8 @@ describe('21 start intent and start fence (P04)', () => {
     })
     await admitCall(harness, 'c1')
     await harness.drive('c1')
-    // The run stopped with the start accepted by the fence and not recorded by the ledger.
     expect((await harness.state('c1')).phase).toBe('starting')
     expect(harness.binding.attempts).toEqual(['c1'])
-    // The store answers again; the next run learns the acceptance from the fence.
     await harness.host.driver().run({
       principal: principalA,
       tenant: tenantA,
@@ -491,7 +689,6 @@ describe('22 cross-domain commits and their repair', () => {
     })
     await admitAll(harness, 'c1', 'c2')
     await harness.drive('c1')
-    // The call domain settled; the queue domain still holds the entry, and the task says so.
     expect((await harness.state('c1')).phase).toBe('settled')
     const pending = ok(await harness.commands.loadRecovery(admission('c1', 'op-c1')))
     expect(pending.tasks.map(task => task.kind).sort()).toEqual(['deliver', 'queue'])
@@ -534,7 +731,6 @@ describe('23 driver run', () => {
     const harness = startHarness({ driverStepsPerRun: 2 })
     await admitCall(harness, 'c1')
     harness.host.scheduled.splice(0)
-    // Plan and environment are the first two steps; the run then yields and asks to go on.
     await harness.runOnce('c1')
     expect((await harness.state('c1')).phase).toBe('preparing')
     expect(harness.binding.executions).toEqual([])
@@ -549,7 +745,6 @@ describe('23 driver run', () => {
   })
 })
 
-/** A write context as the driver passes it: the WriteContext fields and the principal. */
 type Context = Parameters<StartHarness['commands']['enqueue']>[0]
 
 describe('19 write commands: boundary and qualification', () => {

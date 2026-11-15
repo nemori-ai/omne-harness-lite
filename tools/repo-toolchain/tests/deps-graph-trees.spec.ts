@@ -1,5 +1,3 @@
-// 基线图的临时树：被强行结束的运行留下的旧树在下一次开始时清掉，活着的进程的树与缓存文件不动。
-// 真起 dependency-cruiser 的那一段（revisionGraph 跑完不留树、开始时清旧树）在 deps-graph.spec.ts（慢层）。
 import { spawn } from 'node:child_process'
 import {
   existsSync,
@@ -27,7 +25,6 @@ const NOW = Date.parse('2026-10-30T12:00:00Z')
 const OLD = (NOW - STALE_TREE_GRACE_MS - 60_000) / 1000
 const FRESH = (NOW - 60_000) / 1000
 
-/** git 公共目录下的 omne-dep-graph；旁边的 `outside` 是树外的东西。 */
 function cache(): string {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'omne-dep-graph-')))
   made.push(home)
@@ -38,10 +35,6 @@ function cache(): string {
   return directory
 }
 
-/**
- * 一棵像 linkWorkspace 建的树：成员源码，加 node_modules 下指向成员的目录链接；另有一条链接指到树外的
- * `outside`，删树时只能删链接，不能顺着它删到外面。目录时间设成 `seconds`。
- */
 function tree(directory: string, name: string, seconds: number): void {
   const root = join(directory, name)
   mkdirSync(join(root, 'packages/model/a/src'), { recursive: true })

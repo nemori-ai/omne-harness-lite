@@ -5,7 +5,7 @@
 
 本页是学习材料，不是项目规则。
 依赖方向、成员文档和演进政策由文中链接的拥有者正文规定。两者不一致时以拥有者正文为准。
-可加改动与破坏性契约改动的判定规则由[卡与交接信息包](../../docs/engineering/delivery.md#破坏性契约改动)拥有，契约变更的级别由[契约变更](../../docs/engineering/delivery.md#契约变更)拥有。本页只讲设计方法。
+可加改动与破坏性契约改动的判定规则由[破坏性改动](../agents/skills/omne-card/canonical/references/contract-change.md#破坏性改动)拥有，契约变更的级别由[契约变更](../agents/skills/omne-card/canonical/references/contract-change.md#三个级别)拥有。本页只讲设计方法。
 
 ## 先分清两种稳定
 
@@ -13,7 +13,7 @@
 契约在这段时间里只以可加的方式改变，消费者已经写好的代码继续成立。
 
 **跨里程碑兼容是一项版本承诺。**本项目在 0.0.0 至 0.1.0 阶段不承诺它。
-[当前演进政策](../../docs/engineering/publication.md#当前演进与消费者)鼓励有正向收益的破坏性重构，并要求同批同步消费者、删除被替代实现。
+[当前演进政策](../../docs/requirements.md#当前研发阶段sys-experiment)鼓励有正向收益的破坏性重构，并要求同批同步消费者、删除被替代实现。
 
 所以设计目标不是「契约永远不变」。目标有两个：
 
@@ -23,7 +23,7 @@
 本页的「契约」指三样东西：
 
 - 公开类型，拥有数据形状。
-- 成员的 `SPEC.md`，拥有类型表达不了的行为：结果、失败、所有权、生命周期、并发、事务、取消和恢复。归属见[成员文档要求](../../docs/member-documentation.md#行为契约与完整文档)。
+- 成员的 `SPEC.md`，拥有类型表达不了的行为：结果、失败、所有权、生命周期、并发、事务、取消和恢复。归属见[知识放哪](../../AGENTS.md#知识放哪)。
 - Cordis 服务定义与事件，拥有装配时的接缝。精确规则归 [Cordis 集成约定](../../docs/architecture/cordis-integration-conventions.md)。
 
 三者中行为最危险。类型改了，编译器会报错。行为改了，编译照样通过，消费者在运行时才得到错误结果。
@@ -92,7 +92,7 @@ Bertrand Meyer 的契约式设计和 Liskov 的替换原则给出同一条规则
 把这条规则落到 TypeScript 形状上时，关键不是「输入还是输出」，而是**谁构造这个值，谁读取这个值**。
 构造值的一方叫写方，读取值的一方叫读方。改动对写方和读方的影响相反。
 
-判断表是规则，放在[可加改动](../../docs/engineering/delivery.md#可加改动)。本节说明怎样用它。
+判断表是规则，放在[可加改动怎样判](../agents/skills/omne-card/canonical/references/contract-change.md#可加改动怎样判)。本节说明怎样用它。
 
 用判断表时要找全写方：
 

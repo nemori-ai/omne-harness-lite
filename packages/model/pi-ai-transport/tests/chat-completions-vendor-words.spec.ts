@@ -3,10 +3,6 @@ import { expect, it } from 'vitest'
 
 const engineDirectory = new URL('../src/chat-completions/', import.meta.url)
 
-/**
- * Vendor and model-family words. A word matches when no letter comes before it, so `gpt56` and
- * `OpenAI` match, and `maxai` does not.
- */
 const VENDOR_WORD =
   /(?<![a-z])(openai|anthropic|claude|gpt|gemini|google|deepseek|grok|xai|qwen|moonshot|kimi|glm|zai)/gi
 

@@ -1,8 +1,5 @@
-// WAL maintenance inside the write Worker (SPEC 12.3). `tick` runs between two physical
-// transactions, never inside one. It never changes `synchronous`, and it never waits for a reader:
-// the restart checkpoint runs with a zero busy timeout, so a reader that has not ended makes it
-// fail at once and the next tick tries again. A write request or a query therefore waits for one
-// checkpoint call at most, not for a reader.
+// The restart checkpoint runs with a zero busy timeout: a reader that has not ended makes it fail at
+// once and the next tick tries again, so a write or a query never waits for a reader.
 import { statSync } from 'node:fs'
 import type { DatabaseSync } from 'node:sqlite'
 import type { WalState, WorkerEnv } from './protocol.ts'
@@ -19,7 +16,6 @@ export type WalEnv = Pick<
 
 export type TickReport = Readonly<{ ran: 'PASSIVE' | 'TRUNCATE' | null }>
 
-/** Checkpoints in a row without progress that SPEC 12.3 asks for before a state change. */
 const STALLED_CHECKPOINTS = 2
 const WAL_FRAME_HEADER_BYTES = 24
 
@@ -30,7 +26,6 @@ export class WalMaintainer {
   private lastAt: number
   private lastBackfilled = -1
   private stalled = 0
-  /** File size at the last checkpoint run. A size trigger needs growth beyond it. */
   private lastFileBytes: number
   private frameBytes = 0
   private readonly env: WalEnv
@@ -70,7 +65,6 @@ export class WalMaintainer {
     }
   }
 
-  /** The checkpoint of this tick. null: it failed or was blocked, which counts as no progress. */
   private checkpoint(db: DatabaseSync, mode: 'PASSIVE' | 'TRUNCATE'): CheckpointRow | null {
     const restart = mode === 'TRUNCATE'
     try {
@@ -82,9 +76,7 @@ export class WalMaintainer {
       if (restart) {
         try {
           db.exec(`pragma busy_timeout = ${String(this.env.lockWaitMs)}`)
-        } catch {
-          // The connection is unusable. The next request reports what it can prove.
-        }
+        } catch {}
       }
     }
   }
@@ -112,7 +104,6 @@ export class WalMaintainer {
     return { ran: mode }
   }
 
-  /** SPEC 12.3 items 2 and 3. Several steps may apply at once, for example after a truncate. */
   private settle(bytes: number): void {
     const before = this.state
     const { checkpointWalBytes, walReadPauseBytes, walWriteStopBytes } = this.env

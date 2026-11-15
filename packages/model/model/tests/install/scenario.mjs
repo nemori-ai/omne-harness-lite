@@ -1,6 +1,3 @@
-// Runs inside an install-closure consumer directory, so it sees only the installed packages: a
-// caller outside the repository sends a call through an injected credential port. Any failed
-// assertion exits non-zero and fails the closure report.
 import assert from 'node:assert/strict'
 import { executeModel } from '@omne-harness/model'
 import {

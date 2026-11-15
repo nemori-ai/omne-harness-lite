@@ -1,4 +1,3 @@
-// Declarations of the public-api chapter "结果、失败和状态".
 import type { Outcome } from '@omne-harness/operation-result'
 import type { DurableEvidence } from '@omne-harness/exchange-refs'
 import type { ContentBlock } from '@omne-harness/content-block'
@@ -46,11 +45,31 @@ export type ModelFaultCause =
   | 'policy-unavailable'
   | 'upstream-protocol'
   | 'unclassified'
+export function faultIsTransient(cause: ModelFaultCause): boolean {
+  switch (cause) {
+    case 'upstream-unavailable':
+    case 'stream-lost':
+    case 'runtime-lost':
+      return true
+    case 'profile-withdrawn':
+    case 'excluded':
+    case 'modality':
+    case 'credential':
+    case 'input-rejected':
+    case 'input-over-limit':
+    case 'replay-rejected':
+    case 'persistence':
+    case 'policy-unavailable':
+    case 'upstream-protocol':
+    case 'unclassified':
+      return false
+    default: {
+      const unknown: never = cause
+      throw new TypeError(`unknown model fault cause ${String(unknown)}`)
+    }
+  }
+}
 export type OverLimitMetric = 'context-tokens' | 'input-tokens' | LimitMetric
-/**
- * `replayCarried` is present only when the failed send carried reasoning state, so the original
- * consumer can try again in a new call with replay off. A `replay-rejected` send always carried it.
- */
 export type ModelFault = Readonly<{
   diagnostic: string
   upstreamStatus: string | null
@@ -118,13 +137,18 @@ export type ControlState =
 export type Lookup =
   | Readonly<{ kind: 'found'; state: CallState }>
   | Readonly<{ kind: 'not-accepted'; operation: ModelOperationId }>
+export type CallContact =
+  | Readonly<{ kind: 'holding' }>
+  | Readonly<{ kind: 'settled' }>
+  | Readonly<{ kind: 'lost'; evidence: DurableEvidence }>
+  | Readonly<{ kind: 'not-accepted' }>
+  | Readonly<{ kind: 'unknown' }>
 export type Admission = Readonly<{
   call: ModelCallId
   revision: Revision
   recovered: boolean
   reference: ModelInvocationRef
 }>
-// One definition in exchange-refs. The digest algorithm belongs to the owner of the evidence.
 export type { DurableEvidence } from '@omne-harness/exchange-refs'
 export type Handoff =
   | Readonly<{ kind: 'processed'; completion: DurableEvidence }>

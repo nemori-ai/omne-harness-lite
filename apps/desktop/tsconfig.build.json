@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "erasableSyntaxOnly": true,
+    "rewriteRelativeImportExtensions": true
+  },
+  "include": ["src/main-core/**/*.ts", "src/web-host/**/*.ts", "src/shared/**/*.ts"]
+}

@@ -1,11 +1,5 @@
-// C2 of #510: one input through invoke, one main call that really settles, its reply admitted, no
-// action, completion proposed and the execution ended, all against the scripted Model and the memory
-// Journal. invoke returns at the reliable acceptance; the Loop goes on by itself; the caller reads
-// input-taken, producer and ended, numbered from 1; the runtime is idle again. The skeleton's
-// temporary choices are pinned by the tests that name them (tests/README.md).
 import { describe, expect, it } from 'vitest'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
-import { fail } from '@omne-harness/operation-result'
 import type { AgentDependencies } from '@omne-harness/agent'
 import type {
   AgentExecutionHandle,
@@ -15,7 +9,6 @@ import type {
 } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
 import {
-  acceptedInput,
   execution,
   failure,
   ok,
@@ -37,7 +30,6 @@ import {
 
 type Dependencies = AgentDependencies<Principal, ContentBlock>
 
-/** The states the instance shows, until `until` holds for one of them. */
 async function statesUntil(
   assembly: LoopAssembly,
   until: (state: AgentState) => boolean,
@@ -56,7 +48,6 @@ async function statesUntil(
   return states
 }
 
-/** The dependencies with every Journal commit recorded as node and position. */
 function recordingCommits(log: [node: string, position: string][]) {
   return (dependencies: Dependencies): Dependencies => ({
     ...dependencies,
@@ -162,9 +153,6 @@ describe('临时简化，1.3–1.9 按节点表收紧: one commit per node, posi
     const handle = ok(await invoke(assembly))
     assembly.release.open()
     await eventsOf(handle)
-    // U0 to Q4 run before the execution exists for the input, E1, E2 and E4 only read, F3 is
-    // tryFinish, and F4, O0 and E9 come after ended: none of them writes a commit. The P of Q1 and
-    // the Ja of Q2 derive from the H of the reply (SPEC "消息准入"), not from their node.
     expect(log).toEqual([
       ['E3', 'E4'],
       ['I0', 'I1'],
@@ -225,12 +213,11 @@ describe('the handle', () => {
     await eventsOf(handle)
   })
 
-  it('stage-temporary (#502): submit, control and acknowledge answer a named unavailable', async () => {
+  it('stage-temporary (#502): suspend and acknowledge answer a named unavailable', async () => {
     const assembly = await loopAssembly([execution()])
     const handle = ok(await invoke(assembly))
     const mutation = { ...alice, execution: execution(), operation: operation('later') }
     const answers = [
-      await handle.input.submit({ ...mutation, value: acceptedInput('input-2') }),
       await handle.control.control({
         ...mutation,
         command: {
@@ -242,17 +229,12 @@ describe('the handle', () => {
     ]
     for (const answer of answers)
       expect(failure(answer)).toMatchObject({ kind: 'unavailable', owner: '@omne-harness/agent' })
-    // The stage table of #502 assigns submit no stage yet.
-    expect(failure(answers[0] ?? fail({ kind: 'unsupported' }))).toMatchObject({
-      diagnostic: 'submit is not implemented yet; #502 assigns it no stage',
-    })
     assembly.release.open()
     await eventsOf(handle)
   })
 })
 
 describe('the handle reads events under the guard and only for its own execution', () => {
-  /** The test assembly whose access check answers `answer` for `operation` and allows the rest. */
   async function checked(operation: 'read' | 'events', answer: 'denied' | 'unavailable') {
     const assembly = await loopAssembly([execution()])
     const handle = ok(await invoke(assembly))
@@ -266,7 +248,6 @@ describe('the handle reads events under the guard and only for its own execution
     return { assembly, handle }
   }
 
-  /** The first item that `events` yields. */
   async function firstOf(handle: AgentExecutionHandle<Principal>, id = execution()) {
     const controller = new AbortController()
     for await (const page of handle.output.events({
@@ -373,7 +354,6 @@ describe('the reply and the identities the coordinator mints', () => {
     const handle = ok(await invoke(assembly))
     assembly.release.open()
     await eventsOf(handle)
-    // A 40-digit digest of the execution, then the ordinal of the step (step-1).
     expect(admitted).toEqual([
       expect.stringMatching(/^mcall_[0-9a-f]{40}_1$/u),
       expect.stringMatching(/^mop_[0-9a-f]{40}_1_admit$/u),

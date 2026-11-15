@@ -1,5 +1,3 @@
-// The conversion result reader for a deployment without media input: it answers that no block has
-// a conversion, never a made-up one, and it still refuses a foreign tenant.
 import { describe, expect, it } from 'vitest'
 import { createAbsentConversionResults } from '@omne-harness/request-context'
 import {

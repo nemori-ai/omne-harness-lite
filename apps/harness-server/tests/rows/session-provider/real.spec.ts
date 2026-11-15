@@ -1,8 +1,4 @@
 // @module-tag slow
-// The `session-provider` row as the real Session provider: `SessionProvider` of
-// `@omne-harness/session-cordis` over the real storage rows. The row is ACTIVE, provides `session`,
-// answers through the real faces (the double would answer differently), and registers one `business`
-// shutdown handle that the ordered shutdown calls before it stops the storage rows.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
@@ -98,7 +94,6 @@ describe('the real session-provider row: on the real storage rows', () => {
     { timeout: 60_000 },
     async () => {
       const tree = await start()
-      // `telemetry` has no shutdown phase and registers no handle.
       expect(tree.registry.liveRows().sort()).toEqual([
         'session-provider',
         'session-storage',

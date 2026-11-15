@@ -1,5 +1,3 @@
-// `serve` 模式在同一进程里的行为（DP1-C3、C6、C9、C10、C11、C15、C17 的 once）：发行替身树、夹具行、装载前拒绝、
-// 入口对象与占位规则、四个阶段的有序关闭。进程级（`dist/bin.js serve`）在 `serve-process.spec.ts`。
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -30,10 +28,6 @@ const release = JSON.parse(
   readFileSync(join(memberDir, 'config', 'serve.distribution.json'), 'utf8'),
 ) as { rows: Row[] }
 
-/**
- * The test operator layer plus the `telemetry` replace: the release row carries no budgets (A12)
- * and a `replace` swaps the whole row, so it restates the implementation and the outlet.
- */
 function withTelemetry(layer: unknown): unknown {
   const { ops } = layer as { ops: unknown[] }
   return {
@@ -73,11 +67,6 @@ beforeEach(() => {
   storageEvents.length = 0
 })
 
-/**
- * The release names the `execution-host` factory row, whose absolute paths only the operator layer
- * gives (L1-12); without them the tree is rejected before loading. These cases read the tree and
- * entry records, so they load the release with the test operator layer.
- */
 async function releaseOperator(): Promise<unknown> {
   const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
   scratches.push(base)
@@ -90,9 +79,8 @@ afterEach(() => {
   for (const base of scratches.splice(0)) rmSync(base, { recursive: true, force: true })
 })
 
-describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
-  it('the release tree of 52 real and 2 s0-double rows loads, accepts, stops on request and exits 0', async () => {
-    // The operator layer gives what the distribution file does not hold: absolute paths and the port.
+describe('serve: the release tree of doubles', () => {
+  it('the release tree of 57 real and 2 s0-double rows loads, accepts, stops on request and exits 0', async () => {
     const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
     try {
       const port = await freePort()
@@ -132,6 +120,7 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
         'agent-adoptions:real',
         'adoption-sources:real',
         'agent-model-selection:real',
+        'agent-cards:real',
         'agent-host:real',
         'agent-instances:real',
         'model-host:real',
@@ -161,7 +150,11 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
         'agent-context:real',
         'agent-account-outlet:real',
         'runtime-context:real',
+        'session-observation:real',
         'server-entry:real',
+        'identity-access:real',
+        'session-access:real',
+        'assets-access:real',
       ])
       expect(run.of('row-state').every(r => r['state'] === 'ACTIVE')).toBe(true)
       expect(run.startup).toMatchObject({
@@ -169,9 +162,9 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
         scope: 'serving',
         accepting: true,
         outcome: 'ready',
-        enabledRows: 54,
+        enabledRows: 59,
         barrierCalls: 1,
-        implementations: { real: 52, 'contract-double': 0, 's0-double': 2 },
+        implementations: { real: 57, 'contract-double': 0, 's0-double': 2 },
       })
       expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
       expect(run.stderr).toEqual(['serve: stop requested: test: startup seen'])
@@ -188,7 +181,7 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
     expect(row).toMatchObject({ plugin, config: agentJournalCombination() })
   })
 
-  it('R1-1: only s0.assemblyLifecycle carries the s0. prefix', async () => {
+  it('only s0.assemblyLifecycle carries the s0. prefix', async () => {
     const run = await serveOnce({ distribution: release, operator: await releaseOperator() })
     const profile = serveProfile()
     const names = new Set<string>()
@@ -204,7 +197,7 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
     expect(prefixed).toEqual(['s0.assemblyLifecycle'])
   })
 
-  it('DP1-C11: placeholders are s0-double, the lifecycle is real, no value is printed', async () => {
+  it('placeholders are s0-double, the lifecycle is real, no value is printed', async () => {
     const run = await serveOnce({ distribution: release, operator: await releaseOperator() })
     const entries = run.of('entry-object')
     expect(entries.find(r => r['name'] === 's0.assemblyLifecycle')).toEqual({
@@ -219,7 +212,6 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
       implementation: 'real',
       trusted: true,
     })
-    // 名字只被行提供的不是入口对象，即使这一次树里没有提供者。
     expect(entries.map(r => r['name'])).not.toContain('storage')
     for (const record of run.records) expect(Object.keys(record)).not.toContain('value')
   })
@@ -235,8 +227,8 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
   })
 })
 
-describe('serve: fixture rows (R1-6, R1-3, R1-5)', () => {
-  it('R1-6: the fixture storage row replaces the double, the identity double is ACTIVE, shutdown is ordered', async () => {
+describe('serve: fixture rows', () => {
+  it('the fixture storage row replaces the double, the identity double is ACTIVE, shutdown is ordered', async () => {
     const run = await serveOnce({
       distribution: tree([
         { id: 'storage', plugin: 'fixtureStorage' },
@@ -266,7 +258,7 @@ describe('serve: fixture rows (R1-6, R1-3, R1-5)', () => {
     expect(storageEvents).toEqual(['start', 'close:assembly', 'report-settled'])
   })
 
-  it('R1-6: without the fixture row the identity double stays PENDING and names storage', async () => {
+  it('without the fixture row the identity double stays PENDING and names storage', async () => {
     const run = await serveOnce({
       distribution: tree([{ id: 'identity', plugin: 'stubPlugin' }]),
       plugins: fixturePlugins,
@@ -276,7 +268,7 @@ describe('serve: fixture rows (R1-6, R1-3, R1-5)', () => {
     expect(run.startup).toMatchObject({ accepting: false, outcome: 'pending', barrierCalls: 0 })
   })
 
-  it('R1-3: a real consumer whose provider the operator disabled is PENDING with the key, and gets no placeholder', async () => {
+  it('a real consumer whose provider the operator disabled is PENDING with the key, and gets no placeholder', async () => {
     const run = await serveOnce({
       distribution: tree([
         { id: 'storage', plugin: 'fixtureStorage' },
@@ -293,9 +285,8 @@ describe('serve: fixture rows (R1-6, R1-3, R1-5)', () => {
     expect(run.startup['appliedRows']).toEqual([])
   })
 
-  it('R1-3: a real row that injects an entry-object name the registry lacks is PENDING, with the module it is ACTIVE', async () => {
+  it('a real row that injects an entry-object name the registry lacks is PENDING, with the module it is ACTIVE', async () => {
     const rows = tree([{ id: 'runtime-context', plugin: 'fixtureRuntimeContext' }])
-    // The release registry carries `runtimeContextTrust` since C-TRUST; a registry without it is given explicitly.
     const without = await serveOnce({
       distribution: rows,
       plugins: fixturePlugins,
@@ -329,8 +320,7 @@ describe('serve: fixture rows (R1-6, R1-3, R1-5)', () => {
     })
   })
 
-  it('R1-5: a new row joins with one entry in the plugin table and one row in the distribution', async () => {
-    // 行目录 tests/fixtures/serve/rows/identity/ 之外，只有这两处各一条：`plugins`（./cordis 的替代）与发行层的一行。
+  it('a new row joins with one entry in the plugin table and one row in the distribution', async () => {
     const run = await serveOnce({
       distribution: tree([
         { id: 'storage', plugin: 'fixtureStorage' },
@@ -353,8 +343,8 @@ describe('serve: fixture rows (R1-6, R1-3, R1-5)', () => {
   })
 })
 
-describe('serve: checks before loading (DP1-C9, DP1-C10, DP1-C15, DP1-C11)', () => {
-  it('DP1-C10: a real row that depends on a double provider is refused, exit 2, zero plugin bodies', async () => {
+describe('serve: checks before loading', () => {
+  it('a real row that depends on a double provider is refused, exit 2, zero plugin bodies', async () => {
     const run = await serveOnce({
       distribution: tree([
         { id: 'storage', plugin: 'stubPlugin' },
@@ -368,7 +358,7 @@ describe('serve: checks before loading (DP1-C9, DP1-C10, DP1-C15, DP1-C11)', () 
     expect(run.of('row-state')).toEqual([])
   })
 
-  it('DP1-C9: a real export bound to another row id is refused, exit 2', async () => {
+  it('a real export bound to another row id is refused, exit 2', async () => {
     const run = await serveOnce({
       distribution: tree([{ id: 'storage', plugin: 'fixtureIdentity' }]),
       plugins: fixturePlugins,
@@ -378,7 +368,7 @@ describe('serve: checks before loading (DP1-C9, DP1-C10, DP1-C15, DP1-C11)', () 
     expect(run.result.appliedRows).toEqual([])
   })
 
-  it('DP1-C15: via without a registering entry object is refused, exit 2', async () => {
+  it('via without a registering entry object is refused, exit 2', async () => {
     const rows = tree([{ id: 'storage', plugin: 'fixtureStorage' }])
     const absent = await serveOnce({
       distribution: rows,
@@ -398,7 +388,7 @@ describe('serve: checks before loading (DP1-C9, DP1-C10, DP1-C15, DP1-C11)', () 
     expect(unlisted.result.appliedRows).toEqual([])
   })
 
-  it('DP1-C11: two modules with one name are refused, exit 2', async () => {
+  it('two modules with one name are refused, exit 2', async () => {
     const run = await serveOnce({
       distribution: tree([{ id: 'runtime-context', plugin: 'fixtureRuntimeContext' }]),
       plugins: fixturePlugins,
@@ -408,7 +398,7 @@ describe('serve: checks before loading (DP1-C9, DP1-C10, DP1-C15, DP1-C11)', () 
     expect(run.stderr.join('\n')).toContain('runtimeContextTrust')
   })
 
-  it('DP1-C11: an install that throws: exit 3, one stderr line, no row loads, the message stays off stdout', async () => {
+  it('an install that throws: exit 3, one stderr line, no row loads, the message stays off stdout', async () => {
     const run = await serveOnce({
       distribution: tree([{ id: 'runtime-context', plugin: 'fixtureRuntimeContext' }]),
       plugins: fixturePlugins,
@@ -422,7 +412,7 @@ describe('serve: checks before loading (DP1-C9, DP1-C10, DP1-C15, DP1-C11)', () 
     expect(JSON.stringify(run.records)).not.toContain('secret-detail-7')
   })
 
-  it('DP1-C17: once shares one object per key, and a second create for the same key fails the install', async () => {
+  it('once shares one object per key, and a second create for the same key fails the install', async () => {
     const rows = tree([{ id: 'runtime-context', plugin: 'fixtureRuntimeContext' }])
     const same: unknown[] = []
     const ok = await serveOnce({
@@ -445,7 +435,7 @@ describe('serve: checks before loading (DP1-C9, DP1-C10, DP1-C15, DP1-C11)', () 
   })
 })
 
-describe('serve: the four phases with fixture rows (R1-4)', () => {
+describe('serve: the four phases with fixture rows', () => {
   it('start runs storage → composition → business → entry, stop runs the reverse, the report is fixed before assemblyReportSettled', async () => {
     const log: string[] = []
     const run = await serveOnce({
