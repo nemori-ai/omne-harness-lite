@@ -31,8 +31,8 @@ catalogs:
       specifier: 2.1.0
       version: 2.1.0
     '@omne-harness/repo-config':
-      specifier: 0.0.6
-      version: 0.0.6
+      specifier: 0.0.7
+      version: 0.0.7
     '@omne-harness/repo-toolchain':
       specifier: 0.0.20
       version: 0.0.20
@@ -197,7 +197,7 @@ importers:
     devDependencies:
       '@omne-harness/repo-config':
         specifier: 'catalog:'
-        version: 0.0.6
+        version: 0.0.7
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
         version: 0.0.20(vitest@4.1.11)
@@ -5463,8 +5463,8 @@ packages:
       '@emnapi/core': ^1.7.1 || ^2.0.0-alpha.4
       '@emnapi/runtime': ^1.7.1 || ^2.0.0-alpha.4
 
-  '@omne-harness/repo-config@0.0.6':
-    resolution: {integrity: sha512-vTieu9hnYtMCLmyv6Z12SGRLRz+V00bO0BosGLuPU/96eDLWgbiWLFEM740T2TtCKJqwvQ4RSWkvgQhxs5psyg==}
+  '@omne-harness/repo-config@0.0.7':
+    resolution: {integrity: sha512-SM0Xvwb1+ppDIJcUIUVF8CPvSwZPWVD3YB4ncH/J+shGsfb7JXUG3DpoXNP9wtLpNwhYbgPOI/v+7ARara3OTw==}
     engines: {node: '>=24'}
 
   '@omne-harness/repo-toolchain@0.0.20':
@@ -10771,7 +10771,7 @@ snapshots:
       '@tybys/wasm-util': 0.10.4
     optional: true
 
-  '@omne-harness/repo-config@0.0.6': {}
+  '@omne-harness/repo-config@0.0.7': {}
 
   '@omne-harness/repo-toolchain@0.0.20(vitest@4.1.11)':
     dependencies:
