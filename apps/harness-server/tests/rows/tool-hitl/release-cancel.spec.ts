@@ -2,14 +2,12 @@
 import { writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { tenantCodec } from '@omne-harness/legal-identity'
-import type { HitlCardItem, HitlReplyResult } from '@omne-harness/public-contract'
+import type { HumanInterventionReplyResult } from '@omne-harness/human-intervention-protocol'
 import { fail } from '@omne-harness/operation-result'
 import type { ToolDecisionBridge } from '@omne-harness/tool-contract/provider'
-import { savedLoginProof, savedTenant } from '../../r9/support.ts'
+import { savedTenant } from '../../r9/support.ts'
 import {
   answerCard,
-  hitlPublic,
   historyOf,
   onReleaseTree,
   pollUntil,
@@ -20,6 +18,7 @@ import {
   type ReleaseTree,
   type ToolCallLedger,
 } from '../../support/release-tree.ts'
+import { tenantOf } from '../../support/protocol-clients.ts'
 
 const TITLE = 'Which port should the dev server use?'
 const ASK = JSON.stringify({
@@ -249,25 +248,16 @@ describe('a control ends a suspended Ask on the release tree', () => {
           cards => cards[0]?.card.kind === 'invalidated',
         )
 
-        const tenant = tenantCodec.parse(savedTenant(world.home))
-        if (!tenant.ok) throw new Error('the saved tenant does not parse')
-        const viaHttp = await hitlPublic(world.port, {
-          protocolVersion: 'hitl-public/1',
-          messageId: 'm-late',
-          operation: 'submit-reply',
-          proof: { kind: 'present', value: savedLoginProof(world.home) },
-          body: {
-            tenant: tenant.value,
-            card: pending.card.ref as HitlCardItem['card']['ref'],
-            expectedRevision: pending.card.revision,
-            reply: { kind: 'selection', optionId: 'o1' },
-            replyId: 'late-http',
-          },
+        const viaHttp = await world.clients.humanIntervention['submit-reply']({
+          tenant: tenantOf(savedTenant(world.home)),
+          card: pending.card.ref,
+          expectedRevision: pending.card.revision,
+          reply: { kind: 'selection', optionId: 'o1' },
+          replyId: 'late-http',
         })
-        expect(viaHttp.status).toBe(200)
-        expect(viaHttp.response).toMatchObject({
+        expect(viaHttp).toMatchObject({
           outcome: 'succeeded',
-          body: { kind: 'invalidated' } satisfies Pick<HitlReplyResult, 'kind'>,
+          body: { kind: 'invalidated' } satisfies Pick<HumanInterventionReplyResult, 'kind'>,
         })
         const viaCli = await world.cli([
           'submit-reply',

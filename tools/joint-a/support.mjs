@@ -11,7 +11,7 @@ import {
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 export const here = dirname(fileURLToPath(import.meta.url))
 export const repoRoot = resolve(here, '..', '..')
@@ -43,9 +43,6 @@ export function holdTestSlot(scriptUrl, usage) {
   process.exit(child.status ?? 1)
 }
 export const READINESS_TIMEOUT_MS = 15_000
-
-export const SESSION_PATH = '/session-public/1'
-export const GOVERNANCE_PATH = '/governance-public/1'
 
 export const PASS = 'pass'
 export const FAIL = 'fail'
@@ -220,6 +217,14 @@ export function operatorLayer(options) {
         },
       },
       { kind: 'replace', id: 'server-entry', config: { listenPort: options.port } },
+      {
+        kind: 'replace',
+        id: 'session-access',
+        config: {
+          defaultDefinition: 'coding',
+          requestJournalFile: join(options.storageRoot, 'request-queue.jsonl'),
+        },
+      },
     ],
   }
 }
@@ -374,13 +379,62 @@ export function runOmne(options) {
   }
 }
 
-export async function post(port, path, body) {
-  const response = await fetch(`http://127.0.0.1:${String(port)}${path}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
+const memberModule = (...parts) => import(pathToFileURL(join(repoRoot, 'packages', ...parts)).href)
+
+export async function protocolModules() {
+  const [core, session, legalIdentity, jsonText] = await Promise.all([
+    memberModule('access', 'sdk', 'dist', 'core', 'index.js'),
+    memberModule('session', 'session-protocol', 'dist', 'index.js'),
+    memberModule('common', 'legal-identity', 'dist', 'index.js'),
+    memberModule('common', 'json-text', 'dist', 'index.js'),
+  ])
+  return { core, session, legalIdentity, jsonText }
+}
+
+export async function protocolClients(port, credentials = {}) {
+  const { core, session } = await protocolModules()
+  const transport = core.createHttpProtocolTransport({
+    origin: `http://127.0.0.1:${String(port)}`,
+    credentials: () => credentials,
   })
-  return { status: response.status, body: await response.text() }
+  return {
+    session: core.createClient(session.sessionProtocol, transport),
+  }
+}
+
+const textOf = answer => JSON.stringify(answer)
+
+export async function readHistoryReply(port, tenant, session, loginProof, options = {}) {
+  const { legalIdentity, jsonText } = await protocolModules()
+  const parsed = legalIdentity.tenantCodec.parse(tenant)
+  if (!parsed.ok) throw new Error('the tenant text does not parse')
+  const credentials = loginProof === undefined ? { tenant } : { proof: loginProof, tenant }
+  const { session: client } = await protocolClients(port, credentials)
+  const answer = await client['read-history'](
+    options.cursor === undefined || options.cursor === null
+      ? {
+          tenant: parsed.value,
+          session,
+          cursor: null,
+          direction: options.direction ?? 'forward',
+          pageBytes: options.pageBytes ?? '65536',
+        }
+      : { tenant: parsed.value, session, cursor: options.cursor },
+  )
+  if (answer.outcome !== 'succeeded')
+    return { outcome: answer.outcome, body: answer.body, text: textOf(answer) }
+  const plain = {
+    ...answer.body,
+    entries: answer.body.entries.map(entry => ({
+      ...entry,
+      payload: JSON.parse(jsonText.writeJsonText(entry.payload)),
+    })),
+  }
+  return {
+    outcome: answer.outcome,
+    body: plain,
+    text: textOf({ outcome: answer.outcome, body: plain }),
+  }
 }
 
 export function savedLoginProof(home) {
@@ -391,48 +445,12 @@ export function savedTenant(home) {
   return JSON.parse(readFileSync(join(home, 'login.json'), 'utf8')).tenantId
 }
 
-export function readHistoryRequest(tenant, session, loginProof, options = {}) {
-  return {
-    protocolVersion: 'session-public/1',
-    messageId: options.messageId ?? 'joint-a-read-history',
-    operation: 'read-history',
-    body: {
-      tenant,
-      session,
-      cursor: options.cursor ?? null,
-      direction: options.direction ?? 'forward',
-      pageBytes: options.pageBytes ?? '65536',
-    },
-    loginProof,
-  }
-}
+export const isDenied = reply => reply?.outcome === 'denied'
 
-export function isDenied(reply) {
-  if (reply === undefined) return false
-  if (reply.status !== 200 && reply.status !== 403) return false
-  try {
-    return JSON.parse(reply.body)?.outcome === 'denied'
-  } catch {
-    return false
-  }
-}
+export const isSucceeded = reply => reply?.outcome === 'succeeded'
 
-export function isSucceeded(reply) {
-  if (reply === undefined || reply.status !== 200) return false
-  try {
-    return JSON.parse(reply.body)?.outcome === 'succeeded'
-  } catch {
-    return false
-  }
-}
-
-export function replyOf(reply) {
-  try {
-    return JSON.parse(reply.body)
-  } catch {
-    return undefined
-  }
-}
+export const replyOf = reply =>
+  reply === undefined ? undefined : { outcome: reply.outcome, body: reply.body }
 
 export function notActive(records) {
   return records

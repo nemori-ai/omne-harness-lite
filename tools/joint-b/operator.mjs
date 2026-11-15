@@ -37,7 +37,7 @@ export function operatorLayerB(options) {
   const ops = layer.ops.map(op => {
     if (op.id === 'model-credential')
       return { ...op, config: { ...op.config, factorySecret: 'joint-b-test-factory-secret' } }
-    if (op.id === 'server-entry' && options.historyKinds !== undefined)
+    if (op.id === 'session-access' && options.historyKinds !== undefined)
       return { ...op, config: { ...op.config, historyKinds: options.historyKinds } }
     return op
   })

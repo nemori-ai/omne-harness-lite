@@ -5,11 +5,9 @@ import {
   BLOCKED,
   FAIL,
   PASS,
-  SESSION_PATH,
   doubleRows,
   freePort,
-  post,
-  readHistoryRequest,
+  readHistoryReply,
   repoRoot,
   runOmne,
   savedLoginProof,
@@ -131,27 +129,14 @@ export async function readHistory(tree, session) {
   const entries = []
   let cursor = null
   for (let page = 0; page < 200; page++) {
-    const reply = await post(
-      tree.port,
-      SESSION_PATH,
-      readHistoryRequest(tenant, session, proof, {
-        cursor,
-        messageId: `joint-b-history-${String(page)}`,
-      }),
-    )
-    let body
-    try {
-      body = JSON.parse(reply.body)
-    } catch {
-      return { entries, status: reply.status, complete: false, raw: reply.body }
-    }
-    if (body?.outcome !== 'succeeded')
-      return { entries, status: reply.status, complete: false, raw: reply.body }
-    entries.push(...(body.body?.entries ?? []))
-    cursor = body.body?.next ?? null
-    if (cursor === null) return { entries, status: reply.status, complete: true }
+    const reply = await readHistoryReply(tree.port, tenant, session, proof, { cursor })
+    if (reply.outcome !== 'succeeded')
+      return { entries, outcome: reply.outcome, complete: false, raw: reply.text }
+    entries.push(...(reply.body?.entries ?? []))
+    cursor = reply.body?.next ?? null
+    if (cursor === null) return { entries, outcome: reply.outcome, complete: true }
   }
-  return { entries, status: undefined, complete: false, raw: '翻页超过 200 页' }
+  return { entries, outcome: undefined, complete: false, raw: '翻页超过 200 页' }
 }
 
 export const entryText = entry =>

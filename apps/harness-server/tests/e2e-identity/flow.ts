@@ -15,8 +15,8 @@ import {
   type Rec,
   type ServerHandle,
 } from '../r9/support.ts'
+import { protocolClients, readHistoryPage } from '../support/protocol-clients.ts'
 
-export const SESSION_PATH = '/session-public/1'
 const PASSWORDS = {
   alice: 'alice-pw-MARKER-1a2b',
   bob: 'bob-pw-MARKER-3c4d',
@@ -135,7 +135,7 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
     const writeLayer = (name: string, idleSeconds: number | undefined): string => {
       const base = operatorLayer({ storageRoot: scratch.storageRoot, port, modelRoute: gatewayUrl })
       const ops = (base as { ops: { id: string; config?: object }[] }).ops.map(op =>
-        op.id === 'server-entry'
+        op.id === 'session-access'
           ? {
               ...op,
               config: {
@@ -368,24 +368,14 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
       let ended = false
       let last = ''
       while (Date.now() < waitUntil && !ended) {
-        const reply = await fetch(`${url}${SESSION_PATH}`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            protocolVersion: 'session-public/1',
-            messageId: 'k10-wait-runs',
-            operation: 'read-history',
-            body: {
-              tenant: tB,
-              session: sessionId,
-              cursor: null,
-              direction: 'forward',
-              pageBytes: '65536',
-            },
-            loginProof: proofB,
-          }),
-        })
-        last = await reply.text()
+        last = JSON.stringify(
+          await readHistoryPage(
+            protocolClients(url, () => ({ proof: proofB, tenant: tB })),
+            tB,
+            sessionId,
+            '65536',
+          ),
+        )
         outputs.push(last)
         const started = count(last, '"run.started"')
         const settled =
@@ -566,38 +556,22 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
       denied,
     )
     const proofA = savedLoginProof(homes.alice)
-    const history = await fetch(`${url}${SESSION_PATH}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        protocolVersion: 'session-public/1',
-        messageId: 'k10-read-history',
-        operation: 'read-history',
-        body: {
-          tenant: tB,
-          session: sessionId,
-          cursor: null,
-          direction: 'forward',
-          pageBytes: '65536',
-        },
-        loginProof: proofA,
-      }),
-    })
-    const historyText = await history.text()
+    const history = await readHistoryPage(
+      protocolClients(url, () => ({ proof: proofA, tenant: tB })),
+      tB,
+      sessionId,
+      '65536',
+    )
+    const historyText = JSON.stringify(history)
     outputs.push(historyText)
-    let historyOutcome: unknown
-    try {
-      historyOutcome = (JSON.parse(historyText) as { outcome?: unknown }).outcome
-    } catch {
-      historyOutcome = undefined
-    }
+    const historyOutcome: unknown = history.outcome
     steps.push({
       step: 10,
       label:
-        'A read-history of the session of B with tB (HTTP post to the session face: the CLI has no read-history command)',
+        'A read-history of the session of B with tB (protocol client of session/v1: the CLI has no read-history command)',
       command: [
-        'POST',
-        SESSION_PATH,
+        'CALL',
+        'session/v1',
         'operation=read-history',
         'tenant=tB',
         'session=<session of B>',
@@ -605,10 +579,7 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
       expected: denied,
       exitCode: null,
       outcome: typeof historyOutcome === 'string' ? historyOutcome : undefined,
-      probes: [
-        probe('the answer holds no history text', false, historyText.includes('k10 input')),
-        probe('HTTP status of the answer', 'recorded', `${String(history.status)}`),
-      ].map(entry => (entry.name === 'HTTP status of the answer' ? { ...entry, ok: true } : entry)),
+      probes: [probe('the answer holds no history text', false, historyText.includes('k10 input'))],
       ok: historyOutcome === 'denied' && !historyText.includes('k10 input'),
     })
 

@@ -25,7 +25,6 @@ import {
 } from '../../fixtures/exa-stub.ts'
 import { startModelGateway, type GatewayScript } from '../../fixtures/model-gateway.ts'
 import { PAGE_BODY_MARKER, startWebPages, type WebPages } from '../../fixtures/web-pages.ts'
-import { SESSION_PATH } from '../../r9/flow.ts'
 import {
   bodyOf,
   freePort,
@@ -33,12 +32,12 @@ import {
   newScratch,
   operatorLayer,
   runOmne,
-  savedLoginProof,
   savedTenant,
   testVaultPath,
   TEST_DEPLOYMENT_KEY,
   type CliRun,
 } from '../../r9/support.ts'
+import { entriesOf, readHistoryPage, savedClients } from '../../support/protocol-clients.ts'
 import { TEST_CONSTRUCTION, tree } from '../tool-host/support.ts'
 import { connectable, until } from '../server-entry/support.ts'
 
@@ -117,7 +116,7 @@ function withHistoryKinds(layer: unknown): unknown {
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
   return {
     ops: ops.map(op =>
-      op.id === 'server-entry'
+      op.id === 'session-access'
         ? {
             ...op,
             config: {
@@ -136,26 +135,7 @@ function withHistoryKinds(layer: unknown): unknown {
   }
 }
 
-async function post(port: number, body: unknown): Promise<{ status: number; body: string }> {
-  const response = await fetch(`http://127.0.0.1:${String(port)}${SESSION_PATH}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  return { status: response.status, body: await response.text() }
-}
-
-const readHistory = (tenant: string, session: string, loginProof: string) => ({
-  protocolVersion: 'session-public/1',
-  messageId: 'web-settings-read-history',
-  operation: 'read-history',
-  body: { tenant, session, cursor: null, direction: 'forward', pageBytes: '262144' },
-  loginProof,
-})
-
 type Entry = Readonly<{ kind: string; payload: Record<string, unknown> }>
-const entriesOf = (body: string): readonly Entry[] =>
-  (JSON.parse(body) as { body: { entries: Entry[] } }).body.entries
 const blocksOf = (entry: Entry | undefined): readonly Record<string, unknown>[] =>
   ((entry?.payload['message'] as { blocks?: Record<string, unknown>[] } | undefined)?.blocks ??
     []) as readonly Record<string, unknown>[]
@@ -273,12 +253,13 @@ async function withTree<T>(
       return String(bodyOf(created)['session'])
     }
     const history = async (who: Who, id: string) => {
-      const answer = await post(
-        port,
-        readHistory(savedTenant(homes[who]), id, savedLoginProof(homes[who])),
+      const answer = await readHistoryPage(
+        savedClients(port, homes[who]),
+        savedTenant(homes[who]),
+        id,
       )
-      expect(answer.status, answer.body).toBe(200)
-      return entriesOf(answer.body)
+      expect(answer.outcome, JSON.stringify(answer)).toBe('succeeded')
+      return entriesOf(answer)
     }
     const turn: Tools['turn'] = async (who, id, calls) => {
       const before = (await history(who, id)).length

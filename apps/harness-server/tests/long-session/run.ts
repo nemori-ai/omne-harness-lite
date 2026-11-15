@@ -13,15 +13,18 @@ import { join, resolve } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { parseArgs } from 'node:util'
 import { writeHeapSnapshot } from 'node:v8'
-import {
-  createHttpTransport,
-  createSessionClient,
-  parseTenantText,
-  userTextMessage,
-} from '@omne-harness/sdk'
 import { startAssembly } from '../history-cost/assembly.ts'
 import { PAYLOAD_FILE } from '../history-cost/payload.ts'
-import { bodyOf, savedLoginProof, savedTenant } from '../r9/support.ts'
+import { bodyOf, savedTenant } from '../r9/support.ts'
+import {
+  protocolClients,
+  readHistoryFrom,
+  readHistoryPage,
+  savedCredentials,
+  sessionRef,
+  tenantOf,
+  userTextMessage,
+} from '../support/protocol-clients.ts'
 import { judge } from './judge.ts'
 import { installWorkerCount, type PhaseCounts } from './worker-count.ts'
 
@@ -155,6 +158,7 @@ const assembly = await startAssembly('inline', undefined, {
     : {}),
 })
 const home = join(assembly.base, 'home')
+const clients = () => protocolClients(assembly.server, savedCredentials(home))
 
 async function readHistory(
   session: string,
@@ -162,24 +166,13 @@ async function readHistory(
   direction: 'forward' | 'backward',
   pageBytes: number,
 ): Promise<Page> {
-  const response = await fetch(`${assembly.server}/session-public/1`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      protocolVersion: 'session-public/1',
-      messageId: randomUUID(),
-      operation: 'read-history',
-      body:
-        cursor === null
-          ? { tenant: savedTenant(home), session, cursor, direction, pageBytes: String(pageBytes) }
-          : { tenant: savedTenant(home), session, cursor },
-      loginProof: savedLoginProof(home),
-    }),
-  })
-  const text = await response.text()
-  if (response.status !== 200)
-    throw new Error(`read-history ${String(response.status)}: ${text.slice(0, 300)}`)
-  return (JSON.parse(text) as { body: Page }).body
+  const answer =
+    cursor === null
+      ? await readHistoryPage(clients(), savedTenant(home), session, String(pageBytes), direction)
+      : await readHistoryFrom(clients(), savedTenant(home), session, cursor)
+  if (answer.outcome !== 'succeeded')
+    throw new Error(`read-history ${answer.outcome}: ${JSON.stringify(answer).slice(0, 300)}`)
+  return answer.body as unknown as Page
 }
 
 async function newestTerminal(session: string): Promise<string | null> {
@@ -223,11 +216,7 @@ try {
   const session = String(
     bodyOf(await assembly.cli(home, ['create-session', '--definition', 'coding']))['session'],
   )
-  const client = createSessionClient({
-    transport: createHttpTransport({ origin: assembly.server, location: 'session' }),
-  })
-  const tenant = parseTenantText(savedTenant(home))
-  if (tenant === undefined) throw new Error('the saved tenant does not parse')
+  const tenant = tenantOf(savedTenant(home))
 
   const calibrateAndSnapshot = async (at: number): Promise<Record<string, number>> => {
     count.setPhase(CALIBRATION - at * 1000)
@@ -257,20 +246,14 @@ try {
     const wallStart = Date.now()
     const started = performance.now()
     const inputId = randomUUID()
-    const sent = await client.submit({
-      protocolVersion: 'session-public/1',
-      messageId: randomUUID(),
-      operation: 'send-input',
-      proof: { kind: 'present', value: savedLoginProof(home) },
-      body: {
-        tenant,
-        session,
-        acceptId: randomUUID(),
-        inputId,
-        message: userTextMessage(`long session round ${String(round)}`, inputId),
-      },
-    } as Parameters<typeof client.submit>[0])
-    if (sent.kind !== 'response' || sent.message.outcome !== 'succeeded')
+    const sent = await clients().session['send-input']({
+      tenant,
+      session: sessionRef(session),
+      acceptId: randomUUID(),
+      inputId,
+      message: userTextMessage(`long session round ${String(round)}`, inputId),
+    } as Parameters<ReturnType<typeof clients>['session']['send-input']>[0])
+    if (sent.outcome !== 'succeeded')
       throw new Error(`send-input: ${JSON.stringify(sent).slice(0, 300)}`)
     const deadline = started + ROUND_LIMIT_MS
     let terminal = before
