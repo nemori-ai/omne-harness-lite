@@ -1,10 +1,9 @@
 // @vitest-environment happy-dom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import { parseInstant } from '@omne-harness/utc-instant'
-import { StrictMode } from 'react'
 import { afterEach, expect, it } from 'vitest'
-import { SessionWorkspace } from '../src/index.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
+import { mountModule } from './fixtures/shell.tsx'
 import {
   assistantEntry,
   deltaTree,
@@ -31,7 +30,7 @@ async function settle(): Promise<void> {
 
 it('主场景：新建会话、发一句话、流式回复、被历史替换、取消', async () => {
   const fake = createFakeClient()
-  render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
+  await mountModule(fake.client, TENANT)
 
   fireEvent.click(screen.getByRole('button', { name: '新建会话' }))
   const create = await fake.next('create-session')
@@ -123,7 +122,7 @@ it('主场景：新建会话、发一句话、流式回复、被历史替换、�
 
 it('发送结果未知：显示未知，用同一个受理编号认回，不重发', async () => {
   const fake = createFakeClient()
-  render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
+  await mountModule(fake.client, TENANT)
   fireEvent.click(screen.getByRole('button', { name: '新建会话' }))
   ;(await fake.next('create-session')).answer({
     outcome: 'succeeded',
@@ -151,11 +150,7 @@ it('发送结果未知：显示未知，用同一个受理编号认回，不重�
 
 it('StrictMode 下挂上、收掉、再挂上之后仍能用，只发一次建会话', async () => {
   const fake = createFakeClient()
-  render(
-    <StrictMode>
-      <SessionWorkspace client={fake.client} tenant={TENANT} />
-    </StrictMode>,
-  )
+  await mountModule(fake.client, TENANT, { strict: true })
   await settle()
   fireEvent.click(screen.getByRole('button', { name: '新建会话' }))
   ;(await fake.next('create-session')).answer({
@@ -169,7 +164,7 @@ it('StrictMode 下挂上、收掉、再挂上之后仍能用，只发一次建�
 
 it('回复增长时，已提交的那几条在 DOM 里一点不变', async () => {
   const fake = createFakeClient()
-  render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
+  await mountModule(fake.client, TENANT)
   await settle()
   fireEvent.click(screen.getByRole('button', { name: '新建会话' }))
   ;(await fake.next('create-session')).answer({
@@ -227,7 +222,7 @@ it('回复增长时，已提交的那几条在 DOM 里一点不变', async () =>
 
 it('列表项有最近活动时刻时显示它，机读的值是那个 UTC 时刻', async () => {
   const fake = createFakeClient()
-  render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
+  await mountModule(fake.client, TENANT)
   const at = parseInstant('2026-11-13T07:00:00Z')
   if (!at.ok) throw new Error('fixture instant')
   ;(await fake.next('list-sessions')).answer(
@@ -241,7 +236,7 @@ it('列表项有最近活动时刻时显示它，机读的值是那个 UTC 时�
 
 it('列表项：无标题写「未命名的会话」与标识前 8 位，无时刻不显示，已冻结标出；更多接在后面', async () => {
   const fake = createFakeClient()
-  render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
+  await mountModule(fake.client, TENANT)
   const first = await fake.next('list-sessions')
   expect(first.body).toEqual({ tenant: expect.anything(), cursor: null })
   first.answer(
@@ -277,7 +272,7 @@ it('列表项：无标题写「未命名的会话」与标识前 8 位，无时�
 
 it('刷新之后：列表里点一个旧会话，看得到历史，能接着发消息，受理后列表重读', async () => {
   const fake = createFakeClient()
-  render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
+  await mountModule(fake.client, TENANT)
   ;(await fake.next('list-sessions')).answer(listPage([listed(SESSION, '旧会话')]))
   await settle()
   fireEvent.click(screen.getByRole('button', { name: '旧会话' }))
@@ -309,7 +304,7 @@ it('刷新之后：列表里点一个旧会话，看得到历史，能接着发�
 
 it('换会话：停掉原会话的观察，新会话从头开始', async () => {
   const fake = createFakeClient()
-  render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
+  await mountModule(fake.client, TENANT)
   ;(await fake.next('list-sessions')).answer(
     listPage([listed('ses_one', '第一个'), listed('ses_two', '第二个')]),
   )
@@ -331,7 +326,7 @@ it('换会话：停掉原会话的观察，新会话从头开始', async () => {
 
 it('列表读失败：如实写在列表区，已打开的会话照常；暂时读不到可以重试', async () => {
   const fake = createFakeClient()
-  render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
+  await mountModule(fake.client, TENANT)
   const mounted = await fake.next('list-sessions')
   fireEvent.click(screen.getByRole('button', { name: '新建会话' }))
   ;(await fake.next('create-session')).answer({
@@ -361,15 +356,15 @@ it('列表读失败：如实写在列表区，已打开的会话照常；暂时�
   expect(screen.getByText('会话里的内容')).toBeTruthy()
 })
 
-it('外壳给的租户读不懂：如实说出来', () => {
+it('外壳给的租户读不懂：如实说出来', async () => {
   const fake = createFakeClient()
-  render(<SessionWorkspace client={fake.client} tenant="not-a-tenant" />)
+  await mountModule(fake.client, 'not-a-tenant')
   expect(screen.getByRole('alert').textContent).toContain('租户读不懂')
 })
 
 it('外壳重新渲染而租户没变：不重读列表，开着的会话还在', async () => {
   const fake = createFakeClient()
-  const view = render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
+  const view = await mountModule(fake.client, TENANT)
   ;(await fake.next('list-sessions')).answer(listPage([]))
   fireEvent.click(screen.getByRole('button', { name: '新建会话' }))
   ;(await fake.next('create-session')).answer({
@@ -383,7 +378,7 @@ it('外壳重新渲染而租户没变：不重读列表，开着的会话还在'
   const creates = () => fake.calls.filter(call => call.operation === 'create-session').length
   const before = fake.observations.length
 
-  view.rerender(<SessionWorkspace client={fake.client} tenant={TENANT} />)
+  view.rerender(TENANT)
   await settle()
   expect(screen.getByRole('textbox', { name: '输入消息' })).toBeTruthy()
   expect(fake.observations.length).toBe(before)

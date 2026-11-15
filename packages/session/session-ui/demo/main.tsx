@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client'
 import '../src/view/session-ui.css'
-import { SessionWorkspace } from '../src/index.ts'
+import { ConversationPage, SessionListPanel, SessionWorkspaces } from '../src/index.ts'
 import { toTree, type Plain } from '../src/model/plain.ts'
 import { createFakeClient, type FakeObservation } from '../tests/fixtures/fake-client.ts'
 
@@ -307,8 +307,14 @@ void (async () => {
 })()
 
 const root = document.getElementById('root')
+const workspaces = new SessionWorkspaces({ client: fake.client })
 if (root !== null)
-  createRoot(root).render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
+  createRoot(root).render(
+    <div className="omne-demo">
+      <SessionListPanel workspaces={workspaces} scope={TENANT} onShow={() => undefined} />
+      <ConversationPage workspaces={workspaces} scope={TENANT} />
+    </div>,
+  )
 
 const params = new URLSearchParams(location.search)
 const theme = params.get('theme')
@@ -317,7 +323,7 @@ const play = params.get('play')
 if (play !== null)
   void (async () => {
     await wait(300)
-    ;[...document.querySelectorAll<HTMLButtonElement>('.omne-session-bar button')]
+    ;[...document.querySelectorAll<HTMLButtonElement>('.omne-session-sidebar button')]
       .find(button => button.textContent === '新建会话')
       ?.click()
     await wait(800)

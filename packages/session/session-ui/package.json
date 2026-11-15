@@ -13,6 +13,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./cordis": {
+      "source": "./src/cordis.tsx",
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    },
     "./session-ui.css": "./src/view/session-ui.css"
   },
   "files": [
@@ -28,9 +33,13 @@
     "demo": "node demo/serve.mjs"
   },
   "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/client-assembly": "workspace:*",
     "@omne-harness/public-contract": "workspace:*",
     "@omne-harness/sdk": "workspace:*",
     "@omne-harness/session-protocol": "workspace:*",
+    "@omne-harness/shell-contract": "workspace:*",
+    "@omne-harness/ui-kit": "workspace:*",
     "@omne-harness/utc-instant": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:",
