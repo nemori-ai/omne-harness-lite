@@ -396,6 +396,18 @@ it('InlineConfirm backs out with its cancel label and with Escape', () => {
   expect(onConfirm).not.toHaveBeenCalled()
 })
 
+it('InlineConfirm says cancel in Chinese unless the caller says otherwise', () => {
+  render(
+    <TooltipProvider>
+      <InlineConfirm tone="default" confirmLabel="确定" onConfirm={() => undefined}>
+        执行
+      </InlineConfirm>
+    </TooltipProvider>,
+  )
+  fireEvent.click(screen.getByRole('button', { name: '执行' }))
+  expect(screen.getByRole('button', { name: '取消' })).toBeTruthy()
+})
+
 it('ImpactPanel lists what changes and what stays, and confirms or cancels', async () => {
   const onConfirm = vi.fn()
   const onOpenChange = vi.fn()

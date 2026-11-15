@@ -39,14 +39,18 @@ it('ownsTyping is true inside a field and false in a plain element', () => {
   expect(ownsTyping(null)).toBe(false)
 })
 
-it('moveRegion walks the keyboard regions and wraps around', () => {
+it('moveRegion walks the keyboard regions in both directions and wraps around', () => {
   document.body.innerHTML =
-    '<section data-keyboard-region><button id="a">a</button></section><section data-keyboard-region><button id="b">b</button></section>'
+    '<section data-keyboard-region><button id="a">a</button></section><section data-keyboard-region><button id="b">b</button></section><section data-keyboard-region><button id="c">c</button></section>'
   document.getElementById('a')?.focus()
   expect(moveRegion('next')).toBe(true)
   expect(document.activeElement?.id).toBe('b')
   expect(moveRegion('next')).toBe(true)
+  expect(document.activeElement?.id).toBe('c')
+  expect(moveRegion('next')).toBe(true)
   expect(document.activeElement?.id).toBe('a')
+  expect(moveRegion('previous')).toBe(true)
+  expect(document.activeElement?.id).toBe('c')
   expect(moveRegion('previous')).toBe(true)
   expect(document.activeElement?.id).toBe('b')
 })
@@ -115,7 +119,9 @@ it('navigateWithin focuses the search field, scrolls a reading surface, and repo
   const scrollTo = vi.fn()
   Object.assign(reading, { scrollBy, scrollTo })
   expect(navigateWithin('j')).toBe(true)
-  expect(scrollBy).toHaveBeenCalledWith({ top: 80, behavior: 'instant' })
+  expect(scrollBy).toHaveBeenLastCalledWith({ top: 80, behavior: 'instant' })
+  expect(navigateWithin('k')).toBe(true)
+  expect(scrollBy).toHaveBeenLastCalledWith({ top: -80, behavior: 'instant' })
   expect(navigateWithin('gg')).toBe(true)
   expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'instant' })
   document.body.innerHTML = '<section data-keyboard-region><button id="x">x</button></section>'

@@ -229,6 +229,7 @@ it('Tooltip shows its text when its trigger takes focus and names it as a toolti
     screen.getByRole('button', { name: '提示' }).focus()
   })
   expect((await screen.findByRole('tooltip')).textContent).toContain('这是说明')
+  expect(document.querySelector('[data-slot="tooltip-content"]')?.textContent).toContain('这是说明')
 })
 
 it('Popover opens from its trigger and closes on a second press', async () => {
@@ -243,7 +244,7 @@ it('Popover opens from its trigger and closes on a second press', async () => {
   const trigger = screen.getByRole('button', { name: '更多' })
   expect(trigger.getAttribute('aria-expanded')).toBe('false')
   fireEvent.click(trigger)
-  expect(await screen.findByText('面板内容')).toBeTruthy()
+  expect((await screen.findByText('面板内容')).getAttribute('data-slot')).toBe('popover-content')
   expect(trigger.getAttribute('aria-expanded')).toBe('true')
   fireEvent.click(trigger)
   expect(trigger.getAttribute('aria-expanded')).toBe('false')
@@ -286,6 +287,7 @@ it('DropdownMenu opens from its trigger and runs the chosen item', async () => {
   const trigger = screen.getByRole('button', { name: '菜单' })
   fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false })
   const item = await screen.findByRole('menuitem', { name: '重命名' })
+  expect(screen.getByRole('menu').getAttribute('data-slot')).toBe('dropdown-menu-content')
   fireEvent.click(item)
   expect(onSelect).toHaveBeenCalledTimes(1)
 })

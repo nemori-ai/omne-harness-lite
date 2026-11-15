@@ -22,14 +22,23 @@ function fakeRoot(): ThemeRoot & { readonly classes: Set<string> } {
 
 function fakeSystem(initialDark: boolean) {
   const listeners = new Set<() => void>()
+  let adds = 0
+  let removes = 0
   const query = {
     matches: initialDark,
-    addEventListener: (_type: 'change', listener: () => void) => void listeners.add(listener),
-    removeEventListener: (_type: 'change', listener: () => void) => void listeners.delete(listener),
+    addEventListener: (_type: 'change', listener: () => void) => {
+      adds += 1
+      listeners.add(listener)
+    },
+    removeEventListener: (_type: 'change', listener: () => void) => {
+      removes += 1
+      listeners.delete(listener)
+    },
   } satisfies ColorSchemeQuery & { matches: boolean }
   return {
     query: query as ColorSchemeQuery & { matches: boolean },
     listeners,
+    calls: () => ({ adds, removes }),
     flip(dark: boolean) {
       query.matches = dark
       for (const listener of listeners) listener()
@@ -125,6 +134,7 @@ it('moving from system to an explicit choice lets go of the machine, and back at
   controller.select('system')
   controller.select('system')
   expect(system?.listeners.size).toBe(1)
+  expect(system?.calls()).toEqual({ adds: 2, removes: 1 })
 })
 
 it('dispose lets go of the machine and leaves the last theme on the page', () => {
