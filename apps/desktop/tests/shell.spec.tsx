@@ -8,6 +8,7 @@ import type {
   ShellLogin,
   ShellLoginState,
 } from '@omne-harness/shell-contract'
+import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import type { ResolvedTheme, ThemeChoice } from '@omne-harness/ui-kit'
 import type { Connectivity } from '../src/page/connectivity.ts'
 import { DesktopShell, shellPlugin } from '../src/page/shell/service.ts'
@@ -296,6 +297,36 @@ describe('外壳：地标', () => {
       ).toBe(true)
     },
   )
+})
+
+describe('外壳：读位置的快照', () => {
+  it('放进一项之后渲染次数有界，没有变化时不再渲染', async () => {
+    let renders = 0
+    const counted = defineUiModule({
+      name: 'counted',
+      inject: [CHAT],
+      apply(shell) {
+        shell.contribute('sidebar', {
+          id: 'counted',
+          order: 0,
+          render: () => {
+            renders += 1
+            return '计数占位'
+          },
+        })
+      },
+    })
+    const t = await setup({ login: 'signed-in', modules: [counted] })
+    await t.provide(CHAT)
+    expect(screen.getByText('计数占位')).toBeTruthy()
+    expect(renders).toBeGreaterThan(0)
+    expect(renders).toBeLessThanOrEqual(4)
+    const settled = renders
+    await act(async () => {
+      await settle()
+    })
+    expect(renders).toBe(settled)
+  })
 })
 
 describe('外壳：去掉界面模块', () => {
