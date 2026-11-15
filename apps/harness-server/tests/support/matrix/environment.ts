@@ -8,13 +8,13 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs'
-import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Readable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 import { DEFAULT_SHUTDOWN_DEADLINE_MS } from '../../../dist/local/operator-defaults.js'
 import { localServeInputs } from '../../../dist/local/serve-local.js'
+import { freePort } from '../listening.ts'
 
 const memberDir = fileURLToPath(new URL('../../..', import.meta.url))
 const serverBin = join(memberDir, 'dist', 'bin.js')
@@ -62,18 +62,6 @@ export type Environment = Readonly<{
   cpuPercent(seconds: number): Promise<number>
   dispose(): Promise<string[]>
 }>
-
-function freePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const probe = createServer()
-    probe.on('error', reject)
-    probe.listen(0, '127.0.0.1', () => {
-      const address = probe.address()
-      const port = typeof address === 'object' && address !== null ? address.port : 0
-      probe.close(() => resolve(port))
-    })
-  })
-}
 
 function childEnv(home: string, base: string): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {

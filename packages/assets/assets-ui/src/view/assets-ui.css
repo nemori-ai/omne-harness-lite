@@ -80,7 +80,7 @@
 
 @media (min-width: 1024px) {
   .assets-setting {
-    grid-template-columns: minmax(0, 1fr) minmax(0, max-content);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);
     column-gap: var(--omne-space-page);
     align-items: start;
   }
@@ -153,6 +153,13 @@
   grid-column: 2;
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
+}
+
+.assets-setting-secret {
+  display: flex;
+  gap: var(--omne-space-inline);
+  width: 100%;
+  min-width: 0;
 }
 
 .assets-setting-actions {

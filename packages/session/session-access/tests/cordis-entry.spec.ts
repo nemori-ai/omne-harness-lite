@@ -5,6 +5,7 @@ import { readJsonText } from '@omne-harness/json-text'
 import { AccessRegistryProvider } from '@omne-harness/server-entry/cordis'
 import { SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import { createSessionAccessPlugin } from '../src/cordis.ts'
+import type { RequestJournal } from '../src/ports.ts'
 import { createJournalDouble, type JournalDouble } from './fixtures/journal-double.ts'
 import { createSessionDouble } from './fixtures/session-double.ts'
 import { createWorld, fixtureLogin, loginIdentity, resolveDefinition } from './fixtures/world.ts'
@@ -290,5 +291,78 @@ describe('the session access plugin on real Cordis', () => {
     })
     expect(answer).toEqual({ outcome: 'basis-unavailable' })
     expect(registry.enter(SESSION, 'create-session')).toBeDefined()
+  })
+
+  it('closes the journal it was still opening when it is unloaded first: admits nothing, mounts nothing', async () => {
+    const { FakeSession } = harness(true)
+    const world = createWorld()
+    const root = new Context()
+    await root.plugin(AccessRegistryProvider)
+    await root.plugin(FakeSession)
+    let opened: (journal: RequestJournal) => void = () => {}
+    const opening = new Promise<RequestJournal>(resolve => {
+      opened = resolve
+    })
+    let asked = 0
+    let closes = 0
+    let resumes = 0
+    const fiber = root.plugin(
+      createSessionAccessPlugin({
+        journal: () => {
+          asked += 1
+          return opening
+        },
+        principals: () => ({
+          actingFor: async () => ({ ok: world.issue(ALICE) }),
+          resume: async () => {
+            resumes += 1
+            return { ok: world.issue(ALICE) }
+          },
+        }),
+        facts: {
+          describe: () => ({
+            tenant: ALICE.tenant,
+            account: ALICE.account.text,
+            login: ALICE.loginText,
+          }),
+        },
+        definitions: () => resolveDefinition,
+        listing: () => ({ list: async () => ({ refused: 'basis-unavailable' }) }),
+      }),
+      {
+        maxPageBytes: 65536,
+        historyKinds: ['message.user'],
+        defaultListLimit: 50,
+        maxListLimit: 50,
+        requestQueueLimit: 8,
+        requestRetryDelaysMs: [1],
+      },
+    )
+    await vi.waitFor(() => expect(asked).toBe(1))
+    const disposing = fiber.dispose()
+    opened({
+      pending: [
+        {
+          seq: 1,
+          tenant: ALICE.tenantText,
+          session: 'ses_abcdefghijklmnopqrstuv',
+          login: ALICE.loginText,
+          acceptId: 'accept-a',
+          inputId: 'input-a',
+          message: '{}',
+        },
+      ],
+      append: async () => true,
+      close: async () => {
+        closes += 1
+      },
+    })
+    await disposing
+    await new Promise(resolve => setTimeout(resolve, 10))
+    expect(closes).toBe(1)
+    expect(resumes).toBe(0)
+    expect(root.logger.buffer.filter(logged => logged.type === 'error')).toEqual([])
+    const registry = root.accessRegistry as unknown as AccessRegistryProvider
+    expect(registry.enter(SESSION, 'send-input')).toBeUndefined()
   })
 })

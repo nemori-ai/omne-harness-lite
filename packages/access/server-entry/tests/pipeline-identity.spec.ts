@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { HttpReply } from './support/entry.ts'
 import {
   MESSAGE_ID,
+  OTHER_PROOF,
   PROOF,
   call,
   rawCall,
   startAccessFixture,
+  turn,
   type AccessFixture,
 } from './support/access-kit.ts'
 
@@ -96,7 +98,10 @@ describe('login and acting-tenant: the Authorization header', () => {
       body: '{"noteId":"n-1"}',
     })
     expect(reply.status).toBe(200)
-    expect(fixture.accessIdentity.calls).toEqual([{ method: 'identifyLogin', proof: PROOF }])
+    expect(fixture.accessIdentity.calls).toEqual([
+      { method: 'identifyLogin', proof: PROOF },
+      { method: 'identifyLogin', proof: PROOF },
+    ])
   })
 })
 
@@ -127,9 +132,13 @@ describe('login and acting-tenant: identifyLogin', () => {
   })
 
   it('identifies again on every call: no result is cached', async () => {
-    await call(fixture.port, 'read-note', { body: '{"noteId":"n-1"}' })
-    await call(fixture.port, 'read-note', { body: '{"noteId":"n-1"}' })
-    expect(methods()).toEqual(['identifyLogin', 'identifyLogin'])
+    const body = '{"noteId":"n-1","title":"t"}'
+    await call(fixture.port, 'save-note', { body })
+    await call(fixture.port, 'save-note', { body })
+    expect(methods().filter(method => method === 'identifyLogin')).toEqual([
+      'identifyLogin',
+      'identifyLogin',
+    ])
   })
 })
 
@@ -140,7 +149,7 @@ describe('login: the acting tenant is not read', () => {
       body: '{"noteId":"n-1"}',
     })
     expect(reply.status).toBe(200)
-    expect(methods()).toEqual(['identifyLogin'])
+    expect(methods()).toEqual(['identifyLogin', 'identifyLogin'])
   })
 })
 
@@ -218,5 +227,94 @@ describe('a call with no login is answered before its body is read', () => {
     expect(reply).toMatch(/^HTTP\/1\.1 403 /)
     expect(reply).toMatch(/\r\nconnection: close\r\n/i)
     expect(reply.endsWith(DENIED)).toBe(true)
+  })
+})
+
+describe('a read checks the login again before its answer is written', () => {
+  const noteBody = '{"noteId":"n-1"}'
+  const secret = 'title read before the login ended'
+  const readThen = (change: () => void) => async (_call: unknown, body: { noteId: string }) => {
+    change()
+    return { outcome: 'succeeded', body: { noteId: body.noteId, title: secret } }
+  }
+  const reports = () => methods().filter(method => method === 'reportAccess')
+
+  it('a login revoked while the handler runs is denied, with none of what was read', async () => {
+    fixture.notes.scripts['read-note'] = readThen(() => {
+      fixture.accessIdentity.identifyLogin = { kind: 'answer', value: { outcome: 'denied' } }
+    })
+    const reply = await call(fixture.port, 'read-note', { body: noteBody })
+    expect([reply.status, reply.text]).toEqual([403, DENIED])
+    expect(reply.headers['omne-message-id']).toBe(MESSAGE_ID)
+    expect(methods()).toEqual(['identifyLogin', 'identifyLogin'])
+    expect(fixture.diagnostics).toEqual([
+      {
+        code: 'access.login-revoked-before-answer',
+        path: '/api/notes/v1/read-note',
+        protocol: 'notes',
+        major: 1,
+        operation: 'read-note',
+      },
+    ])
+  })
+
+  it('the same proof now naming another account is denied', async () => {
+    const bob = fixture.accessIdentity.logins.get(OTHER_PROOF)!
+    fixture.notes.scripts['open-note'] = readThen(() => {
+      fixture.accessIdentity.identifyLogin = {
+        kind: 'answer',
+        value: { outcome: 'identified', login: bob },
+      }
+    })
+    const reply = await call(fixture.port, 'open-note', { body: noteBody })
+    expect([reply.status, reply.text]).toEqual([403, DENIED])
+  })
+
+  it.each([
+    ['answers basis-unavailable', { kind: 'answer', value: { outcome: 'basis-unavailable' } }],
+    ['throws', { kind: 'throw' }],
+    ['rejects', { kind: 'reject' }],
+  ] as const)('a second identifyLogin that %s is basis-unavailable', async (_case, behaviour) => {
+    fixture.notes.scripts['read-note'] = readThen(() => {
+      fixture.accessIdentity.identifyLogin = behaviour
+    })
+    const reply = await call(fixture.port, 'read-note', { body: noteBody })
+    expect([reply.status, reply.text]).toEqual([503, UNAVAILABLE])
+    expect(fixture.diagnostics.map(event => event.code)).toEqual([
+      behaviour.kind === 'answer' ? 'access.identity-unavailable' : 'access.identity-fault',
+    ])
+  })
+
+  it('a commit is not checked again: the port is asked once and the answer stands', async () => {
+    fixture.notes.scripts['save-note'] = async () => {
+      fixture.accessIdentity.identifyLogin = { kind: 'answer', value: { outcome: 'denied' } }
+      return { outcome: 'succeeded', body: {} }
+    }
+    const reply = await call(fixture.port, 'save-note', { body: '{"noteId":"n-1","title":"t"}' })
+    expect(reply.status).toBe(200)
+    expect(methods().filter(method => method === 'identifyLogin')).toEqual(['identifyLogin'])
+  })
+
+  it('an operation that needs no login is not checked', async () => {
+    const reply = await call(fixture.port, 'ping', { body: '{}' })
+    expect(reply.status).toBe(200)
+    await turn()
+    expect(fixture.accessIdentity.calls).toEqual([])
+  })
+
+  it('a read that stands is reported once; a read turned to denied is not reported', async () => {
+    const stands = await call(fixture.port, 'open-note', { body: noteBody })
+    expect(stands.status).toBe(200)
+    await fixture.accessIdentity.called('reportAccess')
+    await turn()
+    expect(reports()).toEqual(['reportAccess'])
+
+    fixture.notes.scripts['open-note'] = readThen(() => {
+      fixture.accessIdentity.identifyLogin = { kind: 'answer', value: { outcome: 'denied' } }
+    })
+    const turned = await call(fixture.port, 'open-note', { body: noteBody })
+    expect(turned.status).toBe(403)
+    await turn()
+    expect(reports()).toEqual(['reportAccess'])
   })
 })

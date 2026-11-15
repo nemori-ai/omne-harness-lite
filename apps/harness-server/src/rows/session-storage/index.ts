@@ -53,6 +53,10 @@ import { monotonicClock } from '../../shutdown.ts'
 import { storageCatalog } from '../storage/catalog.ts'
 import { systemActionAuthorizationKey } from '../authorization/system-action-service.ts'
 import { sessionPermissionBackendKey } from '../governance/session-permission-backend-service.ts'
+import {
+  TenantDomainRegistrationService,
+  tenantDomainRegistrationKey,
+} from '../governance/tenant-domain-registration-service.ts'
 import { boundAccessCheck } from './bound.ts'
 import { SESSION_COMPOSITE_PARTICIPANTS, compositeManifestDigest } from './composite.ts'
 import { sessionStorageRowConfigSchema, type SessionStorageRowConfig } from './config.ts'
@@ -314,6 +318,17 @@ class TenantDomainLookupImpl extends TenantDomainLookupService {
   }
 }
 
+class TenantDomainRegistrationImpl extends TenantDomainRegistrationService {
+  readonly ensure: TenantDomainRegistrationService['ensure']
+  constructor(ctx: Context, directory: TenantDirectory) {
+    super(ctx)
+    this.ensure = async input => {
+      const registered = await directory.ensureRegistered(input.tenant)
+      return registered.kind === 'ready' ? { kind: 'ready' } : registered
+    }
+  }
+}
+
 class ScopeOwnersImpl extends SessionScopeOwnersService {
   readonly lookup: SessionScopeOwnersService['lookup']
   constructor(ctx: Context, source: SessionScopeOwnersService['lookup']) {
@@ -415,6 +430,7 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
   new DelegatedTransactionsImpl(ctx, checked => delegatedView(base, directory, checked))
   new TenantDomainsImpl(ctx, directory.access)
   new TenantDomainLookupImpl(ctx, directory.lookup)
+  new TenantDomainRegistrationImpl(ctx, directory)
   const bindings = createSessionPrincipalBindings({ storage, domains: directory.access })
   new PrincipalBindingsImpl(ctx, bindings)
   const scopeOwners = createSessionScopeOwners({ storage, domains: directory.access })
@@ -439,6 +455,7 @@ export const sessionStorageRow = defineRow({
       sessionDelegatedTransactionsKey,
       tenantDomainsKey,
       tenantDomainLookupKey,
+      tenantDomainRegistrationKey,
       sessionPrincipalBindingsKey,
       sessionScopeOwnersKey,
     ],

@@ -214,7 +214,8 @@ function cli(argv: readonly string[], options: InProcessOptions = {}) {
 }
 
 async function loginOwningSession(service: FakeService) {
-  await cli(['login', '--login-identifier', 'alice', '--server', service.origin])
+  const login = await cli(['login', '--login-identifier', 'alice', '--server', service.origin])
+  expect(login.code).toBe(0)
   expect(writeSessionOwners(state, new Map([[sessionId, tenantText]])).kind).toBe('written')
 }
 

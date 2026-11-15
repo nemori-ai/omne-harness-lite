@@ -189,12 +189,37 @@ function governanceAnswer(operation: string, body: Record<string, unknown>): Ans
 }
 
 const PATH = /^\/api\/[^/]+\/v1\/([^/]+)$/
+const PROBE = '/probe'
+
+const fetchFailure = (url: string): Promise<unknown> =>
+  fetch(url, { method: 'POST' }).then(
+    () => undefined,
+    (error: unknown) => error,
+  )
+
+function refusalCode(error: unknown): unknown {
+  const cause = error instanceof Error ? error.cause : undefined
+  return typeof cause === 'object' && cause !== null && 'code' in cause ? cause.code : undefined
+}
 
 export async function startFakeService(
   answer: (seen: Seen) => Answer = defaultAnswer,
 ): Promise<FakeService> {
+  for (;;) {
+    const service = await listenFakeService(answer)
+    if ((await fetchFailure(`${service.origin}${PROBE}`)) === undefined) return service
+    await service.close()
+  }
+}
+
+async function listenFakeService(answer: (seen: Seen) => Answer): Promise<FakeService> {
   const seen: Seen[] = []
   const server = createServer((request, response) => {
+    if (request.url === PROBE) {
+      request.resume()
+      response.end()
+      return
+    }
     const chunks: Buffer[] = []
     request.on('data', (chunk: Buffer) => chunks.push(chunk))
     request.on('end', () => {
@@ -229,10 +254,12 @@ export async function startFakeService(
   }
 }
 
+const NEVER_ASSIGNED_PORTS = [2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 18]
+
 export async function closedPort(): Promise<number> {
-  const server = createServer()
-  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
-  const { port } = server.address() as AddressInfo
-  await new Promise<void>(resolve => server.close(() => resolve()))
-  return port
+  for (const port of NEVER_ASSIGNED_PORTS) {
+    const failure = await fetchFailure(`http://127.0.0.1:${port}${PROBE}`)
+    if (refusalCode(failure) === 'ECONNREFUSED') return port
+  }
+  throw new Error('no port below 1024 refuses a connection on this host')
 }

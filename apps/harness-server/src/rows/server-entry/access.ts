@@ -32,6 +32,7 @@ const CODES = [
   'access.identity-denied',
   'access.identity-unavailable',
   'access.identity-fault',
+  'access.login-revoked-before-answer',
   'access.body-over-limit',
   'access.body-rejected',
   'access.aborted',

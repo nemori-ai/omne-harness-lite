@@ -13,7 +13,7 @@ export const TELEMETRY_ROW_CONFIG = Object.freeze({
   },
 })
 
-export function freePort(): Promise<number> {
+function releasedPort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const probe = createServer()
     probe.on('error', reject)
@@ -23,6 +23,24 @@ export function freePort(): Promise<number> {
       probe.close(() => resolve(port))
     })
   })
+}
+
+async function fetchWouldConnect(port: number): Promise<boolean> {
+  const failure: unknown = await fetch(`http://127.0.0.1:${port}/`).then(
+    () => undefined,
+    (error: unknown) => error,
+  )
+  const cause = failure instanceof Error ? failure.cause : undefined
+  return (
+    typeof cause === 'object' && cause !== null && 'code' in cause && cause.code === 'ECONNREFUSED'
+  )
+}
+
+export async function freePort(): Promise<number> {
+  for (;;) {
+    const port = await releasedPort()
+    if (await fetchWouldConnect(port)) return port
+  }
 }
 
 export function connectable(host: string, port: number): Promise<boolean> {

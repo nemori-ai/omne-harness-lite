@@ -26,6 +26,8 @@
     "@omne-harness/assets-protocol": "workspace:*",
     "@omne-harness/assets-ui": "workspace:*",
     "@omne-harness/client-assembly": "workspace:*",
+    "@omne-harness/human-intervention-protocol": "workspace:*",
+    "@omne-harness/human-intervention-ui": "workspace:*",
     "@omne-harness/identity-protocol": "workspace:*",
     "@omne-harness/identity-ui": "workspace:*",
     "@omne-harness/json-text": "workspace:*",

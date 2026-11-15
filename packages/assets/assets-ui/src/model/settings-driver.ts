@@ -46,6 +46,10 @@ export class SettingsDriver {
     this.dispatch({ kind: 'set', key, pick, operation: this.#newId() })
   }
 
+  setSecret(key: string, secret: string): void {
+    this.dispatch({ kind: 'set-secret', key, secret, operation: this.#newId() })
+  }
+
   clear(key: string): void {
     this.dispatch({ kind: 'clear', key, operation: this.#newId() })
   }
@@ -91,18 +95,29 @@ export class SettingsDriver {
         return
       }
       case 'write': {
-        const { key, target, sent } = effect
+        const { key, target, sent, secret } = effect
         const { operation, expectedRevision, request } = sent
         const body = { tenant, ...target, operation, expectedRevision }
         const options = { messageId: operation }
-        void notSent(() =>
-          request.kind === 'set'
-            ? client['set-setting'](
+        const call = () => {
+          switch (request.kind) {
+            case 'set':
+              return client['set-setting'](
                 { ...body, value: { kind: 'permission', pick: request.pick } },
                 options,
               )
-            : client['clear-setting'](body, options),
-        ).then(answer => this.dispatch({ kind: 'write-answered', key, operation, answer }))
+            case 'set-secret':
+              return client['set-setting'](
+                { ...body, value: { kind: 'secret', secret: secret ?? '' } },
+                options,
+              )
+            case 'clear':
+              return client['clear-setting'](body, options)
+          }
+        }
+        void notSent(call).then(answer =>
+          this.dispatch({ kind: 'write-answered', key, operation, answer }),
+        )
         return
       }
     }

@@ -32,6 +32,7 @@ mkdirSync(shots, { recursive: true })
 
 const print = line => process.stdout.write(`${line}\n`)
 const ACCOUNT = { loginIdentifier: 'walker', credential: 'walk-pw-MARKER-5d2e' }
+const SECRET_SENTINEL = 'walk-secret-SENTINEL-8c41'
 const REPLY = ['hello from the page walk', 'a second answer that is held', 'the third answer']
 
 const sse = events => events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('')
@@ -317,6 +318,25 @@ async function walk(browser, origin, proofs) {
     return { title, written: true, cleared: true }`,
   )
   await step(
+    '设一个秘密项，再清除它',
+    `
+    const rows = () => [...document.querySelectorAll('section[data-page=settings] li.assets-setting[data-kind=secret]')]
+    const row = await wait('an editable secret', () => rows().find(item => item.querySelector('input[type=password]')))
+    const own = () => row.querySelector('.fact-list-row:nth-child(1) dd')?.textContent
+    const input = row.querySelector('input[type=password]')
+    if (own() !== '未配置') throw new Error('the secret already had a value on this layer: ' + own())
+    if (input.autocomplete !== 'off') throw new Error('the password field allows autocomplete')
+    fill(input, ${JSON.stringify(SECRET_SENTINEL)})
+    const set = await wait('an enabled set', () => [...row.querySelectorAll('button')].find(button => button.textContent.trim() === '设置' && !button.disabled))
+    set.click()
+    await wait('the field to empty at once', () => input.value === '')
+    await wait('the secret to read back as available', () => own() === '可用')
+    const clear = await wait('an enabled clear', () => [...row.querySelectorAll('button')].find(button => button.textContent.trim() === '清除' && !button.disabled))
+    clear.click()
+    await wait('the clear to land', () => own() === '未配置')
+    return { title: row.querySelector('.assets-setting-title').textContent, written: true, cleared: true }`,
+  )
+  await step(
     '被锁定的一项改不了',
     `
     const rows = [...document.querySelectorAll('section[data-page=settings] li.assets-setting')]
@@ -333,6 +353,19 @@ async function walk(browser, origin, proofs) {
     await press('button', before === 'dark' ? '换成浅色' : '换成深色')
     await wait('the other theme', () => document.documentElement.dataset.theme !== before)
     return { before, after: document.documentElement.dataset.theme, stored: localStorage.getItem('omne.theme') }`,
+  )
+  await step(
+    '「待你决定」页读得出',
+    `
+    await press('.shell-nav-link', '待你决定')
+    const page = await wait('the decisions page', () => document.querySelector('.hitl-decisions'))
+    const settled = await wait('the list to settle', () => {
+      if ([...page.querySelectorAll('button')].some(button => button.textContent.trim() === '重试')) return 'failed'
+      if (page.querySelector('.hitl-cards') !== null) return 'cards'
+      return page.textContent.includes('现在没有要你决定的事') ? 'empty' : undefined
+    })
+    if (settled === 'failed') throw new Error('the pending decisions did not read: ' + page.innerText)
+    return { state: settled, cards: page.querySelectorAll('.hitl-cards > li').length }`,
   )
   await step(
     '切回对话，退出登录',
@@ -355,7 +388,7 @@ async function walk(browser, origin, proofs) {
   await step(
     '页面里搜不到登录证明与密码',
     `
-    const needles = ${JSON.stringify([...proofs, ACCOUNT.credential])}
+    const needles = ${JSON.stringify([...proofs, ACCOUNT.credential, SECRET_SENTINEL])}
     const places = [document.cookie, document.documentElement.outerHTML]
     for (const store of [localStorage, sessionStorage])
       for (let i = 0; i < store.length; i += 1) places.push(store.key(i), store.getItem(store.key(i)))

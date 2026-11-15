@@ -498,6 +498,14 @@
       "source": "packages/human-intervention/SPEC.md"
     },
     {
+      "id": "packages/human-intervention/human-intervention-ui",
+      "paths": ["packages/human-intervention/human-intervention-ui/src/**"],
+      "layer": "unknown",
+      "domains": [],
+      "status": "candidate",
+      "source": "packages/human-intervention/SPEC.md"
+    },
+    {
       "id": "packages/common/stream-arrival",
       "paths": ["packages/common/stream-arrival/src/**"],
       "layer": "contract",
