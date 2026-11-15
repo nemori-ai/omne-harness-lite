@@ -265,7 +265,7 @@ Cordis 回答「接什么线、线什么时候在」。「线上跑的是什么�
 
 - `docs/domains/core-supply-demand.md`「核心链路与事实归属」
 - `docs/domains/boundaries.md`「协作与依赖方向」「关键接缝与组合承担者」
-- `docs/architecture/data-and-state.md`「每类权威事实有唯一写入者」；`packages/session/session-storage-sql/docs/commit-basis.md`：会话日志的唯一写入者与提交方
+- `docs/architecture/data-and-state.md`「每类权威事实有唯一写入者」；`packages/session/SPEC.md`「日志与提交」：会话日志的唯一写入者与提交方
 - `docs/domains/extending-the-system.md`
 - `docs/architecture/structure.md`「新增与扩展」
 - `docs/architecture/layers-and-dependencies.md`「依赖方向与Cordis集成」

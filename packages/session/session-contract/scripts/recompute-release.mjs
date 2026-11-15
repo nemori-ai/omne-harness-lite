@@ -23,5 +23,5 @@ const content = ['INITIALIZATION', 'SESSION']
   .join('')
 if (process.argv[2] === '--write') writeFileSync(new URL('release-digests.ts', root), content)
 else if (process.argv.length > 2)
-  throw new Error('usage: node docs/recompute-release.mjs [--write]')
+  throw new Error('usage: node scripts/recompute-release.mjs [--write]')
 console.log(JSON.stringify({ files: paths.map(path => `src/${path}`), digest }, null, 2))
