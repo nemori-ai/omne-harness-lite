@@ -26,6 +26,99 @@ function notSent<T>(call: () => Promise<T>): Promise<T | { readonly outcome: 'un
     .catch(() => ({ outcome: 'unavailable' as const }))
 }
 
+type Peer = Readonly<{ client: ClientOf<SessionProtocol>; tenant: TenantId }>
+
+type CallEffect = Exclude<
+  WorkspaceEffect,
+  { kind: 'observe' | 'stop-observing' | 'reconnect-later' }
+>
+
+type Calls = {
+  readonly [K in CallEffect['kind']]: (
+    effect: Extract<CallEffect, { kind: K }>,
+    peer: Peer,
+  ) => Promise<WorkspaceEvent>
+}
+
+function historyBody(
+  tenant: TenantId,
+  session: string,
+  request: Extract<CallEffect, { kind: 'read-history' }>['request'],
+) {
+  return request.cursor === null
+    ? {
+        tenant,
+        session,
+        cursor: null,
+        direction: 'backward' as const,
+        pageBytes: HISTORY_PAGE_BYTES,
+      }
+    : { tenant, session, cursor: request.cursor }
+}
+
+const CALLS: Calls = {
+  'list-sessions': ({ token, cursor }, { client, tenant }) =>
+    notSent(() => client['list-sessions']({ tenant, cursor })).then(answer => ({
+      kind: 'list-read',
+      token,
+      answer,
+    })),
+  'create-session': ({ createCallId }, { client }) =>
+    notSent(() => client['create-session']({ createCallId, purpose: '' })).then(answer => ({
+      kind: 'create-answered',
+      createCallId,
+      answer,
+    })),
+  'query-create-session': ({ createCallId }, { client, tenant }) =>
+    notSent(() => client['query-create-session']({ tenant, createCallId })).then(answer => ({
+      kind: 'create-confirmed',
+      createCallId,
+      answer,
+    })),
+  'send-input': ({ session, acceptId, inputId, text }, { client, tenant }) =>
+    notSent(async () =>
+      client['send-input']({
+        tenant,
+        session,
+        acceptId,
+        inputId,
+        message: await userTextMessage(text, inputId),
+      }),
+    ).then(answer => ({ kind: 'send-answered', session, acceptId, answer })),
+  'query-send-input': ({ session, acceptId }, { client, tenant }) =>
+    notSent(() => client['query-send-input']({ tenant, session, acceptId })).then(answer => ({
+      kind: 'send-confirmed',
+      session,
+      acceptId,
+      answer,
+    })),
+  'cancel-run': ({ session, run, controlId }, { client, tenant }) =>
+    notSent(() =>
+      client['cancel-run']({ tenant, session, run, controlId, urgency: 'graceful' }),
+    ).then(answer => ({ kind: 'cancel-answered', session, controlId, answer })),
+  'read-history': ({ session, token, request }, { client, tenant }) =>
+    notSent(() => client['read-history'](historyBody(tenant, session, request))).then(answer => ({
+      kind: 'history-read',
+      session,
+      token,
+      answer,
+    })),
+  'read-waiting': ({ session, token }, { client, tenant }) =>
+    notSent(() => client['read-waiting']({ tenant, session })).then(answer => ({
+      kind: 'waiting-read',
+      session,
+      token,
+      answer,
+    })),
+  'retry-run': ({ session, run, controlId }, { client, tenant }) =>
+    notSent(() => client['retry-run']({ tenant, session, run, controlId })).then(answer => ({
+      kind: 'retry-answered',
+      session,
+      controlId,
+      answer,
+    })),
+}
+
 export class SessionDriver {
   #state: Workspace = INITIAL_WORKSPACE
   readonly #listeners = new Set<() => void>()
@@ -110,87 +203,7 @@ export class SessionDriver {
   }
 
   #run(effect: WorkspaceEffect): void {
-    const { client, tenant } = this.#deps
     switch (effect.kind) {
-      case 'list-sessions': {
-        const { token, cursor } = effect
-        void notSent(() => client['list-sessions']({ tenant, cursor })).then(answer =>
-          this.dispatch({ kind: 'list-read', token, answer }),
-        )
-        return
-      }
-      case 'create-session': {
-        const { createCallId } = effect
-        void notSent(() => client['create-session']({ createCallId, purpose: '' })).then(answer =>
-          this.dispatch({ kind: 'create-answered', createCallId, answer }),
-        )
-        return
-      }
-      case 'query-create-session': {
-        const { createCallId } = effect
-        void notSent(() => client['query-create-session']({ tenant, createCallId })).then(answer =>
-          this.dispatch({ kind: 'create-confirmed', createCallId, answer }),
-        )
-        return
-      }
-      case 'send-input': {
-        const { session, acceptId, inputId, text } = effect
-        void notSent(async () =>
-          client['send-input']({
-            tenant,
-            session,
-            acceptId,
-            inputId,
-            message: await userTextMessage(text, inputId),
-          }),
-        ).then(answer => this.dispatch({ kind: 'send-answered', session, acceptId, answer }))
-        return
-      }
-      case 'query-send-input': {
-        const { session, acceptId } = effect
-        void notSent(() => client['query-send-input']({ tenant, session, acceptId })).then(answer =>
-          this.dispatch({ kind: 'send-confirmed', session, acceptId, answer }),
-        )
-        return
-      }
-      case 'cancel-run': {
-        const { session, run, controlId } = effect
-        void notSent(() =>
-          client['cancel-run']({ tenant, session, run, controlId, urgency: 'graceful' }),
-        ).then(answer => this.dispatch({ kind: 'cancel-answered', session, controlId, answer }))
-        return
-      }
-      case 'read-history': {
-        const { session, token, request } = effect
-        const body =
-          request.cursor === null
-            ? {
-                tenant,
-                session,
-                cursor: null,
-                direction: 'backward' as const,
-                pageBytes: HISTORY_PAGE_BYTES,
-              }
-            : { tenant, session, cursor: request.cursor }
-        void notSent(() => client['read-history'](body)).then(answer =>
-          this.dispatch({ kind: 'history-read', session, token, answer }),
-        )
-        return
-      }
-      case 'read-waiting': {
-        const { session, token } = effect
-        void notSent(() => client['read-waiting']({ tenant, session })).then(answer =>
-          this.dispatch({ kind: 'waiting-read', session, token, answer }),
-        )
-        return
-      }
-      case 'retry-run': {
-        const { session, run, controlId } = effect
-        void notSent(() => client['retry-run']({ tenant, session, run, controlId })).then(answer =>
-          this.dispatch({ kind: 'retry-answered', session, controlId, answer }),
-        )
-        return
-      }
       case 'observe':
         void this.#observe(effect.session, effect.generation)
         return
@@ -198,16 +211,29 @@ export class SessionDriver {
         this.#observations.get(effect.generation)?.abort()
         this.#observations.delete(effect.generation)
         return
-      case 'reconnect-later': {
-        const { session, generation, delayMs } = effect
-        const cancel = this.#deps.schedule(() => {
-          this.#timers.delete(cancel)
-          this.dispatch({ kind: 'reconnect-due', session, generation })
-        }, delayMs)
-        this.#timers.add(cancel)
+      case 'reconnect-later':
+        this.#reconnectLater(effect)
         return
+      default: {
+        const call = CALLS[effect.kind] as (
+          effect: CallEffect,
+          peer: Peer,
+        ) => Promise<WorkspaceEvent>
+        void call(effect, this.#deps).then(event => this.dispatch(event))
       }
     }
+  }
+
+  #reconnectLater({
+    session,
+    generation,
+    delayMs,
+  }: Extract<WorkspaceEffect, { kind: 'reconnect-later' }>): void {
+    const cancel = this.#deps.schedule(() => {
+      this.#timers.delete(cancel)
+      this.dispatch({ kind: 'reconnect-due', session, generation })
+    }, delayMs)
+    this.#timers.add(cancel)
   }
 
   async #observe(session: string, generation: number): Promise<void> {

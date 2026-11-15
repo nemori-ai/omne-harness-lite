@@ -184,49 +184,41 @@ function leave(state: State): Effect[] {
     : []
 }
 
+type Handlers = {
+  readonly [K in Event['kind']]: (state: State, event: Extract<Event, { kind: K }>) => Step
+}
+
+const HANDLERS: Handlers = {
+  create: (state, event) => onCreate(state, event.createCallId),
+  'create-answered': (state, event) => onCreateAnswered(state, event),
+  'create-confirm': state => onCreateConfirm(state),
+  'create-confirmed': (state, event) => onCreateConfirmed(state, event),
+  send: (state, event) => onSend(state, event),
+  'send-answered': (state, event) => afterSend(state, onSendAnswered(state, event)),
+  'send-confirmed': (state, event) => onSendConfirmed(state, event),
+  'send-confirm': (state, event) => onSendConfirm(state, event.acceptId),
+  cancel: (state, event) => onCancel(state, event.controlId),
+  'cancel-answered': (state, event) => onCancelAnswered(state, event),
+  frame: (state, event) => afterFrame(state, event.frame, onFrame(state, event)),
+  'observation-ended': (state, event) => onObservationEnded(state, event),
+  'reconnect-due': (state, event) => onReconnectDue(state, event),
+  'history-read': (state, event) => afterHistory(state, event, onHistoryRead(state, event)),
+  'open-session': (state, event) => onOpenSession(state, event.session),
+  'waiting-read': (state, event) =>
+    onWaiting(state, event.session, waiting =>
+      waitingRead(waiting, event.session, event.token, event.answer),
+    ),
+  retry: (state, event) =>
+    onWaiting(state, null, (waiting, session) => retry(waiting, session, event.controlId)),
+  'retry-answered': (state, event) =>
+    onWaiting(state, event.session, waiting =>
+      retryAnswered(waiting, event.session, event.controlId, event.answer),
+    ),
+}
+
 export function step(state: State, event: Event): Step {
-  switch (event.kind) {
-    case 'create':
-      return onCreate(state, event.createCallId)
-    case 'create-answered':
-      return onCreateAnswered(state, event)
-    case 'create-confirm':
-      return onCreateConfirm(state)
-    case 'create-confirmed':
-      return onCreateConfirmed(state, event)
-    case 'send':
-      return onSend(state, event)
-    case 'send-answered':
-      return afterSend(state, onSendAnswered(state, event))
-    case 'send-confirmed':
-      return onSendConfirmed(state, event)
-    case 'send-confirm':
-      return onSendConfirm(state, event.acceptId)
-    case 'cancel':
-      return onCancel(state, event.controlId)
-    case 'cancel-answered':
-      return onCancelAnswered(state, event)
-    case 'frame':
-      return afterFrame(state, event.frame, onFrame(state, event))
-    case 'observation-ended':
-      return onObservationEnded(state, event)
-    case 'reconnect-due':
-      return onReconnectDue(state, event)
-    case 'history-read':
-      return afterHistory(state, event, onHistoryRead(state, event))
-    case 'open-session':
-      return onOpenSession(state, event.session)
-    case 'waiting-read':
-      return onWaiting(state, event.session, waiting =>
-        waitingRead(waiting, event.session, event.token, event.answer),
-      )
-    case 'retry':
-      return onWaiting(state, null, (waiting, session) => retry(waiting, session, event.controlId))
-    case 'retry-answered':
-      return onWaiting(state, event.session, waiting =>
-        retryAnswered(waiting, event.session, event.controlId, event.answer),
-      )
-  }
+  const handle = HANDLERS[event.kind] as (state: State, event: Event) => Step
+  return handle(state, event)
 }
 
 function withWaiting(state: Open, next: WaitingStep, effects: readonly Effect[] = []): Step {
@@ -461,33 +453,43 @@ function onCancel(state: State, controlId: string): Step {
   }
 }
 
-function onCancelAnswered(state: State, event: Extract<Event, { kind: 'cancel-answered' }>): Step {
-  if (state.kind !== 'open' || state.session !== event.session) return same(state)
+type Cancelling = Extract<Run, { kind: 'cancelling' }>
+
+function cancelling(state: State, session: string, controlId: string): Open | null {
+  if (state.kind !== 'open' || state.session !== session) return null
   const run = state.run
-  if (run.kind !== 'cancelling' || run.controlId !== event.controlId || run.unknown)
-    return same(state)
-  const answer = event.answer
+  return run.kind === 'cancelling' && run.controlId === controlId && !run.unknown ? state : null
+}
+
+function onCancelAnswered(state: State, event: Extract<Event, { kind: 'cancel-answered' }>): Step {
+  const open = cancelling(state, event.session, event.controlId)
+  return open === null
+    ? same(state)
+    : same(cancelAnswered(open, open.run as Cancelling, event.answer))
+}
+
+function cancelAnswered(state: Open, run: Cancelling, answer: CancelAnswer): Open {
   switch (answer.outcome) {
     case 'succeeded':
-      return answer.body.kind === 'ended' ? same({ ...state, run: { kind: 'idle' } }) : same(state)
+      return answer.body.kind === 'ended' ? { ...state, run: { kind: 'idle' } } : state
     case 'unknown':
     case 'uncertain':
-      return same({
+      return {
         ...state,
         run: { ...run, unknown: true },
         notice: {
           kind: 'unknown',
           text: '取消的结果未知。可以再点一次「停止」确认，用的是同一次取消。',
         },
-      })
+      }
     case 'unavailable':
-      return same({ ...state, run: { kind: 'running', run: run.run }, notice: NOT_SENT('取消') })
+      return { ...state, run: { kind: 'running', run: run.run }, notice: NOT_SENT('取消') }
     default:
-      return same({
+      return {
         ...state,
         run: { kind: 'running', run: run.run },
         notice: refused(answer.outcome, '没有取消：'),
-      })
+      }
   }
 }
 
@@ -507,47 +509,60 @@ function behind(state: Open, revision: string): boolean {
   )
 }
 
+function observing(state: State, session: string, generation: number): Open | null {
+  if (state.kind !== 'open' || state.session !== session) return null
+  if (state.observation.generation !== generation) return null
+  return state.observation.kind === 'live'
+    ? state
+    : { ...state, observation: { kind: 'live', generation } }
+}
+
+type FrameOf<K extends ObserveSessionFrame['kind']> = Extract<ObserveSessionFrame, { kind: K }>
+
+type FrameHandlers = {
+  readonly [K in ObserveSessionFrame['kind']]: (live: Open, frame: FrameOf<K>) => Step
+}
+
+function laterRevision(held: string | null, seen: string): string {
+  return held === null || compareDecimal(held, seen) < 0 ? seen : held
+}
+
+const FRAME: FrameHandlers = {
+  state: (live, frame) => {
+    const run = runAfter(live.run, frame.run)
+    const revision = laterRevision(live.revision, frame.revision)
+    const content = run.kind === 'idle' ? settleLive(live.content, revision) : live.content
+    const next: Open = { ...live, run, revision, content }
+    return behind(next, revision) ? startHistoryRead(next) : same(next)
+  },
+  snapshot: (live, frame) => {
+    const applied = applySnapshot(live.content, frame.value, live.revision ?? '0')
+    return applied.kind === 'applied'
+      ? same({ ...live, content: applied.content })
+      : same({ ...live, notice: UNREADABLE })
+  },
+  delta: (live, frame) => {
+    const applied = applyDelta(live.content, frame.value)
+    if (applied.kind === 'applied') return same({ ...live, content: applied.content })
+    if (applied.kind === 'unreadable') return same({ ...live, notice: UNREADABLE })
+    return reobserve(live, 0)
+  },
+  gap: (live, frame) =>
+    same({
+      ...live,
+      content: { ...live.content, liveStatus: { kind: 'gap', reason: frame.reason } },
+    }),
+  refreshing: live =>
+    live.run.kind === 'idle' || live.content.liveStatus !== null
+      ? same(live)
+      : same({ ...live, content: { ...live.content, liveStatus: { kind: 'refreshing' } } }),
+}
+
 function onFrame(state: State, event: Extract<Event, { kind: 'frame' }>): Step {
-  if (state.kind !== 'open' || state.session !== event.session) return same(state)
-  if (state.observation.generation !== event.generation) return same(state)
-  const live: Open =
-    state.observation.kind === 'live'
-      ? state
-      : { ...state, observation: { kind: 'live', generation: event.generation } }
-  const frame = event.frame
-  switch (frame.kind) {
-    case 'state': {
-      const run = runAfter(live.run, frame.run)
-      const revision =
-        live.revision === null || compareDecimal(live.revision, frame.revision) < 0
-          ? frame.revision
-          : live.revision
-      const content = run.kind === 'idle' ? settleLive(live.content, revision) : live.content
-      const next: Open = { ...live, run, revision, content }
-      return behind(next, revision) ? startHistoryRead(next) : same(next)
-    }
-    case 'snapshot': {
-      const applied = applySnapshot(live.content, frame.value, live.revision ?? '0')
-      return applied.kind === 'applied'
-        ? same({ ...live, content: applied.content })
-        : same({ ...live, notice: UNREADABLE })
-    }
-    case 'delta': {
-      const applied = applyDelta(live.content, frame.value)
-      if (applied.kind === 'applied') return same({ ...live, content: applied.content })
-      if (applied.kind === 'unreadable') return same({ ...live, notice: UNREADABLE })
-      return reobserve(live, 0)
-    }
-    case 'gap':
-      return same({
-        ...live,
-        content: { ...live.content, liveStatus: { kind: 'gap', reason: frame.reason } },
-      })
-    case 'refreshing':
-      return live.run.kind === 'idle' || live.content.liveStatus !== null
-        ? same(live)
-        : same({ ...live, content: { ...live.content, liveStatus: { kind: 'refreshing' } } })
-  }
+  const live = observing(state, event.session, event.generation)
+  if (live === null) return same(state)
+  const handle = FRAME[event.frame.kind] as (live: Open, frame: ObserveSessionFrame) => Step
+  return handle(live, event.frame)
 }
 
 const UNREADABLE: Notice = { kind: 'refused', text: '正在生成的内容读不懂，已忽略这一帧。' }
@@ -616,25 +631,35 @@ function onReconnectDue(state: State, event: Extract<Event, { kind: 'reconnect-d
   }
 }
 
+type HistoryPage = Extract<HistoryAnswer, { outcome: 'succeeded' }>['body']
+
 function onHistoryRead(state: State, event: Extract<Event, { kind: 'history-read' }>): Step {
   if (state.kind !== 'open' || state.session !== event.session) return same(state)
   if (state.history.reading !== event.token) return same(state)
   const answer = event.answer
+  if (answer.outcome === 'succeeded') return historyPage(state, event.token, answer.body)
+  return same(historyRefused(state, answer))
+}
+
+function historyRefused(
+  state: Open,
+  answer: Exclude<HistoryAnswer, { outcome: 'succeeded' }>,
+): State {
   if (answer.outcome === 'denied')
-    return same({
+    return {
       kind: 'unavailable',
       session: state.session,
       content: state.content,
       notice: { kind: 'refused', text: '会话不可用：没有权限读这个会话，或登录已失效。' },
-    })
-  if (answer.outcome !== 'succeeded') {
-    const failure: Notice =
-      answer.outcome === 'unavailable' || answer.outcome === 'uncertain'
-        ? { kind: 'unavailable', text: '历史暂时读不到，有新内容时会再读。' }
-        : refused(answer.outcome, '历史没有读到：')
-    return same({ ...state, history: { ...state.history, reading: null, again: false, failure } })
-  }
-  const page = answer.body
+    }
+  const failure: Notice =
+    answer.outcome === 'unavailable' || answer.outcome === 'uncertain'
+      ? { kind: 'unavailable', text: '历史暂时读不到，有新内容时会再读。' }
+      : refused(answer.outcome, '历史没有读到：')
+  return { ...state, history: { ...state.history, reading: null, again: false, failure } }
+}
+
+function historyPage(state: Open, token: number, page: HistoryPage): Step {
   const known = reachesKnown(state.content, page.entries)
   const content = mergeHistory(state.content, page.entries)
   const merged: Open = { ...state, content, inputs: uncommittedInputs(content, state.inputs) }
@@ -642,16 +667,18 @@ function onHistoryRead(state: State, event: Extract<Event, { kind: 'history-read
     return {
       state: merged,
       effects: [
-        {
-          kind: 'read-history',
-          session: state.session,
-          token: event.token,
-          request: { cursor: page.next },
-        },
+        { kind: 'read-history', session: state.session, token, request: { cursor: page.next } },
       ],
     }
-  const read = readThroughTo(merged.content, page.upper)
-  const done: Open = {
+  const done = historyDone(merged, page.upper)
+  return state.history.again || (done.revision !== null && behind(done, done.revision))
+    ? startHistoryRead(done)
+    : same(done)
+}
+
+function historyDone(merged: Open, upper: string): Open {
+  const read = readThroughTo(merged.content, upper)
+  return {
     ...merged,
     history: { ...merged.history, reading: null, again: false, failure: null },
     content:
@@ -659,9 +686,6 @@ function onHistoryRead(state: State, event: Extract<Event, { kind: 'history-read
         ? settleLive(read, merged.revision)
         : read,
   }
-  return state.history.again || (done.revision !== null && behind(done, done.revision))
-    ? startHistoryRead(done)
-    : same(done)
 }
 
 function uncommittedInputs(

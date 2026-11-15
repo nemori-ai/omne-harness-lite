@@ -146,19 +146,13 @@ function projectionOf(tree: JsonTree): Projection | null {
     if (block === null) return null
     blocks.push(block)
   }
-  const base = value['base']
-  const baseCursor = isRecord(base) ? textOf(base['cursor']) : undefined
-  const baseRevision = isRecord(base) ? textOf(base['revision']) : undefined
-  return {
-    cursor,
-    revision,
-    phase: textOf(value['phase']),
-    base:
-      baseCursor === undefined || baseRevision === undefined
-        ? undefined
-        : { cursor: baseCursor, revision: baseRevision },
-    blocks,
-  }
+  return { cursor, revision, phase: textOf(value['phase']), base: baseOf(value['base']), blocks }
+}
+
+function baseOf(base: Plain | undefined): Projection['base'] {
+  const cursor = isRecord(base) ? textOf(base['cursor']) : undefined
+  const revision = isRecord(base) ? textOf(base['revision']) : undefined
+  return cursor === undefined || revision === undefined ? undefined : { cursor, revision }
 }
 
 export type LiveApplied =
