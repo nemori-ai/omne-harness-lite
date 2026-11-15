@@ -1,5 +1,5 @@
 import { createAccessRegistry } from '../../src/index.ts'
-import { send, startFixture, type HttpReply } from '../support/harness.ts'
+import { send, startEntry, type HttpReply } from '../support/entry.ts'
 import {
   MESSAGE_ID,
   PROOF,
@@ -7,7 +7,7 @@ import {
   observe,
   scriptedNotes,
   testIdentity,
-} from '../support/pipeline-kit.ts'
+} from '../support/access-kit.ts'
 
 const serve = process.argv.includes('--serve')
 const say = (line = ''): void => console.log(line)
@@ -16,7 +16,7 @@ const registry = createAccessRegistry()
 const identity = testIdentity()
 let notes = scriptedNotes()
 let takeDown = registry.mount(notes.contribution)
-const fixture = await startFixture({
+const fixture = await startEntry({
   ...(serve ? { config: { heartbeatIntervalMs: 15_000 } } : {}),
   access: {
     registry,

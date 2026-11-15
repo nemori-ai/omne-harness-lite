@@ -1,5 +1,5 @@
 import { createInterface } from 'node:readline'
-import { startAccessFixture } from '../support/pipeline-kit.ts'
+import { startAccessFixture } from '../support/access-kit.ts'
 
 const line = (value: unknown): void => {
   process.stdout.write(`${JSON.stringify(value)}\n`)

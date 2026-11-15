@@ -9,7 +9,7 @@ import {
 } from '../observation-hub/hub.ts'
 import type { LoginCheck } from '../observation-hub/records.ts'
 import type { AccessRegistry, Entered, RegistryForPipeline } from '../registry/registry.ts'
-import { settleCall, systemClock, type Clock } from '../settle/settle.ts'
+import { settleCall, systemClock, type Clock, type SettleNote } from '../settle/settle.ts'
 import { parseAddress, pathOf, type Address } from './address.ts'
 import { EMPTY_BODY, writeAnswer, writeBare } from './answer.ts'
 import { readBody } from './body.ts'
@@ -48,6 +48,7 @@ export type PipelineDiagnosticCode =
   | 'access.caller-gone'
   | 'access.listener-fault'
   | 'access.report-fault'
+  | SettleNote
   | HubDiagnosticCode
 
 export type PipelineDiagnostic = Readonly<{
@@ -286,6 +287,7 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
       clock,
       respond: answer => writeAnswer(res, { ...answer, messageId, close: false }),
       ...(login === undefined ? {} : { reportAccess: () => report(login.identity, note) }),
+      note,
     })
   }
 
@@ -306,29 +308,40 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
     Promise.resolve(pending).catch(() => note('access.report-fault'))
   }
 
+  async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const admission = admit(req, access.registry, settings.loopback)
+    if (admission.kind === 'refused') {
+      diagnose(eventOf(admission.code, admission.path, admission.address))
+      writeBare(res, admission.status, admission.status === 405 ? { allow: 'POST' } : {})
+      return
+    }
+    const release = settings.slots.take(res)
+    if (release === undefined) {
+      diagnose(eventOf('access.busy', admission.address.path, admission.address))
+      writeBare(res, 429, { 'x-omne-limit': 'in-flight-requests' })
+      admission.entered.leave()
+      return
+    }
+    try {
+      await serve(req, res, admission)
+    } catch (fault) {
+      admission.entered.leave()
+      throw fault
+    } finally {
+      release()
+    }
+  }
+
   return {
     endObservations: () => hub.endAll(),
     async handle(req, res) {
-      const admission = admit(req, access.registry, settings.loopback)
-      if (admission.kind === 'refused') {
-        diagnose(eventOf(admission.code, admission.path, admission.address))
-        writeBare(res, admission.status, admission.status === 405 ? { allow: 'POST' } : {})
-        return
-      }
-      const release = settings.slots.take(res)
-      if (release === undefined) {
-        diagnose(eventOf('access.busy', admission.address.path, admission.address))
-        writeBare(res, 429, { 'x-omne-limit': 'in-flight-requests' })
-        admission.entered.leave()
-        return
-      }
       try {
-        await serve(req, res, admission)
+        await handle(req, res)
       } catch (fault) {
-        admission.entered.leave()
+        const target = req.url ?? ''
+        const address = parseAddress(target)
+        diagnose(eventOf('access.request-fault', address?.path ?? pathOf(target), address))
         throw fault
-      } finally {
-        release()
       }
     },
   }
