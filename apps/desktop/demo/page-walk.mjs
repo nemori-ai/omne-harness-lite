@@ -355,6 +355,19 @@ async function walk(browser, origin, proofs) {
     return { before, after: document.documentElement.dataset.theme, stored: localStorage.getItem('omne.theme') }`,
   )
   await step(
+    '「待你决定」页读得出',
+    `
+    await press('.shell-nav-link', '待你决定')
+    const page = await wait('the decisions page', () => document.querySelector('.hitl-decisions'))
+    const settled = await wait('the list to settle', () => {
+      if ([...page.querySelectorAll('button')].some(button => button.textContent.trim() === '重试')) return 'failed'
+      if (page.querySelector('.hitl-cards') !== null) return 'cards'
+      return page.textContent.includes('现在没有要你决定的事') ? 'empty' : undefined
+    })
+    if (settled === 'failed') throw new Error('the pending decisions did not read: ' + page.innerText)
+    return { state: settled, cards: page.querySelectorAll('.hitl-cards > li').length }`,
+  )
+  await step(
     '切回对话，退出登录',
     `
     await press('.shell-nav-link', '对话')
