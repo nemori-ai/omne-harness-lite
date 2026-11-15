@@ -1,0 +1,14 @@
+export { ShellAssemblyError, slots } from './slots.ts'
+export type {
+  GateItem,
+  GateProps,
+  ItemOf,
+  PageItem,
+  ScopedProps,
+  ShellAssemblyReason,
+  ShellSlots,
+  SidebarItem,
+  SlotItems,
+  SlotName,
+} from './slots.ts'
+export type { LoginCredentials, LoginResult, LogoutResult, ScopeSource } from './host.ts'

@@ -482,6 +482,14 @@
       "source": "packages/access/SPEC.md"
     },
     {
+      "id": "packages/frontend/shell-contract",
+      "paths": ["packages/frontend/shell-contract/src/**"],
+      "layer": "interaction",
+      "domains": [],
+      "status": "candidate",
+      "source": "packages/frontend/SPEC.md"
+    },
+    {
       "id": "packages/access/public-contract",
       "paths": ["packages/access/public-contract/src/**"],
       "layer": "contract",
