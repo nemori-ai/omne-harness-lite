@@ -9,6 +9,7 @@ const common = [
   'identity-text.ts',
   'rule.ts',
   'leaf-codec.ts',
+  'user-message.ts',
 ] as const
 
 function localImports(file: string): readonly string[] {

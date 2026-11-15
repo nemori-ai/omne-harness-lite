@@ -145,32 +145,23 @@ it('installs only the pure tarball closure and consumes both ends through dist e
       ],
       consumer,
     )
-    for (const name of ['client', 'server'])
-      copyFileSync(new URL(`./fixtures/${name}.ts`, import.meta.url), join(consumer, `${name}.ts`))
+    copyFileSync(
+      new URL('./fixtures/browser/example-protocol.ts', import.meta.url),
+      join(consumer, 'example-protocol.ts'),
+    )
     writeFileSync(
       join(consumer, 'main.ts'),
       [
-        `import { tenantCodec } from '@omne-harness/legal-identity'`,
-        `import { createSessionRequest, createSessionResponse, healthRequest, healthResponse } from './client.js'`,
-        `import { receive, receiveSession } from './server.js'`,
-        `const limits = { maxBytes: 4096, maxDepth: 16, maxItems: 128, maxMembers: 32, maxStringLength: 1024, maxNumberLength: 64 }`,
-        `const request = healthRequest('installed', limits)`,
-        `if (request.kind !== 'encoded') throw new Error('request')`,
-        `const response = receive(request.bytes, limits)`,
-        `if (response.kind !== 'encoded') throw new Error('response')`,
-        `const read = healthResponse(response.bytes, 'installed', limits)`,
-        `if (read.kind !== 'response' || read.response.outcome !== 'succeeded') throw new Error('correlation')`,
-        `const tenant = tenantCodec.parse(JSON.stringify({ organization: 'org_00000000000000000000000000', account: 'acc_00000000000000000000000000' }))`,
-        `if (!tenant.ok) throw new Error('tenant')`,
-        `const create = createSessionRequest('installed-session', tenant.value, limits)`,
-        `if (create.kind !== 'encoded') throw new Error('session request')`,
-        `const accepted = receiveSession(create.bytes, limits)`,
-        `if (accepted.kind !== 'requires-business-owner') throw new Error('session read')`,
-        `const refusal = receiveSession(new TextEncoder().encode(JSON.stringify({ protocolVersion: 'governance-public/1', messageId: 'installed-session' })), limits)`,
-        `if (refusal.kind !== 'encoded') throw new Error('session refusal')`,
-        `const refused = createSessionResponse(refusal.bytes, 'installed-session', limits)`,
-        `if (refused.kind !== 'response') throw new Error('session correlation')`,
-        `console.log(JSON.stringify({ kind: read.kind, outcome: read.response.outcome, session: { accepted: accepted.request.operation, refused: refused.response.outcome } }))`,
+        `import { readTenantText } from '@omne-harness/public-contract'`,
+        `import { exampleLimits, notesProtocol } from './example-protocol.js'`,
+        `const { body } = notesProtocol.operations['save-note']`,
+        `const written = body.write({ noteId: 'n-1', title: 'Plan', tags: ['draft'], revision: '7' }, exampleLimits)`,
+        `if (!written.ok) throw new Error('write')`,
+        `const read = body.read(written.value, exampleLimits)`,
+        `if (!read.ok) throw new Error('read')`,
+        `const refused = body.read({ kind: 'object', entries: [] }, exampleLimits)`,
+        `const tenant = readTenantText(JSON.stringify({ organization: 'org_00000000000000000000000000', account: 'acc_00000000000000000000000000' }))`,
+        `console.log(JSON.stringify({ read: read.value.noteId, refused: refused.ok, tenant: tenant !== undefined }))`,
         ``,
       ].join('\n'),
     )
@@ -190,14 +181,8 @@ it('installs only the pure tarball closure and consumes both ends through dist e
       }),
     )
     run(process.execPath, [tsc, '-p', 'tsconfig.json'], consumer)
-    const execution = JSON.parse(run(process.execPath, ['out/main.js'], consumer)) as {
-      kind: string
-      outcome: string
-      session: { accepted: string; refused: string }
-    }
-    expect(execution.kind).toBe('response')
-    expect(execution.outcome).toBe('succeeded')
-    expect(execution.session).toEqual({ accepted: 'create-session', refused: 'protocol-rejected' })
+    const execution = JSON.parse(run(process.execPath, ['out/main.js'], consumer)) as unknown
+    expect(execution).toEqual({ read: 'n-1', refused: false, tenant: true })
     const resolved = run(
       process.execPath,
       [
@@ -239,7 +224,7 @@ it('installs only the pure tarball closure and consumes both ends through dist e
         pending.push(dependency)
       }
     }
-    expect([...installed].sort()).toEqual([...Object.keys(dependencies), 'jsonc-parser'].sort())
+    expect([...installed].sort()).toEqual(Object.keys(dependencies).sort())
     for (const forbidden of [
       'server-entry',
       'identity-sql',
@@ -262,7 +247,6 @@ it('installs only the pure tarball closure and consumes both ends through dist e
       '@omne-harness/json-text',
       '@omne-harness/legal-identity',
       '@omne-harness/utc-instant',
-      'jsonc-parser',
     ])
     writeFileSync(
       join(evidence, 'install-closure.json'),
