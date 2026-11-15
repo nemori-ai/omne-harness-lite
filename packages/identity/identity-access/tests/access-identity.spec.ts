@@ -2,7 +2,7 @@ import type { LoginIdentity } from '@omne-harness/access-cordis-contract'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import { createAccessIdentity } from '@omne-harness/identity-access'
 import { describe, expect, it } from 'vitest'
-import { fixture, signUp, textOf, type Fixture } from './support.ts'
+import { fixture, signIn, signUp, textOf, type Fixture } from './support.ts'
 
 function port(f: Fixture) {
   return createAccessIdentity({
@@ -121,6 +121,30 @@ describe('createAccessIdentity', () => {
     if (resumed.outcome !== 'issued') return
     expect(resumed.principal).not.toBe(acting.principal)
     expect(await f.authority.verifier.verify(resumed.principal)).toMatchObject({ kind: 'verified' })
+  })
+
+  it('resumes the principal of a login that was revoked after it sent the request', async () => {
+    const f = fixture()
+    const identity = port(f)
+    const alice = await signUp(f.operations, 'alice')
+    const sending = await signIn(f.operations, 'alice')
+    const acting = await identity.actFor(await loginOf(identity, sending.proof), alice.tenantText)
+    if (acting.outcome !== 'issued') throw new Error(`not issued: ${acting.outcome}`)
+    const acted = acting.principal as unknown as ActingForTenantPrincipal
+    const keeper = await f.operations.recognizeLogin({ loginProof: alice.proof })
+    const sender = await f.operations.recognizeLogin({ loginProof: sending.proof })
+    if (keeper.kind !== 'recognized' || sender.kind !== 'recognized')
+      throw new Error('fixture logins were not recognized')
+
+    expect(await f.governance.revokeLogin({ login: keeper.login, target: sender.login })).toEqual({
+      kind: 'succeeded',
+    })
+    expect(await identity.identifyLogin(sending.proof)).toEqual({ outcome: 'denied' })
+
+    expect(identity.resume(alice.tenantText, acted.work.work)).toEqual({
+      outcome: 'issued',
+      principal: acted,
+    })
   })
 
   it('denies a resume for text that is not a tenant, without calling the issuer', () => {
