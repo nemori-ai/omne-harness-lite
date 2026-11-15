@@ -59,7 +59,8 @@
     "server-entry",
     "identity-access",
     "session-access",
-    "assets-access"
+    "assets-access",
+    "session-diagnostics-access"
   ],
   "trusted": [
     {
@@ -330,6 +331,12 @@
     },
     {
       "row": "assets-access",
+      "names": [
+        "principalIssuer"
+      ]
+    },
+    {
+      "row": "session-diagnostics-access",
       "names": [
         "principalIssuer"
       ]

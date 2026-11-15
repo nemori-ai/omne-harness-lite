@@ -434,6 +434,22 @@
       "source": "packages/session/SPEC.md"
     },
     {
+      "id": "packages/session/session-diagnostics-protocol",
+      "paths": ["packages/session/session-diagnostics-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["session"],
+      "status": "candidate",
+      "source": "packages/session/SPEC.md"
+    },
+    {
+      "id": "packages/session/session-diagnostics-access",
+      "paths": ["packages/session/session-diagnostics-access/src/**"],
+      "layer": "unknown",
+      "domains": ["session"],
+      "status": "candidate",
+      "source": "packages/session/SPEC.md"
+    },
+    {
       "id": "packages/assets/assets-protocol",
       "paths": ["packages/assets/assets-protocol/src/**"],
       "layer": "contract",

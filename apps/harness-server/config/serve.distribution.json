@@ -559,6 +559,11 @@
       "id": "assets-access",
       "plugin": "assetsAccessRow",
       "config": {}
+    },
+    {
+      "id": "session-diagnostics-access",
+      "plugin": "sessionDiagnosticsAccessRow",
+      "config": {}
     }
   ]
 }
