@@ -10,7 +10,7 @@ import {
   modesAdoptionOf,
   type DefinitionMappingEntry,
   type DefinitionMappings,
-} from '../src/definition-mappings.ts'
+} from '../../../src/rows/agent-adoptions/definition-mappings.ts'
 
 const adoption = (name: string, digest = `d-${name}`): Adoption => ({
   owner: 'test-owner',

@@ -1,13 +1,6 @@
 import { expectTypeOf, test } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
-import type {
-  Codec,
-  RuleValue,
-  SessionOutcomes,
-  SessionRequestBodies,
-  SessionSuccessBodies,
-  TenantId,
-} from '@omne-harness/public-contract'
+import type { Codec, RuleValue, TenantId } from '@omne-harness/public-contract'
 import {
   sessionProtocol,
   type ObserveSessionFrame,
@@ -26,6 +19,126 @@ type ResultBody<N extends Name, K extends keyof Outcomes<N>> = ValueOf<Outcomes<
 type Empty = Readonly<Record<string, never>>
 type Instant = RuleValue<{ readonly kind: 'instant' }>
 type Limited = { readonly resource: 'pending-inputs' | 'input-bytes'; readonly limit: number }
+
+type JsonObject = Extract<JsonValue, { readonly kind: 'object' }>
+type Target = { readonly tenant: TenantId; readonly session: string }
+type ProducerRef = { readonly kind: 'model' | 'tool'; readonly call: string }
+type TerminalSource = {
+  readonly owner: string
+  readonly record: string
+  readonly revision: string
+  readonly digest: string
+}
+
+type SessionRequestBodies = {
+  'create-session': {
+    readonly createCallId: string
+    readonly definition: string
+    readonly purpose: string
+  }
+  'query-create-session': { readonly tenant: TenantId; readonly createCallId: string }
+  'send-input': Target & {
+    readonly acceptId: string
+    readonly inputId: string
+    readonly message: JsonObject
+  }
+  'query-send-input': Target & { readonly acceptId: string }
+  'read-history':
+    | (Target & {
+        readonly cursor: null
+        readonly direction: 'forward' | 'backward'
+        readonly pageBytes: string
+      })
+    | (Target & { readonly cursor: string })
+  'cancel-run': Target & {
+    readonly controlId: string
+    readonly run: string
+    readonly urgency: 'graceful' | 'force'
+  }
+  'stop-call': Target & { readonly controlId: string; readonly producer: ProducerRef }
+}
+
+type SessionSuccessBodies = {
+  'create-session': { readonly session: string; readonly recovered: boolean }
+  'query-create-session': { readonly session: string }
+  'send-input': { readonly recovered: boolean }
+  'query-send-input': Empty
+  'read-history': {
+    readonly entries: readonly {
+      readonly entryId: string
+      readonly revision: string
+      readonly kind: string
+      readonly payload: JsonValue
+    }[]
+    readonly next: string | null
+    readonly exhausted: boolean
+    readonly scannedThrough: string
+  }
+  'cancel-run':
+    | { readonly kind: 'requested'; readonly controlId: string; readonly run: string }
+    | {
+        readonly kind: 'ended'
+        readonly controlId: string
+        readonly run: string
+        readonly terminal: {
+          readonly outcome: 'completed' | 'failed' | 'cancelled'
+          readonly source: TerminalSource
+        }
+      }
+  'stop-call':
+    | { readonly kind: 'requested'; readonly controlId: string; readonly producer: ProducerRef }
+    | {
+        readonly kind: 'ended'
+        readonly controlId: string
+        readonly producer: ProducerRef
+        readonly terminal: {
+          readonly version: string
+          readonly outcome: 'completed' | 'failed' | 'interrupted' | 'unavailable' | 'no-response'
+          readonly source: TerminalSource
+        }
+      }
+}
+
+type SessionOutcomes = {
+  'create-session':
+    | 'limited'
+    | 'succeeded'
+    | 'denied'
+    | 'invalid'
+    | 'conflict'
+    | 'basis-unavailable'
+    | 'unknown'
+  'query-create-session': 'succeeded' | 'denied' | 'basis-unavailable' | 'unknown'
+  'send-input':
+    | 'limited'
+    | 'succeeded'
+    | 'denied'
+    | 'invalid'
+    | 'archived'
+    | 'frozen'
+    | 'conflict'
+    | 'basis-unavailable'
+    | 'unknown'
+  'query-send-input': 'succeeded' | 'not-committed' | 'denied' | 'basis-unavailable' | 'unknown'
+  'read-history': 'succeeded' | 'denied' | 'invalid' | 'basis-unavailable'
+  'cancel-run':
+    | 'succeeded'
+    | 'denied'
+    | 'invalid'
+    | 'conflict'
+    | 'not-found'
+    | 'basis-unavailable'
+    | 'unknown'
+  'stop-call':
+    | 'succeeded'
+    | 'denied'
+    | 'invalid'
+    | 'conflict'
+    | 'not-found'
+    | 'basis-unavailable'
+    | 'unknown'
+    | 'unsupported'
+}
 
 test('the operations are exactly the ten of session/v1', () => {
   expectTypeOf<Name>().toEqualTypeOf<

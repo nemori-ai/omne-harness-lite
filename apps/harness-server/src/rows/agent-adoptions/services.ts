@@ -7,7 +7,7 @@ import {
   DefinitionMappingsService,
   type DefinitionMappingEntry,
   type DefinitionMappings,
-} from '@omne-harness/server-entry/cordis'
+} from './definition-mappings.ts'
 import type { Adoption } from '@omne-harness/session-contract'
 import type { MappingTable } from './table.ts'
 

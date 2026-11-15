@@ -1,8 +1,8 @@
 import { judgeJsonValue, type JsonLimits, type JsonValue } from '@omne-harness/json-text'
 import type { Instant } from '@omne-harness/utc-instant'
-import { convert } from './codec.ts'
 import type { AccountId, LoginStateId, OrganizationId, TenantId } from './identity-text.ts'
-import type { LeafKind, Rule } from './operation-rules.ts'
+import { convert } from './leaf-codec.ts'
+import type { LeafKind, Rule } from './rule.ts'
 
 export type CodecResult<T> = { readonly ok: true; readonly value: T } | { readonly ok: false }
 

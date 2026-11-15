@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { HttpReply } from './support/harness.ts'
+import type { HttpReply } from './support/entry.ts'
 import {
   call,
   held,
@@ -7,8 +7,8 @@ import {
   rawHeaders,
   startAccessFixture,
   type AccessFixture,
-} from './support/pipeline-kit.ts'
-import { send } from './support/harness.ts'
+} from './support/access-kit.ts'
+import { send } from './support/entry.ts'
 
 let fixture: AccessFixture
 

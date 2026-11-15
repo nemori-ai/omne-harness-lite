@@ -434,6 +434,22 @@
       "source": "packages/session/SPEC.md"
     },
     {
+      "id": "packages/session/session-diagnostics-protocol",
+      "paths": ["packages/session/session-diagnostics-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["session"],
+      "status": "candidate",
+      "source": "packages/session/SPEC.md"
+    },
+    {
+      "id": "packages/session/session-diagnostics-access",
+      "paths": ["packages/session/session-diagnostics-access/src/**"],
+      "layer": "unknown",
+      "domains": ["session"],
+      "status": "candidate",
+      "source": "packages/session/SPEC.md"
+    },
+    {
       "id": "packages/assets/assets-protocol",
       "paths": ["packages/assets/assets-protocol/src/**"],
       "layer": "contract",
@@ -464,6 +480,22 @@
       "domains": [],
       "status": "candidate",
       "source": "packages/frontend/SPEC.md"
+    },
+    {
+      "id": "packages/human-intervention/human-intervention-protocol",
+      "paths": ["packages/human-intervention/human-intervention-protocol/src/**"],
+      "layer": "contract",
+      "domains": [],
+      "status": "candidate",
+      "source": "packages/human-intervention/SPEC.md"
+    },
+    {
+      "id": "packages/human-intervention/human-intervention-access",
+      "paths": ["packages/human-intervention/human-intervention-access/src/**"],
+      "layer": "unknown",
+      "domains": [],
+      "status": "candidate",
+      "source": "packages/human-intervention/SPEC.md"
     },
     {
       "id": "packages/common/stream-arrival",

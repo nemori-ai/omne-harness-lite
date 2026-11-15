@@ -24,6 +24,7 @@ import {
   type LocalOperatorInput,
 } from '../../src/local/operator-defaults.ts'
 import { sessionAccessConfig } from '../../src/rows/session-access/index.ts'
+import { sessionDiagnosticsAccessConfig } from '../../src/rows/session-diagnostics-access/index.ts'
 import { toolRowsOperatorConfig } from '../r9/support.ts'
 
 const memberDir = fileURLToPath(new URL('../..', import.meta.url))
@@ -234,6 +235,17 @@ describe('localOperatorLayer over the bundled distribution', () => {
       requestJournalFile: `${input('linux').locations.storageRoot}/request-queue.jsonl`,
     })
     expect(sessionAccessConfig.safeParse(configOf(layer, 'session-access')).success).toBe(true)
+  })
+
+  it('gives the diagnostics access row the three projection settings together, valid for its configuration', () => {
+    expect(configOf(layer, 'session-diagnostics-access')).toEqual({
+      diagnosticsKinds: [...LOCAL_DIAGNOSTICS_KINDS],
+      ...LOCAL_DIAGNOSTICS_LIMITS,
+    })
+    expect(
+      sessionDiagnosticsAccessConfig.safeParse(configOf(layer, 'session-diagnostics-access'))
+        .success,
+    ).toBe(true)
   })
 
   it('lists the Run frame and the tool messages in the history and uses the settings port', () => {

@@ -1,12 +1,270 @@
+import type { JsonValue } from '@omne-harness/json-text'
 import type {
+  AccountId,
   Codec,
-  GovernanceProvidedOperation,
-  GovernanceRequest,
-  GovernanceResponse,
   LoginStateId,
+  OrganizationId,
+  TenantId,
 } from '@omne-harness/public-contract'
+import type { Instant } from '@omne-harness/utc-instant'
 import { expectTypeOf, test } from 'vitest'
 import type { IdentityProtocol } from '@omne-harness/identity-protocol'
+
+type EmptyBody = Readonly<Record<string, never>>
+type JsonObject = Extract<JsonValue, { readonly kind: 'object' }>
+
+type ExpectedRequests = {
+  'register-and-activate': { readonly loginIdentifier: string; readonly credential: string }
+  'issue-login': { readonly loginIdentifier: string; readonly credential: string }
+  'revoke-login': { readonly targetLoginId: LoginStateId }
+  'replace-credential': { readonly currentCredential: string; readonly newCredential: string }
+  'query-own-valid-logins': EmptyBody
+  'query-current-tenant': EmptyBody
+  'query-own-memberships': EmptyBody
+  'query-received-invitations': EmptyBody
+  'query-create-organization': {
+    readonly targetCreateCallId: string
+    readonly name: string
+    readonly governanceModelId: string
+  }
+  'issue-member-invitation': { readonly invitedLoginIdentifier: string; readonly duration?: string }
+  'open-affiliation-request': {
+    readonly superiorOrganizationId: OrganizationId
+    readonly subordinateOrganizationId: OrganizationId
+    readonly duration?: string
+  }
+  'query-organization-members': {
+    readonly organizationId: OrganizationId
+    readonly includeRemoved?: boolean
+  }
+  'accept-member-invitation': { readonly invitationId: string; readonly expectedState: 'open' }
+  'reject-member-invitation': { readonly invitationId: string; readonly expectedState: 'open' }
+  'withdraw-member-invitation': { readonly invitationId: string; readonly expectedState: 'open' }
+  'query-invitation': { readonly invitationId: string }
+  'create-organization': {
+    readonly createCallId: string
+    readonly name: string
+    readonly governanceModelId: string
+  }
+  'leave-organization': EmptyBody
+  'remove-member': {
+    readonly organizationId: OrganizationId
+    readonly accountId: AccountId
+    readonly expectedRole: string
+  }
+  'change-member-role': {
+    readonly organizationId: OrganizationId
+    readonly accountId: AccountId
+    readonly expectedRole: string
+    readonly targetRole: string
+  }
+  'switch-current-tenant': { readonly tenantId: TenantId }
+  'query-organization': { readonly organizationId: OrganizationId }
+  'query-issued-invitations': EmptyBody
+  'accept-affiliation-request': { readonly requestId: string; readonly expectedState: 'pending' }
+  'reject-affiliation-request': { readonly requestId: string; readonly expectedState: 'pending' }
+  'withdraw-affiliation-request': { readonly requestId: string; readonly expectedState: 'pending' }
+  'release-affiliation': { readonly affiliationId: string; readonly expectedState: 'effective' }
+  'query-received-affiliation-requests': EmptyBody
+  'query-issued-affiliation-requests': EmptyBody
+  'query-affiliation-request': { readonly requestId: string }
+  'judge-admission': {
+    readonly resource: string
+    readonly action: string
+    readonly parameters: JsonObject
+    readonly scopeId: string
+  }
+  'submit-authorization-expression': {
+    readonly expression: string
+    readonly action: string
+    readonly object: string
+    readonly parameters: JsonObject
+  }
+  'withdraw-authorization-expression': { readonly expressionId: string }
+}
+type ExpectedOperation = keyof ExpectedRequests
+
+type InvitationState = 'open' | 'accepted' | 'rejected' | 'withdrawn' | 'expired'
+type InvitationTerminal = Exclude<InvitationState, 'open'>
+type AffiliationRequestState =
+  | 'pending'
+  | 'accepted'
+  | 'rejected'
+  | 'withdrawn'
+  | 'invalid'
+  | 'expired'
+type AffiliationRequestTerminal = Exclude<AffiliationRequestState, 'pending'>
+type LoginItem = {
+  readonly loginId: LoginStateId
+  readonly issuedAt: Instant
+  readonly maxDeadline: Instant
+  readonly idleDeadline: Instant
+}
+type MembershipItem = {
+  readonly organizationId: OrganizationId
+  readonly tenantId: TenantId
+  readonly role: string
+}
+type MemberItem = { readonly accountId: AccountId; readonly role: string }
+type InvitationItem = {
+  readonly invitationId: string
+  readonly state: InvitationState
+  readonly expiresAt: Instant
+  readonly organizationId: OrganizationId
+  readonly invitedAccountId: AccountId
+}
+type AffiliationRequestItem = {
+  readonly requestId: string
+  readonly state: AffiliationRequestState
+  readonly expiresAt: Instant
+  readonly superiorOrganizationId: OrganizationId
+  readonly subordinateOrganizationId: OrganizationId
+}
+type Complete<K extends string, T> = { readonly [P in K]: readonly T[] } & {
+  readonly completeness: 'complete'
+}
+
+type ExpectedSucceeded = {
+  'register-and-activate': {
+    readonly accountId: AccountId
+    readonly organizationId: OrganizationId
+    readonly tenantId: TenantId
+  }
+  'issue-login': {
+    readonly loginIdentifier: string
+    readonly issuedAt: Instant
+    readonly tenantId: TenantId
+    readonly loginProof: string
+    readonly loginId?: LoginStateId
+  }
+  'revoke-login': EmptyBody
+  'replace-credential': EmptyBody
+  'query-own-valid-logins': {
+    readonly logins: readonly [LoginItem, ...LoginItem[]]
+    readonly completeness: 'complete'
+  }
+  'query-current-tenant': { readonly tenantId: TenantId }
+  'query-own-memberships': Complete<'memberships', MembershipItem>
+  'query-received-invitations': Complete<'invitations', InvitationItem>
+  'query-create-organization': {
+    readonly organizationId: OrganizationId
+    readonly tenantId: TenantId
+  }
+  'issue-member-invitation': {
+    readonly invitationId: string
+    readonly state: 'open'
+    readonly expiresAt: Instant
+  }
+  'open-affiliation-request': {
+    readonly requestId: string
+    readonly state: 'pending'
+    readonly expiresAt: Instant
+  }
+  'query-organization-members': Complete<'members', MemberItem>
+  'accept-member-invitation': { readonly invitationId: string; readonly state: 'accepted' }
+  'reject-member-invitation': { readonly invitationId: string; readonly state: 'rejected' }
+  'withdraw-member-invitation': { readonly invitationId: string; readonly state: 'withdrawn' }
+  'query-invitation': InvitationItem
+  'create-organization': { readonly organizationId: OrganizationId; readonly tenantId: TenantId }
+  'leave-organization': EmptyBody
+  'remove-member': EmptyBody
+  'change-member-role': EmptyBody
+  'switch-current-tenant': { readonly tenantId: TenantId }
+  'query-organization': {
+    readonly organizationId: OrganizationId
+    readonly name: string
+    readonly kind: string
+    readonly superiorOrganizationId?: OrganizationId
+  }
+  'query-issued-invitations': Complete<'invitations', InvitationItem>
+  'accept-affiliation-request': { readonly affiliationId: string; readonly state: 'effective' }
+  'reject-affiliation-request': { readonly requestId: string; readonly state: 'rejected' }
+  'withdraw-affiliation-request': { readonly requestId: string; readonly state: 'withdrawn' }
+  'release-affiliation': EmptyBody
+  'query-received-affiliation-requests': Complete<'affiliationRequests', AffiliationRequestItem>
+  'query-issued-affiliation-requests': Complete<'affiliationRequests', AffiliationRequestItem>
+  'query-affiliation-request': AffiliationRequestItem
+  'judge-admission': { readonly admitted: true }
+  'submit-authorization-expression': {
+    readonly expressionId: string
+    readonly persistentSettingsUpdated: false
+  }
+  'withdraw-authorization-expression': EmptyBody
+}
+type ExpectedNoChange = {
+  'revoke-login': EmptyBody
+  'switch-current-tenant': EmptyBody
+  'release-affiliation': { readonly affiliationId: string; readonly state: 'released' }
+  'submit-authorization-expression': { readonly expressionId: string }
+  'accept-member-invitation': { readonly invitationId: string; readonly state: InvitationTerminal }
+  'reject-member-invitation': { readonly invitationId: string; readonly state: InvitationTerminal }
+  'withdraw-member-invitation': {
+    readonly invitationId: string
+    readonly state: InvitationTerminal
+  }
+  'accept-affiliation-request': {
+    readonly requestId: string
+    readonly state: AffiliationRequestTerminal
+  }
+  'reject-affiliation-request': {
+    readonly requestId: string
+    readonly state: AffiliationRequestTerminal
+  }
+  'withdraw-affiliation-request': {
+    readonly requestId: string
+    readonly state: AffiliationRequestTerminal
+  }
+}
+type ChangeAnswer = 'succeeded' | 'no-change' | 'denied' | 'not-visible' | 'basis-unavailable'
+type ExpectedOutcomes = {
+  'register-and-activate': 'succeeded' | 'not-loginable'
+  'issue-login': 'succeeded' | 'uniform-auth-failure' | 'basis-unavailable'
+  'revoke-login': 'succeeded' | 'no-change' | 'denied' | 'not-visible' | 'basis-unavailable'
+  'replace-credential': 'succeeded' | 'denied' | 'basis-unavailable'
+  'query-own-valid-logins': 'succeeded' | 'denied' | 'basis-unavailable'
+  'query-current-tenant': 'succeeded' | 'denied' | 'basis-unavailable'
+  'query-own-memberships': 'succeeded' | 'denied' | 'basis-unavailable'
+  'query-received-invitations': 'succeeded' | 'denied' | 'basis-unavailable'
+  'query-create-organization': 'succeeded' | 'denied' | 'basis-unavailable' | 'conflict' | 'unknown'
+  'issue-member-invitation': 'succeeded' | 'denied' | 'not-visible' | 'basis-unavailable'
+  'open-affiliation-request': 'succeeded' | 'denied' | 'not-visible' | 'basis-unavailable'
+  'query-organization-members': 'succeeded' | 'denied' | 'not-visible' | 'basis-unavailable'
+  'accept-member-invitation': ChangeAnswer
+  'reject-member-invitation': ChangeAnswer
+  'withdraw-member-invitation': ChangeAnswer
+  'query-invitation': 'succeeded' | 'denied' | 'not-visible' | 'basis-unavailable'
+  'create-organization': 'succeeded' | 'denied' | 'basis-unavailable' | 'conflict' | 'unknown'
+  'leave-organization': 'succeeded' | 'denied' | 'basis-unavailable'
+  'remove-member': 'succeeded' | 'denied' | 'not-visible' | 'basis-unavailable' | 'conflict'
+  'change-member-role': 'succeeded' | 'denied' | 'not-visible' | 'basis-unavailable' | 'conflict'
+  'switch-current-tenant': 'succeeded' | 'no-change' | 'denied' | 'basis-unavailable'
+  'query-organization': 'succeeded' | 'denied' | 'not-visible' | 'basis-unavailable'
+  'query-issued-invitations': 'succeeded' | 'denied' | 'basis-unavailable'
+  'accept-affiliation-request': ChangeAnswer
+  'reject-affiliation-request': ChangeAnswer
+  'withdraw-affiliation-request': ChangeAnswer
+  'release-affiliation': ChangeAnswer | 'conflict'
+  'query-received-affiliation-requests': 'succeeded' | 'denied' | 'basis-unavailable'
+  'query-issued-affiliation-requests': 'succeeded' | 'denied' | 'basis-unavailable'
+  'query-affiliation-request': 'succeeded' | 'denied' | 'not-visible' | 'basis-unavailable'
+  'judge-admission': 'succeeded' | 'denied' | 'not-visible' | 'basis-unavailable' | 'need-decision'
+  'submit-authorization-expression':
+    | 'succeeded'
+    | 'no-change'
+    | 'denied'
+    | 'basis-unavailable'
+    | 'unknown'
+  'withdraw-authorization-expression': 'succeeded' | 'denied' | 'basis-unavailable' | 'unknown'
+}
+type ExpectedBody<O extends ExpectedOperation, K extends PropertyKey> = K extends 'succeeded'
+  ? ExpectedSucceeded[O]
+  : K extends 'no-change'
+    ? O extends keyof ExpectedNoChange
+      ? ExpectedNoChange[O]
+      : never
+    : K extends 'need-decision'
+      ? { readonly decisionRequestId: string }
+      : EmptyBody
 
 type Operations = IdentityProtocol['operations']
 type Name = keyof Operations
@@ -18,15 +276,9 @@ type Outcomes<O extends Name> = Field<O, 'outcomes'>
 type RequestOf<O extends Name> = ValueOf<Field<O, 'body'>>
 type BodyOf<O extends Name, K extends PropertyKey> = ValueOf<Outcomes<O>[K & keyof Outcomes<O>]>
 
-type OldRequest<O extends GovernanceProvidedOperation> = GovernanceRequest<O>['body']
-type OldBody<O extends GovernanceProvidedOperation, K extends PropertyKey> = Extract<
-  GovernanceResponse<O>,
-  { readonly outcome: K }
->['body']
-type OldOutcomes<O extends GovernanceProvidedOperation> = Exclude<
-  GovernanceResponse<O>['outcome'],
-  'protocol-rejected' | 'stage-not-provided'
->
+type OldRequest<O extends ExpectedOperation> = ExpectedRequests[O]
+type OldBody<O extends ExpectedOperation, K extends PropertyKey> = ExpectedBody<O, K>
+type OldOutcomes<O extends ExpectedOperation> = ExpectedOutcomes[O]
 
 type Same<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false
 type AllTrue<T> = { readonly [K in keyof T]: true }
@@ -47,11 +299,7 @@ type Pipeline<O extends Name> =
 type Differs = 'issue-login' | 'query-own-valid-logins'
 
 test('the operations are the governance family minus health, settings and stages', () => {
-  type Expected = Exclude<
-    GovernanceProvidedOperation,
-    'public-health' | 'list-settings' | 'set-setting' | 'describe-setting' | 'clear-setting'
-  >
-  expectTypeOf<Name>().toEqualTypeOf<Expected>()
+  expectTypeOf<Name>().toEqualTypeOf<ExpectedOperation>()
 })
 
 test('C4: the outcome names are the old business outcomes, the pipeline outcomes and stage-not-provided', () => {

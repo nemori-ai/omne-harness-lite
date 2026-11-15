@@ -12,7 +12,7 @@ import { sessionInquiryBinding } from '@omne-harness/session-adapters/cordis'
 import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
-import { definitionResolverOf } from '@omne-harness/server-entry/cordis'
+import { definitionResolverOf } from '../../../src/rows/agent-adoptions/definition-mappings.ts'
 import type {
   SessionCommand,
   SessionCreation,

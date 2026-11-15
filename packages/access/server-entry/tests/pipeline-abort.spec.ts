@@ -12,7 +12,7 @@ import {
   startAccessFixture,
   turn,
   type AccessFixture,
-} from './support/pipeline-kit.ts'
+} from './support/access-kit.ts'
 
 let fixture: AccessFixture
 

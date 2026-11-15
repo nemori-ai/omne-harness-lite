@@ -1,6 +1,6 @@
 import { connect, type Socket } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { SseClient } from './support/harness.ts'
+import type { SseClient } from './support/entry.ts'
 import {
   GRACE_MS,
   MESSAGE_ID,
@@ -17,7 +17,7 @@ import {
   type AccessFixture,
   type ApiOptions,
   type Feed,
-} from './support/pipeline-kit.ts'
+} from './support/access-kit.ts'
 
 const fixtures: AccessFixture[] = []
 afterEach(async () => {

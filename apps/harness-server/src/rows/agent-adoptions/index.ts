@@ -1,6 +1,6 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { agentAdoptionsKey } from '@omne-harness/agent-cordis-contract/cordis'
-import { definitionMappingsKey } from '@omne-harness/server-entry/cordis'
+import { definitionMappingsKey } from './definition-mappings.ts'
 import { defineRow } from '../../row.ts'
 import { agentAdoptionsConfig, type AgentAdoptionsConfig } from './config.ts'
 import { AgentAdoptionsImpl, DefinitionMappingsImpl } from './services.ts'
