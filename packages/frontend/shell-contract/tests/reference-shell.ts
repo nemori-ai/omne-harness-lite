@@ -3,10 +3,11 @@ import {
   createSlotStore,
   type ItemOf,
   type ScopeSource,
+  type ShellLogin,
   type ShellSlots,
   type SlotName,
 } from '@omne-harness/shell-contract'
-import { ShellService, type ShellLogin } from '@omne-harness/shell-contract/cordis'
+import { ShellService } from '@omne-harness/shell-contract/cordis'
 
 export class ReferenceShell extends ShellService implements ShellSlots {
   readonly navigated: string[] = []

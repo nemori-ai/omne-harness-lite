@@ -12,4 +12,11 @@ export type {
   SlotItems,
   SlotName,
 } from './slots.ts'
-export type { LoginCredentials, LoginResult, LogoutResult, ScopeSource } from './host.ts'
+export type {
+  LoginCredentials,
+  LoginResult,
+  LogoutResult,
+  ScopeSource,
+  ShellLogin,
+  ShellLoginState,
+} from './host.ts'

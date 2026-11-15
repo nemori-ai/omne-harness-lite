@@ -2026,9 +2026,6 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
-      '@omne-harness/client-assembly':
-        specifier: workspace:*
-        version: link:../../access/client-assembly
       '@types/react':
         specifier: 'catalog:'
         version: 19.3.0

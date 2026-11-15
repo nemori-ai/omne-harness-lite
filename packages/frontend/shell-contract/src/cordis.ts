@@ -1,12 +1,6 @@
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
-import type { LoginStateSource } from '@omne-harness/client-assembly/cordis'
-import type { LoginCredentials, LoginResult, LogoutResult, ScopeSource } from './host.ts'
+import type { ScopeSource, ShellLogin } from './host.ts'
 import type { ItemOf, SlotName } from './slots.ts'
-
-export interface ShellLogin extends LoginStateSource {
-  login(credentials: LoginCredentials): Promise<LoginResult>
-  logout(): Promise<LogoutResult>
-}
 
 /** @owner packages/frontend/shell-contract */
 export abstract class ShellService extends Service {

@@ -31,7 +31,6 @@
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
-    "@omne-harness/client-assembly": "workspace:*",
     "@types/react": "catalog:"
   },
   "devDependencies": {

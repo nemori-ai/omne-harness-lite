@@ -6,6 +6,8 @@ import type {
   ItemOf,
   PageItem,
   ScopedProps,
+  ShellLogin,
+  ShellLoginState,
   ShellSlots,
   SidebarItem,
   SlotName,
@@ -59,6 +61,19 @@ test('the slots reader and the service members', () => {
   expectTypeOf<ShellService['scope']['get']>().toEqualTypeOf<() => string | undefined>()
   expectTypeOf<ShellService['login']['logout']>().returns.resolves.toEqualTypeOf<
     'signed-out' | 'unknown'
+  >()
+})
+
+test('the login port is self-contained and states the client assembly login states', () => {
+  expectTypeOf<ShellLoginState>().toEqualTypeOf<
+    'signed-out' | 'signing-in' | 'signed-in' | 'signing-out'
+  >()
+  expectTypeOf<ShellLogin['state']>().toEqualTypeOf<() => ShellLoginState>()
+  expectTypeOf<ShellLogin['subscribe']>().toEqualTypeOf<
+    (listener: (state: ShellLoginState) => void) => () => void
+  >()
+  expectTypeOf<ShellLogin['login']>().returns.resolves.toEqualTypeOf<
+    'signed-in' | 'auth-failed' | 'unknown' | 'unavailable'
   >()
 })
 
