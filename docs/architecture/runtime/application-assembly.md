@@ -281,7 +281,7 @@ flowchart LR
 - 提供者在 `governance` 行，因为读写面要的目录读取、租户层写入、组织层来源与工具发行清单都只在本行：每个租户的治理运行时各有一份目录读取与一份写入。
 - 每次调用先做准入，沿用秘密设置项的准入（`rows/authorization/settings-access.ts`）：只有代该租户行事的登录主体。会话工作主体和系统主体一律拒绝，拒绝之前不读任何存储。写入只写行事租户的租户层，计划与当前事实参与者见 [settings-local 的应用消费方](../../../packages/assets/SPEC.md#租户层读写面)。
 - `assets-access` 行每次调用现取它与 `settingsSecretItems`，在 `apps/harness-server/src/rows/assets-access/settings.ts`（`unifySettings`）并成 `assets/v1` 的设置端口：查看与清除先问秘密面，秘密面看不见再问本面；秘密值只写秘密面，别的值只写本面，送错了答 `invalid`；列表秘密项在前，游标分 `s:<位置>` 与 `c:<本面游标>` 两段。一个来源缺席时，需要问到它的那一步答 `basis-unavailable`。本应用以外的成员需要这个键时，按 [IC-4](../cordis-integration-conventions.md#ic-4) 移到届时拥有它的成员的 `./cordis`，键名与形状不变。
-- 还没建过会话的租户，本面答 `basis-unavailable`：租户的事务域在建第一个会话时才登记（`session-storage` 行），治理宿主查不到域就不打开这个租户的治理运行时。所以这样的租户列设置时只列得出秘密项，列表标不完整（`partial`）；查看、设置、清除秘密项照常。
+- 还没建过会话的租户，本面答 `basis-unavailable`：租户的事务域在建第一个会话时才登记（`session-storage` 行），治理宿主查不到域就不打开这个租户的治理运行时。所以这样的租户列设置整体答 `basis-unavailable`，查看、设置、清除秘密项照常。
 
 | 行 id | 可见的受信名 |
 | --- | --- |

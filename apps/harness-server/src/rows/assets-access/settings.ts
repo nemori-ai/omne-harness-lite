@@ -76,8 +76,6 @@ export function unifySettings(sources: SettingsSources): TenantSettingsPort {
         next: listed.next === null ? null : `c:${listed.next}`,
         completeness: listed.completeness,
       }
-    if (listed.kind === 'unavailable' && page.length > 0)
-      return { kind: 'listed', items: page, next: null, completeness: 'partial' }
     if (listed.kind !== 'not-visible' || asset === undefined) return listed
     if (secrets === 0) return listed
     return { kind: 'listed', items: page, next: null, completeness: 'complete' }
