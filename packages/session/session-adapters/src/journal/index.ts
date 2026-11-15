@@ -37,17 +37,15 @@ export type {
   Ref,
   ResultStage,
 } from './facts.ts'
+export { advances, fold, foldAll } from './fold.ts'
 export {
-  advances,
   emptyExecutionView,
   emptySessionView,
-  fold,
-  foldAll,
   handoffKey,
   openCalls,
   viewDigest,
   viewText,
-} from './fold.ts'
+} from './view.ts'
 export type {
   AdmissionView,
   AttachmentView,
@@ -66,7 +64,7 @@ export type {
   RequestView,
   ResultView,
   SessionJournalView,
-} from './fold.ts'
+} from './view.ts'
 export {
   answer,
   answeredRevision,

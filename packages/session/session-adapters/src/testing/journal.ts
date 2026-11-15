@@ -135,7 +135,7 @@ import {
   type PublishedBatch,
   type ResultStage,
 } from '../journal/index.ts'
-import { listKey } from '../journal/fold.ts'
+import { listKey } from '../journal/view.ts'
 import {
   beforeTerminalOpen,
   buildObligations,

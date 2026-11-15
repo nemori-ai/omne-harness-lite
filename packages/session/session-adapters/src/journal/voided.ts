@@ -1,6 +1,6 @@
 import type { AgentCheckpoint, VoidedIntent } from '@omne-harness/agent-contract'
 import type { FactOf } from './facts.ts'
-import type { ExecutionView } from './fold.ts'
+import type { ExecutionView } from './view.ts'
 
 type Voided = FactOf<'intent.voided'>
 type Closing = Pick<ExecutionView, 'voided' | 'requests' | 'adopted'>

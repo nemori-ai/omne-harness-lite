@@ -90,7 +90,6 @@
       "packages/session/session-adapters/src/cordis/context-holder.ts": 1168,
       "packages/session/session-adapters/src/cordis/context-input.ts": 1111,
       "packages/session/session-adapters/src/cordis/history-source.ts": 1029,
-      "packages/session/session-adapters/src/journal/fold.ts": 1025,
       "packages/session/session-adapters/src/testing/factory.ts": 1324,
       "packages/session/session-adapters/src/testing/journal-finishing.ts": 1370,
       "packages/session/session-adapters/src/testing/journal.ts": 4980,
@@ -565,10 +564,6 @@
         "count": 1,
         "longest": 187
       },
-      "packages/session/session-adapters/src/journal/fold.ts": {
-        "count": 1,
-        "longest": 468
-      },
       "packages/session/session-adapters/src/testing/factory.ts": {
         "count": 3,
         "longest": 1192
@@ -600,10 +595,6 @@
       "packages/session/session-contract/src/projection.ts": {
         "count": 1,
         "longest": 174
-      },
-      "packages/session/session-contract/src/reduce-extended.ts": {
-        "count": 1,
-        "longest": 237
       },
       "packages/session/session-contract/src/testing-delegated.ts": {
         "count": 1,
