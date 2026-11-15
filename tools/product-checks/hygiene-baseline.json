@@ -218,7 +218,7 @@
       },
       "packages/assets/settings/src/tenant-settings.ts": {
         "count": 1,
-        "longest": 248
+        "longest": 245
       },
       "packages/calendar/calendar-local/src/runner/index.ts": {
         "count": 1,
