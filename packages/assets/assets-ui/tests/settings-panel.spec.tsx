@@ -220,3 +220,95 @@ it('P11 没有本层的值时清除不可用；秘密项不显示值', async () 
   expect(screen.getByText('这一层的秘密').nextElementSibling?.textContent).toBe('未配置')
   expect((screen.getByRole('button', { name: '清除' }) as HTMLButtonElement).disabled).toBe(true)
 })
+
+const SENTINEL = 'sentinel-secret-7f3a91c2'
+const editableSecret = (overrides: Parameters<typeof secretView>[0] = {}) =>
+  secretView({ editable: { kind: 'yes' }, ...overrides })
+const secretInput = () => screen.getByLabelText(/输入秘密/) as HTMLInputElement
+const pageText = () => document.body.innerHTML + document.body.textContent
+
+it('S1 秘密项两行状态各用一句中文', async () => {
+  const states = [
+    ['unset', '未配置'],
+    ['available', '可用'],
+    ['revoked', '已吊销'],
+    ['unreadable', '读不出'],
+  ] as const
+  for (const [state, text] of states) {
+    await listed([editableSecret({ own: state, official: state })])
+    expect(screen.getByText('这一层的秘密').nextElementSibling?.textContent).toBe(text)
+    expect(screen.getByText('部署层的秘密').nextElementSibling?.textContent).toBe(text)
+    cleanup()
+  }
+})
+
+it('S2 能改时给口令框与「设置」；空的时候「设置」不可点；口令框不显示、不自动补全', async () => {
+  await listed([editableSecret()])
+  expect(secretInput().type).toBe('password')
+  expect(secretInput().autocomplete).toBe('off')
+  const set = screen.getByRole('button', { name: '设置' }) as HTMLButtonElement
+  expect(set.disabled).toBe(true)
+  fireEvent.change(secretInput(), { target: { value: SENTINEL } })
+  expect(set.disabled).toBe(false)
+})
+
+it('S3 不能改时没有口令框也没有「设置」，写明原因', async () => {
+  await listed([secretView()])
+  expect(screen.queryByLabelText(/输入秘密/)).toBeNull()
+  expect(screen.queryByRole('button', { name: '设置' })).toBeNull()
+  expect(screen.getByText('能不能改').nextElementSibling?.textContent).toBe(
+    '不能改：这一层不能配这一项',
+  )
+})
+
+it('S4 设置：带修订号送出原文；提交时口令框立刻清空，页面任何地方都没有原文；成功后重读', async () => {
+  const fake = await listed([editableSecret()])
+  fireEvent.change(secretInput(), { target: { value: SENTINEL } })
+  fireEvent.click(screen.getByRole('button', { name: '设置' }))
+  expect(secretInput().value).toBe('')
+  const set = await fake.next('set-setting')
+  expect(set.body).toMatchObject({
+    asset: { category: 'model', name: 'openai' },
+    item: 'api-key',
+    expectedRevision: '2',
+    value: { kind: 'secret', secret: SENTINEL },
+  })
+  expect(set.options?.messageId).toBe((set.body as { operation: string }).operation)
+  expect(pageText()).not.toContain(SENTINEL)
+  set.answer({ outcome: 'succeeded', body: { revision: '3' } })
+  await settle()
+  expect(screen.getByText('已写入。')).toBeTruthy()
+  await answer(fake, 'describe-setting', {
+    outcome: 'succeeded',
+    body: { item: editableSecret({ own: 'available', revision: '3' }) },
+  })
+  expect(screen.getByText('这一层的秘密').nextElementSibling?.textContent).toBe('可用')
+  expect(secretInput().value).toBe('')
+  expect(pageText()).not.toContain(SENTINEL)
+})
+
+it('S5 结果未知：原文不留，不重发；点「再确认一次」只重读这一项', async () => {
+  const fake = await listed([editableSecret()])
+  fireEvent.change(secretInput(), { target: { value: SENTINEL } })
+  fireEvent.click(screen.getByRole('button', { name: '设置' }))
+  await answer(fake, 'set-setting', { outcome: 'unknown' })
+  expect(screen.getByRole('status').textContent).toContain('结果未知')
+  expect(pageText()).not.toContain(SENTINEL)
+  fireEvent.click(screen.getByRole('button', { name: '再确认一次' }))
+  await settle()
+  await answer(fake, 'describe-setting', {
+    outcome: 'succeeded',
+    body: { item: editableSecret({ own: 'available', revision: '3' }) },
+  })
+  expect(fake.calls.filter(call => call.operation === 'set-setting')).toHaveLength(1)
+  expect(screen.getByText('这一层的秘密').nextElementSibling?.textContent).toBe('可用')
+  expect(screen.getByRole('status').textContent).toContain('结果未知')
+})
+
+it('S6 清除：带修订号；有这一层的秘密才可点', async () => {
+  const fake = await listed([editableSecret({ own: 'available' })])
+  fireEvent.click(screen.getByRole('button', { name: '清除' }))
+  const clear = await fake.next('clear-setting')
+  expect(clear.body).toMatchObject({ item: 'api-key', expectedRevision: '2' })
+  expect(JSON.stringify(clear.body)).not.toContain('secret')
+})

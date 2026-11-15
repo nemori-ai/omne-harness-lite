@@ -9,7 +9,10 @@ export type WriteAnswer = Answer<'set-setting'> | Answer<'clear-setting'>
 
 export type Notice = Readonly<{ kind: 'refused' | 'unavailable' | 'unknown'; text: string }>
 
-export type WriteRequest = Readonly<{ kind: 'set'; pick: string }> | Readonly<{ kind: 'clear' }>
+export type WriteRequest =
+  | Readonly<{ kind: 'set'; pick: string }>
+  | Readonly<{ kind: 'set-secret' }>
+  | Readonly<{ kind: 'clear' }>
 
 export type Sent = Readonly<{ operation: string; expectedRevision: string; request: WriteRequest }>
 
@@ -17,6 +20,7 @@ export type Write =
   | Readonly<{ kind: 'none' }>
   | Readonly<{ kind: 'submitting'; sent: Sent }>
   | Readonly<{ kind: 'unknown'; sent: Sent; confirming: boolean; notice: Notice }>
+  | Readonly<{ kind: 'unconfirmed'; notice: Notice }>
   | Readonly<{ kind: 'succeeded'; change: 'written' | 'no-change' }>
   | Readonly<{ kind: 'refused'; notice: Notice }>
 
@@ -45,6 +49,7 @@ export type Event =
   | Readonly<{ kind: 'read-list' }>
   | Readonly<{ kind: 'list-answered'; token: number; answer: ListAnswer }>
   | Readonly<{ kind: 'set'; key: string; pick: string; operation: string }>
+  | Readonly<{ kind: 'set-secret'; key: string; secret: string; operation: string }>
   | Readonly<{ kind: 'clear'; key: string; operation: string }>
   | Readonly<{ kind: 'write-answered'; key: string; operation: string; answer: WriteAnswer }>
   | Readonly<{ kind: 'confirm'; key: string }>
@@ -54,7 +59,7 @@ export type Event =
 export type Effect =
   | Readonly<{ kind: 'list'; token: number; after: string | null }>
   | Readonly<{ kind: 'describe'; key: string; token: number; target: Target }>
-  | Readonly<{ kind: 'write'; key: string; target: Target; sent: Sent }>
+  | Readonly<{ kind: 'write'; key: string; target: Target; sent: Sent; secret?: string }>
 
 export type Step = Readonly<{ state: State; effects: readonly Effect[] }>
 
@@ -136,6 +141,14 @@ function listAnswered(state: State, token: number, answer: ListAnswer): Step {
 }
 
 const CONFIRMING: Notice = { kind: 'unknown', text: '结果未知，正在确认。' }
+const SECRET_UNCONFIRMED: Notice = {
+  kind: 'unknown',
+  text: '结果未知：输入的内容没有保留，不能重发。已重新读取这一项，请看上面的状态；没有生效就重新输入。',
+}
+const SECRET_UNKNOWN: Notice = {
+  kind: 'unknown',
+  text: '结果未知：没有收到可信的答复。输入的内容没有保留，不能重发，请重新读取这一项来确认。',
+}
 const STILL_UNKNOWN: Notice = {
   kind: 'unknown',
   text: '结果仍未知：这次确认没有说出原来那次写没写。',
@@ -175,13 +188,20 @@ function rowOf(state: State, key: string) {
 const idle = (row: Row): boolean =>
   row.read.kind === 'read' && row.write.kind !== 'submitting' && row.write.kind !== 'unknown'
 
-function startWrite(state: State, key: string, operation: string, request: WriteRequest): Step {
+function startWrite(
+  state: State,
+  key: string,
+  operation: string,
+  request: WriteRequest,
+  secret?: string,
+): Step {
   const found = rowOf(state, key)
   if (found === undefined || !idle(found.row)) return same(state)
   const { row, put } = found
   const sent: Sent = { operation, expectedRevision: row.view.revision, request }
+  const effect: Effect = { kind: 'write', key, target: targetOf(row.view), sent }
   return put({ ...row, write: { kind: 'submitting', sent } }, [
-    { kind: 'write', key, target: targetOf(row.view), sent },
+    secret === undefined ? effect : { ...effect, secret },
   ])
 }
 
@@ -224,6 +244,11 @@ function writeAnswered(state: State, key: string, operation: string, answer: Wri
       return put({ ...row, write: { kind: 'refused', notice: notice(answer.outcome, SENTENCES) } })
     case 'unknown':
     case 'uncertain':
+      if (write.sent.request.kind === 'set-secret')
+        return put({
+          ...row,
+          write: { kind: 'unknown', sent: write.sent, confirming: false, notice: SECRET_UNKNOWN },
+        })
       return recognizing ? stillUnknown() : recognize(write.sent)
   }
 }
@@ -233,6 +258,8 @@ function confirm(state: State, key: string): Step {
   if (found === undefined) return same(state)
   const write = found.row.write
   if (write.kind !== 'unknown' || write.confirming) return same(state)
+  if (write.sent.request.kind === 'set-secret')
+    return found.reread({ ...write, confirming: true, notice: CONFIRMING })
   return found.recognize(write.sent)
 }
 
@@ -241,8 +268,11 @@ function describeAnswered(state: State, key: string, token: number, answer: Desc
   if (found === undefined) return same(state)
   const { row, put } = found
   if (row.read.kind !== 'reading' || row.read.token !== token) return same(state)
-  if (answer.outcome === 'succeeded')
-    return put({ ...row, view: answer.body.item, read: { kind: 'read' } })
+  if (answer.outcome === 'succeeded') {
+    const write: Write =
+      row.write.kind === 'unknown' ? { kind: 'unconfirmed', notice: SECRET_UNCONFIRMED } : row.write
+    return put({ ...row, view: answer.body.item, read: { kind: 'read' }, write })
+  }
   return put({ ...row, read: { kind: 'failed', notice: notice(answer.outcome, READ_SENTENCES) } })
 }
 
@@ -262,6 +292,8 @@ export function step(state: State, event: Event): Step {
       return listAnswered(state, event.token, event.answer)
     case 'set':
       return startWrite(state, event.key, event.operation, { kind: 'set', pick: event.pick })
+    case 'set-secret':
+      return startWrite(state, event.key, event.operation, { kind: 'set-secret' }, event.secret)
     case 'clear':
       return startWrite(state, event.key, event.operation, { kind: 'clear' })
     case 'write-answered':

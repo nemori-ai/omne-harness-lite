@@ -3,6 +3,7 @@ import {
   Button,
   FactList,
   InlineNotice,
+  Input,
   LoadingState,
   RadioGroup,
   RadioGroupItem,
@@ -83,6 +84,43 @@ function Choices({
   )
 }
 
+function SecretInput({
+  title,
+  busy,
+  onSubmit,
+}: {
+  readonly title: string
+  readonly busy: boolean
+  readonly onSubmit: (secret: string) => void
+}): JSX.Element {
+  const [typed, setTyped] = useState('')
+  return (
+    <form
+      className="assets-setting-secret"
+      onSubmit={event => {
+        event.preventDefault()
+        if (busy || typed === '') return
+        const secret = typed
+        setTyped('')
+        onSubmit(secret)
+      }}
+    >
+      <Input
+        className="assets-setting-secret-input"
+        type="password"
+        autoComplete="off"
+        aria-label={`${title}：输入秘密`}
+        value={typed}
+        disabled={busy}
+        onChange={event => setTyped(event.target.value)}
+      />
+      <Button type="submit" disabled={busy || typed === ''}>
+        设置
+      </Button>
+    </form>
+  )
+}
+
 function Controls({ row, driver }: Props): JSX.Element | null {
   const view = row.view
   const [pick, setPick] = useState<string | null>(view.kind === 'permission' ? view.own : null)
@@ -93,6 +131,13 @@ function Controls({ row, driver }: Props): JSX.Element | null {
     <>
       {view.kind === 'permission' ? (
         <Choices view={view} pick={pick} onPick={setPick} busy={busy} />
+      ) : null}
+      {view.kind === 'secret' ? (
+        <SecretInput
+          title={view.declaration.title}
+          busy={busy}
+          onSubmit={secret => driver.setSecret(row.key, secret)}
+        />
       ) : null}
       <div className="assets-setting-actions">
         {view.kind === 'permission' ? (
@@ -132,6 +177,7 @@ function WriteLine({ row, driver }: Props): JSX.Element | null {
         </InlineNotice>
       )
     case 'refused':
+    case 'unconfirmed':
       return <NoticeLine notice={write.notice} />
     case 'unknown':
       return (
