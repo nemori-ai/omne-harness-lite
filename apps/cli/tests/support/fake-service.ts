@@ -19,8 +19,10 @@ export const credentialText = 'correct horse battery staple'
 
 export interface Seen {
   readonly path: string
+  readonly operation: string
+  readonly messageId: string
   readonly headers: Readonly<Record<string, string | string[] | undefined>>
-  readonly wire: Record<string, unknown>
+  readonly body: Record<string, unknown>
 }
 
 export interface Answer {
@@ -45,6 +47,9 @@ const statusOf: Record<string, number> = {
   'protocol-rejected': 400,
   'not-visible': 404,
   'stage-not-provided': 501,
+  limited: 429,
+  archived: 409,
+  frozen: 409,
   'not-loginable': 403,
   'not-found': 404,
   conflict: 409,
@@ -55,8 +60,8 @@ const statusOf: Record<string, number> = {
 }
 
 export function defaultAnswer(seen: Seen): Answer {
-  const body = (seen.wire['body'] ?? {}) as Record<string, unknown>
-  switch (seen.wire['operation']) {
+  const { body } = seen
+  switch (seen.operation) {
     case 'register-and-activate':
       return {
         outcome: 'succeeded',
@@ -74,6 +79,7 @@ export function defaultAnswer(seen: Seen): Answer {
           issuedAt: '2026-11-01T12:00:00Z',
           tenantId: tenantText,
           loginProof: issuedProof,
+          loginId: ownLoginId,
         },
       }
     case 'create-session':
@@ -91,14 +97,41 @@ export function defaultAnswer(seen: Seen): Answer {
         body: { kind: 'requested', controlId: body['controlId'], producer: body['producer'] },
       }
     default:
-      return (
-        governanceAnswer(String(seen.wire['operation']), body) ?? { outcome: 'denied', body: {} }
-      )
+      return governanceAnswer(seen.operation, body) ?? { outcome: 'denied', body: {} }
   }
 }
 
 const at = '2026-11-01T12:00:00Z'
-export const settingAt = '2026-11-09T08:00:00Z'
+export const settingRevision = '3'
+const declaration = {
+  title: 'Exa API key',
+  purpose: 'Search the web',
+  appliesAt: 'next call',
+  clearEffect: 'search stops',
+}
+export const secretView = {
+  kind: 'secret',
+  asset: { category: 'tool', name: 'Web' },
+  item: 'exa.apiKey',
+  revision: settingRevision,
+  declaration,
+  own: 'available',
+  official: 'unset',
+  editable: { kind: 'yes' },
+}
+export const ordinaryView = {
+  kind: 'ordinary',
+  asset: { category: 'tool', name: 'Web' },
+  item: 'maxResults',
+  revision: '0',
+  declaration: { ...declaration, title: 'Search results' },
+  valueSchema: { type: 'integer' },
+  default: { kind: 'unset' },
+  own: { kind: 'unset' },
+  effective: { value: { kind: 'unset' }, source: null },
+  lockedBy: null,
+  editable: { kind: 'no', reason: 'locked' },
+}
 const invitation = { invitationId: 'inv-1', state: 'open', expiresAt: at }
 const emptyOperations = new Set([
   'revoke-login',
@@ -144,39 +177,18 @@ function governanceAnswer(operation: string, body: Record<string, unknown>): Ans
         completeness: 'complete',
       })
     case 'list-settings':
-      return succeeded({
-        items: [
-          {
-            asset: { category: 'tool', name: 'Web' },
-            item: 'exa.apiKey',
-            title: 'Exa API key',
-            sensitivity: 'secret',
-            state: { state: 'usable', tenantId: tenantText, configuredAt: settingAt },
-            official: { state: 'unbound' },
-          },
-          {
-            asset: { category: 'tool', name: 'Web' },
-            item: 'maxResults',
-            title: 'Search results',
-            sensitivity: 'ordinary',
-            state: { state: 'not-writable' },
-          },
-        ],
-        completeness: 'complete',
-      })
-    case 'set-setting':
-      return succeeded({ configuredAt: settingAt })
+      return succeeded({ items: [secretView, ordinaryView], next: null, completeness: 'complete' })
     case 'describe-setting':
-      return succeeded({
-        own: { state: 'usable', tenantId: tenantText, configuredAt: settingAt },
-        official: { state: 'unbound' },
-      })
+      return succeeded({ item: secretView })
+    case 'set-setting':
     case 'clear-setting':
-      return succeeded({})
+      return succeeded({ revision: String(Number(settingRevision) + 1) })
     default:
       return undefined
   }
 }
+
+const PATH = /^\/api\/[^/]+\/v1\/([^/]+)$/
 
 export async function startFakeService(
   answer: (seen: Seen) => Answer = defaultAnswer,
@@ -186,22 +198,21 @@ export async function startFakeService(
     const chunks: Buffer[] = []
     request.on('data', (chunk: Buffer) => chunks.push(chunk))
     request.on('end', () => {
-      const wire = JSON.parse(Buffer.concat(chunks).toString('utf8')) as Record<string, unknown>
-      const item: Seen = { path: request.url ?? '', headers: request.headers, wire }
+      const text = Buffer.concat(chunks).toString('utf8')
+      const path = request.url ?? ''
+      const item: Seen = {
+        path,
+        operation: PATH.exec(path)?.[1] ?? '',
+        messageId: String(request.headers['omne-message-id']),
+        headers: request.headers,
+        body: JSON.parse(text) as Record<string, unknown>,
+      }
       seen.push(item)
       const reply = answer(item)
-      const version = String(wire['protocolVersion'])
       response.writeHead(statusOf[reply.outcome] ?? 200, {
         'content-type': 'application/json; charset=utf-8',
       })
-      response.end(
-        JSON.stringify({
-          protocolVersion: version,
-          messageId: wire['messageId'],
-          outcome: reply.outcome,
-          body: reply.body,
-        }),
-      )
+      response.end(JSON.stringify({ outcome: reply.outcome, body: reply.body }))
     })
   })
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))

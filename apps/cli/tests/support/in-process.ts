@@ -6,7 +6,7 @@ import {
   type CommandServices,
   type CredentialRead,
 } from '@omne-harness/cli'
-import { createHttpTransport } from '@omne-harness/sdk'
+import { createHttpProtocolTransport } from '@omne-harness/sdk/core'
 
 export interface InProcessResult {
   readonly code: number
@@ -33,7 +33,7 @@ export async function runInProcess(
   let credentialReads = 0
   let counter = 0
   const services: CommandServices = {
-    createTransport: (origin, location) => createHttpTransport({ origin, location }),
+    createTransport: (origin, credentials) => createHttpProtocolTransport({ origin, credentials }),
     readCredential: async () => {
       credentialReads += 1
       return options.credential ?? { kind: 'credential', value: 'correct horse battery staple' }

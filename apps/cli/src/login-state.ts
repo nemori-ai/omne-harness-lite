@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseTenantText } from '@omne-harness/sdk'
+import { readTenantText } from '@omne-harness/public-contract'
 
 export interface LoginState {
   readonly version: 1
@@ -77,7 +77,7 @@ function shapeOf(value: unknown): LoginState | undefined {
   if (record['version'] !== 1) return undefined
   const texts = [...keys.slice(1), ...present].map(key => record[key])
   if (!texts.every(text => typeof text === 'string' && text !== '')) return undefined
-  if (parseTenantText(record['tenantId'] as string) === undefined) return undefined
+  if (readTenantText(record['tenantId'] as string) === undefined) return undefined
   return record as unknown as LoginState
 }
 

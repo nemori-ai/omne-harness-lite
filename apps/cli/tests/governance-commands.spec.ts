@@ -45,18 +45,13 @@ afterEach(async () => {
 })
 
 async function serve(answer?: (seen: Seen) => Answer | undefined): Promise<FakeService> {
-  const service = await startFakeService(seen => {
-    const base = defaultAnswer(seen)
-    if (seen.wire['operation'] === 'issue-login')
-      return { ...base, body: { ...(base.body as object), loginId: ownLoginId } }
-    return answer?.(seen) ?? base
-  })
+  const service = await startFakeService(seen => answer?.(seen) ?? defaultAnswer(seen))
   services.push(service)
   return service
 }
 
 function answering(operation: string, outcome: string): (seen: Seen) => Answer | undefined {
-  return seen => (seen.wire['operation'] === operation ? { outcome, body: {} } : undefined)
+  return seen => (seen.operation === operation ? { outcome, body: {} } : undefined)
 }
 
 function cli(argv: readonly string[], options: InProcessOptions = {}) {
@@ -195,7 +190,7 @@ describe('the governance commands', () => {
   })
 
   describe.each(cases)('$name', item => {
-    it('sends the operation to the governance location with the login proof and prints the result', async () => {
+    it('sends the operation to the identity protocol with the login proof in the header and prints the result', async () => {
       const service = await serve()
       await login(service)
       const result = await cli([item.name, ...item.args])
@@ -209,16 +204,12 @@ describe('the governance commands', () => {
       else expect(request).not.toHaveProperty('tenant')
 
       const sent = service.seen.at(-1)
-      expect(sent?.path).toBe('/governance-public/1')
-      expect(sent?.wire).toMatchObject({
-        operation: item.name,
-        messageId: request['messageId'],
-        loginProof: issuedProof,
-        body: item.body,
-      })
-      if (item.acting) expect(sent?.wire['actingTenant']).toBe(tenantText)
-      else expect(sent?.wire).not.toHaveProperty('actingTenant')
-      expect(JSON.stringify(sent?.headers)).not.toContain(issuedProof)
+      expect(sent?.path).toBe(`/api/identity/v1/${item.name}`)
+      expect(sent?.messageId).toBe(request['messageId'])
+      expect(sent?.body).toEqual(item.body)
+      expect(sent?.headers['authorization']).toBe(`Bearer ${issuedProof}`)
+      expect(sent?.headers['omne-acting-tenant']).toBe(item.acting ? tenantText : undefined)
+      expect(JSON.stringify(sent?.body)).not.toContain(issuedProof)
       for (const text of [result.stdout, result.stderr]) expect(text).not.toContain(issuedProof)
     })
 
@@ -231,9 +222,7 @@ describe('the governance commands', () => {
 
     it('exits 3 and prints the response when the deployment does not provide the operation', async () => {
       const service = await serve(seen =>
-        seen.wire['operation'] === item.name
-          ? { outcome: 'stage-not-provided', body: {} }
-          : undefined,
+        seen.operation === item.name ? { outcome: 'stage-not-provided', body: {} } : undefined,
       )
       await login(service)
       const before = existsSync(loginFile()) ? readFileSync(loginFile(), 'utf8') : ''
@@ -248,13 +237,23 @@ describe('the governance commands', () => {
       expect(readFileSync(loginFile(), 'utf8')).toBe(before)
     })
 
-    it('exits 5 with result uncertain when the service is not running', async () => {
+    it('exits 4 with result unavailable when the service is not running', async () => {
       const service = await serve()
       await login(service)
       const port = await closedPort()
       const result = await cli([item.name, ...item.args, '--server', `http://127.0.0.1:${port}`])
+      expect(result.code).toBe(4)
+      expect(parsed(result.stdout)).toMatchObject({ result: 'unavailable' })
+      expect(result.stderr).toBe('')
+    })
+
+    it('exits 5 when the outcome is unknown or not one the contract lists for the operation', async () => {
+      const service = await serve(seen =>
+        seen.operation === item.name ? { outcome: 'unknown', body: {} } : undefined,
+      )
+      await login(service)
+      const result = await cli([item.name, ...item.args])
       expect(result.code).toBe(5)
-      expect(parsed(result.stdout)).toMatchObject({ result: 'uncertain' })
       expect(result.stderr).toBe(`omne ${item.name}: result uncertain\n`)
     })
   })
@@ -270,7 +269,7 @@ describe('governance usage errors', () => {
       stdout: '',
       stderr: commandMissing('remove-member', '--account-id'),
     })
-    expect(service.seen.filter(seen => seen.wire['operation'] === 'remove-member')).toHaveLength(0)
+    expect(service.seen.filter(seen => seen.operation === 'remove-member')).toHaveLength(0)
   })
 
   it.each([
@@ -319,7 +318,7 @@ describe('governance usage errors', () => {
       stdout: '',
       stderr: commandUnrecognized('accept-member-invitation'),
     })
-    const sent = service.seen.filter(seen => seen.wire['operation'] === 'accept-member-invitation')
+    const sent = service.seen.filter(seen => seen.operation === 'accept-member-invitation')
     expect(sent).toHaveLength(0)
   })
 })
@@ -342,18 +341,18 @@ describe('login', () => {
     expect(result.stdout).not.toContain(issuedProof)
   })
 
-  it('writes no loginId when the server sent none, and a later revoke-login needs --target-login', async () => {
-    const service = await startFakeService()
-    services.push(service)
-    await cli(['login', '--login-identifier', 'alice', '--server', service.origin])
-    expect(readLogin()).not.toHaveProperty('loginId')
+  it('a login file from before the login id was saved needs --target-login for revoke-login', async () => {
+    const service = await serve()
+    await login(service)
+    const { loginId: _kept, ...legacy } = readLogin()
+    writeFileSync(loginFile(), JSON.stringify(legacy), { mode: 0o600 })
     const result = await cli(['revoke-login'])
     expect(result.code).toBe(2)
     expect(result.stdout).toBe('')
     expect(result.stderr).toBe(
       'omne revoke-login: the login id of this login is unknown\nRun omne login again, or add --target-login <id>.\n',
     )
-    expect(service.seen.filter(seen => seen.wire['operation'] === 'revoke-login')).toHaveLength(0)
+    expect(service.seen.filter(seen => seen.operation === 'revoke-login')).toHaveLength(0)
     expect(existsSync(loginFile())).toBe(true)
   })
 })
@@ -380,7 +379,7 @@ describe('switch-current-tenant', () => {
     await login(service)
     await cli(switched)
     await cli(['leave-organization'])
-    expect(service.seen.at(-1)?.wire['actingTenant']).toBe(otherTenantText)
+    expect(service.seen.at(-1)?.headers['omne-acting-tenant']).toBe(otherTenantText)
   })
 
   it.each(['no-change', 'denied', 'basis-unavailable'] as const)(
@@ -409,18 +408,16 @@ describe('switch-current-tenant', () => {
     await cli(switched)
     expect(owners()).toBe(recorded)
     await cli(['send-input', '--session', sessionId, '--text', 'hello'])
-    expect(service.seen.at(-1)?.wire).toMatchObject({
-      operation: 'send-input',
-      body: { tenant: tenantText },
-    })
+    expect(service.seen.at(-1)?.operation).toBe('send-input')
+    expect(service.seen.at(-1)?.body).toMatchObject({ tenant: tenantText })
 
     await cli(['create-session', '--definition', 'default'])
-    expect(service.seen.at(-1)?.wire['actingTenant']).toBe(otherTenantText)
+    expect(service.seen.at(-1)?.headers['omne-acting-tenant']).toBe(otherTenantText)
   })
 
   it('exits 1 after it printed the result when the login file cannot be replaced', async () => {
     const service = await serve(seen => {
-      if (seen.wire['operation'] !== 'switch-current-tenant') return undefined
+      if (seen.operation !== 'switch-current-tenant') return undefined
       // The answer arrives after the command read the file. A directory in its place makes the rename fail.
       rmSync(loginFile())
       mkdirSync(loginFile())
@@ -443,7 +440,7 @@ describe('revoke-login', () => {
     const result = await cli(['revoke-login'])
     expect(result.code).toBe(0)
     expect(parsed(result.stdout)).toMatchObject({ outcome: 'succeeded' })
-    expect(service.seen.at(-1)?.wire['body']).toEqual({ targetLoginId: ownLoginId })
+    expect(service.seen.at(-1)?.body).toEqual({ targetLoginId: ownLoginId })
     expect(existsSync(loginFile())).toBe(false)
     expect(existsSync(state)).toBe(true)
   })
@@ -478,11 +475,11 @@ describe('revoke-login', () => {
     const before = readFileSync(loginFile(), 'utf8')
     const result = await cli(['revoke-login', '--target-login', otherLoginId])
     expect(result.code).toBe(0)
-    expect(service.seen.at(-1)?.wire['body']).toEqual({ targetLoginId: otherLoginId })
+    expect(service.seen.at(-1)?.body).toEqual({ targetLoginId: otherLoginId })
     expect(readFileSync(loginFile(), 'utf8')).toBe(before)
   })
 
-  it.each(['denied', 'not-visible', 'basis-unavailable'] as const)(
+  it.each(['denied', 'not-visible', 'basis-unavailable', 'unknown'] as const)(
     'keeps the file for %s, because the login may still be valid',
     async outcome => {
       const service = await serve(answering('revoke-login', outcome))
@@ -490,18 +487,18 @@ describe('revoke-login', () => {
       const before = readFileSync(loginFile(), 'utf8')
       const result = await cli(['revoke-login'])
       expect(parsed(result.stdout)).toMatchObject({ outcome })
-      expect(result.code).toBe(outcome === 'basis-unavailable' ? 4 : 3)
+      expect(result.code).toBe(outcome === 'basis-unavailable' ? 4 : outcome === 'unknown' ? 5 : 3)
       expect(readFileSync(loginFile(), 'utf8')).toBe(before)
     },
   )
 
-  it('keeps the file when the result is uncertain', async () => {
+  it('keeps the file when the service is unavailable', async () => {
     const service = await serve()
     await login(service)
     const before = readFileSync(loginFile(), 'utf8')
     const port = await closedPort()
     const result = await cli(['revoke-login', '--server', `http://127.0.0.1:${port}`])
-    expect(result.code).toBe(5)
+    expect(result.code).toBe(4)
     expect(readFileSync(loginFile(), 'utf8')).toBe(before)
   })
 

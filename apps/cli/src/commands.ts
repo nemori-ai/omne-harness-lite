@@ -1,19 +1,11 @@
-import {
-  createGovernanceClient,
-  createSessionClient,
-  tenantText,
-  userTextMessage,
-  type SessionRequest,
-  type TenantId,
-} from '@omne-harness/sdk'
+import { identityProtocol } from '@omne-harness/identity-protocol'
+import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
+import { sessionProtocol } from '@omne-harness/session-protocol'
 import type { CliOutput, CommandEnvironment, CommandSpec, ExitCode } from './cli-types.ts'
 import {
-  attempt,
   loadLogin,
   localFailure,
   missingOption,
-  openTransport,
-  proofOf,
   refusedServer,
   resolveOwner,
   serverOf,
@@ -30,11 +22,13 @@ import { runReadSessionDiagnostics } from './diagnostics-command.ts'
 import { governanceCommands } from './governance-commands.ts'
 import { hitlCommands } from './hitl-commands.ts'
 import { runReadHistory } from './history-command.ts'
-import { writeLoginState, type LoginState } from './login-state.ts'
+import { writeLoginState } from './login-state.ts'
+import { openLink, type CallResult, type Link } from './link.ts'
 import { readOptions } from './options.ts'
 import { report, type RequestEcho } from './report.ts'
 import { readSessionOwners, writeSessionOwners } from './session-owners.ts'
 import { settingCommand } from './setting-command.ts'
+import { userTextMessage } from './user-message.ts'
 
 async function runAccount(
   name: 'register' | 'login',
@@ -52,7 +46,7 @@ async function runAccount(
   if (read.kind === 'missing') return usageError(output, missingOption(name, read.option))
   const server = serverOf(read.values, environment)
   if (server.kind === 'invalid') return localFailure(output, server.message)
-  const opened = openTransport(environment, server.origin, 'governance')
+  const opened = openLink(environment, server.origin)
   if (opened.kind === 'refused') return refusedServer(output)
 
   const credential = await environment.services.readCredential(output.stderr)
@@ -69,36 +63,28 @@ async function runAccount(
 
   const messageId = environment.services.newId()
   const loginIdentifier = read.values.get('--login-identifier') ?? ''
-  const client = createGovernanceClient({ transport: opened.transport })
   const body = { loginIdentifier, credential: credential.value }
-  const result = await attempt(() =>
-    client.submit(
-      name === 'register'
-        ? {
-            protocolVersion: 'governance-public/1',
-            messageId,
-            operation: 'register-and-activate',
-            body,
-          }
-        : { protocolVersion: 'governance-public/1', messageId, operation: 'issue-login', body },
-    ),
+  const result = await opened.link.call(
+    identityProtocol,
+    name === 'register' ? 'register-and-activate' : 'issue-login',
+    body,
+    messageId,
   )
   if (result === undefined) return usageError(output, unrecognized(name))
 
   const echo = { messageId }
   if (name === 'register') return report(name, result, echo, output)
 
-  const issued = result.kind === 'response' && result.message.outcome === 'succeeded'
-  const loginId = issued ? text(result.message.body, 'loginId') : ''
+  const issued = result.kind === 'response' && result.outcome === 'succeeded'
   const saved = issued
     ? writeLoginState(directory, {
         version: 1,
-        server: opened.origin,
-        loginIdentifier: text(result.message.body, 'loginIdentifier'),
-        issuedAt: text(result.message.body, 'issuedAt'),
-        tenantId: text(result.message.body, 'tenantId'),
-        loginProof: text(result.message.body, 'loginProof'),
-        ...(loginId === '' ? {} : { loginId }),
+        server: opened.link.origin,
+        loginIdentifier: text(result.body, 'loginIdentifier'),
+        issuedAt: text(result.body, 'issuedAt'),
+        tenantId: text(result.body, 'tenantId'),
+        loginProof: text(result.body, 'loginProof'),
+        loginId: text(result.body, 'loginId'),
       })
     : undefined
   const code = report(name, result, echo, output, withoutProof)
@@ -111,11 +97,13 @@ async function runAccount(
 }
 
 interface SessionContext {
-  readonly state: LoginState
   readonly newId: () => string
 }
 
-type Built = { readonly request: SessionRequest; readonly echo: RequestEcho }
+type Built = {
+  readonly send: (link: Link) => Promise<CallResult | undefined>
+  readonly echo: RequestEcho
+}
 
 interface SessionCommandBase<Parsed> {
   readonly name: string
@@ -153,11 +141,11 @@ async function runSession<Parsed>(
   const parsed = command.parse(read.values)
   if (parsed === undefined) return usageError(output, unrecognized(name))
 
-  const loaded = loadLogin(read.values, output, environment, 'session')
+  const loaded = loadLogin(read.values, output, environment)
   if (loaded.kind === 'exit') return loaded.code
-  const { directory, opened, tenant: loginTenant } = loaded
+  const { directory, link, tenant: loginTenant } = loaded
 
-  const context = { state: loaded.state, newId: environment.services.newId }
+  const context = { newId: environment.services.newId }
   let built: Built
   let owners: ReadonlyMap<string, string> = new Map()
   if (command.kind === 'creating') {
@@ -173,18 +161,18 @@ async function runSession<Parsed>(
     if (resolved.kind === 'exit') return resolved.code
     built = command.build(parsed, { ...context, owner: resolved.owner })
   }
-  const client = createSessionClient({ transport: opened.transport })
-  const result = await attempt(() => client.submit(built.request))
+  const result = await built.send(link)
   if (result === undefined) return usageError(output, unrecognized(name))
   const code = report(name, result, built.echo, output)
   if (command.kind !== 'creating') return code
 
   const session =
-    result.kind === 'response' && result.message.outcome === 'succeeded'
-      ? text(result.message.body, 'session')
-      : ''
+    result.kind === 'response' && result.outcome === 'succeeded' ? text(result.body, 'session') : ''
   if (session === '') return code
-  const saved = writeSessionOwners(directory, new Map(owners).set(session, tenantText(loginTenant)))
+  const saved = writeSessionOwners(
+    directory,
+    new Map(owners).set(session, encodeTenantText(loginTenant)),
+  )
   if (saved.kind === 'written') return code
   const reason = saved.code === undefined ? '' : `: ${saved.code}`
   output.stderr(`omne ${name}: cannot write session records ${saved.path}${reason}
@@ -206,19 +194,18 @@ const createSession: CreatingCommand<{
     purpose: values.get('--purpose') ?? '',
     createCallId: values.get('--create-call-id'),
   }),
-  build: (parsed, { state, loginTenant, newId }) => {
+  build: (parsed, { loginTenant, newId }) => {
     const messageId = newId()
     const createCallId = parsed.createCallId ?? newId()
     return {
-      request: {
-        protocolVersion: 'session-public/1',
-        messageId,
-        operation: 'create-session',
-        proof: proofOf(state),
-        actingTenant: loginTenant,
-        body: { createCallId, definition: parsed.definition, purpose: parsed.purpose },
-      },
-      echo: { messageId, createCallId, tenant: tenantText(loginTenant) },
+      send: link =>
+        link.call(
+          sessionProtocol,
+          'create-session',
+          { createCallId, definition: parsed.definition, purpose: parsed.purpose },
+          messageId,
+        ),
+      echo: { messageId, createCallId, tenant: encodeTenantText(loginTenant) },
     }
   },
 }
@@ -258,25 +245,25 @@ const sendInput: ExistingCommand<
     }
   },
   target: ({ session, tenant }) => ({ session, tenant }),
-  build: (parsed, { state, owner: tenant, newId }) => {
+  build: (parsed, { owner: tenant, newId }) => {
     const messageId = newId()
     const acceptId = parsed.acceptId ?? newId()
     const inputId = parsed.inputId ?? newId()
     return {
-      request: {
-        protocolVersion: 'session-public/1',
-        messageId,
-        operation: 'send-input',
-        proof: proofOf(state),
-        body: {
-          tenant,
-          session: parsed.session,
-          acceptId,
-          inputId,
-          message: userTextMessage(parsed.text, inputId),
-        },
-      },
-      echo: { messageId, acceptId, inputId, tenant: tenantText(tenant) },
+      send: link =>
+        link.call(
+          sessionProtocol,
+          'send-input',
+          {
+            tenant,
+            session: parsed.session,
+            acceptId,
+            inputId,
+            message: userTextMessage(parsed.text, inputId),
+          },
+          messageId,
+        ),
+      echo: { messageId, acceptId, inputId, tenant: encodeTenantText(tenant) },
     }
   },
 }
@@ -293,24 +280,18 @@ const cancelRun: ExistingCommand<Targeted & { run: string; urgency: 'graceful' |
     return { ...target, run: values.get('--run') ?? '', urgency }
   },
   target: ({ session, tenant }) => ({ session, tenant }),
-  build: (parsed, { state, owner: tenant, newId }) => {
+  build: (parsed, { owner: tenant, newId }) => {
     const messageId = newId()
     const controlId = parsed.controlId ?? newId()
     return {
-      request: {
-        protocolVersion: 'session-public/1',
-        messageId,
-        operation: 'cancel-run',
-        proof: proofOf(state),
-        body: {
-          tenant,
-          session: parsed.session,
-          controlId,
-          run: parsed.run,
-          urgency: parsed.urgency,
-        },
-      },
-      echo: { messageId, controlId, tenant: tenantText(tenant) },
+      send: link =>
+        link.call(
+          sessionProtocol,
+          'cancel-run',
+          { tenant, session: parsed.session, controlId, run: parsed.run, urgency: parsed.urgency },
+          messageId,
+        ),
+      echo: { messageId, controlId, tenant: encodeTenantText(tenant) },
     }
   },
 }
@@ -327,23 +308,23 @@ const stopCall: ExistingCommand<Targeted & { kind: 'model' | 'tool'; call: strin
     return { ...target, kind, call: values.get('--call') ?? '' }
   },
   target: ({ session, tenant }) => ({ session, tenant }),
-  build: (parsed, { state, owner: tenant, newId }) => {
+  build: (parsed, { owner: tenant, newId }) => {
     const messageId = newId()
     const controlId = parsed.controlId ?? newId()
     return {
-      request: {
-        protocolVersion: 'session-public/1',
-        messageId,
-        operation: 'stop-call',
-        proof: proofOf(state),
-        body: {
-          tenant,
-          session: parsed.session,
-          controlId,
-          producer: { kind: parsed.kind, call: parsed.call },
-        },
-      },
-      echo: { messageId, controlId, tenant: tenantText(tenant) },
+      send: link =>
+        link.call(
+          sessionProtocol,
+          'stop-call',
+          {
+            tenant,
+            session: parsed.session,
+            controlId,
+            producer: { kind: parsed.kind, call: parsed.call },
+          },
+          messageId,
+        ),
+      echo: { messageId, controlId, tenant: encodeTenantText(tenant) },
     }
   },
 }

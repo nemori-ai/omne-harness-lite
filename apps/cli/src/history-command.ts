@@ -1,15 +1,9 @@
-import {
-  createSessionClient,
-  tenantText,
-  type CallerResult,
-  type TenantId,
-} from '@omne-harness/sdk'
+import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
+import { sessionProtocol } from '@omne-harness/session-protocol'
 import type { CliOutput, CommandEnvironment, ExitCode } from './cli-types.ts'
 import {
-  attempt,
   loadLogin,
   missingOption,
-  proofOf,
   resolveOwner,
   serverOption,
   tenantOption,
@@ -17,6 +11,7 @@ import {
   usageError,
 } from './command-support.ts'
 import { renderEntry, type RawEntry } from './history-render.ts'
+import type { CallResult, Link } from './link.ts'
 import { readOptions } from './options.ts'
 import { exitCodeOf } from './report.ts'
 
@@ -43,14 +38,13 @@ type Reading =
   | {
       readonly kind: 'stopped'
       readonly entries: readonly RawEntry[]
-      readonly result: CallerResult
+      readonly result: CallResult
       readonly page: number
     }
   | { readonly kind: 'broken'; readonly entries: readonly RawEntry[]; readonly reason: string }
   | { readonly kind: 'refused' }
 
 interface HistoryRequest {
-  readonly proof: ReturnType<typeof proofOf>
   readonly tenant: TenantId
   readonly session: string
   readonly pageBytes: string
@@ -58,39 +52,28 @@ interface HistoryRequest {
 }
 
 async function readAll(
-  client: ReturnType<typeof createSessionClient>,
+  link: Link,
   request: HistoryRequest,
   firstMessageId: string,
 ): Promise<Reading> {
-  const { tenant, session, proof } = request
+  const { tenant, session } = request
   const entries: RawEntry[] = []
   let cursor: string | null = null
   for (let page = 1; ; page += 1) {
     if (page > maxPages) return { kind: 'broken', entries, reason: `more than ${maxPages} pages` }
     const messageId = page === 1 ? firstMessageId : request.newId()
-    const result = await attempt(() =>
-      client.submit(
-        cursor === null
-          ? {
-              protocolVersion: 'session-public/1',
-              messageId,
-              operation: 'read-history',
-              proof,
-              body: { tenant, session, cursor, direction: 'forward', pageBytes: request.pageBytes },
-            }
-          : {
-              protocolVersion: 'session-public/1',
-              messageId,
-              operation: 'read-history',
-              proof,
-              body: { tenant, session, cursor },
-            },
-      ),
+    const result = await link.call(
+      sessionProtocol,
+      'read-history',
+      cursor === null
+        ? { tenant, session, cursor, direction: 'forward', pageBytes: request.pageBytes }
+        : { tenant, session, cursor },
+      messageId,
     )
     if (result === undefined) return { kind: 'refused' }
-    if (result.kind === 'uncertain' || result.message.outcome !== 'succeeded')
+    if (result.kind !== 'response' || result.outcome !== 'succeeded')
       return { kind: 'stopped', entries, result, page }
-    const read = pageOf(result.message.body)
+    const read = pageOf(result.body)
     if (read === undefined)
       return { kind: 'broken', entries, reason: `page ${page} is not a history page` }
     entries.push(...read.entries)
@@ -106,9 +89,9 @@ async function readAll(
 function incompleteReason(reading: Exclude<Reading, { kind: 'complete' | 'refused' }>): string {
   if (reading.kind === 'broken') return reading.reason
   const { result, page } = reading
-  return result.kind === 'uncertain'
-    ? `page ${page} had no trusted answer`
-    : `page ${page} was answered ${result.message.outcome}`
+  if (result.kind === 'uncertain') return `page ${page} had no trusted answer`
+  if (result.kind === 'unavailable') return `page ${page} was not sent: the service is unavailable`
+  return `page ${page} was answered ${result.outcome}`
 }
 
 function resultObject(
@@ -116,11 +99,11 @@ function resultObject(
   request: Readonly<Record<string, string>>,
 ): Record<string, unknown> {
   const body = { entries: reading.entries, complete: reading.kind === 'complete' }
-  if (reading.kind === 'stopped' && reading.result.kind === 'uncertain')
-    return { result: 'uncertain', body, request }
+  if (reading.kind === 'stopped' && reading.result.kind !== 'response')
+    return { result: reading.result.kind, body, request }
   const outcome =
     reading.kind === 'stopped' && reading.result.kind === 'response'
-      ? reading.result.message.outcome
+      ? reading.result.outcome
       : 'succeeded'
   return { result: 'response', outcome, body, request }
 }
@@ -143,7 +126,7 @@ export async function runReadHistory(
     return usageError(output, unrecognized(name))
   const session = read.values.get('--session') ?? ''
 
-  const loaded = loadLogin(read.values, output, environment, 'session')
+  const loaded = loadLogin(read.values, output, environment)
   if (loaded.kind === 'exit') return loaded.code
   const resolved = resolveOwner(name, session, given, loaded.directory, output)
   if (resolved.kind === 'exit') return resolved.code
@@ -152,8 +135,8 @@ export async function runReadHistory(
   const { newId } = environment.services
   const messageId = newId()
   const reading = await readAll(
-    createSessionClient({ transport: loaded.opened.transport }),
-    { proof: proofOf(loaded.state), tenant: owner, session, pageBytes, newId },
+    loaded.link,
+    { tenant: owner, session, pageBytes, newId },
     messageId,
   )
   if (reading.kind === 'refused') return usageError(output, unrecognized(name))
@@ -162,7 +145,7 @@ export async function runReadHistory(
   try {
     output.stdout(
       read.values.has('--json')
-        ? `${JSON.stringify(resultObject(reading, { messageId, tenant: tenantText(owner) }))}\n`
+        ? `${JSON.stringify(resultObject(reading, { messageId, tenant: encodeTenantText(owner) }))}\n`
         : entries.map(renderEntry).join(''),
     )
   } catch {
