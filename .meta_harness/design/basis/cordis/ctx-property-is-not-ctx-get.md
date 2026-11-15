@@ -8,10 +8,10 @@ symbols:
   - "reflect.ts: 不在插件运行期（根上下文）读 ctx.<名>，等于 ctx.reflect.get(名, false)"
   - "reflect.ts: ctx.get(name, strict) 不看声明，直接读全局服务表"
 lines:
-  - "reflect.ts:136-168"
+  - "reflect.ts:136-171"
   - "reflect.ts:233-243"
 probe: packages/assembly/kernel-basis/tests/ctx-property-is-not-ctx-get.spec.ts
-checked: 2026-10-02
+checked: 2026-11-15
 ---
 
 # 插件里读 `ctx.<键>` 不等于 `ctx.get(键)`：前者要先声明，后者直接读服务表
@@ -37,13 +37,13 @@ checked: 2026-10-02
 
 | symbol / 语义位置 | 读到了什么 | 怎样复核 |
 |---|---|---|
-| `reflect.ts` Context 代理的 `get` | 运行期沿 `fiber.store` 向上找；遇到本 fiber 声明了却不在场的抛 `in inactive context`；走到没有 `runtime` 的 fiber 或 isolate 标签变了即抛 `without inject` | 读源码 136–168 行 |
+| `reflect.ts` Context 代理的 `get` | 运行期沿 `fiber.store` 向上找；遇到本 fiber 声明了却不在场的抛 `in inactive context`；走到没有 `runtime` 的 fiber 或 isolate 标签变了即抛 `without inject` | 读源码 136–171 行 |
 | 同上，第 152 行 | `if (!ctx.fiber.runtime) return ctx.reflect.get(prop, false)` | 在根上下文读一个已提供的键 |
 | `reflect.ts` `get`／`_getImpl` | 按 isolate 键读 `this.store`，不查声明 | 读源码 233–243 行 |
 
-## probe 断言什么
+## 探针断言什么
 
-probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行。对 4.0.4 通过（2026-10-02）；2026-10-22 迁入该成员后对 4.0.4 复跑通过：
+探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
 
 1. 一个插件提供 `probeKv`；另一个**没 inject** 的插件体里，`ctx.get('probeKv')` 取到实现，读 `ctx.probeKv` 抛错且消息含键名。
 2. `inject: ['probeKv']` 的插件体里，`ctx.probeKv` 取到同一个实现。
