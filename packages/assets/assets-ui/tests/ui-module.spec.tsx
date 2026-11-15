@@ -1,16 +1,19 @@
 // @vitest-environment happy-dom
 import { Context } from '@deepseek-ai/cordis'
 import { act, cleanup, render } from '@testing-library/react'
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, beforeAll, expect, it } from 'vitest'
 import { assetsProtocol } from '@omne-harness/assets-protocol'
 import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import { assetsUiModule } from '../src/cordis.tsx'
+import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { startShell } from './fixtures/reference-shell.ts'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
 const SERVICE = protocolServiceName({ name: assetsProtocol.name, major: assetsProtocol.major })
+
+beforeAll(stubAnimation)
 
 afterEach(cleanup)
 

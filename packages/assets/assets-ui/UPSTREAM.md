@@ -1,0 +1,17 @@
+# 来历
+
+本成员设置页的版式参考外部项目 `pandazki/super-assistant`，提交 `3b967f58768714d57cd1bacf67b599d2aa7a8f53`（授权依据见 `packages/frontend/ui-kit/UPSTREAM.md`）。没有原样拷贝文件：参考项目的设置页绑它自己的桥、偏好、多语言与路由，这里按资产协议的数据重写，只取版式。
+
+| 参考项目的文件（相对 `desktop/src/renderer/src/routes/settings/`） | 取了什么 | 落在 |
+| --- | --- | --- |
+| `index.tsx` | 骨架：页头、左边一列分组、右边窗格；窄屏时分组变成横条 | `src/view/settings-panel.tsx`、`src/view/assets-ui.css` |
+| `settings.css` | 双栏网格、分组行的高亮、一项一行（左边说明，右边操作，窄时叠起来）、分隔线、提示的宽度上限 | `src/view/assets-ui.css` |
+| `field.tsx` | 一项一行的形状：名称与一句说明在左，控件在右，这一项自己的失败说在这一项底下 | `src/view/setting-row.tsx` |
+| `record.tsx` | 没取 | |
+
+## 改了哪几样
+
+- CSS 变量全部用共用界面件的 `--omne-` 前缀的变量，本成员不定义自己的变量。
+- 没有路由：分组是页内的状态，不取 `hash`、`Link`、`GlideMenu`。
+- 分组取自资产的类别，另有「全部」；参考项目的分组是写死的。
+- 没有多语言：文案直接写中文。
