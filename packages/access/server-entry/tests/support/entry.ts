@@ -24,9 +24,7 @@ export function baseConfig(overrides: Partial<ServerEntryConfig> = {}): ServerEn
       maxStringLength: 65536,
       maxNumberLength: 32,
     },
-    maxPageBytes: 65536,
-    historyKinds: ['message.user', 'message.assistant'],
-    observation: { perLogin: 2, perInstance: 8, cancelRetentionMs: 200 },
+    observation: { perLogin: 2, perInstance: 8 },
     ...overrides,
   }
 }

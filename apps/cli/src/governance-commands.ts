@@ -1,18 +1,14 @@
+import { identityProtocol } from '@omne-harness/identity-protocol'
 import {
-  createGovernanceClient,
-  parseTenantText,
+  encodeTenantText,
   readAccountIdText,
   readLoginStateIdText,
   readOrganizationIdText,
-  tenantText,
-  type CallerResult,
-  type GovernanceRequest,
-  type ProofInput,
+  readTenantText,
   type TenantId,
-} from '@omne-harness/sdk'
+} from '@omne-harness/public-contract'
 import type { CliOutput, CommandEnvironment, CommandSpec, ExitCode } from './cli-types.ts'
 import {
-  attempt,
   loadLogin,
   missingOption,
   serverOption,
@@ -28,12 +24,12 @@ import {
   type LoginStateRemove,
   type LoginStateWrite,
 } from './login-state.ts'
+import type { CallResult, Link } from './link.ts'
 import { readOptions } from './options.ts'
 import { report, type RequestEcho } from './report.ts'
 
 interface Context {
   readonly messageId: string
-  readonly proof: ProofInput
   readonly tenant: TenantId
   readonly state: LoginState
   readonly directory: string
@@ -41,9 +37,9 @@ interface Context {
 }
 
 interface Built {
-  readonly request: GovernanceRequest
+  readonly send: (link: Link) => Promise<CallResult | undefined>
   readonly echo: RequestEcho
-  readonly local?: (result: CallerResult) => string | undefined
+  readonly local?: (result: CallResult) => string | undefined
 }
 
 type Prepared = undefined | string | ((context: Context) => Built | string)
@@ -56,8 +52,8 @@ interface GovernanceCommand {
   readonly prepare: (values: Option) => Prepared
 }
 
-function respondedWith(result: CallerResult, ...outcomes: readonly string[]): boolean {
-  return result.kind === 'response' && outcomes.includes(result.message.outcome)
+function respondedWith(result: CallResult, ...outcomes: readonly string[]): boolean {
+  return result.kind === 'response' && outcomes.includes(result.outcome)
 }
 
 function reason(code: string | undefined): string {
@@ -76,10 +72,8 @@ function removeFailure(name: string, removed: LoginStateRemove): string | undefi
     : `omne ${name}: cannot remove login state ${removed.path}${reason(removed.code)}\n`
 }
 
-const protocolVersion = 'governance-public/1'
-
 function actingEcho(context: Context): RequestEcho {
-  return { messageId: context.messageId, tenant: tenantText(context.tenant) }
+  return { messageId: context.messageId, tenant: encodeTenantText(context.tenant) }
 }
 
 function plain(
@@ -96,13 +90,7 @@ function plain(
     required: [],
     optional: [],
     prepare: () => context => ({
-      request: {
-        protocolVersion,
-        messageId: context.messageId,
-        operation: name,
-        proof: context.proof,
-        body: {},
-      },
+      send: link => link.call(identityProtocol, name, {}, context.messageId),
       echo: { messageId: context.messageId },
     }),
   }
@@ -118,14 +106,7 @@ function acting(
     required: [],
     optional: [],
     prepare: () => context => ({
-      request: {
-        protocolVersion,
-        messageId: context.messageId,
-        operation: name,
-        proof: context.proof,
-        actingTenant: context.tenant,
-        body: {},
-      },
+      send: link => link.call(identityProtocol, name, {}, context.messageId),
       echo: actingEcho(context),
     }),
   }
@@ -141,14 +122,13 @@ function invitationAnswer(
     required: ['--invitation-id'],
     optional: [],
     prepare: values => context => ({
-      request: {
-        protocolVersion,
-        messageId: context.messageId,
-        operation: name,
-        proof: context.proof,
-        actingTenant: context.tenant,
-        body: { invitationId: values.get('--invitation-id') ?? '', expectedState: 'open' },
-      },
+      send: link =>
+        link.call(
+          identityProtocol,
+          name,
+          { invitationId: values.get('--invitation-id') ?? '', expectedState: 'open' },
+          context.messageId,
+        ),
       echo: actingEcho(context),
     }),
   }
@@ -162,18 +142,17 @@ const createOrganization: GovernanceCommand = {
   prepare: values => context => {
     const createCallId = values.get('--create-call-id') ?? context.newId()
     return {
-      request: {
-        protocolVersion,
-        messageId: context.messageId,
-        operation: 'create-organization',
-        proof: context.proof,
-        actingTenant: context.tenant,
-        body: {
-          createCallId,
-          name: values.get('--name') ?? '',
-          governanceModelId: values.get('--governance-model-id') ?? '',
-        },
-      },
+      send: link =>
+        link.call(
+          identityProtocol,
+          'create-organization',
+          {
+            createCallId,
+            name: values.get('--name') ?? '',
+            governanceModelId: values.get('--governance-model-id') ?? '',
+          },
+          context.messageId,
+        ),
       echo: { ...actingEcho(context), createCallId },
     }
   },
@@ -185,17 +164,17 @@ const queryCreateOrganization: GovernanceCommand = {
   required: ['--target-create-call-id', '--name', '--governance-model-id'],
   optional: [],
   prepare: values => context => ({
-    request: {
-      protocolVersion,
-      messageId: context.messageId,
-      operation: 'query-create-organization',
-      proof: context.proof,
-      body: {
-        targetCreateCallId: values.get('--target-create-call-id') ?? '',
-        name: values.get('--name') ?? '',
-        governanceModelId: values.get('--governance-model-id') ?? '',
-      },
-    },
+    send: link =>
+      link.call(
+        identityProtocol,
+        'query-create-organization',
+        {
+          targetCreateCallId: values.get('--target-create-call-id') ?? '',
+          name: values.get('--name') ?? '',
+          governanceModelId: values.get('--governance-model-id') ?? '',
+        },
+        context.messageId,
+      ),
     echo: { messageId: context.messageId },
   }),
 }
@@ -208,17 +187,16 @@ const issueMemberInvitation: GovernanceCommand = {
   prepare: values => context => {
     const duration = values.get('--duration')
     return {
-      request: {
-        protocolVersion,
-        messageId: context.messageId,
-        operation: 'issue-member-invitation',
-        proof: context.proof,
-        actingTenant: context.tenant,
-        body: {
-          invitedLoginIdentifier: values.get('--invited-login-identifier') ?? '',
-          ...(duration === undefined ? {} : { duration }),
-        },
-      },
+      send: link =>
+        link.call(
+          identityProtocol,
+          'issue-member-invitation',
+          {
+            invitedLoginIdentifier: values.get('--invited-login-identifier') ?? '',
+            ...(duration === undefined ? {} : { duration }),
+          },
+          context.messageId,
+        ),
       echo: actingEcho(context),
     }
   },
@@ -230,14 +208,13 @@ const queryInvitation: GovernanceCommand = {
   required: ['--invitation-id'],
   optional: [],
   prepare: values => context => ({
-    request: {
-      protocolVersion,
-      messageId: context.messageId,
-      operation: 'query-invitation',
-      proof: context.proof,
-      actingTenant: context.tenant,
-      body: { invitationId: values.get('--invitation-id') ?? '' },
-    },
+    send: link =>
+      link.call(
+        identityProtocol,
+        'query-invitation',
+        { invitationId: values.get('--invitation-id') ?? '' },
+        context.messageId,
+      ),
     echo: actingEcho(context),
   }),
 }
@@ -253,17 +230,16 @@ const queryOrganizationMembers: GovernanceCommand = {
     if (organizationId === undefined) return undefined
     if (removed !== undefined && removed !== 'true' && removed !== 'false') return undefined
     return context => ({
-      request: {
-        protocolVersion,
-        messageId: context.messageId,
-        operation: 'query-organization-members',
-        proof: context.proof,
-        actingTenant: context.tenant,
-        body: {
-          organizationId,
-          ...(removed === undefined ? {} : { includeRemoved: removed === 'true' }),
-        },
-      },
+      send: link =>
+        link.call(
+          identityProtocol,
+          'query-organization-members',
+          {
+            organizationId,
+            ...(removed === undefined ? {} : { includeRemoved: removed === 'true' }),
+          },
+          context.messageId,
+        ),
       echo: actingEcho(context),
     })
   },
@@ -287,28 +263,23 @@ function memberChange(name: 'remove-member' | 'change-member-role'): GovernanceC
       if (organizationId === undefined || accountId === undefined) return undefined
       const expectedRole = values.get('--expected-role') ?? ''
       const targetRole = values.get('--target-role') ?? ''
-      return context => {
-        const head = {
-          protocolVersion,
-          messageId: context.messageId,
-          proof: context.proof,
-          actingTenant: context.tenant,
-        } as const
-        return {
-          request: change
-            ? {
-                ...head,
-                operation: 'change-member-role',
-                body: { organizationId, accountId, expectedRole, targetRole },
-              }
-            : {
-                ...head,
-                operation: 'remove-member',
-                body: { organizationId, accountId, expectedRole },
-              },
-          echo: actingEcho(context),
-        }
-      }
+      return context => ({
+        send: link =>
+          change
+            ? link.call(
+                identityProtocol,
+                'change-member-role',
+                { organizationId, accountId, expectedRole, targetRole },
+                context.messageId,
+              )
+            : link.call(
+                identityProtocol,
+                'remove-member',
+                { organizationId, accountId, expectedRole },
+                context.messageId,
+              ),
+        echo: actingEcho(context),
+      })
     },
   }
 }
@@ -319,22 +290,16 @@ const switchCurrentTenant: GovernanceCommand = {
   required: ['--tenant-id'],
   optional: [],
   prepare: values => {
-    const tenantId = parseTenantText(values.get('--tenant-id') ?? '')
+    const tenantId = readTenantText(values.get('--tenant-id') ?? '')
     if (tenantId === undefined) return undefined
     return context => ({
-      request: {
-        protocolVersion,
-        messageId: context.messageId,
-        operation: 'switch-current-tenant',
-        proof: context.proof,
-        actingTenant: context.tenant,
-        body: { tenantId },
-      },
+      send: link =>
+        link.call(identityProtocol, 'switch-current-tenant', { tenantId }, context.messageId),
       echo: actingEcho(context),
       local: result => {
         if (!respondedWith(result, 'succeeded') || result.kind !== 'response') return undefined
-        const switched = text(result.message.body, 'tenantId')
-        if (parseTenantText(switched) === undefined)
+        const switched = text(result.body, 'tenantId')
+        if (readTenantText(switched) === undefined)
           return 'omne switch-current-tenant: the response names no valid tenant\n'
         return writeFailure(
           'switch-current-tenant',
@@ -362,13 +327,8 @@ const revokeLogin: GovernanceCommand = {
       if (targetText === undefined || targetLoginId === undefined) return unknownLoginId
       const own = given === undefined || given === context.state.loginId
       return {
-        request: {
-          protocolVersion,
-          messageId: context.messageId,
-          operation: 'revoke-login',
-          proof: context.proof,
-          body: { targetLoginId },
-        },
+        send: link =>
+          link.call(identityProtocol, 'revoke-login', { targetLoginId }, context.messageId),
         echo: { messageId: context.messageId, targetLoginId: targetText },
         local: result =>
           own && respondedWith(result, 'succeeded', 'no-change')
@@ -417,11 +377,10 @@ async function runGovernance(
   if (prepared === undefined) return usageError(output, unrecognized(name))
   if (typeof prepared === 'string') return usageError(output, prepared)
 
-  const loaded = loadLogin(read.values, output, environment, 'governance')
+  const loaded = loadLogin(read.values, output, environment)
   if (loaded.kind === 'exit') return loaded.code
   const built = prepared({
     messageId: environment.services.newId(),
-    proof: { kind: 'present', value: loaded.state.loginProof },
     tenant: loaded.tenant,
     state: loaded.state,
     directory: loaded.directory,
@@ -429,8 +388,7 @@ async function runGovernance(
   })
   if (typeof built === 'string') return usageError(output, built)
 
-  const client = createGovernanceClient({ transport: loaded.opened.transport })
-  const result = await attempt(() => client.submit(built.request))
+  const result = await built.send(loaded.link)
   if (result === undefined) return usageError(output, unrecognized(name))
   const failure = built.local?.(result)
   const code = report(name, result, built.echo, output)

@@ -16,6 +16,7 @@ import {
   defaultAnswer,
   issuedProof,
   otherTenantText,
+  ownLoginId,
   sessionId,
   startFakeService,
   tenantText,
@@ -44,8 +45,8 @@ afterEach(async () => {
 })
 
 function answerByTenant(seen: Seen): Answer {
-  const body = (seen.wire['body'] ?? {}) as Record<string, unknown>
-  switch (seen.wire['operation']) {
+  const { body } = seen
+  switch (seen.operation) {
     case 'issue-login':
       return {
         outcome: 'succeeded',
@@ -54,13 +55,14 @@ function answerByTenant(seen: Seen): Answer {
           issuedAt: '2026-11-01T12:00:00Z',
           tenantId: body['loginIdentifier'] === 'alice' ? tenantText : otherTenantText,
           loginProof: issuedProof,
+          loginId: ownLoginId,
         },
       }
     case 'create-session':
       return {
         outcome: 'succeeded',
         body: {
-          session: seen.wire['actingTenant'] === tenantText ? sessionId : otherSessionId,
+          session: seen.headers['omne-acting-tenant'] === tenantText ? sessionId : otherSessionId,
           recovered: false,
         },
       }
@@ -84,8 +86,7 @@ async function login(origin: FakeService, identifier: string) {
 }
 
 const recordsFile = () => join(state, 'sessions.json')
-const bodyOfLast = (origin: FakeService) =>
-  origin.seen.at(-1)?.wire['body'] as Record<string, unknown>
+const bodyOfLast = (origin: FakeService) => origin.seen.at(-1)?.body as Record<string, unknown>
 
 const existing: readonly (readonly [string, (session: string) => readonly string[]])[] = [
   ['send-input', session => ['--session', session, '--text', 'hello']],
@@ -129,7 +130,7 @@ describe('create-session records the owner of the session', () => {
     'writes nothing when the outcome is %s',
     async outcome => {
       const origin = await serve(seen =>
-        seen.wire['operation'] === 'create-session' ? { outcome, body: {} } : answerByTenant(seen),
+        seen.operation === 'create-session' ? { outcome, body: {} } : answerByTenant(seen),
       )
       await login(origin, 'alice')
       await cli(['create-session', '--definition', 'default'])
@@ -140,7 +141,7 @@ describe('create-session records the owner of the session', () => {
   it('prints the result, names the file, and exits 1 when the record cannot be written', async () => {
     const origin = await serve(seen => {
       // The service answers after the command has read the records, so this breaks the write only.
-      if (seen.wire['operation'] === 'create-session') mkdirSync(recordsFile())
+      if (seen.operation === 'create-session') mkdirSync(recordsFile())
       return answerByTenant(seen)
     })
     await login(origin, 'alice')

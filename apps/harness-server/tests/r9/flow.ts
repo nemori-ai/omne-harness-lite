@@ -18,9 +18,13 @@ import {
   type ServerHandle,
   type ServerOutcome,
 } from './support.ts'
+import {
+  originOf,
+  protocolClients,
+  readHistoryPage,
+  type ProtocolClients,
+} from '../support/protocol-clients.ts'
 
-export const SESSION_PATH = '/session-public/1'
-export const GOVERNANCE_PATH = '/governance-public/1'
 const CREDENTIALS = { alice: 'alice-pw-MARKER-7f3a', bob: 'bob-pw-MARKER-91c2' } as const
 const INPUT_TEXT = 'hello from the r9 flow MARKER-input'
 const UNKNOWN_SESSION = 'f'.repeat(64)
@@ -42,7 +46,7 @@ export type Step = Readonly<{
   stderr: string
 }>
 
-type HttpReplyBody = Readonly<{ status: number; body: string }>
+type HttpReplyBody = Readonly<{ outcome: string; body: string }>
 type HttpReply = HttpReplyBody & Readonly<{ label: string }>
 
 export type FlowRecord = Readonly<{
@@ -75,32 +79,28 @@ const shortJson = (value: unknown): string => JSON.stringify(value).slice(0, 300
 const answerOf = (run: CliRun): string =>
   JSON.stringify({ outcome: run.result?.['outcome'], body: run.result?.['body'] })
 
-async function post(
-  port: number,
-  path: string,
-  body: unknown,
-): Promise<{ status: number; body: string }> {
-  const response = await fetch(`http://127.0.0.1:${String(port)}${path}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  return { status: response.status, body: await response.text() }
-}
-
-const readHistory = (tenant: string, session: string, loginProof: string) => ({
-  protocolVersion: 'session-public/1',
-  messageId: 'r9-read-history',
-  operation: 'read-history',
-  body: { tenant, session, cursor: null, direction: 'forward', pageBytes: '65536' },
-  loginProof,
+const asReply = (answer: { outcome: string; body?: unknown }): HttpReplyBody => ({
+  outcome: answer.outcome,
+  body: JSON.stringify(answer),
 })
+
+const clientsOf = (port: number, proof: string, tenant: string): ProtocolClients =>
+  protocolClients(originOf(port), () => ({ proof, tenant }))
+
+async function readHistory(
+  port: number,
+  tenant: string,
+  session: string,
+  proof: string,
+): Promise<HttpReplyBody> {
+  return asReply(await readHistoryPage(clientsOf(port, proof, tenant), tenant, session, '65536'))
+}
 
 function withRunEntries(layer: unknown): unknown {
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
   return {
     ops: ops.map(op =>
-      op.id === 'server-entry'
+      op.id === 'session-access'
         ? {
             ...op,
             config: {
@@ -271,15 +271,15 @@ export async function runR9Flow(): Promise<FlowRecord> {
     const aliceTenant = savedTenant(homes.alice)
     const bobTenant = savedTenant(homes.bob)
 
-    const history = await post(port, SESSION_PATH, readHistory(aliceTenant, session, aliceProof))
+    const history = await readHistory(port, aliceTenant, session, aliceProof)
     http.push({ label: 'alice reads her history', ...history })
     outputs.push(history.body)
     checks.push(
       check(
         2,
         'the sent input is read back from the session history with its original text',
-        history.status === 200 && history.body.includes(INPUT_TEXT),
-        `status ${String(history.status)}`,
+        history.outcome === 'succeeded' && history.body.includes(INPUT_TEXT),
+        `outcome ${history.outcome}`,
       ),
     )
 
@@ -338,25 +338,16 @@ export async function runR9Flow(): Promise<FlowRecord> {
       ),
     )
     const reads = {
-      ownerTenantReal: await post(port, SESSION_PATH, readHistory(aliceTenant, session, bobProof)),
-      ownerTenantUnknown: await post(
-        port,
-        SESSION_PATH,
-        readHistory(aliceTenant, UNKNOWN_SESSION, bobProof),
-      ),
-      ownTenantReal: await post(port, SESSION_PATH, readHistory(bobTenant, session, bobProof)),
-      ownTenantUnknown: await post(
-        port,
-        SESSION_PATH,
-        readHistory(bobTenant, UNKNOWN_SESSION, bobProof),
-      ),
+      ownerTenantReal: await readHistory(port, aliceTenant, session, bobProof),
+      ownerTenantUnknown: await readHistory(port, aliceTenant, UNKNOWN_SESSION, bobProof),
+      ownTenantReal: await readHistory(port, bobTenant, session, bobProof),
+      ownTenantUnknown: await readHistory(port, bobTenant, UNKNOWN_SESSION, bobProof),
     }
     for (const [label, reply] of Object.entries(reads)) {
       http.push({ label: `bob reads history: ${label}`, ...reply })
       outputs.push(reply.body)
     }
-    const sameBytes = (a: HttpReplyBody, b: HttpReplyBody): boolean =>
-      a.status === b.status && a.body === b.body
+    const sameBytes = (a: HttpReplyBody, b: HttpReplyBody): boolean => a.body === b.body
     checks.push(
       check(
         3,
@@ -373,7 +364,7 @@ export async function runR9Flow(): Promise<FlowRecord> {
           sameBytes(reads.ownerTenantReal, reads.ownerTenantUnknown) &&
           sameBytes(reads.ownTenantReal, reads.ownTenantUnknown),
         Object.entries(reads)
-          .map(([label, reply]) => `${label}: ${String(reply.status)} ${reply.body.slice(0, 160)}`)
+          .map(([label, reply]) => `${label}: ${reply.body.slice(0, 160)}`)
           .join(' | '),
       ),
     )
@@ -385,7 +376,7 @@ export async function runR9Flow(): Promise<FlowRecord> {
         4,
         'the Run that the input started ends before the first stop (run.terminal in the history)',
         ended.ok,
-        `no run.terminal after ${String(RUN_END_TIMEOUT_MS)} ms: status ${String(ended.status)}`,
+        `no run.terminal after ${String(RUN_END_TIMEOUT_MS)} ms: outcome ${ended.outcome}`,
       ),
       check(
         4,
@@ -470,13 +461,12 @@ export async function runR9Flow(): Promise<FlowRecord> {
         `exit ${String(tamperedUse.status)} ${tamperedUse.stdout.slice(0, 200)}`,
       ),
     )
-    const rawIssue = await post(port, GOVERNANCE_PATH, {
-      protocolVersion: 'governance-public/1',
-      messageId: 'r9-raw-issue',
-      operation: 'issue-login',
-      body: { loginIdentifier: 'alice', credential: CREDENTIALS.alice },
-    })
-    const rawProof = (JSON.parse(rawIssue.body) as { body: { loginProof: string } }).body.loginProof
+    const rawAnswer = await protocolClients(originOf(port)).identity['issue-login']({
+      loginIdentifier: 'alice',
+      credential: CREDENTIALS.alice,
+    } as never)
+    const rawProof = (rawAnswer as { body: { loginProof: string } }).body.loginProof
+    const rawIssue = asReply({ outcome: rawAnswer.outcome, body: { loginProof: rawProof } })
     const secondStop = await stop(server)
     server = undefined
     checks.push(
@@ -540,11 +530,12 @@ async function waitForRunEnd(
   tenant: string,
   session: string,
   loginProof: string,
-): Promise<{ ok: boolean; status: number; body: string }> {
+): Promise<{ ok: boolean; outcome: string; body: string }> {
   const deadline = Date.now() + RUN_END_TIMEOUT_MS
   for (;;) {
-    const reply = await post(port, SESSION_PATH, readHistory(tenant, session, loginProof))
-    if (reply.status === 200 && reply.body.includes('"run.terminal"')) return { ok: true, ...reply }
+    const reply = await readHistory(port, tenant, session, loginProof)
+    if (reply.outcome === 'succeeded' && reply.body.includes('"run.terminal"'))
+      return { ok: true, ...reply }
     if (Date.now() >= deadline) return { ok: false, ...reply }
     await new Promise(resolve => setTimeout(resolve, RUN_END_POLL_MS))
   }

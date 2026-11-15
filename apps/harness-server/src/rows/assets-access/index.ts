@@ -7,6 +7,8 @@ import { createAccessIdentity } from '@omne-harness/identity-access'
 import { defineRow } from '../../row.ts'
 import { tenantSettingsKey } from '../governance/tenant-settings-service.ts'
 import { governanceOfCall, identityOfCall } from '../server-entry/identity.ts'
+import { settingsSecretItemsKey } from '../settings/index.ts'
+import { unifySettings } from './settings.ts'
 
 function targetTenantPrincipals(ctx: Context): TargetTenantPrincipals {
   const identity = createAccessIdentity({
@@ -22,8 +24,11 @@ function targetTenantPrincipals(ctx: Context): TargetTenantPrincipals {
   }
 }
 
-function settingsOf(ctx: Context): TenantSettingsPort | undefined {
-  return ctx.get(tenantSettingsKey)
+function settingsOf(ctx: Context): TenantSettingsPort {
+  return unifySettings({
+    secrets: () => ctx.get(settingsSecretItemsKey),
+    catalog: () => ctx.get(tenantSettingsKey),
+  })
 }
 
 const plugin = createAssetsAccessPlugin({

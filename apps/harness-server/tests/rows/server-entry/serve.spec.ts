@@ -3,15 +3,8 @@ import { networkInterfaces } from 'node:os'
 import { describe, expect, it } from 'vitest'
 import { defineRow } from '../../../src/row.ts'
 import { syntheticRow } from '../../fixtures/serve/index.ts'
-import {
-  GOVERNANCE_PATH,
-  connectable,
-  freePort,
-  governance,
-  post,
-  startTree,
-  waitListening,
-} from './support.ts'
+import { connectable, freePort } from '../../support/listening.ts'
+import { startTree, waitListening } from './support.ts'
 
 function answersHttp(host: string, port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -22,6 +15,32 @@ function answersHttp(host: string, port: number): Promise<boolean> {
     req.setTimeout(1000, () => req.destroy())
     req.on('error', () => resolve(false))
     req.end()
+  })
+}
+
+function availabilityStatus(port: number): Promise<number> {
+  const body = '{}'
+  return new Promise((resolve, reject) => {
+    const req = request(
+      {
+        host: '127.0.0.1',
+        port,
+        method: 'POST',
+        path: '/api/access/v1/availability',
+        headers: {
+          host: `127.0.0.1:${port}`,
+          'content-type': 'application/json',
+          'content-length': String(body.length),
+          'omne-message-id': 'm-availability',
+        },
+      },
+      res => {
+        resolve(res.statusCode ?? 0)
+        req.destroy()
+      },
+    )
+    req.on('error', reject)
+    req.end(body)
   })
 }
 
@@ -54,12 +73,7 @@ describe('server-entry row: listening', () => {
       extraPlugins: { probe: portProbe(port, seen) },
     })
     await waitListening(tree, port)
-    const reply = await post(
-      port,
-      GOVERNANCE_PATH,
-      governance('register-and-activate', { loginIdentifier: 'alice', credential: 'pw-1' }),
-    )
-    expect(reply.status).toBe(200)
+    expect(await availabilityStatus(port)).toBe(200)
     const run = await tree.stop()
     expect(run.result.exitCode).toBe(0)
     expect(run.state('server-entry')).toMatchObject({ state: 'ACTIVE' })
@@ -91,20 +105,6 @@ describe('server-entry row: listening', () => {
     expect(run.startup['barrierCalls']).toBe(0)
     expect(run.startup).toMatchObject({ accepting: false })
     expect(await connectable('127.0.0.1', port)).toBe(false)
-  })
-
-  it('stays PENDING and silent when the Session row is not in the tree', async () => {
-    const port = await freePort()
-    const tree = startTree({
-      config: { listenPort: port },
-      withoutSession: true,
-      readinessTimeoutMs: 600,
-    })
-    const run = await tree.finished
-    expect(run.state('server-entry')).toMatchObject({ state: 'PENDING' })
-    expect(run.state('server-entry')?.['missing']).toEqual(['session'])
-    expect(await connectable('127.0.0.1', port)).toBe(false)
-    expect(run.startup['startedRows']).not.toContain('server-entry')
   })
 
   it('answers HTTP on the loopback address only', async () => {
@@ -177,9 +177,7 @@ describe('server-entry row: configuration', () => {
         maxStringLength: 1048576,
         maxNumberLength: 64,
       },
-      maxPageBytes: 1048576,
-      historyKinds: ['message.user', 'message.assistant'],
-      observation: { perLogin: 4, perInstance: 1000, cancelRetentionMs: 60000 },
+      observation: { perLogin: 4, perInstance: 1000 },
     })
   })
 })

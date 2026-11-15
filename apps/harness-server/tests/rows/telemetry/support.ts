@@ -1,6 +1,6 @@
 import type { RowSpec } from '../../../src/loader.ts'
 import { createTelemetryBinding } from '../../../src/rows/telemetry/index.ts'
-import { TELEMETRY_ROW_CONFIG } from '../server-entry/support.ts'
+import { TELEMETRY_ROW_CONFIG } from '../../support/listening.ts'
 import { declared } from '../session-fixtures/tree.ts'
 
 export function disabledTelemetryRow(): RowSpec {

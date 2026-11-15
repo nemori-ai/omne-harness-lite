@@ -322,15 +322,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   'server-entry': {
     provides: ['accessRegistry'],
-    injects: [
-      'session',
-      'principalIssuer',
-      'definitionMappings',
-      'telemetry',
-      'agentJournal',
-      'modelDiagnostics',
-      'modelRuntime',
-    ],
+    injects: ['principalIssuer', 'telemetry'],
     phase: 'entry',
   },
   'identity-access': { injects: ['accessRegistry'] },

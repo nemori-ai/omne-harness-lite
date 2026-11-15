@@ -446,12 +446,7 @@ export function operatorLayer(options: {
       {
         kind: 'replace',
         id: 'server-entry',
-        config: {
-          listenPort: options.port,
-          diagnosticsKinds: [...DIAGNOSTICS_KINDS],
-          maxRuns: 32,
-          maxCallsPerRun: 64,
-        },
+        config: { listenPort: options.port },
       },
       {
         kind: 'replace',

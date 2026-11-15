@@ -47,10 +47,37 @@ const held = new Promise(resolve => {
   releaseHeld = resolve
 })
 
+let phase = 'walk'
+const AFTER_RETRY = 'answered after the retry'
+const TOOL_ARGUMENTS = JSON.stringify({ command: 'execute', params: { script: 'echo walk-args' } })
+
+const final = (body, content) => `${sse([piece(body, content), STOP])}data: [DONE]\n\n`
+
 function answer({ index, body }) {
-  const text = REPLY[Math.min(index, REPLY.length - 1)]
   const reply = { status: 200, contentType: 'text/event-stream' }
-  if (index !== 1) return { ...reply, body: `${sse([piece(body, text), STOP])}data: [DONE]\n\n` }
+  if (phase === 'fail')
+    return {
+      status: 400,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: { message: 'the input is rejected', code: 400 } }),
+    }
+  if (phase === 'recovered') return { ...reply, body: final(body, AFTER_RETRY) }
+  if (phase === 'tool') {
+    if (body.includes('"role":"tool"')) return { ...reply, body: final(body, 'done') }
+    const call = {
+      index: 0,
+      id: 'call_walk',
+      type: 'function',
+      function: { name: 'Shell', arguments: TOOL_ARGUMENTS },
+    }
+    const events = [
+      { ...piece(body, undefined), choices: [{ delta: { tool_calls: [call] } }] },
+      { choices: [{ delta: {}, finish_reason: 'tool_calls' }] },
+    ]
+    return { ...reply, body: `${sse(events)}data: [DONE]\n\n` }
+  }
+  const text = REPLY[Math.min(index, REPLY.length - 1)]
+  if (index !== 1) return { ...reply, body: final(body, text) }
   return {
     ...reply,
     body: sse([piece(body, text.slice(0, 8))]),
@@ -167,13 +194,21 @@ async function walk(browser, origin, proofs) {
   await send('Page.enable')
   await send('Page.navigate', { url: origin })
   let number = 0
-  const step = async (name, body) => {
+  const step = async (name, ...stages) => {
     number += 1
-    const result = await send('Runtime.evaluate', {
-      expression: `(async () => { ${HELPERS}\n${body} })()`,
-      awaitPromise: true,
-      returnByValue: true,
-    })
+    let result
+    for (const stage of stages) {
+      if (typeof stage === 'function') {
+        stage()
+        continue
+      }
+      result = await send('Runtime.evaluate', {
+        expression: `(async () => { ${HELPERS}\n${stage} })()`,
+        awaitPromise: true,
+        returnByValue: true,
+      })
+      if (result.exceptionDetails !== undefined) break
+    }
     const failed = result.exceptionDetails !== undefined
     const shot = await send('Page.captureScreenshot', { format: 'png' })
     const file = join(shots, `${String(number).padStart(2, '0')}${failed ? '-failed' : ''}.png`)
@@ -332,6 +367,53 @@ async function walk(browser, origin, proofs) {
     const found = needles.filter(needle => places.some(place => typeof place === 'string' && place.includes(needle)))
     if (found.length > 0) throw new Error('found ' + found.length + ' secret(s) in the page')
     return { searched: needles.length, places: places.length, found: 0 }`,
+  )
+  phase = 'fail'
+  await step(
+    '一轮失败后看到成因与没处理的条数，按重试接着做',
+    `
+    await press('button', '新建会话')
+    const box = await wait('the composer', () => document.querySelector('textarea[aria-label="输入消息"]'))
+    fill(box, 'this one will fail')
+    await press('button[type=submit]', '发送')
+    const notice = await wait('the failure notice', () => document.querySelector('section.omne-waiting[aria-label="这一轮失败了"]'))
+    await wait('the cause and the pending count', () => notice.innerText.includes('模型没有给出有效的回复。') && /还有 [1-9][0-9]* 条消息没有处理/.test(notice.innerText))
+    await wait('the retry button', () => byText('section.omne-waiting button', '重试'))
+    return { notice: notice.innerText }`,
+    () => {
+      phase = 'recovered'
+    },
+    `
+    await press('section.omne-waiting button', '重试')
+    await wait('the reply after the retry', () => transcript().includes(${JSON.stringify(AFTER_RETRY)}))
+    await wait('the notice gone', () => document.querySelector('section.omne-waiting') === null)
+    return transcript().slice(-120)`,
+  )
+  phase = 'tool'
+  await step(
+    '工具卡的参数是人读的样子',
+    `
+    fill(document.querySelector('textarea[aria-label="输入消息"]'), 'run the tool')
+    await press('button[type=submit]', '发送')
+    await wait('the tool card', () =>
+      [...document.querySelectorAll('section[data-page=conversation] .omne-card')].find(item => item.querySelector('code')?.textContent === 'Shell'))
+    await wait('the run to settle', () => transcript().includes('done') && byText('button[type=submit]', '发送'))
+    const live = () => [...document.querySelectorAll('section[data-page=conversation] .omne-card')].find(item => item.querySelector('code')?.textContent === 'Shell')
+    const trigger = await wait('the card trigger', () => live().querySelector('button[aria-expanded]'))
+    if (trigger.getAttribute('aria-expanded') === 'false') trigger.click()
+    await wait('the card open', () => live().querySelector('button[aria-expanded=true]'))
+    const card = live()
+    const list = await wait('the visible arguments list', () => {
+      const found = card.querySelector('ul.omne-arguments')
+      return found && found.innerText.includes('echo walk-args') ? found : undefined
+    })
+    const pairs = [...list.querySelectorAll('.omne-argument-name, .omne-argument-value')].map(item => item.textContent)
+    for (const expected of ['command', 'execute', 'params', 'script', 'echo walk-args'])
+      if (!pairs.includes(expected)) throw new Error('the card does not show ' + expected + ' as its own element: ' + JSON.stringify(pairs))
+    const label = [...card.querySelectorAll('.omne-card-label')].find(item => item.textContent === '参数')
+    if (label?.nextElementSibling !== list) throw new Error('the arguments are not a key/value list: ' + label?.nextElementSibling?.outerHTML)
+    if (/[{}"]/.test(list.innerText)) throw new Error('the arguments show raw JSON: ' + list.innerText)
+    return { pairs, arguments: list.innerText }`,
   )
 }
 

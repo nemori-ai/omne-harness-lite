@@ -312,9 +312,7 @@
       "row": "server-entry",
       "names": [
         "principalIssuer",
-        "definitionMappings",
-        "identityGovernance",
-        "settingsSecretItems"
+        "identityGovernance"
       ]
     },
     {
@@ -333,7 +331,8 @@
     {
       "row": "assets-access",
       "names": [
-        "principalIssuer"
+        "principalIssuer",
+        "settingsSecretItems"
       ]
     },
     {

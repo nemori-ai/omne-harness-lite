@@ -1,6 +1,6 @@
 // @module-tag slow
 import { describe, expect, it } from 'vitest'
-import type { HitlCardItem } from '@omne-harness/public-contract'
+import type { HumanInterventionCardItem as HitlCardItem } from '@omne-harness/human-intervention-protocol'
 import {
   historyOf,
   onReleaseTree,

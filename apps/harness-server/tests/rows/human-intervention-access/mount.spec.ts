@@ -1,6 +1,5 @@
 import { request } from 'node:http'
 import { setTimeout as sleep } from 'node:timers/promises'
-import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { describe, expect, it } from 'vitest'
 import { rowDeclarationOf } from '../../../src/row.ts'
 import {
@@ -10,13 +9,8 @@ import {
 import { HITL_LOCATION } from '../../../src/rows/tool-hitl/host.ts'
 import { rowManifests } from '../../../src/s0/stubs.ts'
 import { savedLoginProof, savedTenant } from '../../r9/support.ts'
-import {
-  hitlPublic,
-  onReleaseTree,
-  toolCallsThenText,
-  type ReleaseTree,
-} from '../../support/release-tree.ts'
-import { until } from '../server-entry/support.ts'
+import { onReleaseTree, toolCallsThenText, type ReleaseTree } from '../../support/release-tree.ts'
+import { until } from '../../support/listening.ts'
 
 type Reply = Readonly<{ status: number; json: any }>
 
@@ -121,12 +115,6 @@ function foreignTenant(tenant: string): string {
   return JSON.stringify({ ...parsed, account: `${parsed.account.slice(0, -1)}${last}` })
 }
 
-const tenantOf = (text: string): TenantId => {
-  const parsed = tenantCodec.parse(text)
-  if (!parsed.ok) throw new Error('the saved tenant does not parse')
-  return parsed.value
-}
-
 describe('human-intervention-access row', () => {
   it('declares the manifest of the stub table', () => {
     const declared = rowDeclarationOf(humanInterventionAccessRow)
@@ -149,7 +137,7 @@ describe('human-intervention-access row', () => {
   })
 
   it(
-    'loads on the release tree, human-intervention/v1 appears in availability, and a login lists, reads and answers a card, then finds the answer again through both locations',
+    'loads on the release tree, human-intervention/v1 appears in availability, and a login lists, reads and answers a card, then finds the answer again',
     { tags: ['slow'], timeout: 240_000 },
     async () => {
       const exitCode = await onReleaseTree(
@@ -208,18 +196,6 @@ describe('human-intervention-access row', () => {
           expect(again.json.body).toEqual(submitted.json.body)
           const found = await call(tree, 'query-submit-reply', submission, 'm-found')
           expect(found.json).toMatchObject({ outcome: 'succeeded', body: submitted.json.body })
-
-          const old = await hitlPublic(tree.port, {
-            protocolVersion: 'hitl-public/1',
-            messageId: 'm-old',
-            operation: 'query-submit-reply',
-            proof: { kind: 'present', value: savedLoginProof(tree.home) },
-            body: { ...submission, tenant: tenantOf(tenant) } as never,
-          })
-          expect(old.response).toMatchObject({
-            outcome: 'succeeded',
-            body: submitted.json.body,
-          })
 
           const foreign = await call(
             tree,

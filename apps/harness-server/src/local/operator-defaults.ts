@@ -496,15 +496,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
       'session-diagnostics-access',
       { diagnosticsKinds: [...LOCAL_DIAGNOSTICS_KINDS], ...LOCAL_DIAGNOSTICS_LIMITS },
     ],
-    [
-      'server-entry',
-      {
-        listenPort: settings.port,
-        historyKinds: [...LOCAL_HISTORY_KINDS],
-        diagnosticsKinds: [...LOCAL_DIAGNOSTICS_KINDS],
-        ...LOCAL_DIAGNOSTICS_LIMITS,
-      },
-    ],
+    ['server-entry', { listenPort: settings.port }],
   ]
   return {
     ops: local.map(([id, config]) => ({

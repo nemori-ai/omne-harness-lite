@@ -7,18 +7,22 @@ import { describe, expect, it } from 'vitest'
 import * as cordis from '../../../src/cordis.ts'
 import { runServe, type S0Record } from '../../../src/run.ts'
 import { startModelGateway, type GatewayScript } from '../../fixtures/model-gateway.ts'
-import { SESSION_PATH } from '../../r9/flow.ts'
 import {
   bodyOf,
   freePort,
   newScratch,
   operatorLayer,
   runOmne,
-  savedLoginProof,
   savedTenant,
   toolRowsOperatorConfig,
 } from '../../r9/support.ts'
-import { connectable, until } from '../server-entry/support.ts'
+import {
+  readHistoryFrom,
+  readHistoryPage,
+  savedClients,
+  type ProtocolClients,
+} from '../../support/protocol-clients.ts'
+import { connectable, until } from '../../support/listening.ts'
 import { bodyReadingModel } from './body-reading-model.ts'
 import { toolRuntimeConfigSchema } from '../../../src/rows/tool-runtime/config.ts'
 
@@ -103,7 +107,7 @@ function withHistoryKinds(
             })()
           : op.id === 'tool-host' && construction !== undefined
             ? { ...op, config: { construction } }
-            : op.id === 'server-entry'
+            : op.id === 'session-access'
               ? {
                   ...op,
                   config: {
@@ -122,46 +126,27 @@ function withHistoryKinds(
   }
 }
 
-async function post(port: number, body: unknown): Promise<{ status: number; body: string }> {
-  const response = await fetch(`http://127.0.0.1:${String(port)}${SESSION_PATH}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  return { status: response.status, body: await response.text() }
-}
-
-const readHistory = (tenant: string, session: string, loginProof: string) => ({
-  protocolVersion: 'session-public/1',
-  messageId: 'tool-delivery-read-history',
-  operation: 'read-history',
-  body: { tenant, session, cursor: null, direction: 'forward', pageBytes: '262144' },
-  loginProof,
-})
-
 type Entry = Readonly<{ kind: string; payload: Record<string, unknown> }>
 
-const entriesOf = (body: string): readonly Entry[] =>
-  (JSON.parse(body) as { body: { entries: Entry[] } }).body.entries
+type AllHistory = Readonly<{ outcome: string; entries: readonly Entry[] }>
 
-async function allHistory(port: number, request: ReturnType<typeof readHistory>) {
-  let page = await post(port, request)
+async function allHistory(
+  clients: ProtocolClients,
+  tenant: string,
+  session: string,
+): Promise<AllHistory> {
+  let page = await readHistoryPage(clients, tenant, session)
   const entries: Entry[] = []
   const cursors = new Set<string>()
   for (;;) {
-    if (page.status === 503) return page
-    expect(page.status, page.body).toBe(200)
-    const value = JSON.parse(page.body) as { body: { entries: Entry[]; next: string | null } }
-    entries.push(...value.body.entries)
-    const cursor = value.body.next
-    if (cursor === null) return { status: page.status, body: JSON.stringify({ body: { entries } }) }
+    if (page.outcome !== 'succeeded') return { outcome: page.outcome, entries }
+    entries.push(...page.body.entries)
+    const cursor = page.body.next
+    if (cursor === null) return { outcome: page.outcome, entries }
     expect(cursors.has(cursor), 'history cursor must advance').toBe(false)
     cursors.add(cursor)
     expect(cursors.size).toBeLessThan(128)
-    page = await post(port, {
-      ...request,
-      body: { tenant: request.body.tenant, session: request.body.session, cursor },
-    })
+    page = await readHistoryFrom(clients, tenant, session, cursor)
   }
 }
 
@@ -225,17 +210,18 @@ async function turnOnRelease(
     const session = String(bodyOf(created)['session'])
     const sent = await cli(['send-input', '--session', session, '--text', 'list your files'])
     expect(sent.status, sent.stderr).toBe(0)
-    const request = readHistory(savedTenant(home), session, savedLoginProof(home))
-    let history = await allHistory(port, request)
+    const clients = savedClients(port, home)
+    const readAll = () => allHistory(clients, savedTenant(home), session)
+    let history = await readAll()
     for (
       const end = Date.now() + 120_000;
       Date.now() < end &&
-      !(history.status === 200 && entriesOf(history.body).some(e => e.kind === 'run.terminal'));
+      !(history.outcome === 'succeeded' && history.entries.some(e => e.kind === 'run.terminal'));
       await sleep(500)
     )
-      history = await allHistory(port, request)
-    expect(history.status, history.body).toBe(200)
-    if (!entriesOf(history.body).some(entry => entry.kind === 'run.terminal')) {
+      history = await readAll()
+    expect(history.outcome, JSON.stringify(history)).toBe('succeeded')
+    if (!history.entries.some(entry => entry.kind === 'run.terminal')) {
       const diagnostics = await cli(['read-session-diagnostics', '--session', session])
       throw new Error(
         `the Run must reach a terminal before shutdown; model requests=${gateway.requests()}; diagnostics=${JSON.stringify(diagnostics)}`,
@@ -253,10 +239,10 @@ async function turnOnRelease(
         physical = observeToolResults(dir.storageRoot)
       expect(resultsReleased(physical, offloaded), JSON.stringify(physical)).toBe(true)
       console.info('W3-RELEASE', JSON.stringify(physical))
-      const reread = await allHistory(port, request)
-      expect(reread.status).toBe(200)
-      expect(entriesOf(reread.body)).toEqual(entriesOf(history.body))
-      expect(entriesOf(reread.body).filter(entry => entry.kind === 'message.tool')).toHaveLength(
+      const reread = await readAll()
+      expect(reread.outcome).toBe('succeeded')
+      expect(reread.entries).toEqual(history.entries)
+      expect(reread.entries.filter(entry => entry.kind === 'message.tool')).toHaveLength(
         physical.length,
       )
     }
@@ -279,27 +265,25 @@ async function turnOnRelease(
         'continue from the saved result',
       ])
       expect(next.status, next.stderr).toBe(0)
-      let reread = await allHistory(port, request)
+      let reread = await readAll()
       for (
         const end = Date.now() + 120_000;
         Date.now() < end &&
-        entriesOf(reread.body).filter(entry => entry.kind === 'run.terminal').length < 2;
+        reread.entries.filter(entry => entry.kind === 'run.terminal').length < 2;
         await sleep(500)
       )
-        reread = await allHistory(port, request)
-      expect(reread.status, reread.body).toBe(200)
-      reopenedEntries = [...entriesOf(reread.body)]
+        reread = await readAll()
+      expect(reread.outcome, JSON.stringify(reread)).toBe('succeeded')
+      reopenedEntries = [...reread.entries]
       expect(reopenedEntries.filter(entry => entry.kind === 'run.terminal')).toHaveLength(2)
-      expect(reopenedEntries.slice(0, entriesOf(history.body).length)).toEqual(
-        entriesOf(history.body),
-      )
+      expect(reopenedEntries.slice(0, history.entries.length)).toEqual(history.entries)
       expect(gateway.requests()).toBe(modelRequests)
       controller.abort('test: stop reopened server')
       stopped = true
       expect((await finished).exitCode).toBe(0)
     }
     return {
-      entries: entriesOf(history.body),
+      entries: history.entries,
       reopenedEntries,
       modelRequests,
       logs: records.filter(

@@ -72,7 +72,6 @@
   },
   "sizes": {
     "files": {
-      "apps/m2-contract-skeleton/src/path.ts": 1987,
       "packages/agent/agent-contract/src/testing-journal-core.ts": 1948,
       "packages/agent/agent-contract/src/testing-journal-finishing.ts": 4160,
       "packages/agent/agent-contract/src/testing-received-conformance.ts": 1055,
@@ -136,17 +135,9 @@
         "count": 1,
         "longest": 173
       },
-      "apps/m2-contract-skeleton/src/governance.ts": {
-        "count": 1,
-        "longest": 164
-      },
-      "packages/access/server-entry/src/http.ts": {
-        "count": 1,
-        "longest": 201
-      },
       "packages/access/server-entry/src/pipeline/pipeline.ts": {
         "count": 1,
-        "longest": 177
+        "longest": 174
       },
       "packages/agent/agent-contract/src/testing-journal-core.ts": {
         "count": 2,

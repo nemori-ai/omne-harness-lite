@@ -11,6 +11,7 @@ import type {
   SecretText,
   SecretWriteResult,
 } from './secrets.ts'
+import { ADOPTION_TEXT } from './tenant-settings.ts'
 
 export type SettingsAssetQuery = Readonly<{ category?: string; name: string }>
 
@@ -27,6 +28,9 @@ export type SecretItemView = Readonly<{
   asset: Readonly<{ category: string; name: string }>
   itemId: string
   title: string
+  purpose: string
+  appliesAt: string
+  clearEffect: string
 }> &
   (
     | Readonly<{ sensitivity: 'secret'; presence: SecretPresence }>
@@ -128,7 +132,14 @@ export function createSettingsSecretItems(deps: SettingsSecretItemsDeps): Settin
   ): readonly SecretItemView[] | 'denied' | 'unavailable' {
     const views: SecretItemView[] = []
     for (const item of definition.items) {
-      const view = { asset: ref.asset, itemId: item.id, title: item.presentation.title }
+      const view = {
+        asset: ref.asset,
+        itemId: item.id,
+        title: item.presentation.title,
+        purpose: item.presentation.description,
+        appliesAt: ADOPTION_TEXT[item.presentation.adoption],
+        clearEffect: item.presentation.clear,
+      }
       if (item.sensitivity !== 'secret') {
         views.push({ ...view, sensitivity: item.sensitivity })
         continue

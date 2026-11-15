@@ -4,15 +4,10 @@ import { join } from 'node:path'
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { systemScope } from '@omne-harness/legal-identity'
 import { defineEvent, defineSegment, isSegment } from '@omne-harness/telemetry-contract'
-import { createCapturingTelemetry } from '@omne-harness/telemetry-contract/testing'
 import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { stubPlugin } from '../../../src/cordis.ts'
 import { defineRow } from '../../../src/row.ts'
-import {
-  entryDiagnosticDefinition,
-  entryDiagnostics,
-} from '../../../src/rows/server-entry/telemetry.ts'
 import { telemetryRowConfig } from '../../../src/rows/telemetry/config.ts'
 import { runServe, type S0Record } from '../../../src/run.ts'
 import { serveOnce, type ServeRun } from '../../fixtures/serve/harness.ts'
@@ -78,57 +73,6 @@ const logsOf = (records: readonly S0Record[], component: string) =>
   )
 const levelsOf = (records: readonly S0Record[]) => records.map(record => record['level'])
 const reportOf = (run: ServeRun) => run.of('shutdown-result')[0]?.['telemetry']
-
-describe('A2: the entry diagnostic facade', () => {
-  it('declares one event whose path and operation are optional', () => {
-    expect(entryDiagnosticDefinition).toMatchObject({
-      signal: 'event',
-      owner: 'server-entry',
-      name: 'omne.entry.diagnostic',
-      version: 1,
-      level: 'warn',
-    })
-    expect(Object.keys(entryDiagnosticDefinition.schema)).toEqual(['code', 'path', 'operation'])
-    expect(entryDiagnosticDefinition.schema.code).not.toHaveProperty('optional')
-    expect(entryDiagnosticDefinition.schema.path).toMatchObject({ kind: 'ref', optional: true })
-    expect(entryDiagnosticDefinition.schema.operation).toMatchObject({
-      kind: 'ref',
-      optional: true,
-    })
-  })
-
-  it('writes only the members the diagnostic had, through the one definition, and leaves out a reference the contract refuses', () => {
-    const capture = createCapturingTelemetry()
-    const sink = entryDiagnostics(capture.port)
-
-    sink({ code: 'identity.fault', operation: 'recognizeLogin' })
-    sink({ code: 'request.fault', path: '/sessions' })
-    sink({ code: 'encode.fault' })
-    sink({ code: 'session.read-fault', path: '/sessions/1', operation: 'read' })
-    sink({ code: 'request.fault', path: '', operation: 'Bearer x' })
-    sink({ code: 'request.fault', path: 'p'.repeat(257), operation: 'create' })
-
-    const events = capture.records().map(record => (record.kind === 'event' ? record : undefined))
-    expect(events.map(record => record?.definition)).toEqual(
-      Array.from({ length: 6 }, () => entryDiagnosticDefinition),
-    )
-    expect(events.map(record => record?.fields)).toEqual([
-      { code: 'identity.fault', operation: 'recognizeLogin' },
-      { code: 'request.fault', path: '/sessions' },
-      { code: 'encode.fault' },
-      { code: 'session.read-fault', path: '/sessions/1', operation: 'read' },
-      { code: 'request.fault' },
-      { code: 'request.fault', operation: 'create' },
-    ])
-    for (const record of events) expect(record?.fields).not.toHaveProperty('path', undefined)
-    expect(capture.dropped()).toBe(0)
-    expect(events[0]?.binding).toMatchObject({
-      scope: { kind: 'system' },
-      component: 'server-entry',
-      instance: { owner: '@omne-harness/harness-server' },
-    })
-  })
-})
 
 describe('A3: the Cordis log bridge in the ready state', () => {
   it('a row warn, error and info become log records through the runtime; debug does not', async () => {

@@ -23,7 +23,10 @@ export type SettleInput = {
   readonly clock: Clock
   readonly respond: (answer: SettledAnswer) => void | Promise<void>
   readonly reportAccess?: () => void
+  readonly note?: (code: SettleNote) => void
 }
+
+export type SettleNote = 'access.basis-unavailable' | 'access.request-fault'
 
 const EMPTY_BODY: JsonValue = { kind: 'object', entries: [] }
 
@@ -60,10 +63,19 @@ async function handled(
       { principal: input.principal, messageId: input.messageId, signal: input.entered.signal },
       input.body,
     )
-    return written(contract, answer, input.limits) ?? failureOf(contract)
+    const settled = written(contract, answer, input.limits)
+    if (settled?.outcome === 'basis-unavailable') noted(input, 'access.basis-unavailable')
+    return settled ?? failureOf(contract)
   } catch {
+    noted(input, 'access.request-fault')
     return failureOf(contract)
   }
+}
+
+function noted(input: SettleInput, code: SettleNote): void {
+  try {
+    input.note?.(code)
+  } catch {}
 }
 
 function graceExpiry(

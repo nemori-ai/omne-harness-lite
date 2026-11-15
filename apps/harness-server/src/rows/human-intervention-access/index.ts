@@ -7,7 +7,7 @@ import { createAccessIdentity } from '@omne-harness/identity-access'
 import { z } from 'zod'
 import { createHitlEntryPrincipals } from '../../entry/hitl-entry-principals.ts'
 import { defineRow } from '../../row.ts'
-import { hitlFacesOfCall } from '../server-entry/hitl.ts'
+import { hitlFacesOfCall } from './faces.ts'
 import { governanceOfCall, identityOfCall } from '../server-entry/identity.ts'
 import { HITL_LOCATION } from '../tool-hitl/host.ts'
 

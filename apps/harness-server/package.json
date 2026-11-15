@@ -114,8 +114,10 @@
   "devDependencies": {
     "@omne-harness/cli": "workspace:*",
     "@omne-harness/content-block": "workspace:*",
+    "@omne-harness/human-intervention-protocol": "workspace:*",
     "@omne-harness/identity-protocol": "workspace:*",
     "@omne-harness/sdk": "workspace:*",
+    "@omne-harness/session-diagnostics-protocol": "workspace:*",
     "@omne-harness/session-protocol": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",

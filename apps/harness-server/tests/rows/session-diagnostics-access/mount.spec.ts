@@ -5,11 +5,10 @@ import {
   sessionDiagnosticsAccessRow,
 } from '../../../src/rows/session-diagnostics-access/index.ts'
 import { rowManifests } from '../../../src/s0/stubs.ts'
-import { SESSION_PATH } from '../../r9/flow.ts'
 import { savedLoginProof, savedTenant } from '../../r9/support.ts'
 import { settledSession } from '../../governance/tenant-settings-support.ts'
 import { onReleaseTree, toolCallsThenText, type ReleaseTree } from '../../support/release-tree.ts'
-import { until } from '../server-entry/support.ts'
+import { until } from '../../support/listening.ts'
 
 const NEW_PATH = '/api/session-diagnostics/v1/read-session-diagnostics'
 
@@ -34,20 +33,6 @@ async function post(
 
 const readNew = (tree: ReleaseTree, body: unknown, proof = savedLoginProof(tree.home)) =>
   post(tree, NEW_PATH, body, { authorization: `Bearer ${proof}`, 'omne-message-id': 'm-diag' })
-
-const readOld = (tree: ReleaseTree, body: unknown, proof = savedLoginProof(tree.home)) =>
-  post(
-    tree,
-    SESSION_PATH,
-    {
-      protocolVersion: 'session-public/1',
-      messageId: 'm-diag',
-      operation: 'read-session-diagnostics',
-      body,
-      loginProof: proof,
-    },
-    {},
-  )
 
 const firstPage = (tree: ReleaseTree, session: string, extra: Record<string, unknown> = {}) => ({
   tenant: savedTenant(tree.home),
@@ -138,7 +123,7 @@ describe('session-diagnostics-access row', () => {
   })
 
   it(
-    'loads on the release tree, session-diagnostics/v1 appears in availability, and a login reads the page the old position gives',
+    'loads on the release tree, session-diagnostics/v1 appears in availability, and a login reads the page',
     { tags: ['slow'], timeout: 180_000 },
     async () => {
       const exitCode = await onReleaseTree({ script: toolCallsThenText(() => []) }, async tree => {
@@ -161,15 +146,9 @@ describe('session-diagnostics-access row', () => {
         expect(page.runs).toHaveLength(1)
         expect(page.runs[0]?.terminal).not.toBeNull()
 
-        const old = await readOld(tree, firstPage(tree, session))
-        expect(old.status).toBe(200)
-        expect(fresh.json.body).toEqual(old.json.body)
-
         const unknown = await readNew(tree, firstPage(tree, 'f'.repeat(64)))
         expect(unknown).toMatchObject({ status: 403, json: { outcome: 'denied' } })
-        const refusedOld = await readOld(tree, firstPage(tree, 'f'.repeat(64)))
         expect(unknown.json).toEqual({ outcome: 'denied', body: {} })
-        expect(refusedOld.json.body).toEqual(unknown.json.body)
 
         const forged = await readNew(tree, firstPage(tree, session), 'forged')
         expect(forged).toMatchObject({ status: 403, json: { outcome: 'denied', body: {} } })

@@ -1,7 +1,6 @@
 import { join } from 'node:path'
 import {
   holdTestSlot,
-  SESSION_PATH,
   blockedCount,
   doubleRows,
   evidenceDirFor,
@@ -12,8 +11,7 @@ import {
   missingBuild,
   newScratch,
   operatorLayer,
-  post,
-  readHistoryRequest,
+  readHistoryReply,
   replyOf,
   report,
   runOmne,
@@ -106,29 +104,17 @@ async function run(scratch, port, doubles) {
   const bobProof = savedLoginProof(homes.bob)
 
   const cross = {
-    ownerTenantReal: await post(
-      port,
-      SESSION_PATH,
-      readHistoryRequest(aliceTenant, session, bobProof),
-    ),
-    ownerTenantUnknown: await post(
-      port,
-      SESSION_PATH,
-      readHistoryRequest(aliceTenant, UNKNOWN_SESSION, bobProof),
-    ),
-    ownTenantReal: await post(port, SESSION_PATH, readHistoryRequest(bobTenant, session, bobProof)),
-    ownTenantUnknown: await post(
-      port,
-      SESSION_PATH,
-      readHistoryRequest(bobTenant, UNKNOWN_SESSION, bobProof),
-    ),
+    ownerTenantReal: await readHistoryReply(port, aliceTenant, session, bobProof),
+    ownerTenantUnknown: await readHistoryReply(port, aliceTenant, UNKNOWN_SESSION, bobProof),
+    ownTenantReal: await readHistoryReply(port, bobTenant, session, bobProof),
+    ownTenantUnknown: await readHistoryReply(port, bobTenant, UNKNOWN_SESSION, bobProof),
   }
   const isUnregistered = reply => replyOf(reply)?.outcome === 'basis-unavailable'
   const allDenied =
     isDenied(cross.ownerTenantReal) &&
     isDenied(cross.ownerTenantUnknown) &&
     [cross.ownTenantReal, cross.ownTenantUnknown].every(r => isDenied(r) || isUnregistered(r))
-  const sameAnswer = (a, b) => a.status === b.status && a.body === b.body
+  const sameAnswer = (a, b) => a.text === b.text
   const indistinguishable =
     sameAnswer(cross.ownerTenantReal, cross.ownerTenantUnknown) &&
     sameAnswer(cross.ownTenantReal, cross.ownTenantUnknown)
@@ -142,18 +128,9 @@ async function run(scratch, port, doubles) {
   )
 
   const forged = {
-    missing: await post(port, SESSION_PATH, {
-      protocolVersion: 'session-public/1',
-      messageId: 'refuse-missing-proof',
-      operation: 'read-history',
-      body: { tenant: aliceTenant, session, cursor: null, direction: 'forward', pageBytes: '64' },
-    }),
-    empty: await post(port, SESSION_PATH, readHistoryRequest(aliceTenant, session, '')),
-    tampered: await post(
-      port,
-      SESSION_PATH,
-      readHistoryRequest(aliceTenant, session, tamperProof(aliceProof)),
-    ),
+    missing: await readHistoryReply(port, aliceTenant, session, undefined, { pageBytes: '64' }),
+    empty: await readHistoryReply(port, aliceTenant, session, ''),
+    tampered: await readHistoryReply(port, aliceTenant, session, tamperProof(aliceProof)),
   }
   const forgedDenied = Object.values(forged).every(reply => !isSucceeded(reply))
   record(
@@ -183,11 +160,7 @@ async function run(scratch, port, doubles) {
 }
 
 async function cursors(port, session, tenant, proof, treeDouble) {
-  const first = await post(
-    port,
-    SESSION_PATH,
-    readHistoryRequest(tenant, session, proof, { pageBytes: SMALL_PAGE, messageId: 'cursor-1' }),
-  )
+  const first = await readHistoryReply(port, tenant, session, proof, { pageBytes: SMALL_PAGE })
   const firstBody = replyOf(first)?.body
   const next = typeof firstBody?.next === 'string' ? firstBody.next : undefined
 
@@ -203,11 +176,7 @@ async function cursors(port, session, tenant, proof, treeDouble) {
         : '足够多的历史条目撑过一页',
     )
   } else {
-    const second = await post(
-      port,
-      SESSION_PATH,
-      readHistoryRequest(tenant, session, proof, { cursor: next, messageId: 'cursor-2' }),
-    )
+    const second = await readHistoryReply(port, tenant, session, proof, { cursor: next })
     const revisions = [
       ...(firstBody?.entries ?? []),
       ...(replyOf(second)?.body?.entries ?? []),
@@ -233,17 +202,8 @@ async function cursors(port, session, tenant, proof, treeDouble) {
     'not-a-cursor',
   ]
   const tampered = []
-  for (const [index, cursor] of samples.entries())
-    tampered.push(
-      await post(
-        port,
-        SESSION_PATH,
-        readHistoryRequest(tenant, session, proof, {
-          cursor,
-          messageId: `tampered-${String(index)}`,
-        }),
-      ),
-    )
+  for (const cursor of samples)
+    tampered.push(await readHistoryReply(port, tenant, session, proof, { cursor }))
   const rejected = tampered.every(reply => !isSucceeded(reply))
   const leaked = tampered.some(reply => (replyOf(reply)?.body?.entries?.length ?? 0) > 0)
   record(

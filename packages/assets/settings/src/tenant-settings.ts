@@ -209,7 +209,7 @@ function writable(view: SettingsTargetView, action: 'set' | 'clear') {
   const grant = view.grants.find(value => value.sourceId === source.sourceId)
   return grant?.actions.includes(action) === true ? source.sourceId : undefined
 }
-const ADOPTION_TEXT: Readonly<Record<SettingItem['presentation']['adoption'], string>> = {
+export const ADOPTION_TEXT: Readonly<Record<SettingItem['presentation']['adoption'], string>> = {
   'next-read': 'Applies from the next read of the item.',
   'next-boundary': 'Applies from the next use boundary that the asset declares.',
   reload: 'Applies after the asset reloads.',

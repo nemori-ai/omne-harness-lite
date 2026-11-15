@@ -44,6 +44,8 @@ SessionService 是内部工作治理面，不是网络 SDK。外部调用者经�
 | 控制操作身份（`sop_`） | `["session-public/1-control", 登录文本, 租户文本, 会话文本, controlId]` |
 | `InputId` | `["session-public/1:input", 租户文本, 会话文本, inputId]` |
 
+这些数组里的文本写进了会话的身份与创建材料，一个字都不改；旧的接入位置删除之后也照旧。会话一族的派生在 `session/v1` 的接入插件（`packages/session/session-access/src/derivation.ts`）；人工介入答复的提交身份用 `["hitl-public/1-reply", 租户文本, replyId]`，派生在 `human-intervention/v1` 的接入插件（`packages/human-intervention/human-intervention-access/src/derivation.ts`）；租户缺省模式的采用引用的 owner 文本 `@omne-harness/server-entry` 在 `apps/harness-server/src/rows/agent-adoptions/definition-mappings.ts`。
+
 租户文本是公开契约判断次序第 1 步解析出的 `TenantId` 再经 tenantCodec 编码的文本，不是调用者原文，所以同一租户只有一种写法；它含账号，不同账号的同名调用标识不会撞。会话文本就是会话标识摘要的十六进制文本。登录文本是这份登录的 loginStateCodec 文本，同一登录在同一会话内重试同一次中断，得到同一个控制操作身份。会话标识与 `InputId` 的摘要到 Session 品牌值的转换由服务端接入完成。
 
 `create-session` 不公开 `SessionCreation` 的内部采用字段。服务端接入按部署装配把定义名解析为定义候选、执行类型与入口契约的采用，`modes` 取租户默认，`workspace` 为 null，`workspaceAttachment` 为 null，没有初始输入。定义名到采用的映射、`requiredIdentities` 与租户默认设置的来源都归[应用装配](application-assembly.md)。Session 比较的是解析后的 `SessionCreation`，所以部署映射变化会让原样再送得到 `conflict`（见[会话公开操作](../../../packages/access/SPEC.md#判断次序)）。

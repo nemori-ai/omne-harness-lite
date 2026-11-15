@@ -326,7 +326,7 @@ describe('availability at the entry', () => {
 
   it('asks the identity port only for an observation whose contract says login', async () => {
     const fixture = await entry({
-      config: { observation: { perLogin: 1, perInstance: 8, cancelRetentionMs: 0 } },
+      config: { observation: { perLogin: 1, perInstance: 8 } },
     })
     const anonymous = observe(fixture.port, 'watch-all', { body: '{}' })
     expect(await anonymous.status).toBe(200)
