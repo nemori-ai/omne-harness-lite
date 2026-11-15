@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""领域对象的对账与总表生成。
+"""统一语言对账。
 
-对账的是三家之间的对应关系：统一语言词条（形态、出处 rev）、领域对象条目（依据 rev）、
-产品 topic（当前 rev）。规矩的权威正文在 design/domain_objects/conventions.md；
-本工具只兑现其中「机器查的」那一张表，不判断任何条目的内容对不对。
+对账的是统一语言词条（形态、变体的父、出处 rev）、索引与产品 topic（当前 rev）之间的对应关系。
+规矩的权威正文在 design/ubiquitous_language/conventions.md；
+本工具只兑现其中机器能查的部分，不判断任何词条的内容对不对。
 """
 from __future__ import annotations
 
@@ -14,7 +14,6 @@ import os
 import re
 import sys
 from dataclasses import dataclass, field
-from datetime import date
 from pathlib import Path
 from typing import TypedDict
 from urllib.parse import unquote, urldefrag
@@ -26,17 +25,12 @@ from omne_harness_lite_spec_tools.doc_support import headings
 from markdown_support import HEADING_RE, github_anchor
 
 MORPHS = ("对象", "变体", "属性", "规则", "过程", "视图", "状态", "位置", "总称", "未定")
-OBJECT_FIELDS = ("宿主", "身份", "生灭", "依据")
-PENDING_FIELDS = ("现象", "牵涉", "谁来裁", "闭合条件")
-VIEW = "views/domain-object-map.md"
-STAMP = "- 生成时间："
 SEALED_ROOT = "product.0.0.1.legacy"
 SEALED_PATH = f".meta_harness/design/{SEALED_ROOT}"
-SEALED_TABLE = "domain_objects/sealed-revisions.json"
+SEALED_TABLE = "ubiquitous_language/sealed-revisions.json"
 REPOSITORY = "https://github.com/nemori-ai/omne-harness-lite/blob/"
 
 TERM_RE = re.compile(r"^### (UL-[a-z0-9-]+) · (.+?) · (.+?)\s*$")
-CARD_RE = re.compile(r"^### (UL-[a-z0-9-]+) · (.+?)\s*$")
 FIELD_RE = re.compile(r"^- \*\*(.+?)\*\*[:：]\s*(.*)$")
 LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)\s]+)\)")
 # 一段引用按次序切成两种记号：一条链接，或一个写着 rev 的全角括号「（rev 6）」「（rev 6 / rev 2）」
@@ -100,18 +94,9 @@ class Term:
     en: str
     path: Path
     anchor: str
-    volume: str
     fields: dict[str, str] = field(default_factory=dict)
     morph: str = ""
     parent: str | None = None
-
-
-@dataclass
-class Card:
-    id: str
-    zh: str
-    anchor: str
-    fields: dict[str, str] = field(default_factory=dict)
 
 
 def sections(path: Path, heading: re.Pattern[str]):
@@ -147,9 +132,7 @@ class Reconciler:
         self.notes: list[str] = []
         self.terms: dict[str, Term] = {}
         self.by_anchor: dict[tuple[Path, str], str] = {}
-        self.volumes: list[tuple[str, str]] = []  # (文件名, 卷标题)
         self.revisions: dict[str, int] = {}
-        self.drafts: set[str] = set()  # front-matter 的 status 为 draft 的 topic：那份产品正文还没被接受
         self.topic_dirs: dict[str, Path] = {}
         self.sealed_commit: str | None = None
         self.sealed_revisions: dict[str, int] = {}
@@ -157,8 +140,6 @@ class Reconciler:
         self.sealed_anchors: dict[str, set[str]] = {}
         self.sealed_citations: set[str] = set()
         self._anchors: dict[Path, set[str]] = {}
-        self.cards: dict[str, Card] = {}
-        self.pending: list[tuple[str, dict[str, str]]] = []
 
     def error(self, message: str) -> None:
         self.errors.append(message)
@@ -170,8 +151,6 @@ class Reconciler:
     def load(self) -> None:
         self._load_revisions()
         self._load_terms()
-        self._load_cards()
-        self._load_pending()
 
     def _metadata(self, readme: Path) -> ProductMetadata | None:
         text = readme.read_text(encoding="utf-8")
@@ -312,8 +291,6 @@ class Reconciler:
             current = int(fields["revision"])
             directories[topic] = directory
             revisions[topic] = current
-            if fields["status"] == "draft":
-                self.drafts.add(topic)
             stated = self._header_rev(target.read_text(encoding="utf-8").splitlines())
             if stated is not None and stated != current:
                 self.error(f"{self.rel(target)}: 写的是 rev {stated}，而 README front-matter 是 rev {current}"
@@ -389,12 +366,9 @@ class Reconciler:
     def _load_terms(self) -> None:
         language = self.root / "ubiquitous_language"
         for path in sorted((language / "terms").glob("*.md")):
-            title = next((m.group(1) for m in map(HEADING_RE.match, path.read_text(encoding="utf-8").splitlines())
-                          if m), path.stem)
-            self.volumes.append((path.name, title))
             for match, fields in sections(path, TERM_RE):
                 term = Term(match.group(1), match.group(2), match.group(3), path,
-                            github_anchor(match.group(0)[4:]), path.name, fields)
+                            github_anchor(match.group(0)[4:]), fields)
                 if term.id in self.terms:
                     self.error(f"{self.rel(path)}: 词条 {term.id} 重复")
                 self.terms[term.id] = term
@@ -455,55 +429,13 @@ class Reconciler:
         for uid in sorted(set(self.terms) - seen):
             self.error(f"ubiquitous_language/index.md: 分卷里的 {uid} 没有登记进索引")
 
-    def _load_cards(self) -> None:
-        path = self.root / "domain_objects/objects.md"
-        if not path.is_file():
-            self.error("domain_objects/objects.md 不存在")
-            return
-        for match, fields in sections(path, CARD_RE):
-            card = Card(match.group(1), match.group(2), github_anchor(match.group(0)[4:]), fields)
-            if card.id in self.cards:
-                self.error(f"domain_objects/objects.md: 条目 {card.id} 重复")
-            self.cards[card.id] = card
-
-    def _load_pending(self) -> None:
-        path = self.root / "domain_objects/pending.md"
-        if not path.is_file():
-            self.error("domain_objects/pending.md 不存在")
-            return
-        self.pending = [(match.group(1), fields) for match, fields in
-                        sections(path, re.compile(r"^### (.+?)\s*$"))]
-
     # ── 对账 ────────────────────────────────────────────────────────────
     def reconcile(self) -> None:
-        objects = {uid for uid, term in self.terms.items() if term.morph == "对象"}
-        for uid in sorted(objects - set(self.cards)):
-            self.error(f"{uid}「{self.terms[uid].zh}」形态为对象，domain_objects/objects.md 却没有它的条目")
-        for uid, card in sorted(self.cards.items()):
-            term = self.terms.get(uid)
-            if term is None:
-                self.error(f"domain_objects/objects.md {uid}: 没有这个词条——先立词条，立不了的进 pending.md")
-                continue
-            if term.morph != "对象":
-                self.error(f"domain_objects/objects.md {uid}: 词条形态是「{term.morph or '缺'}」，不该有对象条目")
-            if card.zh != term.zh:
-                self.error(f"domain_objects/objects.md {uid}: 标题写「{card.zh}」，词条叫「{term.zh}」")
-            for name in OBJECT_FIELDS:
-                if not card.fields.get(name):
-                    self.error(f"domain_objects/objects.md {uid}: 缺「{name}」")
-            self._cited(f"domain_objects/objects.md {uid}「依据」", self.root / "domain_objects/objects.md",
-                        card.fields.get("依据", ""), strict=True)
         for uid, term in sorted(self.terms.items()):
             if term.morph == "变体" and term.parent and self.root_object(uid) is None:
                 self.error(f"{uid}: 顺着「父」往上找不到一个形态为对象的词条")
             self._cited(f"{self.rel(term.path)} {term.id}「出处」", term.path, term.fields.get("出处", ""), strict=False)
         self._undecided()
-        for name, fields in self.pending:
-            for required in PENDING_FIELDS:
-                if not fields.get(required):
-                    self.error(f"domain_objects/pending.md「{name}」: 缺「{required}」")
-            self._cited(f"domain_objects/pending.md「{name}」牵涉", self.root / "domain_objects/pending.md",
-                        fields.get("牵涉", ""), strict=False)
 
     def root_object(self, uid: str) -> str | None:
         """变体可以是变体的变体（插队 → 控制指令 → 入站到达）；顺着「父」走到第一个对象为止。"""
@@ -519,18 +451,16 @@ class Reconciler:
         return None
 
     def _undecided(self) -> None:
-        texts = {name: (self.root / name).read_text(encoding="utf-8").lower()
-                 for name in ("domain_objects/pending.md", "ubiquitous_language/conflicts.md")
-                 if (self.root / name).is_file()}
+        path = self.root / "ubiquitous_language/conflicts.md"
+        if not path.is_file():
+            return
+        text = path.read_text(encoding="utf-8").lower()
         for uid, term in sorted(self.terms.items()):
-            if term.morph != "未定":
-                continue
-            for name, text in texts.items():
-                if uid.lower() not in text:
-                    self.error(f"{uid}「{term.zh}」形态未定，{name} 却没有提到它")
+            if term.morph == "未定" and uid.lower() not in text:
+                self.error(f"{uid}「{term.zh}」形态未定，ubiquitous_language/conflicts.md 却没有提到它")
 
     def _cited(self, where: str, source: Path, text: str, *, strict: bool) -> None:
-        """核对一段引用里的 rev。词条「出处」、条目「依据」、待裁「牵涉」同一条规矩：
+        """核对一段引用里的 rev，比如词条「出处」：
 
         指向产品正文的链接，后面要跟着它那个 topic 的「（rev N）」。同一个 topic 连着的几条链接
         可以共用后面那一个；一个括号里并列几个 rev 的，按 topic 出现的次序配。
@@ -572,142 +502,17 @@ class Reconciler:
     def _stale(self, message: str) -> None:
         (self.errors if self.stale == "fail" else self.notes).append(message)
 
-    # ── 总表 ────────────────────────────────────────────────────────────
-    def backlinks(self) -> dict[str, set[str]]:
-        """产品正文里指向词条的链接：谁还在讲这个对象。"""
-        found: dict[str, set[str]] = {}
-        for topic, directory in self.topic_dirs.items():
-            for name in ("design.md", "flows.md"):
-                path = directory / name
-                if not path.is_file() or path.resolve() != path:
-                    continue
-                for _, href in LINK_RE.findall(path.read_text(encoding="utf-8")):
-                    if "ubiquitous_language/terms/" not in href:
-                        continue
-                    uid = self._term_of(path, href)
-                    if uid:
-                        found.setdefault(uid, set()).add(topic)
-        return found
-
-    def render(self) -> str:
-        links = self.backlinks()
-        up = "../domain_objects/objects.md"
-
-        def card_link(uid: str) -> str:
-            card = self.cards.get(uid)
-            return f"[{self.terms[uid].zh}]({up}#{card.anchor})" if card else self.terms[uid].zh
-
-        def term_link(term: Term) -> str:
-            return f"[{term.id}](../ubiquitous_language/terms/{term.path.name}#{term.anchor})"
-
-        def hoist(text: str) -> str:  # 条目内的站内链接，搬到 views/ 下要补上文件名
-            return re.sub(r"\]\(#", f"]({up}#", text).replace("|", "\\|")
-
-        def definers(card: Card | None) -> list[str]:
-            topics: list[str] = []
-            for _, href in LINK_RE.findall(card.fields.get("依据", "") if card else ""):
-                reference = self._product_reference(self.root / "domain_objects/objects.md", href)
-                if reference and reference[0] not in topics:
-                    topics.append(reference[0])
-            return topics
-
-        children: dict[str, list[Term]] = {}
-        for term in self.terms.values():
-            owner = self.root_object(term.id) if term.morph == "变体" else None
-            if owner:
-                children.setdefault(owner, []).append(term)
-
-        objects = [term for term in self.terms.values() if term.morph == "对象"]
-        out = ["# 领域对象地图", "",
-               "> **这一页由生成器产出，没有人手写，也没有人手改；不得引为依据。**",
-               "> 要引用，引[领域对象条目](../domain_objects/objects.md)、"
-               "[统一语言词条](../ubiquitous_language/index.md)或它们指向的产品正文。",
-               "",
-               "- derived-from：`ubiquitous_language/terms/*.md`（形态、变体的父）· `domain_objects/objects.md` · "
-               "`domain_objects/pending.md` · `product/*/{README,design,flows}.md`（当前 PD rev、反链）· `domain_objects/sealed-revisions.json`（封存提交上旧 PF 的修订与锚点；sealed provenance，不是当前采用）",
-               f"{STAMP}{date.today().isoformat()}",
-               "- 生成：`python tooling/src/domain_objects.py --root design --write`",
-               "",
-               f"对象 **{len(objects)}** 个，变体 **{sum(len(v) for v in children.values())}** 个，"
-               f"形态未定的词条 **{sum(1 for t in self.terms.values() if t.morph == '未定')}** 个，"
-               f"待裁 **{len(self.pending)}** 项。", "",
-               "**按统一语言的分卷排**——分卷「按它回答什么问题」，是全链里唯一不随对象重新分解而搬家的维度。"
-               "这不是能力边界，也不是限界上下文；那是系统架构设计的事。", "",
-               "「依据所在」「还有谁在讲」里标着**（草稿）**的 topic，front-matter 的 `status` 还是 `draft`——"
-               "**那份产品正文尚未被接受**，建在它上面的对象骨架随时可能跟着变。", ""]
-
-        def mark(topic: str, short: bool = False) -> str:
-            return ((topic[3:] if short else topic) + ("（sealed provenance）" if topic in self.sealed_dirs else "")
-                    + ("（草稿）" if topic in self.drafts else ""))
-
-        for filename, title in self.volumes:
-            rows = [term for term in objects if term.volume == filename]
-            if not rows:
-                continue
-            out += [f"## {title}", "", "| 对象 | 词条 | 宿主 | 变体 | 依据所在 | 还有谁在讲 |", "|---|---|---|---|---|---|"]
-            for term in rows:
-                card = self.cards.get(term.id)
-                own = definers(card)
-                others = sorted((links.get(term.id, set()) | set(own[1:])) - set(own[:1]))
-                variants = "、".join(child.zh for child in children.get(term.id, [])) or "—"
-                out.append(f"| {card_link(term.id)} | {term_link(term)} | "
-                           f"{hoist(card.fields.get('宿主', '—')) if card else '—'} | {variants} | "
-                           f"{mark(own[0]) if own else '—'} | {' '.join(mark(t, short=True) for t in others) or '—'} |")
-            out.append("")
-
-        hosted: dict[str, list[str]] = {}
-        for uid, card in self.cards.items():
-            for _, href in LINK_RE.findall(card.fields.get("宿主", "")):
-                host = next((other for other, c in self.cards.items() if href == f"#{c.anchor}"), None)
-                if host and uid in self.terms:
-                    hosted.setdefault(host, []).append(uid)
-        out += ["## 谁寄宿在谁身上", "",
-                "从各条目「宿主」里的链接倒排出来。会换宿主的对象会出现在不止一行。", "",
-                "| 宿主 | 寄宿在它身上的 |", "|---|---|"]
-        for host in sorted(hosted, key=lambda h: -len(hosted[h])):
-            out.append(f"| {card_link(host)} | {'、'.join(card_link(uid) for uid in hosted[host])} |")
-
-        out += ["", "## 还悬着的", "", "### 形态未定的词条", ""]
-        undecided = [term for term in self.terms.values() if term.morph == "未定"]
-        out += [f"- {term_link(term)}「{term.zh}」" for term in undecided] or ["无。"]
-        out += ["", "### 待裁", "",
-                "全文在 [pending.md](../domain_objects/pending.md)。", "", "| 待裁项 | 谁来裁 |", "|---|---|"]
-        for name, fields in self.pending:
-            anchor = github_anchor(name)
-            out.append(f"| [{name}](../domain_objects/pending.md#{anchor}) | "
-                       f"{hoist(fields.get('谁来裁', '—')).replace('](objects.md', f']({up}')} |")
-        quiet = [term for term in objects if not links.get(term.id)]
-        out += ["", "### 没有任何产品正文链接到的对象词条", "",
-                "产品正文提到它却没有链到词条，「还有谁在讲」那一列就是空的——这一列的空，多半是链接稀疏，不是没人讲。", ""]
-        out += ["、".join(f"{term.zh}" for term in quiet) + "。" if quiet else "无。", ""]
-        return "\n".join(out)
-
-
-def same_but_stamp(left: str, right: str) -> bool:
-    strip = lambda text: [line for line in text.splitlines() if not line.startswith(STAMP)]  # noqa: E731
-    return strip(left) == strip(right)
-
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", required=True, type=Path, help="设计根（含 ubiquitous_language/ product/ domain_objects/）")
-    parser.add_argument("--write", action="store_true", help=f"重新生成 {VIEW}；缺省只核对它是不是最新")
+    parser.add_argument("--root", required=True, type=Path, help="设计根（含 ubiquitous_language/ product/）")
     parser.add_argument("--stale", choices=("fail", "report"), default="fail",
-                        help="rev 落后的出处与依据：判失败（缺省），或只列出来供本地迭代")
+                        help="rev 落后的出处：判失败（缺省），或只列出来供本地迭代")
     args = parser.parse_args(argv)
 
     reconciler = Reconciler(args.root, stale=args.stale)
     reconciler.load()
     reconciler.reconcile()
-    view = reconciler.root / VIEW
-    if not reconciler.errors:
-        rendered = reconciler.render()
-        if args.write:
-            if not (view.is_file() and same_but_stamp(view.read_text(encoding="utf-8"), rendered)):
-                view.write_text(rendered, encoding="utf-8")
-                print(f"WROTE: {VIEW}")
-        elif not view.is_file() or not same_but_stamp(view.read_text(encoding="utf-8"), rendered):
-            reconciler.error(f"{VIEW} 不是最新的——运行 --write 重新生成")
     if reconciler.sealed_citations:
         print("SEALED PROVENANCE: " + "、".join(sorted(reconciler.sealed_citations))
               + "（只核出处，不是当前 PD 采用）")
@@ -716,10 +521,9 @@ def main(argv: list[str] | None = None) -> int:
     for error in reconciler.errors:
         print(f"ERROR: {error}", file=sys.stderr)
     if reconciler.errors:
-        print(f"FAIL: 领域对象对账发现 {len(reconciler.errors)} 处问题。", file=sys.stderr)
+        print(f"FAIL: 统一语言对账发现 {len(reconciler.errors)} 处问题。", file=sys.stderr)
         return 1
-    print(f"PASS: {len(reconciler.terms)} 个词条、{len(reconciler.cards)} 条对象条目、"
-          f"{len(reconciler.pending)} 项待裁、{len(reconciler.revisions)} 个当前 PD，对账一致。")
+    print(f"PASS: {len(reconciler.terms)} 个词条、{len(reconciler.revisions)} 个当前 PD，对账一致。")
     return 0
 
 

@@ -9,12 +9,14 @@ import pytest
 TOOLING = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(TOOLING / "src"))
 
-import domain_objects  # noqa: E402
-from domain_objects import Reconciler  # noqa: E402
+import ubiquitous_language  # noqa: E402
+from ubiquitous_language import Reconciler  # noqa: E402
 from omne_harness_lite_spec_tools.doc_support import headings  # noqa: E402
 
 TOPIC = "product/identity"
 VOLUME = "ubiquitous_language/terms/subjects.md"
+PROBE = "ubiquitous_language/index.md"
+TABLE = "ubiquitous_language/sealed-revisions.json"
 COMMIT = "1bbd0d6d6439441235da873e4a73b174f04fa3a0"
 SEALED = f"https://github.com/nemori-ai/omne-harness-lite/blob/{COMMIT}/.meta_harness/design/product.0.0.1.legacy"
 
@@ -24,18 +26,12 @@ def seal(root: Path, directory: str, design: Path, topic: str = "PF-001", revisi
     table = {"commit": COMMIT, "root": ".meta_harness/design/product.0.0.1.legacy",
              "sealed_dirs": {topic: directory}, "sealed_revisions": {topic: revision},
              "anchors": {f"{directory}/design.md": sorted(headings.__wrapped__(design))}}
-    (root / "domain_objects/sealed-revisions.json").write_text(
-        json.dumps(table, ensure_ascii=False, indent=2), encoding="utf-8")
+    (root / TABLE).write_text(json.dumps(table, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def term(uid: str, zh: str, en: str, morph: str, rev: int = 2, extra: str = "") -> str:
     return (f"### {uid} · {zh} · {en}\n\n> **中**：……\n\n- **形态**：{morph}\n"
             f"- **出处**：[PD-identity §4](../../{TOPIC}/design.md#{zh})（rev {rev}）\n{extra}\n")
-
-
-def card(uid: str, zh: str, rev: int = 2, host: str = "—") -> str:
-    return (f"### {uid} · {zh}\n\n- **宿主**：{host}\n- **身份**：登录标识\n- **生灭**：注册 → 激活；无注销\n"
-            f"- **依据**：[PD-identity §4](../{TOPIC}/design.md#{zh})（rev {rev}）\n\n")
 
 
 @pytest.fixture
@@ -58,13 +54,6 @@ def tree(tmp_path: Path) -> Path:
                                 ("UL-organization", "组织", "Organization"),
                                 ("UL-personal-organization", "个人组织", "Personal Organization"))),
         "ubiquitous_language/conflicts.md": "# 对不上的地方\n",
-        "domain_objects/objects.md": ("# 对象条目\n\n" + card("UL-account", "账号")
-                                      + card("UL-login-state", "登录状态", host="[账号](#ul-account--账号)")
-                                      + card("UL-organization", "组织")),
-        "domain_objects/pending.md": ("# 待裁\n\n### 存储\n\n- **现象**：没有定义\n"
-                                      f"- **牵涉**：[PD-identity §4](../{TOPIC}/design.md#账号)（rev 2）\n"
-                                      "- **谁来裁**：PD-identity 的 owner\n- **闭合条件**：有 topic 定义它\n"),
-        "views/README.md": "# 派生视图\n",
     }
     for name, text in files.items():
         path = root / name
@@ -99,59 +88,19 @@ def edit(root: Path, name: str, old: str, new: str) -> None:
     path.write_text(text.replace(old, new, 1), encoding="utf-8")
 
 
-def test_consistent_tree_passes_and_view_round_trips(tree: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_consistent_tree_passes_and_a_broken_one_fails(tree: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert errors(tree) == []
-    assert domain_objects.main(["--root", str(tree)]) == 1  # 总表还没生成
-    assert domain_objects.main(["--root", str(tree), "--write"]) == 0
-    assert domain_objects.main(["--root", str(tree)]) == 0
-    view = (tree / "views/domain-object-map.md").read_text(encoding="utf-8")
-    assert "derived-from" in view and "个人组织" in view
-    # 宿主里的站内链接搬到 views/ 下要补上文件名；指向词条的产品正文链接算进「还有谁在讲」
-    assert "[账号](../domain_objects/objects.md#ul-account--账号)" in view
-    assert "| [登录状态](../domain_objects/objects.md#ul-login-state--登录状态) |" in view
-    capsys.readouterr()
-
-
-def test_view_marks_objects_whose_basis_is_a_draft_topic(tree: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    domain_objects.main(["--root", str(tree), "--write"])
-    assert "PD-identity（草稿）" not in (tree / "views/domain-object-map.md").read_text(encoding="utf-8")
-    edit(tree, f"{TOPIC}/README.md", "status: active", "status: draft")
-    assert domain_objects.main(["--root", str(tree)]) == 1  # topic 状态变了，总表就该重出
-    domain_objects.main(["--root", str(tree), "--write"])
-    assert "| PD-identity（草稿） |" in (tree / "views/domain-object-map.md").read_text(encoding="utf-8")
-    capsys.readouterr()
-
-
-def test_stamp_alone_does_not_make_the_view_stale(tree: Path) -> None:
-    domain_objects.main(["--root", str(tree), "--write"])
-    edit(tree, "views/domain-object-map.md", domain_objects.STAMP, domain_objects.STAMP + "1999-01-01 旧：")
-    assert domain_objects.main(["--root", str(tree)]) == 0
-    edit(tree, "domain_objects/objects.md", "- **宿主**：—", "- **宿主**：部署")
-    assert domain_objects.main(["--root", str(tree)]) == 1
-
-
-def test_object_term_without_card_and_card_without_object_term(tree: Path) -> None:
-    edit(tree, "domain_objects/objects.md", card("UL-organization", "组织"), "")
-    assert any("UL-organization" in e and "没有它的条目" in e for e in errors(tree))
-    edit(tree, VOLUME, "- **形态**：对象\n- **出处**：[PD-identity §4](../../product/identity/design.md#登录状态)",
-         "- **形态**：属性\n- **出处**：[PD-identity §4](../../product/identity/design.md#登录状态)")
-    assert any("UL-login-state" in e and "不该有对象条目" in e for e in errors(tree))
-
-
-def test_card_needs_a_term_and_all_required_fields(tree: Path) -> None:
-    edit(tree, "domain_objects/objects.md", "# 对象条目\n\n", "# 对象条目\n\n" + card("UL-invitation", "邀请"))
-    edit(tree, "domain_objects/objects.md", "- **身份**：登录标识\n- **生灭**：注册 → 激活；无注销\n- **依据**：[PD-identity §4](../product/identity/design.md#账号)",
-         "- **生灭**：注册 → 激活；无注销\n- **依据**：[PD-identity §4](../product/identity/design.md#账号)")
-    found = errors(tree)
-    assert any("UL-invitation" in e and "没有这个词条" in e for e in found)
-    assert any("UL-account" in e and "缺「身份」" in e for e in found)
+    assert ubiquitous_language.main(["--root", str(tree)]) == 0
+    assert "PASS: 4 个词条、1 个当前 PD，对账一致。" in capsys.readouterr().out
+    edit(tree, VOLUME, "- **形态**：对象\n", "")
+    assert ubiquitous_language.main(["--root", str(tree)]) == 1
+    assert "FAIL: 统一语言对账发现 1 处问题。" in capsys.readouterr().err
 
 
 def test_stale_revision_fails_by_default_and_can_be_reported(tree: Path) -> None:
     edit(tree, f"{TOPIC}/README.md", "revision: 2", "revision: 3")
     found = errors(tree)
-    assert any("objects.md UL-account「依据」" in e and "rev 2" in e and "rev 3" in e for e in found)
-    assert any("UL-account「出处」" in e for e in found)
+    assert any("UL-account「出处」" in e and "rev 2" in e and "rev 3" in e for e in found)
     assert any("design.md" in e and "以 front-matter 为准" in e for e in found)
     assert not any("changelog.md" in e for e in found)
     reported = Reconciler(tree, stale="report")
@@ -161,11 +110,17 @@ def test_stale_revision_fails_by_default_and_can_be_reported(tree: Path) -> None
     assert any("复核后再改 rev" in n for n in reported.notes)
 
 
-def test_every_citation_must_carry_a_revision_and_point_at_product_text(tree: Path) -> None:
-    edit(tree, "domain_objects/objects.md", "（rev 2）\n\n### UL-login-state", "\n\n### UL-login-state")
-    assert any("UL-account「依据」" in e and "后面没有「（rev N）」" in e for e in errors(tree))
-    edit(tree, "domain_objects/objects.md", f"../{TOPIC}/design.md#登录状态", f"../{TOPIC}/changelog.md")
-    assert any("UL-login-state「依据」" in e and "不是某个 topic 的 design.md 或 flows.md" in e for e in errors(tree))
+def test_every_citation_must_carry_a_revision(tree: Path) -> None:
+    edit(tree, VOLUME, "（rev 2）\n\n### UL-login-state", "\n\n### UL-login-state")
+    assert any("UL-account「出处」" in e and "后面没有「（rev N）」" in e for e in errors(tree))
+
+
+def test_strict_citation_must_point_at_product_text(tree: Path) -> None:
+    reconciler = Reconciler(tree)
+    reconciler._load_revisions()
+    reconciler._cited('probe', tree / PROBE, f'[basis](../{TOPIC}/changelog.md)（rev 2）', strict=True)
+    assert any('不是某个 topic 的 design.md 或 flows.md' in e for e in reconciler.errors)
+    assert any('至少要有一条' in e for e in reconciler.errors)
 
 
 def test_links_into_one_topic_may_share_a_revision_or_each_carry_their_own(tree: Path) -> None:
@@ -191,15 +146,17 @@ def test_morphology_is_required_valid_and_variants_need_an_object_parent(tree: P
     assert any("UL-login-state" in e and "不在取值表里" in e for e in errors(tree))
 
 
-def test_undecided_terms_must_surface_in_pending_and_conflicts(tree: Path) -> None:
+def test_variant_without_a_term_may_say_so(tree: Path) -> None:
+    edit(tree, VOLUME, "- **形态**：变体（父：[组织](#ul-organization--组织--organization)）",
+         "- **形态**：变体（父：组织，无词条）")
+    assert errors(tree) == []
+
+
+def test_undecided_terms_must_surface_in_conflicts(tree: Path) -> None:
     edit(tree, VOLUME, "- **形态**：对象\n- **出处**：[PD-identity §4](../../product/identity/design.md#登录状态)",
          "- **形态**：未定\n- **出处**：[PD-identity §4](../../product/identity/design.md#登录状态)")
-    edit(tree, "domain_objects/objects.md", card("UL-login-state", "登录状态", host="[账号](#ul-account--账号)"), "")
     found = errors(tree)
-    assert any("UL-login-state" in e and "pending.md" in e for e in found)
     assert any("UL-login-state" in e and "conflicts.md" in e for e in found)
-    edit(tree, "domain_objects/pending.md", "### 存储", "### 登录状态\n\n- **现象**：UL-login-state 未定\n"
-         "- **牵涉**：—\n- **谁来裁**：PD-identity\n- **闭合条件**：裁了\n\n### 存储")
     edit(tree, "ubiquitous_language/conflicts.md", "# 对不上的地方\n", "# 对不上的地方\n\nC-1 见 UL-login-state。\n")
     assert errors(tree) == []
 
@@ -213,23 +170,44 @@ def test_index_must_agree_with_volumes(tree: Path) -> None:
     assert any("UL-organization" in e and "Organisation" in e for e in found)
 
 
+def test_index_link_must_point_at_the_volume_heading(tree: Path) -> None:
+    edit(tree, "ubiquitous_language/index.md", "(terms/subjects.md#ul-account--账号--account)",
+         "(terms/subjects.md#ul-organization--组织--organization)")
+    assert any("UL-account 的链接与分卷里的标题对不上" in e for e in errors(tree))
+
+
+def test_missing_index_is_an_error(tree: Path) -> None:
+    (tree / "ubiquitous_language/index.md").unlink()
+    assert any("index.md 不存在" in e for e in errors(tree))
+
+
+def test_duplicate_term_id_is_an_error(tree: Path) -> None:
+    edit(tree, VOLUME, "### UL-login-state · 登录状态 · Login State", "### UL-account · 登录状态 · Login State")
+    assert any("词条 UL-account 重复" in e for e in errors(tree))
+
+
+def test_heading_without_three_parts_is_not_a_term(tree: Path) -> None:
+    edit(tree, VOLUME, "### UL-login-state · 登录状态 · Login State", "### UL-login-state · 登录状态")
+    assert any("UL-login-state 在分卷里找不到" in e for e in errors(tree))
+
+
+def test_variant_whose_parent_chain_has_no_object_is_an_error(tree: Path) -> None:
+    edit(tree, VOLUME, "- **形态**：对象\n- **出处**：[PD-identity §4](../../product/identity/design.md#组织)",
+         "- **形态**：属性\n- **出处**：[PD-identity §4](../../product/identity/design.md#组织)")
+    assert any("UL-personal-organization" in e and "找不到一个形态为对象的词条" in e for e in errors(tree))
+
+
 def test_variant_of_a_variant_resolves_to_its_root_object(tree: Path) -> None:
     edit(tree, VOLUME, "- **形态**：变体（父：[组织](#ul-organization--组织--organization)）",
          "- **形态**：变体（父：[登录状态](#ul-login-state--登录状态--login-state)）")
     assert errors(tree) == []  # 父是对象
     edit(tree, VOLUME, "- **形态**：对象\n- **出处**：[PD-identity §4](../../product/identity/design.md#登录状态)",
          "- **形态**：变体（父：[账号](#ul-account--账号--account)）\n- **出处**：[PD-identity §4](../../product/identity/design.md#登录状态)")
-    edit(tree, "domain_objects/objects.md", card("UL-login-state", "登录状态", host="[账号](#ul-account--账号)"), "")
     reconciler = Reconciler(tree)
     reconciler.load()
     reconciler.reconcile()
     assert reconciler.errors == []
     assert reconciler.root_object("UL-personal-organization") == "UL-account"  # 个人组织 → 登录状态 → 账号
-
-
-def test_pending_items_need_an_owner_and_a_closing_condition(tree: Path) -> None:
-    edit(tree, "domain_objects/pending.md", "- **谁来裁**：PD-identity 的 owner\n", "")
-    assert any("「存储」" in e and "缺「谁来裁」" in e for e in errors(tree))
 
 
 def test_current_pd_metadata_is_the_only_revision_registry(tree: Path) -> None:
@@ -241,7 +219,6 @@ def test_current_pd_metadata_is_the_only_revision_registry(tree: Path) -> None:
     assert reconciler.errors == []
     assert reconciler.revisions == {'PD-identity': 2}
     assert reconciler.topic_dirs == {'PD-identity': tree / TOPIC}
-    assert reconciler.backlinks() == {'UL-login-state': {'PD-identity'}}
 
 
 @pytest.mark.parametrize(('old', 'new', 'message'), [
@@ -277,11 +254,10 @@ def test_empty_current_root_never_passes(tree: Path, capsys: pytest.CaptureFixtu
     import shutil
     shutil.rmtree(tree / TOPIC)
     assert any('zero-current-input' in item for item in errors(tree))
-    assert domain_objects.main(['--root', str(tree), '--write']) == 1
+    assert ubiquitous_language.main(['--root', str(tree)]) == 1
     output = capsys.readouterr()
     assert 'zero-current-input' in output.err
     assert 'PASS:' not in output.out
-    assert not (tree / 'views/domain-object-map.md').exists()
 
 
 def test_templates_are_not_current_products(tree: Path) -> None:
@@ -317,7 +293,6 @@ def test_product_symlinks_cannot_change_the_declared_source(tree: Path, tmp_path
 @pytest.fixture
 def sealed_tree(tree: Path) -> Path:
     seal(tree, 'PF-001-identity', tree / TOPIC / 'design.md')
-    edit(tree, 'domain_objects/objects.md', f'../{TOPIC}/design.md#账号', f'{SEALED}/PF-001-identity/design.md#账号')
     edit(tree, VOLUME, f'../../{TOPIC}/design.md#账号', f'{SEALED}/PF-001-identity/design.md#账号')
     return tree
 
@@ -330,14 +305,10 @@ def test_sealed_provenance_is_checked_without_becoming_current(sealed_tree: Path
     assert reconciler.revisions == {'PD-identity': 2}
     assert reconciler.sealed_revisions == {'PF-001': 2}
     assert reconciler.sealed_citations == {'PF-001'}
-    assert reconciler.backlinks() == {'UL-login-state': {'PD-identity'}}
-    rendered = reconciler.render()
-    assert 'PF-001（sealed provenance）' in rendered
-    assert 'PF-001（草稿）' not in rendered
 
 
 def test_sealed_bad_revision_cannot_be_downgraded_to_current_staleness(sealed_tree: Path) -> None:
-    edit(sealed_tree, 'domain_objects/objects.md', '（rev 2）', '（rev 1）')
+    edit(sealed_tree, VOLUME, '/PF-001-identity/design.md#账号)（rev 2）', '/PF-001-identity/design.md#账号)（rev 1）')
     assert any('sealed provenance PF-001' in item and '封存修订是 rev 2' in item
                for item in errors(sealed_tree, stale='report'))
 
@@ -349,7 +320,7 @@ def test_sealed_bad_revision_cannot_be_downgraded_to_current_staleness(sealed_tr
 ])
 def test_sealed_citation_file_topic_and_anchor_must_exist(
         sealed_tree: Path, old: str, new: str, message: str) -> None:
-    edit(sealed_tree, 'domain_objects/objects.md', old, new)
+    edit(sealed_tree, VOLUME, old, new)
     assert any(message in item for item in errors(sealed_tree))
 
 
@@ -360,9 +331,11 @@ def test_sealed_citation_file_topic_and_anchor_must_exist(
     '../product.0.0.1.legacy/PF-001-identity/design.md#账号',
 ])
 def test_link_off_the_sealed_commit_or_root_is_not_provenance(sealed_tree: Path, href: str) -> None:
-    edit(sealed_tree, 'domain_objects/objects.md', f'{SEALED}/PF-001-identity/design.md#账号', href)
-    assert any('UL-account「依据」' in item and '不是某个 topic 的 design.md 或 flows.md 有效出处' in item
-               for item in errors(sealed_tree))
+    reconciler = Reconciler(sealed_tree)
+    reconciler._load_revisions()
+    reconciler._cited('probe', sealed_tree / PROBE, f'[basis]({href})（rev 2）', strict=True)
+    assert any('不是某个 topic 的 design.md 或 flows.md 有效出处' in item for item in reconciler.errors)
+    assert reconciler.sealed_citations == set()
 
 
 def test_sealed_root_back_in_the_tree_is_an_error(sealed_tree: Path) -> None:
@@ -371,7 +344,7 @@ def test_sealed_root_back_in_the_tree_is_an_error(sealed_tree: Path) -> None:
 
 
 def test_sealed_link_without_a_revision_table_is_an_error(sealed_tree: Path) -> None:
-    (sealed_tree / 'domain_objects/sealed-revisions.json').unlink()
+    (sealed_tree / TABLE).unlink()
     assert any('UL-account「出处」' in item and '封存修订表' in item for item in errors(sealed_tree))
 
 
@@ -400,7 +373,7 @@ def test_old_handwritten_roster_no_longer_owns_revision(tree: Path) -> None:
 ])
 def test_sealed_table_keeps_its_own_identity_and_revision(
         sealed_tree: Path, old: str, new: str, message: str) -> None:
-    edit(sealed_tree, 'domain_objects/sealed-revisions.json', old, new)
+    edit(sealed_tree, TABLE, old, new)
     found = errors(sealed_tree)
     assert any('sealed-revisions.json' in item and message in item for item in found)
     reconciler = Reconciler(sealed_tree)
@@ -416,8 +389,8 @@ def test_dangling_topic_symlink_is_not_ignored(tree: Path) -> None:
 
 def test_current_and_sealed_citations_keep_separate_revision_checks(sealed_tree: Path) -> None:
     old = f'[PD-identity §4]({SEALED}/PF-001-identity/design.md#账号)（rev 2）'
-    new = (old + '；[PD-identity](../product/identity/design.md#账号)（rev 1）')
-    edit(sealed_tree, 'domain_objects/objects.md', old, new)
+    new = (old + '；[PD-identity](../../product/identity/design.md#账号)（rev 1）')
+    edit(sealed_tree, VOLUME, old, new)
     found = errors(sealed_tree)
     assert any('PD-identity rev 1' in item and 'rev 2' in item for item in found)
     assert not any('sealed provenance PF-001 标的是' in item for item in found)
@@ -433,7 +406,6 @@ def test_quoted_commented_readme_uses_yaml_metadata(tree: Path) -> None:
     reconciler.reconcile()
     assert reconciler.errors == []
     assert reconciler.revisions == {'PD-identity': 2}
-    assert reconciler.drafts == {'PD-identity'}
 
 
 @pytest.mark.parametrize('revision', ['2', '2.0', '2e0', '02', '0x2', '0o2'])
@@ -508,7 +480,7 @@ def test_markdown_code_cannot_supply_citation_anchor(tree: Path, body: str, seal
     base = design_with(tree, '# Alpha\n\n' + body, sealed)
     reconciler = Reconciler(tree)
     reconciler._load_revisions()
-    reconciler._cited('probe', tree / 'domain_objects/objects.md',
+    reconciler._cited('probe', tree / PROBE,
         f'[basis]({base}#fake)（rev 2）', strict=True)
     assert any('引用锚点 #fake 不存在' in error for error in reconciler.errors)
     assert reconciler.sealed_citations == set()
@@ -529,7 +501,7 @@ def test_markdown_closed_fences_and_existing_explicit_anchors_are_legal(tree: Pa
     (tree / TOPIC / 'design.md').write_text('# Alpha\n\n' + body)
     reconciler = Reconciler(tree)
     reconciler._load_revisions()
-    reconciler._cited('probe', tree / 'domain_objects/objects.md',
+    reconciler._cited('probe', tree / PROBE,
         f'[basis](../{TOPIC}/design.md#visible)（rev 2）', strict=True)
     assert reconciler.errors == []
 
@@ -540,10 +512,10 @@ def test_markdown_duplicate_heading_suffixes_remain_citable(tree: Path, sealed: 
     reconciler = Reconciler(tree)
     reconciler._load_revisions()
     for fragment in ('same', 'same-1', 'same-2'):
-        reconciler._cited('probe', tree / 'domain_objects/objects.md',
+        reconciler._cited('probe', tree / PROBE,
             f'[basis]({base}#{fragment})（rev 2）', strict=True)
     assert reconciler.errors == []
-    reconciler._cited('probe', tree / 'domain_objects/objects.md',
+    reconciler._cited('probe', tree / PROBE,
         f'[basis]({base}#same-3)（rev 2）', strict=True)
     assert any('引用锚点 #same-3 不存在' in error for error in reconciler.errors)
 
@@ -554,11 +526,11 @@ def test_next_reconciliation_observes_changed_markdown_anchors(tree: Path) -> No
     first = Reconciler(tree)
     first._load_revisions()
     href = f'../{TOPIC}/design.md#visible'
-    assert first._product_reference(tree / 'domain_objects/objects.md', href, 'probe') == ('PD-identity', False)
+    assert first._product_reference(tree / PROBE, href, 'probe') == ('PD-identity', False)
     path.write_text('# Alpha\n\n```\n## Visible\n```\n')
     second = Reconciler(tree)
     second._load_revisions()
-    assert second._product_reference(tree / 'domain_objects/objects.md', href, 'probe') is None
+    assert second._product_reference(tree / PROBE, href, 'probe') is None
     assert any('引用锚点 #visible 不存在' in error for error in second.errors)
 
 
