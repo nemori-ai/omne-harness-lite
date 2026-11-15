@@ -1,33 +1,96 @@
-# MCP桥：当前设计与未实现边界
+# MCP 动作桥接：设计
 
-本页只维护尚无真实提供者的已采用技术行为及未决，不授予实现或验证状态。公开数据沿实际定义拥有者，不建空包。新增产品政策仍由产品负责人决定。
+## 范围
 
-桥不做准入。holding 来自真实求值，invoke 由已经过 tool admission 的调用方执行；身份、凭据、scope/provenance 不能从进程环境补。形状先 invalidInput；其他闭合失败是现行采用集合，**现行采用未给所有并发失败的统一首拒绝全序，不补一个**。纯投影内部有明确名字/schema 首拒绝。
+动作桥接是 MCP 向工具入口登记的工具条目来源，见 MCP 领域的[工具条目来源](../../../../docs/domains/mcp/architecture.md#工具条目来源)。本页写三件事：一个 MCP 已知动作怎样投影成工具条目，一次调用的结局怎样进工具结果，接入点上的 OAuth 取值怎样进行。连接、动作清单的取得与发布、调用的发出与结局分类归 [MCP 包组规格](../../../../packages/mcp/SPEC.md)，本页不重复。
 
-| 操作 | 资格/首拒绝与闭合失败 | 提交、幂等、外部效果 |
+前提：
+
+- 工具定义有一套公开的规则，对条目名与参数 Schema 给出具名拒绝，并为每个实现声明它能编译的 Schema 上限。投影只调用这套规则，不另写一份。
+- 一个条目的调用是一次工具调用。准入、结果保管与取消归 Tool。
+
+## 条目投影
+
+投影是一次纯计算。输入是接入点、它的一份 MCP 动作清单与实现的编译上限。输出是条目与排除项。
+
+- 投影没有外部效果，不回写清单。同一份输入、同一份实现上限，投影的输出逐字相同。
+- 投影只有一种失败：输入不合形状，答 `invalidInput`。
+- 清单还没有取得时，投影交出空的条目与空的排除项，并标明清单未取得。它不把这个结果当作取得了一份空清单。
+- 判定次序：先判条目名，再按工具定义的公开规则判参数 Schema 的形状，再按实现的编译上限判，最后判对端声明的执行方式。一个动作有几种原因时，按这个次序报第一种。
+
+### 条目的写法
+
+- 对端没有给说明或给了空串时，条目说明取固定文字「对端未提供说明」。投影不替对端编说明。
+- 参数 Schema 只做三样最小规范化。做了任何一样，条目标 `normalized`。
+  1. Schema 里每个位置缺说明时，补上同一句「对端未提供说明」。
+  2. 剥掉关键字 `$schema` 与 `title`，之后按 Draft 2020-12 读。名为 `title` 的参数是参数名，不剥。
+  3. 顶层恰是 `{"type": "object"}` 时，补上 `"properties": {}`，视为无参数。只认这一种写法。
+- 投影不展开 `$ref`，不改 `required`、`type` 与 `additionalProperties`。无参数的形状不是缺 Schema。参数里的未知键按工具定义的默认读法判。
+- 条目只有一种调用方式：输入是参数对象，结果的模态不限，不许转后台。条目不带每条目的设置。
+
+### 已知不可用
+
+下面三种动作照常成为条目，标为已知不可用，并写明原因。这与 MCP 领域「对端的输入结构接纳不了的动作，是已知不可用，原因写明」一致（[工具条目来源](../../../../docs/domains/mcp/architecture.md#工具条目来源)）。
+
+| 原因 | 什么时候 |
+| --- | --- |
+| `input_rejected`，带工具定义给出的具名拒绝 | 补完说明之后，参数 Schema 仍不合工具定义的形状规则 |
+| `schema_unsupported` | 形状合法，但这个实现的编译上限收不下它。同一个实现、同一份上限下，结果恒定 |
+| 执行方式不支持 | 对端声明这个动作必须以任务方式执行 |
+
+Schema 的合法性先于编译支持判定：不合法的 Schema 不去编译，原因是 `input_rejected`，不是 `schema_unsupported`。
+
+## 调用结局进工具结果
+
+- 对端报出动作自己的错误时，对端给的内容照样进工具结果，这次工具调用以失败收场，不带异常原因码。
+
+## 接入点上的 OAuth 取值
+
+MCP 只交出授权发现的结果。授权流程、令牌的保管与续期归凭据设置入口与凭据保管方（[MCP 领域交接设计](../../../../docs/domains/mcp/architecture.md#mcp-交出的能力)末段）。下面的规则是这条授权线的设计。
+
+前提：只有合资格的人经凭据设置入口取值，agent、工具与 Run 不发起取值（[MCP 产品设计](../../product/mcp/design.md#产品需求描述)）。
+
+### 两个操作
+
+| 操作 | 资格、判定次序与失败 | 提交、幂等与外部效果 |
 | --- | --- | --- |
-| refreshActions  | holding 为求值事实；invalidInput,endpointUnreachable,credentialUnavailable,oauthRequired,protocolError{raw},dependencyUnavailable,bridgeWithdrawn | 先连接/stdio进程/分页列举，不回滚；全部页成功、项合法、remoteName唯一才条件写 snapshot。fetchedAt = 发第一页之前同一 clock 的开始时刻，较晚开始胜，较早或相等不覆盖；每次真列举不去重，connectTimeout/maxListPages界限 |
-| projectActions  | 无授权；仅 invalidInput；动作先判 name，再 tool-definition公开校验的具名形状规则，再实现编译上限，再 execution方式 | 纯计算无效果，同输入同实现上限逐字相同；not_fetched 返回空 entries/excluded 且标未知；副本不回写。不能把无形状当 fetched空清单 |
-| availability  | 同 refresh；invalidInput,dependencyUnavailable,bridgeWithdrawn；确定连不通/凭据/OAuth/协议因素在 availability 结果说明，不能抄 refresh 失败集合 | 可能连接，connectTimeout有界，不写 snapshot；现有健康连接不用再握手；每次按此刻答 |
-| invoke  | caller已放行；holding/action属于本 attempt钉住清单，不用其他 Session新 snapshot核；invalidInput,endpointUnreachable,credentialUnavailable,oauthRequired,actionUnknown,protocolError{raw},callTimedOut,dependencyUnavailable,bridgeWithdrawn | 无自身提交；每失败 requestSent事实；连接写请求不可逆，断线/超时/中断/崩溃/换桥不重发、不去重；新调用是新外部效果；tool runtime拥有执行/收场 |
-| beginOAuth  | 仅凭据设置入口到达，非agent/tool/Run；shape先invalidInput，再非HTTP或非tenant格oauthNotApplicable；endpointUnreachable,protocolError{raw},dependencyUnavailable,bridgeWithdrawn | 取metadata之后，新 pending与该 holding旧 pending撤销一次提交；不幂等，新绑定号使旧回答oauthDenied；不判最终配值资格 |
-| completeOAuth  | 仅同入口；pending/state对应、未过TTL；invalidInput,oauthDenied,endpointUnreachable,protocolError{raw},dependencyUnavailable,bridgeWithdrawn | 授权码交换不可逆不重放；凭据custodian先pending收存，再binding granted+ref，granted前不能交凭据，失败清扫。外部同成同败，不改配值；同绑定二次oauthDenied |
+| 发起取值 | 只有凭据设置入口能到达。先判输入形状，答 `invalidInput`。再判这份持有能不能取：持有不在租户格上，或连接目标来自工作区，答 `oauthNotApplicable`，不写绑定。其余失败：`endpointUnreachable`、`protocolError{raw}`、`dependencyUnavailable`、`bridgeWithdrawn` | 取到授权服务器的元数据之后，一次提交写入新的 `pending` 绑定，并撤销这份持有上已有的 `pending` 绑定。不幂等：新绑定使已有绑定的应答答 `oauthDenied`。不判最终的配值资格 |
+| 完成取值 | 只有同一入口能到达。绑定须是 `pending`，状态参数与绑定对应，没有过期。失败：`invalidInput`、`oauthDenied`、`endpointUnreachable`、`protocolError{raw}`、`dependencyUnavailable`、`bridgeWithdrawn` | 授权码的交换不可逆，不重放。凭据保管方先以待定状态收下凭据，再把绑定改为 `granted` 并带上凭据引用。`granted` 之前不交出凭据，失败时清扫。外部效果同成同败。完成不改配值。同一绑定第二次完成答 `oauthDenied` |
 
-refresh 四个确定类失败附现存 snapshot（包括 not_fetched），invalidInput/dependencyUnavailable/bridgeWithdrawn 不附副本；读取不到副本不能伪 not_fetched。snapshot按(tenant,endpoint,scope)耐久隔离、随holding失去可读资格；连接仅桥所有、不跨租户、不上签名，换桥不接旧连接。
+### 绑定与凭据
 
-projectActions 行为必须保持：remote条目名 endpoint.name+":"+remote.name、不改remote名；无description补固定“对端未提供说明”；schema每个位置仅补缺description、剥schema/title关键字、恰type:object补properties空三项，normalized显式标；不展开ref、不改required/type/additionalProperties。无参数形状不是缺schema；参数未知键沿当前 tool-definition 默认读法判。排除 name_unformable{rejection} 或 input_rejected{rejection}（name先），合法但schema_unsupported仅stand-in，不排除；required task方式只stand-in，同犯优先schema_unsupported。任务识别未核须原样记限制。投影single、不含help/needs/settings/allowBackground/composes，输入文本、结果模态任意、禁止后台；超时仍endpoint setting，不造每条目设置。excluded可观察，是否通知agent未定。
+- 绑定有身份、状态与 `since`。状态是 `pending`、`granted`、`revoked`。`revoked` 是终态。
+- 同一份持有上至多一个 `pending` 绑定。
+- `pending` 的过期判定是 `now > since + TTL`。等于时没有过期。
+- 凭据引用不呈现，不进日志。持有一个引用不等于有资格取用它。缺凭据时不匿名退回。组织格不保存凭据引用。
+- 取得的引用要由有配值资格的人经资产治理写成配值才生效。保留期内没有配上的凭据被丢弃，绑定转 `revoked`。
+- 改值、清值或移除持有使原绑定转 `revoked`。在途的调用不因普通撤权而自动取消，新的调用被拒。普通的凭据变更等在途调用完成。
 
-结果与持续义务：
+### 凭据出示的来处
 
-- content按序映射合法 text/image/audio/资源链接/内嵌资源；链接 name和URI各行、文本资源 URI首行；非图音二进制无存储时**明确没带回**URI/mediaType/bytecount，坏项说明类型/原因，不修媒体类型、不整份丢。仅structuredContent且content空补JSON text；不产offload/attachments。双方可见标注，保留图片/音频。
-- 普通invoke失败是工具 implementation_error、无异常原因码；isError保留内容并failed；bridgeWithdrawn→failed/abnormal_interruption；运行时中断→interrupted。执行中连不通不是unavailable；本期无no_answer/backgrounded。当前 tool-execution-runtime终局/记录端口拥有落盘、恢复和终态竞态；旧桥回执不能代签运行时事实。
-- OAuth pendingTTL为严格 now>since+TTL，等号不expired；同holding至多一pending，revoked终态。引用不呈现/日志、不凭reference授可取权；workspace target不能取tenant credential（provenance核），缺凭据不能匿名回退；组织格不存CredentialRef。取得引用须有资格者通过AG配值才生效；未配过保留期丢弃；改值/清值/移除使旧binding revoked，在途不因普通撤权自动取消，新调用拒。
-- 续期不改ref/配值/since、不扰人是产品义务；**当前custodian尚未采用续期写回，规范续期场景受阻**，不能迁成已有机制。临时不可达与明确授权拒绝不能合并；后者revoked，前者可重试；到期无写回只能重新取，不能当永久失效。
-- tools/list_changed只可观察并合并，不改已钉attempt、不立刻刷新；progress经发帧；logs遮秘密；elicitation/sampling/roots不声明、来了不代答。清理先拒新/关transport→停stdio全后代（grace后强制）→有界排空stderr，活着也持续排空；物理停止必须确认，不能凭close完成宣称无后代。
-- bridge替换先结每个invoke bridgeWithdrawn再收连接，其余未提交操作也bridgeWithdrawn；不迁、不重发。ordinary credential change等inflight完成，endpoint断开已发请求endpointUnreachable。重启不重发；snapshot/binding/凭据耐久；旧孤儿进程不复用，须明确回收 owner。
+凭据只出示给与它同层或更具体一层的连接目标：
 
-仍未闭：SDK精确pin/任务可识别/鉴权provider、自定义transport探针；static secret出示名/按holding取用和续期写回（旧限定本期不收）；非图音二进制存储；elicitation等待态；首次not_fetched时空展示是否产品可接受；excluded是否告诉agent；具名部署参数；多机器OAuth单一holding值导致仅一机器可用的产品代价。PF020原位workspace发现更新了旧候选落点，不能把旧桥workspace默认禁用写面标已存在。
+- 连接目标的来处比凭据的来处更具体时，不出示凭据，引用不交给保管方，答 `credentialUnavailable`。连接目标来自组织格、凭据来自租户格时照常出示，因为组织格比租户格靠外。
+- 凭据的来处是会话格或组织格时，不出示。会话格不持有资产，组织那一层不持有 MCP 凭据。
+- 持有在工作区格上时，凭据恒缺席。
+- 配值的来处整个缺席，或凭据与它的来处一个在一个缺，答 `invalidInput`。来处不合形状不当作「来处未知、照常出示」。
 
-验证义务与规范输入见[verification](verification/README.md)。尚未闭合的公共语义阻止相应提供者实施，不以迁移目录关闭业务缺口。
+### 续期
 
-新 Tool 已实现[正文端口](../../../../packages/tool/SPEC.md#领域边界)，负责正文来源、名字匹配及 Skill 引用。它尚未提供 MCP 动作名、参数 Schema、编译上限和 execution 方式的完整校验协议。原桥设计要求先名字、再 Schema 形状、后编译上限、最后 execution 方式；这一顺序保留为待承接约束，不能由新正文端口推定已经实现。MCP 与 Tool 技术拥有者须共同明确公开校验、具名拒绝和顺序，纳入[MCP 包组规格](../../../../packages/mcp/SPEC.md#调用)后再放行相应桥接实现。
+- 续期不改引用、配值与 `since`，不打扰人。
+- 授权服务器暂时够不着与明确拒绝续期分开处理。明确拒绝使绑定转 `revoked`。暂时够不着时绑定仍是 `granted`，续上之前答 `credentialUnavailable`，按间隔重试，不出示已过期的令牌。
+- 令牌到期而没有续上时，只能重新取值，不当作永久失效。
+
+## 未决
+
+1. **条目名怎样拼。** 这份设计的读法：条目名是接入点名、冒号、对端动作名，不改对端动作名。名字拼不出的动作不成为条目，进排除项，排除项带具名拒绝，可以观察。设计给的名字规则不收 `/`、空白与 `.`，拼接处不能成 `:_`，允许对端动作名里再有 `:`。现行正文：一个工具条目来源独占一个名字前缀（`docs/domains/tool-execution/architecture.md` 第 33 行），工具名字只要求非空（`packages/tool/tool-contract/src/judge-definition.ts` 第 225 行，`packages/assets/assets/src/identity.ts` 第 44 行）。读法一：前缀就是接入点名加冒号，名字规则只要求非空，排除项恒为空。读法二：来源前缀之外再加接入点名，名字规则沿用这份设计的那一条。后果：名字规则宽了，供应方无法无歧义映射名字时，请求答 `unsupported`（`packages/model/SPEC.md` 第 206 行），动作要等到发请求时才失败。
+2. **排除项要不要告诉 agent。** 读法一：排除项只供管理与查询读面观察。读法二：在工具检索的结果里一并说明。后果：读法一下，agent 看不到对端的某个动作，也不知道原因。
+3. **公开校验的顺序与具名拒绝由谁定。** Tool 的正文端口负责正文来源、名字匹配与 Skill 引用（[Tool 包组规格的领域边界](../../../../packages/tool/SPEC.md#领域边界)），没有写 MCP 动作名、参数 Schema、编译上限与执行方式的校验。这份设计要求先名字、再 Schema 形状、再编译上限、最后执行方式。要定：MCP 与 Tool 的拥有者共同确定公开校验、具名拒绝与这个顺序，写进 [MCP 包组规格](../../../../packages/mcp/SPEC.md#调用)。
+4. **任务执行方式怎样识别。** 对端怎样声明「必须以任务方式执行」还没有核实。实现时要原样记下这条限制。
+5. **首次未取得时显示空。** 清单未取得时条目为空。产品上要定：界面显示空，是否可以接受。
+6. **只有结构化内容时模型看到什么。** 这份设计的读法：内容为空而只有结构化内容时，补一个 JSON 文本块。现行：MCP 把结构化内容原样另交，不压成文字（`packages/mcp/SPEC.md` 第 111 行），结构化结果是函数的返回值，内容块是给模型看的投影，两样都留（`docs/domains/mcp/architecture.md` 第 119 行）。读法一：桥接为模型补 JSON 文本块，结构化结果照样作返回值。读法二：不补。后果：读法二下，模型看不到这次调用的结果。
+7. **公共内容块表达不了的协议内容给模型看什么。** 这份设计的读法：资源链接写成名字与 URI 各一行的文本，内嵌文本资源写成首行 URI、之后正文的文本，图片与语音之外的二进制资源没有地方存，写成一段文本，明确说明它没有带回，并给出 URI、媒体类型与字节数。现行：MCP 把这类内容带协议类型原样交出（`packages/mcp/SPEC.md` 第 111 行）。要定：二进制资源存在哪里，桥接给模型看什么。
+8. **凭据出示的来处从哪来。** 「凭据出示的来处」一节要求每项配值带上来处层。现行的采用端口只交出配值的三种状态：缺失、不合法、有值（`docs/domains/mcp/architecture.md` 第 77 行）。要定：来处由采用端口交出，还是由凭据保管方核。
+9. **续期的写回。** 续期规则要求凭据保管方能写回续上的令牌而不改引用。要定：写回由谁做、怎样做。续期场景在这之前无法验证。
+10. **静态凭据。** 静态凭据出示时用什么名字、怎样按持有取用、要不要续期写回，都没有定。
+11. **凭据跟机器。** 同一份持有在第二台机器上取值，会使第一台机器上的绑定转 `revoked`，只有一台机器可用。产品上要定：这个代价是否可以接受。
