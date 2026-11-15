@@ -1,3 +1,4 @@
+import './dom.ts'
 import { Context } from '@deepseek-ai/cordis'
 import { act, render } from '@testing-library/react'
 import type { ClientOf } from '@omne-harness/sdk/core'

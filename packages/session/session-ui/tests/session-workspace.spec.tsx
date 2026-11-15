@@ -90,7 +90,7 @@ it('主场景：新建会话、发一句话、流式回复、被历史替换、�
   })
   await settle()
   expect(screen.getByText('正在生成')).toBeTruthy()
-  expect(screen.getByText(/正在回答你/)).toBeTruthy()
+  expect(screen.getByText('正在生成').closest('article')?.textContent).toContain('正在回答你')
 
   fireEvent.change(input, { target: { value: '再说一句' } })
   expect((input as HTMLTextAreaElement).value).toBe('再说一句')
@@ -215,7 +215,7 @@ it('回复增长时，已提交的那几条在 DOM 里一点不变', async () =>
   }
   await settle()
   watcher.disconnect()
-  expect(screen.getByText(text)).toBeTruthy()
+  expect(screen.getByText('正在生成').closest('article')?.textContent).toContain(text)
   expect(committed.isConnected).toBe(true)
   expect(mutations).toEqual([])
 })

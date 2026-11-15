@@ -1,3 +1,4 @@
+import { Button, InlineNotice } from '@omne-harness/ui-kit'
 import type { Item } from '../model/conversation.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
 import { causeSentence, type Retry, type Waiting } from '../model/waiting.ts'
@@ -21,8 +22,9 @@ export function WaitingNotice({
   if (waiting === null || fact?.kind !== 'waiting') return null
   return (
     <section className="omne-waiting" role="status" aria-label="这一轮失败了">
-      <p>{causeSentence(fact.cause)}</p>
-      <PendingLine pending={fact.pending} retry={waiting.retry} onRetry={() => driver.retry()} />
+      <InlineNotice tone="caution" role="status" title={causeSentence(fact.cause)}>
+        <PendingLine pending={fact.pending} retry={waiting.retry} onRetry={() => driver.retry()} />
+      </InlineNotice>
     </section>
   )
 }
@@ -45,14 +47,14 @@ function PendingLine({
       </p>
       {retry.kind === 'unknown' ? <p>重试的结果不知道。可以再问一次，用的是同一次重试。</p> : null}
       {retry.kind === 'idle' && retry.notice !== null ? <p>{retry.notice.text}</p> : null}
-      <button
-        type="button"
-        className="omne-button"
+      <Button
+        variant="outline"
+        size="compact"
         disabled={retry.kind === 'sending'}
         onClick={onRetry}
       >
         {retry.kind === 'unknown' ? '再问一次' : '重试'}
-      </button>
+      </Button>
     </>
   )
 }

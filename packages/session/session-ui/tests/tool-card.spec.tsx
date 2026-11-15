@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import './fixtures/dom.ts'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, it } from 'vitest'
 import { EMPTY_CONTENT, mergeHistory } from '../src/model/content.ts'

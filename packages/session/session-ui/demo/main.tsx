@@ -327,7 +327,7 @@ if (play !== null)
       .find(button => button.textContent === '新建会话')
       ?.click()
     await wait(800)
-    const input = document.querySelector<HTMLTextAreaElement>('.omne-input')
+    const input = document.querySelector<HTMLTextAreaElement>('.omne-composer textarea')
     if (input === null) return
     Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set?.call(input, play)
     input.dispatchEvent(new Event('input', { bubbles: true }))

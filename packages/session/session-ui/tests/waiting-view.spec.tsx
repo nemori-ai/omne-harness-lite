@@ -129,6 +129,6 @@ it('提示挂在等的那一轮的失败那一行下面，不挂在别的失败�
   await settle()
   const block = screen.getByRole('status', { name: '这一轮失败了' })
   const markers = [...document.querySelectorAll('.omne-marker')]
-  expect(block.previousElementSibling).toBe(markers[1])
+  expect(block.previousElementSibling?.contains(markers[1] ?? null)).toBe(true)
   expect(block.nextElementSibling?.textContent).toBe('前面的对话已压缩')
 })

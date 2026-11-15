@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "The session interface module: list, open or create a session, chat, watch the reply stream, cancel a run",
+  "description": "The session interface module: the session list in the shell sidebar and the conversation page",
   "engines": {
     "node": ">=24"
   },
@@ -42,8 +42,7 @@
     "@omne-harness/ui-kit": "workspace:*",
     "@omne-harness/utc-instant": "workspace:*",
     "react": "catalog:",
-    "react-dom": "catalog:",
-    "streamdown": "catalog:"
+    "react-dom": "catalog:"
   },
   "devDependencies": {
     "@testing-library/dom": "catalog:",

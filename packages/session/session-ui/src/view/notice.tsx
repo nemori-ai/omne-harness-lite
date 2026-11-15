@@ -1,21 +1,22 @@
-import type { JSX } from 'react'
+import { InlineNotice, type NoticeAction } from '@omne-harness/ui-kit'
 import type { Notice } from '../model/session-machine.ts'
+
+const TONE = { refused: 'danger', unavailable: 'caution', unknown: 'info' } as const
 
 export function NoticeLine({
   notice,
   action,
 }: {
   readonly notice: Notice
-  readonly action?: JSX.Element | undefined
+  readonly action?: NoticeAction | undefined
 }) {
   return (
-    <p
-      className="omne-notice"
-      data-kind={notice.kind}
+    <InlineNotice
+      tone={TONE[notice.kind]}
       role={notice.kind === 'unknown' ? 'status' : 'alert'}
+      {...(action === undefined ? {} : { action })}
     >
-      <span>{notice.text}</span>
-      {action ?? null}
-    </p>
+      {notice.text}
+    </InlineNotice>
   )
 }
