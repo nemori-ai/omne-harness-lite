@@ -47,7 +47,7 @@ checked: 2026-10-02
 
 ## probe 断言什么
 
-probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行。对 4.0.4 通过（2026-10-02）；2026-10-22 迁入该成员后对 4.0.4 复跑通过：
+探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
 
 1. 抽象类 `super(ctx, 'probeGreeter')`、子类只实现 `greet`；`ctx.plugin(子类)` 之后 `ctx.get('probeGreeter')` 是抽象类的实例、方法可调；
    撤除那条 fiber 后 `ctx.get('probeGreeter')` 为 `undefined`。
@@ -59,6 +59,6 @@ probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行�
 
 ## 已知的误用
 
-- **在提供者里另定义一个同值的键常量**：抽象类已经占定了键，提供者再写一份就多了一处要同步的地方；
-  本仓库的三份 `STORAGE_SERVICE = 'storage'` 就是这样来的。
+- **在提供者里另定义一个同值的键常量**：抽象类已经占定了键，提供者再写一份就多了一处要同步的地方。
+  例如同一个存储服务键的常量在多个提供者里各写一份。
 - **把只有类型的 `interface` 当服务定义**：它不占键，也不登记，消费者无从按键取用。

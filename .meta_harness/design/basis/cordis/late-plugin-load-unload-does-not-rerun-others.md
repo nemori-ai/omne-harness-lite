@@ -11,9 +11,9 @@ symbols:
   - "reflect.ts: notify 只刷新 inject 了被通知键的 fiber"
 lines:
   - "fiber.ts:265-297"
-  - "fiber.ts:418"
+  - "fiber.ts:418-560, 675-686"
   - "fiber.ts:581-595"
-  - "fiber.ts:611-622"
+  - "fiber.ts:611-623"
   - "reflect.ts:314-330"
 probe: packages/assembly/kernel-basis/tests/late-plugin-load-unload-does-not-rerun-others.spec.ts
 checked: 2026-10-21
@@ -46,13 +46,13 @@ fiber 的状态是 `DISPOSED`。整个过程中，注册表提供者与已有消
 |---|---|---|
 | `fiber.ts` 构造函数 | `this.dispose = parent.fiber.effect(...)`；disposer 把 uid 置空并卸载本 fiber | 读源码 265–297 行 |
 | `fiber.ts` `_updateState` | 只在 ACTIVE 与非 ACTIVE 之间变化时，对 `impl.fiber === this` 的键调用 `notify` | 读源码 581–595 行 |
-| `fiber.ts` `_refresh` | epoch 由 inject 的各键对应的提供者 fiber uid 拼成 | 读源码 611–622 行 |
+| `fiber.ts` `_refresh` | epoch 由 inject 的各键对应的提供者 fiber uid 拼成 | 读源码 611–623 行 |
 | `reflect.ts` `notify` | 只刷新 inject 里含被通知键的 fiber | 读源码 314–330 行 |
-| `fiber.ts` `effect` | disposer 在显式撤除或 fiber 卸载时运行 | 读源码 418 行起，或跑 probe |
+| `fiber.ts` `effect` | disposer 在显式撤除或 fiber 卸载时运行 | 读源码 418–560 行（登记）与 675–686 行（卸载时运行），或跑探针 |
 
 ## probe 断言什么
 
-probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，对 4.0.4 通过（2026-10-21）。
+探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
 
 1. 根、注册表提供者和已有消费者都是 `ACTIVE`，两者的插件体各运行一次。
 2. 装载后插件 fiber 是 `ACTIVE`，插件体运行一次，Map 里有它的登记。注册表提供者与消费者的运行次数仍是一次。
@@ -70,10 +70,10 @@ probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行�
 - 登记由插件自己 fiber 上的 `ctx.effect` 持有。经 `Service` 方法里 `this.ctx.effect` 登记时，
   归属规则见 [service-method-ctx-is-caller](service-method-ctx-is-caller.md)。
 - 插件挂在根上装载。经另一个插件的 ctx 装载时，撤除函数登记在那个插件的 fiber 上，
-  那个 fiber 卸载会连带撤除它。probe 没有覆盖这种挂法。
+  那个 fiber 卸载会连带撤除它。探针没有覆盖这种挂法。
 - disposer 是同步函数。异步 disposer 的释放次序见
   [effect-disposal-concurrent-not-ordered](effect-disposal-concurrent-not-ordered.md)。
-- probe 不覆盖在途调用、排空与交接。`dispose` 返回只说明 fiber 已卸载、effect 已运行，
+- 探针不覆盖在途调用、排空与交接。`dispose` 返回只说明 fiber 已卸载、effect 已运行，
   不说明插件发出的外部效果已经收场。
 
 ## 已知的误用

@@ -49,7 +49,7 @@ checked: 2026-09-22
 
 ## probe 断言什么
 
-probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行。针对采用的 Cordis 4.0.4 核对；2026-10-22 迁入该成员后对 4.0.4 复跑通过：
+探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
 
 1. 一个 `async` 监听者返回 `undefined`（无异议），后面接一个同步返回 `false` 的否决者；
    `ctx.bail` 的返回值是 `Promise` 实例、只有第一个监听者跑过、该 Promise 解析为 `undefined`。
@@ -63,7 +63,7 @@ probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行�
 
 **用 `bail` 做异步授权检查。**Promise 本身会使同步派发停止并原样返回，后续监听者不执行。同步调用方没有取得最终授权值，判定后果取决于其读法，不能声称一律放行。需要异步授权的控制链必须逐个 await，采用 `serial`。
 
-配套的静态检查：绑定表声明了 `control-async` 的条款，若其实现中出现 `ctx.bail(`，
-直接判失败。这类错误静态可查，不应等到运行期。
+这类错误可以静态检查：契约声明为异步控制的事件，实现中出现 `ctx.bail(` 就判失败。
+它静态可查，不应等到运行期。
 
 **用 `emit` 做任何控制。**返回值被直接丢弃，比 `bail` 错得更彻底，但也更容易在评审中看出来。

@@ -8,10 +8,12 @@ symbols:
   - "fiber.ts: 插件体抛出 ⇒ fiber 记下错误，状态读作 FAILED；await fiber 以该错误拒绝"
   - "fiber.ts: FAILED 的 fiber 不 provide 任何服务——已注册的 effect 随失败收回"
 lines:
-  - "fiber.ts:50-53"
-  - "fiber.ts:142-151"
-  - "fiber.ts:576-578"
+  - "fiber.ts:50-62"
+  - "fiber.ts:139-154"
+  - "fiber.ts:574-579"
   - "fiber.ts:641-643"
+  - "fiber.ts:646-696"
+  - "fiber.ts:704-710"
 probe: packages/assembly/kernel-basis/tests/plugin-throw-fails-fiber.spec.ts
 checked: 2026-09-23
 ---
@@ -34,13 +36,13 @@ checked: 2026-09-23
 
 | symbol / 语义位置 | 读到了什么 | 怎样复核 |
 |---|---|---|
-| `fiber.ts` `resolveConfig` | 有 `Config` 就 `validate`，失败抛出（错误信息含 `invalid config`） | 给一个只接受正整数 `ttl` 的 Standard Schema 插件传 `{ ttl: 0 }`，`await ctx.plugin(...)` 拒绝，插件体没跑 |
-| `fiber.ts` 状态读取 | 记有错误 ⇒ `FAILED` | 插件体 `throw`，读 `fiber.state` |
-| `fiber.ts` 失败收场 | 已 provide 的服务不可见 | 失败插件体里先 `provide('offers')` 再抛，`ctx.get('offers')` 为 `undefined` |
+| `fiber.ts` `resolveConfig`（50–62 行，由 641–643 行调用） | 有 `Config` 就 `validate`，失败抛出（错误信息含 `invalid config`，19–36 行） | 给一个只接受正整数 `ttl` 的 Standard Schema 插件传 `{ ttl: 0 }`，`await ctx.plugin(...)` 拒绝，插件体没跑 |
+| `fiber.ts` 状态读取（574–579 行）与 `await`（704–710 行） | 记有错误 ⇒ `FAILED`；`await` 以该错误拒绝 | 插件体 `throw`，读 `fiber.state` |
+| `fiber.ts` 失败收场（646–696 行） | 已 provide 的服务不可见 | 失败插件体里先 `provide('offers')` 再抛，`ctx.get('offers')` 为 `undefined` |
 
 ## probe 断言什么
 
-probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行。对 4.0.4 通过（2026-09-22 首跑，2026-09-23 升格为条目）；2026-10-22 迁入该成员后对 4.0.4 复跑通过：
+探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
 
 1. 插件体抛 `Error('missing signing key')`：`await` 该 fiber 以同一错误拒绝，`fiber.state === FAILED`。
 2. config `{ ttl: 0 }` 不过 `positive` 校验：拒绝且错误匹配 `/invalid config/`，`fiber.state === FAILED`，插件体没跑，`ctx.get('offers')` 为 `undefined`。
