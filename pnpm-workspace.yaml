@@ -72,6 +72,8 @@ catalog:
   clsx: 2.1.1
   tailwind-merge: 3.7.0
   tailwindcss: 4.3.3
+  # 桌面应用的页面构建用它把 ui-kit 汇总样式里的 Tailwind 编出来；版本与 tailwindcss 相同。
+  '@tailwindcss/vite': 4.3.3
   '@streamdown/cjk': 1.0.4
   '@streamdown/code': 1.1.1
   '@streamdown/math': 1.0.3
