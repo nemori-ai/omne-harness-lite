@@ -1,73 +1,37 @@
-import type { ActingForTenantPrincipal } from '@omne-harness/identity'
-import type { TenantId } from '@omne-harness/legal-identity'
-import type { Instant } from '@omne-harness/utc-instant'
+import type { TenantSettingsPort } from '@omne-harness/assets-access'
 
-export type SettingAssetSelector = { readonly category?: string; readonly name: string }
+type Port = TenantSettingsPort
 
-export type SettingState =
-  | { readonly state: 'unbound' }
-  | {
-      readonly state: 'usable' | 'revoked' | 'unreadable'
-      readonly tenantId: TenantId
-      readonly configuredAt?: Instant
-    }
+export type SettingView = Extract<
+  Awaited<ReturnType<Port['describe']>>,
+  { kind: 'described' }
+>['item']
+export type SecretView = Extract<SettingView, { kind: 'secret' }>
+export type SecretItemInput = Pick<
+  Parameters<Port['describe']>[0],
+  'principal' | 'tenant' | 'asset' | 'item'
+>
+export type SecretListInput = Pick<Parameters<Port['list']>[0], 'principal' | 'tenant' | 'asset'>
 
-export type SettingLayerState =
-  | { readonly state: 'unbound' }
-  | { readonly state: 'usable' | 'revoked' | 'unreadable'; readonly configuredAt?: Instant }
+type Refusal<K extends string> = Readonly<{ kind: K }>
+type Written = Readonly<{ kind: 'written'; revision: '0' }>
 
-export type SettingLayers = { readonly own: SettingState; readonly official: SettingLayerState }
+export type SecretListOutcome =
+  | Readonly<{ kind: 'listed'; items: readonly SecretView[] }>
+  | Refusal<'denied' | 'unavailable'>
+export type SecretDescribeOutcome =
+  | Readonly<{ kind: 'described'; item: SecretView }>
+  | Refusal<'denied' | 'not-visible' | 'conflict' | 'unavailable'>
+export type SecretSetOutcome =
+  | Written
+  | Refusal<'denied' | 'not-visible' | 'invalid' | 'conflict' | 'unavailable' | 'unknown'>
+export type SecretClearOutcome =
+  | Written
+  | Refusal<'no-change' | 'denied' | 'not-visible' | 'conflict' | 'unavailable' | 'unknown'>
 
-type SettingItemBase = {
-  readonly asset: { readonly category: string; readonly name: string }
-  readonly item: string
-  readonly title: string
-}
-
-export type SettingItemView =
-  | (SettingItemBase & {
-      readonly sensitivity: 'secret'
-      readonly state: SettingState | { readonly state: 'not-writable' }
-      readonly official: SettingLayerState
-    })
-  | (SettingItemBase & {
-      readonly sensitivity: 'ordinary'
-      readonly state: { readonly state: 'not-writable' }
-    })
-
-export type SettingsAccess = Readonly<{ principal: ActingForTenantPrincipal; tenant: TenantId }>
-
-export type SettingRef = Readonly<{ asset: SettingAssetSelector; item: string }>
-
-export type SettingsListOutcome =
-  | Readonly<{ kind: 'succeeded'; items: readonly SettingItemView[] }>
-  | Readonly<{ kind: 'denied' | 'basis-unavailable' }>
-
-export type SettingsSetOutcome =
-  | Readonly<{ kind: 'succeeded'; configuredAt: Instant }>
-  | Readonly<{
-      kind: 'denied' | 'not-visible' | 'conflict' | 'not-writable' | 'basis-unavailable' | 'unknown'
-    }>
-
-export type SettingsDescribeOutcome =
-  | Readonly<{ kind: 'succeeded'; setting: SettingLayers }>
-  | Readonly<{ kind: 'denied' | 'not-visible' | 'conflict' | 'not-writable' | 'basis-unavailable' }>
-
-export type SettingsClearOutcome =
-  | Readonly<{ kind: 'succeeded' | 'no-change' }>
-  | Readonly<{
-      kind: 'denied' | 'not-visible' | 'conflict' | 'not-writable' | 'basis-unavailable' | 'unknown'
-    }>
-
-export interface SettingsGovernance {
-  list(
-    input: Readonly<{ access: SettingsAccess; asset?: SettingAssetSelector }>,
-  ): Promise<SettingsListOutcome>
-  set(
-    input: Readonly<{ access: SettingsAccess; secret: string } & SettingRef>,
-  ): Promise<SettingsSetOutcome>
-  describe(
-    input: Readonly<{ access: SettingsAccess } & SettingRef>,
-  ): Promise<SettingsDescribeOutcome>
-  clear(input: Readonly<{ access: SettingsAccess } & SettingRef>): Promise<SettingsClearOutcome>
+export interface SecretSettings {
+  list(input: SecretListInput): Promise<SecretListOutcome>
+  describe(input: SecretItemInput): Promise<SecretDescribeOutcome>
+  set(input: SecretItemInput & Readonly<{ secret: string }>): Promise<SecretSetOutcome>
+  clear(input: SecretItemInput): Promise<SecretClearOutcome>
 }

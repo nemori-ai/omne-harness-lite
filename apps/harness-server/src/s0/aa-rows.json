@@ -331,7 +331,8 @@
     {
       "row": "assets-access",
       "names": [
-        "principalIssuer"
+        "principalIssuer",
+        "settingsSecretItems"
       ]
     },
     {
