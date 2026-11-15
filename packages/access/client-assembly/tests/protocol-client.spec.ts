@@ -7,6 +7,7 @@ import {
   defineProtocolClient,
   protocolServiceName,
   type AssemblyDiagnostic,
+  type Connection,
   type LoginState,
   type LoginStateSource,
 } from '@omne-harness/client-assembly/cordis'
@@ -67,6 +68,7 @@ async function tree(
   options: {
     withoutClient?: boolean
     readRetry?: { readonly delayMs: (failures: number, elapsedMs: number) => number | null }
+    backoff?: { readonly delayMs: (attempt: number) => number }
   } = {},
 ): Promise<Tree> {
   const root = new Context()
@@ -81,6 +83,7 @@ async function tree(
       login: login.source,
       diagnostics: event => diagnostics.push(event),
       ...(options.readRetry === undefined ? {} : { readRetry: options.readRetry }),
+      ...(options.backoff === undefined ? {} : { backoff: options.backoff }),
       sleep: async (ms, signal) => {
         delays.push(ms)
         if (ms !== HANG_MS) return new Promise(resolve => setImmediate(resolve))
@@ -433,5 +436,256 @@ describe('读类调用对「现在读不到」按策略再问', () => {
     expect(await t.service()!.ping({})).toEqual({ outcome: 'basis-unavailable' })
     expect(t.fake.calls).toHaveLength(1)
     expect(t.delays).toEqual([])
+  })
+})
+
+const names = (diagnostics: readonly AssemblyDiagnostic[]): string[] =>
+  diagnostics.map(event => event.protocol.name)
+
+describe('the claims on a protocol and the missing-client diagnostic', () => {
+  it('keeps a protocol claimed while any claimer is left, and reports it once the last one has left', async () => {
+    const t = await tree({ withoutClient: true })
+    const connection = t.root.get('connection')!
+    const first = connection.claim(NOTES)
+    const second = connection.claim(NOTES)
+    t.fake.push(snapshot(1, NOTES))
+    await settle()
+    expect(t.diagnostics).toEqual([])
+    first()
+    t.fake.push(added(2, OTHER))
+    await settle()
+    expect(names(t.diagnostics)).toEqual(['other'])
+    second()
+    t.fake.push(removed(3, OTHER))
+    await settle()
+    expect(names(t.diagnostics)).toEqual(['other', 'notes'])
+  })
+
+  it('counts a claim given back twice once', async () => {
+    const t = await tree({ withoutClient: true })
+    const connection = t.root.get('connection')!
+    const first = connection.claim(NOTES)
+    connection.claim(NOTES)
+    first()
+    first()
+    t.fake.push(snapshot(1, NOTES))
+    await settle()
+    expect(t.diagnostics).toEqual([])
+  })
+
+  it('does not let a surplus give-back make the count negative for the next claimer', async () => {
+    const t = await tree({ withoutClient: true })
+    const connection = t.root.get('connection')!
+    const gone = connection.claim(NOTES)
+    gone()
+    gone()
+    connection.claim(NOTES)
+    t.fake.push(snapshot(1, NOTES))
+    await settle()
+    expect(t.diagnostics).toEqual([])
+  })
+
+  it('reports an unclaimed protocol once, again after it was withdrawn and came back, never for a claimed one', async () => {
+    const t = await tree({ withoutClient: true })
+    t.fake.push(snapshot(1, NOTES))
+    await settle()
+    t.fake.push(added(2, ACCESS))
+    await settle()
+    t.fake.push(removed(3, NOTES))
+    await settle()
+    t.fake.push(added(4, NOTES))
+    await settle()
+    t.fake.push(added(5, OTHER))
+    await settle()
+    expect(names(t.diagnostics)).toEqual(['notes', 'access', 'notes', 'other'])
+  })
+
+  it('does not report the protocol that has a client on the tree', async () => {
+    const t = await tree()
+    t.fake.push(snapshot(1, ACCESS, NOTES))
+    await settle()
+    expect(names(t.diagnostics)).toEqual(['access'])
+  })
+})
+
+describe('the wait of a read retry', () => {
+  const policy = { delayMs: (): number => HANG_MS }
+
+  function spyOnSubscriptions(connection: Connection) {
+    const face = connection.availability as { subscribe: Connection['availability']['subscribe'] }
+    const real = face.subscribe
+    const counts = { subscribed: 0, left: 0 }
+    face.subscribe = listener => {
+      counts.subscribed += 1
+      const leave = real(listener)
+      return () => {
+        counts.left += 1
+        leave()
+      }
+    }
+    return counts
+  }
+
+  it('returns at once for a signal that is already aborted, without sleeping or listening', async () => {
+    const t = await tree({ readRetry: policy })
+    const connection = t.root.get('connection')!
+    const counts = spyOnSubscriptions(connection)
+    const aborted = new AbortController()
+    aborted.abort()
+    await connection.readRetry!.wait(HANG_MS, aborted.signal)
+    expect(t.delays).toEqual([])
+    expect(counts).toEqual({ subscribed: 0, left: 0 })
+  })
+
+  it('listens to the availability while it sleeps, and stops listening exactly once when it ends', async () => {
+    const t = await tree({ readRetry: policy })
+    t.fake.push(snapshot(1, ACCESS))
+    await settle()
+    const connection = t.root.get('connection')!
+    const counts = spyOnSubscriptions(connection)
+    const byFrame = connection.readRetry!.wait(HANG_MS, undefined)
+    await settle()
+    expect(t.delays).toEqual([HANG_MS])
+    expect(counts).toEqual({ subscribed: 1, left: 0 })
+    t.fake.push(added(2, OTHER))
+    await byFrame
+    expect(counts).toEqual({ subscribed: 1, left: 1 })
+    const controller = new AbortController()
+    const byAbort = connection.readRetry!.wait(HANG_MS, controller.signal)
+    await settle()
+    controller.abort()
+    await byAbort
+    expect(counts).toEqual({ subscribed: 2, left: 2 })
+  })
+})
+
+describe('the end of the connection', () => {
+  it('interrupts the backoff sleep when it unloads, resubscribes no more, and applies no later frame', async () => {
+    const t = await tree({ backoff: { delayMs: () => HANG_MS } })
+    t.fake.push(snapshot(1, ACCESS, NOTES))
+    await settle()
+    const connection = t.root.get('connection')!
+    t.fake.breakStream()
+    await settle()
+    expect(t.delays).toEqual([HANG_MS])
+    expect(t.fake.subscriptions).toHaveLength(1)
+    await t.root.fiber.dispose()
+    roots.splice(roots.indexOf(t.root), 1)
+    t.fake.push(snapshot(2, ACCESS))
+    await settle()
+    expect(t.fake.subscriptions).toHaveLength(1)
+    expect([...connection.availability.current()].map(key => key.name)).toEqual(['access', 'notes'])
+  })
+})
+
+describe('the protocol client when its plugin unloads', () => {
+  async function hosted() {
+    const root = new Context()
+    roots.push(root)
+    const fake = fakeTransport()
+    const diagnostics: AssemblyDiagnostic[] = []
+    await root.plugin(
+      connectionPlugin({
+        transport: fake.transport,
+        login: loginSource().source,
+        diagnostics: event => diagnostics.push(event),
+        sleep: () => new Promise(resolve => setImmediate(resolve)),
+      }),
+    )
+    let client: Fiber | undefined
+    await root.plugin({
+      name: 'host',
+      apply(ctx: Context) {
+        client = ctx.fiber
+        ctx.plugin(defineProtocolClient(notesProtocol))
+      },
+    })
+    const module = { unloaded: 0 }
+    await root.plugin({
+      name: 'notes-module',
+      inject: [SERVICE],
+      apply(ctx: Context) {
+        ctx.effect(() => () => {
+          module.unloaded += 1
+        })
+      },
+    })
+    fake.push(snapshot(1, ACCESS, NOTES))
+    await settle()
+    return { root, fake, diagnostics, module, client: client! }
+  }
+
+  it('ends the open observations of the client and stops listening to the availability', async () => {
+    const t = await hosted()
+    const notes = t.root.get(SERVICE) as Notes
+    const watching = notes.observe['watch-all']({}, { signal: new AbortController().signal })
+    const ended = watching.next()
+    await settle()
+    await t.client.dispose()
+    expect(await ended).toEqual({ done: true, value: { kind: 'aborted' } })
+    expect(t.module.unloaded).toBe(1)
+    t.fake.push(added(2, OTHER))
+    await settle()
+    expect(t.root.get(SERVICE)).toBeUndefined()
+    expect(t.module.unloaded).toBe(1)
+  })
+
+  it('gives its claim back: the protocol it served is reported missing at the next change', async () => {
+    const t = await hosted()
+    expect(names(t.diagnostics)).toEqual(['access'])
+    await t.client.dispose()
+    t.fake.push(added(2, OTHER))
+    await settle()
+    expect(names(t.diagnostics)).toEqual(['access', 'notes', 'other'])
+  })
+})
+
+describe('what the guarded client passes through', () => {
+  it('ends an observation when its own caller aborts, and leaves the service on the tree', async () => {
+    const t = await tree()
+    t.fake.push(snapshot(1, ACCESS, NOTES))
+    await settle()
+    const controller = new AbortController()
+    const frames = t.service()!.observe['watch-all']({}, { signal: controller.signal })
+    const ended = frames.next()
+    await settle()
+    controller.abort()
+    expect(await ended).toEqual({ done: true, value: { kind: 'aborted' } })
+    expect(t.module).toEqual({ loaded: 1, unloaded: 0 })
+  })
+
+  it('ends a call when its own caller aborts, and leaves the service on the tree', async () => {
+    const t = await tree()
+    t.fake.push(snapshot(1, ACCESS, NOTES))
+    await settle()
+    const controller = new AbortController()
+    const inFlight = t.service()!.hold({}, { signal: controller.signal })
+    await settle()
+    controller.abort()
+    expect(await inFlight).toEqual({ outcome: 'uncertain' })
+    expect(t.module).toEqual({ loaded: 1, unloaded: 0 })
+  })
+
+  it('opens an observation with the message id the caller gave', async () => {
+    const t = await tree()
+    t.fake.push(snapshot(1, ACCESS, NOTES))
+    await settle()
+    const controller = new AbortController()
+    const frames = t
+      .service()!
+      .observe['watch-all']({}, { signal: controller.signal, messageId: 'm-watch' })
+    const ended = frames.next()
+    await settle()
+    expect(t.fake.observed).toEqual([{ observation: 'watch-all', messageId: 'm-watch' }])
+    controller.abort()
+    await ended
+  })
+
+  it('sends the message id the caller gave', async () => {
+    const t = await tree()
+    t.fake.push(snapshot(1, ACCESS, NOTES))
+    await settle()
+    await t.service()!.ping({}, { messageId: 'm-given' })
+    expect(t.fake.calls.map(call => call.messageId)).toEqual(['m-given'])
   })
 })

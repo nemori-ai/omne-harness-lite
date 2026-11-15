@@ -25,6 +25,7 @@ export type FakeTransport = {
   readonly push: (frame: AvailabilityFrame) => void
   readonly breakStream: () => void
   readonly calls: CallRequest[]
+  readonly observed: { readonly observation: string; readonly messageId: string }[]
   readonly sent: CallRequest[]
   readonly script: CallReport[]
   hold: { readonly settle: (report: CallReport) => void } | undefined
@@ -34,6 +35,7 @@ export type FakeTransport = {
 export function fakeTransport(): FakeTransport {
   const subscriptions: Subscription[] = []
   const calls: CallRequest[] = []
+  const observed: FakeTransport['observed'] = []
   const sent: CallRequest[] = []
   const script: CallReport[] = []
   const live = (): Subscription => {
@@ -44,6 +46,7 @@ export function fakeTransport(): FakeTransport {
   const fake: FakeTransport = {
     subscriptions,
     calls,
+    observed,
     sent,
     script,
     hold: undefined,
@@ -83,6 +86,7 @@ export function fakeTransport(): FakeTransport {
       },
       async *observe(request): AsyncGenerator<JsonValue, ObserveEnd> {
         if (request.protocol.name !== 'access') {
+          observed.push({ observation: request.observation, messageId: request.messageId })
           if (!request.signal.aborted)
             await new Promise(resolve => request.signal.addEventListener('abort', resolve))
           return { kind: 'aborted' }
