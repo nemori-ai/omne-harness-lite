@@ -32,7 +32,7 @@ Human Intervention（人工介入，HITL）包组回答一个问题：一件工�
 
 | 端口                                                    | 对方                                                                                                                     | 本组提供什么                                                                     |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
-| `HumanInterventionCommands`、`HumanInterventionQueries` | 接入层的 HITL 位置 `hitl-public/1`；Tool 的决策方端口 `ToolDecisionBridge` 与 Agent 的 `DecisionCards`（经应用装配适配） | 登记请求、提交答复、使等待失效、确认交接；读请求、读卡、列池、查原操作、列待交接 |
+| `HumanInterventionCommands`、`HumanInterventionQueries` | `human-intervention/v1` 的接入插件；Tool 的决策方端口 `ToolDecisionBridge` 与 Agent 的 `DecisionCards`（经应用装配适配） | 登记请求、提交答复、使等待失效、确认交接；读请求、读卡、列池、查原操作、列待交接 |
 | 提交协调 `DecisionCommitter`                            | 本组的应用服务                                                                                                           | 登记与答复的共同提交、按原操作查询与封口                                         |
 | 恢复目的解析器 `StandingDestinationResolver`            | Identity                                                                                                                 | 按受信路由封口一次目标操作，交回它的确定终态                                     |
 | 迁移与参加者材料（终态、请求、独立等待）                | 应用的 SQL 装配                                                                                                          | 本组关系的迁移、参加者、唯一写者与只读处理器                                     |
@@ -127,7 +127,7 @@ Human Intervention（人工介入，HITL）包组回答一个问题：一件工�
 - 结果只有各操作列出的那些。领域的失败按名字对应：拒绝对 `denied`，非法输入对 `invalid`，上限对 `limited`（带资源与上限），冲突对 `conflict`，不可用对 `basis-unavailable`；`read-card` 没有 `conflict`。提交的结果：已决定、已被决定、已失效都是成功，各带自己的响应体。读的抛出答 `basis-unavailable`，提交的抛出与未知答 `unknown`。`query-submit-reply` 认回已提交的原结果，没有成立的提交答 `not-committed`，原操作被别的命令占着答 `conflict`。
 - 卡的视图只暴露来源的种类、会话、Run、工具调用四个引用；来源的路由字段、等待位置与采用依据不出现在答复里。
 - 接入插件替每一次调用取入口主体，顺序固定：核对登录可为目标租户行事，不行答 `denied`，不去取入口主体；向入口主体持有者取这个租户的入口主体；取回的必须是这个租户的入口主体（行事主体、系统行动者、组件 `server-entry`、工作 `harness.hitl/cards`、租户相等），否则、抛出、缺席都答 `basis-unavailable`；HITL 入口面每次调用现取，取不到答 `basis-unavailable`，协议不撤。卡的读者与答复者名单绑着入口主体，所以任何登录只能经这个租户的同一个入口主体读卡与答复；入口主体的这几段文字不改，改了已有的卡读不出来。
-- 答复的提交身份由租户与答复编号派生，不含登录与消息号，派生用的文本 `hitl-public/1-reply` 不改：同一个答复从旧位置或新地址再送，认回的是同一次提交。接入插件不持有状态，不缓存卡，不自己认回。
+- 答复的提交身份由租户与答复编号派生，不含登录与消息号，派生用的文本 `hitl-public/1-reply` 不改，它写进了已有的提交：同一个答复再送，认回的是同一次提交。接入插件不持有状态，不缓存卡，不自己认回。
 
 ## 原则与约束
 
@@ -166,4 +166,4 @@ Human Intervention（人工介入，HITL）包组回答一个问题：一件工�
 | HL-1     | 请求、卡片与有效等待同时成立或同时不存在                                                       | 出现等待一张不存在的卡的人工等待         | `RegistrationProtocol` 模型 `JointRegistration`；关系守护 `JointRegistration`；`requests.spec.ts` 缺前驱与晚失败                                                                                        |
 | HL-2     | 待接手集合恰是已决定而未消费的收件箱项；回执计数等于实际消费回执数                             | 已接手的决定被再次交付，或未接手的丢失   | 关系守护 `PendingExact`、`ReceiptCountExact`；`requests.spec.ts` 消费晚失败与重复消费                                                                                                                   |
 | HL-3     | 每张表只有一个写参加者；恢复分支不读本组的表                                                   | 两处写同一事实，投影与权威不一致         | `relational.spec.ts`、`tables.spec.ts`                                                                                                                                                                  |
-| HL-4     | 每次调用的入口主体只在登录可为目标租户行事之后取得，且必须是这个租户的入口主体；同一个答复从旧位置与新地址得到同一个提交身份 | 别的租户的登录读到卡，或同一答复被提交两次 | `human-intervention-access` 的 `operations` 用例（核对在先、持有者的九种偏离、派生文本）；`apps/harness-server` 的 `human-intervention-access` 装配用例经真实入口走通 |
+| HL-4     | 每次调用的入口主体只在登录可为目标租户行事之后取得，且必须是这个租户的入口主体；同一个答复再送得到同一个提交身份 | 别的租户的登录读到卡，或同一答复被提交两次 | `human-intervention-access` 的 `operations` 用例（核对在先、持有者的九种偏离、派生文本）；`apps/harness-server` 的 `human-intervention-access` 装配用例经真实入口走通 |

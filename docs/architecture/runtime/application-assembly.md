@@ -14,7 +14,7 @@
 2. 提供[运行时对象](#运行时对象)：根上下文的对象，以及受信子树各作用域内的对象。运行时对象不进插件树。宿主文件责任域在这一步创建一次，早于任何行装载。
 3. 按插件树装载各行插件。受信子树的行装在只为它可见的受信名建立的上下文中，其余行装在根上。插件经 `inject` 取得必需服务，按调用现取的端口不进 `inject`。插件体构造时检查不能由 `inject` 表达的装配条件，不成立时抛出，该行 `FAILED`。
 4. 等待全部行就绪。某一行停在 `PENDING` 时，装配入口报告缺哪一项必需服务，进程不开始接收消息；某一行 `FAILED` 时启动失败，分别诊断（[Cordis 集成](runtime-contract-integration.md#配置与插件树)）。
-5. 全部行就绪后，装配入口调用 `server-entry` 登记的开始句柄，服务端接入开始在会话位置与治理位置接收消息。
+5. 全部行就绪后，装配入口调用 `server-entry` 登记的开始句柄，服务端接入开始在新地址 `/api/<协议名>/v<主版本>/<操作名>` 上接收调用与观察。
 6. 计划停止按应用成员规格的「有序关闭」执行：先关接入，再停业务，再关会话存储组合，最后关存储，报告确定之后才通知存储提供者。停业务之后对宿主文件责任域跑最后一次维护，剩余未结清的份数写进关闭报告。
 
 ## 插件树
@@ -58,7 +58,7 @@
 | `model-request-preparation` | `@omne-harness/model-host-local` 的准备插件，继承 `ModelRequestPreparationService` | `modelRequestPreparation` | `modelCommands`、`modelTokenizers` | `modelCredential`：补全供应商的凭据引用。租户有自己的绑定时给租户引用，没有时给 factory 引用。读不出绑定是否存在时准备失败，不退回 factory | `maxCitedCalls`（一条世系最多指名的调用数）；`openai.limits`（工具参数解码的六项上限与 `maxReasoningText`）与 `openai.margin`（输入估计的百分比余量 `percent` 及其采用来源 `source`）。每项都由运维者给出，没有初值；不依赖 `modelRuntime` 或供应商网络。同一 OpenAI 家族配置在 `model-records` 行的发送子插件里也用，装载器断言两处相等 |
 | `model-credential` | `@omne-harness/model-host-local` 的 Model 凭据端口（`createSecretCredentialPort`），由 `serveModelCredential` 提供；在受信 `settingsSecretCustody` 的读面与使用面上，按发行模型供应商的绑定键读其秘密设置项（OpenRouter 的 `apiKey`） | `modelCredential` | `settingsSecretCustody`（受信） | 无 | 无。供应商、凭据项与绑定键来自发行供应商正文，见[模型凭据](../../../apps/harness-server/SPEC.md#model-的宿主权威) |
 | `secret-custody` | 应用成员的秘密保管行：settings-local `./secrets` 的秘密保管库作为受信服务（`secretCustodyRow`），`model-credential` 行经本行读同一个保管库文件。本机单用户档由 `setup` 建库，测试树由测试支撑在开树前建库，本行在装载时打开它 | `settingsSecretCustody`（受信，本应用的服务键，见[秘密保管](#settings-secret-custody)）：Settings 的管理面与使用面在一个服务上 | 无 | 无 | `path`（保管库文件的绝对路径，本机单用户档从位置解析填 `<状态目录>/model-vault.json`）；`lockWaitMs`（写入等文件锁的上限，初值 2000）。发行层写空对象。行页见[发行应用规格](../../../apps/harness-server/SPEC.md#设置秘密与-web-凭据) |
-| `settings` | 应用成员的设置行（`settingsRow`）：官方持有的设置定义登记表（`createSettingsRegistry`）、Settings 的秘密项入口（`createSettingsSecretItems`）与受准入的设置管理。登记跟随发行：`tool-host` 行装好一个作者后，该作者的定义（含设置声明）为本进程所知，本行在下一次读登记表时把它写成资产正文，经类别契约的 `settings` 钩子与 `projectAssetSettings` 推出并登记；持有是（具体资产引用 `official/<类别>/<名字>`，定义号），本行不认识类别 | `settingsSecretItems`（受信，本应用的服务键，见[秘密设置项](#settings-secret-items)）：server-entry 的 `SettingsGovernance` 端口 | `settingsSecretCustody`（受信） | `principalVerifier`、`tenantStanding`（受信，设置管理的准入；缺席时管理答 `basis-unavailable`，行不停在 `PENDING`）；`toolContributionAuthority`（运行时对象，读受信发行快照与已装作者的定义） | 无。登记表容量是发行清单的条目数。行页见[发行应用规格](../../../apps/harness-server/SPEC.md#设置秘密与-web-凭据) |
+| `settings` | 应用成员的设置行（`settingsRow`）：官方持有的设置定义登记表（`createSettingsRegistry`）、Settings 的秘密项入口（`createSettingsSecretItems`）与受准入的设置管理。登记跟随发行：`tool-host` 行装好一个作者后，该作者的定义（含设置声明）为本进程所知，本行在下一次读登记表时把它写成资产正文，经类别契约的 `settings` 钩子与 `projectAssetSettings` 推出并登记；持有是（具体资产引用 `official/<类别>/<名字>`，定义号），本行不认识类别 | `settingsSecretItems`（受信，本应用的服务键，见[秘密设置项](#settings-secret-items)）：本应用的 `SettingsGovernance` 端口 | `settingsSecretCustody`（受信） | `principalVerifier`、`tenantStanding`（受信，设置管理的准入；缺席时管理答 `basis-unavailable`，行不停在 `PENDING`）；`toolContributionAuthority`（运行时对象，读受信发行快照与已装作者的定义） | 无。登记表容量是发行清单的条目数。行页见[发行应用规格](../../../apps/harness-server/SPEC.md#设置秘密与-web-凭据) |
 | `model-records` | 应用成员的 Model 耐久记录仓插件：`ModelCommands` 的 SQL 实现与迁移片段由 Model 线交付，插件接线由应用成员交付。行体以子 fiber 装 `ModelSendStagePlugin`，`coordinator` 只经闭包交给它；发送子 fiber 另注入 `modelTokenizers`；凭据或分词服务缺席只让子 fiber 停在 `PENDING`，不卸 `modelCommands`。同一插件体再装 model-storage-sql 的 `createSqlModelDiagnosticsPlugin`，提供 `modelDiagnostics` | `modelCommands`、`modelSendBoundary`、`modelDiagnostics`。三键读同一租户域的同一份记录，由同一插件体提供，属同提供者组 `model-records` | `storage`、`tenantDomainLookup`（受信存储子树；只对已登记租户查找事务域，不触发登记）、`modelClock`、`principalVerifier`（受信）、`tenantStanding`（受信） | `agentReceivedRecords`（受信，`agent-journal` 行提供）：Agent consumer owner 的证据适配器按调用现取，按耐久接收记录核验 ACK 的 retained 证据；缺席或读不到时 ACK 答 `unavailable` | 行配置只放数据：成员部分 `owners`（`work` 取 `exempt`，M2 没有 Model 与 Agent 的共同提交）、`limits`、`combinationVersion`（与 `session-storage` 行相等）、`send` 的镜像上限、`observation`（模型公共流确认源的十二个上限；成员视它为可选，发行要求它在，正式装配总是发布模型的公共流）；应用部分 `initial`（首次执行记录的上限）与 `sendStage`（发送子插件的上限、工厂凭据查询 id、官方档案输入、准备与 OpenAI 家族配置、网络、路由、传输上限）；诊断部分 `diagnostics`（`diagnosticsRead` 只取 `tenant-self`，`retention` 是保留采用；缺 `retention` 时 `modelDiagnostics.list` 一律答 `unavailable`）。全部由运维者层给，发行层不写数值。`authority`、`evidence`、`send.sources`、`initialRun` 由应用成员的 Model 应用模块（`src/model/`）以对象构造，不进配置。装载时核跨行相等：`limits.resultPageTargetBytes`、`readIdleMs` 与 `model-host.runtime` 同名值，`combinationVersion` 与 `session-storage`，`sendStage.preparation` 与 `model-request-preparation`，`sendStage.profiles` 与 `model-profiles`。与会话日志同一事务域，见[租户到事务域的目录](#租户到事务域的目录)；接线见[Model 生产接线](../../../apps/harness-server/SPEC.md#model-的宿主权威) |
 | `tool-records` | 耐久 Tool 记录仓插件：一个插件体、一个记录仓、一个启动协调器；成员是 `@omne-harness/tool-storage-sql`。装 `createLocalToolRuntimePlugins` 一次调用所建 bundle 的 records 插件，Tool 五行共用这个 bundle（见 [发行应用规格](../../../apps/harness-server/SPEC.md#tool-的运行时组与发行内置工具)） | `toolCommands`、`toolReads`、`toolStartAuthority`、`toolStartFence`；受信的 `toolInvocationQualification` 提供原来源查询，不执行目标准入。后两键是同一启动协调器的两个视图，属同提供者组 `tool-start` | `storage`、`tenantDomainLookup`（受信存储子树；只对已登记租户查找事务域，不触发登记）、`telemetry`；`tenantDomains`、`tenantDomainScannerPrincipal`（跨租户的待办扫描以这个扫描者主体枚举已登记租户） | 无 | 整组 Tool 运行时的运维者配置都在本行：`filesRoot`（与 `execution-host` 行相同）；`combinationVersion`（与 `session-storage` 行相同）；`configuration`（`ToolConfiguration` 的全部字段）；`capacity` 与观察者的三项上限（`observersPerCall`、`observerQueueFrames`、`observerResidenceMs`）。发行层写空对象，缺任何一项装载失败。与会话日志同一事务域，`tool` 参加者并入会话存储组合，见[租户到事务域的目录](#租户到事务域的目录) |
 | `tool-body-sweep` | Tool 正文到期清扫的调度行；清扫由 Tool 运行时执行（`createToolSweep`），本行只按间隔与批量调度；business 关闭阶段 | 无公开服务 | `storage`、`tenantDomainLookup`、`tenantDomains`、`tenantDomainScannerPrincipal`、`telemetry` | 枚举租户用扫描者主体；清扫本身不带主体 | `combinationVersion`、`ledgerCommitAttempts`、`intervalMs`、`limit`；同存储组合，批量 1–1000，定时器为有限正数 |
@@ -78,7 +78,7 @@
 | `agent-account-outlet` | Context 一侧的 Agent 集成提供者的账目出站插件，继承 `AgentAccountOutletService` | `agentAccountOutlet` | `requestContext`、`contextAccountingInbox`（两键由 `request-context` 行在同一 fiber 提供，见 [request-context-cordis 的 Cordis 页](../../../packages/context/SPEC.md#cordis-装配)） | 无 | `sender`：出站插件作为每条账目事实的发送方给出的采用身份（`owner`、`name`、`revision`、`digest`，都是文本） |
 | `runtime-context` | `@omne-harness/runtime-context-cordis` 的插件 | `runtimeContext` | `runtimeContextTrust`（受信） | 无 | `retention`（初值 64）；`replayCapacity`（初值 10000）；`supplyBoundMs`（初值 30000）；`settleBoundMs`（初值 1000）；`readCacheEntries`（初值 256，0 表示不缓存）；`diagnostics`（诊断级别）。初值由装配给 |
 | `session-observation` | `@omne-harness/session-observation` 的 `./cordis` 插件 `createSessionObservationPlugin` | `sessionObservation`：会话观察的领域面，登录的人以自己的主体对一个会话建立观察，得到状态帧、快照与增量 | `session`（`caller: 'reader'`，只用日志读取面的 `begin`、`next`、`since`）、`modelStreamReferences`、`modelStreamObservation` | 无 | `policy`（刷新策略 `ObservationRefreshPolicy` 的部分字段）与 `locatePages`，都可省，省掉的取成员的默认初值（间隔 1000 ms、退避 1.5、次数 60、累计等待 30 分钟、取流等待 5 s、翻页 4）；发行层不写。唤醒定位的种类集合是 `call.bound`、`run.started`、`run.terminal` 加本部署读历史的种类（运维者层 `LOCAL_HISTORY_KINDS`，与读历史同一个来源）；刷新策略取成员的默认初值。插件在树上只挂一个 `session-cordis-contract/committed` 监听者，按租户与会话分发给各次观察。见[会话观察的 Cordis 页](../../../packages/session/SPEC.md#会话观察) |
-| `server-entry` | `@omne-harness/server-entry` 的插件 | 治理位置与会话位置的接入；`accessRegistry`（成员 `./cordis` 的 `AccessRegistryProvider`，装在本行作用域里：领域的接入插件经它挂协议，新地址的入口用同一个登记表；`identity-access` 行 `inject` 它。新地址的身份端口是身份的 `createAccessIdentity`，本行用按调用读的 `identityOperations`、`identityGovernance` 与受信 `principalIssuer` 构造） | `session`（`caller: 'intake'` 与 `'reader'`）、`principalIssuer`（受信）、`definitionMappings`（受信）、`telemetry`（入口诊断经它发出，`system` 作用域）、`assemblyLifecycle`；会话诊断投影的三个读口：`agentJournal`（只用 `readFinish`）、`modelRuntime`（只用 `calls.inspect` 与 `calls.dispatches`）、`modelDiagnostics` | `identityOperations`；`identityGovernance`（受信，治理位置 18 个操作与成功业务访问的报告；服务缺席时 19 个方法都答 `basis-unavailable`，不抛出）。两项与 `identity` 行同一份记录；`settingsSecretItems`（受信，治理位置的 4 个设置操作；服务缺席时 4 个方法都答 `basis-unavailable`）；`toolRuntime`（局部，只用 `queries.lookup`、`queries.account` 与 `queries.readDiagnostics`；服务缺席时投影的 Tool 读答 `unavailable`，成员记为缺口） | `listenPort`（初值 8787）；`maxBodyBytes.small`（治理路径，初值 16384）；`maxBodyBytes.input`（会话路径，初值 1048576）；`heartbeatIntervalMs`（初值 15000）；`pageBytes` 上界；读历史的条目种类清单（默认 `message.user`、`message.assistant`）；会话诊断投影的 `diagnosticsKinds`、`maxRuns`、`maxCallsPerRun`（三项一起给，没有初值；缺席时 `read-session-diagnostics` 答 `basis-unavailable`）；[定义名映射](#桥接责任)的选择 |
+| `server-entry` | `@omne-harness/server-entry` 的插件 | 入口：监听、管道、登记表与观察中枢，不认识任何领域；`accessRegistry`（成员 `./cordis` 的 `AccessRegistryProvider`，装在本行作用域里：领域的接入插件经它挂协议，入口用同一个登记表；各 `*-access` 行 `inject` 它。新地址的身份端口是身份的 `createAccessIdentity`，本行用按调用读的 `identityOperations`、`identityGovernance` 与受信 `principalIssuer` 构造） | `principalIssuer`（受信）、`telemetry`（管道诊断经它发出，`system` 作用域） | `identityOperations`；`identityGovernance`（受信，新地址身份端口的认出、复核与成功业务访问的报告；服务缺席时答 `basis-unavailable`，不抛出）。两项与 `identity` 行同一份记录 | `listenPort`（初值 8787）；`maxBodyBytes.small`（初值 16384）；`maxBodyBytes.input`（初值 1048576）；`maxInFlightRequests`（初值 64）；`heartbeatIntervalMs`（初值 15000）；`jsonBudgets`；`observation.perLogin`、`observation.perInstance` |
 | `identity-access` | `@omne-harness/identity-access` 的 `./cordis` 插件 `identityAccessPlugin` | 无服务；把 `identity/v1` 挂上 `accessRegistry`，新地址由此开放身份的六个操作（装这一行就是开放这个协议，卸下这一行协议随之撤下） | `accessRegistry` | `identityOperations`；`identityGovernance`（受信）。两项每次调用现取，缺席时调用答 `basis-unavailable`，协议不撤 | 无 |
 | `session-access` | `@omne-harness/session-access` 的 `./cordis` 插件 `createSessionAccessPlugin`：`session/v1` 的接入插件。装上这一行，新地址才开放 `session/v1` | 无。插件把 `session/v1` 的贡献（7 个操作与观察 `observe-session`）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations` 构造身份的 `createAccessIdentity`，只用它的 `actFor` 为目标租户换主体） | `session`（`caller: 'intake'` 取管理与工作面，`'reader'` 取历史面）；`sessionObservation`；`definitionMappings`（受信）。任一项缺席时，需要它的调用答 `basis-unavailable`，协议不撤下 | `defaultDefinition`（不给定义名的「建会话」用它；缺席时这样的调用答 `invalid`）；`maxPageBytes`（初值 1048576）；`historyKinds`（初值运维者层 `LOCAL_HISTORY_KINDS`） |
 | `assets-access` | `@omne-harness/assets-access` 的 `./cordis` 插件 `createAssetsAccessPlugin`：`assets/v1` 的接入插件。装上这一行，新地址才开放 `assets/v1` | 无。插件把 `assets/v1` 的贡献（设置的 4 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations` 构造身份的 `createAccessIdentity`，只用它的 `actFor` 为目标租户换主体） | `tenantSettings`（[租户层设置读写面](#tenant-settings)）。缺席时调用答 `basis-unavailable`，协议不撤下 | 无 |
@@ -105,7 +105,7 @@ AD-06、AD-11、AD-15 按表装载，AD-13 不装载，由 `tool-residency` 承�
 
 | 通道 | 组合与边界 |
 | --- | --- |
-| 观察通道 | `server-entry` 从 Session 公开日志读面取得稳定 `ModelInvocationRef`，携带观察者自己的 `Access` 查询 Model `current`，再向目标生产者先取快照、后观察增量。各边界分别核权，Agent 不在重附着链路；接入拥有有界刷新、迟到响应隔离与本地观察资源清理。脱离、取消或撤权停止观察，不控制、不重发 Model 或 Tool，不推进 Session。完整约束见[观察脱离与重附着](runtime-contract-handoff.md#观察脱离与重附着)。显示只接公共观察端口，观察流不作控制、结果保管或交付责任解除的输入 |
+| 观察通道 | `session-access` 行（经 `sessionObservation`）从 Session 公开日志读面取得稳定 `ModelInvocationRef`，携带观察者自己的 `Access` 查询 Model `current`，再向目标生产者先取快照、后观察增量。各边界分别核权，Agent 不在重附着链路；接入拥有有界刷新、迟到响应隔离与本地观察资源清理。脱离、取消或撤权停止观察，不控制、不重发 Model 或 Tool，不推进 Session。完整约束见[观察脱离与重附着](runtime-contract-handoff.md#观察脱离与重附着)。显示只接公共观察端口，观察流不作控制、结果保管或交付责任解除的输入 |
 
 ```mermaid
 flowchart LR
@@ -181,7 +181,6 @@ flowchart LR
   tool-bindings --> tool-host
   session-provider --> tool-residency
   tool-residency --> tool-host
-  session-provider --> server-entry
   session-ad09 -.-> session-provider
   session-ad10 -.-> session-provider
   session-ad12 -.-> session-provider
@@ -195,6 +194,7 @@ flowchart LR
   identity -.-> session-access
   session-provider -.-> session-access
   session-observation -.-> session-access
+  agent-adoptions -.-> session-access
   server-entry --> assets-access
   identity -.-> assets-access
   governance -.-> assets-access
@@ -214,16 +214,11 @@ flowchart LR
   agent-adoptions --> adoption-sources
   tool-bindings -.-> adoption-sources
   tool-host -.-> adoption-sources
-  agent-adoptions --> server-entry
   telemetry --> session-provider
   telemetry --> agent-host
   telemetry --> server-entry
-  agent-journal --> server-entry
-  model-records --> server-entry
-  model-host --> server-entry
   session-provider --> session-observation
   model-host --> session-observation
-  tool-runtime -.-> server-entry
   adoption-sources --> session-ad10
   model-request-preparation --> agent-context
   request-context --> agent-account-outlet
@@ -254,7 +249,7 @@ flowchart LR
 | 当前 Tool 权限依据 | `currentToolPermission` | governance 行提供，authorization 按调用读取；原 Session 工作主体及租户资格核验先于租户懒安装。只读当前依据，不发执行许可。 |
 | 治理装配权威 | `governanceDirectoryPrincipals`、`governanceInstallationPrincipals`、`standingReservations`、`standingDestinationResolver` | 目录与安装主体的独立窄签发能力归入口，只给 governance；保留端口归 identity；结算 resolver 归 governance，identity 按调用读取 |
 | 秘密保管 | `settingsSecretCustody` | `secret-custody` 行；`settings` 行 `inject`，`tool-bindings` 行按调用读取（Web 附着） |
-| 秘密设置项 | `settingsSecretItems` | `settings` 行；只有 `server-entry` 行按调用读取 |
+| 秘密设置项 | `settingsSecretItems` | `settings` 行；旧治理位置删除之后没有行读取它 |
 | 租户层设置读写面 | `tenantSettings` | `governance` 行；不受信，本发行没有行 `inject` 或按调用读取它 |
 | 接收记录读面 | `agentReceivedRecords` | `agent-journal` 行；只有 `model-records` 行按调用读取，用于 Agent consumer owner 的 ACK 证据核验 |
 | identity 读口 | `principalVerifier`、`tenantStanding`、`identityGovernance` | 核验器：装配入口；资格读口与治理端口：`identity` 行。`settings` 行按调用读核验器与资格读口做设置管理的准入。入口对象只经 `env.readTrusted` 读取；Tool 运行时组与 Tool 请求来源不在可见表里，由入口对象 `toolClock` 交给 Tool 共享状态的逐次读法读取 |
@@ -275,7 +270,7 @@ flowchart LR
 
 <a id="settings-secret-items"></a>`settingsSecretItems` 是本应用自己定义的第三个服务键，服务定义在 `apps/harness-server/src/rows/settings/index.ts`：
 
-- 拥有者是 `settings` 行，它是唯一的提供者。形状是 server-entry 的 `SettingsGovernance` 端口：列出、写入、查看、清除行事租户自己的秘密设置项。秘密只经写入进入，任何结果都不带秘密。
+- 拥有者是 `settings` 行，它是唯一的提供者。形状是本应用 `apps/harness-server/src/rows/settings/ports.ts` 的 `SettingsGovernance` 端口：列出、写入、查看、清除行事租户自己的秘密设置项。秘密只经写入进入，任何结果都不带秘密。
 - 每次调用先做准入。只有代该租户行事的登录主体可以管理，经 authorization 的租户准入（AU-11，`requires` 为空）。会话工作主体和系统主体一律拒绝。写入的范围恒为行事租户的租户范围：公开操作没有通往官方范围或使用面的路径。
 - 目标由具体持有身份推出：发行条目的采用 owner 与工具名投影出的 `providerId` 与 `definitionId`，加项标识，编码与 settings 的秘密项入口相同（`apps/harness-server/src/rows/settings/holding.ts`，本应用内唯一的一份，Web 附着读同一份）。
 
@@ -333,7 +328,6 @@ flowchart LR
 
 | 持有者 | 位置 | 签发前的关系核对 |
 | --- | --- | --- |
-| server-entry 的登录步骤 | `packages/access/server-entry/src/identity-steps.ts`（`server-entry` 行，受信 `principalIssuer`） | 账号相等：识别出的账号等于目标租户的账号（ID-16:291） |
 | 新地址的身份端口 | `packages/identity/identity-access/src/access-identity.ts`（`createAccessIdentity`，由 `server-entry` 行以受信 `principalIssuer` 构造） | 账号相等：识别出的账号等于目标租户的账号（ID-16:291），与上一行同一条规则 |
 | 会话工作主体的签发者 `sessionWorkPrincipals` | `apps/harness-server/src/entry/session-work-principals.ts` | 会话的归属读口 `sessionPrincipalBindings` |
 | Model 宿主权威 | `apps/harness-server/src/entry/model-authorities.ts` | 原受理记录；核对不成立时不签发 |
@@ -373,12 +367,11 @@ flowchart LR
 | Tool 门面、执行宿主、实例目录与执行环境适配的生产插件；`tool-records` 行的插件；`tool-bindings` 行的启动权威、执行作用域与收场（波 2 A 段答 `unavailable`，B 段接 Tool 运行时组）；`execution-command` 行与 `execution-host` 行的 `command` 提供者；`Shell()`、`Files()` 两个多命令工具的定义与 Catalog；terminal 设施与 Windows 执行环境后端 | M2 Tool 与执行环境实现拥有者（L-TOOL，波 2）；现有 [#791](https://github.com/nemori-ai/omne-harness-lite/issues/791) 只交契约核对与 `./testing`，不关闭宿主缺口 |
 | `toolInstanceHost` 的提供方式：已定，由 `tool-executor` 行在行 fiber 自供，执行宿主子 fiber `inject` 它（Tool B 段，R2-D185） | 已闭合 |
 | 主体服务（含 Agent 宿主维护主体）与三个环境授权及绑定服务的应用侧提供者 | M2 应用装配实现；精确成员导出名未定义的插件不以本表职责名冒充已交付导出 |
-| `server-entry` 行：接入实现与会话编解码 | 会话编解码归 [#685](https://github.com/nemori-ai/omne-harness-lite/issues/685)；接入实现待建卡 |
 | AD-09 身份桥对 ID-11 与 AU-09 的前提 | identity 与 authorization 后继 |
 | `adoption-sources` 行之外，`session-ad10` 必需的生产来源与保管来源（`sessionProductionSource`、`sessionCustodySource`）的提供行 | 各原事实拥有者（Journal、Model、Tool、AD-15、材料保管者）。交付前装配入口以两个同名入口对象在根上提供来源，每次 `prepare` 答 `unavailable` 并点名来源，不给任何守卫：`session-ad10` 行 ACTIVE，`create` 只问采用来源所以不受影响，`receive`、`preserveResult`、`completeInitialization`、`completeConsumption`、`completeExternalConsumption` 如实不可用 |
 | `model-records` 行：`ModelCommands` 的 SQL 实现与迁移片段，以及提供 `modelCommands` 的应用侧插件 | [#446](https://github.com/nemori-ai/omne-harness-lite/issues/446) L-MODEL 线交 SQL 实现与迁移片段；插件接线由 Reduce 在联调时写入 |
 | `server-entry` 的 Cordis 入口与 Cordis 页（`./cordis` 导出、inject、开始与停止句柄、符合性映射） | 接入实现卡 |
-| `assemblyLifecycle`、`definitionMappings`、`sessionWorkPrincipals`、`sessionPrincipalBindings`、`sessionDelegatedTransactions` 的服务定义 | 依次为 kernel-basis、server-entry、session-cordis-contract（三项）的拥有者 |
+| `assemblyLifecycle`、`definitionMappings`、`sessionWorkPrincipals`、`sessionPrincipalBindings`、`sessionDelegatedTransactions` 的服务定义 | 依次为 kernel-basis、`apps/harness-server/src/rows/agent-adoptions/`、session-cordis-contract（三项）的拥有者 |
 | <a id="hostfile-factory-row"></a>具名偏离 `HOSTFILE-FACTORY-ROW`。[IC-1](../cordis-integration-conventions.md#ic-1) 与 [IC-16](../cordis-integration-conventions.md#ic-16) 要求运行时对象经服务定义交付，入口 provide、插件 inject。`execution-host` 行改由装配入口把宿主文件责任域作为工厂参数交给宿主提供者插件工厂。范围只限发行代码工厂绑定表里的这一条；运维者层不能新增工厂行，也不能把工厂导出写到别的行上，违反时装载前退出码 2。这不按装配例外扩大到别的对象。不改成服务，因为要在 execution-environment-cordis-contract 新增定义，而该成员写明不新增服务或包；成员已接受的 Cordis 设计（[#278](https://github.com/nemori-ai/omne-harness-lite/issues/278)）就是工厂参数。IC 的机读采用对这一行读作偏离，不读作符合，也不为它放宽检查。它与 D-ASSEMBLY B1 阻断的跨行闭包不同：责任域由装配入口创建，没有产出行；寿命与进程相同，行重载交同一个对象；绑定表写明依赖，装载器静态核对；它是进程内的文件容量与描述符账本，不授予资格，租户与授权仍随每次操作参数进入（[IC-18](../cordis-integration-conventions.md#ic-18)）；只有绑定表里的一行带运行时参数。所以它不重开 B1，也不是 B1 的先例，别的敏感对象仍走服务定义 | IC 约定的拥有者（[Cordis 集成约定](../cordis-integration-conventions.md)）裁定修订 IC-16 承认发行代码固定的工厂参数，或要求成员改成服务定义；M2 内按偏离保留。关闭条件是作出其中一种裁定，并同步成员 `docs/cordis.md` 的 IC 符合性映射 |
 | 耐久拒绝记录：`tool-host` 的 `recordRejection` 没有拒绝记录仓，返回被拒绝的 Promise，协调者答 `unavailable` | 波 3 |
 | 单实例部署：跨进程 writer 排除没有提供者 | M2 按已知限制交付（见[宿主身份、生命周期与旧数据](runtime-contract-handoff.md#宿主身份生命周期与旧数据)）；跨进程排除归后续存储提供者卡 |
@@ -389,7 +382,7 @@ flowchart LR
 
 | 对象 | 使用者 | 要求 |
 | --- | --- | --- |
-| identity 的签发者 | `server-entry`（为登录请求签发代租户行事主体）；装配入口自己（签发系统主体：`SessionInternalPrincipals`、常驻引用读取主体、恢复与扫描的维护者、AD-14 的出站主体、Agent 宿主维护主体） | 装配入口在签发作用域 provide `principalIssuer`，只有 `server-entry` 可见并 `inject`；未提供时 `server-entry` 停在 `PENDING`。装配入口自己持有同一签发者签发系统主体与会话工作主体。identity 的登录流程不持有它（[ID-16](../../../packages/identity/SPEC.md#主体的签发与核验)） |
+| identity 的签发者 | `server-entry` 与各 `*-access` 行（经 `createAccessIdentity` 为登录请求签发代租户行事主体）；装配入口自己（签发系统主体：`SessionInternalPrincipals`、常驻引用读取主体、恢复与扫描的维护者、AD-14 的出站主体、Agent 宿主维护主体） | 装配入口在签发作用域 provide `principalIssuer`，只有 `server-entry` 可见并 `inject`；未提供时 `server-entry` 停在 `PENDING`。装配入口自己持有同一签发者签发系统主体与会话工作主体。identity 的登录流程不持有它（[ID-16](../../../packages/identity/SPEC.md#主体的签发与核验)） |
 | identity 的核验器（`principalVerifier`） | `authorization`、`session-ad09`、`session-storage`、`model-records`、`tool-bindings`；`request-context`（按调用现取，账目来源核验）；Tool 运行时组与 Tool 请求来源（经入口对象 `toolClock` 交给 Tool 共享状态的逐次读法） | 入口对象，由装配入口在受信作用域「identity 读口」提供，不进插件树与插件配置。只证明来源，不证明成员资格 |
 | `storageHost` | `storage` | 入口对象，只交给 `storage` 行，不进插件树与插件配置。它把存储控制接到装配的有序关闭 |
 | `identityClock` | `identity`（`identity-sql` 插件 `inject`）；`authorization`（`inject`，判定维护授予的到期） | 入口对象，在根上 provide，不受信，不进插件树与插件配置。它是 identity 契约 `./cordis` 的 `IdentityClockService` 子类；两行必须注入它，缺席时停在 `PENDING` |
@@ -427,11 +420,11 @@ flowchart LR
 | --- | --- | --- | --- |
 | 授权适配 | 准入输入；identity 的核验器与 `TenantStandingSource` | `AdmissionDecision`；`agentAccessCheck`、`sessionAccessCheck`、`agentActionAdmission` | 读口或核验器不可答时是 `unavailable`，不改写成已知无权 |
 | 签发者安装 | identity 的签发者 | `server-entry` 经 `inject` 取得的签发者（签发作用域） | 未安装时 `server-entry` 行停在 `PENDING`；运行中签发失败时按[会话判断次序](../../../packages/access/SPEC.md#判断次序)第 4 步返回 `basis-unavailable` |
-| 登录门的证据 | `server-entry` 受理普通输入时写下的 `origin`（`owner` 为 `login-entry`，见[普通输入的来源与登录门](runtime-contract-handoff.md#普通输入的来源与登录门)） | Session 在 `startRun` 的提交事务里由存储参加者读首条输入保存的 `origin`，`decide` 核对；装配不另建桥，证据桥与采用来源都不经手 | `origin` 不是登录入口证据时 Session 返回 `login-required`；它不进入公开结果 |
+| 登录门的证据 | `session-access` 受理普通输入时写下的 `origin`（`owner` 为 `login-entry`，见[普通输入的来源与登录门](runtime-contract-handoff.md#普通输入的来源与登录门)） | Session 在 `startRun` 的提交事务里由存储参加者读首条输入保存的 `origin`，`decide` 核对；装配不另建桥，证据桥与采用来源都不经手 | `origin` 不是登录入口证据时 Session 返回 `login-required`；它不进入公开结果 |
 | 采用点冻结判定（装配协调者） | 本次 `SessionAccess` 的租户、常驻工具首次定义 shape 与精确采用事实；登记表快照（`toolBindings`）与重装回答（`toolGenerations`） | 新 Run 与显式 reload 均调用 `planAdoption`，把判定放进候选采用材料；由 `session-provider` 的 C2 提交命令及 `freeze` | 收集依据不可用时不补造判定。`toolGenerations` 缺席或 `ensureLoaded` 答 `unavailable` 时，协调者按暂时失败给替换件，不判冻结。完整失败按[采用点判定](../../../packages/tool/SPEC.md#定义采用与常驻)与 Session 命令契约处理 |
 | 定义名映射 | 公开消息的定义名 | 每个定义名一条：定义候选、执行类型与入口契约的采用，`requiredIdentities`，`modes` 的默认值，以及常驻工具的能力名 `residentCapabilities`（取自定义里 `resident` 的 Tool 引用；首装用的 `ToolAuthority` 由受信发行快照按名字解出，映射不另存）；同一条也是 `agent-adoptions` 投影 `agentAdoptions` 的依据 | 定义名不在映射内时，服务端接入按会话判断次序第 5 步返回 `invalid` |
 
-定义名映射是发行层数据，放在 `agent-adoptions` 行的配置里；`server-entry` 只选择用哪一份。`agent-adoptions` 只解析一次映射数据，用同一份只读表提供 `agentAdoptions` 与 `definitionMappings`；`server-entry` 与 `adoption-sources` `inject` `definitionMappings`，不再读第二份配置。映射非法时 `agent-adoptions` 行 `FAILED`。`modes` 的默认值来自映射条目，首条路径不读取租户设置。登录门与定义名映射的公开一侧见[公开接入与宿主](runtime-contract-handoff.md#公开接入与宿主)。
+定义名映射是发行层数据，放在 `agent-adoptions` 行的配置里；`session-access` 只选择用哪一份。`agent-adoptions` 只解析一次映射数据，用同一份只读表提供 `agentAdoptions` 与 `definitionMappings`；`session-access` 按调用读取、`adoption-sources` `inject` `definitionMappings`，不再读第二份配置。映射非法时 `agent-adoptions` 行 `FAILED`。`modes` 的默认值来自映射条目，首条路径不读取租户设置。登录门与定义名映射的公开一侧见[公开接入与宿主](runtime-contract-handoff.md#公开接入与宿主)。
 
 装配协调者是 `adoption-sources` 行的适配器，不新开行。它按调用现取 `toolBindings`（`snapshot(access)`，`access` 是本次的 `SessionAccess`，不用系统作用域取登记表）与 `toolGenerations`，经 `SessionAdoptionSource` 的 `plan(access, { recorded, capabilities })` 把事实交给 Session：C2 在 `startRun` 前调用它，判定经 `ResidentAdoption` 的 `verdict` 槽进入；槽只加在 `startRun` 与 `reload` 的输入上，`create` 不加；`decide` 读到 `verdict` 即答 `frozen{verdict}`，不提交。采用点发现某能力在登记表里没有胜出者时，适配器带本租户 `access` 与该能力的 `ToolAuthority` 调 `ensureLoaded`；同能力只有一份 live 且非 draining 的条目时取它，多于一份答 `unavailable`，不用 `ordinal` 选版。重装（已冻结后 `planAdoption` 答 `reload`）恒答 `unavailable` 并给替换件。
 
@@ -467,10 +460,10 @@ flowchart LR
 | 会话操作 | 各契约成员的 `./testing` 替身 | Session 实现、存储与适配 | `session-storage`、`session-provider`、`session-ad*` |
 | Agent 推进与回复 | Agent 契约的 `./testing` 替身 | Agent 宿主与 Journal | `agent-journal`、`agent-host` |
 | 模型调用 | model-contract 的脚本化提供者 | `pi-ai-openai` 经 `model-host` | `model-host` |
-| 公开接入 | public-contract 的纯函数与进程内环回 | `server-entry` 经 HTTP | `server-entry` |
+| 公开接入 | public-contract 的纯函数与进程内环回 | `server-entry` 的管道加各 `*-access` 行，经 HTTP | `server-entry`、`*-access` |
 
 替身只证明契约形状与判断次序，不证明持久性、跨进程主体来源、同一事务域的共同提交或真实供应商行为。
 
 ## CS 的终位
 
-CS 是私有验证应用 `apps/m2-contract-skeleton`，用于 M1 首次联合验收，在 M1.5 是[关闭门 H3](https://github.com/nemori-ai/omne-harness-lite/issues/783) 的证据（CS v2）。CS v2 逐跳报告首条租户路径：H01～H08 连通；H09～H13（多轮中的第二个 Run、工具往返、重装配、推理回放、从会话日志读 Agent 记录）记为具名缺口，它们的验收在 M2 首条路径上接续。它只消费公开导出与 `./testing` 替身，不是本页的应用装配，也不被别的成员依赖。在它退出之前，由 integration 交付线维护。首条租户路径的应用成员经插件树完成同样的端到端验收（创建租户、登录、首次请求、纯消息回复、读历史，以及上面 H09～H13 的各跳）之后，CS 按[删除替代实现的政策](../../requirements.md#当前研发阶段sys-experiment)退出。
+CS 是 M1 首次联合验收与 M1.5 [关闭门 H3](https://github.com/nemori-ai/omne-harness-lite/issues/783) 用的私有验证应用。首条租户路径的应用成员经插件树完成端到端验收之后，CS 已按[删除替代实现的政策](../../requirements.md#当前研发阶段sys-experiment)退出，随旧的三个接入位置一起删除。
