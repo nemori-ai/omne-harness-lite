@@ -83,7 +83,7 @@ function variantFiles(value: unknown): boolean {
   )
 }
 function historicalRuleSet(rules: Record<string, unknown>): boolean {
-  if (rules['ruleSet'] === 2) return rules['topics'] === undefined
+  if (rules['ruleSet'] === 2 || rules['ruleSet'] === 4) return rules['topics'] === undefined
   const topics = rules['topics']
   return (
     rules['ruleSet'] === 3 &&
@@ -102,7 +102,7 @@ export function readTemplate(directory = TEMPLATE_DIRECTORY): TemplateManifest {
     value['format'] !== 1 ||
     value['id'] !== 'typescript-package' ||
     !version(value['version']) ||
-    value['ruleSet'] !== 4 ||
+    value['ruleSet'] !== 5 ||
     !fileList(value['common']) ||
     !stringArray(value['requiredFiles']) ||
     !layoutRules(value['layout']) ||
