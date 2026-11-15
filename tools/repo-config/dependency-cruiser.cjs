@@ -6,9 +6,10 @@ const ACCESS_CORDIS_CONTRACT = '^packages/access/access-cordis-contract/'
 const ASSEMBLY = '^packages/assembly/assembly/'
 const ENTRY_CORE = '(registry|settle|pipeline|observation-hub|availability)'
 const SDK_CORE = '^packages/access/sdk/src/(core/|limits\\.ts$|never-written\\.ts$)'
-const CLIENT_SIDE = '^packages/(access/client-assembly|assets/assets-ui|session/session-ui)/'
 const CLIENT_ASSEMBLY = '^packages/access/client-assembly/'
-const VIEW_MODULE = '^packages/(assets|session)/[^/]+-ui/'
+const FRONTEND = '^packages/frontend/'
+const VIEW_MODULE = '^packages/([^/]+)/[^/]+-ui/'
+const CLIENT_SIDE = `${CLIENT_ASSEMBLY}|${FRONTEND}|^packages/[^/]+/[^/]+-ui/`
 const SHARED = '^packages/(common|util)/'
 const ORGANIZATION = 'docs/package-organization.md'
 const TOOLCHAIN = '^tools/repo-toolchain/src/'
@@ -127,17 +128,27 @@ module.exports = {
       from: { path: `${CLIENT_ASSEMBLY}src/` },
       to: {
         path: `${PACKAGES}|(^|/)node_modules/|${NODE_BUILTIN}`,
-        pathNot: `${PUBLIC_CONTRACT}|${SDK_CORE}|${CLIENT_SIDE}|(^|/)node_modules/@deepseek-ai/cordis/`,
+        pathNot: `${PUBLIC_CONTRACT}|${SDK_CORE}|${CLIENT_ASSEMBLY}|(^|/)node_modules/@deepseek-ai/cordis/`,
       },
     },
     {
-      name: 'view-module-only-client-side-and-own-protocol',
-      comment: `The view module of a domain runs in a browser. Of the repository it depends only on the client-side members, the SDK client core, the public contract, the protocol contract of its own domain and the shared pure definitions; it imports no server-side member and no Node built-in. Its third-party packages are its own. ${LAYERS}: 领域的界面模块依赖客户端装配与领域的协议契约`,
+      name: 'view-module-only-assembly-frontend-and-own-protocol',
+      comment: `The view module of a domain runs in a browser. Of the repository it depends only on the client assembly, the frontend group, the SDK client core, the public contract, the protocol contract and the view modules of its own domain, and the shared pure definitions; it imports no view module of another domain, no server-side member and no Node built-in. Its third-party packages are its own. ${LAYERS}: 领域的界面模块依赖客户端装配、界面外壳契约与共用界面件、领域的协议契约`,
       severity: 'error',
-      from: { path: `${VIEW_MODULE}src/` },
+      from: { path: `${VIEW_MODULE}src/`, pathNot: FRONTEND },
       to: {
         path: `${PACKAGES}|${NODE_BUILTIN}`,
-        pathNot: `${PUBLIC_CONTRACT}|${SDK_CORE}|${CLIENT_SIDE}|${SHARED}|^packages/$1/[^/]+-protocol/`,
+        pathNot: `${PUBLIC_CONTRACT}|${SDK_CORE}|${CLIENT_ASSEMBLY}|${FRONTEND}|${SHARED}|^packages/$1/[^/]+-(protocol|ui)/`,
+      },
+    },
+    {
+      name: 'frontend-knows-no-domain',
+      comment: `The frontend group, the shell contract and the shared view kit, runs in a browser and knows no domain. Of the repository it depends only on its own group and the shared pure definitions; it imports no client assembly, no view module, no server-side member and no Node built-in. ${LAYERS}: 界面外壳契约与共用界面件没有指向别的框的边`,
+      severity: 'error',
+      from: { path: `${FRONTEND}[^/]+/src/` },
+      to: {
+        path: `${PACKAGES}|${NODE_BUILTIN}`,
+        pathNot: `${FRONTEND}|${SHARED}`,
       },
     },
     {
