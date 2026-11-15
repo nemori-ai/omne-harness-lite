@@ -8,7 +8,7 @@ import type {
 } from '@omne-harness/agent-contract'
 import { decodeExecutionRevision } from '@omne-harness/agent-contract'
 import type { PublishedBatch, Ref } from './facts.ts'
-import type { SessionJournalView } from './fold.ts'
+import type { SessionJournalView } from './view.ts'
 
 export type Answer =
   | Readonly<{ kind: 'receipt'; receipt: CommandReceipt }>

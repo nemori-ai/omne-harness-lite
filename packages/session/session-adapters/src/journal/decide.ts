@@ -15,7 +15,7 @@ import {
   type CursorMembers,
   type FactBody,
 } from './facts.ts'
-import type { ExecutionView } from './fold.ts'
+import type { ExecutionView } from './view.ts'
 
 export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState): CursorMembers {
   return {

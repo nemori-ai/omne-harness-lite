@@ -53,7 +53,7 @@ import {
   type BlobStore,
 } from '../journal/decide.ts'
 import type { CursorMembers, FactBody, FactOf, Ref } from '../journal/facts.ts'
-import type { CandidateView, ExecutionView, ObligationListView } from '../journal/fold.ts'
+import type { CandidateView, ExecutionView, ObligationListView } from '../journal/view.ts'
 
 export type FinishingRecords = {
   candidates: FinishCandidate[]
