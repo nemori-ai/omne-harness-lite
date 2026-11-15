@@ -287,7 +287,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **新输入**：负责人panqiwei在本会话明确要求“event（比如attempt event）也被包装成了SystemReminderMessage发给了模型，这是不行的”，并要求模型调用的消息列表从session log计算投影。该要求限定排除内部事实自动成为模型消息；没有取消全部合法业务提醒，也没有选定具体日志类型、缓存算法或存储。
 - **反例与影响**：把尝试开始写成提醒，模型消息投影便会收进技术事实；若只在发送时删掉它，依赖提醒认定尝试开始的恢复／结算读者仍耦合于错误表示。涉及PF-012／PF-009／PF-010的相关规则与实际消息、尝试治理、组装、模型调用消费者；源码观察不表示已运行或修复。
 - **负责与闭合条件**：产品定义拥有者同步尝试开始事实与模型感知要求的边界及适用流程、验收和出处；技术接口拥有者分别落实事实表示、投影与原调用恢复／结算来源并迁移消费者。闭合前不采用“每次尝试开始必须向模型追加提醒”的旧读法，不自行删除真实业务结果或风险感知要求。
-- **状态**：产品表达已同步（PF-012 rev24及S103、PF-010 rev8），独立产品复核已完成限定范围；自动尝试提醒的产品歧义闭合。技术消费者迁移尚未实施，必须沿[候选整改设计](../architecture/session-agent-runtime-phase1/boundaries.md)及各实际承诺完成，不据此声称源码已修复。
+- **状态**：产品表达已同步（PF-012 rev24及S103、PF-010 rev8），独立产品复核已完成限定范围；自动尝试提醒的产品歧义闭合。技术消费者迁移尚未实施，必须沿[Session、Run 与输入承接](../../../docs/architecture/runtime/session-and-run.md)及各实际承诺完成，不据此声称源码已修复。
 - **2026-10-17 接续**：「尝试开始」是会话一侧的记录（[UL-run-attempt](terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)）。Agent 一侧新的开始事实是一个新 Agent 执行的开始，经过[执行开始之后](terms/agent-runtime-loop.md#ul-execution-started-position--执行开始之后--execution-started-position)位置，两者不合并。本条原有结论不变。
 
 
@@ -328,7 +328,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 
 - **类型**：定义打架。2026-10-17 用户决定移除消息持久化位置后发现。
 - **来源**：用户决定暂不提供消息落盘之前与之后两种扩展位置。已接受[系统页](../../../docs/architecture/runtime/loop-extensions.md#不可用报错与系统扩展)的系统扩展表把模态转换列为系统扩展，非 Tool ref 来源的转换位置当时待负责人接受。
-- **各处现状**：[Model 规格](../../../packages/model/SPEC.md#模态转换与工具声明)写非 Tool ref 路径的转换在消息接纳前完成，且转换件不根据当前模型决定是否转换；请求时才加载并转换的只有 Tool 内容引用。[Model 规格的模态、转换与工具声明](../../../packages/model/SPEC.md#模态转换与工具声明)把实际表示的选择与组装交给 request-context。[UL-modality-converter](terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)、[UL-derived-rendering](terms/record-and-context.md#ul-derived-rendering--派生表示--derived-rendering)、[UL-transcript](terms/record-and-context.md#ul-transcript--transcript--transcript) 与保留技术源 [modality-projection](../architecture/modality-projection/design.md) 仍以「在落盘之前写好」和「prepersist 跨域」描述转换。
+- **各处现状**：[Model 规格](../../../packages/model/SPEC.md#模态转换与工具声明)写非 Tool ref 路径的转换在消息接纳前完成，且转换件不根据当前模型决定是否转换；请求时才加载并转换的只有 Tool 内容引用。[Model 规格的模态、转换与工具声明](../../../packages/model/SPEC.md#模态转换与工具声明)把实际表示的选择与组装交给 request-context。[UL-modality-converter](terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)、[UL-derived-rendering](terms/record-and-context.md#ul-derived-rendering--派生表示--derived-rendering)、[UL-transcript](terms/record-and-context.md#ul-transcript--transcript--transcript) 仍以「在落盘之前写好」和「prepersist 跨域」描述转换。
 - **候选归属**：一，与 Tool 内容引用一样，在 Model 实际请求准备时按模态投影加载并转换，转换失败按请求准备失败返回。二，仍在消息接纳前完成，只是不再挂在拓展位置上：实现[消息准入](terms/agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)的提供者在接纳前调用转换件，Tool 内容引用在 Model 实际请求时转换，Agent 只看到接纳后的消息与派生表示。
 - **推荐**：协调者推荐候选二，候选一不再推荐。候选二沿用 Model 与 Context 现行规格的时点，不另造时点，也不让 Agent 理解模态细节。
 - **受影响页**：系统页系统扩展表的模态转换行及其后一段、[UL-modality-converter](terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter) 及其索引行、[UL-message-admission](terms/agent-runtime-loop.md#ul-message-admission--消息准入--message-admission) 注意 ③。这三处已按候选二写。UL-derived-rendering、UL-transcript 的「在落盘之前写好」与候选二一致，不需要改。modality-projection 专题中「prepersist 跨域」的位置说法已改为接纳前调用。选候选二时 Model 与 Context 的规格不需要改。
