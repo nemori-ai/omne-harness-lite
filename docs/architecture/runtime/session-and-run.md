@@ -43,7 +43,7 @@ Session 分三层。每层的变化由不同的一方处理，重装配的判断
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 服务层       | Session 服务、适配成员和存储成员的装配。它们升级或换配置时只重新装配，不写会话事实。在途命令按操作身份认回，协调器和调度器从权威状态重建未完成的工作。                                                                                                                                                                                                                                                                                |
 | 会话采用层   | 会话保存的选择与实际采用：定义与装配的实际采用、工作区选择、设置声明、Context 注册集合和会话自有的恢复输入。它们是日志事实，在新 Run 入口或显式 reload 时重新求值，结果只在入口成为采用依据。                                                                                                                                                                                                                                         |
-| 作用域资源层 | 按会话作用域存在的运行期资源。Agent runtime 实例、Runtime Context 作用域、执行环境的落点与租约归各自拥有者，Session 只按作用域关联、发起释放并对账。现有释放入口只有执行环境的作用域释放；Runtime Context 作用域与会话级 Agent runtime 实例的释放入口由各自拥有者定义，见会话契约的[明确缺项](../../../packages/session/session-contract/SPEC.md#具名前提与明确缺项)。空闲计时归 Session 的调度器，进程重启后从日志里的空闲证据重建。 |
+| 作用域资源层 | 按会话作用域存在的运行期资源。Agent runtime 实例、Runtime Context 作用域、执行环境的落点与租约归各自拥有者，Session 只按作用域关联、发起释放并对账。现有释放入口只有执行环境的作用域释放；Runtime Context 作用域与会话级 Agent runtime 实例的释放入口由各自拥有者定义，见会话契约的[明确缺项](../../../packages/session/SPEC.md#应然设计)。空闲计时归 Session 的调度器，进程重启后从日志里的空闲证据重建。 |
 
 Session 对六个邻域担任下列通用角色。每个角色只经对方的公开契约履行。
 
@@ -56,7 +56,7 @@ Session 对六个邻域担任下列通用角色。每个角色只经对方的公
 | Request Context | 历史持有者：提供历史源读口与未结工作下界，承担压缩转换的持有者一侧，调用人侧投影                                                                                                                    | [历史源读口与 epoch 视图](../../../packages/context/SPEC.md#七组稳定读取与来源登记)、[压缩共同结果](../../../packages/context/SPEC.md#压缩) |
 | 执行环境        | 不直接认识。经两条间接线：执行环境模式变化时，Session 写一条会话层的目标环境设置声明，有效值经设置求值进入 Tool 装载时固定的设置快照；归档后的作用域释放由 Session 的作用域释放插件以维护者身份发起 | [执行环境恢复](../../../packages/execution/SPEC.md#恢复)                                                                                    |
 
-Agent 以 `admit` 发起 Model 调用，以 `cancel` 请求取消。模型内部重试归 Model，Tool 调用与控制由 Agent 发起。Tool 启动围栏归 Agent J03 日志 `start-fence`，在 Tool 排序域生效。结果与账目经 Agent 宿主结果接收方写入同一日志。结果接收方只返回 saved，生产者收到 saved 后自己解除交付责任。Session 只读同日志事实并提交本域后果。名称与形状翻译集中在[适配成员](../../../packages/session/session-adapters/SPEC.md)。
+Agent 以 `admit` 发起 Model 调用，以 `cancel` 请求取消。模型内部重试归 Model，Tool 调用与控制由 Agent 发起。Tool 启动围栏归 Agent J03 日志 `start-fence`，在 Tool 排序域生效。结果与账目经 Agent 宿主结果接收方写入同一日志。结果接收方只返回 saved，生产者收到 saved 后自己解除交付责任。Session 只读同日志事实并提交本域后果。名称与形状翻译集中在[适配成员](../../../packages/session/SPEC.md#领域边界)。
 
 ```mermaid
 flowchart LR
@@ -110,11 +110,11 @@ flowchart LR
 
 Session 作为生产者向 Runtime Context 供给一个块 `session.modes`，保存三轴的当前值。这个块由 Session 持久保存，恢复时由 Session 重新发布原值。消费者类是模型与协调者，Tool 与扩展不是它的消费者。
 
-模式词到各消费者取值的翻译是 Session 适配成员里的纯函数，带来源证据，经 Runtime Context 的需要绑定交给消费者。授权域与元能力宿主只读自己的值，不认识模式词。Session 的契约不出现执行环境的类型。翻译表归[适配成员](../../../packages/session/session-adapters/SPEC.md)。
+模式词到各消费者取值的翻译是 Session 适配成员里的纯函数，带来源证据，经 Runtime Context 的需要绑定交给消费者。授权域与元能力宿主只读自己的值，不认识模式词。Session 的契约不出现执行环境的类型。翻译表归[适配成员](../../../packages/session/SPEC.md#领域边界)。
 
 目标环境设置不经 Runtime Context 块，走设置求值：
 
-1. 执行环境模式变化时，Session 在同一次提交里写一条会话层的目标环境设置声明。它是会话设置声明的一种，计入[设置声明修订](../../domains/sessions-and-work/architecture.md#设置声明修订)。模式词到这条声明的翻译是 [session-adapters](../../../packages/session/session-adapters/SPEC.md) 证据桥里的纯函数，经 `change` 的设置材料进入同一次提交，在模式变化时算好，不在工具调用时翻译。
+1. 执行环境模式变化时，Session 在同一次提交里写一条会话层的目标环境设置声明。它是会话设置声明的一种，计入[设置声明修订](../../domains/sessions-and-work/architecture.md#设置声明修订)。模式词到这条声明的翻译是 [session-adapters](../../../packages/session/SPEC.md#领域边界) 证据桥里的纯函数，经 `change` 的设置材料进入同一次提交，在模式变化时算好，不在工具调用时翻译。
 2. 设置求值的拥有者按默认、组织、租户、工作区、会话的次序求出有效值，取最具体的合法值，上层锁定照常生效，见[配置资产的行为，同时守住权限上界](../../../.meta_harness/design/product/assets-and-rules/design.md#配置资产的行为同时守住权限上界)。
 3. Tool 装载时，设置读取适配器取得有效值，固定在 `FixedToolRequest.settings`。执行、收场与恢复都用这份快照，见 Tool 契约的 [P15 配置声明与合法装载](../../../packages/tool/SPEC.md#受理与调用身份)。
 
@@ -250,7 +250,7 @@ sequenceDiagram
     A-->>C: 受理回执或拒绝
 ```
 
-Run 的不变量与守卫归[会话契约](../../../packages/session/session-contract/SPEC.md)。
+Run 的不变量与守卫归[会话契约](../../../packages/session/SPEC.md#应然设计)。
 
 ## attempt 与原工作接续
 
@@ -301,7 +301,7 @@ Session 的应用层由命令处理、协调器和调度器组成，遵守六条
 2. 一个用例只做一次提交。跨用例的事只能由后一个用例读取前一个用例已经提交的事实。
 3. 幂等只依靠操作身份。协调器与调度器重放同一命令时带同一身份。
 4. 协调器与调度器不持有状态。它们从权威读取重建要做的事，通知只起唤醒作用。
-5. 外部效果与日志分开。对 Agent、执行环境和子会话的调用在提交之后发出，回执作为新事实提交。Tool 启动围栏由 Agent 日志的 `start-fence` 条目在 Tool 排序域生效。生产者收到 saved 后自己解除交付责任，结果接收方只返回 saved。Session 只按 [JC-Release](../../../packages/session/session-contract/SPEC.md#jc-release) 读取原确认，Tool 确认怎样进入日志见具名偏离 [JC-RELEASE-TOOL-PATH](../../../packages/session/session-contract/SPEC.md#jc-release-tool-path)。
+5. 外部效果与日志分开。对 Agent、执行环境和子会话的调用在提交之后发出，回执作为新事实提交。Tool 启动围栏由 Agent 日志的 `start-fence` 条目在 Tool 排序域生效。生产者收到 saved 后自己解除交付责任，结果接收方只返回 saved。Session 只按 [JC-Release](../../../packages/session/SPEC.md#等待与结果交接) 读取原确认，Tool 确认怎样进入日志见具名偏离 [JC-RELEASE-TOOL-PATH](../../../packages/session/SPEC.md#等待与结果交接)。
 6. 能预先算好的派生物在变化时维护。请求到达时只读取与采用。
 
 协调器读取事实后决定发出哪些命令或调用：
@@ -332,7 +332,7 @@ Session 的应用层由命令处理、协调器和调度器组成，遵守六条
 - 每个会话同一时刻只有一个协调实例在动作。跨进程的第二道保护是操作幂等与 Agent 的条件提交围栏，不是锁。
 - 所有间隔、上限和退避都是策略对象的配置初值，实现可以替换。
 
-协调器与调度器只在 Agent 执行之外决定开始、续入和恢复三件事。执行之内的节点、等待、唤醒和控制处置都归 Agent，所以它们不构成第二个 Loop，分界见[Agent runtime](agent-runtime.md)。精确算法归[通用实现](../../../packages/session/session/SPEC.md)。
+协调器与调度器只在 Agent 执行之外决定开始、续入和恢复三件事。执行之内的节点、等待、唤醒和控制处置都归 Agent，所以它们不构成第二个 Loop，分界见[Agent runtime](agent-runtime.md)。精确算法归[通用实现](../../../packages/session/SPEC.md#协调器与调度器)。
 
 ```mermaid
 flowchart LR
@@ -396,7 +396,7 @@ flowchart TD
 
 条目封套记录事实拥有者与经由方。经由方只供人与诊断使用，不参与治理。事件种类名保持稳定：旧种类永不复用，未知种类先隔离，不跳过。
 
-迟到的 Model 与 Tool 账目和收场，由 Agent 宿主结果接收方取得生产者读取资格后写入同一会话日志。Session 的消费适配器只读同日志事实与原材料，核对当前读取资格后提交本域后果，不直接查询生产者。读取资格、日志交付或必要原材料未具备时，相应事实保持未知，见[联合前提与具名待决](#联合前提与具名待决)。Run 终态之后到达的后台结果作为后继工作的业务输入受理，保留原执行关联，不让原 Run 复活。精确目录见[事件目录](../../../packages/session/session-contract/docs/object-model/session-log-events.md)。
+迟到的 Model 与 Tool 账目和收场，由 Agent 宿主结果接收方取得生产者读取资格后写入同一会话日志。Session 的消费适配器只读同日志事实与原材料，核对当前读取资格后提交本域后果，不直接查询生产者。读取资格、日志交付或必要原材料未具备时，相应事实保持未知，见[联合前提与具名待决](#联合前提与具名待决)。Run 终态之后到达的后台结果作为后继工作的业务输入受理，保留原执行关联，不让原 Run 复活。精确目录见[事件目录](../../../packages/session/SPEC.md#日志与提交)。
 
 ## 共同提交与参加关系
 
@@ -417,7 +417,7 @@ flowchart TD
 
 会话日志承载 Agent Journal，Session 的事务端口与 Journal 提供者使用同一个存储事务域。两族的结构见[两个只追加族](#h1-two-families)。这是上表成立的具名前提，由 Agent 与存储拥有者联合确认。没有共享事务域的装配被拒绝，见[联合前提与具名待决](#联合前提与具名待决)。
 
-外部协调者与 Agent 共同受理输入和终结涉及三件事：输入绑定与 Agent 终结的共同提交、推进映射与重装配交接、日志与消费责任及恢复投影的集成。三件事的闭合位置见[SW-M01 技术兑现义务](../../../packages/session/session/docs/architecture/mechanisms.md#sw-m01-技术兑现义务)。共同提交表与参加者条款归[会话契约](../../../packages/session/session-contract/SPEC.md)，Agent 提交参加者插件归[适配成员](../../../packages/session/session-adapters/SPEC.md)，持续验证场景归[通用实现](../../../packages/session/session/SPEC.md)。
+外部协调者与 Agent 共同受理输入和终结涉及三件事：输入绑定与 Agent 终结的共同提交、推进映射与重装配交接、日志与消费责任及恢复投影的集成。三件事的闭合位置见[SW-M01 技术兑现义务](../../../packages/session/SPEC.md#协调器与调度器)。共同提交表与参加者条款归[会话契约](../../../packages/session/SPEC.md#应然设计)，Agent 提交参加者插件归[适配成员](../../../packages/session/SPEC.md#领域边界)，持续验证场景归[通用实现](../../../packages/session/SPEC.md#协调器与调度器)。
 
 ## 压缩记录的提交
 

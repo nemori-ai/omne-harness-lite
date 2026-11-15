@@ -445,7 +445,7 @@
 > The session uses it to show its origin to capabilities such as Agent while it does its work.
 
 - **形态**：属性
-- **出处**：[ID-16 签发与核验](../../../../packages/identity/SPEC.md#主体的签发与核验) · [Session 契约的端口表](../../../../packages/session/session-contract/SPEC.md)；[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)
+- **出处**：[ID-16 签发与核验](../../../../packages/identity/SPEC.md#主体的签发与核验) · [Session 契约的端口表](../../../../packages/session/SPEC.md#领域边界)；[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)
 - **别混**：原工作关联为登录的代租户行事主体不是它——那一种的 `work.owner` 是 `identity-login`，工作拥有者是 identity。它也不是[系统主体](#ul-system-principal--系统主体--system-principal)：它带租户
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

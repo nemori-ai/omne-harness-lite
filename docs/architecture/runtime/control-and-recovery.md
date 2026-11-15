@@ -61,7 +61,7 @@ sequenceDiagram
     Note over G,T: 后台执行、子会话及无关调用不因 Run 取消自动停止
 ```
 
-逻辑终态与物理收场分开。Session 的 `ControlProgress` 核对原控制的传播、生产者与原责任交接，精确判据归 [AD-02](../../../packages/session/session-adapters/SPEC.md#ad-02)。这些责任全部对账后才为 `reconciled`；传播或责任未知时保留 `pending`、`pendingUnassociatedWaiting` 与 `propagating`，按原操作查询和重试。Tool 围栏不计入该进度，也不生成 Session 失效任务。已对账不证明物理停止、效果撤回或归档任务完成。生产者报告效果未知时保留该事实，不改终态。超过重放上界仍保留进度并报告。
+逻辑终态与物理收场分开。Session 的 `ControlProgress` 核对原控制的传播、生产者与原责任交接，精确判据归 [AD-02](../../../packages/session/SPEC.md#与-agent-的同日志参加与解释)。这些责任全部对账后才为 `reconciled`；传播或责任未知时保留 `pending`、`pendingUnassociatedWaiting` 与 `propagating`，按原操作查询和重试。Tool 围栏不计入该进度，也不生成 Session 失效任务。已对账不证明物理停止、效果撤回或归档任务完成。生产者报告效果未知时保留该事实，不改终态。超过重放上界仍保留进度并报告。
 
 Run 取消先保存意图，再经 Agent 控制其模型及前台工具。后台工具、子 Session 和无关的 Run 外调用不自动跟随。取消一旦生效，会话就记录 Run 的逻辑终态，并撤销新工作的推进资格。模型和工具随后另行报告真实收场。报告时间不决定逻辑终态何时成立。强制或非强制只影响停止请求有多急，不改变逻辑终态的记录时点。传播尚未完成时，会话保留取消意图、目标调用身份、还没有实际结果的停止请求，以及对应的原消费位置。治理方继续跟踪实际收场，不等待已销毁实例替自己完成最后一步。
 

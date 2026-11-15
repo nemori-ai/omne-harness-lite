@@ -14,7 +14,7 @@
 | --- | --- | --- | --- |
 | [身份与授权](identity-and-authorization/design.md) | [未决](identity-and-authorization/design.md#未决问题与待定事项) | [领域](../../../docs/domains/identity-and-authorization/README.md) | [工程与规格](../../../packages/identity/SPEC.md) |
 | [资产与规则](assets-and-rules/design.md) | [未决](assets-and-rules/design.md#未决问题与待定事项) | [领域](../../../docs/domains/assets-and-rules/README.md) | [工程与规格](../../../packages/assets/SPEC.md#总体架构) |
-| [会话与工作的产品设计](sessions-and-work/design.md) | [未决](sessions-and-work/design.md#未决问题与待定事项) | [领域](../../../docs/domains/sessions-and-work/README.md) | [工程与规格](../../../packages/session/README.md) |
+| [会话与工作的产品设计](sessions-and-work/design.md) | [未决](sessions-and-work/design.md#未决问题与待定事项) | [领域](../../../docs/domains/sessions-and-work/README.md) | [工程与规格](../../../packages/session/SPEC.md#总体架构) |
 | [Agent 定义与工作推进](agent-progression/design.md) | [未决](agent-progression/design.md#未决问题与待定事项) | [领域](../../../docs/domains/agent-progression/README.md) | [工程与规格](../../../packages/agent/SPEC.md#领域边界) |
 | [模型调用的产品设计](model-invocation/design.md) | [未决](model-invocation/design.md#未决问题与待定事项) | [领域](../../../docs/domains/model-invocation/README.md) | [工程与规格](../../../packages/model/SPEC.md) |
 | [工具执行](tool-execution/design.md) | [未决](tool-execution/design.md#未决问题与待定事项) | [领域](../../../docs/domains/tool-execution/README.md) | [工程与规格](../../../packages/tool/SPEC.md) |

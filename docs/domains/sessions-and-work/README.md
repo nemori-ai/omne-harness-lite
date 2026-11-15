@@ -20,18 +20,18 @@ Session 与六个邻域协作：Agent、Model、Tool、Runtime Context、Request
 | Run/推进治理 | 本次工作、执行尝试、唯一有效推进资格、指向 Agent 执行的执行引用和逻辑收束 |
 | 消费与历史承接 | 原调用关联、消费位置、可靠取得内容、未结工作的判断依据及会话历史的持有 |
 
-六个成员承担上面的角色。依赖方向与落位判据见[能力组](../../../packages/session/README.md)。
+六个成员承担上面的角色。依赖方向与落位判据见[能力组](../../../packages/session/SPEC.md#总体架构)。
 
 | 成员 | 责任 |
 | --- | --- |
-| [session-contract](../../../packages/session/session-contract/README.md) | 会话的值、身份、端口、事件目录与不变量。不依赖任何邻域契约，也不依赖 Cordis |
-| [session-cordis-contract](../../../packages/session/session-cordis-contract/README.md) | 唯一的 Cordis 服务定义，以及 Session 自己的提交通知 |
-| [session](../../../packages/session/session/README.md) | 不含 Cordis 的治理机制：命令处理、归约、投影、受理流水线、协调器与调度器的决策 |
-| [session-cordis](../../../packages/session/session-cordis/README.md) | Service 实现，接上计时、通知、事务与出站端口 |
-| [session-adapters](../../../packages/session/session-adapters/README.md) | 全部邻域适配插件。它是唯一依赖邻域契约的成员 |
-| [session-storage-sql](../../../packages/session/session-storage-sql/README.md) | 会话事务端口的 SQL 实现：权威表、派生索引与读路径 |
+| [session-contract](../../../packages/session/SPEC.md#总体架构) | 会话的值、身份、端口、事件目录与不变量。不依赖任何邻域契约，也不依赖 Cordis |
+| [session-cordis-contract](../../../packages/session/SPEC.md#装配) | 唯一的 Cordis 服务定义，以及 Session 自己的提交通知 |
+| [session](../../../packages/session/SPEC.md#总体架构) | 不含 Cordis 的治理机制：命令处理、归约、投影、受理流水线、协调器与调度器的决策 |
+| [session-cordis](../../../packages/session/SPEC.md#装配) | Service 实现，接上计时、通知、事务与出站端口 |
+| [session-adapters](../../../packages/session/SPEC.md#领域边界) | 全部邻域适配插件。它是唯一依赖邻域契约的成员 |
+| [session-storage-sql](../../../packages/session/SPEC.md#存储) | 会话事务端口的 SQL 实现：权威表、派生索引与读路径 |
 
-日志表达需要记录的事实，不替代各执行账或资源状态。共享值由实际定义拥有者维护。会话必须记住的事实在[事件目录](../../../packages/session/session-contract/docs/object-model/session-log-events.md)。活跃、休眠和等待结束不单独立条目。记入标准见[必须进入日志的事实](../../architecture/runtime/session-and-run.md#必须进入日志的事实)。
+日志表达需要记录的事实，不替代各执行账或资源状态。共享值由实际定义拥有者维护。会话必须记住的事实在[事件目录](../../../packages/session/SPEC.md#日志与提交)。活跃、休眠和等待结束不单独立条目。记入标准见[必须进入日志的事实](../../architecture/runtime/session-and-run.md#必须进入日志的事实)。
 
 会话常驻工具每一项的首次定义是会话必须记住的事实，种类是 `tool-resident-admitted`。当前记下的登记键从 Run 依据派生，不另写会话事实。常驻规则归[工具规格](../../../packages/tool/SPEC.md#定义采用与常驻)。
 
@@ -85,7 +85,7 @@ sequenceDiagram
 
 工作治理向 Agent 交出当前工作及推进资格依据。Agent 拥有执行与执行挂接，Session 只保存执行引用。Model 和 Tool 的调用、重试与中断由 Agent 发起。Tool 启动围栏归 Agent 日志的 `start-fence` 条目，在 Tool 排序域生效，Session 不拥有 Tool 启动资格版本。结果与账目经 Agent 宿主的结果接收方写入日志。结果接收方只返回 saved，生产者收到 saved 后自己解除交付责任。Session 只读日志里的结果与账目。
 
-Runtime Context 注册的业务决定归会话，块内容归生产者。Runtime Context 的步提交由 Session 守卫，作为 Session 自己的一次提交写入会话日志，见[会话契约的守卫条款](../../../packages/session/session-contract/SPEC.md#守卫条款)。会话历史由 Session 持有，请求组装经历史读口读取。需要共同成立的事实在一次权威提交里成立，见[共同提交与参加关系](../../architecture/runtime/session-and-run.md#共同提交与参加关系)。
+Runtime Context 注册的业务决定归会话，块内容归生产者。Runtime Context 的步提交由 Session 守卫，作为 Session 自己的一次提交写入会话日志，见[会话契约的守卫条款](../../../packages/session/SPEC.md#应然设计)。会话历史由 Session 持有，请求组装经历史读口读取。需要共同成立的事实在一次权威提交里成立，见[共同提交与参加关系](../../architecture/runtime/session-and-run.md#共同提交与参加关系)。
 
 ## 主路径与交接
 

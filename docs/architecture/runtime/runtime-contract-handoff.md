@@ -78,7 +78,7 @@ SessionService 是内部工作治理面，不是网络 SDK。外部调用者经�
 
 `current` 为 null 时保留同边界 `CallState`，不把它解释成未执行或终局。接入拥有有界刷新与本地观察资源清理，策略参数见接入规格的[会话观察](../../../packages/access/SPEC.md#会话观察)。旧 ref 失效后重新查询，新目标从新快照开始，不能沿用旧 cursor。观察路径串行查询，阻止旧响应覆盖新目标。定位、核权、快照或订阅失败保留原含义，不转成观察成功、成功 null 或业务重发。脱离与撤权停止本地观察及刷新，不取消 Model 或 Tool 调用，不重发调用，不推进 Session。
 
-Session 日志读面的引用定位见 Session 的[稳定调用引用的读取](../../../packages/session/session-contract/SPEC.md#稳定调用引用的读取)。公开订阅形状、连接寿命与传输细节见接入规格的[会话观察](../../../packages/access/SPEC.md#会话观察)。
+Session 日志读面的引用定位见 Session 的[稳定调用引用的读取](../../../packages/session/SPEC.md#读取与投影)。公开订阅形状、连接寿命与传输细节见接入规格的[会话观察](../../../packages/access/SPEC.md#会话观察)。
 
 #### 宿主身份、生命周期与旧数据
 
@@ -109,7 +109,7 @@ Session 日志读面的引用定位见 Session 的[稳定调用引用的读取](
 | --- | --- | --- |
 | 客户端 | 表达选择或切换的意图，展示结果 | 客户端不填写会话的初始模型选择 |
 | 服务端接入 `server-entry` | `create` 时从部署配置的默认档案路由填入创建材料的初始模型选择（`initialModelSelection`）。合法性来源是采用来源表的 `model` 行 | 该行缺失或不认可这个路由名时，`create` 返回 `unavailable` 或 `invalid`，不用默认名补值。定义映射条目没有 `initialModelSelection` 时，接入在调用 Session 之前拒绝，对外是 `basis-unavailable`（Session 的 `unavailable`），并记诊断 `session.definition-incomplete`。公开操作没有切换模型的入口，这样的会话永远读不到当前选择，Run 无法启动 |
-| Session | 保存当前选择、来源与切换事实，见 Session 的[模型选择与切换](../../../packages/session/session-contract/SPEC.md#模型选择与切换)。`management.change(model)` 是唯一的正常切换入口。保存选择的窄读口只交出选择与原依据 | 没有初始值也没有合法切换时，读口返回 `not-ready`。它不用当前默认、最近一次实际调用或空名补值，也不返回凭据、有效参数或供应商配置 |
+| Session | 保存当前选择、来源与切换事实，见 Session 的[模型选择与切换](../../../packages/session/SPEC.md#模型选择)。`management.change(model)` 是唯一的正常切换入口。保存选择的窄读口只交出选择与原依据 | 没有初始值也没有合法切换时，读口返回 `not-ready`。它不用当前默认、最近一次实际调用或空名补值，也不返回凭据、有效参数或供应商配置 |
 | 应用的 `agent-model-selection` 行 | 实现 Agent 的[模型选择](../../../packages/agent/SPEC.md#请求准备与压缩)。每次尚未固定的请求都读取 Session 保存的选择与来源，再按 `modelProfiles` 解释 | 它不从会话快照的私有字段取值。Session 的选择读口冻结之前，这个适配不交付 |
 | Context 一侧的 `agent-context` 行 | 经 `modelRequestPreparation` 调用 Model 的请求准备 | 无 |
 | Model | 实际调用、结果与费用。受理与发出时按当前资格、凭据与档案再核验 | 选择不授予发送资格 |

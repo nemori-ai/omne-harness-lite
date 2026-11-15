@@ -15,7 +15,7 @@
 
 ## 现有冲突
 
-C-31、C-34、C-40 的旧规格链接固定到封存提交 `481f9f45f76f7a36a2c3cd05cc42b640d77a421a`，仅作历史证据。引文和条款编号保留发现时原文；封存快照的章节可能已随当时修订改名，不能据此把旧能力名、字段或条款作为新成员接口。现行行为分别由[Model](../../../packages/model/SPEC.md)、[Tool](../../../packages/tool/SPEC.md)和[Session](../../../packages/session/session/SPEC.md)拥有。
+C-31、C-34、C-40 的旧规格链接固定到封存提交 `481f9f45f76f7a36a2c3cd05cc42b640d77a421a`，仅作历史证据。引文和条款编号保留发现时原文；封存快照的章节可能已随当时修订改名，不能据此把旧能力名、字段或条款作为新成员接口。现行行为分别由[Model](../../../packages/model/SPEC.md)、[Tool](../../../packages/tool/SPEC.md)和[Session](../../../packages/session/SPEC.md#协调器与调度器)拥有。
 
 | # | 词 | 类型 | 差在哪 | 状态 |
 |---|---|---|---|---|
@@ -294,7 +294,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 ### C-54：工具调用与工具结果部件由谁发布
 
 - **类型**：定义打架。2026-10-17 在 #342 的 Model 主干评审 R-2（共享 ToolCallPart）时发现。不新增词条。
-- **来源**：[UL-content-block](terms/record-and-context.md#ul-content-block--内容块--content-block) 原写「`tool_call` 和 `tool_result` 由工具领域发布」。另一方是 [message 成员](../../../packages/common/message/src/index.ts)：它导出 `ToolPart` 与判定函数，拥有消息身份、角色与调用关联。[Model 规格的「模态、转换与工具声明」](../../../packages/model/SPEC.md#模态转换与工具声明)与它的领域边界写调用建议采用 common/message 的 ToolCallPart。[会话日志事件 SE10](../../../packages/session/session-contract/docs/object-model/session-log-events.md) 写 ToolMessage 形状归消息契约。
+- **来源**：[UL-content-block](terms/record-and-context.md#ul-content-block--内容块--content-block) 原写「`tool_call` 和 `tool_result` 由工具领域发布」。另一方是 [message 成员](../../../packages/common/message/src/index.ts)：它导出 `ToolPart` 与判定函数，拥有消息身份、角色与调用关联。[Model 规格的「模态、转换与工具声明」](../../../packages/model/SPEC.md#模态转换与工具声明)与它的领域边界写调用建议采用 common/message 的 ToolCallPart。[会话日志事件 SE10](../../../packages/session/SPEC.md#日志与提交) 写 ToolMessage 形状归消息契约。
 - **反例与影响**：按旧句，工具领域要发布消息部件，Tool 就得依赖消息模型，而 Tool 目前不导入 message。按 message 一方，消息部件与工具领域没有依赖。两种读法的写者与依赖方向相反。
 - **负责与闭合条件**：负责人 PanQiWei 于 2026-10-17 指定 Model 主干更正统一语言一方。词条已改为引用 COMMON-T02，不再自写包级归属。COMMON-T02 属架构区正文，其拥有者已同步。
 - **状态**：已闭合。依据是 [Common 规格的内容块](../../../packages/common/SPEC.md#内容块)：`tool_call` 与 `tool_result` 部件的形状由 `packages/common/message` 发布，工具领域产出工具结果的内容，不发布消息部件。词条与架构正文现在一致。
