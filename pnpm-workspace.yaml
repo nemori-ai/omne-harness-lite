@@ -85,6 +85,8 @@ catalog:
   vite: 8.3.0
   '@vitejs/plugin-react': 6.3.0
   antd: 6.6.5
+  # 桌面应用的 Electron 外壳（apps/desktop）；它的安装脚本下载二进制，所以也列进 onlyBuiltDependencies。
+  electron: 45.3.2
   esbuild: 0.28.2
   '@eslint-community/regexpp': 4.12.2
   '@jscpd/core': 4.0.1
@@ -96,6 +98,7 @@ catalog:
 # 安装仍使用 --ignore-scripts；只允许显式构建这个已核对的原生依赖。
 onlyBuiltDependencies:
   - node-pty@1.1.0
+  - electron@45.3.2
 
 # node-pty 1.1.0 的 macOS 预编译包里 spawn-helper 没有可执行位，postinstall 也不补；补丁只把它改成 0755。
 patchedDependencies:
