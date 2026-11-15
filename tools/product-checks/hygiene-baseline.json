@@ -96,7 +96,6 @@
     "apps/harness-server/tests/fixtures/aa/reordered.md",
     "apps/harness-server/tests/fixtures/aa/scope-changed.md",
     "apps/harness-server/tests/fixtures/aa/trusted-unknown-row.md",
-    "docs/development_human.md",
     "packages/agent/agent/acceptance/README.md",
     "packages/agent/agent/acceptance/fixtures/README.md",
     "packages/model/model/acceptance/README.md",
