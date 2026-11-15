@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { extname, join, normalize, sep } from 'node:path'
 import type { AddressInfo } from 'node:net'
 import type { LoginSession } from '../main-core/index.ts'
+import { CONTENT_SECURITY_POLICY } from '../shared/page-policy.ts'
 import {
   BRIDGE,
   WIRE_LIMITS,
@@ -26,18 +27,6 @@ export interface WebHost {
   listen(port: number): Promise<number>
   close(): Promise<void>
 }
-
-const CONTENT_SECURITY_POLICY = [
-  "default-src 'none'",
-  "script-src 'self'",
-  "style-src 'self'",
-  "img-src 'self' data:",
-  "font-src 'self'",
-  "connect-src 'self'",
-  "base-uri 'none'",
-  "form-action 'none'",
-  "frame-ancestors 'none'",
-].join('; ')
 
 const TYPES: Readonly<Record<string, string>> = {
   '.html': 'text/html; charset=utf-8',

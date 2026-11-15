@@ -102,6 +102,7 @@
 ### 起法
 
 - `pnpm run build` 先出主进程、页面与预加载脚本，再 `pnpm run window` 起窗口。服务端地址取环境变量 `OMNE_SERVER`，缺省与本机宿主相同。
+- `electron` 包没有安装脚本，装依赖时不下载二进制。第一次 `pnpm run window` 或第一次跑真窗口的用例时，包自己把二进制下载到 `node_modules/electron/dist`，本机缓存里有同版本的压缩包就不联网。要提前备好，在 `apps/desktop` 下跑 `pnpm exec install-electron`。
 - 主进程入口不在顶层等 `app` 就绪：Electron 在入口模块的顶层 `await` 完成之前不发就绪事件。
 
 ## 原则与约束
