@@ -1,4 +1,4 @@
-import type { GovernanceTransport } from '@omne-harness/sdk'
+import type { Credentials, Transport } from '@omne-harness/sdk/core'
 import type { BuildIdentityResult } from './identity.ts'
 import type { LocalServerRead } from './local-server.ts'
 
@@ -14,10 +14,7 @@ export type CredentialRead =
   | { readonly kind: 'failure'; readonly message: string }
 
 export interface CommandServices {
-  readonly createTransport: (
-    origin: string,
-    location: 'governance' | 'session' | 'hitl',
-  ) => GovernanceTransport
+  readonly createTransport: (origin: string, credentials: () => Credentials) => Transport
   readonly readCredential: (prompt: (text: string) => void) => Promise<CredentialRead>
   readonly newId: () => string
 }

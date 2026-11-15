@@ -25,6 +25,7 @@ import type {
   RecoveryTask,
   RoutedInput,
   RunTerminal,
+  SessionWaiting,
   Waiting,
   WorkSnapshot,
 } from './values.ts'
@@ -243,19 +244,22 @@ export function judgeRunStart(snapshot: WorkSnapshot, _entry: EntryClass): RunSt
   return { kind: 'eligible', first }
 }
 
+export function judgeWaiting(snapshot: WorkSnapshot): SessionWaiting | null {
+  if (snapshot.awaitingPerson !== true || snapshot.run.kind !== 'terminal') return null
+  const { run } = snapshot.run.terminal
+  const execution = snapshot.executions?.find(item => item.run === run)?.execution.execution
+  return { run, pending: snapshot.pending.length, execution: execution ?? null }
+}
+
 export function judgeRetryRun(
   snapshot: WorkSnapshot,
   run: RunId,
 ): 'archived' | 'frozen' | 'not-found' | 'nothing-pending' | null {
   if (snapshot.lifecycle === 'archived') return 'archived'
   if (snapshot.frozen !== null) return 'frozen'
-  if (
-    snapshot.awaitingPerson !== true ||
-    snapshot.run.kind !== 'terminal' ||
-    snapshot.run.terminal.run !== run
-  )
-    return 'not-found'
-  return snapshot.pending.length === 0 ? 'nothing-pending' : null
+  const waiting = judgeWaiting(snapshot)
+  if (waiting === null || waiting.run !== run) return 'not-found'
+  return waiting.pending === 0 ? 'nothing-pending' : null
 }
 
 export function openWork(snapshot: WorkSnapshot): OpenWork {

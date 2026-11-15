@@ -2,7 +2,7 @@ import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
 import { referenceAdmissionCheck } from '@omne-harness/authorization'
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import { principalVerifierKey, tenantStandingKey } from '@omne-harness/identity/cordis'
-import type { SettingsGovernance } from '@omne-harness/server-entry'
+import type { SecretSettings } from './ports.ts'
 import {
   createSettingsRegistry,
   createSettingsSecretItems,
@@ -17,18 +17,18 @@ import { releaseDefinitionOf, releaseOf, type ToolRelease } from '../../entry/to
 import { defineRow } from '../../row.ts'
 import { createSettingsGuard } from '../authorization/settings-access.ts'
 import { settingsSecretCustodyKey } from '../secret-custody/index.ts'
-import { createSettingsGovernance } from './governance.ts'
+import { createSecretSettings } from './secret-settings.ts'
 
 /** @owner apps/harness-server/src/rows/settings */
-export abstract class SettingsSecretItemsService extends Service implements SettingsGovernance {
+export abstract class SettingsSecretItemsService extends Service implements SecretSettings {
   static readonly provide = 'settingsSecretItems'
   constructor(ctx: Context) {
     super(ctx, SettingsSecretItemsService.provide)
   }
-  abstract readonly list: SettingsGovernance['list']
-  abstract readonly set: SettingsGovernance['set']
-  abstract readonly describe: SettingsGovernance['describe']
-  abstract readonly clear: SettingsGovernance['clear']
+  abstract readonly list: SecretSettings['list']
+  abstract readonly set: SecretSettings['set']
+  abstract readonly describe: SecretSettings['describe']
+  abstract readonly clear: SecretSettings['clear']
 }
 export const settingsSecretItemsKey = SettingsSecretItemsService.provide
 
@@ -41,11 +41,11 @@ declare module '@deepseek-ai/cordis' {
 const LOGGER = 'settings'
 
 class SettingsSecretItemsImpl extends SettingsSecretItemsService {
-  readonly list: SettingsGovernance['list']
-  readonly set: SettingsGovernance['set']
-  readonly describe: SettingsGovernance['describe']
-  readonly clear: SettingsGovernance['clear']
-  constructor(ctx: Context, delegate: SettingsGovernance) {
+  readonly list: SecretSettings['list']
+  readonly set: SecretSettings['set']
+  readonly describe: SecretSettings['describe']
+  readonly clear: SecretSettings['clear']
+  constructor(ctx: Context, delegate: SecretSettings) {
     super(ctx)
     this.list = input => delegate.list(input)
     this.set = input => delegate.set(input)
@@ -194,7 +194,7 @@ const plugin: Plugin.Object = {
     const guard = createSettingsGuard(() => (active ? admission : undefined))
     new SettingsSecretItemsImpl(
       ctx,
-      createSettingsGovernance({
+      createSecretSettings({
         items,
         qualify: input => guard.qualify(input),
         now: readSystemInstant,

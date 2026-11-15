@@ -56,6 +56,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'sessionDelegatedTransactions',
       'tenantDomains',
       'tenantDomainLookup',
+      'tenantDomainRegistration',
       'sessionPrincipalBindings',
       'sessionScopeOwners',
     ],
@@ -322,20 +323,14 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   'server-entry': {
     provides: ['accessRegistry'],
-    injects: [
-      'session',
-      'principalIssuer',
-      'definitionMappings',
-      'telemetry',
-      'agentJournal',
-      'modelDiagnostics',
-      'modelRuntime',
-    ],
+    injects: ['principalIssuer', 'telemetry'],
     phase: 'entry',
   },
   'identity-access': { injects: ['accessRegistry'] },
   'session-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'assets-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'human-intervention-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'session-diagnostics-access': { injects: ['accessRegistry', 'principalIssuer'] },
 }
 
 export const rowManifests: ReadonlyMap<RowId, RowManifest> = new Map(

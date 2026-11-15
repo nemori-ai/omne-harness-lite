@@ -1,5 +1,5 @@
 import { tenantCodec } from '@omne-harness/legal-identity'
-import { contentDigest } from '@omne-harness/server-entry/cordis'
+import { contentDigest } from '../../../src/rows/agent-adoptions/definition-mappings.ts'
 import {
   INITIALIZATION_PROTOCOL,
   decide,

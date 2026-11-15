@@ -105,7 +105,7 @@ dev-flow 是开发流程工具，不发布。它由四部分组成：
 
 ### 包模板
 
-`templates/package/manifest.json` 是 `typescript-package` 唯一的当前版本源（4.0.0），并在 `previousVersions` 里精确保留 3.0.0、2.0.0 与 1.0.0 的必需文件、变体与完整布局。
+`templates/package/manifest.json` 是 `typescript-package` 唯一的当前版本源（5.0.0），并在 `previousVersions` 里精确保留 4.0.0、3.0.0、2.0.0 与 1.0.0 的必需文件、变体与完整布局。
 
 创建：
 
@@ -130,8 +130,11 @@ dev-flow 是开发流程工具，不发布。它由四部分组成：
 - 成员发现先按 workspace 模式核对真实包目录与 manifest，再与源码成员清单对账。缺失或异常的 manifest、目录软链接或非目录节点使扫描退出 2，不把漏掉成员的空清单报告成通过。`docs` 是保留名，不能作成员。
 - 结构判定遍历成员的全部文件、目录、空目录与节点种类，与 manifest 声明的变体布局核对完整节点集合。未声明路径、错位文件、空目录、软链接与其他节点都失败。Git ignore 不能隐藏源码文件。
 - 只排除成员根下真实的 `node_modules`、`dist`、`generated`、`coverage`、`tmp`、`.turbo` 目录，并输出排除清单。同名文件或软链接不跳过，嵌套目录没有这项豁免。
-- 4.0.0 只允许成员根的可选 `README.md`、`UPSTREAM.md` 与 `api/*.api.md` 这几份 Markdown。
+- 5.0.0 只允许成员根的可选 `README.md`、`UPSTREAM.md` 与 `api/*.api.md` 这几份 Markdown。
+- 5.0.0 比 4.0.0 多认界面成员的四种文件：`src/` 下任意层的 `*.tsx` 与 `*.css`，`tests/` 下任意层的 `*.tsx`，`resources/` 下任意层的 `*.woff2`。「至少一份用例」一组另算 `tests/**/*.spec.tsx`。别的文件种类不认。
 - 验收配置跟随可执行场景：`acceptance/` 下（不含 `acceptance/fixtures/`）有 `*.acceptance.ts` 时，必须有 `vitest.acceptance.config.ts` 与 `acceptance` 脚本。有配置时必须有场景。违反时报 `acceptance`。
+- 资源导出：4.0.0 只认指到成员里一份存在的 `.json` 的字符串导出。5.0.0 另认两样：指到 `src/` 下一份真实 `.css` 文件的导出（样式表的家是 `src/`，与布局一致）；指到 `resources/` 下至少一层目录的通配导出，写法是 `./resources/<目录>/*`，目录必须真实存在。路径逃出成员、指到不存在的文件或目录、`resources/` 下的 `.css`、`src/` 与 `resources/` 之外、`resources/*` 本身、半截通配与双星号通配都报 `resource-export`。
+- 发布：`files` 必须含 `dist`，每个导出指到的文件都要被 `files` 的某一项盖住：路径相同，或在某个列出的目录之下。5.0.0 另允许一种通配：`src/` 或它之下某个目录（目录名里没有通配）后面接 `/**/*.css`，盖住那个目录下的 `.css` 导出。别的通配不盖。样式表之间的 `@import` 不核对。
 - 同时核对 ESM、导出源与条件、产物、发布、脚本与草稿占位。
 - 集成结果另列：`deviation`、`unknown` 或 `static-pass`。事实来自现有的架构抽取器，覆盖限制保持明示。已知偏离禁止采用。`unknown` 须人工核对适用性与证据，不自动放行。
 
@@ -151,7 +154,7 @@ dev-flow 是开发流程工具，不发布。它由四部分组成：
 
 - 已发布的模板义务变化时才改版本。已有成员保持已采用的版本，直到完整迁移核对通过。标着旧版本的成员按它自己版本的规则扫描，不自动增加新义务。
 - 未知身份与未来版本不能用当前规则认证。缺精确规则时报 `uncovered`。
-- 规则集：1.0.0 与 2.0.0 是 2（`acceptance/` 与 `vitest.acceptance.config.ts` 互相要求，2.0.0 另要求 `documentation.json`），3.0.0 是 3（完整文档骨架、专题二选一、按场景的验收配置），4.0.0 是 4（去掉文档骨架、专题与登记，保留验收规则）。
+- 规则集：1.0.0 与 2.0.0 是 2（`acceptance/` 与 `vitest.acceptance.config.ts` 互相要求，2.0.0 另要求 `documentation.json`），3.0.0 是 3（完整文档骨架、专题二选一、按场景的验收配置），4.0.0 是 4（去掉文档骨架、专题与登记，保留验收规则），5.0.0 是 5（在 4 之上多认界面资源的导出与发布）。判定上按规则集区分：`ruleSet >= 5` 才用下面的资源导出与发布规则，标着旧版本的成员仍按它自己的规则集判。
 
 ### 组模板
 

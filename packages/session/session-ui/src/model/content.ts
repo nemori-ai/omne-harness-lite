@@ -146,19 +146,13 @@ function projectionOf(tree: JsonTree): Projection | null {
     if (block === null) return null
     blocks.push(block)
   }
-  const base = value['base']
-  const baseCursor = isRecord(base) ? textOf(base['cursor']) : undefined
-  const baseRevision = isRecord(base) ? textOf(base['revision']) : undefined
-  return {
-    cursor,
-    revision,
-    phase: textOf(value['phase']),
-    base:
-      baseCursor === undefined || baseRevision === undefined
-        ? undefined
-        : { cursor: baseCursor, revision: baseRevision },
-    blocks,
-  }
+  return { cursor, revision, phase: textOf(value['phase']), base: baseOf(value['base']), blocks }
+}
+
+function baseOf(base: Plain | undefined): Projection['base'] {
+  const cursor = isRecord(base) ? textOf(base['cursor']) : undefined
+  const revision = isRecord(base) ? textOf(base['revision']) : undefined
+  return cursor === undefined || revision === undefined ? undefined : { cursor, revision }
 }
 
 export type LiveApplied =
@@ -216,4 +210,26 @@ export function applyDelta(content: Content, tree: JsonTree): LiveApplied {
       liveStatus: null,
     },
   }
+}
+
+export type Terminal = Readonly<{ run: string | null; outcome: string | null }>
+
+export function terminalOf(entry: HistoryEntry): Terminal | null {
+  if (entry.kind !== 'run.terminal') return null
+  const payload = isRecord(entry.payload) ? entry.payload : {}
+  const terminal = isRecord(payload['terminal']) ? payload['terminal'] : {}
+  return { run: textOf(terminal['run']) ?? null, outcome: textOf(terminal['outcome']) ?? null }
+}
+
+export function lastTerminalFailed(content: Content): boolean {
+  const last = content.entries.findLast(entry => entry.kind === 'run.terminal')
+  return last !== undefined && terminalOf(last)?.outcome === 'failed'
+}
+
+export function failedTerminalArrived(content: Content, page: readonly WireEntry[]): boolean {
+  const known = new Set(content.entries.map(entry => entry.entryId))
+  return page.some(entry => {
+    if (entry.kind !== 'run.terminal' || known.has(entry.entryId)) return false
+    return terminalOf({ ...entry, payload: toPlain(entry.payload) })?.outcome === 'failed'
+  })
 }

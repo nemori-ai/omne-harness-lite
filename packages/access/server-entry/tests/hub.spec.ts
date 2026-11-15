@@ -1,6 +1,6 @@
 import { connect, type Socket } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { SseClient } from './support/harness.ts'
+import type { SseClient } from './support/entry.ts'
 import {
   GRACE_MS,
   MESSAGE_ID,
@@ -17,7 +17,7 @@ import {
   type AccessFixture,
   type ApiOptions,
   type Feed,
-} from './support/pipeline-kit.ts'
+} from './support/access-kit.ts'
 
 const fixtures: AccessFixture[] = []
 afterEach(async () => {
@@ -141,7 +141,7 @@ describe('an observation goes through the whole pipeline', () => {
 describe('the hub keeps its behaviour at the new address', () => {
   it('bounds the observations of one login', async () => {
     const fixture = await entry({
-      config: { observation: { perLogin: 2, perInstance: 8, cancelRetentionMs: 0 } },
+      config: { observation: { perLogin: 2, perInstance: 8 } },
     })
     const first = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-1' } })
     const second = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-2' } })
@@ -166,7 +166,7 @@ describe('the hub keeps its behaviour at the new address', () => {
 
   it('bounds the observations of the instance', async () => {
     const fixture = await entry({
-      config: { observation: { perLogin: 8, perInstance: 2, cancelRetentionMs: 0 } },
+      config: { observation: { perLogin: 8, perInstance: 2 } },
     })
     const a = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-1' } })
     const b = open(fixture, 'watch-note', { headers: { authorization: `Bearer ${OTHER_PROOF}` } })
@@ -179,7 +179,7 @@ describe('the hub keeps its behaviour at the new address', () => {
 
   it('takes the slot before the frame source has decided', async () => {
     const fixture = await entry({
-      config: { observation: { perLogin: 1, perInstance: 8, cancelRetentionMs: 0 } },
+      config: { observation: { perLogin: 1, perInstance: 8 } },
     })
     const deciding = held<never>()
     fixture.notes.sources['watch-note'] = () => deciding.promise
@@ -464,7 +464,7 @@ describe('a take-down ends every observation, and completes after their ended fr
 
   it('calls leave once on each way an observation ends', async () => {
     const fixture = await entry({
-      config: { observation: { perLogin: 1, perInstance: 8, cancelRetentionMs: 0 } },
+      config: { observation: { perLogin: 1, perInstance: 8 } },
     })
     const holder = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-1' } })
     await fixture.notes.opened(1)
@@ -544,7 +544,7 @@ describe('the business access and what stays out of every output', () => {
     const tenantText = 'TENANT-HEADER-41aa'
     const bodyMarker = 'BODY-MARKER-77c0'
     const fixture = await entry({
-      config: { observation: { perLogin: 1, perInstance: 8, cancelRetentionMs: 0 } },
+      config: { observation: { perLogin: 1, perInstance: 8 } },
     })
     const headers = (id: string) => ({ 'omne-acting-tenant': tenantText, 'omne-message-id': id })
     const body = `{"noteId":"${bodyMarker}"}`

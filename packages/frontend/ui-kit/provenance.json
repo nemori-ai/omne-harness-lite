@@ -1,0 +1,311 @@
+{
+  "repository": "https://github.com/pandazki/super-assistant",
+  "commit": "3b967f58768714d57cd1bacf67b599d2aa7a8f53",
+  "authorization": "Project owner, 2026-11-13: design language, visuals, motion, assets, fonts and front-end stack may be reused.",
+  "licenses": {
+    "LICENSE.shadcn": "MIT, copyright shadcn; the base controls derive from shadcn/ui new-york-v4",
+    "resources/fonts/LICENSE.Inter": "SIL OFL 1.1",
+    "resources/fonts/LICENSE.JetBrainsMono": "SIL OFL 1.1",
+    "resources/fonts/LICENSE.LXGWWenKai": "SIL OFL 1.1; LXGW WenKai 1.7.0 from the lxgw-wenkai-webfont package",
+    "upstream_repository": "The upstream repository carries no LICENSE file; reuse rests on the authorization above."
+  },
+  "not_taken": [
+    "TsangerJinKai02 fonts (licence forbids shipping as an application asset)"
+  ],
+  "sources": [
+    {
+      "path": "desktop/src/renderer/src/design/tokens.css",
+      "sha256": "0d951ce993023dc4e0746520416288262779c239723e792625eec9d8f610b96b"
+    },
+    {
+      "path": "desktop/src/renderer/src/design/motion.css",
+      "sha256": "b8f428912d49f454c5cbcf72281d9b7909664c5761fec7a149b5fe582abcd411"
+    },
+    {
+      "path": "desktop/src/renderer/src/design/motion.ts",
+      "sha256": "ae7846f5cbbe3e0ccd173d2ac807b09a7a20e75bf3cad35407df86b9440fff36"
+    },
+    {
+      "path": "desktop/src/renderer/src/design/use-object-transition.ts",
+      "sha256": "e7e116036b63157a1a7e59a37f04b72e0cb9ab6ee5debcc9e4e882d6fd2c8254"
+    },
+    {
+      "path": "desktop/src/renderer/src/design/icons/brush.ts",
+      "sha256": "fdb23af3d7d8568e42fdf52d2e9653b35584744eae479c3decb1185ed8abf805"
+    },
+    {
+      "path": "desktop/src/renderer/src/design/icons/glyphs.ts",
+      "sha256": "e795323dd41d8a90e6668f101947e977805ea6272209eaa6146f8f7b2a31952a"
+    },
+    {
+      "path": "desktop/src/renderer/src/design/icons/glyph.ts",
+      "sha256": "057dadf7c639691036fede70a6219ebfe7dfbd2eda1cff741c9fdbf9af368961"
+    },
+    {
+      "path": "desktop/src/renderer/src/design/icons/index.ts",
+      "sha256": "b00537b7825bec0cddc2ad9ae3d47c5c38df9aa4710d918ae2a836750bf546ac"
+    },
+    {
+      "path": "desktop/src/renderer/src/design/icons/icons.css",
+      "sha256": "f6613eb44a49b3ade305d542736c77945341e7054dd4ea11de76e526bc2d3eb5"
+    },
+    {
+      "path": "desktop/src/renderer/src/assets/fonts/fonts.css",
+      "sha256": "442d2dd1fec38d0ea5151b815cefe8ae661b8a86ca043d6e82addb35c8ed5401"
+    },
+    {
+      "path": "desktop/src/renderer/src/styles.css",
+      "sha256": "489f671735b0c91da06e972491c71a1346c6a4d641e1936ce85c9de3844a5565"
+    },
+    {
+      "path": "desktop/src/renderer/src/lib/utils.ts",
+      "sha256": "1146dbf2f3299ce580a863c01d3a4f7959e594d5da0fc3228005d3015af7ab0f"
+    },
+    {
+      "path": "desktop/src/renderer/src/keyboard/focus.ts",
+      "sha256": "44da17e7b8dca275cf9b7314447517705901bd60c8000cd39eece03dd8a9024e"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ui/button.tsx",
+      "sha256": "e4b35acba0d45a2851b74fda3bea2e0db0f34107e045b25f8e589d7622a6ba1a"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ui/checkbox.tsx",
+      "sha256": "a2099e1013703da2adf5e522fc8eeeb5efbe3bbd68d39d4bfc3e3ee438efce27"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ui/dropdown-menu.tsx",
+      "sha256": "9257cc4cf12fe5369b1f0fb1266ffa5d61a1e9c9cc13b2b6f98f40bd6c858d61"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ui/input.tsx",
+      "sha256": "19e6cf5d131fd5b776e7cb8755c3fdd311484c939685c39e8b594b0455df66fa"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ui/label.tsx",
+      "sha256": "2a680173e2b74fc256b5d334a34dd3d02d950bd43d6eff4f525fcdc989920c6f"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ui/popover.tsx",
+      "sha256": "9bcb7d6440f2ad521ca4c66f08fe18a3561da95ae14a3db2a14ec2d659694312"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ui/radio-group.tsx",
+      "sha256": "9f108f3900eb35803a654e022455c781ba9213d74c367b5d4dbde19927bfce33"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ui/segmented.tsx",
+      "sha256": "cb25120e71a719127c69ed1daa302d2c46c6e9e8ee31ee8915c8dab366f5f681"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ui/select.tsx",
+      "sha256": "51da5b16477c38d7c5625e06cbb2109ba7169c99291c28ab557dcc014e47b1f3"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ui/sheet.tsx",
+      "sha256": "a86c2c18ce725b22976e46d551ae2a8cf08173bc8b7b3e3df9cc41362e6fa4b6"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ui/switch.tsx",
+      "sha256": "a111ec42096b179e62e74174ef9ee2348f737c852b8884365eefa28e921968a9"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ui/table.tsx",
+      "sha256": "e1d6d7be29867d4709b5a8a2f44395505110221a66b263caa58a43f671c31688"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ui/textarea.tsx",
+      "sha256": "2c5e64e0ad0f2e6b05a96db6d3ca44d38e73c9b6af7a3aa38ddd51ae3744d96e"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ui/tooltip.tsx",
+      "sha256": "ad3de6e787f87a4bf9308b592905b2a7cd9b73145a856f3812985ac5ffa3909f"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ui.tsx",
+      "sha256": "481f0e6a308d699d525f9819cfe102472f426a5ecb9085ef807138a662891d5e"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ai/ai.css",
+      "sha256": "2837faf75d7d310dbafcafea4cf16c2aeb17eb9b8c0fd763ec8f2dfac6869a49"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ai/copy-button.tsx",
+      "sha256": "62211d225858a46a97c17f3d651dedee175c24b188521824fbf8e7ce643e8bf5"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ai/data-attributes.ts",
+      "sha256": "90dfc3ee4dbbe61790c437ca831bf99fa3db471ceb0c122ee9026b52ce0e192f"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ai/entity-chip.tsx",
+      "sha256": "bf55b5786c049380360762fd36a595b3f72f4a630cd21bdef0360bc532a2a276"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ai/glide-menu.tsx",
+      "sha256": "535de9b5f964a8ec427bbad13bc6d62f922313ecfd1745c231eebb705eba01eb"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ai/receipt-pill.tsx",
+      "sha256": "0675ecea1764f52617898c13e5f2871621e61c3fa7a43390f63d57d525085187"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ai/shimmer.tsx",
+      "sha256": "60d880fa41ce3be3c3f137c384f2caacb86fdd476f19fab7bfcd0bb8385bd191"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ai/state-word.tsx",
+      "sha256": "86b4ca45f62a933abb885ea3e53ccffef9ceabe57b96eb3f8359d92d7c9efccb"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ai/status-mark.tsx",
+      "sha256": "0b78acc90eb81f2899d2280763e5d59a35d16d87db36969d46ec1e7be7cf4f2d"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ai/status-pill.tsx",
+      "sha256": "73f49511d4f3046eb784ac21ef38674f581388816b3c4554024c655572491cbf"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ai/tone.ts",
+      "sha256": "a031e554076fa86dc03dff1052bfe2112590e05d614e3c8149e0a32dd9713709"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ai/trace.tsx",
+      "sha256": "db31f99ff0834e64e174457c2afde6b18f3aac4d17ba838806289b44dc35c822"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ai/value-pill.tsx",
+      "sha256": "81b8da4e7d37a8228cc39dfa18e4aab61ee6b7db55de0640d9d2cef0f875dd04"
+    },
+    {
+      "path": "desktop/src/renderer/src/i18n/state-labels.ts",
+      "sha256": "10961d0a2dc10dbffcafe277baa8b6a13de4f54edd6f5591c4a3d8bd0b836629"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/disclosure.tsx",
+      "sha256": "f1abe1d8b7b6acf03a87850923ef69931630e40f293a54c9508d0b0de5786b09"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/empty-state.tsx",
+      "sha256": "2701fb249ecf2a4c852d2a7c68e6f8631d3f00c5eb16713905d02e7706d3e4cc"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/icon-button.tsx",
+      "sha256": "79c9b9fa4a87e4f82d8e8ecde95a2a3d7bcf173ca3326390391070e8824098b9"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/inline-notice.tsx",
+      "sha256": "e09b4af08bd38a667995572dffa36f8e620422c1741895726f387306394c2a2b"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/loading-state.tsx",
+      "sha256": "72fe2e1a701ae9731bf928dc8f3fe5fad0148ab938dc4e3eb9973bc4722b17c1"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/loading-state.css",
+      "sha256": "474917450ed972f48e17e9dff1bfcda16a8f23ae211202c722e4865b12acea28"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/loading-ink.ts",
+      "sha256": "18494058bf939ee1df57e8a6bf954622f3d9d16679c508c26f5879fc379d9159"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/page-header.tsx",
+      "sha256": "bdb076460b4e6b4523cdae8dfacef2607a39f90a13c45c7ec5a323f36af04c20"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/page-column.tsx",
+      "sha256": "2a98124318d789c769cdd3988a65352f1d15b83bf89d18db60b98e7d1efb4cf8"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/save-receipt.tsx",
+      "sha256": "8f9b971daf10818012b0f0c9648ac890f4a2bcba90af0de155f85454daaef2d7"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/fact-list.tsx",
+      "sha256": "89275687cef1ffc040f0775e89035608a41f1065eba6e43bfe8665f8f2ad6830"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/fact-list.css",
+      "sha256": "2d76fd4c60544982dd939178e0b463ef18f530fe598123dff8b6b5d29c0619cf"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/code-surface.tsx",
+      "sha256": "23551fdd6536d1414572d72880b8ad3e2f86c45800f013aeb2364466b08307a1"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/code-surface.css",
+      "sha256": "bd210d25dd0969ae13f1b5c51e178d41b039e8aee7f7cbeef54194943aff03a8"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/ago.tsx",
+      "sha256": "f474b3e44fc6a9cc3f40216aa517953576ca2cc75926b75edc636bd0e5adabae"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/confirm/inline-confirm.tsx",
+      "sha256": "e86b4a023212416e379f9cd5ac33b32880384c713e478584473560582f40f3bd"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/confirm/impact-panel.tsx",
+      "sha256": "ee5550be6286285aa4cd07ac2bf2eef14538b6ca18c5b4576edac1225c2ae9bb"
+    },
+    {
+      "path": "desktop/src/renderer/src/components/confirm/confirm.css",
+      "sha256": "41fe1b669bcca277d4113bee0a58b4f0713f0e7ace901aaa2f809ec12876bb5c"
+    },
+    {
+      "path": "desktop/src/renderer/src/conversation/time.ts",
+      "sha256": "88279f9b0dea1b91222896101320a09e811bfac088614c6e35f48e33fb104d8f"
+    },
+    {
+      "path": "desktop/src/renderer/src/conversation/prose.tsx",
+      "sha256": "62038a5f57314d2ef98e44cf0ad8058d7cbe8151f80d01246250d92aa376717c"
+    },
+    {
+      "path": "desktop/src/renderer/src/conversation/code-highlight.ts",
+      "sha256": "6be25d1ed25d0c6dde5f9191e8c02ebf2536f0dcaaf9a6ba5ca431596e4bd38e"
+    },
+    {
+      "path": "desktop/src/renderer/src/conversation/markdown-diagrams.ts",
+      "sha256": "46edef1a15afcccf6db15a0e918870c51563ad6a98fbf582e283b5f5882851ac"
+    },
+    {
+      "path": "desktop/src/renderer/src/conversation/conversation.css",
+      "sha256": "4c34c3a3ec0e87daf2d60d46a88f428863d1690a8e92fbcb9496850c27e30a25"
+    },
+    {
+      "path": "desktop/src/renderer/src/theme/controller.ts",
+      "sha256": "255ff32dda2b2b4e05add11142ebc702210986168468ce0ada652c883c0774bd"
+    },
+    {
+      "path": "desktop/src/renderer/public/fonts/Inter.woff2",
+      "sha256": "266a51c3f2dd3e5c3b85a6005e4939ba4388e3cde79c26541aae3582a1a55e00"
+    },
+    {
+      "path": "desktop/src/renderer/public/fonts/Inter-OFL.txt",
+      "sha256": "5dd548d31a85f756e01d63e00d7faf1e324103ed3e9102fcbbabf2cc2db6dd39"
+    },
+    {
+      "path": "desktop/src/renderer/public/fonts/JetBrainsMono.woff2",
+      "sha256": "f0ef81ea110701c1fbd35d5c28c9147f9f1686368ad9d6ff6c0fd09699ec2f96"
+    },
+    {
+      "path": "desktop/src/renderer/public/fonts/JetBrainsMono-OFL.txt",
+      "sha256": "b2fe5e8987594e9ffd1d2ca52a2f5d73eb8335243893c5d6254b5ad69269591d"
+    },
+    {
+      "path": "desktop/src/renderer/public/fonts/lxgw-wenkai/OFL.txt",
+      "sha256": "fe4ddef88d2705569740a4b6c59e1a73315e1a55fb0a0d054bd791977681f8cb"
+    },
+    {
+      "path": "desktop/src/renderer/src/assets/fonts/wenkai.css",
+      "sha256": "b702545025befced4d4dbd1f089645e00da675d32ae148c05286480affb10631"
+    },
+    {
+      "path": "desktop/src/renderer/public/fonts/lxgw-wenkai/*.woff2",
+      "files": 194,
+      "sha256": "39ca9c767772280f9621aa43d130e60f388b84b918f2db98291b572592ea946c",
+      "sha256_of": "the output of `sha256sum *.woff2` run in that directory"
+    }
+  ]
+}

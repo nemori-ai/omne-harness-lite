@@ -303,10 +303,12 @@ describe('the local single-user profile', () => {
     }
   }
 
-  it('gives server-entry the whole projected kind list with its two bounds, and model-records the tenant-self read with a retention adoption', () => {
+  it('gives session-diagnostics-access the whole projected kind list with its two bounds, and model-records the tenant-self read with a retention adoption', () => {
     const layer = localOperatorLayer(input())
     const configOf = (id: string) => layer.ops.find(op => op.id === id)?.config
-    const entry = configOf('server-entry') as { diagnosticsKinds?: string[] } | undefined
+    const entry = configOf('session-diagnostics-access') as
+      | { diagnosticsKinds?: string[] }
+      | undefined
     expect([...(entry?.diagnosticsKinds ?? [])].sort()).toEqual([...PROJECTED_KINDS].sort())
     expect(entry).toMatchObject({ maxRuns: expect.any(Number), maxCallsPerRun: expect.any(Number) })
     expect(configOf('model-records')).toMatchObject({

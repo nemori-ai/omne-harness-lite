@@ -187,6 +187,9 @@ function sameAsset(ref: TenantSettingsAssetRef, query: TenantSettingsAssetQuery)
     ref.name === query.name && (query.category === undefined || ref.category === query.category)
   )
 }
+function revisionOf(view: SettingsTargetView): string {
+  return String(view.state.revision)
+}
 function presence(value: SettingPresence): Presence {
   return value.kind === 'absent' ? { kind: 'unset' } : { kind: 'set', value: value.value }
 }
@@ -206,7 +209,7 @@ function writable(view: SettingsTargetView, action: 'set' | 'clear') {
   const grant = view.grants.find(value => value.sourceId === source.sourceId)
   return grant?.actions.includes(action) === true ? source.sourceId : undefined
 }
-const ADOPTION_TEXT: Readonly<Record<SettingItem['presentation']['adoption'], string>> = {
+export const ADOPTION_TEXT: Readonly<Record<SettingItem['presentation']['adoption'], string>> = {
   'next-read': 'Applies from the next read of the item.',
   'next-boundary': 'Applies from the next use boundary that the asset declares.',
   reload: 'Applies after the asset reloads.',
@@ -247,26 +250,82 @@ function abortedOutcome(
       return { kind: 'unavailable' }
   }
 }
+const REJECTED_OUTCOME: Readonly<Record<SettingsFailure['reason'], WriteOutcome>> = {
+  invalid_input: { kind: 'invalid' },
+  limit_exceeded: { kind: 'invalid' },
+  incompatible: { kind: 'invalid' },
+  forbidden: { kind: 'denied' },
+  revision_conflict: { kind: 'conflict' },
+  definition_changed: { kind: 'conflict' },
+  operation_conflict: { kind: 'conflict' },
+  locked: { kind: 'not-writable', reason: 'locked' },
+  unsupported: { kind: 'not-writable', reason: 'not-a-source' },
+  unavailable: { kind: 'unavailable' },
+  basis_changed: { kind: 'unavailable' },
+  closing: { kind: 'unavailable' },
+}
 function rejectedOutcome(reason: SettingsFailure['reason']): WriteOutcome {
-  switch (reason) {
-    case 'invalid_input':
-    case 'limit_exceeded':
-    case 'incompatible':
-      return { kind: 'invalid' }
-    case 'forbidden':
-      return { kind: 'denied' }
-    case 'revision_conflict':
-    case 'definition_changed':
-    case 'operation_conflict':
-      return { kind: 'conflict' }
-    case 'locked':
-      return { kind: 'not-writable', reason: 'locked' }
-    case 'unsupported':
-      return { kind: 'not-writable', reason: 'not-a-source' }
-    case 'unavailable':
-    case 'basis_changed':
-    case 'closing':
-      return { kind: 'unavailable' }
+  return REJECTED_OUTCOME[reason]
+}
+
+type ViewHead = Pick<SettingView, 'asset' | 'item' | 'revision'>
+type ViewDeclaration = SettingView['declaration']
+function ownValueOf(view: SettingsTargetView, itemId: string): SettingPresence | undefined {
+  const source = tenantSourceOf(view)
+  if (source === undefined) return undefined
+  return view.state.sources
+    .find(candidate => candidate.id === source.sourceId)
+    ?.values.find(value => value.itemId === itemId)?.value
+}
+
+function editableOf(view: SettingsTargetView, resolution: SettingResolution): Editable {
+  if (writable(view, 'set') === undefined) return { kind: 'no', reason: 'not-a-source' }
+  const lockedOutside =
+    resolution.lockedBy !== null && resolution.lockedBy !== tenantSourceOf(view)?.sourceId
+  return lockedOutside ? { kind: 'no', reason: 'locked' } : { kind: 'yes' }
+}
+
+function ordinaryViewOf(entry: Entry, head: ViewHead, declaration: ViewDeclaration): SettingView {
+  const { view, item, resolution } = entry
+  const own = ownValueOf(view, item.id)
+  const lockedBy = layerOf(view, resolution.lockedBy)
+  return {
+    ...head,
+    declaration,
+    kind: 'ordinary',
+    valueSchema: item.valueSchema,
+    default: presence(item.default),
+    own: own === undefined ? { kind: 'unset' } : presence(own),
+    effective: {
+      value: presence(resolution.value),
+      source: layerOf(view, resolution.source),
+    },
+    lockedBy: lockedBy === 'organization' ? 'organization' : null,
+    editable: editableOf(view, resolution),
+  }
+}
+
+type Parsed = Readonly<{
+  kind: 'parsed'
+  operation: string
+  item: string
+  value: SettingInput | null
+}>
+function parseWrite(
+  input: TenantSettingsWriteInput<unknown>,
+  value: SettingInput | null,
+): Parsed | Extract<WriteOutcome, { kind: 'invalid' }> {
+  const operation = SettingsIdSchema.safeParse(input.operation)
+  const item = SettingsIdSchema.safeParse(input.item)
+  if (!operation.success || !item.success || !REVISION.test(input.expectedRevision))
+    return { kind: 'invalid' }
+  const parsedValue = value === null ? null : SettingInputSchema.safeParse(value)
+  if (parsedValue !== null && !parsedValue.success) return { kind: 'invalid' }
+  return {
+    kind: 'parsed',
+    operation: operation.data,
+    item: item.data,
+    value: parsedValue === null ? null : parsedValue.data,
   }
 }
 
@@ -335,12 +394,8 @@ export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSe
   }
 
   async function viewOf(tenant: TenantId, entry: Entry): Promise<SettingView | undefined> {
-    const { asset, view, item, resolution } = entry
-    const head = {
-      asset,
-      item: item.id,
-      revision: String(view.state.revision),
-    }
+    const { asset, view, item } = entry
+    const head = { asset, item: item.id, revision: revisionOf(view) }
     const declaration = {
       title: item.presentation.title,
       purpose: item.presentation.description,
@@ -356,60 +411,33 @@ export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSe
         official: 'unreadable',
         editable: { kind: 'no', reason: 'not-a-source' },
       }
-    if (permissions.kindOf({ view, itemId: item.id }) === 'permission') {
-      const permission = await permissions.view({ tenant, view, itemId: item.id })
-      if (permission === 'unavailable') return undefined
-      const { appliesAt, ...rest } = permission
-      return { ...head, declaration: { ...declaration, appliesAt }, kind: 'permission', ...rest }
-    }
-    const tenantSource = tenantSourceOf(view)
-    const own =
-      tenantSource === undefined
-        ? undefined
-        : view.state.sources
-            .find(source => source.id === tenantSource.sourceId)
-            ?.values.find(value => value.itemId === item.id)?.value
-    const lockedBy = layerOf(view, resolution.lockedBy)
-    const lockedOutside =
-      resolution.lockedBy !== null && resolution.lockedBy !== tenantSource?.sourceId
-    const editable: Editable =
-      writable(view, 'set') === undefined
-        ? { kind: 'no', reason: 'not-a-source' }
-        : lockedOutside
-          ? { kind: 'no', reason: 'locked' }
-          : { kind: 'yes' }
-    return {
-      ...head,
-      declaration,
-      kind: 'ordinary',
-      valueSchema: item.valueSchema,
-      default: presence(item.default),
-      own: own === undefined ? { kind: 'unset' } : presence(own),
-      effective: {
-        value: presence(resolution.value),
-        source: layerOf(view, resolution.source),
-      },
-      lockedBy: lockedBy === 'organization' ? 'organization' : null,
-      editable,
-    }
+    if (permissions.kindOf({ view, itemId: item.id }) === 'permission')
+      return permissionViewOf(tenant, entry, head, declaration)
+    return ordinaryViewOf(entry, head, declaration)
   }
 
-  async function write(
+  async function permissionViewOf(
+    tenant: TenantId,
+    entry: Entry,
+    head: ViewHead,
+    declaration: ViewDeclaration,
+  ): Promise<SettingView | undefined> {
+    const { view, item } = entry
+    const permission = await permissions.view({ tenant, view, itemId: item.id })
+    if (permission === 'unavailable') return undefined
+    const { appliesAt, ...rest } = permission
+    return { ...head, declaration: { ...declaration, appliesAt }, kind: 'permission', ...rest }
+  }
+
+  type Prepared =
+    | Readonly<{ kind: 'ready'; command: SettingsChange; pick: string | null }>
+    | Extract<WriteOutcome, { kind: 'invalid' | 'not-writable' }>
+  function prepare(
     input: TenantSettingsWriteInput<P>,
     action: 'set' | 'clear',
-    value: SettingInput | null,
-  ): Promise<WriteOutcome> {
-    const admitted = await admit(input.principal, input.tenant, action)
-    if (admitted !== 'allowed') return { kind: admitted }
-    const operation = SettingsIdSchema.safeParse(input.operation)
-    const item = SettingsIdSchema.safeParse(input.item)
-    if (!operation.success || !item.success || !REVISION.test(input.expectedRevision))
-      return { kind: 'invalid' }
-    const parsedValue = value === null ? null : SettingInputSchema.safeParse(value)
-    if (parsedValue !== null && !parsedValue.success) return { kind: 'invalid' }
-    const located = await locate(input.tenant, input.asset, item.data)
-    if (located.kind !== 'found') return located
-    const { entry } = located
+    entry: Entry,
+    parsed: Parsed,
+  ): Prepared {
     if (entry.item.sensitivity === 'secret') return { kind: 'not-writable', reason: 'not-a-source' }
     const sourceId = writable(entry.view, action)
     if (sourceId === undefined) return { kind: 'not-writable', reason: 'not-a-source' }
@@ -417,12 +445,12 @@ export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSe
       return { kind: 'not-writable', reason: 'locked' }
     const isPermission =
       permissions.kindOf({ view: entry.view, itemId: entry.item.id }) === 'permission'
-    const planned = plan(entry, isPermission, parsedValue === null ? null : parsedValue.data)
+    const planned = plan(entry, isPermission, parsed.value)
     if (planned.kind === 'invalid') return planned
     const command: SettingsChange = {
       protocol: 'settings/1',
-      requestId: operation.data,
-      operationId: operation.data,
+      requestId: parsed.operation,
+      operationId: parsed.operation,
       target: structuredClone(entry.view.target) as SettingsTarget,
       definitionRef: structuredClone(entry.view.definitionRef),
       expectedRevision: Number(input.expectedRevision),
@@ -430,8 +458,17 @@ export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSe
       itemId: entry.item.id,
       action: planned.action,
     }
-    const pick = planned.pick
-    const beforeWrite = async (): Promise<WriteOutcome | null> => {
+    return { kind: 'ready', command, pick: planned.pick }
+  }
+
+  function precheck(
+    input: TenantSettingsWriteInput<P>,
+    entry: Entry,
+    pick: string | null,
+  ): () => Promise<WriteOutcome | null> {
+    return async () => {
+      if (revisionOf(entry.view) !== input.expectedRevision)
+        return rejectedOutcome('revision_conflict')
       if (pick === null) return null
       const judged = await permissions.judge({
         tenant: input.tenant,
@@ -444,8 +481,27 @@ export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSe
         ? { kind: 'not-writable', reason: 'out-of-bound' }
         : { kind: 'unavailable' }
     }
+  }
+
+  async function write(
+    input: TenantSettingsWriteInput<P>,
+    action: 'set' | 'clear',
+    value: SettingInput | null,
+  ): Promise<WriteOutcome> {
+    const admitted = await admit(input.principal, input.tenant, action)
+    if (admitted !== 'allowed') return { kind: admitted }
+    const parsed = parseWrite(input, value)
+    if (parsed.kind !== 'parsed') return parsed
+    const located = await locate(input.tenant, input.asset, parsed.item)
+    if (located.kind !== 'found') return located
+    const { entry } = located
+    const prepared = prepare(input, action, entry, parsed)
+    if (prepared.kind !== 'ready') return prepared
+    const beforeWrite = precheck(input, entry, prepared.pick)
     try {
-      return outcomeOf(await writer.write({ tenant: input.tenant, command, beforeWrite }))
+      return outcomeOf(
+        await writer.write({ tenant: input.tenant, command: prepared.command, beforeWrite }),
+      )
     } catch {
       return { kind: 'unknown' }
     }

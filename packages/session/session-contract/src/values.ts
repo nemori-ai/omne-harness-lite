@@ -394,6 +394,12 @@ export type WorkSnapshot = Readonly<{
   entriesProgress?: readonly SessionEntriesProgress[]
 }>
 
+export type SessionWaiting = Readonly<{
+  run: RunId
+  pending: number
+  execution: string | null
+}>
+
 export type ResidentAdoption = Readonly<{
   residents: readonly ResidentTool[]
   keys: readonly Readonly<{ capability: string; key: ResidentKey }>[]

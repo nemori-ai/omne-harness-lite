@@ -9,7 +9,7 @@ import {
 } from '../../src/rows/session-provider/index.ts'
 import { runServe, type S0Record, type ServeResult } from '../../src/run.ts'
 import { startModelGateway } from '../fixtures/model-gateway.ts'
-import { connectable, until } from '../rows/server-entry/support.ts'
+import { connectable, until } from '../support/listening.ts'
 import {
   bodyOf,
   cursorKeySpellings,
@@ -155,7 +155,7 @@ describe('R9 release tree, in process: the principal that reaches the Session fa
     expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
     expect(run.of('startup-result')[0]).toMatchObject({
       accepting: true,
-      implementations: { real: 56, 'contract-double': 1, 's0-double': 2 },
+      implementations: { real: 58, 'contract-double': 1, 's0-double': 2 },
     })
     expect(value.arrivals).toEqual([
       {

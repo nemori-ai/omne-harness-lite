@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseTenantText } from '@omne-harness/sdk'
+import { readTenantText } from '@omne-harness/public-contract'
 
 export interface SessionOwners {
   readonly version: 1
@@ -35,7 +35,7 @@ function shapeOf(value: unknown): Map<string, string> | undefined {
   if (typeof sessions !== 'object' || sessions === null || Array.isArray(sessions)) return undefined
   const owners = new Map<string, string>()
   for (const [session, tenant] of Object.entries(sessions)) {
-    if (session === '' || typeof tenant !== 'string' || parseTenantText(tenant) === undefined)
+    if (session === '' || typeof tenant !== 'string' || readTenantText(tenant) === undefined)
       return undefined
     owners.set(session, tenant)
   }

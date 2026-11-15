@@ -13,8 +13,11 @@ function codeOf(error: unknown): string | undefined {
   return typeof error.code === 'string' ? error.code : undefined
 }
 
+const refusedByFetch = 'bad port'
+
 export function neverWritten(error: unknown): boolean {
   const cause = error instanceof Error ? error.cause : undefined
+  if (cause instanceof Error && cause.message === refusedByFetch) return true
   const codes: (string | undefined)[] = [codeOf(cause)]
   if (
     typeof cause === 'object' &&

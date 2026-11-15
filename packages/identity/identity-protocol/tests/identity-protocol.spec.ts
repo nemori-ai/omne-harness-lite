@@ -1,9 +1,12 @@
 import {
-  readGovernanceRequest,
-  readGovernanceResponse,
-  type Codec,
-  type GovernanceProvidedOperation,
-} from '@omne-harness/public-contract'
+  accountCodec,
+  loginStateCodec,
+  organizationCodec,
+  tenantCodec,
+  type IdentityTextCodec,
+} from '@omne-harness/legal-identity'
+import type { Codec } from '@omne-harness/public-contract'
+import { parseInstant } from '@omne-harness/utc-instant'
 import { describe, expect, it } from 'vitest'
 import { identityProtocol } from '@omne-harness/identity-protocol'
 
@@ -134,20 +137,40 @@ function json(value: unknown): JsonValue {
   }
 }
 
-function oldRead(operation: Name, body: unknown) {
-  const identity = table[operation][0]
-  const wire = {
-    protocolVersion: 'governance-public/1',
-    messageId: 'm',
-    operation,
-    body,
-    ...(identity === 'none' ? {} : { loginProof: 'secret-proof' }),
-    ...(identity === 'acting-tenant' ? { actingTenant: tenant } : {}),
-  }
-  return readGovernanceRequest({
-    bytes: new TextEncoder().encode(JSON.stringify(wire)),
-    limits,
-  })
+function parsed<T>(codec: IdentityTextCodec<T>, text: string): T {
+  const result = codec.parse(text)
+  if (!result.ok) throw new Error(`fixture text ${text} did not parse`)
+  return result.value
+}
+
+const accountId = parsed(accountCodec, account)
+const organizationId = parsed(organizationCodec, organization)
+const loginId = parsed(loginStateCodec, login)
+const tenantId = parsed(tenantCodec, tenant)
+
+const decoded: Partial<Record<Name, Readonly<Record<string, unknown>>>> = {
+  'revoke-login': { targetLoginId: loginId },
+  'open-affiliation-request': {
+    superiorOrganizationId: organizationId,
+    subordinateOrganizationId: organizationId,
+  },
+  'query-organization-members': { organizationId },
+  'remove-member': { organizationId, accountId },
+  'change-member-role': { organizationId, accountId },
+  'switch-current-tenant': { tenantId },
+  'query-organization': { organizationId },
+  'judge-admission': { parameters: json(bodies['judge-admission'].parameters) },
+  'submit-authorization-expression': { parameters: json({}) },
+}
+
+function expectedValue(name: Name, body: Readonly<Record<string, unknown>>): unknown {
+  const values = decoded[name] ?? {}
+  return Object.fromEntries(
+    Object.entries(body).map(([key, value]) => [
+      key,
+      Object.hasOwn(values, key) ? values[key] : value,
+    ]),
+  )
 }
 
 const names = Object.keys(table) as Name[]
@@ -191,12 +214,9 @@ describe('C1: the operations and their columns', () => {
 describe('a body reads as the governance family reads it', () => {
   it.each(names)('%s reads a valid body to the value the old family reads', name => {
     const body = bodies[name]
-    const old = oldRead(name, body)
-    expect(old.kind).toBe('request')
-    if (old.kind !== 'request') return
     const codec = identityProtocol.operations[name].body as Codec<unknown>
     const read = codec.read(json(body), limits)
-    expect(read).toEqual({ ok: true, value: old.request.body })
+    expect(read).toEqual({ ok: true, value: expectedValue(name, body) })
     if (!read.ok) return
     expect(codec.write(read.value, limits)).toEqual({
       ok: true,
@@ -216,7 +236,6 @@ describe('a body reads as the governance family reads it', () => {
       invalid.push(missing)
     }
     for (const sample of invalid) {
-      expect(oldRead(name, sample).kind).toBe('protocol-rejected')
       expect(identityProtocol.operations[name].body.read(json(sample), limits)).toEqual({
         ok: false,
       })
@@ -233,17 +252,16 @@ describe('a body reads as the governance family reads it', () => {
     name => {
       const body: Record<string, unknown> = { ...bodies[name] }
       for (const key of optional) delete body[key]
-      const old = oldRead(name, body)
-      expect(old.kind).toBe('request')
-      if (old.kind !== 'request') return
       const codec = identityProtocol.operations[name].body as Codec<unknown>
-      expect(codec.read(json(body), limits)).toEqual({ ok: true, value: old.request.body })
+      expect(codec.read(json(body), limits)).toEqual({
+        ok: true,
+        value: expectedValue(name, body),
+      })
     },
   )
 
   it('rejects a malformed tenant text, as the old family does', () => {
     const body = { tenantId: JSON.stringify({ organization }) }
-    expect(oldRead('switch-current-tenant', body).kind).toBe('protocol-rejected')
     expect(
       identityProtocol.operations['switch-current-tenant'].body.read(json(body), limits),
     ).toEqual({ ok: false })
@@ -271,22 +289,12 @@ describe('C5: issue-login carries the credential', () => {
   })
 
   it('reads a succeeded body with loginId as the old family reads it', () => {
-    const old = readGovernanceResponse({
-      operation: 'issue-login' satisfies GovernanceProvidedOperation,
-      expectedMessageId: 'm',
-      bytes: new TextEncoder().encode(
-        JSON.stringify({
-          protocolVersion: 'governance-public/1',
-          messageId: 'm',
-          outcome: 'succeeded',
-          body: issued,
-        }),
-      ),
-      limits,
+    const issuedAt = parseInstant(issued.issuedAt)
+    if (!issuedAt.ok) throw new Error('fixture instant did not parse')
+    expect(succeeded.read(json(issued), limits)).toEqual({
+      ok: true,
+      value: { ...issued, issuedAt: issuedAt.value, tenantId, loginId },
     })
-    expect(old.kind).toBe('response')
-    if (old.kind !== 'response') return
-    expect(succeeded.read(json(issued), limits)).toEqual({ ok: true, value: old.response.body })
   })
 
   it('rejects a succeeded body without loginId', () => {

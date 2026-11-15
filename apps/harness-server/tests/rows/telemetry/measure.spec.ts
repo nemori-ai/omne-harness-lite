@@ -40,7 +40,7 @@ import { createTelemetryBinding, processInstance } from '../../../src/rows/telem
 import type { RowId } from '../../../src/types.ts'
 import { startModelGateway, type GatewayScript } from '../../fixtures/model-gateway.ts'
 import { hostConfig, hostDoubles, principalObject } from '../agent-host/doubles.ts'
-import { TELEMETRY_ROW_CONFIG, connectable, until } from '../server-entry/support.ts'
+import { TELEMETRY_ROW_CONFIG, connectable, until } from '../../support/listening.ts'
 import { declared, loadTree, makeBase, storageRows } from '../session-fixtures/tree.ts'
 import { disabledTelemetryRow } from './support.ts'
 import {

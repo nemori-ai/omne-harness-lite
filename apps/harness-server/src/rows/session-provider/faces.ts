@@ -57,6 +57,28 @@ const UNAVAILABLE: SessionFailure = {
 }
 const unimplemented = (): Promise<Result<never>> => Promise.resolve(fail(UNAVAILABLE))
 
+const UNIMPLEMENTED_WORK = {
+  readWork: unimplemented,
+  readWaiting: unimplemented,
+  readInput: unimplemented,
+  startRun: unimplemented,
+  claim: unimplemented,
+  reload: unimplemented,
+  recordMessage: unimplemented,
+  preserveResult: unimplemented,
+  completeConsumption: unimplemented,
+  completeExternalConsumption: unimplemented,
+  bindExternalCall: unimplemented,
+  commitDerived: unimplemented,
+  release: unimplemented,
+  control: unimplemented,
+  finishRun: unimplemented,
+  loadRecovery: unimplemented,
+  readModelSelection: unimplemented,
+  queryControlOperation: unimplemented,
+  retryRun: unimplemented,
+} satisfies Partial<SessionFaces<unknown>['work']>
+
 const INTERPRETER = {
   owner: OWNER,
   name: 'history',
@@ -321,24 +343,7 @@ export function createSessionProviderFaces(
       })
     },
 
-    readWork: unimplemented,
-    readInput: unimplemented,
-    startRun: unimplemented,
-    claim: unimplemented,
-    reload: unimplemented,
-    recordMessage: unimplemented,
-    preserveResult: unimplemented,
-    completeConsumption: unimplemented,
-    completeExternalConsumption: unimplemented,
-    bindExternalCall: unimplemented,
-    commitDerived: unimplemented,
-    release: unimplemented,
-    control: unimplemented,
-    finishRun: unimplemented,
-    loadRecovery: unimplemented,
-    readModelSelection: unimplemented,
-    queryControlOperation: unimplemented,
-    retryRun: unimplemented,
+    ...UNIMPLEMENTED_WORK,
   }
 
   function notFound(

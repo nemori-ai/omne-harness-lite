@@ -21,6 +21,8 @@ import type {
   PrincipalFacts,
   RequestJournal,
   ResolvedDefinition,
+  RunFailureCauses,
+  RunFailureReading,
   SessionAccessSettings,
   SessionListing,
   SessionListPage,
@@ -98,6 +100,10 @@ export type ListingScript =
 
 export type ListingCall = Parameters<SessionListing['list']>[0]
 
+export type CauseScript = RunFailureReading | 'throw'
+
+export type CauseCall = Parameters<RunFailureCauses['read']>[0]
+
 export type ObservationScript =
   | Readonly<{
       kind: 'opened'
@@ -112,9 +118,11 @@ export type World = Readonly<{
   issue(login: FixtureLogin, target?: TenantId): Principal
   refuseTargets(refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined): void
   refuseResumes(refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined): void
+  breakFacts(fault: 'throw' | 'undescribed' | undefined): void
+  useDefinitions(resolver: DefinitionResolver): void
   resumes(): readonly Readonly<{ tenant: string; login: string }>[]
-  remove(port: 'faces' | 'observation' | 'definitions' | 'listing'): void
-  put(port: 'faces' | 'observation' | 'definitions' | 'listing'): void
+  remove(port: 'faces' | 'observation' | 'definitions' | 'listing' | 'causes'): void
+  put(port: 'faces' | 'observation' | 'definitions' | 'listing' | 'causes'): void
   journal: JournalDouble
   requests: RequestDrain
   admissions(): readonly QueuedRequest[]
@@ -122,6 +130,10 @@ export type World = Readonly<{
   listing: Readonly<{
     calls(): readonly ListingCall[]
     answer(script: ListingScript): void
+  }>
+  causes: Readonly<{
+    calls(): readonly CauseCall[]
+    answer(script: CauseScript): void
   }>
   script(script: ObservationScript): void
   opens(): readonly SessionAccess<Principal>[]
@@ -140,6 +152,8 @@ export function createWorld(
   if ('failure' in system) throw new Error('fixture system principal not issued')
   let refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined
   let resumeRefusal: 'denied' | 'basis-unavailable' | 'throw' | undefined
+  let factsFault: 'throw' | 'undescribed' | undefined
+  let resolver: DefinitionResolver = resolveDefinition
   const resumes: { tenant: string; login: string }[] = []
   const admissions: QueuedRequest[] = []
   const store = createJournalDouble()
@@ -149,6 +163,8 @@ export function createWorld(
   let closed = false
   const listingCalls: ListingCall[] = []
   let listed: ListingScript = { ok: { items: [], next: null, completeness: 'complete' } }
+  const causeCalls: CauseCall[] = []
+  let caused: CauseScript = { kind: 'none' }
 
   const issue = (login: FixtureLogin, target: TenantId = login.tenant): Principal => {
     const key = memberKey(target)
@@ -185,6 +201,8 @@ export function createWorld(
 
   const facts: PrincipalFacts = {
     describe(principal) {
+      if (factsFault === 'throw') throw new Error('identity fault')
+      if (factsFault === 'undescribed') return undefined
       const acting = principal as unknown as ActingForTenantPrincipal
       if (acting.kind !== 'acting-for-tenant' || acting.work.owner !== 'identity-login')
         return undefined
@@ -225,6 +243,14 @@ export function createWorld(
     },
   }
 
+  const causes: RunFailureCauses = {
+    async read(call) {
+      causeCalls.push(call)
+      if (caused === 'throw') throw new Error('agent journal fault')
+      return caused
+    },
+  }
+
   const faces = () => (removed.has('faces') ? undefined : session.faces)
   const complete: SessionAccessSettings = {
     maxPageBytes: 65536,
@@ -249,8 +275,9 @@ export function createWorld(
     const contribution = createSessionContribution({
       faces,
       observation: () => (removed.has('observation') ? undefined : observation),
-      definitions: () => (removed.has('definitions') ? undefined : resolveDefinition),
+      definitions: () => (removed.has('definitions') ? undefined : resolver),
       listing: () => (removed.has('listing') ? undefined : listing),
+      causes: () => (removed.has('causes') ? undefined : causes),
       principals,
       facts,
       settings: complete,
@@ -268,6 +295,12 @@ export function createWorld(
     },
     refuseResumes: next => {
       resumeRefusal = next
+    },
+    breakFacts: next => {
+      factsFault = next
+    },
+    useDefinitions: next => {
+      resolver = next
     },
     resumes: () => [...resumes],
     remove: port => {
@@ -289,6 +322,12 @@ export function createWorld(
       calls: () => [...listingCalls],
       answer: next => {
         listed = next
+      },
+    },
+    causes: {
+      calls: () => [...causeCalls],
+      answer: next => {
+        caused = next
       },
     },
     script: next => {

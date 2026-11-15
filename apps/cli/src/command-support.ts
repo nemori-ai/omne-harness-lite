@@ -1,11 +1,6 @@
-import {
-  RequestInvalidError,
-  parseTenantText,
-  type CallerResult,
-  type GovernanceTransport,
-  type TenantId,
-} from '@omne-harness/sdk'
+import { encodeTenantText, readTenantText, type TenantId } from '@omne-harness/public-contract'
 import type { CliOutput, CommandEnvironment, ExitCode } from './cli-types.ts'
+import { openLink, type Link } from './link.ts'
 import { readLoginState, type LoginState } from './login-state.ts'
 import { readSessionOwners } from './session-owners.ts'
 import { ensureStateDirectory, resolveStateDirectory } from './state-directory.ts'
@@ -14,6 +9,7 @@ export const defaultServer = 'http://127.0.0.1:8787'
 export const serverOption = '--server'
 const hint = 'Run omne --help for usage.\n'
 const serverRefused = 'omne: --server must be a loopback http address\n'
+const invalidLogin = 'omne: login state is invalid\n'
 
 export type Option = ReadonlyMap<string, string>
 
@@ -57,42 +53,10 @@ export function serverOf(
   return { kind: 'server', origin: local.kind === 'address' ? local.origin : defaultServer }
 }
 
-export type Transport =
-  | { readonly kind: 'transport'; readonly origin: string; readonly transport: GovernanceTransport }
-  | { readonly kind: 'refused' }
-
-export function openTransport(
-  environment: CommandEnvironment,
-  origin: string,
-  location: 'governance' | 'session' | 'hitl',
-): Transport {
-  try {
-    const transport = environment.services.createTransport(origin, location)
-    return { kind: 'transport', origin: new URL(origin).origin, transport }
-  } catch {
-    return { kind: 'refused' }
-  }
-}
-
-export async function attempt(
-  submit: () => Promise<CallerResult>,
-): Promise<CallerResult | undefined> {
-  try {
-    return await submit()
-  } catch (error) {
-    if (error instanceof RequestInvalidError) return undefined
-    throw error
-  }
-}
-
 export function tenantOption(values: Option): TenantId | undefined | null {
   const given = values.get('--tenant')
   if (given === undefined) return undefined
-  return parseTenantText(given) ?? null
-}
-
-export function proofOf(state: LoginState) {
-  return { kind: 'present', value: state.loginProof } as const
+  return readTenantText(given) ?? null
 }
 
 export type OwnerResolution =
@@ -111,7 +75,7 @@ export function resolveOwner(
     const records = readSessionOwners(directory)
     if (records.kind === 'failure')
       return { kind: 'exit', code: localFailure(output, records.message) }
-    owner = parseTenantText(records.owners.get(session) ?? '')
+    owner = readTenantText(records.owners.get(session) ?? '')
   }
   if (owner === undefined)
     return {
@@ -157,7 +121,7 @@ export type LoadedLogin =
       readonly directory: string
       readonly state: LoginState
       readonly tenant: TenantId
-      readonly opened: Extract<Transport, { kind: 'transport' }>
+      readonly link: Link
     }
   | { readonly kind: 'exit'; readonly code: ExitCode }
 
@@ -165,20 +129,22 @@ export function loadLogin(
   values: Option,
   output: CliOutput,
   environment: CommandEnvironment,
-  location: 'governance' | 'session' | 'hitl',
 ): LoadedLogin {
   const given = givenServer(values, environment)
-  const early = given === undefined ? undefined : openTransport(environment, given, location)
-  if (early?.kind === 'refused') return { kind: 'exit', code: refusedServer(output) }
+  if (given !== undefined && openLink(environment, given).kind === 'refused')
+    return { kind: 'exit', code: refusedServer(output) }
 
   const directory = stateDirectory(environment, false)
   if (directory.kind === 'error')
     return { kind: 'exit', code: localFailure(output, directory.message) }
   const login = readLoginState(directory.path)
   if (login.kind === 'failure') return { kind: 'exit', code: localFailure(output, login.message) }
-  const tenant = parseTenantText(login.state.tenantId)
-  const opened = early ?? openTransport(environment, login.state.server, location)
-  if (opened.kind === 'refused' || tenant === undefined)
-    return { kind: 'exit', code: localFailure(output, `omne: login state is invalid\n`) }
-  return { kind: 'login', directory: directory.path, state: login.state, tenant, opened }
+  const tenant = readTenantText(login.state.tenantId)
+  if (tenant === undefined) return { kind: 'exit', code: localFailure(output, invalidLogin) }
+  const opened = openLink(environment, given ?? login.state.server, {
+    proof: login.state.loginProof,
+    tenant: encodeTenantText(tenant),
+  })
+  if (opened.kind === 'refused') return { kind: 'exit', code: localFailure(output, invalidLogin) }
+  return { kind: 'login', directory: directory.path, state: login.state, tenant, link: opened.link }
 }

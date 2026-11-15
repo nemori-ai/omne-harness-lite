@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SseStream } from '../src/observation-hub/sse.ts'
-import { sleep } from './support/harness.ts'
+import { sleep } from './support/entry.ts'
 import { holdResponse, type HeldResponse } from './support/held-response.ts'
 
 let held: HeldResponse | undefined

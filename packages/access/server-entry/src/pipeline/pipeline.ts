@@ -1,5 +1,10 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { AccessIdentity, LoginIdentity } from '@omne-harness/access-cordis-contract'
+import { isDeepStrictEqual } from 'node:util'
+import type {
+  AccessIdentity,
+  LoginIdentity,
+  LoginResult,
+} from '@omne-harness/access-cordis-contract'
 import { readJsonBytes, type JsonLimits } from '@omne-harness/json-text'
 import type { Codec, OperationContract } from '@omne-harness/public-contract'
 import {
@@ -9,7 +14,14 @@ import {
 } from '../observation-hub/hub.ts'
 import type { LoginCheck } from '../observation-hub/records.ts'
 import type { AccessRegistry, Entered, RegistryForPipeline } from '../registry/registry.ts'
-import { settleCall, systemClock, type Clock } from '../settle/settle.ts'
+import {
+  settleCall,
+  systemClock,
+  type Clock,
+  type Confirmation,
+  type SettleInput,
+  type SettleNote,
+} from '../settle/settle.ts'
 import { parseAddress, pathOf, type Address } from './address.ts'
 import { EMPTY_BODY, writeAnswer, writeBare } from './answer.ts'
 import { readBody } from './body.ts'
@@ -42,12 +54,14 @@ export type PipelineDiagnosticCode =
   | 'access.identity-denied'
   | 'access.identity-unavailable'
   | 'access.identity-fault'
+  | 'access.login-revoked-before-answer'
   | 'access.body-over-limit'
   | 'access.body-rejected'
   | 'access.aborted'
   | 'access.caller-gone'
   | 'access.listener-fault'
   | 'access.report-fault'
+  | SettleNote
   | HubDiagnosticCode
 
 export type PipelineDiagnostic = Readonly<{
@@ -149,6 +163,61 @@ async function readBodyOf(
   if (json.kind !== 'ok') return { kind: 'rejected' }
   const decoded = rule.codec.read(json.value, limits)
   return decoded.ok ? { kind: 'read', value: decoded.value } : { kind: 'rejected' }
+}
+
+async function checkLogin(identity: AccessIdentity, login: SignedIn): Promise<LoginCheck> {
+  const result = await identity.identifyLogin(login.proof)
+  if (result.outcome === 'identified') return 'valid'
+  return result.outcome === 'denied' ? 'denied' : 'unavailable'
+}
+
+async function confirmLogin(
+  identity: AccessIdentity,
+  login: SignedIn,
+  note: (code: PipelineDiagnosticCode) => void,
+): Promise<Confirmation> {
+  let result: LoginResult
+  try {
+    result = await identity.identifyLogin(login.proof)
+  } catch {
+    note('access.identity-fault')
+    return 'unavailable'
+  }
+  if (result.outcome === 'basis-unavailable') {
+    note('access.identity-unavailable')
+    return 'unavailable'
+  }
+  if (result.outcome === 'identified' && isDeepStrictEqual(result.login, login.identity))
+    return 'valid'
+  note('access.login-revoked-before-answer')
+  return 'denied'
+}
+
+function loginHooks(
+  identity: AccessIdentity,
+  login: SignedIn | undefined,
+  contract: OperationContract,
+  note: (code: PipelineDiagnosticCode) => void,
+): Pick<SettleInput, 'reportAccess' | 'confirm'> {
+  if (login === undefined) return {}
+  const reportAccess = (): void => report(identity, login.identity, note)
+  if (contract.effect !== 'read') return { reportAccess }
+  return { reportAccess, confirm: () => confirmLogin(identity, login, note) }
+}
+
+function report(
+  identity: AccessIdentity,
+  login: LoginIdentity,
+  note: (code: PipelineDiagnosticCode) => void,
+): void {
+  let pending: Promise<void>
+  try {
+    pending = identity.reportAccess(login)
+  } catch {
+    note('access.report-fault')
+    return
+  }
+  Promise.resolve(pending).catch(() => note('access.report-fault'))
 }
 
 export type Pipeline = Readonly<{
@@ -267,10 +336,10 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
         key: observationKey(address, messageId, login),
         ...(login === undefined
           ? {}
-          : { loginKey: login.proof, checkLogin: () => checkLogin(login) }),
+          : { loginKey: login.proof, checkLogin: () => checkLogin(access.identity, login) }),
         ...(login === undefined || member.contract.countsAsAccess !== true
           ? {}
-          : { reportAccess: () => report(login.identity, note) }),
+          : { reportAccess: () => report(access.identity, login.identity, note) }),
         note,
         res,
       })
@@ -285,50 +354,45 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
       config: { graceMs: access.graceMs },
       clock,
       respond: answer => writeAnswer(res, { ...answer, messageId, close: false }),
-      ...(login === undefined ? {} : { reportAccess: () => report(login.identity, note) }),
+      ...loginHooks(access.identity, login, member.contract, note),
+      note,
     })
   }
 
-  async function checkLogin(login: SignedIn): Promise<LoginCheck> {
-    const result = await access.identity.identifyLogin(login.proof)
-    if (result.outcome === 'identified') return 'valid'
-    return result.outcome === 'denied' ? 'denied' : 'unavailable'
-  }
-
-  function report(login: LoginIdentity, note: (code: PipelineDiagnosticCode) => void): void {
-    let pending: Promise<void>
-    try {
-      pending = access.identity.reportAccess(login)
-    } catch {
-      note('access.report-fault')
+  async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const admission = admit(req, access.registry, settings.loopback)
+    if (admission.kind === 'refused') {
+      diagnose(eventOf(admission.code, admission.path, admission.address))
+      writeBare(res, admission.status, admission.status === 405 ? { allow: 'POST' } : {})
       return
     }
-    Promise.resolve(pending).catch(() => note('access.report-fault'))
+    const release = settings.slots.take(res)
+    if (release === undefined) {
+      diagnose(eventOf('access.busy', admission.address.path, admission.address))
+      writeBare(res, 429, { 'x-omne-limit': 'in-flight-requests' })
+      admission.entered.leave()
+      return
+    }
+    try {
+      await serve(req, res, admission)
+    } catch (fault) {
+      admission.entered.leave()
+      throw fault
+    } finally {
+      release()
+    }
   }
 
   return {
     endObservations: () => hub.endAll(),
     async handle(req, res) {
-      const admission = admit(req, access.registry, settings.loopback)
-      if (admission.kind === 'refused') {
-        diagnose(eventOf(admission.code, admission.path, admission.address))
-        writeBare(res, admission.status, admission.status === 405 ? { allow: 'POST' } : {})
-        return
-      }
-      const release = settings.slots.take(res)
-      if (release === undefined) {
-        diagnose(eventOf('access.busy', admission.address.path, admission.address))
-        writeBare(res, 429, { 'x-omne-limit': 'in-flight-requests' })
-        admission.entered.leave()
-        return
-      }
       try {
-        await serve(req, res, admission)
+        await handle(req, res)
       } catch (fault) {
-        admission.entered.leave()
+        const target = req.url ?? ''
+        const address = parseAddress(target)
+        diagnose(eventOf('access.request-fault', address?.path ?? pathOf(target), address))
         throw fault
-      } finally {
-        release()
       }
     },
   }

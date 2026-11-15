@@ -1,8 +1,8 @@
 {
   "format": 1,
   "id": "typescript-package",
-  "version": "4.0.0",
-  "ruleSet": 4,
+  "version": "5.0.0",
+  "ruleSet": 5,
   "common": [
     {
       "source": "common/package.json.tpl",
@@ -107,7 +107,10 @@
       "vitest.config.ts",
       "vitest.acceptance.config.ts",
       "src/**/*.ts",
+      "src/**/*.tsx",
+      "src/**/*.css",
       "tests/**/*.ts",
+      "tests/**/*.tsx",
       "tests/**/*.mjs",
       "tests/**/*.py",
       "tests/fixtures/**/*",
@@ -135,6 +138,7 @@
       "resources/**/*.json",
       "resources/**/*.jinja",
       "resources/**/*.model",
+      "resources/**/*.woff2",
       "resources/**/LICENSE",
       "resources/**/LICENSE.*",
       "api/*.api.md"
@@ -156,6 +160,7 @@
       {
         "patterns": [
           "tests/**/*.spec.ts",
+          "tests/**/*.spec.tsx",
           "tests/**/*.spec-d.ts",
           "tests/basis/**/*.test.ts"
         ],
@@ -164,6 +169,97 @@
     ]
   },
   "previousVersions": {
+    "4.0.0": {
+      "requiredFiles": [
+        "package.json",
+        "tsconfig.build.json",
+        "tsconfig.test.json",
+        "vitest.config.ts",
+        "src/index.ts",
+        "tests/public-entry.spec.ts"
+      ],
+      "variantRequiredFiles": {
+        "module": [],
+        "cordis-module": [
+          "src/cordis.ts",
+          "tests/cordis-entry.spec.ts"
+        ],
+        "service-contract": [
+          "src/cordis.ts",
+          "tests/cordis-entry.spec.ts"
+        ],
+        "service-provider": [
+          "src/cordis.ts",
+          "tests/cordis-entry.spec.ts"
+        ]
+      },
+      "layout": {
+        "files": [
+          "package.json",
+          "README.md",
+          "tsconfig.build.json",
+          "tsconfig.test.json",
+          "vitest.config.ts",
+          "vitest.acceptance.config.ts",
+          "src/**/*.ts",
+          "tests/**/*.ts",
+          "tests/**/*.mjs",
+          "tests/**/*.py",
+          "tests/fixtures/**/*",
+          "schema/**/*.json",
+          "verification/models/**/*.tla",
+          "verification/models/**/*.cfg",
+          "verification/models/**/*.als",
+          "verification/models/**/*.ts",
+          "verification/models/**/*.py",
+          "verification/models/**/*.json",
+          "verification/models/**/*.smt2",
+          "verification/proofs/**/*.tex",
+          "verification/proofs/**/*.lean",
+          "verification/proofs/**/*.v",
+          "verification/proofs/**/*.dfy",
+          "verification/proofs/**/*.smt2",
+          "acceptance/**/*.ts",
+          "acceptance/fixtures/**/*",
+          "examples/**/*.ts",
+          "examples/**/*.mjs",
+          "provenance.json",
+          "UPSTREAM.md",
+          "LICENSE",
+          "LICENSE.*",
+          "resources/**/*.json",
+          "resources/**/*.jinja",
+          "resources/**/*.model",
+          "resources/**/LICENSE",
+          "resources/**/LICENSE.*",
+          "api/*.api.md"
+        ],
+        "requiredDirectories": [
+          "src",
+          "tests"
+        ],
+        "ignoredDirectories": [
+          "node_modules",
+          "dist",
+          "generated",
+          "coverage",
+          "tmp",
+          ".turbo"
+        ],
+        "companions": [],
+        "requiredFileGroups": [
+          {
+            "patterns": [
+              "tests/**/*.spec.ts",
+              "tests/**/*.spec-d.ts",
+              "tests/basis/**/*.test.ts"
+            ],
+            "minimum": 1
+          }
+        ]
+      },
+      "ruleSet": 4
+    },
     "3.0.0": {
       "requiredFiles": [
         "package.json",

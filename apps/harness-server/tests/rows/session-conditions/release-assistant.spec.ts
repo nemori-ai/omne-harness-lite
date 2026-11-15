@@ -9,7 +9,10 @@ import {
 } from '@omne-harness/agent-cordis-contract/cordis'
 import { createSessionConditionsPlugin } from '@omne-harness/session-adapters/cordis'
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
-import { contentDigest, definitionMappingsKey } from '@omne-harness/server-entry/cordis'
+import {
+  contentDigest,
+  definitionMappingsKey,
+} from '../../../src/rows/agent-adoptions/definition-mappings.ts'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { describe, expect, it } from 'vitest'
 import * as cordis from '../../../src/cordis.ts'
@@ -18,7 +21,7 @@ import { defaultModesOf } from '../../../src/rows/session-conditions/index.ts'
 import { runServe } from '../../../src/run.ts'
 import { bodyOf, freePort, newScratch, operatorLayer, runOmne } from '../../r9/support.ts'
 import { startModelGateway } from '../../fixtures/model-gateway.ts'
-import { connectable, until } from '../server-entry/support.ts'
+import { connectable, until } from '../../support/listening.ts'
 
 type Answer = Readonly<{ ok: true } | { ok: false; kind: string }>
 type Mapping = Record<string, unknown> & { name?: unknown; initialModelSelection?: unknown }

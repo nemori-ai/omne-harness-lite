@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft sdk package; complete the accepted public contract before delivery",
+  "description": "Client core for access protocols, with the HTTP and in-process transports",
   "engines": {
     "node": ">=24"
   },

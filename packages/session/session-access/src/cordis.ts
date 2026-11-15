@@ -11,6 +11,7 @@ import type {
   DefinitionResolver,
   PrincipalFacts,
   RequestJournal,
+  RunFailureCauses,
   SessionAccessFaces,
   SessionAccessSettings,
   SessionListing,
@@ -27,6 +28,7 @@ export type SessionAccessPluginInput<S = SessionAccessSettings> = Readonly<{
   facts: PrincipalFacts
   definitions: (ctx: Context) => DefinitionResolver | undefined
   listing: (directory: SessionDirectory<Principal>) => SessionListing
+  causes?: (ctx: Context) => RunFailureCauses | undefined
   prepareCreation?: (input: SessionCreateInput) => SessionCreateInput
 }>
 
@@ -63,17 +65,22 @@ export function createSessionAccessPlugin<S extends SessionAccessSettings>(
     async apply(ctx: Context, settings: S) {
       const principals = input.principals(ctx)
       const faces = () => facesOf(ctx, input.prepareCreation)
-      const journal = await input.journal(settings)
+      const opening = input.journal(settings)
+      let drain: ReturnType<typeof createRequestDrain> | undefined
+      ctx.effect(() => async () => {
+        drain?.stop()
+        const opened = await opening.catch(() => undefined)
+        await opened?.close()
+      })
+      const journal = await opening
+      if (ctx.fiber.uid === null) return
       const requests = createRequestDrain({
         journal,
         admit: request => admitRequest({ principals, facts: input.facts, faces }, request),
         limit: settings.requestQueueLimit,
         retryDelaysMs: settings.requestRetryDelaysMs,
       })
-      ctx.effect(() => async () => {
-        requests.stop()
-        await journal.close()
-      })
+      drain = requests
       ctx.plugin(
         defineAccessPlugin({
           name: `${SESSION_ACCESS_PLUGIN}.contribution`,
@@ -88,6 +95,7 @@ export function createSessionAccessPlugin<S extends SessionAccessSettings>(
                 const directory = sessionOf(ctx, 'reader')?.directory
                 return directory === undefined ? undefined : input.listing(directory)
               },
+              causes: () => input.causes?.(ctx),
               principals,
               facts: input.facts,
               settings,

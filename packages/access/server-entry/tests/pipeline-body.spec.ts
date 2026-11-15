@@ -6,7 +6,7 @@ import {
   rawHeaders,
   startAccessFixture,
   type AccessFixture,
-} from './support/pipeline-kit.ts'
+} from './support/access-kit.ts'
 
 const REJECTED = '{"outcome":"protocol-rejected","body":{}}'
 const SIZE = 3000

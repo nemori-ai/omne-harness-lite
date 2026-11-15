@@ -6,6 +6,7 @@ import type { MutationName, SessionCommand, SessionTransactionPort } from './por
 export type SessionReadAccessOperation =
   | 'listTodos'
   | 'readWork'
+  | 'readWaiting'
   | 'readInput'
   | 'queryOperation'
   | 'readModelSelection'

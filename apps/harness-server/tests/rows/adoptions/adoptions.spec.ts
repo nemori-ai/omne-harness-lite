@@ -1,6 +1,6 @@
 import { agentEvaluator } from '@omne-harness/agent'
 import type { AdoptionEvidenceCommand } from '@omne-harness/session-contract'
-import { modesAdoptionOf } from '@omne-harness/server-entry/cordis'
+import { modesAdoptionOf } from '../../../src/rows/agent-adoptions/definition-mappings.ts'
 import { describe, expect, test } from 'vitest'
 import { agentAdoptionsConfig } from '../../../src/rows/agent-adoptions/config.ts'
 import { buildTable } from '../../../src/rows/agent-adoptions/table.ts'

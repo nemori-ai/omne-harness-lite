@@ -5,7 +5,7 @@ import {
   type SystemPrincipal,
 } from '@omne-harness/identity'
 import { accountEquals, type TenantId } from '@omne-harness/legal-identity'
-import type { HitlEntryIssue, HitlEntryPrincipals } from '@omne-harness/server-entry'
+import type { HitlEntryIssue, HitlEntryPrincipals } from '@omne-harness/human-intervention-access'
 
 export const HITL_ENTRY_COMPONENT = 'server-entry'
 export const HITL_ENTRY_WORK = Object.freeze({ owner: 'harness.hitl', work: 'cards' })
@@ -23,7 +23,7 @@ export function createHitlEntryPrincipals(
     actor = issued.ok
     return actor
   }
-  return Object.freeze({
+  const principals: HitlEntryPrincipals = {
     issue: async ({ account, tenant }) => {
       if (!accountEquals(tenant.account, account)) return REFUSED
       const system = actorOf()
@@ -31,7 +31,8 @@ export function createHitlEntryPrincipals(
       const issued = issuer.issueActingForTenant({ actor: system, tenant, work: HITL_ENTRY_WORK })
       return 'ok' in issued ? { kind: 'issued', principal: issued.ok } : REFUSED
     },
-  })
+  }
+  return Object.freeze(principals)
 }
 
 export function hitlEntryRef(tenant: TenantId): string {

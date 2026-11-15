@@ -1,36 +1,11 @@
 export { createServerEntry } from './http.ts'
-export type { Listening, ServerEntry, ServerEntryAccess, ServerEntryDependencies } from './http.ts'
+export type { Listening, ServerEntry, ServerEntryAccess } from './http.ts'
 export type { JsonBudgets, ServerEntryConfig } from './config.ts'
 export { ServerEntryConfigError } from './config.ts'
-export type {
-  DefinitionResolver,
-  HitlEntryIssue,
-  HitlEntryPrincipals,
-  HitlIngressFaces,
-  ResolvedDefinition,
-  SessionIngressFaces,
-} from './faces.ts'
-export type {
-  AgentFinishReader,
-  DiagnosticPorts,
-  ModelAttemptReader,
-  ModelCallInspector,
-  ToolCallReader,
-} from './session-view/index.ts'
-export type { DiagnosticSink, ServerEntryDiagnostic } from './diagnostics.ts'
 export type {
   PipelineDiagnostic as AccessDiagnostic,
   PipelineDiagnosticCode as AccessDiagnosticCode,
 } from './pipeline/pipeline.ts'
-export type {
-  SettingRef,
-  SettingsAccess,
-  SettingsClearOutcome,
-  SettingsDescribeOutcome,
-  SettingsGovernance,
-  SettingsListOutcome,
-  SettingsSetOutcome,
-} from './settings.ts'
 export { createAccessRegistry } from './registry/registry.ts'
 export type {
   AccessRegistry,

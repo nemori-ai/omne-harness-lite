@@ -6,7 +6,7 @@ import { rowManifests } from '../../../src/s0/stubs.ts'
 import { SHELL, settledSession } from '../../governance/tenant-settings-support.ts'
 import { savedLoginProof, savedTenant } from '../../r9/support.ts'
 import { onReleaseTree, toolCallsThenText, type ReleaseTree } from '../../support/release-tree.ts'
-import { until } from '../server-entry/support.ts'
+import { until } from '../../support/listening.ts'
 
 type Reply = Readonly<{ status: number; json: unknown }>
 

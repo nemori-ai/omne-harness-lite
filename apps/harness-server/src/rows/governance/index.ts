@@ -30,6 +30,7 @@ import {
 import { createToolGovernanceDefinitionSource } from './tool-definition-source.ts'
 import { prepareInstalledTenantGovernance } from './tenant-installation.ts'
 import { TenantGovernanceHost } from './tenant-host.ts'
+import { tenantDomainRegistrationKey } from './tenant-domain-registration-service.ts'
 import { openOrganizationSettingsSources } from './organization-settings.ts'
 import { permissionOriginsOf } from './permission-origins.ts'
 import { CurrentPermissionService, currentToolPermissionKey } from './current-permission-service.ts'
@@ -125,11 +126,12 @@ export const governanceRow = defineRow({
     ctx.effect(() => () => sources.close(), 'governance.settings-sources.close')
     const host = new TenantGovernanceHost({
       domains: ctx.tenantDomainLookup,
+      registration: () => ctx.get(tenantDomainRegistrationKey),
       report: failure =>
         ctx
           .logger('governance')
           .warn(
-            `tenant governance did not open: tenant=${failure.tenantRef} phase=${failure.phase} failures=${failure.failures}; again in ${failure.againInMs} ms`,
+            `tenant governance did not open: tenant=${failure.tenantRef} phase=${failure.phase} reason=${failure.reason} failures=${failure.failures}; again in ${failure.againInMs} ms`,
           ),
       prepare(tenantRef, domain) {
         const tenant = tenantCodec.parse(tenantRef)

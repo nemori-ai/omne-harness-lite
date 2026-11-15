@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { accessProtocol, type GovernanceCodecLimits } from '@omne-harness/public-contract'
+import type { JsonLimits } from '@omne-harness/json-text'
+import { accessProtocol } from '@omne-harness/public-contract'
 
-const limits: GovernanceCodecLimits = {
+const limits: JsonLimits = {
   maxBytes: 65_536,
   maxDepth: 16,
   maxItems: 1_000,

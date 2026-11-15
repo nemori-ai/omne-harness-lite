@@ -1,18 +1,26 @@
-import type {
-  SessionCallAccountView,
-  SessionDiagnosticGap,
-  SessionDiagnosticMilliseconds,
-  SessionDiagnosticUnknown,
-  SessionFactCount,
-  SessionModelAttemptDiagnostic,
-  SessionModelCallDiagnostic,
-  SessionRunAttempts,
-  SessionRunCause,
-  SessionRunControl,
-  SessionRunDiagnostic,
-  SessionToolCallDiagnostic,
-  SessionToolDiagnosticEntry,
-} from '@omne-harness/sdk'
+import type { SessionDiagnosticsProtocol } from '@omne-harness/session-diagnostics-protocol'
+import type { AnswerOf } from '@omne-harness/sdk/core'
+
+type Page = Extract<
+  AnswerOf<SessionDiagnosticsProtocol['operations']['read-session-diagnostics']>,
+  { readonly outcome: 'succeeded' }
+>['body']
+export type SessionRunDiagnostic = Page['runs'][number]
+export type SessionDiagnosticGap = Page['gaps'][number]
+type SessionModelCallDiagnostic = SessionRunDiagnostic['modelCalls'][number]
+type SessionModelAttemptDiagnostic = SessionModelCallDiagnostic['dispatches'][number]
+type SessionToolCallDiagnostic = SessionRunDiagnostic['toolCalls'][number]
+type SessionDiagnosticUnknown = Extract<SessionModelCallDiagnostic['call'], { kind: 'unknown' }>
+type SessionCallAccountView = Extract<SessionModelAttemptDiagnostic['account'], { kind: 'account' }>
+type SessionDiagnosticMilliseconds = SessionModelAttemptDiagnostic['timing']['materialize']
+type SessionFactCount = SessionRunDiagnostic['facts'][number]
+type SessionRunAttempts = SessionRunDiagnostic['attempts']
+type SessionRunCause = NonNullable<SessionRunDiagnostic['terminal']>['cause']['structured']
+type SessionRunControl = SessionRunDiagnostic['controls'][number]
+type SessionToolDiagnosticEntry = Exclude<
+  SessionToolCallDiagnostic['diagnostics'],
+  { kind: 'unknown' }
+>[number]
 
 function at(depth: number, line: string): string {
   return `${'  '.repeat(depth)}${line}`
