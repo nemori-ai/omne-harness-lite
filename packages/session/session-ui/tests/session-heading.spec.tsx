@@ -1,0 +1,56 @@
+// @vitest-environment happy-dom
+import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { afterEach, expect, it } from 'vitest'
+import { createFakeClient } from './fixtures/fake-client.ts'
+import { listed, listPage, page } from './fixtures/frames.ts'
+import { mountModule } from './fixtures/shell.tsx'
+
+const TENANT =
+  '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
+const LONG = `ses_${'0123456789abcdef'.repeat(4)}`
+
+afterEach(cleanup)
+
+async function settle(): Promise<void> {
+  await act(async () => {
+    for (let round = 0; round < 5; round += 1) await Promise.resolve()
+    await new Promise(resolve => setTimeout(resolve, 0))
+  })
+}
+
+function heading(): HTMLElement {
+  const banner = screen.getByRole('region', { name: '对话' }).querySelector('header')
+  if (banner === null) throw new Error('no page header')
+  return banner
+}
+
+it('页头：主标题是列表里的名字，会话标识缩短放在副位置，可以复制整串', async () => {
+  const fake = createFakeClient()
+  await mountModule(fake.client, TENANT)
+  ;(await fake.next('list-sessions')).answer(listPage([listed(LONG, 'say hello')]))
+  await settle()
+  fireEvent.click(screen.getByRole('button', { name: /say hello/ }))
+  await settle()
+  ;(await fake.next('read-history')).answer({ outcome: 'succeeded', body: page([], '1') })
+  await settle()
+  const banner = heading()
+  expect(within(banner).getByRole('heading').textContent).toBe('say hello')
+  expect(banner.textContent).not.toContain(LONG)
+  const id = within(banner).getByTitle(LONG)
+  expect(id.textContent).toBe(`${LONG.slice(0, 12)}…`)
+  expect(within(banner).getByRole('button', { name: '复制会话标识' })).toBeTruthy()
+})
+
+it('页头：会话还不在列表里时，主标题是「新会话」', async () => {
+  const fake = createFakeClient()
+  await mountModule(fake.client, TENANT)
+  ;(await fake.next('list-sessions')).answer(listPage([]))
+  await settle()
+  fireEvent.click(screen.getByRole('button', { name: '新建会话' }))
+  ;(await fake.next('create-session')).answer({
+    outcome: 'succeeded',
+    body: { session: LONG, recovered: false },
+  })
+  await settle()
+  expect(within(heading()).getByRole('heading').textContent).toBe('新会话')
+})

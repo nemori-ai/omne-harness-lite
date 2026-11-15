@@ -2,9 +2,15 @@ import { AddIcon, Button, StatusPill } from '@omne-harness/ui-kit'
 import { encodeInstant, type Instant } from '@omne-harness/utc-instant'
 import { useSyncExternalStore } from 'react'
 import type { SessionDriver } from '../model/session-driver.ts'
-import { shownBy, type ListedSession, type SessionList } from '../model/session-list.ts'
+import {
+  sessionName,
+  shownBy,
+  type ListedSession,
+  type SessionList,
+} from '../model/session-list.ts'
 import { createInFlight } from '../model/session-machine.ts'
 import type { SessionWorkspaces } from '../model/session-workspaces.ts'
+import { formatMoment } from './moment.ts'
 import { NoticeLine } from './notice.tsx'
 import { useSession } from './use-session.ts'
 
@@ -63,16 +69,11 @@ const LIFECYCLE: Readonly<Partial<Record<ListedSession['lifecycle'], string>>> =
   archived: '已归档',
 }
 
-function itemTitle(item: ListedSession): string {
-  return item.title ?? `未命名的会话 ${item.session.slice(0, 8)}`
-}
-
 function Moment({ label, at }: { readonly label: string; readonly at: Instant | null }) {
   if (at === null) return null
-  const text = encodeInstant(at)
   return (
     <span>
-      {label} <time dateTime={text}>{new Date(text).toLocaleString()}</time>
+      {label} <time dateTime={encodeInstant(at)}>{formatMoment(at)}</time>
     </span>
   )
 }
@@ -99,7 +100,7 @@ function SessionRow({
         disabled={locked}
         onClick={onOpen}
       >
-        <span className="omne-session-item-title">{itemTitle(item)}</span>
+        <span className="omne-session-item-title">{sessionName(item)}</span>
         {dated || lifecycle !== undefined ? (
           <span className="omne-session-item-meta">
             <Moment label="最近活动" at={item.lastActivityAt} />

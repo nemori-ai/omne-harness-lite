@@ -4,6 +4,7 @@ import { parseInstant } from '@omne-harness/utc-instant'
 import { afterEach, expect, it } from 'vitest'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { mountModule } from './fixtures/shell.tsx'
+import { formatMoment } from '../src/view/moment.ts'
 import {
   assistantEntry,
   deltaTree,
@@ -231,7 +232,7 @@ it('列表项有最近活动时刻时显示它，机读的值是那个 UTC 时�
   await settle()
   const time = screen.getByRole('navigation', { name: '会话列表' }).querySelector('time')
   expect(time?.getAttribute('datetime')).toBe('2026-11-13T07:00:00Z')
-  expect(time?.textContent).toBe(new Date('2026-11-13T07:00:00Z').toLocaleString())
+  expect(time?.textContent).toBe(formatMoment(at.value))
 })
 
 it('列表项：无标题写「未命名的会话」与标识前 8 位，无时刻不显示，已冻结标出；更多接在后面', async () => {
