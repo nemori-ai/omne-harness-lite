@@ -118,6 +118,8 @@ export type World = Readonly<{
   issue(login: FixtureLogin, target?: TenantId): Principal
   refuseTargets(refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined): void
   refuseResumes(refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined): void
+  breakFacts(fault: 'throw' | 'undescribed' | undefined): void
+  useDefinitions(resolver: DefinitionResolver): void
   resumes(): readonly Readonly<{ tenant: string; login: string }>[]
   remove(port: 'faces' | 'observation' | 'definitions' | 'listing' | 'causes'): void
   put(port: 'faces' | 'observation' | 'definitions' | 'listing' | 'causes'): void
@@ -150,6 +152,8 @@ export function createWorld(
   if ('failure' in system) throw new Error('fixture system principal not issued')
   let refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined
   let resumeRefusal: 'denied' | 'basis-unavailable' | 'throw' | undefined
+  let factsFault: 'throw' | 'undescribed' | undefined
+  let resolver: DefinitionResolver = resolveDefinition
   const resumes: { tenant: string; login: string }[] = []
   const admissions: QueuedRequest[] = []
   const store = createJournalDouble()
@@ -197,6 +201,8 @@ export function createWorld(
 
   const facts: PrincipalFacts = {
     describe(principal) {
+      if (factsFault === 'throw') throw new Error('identity fault')
+      if (factsFault === 'undescribed') return undefined
       const acting = principal as unknown as ActingForTenantPrincipal
       if (acting.kind !== 'acting-for-tenant' || acting.work.owner !== 'identity-login')
         return undefined
@@ -269,7 +275,7 @@ export function createWorld(
     const contribution = createSessionContribution({
       faces,
       observation: () => (removed.has('observation') ? undefined : observation),
-      definitions: () => (removed.has('definitions') ? undefined : resolveDefinition),
+      definitions: () => (removed.has('definitions') ? undefined : resolver),
       listing: () => (removed.has('listing') ? undefined : listing),
       causes: () => (removed.has('causes') ? undefined : causes),
       principals,
@@ -289,6 +295,12 @@ export function createWorld(
     },
     refuseResumes: next => {
       resumeRefusal = next
+    },
+    breakFacts: next => {
+      factsFault = next
+    },
+    useDefinitions: next => {
+      resolver = next
     },
     resumes: () => [...resumes],
     remove: port => {

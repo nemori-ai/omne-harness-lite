@@ -42,6 +42,8 @@ export type SessionDoubleRecord = Readonly<{
   input: unknown
 }>
 
+type ControlAnswer = SessionControlReceipt<never>['answer']
+
 type Committed = Readonly<{ kind: string; digest: string; receipt: CommitReceipt }>
 type SessionRecord = {
   readonly tenant: TenantId
@@ -57,6 +59,9 @@ export type SessionDoubleControls = Readonly<{
   checkExistenceOnQuery(check: boolean): void
   failWith(failure: SessionFailure): void
   failNext(...failures: readonly SessionFailure[]): void
+  failQueryWith(failure: SessionFailure | undefined): void
+  resolveQueryWith(resolution: OperationResolution | undefined): void
+  answerControlWith(answer: ControlAnswer | undefined): void
   loseAnswers(count: number): void
   restore(): void
   addRun(session: SessionId, run: string): void
@@ -99,6 +104,9 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
   let existenceOnQuery = true
   let commits = 0
   let lostAnswers = 0
+  let queryFailure: SessionFailure | undefined
+  let queryResolution: OperationResolution | undefined
+  let controlAnswer: ControlAnswer | undefined
   const failures: SessionFailure[] = []
   let waitingAnswer: SessionWaiting | null = null
 
@@ -216,6 +224,8 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'queryOperation' })
       if (existenceOnQuery && existing(input) === undefined)
         return fail({ kind: 'denied', action: 'queryOperation' })
+      if (queryFailure !== undefined) return fail(queryFailure)
+      if (queryResolution !== undefined) return succeed(queryResolution)
       const found = committed.get(input.operation)
       const resolution: OperationResolution =
         found === undefined
@@ -231,7 +241,7 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       const content = { kind: 'cancelRun', run: input.run, urgency: input.urgency }
       const outcome = commit('cancelRun', input.operation, content)
       if ('failure' in outcome) return outcome
-      const answer: SessionControlReceipt<never>['answer'] = session.runs.has(input.run)
+      const known: ControlAnswer = session.runs.has(input.run)
         ? {
             kind: 'requested',
             progress: {
@@ -243,6 +253,7 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
             },
           }
         : { kind: 'not-found' }
+      const answer = controlAnswer ?? known
       return succeed({ operation: input.operation, source: outcome.ok.source, answer })
     },
     async stopCall(input) {
@@ -258,7 +269,7 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       return succeed({
         operation: input.operation,
         source: outcome.ok.source,
-        answer: { kind: 'not-found' },
+        answer: controlAnswer ?? { kind: 'not-found' },
       })
     },
   }
@@ -329,6 +340,15 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       },
       failNext: (...next: readonly SessionFailure[]) => {
         failures.push(...next)
+      },
+      failQueryWith: (failure: SessionFailure | undefined) => {
+        queryFailure = failure
+      },
+      resolveQueryWith: (resolution: OperationResolution | undefined) => {
+        queryResolution = resolution
+      },
+      answerControlWith: (answer: ControlAnswer | undefined) => {
+        controlAnswer = answer
       },
       loseAnswers: (count: number) => {
         lostAnswers = count
