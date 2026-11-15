@@ -13,6 +13,7 @@ import type {
   SessionManagement,
   SessionOperationId,
   SessionRevision,
+  SessionWaiting,
   SessionWork,
 } from '@omne-harness/session-contract'
 import { evidence } from '@omne-harness/session-contract/testing'
@@ -30,6 +31,7 @@ type FaceMethod =
   | 'retryRun'
   | 'history.begin'
   | 'history.next'
+  | 'readWaiting'
 
 export type SessionDoubleRecord = Readonly<{
   method: FaceMethod
@@ -63,6 +65,7 @@ export type SessionDoubleControls = Readonly<{
     entry: Readonly<{ id: string; kind: string; payload: unknown }>,
   ): void
   sessions(): ReadonlyMap<string, SessionRecord>
+  waitWith(waiting: SessionWaiting | null): void
 }>
 
 export type SessionDouble = Readonly<{
@@ -97,6 +100,7 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
   let commits = 0
   let lostAnswers = 0
   const failures: SessionFailure[] = []
+  let waitingAnswer: SessionWaiting | null = null
 
   const record = (method: FaceMethod, access: SessionAccess<P>, input: unknown): void => {
     calls.push({
@@ -186,8 +190,15 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
 
   const work: Pick<
     SessionWork<P>,
-    'accept' | 'queryOperation' | 'cancelRun' | 'stopCall' | 'retryRun'
+    'accept' | 'queryOperation' | 'cancelRun' | 'stopCall' | 'retryRun' | 'readWaiting'
   > = {
+    async readWaiting(input) {
+      record('readWaiting', input, {})
+      if (accessDenied(input)) return fail({ kind: 'denied', action: 'readWaiting' })
+      if (existing(input) === undefined) return fail({ kind: 'denied', action: 'readWaiting' })
+      if (forcedFailure !== undefined) return fail(forcedFailure)
+      return succeed(waitingAnswer)
+    },
     async retryRun(input) {
       record('retryRun', input, { run: input.run })
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'retryRun' })
@@ -337,6 +348,9 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
           if (key.endsWith(`#${session}`)) record.entries.push(entry)
       },
       sessions: () => new Map(sessions),
+      waitWith: (waiting: SessionWaiting | null) => {
+        waitingAnswer = waiting
+      },
     }),
   })
 }

@@ -161,6 +161,11 @@ export const SESSION_POLICY = Object.freeze({
     ),
   ),
   readWork: row(deny(NO_SOURCE), member('SS:552，DA4 §4.1'), deny(NO_SYSTEM_READ)),
+  readWaiting: row(
+    member('`session/v1` 的 `read-waiting`，packages/session/SPEC.md「等人」'),
+    deny(NO_SOURCE),
+    deny(NO_SYSTEM_READ),
+  ),
   readInput: row(
     deny(NO_SOURCE),
     member('SS:553，AD:446 AD-14 读输入，DA4 §4.1'),

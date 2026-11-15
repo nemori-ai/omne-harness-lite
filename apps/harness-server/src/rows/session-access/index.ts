@@ -31,6 +31,7 @@ import {
 import { LOCAL_HISTORY_KINDS } from '../../local/operator-defaults.ts'
 import { defineRow } from '../../row.ts'
 import { governanceOfCall, identityOfCall } from '../server-entry/identity.ts'
+import { runFailureCauses } from './causes.ts'
 
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
 
@@ -140,6 +141,7 @@ const plugin = createSessionAccessPlugin({
   facts: principalFacts,
   definitions: definitionsOf,
   listing: sessionListingOf,
+  causes: runFailureCauses,
   prepareCreation,
 })
 

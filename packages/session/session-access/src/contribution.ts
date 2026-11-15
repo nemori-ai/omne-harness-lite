@@ -36,11 +36,13 @@ import { retryRun } from './retry-run.ts'
 import type {
   DefinitionResolver,
   PrincipalFacts,
+  RunFailureCauses,
   SessionAccessFaces,
   SessionAccessSettings,
   SessionListing,
   TargetTenantPrincipals,
 } from './ports.ts'
+import { readWaiting } from './read-waiting.ts'
 import type { RequestDrain } from './request-drain.ts'
 import { querySendInput, sendInput } from './send-input.ts'
 
@@ -49,6 +51,7 @@ export type SessionContributionInput = Readonly<{
   observation: () => SessionObservation<Principal> | undefined
   definitions: () => DefinitionResolver | undefined
   listing: () => SessionListing | undefined
+  causes: () => RunFailureCauses | undefined
   principals: TargetTenantPrincipals
   facts: PrincipalFacts
   settings: SessionAccessSettings
@@ -413,6 +416,8 @@ export function createSessionContribution(
       'send-input': (call, body) => sendInput(sending, call.principal, body),
       'query-send-input': (call, body) => querySendInput(sending, call.principal, body),
       'read-history': (call, body) => readHistory(call.principal, body),
+      'read-waiting': (call, body) =>
+        readWaiting({ admit, causes: input.causes }, call.principal, body),
       'cancel-run': (call, body) => cancelRun(call.principal, body),
       'stop-call': (call, body) => stopCall(call.principal, body),
       'retry-run': (call, body) => retryRun({ admit, factOf }, call.principal, body),

@@ -1,15 +1,16 @@
 import { listTodos } from './todos.ts'
-import { fail } from '@omne-harness/operation-result'
-import type {
-  MutationName,
-  SessionAccess,
-  SessionCallerClass,
-  SessionCommand,
-  SessionDirectory,
-  SessionFaces,
-  SessionManagement,
-  SessionReconciliation,
-  SessionWork,
+import { fail, succeed } from '@omne-harness/operation-result'
+import {
+  judgeWaiting,
+  type MutationName,
+  type SessionAccess,
+  type SessionCallerClass,
+  type SessionCommand,
+  type SessionDirectory,
+  type SessionFaces,
+  type SessionManagement,
+  type SessionReconciliation,
+  type SessionWork,
 } from '@omne-harness/session-contract'
 import type { CommandHandler } from './command.ts'
 import type { SessionDependencies } from './dependencies.ts'
@@ -58,6 +59,11 @@ export function createFaces<P>(
       reads.session(caller, 'readWork', value, view =>
         readSnapshot(view, accessOf(value), 'readWork'),
       ),
+    readWaiting: value =>
+      reads.session(caller, 'readWaiting', value, async view => {
+        const snapshot = await readSnapshot(view, accessOf(value), 'readWaiting')
+        return 'failure' in snapshot ? snapshot : succeed(judgeWaiting(snapshot.ok))
+      }),
     readInput: value =>
       reads.session(caller, 'readInput', value, view =>
         view.readInput({ ...accessOf(value), input: value.input }),
