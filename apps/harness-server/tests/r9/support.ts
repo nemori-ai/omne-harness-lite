@@ -8,7 +8,6 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs'
-import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -30,17 +29,7 @@ export const READINESS_TIMEOUT_MS = 15_000
 
 export type Rec = { kind: string } & Record<string, unknown>
 
-export function freePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const probe = createServer()
-    probe.on('error', reject)
-    probe.listen(0, '127.0.0.1', () => {
-      const address = probe.address()
-      const port = typeof address === 'object' && address !== null ? address.port : 0
-      probe.close(() => resolve(port))
-    })
-  })
-}
+export { freePort } from '../support/listening.ts'
 
 export type Scratch = Readonly<{
   base: string
