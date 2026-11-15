@@ -1141,6 +1141,9 @@ importers:
       '@omne-harness/assets-protocol':
         specifier: workspace:*
         version: link:../assets-protocol
+      '@omne-harness/client-assembly':
+        specifier: workspace:*
+        version: link:../../access/client-assembly
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
@@ -1150,6 +1153,12 @@ importers:
       '@omne-harness/sdk':
         specifier: workspace:*
         version: link:../../access/sdk
+      '@omne-harness/shell-contract':
+        specifier: workspace:*
+        version: link:../../frontend/shell-contract
+      '@omne-harness/ui-kit':
+        specifier: workspace:*
+        version: link:../../frontend/ui-kit
       react:
         specifier: 'catalog:'
         version: 19.3.0
@@ -1157,6 +1166,9 @@ importers:
         specifier: 'catalog:'
         version: 19.3.0(react@19.3.0)
     devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@testing-library/dom':
         specifier: 'catalog:'
         version: 10.4.2
