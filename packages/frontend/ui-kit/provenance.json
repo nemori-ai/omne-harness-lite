@@ -4,8 +4,8 @@
   "authorization": "Project owner, 2026-11-13: design language, visuals, motion, assets, fonts and front-end stack may be reused.",
   "licenses": {
     "LICENSE.shadcn": "MIT, copyright shadcn; the base controls derive from shadcn/ui new-york-v4",
-    "resources/fonts/Inter-OFL.txt": "SIL OFL 1.1",
-    "resources/fonts/JetBrainsMono-OFL.txt": "SIL OFL 1.1",
+    "resources/fonts/LICENSE.Inter": "SIL OFL 1.1",
+    "resources/fonts/LICENSE.JetBrainsMono": "SIL OFL 1.1",
     "upstream_repository": "The upstream repository carries no LICENSE file; reuse rests on the authorization above."
   },
   "not_taken": [

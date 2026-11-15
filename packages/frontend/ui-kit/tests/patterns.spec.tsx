@@ -167,8 +167,8 @@ it('LoadingIndicator is decorative and LoadingState names itself', () => {
   expect(screen.getByRole('status', { name: '加载中' })).toBeTruthy()
 })
 
-it('PageHeader shows title, description and actions; PageColumn is the main region', () => {
-  render(
+it('PageHeader shows title, description and actions; PageColumn is a plain block, not a landmark', () => {
+  const { container } = render(
     <PageColumn>
       <PageHeader
         title="设置"
@@ -177,7 +177,8 @@ it('PageHeader shows title, description and actions; PageColumn is the main regi
       />
     </PageColumn>,
   )
-  expect(screen.getByRole('main').className).toContain('page-column')
+  expect(container.querySelector('div.page-column')).toBeTruthy()
+  expect(screen.queryByRole('main')).toBeNull()
   expect(screen.getByRole('heading', { level: 1, name: '设置' })).toBeTruthy()
   expect(screen.getByText('管理账号')).toBeTruthy()
   expect(screen.getByRole('button', { name: '保存' })).toBeTruthy()

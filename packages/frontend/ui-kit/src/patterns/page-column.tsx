@@ -4,10 +4,10 @@ export function PageColumn({
   className,
   children,
   ...rest
-}: React.ComponentProps<'main'>): React.JSX.Element {
+}: React.ComponentProps<'div'>): React.JSX.Element {
   return (
-    <main className={cn('page-column', className)} {...rest}>
+    <div className={cn('page-column', className)} {...rest}>
       {children}
-    </main>
+    </div>
   )
 }

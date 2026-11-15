@@ -37,7 +37,7 @@
 .pe-disclosure-content {
   margin-top: 8px;
 }
-main.page-column {
+.page-column {
   width: 100%;
   max-width: 1200px;
   min-width: 0;
