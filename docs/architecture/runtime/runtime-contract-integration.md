@@ -64,14 +64,14 @@ API 门面可以将 directory 暴露为只读查询面，但宿主注册必须�
 
 ## 同提交与外部动作的保护对象
 
-| 共同性质                                    | 共同触碰的权威对象与拥有者                                                          | 必须的提供者条件                                                                                                                                                                                                                                      |
-| ------------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Session 唯一推进、cancel/reload/finish 竞争 | Session 的原工作条目范围、operation identity、当前治理 revision/advance             | Session 参加者在同一 Storage transactionDomain 内保护原状态及提交尾部                                                                                                                                                                                 |
-| Agent 会话输入与普通终结                    | Session 已受理输入、Run/attempt/control，Agent 输入水位线、责任及 execution         | 会话专用的 Journal 提供者以提交参加者身份，把会话输入受理与普通终结纳入同一提交边界；延迟唤醒不得造成遗漏。精确行为归 Agent SPEC 的[提交参加者协议](../../../packages/agent/SPEC.md#提交认回与未知)与[条件终结](../../../packages/agent/SPEC.md#终结) |
-| Model/Tool 受理与当前工作资格               | 原 Session governance/consumer binding，生产者原 call/admission/capacity 或队列责任 | 固定 combinationVersion 同事务执行领域参加者；外域当前资格有实际受信参加者，不能先读后写冒称共同成立                                                                                                                                                  |
-| 结果保管及生产确认                          | Session 消费版本项、独立材料记录，Model custody 或 Tool delivery                    | 各域确认顺序及双路径证据，不要求跨域一个 SQL 事务；交接前始终有人保管，未知不解除                                                                                                                                                                     |
-| 撤权/取消与真实发起                         | 当前权威许可、原工作资格、生产者 send/start 意图及实际效果启动边界                  | 同一实际排序围栏封闭资格变化与 S；数据库事务不包含网络，部署必须提供可验证的排除/发起协议                                                                                                                                                             |
-| 注册及贡献撤除                              | 进程内目录项和 contribution token                                                   | Cordis caller-fiber effect，加条件移除；不包含业务终态或持久执行事实                                                                                                                                                                                  |
+| 共同性质 | 共同触碰的权威对象与拥有者 | 必须的提供者条件 |
+| --- | --- | --- |
+| Session 唯一推进、cancel/reload/finish 竞争 | Session 的原工作条目范围、operation identity、当前治理 revision/advance | Session 参加者在同一 Storage transactionDomain 内保护原状态及提交尾部 |
+| Agent 会话输入与普通终结 | Session 已受理输入、Run/attempt/control，Agent 输入水位线、责任及 execution | 会话专用的 Journal 提供者以提交参加者身份，把会话输入受理与普通终结纳入同一提交边界；延迟唤醒不得造成遗漏。精确行为归 Agent SPEC 的[提交参加者协议](../../../packages/agent/SPEC.md#提交认回与未知)与[条件终结](../../../packages/agent/SPEC.md#终结) |
+| Model/Tool 受理与当前工作资格 | 原 Session governance/consumer binding，生产者原 call/admission/capacity 或队列责任 | 固定 combinationVersion 同事务执行领域参加者；外域当前资格有实际受信参加者，不能先读后写冒称共同成立 |
+| 结果保管及生产确认 | Session 消费版本项、独立材料记录，Model custody 或 Tool delivery | 各域确认顺序及双路径证据，不要求跨域一个 SQL 事务；交接前始终有人保管，未知不解除 |
+| 撤权/取消与真实发起 | 当前权威许可、原工作资格、生产者 send/start 意图及实际效果启动边界 | 同一实际排序围栏封闭资格变化与 S；数据库事务不包含网络，部署必须提供可验证的排除/发起协议 |
+| 注册及贡献撤除 | 进程内目录项和 contribution token | Cordis caller-fiber effect，加条件移除；不包含业务终态或持久执行事实 |
 
 前五行由具体 Storage、身份授权和执行提供者兑现，Cordis 仅决定能力对象装载、可见与撤除。这里没有扩大跨提供者私有事务读例外；参加者通过已登记协议和精确版本组合，不让 Agent 导入 Model/Tool 存储实现。迁往多进程时，同提交、启动排序、目录路由、时钟和结果流分别需要运输/一致性协议；Context、Fiber、闭包与本地锁不跨边界。
 
@@ -81,12 +81,12 @@ Agent 独立装配只要求本域输入受理与终结的条件提交，不依�
 
 控制一律优先调用根操作，以得到原身份、业务失败及未知。当前候选不定义用于授权、取消、受理或提交的 Cordis 广播控制事件。扩展有序改写仍是 Agent 的原经过协议，不能用无持久状态的 waterfall 代替。
 
-| 候选通知                               | 声明拥有者及模式           | 载荷、失败与消费者                                                                             |
-| -------------------------------------- | -------------------------- | ---------------------------------------------------------------------------------------------- |
-| session-cordis-contract/committed      | Session 定义入口，parallel | tenant、SessionId、revision、原 source、本次提交的事件种类集合；调度器按身份过滤，再读权威状态 |
-| agent-cordis-contract/instance-retired | Agent 定义入口，parallel   | tenant、AgentInstanceId、发布代次、原因；观察/路由刷新，不表示 Run 终态                        |
-| model-cordis-contract/call-changed     | Model 定义入口，parallel   | tenant、call、revision；读原调用，不携带正文/秘密                                              |
-| tool-cordis-contract/call-changed      | Tool 定义入口，parallel    | tenant、call、revision；读原事实，不据通知解除 delivery                                        |
+| 候选通知 | 声明拥有者及模式 | 载荷、失败与消费者 |
+| --- | --- | --- |
+| session-cordis-contract/committed | Session 定义入口，parallel | tenant、SessionId、revision、原 source、本次提交的事件种类集合；调度器按身份过滤，再读权威状态 |
+| agent-cordis-contract/instance-retired | Agent 定义入口，parallel | tenant、AgentInstanceId、发布代次、原因；观察/路由刷新，不表示 Run 终态 |
+| model-cordis-contract/call-changed | Model 定义入口，parallel | tenant、call、revision；读原调用，不携带正文/秘密 |
+| tool-cordis-contract/call-changed | Tool 定义入口，parallel | tenant、call、revision；读原事实，不据通知解除 delivery |
 
 事件在各定义入口唯一增补 Events，JSDoc 写 @mode parallel 与每项 @param。发送方在 await 外捕获，包括 AggregateError 中的监听失败，只记安全诊断，不改变已提交成功结果。不得漏接 Promise。消费者不能因一个监听失败取消其他租户；身份过滤是路由隔离，实际读取仍核权。通知可丢失和重复，可靠性由原领域待办扫描承担。
 
@@ -104,14 +104,14 @@ Agent 独立装配只要求本域输入受理与终结的条件提交，不依�
 
 精确操作归 [Tool协议](../../../packages/tool/SPEC.md#应然设计)，这里仅保持跨拥有者交接。
 
-| 参与者                                    | 必须承接的条件                                                                                                                                                                                                                                                                                                                     |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 参与者 | 必须承接的条件 |
+| --- | --- |
 | 身份/权限、Session工作资格、Agent推进资格 | 身份/权限的撤权不经invalidate进入，由Tool在consume的同一排序内（启动线性化点之前）[再核](../../../packages/tool/SPEC.md#启动围栏)，远端效果可能晚于撤权实际发生（残余窗口）。工作资格与推进资格实际启动的 guard 失效进入同一 ToolStartAuthority 排序域；确认新发起已阻止之前取得失效回执。保存业务取消与宣称启动围栏已生效分别表达 |
-| Tool与受信执行边界                        | 启动意图、queue名额与待办先提交；唯一待发胶囊由共同围栏消费，不把授权查询后任意函数调用当原子开始                                                                                                                                                                                                                                  |
-| Code协调者                                | 父屏障按真实原因和子范围纳入start/resume守卫；Run取消保留已合法受理后台子的自身启动/接续资格，normal returned只封新预留。父状态与child/program-fence任务同提交，由长期宿主扫描                                                                                                                                                     |
-| HITL或资源响应拥有者                      | 原卡/原响应可认回，决定来源可验证，失效有具名回执；实现可自行选择可靠通知方法，不强制复制Tool存储结构                                                                                                                                                                                                                              |
-| 环境和执行提供者                          | 准备、释放、停止、答复、暂停均有原操作身份与查询；未知不冒充排除，原采用保留受限恢复路由                                                                                                                                                                                                                                           |
-| 结果接收方或独立结果消费者                | 结果接收方保存精确结果版本后返回saved，由Tool依saved释放对应delivery；独立结果消费者使用retained/processed证据解除对应delivery，保存Tool生产侧回执；原或晚到版本不混用                                                                                                                                                             |
-| 装配/升级协调者                           | quiesce后检查完整inventory，等待实际排空或具名handover，最后撤资源；disposer不产生业务成功                                                                                                                                                                                                                                         |
+| Tool与受信执行边界 | 启动意图、queue名额与待办先提交；唯一待发胶囊由共同围栏消费，不把授权查询后任意函数调用当原子开始 |
+| Code协调者 | 父屏障按真实原因和子范围纳入start/resume守卫；Run取消保留已合法受理后台子的自身启动/接续资格，normal returned只封新预留。父状态与child/program-fence任务同提交，由长期宿主扫描 |
+| HITL或资源响应拥有者 | 原卡/原响应可认回，决定来源可验证，失效有具名回执；实现可自行选择可靠通知方法，不强制复制Tool存储结构 |
+| 环境和执行提供者 | 准备、释放、停止、答复、暂停均有原操作身份与查询；未知不冒充排除，原采用保留受限恢复路由 |
+| 结果接收方或独立结果消费者 | 结果接收方保存精确结果版本后返回saved，由Tool依saved释放对应delivery；独立结果消费者使用retained/processed证据解除对应delivery，保存Tool生产侧回执；原或晚到版本不混用 |
+| 装配/升级协调者 | quiesce后检查完整inventory，等待实际排空或具名handover，最后撤资源；disposer不产生业务成功 |
 
 任一参与者无法兑现时，该实际组合不具备对应保证。先完成其余独立设计和验证，保留具体缺项，不能以所有对象位于同进程或同数据库补证。
