@@ -1,4 +1,4 @@
-import type { Content, HistoryEntry, LiveBlock } from './content.ts'
+import { terminalOf, type Content, type HistoryEntry, type LiveBlock } from './content.ts'
 import { isRecord, listOf, textOf, type Plain } from './plain.ts'
 
 export type AskOption = Readonly<{ label: string; description: string }>
@@ -39,7 +39,7 @@ export type Item =
       live: boolean
     }>
   | Readonly<{ kind: 'note'; key: string; label: string; parts: readonly Part[] }>
-  | Readonly<{ kind: 'marker'; key: string; label: string }>
+  | Readonly<{ kind: 'marker'; key: string; label: string; failedRun: string | null }>
   | Readonly<{ kind: 'unknown'; key: string; entryKind: string }>
 
 const ASK_TOOL = 'Ask'
@@ -194,18 +194,20 @@ function askQuestions(args: Plain): readonly AskQuestion[] | null {
   })
 }
 
-function terminalLabel(entry: HistoryEntry): string {
-  const payload = isRecord(entry.payload) ? entry.payload : {}
-  const terminal = isRecord(payload['terminal']) ? payload['terminal'] : {}
-  switch (textOf(terminal['outcome'])) {
-    case 'completed':
-      return '这一轮已完成'
-    case 'failed':
-      return '这一轮失败了'
-    case 'cancelled':
-      return '这一轮已取消'
-    default:
-      return '这一轮已结束'
+const TERMINAL: Readonly<Record<string, string>> = {
+  completed: '这一轮已完成',
+  failed: '这一轮失败了',
+  cancelled: '这一轮已取消',
+}
+
+function terminalMarker(entry: HistoryEntry): Item {
+  const terminal = terminalOf(entry)
+  const outcome = terminal?.outcome ?? ''
+  return {
+    kind: 'marker',
+    key: entry.entryId,
+    label: TERMINAL[outcome] ?? '这一轮已结束',
+    failedRun: outcome === 'failed' ? (terminal?.run ?? null) : null,
   }
 }
 
@@ -293,14 +295,19 @@ export function conversationItems(content: Content, runActive: boolean): readonl
         break
       }
       case 'message.compaction':
-        items.push({ kind: 'marker', key: entry.entryId, label: '前面的对话已压缩' })
+        items.push({
+          kind: 'marker',
+          key: entry.entryId,
+          label: '前面的对话已压缩',
+          failedRun: null,
+        })
         break
       case 'run.started':
-        items.push({ kind: 'marker', key: entry.entryId, label: '新的一轮开始' })
+        items.push({ kind: 'marker', key: entry.entryId, label: '新的一轮开始', failedRun: null })
         break
       case 'run.terminal':
         for (const callId of openCalls.splice(0)) endedCalls.add(callId)
-        items.push({ kind: 'marker', key: entry.entryId, label: terminalLabel(entry) })
+        items.push(terminalMarker(entry))
         break
       default:
         items.push({ kind: 'unknown', key: entry.entryId, entryKind: entry.kind })

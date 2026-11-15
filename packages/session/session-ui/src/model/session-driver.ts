@@ -87,6 +87,10 @@ export class SessionDriver {
     this.dispatch({ kind: 'cancel', controlId: this.#deps.newId() })
   }
 
+  retry(): void {
+    this.dispatch({ kind: 'retry', controlId: this.#deps.newId() })
+  }
+
   dispose(): void {
     this.#disposed = true
     for (const controller of this.#observations.values()) controller.abort()
@@ -170,6 +174,20 @@ export class SessionDriver {
             : { tenant, session, cursor: request.cursor }
         void notSent(() => client['read-history'](body)).then(answer =>
           this.dispatch({ kind: 'history-read', session, token, answer }),
+        )
+        return
+      }
+      case 'read-waiting': {
+        const { session, token } = effect
+        void notSent(() => client['read-waiting']({ tenant, session })).then(answer =>
+          this.dispatch({ kind: 'waiting-read', session, token, answer }),
+        )
+        return
+      }
+      case 'retry-run': {
+        const { session, run, controlId } = effect
+        void notSent(() => client['retry-run']({ tenant, session, run, controlId })).then(answer =>
+          this.dispatch({ kind: 'retry-answered', session, controlId, answer }),
         )
         return
       }

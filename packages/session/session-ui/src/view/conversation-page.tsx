@@ -1,14 +1,16 @@
-import { useMemo, useState, useSyncExternalStore, type KeyboardEvent } from 'react'
+import { Fragment, useMemo, useState, useSyncExternalStore, type KeyboardEvent } from 'react'
 import { stopFace, type StopFace } from '../model/composer.ts'
 import { EMPTY_CONTENT } from '../model/content.ts'
 import { conversationItems } from '../model/conversation.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
 import type { Open, PendingInput, State } from '../model/session-machine.ts'
 import type { SessionWorkspaces } from '../model/session-workspaces.ts'
+import type { Waiting } from '../model/waiting.ts'
 import { NoticeLine } from './notice.tsx'
 import { ItemView } from './parts.tsx'
 import { useFollowBottom } from './scroll.ts'
 import { useSession } from './use-session.ts'
+import { WaitingNotice, waitingAnchor } from './waiting-notice.tsx'
 
 export type ConversationPageProps = Readonly<{
   workspaces: SessionWorkspaces
@@ -113,7 +115,13 @@ function Body({ state, driver }: { readonly state: State; readonly driver: Sessi
       return (
         <>
           <NoticeLine notice={state.notice} />
-          <Conversation content={state.content} runActive={false} inputs={[]} driver={driver} />
+          <Conversation
+            content={state.content}
+            runActive={false}
+            inputs={[]}
+            waiting={null}
+            driver={driver}
+          />
         </>
       )
     case 'open':
@@ -130,6 +138,7 @@ function OpenSession({ state, driver }: { readonly state: Open; readonly driver:
         content={state.content}
         runActive={state.run.kind !== 'idle'}
         inputs={state.inputs}
+        waiting={state.waiting}
         driver={driver}
       />
       <Composer state={state} driver={driver} />
@@ -141,11 +150,13 @@ function Conversation({
   content,
   runActive,
   inputs,
+  waiting,
   driver,
 }: {
   readonly content: Open['content']
   readonly runActive: boolean
   readonly inputs: readonly PendingInput[]
+  readonly waiting: Waiting | null
   readonly driver: SessionDriver
 }) {
   const committed = useMemo(
@@ -159,12 +170,18 @@ function Conversation({
         : conversationItems({ ...EMPTY_CONTENT, live: content.live }, runActive),
     [content.live, runActive],
   )
-  const { scroller, onScroll } = useFollowBottom(committed, live, inputs)
+  const { scroller, onScroll } = useFollowBottom(committed, live, inputs, waiting)
+  const anchor = waitingAnchor(committed, waiting)
+  const notice = <WaitingNotice waiting={waiting} driver={driver} />
   return (
     <div className="omne-conversation" ref={scroller} onScroll={onScroll}>
       {committed.map(item => (
-        <ItemView key={item.key} item={item} />
+        <Fragment key={item.key}>
+          <ItemView item={item} />
+          {item.key === anchor ? notice : null}
+        </Fragment>
       ))}
+      {anchor === null ? notice : null}
       {inputs.map(input => (
         <PendingInputView key={input.acceptId} input={input} driver={driver} />
       ))}

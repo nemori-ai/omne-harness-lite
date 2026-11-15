@@ -4,13 +4,28 @@ import {
   applyDelta,
   applySnapshot,
   EMPTY_CONTENT,
+  failedTerminalArrived,
+  lastTerminalFailed,
   mergeHistory,
   reachesKnown,
   readThroughTo,
   settleLive,
   type Content,
 } from './content.ts'
+import { NOT_SENT, refused, STILL_UNKNOWN, UNKNOWN } from './notices.ts'
 import { compareDecimal, isRecord, textOf } from './plain.ts'
+import {
+  NO_WAITING,
+  readWaiting,
+  retry,
+  retryAnswered,
+  waitingRead,
+  type RetryAnswer,
+  type Waiting,
+  type WaitingAnswer,
+  type WaitingEffect,
+  type WaitingStep,
+} from './waiting.ts'
 
 type Client = ClientOf<SessionProtocol>
 type Answer<K extends Exclude<keyof Client, 'observe'>> = Awaited<ReturnType<Client[K]>>
@@ -69,6 +84,7 @@ export type Open = Readonly<{
   content: Content
   inputs: readonly PendingInput[]
   notice: Notice | null
+  waiting: Waiting
 }>
 
 export type State =
@@ -103,6 +119,9 @@ export type Event =
   | Readonly<{ kind: 'reconnect-due'; session: string; generation: number }>
   | Readonly<{ kind: 'history-read'; session: string; token: number; answer: HistoryAnswer }>
   | Readonly<{ kind: 'open-session'; session: string }>
+  | Readonly<{ kind: 'waiting-read'; session: string; token: number; answer: WaitingAnswer }>
+  | Readonly<{ kind: 'retry'; controlId: string }>
+  | Readonly<{ kind: 'retry-answered'; session: string; controlId: string; answer: RetryAnswer }>
 
 export type HistoryRequest = Readonly<{ cursor: null }> | Readonly<{ cursor: string }>
 
@@ -122,6 +141,7 @@ export type Effect =
   | Readonly<{ kind: 'stop-observing'; generation: number }>
   | Readonly<{ kind: 'reconnect-later'; session: string; generation: number; delayMs: number }>
   | Readonly<{ kind: 'read-history'; session: string; token: number; request: HistoryRequest }>
+  | WaitingEffect
 
 export type Step = Readonly<{ state: State; effects: readonly Effect[] }>
 
@@ -136,37 +156,6 @@ export function reconnectDelay(attempt: number): number {
 
 const same = (state: State): Step => ({ state, effects: [] })
 
-const SENTENCES: Readonly<Record<string, string>> = {
-  limited: '超过了服务端的限额。',
-  invalid: '服务端认为这个请求的内容不合规定。',
-  conflict: '和服务端已有的记录冲突。',
-  archived: '这个会话已归档，不能再发消息。',
-  frozen: '这个会话已冻结，暂时不能发消息。',
-  denied: '没有权限，或登录已失效。',
-  'not-found': '服务端找不到这一轮。',
-  'protocol-rejected': '服务端不认这个请求的格式。',
-  'basis-unavailable': '服务端暂时不能处理，稍后再试。',
-  'stage-not-provided': '这个部署没有提供这个操作。',
-  'uniform-auth-failure': '登录没有通过。',
-}
-
-function refused(outcome: string, prefix: string): Notice {
-  return { kind: 'refused', text: `${prefix}${SENTENCES[outcome] ?? `服务端答复「${outcome}」。`}` }
-}
-
-const NOT_SENT = (what: string): Notice => ({
-  kind: 'unavailable',
-  text: `连不上服务，${what}没有发出去。`,
-})
-const UNKNOWN = (what: string): Notice => ({
-  kind: 'unknown',
-  text: `${what}的结果未知，正在确认。`,
-})
-const STILL_UNKNOWN = (what: string): Notice => ({
-  kind: 'unknown',
-  text: `${what}的结果仍然未知。可以再确认一次。`,
-})
-
 function opened(session: string): Step {
   const state: Open = {
     kind: 'open',
@@ -178,6 +167,7 @@ function opened(session: string): Step {
     content: EMPTY_CONTENT,
     inputs: [],
     notice: null,
+    waiting: NO_WAITING,
   }
   return {
     state,
@@ -207,7 +197,7 @@ export function step(state: State, event: Event): Step {
     case 'send':
       return onSend(state, event)
     case 'send-answered':
-      return onSendAnswered(state, event)
+      return afterSend(state, onSendAnswered(state, event))
     case 'send-confirmed':
       return onSendConfirmed(state, event)
     case 'send-confirm':
@@ -217,16 +207,70 @@ export function step(state: State, event: Event): Step {
     case 'cancel-answered':
       return onCancelAnswered(state, event)
     case 'frame':
-      return onFrame(state, event)
+      return afterFrame(state, event.frame, onFrame(state, event))
     case 'observation-ended':
       return onObservationEnded(state, event)
     case 'reconnect-due':
       return onReconnectDue(state, event)
     case 'history-read':
-      return onHistoryRead(state, event)
+      return afterHistory(state, event, onHistoryRead(state, event))
     case 'open-session':
       return onOpenSession(state, event.session)
+    case 'waiting-read':
+      return onWaiting(state, event.session, waiting =>
+        waitingRead(waiting, event.session, event.token, event.answer),
+      )
+    case 'retry':
+      return onWaiting(state, null, (waiting, session) => retry(waiting, session, event.controlId))
+    case 'retry-answered':
+      return onWaiting(state, event.session, waiting =>
+        retryAnswered(waiting, event.session, event.controlId, event.answer),
+      )
   }
+}
+
+function withWaiting(state: Open, next: WaitingStep, effects: readonly Effect[] = []): Step {
+  if (next.waiting === state.waiting && next.effects.length === 0) return { state, effects }
+  return { state: { ...state, waiting: next.waiting }, effects: [...effects, ...next.effects] }
+}
+
+function onWaiting(
+  state: State,
+  session: string | null,
+  change: (waiting: Waiting, session: string) => WaitingStep,
+): Step {
+  if (state.kind !== 'open' || (session !== null && state.session !== session)) return same(state)
+  return withWaiting(state, change(state.waiting, state.session))
+}
+
+function afterSend(before: State, next: Step): Step {
+  const waited = before.kind === 'open' && before.waiting.fact.kind === 'waiting'
+  return waited && next.state !== before ? alsoReadWaiting(next) : next
+}
+
+function afterFrame(before: State, frame: ObserveSessionFrame, next: Step): Step {
+  if (frame.kind !== 'state' || frame.run !== null || next.state === before) return next
+  return next.state.kind === 'open' && lastTerminalFailed(next.state.content)
+    ? alsoReadWaiting(next)
+    : next
+}
+
+function afterHistory(
+  before: State,
+  event: Extract<Event, { kind: 'history-read' }>,
+  next: Step,
+): Step {
+  if (before.kind !== 'open' || before.history.reading !== event.token) return next
+  if (before.session !== event.session || event.answer.outcome !== 'succeeded') return next
+  return failedTerminalArrived(before.content, event.answer.body.entries)
+    ? alsoReadWaiting(next)
+    : next
+}
+
+function alsoReadWaiting(next: Step): Step {
+  const state = next.state
+  if (state.kind !== 'open') return next
+  return withWaiting(state, readWaiting(state.waiting, state.session), next.effects)
 }
 
 export function createInFlight(state: State): boolean {
