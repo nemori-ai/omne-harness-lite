@@ -5,7 +5,7 @@ import { defineProtocol, ruleCodec } from '@omne-harness/public-contract'
 import { describe, expect, it } from 'vitest'
 import { savedLoginProof, savedTenant } from '../../r9/support.ts'
 import { onReleaseTree, type ReleaseTree } from '../../support/release-tree.ts'
-import { until } from './support.ts'
+import { until } from '../../support/listening.ts'
 
 const empty = ruleCodec({ kind: 'object', fields: {} })
 

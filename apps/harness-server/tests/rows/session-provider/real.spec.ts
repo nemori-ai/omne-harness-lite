@@ -10,7 +10,7 @@ import { sessionStorageRow } from '../../../src/rows/session-storage/index.ts'
 import { storageRow } from '../../../src/rows/storage/index.ts'
 import type { RowId } from '../../../src/types.ts'
 import { accessPolicyRow, allowAll, providerConfig } from '../storage/fixtures/tree.ts'
-import { TELEMETRY_ROW_CONFIG } from '../server-entry/support.ts'
+import { TELEMETRY_ROW_CONFIG } from '../../support/listening.ts'
 import {
   BASE_ENTRY_OBJECTS,
   declared,

@@ -5,7 +5,7 @@ import { sessionAccessRow } from '../../../src/rows/session-access/index.ts'
 import { rowManifests } from '../../../src/s0/stubs.ts'
 import { savedLoginProof, savedTenant } from '../../r9/support.ts'
 import { onReleaseTree, type ReleaseTree } from '../../support/release-tree.ts'
-import { until } from '../server-entry/support.ts'
+import { until } from '../../support/listening.ts'
 
 function createSession(tree: ReleaseTree): Promise<{ status: number; body: string }> {
   const body = JSON.stringify({ createCallId: 'create-1', purpose: 'hello' })

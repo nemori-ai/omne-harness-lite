@@ -312,9 +312,7 @@
       "row": "server-entry",
       "names": [
         "principalIssuer",
-        "definitionMappings",
-        "identityGovernance",
-        "settingsSecretItems"
+        "identityGovernance"
       ]
     },
     {

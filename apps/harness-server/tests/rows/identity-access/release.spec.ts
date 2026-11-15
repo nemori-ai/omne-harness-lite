@@ -1,7 +1,7 @@
 import { request } from 'node:http'
 import { describe, expect, it } from 'vitest'
 import { onReleaseTree, type ReleaseTree } from '../../support/release-tree.ts'
-import { until } from '../server-entry/support.ts'
+import { until } from '../../support/listening.ts'
 
 type Answer = Readonly<{
   status: number

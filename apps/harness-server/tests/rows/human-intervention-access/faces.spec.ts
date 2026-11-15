@@ -9,7 +9,7 @@ import {
 import { hitlCommandBinding } from '@omne-harness/human-intervention-local'
 import { inProcessPrincipalAuthority, type ActingForTenantPrincipal } from '@omne-harness/identity'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import { hitlFacesOfCall } from '../../../src/rows/server-entry/hitl.ts'
+import { hitlFacesOfCall } from '../../../src/rows/human-intervention-access/faces.ts'
 import { toolHitlHolder } from '../../../src/rows/tool-hitl/holder.ts'
 import type { ToolHitlHost } from '../../../src/rows/tool-hitl/host.ts'
 import { fixtureTenant } from '../../entry/support.ts'

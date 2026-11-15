@@ -11,7 +11,7 @@ import {
   type TenantStandingSource,
 } from '@omne-harness/identity'
 import type { TenantId } from '@omne-harness/legal-identity'
-import type { SettingsGovernance } from '@omne-harness/server-entry'
+import type { SettingsGovernance } from '../../../src/rows/settings/ports.ts'
 import {
   createSettingsSecretItems,
   parseSecretText,

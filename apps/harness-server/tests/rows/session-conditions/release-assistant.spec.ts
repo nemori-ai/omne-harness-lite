@@ -21,7 +21,7 @@ import { defaultModesOf } from '../../../src/rows/session-conditions/index.ts'
 import { runServe } from '../../../src/run.ts'
 import { bodyOf, freePort, newScratch, operatorLayer, runOmne } from '../../r9/support.ts'
 import { startModelGateway } from '../../fixtures/model-gateway.ts'
-import { connectable, until } from '../server-entry/support.ts'
+import { connectable, until } from '../../support/listening.ts'
 
 type Answer = Readonly<{ ok: true } | { ok: false; kind: string }>
 type Mapping = Record<string, unknown> & { name?: unknown; initialModelSelection?: unknown }

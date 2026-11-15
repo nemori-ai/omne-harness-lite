@@ -249,12 +249,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
   })
 
   it('lists the Run frame and the tool messages in the history and uses the settings port', () => {
-    expect(configOf(layer, 'server-entry')).toEqual({
-      listenPort: 8965,
-      historyKinds: [...LOCAL_HISTORY_KINDS],
-      diagnosticsKinds: [...LOCAL_DIAGNOSTICS_KINDS],
-      ...LOCAL_DIAGNOSTICS_LIMITS,
-    })
+    expect(configOf(layer, 'server-entry')).toEqual({ listenPort: 8965 })
     expect(LOCAL_HISTORY_KINDS).toEqual(
       expect.arrayContaining([
         'run.started',

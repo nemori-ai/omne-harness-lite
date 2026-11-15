@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { stubPlugin } from '../src/cordis.ts'
 import { defineRow } from '../src/row.ts'
 import { serveOnce } from './fixtures/serve/harness.ts'
-import { TELEMETRY_ROW_CONFIG } from './rows/server-entry/support.ts'
+import { TELEMETRY_ROW_CONFIG } from './support/listening.ts'
 import {
   LifecycleRefusedError,
   LifecycleRegistry,

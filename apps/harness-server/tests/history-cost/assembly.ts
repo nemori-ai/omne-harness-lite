@@ -16,7 +16,7 @@ import * as cordis from '../../src/cordis.ts'
 import { runServe } from '../../src/run.ts'
 import { startModelGateway } from '../fixtures/model-gateway.ts'
 import { bodyOf, freePort, operatorLayer, runOmne, savedTenant } from '../r9/support.ts'
-import { connectable, until } from '../rows/server-entry/support.ts'
+import { connectable, until } from '../support/listening.ts'
 import { protocolClients, readHistoryPage, savedCredentials } from '../support/protocol-clients.ts'
 import {
   INLINE_THRESHOLD,

@@ -18,7 +18,7 @@ import {
   savedTenant,
 } from '../../r9/support.ts'
 import { entriesOf, readHistoryPage, savedClients } from '../../support/protocol-clients.ts'
-import { connectable, until } from '../server-entry/support.ts'
+import { connectable, until } from '../../support/listening.ts'
 
 const release: unknown = JSON.parse(
   readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),

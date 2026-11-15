@@ -25,7 +25,7 @@ import {
   releaseMaxJsonDepth,
   runOmne,
 } from '../../r9/support.ts'
-import { connectable, until } from '../server-entry/support.ts'
+import { connectable, until } from '../../support/listening.ts'
 
 const depth = (value: unknown): number =>
   value !== null && typeof value === 'object'

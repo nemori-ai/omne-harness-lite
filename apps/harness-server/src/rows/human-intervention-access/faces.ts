@@ -2,11 +2,11 @@ import type { Context } from '@deepseek-ai/cordis'
 import { hitlCommandBinding } from '@omne-harness/human-intervention-local'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import { tenantCodec } from '@omne-harness/legal-identity'
-import type { HitlIngressFaces } from '@omne-harness/server-entry'
+import type { HitlFaces } from '@omne-harness/human-intervention-access'
 import { toolHitlHolder } from '../tool-hitl/holder.ts'
 import type { HitlApplication, Qualification } from '../tool-hitl/host.ts'
 
-type Faces = HitlIngressFaces<ActingForTenantPrincipal>
+type Faces = HitlFaces
 type Selected =
   | Readonly<{ kind: 'ready'; application: HitlApplication }>
   | Readonly<{ kind: 'unregistered'; qualify: () => Promise<Qualification> }>

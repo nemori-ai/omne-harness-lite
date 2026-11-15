@@ -9,7 +9,7 @@ import {
 } from '../../src/rows/session-provider/index.ts'
 import { runServe, type S0Record, type ServeResult } from '../../src/run.ts'
 import { startModelGateway } from '../fixtures/model-gateway.ts'
-import { connectable, until } from '../rows/server-entry/support.ts'
+import { connectable, until } from '../support/listening.ts'
 import {
   bodyOf,
   cursorKeySpellings,

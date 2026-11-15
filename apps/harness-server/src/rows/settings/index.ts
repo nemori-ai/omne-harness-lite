@@ -2,7 +2,7 @@ import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
 import { referenceAdmissionCheck } from '@omne-harness/authorization'
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import { principalVerifierKey, tenantStandingKey } from '@omne-harness/identity/cordis'
-import type { SettingsGovernance } from '@omne-harness/server-entry'
+import type { SettingsGovernance } from './ports.ts'
 import {
   createSettingsRegistry,
   createSettingsSecretItems,

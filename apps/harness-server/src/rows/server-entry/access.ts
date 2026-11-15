@@ -38,6 +38,8 @@ const CODES = [
   'access.caller-gone',
   'access.listener-fault',
   'access.report-fault',
+  'access.basis-unavailable',
+  'access.request-fault',
   'access.observation-full',
   'access.frame-source-fault',
   'access.frame-rejected',

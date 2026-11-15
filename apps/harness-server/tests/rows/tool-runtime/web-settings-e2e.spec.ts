@@ -39,7 +39,7 @@ import {
 } from '../../r9/support.ts'
 import { entriesOf, readHistoryPage, savedClients } from '../../support/protocol-clients.ts'
 import { TEST_CONSTRUCTION, tree } from '../tool-host/support.ts'
-import { connectable, until } from '../server-entry/support.ts'
+import { connectable, until } from '../../support/listening.ts'
 
 function toolHolding(definition: ToolDefinition): SettingsHolding | null {
   const held = officialHolding(toolAsset(definition))

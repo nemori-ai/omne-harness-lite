@@ -22,7 +22,7 @@ import {
   savedClients,
   type ProtocolClients,
 } from '../../support/protocol-clients.ts'
-import { connectable, until } from '../server-entry/support.ts'
+import { connectable, until } from '../../support/listening.ts'
 import { bodyReadingModel } from './body-reading-model.ts'
 import { toolRuntimeConfigSchema } from '../../../src/rows/tool-runtime/config.ts'
 

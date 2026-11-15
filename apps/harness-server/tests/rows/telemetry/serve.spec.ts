@@ -2,9 +2,7 @@ import { spawn } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createCapturingTelemetry } from '@omne-harness/telemetry-contract/testing'
 import { afterEach, describe, expect, it } from 'vitest'
-import { entryDiagnostics } from '../../../src/rows/server-entry/telemetry.ts'
 import {
   distributionPath,
   freePort,
@@ -12,14 +10,7 @@ import {
   serverBin,
   writeOperator,
 } from '../../r9/support.ts'
-import {
-  SESSION_PATH,
-  createSessionBody,
-  login,
-  post,
-  startTree,
-  waitListening,
-} from '../server-entry/support.ts'
+import { startTree } from '../server-entry/support.ts'
 
 type Rec = { kind: string } & Record<string, unknown>
 
@@ -49,69 +40,6 @@ function withTelemetry(layer: unknown): unknown {
 const scratches: string[] = []
 afterEach(() => {
   for (const dir of scratches.splice(0)) rmSync(dir, { recursive: true, force: true })
-})
-
-describe('A2: the server-entry diagnostic through telemetry', () => {
-  it('a recognizeLogin fault is one omne.entry.diagnostic record in system scope, without tenant, body, credential or error text', async () => {
-    const port = await freePort()
-    const tree = startTree({ config: { listenPort: port }, identityFaults: true })
-    await waitListening(tree, port)
-    const who = await login(port, 'alice', 'pw-SECRET-1')
-    const reply = await post(port, SESSION_PATH, createSessionBody(who, 'create-1'))
-    expect(reply.status).toBe(503)
-    const run = await tree.stop()
-    expect(run.result.exitCode).toBe(0)
-    const events = run.records.filter(
-      record => record.kind === 'telemetry' && record['name'] === 'omne.entry.diagnostic',
-    )
-    expect(events).toHaveLength(1)
-    expect(events[0]).toMatchObject({
-      kind: 'telemetry',
-      signal: 'event',
-      owner: 'server-entry',
-      name: 'omne.entry.diagnostic',
-      version: 1,
-      level: 'warn',
-      scope: { kind: 'system' },
-      component: 'server-entry',
-      instance: { owner: '@omne-harness/harness-server', ref: expect.any(String) },
-      fields: { code: 'identity.fault', operation: 'recognizeLogin' },
-    })
-    expect(Object.keys(events[0]!['fields'] as object)).toEqual(['code', 'operation'])
-    expect(events[0]).not.toHaveProperty('work')
-    const printed = JSON.stringify(events[0])
-    expect(printed).not.toContain('tenant')
-    expect(printed).not.toContain(who.tenantText)
-    expect(printed).not.toContain(who.loginProof)
-    expect(printed).not.toContain('SECRET')
-    expect(printed).not.toContain('create-1')
-    expect(JSON.stringify(run.records)).not.toContain('IDENTITY-FAULT-TEXT')
-  })
-})
-
-describe('M2: the path of an entry diagnostic', () => {
-  it('keeps only the path of the request URL: a query or fragment the client sent never reaches the record', () => {
-    const capture = createCapturingTelemetry()
-    const sink = entryDiagnostics(capture.port)
-
-    sink({ code: 'request.fault', path: '/session-public/1?token=sk-test-123' })
-    sink({ code: 'request.fault', path: '/governance-public/1#sk-test-456' })
-    sink({
-      code: 'request.fault',
-      path: 'http://attacker.example/session-public/1?token=sk-test-789',
-    })
-    sink({ code: 'request.fault', path: 'http://[not-a-host' })
-
-    const fields = capture.records().map(record => (record.kind === 'event' ? record.fields : null))
-    expect(fields).toEqual([
-      { code: 'request.fault', path: '/session-public/1' },
-      { code: 'request.fault', path: '/governance-public/1' },
-      { code: 'request.fault', path: '/session-public/1' },
-      { code: 'request.fault' },
-    ])
-    expect(JSON.stringify(capture.records())).not.toContain('sk-test-')
-    expect(capture.dropped()).toBe(0)
-  })
 })
 
 describe('A11: the telemetry row is required', () => {

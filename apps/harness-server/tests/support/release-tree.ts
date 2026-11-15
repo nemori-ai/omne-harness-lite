@@ -34,7 +34,7 @@ import {
   savedLoginProof,
   savedTenant,
 } from '../r9/support.ts'
-import { connectable, until } from '../rows/server-entry/support.ts'
+import { connectable, until } from './listening.ts'
 import {
   readHistoryPage,
   savedClients,

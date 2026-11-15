@@ -2,15 +2,13 @@ import type {
   SettingItemView,
   SettingLayerState,
   SettingState,
-} from '@omne-harness/public-contract'
-import type {
   SettingsAccess,
   SettingsClearOutcome,
   SettingsDescribeOutcome,
   SettingsGovernance,
   SettingsListOutcome,
   SettingsSetOutcome,
-} from '@omne-harness/server-entry'
+} from './ports.ts'
 import {
   parseSecretText,
   type SecretItemRefusal,

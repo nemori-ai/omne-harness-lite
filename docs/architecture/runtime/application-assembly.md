@@ -318,7 +318,7 @@ flowchart LR
 | `agent-model-selection` | `storage`、`tenantDomainLookup` |
 | `request-context` | `requestContextTrust`、`principalVerifier` |
 | `runtime-context` | `runtimeContextTrust` |
-| `server-entry` | `principalIssuer`、`definitionMappings`、`identityGovernance`、`settingsSecretItems` |
+| `server-entry` | `principalIssuer`、`identityGovernance` |
 | `identity-access` | `identityGovernance` |
 | `session-access` | `principalIssuer`、`definitionMappings` |
 | `assets-access` | `principalIssuer` |

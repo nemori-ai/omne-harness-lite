@@ -26,7 +26,7 @@ import {
 } from '../../r9/support.ts'
 import { startModelGateway } from '../../fixtures/model-gateway.ts'
 import { readHistoryPage, savedClients } from '../../support/protocol-clients.ts'
-import { connectable, until } from '../server-entry/support.ts'
+import { connectable, until } from '../../support/listening.ts'
 
 const CREDENTIAL = 'carol-pw-RUNSTART-7c41'
 const INPUT_TEXT = 'run start check MARKER-run-start'
