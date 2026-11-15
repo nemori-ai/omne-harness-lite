@@ -109,7 +109,7 @@ const waiting = object({
     rule: nullable(
       object({
         run: { rule: text },
-        pending: { rule: { kind: 'revision' } },
+        pending: { rule: { kind: 'count' } },
         cause: {
           rule: nullable(object({ kind: { rule: text }, detail: { rule: nullable(text) } })),
         },

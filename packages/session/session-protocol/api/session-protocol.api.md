@@ -340,7 +340,7 @@ export declare const sessionProtocol: {
                             readonly detail: string | null;
                             readonly kind: string;
                         } | null;
-                        readonly pending: string;
+                        readonly pending: number;
                         readonly run: string;
                     } | null;
                 }>;

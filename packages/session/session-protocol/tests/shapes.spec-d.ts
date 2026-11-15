@@ -283,7 +283,7 @@ test('read-waiting names a session and answers the waiting Run, the pending coun
   expectTypeOf<ResultBody<'read-waiting', 'succeeded'>>().toEqualTypeOf<{
     readonly waiting: {
       readonly run: string
-      readonly pending: string
+      readonly pending: number
       readonly cause: { readonly kind: string; readonly detail: string | null } | null
     } | null
   }>()

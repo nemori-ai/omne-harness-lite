@@ -54,6 +54,6 @@ export async function readWaiting(
   const cause = waiting.execution === null ? null : await causeOf(ports, access, waiting.execution)
   return {
     outcome: 'succeeded',
-    body: { waiting: { run: waiting.run, pending: String(waiting.pending), cause } },
+    body: { waiting: { run: waiting.run, pending: waiting.pending, cause } },
   }
 }

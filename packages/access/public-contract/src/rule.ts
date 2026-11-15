@@ -12,6 +12,7 @@ export type LeafKind =
   | 'page-bytes'
   | 'revision'
   | 'positive-integer'
+  | 'count'
   | 'page-limit'
   | 'parameters'
   | 'json'
