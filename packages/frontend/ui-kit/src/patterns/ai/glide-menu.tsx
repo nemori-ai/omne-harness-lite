@@ -21,6 +21,21 @@ function boxOf(host: HTMLElement, row: HTMLElement): Box {
 const sameBox = (a: Box | null, b: Box | null): boolean =>
   a === b || (a !== null && b !== null && a.top === b.top && a.height === b.height)
 
+interface Selected {
+  readonly box: Box
+  readonly shown: boolean
+  readonly motion: 'none' | 'glide' | 'fade'
+}
+
+function nextSelected(current: Selected | null, next: Box | null, moves: boolean): Selected | null {
+  const standing = current !== null && current.shown
+  if (next === null) {
+    return standing ? { box: current.box, shown: false, motion: moves ? 'fade' : 'none' } : current
+  }
+  if (standing && sameBox(current.box, next)) return current
+  return { box: next, shown: true, motion: moves ? (standing ? 'glide' : 'fade') : 'none' }
+}
+
 export function GlideMenu({
   children,
   className,
@@ -41,11 +56,7 @@ export function GlideMenu({
   const standingOn = useRef<HTMLElement | null>(null)
   const [box, setBox] = useState<Box | null>(null)
 
-  const [selected, setSelected] = useState<{
-    readonly box: Box
-    readonly shown: boolean
-    readonly motion: 'none' | 'glide' | 'fade'
-  } | null>(null)
+  const [selected, setSelected] = useState<Selected | null>(null)
   const mounted = useRef(false)
   useEffect(() => {
     mounted.current = true
@@ -65,18 +76,7 @@ export function GlideMenu({
     const row = host?.querySelector<HTMLElement>(SELECTED) ?? null
     const next = host === null || row === null ? null : boxOf(host, row)
     const moves = glide && mounted.current
-    setSelected(current => {
-      if (next === null)
-        return current === null || !current.shown
-          ? current
-          : { box: current.box, shown: false, motion: moves ? 'fade' : 'none' }
-      if (current !== null && current.shown && sameBox(current.box, next)) return current
-      return {
-        box: next,
-        shown: true,
-        motion: !moves ? 'none' : current !== null && current.shown ? 'glide' : 'fade',
-      }
-    })
+    setSelected(current => nextSelected(current, next, moves))
   }, [])
 
   const moveTo = useCallback(

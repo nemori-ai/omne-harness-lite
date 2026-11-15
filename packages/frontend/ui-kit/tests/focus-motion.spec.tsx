@@ -5,6 +5,7 @@ import {
   blockingOverlay,
   focusSurface,
   moveRegion,
+  navigateWithin,
   objectPart,
   objectView,
   ownsTyping,
@@ -84,4 +85,41 @@ it('renders nothing of its own when a focus helper is called on an empty page', 
   expect(blockingOverlay()).toBeUndefined()
   expect(moveRegion('next')).toBe(false)
   expect(screen.queryByRole('dialog')).toBeNull()
+})
+
+it('navigateWithin steps through the list items of the current region', () => {
+  document.body.innerHTML =
+    '<section data-keyboard-region><div data-keyboard-list><button data-keyboard-item id="a">a</button><button data-keyboard-item id="b">b</button><button data-keyboard-item id="c">c</button></div></section>'
+  document.getElementById('a')?.focus()
+  expect(navigateWithin('j')).toBe(true)
+  expect(document.activeElement?.id).toBe('b')
+  expect(navigateWithin('G')).toBe(true)
+  expect(document.activeElement?.id).toBe('c')
+  expect(navigateWithin('j')).toBe(true)
+  expect(document.activeElement?.id).toBe('c')
+  expect(navigateWithin('k')).toBe(true)
+  expect(document.activeElement?.id).toBe('b')
+  expect(navigateWithin('gg')).toBe(true)
+  expect(document.activeElement?.id).toBe('a')
+})
+
+it('navigateWithin focuses the search field, scrolls a reading surface, and reports when there is nothing to do', () => {
+  document.body.innerHTML =
+    '<section data-keyboard-region><input type="search" id="s"><div data-keyboard-reading id="r" tabindex="-1"></div></section>'
+  const reading = document.getElementById('r') as HTMLElement
+  reading.focus()
+  expect(navigateWithin('/')).toBe(true)
+  expect(document.activeElement?.id).toBe('s')
+  reading.focus()
+  const scrollBy = vi.fn()
+  const scrollTo = vi.fn()
+  Object.assign(reading, { scrollBy, scrollTo })
+  expect(navigateWithin('j')).toBe(true)
+  expect(scrollBy).toHaveBeenCalledWith({ top: 80, behavior: 'instant' })
+  expect(navigateWithin('gg')).toBe(true)
+  expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'instant' })
+  document.body.innerHTML = '<section data-keyboard-region><button id="x">x</button></section>'
+  document.getElementById('x')?.focus()
+  expect(navigateWithin('j')).toBe(false)
+  expect(navigateWithin('/')).toBe(false)
 })

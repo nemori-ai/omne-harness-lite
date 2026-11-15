@@ -32,7 +32,7 @@ function fakeSystem(initialDark: boolean) {
     listeners,
     flip(dark: boolean) {
       query.matches = dark
-      for (const listener of [...listeners]) listener()
+      for (const listener of listeners) listener()
     },
   }
 }

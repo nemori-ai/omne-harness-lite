@@ -33,8 +33,7 @@ it('imports no other member of the repository', () => {
   const offenders = FILES.flatMap(file =>
     importedSpecifiers(file.text)
       .filter(
-        specifier =>
-          specifier.startsWith('@omne-harness/') || /^\.\.\/\.\.\/\.\.\//.test(specifier),
+        specifier => specifier.startsWith('@omne-harness/') || specifier.startsWith('../../../'),
       )
       .map(specifier => `${file.name}: ${specifier}`),
   )

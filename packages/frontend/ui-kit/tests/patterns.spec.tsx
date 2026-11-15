@@ -12,6 +12,7 @@ import {
   EntityChip,
   FactList,
   FactRow,
+  GlideMenu,
   IconButton,
   ImpactPanel,
   InlineConfirm,
@@ -424,4 +425,41 @@ it('ImpactPanel lists what changes and what stays, and confirms or cancels', asy
   expect(onConfirm).toHaveBeenCalledTimes(1)
   fireEvent.click(screen.getByRole('button', { name: '取消' }))
   expect(onOpenChange).toHaveBeenCalledWith(false)
+})
+
+it('GlideMenu shows the selected block for the selected row, and takes it away when none is selected', () => {
+  const rows = (selected: string | null) => (
+    <GlideMenu>
+      <div data-glide-row data-selected={selected === 'a'}>
+        甲
+      </div>
+      <div data-glide-row data-selected={selected === 'b'}>
+        乙
+      </div>
+    </GlideMenu>
+  )
+  const { container, rerender } = render(rows('a'))
+  const block = (): Element | null => container.querySelector('[data-glide-highlight="selected"]')
+  expect(block()?.getAttribute('data-shown')).toBe('true')
+  rerender(rows('b'))
+  expect(block()?.getAttribute('data-shown')).toBe('true')
+  rerender(rows(null))
+  expect(block()?.getAttribute('data-shown')).toBe('false')
+})
+
+it('GlideMenu moves its hover block onto the row the pointer or focus reaches and hides it on leaving', () => {
+  const { container } = render(
+    <GlideMenu>
+      <button type="button" data-glide-row>
+        甲
+      </button>
+    </GlideMenu>,
+  )
+  const hover = (): HTMLElement | null =>
+    container.querySelector<HTMLElement>('[data-glide-highlight=""]')
+  expect(hover()?.style.opacity).toBe('0')
+  fireEvent.pointerOver(screen.getByRole('button', { name: '甲' }))
+  expect(hover()?.style.opacity).toBe('1')
+  fireEvent.pointerLeave(container.firstElementChild as Element)
+  expect(hover()?.style.opacity).toBe('0')
 })

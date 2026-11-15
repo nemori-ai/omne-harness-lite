@@ -45,26 +45,35 @@ export function rememberFocus(target: EventTarget | null): void {
   const region = target.closest<HTMLElement>(REGION)
   if (region) remembered.set(region, target)
 }
-export function moveRegion(direction: 'next' | 'previous'): boolean {
-  const modal = blockingOverlay()
-  if (modal) return false
+function heldIn(region: HTMLElement): HTMLElement | undefined {
+  const held = remembered.get(region)
+  return held && visible(held) && held.closest(REGION) === region ? held : undefined
+}
+
+function firstFocusable(region: HTMLElement): HTMLElement | undefined {
+  return [...region.querySelectorAll<HTMLElement>(FOCUSABLE)].find(
+    node => node.tabIndex >= 0 && visible(node) && node.closest(REGION) === region,
+  )
+}
+
+function neighbourRegion(direction: 'next' | 'previous'): HTMLElement | undefined {
   const regions = [...document.querySelectorAll<HTMLElement>(REGION)].filter(visible)
+  if (!regions.length) return undefined
   const current = document.activeElement?.closest(REGION)
   const index = regions.findIndex(region => region === current)
-  if (!regions.length) return false
-  const next = regions[(index + (direction === 'next' ? 1 : -1) + regions.length) % regions.length]!
-  const held = remembered.get(next)
-  if (
-    (!held || !visible(held) || held.closest(REGION) !== next) &&
-    next.hasAttribute('data-focus-surface')
-  ) {
+  return regions[(index + (direction === 'next' ? 1 : -1) + regions.length) % regions.length]
+}
+
+export function moveRegion(direction: 'next' | 'previous'): boolean {
+  if (blockingOverlay()) return false
+  const next = neighbourRegion(direction)
+  if (next === undefined) return false
+  const held = heldIn(next)
+  if (held === undefined && next.hasAttribute('data-focus-surface')) {
     focusSurface(next)
     return next.contains(document.activeElement)
   }
-  const first = [...next.querySelectorAll<HTMLElement>(FOCUSABLE)].find(
-    node => node.tabIndex >= 0 && visible(node) && node.closest(REGION) === next,
-  )
-  const target = held && visible(held) && held.closest(REGION) === next ? held : (first ?? next)
+  const target = held ?? firstFocusable(next) ?? next
   target.focus({ preventScroll: true })
   return document.activeElement === target
 }
@@ -75,37 +84,52 @@ export function currentRegion(): HTMLElement | undefined {
     undefined
   )
 }
-export function navigateWithin(key: 'j' | 'k' | 'gg' | 'G' | '/'): boolean {
-  const region = currentRegion()
-  if (!region) return false
-  if (key === '/') {
-    const search = [
-      ...region.querySelectorAll<HTMLElement>('[data-keyboard-search],input[type="search"]'),
-    ].find(visible)
-    search?.focus()
-    return search !== undefined
+type NavigationKey = 'j' | 'k' | 'gg' | 'G' | '/'
+
+function focusSearch(region: HTMLElement): boolean {
+  const search = [
+    ...region.querySelectorAll<HTMLElement>('[data-keyboard-search],input[type="search"]'),
+  ].find(visible)
+  search?.focus()
+  return search !== undefined
+}
+
+function scrollReading(reading: HTMLElement, key: NavigationKey): void {
+  reading.focus({ preventScroll: true })
+  if (key === 'gg' || key === 'G') {
+    reading.scrollTo({ top: key === 'gg' ? 0 : reading.scrollHeight, behavior: 'instant' })
+  } else {
+    reading.scrollBy({ top: key === 'j' ? 80 : -80, behavior: 'instant' })
   }
-  const reading = region.querySelector<HTMLElement>('[data-keyboard-reading]')
-  if (reading && visible(reading) && !document.activeElement?.closest('[data-keyboard-list]')) {
-    reading.focus({ preventScroll: true })
-    if (key === 'gg' || key === 'G')
-      reading.scrollTo({ top: key === 'gg' ? 0 : reading.scrollHeight, behavior: 'instant' })
-    else reading.scrollBy({ top: key === 'j' ? 80 : -80, behavior: 'instant' })
-    return true
-  }
-  const list = document.activeElement?.closest('[data-keyboard-list]') ?? region
+}
+
+function targetItem(key: NavigationKey, index: number, count: number): number {
+  if (key === 'gg') return 0
+  if (key === 'G') return count - 1
+  return Math.min(count - 1, Math.max(0, index + (key === 'j' ? 1 : -1)))
+}
+
+function stepItems(list: Element, key: NavigationKey): boolean {
   const items = [...list.querySelectorAll<HTMLElement>('[data-keyboard-item]')].filter(visible)
   if (!items.length) return false
   const index = items.findIndex(
     item => item === document.activeElement || item.contains(document.activeElement),
   )
-  const next =
-    key === 'gg'
-      ? 0
-      : key === 'G'
-        ? items.length - 1
-        : Math.min(items.length - 1, Math.max(0, index + (key === 'j' ? 1 : -1)))
-  items[next]!.focus()
-  items[next]!.scrollIntoView?.({ block: 'nearest' })
+  const next = items[targetItem(key, index, items.length)]!
+  next.focus()
+  next.scrollIntoView?.({ block: 'nearest' })
   return true
+}
+
+export function navigateWithin(key: NavigationKey): boolean {
+  const region = currentRegion()
+  if (!region) return false
+  if (key === '/') return focusSearch(region)
+  const reading = region.querySelector<HTMLElement>('[data-keyboard-reading]')
+  const inList = document.activeElement?.closest('[data-keyboard-list]')
+  if (reading && visible(reading) && !inList) {
+    scrollReading(reading, key)
+    return true
+  }
+  return stepItems(inList ?? region, key)
 }
