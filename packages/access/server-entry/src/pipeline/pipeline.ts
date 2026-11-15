@@ -19,6 +19,7 @@ import {
   systemClock,
   type Clock,
   type Confirmation,
+  type SettleInput,
   type SettleNote,
 } from '../settle/settle.ts'
 import { parseAddress, pathOf, type Address } from './address.ts'
@@ -192,6 +193,18 @@ async function confirmLogin(
   return 'denied'
 }
 
+function loginHooks(
+  identity: AccessIdentity,
+  login: SignedIn | undefined,
+  contract: OperationContract,
+  note: (code: PipelineDiagnosticCode) => void,
+): Pick<SettleInput, 'reportAccess' | 'confirm'> {
+  if (login === undefined) return {}
+  const reportAccess = (): void => report(identity, login.identity, note)
+  if (contract.effect !== 'read') return { reportAccess }
+  return { reportAccess, confirm: () => confirmLogin(identity, login, note) }
+}
+
 function report(
   identity: AccessIdentity,
   login: LoginIdentity,
@@ -341,12 +354,7 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
       config: { graceMs: access.graceMs },
       clock,
       respond: answer => writeAnswer(res, { ...answer, messageId, close: false }),
-      ...(login === undefined
-        ? {}
-        : { reportAccess: () => report(access.identity, login.identity, note) }),
-      ...(login === undefined || member.contract.effect !== 'read'
-        ? {}
-        : { confirm: () => confirmLogin(access.identity, login, note) }),
+      ...loginHooks(access.identity, login, member.contract, note),
       note,
     })
   }
