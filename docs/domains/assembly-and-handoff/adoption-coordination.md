@@ -38,7 +38,7 @@
 
 ### 公开操作
 
-**AC-02** 契约有三个操作：`prepare`、`validate`、`read`。契约没有第四个操作。契约没有写 Session 或 Agent 状态的操作，也没有 `close`、`release` 或 `commit`。依据：Session 规格 [PM-03](../../../packages/session/session-contract/SPEC.md#pm-03)（本阶段不写 Session 条目）与 assembly 规格「入口」（候选失败不调用旧实例的 `close`）。
+**AC-02** 契约有三个操作：`prepare`、`validate`、`read`。契约没有第四个操作。契约没有写 Session 或 Agent 状态的操作，也没有 `close`、`release` 或 `commit`。依据：Session 规格 [PM-03](../../../packages/session/SPEC.md#run-与推进资格)（本阶段不写 Session 条目）与 assembly 规格「入口」（候选失败不调用旧实例的 `close`）。
 
 **AC-03** 三个操作的输入如下：
 
@@ -80,14 +80,14 @@
 
 `manifest` 有六个字段：
 
-| 字段            | 内容                                                                                                                             |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `definition`    | 定义名与定义的精确版本（`Adoption`）                                                                                             |
-| `execution`     | 执行类型的精确采用                                                                                                               |
-| `entryContract` | 入口契约的精确采用                                                                                                               |
+| 字段            | 内容                                                                                                                                              |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `definition`    | 定义名与定义的精确版本（`Adoption`）                                                                                                              |
+| `execution`     | 执行类型的精确采用                                                                                                                                |
+| `entryContract` | 入口契约的精确采用                                                                                                                                |
 | `capabilities`  | 必需能力的有序列表。每项是能力身份（类别加 name，类别不限于工具）与精确版本。版本为 `null` 时，本清单不固定该能力的版本，由能力拥有者在采用点决定 |
-| `extensions`    | 定义声明的扩展顺序                                                                                                               |
-| `conditions`    | 适用的执行条件                                                                                                                   |
+| `extensions`    | 定义声明的扩展顺序                                                                                                                                |
+| `conditions`    | 适用的执行条件                                                                                                                                    |
 
 能力进会话靠两样叠加：会话执行类型的必需身份集合，和 Agent 定义的引用。自动继承现在不承诺。两处的类别都不限于工具，都可以标常驻，任一边标了常驻就常驻。必须带而不常驻的能力，只在创建时核它存在、有资格，不进采用材料，能不能被发现由当下的事实定。
 
@@ -95,7 +95,7 @@
 
 `manifest` 不含主体、范围、入口、当前采用与 `knownUnavailable`。这些项随每次调用或每个时刻变化，内容却不变。它们进入清单，会让同一内容得到不同的 `ref`（AC-12）。`manifest` 也不含活体句柄、推进权、Tool 冻结判定与常驻登记键。依据：assembly 规格「记录」（清单不是可持久化的活体句柄），[Tool 采用点判定](../../../packages/tool/SPEC.md#定义采用与常驻)。
 
-**AC-07** 候选与 `ref` 都没有推进效力。`prepare` 成功不等于已采用。Session 提交 `ref` 之后，该清单才是本次执行的采用依据。依据：Session 规格 [PM-06](../../../packages/session/session-contract/SPEC.md#pm-06)。
+**AC-07** 候选与 `ref` 都没有推进效力。`prepare` 成功不等于已采用。Session 提交 `ref` 之后，该清单才是本次执行的采用依据。依据：Session 规格 [PM-06](../../../packages/session/SPEC.md#run-与推进资格)。
 
 采用依据由两部分组成：
 
@@ -293,7 +293,7 @@ Session 规格「身份桥、证据桥与 Context 输入」说已校验候选「
 
 **AC-25** Session 路径的适配器按 `validate` 原因的类处理（AC-08）：
 
-- 含 `revoked`：已采用核验得到它时，Session 按 [PM-09](../../../packages/session/session-contract/SPEC.md#pm-09) 的「原采用自身已经不合法」处理。
+- 含 `revoked`：已采用核验得到它时，Session 按 [PM-09](../../../packages/session/SPEC.md#run-与推进资格) 的「原采用自身已经不合法」处理。
 - 只含「有更新」类原因：适配器按 AC-26 重新准备一次。
 
 **AC-26** 适配器按下表把契约答案映射到消费者的失败词汇。映射由应用成员的适配器对照 Session 与 Agent 各自规格核对。冲突时停下，不改它们的契约。

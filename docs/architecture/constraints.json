@@ -367,7 +367,7 @@
       "layer": "contract",
       "domains": ["session"],
       "status": "adopted",
-      "source": "packages/session/session-contract/SPEC.md"
+      "source": "packages/session/SPEC.md"
     },
     {
       "id": "packages/session/session-cordis-contract",
@@ -375,7 +375,7 @@
       "layer": "unknown",
       "domains": ["session"],
       "status": "candidate",
-      "source": "packages/session/session-cordis-contract/SPEC.md"
+      "source": "packages/session/SPEC.md"
     },
     {
       "id": "packages/agent/agent-host-local",
@@ -391,7 +391,7 @@
       "layer": "assembly",
       "domains": ["session"],
       "status": "adopted",
-      "source": "packages/session/session-cordis/SPEC.md"
+      "source": "packages/session/SPEC.md"
     },
     {
       "id": "packages/session/session-adapters",
@@ -399,7 +399,7 @@
       "layer": "unknown",
       "domains": ["session"],
       "status": "candidate",
-      "source": "packages/session/session-adapters/SPEC.md"
+      "source": "packages/session/SPEC.md"
     },
     {
       "id": "packages/session/session-observation",
@@ -407,7 +407,7 @@
       "layer": "unknown",
       "domains": ["session"],
       "status": "candidate",
-      "source": "packages/session/session-observation/SPEC.md"
+      "source": "packages/session/SPEC.md"
     },
     {
       "id": "packages/session/session-access",
@@ -415,7 +415,7 @@
       "layer": "unknown",
       "domains": ["session"],
       "status": "candidate",
-      "source": "packages/session/session-access/SPEC.md"
+      "source": "packages/session/SPEC.md"
     },
     {
       "id": "packages/session/session-ui",
@@ -423,7 +423,7 @@
       "layer": "unknown",
       "domains": ["session"],
       "status": "candidate",
-      "source": "packages/session/session-ui/SPEC.md"
+      "source": "packages/session/SPEC.md"
     },
     {
       "id": "packages/session/session-protocol",
@@ -431,7 +431,7 @@
       "layer": "contract",
       "domains": ["session"],
       "status": "candidate",
-      "source": "packages/session/session-protocol/SPEC.md"
+      "source": "packages/session/SPEC.md"
     },
     {
       "id": "packages/assets/assets-protocol",
@@ -527,7 +527,7 @@
       "layer": "unknown",
       "domains": ["session"],
       "status": "adopted",
-      "source": "packages/session/session/SPEC.md"
+      "source": "packages/session/SPEC.md"
     },
     {
       "id": "packages/session/session-storage-sql",
@@ -535,7 +535,7 @@
       "layer": "unknown",
       "domains": ["session"],
       "status": "adopted",
-      "source": "packages/session/session-storage-sql/SPEC.md"
+      "source": "packages/session/SPEC.md"
     },
     {
       "id": "packages/access/sdk",

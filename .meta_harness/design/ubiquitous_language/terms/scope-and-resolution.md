@@ -16,12 +16,12 @@
 > **中**：[协作范围 context](#ul-collaboration-scope-context--协作范围-context--collaboration-scope-context) 内部
 > **由身份带来的归属层级**。共四层，由低到高：
 >
-> | 中文 | English | 归属 |
-> |---|---|---|
-> | **出厂默认** | **Factory Default** | 系统 |
-> | **组织级** | **Organization** | 组织 |
-> | **租户级** | **Tenant** | (组织, 账号) |
-> | **会话级** | **Session** | 本次协作 |
+> | 中文         | English             | 归属         |
+> | ------------ | ------------------- | ------------ |
+> | **出厂默认** | **Factory Default** | 系统         |
+> | **组织级**   | **Organization**    | 组织         |
+> | **租户级**   | **Tenant**          | (组织, 账号) |
+> | **会话级**   | **Session**         | 本次协作     |
 >
 > **它说的是「归属」，不是「有一堆自己的字段」**：一层的设置与权限，是它持有的资产
 > 各自属性的[投影](#ul-attribute-projection--属性投影--attribute-projection)。
@@ -51,12 +51,12 @@
 > **中**：**[作用域层](#ul-scope-layer--作用域层--scope-layer)的一格由哪重身份充当。**
 > 那四层是**身份带来的**四层，每一格对应一重归属：
 >
-> | 层 | 由谁充当 |
-> |---|---|
-> | **出厂默认** | **系统。没有一个身份对象充当它** |
-> | **组织级** | [组织](subjects-and-ownership.md#ul-organization--组织--organization) |
-> | **租户级** | [租户](subjects-and-ownership.md#ul-tenant--租户--tenant)，即 (组织, 账号) |
-> | **会话级** | 本次协作，也就是那个[会话](agent-runtime-loop.md#ul-session--会话--session) |
+> | 层           | 由谁充当                                                                    |
+> | ------------ | --------------------------------------------------------------------------- |
+> | **出厂默认** | **系统。没有一个身份对象充当它**                                            |
+> | **组织级**   | [组织](subjects-and-ownership.md#ul-organization--组织--organization)       |
+> | **租户级**   | [租户](subjects-and-ownership.md#ul-tenant--租户--tenant)，即 (组织, 账号)  |
+> | **会话级**   | 本次协作，也就是那个[会话](agent-runtime-loop.md#ul-session--会话--session) |
 >
 > **EN**: **Which identity occupies a given scope layer.** The four layers are the ones
 > **brought by identity**, each answering to one: the **factory-default** layer answers to the
@@ -125,7 +125,7 @@
 > **EN**: A reference to one load of a workspace on a deployment node. It has two parts: the workspace instance identifier and the load basis (for example, a Git commit). It occurs together with a `WorkspaceId`: the `WorkspaceId` tells which workspace, and the workspace attachment tells on which instance and from which basis the workspace is loaded. The workspace domain owns the format of both parts.
 
 - **形态**：属性
-- **出处**：[工作区：产品需求描述](../../product/workspaces/design.md#产品需求描述)（rev 5）。补充依据：[#679 裁定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)（PanQiWei 2026-10-27 裁定：`workspace` 分为身份轴、实例轴与版本轴，实例轴与版本轴合为工作区域拥有的附着值）。当前由 Session 契约的[创建规则](../../../../packages/session/session-contract/SPEC.md#消费者资格与输入)以 `workspaceAttachment` 字段承载
+- **出处**：[工作区：产品需求描述](../../product/workspaces/design.md#产品需求描述)（rev 5）。补充依据：[#679 裁定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)（PanQiWei 2026-10-27 裁定：`workspace` 分为身份轴、实例轴与版本轴，实例轴与版本轴合为工作区域拥有的附着值）。当前由 Session 契约的[创建规则](../../../../packages/session/SPEC.md#受理与输入)以 `workspaceAttachment` 字段承载
 - **别混**：与[工作区实例](#ul-workspace-instance--工作区实例--workspace-instance)不是一回事：实例是被装载出来的工作入口，工作区附着只是指向某个实例的一次装载的引用。与[附件](execution-and-outcome.md#ul-attachment--附件--attachment)、[执行挂接](agent-runtime-loop.md#ul-execution-attachment--执行挂接--execution-attachment)无关，字段和类型不许简称 `attachment`（同 [C-64](../conflicts.md#c-64执行挂接的候选类型名)）。产品正文（如[J-WS01](../../product/workspaces/design.md#j-ws01-显式接入已有目录或装载已登记资源)「报告附着成功」）、[租户—工作区关系](subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation)的参与边界与本卷[工作区实例](#ul-workspace-instance--工作区实例--workspace-instance)「不再附着」里的「附着」是动作：把工作区接到会话上，或这一动作的结果。它不是本词，本词是一个引用值。两种用法待收敛，见 [C-72](../conflicts.md#c-72附着动作与工作区附着值)
 
 ### UL-workspace-address · 工作区地址 · Workspace Address
@@ -267,11 +267,11 @@
 > **中**：同一[能力标识](#ul-capability-identifier--能力标识--capability-identifier)的对象
 > 在多层同时存在时，**怎样合成出最终结果**。三种，各对一类对象：
 >
-> | 对象 | 中文 | English | 怎么合成 | 层次有方向吗 |
-> |---|---|---|---|---|
-> | 设置 | **覆盖** | **Override** | 取最具体的、有值的那一层的值，更外层的被丢弃 | 有 |
-> | 权限 | **收窄** | **Narrowing** | 各层**锁下的允许集合**取**交集**，更外层锁下的不可突破；界内取最具体的、挑在界内的那一层的值 | 取交集那一半**无**（交集可交换）；挑那一半有 |
-> | 资产 | **组合 + 同标识覆盖** | **Composition + Same-Identifier Override** | 不同标识并存，同标识取最具体那一层的 | 同标识时有 |
+> | 对象 | 中文                  | English                                    | 怎么合成                                                                                     | 层次有方向吗                                 |
+> | ---- | --------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------- | -------------------------------------------- |
+> | 设置 | **覆盖**              | **Override**                               | 取最具体的、有值的那一层的值，更外层的被丢弃                                                 | 有                                           |
+> | 权限 | **收窄**              | **Narrowing**                              | 各层**锁下的允许集合**取**交集**，更外层锁下的不可突破；界内取最具体的、挑在界内的那一层的值 | 取交集那一半**无**（交集可交换）；挑那一半有 |
+> | 资产 | **组合 + 同标识覆盖** | **Composition + Same-Identifier Override** | 不同标识并存，同标识取最具体那一层的                                                         | 同标识时有                                   |
 >
 > 「更外层 / 更具体」按[作用域层](#ul-scope-layer--作用域层--scope-layer)的先后读：出厂默认最外，会话级最具体。
 >
@@ -281,9 +281,9 @@
 > intersect across layers, order-independently, and no more specific layer can break a
 > bound locked further out; within the bound, the most specific layer whose pick falls
 > inside it decides); and **Composition + Same-Identifier Override** for assets (distinct
-identifiers coexist; for one identifier the most specific layer's asset wins). "Outer" and
-"more specific" follow the layer order: the factory default is outermost, the session most
-specific.
+> identifiers coexist; for one identifier the most specific layer's asset wins). "Outer" and
+> "more specific" follow the layer order: the factory default is outermost, the session most
+> specific.
 
 - **形态**：规则
 - **出处**：[PF-001 §6.2 三种合成语义](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#62-三种合成语义)（rev 26）
