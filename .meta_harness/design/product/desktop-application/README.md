@@ -1,0 +1,27 @@
+---
+id: PD-desktop-application
+title: 桌面应用
+status: draft
+revision: 1
+relations:
+  supersedes: []
+  depends-on: []
+  extends: []
+---
+
+# 桌面应用
+
+本 topic 回答一个产品问题：给人用的第一个图形界面是什么，它有哪几部分，人在每一部分能做什么、受阻时看到什么。它只定义应用这一层自己的事实。登录、会话、设置与问题卡的规则归各自的 topic，本 topic 引用它们，不重新定义。
+
+正文依据产品负责人 2026-11-11 到 2026-11-13 对桌面应用的决定：第一种图形界面是桌面端，有登录、会话管理、设置、对话四部分。正文是 draft，整体产品接受尚无依据。
+
+## 阅读入口
+
+- [产品正文](design.md)：需求与旅程、能力定义、未决问题与待定事项。
+- [应用的规格](../../../../apps/desktop/SPEC.md)维护桌面应用的工程结构：页面、宿主与它们之间的桥。
+- [接入的包组规格](../../../../packages/access/SPEC.md#总体架构)维护客户端怎样连到服务端。
+- 四部分用到的规则：[身份与授权](../identity-and-authorization/design.md)、[会话与工作](../sessions-and-work/design.md)、[资产与规则](../assets-and-rules/design.md)、[人在回路](../human-intervention/design.md)。
+
+## 维护
+
+产品维护者维护四部分的范围、旅程、能力与未决。别的 topic 拥有的规则变了，本 topic 只核对引用还成不成立。含义变化同步真实消费者：应用的规格、各领域的界面部分。

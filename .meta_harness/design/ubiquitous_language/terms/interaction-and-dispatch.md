@@ -534,20 +534,22 @@
 > 它提交的每一件事都成为一条[入站到达](#ul-inbound-arrival--入站到达--inbound-arrival)、
 > 一条卡片答复或一条[控制指令](#ul-control-command--控制指令--control-command)；
 > **它也没有自己的领域语义**——凡是在它上面能做的事，**都是别处已经定义过的动作**，它不新开任何通路。
-> **本版只有一种：装在用户自己机器上的命令行应用。**
+> **有两种：装在用户自己机器上的命令行应用，以及桌面应用。**
 >
 > **EN**: The class of surfaces through which the system **projects the session log to a
 > person** and **feeds what that person does into intake**. **Two properties, both
 > required**: it **holds no domain fact of its own** — every line on screen points back to
 > an entry in the log, and everything it submits becomes an inbound arrival, a card answer
 > or a control command; and it **has no domain semantics of its own** — every action
-> available on it **is one defined elsewhere**, and it opens no new path. **This version has
-> only one kind: a command-line application installed on the user's own machine.**
+> available on it **is one defined elsewhere**, and it opens no new path. **There are two
+> kinds: a command-line application installed on the user's own machine, and the desktop
+> application.**
 
 - **形态**：总称
 - **出处**：[PF-016 §4 交付面](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#交付面) ·
   [§5.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#53-屏上的每一条都指得回日志里的一条) ·
-  [§5.4](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#54-人做的每一件事走的都是已有的路)（rev 13）
+  [§5.4](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#54-人做的每一件事走的都是已有的路)（rev 13） ·
+  [桌面应用「产品需求描述」](../../product/desktop-application/design.md#产品需求描述)（rev 1）
 - **⚠️ 别混**：**不是[会话据点](grounding-and-isolation.md#ul-session-base--会话据点--session-base)。**
   据点是这些会话事实**所在的那一处**，交付面**什么都不持有**；
   同一处据点上**可以同时开着好几处**在用它
