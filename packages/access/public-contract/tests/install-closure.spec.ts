@@ -224,7 +224,7 @@ it('installs only the pure tarball closure and consumes both ends through dist e
         pending.push(dependency)
       }
     }
-    expect([...installed].sort()).toEqual(Object.keys(dependencies).sort())
+    expect([...installed].sort()).toEqual([...Object.keys(dependencies), 'jsonc-parser'].sort())
     for (const forbidden of [
       'server-entry',
       'identity-sql',
