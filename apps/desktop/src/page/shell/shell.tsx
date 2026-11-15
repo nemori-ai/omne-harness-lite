@@ -93,10 +93,16 @@ function Gate(props: { state: ShellState; connectivity: Connectivity }) {
   )
 }
 
-function Outside(props: { state: ShellState; login: ShellLoginState; connectivity: Connectivity }) {
+function Outside(props: {
+  appName: string
+  state: ShellState
+  login: ShellLoginState
+  connectivity: Connectivity
+}) {
   return (
     <main className="shell-outside">
       <Disconnected connectivity={props.connectivity} />
+      <span className="shell-brand shell-brand-outside">{props.appName}</span>
       {props.login === 'signing-out' ? (
         <LoadingState label="正在退出……" />
       ) : (
@@ -243,7 +249,12 @@ export function Shell(props: ShellProps) {
           theme={props.theme}
         />
       ) : (
-        <Outside state={props.state} login={login} connectivity={connectivity} />
+        <Outside
+          appName={props.appName}
+          state={props.state}
+          login={login}
+          connectivity={connectivity}
+        />
       )}
     </AppTooltipProvider>
   )

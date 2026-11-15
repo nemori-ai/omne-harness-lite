@@ -242,12 +242,18 @@ body,
   background: var(--omne-surface-page);
 }
 
+.shell-brand-outside {
+  align-self: center;
+  margin-top: clamp(32px, 12dvh, 120px);
+  overflow: visible;
+}
+
 .shell-gate {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  padding-top: 48px;
+  padding-top: 16px;
 }
 
 .shell-empty {

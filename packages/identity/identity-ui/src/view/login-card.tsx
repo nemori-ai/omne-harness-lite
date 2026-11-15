@@ -4,7 +4,6 @@ import {
   Field,
   InlineNotice,
   Input,
-  PageColumn,
   PageHeader,
   Segmented,
 } from '@omne-harness/ui-kit'
@@ -36,7 +35,7 @@ export function LoginCard(props: { model: LoginModel }) {
 
   const ready = loginIdentifier.trim() !== '' && credential !== '' && !form.pending
   return (
-    <PageColumn className="identity-login" aria-labelledby="identity-login-title">
+    <section className="identity-login" aria-labelledby="identity-login-title">
       <PageHeader title={TITLE[form.mode]} titleId="identity-login-title" />
       <Segmented
         label="登录方式"
@@ -75,6 +74,6 @@ export function LoginCard(props: { model: LoginModel }) {
           {form.pending ? '请稍候……' : TITLE[form.mode]}
         </Button>
       </form>
-    </PageColumn>
+    </section>
   )
 }
