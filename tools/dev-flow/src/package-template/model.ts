@@ -25,7 +25,7 @@ export interface TemplateManifest {
   readonly format: 1
   readonly id: string
   readonly version: string
-  readonly ruleSet: 4
+  readonly ruleSet: 5
   readonly common: readonly FileTemplate[]
   readonly variants: Readonly<Record<Variant, readonly FileTemplate[]>>
   readonly requiredFiles: readonly string[]

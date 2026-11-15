@@ -2,7 +2,7 @@
   "format": 1,
   "id": "typescript-package",
   "version": "5.0.0",
-  "ruleSet": 4,
+  "ruleSet": 5,
   "common": [
     {
       "source": "common/package.json.tpl",

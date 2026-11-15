@@ -808,7 +808,7 @@ describe('template version boundary', () => {
   it('stores the 3.0.0, 2.0.0 and 1.0.0 rules as exact historical entries', () => {
     const template = readTemplate()
     expect(template.version).toBe('5.0.0')
-    expect(template.ruleSet).toBe(4)
+    expect(template.ruleSet).toBe(5)
     expect(template).not.toHaveProperty('topics')
     expect(template.previousVersions['3.0.0']?.ruleSet).toBe(3)
     expect(template.previousVersions['3.0.0']?.topics).toEqual([
@@ -898,6 +898,175 @@ describe('template 5.0.0 interface file kinds', () => {
     expect(result.findings).toContainEqual(
       expect.objectContaining({ code: 'layout', path: `${member}/${file}` }),
     )
+  })
+})
+
+describe('template 5.0.0 resource exports and publication', () => {
+  const ROOT_ENTRY = {
+    source: './src/index.ts',
+    types: './dist/index.d.ts',
+    import: './dist/index.js',
+  }
+  function publish(
+    root: string,
+    member: string,
+    exportsMap: Record<string, string>,
+    files: string[],
+    made: { files?: string[]; directories?: string[] } = {},
+  ): void {
+    for (const file of made.files ?? []) {
+      fs.mkdirSync(join(root, member, file, '..'), { recursive: true })
+      fs.writeFileSync(join(root, member, file), 'content\n')
+    }
+    for (const directory of made.directories ?? [])
+      fs.mkdirSync(join(root, member, directory), { recursive: true })
+    changeManifest(root, member, value => {
+      value['exports'] = { '.': ROOT_ENTRY, ...exportsMap }
+      value['files'] = ['dist', ...files]
+    })
+  }
+  function codes(root: string, member: string): string[] {
+    return inspectPackage(root, member, readTemplate(), evidence).findings.map(
+      finding => `${finding.code}:${finding.reason}`,
+    )
+  }
+  const css = { files: ['src/styles.css'] }
+  it('accepts an exported stylesheet in src listed by path', () => {
+    const root = repository(),
+      member = adopted(root)
+    publish(root, member, { './styles.css': './src/styles.css' }, ['src/styles.css'], css)
+    expect(inspectPackage(root, member, readTemplate(), evidence)).toMatchObject({
+      structure: 'pass',
+      findings: [],
+    })
+  })
+  it('accepts a resources stylesheet export, a directory wildcard export and a css glob in files', () => {
+    const root = repository(),
+      member = adopted(root)
+    publish(
+      root,
+      member,
+      {
+        './styles.css': './src/view/a.css',
+        './theme.css': './resources/theme.css',
+        './fonts/*': './resources/fonts/*',
+      },
+      ['src/**/*.css', 'resources/theme.css', 'resources/fonts'],
+      { files: ['src/view/a.css', 'resources/theme.css'], directories: ['resources/fonts'] },
+    )
+    expect(
+      codes(root, member).filter(item => /^(resource-export|publication)/u.test(item)),
+    ).toEqual([])
+  })
+  it('accepts a nested css glob under src', () => {
+    const root = repository(),
+      member = adopted(root)
+    publish(root, member, { './a.css': './src/view/a.css' }, ['src/view/**/*.css'], {
+      files: ['src/view/a.css'],
+    })
+    expect(codes(root, member).filter(item => item.startsWith('publication'))).toEqual([])
+  })
+  it.each([
+    ['a stylesheet that does not exist', './src/missing.css'],
+    ['a stylesheet outside src and resources', './styles.css'],
+    ['a stylesheet that leaves the member', './src/../../outside/x.css'],
+    ['an absolute path', '/etc/x.css'],
+    ['a directory instead of a file', './src/view.css'],
+  ])('rejects an export that points to %s', (_name, target) => {
+    const root = repository(),
+      member = adopted(root)
+    fs.writeFileSync(join(root, member, 'styles.css'), 'x\n')
+    fs.mkdirSync(join(root, member, 'src/view.css'), { recursive: true })
+    publish(root, member, { './x.css': target }, [])
+    expect(codes(root, member)).toContainEqual(
+      expect.stringContaining(`resource-export:Missing or unsupported public resource: ${target}`),
+    )
+  })
+  it.each([
+    ['a directory that does not exist', './resources/missing/*'],
+    ['a wildcard outside resources', './src/fonts/*'],
+    ['resources itself', './resources/*'],
+    ['a wildcard that leaves the member', './resources/../../x/*'],
+    ['a partial wildcard', './resources/fonts/*.woff2'],
+    ['a wildcard over a file', './resources/file.txt/*'],
+    ['a double wildcard', './resources/**/*'],
+  ])('rejects a wildcard export that points to %s', (_name, target) => {
+    const root = repository(),
+      member = adopted(root)
+    fs.mkdirSync(join(root, member, 'resources/fonts'), { recursive: true })
+    fs.mkdirSync(join(root, member, 'src/fonts'), { recursive: true })
+    fs.writeFileSync(join(root, member, 'resources/fonts/a.woff2'), 'x\n')
+    fs.writeFileSync(join(root, member, 'resources/file.txt'), 'x\n')
+    publish(root, member, { './x/*': target }, [])
+    expect(codes(root, member)).toContainEqual(
+      expect.stringContaining(`resource-export:Missing or unsupported public resource: ${target}`),
+    )
+  })
+  it.each([
+    ['an exported stylesheet missing from files', [], 'src/styles.css'],
+    ['a css glob in another directory', ['resources/**/*.css'], 'src/styles.css'],
+    ['a glob of another file kind', ['src/**/*.json'], 'src/styles.css'],
+    ['a glob with a wildcard in the directory', ['src/*/**/*.css'], 'src/view/a.css'],
+    ['a css glob outside src and resources', ['**/*.css'], 'src/styles.css'],
+  ])('reports publication for %s', (_name, files, target) => {
+    const root = repository(),
+      member = adopted(root)
+    publish(root, member, { './x.css': `./${target}` }, files, { files: [target] })
+    expect(codes(root, member)).toContainEqual(
+      expect.stringContaining(
+        `publication:Export is absent from the explicit package file list: ./${target}`,
+      ),
+    )
+  })
+  it('reports publication for a wildcard export whose directory is not in files', () => {
+    const root = repository(),
+      member = adopted(root)
+    publish(root, member, { './fonts/*': './resources/fonts/*' }, ['resources/other'], {
+      directories: ['resources/fonts', 'resources/other'],
+      files: ['resources/fonts/a.woff2', 'resources/other/b.woff2'],
+    })
+    expect(codes(root, member)).toContainEqual(
+      expect.stringContaining('publication:Export is absent from the explicit package file list'),
+    )
+  })
+  it.each([
+    ['a stylesheet export', { './styles.css': './src/styles.css' }, ['src/styles.css']],
+    ['a wildcard export', { './fonts/*': './resources/fonts/*' }, ['resources/fonts']],
+  ])('still rejects %s in a 4.0.0 member', (_name, exportsMap, files) => {
+    const root = repository(),
+      member = adopted(root)
+    publish(root, member, exportsMap, files, {
+      files: ['src/styles.css', 'resources/fonts/a.woff2'],
+    })
+    expect(codes(root, member).filter(item => item.startsWith('resource-export'))).toEqual([])
+    fourShape(root, member)
+    expect(codes(root, member)).toContainEqual(
+      expect.stringContaining('resource-export:Missing or unsupported public resource'),
+    )
+  })
+  it('still rejects a css glob in files in a 4.0.0 member', () => {
+    const root = repository(),
+      member = adopted(root)
+    publish(root, member, { './styles.css': './src/styles.css' }, ['src/**/*.css'], css)
+    fourShape(root, member)
+    expect(codes(root, member)).toContainEqual(
+      expect.stringContaining('publication:Export is absent from the explicit package file list'),
+    )
+  })
+  it('keeps accepting a json resource export under both versions', () => {
+    const root = repository(),
+      member = adopted(root)
+    publish(root, member, { './data.json': './resources/data.json' }, ['resources/data.json'], {
+      files: ['resources/data.json'],
+    })
+    expect(inspectPackage(root, member, readTemplate(), evidence).structure).toBe('pass')
+    fourShape(root, member)
+    expect(inspectPackage(root, member, readTemplate(), evidence).structure).toBe('pass')
+  })
+  it('stores rule set 5 for the current version and keeps 4.0.0 on rule set 4', () => {
+    const template = readTemplate()
+    expect(template.ruleSet).toBe(5)
+    expect(template.previousVersions['4.0.0']?.ruleSet).toBe(4)
   })
 })
 

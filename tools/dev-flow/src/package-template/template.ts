@@ -102,7 +102,7 @@ export function readTemplate(directory = TEMPLATE_DIRECTORY): TemplateManifest {
     value['format'] !== 1 ||
     value['id'] !== 'typescript-package' ||
     !version(value['version']) ||
-    value['ruleSet'] !== 4 ||
+    value['ruleSet'] !== 5 ||
     !fileList(value['common']) ||
     !stringArray(value['requiredFiles']) ||
     !layoutRules(value['layout']) ||

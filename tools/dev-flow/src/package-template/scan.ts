@@ -76,7 +76,7 @@ export function inspectPackage(
   const layout = checkLayout(root, member, previous?.layout ?? template.layout)
   const findings = [
     ...layout.findings,
-    ...checkStructure(root, member, manifest, selected, required),
+    ...checkStructure(root, member, manifest, selected, required, rules.ruleSet >= 5),
   ]
   if ('topics' in rules && rules.topics !== undefined)
     findings.push(...checkTopics(root, member, rules.topics, layout.tree))
