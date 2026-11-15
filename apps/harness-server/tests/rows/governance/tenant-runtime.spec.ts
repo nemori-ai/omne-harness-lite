@@ -563,6 +563,10 @@ it.each(['wrong-domain', 'unissued-reader'] as const)(
     expect(await prepareTenantGovernance(changed).open()).toMatchObject({
       kind: 'unavailable',
       phase: 'binding',
+      reason:
+        scenario === 'wrong-domain'
+          ? 'catalog reader is not of this tenant'
+          : expect.stringMatching(/^catalog reader (verification answered|verified as)/),
     })
     expect(registration).not.toHaveBeenCalled()
   },
@@ -578,7 +582,11 @@ it('retries a refused registration with the same durable combination identities'
     storage: { ...w.options.storage, registerCombination: registration },
   }
   const rejected = prepareTenantGovernance(options)
-  expect(await rejected.open()).toMatchObject({ kind: 'unavailable', phase: 'registration' })
+  expect(await rejected.open()).toMatchObject({
+    kind: 'unavailable',
+    phase: 'registration',
+    reason: 'threw',
+  })
   await rejected.open()
   expect(registration).toHaveBeenCalledTimes(1)
   const retry = prepareTenantGovernance(options)
@@ -897,6 +905,7 @@ it('retains and retries close responsibility for an unavailable installation', a
             kind: 'unavailable' as const,
             owner: 'harness.tenant-governance',
             phase: 'installation' as const,
+            reason: 'tool installation adopt',
             close,
           }
         },
@@ -919,7 +928,11 @@ it('closes an interrupted installation and resumes from original partial holding
       throw new Error('organization read transport failure')
     },
   }).open()
-  expect(interrupted).toMatchObject({ kind: 'unavailable', phase: 'installation' })
+  expect(interrupted).toMatchObject({
+    kind: 'unavailable',
+    phase: 'installation',
+    reason: expect.stringMatching(/^tool installation \S+$/),
+  })
   if (!('close' in interrupted)) throw new Error('installation lost its close responsibility')
   cleanup.push(interrupted.close)
   expect(await interrupted.close()).toEqual({ kind: 'closed' })

@@ -339,9 +339,6 @@ const text = (value: string) => value as SecretText
 const unconfiguredLine =
   'unconfigured reason=no search key is configured; set the Web setting exa.apiKey'
 
-const NEW_TENANT_LIST =
-  'a tenant with no session yet has no transaction domain, so the catalog face answers basis-unavailable and so does the whole list'
-
 const exaView = (own: string, official: string) => ({
   asset: { category: 'tool', name: WEB_ASSET },
   item: EXA_KEY_ITEM,
@@ -381,7 +378,9 @@ describe('the Web search key through `omne setting` on the release tree (web-met
         expect(shown0.status, shown0.stderr).toBe(0)
         expect(bodyOf(shown0)).toEqual({ item: exaView('unset', 'unset') })
         const listed0 = await tools.cli('alice', ['setting', 'list', WEB_ASSET])
-        expect(listed0.result?.['outcome'], NEW_TENANT_LIST).toBe('basis-unavailable')
+        expect(listed0.status, listed0.stderr).toBe(0)
+        expect(bodyOf(listed0)).toMatchObject({ completeness: 'complete' })
+        expect(exaOf(listed0)).toEqual(exaView('unset', 'unset'))
 
         const session = await tools.session('alice')
         const listedAfterSession = await tools.cli('alice', ['setting', 'list', WEB_ASSET])

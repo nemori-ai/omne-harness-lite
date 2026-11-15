@@ -17,6 +17,7 @@ const failedInstallation = (close = vi.fn(async () => ({ kind: 'closed' as const
     kind: 'unavailable',
     owner: 'harness.tenant-governance',
     phase: 'installation',
+    reason: 'tool installation adopt',
     close,
   }) as unknown as Opened
 const failedStartup = () =>
@@ -24,6 +25,7 @@ const failedStartup = () =>
     kind: 'unavailable',
     owner: 'harness.tenant-governance',
     phase: 'startup',
+    reason: 'governance-startup unavailable',
   }) as unknown as Opened
 
 function hostOver(results: readonly Opened[], extra: Partial<HostOptions> = {}) {
@@ -94,7 +96,7 @@ it('lengthens the pause with every failure in a row and reports each one', async
       return 10
     },
     now: () => now,
-    report: failure => reports.push(`${failure.phase}/${failure.failures}`),
+    report: failure => reports.push(`${failure.phase}/${failure.reason}/${failure.failures}`),
   })
   for (let round = 0; round < 3; round += 1) {
     expect(await host.runtime(TENANT)).toBeUndefined()
@@ -102,7 +104,11 @@ it('lengthens the pause with every failure in a row and reports each one', async
   }
   expect(await host.runtime(TENANT)).toMatchObject({ kind: 'created' })
   expect(pauses).toEqual([1, 2, 3])
-  expect(reports).toEqual(['startup/1', 'startup/2', 'startup/3'])
+  expect(reports).toEqual([
+    'startup/governance-startup unavailable/1',
+    'startup/governance-startup unavailable/2',
+    'startup/governance-startup unavailable/3',
+  ])
 })
 
 it('shares one attempt between callers that arrive while it is in flight', async () => {
@@ -161,7 +167,9 @@ it('reports a lookup that cannot be read and prepares again after the pause', as
     now: () => now,
   })
   expect(await host.runtime(TENANT)).toBeUndefined()
-  expect(reports).toEqual([{ tenantRef: TENANT, phase: 'lookup', failures: 1, againInMs: 500 }])
+  expect(reports).toEqual([
+    { tenantRef: TENANT, phase: 'lookup', reason: 'directory down', failures: 1, againInMs: 500 },
+  ])
   now += 500
   expect(await host.runtime(TENANT)).toMatchObject({ kind: 'created' })
   expect(lookup).toHaveBeenCalledTimes(2)
@@ -182,7 +190,9 @@ it('reports a prepare that throws and prepares again after the pause', async () 
     now: () => now,
   })
   expect(await host.runtime(TENANT)).toBeUndefined()
-  expect(reports).toEqual([{ tenantRef: TENANT, phase: 'prepare', failures: 1, againInMs: 500 }])
+  expect(reports).toEqual([
+    { tenantRef: TENANT, phase: 'prepare', reason: 'threw', failures: 1, againInMs: 500 },
+  ])
   now += 500
   expect(await host.runtime(TENANT)).toMatchObject({ kind: 'created' })
   expect(calls).toBe(2)
@@ -201,4 +211,71 @@ it('does not ask the directory again while the pause after a failed lookup lasts
   expect(await host.runtime(TENANT)).toBeUndefined()
   expect(await host.settings(TENANT)).toBeUndefined()
   expect(lookup).toHaveBeenCalledTimes(1)
+})
+
+function withSettings(opened: Opened) {
+  const settings = { read: vi.fn(), writer: { write: vi.fn() } }
+  return {
+    settings,
+    prepare: () =>
+      ({
+        destination: {},
+        settings,
+        open: async () => opened,
+      }) as unknown as Assembly,
+  }
+}
+
+it('registers the domain of an unregistered tenant before it opens the settings of the tenant', async () => {
+  let registered = false
+  const lookup = vi.fn(async () => (registered ? READY : { kind: 'unregistered' }))
+  const ensure = vi.fn(async () => {
+    registered = true
+    return { kind: 'ready' as const }
+  })
+  const { settings, prepare } = withSettings(created())
+  const { host } = hostOver([], {
+    domains: { lookup } as unknown as HostOptions['domains'],
+    registration: () => ({ ensure }),
+    prepare,
+  })
+  expect(await host.runtime(TENANT)).toBeUndefined()
+  expect(ensure).not.toHaveBeenCalled()
+  expect(await host.settings(TENANT)).toBe(settings)
+  expect(ensure).toHaveBeenCalledWith({ tenant: TENANT })
+})
+
+it.each([
+  ['answers unavailable', async () => ({ kind: 'unavailable' as const, diagnostic: 'stopping' })],
+  [
+    'throws',
+    async () => {
+      throw new Error('registration transport failure')
+    },
+  ],
+] as const)(
+  'answers no settings and opens nothing when the registration %s',
+  async (_name, ensure) => {
+    const opens = vi.fn()
+    const { host } = hostOver([created()], {
+      domains: { lookup: async () => READY } as unknown as HostOptions['domains'],
+      registration: () => ({ ensure }),
+      prepare: () =>
+        ({
+          destination: {},
+          open: async () => {
+            opens()
+            return created()
+          },
+        }) as unknown as Assembly,
+    })
+    expect(await host.settings(TENANT)).toBeUndefined()
+    expect(opens).not.toHaveBeenCalled()
+  },
+)
+
+it('opens a registered tenant as before when no registration is mounted', async () => {
+  const { settings, prepare } = withSettings(created())
+  const { host } = hostOver([], { registration: () => undefined, prepare })
+  expect(await host.settings(TENANT)).toBe(settings)
 })

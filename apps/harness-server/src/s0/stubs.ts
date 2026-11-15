@@ -56,6 +56,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'sessionDelegatedTransactions',
       'tenantDomains',
       'tenantDomainLookup',
+      'tenantDomainRegistration',
       'sessionPrincipalBindings',
       'sessionScopeOwners',
     ],
