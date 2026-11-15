@@ -80,6 +80,14 @@ export function pipelineNotesProtocol(major = 1) {
         outcomes: { succeeded: empty, conflict: empty },
         countsAsAccess: true,
       },
+      'open-note': {
+        identity: 'acting-tenant',
+        effect: 'read',
+        limit: 'small',
+        body: noteRef,
+        outcomes: { succeeded: note },
+        countsAsAccess: true,
+      },
       ping: {
         identity: 'none',
         effect: 'read',
