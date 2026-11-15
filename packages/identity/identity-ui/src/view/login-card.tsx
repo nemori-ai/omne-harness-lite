@@ -1,12 +1,5 @@
 import { useState, useSyncExternalStore, type FormEvent } from 'react'
-import {
-  Button,
-  Field,
-  InlineNotice,
-  Input,
-  PageHeader,
-  Segmented,
-} from '@omne-harness/ui-kit'
+import { Button, Field, InlineNotice, Input, PageHeader, Segmented } from '@omne-harness/ui-kit'
 import type { LoginMode, LoginModel } from '../model/login.ts'
 
 const MODES = [
