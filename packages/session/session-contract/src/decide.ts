@@ -802,21 +802,12 @@ export function commandDigest(command: SessionCommand): string {
   })
 }
 
-function decideCommand(
+function recallOperation(
   previous: WorkSnapshot | null,
   command: SessionCommand,
   guards: readonly GuardCommand[],
   record: OperationRecord | null,
-  reads: DecideReads,
-): Decision {
-  if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
-    return rejected({ kind: 'unsupported' })
-  if (
-    previous !== null &&
-    (previous.session !== command.input.session ||
-      !tenantEquals(previous.tenant, command.input.tenant))
-  )
-    return rejected({ kind: 'denied', action: command.kind })
+): Decision | null {
   let digest = ''
   if (record !== null) {
     try {
@@ -836,14 +827,77 @@ function decideCommand(
     return { kind: 'recovered', receipt: recall.receipt }
   }
   if (recall.kind === 'conflict') return rejected({ kind: 'conflict', operation: recall.operation })
+  return null
+}
+
+function decideInterrupt(
+  previous: WorkSnapshot,
+  command: Extract<SessionCommand, { kind: 'interrupt' }>,
+  reads: DecideReads,
+  limits: SessionIntakeLimits,
+): Decision {
+  if (
+    command.input.urgent.message.blocks.length === 0 ||
+    previous.pending.includes(command.input.urgent.input)
+  )
+    return invalid('urgent', 'empty or duplicate input')
+  const limited = judgeSessionIntake(pendingIntakeCount(previous), command.input.urgent, limits)
+  if (limited !== null) return rejected(limited)
+  const control = decideControl(
+    previous,
+    {
+      kind: 'interrupt',
+      run: command.input.run,
+      urgent: command.input.urgent,
+      decision: command.input.decision,
+    },
+    command.input.operation,
+    reads,
+  )
+  return control.kind === 'entries'
+    ? entries([
+        ...acceptedOrdinary(command.input.urgent, 'current-run', command.input.run),
+        ...control.entries,
+      ])
+    : control
+}
+
+function decideFreeze(
+  previous: WorkSnapshot,
+  command: Extract<SessionCommand, { kind: 'freeze' }>,
+  reads: DecideReads,
+): Decision {
+  if (previous.frozen !== null)
+    return reads.frozenReceipt === undefined
+      ? rejected({
+          kind: 'unavailable',
+          owner: 'session-history',
+          diagnostic: 'the original freeze receipt is required for state recall',
+        })
+      : { kind: 'recovered', receipt: reads.frozenReceipt }
+  return decideManagement(previous, command, reads)
+}
+
+function decideCommand(
+  previous: WorkSnapshot | null,
+  command: SessionCommand,
+  guards: readonly GuardCommand[],
+  record: OperationRecord | null,
+  reads: DecideReads,
+): Decision {
+  if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
+    return rejected({ kind: 'unsupported' })
+  if (
+    previous !== null &&
+    (previous.session !== command.input.session ||
+      !tenantEquals(previous.tenant, command.input.tenant))
+  )
+    return rejected({ kind: 'denied', action: command.kind })
+  const recalled = recallOperation(previous, command, guards, record)
+  if (recalled !== null) return recalled
   const limits = reads.intakeLimits ?? DEFAULT_SESSION_INTAKE_LIMITS
   if (command.kind === 'create') return decideCreate(previous, command, guards, limits)
   if (previous === null) return rejected({ kind: 'denied', action: command.kind })
-  if (
-    previous.session !== command.input.session ||
-    !tenantEquals(previous.tenant, command.input.tenant)
-  )
-    return rejected({ kind: 'denied', action: command.kind })
   switch (command.kind) {
     case 'addTodo':
     case 'removeTodo':
@@ -874,46 +928,14 @@ function decideCommand(
       return decideResults(previous, command)
     case 'commitDerived':
       return decideDerived(previous, command, reads)
-    case 'interrupt': {
-      if (
-        command.input.urgent.message.blocks.length === 0 ||
-        previous.pending.includes(command.input.urgent.input)
-      )
-        return invalid('urgent', 'empty or duplicate input')
-      const limited = judgeSessionIntake(pendingIntakeCount(previous), command.input.urgent, limits)
-      if (limited !== null) return rejected(limited)
-      const control = decideControl(
-        previous,
-        {
-          kind: 'interrupt',
-          run: command.input.run,
-          urgent: command.input.urgent,
-          decision: command.input.decision,
-        },
-        command.input.operation,
-        reads,
-      )
-      return control.kind === 'entries'
-        ? entries([
-            ...acceptedOrdinary(command.input.urgent, 'current-run', command.input.run),
-            ...control.entries,
-          ])
-        : control
-    }
+    case 'interrupt':
+      return decideInterrupt(previous, command, reads, limits)
     case 'cancelRun':
     case 'stopCall':
     case 'retryRun':
       return decideNamedControl(previous, command, reads)
     case 'freeze':
-      if (previous.frozen !== null)
-        return reads.frozenReceipt === undefined
-          ? rejected({
-              kind: 'unavailable',
-              owner: 'session-history',
-              diagnostic: 'the original freeze receipt is required for state recall',
-            })
-          : { kind: 'recovered', receipt: reads.frozenReceipt }
-      return decideManagement(previous, command, reads)
+      return decideFreeze(previous, command, reads)
     case 'control':
     case 'setRelation':
     case 'configureAutoArchive':

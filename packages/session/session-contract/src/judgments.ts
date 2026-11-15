@@ -16,6 +16,7 @@ import type {
 import type {
   AutoArchivePolicy,
   BoundedClose,
+  Control,
   ControlIntent,
   IdleCoverage,
   IdleObservation,
@@ -31,7 +32,7 @@ import type { CommitReceipt, EntryClass, HistoryEntry, SessionFailure } from './
 import type { GuardCommand, MutationName, SessionCommand } from './ports.ts'
 import type { ConsumptionId, DurableEvidence } from './identity.ts'
 import type { SessionHistoryReads } from './history-values.ts'
-import type { SessionCallWait } from './call-values.ts'
+import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
 import type {
   SessionCallLookup,
   SessionCallTerminal,
@@ -318,84 +319,122 @@ export function judgeCompletion(snapshot: WorkSnapshot, execution: string): Comp
   return pendingInputs.length === 0 ? { kind: 'allowed' } : { kind: 'blocked', pendingInputs }
 }
 
-export function resolveControlScope(snapshot: WorkSnapshot, intent: ControlIntent): ControlScope {
-  const control = intent.kind === 'control' ? intent.value : null
-  if (control?.kind === 'unarchive' || control?.kind === 'retry-run') {
-    const refusal =
-      control.kind === 'retry-run'
-        ? judgeRetryRun(snapshot, control.run)
-        : snapshot.lifecycle === 'archived'
-          ? null
-          : 'the session is not archived'
-    if (refusal !== null) return { kind: 'invalid', reason: refusal }
-    return {
-      kind: 'scope',
-      producers: [],
-      revokes: [],
-      cancelsRun: null,
-      cascade: [],
-      scopeRelease: false,
-    }
-  }
-  if (snapshot.lifecycle === 'archived')
-    return { kind: 'invalid', reason: 'the session is archived' }
-  const archive = intent.kind === 'auto-archive' || control?.kind === 'archive'
-  const run =
-    intent.kind === 'interrupt' ? intent.run : control?.kind === 'cancel-run' ? control.run : null
-  if (run !== null) {
-    const old = snapshot.executions?.find(item => item.run === run)?.terminal
-    if (old != null) return { kind: 'terminal', terminal: old }
-    if (snapshot.run.kind === 'terminal' && snapshot.run.terminal.run === run)
-      return { kind: 'terminal', terminal: snapshot.run.terminal }
-    if (snapshot.run.kind !== 'active' || snapshot.run.run !== run)
-      return { kind: 'invalid', reason: 'not the current Run' }
-  }
-  const selected =
-    control?.kind === 'stop-call' || control?.kind === 'background-tool' ? control.producer : null
-  const waiting = snapshot.waiting.flatMap(item =>
-    item.kind === 'producer' ? [item.binding.producer] : [],
-  )
-  const producers =
-    selected === null
-      ? archive
-        ? snapshot.consumptions.map(item => item.binding.producer)
-        : waiting
-      : snapshot.consumptions.some(item => digestOf(item.binding.producer) === digestOf(selected))
-        ? [selected]
-        : null
-  if (producers === null) return { kind: 'invalid', reason: 'the producer is not bound' }
-  const unique = [...new Map(producers.map(producer => [digestOf(producer), producer])).values()]
+function distinctProducers(producers: readonly ProducerRef[]): readonly ProducerRef[] {
+  return [...new Map(producers.map(producer => [digestOf(producer), producer])).values()]
+}
+
+function toolIntentWaits(
+  snapshot: WorkSnapshot,
+  keep: (registration: Extract<SessionCallRegistration, { kind: 'tool-intent' }>) => boolean,
+): readonly SessionCallWait[] {
+  return (snapshot.callWaits ?? []).filter(wait => {
+    const registration = snapshot.callRegistrations?.find(
+      record => record.consumption === wait.consumption,
+    )?.registration
+    if (registration?.kind !== 'tool-intent') return false
+    return keep(registration)
+  })
+}
+
+function restoreScope(
+  snapshot: WorkSnapshot,
+  control: Extract<Control, { kind: 'unarchive' | 'retry-run' }>,
+): ControlScope {
+  const refusal =
+    control.kind === 'retry-run'
+      ? judgeRetryRun(snapshot, control.run)
+      : snapshot.lifecycle === 'archived'
+        ? null
+        : 'the session is not archived'
+  if (refusal !== null) return { kind: 'invalid', reason: refusal }
   return {
     kind: 'scope',
-    unassociatedWaiting:
-      selected !== null
-        ? []
-        : (snapshot.callWaits ?? []).filter(wait => {
-            const registration = snapshot.callRegistrations?.find(
-              record => record.consumption === wait.consumption,
-            )?.registration
-            if (registration?.kind !== 'tool-intent') return false
-            return (
-              archive ||
-              (run !== null &&
-                registration.initiatingAttempt !== null &&
-                originalAttempt(snapshot, registration.initiatingAttempt) === run)
-            )
-          }),
-    producers: unique,
-    revokes: archive
-      ? ['advance', 'pending', 'delivery']
-      : control?.kind === 'cancel-run'
-        ? ['advance']
-        : [],
-    cancelsRun:
-      archive && snapshot.run.kind === 'active'
-        ? snapshot.run.run
-        : control?.kind === 'cancel-run'
-          ? control.run
-          : null,
+    producers: [],
+    revokes: [],
+    cancelsRun: null,
     cascade: [],
-    scopeRelease: archive,
+    scopeRelease: false,
+  }
+}
+
+function archiveScope(snapshot: WorkSnapshot): ControlScope {
+  if (snapshot.lifecycle === 'archived')
+    return { kind: 'invalid', reason: 'the session is archived' }
+  const producers = distinctProducers(snapshot.consumptions.map(item => item.binding.producer))
+  return {
+    kind: 'scope',
+    unassociatedWaiting: toolIntentWaits(snapshot, () => true),
+    producers,
+    revokes: ['advance', 'pending', 'delivery'],
+    cancelsRun: snapshot.run.kind === 'active' ? snapshot.run.run : null,
+    cascade: [],
+    scopeRelease: true,
+  }
+}
+
+function runScope(
+  snapshot: WorkSnapshot,
+  run: RunId,
+  kind: 'cancel-run' | 'interrupt',
+): ControlScope {
+  if (snapshot.lifecycle === 'archived')
+    return { kind: 'invalid', reason: 'the session is archived' }
+  const old = snapshot.executions?.find(item => item.run === run)?.terminal
+  if (old != null) return { kind: 'terminal', terminal: old }
+  if (snapshot.run.kind === 'terminal' && snapshot.run.terminal.run === run)
+    return { kind: 'terminal', terminal: snapshot.run.terminal }
+  if (snapshot.run.kind !== 'active' || snapshot.run.run !== run)
+    return { kind: 'invalid', reason: 'not the current Run' }
+  const producers = distinctProducers(
+    snapshot.waiting.flatMap(item => (item.kind === 'producer' ? [item.binding.producer] : [])),
+  )
+  return {
+    kind: 'scope',
+    unassociatedWaiting: toolIntentWaits(
+      snapshot,
+      registration =>
+        registration.initiatingAttempt !== null &&
+        originalAttempt(snapshot, registration.initiatingAttempt) === run,
+    ),
+    producers,
+    revokes: kind === 'cancel-run' ? ['advance'] : [],
+    cancelsRun: kind === 'cancel-run' ? run : null,
+    cascade: [],
+    scopeRelease: false,
+  }
+}
+
+function producerScope(snapshot: WorkSnapshot, producer: ProducerRef): ControlScope {
+  if (snapshot.lifecycle === 'archived')
+    return { kind: 'invalid', reason: 'the session is archived' }
+  if (!snapshot.consumptions.some(item => digestOf(item.binding.producer) === digestOf(producer)))
+    return { kind: 'invalid', reason: 'the producer is not bound' }
+  return {
+    kind: 'scope',
+    unassociatedWaiting: [],
+    producers: [producer],
+    revokes: [],
+    cancelsRun: null,
+    cascade: [],
+    scopeRelease: false,
+  }
+}
+
+export function resolveControlScope(snapshot: WorkSnapshot, intent: ControlIntent): ControlScope {
+  if (intent.kind === 'interrupt') return runScope(snapshot, intent.run, 'interrupt')
+  if (intent.kind === 'auto-archive') return archiveScope(snapshot)
+  const control = intent.value
+  switch (control.kind) {
+    case 'unarchive':
+    case 'retry-run':
+      return restoreScope(snapshot, control)
+    case 'archive':
+      return archiveScope(snapshot)
+    case 'cancel-run':
+      return runScope(snapshot, control.run, 'cancel-run')
+    case 'stop-call':
+    case 'background-tool':
+      return producerScope(snapshot, control.producer)
   }
 }
 
