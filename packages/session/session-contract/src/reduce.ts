@@ -72,6 +72,164 @@ function settleLeases(draft: Draft, outcome: RunTerminal['outcome']): string | n
   return null
 }
 
+function applyInitializationItem(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'session.initialization-item' }>,
+): string | null {
+  const { item, owner, result } = entry.result
+  const index = draft.tasks.findIndex(
+    task => task.kind === 'initialization' && task.item === item && task.owner === owner,
+  )
+  if (index === -1) return `initialization item ${owner}/${item} is not pending`
+  const task = draft.tasks[index] as Extract<RecoveryTask, { kind: 'initialization' }>
+  const rest = draft.tasks.filter((_, at) => at !== index)
+  draft.tasks =
+    result.kind === 'ready'
+      ? rest
+      : [...rest, { ...task, state: 'failed', diagnostic: result.diagnostic }]
+  return null
+}
+
+function applyAdoption(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'session.adoption' }>,
+): string | null {
+  draft.definition = { name: draft.definition.name, adopted: entry.adopted }
+  if (draft.run.kind === 'active') draft.run = { ...draft.run, adoption: entry.adopted }
+  if (entry.residentKeys !== undefined) draft.residentKeys = entry.residentKeys
+  return null
+}
+
+function applyMessage(
+  draft: Draft,
+  entry: Extract<
+    SessionEntry,
+    {
+      kind:
+        | 'message.user'
+        | 'message.assistant'
+        | 'message.tool'
+        | 'message.tool_internal'
+        | 'message.system_reminder'
+        | 'message.compaction'
+    }
+  >,
+): string | null {
+  trackCalls(draft, entry.message)
+  if (entry.kind === 'message.assistant' && draft.run.kind === 'active') delete draft.unanswered
+  return entry.participation === null ? null : applyParticipation(draft, entry.participation)
+}
+
+function applyIntakeRouted(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'intake.routed' }>,
+): string | null {
+  if ('task' in entry) {
+    draft.tasks = [...draft.tasks, entry.task]
+    return null
+  }
+  if (draft.pending.includes(entry.input)) return `input ${entry.input} accepted twice`
+  draft.pending = [...draft.pending, entry.input]
+  draft.idle = null
+  delete draft.awaitingPerson
+  return null
+}
+
+function applyHandedOver(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'intake.handed-over' }>,
+): string | null {
+  if (!draft.pending.includes(entry.input)) return `hand-over of an input that is not pending`
+  if (entry.result.kind === 'accepted') {
+    if (!draft.handed.includes(entry.input)) draft.handed = [...draft.handed, entry.input]
+  } else {
+    draft.pending = without(draft.pending, [entry.input])
+    draft.handed = without(draft.handed, [entry.input])
+  }
+  return null
+}
+
+function applyRunStarted(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'run.started' }>,
+  revision: WorkSnapshot['revision'],
+): string | null {
+  if (draft.tasks.some(task => task.kind === 'initialization'))
+    return 'a Run started before every initialization item was ready'
+  if (draft.run.kind === 'active') return 'a second Run started while one is unfinished'
+  if (!draft.pending.includes(entry.first)) return 'the first input of the Run is not pending'
+  draft.run = {
+    kind: 'active',
+    run: entry.run,
+    adoption: entry.adoption,
+    first: entry.first,
+    advance: null,
+    ordinal: '0',
+    execution: { execution: entry.execution, revision: null, evidence: null, readThrough: '0' },
+    revision,
+  }
+  draft.executions = [
+    ...(draft.executions ?? []),
+    { run: entry.run, execution: draft.run.execution, terminal: null },
+  ]
+  draft.idle = null
+  delete draft.awaitingPerson
+  delete draft.unanswered
+  return null
+}
+
+function applyAttemptStarted(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'run.attempt-started' }>,
+): string | null {
+  if (draft.run.kind !== 'active' || draft.run.run !== entry.run)
+    return 'an attempt started outside the active Run'
+  if (draft.run.advance !== null) return 'an attempt started while one holds the advance'
+  if (
+    decimal(entry.ordinal, 'attempt.ordinal') !==
+    decimal(draft.run.ordinal, 'attempt.ordinal') + 1n
+  )
+    return `attempt ordinal ${entry.ordinal} does not follow ${draft.run.ordinal}`
+  draft.run = {
+    ...draft.run,
+    ordinal: entry.ordinal,
+    advance: { run: entry.run, attempt: entry.attempt, instance: entry.instance },
+  }
+  return null
+}
+
+function applyAttemptReleased(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'run.attempt-released' }>,
+): string | null {
+  if (draft.run.kind !== 'active' || draft.run.run !== entry.run)
+    return 'an attempt released outside the active Run'
+  if (draft.run.advance === null || draft.run.advance.attempt !== entry.attempt)
+    return 'the released attempt does not hold the advance'
+  draft.run = { ...draft.run, advance: null }
+  return null
+}
+
+function applyRunTerminal(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'run.terminal' }>,
+): string | null {
+  if (draft.run.kind !== 'active' || draft.run.run !== entry.terminal.run)
+    return 'a terminal outside the active Run'
+  if (draft.run.advance !== null) return 'a terminal while an attempt still holds the advance'
+  if (hasUnansweredCalls(draft))
+    return 'a terminal while a tool call of the Run has no tool message'
+  draft.executions = (draft.executions ?? []).map(item =>
+    item.run === entry.terminal.run ? { ...item, terminal: entry.terminal } : item,
+  )
+  draft.run = { kind: 'terminal', terminal: entry.terminal }
+  draft.handed = []
+  draft.taken = []
+  draft.waiting = []
+  draft.callWaits = []
+  return settleLeases(draft, entry.terminal.outcome)
+}
+
 function apply(
   draft: Draft,
   entry: SessionEntry,
@@ -85,119 +243,29 @@ function apply(
       return applyTodo(draft, entry, revision)
     case 'session.created':
       return 'session.created after the first entry'
-    case 'session.initialization-item': {
-      const { item, owner, result } = entry.result
-      const index = draft.tasks.findIndex(
-        task => task.kind === 'initialization' && task.item === item && task.owner === owner,
-      )
-      if (index === -1) return `initialization item ${owner}/${item} is not pending`
-      const task = draft.tasks[index] as Extract<RecoveryTask, { kind: 'initialization' }>
-      const rest = draft.tasks.filter((_, at) => at !== index)
-      draft.tasks =
-        result.kind === 'ready'
-          ? rest
-          : [...rest, { ...task, state: 'failed', diagnostic: result.diagnostic }]
-      return null
-    }
+    case 'session.initialization-item':
+      return applyInitializationItem(draft, entry)
     case 'session.adoption':
-      draft.definition = { name: draft.definition.name, adopted: entry.adopted }
-      if (draft.run.kind === 'active') draft.run = { ...draft.run, adoption: entry.adopted }
-      if (entry.residentKeys !== undefined) draft.residentKeys = entry.residentKeys
-      return null
+      return applyAdoption(draft, entry)
     case 'message.user':
     case 'message.assistant':
     case 'message.tool':
     case 'message.tool_internal':
     case 'message.system_reminder':
-    case 'message.compaction': {
-      trackCalls(draft, entry.message)
-      if (entry.kind === 'message.assistant' && draft.run.kind === 'active') delete draft.unanswered
-      return entry.participation === null ? null : applyParticipation(draft, entry.participation)
-    }
+    case 'message.compaction':
+      return applyMessage(draft, entry)
     case 'intake.routed':
-      if ('task' in entry) {
-        draft.tasks = [...draft.tasks, entry.task]
-        return null
-      }
-      if (draft.pending.includes(entry.input)) return `input ${entry.input} accepted twice`
-      draft.pending = [...draft.pending, entry.input]
-      draft.idle = null
-      delete draft.awaitingPerson
-      return null
-    case 'intake.handed-over': {
-      if (!draft.pending.includes(entry.input)) return `hand-over of an input that is not pending`
-      if (entry.result.kind === 'accepted') {
-        if (!draft.handed.includes(entry.input)) draft.handed = [...draft.handed, entry.input]
-      } else {
-        draft.pending = without(draft.pending, [entry.input])
-        draft.handed = without(draft.handed, [entry.input])
-      }
-      return null
-    }
-    case 'run.started': {
-      if (draft.tasks.some(task => task.kind === 'initialization'))
-        return 'a Run started before every initialization item was ready'
-      if (draft.run.kind === 'active') return 'a second Run started while one is unfinished'
-      if (!draft.pending.includes(entry.first)) return 'the first input of the Run is not pending'
-      draft.run = {
-        kind: 'active',
-        run: entry.run,
-        adoption: entry.adoption,
-        first: entry.first,
-        advance: null,
-        ordinal: '0',
-        execution: { execution: entry.execution, revision: null, evidence: null, readThrough: '0' },
-        revision,
-      }
-      draft.executions = [
-        ...(draft.executions ?? []),
-        { run: entry.run, execution: draft.run.execution, terminal: null },
-      ]
-      draft.idle = null
-      delete draft.awaitingPerson
-      delete draft.unanswered
-      return null
-    }
-    case 'run.attempt-started': {
-      if (draft.run.kind !== 'active' || draft.run.run !== entry.run)
-        return 'an attempt started outside the active Run'
-      if (draft.run.advance !== null) return 'an attempt started while one holds the advance'
-      if (
-        decimal(entry.ordinal, 'attempt.ordinal') !==
-        decimal(draft.run.ordinal, 'attempt.ordinal') + 1n
-      )
-        return `attempt ordinal ${entry.ordinal} does not follow ${draft.run.ordinal}`
-      draft.run = {
-        ...draft.run,
-        ordinal: entry.ordinal,
-        advance: { run: entry.run, attempt: entry.attempt, instance: entry.instance },
-      }
-      return null
-    }
-    case 'run.attempt-released': {
-      if (draft.run.kind !== 'active' || draft.run.run !== entry.run)
-        return 'an attempt released outside the active Run'
-      if (draft.run.advance === null || draft.run.advance.attempt !== entry.attempt)
-        return 'the released attempt does not hold the advance'
-      draft.run = { ...draft.run, advance: null }
-      return null
-    }
-    case 'run.terminal': {
-      if (draft.run.kind !== 'active' || draft.run.run !== entry.terminal.run)
-        return 'a terminal outside the active Run'
-      if (draft.run.advance !== null) return 'a terminal while an attempt still holds the advance'
-      if (hasUnansweredCalls(draft))
-        return 'a terminal while a tool call of the Run has no tool message'
-      draft.executions = (draft.executions ?? []).map(item =>
-        item.run === entry.terminal.run ? { ...item, terminal: entry.terminal } : item,
-      )
-      draft.run = { kind: 'terminal', terminal: entry.terminal }
-      draft.handed = []
-      draft.taken = []
-      draft.waiting = []
-      draft.callWaits = []
-      return settleLeases(draft, entry.terminal.outcome)
-    }
+      return applyIntakeRouted(draft, entry)
+    case 'intake.handed-over':
+      return applyHandedOver(draft, entry)
+    case 'run.started':
+      return applyRunStarted(draft, entry, revision)
+    case 'run.attempt-started':
+      return applyAttemptStarted(draft, entry)
+    case 'run.attempt-released':
+      return applyAttemptReleased(draft, entry)
+    case 'run.terminal':
+      return applyRunTerminal(draft, entry)
     default:
       return applyExtended(draft, entry, source)
   }
