@@ -28,6 +28,7 @@ import {
 import type { BlockId, ContentBlock } from '@omne-harness/content-block'
 import {
   resolveToolInvocationRef,
+  type BackgroundSource,
   type ToolCallId,
   type ToolInvokeRequest,
   type ToolDelivery,
@@ -390,11 +391,12 @@ export function toolCallOf<P>(access: Access<P>, pending: AssociatedToolCall): T
 export function toolReceivedOf(
   received: readonly ReceivedEntry[],
   pending: AssociatedToolCall,
+  kind: 'result' | 'placeholder',
 ): ReceivedEntry | undefined {
   return received.find(
     entry =>
       entry.delivery.producer === 'tool' &&
-      entry.delivery.key.kind === 'result' &&
+      entry.delivery.key.kind === kind &&
       entry.delivery.key.reference === pending.reference &&
       entry.consumption === pending.consumption &&
       canonical(entry.consumer) === canonical(pending.position),
@@ -411,6 +413,27 @@ export function toolProduced(
     delivery: delivery.delivery,
     source: delivery.source,
   }
+}
+
+export const PLACEHOLDER_VERSION = 'placeholder'
+
+export function toolPlaceholderProduced(
+  call: ToolCallId,
+  delivery: Extract<ToolDelivery<ContentBlock>, { kind: 'placeholder' }>,
+): ProducedResult {
+  return {
+    producer: { kind: 'tool', call },
+    version: PLACEHOLDER_VERSION,
+    delivery: delivery.delivery,
+    source: delivery.evidence,
+  }
+}
+
+const PLACEHOLDER_REASONS: Readonly<Record<BackgroundSource['kind'], string>> = {
+  launched: 'started in the background',
+  control: 'moved to the background on request',
+  threshold: 'moved to the background after its foreground threshold',
+  'foreground-limit': 'moved to the background at its foreground time limit',
 }
 
 type MessageBlock = Exclude<ContentBlock, Readonly<{ kind: 'thinking' }>>
@@ -447,6 +470,24 @@ export function toolResultCandidate(
     action,
     content.filter((block): block is MessageBlock => block.kind !== 'thinking'),
   )
+}
+
+export function placeholderCandidate(
+  execution: AgentExecutionId,
+  action: Action,
+  call: ToolCallId,
+  source: BackgroundSource,
+): Message {
+  return toolMessage(execution, action, [
+    {
+      kind: 'text',
+      id: `${action.id}/placeholder` as BlockId,
+      visibility: VISIBLE,
+      text:
+        `The call ${call} ${PLACEHOLDER_REASONS[source.kind]}. It is still running, and this message is not its result. ` +
+        `Its outcome will arrive later as a system reminder that names call ${call}. Do not call it again to get the outcome.`,
+    },
+  ])
 }
 
 export function uncheckedCandidate(execution: AgentExecutionId, action: Action): Message {
