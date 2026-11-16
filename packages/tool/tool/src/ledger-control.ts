@@ -450,17 +450,9 @@ function refusedBackground(
   }
   if (call.state.phase === 'suspended')
     return decideSuspendedControl(snapshot, call, command, prepared, mint)
-  return decideEnd(
-    snapshot,
-    call,
-    command,
-    // The foreground limit ends the foreground now; the execution is still asked to stop.
-    otherwise === 'stop' && command.origin !== 'foreground-limit'
-      ? 'stop'
-      : 'foreground-and-unadmitted',
-    prepared,
-    mint,
-  )
+  // Only the foreground limit sends `otherwise: stop` (the public intent refuses it). Like a
+  // withdraw, it ends the foreground now and still asks the execution to stop.
+  return decideEnd(snapshot, call, command, 'foreground-and-unadmitted', prepared, mint)
 }
 
 function moveToBackground(

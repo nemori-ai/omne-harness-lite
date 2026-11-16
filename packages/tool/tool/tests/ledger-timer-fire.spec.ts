@@ -12,7 +12,13 @@ import {
   TIMERS_OFF,
 } from '../src/ledger-timers.ts'
 import { admittedCallSnapshot, runningCallSnapshot } from './control-decider-values.ts'
-import { mintOf, type CallSnapshot } from './resumption-decider-values.ts'
+import {
+  mintOf,
+  withCall,
+  withState,
+  type CallSnapshot,
+  type Record_,
+} from './resumption-decider-values.ts'
 import { callId, evidence, operationId, principalA, tenantA, tenantB } from './runtime-values.ts'
 import { auditQueues } from './start-values.ts'
 
@@ -142,6 +148,13 @@ describe('firing the due timers of a tenant', () => {
     expect(uncommitted.settled).toHaveLength(1)
   })
 
+  it('still commits for a call the ledger no longer holds, so its entry goes', async () => {
+    const w = world({ entries: [entry('timer:threshold', at(-1))], timing: null })
+    expect(await w.fire()).toEqual({ ok: { fired: 1, next: null } })
+    expect(w.closed).toEqual([])
+    expect(w.settled).toHaveLength(1)
+  })
+
   it('closes the running foreground segment before the commit and passes it with the command', async () => {
     const w = world({ entries: [entry('timer:threshold', at(-1))] })
     await w.fire()
@@ -169,6 +182,7 @@ describe('the decision a timer commits', () => {
     for (const snapshot of [
       await admittedCallSnapshot(),
       { ...(await admittedCallSnapshot()), call: null },
+      withState(await runningCallSnapshot(), { relation: 'background' }),
     ]) {
       const { decision } = await decisionOf('timer:threshold', snapshot)
       expect(decision).toEqual({
@@ -251,5 +265,44 @@ describe('the timer helpers', () => {
     ])
       expect(await segmentCloser(elapsed(answer))(RUNNING)).toEqual(unknown)
     expect(await segmentCloser(elapsed(ok('1')))(CLOSED)).toBe(CLOSED)
+  })
+})
+
+describe('a foreground limit of a call that may move', () => {
+  function permitted(snapshot: CallSnapshot): CallSnapshot {
+    return withCall(snapshot, record => {
+      const request = record.request as Record_
+      const availability = request.availability as Record_
+      const definition = availability.definition as Record_
+      return {
+        ...record,
+        request: {
+          ...request,
+          availability: { ...availability, definition: { ...definition, backgroundAllowed: true } },
+        },
+      }
+    })
+  }
+
+  it('moves it with a placeholder from the limit and records the intent background otherwise stop', async () => {
+    const w = world({ entries: [entry('timer:foreground-limit', at(-1))] })
+    await w.fire()
+    const [settled] = w.settled
+    if (settled === undefined) throw new Error('nothing was committed')
+    const snapshot = permitted(await runningCallSnapshot())
+    const decision = settled[3](snapshot, mintOf(snapshot), null)
+    if (decision.kind !== 'commit') throw new Error(`not a commit: ${decision.kind}`)
+    const puts = decision.writes.flatMap(write => (write.kind === 'put' ? [write.record] : []))
+    const call = puts.find(record => record.kind === 'call')
+    const task = puts.find(record => record.kind === 'task' && record.task.kind === 'placeholder')
+    expect(call).toMatchObject({
+      call: {
+        state: {
+          relation: 'background',
+          controls: [{ intent: { kind: 'background', otherwise: 'stop' } }],
+        },
+      },
+    })
+    expect(task).toMatchObject({ task: { source: { kind: 'foreground-limit' } } })
   })
 })

@@ -650,6 +650,13 @@ describe('the foreground timers (threshold and foreground limit)', () => {
         NOW as never,
       ),
     ).toEqual([])
+    expect(
+      timerSchedules(
+        request({ backgroundAfterMs: 1000, foregroundMs: 5000 }) as never,
+        RUNNING_400,
+        null,
+      ),
+    ).toEqual([])
   })
 
   it('a threshold moves a call that may move with a placeholder whose source is the threshold', async () => {
@@ -698,6 +705,20 @@ describe('the foreground timers (threshold and foreground limit)', () => {
         .map(task => task.kind)
         .sort(),
     ).toEqual(['deliver', 'stop'])
+  })
+
+  it('tells the model why the foreground ended: the time limit, or a withdraw', async () => {
+    const snapshot = await runningCallSnapshot()
+    const closedResultOf = (intent: ToolControl, changes: Record_) => {
+      const first = decideControl(snapshot, controlCommand(intent, changes), null, mintOf(snapshot))
+      if (first.kind !== 'prepare-synthetic' || !('closedResult' in first.need))
+        throw new Error('no synthetic result was asked for')
+      return first.need.closedResult
+    }
+    expect(
+      closedResultOf({ kind: 'background', otherwise: 'stop' }, { origin: 'foreground-limit' }),
+    ).toContain('foreground time limit')
+    expect(closedResultOf({ kind: 'withdraw', reach: 'all' }, {})).toContain('withdrawn')
   })
 
   it('a move to the background and a settlement both drop the timers of the call', async () => {
