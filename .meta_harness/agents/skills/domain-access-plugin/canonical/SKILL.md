@@ -39,8 +39,8 @@ description: >
 
 样例照着读，不照着抄形状以外的东西：
 
-- 最小的一套（四个操作，没有观察）：`packages/human-intervention/human-intervention-protocol`、`human-intervention-access`，行在 `apps/harness-server/src/rows/human-intervention-access/`。
-- 带观察的：`packages/session/session-protocol`、`session-access`。
+- 最小的一套（一个操作，没有观察）：`packages/session/session-diagnostics-protocol`、`session-diagnostics-access`，行在 `apps/harness-server/src/rows/session-diagnostics-access/`。
+- 带观察的：`packages/session/session-protocol`、`session-access`（帧带内容，断了能接续）；`packages/human-intervention/human-intervention-protocol`、`human-intervention-access` 的 `observe-cards`（帧只说「可能变了」，客户端收到就重读）。
 - 带界面模块的：`packages/assets/assets-protocol`、`assets-access`、`assets-ui`。
 
 ## 次序
