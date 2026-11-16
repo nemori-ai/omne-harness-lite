@@ -10,6 +10,7 @@ import type {
 } from '@omne-harness/sql-contract'
 import { defaultConfig, makeWorkspace, type Built, type Workspace } from './support.ts'
 import {
+  GROUPING,
   buildGroupMaterials,
   groupRegistration,
   op,
@@ -41,7 +42,7 @@ afterEach(async () => {
 
 async function start(): Promise<SqlStorage> {
   const created = await createSqliteStorage({
-    config: { ...defaultConfig(workspace.storageRoot), groupCollectMs: 150 },
+    config: { ...defaultConfig(workspace.storageRoot), ...GROUPING },
     materials: built.catalog,
     closeLeases: {
       admit(name) {

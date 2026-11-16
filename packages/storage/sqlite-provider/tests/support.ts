@@ -17,6 +17,7 @@ import {
   type StorageScope,
 } from '@omne-harness/sql-contract'
 import { createSqliteStorage, type SqliteStorageConfig } from '../src/index.ts'
+import { HOLD, gate, type Gate } from './gate.ts'
 
 export const TENANT_A: StorageScope = { kind: 'tenant', tenant: 'tenant-a' }
 export const TENANT_B: StorageScope = { kind: 'tenant', tenant: 'tenant-b' }
@@ -72,7 +73,7 @@ export function defaultConfig(storageRoot: string): SqliteStorageConfig {
 
 const sha = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex')
 
-const LEDGER = (extra: string): string => `${extra}
+const LEDGER = (extra: string): string => `${HOLD}${extra}
 export default {
   participant: 'ledger', protocol: '1',
   execute(facts, port) {
@@ -98,7 +99,7 @@ export default {
       case 'receipts': port.execute('select * from _sql_receipt', []); break
       case 'schema': port.execute('select * from sqlite_master', []); break
       case 'die': process.exit(1); break
-      case 'spin': { const end = Date.now() + Number(facts.ms); while (Date.now() < end) {} break }
+      case 'hold': hold(facts.gate); break
       case 'big': return { kind: 'participated', response: 'x'.repeat(70000) }
       case 'invalid': return { kind: 'participated' }
       case 'no-provide': port.execute('insert into t_ledger(note) values (?)', [note]); return { kind: 'participated', response: {} }
@@ -401,6 +402,28 @@ export async function createProvider(
   })
   if (result.kind !== 'created') throw new Error(`rejected: ${result.problems.join('; ')}`)
   return result
+}
+
+export type HeldCommit = Readonly<{
+  gate: Gate
+  result: ReturnType<SqlStorage['commit']>
+}>
+
+export async function heldCommit(
+  storage: SqlStorage,
+  workspace: Workspace,
+  built: Built,
+  key: string,
+): Promise<HeldCommit> {
+  const held = gate(workspace.root)
+  const result = storage.commit(
+    commitRequest(built, {
+      identity: identity({ operationKey: key }),
+      commands: [command('ledger', { mode: 'hold', gate: held.path, note: key })],
+    }),
+  )
+  await held.entered()
+  return { gate: held, result }
 }
 
 export function kindOf(result: { kind: string; reason?: string }): string {

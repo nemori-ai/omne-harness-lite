@@ -9,6 +9,7 @@ import {
   type Workspace,
 } from './support.ts'
 import {
+  GROUPING,
   buildGroupMaterials,
   domainFile,
   firstGap,
@@ -39,7 +40,7 @@ afterEach(async () => {
 })
 
 async function ready(config: Record<string, number> = {}): Promise<Provider> {
-  const provider = await createProvider(workspace, built, { groupCollectMs: 150, ...config })
+  const provider = await createProvider(workspace, built, { ...GROUPING, ...config })
   providers.push(provider)
   const result = await provider.storage.registerCombination(groupRegistration(built))
   if (result.kind !== 'registered') throw new Error(`registration is ${result.kind}`)

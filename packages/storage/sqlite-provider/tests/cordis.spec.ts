@@ -1,13 +1,15 @@
 import { Context } from '@deepseek-ai/cordis'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { CloseLeasePort, StorageControl } from '@omne-harness/sql-contract'
 import { StorageHostService, StorageService } from '@omne-harness/sql-contract/cordis'
 import { SqliteStoragePlugin } from '../src/cordis.ts'
+import { advance, deadlines, gate, openGates, stillPending, tick, until } from './gate.ts'
 import {
   buildMaterials,
   command,
   commitRequest,
   defaultConfig,
+  heldCommit,
   identity,
   kindOf,
   leases,
@@ -19,14 +21,6 @@ import {
 } from './support.ts'
 
 const FAILED = 3
-
-const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
-
-const spinning = (key: string, ms: number): ReturnType<typeof commitRequest> =>
-  commitRequest(built, {
-    identity: identity({ operationKey: key }),
-    commands: [command('ledger', { mode: 'spin', ms: String(ms), note: key })],
-  })
 
 let workspace: Workspace
 let built: Built
@@ -41,6 +35,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+  openGates()
   for (const control of attached)
     await control.close({ initiator: 'disposal' }).catch(() => undefined)
   await workspace.remove()
@@ -116,13 +111,15 @@ describe('SqliteStoragePlugin', () => {
     const fiber = await ctx.plugin(SqliteStoragePlugin, defaultConfig(workspace.storageRoot))
     const storage = ctx.get('storage') as StorageService
     await storage.registerCombination(registration(built))
-    const running = storage.commit(spinning('slow', 600))
-    await sleep(150)
-    await fiber.dispose()
+    const running = await heldCommit(storage, workspace, built, 'slow')
+    const disposing = fiber.dispose()
+    await stillPending(disposing)
+    running.gate.open()
+    await disposing
     expect(recorded.released).toEqual(recorded.admitted)
-    const state = await Promise.race([running, Promise.resolve('pending' as const)])
+    const state = await Promise.race([running.result, Promise.resolve('pending' as const)])
     expect(state).not.toBe('pending')
-    expect(kindOf(await running)).toBe('committed')
+    expect(kindOf(await running.result)).toBe('committed')
   })
 
   it('keeps StorageControl out of the service and the Context', async () => {
@@ -146,15 +143,23 @@ describe('SqliteStoragePlugin', () => {
     await ctx.plugin(SqliteStoragePlugin, defaultConfig(workspace.storageRoot))
     await (ctx.get('storage') as StorageService).registerCombination(registration(built))
     let pending: Promise<unknown> = Promise.resolve()
+    const held = gate(workspace.root)
     const caller = ctx.plugin({
       name: 'caller',
       inject: ['storage'],
       apply(inner: Context) {
-        pending = inner.storage.commit(spinning('by-caller', 300))
+        pending = inner.storage.commit(
+          commitRequest(built, {
+            identity: identity({ operationKey: 'by-caller' }),
+            commands: [command('ledger', { mode: 'hold', gate: held.path, note: 'by-caller' })],
+          }),
+        )
       },
     })
     await caller
+    await held.entered()
     await caller.dispose()
+    held.open()
     expect(kindOf((await pending) as { kind: string })).toBe('committed')
     const storage = ctx.get('storage') as StorageService
     expect(kindOf(await storage.query(identity({ operationKey: 'by-caller' })))).toBe('committed')
@@ -178,12 +183,15 @@ describe('SqliteStoragePlugin', () => {
     })
     const oldStorage = ctx.get('storage') as StorageService
     await oldStorage.registerCombination(registration(built))
-    const running = oldStorage.commit(spinning('slow', 900))
-    await sleep(150)
-    await host.dispose()
+    const running = await heldCommit(oldStorage, workspace, built, 'slow')
+    const before = deadlines()
+    const disposing = host.dispose()
+    await until(() => deadlines() > before)
+    advance(200)
+    await disposing
     expect(ctx.get('storage')).toBeUndefined()
     await ctx.plugin(TestHost)
-    await vi.waitFor(() => expect(ctx.get('storage')).toBeDefined())
+    await until(() => ctx.get('storage') !== undefined)
     const fresh = ctx.get('storage') as StorageService
     expect(fresh).not.toBe(oldStorage)
     expect(
@@ -199,18 +207,15 @@ describe('SqliteStoragePlugin', () => {
       ),
     ).toBe('rejected_before_accept/domain_unavailable')
     expect(recorded.admitted).toHaveLength(1)
-    await vi.waitFor(
-      async () =>
-        expect(
-          kindOf(
-            await fresh.commit(
-              commitRequest(built, { identity: identity({ operationKey: 'fresh' }) }),
-            ),
-          ),
-        ).toBe('committed'),
-      { timeout: 5000, interval: 100 },
-    )
+    running.gate.open()
+    const retried = (): ReturnType<StorageService['commit']> =>
+      fresh.commit(commitRequest(built, { identity: identity({ operationKey: 'fresh' }) }))
+    let again = await retried()
+    while (kindOf(again) !== 'committed') {
+      await tick()
+      again = await retried()
+    }
     expect(recorded.admitted).toHaveLength(2)
-    expect(kindOf(await running)).toBe('unknown')
+    expect(kindOf(await running.result)).toBe('unknown')
   })
 })

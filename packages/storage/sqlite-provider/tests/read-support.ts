@@ -22,15 +22,14 @@ import {
   type Workspace,
 } from './support.ts'
 import type { SqliteStorageConfig } from '../src/index.ts'
+import { HOLD, gate, openGates, type Gate } from './gate.ts'
 
-const SLEEP = `const sleep = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)`
-
-const COUNT_PAIR = `${SLEEP}
+const COUNT_PAIR = `${HOLD}
 export default {
   handler: 'NAME', protocol: '1',
   read(input, port) {
     const a = port.execute('select count(*) from t_ledger limit 1', []).rows[0][0]
-    if (input.sleepMs) sleep(input.sleepMs)
+    hold(input.gate)
     const b = port.execute('select count(*) from t_ledger limit 1', []).rows[0][0]
     return { kind: 'read', output: { a: String(a), b: String(b) } }
   },
@@ -82,10 +81,10 @@ const HANDLERS: Readonly<Record<string, string>> = {
   handler: 'notjson', protocol: '1',
   read() { return { kind: 'read', output: { fn() {} } } },
 }`,
-  slow: `${SLEEP}
+  held: `${HOLD}
 export default {
-  handler: 'slow', protocol: '1',
-  read(input) { sleep(input.ms); return { kind: 'read', output: { slept: input.ms } } },
+  handler: 'held', protocol: '1',
+  read(input) { hold(input.gate); return { kind: 'read', output: {} } },
 }`,
   ghost: `export default {
   handler: 'ghost', protocol: '1',
@@ -148,6 +147,7 @@ export async function readyProvider(
 }
 
 export async function closeProviders(): Promise<void> {
+  openGates()
   for (const provider of providers.splice(0))
     await provider.control.close({ initiator: 'disposal' }).catch(() => undefined)
 }
@@ -172,4 +172,16 @@ export function summary(result: ReadResult): string {
 export const commitOf = (built: Built, key: string): ReturnType<typeof commitRequest> =>
   commitRequest(built, { identity: identity({ operationKey: key }) })
 
-export const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+export type HeldRead = Readonly<{ gate: Gate; result: Promise<ReadResult> }>
+
+export async function heldRead(
+  storage: Provider['storage'],
+  workspace: Workspace,
+  handler: 'held' | 'page' | 'serial' = 'held',
+  options?: Parameters<Provider['storage']['read']>[1],
+): Promise<HeldRead> {
+  const held = gate(workspace.root)
+  const result = storage.read(readRequest(handler, { gate: held.path }), options)
+  await held.entered()
+  return { gate: held, result }
+}

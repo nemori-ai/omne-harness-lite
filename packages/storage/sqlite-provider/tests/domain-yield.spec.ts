@@ -1,8 +1,12 @@
+/**
+ * @module-tag slow
+ * Heavy CPU: with fewer Worker slots than domains, every operation starts one Worker and retires another.
+ */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { gate } from './gate.ts'
 import {
   buildReadMaterials,
   closeProviders,
-  delay,
   readRequest,
   readyProvider,
   summary,
@@ -38,7 +42,7 @@ afterEach(async () => {
 const tight = { maxWorkers: 3, reservedWriterSlots: 1, maxReadWorkersPerDomain: 1 }
 const domainOf = (index: number): string => `domain-${String(index)}`
 
-const read = (domain: string, handler = 'page', input: Record<string, number> = {}) => ({
+const read = (domain: string, handler = 'page', input: Record<string, string | number> = {}) => ({
   ...readRequest(handler, input),
   domain: { scope: TENANT_A, transactionDomain: domain },
 })
@@ -116,9 +120,11 @@ describe('more domains than Worker slots', () => {
   it('reads go on while a slow read of another domain runs', async () => {
     const provider = await readyProvider(workspace, built, tight)
     const domains = await withDomains(provider, 2)
-    const slow = provider.storage.read(read(domains[0] ?? '', 'page', { sleepMs: 400 }))
-    await delay(100)
+    const held = gate(workspace.root)
+    const slow = provider.storage.read(read(domains[0] ?? '', 'page', { gate: held.path }))
+    await held.entered()
     expect(summary(await provider.storage.read(read(domains[1] ?? '')))).toBe('read')
+    held.open()
     expect(summary(await slow)).toBe('read')
   })
 })

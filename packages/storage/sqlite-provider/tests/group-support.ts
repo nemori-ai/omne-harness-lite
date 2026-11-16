@@ -238,4 +238,5 @@ export function firstGap(numbers: readonly number[]): number | null {
   return null
 }
 
-export const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+/** Both run on the write Worker's own clock: wide enough that only what a test names closes a group. */
+export const GROUPING = { groupCollectMs: 150, groupMaxExecutionSliceMs: 60_000 }
