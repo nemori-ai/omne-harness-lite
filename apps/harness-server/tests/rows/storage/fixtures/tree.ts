@@ -31,6 +31,7 @@ import {
   type RowSpec,
   type StartResult,
 } from '../../../../src/loader.ts'
+import { LOCAL_READ_WAIT_MS } from '../../../../src/local/operator-defaults.ts'
 import { serveProfile } from '../../../../src/profile.ts'
 import { defineRow, rowDeclarationOf } from '../../../../src/row.ts'
 import { sessionStorageRow } from '../../../../src/rows/session-storage/index.ts'
@@ -88,7 +89,7 @@ export function providerConfig(
     maxReadWorkersPerDomain: 2,
     readQueuePerDomain: 32,
     readQueueGlobal: 256,
-    readQueueTimeoutMs: 1000,
+    readQueueTimeoutMs: LOCAL_READ_WAIT_MS,
     maxReadInputBytes: 262144,
     maxReadResultBytes: 20971520,
     globalReadResultBytes: 268435456,

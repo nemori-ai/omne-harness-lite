@@ -205,7 +205,7 @@ type Hooks = {
   advanceCleanup?(): 'fail' | 'pass'
   dispatches?(): Promise<void> | void
   resolve?(): Promise<'pass' | 'refuse'> | 'pass' | 'refuse'
-  loadRecovery?(): 'fail' | 'pass'
+  loadRecovery?(settled: boolean): 'fail' | 'deny' | 'pass'
 }
 
 export function world(
@@ -218,6 +218,7 @@ export function world(
   }> = {},
 ) {
   const ledger = input.ledger ?? createMemoryResultPushLedger()
+  const evidence = { mode: input.custodyEvidence ?? 'verified' }
   const hooks: Hooks = {}
   const handoffs: Parameters<ModelCommands<unknown>['handoff']>[0][] = []
   const memory = createTestModelDependencies<unknown>({
@@ -261,7 +262,7 @@ export function world(
           failure: { kind: 'unavailable', dependency: 'retry', diagnostic: 'none' },
         }),
         handoff: given =>
-          input.custodyEvidence === 'unavailable'
+          evidence.mode === 'unavailable'
             ? {
                 failure: {
                   kind: 'unavailable',
@@ -312,10 +313,13 @@ export function world(
   const raw = memory.dependencies.commands
   const commands: ModelCommands<unknown> = {
     ...raw,
-    loadRecovery: async target =>
-      hooks.loadRecovery?.() === 'fail'
-        ? { failure: { kind: 'unavailable', dependency: 'records', diagnostic: 'synthetic' } }
-        : raw.loadRecovery(target),
+    loadRecovery: async target => {
+      const loaded = await raw.loadRecovery(target)
+      const answer = hooks.loadRecovery?.('ok' in loaded && loaded.ok.state.phase === 'settled')
+      if (answer === 'fail')
+        return { failure: { kind: 'unavailable', dependency: 'records', diagnostic: 'synthetic' } }
+      return answer === 'deny' ? { failure: { kind: 'denied', action: 'recover' } } : loaded
+    },
     handoff: async ack => {
       handoffs.push(structuredClone({ ...ack, principal: null }))
       if (hooks.handoff?.() !== 'lost') return raw.handoff(ack)
@@ -451,6 +455,7 @@ export function world(
   return {
     ctx,
     ledger,
+    evidence,
     hooks,
     handoffs,
     messages,

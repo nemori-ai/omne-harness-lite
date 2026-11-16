@@ -32,15 +32,18 @@ import {
   type ModelResultReceiverTable,
 } from '@omne-harness/model-cordis-contract/cordis'
 import { delegatedCommands } from './delegated-commands.ts'
-import { awaitsReceiver, definite, laterRevision } from './push-values.ts'
+import { createPushAgain } from './push-again.ts'
+import {
+  awaitsReceiver,
+  definite,
+  due,
+  laterRevision,
+  pauseAfter,
+  unfinished,
+} from './push-values.ts'
 import { whenEmpty } from './idle.ts'
 
 const DEPENDENCY = 'model-result-push'
-
-function recoveryPauseMs(failures: number): number {
-  if (failures === 0) return 1000
-  return failures === 1 ? 5000 : 30000
-}
 
 type Scan<T> = Readonly<{ kind: 'read'; value: T }> | Readonly<{ kind: 'again' | 'given-up' }>
 
@@ -320,6 +323,7 @@ function createResultPush(
   let phase: 'ready' | 'started' | 'stopped' = 'ready'
   let release: (() => void) | undefined
   let scanning: Promise<void> = Promise.resolve()
+  const owing = createPushAgain<Target>({ keyOf, paused, wake })
 
   function wake(target: Target): void {
     const key = keyOf(target)
@@ -336,6 +340,7 @@ function createResultPush(
       dirty.delete(key)
       const task = work(target).finally(() => {
         running.delete(key)
+        owing.settle(key, target, ledger.read(target))
         pump()
       })
       running.set(key, task)
@@ -366,6 +371,7 @@ function createResultPush(
       const resolved = await authority.resolve(target)
       if ('failure' in resolved) {
         report({ kind: 'blocked', failure: resolved.failure.kind })
+        owing.mark(target, resolved.failure)
         return
       }
       const access = { principal: resolved.ok.principal, tenant: target.tenant }
@@ -378,6 +384,7 @@ function createResultPush(
       await pushAccounts(record, access)
     } catch {
       report({ kind: 'work-threw' })
+      owing.mark(target)
     }
   }
 
@@ -411,7 +418,7 @@ function createResultPush(
     const recovery = await commands.loadRecovery(call)
     if ('failure' in recovery) {
       report({ kind: 'freeze-failed', step: 'recovery' })
-      return record
+      return owing.mark(record, recovery.failure)
     }
     const { state, admission } = recovery.ok
     if (state.phase !== 'settled') return record
@@ -430,7 +437,7 @@ function createResultPush(
     const dispatches = await commands.dispatches(call)
     if ('failure' in dispatches) {
       report({ kind: 'freeze-failed', step: 'dispatches' })
-      return record
+      return owing.mark(record, dispatches.failure)
     }
     const parts = await readParts(record, access, state.settlement.version)
     if (parts === 'acknowledged')
@@ -475,6 +482,7 @@ function createResultPush(
     })
     if ('failure' in started) {
       report({ kind: 'freeze-failed', step: 'read' })
+      owing.mark(record, started.failure)
       return null
     }
     if (started.ok.kind === 'acknowledged') return 'acknowledged'
@@ -491,6 +499,7 @@ function createResultPush(
       const next = await commands.nextRead({ ...call, read, after: state.page.next })
       if ('failure' in next) {
         report({ kind: 'freeze-failed', step: 'read' })
+        owing.mark(record, next.failure)
         return null
       }
       state = next.ok
@@ -557,11 +566,6 @@ function createResultPush(
   }
 
   let resolveReceiver: (owner: string) => ModelResultReceiver<unknown> | null = () => null
-
-  function due(held: HeldDelivery): boolean {
-    const { status } = held.standing
-    return status === 'pending' || status === 'waiting' || status === 'unknown'
-  }
 
   async function pushResult(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
     const held = record.result
@@ -812,7 +816,7 @@ function createResultPush(
 
   async function readAgain<T>(read: () => Promise<Scan<T>>): Promise<T | null> {
     for (let failures = 0; ; failures += 1) {
-      if (!(await paused(recoveryPauseMs(failures)))) return null
+      if (!(await paused(pauseAfter(failures)))) return null
       const scan = await read()
       if (scan.kind === 'read') return scan.value
       if (scan.kind === 'given-up') return null
@@ -903,14 +907,6 @@ function createResultPush(
     recordLateFact,
   }
 
-  function unfinished(record: ResultPushRecord): boolean {
-    return (
-      record.acknowledgement !== 'acknowledged' ||
-      record.cleanup !== 'released' ||
-      record.accounts.some(due)
-    )
-  }
-
   function receiverAppeared(owner: string): void {
     for (const record of ledger.records())
       if (unfinished(record) && (record.origin === null || record.origin.consumer.owner === owner))
@@ -943,7 +939,7 @@ function createResultPush(
     delivering(target) {
       const key = keyOf(target)
       if (phase !== 'started' || key === undefined) return false
-      if (dirty.has(key) || running.has(key)) return true
+      if (dirty.has(key) || running.has(key) || owing.waits(key)) return true
       return awaitsReceiver(ledger.read(target), owner => resolveReceiver(owner))
     },
     async stop() {

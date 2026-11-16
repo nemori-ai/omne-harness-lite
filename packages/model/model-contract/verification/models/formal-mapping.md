@@ -14,7 +14,7 @@
 | P4   | 推送台账有界：接纳晚账前先占名额，待交付晚账不超过上限，saved 后归还；清理释放后只留键与回执                                                                                                                        | 名额不归还，租户晚账永远被拒；正文不丢，已确认调用无界累积                                                  | `PendingAccountsBounded`、`ReservationsMatch`、`BodyDroppedAfterRelease`、进展 `AccountsEventuallyAccepted`；守卫为 `runtime-push.spec.ts` 的超界用例；[证明](../proofs/push-bounds.md#p4-待交付晚账有界)      |
 | P5   | 份额按个数不超占：每个已受理、结果未被确认并释放的调用占一个名额；份额已满时受理答 unavailable 且不占名额                                                                                                           | 一个租户的未确认结果无界累积                                                                                | `ShareHonest`；守卫 `admission-guards.spec.ts`（份额部分）                                                                                                                                                     |
 | P6   | 别租户读调用不披露                                                                                                                                                                                                  | 跨租户泄漏                                                                                                  | `TenantIsolation`；守卫 `admission-guards.spec.ts`                                                                                                                                                             |
-| 进展 | 唤醒不断、接收方与适配器回来后不再离开、接收方最终 saved、清理最终成功时：每个收场的调用最终释放份额；每个接纳的晚账最终 saved；每个被提供的晚账最终被接纳                                                          | 份额永远被占                                                                                                | `EventuallyReleased`、`AccountsEventuallySaved`、`AccountsEventuallyAccepted`（`LiveSpec`，`RefusalsInPlay = FALSE`）                                                                                          |
+| 进展 | 唤醒不断、接收方与适配器回来后不再离开、接收方最终 saved、清理最终成功时：每个收场的调用最终释放份额；每个接纳的晚账最终 saved；每个被提供的晚账最终被接纳                                                          | 份额永远被占                                                                                                | `EventuallyReleased`、`AccountsEventuallySaved`、`AccountsEventuallyAccepted`（`LiveSpec`，`RefusalsInPlay = FALSE`）；前提「唤醒不断」由 `runtime-push-again.spec.ts` 守                                                                                          |
 
 ## Admission 与源码
 
@@ -35,7 +35,7 @@
 
 | 模型                                         | 源码（`packages/model/model-host-local/src/plugins/runtime.ts`）                   |
 | -------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `Wake`、`EndWake`                            | 插件的唤醒与一次工作                                                               |
+| `Wake`、`EndWake`                            | 插件的唤醒与一次工作；一轮结束时还欠着工作，`wakeLater` 在间隔之后再唤醒           |
 | `Pushable`、`result.attempts`、`Limit`       | `push` 的循环：`outcome-unknown` 在 `maxRedeliveries` 内继续，其余答复结束本次唤醒 |
 | `Replaces`                                   | `replaces()`：哪些新答复可以取代当前站位                                           |
 | `PushResultForeign`                          | `acceptReceipt`：键或 owner 不符记为 `failed`（receipt-mismatch）                  |

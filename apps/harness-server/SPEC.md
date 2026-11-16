@@ -308,3 +308,4 @@
 | HS-40 | 本机档的凭据只从标准输入读；已有设置不被静默覆盖；保管库在配置文件之前存在                   | 凭据进入进程表或 shell 历史；用户的设置被悄悄改掉     | `tests/local/setup.spec.ts`、`secret-input.spec.ts`、`setup-serve-process.spec.ts`             |
 | HS-41 | 名字像秘密的变量不进 Shell 的环境                                                            | 服务的秘密经 Shell 泄露给模型                         | `tests/local/operator-defaults.spec.ts`、`serve-local.spec.ts`                                 |
 | HS-42 | 本机档的位置规则与命令行客户端的副本一致                                                     | 客户端连到错误的端口                                  | 本应用的 `locations.spec.ts` 与客户端的 `local-server.spec.ts` 各固定一份                      |
+| HS-43 | 读的排队时限等于已发出的写的观察上界，不短于一次读可以运行的时间                             | 排在一个合法的读或一次冷启动后面的读被判成不可用      | `tests/local/operator-defaults.spec.ts`、`read-wait-budget.spec.ts`                            |
