@@ -1,9 +1,12 @@
 import {
+  DEFAULT_TEAM_MODEL,
   DEFAULT_TEAM_ROLES,
   inProcessPrincipalAuthority,
   type IdentityGovernance,
   type IdentityOperations,
   type PrincipalAuthority,
+  type TenantStandingReading,
+  type TenantStandingSource,
 } from '@omne-harness/identity'
 import {
   adjustableInvitationTerms,
@@ -11,14 +14,7 @@ import {
   inProcessIdentity,
   manualIdentityClock,
 } from '@omne-harness/identity/testing'
-import {
-  tenant,
-  tenantCodec,
-  type AccountId,
-  type LoginStateId,
-  type OrganizationId,
-  type TenantId,
-} from '@omne-harness/legal-identity'
+import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { parseDuration, parseInstant, type Duration } from '@omne-harness/utc-instant'
 
 function duration(text: string): Duration {
@@ -27,10 +23,43 @@ function duration(text: string): Duration {
   return parsed.value
 }
 
+export type StandingDouble = Readonly<{
+  source: Pick<TenantStandingSource, 'read'>
+  asked: TenantId[]
+  answer(next: 'member' | 'not-member' | 'unavailable' | 'throws'): void
+}>
+
+export function standingDouble(): StandingDouble {
+  const asked: TenantId[] = []
+  let next: 'member' | 'not-member' | 'unavailable' | 'throws' = 'member'
+  const evidence = { record: 'fixture-record', revision: '1' }
+  return {
+    asked,
+    answer(answer) {
+      next = answer
+    },
+    source: {
+      async read({ tenant }): Promise<TenantStandingReading> {
+        asked.push(tenant)
+        if (next === 'throws') throw new Error('standing store down')
+        if (next === 'unavailable') return { kind: 'unavailable', diagnostic: 'fixture' }
+        if (next === 'not-member') return { kind: 'not-member', evidence }
+        return {
+          kind: 'member',
+          role: { model: DEFAULT_TEAM_MODEL, role: DEFAULT_TEAM_ROLES.member },
+          qualifications: [],
+          evidence,
+        }
+      },
+    },
+  }
+}
+
 export type Fixture = Readonly<{
   operations: IdentityOperations
   governance: IdentityGovernance
   authority: PrincipalAuthority
+  standing: StandingDouble
 }>
 
 export function fixture(): Fixture {
@@ -52,6 +81,7 @@ export function fixture(): Fixture {
     operations: identity.operations,
     governance: identity.governance,
     authority: inProcessPrincipalAuthority(),
+    standing: standingDouble(),
   }
 }
 
@@ -81,82 +111,6 @@ export async function signIn(
   })
   if (issued.kind !== 'succeeded') throw new Error('fixture login failed')
   return { proof: issued.loginProof, tenant: issued.tenant, tenantText: textOf(issued.tenant) }
-}
-
-export type Team = Readonly<{
-  organization: OrganizationId
-  tenant: TenantId
-  owner: LoginStateId
-  ownerAccount: AccountId
-}>
-
-export async function recognized(operations: IdentityOperations, proof: string) {
-  const recognition = await operations.recognizeLogin({ loginProof: proof })
-  if (recognition.kind !== 'recognized') throw new Error('fixture login was not recognized')
-  return recognition
-}
-
-export async function createTeam(f: Fixture, owner: SignedIn): Promise<Team> {
-  const who = await recognized(f.operations, owner.proof)
-  const created = await f.governance.createOrganization({
-    login: who.login,
-    actingTenant: who.tenant,
-    createCallId: 'team-call',
-    name: 'Team',
-    governanceModelId: 'default-team',
-  })
-  if (created.kind !== 'succeeded') throw new Error('fixture team was not created')
-  const switched = await f.governance.switchCurrentTenant({
-    login: who.login,
-    actingTenant: who.tenant,
-    tenant: created.tenant,
-  })
-  if (switched.kind !== 'succeeded') throw new Error('fixture team was not selected')
-  return {
-    organization: created.organization,
-    tenant: created.tenant,
-    owner: who.login,
-    ownerAccount: who.account,
-  }
-}
-
-export async function invite(f: Fixture, team: Team, invitedIdentifier: string): Promise<string> {
-  const issued = await f.governance.issueMemberInvitation({
-    login: team.owner,
-    actingTenant: team.tenant,
-    invitedLoginIdentifier: invitedIdentifier,
-  })
-  if (issued.kind !== 'succeeded') throw new Error('fixture invitation was not issued')
-  return issued.invitation
-}
-
-export async function accept(
-  f: Fixture,
-  team: Team,
-  member: SignedIn,
-  invitation: string,
-): Promise<TenantId> {
-  const who = await recognized(f.operations, member.proof)
-  const accepted = await f.governance.acceptMemberInvitation({
-    login: who.login,
-    actingTenant: who.tenant,
-    invitation,
-    expectedState: 'open',
-  })
-  if (accepted.kind !== 'succeeded') throw new Error('fixture invitation was not accepted')
-  return tenant(team.organization, who.account)
-}
-
-export async function removeMember(f: Fixture, team: Team, member: SignedIn): Promise<void> {
-  const who = await recognized(f.operations, member.proof)
-  const removed = await f.governance.removeMember({
-    login: team.owner,
-    actingTenant: team.tenant,
-    organization: team.organization,
-    account: who.account,
-    expectedRole: DEFAULT_TEAM_ROLES.member,
-  })
-  if (removed.kind !== 'succeeded') throw new Error('fixture member was not removed')
 }
 
 export function textOf(tenant: TenantId): string {
