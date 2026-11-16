@@ -12,6 +12,7 @@ import { ShellService } from '@omne-harness/shell-contract/cordis'
 
 export class ReferenceShell extends ShellService implements ShellSlots {
   readonly navigated: string[] = []
+  tenant: string | undefined = undefined
   readonly login: ShellLogin = {
     state: () => 'signed-out',
     subscribe: () => () => undefined,
@@ -19,7 +20,7 @@ export class ReferenceShell extends ShellService implements ShellSlots {
     logout: async () => 'signed-out',
   }
   readonly scope: ScopeSource = {
-    get: () => undefined,
+    get: () => this.tenant,
     set: () => undefined,
     subscribe: () => () => undefined,
   }

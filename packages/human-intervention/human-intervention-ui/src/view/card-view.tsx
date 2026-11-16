@@ -18,6 +18,13 @@ const TEXT = 'text'
 const DECLINE = 'decline'
 const OPTION = 'option:'
 
+const KIND: Readonly<Record<string, string>> = {
+  question: '问询',
+  approval: '请示',
+  admission: '放行',
+  extension: '扩展',
+}
+
 const ORIGIN: Readonly<Record<string, string>> = {
   tool: '工具',
   'agent-extension': '扩展',
@@ -25,10 +32,19 @@ const ORIGIN: Readonly<Record<string, string>> = {
   independent: '独立',
 }
 
-function originLabel(entry: Entry): string {
-  const session = entry.item.origin.sessionRef
-  if (session === undefined) return ORIGIN[entry.item.origin.kind] ?? entry.item.origin.kind
-  return session.length > SHOWN_SESSION ? `${session.slice(0, SHOWN_SESSION)}…` : session
+function Origin({ entry }: { readonly entry: Entry }): JSX.Element {
+  const origin = entry.item.origin
+  const session = origin.sessionRef
+  if (session === undefined)
+    return <span className="hitl-card-origin">{ORIGIN[origin.kind] ?? origin.kind}</span>
+  return (
+    <span className="hitl-card-origin">
+      会话
+      <ValuePill mono>
+        {session.length > SHOWN_SESSION ? `${session.slice(0, SHOWN_SESSION)}…` : session}
+      </ValuePill>
+    </span>
+  )
 }
 
 function replyOf(pick: string, text: string): Reply | null {
@@ -38,15 +54,20 @@ function replyOf(pick: string, text: string): Reply | null {
   return null
 }
 
-export function CardView({ entry, driver }: Props): JSX.Element {
+export function CardView({
+  entry,
+  driver,
+  origin,
+}: Props & { readonly origin: boolean }): JSX.Element {
   const question = entry.item.card.question
   const asks = question.kind === 'question' || question.kind === 'extension'
   return (
-    <li className="hitl-card" data-kind={question.kind}>
+    <li className="hitl-card" data-kind={question.kind} data-state={entry.submit.kind}>
       <div className="hitl-card-head">
-        <h3 className="hitl-card-title">{question.title}</h3>
-        <ValuePill mono>{originLabel(entry)}</ValuePill>
+        <span className="hitl-card-kind">{KIND[question.kind] ?? question.kind}</span>
+        {origin ? <Origin entry={entry} /> : null}
       </div>
+      <h3 className="hitl-card-title">{question.title}</h3>
       {question.description === '' ? null : (
         <p className="hitl-card-text">{question.description}</p>
       )}
@@ -54,7 +75,6 @@ export function CardView({ entry, driver }: Props): JSX.Element {
         <p className="hitl-card-context">{entry.item.displayContext}</p>
       )}
       <Answer key={entry.item.card.revision} entry={entry} driver={driver} asks={asks} />
-      <SubmitLine entry={entry} driver={driver} />
     </li>
   )
 }
@@ -67,37 +87,27 @@ function Answer({ entry, driver, asks }: Props & { readonly asks: boolean }): JS
   const busy = entry.submit.kind === 'submitting' || entry.submit.kind === 'unknown'
   const reply = replyOf(pick, text)
   return (
-    <div className="hitl-card-answer">
+    <>
       <fieldset className="hitl-card-choices" disabled={busy}>
         <legend>{asks ? '选一个，或用自己的话回答' : '选一个'}</legend>
         <RadioGroup name={group} value={pick} onValueChange={setPick} disabled={busy}>
           {question.options.map(option => (
-            <label key={option.id} className="hitl-card-choice">
-              <RadioGroupItem value={`${OPTION}${option.id}`} />
-              <span className="hitl-card-choice-label">{option.label}</span>
-              {option.description === '' ? null : (
-                <span className="hitl-card-choice-text">{option.description}</span>
-              )}
-            </label>
+            <Choice
+              key={option.id}
+              value={`${OPTION}${option.id}`}
+              pick={pick}
+              label={option.label}
+              text={option.description}
+            />
           ))}
+          {asks ? <Choice value={TEXT} pick={pick} label="用自己的话回答" text="" /> : null}
           {asks ? (
-            <label className="hitl-card-choice">
-              <RadioGroupItem value={TEXT} />
-              <span className="hitl-card-choice-label">用自己的话回答</span>
-            </label>
-          ) : null}
-          {asks ? (
-            <label className="hitl-card-choice">
-              <RadioGroupItem value={DECLINE} />
-              <span className="hitl-card-choice-label">跳过</span>
-              {question.declineConsequence === '' ? null : (
-                <span className="hitl-card-choice-text">{question.declineConsequence}</span>
-              )}
-            </label>
+            <Choice value={DECLINE} pick={pick} label="跳过" text={question.declineConsequence} />
           ) : null}
         </RadioGroup>
         {asks && pick === TEXT ? (
           <Textarea
+            className="hitl-card-words"
             aria-label="你的回答"
             value={text}
             onChange={event => setText(event.target.value)}
@@ -105,8 +115,10 @@ function Answer({ entry, driver, asks }: Props & { readonly asks: boolean }): JS
           />
         ) : null}
       </fieldset>
-      <div className="hitl-card-actions">
+      <div className="hitl-card-foot">
+        <SubmitLine entry={entry} driver={driver} />
         <Button
+          className="hitl-card-submit"
           disabled={busy || reply === null}
           onClick={() => {
             if (reply !== null) driver.submit(entry.key, reply)
@@ -115,7 +127,27 @@ function Answer({ entry, driver, asks }: Props & { readonly asks: boolean }): JS
           提交
         </Button>
       </div>
-    </div>
+    </>
+  )
+}
+
+function Choice({
+  value,
+  pick,
+  label,
+  text,
+}: {
+  readonly value: string
+  readonly pick: string
+  readonly label: string
+  readonly text: string
+}): JSX.Element {
+  return (
+    <label className="hitl-card-choice" data-state={pick === value ? 'checked' : 'unchecked'}>
+      <RadioGroupItem value={value} />
+      <span className="hitl-card-choice-label">{label}</span>
+      {text === '' ? null : <span className="hitl-card-choice-text">{text}</span>}
+    </label>
   )
 }
 

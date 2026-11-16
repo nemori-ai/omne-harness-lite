@@ -25,6 +25,7 @@ const KEY = keyOf(ITEM.card.ref)
 const OTHER = approvalItem()
 const OTHER_KEY = keyOf(OTHER.card.ref)
 const SELECT = { kind: 'selection', optionId: 'main' } as const
+const SESSION = 'ses_0123456789abcdef'
 
 function listed(items = [ITEM]): State {
   return run(
@@ -204,7 +205,7 @@ describe('提交的答复', () => {
       },
     })
     expect(next.state.entries).toEqual([])
-    expect(next.state.last).toEqual(SUBMITTED)
+    expect(next.state.last).toEqual({ notice: SUBMITTED, sessionRef: SESSION })
     expect(next.effects).toEqual([{ kind: 'list', token: 2, cursor: null }])
   })
 
@@ -226,7 +227,7 @@ describe('提交的答复', () => {
       },
     })
     expect(next.state.entries).toEqual([])
-    expect(next.state.last).toEqual(ALREADY_DECIDED)
+    expect(next.state.last).toEqual({ notice: ALREADY_DECIDED, sessionRef: SESSION })
     expect(next.effects).toEqual([{ kind: 'list', token: 2, cursor: null }])
   })
 
@@ -236,13 +237,16 @@ describe('提交的答复', () => {
       body: { kind: 'invalidated', reason: 'archived' },
     })
     expect(known.state.entries).toEqual([])
-    expect(known.state.last).toEqual({ kind: 'done', text: '这张卡已经作废：会话已归档。' })
+    expect(known.state.last).toEqual({
+      notice: { kind: 'done', text: '这张卡已经作废：会话已归档。' },
+      sessionRef: SESSION,
+    })
     expect(known.effects).toEqual([{ kind: 'list', token: 2, cursor: null }])
     const other = answered(submitted(), {
       outcome: 'succeeded',
       body: { kind: 'invalidated', reason: 'something-new' },
     })
-    expect(other.state.last).toEqual({ kind: 'done', text: '这张卡已经作废。' })
+    expect(other.state.last?.notice).toEqual({ kind: 'done', text: '这张卡已经作废。' })
   })
 
   it('R4 被拒、不可用：显示原因，不重读', () => {
@@ -311,7 +315,7 @@ describe('提交的答复', () => {
       body: { kind: 'invalidated', reason: 'cancelled' },
     })
     expect(next.state.entries).toEqual([])
-    expect(next.state.last?.text).toBe('这张卡已经作废：那一轮被取消了。')
+    expect(next.state.last?.notice.text).toBe('这张卡已经作废：那一轮被取消了。')
   })
 
   it('R10 不认识的卡、不在途的提交、别的答复标识：答复不算数', () => {
@@ -350,3 +354,199 @@ describe('再确认', () => {
     expect(step(state, { kind: 'confirm', key: 'x' }).state).toBe(state)
   })
 })
+
+const UNAVAILABLE = { kind: 'unavailable' } as const
+
+function watching(): State {
+  return run(INITIAL, { kind: 'watch' }, { kind: 'list-answered', token: 1, answer: page([]) })
+    .state
+}
+
+function retrying(): State {
+  return step(watching(), { kind: 'observation-ended', generation: 1, end: UNAVAILABLE }).state
+}
+
+function denied(): State {
+  return step(watching(), {
+    kind: 'observation-ended',
+    generation: 1,
+    end: { kind: 'ended', reason: 'denied' },
+  }).state
+}
+
+describe('跟上变化', () => {
+  it('L1 watch，现在 off：开始观察，代次加一，读列表并建立观察', () => {
+    const next = step(INITIAL, { kind: 'watch' })
+    expect(next.state.live).toEqual({ kind: 'on', generation: 1 })
+    expect(next.effects).toEqual([
+      { kind: 'list', token: 1, cursor: null },
+      { kind: 'observe', generation: 1 },
+    ])
+  })
+
+  it('L2 watch，现在不是 off：不变', () => {
+    for (const state of [watching(), retrying(), denied()])
+      expect(step(state, { kind: 'watch' })).toEqual({ state, effects: [] })
+  })
+
+  it('L3 unwatch，现在 off：不变', () => {
+    expect(step(INITIAL, { kind: 'unwatch' })).toEqual({ state: INITIAL, effects: [] })
+  })
+
+  it('L4 unwatch，现在不是 off：变 off，停止观察', () => {
+    for (const state of [watching(), retrying(), denied()]) {
+      const next = step(state, { kind: 'unwatch' })
+      expect(next.state.live).toEqual({ kind: 'off' })
+      expect(next.effects).toEqual([{ kind: 'stop-observing' }])
+    }
+  })
+
+  it('L5 一帧的代次不是当前的，或现在不在观察：不变', () => {
+    const stale = watching()
+    expect(step(stale, { kind: 'frame', generation: 0 }).state).toBe(stale)
+    for (const state of [INITIAL, retrying(), denied()])
+      expect(step(state, { kind: 'frame', generation: 1 }).state).toBe(state)
+  })
+
+  it('L6 一帧来时正在读列表：记下要再读一遍，不另发', () => {
+    const reading = step(INITIAL, { kind: 'watch' }).state
+    const next = step(reading, { kind: 'frame', generation: 1 })
+    expect(next.state.again).toBe(true)
+    expect(next.effects).toEqual([])
+  })
+
+  it('L7 一帧来时没在读：读列表', () => {
+    const next = step(watching(), { kind: 'frame', generation: 1 })
+    expect(next.effects).toEqual([{ kind: 'list', token: 2, cursor: null }])
+    expect(next.state.again).toBe(false)
+  })
+
+  it('L8 读完最后一页或读失败时要再读：清掉记号，再读一遍', () => {
+    const reading = run(INITIAL, { kind: 'watch' }, { kind: 'frame', generation: 1 }).state
+    const done = step(reading, { kind: 'list-answered', token: 1, answer: page([ITEM]) })
+    expect(done.state.again).toBe(false)
+    expect(done.state.entries.map(entry => entry.key)).toEqual([KEY])
+    expect(done.effects).toEqual([{ kind: 'list', token: 2, cursor: null }])
+    const failed = step(reading, {
+      kind: 'list-answered',
+      token: 1,
+      answer: { outcome: 'basis-unavailable' },
+    })
+    expect(failed.state.again).toBe(false)
+    expect(failed.effects).toEqual([{ kind: 'list', token: 2, cursor: null }])
+  })
+
+  it('L9 读的过程中来三帧：读完只再读一遍', () => {
+    const reading = run(
+      INITIAL,
+      { kind: 'watch' },
+      { kind: 'frame', generation: 1 },
+      { kind: 'frame', generation: 1 },
+      { kind: 'frame', generation: 1 },
+    ).state
+    const first = step(reading, { kind: 'list-answered', token: 1, answer: page([]) })
+    expect(first.effects).toEqual([{ kind: 'list', token: 2, cursor: null }])
+    const second = step(first.state, { kind: 'list-answered', token: 2, answer: page([]) })
+    expect(second.effects).toEqual([])
+  })
+
+  it('L10 观察结束的代次不是当前的，或现在 off、denied：不变', () => {
+    const state = watching()
+    expect(step(state, { kind: 'observation-ended', generation: 2, end: UNAVAILABLE }).state).toBe(
+      state,
+    )
+    for (const other of [INITIAL, denied()])
+      expect(
+        step(other, { kind: 'observation-ended', generation: 1, end: UNAVAILABLE }).state,
+      ).toBe(other)
+  })
+
+  it('L11 观察被拒：变 denied，不重连', () => {
+    for (const end of [
+      { kind: 'ended', reason: 'denied' },
+      { kind: 'refused', outcome: 'denied' },
+    ] as const) {
+      const next = step(watching(), { kind: 'observation-ended', generation: 1, end })
+      expect(next.state.live).toEqual({ kind: 'denied' })
+      expect(next.effects).toEqual([])
+    }
+  })
+
+  it('L12 观察是被中止的：不变', () => {
+    const state = watching()
+    expect(
+      step(state, { kind: 'observation-ended', generation: 1, end: { kind: 'aborted' } }).state,
+    ).toBe(state)
+  })
+
+  it('L13 观察因别的原因结束：变 retrying，次数加一，稍后重连', () => {
+    for (const end of [
+      UNAVAILABLE,
+      { kind: 'uncertain' },
+      { kind: 'ended', reason: 'unavailable' },
+      { kind: 'refused', outcome: 'limited' },
+    ] as const) {
+      const next = step(watching(), { kind: 'observation-ended', generation: 1, end })
+      expect(next.state.live).toEqual({ kind: 'retrying', generation: 1, attempt: 1 })
+      expect(next.effects).toEqual([{ kind: 'reconnect-later', generation: 1, attempt: 1 }])
+    }
+    const again = step(retrying(), { kind: 'observation-ended', generation: 1, end: UNAVAILABLE })
+    expect(again.state.live).toEqual({ kind: 'retrying', generation: 1, attempt: 2 })
+    expect(again.effects).toEqual([{ kind: 'reconnect-later', generation: 1, attempt: 2 }])
+  })
+
+  it('L14 到点重连，代次相同：变 on，代次加一，读列表并建立观察', () => {
+    const next = step(retrying(), { kind: 'reconnect-due', generation: 1 })
+    expect(next.state.live).toEqual({ kind: 'on', generation: 2 })
+    expect(next.effects).toEqual([
+      { kind: 'list', token: 2, cursor: null },
+      { kind: 'observe', generation: 2 },
+    ])
+  })
+
+  it('L15 到点重连，但不在 retrying 或代次不同：不变', () => {
+    const state = retrying()
+    expect(step(state, { kind: 'reconnect-due', generation: 0 }).state).toBe(state)
+    for (const other of [INITIAL, watching(), denied()])
+      expect(step(other, { kind: 'reconnect-due', generation: 1 }).state).toBe(other)
+  })
+
+  it('L16 停了再开：代次接着往上走，旧代次的帧不算数', () => {
+    const reopened = run(watching(), { kind: 'unwatch' }, { kind: 'watch' }).state
+    expect(reopened.live).toEqual({ kind: 'on', generation: 2 })
+    const answered = step(reopened, { kind: 'list-answered', token: 2, answer: page([]) }).state
+    expect(step(answered, { kind: 'frame', generation: 1 }).state).toBe(answered)
+  })
+
+  it('L17 通知带上卡的来源会话；没有会话的卡带 undefined', () => {
+    const decided = {
+      outcome: 'succeeded',
+      body: { kind: 'invalidated', reason: 'archived' },
+    } as const
+    expect(answered(submitted(), decided).state.last?.sessionRef).toBe(SESSION)
+    const other = run(
+      listed([OTHER]),
+      {
+        kind: 'submit',
+        key: OTHER_KEY,
+        reply: { kind: 'selection', optionId: 'allow' },
+        replyId: 'r-2',
+      },
+      { kind: 'reply-answered', key: OTHER_KEY, replyId: 'r-2', answer: decided },
+    ).state
+    expect(other.last).toEqual({
+      notice: { kind: 'done', text: '这张卡已经作废：会话已归档。' },
+      sessionRef: undefined,
+    })
+  })
+
+  it('L18 帧只触发重读：不改任何一张卡的提交状态', () => {
+    const state = step(submitted(watchingWith([ITEM])), { kind: 'frame', generation: 1 }).state
+    expect(submitOf(state)?.kind).toBe('submitting')
+  })
+})
+
+function watchingWith(items: Parameters<typeof page>[0]): State {
+  return run(INITIAL, { kind: 'watch' }, { kind: 'list-answered', token: 1, answer: page(items) })
+    .state
+}
