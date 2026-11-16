@@ -1,6 +1,6 @@
 import type { Plugin } from '@deepseek-ai/cordis'
 import '@omne-harness/assets-ui/assets-ui.css'
-import { assetsUiModule } from '@omne-harness/assets-ui/cordis'
+import { createAssetsUiModule } from '@omne-harness/assets-ui/cordis'
 import '@omne-harness/human-intervention-ui/human-intervention-ui.css'
 import { createHumanInterventionUiModule } from '@omne-harness/human-intervention-ui/cordis'
 import { identityUiModule } from '@omne-harness/identity-ui/cordis'
@@ -15,12 +15,20 @@ export type Assembly = Readonly<{
   modules: readonly Plugin.Object[]
 }>
 
+const ASSET_CATEGORY_LABELS = {
+  tool: '工具',
+  model: '模型',
+  skill: '技能',
+  agent: '智能体',
+  mcp: 'MCP',
+}
+
 export const assembly: Assembly = {
   protocols: domainProtocols,
   modules: [
     identityUiModule,
     sessionUiModule,
     createHumanInterventionUiModule({ sessionDock }),
-    assetsUiModule,
+    createAssetsUiModule({ categoryLabels: ASSET_CATEGORY_LABELS }),
   ],
 }

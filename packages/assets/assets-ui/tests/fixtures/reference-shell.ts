@@ -19,8 +19,9 @@ export class ReferenceShell extends ShellService implements ShellSlots {
     login: async () => 'signed-in',
     logout: async () => 'signed-out',
   }
+  tenant: string | undefined = undefined
   readonly scope: ScopeSource = {
-    get: () => undefined,
+    get: () => this.tenant,
     set: () => undefined,
     subscribe: () => () => undefined,
   }

@@ -25,10 +25,7 @@ export function RowView({ row, driver }: Props): JSX.Element {
     <li className="assets-setting" data-kind={view.kind}>
       <div className="assets-setting-main">
         <div className="assets-setting-head">
-          <h3 className="assets-setting-title">{title}</h3>
-          <span className="assets-setting-asset">
-            {view.asset.category}/{view.asset.name}
-          </span>
+          <h4 className="assets-setting-title">{title}</h4>
         </div>
         <p className="assets-setting-purpose">{purpose}</p>
         {row.read.kind === 'failed' ? null : (
