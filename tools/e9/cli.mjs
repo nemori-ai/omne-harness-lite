@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -57,6 +57,15 @@ function parse(args) {
   return { command, options }
 }
 
+// A token pool checkout names the token directory it holds; an older checkout names one lock file.
+function registrationOf(held) {
+  if (!statSync(held).isDirectory()) return readFileSync(held, 'utf8')
+  return readdirSync(held)
+    .sort()
+    .map(entry => readFileSync(join(held, entry), 'utf8'))
+    .join('\n')
+}
+
 async function metadata(root, kind) {
   const sha = await runProcess('git', ['rev-parse', 'HEAD'], { cwd: root })
   if (sha.exitCode !== 0) throw new Error(`cannot read target SHA: ${sha.stderr}`)
@@ -68,7 +77,7 @@ async function metadata(root, kind) {
   let slot = { state: 'unheld', reason: 'this process does not hold a load slot' }
   if (held) {
     if (!existsSync(held)) throw new Error('slot environment points to a missing lock file')
-    slot = { state: 'held', lockFile: held, registration: readFileSync(held, 'utf8') }
+    slot = { state: 'held', lockFile: held, registration: registrationOf(held) }
   }
   return {
     sha: sha.stdout.trim(),

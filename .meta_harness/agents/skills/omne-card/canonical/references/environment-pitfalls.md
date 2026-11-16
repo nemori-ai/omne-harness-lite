@@ -33,6 +33,6 @@
 ## Windows 与 WSL
 
 - Windows 上已跟踪文件的工作副本可能是 CRLF，而索引是 LF，`format:check` 因此失败。用 `git ls-files --eol | grep 'i/lf.*w/crlf'` 找出这些文件。只是工作副本的换行不同时，删掉工作副本再 `git checkout -- <文件>`。改动本身带 CRLF 时，改成 LF 再提交。
-- 对经运行名额的后台长链（`bash → node → turbo → pnpm.cmd`）或它的兄弟任务用宿主的停止工具，会关掉这一批进程共用的控制台。之后同一棵进程树里新起的 `cmd.exe`、`pnpm.cmd` 立即以 `-1073741502`（`0xC0000142`）失败，看起来像全部成员 0 秒失败。这时不改 turbo 或测试。要停这类长链，用 `taskkill //PID <pid> //T //F` 结束整棵进程树，再读名额目录，确认被结束的进程已经不占名额。
+- 对经令牌池的后台长链（`bash → node → turbo → pnpm.cmd`）或它的兄弟任务用宿主的停止工具，会关掉这一批进程共用的控制台。之后同一棵进程树里新起的 `cmd.exe`、`pnpm.cmd` 立即以 `-1073741502`（`0xC0000142`）失败，看起来像全部成员 0 秒失败。这时不改 turbo 或测试。要停这类长链，用 `taskkill //PID <pid> //T //F` 结束整棵进程树，再读名额目录，确认被结束的进程已经不占名额。
 - Git Bash 的 `/tmp` 与 Windows 版 Python、Node 看到的不是同一个目录。给这些程序传临时文件路径时先用 `cygpath -w` 转换，否则报找不到文件。
 - WSL 的 `/tmp` 在 WSL 重启之后清空。要留作证据的复现材料放在主检出的 `tmp/` 下。

@@ -1222,6 +1222,26 @@ const timer = setInterval(() => {
     expect(ledger()).toHaveLength(3)
   })
 
+  it('判死之后锁已被别人回收、重新拿到：回收只删判死的那个条目，删不掉别人的活锁（模型 finding-lock-steal-c2 的那一步）', async () => {
+    const dead = placeQueueLock({ pid: deadPid(), side: SIDE })
+    const waiter = queue(['bash', '-c', 'echo ran'], publicationEnv('B', 'reap-pause'))
+    try {
+      await waitFor(() => existsSync(join(dir, 'B-judged.ready')), '等待者读到已死的条目、还没删')
+      rmSync(dead)
+      rmSync(dirname(dead), { recursive: true })
+      const live = placeQueueLock({ pid: process.pid, side: SIDE })
+      writeFileSync(join(dir, 'B-judged.continue'), '')
+      await new Promise(tick => setTimeout(tick, 500))
+      expect(existsSync(live), '活锁的条目被等待者删掉了').toBe(true)
+      expect(waiter.stdout()).toBe('')
+      rmSync(dirname(live), { recursive: true })
+      expect(await waiter.exited, waiter.stderr()).toBe(0)
+      expect(waiter.stdout()).toBe('ran\n')
+    } finally {
+      writeFileSync(join(dir, 'B-judged.continue'), '')
+    }
+  })
+
   it('持有者发现令牌条目被删：标准错误报一句，命令照常跑完', async () => {
     const holder = blocker('holder')
     await holder.started()

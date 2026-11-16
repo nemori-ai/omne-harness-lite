@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 import { availableParallelism, tmpdir } from 'node:os'
-import { COMMANDS, isCommandName, runCommand, usageExitCode, type Deps } from './commands.ts'
+import {
+  COMMANDS,
+  cpusFor,
+  isCommandName,
+  runCommand,
+  usageExitCode,
+  type Deps,
+} from './commands.ts'
 import { readReadingConfig } from './config.ts'
 import { spawnExecutor } from './process.ts'
 import { gitRepo } from './repo.ts'
@@ -37,7 +44,7 @@ const deps: Deps = {
   exec: spawnExecutor,
   print: line => console.log(line),
   scratch: tmpdir(),
-  cpus: availableParallelism(),
+  cpus: cpusFor(process.env, availableParallelism()),
   config: () => readReadingConfig(repo.root),
 }
 process.exitCode = await runCommand(COMMANDS[name], argv, deps)

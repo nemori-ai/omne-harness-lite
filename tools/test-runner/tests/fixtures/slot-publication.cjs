@@ -51,7 +51,12 @@ function pause(name) {
 fs.openSync = function (file, ...args) {
   const fd = original.openSync.call(fs, file, ...args)
   // 自己的条目刚建好，别人的条目随即出现：只有自己的条目才算持有，这时要退出重来。
-  if (scenario === 'owner-replaced' && args[0] === 'wx' && isQueueEntry(file) && !used.has('replaced')) {
+  if (
+    scenario === 'owner-replaced' &&
+    args[0] === 'wx' &&
+    isQueueEntry(file) &&
+    !used.has('replaced')
+  ) {
     used.add('replaced')
     foreignEntry(path.dirname(file))
   }
@@ -76,6 +81,7 @@ fs.readFileSync = function (file, ...args) {
   }
   if (actor === 'B' && isTokenEntry(file) && fs.existsSync(path.join(control, 'C.started')))
     mark('B-held-slot-read.ready')
+  if (scenario === 'reap-pause' && actor === 'B' && isQueueEntry(file)) pause('B-judged')
   return text
 }
 
