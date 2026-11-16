@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { access, accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
-import { runPublishJourney, type PublishJourney } from './publish-journey.ts'
+import { runPublishJourney, writeOfficialSample, type PublishJourney } from './publish-journey.ts'
 
 const organization = organizationCodec.parse('org_0123456789abcdefghjkmnpqrs')
 const account = accountCodec.parse('acc_0123456789abcdefghjkmnpqrs')
@@ -11,7 +11,6 @@ if (!organization.ok || !account.ok) throw new Error('the demo tenant texts are 
 const reader = tenant(organization.value, account.value)
 
 const packageDir = fileURLToPath(new URL('sample-skill', import.meta.url))
-const officialDir = fileURLToPath(new URL('official-sample-skill', import.meta.url))
 
 function winnerOf(journey: PublishJourney): string {
   const answer = journey.resolution
@@ -42,7 +41,7 @@ for (const [title, officialImmutable] of [
   try {
     const journey = await runPublishJourney({
       packageDir,
-      officialDir,
+      officialDir: await writeOfficialSample(join(stateDir, 'official')),
       officialImmutable,
       stateDir,
       reader: { access: access('demo-reader', reader), tenant: reader },

@@ -1,4 +1,4 @@
-import { mkdir } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
   capabilityId,
@@ -60,6 +60,23 @@ export type PublishJourney = Readonly<{
 
 const SCOPE = 'tenant'
 type Scope = typeof SCOPE
+
+const OFFICIAL_SAMPLE = `---
+name: sample-skill
+description: The official copy of the sample Skill, a candidate of the official layer in the publish demo.
+---
+
+# Sample skill, official copy
+
+This is the official copy. A tenant's own copy of the same name replaces it unless it declares that it cannot be replaced.
+`
+
+export async function writeOfficialSample(parent: string): Promise<string> {
+  const dir = join(parent, 'official-sample-skill')
+  await mkdir(dir, { recursive: true })
+  await writeFile(join(dir, 'SKILL.md'), OFFICIAL_SAMPLE)
+  return dir
+}
 
 function directoryReader(source: SkillPackageSource, root: string): PackageReader {
   const locator: PackageLocator = { kind: 'directory', root }

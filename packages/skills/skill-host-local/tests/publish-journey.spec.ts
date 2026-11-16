@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { access, accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
-import { runPublishJourney } from '../examples/publish-journey.ts'
+import { runPublishJourney, writeOfficialSample } from '../examples/publish-journey.ts'
 import { scratch } from './scratch.ts'
 
 const organization = organizationCodec.parse('org_0123456789abcdefghjkmnpqrs')
@@ -12,9 +12,7 @@ if (!organization.ok || !account.ok) throw new Error('the test tenant texts are 
 const owner = tenant(organization.value, account.value)
 
 const packageDir = fileURLToPath(new URL('../examples/sample-skill', import.meta.url))
-const officialDir = fileURLToPath(new URL('../examples/official-sample-skill', import.meta.url))
-
-async function journey(officialImmutable: boolean) {
+async function journey(officialImmutable: boolean, officialDir: string) {
   return runPublishJourney({
     packageDir,
     officialDir,
@@ -26,7 +24,7 @@ async function journey(officialImmutable: boolean) {
 
 describe('publishing a directory as a Skill of the tenant, then reading it', () => {
   it('the tenant copy wins over an official copy that can be replaced, and is read', async () => {
-    const run = await journey(false)
+    const run = await journey(false, await writeOfficialSample(await scratch()))
     expect(run.resolution).toMatchObject({
       kind: 'adopted',
       ref: {
@@ -54,7 +52,8 @@ describe('publishing a directory as a Skill of the tenant, then reading it', () 
   })
 
   it('an official copy that cannot be replaced keeps the tenant copy out', async () => {
-    const run = await journey(true)
+    const officialDir = await writeOfficialSample(await scratch())
+    const run = await journey(true, officialDir)
     expect(run.resolution).toMatchObject({
       kind: 'adopted',
       ref: { layer: 'official', locator: { kind: 'directory', root: officialDir } },
