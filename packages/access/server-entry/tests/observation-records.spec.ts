@@ -525,6 +525,23 @@ describe('cancel and its retention', () => {
     expect(records.cancel('k', 'observer-cancelled')).toBe('not-found')
   })
 
+  it('waits out the retention in the background: a retained key does not keep the process', () => {
+    const background: (boolean | undefined)[] = []
+    const records = createObservationRecords<Own>({
+      limits: { perLogin: 2, perInstance: 3, cancelRetentionMs: RETENTION },
+      loginCheckIntervalMs: INTERVAL,
+      clock: {
+        schedule: (ms, run, options) => {
+          background.push(options?.background)
+          return systemClock.schedule(ms, run, options)
+        },
+      },
+    })
+    records.claim(input('k')[0])!.attach(fakeStream().stream)
+    records.cancel('k', 'observer-cancelled')
+    expect(background).toEqual([true])
+  })
+
   it('restarts the retention when the same key ends again', async () => {
     const { records } = setup()
     records.claim(input('k')[0])!.attach(fakeStream().stream)

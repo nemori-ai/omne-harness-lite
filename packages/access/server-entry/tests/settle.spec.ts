@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { AccessContribution } from '@omne-harness/access-cordis-contract'
 import { createAccessRegistry } from '../src/registry/registry.ts'
@@ -335,5 +335,18 @@ describe('systemClock', () => {
     cancel()
     await new Promise<void>(resolve => systemClock.schedule(0, () => resolve()))
     expect(runs).toEqual([])
+  })
+
+  it('keeps the process for a wait, and lets it go for a background wait', async () => {
+    const { systemClock } = await import('../src/settle/settle.ts')
+    const made = vi.spyOn(globalThis, 'setTimeout')
+    const cancels = [
+      systemClock.schedule(1000, () => {}),
+      systemClock.schedule(1000, () => {}, { background: true }),
+    ]
+    const held = made.mock.results.map(result => (result.value as NodeJS.Timeout).hasRef())
+    for (const cancel of cancels) cancel()
+    made.mockRestore()
+    expect(held).toEqual([true, false])
   })
 })
