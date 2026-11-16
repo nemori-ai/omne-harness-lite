@@ -53,6 +53,7 @@ omne-harness-lite 是服务组织或个人的 agent harness，组织模型、工
 | [执行环境](runtime/execution-environment.md) | 环境选择、资源、隔离、数据责任和故障域。 |
 | [流式与消费](runtime/streaming-and-consumption.md) | 到达、观察、收场、持久承接、模型 ACK 与清理。 |
 | [控制与恢复](runtime/control-and-recovery.md) | 插队、取消、归档与作用域释放、原调用接续、恢复的发现与收束及关键服务降级。 |
+| [时间](runtime/time.md) | 时间起的作用、时间源、与各领域的解耦、四种推进方式、装配、可以由人设置的三样与差距。 |
 
 后续状态机与接口须遵循已接受的独立生命周期、可靠交接、权限和真实性要求。各页明确保留的局部对账项继续有效，不因正文接受而自动解决。正文接受不表示实现或验证完成。
 
