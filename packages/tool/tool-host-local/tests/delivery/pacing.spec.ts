@@ -41,7 +41,9 @@ it('doubles the delay up to the cap and keeps a delivery away until the delay en
   const { paced, said, advance } = pacing()
   paced.unavailable(call, owed('a'), { dependency: 'receiver', diagnostic: 'down' })
   expect(paced.away(call, owed('a'))).toMatchObject({ delay: 10, dependency: 'receiver' })
-  expect(said.at(-1)).toContain('(receiver: down)')
+  expect(said.at(-1)).toContain(
+    'the receiver of the consumer owner agent is unavailable (receiver: down)',
+  )
   paced.unavailable(call, owed('a'), { dependency: 'receiver' })
   paced.unavailable(call, owed('a'), { dependency: 'receiver' })
   paced.unavailable(call, owed('a'), { dependency: 'receiver' })

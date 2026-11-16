@@ -2,8 +2,7 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolControl, ToolDefiniteFailure } from '@omne-harness/tool-contract'
 
 function own(value: object, key: string): unknown {
-  const property = Object.getOwnPropertyDescriptor(value, key)
-  return property !== undefined && 'value' in property ? property.value : undefined
+  return Object.getOwnPropertyDescriptor(value, key)?.value
 }
 
 const PARSERS: Readonly<Record<string, (value: object, size: number) => ToolControl | null>> = {

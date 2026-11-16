@@ -57,7 +57,7 @@ export function backgroundCell(call: CallRecord): BackgroundCell {
   if (body.relation === 'background') return { kind: 'background' }
   if (!call.request.availability.definition.backgroundAllowed)
     return refused('background-not-allowed')
-  if (body.phase === 'suspended' || body.wait.kind === 'ask') return refused('ask-wait')
+  if (body.wait.kind === 'ask') return refused('ask-wait')
   if (body.wait.kind !== 'none') return refused('waiting')
   return { kind: 'movable', body: { ...body, relation: 'background', wait: { kind: 'none' } } }
 }

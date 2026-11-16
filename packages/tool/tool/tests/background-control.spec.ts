@@ -289,6 +289,12 @@ describe('the public control intent', () => {
     [{ kind: 'background', otherwise: 'stop' }, false],
     [{ kind: 'background' }, false],
     [{ kind: 'background', otherwise: 'reject', extra: 1 }, false],
+    [{ kind: 'withdraw', reach: 'all' }, true],
+    [{ kind: 'withdraw', reach: 'foreground-and-unadmitted' }, true],
+    [{ kind: 'withdraw', reach: 'all', extra: 1 }, false],
+    [{ kind: 'withdraw', reach: 'some' }, false],
+    [{ kind: 'stop', extra: 1 }, false],
+    [{ kind: 1 }, false],
   ])('parses %j: %s', (intent, accepted) => {
     expect('ok' in controlIntent({ intent })).toBe(accepted)
   })
@@ -402,6 +408,6 @@ describe('release of the placeholder delivery', () => {
     const { snapshot } = await moved()
     const bare = { ...snapshot, tasks: snapshot.tasks.filter(task => task.kind !== 'placeholder') }
     const decision = committed(release(bare))
-    expect(decision.writes.some(write => write.kind === 'delete')).toBe(false)
+    expect(decision.writes.map(write => write.kind)).toEqual(['put', 'put'])
   })
 })
