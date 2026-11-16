@@ -110,6 +110,7 @@ export abstract class ToolCommandsService<P, B extends ContentBlock>
   abstract readonly acceptDecision: ToolCommands<P, B>['acceptDecision']
   abstract readonly acceptResource: ToolCommands<P, B>['acceptResource']
   abstract readonly releaseDelivery: ToolCommands<P, B>['releaseDelivery']
+  abstract readonly releasePlaceholder: ToolCommands<P, B>['releasePlaceholder']
   abstract readonly scanPending: ToolCommands<P, B>['scanPending']
   abstract readonly loadRecovery: ToolCommands<P, B>['loadRecovery']
   abstract readonly claim: ToolCommands<P, B>['claim']

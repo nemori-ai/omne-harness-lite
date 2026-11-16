@@ -77,7 +77,8 @@ function textOf(tenant: TenantId): string {
 
 function deliveryOf(draft: Draft): Record<string, unknown> {
   const { delivery } = draft
-  if (delivery.producer !== 'tool') throw new Error('fixture: a Tool entry')
+  if (delivery.producer !== 'tool' || !('account' in delivery))
+    throw new Error('fixture: a Tool entry with an account')
   return delivery.key.kind === 'result'
     ? {
         kind: 'result',
@@ -115,7 +116,11 @@ const reader: ToolDeliveryReader = material => {
 }
 
 function resultEntry(account: ReceivedEntry, reported = true): ReceivedEntry {
-  if (account.delivery.producer !== 'tool' || account.delivery.key.kind !== 'account')
+  if (
+    account.delivery.producer !== 'tool' ||
+    account.delivery.key.kind !== 'account' ||
+    !('account' in account.delivery)
+  )
     throw new Error('fixture: a Tool account entry')
   return {
     ...account,
@@ -740,7 +745,7 @@ describe('the material check: what the entry does not name is never an execution
       (s: ToolScene) => s.result,
       (entry: ReceivedEntry): ReceivedEntry => {
         const { delivery } = entry
-        if (delivery.producer !== 'tool' || delivery.account === null)
+        if (delivery.producer !== 'tool' || !('account' in delivery) || delivery.account === null)
           throw new Error('fixture: a Tool delivery with an account')
         const subject = { ...delivery.account.subject, id: 'tcall_other' }
         return { ...entry, delivery: { ...delivery, account: { ...delivery.account, subject } } }
@@ -752,7 +757,12 @@ describe('the material check: what the entry does not name is never an execution
       (s: ToolScene) => s.account,
       (entry: ReceivedEntry): ReceivedEntry => {
         const { delivery } = entry
-        if (delivery.producer !== 'tool' || delivery.key.kind !== 'account' || !delivery.account)
+        if (
+          delivery.producer !== 'tool' ||
+          delivery.key.kind !== 'account' ||
+          !('account' in delivery) ||
+          !delivery.account
+        )
           throw new Error('fixture: a Tool account delivery')
         const key = { ...delivery.key, revision: '1' }
         return { ...entry, delivery: { producer: 'tool', key, account: delivery.account } }

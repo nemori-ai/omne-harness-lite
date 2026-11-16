@@ -20,6 +20,7 @@ import { matchEnvironmentAdoption } from './environment-adoption.ts'
 import { controlIntent } from './control-intent.ts'
 import { controlProgress } from './control-progress.ts'
 import { decideControl, decideRecordControl } from './ledger-control.ts'
+import { createReleaseCommands } from './ledger-release.ts'
 import { settleLostWith } from './ledger-lost.ts'
 import { controlSubject, createLedgerControls } from './ledger-control-subjects.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
@@ -29,15 +30,12 @@ import {
   decodeToolOperationId,
   type Adoption,
   type ClockSegment,
-  type ConsumerRef,
   type DurableEvidence,
   type FixedToolRequest,
-  type Handoff,
   type OperationResolution,
   type ControlReceipt,
   type Reply,
   type ToolCallId,
-  type ToolDeliveryId,
   type ToolExecutionRef,
   type ToolFailure,
   type ToolLookup,
@@ -52,13 +50,9 @@ import {
 } from '@omne-harness/tool-contract'
 import {
   type CallAccess,
-  decodeToolDeliveryId,
-  decodeToolResultVersion,
   decodeToolWaitId,
   describedAdoption,
-  judgeConsumerRef,
   judgeFixedToolRequest,
-  judgeHandoff,
   judgeToolArguments,
   type PreparationRecord,
   type ReleaseRecord,
@@ -104,7 +98,6 @@ import { checkFactBatch, decideReceiveFacts, readSavedFact } from './ledger-fact
 import { digestOf, nextRevision, sameFactValue } from './evidence.ts'
 import {
   decideAdmit,
-  decideRelease,
   stateRevision,
   ledgerText,
   terminalText,
@@ -1439,25 +1432,12 @@ export function createToolLedger<P, B extends ContentBlock>(
       const admitted = await admissions.admit(input)
       return 'failure' in admitted ? admitted : succeed(admitted.ok.state)
     },
-    releaseDelivery: input =>
-      mutate(input, 'release-delivery', checked => {
-        const judged = judgeRelease(input)
-        if ('failure' in judged) return Promise.resolve(judged)
-        const command = { ...checked, ...judged.ok, inputDigest: digestOf(judged.ok) }
-        const clock = settlement.bodies?.clock
-        return Promise.resolve(
-          succeed((snapshot, mint) =>
-            decideRelease(
-              snapshot,
-              command,
-              mint,
-              clock === undefined
-                ? null
-                : instantAfter(clock.now(), configuration.offloading.orphanGraceMs),
-            ),
-          ),
-        )
-      }),
+    ...createReleaseCommands<P, B>(mutate, () => {
+      const clock = settlement.bodies?.clock
+      return clock === undefined
+        ? null
+        : instantAfter(clock.now(), configuration.offloading.orphanGraceMs)
+    }),
     control: async input => {
       const intent = controlIntent(input)
       if ('failure' in intent) return intent
@@ -1473,11 +1453,15 @@ export function createToolLedger<P, B extends ContentBlock>(
         if ('failure' in before) return { answer: before, overtaken: false }
         const subject = await controlSubject(before.ok, context, settlement.controlSubjects)
         if ('failure' in subject) return { answer: subject, overtaken: false }
+        const timing = before.ok.call?.state.timing
         const command = {
           ...context,
           intent: intent.ok,
           subject: subject.ok,
           inputDigest: digestOf(intent.ok),
+          ...(intent.ok.kind === 'background' && timing?.kind === 'running'
+            ? { timing: { from: timing, closed: await closeSegment(timing) } }
+            : {}),
         }
         const judged = before.ok.operations.get(context.operation)?.revision
         let overtaken = false
@@ -2018,44 +2002,6 @@ function judgeStartProgressField(value: unknown): Outcome<StartProgress, ToolFai
   if (typeof kind !== 'string' || !Object.hasOwn(START_PROGRESS, kind))
     return invalid('outcome.kind', 'value')
   return START_PROGRESS[kind as StartProgress['kind']](value)
-}
-
-type ReleaseFields = Readonly<{
-  result: ToolResultVersion
-  delivery: ToolDeliveryId
-  consumer: ConsumerRef
-  evidence: Handoff
-}>
-
-function field<T>(
-  judged: Outcome<T, Readonly<{ field: string; reason: string }>>,
-  name: string,
-  root: string,
-): Outcome<T, ToolFailure> {
-  if ('ok' in judged) return judged
-  const { field: at, reason } = judged.failure
-  return invalid(at === root ? name : `${name}.${at}`, reason)
-}
-
-function judgeRelease(input: object): Outcome<ReleaseFields, ToolFailure> {
-  const result = decodeToolResultVersion(Reflect.get(input, 'result'))
-  if ('failure' in result) return invalid('result', result.failure.reason)
-  const delivery = decodeToolDeliveryId(Reflect.get(input, 'delivery'))
-  if ('failure' in delivery) return invalid('delivery', delivery.failure.reason)
-  const consumer = field(
-    judgeConsumerRef(Reflect.get(input, 'consumer')),
-    'consumer',
-    'ConsumerRef',
-  )
-  if ('failure' in consumer) return consumer
-  const evidence = field(judgeHandoff(Reflect.get(input, 'evidence')), 'evidence', 'Handoff')
-  if ('failure' in evidence) return evidence
-  return succeed({
-    result: result.ok,
-    delivery: delivery.ok,
-    consumer: consumer.ok,
-    evidence: evidence.ok,
-  })
 }
 
 function judgeDecisionValue(value: unknown, maxBytes: number): Outcome<DecisionValue, ToolFailure> {

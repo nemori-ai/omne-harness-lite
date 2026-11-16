@@ -597,7 +597,10 @@ describe('tool call control', () => {
     expect(assembly.controls.tools.invoke.calls).toHaveLength(2)
     expect(ended.effects.some(effect => effect.pending.action.startsWith('step-2/'))).toBe(false)
     const accounts = (ended.entries ?? []).flatMap(entry =>
-      entry.kind === 'received' && entry.delivery.producer === 'tool'
+      entry.kind === 'received' &&
+      entry.delivery.producer === 'tool' &&
+      entry.delivery.key.kind !== 'placeholder' &&
+      'account' in entry.delivery
         ? [entry.delivery.account]
         : [],
     )

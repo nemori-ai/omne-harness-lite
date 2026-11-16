@@ -67,6 +67,7 @@ export function publishRuntimeRecords(ctx: Context, records: RuntimeRecords): vo
     acceptDecision = ledger.commands.acceptDecision
     acceptResource = ledger.commands.acceptResource
     releaseDelivery = ledger.commands.releaseDelivery
+    releasePlaceholder = ledger.commands.releasePlaceholder
     scanPending = ledger.commands.scanPending
     loadRecovery = ledger.commands.loadRecovery
     claim = ledger.commands.claim

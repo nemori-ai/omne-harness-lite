@@ -225,7 +225,8 @@ function materialRefusal(
   if (envelope.tenant !== tenantText) return denied()
   const delivery: unknown = envelope.delivery
   if (!object(delivery)) return invalid(field, 'the material holds no Tool delivery')
-  const { key, account } = entry.delivery
+  const { key } = entry.delivery
+  const account = 'account' in entry.delivery ? entry.delivery.account : undefined
   if (delivery.kind !== key.kind) return invalid(field, 'the material holds another delivery kind')
   if (canonical(delivery.key) !== canonical(key))
     return invalid(field, 'the material holds another delivery key')
@@ -251,6 +252,7 @@ function interpretationOf(entry: ToolEntry): SessionEntriesInterpretation[] {
   const source = entry.material
   const account = { kind: 'account' as const, producer, source }
   if (entry.delivery.key.kind === 'account') return [account]
+  if (!('account' in entry.delivery)) return []
   return [
     { kind: 'execution', producer, source },
     ...(entry.delivery.account === null ? [] : [account]),

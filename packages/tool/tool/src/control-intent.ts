@@ -11,8 +11,16 @@ export function controlIntent(input: object): Outcome<ToolControl, ToolDefiniteF
     const kind = Object.getOwnPropertyDescriptor(value, 'kind')
     if (kind === undefined || !('value' in kind)) return invalid()
     const keys = Reflect.ownKeys(value)
-    if ((kind.value === 'stop' || kind.value === 'background') && keys.length === 1)
-      return succeed(Object.freeze({ kind: kind.value }))
+    if (kind.value === 'stop' && keys.length === 1) return succeed(Object.freeze({ kind: 'stop' }))
+    const otherwise = Object.getOwnPropertyDescriptor(value, 'otherwise')
+    if (
+      kind.value === 'background' &&
+      keys.length === 2 &&
+      otherwise !== undefined &&
+      'value' in otherwise &&
+      (otherwise.value === 'reject' || otherwise.value === 'withdraw')
+    )
+      return succeed(Object.freeze({ kind: 'background', otherwise: otherwise.value }))
     const reach = Object.getOwnPropertyDescriptor(value, 'reach')
     if (
       kind.value === 'withdraw' &&

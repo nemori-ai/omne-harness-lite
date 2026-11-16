@@ -135,6 +135,7 @@ export async function fixture(
     waits: readonly ToolWaitContract<unknown, 'ask'>[]
     decisions: ToolDecisionBridge<unknown>
   }>,
+  backgroundAllowed = false,
 ) {
   const root = new Context()
   const memory = createMemoryToolLedgerStore()
@@ -345,7 +346,7 @@ export async function fixture(
         operation: operation.ok,
         implementation: {
           description: 'Executable composition fixture',
-          backgroundAllowed: false,
+          backgroundAllowed,
           declarations: fixed.availability.definition.declarations,
         },
       })

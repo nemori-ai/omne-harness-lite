@@ -220,17 +220,18 @@ describe('a stop of a call suspended on its wait', () => {
     await expectInvalidatedAndReleased(built, receipt.state.source)
   })
 
-  it('settles with withdrawn: true on a withdraw of either reach, and refuses to move the asking call to the background', async () => {
+  it('settles with withdrawn: true on a withdraw of either reach, and records a rejected background of the asking call', async () => {
     const built = await suspended()
     const { harness } = built
-    const background = await harness.commands.control({
-      ...ACCESS,
-      operation: operationId('background-c1'),
-      intent: { kind: 'background' },
-    })
-    expect(background).toEqual({
-      failure: { kind: 'invalid', field: 'intent', reason: 'ask-wait-cannot-background' },
-    })
+    const background = ok(
+      await harness.commands.control({
+        ...ACCESS,
+        operation: operationId('background-c1'),
+        intent: { kind: 'background', otherwise: 'reject' },
+      }),
+    )
+    expect(background.progress.kind).toBe('rejected')
+    expect(background.state).toMatchObject({ phase: 'suspended', relation: 'foreground' })
     expect((await harness.state('c1')).phase).toBe('suspended')
 
     const withdrawn = ok(
@@ -458,15 +459,11 @@ describe('decideControl: a stop of a call that is not suspended', () => {
     )
   })
 
-  describe.each([
-    ['background', { kind: 'background' }],
-    ['withdraw', { kind: 'withdraw', reach: 'foreground-and-unadmitted' }],
-  ] as const)('a %s of a live call', (_name, intent) => {
-    it('is unsupported: only a stop reaches a started invocation', async () => {
-      const snapshot = await runningCallSnapshot()
-      expect(replied(decideStop(snapshot, intent))).toEqual({
-        failure: { ...UNSUPPORTED, adoption: adoptionOf(snapshot) },
-      })
+  it('is unsupported for a withdraw of a live call: only a stop reaches a started invocation', async () => {
+    const snapshot = await runningCallSnapshot()
+    const intent = { kind: 'withdraw', reach: 'foreground-and-unadmitted' } as const
+    expect(replied(decideStop(snapshot, intent))).toEqual({
+      failure: { ...UNSUPPORTED, adoption: adoptionOf(snapshot) },
     })
   })
 
@@ -768,7 +765,7 @@ describe('decideControl: a stop of a call suspended on its wait', () => {
     )
   })
 
-  it('records a withdraw as withdrawn, and refuses to send the asking call to the background', async () => {
+  it('records a withdraw as withdrawn, and records a rejected background of the asking call', async () => {
     const { harness } = await suspendedCall()
     const snapshot = await snapshotOfCall(harness)
     const withdraw = { kind: 'withdraw', reach: 'foreground-and-unadmitted' } as const
@@ -776,9 +773,9 @@ describe('decideControl: a stop of a call suspended on its wait', () => {
     expect(decision.value.state).toMatchObject({
       terminal: { cause: { kind: 'control', withdrawn: true } },
     })
-    expect(replied(decideStop(snapshot, { kind: 'background' }))).toEqual(
-      invalidOf('intent', 'ask-wait-cannot-background'),
-    )
+    const background = committed(decideStop(snapshot, { kind: 'background', otherwise: 'reject' }))
+    expect(background.value.progress.kind).toBe('rejected')
+    expect(background.value.state).toMatchObject({ phase: 'suspended', relation: 'foreground' })
   })
 
   it('answers a resend of a committed stop with its receipt, and another input with a conflict', async () => {

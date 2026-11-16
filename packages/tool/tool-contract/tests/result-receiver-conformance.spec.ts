@@ -43,6 +43,8 @@ const NAMES = {
   RP11: 'a push to a position without the original association is invalid',
   RP12: 'a push of a call to another position than its original is invalid',
   RP13: 'a principal without receiving qualification is denied and saves nothing',
+  RP14: 'a placeholder saves under its own key, recalls on resend, and the result of the call still saves',
+  RP15: 'another placeholder of the same call is a conflict that keeps the first',
 } as const
 
 type Receiver = ToolResultReceiver<string, ContentBlock>
@@ -63,7 +65,7 @@ const fakeReceipt = (delivery: ToolDelivery<ContentBlock>): ToolSavedReceipt => 
 const variants: readonly Variant<Fixture>[] = [
   {
     name: 'the receiver owns the evidence itself',
-    fails: [NAMES.RP1],
+    fails: [NAMES.RP1, NAMES.RP14],
     fixture: variant(real => async input => {
       const answer = await real(input)
       if ('failure' in answer) return answer
@@ -72,7 +74,7 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'every push mints a fresh receipt',
-    fails: [NAMES.RP2, NAMES.RP3, NAMES.RP4, NAMES.RP9, NAMES.RP10],
+    fails: [NAMES.RP2, NAMES.RP3, NAMES.RP4, NAMES.RP9, NAMES.RP10, NAMES.RP14, NAMES.RP15],
     fixture: variant(real => {
       let pushes = 0
       return async input => {
@@ -88,7 +90,7 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'other content under a saved key is taken as saved',
-    fails: [NAMES.RP3],
+    fails: [NAMES.RP3, NAMES.RP15],
     fixture: variant(real => async input => {
       const answer = await real(input)
       if ('failure' in answer && answer.failure.kind === 'conflict')
@@ -167,7 +169,7 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'one bucket holds the keys of every tenant',
-    fails: [NAMES.RP10],
+    fails: [NAMES.RP10, NAMES.RP14],
     fixture: variant(real => {
       let held = 0
       return async input => {

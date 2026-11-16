@@ -10,6 +10,7 @@ import type {
   ToolDeliveryId,
   ToolResultVersion,
 } from './identity.ts'
+import type { BackgroundSource } from './operations.ts'
 import { resolveToolInvocationRef, type ToolInvocationRef } from './reference.ts'
 import type { Effect, ToolResult, ToolTerminal } from './results.ts'
 
@@ -27,6 +28,7 @@ export type ToolDeliveryKey =
       event: string
       revision: CallAccount['revision']
     }>
+  | Readonly<{ kind: 'placeholder'; producer: 'tool'; reference: ToolInvocationRef }>
 
 export type ToolDelivery<B extends ContentBlock> =
   | Readonly<{
@@ -47,6 +49,14 @@ export type ToolDelivery<B extends ContentBlock> =
       key: Extract<ToolDeliveryKey, { kind: 'account' }>
       consumer: ConsumerRef
       account: CallAccount
+    }>
+  | Readonly<{
+      kind: 'placeholder'
+      key: Extract<ToolDeliveryKey, { kind: 'placeholder' }>
+      consumer: ConsumerRef
+      delivery: ToolDeliveryId
+      source: BackgroundSource
+      evidence: DurableEvidence
     }>
 
 export type ToolSavedReceipt = Readonly<{ key: ToolDeliveryKey; evidence: DurableEvidence }>
@@ -86,6 +96,7 @@ export function judgeToolDelivery<B extends ContentBlock>(
     return reference.failure.kind === 'malformed'
       ? fail({ field: 'key.reference', reason: 'reference-malformed' })
       : fail({ field: 'tenant', reason: 'identity' })
+  if (delivery.kind === 'placeholder') return succeed(delivery)
   if (delivery.kind === 'account' && delivery.key.revision !== delivery.account.revision)
     return fail({ field: 'key.revision', reason: 'revision-mismatch' })
   const account = delivery.account

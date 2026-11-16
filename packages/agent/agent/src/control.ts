@@ -380,7 +380,10 @@ export async function advanceToolControl<P>(
   const sent = await ports.tools.commands.control({
     ...access,
     reference: record.toolInvocation,
-    intent: record.command.kind === 'background-tool' ? { kind: 'background' } : { kind: 'stop' },
+    intent:
+      record.command.kind === 'background-tool'
+        ? { kind: 'background', otherwise: 'reject' }
+        : { kind: 'stop' },
   })
   if (sent.kind === 'rejected')
     return save(

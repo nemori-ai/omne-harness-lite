@@ -70,6 +70,7 @@ import {
   type WaitLedgerRecord,
   type WaitRequestRecord,
 } from './ledger-store.ts'
+import { backgroundPlaceholder, type BackgroundPlaceholder } from './ledger-background.ts'
 
 export type Snapshot = Readonly<{
   bodies: ReadonlyMap<string, BodyEntryRecord>
@@ -297,15 +298,27 @@ function acceptWithinCapacity(command: AdmitCommand, mint: Mint): Decision<Admit
   )
 }
 
-function acceptedState(command: AdmitCommand, revision: ToolRevision): ToolState {
+function launchedPlaceholder(command: AdmitCommand, mint: Mint): BackgroundPlaceholder | null {
+  const { tenant, call, request, operation } = command
+  if (request.mode !== 'background') return null
+  const source = { kind: 'launched' } as const
+  return backgroundPlaceholder(
+    { call, operation, consumer: request.consumer },
+    source,
+    mintEvidence('operation', { tenant, call, operation }, mint.revision, { placeholder: source }),
+  )
+}
+
+function acceptedState(
+  command: AdmitCommand,
+  placeholder: BackgroundPlaceholder | null,
+  revision: ToolRevision,
+): ToolState {
   const { tenant, call, request } = command
   const body = {
     call,
     revision,
-    foreground:
-      request.mode === 'background'
-        ? ({ kind: 'background', call, source: { kind: 'launched' } } as const)
-        : null,
+    foreground: placeholder?.foreground ?? null,
     effect: { kind: 'not-started' },
     execution: { kind: 'not-started' },
     timing: { kind: 'paused', accumulatedMs: '0' },
@@ -321,7 +334,8 @@ function acceptedState(command: AdmitCommand, revision: ToolRevision): ToolState
 }
 
 function accept(command: AdmitCommand, mint: Mint): Decision<Admitted> {
-  const state = acceptedState(command, mint.revision)
+  const placeholder = launchedPlaceholder(command, mint)
+  const state = acceptedState(command, placeholder, mint.revision)
   return {
     kind: 'commit',
     writes: [
@@ -329,6 +343,7 @@ function accept(command: AdmitCommand, mint: Mint): Decision<Admitted> {
       put({ kind: 'call', call: callRecord(command, state) }),
       put(operationRecord(command, { kind: 'admit', state }, mint)),
       put({ kind: 'task', task: queueTask(command.operation, state.source) }),
+      ...(placeholder === null ? [] : [put({ kind: 'task', task: placeholder.task })]),
     ],
     value: { state, recovered: false },
   }
@@ -648,7 +663,7 @@ export type ReleaseCommand = Readonly<{
   inputDigest: string
 }>
 
-function sameConsumer(left: ConsumerRef, right: ConsumerRef): boolean {
+export function sameConsumer(left: ConsumerRef, right: ConsumerRef): boolean {
   return (
     left.owner === right.owner &&
     left.work === right.work &&
@@ -657,7 +672,9 @@ function sameConsumer(left: ConsumerRef, right: ConsumerRef): boolean {
   )
 }
 
-function handoffEvidence(handoff: Handoff): Readonly<{ field: string; value: DurableEvidence }> {
+export function handoffEvidence(
+  handoff: Handoff,
+): Readonly<{ field: string; value: DurableEvidence }> {
   return handoff.kind === 'retained'
     ? { field: 'evidence.custody', value: handoff.custody }
     : { field: 'evidence.completion', value: handoff.completion }
