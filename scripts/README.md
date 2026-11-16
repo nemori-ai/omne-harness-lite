@@ -13,8 +13,8 @@
 | [prepare-native.mjs](prepare-native.mjs) | 根脚本 `prepare:native` 的入口：原生依赖准备。构建 `allowBuilds` 放行的 `node-pty`，并在 macOS 上给 `spawn-helper` 补执行位；可以重复运行。安装依赖之后运行，见[准备可用的检出](../docs/development.md#准备可用的检出) |
 | [check-journal-facts.mjs](check-journal-facts.mjs) | 根脚本 `check:journal-facts` 的入口：扫测试世界留下的库（默认 `tmp/journal-facts/`，由 harness-server 的 `journal-bytes` 用例写入）里 `er_fact.body`，出现 `role`、`content`、`messages`、`system` 键就退出 1。没有库或没有 `er_fact` 表时跳过并说明原因，退出 0 |
 | [with-test-slot.sh](with-test-slot.sh) | 运行名额：让重负载的检查在同一台机器上排队执行，见[下文](#运行名额) |
-| [slot-unless-plan-only.sh](slot-unless-plan-only.sh) | 根脚本 `test:affected` 与 `mutation` 的入口：实际运行时取一个运行名额，带 `--plan-only` 只列范围时不取 |
-| [test-tier.sh](test-tier.sh) | 根脚本 `test:tier` 的入口：取一个运行名额，先构建，再跑全部成员的一层。层必须给 `fast`、`slow` 或 `all`，缺层或层名不对时退出 2 |
+| [slot-unless-plan-only.sh](slot-unless-plan-only.sh) | 实际运行时取一个运行名额，带 `--plan-only` 只列范围时不取。根脚本不再经过它，改为直接调用 `node scripts/with-test-slot.mjs --unless-plan-only`；文件留给仍在用它的命令 |
+| [test-tier.sh](test-tier.sh) | 取一个运行名额，先构建，再跑全部成员的一层。层必须给 `fast`、`slow` 或 `all`，缺层或层名不对时退出 2。根脚本 `test:tier` 不再经过它：脚本体以 `--tier` 结尾，层名追加在后面，缺层、多给参数或层名不对由测试运行器的参数解析以 2 拒绝 |
 | [check-design.sh](check-design.sh) | 根脚本 `check:design` 的入口：先核对设计源，再核对领域对象。`--stale <值>` 只交给第二条 |
 | [metrics.sh](metrics.sh) | 根脚本 `metrics` 的入口：参数原样交给钉住的 `omne-metrics`。带 `--coverage` 时取一个运行名额；没给 `--plan` 时先用测试运行器算一份计划（`--base` 交给计划，`FULL=1` 给全量），再以 `--plan` 交给 `omne-metrics`。带 `--coverage` 时还调用测试运行器的 `coverage-parallel`，把覆盖率的并发度（`<同时成员数>x<每成员工作进程数>`）经环境变量 `OMNE_METRICS_COVERAGE_PARALLEL` 交给 `omne-metrics` |
 | [format.sh](format.sh) | 用根配置 `.oxfmtrc.json` 和本地锁定的 oxfmt 检查或写入受维护文件；`staged` 模式只检查 Git index blob |
@@ -116,7 +116,8 @@
 [with-test-slot.sh](with-test-slot.sh) 把这些重负载的命令排成队：
 `scripts/with-test-slot.sh <命令> [参数…]` 拿到名额才执行命令，并原样返回它的退出码。
 实现在 [with-test-slot.mjs](with-test-slot.mjs)，只用 Node 标准库，macOS、Linux 与 Windows 通用；
-`with-test-slot.sh` 只转发给它。不经 shell 时可直接运行 `node scripts/with-test-slot.mjs <命令> [参数…]`。
+`with-test-slot.sh` 只转发给它。根 `package.json` 的脚本不经 `.sh`，直接运行 `node scripts/with-test-slot.mjs <命令> [参数…]`；
+加 `--unless-plan-only`（`node scripts/with-test-slot.mjs --unless-plan-only <命令> [参数…]`）时，命令的参数里有 `--plan-only` 就不占名额、直接执行。
 命令不经 shell 执行。Windows 上 Node 直接起不了 `pnpm` 与 `.sh` 脚本，所以名额脚本对这两种命令换起法，其余命令照原样起：
 
 - Windows 上，命令是 `pnpm`（或 `pnpm.cmd`）时，名额脚本按 `PATH` 顺序找第一个能起 pnpm 的目录。目录里有 `pnpm.exe`（独立安装的布局）时，直接起这个 `pnpm.exe`。目录里有 `pnpm.cmd`，旁边还有 `node_modules/pnpm/bin/pnpm.cjs`（npm 全局安装的布局）时，用当前 Node 运行这个 `pnpm.cjs`。旁边没有 `pnpm.cjs` 的 `pnpm.cmd` 跳过。
@@ -132,7 +133,7 @@ dev-flow 的 `tests/test-slot-launch.spec.ts` 在所在平台上核对这些起�
 
 经它执行的入口：根 `pnpm run check`（整套占一个名额）、`pnpm run test`、`pnpm run test:gate`、
 `pnpm run test:affected`、`pnpm run test:tier`、`pnpm run test:triage`、`pnpm run test:python`、`pnpm run acceptance`、`pnpm run metrics --coverage`、`pnpm run closeout:mutation`；
-`test:affected` 与 `closeout:mutation` 带 `--plan-only` 时不占名额。已经持有名额的进程再调用它
+`test:affected` 与 `closeout:mutation` 经 `--unless-plan-only`，带 `--plan-only` 时不占名额。已经持有名额的进程再调用它
 （例如 `pnpm run check` 里嵌着的测试一步）直接放行，不重复排队。名额随持有它的包装进程退出而释放，
 被杀也不会留下卡死的锁；POSIX 下杀持有者要杀整棵进程树（`kill -- -<进程组>`），只杀包装进程时被包装的命令成孤儿继续跑，
 名额却已经释放。Windows 的 `taskkill /T` 连子孙一起杀，没有这个问题。

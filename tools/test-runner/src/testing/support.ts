@@ -9,7 +9,10 @@ export interface Flags {
   readonly switches: ReadonlySet<string>
 }
 
-/** `valued` 里的参数各带一个值，`switches` 里的不带；认不出的参数连同用法一起报错。 */
+/**
+ * `valued` 里的参数各带一个值，`switches` 里的不带；认不出的参数连同用法一起报错。
+ * 单独的 `--` 跳过：`pnpm run <脚本> -- <参数>` 把它原样传进来，而这里没有位置参数要它来分隔。
+ */
 export function parseFlags(
   argv: readonly string[],
   valued: readonly string[],
@@ -20,6 +23,7 @@ export function parseFlags(
   const seen = new Set<string>()
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index] ?? ''
+    if (arg === '--') continue
     if (switches.includes(arg)) seen.add(arg)
     else if (valued.includes(arg)) {
       const value = argv[index + 1]

@@ -3,7 +3,8 @@
 // 多棵工作树、多个 agent 各自起全量测试时，CPU 被压满会让本来能过的用例超时；
 // 这里用文件把它们排成队，而不是靠每个调用者自觉。只用 Node 标准库，macOS、Linux、Windows 通用。
 //
-// 用法：node scripts/with-test-slot.mjs <命令> [参数…]（scripts/with-test-slot.sh 转发到这里）
+// 用法：node scripts/with-test-slot.mjs [--unless-plan-only] <命令> [参数…]（根 package.json 直接这样调用；scripts/with-test-slot.sh 转发到这里）
+// --unless-plan-only：命令的参数里有 --plan-only（只列范围、不真跑）时不占名额，直接执行命令；没有时照常占名额。
 // 命令不经 shell 执行。Windows 上 `pnpm` 与 `.sh` 脚本另有起法，见 `launch`。
 //
 // 策略都可用环境变量覆盖，下面是初值：
@@ -54,13 +55,15 @@ import {
 import os from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 
-const args = process.argv.slice(2)
+const unlessPlanOnly = process.argv[2] === '--unless-plan-only'
+const args = process.argv.slice(unlessPlanOnly ? 3 : 2)
 if (args.length === 0) {
-  process.stderr.write('Usage: with-test-slot <command> [args...]\n')
+  process.stderr.write('Usage: with-test-slot [--unless-plan-only] <command> [args...]\n')
   process.exit(2)
 }
 
-if (process.env['OMNE_TEST_SLOT_HELD'])
+// 已持有名额，或只列范围（--unless-plan-only 且命令带 --plan-only）：不排队，直接执行命令。
+if (process.env['OMNE_TEST_SLOT_HELD'] || (unlessPlanOnly && args.slice(1).includes('--plan-only')))
   process.exit(await run(args, process.env, false).then(r => r.status))
 
 const env = process.env

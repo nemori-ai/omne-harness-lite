@@ -170,6 +170,18 @@ done
     executable(
       join(bin, 'node'),
       `#!/usr/bin/env bash
+# 根脚本直接起 node scripts/with-test-slot.mjs：替身同 with-test-slot.sh 的替身，记下命令、打上已持有标记再执行；
+# --unless-plan-only 且命令带 --plan-only 时不占名额，不记 slot。
+if [[ "$1" == scripts/with-test-slot.mjs ]]; then
+  shift
+  if [[ "$1" == --unless-plan-only ]]; then
+    shift
+    if [[ " $* " == *" --plan-only "* ]]; then exec "$@"; fi
+  fi
+  if [[ -n "\${OMNE_TEST_SLOT_HELD:-}" ]]; then echo "with-test-slot 替身在名额已持有时被重入：$*" >&2; exit 97; fi
+  printf "slot|%s\\n" "$*" >> "$TRACE"
+  OMNE_TEST_SLOT_HELD=stub exec "$@"
+fi
 printf 'node|%s\\n' "$*" >> "$TRACE"
 # 启动段：FAIL_BOOTSTRAP 给出它的退出码，否则在标准输出写一份结果；检查器的 check 另记下它收到的那份结果。
 if [[ "$1" == scripts/check-bootstrap.mjs ]]; then
@@ -369,6 +381,37 @@ describe('slot-unless-plan-only.sh', () => {
     expect(
       (await run('slot-unless-plan-only.sh', ['node', 'cli.ts', 'run', '--plan-only'])).lines,
     ).toEqual(['node|cli.ts run --plan-only'])
+  })
+})
+
+describe('根脚本不经过 .sh 转发壳', () => {
+  it('test:affected：实际运行时占名额；带 --plan-only 时不占', async () => {
+    const { runLine } = fixture()
+    const line = rootScript('test:affected')
+    expect(line).not.toMatch(/\.sh\b/u)
+    const ran = await runLine(line)
+    expect(ran.status, ran.stderr).toBe(0)
+    expect(ran.lines[0]).toMatch(/^slot\|node .*testing\/cli\.ts run$/u)
+    const planned = await runLine(`${line} --plan-only`)
+    expect(planned.status, planned.stderr).toBe(0)
+    expect(planned.lines).toEqual([
+      'node|--experimental-strip-types tools/test-runner/src/testing/cli.ts run --plan-only',
+    ])
+  })
+
+  it('test:tier：给了层就占名额、先构建、跑全部成员的这一层；缺层、多给参数由检查器的参数解析以 2 拒绝', async () => {
+    const { runLine } = fixture()
+    const line = rootScript('test:tier')
+    expect(line).not.toMatch(/\.sh\b/u)
+    const ran = await runLine(`${line} slow`)
+    expect(ran.status, ran.stderr).toBe(0)
+    expect(ran.lines[0]).toMatch(/^slot\|node .*testing\/cli\.ts run --all --build --tier slow$/u)
+  })
+
+  it('根 package.json 的 scripts 不再出现三个转发壳', () => {
+    const manifest = readFileSync(new URL('../../../package.json', import.meta.url), 'utf8')
+    for (const name of ['with-test-slot.sh', 'slot-unless-plan-only.sh', 'test-tier.sh'])
+      expect(manifest).not.toContain(name)
   })
 })
 
