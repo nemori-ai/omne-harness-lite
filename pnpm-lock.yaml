@@ -243,6 +243,9 @@ importers:
       '@omne-harness/session-protocol':
         specifier: workspace:*
         version: link:../../packages/session/session-protocol
+      '@omne-harness/tool-protocol':
+        specifier: workspace:*
+        version: link:../../packages/tool/tool-protocol
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

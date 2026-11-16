@@ -28,6 +28,7 @@ import { readOptions } from './options.ts'
 import { report, type RequestEcho } from './report.ts'
 import { readSessionOwners, writeSessionOwners } from './session-owners.ts'
 import { settingCommand } from './setting-command.ts'
+import { callsCommand } from './calls-command.ts'
 
 async function runAccount(
   name: 'register' | 'login',
@@ -377,6 +378,7 @@ export const productionCommands: readonly CommandSpec[] = [
     summary: 'Stop a model or tool call.',
     run: (args, output, environment) => runSession(stopCall, args, output, environment),
   },
+  callsCommand,
   ...hitlCommands,
   ...governanceCommands,
   settingCommand,

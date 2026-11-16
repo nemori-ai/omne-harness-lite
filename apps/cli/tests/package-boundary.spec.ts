@@ -12,6 +12,7 @@ const allowed = [
   '@omne-harness/sdk',
   '@omne-harness/session-diagnostics-protocol',
   '@omne-harness/session-protocol',
+  '@omne-harness/tool-protocol',
 ]
 
 const forbidden = [
@@ -25,6 +26,7 @@ const forbidden = [
   '@omne-harness/identity-access',
   '@omne-harness/session-access',
   '@omne-harness/session-diagnostics-access',
+  '@omne-harness/tool-access',
   '@omne-harness/session',
 ]
 
