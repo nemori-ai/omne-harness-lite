@@ -465,6 +465,17 @@ describe('a withdraw of a call in the background (the background row of the cont
     expect(missed.value.progress).toMatchObject({ kind: 'rejected', reason: 'out-of-reach' })
   })
 
+  it('a withdraw of a background call that settled without ever starting sends no stop', async () => {
+    const snapshot = permitted(await admittedCallSnapshot())
+    const settled = withState(after(snapshot, committed(decide(snapshot))), {
+      phase: 'settled',
+      execution: { kind: 'ended', evidence: evidence('ended') },
+    })
+    expect(
+      replied(decide(settled, WITHDRAW_ALL, { operation: operationId('withdraw-c1') })),
+    ).toMatchObject({ failure: { kind: 'unsupported' } })
+  })
+
   it('a withdraw of a call in the foreground stays unsupported', async () => {
     const snapshot = await runningCallSnapshot()
     for (const intent of [WITHDRAW_ALL, WITHDRAW_FOREGROUND])
