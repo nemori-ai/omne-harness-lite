@@ -7,7 +7,7 @@ import {
   type TenantStandingReading,
   type TenantStandingSource,
 } from '@omne-harness/identity'
-import { createAccessIdentity } from '@omne-harness/identity-access'
+import { createAccessIdentity, createMemberActing } from '@omne-harness/identity-access'
 import {
   adjustableInvitationTerms,
   adjustableLoginTerms,
@@ -61,12 +61,15 @@ function world() {
   const access = createAccessIdentity({
     operations: identity.operations,
     governance: identity.governance,
-    standing: standingDouble(() => standing),
     issuer: authority.issuer,
   })
   return {
     identity,
     access,
+    actingFor: createMemberActing({
+      identity: access,
+      standing: standingDouble(() => standing),
+    }),
     answer(next: Standing) {
       standing = next
     },
@@ -98,7 +101,7 @@ async function signedUp() {
 
 describe('the principal port the diagnostics row hands to the plugin', () => {
   it('still issues for a login that was revoked after it was identified: it judges the account of the tenant, not the life of the login', async () => {
-    const { identity, access } = world()
+    const { identity, access, actingFor } = world()
     const registered = await identity.operations.registerAndActivate({
       loginIdentifier: 'alice',
       credential: 'secret',
@@ -118,27 +121,27 @@ describe('the principal port the diagnostics row hands to the plugin', () => {
     ).toEqual({ kind: 'succeeded' })
     expect(await access.identifyLogin(sending.proof)).toEqual({ outcome: 'denied' })
 
-    const issued = await access.actFor(identified.login, sending.tenantText)
+    const issued = await actingFor(identified.login, sending.tenantText)
     expect(issued.outcome).toBe('issued')
     if (issued.outcome !== 'issued') return
     expect((issued.principal as unknown as ActingForTenantPrincipal).kind).toBe('acting-for-tenant')
   })
 
   it('does not issue for a tenant whose standing says not a member, and does not answer for one it cannot read', async () => {
-    const { access, answer, login, signed } = await signedUp()
+    const { actingFor, answer, login, signed } = await signedUp()
 
     answer('not-member')
-    expect(await access.actFor(login, signed.tenantText)).toEqual({ outcome: 'denied' })
+    expect(await actingFor(login, signed.tenantText)).toEqual({ outcome: 'denied' })
 
     answer('unavailable')
-    expect(await access.actFor(login, signed.tenantText)).toEqual({ outcome: 'basis-unavailable' })
+    expect(await actingFor(login, signed.tenantText)).toEqual({ outcome: 'basis-unavailable' })
   })
 
   it('issues for the own tenant while the standing says member', async () => {
-    const { access, answer, login, signed } = await signedUp()
+    const { actingFor, answer, login, signed } = await signedUp()
     answer('member')
 
-    const own = await access.actFor(login, signed.tenantText)
+    const own = await actingFor(login, signed.tenantText)
 
     expect(own.outcome).toBe('issued')
     if (own.outcome !== 'issued') return

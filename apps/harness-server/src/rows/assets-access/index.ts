@@ -5,15 +5,15 @@ import { createAssetsAccessPlugin } from '@omne-harness/assets-access/cordis'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import { defineRow } from '../../row.ts'
 import { tenantSettingsKey } from '../governance/tenant-settings-service.ts'
-import { accessIdentityOfCall } from '../server-entry/identity.ts'
+import { memberActingOfCall } from '../server-entry/identity.ts'
 import { settingsSecretItemsKey } from '../settings/index.ts'
 import { unifySettings } from './settings.ts'
 
 function targetTenantPrincipals(ctx: Context): TargetTenantPrincipals {
-  const identity = accessIdentityOfCall(ctx)
+  const actForMember = memberActingOfCall(ctx)
   return {
     async actingFor(login, tenant) {
-      const issued = await identity.actFor(login, tenant)
+      const issued = await actForMember(login, tenant)
       return issued.outcome === 'issued' ? { ok: issued.principal } : { refused: issued.outcome }
     },
   }

@@ -314,8 +314,7 @@
       "row": "server-entry",
       "names": [
         "principalIssuer",
-        "identityGovernance",
-        "tenantStanding"
+        "identityGovernance"
       ]
     },
     {

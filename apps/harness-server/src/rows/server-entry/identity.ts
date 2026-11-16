@@ -1,4 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
+import type { AccessIdentity } from '@omne-harness/access-cordis-contract'
 import type {
   GovernanceBasisUnavailable,
   IdentityGovernance,
@@ -10,7 +11,7 @@ import {
   identityOperationsKey,
   tenantStandingKey,
 } from '@omne-harness/identity/cordis'
-import { createAccessIdentity } from '@omne-harness/identity-access'
+import { createAccessIdentity, createMemberActing } from '@omne-harness/identity-access'
 
 const MISSING = 'identity operations are not provided by the tree'
 const GOVERNANCE_MISSING = 'identity governance is not provided by the tree'
@@ -20,9 +21,15 @@ export function accessIdentityOfCall(ctx: Context): ReturnType<typeof createAcce
   return createAccessIdentity({
     operations: identityOfCall(ctx),
     governance: governanceOfCall(ctx),
-    standing: standingOfCall(ctx),
     issuer: ctx.principalIssuer,
   })
+}
+
+export function memberActingOfCall(
+  ctx: Context,
+  identity: Pick<AccessIdentity, 'actFor'> = accessIdentityOfCall(ctx),
+): AccessIdentity['actFor'] {
+  return createMemberActing({ identity, standing: standingOfCall(ctx) })
 }
 
 export function standingOfCall(ctx: Context): Pick<TenantStandingSource, 'read'> {

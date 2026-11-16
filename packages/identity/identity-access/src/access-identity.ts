@@ -1,6 +1,7 @@
 import type {
   AccessIdentity,
   ActForResult,
+  LoginIdentity,
   LoginResult,
 } from '@omne-harness/access-cordis-contract'
 import type {
@@ -16,8 +17,12 @@ import { callerOf, LOGIN_WORK_OWNER, loginIdentityOf, loginTextOf, principalOf }
 export type AccessIdentityDependencies = Readonly<{
   operations: IdentityOperations
   governance: IdentityGovernance
-  standing: Pick<TenantStandingSource, 'read'>
   issuer: PrincipalIssuer
+}>
+
+export type MemberActingDependencies = Readonly<{
+  identity: Pick<AccessIdentity, 'actFor'>
+  standing: Pick<TenantStandingSource, 'read'>
 }>
 
 const ENTRY_COMPONENT = 'server-entry'
@@ -25,10 +30,33 @@ const ENTRY_COMPONENT = 'server-entry'
 const DENIED = Object.freeze({ outcome: 'denied' as const })
 const UNAVAILABLE = Object.freeze({ outcome: 'basis-unavailable' as const })
 
+function ownTenant(login: LoginIdentity, tenant: string): TenantId | undefined {
+  const target = tenantCodec.parse(tenant)
+  return target.ok && accountEquals(target.value.account, callerOf(login).account)
+    ? target.value
+    : undefined
+}
+
+export function createMemberActing(deps: MemberActingDependencies): AccessIdentity['actFor'] {
+  const { identity, standing } = deps
+  return async (login, tenant) => {
+    const target = ownTenant(login, tenant)
+    if (target === undefined) return DENIED
+    let reading
+    try {
+      reading = await standing.read({ tenant: target })
+    } catch {
+      return UNAVAILABLE
+    }
+    if (reading.kind === 'unavailable') return UNAVAILABLE
+    return reading.kind === 'member' ? identity.actFor(login, tenant) : DENIED
+  }
+}
+
 export function createAccessIdentity(
   deps: AccessIdentityDependencies,
 ): AccessIdentity & Readonly<{ resume(tenant: string, loginText: string): ActForResult }> {
-  const { operations, governance, standing, issuer } = deps
+  const { operations, governance, issuer } = deps
   let actor: SystemPrincipal | undefined
 
   const systemPrincipal = (): SystemPrincipal | undefined => {
@@ -75,17 +103,8 @@ export function createAccessIdentity(
     },
 
     async actFor(login, tenant): Promise<ActForResult> {
-      const caller = callerOf(login)
-      const target = tenantCodec.parse(tenant)
-      if (!target.ok || !accountEquals(target.value.account, caller.account)) return DENIED
-      let reading
-      try {
-        reading = await standing.read({ tenant: target.value })
-      } catch {
-        return UNAVAILABLE
-      }
-      if (reading.kind === 'unavailable') return UNAVAILABLE
-      return reading.kind === 'member' ? issueFor(target.value, caller.loginText) : DENIED
+      const target = ownTenant(login, tenant)
+      return target === undefined ? DENIED : issueFor(target, callerOf(login).loginText)
     },
 
     resume(tenant, loginText): ActForResult {

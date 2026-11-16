@@ -18,7 +18,6 @@ async function setUp() {
   const port = createAccessIdentity({
     operations: f.operations,
     governance: f.governance,
-    standing: f.standing.source,
     issuer: f.authority.issuer,
   })
   const identified = await port.identifyLogin(issued.loginProof)

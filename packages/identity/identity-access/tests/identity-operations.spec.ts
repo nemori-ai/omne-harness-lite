@@ -21,7 +21,6 @@ function port(f: Fixture) {
   return createAccessIdentity({
     operations: f.operations,
     governance: f.governance,
-    standing: f.standing.source,
     issuer: f.authority.issuer,
   })
 }
