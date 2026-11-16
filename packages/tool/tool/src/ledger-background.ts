@@ -49,19 +49,17 @@ export type BackgroundCell =
   | Readonly<{ kind: 'refused'; reason: BackgroundRefusal }>
   | Readonly<{ kind: 'movable'; body: StateBody }>
 
+const refused = (reason: BackgroundRefusal): BackgroundCell => ({ kind: 'refused', reason })
+
 export function backgroundCell(call: CallRecord): BackgroundCell {
   const { source: _source, ...body } = call.state
   if (body.phase === 'settled') return { kind: 'ended' }
   if (body.relation === 'background') return { kind: 'background' }
   if (!call.request.availability.definition.backgroundAllowed)
-    return { kind: 'refused', reason: 'background-not-allowed' }
-  if (body.phase === 'suspended') return { kind: 'refused', reason: 'ask-wait' }
-  if (body.phase === 'running') {
-    if (body.wait.kind === 'ask') return { kind: 'refused', reason: 'ask-wait' }
-    if (body.wait.kind !== 'none') return { kind: 'refused', reason: 'waiting' }
-    return { kind: 'movable', body: { ...body, relation: 'background', wait: { kind: 'none' } } }
-  }
-  return { kind: 'movable', body: { ...body, relation: 'background' } }
+    return refused('background-not-allowed')
+  if (body.phase === 'suspended' || body.wait.kind === 'ask') return refused('ask-wait')
+  if (body.wait.kind !== 'none') return refused('waiting')
+  return { kind: 'movable', body: { ...body, relation: 'background', wait: { kind: 'none' } } }
 }
 
 export type TimingClose = Readonly<{ from: ToolTiming; closed: ToolTiming }>

@@ -171,6 +171,8 @@ function describeError(error: unknown): string {
 
 type Sweep = { owed: Set<string>; certain: boolean }
 
+const OWED_TASKS: ReadonlySet<ToolTask['kind']> = new Set(['deliver', 'account', 'placeholder'])
+
 function wait<T>(promise: Promise<T>, signal: AbortSignal): Promise<T | null> {
   if (signal.aborted) {
     void promise.catch(() => undefined)
@@ -534,6 +536,20 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     return 'ok' in outcome && (await finish(access, request, outcome.ok))
   }
 
+  async function placeholderFirst(
+    access: CallAccess<P>,
+    call: CallRecord,
+    tasks: readonly ToolTask[],
+    signal: AbortSignal,
+    sweep: Sweep,
+  ): Promise<'none' | 'released' | 'owed'> {
+    const placeholder = tasks.find(task => task.kind === 'placeholder')
+    if (placeholder?.kind !== 'placeholder') return 'none'
+    if (await deliverPlaceholder(access, call, placeholder, signal, sweep)) return 'released'
+    if (!signal.aborted) paced.retain(access, sweep.owed)
+    return 'owed'
+  }
+
   async function run(
     access: CallAccess<P>,
     signal: AbortSignal,
@@ -550,23 +566,13 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     )
       return deliveryUnavailable('delivery-call')
     const tasks = read.records.flatMap(row =>
-      row.kind === 'task' &&
-      (row.task.kind === 'deliver' ||
-        row.task.kind === 'account' ||
-        row.task.kind === 'placeholder')
-        ? [row.task]
-        : [],
+      row.kind === 'task' && OWED_TASKS.has(row.task.kind) ? [row.task] : [],
     )
     let pending = tasks.length
     const sweep: Sweep = { owed: new Set(), certain: true }
-    const placeholder = tasks.find(task => task.kind === 'placeholder')
-    if (placeholder?.kind === 'placeholder') {
-      if (!(await deliverPlaceholder(qualified.ok, call.call, placeholder, signal, sweep))) {
-        if (!signal.aborted) paced.retain(qualified.ok, sweep.owed)
-        return succeed({ pending })
-      }
-      pending -= 1
-    }
+    const first = await placeholderFirst(qualified.ok, call.call, tasks, signal, sweep)
+    if (first === 'owed') return succeed({ pending })
+    if (first === 'released') pending -= 1
     for (const row of read.records) {
       if (row.kind !== 'result' || signal.aborted) continue
       const base = resultDeliveryBase(call.call, row.result)

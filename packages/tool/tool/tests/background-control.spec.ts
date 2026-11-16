@@ -7,10 +7,12 @@ import { taskKey } from '../src/ledger-store.ts'
 import {
   admittedCallSnapshot,
   controlCommand,
+  decideStop,
   runningCallSnapshot,
   STOP_OPERATION,
 } from './control-decider-values.ts'
 import {
+  afterCommit,
   committed,
   invalidOf,
   mintOf,
@@ -210,6 +212,76 @@ describe('background control of a call (the control intent × call state table)'
   })
 })
 
+describe('what a background control writes', () => {
+  const lastControl = (decision: ReturnType<typeof committed>) =>
+    (stateOf(decision).controls as Record_[]).at(-1)
+
+  it('appends the control with relation-changed, and the moved call waits for nothing', async () => {
+    const snapshot = permitted(await runningCallSnapshot())
+    const before = (recordOf(snapshot).state as Record_).controls as unknown[]
+    const decision = committed(decide(snapshot))
+    expect(stateOf(decision).controls).toHaveLength(before.length + 1)
+    expect(lastControl(decision)).toMatchObject({
+      operation: STOP_OPERATION,
+      intent: BACKGROUND,
+      progress: { kind: 'relation-changed' },
+    })
+    expect(stateOf(decision).wait).toEqual({ kind: 'none' })
+  })
+
+  it('keeps the clock of a call that has not started', async () => {
+    const snapshot = permitted(await admittedCallSnapshot())
+    const timing = (recordOf(snapshot).state as Record_).timing
+    expect(stateOf(committed(decide(snapshot))).timing).toEqual(timing)
+  })
+
+  it.each([
+    ['a rejection', (s: CallSnapshot) => s, 'rejected'],
+    [
+      'an ended call',
+      (s: CallSnapshot) =>
+        withState(permitted(s), {
+          phase: 'settled',
+          execution: { kind: 'ended', evidence: evidence('ended') },
+        }),
+      'already-ended',
+    ],
+  ] as const)('appends one control record for %s', async (_name, edit, kind) => {
+    const snapshot = edit(await runningCallSnapshot())
+    const before = (recordOf(snapshot).state as Record_).controls as unknown[]
+    const decision = committed(decide(snapshot))
+    expect(stateOf(decision).controls).toHaveLength(before.length + 1)
+    expect(lastControl(decision)).toMatchObject({ progress: { kind } })
+  })
+
+  it('rejects a running call whose wait is an Ask as an Ask wait', async () => {
+    const snapshot = withState(permitted(await runningCallSnapshot()), {
+      wait: {
+        kind: 'ask',
+        wait: 'op-c1/start/wait',
+        registration: evidence('registration'),
+        resume: evidence('resume'),
+        decision: null,
+      },
+    })
+    expect(committed(decide(snapshot)).value.progress).toMatchObject({
+      kind: 'rejected',
+      reason: 'ask-wait',
+    })
+  })
+
+  it('withdraws a call that waits for a person when the intent says otherwise withdraw', async () => {
+    const { harness } = await suspendedCall()
+    const snapshot = permitted(await snapshotOfCall(harness))
+    const decision = committed(decideStop(snapshot, { kind: 'background', otherwise: 'withdraw' }))
+    expect(decision.value.state).toMatchObject({
+      phase: 'settled',
+      relation: 'foreground',
+      terminal: { kind: 'interrupted', cause: { kind: 'control', withdrawn: true } },
+    })
+  })
+})
+
 describe('the public control intent', () => {
   it.each([
     [{ kind: 'background', otherwise: 'reject' }, true],
@@ -236,7 +308,7 @@ describe('release of the placeholder delivery', () => {
     return foreground === null ? 'd0' : (foreground.delivery as Record_).delivery
   }
 
-  function release(snapshot: CallSnapshot, changes: Record_ = {}) {
+  function release(snapshot: CallSnapshot, changes: Record_ = {}, on: CallSnapshot = snapshot) {
     const consumer = (recordOf(snapshot).request as Record_).consumer
     const command = {
       principal: principalA,
@@ -249,7 +321,7 @@ describe('release of the placeholder delivery', () => {
       evidence: { kind: 'retained', custody: evidence('custody', 'consumer') },
       ...changes,
     }
-    return decideReleasePlaceholder(snapshot, command as never, mintOf(snapshot))
+    return decideReleasePlaceholder(on, command as never, mintOf(on))
   }
 
   it('releases a pending placeholder and drops its task', async () => {
@@ -276,5 +348,60 @@ describe('release of the placeholder delivery', () => {
     expect(replied(release(permitted(await runningCallSnapshot())))).toEqual(
       invalidOf('placeholder', 'none'),
     )
+  })
+  it('refuses an unknown call, another consumer and evidence of another owner', async () => {
+    const { snapshot } = await moved()
+    const consumer = (recordOf(snapshot).request as Record_).consumer as Record_
+    expect(replied(release(snapshot, {}, { ...snapshot, call: null }))).toEqual(
+      invalidOf('call', 'unknown-call'),
+    )
+    expect(
+      replied(
+        release(snapshot, {
+          consumer: { ...consumer, position: 'other' },
+          evidence: { kind: 'retained', custody: evidence('custody', 'consumer') },
+        }),
+      ),
+    ).toEqual(invalidOf('consumer', 'mismatch'))
+    expect(
+      replied(
+        release(snapshot, { evidence: { kind: 'retained', custody: evidence('custody', 'x') } }),
+      ),
+    ).toEqual(invalidOf('evidence.custody.owner', 'owner-mismatch'))
+  })
+
+  it('records the release as an operation, and a resend recalls it while other input conflicts', async () => {
+    const { snapshot } = await moved()
+    const first = committed(release(snapshot))
+    const [operation] = putsOf(first.writes as never, 'operation')
+    if (operation === undefined) throw new Error('the release wrote no operation record')
+    expect((operation.operation as Record_).receipt).toEqual({
+      kind: 'release-placeholder',
+      delivery: first.value,
+    })
+    const recorded = afterCommit(snapshot, first.writes as never)
+    expect(replied(release(recorded))).toEqual({ ok: first.value })
+    expect(replied(release(recorded, { inputDigest: 'digest-other' }))).toMatchObject({
+      failure: { kind: 'conflict' },
+    })
+  })
+
+  it('mints the release evidence as a delivery fact that names its handoff', async () => {
+    const { snapshot } = await moved()
+    const one = committed(release(snapshot)).value
+    const other = committed(
+      release(snapshot, {
+        evidence: { kind: 'retained', custody: evidence('custody-2', 'consumer') },
+      }),
+    ).value
+    expect(one.evidence.record.startsWith('delivery:')).toBe(true)
+    expect(one.evidence.digest).not.toBe(other.evidence.digest)
+  })
+
+  it('commits without a task delete when the placeholder task is already gone', async () => {
+    const { snapshot } = await moved()
+    const bare = { ...snapshot, tasks: snapshot.tasks.filter(task => task.kind !== 'placeholder') }
+    const decision = committed(release(bare))
+    expect(decision.writes.some(write => write.kind === 'delete')).toBe(false)
   })
 })

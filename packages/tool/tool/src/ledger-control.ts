@@ -1,4 +1,4 @@
-import { fail, succeed } from '@omne-harness/operation-result'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolOperationId,
   type ControlProgress,
@@ -9,6 +9,7 @@ import {
   type Handoff,
   type ReleasedDelivery,
   type ToolControl,
+  type ToolFailure,
   type ToolOperationId,
   type ToolState,
 } from '@omne-harness/tool-contract'
@@ -181,17 +182,23 @@ function decideBackground(
     case 'movable':
       return moveToBackground(call, command, cell.body, source, mint)
     case 'refused':
-      break
+      return refusedBackground(snapshot, call, command, prepared, mint, cell.reason)
   }
+}
+
+function refusedBackground(
+  snapshot: Snapshot,
+  call: CallRecord,
+  command: BackgroundCommand,
+  prepared: PreparedSynthetic | null,
+  mint: Mint,
+  reason: string,
+): SyntheticDecision<ControlReceipt> {
   const { otherwise } = command.intent
-  if (otherwise === 'reject')
-    return recorded(
-      call,
-      command,
-      { kind: 'rejected', reason: cell.reason, evidence: source },
-      source,
-      mint,
-    )
+  if (otherwise === 'reject') {
+    const source = controlSource(call, command, mint)
+    return recorded(call, command, { kind: 'rejected', reason, evidence: source }, source, mint)
+  }
   if (call.state.phase === 'suspended')
     return decideSuspendedControl(snapshot, call, command, prepared, mint)
   if (otherwise === 'stop') return decideLiveStop(call, command, mint)
@@ -554,6 +561,25 @@ export type PlaceholderReleaseCommand = Readonly<{
   inputDigest: string
 }>
 
+type Placeholder = Extract<ToolState['foreground'], { kind: 'background' }>
+
+function placeholderTarget(
+  snapshot: Snapshot,
+  command: PlaceholderReleaseCommand,
+): Outcome<Readonly<{ call: CallRecord; foreground: Placeholder }>, ToolFailure> {
+  const call = snapshot.call
+  if (call === null) return invalid('call', 'unknown-call')
+  const foreground = call.state.foreground
+  if (foreground?.kind !== 'background') return invalid('placeholder', 'none')
+  if (foreground.delivery.delivery !== command.delivery) return invalid('delivery', 'mismatch')
+  if (!sameConsumer(foreground.delivery.consumer, command.consumer))
+    return invalid('consumer', 'mismatch')
+  const proof = handoffEvidence(command.evidence)
+  if (proof.value.owner !== command.consumer.owner)
+    return invalid(`${proof.field}.owner`, 'owner-mismatch')
+  return succeed({ call, foreground })
+}
+
 export function decideReleasePlaceholder(
   snapshot: Snapshot,
   command: PlaceholderReleaseCommand,
@@ -563,16 +589,10 @@ export function decideReleasePlaceholder(
   if ('failure' in known) return reply(known)
   if (known.ok?.receipt.kind === 'release-placeholder')
     return reply(succeed(known.ok.receipt.delivery))
-  const call = snapshot.call
-  if (call === null) return reply(invalid('call', 'unknown-call'))
-  const foreground = call.state.foreground
-  if (foreground?.kind !== 'background') return reply(invalid('placeholder', 'none'))
+  const target = placeholderTarget(snapshot, command)
+  if ('failure' in target) return reply(target)
+  const { call, foreground } = target.ok
   const owed = foreground.delivery
-  if (owed.delivery !== command.delivery) return reply(invalid('delivery', 'mismatch'))
-  if (!sameConsumer(owed.consumer, command.consumer)) return reply(invalid('consumer', 'mismatch'))
-  const proof = handoffEvidence(command.evidence)
-  if (proof.value.owner !== command.consumer.owner)
-    return reply(invalid(`${proof.field}.owner`, 'owner-mismatch'))
   if (owed.kind === 'released') return reply(succeed(owed))
   const released: ReleasedDelivery = {
     kind: 'released',
