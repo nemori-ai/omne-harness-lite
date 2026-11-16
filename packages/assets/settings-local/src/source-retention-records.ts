@@ -63,7 +63,6 @@ function decodeReservation(row: readonly unknown[], key: string) {
   const [requestJson, snapshotJson, state, outcome] = reservationRow.parse(row)
   const request = sourceRequestSchema.parse(JSON.parse(requestJson))
   if (sourceReservationKey(request) !== key) throw new Error('Invalid source reservation binding')
-  // A reservation that was aborted before it was held has no snapshot; the table checks that.
   const snapshot =
     snapshotJson === null ? null : sourceSnapshotSchema.parse(JSON.parse(snapshotJson))
   if (snapshot !== null && !equal(request.source, snapshot.source))

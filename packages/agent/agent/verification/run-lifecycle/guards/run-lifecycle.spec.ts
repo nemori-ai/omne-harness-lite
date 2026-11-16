@@ -1,14 +1,3 @@
-// Machine guards of the RunLifecycle model (verification/run-lifecycle/RunLifecycle.tla):
-//   P2 the step limit: for every limit m and every script of t tool steps followed by a final
-//      reply, the execution completes after t + 1 steps when t < m, and otherwise opens exactly m
-//      steps and ends with a guard failure; it never opens more than m steps (R2-D221);
-//   P3 a failure is visible: the Journal refuses a node's commit for good (the model's `Refuse`, a
-//      definite refusal; README). At a closing node the drive stops with the slot failed and
-//      exactly one report naming that node, and a quiesce answers the execution as remaining
-//      (R2-D282, R2-D285). At any other node the failure ends the run with that node's failure
-//      and nothing is reported (L3_FailedRunEnds, Agent SPEC 确定节点故障的收尾).
-// The cases are enumerated. These guards live here until the loop tests are open again; they
-// then move to tests/ (see README.md).
 import { describe, expect, it } from 'vitest'
 import type { AgentRunFailed } from '@omne-harness/agent'
 import type { AgentEventBody, EventPage, Failure } from '@omne-harness/agent-contract'
@@ -31,10 +20,6 @@ import {
   toolDelivery,
   toolReceiver,
 } from '../../../tests/fixtures/tool-call.ts'
-
-// ---------------------------------------------------------------------------------------------
-// P2
-// ---------------------------------------------------------------------------------------------
 
 type Assembly = Awaited<ReturnType<typeof toolAssembly>>
 const input = { ...alice, execution: execution() }
@@ -105,21 +90,12 @@ describe('RunLifecycle guard P2: the step limit holds for every limit and script
   })
 })
 
-// ---------------------------------------------------------------------------------------------
-// P3
-// ---------------------------------------------------------------------------------------------
-
-// `Refuse` of the model is a definite refusal of the storage (README: an unavailable commit is a
-// dependency wait, checked by the capacity-liveness model, and does not stop the drive).
 const JOURNAL_REFUSED: Failure = { kind: 'invalid', field: 'storage', reason: 'command_limit' }
 
-/** The nodes whose commit the guard refuses; each is on the path of the default script. */
 const NODES = ['I0', 'M0', 'I4', 'F1'] as const
 
-/** F1 is a closing node: a definite refusal there cannot be settled, so the drive stops. */
 const CLOSING: readonly (typeof NODES)[number][] = ['F1']
 
-/** An assembly whose Journal refuses for good every commit of `node`, with a report receiver. */
 async function refusing(node: (typeof NODES)[number], reports: AgentRunFailed[]) {
   const assembly = await loopAssembly(
     [execution()],

@@ -1,9 +1,3 @@
-// The `session-ad05` row (B1, R2-D136): the AD-05 Model log consumption plugin of session-adapters
-// (`createSessionModelLogConsumptionPlugin`). It subscribes to `session-adapters/agent-published`,
-// reads the `received` entries and materials of the Journal provider of the same session log, and
-// commits the consumed entries through `commitEntries`. It injects `session` as `coordinator`,
-// `agentJournal`, `agentJournalEntries` (the entry port), `agentMaterials` and `sessionTransactions`. The coordinator principal comes from
-// the trusted `sessionWorkPrincipals`. No configuration: the plugin takes none.
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import {
   agentJournalEntriesKey,

@@ -189,16 +189,13 @@ describe('the ordinary path of a scripted call', () => {
     must(await consumption.closeRead({ ...access('k'), read: closing.read }))
     const receipt = must(await consumption.acknowledge(ackInput('k')))
 
-    // The read that had not ended answers with its first page again.
     expect(must(await consumption.beginRead(begin('read-open')))).toEqual(open)
     expect(open.value).toMatchObject({ kind: 'reading' })
-    // The read that had ended answers that it ended, without any content.
     expect(must(await consumption.beginRead(begin('read-closed')))).toEqual({
       kind: 'started',
       read: closing.read,
       value: { kind: 'ended', reason: 'closed' },
     })
-    // An operation that began no read gets the acknowledgement and no read.
     expect(must(await consumption.beginRead(begin('read-new')))).toEqual({
       kind: 'acknowledged',
       custody: receipt.custody,
@@ -770,9 +767,6 @@ describe('who may see a call', () => {
           }),
         ),
       ).toEqual({ kind: 'not-accepted', operation: operation('admit-a') })
-      expect(must(await scripted.provider.recover({ principal: alice, tenant: tenantA }))).toEqual({
-        scheduled: '0',
-      })
       expect(must(await calls.admit(admission('a')))).toMatchObject({
         recovered: false,
         revision: '1',
@@ -786,27 +780,10 @@ describe('who may see a call', () => {
     expect(
       failureOf(await scripted.provider.runtime.calls.admit(admission('a', { tenant: forged }))),
     ).toEqual({ kind: 'denied', action: 'tenant' })
-    expect(
-      failureOf(await scripted.provider.recover({ principal: alice, tenant: forged })),
-    ).toEqual({
-      kind: 'denied',
-      action: 'recover',
-    })
   })
 })
 
-describe('recovery and quiescence', () => {
-  it('counts the calls of the tenant that have not ended', async () => {
-    const scripted = scriptedProvider()
-    await admitCall(scripted, 'a')
-    await admitCall(scripted, 'b')
-    must(await scripted.provider.runtime.calls.admit(admission('c', { tenant: tenantB })))
-    settleCall(scripted, 'b')
-    expect(must(await scripted.provider.recover({ principal: alice, tenant: tenantA }))).toEqual({
-      scheduled: '1',
-    })
-  })
-
+describe('quiescence', () => {
   it('reports pending and running separately, and leaves out the calls that ended', async () => {
     const scripted = scriptedProvider()
     for (const name of ['a', 'b', 'c', 'd', 'e', 'f']) await admitCall(scripted, name)

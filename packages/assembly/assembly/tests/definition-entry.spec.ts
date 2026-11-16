@@ -40,8 +40,6 @@ it('assembly reads a definition and an extension list from the public entry', as
   })
 })
 
-// Goes red when the judgment lists `version` in its declaration table again, or stops refusing
-// members that the table does not list (SPEC "声明判断": a definition carries no version).
 it('refuses a definition that states a version as malformed', async () => {
   expect(await judgeAgentDefinition({ ...definitionInput, version: 'v2' })).toEqual({
     kind: 'refused',

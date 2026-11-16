@@ -11,11 +11,6 @@ type Dropped = Extract<Admission, { kind: 'dropped' }>
 const DISABLED: Dropped = Object.freeze({ kind: 'dropped', reason: 'disabled' })
 const CLOSED: Dropped = Object.freeze({ kind: 'dropped', reason: 'closed' })
 
-/**
- * The explicit disabled implementation, with the shape of a runtime. Every call answers
- * `dropped(disabled)` and is counted in `droppedBy.disabled`; after close every call answers
- * `dropped(closed)`. Disabled is a present provider, not an absent one.
- */
 export function createDisabledTelemetry(): TelemetryRuntime {
   let disabled = 0
   let closing: Promise<CloseReport> | undefined
@@ -46,7 +41,6 @@ export function createDisabledTelemetry(): TelemetryRuntime {
           dropped: disabled,
           droppedBy: Object.freeze(disabled > 0 ? { disabled } : {}),
           pending: 0,
-          // Nothing was written, so no boundary was reached and nothing is confirmed.
           flush: 'unconfirmed',
           boundary: 'none',
           transport: 'closed',

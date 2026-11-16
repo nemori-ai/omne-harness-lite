@@ -12,20 +12,8 @@ import type {
   ProviderFacts,
 } from '@omne-harness/execution-environment-contract'
 
-/**
- * Paths for the host files facility on Linux. Every object below a directory is reached through
- * `/proc/self/fd/<descriptor>/<name>`, which the kernel resolves against the directory object that
- * was opened, not against the name the directory had. A directory renamed or replaced by a link
- * after it was opened therefore changes nothing for a call that goes through its descriptor.
- *
- * With a host file root, every path is also walked from the root one segment at a time without
- * following links. Without a root, the path of the named object is opened as it always was and
- * only what lies below that object is reached by descriptor.
- */
-
 export type FileStats = BigIntStats
 
-/** Why a step did not complete. `unresolved` is a path with no object; `unknown` is an unmapped error. */
 export type Failure = 'unresolved' | 'unknown' | FacilityReason
 
 export type Outcome<T> =
@@ -65,7 +53,6 @@ export const createCodes: Readonly<Record<string, FacilityReason>> = {
   EPERM: 'notAuthorized',
 }
 
-/** Error codes of a single system call that changes the tree, when the call changed nothing. */
 export const changeCodes: Readonly<Record<string, FacilityReason>> = {
   ...createCodes,
   ENOTEMPTY: 'conflict',
@@ -77,7 +64,6 @@ export const changeCodes: Readonly<Record<string, FacilityReason>> = {
   EBUSY: 'busy',
 }
 
-/** Error codes of a rename, which also reports a target of the wrong kind or a move into itself. */
 export const renameCodes: Readonly<Record<string, FacilityReason>> = {
   ...changeCodes,
   ENOTDIR: 'conflict',
@@ -96,7 +82,6 @@ export function mapped<T>(table: Readonly<Record<string, T>>, error: unknown): T
   return code !== undefined && Object.hasOwn(table, code) ? table[code] : undefined
 }
 
-/** The failure of a system call that changes the tree: its mapped reason, else unknown. */
 export function changeFailure(
   error: unknown,
   table: Readonly<Record<string, FacilityReason>> = changeCodes,
@@ -120,7 +105,6 @@ export function unknown(requestId: string): FacilityResult<never> {
   return { kind: 'unknown', requestId }
 }
 
-/** The result for a failed step; `unresolved` stays unresolved only where the contract allows it. */
 export function failed(
   requestId: string,
   failure: Failure,
@@ -134,7 +118,6 @@ export function failed(
   return reject(requestId, failure)
 }
 
-/** A host path is absolute and has no NUL byte; anything else is refused before the file system. */
 export function isHostPath(path: string): boolean {
   return isAbsolute(path) && !path.includes('\0')
 }
@@ -145,22 +128,14 @@ export function pathWithoutTrailingSlash(path: string): string {
   return current
 }
 
-/** `/proc/self/fd/<descriptor>`, the directory object a descriptor stands for. */
 export function fdDir(directory: FileHandle): string {
   return `/proc/self/fd/${directory.fd}`
 }
 
-/** A name below an opened directory; the name has no slash. */
 export function fdPath(directory: FileHandle, name: string): string {
   return `${fdDir(directory)}/${name}`
 }
 
-/**
- * Prerequisite P2: this host resolves a name below an opened directory through its descriptor.
- * The probe makes a temporary directory, opens it, creates and removes a file through
- * `/proc/self/fd/<descriptor>/<name>`, and removes the directory. `unsatisfied` is a host that has
- * no such path; `unknown` is a probe that could not run.
- */
 export async function probeHostFilesPrerequisite(
   directory: string = tmpdir(),
 ): Promise<ProviderFacts['prerequisites']> {
@@ -202,40 +177,30 @@ export async function probeHostFilesPrerequisite(
 
 export type DirectoryRole = 'target' | 'parent'
 
-/** The directory that holds the last segment of a path, and that segment. */
 export type Located = Readonly<{
   parent: FileHandle
   name: string
-  /** The path is the host file root itself; `name` is `.` and nothing may be changed. */
   isRoot: boolean
 }>
 
-/** The nearest existing directory on a path and the segments below it that do not exist yet. */
 export type Ancestor = Readonly<{ ancestor: FileHandle; rest: readonly string[] }>
 
 export type HostPaths = Readonly<{
   rooted: boolean
-  /** False when this host cannot serve (P2 unsatisfied or the root unusable): answer `unavailable`. */
   available(): Promise<boolean>
-  /** Rooted only: the part of the check that needs no file system. Undefined when the path may go on. */
   checkPath(path: string): Promise<Failure | undefined>
-  /** The directory at `path`. The caller closes it. */
   openDirectory(path: string, role: DirectoryRole): Promise<Outcome<FileHandle>>
-  /** The directory that holds the last segment of `path`. The caller closes `parent`. */
   locate(path: string): Promise<Outcome<Located>>
-  /** The nearest existing directory on `path`. The caller closes `ancestor`. */
   nearestAncestor(path: string): Promise<Outcome<Ancestor>>
 }>
 
 export type HostPathsCore = Readonly<{
   rooted: boolean
-  /** Paths whose handles that fail to close go to `close`. */
   bind(close: CloseHandle): HostPaths
 }>
 
 export type HostPathsOptions = Readonly<{
   root?: string | undefined
-  /** Where the P2 probe makes its temporary directory. */
   probeDirectory?: string | undefined
 }>
 
@@ -265,7 +230,6 @@ async function bindRoot(root: string): Promise<RootBinding | undefined> {
   }
 }
 
-/** The segments of `path` below the root, or `outside`. A `..` anywhere is outside. */
 function belowRoot(binding: RootBinding, path: string): readonly string[] | 'outside' {
   const segments = segmentsOf(path)
   if (segments.includes('..')) return 'outside'
@@ -275,7 +239,6 @@ function belowRoot(binding: RootBinding, path: string): readonly string[] | 'out
   return segments.slice(binding.segments.length)
 }
 
-/** Where a path is split for a call that works on the last segment: the directory and the name. */
 function splitLast(path: string): Readonly<{ directory: string; name: string }> | undefined {
   const stripped = pathWithoutTrailingSlash(path)
   const name = posix.basename(stripped)
@@ -283,11 +246,6 @@ function splitLast(path: string): Readonly<{ directory: string; name: string }> 
   return { directory: posix.dirname(stripped), name }
 }
 
-/**
- * The platform state shared by every facade of one engine: the configured root and its recorded
- * identity, and the P2 probe. A failed root binding and an unknown probe are tried again by the
- * next request; a settled probe is kept.
- */
 export function createHostPathsCore(options: HostPathsOptions): HostPathsCore {
   const rootPath = options.root
   const rooted = rootPath !== undefined
@@ -311,7 +269,6 @@ export function createHostPathsCore(options: HostPathsOptions): HostPathsCore {
   }
 
   const bind = (close: CloseHandle): HostPaths => {
-    /** Opens the root again and checks that it is the directory recorded at the start. */
     const openRoot = async (): Promise<
       Outcome<Readonly<{ handle: FileHandle; dev: bigint; binding: RootBinding }>>
     > => {
@@ -336,7 +293,6 @@ export function createHostPathsCore(options: HostPathsOptions): HostPathsCore {
       return fail('notAuthorized')
     }
 
-    /** Why a directory step failed, found while its parent is still open. */
     const directoryFailure = async (
       parent: FileHandle,
       name: string,
@@ -358,10 +314,6 @@ export function createHostPathsCore(options: HostPathsOptions): HostPathsCore {
       return 'unknown'
     }
 
-    /**
-     * Moves from `current` to its child `next`: `next` must be on device `dev`. Closes `current`,
-     * and `next` as well when the step is refused.
-     */
     const crossStep = async (
       current: FileHandle,
       next: FileHandle,
@@ -381,7 +333,6 @@ export function createHostPathsCore(options: HostPathsOptions): HostPathsCore {
       return fail('notAuthorized')
     }
 
-    /** Opens `names` one below the other from `start`, never following a link. Closes `start`. */
     const descend = async (
       start: FileHandle,
       dev: bigint,
@@ -406,10 +357,8 @@ export function createHostPathsCore(options: HostPathsOptions): HostPathsCore {
       return ok(current)
     }
 
-    /**
-     * The path is judged against the recorded root first, so a path outside the root or with a `..`
-     * is refused before the prerequisite probe makes anything in the state directory.
-     */
+    /** Judged against the recorded root first, so a path outside the root or with `..` is refused
+     *  before the prerequisite probe makes anything in the state directory. */
     const checkPath = async (path: string): Promise<Failure | undefined> => {
       if (process.platform !== 'linux') return 'unavailable'
       const recorded = await rootBinding()
@@ -428,7 +377,6 @@ export function createHostPathsCore(options: HostPathsOptions): HostPathsCore {
           return ok(await open(opening, directoryFlags))
         } catch (error) {
           if (errorCode(error) === 'ENOTDIR' && role === 'target') {
-            // The path leads through directories to an entry that is not one, or to nothing.
             try {
               await lstat(opening)
               return fail('unsupported')
@@ -469,7 +417,6 @@ export function createHostPathsCore(options: HostPathsOptions): HostPathsCore {
       return ok({ parent: parent.value, name, isRoot: false })
     }
 
-    /** Why a step of the climb failed, found while its parent is still open. */
     const ancestorFailure = async (
       parent: FileHandle,
       name: string,
@@ -484,7 +431,6 @@ export function createHostPathsCore(options: HostPathsOptions): HostPathsCore {
       return last || !entry.isSymbolicLink() ? 'conflict' : 'notAuthorized'
     }
 
-    /** Without a root: the path as given, shortened from the end until a directory opens. */
     const nearestUnrooted = async (path: string): Promise<Outcome<Ancestor>> => {
       const split = splitLast(path)
       if (split === undefined) return fail('invalidInput')
@@ -501,7 +447,6 @@ export function createHostPathsCore(options: HostPathsOptions): HostPathsCore {
       }
     }
 
-    /** With a root: opens the segments below it one by one until one does not exist. Closes the root. */
     const climb = async (
       start: FileHandle,
       dev: bigint,
@@ -553,11 +498,6 @@ export function createHostPathsCore(options: HostPathsOptions): HostPathsCore {
   return Object.freeze({ rooted, bind })
 }
 
-/**
- * What every operation checks last before it opens anything: a rooted path must lie below the
- * root (no file system call beyond binding the root), then the host must be able to serve at all.
- * Undefined means the operation may go on.
- */
 export async function gate(
   paths: HostPaths,
   requestId: string,

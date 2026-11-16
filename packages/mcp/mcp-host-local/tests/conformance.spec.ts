@@ -1,7 +1,4 @@
 // @module-tag slow — every case starts a scripted peer on a local HTTP server.
-// The contract's transport conformance suite on the real lines (MC3-9): every case runs on a
-// fresh scripted peer; passed, failed and not-applicable are counted apart, and the set of
-// not-applicable cases is pinned with its reasons.
 import { afterAll, afterEach, describe, expect, it } from 'vitest'
 import {
   mcpTransportConformance,
@@ -34,11 +31,6 @@ function fixtureOf(): TransportFixture {
   }
 }
 
-/**
- * The cases that are not applicable on the real line, with the reason the fixture gives.
- * - The peer's requests after `notifications/initialized` on Streamable HTTP: this transport
- *   opens no GET stream, so the peer has no channel for them (design §8.1).
- */
 const NOT_APPLICABLE: Readonly<{ [name: string]: string }> = {
   'T3 legacy: a ping of the peer gets an empty result and any other request -32601, before initialize is answered and after initialized (item 7)':
     'a channel for the requests of the peer after initialized',
@@ -75,7 +67,6 @@ function suite(title: string, expected: readonly string[]): void {
     }
 
     afterAll(() => {
-      // The counts of MC3-9, for the report.
       process.stdout.write(
         `conformance ${title}: passed ${counts.passed.length}, not-applicable ${counts.notApplicable.size}, failed ${counts.failed.length}\n`,
       )

@@ -1,12 +1,8 @@
-// agentModelContext over the real Runtime Context mechanism: when a read is full and when it is
-// incremental, which material a read keeps and under which key, how a lost material is answered,
-// how the evidence it hands out is resolved, and which refusals it gives.
 import { describe, expect, it } from 'vitest'
 import { decodeAgentExecutionId } from '@omne-harness/agent-contract'
 import { createAgentModelContext, createContextMaterials } from '@omne-harness/agent-context'
 import { authority, createWorld, owner, tenantOf, type World } from './fixtures/context-world.ts'
 
-/** A full read, an assembled preparation on it, and that candidate made the fixed adoption. */
 async function adoptedRound(w: World, attachment = 'attachment-1') {
   const advance = authority(attachment)
   const first = await w.read({ advance })
@@ -55,7 +51,6 @@ describe('full and incremental reads', () => {
     const w = await createWorld()
     await adoptedRound(w, 'attachment-1')
     const { coverage, advance } = await adoptedRound(w, 'attachment-2')
-    // The old attachment reads in full again after the new one took its material.
     expect((await w.read({ advance: authority('attachment-1') })).content).toBe('full')
     expect((await w.read({ advance, adopted: coverage })).content).toBe('incremental')
   })
@@ -82,7 +77,6 @@ describe('the evidence a read hands out', () => {
   it('a new instance resolves nothing, but still tells whose execution an evidence names', async () => {
     const w = await createWorld()
     const { coverage, advance } = await adoptedRound(w)
-    // A restart: the same owner, a new material instance, the same holder and Runtime Context.
     const restarted = createAgentModelContext<string>({
       materials: createContextMaterials<string>({ owner, capacity: 8 }),
       parts: w.parts,

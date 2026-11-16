@@ -1,6 +1,3 @@
-// The values that the paths of this fixture send and read. Every identity comes from a decoder of
-// a public package and every block and message from the judge of the package that owns it, so no
-// value is made by an assertion.
 import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-block'
 import {
   accountCodec,
@@ -42,7 +39,6 @@ function tenantOf(account: string, organization: string): TenantId {
   return tenant(parsedOrganization.value, parsedAccount.value)
 }
 
-/** The identity under which the context asks the profile, preparation and conversion services. */
 export const access: Access<Principal> = {
   principal: { name: 'context' },
   tenant: tenantOf('acc_abcdefghjkmnpqrstvwxyz2345', 'org_abcdefghjkmnpqrstvwxyz2345'),
@@ -71,11 +67,6 @@ export const callId = (name: string): ModelCallId => must(decodeModelCallId(`mca
 
 const unknownUpstream = [{ supplier: adoption('supplier'), limit: { kind: 'unknown' } }] as const
 
-/**
- * The profile that the profile service of this fixture offers. The window is 50 tokens and the
- * output limit 10, so an input holds at most 40 tokens; the compaction trigger is 60 percent of
- * the window, which is 30 tokens.
- */
 export const profile: ModelProfile = {
   identity: { scope: { kind: 'factory' }, route: 'default' },
   adoption: adoption('profile'),
@@ -147,14 +138,12 @@ const limits = {
   maxNumberLength: 16,
 }
 
-/** The JSON value of a plain value, read the way a tool package would read its own schema text. */
 export function json(value: unknown): JsonValue {
   const read = readJsonText(JSON.stringify(value), limits)
   if (read.kind !== 'ok') throw new Error(`the fixture value is not JSON: ${read.kind}`)
   return read.value
 }
 
-/** A tool, declared only by its name, its description and a JSON schema for its arguments. */
 export const readFileTool: ToolDeclaration = {
   name: 'read_file',
   description: 'Reads one file of the workspace',

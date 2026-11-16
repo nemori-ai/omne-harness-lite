@@ -1,5 +1,3 @@
-// The read port: `refresh` publishes whole listings under the publish boundary of SPEC S5 and
-// invariant 2; `current` and `peer` answer from what is stored and connected, and never connect.
 import { describe, expect, it } from 'vitest'
 import type { AuthorizationDiscovery, CatalogKey } from '@omne-harness/mcp-contract'
 import type {
@@ -210,7 +208,7 @@ describe('refresh keeps the earlier adoption', () => {
     { kind: 'error-answer', code: -32603, message: 'internal' },
     { kind: 'answer-malformed', what: 'tools-missing' },
   ] as const)(
-    'listing-incomplete (page-failed) on %o without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1)',
+    'listing-incomplete (page-failed) on %o without the mark: the connection is degraded, not lost, the record kept (T1)',
     async failure => {
       const { w, discovery, status } = core(
         world({
@@ -249,7 +247,7 @@ describe('refresh fails', () => {
     ],
     [{ kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' }, 'session-ended'],
   ] as const)(
-    'a page answered %o, with the mark: connection-unavailable, the connection lost for %s and the record marked (S5, S7, T1)',
+    'a page answered %o, with the mark: connection-unavailable, the connection lost for %s and the record marked (T1)',
     async (failure, reason) => {
       const { w, discovery, status } = core(
         world({
@@ -399,7 +397,7 @@ describe('refresh fails', () => {
       'stream-broken',
     ],
   ] as const)(
-    'a discover that fails during the build with %o fails the build, with or without the mark: refresh answers %o, the connection is lost for the mark, else by the build rule (%s) (S5, S7, MC-5)',
+    'a discover that fails during the build with %o fails the build, with or without the mark: refresh answers %o, the connection is lost for the mark, else by the build rule (%s)',
     async (failure, expected, reason) => {
       const { w, discovery, status } = core(world({ script: [{ discover: failure }] }))
       adoptHttp(w, files, { auth: 'none' })
@@ -457,7 +455,7 @@ describe('refresh fails', () => {
     expect(w.transports.calls).toHaveLength(0)
   })
 
-  it('after closeAll: connection-unavailable before the gate, for an endpoint not adopted too; no port is asked (S8)', async () => {
+  it('after closeAll: connection-unavailable before the gate, for an endpoint not adopted too; no port is asked', async () => {
     const { w, discovery, connections } = core(world({ script: usualScript() }))
     expect(await connections.closeAll()).toEqual([])
     const asked = { adoption: w.adoption.calls(), eligibility: w.eligibility.calls() }
@@ -468,7 +466,7 @@ describe('refresh fails', () => {
     expect(w.transports.calls).toHaveLength(0)
   })
 
-  it('closeAll while the refresh waits on the store before the listing: connection-unavailable, as a refresh that starts after closeAll; no page is asked after it, nothing is published (S8, MC-7)', async () => {
+  it('closeAll while the refresh waits on the store before the listing: connection-unavailable, as a refresh that starts after closeAll; no page is asked after it, nothing is published (MC-7)', async () => {
     const base = world({ script: usualScript() })
     adoptHttp(base, files, { auth: 'none' })
     const store = armedStore(base.store)
@@ -487,7 +485,7 @@ describe('refresh fails', () => {
     expect(await record(w)).toBe('absent')
   })
 
-  it('a release while the refresh waits on the store before the listing: no page is asked on the released connection; the listing is incomplete and nothing is published (MC-10, MC-7)', async () => {
+  it('a release while the refresh waits on the store before the listing: no page is asked on the released connection; the listing is incomplete and nothing is published (MC-7)', async () => {
     const base = world({ script: usualScript() })
     adoptHttp(base, files, { auth: 'none' })
     const store = armedStore(base.store)
@@ -508,7 +506,7 @@ describe('refresh fails', () => {
     expect(await record(w)).toBe('absent')
   })
 
-  it('closeAll while a page is asked: connection-unavailable, not the listing-incomplete the page failure would give, and nothing is published (S8, MC-7)', async () => {
+  it('closeAll while a page is asked: connection-unavailable, not the listing-incomplete the page failure would give, and nothing is published (MC-7)', async () => {
     const listing = deferred<ListingPage | TransportFailure>()
     const { w, discovery, connections } = core(
       world({ script: [{ discover: peer }, { listActions: listing }] }),
@@ -523,7 +521,7 @@ describe('refresh fails', () => {
     expect(await record(w)).toBe('absent')
   })
 
-  it('at whichever microtask closeAll lands, the refresh starts no step after it: no gate or store port and no page, and it answers connection-unavailable unless it published (S8, MC-7)', async () => {
+  it('at whichever microtask closeAll lands, the refresh starts no step after it: no gate or store port and no page, and it answers connection-unavailable unless it published (MC-7)', async () => {
     const LIMIT = 2_000
     let publishedBefore = false
     for (let k = 0; k < LIMIT && !publishedBefore; k += 1) {
@@ -531,10 +529,6 @@ describe('refresh fails', () => {
       adoptHttp(base, files, { auth: 'none' })
       const late: string[] = []
       let shut = (): boolean => false
-      // The steps of MC-7 and the port that begins each: the gate (1st adoption, then
-      // eligibility), the build (2nd adoption, its re-read), the stored record, each page, the
-      // publish boundary (3rd adoption, then eligibility and a 4th adoption), the write. A step
-      // begun before closeAll finishes; no step begins after it.
       const begins = new Set(['adoption.endpoint#1', 'adoption.endpoint#2', 'adoption.endpoint#3'])
       const seen = new Map<string, number>()
       const note = (port: string): void => {
@@ -594,7 +588,7 @@ describe('refresh fails', () => {
     expect(publishedBefore).toBe(true)
   })
 
-  it('the caller aborts and closeAll begins while a page is asked: kept (cancelled), the stop ranks before the shutdown as at the exit of a call (S8, MC-7, MC-16)', async () => {
+  it('the caller aborts and closeAll begins while a page is asked: kept (cancelled), the stop ranks before the shutdown as at the exit of a call (MC-7)', async () => {
     const listing = deferred<ListingPage | TransportFailure>()
     const { w, discovery, connections } = core(
       world({ script: [{ discover: peer }, { listActions: listing }] }),
@@ -610,7 +604,7 @@ describe('refresh fails', () => {
     expect(await record(w)).toBe('absent')
   })
 
-  it('closeAll while the store writes the listing: the refresh that published stays published (S8)', async () => {
+  it('closeAll while the store writes the listing: the refresh that published stays published', async () => {
     const base = world({ script: usualScript() })
     adoptHttp(base, files, { auth: 'none' })
     const reached = deferred<void>()
@@ -729,7 +723,6 @@ describe('current and peer do not connect', () => {
     })
     if (!('ok' in matches) || matches.ok.kind !== 'acquired') throw new Error('not acquired')
     expect(matches.ok.actions.map(action => action.name)).toEqual(['read'])
-    // The stored basis names other capabilities than the connection negotiated.
     const stored = await record(w)
     if (stored === 'absent') throw new Error('nothing stored')
     const rebased = {
@@ -740,7 +733,6 @@ describe('current and peer do not connect', () => {
     expect(await discovery.current(alice, files)).toMatchObject({
       ok: { kind: 'acquired', basisCurrent: 'differs' },
     })
-    // Member order of the capabilities does not make the basis differ.
     const reordered = {
       ...stored,
       basis: { ...stored.basis, capabilities: jsonOf({ tools: {} }) },

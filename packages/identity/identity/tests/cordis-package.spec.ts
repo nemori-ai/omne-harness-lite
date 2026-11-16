@@ -1,5 +1,4 @@
 /** @module-tag slow */
-// Packs the member and starts independent Node and TypeScript consumers of the unpacked archive.
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import {
@@ -51,7 +50,6 @@ it('consumes the packed ./cordis entry with original types and keeps Cordis out 
   mkdirSync(installed, { recursive: true })
   run('tar', ['-xzf', archive, '--strip-components=1', '-C', 'node_modules/@omne-harness/identity'])
   expect(readdirSync(installed)).not.toContain('src')
-  // Reuse locked dependency artifacts. The identity package itself is the unpacked tarball.
   for (const dependency of [
     '@deepseek-ai/cordis',
     '@omne-harness/legal-identity',

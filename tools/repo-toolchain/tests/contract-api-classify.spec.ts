@@ -1,10 +1,4 @@
 // @module-tag slow
-// 归慢层：每条用例用 TypeScript 检查器（ts.createProgram）对两份声明逐方向证明可赋值。全量准入快层账本里整份合计 115.0 秒，负载下 201.1 秒，39 条里 25 条在全量准入或负载下超单条预算（2.5 秒），余下仍有 11.6 秒（负载下 18.8 秒）（tools/test-runner/README_ZH.md「归层」）。
-// 分类规则的正反例：白名单门。只有正证据成立才是 additive：每处差异都在「可加改动」表的白名单里
-// （新增一个旧侧不知道的名字的导出：不与本文件声明合并、不是入口已有的导出名、在文件作用域里解析不到已有符号；
-// 模块作用域的接口或类型字面量里新增可选属性），并且检查器对涉及的导出用同一种写法证明两个方向都可赋值。
-// 全局作用域的任何差异（扩充块、脚本文件、三斜线指令、导入或导出的模块边、`export as namespace`）整份 review，不跑检查器。
-// 其余一律 review，附注写明命中哪一条。每条用例只给两份声明，断言分类与附注种类。
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   classifySnapshots,
@@ -22,7 +16,6 @@ const exported = (name: string, entry = '.') => ({ scope: 'export', entry, name 
 const declared = (statement: string, path = 'index.d.ts') =>
   ({ scope: 'declaration', path, statement }) as const
 
-/** 一份结果里出现过的附注种类（去重、按出现顺序）。 */
 function reasonKinds(result: SnapshotDifference): ReviewReason['kind'][] {
   const kinds = result.differences.flatMap(item =>
     item.change === 'review' ? item.reasons.map(reason => reason.kind) : [],
@@ -38,14 +31,12 @@ function reasonsOf(result: SnapshotDifference, target: Difference['target']): Re
   )
 }
 
-/** 加一个可选成员 `b`，`use` 是同一个成员里读 Options 的写法。 */
 const optionalAdded = (use: string) =>
   classifyDists(
     `export interface Options { a?: string }\n${use}`,
     `export interface Options { a?: string; b?: number }\n${use}`,
   )
 
-// Each case builds two snapshots and a two-sided program with real TypeScript 6.
 describe('contract API change classes', { timeout: 60_000 }, () => {
   it('is none when only comments, layout, declaration order or parameter names change', () => {
     expect(
@@ -57,7 +48,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
   })
 
   it('does not let normalization turn a review into none: a `this` parameter is not a parameter name', () => {
-    // `f(this: Foo, a)` has one parameter and a this type; `f(self: Foo, a)` has two parameters.
     const result = classifyDists(
       'export interface Foo { n: number }\nexport declare function f(this: Foo, a: string): void;\n',
       'export interface Foo { n: number }\nexport declare function f(self: Foo, a: string): void;\n',
@@ -105,16 +95,13 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
         'export interface Box<T> { v: T; w?: T }\n',
       ).change,
     ).toBe('additive')
-    // A type literal inside a callback parameter.
     expect(
       classifyDists(
         'export declare function on(cb: (e: { a: string }) => void): void;\n',
         'export declare function on(cb: (e: { a: string; b?: number }) => void): void;\n',
       ).change,
     ).toBe('additive')
-    // Omit drops a key without reading the rest, so the derived type grows the same way.
     expect(optionalAdded("export type W = Omit<Options, 'a'>;\n").change).toBe('additive')
-    // An internal type that only gains an optional member: compatible, but not nothing.
     expect(
       classifyDists(
         'interface Bar { a: string }\nexport interface Foo { x: Bar }\nexport {};\n',
@@ -136,7 +123,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
       change: 'additive',
       differences: [{ target: { scope: 'snapshot' }, kind: 'changed', change: 'additive' }],
     })
-    // Without another export the file would stop being a module: that stays outside the whitelist.
     const script = classifyDists(
       {
         'index.d.ts': "import './g.ts';\nexport {};\n",
@@ -180,9 +166,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
   })
 
   it('B1: one proof form for both directions; a conditional type that changes a specific instance is review with a broken direction', () => {
-    // The whitelist already rejects the edit. The checker verdict no longer combines two forms:
-    // with the single form the old → new direction fails (the new → old direction passes only because
-    // the checker instantiates an unconstrained G as unknown, which takes the false branch).
     const result = classifyDists(
       'export type V<T> = string;\n',
       "export type V<T> = T extends 'a' ? number : string;\n",
@@ -194,8 +177,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
     expect(reasonsOf(result, exported('V'))).toEqual([
       expect.objectContaining({ kind: 'direction', writers: false }),
     ])
-    // An unconstrained T is instantiated with one opaque brand, so a branch that only bites for
-    // `number` is invisible to the checker. The whitelist is what rejects this edit.
     const box = classifyDists(
       'export interface Box<T> { v: T }\n',
       'export interface Box<T> { v: T extends number ? never : T }\n',
@@ -280,21 +261,18 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
     )
     expect(required.change).toBe('review')
     expect(reasonKinds(required)).toEqual(['outside-whitelist', 'uncovered'])
-    // Optional member: inside the whitelist, but a namespace export has zero comparisons.
     const optional = classifyDists(
       'export declare namespace N { interface O { a: string } }\n',
       'export declare namespace N { interface O { a: string; b?: number } }\n',
     )
     expect(optional.change).toBe('review')
     expect(reasonsOf(optional, exported('N'))).toEqual([{ kind: 'uncovered' }])
-    // Reached through an internal declaration: the namespace's own text does not change.
     const indirect = classifyDists(
       'interface Bar { a: string }\nexport declare namespace N { type K = keyof Bar }\n',
       'interface Bar { a: string; b?: number }\nexport declare namespace N { type K = keyof Bar }\n',
     )
     expect(indirect.change).toBe('review')
     expect(reasonsOf(indirect, exported('N'))).toEqual([{ kind: 'uncovered' }])
-    // A class inside a foreign augmentation block changes: global scope, review without the checker.
     const inside = classifyDists(
       "import 'x';\nexport interface Foo { a: string }\ndeclare module 'x' { class K { a: string } }\n",
       "import 'x';\nexport interface Foo { a: string }\ndeclare module 'x' { class K { a: number } }\n",
@@ -318,9 +296,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
       { kind: 'global-scope-change', why: '对全局或外部模块的扩充新增了' },
     ])
     expect(reasonKinds(added)).toEqual(['global-scope-change'])
-    // Formerly a positive control: an optional member added to an existing augmentation, no export reads
-    // Context. Global scope exists once in a consumer's program, so the checker cannot prove the member is
-    // unaffected; the rule is narrowed and this is review too, without running the checker.
     const grown = classifyDists(
       head + "declare module 'x' { interface Context { foo: Foo } }\n",
       head + "declare module 'x' { interface Context { foo: Foo; bar?: Foo } }\n",
@@ -341,7 +316,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
   it('a script file is global scope: adding, removing or changing one is review, even for an optional-only interface', () => {
     const member = 'export interface O { a: string }\n'
     const global = 'interface ErrorOptions { code: string }\n'
-    // A new script file merges a required member into lib's ErrorOptions: `new Error('x', { cause: 1 })` stops compiling.
     const added = classifyDists(
       { 'index.d.ts': member },
       { 'index.d.ts': member, 'globals.d.ts': global },
@@ -350,7 +324,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
     expect(reasonsOf(added, declared('（脚本文件）', 'globals.d.ts'))).toEqual([
       { kind: 'global-scope-change', why: '脚本文件的顶层声明都是全局的：文件新增了' },
     ])
-    // The same declaration added to a script file that already existed, with or without a side-effect import.
     const existing = 'interface Foo { x?: string }\n'
     for (const head of ['', "import './globals.js';\n"]) {
       const grown = classifyDists(
@@ -369,15 +342,12 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
     expect(reasonsOf(removed, declared('（脚本文件）', 'globals.d.ts'))).toEqual([
       { kind: 'global-scope-change', why: '脚本文件的顶层声明都是全局的：文件删除了' },
     ])
-    // Formerly a positive control: a new script file with an optional-only interface. Rule narrowed: review.
     const optional = classifyDists(
       { 'index.d.ts': member },
       { 'index.d.ts': member, 'globals.d.ts': existing },
     )
     expect(optional.change).toBe('review')
     expect(reasonKinds(optional)).toEqual(['global-scope-change'])
-    // An unchanged script file next to a module-scope whitelisted change stays additive: the checker
-    // still runs, and the global declarations are restored once so the two sides do not collide.
     const unchanged = classifyDists(
       { 'index.d.ts': member, 'globals.d.ts': 'type Mode = 1;\ndeclare var cfg: Mode;\n' },
       {
@@ -406,7 +376,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
     })
     const withGlobal =
       'export interface Y { y: string }\ndeclare global { interface ErrorOptions { code: string } }\n'
-    // I1: a typed import newly pulls a file whose `declare global` adds a required member to lib's ErrorOptions.
     const typed = classifyDists(
       { 'index.d.ts': member, 'x.d.ts': withGlobal },
       {
@@ -417,13 +386,11 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
     expect(typed.change).toBe('review')
     expect(typed.differences).toContainEqual(edge("import type { Y } from './x.js';", 'added'))
     expect(reasonKinds(typed)).toEqual(['global-scope-change'])
-    // I2: an empty import clause does the same.
     const empty = classifyDists(
       { 'index.d.ts': member, 'x.d.ts': withGlobal },
       { 'index.d.ts': "import {} from './x.js';\n" + member, 'x.d.ts': withGlobal },
     )
     expect(empty.differences).toEqual([edge("import {} from './x.js';", 'added')])
-    // Side-effect imports of this member's files and of external modules, `export … from`, `import()` types.
     const sideEffect = classifyDists(
       { 'index.d.ts': member },
       {
@@ -448,7 +415,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
         { 'index.d.ts': member + "export type M = import('./more.js').More;\n", ...more },
       ).differences,
     ).toContainEqual(edge('type M', 'added'))
-    // Removing an edge is the same rule.
     expect(
       classifyDists(
         {
@@ -458,7 +424,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
         { 'index.d.ts': member, 'x.d.ts': 'export interface Y { y: string }\n' },
       ).differences,
     ).toEqual([edge("import type { Y } from './x.js';", 'removed')])
-    // A second import of a module that is already an edge does not change the reachable set.
     const y = { 'x.d.ts': 'export interface Y { y: string }\nexport interface W { w: string }\n' }
     expect(
       classifyDists(
@@ -475,7 +440,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
         },
       ).change,
     ).toBe('additive')
-    // Adding `export {}` to a script file takes every top-level declaration out of the global scope.
     const flipped = classifyDists(
       { 'index.d.ts': member, 'globals.d.ts': 'interface Foo { x?: string }\n' },
       { 'index.d.ts': member, 'globals.d.ts': 'interface Foo { x?: string }\nexport {};\n' },
@@ -490,13 +454,9 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
     const block = 'declare global { interface ErrorOptions { code?: string } }\n'
     const reason = { kind: 'global-scope-change', why: '对全局或外部模块的扩充新增了' }
     for (const keys of [
-      // Through lib's ErrorConstructor.
       'export type OptKeys = keyof NonNullable<ConstructorParameters<ErrorConstructor>[1]>;\n',
-      // G1: through an index on `typeof globalThis`, a name that never appears in the declaration text.
       "export type OptKeys = keyof NonNullable<ConstructorParameters<(typeof globalThis)['Error']>[1]>;\n",
-      // G2: through a property of `globalThis`.
       'export type OptKeys = keyof NonNullable<ConstructorParameters<typeof globalThis.Error>[1]>;\n',
-      // No export reads ErrorOptions at all: still review, the rule does not try to prove otherwise.
       'export type Len = Parameters<typeof Array.isArray>;\n',
     ]) {
       const result = classifyDists(keys, keys + block)
@@ -505,7 +465,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
         { target: declared('global'), kind: 'added', change: 'review', reasons: [reason] },
       ])
     }
-    // A global value changes its type: `typeof globalThis` exports see it; the checker is not asked.
     const hook = (type: string) =>
       `export type G = typeof globalThis;\ndeclare global { var hook: ${type} }\n`
     const changed = classifyDists(hook('number'), hook('string'))
@@ -517,7 +476,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
         reasons: [{ kind: 'global-scope-change', why: '对全局或外部模块的扩充变了' }],
       },
     ])
-    // Removing an augmentation is review by the same rule.
     expect(
       reasonsOf(
         classifyDists(hook('number'), 'export type G = typeof globalThis;\n'),
@@ -545,7 +503,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
       expect(result.change).toBe('review')
       expect(reasonKinds(result)).toEqual(['global-scope-change'])
     }
-    // Unchanged directives stay comparable: identical is none, an unrelated optional property is additive.
     expect(classifyDists(lib + f, lib + f).change).toBe('none')
     expect(
       classifyDists(
@@ -575,7 +532,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
     expect(reasonsOf(intersected, exported('Options'))).toEqual([
       expect.objectContaining({ kind: 'direction', writers: false }),
     ])
-    // An optional field added inside a conditional `extends` clause changes which types take the true branch.
     const conditional = classifyDists(
       'export type IsOpt<T> = T extends { a: string } ? true : false;\n',
       'export type IsOpt<T> = T extends { a: string; b?: number } ? true : false;\n',
@@ -608,7 +564,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
   })
 
   it('whitelist (a) needs a new name: a declaration that merges with an existing one is review', () => {
-    // `typeof f` changes with a new overload, so `Parameters<typeof f>` consumers change.
     const overload = classifyDists(
       'export declare function f(x: string): void;\n',
       'export declare function f(x: string): void;\nexport declare function f(x: number): void;\n',
@@ -617,7 +572,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
     expect(reasonsOf(overload, declared('function f'))).toEqual([
       expect.objectContaining({ kind: 'outside-whitelist' }),
     ])
-    // A second interface declaration merges its members into the first.
     const twice = classifyDists(
       'export interface O { a: string }\n',
       'export interface O { a: string }\nexport interface O { b?: number }\n',
@@ -626,7 +580,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
     expect(reasonsOf(twice, declared('interface O'))).toEqual([
       expect.objectContaining({ kind: 'outside-whitelist' }),
     ])
-    // A namespace merged onto an existing class, and a namespace merged onto an existing function.
     const merged = classifyDists(
       'export declare class C { run(): void }\nexport declare function g(): void;\n',
       'export declare class C { run(): void }\nexport declare namespace C { const v: 1 }\nexport declare function g(): void;\nexport declare namespace g { const w: 1 }\n',
@@ -644,7 +597,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
         why: '新增的声明与已有的同名声明合并（重载、接口、命名空间或类的合并）',
       },
     ])
-    // An internal name that an existing export already used is a merge too.
     const internal = classifyDists(
       'interface Bar { a: string }\nexport interface Foo { x: Bar }\nexport {};\n',
       'interface Bar { a: string }\ninterface Bar { b?: number }\nexport interface Foo { x: Bar }\nexport {};\n',
@@ -659,7 +611,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
       'a.d.ts':
         'export declare class Foo { private p; x: string }\nexport declare function make(): Foo;\n',
     }
-    // X3: `export *` already exports Foo. A local Foo shadows it; consumers writing `const v: Foo = make()` break.
     const shadowedExport = classifyDists(star, {
       ...star,
       'index.d.ts': "export * from './a.js';\nexport declare class Foo { private p; x: string }\n",
@@ -668,7 +619,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
     expect(reasonsOf(shadowedExport, declared('class Foo'))).toEqual([
       { kind: 'outside-whitelist', why: '新增的名字 `Foo` 与入口 `.` 已有的导出重名' },
     ])
-    // S4: a non-exported `Error` shadows the lib's. `f<T = Error>()` now defaults to it; `f().stack` breaks.
     const shadowedGlobal = classifyDists(
       'export declare function f<T = Error>(): T;\nexport {};\n',
       'export declare function f<T = Error>(): T;\ninterface Error { name: string; message: string; code: number }\nexport {};\n',
@@ -680,7 +630,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
         why: '新增的名字 `Error` 在文件作用域里已经解析到已有符号（typescript/lib/lib.es5.d.ts）',
       },
     ])
-    // A name that is new on every count (entry exports, file scope, lib globals) stays additive.
     const fresh = classifyDists(star, {
       ...star,
       'index.d.ts': "export * from './a.js';\nexport interface Bar { y: number }\n",
@@ -781,7 +730,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
   it('sees through derived types: keyof, index access, mapped types, Required, Record, helpers', () => {
     expect(optionalAdded('export type Key = keyof Options;\n').change).toBe('review')
     expect(optionalAdded('export type Value = Options[keyof Options];\n').change).toBe('review')
-    // A homomorphic mapped type keeps the new member optional; with `-?` it becomes required.
     expect(optionalAdded('export type Each = { [K in keyof Options]: 1 };\n').change).toBe(
       'additive',
     )
@@ -798,10 +746,7 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
         'export declare const defaults: Options;\nexport type K = keyof typeof defaults;\n',
       ).change,
     ).toBe('review')
-    // Each of these is review by direction, not by the whitelist: the only edit is an optional property.
     expect(reasonKinds(optionalAdded('export type Key = keyof Options;\n'))).toEqual(['direction'])
-    // A constraint over keyof Options widens: the new argument `'b'` is tried on the old side, where it
-    // does not compile, so the comparison is incomplete rather than silently additive.
     const widened = optionalAdded('export type Pick1<T extends keyof Options> = Options[T];\n')
     expect(widened.change).toBe('review')
     expect(reasonsOf(widened, exported('Pick1'))).toEqual([
@@ -875,7 +820,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
     const journal = (members: string) =>
       `export interface Journal { open(): void }\ndeclare module 'x' {\n    interface Context {\n${members}\n    }\n}\n`
     const changed = { kind: 'global-scope-change', why: '对全局或外部模块的扩充变了' }
-    // Formerly additive after a merged comparison: an optional member added to an augmented interface.
     expect(
       classifyDists(
         journal('        journal: Journal;'),
@@ -900,7 +844,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
     ).toEqual([
       { target: declared('global'), kind: 'changed', change: 'review', reasons: [changed] },
     ])
-    // New blocks: optional-only, required and generic alike.
     for (const block of [
       'declare global {\n    interface Reg<T extends { a: string } = { a: string }> { x?: T }\n}\n',
       'declare global {\n    interface Reg { x: string }\n}\n',
@@ -915,7 +858,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
         },
       ])
     }
-    // Unchanged augmentations next to a module-scope change: the checker runs with both sides restored.
     const grow = (fixed: string) =>
       classifyDists(
         `${fixed}\nexport interface O { a: string }\n`,
@@ -1022,8 +964,6 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
   })
 
   it('does not trust the checker when the restored declarations do not compile', () => {
-    // Recorded snapshots whose declarations import a package that this checkout does not have.
-    // Both sides share the import edge; the only edit is a module-scope optional property, so the checker runs.
     const base = snapshotOf({ 'index.d.ts': 'export interface A { q: 1 }\n' })
     const withCode = (code: string) => ({
       ...base,

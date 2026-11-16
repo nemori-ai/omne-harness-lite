@@ -1,8 +1,3 @@
-// The preadmission records of the `execution-record` participant (M-GENERATION SaveIntent, Commit
-// and Lookup): the intent of one handoff H is saved with its entry Ki before the answer comes back;
-// one Ki names one H; the outcome is fixed once; another tenant reads nothing. The first part runs
-// over the node:sqlite test provider; the last case kills a child process on the real provider and
-// reads the record back with a new one.
 import { spawn } from 'node:child_process'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -221,7 +216,6 @@ afterEach(async () => {
 })
 
 describe('the process is killed after the intent was answered', () => {
-  // Why slow: a real provider in a child process that is killed, and a second real provider.
   it(
     'a new provider on the same files reads the complete record by its original H',
     { tags: ['slow'] },

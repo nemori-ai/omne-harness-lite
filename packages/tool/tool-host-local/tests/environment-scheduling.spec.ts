@@ -425,7 +425,6 @@ it('retains allocated-but-not-adopted work when the adapter provides no trustwor
     },
     inspectPreparation: async () => {
       inspections += 1
-      // The provider knows it allocated but supplies no fact permitting first adoption.
       return succeed({ kind: 'pending', diagnostic: 'original work incomplete' })
     },
   }
@@ -445,7 +444,6 @@ it('retains allocated-but-not-adopted work when the adapter provides no trustwor
     prepares: 1,
     inspections: 2,
   })
-  // This is the counterexample, not a claim that first adoption completed.
 })
 
 it('keeps tenant FIFO through slow qualification and freezes each call settings before awaiting', async () => {
@@ -509,7 +507,6 @@ it.each(['release', 'inspectRelease'] as const)(
     const active = f.preparation('active')
     const cancelled = f.preparation('cancelled', tenantB)
     await f.environment.prepare(active)
-    // An original allocation can predate this local scheduler, for example after reconstruction.
     await f.backing.prepare(cancelled)
     const waiting = f.environment.prepare(cancelled)
     let result: Awaited<typeof waiting> | undefined
@@ -687,7 +684,6 @@ it.each(['prepared', 'excluded'] as const)(
         await f.provider.prepare(input)
         entered.open()
         await resume.wait
-        // A stale provider reply cannot override a newer confirmed release.
         return earlier
       },
     }

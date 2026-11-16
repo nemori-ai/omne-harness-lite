@@ -1,5 +1,3 @@
-// C8: the member uses SQL only through the public shapes of sql-contract, has no `./cordis`
-// entry, and reaches into nothing under packages/storage.
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -75,7 +73,6 @@ describe('materials', () => {
       ]) {
         const statement = select[1] as string
         if (/\bLIMIT\b/.test(statement)) continue
-        // Aggregates without GROUP BY return one row.
         expect(statement, `${path}: ${statement}`).toMatch(/^SELECT (COALESCE\()?(MAX|COUNT)\(/)
       }
     }

@@ -1,6 +1,3 @@
-// Adoption planner: the registry reads and loader calls that decide which capability material is
-// built. Each case fixes one observable consequence, so that a planner which reads the wrong
-// entries, loads when it must not, or loads for the wrong capability, is distinguishable.
 import { describe, expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { SessionId } from '@omne-harness/session-contract'
@@ -62,7 +59,6 @@ function setup() {
 }
 type Setup = ReturnType<typeof setup>
 
-/** A binding entry as the registry would list it, for registrations the memory registry refuses. */
 function entryOf(
   f: Setup,
   authority: ToolAuthority,
@@ -89,10 +85,6 @@ const withBindings = (f: Setup, entries: readonly ToolBindingEntry[]) =>
     readBindings: () => ({ snapshot: () => succeed(entries) }),
   }) as unknown as AdoptionPlannerOptions<string>
 
-/**
- * The registry lists nothing until the loader runs. The loader then makes it list `after` and
- * answers with `result`. `snapshot` counts every read.
- */
 function loaderThatLists(
   f: Setup,
   after: readonly ToolBindingEntry[],
@@ -324,7 +316,6 @@ describe('adoption planner: a recorded shape that Tool does not read back for th
 
   it('rejects a recorded shape that is named for another capability', async () => {
     const f = setup()
-    // The recorded shape is a JSON value; its  member is the one Tool reads back.
     const shape = f.recorded.shape as unknown as {
       entries: { key: string; value: unknown }[]
     }

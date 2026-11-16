@@ -1,4 +1,3 @@
-// Facts cross from a trusted execution producer, but their data still needs a fixed, closed view.
 import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-block'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -51,7 +50,6 @@ function decimal(value: unknown): value is string {
   return typeof value === 'string' && /^[0-9]+$/u.test(value)
 }
 
-/** Own data properties only. The copy never evaluates accessors or serializes credentials. */
 export function copyData(value: unknown, path = new Set<object>()): unknown {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return value
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -88,7 +86,6 @@ export function copyData(value: unknown, path = new Set<object>()): unknown {
   }
 }
 
-/** A start record given back by a trusted producer: a closed `start` or `resume` record. */
 export function judgeStartRecord(value: unknown): Outcome<ToolStartRecord, ToolFailure> {
   return start(value)
 }
@@ -230,12 +227,6 @@ function schemaIdentity(value: unknown): value is { id: string; revision: string
     text(value.digest)
   )
 }
-/**
- * The wait a checkpointed segment ended with (P06): an Ask intent with its wait identity, its
- * resume and request evidence and the fixed wait schemas, and the request original. The original
- * is text within `schemas.requestMaxBytes` UTF-8 bytes, and the request evidence binds its digest;
- * the ledger does not read it. An Ask has no expiry. A resource wait is not received.
- */
 function askWait(
   value: Data,
   adoption: Adoption,
@@ -313,11 +304,6 @@ function askWait(
     },
   })
 }
-/**
- * The `continued` fact of a resume segment (P06, P11): the wait it continues, the response it
- * consumed, and the timing evidence of the real resume point. The ledger checks the three against
- * the call's responding wait when it saves the fact.
- */
 function continued(
   value: Data,
 ): Outcome<Extract<ToolExecutionFact, { kind: 'continued' }>, ToolFailure> {
@@ -367,7 +353,6 @@ function fact<B extends ContentBlock>(
     !effect(value.effect)
   )
     return invalid('batch.events.fact', 'shape')
-  // The result policy owns runtime validation and the narrower B, just as in result rendering.
   const result = policy.judgeResult(value.result as Parameters<typeof policy.judgeResult>[0])
   if ('failure' in result) return invalid('batch.events.fact.result', 'policy')
   return succeed({
@@ -412,7 +397,6 @@ export function fixFactInput<B extends ContentBlock>(
       if ('failure' in checked) return checked
       events.push({ event: event.event, fact: checked.ok })
     }
-    // Fix policy-produced data too. A provider cannot mutate the accepted result during access.
     const batch = {
       start: original.ok,
       source: source.ok,
@@ -440,7 +424,6 @@ export function fixFactBasis(input: unknown) {
   }
 }
 
-/** Fixes acknowledgement data before qualification or any external confirmation call. */
 export function fixFactAcknowledgement(
   input: unknown,
 ): Outcome<Readonly<{ receipt: FactReceipt; sourceReceipt: DurableEvidence }>, ToolFailure> {

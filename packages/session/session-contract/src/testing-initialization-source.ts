@@ -14,7 +14,6 @@ export interface MemoryInitializationSource {
   prepare(command: InitializationCommand): Reply<readonly GuardCommand[]>
   verify(command: InitializationCommand, guards: readonly GuardCommand[]): SessionFailure | null
   readonly controls: Readonly<{
-    /** Explicit fixture source facts; prepare never derives an adoption from a candidate. */
     register(command: InitializationCommand, guard: GuardCommand): void
     eligible(value: boolean): void
     available(value: boolean): void
@@ -34,7 +33,6 @@ function binding(command: InitializationCommand): string {
   )
 }
 
-/** An isolated test source. Its issued object identity is the in-process credential. */
 export function createMemoryInitializationSource(): MemoryInitializationSource {
   const records = new Map<string, GuardCommand>()
   const issued = new WeakMap<GuardCommand, Readonly<{ binding: string; content: string }>>()

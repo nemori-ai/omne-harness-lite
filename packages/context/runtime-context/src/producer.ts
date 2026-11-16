@@ -27,7 +27,6 @@ import {
   type World,
 } from './world.js'
 
-/** How one supply attempt ended, for the read that may have triggered it. */
 export type SupplyOutcome =
   | Readonly<{ kind: 'stored' }>
   | Readonly<{ kind: 'refused' }>
@@ -59,7 +58,6 @@ function isAnswer(value: unknown): value is SupplyAnswer<unknown> {
   }
 }
 
-/** Producer-face results carry `closed` as a rejection, not as a refusal. */
 function producerResult(
   failure: CheckFailure,
 ):
@@ -146,10 +144,6 @@ export function createSupplier<P>(world: World<P>) {
     }
   }
 
-  /**
-   * One bounded supply attempt for one scope (RC-07 回调协议): authorize before, re-authorize after,
-   * then a final synchronous check of generation, replay epoch, sequence, end and registration.
-   */
   async function supplyOnce(
     producer: Producer<P>,
     s: ScopeState,
@@ -157,7 +151,6 @@ export function createSupplier<P>(world: World<P>) {
   ): Promise<SupplyOutcome> {
     if (!producer.supply || !isCurrent(producer)) return { kind: 'stale' }
     const epoch = s.replayEpoch
-    // A per-request read keeps no stored value, so concurrent reads do not supersede each other.
     const seq = store ? world.nextSeq(s, producer.key) : (s.supplySeq.get(producer.key) ?? 0)
     const before = await producerGate(producer, 'supply', s.scope)
     if ('kind' in before) return gateOutcome(before)
@@ -258,7 +251,6 @@ export function createSupplier<P>(world: World<P>) {
     return !producer.scoped && producer.declaration.volatility !== 'per-request'
   }
 
-  /** The first supply time point: the holder registered the block for this scope. */
   async function afterRegistration(s: ScopeState, key: ContextBlockKey) {
     const producer = producerFor(s, key)
     if (producer && drivesSupply(producer) && s.fence === 'open' && !s.ended)
@@ -287,10 +279,6 @@ export function createSupplier<P>(world: World<P>) {
     return undefined
   }
 
-  /**
-   * The new generation replaces the old one in every scope of its tenant: the stored value goes,
-   * cursors are invalidated, and a scope-independent block is supplied again.
-   */
   async function replaceInScopes(producer: Producer<P>) {
     for (const s of world.scopes.values()) {
       if (!s.registrations.has(producer.key) || !tenantEquals(s.tenant, producer.tenant)) continue
@@ -408,7 +396,6 @@ export function createSupplier<P>(world: World<P>) {
       s.refreshFailedAt.delete(producer.key)
       return { kind: 'published', scope, revision: s.values.get(producer.key)?.revision ?? 0 }
     }
-    /** Synchronous, so a batch of targets commits in one segment without `await`. */
     function invalidateOne(s: ScopeState) {
       world.nextSeq(s, producer.key)
       world.put(s, producer.key, undefined, producer.generation, false)
@@ -439,7 +426,6 @@ export function createSupplier<P>(world: World<P>) {
         if ('kind' in gate) return producerResult(gate)
         gates.push(gate)
       }
-      // From here to the last write there is no `await`: every check and every write is one segment.
       const late = refusal()
       if (late) return { kind: 'rejected', reason: late }
       if (world.targetsVersion !== version) return 'changed'
@@ -475,10 +461,6 @@ export function createSupplier<P>(world: World<P>) {
       const second = await tenantBatch()
       return second === 'changed' ? { kind: 'unknown', cause: 'authority' } : second
     }
-    /**
-     * Refuses this generation's new operations at once, waits within the settle bound for the
-     * generation's supply calls in flight, then withdraws this generation only.
-     */
     async function dispose() {
       if (!producer.active || world.closed) return
       producer.active = false

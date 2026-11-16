@@ -9,7 +9,6 @@ import type {
   HistoryEntry,
 } from '@omne-harness/session-contract'
 
-/** Verifies a currently issued credential against the complete original initialization input. */
 export interface InitializationSource {
   verify(
     command: Extract<SessionCommand, { kind: 'create' | 'completeInitialization' }>,

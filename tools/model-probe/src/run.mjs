@@ -130,7 +130,6 @@ export async function runProbes(config, snapshot, { credentialFile, ledgerPath, 
         } catch {
           parseError = 'Invalid response stream; cost requires reconciliation'
         }
-        // Controlled fixture content only, never user/session content or Authorization.
         const record = {
           reservation,
           model: probe.model,

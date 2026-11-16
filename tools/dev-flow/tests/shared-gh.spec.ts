@@ -20,7 +20,6 @@ const NO_PARENT = {
 }
 
 describe('gh read process outcomes', () => {
-  // Slow: each case starts a fake gh child process.
   function withFakeGh<T>(script: string, run: () => T): T {
     const dir = realpathSync(mkdtempSync(join(tmpdir(), 'dev-flow-gh-read-')))
     try {
@@ -32,8 +31,6 @@ describe('gh read process outcomes', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   }
-  // Classification only: the same process runner as `runGhCommand`, without the backoff sleep, so a
-  // transient failure that is retried does not wait 3.5 seconds here.
   const read = ghCommand(ghProcess, () => undefined)
   function failure(script: string, timeoutMs = 10_000): unknown {
     return withFakeGh(script, () => {
@@ -77,7 +74,6 @@ describe('gh read process outcomes', () => {
     'runGhCommand retries a GET whose gh process failed without an HTTP status, with the real backoff',
     { tags: ['slow'] },
     () => {
-      // The stand-in counts its launches in a file beside itself and only answers on the third.
       const result = withFakeGh(
         `import { readFileSync, writeFileSync } from 'node:fs'
 const counter = process.argv[1] + '.count'
@@ -97,7 +93,6 @@ process.stdout.write(JSON.stringify({ launches: n }))`,
 describe('bounded retry of idempotent reads', () => {
   const GET = ['api', '--method', 'GET', ...REST_HEADERS, 'repos/owner/repo/issues/1']
   type Step = { stdout: string } | { error: unknown }
-  /** A process stand-in that plays `steps` in order and records every launch and every sleep. */
   function harness(steps: Step[]) {
     const launches: string[][] = [],
       sleeps: number[] = []
@@ -283,7 +278,6 @@ describe('which gh commands count as idempotent reads', () => {
 
 describe('what a failed launch says about the transport', () => {
   const GET = ['api', '--method', 'GET', ...REST_HEADERS, 'repos/owner/repo/issues/1']
-  /** The failed launches of one GET, one after another; the read then succeeds. */
   function launchesAfter(failure: unknown): { launches: number; thrown: unknown } {
     let launches = 0
     const command = ghCommand(

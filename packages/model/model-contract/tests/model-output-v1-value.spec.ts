@@ -1,8 +1,3 @@
-// projectModelOutputV1 (#1248 C7): the display value as a json-text tree. The samples are every
-// input the encoding cases of model-output-v1.spec.ts and model-output-v1-sealed-envelope.spec.ts
-// hand to encodeModelOutputV1, recorded with the answer of the start point (f8dc81652): see
-// tests/fixtures/README.md. Writing the value gives the recorded bytes, and the encoding still gives
-// them too.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { writeJsonText } from '@omne-harness/json-text'

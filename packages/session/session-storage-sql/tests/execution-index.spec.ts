@@ -1,9 +1,3 @@
-// The execution index of the Session log: the commit of SE13 (`startRun`) writes, in the same
-// transaction, the row that maps the execution of the new Run to its session and Run; the read
-// handler `session.execution` finds it by tenant and execution. The row is a derivative of SE13:
-// a startRun that rolls back leaves none, and an execution already indexed to another session
-// makes the commit fail, never overwrite. Another tenant finds nothing, the same as an execution
-// that never started.
 import { describe, expect, it } from 'vitest'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { WorkSnapshot } from '@omne-harness/session-contract'
@@ -67,13 +61,11 @@ const startRun = (a: App, session: string, tenant: TenantId = TENANT_A) =>
     guards: [],
   })
 
-/** Creates `session` with one accepted input, ready for a startRun. */
 async function ready(a: App, session: string, tenant: TenantId = TENANT_A) {
   ok(await a.create(tenant, session))
   ok(await a.accept(tenant, session, `${session}-input`))
 }
 
-/** Starts a Run in `session` and answers the execution Session allocated for it. */
 async function started(a: App, session: string, tenant: TenantId = TENANT_A) {
   await ready(a, session, tenant)
   ok(await startRun(a, session, tenant))
@@ -111,7 +103,7 @@ describe('the materials of the execution index', () => {
 })
 
 describe('the startRun commit writes the index in its own transaction', () => {
-  it('maps the execution of the new Run to its session, Run and the position of its SE13', async () => {
+  it('maps the execution of the new Run to its session, Run and the position of its run.started entry', async () => {
     const a = await app()
     const { execution, run } = await started(a, 'session-1')
     const se13 = rows(
@@ -140,11 +132,10 @@ describe('the startRun commit writes the index in its own transaction', () => {
     ['at the index row', /INSERT INTO sl_execution_idx/],
     ['at the operation record, after the index row', /INSERT INTO sl_operation/],
   ] as const)
-    it(`a startRun that fails ${where} leaves no index row and no SE13; the same command then commits once`, async () => {
+    it(`a startRun that fails ${where} leaves no index row and no run.started entry; the same command then commits once`, async () => {
       const a = await app()
       await ready(a, 'session-1')
       a.provider.failWrite(pattern)
-      // An environment error inside the transaction is unknown (sql-contract §7.6).
       expect(kindOf(await startRun(a, 'session-1'))).toBe('commit-unknown')
       expect(rows(a, 'SELECT COUNT(*) FROM sl_execution_idx')[0]?.[0]).toBe(0n)
       expect(rows(a, "SELECT COUNT(*) FROM sl_entry WHERE kind = 'run.started'")[0]?.[0]).toBe(0n)
@@ -154,7 +145,6 @@ describe('the startRun commit writes the index in its own transaction', () => {
 
   it('a startRun that Session rejects writes no index row', async () => {
     const a = await app()
-    // The first input did not come through the login entry: the gate of decide refuses the start.
     ok(await a.create(TENANT_A, 'session-1'))
     ok(await a.accept(TENANT_A, 'session-1', 'session-1-input', intakeInput('session-1-input')))
     const refused = await a.port.commit({
@@ -177,8 +167,6 @@ describe('the startRun commit writes the index in its own transaction', () => {
   })
 
   it('an execution already indexed to another session makes the startRun fail and keeps the first row', async () => {
-    // The execution of session-2's first Run, learnt in a separate store: Session derives it from
-    // the session, the first input and the predecessor, so it is the same in every store.
     const probe = await app()
     const { execution } = await started(probe, 'session-2')
 
@@ -190,8 +178,6 @@ describe('the startRun commit writes the index in its own transaction', () => {
       'INSERT INTO sl_execution_idx (tenant, execution, session, run, position) VALUES (?, ?, ?, ?, ?)',
       [textOf(TENANT_A), execution, 'session-1', 'run_other', 7n],
     )
-    // The index row is committed data: the same startRun meets it again, so the failure is definite
-    // (SPEC 参加者失败的定性, `execution-indexed`); the diagnostic stays in the rolled back receipt.
     expect(await startRun(a, 'session-2')).toEqual({
       failure: { kind: 'invalid', field: 'storage', reason: 'execution-indexed' },
     })
@@ -226,12 +212,10 @@ describe('the read handler session.execution', () => {
     expect(await lookup(a, execution, TENANT_B)).toBeNull()
     const planted = await read(a, { tenant: textOf(TENANT_B), execution })
     expect(planted.kind === 'read' && planted.output).toBeNull()
-    // The same answer as an execution that never started: nothing tells the two apart.
     expect(await lookup(a, execution, TENANT_B)).toEqual(await lookup(a, 'run_never/execution'))
   })
 
   it('an input without a tenant or an execution fails the handler, never answers null', async () => {
-    // The node:sqlite fixture lets the handler's throw through; a provider turns it into a failed read.
     const a = await app()
     for (const input of [
       { tenant: textOf(TENANT_A) },

@@ -1,5 +1,3 @@
-// The decision a resume segment reads: the ledger's json-text tree becomes the plain JSON that the
-// author declared in its wait contract (SPEC「恢复型执行者按段执行」).
 import { describe, expect, it } from 'vitest'
 import { readJsonText } from '@omne-harness/json-text'
 import { authorDecision } from '@omne-harness/tool-contract/provider'

@@ -1,5 +1,3 @@
-// The pure relation table of judgeToolDelivery (SPEC「结果推送与保存」): the first failure in the
-// order of the table, and the input itself on success.
 import { describe, expect, it } from 'vitest'
 import type { CallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
@@ -125,8 +123,6 @@ describe('judgeToolDelivery', () => {
     expect(judgeToolDelivery({ tenant: own(), delivery: malformed })).toEqual({
       failure: { field: 'key.reference', reason: 'reference-malformed' },
     })
-    // R2-D357: the reference carries no tenant; a delivery encoded for another tenant is the same
-    // value, and the receiver's own partition answers whether the presented tenant has the call.
     expect(resultDelivery(other())).toEqual(resultDelivery(own()))
   })
 

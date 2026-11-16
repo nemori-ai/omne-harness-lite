@@ -254,8 +254,6 @@ describe('host Model receiver', () => {
       failure: { kind: 'invalid', field: 'accounts', reason: 'dispatch-set-mismatch' },
     })
   })
-  // Red when the receiver stops routing the target query, or reads the route from text that its own
-  // owner did not register: a provider that keeps bindings per execution then finds none.
   it('routes the target query to the execution its own consumer position names', async () => {
     const s = await setup()
     const routes: unknown[] = []
@@ -277,11 +275,9 @@ describe('host Model receiver', () => {
       'ok',
     )
     expect(routes).toEqual([execution()])
-    // Another owner's position names no route; the target query gets none.
     const foreign = { ...s.delivery.consumer, owner: 'another-owner' }
     await receiver.push({ access: alice, delivery: { ...s.delivery, consumer: foreign }, signal })
     expect(routes).toEqual([execution(), undefined])
-    // A route to another execution reads no binding there: the provider answers as for none.
     expect(
       await s.dependencies.targets.resolve({
         access: alice,
@@ -474,7 +470,6 @@ describe('received account outbox and capacity', () => {
     expect(saved).toHaveProperty('ok')
     await Promise.all(s.state.tasks)
     expect(s.state.receptions.size).toBe(0)
-    // The same delivery again: the Journal recognises the operation and answers the same receipt.
     expect(await push()).toEqual(saved)
     expect(s.state.receptions.size).toBe(0)
     expect(
@@ -766,8 +761,6 @@ it.each(['same', 'different'] as const)(
     )
     expect(foreignTarget.pending.reference).toBe(foreignReference)
     expect(foreignTarget.pending.consumption).toBe(later.consumption)
-    // R2-D357: the reference carries no tenant, so the foreign tenant's text is alice's text, and
-    // it resolves to the foreign tenant's own target only, never to alice's.
     expect(foreignReference).toBe(s.pending.reference)
     expect(foreignTarget.pending.consumption).not.toBe(s.pending.consumption)
     expect(
@@ -1285,7 +1278,6 @@ it('keeps the actual outlet task through cancellation and reassembly and fences 
     },
     account: item.account,
   }
-  // Already accepted old pushes still commit, but may not send with their retired driver.
   ok(await old.push({ access: alice, delivery: later, signal: signal() }))
   release.resolve()
   await drainTasks(s.state)
@@ -1562,7 +1554,6 @@ it('freezes the original binding workset before authorization and excludes a con
     })),
   }
   ok(await receiver.push({ access: alice, delivery, signal: signal() }))
-  // Do not wait for the deliberately held maintenance task.
   await Promise.all(s.state.outletTasks.values())
   release.resolve()
   const report = ok(await maintaining)
@@ -1570,8 +1561,6 @@ it('freezes the original binding workset before authorization and excludes a con
   expect(JSON.stringify(report)).not.toContain('private-later-binding')
   expect(foreignReads).toEqual([])
   expect(sends).toEqual(['alice', 'alice'])
-  // SPEC "主体资格核验": the execution target is the logical execution alone; the later binding
-  // is not a second target of the limited principal, so its retry is not denied by an instance.
   ok(
     await receiver.retry({
       access: { ...alice, principal: 'limited' },
@@ -1697,15 +1686,12 @@ it.each(['unknown', 'saved'] as const)(
     expect(await pending).toHaveProperty('failure.diagnostic', 'maintenance-cancelled')
     release.resolve()
     await drainTasks(s.state)
-    // A saved delivery keeps no record: the recovery asks the Journal for it again, and the
-    // cancelled query leaves its outcome unknown until the next maintenance.
     expect(reads).toBe(initial === 'unknown' ? 0 : 1)
     expect(receiver.inspect().pending).toBe(1)
     expect([...s.state.receptions.values()][0]?.commit.kind).toBe('unknown')
     expect(
       ok(await receiver.retry({ access: alice, execution: execution(), signal: signal() })).pending,
     ).toBe(0)
-    // The retry verifies the material once; the recovery read it once before.
     expect(reads).toBe(initial === 'unknown' ? 1 : 2)
   },
 )

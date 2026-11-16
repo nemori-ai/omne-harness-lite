@@ -110,7 +110,6 @@ function fromInternal(
   )
 }
 
-/** The json-text tree of a plain value, with the members and items that `JSON.stringify` writes. */
 function jsonOf(plain: unknown): JsonValue {
   if (plain === null) return { kind: 'null' }
   switch (typeof plain) {
@@ -155,7 +154,6 @@ function project(
   }
 }
 
-/** The display value as a json-text tree. A delta needs the phase of its base. */
 export function projectModelOutputV1(
   input: ModelOutputV1 | ModelStreamSnapshot,
 ): Outcome<JsonValue, ModelOutputV1Failure>
@@ -170,7 +168,6 @@ export function projectModelOutputV1(
   return project(input, basePhase)
 }
 
-/** The display value as JSON text: `projectModelOutputV1` written out. */
 export function encodeModelOutputV1(
   input: ModelOutputV1 | ModelStreamSnapshot,
 ): Outcome<string, ModelOutputV1Failure>
@@ -186,7 +183,6 @@ export function encodeModelOutputV1(
   return 'failure' in value ? value : { ok: writeJsonText(value.ok) }
 }
 
-/** Decode the display value only: omitted CallState facts cannot be reconstructed. */
 export function decodeModelOutputV1(text: unknown): Outcome<ModelOutputV1, ModelOutputV1Failure> {
   if (typeof text !== 'string') return reject('type')
   let value: unknown

@@ -1,9 +1,3 @@
-// The fold laws of the Agent fact family (R2-D292 F1 to F5, the formal properties P1, P3, P5, P6)
-// over generated fact logs: any kinds, any order, one or two executions interleaved. Each law has
-// a negative control: a broken fold, an oversize fact, a content member, a repeated operation, a
-// commit without a new fact. The terminal batches are checked to stay constant in the number of
-// tool calls (R2-D297), in the generated logs and in the batches the memory Journal appends, and
-// the finishing records are checked to be the projection of the folded facts.
 import { describe, expect, it } from 'vitest'
 import { EXECUTION_BATCH_MAX_FACTS } from '@omne-harness/session-storage-sql/participants'
 import {
@@ -25,12 +19,14 @@ import {
   factKey,
   fold,
   foldAll,
+  modelAttempt,
   movedMembers,
   openCalls,
   operationState,
   refOf,
   viewDigest,
   viewText,
+  voidedFacts,
   type FactBody,
   type FactRow,
   type PublishedBatch,
@@ -63,7 +59,6 @@ import { forAll, random } from './fixtures/property.ts'
 const mint = { owner: 'laws', session: 'session-1' }
 const scope = { tenant: 'tenant-1', session: 'session-1' }
 
-/** The rows of a whole log, encoded batch by batch with the dense event sequence of each execution. */
 function rowsOf(log: readonly PublishedBatch[]): FactRow[] {
   const rows: FactRow[] = []
   const eseq = new Map<string, number>()
@@ -101,7 +96,6 @@ describe('F1 determinism: one fact sequence folds to one view', () => {
         const direct = foldAll(log)
         const through = foldAll(decoded.ok)
         if (viewDigest(direct) !== viewDigest(through)) return 'the rows fold to another view'
-        // The event sequence of the rows is the one the fold assigns.
         const rows = rowsOf(log)
         for (const execution of direct.executions.values())
           for (const event of execution.events) {
@@ -138,7 +132,6 @@ describe('F2 prefix closure: the view at pub p depends on the facts at pub <= p 
         const fromAlteredThenCut = foldAll(altered.slice(0, p))
         if (viewDigest(fromPrefix) !== viewDigest(fromAlteredThenCut))
           return 'prefix depends on later facts'
-        // And the folded prefix of the full log is reached by folding the prefix alone.
         let step: SessionJournalView = emptySessionView()
         for (const batch of prefix) step = fold(step, batch)
         if (viewDigest(step) !== viewDigest(fromPrefix)) return 'stepwise prefix differs'
@@ -173,8 +166,6 @@ describe('F3 incremental equals whole: a cached view plus the missed batches is 
   })
 
   it('negative control: a fold that reads anything but its arguments breaks the law', () => {
-    // The broken fold counts the batches it has seen in a closure: the view then depends on the
-    // process, not on the log, and the cached-plus-missed fold differs from the whole fold.
     let seen = 0
     const broken = (view: SessionJournalView, batch: PublishedBatch): SessionJournalView => {
       seen += 1
@@ -257,7 +248,6 @@ describe('F4 answers derive from the batch: no stored copy, one batch per operat
               return `revision ${String(after.revision)} is not indexed to its batch`
           } else if (after.reached.size !== (before?.reached.size ?? 0))
             return 'a batch that advanced nothing changed the index'
-          // One entry per revision reached: the index is the size of the revision, never more.
           if (after.reached.size !== after.revision)
             return `the index holds ${String(after.reached.size)} entries at revision ${String(after.revision)}`
         }
@@ -399,7 +389,7 @@ describe('P3 bounded commit: a batch carries this step alone', () => {
     expect(batchBytes(intends[19]!)).toBeLessThanOrEqual(batchBytes(intends[1]!) + 64)
   })
 
-  it('the reception targets are a projection: a call opens on call.intended and closes on result.received (R2-D297)', () => {
+  it('the reception targets are a projection: a call opens on call.intended and closes on result.received', () => {
     const { log, executions } = scene(random(23), { rounds: 3, executions: 1, finish: false })
     let view = emptySessionView()
     for (const batch of log) {
@@ -417,12 +407,11 @@ describe('P3 bounded commit: a batch carries this step alone', () => {
     expect(execution.intents.size).toBeGreaterThanOrEqual(3)
   })
 
-  it('the terminal batches are constant in the number of tool calls; the steps append the obligations (R2-D297, R2-D322)', () => {
+  it('the terminal batches are constant in the number of tool calls; the steps append the obligations', () => {
     const small = scene(random(31), { rounds: 4, executions: 1, finish: true })
     const large = scene(random(31), { rounds: 16, executions: 1, finish: true })
     const smallFinish = small.finishes.get(small.executions[0]!)!
     const largeFinish = large.finishes.get(large.executions[0]!)!
-    // Only the digits of the identities differ between 4 and 16 rounds.
     const slack = 16
     expect(batchBytes(largeFinish.ended)).toBeLessThanOrEqual(batchBytes(smallFinish.ended) + slack)
     expect(batchBytes(largeFinish.candidate)).toBeLessThanOrEqual(
@@ -431,18 +420,16 @@ describe('P3 bounded commit: a batch carries this step alone', () => {
     expect(batchBytes(largeFinish.obligations)).toBeLessThanOrEqual(
       batchBytes(smallFinish.obligations) + slack,
     )
-    // Each obligation is one small fact of the step that changed it; the item is a block.
     const perItem = 512
     const items = (log: readonly PublishedBatch[]) =>
       log.flatMap(batch => batch.facts.filter(fact => fact.kind === 'finish.obligation'))
     expect(items(large.log).length).toBeGreaterThan(items(small.log).length)
     for (const fact of items(large.log)) expect(bytesOf(fact)).toBeLessThanOrEqual(perItem)
-    // The whole own part is linear in the rounds with a small coefficient.
     expect(bytesOfBatches(large.log)).toBeLessThanOrEqual(bytesOfBatches(small.log) * 5)
   })
 })
 
-describe('R2-D307: an unchanged commit appends the envelope alone', () => {
+describe('an unchanged commit appends the envelope alone', () => {
   it('an envelope-only batch advances no revision, is indexed, and answers the revision at its time', () => {
     forAll('envelope-only', {
       runs: 40,
@@ -495,12 +482,11 @@ describe('R2-D307: an unchanged commit appends the envelope alone', () => {
     })
     expect(operationState(appended, envelope.op)).toBe('committed')
     expect(appended.executions.get(execution.execution)!.revision).toBe(execution.revision)
-    // The negative control of the ruling: without the batch, the operation cannot be recognized.
     expect(operationState(view, envelope.op)).toBe('unknown')
   })
 })
 
-describe('R2-D307: exclusion is a fact of the log', () => {
+describe('exclusion is a fact of the log', () => {
   it('an excluded operation answers excluded, its write is refused, and a committed operation cannot be excluded', () => {
     forAll('excluded', {
       runs: 40,
@@ -547,7 +533,7 @@ describe('R2-D307: exclusion is a fact of the log', () => {
   })
 })
 
-describe('R2-D307: the Tool start fence is a fact and an entry event', () => {
+describe('the Tool start fence is a fact and an entry event', () => {
   it('fence.started folds into the fences, projects an entry event and survives the rows', () => {
     const { log } = scene(random(47), { rounds: 3, executions: 1, finish: false })
     const view = foldAll(log)
@@ -565,7 +551,7 @@ describe('R2-D307: the Tool start fence is a fact and an entry event', () => {
   })
 })
 
-describe('R2-D307: an open batch carries the attachment that names its Authority', () => {
+describe('an open batch carries the attachment that names its Authority', () => {
   it('every exec.opened travels with an exec.attached, and the generation is set from it', () => {
     forAll('open-attached', {
       runs: 40,
@@ -643,15 +629,11 @@ describe('cursor.moved carries the changed top-level members only; no new fact, 
   })
 })
 
-// ------------------------------------------------------------------------------------------
-// The finishing commands of the memory Journal as appended batches (R2-D297)
-
 type JournalScene = Awaited<ReturnType<typeof journalScene>>
 
 const loadOf = async (s: JournalScene) =>
   ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
 
-/** A started execution that intended `calls` Tool calls and saved each result as a received entry. */
 async function withToolCalls(name: string, calls: number) {
   const s = await journalScene(name)
   ok(await handed(s))
@@ -700,7 +682,6 @@ async function withToolCalls(name: string, calls: number) {
   return s
 }
 
-/** The batch the operation `name` appended to the log of the scene's session. */
 function batchNamed(s: JournalScene, name: string): PublishedBatch {
   const found = s.view.controls
     .facts()
@@ -709,10 +690,6 @@ function batchNamed(s: JournalScene, name: string): PublishedBatch {
   return found
 }
 
-/**
- * prepareFinish and tryFinish of an ordinary completion after `calls` Tool calls; with `reissue`,
- * a second prepareFinish of the same candidate before the end.
- */
 async function finished(calls: number, options: { reissue?: boolean } = {}) {
   const s = await withToolCalls(`finish-${calls}`, calls)
   let ready = await prepareEnd(s)
@@ -760,15 +737,12 @@ async function finished(calls: number, options: { reissue?: boolean } = {}) {
   }
 }
 
-describe('R2-D322: the issue of obligations does not grow with the Tool calls', () => {
+describe('the issue of obligations does not grow with the Tool calls', () => {
   it('after 150 Tool calls prepareFinish succeeds, its batch is the size it is after 1, and the end batch too', async () => {
     const small = await finished(1)
     const large = await finished(150)
-    // The end batch is one constant fact: only the digits of the coordinates may differ.
     expect(large.ended.facts.map(fact => fact.kind)).toEqual(['finish.ended'])
     expect(Math.abs(batchBytes(large.ended) - batchBytes(small.ended))).toBeLessThanOrEqual(8)
-    // The issue is the close and the obligations whose form the steps did not already append:
-    // the same few after 1 and after 150 calls.
     expect(large.items.length).toBeGreaterThan(150)
     expect(large.prepared.facts.map(fact => fact.kind)).toEqual(
       small.prepared.facts.map(fact => fact.kind),
@@ -776,7 +750,6 @@ describe('R2-D322: the issue of obligations does not grow with the Tool calls', 
     expect(Math.abs(batchBytes(large.prepared) - batchBytes(small.prepared))).toBeLessThanOrEqual(
       16,
     )
-    // Every obligation is one small fact in the log, smaller than the item it refers to.
     const perItem = 1024
     const facts = large.log.flatMap(batch =>
       batch.facts.filter(fact => fact.kind === 'finish.obligation'),
@@ -792,7 +765,6 @@ describe('R2-D322: the issue of obligations does not grow with the Tool calls', 
     expect(run.reissued!.facts.map(fact => fact.kind)).toEqual(['finish.obligations'])
   })
 
-  // Two writes per call, five hundred and twenty in all: a loaded host needs more than the default.
   it('past the batch bound (260 calls) the issue still succeeds; written whole it would be refused', async () => {
     const large = await finished(260)
     expect(large.items.length + 1).toBeGreaterThan(BATCH_MAX_FACTS)
@@ -814,7 +786,7 @@ describe('R2-D322: the issue of obligations does not grow with the Tool calls', 
   }, 30_000)
 })
 
-describe('R2-D297: the finishing records are the projection of the folded facts', () => {
+describe('the finishing records are the projection of the folded facts', () => {
   it('a cancellation route rebuilt from the view and the blocks is the settlement and the list that load answers', async () => {
     const s = await journalScene('projection')
     ok(await handed(s))
@@ -908,8 +880,6 @@ describe('R2-D297: the finishing records are the projection of the folded facts'
     expect(snapshot.settlement.judgments).toHaveLength(1)
     expect(settlementOf(projected)).toEqual(snapshot.settlement)
     expect(currentObligations(projected)).toEqual(snapshot.finishObligations)
-    // The candidate holds a cursor reference, not the checkpoint: the block is the cursor members,
-    // whose content members are references again.
     const candidate = execution.finish.candidates[0]!
     expect(candidate).not.toHaveProperty('checkpoint')
     const cursor = blobs.get(candidate.cursor.digest) as { members: Record<string, unknown> }
@@ -919,12 +889,23 @@ describe('R2-D297: the finishing records are the projection of the folded facts'
 })
 
 describe('the checkpoint of a folded view takes the input batch and the voided intents from their facts', () => {
-  /** A one-execution scene whose round voided its first Model request (R2-D292). */
-  function voidedScene() {
+  function voidedScene(
+    cause: 'not-accepted' | 'lost' = 'not-accepted',
+    later: readonly FactBody[] = [],
+  ) {
     for (let seed = 1; seed < 200; seed += 1) {
       const { log } = scene(random(seed), { rounds: 1, executions: 1, finish: false })
-      if (log.some(batch => batch.facts.some(fact => fact.kind === 'intent.voided')))
-        return foldAll(log).executions.get(log[0]!.execution)!
+      if (!log.some(batch => batch.facts.some(fact => fact.kind === 'intent.voided'))) continue
+      const caused = log.map((batch, index) => ({
+        ...batch,
+        facts: [
+          ...batch.facts.map(fact =>
+            fact.kind === 'intent.voided' && fact.intent === 'model' ? { ...fact, cause } : fact,
+          ),
+          ...(index === log.length - 1 ? later : []),
+        ],
+      }))
+      return foldAll(caused).executions.get(log[0]!.execution)!
     }
     throw new Error('no seed below 200 voids a request')
   }
@@ -942,10 +923,12 @@ describe('the checkpoint of a folded view takes the input batch and the voided i
       inputBatch: begun.batch,
       voided: [
         {
+          kind: 'model' as const,
           step: request.step,
           action: intent.action,
           reference: request.reference,
-          basis: request.voided!,
+          cause: 'not-accepted' as const,
+          basis: request.voided!.basis,
         },
       ],
     }
@@ -957,6 +940,56 @@ describe('the checkpoint of a folded view takes the input batch and the voided i
       ...checkpoint,
       adoptedRequest: null,
     })
+  })
+
+  it('keeps the cause of a voided intent: a lost call folds and reads back as lost', () => {
+    const execution = voidedScene('lost')
+    const begun = execution.steps.at(-1)!
+    const request = execution.requests.find(item => item.voided !== null)!
+    expect(request.voided?.cause).toBe('lost')
+    expect(execution.adopted?.reference).not.toBe(request.reference)
+    const checkpoint = { ...sampleCheckpoint(), step: begun.step, inputBatch: begun.batch }
+    const cursor = cursorOf(checkpoint, { kind: 'advancing' })
+    const read = checkpointOf({ ...execution, cursor }, new Map(blobsOf(checkpoint)))
+    expect(read.voided).toEqual([
+      expect.objectContaining({
+        reference: request.reference,
+        cause: 'lost',
+        basis: request.voided?.basis,
+      }),
+    ])
+  })
+
+  it('a voided Tool intent folds beside the requests and reads back by its action, in voiding order', () => {
+    const execution = voidedScene()
+    const begun = execution.steps.at(-1)!
+    const refused = {
+      kind: 'tool' as const,
+      step: begun.step,
+      action: [...execution.intents.keys()][0]!,
+      cause: 'not-accepted' as const,
+      basis: evidence('tool/refused'),
+    }
+    const facts = voidedFacts(execution, [refused]) ?? []
+    expect(facts).toEqual([
+      {
+        kind: 'intent.voided',
+        intent: 'tool',
+        step: refused.step,
+        action: refused.action,
+        cause: 'not-accepted',
+        basis: refused.basis,
+      },
+    ])
+    const after = voidedScene('not-accepted', facts)
+    expect(after.adopted).toEqual(execution.adopted)
+    expect(after.requests).toEqual(execution.requests)
+    const checkpoint = { ...sampleCheckpoint(), step: begun.step, inputBatch: begun.batch }
+    const cursor = cursorOf(checkpoint, { kind: 'advancing' })
+    const read = checkpointOf({ ...after, cursor }, new Map(blobsOf(checkpoint)))
+    expect(read.voided.map(item => item.kind)).toEqual(['model', 'tool'])
+    expect(read.voided[1]).toEqual(refused)
+    expect(modelAttempt({ step: begun.step, voided: read.voided })).toBe(1)
   })
 
   it('negative control: a batch without its step.begun, or a voided request without its intent, throws', () => {

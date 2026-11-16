@@ -1,22 +1,3 @@
-// AD-12, the Context input: the `sessionContextInput` provider and the translation protocol that it
-// owns (SPEC AD-12; session-contract「初始化来源与提交」).
-//
-// - Encoding. The assembly builds the three `ContextMaterial`s of a registration (need, binding,
-//   parameters) and the block list of a step commit with the encoders here. A material holds only
-//   JSON: the scope, tenant, block key, creating, required, the revision it is based on and the
-//   binding references. The functions that JSON cannot hold (the translation of a binding, the
-//   need's shape, the stateful block declaration) are references into one exact adopted definition,
-//   and `SessionContextDefinitions` gives them back.
-// - Preparing. The plugin checks a `create` or `change` against its access, decodes the materials
-//   and, for a registration change, asks Runtime Context's `prepareRegistration`. It hands Session a
-//   guard material; it never calls `applyCommit` (AD-03 does, after Session committed the entry).
-// - Decoding. `createSessionContextTranslation` turns a committed Session entry back into the
-//   Runtime Context commit input it records: an initial or later registration (SE07), a step commit
-//   (`change(context-step-commit)`), or the end of a scope (SE27). AD-03's replay takes it as its
-//   `translation`.
-//
-// The plugin keeps no business fact, and the translation keeps no state: the end of a scope (SE27)
-// does not name its tenant, and the holder hands in the tenant of the session it reads.
 import { createHash } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import type { Context } from '@deepseek-ai/cordis'
@@ -58,11 +39,8 @@ import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
 import type { RecordedCommit } from './context-holder.ts'
 
 const OWNER = '@omne-harness/session-adapters'
-/** The owner named in the guard material and in `unavailable` when Runtime Context is the cause. */
 const CONTEXT_OWNER = 'runtime-context'
-/** The `participant` of the guard material: the Context input owns it (SPEC「构造依赖端口的实现」). */
 const PARTICIPANT = 'context-input'
-/** The owner named in `unavailable` when the adopted definitions cannot answer. */
 const DEFINITIONS_OWNER = 'context-definitions'
 
 function protocol(name: string, revision = '1'): Adoption {
@@ -74,26 +52,14 @@ function protocol(name: string, revision = '1'): Adoption {
   })
 }
 
-/** The schema of every `ContextMaterial` this protocol writes. */
 export const SESSION_CONTEXT_MATERIAL: Adoption = protocol('session-context-material', '2')
-/** The protocol of the guard material that the plugin hands to Session. */
 export const SESSION_CONTEXT_INPUT: Adoption = protocol('session-context-input')
 
-/** The Session entry kinds that can record a Runtime Context commit. */
 const REGISTRATION_KIND = 'session.context-registration-changed'
 const STEP_KIND = 'session.recovery-input-adopted'
 const ARCHIVED_KIND = 'session.archived'
-/** The block name of the head element of a step commit. It has no dot, so no block key equals it. */
 const STEP_HEAD = '@step'
 
-// --- The definitions --------------------------------------------------------------------------
-
-/**
- * What JSON cannot hold, given back from one exact adopted definition: a need binding (its shape
- * and translation are functions) and a stateful block declaration (its schema and reducer are
- * functions). The assembly provides it from the definitions it adopted. An answer of `undefined`
- * means the definition has no such entry; the material is then not restorable.
- */
 export interface SessionContextDefinitions {
   binding(
     ref: Readonly<{ definition: Adoption; need: string; key: ContextBlockKey }>,
@@ -103,13 +69,6 @@ export interface SessionContextDefinitions {
   ): StatefulBlockDescriptor<ContextBlockKey, unknown, unknown> | undefined
 }
 
-// --- Commit identities ------------------------------------------------------------------------
-
-/**
- * The commit identity of one registration that a `change` commits. It is the well-formed
- * `JSON.stringify` of a string array, like the initial registration's (session-contract「初始注册的
- * 身份与修订」), under its own domain. The scope names the tenant, the session and the generation.
- */
 export function contextChangeCommit(
   input: Readonly<{ scope: ScopeRef; operation: SessionOperationId; key: ContextBlockKey }>,
 ): CommitRef {
@@ -124,14 +83,12 @@ export function contextChangeCommit(
   }
 }
 
-/** The commit identity of the step commit that one `change(context-step-commit)` records. */
 export function contextStepCommit(
   input: Readonly<{ scope: ScopeRef; operation: SessionOperationId }>,
 ): CommitRef {
   return { commit: JSON.stringify(['session-context-step', '1', input.scope.ref, input.operation]) }
 }
 
-/** The commit identity of the end of a scope that the archive operation committed (SE27). */
 export function contextScopeEndCommit(
   input: Readonly<{ scope: string; operation: string }>,
 ): CommitRef {
@@ -140,9 +97,6 @@ export function contextScopeEndCommit(
   }
 }
 
-// --- JSON trees ---------------------------------------------------------------------------------
-
-/** A value that the protocol cannot encode or a record it cannot decode. */
 class Malformed extends Error {}
 
 function isPlainObject(value: object): boolean {
@@ -150,7 +104,6 @@ function isPlainObject(value: object): boolean {
   return prototype === Object.prototype || prototype === null
 }
 
-/** The JSON tree of a plain JSON value. Anything else (undefined, a function, a cycle) is refused. */
 function toTree(value: unknown, path: string, seen: Set<object> = new Set()): JsonValue {
   if (value === null) return { kind: 'null' }
   switch (typeof value) {
@@ -190,7 +143,6 @@ function toTree(value: unknown, path: string, seen: Set<object> = new Set()): Js
   }
 }
 
-/** The plain value of a JSON tree that came from storage; the tree is checked node by node. */
 function fromTree(tree: unknown, path: string): unknown {
   if (typeof tree !== 'object' || tree === null || Array.isArray(tree))
     throw new Malformed(`${path}: not a JSON tree`)
@@ -232,7 +184,6 @@ function fromTree(tree: unknown, path: string): unknown {
   }
 }
 
-/** The members of a closed object: exactly these keys, no other. */
 function closed(value: unknown, keys: readonly string[], path: string): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value))
     throw new Malformed(`${path}: not an object`)
@@ -243,7 +194,6 @@ function closed(value: unknown, keys: readonly string[], path: string): Record<s
   return record
 }
 
-/** The named members of an object that another owner may extend (the Session entry envelope). */
 function open(value: unknown, path: string): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value))
     throw new Malformed(`${path}: not an object`)
@@ -317,7 +267,6 @@ function material(value: unknown): ContextMaterial {
   }
 }
 
-/** The plain value of one material of this protocol. */
 function materialValue(value: unknown, path: string): unknown {
   const fields = closed(value, ['schema', 'value'], path)
   if (!sameAdoption(adoptionOf(fields['schema'], `${path}.schema`), SESSION_CONTEXT_MATERIAL))
@@ -335,10 +284,6 @@ function materialValue(value: unknown, path: string): unknown {
   return decoded
 }
 
-/**
- * The failure of a preparation that threw: a material that does not decode is `invalid`; any other
- * throw (the definitions source failed) is a dependency failure, `unavailable` (AD-00 第 6 条).
- */
 function preparationFailure(cause: unknown, field: string) {
   return cause instanceof Malformed
     ? fail({ kind: 'invalid' as const, field, reason: cause.message })
@@ -357,16 +302,12 @@ function describe(cause: unknown): string {
   }
 }
 
-// --- Registrations ------------------------------------------------------------------------------
-
-/** The registration materials as they appear in a creation source or a `change`. */
 export type ContextRegistrationMaterials = Readonly<{
   need: ContextMaterial
   binding: ContextMaterial
   parameters: ContextMaterial
 }>
 
-/** The part of a change that Session fixes for an initial registration (its SE07 decision). */
 type RegistrationHead = Readonly<{
   tenant: TenantId
   scope: ScopeRef
@@ -393,7 +334,6 @@ function bindingRefs(
 ) {
   return bindings.map((binding, index) => {
     const ref = { definition, need: binding.need.name, key: binding.key }
-    // Only a binding that the adopted definition gives back can be restored from its reference.
     if (definitions.binding(ref) !== binding)
       throw new Malformed(`bindings[${index}]: not a binding of the adopted definition`)
     return { need: ref.need, key: ref.key }
@@ -604,11 +544,6 @@ function bodyOf(change: RegistrationChange, definition: Adoption): RegistrationB
   }
 }
 
-/**
- * The materials of one initial registration in a creation source (`context-registration`). Session
- * fixes the scope, the tenant, the revision and the commit of an initial registration in its SE07
- * decision, so the materials carry none of them; the registration is an add, creating and required.
- */
 export function encodeInitialContextRegistration(
   input: Readonly<{
     definition: Adoption
@@ -640,10 +575,6 @@ export function encodeInitialContextRegistration(
   }
 }
 
-/**
- * The materials of one registration change that a `change` commits. The commit identity derives
- * from the scope, the `change` operation and the block key (`contextChangeCommit`).
- */
 export function encodeContextRegistrationChange(
   input: Readonly<{
     change: RegistrationChange
@@ -678,8 +609,6 @@ export function encodeContextRegistrationChange(
   }
 }
 
-// --- Step commits -------------------------------------------------------------------------------
-
 type StepDeclaration = Extract<DeclarationChange, { kind: 'context-step-commit' }>
 
 function updateTree(update: ContextUpdate) {
@@ -711,12 +640,6 @@ function updateOf(value: unknown, path: string): ContextUpdate {
   }
 }
 
-/**
- * The block list of one `change(context-step-commit)`: a head element (`@step`) with the tenant,
- * the scope, the step, the commit identity, the ends and the pending updates, then one element per
- * committed block with its full value and the updates folded into it. Block values and updates must
- * be JSON data. The caller adds the `basis` of the declaration.
- */
 export function encodeContextStepCommit(
   input: Readonly<{
     tenant: TenantId
@@ -812,14 +735,6 @@ function decodeStep(updates: unknown): StepInput {
   }
 }
 
-// --- The translation (decoding) -----------------------------------------------------------------
-
-/**
- * AD-12's translation protocol in the reading direction, in the shape AD-03's replay takes
- * (`SessionContextTranslation` of `context-holder.ts`): the Runtime Context commit input that one
- * committed Session entry records, `null` for an entry that records none, a failure for a record
- * that the protocol cannot read. `session` is the session whose log holds the entry.
- */
 export type SessionContextCommitTranslation = Readonly<{
   kinds: readonly string[]
   commitOf(
@@ -828,7 +743,6 @@ export type SessionContextCommitTranslation = Readonly<{
   ): Outcome<RecordedCommit | null, string>
 }>
 
-/** A plain object of the entry payload, through the Session entry tree. */
 function payloadOf(entry: HistoryEntry): Record<string, unknown> {
   return open(fromTree(entry.payload, 'payload'), 'payload')
 }
@@ -842,7 +756,6 @@ function decodeRegistrationEntry(
   const recorded = text(payload['scope'], 'scope')
   const initialization = payload['initialization']
   if (initialization !== undefined && initialization !== null) {
-    // An initial registration: Session's SE07 decision fixes the scope, tenant, revisions and commit.
     const decision = open(open(initialization, 'initialization')['decision'], 'decision')
     const { body, head } = decodeRegistration(
       { need: decision['need'], binding: decision['binding'], parameters: decision['parameters'] },
@@ -896,20 +809,10 @@ function decodeStepEntry(payload: Record<string, unknown>): RecordedCommit | nul
   return step
 }
 
-/**
- * AD-12's translation protocol for AD-03's replay: hand the result to `createSessionContextHolder`
- * as its `translation`. `definitions` gives back the bindings and declarations that the materials
- * reference. The end of a scope (SE27) does not name its tenant: it is the tenant of the session
- * whose log holds the entry, which the holder hands in with each entry. So a scope that has no
- * registration and no step commit ends too, and Runtime Context, which recovered it with the empty
- * material (AD-03 1a), learns the end. A registration or a step commit that names another tenant
- * than its session fails.
- */
 export function createSessionContextTranslation(
   definitions: SessionContextDefinitions,
 ): SessionContextCommitTranslation {
   type SessionOfEntry = Readonly<{ tenant: TenantId }>
-  /** A decoded record of the session's own tenant; another tenant is a record the protocol cannot read. */
   function owned(input: RecordedCommit | null, session: SessionOfEntry): RecordedCommit | null {
     if (input === null) return null
     const tenant = input.kind === 'registration' ? input.change.tenant : input.tenant
@@ -955,8 +858,6 @@ export function createSessionContextTranslation(
   })
 }
 
-// --- Preparing ----------------------------------------------------------------------------------
-
 function unavailable(diagnostic: string, owner = CONTEXT_OWNER) {
   return fail({ kind: 'unavailable' as const, owner, diagnostic })
 }
@@ -985,13 +886,6 @@ function sameChangeBody(left: RegistrationChange, right: RegistrationChange): bo
   )
 }
 
-/**
- * The adapter function that prepares one registration change with Runtime Context's
- * `prepareRegistration`: the plugin uses it for a `change`, and the adoption source reuses it for
- * the registrations of `completeInitialization` (AD-10). `prepared` gives the guard material;
- * `rejected` is `invalid` with each reason; every other answer, including a refusal, is
- * `unavailable` with the answer in the diagnostic (AD-00 第 6 条). It never calls `applyCommit`.
- */
 export async function prepareContextRegistration<P>(
   holder: Pick<RuntimeContextOperations<P>, 'prepareRegistration'>,
   principal: P,
@@ -1015,8 +909,6 @@ export async function prepareContextRegistration<P>(
   }
   switch (answer.kind) {
     case 'prepared': {
-      // The judged change must be the change that Session will commit (session-contract「初始注册的
-      // 身份与修订」): a provider that judged another change gives no material.
       if (!sameChange(answer.judged.change, change))
         return unavailable('prepareRegistration judged another change than the one it was given')
       let facts: JsonValue
@@ -1072,12 +964,7 @@ export async function prepareContextRegistration<P>(
   }
 }
 
-/** What the assembly hands to AD-12. */
 export type SessionContextInputPluginInput<P> = Readonly<{
-  /**
-   * The principal that the assembly issues to the coordinator of one session: the holder principal
-   * of its scope (the same port as AD-03's and AD-14's). `prepareRegistration` runs under it.
-   */
   coordinator(
     input: Readonly<{ tenant: TenantId; session: SessionId }>,
   ): Promise<Outcome<P, SessionCoordinatorPrincipalFailure>>
@@ -1103,7 +990,6 @@ class SessionContextInputProvider<P> extends SessionContextInputService<P> {
 
   readonly prepare: SessionContextInput<P>['prepare'] = async (access, command) => {
     if (this.closed) return unavailable('the Context input has stopped')
-    // A command of another tenant or session than the access gets nothing, before any decoding.
     if (
       !tenantEquals(command.input.tenant, access.tenant) ||
       command.input.session !== access.session
@@ -1116,7 +1002,6 @@ class SessionContextInputProvider<P> extends SessionContextInputService<P> {
         return this.change(access, command)
       case 'startRun':
       case 'reload':
-        // These commands carry no registration material: no Context material.
         return succeed([])
       default: {
         const exhaustive: never = command
@@ -1125,7 +1010,6 @@ class SessionContextInputProvider<P> extends SessionContextInputService<P> {
     }
   }
 
-  /** Every registration source of a creation must be restorable; Session fixes the rest later. */
   private creation(command: Extract<ContextCommand, { kind: 'create' }>): Prepared {
     const sources = command.input.creation.initialization?.sources ?? []
     for (const [index, source] of sources.entries()) {
@@ -1216,10 +1100,6 @@ class SessionContextInputProvider<P> extends SessionContextInputService<P> {
   }
 }
 
-/**
- * The AD-12 plugin `session-ad12`. It provides `sessionContextInput` and stays `PENDING` while
- * `runtimeContext` is absent. It calls no `session` operation.
- */
 export function createSessionContextInputPlugin<P>(input: SessionContextInputPluginInput<P>) {
   return {
     name: 'session-ad12',

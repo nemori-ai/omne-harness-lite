@@ -15,7 +15,7 @@ import {
 } from './coordinator-values.ts'
 import { createLiveAuthorExecution } from '../src/live-author-execution.ts'
 
-describe('real author binding N7', () => {
+describe('real author binding', () => {
   it('stopping one author leaves another invocation live', async () => {
     const fixture = await bindingFixture()
     if (fixture.request?.availability.kind !== 'available' || fixture.permit === undefined)
@@ -81,9 +81,6 @@ describe('real author binding N7', () => {
       kind: 'passed',
     })
   })
-  // The consume never answered `started`, so the author was not entered and the binding keeps no
-  // answer of it: the same start asks the fence again (U3), and an inspection answers what the
-  // fence decided. The fence here never accepted the start.
   it('does not enter the author when consume has an unknown outcome, and asks the fence again', async () => {
     let consumed = 0
     const fixture = await bindingFixture(async () => {

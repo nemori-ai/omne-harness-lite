@@ -1,5 +1,3 @@
-// Canonical encoding and digest of strategy parameters. Keys are sorted recursively; arrays keep
-// their order. The digest tells a plan whether the strategy it was made with is still in force.
 import { createHash } from 'node:crypto'
 
 export function canonical(value: unknown): string {
@@ -12,7 +10,6 @@ export function canonical(value: unknown): string {
     .map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`)
     .join(',')}}`
 }
-/** The digest of an `Adoption` this strategy mints: 64 lowercase hex characters of SHA-256. */
 export function adoptionDigest(value: unknown): string {
   return createHash('sha256').update(canonical(value)).digest('hex')
 }

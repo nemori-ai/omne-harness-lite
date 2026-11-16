@@ -56,7 +56,6 @@ const cwd: Field = {
   description:
     'Directory for this call. Omit to use the configured directory or current terminal directory.',
 }
-/** `help` names its topic in `name`, so no field of a command is called `command` (flat calls). */
 function withHelp(commands: readonly Command[]): readonly Command[] {
   return [
     ...commands,

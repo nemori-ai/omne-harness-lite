@@ -1,6 +1,3 @@
-// The steps of a fixture run that happen inside the consumer directory: compile `fixture.ts`
-// against what was installed, run its paths in a child process whose resolve hook records every
-// resolution, and judge what the fixture reported.
 import {
   copyFileSync,
   existsSync,
@@ -24,15 +21,12 @@ import { compilerCommand, diagnostics, exec, libraryRoot, tail } from './process
 const SOURCE = 'fixture'
 const OUTPUT = 'fixture-out'
 const REPORT = 'fixture-report.json'
-/** A path that never settles must not hold the facility for ever; real paths take milliseconds. */
 export const FIXTURE_RUN_LIMIT_MS = 60_000
 
 const here = dirname(fileURLToPath(import.meta.url))
 
-/** What the fixture process reported: the role and what each path did. */
 export type FixtureOutcome = Readonly<{ role: string; paths: readonly PathResult[] }>
 
-/** Copies the TypeScript files and the compiler settings of a fixture next to the consumer project. */
 export function copyFixture({
   project,
   directory,
@@ -44,11 +38,6 @@ export function copyFixture({
       copyFileSync(join(directory, entry.name), join(target, entry.name))
 }
 
-/**
- * Compiles the fixture with the settings it brings, then judges which files the compiler loaded:
- * an import that only an ancestor `node_modules` could answer fails here, as does one that no
- * installed package answers.
- */
 export function compileFixture(project: string): { files: number; checks: Check[] } {
   const run = exec(
     process.execPath,
@@ -102,7 +91,6 @@ export function isPathResult(value: unknown): value is PathResult {
   )
 }
 
-/** The report of a fixture process, or null when the file does not hold the agreed shape. */
 export function readOutcome(path: string): FixtureOutcome | null {
   if (!existsSync(path)) return null
   let value: unknown
@@ -118,11 +106,6 @@ export function readOutcome(path: string): FixtureOutcome | null {
   return { role: value['role'], paths }
 }
 
-/**
- * The two judgments of a report: whether the fixture declares what the runner demands, and whether
- * every path did what it should. They are separate checks, so a fixture with no failure path and a
- * fixture with a broken path are told apart.
- */
 export function judgeOutcome(outcome: FixtureOutcome, expectedRole: string): Check[] {
   const problems = [
     ...(outcome.role === expectedRole
@@ -147,18 +130,12 @@ export function judgeOutcome(outcome: FixtureOutcome, expectedRole: string): Che
   ]
 }
 
-/** How the fixture process ended, with the line of the error it died of when there is one. */
 function exitDetail(run: ReturnType<typeof exec>): string {
   const how = run.signal === null ? `exit ${run.status}` : `killed by ${run.signal}`
   const thrown = run.stderr.split('\n').find(line => /^\w*Error\b/u.test(line))
   return `${how}: ${thrown ?? tail(`${run.stdout}\n${run.stderr}`)}`
 }
 
-/**
- * Runs the compiled fixture in the consumer directory with the recording resolve hook, then judges
- * the resolutions and the report. A fixture whose resolutions leave the directory fails even when
- * every path passed.
- */
 export function runFixture({
   project,
   expectedRole,
@@ -167,9 +144,7 @@ export function runFixture({
 }: Readonly<{
   project: string
   expectedRole: string
-  /** The time limit of the fixture process; `FIXTURE_RUN_LIMIT_MS` when not given. */
   limitMs?: number
-  /** Starts the fixture process. Only a test replaces it, to read the limit that is passed. */
   execute?: typeof exec
 }>): { outcome: FixtureOutcome | null; checks: Check[] } {
   for (const file of ['fixture-host.mjs', 'register.mjs'])

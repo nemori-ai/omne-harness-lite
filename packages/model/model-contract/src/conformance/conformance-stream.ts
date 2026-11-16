@@ -174,8 +174,6 @@ function currentChecks<P>(): Check<P>[] {
       async run(scene) {
         const { subject, wait } = scene
         await publish(scene)
-        // The reference carries no tenant (R2-D357): another tenant's partition has no such call,
-        // so it gets the answer for a call that was never accepted, byte for byte.
         const foreign = await wait(
           subject.references.current({
             access: subject.otherAccess,
@@ -264,7 +262,6 @@ function currentChecks<P>(): Check<P>[] {
         await publish(scene)
         const hold = subject.controls.holdCurrent()
         const pending = current(scene)
-        // Attach a rejection handler while the separately bounded barrier is awaited.
         void pending.catch(() => undefined)
         try {
           await wait(hold.reached)
@@ -343,7 +340,6 @@ function observationChecks<P>(): Check<P>[] {
       obligation: 'observation-reference-failures',
       async run(scene) {
         await publish(scene)
-        // Another tenant's partition has no such stream: the end of an unpublished stream.
         await terminal(scene.watch(undefined, scene.subject.otherAccess), 'stale-stream')
         await terminal(scene.watch(scene.subject.wrongProducer), 'stale-stream')
         await terminal(scene.watch(scene.subject.snapshots.successor.ref), 'stale-stream')
@@ -511,7 +507,6 @@ async function run<P>(
     try {
       subject = await wait(creating)
     } catch (error) {
-      // A late factory result still owns resources. Release it without exposing its error.
       void creating.then(value => wait(value.dispose())).catch(() => undefined)
       throw error
     }
@@ -552,7 +547,6 @@ async function run<P>(
   return { obligation: check.obligation, status: detail === '' ? 'pass' : 'fail', detail }
 }
 
-/** Exercises public stream obligations with a fresh controlled subject for each check. */
 export async function checkModelStreamConformance<P>(
   input: ModelStreamConformanceInput<P>,
 ): Promise<ModelStreamConformanceReport> {

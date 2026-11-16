@@ -1,15 +1,3 @@
-// S4, the byte range of a page. Every text over a small alphabet of 1-, 2-, 3- and 4-byte
-// characters up to three characters long is put in a package five ways: as a text resource, as
-// a binary resource (one 0xFF byte in front), and as the body of `SKILL.md` behind an LF and a
-// CRLF frontmatter, and as a `SKILL.md` without a frontmatter, whose body is not known: every
-// read of it answers `source-unavailable` alone. Each is read through the real
-// `read` with every start and length up to two past the total, the page limit and one more, and
-// no range. One more package holds a region longer than a page with characters across the page
-// limit. The expected page comes from the rules of the contract SPEC "读取的形状规则": the actual
-// start is the first character boundary at or after the requested start, the actual end the
-// last boundary at or before the requested start plus the requested length (at most the page
-// limit), never before the start; `complete` holds exactly when the end reaches the total. An
-// illegal range throws a TypeError before any port is called.
 import { isDeepStrictEqual } from 'node:util'
 import {
   isAssetVersion,
@@ -33,7 +21,6 @@ const ALPHABET = ['a', 'é', '中', '😀']
 const LF_HEADER = '---\nname: alpha\n---\n'
 const CRLF_HEADER = '---\r\nname: alpha\r\n---\r\n'
 
-/** Every text over the alphabet with at most `size` characters. */
 function texts(size: number): string[] {
   const all = ['']
   let layer = ['']
@@ -44,7 +31,6 @@ function texts(size: number): string[] {
   return all
 }
 
-/** A read service over one package of `alpha`, and the count of port calls. */
 function serviceOf(files: Files) {
   const sealed = sealedOf('alpha', files)
   let calls = 0
@@ -88,7 +74,6 @@ function serviceOf(files: Files) {
   return { access, calls: () => calls, entries: sealed.entries }
 }
 
-/** `headerless`: a body without a legal frontmatter, which no range may read. */
 type Region = Readonly<{
   part: 'body' | string
   bytes: Uint8Array
@@ -102,7 +87,6 @@ function isBoundary(region: Region, at: number): boolean {
   return !region.text || at >= region.bytes.length || ((region.bytes[at] ?? 0) & 0xc0) !== 0x80
 }
 
-/** The page that the contract rules give for `requested` on `region`. */
 function expectedPage(region: Region, requested: ByteRange | undefined) {
   const total = region.bytes.length
   const requestedStart = requested?.start ?? 0
@@ -127,7 +111,6 @@ function field(value: unknown, key: string): unknown {
   return typeof value === 'object' && value !== null ? Reflect.get(value, key) : undefined
 }
 
-/** The property breaks of one page, beside the exact expectation. */
 function pageBreaks(region: Region, page: unknown): string[] {
   const range = field(page, 'range')
   const start = Number(field(range, 'start'))
@@ -228,7 +211,6 @@ async function readAll(
   }
 }
 
-/** Every start and length up to two past the total, the page limit and one more, and no range. */
 function smallRanges(total: number): (ByteRange | undefined)[] {
   const ranges: (ByteRange | undefined)[] = [undefined]
   for (let start = 0; start <= total + 2; start += 1)
@@ -288,7 +270,6 @@ export async function exploreRange(): Promise<Report> {
         smallRanges,
       )
   }
-  // A closing line without a line terminator: the body starts at the end.
   await readAll(
     ledger,
     { 'SKILL.md': '---\nname: alpha\n---' },

@@ -112,7 +112,7 @@ def check_process_keywords(root: Path, path: Path, errors: list[str]) -> None:
             if word in line:
                 errors.append(f"{path.relative_to(root).as_posix()}:{number}: process keyword "
                               f"'{word}' without owner link; "
-                              "链到拥有者，见 docs/engineering/README.md#流程事实在哪")
+                              "链到拥有者，见 AGENTS.md#研发流程")
                 break
 
 

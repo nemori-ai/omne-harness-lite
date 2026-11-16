@@ -1,5 +1,3 @@
-// Retirement of the host files provider while a file operation is in flight. The operation is made
-// slow and controllable by holding `open` on one marked path; everything else is the real file system.
 import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -29,7 +27,6 @@ import {
 } from '@omne-harness/execution-environment-host-local/cordis'
 import { testPorts } from './ports.ts'
 
-// `open` on a path with the marker signals `entered`, then waits until the test calls `release`.
 const hold = vi.hoisted(() => ({
   marker: 'held-by-test',
   entered: (): void => undefined,
@@ -124,7 +121,6 @@ async function heldFile() {
   roots.push(root)
   const path = join(root, `${hold.marker}.txt`)
   await writeFile(path, 'before')
-  // On Windows the token is read by the files helper, which the hold would stop: read it first.
   const named = await hostObjectToken(path)
   holdNextOpen()
   return { path, named }
@@ -165,7 +161,6 @@ async function providerFiles(provider: ReturnType<typeof createHostFilesProvider
   return files
 }
 
-/** Resolves to `pending` when the promise has not settled after the queued callbacks ran. */
 async function settledOrPending<T>(promise: Promise<T>): Promise<T | 'pending'> {
   return Promise.race([
     promise,

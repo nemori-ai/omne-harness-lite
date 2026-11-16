@@ -13,11 +13,6 @@ import {
   type RecordEntryRef,
 } from '@omne-harness/message'
 
-/**
- * Cases that the reasoning state table in docs/public-api.md cannot say in a cell: values that
- * JSON cannot carry, how often an accessor is read, and the identity of what comes back. The
- * rules themselves are in that table.
- */
 const id = 'msg_abcdefghijklmnopqrstuv'
 const seen = { toHuman: true, toModel: true }
 const thinking = { kind: 'thinking', id: 'k1', visibility: seen, text: 'x' }
@@ -46,7 +41,6 @@ function admitted(input: Record<string, unknown>): AssistantMessage {
   return judged.ok
 }
 
-/** An accessor that answers from the list, one answer for each call, and counts the calls. */
 function answering(answers: readonly unknown[]): { get: () => unknown; calls: () => number } {
   let calls = 0
   return {

@@ -1,5 +1,3 @@
-// The one access decision of each face operation (SPEC CP-01 第 1 步, VM-13), its failure branches,
-// the caller-class consistency check, and the refusal of another tenant (contract J40).
 import { afterEach, describe, expect, it } from 'vitest'
 import { succeed } from '@omne-harness/operation-result'
 import { expectedRevision, type SessionFailure } from '@omne-harness/session-contract'
@@ -30,7 +28,6 @@ function failureOf(answer: unknown): SessionFailure {
   return (answer as { failure: SessionFailure }).failure
 }
 
-/** Runs `operation` and returns how many decisions the access check gave for it. */
 async function decisions(h: Harness, operation: () => Promise<unknown>): Promise<number> {
   const before = h.checks.count()
   await operation()
@@ -42,7 +39,6 @@ describe('each face operation asks the access check exactly once', () => {
     const h = await service()
     expect(await decisions(h, () => h.create())).toBe(1)
     expect(await decisions(h, () => h.accept('one'))).toBe(1)
-    // The same operation again is a recall: still one decision, before the original answer.
     const recalled = await decisions(h, async () => {
       const again = succeeded(
         await h.faces('intake').work.accept({
@@ -74,7 +70,6 @@ describe('each face operation asks the access check exactly once', () => {
         }),
       ),
     ).toBe(1)
-    // Each request names the operation it decides, never a shared allowance.
     const operations = h.checks.asked().map(request => request.operation)
     expect(operations).toEqual([
       'create',
@@ -103,7 +98,6 @@ describe('each face operation asks the access check exactly once', () => {
       'startRun',
     )
     const snapshot = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
-    // The first commit of the face operation meets a Run layer that another writer has just moved.
     let moved = false
     h.view.onCommit(async (input, next) => {
       if (!moved) {
@@ -130,7 +124,6 @@ describe('each face operation asks the access check exactly once', () => {
       return next()
     })
     h.view.reset()
-    // The concurrent writer goes through the public port, which takes its own decision.
     await decisions(h, async () => {
       const finished = await h.faces('coordinator').work.finishRun({
         ...h.access(),
@@ -171,7 +164,7 @@ describe('each face operation asks the access check exactly once', () => {
   })
 })
 
-describe('the failure branches of the decision (CP-01 第 1 步)', () => {
+describe('the failure branches of the decision', () => {
   const unavailableCheck = { kind: 'unavailable', diagnostic: 'policy store down' } as const
   const throwingCheck = { kind: 'throw', error: new Error('policy crashed') } as const
 
@@ -241,7 +234,7 @@ describe('the failure branches of the decision (CP-01 第 1 步)', () => {
     expect(h.view.calls().map(call => call.method)).toEqual(['queryOperation', 'commit'])
   })
 
-  it('a caller class outside the operation is denied before any decision (VC-O05)', async () => {
+  it('a caller class outside the operation is denied before any decision', async () => {
     const h = await service()
     await h.create()
     expect(
@@ -272,13 +265,12 @@ describe('the failure branches of the decision (CP-01 第 1 步)', () => {
   })
 })
 
-describe('another tenant (R3.4)', () => {
+describe('another tenant', () => {
   it('a principal of tenant B reading or writing session-1 of tenant A is denied, the same as a session that never was', async () => {
     const h = await service()
     await h.create()
     await h.accept('one')
     const stranger = h.other()
-    // Tenant B names its own tenant: the check allows it there, and the session does not exist there.
     const read = await h
       .faces('coordinator')
       .work.readWork({ ...stranger, principal: 'b:stranger' })
@@ -291,7 +283,6 @@ describe('another tenant (R3.4)', () => {
       value: ordinaryInput('b'),
     })
     expect(failureOf(write)).toEqual({ kind: 'denied', action: 'accept' })
-    // Tenant B naming tenant A: the decision refuses it.
     const named = await h
       .faces('coordinator')
       .work.readWork({ ...h.access(), principal: 'b:stranger' })
@@ -309,7 +300,6 @@ describe('another tenant (R3.4)', () => {
   })
 
   it('a snapshot of another tenant that a faulty store hands back is never used', async () => {
-    // The store under the view ignores the tenant of the call and answers tenant A's session.
     const leaky: BackendFactory = {
       name: 'leaky',
       open: async accessCheck => {

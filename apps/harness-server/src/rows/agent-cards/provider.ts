@@ -1,14 +1,3 @@
-// Agent 的卡片端口（`DecisionCards`）经 HITL 保管：Agent 与 HITL 的组合承担者。两边都只经各自的公开端口：
-// Agent 一侧是卡片端口与会话的工作读；HITL 一侧是准备、登记、原操作查询、请求读取、接手与失效。
-// 它与 Tool 的 Ask 等待共用同一个 HITL 宿主、守卫、受众与登记主体（`rows/tool-hitl`）。纯映射在 `cards.ts`。
-//
-// - present：一轮请求登记成一个 HITL 请求，每个请求一张卡。来源带会话与 Run，Run 由 advance 的执行在会话
-//   快照里取。准备（受信直接提交）与登记（身份门控）的操作身份都由 passage 与 round 派生，重送认回原结果。
-// - lookup：用与 present 相同的输入重建同一条登记命令，按原操作身份与输入摘要向 HITL 认回。登记成立答
-//   presented；HITL 已封口这次操作，或原登记以拒绝落定，答 not-presented；其余答 unknown。
-// - read：从依据解出卡片，读它所在的请求。卡片已决定而未接手时，以这一轮派生的身份绑定接收者、接手决定、
-//   确认交接，再给出答复；接手不成立时答 unavailable，原等待不变。
-// - invalidate：以 Agent 的操作派生的身份使这一轮的等待失效，再读回每张卡的终态。
 import { createHash } from 'node:crypto'
 import {
   decodeAgentOperationId,
@@ -57,20 +46,15 @@ import {
   roundWait,
 } from './cards.ts'
 
-/** 本提供者的采用名：HITL 等待的 adoptionRef 与相容实现。 */
 const ADOPTION = `${AGENT_CARDS_OWNER}/1`
 const DISPLAY_CONTEXT = 'Agent'
-/** 提供者在 HITL 接收者绑定里写的部署实例。 */
 const RECEIVER_INSTANCE = 'harness-server'
-/** HITL 接收者的初始代次：等待准备时未绑定。 */
 const UNBOUND_GENERATION = '0'
 
 export type AgentCardsInput = Readonly<{
   host: () => ToolHitlHost | null
   audience: () => HitlAudience | undefined
-  /** 为租户签发出卡方的登记主体；入口没有交来时答 undefined。 */
   registrar: (tenant: TenantId) => ActingForTenantPrincipal | undefined
-  /** 以调用方的会话工作主体读会话快照；会话服务缺席时答 undefined。 */
   readWork: (
     input: Readonly<{ principal: unknown; tenant: TenantId; session: SessionId }>,
   ) => Promise<Outcome<WorkSnapshot, Readonly<{ kind: string }>> | undefined>
@@ -95,7 +79,6 @@ const evidenceOf = (record: string, basis: string): DurableEvidence => ({
 })
 
 export function createAgentDecisionCards(input: AgentCardsInput): DecisionCards<unknown> {
-  /** HITL 的租户应用、登记主体与租户文本。每一步都只读。 */
   const seat = async (
     tenant: TenantId,
   ): Promise<
@@ -113,7 +96,6 @@ export function createAgentDecisionCards(input: AgentCardsInput): DecisionCards<
     return succeed({ at: at.tenant, principal, tenantText: tenantText.value })
   }
 
-  /** 调用方的会话，与执行在会话里对应的 Run。 */
   const sessionRun = async (
     access: Access<unknown>,
     execution: AgentExecutionId,
@@ -131,7 +113,6 @@ export function createAgentDecisionCards(input: AgentCardsInput): DecisionCards<
     return succeed({ session, run })
   }
 
-  /** 一轮的完整登记：准备与登记两条命令。present 与 lookup 用同一份输入得到同一条登记命令。 */
   const registration = async (
     access: Access<unknown>,
     execution: AgentExecutionId,
@@ -218,7 +199,6 @@ export function createAgentDecisionCards(input: AgentCardsInput): DecisionCards<
     })
   }
 
-  /** 依据所指的卡所在的请求。 */
   const requestOf = async (
     at: At,
     principal: ActingForTenantPrincipal,
@@ -233,7 +213,6 @@ export function createAgentDecisionCards(input: AgentCardsInput): DecisionCards<
       : unavailable(`the HITL request read answered ${read.kind}`)
   }
 
-  /** 一张已决定而未接手的卡：绑定接收者、接手决定、确认交接。重送认回原操作。 */
   const takeOver = async (
     at: At,
     principal: ActingForTenantPrincipal,
@@ -292,7 +271,6 @@ export function createAgentDecisionCards(input: AgentCardsInput): DecisionCards<
       case 'unknown':
         return fail({ kind: 'commit-unknown', operation })
       case 'rolled_back':
-        // 这一轮的准备已固定：同一身份下的别的输入冲突。
         return fail({ kind: 'conflict', operation })
       default:
         return unavailable(`the HITL preparation answered ${prepared.kind}`)
@@ -306,7 +284,6 @@ export function createAgentDecisionCards(input: AgentCardsInput): DecisionCards<
       case 'unavailable':
         return unavailable(`the HITL registration is unavailable: ${registered.reason}`)
       case 'conflict':
-        // 守卫拒绝或操作已封口：结果确定，同一身份之后也不会落地。
         return fail({ kind: 'conflict', operation })
       default:
         return invalid('requests', `the HITL registration answered ${registered.kind}`)
@@ -326,7 +303,6 @@ export function createAgentDecisionCards(input: AgentCardsInput): DecisionCards<
     switch (found.kind) {
       case 'committed':
         if (found.method !== 'registerRequest') return succeed({ kind: 'unknown' })
-        // 原登记以拒绝落定时同样是确定的结果：这一轮没有呈现，之后也不会。
         return found.result.kind === 'registered'
           ? succeed({ kind: 'presented', cards: found.result.cards.map(cardEvidence) })
           : succeed({
@@ -385,12 +361,10 @@ export function createAgentDecisionCards(input: AgentCardsInput): DecisionCards<
       operation: {
         tenantRef: tenantText.value,
         actorRef: standingPrincipalRef(principal),
-        // 同一个 Agent 操作总得到同一个 HITL 操作，重送认回原失效。
         operationId: roundOperation(key, `invalidate/${digestOf([request.operation])}`),
       },
       waitRef: roundWait(key, HITL_DESTINATION),
       terminalEvidenceRef: `agent-terminal/${digestOf([JSON.stringify(request.reason)])}`,
-      // 提供者只收到原因的依据，不收到原因的种类。
       reason: 'origin-terminal',
     })
     if (!command.success) return invalid('operation', 'the round does not form a HITL invalidation')
@@ -406,7 +380,6 @@ export function createAgentDecisionCards(input: AgentCardsInput): DecisionCards<
     const found = await requestOf(at, principal, first)
     if ('failure' in found) return found
     const known = new Map(found.ok.cards.map(card => [card.ref.cardId, card]))
-    // 同一操作只对这一轮的全部卡片成立：给的卡片集合不是这一轮的卡片时冲突。
     if (
       refs.length !== known.size ||
       refs.some(ref => ref.request.requestId !== first.request.requestId || !known.has(ref.cardId))

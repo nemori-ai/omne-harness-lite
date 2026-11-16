@@ -1,0 +1,206 @@
+.assets-settings {
+  min-height: 0;
+  overflow-y: auto;
+  font-size: var(--omne-text-ui);
+}
+
+.assets-settings-layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--omne-space-page);
+}
+
+.assets-settings-rail {
+  position: sticky;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.assets-settings-rail-link {
+  justify-content: space-between;
+  height: var(--omne-nav-row-height);
+  padding-inline: 8px;
+  color: var(--omne-ink-muted);
+  font-weight: 500;
+}
+
+.assets-settings-rail-link:hover,
+.assets-settings-rail-link[data-active='true'] {
+  color: var(--omne-ink-primary);
+}
+
+.assets-settings-rail-link[data-active='true'] {
+  background: var(--omne-selected);
+}
+
+.assets-settings-rail-link:hover {
+  background: var(--omne-hover);
+}
+
+.assets-settings-rail-count {
+  font-size: var(--omne-text-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.assets-settings-pane {
+  min-width: 0;
+}
+
+.assets-settings-pane-title {
+  display: flex;
+  align-items: center;
+  min-height: var(--omne-control-height);
+  color: var(--omne-ink-primary);
+  font-size: var(--omne-text-lead);
+  line-height: var(--omne-leading-title);
+  font-weight: 500;
+}
+
+.assets-settings-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.assets-setting {
+  container: assets-setting / inline-size;
+  display: grid;
+  gap: var(--omne-space-inline);
+  padding-block: var(--omne-space-block);
+  border-top: 1px solid var(--omne-line-subtle);
+}
+
+.assets-setting:first-child {
+  border-top: 0;
+}
+
+@media (min-width: 1024px) {
+  .assets-setting {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);
+    column-gap: var(--omne-space-page);
+    align-items: start;
+  }
+
+  .assets-setting-control {
+    justify-items: end;
+    text-align: right;
+  }
+}
+
+.assets-setting-main,
+.assets-setting-control {
+  display: grid;
+  gap: var(--omne-space-inline);
+  min-width: 0;
+  align-content: start;
+}
+
+.assets-setting-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--omne-space-inline);
+}
+
+.assets-setting-title {
+  margin: 0;
+  color: var(--omne-ink-primary);
+  font-size: var(--omne-text-ui);
+  font-weight: 500;
+}
+
+.assets-setting-asset {
+  color: var(--omne-ink-faint);
+  font-family: var(--omne-font-mono, monospace);
+  font-size: var(--omne-text-caption);
+}
+
+.assets-setting-purpose {
+  margin: 0;
+  color: var(--omne-ink-muted);
+  line-height: var(--omne-leading-wrapped);
+}
+
+.assets-setting-choices {
+  display: grid;
+  gap: var(--omne-space-inline);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  justify-items: start;
+  text-align: start;
+}
+
+.assets-setting-choices legend {
+  padding: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+
+.assets-setting-choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--omne-space-inline);
+}
+
+.assets-setting-choice-text {
+  grid-column: 2;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+
+.assets-setting-secret {
+  display: flex;
+  gap: var(--omne-space-inline);
+  width: 100%;
+  min-width: 0;
+}
+
+.assets-setting-actions {
+  display: flex;
+  gap: var(--omne-space-inline);
+}
+
+.assets-setting-clear-effect {
+  margin: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-wrapped);
+}
+
+.assets-setting-notice {
+  display: grid;
+  gap: var(--omne-space-inline);
+  grid-column: 1 / -1;
+  min-width: 0;
+  max-width: var(--omne-measure-decision);
+}
+
+.assets-setting-notice:empty {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .assets-settings-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .assets-settings-rail {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 4px;
+  }
+
+  .assets-settings-rail-link {
+    height: var(--omne-control-height);
+    gap: 6px;
+  }
+}

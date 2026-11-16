@@ -1,6 +1,3 @@
-// The cross-row consistency checks of the Model rows (`src/model/consistency.ts`, facts c.2): each
-// equality has one counterexample that violates it alone, and the release tree of `serve` refuses to
-// load on it with exit 2 (the check runs at the configuration boundary, before any plugin).
 import { describe, expect, it } from 'vitest'
 import { ConfigError } from '../../src/config-schema.ts'
 import { checkModelRowConsistency } from '../../src/model/consistency.ts'

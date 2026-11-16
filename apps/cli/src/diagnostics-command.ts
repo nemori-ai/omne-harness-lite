@@ -1,18 +1,9 @@
-import {
-  createSessionClient,
-  tenantText,
-  type CallerResult,
-  type SessionDiagnosticGap,
-  type SessionRequest,
-  type SessionRunDiagnostic,
-  type TenantId,
-} from '@omne-harness/sdk'
+import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
+import { sessionDiagnosticsProtocol } from '@omne-harness/session-diagnostics-protocol'
 import type { CliOutput, CommandEnvironment, ExitCode } from './cli-types.ts'
 import {
-  attempt,
   loadLogin,
   missingOption,
-  proofOf,
   resolveOwner,
   serverOption,
   tenantOption,
@@ -20,16 +11,19 @@ import {
   usageError,
   type Option,
 } from './command-support.ts'
-import { renderDiagnostics } from './diagnostics-render.ts'
+import {
+  renderDiagnostics,
+  type SessionDiagnosticGap,
+  type SessionRunDiagnostic,
+} from './diagnostics-render.ts'
+import type { CallResult, Link } from './link.ts'
 import { readOptions } from './options.ts'
 import { exitCodeOf } from './report.ts'
 
 const name = 'read-session-diagnostics'
 const defaultPageBytes = '65536'
-/** No honest session has this many pages. A server that keeps answering past it is not advancing. */
 const maxPages = 10_000
 
-/** What the read collects across the pages: the Runs in page order and every gap a page reported. */
 interface Collected {
   readonly runs: readonly SessionRunDiagnostic[]
   readonly gaps: readonly SessionDiagnosticGap[]
@@ -37,11 +31,6 @@ interface Collected {
 
 type Page = Collected & { readonly next: string | null; readonly exhausted: boolean }
 
-/**
- * The SDK hands a body over only after the public contract read it as a diagnostics page, so the
- * Runs and gaps already have the contract's shape. This read takes the page controls the loop
- * needs and refuses a body that is not a page at all.
- */
 function pageOf(body: unknown): Page | undefined {
   if (typeof body !== 'object' || body === null) return undefined
   const { runs, gaps, next, exhausted } = body as Record<string, unknown>
@@ -58,15 +47,11 @@ function pageOf(body: unknown): Page | undefined {
 
 type Reading =
   | ({ readonly kind: 'complete' } & Collected)
-  /** A page was answered with something other than `succeeded`, or not answered at all. */
-  | ({ readonly kind: 'stopped'; readonly result: CallerResult; readonly page: number } & Collected)
-  /** A page succeeded but the read cannot go on from it. */
+  | ({ readonly kind: 'stopped'; readonly result: CallResult; readonly page: number } & Collected)
   | ({ readonly kind: 'broken'; readonly reason: string } & Collected)
-  /** The contract refused to encode a request. Nothing was sent for that page. */
   | { readonly kind: 'refused' }
 
 interface DiagnosticsRequest {
-  readonly proof: ReturnType<typeof proofOf>
   readonly tenant: TenantId
   readonly session: string
   readonly run: string | null
@@ -74,26 +59,8 @@ interface DiagnosticsRequest {
   readonly newId: () => string
 }
 
-/**
- * Only the first request names the Run filter and the page size. A later request carries the
- * `next` of the page before it and nothing else: the public contract refuses `run` and
- * `pageBytes` beside a cursor.
- */
-function requestFor(
-  request: DiagnosticsRequest,
-  messageId: string,
-  cursor: string | null,
-): SessionRequest<'read-session-diagnostics'> {
-  const { tenant, session, proof } = request
-  const head = { protocolVersion: 'session-public/1', messageId, operation: name, proof } as const
-  return cursor === null
-    ? { ...head, body: { tenant, session, cursor, run: request.run, pageBytes: request.pageBytes } }
-    : { ...head, body: { tenant, session, cursor } }
-}
-
-/** Reads the pages one after another until a page says the read is exhausted. */
 async function readAll(
-  client: ReturnType<typeof createSessionClient>,
+  link: Link,
   request: DiagnosticsRequest,
   firstMessageId: string,
 ): Promise<Reading> {
@@ -104,12 +71,19 @@ async function readAll(
     if (page > maxPages)
       return { kind: 'broken', runs, gaps, reason: `more than ${maxPages} pages` }
     const messageId = page === 1 ? firstMessageId : request.newId()
-    const sent = requestFor(request, messageId, cursor)
-    const result = await attempt(() => client.submit(sent))
+    const { tenant, session } = request
+    const result = await link.call(
+      sessionDiagnosticsProtocol,
+      name,
+      cursor === null
+        ? { tenant, session, cursor, run: request.run, pageBytes: request.pageBytes }
+        : { tenant, session, cursor },
+      messageId,
+    )
     if (result === undefined) return { kind: 'refused' }
-    if (result.kind === 'uncertain' || result.message.outcome !== 'succeeded')
+    if (result.kind !== 'response' || result.outcome !== 'succeeded')
       return { kind: 'stopped', runs, gaps, result, page }
-    const read = pageOf(result.message.body)
+    const read = pageOf(result.body)
     if (read === undefined)
       return { kind: 'broken', runs, gaps, reason: `page ${page} is not a diagnostics page` }
     runs.push(...read.runs)
@@ -131,36 +105,25 @@ async function readAll(
 function incompleteReason(reading: Exclude<Reading, { kind: 'complete' | 'refused' }>): string {
   if (reading.kind === 'broken') return reading.reason
   const { result, page } = reading
-  return result.kind === 'uncertain'
-    ? `page ${page} had no trusted answer`
-    : `page ${page} was answered ${result.message.outcome}`
+  if (result.kind === 'uncertain') return `page ${page} had no trusted answer`
+  if (result.kind === 'unavailable') return `page ${page} was not sent: the service is unavailable`
+  return `page ${page} was answered ${result.outcome}`
 }
 
-/**
- * The `--json` result object, in the keys of the other commands. `body` has the Runs and gaps as
- * the wire carries them and `complete`. `outcome` is the one of the page that stopped the read.
- */
 function resultObject(
   reading: Exclude<Reading, { kind: 'refused' }>,
   request: Readonly<Record<string, string>>,
 ): Record<string, unknown> {
   const body = { runs: reading.runs, gaps: reading.gaps, complete: reading.kind === 'complete' }
-  if (reading.kind === 'stopped' && reading.result.kind === 'uncertain')
-    return { result: 'uncertain', body, request }
+  if (reading.kind === 'stopped' && reading.result.kind !== 'response')
+    return { result: reading.result.kind, body, request }
   const outcome =
     reading.kind === 'stopped' && reading.result.kind === 'response'
-      ? reading.result.message.outcome
+      ? reading.result.outcome
       : 'succeeded'
   return { result: 'response', outcome, body, request }
 }
 
-/**
- * `read-session-diagnostics`: reads the diagnostics projection of a session, page by page. The
- * tenant of the request is the owner of the session, as for `read-history`. Standard output is one
- * block for each Run as text for a person, or with `--json` one result object. A gap in the page is
- * part of the result, not a failure. A read that did not reach the end exits non-zero and says why
- * on standard error. The Runs read so far are still written.
- */
 type Arguments =
   | {
       readonly kind: 'arguments'
@@ -172,7 +135,6 @@ type Arguments =
     }
   | { readonly kind: 'usage'; readonly message: string }
 
-/** The values of the command line that need no state. A usage error names its message. */
 function readArguments(args: readonly string[]): Arguments {
   const read = readOptions(args, {
     accepted: ['--session', '--run', '--tenant', '--page-bytes', serverOption],
@@ -204,7 +166,7 @@ export async function runReadSessionDiagnostics(
   if (read.kind === 'usage') return usageError(output, read.message)
   const { session, run, pageBytes } = read
 
-  const loaded = loadLogin(read.values, output, environment, 'session')
+  const loaded = loadLogin(read.values, output, environment)
   if (loaded.kind === 'exit') return loaded.code
   const resolved = resolveOwner(name, session, read.tenant, loaded.directory, output)
   if (resolved.kind === 'exit') return resolved.code
@@ -213,8 +175,8 @@ export async function runReadSessionDiagnostics(
   const { newId } = environment.services
   const messageId = newId()
   const reading = await readAll(
-    createSessionClient({ transport: loaded.opened.transport }),
-    { proof: proofOf(loaded.state), tenant: owner, session, run, pageBytes, newId },
+    loaded.link,
+    { tenant: owner, session, run, pageBytes, newId },
     messageId,
   )
   if (reading.kind === 'refused') return usageError(output, unrecognized(name))
@@ -223,7 +185,7 @@ export async function runReadSessionDiagnostics(
   try {
     output.stdout(
       read.values.has('--json')
-        ? `${JSON.stringify(resultObject(reading, { messageId, tenant: tenantText(owner) }))}\n`
+        ? `${JSON.stringify(resultObject(reading, { messageId, tenant: encodeTenantText(owner) }))}\n`
         : renderDiagnostics(runs, gaps),
     )
   } catch {

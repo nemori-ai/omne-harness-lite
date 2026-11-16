@@ -9,62 +9,121 @@ import type {
   Waiting,
 } from '@omne-harness/agent-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import { producersHolding } from './contact.ts'
 import type { LoopPorts } from './coordinator.ts'
 import { diagnosticOf } from './diagnostic.ts'
+import type { ReconciliationPacer } from './reconciliation.ts'
 
-/** The revision and the event cursor of one execution that the coordinator knows exactly. */
-export type HeldPosition = Readonly<{
-  revision: ExecutionRevision
-  emittedThrough: string | null
-}>
+export type { ReconciliationPacer }
 
-/**
- * W0 (loop-algorithm W0 row, mechanisms "等待、唤醒与公平"): start the observation of the Journal
- * events, read the execution again, and sleep until an event, the check time or an abort when
- * nothing moved. `held` is the position the coordinator already knows: the observation starts at
- * its cursor and replaces the wait's own first read, so the wait reads the execution once (perf
- * baseline 2.3: at most one complete read per entry into a wait). Without `held`, the wait reads a
- * baseline first.
- */
-export async function waitForExecutionChange<P>(
-  input: Readonly<{
-    ports: LoopPorts<P>
-    access: Access<P>
-    execution: AgentExecutionId
-    expected: ExecutionRevision
-    operations: readonly AgentOperationId[]
-    waits: readonly Waiting[]
-    position: string
-    reconciliationDelayMs: number
-    signal: AbortSignal
-    recheck?: ((read: ExecutionSnapshot) => Promise<Outcome<unknown, Failure>>) | null
-    held?: HeldPosition | null
-  }>,
-): Promise<Outcome<'ready' | 'cancelled', Failure>> {
-  const { ports, access, execution, signal } = input
-  if (signal.aborted) return succeed('cancelled')
-  const now = await ports.clock.now()
-  if (signal.aborted) return succeed('cancelled')
-  if ('failure' in now) return now
-  const at = new Date(Date.parse(now.ok) + input.reconciliationDelayMs)
+function checkTimeAfter(now: string, delayMs: number): Outcome<string, Failure> {
+  const at = new Date(Date.parse(now) + delayMs)
   if (!Number.isFinite(at.getTime()) || at.getUTCFullYear() > 9999)
     return fail({
       kind: 'unavailable',
       owner: 'agentClock',
       diagnostic: 'check time exceeds the UTC instant range',
     })
-  const checkAt = at.toISOString()
+  return succeed(at.toISOString())
+}
+
+export type HeldPosition = Readonly<{
+  revision: ExecutionRevision
+  emittedThrough: string | null
+}>
+
+type WaitInput<P> = Readonly<{
+  ports: LoopPorts<P>
+  access: Access<P>
+  execution: AgentExecutionId
+  expected: ExecutionRevision
+  operations: readonly AgentOperationId[]
+  waits: readonly Waiting[]
+  position: string
+  pacer: ReconciliationPacer
+  signal: AbortSignal
+  recheck?: ((read: ExecutionSnapshot) => Promise<Outcome<unknown, Failure>>) | null
+  held?: HeldPosition | null
+}>
+type Woken = Outcome<'ready' | 'cancelled' | 'unheld', Failure>
+type Timing = { timer: Promise<Woken> | null }
+
+function armed<P>(
+  clock: LoopPorts<P>['clock'],
+  checkAt: string,
+  signal: AbortSignal,
+  due: Woken,
+): Promise<Woken> {
+  return clock.waitUntil(checkAt, signal).then(
+    result => {
+      if ('failure' in result) return result
+      return result.ok === 'elapsed' ? due : succeed('cancelled' as const)
+    },
+    error =>
+      fail({
+        kind: 'unavailable' as const,
+        owner: '@omne-harness/agent#defect',
+        diagnostic: diagnosticOf(error),
+      }),
+  )
+}
+
+async function sleep<P>(
+  input: WaitInput<P>,
+  first: Readonly<{ checkAt: string; delayMs: number }>,
+  notified: Promise<Woken>,
+  signal: AbortSignal,
+  timing: Timing,
+): Promise<Woken> {
+  let { checkAt, delayMs } = first
+  const woke = async (woken: Woken): Promise<Woken> => {
+    if (delayMs === 0 && 'ok' in woken && woken.ok !== 'cancelled') await yieldTurn()
+    return woken
+  }
+  for (;;) {
+    const due: Woken = succeed('ready')
+    const timer = armed(input.ports.clock, checkAt, signal, due)
+    timing.timer = timer
+    if (signal.aborted) return succeed('cancelled')
+    const woken = await Promise.race([notified, timer])
+    if (woken !== due) return woke(woken)
+    input.pacer.timerWoke()
+    const asked = producersHolding(input.ports, input.access, input.waits)
+    const answered = await Promise.race([asked.then(holding => ({ holding })), notified])
+    if (!('holding' in answered)) return woke(answered)
+    if (answered.holding !== true)
+      return woke(succeed(answered.holding === false ? 'unheld' : 'ready'))
+    if (delayMs === 0) await yieldTurn()
+    delayMs = input.pacer.delayAt(input.expected)
+    const now = await input.ports.clock.now()
+    if ('failure' in now) return now
+    const next = checkTimeAfter(now.ok, delayMs)
+    if ('failure' in next) return next
+    checkAt = next.ok
+  }
+}
+
+export async function waitForExecutionChange<P>(input: WaitInput<P>): Promise<Woken> {
+  const { ports, access, execution, signal } = input
+  if (signal.aborted) return succeed('cancelled')
+  const delayMs = input.pacer.delayAt(input.expected)
+  const now = await ports.clock.now()
+  if (signal.aborted) return succeed('cancelled')
+  if ('failure' in now) return now
+  const checked = checkTimeAfter(now.ok, delayMs)
+  if ('failure' in checked) return checked
+  const checkAt = checked.ok
   const controller = new AbortController()
   const abort = () => controller.abort()
   signal.addEventListener('abort', abort, { once: true })
   if (signal.aborted) controller.abort()
-  let wake: (value: Outcome<'ready' | 'cancelled', Failure>) => void = () => {}
-  const notified = new Promise<Outcome<'ready' | 'cancelled', Failure>>(resolve => {
+  let wake: (value: Woken) => void = () => {}
+  const notified = new Promise<Woken>(resolve => {
     wake = resolve
   })
   const tasks: Promise<void>[] = []
-  let timer: Promise<Outcome<'ready' | 'cancelled', Failure>> | null = null
-  let timerOutcome: Outcome<'ready' | 'cancelled', Failure> | null = null
+  const timing: Timing = { timer: null }
+  let timerOutcome: Woken | null = null
   let pumpFailure: Failure | null = null
   const changed = () => wake(succeed('ready'))
   const failed = (error: unknown) => {
@@ -75,7 +134,6 @@ export async function waitForExecutionChange<P>(
     }
     wake(fail(pumpFailure))
   }
-  /** The held position, or the baseline read: the wait's start. `null` when the read failed. */
   const start = async (): Promise<Outcome<HeldPosition | null, Failure>> => {
     if (input.held != null) return succeed(input.held)
     const baseline = await ports.journal.load({ ...access, execution })
@@ -86,7 +144,7 @@ export async function waitForExecutionChange<P>(
       })
     return baseline.failure.kind === 'unavailable' ? succeed(null) : baseline
   }
-  const run = async (): Promise<Outcome<'ready' | 'cancelled', Failure>> => {
+  const run = async (): Promise<Woken> => {
     try {
       const started = await start()
       if ('failure' in started) return started
@@ -111,8 +169,8 @@ export async function waitForExecutionChange<P>(
             }
           })().catch(failed),
         )
-      // Observation consumption starts before this read. Replay, the initial snapshot and the
-      // clock cover the window because these ports provide no registration-ready receipt.
+      // Observation consumption starts before this read. Replay, the initial snapshot and the clock
+      // cover the window, because these ports give no registration-ready receipt.
       const latest = await ports.journal.load({ ...access, execution })
       if (input.operations.length === 0 && 'ok' in latest && latest.ok.revision !== input.expected)
         return succeed('ready')
@@ -129,7 +187,6 @@ export async function waitForExecutionChange<P>(
           case 'committed':
           case 'excluded':
           case 'rejected':
-            // Settled, including a durable refusal: the operation no longer holds the wait.
             break
           case 'unknown':
             operationsReady = false
@@ -142,38 +199,19 @@ export async function waitForExecutionChange<P>(
         if ('ok' in rechecked) return succeed('ready')
         if (rechecked.failure.kind !== 'unavailable') return rechecked
       }
-      // Install both handlers immediately. A rejecting clock must not remain unobserved while
-      // slower stream cleanup runs, including an abort during the reads above.
-      timer = ports.clock.waitUntil(checkAt, controller.signal).then(
-        result => {
-          if ('failure' in result) return result
-          return succeed(result.ok === 'elapsed' ? ('ready' as const) : ('cancelled' as const))
-        },
-        error =>
-          fail({
-            kind: 'unavailable' as const,
-            owner: '@omne-harness/agent#defect',
-            diagnostic: diagnosticOf(error),
-          }),
-      )
       const stop = () => wake(succeed('cancelled'))
       controller.signal.addEventListener('abort', stop, { once: true })
-      if (controller.signal.aborted) return succeed('cancelled')
-      const result = await Promise.race([notified, timer])
-      // A configured zero interval still yields the event loop; it is not a polling default.
-      if (input.reconciliationDelayMs === 0 && 'ok' in result && result.ok === 'ready')
-        await yieldTurn()
-      return result
+      return await sleep(input, { checkAt, delayMs }, notified, controller.signal, timing)
     } finally {
       signal.removeEventListener('abort', abort)
       controller.abort()
-      const settled = await Promise.all([Promise.all(tasks), timer])
+      const settled = await Promise.all([Promise.all(tasks), timing.timer])
       timerOutcome = settled[1]
     }
   }
   const result = await run()
   if (pumpFailure !== null) return fail(pumpFailure)
-  const timed: Outcome<'ready' | 'cancelled', Failure> | null = timerOutcome
+  const timed: Woken | null = timerOutcome
   if (timed !== null && 'failure' in timed) return timed
   if (signal.aborted && 'ok' in result) return succeed('cancelled')
   return result

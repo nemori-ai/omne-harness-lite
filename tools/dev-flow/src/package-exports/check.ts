@@ -1,4 +1,3 @@
-// One complete check of a built package against its export inventory and public-api page.
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import {
@@ -17,13 +16,11 @@ export type EntrySummary = Readonly<{ entry: string; listed: number; pending: nu
 export type PackageExportsReport = Readonly<{
   package: string
   entries: readonly EntrySummary[]
-  /** Empty when the built package, the inventory and the page agree. */
   problems: readonly string[]
 }>
 
 export type PackageExportsCheck =
   | Readonly<{ kind: 'checked'; report: PackageExportsReport }>
-  /** The check could not run: unreadable or malformed inventory, no manifest, or a package not built. */
   | Readonly<{ kind: 'cannot-check'; reasons: readonly string[] }>
 
 export function checkPackageExports(
@@ -62,7 +59,6 @@ export function checkPackageExports(
   for (const entry of Object.keys(inventory.entries))
     if (declarations[entry] === undefined && manifest.entries.includes(entry))
       problems.push(`${entry}: package.json states no types for it`)
-  // Entries without a declaration were reported above; compare the others only.
   const comparable = Object.fromEntries(
     Object.entries(inventory.entries).filter(([entry]) => declarations[entry] !== undefined),
   )

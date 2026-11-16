@@ -1,5 +1,3 @@
-// Identities that must agree, the exact answer of every reply decision, and the closed value sets
-// of hitl/1. Each row changes one identity or one value.
 import { describe, expect, it } from 'vitest'
 import {
   AcknowledgeDeliverySchema,

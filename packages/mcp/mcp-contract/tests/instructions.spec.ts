@@ -22,7 +22,6 @@ describe('boundInstructions', () => {
   })
 
   it('does not split a character: a cut inside a multi-byte character drops all of it', () => {
-    // 'é' is 2 bytes and '€' is 3 bytes in UTF-8.
     expect(boundInstructions('aé', 2).text).toBe('a')
     expect(boundInstructions('a€b', 3).text).toBe('a')
     expect(boundInstructions('a€b', 4).text).toBe('a€')

@@ -1,9 +1,3 @@
-// The three port suites run on the memory doubles of `./testing`, each case on a fresh fixture. A
-// not-applicable case counts as a failure here: the doubles must cover every case. The same
-// suites run in process on doubles that disclose whether an identity exists, and fail exactly on
-// the non-disclosure cases; the resolution suite also runs on doubles whose reference names other
-// material, and fails exactly on the PR1 and PR3 cases that see it. The PR3 case for material
-// without a readable package runs on one double per defect it guards, and fails with its message.
 import { AssertionError } from 'node:assert/strict'
 import { describe, expect, it } from 'vitest'
 import type {
@@ -52,7 +46,6 @@ function register<F>(suite: string, cases: readonly ConformanceCase<F>[], fixtur
   })
 }
 
-/** The names of the cases that fail by an assertion. Any other error is thrown. */
 async function failing<F>(
   cases: readonly ConformanceCase<F>[],
   fixture: () => F,
@@ -126,7 +119,6 @@ describe('the suites go red on a double that discloses whether an identity exist
 })
 
 describe('the resolution suite goes red on a reference to other material', () => {
-  /** The memory resolution with `answer` in place of each `adopted` answer of `resolve`. */
   function rewriting(
     answer: (adopted: Extract<Resolution, { kind: 'adopted' }>) => Resolution,
   ): SkillResolution<Principal, Scope> {
@@ -179,7 +171,6 @@ describe('the no-package PR3 case goes red on each of its own defects', () => {
   const NO_PACKAGE = 'gives back the digest of the basis for material without a readable package'
   const cases = skillResolutionConformance<Principal, Scope>()
 
-  /** The memory resolution with `answer` in place of each answer for the no-package sample. */
   function rewritingNoPackage(
     answer: (given: Resolution, withBasis: boolean) => Resolution,
   ): SkillResolution<Principal, Scope> {
@@ -195,8 +186,6 @@ describe('the no-package PR3 case goes red on each of its own defects', () => {
     }
   }
 
-  /** The name and the first line of the assertion message of each case that fails (node appends
-   * a diff below it). Any other error is thrown. */
   async function failures(
     resolution: SkillResolution<Principal, Scope>,
   ): Promise<{ name: string; message: string }[]> {
@@ -306,7 +295,6 @@ describe('memory resolution beyond the suite', () => {
     const answer = await memoryResolution().resolve(alice, scope, reviewCapability, {
       basis: { ...earlierBasis, digest: otherDigest },
     })
-    // PR3: the reference carries the digest of the basis, so Skill finds the move at the snapshot.
     expect(answer).toMatchObject({
       kind: 'adopted',
       ref: { assetVersion: earlierBasis.assetVersion, digest: otherDigest },

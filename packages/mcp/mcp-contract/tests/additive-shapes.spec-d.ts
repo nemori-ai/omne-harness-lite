@@ -1,5 +1,3 @@
-// The additive shapes of the 2026-07-28 write-back: optional fields and the new port members.
-// Each check compiles only when the contract accepts the shape that SPEC names.
 import { expectTypeOf, test } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Access } from '@omne-harness/legal-identity'

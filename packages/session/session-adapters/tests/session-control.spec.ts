@@ -1,6 +1,3 @@
-// The control face of the in-memory Session double: queryControlOperation, readModelSelection,
-// the answer-only control branch and commitEntries. The shared conformance suite covers the
-// happy paths; these cases pin the answers it does not (denied, conflict, unavailable).
 import { describe, expect, it } from 'vitest'
 import type {
   RunId,
@@ -147,9 +144,6 @@ describe('readModelSelection', () => {
 })
 
 describe('commitEntries', () => {
-  // Replaces the case "answers unavailable: no pure range check" (P3 r2 7.5): the double now runs
-  // the shared range check, so the same intent is that a refused range is never success and writes
-  // nothing. The shared suite holds the ranges of a recorded execution (CF-05, CF-06).
   const observation = (
     fixture: ReturnType<typeof sessionFixture>,
     operation: SessionOperationId,

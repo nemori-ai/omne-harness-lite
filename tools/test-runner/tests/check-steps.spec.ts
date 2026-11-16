@@ -1,4 +1,3 @@
-// 步骤表 `check-steps.ts` 的公开输出：`check --list` 打印的表，以及按计划的步骤读哪个计划文件。
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CheckStep } from '../src/testing/check-graph.ts'
 import { runCheck } from '../src/testing/check.ts'
@@ -36,7 +35,6 @@ describe('check --list', () => {
       { name: 'one', command: ['echo', 'one'], after: [], heavy: false },
       { name: 'two', command: ['echo', 'two'], after: ['one'], heavy: true },
     ]
-    // 根目录不存在：列表不取基线、不碰仓库，碰了就会抛错。
     const code = await runCheck(
       '/nonexistent-check-root',
       { admission: false, keepGoing: false, list: true },

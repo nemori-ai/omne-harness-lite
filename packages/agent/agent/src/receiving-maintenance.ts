@@ -93,8 +93,6 @@ export function createReceptionMaintenance<P>(
     input: MaintenanceInput<P>,
     targets: readonly ModelReceptionTarget[],
   ): Reply<void> {
-    // The received entries of each original consumption, read from the entries port of the same
-    // provider (agent-contract SPEC "日志条目" 6); the snapshot carries none.
     const consumptions = [...new Set(targets.map(target => target.pending.consumption))]
     const entries: ReceivedEntry[] = []
     for (const consumption of consumptions) {

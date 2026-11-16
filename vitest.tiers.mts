@@ -7,7 +7,9 @@
 // 层只经 mode 传递，不读环境变量：turbo 的 Strict Mode 会滤掉未声明的变量，外面环境里的残留也不会漏进来。
 // 命令行带了过滤（`-t` 用例名或文件）时，这一次运行要么选中用例，要么非零退出（#737），见 `cliFilters`。
 // 归慢层：整个测试文件在开头的注释里写 `@module-tag slow`，单条用例写 `{ tags: ['slow'] }`，
-// 并写一句为什么慢（起子进程、真实等待、重 CPU、网络）。怎么划、谁来跑见 docs/verification.md「测试分层」。
+// 并写一句为什么慢（起子进程、真实等待、重 CPU、网络）。怎么划、谁来跑见 docs/architecture/assurance.md「包级测试责任与边界」。
+// 断言源码文本的用例（按源码字节算摘要这一类）：整个测试文件在开头的注释里写 `@module-tag source-text`。
+// 它照常在快层跑；差分变异不跑它，因为变异工具给源码插桩之后文本必然不同。
 import { basename, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -30,6 +32,9 @@ export const SLOW_TEST_TIMEOUT_MS = 120_000
  * 一条用例稳定地要 15 秒以上，它该归慢层。
  */
 export const FAST_TEST_TIMEOUT_MS = 15_000
+
+/** 断言源码文本的用例的标签。差分变异的配置按它排除，见 tools/pqw-adapter/resources/vitest-fast.config.mts。 */
+export const SOURCE_TEXT_TAG = 'source-text'
 
 /** 嵌套归档目录：名字以 `.legacy` 结尾的目录里的测试既不运行，也不做类型测试。 */
 export const ARCHIVE_EXCLUDE = '**/*.legacy/**'
@@ -247,7 +252,7 @@ export interface TestTiers extends Reporting {
   readonly tags: {
     readonly name: string
     readonly description: string
-    readonly timeout: number
+    readonly timeout?: number
   }[]
   /** 没有 `slow` 标签的用例的时限。 */
   readonly testTimeout: number
@@ -304,6 +309,10 @@ export function testTiers(
         name: 'slow',
         description: '慢层：起子进程、真实等待、重 CPU 或网络，耗时超出快层预算',
         timeout: SLOW_TEST_TIMEOUT_MS,
+      },
+      {
+        name: SOURCE_TEXT_TAG,
+        description: '断言源码文本：按源码字节下结论，差分变异不跑它',
       },
     ],
     testTimeout: FAST_TEST_TIMEOUT_MS,

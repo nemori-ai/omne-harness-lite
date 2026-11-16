@@ -61,6 +61,8 @@ function failure(value: SessionFailure): TodoAuthorFailure {
     case 'no-input':
     case 'run-active':
     case 'login-required':
+    case 'not-found':
+    case 'nothing-pending':
     case 'limited':
       return {
         kind: 'unavailable',
@@ -96,7 +98,6 @@ function fixedArguments(parent: Parent): unknown {
   }
 }
 
-/** DTO cursor text is checked for ownership and revision again by Session.listTodos. */
 function cursorOf(cursor: TodoAuthorCursor | null): TodoPageCursor | null {
   return cursor === null
     ? null

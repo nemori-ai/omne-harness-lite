@@ -2,15 +2,10 @@ import { REST_HEADERS, type GhCommand } from '../shared/gh.ts'
 import { array, record } from '../shared/input.ts'
 import { IntegrationError } from './parse.ts'
 
-/**
- * The longest deployment review comment GitHub takes, in UTF-8 bytes. GitHub's message says
- * "characters", but it refused a 750-character note of 1220 bytes and took one of 604 bytes.
- */
 export const NOTE_LIMIT = 1024
 const TIMEOUT_MS = 15_000
 const utf8 = new TextEncoder()
 
-/** The confirmation note: non-empty and within the review comment limit, counted in UTF-8 bytes. */
 export function confirmationNote(value: string): string {
   const note = value.trim()
   if (note.length === 0) throw new IntegrationError('input-error', 'The confirmation note is empty')
@@ -23,17 +18,7 @@ export function confirmationNote(value: string): string {
   return note
 }
 
-/** One approval request: the environment IDs approved together in one poll. */
 export type GateWait = { run: number; conclusion: string; approvals: number[][] }
-/**
- * Waits for one workflow run and approves its pending deployments with the note. Each poll
- * reads the run; a completed run ends the wait with its conclusion. Otherwise every pending
- * deployment that is waiting now, whose environment name is in `environments` and that the
- * caller can approve, is approved in one request. A later poll approves again whatever is
- * pending then; nothing is skipped because its environment was approved before. The caller's
- * authority to confirm is not judged here: run this only after the admin authorized the
- * confirmation of each named environment. Stops with `unknown` after `timeoutMs`.
- */
 export async function waitGate({
   repository,
   run,

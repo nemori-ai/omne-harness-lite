@@ -25,7 +25,6 @@ const affected = new Set([
   'session.unarchived',
 ])
 
-/** The trusted assembly mounts one producer fiber per tenant, with that tenant's registration principal. */
 export function createSessionModesPlugin(input: SessionModesPluginInput) {
   let active: ReturnType<typeof createSessionModesPublisher<unknown>> | undefined
   return {

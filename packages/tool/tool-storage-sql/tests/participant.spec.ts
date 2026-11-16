@@ -58,7 +58,6 @@ describe('the fixed part of a record', () => {
     expect(
       participant.execute(ledger('0', '1', [put({ step: 1 }, { kind: 'kept' })]), port),
     ).toEqual({ kind: 'conflict', basis: { reason: 'fixed-missing' } })
-    // A record without a fixed part does not count as one.
     expect(participant.execute(ledger('0', '1', [put({ step: 1 })]), port)).toEqual(committed)
     expect(
       participant.execute(ledger('1', '2', [put({ step: 2 }, { kind: 'kept' })]), port),

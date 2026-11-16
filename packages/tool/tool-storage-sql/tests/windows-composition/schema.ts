@@ -8,7 +8,6 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { Reply, ToolDefinition } from '@omne-harness/tool-contract'
 
-/** Uses the contract-owned synchronous validator, as accepted for the built-in layer in R2-D79. */
 export function createEnvironmentSchemaCheck() {
   return {
     resource: '@omne-harness/execution-environment-contract#environmentNeedSchema',

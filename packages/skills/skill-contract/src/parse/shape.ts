@@ -1,7 +1,3 @@
-// The shapes of dependency, script and setting declarations over a read JSON tree. Both
-// `.omne/skill.json` and the asset body use them, so one rule has one place. Each reader returns
-// what it read together with its findings; reading goes on after a finding, so that the caller
-// can give the first code by order.
 import { capabilityId, type CapabilityId, type JsonValue } from '@omne-harness/assets'
 import { INSPECT_REJECTIONS, type InspectRejectionCode } from '../failures.ts'
 import { isBoundedText, isControlFile, toPackagePath } from '../names.ts'
@@ -14,10 +10,8 @@ import type {
 
 export type Finding = Readonly<{ code: InspectRejectionCode; detail: string }>
 
-/** What a reader read, and the findings on the way. */
 export type Read<T> = Readonly<{ value: T; findings: readonly Finding[] }>
 
-/** The finding whose code comes first in the rejection order. */
 export function firstFinding(findings: readonly Finding[]): Finding | undefined {
   let first: Finding | undefined
   for (const finding of findings)
@@ -31,24 +25,14 @@ function rank(code: InspectRejectionCode): number {
 
 const malformed = (detail: string): Finding => ({ code: 'malformed', detail })
 
-/**
- * The longest description, in code points, of a manifest, an asset body, a declared projection
- * and a stand-in: one limit for the whole contract. It is larger than the 1024 of the Agent
- * Skills specification on purpose: the main hosts accept longer descriptions, and a Skill that
- * they load must be usable here too. The limit stays finite against abuse.
- */
 export const DESCRIPTION_LIMIT = 16384
 
-/** The limit of the Agent Skills specification. A longer manifest description gets a hint. */
 export const SPECIFICATION_DESCRIPTION_LIMIT = 1024
 
-/** A description of a manifest, of an asset body or of a stand-in: text of 1 to
- * `DESCRIPTION_LIMIT` characters, counted in code points. */
 export function isSkillDescription(value: unknown): value is string {
   return isBoundedText(value, DESCRIPTION_LIMIT)
 }
 
-/** The fields of an object, or `undefined` when the value is not an object. */
 export function fieldsOf(value: JsonValue | undefined): ReadonlyMap<string, JsonValue> | undefined {
   if (value === undefined || value.kind !== 'object') return undefined
   const fields = new Map<string, JsonValue>()
@@ -59,7 +43,6 @@ export function fieldsOf(value: JsonValue | undefined): ReadonlyMap<string, Json
   return fields
 }
 
-/** A malformed finding for each key of the object outside `allowed`. */
 export function unknownKeys(
   fields: ReadonlyMap<string, JsonValue> | undefined,
   allowed: readonly string[],
@@ -90,7 +73,6 @@ function isSettingCategory(text: string): text is SettingCategory {
   return SETTING_CATEGORIES.some(category => category === text)
 }
 
-/** Reads a list; an absent part is the empty list. Items that do not read are left out. */
 function listOf<T>(
   value: JsonValue | undefined,
   part: string,
@@ -109,7 +91,6 @@ function listOf<T>(
   return { value: parsed, findings }
 }
 
-/** The list, with a malformed finding when two items share a key. */
 function noRepeats<T>(list: Read<T[]>, keyOf: (item: T) => string, part: string): Read<T[]> {
   const keys = list.value.map(keyOf)
   if (new Set(keys).size === keys.length) return list
@@ -137,11 +118,6 @@ export function readDependencies(value: JsonValue | undefined): Read<CapabilityI
   return noRepeats(list, id => id.name, 'dependencies')
 }
 
-/**
- * The entry of a script. An absolute entry points outside the package. Any other entry that is not
- * a package path, a `..` segment included, is malformed. With `normalized`, as in an asset body,
- * the entry must already be in the form that `toPackagePath` gives and must not be a control file.
- */
 function entryOf(raw: string, at: string, normalized: boolean): Read<PackagePath | undefined> {
   if (raw.startsWith('/')) {
     const outside: Finding = { code: 'outside-package', detail: `${at}.entry is absolute` }
@@ -167,10 +143,6 @@ function wordsOf(value: JsonValue | undefined): string[] | undefined {
   return new Set(words).size === words.length ? words : undefined
 }
 
-/**
- * Reads script declarations. `normalized` asks for entries that are already normalized, as in an
- * asset body; `.omne/skill.json` may write `./` and other `.` segments.
- */
 export function readScripts(
   value: JsonValue | undefined,
   options: Readonly<{ normalized: boolean }>,

@@ -40,7 +40,6 @@ export const PermissionBasisReadingSchema = z.union([
 ])
 export type PermissionBasisReading = z.infer<typeof PermissionBasisReadingSchema>
 
-/** Reads qualified facts for one operation; a reading is not a future execution permit. */
 export interface PermissionBasisSource<Context> {
   readCurrent(context: Context, request: PermissionBasisRequest): Promise<PermissionBasisReading>
 }

@@ -1,7 +1,3 @@
-// The read path (SQL r2 section 17). Session reads are `snapshot` reads, one bounded transaction
-// per page. Every read asks the current access decision first, resolves the domain of the one
-// tenant the call names, and sends the tenant and session to the handler, which filters on both.
-// The system reads walk the tenant domains one by one and claim no single snapshot across them.
 import { createHash } from 'node:crypto'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
@@ -42,7 +38,6 @@ import { readCachedWork } from './work-cache.ts'
 
 type Reply<T> = Promise<Outcome<T, SessionFailure>>
 
-/** Access, domain, then one handler read bound to the tenant and session of the call. */
 async function sessionRead<P>(
   context: Context<P>,
   access: SessionAccess<P>,
@@ -60,17 +55,12 @@ async function sessionRead<P>(
     session: access.session,
   })
   if ('failure' in out) return out
-  // A session the tenant does not have answers like a session of another tenant (default deny).
   if (out.ok['kind'] === 'absent') return failure({ kind: 'denied', action })
   if (out.ok['kind'] === 'behind')
     return failure(unavailable(`${handler}: the state does not cover the tail yet`))
   return succeed({ out: out.ok, tenant: domain.ok.text })
 }
 
-/**
- * R1 through the work cache of the storage (SPEC RT-04): the access, the domain of the tenant the
- * call names, then the cached read, which checks the version of the session in the store first.
- */
 export async function readWork<P>(
   context: Context<P>,
   access: SessionAccess<P>,
@@ -89,7 +79,6 @@ export async function readWork<P>(
   switch (read.kind) {
     case 'state':
       return succeed(read.snapshot)
-    // A session the tenant does not have answers like a session of another tenant (default deny).
     case 'absent':
       return failure({ kind: 'denied', action: 'readWork' })
     case 'behind':
@@ -135,7 +124,6 @@ export async function readModelSelection<P>(
 
 const view = (text: string): string => createHash('sha256').update(text).digest('hex').slice(0, 16)
 
-/** A row that does not read answers `unavailable` with its diagnostic. */
 function page(out: HandlerOutput, next: string | null): Outcome<HistoryPage, SessionFailure> {
   try {
     return succeed({
@@ -355,11 +343,6 @@ export async function pending<P>(
 
 type SystemState = Readonly<{ tenant: string; after: unknown }>
 
-/**
- * R10 binds its cursor to the directory revision: a continuation under another revision is
- * invalid, so a tenant registered before the cursor is never skipped. R11 does not bind it.
- * R10 also binds the resident key: a cursor of one key does not continue another key's walk.
- */
 function systemBinding(
   kind: 'references' | 'released-scopes',
   revision: string,
@@ -374,11 +357,6 @@ function systemBinding(
   }
 }
 
-/**
- * Pages through the tenant domains in tenant order. Each domain is read on its own snapshot; the
- * walk claims no single snapshot across them, and a domain that does not answer ends it as
- * `unavailable` rather than as a shorter page.
- */
 async function systemWalk<P, Row>(
   context: Context<P>,
   kind: 'references' | 'released-scopes',

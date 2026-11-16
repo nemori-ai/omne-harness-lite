@@ -32,13 +32,11 @@ import {
 
 const access = memoryAccess({ kind: 'test-principal' })
 
-/** The `session` stand-in: it records the caller class of every face read. */
 function sessionRow(callers: unknown[]) {
   class Session extends SessionService<unknown> {
     get work(): SessionFaces<unknown>['work'] {
       callers.push(this[Service.resolveConfig]())
       return {
-        // A session that started no Run: the consumption finds no Run of the execution.
         readWork: async () =>
           succeed({ run: { kind: 'idle' }, executions: [] } as unknown as WorkSnapshot),
       } as unknown as SessionFaces<unknown>['work']
@@ -259,7 +257,6 @@ describe('the session-ad06 row: on real Cordis 4.0.4', () => {
         execution: 'execution-1' as never,
       })
 
-      // The stand-in session started no Run: the real plugin answered from it, as coordinator.
       expect(answer).toMatchObject({ failure: { kind: 'unavailable', owner: 'session-history' } })
       expect(callers).not.toHaveLength(0)
       expect(

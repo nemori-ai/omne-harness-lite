@@ -1,4 +1,3 @@
-// The program orchestration seam between a program executor and Tool.
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { ContentPage, RawOutput } from './custody.ts'

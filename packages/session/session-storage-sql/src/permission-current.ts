@@ -83,7 +83,6 @@ export const SessionPermissionGuardSchema = z.strictObject({
   }),
 })
 
-/** The owner re-reads values; only the locator and original version cross into the transaction. */
 export function sessionPermissionGuardFacts(current: SessionPermissionCurrent): FactCommandV2 {
   const { tenant, session, capabilityId, enforcementKey, revision, source } = current
   return {
@@ -93,7 +92,6 @@ export function sessionPermissionGuardFacts(current: SessionPermissionCurrent): 
 }
 export type SessionPermissionReadResult = SessionPermissionCurrent | Readonly<{ kind: 'not-ready' }>
 
-/** A missing projection is distinct from a present projection with no assignment. */
 export function decodeSessionPermissionCurrent(
   value: unknown,
 ): SessionPermissionReadResult | 'malformed' {

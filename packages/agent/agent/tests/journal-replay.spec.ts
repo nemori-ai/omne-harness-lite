@@ -1,7 +1,3 @@
-// The memory Journal against the trace replay of the contract's `./testing` entry (AG-23): the
-// behaviors the TLC simulation of the finishing model exported are replayed step by step, and the
-// violating behaviors of the negative controls are reported at their forbidden last step. The
-// session-adapters Journal runs the same replay on its own fixture.
 import { describe, it } from 'vitest'
 import { createMemoryAgentJournal } from '@omne-harness/agent/testing'
 import { decodeActionId, type PendingCall } from '@omne-harness/agent-contract'
@@ -28,7 +24,6 @@ import {
   producedResult,
 } from './journal-support.ts'
 
-/** A standalone memory Journal with the test cancellation policy, one execution per trace. */
 const fixture: AgentJournalCoreFixture<string> = {
   async open(name) {
     const memory = createMemoryAgentJournal<string>({
@@ -48,7 +43,6 @@ const fixture: AgentJournalCoreFixture<string> = {
       checkpoint: checkpoint(),
       installation: testCancellationPolicyInstallation,
       acceptInput: async label => acceptedInput(`input-${label}`),
-      // A Model call whose effect intent the execution saves; the result settles its call item.
       produceResult: async label => {
         const result = producedResult(label)
         const owned = consumption(`consumption-${label}`)
@@ -67,7 +61,6 @@ const fixture: AgentJournalCoreFixture<string> = {
             }),
           ),
         }
-        // The effect is committed under the current attachment, also after a takeover.
         const snapshot = await load(memory.port, opened.execution)
         const authority = snapshot.executionAttachment ?? opened.authority
         ok(

@@ -15,21 +15,10 @@ import {
 } from '@omne-harness/tool-storage-sql'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 
-// The budget scenario produces a 2,723,278-byte plan command, including retained request copies.
 const DEFAULT_MAX_COMMAND_BYTES = 4_194_304
 
-/**
- * Test fixture SQL capacity per R2-D115: aligned with production candidate (sqlite-provider
- * SPEC:326). The read handler maxOutputBytes is 4 MiB (worker/schema.ts:37), and each read
- * reserves that full amount. globalReadResultBytes = 134217728 allows 32 concurrent 4 MiB reads.
- * The old 16 MiB (readBytes × 4) only allowed 4, causing queue_full on the 5th read.
- *
- * One test lowers it (see `openStorage`'s `globalReadResultBytes` option) so the budget is
- * exhausted by a deterministic number of reads instead of a race with 32 concurrent calls.
- */
 const DEFAULT_GLOBAL_READ_RESULT_BYTES = 134217728
 
-/** Same provider policy dimensions as sqlite-provider/tests/support.ts, over this test's real root. */
 export function configuration(
   storageRoot: string,
   readBytes: number,
@@ -168,11 +157,9 @@ export async function openStorage(
     const listing = [...entries].map(([tenant, domain]) => ({ tenant, domain }))
     const listed = async () => ({ kind: 'ready', revision: '1', entries: listing }) as const
     return {
-      /** The raw storage, for the read-budget case that must not depend on the whole assembly. */
       storage: created.storage,
       combination,
       domains,
-      /** The registered tenant domains, as the cross-tenant scan of the store reads them. */
       tenants: listed,
       store: createSqlToolLedgerStore({ ...options, tenants: listed }),
       materials: catalog,

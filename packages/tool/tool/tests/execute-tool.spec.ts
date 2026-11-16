@@ -85,7 +85,6 @@ describe('8 executeTool settles the scope', () => {
     const waiter = manualWaiter()
     const { scope: s } = scope({ waits: waiter.waits })
     const { executor } = greeter(async context => {
-      // A helper opens a wait and the author returns without awaiting it: an author protocol error.
       void context.wait(ask('confirm'))
       await settled()
     })

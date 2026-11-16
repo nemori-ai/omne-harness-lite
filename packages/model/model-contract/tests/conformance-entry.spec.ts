@@ -20,7 +20,6 @@ function withoutHooks(
   return { ...subject, hooks: kept }
 }
 
-/** A subject whose `at`-th call on the public face fails, in each check. */
 function failingAt(at: number): Subject {
   let calls = 0
   const injected = () => {
@@ -36,6 +35,7 @@ function failingAt(at: number): Subject {
     calls: inner => ({
       admit: input => (injected() ? Promise.resolve(refusal) : inner.admit(input)),
       inspect: input => (injected() ? Promise.resolve(refusal) : inner.inspect(input)),
+      contact: input => (injected() ? Promise.resolve(refusal) : inner.contact(input)),
       dispatches: input => (injected() ? Promise.resolve(refusal) : inner.dispatches(input)),
       cancel: input => (injected() ? Promise.resolve(refusal) : inner.cancel(input)),
     }),
@@ -162,7 +162,6 @@ describe('the conformance entry', () => {
     expect(result('close-read-idempotent')?.status).toBe('pass')
   })
 
-  // Waits for a stalled observation to reach the real 300 ms deadline.
   it(
     'fails an observation that does not arrive in the time that it was given',
     { tags: ['slow'] },
@@ -225,7 +224,6 @@ describe('the conformance entry', () => {
     expect(report.results).toHaveLength(CONFORMANCE_OBLIGATIONS.length)
   })
 
-  // Waits for the stalled subject factory to reach the real 300 ms deadline.
   it(
     'fails the check whose subject the factory does not build in time, and goes on',
     { tags: ['slow'] },
@@ -293,7 +291,6 @@ describe('the conformance entry', () => {
     })
   })
 
-  // Waits for the stalled subject disposal to reach the real 300 ms deadline.
   it(
     'fails a check whose subject does not release in time, after it gave its verdict',
     { tags: ['slow'] },
@@ -319,7 +316,6 @@ describe('the conformance entry', () => {
     },
   )
 
-  // Waits for the stalled admit call to reach the real 300 ms deadline.
   it(
     'fails the check whose provider method never returns, and ends the suite',
     { tags: ['slow'] },
@@ -357,7 +353,6 @@ describe('the conformance entry', () => {
     },
   )
 
-  // Waits for the stalled startRun hook to reach the real 300 ms deadline.
   it(
     'fails the check whose hook never returns, and releases the subject all the same',
     { tags: ['slow'] },
@@ -394,7 +389,6 @@ describe('the conformance entry', () => {
     },
   )
 
-  // Waits for the stalled transport prepare call to reach the real 300 ms deadline.
   it(
     'fails the check whose transport never prepares, and goes on',
     { tags: ['slow'] },

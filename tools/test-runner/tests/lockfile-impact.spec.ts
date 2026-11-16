@@ -1,6 +1,3 @@
-// 锁文件影响面：两份 pnpm-lock.yaml 的差异落到哪些成员上。守的是三种结论的边界——
-// 能映射的只命中对应成员，判不准的（顶层设置、根依赖、解析失败、解释不了的引用）全量，等价的无影响。
-// 另用仓库真实的锁文件核对解析器认得 pnpm 9 实际写出的格式、importer 与成员清单对得上。解析器自身的用例在 pnpm-lockfile.spec.ts。
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -24,7 +21,6 @@ import {
 
 const ROOT = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
 
-/** 在锁文件顶层的 `catalogs.default` 里加一项没有 importer 用到的条目。 */
 const withCatalogEntry = (lockfile: string): string =>
   lockfile.replace(
     'catalogs:\n  default:\n',
@@ -121,7 +117,6 @@ describe('lockfileImpact', () => {
   })
 
   it('变化的包被根 importer 间接依赖：全量，原因写出那个包', () => {
-    // 根的 tooling 改为依赖 leaf，再升级 leaf：根 importer 条目不变，但它经 tooling 依赖了变化的包。
     const base = BASE.replace(
       '  tooling@1.0.0: {}',
       '  tooling@1.0.0:\n    dependencies:\n      leaf: 1.0.0',
@@ -167,7 +162,6 @@ describe('lockfileImpact', () => {
   })
 
   it('packages 里变化的包没有对应的 snapshot：全量', () => {
-    // 两份都多一个没有 snapshot、没人依赖的包，HEAD 里它的 integrity 变了。
     const orphan = (integrity: string) =>
       BASE.replace(
         'snapshots:',
@@ -305,7 +299,6 @@ describe('仓库真实的 pnpm-lock.yaml', () => {
   })
 
   it('改一个 snapshot 条目时，每条依赖引用都能在 snapshots 里找到', () => {
-    // 给 snapshots 段里第一个带 dependencies 的条目加一行：结论是哪种取决于谁依赖它，但不能是「解释不了」。
     const marker = /^(  '?[^\s].*'?:)\n(    dependencies:\n)/mu
     const start = text.indexOf('\nsnapshots:\n')
     expect(start).toBeGreaterThan(0)

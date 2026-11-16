@@ -1,8 +1,4 @@
 // @module-tag slow
-// 归慢层：每条用例在临时 git 仓库里整条跑 runLoopStatus（含严格模式）。全量准入快层账本里整份合计 16.1 秒，负载下 34.4 秒，3 条在全量准入都超单条预算（2.5 秒）（tools/test-runner/README_ZH.md「归层」）。
-// 传感器金丝雀：夹具里每个传感器各种了一处已知违规（见 fixtures/loop-canary/README.md），
-// 走与 `pnpm run loop:status --strict` 相同的入口，逐项断言每个传感器都报出了种下的那一处。
-// 哪个传感器悄悄失灵（读错目录、范围漏了、算法改坏），这里会指名变红。
 import type { DependencyFinding } from '../src/deps/graph.ts'
 import { readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
@@ -27,7 +23,6 @@ const route = `export function route(x: number): number {\n${Array.from(
   (_, i) => `  if (x === ${i}) return ${i}`,
 ).join('\n')}\n  return -1\n}\n`
 
-/** 夹具建成的仓库：要 git 历史的几项（一起改、rev 翻动、基线之后的改动、并行工作树）在这里造。 */
 function canary(): { root: string; base: string } {
   const root = temporaryDirectory('loop-canary-')
   git(root, 'init', '-q')
@@ -35,13 +30,11 @@ function canary(): { root: string; base: string } {
   copyCanary(root)
   write(root, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*/*'\n  - 'apps/*'\n")
   commit(root, 'canary')
-  // 一起改却分属两组：core/a 与 infra/b 再连着一起改四次。
   for (let round = 1; round <= 4; round += 1) {
     for (const path of ['packages/core/a/src/index.ts', 'packages/infra/b/src/index.ts'])
       write(root, path, `${readFileSync(join(root, path), 'utf8')}// 第 ${round} 次一起改\n`)
     commit(root, `together ${round}`)
   }
-  // rev 翻动：建 topic 时的 revision 1 算一次，再升三次。
   const readme = `${PRODUCT}/canary/README.md`
   for (let revision = 2; revision <= 4; revision += 1) {
     const text = readFileSync(join(root, readme), 'utf8')
@@ -53,7 +46,6 @@ function canary(): { root: string; base: string } {
   write(root, pluginPath, pluginText.replace("inject: ['canaryUndeclared']", 'inject: []'))
   const base = commit(root, 'before static dependency addition')
   write(root, pluginPath, pluginText)
-  // 基线之后：一个超 alert 的函数、一条新的跨成员依赖。
   write(root, 'apps/cli/src/route.ts', route)
   write(
     root,
@@ -61,7 +53,6 @@ function canary(): { root: string; base: string } {
     "import { a } from '@omne-harness/a'\n\nexport const extra = a\n",
   )
   commit(root, 'after base')
-  // 验收耗时：apps/cli 有 acceptance 脚本；它的慢记录在 strictRun 里种进账本。
   write(root, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*/*'\n  - 'apps/*'\n")
   write(
     root,
@@ -69,7 +60,6 @@ function canary(): { root: string; base: string } {
     `${JSON.stringify({ name: '@omne-harness/cli', scripts: { test: 'vitest run', acceptance: 'vitest run --config acceptance/vitest.config.ts' } })}\n`,
   )
   commit(root, 'accepting member')
-  // 并行工作树：两棵各自改 model/m（未提交也算）。
   for (const name of ['w1', 'w2']) {
     const tree = join(temporaryDirectory('loop-canary-tree-'), name)
     git(root, 'worktree', 'add', '-q', '-b', `someone/${name}`, tree)
@@ -93,7 +83,6 @@ interface Status {
 
 const SLOW = 'apps/cli/acceptance/PF-001.slow.acceptance.ts'
 
-/** 在验收账本里种一次「跑全了、但一份 50 秒、整次 130 秒」的运行，落在当前提交那一格。 */
 function seedSlowAcceptance(root: string, ledgers: string): void {
   const at = coordinates(root, undefined)
   const ledger: LedgerFile = {
@@ -173,7 +162,6 @@ const dataOf = (status: Status, sensor: string): unknown => {
   return reading?.data
 }
 
-// 建仓要起几十次 git 子进程，全量检查满载时会超过默认的 5 秒。
 describe('传感器金丝雀', { timeout: 120_000 }, () => {
   it('每个传感器都报出了种下的那一处；严格模式因硬线被破判失败', async () => {
     const { root, base } = canary()
@@ -220,7 +208,6 @@ describe('传感器金丝雀', { timeout: 120_000 }, () => {
     })
     type End = { readonly path: string }
     const clones = (dataOf(status, 'duplication') as { clones: { a: End; b: End }[] }).clones
-    // 两端谁先谁后取决于扫描次序，只比两端是哪两个文件。
     expect(clones.map(clone => [clone.a.path, clone.b.path].sort())).toContainEqual([
       'packages/model/m/src/copy.ts',
       'packages/model/n/src/copy.ts',
@@ -239,7 +226,6 @@ describe('传感器金丝雀', { timeout: 120_000 }, () => {
       result.lines.some(line => line.includes('HEAD 历史窗口口径，未提交新增 topic 计 0')),
     ).toBe(true)
     const trees = dataOf(status, 'worktrees') as { branch: string; members: string[] }[]
-    // git 按工作树路径排，临时目录名是随机的，所以按分支名比。
     const byBranch = [...trees].sort((x, y) => x.branch.localeCompare(y.branch))
     expect(byBranch.map(tree => [tree.branch, tree.members])).toEqual([
       ['someone/w1', ['packages/model/m']],

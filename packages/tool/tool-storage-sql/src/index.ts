@@ -1,6 +1,3 @@
-// The Tool storage over the SQL storage contract: the durable ToolLedgerStore, the durable
-// ToolBodyStore and their static materials. It imports SQL only through its public entries and
-// builds no Cordis service: the `tool-records` row belongs to the application.
 export {
   TOOL_STORAGE_OWNER,
   type SqlToolLedgerStoreOptions,

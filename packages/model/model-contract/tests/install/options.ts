@@ -1,12 +1,9 @@
-// What the two entry points of the facility read the same way: the command line, the workspace
-// root and the member with its policy.
 import { existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { readPolicy, type Policy } from './closure.ts'
 
 const FLAGS = new Set(['--allow-network'])
 
-/** Reads `--name value` pairs and the bare flags; anything else is a usage error. */
 export function parseArguments(argv: readonly string[], usage: string): Map<string, string> {
   const values = new Map<string, string>()
   for (let index = 0; index < argv.length; index += 1) {
@@ -40,7 +37,6 @@ export type MemberOptions = Readonly<{
   storeDirectory?: string
 }>
 
-/** The member, workspace, policy, network permission and store that every run needs. */
 export function memberOptions(options: ReadonlyMap<string, string>): MemberOptions {
   const memberDirectory = resolve(options.get('--member') ?? process.cwd())
   const storeDirectory = options.get('--store-dir')

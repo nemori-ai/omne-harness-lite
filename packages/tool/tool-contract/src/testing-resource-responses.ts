@@ -1,6 +1,3 @@
-// The ToolResourceResponses conformance suite (P06, P12, story 26) and a non-durable double that
-// conforms to it. The double keeps its state in memory and declares `durability: 'none'`: it
-// proves nothing about a durable resource owner and must not be assembled into production.
 import assert from 'node:assert/strict'
 import type { JsonValue } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -50,35 +47,14 @@ import {
 
 type ResourceWait = Extract<WaitIntent, { kind: 'resource' }>
 
-/**
- * What the resource response suite needs. A fresh fixture serves one case. `deadline` is the
- * instant that the waits with a deadline carry, in the format of the provider (default: a far
- * future instant, which no provider that reads a real clock considers reached). The optional
- * handles are the controls of the resource owner, and a case that needs one that is missing is
- * reported not applicable. `hold` defers the next new `ensure`, `invalidate` or `expire`: it is not
- * applied and its reply is lost (`commit-unknown`), and `settle` applies the deferred operations
- * that were not excluded (a provider that answers `commit-unknown`, `pending` or `unknown` for an
- * operation that it completes later lands that work too): it resolves only after the deferred work
- * has landed and is visible to every read of the port, and the suite asks once more after it and
- * never polls; without `settle`, a case that needs a final answer is reported not applicable when
- * the first answer is progress. `excludeDeferred` excludes the deferred operation of that
- * operation identity for good, and resolves when the exclusion holds; `invalidations` lists the registrations that were invalidated, each once;
- * `respond` makes the owner answer the registered wait with a value and returns the evidence of
- * that response (the first response of a wait stands); `reachDeadline` makes the owner consider
- * the deadline of the wait reached. `otherAccess` is the access of a second tenant, with a
- * principal of its own: the cases that check that another tenant neither reads nor changes a
- * record of the first are reported not applicable without it.
- */
 export interface ToolResourceResponsesFixture<P> extends ExternalHandles {
   readonly responses: ToolResourceResponses<P>
   readonly access: Access<P>
   readonly otherAccess?: Access<P>
   readonly deadline?: string
-  /** Resolves with the evidence of the response after the owner answered and `inspect` shows it. */
   respond?(
     input: Readonly<{ call: ToolCallId; wait: ResourceWait; value: JsonValue }>,
   ): Promise<DurableEvidence>
-  /** Resolves after the owner considers the deadline of the wait reached, for every later `expire`. */
   reachDeadline?(input: Readonly<{ call: ToolCallId; wait: ResourceWait }>): Promise<void>
 }
 
@@ -108,11 +84,6 @@ function peerOf<P>(fixture: ToolResourceResponsesFixture<P>, access: Access<P>):
   }
 }
 
-/**
- * The answer model of the resource responses: the calls of P06 that both external-association
- * ports have, `expire` (P06), whose reply may be lost as `commit-unknown` like that of `ensure`,
- * and `resolve` (P12), which answers the resource value or the expiry, or refuses.
- */
 export const resourceResponsesAnswers = {
   ...externalAnswers,
   expire: { clause: 'P06', progress: [], lostReply: ['commit-unknown'] },
@@ -135,7 +106,6 @@ function scene<P>(fixture: ToolResourceResponsesFixture<P>, access: Access<P> = 
   return {
     wait,
     completion,
-    /** What every call of the scene sends: its access and its call. */
     sends: [access, call] as const,
     ensure: (intent: ResourceWait = wait(), operation = 'ensure-1'): Promise<DurableEvidence> =>
       landed(
@@ -148,7 +118,6 @@ function scene<P>(fixture: ToolResourceResponsesFixture<P>, access: Access<P> = 
       succeeded(await responses.inspect({ ...access, call, wait: intent.wait }), 'inspect'),
     expire: (intent: ResourceWait, registration: DurableEvidence, operation = 'expire-1') =>
       responses.expire({ ...mutation(operation), wait: intent, registration }),
-    /** The final answer of an expire, a refusal included: a lost reply is driven by `settle`. */
     expireFinal: (intent: ResourceWait, registration: DurableEvidence, operation = 'expire-1') =>
       finalAnswer({
         ask: () => responses.expire({ ...mutation(operation), wait: intent, registration }),
@@ -170,7 +139,6 @@ function scene<P>(fixture: ToolResourceResponsesFixture<P>, access: Access<P> = 
     resolve: (intent: ResourceWait, response: DurableEvidence) =>
       responses.resolve({ ...access, call, wait: intent, response }),
     inspectOperation: (operation: string) => responses.inspectOperation(mutation(operation)),
-    /** The decided answer of `inspectOperation`: `pending` and `unknown` are driven by `settle`. */
     decided: async (operation: string) =>
       succeeded(
         await finalAnswer({
@@ -233,7 +201,6 @@ export function toolResourceResponsesConformance<P>(): readonly ConformanceCase<
       const s = scene(fixture)
       const intent = s.wait()
       await s.ensure(intent)
-      // Tool never makes up an answer, a timeout included: only the owner's evidence resolves.
       refused(
         await s.resolve(intent, evidence('never-given')),
         'resolve of evidence that is no response',
@@ -377,7 +344,6 @@ export function toolResourceResponsesConformance<P>(): readonly ConformanceCase<
         const registered = s.wait({ deadline: null })
         const registration = await s.ensure(registered)
         await s.reach(registered)
-        // The registration has no deadline, whatever the intent of a later call claims.
         refused(
           await s.expireFinal(s.wait(), registration),
           'expire by a deadline that the registration does not have',
@@ -395,7 +361,6 @@ export function toolResourceResponsesConformance<P>(): readonly ConformanceCase<
         const registered = s.wait({ expiry: 'forbidden' })
         const registration = await s.ensure(registered)
         await s.reach(registered)
-        // The registered contract forbids expiry, whatever the intent of a later call claims.
         const failure = refused(
           await s.expireFinal(s.wait({ expiry: 'supported' }), registration),
           'expire by an expiry that the registration does not support',
@@ -415,7 +380,6 @@ export function toolResourceResponsesConformance<P>(): readonly ConformanceCase<
         const intent = s.wait()
         const registration = await s.ensure(intent)
         const response = await s.respond(intent)
-        // The other tenant sends the response itself; the registration and the value stay hidden.
         const { ghost } = await crossTenantAnswers({
           ask: {
             real: () => other.resolve(intent, response),
@@ -446,9 +410,6 @@ export function toolResourceResponsesConformance<P>(): readonly ConformanceCase<
       const intent = s.wait()
       const registration = await s.ensure(intent)
       await s.reach(intent)
-      // Each expire is read to its final answer, so the two answers are final when compared. The
-      // other tenant sends the registration itself, so only the tenant and the operation of the
-      // tenant identify the wait.
       const { ghost } = await crossTenantAnswers({
         ask: {
           real: () => other.expireFinal(intent, registration),
@@ -462,7 +423,6 @@ export function toolResourceResponsesConformance<P>(): readonly ConformanceCase<
       })
       refused(ghost, 'expire of a registration that is none')
       assert.deepEqual(await s.inspect(), { registration, response: null })
-      // The deadline of the own tenant is still due: the foreign attempt used nothing up.
       await s.expired(intent, registration)
     }),
 
@@ -484,7 +444,6 @@ export function toolResourceResponsesConformance<P>(): readonly ConformanceCase<
           'expire of another wait under the same identity',
         )
         assert.equal(failure.kind, 'conflict')
-        // The refused expire made no expiry for the other wait, and the first one stands.
         assert.deepEqual(await s.inspect(two), { registration: registrationTwo, response: null })
         const found = expectKind(
           await s.decided('expire-1'),
@@ -496,10 +455,6 @@ export function toolResourceResponsesConformance<P>(): readonly ConformanceCase<
     ),
   ]
 }
-
-// ---------------------------------------------------------------------------------------------
-// The non-durable double
-// ---------------------------------------------------------------------------------------------
 
 export interface MemoryToolResourceResponses<P> extends ToolResourceResponses<P> {
   readonly durability: 'none'
@@ -526,7 +481,6 @@ type Tenant = Access<unknown>['tenant']
 type Response =
   | { kind: 'resource'; evidence: DurableEvidence; value: JsonValue }
   | { kind: 'expired'; evidence: DurableEvidence }
-/** What the wait declared when it was registered: the owner judges expiry by it, not by a later call. */
 type Registered = { deadline: string | null; expiry: 'forbidden' | 'supported' }
 type Registration = {
   evidence: DurableEvidence
@@ -541,12 +495,6 @@ const reply = <T>(outcome: Outcome<T, ToolFailure>): Promise<Outcome<T, ToolFail
 const sameEvidence = (left: DurableEvidence, right: DurableEvidence): boolean =>
   left.owner === right.owner && left.record === right.record && left.digest === right.digest
 
-/**
- * Resource responses in memory. A registration is keyed by tenant, call and wait; an operation
- * runs once. The owner answers with `respond`, and `expire` produces the expiry only for a wait
- * with a deadline that was reached and that no earlier response closed: the response that came
- * first stands.
- */
 export function createMemoryToolResourceResponses<P>(): MemoryToolResourceResponses<P> {
   const registrations = new Map<string, Registration>()
   const early = new Set<string>()
@@ -720,7 +668,6 @@ export function createMemoryToolResourceResponses<P>(): MemoryToolResourceRespon
   return Object.freeze({ ...responses, durability: 'none' as const, controls })
 }
 
-/** A fresh fixture over fresh in-memory resource responses, with every control handle. */
 export function memoryToolResourceResponsesFixture(): ToolResourceResponsesFixture<string> {
   const responses = createMemoryToolResourceResponses<string>()
   const { controls } = responses

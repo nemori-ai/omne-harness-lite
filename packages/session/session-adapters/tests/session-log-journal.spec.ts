@@ -1,9 +1,3 @@
-// The production session-log Journal over the Session log combination in SQL (the node:sqlite
-// double that runs the published modules): the first publication point commits the Agent records
-// and the Session participation in one storage commit, all or nothing; the later interpretation
-// commit is a Session commit alone that cannot undo the first; a Session check or refusal reaches
-// the Journal as the AD-01 answer and writes nothing; an unknown is recognized by the original
-// operation; another tenant is denied; an unregistered tenant is unavailable and nothing is written.
 import { describe, expect, it } from 'vitest'
 import type { AgentJournal } from '@omne-harness/agent-contract'
 import { decodeInputId } from '@omne-harness/agent-contract'
@@ -35,7 +29,6 @@ async function load(s: SqlScene) {
   return ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
 }
 
-/** The Agent takes the initial input, as the coordinator's first step does. */
 async function take(
   s: SqlScene,
   authority: Parameters<AgentJournal<string>['commit']>[0]['authority'],
@@ -96,7 +89,6 @@ async function messageRequest(
   }
 }
 
-/** A provider over the scene's records whose storage commit refuses before it accepts. */
 function refusedBy(s: SqlScene, reason: CommitRejectReason) {
   const storage: SqlStorage = {
     database: s.storage.database,
@@ -122,10 +114,6 @@ function refusedBy(s: SqlScene, reason: CommitRejectReason) {
   }).forSession(s.access).journal
 }
 
-/**
- * A provider over the scene's storage with the given commit, query and read in place. It names
- * another database, so what the members keep for the scene's storage does not answer its reads.
- */
 function over(s: SqlScene, storage: Partial<SqlStorage>) {
   return createSessionLogJournal<string>({
     storage: {
@@ -145,11 +133,6 @@ function over(s: SqlScene, storage: Partial<SqlStorage>) {
   }).forSession(s.access).journal
 }
 
-/**
- * Generations below `first` of every operation are rolled back receipts. With `commits` set to
- * `rolled back`, every commit is rolled back too and later queries of it answer so. `asked`
- * collects the operation key of each query.
- */
 function rolledBackBelow(
   s: SqlScene,
   first: number,
@@ -163,8 +146,6 @@ function rolledBackBelow(
     commit: (request, options) => {
       const key = request.identity.operationKey
       asked.push(key)
-      // A generation below `first`, or one this storage already rolled back, is a receipt of an
-      // earlier call: the storage recognises it and runs nothing.
       if (generation(key) < first || rolled.has(key))
         return Promise.resolve({ ...receipt, recalled: true } as never)
       if (commits === 'stored') return s.storage.commit(request, options)
@@ -174,7 +155,6 @@ function rolledBackBelow(
   })
 }
 
-/** A provider whose every storage read is refused with `reason`. */
 function readRefusedBy(s: SqlScene, reason: 'queue_full') {
   return over(s, {
     read: request =>
@@ -230,7 +210,6 @@ describe('the first publication point', () => {
     })
 })
 
-/** A bound external Tool call, so a Session entries commit has a range to interpret. */
 async function bound(s: SqlScene) {
   const snapshot = await work(s)
   if (snapshot.run.kind !== 'active') throw new Error('active Run expected')
@@ -308,8 +287,8 @@ describe('the later interpretation commit', () => {
   })
 })
 
-describe('the Session side reaches the Journal as the AD-01 answer and writes nothing', () => {
-  it('a submit of an input Session never admitted is denied by the read-only check (PA-01 item 2)', async () => {
+describe('the Session side reaches the Journal as the commit participant answer and writes nothing', () => {
+  it('a submit of an input Session never admitted is denied by the read-only check', async () => {
     const { s } = await opened('submit-check')
     const value = ordinaryInput('never-admitted')
     const before = count(s, 'er_operation')
@@ -403,7 +382,6 @@ describe('unknown, tenancy and registration', () => {
         diagnostic: expect.stringContaining('queue_full'),
       },
     })
-    // The refusing provider keeps no copy of the unsaved state: it reads the durable records.
     expect(ok(await refusing.load({ ...s.access, execution: s.execution })).revision).toBe(
       before.agent,
     )
@@ -420,8 +398,6 @@ describe('unknown, tenancy and registration', () => {
     })
   })
 
-  // sql-contract "提交拒绝原因的定性": a definite reason fails the write for good; the Agent ends
-  // the Run instead of waiting (SPEC 生产提供者的实现现状, step 6).
   it.each([
     ['command_limit', { kind: 'invalid', field: 'storage', reason: 'command_limit' }],
     ['manifest_mismatch', { kind: 'invalid', field: 'storage', reason: 'manifest_mismatch' }],
@@ -469,7 +445,6 @@ describe('unknown, tenancy and registration', () => {
     expect(await journal.commit(request)).toMatchObject({ failure: {} })
     const first = asked.length
     expect(await journal.commit(request)).toMatchObject({ failure: {} })
-    // The second write sends only the remembered generation and the next one, not #1 to #10 again.
     expect(asked.length - first).toBe(2)
     expect(asked.slice(first)).toEqual([
       expect.stringMatching(/#10$/),
@@ -477,10 +452,6 @@ describe('unknown, tenancy and registration', () => {
     ])
   })
 
-  // #1174: a write the storage did not take means nothing was sent. It is unavailable, not an
-  // unknown write: holding it would turn the later `not_committed` into an exclusion, and the same
-  // operation would never be written. The commit is sent without a query first, so the storage
-  // says this itself, by a refusal before acceptance.
   it('a commit the storage refuses before acceptance for a temporary reason holds nothing, and the same operation then commits', async () => {
     const { s, open } = await opened('pre-accept-refused')
     const request = await messageRequest(s, open.authority)
@@ -544,7 +515,6 @@ describe('unknown, tenancy and registration', () => {
     expect(answer).toMatchObject({ failure: { kind: 'unavailable', owner: 'session-log-journal' } })
     expect(JSON.stringify(answer)).not.toContain('commit-unknown')
     expect(count(s, 'er_operation')).toBe(before)
-    // The write is idempotent by its identity: the retry saves it once.
     const source = ok(await s.view.materials.preserve(preserve))
     expect(ok(await s.view.materials.read({ ...s.access, source }))).toMatchObject({
       kind: 'facts',
@@ -561,19 +531,15 @@ describe('unknown, tenancy and registration', () => {
     expect(await s.view.journal.commit(dropped)).toEqual({
       failure: { kind: 'commit-unknown', operation: dropped.operation },
     })
-    // The storage proves the generation never ran: excluded, with evidence of its own.
     const excluded = ok(await query(s.view.journal, 'message-dropped'))
     expect(excluded).toMatchObject({ kind: 'excluded', evidence: { record: expect.any(String) } })
     expect(count(s, 'er_operation')).toBe(1)
     expect(ok(await query(s.view.journal, 'never-sent'))).toEqual({ kind: 'unknown' })
 
-    // The next write saves the exclusion with the rest of the records: a provider that has no
-    // memory of the dropped call answers it excluded too.
     const next = await messageRequest(s, open.authority, 'message-next')
     ok(await s.view.journal.commit(next))
     expect(ok(await query(s.fresh().journal, 'message-dropped'))).toEqual(excluded)
 
-    // The same operation can still be committed, once, and then it is committed for everyone.
     const loaded = await load(s)
     const retry = ok(await s.view.journal.commit({ ...dropped, expected: loaded.revision }))
     expect(ok(await query(s.fresh().journal, 'message-dropped'))).toEqual({
@@ -586,8 +552,6 @@ describe('unknown, tenancy and registration', () => {
     const { s, open } = await opened('undecided-write')
     const request = await messageRequest(s, open.authority, 'message-held')
     let decided = false
-    // The write is sent (its query before the send is answered), and from then on the storage
-    // cannot tell whether it ran until it decides.
     let sent = false
     const unknownUntilDecided: SqlStorage = {
       database: s.storage.database,
@@ -621,12 +585,10 @@ describe('unknown, tenancy and registration', () => {
     const ask = () =>
       journal.query({ ...s.access, execution: s.execution, operation: request.operation })
     expect(ok(await ask())).toEqual({ kind: 'unknown' })
-    // Asked again while the storage has not decided, the same call is still unknown and writes nothing.
     expect(await journal.commit(request)).toEqual({
       failure: { kind: 'commit-unknown', operation: request.operation },
     })
     expect(count(s, 'er_operation')).toBe(1)
-    // The storage decides that the generation never ran.
     decided = true
     expect(ok(await ask())).toMatchObject({ kind: 'excluded' })
   })
@@ -684,10 +646,6 @@ describe('unknown, tenancy and registration', () => {
   })
 })
 
-/**
- * A provider over the scene's records with a `report` observer. `commit` answers in place of the
- * storage when given; `sent` gets the bytes of each `execution-record` command the storage was given.
- */
 function reporting(
   s: SqlScene,
   reports: JournalPublicationReport[],
@@ -718,7 +676,6 @@ function reporting(
   }).forSession(s.access).journal
 }
 
-/** A storage answer that refuses the commit before accepting it, with `reason`. */
 const refusing =
   (reason: CommitRejectReason): SqlStorage['commit'] =>
   request =>
@@ -745,9 +702,7 @@ describe('the publication report (SPEC 发布观测)', () => {
       diagnostic: null,
       recordBytes: sent[0],
     })
-    // The commit also carries the Session participation: every command counts in `bytes`.
     expect(reports[0]!.bytes).toBeGreaterThan(reports[0]!.recordBytes)
-    // A read publishes nothing, so it reports nothing.
     ok(await reporting(s, reports, sent).load({ ...s.access, execution: s.execution }))
     expect(reports).toHaveLength(1)
   })
@@ -758,8 +713,6 @@ describe('the publication report (SPEC 发布观测)', () => {
     const reports: JournalPublicationReport[] = []
     const sent: number[] = []
     const refused = await reporting(s, reports, sent, refusing('command_limit')).commit(request)
-    // A definite refusal answers the Agent `invalid`; the report keeps one `unavailable` outcome
-    // for every refusal before acceptance, with the storage reason in its diagnostic.
     expect(refused).toEqual({
       failure: { kind: 'invalid', field: 'storage', reason: 'command_limit' },
     })

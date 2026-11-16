@@ -1,13 +1,3 @@
-// The ordered stop of the `agent-host` plugin on real Cordis 4.0.4 (SPEC "有序停止", docs/cordis.md
-// "停止准入与撤除"): `quiesceAll` closes admission first, then quiesces every published instance the
-// host runs, whatever its last report. Only `drained` unloads the contribution fiber; the answer is
-// `settled` only when every instance drained before the signal aborted, and otherwise names each
-// instance that did not and why.
-//
-// The scripted cases run with `withRuntimeDuties` (host-support.ts), which stands in for the
-// runtime's quiesce; they prove the host side only. The case "plain factory" runs the real Agent
-// factory, whose quiesce drains an idle instance (R2-D173, R2-D185; agent SPEC "停用"): the stop is
-// settled and the instance is withdrawn.
 import type { AgentInstanceId } from '@omne-harness/agent-contract'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AgentHostStopResult } from '../src/host-plugin.ts'
@@ -34,7 +24,6 @@ async function world(options: WorldOptions = { factory: 'duties' }): Promise<Wor
   return made
 }
 
-/** A signal that never aborts within a test. */
 const open = () => new AbortController().signal
 
 async function retiredOf(host: World, instance: AgentInstanceId): Promise<string | undefined> {
@@ -70,7 +59,6 @@ describe('the ordered stop of the agent-host plugin', () => {
     const host = await world()
     const idle = ok(await host.provision.acquire(slotOf('a'))).instance
     const busy = ok(await host.provision.acquire(slotOf('b'))).instance
-    // The second instance has an execution in flight; the ordered stop does not wait for idle.
     host.handles.get(busy)?.report({ state: occupied(busy) })
     const answer = await host.plugin.quiesceAll({ signal: open() })
     expect(answer).toEqual({ kind: 'settled' })
@@ -85,7 +73,6 @@ describe('the ordered stop of the agent-host plugin', () => {
   it('unloads the contribution fiber of a drained instance', async () => {
     const host = await world()
     const { instance } = ok(await host.provision.acquire(slotOf('a')))
-    // The runtime answers drained but keeps its registration: only the unload can end it.
     host.quiesceAnswers.push('drained-kept')
     expect(await host.plugin.quiesceAll({ signal: open() })).toEqual({ kind: 'settled' })
     expect(host.retired).toEqual([
@@ -104,14 +91,11 @@ describe('the ordered stop of the agent-host plugin', () => {
       { instance: left, reason: expect.stringContaining('unresolved') },
     ])
     expect(answer.kind === 'incomplete' && answer.detail).toContain(left)
-    // The unresolved instance stays published for the fiber unload; the drained one ended.
     ok(await host.directory.resolve({ ...caller('a'), instance: left }))
     expect(await retiredOf(host, drained)).toBe('withdrawn')
     expect(host.retired.some(entry => entry.instance === left)).toBe(false)
   })
 
-  // R2-D173, R2-D185: the real factory drains an idle instance through its registration handle.
-  // Before them its quiesce answered the stage-temporary `unavailable` and this stop was incomplete.
   it('answers settled with the plain factory: the idle instance drains and is withdrawn', async () => {
     const host = await world({ factory: 'plain' })
     const { instance } = ok(await host.provision.acquire(slotOf('a')))
@@ -166,7 +150,6 @@ describe('the ordered stop of the agent-host plugin', () => {
     const { instance } = ok(await host.provision.acquire(slotOf('a')))
     host.quiesceAnswers.push('unresolved')
     expect((await host.plugin.quiesceAll({ signal: open() })).kind).toBe('incomplete')
-    // The instance is published and idle again, but its slot does not answer any more.
     ok(await host.directory.resolve({ ...caller('a'), instance }))
     expect(await host.provision.acquire(slotOf('a'))).toMatchObject({
       failure: { kind: 'unavailable', owner: 'agent-host' },

@@ -8,7 +8,6 @@ export type DeliveryConfig = {
   repository: string
 }
 
-/** Parses the delivery configuration: the GitHub repository that `gate-cli` reads runs from. */
 export function parseConfig(value: unknown): DeliveryConfig {
   const v = record(value, 'config')
   if (v.schemaVersion !== 3) throw new InputError('config.schemaVersion must be 3')

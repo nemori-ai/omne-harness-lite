@@ -1,7 +1,3 @@
-// Walks the import graph of one module file. It reads static imports and re-exports, bare
-// side-effect imports and dynamic `import()` calls. It follows relative imports and the root or
-// subpath entries of `@omne-harness/*` workspace packages. It records every other bare
-// specifier without following it.
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -10,9 +6,7 @@ import ts from '@typescript/typescript6'
 export type ModuleKind = 'source' | 'javascript' | 'declaration'
 
 export type ModuleGraph = Readonly<{
-  /** Absolute paths of every module that the walk reached, the entry included. */
   files: ReadonlySet<string>
-  /** Every specifier that the walk saw, with the file that imports it. */
   imports: readonly Readonly<{ from: string; specifier: string }>[]
 }>
 
@@ -40,7 +34,6 @@ export function walkModules(entry: string, kind: ModuleKind): ModuleGraph {
   return { files, imports }
 }
 
-/** Lists the module specifiers of one source text, in the order that they appear. */
 export function specifiersOf(text: string): string[] {
   return ts.preProcessFile(text, true, true).importedFiles.map(reference => reference.fileName)
 }
@@ -53,7 +46,6 @@ function relativeTarget(from: string, specifier: string, kind: ModuleKind): stri
   return path
 }
 
-/** Resolves `@omne-harness/<name>[/<subpath>]` through the package manifest `exports`. */
 function workspaceTarget(from: string, specifier: string, kind: ModuleKind): string | undefined {
   const match = /^(@omne-harness\/[^/]+)(\/.+)?$/u.exec(specifier)
   if (match === null) return undefined
@@ -79,7 +71,6 @@ function packageDirectory(from: string, name: string): string {
   }
 }
 
-/** Describes an import edge for an assertion message. */
 export function describeImport(edge: Readonly<{ from: string; specifier: string }>): string {
   return `${relative(memberRoot, edge.from)} -> ${edge.specifier}`
 }

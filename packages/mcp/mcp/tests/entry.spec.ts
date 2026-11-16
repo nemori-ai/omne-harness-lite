@@ -1,5 +1,3 @@
-// The forget predicate of the connection table (MC-14): an entry leaves the table only
-// when it refuses requests and holds nothing, and each of the two resources counts as holding.
 import { describe, expect, it } from 'vitest'
 import type { ConnectionKey } from '@omne-harness/mcp-contract'
 import { Connection } from '../src/internal/connection.ts'
@@ -23,7 +21,6 @@ import { MAIN, TARGET, world } from './doubles/world.ts'
 
 const files = endpointRefOf('files')
 
-/** Real resources from the doubles: a transport and a handle the table could hold. */
 async function samples() {
   const w = world()
   const opened = await w.transports.open(
@@ -91,7 +88,7 @@ describe('forgettable: closed, and holding nothing', () => {
     expect(forgettable({ ...nothing(), ...idle, connection: connection(true) })).toBe(true)
   })
 
-  it('is false for a closed entry that holds nothing while its build is in flight (MC-10)', () => {
+  it('is false for a closed entry that holds nothing while its build is in flight', () => {
     const pending = new Promise<never>(() => undefined)
     expect(forgettable({ ...nothing(), pending, connection: connection(true) })).toBe(false)
   })

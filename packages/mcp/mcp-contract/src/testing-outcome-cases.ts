@@ -1,7 +1,3 @@
-// The exhaustive sample table of `classifyOutcome` (protocol revision 2026-07-28). Each case
-// gives the peer answer, the output schema of the action, what the injected output validator
-// answers, and the outcome that the classification must give. Content is converted by
-// `toContentBlocks`, whose own rules are checked apart.
 import { toContentBlocks } from './content.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { CallOutcome, OutputCheck, PeerAnswer } from './outcomes.ts'
@@ -13,7 +9,6 @@ export type ClassifyOutcomeCase = Readonly<{
   answer: PeerAnswer
   issuedAt: Generation
   outputSchema?: JsonValue
-  /** What the injected validator answers. Absent: the classification must not call it. */
   validatorAnswer?: OutputCheck
   expected: CallOutcome
 }>

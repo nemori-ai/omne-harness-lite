@@ -1,10 +1,8 @@
 import { sameFactValue } from './evidence.ts'
-// The recovery binding is the authority for source confirmations, including after live removal.
 import type { ToolBindings } from '@omne-harness/tool-contract/provider'
 import { judgeEvidenceField } from './boundary.ts'
 import type { ToolFactAcknowledgementGuard, SourceVerdict } from './ledger-guards.ts'
 
-/** Pair this guard with the exact bindings object supplied to the runtime. */
 export function createToolFactAcknowledgementGuard<P, E>(
   bindings: Pick<ToolBindings<P, E>, 'recover'>,
 ): ToolFactAcknowledgementGuard<P> {

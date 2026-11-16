@@ -92,7 +92,6 @@ function exceptionAt(edge: PackageImport, input: ConstraintInput, extraction: Ac
   return exception === undefined ? undefined : { ...exception, path: input.path }
 }
 
-/** `resolver` 是抽取 `extraction` 时用的那一个，建在同一份 `snapshot` 上。 */
 function rowsOf(
   extraction: ActualExtraction,
   input: ConstraintInput,
@@ -522,11 +521,6 @@ export function conformanceOf(
     graph,
   ).conformance
 }
-/**
- * BASE 一侧的全部观测：BASE 的架构预期、实际抽取，与按 BASE 预期判出的偏离行 id。
- * 只取决于 BASE 提交与检查器代码，可以按提交算一次存下（收工钩子的缓存见 loop/baseline-cache.ts）。
- * 方向行不在这里：它读运行检查器那棵树的预期，见 arch/directions.ts。
- */
 export interface BaselineObservation {
   readonly constraints: ConstraintInput
   readonly actual: ActualExtraction
@@ -543,12 +537,6 @@ export function observeBaseline(root: string, baseline: ArchitectureSource): Bas
       .map(row => row.id),
   }
 }
-/**
- * One extraction per source version for constraints and actual assembly observations.
- * BASE 一侧由调用方观测好传进来（`observeBaseline`）；当前版本的抽取与偏离判定共用一个解析器。
- * 方向行一节另从可信 runner 读（arch/directions.ts）；调用方已经算过当前版本的依赖图时传进来，
- * 免得再跑一次 dependency-cruiser；没传就按版本自己取，而且只在 runner 有方向行时才取。
- */
 export function analyzeConformance(
   root: string,
   current: ArchitectureSource,

@@ -1,6 +1,3 @@
-// Self-proof of the ToolStartFence suite: it passes on the conforming double, and each case fails
-// under a violating variant. The variants wrap the fence or the authority of the double at the port
-// boundary; they live here and are not exported.
 import { describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
@@ -36,7 +33,6 @@ const NAMES = {
   F8: 'an unqualified principal cannot fence a guard and learns nothing of whether it exists',
 } as const
 
-/** The double with `build` laid over its fence and its authority. */
 function variant(
   build: (fixture: Fixture) => Partial<Pick<Fixture, 'fence' | 'authority'>>,
 ): () => Fixture {
@@ -46,7 +42,6 @@ function variant(
   }
 }
 
-/** An authority whose consume refuses every start once `fenced()` is true. */
 function refusingAfter(
   real: ToolStartAuthority<string>,
   fenced: () => boolean,

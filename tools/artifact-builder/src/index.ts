@@ -68,7 +68,6 @@ export interface ArtifactDefinition {
   readonly readme: string
   readonly verifyScript?: string
 }
-/** Internal tool seam for fault tests; the command line always uses the runtime above. */
 export async function packageArtifact(
   root: string,
   target: string,
@@ -77,7 +76,6 @@ export async function packageArtifact(
 ): Promise<{ path: string; sha256: string; buildId: string }> {
   const output = resolve(target)
   if (!output.endsWith('.tar.gz')) throw new Error('expected-tar-gz-output')
-  // The caller keeps source/dist stable; this detects accidental config mutation, not concurrent source edits.
   const inputs = ['pnpm-lock.yaml', 'pnpm-workspace.yaml']
   const before = await Promise.all(inputs.map(p => digest(join(root, p))))
   const staging = await mkdtemp(join(dirname(output), definition.stagingPrefix))
@@ -102,7 +100,6 @@ export async function packageArtifact(
       await io.run('node', ['--input-type=module', '--eval', definition.verifyScript], app)
     await rm(join(app, 'README.md'), { force: true })
     await writeFile(join(app, 'README.md'), definition.readme, { flag: 'wx' })
-    // These names are generated only here; stale deployment artifacts must not enter their own digest.
     for (const name of ['BUILD_ID', 'build-info.json']) {
       try {
         await lstat(join(app, name))
@@ -121,7 +118,6 @@ export async function packageArtifact(
       { flag: 'wx' },
     )
     const archive = join(staging, 'app.tar.gz')
-    // Relative names only: GNU tar (Git for Windows ships one) reads `C:\…` as a remote `host:file`.
     await io.run('tar', ['-czf', 'app.tar.gz', 'app'], staging)
     const sha256 = await digest(archive)
     const after = await Promise.all(inputs.map(p => digest(join(root, p))))
@@ -142,7 +138,6 @@ export async function runPackaging(
 ): Promise<void> {
   if (process.versions.node !== nodeVersion || args.length !== 1)
     throw new Error('toolchain-or-arguments-invalid')
-  // Read the installed pnpm through the executable rather than trusting packageManager alone.
   const version = await new Promise<string>((yes, no) => {
     const child = spawn('pnpm', ['--version'], { cwd: root, stdio: ['ignore', 'pipe', 'inherit'] })
     let result = ''

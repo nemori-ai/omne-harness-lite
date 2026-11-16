@@ -43,7 +43,6 @@ it('lists a command Job of an earlier provider from the state directory and stop
       .poll(() => readFile(pidFile, 'utf8').catch(() => ''), { timeout: 10_000 })
       .toMatch(/^\d+$/u)
     const main = Number(await readFile(pidFile, 'utf8'))
-    // A provider that starts again over the same state directory sees the earlier one's Job.
     const listed = await later.listRecoveryResources?.(a.input.scope)
     expect(listed).toMatchObject({ kind: 'listed' })
     if (listed?.kind !== 'listed') throw new Error('expected a listing')
@@ -78,7 +77,6 @@ it('answers pending for a live Job whose marker is gone and confirms it once the
     if (listed?.kind !== 'listed') throw new Error('expected a listing')
     const resource = listed.resources.find(item => item.key === handle.process.generation)
     if (resource === undefined) throw new Error('the Job is not listed')
-    // The retained-process index holds a Job whose cold marker is gone; the name still exists.
     await rm(join(f.root, 'windows-jobs', `${resource.key}.json`))
     expect(await f.provider.recover?.(resource)).toEqual({ status: 'pending', evidence: null })
     expect(await a.lease.release()).toEqual({ kind: 'released' })
@@ -130,7 +128,6 @@ it('answers pending for a Job of another login session and confirms one of anoth
       evidence: null,
     })
     expect(await readdir(directory)).toEqual([`${otherSession.key}.json`])
-    // An unreadable marker makes no complete listing.
     await writeFile(join(directory, `${randomUUID()}.json`), 'not a marker')
     expect(await f.provider.listRecoveryResources?.(f.retention.scope)).toEqual({
       kind: 'unavailable',
@@ -156,7 +153,6 @@ it('leaves a retained Job to the index and recovers its listed reference once th
       },
     })
     const pidFile = join(f.root, 'child.pid')
-    // The main process leaves a detached child behind and exits; the Job goes to the index.
     const handle = value(
       await a.command.start({
         ...a.call,
@@ -178,7 +174,6 @@ it('leaves a retained Job to the index and recovers its listed reference once th
     const child = Number(await readFile(pidFile, 'utf8'))
     const original = f.plans.find(item => item.key === handle.process.generation)
     if (original === undefined) throw new Error('the Job was not planned')
-    // A cold marker that outlived the handover does not let the original reference stop the Job.
     await writeFile(
       join(f.root, 'windows-jobs', `${original.key}.json`),
       JSON.stringify({ resource: original, scope: a.input.scope.ref, identity: self }),
@@ -189,7 +184,6 @@ it('leaves a retained Job to the index and recovers its listed reference once th
     if (listed?.kind !== 'listed') throw new Error('expected a listing')
     const retained = listed.resources.find(item => item.key === original.key)
     if (retained === undefined) throw new Error('the retained Job is not listed')
-    // The child ends by itself; the index lets the Job go at one of its readings.
     process.kill(child)
     await expect
       .poll(
@@ -238,7 +232,6 @@ it('confirms a closed terminal Job by the boot and login session its reference c
       ]),
     )
     expect(await a.terminal.close({ ...a.call, terminal })).toMatchObject({ kind: 'done' })
-    // The Job's name is gone in the boot and session it was created in: its stop is confirmed.
     expect(await f.provider.recover?.(resource)).toEqual({
       status: 'confirmedStopped',
       evidence: null,

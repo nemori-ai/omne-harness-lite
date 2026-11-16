@@ -1,8 +1,3 @@
-// A real Cordis 4.0.4 root with the providers of the session provider's ports. Every provider is a
-// small plugin of the test that wraps a double of session-contract or session-cordis-contract, or
-// the storage pair of a backend; the session provider under test is the real plugin and the
-// session instance inside it is the real factory. Each port can be left out, withdrawn, or
-// replaced, because the tests need exactly these changes.
 import { Context, Service, type Fiber } from '@deepseek-ai/cordis'
 import { fail } from '@omne-harness/operation-result'
 import type {
@@ -55,10 +50,8 @@ import { createSessionCommitNotifier, SessionProvider } from '../../src/cordis.t
 import { memoryBackend, type Backend, type BackendFactory } from './backends.ts'
 import { policy, prefixOf, TENANT_A } from './tenants.ts'
 
-/** The lifecycle key of the assembly entry, as the plugin takes it (src/assembly-lifecycle.ts). */
 export const LIFECYCLE_KEY = 's0.assemblyLifecycle'
 
-/** `FiberState` is a `declare const enum` in Cordis 4.0.4, which `isolatedModules` cannot read. */
 export const FIBER_STATE = { PENDING: 0, LOADING: 1, ACTIVE: 2, FAILED: 3, DISPOSED: 4 } as const
 
 export const INJECTED = [
@@ -84,7 +77,6 @@ export type PortName = (typeof INJECTED)[number] | (typeof READ_PER_CALL)[number
 type Constructible = new (ctx: Context) => object
 type AbstractService = abstract new (ctx: Context) => Service
 
-/** A concrete service class whose members are those of `implementation`. */
 export function serviceOf(
   Base: AbstractService,
   implementation: object,
@@ -100,7 +92,6 @@ export function serviceOf(
   return Concrete
 }
 
-/** What a handle of the ordered shutdown looks like to the test coordinator. */
 export type RegisteredHandle = Readonly<{
   phase: string
   row: string
@@ -108,14 +99,8 @@ export type RegisteredHandle = Readonly<{
   stop(deadline: number): Promise<{ kind: string; detail?: string }>
 }>
 
-/** A registered handle and whether the coordinator or a withdrawal already called its `stop`. */
 export type Entry = { readonly handle: RegisteredHandle; stopCalled: boolean }
 
-/**
- * The lifecycle service of the assembly entry, as apps/harness-server builds it: a registration
- * lands on the fiber of the caller and is withdrawn with it. When the fiber is removed and nobody
- * called `stop` yet, the withdrawal starts a `stop` of its own and only keeps a diagnostic.
- */
 export function lifecycleService(entries: Map<string, Entry>, log: string[]) {
   return class extends Service {
     constructor(ctx: Context) {
@@ -141,7 +126,6 @@ export function lifecycleService(entries: Map<string, Entry>, log: string[]) {
 
 const PHASES = ['entry', 'business', 'composition', 'storage'] as const
 
-/** The ordered shutdown: phase by phase, a phase ends before the next one starts. */
 export async function shutdown(entries: Map<string, Entry>, log: string[]) {
   const results: Record<string, unknown> = {}
   for (const phase of PHASES) {
@@ -160,16 +144,9 @@ export async function shutdown(entries: Map<string, Entry>, log: string[]) {
 
 export type AssemblyOptions = Readonly<{
   backend?: BackendFactory
-  /** Ports that are not mounted at the start. */
   omit?: readonly PortName[]
-  /** Mount the session provider with this configuration; `false` leaves it out. */
   provider?: unknown
-  /** The plugin class to mount in place of `SessionProvider`, for the factory-made plugin cases. */
   plugin?: typeof SessionProvider
-  /**
-   * Register the commit notifier on the storage, as the session storage row of the application
-   * does (default). `false` leaves the store without one, so no commit is told.
-   */
   notices?: boolean
 }>
 
@@ -181,17 +158,11 @@ export async function assemble(options: AssemblyOptions = {}) {
   const unregister =
     options.notices === false ? () => undefined : backend.register(createSessionCommitNotifier(ctx))
 
-  // Hooks that tests set to control the storage under the provider.
   const hooks = {
-    /** Held at every commit of a delegated view, so a command can be kept in flight. */
     beforeCommit: null as null | (() => Promise<void>),
-    /** The tenants whose `pending` the public port was asked for, in order. */
     pendingTenants: [] as unknown[],
-    /** The next `pending` answers `unavailable` this many times. */
     failPending: 0,
-    /** When set, `pending` waits for it before it answers, so a scanner start can be kept in flight. */
     pendingGate: null as null | Promise<void>,
-    /** The inputs of every `invoke` the Agent port received, in order. */
     invoked: [] as unknown[],
   }
 
@@ -219,12 +190,10 @@ export async function assemble(options: AssemblyOptions = {}) {
   const baseEvidence = createMemorySessionEvidenceBridge()
   const evidenceAccesses: SessionAccess<string>[] = []
   const evidenceBridge: SessionEvidenceBridge<string> & {
-    /** The access of every call that reached the bridge, in order. */
     accesses(): readonly SessionAccess<string>[]
   } = {
     accesses: () => [...evidenceAccesses],
     prepare: async (command, access) => {
-      // The Cordis port hands the access of the original call on as it came; a call without it is a defect.
       if (access === undefined || access.session !== command.input.session)
         return fail({
           kind: 'unavailable',
@@ -243,7 +212,6 @@ export async function assemble(options: AssemblyOptions = {}) {
   const handles = new Map<string, Entry>()
   const log: string[] = []
 
-  /** The delegated entry, with a hold in front of each commit. */
   const delegated = {
     bind: (checked: Parameters<Backend['delegated']['bind']>[0]) => {
       const view = backend.delegated.bind(checked)
@@ -259,7 +227,6 @@ export async function assemble(options: AssemblyOptions = {}) {
     },
   }
 
-  /** The public port. `pending` is counted and can be made to fail. */
   const port = backend.transactions
   const publicPort = {
     commit: port.commit.bind(port),
@@ -324,7 +291,6 @@ export async function assemble(options: AssemblyOptions = {}) {
   }
 
   const fibers: Partial<Record<PortName, Fiber>> = {}
-  /** `ctx.plugin` for plugins of any shape; the typed overloads reject the test doubles. */
   const plug = ctx.plugin as unknown as (
     plugin: unknown,
     config?: unknown,
@@ -335,7 +301,6 @@ export async function assemble(options: AssemblyOptions = {}) {
     return fiber
   }
 
-  /** Mounts the provider of a port; the previous one, if any, must have been withdrawn. */
   const provide = async (name: PortName, implementation?: Constructible): Promise<Fiber> => {
     const fiber = await mount(implementation ?? providers[name]())
     fibers[name] = fiber
@@ -352,18 +317,14 @@ export async function assemble(options: AssemblyOptions = {}) {
   let provider: Fiber | undefined
   const load = async (config?: unknown): Promise<Fiber> => {
     const wrapped = plug(options.plugin ?? SessionProvider, config)
-    // The wrapper is a thenable that rejects when the load fails; the fiber under it is not.
     const fiber = Object.getPrototypeOf(wrapped) as Fiber
     mounted.push(fiber)
     provider = fiber
-    // A provider that waits for a port or fails its configuration is part of what tests look at.
     await fiber.await().catch(() => undefined)
     return fiber
   }
-  // The deployment of the assembly page has no command domain and no hooks.
   if (options.provider !== false) await load(options.provider ?? { admission: 'none' })
 
-  /** A plugin that reads `session` the way an application plugin does, with a caller class. */
   const caller = async (
     callerClass: SessionCallerClass | 'unset' | string,
   ): Promise<{ ctx(): Context; session(): SessionService<unknown>; runs(): number }> => {
@@ -394,7 +355,6 @@ export async function assemble(options: AssemblyOptions = {}) {
   const other = (session = 'session-1'): SessionAccess<string> =>
     memoryOtherAccess('b:stranger', session)
 
-  /** `create` through the intake face of the real service. */
   const create = async (
     intake: { session(): SessionService<unknown> },
     session = 'session-1',
@@ -424,7 +384,6 @@ export async function assemble(options: AssemblyOptions = {}) {
       `accept ${input}`,
     )
 
-  /** Keeps the next commit of a delegated view in flight until `release` is called. */
   const hold = () => {
     let release!: () => void
     const gate = new Promise<void>(resolve => {
@@ -442,10 +401,6 @@ export async function assemble(options: AssemblyOptions = {}) {
     return { release, arrived }
   }
 
-  /**
-   * A stand-in for the storage rows of the assembly: it registers a handle in the phase after the
-   * one of the session provider and runs `close` when the coordinator stops it.
-   */
   const mountStorageRow = async (close: () => Promise<void> = () => Promise.resolve()) => {
     await mount({
       name: 'fake-session-storage',
@@ -467,7 +422,6 @@ export async function assemble(options: AssemblyOptions = {}) {
     })
   }
 
-  /** Dispatches the event with any payload, as a dispatcher outside the plugin may. */
   const emitCommitted = (...payload: unknown[]): void => {
     ;(ctx.emit as unknown as (...args: unknown[]) => void)(
       'session-cordis-contract/committed',
@@ -523,14 +477,11 @@ export async function assemble(options: AssemblyOptions = {}) {
     tenant: TENANT_A,
     sessionId,
     shutdown: () => shutdown(handles, log),
-    /** Removes everything in the reverse order of mounting, then the storage. */
     close: async () => {
       for (const fiber of mounted.splice(0).reverse()) {
         try {
           await fiber.dispose()
-        } catch {
-          // A fiber that a test already disposed or failed has nothing left to remove.
-        }
+        } catch {}
       }
       unregister()
       await backend.dispose()

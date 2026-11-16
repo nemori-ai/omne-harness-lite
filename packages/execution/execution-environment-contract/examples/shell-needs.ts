@@ -1,5 +1,3 @@
-// A Shell tool package writes its environment need once and derives the executor's facility set
-// from it. The declaration is stored as plain JSON in the tool definition, next to the schema adoption.
 import {
   environmentNeedAdoption,
   type Access,
@@ -17,10 +15,8 @@ export const shellNeeds = {
   layers: ['host_machine', 'session_sandbox', 'tenant_sandbox'],
 } as const satisfies EnvironmentNeedDeclaration
 
-/** `{ command: CommandFacility<unknown>; terminal: TerminalFacility<unknown> }` */
 export type ShellEnvironment = FacilitySet<(typeof shellNeeds)['facilities'][number]>
 
-/** The JSON a tool definition stores: the schema adoption identity and the declaration value. */
 export const shellEnvironmentSlot = { schema: environmentNeedAdoption, value: shellNeeds }
 
 export type ShellCall<P> = Readonly<{

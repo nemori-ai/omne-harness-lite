@@ -1,5 +1,3 @@
-// The two judgments the executor makes from a recovery read: whether a run would do work of the
-// call, and whether only a person can move it. Each row is one cell of the state table.
 import { describe, expect, it } from 'vitest'
 import { owesWork, waitsForPerson, type CallWork } from '../src/call-dormancy.ts'
 

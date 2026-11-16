@@ -1,3 +1,2 @@
-// The text of schema/endpoint-body.schema.json. A test keeps the two equal.
 export const ENDPOINT_BODY_SCHEMA =
   '{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"urn:omne-harness:mcp-contract:endpoint-body:1","title":"MCP endpoint body","description":"The body of an MCP asset. The remote address, the credential and the connect timeout are settings, not body members. The parser of @omne-harness/mcp-contract decides validity; this schema documents the same rules.","type":"object","additionalProperties":false,"required":["name","transport","auth"],"properties":{"name":{"type":"string","minLength":1,"maxLength":64,"pattern":"^[a-z0-9]+(?:-[a-z0-9]+)*$"},"transport":{"enum":["streamable-http"]},"auth":{"enum":["none","static","oauth"]}}}'

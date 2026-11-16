@@ -1,5 +1,3 @@
-// Construction checks of the static materials (SPEC 4.1, 4.2, 5.3). The factory reads the module
-// files once and compares their digests. It opens no database and starts no Worker.
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'

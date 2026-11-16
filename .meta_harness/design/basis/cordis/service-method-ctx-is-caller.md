@@ -15,7 +15,7 @@ lines:
   - "utils.ts:165-176"
   - "fiber.ts:415-418"
 probe: packages/assembly/kernel-basis/tests/service-method-ctx-is-caller.spec.ts
-checked: 2026-10-02
+checked: 2026-11-15
 ---
 
 # 经调用方取到的 `Service`，方法里的 `this.ctx` 是调用方的上下文
@@ -45,11 +45,11 @@ checked: 2026-10-02
 | `service.ts` 构造函数 | `tracker = { associate: name, property: 'ctx' }`，挂到实例上 | 读源码 42–58 行 |
 | `reflect.ts` `get` | `return getTraceable(this.ctx, this._getImpl(name, strict)?.value)` | 读源码 233–235 行 |
 | `utils.ts` `getTraceable`／`createTraceable` | 无 tracker 原样返回；代理的 `get` 在 `prop === tracker.property` 时返回调用方 ctx | 读源码 117–124、165–176 行 |
-| `fiber.ts` `effect` | 返回 `Disposable`／`AsyncDisposable` | 读源码 415–418 行，或跑 probe 第 2 条 |
+| `fiber.ts` `effect` | 返回 `Disposable`／`AsyncDisposable` | 读源码 415–418 行，或跑探针第 2 条 |
 
-## probe 断言什么
+## 探针断言什么
 
-probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行。对 4.0.4 通过（2026-10-02）；2026-10-22 迁入该成员后对 4.0.4 复跑通过：
+探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
 
 1. 注册表 `Service` 的 `register(entry)` 写成 `this.ctx.effect(() => { 加入; return 移除 })`；
    一个 inject 了它的贡献者插件登记一条，撤除贡献者后这条不在了，注册表的 fiber 仍是 `ACTIVE`。

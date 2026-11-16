@@ -1,6 +1,3 @@
-// The read shapes of the memory doubles (agent-contract SPEC "日志条目" and "扩展、卡片与材料"): the
-// page of `AgentJournalEntries.read`, the `received` entries of one consumption, and the digest and
-// size of a material addressed by content. A durable provider computes them from its own storage.
 import { createHash } from 'node:crypto'
 import type {
   AgentJournalEntry,
@@ -13,10 +10,6 @@ import type {
 import type { ContentBlock } from '@omne-harness/content-block'
 import { canonical } from '../canonical.ts'
 
-/**
- * The page after `after` of the committed `entries`, in commit order. A cursor that is not a
- * position of the list, or a limit below 1, answers `undefined`: the caller maps it to `invalid`.
- */
 export function entryPage(
   entries: readonly AgentJournalEntry[],
   after: string | null,
@@ -38,7 +31,6 @@ export function entryPage(
   }
 }
 
-/** Every `received` entry of `consumption`, in commit order. */
 export function receivedEntriesOf(
   entries: readonly AgentJournalEntry[],
   consumption: ConsumptionId,
@@ -51,12 +43,10 @@ export function receivedEntriesOf(
     .map(entry => structuredClone(entry))
 }
 
-/** The digest of a material's content: the same content has the same digest. */
 export function materialDigest(value: Material<ContentBlock>): string {
   return `sha256:${createHash('sha256').update(canonical(value)).digest('hex')}`
 }
 
-/** What `describe` answers for a kept material: its digest, its size in bytes and its kind. */
 export function describeMaterial(value: Material<ContentBlock>): MaterialDescription {
   return {
     digest: materialDigest(value),

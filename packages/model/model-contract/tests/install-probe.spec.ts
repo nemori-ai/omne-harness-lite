@@ -1,8 +1,4 @@
 // @module-tag slow
-// Runs the facility's probe and type check in hand-built consumer directories: node and tsc start
-// as child processes. Each negative case puts a dependency in an ancestor `node_modules`, outside
-// the consumer, and asserts that the check names it. The positive controls keep the same layout
-// with the dependency inside the consumer, so a failure cannot come from the layout itself.
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -16,7 +12,6 @@ afterAll(() => rmSync(root, { recursive: true, force: true }))
 
 type Files = Readonly<Record<string, string>>
 
-/** `<root>/<name>/node_modules` is the ancestor store; the consumer project lies below it. */
 function layout(name: string, ancestor: Files, consumer: Files): string {
   const base = join(root, name)
   const write = (directory: string, files: Files) => {

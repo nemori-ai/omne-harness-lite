@@ -1,6 +1,3 @@
-// Permits and their consumption (SPEC AU-11, AU-03, AU-06). A permit is one allowed action that a
-// consumer must consume exactly once at its linearization point. A consumed permit stays
-// consumed: a later check denies, and a later consume answers with the original fact.
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -19,29 +16,22 @@ export type PermitIdFailure = Readonly<{
   reason: 'type' | 'empty' | 'length' | 'character'
 }>
 
-/** The longest permit text, in UTF-16 code units. */
 export const PERMIT_ID_MAX_LENGTH = 256
 
-// Printable ASCII without space, as the other members mint their identities.
 const PERMIT_TEXT = /^[\x21-\x7e]+$/u
 
-/** Decodes a permit text. The brand says the text is well formed; it does not prove the permit exists. */
 export function decodePermitId(value: unknown): Outcome<PermitId, PermitIdFailure> {
   if (typeof value !== 'string') return fail({ field: 'PermitId', reason: 'type' })
   if (value.length === 0) return fail({ field: 'PermitId', reason: 'empty' })
   if (value.length > PERMIT_ID_MAX_LENGTH) return fail({ field: 'PermitId', reason: 'length' })
   if (!PERMIT_TEXT.test(value)) return fail({ field: 'PermitId', reason: 'character' })
-  // The checks above are the only way to mint the brand. A brand has no runtime value to build.
   return succeed(value as PermitId)
 }
 
-/** The reference a consumer keeps, for example in a Tool acceptance record. The tenant is part of the key. */
 export type PermitRef = Readonly<{ tenant: TenantId; permit: PermitId }>
 
-/** Where a permit was consumed: the consumer's own stable position. */
 export type ConsumerPosition = Readonly<{ owner: string; work: string; position: string }>
 
-/** What a permit allows: one operation on one target with one digest of arguments, and the evidence of the expression or decision that granted it. */
 export type PermitGrant = Readonly<{
   ref: PermitRef
   operation: AdmissionOperation
@@ -62,13 +52,11 @@ export type PermitState =
 
 export type PermitLookup =
   | Readonly<{ kind: 'found'; grant: PermitGrant; state: PermitState }>
-  /** No permit under this tenant and text. A permit of another tenant looks the same. */
   | Readonly<{ kind: 'unknown' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 export type ConsumeOutcome =
   | Readonly<{ kind: 'consumed'; fact: ConsumptionFact }>
-  /** The permit was consumed before. The fact says by whom; a repeat of the same consumer recognizes itself. */
   | Readonly<{ kind: 'already-consumed'; fact: ConsumptionFact }>
   | Readonly<{ kind: 'unknown' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
@@ -77,7 +65,6 @@ export type GrantOutcome =
   | Readonly<{ kind: 'granted'; grant: PermitGrant }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-/** The read and consume side, for the consumer at its linearization point. */
 export interface PermitLedger {
   lookup(input: Readonly<{ permit: PermitRef }>): Promise<PermitLookup>
   consume(
@@ -85,7 +72,6 @@ export interface PermitLedger {
   ): Promise<ConsumeOutcome>
 }
 
-/** The grant side, for the owner of an expression or a decision that produces a permit. */
 export interface PermitGrantor {
   grant(
     input: Readonly<{
@@ -110,11 +96,6 @@ function entryKey(ref: PermitRef): string | null {
   return tenant === null ? null : `${tenant}#${ref.permit}`
 }
 
-/**
- * The in-memory reference ledger. It keys every permit by the tenant and the permit text, so a
- * permit of one tenant is `unknown` under another. It is not durable: a process exit loses it.
- * It stands in until a durable provider exists.
- */
 export function inMemoryPermitLedger(): Readonly<{ grantor: PermitGrantor; ledger: PermitLedger }> {
   const entries = new Map<string, Entry>()
   let sequence = 0

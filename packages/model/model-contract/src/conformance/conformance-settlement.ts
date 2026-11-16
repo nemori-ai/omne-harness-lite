@@ -1,5 +1,3 @@
-// The checks of the result and its handover: a result is read only after the call has ended, a
-// call is acknowledged only with evidence, and an acknowledgement is neither repeated nor undone.
 import type { AckReceipt, ResultPart } from '../index.ts'
 import {
   ackInput,
@@ -29,7 +27,6 @@ import {
 } from './conformance-kit.ts'
 import { ConformanceSkip, type Check } from './conformance-types.ts'
 
-/** What an acknowledgement says about the call, without the cleanup, which moves on by itself. */
 function identityOf(receipt: AckReceipt) {
   return {
     call: receipt.call,
@@ -107,8 +104,6 @@ export function settlementChecks<P>(): readonly Check<P>[] {
       requires: ['startRun', 'settleCall'],
       async run(scene) {
         const call = await ended(scene, 'keeps-end')
-        // The hook leaves a call that has ended as it is, so it cannot test the provider. A cancel
-        // is a step of the public face that could unsettle a call; any reply to it is accepted.
         await runtimeOf(scene).calls.cancel(mutationOf(scene, call.call, operationId('after-end')))
         const after = await stateOf(scene, call)
         expect(after.phase === 'settled', `the call that ended is now ${after.phase}`)

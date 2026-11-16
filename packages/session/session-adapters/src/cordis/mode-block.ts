@@ -63,7 +63,6 @@ export const sessionInteractionBinding = Object.freeze({
   },
 } satisfies NeedBinding<'session.modes', SessionInteractionView>)
 
-/** Every binding of `session.modes`: a registration of the block binds all of them. */
 export const sessionModesBindings = Object.freeze([
   sessionInquiryBinding,
   sessionInteractionBinding,

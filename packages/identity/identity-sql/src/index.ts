@@ -1,6 +1,3 @@
-// Root entry of the identity SQL provider. No Cordis import (IC-4): the plugin is in `./cordis`.
-// The factory consumes the identity, scrypt and SQL storage contracts; the materials and the
-// registration are what an application aggregates into its catalog and what the plugin registers.
 export {
   createIdentitySql,
   CREDENTIAL_UTF8_LIMIT,

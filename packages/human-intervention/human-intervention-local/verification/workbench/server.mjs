@@ -38,7 +38,6 @@ const options = {
     standing: world.identity.standing,
     reservations: world.identity.reservations,
   },
-  // 工作台只出独立来源的卡，没有 Session 守卫。
   guards: () => [],
 }
 let application = createIndependentHitlApplication(options)

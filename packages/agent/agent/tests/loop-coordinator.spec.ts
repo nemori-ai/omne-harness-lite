@@ -23,7 +23,7 @@ describe('what a node commits', () => {
 })
 
 describe('the coordinator result of an admission already advanced in the Journal', () => {
-  it('NA-E0-2: found-existing ends coordination successfully without a second loop', async () => {
+  it('found-existing ends coordination successfully without a second loop', async () => {
     let commits = 0
     const assembly = await loopAssembly([execution()], dependencies => ({
       ...dependencies,

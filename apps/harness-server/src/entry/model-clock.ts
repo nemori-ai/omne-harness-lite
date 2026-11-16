@@ -1,25 +1,26 @@
-// `modelClock`（AA 运行时对象表「Model 与 Tool 的原事实、权威与时钟适配对象」、model-contract `ModelClock`）：根上的入口对象，
-// `model-host` 静态 inject。读数与等待取自 `session-clock.ts` 的系统时间来源。契约没有失败通道：读不到时抛出，
-// 不编造读数；不能接受的时刻文本抛出，不永远等。
 import type { Context } from '@deepseek-ai/cordis'
 import type { ModelClock } from '@omne-harness/model-contract/provider'
 import { ModelClockService, modelClockKey } from '@omne-harness/model-cordis-contract/cordis'
 import { parseInstant } from '@omne-harness/utc-instant'
-import type { EntryObjectModule } from '../types.ts'
-import { epochMillisOf, readSystemInstant, waitUntilEpoch } from './session-clock.ts'
+import type { EntryObjectModule, EntryTime } from '../types.ts'
+import { waitUntil as waitUntilEpoch } from '@omne-harness/time-source'
+import { epochMillisOf, readInstant } from './session-clock.ts'
+import { timeOf } from './time.ts'
 
-export function createModelClock(): ModelClock {
+export function createModelClock(time: EntryTime): ModelClock {
   const now: ModelClock['now'] = () => {
-    const reading = readSystemInstant()
+    const reading = readInstant(time.source)
     if (!reading.ok)
-      throw new TypeError(`modelClock.now: system clock reading refused (${reading.failure.kind})`)
+      throw new TypeError(
+        `modelClock.now: ${time.protocol} reading refused (${reading.failure.kind})`,
+      )
     return reading.text
   }
   const waitUntil: ModelClock['waitUntil'] = async (instant, signal) => {
     const parsed = parseInstant(instant)
     if (!parsed.ok)
       throw new TypeError(`modelClock.waitUntil: instant text refused (${parsed.failure.kind})`)
-    return waitUntilEpoch(epochMillisOf(instant), signal)
+    return waitUntilEpoch(time.source, epochMillisOf(instant), signal)
   }
   return Object.freeze({ now, waitUntil })
 }
@@ -37,7 +38,7 @@ class EntryModelClock extends ModelClockService {
 export const modelClock: EntryObjectModule = {
   name: modelClockKey,
   implementation: 'real',
-  install(scope) {
-    new EntryModelClock(scope, createModelClock())
+  install(scope, env) {
+    new EntryModelClock(scope, createModelClock(timeOf(env)))
   },
 }

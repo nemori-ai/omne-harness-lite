@@ -1,11 +1,3 @@
-// The default compaction strategy: which entries stay as originals, the summary instruction and
-// the trimmer's threshold. The numbers are configuration fields; the values here are initial
-// values, and the SPEC marks three of them for re-check against this project's counting basis.
-//
-// Retention works on units, not on single entries. A tool call and the results that answer it
-// are one unit, because a compaction that keeps one side only is illegal (CM-03 pairing). A unit
-// whose result lies after the window, or that holds open work, is the floor: it is kept before
-// anything is ranked.
 import { judgeBlockIdentity } from '@omne-harness/content-block'
 import type {
   CompactionContext,
@@ -33,13 +25,10 @@ export const DEFAULT_COMPACTION_POLICY: CompactionPolicy = Object.freeze({
   trimFirst: true,
   stepBound: '3',
 })
-/** The initial threshold for a tool result block in the material of a summary step. */
 export const DEFAULT_TRIM_BYTES = '65536'
 
 export type DefaultCompactionOptions = Readonly<{
-  /** Replaces the named fields of the initial configuration. */
   config?: Partial<CompactionPolicy>
-  /** The trimmer's threshold in bytes per text block; a caller's smaller limit wins. */
   maxBlockBytes?: string
 }>
 
@@ -68,7 +57,6 @@ function callIds(message: Message | null, kinds: readonly string[]): string[] {
     kinds.includes(part.kind) && 'callId' in part ? [part.callId] : [],
   )
 }
-/** Result entry to the entry of the call it answers, or null when the call is outside the window. */
 function pairingsOf(context: CompactionContext): Map<RecordEntryRef, RecordEntryRef | null> {
   const pairs = new Map<RecordEntryRef, RecordEntryRef | null>()
   if (context.base.kind === 'previous') {
@@ -83,7 +71,6 @@ function pairingsOf(context: CompactionContext): Map<RecordEntryRef, RecordEntry
   return pairs
 }
 
-/** Units of the covered entries, with the floor and the units no draft may keep. */
 function unitsOf(context: CompactionContext): Unit[] {
   const index = new Map(context.covered.map((entry, at) => [entry.ref, at] as const))
   const inView = new Set(
@@ -105,7 +92,6 @@ function unitsOf(context: CompactionContext): Unit[] {
       parent[find(at)] = find(callAt)
       answered.set(callAt, (answered.get(callAt) ?? 0) + 1)
     } else if (at === undefined && callAt !== undefined) {
-      // The result stays in view after the window, so the call must stay with it.
       forced.add(callAt)
     } else if (
       at !== undefined &&
@@ -113,7 +99,6 @@ function unitsOf(context: CompactionContext): Unit[] {
       call !== null &&
       !inView.has(call)
     ) {
-      // After a compaction, a covered result whose call is not in view cannot be kept alone.
       blocked.add(at)
     }
   }

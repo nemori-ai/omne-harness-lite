@@ -1,9 +1,4 @@
-// 一次观察 (RFC-0015 §8, §13): the only exit of frames. It runs the two axes of §13: the locate
-// axis (the Locator reads the log; the observation asks the Model for the current stream when there
-// is no target or the main call changed) and the stream axis (a StreamSubscription per target). It
-// asks the refresh budget when to look again, and on abort tears down its own reads, notices,
-// subscription and waits. It never cancels a Model call and writes nothing.
-import type { CallState } from '@omne-harness/model-contract'
+import type { CallState, ModelInvocationRef } from '@omne-harness/model-contract'
 import type { SessionAccess } from '@omne-harness/session-contract'
 import type { StreamRef } from '@omne-harness/stream-arrival'
 import {
@@ -21,7 +16,6 @@ export type SessionObservationOpen =
       kind: 'opened'
       frames: AsyncGenerator<SessionObservationFrame, SessionObservationEnd | undefined>
     }>
-  /** The log read was refused, the session does not exist, or its identity is not valid: one answer. */
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'unavailable' }>
 
@@ -31,28 +25,22 @@ export interface SessionObservation<P> {
   ): Promise<SessionObservationOpen>
 }
 
-/** What started a locate: the first one, an interval that ran out, or a notice. */
 type Cause = 'open' | 'interval' | 'notice'
 
-/** The stream axis: no target, observing one, or waiting to observe the same one again. */
 type Stream =
   | Readonly<{ kind: 'none' }>
   | Readonly<{ kind: 'observing'; subscription: StreamSubscription }>
   | Readonly<{ kind: 'reobserve'; target: Target }>
 
-/** What the Model answered for the main call: a stream to observe, nothing to observe, or an end. */
 type Selection =
   | Readonly<{ kind: 'stream'; ref: StreamRef; phase: CallState['phase'] }>
   | Readonly<{ kind: 'none'; phase: CallState['phase'] | null }>
   | Readonly<{ kind: 'end'; reason: SessionObservationEnd }>
 
-/** Frames to send, then, when the observation ends, the reason. */
 type Step = Readonly<{ frames: SessionObservationFrame[]; end?: SessionObservationEnd }>
 
-/** What the loop takes in arrival order: a stream event, or a commit notice. */
 type Entry = StreamEvent | 'notice'
 
-/** Wakes the loop and keeps stream events and notices in the order they came. */
 class Inbox {
   readonly #events: Entry[] = []
   #wake: (() => void) | undefined
@@ -72,7 +60,6 @@ class Inbox {
     return this.#events.shift()
   }
 
-  /** Resolves at the next push or poke. */
   idle(): Promise<'woken'> {
     return new Promise(resolve => {
       this.#wake = () => resolve('woken')
@@ -91,7 +78,6 @@ function targetOf(stream: Stream): Target | null {
   }
 }
 
-/** Session observation over its ports. */
 export function createSessionObservation<P>(
   ports: SessionObservationPorts<P>,
 ): SessionObservation<P> {
@@ -133,7 +119,6 @@ export function createSessionObservation<P>(
       let phase: CallState['phase'] | null = null
       let closedRef: StreamRef | null = null
 
-      /** A wait of `milliseconds` under a timer that teardown aborts; it settles only when it runs out. */
       function startWait(
         milliseconds: number,
       ): Readonly<{ timer: AbortController; elapsed: Promise<'elapsed'> }> {
@@ -152,7 +137,6 @@ export function createSessionObservation<P>(
         timers.delete(timer)
       }
 
-      /** `other`, unless a wait of `milliseconds` runs out first. */
       async function timed<T>(milliseconds: number, other: Promise<T>): Promise<T | 'elapsed'> {
         const { timer, elapsed } = startWait(milliseconds)
         const answer = await Promise.race([elapsed, other])
@@ -160,13 +144,6 @@ export function createSessionObservation<P>(
         return answer
       }
 
-      /**
-       * The wait before the observation looks again while it has no subscription. It begins once
-       * and goes on across wake-ups. While a target waits to be observed again, a notice is
-       * handled and the same wait is still the one that runs out, so commits cannot push the next
-       * subscription back. With no target, a notice is itself a look, and `advance` begins the
-       * wait anew after it.
-       */
       let due:
         | Readonly<{ timer: AbortController; delay: number; elapsed: Promise<'elapsed'> }>
         | undefined
@@ -195,7 +172,7 @@ export function createSessionObservation<P>(
         return frame === null ? [] : [frame]
       }
 
-      /** The one place a subscription begins. After the teardown none does: a read that was under way may still come back. */
+      // The one place a subscription begins; after teardown none does, since a read under way may still come back.
       function subscribe(target: Target): void {
         if (closed) return
         clearDue()
@@ -215,11 +192,10 @@ export function createSessionObservation<P>(
         stream = { kind: 'none' }
       }
 
-      /** Asks the Model for the current stream of `reference`, waiting at most `currentTimeout`. */
-      async function select(reference: string): Promise<Selection> {
+      async function select(reference: ModelInvocationRef): Promise<Selection> {
         const answer = await timed(
           ports.policy.currentTimeout,
-          ports.streams.current({ access: viewer, reference: reference as never }),
+          ports.streams.current({ access: viewer, reference }),
         )
         if (answer === 'elapsed') {
           ports.diagnose({ code: 'observation.current-timeout', detail: reference })
@@ -238,9 +214,7 @@ export function createSessionObservation<P>(
         return { kind: 'stream', ref: current.ref, phase: answer.ok.state.phase }
       }
 
-      /** The result table of §13 for one locate. */
       async function located(result: LocateResult, cause: Cause): Promise<Step> {
-        // The observer left while the log was read: the result is dropped and the Model is not asked.
         if (closed) return { frames: [] }
         if (result.kind !== 'located') return { frames: [], end: result.kind }
         const next = result.view
@@ -259,15 +233,12 @@ export function createSessionObservation<P>(
           budget.reset()
           return { frames: state() }
         }
-        // A target always has the main call of the view before this locate, so with no new main
-        // call there is no target here: nothing new.
         if (!callChanged) return quiet(cause)
         dropTarget()
         budget.tick()
         return { frames: [...state(), { kind: 'refreshing' }] }
       }
 
-      /** Nothing new for the stream axis: state on a change; refreshing only for an interval. */
       function quiet(cause: Cause): Step {
         const frames = state()
         if (cause === 'interval') {
@@ -277,7 +248,6 @@ export function createSessionObservation<P>(
         return { frames }
       }
 
-      /** The stream axis of §13 for one event. */
       function streamed(event: StreamEvent): Step {
         if (stream.kind !== 'observing' || event.subscription !== stream.subscription) {
           ports.diagnose({ code: 'observation.late-discarded', detail: event.frame.kind })
@@ -310,7 +280,6 @@ export function createSessionObservation<P>(
         return { frames: [...state(), value] }
       }
 
-      /** An `ended` of the producer, by the public contract's table of sources and frames. */
       function ended(reason: Extract<StreamEvent['frame'], { kind: 'ended' }>['reason']): Step {
         switch (reason) {
           case 'denied':
@@ -319,13 +288,10 @@ export function createSessionObservation<P>(
           case 'unavailable':
             return interrupted([])
           default:
-            // observer-closed included: after its own abort the subscription delivers nothing, so
-            // from the current one it can only mean the producer closed it; that is the stream ending.
             return lost([])
         }
       }
 
-      /** The target stream ended: back to no target, then wait. */
       function lost(gap: SessionObservationFrame[]): Step {
         if (stream.kind === 'observing') closedRef = stream.subscription.target.ref
         dropTarget()
@@ -333,7 +299,6 @@ export function createSessionObservation<P>(
         return { frames: [...gap, ...state(), { kind: 'refreshing' }] }
       }
 
-      /** The subscription broke but the target stands: observe it again after the interval. */
       function interrupted(gap: SessionObservationFrame[]): Step {
         if (stream.kind === 'observing') {
           const target = stream.subscription.target
@@ -344,14 +309,11 @@ export function createSessionObservation<P>(
         return { frames: [...gap, { kind: 'refreshing' }] }
       }
 
-      /** The next step of the loop, or null to look again. */
       async function advance(): Promise<Step | null> {
         const entry = inbox.shift()
         if (entry === 'notice') {
           if (!locator.take()) return null
           const step = await located(await locator.locate(), 'notice')
-          // With no target the notice took the place of the wait: having just looked, the wait
-          // for the next look begins anew. The wait to observe a target again goes on.
           if (stream.kind === 'none') clearDue()
           return step
         }

@@ -1,4 +1,3 @@
-// Declarations of the public-api chapter "供应商尝试诊断".
 import type { Adoption, CallAccess, DispatchId, Identity, ModelCallId, Revision } from './root.ts'
 import type { DurableEvidence, ModelFault, Reply } from './result.ts'
 

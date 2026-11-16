@@ -4,7 +4,6 @@ import {
   type ModelInvocationRef,
 } from '@omne-harness/model-contract'
 
-/** Construct a fixture locator from explicit original identities before admission. */
 export function invocationReference<T extends ModelInvocationParts>(parts: T): ModelInvocationRef {
   const encoded = encodeModelInvocationRef({
     tenant: parts.tenant,

@@ -1,6 +1,3 @@
-// Shared set-up of the instance directory tests. Everything runs on a real Cordis Context. The one
-// stand-in is the qualification authority: it is the provider of ModelPublicationAuthorityService
-// in a real assembly and is not part of this package, so `surrogateAuthority` answers in its place.
 import { Context } from '@deepseek-ai/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
@@ -32,7 +29,6 @@ export function execution(
   return { tenant, call, instance, generation }
 }
 
-/** A handle that the directory only passes on: nothing in these tests observes through it. */
 export function handleOf(instance: ModelInstanceId): ModelHandle<unknown> {
   return {
     instance,
@@ -52,7 +48,6 @@ export function input(
   return { publication: [from, handle], authority }
 }
 
-/** Stands in for the qualification authority and grants every registration. It keeps no record. */
 export const grantingAuthority: ModelPublicationAuthority<unknown> = {
   check: () => ({ ok: undefined }),
 }
@@ -60,11 +55,6 @@ export const grantingAuthority: ModelPublicationAuthority<unknown> = {
 export type SurrogateAuthority = ModelPublicationAuthority<unknown> &
   Readonly<{ seen: Input[]; deny(failure: ModelRegistrationFailure | undefined): void }>
 
-/**
- * Stands in for the qualification authority: grants every registration unless told to deny, and
- * records what it was asked. The record keeps the requests alive, so a test that watches for
- * collection uses `grantingAuthority`.
- */
 export function surrogateAuthority(): SurrogateAuthority {
   const seen: Input[] = []
   let denial: ModelRegistrationFailure | undefined
@@ -92,7 +82,6 @@ export function routeOf(outcome: Outcome<LiveRoute<unknown>, unknown>): LiveRout
 
 export type World = Awaited<ReturnType<typeof startDirectory>>
 
-/** Loads the directory in its own plugin fiber and lets contributor plugins register through it. */
 export async function startDirectory(
   authority: ModelPublicationAuthority<unknown> = grantingAuthority,
 ) {
@@ -113,15 +102,9 @@ export async function startDirectory(
     host,
     directory,
     connect: directory.connect,
-    /** Asks the directory for the live route of one call, with a stand-in principal. */
     async routeOfCall(tenant: TenantId, call: ModelCallId) {
       return routeOf(await directory.connect({ principal: 'principal', tenant, call }))
     },
-    /**
-     * Registers from a fresh contributor fiber; its disposal withdraws the registration. The
-     * plugin object stays in the Cordis registry while the fiber lives, so it gives up its
-     * references to the request and the answer as soon as it has used them.
-     */
     async contribute(request: Input) {
       const call: { request?: Input | undefined; pending?: Promise<Registered> | undefined } = {
         request,

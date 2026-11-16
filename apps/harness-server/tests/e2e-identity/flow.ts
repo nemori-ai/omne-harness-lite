@@ -1,9 +1,3 @@
-// K10 E2E-ID: the tenant-identity story over real processes. It starts `dist/bin.js serve` on the release
-// distribution and drives it through the `omne` CLI (AC-9 of the identity spec, steps 1 to 13). The one
-// exception is `read-history`: the CLI has no command for it, so step 10 posts it to the session face with
-// the login proof of the caller. Each step records its command, outcome and exit code next to the expected
-// ones, so the spec and the driver (`drive.ts`, which writes the evidence file) share one judgment.
-// Model calls go to the local gateway (R2-D258); the flow reads only what the admission answers.
 import { cpSync, existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { startModelGateway, type ModelGateway } from '../fixtures/model-gateway.ts'
@@ -21,8 +15,8 @@ import {
   type Rec,
   type ServerHandle,
 } from '../r9/support.ts'
+import { protocolClients, readHistoryPage } from '../support/protocol-clients.ts'
 
-export const SESSION_PATH = '/session-public/1'
 const PASSWORDS = {
   alice: 'alice-pw-MARKER-1a2b',
   bob: 'bob-pw-MARKER-3c4d',
@@ -30,14 +24,8 @@ const PASSWORDS = {
 } as const
 const TEAM_NAME = 'k10-team'
 const DEFAULT_TEAM_MODEL = 'default-team'
-/** The idle period of the second run (step 13), in seconds. */
 const SHORT_IDLE_SECONDS = 12
-/**
- * The access refresh granularity of the second run, in seconds. The identity row requires it to be
- * shorter than the idle period; below the 2.5 s between business requests, each request refreshes.
- */
 const SHORT_REFRESH_GRANULARITY_SECONDS = 1
-/** Exit codes of the CLI by outcome (CLI tutorial 6.6: 0 for succeeded, 3 for denied). */
 const EXIT = { succeeded: 0, denied: 3 } as const
 
 type Outcome = keyof typeof EXIT
@@ -47,14 +35,12 @@ export type Expected = Readonly<{ outcome: Outcome; exitCode: number }>
 export type Probe = Readonly<{ name: string; expected: string; actual: string; ok: boolean }>
 
 export type StepRecord = Readonly<{
-  /** The step of the identity spec E2E list (0 for the setup before step 1). */
   step: number
   label: string
   command: readonly string[]
   expected: Expected
   exitCode: number | null
   outcome: string | undefined
-  /** Extra comparisons of the answer body or of the state that the step changes. */
   probes: readonly Probe[]
   ok: boolean
   note?: string
@@ -78,7 +64,6 @@ export type FlowRecord = Readonly<{
     identityIdlePeriod: string
   }>[]
   steps: readonly StepRecord[]
-  /** Step 13 (b): the governance reads that follow the last business request. */
   governanceReads: readonly GovernanceRead[]
   checks: readonly Probe[]
   aborted: string | undefined
@@ -124,7 +109,6 @@ function releaseIdentityConfig(): Record<string, unknown> {
   return row.config
 }
 
-/** Runs the whole story. A judgment that fails is a failed step; a step that cannot go on aborts the rest. */
 export async function runIdentityFlow(): Promise<FlowRecord> {
   const scratch = newScratch('k10-id-')
   const startedAt = new Date().toISOString()
@@ -148,12 +132,10 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
       carol: join(scratch.base, 'home-carol'),
     }
 
-    /** The operator layer of the release tree; the second run replaces the identity row with a short idle period. */
     const writeLayer = (name: string, idleSeconds: number | undefined): string => {
       const base = operatorLayer({ storageRoot: scratch.storageRoot, port, modelRoute: gatewayUrl })
-      // The history that `server-entry` serves also lists the Run entries, so the flow can see a Run end.
       const ops = (base as { ops: { id: string; config?: object }[] }).ops.map(op =>
-        op.id === 'server-entry'
+        op.id === 'session-access'
           ? {
               ...op,
               config: {
@@ -209,7 +191,6 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
       outputs.push(outcome.stdout, outcome.stderr)
     }
 
-    /** One CLI step with its expectation. Returns the run so later steps can read ids from it. */
     const cli = async (
       step: number,
       label: string,
@@ -250,7 +231,6 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
       if (entry === undefined) throw new Error('no step yet')
       return entry
     }
-    /** A step the story cannot go on without: when it did not match, the flow stops there. */
     const must = (): void => {
       const entry = lastStep()
       if (!entry.ok) throw new Error(`step ${String(entry.step)} (${entry.label}) did not match`)
@@ -266,7 +246,6 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
       ),
     )
 
-    // --- setup: A and B register and log in.
     await cli(0, 'A registers', homes.alice, ['register', '--login-identifier', 'alice'], ok, {
       credential: PASSWORDS.alice,
     })
@@ -290,7 +269,6 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
     must()
     const accountB = str(bodyOf(registerB)['accountId'])
 
-    // 1. A creates the team T and gets her tenant tA in it.
     const created = await cli(
       1,
       'A create-organization',
@@ -311,7 +289,6 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
     const team = str(bodyOf(created)['organizationId'])
     const tA = str(bodyOf(created)['tenantId'])
 
-    // 2. A switches to tA.
     await cli(
       2,
       'A switch-current-tenant tA',
@@ -327,7 +304,6 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
     )
     must()
 
-    // 3. A invites B.
     await cli(
       3,
       'A issue-member-invitation B',
@@ -338,7 +314,6 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
     )
     must()
 
-    // 4. B reads the invitation, accepts it, and finds tB among the memberships.
     const received = await cli(
       4,
       'B query-received-invitations',
@@ -386,8 +361,6 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
     })
     must()
 
-    // Waits until every Run that the accepted inputs started has ended (R2-D257): an ordered stop with a
-    // Run in flight ends "incomplete" and exits 5. The history is read with the login proof of B.
     const proofB = savedLoginProof(homes.bob)
     const waitRunsEnded = async (inputs: number, label: string): Promise<void> => {
       const waitUntil = Date.now() + RUN_END_TIMEOUT_MS
@@ -395,24 +368,14 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
       let ended = false
       let last = ''
       while (Date.now() < waitUntil && !ended) {
-        const reply = await fetch(`${url}${SESSION_PATH}`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            protocolVersion: 'session-public/1',
-            messageId: 'k10-wait-runs',
-            operation: 'read-history',
-            body: {
-              tenant: tB,
-              session: sessionId,
-              cursor: null,
-              direction: 'forward',
-              pageBytes: '65536',
-            },
-            loginProof: proofB,
-          }),
-        })
-        last = await reply.text()
+        last = JSON.stringify(
+          await readHistoryPage(
+            protocolClients(url, () => ({ proof: proofB, tenant: tB })),
+            tB,
+            sessionId,
+            '65536',
+          ),
+        )
         outputs.push(last)
         const started = count(last, '"run.started"')
         const settled =
@@ -438,7 +401,6 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
       )
     }
 
-    // 5. B switches to tB, creates a session, and sends an input.
     await cli(
       5,
       'B switch-current-tenant tB',
@@ -467,11 +429,8 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
       ok,
     )
     must()
-    // The Run of the first input ends before B is removed: a Run still in flight at the removal did not end in
-    // two earlier trial runs (see the report of K10), and the stop after it was incomplete (exit 5).
     await waitRunsEnded(1, 'the Run of the first input ended before the removal of B')
 
-    // 6. A sees B as member, then removes B.
     await cli(
       6,
       'A query-organization-members',
@@ -506,7 +465,6 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
     )
     must()
 
-    // 7. B is out: the session and a new session answer denied; the current tenant stays tB.
     await cli(
       7,
       'B send-input to the step-5 session',
@@ -525,7 +483,6 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
       probes: run => [probe('current tenant is still tB', tB, str(bodyOf(run)['tenantId']))],
     })
 
-    // 8. A invites B again, B accepts: member role and the same tenant tB.
     await cli(
       8,
       'A issue-member-invitation B (again)',
@@ -582,7 +539,6 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
       },
     })
 
-    // 9. The step-5 session works again for B (same tenant).
     await cli(
       9,
       'B send-input to the step-5 session',
@@ -592,7 +548,6 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
     )
     await waitRunsEnded(2, 'the Runs of both accepted inputs ended before the stop')
 
-    // 10. A cannot reach B's session with tB: send-input through the CLI, read-history on the session face.
     await cli(
       10,
       'A send-input to the session of B with tB',
@@ -601,38 +556,22 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
       denied,
     )
     const proofA = savedLoginProof(homes.alice)
-    const history = await fetch(`${url}${SESSION_PATH}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        protocolVersion: 'session-public/1',
-        messageId: 'k10-read-history',
-        operation: 'read-history',
-        body: {
-          tenant: tB,
-          session: sessionId,
-          cursor: null,
-          direction: 'forward',
-          pageBytes: '65536',
-        },
-        loginProof: proofA,
-      }),
-    })
-    const historyText = await history.text()
+    const history = await readHistoryPage(
+      protocolClients(url, () => ({ proof: proofA, tenant: tB })),
+      tB,
+      sessionId,
+      '65536',
+    )
+    const historyText = JSON.stringify(history)
     outputs.push(historyText)
-    let historyOutcome: unknown
-    try {
-      historyOutcome = (JSON.parse(historyText) as { outcome?: unknown }).outcome
-    } catch {
-      historyOutcome = undefined
-    }
+    const historyOutcome: unknown = history.outcome
     steps.push({
       step: 10,
       label:
-        'A read-history of the session of B with tB (HTTP post to the session face: the CLI has no read-history command)',
+        'A read-history of the session of B with tB (protocol client of session/v1: the CLI has no read-history command)',
       command: [
-        'POST',
-        SESSION_PATH,
+        'CALL',
+        'session/v1',
         'operation=read-history',
         'tenant=tB',
         'session=<session of B>',
@@ -640,14 +579,10 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
       expected: denied,
       exitCode: null,
       outcome: typeof historyOutcome === 'string' ? historyOutcome : undefined,
-      probes: [
-        probe('the answer holds no history text', false, historyText.includes('k10 input')),
-        probe('HTTP status of the answer', 'recorded', `${String(history.status)}`),
-      ].map(entry => (entry.name === 'HTTP status of the answer' ? { ...entry, ok: true } : entry)),
+      probes: [probe('the answer holds no history text', false, historyText.includes('k10 input'))],
       ok: historyOutcome === 'denied' && !historyText.includes('k10 input'),
     })
 
-    // 11. A makes B super-admin and leaves; B, the last super-admin, cannot leave.
     await cli(
       11,
       'A change-member-role B super-admin',
@@ -676,7 +611,6 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
       denied,
     )
 
-    // 12. B logs out. A copy of the home keeps the old proof, to see that the server refuses it.
     const staleBob = join(scratch.base, 'home-bob-stale')
     cpSync(homes.bob, staleBob, { recursive: true })
     await cli(12, 'B revoke-login (own login)', homes.bob, ['revoke-login'], ok, {
@@ -704,7 +638,6 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
     server = undefined
     checks.push(probe('run 1 stopped in order (exit 0)', 0, runs[0]?.exitCode))
 
-    // 13. Restart with a short idle period; C logs in.
     server = await start(
       `second start (idle period PT${String(SHORT_IDLE_SECONDS)}S)`,
       SHORT_IDLE_SECONDS,
@@ -735,7 +668,6 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
     )
     must()
     const carolSessionId = str(bodyOf(carolSession)['session'])
-    // (a) Successful business requests keep the login alive past the first idle deadline.
     let businessAt = Date.now()
     let round = 0
     const businessStepsFrom = steps.length
@@ -759,7 +691,6 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
           steps.slice(businessStepsFrom).every(entry => entry.ok),
       ),
     )
-    // (b) Governance reads alone do not refresh: they succeed until the deadline, then answer denied.
     const giveUpAt = businessAt + SHORT_IDLE_SECONDS * 1000 + 15_000
     for (;;) {
       await sleep(2000)
@@ -817,7 +748,6 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
     server = undefined
     checks.push(probe('run 2 stopped in order (exit 0)', 0, runs[1]?.exitCode))
 
-    // No captured output holds a login proof or a password.
     const text = outputs.join('\n')
     checks.push(
       probe(

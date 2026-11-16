@@ -29,7 +29,6 @@ export function preparationOperation<P>(
 ): SessionOperationId {
   return `sop_result_${digestOf([cell.namespace, input.execution, input.operation, method])}` as SessionOperationId
 }
-/** The old Pending is interpreted separately before a new result and its participation are published. */
 export function resultPreparation<P>(
   cell: JournalCell<P>,
   publications: ReturnType<typeof publicationHooks>,
@@ -153,7 +152,6 @@ export function resultPreparation<P>(
         })
         if ('failure' in result) return failureOf(result.failure, input.operation)
         if (fault === 'after-publish') return { kind: 'commit-unknown', operation: input.operation }
-        // Continue through the same complete binding checks after the awaited publication.
       }
     } catch (error) {
       if (error instanceof HistoryFailure) {

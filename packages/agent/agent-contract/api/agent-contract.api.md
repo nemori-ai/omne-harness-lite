@@ -206,6 +206,7 @@
 - `ModelReceptionTargets` · `receiving.d.ts`
 - `ModelRecipient` · `request.d.ts`
 - `ModelReplyAdmission` · `evaluation.d.ts`
+- `ModelRetryState` · `evaluation.d.ts`
 - `ModelSelection` · `request.d.ts`
 - `NamedCapturedRead` · `passages.d.ts`
 - `NeedDeclaration` · `extensions.d.ts`
@@ -786,10 +787,24 @@ export type AdoptedRequest = Readonly<{
     record: JsonValue;
 }>;
 export type VoidedIntent = Readonly<{
+    kind: 'model';
     step: StepId;
     action: ActionId;
     reference: M.ModelInvocationRef;
+    cause: 'not-accepted' | 'lost';
     basis: DurableEvidence;
+}> | Readonly<{
+    kind: 'tool';
+    step: StepId;
+    action: ActionId;
+    reference?: never;
+    cause: 'not-accepted';
+    basis: DurableEvidence;
+}>;
+export type ModelRetryState = Readonly<{
+    failures: number;
+    since: AgentInstant;
+    notBefore: AgentInstant;
 }>;
 export type AgentCheckpoint = Readonly<{
     schema: Adoption;
@@ -804,6 +819,7 @@ export type AgentCheckpoint = Readonly<{
     compaction: CompactionState | null;
     adoptedContext: DurableEvidence | null;
     adoptedRequest?: AdoptedRequest | null;
+    modelRetry?: ModelRetryState | null;
     guard: GuardFact | null;
     completedPassages: readonly PassageId[];
     priorConditions: DurableEvidence | null;
@@ -1262,6 +1278,17 @@ export interface AgentExecutionRecovery<P> {
         authority: Authority;
         reason: DurableEvidence;
     }>): Reply<DurableEvidence>;
+    contact(input: Access<P> & Readonly<{
+        execution: AgentExecutionId;
+        authority: Authority;
+    }>): Reply<Readonly<{
+        kind: 'live';
+    }> | Readonly<{
+        kind: 'lost';
+        evidence: DurableEvidence;
+    }> | Readonly<{
+        kind: 'unknown';
+    }>>;
 }
 export interface AgentAdoptions<P> {
     resolve(input: Access<P> & Readonly<{
@@ -2911,6 +2938,9 @@ export type AdmissionDecision = Readonly<{
     evidence: DurableEvidence;
 }> | Readonly<{
     kind: 'unavailable';
+    diagnostic: string;
+}> | Readonly<{
+    kind: 'undecidable';
     diagnostic: string;
 }>;
 export interface ActionAdmission<P> {

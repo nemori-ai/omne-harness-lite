@@ -151,8 +151,8 @@
       "id": "session-handoff",
       "plugin": "sessionHandoffRow",
       "config": {
-        "combinationVersion": "session-composite/10",
-        "manifestDigest": "f83c11cc80a46148b46e945d142aa797bf9e67aa49211fbdc7e5f70c4e62af13"
+        "combinationVersion": "session-composite/13",
+        "manifestDigest": "4b3b613480132277a4b7c9f40241ab01ad1929de10ec1ae7e972c90392c99a40"
       }
     },
     {
@@ -164,8 +164,8 @@
       "id": "agent-journal",
       "plugin": "agentJournalRow",
       "config": {
-        "combinationVersion": "session-composite/10",
-        "manifestDigest": "f83c11cc80a46148b46e945d142aa797bf9e67aa49211fbdc7e5f70c4e62af13"
+        "combinationVersion": "session-composite/13",
+        "manifestDigest": "4b3b613480132277a4b7c9f40241ab01ad1929de10ec1ae7e972c90392c99a40"
       }
     },
     {
@@ -541,6 +541,33 @@
     {
       "id": "server-entry",
       "plugin": "serverEntryRow",
+      "config": {}
+    },
+    {
+      "id": "identity-access",
+      "plugin": "identityAccessRow",
+      "config": {}
+    },
+    {
+      "id": "session-access",
+      "plugin": "sessionAccessRow",
+      "config": {
+        "defaultDefinition": "coding"
+      }
+    },
+    {
+      "id": "assets-access",
+      "plugin": "assetsAccessRow",
+      "config": {}
+    },
+    {
+      "id": "human-intervention-access",
+      "plugin": "humanInterventionAccessRow",
+      "config": {}
+    },
+    {
+      "id": "session-diagnostics-access",
+      "plugin": "sessionDiagnosticsAccessRow",
       "config": {}
     }
   ]

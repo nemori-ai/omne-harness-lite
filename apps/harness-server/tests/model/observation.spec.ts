@@ -1,8 +1,3 @@
-// The admission point on the public Model stream (`src/model/observation.ts`, #1214): the source asks
-// the synchronous authority at every check, so a capture must be held while `current` runs and
-// while an observation runs, taken anew at the check interval, and released when it ends. The
-// inner source is a stand-in that records which captures were held when it was asked. Each case
-// names the defect that turns it red.
 import { describe, expect, it } from 'vitest'
 import type { ModelObservationSource } from '@omne-harness/model/commands'
 import type { ModelStreamObservation } from '@omne-harness/model-contract'
@@ -16,7 +11,6 @@ import {
 const TENANT = fixtureTenant('a')
 const ACCESS = { principal: { login: 'one' }, tenant: TENANT }
 
-/** A qualify that counts the captures it hands out and which of them are still held. */
 function capturing(delayMs = 0) {
   let taken = 0
   const held = new Set<number>()
@@ -36,7 +30,6 @@ function capturing(delayMs = 0) {
 type Frame =
   ReturnType<ModelStreamObservation<unknown>['observe']> extends AsyncIterable<infer F> ? F : never
 
-/** An inner source whose observation yields `frames` one by one, each when `step` is called. */
 function inner(
   frames: readonly Frame[],
   seen: { current?: readonly number[]; frames: (readonly number[])[] },

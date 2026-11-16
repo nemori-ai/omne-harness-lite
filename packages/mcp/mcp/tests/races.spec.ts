@@ -1,7 +1,3 @@
-// Interleavings across the publish boundary, the connection build and the close: a late result
-// never acts on a connection it did not produce, every phase is bounded, and a close and an
-// ensure of the same key both leave their connection with an owner. Steps are ordered with
-// deferred promises; the only timers are the connection bounds under test.
 import { describe, expect, it } from 'vitest'
 import { connectionKeyOf } from '@omne-harness/mcp-contract'
 import type { ListingPage, TransportFailure } from '@omne-harness/mcp-contract/provider'
@@ -36,14 +32,12 @@ async function stored(w: World) {
   return read.ok
 }
 
-/** A world whose eligibility port stalls its `which`-th check on a gate. */
 function stalledWorld(w: World, which: number) {
   const stalled = stallingEligibility(w.eligibility, which)
   return { gate: stalled.gate, c: core({ ...w, ports: { ...w.ports, eligibility: stalled.port } }) }
 }
 
 describe('publish boundary (B1): the checks sit next to the write', () => {
-  // A refresh asks eligibility twice: at the gate (call 1) and at the boundary (call 2).
   it('a connection replaced while the boundary waits on eligibility: kept (superseded)', async () => {
     const listing = deferred<ListingPage>()
     const second = deferred<ListingPage>()
@@ -61,8 +55,6 @@ describe('publish boundary (B1): the checks sit next to the write', () => {
     await settled()
     listing.resolve(page(['stale']))
     await settled()
-    // The boundary is now waiting on eligibility. Replace the connection meanwhile, without
-    // publishing: the late result is the only writer, so only the boundary can stop it.
     expect(await c.connections.release(alice, files)).toEqual({ ok: { kind: 'released' } })
     const next = c.discovery.refresh(alice, { ref: files })
     await settled()
@@ -103,7 +95,6 @@ describe('publish boundary (B1): the checks sit next to the write', () => {
   })
 })
 
-/** A page answer of a transport that is not usable any more: the connection is lost (T1, S7). */
 const GONE: TransportFailure = {
   kind: 'not-sent',
   cause: 'connection-unavailable',
@@ -126,7 +117,6 @@ describe('late results (B2): a page from an earlier generation does not touch th
     const c = core(w)
     const late = c.discovery.refresh(alice, { ref: files })
     await settled()
-    // A second refresh on generation 1 finds the connection gone; a third rebuilds generation 2.
     expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
       failure: { kind: 'connection-unavailable' },
     })
@@ -224,14 +214,13 @@ describe('build bound (B5): credentials and the open are bounded too', () => {
       failure: { kind: 'connection-unavailable' },
     })
     expect(await c.connections.release(alice, files)).toMatchObject({ ok: {} })
-    // The transport that opens too late is closed by the table.
     stalled.gate.resolve()
     await settled()
     expect(w.trace).toEqual(['transport.close'])
   })
 })
 
-describe('a port that breaches its contract (MC-15, contract T9)', () => {
+describe('a port that breaches its contract (T9)', () => {
   it('a rejected discover answers effect-unknown (abandoned) and is torn down; the next ensure builds again', async () => {
     const broken = deferred<typeof peer>()
     const w = world({ script: [{ discover: broken }, ...usualScript()] })
@@ -251,7 +240,7 @@ describe('a port that breaches its contract (MC-15, contract T9)', () => {
   })
 })
 
-describe('caller abort during the build (O3)', () => {
+describe('caller abort during the build', () => {
   it('answers kept (cancelled), marks nothing, and leaves the shared build to the other caller', async () => {
     const discover = deferred<typeof peer>()
     const w = world({ script: [{ discover }, { listActions: page(['a']) }] })
@@ -268,7 +257,7 @@ describe('caller abort during the build (O3)', () => {
   })
 })
 
-describe('an old adoption revision (O2)', () => {
+describe('an old adoption revision', () => {
   it('ensure with a token of an earlier revision answers unknown and leaves the new connection alone', async () => {
     const w = world({ script: [{ discover: peer }, { discover: peer }] })
     adoptHttp(w, files, { auth: 'none' })
@@ -288,7 +277,7 @@ describe('an old adoption revision (O2)', () => {
   })
 })
 
-describe('the gate the services walk through (D1)', () => {
+describe('the gate the services walk through', () => {
   it('does not ask eligibility for an endpoint that is not adopted', async () => {
     const w = world()
     adoptHttp(w, files, { auth: 'none' })
@@ -301,7 +290,7 @@ describe('the gate the services walk through (D1)', () => {
     expect(w.eligibility.calls()).toBe(0)
   })
 
-  it('another principal without eligibility does not close the connection of the tenant (O1)', async () => {
+  it('another principal without eligibility does not close the connection of the tenant', async () => {
     const w = world({ script: usualScript() })
     adoptHttp(w, files, { auth: 'none' })
     const c = core(w)
@@ -318,7 +307,7 @@ describe('the gate the services walk through (D1)', () => {
 
 const NOT_SENT = GONE
 
-describe('lose shares the close (R3-1): one teardown per entry, in the close order', () => {
+describe('lose shares the close: one teardown per entry, in the close order', () => {
   it('a release during the teardown of a lost connection waits for it; the next refresh builds', async () => {
     const closing = deferred<'closed'>()
     const w = world({
@@ -328,7 +317,6 @@ describe('lose shares the close (R3-1): one teardown per entry, in the close ord
     const c = core(w)
     const losing = c.discovery.refresh(alice, { ref: files })
     await settled()
-    // The transport is closing. Nothing else of the close order has happened yet.
     expect(w.transports.calls.filter(call => call.kind === 'close')).toHaveLength(1)
     expect(w.trace).toEqual([])
     let released = false
@@ -382,7 +370,7 @@ describe('lose shares the close (R3-1): one teardown per entry, in the close ord
   })
 })
 
-describe('a credential handle that arrives after the bound (R3-2)', () => {
+describe('a credential handle that arrives after the bound', () => {
   it('a credential handle that arrives after the bound is released; a release that rejects is dropped, not unhandled', async () => {
     const w = world({ script: usualScript() })
     adoptHttp(w, files, { settings: { connectTimeout: VALUE(millisOf(50)) } })
@@ -411,12 +399,10 @@ describe('a credential handle that arrives after the bound (R3-2)', () => {
   })
 })
 
-describe('the adoption read again in the critical section is bounded (MC-5)', () => {
+describe('the adoption read again in the critical section is bounded', () => {
   it('a re-read that never answers: connection-unavailable at the bound, and the next ensure of the holding answers within its own bound', async () => {
     const w = world({ script: usualScript() })
     adoptHttp(w, files, { auth: 'none', settings: { connectTimeout: VALUE(millisOf(50)) } })
-    // Calls 1 and 2 are the gates of the two refreshes; calls 3 and 4, the re-reads of the
-    // critical section, never answer.
     const silent = silentAdoption(w.ports.adoption, between(3, 4))
     const c = core({ ...w, ports: { ...w.ports, adoption: silent.port } })
     const [first, second] = await Promise.all([
@@ -434,7 +420,7 @@ describe('the adoption read again in the critical section is bounded (MC-5)', ()
   })
 })
 
-describe('a teardown that does not answer holds no ensure past its bound (MC-5)', () => {
+describe('a teardown that does not answer holds no ensure past its bound', () => {
   const REFUSED = { failure: { kind: 'connection-unavailable' } }
 
   it('the close of an earlier revision hangs: two refreshes of the new revision answer connection-unavailable, then the close ends on its own', async () => {
@@ -483,8 +469,6 @@ describe('two tokens of two revisions at the re-read (observation)', () => {
   it('leaves one entry, on the newer revision; the older build is closed, the newer one is not', async () => {
     const w = world({ script: [{ discover: peer }, { discover: peer }] })
     adoptHttp(w, files, { auth: 'none' })
-    // Call 1 is the gate for the old token; call 2 is the re-read of its ensure, answered at once
-    // (revision 1) but delivered after the adoption moved on and a newer token asked.
     const stalled = stallingAdoption(w.ports.adoption, 2)
     const ports = { ...w.ports, adoption: stalled.port }
     const table = createConnectionTable(ports, w.config)
@@ -516,8 +500,6 @@ describe('each ensure waits at most to its own bounds (SPEC P8 T2)', () => {
   it('a call queued behind one that holds the critical section answers at its own bound, and asks no port after', async () => {
     const w = world({ script: usualScript() })
     adoptHttp(w, files, { auth: 'none' })
-    // Calls 1 and 2 are the gates of the two refreshes; call 3, the re-read of the first in the
-    // critical section, never answers.
     const silent = silentAdoption(w.ports.adoption, between(3, 4))
     const bounds = manualBounds()
     const c = core({ ...w, ports: { ...w.ports, adoption: silent.port } }, bounds.runtime)
@@ -554,8 +536,6 @@ describe('each ensure waits at most to its own bounds (SPEC P8 T2)', () => {
   it('at the table, a call queued past its section bound answers at the settings stage', async () => {
     const w = world({ script: usualScript() })
     adoptHttp(w, files, { auth: 'none' })
-    // Call 1 is the gate; call 2, the re-read of the first ensure in the critical section, never
-    // answers.
     const silent = silentAdoption(w.ports.adoption, only(2))
     const bounds = manualBounds()
     const ports = { ...w.ports, adoption: silent.port }

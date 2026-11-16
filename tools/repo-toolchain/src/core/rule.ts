@@ -1,9 +1,6 @@
-/** 一条结构检查规则：对源码文本、语法和路径给出违反点，不作跨文件类型分析。 */
 export interface SourceFile {
-  /** 相对于扫描根（`packages/`）的 POSIX 路径。 */
   readonly path: string
   readonly text: string
-  /** Repository guards may attach actual TS-resolved module paths, including configured aliases. */
   readonly resolvedModules?: Readonly<Record<string, string>>
 }
 
@@ -16,7 +13,6 @@ export interface Violation {
 
 export interface Rule {
   readonly id: string
-  /** 来源条款（契约或节点 verification 的编号），供报告引用。 */
   readonly source: string
   readonly description: string
   check(files: readonly SourceFile[]): Violation[]
@@ -26,7 +22,6 @@ export function isTestPath(path: string): boolean {
   return path.includes('/tests/') || /\.(spec|test)(-d)?\.ts$/.test(path)
 }
 
-/** 逐行扫描：`pattern` 命中且 `exempt(path)` 为假 ⇒ 违反。 */
 export function scanLines(
   rule: Rule,
   files: readonly SourceFile[],

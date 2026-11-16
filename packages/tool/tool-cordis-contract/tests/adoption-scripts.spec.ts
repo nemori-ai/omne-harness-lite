@@ -1,5 +1,3 @@
-// The two RD-COORD doubles answer only from their scripts, answer `unavailable` without one, take
-// the caller's access and keep every call readable.
 import { describe, expect, it } from 'vitest'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'

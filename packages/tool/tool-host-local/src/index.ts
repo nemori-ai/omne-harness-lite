@@ -1,4 +1,3 @@
-// Independent local host factories. This entry does not import Cordis.
 export type {
   StartPermitRequirement,
   StartPermitRequirements,

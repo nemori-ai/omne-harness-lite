@@ -16,7 +16,6 @@ export type SettingsRegistrySnapshot = Readonly<{
   definitions: readonly SettingDefinitions[]
 }>
 
-/** Assembly-only registration. Availability does not establish a target or grant access. */
 export function createSettingsRegistry(options: Readonly<{ capacity: number }>) {
   if (!Number.isInteger(options.capacity) || options.capacity < 1 || options.capacity > 1024)
     throw new RangeError('Settings registry capacity must be between 1 and 1024')

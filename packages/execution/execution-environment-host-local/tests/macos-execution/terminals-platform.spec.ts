@@ -1,11 +1,3 @@
-// Fast: the macOS terminal platform's own decisions, with the stand-in session reader
-// (`fake-reader.ts`) and stand-in gates and shells that are plain `/bin/sleep` processes, each the
-// leader of its own session. The platform records the gate's session before GO and the shell's
-// once it opened, stops both, and removes the marker and the FIFO directory only after a confirmed
-// stop. The real gate, PTY and reader are the slow tier's (`terminals.spec.ts`). Node's own seams
-// are doubled only to observe or deny: the processes the platform starts and with what options, a
-// path that is not executable, and node-pty's loader module. Runs on every
-// POSIX host; skipped on Windows.
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
 import { constants } from 'node:fs'
 import { access, mkdir, mkdtemp, realpath, rm, stat, writeFile } from 'node:fs/promises'
@@ -26,7 +18,6 @@ import {
 import { fakeReader, type FakeReader } from './fake-reader.ts'
 import { alive, freshScope, killAll } from './fixture.ts'
 
-/** What the doubles of Node's modules deny or record; every field resets after each test. */
 const seam = vi.hoisted(() => ({
   notExecutable: new Set<string>(),
   utils: undefined as unknown,
@@ -41,7 +32,6 @@ vi.mock('node:child_process', async importOriginal => {
     seam.read.push({ file, options })
     return Reflect.apply(actual.execFile, undefined, [file, args, options, done])
   }
-  // Keep the promisified form `{ stdout, stderr }` for any module that promisifies execFile.
   Object.defineProperty(execFile, promisify.custom, { value: promisify(actual.execFile) })
   return {
     ...actual,
@@ -108,7 +98,6 @@ afterEach(async () => {
   seam.read.splice(0)
 })
 
-/** A process that leads its own session and process group, as the gate and the shell do. */
 function leader(script = 'exec /bin/sleep 30'): { child: ChildProcess; exited: Promise<void> } {
   const child = spawn('/bin/sh', ['-c', script], {
     detached: true,
@@ -149,7 +138,6 @@ function platformOf(
   return { platform, scope, allocate }
 }
 
-/** A FIFO directory where the platform keeps it, removed by the test if the platform did not. */
 async function fifoDirectory(unit: string): Promise<string> {
   const directory = join(tmpdir(), `${unit}.terminal`)
   await mkdir(directory)
@@ -190,7 +178,6 @@ onPosix('admission and allocation', () => {
     const { coordinate, resource } = allocate()
     const gate = platform.launch(coordinate, resource)
     if (gate.pid !== undefined) pids.push(gate.pid)
-    // The gate leads its own process group, so a stop of its session reaches all of it.
     const group = execFileSync('/bin/ps', ['-o', 'pgid=', '-p', String(gate.pid)], {
       encoding: 'utf8',
     })
@@ -205,7 +192,6 @@ onPosix('admission and allocation', () => {
     expect(gate.spawnargs[0]).toBe(process.execPath)
     expect(gate.spawnargs[1]).toMatch(/terminal-gate\.ts$/u)
     expect(gate.stdio[3]).toBeTruthy()
-    // At the root, in its own session, with only the gate's environment.
     expect(seam.spawned.at(-1)).toEqual({
       file: process.execPath,
       options: {
@@ -234,7 +220,6 @@ onPosix('ready and opened', () => {
     const { platform, allocate } = platformOf()
     const { coordinate, resource } = allocate()
     const gate = leader().child
-    // Before admission there is no reader to ask.
     expect(await platform.ready(coordinate, resource, gate)).toBe(false)
     await platform.admit()
     expect(await platform.ready(coordinate, resource, gate)).toBe(true)
@@ -262,7 +247,6 @@ onPosix('ready and opened', () => {
     expect(await platform.ready(coordinate, resource, unborn)).toBe(false)
     expect(await domains.coordinate(resource.key)).toBe('absent')
 
-    // A state directory that is a file: the marker cannot be written.
     await writeFile(join(state, 'file'), '')
     const blocked = platformOf({ domains: createDomainIndex(join(state, 'file')) })
     await blocked.platform.admit()
@@ -296,7 +280,6 @@ onPosix('ready and opened', () => {
       ],
     })
     expect(await fake.calls()).toContainEqual(['children', String(gate.pid)])
-    // The reader runs with an empty environment, whatever it is asked.
     const reads = seam.read.filter(call => call.file === fake.path)
     expect(reads.length).toBeGreaterThan(1)
     for (const call of reads) expect(call.options).toMatchObject({ env: {} })
@@ -310,7 +293,6 @@ onPosix('ready and opened', () => {
     await fake.set('children', `${shell.pid}\n`)
     expect(await platform.opened(coordinate, resource, gate)).toBe(false)
     await platform.admit()
-    // Nothing was recorded for this resource: the gate never reported ready.
     expect(await platform.opened(coordinate, resource, gate)).toBe(false)
     expect((await fake.calls()).some(call => call[0] === 'children')).toBe(false)
     expect(await platform.ready(coordinate, resource, gate)).toBe(true)
@@ -318,7 +300,6 @@ onPosix('ready and opened', () => {
     expect(await platform.opened(coordinate, resource, gate)).toBe(false)
     await fake.set('children', `${shell.pid}\nnot-a-pid\n`)
     expect(await platform.opened(coordinate, resource, gate)).toBe(false)
-    // The child does not lead its own session.
     await fake.set('children', `${shell.pid}\n`)
     await fake.set('identity', `${gate.pid} 1 1\n`)
     expect(await platform.opened(coordinate, resource, gate)).toBe(false)
@@ -326,7 +307,6 @@ onPosix('ready and opened', () => {
     expect(await platform.opened(coordinate, resource, gate)).toBe(false)
     await fake.set('identity', 'garbled\n')
     expect(await platform.opened(coordinate, resource, gate)).toBe(false)
-    // A gate without a pid has no children to ask about.
     await fake.clear('identity')
     const unborn = spawn(join(state, 'missing-executable'))
     unborn.on('error', () => undefined)
@@ -348,7 +328,6 @@ onPosix('stop', () => {
     expect(await platform.stop(coordinate, resource, gate, exited)).toBe('confirmed')
     expect(gate.signalCode).toBe('SIGKILL')
     expect(await exists(fifo)).toBe(false)
-    // The gate alone was stopped: the reader was never asked.
     expect(await fake.calls()).toEqual([])
   })
 
@@ -384,11 +363,9 @@ onPosix('stop', () => {
       String(gate.pid),
       String(shell.pid),
     ])
-    // Both sessions were recorded: no shell is looked for again.
     expect((await fake.calls()).filter(call => call[0] === 'children')).toHaveLength(1)
     expect(await domains.coordinate(resource.key)).toBe('absent')
     expect(await exists(fifo)).toBe(false)
-    // The coordinate is forgotten with the marker: a later stop asks the reader nothing.
     const asked = (await fake.calls()).length
     expect(await platform.stop(coordinate, resource, gate, exited)).toBe('confirmed')
     expect(await fake.calls()).toHaveLength(asked)
@@ -417,7 +394,6 @@ onPosix('stop', () => {
     const { platform, allocate } = platformOf()
     await platform.admit()
     const { coordinate, resource } = allocate()
-    // The gate exits on its own once it reported ready.
     const { child: gate, exited } = leader('read line; exit 3')
     const shell = leader().child
     expect(await platform.ready(coordinate, resource, gate)).toBe(true)
@@ -469,7 +445,6 @@ onPosix('stop', () => {
     expect(await domains.coordinate(resource.key)).not.toBe('absent')
     expect(await exists(fifo)).toBe(true)
 
-    // The recorded coordinate was kept: a later stop with the reader confirms.
     reading = { kind: 'ready', path: fake.path }
     expect(await platform.stop(coordinate, resource, gate, exited)).toBe('confirmed')
     expect(await domains.coordinate(resource.key)).toBe('absent')

@@ -28,7 +28,6 @@ function permissionVerdict(
     : unavailable()
 }
 
-/** The authorization row owns these rules. A target check creates no Agent action. */
 export function createToolTargetPolicy(
   rules: ActionRules | undefined,
   read: AdmissionReader,

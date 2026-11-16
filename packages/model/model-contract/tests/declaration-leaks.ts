@@ -1,8 +1,3 @@
-// Finds names that a built declaration file uses in the signature of a published name but does not
-// export. A consumer sees such a name in the signature and cannot import it, so the signature shows
-// a type that the public face does not name. The check reads one `.d.ts` file at a time, so it
-// finds the local aliases and interfaces of that file. A name that the file exports but the entry
-// leaves out is a different question and not decided here.
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import ts from '@typescript/typescript6'
@@ -13,7 +8,6 @@ type Declared =
   | ts.ClassDeclaration
   | ts.EnumDeclaration
 
-/** The names of the published declarations to check, or every exported declaration of the file. */
 export type Published = readonly string[] | 'all'
 
 function isExported(node: ts.Node): boolean {
@@ -31,7 +25,6 @@ function isTypeDeclaration(node: ts.Statement): node is Declared {
   )
 }
 
-/** The names a statement refers to in type positions: references and heritage clauses. */
 function referencedNames(node: ts.Node, found: Set<string>): void {
   if (ts.isTypeReferenceNode(node)) {
     let left: ts.EntityName = node.typeName
@@ -49,7 +42,6 @@ function declaredName(statement: ts.Statement): string | undefined {
   return undefined
 }
 
-/** The local type names of a declaration file that the signatures of the published names use. Sorted. */
 export function localNamesInPublishedSignatures(
   path: string,
   text: string,
@@ -72,10 +64,6 @@ export function localNamesInPublishedSignatures(
 
 export type Leak = Readonly<{ file: string; name: string }>
 
-/**
- * Follows the `export ... from` lines of an entry declaration file one level, and checks the
- * declaration file behind each of them for the names that the entry publishes from it.
- */
 export function leaksOfEntry(entryPath: string): Leak[] {
   const entry = ts.createSourceFile(
     entryPath,

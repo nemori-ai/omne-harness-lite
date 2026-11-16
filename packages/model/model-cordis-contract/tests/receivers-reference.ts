@@ -1,6 +1,3 @@
-// A second, independent implementation of the receiver table, with switchable defects. It exists
-// so that the conformance cases can be shown to go red: each defect breaks one rule, and the
-// cases that hold that rule must fail. The real table in `src/receivers.ts` is not derived from it.
 import type { Context } from '@deepseek-ai/cordis'
 import type { ModelResultReceiver } from '@omne-harness/model-contract'
 import type { ModelResultReceiverTable } from '../src/cordis.ts'
@@ -15,7 +12,6 @@ export const DEFECTS = [
 ] as const
 export type Defect = (typeof DEFECTS)[number]
 
-// Cordis fiber states by value: FAILED 3, DISPOSED 4, UNLOADING 5.
 const dead = (state: number) => state === 3 || state === 4 || state === 5
 
 type Entry = { owner: string; receiver: ModelResultReceiver<unknown>; ctx: Context }
@@ -41,7 +37,6 @@ export function createReferenceTable(defect?: Defect): ModelResultReceiverTable<
         if (defect === 'removal-deletes-successor' || held.get(owner) === entry) held.delete(owner)
       }
       if (defect !== 'sticky-registration') {
-        // The registration is an effect of the calling fiber, so it ends with that fiber.
         ctx.effect(() => remove, 'reference-receiver')
       }
       return remove

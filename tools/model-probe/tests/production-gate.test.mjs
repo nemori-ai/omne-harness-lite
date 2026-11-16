@@ -185,7 +185,6 @@ for (const afterEffect of [false, true])
       await assert.rejects(openProductionLedger(path, path, budget), { code: 'EEXIST' })
       assert.equal(effects, afterEffect ? 1 : 0)
       assert.equal(JSON.parse(await readFile(path, 'utf8')).entries.at(-1).state, 'reserved')
-      // Synthetic fixture only: even a manual lock deletion cannot clear the durable reservation.
       await rm(`${path}.lock`)
       await assert.rejects(openProductionLedger(path, path, budget), /Unsettled/)
     } finally {

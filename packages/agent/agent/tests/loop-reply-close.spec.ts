@@ -108,7 +108,7 @@ async function settled(
 }
 
 describe('#515 reply admission and iteration close', () => {
-  it('NA-I3-1: admission and its continuation hold at one revision before I4', async () => {
+  it('admission and its continuation hold at one revision before I4', async () => {
     const commits: JournalCommit<Principal>[] = []
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
@@ -174,7 +174,7 @@ describe('#515 reply admission and iteration close', () => {
     ).toHaveLength(1)
   })
 
-  it('NA-I3-1: a lost handoff receipt is recalled with the original operation and candidate', async () => {
+  it('a lost handoff receipt is recalled with the original operation and candidate', async () => {
     const commits: JournalCommit<Principal>[] = []
     let lost = true
     const assembly = await loopAssembly([execution()], d => ({
@@ -211,7 +211,7 @@ describe('#515 reply admission and iteration close', () => {
     ).toHaveLength(1)
   })
 
-  it('NA-I4-1: an admitted reply without tool calls commits its empty batch before I8', async () => {
+  it('an admitted reply without tool calls commits its empty batch before I8', async () => {
     const commits: JournalCommit<Principal>[] = []
     const assembly = await loopAssembly([execution()], recordCommits(commits))
     const c = coordinator(assembly)
@@ -231,7 +231,7 @@ describe('#515 reply admission and iteration close', () => {
     expect((await load(assembly)).checkpoint.batch).toBeNull()
   })
 
-  it('NA-I8-1: an empty queue and no outstanding wait propose completion before terminal commit', async () => {
+  it('an empty queue and no outstanding wait propose completion before terminal commit', async () => {
     const commits: JournalCommit<Principal>[] = []
     let terminals = 0
     const assembly = await loopAssembly([execution()], d => ({
@@ -258,7 +258,7 @@ describe('#515 reply admission and iteration close', () => {
     })
   })
 
-  it('NA-I8-2: input accepted while a call is in flight enters only the next step', async () => {
+  it('input accepted while a call is in flight enters only the next step', async () => {
     const commits: JournalCommit<Principal>[] = []
     const assembly = await loopAssembly([execution()], recordCommits(commits))
     const c = coordinator(assembly)
@@ -290,12 +290,11 @@ describe('#515 reply admission and iteration close', () => {
     expect(new Set(admitted.map(item => item.action)).size).toBe(2)
   })
 
-  it('NA-I8-2: after terminal release a new invoke starts the next execution first step', async () => {
+  it('after terminal release a new invoke starts the next execution first step', async () => {
     const assembly = await loopAssembly([execution(), execution('exec-2')])
     ok(await invoke(assembly))
     assembly.release.open()
     await eventually(async () => (await load(assembly)).state.kind === 'ended')
-    // E9 releases the slot after the terminal and original responsibility records.
     await eventually(async () => {
       const controller = new AbortController()
       const seen = assembly.provider.observation
@@ -311,7 +310,7 @@ describe('#515 reply admission and iteration close', () => {
     expect((await load(assembly, 'exec-2')).checkpoint.step).toBe('step-1')
   })
 
-  it('NA-I8-3: an unprocessed responsibility waits at I8 despite an empty action batch and queue', async () => {
+  it('an unprocessed responsibility waits at I8 despite an empty action batch and queue', async () => {
     const commits: JournalCommit<Principal>[] = []
     let injected = false
     const assembly = await loopAssembly([execution()], d => ({
@@ -352,12 +351,11 @@ describe('#515 reply admission and iteration close', () => {
     expect(commits.filter(item => item.state.kind === 'settling')).toEqual([])
     const waiting = commits.filter(item => item.events.some(event => event.kind === 'waiting'))
     expect(waiting).toHaveLength(1)
-    // An explicit serial retry returns through I8, not through an E4/wait table defect.
     ok(await c.runExecution())
     expect((await load(assembly)).state.kind).toBe('waiting')
     expect(commits.filter(item => item.state.kind === 'settling')).toEqual([])
   })
-  it('NA-I3-2: final failure without content fixes the real no-reply candidate before F1', async () => {
+  it('final failure without content fixes the real no-reply candidate before F1', async () => {
     const commits: JournalCommit<Principal>[] = []
     const assembly = await settled(
       [],
@@ -415,15 +413,42 @@ describe('#515 reply admission and iteration close', () => {
   })
 
   it.each([
-    { kind: 'completed', reason: 'limit' },
-    {
-      kind: 'failed',
-      fault: {
-        cause: 'upstream-unavailable',
-        diagnostic: 'after first content',
-        upstreamStatus: null,
+    [{ kind: 'completed', reason: 'limit' }, 'model-truncated'],
+    [
+      {
+        kind: 'failed',
+        fault: {
+          cause: 'upstream-unavailable',
+          diagnostic: 'after first content',
+          upstreamStatus: null,
+        },
       },
+      'model-failed/upstream-unavailable/after%20first%20content',
+    ],
+  ] satisfies (readonly [Termination, string])[])(
+    'partial %j cannot enter reply admission or authorize actions, and fails the run as %s',
+    async (termination, reason) => {
+      const commits: JournalCommit<Principal>[] = []
+      const assembly = await settled(
+        [{ kind: 'partial', content: 'tool-arguments', value: '{', trims: [] }],
+        termination,
+        commits,
+      )
+      const c = coordinator(assembly)
+      ok(await c.accept())
+      ok(await c.runExecution())
+      expect(commits.filter(item => item.replyAdmission !== null)).toEqual([])
+      expect(commits.some(item => item.operation.startsWith('I4/'))).toBe(false)
+      expect(commits.some(item => item.operation.startsWith('I3/'))).toBe(false)
+      expect(commits.some(item => item.operation.startsWith('I8/'))).toBe(false)
+      expect(commits.find(item => item.finish !== null)?.finish).toMatchObject({
+        conclusion: { kind: 'fail', cause: { record: `${execution()}/step-1/${reason}` } },
+        failure: { kind: 'no-reply', step: 'step-1' },
+      })
     },
+  )
+
+  it.each([
     { kind: 'interrupted', control: ok(decodeModelOperationId('mop_interrupt')) },
   ] satisfies Termination[])(
     'partial %j cannot enter reply admission or authorize actions',

@@ -1,5 +1,3 @@
-// The one rule of what a transport's answer means for a ready connection (SPEC MC-16, MC-17,
-// MC-7; contract S5, S7, T1): `lostOf` over every answer the three services hand it.
 import { describe, expect, it } from 'vitest'
 import type { PeerAnswer } from '@omne-harness/mcp-contract'
 import type { TransportFailure } from '@omne-harness/mcp-contract/provider'

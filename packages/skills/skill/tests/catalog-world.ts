@@ -1,9 +1,3 @@
-// One small world behind the two ports of the catalog: a reader and a stranger, an adopted Skill
-// `review` that the reader may read, an adopted Skill `secret` that is in the reader's lawful set
-// and that the read check refuses, a stand-in `retired`, and an identity that exists for nobody.
-// The memory doubles of `skill-contract/testing` hold it; the controls change the world between
-// calls and count the read checks, so a test can show what the catalog does when a port answers
-// `unknown`, lists an identity twice, or answers in another order.
 import type { CapabilityId } from '@omne-harness/assets'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createSkillCatalog, type SkillPorts } from '@omne-harness/skill'
@@ -65,7 +59,6 @@ const secretDeclared: DeclaredProjection = {
   settings: [],
 }
 
-/** The entry that the catalog must give for `review`. */
 export const reviewEntry: Extract<CatalogEntry, { kind: 'adopted' }> = {
   kind: 'adopted',
   capability: review,
@@ -74,7 +67,6 @@ export const reviewEntry: Extract<CatalogEntry, { kind: 'adopted' }> = {
   dependencies: [tool('read-file')],
 }
 
-/** The entry that the catalog must give for `retired`. */
 export const retiredEntry: Extract<CatalogEntry, { kind: 'stand-in' }> = {
   kind: 'stand-in',
   capability: retired,
@@ -83,11 +75,8 @@ export const retiredEntry: Extract<CatalogEntry, { kind: 'stand-in' }> = {
   reason: granted(isSafeReason, 'Disabled by the organization.'),
 }
 
-/** A read check whose answers wait until the test releases them, in the order it chooses. */
 export type Held = Readonly<{
-  /** How many answers are waiting. */
   pending(): number
-  /** Lets every waiting answer through, first to last or last to first. */
   release(order: 'forward' | 'reverse'): void
 }>
 
@@ -96,7 +85,6 @@ export type CatalogControls = Readonly<{
   verdictUnknown(capability: CapabilityId): void
   repeatGranted(): void
   removeRefused(): void
-  /** From now on every read check answer waits; the returned handle releases them. */
   holdVerdicts(): Held
   checks(): number
 }>
@@ -107,7 +95,6 @@ export type CatalogWorld = Readonly<{
   controls: CatalogControls
 }>
 
-/** A fresh world. Each test builds its own, so the controls of one test do not reach another. */
 export function createCatalogWorld(): CatalogWorld {
   const readCheck = createMemoryReadCheck<Principal, Scope>([
     { capability: review, visible: onlyAlice },
@@ -205,7 +192,6 @@ function isAbout(answer: CatalogResolution, item: CapabilityId): boolean {
   return sameCapability(capability, item)
 }
 
-/** A fresh fixture of the catalog suite over a fresh world; `catalog` replaces the real one. */
 export function catalogFixture(
   catalog?: (world: CatalogWorld) => SkillCatalog<Principal, Scope>,
 ): CatalogFixture<Principal, Scope> {

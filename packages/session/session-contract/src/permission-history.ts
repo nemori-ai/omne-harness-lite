@@ -7,7 +7,6 @@ import { applyPermissionEvent } from './permission-state.ts'
 import { batchEvidence } from './reduce.ts'
 import { equalValue } from './session-validation.ts'
 
-/** The two revision-4 releases preceding the relational permission projection. */
 const predecessors = new Set([
   'sha256:3abcec48c42a0f45922018403bc73b3c57490af537ae8a4257980350fa7f5875',
   'sha256:8e67c6989d5680a5fe05c86b679528577c8e255c530ca58a4356b3e93deae192',
@@ -81,7 +80,6 @@ function validateBatch(batch: CommittedBatch, previous: bigint, limit: bigint): 
   return revision
 }
 
-/** Rebuilds only permission state from complete original batches; it never reauthorizes history. */
 export function rebuildSessionPermissions(
   snapshot: WorkSnapshot,
   batches: Iterable<CommittedBatch>,

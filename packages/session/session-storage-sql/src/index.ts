@@ -1,7 +1,3 @@
-// The Session storage over the SQL storage contract. The root exports the port factories, the
-// session binding source and the static materials. It imports the SQL contract only through its
-// public entries, and it builds no Cordis service: the session storage composite belongs to the
-// application.
 import type {
   SessionDelegatedTransactions,
   SessionTransactionPort,
@@ -32,10 +28,8 @@ export {
   type SessionStorageMaterialsOptions,
 } from './materials.ts'
 export { SESSION_PARTICIPANT } from './participants.ts'
-/** Registers a notifier of the batches every committer of this process writes to a database. */
 export { registerSessionNotifier } from './committed.ts'
 
-/** The public port. Every method asks the access check once. */
 export function createSessionStorage<P>(
   options: SessionStorageOptions<P>,
 ): SessionTransactionPort<P> {
@@ -47,11 +41,6 @@ export type SessionStoragePair<P> = Readonly<{
   delegated: SessionDelegatedTransactions<P>
 }>
 
-/**
- * The public port and the delegated entry over one context. `transactions` behaves as
- * `createSessionStorage`; a view from `delegated.bind` serves one checked face operation on the
- * same storage and does not ask the access check.
- */
 export function createSessionStoragePair<P>(
   options: SessionStorageOptions<P>,
 ): SessionStoragePair<P> {

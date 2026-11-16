@@ -1,5 +1,3 @@
-// Install-closure facility entry point. Exit code 0: closure and consumer install are clean.
-// 1: a check failed (the JSON report names it). 2: usage or tool error.
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { readManifest } from './closure.ts'
@@ -19,7 +17,6 @@ const USAGE = [
   'install.mode says which attempt installed.',
 ].join('\n')
 
-/** The script or the fixture that the run exercises; at most one of the two. */
 function exercise(options: ReadonlyMap<string, string>) {
   const scenario = options.get('--scenario')
   const fixture = options.get('--fixture')

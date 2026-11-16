@@ -32,7 +32,6 @@ export type SessionModesPublicationResult =
 
 type Sourced<T> = Readonly<{ value: T; source: DurableEvidence }>
 
-/** The modes adopted at creation, each with the evidence that adopted them. */
 function adoptedModes(input: SessionModesPublicationInput): Sourced<Modes> | undefined {
   const adopted = input.permission.mode.adopted
   if (adopted.kind === 'explicit')
@@ -64,7 +63,6 @@ function currentModes(input: SessionModesPublicationInput): CurrentModes | undef
     : { modes: { environment, collaboration: collaboration.value, permission }, collaboration }
 }
 
-/** Joins owner observations before publication. A later capture must guard this exact basis. */
 export function createSessionModesPublication(
   input: SessionModesPublicationInput,
 ): SessionModesPublicationResult {

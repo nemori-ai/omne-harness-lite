@@ -1,7 +1,3 @@
-// M4-6, an early guard only: `modelStorageMaterials()` and `sessionStorageMaterials(options)` form a valid
-// combination for one tenant domain, and a construction that checks materials verifies the code
-// digests of both. The combination guarantee itself belongs to the session storage combination row
-// of the application (L-APP).
 import { appendFileSync, copyFileSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -40,7 +36,6 @@ function catalogOf(model: ModelStorageMaterials): SqlMaterialCatalog {
   }
 }
 
-/** The materials with the module of `model.call` moved to `url`; its digest is kept as it was. */
 function withCallModuleAt(model: ModelStorageMaterials, url: string): ModelStorageMaterials {
   return {
     ...model,

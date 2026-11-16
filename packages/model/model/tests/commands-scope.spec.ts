@@ -1,5 +1,3 @@
-// The run scope that the shared commands core hands to its storage. A durable storage reads the
-// tenant, call and operation of an attempt before it runs `work`, so every method names them.
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
   decodeDispatchId,
@@ -23,7 +21,6 @@ import type { Binding, CallDocument, TenantDocuments } from '../src/commands/typ
 import { MemoryState } from '../src/testing/state.ts'
 import { adoption, callId, fixture, instance, op, proof, request, unbox } from './memory-fixture.ts'
 
-/** The memory storage, with every scope that the core hands to `run` kept in order. */
 function recording(f: ReturnType<typeof fixture>) {
   const memory = new MemoryState(f.options)
   const scopes: (RunScope | undefined)[] = []
@@ -41,7 +38,6 @@ function recording(f: ReturnType<typeof fixture>) {
   return { commands: modelCommands(createModelCommandsCore(f.options, storage)), scopes }
 }
 
-/** One call of every method: the input is valid in shape, and the call is not required to exist. */
 function everyMethod(f: ReturnType<typeof fixture>) {
   const { principal, tenant } = f
   const call = callId()
@@ -152,22 +148,18 @@ it('every one of the 23 methods runs its attempt under a scope that names the te
     await calls[method](commands)
     const call: ModelCallId = callId()
     if (method === 'handoff') {
-      // The ACK first reads the call to ask the owner's evidence adapter outside the fence: a read
-      // attempt that names the tenant and the call, then the write attempt.
       expect(scopes, method).toHaveLength(2)
       expect(scopes.shift(), method).toStrictEqual({ tenant: text.value, call })
     }
     expect(scopes, method).toHaveLength(1)
     const scope = scopes[0]
     if (method === 'scanPending') {
-      // A scan reads across calls of the tenant: it names no call and no operation.
       expect(scope, method).toStrictEqual({ tenant: text.value })
     } else if (writes.includes(method)) {
       expect(scope?.tenant, method).toBe(text.value)
       expect(scope?.call, method).toBe(call)
       expect(scope?.operation, method).toBe(op(method))
     } else if (method === 'query') {
-      // A query recovers one original operation: the read names it, as a write names its own.
       expect(scope, method).toStrictEqual({ tenant: text.value, call, operation: op('admit') })
     } else {
       expect(scope, method).toStrictEqual({ tenant: text.value, call })
@@ -175,7 +167,6 @@ it('every one of the 23 methods runs its attempt under a scope that names the te
   }
 })
 
-/** Calls in the four states that decide pending work, over documents the storage returns as they are. */
 async function pendingFixture() {
   const f = fixture()
   const memory = new MemoryState(f.options)
@@ -243,7 +234,6 @@ it('the exported recovery-work judgment gives the answer that scanPending gives 
     return hasRecoveryWork(call, pending) ? [call.state.call] : []
   })
   expect(scanned).toEqual(judged.sort())
-  // The four calls differ: a judgment that answers one way for all of them is wrong.
   expect(scanned).toEqual(['accepted', 'cleanup', 'unknown'].map(name => callId(name)).sort())
   const released = calls.find(call => call.state.call === callId('released'))
   expect(released && hasRecoveryWork(released)).toBe(false)
@@ -280,7 +270,6 @@ it('scanPending pages through the pending port of a storage that has one, outsid
   })
   expect(asked).toEqual([[text.value, 'cursor-in', 2]])
   expect(runs).toBe(0)
-  // The limit and the qualification are checked before the storage is asked.
   expect(await commands.scanPending({ ...access, after: null, limit: 3 })).toEqual({
     failure: { kind: 'invalid', field: 'limit', reason: 'out-of-range' },
   })

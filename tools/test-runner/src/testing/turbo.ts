@@ -1,11 +1,3 @@
-// turbo 承担成员选择（`--affected`）、构建、类型检查与成员测试的编排。类型检查不依赖构建、按输入缓存，嵌套归档目录的排除
-// 由 typecheck-scope.ts 在运行前核对；测试不缓存，命令在这里拼，运行与拆日志在 run.ts。这里固定它的运行条件，
-// 落实 RFC-0002 的四条约束中归 turbo 的那几条：
-// 1. 选择规则不能由 PR 改写：根配置用运行检查器仓库的 turbo.json（TURBO_ROOT_TURBO_JSON）；
-//    成员目录下的 turbo.json 会盖过它，`apps/*` 之外的一律拒绝，`apps/*` 的按 member-turbo.ts 的规则核对。
-// 2. 基线显式传入：TURBO_SCM_BASE 由调用方给出（合并点），准入另给 TURBO_SCM_HEAD。
-// 4. 准入不读 PR 能写入的缓存：准入模式只写不读本地缓存。
-// 第 3 条「未识别文件按全量处理」turbo 不提供，由 scope.ts 判。
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -23,10 +15,6 @@ import {
 
 const RUNNER = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
 export const TURBO_CONFIG = join(RUNNER, 'turbo.json')
-/**
- * turbo 的入口。POSIX 上照旧是 `node_modules/.bin/turbo`。Windows 上那是 shell 脚本，不能直接 spawn，
- * 改为按 `turbo` 包自己 `bin/turbo` 的规则在它的可选依赖里找平台二进制。
- */
 function turboBinary(): string {
   if (process.platform !== 'win32') return join(RUNNER, 'node_modules', '.bin', 'turbo')
   const require = createRequire(import.meta.url)
@@ -37,7 +25,6 @@ function turboBinary(): string {
 }
 export const TURBO_BIN = turboBinary()
 
-/** 环境变量 `OMNE_ADMISSION=1`：准入模式，本地缓存只写不读。 */
 export function admissionRequested(env: Readonly<Record<string, string | undefined>>): boolean {
   const value = env['OMNE_ADMISSION']
   if (value === undefined || value === '') return false
@@ -45,7 +32,6 @@ export function admissionRequested(env: Readonly<Record<string, string | undefin
   throw new Error(`环境变量 OMNE_ADMISSION 只能是 1 或不设，现在是 ${value}`)
 }
 
-/** 不上报遥测、不提示升级；根配置固定为运行检查器仓库的那份。 */
 export function turboEnv(extra: Readonly<Record<string, string>>): NodeJS.ProcessEnv {
   return {
     ...process.env,
@@ -56,7 +42,6 @@ export function turboEnv(extra: Readonly<Record<string, string>>): NodeJS.Proces
   }
 }
 
-/** 根 turbo.json（运行检查器仓库的那份）里的任务定义。 */
 function rootTasks(): Record<string, RootTask> {
   const parsed = JSON.parse(readFileSync(TURBO_CONFIG, 'utf8')) as {
     tasks?: Record<string, RootTask>
@@ -64,7 +49,6 @@ function rootTasks(): Record<string, RootTask> {
   return parsed.tasks ?? {}
 }
 
-/** `turbo run … --dry=json` 里一个任务的合成定义；读不出就报错，不当作没有问题。 */
 function resolvedTasks(root: string, names: readonly string[], tasks: readonly string[]) {
   const run = spawnSync(
     TURBO_BIN,
@@ -82,10 +66,6 @@ function resolvedTasks(root: string, names: readonly string[], tasks: readonly s
   }
 }
 
-/**
- * 成员目录下的 turbo.json 会改写根配置里的任务定义。`apps/*` 之外的一律拒绝；`apps/*` 的按 member-turbo.ts 的
- * 七条规则核对原文与 turbo 合成后的定义（与准入相同的根配置，在被检查的检出上运行）。有问题就一次报出全部。
- */
 export function checkMemberTurboConfigs(
   root: string,
   members: readonly { readonly path: string; readonly name: string }[],
@@ -129,10 +109,6 @@ export function checkMemberTurboConfigs(
   if (problems.length > 0) throw new Error(problems.join('\n'))
 }
 
-/**
- * turbo 判为受影响的成员：基线以来改了文件的成员，连同依赖它们的全部成员。`head` 缺省时比到工作树
- * （含未提交与未跟踪的改动）。返回成员目录；turbo 报出的包不在成员清单里就报错。
- */
 export function affectedMembers(
   root: string,
   members: readonly WorkspaceMember[],
@@ -153,11 +129,6 @@ export function affectedMembers(
   return listedMembers(run, members, '受影响的成员')
 }
 
-/**
- * 这些成员连同直接、间接依赖它们的全部成员，按 turbo 的包依赖图（`turbo ls --filter=...<包>`），不看改动。
- * 影响面用它把只改了文档的成员带出的下游从 `--affected` 里拿掉（scope.ts）。没有成员时不跑 turbo；
- * 点名的成员不在成员清单里就报错，不当作没有下游。
- */
 export function dependentMembers(
   root: string,
   members: readonly WorkspaceMember[],
@@ -181,21 +152,15 @@ export function dependentMembers(
   return listedMembers(run, members, `${paths.join('、')} 的下游`)
 }
 
-/** turbo 的包依赖图里的一个包：目录与它直接依赖的包名。 */
 export interface GraphPackage {
   readonly path: string
   readonly dependencies: readonly string[]
 }
 
-/** turbo 的包依赖图：包名 → 目录与直接依赖。 */
 export type PackageGraph = ReadonlyMap<string, GraphPackage>
 
 const GRAPH_QUERY = '{ packages { items { name path directDependencies { items { name } } } } }'
 
-/**
- * 整张包依赖图，一次 `turbo query` 取出（`--affected` 与 `--filter=...<包>` 走的是同一张图）。
- * 测试结果缓存用它求一个成员的上游闭包。根包 `//` 不算；输出读不出就报错，不当作空图。
- */
 export function packageGraph(root: string): PackageGraph {
   const run = spawnSync(TURBO_BIN, ['query', GRAPH_QUERY], {
     cwd: root,
@@ -210,7 +175,6 @@ export function packageGraph(root: string): PackageGraph {
   return graph
 }
 
-/** `turbo query` 的输出：`{ data: { packages: { items: [{ name, path, directDependencies: { items: [{ name }] } }] } } }`。 */
 export function parsePackageGraph(stdout: string): PackageGraph | undefined {
   let parsed: unknown
   try {
@@ -239,7 +203,6 @@ export function parsePackageGraph(stdout: string): PackageGraph | undefined {
   return graph
 }
 
-/** `turbo ls --output=json` 列出的包，换成成员目录；输出读不出或报出清单外的包就报错，不当作空集。 */
 export function listedMembers(
   run: { readonly status: number | null; readonly stdout: string; readonly stderr: string },
   members: readonly WorkspaceMember[],
@@ -261,7 +224,6 @@ export function listedMembers(
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
 
-/** `{ packages: { items: [{ name }] } }` 里的包名；不是 JSON 或形状不对返回 undefined。 */
 export function packageNames(stdout: string): string[] | undefined {
   let parsed: unknown
   try {
@@ -280,7 +242,6 @@ export function packageNames(stdout: string): string[] | undefined {
   return names
 }
 
-/** 构建的 turbo 参数：同时构建的成员数取工作进程预算（tsc 各占一个核）。 */
 export function buildArgs(
   names: readonly string[],
   admission: boolean,
@@ -296,10 +257,6 @@ export function buildArgs(
   ]
 }
 
-/**
- * 用 turbo 构建一批成员；turbo 按依赖先构建上游。准入模式本地缓存只写不读。
- * 返回退出码；没有成员时不跑、返回 0。
- */
 export function turboBuild(
   root: string,
   names: readonly string[],
@@ -314,7 +271,6 @@ export function turboBuild(
   return run.status ?? 1
 }
 
-/** 同 turboBuild，但把输出收下来交给调用方写日志。 */
 export function turboBuildCaptured(
   root: string,
   names: readonly string[],
@@ -332,10 +288,6 @@ export function turboBuildCaptured(
   return { status: run.status ?? 1, output: `${run.stdout}${run.stderr}` }
 }
 
-/**
- * 类型检查的 turbo 参数。任务按输入缓存，并依赖上游成员的 `typecheck`，上游源码一改下游就重新检查（见 turbo.json）；
- * 准入模式本地缓存只写不读，与构建相同。同时检查的成员数取工作进程预算（tsc 各占一个核）。
- */
 export function typecheckArgs(
   names: readonly string[],
   admission: boolean,
@@ -351,7 +303,6 @@ export function typecheckArgs(
   ]
 }
 
-/** 用 turbo 跑一批成员的 `typecheck` 脚本；不先构建。没有成员时不跑、返回 0。 */
 export function turboTypecheck(
   root: string,
   names: readonly string[],
@@ -366,28 +317,19 @@ export function turboTypecheck(
   return run.status ?? 1
 }
 
-/** 每一层对应的 turbo 任务，也是成员脚本的名字；层由脚本给 vitest 的 `--mode` 选（见仓库根 `vitest.tiers.mts`）。 */
 export const TIER_TASKS = {
   fast: 'test:fast',
   slow: 'test:slow',
   all: 'test',
 } as const satisfies Record<RunTier, string>
 
-/** 环境变量：成员的 vitest 把 JSON 报告与计时报告写进这个目录（见仓库根 `vitest.tiers.mts`）。 */
 export const TEST_REPORT_DIR_ENV = 'OMNE_TEST_REPORT_DIR'
 
-/** 测试前要不要由 turbo 构建：`build` 为 false 时调用方已经构建过，只跑测试任务本身（`--only`）。 */
 export interface TestBuild {
   readonly build: boolean
-  /** 准入模式：构建的本地缓存只写不读。 */
   readonly admission: boolean
 }
 
-/**
- * 用 turbo 跑一批成员某一层测试的命令；一个成员失败不拦其余的。要构建时 turbo 按任务的 `dependsOn` 先构建成员及其上游，
- * 不构建时带 `--only`（准入检查里构建一步已经按计划构建，准入模式下缓存只写不读，不带它就会再构建一遍）。
- * 输出按成员成组、每行带 `<包名>:<任务>: ` 前缀，供拆成各成员的日志；运行摘要给出各成员的退出码与起止时间。
- */
 export function turboTestCommand(
   names: readonly string[],
   tier: RunTier,

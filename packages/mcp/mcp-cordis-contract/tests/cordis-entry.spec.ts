@@ -53,7 +53,6 @@ it('exports exactly the six abstract Service classes and the six key constants',
   ])
 })
 
-/** The body of every method of the subclasses below: the table only loads them. */
 function notCalled(): never {
   throw new Error('the table loads the subclass and calls none of its methods')
 }

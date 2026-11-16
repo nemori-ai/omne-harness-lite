@@ -1,6 +1,3 @@
-// The large text columns of this member hold the packed text form of sql-contract §10.1: a value
-// below 128 UTF-8 bytes keeps marker 0, a longer one is compressed under marker 1. That the reads
-// give the committed values back is what the rest of this suite checks over the same rows.
 import { describe, expect, it } from 'vitest'
 import { app, TENANT_A } from './fixtures/app.ts'
 import { unpacked } from './fixtures/packed.ts'

@@ -1,6 +1,3 @@
-// Test support for the framing layers: a byte source that records how its reader treats it.
-
-/** A byte source that records whether a reader pulled from it or ended it. */
 export function recordingSource(...chunks: readonly Uint8Array[]): {
   readonly source: AsyncIterable<Uint8Array>
   readonly state: { pulled: number; ended: boolean }

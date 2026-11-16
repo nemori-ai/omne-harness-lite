@@ -1,6 +1,3 @@
-// The command line of `integration`: how it picks a command, what it writes on a failure and when a
-// script is the entry point. In-process, without starting the CLI; the full runs against a
-// checkout are in integration-contract-check.spec.ts.
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { failureLine, isEntryPoint, runMain } from '../src/integration/cli.ts'
@@ -10,7 +7,6 @@ afterEach(() => vi.restoreAllMocks())
 
 const CLI_URL = new URL('../src/integration/cli.ts', import.meta.url).href
 
-/** Runs the CLI in process; returns the exit code, the lines on standard error and the text on standard output. */
 function run(argv: string[]) {
   const failures: string[] = []
   const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)

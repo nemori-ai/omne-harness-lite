@@ -15,15 +15,10 @@ import { digestOf as canonicalDigest } from './evidence.ts'
 type Invocation =
   | Readonly<{ kind: 'port-failed'; failure: ToolFailure }>
   | Readonly<{ kind: 'binding-failed' }>
-  /**
-   * The binding could not answer: `unavailable`, or `commit-unknown` of the consume. Whether the
-   * fence accepted the start is asked of the fence, not concluded from this answer (U1, U2).
-   */
   | Readonly<{ kind: 'binding-unanswered'; failure: ToolFailure }>
   | Readonly<{ kind: 'binding-threw' }>
   | Readonly<{ kind: 'live' }>
 
-/** What a resume segment continues: the kept state of its checkpoint and the response of its wait. */
 function resumeInput(
   recovery: ToolRecovery,
   start: Extract<ToolStartRecord, { kind: 'resume' }>,
@@ -40,10 +35,8 @@ function resumeInput(
   return succeed({ state: kept.state, response: wait.response })
 }
 
-/** The answers of a binding that do not tell whether the start was accepted. */
 const UNANSWERED: ReadonlySet<ToolFailure['kind']> = new Set(['unavailable', 'commit-unknown'])
 
-/** A binding that failed the start: a refusal, or an answer that tells nothing (U1). */
 function failedStart(failure: ToolFailure): Invocation {
   return UNANSWERED.has(failure.kind)
     ? { kind: 'binding-unanswered', failure }
@@ -80,14 +73,11 @@ export function createBindingInvoker<P, B extends ContentBlock, E>(
     const environment = await environmentOf(step, recovery, preparation)
     if ('failure' in environment) return { kind: 'port-failed', failure: environment.failure }
     const bound = binding.ok
-    // A resume runs the next segment of a checkpointed author (P07); a live-only binding has none.
     if (start.kind === 'resume' && bound.kind !== 'checkpointed')
       return {
         kind: 'port-failed',
         failure: { kind: 'invalid', field: 'binding', reason: 'not-checkpointed' },
       }
-    // A resume continues the state that the ledger keeps for the checkpoint the start names, with
-    // the response of the wait that resumes there.
     const resumed = start.kind === 'resume' ? resumeInput(recovery, start) : null
     if (resumed !== null && 'failure' in resumed)
       return { kind: 'port-failed', failure: resumed.failure }

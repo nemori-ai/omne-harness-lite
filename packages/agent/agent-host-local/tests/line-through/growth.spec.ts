@@ -1,7 +1,3 @@
-// The growth rule of J6 (`growth.ts`, R2-D17 and R2-D118) on synthetic series, so the judgement is
-// checked without the 200 rounds of `w2-counts.spec.ts`: a flat series does not grow, a series
-// that rises 0.1 per round does (the negative control of R2-D118), a noisy one with a low R² does
-// not, and the constants are those of `METHOD.growth` of `tools/e9/metrics.mjs`.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { CONTROL_PER_ROUND, GROWTH, median, roundGrowthOf } from './growth.ts'
@@ -29,7 +25,6 @@ describe('the growth rule of the timed counts', () => {
   })
 
   it('a noisy series whose line explains little (low R²) does not grow', () => {
-    // A pseudo-random series from a fixed linear congruential generator: the same on every run.
     let state = 12345
     const noise = series(() => {
       state = (state * 1103515245 + 12345) % 2147483648
@@ -41,8 +36,6 @@ describe('the growth rule of the timed counts', () => {
   })
 
   it('a rising series whose line explains little (low R²) does not grow, whatever its slope', () => {
-    // A trend of 0.1 per round with three whole blocks of 10 rounds shifted far off it: the slope is
-    // positive and large against the median deviation of the residuals, only R² is low.
     const shifted = new Map([
       [5, 15],
       [12, -15],

@@ -1,13 +1,3 @@
-/**
- * Render a data object to XML text against a schema.
- *
- * The output is meant to be read by a language model, so the shape is fixed and
- * predictable: attributes in declaration order, one child element per line,
- * every element opened and closed on its own line, and a self-closing root when
- * there is nothing inside. Text is always escaped; markup is produced only by
- * this module or by nested objects that render themselves through `toXml`.
- */
-
 import { assertXmlName, escapeXmlAttribute, escapeXmlContent } from './escape.ts'
 import {
   applyFieldOverride,
@@ -19,19 +9,16 @@ import {
 } from './options.ts'
 import type { FieldPresentation, FieldSpec, FieldSpecs, IncludeWhen, XmlSchema } from './types.ts'
 
-/** An object that renders itself; nested values implementing it are embedded verbatim. */
 export interface XmlFormattable {
   toXml(options?: NestedFormattingOptions): string
 }
 
-/** Whether `value` renders itself through `toXml`. Arrays never do. */
 export function isXmlFormattable(value: unknown): value is XmlFormattable {
   return isObjectValue(value) && 'toXml' in value && typeof value.toXml === 'function'
 }
 
 type Attribute = readonly [name: string, value: string]
 
-/** Render `value` as the XML element described by `schema`. */
 export function formatXml(value: object, schema: XmlSchema, options?: FormattingOptions): string {
   const resolved = resolveFormattingOptions(options)
   const tag = assertXmlName(schema.tag, 'tag')
@@ -55,8 +42,6 @@ export function formatXml(value: object, schema: XmlSchema, options?: Formatting
         attrs.push([name, rendered])
         break
       case 'element':
-        // Self-rendering values already carry their own tags; wrapping them again
-        // would double the element.
         elements.push(
           shape.selfTagged
             ? rendered
@@ -71,10 +56,6 @@ export function formatXml(value: object, schema: XmlSchema, options?: Formatting
 
   return assemble(tag, attrs, elements, content, resolved)
 }
-
-// ---------------------------------------------------------------------------
-// Field selection and value access
-// ---------------------------------------------------------------------------
 
 function selectFields(schema: XmlSchema, options: ResolvedFormattingOptions): FieldSpecs {
   const optional = schema.optionalFields ?? {}
@@ -91,7 +72,6 @@ function selectFields(schema: XmlSchema, options: ResolvedFormattingOptions): Fi
     throw new Error(`fieldOverrides not declared by <${schema.tag}>: ${unknownOverride.join(', ')}`)
   }
 
-  // Required fields first, then the selected optional fields in declaration
   // order, so the same selection always renders the same text.
   const selected: Record<string, FieldSpec> = { ...schema.requiredFields }
   for (const [name, spec] of Object.entries(optional)) {
@@ -145,14 +125,8 @@ function isEmpty(value: unknown): boolean {
   return false
 }
 
-// ---------------------------------------------------------------------------
-// Value rendering
-// ---------------------------------------------------------------------------
-
 interface ValueShape {
-  /** The rendered text is XML that must be indented but not escaped. */
   readonly preformatted: boolean
-  /** The rendered text already carries its own element tags. */
   readonly selfTagged: boolean
 }
 
@@ -212,7 +186,6 @@ function renderValue(value: unknown, spec: FieldSpec, options: ResolvedFormattin
   return stringify(value, options)
 }
 
-/** Text of a scalar: nullish is empty, dates go through `formatDate`, booleans are lowercase. */
 function stringify(value: unknown, options: ResolvedFormattingOptions): string {
   if (value === null || value === undefined) return ''
   if (value instanceof Date) return options.formatDate(value)
@@ -287,7 +260,6 @@ function defaultItemPresentation(value: unknown, rendered: string): FieldPresent
   return scalar && codePointLength(rendered) < 50 ? 'attr' : 'element'
 }
 
-/** Text of one property of an object item; nested objects flatten to `key: value; ...`. */
 function renderItemField(value: unknown, options: ResolvedFormattingOptions): string {
   if (Array.isArray(value)) return value.map(item => stringify(item, options)).join(', ')
   if (value instanceof Map || isRecordValue(value)) {
@@ -302,7 +274,6 @@ function renderItemField(value: unknown, options: ResolvedFormattingOptions): st
   return stringify(value, options)
 }
 
-/** Text of a Map or record: one `key: value` line per entry. */
 function renderPairs(
   entries: readonly (readonly [string, unknown])[],
   options: ResolvedFormattingOptions,
@@ -314,10 +285,6 @@ function renderPairs(
     )
     .join('\n')
 }
-
-// ---------------------------------------------------------------------------
-// Markup assembly
-// ---------------------------------------------------------------------------
 
 function renderElement(
   name: string,
@@ -349,7 +316,6 @@ function assemble(
   return wrap(tag, [...attrs, ...manual], elements, content, ' '.repeat(options.indentSize))
 }
 
-/** Open and close `tag` around indented children; self-close when there is nothing inside. */
 function wrap(
   tag: string,
   attrs: readonly Attribute[],
@@ -366,7 +332,6 @@ function wrap(
   return parts.join('\n')
 }
 
-/** Validate the combined attribute list for each element before emitting markup. */
 function renderAttributes(attrs: readonly Attribute[]): string {
   const names = new Set<string>()
   const rendered: string[] = []
@@ -379,7 +344,6 @@ function renderAttributes(attrs: readonly Attribute[]): string {
   return rendered.length === 0 ? '' : ` ${rendered.join(' ')}`
 }
 
-/** Prefix every non-blank line; blank lines stay untouched. */
 function indent(text: string, prefix: string): string {
   if (prefix === '') return text
   return text
@@ -388,17 +352,12 @@ function indent(text: string, prefix: string): string {
     .join('\n')
 }
 
-// ---------------------------------------------------------------------------
-// Value classification helpers
-// ---------------------------------------------------------------------------
-
 function isObjectValue(value: unknown): value is object {
   return (
     typeof value === 'object' && value !== null && !Array.isArray(value) && !(value instanceof Date)
   )
 }
 
-/** A non-self-rendering object whose own entries are its data. */
 function isRecordValue(value: unknown): value is Record<string, unknown> {
   return isObjectValue(value) && !(value instanceof Map) && !isXmlFormattable(value)
 }

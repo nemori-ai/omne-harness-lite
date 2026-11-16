@@ -1,7 +1,3 @@
-// The pure part of the `authorization` row (DP-4): the Session and Agent policy tables, the
-// maintenance grant table with its read port, the cell resolution for branched operations, and
-// the audit. No plugin, no service key, no dependency on the assembly. The plugin that wires the
-// two access checks onto these tables is APP-6b.
 export {
   cite,
   resolveCell,

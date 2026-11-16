@@ -1,5 +1,3 @@
-// The root entry of the Session contract: the values and identities, the four faces, the ports,
-// the pure domain services, `decide`, `reduce` and the block declaration. No Cordis here.
 export type {
   Adoption,
   AdvanceRef,
@@ -57,6 +55,7 @@ export type {
   ScopeReleaseDisposition,
   SessionCreation,
   SessionFrozen,
+  SessionWaiting,
   Waiting,
   WorkSnapshot,
   WorkspaceAttachment,
@@ -78,9 +77,11 @@ export type {
   ReleasedScope,
   Reply,
   ResidentReference,
+  SessionDirectory,
   SessionFaces,
   SessionFailure,
   SessionHistory,
+  SessionListItem,
   SessionManagement,
   SessionReconciliation,
   SessionWork,
@@ -160,6 +161,7 @@ export {
   judgeCompletion,
   judgeIdle,
   judgeRunStart,
+  judgeWaiting,
   openWork,
   resolveCascade,
   resolveControlScope,
@@ -244,6 +246,8 @@ export type {
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts'
 export { readCallRegistration } from './call-registration.ts'
 export type { CallRegistrationView } from './call-registration.ts'
+export { readRunBoundary } from './run-boundary.ts'
+export type { RunBoundaryView } from './run-boundary.ts'
 
 export type {
   SessionWorkEntryIndex,

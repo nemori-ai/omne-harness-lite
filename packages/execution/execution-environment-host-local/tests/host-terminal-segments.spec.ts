@@ -1,5 +1,4 @@
 /** @module-tag slow */
-// Slow: every case starts a real systemd user scope with a real PTY and Bash, and C8 runs 200 segments.
 import { spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
@@ -123,7 +122,6 @@ async function run(
   const result = await handle.result
   return { result, bytes: Buffer.concat(chunks), between: between(result) }
 }
-/** The between-segment report of a terminal outcome; undefined when the provider gave none. */
 function between(result: CommandOutcome) {
   const output: unknown = result.output
   const report: unknown =
@@ -139,7 +137,7 @@ const noBetween = { data: Buffer.alloc(0), count: { observedBytes: 0, discardedB
 const sentinelPrefix = Buffer.from('\u001b]7770;')
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-it('C7 keeps the terminal valid when a segment leaves a background job', async context => {
+it('keeps the terminal valid when a segment leaves a background job', async context => {
   if (!(await prerequisites())) return context.skip(true, unavailable)
   const f = await fixture()
   const background = await run(f.terminal, f.ref, 'sleep 30 & echo x')
@@ -151,7 +149,7 @@ it('C7 keeps the terminal valid when a segment leaves a background job', async c
   expect(value(await f.terminal.list(base))).toMatchObject([{ terminal: f.ref, state: 'idle' }])
 }, 60_000)
 
-it('C8 keeps every foreground byte inside its own segment over 200 segments', async context => {
+it('keeps every foreground byte inside its own segment over 200 segments', async context => {
   if (!(await prerequisites())) return context.skip(true, unavailable)
   const f = await fixture()
   const written = 65536
@@ -167,7 +165,7 @@ it('C8 keeps every foreground byte inside its own segment over 200 segments', as
   }
 }, 600_000)
 
-it('C9 reports bytes written between segments in the next result only', async context => {
+it('reports bytes written between segments in the next result only', async context => {
   if (!(await prerequisites())) return context.skip(true, unavailable)
   const f = await fixture()
   const writer = await run(f.terminal, f.ref, "(sleep 0.3; printf 'G%.0s' $(seq 1000)) &")
@@ -185,7 +183,7 @@ it('C9 reports bytes written between segments in the next result only', async co
   expect(after.between).toEqual(noBetween)
 }, 60_000)
 
-it('C9 counts between-segment bytes beyond betweenSegmentBytes as discarded', async context => {
+it('counts between-segment bytes beyond betweenSegmentBytes as discarded', async context => {
   if (!(await prerequisites())) return context.skip(true, unavailable)
   const f = await fixture({ betweenSegmentBytes: 100 })
   const writer = await run(f.terminal, f.ref, "(sleep 0.3; printf 'G%.0s' $(seq 1000)) &")
@@ -199,7 +197,7 @@ it('C9 counts between-segment bytes beyond betweenSegmentBytes as discarded', as
   })
 }, 60_000)
 
-it('C10 closing the terminal stops a nohup process that left the shell', async context => {
+it('closing the terminal stops a nohup process that left the shell', async context => {
   if (!(await prerequisites())) return context.skip(true, unavailable)
   const f = await fixture()
   const started = await run(f.terminal, f.ref, 'nohup sleep 300 >/dev/null 2>&1 & echo $!')

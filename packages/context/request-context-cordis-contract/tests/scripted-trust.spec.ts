@@ -37,7 +37,7 @@ const script = {
 }
 const listed = { access, target: base.target, owner, action: 'register' as const }
 
-describe('scripted trust: keys match every field of the access (C4)', () => {
+describe('scripted trust: keys match every field of the access', () => {
   const trust = createScriptedRequestContextTrust<string>(script)
   it('answers the listed access', async () => {
     expect(await trust.principalBinding.key(access)).toEqual({ kind: 'value', value: key })
@@ -61,7 +61,7 @@ describe('scripted trust: keys match every field of the access (C4)', () => {
   })
 })
 
-describe('scripted trust: grants match every field (C4)', () => {
+describe('scripted trust: grants match every field', () => {
   const trust = createScriptedRequestContextTrust<string>(script)
   const ask = (patch: object) => trust.registrationAuthority.check({ ...listed, ...patch } as never)
   it('answers the listed grant with its decision', async () => {

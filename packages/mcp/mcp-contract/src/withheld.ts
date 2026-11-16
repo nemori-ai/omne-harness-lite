@@ -1,5 +1,3 @@
-// The `x-mcp-header` rule of SPEC T2 (SEP-2243): the tools a Streamable HTTP transport withholds
-// from a page on a modern revision. One implementation for the scripted and the real transports.
 import type { JsonValue } from '@omne-harness/json-text'
 import { isObject, itemsOf, member, textOf, type JsonObject } from './json.ts'
 import type { ListingPage } from './transport.ts'
@@ -7,7 +5,6 @@ import type { Untrusted } from './values.ts'
 
 const RFC9110_TOKEN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/u
 const HEADER_TYPES: readonly string[] = ['string', 'integer', 'boolean']
-/** Keywords whose subschemas a `properties` chain does not pass through (SEP-2243). */
 const NON_REACHABLE: readonly string[] = [
   'items',
   'prefixItems',
@@ -35,7 +32,6 @@ const NAMED_SUBSCHEMAS: readonly string[] = [
   'definitions',
 ]
 
-/** The `x-mcp-header` declaration on one schema node: the header name and the node's type, as written. */
 function declaredHeaderOf(
   node: JsonObject,
 ): Readonly<{ name: string | undefined; type: string | undefined }> | undefined {
@@ -44,7 +40,6 @@ function declaredHeaderOf(
   return { name: textOf(raw), type: textOf(member(node, 'type')) }
 }
 
-/** A declaration is well formed when its name is an RFC 9110 token and its type is one a header can carry. */
 function wellFormed(name: string | undefined, type: string | undefined): boolean {
   return (
     name !== undefined &&
@@ -54,11 +49,6 @@ function wellFormed(name: string | undefined, type: string | undefined): boolean
   )
 }
 
-/**
- * True when the declaration on this node breaks a constraint of SEP-2243: it sits where a
- * `properties` chain cannot reach (the root included), it is not well formed, or its name was
- * declared before in the same schema. A well-formed name is recorded in `seen`.
- */
 function declarationInvalid(
   node: JsonObject,
   reachable: boolean,
@@ -74,7 +64,6 @@ function declarationInvalid(
   return false
 }
 
-/** The subschemas under one keyword that a `properties` chain does not pass through. */
 function branchesOf(sub: JsonValue, keyword: string): readonly JsonValue[] {
   const items = itemsOf(sub)
   if (items !== undefined) return items
@@ -83,7 +72,6 @@ function branchesOf(sub: JsonValue, keyword: string): readonly JsonValue[] {
   return [sub]
 }
 
-/** True when a schema breaks an `x-mcp-header` constraint of SEP-2243, on this node or below it. */
 function headerDeclarationInvalid(
   node: JsonValue | undefined,
   reachable: boolean,
@@ -105,10 +93,6 @@ function headerDeclarationInvalid(
   return false
 }
 
-/**
- * The tools of a page without those whose `x-mcp-header` declaration is invalid (T2), and the
- * withheld ones by name. `withheld` is absent when nothing was withheld.
- */
 export function withheldTools(
   tools: readonly JsonValue[],
 ): Pick<ListingPage, 'tools' | 'withheld'> {

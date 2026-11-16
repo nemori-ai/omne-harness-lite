@@ -1,7 +1,3 @@
-// The HTTP line on in-memory wires: what it does with bytes before the session sees a message.
-// The HTTP line's bookkeeping of the abort signals it is given, which failures of a request it
-// reports as not made (T8 X01), and the fetch of protected resource metadata on a `fetch` double
-// (R4). The line on real sockets is in `http.spec.ts`.
 import { getEventListeners } from 'node:events'
 import { describe, expect, it } from 'vitest'
 import { writeJsonText } from '@omne-harness/json-text'
@@ -25,7 +21,6 @@ describe('the HTTP line and the signals it is given', () => {
   })
 })
 
-/** What a failed `fetch` looks like: a `TypeError` whose `cause` carries the system code. */
 function fetchFailure(code: unknown): Error {
   return Object.assign(new TypeError('fetch failed'), {
     cause: Object.assign(new Error('socket'), { code }),
@@ -38,7 +33,6 @@ const failsWith =
     throw error
   }
 
-/** The codes of a connection that was never made (T8 X01); each is one of them and no other is. */
 const NEVER_MADE = [
   'ECONNREFUSED',
   'ENOTFOUND',
@@ -56,7 +50,6 @@ const NEVER_MADE = [
   'ERR_SSL_',
 ]
 
-/** Failures after the request began to go out, and failures that carry no usable code. */
 const MAY_HAVE_LEFT: readonly unknown[] = [
   fetchFailure('ECONNRESET'),
   fetchFailure('UND_ERR_SOCKET'),
@@ -126,7 +119,7 @@ describe('which failures of a request the HTTP line reports as not made (T8 X01)
   })
 })
 
-describe('the fetch of protected resource metadata (R4, T4)', () => {
+describe('the fetch of protected resource metadata (T4)', () => {
   const BYTE_LIMIT_TEXT = 16_777_216
   const never = new AbortController().signal
   const document = { authorization_servers: ['https://issuer.test'], scopes_supported: ['a'] }

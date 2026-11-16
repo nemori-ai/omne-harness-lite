@@ -42,7 +42,6 @@ export async function contributeTool<P, E, B extends ContentBlock>(
   module: ToolImplementationModule<E, B>,
   input: ToolAuthorContext<P>,
 ): Promise<void> {
-  // Assembly fixes the service type parameters. Cordis stores erased service instances.
   const generations = ctx.get(toolGenerationsKey) as ToolGenerations<P, E, B> | undefined
   const registry = ctx.get(toolBindingsKey) as ToolBindingRegistry<P, E, B> | undefined
   if (generations === undefined || registry === undefined)

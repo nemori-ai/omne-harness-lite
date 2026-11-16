@@ -36,7 +36,6 @@ export async function collectCatalog() {
   const catalog = await getPublic('/api/v1/models')
   const documents = {}
   const endpointSources = {}
-  // Four bounded workers. No credential is loaded for public inspection.
   let next = 0
   await Promise.all(
     Array.from({ length: 4 }, async () => {

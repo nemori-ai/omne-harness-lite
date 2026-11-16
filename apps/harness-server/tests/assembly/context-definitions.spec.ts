@@ -1,11 +1,5 @@
 import { SESSION_MODES_PUBLICATION } from '@omne-harness/session-adapters'
 import { sessionInquiryBinding } from '@omne-harness/session-adapters/cordis'
-// The assembly's `SessionContextDefinitions`: what JSON cannot hold, given back from one exact
-// adopted definition. A table built once answers a reference with the very object it was built
-// from (AD-12 compares by identity, `context-input.ts` `!==`), and answers `undefined` for a
-// definition, need or key it does not hold. The definitions the release adopted declare no Context
-// block, so the adopted table answers every query `undefined`: that is the truthful answer, not a
-// stand-in.
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -141,14 +135,8 @@ describe('adoptedContextDefinitions: the definitions the release adopted', () =>
   ) as Distribution
   const row = distribution.rows.find(item => item.id === 'agent-adoptions')
   if (row === undefined) throw new Error('the release has no agent-adoptions row')
-  // The strict schema of the row holds every field a mapping entry may carry. Parsing the release
-  // with it proves that no entry carries a field that could declare a Context block.
   const mappings = agentAdoptionsConfig.parse(row.config).mappings
 
-  // A definition carries category, name, references, attributes and optionally instructions
-  // (agent-contract SPEC "声明判断"); none of these members can declare a Context block. The table
-  // below is what the release adopts: `assistant` without references or a prompt, `coding` with
-  // Files and Shell resident and a ten-section prompt (R2-D124). Any other member is a defect.
   it('the release adopts assistant and coding, and no definition has a member that could declare a Context block', () => {
     expect(mappings.map(entry => entry.name)).toEqual(['assistant', 'coding'])
     for (const entry of mappings) {

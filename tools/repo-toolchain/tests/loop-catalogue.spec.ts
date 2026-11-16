@@ -1,5 +1,3 @@
-// 对照表的条数：合约定的计数、不合约定的报出位置与原文、文件不存在报没数据；对回全表的三种对不上；
-// 以及仓库里真实的 docs/clean-loop.md（存在时）合约定。
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

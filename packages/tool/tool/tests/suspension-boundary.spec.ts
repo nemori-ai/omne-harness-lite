@@ -1,7 +1,3 @@
-// The boundary of the suspension commands (P07): what the driver and the binding give back as a
-// suspension, a checkpoint, a registration or a plan is copied as data and judged as a closed
-// record before any digest. Each malformed field is refused with the field that carries the
-// fault, so a caller learns which part of its answer was wrong and nothing is committed on it.
 import { describe, expect, it } from 'vitest'
 import { CHECKPOINT_STATE_MAX_BYTES } from '@omne-harness/tool-contract/provider'
 import { askingAuthor, checkpointBinding, scriptedBridge } from './checkpoint-values.ts'
@@ -13,7 +9,6 @@ type Suspend = Parameters<Commands['suspend']>[0]
 type Attach = Parameters<Commands['attachRegistration']>[0]
 type Json = Record<string, unknown>
 
-/** A call that suspended on its wait, with the inputs the driver gave the ledger to get there. */
 async function suspendedWithInputs() {
   const authority = testAuthority()
   const checkpoint = checkpointBinding(authority, askingAuthor())
@@ -63,7 +58,6 @@ function replaced(value: object, path: readonly string[], to: unknown): Json {
   return copy
 }
 
-/** An evidence or adoption field names its own part (`schema.digest`): no reason means a prefix. */
 const invalid = (field: string, reason?: string) => ({
   failure: {
     kind: 'invalid',
@@ -237,7 +231,6 @@ describe('suspension: the checkpoint a binding proved', () => {
 })
 
 describe('suspension: the state a binding stored', () => {
-  /** Base64 text of the largest state: four characters for each three bytes, rounded up. */
   const longest = Math.ceil(CHECKPOINT_STATE_MAX_BYTES / 3) * 4
   const stored = (state: unknown) =>
     fresh.harness.commands.suspend(replaced(fresh.suspend, ['state'], state) as unknown as Suspend)
@@ -258,7 +251,6 @@ describe('suspension: the state a binding stored', () => {
     expect(await stored(state)).toMatchObject(invalid('state', reason))
   })
 
-  // The call is suspended already, so the answer is the judgment of the ledger on a later command.
   it.each([['AAAA'], ['AAA='], ['AA=='], ['ab+/'], ['A'.repeat(longest)]])(
     'does not refuse base64 text up to the bound as a state: %#',
     async (state: string) => {

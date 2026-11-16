@@ -1,5 +1,4 @@
 // covers: PD-tool-execution S2
-// Oracle: product/tool-execution/acceptance.md S2; Tool SPEC 12 and 16.
 import assert from 'node:assert/strict'
 import { it } from 'vitest'
 import { assembly } from './fixtures/assembly.ts'
@@ -8,7 +7,6 @@ it('S2 accepts complete strict-JSON failure as a readable logical terminal witho
   const scene = assembly('S2')
   let passed = false
   try {
-    // A complete duplicate-key document fails strict JSON parsing, not the request shape.
     const duplicate = '{"manifest":"daily","manifest":"weekly"}'
     const request = {
       ...scene.request,

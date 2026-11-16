@@ -3,12 +3,15 @@ import type {
   AcquisitionListing,
   AcquisitionSettlement,
   EnvironmentProvider,
+  LookupUnknown,
   ManagedResource,
   OriginalAcquisition,
   OwnedRecovery,
   ProviderIdentity,
   RecoveryListing,
+  Rejected,
   ResourceRecovery,
+  ResourcesRecovery,
   UnsupportedRecovery,
 } from '@omne-harness/execution-environment-contract'
 import { fingerprint, tenantText } from './compare.ts'
@@ -44,7 +47,6 @@ type ResourceGroups = Pick<OwnedRecovery, 'stopped' | 'pending' | 'unsupported'>
   unavailable: ProviderIdentity[]
 }
 
-/** The resource path: list and stop the scope's managed resources, provider by provider. */
 async function driveResources(
   scope: ScopeRef,
   providers: readonly RecoverableProvider[],
@@ -112,17 +114,11 @@ type AcquisitionGroups = {
   unavailable: ProviderIdentity[]
 }
 
-/** Called after each settlement, so the registry can update its local copy of the acquisition. */
 export type SettlementObserver = (
   original: OriginalAcquisition,
   answer: AcquisitionSettlement,
 ) => void
 
-/**
- * The acquisition path: list the scope's acquisitions once per quota domain, add the known
- * descriptions, and settle each. A failed listing or an unreachable domain goes to the unavailable
- * group, never to an empty success.
- */
 async function driveAcquisitions(
   scope: ScopeRef,
   routes: readonly DomainRoute[],
@@ -202,11 +198,6 @@ function sameIdentity(left: ProviderIdentity, right: ProviderIdentity): boolean 
   )
 }
 
-/**
- * Drives recovery over both paths. A provider without the two resource recovery operations is
- * unsupported; a failed enumeration is unavailable, never an empty list; a failed stop stays
- * pending. Groups already handled are kept whatever happens to later groups.
- */
 export async function driveRecovery(
   scope: ScopeRef,
   providers: readonly RecoverableProvider[],
@@ -231,7 +222,36 @@ export async function driveRecovery(
   })
 }
 
-/** True when a local record and a settled original name the same acquisition and fingerprint. */
+export async function recoverGiven(
+  scope: ScopeRef,
+  resources: readonly ManagedResource[],
+  providers: readonly RecoverableProvider[],
+  authorize: (
+    resources: ManagedResource[],
+  ) => Promise<'authorized' | 'notAuthorized' | 'unavailable' | 'unknown'>,
+): Promise<ResourcesRecovery | Rejected | LookupUnknown> {
+  if (!Array.isArray(resources)) return Object.freeze({ kind: 'rejected', reason: 'invalidInput' })
+  const decision = await authorize([...resources])
+  if (decision === 'unknown') return Object.freeze({ kind: 'unknown', cause: 'authority' })
+  if (decision !== 'authorized') return Object.freeze({ kind: 'rejected', reason: decision })
+  const stopped: ManagedResource[] = []
+  const pending: ManagedResource[] = []
+  const unsupported: ManagedResource[] = []
+  for (const resource of resources) {
+    const owner = providers.find(
+      ({ provider, identity }) =>
+        identity.name === resource.provider && provider.recover !== undefined,
+    )
+    const recovered: ResourceRecovery =
+      owner === undefined
+        ? { status: 'unsupported', evidence: null }
+        : await recoverOne(owner.provider, resource)
+    const group = { confirmedStopped: stopped, pending, unsupported }[recovered.status]
+    group.push(resource)
+  }
+  return Object.freeze({ kind: 'recovered', scope, stopped, pending, unsupported })
+}
+
 export function sameOriginal(left: OriginalAcquisition, right: OriginalAcquisition): boolean {
   return originalKey(left) === originalKey(right) && fingerprint(left) === fingerprint(right)
 }

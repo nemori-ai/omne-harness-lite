@@ -1,11 +1,3 @@
-// The read pool (SPEC 9.5, 12.2): the control side of all read Workers of one provider generation.
-// It owns the read reservations, the per-domain read queue, the readers and their connections, and
-// the result of every read. A reader is one read Worker with one connection. The pool opens one
-// only after its domain is ready, hands a reader to one request at a time, and never reuses a
-// connection whose tag no longer fits (scope, domain, binding row, schema generation, Worker
-// generation). A cancelled or timed-out request stops being observed, but its reader stays busy
-// until the Worker has answered or exited. The domain-serial barrier it holds goes at the reply,
-// at the exit, or at the observation deadline, whichever comes first.
 import type {
   JsonValue,
   ReadHandlerDescriptor,
@@ -13,7 +5,7 @@ import type {
   StorageScope,
 } from '@omne-harness/sql-contract'
 import type { SqliteStorageConfig } from './config.ts'
-import type { Domains, Lifecycle, ReadyDomain } from './domains.ts'
+import type { Domains, Lifecycle, VerifiedDomain } from './domains.ts'
 import { decodeScope, scopeKey } from './fields.ts'
 import { ReaderClient } from './reader-client.ts'
 import type { WriteBarrier } from './write-barrier.ts'
@@ -38,7 +30,6 @@ export type ReadJob = Readonly<{
   signal: AbortSignal | undefined
 }>
 
-/** A reader that has not exited yet, for the residuals of an incomplete close. */
 export type LiveReader = Readonly<{
   domain: string
   scope: StorageScope
@@ -52,7 +43,6 @@ const unavailable = (
   diagnostic: string = reason,
 ): ReadOutcome => ({ kind: 'unavailable', reason, diagnostic })
 
-/** The answer of a read whose wait for a reservation ended without one (准入等待 rule 6). */
 const READ_REFUSAL = {
   full: unavailable('queue_full'),
   expired: unavailable('queue_timeout'),
@@ -62,14 +52,11 @@ const READ_REFUSAL = {
 
 type Phase = 'queued' | 'assigned' | 'dispatched'
 
-/** One read request from its reservation to the release of that reservation. */
 class Task {
   readonly job: ReadJob
   phase: Phase = 'queued'
   settled = false
-  /** Takes the task out of the queue it waits in, if any. */
   leaveQueue: (() => void) | null = null
-  /** Aborts when the task settles: a wait made on its behalf (the barrier) is withdrawn. */
   readonly withdraw = new AbortController()
   private timer: NodeJS.Timeout | null = null
   private finished = false
@@ -92,7 +79,6 @@ class Task {
     this.signal?.addEventListener('abort', onAbort, { once: true })
   }
 
-  /** Gives the caller the result. The first call wins. Nothing else is released here. */
   settle(outcome: ReadOutcome): void {
     if (this.settled) return
     this.settled = true
@@ -102,7 +88,6 @@ class Task {
     this.onSettled(outcome)
   }
 
-  /** Returns the reservation, once. Called when the owner of the work is done with it. */
   finish(): void {
     if (this.finished) return
     this.finished = true
@@ -124,16 +109,15 @@ class Task {
 type PoolReader = {
   client: ReaderClient
   readonly domain: string
-  readonly entry: ReadyDomain
+  readonly entry: VerifiedDomain
   readonly generation: number
   readonly leaseName: string
   readonly lease: object
-  /** Schema generation of the domain when the connection was opened. */
   readonly schema: number
-  /** Scope of the binding row that the connection read when it opened. Set when ready. */
   boundScope: string | null
   state: 'starting' | 'idle' | 'busy' | 'closing'
   idleTimer: NodeJS.Timeout | null
+  readonly loaded: Set<string>
 }
 
 type ReaderAcquisition = PoolReader | 'start-failed' | null
@@ -141,11 +125,8 @@ type ReaderAcquisition = PoolReader | 'start-failed' | null
 type DomainReaders = {
   readonly queue: Task[]
   readonly readers: PoolReader[]
-  /** Counts the migrations that changed the schema of the domain (SPEC 9.5, last item). */
   schema: number
-  /** While above zero a migration runs or waits: no new read is dispatched. */
   pauses: number
-  /** One of the pauses is read-paused (SPEC 12.3). */
   walPaused: boolean
 }
 
@@ -155,7 +136,6 @@ export class ReaderPool {
   private readonly lifecycle: Lifecycle
   private readonly barrier: WriteBarrier
   private readonly byDomain = new Map<string, DomainReaders>()
-  /** Reads that wait for a reservation, bounded like the read queue itself (准入等待). */
   private readonly waiting: WaitingQueue<Readonly<{ domain: string; bytes: number }>>
   private readonly perDomainReserved = new Map<string, number>()
   private reserved = 0
@@ -175,8 +155,6 @@ export class ReaderPool {
     this.config = config
     this.waiting = new WaitingQueue(
       {
-        // A handler's maxOutputBytes <= maxReadResultBytes <= globalReadResultBytes (provider
-        // construction, SPEC 12.1): every read fits an empty point.
         fit: need => this.fit(need.domain, need.bytes),
         take: need => this.reserve(need.domain, need.bytes),
       },
@@ -186,11 +164,8 @@ export class ReaderPool {
     this.lifecycle = lifecycle
   }
 
-  /** Reads of one request: reserve, wait for the domain, queue, run. Resolves exactly once. */
   read(job: ReadJob): Promise<ReadOutcome> {
     if (this.closing || this.lifecycle.closing) return Promise.resolve(unavailable('closing'))
-    // The wait for a reservation counts towards readQueueTimeoutMs, from the call on (SPEC 9.2
-    // step 9; 准入等待). Nothing is sent while the read waits.
     const started =
       /* wall-clock: operation-timing -- The read deadline is a monotonic duration from the call (SPEC 9.2 step 9). */ performance.now()
     const { readQueueTimeoutMs } = this.config
@@ -215,7 +190,6 @@ export class ReaderPool {
     return Promise.resolve(answer(acquired))
   }
 
-  /** Stops the pool and closes every reader. Queued reads end as `closing`. */
   async closeAll(): Promise<void> {
     this.closing = true
     this.waiting.close()
@@ -227,7 +201,6 @@ export class ReaderPool {
     await Promise.all(closing)
   }
 
-  /** Readers whose exit has not been observed. */
   liveReaders(): readonly LiveReader[] {
     const live: LiveReader[] = []
     for (const [domain, d] of this.byDomain)
@@ -242,7 +215,6 @@ export class ReaderPool {
     return live
   }
 
-  /** read-paused (SPEC 12.3): no new read is dispatched. Started reads end by themselves. */
   pauseDispatch(domain: string): void {
     const d = this.domainState(domain)
     if (d.walPaused) return
@@ -258,11 +230,6 @@ export class ReaderPool {
     this.pump(domain)
   }
 
-  /**
-   * A migration of the domain is about to run (SPEC 9.5, last item): stop dispatch, let the reads
-   * in flight end, close every connection and wait for the exits. The schema generation moves on,
-   * so no old connection or result serves a new read. The returned function ends the pause.
-   */
   async pauseForMigration(domain: string): Promise<() => void> {
     const d = this.domainState(domain)
     d.pauses += 1
@@ -277,9 +244,6 @@ export class ReaderPool {
     }
   }
 
-  // --- reservations (SPEC 9.2 step 6) -------------------------------------------------------
-
-  /** The domain bound first, then the global count and bytes (准入等待 rule 3). */
   private fit(domain: string, bytes: number): Fit {
     const { readQueuePerDomain, readQueueGlobal, globalReadResultBytes } = this.config
     if ((this.perDomainReserved.get(domain) ?? 0) >= readQueuePerDomain) return 'domain'
@@ -301,8 +265,6 @@ export class ReaderPool {
     }
   }
 
-  // --- waiting: domain, queue, expiry, abort -------------------------------------------------
-
   private domainState(domain: string): DomainReaders {
     let d = this.byDomain.get(domain)
     if (d === undefined) {
@@ -314,18 +276,24 @@ export class ReaderPool {
 
   private async enqueue(task: Task): Promise<void> {
     const { job } = task
-    let outcome: Awaited<ReturnType<Domains['ensure']>>
-    try {
-      outcome = await this.domains.ensure(job.domain, null)
-    } catch {
-      this.endQueued(task, unavailable('read_failed', 'provider_error'))
-      return
+    if (this.domains.readable(job.domain) === null) {
+      let outcome: Awaited<ReturnType<Domains['ensure']>>
+      try {
+        outcome = await this.domains.ensure(job.domain, null)
+      } catch {
+        this.endQueued(task, unavailable('read_failed', 'provider_error'))
+        return
+      }
+      if (task.settled) return task.finish()
+      if (outcome.kind === 'closing') return this.endQueued(task, unavailable('closing'))
+      if (outcome.kind !== 'ready') return this.endQueued(task, unavailable('domain_unavailable'))
     }
-    // The request may have ended while the domain opened (expiry, abort). Then it is done.
-    if (task.settled) return task.finish()
-    if (outcome.kind === 'closing') return this.endQueued(task, unavailable('closing'))
-    if (outcome.kind !== 'ready' || scopeKey(outcome.entry.scope) !== scopeKey(job.scope))
-      return this.endQueued(task, unavailable('domain_unavailable'))
+    const verified = this.domains.readable(job.domain)
+    if (verified === null || scopeKey(verified.scope) !== scopeKey(job.scope))
+      return this.endQueued(
+        task,
+        unavailable(this.closing || this.lifecycle.closing ? 'closing' : 'domain_unavailable'),
+      )
     this.park(this.domainState(job.domain), task, false)
     this.pump(job.domain)
   }
@@ -340,7 +308,6 @@ export class ReaderPool {
     }
   }
 
-  /** Ends a task that no Worker has seen. */
   private endQueued(task: Task, outcome: ReadOutcome): void {
     task.leaveQueue?.()
     task.settle(outcome)
@@ -354,7 +321,6 @@ export class ReaderPool {
   }
 
   private aborted(task: Task): void {
-    // Queued: the control side takes it out. Running: only the observation ends (SPEC 9.2).
     if (task.phase === 'queued') this.endQueued(task, { kind: 'cancelled' })
     else task.settle({ kind: 'cancelled' })
   }
@@ -366,15 +332,13 @@ export class ReaderPool {
     }
   }
 
-  // --- dispatch -----------------------------------------------------------------------------
-
   private pump(domain: string): void {
     const d = this.domainState(domain)
     for (;;) {
       const task = d.queue[0]
       if (task === undefined || d.pauses > 0) return
       if (this.closing || this.lifecycle.closing) return this.drain(d, unavailable('closing'))
-      const entry = this.domains.peekReady(domain)
+      const entry = this.domains.readable(domain)
       if (entry === null || scopeKey(entry.scope) !== scopeKey(task.job.scope)) {
         d.queue.shift()
         task.settle(unavailable('domain_unavailable'))
@@ -398,8 +362,7 @@ export class ReaderPool {
     for (const [domain, d] of this.byDomain) if (d.queue.length > 0) this.pump(domain)
   }
 
-  /** A reader that fits the tag and is idle, or a new one, or null when the request must wait. */
-  private acquire(d: DomainReaders, entry: ReadyDomain): ReaderAcquisition {
+  private acquire(d: DomainReaders, entry: VerifiedDomain): ReaderAcquisition {
     const scope = scopeKey(entry.scope)
     for (const reader of d.readers) {
       if (reader.state !== 'idle') continue
@@ -414,7 +377,7 @@ export class ReaderPool {
     }
     if (d.readers.length >= this.config.maxReadWorkersPerDomain) return null
     if (!this.hasSlot()) {
-      this.freeSlot()
+      this.freeSlot(entry.domain)
       return null
     }
     return this.spawn(d, entry)
@@ -424,24 +387,35 @@ export class ReaderPool {
     const { maxWorkers, reservedWriterSlots } = this.config
     return (
       this.readerCount < maxWorkers - reservedWriterSlots &&
-      this.domains.liveWriterCount() + this.readerCount < maxWorkers
+      this.domains.writerSlots() + this.readerCount < maxWorkers
     )
   }
 
-  /** Closes one idle reader of any domain, so that the slot is free once its exit is observed. */
-  private freeSlot(): void {
-    for (const d of this.byDomain.values())
-      for (const reader of d.readers) if (reader.state === 'idle') return void this.retire(reader)
+  private freeSlot(domain: string): void {
+    if (this.retireIdle() === null) void this.domains.yieldIdle(domain)
   }
 
-  private spawn(d: DomainReaders, entry: ReadyDomain): ReaderAcquisition {
+  count(): number {
+    return this.readerCount
+  }
+
+  retireIdle(): Promise<void> | null {
+    for (const d of this.byDomain.values())
+      for (const reader of d.readers) if (reader.state === 'idle') return this.retire(reader)
+    return null
+  }
+
+  slotFreed(): void {
+    this.pumpAll()
+  }
+
+  private spawn(d: DomainReaders, entry: VerifiedDomain): ReaderAcquisition {
     this.readerGeneration += 1
     const generation = this.readerGeneration
     let leased: { name: string; lease: object }
     try {
       leased = this.domains.admitReader(entry.domain, generation)
     } catch {
-      // The assembly stopped admission: the provider stops its own admission (SPEC 13.2).
       this.lifecycle.closing = true
       return null
     }
@@ -456,6 +430,7 @@ export class ReaderPool {
       boundScope: null,
       state: 'starting',
       idleTimer: null,
+      loaded: new Set(),
     }
     try {
       reader.client = new ReaderClient(
@@ -476,7 +451,6 @@ export class ReaderPool {
     return reader
   }
 
-  /** The exit of a Worker is observed. Only now the slot, the lease and the tag are gone. */
   private exited(d: DomainReaders, reader: PoolReader): void {
     this.stopIdle(reader)
     const at = d.readers.indexOf(reader)
@@ -495,9 +469,16 @@ export class ReaderPool {
       return
     }
     if (reader.state === 'closing' && !task.settled) {
-      // A migration closed the connection while the request waited for it. It waits again.
       this.park(d, task, true)
       this.pump(job.domain)
+      return
+    }
+    const unloaded = await this.loadHandler(reader, job.handler)
+    if (unloaded !== null) {
+      if (unloaded.reason === 'worker_exited') void this.retire(reader)
+      else this.release(reader)
+      task.settle(unloaded)
+      task.finish()
       return
     }
     const release = await this.holdBarrier(task)
@@ -539,7 +520,6 @@ export class ReaderPool {
       reusable = false
       outcome = unavailable(error instanceof WorkerExited ? 'worker_exited' : 'read_failed')
     }
-    // The transaction has ended, or the exit of the Worker is observed: the barrier goes.
     releaseBarrier()
     if (reusable) this.release(reader)
     else void this.retire(reader)
@@ -548,23 +528,42 @@ export class ReaderPool {
     this.pump(job.domain)
   }
 
-  /**
-   * domain-serial: the barrier of the domain, after the connection (SPEC 9.3). The wait counts in
-   * the queue timeout of the task; a task that settles meanwhile (expiry, abort) is withdrawn
-   * from the order and keeps no place in it. Null for a snapshot read or a withdrawn task.
-   */
+  private async loadHandler(
+    reader: PoolReader,
+    handler: ReadHandlerDescriptor,
+  ): Promise<Extract<ReadOutcome, { kind: 'unavailable' }> | null> {
+    const key = `${handler.codeDigest}\n${handler.moduleUrl}`
+    if (reader.loaded.has(key)) return null
+    this.tokenCounter += 1
+    let reply: ReaderReply
+    try {
+      reply = await reader.client.call(
+        { kind: 'load', handler: { moduleUrl: handler.moduleUrl, codeDigest: handler.codeDigest } },
+        `${String(reader.generation)}:${String(this.tokenCounter)}`,
+      )
+    } catch (error) {
+      return {
+        kind: 'unavailable',
+        reason: error instanceof WorkerExited ? 'worker_exited' : 'read_failed',
+        diagnostic: error instanceof WorkerExited ? 'worker_exited' : 'read_failed',
+      }
+    }
+    if (reply.kind !== 'loaded')
+      return {
+        kind: 'unavailable',
+        reason: 'read_failed',
+        diagnostic: reply.kind === 'read_failed' ? reply.diagnostic : 'provider_error',
+      }
+    reader.loaded.add(key)
+    return null
+  }
+
   private async holdBarrier(task: Task): Promise<(() => void) | null> {
     if (task.job.handler.ordering !== 'domain-serial') return null
     const hold = await this.barrier.acquire(task.job.domain, { signal: task.withdraw.signal })
     return hold.kind === 'granted' ? hold.release : null
   }
 
-  /**
-   * The barrier is held for at most readObservationMs (SPEC 9.3): a read that outlives its
-   * observation delivers no result, so later writes do not wait for its SQL to end. A cancelled
-   * observation does not stop this deadline. The returned function releases earlier, at the reply
-   * or at the exit of the Worker.
-   */
   private boundedHold(release: (() => void) | null): () => void {
     if (release === null) return () => undefined
     const deadline = setTimeout(release, this.config.readObservationMs)
@@ -589,8 +588,6 @@ export class ReaderPool {
     }
   }
 
-  // --- connections --------------------------------------------------------------------------
-
   private async openConnection(reader: PoolReader): Promise<boolean> {
     this.tokenCounter += 1
     let reply: ReaderReply
@@ -603,7 +600,6 @@ export class ReaderPool {
       return false
     }
     if (reply.kind !== 'ready') return false
-    // The binding row decides: another scope means the connection does not belong to this domain.
     let bound: StorageScope | null = null
     try {
       bound = decodeScope(JSON.parse(reply.scope))
@@ -616,7 +612,6 @@ export class ReaderPool {
     return true
   }
 
-  /** The reader is clean: statement ended, result handed over, transaction ended, no message open. */
   private release(reader: PoolReader): void {
     if (reader.state === 'closing') return
     if (this.closing || this.lifecycle.closing) return void this.retire(reader)
@@ -624,6 +619,7 @@ export class ReaderPool {
     reader.idleTimer = setTimeout(() => void this.retire(reader), this.config.readerIdleMs)
     reader.idleTimer.unref()
     this.pump(reader.domain)
+    this.pumpAll()
   }
 
   private stopIdle(reader: PoolReader): void {
@@ -631,7 +627,6 @@ export class ReaderPool {
     reader.idleTimer = null
   }
 
-  /** Closes the connection and the Worker. The slot comes back when the exit is observed. */
   private retire(reader: PoolReader): Promise<void> {
     this.stopIdle(reader)
     reader.state = 'closing'

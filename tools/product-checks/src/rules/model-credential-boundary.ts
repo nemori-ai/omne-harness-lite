@@ -22,7 +22,6 @@ type Token = string
 type Value = ReadonlySet<Token>
 const empty: Value = new Set()
 function nested(key: string, token: string): string {
-  // Preserve recognition while bounding cyclic aggregate aliases.
   return token.split(':').length >= 4 ? `?:${token.split(':').at(-1) ?? ''}` : `${key}:${token}`
 }
 const value = (...tokens: Token[]): Value => new Set(tokens)
@@ -204,7 +203,6 @@ function custodianReadTypeOnly(syntax: ts.SourceFile, path: string, specifier: s
   })
 }
 
-/** Local lexical def-use only. Unknown transfers of recognized restricted values fail closed. */
 export const modelCredentialBoundary: Rule = {
   id: 'model-credential-boundary',
   source:
@@ -528,7 +526,6 @@ export const modelCredentialBoundary: Rule = {
             )
           }
       }
-      // A finite monotone pass handles declarations before assignment and ordinary aliases.
       do {
         changed = false
         visitSyntax(syntax, node => {
@@ -605,7 +602,6 @@ export const modelCredentialBoundary: Rule = {
         if (replicaArgument(node, argument))
           return [...input].every(token => token === 'readCredentialBindingIn:binding-reader')
         if (lookupArgument(node, argument, input)) return true
-        // The component may delegate its typed options to same-file private helpers.
         if (
           component &&
           [...input].every(token => token === 'options') &&

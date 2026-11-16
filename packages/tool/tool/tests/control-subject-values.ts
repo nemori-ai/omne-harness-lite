@@ -2,7 +2,6 @@ import { succeed } from '@omne-harness/operation-result'
 import { canonicalDigest, type ToolAccessGuard, type ToolControlSubjects } from '@omne-harness/tool'
 import type { Principal } from './runtime-values.ts'
 
-/** Test identity directory. Rebuilding the adapter keeps the directory, not a credential codec. */
 export function testControlSubjects(
   access: ToolAccessGuard<Principal>,
   directory = new Map<string, Principal>(),

@@ -66,10 +66,6 @@ const trustCases = {
   'async-notification-pending-revoked': asyncNotificationPendingRevoked,
 } satisfies Record<TrustCase, <P>(fixture: Fixture<P>) => Promise<void>>
 
-/**
- * Cases for the bridge that hands the two original ports to Runtime Context. The suite owns the
- * original ports and only observes the trust through them and through a Runtime Context built on it.
- */
 export function runtimeContextTrustConformance<P>(): readonly ConformanceCase<Fixture<P>>[] {
   return RUNTIME_CONTEXT_TRUST_OBLIGATIONS.map(name => ({
     name,
@@ -90,7 +86,6 @@ function build<P>(
 
 const FACES: readonly RuntimeContextTrustFace[] = ['holder', 'producer', 'reader']
 
-/** One decision of one authority face, for the suite principal. */
 async function ask<P>(
   trust: RuntimeContextTrust<P>,
   fixture: Fixture<P>,
@@ -114,7 +109,6 @@ async function ask<P>(
   return decision
 }
 
-/** One decision per authority face, all for the same principal. */
 async function decisions<P>(
   trust: RuntimeContextTrust<P>,
   fixture: Fixture<P>,
@@ -133,7 +127,6 @@ function currents<P>(asked: readonly AuthorityDecision<P>[]): boolean[] {
   return asked.map(decision => decision.kind === 'authorized' && decision.current())
 }
 
-/** A control makes the earlier answers that depend on its source stale in the same synchronous step; a later answer is current. */
 async function staleAtOnce<P>(fixture: Fixture<P>, control: keyof RuntimeContextTrustControls) {
   const t = build(fixture)
   try {
@@ -153,10 +146,6 @@ async function staleAtOnce<P>(fixture: Fixture<P>, control: keyof RuntimeContext
   }
 }
 
-/**
- * A control belongs to one source: only the earlier answers that depend on that source turn stale,
- * the answers that depend on other sources only stay current.
- */
 async function scopedToSource<P>(fixture: Fixture<P>, control: keyof RuntimeContextTrustControls) {
   const t = build(fixture)
   try {
@@ -173,11 +162,6 @@ async function scopedToSource<P>(fixture: Fixture<P>, control: keyof RuntimeCont
   }
 }
 
-/**
- * A control runs while the original port is still answering, before the bridge sees the answer:
- * the answer the caller then receives is stale for every face the source reaches. A bridge that
- * takes its generations after the original answered cannot pass this.
- */
 async function revocationDuringOriginalAnswer<P>(fixture: Fixture<P>) {
   const controls = Object.keys(
     RUNTIME_CONTEXT_TRUST_DEPENDENCIES,
@@ -222,7 +206,6 @@ async function revocationDuringOriginalAnswer<P>(fixture: Fixture<P>) {
     }
 }
 
-/** The bridge alone goes stale: the original answer of the same call stays current. */
 async function bridgeInvalidatesWhileOriginalCurrent<P>(fixture: Fixture<P>) {
   const t = build(fixture)
   try {
@@ -243,7 +226,6 @@ async function bridgeInvalidatesWhileOriginalCurrent<P>(fixture: Fixture<P>) {
   }
 }
 
-/** The original answer is stale while the bridge is untouched: the bridged answer is stale too. */
 async function originalCurrentFalseRefused<P>(fixture: Fixture<P>) {
   const t = build(fixture)
   try {
@@ -269,17 +251,10 @@ async function originalCurrentFalseRefused<P>(fixture: Fixture<P>) {
   }
 }
 
-/**
- * Known gap (#677): the original writer confirmed a revocation but no asynchronous notification has
- * arrived. A production composition must then fail this case. No fixture can supply a real
- * synchronous revocation source through this interface, and the test double must not make the case
- * pass by revoking at the test port, so the case reports NotApplicable for every fixture.
- */
 async function asyncNotificationPendingRevoked<P>(_fixture: Fixture<P>): Promise<void> {
   throw new NotApplicable('synchronous revocation source (known gap #677)')
 }
 
-/** A per-request read whose source runs the given step while the read waits for it. */
 async function staleDuringRead<P>(fixture: Fixture<P>, control: keyof RuntimeContextTrustControls) {
   const t = build(fixture)
   try {
@@ -349,7 +324,6 @@ async function staleDuringRead<P>(fixture: Fixture<P>, control: keyof RuntimeCon
   }
 }
 
-/** A scope bound to the other tenant: the source is never called and nothing is claimed for it. */
 async function crossTenantZeroSourceCalls<P>(fixture: Fixture<P>) {
   const t = build(fixture)
   try {
@@ -393,7 +367,6 @@ async function crossTenantZeroSourceCalls<P>(fixture: Fixture<P>) {
   }
 }
 
-/** Bindings are read on every call: a scope that now answers another tenant is not served. */
 async function scopeRebindRefused<P>(fixture: Fixture<P>) {
   const t = build(fixture)
   try {
@@ -416,7 +389,6 @@ async function scopeRebindRefused<P>(fixture: Fixture<P>) {
   }
 }
 
-/** An unreadable or unknown binding source never reads as unbound, and nothing opens on it. */
 async function recoverySourceUnknown<P>(fixture: Fixture<P>) {
   const t = build(fixture)
   try {

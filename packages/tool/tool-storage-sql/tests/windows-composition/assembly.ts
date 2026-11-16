@@ -334,7 +334,6 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
     }
     const bundle = createLocalToolRuntimePlugins({
       store,
-      // This composition configures no request policy, so no start carries a condition.
       conditionalCommit: { commit: async ({ ledger }) => store.commit(ledger) },
       bodies: createMemoryToolBodies(),
       content: null,
@@ -542,8 +541,6 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
       name: 'real-windows-provider',
       inject: { executionEnvironment: { caller: 'provider' as const } },
       apply(ctx: Context) {
-        // The negative fixture forwards to this same provider; it only narrows the lease a real
-        // acquisition hands back, so every positive case keeps the real facilities.
         return ctx.executionEnvironment.registerProvider(negative.provider)
       },
     })
@@ -758,7 +755,6 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
       const request: ToolInvokeRequest = {
         availability: availability.ok,
         command,
-        // A multi-command tool takes the whole call; its command codec cuts out the parameters.
         arguments: {
           original: JSON.stringify(command === null ? args : { command, params: args }),
           effective: JSON.stringify(command === null ? args : { command, params: args }),

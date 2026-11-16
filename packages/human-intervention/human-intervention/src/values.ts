@@ -2,7 +2,6 @@ import { z } from 'zod'
 
 export const HITL_COMMAND_MAX_BYTES = 262_144
 
-/** Well-formed text of 1 to `maxCodePoints` code points, so at most four times as many UTF-8 bytes. */
 function text(maxCodePoints: number) {
   return z
     .string()
@@ -68,7 +67,6 @@ const questionFields = {
   cardId: CardIdSchema,
   title: text(256),
   description: text(4096),
-  /** 在这张卡上选择跳过（decline）的后果，由出卡的原拥有者填写。 */
   declineConsequence: text(4096),
 }
 export const QuestionSchema = z

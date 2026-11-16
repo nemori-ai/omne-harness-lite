@@ -27,7 +27,6 @@ import {
 import type { LocalToolContributionVerifier } from './bindings.ts'
 
 export interface LocalToolAuthorSource<P, E, B extends ContentBlock> {
-  /** Verifies the asset implementation reference and package digest before importing that module. */
   resolve(authority: ToolAuthority): Promise<
     Outcome<
       Readonly<{

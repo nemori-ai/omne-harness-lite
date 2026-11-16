@@ -1,5 +1,3 @@
-// The meter: the three image patch rules with the sealed goldens, the o200k proxy estimate of the
-// visible projection with the configured margin, and the requests that have no estimate.
 import { describe, expect, it } from 'vitest'
 import { sortedJsonText } from './support/sorted-json.ts'
 import { getEncoding } from 'js-tiktoken'
@@ -94,7 +92,6 @@ describe('image rules (sealed openai-images.ts goldens)', () => {
   })
 })
 
-// Sealed openai-input-meter.spec.ts:83-93: vectors of the OpenAI tiktoken 0.12.0 o200k_base.
 it('the family tokenizer resources count the independent o200k_base vectors', async () => {
   const count = async (text: string) => await TOKENIZER.count([{ kind: 'text', text }])
   expect(await count('Hello, 世界!')).toEqual({ ok: { tokens: '4' } })
@@ -108,7 +105,6 @@ it('the family tokenizer resources count the independent o200k_base vectors', as
 
 type Measured = Awaited<ReturnType<ModelInputMeter['measure']>>
 
-/** Plans the request on the record binding and measures the planned representation. */
 async function planAndMeasure(
   record: OpenAiRecord,
   parts: RequestParts,
@@ -178,7 +174,6 @@ describe('measure', () => {
     expect(writeJsonText(tokenInput)).toContain('"role":"system"')
   })
 
-  // Sealed openai-encrypted-input.spec.ts:127-197: complete and mixed encrypted history.
   it.each([
     'openai/gpt-5.6-sol',
     'openai/gpt-5.6-sol-pro',
@@ -221,7 +216,6 @@ describe('measure', () => {
     }
   })
 
-  // Sealed openai-encrypted-input.spec.ts:199-229: visible reasoning keeps an estimate.
   it('estimates history whose reasoning is visible thinking only', async () => {
     const { measured, tokenInput } = await planAndMeasure(SOL, {
       messages: [

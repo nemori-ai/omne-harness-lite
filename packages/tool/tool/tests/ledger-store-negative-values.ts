@@ -184,10 +184,6 @@ export function stateUsesDomainRevision(): ToolLedgerStoreFixture {
   )
 }
 
-/**
- * 标记不随记录原子提交的记录仓：它把标记另存一份。`before` 在提交之前改标记，提交失败或没有落地时
- * 标记照样改变；`answered` 只在提交答复 `committed` 之后改标记，落地了但答复未知时标记丢失。
- */
 export function separateMarker(when: 'before' | 'answered'): ToolLedgerStoreFixture {
   return wrappedFixture(store => {
     const markers = new Map<string, PendingCall>()
@@ -223,7 +219,6 @@ export function separateMarker(when: 'before' | 'answered'): ToolLedgerStoreFixt
   })
 }
 
-/** 扫描答复总说没有下一页：只有第一页能被读到。 */
 export function firstPageOnly(): ToolLedgerStoreFixture {
   return wrappedFixture(store => ({
     ...store,
@@ -234,7 +229,6 @@ export function firstPageOnly(): ToolLedgerStoreFixture {
   }))
 }
 
-/** 不删标记的记录仓：`pending: false` 被当成缺省。 */
 export function neverUnmark(): ToolLedgerStoreFixture {
   return wrappedFixture(store => ({
     ...store,

@@ -1,5 +1,3 @@
-// The root entry re-exports contract types only: no runtime value, and no Cordis in its module
-// graph (IC-4, SPEC property 7).
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'

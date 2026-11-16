@@ -1,9 +1,3 @@
-// The diagnostics read face of the Model records: `ModelDiagnostics.list` (model-contract, chapter
-// "供应商尝试诊断") over the same `md_call` and `md_dispatch` rows the commands write. The worker half
-// is the read handler `model.diagnostics`; the main-thread half checks the qualification, opens and
-// signs the cursor, and projects each stored dispatch onto the whitelist `ModelAttemptDiagnostic`.
-// The projection copies named fields only: the vendor text of a fault (`fault.diagnostic`) never
-// leaves this file. Design: RFC-0013 "A 线", `ModelDiagnostics` 怎样实现; behavior: SPEC "诊断读面".
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 import { tenantCodec, type Access } from '@omne-harness/legal-identity'
 import {
@@ -41,29 +35,18 @@ import { domainOf, unavailable } from './reads.ts'
 import { PROTOCOL } from './schema.ts'
 
 export const DIAGNOSTICS_HANDLER = 'model.diagnostics'
-/** The largest `limit` of one `list`. A call seldom has more than a few dispatches. */
 export const DIAGNOSTICS_PAGE_MAX = 100
-/** `maxRowsRead` of `model.diagnostics`: the call row and one page plus one dispatch row. */
 export const DIAGNOSTICS_READ_MAX_ROWS = DIAGNOSTICS_PAGE_MAX + 2
-/** `maxOutputBytes` of `model.diagnostics`: 4 MiB, at most the provider's `maxReadResultBytes`. */
 export const DIAGNOSTICS_READ_MAX_OUTPUT_BYTES = 4 * 1024 * 1024
 
-/** The `action` of every `denied` this face answers. */
 const DENIED_ACTION = 'diagnostics'
 const EVIDENCE_OWNER = 'model-records'
 const CURSOR_PREFIX = 'mdcur_'
 const ID_PREFIX = 'mdiag_'
-/** The base64url text of a SHA-256 HMAC: 32 bytes without padding. */
 const MAC_LENGTH = 43
-
-// --- Worker half ---------------------------------------------------------------------------
 
 type Cell = string | number | null
 
-/**
- * A cell as JSON: INTEGER as a safe integer, TEXT as text, a BLOB (a `json` column) as its packed
- * text. A large integer stops.
- */
 function jsonCell(cell: SqlCell | undefined): Cell {
   if (cell === null || cell === undefined || typeof cell === 'string') return cell ?? null
   if (cell instanceof Uint8Array) return unpackText(cell)
@@ -100,12 +83,6 @@ function countInput(input: Readonly<Record<string, unknown>>, key: string, max: 
 const validLimit = (limit: number): boolean =>
   Number.isSafeInteger(limit) && limit >= 1 && limit <= DIAGNOSTICS_PAGE_MAX
 
-/**
- * The call's row version and the dispatch rows after `after` (a `seq`, or null for the first
- * page) in `seq` order, one more than `limit` so the main thread knows whether a next page exists.
- * Only the key columns and the columns the projection reads travel: `tenant`, `call`, `seq`,
- * `dispatch`, `record`, `logical_terminal`.
- */
 function readDiagnosticRows(input: JsonValue, port: ReadPort): JsonValue {
   if (!isObject(input)) throw new Error('invalid input')
   const tenant = textInput(input, 'tenant')
@@ -127,7 +104,6 @@ function readDiagnosticRows(input: JsonValue, port: ReadPort): JsonValue {
   return { call: head, dispatches }
 }
 
-/** `model.diagnostics`: the row version of one call and one page of its dispatch rows. */
 export const diagnosticsHandler: ReadHandlerModule = {
   handler: DIAGNOSTICS_HANDLER,
   protocol: PROTOCOL,
@@ -143,20 +119,15 @@ export const diagnosticsHandler: ReadHandlerModule = {
   },
 }
 
-// --- Main-thread half: the stored attempts ------------------------------------------------
-
-/** The fields of one stored dispatch that the projection reads. */
 type StoredAttempt = Readonly<{
   seq: number
   dispatch: DispatchId
   adapter: Adoption
   send: DispatchRecord['send']
   firstContent: DispatchRecord['firstContent']
-  /** The logical terminal when the commands recorded one, else the record's terminal. */
   terminal: Termination | null
 }>
 
-/** One read of a call: its row version (0 when the call does not exist) and the rows read. */
 type AttemptsRead = Readonly<{ revision: number; attempts: readonly StoredAttempt[] }>
 
 const NO_CALL: AttemptsRead = { revision: 0, attempts: [] }
@@ -174,15 +145,9 @@ function cell<T extends 'string' | 'number'>(
 ): T extends 'string' ? string : number {
   const value = row[name]
   if (typeof value !== kind) throw new StoredError(`md_dispatch.${name}`, 'cell-kind')
-  // `typeof` narrowed `value` to the primitive `kind` names; the conditional type says the same.
   return value as T extends 'string' ? string : number
 }
 
-/**
- * The value of a JSON column. Only the `model` participant writes these rows, from values that
- * documents.ts encoded, so the nested contract shape is trusted here as documents.ts trusts it.
- * The identity, the key columns and every field the projection copies are checked below.
- */
 function stored<T>(text: string, field: string): T {
   try {
     return JSON.parse(text) as T
@@ -232,8 +197,6 @@ function adoptionOf(value: unknown, field: string): Adoption {
 function terminalOf(value: unknown, field: string): Termination | null {
   if (value === null) return null
   if (!isObject(value)) throw new StoredError(field, 'payload')
-  // The fields the outcome copies are checked; the rest of the terminal stays as stored. A kind
-  // outside the contract would reach the exhaustive default of outcomeOf, which copies it whole.
   const kind = oneOf(value['kind'], TERMINAL_KINDS, `${field}.kind`)
   if (kind === 'failed') {
     const fault = value['fault']
@@ -329,17 +292,12 @@ async function readAttempts(
   }
 }
 
-// --- Main-thread half: the projection -----------------------------------------------------
-
-/** The tenant text, the call and the retention adoption that a cursor is bound to. */
 type CursorScope = Readonly<{ tenant: string; call: ModelCallId; retention: Adoption }>
-/** What a cursor carries: the row version it was taken at and the last `seq` of its page. */
 type CursorBody = Readonly<{ revision: number; seq: number }>
 
 const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex')
 const base64url = (bytes: Uint8Array): string => Buffer.from(bytes).toString('base64url')
 
-/** A minted identity this file produced; its text always has the shape the decoder checks. */
 function minted<T>(result: Outcome<T, unknown>): T {
   if ('failure' in result) throw new Error('a minted identity does not decode')
   return result.ok
@@ -365,7 +323,6 @@ function macOf(key: Uint8Array, scope: CursorScope, payload: string): string {
   )
 }
 
-/** The cursor of the next page: the body, signed for this tenant, call and retention adoption. */
 function signCursor(key: Uint8Array, scope: CursorScope, body: CursorBody): ModelDiagnosticCursor {
   const payload = base64url(Buffer.from(JSON.stringify([body.revision, body.seq])))
   return minted(
@@ -393,7 +350,6 @@ function cursorBody(payload: string): CursorBody | null {
   return isCount(revision) && isCount(seq) ? { revision, seq } : null
 }
 
-/** The body of a cursor of this scope. Any other text, signed or not, is `invalid`. */
 function openCursor(
   key: Uint8Array,
   scope: CursorScope,
@@ -411,14 +367,12 @@ function openCursor(
 }
 
 const SEND_OF: Readonly<Record<DispatchRecord['send'], ModelAttemptDiagnostic['send']>> = {
-  // A prepared dispatch is a local intent; it does not prove that anything was sent.
   prepared: 'not-sent',
   started: 'sent',
   unknown: 'unknown',
   'not-sent': 'not-sent',
 }
 
-/** The outcome of one attempt: only the named fields; the fault text stays in storage. */
 function outcomeOf(terminal: Termination | null): ModelAttemptDiagnostic['outcome'] {
   if (terminal === null) return { kind: 'pending' }
   switch (terminal.kind) {
@@ -455,7 +409,6 @@ function attemptDiagnostic(
     send: SEND_OF[attempt.send],
     firstContent: attempt.firstContent,
     outcome: outcomeOf(attempt.terminal),
-    // The storage holds no phase times (RFC-0013 DA6). Unknown is the honest answer.
     timing: {
       materialize: UNKNOWN_DURATION,
       sendToFirstContent: UNKNOWN_DURATION,
@@ -464,28 +417,17 @@ function attemptDiagnostic(
   }
 }
 
-// --- Main-thread half: the face --------------------------------------------------------------
-
-/** The adopted qualification mappings. `tenant-self`: a principal that acts for the tenant may read. */
 export type DiagnosticsReadMapping = 'tenant-self'
 
 export type SqlModelDiagnosticsOptions<P> = Readonly<{
   storage: SqlStorage
   domains: TenantDomainLookup
-  /** The qualification port of the records; `tenant-self` asks it whether the principal acts for the tenant. */
   authority: Pick<ModelCommandsAuthority<P>, 'authorize'>
   diagnosticsRead: DiagnosticsReadMapping
-  /** The retention adoption of the deployment. `null`: the whole read face is unavailable. */
   retention: Adoption | null
-  /** The key that signs cursors. Default: 32 random bytes per instance, so a cursor lives one instance. */
   cursorKey?: Uint8Array
 }>
 
-/**
- * The qualification of one read under the adopted mapping. The mapping is a deployment's explicit
- * adoption, not an extension of the ordinary call read qualification: `tenant-self` asks the
- * records authority one tenant-level question and never names the call.
- */
 function qualify<P>(
   options: SqlModelDiagnosticsOptions<P>,
   access: Access<P>,
@@ -511,10 +453,8 @@ function qualify<P>(
 
 type ListInput<P> = Parameters<ModelDiagnostics<P>['list']>[0]
 
-/** The scope of one admitted read and the opened cursor, if the input carried one. */
 type AdmittedList = Readonly<{ scope: CursorScope; after: CursorBody | null }>
 
-/** The checks before any row is read: tenant text, qualification, `limit`, then the cursor. */
 function admitList<P>(
   options: SqlModelDiagnosticsOptions<P>,
   key: Uint8Array,
@@ -533,7 +473,6 @@ function admitList<P>(
   return 'failure' in after ? after : succeed({ scope, after: after.ok })
 }
 
-/** The rows of the scope; a tenant without a domain reads as a call that does not exist. */
 async function readScope<P>(
   options: SqlModelDiagnosticsOptions<P>,
   scope: CursorScope,
@@ -563,7 +502,6 @@ function pageOf(
         : null,
     snapshot: snapshotOf(scope, revision),
     retention: scope.retention,
-    // No cleanup exists yet, so every page is complete through its snapshot (RFC-0013).
     coverage: 'complete-through-snapshot',
   }
 }
@@ -584,12 +522,6 @@ async function listAttempts<P>(
   return succeed(pageOf(key, scope, read.ok, input.limit))
 }
 
-/**
- * `ModelDiagnostics.list` over the SQL records. Order of checks: retention adopted, tenant text,
- * qualification, `limit`, cursor, then the read. A denied principal learns nothing about the call,
- * the cursor or the limit. A tenant without a domain and a call that does not exist both answer the
- * empty complete page.
- */
 export function createSqlModelDiagnostics<P>(
   options: SqlModelDiagnosticsOptions<P>,
 ): ModelDiagnostics<P> {

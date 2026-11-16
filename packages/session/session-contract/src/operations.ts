@@ -1,6 +1,3 @@
-// Operation identity derivation (SPEC OP-00): two pure functions derive identities from stable
-// elements. The input holds no time, random number or connection; the same elements give the
-// same identity and different elements give a different one.
 import { createHash } from 'node:crypto'
 import type {
   Adoption,
@@ -55,10 +52,6 @@ export type DriveOperationElements =
       transfer: 'custody' | 'processed' | 'none'
     }>
 
-/**
- * The canonical text of a plain value: object keys sorted, array order kept. Two values with the
- * same canonical text are the same elements.
- */
 export function canonicalText(value: unknown): string {
   return JSON.stringify(value, (_key, member: unknown) => {
     if (typeof member !== 'object' || member === null || Array.isArray(member)) return member
@@ -69,16 +62,10 @@ export function canonicalText(value: unknown): string {
   })
 }
 
-/** The hexadecimal SHA-256 digest of the canonical text of `value`. */
 export function digestOf(value: unknown): string {
   return createHash('sha256').update(canonicalText(value)).digest('hex')
 }
 
-/**
- * The stable elements of a `receive` fact (OP-00 `receive` row): a hand-over by its execution
- * and input; the other facts by their source record. The payload of the fact is not part of the identity, so the same fact resent with a
- * different payload is a `conflict`, not a second entry.
- */
 function factElements(fact: ProducerFact): unknown {
   switch (fact.kind) {
     case 'input-handover':
@@ -121,7 +108,6 @@ export function deriveDriveOperation(elements: DriveOperationElements): string {
   return `dop_${digestOf(elements)}`
 }
 
-/** The disjoint identity families of the ingress that derives Session operation identities. */
 export const INGRESS_FAMILIES = Object.freeze({
   control: 'session-public/1-control',
   accept: 'session-public/1-accept',
@@ -129,12 +115,6 @@ export const INGRESS_FAMILIES = Object.freeze({
 } as const)
 export type IngressFamily = (typeof INGRESS_FAMILIES)[keyof typeof INGRESS_FAMILIES]
 
-/**
- * The operation identity of an ingress request: the digest of the canonical JSON array
- * `[family, ...fields]`. The array has no separator, so a field value that holds a delimiter, a
- * quote or a newline cannot meet another combination of fields; the family is the first element,
- * so two families never share an identity.
- */
 export function deriveIngressOperation(
   family: IngressFamily,
   fields: readonly string[],

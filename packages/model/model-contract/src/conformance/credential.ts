@@ -53,7 +53,6 @@ function scene<P>(subject: CredentialConformanceSubject<P>, waitMs: number) {
     item,
     scope,
   })
-  /** Binds both items of a layer: the first secret to the first item, the second to the second. */
   const bindLayer = (scope: CredentialTarget['scope'] = own) =>
     control(async () => {
       await controls.bind(target(items[0], scope), secrets[0])
@@ -242,7 +241,6 @@ async function run<P>(
   return { obligation, status, detail }
 }
 
-/** Checks synchronous observable obligations, not principal provenance or official-profile truth. */
 export async function checkCredentialPortConformance<P>(
   options: CredentialConformanceOptions<P>,
 ): Promise<CredentialConformanceReport> {

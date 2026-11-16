@@ -1,5 +1,3 @@
-// 债的走向、对照表条数、各传感器最近一次有数据。全是纯函数：读文件、跑 git 在 health-cli.ts，
-// 「现在」由调用方注入。每一块要么有数据，要么写明没有数据的原因。
 import { shapeOf } from '../core/git.ts'
 import { isRunTier, type RunTier } from '../core/test-ledger.ts'
 import type { Band, Lines } from './bands.ts'
@@ -7,8 +5,6 @@ import { CATEGORIES, type Category } from './catalogue.ts'
 import { BUDGET_ITEMS, INDICATORS, type BudgetItem, type LoopConfig } from './config.ts'
 import { data, noData, type Reading } from './reading.ts'
 import type { Snapshot } from './trend.ts'
-
-// ---- 主线提交的大小 ----
 
 export interface CommitSize {
   readonly sha: string
@@ -21,11 +17,9 @@ export interface CommitsBlock {
   readonly count: number
   readonly medianFiles: number
   readonly maxFiles: number
-  /** 改的文件最多的三个，多到少。 */
   readonly largest: readonly CommitSize[]
 }
 
-/** `git log --format=%x00%H%x09%s --name-only` 的输出：每个提交的哈希、标题与改了几个文件。 */
 export function parseCommitLog(text: string): CommitSize[] {
   return text
     .split('\u0000')
@@ -56,13 +50,10 @@ export function commitsBlock(
   })
 }
 
-// ---- 全量测试的墙钟 ----
-
 export interface TestRun {
   readonly startedAt: string
   readonly head: string
   readonly dirty: boolean
-  /** 跑的是哪一层；早于分层的账本按 `all`。 */
   readonly tier: RunTier
   readonly wallSeconds: number
   readonly passed: boolean
@@ -74,12 +65,6 @@ function hasCacheHits(cache: unknown): boolean {
   return Array.isArray(hits) && hits.length > 0
 }
 
-/**
- * 一份 `ledger.json`（`src/testing/cli.ts` 写的）里这里要的部分；不是全量运行返回 `partial`。
- * 全量与受影响范围的区分：跑的是全部成员的运行（`run --all`，或计划判为全量的 `pnpm run check` 测试一步）`meta.base` 是 null，
- * 按影响面选成员的不是。含缓存命中（`meta.cache.hits` 非空）的运行也不算：`members` 只列实际跑了的成员，
- * 墙钟不代表一次全量，只看账本、不看有没有设 `FULL=1`。全量运行可以只跑一层（`pnpm run check` 的测试一步快、慢两层各记一份），层记在 `meta.tier`。
- */
 export function parseLedgerRun(
   value: unknown,
 ): { readonly kind: 'full'; readonly run: TestRun } | { readonly kind: 'partial' } | undefined {
@@ -118,11 +103,8 @@ export function parseLedgerRun(
 }
 
 export interface TestsBlock {
-  /** 从旧到新。 */
   readonly runs: readonly TestRun[]
-  /** 账本里受影响范围的运行数，不计入。 */
   readonly partial: number
-  /** 读不了的账本（路径）。 */
   readonly unreadable: readonly string[]
 }
 
@@ -149,8 +131,6 @@ export function testsBlock(
   return data({ runs: full.slice(-runs), partial, unreadable })
 }
 
-// ---- 债的走向 ----
-
 export interface Point {
   readonly commit: string
   readonly committedAt: string
@@ -161,13 +141,11 @@ export interface Point {
 export interface Series {
   readonly id: string
   readonly points: readonly Point[]
-  /** 配置里的三条线；没有绝对线为 null。 */
   readonly lines: Lines | null
 }
 
 export interface MemberSeries {
   readonly member: string
-  /** 最新一条快照里这个成员的总带位；最新一条里没有它为 null。 */
   readonly latestBand: Band | null
   readonly items: readonly Series[]
 }
@@ -175,11 +153,9 @@ export interface MemberSeries {
 export interface DebtBlock {
   readonly snapshots: number
   readonly indicators: readonly Series[]
-  /** 当前或曾经处于处置的成员。 */
   readonly members: readonly MemberSeries[]
 }
 
-/** 同一提交多条取文件里最后一条，再按提交时间从旧到新。 */
 export function orderedSnapshots(snapshots: readonly Snapshot[]): Snapshot[] {
   const latest = new Map<string, { snapshot: Snapshot; index: number }>()
   snapshots.forEach((snapshot, index) => latest.set(snapshot.commit, { snapshot, index }))
@@ -244,12 +220,9 @@ export function debtBlock(
   return data({ snapshots: ordered.length, indicators, members })
 }
 
-// ---- 对照表条数 ----
-
 export interface CatalogueBlock {
   readonly counts: Readonly<Record<Category, number>>
   readonly invalid: number
-  /** 「现状」以「待建」开头的行。 */
   readonly pending: number
 }
 
@@ -271,11 +244,8 @@ export function catalogueBlock(
   })
 }
 
-// ---- 各传感器最近一次有数据 ----
-
 export interface SensorLast {
   readonly id: string
-  /** 从没有过数据为 null。 */
   readonly last: { readonly commit: string; readonly committedAt: string } | null
 }
 
@@ -292,8 +262,6 @@ export function sensorsBlock(debt: Reading<DebtBlock>): Reading<readonly SensorL
   )
 }
 
-// ---- 汇总 ----
-
 export interface Health {
   readonly conformance?: Reading<import('../arch/conformance-model.ts').Conformance>
   readonly meta: {
@@ -304,7 +272,6 @@ export interface Health {
     readonly generatedAt: string
     readonly home: string
     readonly windows: LoopConfig['health']
-    /** 读台账、趋势时跳过的坏行，以及别的读数事实。 */
     readonly notes: readonly string[]
   }
   readonly commits: Reading<CommitsBlock>

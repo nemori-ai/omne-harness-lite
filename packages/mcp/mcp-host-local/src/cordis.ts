@@ -1,8 +1,3 @@
-// The MCP plugin: it builds the MCP services once, over the in-memory catalog store and the local
-// transports, and provides the three MCP services on the loading fiber. The three demand ports
-// (adoption, eligibility, credentials) belong to other domains. The plugin reads each of
-// them from its own load context on every call, and without one the answer is the port's
-// `unknown`, never a pass. When the fiber unloads, one removal closes every connection.
 import type { Context } from '@deepseek-ai/cordis'
 import { createInMemoryCatalogStore, createMcp } from '@omne-harness/mcp'
 import type {
@@ -38,24 +33,12 @@ import { fail, type Outcome } from '@omne-harness/operation-result'
 import { createLocalTransportFactory } from './factory.ts'
 import type { LocalTransportOptions } from './options.ts'
 
-/**
- * The functions and local objects of the plugin, taken from the types that own them:
- * `principalKey` from `McpConfig`, `checkOutput` and `clock` from `McpPorts`, `fetch` from
- * `LocalTransportOptions`. They are not configuration: a plugin tree row holds only serializable
- * data. An absent optional part takes the default of `createMcp` or of
- * `createLocalTransportFactory`.
- */
 export type McpPluginParts = Readonly<
   Pick<McpConfig<unknown>, 'principalKey'> &
     Pick<McpPorts<unknown, unknown>, 'checkOutput' | 'clock'> &
     Pick<LocalTransportOptions, 'fetch'>
 >
 
-/**
- * The configuration of the plugin: the three bounds of `McpConfig`, and `clientInfo` of
- * `LocalTransportOptions`. Every field is required and has no default. The
- * ranges are checked by `createMcp` and `createLocalTransportFactory`, not by the schema.
- */
 export type McpPluginConfig = Readonly<
   Omit<McpConfig<unknown>, 'principalKey'> & Omit<LocalTransportOptions, 'fetch'>
 >
@@ -64,8 +47,6 @@ type ClientInfo = McpPluginConfig['clientInfo']
 type Bounds = Omit<McpPluginConfig, 'clientInfo'>
 type ConfigResult = SchemaSuccess<McpPluginConfig> | SchemaFailure
 
-// The field lists are the keys of these records, so a field added to or removed from the
-// configuration type does not compile until the schema knows it.
 const CONFIG_FIELDS: Readonly<Record<keyof McpPluginConfig, true>> = {
   maxListingPages: true,
   maxActions: true,
@@ -74,17 +55,12 @@ const CONFIG_FIELDS: Readonly<Record<keyof McpPluginConfig, true>> = {
 }
 const CLIENT_INFO_FIELDS: Readonly<Record<keyof ClientInfo, true>> = { name: true, version: true }
 
-/** True for an object whose prototype is `Object.prototype` or `null`. */
 function isPlainRecord(value: unknown): value is Readonly<Record<PropertyKey, unknown>> {
   if (typeof value !== 'object' || value === null) return false
   const prototype: unknown = Object.getPrototypeOf(value)
   return prototype === Object.prototype || prototype === null
 }
 
-/**
- * The issue of a record that has an own key outside `fields` (a symbol key is outside too) or
- * lacks an own field of `fields`.
- */
 function fieldsIssue(
   record: Readonly<Record<PropertyKey, unknown>>,
   fields: Readonly<Record<string, true>>,
@@ -99,7 +75,6 @@ function fieldsIssue(
   return undefined
 }
 
-/** The three bounds read by name, or the name of the first one that is not a number. */
 function boundsOf(record: Readonly<Record<PropertyKey, unknown>>): Bounds | keyof Bounds {
   const { maxListingPages, maxActions, instructionsByteLimit } = record
   if (typeof maxListingPages !== 'number') return 'maxListingPages'
@@ -108,7 +83,6 @@ function boundsOf(record: Readonly<Record<PropertyKey, unknown>>): Bounds | keyo
   return { maxListingPages, maxActions, instructionsByteLimit }
 }
 
-/** A new `clientInfo` of two texts, or the issue of the value. */
 function clientInfoOf(value: unknown): ClientInfo | string {
   if (!isPlainRecord(value)) return 'clientInfo must be an object'
   const fields = fieldsIssue(value, CLIENT_INFO_FIELDS, 'clientInfo')
@@ -123,11 +97,6 @@ function issue(message: string): ConfigResult {
   return { issues: [{ message }] }
 }
 
-/**
- * Checks the shape only: a plain object with exactly the four own fields, the three bounds
- * numbers, and `clientInfo` a plain object with exactly two own texts. It answers a new object,
- * so a later change to the input does not reach the plugin.
- */
 const mcpPluginConfig: StandardSchema<McpPluginConfig> = {
   '~standard': {
     version: 1,
@@ -145,7 +114,6 @@ const mcpPluginConfig: StandardSchema<McpPluginConfig> = {
   },
 }
 
-/** The adoption view that asks the `mcpAdoptionView` service on each call (IC-9). */
 function adoptionOf(ctx: Context): AdoptionView<unknown, unknown> {
   return {
     async endpoints(...args) {
@@ -161,7 +129,6 @@ function adoptionOf(ctx: Context): AdoptionView<unknown, unknown> {
   }
 }
 
-/** The use eligibility that asks the `mcpUseEligibility` service on each call (IC-9). */
 function eligibilityOf(ctx: Context): UseEligibility<unknown> {
   return {
     async check(...args) {
@@ -172,7 +139,6 @@ function eligibilityOf(ctx: Context): UseEligibility<unknown> {
   }
 }
 
-/** The credential use that asks the `mcpCredentialUse` service on each call (IC-9). */
 function credentialsOf(ctx: Context): CredentialUse<unknown> {
   type Access = Parameters<CredentialUse<unknown>['acquire']>[0]
   type Holding = Parameters<CredentialUse<unknown>['acquire']>[1]
@@ -250,15 +216,6 @@ class HostEndpointStatus extends EndpointStatusService<unknown, unknown> {
   }
 }
 
-/**
- * Makes the MCP plugin. On load it builds the services with one `createMcp` and provides
- * `mcpActionDiscovery`, `mcpActionInvoker` and `mcpEndpointStatus` on the loading fiber; the three
- * share one connection table, one in-flight table and one task table. A configuration that is not
- * of the shape fails the load; a value out of range fails it with the `RangeError` of
- * `createLocalTransportFactory` or `createMcp`. When the fiber unloads, one removal awaits
- * `connections.closeAll()`; an `AggregateError` from `closeAll` is not caught, and Cordis writes
- * it to `ctx.logger`.
- */
 export function createMcpPlugin(parts: McpPluginParts) {
   return definePlugin<McpPluginConfig>({
     name: 'mcp',

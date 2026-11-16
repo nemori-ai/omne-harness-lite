@@ -1,10 +1,3 @@
-// The Cordis service definitions of Session (docs/cordis.md): the `session` service that exposes
-// the four faces, one abstract Service and one key for each construction port, outbound port and
-// the internal principals, the intercept configuration `{ caller }`, and the `committed` event.
-// The provider lives in `@omne-harness/session-cordis`; this entry imports no provider. The
-// superseded `sessionToolStartFence` and `sessionDeliveryRelease` keys are not here: the delivery
-// release goes through the Agent host's result receiver (CA-06) and the tool start fence is the
-// Agent journal `start-fence` entry (#672 J03).
 import { type Context, Service } from '@deepseek-ai/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
@@ -22,6 +15,7 @@ import type {
   SessionCallerClass,
   SessionClock,
   SessionContextInput,
+  SessionDirectory,
   SessionEvidenceBridge,
   SessionFaces,
   SessionId,
@@ -36,7 +30,6 @@ import type { SessionAdoptedRequests } from './adopted-request.ts'
 import type { SessionCursorSigning } from './cursor-signing.ts'
 import type { SessionReplayFacts, SessionScopeLookup } from './context-facts.ts'
 
-/** The intercept configuration of a caller plugin: `inject: { session: { caller } }`. */
 export type SessionIntercept = Readonly<{ caller: SessionCallerClass }>
 
 /** @owner packages/session/session-contract */
@@ -49,6 +42,9 @@ export abstract class SessionService<P = unknown> extends Service<SessionInterce
   abstract readonly management: SessionFaces<P>['management']
   abstract readonly reconciliation: SessionFaces<P>['reconciliation']
   abstract readonly history: SessionFaces<P>['history']
+  get directory(): SessionDirectory<P> | undefined {
+    return undefined
+  }
 }
 export const sessionKey = SessionService.provide
 
@@ -81,10 +77,10 @@ export abstract class SessionTransactionPortService<P = unknown>
   abstract readonly queryControlOperation: SessionTransactionPort<P>['queryControlOperation']
   abstract readonly readModelSelection: SessionTransactionPort<P>['readModelSelection']
   abstract readonly commitEntries: SessionTransactionPort<P>['commitEntries']
-  /** Optional like the port member, and not abstract: a provider without it omits it. */
   declare readonly commitLog?: NonNullable<SessionTransactionPort<P>['commitLog']>
   abstract readonly history: SessionTransactionPort<P>['history']
   abstract readonly pending: SessionTransactionPort<P>['pending']
+  declare readonly directory?: NonNullable<SessionTransactionPort<P>['directory']>
   abstract readonly references: SessionTransactionPort<P>['references']
   abstract readonly releasedScopes: SessionTransactionPort<P>['releasedScopes']
 }
@@ -276,11 +272,6 @@ export abstract class ScopeReleasePortService extends Service implements ScopeRe
 }
 export const sessionScopeReleaseKey = ScopeReleasePortService.provide
 
-/**
- * The tenants of the deployment, for the startup scan of the Session provider. The application
- * assembly provides it over its tenant directory and asks the directory as the scanner of the
- * deployment; the Session provider holds no principal for it.
- */
 export type SessionTenantSource = Readonly<{
   enumerate(): Promise<
     | Readonly<{ ok: readonly TenantId[] }>
@@ -308,7 +299,6 @@ export abstract class SessionAdoptionSourceService<P = unknown>
     super(ctx, SessionAdoptionSourceService.provide)
   }
   abstract readonly prepare: SessionAdoptionSource<P>['prepare']
-  /** Optional like the port member, and not abstract: the adoption point that Session calls before `startRun`. */
   declare readonly plan?: NonNullable<SessionAdoptionSource<P>['plan']>
 }
 export const sessionAdoptionSourceKey = SessionAdoptionSourceService.provide
@@ -405,8 +395,6 @@ export abstract class SessionAdoptedRequestsService<P = unknown>
 export const sessionAdoptedRequestsKey = SessionAdoptedRequestsService.provide
 
 declare module '@deepseek-ai/cordis' {
-  // The trusted identity adapter of an assembly narrows the principal type. Providers still
-  // check every input at run time.
   interface Context {
     session: SessionService<unknown>
     sessionAccessCheck: SessionAccessCheckService<unknown>

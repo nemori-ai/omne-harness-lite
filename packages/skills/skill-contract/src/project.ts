@@ -1,4 +1,3 @@
-// Projects a Skill definition into the asset body that the `skill` category port judges.
 import type { CapabilityId, JsonValue } from '@omne-harness/assets'
 import type { ScriptDeclaration, SettingDeclaration, SkillDefinition } from './values.ts'
 
@@ -33,10 +32,6 @@ function setting(declaration: SettingDeclaration): JsonValue {
   ])
 }
 
-/**
- * The asset body `{ name, description, tools, scripts, settings, package: { digest } }` as a JSON
- * tree. Write it with `writeJsonText` and read it back with `readBodyText` before judging it.
- */
 export function projectAssetBody(definition: SkillDefinition): JsonValue {
   const { manifest, declaration, snapshot } = definition
   return object([

@@ -54,7 +54,7 @@
       "retireWave": "A",
       "dueBy": "B",
       "ownerKind": "reduce",
-      "note": "request-context-contract ./testing 的脚本准备资源（packages/context/request-context-contract/src/testing/fixtures.ts:258）；CS 同样这样接（apps/m2-contract-skeleton/SPEC.md:65）。导出名 createAssemblyFixture 同时承载其他夹具，导入方数按该名计，退役时只删脚本准备资源这一部分"
+      "note": "request-context-contract ./testing 的脚本准备资源（packages/context/request-context-contract/src/testing/fixtures.ts:258）。导出名 createAssemblyFixture 同时承载其他夹具，导入方数按该名计，退役时只删脚本准备资源这一部分"
     },
     {
       "id": "MD-15",
@@ -74,7 +74,7 @@
       "retireWave": "A",
       "dueBy": "B",
       "ownerKind": "reduce",
-      "note": "CS 写死选择，没有档案读取的替身（apps/m2-contract-skeleton/tests/first-path-doubles.ts:84-86）。装配替身，随 CS 删除；档案读取的替身是 RD-MODEL"
+      "note": "CS 写死选择，没有档案读取的替身。装配替身，CS 已随旧路删除（#1286）；档案读取的替身是 RD-MODEL"
     },
     {
       "id": "AS-13",
@@ -104,7 +104,7 @@
       "retireWave": "A",
       "dueBy": "B",
       "ownerKind": "reduce",
-      "note": "CS 的 H06 接法（apps/m2-contract-skeleton/SPEC.md:103）：Model 公开测试推送器 createScriptedResultPusher 推给 createLocalModelReceiver，接 agent-contract ./testing 的 createMemoryAgentJournalEntries。接线写在 CS 里，随 CS 删除；被接的 ./testing 导出不属于本项"
+      "note": "CS 的 H06 接法（CS 已随旧路删除，#1286）：Model 公开测试推送器 createScriptedResultPusher 推给 createLocalModelReceiver，接 agent-contract ./testing 的 createMemoryAgentJournalEntries。接线写在 CS 里，随 CS 删除；被接的 ./testing 导出不属于本项"
     },
     {
       "id": "AG-18",

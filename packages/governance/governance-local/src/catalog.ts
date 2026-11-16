@@ -13,10 +13,6 @@ import { CATALOG_SNAPSHOT, catalogPageSchema, type CatalogBinding } from './cata
 import { canonical, equal, json } from './encoding.ts'
 import { governanceFailureSchema } from './registrar-results.ts'
 
-/**
- * Runs read-only participant commands in one snapshot and answers the response of the last one.
- * The assembly gives it. `unavailable` covers every case without a response.
- */
 export type GovernanceProjectionRead = Readonly<{
   read(
     commands: readonly FactCommandV2[],
@@ -29,7 +25,6 @@ export type GovernanceCatalogOptions = Readonly<{
   scope: GovernanceScope
   epoch: string
   admission: GovernanceAdmission
-  /** The commands of other owners that give the current catalog evidence of this binding. */
   current: (binding: CatalogBinding) => readonly FactCommandV2[]
   projection: GovernanceProjectionRead
   accepting: () => boolean
@@ -46,9 +41,7 @@ function captureRequest(raw: unknown) {
       new Set(parsed.data.targets.map(canonical)).size === parsed.data.targets.length
     )
       return { kind: 'request' as const, request: parsed.data }
-  } catch {
-    /* Reject non-JSON local values at the boundary. */
-  }
+  } catch {}
   return { kind: 'invalid-input' as const, field: 'catalog', reason: 'shape' }
 }
 export function createGovernanceCatalog(

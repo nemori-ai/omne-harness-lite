@@ -1,6 +1,3 @@
-// The migration `execution-record/003-admission-attempt`: it creates the table of the original
-// attempt beside the reverse input directory, runs again on a database that has it without changing
-// it, and leaves a row written before it without an attempt.
 import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it } from 'vitest'
 import type { SqlCell, SqlValue } from '@omne-harness/sql-contract/worker'
@@ -71,8 +68,6 @@ describe('execution-record/003-admission-attempt', () => {
     admissionAttempt.up(raw)
     expect(db.prepare(DEFINITION).get()).toEqual(definition)
     expect(admissionAttempt.verify(raw)).toEqual({ kind: 'verified' })
-    // The row written before the migration keeps its data and has no attempt row; the one that
-    // was added before the second run is still there.
     expect(db.prepare('SELECT attachment FROM er_admission_idx').all()).toEqual([
       { attachment: 'a' },
     ])

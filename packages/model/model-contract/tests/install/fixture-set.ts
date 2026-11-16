@@ -1,6 +1,3 @@
-// Runs every role fixture of a member, each in a consumer directory of its own, and sums the
-// results up in one report that names the paths of each fixture. A role that the member requires
-// and that has no fixture fails the set, so a fixture cannot be dropped to make the set pass.
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { readManifest } from './closure.ts'
@@ -8,23 +5,19 @@ import { runConsumerInstall, type Options, type Report } from './consumer.ts'
 import type { PathResult } from '../fixture-runner.ts'
 import type { MemberOptions } from './options.ts'
 
-/** The file in the consumers directory that lists the roles the member must have a fixture for. */
 export const ROLES_FILE = 'roles.json'
 
 export type FixtureSummary = Readonly<{
-  /** The name of the fixture directory, which is also the role. */
   role: string
   directory: string
   ok: boolean
   paths: readonly PathResult[]
-  /** The checks of the run that did not pass, with what they found. */
   failedChecks: readonly Readonly<{ id: string; detail: string }>[]
 }>
 
 export type FixtureSetReport = Readonly<{
   member: string
   ok: boolean
-  /** Problems of the set itself: an unreadable roles file, a required role without a fixture. */
   problems: readonly string[]
   fixtures: readonly FixtureSummary[]
 }>
@@ -35,7 +28,6 @@ function isTextList(value: unknown): value is readonly string[] {
   return Array.isArray(value) && value.every(item => typeof item === 'string')
 }
 
-/** The required roles, or the reason that the roles file cannot be used. */
 export function readRoles(
   consumers: string,
 ): Readonly<{ roles: readonly string[] }> | Readonly<{ problem: string }> {
@@ -55,7 +47,6 @@ export function readRoles(
   return { roles }
 }
 
-/** The names of the fixture directories below the consumers directory. */
 export function fixtureNames(consumers: string): string[] {
   if (!existsSync(consumers)) return []
   return readdirSync(consumers, { withFileTypes: true })
@@ -77,7 +68,6 @@ function summarise(name: string, directory: string, report: Report): FixtureSumm
   }
 }
 
-/** The problems of the set itself: an unusable roles file, a required role without a fixture. */
 function setProblems(consumers: string, names: readonly string[]): string[] {
   const wanted = readRoles(consumers)
   if ('problem' in wanted) return [wanted.problem]
@@ -90,7 +80,6 @@ export function runFixtureSet(
   input: MemberOptions &
     Readonly<{
       consumersDirectory: string
-      /** The directory below which each fixture gets a consumer directory named after its role. */
       workDirectory: string
     }>,
   run: ConsumerRun = runConsumerInstall,

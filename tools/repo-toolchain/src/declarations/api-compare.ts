@@ -1,19 +1,3 @@
-// 用 TypeScript 检查器比较两份快照：把新旧两份声明文件放进同一个程序，对每个导出名做双向可赋值性判断。
-//   新 → 旧（readers）：已有的读方按旧形状读新值，仍然接受；
-//   旧 → 新（writers）：已有的写方（提供者、替身、实现者）按旧形状产出的值，仍被接受。
-// 判断全部由检查器做；这里只负责还原声明、生成比较文件、读结果。还原前对每侧做几项归一化，
-// 让检查器的结论贴近「消费者还能不能编译」：
-//   - 对别的模块与 `global` 的扩充改写成本侧的命名空间，两侧才能同时存在；对本成员模块的扩充保留，各侧自然生效。
-//     分类层保证走到这里时扩充两侧相同（有差异整份 review，不跑检查器），所以扩充本身不比较；
-//   - 脚本文件（顶层声明都是全局的）只还原一份：分类层同样保证它两侧相同，还原两份会在同一个程序里重复声明；
-//   - 方法签名改成函数类型的属性，避开方法参数的双变；
-//   - 本成员的 `unique symbol` 改成按文件与名字定位的字面量，两侧的品牌才能互相比较；
-//   - 类的 private 与 `#` 成员删除、protected 放开，避开名义性；
-//   - 新增 `any` 与「能否当值用」的变化另记为不兼容。
-// 每个目标的结论带着比较条数与结构化的问题：方向不成立、检查器未完成、实例组合超限分开报，不合并成「失败」。
-// 另给每个导出算它经本成员内部声明能到达的顶层语句：分类层用它判断哪些导出被改动「涉及」。
-// 只沿本成员还原的声明走，不进 lib 与外部包：全局作用域的差异不在这里判断。
-// 规则来源与探针见 SPEC.md「分类」。
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join, posix, sep } from 'node:path'
 import ts from '@typescript/typescript6'
@@ -31,11 +15,6 @@ export interface CompareTarget {
   readonly name: string
 }
 
-/**
- * 一个目标上检查器发现的问题。direction：某条比较有一个方向不成立，或不必比较就能定的不兼容
- * （含义变了、类型参数个数变了、新增 any、重载换序）；incomplete：检查器没有给出结论；
- * truncated：类型参数的实例组合超过上限，没有全部比较。
- */
 export type VerdictProblem =
   | {
       readonly kind: 'direction'
@@ -49,45 +28,31 @@ export type VerdictProblem =
 
 export interface Verdict {
   readonly target: CompareTarget
-  /** 跑完的比较里没有一条说新值不能交给旧读方。 */
   readonly readers: boolean
-  /** 跑完的比较里没有一条说旧写方的值不被新声明接受。 */
   readonly writers: boolean
-  /** 两侧的声明文本相同（参数名不计）。 */
   readonly same: boolean
-  /** 跑完的可赋值比较条数；0 表示没有任何比较覆盖这个目标。 */
   readonly comparisons: number
   readonly problems: readonly VerdictProblem[]
-  /** 导出经本成员内部声明能到达的顶层语句（`statementId`，两侧并集）。 */
   readonly reaches: readonly string[]
 }
 
 export interface CheckerComparison {
   readonly verdicts: readonly Verdict[]
-  /** 还原出的声明本身有编译诊断（例如依赖没有构建）：结论不可信，按 review 计。 */
   readonly problems: readonly string[]
 }
 
 export interface CompareInput {
-  /** 检出根（真实路径）；外部包从这里的 node_modules 解析，两侧解析到同一份。 */
   readonly root: string
-  /** 成员目录；还原的声明放在它下面的虚拟目录里。 */
   readonly directory: string
   readonly before: ApiSnapshot
   readonly after: ApiSnapshot
-  /** 两侧都有的导出：由调用方按入口对齐。 */
   readonly exports: readonly CompareTarget[]
 }
 
-/** 类型参数实例组合的上限；超过的目标记 truncated，不静默截断。 */
 export const INSTANCE_LIMIT = 16
 
 type Side = 'old' | 'new'
 
-/**
- * 前提：两侧的脚本文件文本相同（分类层在它们有差异时整份 review，不调用这里）。
- * 脚本文件只还原新侧一份，旧侧同路径的跳过；跳过的文本与新侧不同时记为问题，结论按 review 计，不静默丢掉。
- */
 export function compareSnapshots(input: CompareInput): CheckerComparison {
   const base = checkerPath(join(input.root, input.directory, '.omne-contract-api'))
   const scripts = new Map(input.after.files.filter(isScript).map(file => [file.path, file.code]))
@@ -141,10 +106,6 @@ function overlayHost(
   }
 }
 
-/**
- * 交给检查器的文件名一律用 `/`：TypeScript 自己把文件名归一成正斜杠再回调 host，
- * 覆盖表的键和前缀比较都要同一种写法。Windows 上把 `\` 换掉，POSIX 原样。
- */
 function checkerPath(path: string): string {
   return sep === '/' ? path : path.split(sep).join('/')
 }
@@ -153,7 +114,6 @@ function sidePath(base: string, side: Side, path: string): string {
   return posix.join(base, side, path)
 }
 
-/** 一个新增名字在旧侧的解析：没有这个符号；已经有了（声明在哪个文件）；或判断不了。 */
 export type NameResolution =
   | { readonly kind: 'free' }
   | { readonly kind: 'taken'; readonly where: string }
@@ -162,18 +122,11 @@ export type NameResolution =
 export interface ScopeInput {
   readonly root: string
   readonly directory: string
-  /** 旧侧的声明文件。 */
   readonly files: readonly DeclarationFile[]
 }
 
 const ANY_MEANING = ts.SymbolFlags.Value | ts.SymbolFlags.Type | ts.SymbolFlags.Namespace
 
-/**
- * 旧侧程序里的作用域解析，给白名单 (a) 判断「新名字」：在该文件的作用域里（文件自己的声明、经导入可见的名字、
- * lib 与外部包的全局名）能否解析到已有符号。值、类型与命名空间三种含义都算：新声明无论哪种含义，
- * 同名就改变这个文件里已有引用的落点。程序在第一次查询时才建立；文件在旧侧不存在时只看全局作用域。
- * 建程序或解析抛出时返回 unknown，由白名单按「白名单外」处理，不静默放行。
- */
 export function oldSideScope(input: ScopeInput): (path: string, name: string) => NameResolution {
   const base = checkerPath(join(input.root, input.directory, '.omne-contract-api'))
   let program: ts.Program | undefined
@@ -199,7 +152,6 @@ export function oldSideScope(input: ScopeInput): (path: string, name: string) =>
   }
 }
 
-/** 符号声明所在的文件，给人看：本成员的声明文件路径、`node_modules` 之后的路径（lib、外部包），或检出相对路径。 */
 function whereOf(file: string, base: string, root: string): string {
   const old = sidePath(base, 'old', '') + '/'
   if (file.startsWith(old)) return file.slice(old.length)
@@ -225,7 +177,6 @@ function restore(
 
 type Edit = readonly [start: number, end: number, replacement: string]
 
-/** 一个声明文件的归一化（见文件开头）；返回改写后的文本。 */
 export function prepareForChecker(path: string, text: string): string {
   const source = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true)
   const edits: Edit[] = []
@@ -257,7 +208,6 @@ function isForeignAugmentation(node: ts.ModuleDeclaration): boolean {
   return ts.isStringLiteral(node.name) && !node.name.text.startsWith('.')
 }
 
-/** `declare module 'x' { … }`／`declare global { … }` 改成 `export declare namespace __aug_x { export … }`。 */
 function rewriteAugmentation(source: ts.SourceFile, node: ts.ModuleDeclaration): Edit[] {
   const target = ts.isStringLiteral(node.name) ? node.name.text : 'global'
   const namespace = '__aug_' + target.replace(/[^A-Za-z0-9]/gu, '_')
@@ -275,7 +225,6 @@ function rewriteAugmentation(source: ts.SourceFile, node: ts.ModuleDeclaration):
   return edits
 }
 
-/** `unique symbol` 改成按文件与外层名字定位的字面量：两侧同一处声明的品牌相同，不同处的仍不同。 */
 function brandEdit(source: ts.SourceFile, path: string, node: ts.Node): Edit[] | undefined {
   if (!ts.isTypeOperatorNode(node) || node.operator !== ts.SyntaxKind.UniqueKeyword)
     return undefined
@@ -294,7 +243,6 @@ function nameOf(node: ts.Node): ts.Node | undefined {
   return named.name
 }
 
-/** 类的 private 与 `#` 成员删除，protected 去掉：两侧的类按结构而不是按声明比较。 */
 function classMemberEdit(source: ts.SourceFile, node: ts.Node): Edit[] | undefined {
   if (node.kind === ts.SyntaxKind.ProtectedKeyword)
     return [[node.getStart(source), node.getEnd(), '']]
@@ -312,7 +260,6 @@ function classMemberEdit(source: ts.SourceFile, node: ts.Node): Edit[] | undefin
 
 type MethodLike = ts.MethodSignature | ts.MethodDeclaration
 
-/** `m(p): r` 改成 `m: (p) => r`，重载合成一个调用签名集合，让 strictFunctionTypes 生效。 */
 function methodEdit(source: ts.SourceFile, node: ts.Node): Edit[] | undefined {
   const method =
     ts.isMethodSignature(node) || (ts.isMethodDeclaration(node) && ts.isClassLike(node.parent))
@@ -355,7 +302,6 @@ interface ExportInfo {
   readonly typeParameters: readonly ts.Type[]
   readonly constraints: readonly (ts.Type | undefined)[]
   readonly text: string
-  /** 各个声明的比较文本，按出现顺序（重载）。 */
   readonly declarations: readonly string[]
 }
 
@@ -366,7 +312,6 @@ interface Check {
   readonly kind: 'assign' | 'value-new' | 'value-old'
 }
 
-/** 一个目标在计划与读结果期间积累的结论。 */
 interface Pending {
   readonly target: CompareTarget
   same: boolean
@@ -404,7 +349,6 @@ function pendingFor(plan: Plan, target: CompareTarget): Pending {
   return created
 }
 
-/** 不必跑检查器就能定的不兼容：两个方向都不成立。 */
 function settle(pending: Pending, why: string): void {
   pending.readers = false
   pending.writers = false
@@ -459,10 +403,6 @@ function planComparisons(program: ts.Program, base: string, input: CompareInput)
   return plan
 }
 
-/**
- * 从一个符号出发，沿本成员还原的声明里出现的标识符走，收集到达的顶层语句。
- * 不进 lib 与外部包的声明：走到那里就停。
- */
 class Reachability {
   private readonly adjacency = new Map<ts.Symbol, readonly ts.Symbol[]>()
   private readonly checker: ts.TypeChecker
@@ -492,7 +432,6 @@ class Reachability {
     return [...reaches].sort(byCodeUnit)
   }
 
-  /** 声明所在的顶层语句的 `statementId`；不在还原的文件里（外部包、lib）时是 undefined。 */
   private statementOf(declaration: ts.Declaration): string | undefined {
     const file = declaration.getSourceFile().fileName
     const path = ['old', 'new']
@@ -504,7 +443,6 @@ class Reachability {
     return statementId(file.slice(path.length), node)
   }
 
-  /** 符号在本成员还原的声明里出现的符号。 */
   private referenced(symbol: ts.Symbol): readonly ts.Symbol[] {
     const known = this.adjacency.get(symbol)
     if (known !== undefined) return known
@@ -582,7 +520,6 @@ function exportInfo(
   }
 }
 
-/** 同一组声明（重载）只是换了顺序。 */
 function reordered(before: readonly string[], after: readonly string[]): boolean {
   if (before.length < 2 || before.join('\n') === after.join('\n')) return false
   return [...before].sort().join('\n') === [...after].sort().join('\n')
@@ -644,7 +581,6 @@ function planType(
   n: ExportInfo,
   printing: Printing,
 ): void {
-  // 实例取两侧约束的并集：新侧放宽了约束时，新的实参在旧侧不成立，比较行报错，记为未完成。
   const { combos, total } = instantiations(printing, o, n)
   if (total > INSTANCE_LIMIT)
     pending.problems.push({ kind: 'truncated', limit: INSTANCE_LIMIT, total })
@@ -659,9 +595,6 @@ function planType(
     )
   }
   if (o.typeParameters.length === 0) return
-  // 延迟形式：类型参数不实例化，条件类型与索引访问保持未求值，按类型参数整体比较。
-  // 只用一种写法（泛型函数的返回值）证明两个方向；检查器在两份相同、又互相嵌套的别名实例上
-  // 可能撞到递归深度的启发式而判不可赋值，这类误报落向 review（SPEC「已知限制」）。
   const parameters = o.constraints
     .map(
       (constraint, i) =>
@@ -689,10 +622,6 @@ function typeText(printing: Printing, type: ts.Type): string {
   )
 }
 
-/**
- * 类型参数的实例：约束是字面量联合时逐个展开，否则用不透明的品牌类型 `__Pi & 约束`。
- * 两侧各算一组再取并集（按文本去重）。返回前 INSTANCE_LIMIT 组与总数；总数超限由调用方记 truncated。
- */
 function instantiations(
   printing: Printing,
   ...sides: readonly ExportInfo[]
@@ -728,7 +657,6 @@ interface Outcome {
   readonly writers: boolean
   readonly incomplete: string | undefined
   readonly why: string
-  /** 值检查：这一行没有报错（能当值用）。 */
   readonly usable: boolean
 }
 
@@ -849,7 +777,6 @@ function assignability(
       `检查器报错 ${ts.flattenDiagnosticMessageText(error.messageText, ' ').slice(0, 160)}`,
     )
   if (declaration === undefined) return unfinished('比较没有生成')
-  // 比较结果是 `[1|0, 1|0]` 元组：按检查器打印出的文本读，免得转型。
   const printed = checker.typeToString(
     checker.getTypeFromTypeNode(declaration.type),
     undefined,

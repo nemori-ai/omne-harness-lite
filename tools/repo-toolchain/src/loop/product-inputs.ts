@@ -51,7 +51,6 @@ function historicalInputs(root: string, commit: string): ProductInputs {
     const [, mode, type, path] = match ?? []
     if (path === undefined) throw new Error(`Cannot classify Git tree entry at ${commit}`)
     if (!maintainedPath(path)) continue
-    // A link can hide a source subtree. Tree metadata cannot prove its inputs absent.
     if (type !== 'blob' || (mode !== '100644' && mode !== '100755'))
       throw new Error(`Cannot classify product inputs at ${commit}:${path} (${mode} ${type})`)
     if (/\.[cm]?tsx?$/u.test(path)) paths.push(path)

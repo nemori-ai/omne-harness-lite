@@ -1,11 +1,3 @@
-// The finishing cases of the Journal core conformance suite (SPEC "条件终结", "取消判断与路线",
-// "终结责任清单" and "commitSettlement 的变体"): the candidate an F1 commit establishes and the
-// FinishIntent projection the Journal maintains, the before-terminal proof F2 sets, the obligations
-// prepareFinish issues and how tryFinish reads them, the fixed order of the five blocked
-// categories, the cancellation route through establish, judge, prepareFinish and tryFinish, the
-// migration of a legacy cancelled candidate, the three custody variants, and the calls of another
-// tenant and the host records of another tenant or execution. Every case reads only what the port
-// returns. testing-journal-core.ts appends these cases to the suite.
 import assert from 'node:assert/strict'
 import type * as M from '@omne-harness/model-contract'
 import {
@@ -84,7 +76,6 @@ import {
   type AgentJournalCoreOpened,
 } from './testing-journal-helpers.ts'
 
-/** A before-terminal passage of the author route, in the progress `progress`. */
 function beforeTerminalPassage(name: string, progress: Passage['progress']): Passage {
   return {
     id: identity(decodePassageId(`core-${name}`), name),
@@ -107,7 +98,6 @@ function beforeTerminalPassage(name: string, progress: Passage['progress']): Pas
   }
 }
 
-/** One presented card round of a before-terminal passage that asked. */
 function presentedRound(passage: Passage, name: string): CardRound {
   return {
     round: identity(decodeCardRoundId(`core-${name}`), name),
@@ -142,7 +132,6 @@ function presentedRound(passage: Passage, name: string): CardRound {
   }
 }
 
-/** A pending Tool call whose intent is saved and whose invoke has no proven reference yet. */
 function toolIntent<P>(opened: AgentJournalCoreOpened<P>, name: string): PendingCall {
   return {
     kind: 'tool',
@@ -155,7 +144,6 @@ function toolIntent<P>(opened: AgentJournalCoreOpened<P>, name: string): Pending
   }
 }
 
-/** A pending Model call whose effect intent is saved, with the call id its reference resolves to. */
 function modelIntent<P>(
   opened: AgentJournalCoreOpened<P>,
   name: string,
@@ -180,7 +168,6 @@ function modelIntent<P>(
   return { pending, call }
 }
 
-/** The content of a candidate that fails because the producer gave no reply to `call`. */
 function noReplyContent(name: string, call: M.ModelCallId): Partial<FinishCandidateContent> {
   return {
     conclusion: { kind: 'fail', cause: evidence(`cause/${name}`) },
@@ -215,7 +202,6 @@ function nodeFailedContent(name: string): Partial<FinishCandidateContent> {
   }
 }
 
-/** The content of a candidate that fails because the Model refused the admission of `call`. */
 function refusedContent(name: string, call: M.ModelCallId): Partial<FinishCandidateContent> {
   return {
     conclusion: { kind: 'fail', cause: evidence(`cause/${name}`) },
@@ -235,17 +221,14 @@ function itemsOf(snapshot: ExecutionSnapshot): readonly FinishObligation[] {
   return snapshot.finishObligations.items
 }
 
-/** The field of an invalid failure; the empty text for any other failure. */
 function fieldOf(failure: Failure): string {
   return failure.kind === 'invalid' ? failure.field : ''
 }
 
-/** The kind and the blocked category of a finish result, for one assertion. */
 function blockedOf(result: FinishResult): Readonly<{ kind: string; reason: string | null }> {
   return { kind: result.kind, reason: result.kind === 'blocked' ? result.reason : null }
 }
 
-/** The one item of `kind` in the issued list; fails when there is none or more than one. */
 function itemOf<K extends FinishObligation['kind']>(
   snapshot: ExecutionSnapshot,
   kind: K,
@@ -259,12 +242,10 @@ function itemOf<K extends FinishObligation['kind']>(
   return item
 }
 
-/** The passage ids of a legacy plan, in order; null for a not-started entry without a passage. */
 function plannedPassages(plan: readonly LegacyF2Entry[]): readonly (string | null)[] {
   return plan.map(entry => (entry.kind === 'recorded' ? entry.passage.id : entry.passage))
 }
 
-/** The saved Tool intent `name`, its key and the reference the invoke of that intent returned. */
 async function savedToolIntent<P>(opened: AgentJournalCoreOpened<P>, name: string) {
   const pending = toolIntent(opened, name)
   const effect = commitAt(opened, await load(opened), `effect-${name}`, opened.authority, {
@@ -287,7 +268,6 @@ async function savedToolIntent<P>(opened: AgentJournalCoreOpened<P>, name: strin
   return { pending, key, reference }
 }
 
-/** The cases of the finishing chapter; the core suite appends them. */
 export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly ConformanceCase[] {
   return [
     ...(['node-failed', 'ordinary-fail', 'complete'] as const).map(kind => ({
@@ -483,8 +463,6 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         if (route.kind !== 'author') return
         assert.equal(route.candidate, f1.operation)
         assert.equal(route.beforeTerminal, null)
-        // The plan lists the before-terminal declarations the fixture's checkpoint carries: none
-        // here, so a Journal that cannot see declarations answers the same (gap 2 of rulings-S3A).
         assert.deepEqual(
           plannedPassages(route.plan),
           f1.checkpoint.passages
@@ -779,7 +757,6 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           { kind: inputs.kind, reason: inputs.kind === 'blocked' ? inputs.reason : null },
           { kind: 'blocked', reason: 'inputs' },
         )
-        // Taking the inputs leaves settling; a new F1 at the new watermark fixes the next candidate.
         await takeInputs(opened)
         await ok(journal.commit(f1Commit(opened, await load(opened), 'f1-again')), 'F1 again')
         await ok(
@@ -890,8 +867,6 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           'prepare',
         )
         const issued = await load(opened)
-        // A call whose result is recorded is settled; the custody is the result item's (SPEC
-        // "终结责任清单" call and result rows).
         assert.ok(
           itemsOf(issued).some(
             item => item.kind === 'call' && item.pending.consumption === produced.consumption,
@@ -951,8 +926,6 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         )
         assert.equal(fieldOf(forged), 'authorization.source')
         await refused(journal.commitSettlement(request), 'changed', 'a stale expected')
-        // An installation that is not the current one is not applicable any more (SPEC
-        // "commitSettlement 的变体" step 4): changed, not invalid.
         await refused(
           journal.commitSettlement({
             ...request,
@@ -1006,8 +979,6 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           'conflict',
           'the same operation with other input',
         )
-        // The current candidate is cancelled: another operation cannot establish over it, the
-        // predecessor it names is wrong (SPEC "commitSettlement 的变体", establish-cancellation).
         const over = await refused(
           journal.commitSettlement({
             ...establishing,
@@ -1182,16 +1153,12 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           'tryFinish on a blocked judgment',
         )
         assert.deepEqual(blockedOf(blocked), { kind: 'blocked', reason: 'custody' })
-        // On the cancellation route the source of the block is the judgment record; the source
-        // of the responsibility is reachable through the CancellationBlock of that record.
         assert.deepEqual(
           blocked.kind === 'blocked' ? blocked.source : null,
           first.judgment.evidence,
           'the blocked source is the judgment record',
         )
         await ok(record('result-custody', produced.transfer), 'the custody')
-        // The custody changed the disposition the judgment read (SPEC "取消路线上的 tryFinish"):
-        // the list is still usable, the judgment is not.
         const moved = await load(opened)
         assert.deepEqual(intentOf(moved).obligations, intentOf(issued).obligations)
         const premiseGone = await ok(
@@ -1207,16 +1174,12 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         const after = await load(opened)
         assert.equal(after.settlement.currentJudgment, second.judgment.operation)
         assert.equal(after.settlement.judgments.length, 2)
-        // A revocation left unresolved after the allowed judgment is a new pending the judgment
-        // did not read: changed, not ended.
         await ok(
           journal.recordControl(
             stage(opened, 'revoked-unresolved', control, 'qualification-revoked', 'unresolved'),
           ),
           'an unresolved revocation',
         )
-        // The control event extended the output interval: the list is issued again, so the
-        // changed below comes from the judgment whose criteria no longer hold, not from the list.
         const revokedAt = await load(opened)
         await ok(
           journal.prepareFinish(
@@ -1435,7 +1398,6 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           'a second migration of a switched route',
         )
         assert.deepEqual(await load(opened), after)
-        // The migrated route is judged, listed and ended as it is: no establish after a migration.
         const receipt = await endCancelled(opened, control, 'end-migrated', { establish: false })
         assert.equal(receipt.execution, opened.execution)
         const ended = await load(opened)
@@ -1536,8 +1498,6 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           'unavailable',
           'a source the host does not answer',
         )
-        // The target is checked before the source: a passage the Journal does not hold is invalid
-        // even when the source is unreadable.
         const missing = await refused(
           journal.commitSettlement({
             ...recording,
@@ -1598,7 +1558,6 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         )
         const ended = await load(opened)
         assert.equal(ended.settlement.legacyReturns.length, 2)
-        // The original recording is recognized after ended, with nothing new written.
         assert.deepEqual(
           await ok(journal.commitSettlement(recording), 'the retry after ended'),
           result,
@@ -1692,8 +1651,6 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         assert.deepEqual(result.association.obligation.interruptions, [])
         const after = await load(opened)
         assert.deepEqual(after.settlement.toolAssociations, [result.association])
-        // An accepted return is known: a source that gives another call or admission for the same
-        // intent conflicts and the association stays (SPEC "commitSettlement 的变体" table).
         const otherReference = identity(
           encodeToolInvocationRef({
             tenant: opened.access.tenant,
@@ -1724,7 +1681,6 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           'a source that gives another call for the known reference',
         )
         assert.deepEqual(await load(opened), after, 'the conflict wrote nothing')
-        // The recording is recognized after ended, with nothing new written.
         await endCancelled(opened, control, 'end', { establish: false })
         const ended = await load(opened)
         assert.deepEqual(
@@ -1751,7 +1707,6 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           effects: [{ action: pending.action, pending, authority: opened.authority }],
         })
         await ok(journal.commit(effect), 'the effect intent')
-        // Before any association: the ordinary end cannot tell whether the invoke was admitted.
         await ok(journal.commit(f1Commit(opened, await load(opened), 'f1')), 'F1')
         await ok(journal.commit(f2Commit(opened, await load(opened), 'f2')), 'F2')
         await ok(
@@ -1917,7 +1872,6 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         assert.equal(result.reconciliation.obligation.disposition.kind, 'held')
         const after = await load(opened)
         assert.deepEqual(after.settlement.cardReconciliations, [result.reconciliation])
-        // The recording is recognized after ended, with nothing new written.
         await endCancelled(opened, control, 'end', { establish: false })
         const ended = await load(opened)
         assert.deepEqual(
@@ -2054,7 +2008,6 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           ),
           'the intent resolved',
         )
-        // The control event extended the output interval: the list is stale and issued again.
         await ok(
           journal.prepareFinish(prepareInput(opened, await load(opened), 'prepare-2b')),
           'prepare',
@@ -2078,7 +2031,6 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           'the blocked source is the source of the item',
         )
         assert.notEqual((await load(opened)).state.kind, 'ended')
-        // The Ja publishes the H and leaves settling; the next candidate ends once F2 holds.
         await ok(
           journal.commit(resolveCommit(opened, await load(opened), 'ja1', prepared(request))),
           'Ja',
@@ -2745,8 +2697,6 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
       },
     },
     {
-      // R2-D241: a refused admission leaves no send, so the call it names is settled; a provider
-      // that reads only no-reply keeps it unknown and the Run never finishes.
       name: 'a call that the Model refused to admit is settled on that basis: the model-refused failure of the current failed candidate names the call',
       run: async () => {
         const opened = await fixture.open('final-failure-refused')
@@ -3539,7 +3489,6 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         const secondBase = beforeTerminalPassage('asker-m9b', requested)
         const firstRound = presentedRound(firstBase, 'round-m9-1')
         const otherRound = presentedRound(firstBase, 'round-m9-2')
-        // The one round of the second passage has the CardRoundId of the first round of the first.
         const sharedRound = presentedRound(secondBase, 'round-m9-1')
         assert.equal(sharedRound.round, firstRound.round)
         const first: Passage = {
@@ -3682,7 +3631,6 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         }
         const { journal } = opened
         await takeInputs(opened)
-        // The passage reaches the checkpoint by an ordinary commit; the seam copies it to the legacy candidate.
         const requested = beforeTerminalPassage('closer-m11', {
           kind: 'requested',
           mode: { kind: 'fresh' },
@@ -3743,20 +3691,12 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
   ]
 }
 
-/** The asked before-terminal passage of the card cases and its one presented round. */
 function askedPassage(name: string): Readonly<{ passage: Passage; round: CardRound }> {
   const asking = beforeTerminalPassage(name, { kind: 'requested', mode: { kind: 'fresh' } })
   const round = presentedRound(asking, `${name}-round`)
   return { passage: { ...asking, progress: { kind: 'asked', rounds: [round] } }, round }
 }
 
-/**
- * The cases where another tenant reaches the Journal (SPEC "判定次序与失败映射" 1 and
- * "commitSettlement 的变体" step 1): another tenant's recordHandoff, prepareFinish, tryFinish and
- * commitSettlement are denied with the action of the operation, before the qualification, the same
- * for an existing and a missing execution; and a host record of another
- * tenant is denied to the owner's custody variants, before the record is compared.
- */
 function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly ConformanceCase[] {
   return [
     {
@@ -3989,7 +3929,6 @@ function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly Co
             (access, execution) => journal.commitSettlement({ ...request, ...access, execution }),
           )
         }
-        // Every scripted fault was spent on a denied call: the owner's judgment is an ordinary write.
         const judged = await judge(opened, control)
         assert.equal(judged.kind, 'judge-cancellation')
       },
@@ -4031,8 +3970,6 @@ function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly Co
           },
         }
         const foreign = await opened.hostRecord({ ...record, tenant: other.tenant })
-        // The same foreign record of another round: denied before the round is compared, so the
-        // answer does not tell whether the round of the record is the one requested.
         const foreignOtherRound = await opened.hostRecord({
           ...record,
           tenant: other.tenant,
@@ -4113,8 +4050,6 @@ function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly Co
           custody: evidence('custody/closer'),
         }
         const foreign = await opened.hostRecord({ ...record, tenant: other.tenant })
-        // The same foreign record of another input: denied before the input is compared, so the
-        // answer does not tell whether the input of the record is the one requested.
         const foreignOtherInput = await opened.hostRecord({
           ...record,
           tenant: other.tenant,
@@ -4149,8 +4084,6 @@ function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly Co
           'a host record of another execution',
         )
         assert.equal(fieldOf(invalid), 'source')
-        // The request must be the input record of the passage of this execution, also when the
-        // host record names the same request.
         const unrelated = evidence('invoke/elsewhere')
         const mismatched = await opened.hostRecord({ ...record, input: unrelated })
         const notTheInput = await refused(

@@ -1,5 +1,3 @@
-// Cross-tenant behavior of the `session-provider` contract double: a session of another tenant and
-// a session that nobody registered answer the same `denied`, byte for byte, on every method.
 import {
   creation,
   operationId,
@@ -23,7 +21,6 @@ type Call = (
 
 const SESSION = 'sess-a'
 
-/** The six session-bound methods. Each takes the principal and the tenant of the access, and the session. */
 const METHODS: Readonly<Record<string, Call>> = {
   'work.accept': (t, who, session) =>
     t.intake.work.accept({
@@ -87,11 +84,8 @@ describe('session-provider: the session of another tenant', () => {
       const asB = { principal: t.principalFor(TENANT_B), tenant: TENANT_B }
       const asBOnA = { principal: t.principalFor(TENANT_B), tenant: TENANT_A }
 
-      // Tenant B names the session id of tenant A, in its own tenant.
       const otherTenant = JSON.stringify(await call(t, asB, SESSION))
-      // Tenant A names a session id that nobody registered.
       const unknown = JSON.stringify(await call(t, asA, 'sess-unknown'))
-      // Tenant B's principal names tenant A: the access check refuses before the double looks.
       const foreignPrincipal = JSON.stringify(await call(t, asBOnA, SESSION))
 
       expect(JSON.parse(otherTenant)).toEqual({ failure: { kind: 'denied', action: method } })

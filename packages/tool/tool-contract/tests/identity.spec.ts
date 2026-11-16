@@ -42,7 +42,6 @@ describe.each(decoders)('%s decoder', (field, decode) => {
 })
 
 it('decodes the call text of a tool producer kept by a consumer into a branded call identity', () => {
-  // A consumer that keeps `ProducerRef = { kind: 'tool'; call: string }` decodes `call` here.
   const producer = { kind: 'tool', call: 'call_7' } as const
   const decoded = decodeToolCallId(producer.call)
   expect(decoded).toEqual({ ok: 'call_7' })

@@ -46,7 +46,6 @@ function representation(value: unknown): boolean {
 function sequence(value: unknown): boolean {
   return !('failure' in decodeHistorySequence(value))
 }
-/** `{ kind: 'empty' }` or `{ kind: 'entry', seq }` with nothing else. */
 export function isHistoryUpper(value: unknown): boolean {
   if (!record(value)) return false
   const keys = Object.keys(value).sort().join(',')

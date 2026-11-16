@@ -1,6 +1,3 @@
-// The reference server `@modelcontextprotocol/server-everything` (2.1.0) in its two HTTP modes:
-// `sse` (the legacy HTTP+SSE transport) and `streamableHttp` on a port of this test's choosing.
-// The B layer: a real SDK peer, not a script.
 import { spawn, type ChildProcess } from 'node:child_process'
 import { connect } from 'node:net'
 import { fileURLToPath } from 'node:url'
@@ -14,7 +11,6 @@ const BIN = fileURLToPath(
   ),
 )
 
-/** A port that is free now, above `fetch`'s bad ports and away from 3311 and 3312. */
 async function freePort(): Promise<number> {
   for (;;) {
     const port = 20_000 + Math.floor(Math.random() * 40_000)
@@ -34,13 +30,11 @@ function reachable(port: number): Promise<boolean> {
 }
 
 export type EverythingServer = Readonly<{
-  /** The connection target: `/sse` in the `sse` mode, `/mcp` in the `streamableHttp` mode. */
   target: ConnectionTarget
   port: number
   close(): Promise<void>
 }>
 
-/** The reference server in an HTTP mode, ready to accept connections. */
 export async function everythingHttp(mode: 'sse' | 'streamableHttp'): Promise<EverythingServer> {
   const port = await freePort()
   const child: ChildProcess = spawn(process.execPath, [BIN, mode], {

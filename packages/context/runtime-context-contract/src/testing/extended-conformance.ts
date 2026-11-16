@@ -69,7 +69,6 @@ export function extendedConformance<P>(): readonly ConformanceCase<RuntimeContex
   }))
 }
 
-/** Opens a new scope of the setup's tenant and adds the suite block to it. */
 async function addRequired<P>(s: Setup<P>, target: ScopeRef, commit: string) {
   await openScope(s.subject, s.ports, s.principal, target, s.tenant)
   const added = await s.subject.applyCommit(s.principal, {
@@ -631,7 +630,6 @@ async function statefulCase<P>(
   return { f, target, key, d, first, second } as const
 }
 
-/** The stateful block the suite uses: a tool-written counter. */
 export function statefulDeclaration(
   persistence: 'untracked' | 'checkpointed',
 ): StatefulBlockDescriptor<'suite.state', unknown, unknown> {

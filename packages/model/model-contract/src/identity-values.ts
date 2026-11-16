@@ -1,5 +1,3 @@
-// Runtime values of the chapter "根入口的值与请求". This file imports types only from the chapter
-// files, so the type imports between chapters never see runtime code.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ModelDiagnosticCursor, ModelDiagnosticId } from './diagnostics.ts'
 import { mintIdentity } from './mint.ts'
@@ -50,7 +48,6 @@ function reject<K extends ModelIdentityKey>(field: K, reason: Reason) {
   return fail<ModelIdentityRejection<K>>({ field, reason })
 }
 
-// The checks run in the order of ModelIdentityRejection['reason'] and the first failure wins.
 function decodePrefixed<K extends PrefixedKey>(
   key: K,
   text: unknown,
@@ -112,7 +109,6 @@ export function decodeModelDiagnosticCursor(
   return decodePrefixed('ModelDiagnosticCursor', text)
 }
 
-// Decimal non-negative integers in the canonical spelling: "0", or digits without a leading zero.
 function decodeSequence<K extends SequenceKey>(
   key: K,
   text: unknown,
@@ -137,8 +133,8 @@ export function decodeOutputCursor(
   return decodeSequence('ModelOutputCursor', text)
 }
 
-// Canonical spelling has no leading zero, so a longer text is a larger number and texts of equal
-// length order by their digits. No number conversion, so no precision limit.
+// Canonical spelling has no leading zero, so a longer text is larger and equal lengths order
+// by digits. No number conversion.
 function compareSequences(left: string, right: string): -1 | 0 | 1 {
   if (left.length !== right.length) return left.length < right.length ? -1 : 1
   if (left === right) return 0

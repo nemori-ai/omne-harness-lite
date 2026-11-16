@@ -1,7 +1,3 @@
-// Test helper: the ports of a world whose close-order operations reject after they did their
-// work. That is a provider in breach of its contract (T5, CU1), which the table has to
-// absorb as MC-14 says. The inner double still records the call, so the trace and the
-// counts show what ran before the rejection.
 import type { McpPorts } from '@omne-harness/mcp-contract'
 import type {
   CredentialUse,
@@ -12,7 +8,6 @@ import { releasing, reshapedCredentials } from './handles.ts'
 import type { Principal } from './identities.ts'
 import type { World } from './world.ts'
 
-/** The close-order step that rejects after it ran. */
 export type Fault = 'close' | 'release'
 
 function rejection(fault: Fault): Error {
@@ -47,7 +42,6 @@ function credentialsWhoseReleaseRejects(port: CredentialUse<Principal>): Credent
   )
 }
 
-/** The world's ports with the named steps rejecting; the other ports are the world's own. */
 export function faulty(w: World, faults: readonly Fault[]): McpPorts<Principal, string> {
   return {
     ...w.ports,

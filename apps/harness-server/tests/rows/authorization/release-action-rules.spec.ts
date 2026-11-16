@@ -1,4 +1,3 @@
-// Real release rules and identity checks, with explicit standing and current-permission fixtures.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { decisionEvidence, referenceAdmissionCheck } from '@omne-harness/authorization'
@@ -13,8 +12,6 @@ const tenant = fixtureTenant('a')
 const distribution: unknown = JSON.parse(
   readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
 )
-// `runServe` adds the `executionHost` factory binding to the allowlist (HOSTFILE-FACTORY-ROW); the
-// release now names it for `execution-host`, so reading the release tree needs the same entry.
 const allowlist = [...serveProfile().allowlist, 'executionHost', 'telemetry']
 
 function configOf(operator: unknown): unknown {
@@ -62,8 +59,6 @@ function admissionFor(config: unknown, currentPermission = true) {
           }
         : undefined,
   })
-  // `call` is `<tool>` or `<tool>.<command>`. The model calls the tool and names the command in the
-  // arguments (D-94); the definition is the one the trusted Tool request source describes for it.
   return (call: string) => {
     const [tool = call, command] = call.split('.')
     const args = command === undefined ? '{}' : JSON.stringify({ command, params: {} })
@@ -88,11 +83,11 @@ describe('release action rules', () => {
     expect(await admit('Files')).toMatchObject({ ok: { kind: 'unavailable' } })
     expect(await admit('Shell')).toMatchObject({ ok: { kind: 'unavailable' } })
   })
-  it('allows Shell and Files with current permission and keeps every other tool unavailable', async () => {
+  it('allows Shell and Files with current permission and keeps every other tool undecidable', async () => {
     const admit = admissionFor(configOf(undefined))
     expect(await admit('Files')).toMatchObject({ ok: { kind: 'allow' } })
     expect(await admit('Shell')).toMatchObject({ ok: { kind: 'allow' } })
-    expect(await admit('Other')).toMatchObject({ ok: { kind: 'unavailable' } })
+    expect(await admit('Other')).toMatchObject({ ok: { kind: 'undecidable' } })
   })
 
   it('matches a multi-command call by its tool: the release rules cover every command of Shell and Files', async () => {
@@ -104,7 +99,7 @@ describe('release action rules', () => {
     expect(await admit('Files.read')).toMatchObject({
       ok: { kind: 'allow', evidence: { record: 'action-current-permission' } },
     })
-    expect(await admit('Other.run')).toMatchObject({ ok: { kind: 'unavailable' } })
+    expect(await admit('Other.run')).toMatchObject({ ok: { kind: 'undecidable' } })
   })
 
   it('a deny on Shell stops Shell.run: naming one command does not pass the rule of its tool', async () => {

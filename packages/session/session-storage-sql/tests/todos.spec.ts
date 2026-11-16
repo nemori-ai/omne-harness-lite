@@ -1,5 +1,4 @@
 // @module-tag slow
-// Why slow: real SQLite files, writer/read Workers, fault triggers and provider restart.
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -363,7 +362,6 @@ describe('Todo facts through real SQLite Workers', () => {
       if (target === undefined) throw new Error('sample item missing')
       const db = new DatabaseSync(file(app))
       try {
-        // Instrumentation stays in this test database, using an owned but unaddressed key range.
         db.exec(
           "CREATE TRIGGER todo_measure AFTER INSERT ON sl_state_item BEGIN INSERT OR REPLACE INTO sl_input (tenant, session, input, value) VALUES ('__todo_measure', '__todo_measure', NEW.path || ':' || NEW.seq, hex(NEW.value)); END",
         )
@@ -378,7 +376,6 @@ describe('Todo facts through real SQLite Workers', () => {
             'complete',
           )
           const writeMs = performance.now() - writeStart
-          // The trigger keeps each inserted value as hex; the bytes are those of its packed text.
           const inserted = db
             .prepare("SELECT value FROM sl_input WHERE tenant = '__todo_measure'")
             .all()

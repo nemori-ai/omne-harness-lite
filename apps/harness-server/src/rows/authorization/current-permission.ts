@@ -20,7 +20,6 @@ async function inquiryOf(ctx: Context, input: ToolPermissionAction) {
     {
       principal: input.principal,
       tenant: input.tenant,
-      // The work principal names its Session. readWork independently verifies that ownership.
       session: who.session as SessionId,
     },
     sessionInquiryBinding,
@@ -28,7 +27,6 @@ async function inquiryOf(ctx: Context, input: ToolPermissionAction) {
   return 'ok' in read ? read.ok : null
 }
 
-/** Optional per-call dependencies keep identity admission independent of runtime assembly. */
 export function currentPermissionOf(ctx: Context) {
   return createCurrentToolPermission({
     release: () => releaseOf(ctx),

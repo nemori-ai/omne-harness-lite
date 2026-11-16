@@ -1,7 +1,3 @@
-// The scheduler and coordinator subset of SS-01: S1 wakes on a commit and hands a session that may
-// start a Run to C2; C2 opens the Run, invokes the Agent with the derived outbound identity and
-// records the hand-over; S4 resolves an unknown commit with the same identity; S3 finds pending
-// inputs after a restart. C2 computes the session slot reference by the AD-14 rule (XC-AGINST 2.1).
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fail } from '@omne-harness/operation-result'
 import {
@@ -55,7 +51,6 @@ const plainOf = (tree: HistoryEntry['payload']): unknown => {
   }
 }
 
-/** The session log entries of `kinds`, oldest first, as a reader sees them. */
 async function historyOf(
   h: Harness,
   kinds: readonly string[],
@@ -73,7 +68,6 @@ async function historyOf(
   return page.entries.map(entry => ({ kind: entry.kind, value: plainOf(entry.payload) }))
 }
 
-/** Accepts an input through the public port, so no local wake-up of this instance follows. */
 async function acceptDirectly(h: Harness, input: string): Promise<void> {
   succeeded(
     await h.backend.transactions.commit({
@@ -93,7 +87,7 @@ async function acceptDirectly(h: Harness, input: string): Promise<void> {
   )
 }
 
-describe('the session slot reference (XC-AGINST 第 2.1 节, AD-14 rule)', () => {
+describe('the session slot reference', () => {
   const samples: readonly (readonly [string, SessionId, ReturnType<typeof adoption>, string])[] = [
     [
       'plain texts',
@@ -109,7 +103,7 @@ describe('the session slot reference (XC-AGINST 第 2.1 节, AD-14 rule)', () =>
     ],
   ]
   for (const [name, session, adopted, text] of samples)
-    it(`${name}: the reference text equals the sample, and the AD-14 parse rule accepts it`, () => {
+    it(`${name}: the reference text equals the sample, and the AgentDrivePort parse rule accepts it`, () => {
       const reference = sessionSlotReference(session, adopted)
       expect(reference).toEqual({ owner: 'agent', id: text })
       const parsed: unknown = JSON.parse(text)
@@ -288,7 +282,7 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
     'archived',
     'closed',
   ] as const)
-    it(`SC-01 ${withdrawal} 后原 invoke 不再发送`, async () => {
+    it(`${withdrawal} 后原 invoke 不再发送`, async () => {
       const h = await service({ policy: { advance: { retryDelaysMs: [1000] } } })
       await h.create()
       const invoke = vi.fn<AgentDrivePort['invoke']>(async () => fail({ kind: 'busy' }))
@@ -346,7 +340,7 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
       expect(invoke.mock.calls.filter(([input]) => input.execution === execution)).toHaveLength(1)
     })
 
-  it('SC-01 重新读取期间实例关闭则不发送', async () => {
+  it('重新读取期间实例关闭则不发送', async () => {
     const h = await service({ policy: { advance: { retryDelaysMs: [1000] } } })
     await h.create()
     const invoke = vi.fn<AgentDrivePort['invoke']>(async () => fail({ kind: 'busy' }))
@@ -372,7 +366,7 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
     expect(invoke).toHaveBeenCalledTimes(1)
   })
 
-  it('SC-01 commit-unknown 查询后立即重试仍重新核资格', async () => {
+  it('commit-unknown 查询后立即重试仍重新核资格', async () => {
     const h = await service()
     await h.create()
     h.drive.query = async () => {
@@ -404,7 +398,7 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
     expect(invoke).toHaveBeenCalledTimes(1)
   })
 
-  it('SC-01 busy 后取消禁止第二次 invoke', async () => {
+  it('busy 后取消禁止第二次 invoke', async () => {
     const h = await service({ policy: { advance: { retryDelaysMs: [1000] } } })
     await h.create()
     const invoke = vi.fn<AgentDrivePort['invoke']>(async () => fail({ kind: 'busy' as const }))
@@ -459,7 +453,6 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
         started: call?.source ?? evidence('none'),
       }),
     )
-    // Coordinators and schedulers take a principal per face operation, with the actor of their role.
     const actors = h.workPrincipals.controls.asked().map(request => request.actor)
     expect(actors).toContain('maintainer')
     expect(actors).toContain('coordinator')
@@ -532,7 +525,7 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
     expect(snapshot.run.terminal.outcome).toBe('failed')
   })
 
-  it('a drive refusal closes the Run as failed, rejects the first input with drive-refused and does not replay it (VC-A10)', async () => {
+  it('a drive refusal closes the Run as failed, rejects the first input with drive-refused and does not replay it', async () => {
     const h = await service({ policy: { advance: { retryDelaysMs: [1000] } } })
     await h.create()
     let invoked = 0
@@ -573,7 +566,6 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
     expect(cause).toEqual(expect.stringContaining('storage'))
     expect(cause).toEqual(expect.stringContaining('command_limit'))
 
-    // The refused input is not offered again, neither after the backoff nor by a new Run.
     h.clock.controls.advance(1000)
     await new Promise(resolve => setImmediate(resolve))
     expect(invoked).toBe(1)
@@ -629,7 +621,7 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
   })
 })
 
-describe('S4: an unknown commit is resolved with the same identity', () => {
+describe('an unknown commit is resolved with the same identity', () => {
   it('a startRun whose answer was lost is found committed, recalled, and the Run is invoked', async () => {
     const h = await service({
       policy: { pendingResolution: { retryIntervalMs: 500, maxAttempts: 3 } },
@@ -660,7 +652,7 @@ describe('S4: an unknown commit is resolved with the same identity', () => {
   })
 })
 
-describe('S1 from a notice of another process, and S3 after a restart', () => {
+describe('the advance trigger from a notice of another process, and the recovery scan after a restart', () => {
   it('a commit notice with an accepted input wakes S1', async () => {
     const h = await service()
     await h.create()
@@ -708,12 +700,19 @@ describe('S1 from a notice of another process, and S3 after a restart', () => {
     await handle.release()
   })
 
-  it('without the public port maintain answers unavailable and starts no scanner', async () => {
+  it('without the public port the startup scan does not finish and is tried again after the first delay', async () => {
     const h = await service()
+    await h.create()
+    await acceptDirectly(h, 'input-1')
     h.setDirectory(false)
-    const answer = await h.instance.maintain(TENANT_A)
-    expect(answer).toEqual({
-      failure: expect.objectContaining({ kind: 'unavailable', owner: 'sessionTransactions' }),
+    const handle = succeeded(await h.instance.maintain(TENANT_A), 'maintain')
+    await turn()
+    expect((await read(h)).handed).toEqual([])
+    h.setDirectory(true)
+    h.clock.controls.advance(1000)
+    await vi.waitFor(async () => {
+      expect((await read(h)).handed).toEqual(['input-1'])
     })
+    await handle.release()
   })
 })

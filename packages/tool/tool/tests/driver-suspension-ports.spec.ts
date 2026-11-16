@@ -1,9 +1,3 @@
-// The driver of a checkpointed call and the answers of the ports it depends on (P06, P07): the
-// binding that proves the checkpoint, the decision owner that registers the wait, and the queue
-// that parks the entry. A port that cannot answer yet is asked again; a port that answers "not
-// suspended" or "rejected" gives a verdict that no run repeats; a registration whose answer is
-// not certain is resolved through its original operation, and an excluded original is asked again
-// under the same identity.
 import { describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { asking, askingAuthor, checkpointBinding, scriptedBridge } from './checkpoint-values.ts'
@@ -15,14 +9,10 @@ const unavailable = (dependency: string) =>
 
 type Answer = (index: number) => unknown
 type Faults = Readonly<{
-  /** The answer of the `resolve` of the bindings, by its ordinal, or undefined for the real one. */
   resolve?: Answer
-  /** The answer of the `suspend` of the checkpointed binding, by its ordinal. */
   suspend?: Answer
-  /** The answer of `ensure` and of `inspectOperation` of the decision owner, by ordinal. */
   ensure?: Answer
   inspect?: Answer
-  /** The decision owner registers the wait and loses the answer of the first ensure. */
   answerLost?: boolean
 }>
 
@@ -91,7 +81,6 @@ async function suspendedWith(faults: Faults = {}) {
   return { recovery, counts, ensured, bridge, state: await harness.state('c1') }
 }
 
-/** The first answer is `answer`; every later one is the real one. */
 const once =
   (answer: unknown): Answer =>
   index =>
@@ -134,7 +123,6 @@ describe('the binding that proves the checkpoint', () => {
     'does not commit a checkpoint when the binding proves the segment is %s',
     async (_name, proof) => {
       const run = await suspendedWith({ suspend: once(proof) })
-      // The proof carries no checkpoint: the ledger is asked for the commit once, with the real one.
       expect(run.counts.suspend).toBe(2)
       expect(run.counts.commits).toBe(1)
     },
@@ -146,7 +134,6 @@ describe('the decision owner that registers the wait', () => {
     index === 1 ? fail({ kind: 'commit-unknown', operation: 'op' }) : undefined
 
   it('is asked about the original operation, and asked again under the same identity when it excluded it', async () => {
-    // The first ensure never landed, and its answer is lost: the owner excludes the original.
     const run = await suspendedWith({ ensure: lost as Answer })
     reachedItsWait(run)
     expect(run.ensured).toHaveLength(2)
@@ -167,8 +154,6 @@ describe('the decision owner that registers the wait', () => {
     },
   )
 
-  // An owner that cannot answer yet recalls the original by the same identity (P06), so asking
-  // again is a recall: no inspection first, and nothing of the failure is kept (U3, F2).
   it('asks again under the same identity after an unavailable ensure, without asking about the original', async () => {
     const run = await suspendedWith({ ensure: once(unavailable('decisions')) })
     reachedItsWait(run)
@@ -230,10 +215,6 @@ describe('a call that waits a second time', () => {
 })
 
 describe('a call whose identity leaves no room for the identities the driver derives', () => {
-  /**
-   * The start operation is `op-<call>/start`. The plan appends `/suspension`, the registration
-   * `/wait/ensure` and its attachment `/attach`, and the limit of an identity is 256 characters.
-   */
   async function runWithLongCall(callLength: number) {
     const authority = testAuthority()
     const checkpoint = checkpointBinding(authority, askingAuthor())

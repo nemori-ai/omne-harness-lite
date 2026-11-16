@@ -20,10 +20,6 @@ import {
 } from './fixtures.js'
 import { createScriptedCompactionPolicy, createScriptedInputMeter } from './doubles.js'
 import { countingBasis } from './fixtures.js'
-/**
- * An operation group implementation under test: it binds the fixture's target, sources and
- * policies, as `createAssemblyOperations` or a registry's `assembly(target)` does.
- */
 export type ConformanceSubject = Readonly<{
   operations(
     fixture: AssemblyFixture,
@@ -151,7 +147,6 @@ function requestContextCases(subject: ConformanceSubject): readonly BoundCase[] 
       assert.equal((await o.planCompaction(fixture.call)).kind, 'cannot-fit')
     }),
     caseOf('retention-measures-the-whole-set', 'RQ11/J14', async () => {
-      // One message measures 10, two measure 15: summing single entries would give 20.
       const base = createAssemblyFixture()
       const policy = createScriptedCompactionPolicy({
         retainBudget: { kind: 'tokens', retainTokens: '16' },
@@ -321,7 +316,6 @@ function historySourceCases<P>(
     fixture: HistoryFixture
     access: Access<P>
     otherTenant: TenantId
-    /** Builds this same source implementation against an independent fixture. */
     createSource: (fixture: HistoryFixture) => HistorySource<P>
   }>,
 ): readonly BoundCase[] {
@@ -419,7 +413,6 @@ function historySourceCases<P>(
         return rows.map(row => row.prefixDigest)
       }
       const original = await readDigests(subject.source)
-      // The factory must exercise the same implementation, not a reference provider.
       assert.deepEqual(await readDigests(subject.createSource(subject.fixture)), original)
       const changedMessage = {
         role: 'user' as const,
@@ -456,7 +449,6 @@ function historySourceCases<P>(
           'Earlier row changes must propagate through every suffix digest',
         ),
       )
-      // Page boundaries cannot restart the chain.
       const page = await read(subject.access, { evidence, after: head.seq }, Number(next.bytes))
       assert.equal(page.kind, 'page')
       if (page.kind === 'page') assert.equal(page.page.rows[0]?.prefixDigest, original[1])

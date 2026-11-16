@@ -1,10 +1,5 @@
-// The demonstration command of the client core (#1249 C15). From packages/access/sdk run
-//   pnpm run build && node tests/fixtures/core-demo.ts <origin of a running server>
-// (no `--conditions=source`: eventsource-parser publishes its TypeScript under that condition, and
-// Node does not strip types under node_modules)
-// Part 1 subscribes to the availability of that server (for example the release started with
-// `omne` or `harness-server serve`) and prints its first frame. Part 2 starts server-entry's test
-// entry, calls `read-note` and prints the answer, stops the entry, and calls again.
+// From packages/access/sdk: `pnpm run build && node tests/fixtures/core-demo.ts <server origin>`.
+// No `--conditions=source`: under it eventsource-parser exports TypeScript, which Node cannot run.
 import { accessProtocol } from '@omne-harness/public-contract'
 import { createClient, createHttpProtocolTransport } from '@omne-harness/sdk/core'
 import { PROOF, notesProtocol } from '../support/notes-protocol.ts'

@@ -382,6 +382,11 @@
               "pending": false
             },
             {
+              "name": "faultIsTransient",
+              "kind": "value",
+              "pending": false
+            },
+            {
               "name": "OverLimitMetric",
               "kind": "type",
               "pending": false
@@ -418,6 +423,11 @@
             },
             {
               "name": "Lookup",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CallContact",
               "kind": "type",
               "pending": false
             },

@@ -1,5 +1,3 @@
-// The two pure digests (SPEC section 3.2 and 4.4). Expected texts are written by hand and hashed
-// with node:crypto here, so the tests do not reuse the code under test to build the expectation.
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'

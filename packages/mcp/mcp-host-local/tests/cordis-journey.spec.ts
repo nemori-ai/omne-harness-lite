@@ -1,8 +1,4 @@
 // @module-tag slow — every case starts a scripted peer on a local HTTP server.
-// The MCP plugin on a real Cordis `Context`, with a real line. The adoption, eligibility and
-// credential ports are the memory doubles of `@omne-harness/mcp-contract/testing`, each provided as
-// a Service subclass; the endpoint is the scripted HTTP peer of `fixtures/scripted/`. The cases
-// without a peer are in `cordis-entry.spec.ts`.
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { access, accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
@@ -74,7 +70,6 @@ function listingOf(...names: readonly string[]): NonNullable<PeerScript['listing
 
 const ANSWERING: PeerScript = { listing: listingOf('echo'), calls: { echo: text('hello') } }
 const SILENT: PeerScript = { listing: listingOf('echo'), calls: { echo: { kind: 'silent' } } }
-/** `ask` asks for input first; `work` starts the task `t1`, which the peer reports twice. */
 const OPERATIONS: PeerScript = {
   listing: listingOf('ask', 'work'),
   calls: {
@@ -110,7 +105,6 @@ afterEach(async () => {
   expect(await leftoverServers()).toEqual([])
 })
 
-/** Loads `loaded` on `ctx` with `config`; the fiber is disposed after the case. */
 async function load<C>(
   ctx: Context,
   loaded: { apply(ctx: Context, config: C): unknown },
@@ -146,7 +140,6 @@ function credentialService(port: CredentialUse<unknown>) {
   }
 }
 
-/** The memory credential use, with each `release()` of a handle it gave recorded. */
 function recordingCredentials(inner: CredentialUse<unknown>) {
   const released: string[] = []
   const port: CredentialUse<unknown> = {
@@ -170,7 +163,6 @@ function recordingCredentials(inner: CredentialUse<unknown>) {
 
 type Endpoint = Readonly<{ script: PeerScript; credential?: boolean }>
 
-/** A scripted HTTP peer that answers `script`, closed after the case. */
 async function peerOf(script: PeerScript, onRequest?: (method: string) => void): Promise<HttpPeer> {
   const peer = await httpPeer(
     script,
@@ -183,7 +175,6 @@ async function peerOf(script: PeerScript, onRequest?: (method: string) => void):
   return peer
 }
 
-/** Adopts `FILES` for alice in `SCOPE`: a Streamable HTTP endpoint at the peer. */
 function adoptFiles(
   adoption: MemoryAdoptionView<unknown, unknown>,
   peer: HttpPeer,
@@ -206,10 +197,6 @@ function adoptFiles(
   })
 }
 
-/**
- * The three ports as Service classes, with `FILES` adopted at a scripted peer and alice granted its
- * use. `called` resolves when the peer takes a `tools/call`.
- */
 async function ports(endpoint: Endpoint) {
   let markCalled = (): void => undefined
   const called = new Promise<void>(resolve => {
@@ -239,7 +226,6 @@ async function ports(endpoint: Endpoint) {
 type PortName = 'adoption' | 'eligibility' | 'credentials'
 const PORT_NAMES: readonly PortName[] = ['adoption', 'eligibility', 'credentials']
 
-/** Loads the ports except `absent`, then the plugin. */
 async function assembled(endpoint: Endpoint, absent?: PortName, loaded: Plugin = plugin) {
   const ctx = new Context()
   const provided = await ports(endpoint)
@@ -263,21 +249,18 @@ async function refreshed(ctx: Context) {
   return service(ctx, mcpActionDiscoveryKey).refresh(ALICE, { ref: FILES })
 }
 
-/** The names of the known actions in the stored catalog. */
 async function actionNames(ctx: Context): Promise<readonly string[]> {
   const view = await service(ctx, mcpActionDiscoveryKey).current(ALICE, FILES)
   if (!('ok' in view) || view.ok.kind !== 'acquired') throw new Error('no catalog was acquired')
   return view.ok.actions.map(action => action.name)
 }
 
-/** The name and availability of each known action in the stored catalog. */
 async function availabilities(ctx: Context) {
   const view = await service(ctx, mcpActionDiscoveryKey).current(ALICE, FILES)
   if (!('ok' in view) || view.ok.kind !== 'acquired') throw new Error('no catalog was acquired')
   return view.ok.actions.map(action => [action.name, action.availability])
 }
 
-/** Invokes `tool` with the digest the stored catalog holds. */
 async function invoke(ctx: Context, tool: string, key: CorrelationKey): Promise<InvokeResult> {
   const view = await service(ctx, mcpActionDiscoveryKey).current(ALICE, FILES)
   if (!('ok' in view) || view.ok.kind !== 'acquired') throw new Error('no catalog was acquired')
@@ -295,7 +278,6 @@ async function invoke(ctx: Context, tool: string, key: CorrelationKey): Promise<
 
 const CALL_1 = correlationKeyOf('call-1')
 
-/** Refreshes, then invokes `echo`. */
 async function invokeEcho(ctx: Context) {
   expect(await refreshed(ctx)).toMatchObject({ ok: { kind: 'published' } })
   return invoke(ctx, 'echo', CALL_1)
@@ -409,12 +391,10 @@ describe('the MCP plugin on a Cordis context, with a scripted HTTP peer', () => 
     await first.dispose()
     const replacement = createMemoryAdoptionView<unknown, unknown>({ scopeKey: String })
     const other = await peerOf({ listing: listingOf('other') })
-    // Adopted twice, so that its revision differs from the first view's only revision.
     adoptFiles(replacement, other)
     adoptFiles(replacement, other)
     await load(ctx, adoptionService(replacement), undefined)
     expect(await refreshed(ctx)).toMatchObject({ ok: { kind: 'published' } })
-    // The merge keeps the action the peer no longer lists, unavailable (mcp-contract R3).
     expect(await availabilities(ctx)).toEqual([
       ['echo', { kind: 'unavailable', reason: 'no-longer-offered' }],
       ['other', { kind: 'available' }],

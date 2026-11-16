@@ -1,8 +1,3 @@
-// The Session consequences of one Agent control event (EC-01 `control` → SE25), decided at the
-// interpretation, on the Session snapshot of that commit. A control event's consequences depend on
-// the Session controls that are open when it is interpreted, so its fact boundary carries the
-// deferred marker instead of kinds (FR-01), and this rule decides them. The adapter translates the
-// Agent control records into the neutral evidence below; this module never reads an Agent type.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { Message } from '@omne-harness/message'
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
@@ -19,7 +14,6 @@ import {
 } from './session-validation.ts'
 import type { CallBinding, ControlProgress, ProducerRef, WorkSnapshot } from './values.ts'
 
-/** The stages of an Agent control record that the rule reads. */
 export type SessionControlStage =
   | 'intent-established'
   | 'qualification-revoked'
@@ -27,12 +21,6 @@ export type SessionControlStage =
   | 'physically-stopped'
   | 'duty-released'
 
-/**
- * One Agent control record as of the event. `operation` is the Agent operation of its control
- * command; `references` are the invocation references (`ProducerRef.call`) that resolve to the
- * call it names, empty for a cancel; `invocation` is the Tool invocation a Tool control names,
- * when it resolves to that call; `accepted` is the revision of its original command.
- */
 export type SessionControlRecordEvidence = Readonly<{
   operation: string
   command: 'cancel' | 'interrupt-model' | 'interrupt-tool' | 'background-tool'
@@ -42,18 +30,12 @@ export type SessionControlRecordEvidence = Readonly<{
   accepted: string
 }>
 
-/** A call the Agent saw settle: a background slot, a result slot or a settled Model reply. */
 export type SessionControlSettlement = Readonly<{
   kind: 'background' | 'result' | 'model'
   binding: CallBinding
   revision: string
 }>
 
-/**
- * The Agent side of one control event in Session words. `through` is the revision of the event's
- * commit; `settled` and `urgent` are what the Agent recorded up to it; `urgent` lists the urgent
- * inputs the Agent accepted under their drive operation.
- */
 export type SessionControlEvidence = Readonly<{
   through: string
   records: readonly SessionControlRecordEvidence[]
@@ -61,7 +43,6 @@ export type SessionControlEvidence = Readonly<{
   urgent: readonly Readonly<{ input: InputId; message: Message; origin: DurableEvidence | null }>[]
 }>
 
-/** The execution that was active when the Session control (SE24) was requested; null: none. */
 export type SessionControlOrigin = Readonly<{
   operation: SessionOperationId
   execution: string | null
@@ -71,7 +52,6 @@ export type SessionControlDecisionInput = Readonly<{
   snapshot: WorkSnapshot
   execution: string
   run: RunId
-  /** The SE15 records of the execution. */
   attempts: readonly SessionAttemptRecord[]
   origins: readonly SessionControlOrigin[]
   evidence: SessionControlEvidence
@@ -87,7 +67,6 @@ const attemptOf = (registration: SessionCallRegistration): AttemptId | null =>
     ? registration.initiatingAttempt
     : registration.binding.initiatingAttempt
 
-/** True when `attempt` is an SE15 of the interpreted execution. */
 function ownedHere(rule: Rule, attempt: AttemptId | null): boolean {
   return (
     attempt !== null &&
@@ -95,7 +74,6 @@ function ownedHere(rule: Rule, attempt: AttemptId | null): boolean {
   )
 }
 
-/** True when the record's command stops the call of `producer`: a Tool one by its invocation. */
 function names(record: SessionControlRecordEvidence, producer: ProducerRef): boolean {
   return producer.kind === 'model'
     ? record.command === 'interrupt-model' && record.references.includes(producer.call)
@@ -103,7 +81,6 @@ function names(record: SessionControlRecordEvidence, producer: ProducerRef): boo
         record.invocation === producer.call
 }
 
-/** True when the record covers the responsibility of `registration`. */
 function covers(
   rule: Rule,
   record: SessionControlRecordEvidence,
@@ -113,7 +90,6 @@ function covers(
   return registration.kind === 'associated' && names(record, registration.binding.producer)
 }
 
-/** True when the record is the drive of Session control `progress` (or its original cancel). */
 function directMatches(
   rule: Rule,
   record: SessionControlRecordEvidence,
@@ -145,7 +121,6 @@ type Selected = Readonly<{
   released: boolean
 }>
 
-/** The original selected responsibilities of one control with their current registration. */
 function selectedOf(rule: Rule, current: ControlProgress): readonly Selected[] {
   const references = rule.snapshot.workEntryIndex?.controls.find(
     item => item.operation === current.operation,
@@ -166,7 +141,6 @@ function selectedOf(rule: Rule, current: ControlProgress): readonly Selected[] {
   })
 }
 
-/** True when the record confirms that the call of `registration` stopped or had settled. */
 function confirms(
   rule: Rule,
   current: ControlProgress,
@@ -201,7 +175,6 @@ function confirms(
   )
 }
 
-/** The producers of the control that still wait for a confirmation or a released duty. */
 function pendingOf(
   rule: Rule,
   current: ControlProgress,
@@ -228,7 +201,6 @@ function pendingOf(
   })
 }
 
-/** The unassociated waits of the control whose duty no record released. */
 function waitsOf(current: ControlProgress, selected: readonly Selected[]): SessionCallWait[] {
   return (current.pendingUnassociatedWaiting ?? []).filter(wait => {
     const source = selected.find(
@@ -240,7 +212,6 @@ function waitsOf(current: ControlProgress, selected: readonly Selected[]): Sessi
   })
 }
 
-/** True when the urgent input of an interrupt was accepted by the Agent of this Run. */
 function urgentAccepted(rule: Rule, current: ControlProgress): boolean {
   if (current.intent.kind !== 'interrupt' || current.intent.run !== rule.run) return false
   const urgent = current.intent.urgent
@@ -251,14 +222,12 @@ function urgentAccepted(rule: Rule, current: ControlProgress): boolean {
   return true
 }
 
-/** True when every attempt of the execution released the advance; it has at least one. */
 function attemptsReleased(rule: Rule): boolean {
   if (!rule.attempts.some(item => item.execution === rule.execution)) return false
   const run = rule.snapshot.run
   return run.kind !== 'active' || run.execution.execution !== rule.execution || run.advance === null
 }
 
-/** Whether the intent of the control is established and its qualification condition holds. */
 function settledIntent(
   rule: Rule,
   current: ControlProgress,
@@ -286,7 +255,6 @@ function settledIntent(
   return { intent, qualification: !(origin.execution !== null && revoking) }
 }
 
-/** The new progress of one open control, or null when the event does not concern it. */
 function progressOf(rule: Rule, current: ControlProgress): ControlProgress | null {
   const origin = rule.origins.find(item => item.operation === current.operation)
   if (origin === undefined) unavailableAt('control.origin')
@@ -310,11 +278,6 @@ function progressOf(rule: Rule, current: ControlProgress): ControlProgress | nul
   }
 }
 
-/**
- * The consequences of one control event: one `control` per open Session control whose progress
- * the event changes, else `observed`. A missing original answers `unavailable`, a contradiction
- * `quarantined`.
- */
 export function decideControlConsequences(
   input: SessionControlDecisionInput,
 ): Outcome<readonly SessionLogConsequence[], SessionFailure> {

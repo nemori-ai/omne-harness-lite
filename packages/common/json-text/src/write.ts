@@ -1,14 +1,12 @@
 import { RFC_8259_NUMBER } from './read.ts'
 import type { JsonValue } from './types.ts'
 
-/** Text that is ready to write, or a node whose text is still to come. */
 type Pending = Readonly<{ text: string }> | Readonly<{ node: unknown }>
 
 function malformed(what: string): TypeError {
   return new TypeError(`value is not a json-text tree: ${what}`)
 }
 
-/** Reads one field of a node that the caller promised to be a tree node. */
 function field(node: object, key: string): unknown {
   return Reflect.get(node, key)
 }
@@ -52,7 +50,6 @@ function numberText(node: object): string {
   return lexeme
 }
 
-/** The text of a node that has no children. */
 function leafText(kind: unknown, node: object): string {
   switch (kind) {
     case 'null':
@@ -68,10 +65,6 @@ function leafText(kind: unknown, node: object): string {
   }
 }
 
-/**
- * Returns the text of a leaf, or the opening bracket of a container. A container pushes the rest
- * of its text in reverse order, so that the parts pop in text order.
- */
 function open(node: unknown, pending: Pending[]): string {
   if (typeof node !== 'object' || node === null) throw malformed('a node is not an object')
   const kind = field(node, 'kind')
@@ -89,13 +82,6 @@ function open(node: unknown, pending: Pending[]): string {
   }
 }
 
-/**
- * Writes the JSON text of a tree without space. A number keeps its source lexeme and the keys
- * keep the order of `entries`. The walk keeps its own stack, so a deep tree cannot overflow the
- * call stack. The tree must already be judged by `judgeJsonValue`, or come from `readJsonText`.
- * A node of the wrong shape throws `TypeError` and no text is returned. A repeated key, a cycle
- * and a shared subtree are not checked, and the text size has no limit here.
- */
 export function writeJsonText(value: JsonValue): string {
   const parts: string[] = []
   const pending: Pending[] = [{ node: value }]

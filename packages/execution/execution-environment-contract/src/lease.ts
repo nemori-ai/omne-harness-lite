@@ -7,10 +7,6 @@ import type { AcquisitionRef, OriginRef } from './identity.ts'
 import type { ManagedResource } from './ports.ts'
 import type { EnvironmentRequirement } from './requirement.ts'
 
-/**
- * `generation` names one registration incarnation: a provider takes a new one each time it is
- * registered. `version` is the version of the provider's code, the same for every incarnation of it.
- */
 export type ProviderIdentity = Readonly<{ name: string; generation: string; version: string }>
 
 /** A new instance with the same name never claims to be the old one. */
@@ -28,25 +24,15 @@ export type RejectReason =
   | 'invalidInput'
   | 'unavailable'
   | 'ambiguousEnvironment'
-  /** The caller class an assembly declared does not match the surface of the operation. */
   | 'callerMismatch'
-  /** The provider's per-tenant bound refused a new unsettled acquisition: a zero-effect final answer. */
   | 'quotaExceeded'
-  /** The provider's global safety bound refused a new unsettled acquisition: a zero-effect final answer. */
   | 'globalCapacityExceeded'
-  /** The provider's quota or owner index is not rebuilt yet. */
   | 'recoveryUnready'
-  /** The same tenant and key already name an acquisition with another fingerprint. */
   | 'acquisitionConflict'
-  /** The original query proved no allocation and no late success, without an original refusal reason. */
   | 'allocationNotPerformed'
 
 export type Rejected = Readonly<{ kind: 'rejected'; reason: RejectReason }>
 
-/**
- * The requirement plus the chosen layer and provider. It grants neither facilities nor resources;
- * `acquire` checks it again because resolving and acquiring are not atomic.
- */
 export type Placement = Readonly<{
   kind: 'placement'
   requirement: EnvironmentRequirement
@@ -57,7 +43,6 @@ export type Placement = Readonly<{
   quotaDomain: string
 }>
 
-/** Reasons the registry itself gives when it invalidates a lease. */
 export type RegistryInvalidationReason =
   | 'providerRetired'
   | 'scopeReleased'
@@ -65,10 +50,6 @@ export type RegistryInvalidationReason =
   | 'released'
   | 'providerInvalidated'
 
-/**
- * Why a lease stopped being valid. The registry names its own reasons from a closed set; a reason a
- * provider reports is carried as the provider wrote it.
- */
 export type LeaseInvalidation =
   | { readonly source: 'registry'; readonly reason: RegistryInvalidationReason }
   | { readonly source: 'provider'; readonly reason: string }
@@ -81,15 +62,11 @@ export interface EnvironmentLease<K extends FacilityKey = FacilityKey> {
   readonly placement: Placement
   readonly instance: InstanceIdentity
   readonly continuity: EnvironmentContinuity
-  /** Only keys of the requirement resolve; any other key gives `undefined`. */
   facility<F extends K>(key: F): EnvironmentFacilities[F] | undefined
-  /** Settles when the provider retires, the scope is released, the registry closes, the environment is reclaimed at its lifetime bound, or the instance is lost or replaced. */
   readonly invalidated: Promise<LeaseInvalidation>
-  /** Releases this acquisition only; a shared environment is not destroyed. */
   release(): Promise<LeaseRelease>
 }
 
-/** The canonical facility subset a tool executor receives. */
 export type FacilitySet<K extends FacilityKey> = Pick<EnvironmentFacilities, K>
 
 /** Issued by the registry, never by the provider. Provider evidence is not a self-issued permission. */
@@ -103,16 +80,11 @@ export type EnvironmentAdoption = Readonly<{
   evidence: JsonValue
 }>
 
-/** Cleanup of an allocation whose adoption failed. Only `settled` returns the quota slot. */
 export type AllocationCleanup =
   | Readonly<{ kind: 'settled' }>
   | Readonly<{ kind: 'pending' }>
   | Readonly<{ kind: 'unknown' }>
 
-/**
- * The stored state of one acquisition. `allocationUnknown` is a fact not known yet; a failed query
- * never overwrites a known `acquired` with it.
- */
 export type AcquisitionState =
   | { readonly kind: 'acquiring' }
   | { readonly kind: 'provisional' }
@@ -144,10 +116,6 @@ export type Acquired = Readonly<{
   adoption: EnvironmentAdoption
 }>
 
-/**
- * This call delivered no usable lease and allocated nothing again. The original acquisition may
- * still hold an allocation and its responsibilities.
- */
 export type Pending = Readonly<{
   kind: 'pending'
   state: Extract<
@@ -165,7 +133,6 @@ export type Pending = Readonly<{
   >
 }>
 
-/** The provider allocated, the adoption check failed for a known reason, and cleanup is driven. No lease. */
 export type AllocationFailed = Readonly<{
   kind: 'allocationFailed'
   acquisition: AcquisitionRef
@@ -173,23 +140,17 @@ export type AllocationFailed = Readonly<{
   cleanup: AllocationCleanup
 }>
 
-/**
- * The result is not known. `preflight`: the provider was not called and the same key may be checked
- * again. `allocation`: the provider may have allocated; query the original key, never re-send.
- */
 export type UnknownAcquisition = Readonly<{
   kind: 'unknown'
   acquisition: AcquisitionRef
   phase: 'preflight' | 'allocation'
 }>
 
-/** A lookup could not give a result this time. */
 export type LookupUnknown = Readonly<{
   kind: 'unknown'
   cause: 'authority' | 'scope-binding' | 'provider' | 'quota'
 }>
 
-/** What the caller keeps before the provider is called: tenant, key, origin, scope and placement. */
 export type OriginalAcquisition = Readonly<{
   tenant: TenantId
   acquisition: AcquisitionRef
@@ -234,10 +195,6 @@ export type OriginalInspection =
       cleanup: AllocationCleanup
     }>
 
-/**
- * The answer of a query, not a stored state. `unrecorded` means no record of the caller's tenant;
- * `invalidInput` says nothing about the key. `queryUnknown` never implies that the query allocated.
- */
 export type AcquisitionInspection =
   | Readonly<{ kind: 'known'; state: AcquisitionState }>
   | Readonly<{ kind: 'unrecorded' }>
@@ -247,7 +204,6 @@ export type AcquisitionInspection =
   | Readonly<{ kind: 'queryUnknown'; cause: QueryCause }>
   | OriginalInspection
 
-/** The maintainer's query by original description: no local `known` or `unrecorded`. */
 export type RecoveryInspection = Exclude<
   AcquisitionInspection,
   Readonly<{ kind: 'known' | 'unrecorded' }>

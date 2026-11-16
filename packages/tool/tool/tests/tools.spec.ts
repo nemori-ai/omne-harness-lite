@@ -217,7 +217,6 @@ describe('fixed reader with a test-only command transport', () => {
     expect(failure.attachments).toEqual([])
     expect(body(failure)).not.toContain('next')
     const f = await sourceFixture()
-    // R2-D357: another tenant's partition has no such call; it is answered as a missing one.
     expect(
       body(await f.tools.present({ ...f.access, principal: principalB, tenant: tenantB })),
     ).toContain('not-found (result: missing)')

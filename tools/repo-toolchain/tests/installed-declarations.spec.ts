@@ -1,4 +1,3 @@
-// 已安装声明的进程内共享：同一解析设置拿同一个 SourceFile，换了 target 重新解析，安装目录外的文件不进缓存。
 import { sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from '@typescript/typescript6'
@@ -25,7 +24,6 @@ describe('sharing installed declarations', () => {
   })
 
   it('parses again when a compilation setting other than the target differs', () => {
-    // 同一 target、同一解析参数，只换影响绑定的编译选项：键里的设置项要把它们分开。
     const commonJs = sharingInstalledDeclarations(
       { ...es2024, module: ts.ModuleKind.CommonJS },
       unread,
@@ -42,7 +40,6 @@ describe('sharing installed declarations', () => {
   })
 
   it('leaves files outside the installed directories to the host', () => {
-    // 一个存在、读得到的文件，只是不在 lib 与类型根里。
     const own = fileURLToPath(import.meta.url)
       .split(sep)
       .join('/')

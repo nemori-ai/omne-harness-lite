@@ -12,7 +12,6 @@ afterEach(() => {
   for (const path of made.splice(0)) rmSync(path, { recursive: true, force: true })
 })
 
-/** 在临时目录里 git init 一个小仓库，文件全部提交；git grep 是真实的。 */
 function repository(files: Record<string, string>): string {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'retire-scan-')))
   made.push(root)
@@ -63,7 +62,6 @@ const tableOf = (...items: unknown[]) =>
 const scan = (root: string, wave: Wave, ...items: unknown[]): ScanResult =>
   scanRetire({ root, wave, table: tableOf(...items) })
 
-/** 一个有 createDoubleOne 的成员：定义在 one.ts（第 2 行），经 testing/index.ts 导出。 */
 const BASE = {
   'packages/alpha/package.json': manifest('@fx/alpha'),
   'packages/alpha/src/testing/index.ts': "export { createDoubleOne } from './one.ts'\n",

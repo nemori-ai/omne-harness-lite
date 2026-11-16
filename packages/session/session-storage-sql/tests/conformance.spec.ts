@@ -1,7 +1,3 @@
-// The transaction and commitEntries conformance suites of session-contract, run on the real
-// participant and read handlers over the SQLite test provider. Every case runs and none is pinned
-// as a known failure. The same commitEntries suite runs on the real sqlite-provider in
-// real-provider.spec.ts.
 import { describe, it } from 'vitest'
 import {
   adoptedInitializationFixture,

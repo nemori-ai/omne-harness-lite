@@ -1,7 +1,3 @@
-// The conformance suite of `McpTransport` and `McpTransportFactory` (SPEC T1–T7), and the fixture
-// it drives. A fixture gives the suite a peer that answers as a `PeerScript` says, at the JSON-RPC
-// level, and a transport factory with the material to reach it. The script describes the peer,
-// never an SDK: the in-memory scripted transport and a real server fixture read the same script.
 import assert from 'node:assert/strict'
 import type { Outcome } from '@omne-harness/operation-result'
 import { isTaskId, type TaskId } from './brands.ts'
@@ -43,23 +39,10 @@ import type {
   TransportMaterial,
 } from './transport.ts'
 
-/** JSON as plain data, so that a script can travel to a fixture in another process. */
 export type { PlainJson } from './plain.ts'
 
-/**
- * A notification the peer sends before it answers a request. When `params` has no
- * `progressToken`, the peer fills in the progress token of that request.
- */
 export type PeerNotificationScript = Readonly<{ method: string; params?: PlainJson }>
 
-/**
- * How the peer answers one request. `result` and `error` are JSON-RPC answers as written; a
- * result may carry response headers, for example `mcp-session-id` on a legacy `initialize`.
- * `silent` never answers. `stream-breaks` breaks the answer stream before an answer. `http`
- * answers at the HTTP level: a 2xx without a JSON-RPC answer, or an error status with its headers
- * and body. `unsent` fails the request before it leaves: the connection fails; the peer does not
- * see the request.
- */
 export type PeerReply =
   | Readonly<{
       kind: 'result'
@@ -78,45 +61,25 @@ export type PeerReply =
       body?: string
     }>
 
-/** One reply, or the replies in order; the last one repeats. */
 export type Replies = PeerReply | readonly PeerReply[]
 
 export type TaskScript = Readonly<{ get?: Replies; update?: Replies; cancel?: Replies }>
 
-/**
- * The peer at the JSON-RPC level. Every member is optional. Absent: `discover` answers a modern
- * discover result with the peer's own versions and `capabilities: { tools: {} }`; `initialize`
- * answers `-32601`; an unlisted cursor, tool or task answers `-32602`; `update` and `cancel` of a
- * listed task answer an empty result; a well-known path not listed answers 404.
- */
 export type PeerScript = Readonly<{
   discover?: Replies
   initialize?: Replies
-  /** `tools/list` by cursor; the empty text is the first page. */
   listing?: Readonly<{ [cursor: string]: Replies }>
-  /** `tools/call` by tool name. */
   calls?: Readonly<{ [tool: string]: Replies }>
-  /** The task operations by task id. */
   tasks?: Readonly<{ [taskId: string]: TaskScript }>
-  /**
-   * Requests the peer sends to the client on the legacy path: before it answers `initialize`
-   * (`at: 'initialize'`) or after it receives `notifications/initialized` (the default).
-   */
   peerRequests?: readonly Readonly<{
     method: string
     params?: PlainJson
     at?: 'initialize' | 'initialized'
   }>[]
-  /** How the peer answers the notifications of the client. Absent: as the protocol says. */
   notifications?: Replies
-  /** Protected resource metadata by well-known path, for example `/.well-known/oauth-protected-resource`. */
   wellKnown?: Readonly<{ [path: string]: PlainJson }>
 }>
 
-/**
- * The MCP request headers of one Streamable HTTP request, by lower-case name, as the peer read
- * them. A header that the request did not carry is absent.
- */
 export type PeerRequestHeaders = Readonly<{
   'mcp-protocol-version'?: string
   'mcp-method'?: string
@@ -124,10 +87,6 @@ export type PeerRequestHeaders = Readonly<{
   'mcp-session-id'?: string
 }>
 
-/**
- * What the peer saw: each request and notification as sent, and what the client did to it. A
- * request carries `headers`.
- */
 export type PeerReceived =
   | Readonly<{
       kind: 'request'
@@ -142,25 +101,15 @@ export type PeerReceived =
       params?: PlainJson
       headers?: PeerRequestHeaders
     }>
-  /** The client's answer to a request the peer sent. */
   | Readonly<{ kind: 'response'; id: string; result?: PlainJson; error?: PlainJson }>
-  /** Streamable HTTP: the client ended the answer stream of request `id`. */
   | Readonly<{ kind: 'stream-aborted'; id: string }>
-  /** A GET of a well-known URL. */
   | Readonly<{ kind: 'fetch'; url: string }>
 
-/** What a case needs from the peer: the credential to put on the material, and the byte bound. */
 export type PeerNeeds = Readonly<{
   credential?: HttpCredentialHandle
   instructionsByteLimit?: number
 }>
 
-/**
- * A peer the fixture prepared, with the factory and the material to reach it. `received` resolves
- * to what the peer saw so far, in order, once everything that the client sent before the call is
- * recorded. A fixture whose peer records late, for example an aborted HTTP answer stream or the
- * answer to a request of the peer, waits for it before it resolves.
- */
 export type ScriptedPeer = Readonly<{
   factory: McpTransportFactory
   material: TransportMaterial
@@ -168,17 +117,8 @@ export type ScriptedPeer = Readonly<{
   close(): Promise<void>
 }>
 
-/**
- * A script, or a function that writes the script from the target of the material. The fixture
- * calls the function once, after it knows the target and before the peer answers.
- */
 export type ScriptSource = PeerScript | ((target: string) => PeerScript)
 
-/**
- * The fixture of the transport suite. `protocolVersions` lists the modern versions the transport
- * speaks on `server/discover`, highest first; the legacy versions are `LEGACY_PROTOCOL_VERSIONS`. `peer` prepares a peer that answers as the script says; it throws
- * `NotApplicable` for a script it cannot realize, for example one with `peerRequests`.
- */
 export type TransportFixture = Readonly<{
   protocolVersions: readonly string[]
   peer(script: ScriptSource, needs: PeerNeeds): Promise<ScriptedPeer>
@@ -201,7 +141,6 @@ function isRecord(value: PlainJson | undefined): value is Readonly<{ [key: strin
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-/** A member of a plain object, or undefined. */
 function at(value: PlainJson | undefined, ...path: readonly string[]): PlainJson | undefined {
   let current = value
   for (const key of path) {
@@ -221,7 +160,6 @@ function error(code: number, message: string, data?: PlainJson): PeerReply {
   return { kind: 'error', error: data === undefined ? { code, message } : { code, message, data } }
 }
 
-/** An HTTP answer of `status` whose body is a JSON-RPC error. */
 function httpError(status: number, code: number, message: string, data?: PlainJson): PeerReply {
   const answer = data === undefined ? { code, message } : { code, message, data }
   return { kind: 'http', status, body: JSON.stringify({ jsonrpc: '2.0', id: null, error: answer }) }
@@ -234,10 +172,8 @@ const METHOD_NOT_FOUND = error(-32601, 'Method not found')
 const TOOL = { name: 'echo', inputSchema: { type: 'object' } }
 const DONE = { content: [{ type: 'text', text: 'done' }] }
 const [OFFERED_LEGACY_VERSION] = LEGACY_PROTOCOL_VERSIONS
-/** An `initialize` answer that the legacy path reads. */
 const LEGACY = result({ protocolVersion: OFFERED_LEGACY_VERSION, capabilities: {} })
 
-/** A modern discover result that names the highest version the transport speaks. */
 function modern(
   fixture: TransportFixture,
   extra: Readonly<{ [key: string]: PlainJson }> = {},
@@ -256,14 +192,12 @@ const echo: CallRequest = { action: actionNameOf('echo'), args: jsonOf({}) }
 
 const never = new AbortController().signal
 
-/** The script with a modern discover answer unless the script names its own. */
 function withModernDiscover(fixture: TransportFixture, script: ScriptSource): ScriptSource {
   if (typeof script === 'function')
     return target => ({ discover: modern(fixture), ...script(target) })
   return { discover: modern(fixture), ...script }
 }
 
-/** Opens a transport to a scripted peer, runs the body, and closes both. */
 async function withPeer<T>(
   fixture: TransportFixture,
   script: ScriptSource,
@@ -303,7 +237,6 @@ function notifications(received: readonly PeerReceived[], method: string) {
   )
 }
 
-/** The methods of the requests and notifications, in the order the peer saw them. */
 function methods(received: readonly PeerReceived[]): readonly string[] {
   return received.flatMap(entry =>
     entry.kind === 'request' || entry.kind === 'notification' ? [entry.method] : [],
@@ -324,7 +257,6 @@ function versionOf(entry: Request): PlainJson | undefined {
   return at(entry.params, '_meta', PROTOCOL_VERSION_KEY)
 }
 
-/** Each request and notification from `start` on, with the `_meta` version it carries. */
 function versionsFrom(
   received: readonly PeerReceived[],
   start: number,
@@ -338,12 +270,10 @@ function versionsFrom(
     )
 }
 
-/** The index of the last request of `method`. */
 function lastIndexOf(received: readonly PeerReceived[], method: string): number {
   return received.findLastIndex(entry => entry.kind === 'request' && entry.method === method)
 }
 
-/** The `Mcp-Name` that a request carries on Streamable HTTP: the tool name or the task id. */
 function mcpNameOf(entry: Request): PlainJson | undefined {
   if (entry.method === 'tools/call') return at(entry.params, 'name')
   if (['tasks/get', 'tasks/update', 'tasks/cancel'].includes(entry.method))
@@ -351,12 +281,6 @@ function mcpNameOf(entry: Request): PlainJson | undefined {
   return undefined
 }
 
-/**
- * Every request and notification carries the envelope, and the capabilities say what T3 says: on
- * a modern revision the tasks extension and `elicitation.form` and nothing of `elicitation.url`,
- * `sampling` or `roots`; on a legacy revision no capability. On Streamable HTTP every request also
- * carries the MCP request headers of T3.
- */
 function assertEnvelopes(peer: ScriptedPeer, received: readonly PeerReceived[]): void {
   const sent = received.filter(entry => entry.kind === 'request' || entry.kind === 'notification')
   assert.ok(sent.length > 0, 'the peer received nothing')
@@ -413,7 +337,6 @@ function assertEnvelopes(peer: ScriptedPeer, received: readonly PeerReceived[]):
   )
 }
 
-/** A credential handle that counts rejections and authorizes with a fixed header. */
 function countingCredential(
   gate: Promise<void> = Promise.resolve(),
 ): HttpCredentialHandle & Readonly<{ rejections(): number }> {
@@ -433,7 +356,6 @@ function countingCredential(
   }
 }
 
-/** A handle whose `authorize` never answers; `reached` resolves once it was asked. */
 function heldCredential(): HttpCredentialHandle & Readonly<{ reached: Promise<void> }> {
   let asked = (): void => undefined
   const reached = new Promise<void>(resolve => {
@@ -454,12 +376,10 @@ function heldCredential(): HttpCredentialHandle & Readonly<{ reached: Promise<vo
 const bearer = (parameters: string) => `Bearer ${parameters}`
 const METADATA_PATH = '/.well-known/oauth-protected-resource'
 
-/** The path of the target without a trailing slash, as RFC 9728 inserts it after the well-known path. */
 function pathOf(target: string): string {
   return new URL(target).pathname.replace(/\/$/u, '')
 }
 
-/** The protected resource metadata URL with the path of the target (RFC 9728, section 3.1). */
 function metadataUrlOf(target: string): string {
   return new URL(`${METADATA_PATH}${pathOf(target)}`, target).href
 }
@@ -468,9 +388,6 @@ function targetOf(peer: ScriptedPeer): string {
   return peer.material.target
 }
 
-// ---- The cases of the decision table (T8), one per row, generated from `TRANSPORT_TABLE` ----
-
-/** The JSON-RPC error objects of an error class: the samples a peer answers with. */
 function errorObjects(code: ErrorClass, fixture: TransportFixture): readonly PlainJson[] {
   const lowest = fixture.protocolVersions.at(-1) ?? ''
   const unsupported = (data?: PlainJson): PlainJson =>
@@ -522,7 +439,6 @@ function errorObjects(code: ErrorClass, fixture: TransportFixture): readonly Pla
   }
 }
 
-/** The results a peer answers with, for a request class and a result class. */
 function resultValues(
   request: RequestClass,
   answer: string,
@@ -532,7 +448,6 @@ function resultValues(
   switch (`${request}|${answer}`) {
     case 'discover|result':
     case 'discover-retry|result':
-      // The highest version in common is chosen whatever order the peer lists its versions in.
       return [
         { supportedVersions: versions, capabilities: { tools: {} } },
         { supportedVersions: [...versions].reverse(), capabilities: { tools: {} } },
@@ -608,7 +523,6 @@ function resultValues(
 
 const HTTP_ANSWER = /^http:(\w+)\+(.+)$/u
 
-/** The statuses that stand for an HTTP status class in the samples. */
 const STATUSES_OF: Readonly<{ [statusClass: string]: readonly number[] }> = {
   '4xx': [418, 302],
   '5xx': [500, 503],
@@ -618,7 +532,6 @@ function isErrorClass(text: string): text is ErrorClass {
   return ERROR_CLASSES.some(code => code === text)
 }
 
-/** The replies of a peer for one cell of the table. */
 function repliesOf(cell: TableCell, fixture: TransportFixture): readonly PeerReply[] {
   const { request, answer } = cell
   if (answer === 'unsent') return [{ kind: 'unsent' }]
@@ -654,7 +567,6 @@ function repliesOf(cell: TableCell, fixture: TransportFixture): readonly PeerRep
     if (body === 'plain')
       return statuses.flatMap((status): readonly PeerReply[] => [
         { kind: 'http', status, body: `HTTP ${status}` },
-        // Not an envelope (T2): no "jsonrpc", or both result and error.
         { kind: 'http', status, body: '{"error":{"code":-32602,"message":"x"}}' },
         {
           kind: 'http',
@@ -679,7 +591,6 @@ function repliesOf(cell: TableCell, fixture: TransportFixture): readonly PeerRep
   return resultValues(request, answer, fixture).map(value => result(value))
 }
 
-/** The wire event a reply makes for request `x` (T8): a stream, a status, an end. */
 function eventOf(reply: PeerReply): WireEvent {
   const message = (member: Readonly<{ [key: string]: PlainJson }>): WireEvent => {
     const text = JSON.stringify({ jsonrpc: '2.0', id: 'x', ...member })
@@ -715,7 +626,6 @@ function eventOf(reply: PeerReply): WireEvent {
   }
 }
 
-/** The JSON-RPC error a reply carries, directly or as the body of an HTTP answer. */
 function errorObjectOf(reply: PeerReply): PlainJson | undefined {
   if (reply.kind === 'error') return reply.error
   if (reply.kind !== 'http' || reply.body === undefined) return undefined
@@ -736,12 +646,6 @@ function isPlainValue(value: unknown): value is PlainJson {
   return typeof value === 'object' && Object.values(value).every(isPlainValue)
 }
 
-/**
- * The cause an answer of the row is marked with (T1): the row ends the transport, and the cause
- * follows from its conclusion: a `no-answer` its own cause, an ended session `session-ended`.
- * Undefined on a row that leaves the
- * transport usable: its answers carry no mark. A request after the row carries the same cause.
- */
 function unusableCauseOf(conclusion: TableConclusion): UnusableCause | undefined {
   if (conclusion.unusable !== true) return undefined
   const cause = lineEndOf(conclusion)
@@ -750,7 +654,6 @@ function unusableCauseOf(conclusion: TableConclusion): UnusableCause | undefined
   return cause
 }
 
-/** The cause of a line end a conclusion names, if it names one. */
 function lineEndOf(conclusion: TableConclusion): UnusableCause | undefined {
   switch (conclusion.kind) {
     case 'answer':
@@ -766,12 +669,10 @@ function lineEndOf(conclusion: TableConclusion): UnusableCause | undefined {
   }
 }
 
-/** A `no-answer` cause that is a line end: a broken stream. */
 function gone(cause: string): UnusableCause | undefined {
   return cause === 'stream-broken' ? cause : undefined
 }
 
-/** The `not-sent` (`connection-unavailable`) of a request after the row, marked as the row says. */
 function refusedAfter(conclusion: TableConclusion): TransportFailure {
   const unusable = unusableCauseOf(conclusion)
   return unusable === undefined
@@ -779,10 +680,6 @@ function refusedAfter(conclusion: TableConclusion): TransportFailure {
     : { kind: 'not-sent', cause: 'connection-unavailable', unusable }
 }
 
-/**
- * Holds a failure to the row. `error-answer` is filled in from the reply; a refused authorization
- * is held to its kind and cause, its discovery is T4's. `unusable` is the mark the row gives.
- */
 function assertFailure(
   actual: TransportFailure,
   expected: ExpectedFailure,
@@ -797,10 +694,6 @@ function assertFailure(
   else assert.deepStrictEqual(actual, failureOf(expected, reply, unusable))
 }
 
-/**
- * The failure an operation must answer, filled in from the reply where the row says so, with the
- * mark when the row ends the transport; without the field otherwise.
- */
 function failureOf(
   expected: Exclude<ExpectedFailure, Readonly<{ cause: 'authorization-required' }>>,
   reply: PeerReply,
@@ -810,7 +703,6 @@ function failureOf(
     return unusable === undefined ? expected : { ...expected, unusable }
   if (expected.kind === 'not-sent') {
     if (unusable === undefined) return expected
-    // A `not-sent` (`session-ended`) carries no other mark (T1).
     return expected.cause === 'session-ended'
       ? { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' }
       : { kind: 'not-sent', cause: expected.cause, unusable }
@@ -838,7 +730,6 @@ const LEGACY_FAILURE: TransportFailure = {
 const NOT_SENT_FAILURE: TransportFailure = { kind: 'not-sent', cause: 'connection-unavailable' }
 const SESSION = 'session-1'
 
-/** Polls what the peer received until a request of `method` is there. */
 async function untilSent(peer: ScriptedPeer, method: string): Promise<void> {
   for (let round = 0; round < 500; round += 1) {
     if (requests(await peer.received(), method).length > 0) return
@@ -847,7 +738,6 @@ async function untilSent(peer: ScriptedPeer, method: string): Promise<void> {
   assert.fail(`${method} was never sent`)
 }
 
-/** How one cell is run: the method on the wire, the script, and the operation. */
 type Drive = Readonly<{
   method: string
   script: (replies: readonly PeerReply[]) => PeerScript
@@ -904,7 +794,6 @@ function driveOf(request: RequestClass, fixture: TransportFixture): Drive {
   }
 }
 
-/** The script that opens a legacy Streamable HTTP session before the cell's request. */
 const SESSION_SCRIPT: PeerScript = {
   discover: METHOD_NOT_FOUND,
   initialize: {
@@ -914,7 +803,6 @@ const SESSION_SCRIPT: PeerScript = {
   },
 }
 
-/** Runs one cell: opens a peer for each part of the check and holds the transport to the row. */
 async function checkCell(
   fixture: TransportFixture,
   cell: TableCell,
@@ -960,7 +848,6 @@ async function checkCell(
             notifications(await peer.received(), 'notifications/initialized').length,
             1,
           )
-          // An answer to a notification leaves the transport as it was.
           ok(await transport.listActions(), 'listActions')
         },
       )
@@ -1151,7 +1038,6 @@ async function checkCall(
   )
 }
 
-/** The request of `method` carried the legacy session. */
 function assertSession(received: readonly PeerReceived[], method: string): void {
   const [request] = requests(received, method)
   assert.strictEqual(request?.headers?.['mcp-session-id'], SESSION, `${method}: no session id`)
@@ -1235,7 +1121,6 @@ async function checkOperation(
   }
 }
 
-/** A short text of a list for a case name. */
 function listed(items: readonly string[]): string {
   return items.length <= 3
     ? items.join(', ')
@@ -1264,7 +1149,6 @@ function conclusionText(conclusion: TableConclusion): string {
   }
 }
 
-/** One case per row of the decision table; it runs every cell of the row. */
 function tableCases(): readonly Case[] {
   return TRANSPORT_TABLE.map(row =>
     conformanceCase(
@@ -1339,7 +1223,6 @@ const t1Cases = (): readonly Case[] => [
         {},
         async (peer, transport) => {
           ok(await transport.discover(), 'discover')
-          // S07 ends the transport and leaves the call that was sent in flight (T8).
           const sent = ok(await transport.call(echo, never), 'call')
           await untilSent(peer, 'tools/call')
           assert.deepStrictEqual(await transport.listActions(), {
@@ -1370,11 +1253,9 @@ const t1Cases = (): readonly Case[] => [
           const controller = new AbortController()
           const sent = ok(await transport.call(echo, controller.signal), 'call')
           await untilSent(peer, 'tools/call')
-          // S07 ends the transport and leaves the call that was sent in flight (T8).
           assert.deepStrictEqual(await transport.listActions(), {
             failure: { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' },
           })
-          // The transport is not usable, but not closed: the stop is not this side's close (T5, T1).
           controller.abort()
           assert.deepStrictEqual(await sent.answer, {
             kind: 'no-answer',
@@ -1896,7 +1777,6 @@ const t3Cases = (): readonly Case[] => [
 ]
 
 const t4Cases = (): readonly Case[] => {
-  /** Protected resource metadata whose `resource` is the target (RFC 9728, section 3.3). */
   const metadata = (target: string, issuer: string) => ({
     resource: target,
     authorization_servers: [issuer],
@@ -2089,7 +1969,6 @@ const t4Cases = (): readonly Case[] => {
   ]
 }
 
-/** A credential handle whose `authorize` or `reportRejection` fails as the case says. */
 function failingCredential(
   fails: 'authorize-rejects' | 'authorize-throws' | 'report-rejects',
 ): HttpCredentialHandle {
@@ -2230,7 +2109,6 @@ const t5Cases = (): readonly Case[] => [
     'T5',
     'a call still being authorized when close() ran is not-sent and never reaches the peer; close() does not wait for the handle',
     async fixture => {
-      // The gate never opens: the handle hangs for ever, and the caller must not wait for it.
       const handle = heldCredential()
       await withPeer(
         fixture,
@@ -2238,7 +2116,6 @@ const t5Cases = (): readonly Case[] => [
         { credential: handle },
         async (peer, transport) => {
           const pending = transport.call(echo, never)
-          // A transport that does not ask the handle lets the call go on: the assertion catches it.
           await Promise.race([handle.reached, pending])
           await transport.close()
           assert.deepStrictEqual(await pending, {
@@ -2469,11 +2346,6 @@ const t6Cases = (): readonly Case[] => {
   ]
 }
 
-/**
- * The conformance suite of `McpTransport` and `McpTransportFactory`. Each case names the SPEC
- * clause it checks. The fixture prepares a scripted peer per case; cases that need a material
- * kind the fixture cannot open are not applicable.
- */
 export function mcpTransportConformance(): readonly ConformanceCase<TransportFixture>[] {
   return [
     ...tableCases(),

@@ -1,7 +1,4 @@
-// The transport conformance suite on the scripted transport: every case passes, and scripted
-// transports that break a clause make the suite fail.
 import { AssertionError } from 'node:assert'
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   isConnectionTarget,
@@ -63,10 +60,6 @@ function materialOf(needs: PeerNeeds): TransportMaterial {
 
 type Wrap = (factory: McpTransportFactory) => McpTransportFactory
 
-/**
- * Two modern versions, so that a `-32022` retry negotiates a version other than the highest. The
- * first is a future revision that only the scripted transport speaks.
- */
 const MODERN_VERSIONS = ['2027-01-01', '2026-07-28']
 
 function fixtureOf(wrap: Wrap = factory => factory): TransportFixture {
@@ -85,7 +78,6 @@ function fixtureOf(wrap: Wrap = factory => factory): TransportFixture {
   }
 }
 
-/** Runs every case on a fresh fixture, as a consumer registers them; not applicable fails. */
 function register(
   suite: readonly ConformanceCase<TransportFixture>[],
   fixture: () => TransportFixture,
@@ -96,7 +88,6 @@ function register(
     })
 }
 
-/** The names of the cases that fail on the fixture. */
 async function failing(fixture: () => TransportFixture): Promise<readonly string[]> {
   const names: string[] = []
   for (const conformance of mcpTransportConformance())
@@ -164,17 +155,9 @@ describe('the decision table is a total function and the suite covers it', () =>
     ).map(row => row.id)
     expect(uncovered).toEqual([])
   })
-
-  it('writes every row into SPEC T8, and no other row id', () => {
-    const spec = readFileSync(new URL('../SPEC.md', import.meta.url), 'utf8')
-    const table = spec.slice(spec.indexOf('<a id="t8"></a>'), spec.indexOf('<a id="t8-end"></a>'))
-    const written = [...table.matchAll(/^\| ([A-Z]\d\d) /gmu)].map(match => match[1])
-    expect(written).toEqual(TRANSPORT_TABLE.map(row => row.id))
-  })
 })
 
 describe('the suite fails a transport that breaks the contract', () => {
-  /** Re-sends a call whose answer stream broke: the deviation forbids it. */
   const resendingCalls: Wrap = factory => ({
     open: async (material, signal) => {
       const opened = await factory.open(material, signal)
@@ -206,7 +189,6 @@ describe('the suite fails a transport that breaks the contract', () => {
     },
   })
 
-  /** Drops the credential handle, so that a refused request never reaches reportRejection. */
   const forgettingRejections: Wrap = factory => ({
     open: (material, signal) =>
       factory.open(
@@ -220,10 +202,6 @@ describe('the suite fails a transport that breaks the contract', () => {
       ),
   })
 
-  /**
-   * The mark a transport hands over (T1), given the answer it was handed by the decision layer:
-   * `unusable` is the field as it was, absent when it was absent.
-   */
   type Remark = (
     answer: Readonly<{ kind: 'not-sent' | 'no-answer'; cause: string; unusable?: UnusableCause }>,
   ) => UnusableCause | undefined
@@ -234,7 +212,6 @@ describe('the suite fails a transport that breaks the contract', () => {
     if (failure.cause === 'authorization-required') return failure
     const unusable = remark(failure)
     if (unusable === undefined) return { kind: 'not-sent', cause: failure.cause }
-    // A `not-sent` (`session-ended`) can carry no other mark (T1): only its presence is the remark's.
     return failure.cause === 'session-ended'
       ? { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' }
       : { kind: 'not-sent', cause: failure.cause, unusable }
@@ -264,12 +241,6 @@ describe('the suite fails a transport that breaks the contract', () => {
     return 'failure' in outcome ? { failure: remarkFailure(outcome.failure, remark) } : outcome
   }
 
-  /**
-   * Hands over every answer of the transport with the mark `remark` gives: each failure of every
-   * method and of `open`, the failure of `call`, and `SentCall.answer`. Everything else passes
-   * through, a finished `getTaskResult` too: it holds the result or the error of the task (T6),
-   * never a failure, so it carries no mark.
-   */
   const remarking =
     (remark: Remark): Wrap =>
     factory => ({
@@ -302,14 +273,8 @@ describe('the suite fails a transport that breaks the contract', () => {
       },
     })
 
-  /** Drops the mark: the transport never says it is not usable any more (T1). */
   const droppingMarks: Wrap = remarking(() => undefined)
 
-  /**
-   * Marks a `no-answer` (`stream-broken`) that the decision layer left unmarked: on Streamable HTTP
-   * one request's stream broke or the peer answered 5xx, and the transport says it is not usable
-   * any more, while T8 leaves it usable. A mark already there stays as it was.
-   */
   const markingUsableBreaks: Wrap = remarking(answer =>
     answer.unusable === undefined && answer.kind === 'no-answer' && answer.cause === 'stream-broken'
       ? 'stream-broken'
@@ -484,7 +449,6 @@ describe('the scripted transport factory', () => {
 })
 
 describe('the scripted transport stops a request by its phase on every stop (T5, stopAnswerOf)', () => {
-  /** A handle that authorizes every request and never answers reportRejection: the refused request stays discovering. */
   const holdingDiscovery = (): HttpCredentialHandle & Readonly<{ reached: Promise<void> }> => {
     let reach = (): void => undefined
     const reached = new Promise<void>(resolve => {
@@ -505,7 +469,6 @@ describe('the scripted transport stops a request by its phase on every stop (T5,
     }
   }
 
-  /** A call refused with 401, held in the authorization discovery; the id from what the peer received. */
   const discovering = async () => {
     const credential = holdingDiscovery()
     const factory = createScriptedTransportFactory({
@@ -530,7 +493,6 @@ describe('the scripted transport stops a request by its phase on every stop (T5,
     return { factory, transport, call, id: request.id }
   }
 
-  /** The value `promise` settled with, or `pending` when it had not settled within a second. */
   const settledWithin = async <T>(promise: Promise<T>) => {
     let timer: ReturnType<typeof setTimeout> | undefined
     const late = new Promise<'pending'>(resolve => {

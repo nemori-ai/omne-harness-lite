@@ -1,7 +1,3 @@
-// `omne setting list|set|show|unset` (SPEC「设置命令」): the request each subcommand sends, the asset
-// selector with and without a category, the output and exit code of each result, the usage errors,
-// and a secret that never reaches standard output, standard error or the state directory. The
-// secret is a sentinel value, and every case scans every output for it.
 import { mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -12,7 +8,7 @@ import {
   type CliRuntime,
   type CredentialInput,
 } from '@omne-harness/cli'
-import { createHttpTransport } from '@omne-harness/sdk'
+import { createHttpProtocolTransport } from '@omne-harness/sdk/core'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { commandUnrecognized } from './support/expected.ts'
 import { builtBin, createSandbox, runCliAsync, type Sandbox } from './support/cli-process.ts'
@@ -20,6 +16,9 @@ import {
   closedPort,
   defaultAnswer,
   issuedProof,
+  ordinaryView,
+  secretView,
+  settingRevision,
   startFakeService,
   tenantText,
   type Answer,
@@ -29,7 +28,6 @@ import {
 import { runInProcess, type InProcessOptions } from './support/in-process.ts'
 
 const SENTINEL = 'exa-cli-sentinel-9d2c-never-printed'
-const AT = '2026-11-09T08:00:00Z'
 const WEB = { category: 'tool', name: 'Web' }
 const ITEM = 'exa.apiKey'
 
@@ -68,19 +66,27 @@ async function login(service: FakeService) {
   expect(result.code).toBe(0)
 }
 
-/** Every byte the command left where a user or another process could read it. */
 function visible(result: { stdout: string; stderr: string }): string {
   const files = readdirSync(state).map(name => readFileSync(join(state, name), 'utf8'))
   return [result.stdout, result.stderr, ...files].join('\n')
 }
 
-const wireOf = (service: FakeService, operation: string) =>
-  service.seen.filter(seen => seen.wire['operation'] === operation).at(-1)?.wire
+const seenOf = (service: FakeService, operation: string) =>
+  service.seen.filter(seen => seen.operation === operation).at(-1)
+
+const countOf = (service: FakeService, operation: string) =>
+  service.seen.filter(seen => seen.operation === operation).length
 
 const answerFor =
   (operation: string, answer: Answer) =>
   (seen: Seen): Answer | undefined =>
-    seen.wire['operation'] === operation ? answer : undefined
+    seen.operation === operation ? answer : undefined
+
+const bodies: Readonly<Record<string, unknown>> = {
+  succeeded: { revision: '9' },
+  'not-writable': { reason: 'locked' },
+}
+const bodyOf = (outcome: string): unknown => bodies[outcome] ?? {}
 
 describe('setting set', () => {
   it('reads the secret, sets it for the acting tenant and prints no secret', async () => {
@@ -89,19 +95,66 @@ describe('setting set', () => {
     const result = await cli(['setting', 'set', 'tool:Web', ITEM])
     expect(result.code).toBe(0)
     expect(result.credentialReads).toBe(1)
-    expect(wireOf(service, 'set-setting')).toMatchObject({
-      loginProof: issuedProof,
-      actingTenant: tenantText,
-      body: { asset: WEB, item: ITEM, secret: SENTINEL },
+    const sent = seenOf(service, 'set-setting')
+    expect(sent?.path).toBe('/api/assets/v1/set-setting')
+    expect(sent?.headers['authorization']).toBe(`Bearer ${issuedProof}`)
+    expect(sent?.headers['omne-acting-tenant']).toBeUndefined()
+    expect(sent?.body).toEqual({
+      tenant: tenantText,
+      asset: WEB,
+      item: ITEM,
+      operation: expect.any(String),
+      expectedRevision: settingRevision,
+      value: { kind: 'secret', secret: SENTINEL },
     })
     const printed = JSON.parse(result.stdout)
     expect(printed).toEqual({
       result: 'response',
       outcome: 'succeeded',
-      body: { configuredAt: AT },
-      request: { messageId: expect.any(String), tenant: tenantText },
+      body: { revision: String(Number(settingRevision) + 1) },
+      request: { messageId: sent?.messageId, tenant: tenantText },
     })
     expect(result.stderr).toBe('')
+    expect(visible(result)).not.toContain(SENTINEL)
+  })
+
+  it('reads the item first and writes with the revision it read', async () => {
+    const service = await serve(
+      answerFor('describe-setting', {
+        outcome: 'succeeded',
+        body: { item: { ...secretView, revision: '41' } },
+      }),
+    )
+    await login(service)
+    const result = await cli(['setting', 'set', 'tool:Web', ITEM])
+    expect(result.code).toBe(0)
+    const operations = service.seen.map(seen => seen.operation)
+    expect(operations.slice(-2)).toEqual(['describe-setting', 'set-setting'])
+    expect(seenOf(service, 'describe-setting')?.body).toEqual({
+      tenant: tenantText,
+      asset: WEB,
+      item: ITEM,
+    })
+    expect(seenOf(service, 'set-setting')?.body).toMatchObject({ expectedRevision: '41' })
+  })
+
+  it('reports a revision conflict as it is and does not write again', async () => {
+    const service = await serve(answerFor('set-setting', { outcome: 'conflict', body: {} }))
+    await login(service)
+    const result = await cli(['setting', 'set', 'tool:Web', ITEM])
+    expect(result.code).toBe(3)
+    expect(JSON.parse(result.stdout)).toMatchObject({ result: 'response', outcome: 'conflict' })
+    expect(countOf(service, 'set-setting')).toBe(1)
+    expect(countOf(service, 'describe-setting')).toBe(1)
+  })
+
+  it('does not write when the item cannot be read, and reports why', async () => {
+    const service = await serve(answerFor('describe-setting', { outcome: 'not-visible', body: {} }))
+    await login(service)
+    const result = await cli(['setting', 'set', 'tool:Web', ITEM])
+    expect(result.code).toBe(3)
+    expect(JSON.parse(result.stdout)).toMatchObject({ result: 'response', outcome: 'not-visible' })
+    expect(countOf(service, 'set-setting')).toBe(0)
     expect(visible(result)).not.toContain(SENTINEL)
   })
 
@@ -119,7 +172,7 @@ describe('setting set', () => {
       expect(result.credentialReads).toBe(0)
       expect(result.stdout + result.stderr).not.toContain(SENTINEL)
     }
-    expect(wireOf(service, 'set-setting')).toBeUndefined()
+    expect(seenOf(service, 'set-setting')).toBeUndefined()
   })
 
   it('an empty secret is a usage error and sends nothing', async () => {
@@ -130,7 +183,7 @@ describe('setting set', () => {
     })
     expect(result.code).toBe(2)
     expect(result.stderr).toBe('omne: empty secret\n')
-    expect(wireOf(service, 'set-setting')).toBeUndefined()
+    expect(seenOf(service, 'set-setting')).toBeUndefined()
   })
 
   it('without a login it reads no secret', async () => {
@@ -143,12 +196,13 @@ describe('setting set', () => {
     ['denied', 3],
     ['not-visible', 3],
     ['conflict', 3],
+    ['invalid', 3],
     ['not-writable', 3],
-    ['stage-not-provided', 3],
+    ['no-change', 0],
     ['basis-unavailable', 4],
     ['unknown', 5],
   ] as const)('a %s answer exits %i and prints no secret', async (outcome, code) => {
-    const service = await serve(answerFor('set-setting', { outcome, body: {} }))
+    const service = await serve(answerFor('set-setting', { outcome, body: bodyOf(outcome) }))
     await login(service)
     const result = await cli(['setting', 'set', 'Web', ITEM])
     expect(result.code).toBe(code)
@@ -163,7 +217,6 @@ describe('setting set', () => {
     let stdout = ''
     let stderr = ''
     const listeners = new Map<string, (chunk?: string) => void>()
-    // A terminal that turns echo off when asked and types the secret once reading starts.
     const terminal: CredentialInput = {
       isTTY: true,
       setRawMode: mode => modes.push(mode),
@@ -186,7 +239,8 @@ describe('setting set', () => {
       homeDirectory: join(root, 'home'),
       environmentServer: undefined,
       services: {
-        createTransport: (origin, location) => createHttpTransport({ origin, location }),
+        createTransport: (origin, credentials) =>
+          createHttpProtocolTransport({ origin, credentials }),
         readCredential: prompt => readCredential(terminal, prompt),
         newId: () => `id-${(counter += 1)}`,
       },
@@ -206,7 +260,9 @@ describe('setting set', () => {
     expect(code).toBe(0)
     expect(modes).toEqual([true, false])
     expect(stderr).toBe('Credential: \n')
-    expect(wireOf(service, 'set-setting')).toMatchObject({ body: { secret: SENTINEL } })
+    expect(seenOf(service, 'set-setting')?.body).toMatchObject({
+      value: { kind: 'secret', secret: SENTINEL },
+    })
     expect(stdout + stderr).not.toContain(SENTINEL)
   })
 })
@@ -228,7 +284,7 @@ describe('the asset selector', () => {
       expect(result.code, args.join(' ')).toBe(0)
     }
     for (const operation of ['describe-setting', 'clear-setting', 'list-settings']) {
-      const body = wireOf(service, operation)?.['body'] as Record<string, unknown>
+      const body = seenOf(service, operation)?.body as Record<string, unknown>
       expect(body['asset'], operation).toEqual(expected)
       expect(Object.hasOwn(body['asset'] as object, 'category'), operation).toBe(
         'category' in expected,
@@ -242,7 +298,7 @@ describe('the asset selector', () => {
     const result = await cli(['setting', 'show', asset, ITEM])
     expect(result.code).toBe(2)
     expect(result.stderr).toBe(commandUnrecognized('setting show'))
-    expect(wireOf(service, 'describe-setting')).toBeUndefined()
+    expect(seenOf(service, 'describe-setting')).toBeUndefined()
   })
 })
 
@@ -253,27 +309,42 @@ describe('setting show', () => {
     const result = await cli(['setting', 'show', 'Web', ITEM])
     expect(result.code).toBe(0)
     expect(result.credentialReads).toBe(0)
-    expect(wireOf(service, 'describe-setting')).toMatchObject({
-      actingTenant: tenantText,
-      body: { asset: { name: 'Web' }, item: ITEM },
-    })
-    expect(result.stdout).toBe(`Your key: set (configured at ${AT})\nDeployment default: not set\n`)
+    const sent = seenOf(service, 'describe-setting')
+    expect(sent?.path).toBe('/api/assets/v1/describe-setting')
+    expect(sent?.body).toEqual({ tenant: tenantText, asset: { name: 'Web' }, item: ITEM })
+    expect(result.stdout).toBe('Your key: set\nDeployment default: not set\n')
   })
 
   it.each([
-    [{ state: 'unbound' }, { state: 'usable' }, 'Your key: not set\nDeployment default: set\n'],
+    ['unset', 'available', 'Your key: not set\nDeployment default: set\n'],
     [
-      { state: 'revoked', tenantId: tenantText },
-      { state: 'unreadable', configuredAt: '2026-01-01T00:00:00.000Z' },
-      'Your key: set, but revoked\nDeployment default: set, but it cannot be read (configured at 2026-01-01T00:00:00.000Z)\n',
+      'revoked',
+      'unreadable',
+      'Your key: set, but revoked\nDeployment default: set, but it cannot be read\n',
     ],
   ] as const)('words each layer by its state', async (own, official, lines) => {
     const service = await serve(
-      answerFor('describe-setting', { outcome: 'succeeded', body: { own, official } }),
+      answerFor('describe-setting', {
+        outcome: 'succeeded',
+        body: { item: { ...secretView, own, official } },
+      }),
     )
     await login(service)
     const result = await cli(['setting', 'show', 'Web', ITEM])
     expect(result.stdout).toBe(lines)
+  })
+
+  it('says so for an item that is not a secret', async () => {
+    const service = await serve(
+      answerFor('describe-setting', {
+        outcome: 'succeeded',
+        body: { item: ordinaryView },
+      }),
+    )
+    await login(service)
+    const result = await cli(['setting', 'show', 'Web', ITEM])
+    expect(result.code).toBe(0)
+    expect(result.stdout).toBe('Not a secret setting (ordinary). Add --json to read it.\n')
   })
 
   it('prints the result object with --json', async () => {
@@ -284,26 +355,21 @@ describe('setting show', () => {
     expect(JSON.parse(result.stdout)).toEqual({
       result: 'response',
       outcome: 'succeeded',
-      body: {
-        own: { state: 'usable', tenantId: tenantText, configuredAt: AT },
-        official: { state: 'unbound' },
-      },
+      body: { item: secretView },
       request: { messageId: expect.any(String), tenant: tenantText },
     })
   })
 
   it('names a non-success outcome and exits by it', async () => {
-    const service = await serve(
-      answerFor('describe-setting', { outcome: 'not-writable', body: {} }),
-    )
+    const service = await serve(answerFor('describe-setting', { outcome: 'not-visible', body: {} }))
     await login(service)
     const result = await cli(['setting', 'show', 'Web', ITEM])
     expect(result.code).toBe(3)
-    expect(result.stdout).toBe('Result: not-writable\n')
+    expect(result.stdout).toBe('Result: not-visible\n')
     expect(result.stderr).toBe('')
   })
 
-  it('prints an uncertain result and exits 5 when the service is not running', async () => {
+  it('prints an unavailable result and exits 4 when the service is not running', async () => {
     const service = await serve()
     await login(service)
     const port = await closedPort()
@@ -315,6 +381,15 @@ describe('setting show', () => {
       '--server',
       `http://127.0.0.1:${port}`,
     ])
+    expect(result.code).toBe(4)
+    expect(result.stdout).toBe('Result: unavailable\n')
+    expect(result.stderr).toBe('')
+  })
+
+  it('prints an uncertain result and exits 5 when the answer cannot be trusted', async () => {
+    const service = await serve(answerFor('describe-setting', { outcome: 'unknown', body: {} }))
+    await login(service)
+    const result = await cli(['setting', 'show', 'Web', ITEM])
     expect(result.code).toBe(5)
     expect(result.stdout).toBe('Result: uncertain\n')
     expect(result.stderr).toBe('omne setting show: result uncertain\n')
@@ -326,17 +401,38 @@ describe('setting unset', () => {
     ['succeeded', 0],
     ['no-change', 0],
     ['denied', 3],
+    ['conflict', 3],
     ['unknown', 5],
   ] as const)('answers %s with exit %i', async (outcome, code) => {
-    const service = await serve(answerFor('clear-setting', { outcome, body: {} }))
+    const body = bodyOf(outcome)
+    const service = await serve(answerFor('clear-setting', { outcome, body }))
     await login(service)
     const result = await cli(['setting', 'unset', 'Web', ITEM])
     expect(result.code).toBe(code)
-    expect(JSON.parse(result.stdout)).toMatchObject({ outcome, body: {} })
-    expect(wireOf(service, 'clear-setting')).toMatchObject({
-      body: { asset: { name: 'Web' }, item: ITEM },
+    expect(JSON.parse(result.stdout)).toMatchObject({ outcome, body })
+    const sent = seenOf(service, 'clear-setting')
+    expect(sent?.path).toBe('/api/assets/v1/clear-setting')
+    expect(sent?.body).toEqual({
+      tenant: tenantText,
+      asset: { name: 'Web' },
+      item: ITEM,
+      operation: expect.any(String),
+      expectedRevision: settingRevision,
     })
+    expect(countOf(service, 'clear-setting')).toBe(1)
     expect(result.credentialReads).toBe(0)
+  })
+
+  it('writes with the revision it read', async () => {
+    const service = await serve(
+      answerFor('describe-setting', {
+        outcome: 'succeeded',
+        body: { item: { ...secretView, revision: '17' } },
+      }),
+    )
+    await login(service)
+    await cli(['setting', 'unset', 'Web', ITEM])
+    expect(seenOf(service, 'clear-setting')?.body).toMatchObject({ expectedRevision: '17' })
   })
 })
 
@@ -346,16 +442,72 @@ describe('setting list', () => {
     await login(service)
     const all = await cli(['setting', 'list'])
     expect(all.code).toBe(0)
-    expect(wireOf(service, 'list-settings')).toMatchObject({ actingTenant: tenantText, body: {} })
+    const first = seenOf(service, 'list-settings')
+    expect(first?.path).toBe('/api/assets/v1/list-settings')
+    expect(first?.body).toEqual({ tenant: tenantText, after: null, limit: 100 })
     const printed = JSON.parse(all.stdout)
     expect(printed).toMatchObject({ result: 'response', outcome: 'succeeded' })
     expect(printed.body.items).toContainEqual(
-      expect.objectContaining({ asset: WEB, item: ITEM, sensitivity: 'secret' }),
+      expect.objectContaining({ asset: WEB, item: ITEM, kind: 'secret' }),
     )
     expect(printed.body.completeness).toBe('complete')
     const one = await cli(['setting', 'list', 'tool:Web'])
     expect(one.code).toBe(0)
-    expect(wireOf(service, 'list-settings')).toMatchObject({ body: { asset: WEB } })
+    expect(seenOf(service, 'list-settings')?.body).toMatchObject({ asset: WEB })
+  })
+
+  const page = (items: unknown[], next: string | null, completeness = 'complete') => ({
+    outcome: 'succeeded',
+    body: { items, next, completeness },
+  })
+
+  it('reads every page, carrying the cursor of the page before', async () => {
+    const pages = [
+      page([{ ...secretView, item: 'one' }], 'c1'),
+      page([{ ...secretView, item: 'two' }], 'c2', 'partial'),
+      page([{ ...secretView, item: 'three' }], null),
+    ]
+    const service = await serve(seen => {
+      if (seen.operation !== 'list-settings') return undefined
+      return pages[service.seen.filter(item => item.operation === 'list-settings').length - 1]
+    })
+    await login(service)
+    const result = await cli(['setting', 'list'])
+    expect(result.code).toBe(0)
+    const sent = service.seen.filter(seen => seen.operation === 'list-settings')
+    expect(sent.map(seen => seen.body['after'])).toEqual([null, 'c1', 'c2'])
+    expect(new Set(sent.map(seen => seen.messageId)).size).toBe(3)
+    const printed = JSON.parse(result.stdout)
+    expect(printed.body.items.map((item: { item: string }) => item.item)).toEqual([
+      'one',
+      'two',
+      'three',
+    ])
+    expect(printed.body.completeness).toBe('partial')
+    expect(printed.request).toEqual({ messageId: sent[0]?.messageId, tenant: tenantText })
+  })
+
+  it('stops at a page that is not a success and reports its outcome', async () => {
+    const service = await serve(seen => {
+      if (seen.operation !== 'list-settings') return undefined
+      const count = service.seen.filter(item => item.operation === 'list-settings').length
+      return count === 1 ? page([secretView], 'c1') : { outcome: 'conflict', body: {} }
+    })
+    await login(service)
+    const result = await cli(['setting', 'list'])
+    expect(result.code).toBe(3)
+    expect(JSON.parse(result.stdout)).toMatchObject({ outcome: 'conflict', body: {} })
+    expect(countOf(service, 'list-settings')).toBe(2)
+  })
+
+  it('exits 1 when a page does not advance the cursor', async () => {
+    const service = await serve(answerFor('list-settings', page([secretView], 'same')))
+    await login(service)
+    const result = await cli(['setting', 'list'])
+    expect(result.code).toBe(1)
+    expect(result.stdout).toBe('')
+    expect(result.stderr).toBe('omne setting list: a page did not advance the cursor\n')
+    expect(countOf(service, 'list-settings')).toBe(2)
   })
 })
 
@@ -399,8 +551,9 @@ describe('usage errors', () => {
     await login(service)
     const result = await cli(['setting', 'show', '--server', service.origin, 'Web', ITEM])
     expect(result.code).toBe(0)
-    expect(wireOf(service, 'describe-setting')).toMatchObject({
-      body: { asset: { name: 'Web' }, item: ITEM },
+    expect(seenOf(service, 'describe-setting')?.body).toMatchObject({
+      asset: { name: 'Web' },
+      item: ITEM,
     })
   })
 })
@@ -413,7 +566,6 @@ describe('the built bin', () => {
   afterAll(() => sandbox.remove())
 
   it('reads the secret from a pipe and writes it nowhere', { tags: ['slow'] }, async () => {
-    // Slow: it spawns the built bin twice.
     expect(builtBin).toContain('dist')
     const service = await serve()
     const home = join(sandbox.root, 'omne-home')
@@ -429,7 +581,9 @@ describe('the built bin', () => {
       stdin: `${SENTINEL}\n`,
     })
     expect(result.status).toBe(0)
-    expect(wireOf(service, 'set-setting')).toMatchObject({ body: { secret: SENTINEL } })
+    expect(seenOf(service, 'set-setting')?.body).toMatchObject({
+      value: { kind: 'secret', secret: SENTINEL },
+    })
     const files = readdirSync(home).map(name => readFileSync(join(home, name), 'utf8'))
     expect([result.stdout, result.stderr, ...files].join('\n')).not.toContain(SENTINEL)
   })

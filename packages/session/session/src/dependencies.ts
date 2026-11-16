@@ -1,5 +1,3 @@
-// The factory dependencies (docs/public-api.md「依赖」). Three classes: start conditions that must be
-// present at construction, ports that each command needs, and ports resolved at each call.
 import type {
   AgentDrivePort,
   DurableEvidence,
@@ -19,17 +17,14 @@ import type {
   WorkSnapshot,
 } from '@omne-harness/session-contract'
 
-/** Resolves a port at the call site. Null means that the port is absent now. */
 export type Current<T> = Readonly<{ current(): T | null }>
 
-/** One before-admit slot (SPEC EX-1). The slot owner defines its meaning. */
 export type BeforeAdmitSlot = Readonly<{
   name: string
   run(
     input: Readonly<{
       submission: RoutedInput
       source: DurableEvidence
-      /** The slot reads the current modes, purpose and workspace selection from this snapshot. */
       snapshot: WorkSnapshot
     }>,
   ): Promise<
@@ -39,12 +34,9 @@ export type BeforeAdmitSlot = Readonly<{
 }>
 
 export type SessionDependencies<P> = Readonly<{
-  /** Required dependencies. The face checks once and then works through a delegated view. */
   accessCheck: SessionAccessCheck<P>
   transactions: SessionDelegatedTransactions<P>
-  /** The per-session principal of a coordinator or maintainer (SPEC CP-01). */
   workPrincipals: SessionWorkPrincipals<P>
-  /** The public port, only for pending, references and releasedScopes. Its methods check once. */
   directory: Current<SessionTransactionPort<P>>
   identity: SessionIdentityBridge<P>
   evidence: SessionEvidenceBridge<P>
@@ -53,13 +45,10 @@ export type SessionDependencies<P> = Readonly<{
   context: SessionContextInput<P>
   agentDrive: Current<AgentDrivePort>
   scopeRelease: Current<ScopeReleasePort>
-  /** Principals for system maintenance only. The identity bridge verifies them. */
   principals: SessionInternalPrincipals<P>
-  /** Ordered before-admit slots. null means admission is unavailable, so accept returns unavailable. An empty list, given only when the assembly declares no command domain and no hooks, makes accept run without slots. */
   admission: Current<readonly BeforeAdmitSlot[]>
 }>
 
-/** A start condition that is absent: the factory constructs nothing. */
 export class SessionDependencyError extends Error {
   readonly dependency: string
   constructor(dependency: string) {
@@ -77,11 +66,6 @@ function hasMethod(value: unknown, method: string): boolean {
   )
 }
 
-/**
- * Checks the start conditions before anything is built or called (SPEC「资源与替换」): the access
- * check, the delegated entry, the work principals and the internal principals. The other ports
- * answer `unavailable` per operation when they are absent, so they do not stop construction.
- */
 export function checkStartConditions<P>(dependencies: SessionDependencies<P>): void {
   const given: unknown = dependencies
   if (typeof given !== 'object' || given === null) throw new SessionDependencyError('dependencies')

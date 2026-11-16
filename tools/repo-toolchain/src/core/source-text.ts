@@ -1,13 +1,8 @@
-// 文本规则共用的词法视图：不做类型分析，只把注释与字面量的内容从「代码」里分出来，
-// 让规则不被注释里的示例、字符串里的字样误报，也让括号配对不被字面量里的括号打乱。
-// 两个视图与原文等长、换行位置不变，所以任一视图里的下标都能直接换算成原文的行号。
 import { dirname, join, normalize } from 'node:path/posix'
 import type { SourceFile, Violation } from './rule.ts'
 
 export interface Views {
-  /** 注释换成空格；字符串、模板、正则字面量原样保留。 */
   readonly code: string
-  /** 在 `code` 的基础上把字面量的**内容**换成空格（引号、反引号、`${`/`}` 与正则的斜杠保留）。 */
   readonly skeleton: string
 }
 
@@ -50,10 +45,8 @@ export function analyse(text: string): Views {
   const blankLiteral = (i: number) => {
     if (text[i] !== '\n' && text[i] !== '\r') skeleton[i] = ' '
   }
-  /** 花括号栈：`template` 表示这个 `}` 关闭的是模板里的 `${`，之后回到模板正文。 */
   const braces: ('brace' | 'template')[] = []
 
-  /** 从模板正文的 `start` 起扫：遇到收尾反引号返回其后一位；遇到 `${` 入栈并返回 `{` 之后一位。 */
   const scanTemplate = (start: number): number => {
     let j = start
     while (j < n) {
@@ -75,7 +68,6 @@ export function analyse(text: string): Views {
     return n
   }
 
-  /** 回看上一个有效字符，判断 `/` 起的是正则字面量还是除号。 */
   const regexAllowed = (at: number): boolean => {
     let k = at - 1
     while (k >= 0 && /\s/.test(code[k] ?? '')) k--
@@ -89,7 +81,6 @@ export function analyse(text: string): Views {
     return !DIVISION_BEFORE.test(prev)
   }
 
-  /** 正则字面量在同一行内的收尾斜杠位置；找不到（跨行）返回 -1，按除号处理。 */
   const regexEnd = (start: number): number => {
     let j = start + 1
     let inClass = false
@@ -168,14 +159,12 @@ export function analyse(text: string): Views {
   return { code: code.join(''), skeleton: skeleton.join('') }
 }
 
-/** 下标 → 1 起的行号。 */
 export function lineAt(text: string, index: number): number {
   let line = 1
   for (let k = 0; k < index && k < text.length; k++) if (text[k] === '\n') line++
   return line
 }
 
-/** `skeleton[open]` 是 `(`／`[`／`{` 时，返回与它配对的收括号下标；配不上返回 -1。 */
 export function matchClose(skeleton: string, open: number): number {
   let depth = 0
   for (let k = open; k < skeleton.length; k++) {
@@ -189,7 +178,6 @@ export function matchClose(skeleton: string, open: number): number {
   return -1
 }
 
-/** 调用的实参列表 `(`…`)` 里第一个顶层实参的原文范围（已去掉首尾空白）；没有实参返回 undefined。 */
 export function firstArgument(
   views: Views,
   open: number,
@@ -214,16 +202,11 @@ export function firstArgument(
   return { start, end, text: views.code.slice(start, end) }
 }
 
-/** 这个下标处的字符是代码，不在注释或字面量内容里。 */
 export function isCode(views: Views, index: number): boolean {
   const ch = views.skeleton[index]
   return ch !== undefined && ch !== ' ' && ch === views.code[index]
 }
 
-/**
- * 在代码视图上跑正则，只留起点落在代码里的命中（注释与字面量内容里的字样不算）。
- * 「起点」取命中里第一个非空白字符：以行首缩进开头的模式（方法头）也照常判。
- */
 export function* codeMatches(views: Views, pattern: RegExp): Generator<RegExpExecArray> {
   const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`
   const re = new RegExp(pattern.source, flags)
@@ -234,7 +217,6 @@ export function* codeMatches(views: Views, pattern: RegExp): Generator<RegExpExe
   }
 }
 
-/** 对 `include(path)` 为真的文件，在代码视图上逐个命中报违反（注释里的字样不算）。 */
 export function scanCode(
   rule: string,
   files: readonly SourceFile[],
@@ -252,7 +234,6 @@ export function scanCode(
   return out
 }
 
-/** 一段原文若恰是一个不含插值的字符串字面量，返回其内容；否则 undefined。 */
 export function stringLiteralValue(text: string): string | undefined {
   const m = /^(['"])((?:\\.|(?!\1)[^\\\n])*)\1$/.exec(text) ?? /^`([^`$\\]*)`$/.exec(text)
   if (m === null) return undefined
@@ -260,12 +241,10 @@ export function stringLiteralValue(text: string): string | undefined {
 }
 
 export interface ImportRef {
-  /** 模块说明符；动态 `import(x)`／`require(x)` 的实参不是字面量时为 undefined。 */
   readonly specifier: string | undefined
   readonly index: number
 }
 
-/** 静态 import／export-from、副作用 import、动态 `import(…)` 与 `require(…)`。 */
 export function importsOf(file: SourceFile): ImportRef[] {
   const views = viewsOf(file)
   const out: ImportRef[] = []
@@ -276,7 +255,6 @@ export function importsOf(file: SourceFile): ImportRef[] {
     out.push({ specifier: m[2], index: m.index })
   }
   for (const m of codeMatches(views, /\b(?:import|require)\s*\(/)) {
-    // `x.import(`／`x.require(` 是方法，不是模块加载
     if (m.index > 0 && views.code[m.index - 1] === '.') continue
     const arg = firstArgument(views, m.index + m[0].length - 1)
     out.push({ specifier: arg && stringLiteralValue(arg.text), index: m.index })
@@ -285,16 +263,12 @@ export function importsOf(file: SourceFile): ImportRef[] {
 }
 
 export interface NamedImport {
-  /** 在本文件里使用的名字。 */
   readonly local: string
-  /** 被导入的名字；命名空间导入为 `*`，默认导入为 `default`。 */
   readonly imported: string
   readonly specifier: string
-  /** import 语句的起点。 */
   readonly index: number
 }
 
-/** 静态 import 语句绑定的本地名字。 */
 export function namedImportsOf(file: SourceFile): NamedImport[] {
   const views = viewsOf(file)
   const out: NamedImport[] = []
@@ -326,30 +300,22 @@ export function namedImportsOf(file: SourceFile): NamedImport[] {
   return out
 }
 
-/** 相对说明符按文件位置解析成扫描根下的路径；非相对的原样返回 undefined。 */
 export function resolveRelative(fromPath: string, specifier: string): string | undefined {
   if (!specifier.startsWith('./') && !specifier.startsWith('../')) return undefined
   return normalize(join(dirname(fromPath), specifier))
 }
 
-/** 去掉模块扩展名，便于把 `./x.ts`、`./x.js`、`./x` 当成同一个模块比对。 */
 export function withoutExtension(path: string): string {
   return path.replace(/\.(?:ts|js|mts|mjs|cts|cjs)$/, '')
 }
 
 export interface FunctionBody {
   readonly name: string
-  /** 返回类型标注的原文（没有标注为空串）。 */
   readonly returnType: string
-  /** 函数体 `{` 与配对 `}` 的下标。 */
   readonly open: number
   readonly close: number
 }
 
-/**
- * 找出有块体的函数：函数声明、类方法与对象方法、赋给名字的箭头函数与函数表达式。
- * 无名的回调（例如 `storage.write(async tx => { … })`）不在这里，由 {@link blockBodies} 覆盖。
- */
 export function namedFunctionBodies(file: SourceFile): FunctionBody[] {
   const views = viewsOf(file)
   const out: FunctionBody[] = []
@@ -377,7 +343,6 @@ export function namedFunctionBodies(file: SourceFile): FunctionBody[] {
 
 const KEYWORDS = new Set(['if', 'for', 'while', 'switch', 'catch', 'with', 'return', 'function'])
 
-/** 形参 `)` 之后：可选的返回类型，然后是 `{`（或箭头 `=> {`）。不是块体返回 undefined。 */
 function bodyAfterParams(
   views: Views,
   paramsClose: number,
@@ -412,7 +377,6 @@ function bodyAfterParams(
   return { returnType, open: k, close }
 }
 
-/** `index` 落在 `body` 之内、且不在它里面嵌套的另一个函数体之内。 */
 export function inOwnBody(
   body: { readonly open: number; readonly close: number },
   nested: readonly { readonly open: number; readonly close: number }[],
@@ -424,7 +388,6 @@ export function inOwnBody(
   )
 }
 
-/** 全部箭头函数与函数表达式的块体范围（含无名回调），用于把嵌套函数从外层函数体里扣掉。 */
 export function blockBodies(file: SourceFile): { readonly open: number; readonly close: number }[] {
   const views = viewsOf(file)
   const out: { open: number; close: number }[] = []

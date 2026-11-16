@@ -1,6 +1,3 @@
-// `describe` through the public service: the two material states, the basis of a described
-// material, and that `describe` reads no bytes. The non-disclosure paths are checked by the
-// conformance suite in `conformance.spec.ts` on two worlds.
 import { describe, expect, it } from 'vitest'
 import { isPackageDigest } from '@omne-harness/skill-contract'
 import {

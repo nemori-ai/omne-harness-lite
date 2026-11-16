@@ -1,6 +1,4 @@
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
-// Legal Tool values that the conformance suites and their non-durable doubles build. The suites
-// take identity from the fixture (`Access`), so no value here names a caller or a tenant.
 import { createHash } from 'node:crypto'
 import type { BlockId, ContentBlock } from '@omne-harness/content-block'
 import {
@@ -30,7 +28,6 @@ import type { ToolStartRecord } from './ports.ts'
 import type { PreparationRecord, ReleaseRecord, StartPermit, WaitIntent } from './records.ts'
 import type { ToolResult } from './results.ts'
 
-/** The owner named in every evidence that a double mints. */
 export const TESTING_OWNER = '@omne-harness/tool-contract/testing'
 
 export function adoption(name: string): Adoption {
@@ -45,21 +42,14 @@ export function digestOf(value: unknown): string {
   return `sha256:${createHash('sha256').update(JSON.stringify(value)).digest('hex')}`
 }
 
-/** An evidence that a double mints; its digest follows `content`, so other content, other digest. */
 export function mintEvidence(record: string, content: unknown): DurableEvidence {
   return { owner: TESTING_OWNER, record, revision: '1', digest: digestOf(content) }
 }
 
-/** The text of a tenant, so a double can key its records by it. */
 export function tenantKey(tenant: TenantId): string {
   return JSON.stringify([tenant.organization.text, tenant.account.text])
 }
 
-/**
- * The values that identify a record of `tenant` to a cross-tenant case: the `TenantId` itself, the
- * texts of its organization and its account, and the record and digest of each evidence. What the
- * other tenant sent itself is given to the check apart, as `submitted`, and is not looked for.
- */
 export function identifyingValues(
   tenant: TenantId,
   ...evidences: readonly DurableEvidence[]
@@ -72,11 +62,6 @@ export function identifyingValues(
   ]
 }
 
-/**
- * Mints a real legal-identity tenant for a test: both halves must be legal atomic texts
- * (`org_`/`acc_` plus the 26-character body). A reference can be encoded only for a minted
- * tenant, so a test of the reference paths builds its tenants here, not as shaped objects.
- */
 export function testingTenant(organization: string, account: string): TenantId {
   const org = organizationCodec.parse(organization)
   const acc = accountCodec.parse(account)
@@ -84,27 +69,17 @@ export function testingTenant(organization: string, account: string): TenantId {
   return composeTenant(org.value, acc.value)
 }
 
-/**
- * The tenant text of a value that legal-identity minted, or null for anything else (an object of
- * the same shape, a copy through JSON or `structuredClone`, or a non-object). A double in a Tool
- * member without a legal-identity dependency uses it to answer a forged tenant as denied.
- */
 export function testingTenantText(tenant: unknown): string | null {
   const encoded = tenantCodec.encode(tenant as TenantId)
   return encoded.ok ? encoded.value : null
 }
 
-/** Mints a real legal-identity workspace for a test: `wsp_` plus the 26-character body. */
 export function testingWorkspace(text: string): WorkspaceId {
   const parsed = workspaceCodec.parse(text)
   if (!parsed.ok) throw new Error(`illegal test workspace text: ${text}`)
   return parsed.value
 }
 
-// Each access mints its tenant when it is built, not when the module loads: an illegal text then
-// fails the case that uses it instead of the import of every suite.
-
-/** The access of the tenant that the in-memory fixtures use. */
 export function memoryAccess<P>(principal: P): Access<P> {
   return {
     principal,
@@ -112,10 +87,6 @@ export function memoryAccess<P>(principal: P): Access<P> {
   }
 }
 
-/**
- * The access of a second tenant, with a principal of its own, for the cross-tenant cases of the
- * in-memory fixtures. Its tenant and its principal both differ from those of `memoryAccess`.
- */
 export function memoryOtherAccess<P>(principal: P): Access<P> {
   return {
     principal,
@@ -134,7 +105,6 @@ export const operationId = (text: string): ToolOperationId =>
 export const waitId = (text: string): ToolWaitId => minted(decodeToolWaitId(text), text)
 export const instanceId = (): ToolInstanceId => minted(decodeToolInstanceId('instance-1'), 'inst')
 
-/** A fixed request that the contract judge accepts. */
 export function fixedRequest(): FixedToolRequest {
   return {
     availability: {
@@ -201,7 +171,6 @@ export function fixedRequest(): FixedToolRequest {
   }
 }
 
-/** The first start record of `call`; its start operation is `<call>/start`. */
 export function startRecord(
   access: Access<unknown>,
   call: ToolCallId,
@@ -214,7 +183,6 @@ export function startRecord(
   }
 }
 
-/** A permit that a binding double accepts: it names the start, and it holds no guard. */
 export function syntheticPermit(
   access: Access<unknown>,
   call: ToolCallId,
@@ -266,7 +234,6 @@ export function releaseRecord(
   }
 }
 
-/** A result with one text block, for the custody retention cases. */
 export function textResult(text: string): ToolResult<ContentBlock> {
   return {
     content: [
@@ -283,13 +250,8 @@ export function textResult(text: string): ToolResult<ContentBlock> {
   }
 }
 
-/** A deadline far in the future, so a provider with a real clock does not consider it reached. */
 export const FAR_DEADLINE = '2099-12-31T23:59:59.000Z'
 
-/**
- * A resource wait of `wait`. `deadline` is an instant or `null` (no expiry is scheduled), and
- * `expiry` is what the fixed wait protocol allows.
- */
 export function resourceWait(
   wait: string,
   options: Readonly<{ deadline?: string | null; expiry?: 'forbidden' | 'supported' }> = {},

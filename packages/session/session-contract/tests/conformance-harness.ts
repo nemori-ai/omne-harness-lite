@@ -1,7 +1,3 @@
-// The self-proof harness of the conformance suite. It runs every case of a suite on a fresh
-// fixture and sorts the outcome: passed, not applicable, failed by an assertion. Any other error is
-// rethrown, because a violating variant must be caught by an assertion, not by a crash. The shape
-// follows the harness of tool-contract.
 import { AssertionError } from 'node:assert/strict'
 import { expect, it } from 'vitest'
 import { isNotApplicable, type ConformanceCase } from '@omne-harness/session-contract/testing'
@@ -33,7 +29,6 @@ export async function judge<F>(
   return { passed, failed, notApplicable }
 }
 
-/** A case table entry: the variant, and the names of the cases that it must make fail. */
 export type Variant<F> = Readonly<{
   name: string
   fails: readonly string[]
@@ -41,13 +36,11 @@ export type Variant<F> = Readonly<{
   fixture: () => F
 }>
 
-/** Every case name of a suite is unique and names a clause. */
 export function expectWellFormed<F>(cases: readonly ConformanceCase<F>[]): void {
   expect(new Set(cases.map(item => item.name)).size).toBe(cases.length)
   for (const item of cases) expect(item.clause.length).toBeGreaterThan(0)
 }
 
-/** Every case fails under at least one variant, so none of them is a check that cannot fail. */
 export function expectEveryCaseIsCaught<F>(
   cases: readonly ConformanceCase<F>[],
   variants: readonly Variant<F>[],
@@ -58,7 +51,6 @@ export function expectEveryCaseIsCaught<F>(
   expect([...caught].filter(name => !known.has(name))).toEqual([])
 }
 
-/** One test per variant: the verdict of the variant is exactly its table entry. */
 export function itFailsExactly<F>(
   cases: readonly ConformanceCase<F>[],
   variants: readonly Variant<F>[],
@@ -77,7 +69,6 @@ export type LegalProvider<F> = Readonly<{
   notApplicable?: Readonly<Record<string, string>>
 }>
 
-/** One test per legal provider: no case fails, and the not applicable set is exactly the listed one. */
 export function itPassesLegal<F>(
   cases: readonly ConformanceCase<F>[],
   providers: readonly LegalProvider<F>[],

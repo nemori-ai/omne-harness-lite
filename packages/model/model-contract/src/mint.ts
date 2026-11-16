@@ -1,4 +1,3 @@
-// One private conversion site for checked identity and reference text.
 import type { Identity, ModelIdentityKey } from './root.ts'
 import type { ModelInvocationRef, ModelOperationRef } from './reference.ts'
 

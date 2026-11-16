@@ -1,6 +1,4 @@
 // @module-tag slow — every case starts a real MCP server on a local HTTP port and drives it
-// through `createMcp` and the local transport.
-// The journey S1–S7 is a table; each target runs the steps that apply to it.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -26,12 +24,10 @@ import { TARGETS, type StartedTarget, type Target, type TargetId } from './targe
 const CASE_TIMEOUT_MS = 100_000
 const TASK_POLLS = 40
 const TASK_POLL_INTERVAL_MS = 500
-/** How long S6 waits for the first progress notification of the long call before it fails. */
 const PROGRESS_BOUND_MS = 20_000
 
 type StepId = 'S1' | 'S2' | 'S3' | 'S4' | 'S5' | 'S6' | 'S7'
 
-/** What a step observed: the kinds of outcome in the order they happened, joined by `>`. */
 type Reading = Readonly<{ step: StepId; kind: string }>
 
 type Context = Readonly<{
@@ -44,9 +40,7 @@ type Context = Readonly<{
 type JourneyStep = Readonly<{
   id: StepId
   does: string
-  /** The kinds the step must observe. */
   expected: string
-  /** The targets the step applies to. */
   applies: readonly TargetId[]
   run(context: Context): Promise<string>
 }>
@@ -74,7 +68,6 @@ const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, m
 
 type Race = 'progress' | 'ended' | 'timeout'
 
-/** Waits for the first of: the progress notification, the end of the call, or the bound. */
 async function firstOf(progress: Promise<void>, ended: Promise<unknown>): Promise<Race> {
   let timer: NodeJS.Timeout | undefined
   const bound = new Promise<Race>(resolve => {
@@ -262,7 +255,6 @@ const JOURNEY: readonly JourneyStep[] = [
           if (notification.kind === 'progress') progressed()
         },
       })
-      // A progress notification proves that the request reached the peer.
       const race = await firstOf(progress, invoking)
       if (race === 'ended')
         throw new Error(`S6: the call ended before any progress: ${JSON.stringify(await invoking)}`)
@@ -315,8 +307,6 @@ async function journey(target: Target): Promise<void> {
       `journey ${target.id}: ${taken.map(reading => `${reading.step}=${reading.kind}`).join(' ')}`,
     )
   } finally {
-    // A step that failed leaves its connection open; closing it keeps the failure the only one.
-    // The target closes even when `closeAll` rejects.
     try {
       await assembly.services.connections.closeAll()
     } finally {

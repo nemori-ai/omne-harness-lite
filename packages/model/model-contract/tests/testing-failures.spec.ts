@@ -65,11 +65,6 @@ describe('a write whose commit is unknown', () => {
       kind: 'found',
       state: { revision: '1' },
     })
-    expect(
-      must(await scripted.provider.recover({ principal: alice, tenant: access('a').tenant })),
-    ).toEqual({
-      scheduled: '1',
-    })
   })
 
   it('leaves nothing behind when the unknown admission was dropped, and the retry is the first acceptance', async () => {

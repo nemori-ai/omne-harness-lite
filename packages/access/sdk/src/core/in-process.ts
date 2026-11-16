@@ -1,5 +1,3 @@
-// The in-process transport (#1249 spec 已定 17): for tests. The peer answers in the same process;
-// every body, opening and frame crosses as JSON text, so the two sides share no value.
 import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { defaultLimits } from '../limits.ts'
 import type { CallReport, ObserveEnd, Transport } from './transport.ts'
@@ -10,7 +8,6 @@ function copy(value: JsonValue): JsonValue {
   return read.value
 }
 
-/** A transport whose peer is `peer`, called in this process with copies of every value. */
 export function createInProcessTransport(peer: Transport): Transport {
   return {
     async call(request): Promise<CallReport> {
@@ -26,7 +23,6 @@ export function createInProcessTransport(peer: Transport): Transport {
           yield copy(next.value)
         }
       } finally {
-        // The caller stopped early: close the peer's stream. Closing one that ended does nothing.
         await stream.return({ kind: 'aborted' })
       }
     },

@@ -1,0 +1,158 @@
+# 形式模型与规格、代码的对照
+
+本页对照 `session-contract/verification/models` 下除 `frontier` 以外的七个有限模型：它们检查哪些性质，各配置预期什么，模型动作对应哪段代码。条款在包组规格 [`packages/session/SPEC.md`](../../../SPEC.md)。模型检查只说明有限范围内的设计性质，不证明实现符合模型。每个目录的 `expect.txt` 是配置预期的机器形式：`pass` 表示无反例，性质名表示必须命中这一条。
+
+## run-advance
+
+`RunAdvance.tla` 检查一个会话的 Run 与 attempt 层：唯一推进者、Run 唯一、输入至多承接一次、取消与终态，以及有界收束在无关提交下是否会放弃。无界推广见 [proofs/run-advance.md](../proofs/run-advance.md)。
+
+| 性质（模型名）                                                                                                                | 规格        | 违背后果                                 |
+| ----------------------------------------------------------------------------------------------------------------------------- | ----------- | ---------------------------------------- |
+| 唯一推进者，序号只增，失效者的写入被拒（`OneAdvance`、`NoRegain`、`AdvanceIsNewest`、`StaleWriterRejected`）                  | I-R2        | 两个实例同时推进同一 Run                 |
+| 两个恢复者读同一 Run 层后各自接管，至多一个成立（`OneClaimPerRead`）                                                          | I-R2        | 两个恢复者先后接管，序号连跳两次         |
+| Run 唯一，输入至多承接一次（`OneOpenRun`、`TakeOnce`）                                                                        | I-R1、I-R3  | 同一输入进两个 Run                       |
+| 终态不可反转，终态后没有 attempt，对账要生产者确认（`TerminalStable`、`NoPostTerminalAttempt`、`ReconcileNeedsConfirmation`） | I-R4、SE-10 | 完成覆盖取消，「已请求停止」显示成已停止 |
+| 有界收束不被无关提交饿死（`NoAbandonedClose`）                                                                                | I-R2        | 繁忙会话里收束永远提交不上               |
+
+| 配置                                                                                                                                                               | 预期                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `positive-run`                                                                                                                                                     | 无反例：预期修订只比 Run 层修订                                                                                                                                                        |
+| `positive-global-wide`                                                                                                                                             | 无反例：比整份快照修订，但重试上限不小于无关提交数                                                                                                                                     |
+| `positive-claims`                                                                                                                                                  | 无反例：两个恢复者竞争接管                                                                                                                                                             |
+| `negative-global-expected`                                                                                                                                         | 命中 `NoAbandonedClose`：与 `positive-run` 只差预期的范围                                                                                                                              |
+| `bad-second-run`、`bad-two-advances`、`bad-accept-stale`、`bad-retake`、`bad-revive`、`bad-post-terminal-attempt`、`bad-silent-reconcile`、`bad-claim-no-expected` | 各去掉一条设计规则，依次命中 `OneOpenRun`、`OneAdvance`、`StaleWriterRejected`、`TakeOnce`、`TerminalStable`、`NoPostTerminalAttempt`、`ReconcileNeedsConfirmation`、`OneClaimPerRead` |
+
+范围：一个会话；三个输入；两个恢复者；至多两个 Run、三个 attempt。
+
+| 模型                                       | 代码                                                                                   |
+| ------------------------------------------ | -------------------------------------------------------------------------------------- |
+| `revision`、`runRevision`、`Compared`      | 快照修订与 Run 层修订；`judgments.ts` 的预期核对                                       |
+| `StartRun`、`Accept`、`Take`               | `decideStartRun`、`judgeRunStart`；受理；承接事实                                      |
+| `Invoke`、`InvokeRefused`                  | `session` 的 `advance.ts` 的发起；消息准入拒收进入有界收束                             |
+| `Release`、`ClaimRead`、`ClaimCommit`      | 交还、接管与 `decideAttempt`；接管的预期必填                                           |
+| `StaleWrite`、`AgentEnd`                   | `judgeAdvance` 的过期推进；Agent 结束事实的同日志解释                                  |
+| `Cancel`、`ProducerConfirm`、`Reconcile`   | `decideControl`、`terminalEntries`、控制进度的对账                                     |
+| `CloseRead`、`CloseCommit`、`CloseChanged` | `advance.ts` 的有界收束：读 Run 层修订，带预期提交，答已变时重读，超过上限写诊断后停止 |
+
+## wake-up
+
+`WakeUp.tla` 检查唤醒不丢失与推进失败不静默。
+
+| 性质（模型名）                                                                              | 规格 | 违背后果       |
+| ------------------------------------------------------------------------------------------- | ---- | -------------- |
+| 待处理的输入最终到达已发起的 Run，已授予的 Run 最终发起（`InputsServed`、`GrantedInvoked`） | SE-6 | 会话静默卡死   |
+| 每次放弃都留下具名诊断（`NoSilentGiveUp`）                                                  | SE-8 | 卡死而无法诊断 |
+
+| 配置                           | 预期                                                       |
+| ------------------------------ | ---------------------------------------------------------- |
+| `positive`                     | 无反例：现行实现的形态                                     |
+| `positive-no-scan`             | 无反例：关闭扫描、没有丢失时只靠通知与再触发               |
+| `negative-no-again`            | 命中 `InputsServed`：在途触发被丢，输入一直等待            |
+| `negative-lost-notice-no-scan` | 命中 `InputsServed`：通知可能丢失时必须有扫描              |
+| `negative-scan-start-only`     | 命中 `GrantedInvoked`：已授予的 Run 在放弃或崩溃后不再发起 |
+| `negative-swallow`             | 命中 `NoSilentGiveUp`：放弃时不写诊断                      |
+
+| 模型                         | 代码（`session`）                                                             |
+| ---------------------------- | ----------------------------------------------------------------------------- |
+| `Notify`、`Trigger`、`again` | `advance.ts` 的触发与合并                                                     |
+| `Read`、`Judge`              | `advance.ts` 的 `check`：已授予而首条输入没有交出记录时重放，否则判定并开 Run |
+| `Scan`                       | `scan.ts` 按待办原因找会话                                                    |
+| `Invoke`                     | `advance.ts` 的发起与退避序列                                                 |
+| `silent`                     | 诊断出口：放弃时写具名诊断                                                    |
+
+## run-closure
+
+`RunClosure.tla` 检查 Run 结束时关上未答的调用。
+
+| 性质（模型名）                                                         | 规格 | 违背后果                                       |
+| ---------------------------------------------------------------------- | ---- | ---------------------------------------------- |
+| 终态的 Run 没有未答的调用（`TerminalClosed`）                          | SE-5 | 历史里有没有工具消息的调用，后继的每个请求被拒 |
+| 每个调用至多一条工具消息（`OneAnswer`）                                | SE-5 | 同一个调用有两条互相矛盾的结果                 |
+| 模型请求读到的历史里每个调用都有工具消息（`RequestReadsWholeHistory`） | SE-5 | 后继 Run 不能请求模型                          |
+
+| 配置                          | 预期                                             |
+| ----------------------------- | ------------------------------------------------ |
+| `positive`                    | 无反例                                           |
+| `negative-no-closure`         | 命中 `TerminalClosed`：终态提交不补写            |
+| `negative-no-closure-request` | 命中 `RequestReadsWholeHistory`                  |
+| `negative-late-accept`        | 命中 `OneAnswer`：终态之后仍收循环交来的工具消息 |
+| `negative-close-all`          | 命中 `OneAnswer`：终态提交给已答的调用也补写一条 |
+
+| 模型                        | 代码                                                                                            |
+| --------------------------- | ----------------------------------------------------------------------------------------------- |
+| `Open(c)`                   | `WorkSnapshot.unansweredCalls`，由 `reduce` 的消息分支经 `run-closure.ts` 维护                  |
+| `Assistant(c)`、`Answer(c)` | `decideRecordMessage`；`reduce` 的消息分支。「c 还未答」的前提由 Agent 的循环守，Session 不核对 |
+| `Answer(c)` 在终态后被拒    | `judgeAdvance` 的参加分支答终态                                                                 |
+| `Terminal`                  | `terminalEntries` 与有界收束都先放 `closingEntries`；归约拒绝还有未答调用的终态                 |
+| `StartNext`                 | `judgeRunStart`                                                                                 |
+
+## input-handover-finish
+
+检查交入与收场：`EndedClean`（Run 不带着去处是它、既没取走也没拒收的输入收场；规格 SE-2）、`OneOutcome`（每条输入至多一个结局：取走、拒收、改去下一个 Run；规格 I-R3）。
+
+| 配置                      | 预期                                                                        |
+| ------------------------- | --------------------------------------------------------------------------- |
+| `positive`                | 无反例                                                                      |
+| `negative-no-participant` | 命中 `EndedClean`：条件终结不问会话参加者，已受理还没交入的输入被留下       |
+| `negative-no-agent-check` | 命中 `EndedClean`：Agent 不核对水位线以内的输入，已交入还没取走的输入被留下 |
+
+| 模型                               | 代码                                                                           |
+| ---------------------------------- | ------------------------------------------------------------------------------ |
+| `Accept`、`Receipt`、`Reject`      | 受理；交入回执（输入不在待处理或已有回执时拒收）；消息准入拒收写拒收回执       |
+| `Submit`                           | Agent 的交入；提交里会话参加者只读核对来源                                     |
+| `Take`、`Interpret`                | Agent 协调器取走输入；会话的同日志解释写承接事实                               |
+| `AgentAllows`、`ParticipantAllows` | Agent 条件终结核对水位线以内的输入；`judgeCompletion` 在有未交入的输入时答阻塞 |
+| `SeeEnd`                           | 解释结束事实后 `routeInput` 重定去处                                           |
+
+## input-handover-quiesce
+
+检查交入与停服交接：`DrainedHonest`（已排空的答复是真的：没有驱动在跑，槽空闲）、`Delivered`（到达的每条输入跨停服都被取走）、`Drains`（开始的静默终究答已排空）。规格 SE-6。
+
+| 配置                       | 预期                                                                     |
+| -------------------------- | ------------------------------------------------------------------------ |
+| `positive`                 | 无反例（含活性）                                                         |
+| `negative-hint-only`       | 命中 `Delivered`：驱动只靠唤醒提示得知新输入，脱挂期间交入的输入没人读到 |
+| `negative-submit-reserves` | 命中 `DrainedHonest`：没有活驱动时交入预占执行槽                         |
+
+| 模型                        | 代码                                                   |
+| --------------------------- | ------------------------------------------------------ |
+| `Submit`                    | Agent 的交入：不碰执行槽，受理后给在跑的驱动一个提示   |
+| `Read`、`Take`              | 驱动每次进入等待时重读执行；协调器取水位线以内的输入   |
+| `Detach`、`Drain`、`Resume` | Agent 提供者的交还、排空与接续；新协调器从执行记录读起 |
+| `Stop`、`Start`             | 进程退出与重启；会话的恢复扫描接回执行                 |
+
+## input-submit-once
+
+检查重复触发：`AcceptOnce`（同一输入至多受理一次）、`TakeOnce`（至多取走一次）、`OneReceipt`（至多一条交入回执）。规格 I-R3。
+
+| 配置                      | 预期                                                        |
+| ------------------------- | ----------------------------------------------------------- |
+| `positive`                | 无反例                                                      |
+| `negative-fresh-identity` | 命中 `AcceptOnce`：每个触发用自己的身份交入，执行记录认不出 |
+| `negative-blind-receipt`  | 命中 `OneReceipt`：交入回执的写入不看快照                   |
+
+| 模型      | 代码                                             |
+| --------- | ------------------------------------------------ |
+| `Read`    | 续入在会话的串行队列里重读快照                   |
+| `Submit`  | Agent 的交入：同一输入身份已受理时按认回提交     |
+| `Receipt` | 交入回执的决定：输入不在待处理或已有回执时答非法 |
+| `Take`    | Agent 协调器取走输入；会话的承接事实             |
+
+## permission-current
+
+检查会话权限配值与当前读取：一个会话的一个权限关口有持久修订与配值，合法写入和清除都改变修订，读取保留修订和值，捕获在同一提交边界比较原修订，重启保留已提交值。规格 SE-23。
+
+| 性质                    | 含义                                                                               |
+| ----------------------- | ---------------------------------------------------------------------------------- |
+| `CapturedMatchesCommit` | 每个成功的当前读取与捕获时点一致；已交回的结果不因之后的写入而违反，它不是永久许可 |
+| `DurableValue`          | 重启不重置已提交的配值，不把缺席与来源不可用合并                                   |
+| `TypeOK`                | 有限域与记录形状                                                                   |
+
+| 配置                 | 预期                                       |
+| -------------------- | ------------------------------------------ |
+| `positive`           | 所有不变量保持                             |
+| `bad-stale-capture`  | 命中 `CapturedMatchesCommit`：捕获不核修订 |
+| `bad-clear-revision` | 命中 `CapturedMatchesCommit`：清除不改修订 |
+| `bad-restart`        | 命中 `DurableValue`：重启把持久值改成缺席  |
+
+范围：`MaxRevision` 为 2，读取、捕获任意交错，至多一次重启；归档、授权、组织来源与原动作围栏不在模型内，写入假定调用方已有写资格。

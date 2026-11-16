@@ -1,13 +1,3 @@
-// AD-05 on real Cordis 4.0.4: the Model log consumption plugin. Session and the Agent Journal are
-// the `./testing` memory provider of this member; the plugin reaches them only through the four
-// injected services. What is checked: a Model `received` entry of the same Journal becomes one
-// entries-channel Session batch (`call.execution-fact`, `account.linked` when an account was
-// reported, and the progress row), read as `coordinator`; a second read commits nothing; a lost
-// reply is recognized under the original operation; entries absent, a missing or untrusted
-// material and a binding that disagrees with Session fail without a commit; an entry whose call
-// Session has not bound waits; another tenant is denied; a failed commit keeps the Agent facts and
-// the progress; the plugin is pending while a dependency is absent and answers unavailable after it
-// stops, also to a call that was waiting when it stopped.
 import { Context, Service } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -40,9 +30,6 @@ import {
 import { createSessionModelLogConsumptionPlugin } from '../src/cordis/model-log-consumption.ts'
 import { evidence, ok, operation, operationId, scene } from './fixtures/common-journal.ts'
 
-// --- the Model material of the Agent result receiver (Agent J02 item 11) -------------------------
-
-/** The adoption the Agent result receiver writes its Model facts material under. */
 const SCHEMA = {
   owner: 'agent',
   name: 'received-model-delivery',
@@ -74,7 +61,6 @@ function textOf(tenant: TenantId): string {
   return encoded.value
 }
 
-/** The full Model delivery that the receiver kept for one `received` draft. */
 function deliveryOf(draft: Draft): Record<string, unknown> {
   const { delivery } = draft
   if (delivery.producer !== 'model') throw new Error('fixture: a Model entry')
@@ -107,12 +93,6 @@ function materialOf(
   }
 }
 
-// --- the scene -----------------------------------------------------------------------------------
-
-/**
- * One session with an open execution that waits on one Model call. With `bind`, Session has
- * interpreted the waiting event, so it holds the call's producer binding.
- */
 async function modelScene(name: string, bind = true) {
   const s = await scene(name)
   const result = sampleReceivedModelResult(s.access.tenant, name)
@@ -158,7 +138,6 @@ async function modelScene(name: string, bind = true) {
 }
 type ModelScene = Awaited<ReturnType<typeof modelScene>>
 
-/** The Agent result receiver saves one Model delivery: entry, material and saved in one commit. */
 async function receive(s: ModelScene, entry: ReceivedEntry, label: string) {
   const { material: _material, ...draft } = entry
   const received = s.view.received
@@ -174,7 +153,6 @@ async function receive(s: ModelScene, entry: ReceivedEntry, label: string) {
   )
 }
 
-/** The Session rows that the entries channel wrote, by kind. */
 function entriesKinds(s: ModelScene): string[] {
   return s.backend.controls
     .entriesOf(s.access.tenant, s.access.session)
@@ -190,10 +168,6 @@ type Wraps = Partial<{
 }>
 const ALL = ['Session', 'Journal', 'Materials', 'Transactions'] as const
 
-/**
- * A real Cordis root with the four dependencies of AD-05 over the scene's memory provider, and the
- * plugin. `wraps` replace one dependency call; `mount` limits the dependencies that are present.
- */
 async function assembled(
   s: ModelScene,
   wraps: Wraps = {},
@@ -202,7 +176,6 @@ async function assembled(
   const ctx = new Context()
   const logged: { type: string; text: string }[] = []
   ctx.logger.exporter({
-    // Level 2 takes warn; the exporter default of 1 takes only error and success.
     levels: { default: 2 },
     export: message => logged.push({ type: message.type, text: String(message.args[0]) }),
   })
@@ -233,7 +206,6 @@ async function assembled(
       return (wraps.load ?? s.view.journal.load)(input)
     }
   }
-  // The entries port of the same Journal provider, mounted with the Journal.
   class Entries extends Service {
     constructor(scope: Context) {
       super(scope, agentJournalEntriesKey)
@@ -261,10 +233,8 @@ async function assembled(
   }
   const services = { Session, Journal, Materials, Transactions } as const
   for (const name of mountOnly) await mount(ctx, services[name])
-  // The entries port is always present: the cases of an absent dependency name the four above.
   await mount(ctx, Entries)
   const consumption = createSessionModelLogConsumptionPlugin<string>({
-    // The assembly issues the coordinator principal of a session; the scene has one principal.
     coordinator: async () => succeed(s.access.principal),
   })
   const plugin = await mount(ctx, consumption.plugin)
@@ -298,8 +268,6 @@ function progressOf(s: ModelScene) {
     .then(work => ok(work).entriesProgress?.find(item => item.channel === 'model-received'))
 }
 
-// --- interpretation ------------------------------------------------------------------------------
-
 describe('a Model received entry becomes one entries-channel Session batch', () => {
   it('a result with a reported account: the execution fact, the account link and the progress, read as coordinator', async () => {
     const s = await modelScene('result')
@@ -317,7 +285,6 @@ describe('a Model received entry becomes one entries-channel Session batch', () 
       'entries.interpreted',
     ])
     expect(await progressOf(s)).toMatchObject({ through: '1', execution: s.execution })
-    // One batch, keyed by the producer's delivery key, with the Agent entry's material as source.
     expect(f.commits).toHaveLength(1)
     const [item] = f.commits[0]!.observation.items
     const stored = ok(
@@ -328,7 +295,6 @@ describe('a Model received entry becomes one entries-channel Session batch', () 
     expect(item?.interpretation[0]).toMatchObject({
       producer: { kind: 'model', call: s.result.delivery.key.reference },
     })
-    // Every read of `session` went through the coordinator class.
     expect(f.callers.length).toBeGreaterThan(0)
     expect(
       f.callers.every(caller => (caller as { caller?: unknown }).caller === 'coordinator'),
@@ -371,10 +337,8 @@ describe('a Model received entry becomes one entries-channel Session batch', () 
   })
 })
 
-describe('AD-05 trigger: the event of the Journal plugin wakes the consumption', () => {
-  /** Lets the not-awaited dispatch of an event and the queued consumption finish. */
+describe('trigger: the event of the Journal plugin wakes the consumption', () => {
   const settle = () => new Promise<void>(resolve => setTimeout(resolve, 50))
-  /** What the Journal plugin sends after a successful write (C-ADAPTERS-A); the memory Journal does not. */
   const published = (f: Awaited<ReturnType<typeof assembled>>, s: ModelScene) =>
     f.ctx.parallel(
       'session-adapters/agent-published',
@@ -408,16 +372,13 @@ describe('AD-05 trigger: the event of the Journal plugin wakes the consumption',
     await published(f, s)
     await published(f, s)
     await settle()
-    // The same failure on two events: one named line, with the diagnostic.
     expect(warned()).toEqual([`the consumption of ${s.execution} answered unavailable: down`])
-    // Another failure: another line.
     wraps.entries = async () =>
       fail({ kind: 'unavailable', owner: 'agentJournalEntries', diagnostic: 'gone' })
     await published(f, s)
     await settle()
     expect(warned()).toHaveLength(2)
     expect(warned()[1]).toContain('gone')
-    // A consumption that succeeds clears the failure, so its return is logged again.
     delete wraps.entries
     await published(f, s)
     await settle()
@@ -541,7 +502,6 @@ describe('failures stay failures and commit nothing', () => {
       'another result version of the same call',
       (_m: Material<ContentBlock>, s: ModelScene, draft: Draft) =>
         materialOf(s.access.tenant, draft, value => {
-          // Key and settlement agree with each other, so only the comparison with the entry fails.
           const delivery = value.delivery as Record<string, unknown>
           const settlement = delivery.settlement as Record<string, unknown>
           const key = { ...(delivery.key as object), result: 'mrver_other' }
@@ -786,8 +746,6 @@ describe('another tenant', () => {
     expect(f.commits).toHaveLength(0)
   })
 })
-
-// --- Cordis --------------------------------------------------------------------------------------
 
 describe('loading and stopping on real Cordis 4.0.4', () => {
   it.each(ALL)('stays pending while %s is absent, and works once it arrives', async missing => {

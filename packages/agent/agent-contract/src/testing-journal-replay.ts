@@ -1,13 +1,3 @@
-// The trace replay driver of the `./testing` entry (AG-23): it replays the behaviors that the TLC
-// simulation of verification/models/Finishing.tla exported onto an `AgentJournal` built by a core
-// fixture, one Journal call per model step, and checks after each step that the Journal answered
-// what the model answered and that its state projects onto the model's state. The model, its
-// bounds and the mapping of each step are in verification/formal-mapping.md.
-//
-// A trace that conforms to the model passes on a Journal that keeps the finishing protocol inside
-// the mapped steps. A violating trace, the shortest behavior of a negative control, must fail at
-// its last step: there the model under a deliberate fault answers what the protocol forbids.
-// Passing traces support, they do not prove, that a Journal refines the model.
 import { AssertionError } from 'node:assert/strict'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { Failure } from './evaluation.ts'
@@ -39,33 +29,27 @@ import {
   type AgentJournalCoreOpened,
 } from './testing-journal-helpers.ts'
 
-/** The projection of a Journal's state that the model's state determines. */
 export type JournalReplayState = Readonly<{
   status: 'advancing' | 'settling' | 'ended'
   conclusion: 'none' | 'complete' | 'failed' | 'cancelled'
   route: 'none' | 'author' | 'cancellation'
-  /** Whether `checkpoint.currentHandoff` names an H. */
   handoff: boolean
 }>
 
-/** One model step: the action, the model's answer and the model's state after it. */
 export type JournalReplayStep = Readonly<{
   action: string
   reply: string
   state: JournalReplayState
 }>
 
-/** One behavior of the model; `origin` names the configuration and the run that exported it. */
 export type JournalReplayTrace = Readonly<{
   name: string
   origin: string
   steps: readonly JournalReplayStep[]
 }>
 
-/** What a performer observed of one step. */
 export type JournalReplayObservation = Readonly<{ reply: string; state: JournalReplayState }>
 
-/** The first step of a trace whose observation is not the step's. */
 export class JournalReplayMismatch extends AssertionError {
   readonly step: number
 
@@ -84,10 +68,6 @@ export class JournalReplayMismatch extends AssertionError {
   }
 }
 
-/**
- * Performs the steps of `trace` in order and fails with a JournalReplayMismatch at the first step
- * whose observed reply or state differs from the step. No later step is performed.
- */
 export async function checkJournalTrace(
   trace: JournalReplayTrace,
   perform: (step: JournalReplayStep, index: number) => Promise<JournalReplayObservation>,
@@ -108,7 +88,6 @@ function sameObservation(observed: JournalReplayObservation, step: JournalReplay
   )
 }
 
-/** Replays `trace` on a new execution of `fixture`; fails with a JournalReplayMismatch. */
 export async function replayJournalTrace<P>(
   fixture: AgentJournalCoreFixture<P>,
   trace: JournalReplayTrace,
@@ -117,10 +96,6 @@ export async function replayJournalTrace<P>(
   await checkJournalTrace(trace, await journalPerformer(opened, trace.name))
 }
 
-/**
- * The replay cases of a Journal: each conforming trace passes, and each violating trace fails at
- * its last step, the step that the protocol forbids.
- */
 export function agentJournalReplayConformance<P>(
   fixture: AgentJournalCoreFixture<P>,
   traces: Readonly<{
@@ -155,28 +130,19 @@ export function agentJournalReplayConformance<P>(
   ]
 }
 
-// ------------------------------------------------------------------------------------------
-// The performer: one Journal call per model step (formal-mapping.md, "回放映射").
-
 type Reply<T> = Promise<Outcome<T, Failure>>
 type CancelAuthorization = Extract<FinishAuthorization, { kind: 'cancel' }>
 type Produced<P> = Awaited<ReturnType<NonNullable<AgentJournalCoreOpened<P>['produceResult']>>>
 
-/** What the coordinator of a replay holds between steps. */
 type Coordinator<P> = {
-  /** The snapshot of the last load or own successful write: the model's view. */
   view: ExecutionSnapshot
-  /** The last intent the view showed while settling. */
   intent: FinishIntent | null
   authority: Authority
-  /** The attachment a takeover superseded. */
   superseded: Authority | null
   control: AgentOperationId | null
-  /** The cancel authorization of the saved control: the coordinator knows its own control. */
   cancel: CancelAuthorization | null
   request: PendingHandoff | null
   produced: Produced<P> | null
-  /** The call whose reply was lost, retried as it was. */
   lost: (() => Reply<unknown>) | null
 }
 
@@ -241,16 +207,11 @@ async function journalPerformer<P>(
 
   return async (step, index) => {
     const name = `${traceName}-${index}`
-    /**
-     * An own write at the view. A write that establishes facts moves the view to the new
-     * revision; a tryFinish that answers changed or blocked writes nothing.
-     */
     const own = async (reply: Reply<unknown>): Promise<string> => {
       const answer = replyOf(await reply)
       if (answer === 'ok' || answer === 'ended') await reload(c)
       return answer
     }
-    /** The write with its reply lost: the provider applies it and answers commit-unknown. */
     const lose = async (
       method: 'tryFinish' | 'prepareFinish' | 'commitSettlement',
       call: () => Reply<unknown>,
@@ -330,7 +291,6 @@ async function journalPerformer<P>(
           const request = cancelControl(opened, name)
           c.control = request.operation
           const answer = replyOf(await journal.control(request))
-          // A side read for the source of the saved control; the view stays where it was.
           if (answer === 'ok') c.cancel = cancelAuthorization(await load(opened), request.operation)
           return answer
         }
@@ -355,7 +315,6 @@ async function journalPerformer<P>(
         }
         case 'Produce':
         case 'Provider-prepared-h1':
-          // The producer and the admission provider act outside the Journal.
           return 'ok'
         case 'RecordNone':
         case 'Custody': {
@@ -373,7 +332,6 @@ async function journalPerformer<P>(
           )
         }
         case 'P-h1': {
-          // The request and the commit carry the current attachment, also after a takeover.
           const request = { ...pendingHandoff(opened, c.view, name), originalAdvance: c.authority }
           c.request = request
           const commit = prepareCommit(opened, c.view, name, request)
@@ -408,7 +366,6 @@ function required<T>(value: T | null | undefined, what: string): T {
   return value
 }
 
-/** The model's name of a Journal answer. */
 function replyOf(outcome: Outcome<unknown, Failure>): string {
   if ('failure' in outcome)
     return outcome.failure.kind === 'changed' ? 'failure-changed' : outcome.failure.kind
@@ -420,22 +377,16 @@ function replyOf(outcome: Outcome<unknown, Failure>): string {
   return 'ok'
 }
 
-/** The model state that a snapshot projects onto. */
 function projectionOf(snapshot: ExecutionSnapshot): JournalReplayState {
   const kind = snapshot.state.kind
   const conclusion = snapshot.settlement.candidate?.conclusion.kind
   return {
-    // The model does not tell reconciling from advancing.
     status: kind === 'settling' || kind === 'ended' ? kind : 'advancing',
     conclusion: conclusion === undefined ? 'none' : conclusion === 'fail' ? 'failed' : conclusion,
     route: snapshot.settlement.route?.kind ?? 'none',
     handoff: snapshot.checkpoint.currentHandoff !== null,
   }
 }
-
-// ------------------------------------------------------------------------------------------
-// The traces, generated: `run.py traces` writes verification/models/finishing-traces.json, and
-// the self-test of this package checks that these constants equal that file.
 
 const STATUSES: readonly JournalReplayState['status'][] = ['advancing', 'settling', 'ended']
 const CONCLUSIONS: readonly JournalReplayState['conclusion'][] = [
@@ -450,7 +401,6 @@ function oneOf<T extends string>(values: readonly T[], text: string | undefined)
   return values.find(value => value === text)
 }
 
-/** One generated trace; each step reads 'action reply status conclusion route handoff'. */
 function trace(name: string, origin: string, steps: readonly string[]): JournalReplayTrace {
   return { name, origin, steps: steps.map(decodeStep) }
 }
@@ -473,9 +423,6 @@ function decodeStep(text: string): JournalReplayStep {
   return { action, reply, state: { status, conclusion, route, handoff: handoff === 'handoff' } }
 }
 
-// ---8<--- generated traces
-// Written by verification/models/run.py traces from finishing-traces.json. A step reads
-// 'action reply status conclusion route handoff', with '-' when no H is current.
 export const agentJournalReplayTraces: readonly JournalReplayTrace[] = [
   trace('ordinary-1', 'trace-ordinary.cfg simulate seed 11', [
     'TakeInputs ok advancing none none -',

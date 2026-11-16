@@ -241,6 +241,5 @@ describe('只读', () => {
       run('--wave', wave, '--root', root, '--table', table, '--json')
     }
     expect(snapshot(root)).toBe(before)
-    // 每次运行起一个 node 与若干 git 进程；整套测试并发时留足时间。
   }, 60_000)
 })

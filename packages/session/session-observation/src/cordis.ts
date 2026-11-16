@@ -1,7 +1,3 @@
-// The Cordis binding of session observation: the Service `sessionObservation` and the plugin that
-// answers its ports from the tree. The plugin injects `session` as the `reader` caller class and
-// the two public Model stream faces. It holds one listener of `session-cordis-contract/committed`
-// for the whole tree and hands each batch to the observations of that tenant and session.
 import { Service, type Context } from '@deepseek-ai/cordis'
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import {
@@ -40,11 +36,9 @@ declare module '@deepseek-ai/cordis' {
 }
 
 export type SessionObservationPluginInput = Readonly<{
-  /** The entry kinds that reading history gives in this assembly. */
   historyKinds: readonly string[]
 }>
 
-/** The row configuration: values left out take the defaults of this member. */
 export type SessionObservationConfig = Readonly<{
   policy?: Partial<ObservationRefreshPolicy>
   locatePages?: number
@@ -110,7 +104,6 @@ class SessionObservationProvider<P> extends SessionObservationService<P> {
   }
 }
 
-/** The plugin of the row that publishes `sessionObservation`. */
 export function createSessionObservationPlugin<P>(input: SessionObservationPluginInput) {
   return {
     name: 'session-observation',

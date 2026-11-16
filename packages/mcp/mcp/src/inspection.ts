@@ -1,6 +1,3 @@
-// The category port `EndpointInspection`: the contract's body contract for category `mcp`, plus
-// `inspect` on any JSON tree. Both read the body with the one parser of the contract; no rule is
-// repeated here.
 import {
   mcpEndpointBodyContract,
   parseEndpointBody,

@@ -34,7 +34,6 @@ import {
 
 type Decode = (value: unknown) => unknown
 
-/** Each decoder with the identity type name that its failures report in `field`. */
 const DECODERS: readonly (readonly [string, Decode])[] = [
   ['AgentInstanceId', decodeAgentInstanceId],
   ['StepId', decodeStepId],
@@ -150,7 +149,6 @@ const failureOf = (judged: unknown): StructureFailure => {
 
 type Judge = (value: unknown) => unknown
 
-/** The shared rules of the two all-text structures. */
 const TEXT_STRUCTURES: readonly (readonly [string, Judge, Record<string, string>])[] = [
   ['Adoption', judgeAdoption, ADOPTION],
   ['Evidence', judgeEvidence, EVIDENCE],
@@ -361,7 +359,6 @@ function mintTenant(): TenantId {
   return tenant(organization.value, account.value)
 }
 
-/** A principal judgment of the test: a non-empty `name` and nothing else. */
 function judgeNamed(value: unknown) {
   if (typeof value !== 'object' || value === null) {
     return { failure: { field: 'Principal', reason: 'type' } } as const
@@ -458,9 +455,6 @@ describe('judgeAccess', () => {
   })
 })
 
-// The tests below have literal names on purpose. The decoders and the structures above are covered
-// by generated tests (`describe.each`), and a run that picks tests by name cannot see the names that
-// a generated test gets. These tests keep the refusal words under such a run.
 describe('the refusal words of the identity rules', () => {
   it('names the rule that a decoder broke, with the identity type', () => {
     expect(decodeStepId(5)).toEqual({ failure: { field: 'StepId', reason: 'type' } })
@@ -507,7 +501,6 @@ describe('the refusal words of the identity rules', () => {
   })
 })
 
-/** The value with one more own data member named `__proto__`, as `JSON.parse` makes it. */
 function withOwnProto(value: object): object {
   return Object.defineProperty({ ...value }, '__proto__', {
     value: { extra: 1 },
@@ -517,9 +510,6 @@ function withOwnProto(value: object): object {
   })
 }
 
-// A structure judgment that collects the members into an object literal assigns `__proto__`
-// through the prototype setter: the member then never shows up as unknown, and the closed field
-// rule lets it pass. Each judgment must name it as an unknown member.
 describe('an own member named __proto__', () => {
   it('is an unknown member of an Adoption, also when JSON.parse made it', () => {
     const parsed: unknown = JSON.parse(`${JSON.stringify(ADOPTION).slice(0, -1)},"__proto__":{}}`)

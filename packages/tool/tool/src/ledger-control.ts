@@ -58,17 +58,6 @@ function withControls(
   }
 }
 
-/**
- * 控制的定义域（契约 P06、P07，Tool SPEC 第 29、32 条）：
- * - 暂停中的调用（等待 opening、open 或 responding）：stop 与 withdraw 让调用收场，background 被拒；
- * - 恢复段已准备、尚未 live（execution `starting` 于 resume 记录）：stop 与 live 调用同样保存停止待办，
- *   段一 live 即送达；
- * - 已记录 live 启动或已结束的调用：stop 保存停止待办，或记 `already-ended`。
- * 其余控制答 unsupported。
- *
- * 让暂停中的调用收场时，结果是账本自己形成的：先答 `prepare-synthetic`，由调用方把作者预写的文字
- * 写成结果通道，再带着 `prepared` 重新决策（与未启动调用的终局同一条路）。
- */
 export function decideControl(
   snapshot: Snapshot,
   command: ControlCommand,
@@ -159,38 +148,21 @@ export function decideControl(
   }
 }
 
-/** 等待失效的操作（P06 invalidate）：与登记同法，只由等待身份派生，所以调用与等待确定它。 */
 export function invalidationOperation(wait: string): ToolOperationId | null {
   const decoded = decodeToolOperationId(`${wait}/invalidate`)
   return 'ok' in decoded ? decoded.ok : null
 }
 
-/** 调用当前的等待：尚未关闭的那一个。一个暂停中的调用恰有一个。 */
 function currentWait(snapshot: Snapshot): WaitLedgerRecord | undefined {
   return [...snapshot.waits.values()].find(wait => wait.record.phase !== 'closed')
 }
 
-/** 收场时的计时：暂停或已关闭的计时关闭并保留累计；未知的计时保持原样。 */
 function closedTiming(timing: ToolState['timing']): ToolState['timing'] {
   return timing.kind === 'paused' || timing.kind === 'closed'
     ? { kind: 'closed', accumulatedMs: timing.accumulatedMs }
     : timing
 }
 
-/**
- * 暂停中的调用收到控制（契约 P06「取消与答复在原 ToolCall 事务排序」，P07 stop 与 withdraw）。
- *
- * 有效的 Ask 等待不能转后台，所以 background 回复 `invalid`。stop 与 withdraw 在同一笔调用域提交里：
- * - 把调用写成 settled：终局是 interrupted，原因是本次控制（withdraw 时 withdrawn 为 true），
- *   不伪造答案；`execution` 保留 `{kind:'suspended', checkpoint}`，这正是 `suspended-exclusion`
- *   释放依据的形状；效果记为未知，因为已运行的段可能产生过效果；
- * - 记下控制，进度为 `already-ended`：暂停已经排除旧执行，没有执行可停；
- * - 以 `cancelled` 关闭当前等待；
- * - 写失效待办 `wait-registration{action:'invalidate'}` 与队列释放待办 `queue`，
- *   删除登记、停泊与接受留下的待办：它们的后续都被收场取代。
- * 调用记录的 CAS 决定取消与 acceptDecision 的先后：取消先成立时，之后的接受见调用已收场而被拒；
- * 接受先成立时，取消仍然成立，恢复不再进行。
- */
 function decideSuspendedControl(
   snapshot: Snapshot,
   call: CallRecord,
@@ -216,7 +188,6 @@ function decideSuspendedControl(
     kind: 'interrupted',
     cause: { kind: 'control', operation: command.operation, withdrawn: intent.kind === 'withdraw' },
   } as const
-  // 结果是作者为「等待被关闭」预写的那一份：调用没有答案，也没有运行恢复段。
   const made = syntheticChannels(
     command,
     { terminal, consumer: call.request.consumer, closedResult: committed.closedResult },
@@ -381,7 +352,6 @@ export function decideRecordControl(
   }
 }
 
-/** A confirmed denial closes only propagation; execution and all other duties remain intact. */
 export function rejectControl(
   call: CallRecord,
   original: ControlRecord,

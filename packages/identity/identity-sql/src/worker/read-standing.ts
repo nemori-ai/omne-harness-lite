@@ -1,5 +1,3 @@
-// `identity.standing`: the membership row of one tenant text, or none. The handler reports what the
-// row holds; the provider decides `member`, `not-member` or `unavailable` (DP3-C12).
 import { HANDLERS, isRecord, isText, type StandingInput, type StandingOutput } from './schema.ts'
 import { handler, oneRow, text } from './support.ts'
 

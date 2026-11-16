@@ -1,5 +1,3 @@
-// 预检 `check --preflight`：只跑不依赖构建与全量测试的轻步骤，全部同时起、失败不终止其余，最后一次列出全部发现与修法；
-// 不写准入日志与运行记录（它不是准入证据）。步骤换成假命令，与 check-graph.spec.ts 同一种夹具。
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -33,7 +31,6 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true })
 })
 
-/** 一步：睡 `ms` 毫秒、打印一行、以 `code` 退出。 */
 const step = (name: string, ms: number, code = 0): CheckStep => ({
   name,
   command: [
@@ -60,14 +57,12 @@ describe('预检', () => {
     expect(text).toContain('预检：2 项失败')
     expect(text).toMatch(/✗ bad-a .*退出码 3/u)
     expect(text).toMatch(/✗ bad-b .*退出码 4/u)
-    // bad-b 比 bad-a 晚 650 毫秒才失败：失败不终止其余，它跑完了、不是被终止。
     expect(text).not.toContain('被终止')
     expect(text).toContain('bad-a 的发现')
     expect(text).toContain('bad-b 的发现')
     expect(text).toContain('修法 A')
     expect(text).toContain('修法 B')
     expect(existsSync(join(root, PREFLIGHT_LOG_DIR, 'bad-a.log'))).toBe(true)
-    // 不是准入证据：没有准入日志、没有运行记录。
     expect(existsSync(join(root, ADMISSION_RECORD_DIR))).toBe(false)
     expect(existsSync(join(root, CHECK_RUN_RECORD_DIR))).toBe(false)
   })

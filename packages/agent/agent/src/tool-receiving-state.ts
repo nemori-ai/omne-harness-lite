@@ -13,7 +13,6 @@ export type ToolReception<P> = {
   commit: { kind: 'new' | 'unknown' | 'excluded' } | { kind: 'saved'; value: ReceivedCommitValue }
 }
 
-/** The host owns this state and its actual tasks across receiver and runtime reassembly. */
 export class ToolReceiverState<P> {
   readonly receptions = new Map<string, ToolReception<P>>()
   readonly writing = new Set<string>()

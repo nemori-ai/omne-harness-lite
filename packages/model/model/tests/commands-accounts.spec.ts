@@ -1,5 +1,3 @@
-// The accounts conformance suite against the in-memory ModelCommands, and against altered copies of
-// it that each break one account rule, so every failure the suite reports is shown to be reachable.
 import { describe, expect, it } from 'vitest'
 import { type ModelCallId } from '@omne-harness/model-contract'
 import {
@@ -20,7 +18,6 @@ type Principal = ReturnType<typeof fixture>['principal']
 
 const OUTSIDER: Principal = Object.freeze({ subject: 'trusted' })
 
-/** The request of every admission: two user messages, so kept message identities are visible. */
 const REQUEST = (() => {
   const user = (id: string) => ({
     id: `msg_${id.padEnd(22, '0')}`,
@@ -47,7 +44,6 @@ function subjectOf(
       continuity: call => proof(call),
       lateSource: ({ call, dispatch }) => proof(`${call}/${dispatch}`, 'supplier'),
       completion: ({ call, result }) => proof(`${call}/${result}`, f.admit.consumer.owner),
-      // A principal of the same tenant and the same claims that the authority did not mint.
       outsider: { principal: OUTSIDER, tenant: f.tenant },
     }
   }
@@ -97,7 +93,6 @@ describe('checkCommandsAccounts', () => {
         const deliveries = new Map<string, number>()
         return {
           ...commands,
-          // Gives each delivery a fresh event, as an implementation that does not deduplicate.
           async preserve(input) {
             return commands.preserve({
               ...input,
@@ -124,7 +119,6 @@ describe('checkCommandsAccounts', () => {
     const report = await checkCommandsAccounts({
       subject: subjectOf(commands => ({
         ...commands,
-        // Keeps the report as the supplier sent it, as a provider that never completes it.
         async dispatches(input) {
           const read = await commands.dispatches(input)
           if ('failure' in read) return read
@@ -154,8 +148,6 @@ describe('checkCommandsAccounts', () => {
               accounted = input.call
             return kept
           },
-          // Gives a call without an account the records of the call that has one, as a provider
-          // that keys the accounts by tenant instead of by call.
           async dispatches(input) {
             const read = await commands.dispatches(input)
             if ('failure' in read || accounted === undefined || accounted === input.call)
@@ -174,8 +166,6 @@ describe('checkCommandsAccounts', () => {
     const report = await checkCommandsAccounts({
       subject: subjectOf(commands => ({
         ...commands,
-        // Removes the subject from the report and keeps the rest, as a provider that overwrites
-        // the subject instead of refusing the report.
         preserve: input =>
           commands.preserve({
             ...input,
@@ -222,8 +212,6 @@ describe('checkCommandsAccounts', () => {
             if ('ok' in custody && custody.ok.kind === 'acknowledged') cleaned.add(input.call)
             return custody
           },
-          // Releases the message identities with the request material, as a provider that keeps
-          // them only while the request lives.
           async dispatches(input) {
             const read = await commands.dispatches(input)
             if ('failure' in read || !cleaned.has(input.call)) return read
@@ -240,7 +228,6 @@ describe('checkCommandsAccounts', () => {
     const report = await checkCommandsAccounts({
       subject: subjectOf(commands => ({
         ...commands,
-        // Writes a format that the adapter never reported, so the reply settles.
         recordMaterialization: input =>
           commands.recordMaterialization({
             ...input,

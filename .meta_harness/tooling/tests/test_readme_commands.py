@@ -63,9 +63,9 @@ def run(words: list[str]) -> subprocess.CompletedProcess:
 def test_readme_documents_the_reconciler_and_source_checker_commands():
     # 取不到命令时下面的参数化会静默变空，先固定「至少写了这几条」。
     scripts = {words[0] for words in COMMANDS}
-    assert {".meta_harness/tooling/src/domain_objects.py",
+    assert {".meta_harness/tooling/src/ubiquitous_language.py",
             ".meta_harness/tooling/src/check_sources.py"} <= scripts
-    assert [".meta_harness/tooling/src/domain_objects.py", "--root", ".meta_harness/design", "--stale",
+    assert [".meta_harness/tooling/src/ubiquitous_language.py", "--root", ".meta_harness/design", "--stale",
             "report"] in COMMANDS, "a trailing comment is not part of the command"
 
 

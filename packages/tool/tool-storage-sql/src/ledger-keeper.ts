@@ -1,14 +1,3 @@
-// The snapshot keeper of the SQL ledger store (model `SnapshotCache`). One keeper serves every
-// ledger store over the same `SqlStorage`: every commit of this process goes through it, so the
-// snapshot it keeps of a domain is the content of the store, and a read answers from it without
-// a round trip. One process writes a database (the storage's writer generation), so no commit
-// goes past the keeper. The answer "absent" is never given from a snapshot alone.
-//
-// Three parts, each with one reason to change:
-//   1. The decisions: total functions from a snapshot and a question to a plan. No I/O. Each
-//      result is one action of the model.
-//   2. `Crossings`: whether a commit of a domain crossed a read of it.
-//   3. `keeping`: the store port over the raw store. It does what the plans say.
 import {
   recordKey,
   type LedgerCommit,
@@ -21,37 +10,26 @@ import {
   type ToolLedgerStore,
 } from '@omne-harness/tool'
 
-/** The domains whose snapshot one keeper holds; the least recently used one leaves first. */
 const KEPT_DOMAINS = 512
 
 type Complete = Extract<LedgerRead, { kind: 'complete' }>
 type Revision = Complete['revision']
 
-/**
- * Records of one domain at one revision, in key order. `whole`
- * says that these are all the records of the domain: a whole read made the snapshot. Otherwise
- * they are the records that single reads and commits made known, and the domain may hold more.
- */
 export type Snapshot = Readonly<{
   revision: Revision
   records: ReadonlyMap<string, LedgerRecord>
   whole: boolean
 }>
 
-// ---- 1. Decisions -----------------------------------------------------------------------------
-
-/** A kept record is shared by every later snapshot of its domain: nothing may change it. */
 function frozen<T>(value: T): T {
   if (typeof value !== 'object' || value === null || Object.isFrozen(value)) return value
   for (const member of Object.values(value)) frozen(member)
   return Object.freeze(value)
 }
 
-/** The record as the store holds it: what a read gives back for it. The keeper's own copy. */
 const stored = (record: LedgerRecord): LedgerRecord =>
   frozen(JSON.parse(JSON.stringify(record)) as LedgerRecord)
 
-/** A copy for one reader: a reader may change what a read gave it (store contract, G1). */
 const handed = (record: LedgerRecord): LedgerRecord => structuredClone(record)
 
 const inKeyOrder = (records: Iterable<readonly [string, LedgerRecord]>) =>
@@ -65,12 +43,7 @@ export function snapshotOf(read: Complete): Snapshot {
   }
 }
 
-/** What a whole read of a domain does. */
-export type ReadPlan =
-  /** Model `PureRead`: the snapshot is the answer. */
-  | Readonly<{ kind: 'answer'; read: Complete }>
-  /** Model `FullRead`: no snapshot of the whole domain, or the snapshot says "no records". */
-  | Readonly<{ kind: 'whole' }>
+export type ReadPlan = Readonly<{ kind: 'answer'; read: Complete }> | Readonly<{ kind: 'whole' }>
 
 export function planRead(held: Snapshot | undefined): ReadPlan {
   if (held === undefined || !held.whole || held.records.size === 0) return { kind: 'whole' }
@@ -84,13 +57,8 @@ export function planRead(held: Snapshot | undefined): ReadPlan {
   }
 }
 
-/** What a read of one record does. */
 export type RecordPlan =
   | Readonly<{ kind: 'answer'; read: Extract<LedgerRecordRead, { kind: 'complete' }> }>
-  /**
-   * The store answers this one record: the snapshot does not hold it (it is absent, or not known
-   * yet). The answer judges the snapshot.
-   */
   | Readonly<{ kind: 'ask' }>
 
 export function planRecord(held: Snapshot | undefined, key: string): RecordPlan {
@@ -102,11 +70,6 @@ export function planRecord(held: Snapshot | undefined, key: string): RecordPlan 
   }
 }
 
-/**
- * The snapshot after the store answered a read of the record `key`. At the revision of the
- * snapshot the answer confirms it and makes the record known. At another revision, or without a
- * snapshot, the answer is all that is known of the domain.
- */
 export function judged(
   held: Snapshot | undefined,
   answer: Extract<LedgerRecordRead, { kind: 'complete' }>,
@@ -122,7 +85,6 @@ export function judged(
   }
 }
 
-/** The records after `writes`, or null when the writes drop the domain. Due entries are not records. */
 function applied(
   records: ReadonlyMap<string, LedgerRecord>,
   writes: readonly LedgerWrite[],
@@ -140,13 +102,6 @@ function applied(
   return added ? inKeyOrder(next) : next
 }
 
-/**
- * The snapshot of the written domain after the store answered a commit; null is "none".
- * `committed` is model `Committed`: the snapshot at the expected revision advances by the writes,
- * any other snapshot goes. `conflict` is model `Conflict`: a snapshot at the refused revision is
- * stale; a snapshot at another revision was advanced by another commit of this keeper and stays.
- * `unknown` is model `Unknown`. `unavailable` and `rejected` wrote nothing.
- */
 export function afterCommit(
   held: Snapshot | undefined,
   input: LedgerCommitInput,
@@ -172,18 +127,10 @@ export function afterCommit(
   }
 }
 
-/** Whether a refused commit refutes the snapshot of a domain it asserted at `revision`. */
 export function refuted(held: Snapshot | undefined, revision: Revision): boolean {
   return held?.revision === revision
 }
 
-// ---- 2. Crossings -----------------------------------------------------------------------------
-
-/**
- * Whether a commit of a domain was in flight at any moment of a read of it. The store answers a
- * read with the content before such a commit, and the answer can arrive after the commit: it
- * must not become the snapshot (model `FullRead` has no commit in flight).
- */
 class Crossings {
   readonly #busy = new Map<string, number>()
   /** The order number of the last start or end of a commit, by domain. */
@@ -192,7 +139,6 @@ class Crossings {
   /** No domain that left `#moved` moved after this order number. */
   #floor = 0
 
-  /** The moment a read begins. */
   mark(): number {
     return this.#order
   }
@@ -225,9 +171,6 @@ class Crossings {
   }
 }
 
-// ---- 3. The port ------------------------------------------------------------------------------
-
-/** The snapshots and crossings that every ledger store over one storage shares. */
 export class LedgerKeeper {
   readonly crossings = new Crossings()
   readonly #kept = new Map<string, Snapshot>()
@@ -236,7 +179,6 @@ export class LedgerKeeper {
     return this.#kept.get(domain)
   }
 
-  /** `null` forgets the domain. */
   set(domain: string, snapshot: Snapshot | null): void {
     this.#kept.delete(domain)
     if (snapshot === null) return
@@ -249,7 +191,6 @@ export class LedgerKeeper {
 
 type Raw = Pick<ToolLedgerStore, 'read' | 'readRecord' | 'commit'>
 
-/** `raw` with its reads answered by `keeper`. */
 export function keeping(keeper: LedgerKeeper, raw: Raw): Raw {
   const keyOf = (domain: LedgerDomain): string => JSON.stringify(domain)
 
@@ -261,7 +202,6 @@ export function keeping(keeper: LedgerKeeper, raw: Raw): Raw {
     return answer
   }
 
-  /** Asks the store for one record. The answer confirms, extends or replaces the snapshot. */
   const ask = async (
     domain: LedgerDomain,
     key: string,

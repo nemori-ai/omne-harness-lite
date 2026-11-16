@@ -1,5 +1,3 @@
-// The Cordis entry exports the `agent-host` plugin and its measured-plugin factory, and nothing else: its name, its configuration
-// check and the literal `inject` array of the ten required keys plus the host maintenance principal.
 import { expect, it } from 'vitest'
 
 it('exports the agent-host plugin with its static inject list', async () => {

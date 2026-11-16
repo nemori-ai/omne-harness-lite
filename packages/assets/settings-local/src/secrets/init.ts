@@ -1,8 +1,3 @@
-// Building a vault on a host: the path rule (below the real user directory, nothing on the path),
-// the secret read through an injected reader, the permission guard that keeps what is created
-// private to the user, and the read-back that confirms the file holds the secret under the key.
-// The result carries a closed set of reason codes and nothing else: no message, no cause, no path
-// of a failed step. The secret is only ever a local value between the reader and the file.
 import {
   chmodSync,
   lstatSync,
@@ -24,33 +19,21 @@ import {
   type CreateSecretVaultResult,
 } from './store.ts'
 
-/** Why a read secret was refused: the reader gave up, or the text does not pass `parseSecretText`. */
 export type SecretReadFailure =
   | SecretInputFailure
-  /** The secret is empty once the whitespace around it is removed. */
   | 'secret-empty'
-  /** The secret holds a control character. */
   | 'secret-malformed'
-  /** The secret is longer than `SECRET_TEXT_MAX_LENGTH`. */
   | 'secret-too-long'
 
 export type SecretVaultInitFailure =
   | SecretReadFailure
-  /** The path is empty or holds a NUL character. */
   | 'path-invalid'
-  /** The path does not lie below the real user directory. */
   | 'path-outside-home'
-  /** The path or one of its parents cannot be examined, or a parent is not a directory. */
   | 'path-check-failed'
-  /** Anything at all is on the path: a vault, a damaged or empty file, a directory, a link. */
   | 'path-occupied'
-  /** The file lock was not free within the lock wait. */
   | 'lock-timeout'
-  /** The vault or a new directory could not be written. */
   | 'write-failed'
-  /** The vault returned, but the file does not hold this secret under the key. Nothing is deleted. */
   | 'write-unconfirmed'
-  /** The modes could not be narrowed or read back. What was built is removed. */
   | 'permission-failed'
 
 export type SecretVaultInitResult =
@@ -59,11 +42,6 @@ export type SecretVaultInitResult =
 
 export type EntryKind = 'file' | 'directory'
 
-/**
- * How what is created is made private to the current user. `confine` runs the creation so that
- * nothing is born wider than needed, `narrow` closes an entry, and `verify` throws unless the entry
- * reads back as private.
- */
 export type PermissionGuard = Readonly<{
   confine<T>(create: () => T): T
   narrow(path: string, kind: EntryKind): void
@@ -71,19 +49,12 @@ export type PermissionGuard = Readonly<{
 }>
 
 export type SecretVaultInitDeps = Readonly<{
-  /** Supplies the secret. It is called once, only after the path is known to be free. */
   readSecret: () => string | Promise<string>
-  /** The binding the new vault starts with. */
   key: SecretBindingKey
-  /** The time of that binding. Default: none. */
   configuredAt?: Instant | null
-  /** The user directory; the path must lie below its real path. Default: `os.homedir()`. */
   home?: () => string
-  /** Builds the vault. Default: `createSecretVault`, so the file lock and the atomic publish apply. */
   create?: (options: CreateSecretVaultOptions) => CreateSecretVaultResult
-  /** Default: mode bits on POSIX, the inherited access control of the user directory on Windows. */
   guard?: PermissionGuard
-  /** The lock wait of the vault. Default: the vault default. */
   lockWaitMs?: number
 }>
 
@@ -101,10 +72,6 @@ const POSIX_OPS: PosixOps = {
   umask: mask => process.umask(mask),
 }
 
-/**
- * POSIX: files `0600` and directories `0700`. Creation runs under the mask `077`, so nothing exists
- * wider than that for a moment; `narrow` then sets the exact mode, and `verify` reads it back.
- */
 export function createPosixGuard(ops: PosixOps = POSIX_OPS): PermissionGuard {
   return {
     confine(create) {
@@ -126,11 +93,6 @@ export function createPosixGuard(ops: PosixOps = POSIX_OPS): PermissionGuard {
   }
 }
 
-/**
- * Windows has no mode bits, and nothing here edits access control lists. Protection comes from the
- * access control that a new entry inherits below the user directory, which the path rule
- * guarantees. `verify` cannot read that back, so it checks nothing; the documents say so.
- */
 const INHERITED_ACL_GUARD: PermissionGuard = {
   confine: create => create(),
   narrow: () => undefined,
@@ -141,7 +103,6 @@ export function defaultGuard(): PermissionGuard {
   return process.platform === 'win32' ? INHERITED_ACL_GUARD : createPosixGuard()
 }
 
-/** Marks a failure of the guard, so that it is not reported as a failed write. */
 class PermissionRefused extends Error {}
 
 function errorCode(error: unknown): string | undefined {
@@ -166,9 +127,6 @@ type Located =
   | Readonly<{ ok: true; target: string; missing: readonly string[] }>
   | Readonly<{ ok: false; reason: 'path-outside-home' | 'path-check-failed' }>
 
-// The nearest parent that exists decides where the path really lies: its real path, plus the names
-// that do not exist yet (they cannot be links). A link that leaves the user directory therefore
-// moves the real path out, and the path is refused.
 function locate(path: string, home: string): Located {
   let realHome: string
   let existing = dirname(resolve(path))
@@ -212,11 +170,6 @@ export type TypedSecret =
   | Readonly<{ ok: true; secret: SecretText }>
   | Readonly<{ ok: false; reason: SecretReadFailure }>
 
-/**
- * Calls the reader once and turns what it gives into a secret text, or into the reason it was
- * refused. A reader that throws a `SecretInputError` passes its reason on; any other throw is
- * `input-failed`. The thrown error is dropped: it could hold the secret.
- */
 export async function readTypedSecret(
   readSecret: SecretVaultInitDeps['readSecret'],
 ): Promise<TypedSecret> {
@@ -243,11 +196,6 @@ export async function readTypedSecret(
   }
 }
 
-/**
- * The read-back: opens the file and takes the secret under the key through the use face. It
- * confirms that the file is a readable vault that holds this secret there, which an adopted file
- * or a file another process wrote does not.
- */
 export function holdsSecret(path: string, key: SecretBindingKey, secret: SecretText): boolean {
   const opened = openSecretVault({ path })
   if (opened.kind !== 'open') return false
@@ -255,22 +203,17 @@ export function holdsSecret(path: string, key: SecretBindingKey, secret: SecretT
   return typeof taken !== 'string' && taken.value === secret
 }
 
-// Only a file that holds this secret is removed, so a file that someone else wrote on the path survives.
 function removeOwn(path: string, key: SecretBindingKey, secret: SecretText): void {
   try {
     if (holdsSecret(path, key, secret)) unlinkSync(path)
-  } catch {
-    // Removing a half-built result is best-effort; the failure reason is already decided.
-  }
+  } catch {}
 }
 
 function removeDirectories(directories: readonly string[]): void {
   for (const directory of directories.toReversed()) {
     try {
       rmdirSync(directory)
-    } catch {
-      // A directory that is not empty or not ours stays.
-    }
+    } catch {}
   }
 }
 
@@ -291,21 +234,6 @@ function buildFailure(result: CreateSecretVaultResult): SecretVaultInitFailure |
   }
 }
 
-/**
- * Builds a vault at `path`, which must lie below the user directory and hold nothing, with one
- * binding. Order: path rule, nothing on the path, read the secret, nothing on the path again (the
- * person may type for a while), then create under the guard, confirm the secret in the file, and
- * narrow the modes.
- *
- * The window between the last check and the vault's lock is a known limit: a process that writes
- * the path in between makes the vault adopt that file. The read-back then does not find the secret
- * and the command reports `write-unconfirmed` without touching the file.
- *
- * Its cyclomatic complexity is kept above the alert line on purpose. The function is a flat
- * sequence of guard clauses, one per step of the specified order, and each clause returns its own
- * reason code. Splitting them would only move the order from one place to a helper chain, and the
- * order is the contract (the secret is read after the first check and before the second).
- */
 export async function initSecretVault(
   path: string,
   deps: SecretVaultInitDeps,

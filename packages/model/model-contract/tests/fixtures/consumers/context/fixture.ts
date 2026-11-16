@@ -1,10 +1,3 @@
-// A context assembler: it consumes the profile, preparation, metering and conversion services of
-// the Model contract, declares tools as neutral values and hands a fixed request on. It reads the
-// window and the compaction trigger from the winning profile, measures before it prepares, and
-// compresses when the input passes the trigger; the preparation and the send measure nothing. It
-// imports only the public contract and its neighbours' value packages. Its code receives the
-// services and no transport, so it cannot read media; that is a property of its types and imports,
-// which the dependency checks and the role trace show, not something these paths observe.
 import {
   createScriptedModelProfiles,
   createScriptedModelRequestPreparation,
@@ -47,7 +40,6 @@ type Path = Readonly<{
 
 const COMPLETED: Termination = { kind: 'completed', reason: 'stop' }
 
-/** The services, with a scripted transport behind the preparation, and the counters to read. */
 function setup(
   endings: readonly Termination[] = [COMPLETED],
   meter: CountingMeter = createMeter(),
@@ -62,8 +54,6 @@ function setup(
     ending: { kind: 'terminated', termination: { kind: 'completed', reason: 'stop' } },
     rejection: null,
   })
-  // The profile that the fixture offers is the one official profile of values.ts. Its credential
-  // state is an explicit input of this fixture, not a default of the public double.
   const profiles = createScriptedModelProfiles<Principal>()
   profiles.setAccess(access, 'allow')
   const resolved: ProfileResolution = {
@@ -191,11 +181,8 @@ async function profileAndMeterFixTheRequest(): Promise<void> {
   )
   expect(request.toolChoice === 'none', 'a request without tools allows tools')
   expect(result.dropped === 0, `the context dropped ${result.dropped} messages of a short input`)
-  // The context measured once, before the preparation. A preparation that measured again would
-  // count two.
   expect(meter.measured() === 1, `the input was measured ${meter.measured()} times`)
   expect(preparation.calls().length === 1, 'the preparation was not asked once')
-  // The preparation closes what it prepared, and only prepares: nothing is materialized or started.
   const counts = transport.counts()
   expect(counts.prepare === 1, `the transport was prepared ${counts.prepare} times`)
   expect(counts.closePrepared === counts.prepare, 'a prepared transport was not closed')
@@ -211,18 +198,14 @@ async function contextReadsWindowAndTriggerFromTheWinningProfile(): Promise<void
   expect(context.window.provided === '50', `the window is ${context.window.provided}`)
   expect(context.compactionTriggerPercent === '60', 'the trigger share differs')
   expect(triggerLine(context) === 30n, `the trigger line is ${triggerLine(context)}`)
-  // The double hands out a frozen copy of the profile it was given, so the window is compared by
-  // its value: it must be the window of the registered profile, not one read from elsewhere.
   expect(
     JSON.stringify(context.window) === JSON.stringify(profile.definition.context.window),
     'the window is not the window of the registered profile',
   )
-  // The context read the profile once: the double recorded one business call.
   const reads = profiles.calls().length
   expect(reads === 1, `the profiles were read ${reads} times`)
 }
 
-// The system text of this fixture is 9 characters, so the input below holds 9 + the blocks.
 async function inputExactlyAtTheTriggerIsNotCompressed(): Promise<void> {
   const { services, meter } = setup()
   const history = [
@@ -256,8 +239,6 @@ async function voiceBlockIsReplacedByItsDerivedText(): Promise<void> {
   expect(block?.kind === 'text' && block.text === 'hello there', 'the derived text is missing')
 }
 
-// The input holds 34 tokens: more than the trigger line of 30 and less than the 40 that the input
-// may hold. The context compresses on its own policy before it asks for a preparation.
 async function inputOverTheTriggerIsCompressedBeforePreparing(): Promise<void> {
   const { services, meter, preparation } = setup()
   const history = [
@@ -271,7 +252,6 @@ async function inputOverTheTriggerIsCompressedBeforePreparing(): Promise<void> {
   const newest = result.request.messages[1]?.blocks[0]
   expect(newest?.kind === 'text' && newest.text === 'newest', 'the newest message was not kept')
   expect(meter.measured() === 2, `the context measured ${meter.measured()} times, not twice`)
-  // The compressed input is what reached the preparation, and the request carries it.
   const calls = preparation.calls()
   expect(calls.length === 1, `the preparation was asked ${calls.length} times`)
   expect(
@@ -280,8 +260,6 @@ async function inputOverTheTriggerIsCompressedBeforePreparing(): Promise<void> {
   )
 }
 
-// The input holds 42 tokens, over the 40 that it may hold. The meter reports the count against
-// the limit, and the context compresses the same way as it does past the trigger.
 async function inputOverTheLimitIsCompressedToo(): Promise<void> {
   const { services, meter } = setup()
   const history = [
@@ -294,10 +272,6 @@ async function inputOverTheLimitIsCompressedToo(): Promise<void> {
   expect(meter.measured() === 2, `the context measured ${meter.measured()} times, not twice`)
 }
 
-// The meter reports what it counted; it is the context that finds one message of 54 tokens over
-// the 40 that the profile can hold and stops. The preparation stand-in takes whatever it is
-// handed, so an input that reaches it is prepared and counted: the count shows that the context
-// stopped on its own.
 async function inputThatStaysOverTheLimitIsTooLarge(): Promise<void> {
   const { services, preparation, transport } = setup()
   const history = [
@@ -322,8 +296,6 @@ const unavailableMeter = () =>
     }),
   )
 
-// A meter that has not measured the input: its answer is a named failure, not a count. The
-// context does not take that for an input too large; it drops nothing and hands the failure on.
 async function meterFailureIsHandedOnWithoutCompression(): Promise<void> {
   const meter = unavailableMeter()
   const { services, preparation } = setup([COMPLETED], meter)
@@ -336,7 +308,6 @@ async function meterFailureIsHandedOnWithoutCompression(): Promise<void> {
   expect(result.dropped === 0, `the context dropped ${result.dropped} messages on a failed meter`)
   expect(meter.measured() === 1, `the context asked the meter ${meter.measured()} times`)
   expect(preparation.calls().length === 0, 'an unmeasured input was handed to the preparation')
-  // Through the submission too: nothing is sent.
   const { services: again, sender } = setup([COMPLETED], unavailableMeter())
   const submitted = await submitRequest(again, submission(threeMessages))
   expect(submitted.kind === 'not-sent', `the submission ended as ${submitted.kind}`)
@@ -344,9 +315,6 @@ async function meterFailureIsHandedOnWithoutCompression(): Promise<void> {
   expect(sender.sent().length === 0, 'an unmeasured input was sent')
 }
 
-// A complete budget without a check of the input tokens: the meter did not cover the one check
-// that the context needs, so the measurement is not finished, and the context does not take the
-// input as fitting.
 async function budgetWithoutAnInputCheckIsNotPreparedOn(): Promise<void> {
   const meter = createMeterWith(() =>
     succeed({ kind: 'complete', inputDigest: 'none', checks: [], counting: [basis] }),
@@ -379,8 +347,6 @@ const threeMessages = [
   userMessage('three', [textBlock('t3', 'three')]),
 ]
 
-// The Model sent the input and the upstream refused it as too long. The Model does not send it
-// again and does not choose another route; the finished call hands the fault to the context.
 async function inputOverTheLimitAfterSendingIsCompressedAndSentAsNewCall(): Promise<void> {
   const reported = { metric: 'context-tokens', limit: '50', actual: '61' } as const
   const { services, sender, preparation, transport } = setup([overLimit(reported), COMPLETED])
@@ -398,7 +364,6 @@ async function inputOverTheLimitAfterSendingIsCompressedAndSentAsNewCall(): Prom
     'the same input was sent again',
   )
   expect(sender.sent().length === 2, 'the sender saw another number of calls')
-  // Each request was formed from the input that the context assembled for it.
   const calls = preparation.calls()
   expect(calls.length === 2, `the preparation was asked ${calls.length} times`)
   expect(

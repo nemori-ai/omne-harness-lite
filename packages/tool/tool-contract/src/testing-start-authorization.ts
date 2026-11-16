@@ -1,7 +1,3 @@
-// The conformance suite of the authorization consumption point of P04 (SPEC「授权消费点与撤权再核」,
-// J50). The suite binds permits, revokes the admission and reads the permit ledger through fixture
-// handles, and it observes the start only through `consume` and `inspect`. The conforming double,
-// `createMemoryAuthorizedToolStartAuthority`, lives with the start authority double.
 import assert from 'node:assert/strict'
 import type { FixedToolRequest } from './definitions.ts'
 import type { ToolCallId } from './identity.ts'
@@ -35,10 +31,6 @@ import {
   startRecord,
 } from './testing-values.ts'
 
-/**
- * What the suite needs, on top of the start authority fixture. Without `authorization` every case
- * is reported not applicable, naming the handle `authorization`.
- */
 export interface ToolStartAuthorizationFixture<P> extends ToolStartAuthorityFixture<P> {
   readonly authorization?: ToolStartAuthorizationHandles<P>
 }
@@ -127,7 +119,6 @@ function scene<P>(fixture: Fixture<P>) {
         ),
     }
   }
-  /** A fresh permit that the authorization owner granted to another tenant. */
   const foreignPermit = () =>
     authorization.bind({ access: otherAccessOf(fixture), call: callId('call-foreign') })
   return { at, foreignPermit, read: (permit: ToolPermitRef) => authorization.read(permit) }
@@ -151,7 +142,6 @@ async function consumedOnce<P>(fixture: Fixture<P>): Promise<void> {
     { earlier: accepted, later: await call.consume(startPermit) },
     'consume again',
   )
-  // The resend recalled the acceptance and consumed nothing more.
   assert.deepEqual(await s.read(permit), reading, 'the resend consumed the permit again')
 }
 
@@ -181,9 +171,7 @@ async function revokedBeforeConsume<P>(fixture: Fixture<P>): Promise<void> {
   const permit = await call.bind()
   const startPermit = await call.prepare()
   await call.revoke()
-  // A denied verdict refuses for good: not-started would let the same start be asked again.
   expectKind(await call.consumeFinal(startPermit), 'rejected', 'consume after the revocation')
-  // The recheck comes before the consumption: a refused start spends no permit.
   assert.equal((await s.read(permit)).kind, 'open', 'the refused start consumed the permit')
 }
 
@@ -194,7 +182,6 @@ async function revokedAfterAcceptance<P>(fixture: Fixture<P>): Promise<void> {
   const startPermit = await call.prepare()
   const accepted = expectKind(await call.consumeFinal(startPermit), 'started', 'consume')
   await call.revoke()
-  // The residual window: a revocation after the acceptance neither withdraws nor stops it.
   resendRecalls(answers.inspect, { earlier: accepted, later: await call.inspect() }, 'inspect')
   resendRecalls(
     answers.consume,
@@ -214,7 +201,6 @@ async function notStartedKeepsPermit<P>(fixture: Fixture<P>): Promise<void> {
   expectKind(await s.read(permit), 'consumed', 'the permit after the acceptance')
 }
 
-/** One read of consume while a dependency cannot be read: undecided, and the permit stays issued. */
 async function unreadableKeepsTask<P>(
   fixture: Fixture<P>,
   which: 'ledger' | 'admission',
@@ -225,13 +211,11 @@ async function unreadableKeepsTask<P>(
   const startPermit = await call.prepare()
   await call.outage(which)
   const undecided = await call.consume(startPermit)
-  // Unreadable is not refused: the answer stays undecided, never rejected and never started.
   expectKind(undecided, 'unknown', `consume while the ${which} cannot be read`)
   if (which === 'ledger')
     assert.equal((await s.read(permit)).kind, 'unavailable', 'the ledger read during its outage')
   await call.restore(which)
   assert.equal((await s.read(permit)).kind, 'open', 'the undecided consume spent the permit')
-  // The original task asks again with the same permit, and the start is accepted.
   expectKind(await call.consumeFinal(startPermit), 'started', 'consume after the restore')
   expectKind(await s.read(permit), 'consumed', 'the permit after the acceptance')
 }
@@ -263,8 +247,6 @@ async function resumeKeepsPosition<P>(fixture: Fixture<P>): Promise<void> {
   const permit = await call.bind()
   expectKind(await call.consumeFinal(await call.prepare()), 'started', 'consume of the start')
   const first = expectKind(await s.read(permit), 'consumed', 'the permit after the start')
-  // A resume is another start operation of the same call: it recognises the consumption of its
-  // call at the same position and consumes nothing more.
   expectKind(
     await call.consumeFinal(await call.prepareResume()),
     'started',
@@ -280,7 +262,6 @@ async function guardsBeforeConsumption<P>(fixture: Fixture<P>): Promise<void> {
   const startPermit = await call.prepare()
   await call.invalidate(startPermit)
   expectKind(await call.consumeFinal(startPermit), 'rejected', 'consume after the guard moved')
-  // The guards come before the consumption: a start that the guard refuses spends no permit.
   assert.equal((await s.read(permit)).kind, 'open', 'the refused start consumed the permit')
 }
 
@@ -310,7 +291,6 @@ export function toolStartAuthorizationConformance<P>(): readonly ConformanceCase
   ]
 }
 
-/** A fresh fixture over a fresh authorized in-memory authority. */
 export function memoryToolStartAuthorizationFixture(): ToolStartAuthorizationFixture<string> {
   const authority = createMemoryAuthorizedToolStartAuthority<string>()
   return {

@@ -1,5 +1,3 @@
-// 环境自检与自愈（准入与预检开始时）：依赖目录与锁文件不一致时离线安装，索引为 LF 而工作副本为 CRLF 的已跟踪文件从索引重新检出；
-// 已一致时什么都不动；有内容改动的 CRLF 文件不覆盖。只改工作副本与依赖目录，结果写成记录里的一栏。
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -20,7 +18,6 @@ beforeEach(() => {
   const git = (...args: string[]) =>
     execFileSync('git', args, { cwd: root, env: repositoryEnv(process.env), encoding: 'utf8' })
   git('init', '-q', '-b', 'main')
-  // 换行判定不依赖机器的 autocrlf：读字节、算 blob 哈希与索引比。
   git('config', 'core.autocrlf', 'false')
   put('.gitignore', 'node_modules/\n')
   put('a.txt', 'one\ntwo\n')
@@ -40,7 +37,6 @@ const put = (path: string, text: string) => {
 }
 const read = (path: string) => readFileSync(join(root, path), 'utf8')
 
-/** 假的离线安装：记下调用次数；`succeed` 时把锁文件抄进依赖目录（pnpm 安装成功后 `.pnpm/lock.yaml` 就是这样）。 */
 function installer(succeed: boolean) {
   const calls: string[] = []
   const io: EnvironmentIo = {

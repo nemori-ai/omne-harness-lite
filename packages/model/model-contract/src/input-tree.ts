@@ -77,7 +77,6 @@ function arrayShape(
   return succeed(size)
 }
 
-/** One budget per public boundary. Shared DAGs consume a budget for every occurrence. */
 export class InputTree {
   private nodes: number
   private strings = 0

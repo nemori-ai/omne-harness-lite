@@ -1,8 +1,3 @@
-// What the decision bridge suite and the resource response suite share (P06): both ports register
-// a business association by call and wait, answer the original operation with `inspectOperation`,
-// and take an invalidation that may arrive before the registration lands. The cases that check
-// this are written once over a small peer view of the port, and the non-durable doubles of both
-// ports keep their operations in the same ledger. Nothing here is exported from the entry.
 import assert from 'node:assert/strict'
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import type { DurableEvidence, ToolOperationId } from './identity.ts'
@@ -27,13 +22,6 @@ import {
 } from './testing-case.ts'
 import { digestOf, evidence, identifyingValues, operationId } from './testing-values.ts'
 
-/**
- * One port seen through the calls that both external-association ports have. `wait` and
- * `operation` are identity texts. `hold`, `settle`, `excludeDeferred` and `invalidations` are the
- * control handles of the provider (see the fixtures); `completion` is `settle` as the completion
- * handle that drives a progress answer. `sends` holds what every call of the peer sends besides its
- * operation, its wait and the evidence that it passes: the access and the call.
- */
 export interface ExternalPeer {
   readonly completion: Completion
   readonly sends: readonly unknown[]
@@ -47,23 +35,13 @@ export interface ExternalPeer {
   invalidations?(): readonly DurableEvidence[]
 }
 
-/**
- * The control handles that both external-association fixtures offer. Completion contract: a
- * handle that drives deferred work (`settle`, `excludeDeferred`) resolves only after that work has
- * landed and is visible to every read of the port; the suite asks once more and never polls.
- */
 export interface ExternalHandles {
-  /** Defers the next new operation: it is not applied and its reply is lost (`commit-unknown`). */
   hold?(): void
-  /** Resolves after every deferred operation that was not excluded has landed and is readable. */
   settle?(): Promise<void>
-  /** Resolves after the deferred operation of this identity is excluded for good. */
   excludeDeferred?(operation: ToolOperationId): Promise<void>
-  /** Lists the registrations that were invalidated, each once (a read, with no deferred work). */
   invalidations?(): readonly DurableEvidence[]
 }
 
-/** The handles of a fixture that it offers, each bound to the fixture. */
 export function boundHandles(
   fixture: ExternalHandles,
 ): Pick<ExternalPeer, 'hold' | 'settle' | 'excludeDeferred' | 'invalidations'> {
@@ -79,7 +57,6 @@ export function boundHandles(
   return bound
 }
 
-/** The success of `outcome` mapped by `change`; a failure is passed on. */
 export function mapOk<T, U>(
   outcome: Outcome<T, ToolFailure>,
   change: (value: T) => U,
@@ -87,15 +64,12 @@ export function mapOk<T, U>(
   return 'ok' in outcome ? { ok: change(outcome.ok) } : outcome
 }
 
-/** The part of a fixture that the shared cases read: the access of the own tenant and of another. */
 export type ExternalFixture = TwoTenantFixture
 
 export type PeerView<F extends ExternalFixture> = (fixture: F, access: F['access']) => ExternalPeer
 
-/** The wait that the cases use unless they name another. */
 export const WAIT = 'wait-1'
 
-/** The terminal evidence that an invalidation of a peer passes. */
 export const TERMINAL: DurableEvidence = evidence('terminal')
 
 function assertEvidence(value: DurableEvidence, what: string): void {
@@ -104,13 +78,6 @@ function assertEvidence(value: DurableEvidence, what: string): void {
   assert.ok(value.digest.length > 0, `${what}: the digest of the evidence is named`)
 }
 
-/**
- * The answer model of the calls that both external-association ports have (P06, P01): `ensure` and
- * `invalidate` answer `commit-unknown` when the reply of a commit is lost, and the operation is then
- * asked again or inspected; `inspectOperation` answers `pending` or `unknown` while the original
- * operation is kept, and `committed` or `excluded` once it is decided. `inspect` reads the
- * association and has no progress kind.
- */
 export const externalAnswers = {
   ensure: { clause: 'P06', progress: [], lostReply: ['commit-unknown'] },
   invalidate: { clause: 'P06', progress: [], lostReply: ['commit-unknown'] },
@@ -118,12 +85,6 @@ export const externalAnswers = {
   inspectOperation: { clause: 'P06', progress: ['pending', 'unknown'] },
 } as const satisfies AnswerModel
 
-/**
- * The success of an operation that the contract lets the provider answer later (a lost reply,
- * `commit-unknown`): it is driven to its end with the `settle` handle, the operation is asked
- * again, and the provider recalls the original answer. A provider that answers at once never needs
- * the handle.
- */
 export async function landed<A>(
   completion: Completion,
   send: () => Promise<Outcome<A, ToolFailure>>,
@@ -133,10 +94,6 @@ export async function landed<A>(
   return succeeded(await finalAnswer({ ask: send, row, completion, what }), what)
 }
 
-/**
- * The cases of P06 that hold for every port that registers an association by call and wait.
- * Both suites list them first.
- */
 export function externalAssociationCases<F extends ExternalFixture>(
   peerOf: PeerView<F>,
 ): readonly ConformanceCase<F>[] {
@@ -152,7 +109,6 @@ export function externalAssociationCases<F extends ExternalFixture>(
       answers.invalidate,
       `invalidate ${operation}`,
     )
-  /** The decided answer of `inspectOperation`: `pending` and `unknown` are driven by `settle`. */
   const decided = async (p: ExternalPeer, operation: string) =>
     succeeded(
       await finalAnswer({
@@ -231,7 +187,6 @@ export function externalAssociationCases<F extends ExternalFixture>(
         const own = peer(fixture)
         const other = foreign(fixture)
         const registration = await ensured(own, 'ensure-1')
-        // The answer for the wait of the own tenant is the answer for a wait that never existed.
         const { ghost } = await crossTenantAnswers({
           ask: { real: () => other.inspect('wait-1'), ghost: () => other.inspect('wait-ghost') },
           row: answers.inspect,
@@ -251,7 +206,6 @@ export function externalAssociationCases<F extends ExternalFixture>(
         const own = peer(fixture)
         const other = foreign(fixture)
         const registration = await ensured(own, 'ensure-1')
-        // The other tenant asks with the same operation: the receipt identifies the record.
         await crossTenantAnswers({
           ask: {
             real: () => other.inspectOperation('ensure-1'),
@@ -280,8 +234,6 @@ export function externalAssociationCases<F extends ExternalFixture>(
         const other = foreign(fixture)
         const invalidations = handle(own.invalidations, 'invalidations')
         const registration = await ensured(own, 'ensure-1')
-        // A foreign invalidation whose reply was lost has landed after `settle`, and is still not
-        // carried out for the tenant.
         await crossTenantAnswers({
           ask: {
             real: () => other.invalidate('invalidate-1', 'wait-1'),
@@ -325,8 +277,6 @@ export function externalAssociationCases<F extends ExternalFixture>(
           isProgress(answer.ok, answers.inspectOperation) || answer.ok.kind === 'excluded',
           `inspectOperation of an operation never sent: expected progress or excluded, got ${answer.ok.kind}`,
         )
-        // An exclusion of an operation that was never seen is a fence: the operation must then
-        // never take effect, so a send of it is refused and registers nothing.
         if (answer.ok.kind === 'excluded') {
           refused(await p.ensure('never-sent'), 'ensure of an operation that was excluded')
           refused(await p.inspect(), 'inspect: the excluded ensure registered nothing')
@@ -431,8 +381,6 @@ export function externalAssociationCases<F extends ExternalFixture>(
         await p.ensure('ensure-1')
         await p.invalidate('invalidate-1')
         await settle()
-        // The reply of the ensure arrives late and recalls the original registration; the
-        // invalidation that was sent before it is then carried out on that registration.
         const registration = await ensured(p, 'ensure-1')
         assert.deepEqual(succeeded(await p.inspect(), 'inspect'), registration)
         await invalidated(p, 'invalidate-1')
@@ -466,7 +414,6 @@ export function externalAssociationCases<F extends ExternalFixture>(
           ),
           'inspectOperation of a deferred invalidation',
         )
-        // The deferred invalidation was kept, and it lands on the original registration.
         await settle()
         assert.deepEqual(invalidations(), [registration])
       },
@@ -483,7 +430,6 @@ export function externalAssociationCases<F extends ExternalFixture>(
           'invalidate under the operation identity of an ensure',
         )
         assert.equal(failure.kind, 'conflict')
-        // The receipt stays bound to the action that the operation was.
         const found = expectKind(
           await decided(p, 'ensure-1'),
           'committed',
@@ -513,7 +459,6 @@ export function externalAssociationCases<F extends ExternalFixture>(
         const registration = await ensured(p, 'ensure-1', 'wait-1')
         const failure = refused(await p.ensure('ensure-1', 'wait-2'), 'ensure of another wait')
         assert.equal(failure.kind, 'conflict')
-        // The refused ensure registered nothing.
         refused(await p.inspect('wait-2'), 'inspect: the refused ensure registered nothing')
         assert.deepEqual(succeeded(await p.inspect('wait-1'), 'inspect wait-1'), registration)
       },
@@ -545,10 +490,6 @@ export function externalAssociationCases<F extends ExternalFixture>(
   ]
 }
 
-// ---------------------------------------------------------------------------------------------
-// The operation ledger of the non-durable doubles
-// ---------------------------------------------------------------------------------------------
-
 type Operation = {
   readonly operation: ToolOperationId
   readonly digest: string
@@ -557,13 +498,6 @@ type Operation = {
   readonly apply: () => DurableEvidence
 }
 
-/**
- * The record of what the double did for each operation. An operation runs once: a resend of the
- * same action with the same input answers the original receipt, and the same identity with another
- * action kind or another input is a `conflict` that changes nothing (P01). `hold` defers the next
- * new operation: it answers a lost reply, stays pending, and lands at `settle` unless it was
- * excluded first.
- */
 export function createOperationLedger(mint: (kind: string, content: unknown) => DurableEvidence) {
   const operations = new Map<string, Operation>()
   let holding = false

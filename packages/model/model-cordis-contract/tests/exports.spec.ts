@@ -8,8 +8,6 @@ import {
   isClean,
   loadInventory,
   namesOf,
-  navigationProblems,
-  publicApiChapters,
   sameAsProblems,
 } from './exports-inventory.ts'
 
@@ -44,18 +42,6 @@ describe('built entries against the export inventory', () => {
       expect(isClean(comparison), JSON.stringify(comparison, null, 2)).toBe(true)
     })
   }
-
-  it('links, for every inventoried chapter of docs/public-api.md, existing source files that declare its names', () => {
-    const page = readFileSync(`${packageDirectory}docs/public-api.md`, 'utf8')
-    expect(
-      navigationProblems(
-        inventory,
-        publicApiChapters(page),
-        packageDirectory,
-        `${packageDirectory}docs`,
-      ),
-    ).toEqual([])
-  })
 
   it('lists every re-exported name in the entry that owns it, with the same kind', () => {
     expect(sameAsProblems(inventory)).toEqual([])

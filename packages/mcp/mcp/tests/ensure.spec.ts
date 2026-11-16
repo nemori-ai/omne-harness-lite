@@ -1,6 +1,3 @@
-// The connection table's `ensure`: reuse, rebuild, single flight, the setting defects of SPEC S4,
-// the connection failures of R6 with their catalog marking, the credential handle lifecycle of
-// S9, the connection bound, and the key that keeps tenants and peer accounts apart.
 import { describe, expect, it, vi } from 'vitest'
 import type { Access } from '@omne-harness/legal-identity'
 import {
@@ -40,7 +37,6 @@ import {
 const files = endpointRefOf('files')
 const peer = peerIdentityOf()
 
-/** The transport a usable connection hands to a request, read through its only door. */
 function transportOf(ensured: Ensured): unknown {
   const wire = ensured.wire()
   if ('failure' in wire) throw new Error(`the connection takes no requests: ${wire.failure.cause}`)
@@ -55,11 +51,6 @@ async function admitted(w: World, endpoint: EndpointRef, access: Access<Principa
 
 type Principal = Readonly<{ id: string }>
 
-/**
- * Two connections of one tenant and holding on one adoption revision, one for each peer account:
- * an adoption view that keeps one revision text while the credential binding changes. The
- * contract forbids this (AV5); the key must still keep the accounts apart.
- */
 async function twoAccounts(after: readonly Step[] = []) {
   const w = world({ script: [{ discover: peer }, { discover: peer }, ...after] })
   const base = adoptHttp(w, files)
@@ -168,7 +159,7 @@ describe('ensure: reuse, rebuild and single flight', () => {
   })
 })
 
-describe('ensure: setting defects (S4)', () => {
+describe('ensure: setting defects', () => {
   const cases: readonly [string, (w: World) => void, unknown][] = [
     [
       'target missing',
@@ -241,7 +232,7 @@ describe('ensure: setting defects (S4)', () => {
     })
   })
 
-  it('answers credential-unavailable (missing) when the credential setting is absent (K1)', async () => {
+  it('answers credential-unavailable (missing) when the credential setting is absent', async () => {
     const w = world()
     adoptHttp(w, files, { settings: { credential: { kind: 'absent' } } })
     const table = tableOf(w)
@@ -265,18 +256,17 @@ describe('ensure: setting defects (S4)', () => {
   })
 })
 
-describe('ensure: connection failures (R6) mark the catalog and release what was taken', () => {
+describe('ensure: connection failures mark the catalog and release what was taken', () => {
   async function keyOf(w: World, adopted: AdoptedEndpoint, account: PeerAccount) {
     return catalogKeyOf(alice.tenant, adopted, account)
   }
   const credentialAccount: PeerAccount = { kind: 'credential', binding: MAIN }
 
-  it('an error of this package while marking reaches the caller; it is not read as a store breach (MC-5, MC-15)', async () => {
+  it('an error of this package while marking reaches the caller; it is not read as a store breach', async () => {
     const w = world()
     const adopted = adoptHttp(w, files, { auth: 'static' })
     w.credentials.reject(alice.tenant, MAIN)
     const record = await storedRecord(w, await keyOf(w, adopted, credentialAccount), ['read'])
-    // A record at the last revision: the next one cannot be counted (contract `nextRevision`).
     const last = Number.MAX_SAFE_INTEGER
     if (!isCatalogRevision(last)) throw new TypeError('not a catalog revision')
     let writes = 0
@@ -300,7 +290,6 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
     const record = await storedRecord(w, await keyOf(w, adopted, credentialAccount), ['read'])
     const last = Number.MAX_SAFE_INTEGER
     if (!isCatalogRevision(last)) throw new TypeError('not a catalog revision')
-    // The mark of the failed build waits here until the second call has joined it.
     const marking = deferred<void>()
     let reads = 0
     const store = {
@@ -465,7 +454,7 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
     [{ kind: 'no-answer', cause: 'stream-broken' }, 'preparation-failed'],
     [{ kind: 'no-answer', cause: 'abandoned' }, 'preparation-failed'],
   ] as const)(
-    'discover without an answer (%o): effect-unknown with the cause, lost for the mark, else preparation-failed (%s) (S7, MC-5)',
+    'discover without an answer (%o): effect-unknown with the cause, lost for the mark, else preparation-failed (%s)',
     async (failure, lost) => {
       const w = world({ script: [{ discover: failure }] })
       adoptHttp(w, files, { auth: 'none' })
@@ -483,7 +472,7 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
     },
   )
 
-  it('discover not sent, marked stream-broken: connection-unavailable, lost (stream-broken) (S7, MC-5)', async () => {
+  it('discover not sent, marked stream-broken: connection-unavailable, lost (stream-broken)', async () => {
     const w = world({
       script: [
         {
@@ -606,8 +595,6 @@ describe('ensure: the connection key (invariant 1)', () => {
       },
     })
     w.eligibility.grant(mallory, files)
-    // The double gives every adoption its own revision. Here both tenants read one revision, so
-    // the tenant is the only part of the two connection keys that differs.
     const adoption: AdoptionView<Principal, string> = {
       endpoints: (access, scope) => w.ports.adoption.endpoints(access, scope),
       endpoint: async (access, endpoint) => {
@@ -637,7 +624,7 @@ describe('ensure: the connection key (invariant 1)', () => {
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(2)
   })
 
-  it('a close of the holding refuses requests on each of its connections at once, not one after the other (MC-10)', async () => {
+  it('a close of the holding refuses requests on each of its connections at once, not one after the other', async () => {
     const { table, ours, theirs } = await twoAccounts()
     const closing = table.close(alice.tenant, files.holding)
     const refused = { failure: { kind: 'not-sent', cause: 'connection-unavailable' } }
@@ -647,9 +634,7 @@ describe('ensure: the connection key (invariant 1)', () => {
     expect(await closing).toEqual({ kind: 'released' })
   })
 
-  it('a close that raised an error of this package on one connection waits for the others, then rejects with an AggregateError that holds the error (MC-10, P7)', async () => {
-    // The first connection's close stalls on its transport; the second connection's close hits a
-    // defect of this package after its teardown, when the table reads its generation to forget it.
+  it('a close that raised an error of this package on one connection waits for the others, then rejects with an AggregateError that holds the error (P7)', async () => {
     const closing = deferred<'closed'>()
     const { w, table, ours, theirs } = await twoAccounts([{ close: closing }])
     const defect = new Error('a defect of this package while forgetting the entry')
@@ -674,7 +659,6 @@ describe('ensure: the connection key (invariant 1)', () => {
         answered = true
       })
       await settled()
-      // The second connection's close has failed; the first one's has not ended: no answer yet.
       expect(answered).toBe(false)
       expect(w.transports.calls.filter(call => call.kind === 'close')).toHaveLength(2)
       closing.resolve('closed')
@@ -780,7 +764,7 @@ describe('ensure: the connection key (invariant 1)', () => {
   })
 })
 
-describe('ensure: the adoption is read again before a build (MC-5)', () => {
+describe('ensure: the adoption is read again before a build', () => {
   it('answers not-available-to-you for a token of an endpoint withdrawn after the gate, and builds nothing', async () => {
     const w = world({ script: [{ discover: peer }] })
     adoptHttp(w, files, { auth: 'none' })
@@ -808,7 +792,7 @@ describe('ensure: the adoption is read again before a build (MC-5)', () => {
   })
 })
 
-describe('ensure: a close against the build (MC-10, MC-5, P16)', () => {
+describe('ensure: a close against the build (P16)', () => {
   const STOPPED = { failure: { stage: 'settings', reason: { kind: 'connection-unavailable' } } }
 
   it('a release after the transport opened: the build answers the refusal and tears nothing down; the release closes the transport once', async () => {
@@ -863,10 +847,6 @@ describe('ensure: a close against the build (MC-10, MC-5, P16)', () => {
         const first = table.ensure(endpoint, alice)
         const answer = joined ? table.ensure(endpoint, alice) : first
         await settled()
-        // A clock of microtask turns. A callback on `answer` runs at most one turn after the
-        // settlement, so an answer that settled before the close is seen at most one turn after.
-        // The clock stops after CLOCK_LIMIT turns: a close that waits on a timer or I/O would
-        // otherwise starve the macrotask queue, and the test would spin instead of failing.
         let tick = 0
         let running = true
         const clock = (async () => {

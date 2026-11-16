@@ -1,8 +1,3 @@
-// 测试运行入口：
-// `plan` 算本次改动的影响面（`pnpm run check` 开头那一步），`step` 按计划执行 pytest、构建、类型检查、成员测试与验收；
-// `run` 跑受影响或全部成员的某一层（`--script acceptance` 改跑可执行验收）并写耗时账本；
-// `replay` 对主线上最近的提交逐个算计划（只算不跑）；`triage` 对一次运行里的失败做隔离重跑。
-// `step`、`run` 的退出码反映那一步是否通过；`plan`、`replay` 只在引擎出错时非零；`triage` 只报告，非零表示工具自己出错。
 import { resolveBaseline } from '@omne-harness/repo-toolchain/core/task-context'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
@@ -67,6 +62,7 @@ const USAGE = [
   '  replay [--ref <ref>] [--count <n>] [--json <路径>]',
   '      对 ref（缺省 main）最近 n 个（缺省 40）first-parent 提交，以父提交为基线逐个算计划，只算不跑',
   '  triage --run <运行目录>',
+  '      读那次运行的账本，把每处失败单独重跑 triage.repeats 次并归类，日志与报告在运行目录的 triage/ 下；只报告，不改那次运行的结论',
   '  coverage-parallel',
   '      打印覆盖率跨成员并行的并发度 <同时成员数>x<每成员工作进程数>，两数之积不超过本机的工作进程预算（scripts/metrics.sh 用）',
   '  check [--admission] [--keep-going] [--list] [--no-cache] [--resume-from <H1>] | check --preflight',
@@ -80,6 +76,13 @@ const USAGE = [
   '      --preflight 预检（根脚本 pnpm run preflight）：只跑准入里不依赖构建与全量测试的步骤，全部同时起、失败不终止其余，',
   '      最后一次列出全部发现与修法；开始时同样自检并自愈环境；不写准入日志与运行记录。不与别的 check 开关同给',
   ADMISSION_EVIDENCE_USAGE,
+  '根脚本：check:plan 是 plan；test:gate 是 step test；test:affected 是 run（带 --plan-only 时不占运行名额）；',
+  '  test:tier <fast|slow|all> 与 test 是 run --all --build；test:triage 是 triage；acceptance 是 run --all --script acceptance；',
+  '  check、admission、preflight 经 scripts/check.sh 进 check（admission 带 --admission，preflight 带 --preflight）',
+  '环境变量：OMNE_WORKER_BUDGET 钉死工作进程预算（正整数，超过核数按核数）；OMNE_TEST_MEMBER_CONCURRENCY 与 VITEST_MAX_WORKERS 临时盖过同时成员数与每成员工作进程数；',
+  '  OMNE_TEST_CACHE_HOME 结果缓存的根（缺省主检出 tmp/test-cache/）；OMNE_TEST_LEDGER_HOME 测试账本的根（缺省主检出 tmp/test-ledger/）；',
+  '  OMNE_ACCEPTANCE_LEDGER_HOME 验收账本的根（缺省主检出 tmp/acceptance-ledger/）；OMNE_SUBJECT_ROOT 被检查的检出（缺省本工具所在的检出）',
+  '退出码：run 与 step 全过为 0，有失败为 1；check 取第一个失败步骤的退出码；用法错误、算不出计划与接续前提不满足为 2。--help 打印本说明并退出 0',
 ].join('\n')
 
 const ROOT = resolve(
@@ -97,7 +100,6 @@ function planFromFlags(flags: Flags): PlanFile {
   return computePlan(ROOT, resolveBaseline(ROOT, flags.values.get('--base')).targetBase, full)
 }
 
-/** 打印统一规则取到的基线与来源，供 `pnpm run check` 的开头一步使用。 */
 function baseline(argv: readonly string[]): number {
   const flags = parseFlags(argv, ['--base'], [])
   const { state, targetBase, source } = resolveBaseline(ROOT, flags.values.get('--base'))
@@ -124,13 +126,11 @@ async function step(argv: readonly string[]): Promise<number> {
     throw new Error(`--plan 与 --base、--full 不能同时给\n${USAGE}`)
   const file = planPath === undefined ? planFromFlags(flags) : readPlanFile(ROOT, resolve(planPath))
   if (planPath === undefined) for (const line of describePlanFile(ROOT, file)) console.log(line)
-  // 预算在用到它的那一步开始时算一次：按核数与配置的份数分，不看当时的空闲率。
   const budget = () => budgetFor(readTestRunsConfig().parallel)
   const steps: Record<Step, () => number | Promise<number>> = {
     python: () => pythonStep(ROOT, file),
     build: async () => buildStep(ROOT, file, await budget(), planPath && resolve(planPath)),
     typecheck: async () => typecheckStep(ROOT, file, await budget()),
-    // 带计划文件时在准入检查里，构建一步已经按计划构建；单独运行时由 turbo 先构建。每层开始时自己采样。
     test: () => {
       const { policy, builtFrom } = stepTestCache(process.env, {
         planPath: planPath === undefined ? undefined : resolve(planPath),
@@ -138,7 +138,6 @@ async function step(argv: readonly string[]): Promise<number> {
         noCache: flags.switches.has('--no-cache'),
         full: flags.switches.has('--full') || fullRequested(process.env),
       })
-      // 带计划文件时把失败文件与定向重跑的结果写在它旁边，check 读进运行记录。
       return testStep(
         ROOT,
         file,
@@ -155,7 +154,6 @@ async function step(argv: readonly string[]): Promise<number> {
   return steps[name as Step]()
 }
 
-/** 一次运行要做的事；从命令行读出。 */
 interface RunRequest {
   readonly base: string | undefined
   readonly script: RunScript
@@ -192,7 +190,6 @@ function parseRun(argv: readonly string[]): RunRequest {
   if (flags.switches.has('--build') && flags.switches.has('--no-build'))
     throw new Error(`--build 与 --no-build 不能同时给\n${USAGE}`)
   const script = scriptOf(flags)
-  // 受影响范围的运行与全量验收自己构建（验收驱动 dist/）；全量测试由调用方先构建，除非要求它构建。
   const buildByDefault = !all || script === 'acceptance'
   return {
     base,
@@ -263,10 +260,6 @@ function runReplay(argv: readonly string[]): number {
   return 0
 }
 
-/**
- * 覆盖率跨成员并行的并发度：预算同 `run`（`OMNE_WORKER_BUDGET` 可覆盖），分法见 `coverageParallelism`。
- * 标准输出只有 `<M>x<W>` 一行，说明写到标准错误。
- */
 async function coverageParallel(argv: readonly string[]): Promise<number> {
   parseFlags(argv, [], [])
   const policy = readTestRunsConfig().parallel
@@ -290,7 +283,6 @@ async function runTriage(argv: readonly string[]): Promise<number> {
     meta: { head: string; dirty: boolean; script?: unknown }
     failures: Failure[]
   }
-  // 早于 `--script` 的账本没有这一栏，那时只跑 test。
   const script = recorded.meta.script ?? 'test'
   if (!isRunScript(script))
     throw new Error(`${ledgerPath} 的 meta.script 认不出：${String(script)}`)
@@ -328,7 +320,8 @@ async function runTriage(argv: readonly string[]): Promise<number> {
 
 async function main(): Promise<void> {
   const [command, ...rest] = process.argv.slice(2)
-  if (command === 'baseline') process.exitCode = baseline(rest)
+  if (command === '--help') console.log(USAGE)
+  else if (command === 'baseline') process.exitCode = baseline(rest)
   else if (command === 'plan') process.exitCode = plan(rest)
   else if (command === 'step') process.exitCode = await step(rest)
   else if (command === 'run') process.exitCode = await run(parseRun(rest))

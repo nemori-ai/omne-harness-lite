@@ -1,6 +1,6 @@
 # 异步计量输入一致性的安全证明
 
-本文是待独立审阅的人工归纳证明，没有机器演绎检查。有限TLC检查对象是 [MeasurementSnapshot](../models/measurement/MeasurementSnapshot.tla)。它只证明本次调用消费值的一致性，不证明BPE算法、SHA-256抗碰撞或供应商预算规则。契约依据见 [SPEC](../../SPEC.md)。
+本文是人工归纳证明，没有机器演绎检查。有限TLC检查对象是 [MeasurementSnapshot](../models/measurement/MeasurementSnapshot.tla)。它只证明本次调用消费值的一致性，不证明BPE算法、SHA-256抗碰撞或供应商预算规则。规则依据见包组规格「[计量](../../../SPEC.md#计量)」。
 
 ## 命题与抽象
 

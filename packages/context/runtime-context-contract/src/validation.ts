@@ -24,7 +24,6 @@ export function validate(
   return result.issues ?? []
 }
 
-/** An asynchronous validator cannot define a synchronous pure-operation contract. */
 export class SynchronousSchemaRequired extends Error {
   constructor() {
     super('schema-not-synchronous')

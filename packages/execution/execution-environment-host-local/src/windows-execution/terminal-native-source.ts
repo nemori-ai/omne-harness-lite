@@ -1,8 +1,3 @@
-/**
- * The exit code of one terminal invocation: rules 2 to 6 of the SPEC's Windows terminal section,
- * evaluated in the shell host. Rule 1 is the reset before the invocation. The source is pure and
- * names its types in full, so tests compile it on its own.
- */
 export const terminalExitRuleSource = String.raw`
 public enum OmneAddedErrors { None, NativeOnly, Other }
 

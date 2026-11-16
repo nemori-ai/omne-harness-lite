@@ -1,7 +1,3 @@
-// `input.submit` of the execution handle (agent-contract SPEC 2080, "输入内容与水位线"): a later
-// input is accepted into the execution without touching the slot, recognized on retry, refused when
-// admission rejects it, and answered `terminal` after the end; a live drive gets a wake hint and
-// writes nothing while it still waits; the next step boundary takes the input (#1216 A1, A2).
 import { describe, expect, it } from 'vitest'
 import type { AgentMeasureEvent } from '@omne-harness/agent'
 import type {
@@ -39,7 +35,6 @@ async function snapshotOf(assembly: LoopAssembly): Promise<ExecutionSnapshot> {
   return ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() }))
 }
 
-/** Waits until exec-1 sleeps on its saved wait for the main model call. */
 async function waitingOnModel(assembly: LoopAssembly): Promise<ExecutionSnapshot> {
   await eventually(async () => {
     const snapshot = await snapshotOf(assembly)
@@ -64,7 +59,6 @@ function submit(
   })
 }
 
-/** The inputs within the watermark of `snapshot`, in order. */
 async function inputsWithin(assembly: LoopAssembly, snapshot: ExecutionSnapshot) {
   const read = ok(
     await assembly.controls.journal.port.inputs({
@@ -82,7 +76,6 @@ function taken(events: readonly AgentEvent[]) {
   )
 }
 
-/** Counts the run passes of the drive, from the measurement events of the runtime. */
 function runPasses() {
   let passes = 0
   return {
@@ -93,7 +86,6 @@ function runPasses() {
   }
 }
 
-/** A message admission that rejects every request, as a submit's input is too long. */
 function rejectingPrepare(input: Parameters<MessageHandoff<Principal>['prepare']>[0]) {
   const { principal: _principal, tenant: _tenant, ...rest } = input
   return succeed({
@@ -240,7 +232,6 @@ describe('the wake hint after an accepted submit (C6, C7)', () => {
 
     ok(await submit(handle, 'submit-2'))
 
-    // The check time never comes (the manual clock stands still): only the hint can wake it.
     await eventually(async () => passes.count() > slept)
     await turns(20)
     const after = await snapshotOf(assembly)

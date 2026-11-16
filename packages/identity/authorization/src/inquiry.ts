@@ -5,7 +5,6 @@ export type InquiryPolicy = Readonly<{
 export type InquiryRequirement = 'none' | 'required' | 'prohibited' | 'unavailable'
 export type InquiryDisposition = 'continue' | 'ask-human' | 'deny' | 'unavailable'
 
-/** Handles an inquiry after structural judgment; continue does not grant execution authority. */
 export function decideInquiry(
   requirement: InquiryRequirement,
   policy: InquiryPolicy | null,

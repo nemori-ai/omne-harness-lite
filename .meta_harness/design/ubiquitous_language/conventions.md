@@ -18,7 +18,7 @@
 > access across tenants is denied by default.
 
 - **形态**：对象
-- **出处**：[PF-001 §4 租户](../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#租户)（rev 19）
+- **出处**：[PF-001 §4 租户](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#租户)（rev 19）
 - **别混**：与[组织](terms/subjects-and-ownership.md#ul-organization--组织--organization)不是一回事——组织是租户的**一半**，另一半是账号
 - **弃用**：~~「空间」~~、~~「工作区」~~
 ````
@@ -30,7 +30,7 @@
 
 | 字段 | 必填 | 它是什么 |
 |---|---|---|
-| **ID** | ✅ | `UL-` + 英文名的 kebab-case。**改 ID 等于换概念**；[领域对象条目](../domain_objects/README.md#键是统一语言的词条-id)也以它为键 |
+| **ID** | ✅ | `UL-` + 英文名的 kebab-case。**改 ID 等于换概念** |
 | **中文名 / 英文名** | ✅ | 各一个，**不并列两个**。别的叫法在「弃用」里。**这就是正式名**：跨 topic 引用、写规格、做翻译用它，不另译 |
 | **中 / EN 定义** | ✅ | 两条各自独立成立，讲同一件事，**不是逐字互译**。读哪一条都应当得到同一个所指 |
 | **形态** | ✅ | 这个词指的是**哪一类东西**，[十个取值里选一个](#形态这个词指的是哪一类东西)。**排在出处前面** |
@@ -51,7 +51,7 @@
 
 | 取值 | 它意味着 | 例 |
 |---|---|---|
-| **对象** | **有独立身份**——系统里分得出「这一个」与「那一个」，能被标识、被引用；并且有**自己的生命周期**、**运行时实例**或**耐久记录**三者之一。**[领域对象](../domain_objects/objects.md)里必有它的一条** | 账号 · 运行 · 工具执行 · 消息 |
+| **对象** | **有独立身份**——系统里分得出「这一个」与「那一个」，能被标识、被引用；并且有**自己的生命周期**、**运行时实例**或**耐久记录**三者之一 | 账号 · 运行 · 工具执行 · 消息 |
 | **变体**（父：某词条） | 某个对象的**子种类**：身份机制与父类相同，**生灭也跟父类一个样**。哪一样有了自己的一套，它就是对象，不是变体——三类沙箱的身份机制相同，可一个活一次调用、一个活到会话、一个活到租户，**所以是三个对象** | 个人组织（父：组织） · 技能（父：资产） |
 | **属性** | 挂在某个对象上的一项值、标记或关系，**或它在某段关系里扮演的角色** | 上级组织 · 不可覆盖标记 · 子 agent |
 | **规则** | 讲「怎么算、怎么判、什么必须成立」 | 作用域合成语义 · 会话内单活跃 |
@@ -60,7 +60,7 @@
 | **状态** | 某个对象状态机上的一个或一组状态，或某个分类的一个取值 | 运行终态 · 非常态 |
 | **位置** | 系统结构上一个**固定的、可被指名的位点**：由设计穷举，不在运行期创建，没有自己的生灭；别的东西挂在它上面或落在它里面 | Loop 拓展点 · 业务流程拓展点 |
 | **总称** | 只用来归类或指一块范围，**自身不会有实例** | 范围化对象 · 架构内核 |
-| **未定** | 是不是对象**还没有人裁过**，或两处正文说法相左。**[conflicts.md](conflicts.md) 与[领域对象的待裁](../domain_objects/pending.md)里必各有一条**。读到它：那是一个显式缺口，别照着任何一种读法往下建 | —— |
+| **未定** | 是不是对象**还没有人裁过**，或两处正文说法相左。**[conflicts.md](conflicts.md) 里必有一条**。读到它：那是一个显式缺口，别照着任何一种读法往下建 | —— |
 
 **写法**（工具按这个形状读，别自由发挥）：
 
@@ -73,8 +73,7 @@
 「父」的链接按词条所在卷的实际位置写：同卷 `#锚点`，跨卷 `别的卷.md#锚点`。变体的父可以还是变体，
 但顺着往上必须走得到一个形态为「对象」的词条。取值后面不加说明文字——理由属于定义，不属于这个字段。
 
-**宿主、级别、一致性边界不是词条的字段。**「谁寄宿于谁」会随对象的重新分解而变，那不是「含义变了」；
-它的家是[领域对象条目](../domain_objects/conventions.md#一条对象条目长什么样)的「宿主」。
+**宿主、级别、一致性边界不是词条的字段。**「谁寄宿于谁」会随对象的重新分解而变，那不是「含义变了」。
 
 > **形态变了算「含义变了」。**一个词从「视图」变成「对象」，或从「对象」降成「属性」，
 > 所有照着旧形态做的设计都要复核。
@@ -113,7 +112,7 @@
 | **指向 [现行词义](index.md) 的一条** | 这个概念**不归任何一个 topic**——跨全链的治理概念，被很多 topic 引用却没有哪一个拥有它 | 链到 `UL-D-1`，并注明是**谁、哪天**直接裁决的 |
 
 **没有第三种。**一条查不到出处的词条，说明它是**在这里被发明出来的**——
-那是[红线](../product.0.0.1.legacy/AGENTS.md#红线)：不发明没人拍板的东西。
+那是[红线](AGENTS.md#红线)：不发明没人拍板的东西。
 
 ### rev 怎么写，怎么读
 
@@ -122,19 +121,21 @@
 那不代表定义错了，只代表「那边改过，这条还没人回头看」。
 
 ```markdown
-- **出处**：[PF-005 §5.2](../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事) · [§6.4](../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#64-租户级沙箱共享的工作空间)（rev 3）
-- **出处**：[PF-004 §4 执行环境](../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#执行环境)（rev 6） · [PF-005 §4](../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#执行环境)（rev 3）
+- **出处**：[PF-005 §5.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事) · [§6.4](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#64-租户级沙箱共享的工作空间)（rev 3）
+- **出处**：[PF-004 §4 执行环境](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#执行环境)（rev 6） · [PF-005 §4](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#执行环境)（rev 3）
 ```
 
 第一行是同一个 topic 的两节共用一个 rev，第二行是两个 topic 各带各的。
 
+**指向封存的旧产品设计（`PF-*`）时，链接写成封存提交上的固定链接**：`https://github.com/nemori-ai/omne-harness-lite/blob/<封存提交>/.meta_harness/design/product.0.0.1.legacy/<PF 目录>/design.md#<锚点>`（或 `flows.md`），路径与锚点照原样。后面的 `（rev N）` 与锚点对[封存修订表](sealed-revisions.json)核；别的提交、别的路径的链接不算出处。
+
 **指向产品正文的链接，后面要跟着它那个 topic 的 `（rev N）`。**同一个 topic 连着的几条链接可以共用后面那一个；
-换了 topic 就各带各的。[对象条目的「依据」](../domain_objects/conventions.md#一条对象条目长什么样)是同一条规矩，由同一个对账器查。
+换了 topic 就各带各的。
 
 ## 对账器替这里守着什么
 
 形态必填且合法、变体的父走得到一个对象；[index.md](index.md) 每一行与分卷标题在 ID、中文名、英文名、锚点上一致；
-当前PD出处的rev核README当前值，封存PF出处核封存README值并标为历史来源；封存可定位不证明词条已按当前产品复核或获得新采用。形态为「对象」「未定」的词条，领域对象那边有对应的条目或待裁。
-完整的一张表与道理在[领域对象的 conventions](../domain_objects/conventions.md#对账)，命令在工作区的 `tooling/README.md`「领域对象对账」。
+当前PD出处的rev核README当前值，封存PF出处核[封存修订表](sealed-revisions.json)里的值并标为历史来源；封存可定位不证明词条已按当前产品复核或获得新采用。形态为「未定」的词条在 [conflicts.md](conflicts.md) 里被提到。
+命令在工作区的 `tooling/README.md`「统一语言对账」。
 
 返回[统一语言入口](README.md)。

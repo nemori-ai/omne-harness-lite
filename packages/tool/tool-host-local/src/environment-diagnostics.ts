@@ -18,7 +18,6 @@ export type ToolEnvironmentDiagnostic = Readonly<{
   cause: unknown
 }>
 
-/** Trusted in-memory boundary. Remove secrets, capabilities and resolvers before persistence. */
 export type ToolEnvironmentDiagnostics = Readonly<{
   record(event: ToolEnvironmentDiagnostic): Promise<{ kind: 'recorded' } | { kind: 'unavailable' }>
 }>

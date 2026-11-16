@@ -28,7 +28,6 @@ export function json(value: unknown): Json {
       kind: 'object',
       entries: Object.entries(value)
         .filter(([, v]) => v !== undefined)
-        // Record property order is not identity. JsonValue object entries remain ordered arrays.
         .sort(([a], [b]) => (a === b ? 0 : a < b ? -1 : 1))
         .map(([key, value]) => ({ key, value: json(value) })),
     }

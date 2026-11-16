@@ -122,9 +122,7 @@ class OrganizationRecovery {
           },
         },
       })
-    } catch {
-      // Business terminal is durable; the original hold remains for Identity recovery.
-    }
+    } catch {}
     return result
   }
   async ready(root: ObservedIntent, request: StandingRequest, binding: SettingsAttemptBinding) {
@@ -194,7 +192,6 @@ class OrganizationRecovery {
   }
   async drain(update: SourceUpdate) {
     let after: string | null = null
-    // A pending source gate admits no new holds; its existing set is bounded at 128.
     for (let page = 0; page < 128; page++) {
       if (await this.sql.sourceUpdateReady(update)) return true
       const drained = await this.options.sources.recoverSource(update.source, { after, limit: 100 })

@@ -1,5 +1,3 @@
-// `scripts/tool-release.mjs check`（B3-T2a 第 1 项）：正式清单与已构建的 tool-definitions 一致时退出 0；清单与
-// 产物不一致、清单被手改（含只改格式）时退出 1 并逐项写出差异。脚本读已构建的包，先构建 tool-definitions。
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

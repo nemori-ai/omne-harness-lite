@@ -1,10 +1,7 @@
-// Reading one HTTP body with a byte cap. undici's `fetch` hands out the decompressed stream, so the
-// count here is the decompressed size (a gzip bomb is cut at the cap, not at its wire size).
 import type { WebFailure } from '@omne-harness/tool-definitions'
 
 export type CappedBody = Readonly<{ bytes: Uint8Array; truncated: boolean }>
 
-/** Reads the stream up to `maxBytes`; a longer body is cut there and the rest is cancelled. */
 export async function readCapped(
   body: ReadableStream<Uint8Array> | null,
   maxBytes: number,
@@ -37,7 +34,6 @@ export async function readCapped(
   return { bytes, truncated }
 }
 
-/** Parsed `Content-Type`: the lowercase media type and the charset parameter, when given. */
 export type ContentType = Readonly<{ mediaType: string; charset: string | undefined }>
 
 export function parseContentType(header: string | null): ContentType {
@@ -50,10 +46,6 @@ export function parseContentType(header: string | null): ContentType {
   return { mediaType: type.trim().toLowerCase(), charset: charset?.toLowerCase() }
 }
 
-/**
- * Decodes with the given charset. An unsupported charset is a `not-text` failure, not a guess; the
- * failure names the parsed media type, as every `not-text` does, never the raw header.
- */
 export function decodeText(
   body: CappedBody,
   contentType: ContentType,
@@ -61,11 +53,9 @@ export function decodeText(
   const decoder = decoderFor(contentType.charset ?? 'utf-8')
   if (decoder === undefined)
     return { failure: { kind: 'not-text', mediaType: contentType.mediaType } }
-  // A cut body may end inside a multibyte character; streaming mode drops the partial tail.
   return { ok: decoder.decode(body.bytes, { stream: body.truncated }) }
 }
 
-/** `TextDecoder` throws `RangeError` on a label it does not know; that is not a guess at UTF-8. */
 function decoderFor(label: string): InstanceType<typeof TextDecoder> | undefined {
   try {
     return new TextDecoder(label)
@@ -74,7 +64,6 @@ function decoderFor(label: string): InstanceType<typeof TextDecoder> | undefined
   }
 }
 
-/** The classification of an error thrown by undici: the caller's cancellation, the total timeout, or the network. */
 export function classifyThrown(
   error: unknown,
   caller: AbortSignal,

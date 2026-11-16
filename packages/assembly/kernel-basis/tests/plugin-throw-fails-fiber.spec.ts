@@ -1,11 +1,8 @@
-// 待核对主张 3（六节点共用）：插件体抛出 ⇒ fiber FAILED、`await fiber` 拒绝、没有服务被 provide；
-// config 不过 Standard Schema 校验 ⇒ 同样 FAILED 且插件体根本不跑（配置错误一律启动失败）。
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { FIBER_STATE, plugin } from './basis-support.ts'
 import { definePlugin, type StandardSchema } from '@omne-harness/kernel-basis/cordis'
 
-/** `{ ttl: 正整数 }` 的最小 Standard Schema。本成员不依赖 zod；规则同旧 probe 的 `z.object({ ttl: z.number().int().positive() })`。 */
 const positiveTtl: StandardSchema<{ ttl: number }> = {
   '~standard': {
     version: 1,

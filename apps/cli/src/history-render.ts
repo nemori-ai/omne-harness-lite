@@ -1,4 +1,3 @@
-/** A history entry as the wire carries it: `entryId`, `revision`, `kind` and `payload`. */
 export type RawEntry = Readonly<Record<string, unknown>>
 
 const clipAt = 500
@@ -17,13 +16,8 @@ function clip(text: string): string {
   return text.length > clipAt ? `${text.slice(0, clipAt)}...` : text
 }
 
-/**
- * The command a multi-command tool call names, and its parameters: arguments of a string `command`
- * and at most an object `params`, the one-slot call form (D-94). Other arguments name no command.
- */
 function commandCall(given: unknown): Readonly<{ command: string; params: unknown }> | undefined {
   const call = record(given)
-  // A command name is one short word; any other `command` value is an argument shown as it is.
   if (call === undefined || typeof call['command'] !== 'string') return undefined
   if (!/^[\w.-]{1,64}$/.test(call['command'])) return undefined
   if (Object.keys(call).some(key => key !== 'command' && key !== 'params')) return undefined
@@ -31,10 +25,6 @@ function commandCall(given: unknown): Readonly<{ command: string; params: unknow
   return { command: call['command'], params: call['params'] }
 }
 
-/**
- * A tool call: `[tool call <name> <callId>] <arguments>`. A complete one-slot call shows its command
- * after the name and only its parameters after the marker.
- */
 function renderToolCall(kind: string, fields: Readonly<Record<string, unknown>>): string {
   const given = fields['arguments'] ?? fields['partial'] ?? fields['raw']
   const named = kind === 'tool_call' ? commandCall(given) : undefined
@@ -46,7 +36,6 @@ function renderToolCall(kind: string, fields: Readonly<Record<string, unknown>>)
   return shown === '' ? call : `${call} ${clip(shown)}`
 }
 
-/** The text of one block of a message. A block of a kind this renderer does not know shows its kind. */
 function renderBlock(block: unknown): string {
   const fields = record(block)
   if (fields === undefined) return clip(JSON.stringify(block) ?? '')
@@ -65,10 +54,6 @@ function renderBlock(block: unknown): string {
   }
 }
 
-/**
- * A tool message is a `tool_result` marker followed by the content blocks of the result, so the
- * marker and the text after it read as one result.
- */
 function renderMessage(payload: Readonly<Record<string, unknown>>): string {
   const blocks = record(payload['message'])?.['blocks']
   if (!Array.isArray(blocks)) return clip(JSON.stringify(payload))
@@ -83,7 +68,6 @@ function renderBody(kind: string, payload: unknown): string {
   if (fields !== undefined && kind === 'run.terminal') {
     const terminal = record(fields['terminal'])
     const ended = `Run ${word(terminal?.['run'])} ended: ${word(terminal?.['outcome'])}`
-    // The entry's own `cause` field names why a run did not complete; it is shown as kept.
     const cause = word(record(fields['cause'])?.['record'])
     return cause === '' || word(terminal?.['outcome']) === 'completed'
       ? ended
@@ -92,10 +76,6 @@ function renderBody(kind: string, payload: unknown): string {
   return clip(JSON.stringify(payload) ?? '')
 }
 
-/**
- * The text a person reads for one entry: `#<entryId> <kind>: <body>`. The lines after the first
- * of a body are indented, so an entry stays one block in the output.
- */
 export function renderEntry(entry: RawEntry): string {
   const kind = word(entry['kind'])
   const body = renderBody(kind, entry['payload']).split('\n').join('\n    ')

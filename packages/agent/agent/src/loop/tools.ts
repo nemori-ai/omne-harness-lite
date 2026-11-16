@@ -5,9 +5,12 @@ import {
   type Access,
   type Action,
   type ActionBatch,
+  type ActionId,
+  type ActionSlot,
   type ActionToolCall,
   type AdmissionDecision,
   type Adoption,
+  type AgentCheckpoint,
   type AgentExecutionId,
   type Authority,
   type CardAnswer,
@@ -45,7 +48,6 @@ export const fixedToolRequestSchema = {
   digest: 'agent:fixed-tool-request/1',
 } as const
 
-/** The schema of a preserved answer of the trusted request source: one JSON string. */
 export const toolCallAnswerSchema = {
   owner: 'agent',
   name: 'tool-call-answer',
@@ -75,10 +77,6 @@ function argumentsText(value: ActionToolCall['arguments']): string {
   }
 }
 
-/**
- * The action of one `tool_call` part: it keeps the call id of the part, not the part. The part is
- * read back from the preserved reply when a judgment needs it (SPEC "工具执行与结果承接" 10).
- */
 export function actionOf(step: StepId, original: ActionToolCall, ordinal: number): Action {
   const id = minted(decodeActionId(`${step}/tool/${ordinal}`))
   return {
@@ -94,14 +92,6 @@ export function toolConsumer(execution: AgentExecutionId, action: Action): Consu
   return { owner: '@omne-harness/agent', work: execution, position: action.id, purpose: 'action' }
 }
 
-/**
- * The judgment of one action at A0: judged (denied, or already judged), allowed with its checked
- * request, or the admission was unavailable. An unavailable admission denies the whole batch
- * (agent-contract SPEC "整批判断屏障与动作准入" rule 2), so it is an answer of the judgment, not a
- * failure of the step. An allowed request is not saved here: A0 preserves every allowed request of
- * the batch only when no admission of the batch was unavailable, and before it commits the
- * judgments.
- */
 export type ToolAdmission =
   | Readonly<{ kind: 'judged'; action: Action }>
   | Readonly<{ kind: 'denied'; action: Action; reason: string }>
@@ -113,8 +103,8 @@ export type ToolAdmission =
     }>
   | Readonly<{ kind: 'asked'; action: Action; card: DecisionCardDraft; evidence: DurableEvidence }>
   | Readonly<{ kind: 'unavailable'; owner: string; diagnostic: string }>
+  | Readonly<{ kind: 'refused'; owner: string; diagnostic: string }>
 
-/** The one valid answer of a person to the card of the admission, handed back to the admission. */
 export type HandBack = Readonly<{ card: DurableEvidence; answer: CardAnswer | CardRemark }>
 
 const judged = (action: Action): Outcome<ToolAdmission, Failure> =>
@@ -123,19 +113,13 @@ const judged = (action: Action): Outcome<ToolAdmission, Failure> =>
 const unavailableAdmission = (owner: string, diagnostic: string): Outcome<ToolAdmission, Failure> =>
   succeed({ kind: 'unavailable', owner, diagnostic })
 
-/**
- * A port Failure that stands for an unavailable admission. Rule 2 reads a `denied` or `unavailable`
- * Failure of the admission port as unavailable; the trusted Tool request source is part of the same
- * admission (R2-D36, agent-host-local SPEC "Tool 请求来源"), so its two refusals read the same way.
- * Every other Failure (a stale advance, a defect, an invalid request) stays a failure of the step.
- */
-function asUnavailable(owner: string, failure: Failure): Outcome<ToolAdmission, Failure> {
+function notAnswered(owner: string, failure: Failure): Outcome<ToolAdmission, Failure> {
   if (failure.kind === 'unavailable') return unavailableAdmission(failure.owner, failure.diagnostic)
-  if (failure.kind === 'denied') return unavailableAdmission(owner, `denied ${failure.action}`)
+  if (failure.kind === 'denied')
+    return succeed({ kind: 'refused', owner, diagnostic: `denied ${failure.action}` })
   return fail(failure)
 }
 
-/** An admission that did not allow the action: a denial, a card for a person, or unavailable. */
 function notAllowed(
   action: Action,
   decision: Exclude<AdmissionDecision, { kind: 'allow' }>,
@@ -148,14 +132,15 @@ function notAllowed(
     })
   if (decision.kind === 'unavailable')
     return unavailableAdmission('agentActionAdmission', decision.diagnostic)
+  if (decision.kind === 'undecidable')
+    return succeed({
+      kind: 'refused',
+      owner: 'agentActionAdmission',
+      diagnostic: decision.diagnostic,
+    })
   return succeed({ kind: 'asked', action, card: decision.card, evidence: decision.evidence })
 }
 
-/**
- * A0 for one pending action: describe, admit and prepare its request. `original` is the
- * `tool_call` part the action names, read back from the preserved reply. `handBack` is null on
- * the first call and carries the answer of the person when the admission asked for one.
- */
 export async function admitToolAction<P>(
   ports: Ports<P>,
   access: Access<P>,
@@ -169,7 +154,11 @@ export async function admitToolAction<P>(
   if (original.callId !== action.original.callId)
     return fail({ kind: 'invalid', field: 'original', reason: 'not the tool call of the action' })
   if (ports.toolRequests === undefined)
-    return unavailableAdmission('agentToolRequests', 'trusted Tool request source is unavailable')
+    return succeed({
+      kind: 'refused',
+      owner: 'agentToolRequests',
+      diagnostic: 'trusted Tool request source is not assembled',
+    })
   const input = {
     ...access,
     execution,
@@ -179,7 +168,7 @@ export async function admitToolAction<P>(
     consumer: toolConsumer(execution, action),
   }
   const described = await ports.toolRequests.describe(input)
-  if ('failure' in described) return asUnavailable('agentToolRequests', described.failure)
+  if ('failure' in described) return notAnswered('agentToolRequests', described.failure)
   if (described.ok.kind === 'answered')
     return answered(ports, access, execution, action, described.ok.text)
   const { definition } = described.ok
@@ -191,24 +180,19 @@ export async function admitToolAction<P>(
     permissions: [],
     decision: handBack,
   })
-  if ('failure' in admitted) return asUnavailable('agentActionAdmission', admitted.failure)
+  if ('failure' in admitted) return notAnswered('agentActionAdmission', admitted.failure)
   if (admitted.ok.kind !== 'allow') return notAllowed(action, admitted.ok)
   const prepared = await ports.toolRequests.prepare({
     ...input,
     definition,
     admission: admitted.ok.evidence,
   })
-  if ('failure' in prepared) return asUnavailable('agentToolRequests', prepared.failure)
+  if ('failure' in prepared) return notAnswered('agentToolRequests', prepared.failure)
   const request = checkedRequest(prepared.ok, definition, input.consumer, action, original)
   if ('failure' in request) return request
   return succeed({ kind: 'allowed', action, evidence: admitted.ok.evidence, request: request.ok })
 }
 
-/**
- * A0 for a call that the trusted request source answered without running a tool (D-104): the
- * answer is preserved first, and the action is denied with it. Only this action is denied; the
- * model reads the answer as the result of its call.
- */
 async function answered<P>(
   ports: Ports<P>,
   access: Access<P>,
@@ -219,8 +203,6 @@ async function answered<P>(
   const stored = await ports.materials.preserve({
     ...access,
     execution,
-    // The digest keeps a retried A0 whose source answers another text from refusing the same
-    // identity with other content: each text is its own material.
     identity: `${execution}/${action.id}/answer/${createHash('sha256').update(text).digest('hex')}`,
     consumer: toolConsumer(execution, action),
     value: { kind: 'facts', schema: toolCallAnswerSchema, value: { kind: 'string', value: text } },
@@ -230,22 +212,12 @@ async function answered<P>(
   return judged({ ...action, judgment: { kind: 'denied', evidence, answer: stored.ok } })
 }
 
-/** The text of a preserved answer, or null when the material is not one. */
 export function toolCallAnswerOf(material: Material<ContentBlock>): string | null {
   if (material.kind !== 'facts' || canonical(material.schema) !== canonical(toolCallAnswerSchema))
     return null
   return material.value.kind === 'string' ? material.value.value : null
 }
 
-/**
- * A0 after every action of the batch was judged: the allowed request is preserved, and the
- * judgment names the material (SPEC "工具执行与结果承接" 10). The material comes first; a crash
- * before the judgment commit leaves a block that no fact refers to, and the same request preserved
- * again answers the same source.
- *
- * 保存的请求把 `scopeBudget` 写入 `limits.scopeBudget`，即本 run 并发范围的预算，由 Tool 执行
- * （SPEC「工具执行与结果承接」第 1 条）。Agent 自己不计数调用。`scope` 沿用受信请求来源给出的值。
- */
 export async function preserveAllowedRequest<P>(
   ports: Ports<P>,
   access: Access<P>,
@@ -266,21 +238,32 @@ export async function preserveAllowedRequest<P>(
   return succeed({ ...action, judgment: { kind: 'allowed', evidence, request: stored.ok } })
 }
 
-/**
- * Rule 2 for an unavailable admission: no action of the batch is released. Every action that is
- * not denied already, allowed or still pending, is denied with the evidence of the unavailable
- * admission; A1 then closes the barrier as all-denied and no later chain calls admit.
- */
-export function deniedForUnavailableAdmission(
+function uncheckedRecord(execution: AgentExecutionId, batch: ActionBatch): string {
+  return `${execution}/${batch.id}/admission-unavailable`
+}
+
+export function deniedUnchecked(
   execution: AgentExecutionId,
   batch: ActionBatch,
-  cause: Extract<ToolAdmission, { kind: 'unavailable' }>,
-  actions: readonly Action[],
+  action: Action,
+): boolean {
+  return (
+    action.judgment.kind === 'denied' &&
+    action.judgment.evidence.record === uncheckedRecord(execution, batch)
+  )
+}
+
+export function deniedForRefusedAdmission(
+  execution: AgentExecutionId,
+  batch: ActionBatch,
+  cause: Extract<ToolAdmission, { kind: 'refused' }>,
+  judged: readonly Readonly<{ action: Action }>[],
 ): readonly Action[] {
-  const evidence = agentEvidence(`${execution}/${batch.id}/admission-unavailable`, {
+  const evidence = agentEvidence(uncheckedRecord(execution, batch), {
     owner: cause.owner,
     diagnostic: cause.diagnostic,
   })
+  const actions = [...judged.map(answer => answer.action), ...batch.actions.slice(judged.length)]
   return actions.map(action =>
     action.judgment.kind === 'denied'
       ? action
@@ -288,10 +271,6 @@ export function deniedForUnavailableAdmission(
   )
 }
 
-/**
- * The prepared request, checked by the public Tool judgment and against the admitted action: the
- * same definition, consumer and arguments. The source may not choose another of any of them.
- */
 function checkedRequest(
   prepared: ToolInvokeRequest,
   definition: Adoption,
@@ -321,10 +300,6 @@ function checkedRequest(
   return succeed(request)
 }
 
-/**
- * The intent of an allowed action: its fixed request is the material the judgment named, so the
- * intent preserves nothing more (SPEC "工具执行与结果承接" 10).
- */
 export function toolIntentOf(
   execution: AgentExecutionId,
   action: Action,
@@ -342,11 +317,6 @@ export function toolIntentOf(
   })
 }
 
-/**
- * The request A2 sends: the preserved request of the judgment, read back and checked again, with
- * the evidence of the opened barrier as its batch decision. A material that is not the fixed
- * request of this action is `invalid`; nothing else stands in for it.
- */
 export async function sentToolRequest<P>(
   ports: Readonly<{ materials: Pick<Ports<P>['materials'], 'read'> }>,
   access: Access<P>,
@@ -372,7 +342,6 @@ export async function sentToolRequest<P>(
   return succeed({ ...request, batchDecision: barrier })
 }
 
-/** The Tool request a fixed-request material holds, or null when it is not one. */
 export function fixedRequestOf(material: Material<ContentBlock>): ToolInvokeRequest | null {
   if (material.kind !== 'facts' || canonical(material.schema) !== canonical(fixedToolRequestSchema))
     return null
@@ -388,16 +357,36 @@ export function fixedRequestOf(material: Material<ContentBlock>): ToolInvokeRequ
 
 export type AssociatedToolCall = Extract<PendingCall, { kind: 'tool'; association: 'associated' }>
 
-/** The Tool call that a saved reference names, read back for the tenant it was issued to. */
+export function slotOf(batch: ActionBatch, action: ActionId): ActionSlot | undefined {
+  return batch.slots.find(slot => slot.action === action)
+}
+
+export function toolCall(action: Action): AssociatedToolCall | null {
+  const pending = action.call
+  return pending?.kind === 'tool' && pending.association === 'associated' ? pending : null
+}
+
+export function unsent(batch: ActionBatch, unaccepted: ReadonlySet<ActionId>): readonly Action[] {
+  return batch.actions.filter(action => {
+    if (action.judgment.kind !== 'allowed') return false
+    const slot = slotOf(batch, action.id)
+    return slot === undefined || (slot.kind === 'dispatched' && unaccepted.has(action.id))
+  })
+}
+
+export function openToolCalls(batch: ActionBatch): readonly PendingCall[] {
+  return batch.actions.flatMap(action => {
+    const slot = slotOf(batch, action.id)
+    return action.call !== null && (slot === undefined || slot.kind === 'dispatched')
+      ? [action.call]
+      : []
+  })
+}
+
 export function toolCallOf<P>(access: Access<P>, pending: AssociatedToolCall): ToolCallId {
   return minted(resolveToolInvocationRef(pending.reference, access.tenant)).call
 }
 
-/**
- * The received result entry of the original Tool call among the received entries of its
- * consumption: the same reference and consumer. A late version or an account revision is not the
- * result of the slot.
- */
 export function toolReceivedOf(
   received: readonly ReceivedEntry[],
   pending: AssociatedToolCall,
@@ -412,7 +401,6 @@ export function toolReceivedOf(
   )
 }
 
-/** The produced result that the slot keeps for a received Tool result. */
 export function toolProduced(
   call: ToolCallId,
   delivery: Extract<ToolDelivery<ContentBlock>, { kind: 'result' }>,
@@ -428,13 +416,10 @@ export function toolProduced(
 type MessageBlock = Exclude<ContentBlock, Readonly<{ kind: 'thinking' }>>
 const VISIBLE = { toHuman: true, toModel: true } as const
 
-/** The message identity of the result or denial message of one action. */
 function toolMessageId(execution: AgentExecutionId, action: Action): Message['id'] {
   const body = createHash('sha256')
     .update(JSON.stringify([execution, action.id]))
     .digest('hex')
-  // `msg_`, 40 hex digits and `_tool`: the 22 to 64 characters parseMessageId accepts. The brand
-  // has no runtime value, so naming it is the cast.
   return `msg_${body.slice(0, 40)}_tool` as Message['id']
 }
 
@@ -452,7 +437,6 @@ function toolMessage(
   return { id: toolMessageId(execution, action), role: 'tool', blocks: [marker, ...body] }
 }
 
-/** T2: the candidate message of a result slot keeps every content block the Tool returned. */
 export function toolResultCandidate(
   execution: AgentExecutionId,
   action: Action,
@@ -465,7 +449,17 @@ export function toolResultCandidate(
   )
 }
 
-/** T2: the candidate message of a denied slot names the denial; the evidence stays in the slot. */
+export function uncheckedCandidate(execution: AgentExecutionId, action: Action): Message {
+  return toolMessage(execution, action, [
+    {
+      kind: 'text',
+      id: `${action.id}/denied` as BlockId,
+      visibility: VISIBLE,
+      text: 'The tool call did not run: its permission could not be decided in this deployment. No rule and no person refused it. Making the same call again will not change this.',
+    },
+  ])
+}
+
 export function deniedCandidate(execution: AgentExecutionId, action: Action): Message {
   return toolMessage(execution, action, [
     {
@@ -477,11 +471,6 @@ export function deniedCandidate(execution: AgentExecutionId, action: Action): Me
   ])
 }
 
-/**
- * T2: the candidate message of an action that the admission denied for the remark of a person. The
- * message carries the words as the person wrote them, so the model takes them as guidance (SPEC
- * "整批判断屏障与动作准入" 11).
- */
 export function guidedCandidate(
   execution: AgentExecutionId,
   action: Action,
@@ -498,7 +487,6 @@ export function guidedCandidate(
   ])
 }
 
-/** T2: the candidate message of a slot denied with an answer is the answer, not the denial. */
 export function answeredCandidate(
   execution: AgentExecutionId,
   action: Action,
@@ -509,7 +497,18 @@ export function answeredCandidate(
   ])
 }
 
-/** A denied slot before any single-result passage. */
+export function refusedTool(
+  at: Pick<AgentCheckpoint, 'step' | 'calls' | 'voided'>,
+  action: ActionId,
+  basis: DurableEvidence,
+): Pick<AgentCheckpoint, 'calls' | 'voided'> {
+  const record = { kind: 'tool' as const, step: at.step, action, cause: 'not-accepted' as const }
+  return {
+    calls: at.calls.filter(call => call.kind !== 'tool' || call.action !== action),
+    voided: [...at.voided, { ...record, basis }],
+  }
+}
+
 export function deniedSlot(action: Action, evidence: DurableEvidence) {
   return {
     kind: 'denied' as const,
@@ -521,7 +520,6 @@ export function deniedSlot(action: Action, evidence: DurableEvidence) {
   }
 }
 
-/** The digest of a candidate message that a slot keeps in place of the message. */
 export function candidateDigest(message: Message): string {
   return `sha256:${createHash('sha256').update(canonical(message)).digest('hex')}`
 }

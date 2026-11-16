@@ -98,8 +98,6 @@ describe('Tool background value schema', () => {
     expect((await backgroundCallsSchema['~standard'].validate(bad())).issues).toBeDefined()
   })
   it('takes the tenant of every call from the value, not from the reference', async () => {
-    // R2-D357: a reference carries no tenant, so the same calls under another tenant are the
-    // same reference texts; the value's tenant is the tenant of each call.
     const moved = { ...value(), tenant: tenant('b') }
     const checked = await backgroundCallsSchema['~standard'].validate(moved)
     assert.equal(checked.issues, undefined)

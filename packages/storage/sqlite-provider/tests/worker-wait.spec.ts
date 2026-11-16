@@ -1,10 +1,6 @@
-// Bounded observation of a write Worker (SPEC 8, 9.3, 12.1 `lockWaitMs`): a sent commit, query
-// or registration that has no reply within twice lockWaitMs settles the caller with `unknown`
-// (`reply_wait_expired`). What the operation holds stays with the Worker until the reply or the
-// exit. A commit that spins in the participant keeps the Worker busy, so each case controls how
-// long the Worker stays silent. Each case names the defect that turns it red.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { SqlIdentity } from '@omne-harness/sql-contract'
+import { advance, atLimit, deadlines, openGates, tick, until } from './gate.ts'
 import {
   DOMAIN,
   TENANT_A,
@@ -12,6 +8,7 @@ import {
   command,
   commitRequest,
   createProvider,
+  heldCommit,
   identity,
   kindOf,
   makeWorkspace,
@@ -31,6 +28,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+  openGates()
   for (const provider of providers.splice(0))
     await provider.control.close({ initiator: 'disposal' }).catch(() => undefined)
   await workspace.remove()
@@ -44,82 +42,68 @@ async function ready(config = {}, materials: Built = built): Promise<Provider> {
   return provider
 }
 
-const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
-
 const keyOf = (key: string): SqlIdentity => identity({ operationKey: key })
-
-const spinning = (key: string, ms: number): ReturnType<typeof commitRequest> =>
-  commitRequest(built, {
-    identity: keyOf(key),
-    commands: [command('ledger', { mode: 'spin', ms: String(ms), note: key })],
-  })
 
 const plain = (key: string): ReturnType<typeof commitRequest> =>
   commitRequest(built, { identity: keyOf(key), commands: [command('ledger', { note: key })] })
 
-// lockWaitMs 200: the reply observation is 400 ms. The Worker spins 1000 ms.
 const LOCK_WAIT = { lockWaitMs: 200 }
-const SPIN = 1000
+const REPLY_WAIT_MS = 2 * LOCK_WAIT.lockWaitMs
 
 describe('a sent commit with no reply within twice lockWaitMs', () => {
-  it('settles unknown (reply_wait_expired) in time, keeps its reservation, and is recognized once the Worker answers', async () => {
-    // Defect: the caller waits for the reply without a bound (the old code): the first commit
-    // would come back `committed` after the spin instead of `unknown` within the observation.
-    // admissionWaitMs 0: the held reservation shows as an immediate queue_full (准入等待 rule 7).
+  it('settles unknown (reply_wait_expired) at the limit, keeps its reservation, and is recognized once the Worker answers', async () => {
     const { storage } = await ready({
       ...LOCK_WAIT,
       admissionQueueLimit: 1,
       groupMaxOperations: 1,
       admissionWaitMs: 0,
     })
-    const start = Date.now()
-    const result = await storage.commit(spinning('slow', SPIN))
-    expect(result).toMatchObject({ kind: 'unknown', diagnostic: 'reply_wait_expired' })
-    expect(Date.now() - start).toBeLessThan(800)
-    // The reservation is still with the operation in flight.
+    const slow = await heldCommit(storage, workspace, built, 'slow')
+    expect(await atLimit(slow.result, REPLY_WAIT_MS)).toMatchObject({
+      kind: 'unknown',
+      diagnostic: 'reply_wait_expired',
+    })
     expect(kindOf(await storage.commit(plain('next')))).toBe('rejected_before_accept/queue_full')
-    await sleep(SPIN + 200)
+    slow.gate.open()
     expect(kindOf(await storage.query(keyOf('slow')))).toBe('committed')
     expect(kindOf(await storage.commit(plain('next')))).toBe('committed')
   })
 })
 
 describe('a sent query with no reply within twice lockWaitMs', () => {
-  it('settles unknown (reply_wait_expired) in time; its queue place goes back with the reply', async () => {
-    // Defect: the query waits for the reply without a bound: it would come back `committed`
-    // after the spin instead of `unknown` within the observation.
-    // admissionWaitMs 0: the held queue place shows as an immediate queue_full (准入等待 rule 7).
+  it('settles unknown (reply_wait_expired) at the limit; its queue place goes back with the reply', async () => {
     const { storage } = await ready({
       ...LOCK_WAIT,
       queryQueuePerDomain: 1,
       queryQueueGlobal: 1,
       admissionWaitMs: 0,
     })
-    const busy = storage.commit(spinning('busy', SPIN))
-    await sleep(100)
-    const start = Date.now()
-    const result = await storage.query(keyOf('busy'))
-    expect(result).toMatchObject({ kind: 'unknown', diagnostic: 'reply_wait_expired' })
-    expect(Date.now() - start).toBeLessThan(800)
-    // The queue place is still held by the query in flight.
+    const busy = await heldCommit(storage, workspace, built, 'busy')
+    const before = deadlines()
+    const asked = storage.query(keyOf('busy'))
+    await until(() => deadlines() > before)
+    advance(REPLY_WAIT_MS)
+    expect(await asked).toMatchObject({ kind: 'unknown', diagnostic: 'reply_wait_expired' })
     expect(await storage.query(keyOf('busy'))).toMatchObject({
       kind: 'unknown',
       diagnostic: 'queue_full',
     })
-    await busy
-    await sleep(SPIN + 200)
-    expect(kindOf(await storage.query(keyOf('busy')))).toBe('committed')
+    busy.gate.open()
+    await busy.result
+    let recognized = await storage.query(keyOf('busy'))
+    while (recognized.kind === 'unknown') {
+      await tick()
+      recognized = await storage.query(keyOf('busy'))
+    }
+    expect(kindOf(recognized)).toBe('committed')
   })
 })
 
 describe('a sent registration with no reply within twice lockWaitMs', () => {
-  it('settles unknown (reply_wait_expired) in time, and the registration lands once the Worker answers', async () => {
-    // Defect: the registration waits for the reply without a bound: it would come back
-    // `registered` after the spin instead of `unknown` within the observation.
+  it('settles unknown (reply_wait_expired) at the limit, and the registration lands once the Worker answers', async () => {
     const full = await buildMaterials(workspace, { journal: 'ok', declaredVersion: 'v1' })
     const { storage } = await ready(LOCK_WAIT, full)
-    const busy = storage.commit(spinning('busy', SPIN))
-    await sleep(100)
+    const busy = await heldCommit(storage, workspace, built, 'busy')
     const next = {
       scope: TENANT_A,
       transactionDomain: DOMAIN,
@@ -127,12 +111,13 @@ describe('a sent registration with no reply within twice lockWaitMs', () => {
       manifestDigest: full.digest(['auditor', 'journal', 'ledger']),
       participants: ['auditor', 'journal', 'ledger'],
     }
-    const start = Date.now()
-    const result = await storage.registerCombination(next)
-    expect(result).toMatchObject({ kind: 'unknown', diagnostic: 'reply_wait_expired' })
-    expect(Date.now() - start).toBeLessThan(800)
-    await busy
-    await sleep(SPIN + 200)
+    const before = deadlines()
+    const registering = storage.registerCombination(next)
+    await until(() => deadlines() > before)
+    advance(REPLY_WAIT_MS)
+    expect(await registering).toMatchObject({ kind: 'unknown', diagnostic: 'reply_wait_expired' })
+    busy.gate.open()
+    await busy.result
     expect(kindOf(await storage.registerCombination(next))).toBe('registered')
   })
 })

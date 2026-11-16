@@ -1,8 +1,3 @@
-// The in-process material of one agent-context instance: the read records that `agentModelContext`
-// hands out as evidence, the latest full read of each execution attachment, and the compaction plans
-// that `agentRequests` entered. Nothing here is durable. A lost entry is answered as lost, never
-// replaced by an older value. Each table holds at most `capacity` entries and drops the least
-// recently used one first.
 import { randomUUID } from 'node:crypto'
 import type {
   AssemblyCall,
@@ -19,7 +14,6 @@ import type { ContextReader, Cursor, EligibilityId } from '@omne-harness/runtime
 import { canonical, mintRecord, readRecord, type RecordKey, type RecordKind } from './records.ts'
 import type { StagedGroups } from './staging.ts'
 
-/** Where a record belongs: the tenant text, the scope, the execution and its attachment. */
 export type Place = Readonly<{
   tenant: string
   scope: string
@@ -27,7 +21,6 @@ export type Place = Readonly<{
   attachment: string
 }>
 
-/** What one read handed out; `prepare` and `resume` resolve their `context` to it. */
 export type ReadMaterial = Readonly<{
   place: Place
   target: ContextTarget
@@ -36,7 +29,6 @@ export type ReadMaterial = Readonly<{
   transition: DurableEvidence | null
 }>
 
-/** The latest full read of one execution attachment and the reader that took it. */
 export type LatestRead = Readonly<{
   eligibility: EligibilityId
   reader: ContextReader
@@ -45,23 +37,16 @@ export type LatestRead = Readonly<{
   recipient: string
 }>
 
-/** A compaction plan that one `prepare` entered, with what `derive` and `resume` need. */
 export type PlanMaterial<P> = Readonly<{
   place: Place
   target: ContextTarget
   call: Omit<AssemblyCall<P>, 'access'>
   plan: CompactionPlan
   progress: PlanProgress
-  /** The step that the next `derive` consumes the result of. */
   step: StepRequest
-  /** The group values of the `prepare` that entered the plan; `resume` starts from them. */
   groups: StagedGroups<P>
 }>
 
-/**
- * A table that holds at most `capacity` entries and drops the least recently used one. `dropped`
- * sees each entry that leaves, with the entry that replaces it under the same key, if any.
- */
 class Bounded<V> {
   private readonly entries = new Map<string, V>()
   private readonly capacity: number
@@ -106,31 +91,25 @@ class Bounded<V> {
 }
 
 export type ContextMaterialsOptions = Readonly<{
-  /** The adoption identity of this agent-context: the owner of every record it mints. */
   owner: Adoption
-  /** The most entries each table holds. A positive safe integer. */
   capacity: number
 }>
 
 export interface ContextMaterials<P = unknown> {
   readonly owner: Adoption
   mint(kind: RecordKind, place: Place, content: unknown): DurableEvidence
-  /** The key of evidence this owner minted, or null for evidence that is not ours. */
   key(evidence: DurableEvidence): RecordKey | null
   putRead(evidence: DurableEvidence, material: ReadMaterial): void
   read(evidence: DurableEvidence): ReadMaterial | undefined
   latest(place: Place): LatestRead | undefined
   setLatest(place: Place, latest: LatestRead): void
-  /** Drops the latest reads of one scope; called when a read answers that the scope ended. */
   dropScope(tenant: string, scope: string): void
   putPlan(evidence: DurableEvidence, material: PlanMaterial<P>): void
   plan(evidence: DurableEvidence): PlanMaterial<P> | undefined
-  /** Ends every reader and empties every table. */
   close(): void
 }
 
 const placeKey = (place: Place) => canonical(place)
-/** The record and the digest together: evidence with a changed digest names nothing we hold. */
 const evidenceKey = (evidence: DurableEvidence) => `${evidence.record}\u0000${evidence.digest}`
 
 export function createContextMaterials<P>(options: ContextMaterialsOptions): ContextMaterials<P> {
@@ -141,7 +120,6 @@ export function createContextMaterials<P>(options: ContextMaterialsOptions): Con
   const instance = randomUUID()
   let sequence = 0
   const reads = new Bounded<ReadMaterial>(capacity)
-  // A reader ends when no entry holds it any more.
   const latest = new Bounded<LatestRead & { place: Place }>(capacity, (entry, successor) => {
     if (successor?.reader !== entry.reader) void entry.reader.end().catch(() => undefined)
   })

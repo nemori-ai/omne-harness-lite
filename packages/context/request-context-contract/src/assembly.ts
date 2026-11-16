@@ -10,7 +10,6 @@ import { measureLayers } from './assembly-budget.js'
 import { assemblyCoverage } from './assembly-coverage.js'
 import { assemblyOutcome } from './assembly-outcome.js'
 import { continuationFacts } from './model-input.js'
-/** Derives one request from stably read groups; the source reads already happened (RQ-13). */
 export async function assembleInputs<P>(
   input: AssemblyInput<P>,
   key: PreparedInputKey,
@@ -24,7 +23,6 @@ export async function assembleInputs<P>(
   if (stable.kind !== 'prepared') return stable
   const dynamic = placeLayers(input, stable)
   if (dynamic.kind !== 'layers') return dynamic
-  // The stable derivations are complete here; the registry publishes them only with a result.
   basis?.reuse?.stage({
     target: input.target,
     key: stable.key,

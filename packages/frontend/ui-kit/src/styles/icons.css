@@ -1,0 +1,79 @@
+.omne-icon {
+  flex: none;
+  overflow: visible;
+}
+.omne-icon [data-icon-motion]:not([data-icon-motion='draw']) {
+  transform-box: view-box;
+  transform: rotate(0deg) translate(0px, 0px);
+  will-change: transform;
+  transition: transform var(--omne-motion-layout) var(--omne-motion-ease-glide);
+}
+.omne-icon [data-icon-motion='tilt'] {
+  --omne-glyph-rotate: var(--omne-glyph-tilt);
+}
+.omne-icon [data-icon-motion='turn'] {
+  --omne-glyph-rotate: var(--omne-glyph-turn);
+}
+.omne-icon [data-icon-motion='rise'] {
+  --omne-glyph-y: calc(-1 * var(--omne-glyph-drift));
+}
+.omne-icon [data-icon-motion='drift-left'] {
+  --omne-glyph-x: calc(-1 * var(--omne-glyph-sign) * var(--omne-glyph-drift));
+}
+.omne-icon [data-icon-motion='drift-right'] {
+  --omne-glyph-x: calc(var(--omne-glyph-sign) * var(--omne-glyph-drift));
+}
+.omne-icon {
+  --omne-glyph-sign: 1;
+}
+.omne-icon[data-icon-reversed] {
+  --omne-glyph-sign: -1;
+}
+
+.omne-icon [data-icon-rest] {
+  opacity: 1;
+  transition: opacity var(--omne-motion-layout) var(--omne-motion-ease-glide);
+}
+.omne-icon [data-icon-motion='draw'] {
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: var(--omne-glyph-stub);
+  transition: stroke-dashoffset 0s var(--omne-motion-ease-glide) var(--omne-motion-layout);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :is(a[href], button, [role='button'], [data-control]):not(:disabled, [aria-disabled='true']):is(
+      :hover,
+      :focus-visible
+    )
+    > .omne-icon
+    [data-icon-motion]:not([data-icon-motion='draw']) {
+    transform: rotate(var(--omne-glyph-rotate, 0deg))
+      translate(var(--omne-glyph-x, 0px), var(--omne-glyph-y, 0px));
+    transition-delay: var(--omne-motion-feedback);
+  }
+  :is(a[href], button, [role='button'], [data-control]):not(:disabled, [aria-disabled='true']):is(
+      :hover,
+      :focus-visible
+    )
+    > .omne-icon
+    [data-icon-rest] {
+    opacity: 0;
+    transition: opacity var(--omne-motion-state) var(--omne-motion-ease-glide)
+      var(--omne-motion-feedback);
+  }
+  :is(a[href], button, [role='button'], [data-control]):not(:disabled, [aria-disabled='true']):is(
+      :hover,
+      :focus-visible
+    )
+    > .omne-icon
+    [data-icon-motion='draw'] {
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset var(--omne-motion-layout) var(--omne-motion-ease-glide)
+      var(--omne-motion-feedback);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .omne-icon [data-icon-rest] {
+    transition: none;
+  }
+}

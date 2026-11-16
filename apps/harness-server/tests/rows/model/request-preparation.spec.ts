@@ -1,12 +1,5 @@
 import { modelTokenizersRow } from '../../../src/rows/model-tokenizers/index.ts'
 import { LOCAL_TOKENIZERS } from '../../../src/local/operator-defaults.ts'
-// `model-request-preparation` row: the model-host-local preparation plugin over the real OpenAI
-// family. The row injects `modelCommands`, and the real `model-records` row has no member yet, so the
-// tests load a named stand-in row of that name (support.ts). A lease without a lineage never reads
-// it. The profile comes from the real `model-profiles` row; the family, its tokenizer and its rules
-// are the real ones. No network is involved. The credential layer of each supplier comes from the
-// real `model-credential` row over the real `secret-custody` row and a vault file in a temporary
-// directory, seeded with the OpenRouter keys the release provider body declares.
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -81,9 +74,6 @@ function secret(raw: string) {
   return parsed.value
 }
 
-/**
- * A fresh vault that holds the official key, and the tenant's own key in `tenant` life when given.
- */
 function vaultPath(tenant?: 'active' | 'unreadable'): string {
   vaults += 1
   const path = join(directory, `vault-${vaults}.json`)
@@ -110,7 +100,6 @@ function vaultPath(tenant?: 'active' | 'unreadable'): string {
   created.vault.close()
   return path
 }
-/** The model credential row and the custody row it reads, over the vault at `path`. */
 function credentialRows(path: string) {
   return [
     { id: 'model-credential', plugin: 'modelCredentialRow', config: {} },
@@ -204,7 +193,6 @@ describe('the model-request-preparation row', () => {
       const profile = await profileOf(ctx)
       const assembled: AssembledModelInput = {
         system: [],
-        // Ids and blocks are branded types that `prepare` judges itself, so the literal is cast.
         messages: [
           {
             id: `msg_${'u1'.padEnd(22, '0')}`,
@@ -222,7 +210,6 @@ describe('the model-request-preparation row', () => {
         tools: [],
         toolChoice: 'none',
         parameters: [],
-        // The family accepts only the representation its profile declares.
         representation: profile.definition.representation,
         source: ADOPTION,
       }
@@ -241,7 +228,6 @@ describe('the model-request-preparation row', () => {
     expect(value.prepared.ok.suppliers[0]?.credential).toEqual({ layer: 'official' })
   })
 
-  /** The credential completion of the suppliers of one lease, over the given rows. */
   async function leaseCredentials(over: typeof rows) {
     const { value } = await withLiveRows({ rows: over, plugins, probe }, async ctx => {
       const profile = await profileOf(ctx)

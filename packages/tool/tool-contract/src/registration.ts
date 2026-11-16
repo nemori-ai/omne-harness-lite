@@ -1,4 +1,3 @@
-// Author registration (P13 multi-command): operation handles and the definitions they project.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { CHECKPOINT_STATE_MAX_BYTES, type CheckpointedToolExecutor } from './checkpointed-author.ts'
@@ -56,21 +55,12 @@ type AnyAuthor = ToolAuthor<unknown, unknown, unknown, ContentBlock>
 const fn: Check<unknown> = (value, at) =>
   typeof value === 'function' ? succeed(value) : reject(at, 'type')
 
-/**
- * Reads a member of an author capability. A class instance keeps its methods on its prototype,
- * so the read follows the prototype chain. It never runs a getter: an accessor is rejected.
- */
 function capabilityMember(value: object, at: string, key: string): Checked<unknown> {
   const read = inheritedSlot(value, key)
   if (read.kind === 'accessor') return reject(member(at, key), 'accessor')
-  // An absent member reads as undefined, which the member check rejects as `type`.
   return succeed(read.kind === 'value' ? read.value : undefined)
 }
 
-/**
- * An author capability such as an executor or a codec. It may be a class instance, so its
- * methods may come from its prototype. The reference is kept, not copied.
- */
 function capability(...methods: readonly string[]): Check<unknown> {
   return (value, at) => {
     if (typeof value !== 'object' || value === null) return reject(at, 'type')
@@ -83,12 +73,10 @@ function capability(...methods: readonly string[]): Check<unknown> {
   }
 }
 
-/** A capability that also names its exact adoption, such as a codec or a return check. */
 function adopted(check: Check<unknown>): Check<unknown> {
   return (value, at) => {
     const checked = check(value, at)
     if ('failure' in checked) return checked
-    // `check` accepted an object, so the adoption can be read from it.
     const read = capabilityMember(value as object, at, 'adoption')
     if ('failure' in read) return read
     const named = adoption(read.ok, member(at, 'adoption'))
@@ -111,11 +99,6 @@ const checkpointDeclaration = record({
   maxBytes: checkpointMaxBytes,
 })
 
-/**
- * The executor of an author. One that names a `checkpoint` runs in segments: it needs `initial`
- * and `resume` and a closed checkpoint declaration. Any other one runs as a live coroutine and
- * needs `execute`.
- */
 const executor: Check<unknown> = (value, at) => {
   if (typeof value !== 'object' || value === null) return reject(at, 'type')
   const declared = capabilityMember(value, at, 'checkpoint')
@@ -172,7 +155,6 @@ const operationSpec = record({
 
 type Program = AnyAuthor['program']
 
-/** P13: the program contract of the author matches the declared program of the operation. */
 function programMismatch(
   declared: ToolProgramDeclaration,
   program: Program,
@@ -193,7 +175,6 @@ type OperationRule = (
   spec: Readonly<{ returns: ToolReturnDeclaration; author: AnyAuthor }>,
 ) => ShapeRejection | undefined
 
-/** Agreement between the declaration and the author that a type check cannot prove at run time. */
 const OPERATION_RULES: readonly OperationRule[] = [
   spec =>
     spec.returns.kind === spec.author.kind
@@ -209,11 +190,6 @@ const OPERATION_RULES: readonly OperationRule[] = [
 
 type AnyCheckpointed = CheckpointedToolExecutor<unknown, unknown, unknown>
 
-/**
- * What an operation handle keeps for the binding: the author and the checked declarations. An
- * author that runs in segments keeps its executor in `segments`; its `author.executor` then only
- * refuses, so a binding that runs live coroutines cannot run it by mistake.
- */
 export type ToolOperationSlot = Readonly<{
   author: AnyAuthor
   parameters: ToolOperationParameters
@@ -221,7 +197,6 @@ export type ToolOperationSlot = Readonly<{
   segments: AnyCheckpointed | null
 }>
 
-/** The live executor that stands in the author of a checkpointed operation. */
 const runsInSegments: ToolExecutor<unknown, unknown, unknown> = Object.freeze({
   execute: () =>
     Promise.reject(
@@ -236,7 +211,6 @@ function isCheckpointed(value: unknown): value is AnyCheckpointed {
     inheritedSlot(value, 'checkpoint').kind === 'value'
   )
 }
-/** What a registration keeps for the binding: one operation, or one per command name. */
 export type ToolRegistrationSlot =
   | Readonly<{ kind: 'function'; operation: ToolOperationSlot }>
   | Readonly<{ kind: 'commands'; operations: readonly (readonly [string, ToolOperationSlot])[] }>
@@ -255,15 +229,11 @@ function readMark(value: unknown, mark: symbol): unknown {
   return read.kind === 'value' ? read.value : undefined
 }
 
-/** The slot of a handle that `defineToolOperation` made, or undefined for any other value. */
 export function readToolOperation(value: unknown): ToolOperationSlot | undefined {
-  // Only this module writes the mark, and it always writes a ToolOperationSlot.
   return readMark(value, operationMark) as ToolOperationSlot | undefined
 }
 
-/** The slot of an implementation that this module made. The binding provider reads it (G7). */
 export function readToolRegistration(value: unknown): ToolRegistrationSlot | undefined {
-  // Only this module writes the mark, and it always writes a ToolRegistrationSlot.
   return readMark(value, registrationMark) as ToolRegistrationSlot | undefined
 }
 
@@ -272,12 +242,6 @@ const operationHandle: Check<ToolOperationSlot> = (value, at) => {
   return read === undefined ? reject(at, 'type') : succeed(read)
 }
 
-/**
- * Wraps one author with its parameter and return declarations (P13). It checks the shapes, that
- * the return mode of the declaration is the kind of the author, and that the program contracts
- * agree. It loads no schema, starts nothing and grants no permission. The handle hides the
- * executor.
- */
 export function defineToolOperation<
   A,
   R,
@@ -287,15 +251,12 @@ export function defineToolOperation<
 >(input: ToolOperationSpec<A, R, E, B, P>): Outcome<ToolOperation<E, B, P>, Rejection> {
   const checked = judgeUnknown(operationSpec, input, 'input')
   if ('failure' in checked) return checked
-  // The author passed the closed check of its kind above; its executor is one of the two kinds.
   const given = checked.ok.author as Omit<AnyAuthor, 'executor'> & Readonly<{ executor: unknown }>
   const segments = isCheckpointed(given.executor) ? given.executor : null
   const author = (segments === null ? given : { ...given, executor: runsInSegments }) as AnyAuthor
   const spec = { ...checked.ok, author }
-  // A segment waits only by returning an Ask, so the author must declare the Ask it may use.
   if (segments !== null && !given.waits.some(wait => wait.kind === 'ask'))
     return reject('input.author.waits', 'checkpointed-without-ask')
-  // The ledger keeps the request and the response of that Ask in records of the call.
   if (
     segments !== null &&
     given.waits.some(
@@ -319,15 +280,9 @@ export function defineToolOperation<
     operationMark,
     Object.freeze(slot),
   )
-  // The mark holds the author; the phantom brand of ToolOperation has no run-time value.
   return succeed(handle as unknown as ToolOperation<E, B, P>)
 }
 
-/**
- * Builds the implementation from the checked declaration and the projected shape. The facts pass
- * the closed judgment once more as a whole, so a projection this module could get wrong is caught
- * here and not at the loader.
- */
 function implement<E, B extends ContentBlock>(
   declaration: ToolImplementationDeclaration,
   implementsShape: ToolImplementationShape,
@@ -337,15 +292,9 @@ function implement<E, B extends ContentBlock>(
   const judged = judgeImplementationFacts(facts)
   if ('failure' in judged) return judged
   const implementation = marked({ facts: judged.ok }, registrationMark, Object.freeze(content))
-  // The mark holds the operations; the phantom brand of the implementation has no run-time value.
   return succeed(implementation as unknown as ToolImplementation<E, B>)
 }
 
-/**
- * Defines a function tool from one operation with declared parameters (P13). The input carries
- * implementation-side fields only: the name, the adoption and the governance come from the asset
- * when the loader derives the definition.
- */
 export function defineFunctionTool<E, B extends ContentBlock>(
   input: Readonly<{
     implementation: ToolImplementationDeclaration
@@ -371,10 +320,6 @@ export function defineFunctionTool<E, B extends ContentBlock>(
 const commandEntry = record({ summary: commandSummary, operation: operationHandle })
 type CommandEntry = readonly [string, Readonly<{ summary: string; operation: ToolOperationSlot }>]
 
-/**
- * The command table. Its own keys are the only source of command names; the prototype chain is
- * not read. An empty table, an illegal name or a symbol key is rejected.
- */
 const commandTable: Check<readonly CommandEntry[]> = (value, at) => {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return reject(at, 'type')
   const keys = Reflect.ownKeys(value)
@@ -394,13 +339,10 @@ const commandTable: Check<readonly CommandEntry[]> = (value, at) => {
   return succeed(entries)
 }
 
-/** Defines a multi-command tool. Each command keeps its own operation and return mode (P13). */
 export function defineCommandTool<E, B extends ContentBlock>(
   input: Readonly<{
     implementation: ToolImplementationDeclaration
-    /** How the model names a command inside the tool's one declaration (D-94). */
     encoding: CommandCallEncoding
-    /** The rules of the whole tool, which follow every guide the model reads of it. */
     guide?: string
     commands: Readonly<
       Record<string, Readonly<{ summary: string; operation: ToolOperation<E, B> }>>

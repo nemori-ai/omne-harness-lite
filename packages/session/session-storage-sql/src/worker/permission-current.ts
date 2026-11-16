@@ -50,7 +50,6 @@ export function readPermissionHead(
   })
 }
 
-/** Two exact-key reads; no snapshot or history scan is part of current permission lookup. */
 export function readPermissionCurrent(
   port: Executor,
   input: SessionPermissionRead,
@@ -111,7 +110,6 @@ function applyEvent(port: Executor, scope: Scope, row: HistoryEntry): void {
   }
 }
 
-/** Called only by the original Session event writer in its existing transaction. */
 export function writePermissionCurrent(
   port: Executor,
   scope: Scope,

@@ -22,7 +22,6 @@ export const SettingsPolicyWitnessSchema = z.strictObject({
   constraints: z.array(SettingsVersionWitnessSchema).max(32),
 })
 
-/** A serializable comparison basis. Its shape does not establish currentness or authority. */
 export const SettingsCurrentBasisSchema = z.strictObject({
   protocol: z.literal('settings-current-basis/1'),
   target: SettingsTargetSchema,

@@ -1,4 +1,3 @@
-// 验收锁的正反夹具：拥有者与人改验收放行，实施角色改验收、未提交的验收改动报出。
 import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -133,9 +132,6 @@ describe('验收锁：判断', () => {
   })
 })
 
-// 每条用例都建一棵临时仓库、起多个 git 子进程，两条入口用例还各起几个 CLI 进程：空闲时 0.3–2 秒，
-// 负载下（另两份 vitest 全跑）量到 6–21 秒（2026-11-01），超过 vitest 默认的 5 秒。时限按负载下成本的
-// 三倍写明，不改断言。
 describe('验收锁：读 Git', { timeout: 60_000 }, () => {
   const made: string[] = []
   afterEach(() => {
@@ -161,7 +157,6 @@ describe('验收锁：读 Git', { timeout: 60_000 }, () => {
     return git(root, 'rev-parse', 'HEAD')
   }
 
-  /** 一个带一份验收与一份源码的仓库；返回它的根与基线提交。 */
   function repository(): { root: string; base: string } {
     const root = realpathSync(mkdtempSync(join(tmpdir(), 'acceptance-lock-')))
     made.push(root)
@@ -243,13 +238,11 @@ describe('验收锁：读 Git', { timeout: 60_000 }, () => {
     expect(inspect(root, base, config).uncommitted).toEqual([])
   })
 
-  // 归慢层：建一棵带合并与无关根历史的临时仓库，再逐个提交起 diff-tree 作对照，本机空闲时 1.8 秒，负载下会超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
   it(
     '一次 git log 读出的每个提交的路径，与逐个提交 diff-tree 列出的相同：合并、根提交、用户配置都一样',
     { tags: ['slow'] },
     () => {
       const { root, base } = repository()
-      // 用户配置想把 -m 改成只比第一父、让 log 列根提交的路径：结果不该跟着变。
       git(root, 'config', 'log.diffMerges', 'first-parent')
       git(root, 'config', 'log.showRoot', 'true')
       const trunk = git(root, 'rev-parse', '--abbrev-ref', 'HEAD')
@@ -261,7 +254,6 @@ describe('验收锁：读 Git', { timeout: 60_000 }, () => {
       commit(root, 'trunk: 改源码\n\nAgent-Role: developer')
       git(root, 'merge', '-q', '--no-ff', '--no-edit', 'side')
       const clean = git(root, 'rev-parse', 'HEAD')
-      // 一棵无关的根历史并进来：根提交本身不列路径（diff-tree 不加 --root 时就是这样）。
       git(root, 'checkout', '-q', '--orphan', 'orphan')
       git(root, 'rm', '-rqf', '.')
       write(root, 'apps/other/acceptance/a.acceptance.ts', 'orphan\n')
@@ -291,7 +283,6 @@ describe('验收锁：读 Git', { timeout: 60_000 }, () => {
           ].sort()
         for (const sha of shas) expect([...(batched.get(sha) ?? [])].sort()).toEqual(oneByOne(sha))
       }
-      // 干净的合并：-m 相对第一父列出 side 带进来的验收，--cc 什么也不列；根提交两种都不列。
       expect([...(namesByCommit(root, range, false).get(clean) ?? [])].sort()).toEqual([
         SPEC,
         'apps/cli/src/main.ts',
@@ -316,13 +307,11 @@ describe('验收锁：读 Git', { timeout: 60_000 }, () => {
     expect(report.violations).toHaveLength(1)
   })
 
-  // 归慢层：在临时 git 仓库里连起几次验收锁 CLI 子进程与 git 子进程。全量准入快层账本里这条 1.8 秒，负载下 3.9 秒，负载下超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
   it(
     '入口：锁没破退出 0，破了退出 1，不给基线时取 main，认不出的参数或基线不存在退出 2',
     { tags: ['slow'] },
     () => {
       const cli = fileURLToPath(new URL('../src/acceptance/cli.ts', import.meta.url))
-      // `pnpm run check` 把解析出的基线导成 BASELINE；这里要的是不给基线时的缺省，所以去掉它。
       const { BASELINE: _inherited, ...env } = process.env
       const run = (...args: string[]) =>
         spawnSync(process.execPath, ['--experimental-strip-types', cli, ...args], {
@@ -346,7 +335,6 @@ describe('验收锁：读 Git', { timeout: 60_000 }, () => {
     },
   )
 
-  // 归慢层：在临时 git 仓库里连起几次验收锁 CLI 子进程与 git 子进程。全量准入快层账本里这条 1.1 秒，负载下 2.7 秒，负载下超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
   it(
     '入口：不给基线时按统一规则取，BASELINE 与 origin/main 都先于 main',
     { tags: ['slow'] },
@@ -447,9 +435,6 @@ describe('historical fingerprint rejection', () => {
   })
 })
 
-// Each case reads real objects of this repository's history through git subprocesses: about one
-// second idle, 7–12 seconds under load (two other vitest runs, 2026-11-01), past the 5-second
-// default. The limit is three times the loaded cost; no assertion changes.
 describe('#769 historical approvals against real Git objects', { timeout: 30_000 }, () => {
   const root = fileURLToPath(new URL('../../../', import.meta.url))
   const decision =
@@ -566,8 +551,6 @@ describe('#769 historical approvals against real Git objects', { timeout: 30_000
   })
 })
 
-// Fast tier: a small local repository. The registered parent goes straight into the candidate, so
-// only the two parent guards in inspectAgainst can reject a wrong parent.
 describe('historical approval parent guards', () => {
   const made: string[] = []
   afterEach(() => {
@@ -582,7 +565,6 @@ describe('historical approval parent guards', () => {
   const path = 'packages/x/acceptance/README.md'
   const decisionUrl = 'https://example.com/decision'
 
-  /** Three commits in a line: grandparent, parent, commit, each with different content at `path`. */
   function history() {
     const root = realpathSync(mkdtempSync(join(tmpdir(), 'historical-parent-')))
     made.push(root)
@@ -625,7 +607,6 @@ describe('historical approval parent guards', () => {
   })
 })
 
-// Slow tier: clones historical Git objects and runs the real CLI in child processes.
 describe('historical CLI audit with real Git objects', { tags: ['slow'] }, () => {
   const made: string[] = []
   afterEach(() => {
@@ -749,7 +730,6 @@ describe('historical CLI audit with real Git objects', { tags: ['slow'] }, () =>
     }).trim()
   }
 
-  // Each setup changes the bytes of a plain `git diff` for the approved commit.
   it.each<[string, (root: string) => NodeJS.ProcessEnv]>([
     ['diff.context=5', root => (git(root, 'config', 'diff.context', '5'), process.env)],
     [
@@ -780,7 +760,6 @@ describe('historical CLI audit with real Git objects', { tags: ['slow'] }, () =>
         const attributes = join(directory, 'attributes')
         const global = join(directory, 'gitconfig')
         writeFileSync(attributes, '*.md diff=markdown\n')
-        // Git 配置值里的 `\` 是转义符；Windows 路径换成 `/` 写进去，Git 照样认。
         writeFileSync(global, `[core]\n\tattributesFile = ${attributes.replaceAll('\\', '/')}\n`)
         return { ...process.env, GIT_CONFIG_GLOBAL: global }
       },
@@ -836,7 +815,6 @@ describe('historical CLI audit with real Git objects', { tags: ['slow'] }, () =>
     expect(result.stdout).toContain('未解决违规 1')
   })
 
-  // Windows 上 Node 按 PATH 找 `git` 只认 .com/.exe，无扩展名的 sh 替身截不住真实 git，故障注不进去。
   it
     .skipIf(process.platform === 'win32')
     .each(['--binary', `${historical.commit}:${historical.path}`])(

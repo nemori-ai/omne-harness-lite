@@ -48,10 +48,6 @@ export function edgeStroke(change: ViewNode['change']): string {
   return change === 'added' ? '#1f6feb' : change === 'removed' ? '#b7473d' : '#9aa0a6'
 }
 
-/**
- * Standalone SVG of the whole current subgraph. It is built from the same ELK geometry as the
- * on-screen graph, so zoom, pan and the viewport never affect what is exported.
- */
 export function architectureSvg(props: FlowProps): string {
   const { selected, layout } = props
   const width = Math.max(540, layout.width ?? 0)

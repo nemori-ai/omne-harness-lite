@@ -1,7 +1,3 @@
-// 回路状态的一次运行：只读源码与 git，回答「整洁的各项指标各在哪条带上、这次变更里有哪些红项要解释、哪些成员超了预算」。
-// 除硬线外一切只报告：结果码 1 只在依赖违规或环、给了基线且验收锁被破、严格模式下开着的传感器没数据时。
-// 命令行外壳在 cli.ts。
-import { subjectIsRunner } from '../core/subject.ts'
 import { baselines } from '../core/task-context.ts'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -65,37 +61,24 @@ import {
 
 import type { AssemblyObservations, AssemblyDelta } from './sensors/assembly.ts'
 import { readArchitectureSensors } from './sensors/conformance.ts'
-import type {
-  ArchitectureGroupCycleException,
-  ConstraintChange,
-} from '../arch/conformance-model.ts'
-import { readRunnerConstraints } from '../arch/constraints.ts'
-import { judgeGroupCycles, runnerGroupCycleExceptions } from '../arch/group-cycles.ts'
+import type { ConstraintChange } from '../arch/conformance-model.ts'
 
 const OFF = '配置里关了'
 
 export interface RunOptions {
-  /** 被量的检出。 */
   readonly root: string
   readonly base?: string
   readonly snapshot: boolean
   readonly out?: string
-  /**
-   * 严格模式：另判「开着的传感器都有数据」；要求给基线与产物目录，草稿写进产物目录，
-   * 不写趋势快照——回路目录一个字节都不动。
-   */
   readonly strict: boolean
   readonly scope?: SensorScope['kind']
 }
 
 export interface RunResult {
-  /** 0：硬线没破；1：硬线被破。工具自己出错一律抛出。 */
   readonly code: 0 | 1
-  /** 终端与 status.md 共用的文字。 */
   readonly lines: readonly string[]
 }
 
-/** 各传感器的原始结果；status.json 原样收下。 */
 interface Sensors {
   readonly conformance: Reading<import('../arch/conformance-model.ts').Conformance>
   readonly stability: Reading<readonly StabilityEdge[]>
@@ -111,7 +94,6 @@ interface Sensors {
   readonly architectureChanges: Reading<readonly ConstraintChange[]>
 }
 
-/** 基线合并点到当前工作树的改动：全部改动路径，与改动过的成员源码在合并点的文本。 */
 export interface Change {
   readonly mergeBase: string
   readonly paths: ReadonlySet<string>
@@ -123,7 +105,6 @@ export function changeSince(root: string, mergeBase: string): Change {
   return { mergeBase, paths, baseTexts: baseTextsOf(root, mergeBase, paths) }
 }
 
-/** 度量报告（不跑覆盖率）；给了改动就标出变更的函数与导入。`graph` 是工作树的依赖图，调用方可以与别的传感器共用。 */
 export function measuredReport(
   root: string,
   files: readonly SourceFile[],
@@ -179,7 +160,6 @@ export function readAssertions(
   return data(tests.flatMap(file => casesWithoutAssertions(file, config)))
 }
 
-/** 当前图（度量报告里的成员边）与基线合并点上的图比；基线图由 dependency-cruiser 在那个提交上算，按提交缓存。 */
 export function readNewEdges(
   root: string,
   report: Report,
@@ -299,7 +279,6 @@ function indicatorValues(
   }
 }
 
-/** 传感器有数据、但这个提交上的验收全被计划跳过：耗时指标没数据（不拿 0 秒冒充量过了），原因写明跳过。 */
 export function acceptanceMeasured(
   reading: Reading<AcceptanceTiming>,
   value: (timing: AcceptanceTiming) => number,
@@ -320,7 +299,6 @@ function acceptanceNote(timing: AcceptanceTiming): string {
   return `${timing.files} 份（${timing.members} 个成员），记录开始于 ${timing.ledger?.startedAt ?? '？'}${skipped}`
 }
 
-/** 一个成员拿什么与基线比：配置不比、没有基线快照，或基线快照里它的条目（新成员没有）。 */
 function memberBaseline(
   enabled: boolean,
   baseline: BaselineSnapshot,
@@ -371,11 +349,6 @@ function memberBudgets(
     )
 }
 
-/**
- * 这次变更里要解释的红项；只用到四个传感器，收工钩子不跑重复代码时给它一个没数据的读数。
- * 函数一类与基线比：碰过、带位不是 ok 的函数里只留涨了的、新出现的与拿不准的，
- * 为此只取这些函数所在文件在 `change.mergeBase` 上的文本（`root` 是被量的检出）。
- */
 export function explainOf(
   root: string,
   report: Report,
@@ -462,7 +435,6 @@ function refHead(root: string, branch: string): string | undefined {
   }
 }
 
-/** 找基线快照用的合并点：给了 BASE 用它的合并点；没给就用与主线的合并点。 */
 function baselineOf(
   root: string,
   at: Coordinates,
@@ -482,44 +454,13 @@ function baselineOf(
   return { baseline: baselineSnapshot(snapshots, mergeBase, ancestry, at.head), from }
 }
 
-/**
- * 依赖违规与环：dependency-cruiser 的规则加成员、组间的环，与 `pnpm run metrics`、`lint:deps` 同一张图。
- * 无法解析的导入不算硬线：它由 `lint:deps` 门禁与类型检查拦，没装依赖的树里外部包也会落进这一类。
- * 组环与 `lint:deps` 一样按 runner 的具名例外判：放行的组环只列在 `exceptedCycles`，没命中的例外算进环。
- */
 export function directionLines(
   report: Pick<Report, 'findings'>,
-  exceptions: LoopGroupCycleExceptions,
-): Pick<HardLines, 'direction' | 'cycles' | 'exceptedCycles'> {
-  const judged = judgeGroupCycles(
-    report.findings.filter(finding => finding.rule !== 'no-unresolvable'),
-    exceptions.exceptions,
-    exceptions.judgeUnused,
-  )
+): Pick<HardLines, 'direction' | 'cycles'> {
+  const findings = report.findings.filter(finding => finding.rule !== 'no-unresolvable')
   return {
-    cycles: [
-      ...judged.findings.filter(finding => finding.kind.endsWith('cycle')),
-      ...judged.unused,
-    ],
-    exceptedCycles: judged.excepted,
-    direction: judged.findings.filter(finding => !finding.kind.endsWith('cycle')),
-  }
-}
-
-/** 回路读的组环例外，与是否判没用上的例外。 */
-export interface LoopGroupCycleExceptions {
-  readonly exceptions: readonly ArchitectureGroupCycleException[]
-  readonly judgeUnused: boolean
-}
-
-/**
- * 回路读的组环例外：与 `lint:deps` 同一份 runner `constraints.json`；文件坏了照常抛错，不当成没有例外。
- * 被检树 `root` 不是 runner 自己时不判没用上的例外，与 `lint:deps` 同一个判断（`subjectIsRunner`）。
- */
-export function loopGroupCycleExceptions(root: string): LoopGroupCycleExceptions {
-  return {
-    exceptions: runnerGroupCycleExceptions(readRunnerConstraints()),
-    judgeUnused: subjectIsRunner(root),
+    cycles: findings.filter(finding => finding.kind.endsWith('cycle')),
+    direction: findings.filter(finding => !finding.kind.endsWith('cycle')),
   }
 }
 
@@ -548,7 +489,6 @@ function hardLinesOf(
   }
 }
 
-/** 严格模式的前提：要基线、要产物目录、不写快照。不满足按用法错处理。 */
 function checkStrict(options: RunOptions): void {
   if (!options.strict) return
   if (options.base === undefined)
@@ -558,10 +498,6 @@ function checkStrict(options: RunOptions): void {
   if (options.snapshot) throw new Error('严格模式只读趋势，不能与 --snapshot 同用')
 }
 
-/**
- * 量一次并写下 status.md、status.json（与草稿、快照）。配置缺省读本包的两份配置文件；
- * 回路目录由 `env` 的 `OMNE_METRICS_HOME` 决定，没有就是主检出的 `tmp/clean-loop/`。
- */
 export async function runLoopStatus(
   options: RunOptions,
   env: NodeJS.ProcessEnv,
@@ -581,8 +517,6 @@ export async function runLoopStatus(
     options.out ?? join(home, 'status', `${at.shortHead}${at.dirty ? '-dirty' : ''}`),
   )
 
-  // 先读 runner 的组环例外：文件坏了直接按工具错误停下，不先量一遍。
-  const groupCycleExceptions = loopGroupCycleExceptions(root)
   const files = collectMemberSources(root)
   const acceptanceConfig = readAcceptanceLockConfig()
   const audits = auditHistory(root, options.base, acceptanceConfig)
@@ -633,7 +567,7 @@ export async function runLoopStatus(
   const overBudget = writeProposals(budgets, report, sensors, config, proposalDir, at)
   const hardLines = hardLinesOf(
     root,
-    directionLines(report, groupCycleExceptions),
+    directionLines(report),
     options.base,
     options.strict
       ? judgeSensors(sensors, config, scope)

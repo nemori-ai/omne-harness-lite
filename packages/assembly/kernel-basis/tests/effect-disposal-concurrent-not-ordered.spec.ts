@@ -1,6 +1,3 @@
-// basis: effect-disposal-concurrent-not-ordered（@deepseek-ai/cordis 4.0.4）
-// 断言：卸载 fiber 时各 effect 的 disposer 并发驱动（重叠），不是串行；disposer 抛错只走 ctx.logger.error、卸载照常完成；
-// 同一 effect 内多个 disposer 逆序释放；UNLOADING 后再建 effect 抛 INACTIVE_EFFECT。
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { plugin } from './basis-support.ts'
@@ -24,7 +21,7 @@ describe('effect-disposal-concurrent-not-ordered', () => {
       }),
     )
     await fiber.dispose()
-    expect(finished).toEqual(['fast', 'slow']) // 逆注册序只约束取出，完成顺序由耗时决定
+    expect(finished).toEqual(['fast', 'slow'])
   })
 
   it('disposer 抛错不上抛，卸载照常完成', async () => {

@@ -1,7 +1,3 @@
-// SPEC「以失败终结」: a run that ends with a `fail` conclusion keeps why in its conclusion cause and
-// tells the `endedFailed` receiver once. A Model call that settled as failed is still a `no-reply`
-// candidate (SC-AG-153), but its cause names the fault; `no-reply` stays for a call that completed
-// without content.
 import { describe, expect, it } from 'vitest'
 import type { AgentRunEndedFailed } from '@omne-harness/agent'
 import {
@@ -15,7 +11,6 @@ import { alice, eventually, invoke, loopAssembly, type LoopAssembly } from './lo
 
 const input = { ...alice, execution: execution() }
 
-/** A loop whose main call settles at once with `termination` and `parts`. */
 async function endingWith(
   termination: Termination,
   parts: readonly ResultPart[],
@@ -60,7 +55,6 @@ async function ended(assembly: LoopAssembly) {
   await eventually(
     async () => ok(await assembly.dependencies.journal.load(input)).state.kind === 'ended',
   )
-  // Let the drive pass F4 and settle, so a second report would show.
   for (let turn = 0; turn < 20; turn += 1) await new Promise(resolve => setTimeout(resolve, 0))
   return ok(await assembly.dependencies.journal.load(input))
 }
@@ -83,7 +77,6 @@ describe('a run that ends with a failure keeps and reports its cause', () => {
     })
     const candidate = read.settlement.candidate?.failure
     expect(candidate).toMatchObject({ kind: 'no-reply', step: 'step-1' })
-    // The structured fault is the settlement's fault, field for field.
     if (candidate?.kind !== 'no-reply') throw new Error('no no-reply candidate')
     expect(candidate.fault).toStrictEqual(fault)
     expect(reports).toHaveLength(1)

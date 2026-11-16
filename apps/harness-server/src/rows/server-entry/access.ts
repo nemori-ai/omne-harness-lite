@@ -1,19 +1,12 @@
-// The new address of the `server-entry` row (#1249 block 2, spec 已定 12 and 13): the registry, the
-// identity port, the grace and the two bounds the member's `access` takes. The release mounts no
-// domain's contribution, so the only protocol at the new address is the entry's own `access/v1`,
-// whose one observation needs no login (RFC-0015 I-15: a contribution is not an opening).
-//
-// The registry is the member's plain `createAccessRegistry`, built in the row body. A Cordis
-// provider would put `accessRegistry` on the tree, a service the assembly page does not list for
-// this row; nothing in the release would mount on it yet.
+import type { Context } from '@deepseek-ai/cordis'
 import type { AccessIdentity } from '@omne-harness/access-cordis-contract'
 import { systemScope } from '@omne-harness/legal-identity'
-import {
-  createAccessRegistry,
-  type AccessDiagnostic,
-  type AccessDiagnosticCode,
-  type ServerEntryAccess,
+import type {
+  AccessDiagnostic,
+  AccessDiagnosticCode,
+  ServerEntryAccess,
 } from '@omne-harness/server-entry'
+import { AccessRegistryProvider } from '@omne-harness/server-entry/cordis'
 import {
   defineEvent,
   validateFields,
@@ -22,27 +15,12 @@ import {
 } from '@omne-harness/telemetry-contract'
 import { processInstance } from '../telemetry/instance.ts'
 
-/** How long a handler may run after a take-down before the entry answers for it. */
 const GRACE_MS = 5000
-/** The bytes of one observation's frames not yet written out before it ends with `capacity`. */
 const FRAME_QUEUE_BYTES = 1 << 20
-/** The change frames one availability subscriber may have waiting before they become a snapshot. */
 const AVAILABILITY_BACKLOG = 64
-
-/**
- * The identity port of the new address. The release has no protocol that needs a login there, and
- * identity offers no adapter for this port yet: every method answers `basis-unavailable`, so a
- * call that would need one is refused and leaves an `access.identity-unavailable` diagnostic.
- */
-const IDENTITY_NOT_OFFERED: AccessIdentity = {
-  identifyLogin: async () => ({ outcome: 'basis-unavailable' }),
-  actFor: async () => ({ outcome: 'basis-unavailable' }),
-  reportAccess: async () => {},
-}
 
 const OWNER = 'server-entry'
 
-/** Every code of the member's `AccessDiagnostic`, so the enum and the member's type move together. */
 const CODES = [
   'access.path-rejected',
   'access.method-rejected',
@@ -54,22 +32,23 @@ const CODES = [
   'access.identity-denied',
   'access.identity-unavailable',
   'access.identity-fault',
+  'access.login-revoked-before-answer',
   'access.body-over-limit',
   'access.body-rejected',
   'access.aborted',
   'access.caller-gone',
   'access.listener-fault',
   'access.report-fault',
+  'access.basis-unavailable',
+  'access.request-fault',
   'access.observation-full',
   'access.frame-source-fault',
   'access.frame-rejected',
   'access.frame-queue-full',
 ] as const satisfies readonly AccessDiagnosticCode[]
-// A code the member adds without this table fails here, not at run time.
 const exhaustive: [AccessDiagnosticCode] extends [(typeof CODES)[number]] ? true : never = true
 void exhaustive
 
-/** The event of the new address, beside `omne.entry.diagnostic` of the three locations. */
 export const accessDiagnosticDefinition = defineEvent({
   owner: OWNER,
   name: 'omne.access.diagnostic',
@@ -84,7 +63,6 @@ export const accessDiagnosticDefinition = defineEvent({
 
 type AccessFields = Fields<typeof accessDiagnosticDefinition.schema>
 
-/** The fields of one diagnostic; a reference the contract refuses is left out. */
 function fieldsOf(event: AccessDiagnostic): AccessFields {
   const { code, path, operation } = event
   const admits = (fields: AccessFields): boolean =>
@@ -96,7 +74,6 @@ function fieldsOf(event: AccessDiagnostic): AccessFields {
   }
 }
 
-/** The member's `access.diagnostics`, bound once at row build: system scope, as the entry's own. */
 export function accessDiagnostics(telemetry: TelemetryPort): (event: AccessDiagnostic) => void {
   const emitter = telemetry.bind({
     scope: systemScope(),
@@ -108,14 +85,15 @@ export function accessDiagnostics(telemetry: TelemetryPort): (event: AccessDiagn
   }
 }
 
-/** The `access` of `createServerEntry`: a fresh registry with only the entry's own protocol. */
-export function entryAccess(telemetry: TelemetryPort): ServerEntryAccess {
+export function entryAccess(
+  ctx: Context,
+  telemetry: TelemetryPort,
+  identity: AccessIdentity,
+): ServerEntryAccess {
   const diagnostics = accessDiagnostics(telemetry)
   return {
-    registry: createAccessRegistry({
-      onListenerError: () => diagnostics({ code: 'access.listener-fault' }),
-    }),
-    identity: IDENTITY_NOT_OFFERED,
+    registry: new AccessRegistryProvider(ctx, { diagnostics }).registry,
+    identity,
     graceMs: GRACE_MS,
     frameQueueBytes: FRAME_QUEUE_BYTES,
     availabilityBacklog: AVAILABILITY_BACKLOG,

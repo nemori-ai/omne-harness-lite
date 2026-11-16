@@ -2,7 +2,6 @@
 name = "omne-harness-lite-spec-tools"
 version = "0.1.0"
 description = "Development-time navigation and tool environment checks"
-readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
   "jsonschema[format]>=4.23,<5",
@@ -12,7 +11,6 @@ dependencies = [
 
 [project.scripts]
 omne-docs-check = "omne_harness_lite_spec_tools.check_docs:main"
-omne-documentation = "omne_harness_lite_spec_tools.documentation_inventory:main"
 omne-spec-tools-check = "omne_harness_lite_spec_tools.check_tool_environment:main"
 
 [dependency-groups]

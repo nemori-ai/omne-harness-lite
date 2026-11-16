@@ -32,14 +32,12 @@ export type LocalScheduledEnvironmentInput<P, E> = Readonly<{
   environment: ToolEnvironment<P, E>
   policy: ToolEnvironmentSchedulingPolicy<P>
   diagnostics: ToolEnvironmentDiagnostics
-  /** Qualify the current principal, tenant, call and original preparation before queueing. */
   qualify(input: EnvironmentPreparationInput<P>): Reply<void>
 }>
 
 type Entry<E> = {
   readonly digest: string
   readonly preparation: EnvironmentPreparationInput<unknown>['preparation']
-  /** The fixed request of the call, kept in memory to qualify its release. */
   readonly request: EnvironmentPreparationInput<unknown>['request']
   readonly queue: DrrQueue
   occupied: boolean
@@ -60,7 +58,6 @@ function operationKey(tenant: TenantId, call: string, operation: string): string
   return JSON.stringify([tenantKey(tenant), call, operation])
 }
 
-/** One-process scheduling only. The original environment owns acquisition persistence and recovery. */
 export function createLocalScheduledEnvironment<P, E>(
   input: LocalScheduledEnvironmentInput<P, E>,
 ): ToolEnvironment<P, E> {
@@ -126,7 +123,6 @@ export function createLocalScheduledEnvironment<P, E>(
     if (entry.retired) return
     entry.progress = progress
     if (progress.kind === 'rejected') entry.retired = true
-    // Rejection can retain cleanup work. Only exclusion proves no delayed allocation survives.
     if (progress.kind === 'excluded') vacate(entry)
   }
   const queueFor = (tenant: TenantId): DrrQueue => {
@@ -180,11 +176,6 @@ export function createLocalScheduledEnvironment<P, E>(
     }
   }
 
-  /**
-   * The final original-adoption check of a path that resumed from an await: it runs synchronously,
-   * so nothing can replace the adapter between it and the forward that follows. `null` means the
-   * forward may go ahead; a failure is the reply, after `onFailure` ran (before any diagnostic wait).
-   */
   const adoptionGuard = (
     request: EnvironmentPreparationInput<P>,
     onFailure: () => void,
@@ -278,7 +269,6 @@ export function createLocalScheduledEnvironment<P, E>(
       !['allocated', 'prepared'].includes(inspected.ok.kind)
     )
       return inspected
-    // Recognition preserves every original input. The provider must not allocate a second time.
     const checked = await check(request)
     if ('failure' in checked) return checked
     if (entry.retired) return unavailable('the original preparation was retired')
@@ -342,7 +332,6 @@ export function createLocalScheduledEnvironment<P, E>(
   ): Reply<PreparationProgress<E>> => {
     if (queued >= policy.capacity)
       return Promise.resolve(unavailable('preparation queue capacity reached'))
-    // Confirmed exclusion permits a new dispatch attempt without retaining the old reservation.
     if (entry.progress.kind === 'excluded') entry.sent = false
     const waiting: Reply<PreparationProgress<E>> = new Promise(resolve => {
       entry.waiting = {
@@ -434,7 +423,6 @@ export function createLocalScheduledEnvironment<P, E>(
     )
     if (entry && entry.digest !== canonicalDigest(request.preparation))
       return fail({ kind: 'conflict', operation: request.preparation.operation })
-    // Inspection never dispatches queued work or performs acquisition/recognition.
     if (entry && !entry.occupied && entry.running !== null) return pending('preparation queued')
     const refused = adoptionGuard(request, () => {})
     if (refused !== null) return refused

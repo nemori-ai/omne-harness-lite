@@ -2,7 +2,6 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { blockGrowth, evaluateSeries } from './metrics.mjs'
 
-// A flat series with noise that repeats every 7 rounds, so no block line fits it well.
 const steady = Array.from({ length: 200 }, (_, index) => 100 + ((index * 37) % 7))
 
 test('a steady series passes both gates of a per-round series', () => {
@@ -20,7 +19,6 @@ test('a linearly growing series fails both gates', () => {
 })
 
 test('growth inside the window ratio still fails the block gate', () => {
-  // The late window is no more than 1.5 times the early one, but the series climbs steadily.
   const result = evaluateSeries(steady.map((value, index) => value + index * 0.2))
   assert.equal(result.median.state, 'pass')
   assert.equal(result.growth.state, 'fail')
@@ -37,7 +35,6 @@ test('a short series, a non-finite value or a non-positive early window stays bl
 })
 
 test('the windows are rounds 11-30 and 181-200, and a ratio equal to the threshold passes', () => {
-  // Rounds 1-10 and 171-180 differ from the windows, so a shifted window changes a median.
   const values = Array.from({ length: 200 }, (_, index) => {
     if (index < 10) return 1
     if (index < 30) return 100 + (index - 10)

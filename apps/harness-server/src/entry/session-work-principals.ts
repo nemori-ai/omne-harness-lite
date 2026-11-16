@@ -1,7 +1,3 @@
-// 会话工作主体 `sessionWorkPrincipals`（AA 运行时对象表、session-contract `SessionWorkPrincipals`、D-AUTH r4 4.1）。
-// 每次 `forSession` 都经入口自己的受信上下文现读 `session-storage` 提供的归属读口 `sessionPrincipalBindings`：
-// 读口缺席、`not-bound`、绑定指向别的租户或会话、读失败或签发失败，都不签发。签发经 `principals.ts` 的窄视图，
-// 本模块拿不到签发者。受信与否由受信表决定：`sessionWorkPrincipals` 只有 `session-provider` 行看得见。
 import type { Context } from '@deepseek-ai/cordis'
 import type { Principal } from '@omne-harness/identity'
 import { tenantEquals } from '@omne-harness/legal-identity'
@@ -27,7 +23,6 @@ type BindingReading = Awaited<ReturnType<SessionPrincipalBindingSource['read']>>
 
 export type SessionWorkPrincipalsOptions = Readonly<{
   issue: SessionWorkIssue
-  /** 每次调用现读受信的归属读口。没有提供者时返回 `undefined`；抛出视为读口不可达。 */
   readBindings: () => SessionPrincipalBindingSource | undefined
 }>
 
@@ -61,7 +56,6 @@ async function readBinding(
   try {
     return await source.read({ tenant: input.tenant, session: input.session })
   } catch {
-    // 异常不透传：读口的消息可能带存储正文。
     return fail(
       unavailable(
         BINDINGS,
@@ -71,7 +65,6 @@ async function readBinding(
   }
 }
 
-/** 纯组合：归属读口与签发视图都由调用方给，便于不经 Cordis 检验行为。 */
 export function createSessionWorkPrincipals(
   options: SessionWorkPrincipalsOptions,
 ): SessionWorkPrincipals<Principal> {
@@ -110,7 +103,6 @@ class EntrySessionWorkPrincipals extends SessionWorkPrincipalsService<Principal>
 
 function bindingsReader(env: EntryEnv): SessionWorkPrincipalsOptions['readBindings'] {
   return () => {
-    // 入口自己按名读受信名的上下文：根标签上的同名提供者读不到。
     const source: SessionPrincipalBindingSource | undefined = env
       .readTrusted(sessionPrincipalBindingsKey)
       .get(sessionPrincipalBindingsKey)

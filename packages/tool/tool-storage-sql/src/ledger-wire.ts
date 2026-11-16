@@ -27,7 +27,6 @@ export function addressOf(tenant: string, domain: LedgerDomain): DomainAddress {
   return { tenant, kind: domain.kind, name: domain.kind === 'call' ? domain.call : domain.key }
 }
 
-/** Whether `other` names the tenant of `domain`, by the identity texts the ledger partitions on. */
 export function sameTenant(domain: LedgerDomain, other: LedgerDomain): boolean {
   return (
     domain.tenant.organization.text === other.tenant.organization.text &&
@@ -35,7 +34,6 @@ export function sameTenant(domain: LedgerDomain, other: LedgerDomain): boolean {
   )
 }
 
-/** The assertions of a commit as the participant reads them; the tenant is the commit's own. */
 export function assertsOf(input: LedgerCommitInput): readonly LedgerAssertionFact[] {
   return (input.asserts ?? []).map(assertion => {
     const { kind, name } = addressOf('', assertion.domain)
@@ -43,20 +41,14 @@ export function assertsOf(input: LedgerCommitInput): readonly LedgerAssertionFac
   })
 }
 
-/** How a commit sends the fixed part of a record that has one. */
 export type FixedMode = 'given' | 'kept'
 
-/**
- * A record in the two parts the store keeps: the part that changes, and the part that is written
- * once. Only the call record has a fixed part: its request, which no step of the call changes.
- */
 function partsOf(record: LedgerRecord): Readonly<{ record: unknown; fixed?: unknown }> {
   if (record.kind !== 'call') return { record }
   const { request, ...state } = record.call
   return { record: { kind: record.kind, call: state }, fixed: request }
 }
 
-/** The record that `partsOf` took apart, from the two parts a read gives back. */
 export function joined(record: JsonValue, fixed: JsonValue | undefined): JsonValue {
   if (fixed === undefined || !isObject(record) || !isObject(record['call'])) return record
   return { ...record, call: { ...record['call'], request: fixed } }
@@ -101,7 +93,6 @@ function stopOf(basis: JsonValue): StopBasis | null {
 
 export type CommitAnswer = Awaited<ReturnType<SqlToolStorageOptions['storage']['commit']>>
 
-/** Whether the participant stopped a `kept` put: the store holds no fixed part under the key. */
 export function lacksFixed(answer: CommitAnswer): boolean {
   if (answer.kind !== 'rolled_back') return false
   const stop = answer.responses[answer.responses.length - 1]?.reply
@@ -110,25 +101,14 @@ export function lacksFixed(answer: CommitAnswer): boolean {
   )
 }
 
-/**
- * Whether the same commit is refused again whenever it is sent (sql-contract「提交拒绝原因的定性」):
- * a definite reason comes from the commit itself or from the assembly.
- */
 export function isDefiniteRejection(reason: CommitRejectReason): boolean {
   return commitRejectionNature(reason) === 'definite'
 }
 
-/** A write set that is not strict JSON is refused before it is sent: it never becomes JSON. */
 export function notJson(error: NotJsonError): LedgerCommit {
   return { kind: 'rejected', reason: error.message }
 }
 
-/**
- * A rolled-back commit: a revision conflict when the participant said so. Any other stop (the
- * participant threw, a statement failed) is decided by the input and the committed data, so the
- * same commit fails the same way again (sql-contract §7.6). A rollback is durable: nothing of the
- * commit took effect.
- */
 function rolledBack(answer: Extract<CommitAnswer, { kind: 'rolled_back' }>): LedgerCommit {
   const stop = answer.responses[answer.responses.length - 1]?.reply
   const basis = stop?.kind === 'conflict' ? stopOf(stop.basis) : null
@@ -143,7 +123,6 @@ function rolledBack(answer: Extract<CommitAnswer, { kind: 'rolled_back' }>): Led
   }
 }
 
-/** One ledger commit, read as the answer of the port. */
 export function ledgerAnswer(answer: CommitAnswer): LedgerCommit {
   switch (answer.kind) {
     case 'committed':
@@ -153,7 +132,6 @@ export function ledgerAnswer(answer: CommitAnswer): LedgerCommit {
     case 'rolled_back':
       return rolledBack(answer)
     case 'identity_conflict':
-      // Every commit uses a fresh operation key, so the provider ran none of this commit.
       return unavailable('ledger commit: the operation key was already used')
     case 'rejected_before_accept':
       return isDefiniteRejection(answer.reason)

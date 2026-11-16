@@ -1,12 +1,9 @@
-// `mount` on real Cordis 4.0.4 with the smallest provider: the effect belongs to the caller's
-// scope, its setup error reaches the caller, and the unload waits for the take-down's promise.
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import type { ProtocolContract } from '@omne-harness/public-contract'
 import { AccessAssemblyError, type AccessContribution } from '@omne-harness/access-cordis-contract'
 import { AccessRegistryService } from '@omne-harness/access-cordis-contract/cordis'
 
-/** A provider that records what `attach` sees and drains when the test says so. */
 class RecordingRegistry extends AccessRegistryService {
   readonly events: string[] = []
   private readonly mounted = new Set<string>()

@@ -137,7 +137,6 @@ export function readStandingCustody(port: ReadPort, identity: IntentIdentity, at
   return attempt.kind === 'found' ? readCustody(port, attempt) : attempt
 }
 
-/** The owning participant validates admission; this record is not an Identity grant. */
 export function planStandingCustody(port: ParticipantPort, raw: StandingPlanInput) {
   if (!withinBudget(raw)) return { kind: 'rejected' as const, reason: 'limit_exceeded' as const }
   const input = standingPlanInputSchema.parse(raw)

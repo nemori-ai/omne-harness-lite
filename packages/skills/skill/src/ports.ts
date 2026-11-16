@@ -1,5 +1,3 @@
-// The three demand ports that `createSkillAccess` takes, in one object. Each port keeps its own
-// contract and conformance suite in `@omne-harness/skill-contract`.
 import type {
   SkillPackageSource,
   SkillReadCheck,

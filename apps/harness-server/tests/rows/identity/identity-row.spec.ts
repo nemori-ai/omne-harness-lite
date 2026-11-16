@@ -1,6 +1,4 @@
 // @module-tag slow
-// `identity` 行（验收 3）：以 `serve` 模式只装本行、它依赖的 `storage` 夹具行与 `identityClock` 入口对象。
-// 慢：插件体用部署的 `SCRYPT_PROFILE` 派生假材料，并在真实 sqlite-provider 上登记组合。
 import { describe, expect, it } from 'vitest'
 import { stubPlugin } from '../../../src/cordis.ts'
 import { identityClock } from '../../../src/entry/identity-clock.ts'
@@ -10,7 +8,6 @@ import { serveOnce } from '../../fixtures/serve/harness.ts'
 import { fixtureSqliteStorage, releaseIdentityConfig } from './fixtures.ts'
 
 const plugins = { stubPlugin, fixtureSqliteStorage, identityRow }
-/** The identity row of `config/serve.distribution.json`: two login lifetimes, two invitation durations. */
 const IDENTITY_CONFIG = releaseIdentityConfig()
 const distribution = {
   rows: [

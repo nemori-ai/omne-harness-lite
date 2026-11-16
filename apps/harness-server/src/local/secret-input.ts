@@ -1,12 +1,8 @@
-// How `setup` reads the model credential. A terminal gets a hidden prompt (the terminal reader of
-// settings-local's secret vault). Any other standard input is read up to the first
-// line break or its end, so a person can pipe the key in: `... | harness-server setup`.
 // The key never comes from an argument or the environment.
 import { SecretInputError, readSecretFromTerminal } from '@omne-harness/settings-local/secrets'
 
 export const CREDENTIAL_PROMPT = 'Model credential (OpenRouter API key, input is hidden): '
 
-/** A piped key longer than this is refused; a key is far shorter. */
 const MAX_PIPED_BYTES = 65_536
 
 export type PipedInput = Readonly<{
@@ -18,7 +14,6 @@ export type PipedInput = Readonly<{
   resume(): unknown
 }>
 
-/** Reads up to the first line break or the end of the input. The line break is not part of the key. */
 export function readFirstLine(input: PipedInput): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
@@ -45,7 +40,6 @@ export function readFirstLine(input: PipedInput): Promise<string> {
     function onEnd(): void {
       finish(() => resolve(line()))
     }
-    // The stream error is dropped: it could hold anything, and the reason code says enough.
     function onError(): void {
       finish(() => reject(new SecretInputError('input-failed')))
     }
@@ -56,7 +50,6 @@ export function readFirstLine(input: PipedInput): Promise<string> {
   })
 }
 
-/** The reader of a real process: hidden on a terminal, the first line otherwise. */
 export function processSecretReader(
   stdin: NodeJS.ReadStream,
   stderr: NodeJS.WriteStream,

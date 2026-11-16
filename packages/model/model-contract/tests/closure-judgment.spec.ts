@@ -11,7 +11,6 @@ import {
   workspaceResidue,
 } from './install/closure.ts'
 
-// Pure judgments on declared dependencies; nothing here packs, installs or spawns a process.
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
 const policyPath = join(packageDirectory, 'tests/fixtures/install-policy.json')
 const temporary = realpathSync(mkdtempSync(join(tmpdir(), 'closure-judgment-')))

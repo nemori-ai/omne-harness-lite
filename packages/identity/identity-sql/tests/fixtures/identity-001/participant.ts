@@ -1,8 +1,3 @@
-// The `identity` participant. It runs inside the provider's write transaction and only executes
-// SQL: every identity, digest and time value arrives in the facts, computed by the provider in the
-// main thread (DP3-C7). A registration writes its five rows in this one command, so a failure at
-// any row rolls back all of them. A taken login identifier is a `conflict`; the unique index on
-// the identifier is the second guard against two concurrent registrations.
 import type {
   ParticipantModule,
   ParticipantPort,

@@ -1,5 +1,3 @@
-// The gate the services walk through: `admitForUse` composes adoption, eligibility and the close
-// of invariant 6 on the one decision of `admit`; the two tokens that come out cannot be forged.
 import { describe, expect, it } from 'vitest'
 import type { AdoptedEndpoint } from '@omne-harness/mcp-contract/provider'
 import * as gateModule from '../src/internal/gate.ts'
@@ -31,13 +29,12 @@ function ports() {
   return { adoption, eligibility }
 }
 
-/** The use gate on a world whose transport script connects once. */
 function gateOf(w = world({ script: [{ discover: peerIdentityOf() }] })) {
   const table = createConnectionTable(w.ports, w.config)
   return { w, table, gate: { ports: w.ports, table } }
 }
 
-describe('admitForUse: the six answers of SPEC S1', () => {
+describe('admitForUse: the six answers', () => {
   it('admits an adopted endpoint that the principal is eligible for', async () => {
     const { w, gate } = gateOf()
     adoptHttp(w, files, { auth: 'none' })
@@ -176,7 +173,7 @@ describe('stillAdmitted: the gate at the publish boundary', () => {
 })
 
 describe('admit: the decision the services compose on', () => {
-  it('names every outcome, and refusalOf maps each to its S1 refusal', async () => {
+  it('names every outcome, and refusalOf maps each to its refusal', async () => {
     const { adoption, eligibility } = ports()
     expect(await admit({ adoption, eligibility }, alice, nowhere)).toEqual({ kind: 'not-adopted' })
     expect(await admit({ adoption, eligibility }, bob, files)).toMatchObject({

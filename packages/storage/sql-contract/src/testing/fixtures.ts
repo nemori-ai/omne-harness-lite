@@ -1,6 +1,3 @@
-// Fixture materials of the conformance suite: real module files in a temporary directory, so a
-// subject loads them from `moduleUrl` and checks `codeDigest` the way a provider does. Every
-// participant works on facts only. Nothing here needs SQL, so a memory double can run them.
 import { createHash } from 'node:crypto'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -17,7 +14,6 @@ import type {
 export const SESSION_REVISION: FactKey = { key: 'session.revision', protocol: '1' }
 export const GAMMA_FACT: FactKey = { key: 'gamma.ready', protocol: '1' }
 
-/** Combination that holds every fixture participant. */
 export const ALL_PARTICIPANTS = [
   'agent-journal',
   'alpha',
@@ -27,10 +23,8 @@ export const ALL_PARTICIPANTS = [
   'probe',
   'session',
 ] as const
-/** Small combination of two participants. */
 export const SMALL_PARTICIPANTS = ['agent-journal', 'session'] as const
 
-/** Source text of the `probe` participant: the facts of the command pick its behavior. */
 const PROBE_SOURCE = `
 export default {
   participant: 'probe',
@@ -145,7 +139,6 @@ function sha256Hex(text: string): string {
   return createHash('sha256').update(text, 'utf8').digest('hex')
 }
 
-/** Writes the module files and returns the catalog that describes them. */
 export async function createFixtureMaterials(): Promise<FixtureMaterials> {
   const directory = await mkdtemp(join(tmpdir(), 'sql-conformance-'))
   const write = async (name: string, source: string): Promise<{ url: string; digest: string }> => {

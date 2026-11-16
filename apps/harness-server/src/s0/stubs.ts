@@ -1,13 +1,5 @@
 import type { LifecyclePhase, RowId, RowManifest } from '../types.ts'
 
-/**
- * Human projection of the provide and inject columns of the AA plugin-tree table.
- * Names are the formal AA keys; the S0 private service name is `s0.<key>`.
- * Keys that the table gives only in prose are written out where a real row of `./cordis` injects
- * them (`session-ad10`: the three evidence sources; `session-ad06`: the Journal views and
- * `sessionTransactions`), so that `real-manifests-sync` compares the real row with this table.
- * When AA changes the rows, regenerate aa-rows.json, then update this table by hand.
- */
 type Entry = {
   provides?: readonly string[]
   injects?: readonly string[]
@@ -39,7 +31,12 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['tenantStanding', 'principalVerifier', 'identityClock', 'identityGovernance'],
   },
   governance: {
-    provides: ['sessionPermissionBackend', 'standingDestinationResolver', 'currentToolPermission'],
+    provides: [
+      'sessionPermissionBackend',
+      'standingDestinationResolver',
+      'currentToolPermission',
+      'tenantSettings',
+    ],
     injects: [
       'storage',
       'tenantDomainLookup',
@@ -59,6 +56,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'sessionDelegatedTransactions',
       'tenantDomains',
       'tenantDomainLookup',
+      'tenantDomainRegistration',
       'sessionPrincipalBindings',
       'sessionScopeOwners',
     ],
@@ -324,17 +322,15 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['session', 'modelStreamReferences', 'modelStreamObservation'],
   },
   'server-entry': {
-    injects: [
-      'session',
-      'principalIssuer',
-      'definitionMappings',
-      'telemetry',
-      'agentJournal',
-      'modelDiagnostics',
-      'modelRuntime',
-    ],
+    provides: ['accessRegistry'],
+    injects: ['principalIssuer', 'telemetry'],
     phase: 'entry',
   },
+  'identity-access': { injects: ['accessRegistry'] },
+  'session-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'assets-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'human-intervention-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'session-diagnostics-access': { injects: ['accessRegistry', 'principalIssuer'] },
 }
 
 export const rowManifests: ReadonlyMap<RowId, RowManifest> = new Map(

@@ -43,9 +43,7 @@ export function captureCommand(input: CommandRequest) {
     const parsed = requestSchema.safeParse(input)
     if (parsed.success && equal(input, parsed.data))
       return { kind: 'captured' as const, request: parsed.data }
-  } catch {
-    // Invalid local values do not enter persistence or identity checks.
-  }
+  } catch {}
   return { kind: 'invalid-input' as const, field: 'command', reason: 'shape' }
 }
 function authority(request: CommandRequest, admitted: Admitted) {

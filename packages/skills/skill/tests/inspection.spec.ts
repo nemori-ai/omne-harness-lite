@@ -1,6 +1,3 @@
-// `createPackageInspection`: a legal package gives its definition; every source answer maps as
-// the SPEC "检查 Skill 包" and the group page "检查与发现" say. The memory source gives the legal
-// cases; a stub source gives each failure at `snapshot` and at `open`.
 import { describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createPackageInspection } from '@omne-harness/skill'
@@ -106,9 +103,6 @@ describe('a legal package', () => {
   })
 })
 
-/** What `inspect` answers for each source failure at `snapshot`. A snapshot does not answer about
- * one entry: a source that answers `entry-not-found` or `bytes-mismatch` there does not keep the
- * port contract, so `inspect` takes it as unusable now, like `read`, `list` and `export` do. */
 const MAPPED_AT_SNAPSHOT: readonly (readonly [SourceFailure, InspectFailure])[] = [
   ['package-not-found', { kind: 'source-unavailable' }],
   ['entry-not-found', { kind: 'source-unavailable' }],
@@ -118,8 +112,6 @@ const MAPPED_AT_SNAPSHOT: readonly (readonly [SourceFailure, InspectFailure])[] 
   ['outside-package', { kind: 'rejected', code: 'outside-package' }],
 ]
 
-/** What `inspect` answers for each source failure at the `open` of a control file. The bytes of
- * an entry that the snapshot listed moved: `version-changed`. */
 const MAPPED_AT_OPEN: readonly (readonly [SourceFailure, InspectFailure])[] = [
   ['package-not-found', { kind: 'source-unavailable' }],
   ['entry-not-found', { kind: 'source-unavailable' }],
@@ -129,7 +121,6 @@ const MAPPED_AT_OPEN: readonly (readonly [SourceFailure, InspectFailure])[] = [
   ['outside-package', { kind: 'rejected', code: 'outside-package' }],
 ]
 
-/** Whether `answer` is `expected`, ignoring the free-text `detail` of a rejection. */
 function sameFailure(answer: InspectFailure, expected: InspectFailure): boolean {
   if (answer.kind === 'rejected' && expected.kind === 'rejected')
     return answer.code === expected.code

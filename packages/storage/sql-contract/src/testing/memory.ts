@@ -1,12 +1,3 @@
-// The memory double of `SqlStorage`: the same contract without SQLite, Workers or files of data.
-//
-// What it models: field rules, the control-side rejection order, registration, execution order of
-// participants, the fact port, failure categories, response evidence, recognition by the full
-// identity, partition by scope, observation cancel and close. What it does not model, because it
-// has no database: SQL execution (a participant that calls `port.execute` is a port violation),
-// durability, Worker failure, domain states beyond absent, ready and closed, queue limits and
-// reads of real rows. Its durability is `none`. A pass of the double proves none of the omitted
-// properties.
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
@@ -82,8 +73,6 @@ export type MemorySqlStorageInput = Readonly<{
   limits?: Partial<MemorySqlStorageLimits>
 }>
 
-// --- Serial execution: one job at a time, in arrival order ---------------------------------------
-
 type Job = Readonly<{ start(): Promise<void>; withdraw(): void }>
 
 class SerialQueue {
@@ -91,7 +80,6 @@ class SerialQueue {
   private readonly waiting: Job[] = []
   private readonly idleWaiters: (() => void)[] = []
 
-  /** The first job starts at once, so it is "started" when `submit` returns. */
   submit(job: Job): void {
     if (this.active) this.waiting.push(job)
     else this.begin(job)
@@ -117,8 +105,6 @@ class SerialQueue {
   }
 }
 
-// --- Materials -------------------------------------------------------------------------------------
-
 async function digestOfFile(moduleUrl: string): Promise<string | null> {
   try {
     const url = new URL(moduleUrl)
@@ -131,7 +117,6 @@ async function digestOfFile(moduleUrl: string): Promise<string | null> {
   }
 }
 
-/** Construction checks static materials only (SPEC 4.1, 4.2), as the provider factory does. */
 async function verifyMaterials(catalog: SqlMaterialCatalog): Promise<void> {
   const problems: string[] = []
   const files: [string, string, string][] = [
@@ -164,8 +149,6 @@ async function verifyMaterials(catalog: SqlMaterialCatalog): Promise<void> {
   if (problems.length > 0) throw new Error(`construction rejected: ${problems.join('; ')}`)
 }
 
-// --- State ------------------------------------------------------------------------------------------
-
 type StoredRegistration = Readonly<{
   registration: CombinationRegistrationV2
 }>
@@ -179,7 +162,6 @@ type Domain = {
 const factId = (fact: FactKey): string => JSON.stringify([fact.key, fact.protocol])
 const receiptKey = (identity: SqlIdentity): string =>
   JSON.stringify([identity.operation, identity.operationKey])
-/** A commit whose identity is never recalled keeps no receipt (SPEC 3.1). */
 const keepsReceipt = (identity: SqlIdentity): boolean => identity.recall !== 'never'
 const sortNames = (names: readonly string[]): string[] => [...names].sort()
 
@@ -274,13 +256,10 @@ class MemorySqlStorage implements SqlStorage {
     return loaded
   }
 
-  /** Absent and another scope look the same to every operation but registration. */
   private domainOf(scope: StorageScope, transactionDomain: string): Domain | null {
     const domain = this.domains.get(transactionDomain)
     return domain !== undefined && scopeKey(domain.scope) === scopeKey(scope) ? domain : null
   }
-
-  // --- registerCombination ----------------------------------------------------------------------
 
   registerCombination(input: CombinationRegistrationV2): Promise<RegisterResultV2> {
     const reject = (reason: RegisterRejectReason): Promise<RegisterResultV2> =>
@@ -363,8 +342,6 @@ class MemorySqlStorage implements SqlStorage {
     return { kind: 'registered', registration }
   }
 
-  // --- commit ---------------------------------------------------------------------------------------
-
   commit(
     input: CommitRequestV2,
     options?: Readonly<{ signal?: AbortSignal }>,
@@ -383,7 +360,7 @@ class MemorySqlStorage implements SqlStorage {
       }) as CommitResultV2
     const unknownOf = (text: string): CommitResultV2 => ({
       kind: 'unknown',
-      identity: decoded.identity as SqlIdentity, // read only after the identity is decoded
+      identity: decoded.identity as SqlIdentity,
       diagnostic: this.diagnostic(text),
     })
     const early = this.controlRejection(input, signal, reject, unknownOf)
@@ -398,7 +375,6 @@ class MemorySqlStorage implements SqlStorage {
         resolve(result)
       }
       const unknown = unknownOf
-      // Abort releases the observer only. The operation stays in the queue and runs to its end.
       const onAbort = (): void => settle(unknown('observer_detached'))
       signal?.addEventListener('abort', onAbort, { once: true })
       this.queue.submit({
@@ -408,7 +384,6 @@ class MemorySqlStorage implements SqlStorage {
     })
   }
 
-  /** Steps 1 to 7 of SPEC 7.2. They run on the control side and reserve nothing. */
   private controlRejection(
     input: CommitRequestV2,
     signal: AbortSignal | undefined,
@@ -443,8 +418,6 @@ class MemorySqlStorage implements SqlStorage {
     if (new Set(list.map(command => command.participant)).size !== list.length)
       return reject('participant_repeated')
     if (!list.every(command => isStrictJson(command.facts))) return reject('facts_not_json')
-    // SPEC 7.2 has no reason for a request that is not JSON outside `facts`. A result still comes
-    // through the return value (SPEC 2.5 rule 1), and it is `unknown`, which reserves nothing.
     if (!isStrictJson(input)) return unknown('request_not_json')
     if (!this.withinLimits(input, list)) return reject('command_limit')
     return null
@@ -467,7 +440,6 @@ class MemorySqlStorage implements SqlStorage {
     return members <= limits.maxJsonMembers
   }
 
-  /** Steps 9 to 15 of SPEC 7.2, then recognition, then execution. */
   private async execute(
     input: CommitRequestV2,
     identity: SqlIdentity,
@@ -524,7 +496,7 @@ class MemorySqlStorage implements SqlStorage {
         combinationVersion: input.combinationVersion,
         manifestDigest: input.manifestDigest,
         responses: entries,
-      } as unknown as ReceiptV2 // entries end with the stopping entry, by the branch above
+      } as unknown as ReceiptV2
       if (keepsReceipt(identity)) domain.receipts.set(receiptKey(identity), receipt)
       return { ...receipt, recalled: false }
     }
@@ -535,12 +507,11 @@ class MemorySqlStorage implements SqlStorage {
       combinationVersion: input.combinationVersion,
       manifestDigest: input.manifestDigest,
       responses: entries,
-    } as unknown as ReceiptV2 // the loop reached its end, so every entry participated
+    } as unknown as ReceiptV2
     if (keepsReceipt(identity)) domain.receipts.set(receiptKey(identity), receipt)
     return { ...receipt, recalled: false }
   }
 
-  /** A commanded participant needs a fact whose provider is not commanded (SPEC 7.2 step 15). */
   private dependencyMissing(named: readonly string[], combination: readonly string[]): boolean {
     const providers = new Map<string, string>()
     for (const name of combination)
@@ -554,7 +525,6 @@ class MemorySqlStorage implements SqlStorage {
     )
   }
 
-  /** Topological order over the facts, ties broken by name in UTF-16 code units (SPEC 7.5). */
   private executionOrder(named: readonly string[]): string[] {
     const providers = new Map<string, string>()
     for (const name of named)
@@ -635,8 +605,6 @@ class MemorySqlStorage implements SqlStorage {
     }
   }
 
-  // --- query ----------------------------------------------------------------------------------------
-
   query(identity: SqlIdentity): Promise<QueryResultV2> {
     const decoded = decodeIdentity(identity)
     const unknown = (text: string): QueryResultV2 => ({
@@ -673,8 +641,6 @@ class MemorySqlStorage implements SqlStorage {
       })
     })
   }
-
-  // --- read -----------------------------------------------------------------------------------------
 
   async read(
     input: ReadRequest,
@@ -724,7 +690,6 @@ class MemorySqlStorage implements SqlStorage {
     return { kind: 'read', requestKey, output: outcome.output }
   }
 
-  /** The double treats a migration as present when a registered combination of the domain has it. */
   private migrationsPresent(
     domain: Domain,
     required: readonly Readonly<{ owner: string; id: string }>[],
@@ -762,10 +727,6 @@ class MemorySqlStorage implements SqlStorage {
   }
 }
 
-/**
- * Creates the memory double. Like the provider factory, it checks the static materials once and
- * rejects when a digest does not match, a file cannot be read, or a declared combination is invalid.
- */
 export async function createMemorySqlStorage(
   input: MemorySqlStorageInput,
 ): Promise<Readonly<{ storage: SqlStorage; control: StorageControl }>> {

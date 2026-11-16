@@ -1,7 +1,3 @@
-// The consumptions that the coordinator mints name their execution. Session keeps the call
-// registrations of a session by consumption, and a session holds the executions of all its Runs:
-// the same step of two executions must be two consumptions, or the second Run's call registration
-// conflicts with the first one's (#502 D4, defect B).
 import { describe, expect, it } from 'vitest'
 import { decodeActionId, decodeConsumptionId } from '@omne-harness/agent-contract'
 import { mainConsumption, stepOf, toolConsumption } from '../src/loop/identities.ts'

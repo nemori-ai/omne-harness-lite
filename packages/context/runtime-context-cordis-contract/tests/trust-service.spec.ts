@@ -11,7 +11,6 @@ import {
 } from '@omne-harness/runtime-context-cordis-contract/cordis'
 import { plugin } from './support.js'
 
-/** A fixture provider: the product definition is abstract and holds no implementation. */
 function providerOf(trust: RuntimeContextTrust<string>) {
   return class Provider extends RuntimeContextTrustService<string> {
     readonly authority = trust.authority

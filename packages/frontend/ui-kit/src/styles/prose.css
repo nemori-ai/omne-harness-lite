@@ -1,0 +1,317 @@
+.omne-prose {
+  width: 100%;
+  max-width: 70ch;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-autospace: normal;
+}
+
+.omne-prose [data-sd-animate] {
+  animation-duration: var(--omne-motion-feedback);
+  animation-timing-function: var(--omne-motion-ease-enter);
+}
+.omne-prose [data-sd-animate-marker]::marker {
+  animation-duration: var(--omne-motion-feedback);
+  animation-timing-function: var(--omne-motion-ease-enter);
+}
+.omne-prose > :first-child {
+  margin-top: 0;
+}
+.omne-prose > :last-child {
+  margin-bottom: 0;
+}
+
+.omne-prose :is(h1, h2, h3, h4) {
+  font-family: var(--omne-font-reading);
+  color: var(--omne-ink-primary);
+  letter-spacing: var(--omne-reading-tracking);
+  line-height: var(--omne-leading-title);
+}
+.omne-prose h1 {
+  margin-block: 1.7em 0.6em;
+  font-size: var(--omne-text-title);
+  font-weight: var(--omne-weight-heading);
+}
+.omne-prose h2 {
+  margin-block: 1.9em 0.65em;
+  font-size: var(--omne-text-lead);
+  font-weight: var(--omne-weight-heading);
+}
+.omne-prose h3 {
+  margin-block: 1.75em 0.4em;
+  font-size: var(--omne-text-body);
+  font-weight: var(--omne-weight-heading);
+  letter-spacing: -0.01em;
+}
+.omne-prose h4 {
+  margin-block: 1.5em 0.3em;
+  font-size: 1em;
+  font-weight: var(--omne-weight-heading);
+  letter-spacing: 0;
+  color: var(--omne-ink-muted);
+}
+.omne-prose p {
+  margin-block: 0.65em;
+}
+.omne-prose :is(ul, ol) {
+  margin-block: 0.65em;
+  padding-left: 1.35em;
+}
+.omne-prose ul {
+  list-style: disc;
+}
+.omne-prose ol {
+  list-style: decimal;
+}
+.omne-prose li + li {
+  margin-top: 0.25em;
+}
+
+.omne-prose li.task-list-item {
+  list-style: none;
+}
+.omne-prose li.task-list-item > input[type='checkbox'] {
+  width: 1em;
+  height: 1em;
+  margin: 0 0.35em 0 -1.35em;
+  vertical-align: -0.15em;
+}
+
+.omne-prose blockquote {
+  margin-block: 1em;
+  border: 0;
+  border-left: 2px solid var(--omne-line);
+  border-radius: 0 var(--omne-radius-control) var(--omne-radius-control) 0;
+  background: var(--omne-surface-panel-soft);
+  padding: 0.55em 1em;
+  color: var(--omne-ink-muted);
+  font-style: normal;
+}
+.omne-prose blockquote > :first-child {
+  margin-top: 0;
+}
+.omne-prose blockquote > :last-child {
+  margin-bottom: 0;
+}
+.omne-prose :not(pre) > code {
+  border-radius: var(--omne-radius-chip);
+  background: var(--omne-surface-field);
+  box-shadow: var(--omne-elevation-hairline);
+  padding: 0.1em 0.32em;
+  font-size: 0.88em;
+}
+
+.omne-prose [data-streamdown='code-block'] {
+  position: relative;
+  margin-block: 18px;
+  gap: 0;
+  padding: 0;
+  min-width: 0;
+  border: 0;
+  border-radius: var(--omne-radius-control);
+  background: transparent;
+  box-shadow: var(--omne-elevation-hairline);
+}
+.omne-prose [data-streamdown='code-block-header'] {
+  height: 40px;
+  padding: 4px 88px 4px 14px;
+  color: var(--omne-ink-faint);
+  font-size: var(--omne-text-caption);
+}
+
+.omne-prose
+  [data-streamdown='code-block'][data-language='text']
+  [data-streamdown='code-block-header']
+  > span {
+  visibility: hidden;
+}
+.omne-prose [data-streamdown='code-block'] > :has(> [data-streamdown='code-block-actions']) {
+  position: absolute;
+  inset: 4px 8px auto auto;
+  height: var(--omne-control-height);
+  margin: 0;
+}
+.omne-prose [data-streamdown='code-block-actions'] {
+  gap: 2px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
+}
+.omne-prose [data-streamdown='code-block-actions'] button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: var(--omne-control-height);
+  padding: 8px;
+  border-radius: var(--omne-radius-chip);
+  color: var(--omne-ink-muted);
+}
+.omne-prose [data-streamdown='code-block-actions'] button:hover {
+  background: var(--omne-hover);
+  color: var(--omne-ink-primary);
+}
+.omne-prose [data-streamdown='code-block-actions'] button:focus-visible {
+  outline: 2px solid var(--omne-line-focus);
+  outline-offset: 1px;
+}
+.omne-prose [data-streamdown='code-block-body'] {
+  border: 0;
+  border-radius: 0;
+  padding: 2px 16px 16px;
+  background: transparent;
+  font-size: var(--omne-text-ui);
+}
+.omne-prose pre {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  font-size: var(--omne-text-ui);
+  line-height: var(--omne-leading-reading);
+}
+
+@property --omne-code-edge {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+@keyframes omne-code-edge {
+  from,
+  97% {
+    --omne-code-edge: 40px;
+  }
+  to {
+    --omne-code-edge: 0px;
+  }
+}
+@supports (animation-timeline: scroll()) {
+  .omne-prose [data-streamdown='code-block-body'] pre {
+    -webkit-mask-image: linear-gradient(
+      to left,
+      oklch(0 0 0 / 0),
+      oklch(0 0 0) var(--omne-code-edge)
+    );
+    mask-image: linear-gradient(to left, oklch(0 0 0 / 0), oklch(0 0 0) var(--omne-code-edge));
+    animation: omne-code-edge both;
+    animation-timeline: scroll(self inline);
+  }
+}
+.omne-prose pre code {
+  background: transparent;
+  padding: 0;
+  font: inherit;
+}
+.omne-prose [data-streamdown='code-block'][data-language='text'] pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: inherit;
+  font-size: var(--omne-text-ui);
+}
+.omne-prose a {
+  color: var(--omne-info-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.omne-prose a {
+  transition: color var(--omne-motion-state) var(--omne-motion-ease);
+}
+.omne-prose a:hover {
+  color: var(--omne-ink-primary);
+  transition-duration: var(--omne-motion-feedback);
+}
+.omne-prose a:active {
+  color: var(--omne-accent-press);
+}
+.omne-prose hr {
+  margin-block: 1em;
+  border-color: var(--omne-line-subtle);
+}
+
+.omne-prose [data-streamdown='table-wrapper'] {
+  position: relative;
+  display: block;
+  margin-block: 18px;
+  border: 0;
+  border-radius: var(--omne-radius-control);
+  padding: 0;
+  background: transparent;
+  box-shadow: var(--omne-elevation-hairline);
+  overflow: hidden;
+}
+.omne-prose [data-streamdown='table-wrapper'] > div:first-child {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  z-index: 1;
+  gap: 0;
+  border-radius: var(--omne-radius-control);
+  background: var(--omne-surface-overlay);
+  box-shadow: var(--omne-elevation-hairline);
+  opacity: 0;
+  transition: opacity var(--omne-motion-feedback) var(--omne-motion-ease);
+}
+.omne-prose [data-streamdown='table-wrapper']:hover > div:first-child,
+.omne-prose [data-streamdown='table-wrapper']:focus-within > div:first-child {
+  opacity: 1;
+}
+.omne-prose [data-streamdown='table-wrapper'] > div:first-child button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--omne-control-height-compact);
+  height: var(--omne-control-height-compact);
+  border-radius: var(--omne-radius-chip);
+  color: var(--omne-ink-muted);
+}
+.omne-prose [data-streamdown='table-wrapper'] > div:first-child button:hover {
+  background: var(--omne-hover);
+  color: var(--omne-ink-primary);
+}
+.omne-prose [data-streamdown='table-wrapper'] > div:first-child button:focus-visible {
+  outline: 2px solid var(--omne-line-focus);
+  outline-offset: -2px;
+}
+.omne-prose [data-streamdown='table-wrapper'] > div:nth-child(2) {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.omne-prose [data-streamdown='table-wrapper'] > div:has(> [data-streamdown='table']) {
+  overflow-y: hidden;
+}
+
+@media (hover: none), (max-width: 767px) {
+  .omne-prose [data-streamdown='table-wrapper'] > div:first-child {
+    position: static;
+    justify-content: flex-end;
+    border-radius: 0;
+    border-bottom: 1px solid var(--omne-line-subtle);
+    box-shadow: none;
+    padding: 2px 4px;
+    opacity: 1;
+  }
+}
+.omne-prose table {
+  width: 100%;
+  max-width: 100%;
+  border-collapse: collapse;
+  font-size: var(--omne-text-ui);
+}
+.omne-prose :is(th, td) {
+  border: 0;
+  border-bottom: 1px solid var(--omne-line-subtle);
+  padding: 10px 14px;
+  text-align: left;
+}
+.omne-prose tbody tr:last-child > td {
+  border-bottom: 0;
+}
+.omne-prose th {
+  background: var(--omne-surface-panel-soft);
+  font-weight: var(--omne-weight-strong);
+}

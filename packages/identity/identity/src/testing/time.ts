@@ -1,6 +1,3 @@
-// Deadline arithmetic of the reference double: an instant plus a signed SI-second duration, exact
-// to every fraction digit. It counts each UTC day as 86400 seconds and ignores leap seconds, so a
-// lifetime that spans an inserted second ends one second early; SPEC ID-17 lists that limit.
 import {
   compareInstants,
   encodeDuration,
@@ -14,10 +11,8 @@ import {
 const INSTANT_TEXT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?Z$/u
 const DURATION_TEXT = /^(-?)PT(\d+)(?:\.(\d+))?S$/u
 
-/** A count of `10^-scale` seconds since 1970-01-01T00:00:00Z. */
 type Scaled = Readonly<{ units: bigint; scale: number }>
 
-// Days from the civil date (proleptic Gregorian), after Howard Hinnant's `days_from_civil`.
 function daysFromCivil(year: number, month: number, day: number): number {
   const y = month <= 2 ? year - 1 : year
   const era = Math.floor(y / 400)
@@ -95,7 +90,6 @@ function instantOf(value: Scaled): Instant | undefined {
   return parsed.ok ? parsed.value : undefined
 }
 
-/** `instant` plus `duration`, or `undefined` when the sum falls outside years 0000 to 9999. */
 export function addDuration(instant: Instant, duration: Duration): Instant | undefined {
   const left = scaledInstant(instant)
   const right = scaledDuration(duration)
@@ -103,15 +97,10 @@ export function addDuration(instant: Instant, duration: Duration): Instant | und
   return instantOf({ units: scaleTo(left, scale) + scaleTo(right, scale), scale })
 }
 
-/** True when the duration is longer than zero seconds. */
 export function isPositive(duration: Duration): boolean {
   return scaledDuration(duration).units > 0n
 }
 
-/**
- * An instant a little earlier than `instant`: one unit three fraction digits finer than the text
- * it was written with. The contract suite uses it to look just before a deadline.
- */
 export function justBefore(instant: Instant): Instant | undefined {
   const value = scaledInstant(instant)
   const scale = value.scale + 3
@@ -129,11 +118,6 @@ function within(from: Instant, instant: Instant, to: Instant): boolean {
   return compareInstants(from, instant) <= 0 && compareInstants(instant, to) <= 0
 }
 
-/**
- * True when a leap second that the bundled leap-second table lists falls inside `[from, to]`: an
- * inserted 23:59:60, or the end of a day whose 23:59:59 the table deletes. Inside such a window the
- * double's 86400-second days and SI seconds disagree, so the contract suite refuses it.
- */
 export function spansLeapSecond(from: Instant, to: Instant): boolean {
   for (let days = dayOf(from); days <= dayOf(to); days++) {
     const [year, month, day] = civilFromDays(days)
@@ -159,7 +143,6 @@ function durationOf(value: Scaled): Duration {
   return parsed.value
 }
 
-/** Compares two durations: negative, zero or positive as `left` is shorter, equal or longer. */
 export function compareDurations(left: Duration, right: Duration): number {
   const a = scaledDuration(left)
   const b = scaledDuration(right)
@@ -168,13 +151,11 @@ export function compareDurations(left: Duration, right: Duration): number {
   return difference < 0n ? -1 : difference > 0n ? 1 : 0
 }
 
-/** `duration` times a whole factor. */
 export function timesDuration(duration: Duration, factor: number): Duration {
   const value = scaledDuration(duration)
   return durationOf({ units: value.units * BigInt(factor), scale: value.scale })
 }
 
-/** Half of `duration`, exact: one more fraction digit at most. */
 export function halfDuration(duration: Duration): Duration {
   const value = scaledDuration(duration)
   return durationOf({ units: value.units * 5n, scale: value.scale + 1 })

@@ -17,7 +17,6 @@ export type AssetSettingsProjection =
       reason: 'invalid_body' | 'unknown_category' | 'invalid_declaration' | 'provider_unavailable'
     }>
 
-/** Derives declarations from the fixed body. This does not establish a holding or configuration right. */
 export function projectAssetSettings(
   registry: CategoryRegistry,
   input: Readonly<{ assetRef: string; pinned: PinnedBody }>,

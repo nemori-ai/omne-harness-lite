@@ -1,25 +1,53 @@
-// The identity ports of the row, taken from the tree on every call. The assembly page lists
-// `identityOperations` and `identityGovernance` as names the row reads per call, not names it
-// injects, so a reloaded identity provider is seen by the next request and a missing one never
-// blocks the row. Both names come from the one `identity` row, over one set of identity-sql
-// records: a revocation or a switch through the governance port is what `recognizeLogin` reads.
 import type { Context } from '@deepseek-ai/cordis'
+import type { AccessIdentity } from '@omne-harness/access-cordis-contract'
 import type {
   GovernanceBasisUnavailable,
   IdentityGovernance,
   IdentityOperations,
+  TenantStandingSource,
 } from '@omne-harness/identity'
-import { identityGovernanceKey, identityOperationsKey } from '@omne-harness/identity/cordis'
+import {
+  identityGovernanceKey,
+  identityOperationsKey,
+  tenantStandingKey,
+} from '@omne-harness/identity/cordis'
+import { createAccessIdentity, createMemberActing } from '@omne-harness/identity-access'
 
 const MISSING = 'identity operations are not provided by the tree'
 const GOVERNANCE_MISSING = 'identity governance is not provided by the tree'
+const STANDING_MISSING = 'the tenant standing source is not provided by the tree'
+
+export function accessIdentityOfCall(ctx: Context): ReturnType<typeof createAccessIdentity> {
+  return createAccessIdentity({
+    operations: identityOfCall(ctx),
+    governance: governanceOfCall(ctx),
+    issuer: ctx.principalIssuer,
+  })
+}
+
+export function memberActingOfCall(
+  ctx: Context,
+  identity: Pick<AccessIdentity, 'actFor'> = accessIdentityOfCall(ctx),
+): AccessIdentity['actFor'] {
+  return createMemberActing({ identity, standing: standingOfCall(ctx) })
+}
+
+export function standingOfCall(ctx: Context): Pick<TenantStandingSource, 'read'> {
+  return {
+    async read(input) {
+      const standing = ctx.get(tenantStandingKey)
+      return standing === undefined
+        ? { kind: 'unavailable', diagnostic: STANDING_MISSING }
+        : standing.read(input)
+    },
+  }
+}
 
 export function identityOfCall(ctx: Context): IdentityOperations {
   const current = (): IdentityOperations | undefined => ctx.get(identityOperationsKey)
   return {
     async registerAndActivate(input) {
       const identity = current()
-      // The operation has no "unavailable" outcome. The entry answers an empty 500 for a throw.
       if (identity === undefined) throw new Error(MISSING)
       return identity.registerAndActivate(input)
     },
@@ -41,10 +69,6 @@ const ABSENT: GovernanceBasisUnavailable = Object.freeze({
   diagnostic: GOVERNANCE_MISSING,
 })
 
-/**
- * The governance port read on every call. With the service absent every method answers
- * `basis-unavailable`: nothing was committed, so the answer holds (ID-18), and no method throws.
- */
 export function governanceOfCall(ctx: Context): IdentityGovernance {
   const current = (): IdentityGovernance | undefined => ctx.get(identityGovernanceKey)
   return {

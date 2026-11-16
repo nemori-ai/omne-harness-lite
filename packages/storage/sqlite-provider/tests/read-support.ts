@@ -1,5 +1,3 @@
-// Test support for read: real handler module files, a catalog that lists them, and helpers.
-// The handlers run real SQL on the read connection of a reader Worker.
 import { createHash } from 'node:crypto'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -24,20 +22,36 @@ import {
   type Workspace,
 } from './support.ts'
 import type { SqliteStorageConfig } from '../src/index.ts'
+import { HOLD, gate, openGates, type Gate } from './gate.ts'
 
-const SLEEP = `const sleep = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)`
-
-const COUNT_PAIR = `${SLEEP}
+const COUNT_PAIR = `${HOLD}
 export default {
   handler: 'NAME', protocol: '1',
   read(input, port) {
     const a = port.execute('select count(*) from t_ledger limit 1', []).rows[0][0]
-    if (input.sleepMs) sleep(input.sleepMs)
+    hold(input.gate)
     const b = port.execute('select count(*) from t_ledger limit 1', []).rows[0][0]
     return { kind: 'read', output: { a: String(a), b: String(b) } }
   },
 }
 `
+
+const LOAD_HELD = ['slowload', 'slowserial'] as const
+type LoadHeld = (typeof LOAD_HELD)[number]
+
+const heldAtLoad = (name: string, path: string): string => `${HOLD}hold(${JSON.stringify(path)})
+export default {
+  handler: '${name}', protocol: '1',
+  read() { return { kind: 'read', output: { loaded: true } } },
+}`
+
+const loadGates = new WeakMap<Workspace, Readonly<Record<LoadHeld, Gate>>>()
+
+export function loadGateOf(workspace: Workspace, handler: LoadHeld): Gate {
+  const gates = loadGates.get(workspace)
+  if (gates === undefined) throw new Error('the read materials of this workspace are not built')
+  return gates[handler]
+}
 
 const HANDLERS: Readonly<Record<string, string>> = {
   page: COUNT_PAIR.replace('NAME', 'page'),
@@ -84,10 +98,10 @@ const HANDLERS: Readonly<Record<string, string>> = {
   handler: 'notjson', protocol: '1',
   read() { return { kind: 'read', output: { fn() {} } } },
 }`,
-  slow: `${SLEEP}
+  held: `${HOLD}
 export default {
-  handler: 'slow', protocol: '1',
-  read(input) { sleep(input.ms); return { kind: 'read', output: { slept: input.ms } } },
+  handler: 'held', protocol: '1',
+  read(input) { hold(input.gate); return { kind: 'read', output: {} } },
 }`,
   ghost: `export default {
   handler: 'ghost', protocol: '1',
@@ -97,7 +111,10 @@ export default {
 
 const sha = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex')
 
-const ORDERING: Readonly<Record<string, ReadOrdering>> = { serial: 'domain-serial' }
+const ORDERING: Readonly<Record<string, ReadOrdering>> = {
+  serial: 'domain-serial',
+  slowserial: 'domain-serial',
+}
 
 export type ReadFixture = Readonly<{ built: Built; handlers: readonly ReadHandlerDescriptor[] }>
 
@@ -108,7 +125,14 @@ export async function buildReadMaterials(
 ): Promise<Built> {
   const base = await buildMaterials(workspace, materials)
   const handlers: ReadHandlerDescriptor[] = []
-  for (const [name, source] of Object.entries(HANDLERS)) {
+  const held = { slowload: gate(workspace.root), slowserial: gate(workspace.root) }
+  loadGates.set(workspace, held)
+  const sources = {
+    ...HANDLERS,
+    slowload: heldAtLoad('slowload', held.slowload.path),
+    slowserial: heldAtLoad('slowserial', held.slowserial.path),
+  }
+  for (const [name, source] of Object.entries(sources)) {
     const file = join(workspace.materialsDir, `handler-${name}.mjs`)
     await writeFile(file, source, 'utf8')
     handlers.push({
@@ -133,7 +157,6 @@ export async function buildReadMaterials(
 
 export const providers: Provider[] = []
 
-/** A provider with the combination registered and `rows` ledger rows committed. */
 export async function readyProvider(
   workspace: Workspace,
   built: Built,
@@ -151,6 +174,7 @@ export async function readyProvider(
 }
 
 export async function closeProviders(): Promise<void> {
+  openGates()
   for (const provider of providers.splice(0))
     await provider.control.close({ initiator: 'disposal' }).catch(() => undefined)
 }
@@ -175,4 +199,16 @@ export function summary(result: ReadResult): string {
 export const commitOf = (built: Built, key: string): ReturnType<typeof commitRequest> =>
   commitRequest(built, { identity: identity({ operationKey: key }) })
 
-export const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+export type HeldRead = Readonly<{ gate: Gate; result: Promise<ReadResult> }>
+
+export async function heldRead(
+  storage: Provider['storage'],
+  workspace: Workspace,
+  handler: 'held' | 'page' | 'serial' = 'held',
+  options?: Parameters<Provider['storage']['read']>[1],
+): Promise<HeldRead> {
+  const held = gate(workspace.root)
+  const result = storage.read(readRequest(handler, { gate: held.path }), options)
+  await held.entered()
+  return { gate: held, result }
+}

@@ -21,7 +21,6 @@ import { decodeToolInstanceId, type ToolClock } from '@omne-harness/tool-contrac
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 import { describeImport, memberPath, walkModules, type ModuleKind } from './module-graph.ts'
 
-/** The key table of docs/cordis.md, plus the facade key `toolRuntime`: key constant to its class. */
 const documentedPairs = {
   toolRuntimeKey: 'ToolRuntimeService',
   toolCommandsKey: 'ToolCommandsService',
@@ -46,7 +45,6 @@ const documentedPairs = {
   toolOffloaderKey: 'ToolOffloaderService',
 } as const
 
-/** The Tool implementation packages. The definition package must not depend on either. */
 const implementation = /^@omne-harness\/tool(-host-local)?(\/|$)/u
 
 const exported = Object.entries(cordis as Record<string, unknown>)

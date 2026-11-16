@@ -22,7 +22,6 @@ type Log = {
   closed: { read: string }[]
 }
 
-/** The subject, with every admission and every preparation that the suite makes written down in `log`. */
 function recorded(subject: Subject, log: Log): Subject {
   const given = subject.transport
   if (given === undefined) throw new Error('the scripted subject has a transport')
@@ -55,7 +54,6 @@ function recorded(subject: Subject, log: Log): Subject {
   return { ...through, transport: { ...given, transport } }
 }
 
-/** Runs the whole suite on subjects that `change` makes, and returns what the suite sent. */
 async function sent(change: (subject: Subject) => Subject): Promise<Log> {
   const log: Log = { admitted: [], prepared: [], pages: [], closed: [] }
   await checkModelProviderConformance({
@@ -181,7 +179,6 @@ describe('the values that the subject gives to the conformance suite', () => {
 })
 
 describe('what the conformance suite asks of the hooks', () => {
-  /** The facts that the suite plays and the terminations that it ends calls with, in order. */
   async function asked() {
     const played: (readonly TransportFact[])[] = []
     const ends: { call: string; termination: Termination; blocks: number }[] = []

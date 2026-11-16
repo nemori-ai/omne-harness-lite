@@ -1,5 +1,3 @@
-// The Model adapter of the common stream reference codec, for the doubles that judge a
-// `StreamRef` against a tenant. It maps the detailed Model rejection to the common `malformed`.
 import type { StreamCallCodec } from '@omne-harness/stream-arrival'
 import { encodeModelInvocationRef, resolveModelInvocationRef } from '../reference.ts'
 

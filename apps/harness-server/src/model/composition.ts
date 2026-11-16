@@ -1,17 +1,3 @@
-// The run-level composition of the Model rows (`tmp/wire-model/design.md` §5, model-host-local SPEC
-// 「首次执行与公共观察接线」): the entry object `modelHostAuthority` holds one of these per run in its own
-// closure. No public service carries it: the two rows get only their narrow ports (`records`, `host`)
-// through `src/model/ports.ts`, keyed by the root context of the run; `resolve` alone reads the rest.
-// It owns:
-// - the origin read grants of `resolve` (`checkOriginRead` of the first-execution run);
-// - the attachment of one records activation (its `initial` and its qualification registry);
-// - the one execution channel both the host and the send stage capture;
-// - the host binding: the host fiber's retirement closure and the ordered release of the send child
-//   and the channel (the release ends the attachment; no closed channel is handed out afterwards);
-// - the result push ledger the host keeps across its own reloads;
-// - the observation pair of the same records activation (commands and confirming source), handed to
-//   the host with the application's admission point on the source (`src/model/observation.ts`).
-// It hands out no issuer, no standing port and no write access to the registry.
 import { randomBytes } from 'node:crypto'
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import { decodeModelInstanceId, type ModelFailure } from '@omne-harness/model-contract'
@@ -40,39 +26,29 @@ const unavailable = (diagnostic: string): ModelFailure => ({
 
 export type ModelRecordsAttachment = Readonly<{
   initial: ModelInitialExecution<unknown>
-  /** The observation pair of the same activation, and the interval the source checks at. */
   observation: ModelObservationPair & Readonly<{ recheckMs: number }>
   qualification: ModelQualification
 }>
 
-/** What the records row holds after a successful attachment. */
 export type ModelRecordsHandle = Readonly<{
   /** The send child the records plugin created; the host releases it before the channel. */
   captureSendChild(fiber: Fiber): void
-  /** The channel of this attachment, for the send stage; unavailable once the attachment ended. */
   executionChannel(): Outcome<ModelInitialHostChannel<unknown>, ModelFailure>
-  /** Ends the attachment: closes the channel and forgets the activation. */
   detach(): void
 }>
 
-/** The port of the `model-records` row: the origin read check of its first-execution run and one attachment. */
 export type ModelRecordsPort = Readonly<{
-  /** The origin read check of the first-execution run: only a granted target may be read. */
   checkOriginRead(target: InitialTarget): Outcome<void, ModelFailure>
-  /** One attachment per records activation; a second one is refused. */
   attach(
     ctx: Context,
     attachment: ModelRecordsAttachment,
   ): Outcome<ModelRecordsHandle, ModelFailure>
 }>
 
-/** The port of the `model-host` row: one binding per host activation. */
 export type ModelHostPort = Readonly<{
-  /** Binds the host row's fiber: its retirement is the `current` of every host capture. */
   bindHost(ctx: Context): ModelHostBinding
 }>
 
-/** What the host row takes from the composition for one of its activations. */
 export type ModelHostBinding = Readonly<{
   executionChannel(): Outcome<ModelInitialHostChannel<unknown>, ModelFailure>
   releaseExecution(): Promise<void>
@@ -83,22 +59,16 @@ export type ModelHostBinding = Readonly<{
   qualifyObservation(
     access: Parameters<ModelQualification['qualifyObservation']>[0],
   ): ReturnType<ModelQualification['qualifyObservation']>
-  /** The observation pair of the current attachment, its source behind the admission point. */
   observation(): Outcome<ModelObservationPair, ModelFailure>
   ledger: ResultPushLedger
 }>
 
-/** The whole composition: the two row ports, and what only `resolve` reads. Never on a service. */
 export type ModelRunComposition = Readonly<{
   records: ModelRecordsPort
   host: ModelHostPort
-  /** Grants the origin read of one target to the caller; the return revokes it. */
   grantOriginRead(target: InitialTarget): () => void
-  /** The current attachment, for `resolve`. */
   attached(): ModelRecordsAttachment | undefined
-  /** The one channel of the current attachment, for `resolve`. */
   executionChannel(): Outcome<ModelInitialHostChannel<unknown>, ModelFailure>
-  /** The retirement closure of the bound host, for `resolve`; absent while no host is bound. */
   hostCurrent(): (() => boolean) | undefined
 }>
 
@@ -106,7 +76,6 @@ type Attached = ModelRecordsAttachment &
   Readonly<{
     channel: ModelInitialHostChannel<unknown>
     sendChild: { fiber: Fiber | undefined }
-    /** Ends this attachment: closes the channel, drops the bindings, forgets the activation. */
     end(): void
   }>
 
@@ -179,7 +148,6 @@ export function createModelRunComposition(): ModelRunComposition {
     hostCurrent = current
     ctx.effect(() => () => {
       if (hostCurrent === current) hostCurrent = undefined
-      // Every binding recorded while this host was bound carries its `current`; none is live now.
       attached?.qualification.dropHostBindings()
     })
     return Object.freeze({
@@ -191,7 +159,6 @@ export function createModelRunComposition(): ModelRunComposition {
         const child = bound.sendChild.fiber
         bound.sendChild.fiber = undefined
         if (child !== undefined) await child.dispose()
-        // The channel is closed and the attachment ends: a later channel fetch answers unavailable.
         bound.end()
       },
       qualify: access => {

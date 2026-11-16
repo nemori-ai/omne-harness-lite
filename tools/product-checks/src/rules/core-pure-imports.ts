@@ -4,10 +4,8 @@ import type { Rule, Violation } from '@omne-harness/repo-toolchain/core/rule'
 import { lineAt, resolveRelative } from '@omne-harness/repo-toolchain/core/source-text'
 import { syntaxImports, syntaxOf } from '@omne-harness/repo-toolchain/core/syntax'
 
-/** 当前已接受节点 design 的依赖表；工具依赖（如 content-blocks 无损写）也明确登记。 */
 export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>> = {
   storage: [],
-  // F0: packages/core/session-runtime/SPEC.md owns this public boundary.
   'session-runtime': [
     'content-blocks',
     'identity-values',
@@ -18,7 +16,6 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
     'storage',
     'offer-expiry',
   ],
-  // F0: packages/core/model-message-projection/SPEC.md owns this public boundary.
   'model-message-projection': [
     'content-blocks',
     'identity-values',
@@ -27,7 +24,6 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
     'session-runtime',
     'model-request-runtime',
   ],
-  // F0: packages/core/agent-loop/SPEC.md owns this public boundary.
   'agent-loop': [
     'call-accounts',
     'content-blocks',
@@ -39,10 +35,7 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
   'cordis-plugin-tree': ['assembly-lifecycle'],
   'offer-expiry': ['identity-values'],
   'organization-governance': ['storage', 'identity-values', 'offer-expiry', 'kernel-basis'],
-  // F0 public model operations and OriginalIssueParticipant own their exact signature dependencies.
-  // See core/model-request-runtime/SPEC.md; no concrete provider imports are allowed.
   'model-request-runtime': [
-    // Public codec types have one generic owner; the model facade only re-exports types.
     'image-codec',
     'content-blocks',
     'call-accounts',
@@ -70,7 +63,6 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
     'messages',
     'session-tenancy',
     'execution-environments',
-    // SLP-3 explicitly accepts the public shared StorageUnit.
     'storage',
   ],
   'session-tenancy': ['identity-values', 'messages'],
@@ -127,13 +119,9 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
     'tool-definition',
   ],
   'tool-execution-runtime': [
-    // B01 SR6: original Tool participation uses public shared Unit types, not a storage backend.
     'storage',
-    // TE-25 uses the shared pure close-control types; this does not grant a Cordis face.
     'assembly-lifecycle',
-    // Adopted r10 i1/b1: the public runtime factory receives the core RunnerServiceHost read port.
     'loop-extension-runner',
-    // Public tool-runtime/1 log codec owns its durable shell and value checks.
     'session-log',
     'identity-values',
     'offer-expiry',
@@ -148,7 +136,6 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
     'tool-admission',
     'messages',
   ],
-  // Adopted ar3: ToolActionHistory consumes these definitions, never a concrete driver/provider.
   'tool-admission': [
     'content-blocks',
     'loop-extension',
@@ -170,7 +157,6 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
   ],
   'model-profile': ['content-blocks', 'identity-values', 'offer-expiry'],
   'call-accounts': ['content-blocks', 'asset-model', 'identity-values', 'offer-expiry'],
-  // MS7/MS8 精确依赖 TD3 ModelToolEntry：messages v7-design「精确依赖、资源与绑定」。
   messages: [
     'content-blocks',
     'call-accounts',
@@ -238,12 +224,10 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
 
 const BUILTINS: Readonly<Record<string, readonly string[]>> = {
   storage: ['node:util'],
-  // S-17：只规范化显式绝对路径的字面形状，不从 cwd 补齐、也不读文件系统。
   'asset-model': ['node:crypto', 'node:buffer', 'node:path'],
   'arrival-events': ['node:buffer'],
   'stream-assembly': ['node:buffer'],
   'asset-evaluation': ['node:crypto'],
-  // MS8 S-56 语义摘要喂 SHA-256：messages v8-acknowledgement-design「编码与依赖」。
   messages: ['node:crypto'],
 }
 
@@ -284,28 +268,20 @@ const SCHEMA_JUDGE_OWNERS = new Set([
   'slash-command',
 ])
 
-/** 精确子入口登记不替代上面的包依赖批准，也不准许相邻私有路径。 */
 export const PUBLIC_SUBPATHS: Readonly<Record<string, readonly string[]>> = {
   'content-blocks': ['schema-runtime', 'schema/v2'],
-  // MS6 原字节供 LC6 固定图：messages v7-design「另需保留 MS6 ./schema/v6」。
   messages: ['schema/v2', 'schema/v3', 'schema/v6'],
-  // MP6 原字节供 MS7/MS8 created：model-profile v6-schema-resource-design。
   'model-profile': ['schema/v2', 'schema/v3', 'schema/v6'],
-  // 根为 CA4 后 CA2 原字节供 AR2/LC6/SA3：call-accounts v3-design「本包 Schema 与元数据」。
   'call-accounts': ['schema/v2'],
   'model-response': [],
   'loop-extension': ['schema/v2', 'schema/v3'],
   'asset-evaluation': [],
   'tool-definition': ['schema/v2'],
   'asset-model': ['schema/v2', 'schema/connector/v2'],
-  // D-069: current AM3/AE3/Slash2 consume the exact Skill2 pure value/body boundary.
   'skill-package': ['v2', 'schema/v2'],
-  // D-066 迁移后的消费者仍精确引用 OE1；完整原资源由这个入口公开。
   'offer-expiry': ['schema/v1'],
 }
 
-// D-116 native loading/build assembly: finite technical sites only. This does not
-// grant module loading to value judges or the compiler-free code-runtime.
 const FIXED_SCHEMA_MODULE_SITES = new Set([
   'core/tool-execution-runtime/src/journal-values.ts',
   'core/runtime-context/src/decode.ts',
@@ -375,7 +351,6 @@ function allowedExternal(
   )
     return true
 
-  // Explicitly retained schema resources share the same owner; no private subpath is opened.
   if (
     ['messages', 'model-profile', 'model-response', 'loop-extension'].includes(pkg) &&
     PUBLIC_SUBPATHS[pkg]?.some(
@@ -383,7 +358,6 @@ function allowedExternal(
     )
   )
     return true
-  // D-068：AM3 的固定资源图显式纳入本包完整 AM2；只批准这个公开资源入口。
   if (pkg === 'asset-model' && specifier === '@omne-harness/asset-model/schema/v2') return true
   if (pkg === 'skill-package' && specifier === '@omne-harness/skill-package/schema/v2') return true
   if (SCHEMA_JUDGE_OWNERS.has(pkg) && specifier === `@omne-harness/${pkg}/schema`) return true
@@ -392,7 +366,6 @@ function allowedExternal(
     specifier === '@omne-harness/runtime-context/schema'
   )
     return true
-  // tool-runtime/1 is a fixed graph owned by the public journal codec, not a dynamic compiler.
   if (
     path === 'core/tool-execution-runtime/src/schema-inputs.ts' &&
     specifier === '@omne-harness/tool-execution-runtime/journal-schema'
@@ -410,21 +383,17 @@ function allowedExternal(
   if (BUILTINS[pkg]?.includes(specifier.startsWith('node:') ? specifier : `node:${specifier}`))
     return true
   if (pkg === 'storage') return specifier === 'kysely' || specifier === 'kysely/migration'
-  // tk1 / core/loop-extension-runner SPEC TLT-3: deterministic SHA-256 at this one codec site.
-  // This import allowance does not establish purity of arbitrary crypto calls.
   if (
     path === 'core/loop-extension-runner/src/admission-digest.ts' &&
     (specifier === 'node:crypto' || specifier === 'crypto')
   )
     return true
-  // 数据节点的既定校验器采用。两个纯 capability 节点不采用 Ajv。
   if (SCHEMA_JUDGE_OWNERS.has(pkg) && (specifier === 'ajv' || specifier.startsWith('ajv/')))
     return true
   if (pkg === 'skill-package' && specifier === 'yaml') return true
   return pkg === 'tool-definition' && specifier === '@eslint-community/regexpp'
 }
 
-/** 核对已登记纯模块边界及精确的 Cordis 绑定例外。 */
 export const corePureImports: Rule = {
   id: 'core-pure-imports',
   source:
@@ -455,7 +424,6 @@ export const corePureImports: Rule = {
           ((resolved.startsWith(`core/${pkg}/src/`) &&
             !(CORDIS_DEFINITION_OWNERS.has(pkg) && resolved === `core/${pkg}/src/cordis.ts`)) ||
             (resolved.startsWith(`core/${pkg}/schema/`) && resolved.endsWith('.json')))
-        // Existing APIs use these types without loading a test runner or schema compiler.
         const boundaryType =
           ((pkg === 'storage' &&
             [

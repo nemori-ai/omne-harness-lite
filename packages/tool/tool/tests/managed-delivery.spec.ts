@@ -44,7 +44,7 @@ function releasedReceipt(outcome: ToolReleaseDeliveryOutcome): ReleasedDelivery 
   return outcome.receipt
 }
 
-describe('16 delivery release (P08)', () => {
+describe('16 delivery release', () => {
   it.each([
     ['retained', retained],
     ['processed', processed],
@@ -76,7 +76,6 @@ describe('16 delivery release (P08)', () => {
         record: `delivery:{"call":"call-1","delivery":"d1","result":"v1","tenant":{"account":"${tenantA.account.text}","organization":"${tenantA.organization.text}"}}`,
       },
     })
-    // The receipt is minted by Tool, not the consumer's evidence echoed back.
     if (released.kind === 'released')
       expect(released.evidence).not.toEqual(evidence('kept', consumer.owner))
     const found = ok(
@@ -141,7 +140,7 @@ describe('16 delivery release (P08)', () => {
     ])
   })
 
-  it('16 release (C6): the released record keeps the summary of its channels, not the values', async () => {
+  it('16 release: the released record keeps the summary of its channels, not the values', async () => {
     const assembly = harness()
     await assembly.admitInternal(dummyRequest())
     const resultOf = async () => {
@@ -160,7 +159,6 @@ describe('16 delivery release (P08)', () => {
     releasedReceipt(await assembly.runtime.commands.releaseDelivery(release(retained)))
     const after = await resultOf()
     expect(after.delivery.kind).toBe('released')
-    // An inline result has no offloaded summary: nothing of the model channels stays.
     expect(after.value).toEqual({
       content: [],
       data: before.value.data,

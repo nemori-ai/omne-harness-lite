@@ -16,7 +16,6 @@ export async function readCredential(path) {
   return value
 }
 export function parseFacts(raw) {
-  // Retain numeric cost lexemes instead of converting money through IEEE doubles.
   return JSON.parse(raw, (key, value, context) =>
     key === 'cost' && typeof value === 'number' ? context.source : value,
   )

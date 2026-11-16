@@ -1,6 +1,4 @@
 // @module-tag slow
-// Slow because it reads the built `dist` declarations: it needs a finished build, and the fast
-// tier runs where `dist` may be absent or being rebuilt.
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'

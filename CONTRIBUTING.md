@@ -2,7 +2,7 @@
 
 本指南面向开发者与 coding agents，说明怎样把问题、设计或实现整理成可审阅的变更。
 项目处于设计与实验阶段；项目方向见 [README](README.md)，工作约定见
-[AGENTS.md](AGENTS.md)，环境和操作入口见[开发指南](docs/development.md)。
+[AGENTS.md](AGENTS.md)，环境和操作入口见[开始工作](#开始工作)。
 
 ## 目录
 
@@ -27,10 +27,10 @@
 | 变更类型 | 从哪里推进 |
 |---|---|
 | 已有规则内的文字、链接、工具修复或实现修正 | 定位内容所有者或精确契约，在任务范围内修改并做相称验证；不要求另造提案或决定 |
-| 新需求、新能力，或职责、身份、授权、生命周期、失败等语义变化 | 沿[任务地图](docs/context-map.md)定位要求、架构、领域或产品拥有者；必要政策未明确时，只暂停依赖它的实施 |
+| 新需求、新能力，或职责、身份、授权、生命周期、失败等语义变化 | 定位要求、架构、领域或产品拥有者；必要政策未明确时，只暂停依赖它的实施 |
 | 新观察挑战已有决定 | 定位现行承诺与范围，在任务 tmp 提供反例和比较；当前正文经明确接受后修订，观察不自动改变承诺 |
-| 发布或修订正式规格 | 按[架构维护规则](.meta_harness/design/architecture/README.md)维护唯一承诺源、接受依据和消费者；同步公开类型、必要行为契约、模型及真实消费者，不保留被取代源 |
-| 衔接能力规格、提供者设计与实施交接 | 按[文档治理](docs/engineering/documentation.md)定位当前承诺，按[质量与风险](docs/engineering/quality.md#区分四层就绪状态)明确就绪范围，并同步受影响消费者与未完成义务 |
+| 发布或修订正式规格 | 按根入口的[信息权威与演进边界](AGENTS.md#信息权威与演进边界)维护唯一承诺源、接受依据和消费者；同步公开类型、必要行为契约、模型及真实消费者，不保留被取代源 |
+| 衔接能力规格、提供者设计与实施交接 | 按根入口的[知识放哪](AGENTS.md#知识放哪)定位当前承诺，按[就绪范围](docs/architecture/assurance.md#区分四层就绪状态)明确就绪范围，并同步受影响消费者与未完成义务 |
 | 创建或维护 skills 及宿主适配 | 在 [.meta_harness/agents](.meta_harness/agents/README.md) 修改源；加载什么写作技能见[根 AGENTS.md](AGENTS.md#按任务展开) |
 
 用户已明确的要求和任务授权是开展工作的依据。关键歧义或缺少必需输入时，提出
@@ -39,20 +39,51 @@
 
 ## 开始工作
 
-按[读者入口](docs/README.md)或[任务地图](docs/context-map.md)定位上下文。
-新技术正文落点和原有效源的交接沿[文档治理](docs/engineering/documentation.md)；正文骨架不表示采用。
+读根 [AGENTS.md](AGENTS.md) 和要改的目录里的局部约定，再沿它们给的入口展开。Codex、Claude Code 与 Cursor
+共用这套项目指导，`CLAUDE.md` 引用同级的 `AGENTS.md`。进入 `.meta_harness/` 之后按它的局部地图展开；
+它保存可迁出的设计方法与 agent 能力，根下的宿主目录只是指向生成物的软链接，不直接改。
 
-读取根 AGENTS.md 和实际修改目录的局部约定，再沿相关入口展开。Codex、Claude Code 与 Cursor
-共用这套项目指导，CLAUDE.md 引用同级 AGENTS.md；技能的来源与采用见
-[技能入口](docs/engineering/skills.md)。
-进入 `.meta_harness/` 后按其局部地图展开，任务给出产品事实和采用范围；
-它保存可迁出的设计方法与 agent 能力，根宿主目录只通过软链接暴露生成物。
+研发品味按 AGENTS.md 及其引用判断，不把上游项目的贡献门槛或生产兼容政策自动搬到本项目。
+新增依赖要说明它解决什么问题、为什么合适。
 
-先核对当前检出、分支和已有改动。隔离、共享单写与清理按[协作交接](docs/engineering/workflow.md#责任与协作交接)；工作树容器统一在主检出根的 `.worktrees/`。
+### 准备检出
 
-新增依赖应说明它解决什么问题以及为何适合，依赖归属和锁文件维护按
-[workspace 规范](docs/workspace.md)。研发品味按 AGENTS.md 及其引用判断，
-不把上游项目的贡献门槛或生产兼容政策自动搬到本项目。
+先核对实际的检出、分支和已有改动。检查与依赖在实际使用的那棵树里准备，不拿别的树的结果当这棵树的验证。
+工作树统一放在主检出根的 `.worktrees/` 下。一个会话一棵工作树，一棵树同一时间只有一个写者。
+
+```sh
+git rev-parse --show-toplevel
+git branch --show-current
+git status --short
+git submodule update --init
+uv sync --locked
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm -r rebuild node-pty
+uv run --locked python .meta_harness/tooling/src/initialize_agents.py --project-root .
+```
+
+- 外部技能集 pqw-skills 是子模块。新检出与新工作树都先初始化它，否则最后一条生成 agent 投影的命令会失败。
+- 需要 Git、Bash、[uv](https://docs.astral.sh/uv/getting-started/installation/)，以及根 `package.json` 的 `engines` 与 `packageManager` 指定的 Node 与 pnpm。Python 由 uv 管理，不依赖系统里恰好有 `python`。
+- 安装照锁文件进行，禁用依赖脚本；随后只显式构建 node-pty。它由 node-gyp 构建，需要 Make；Node 24 及以上还需要支持 C++20 的编译器。系统编译器太旧时用 `CC`、`CXX` 指定合适的，不改依赖源码，不跳过原生检查。
+- 支持在 macOS、Linux 与 Windows 上开发。检查、格式化脚本与 pre-commit 钩子是 Bash 脚本：Windows 上在 Git Bash 里运行，并先做一次机器级设置 `pnpm config set script-shell "C:\Program Files\Git\bin\bash.exe"`。也可以在 WSL2 里检出，但经 `/mnt/` 访问 NTFS 很慢。
+- 环境报了看不懂的错时，读 `omne-card` 技能的参考页「检出、投影与宿主的坑」。
+
+### coding agent 的插件与技能
+
+参与研发维护之前，在自己实际使用的宿主里装好项目指定的插件与技能。来源、固定的版本与安装步骤归[生成工具说明](.meta_harness/tooling/README.md#在宿主里安装)。普通的应用操作与独立消费成员不需要它们。
+
+### 形式工具链
+
+只有任务要跑形式模型时才准备。`pnpm run check:formal-tools` 检查环境，并报告它读了哪些变量。它只接受钉住的 tla2tools 发布文件，摘要不同时报 `MISMATCH` 并退出 1。
+本机装了，不代表新工作树、云端镜像或 CI 也有；非登录 shell 要显式传入所需的变量。缺工具时报告没有执行，不写成通过。
+
+### 云端环境
+
+两处云端环境的源与说明各在自己的目录：Cursor Cloud Agent 在 [`.meta_harness/agents/cloud/cursor/`](.meta_harness/agents/cloud/cursor/README.md)，Claude Code on the web 在 [`.meta_harness/agents/cloud/claude-code/`](.meta_harness/agents/cloud/claude-code/README.md)。改环境时改那里的源，再重新生成投影。密钥与令牌只放在各自平台的密钥设置里，不写进仓库。
+
+### 过程材料
+
+单次的计划、评审与执行的输入输出写在本工作树的 `tmp/<任务>/` 下，不提交。接受者要据以判断的证据贴到卡评论里；只放在任务 tmp 的证据，换了会话或机器就读不到。
 
 ## 形成可审阅的交付
 
@@ -68,7 +99,7 @@
   它对应哪个提交、工作树是否干净；基线以来改动的函数里超阈值的，逐条写已处理或保留理由。
   度量是抽查线索，不代替上面的验证。
 
-按[验证规范](docs/verification.md)选择检查。新增测试应保护改变的可观察
+按[质量论证](docs/architecture/assurance.md#按成果和风险验证)选择检查。新增测试应保护改变的可观察
 行为；局部文字修复无需为凑数量编写测试。修改行为时同步其所属说明、示例或契约，
 修改目录和入口时同步导航。不能靠重写预期或放宽检查隐藏尚未解决的冲突。
 skills 变更一并交付 canonical 源、宿主适配与生成产物，运行 `pnpm run check:agents`
@@ -79,14 +110,14 @@ skills 变更一并交付 canonical 源、宿主适配与生成产物，运行 `
 
 使用 AI 辅助不改变权责归属。指导和调用工具的人对最终内容、事实来源和验证声明负责，生成成功不等于验证。
 
-工作和临时分支名以负责人的 git username 开头，例如 `panqiwei/meta-harness`。共享的 `main`、`integration/<track>` 和 `stable` 使用[集成规则](docs/engineering/integration.md)规定的名称。不用 `harness/`、`codex/`、`claude/`、`kimi/`、`cursor/` 或 `deepseek/` 这类工具或 agent 前缀。
+工作和临时分支名以负责人的 git username 开头，例如 `panqiwei/meta-harness`。共享的 `main`、`integration/<track>` 和 `stable` 使用[进轨道](.meta_harness/agents/skills/omne-card/canonical/SKILL.md#进轨道)规定的名称。不用 `harness/`、`codex/`、`claude/`、`kimi/`、`cursor/` 或 `deepseek/` 这类工具或 agent 前缀。
 
 commit 的 author 与 committer 只有实际负责的人。commit、PR 标题和描述不写 `Co-Authored-By: Claude`、`Generated with <agent>` 等作者式工具署名；宿主自动附加的同类提示也不采用。agent 参与产出的提交在信息末尾带两条来源 trailer：
 
 - `Harness: <宿主名>`，例如 `codex` 或 `claude-code`。
 - `Agent-Role: <角色名>`，主会话写 `main`。
 
-署名回答谁负责，来源回答怎样产生；来源不表示作者身份，也不转移责任。可以用 `git log --format='%h %(trailers:key=Agent-Role,valueonly)'` 按来源复核。[提交署名检查](tools/repo-toolchain/README_ZH.md#提交署名)拦作者式工具署名，但不能判断哪些提交实际有 agent 参与或来源是否如实填写。
+署名回答谁负责，来源回答怎样产生；来源不表示作者身份，也不转移责任。可以用 `git log --format='%h %(trailers:key=Agent-Role,valueonly)'` 按来源复核。[提交署名检查](tools/repo-toolchain/SPEC.md#提交署名)拦作者式工具署名，但不能判断哪些提交实际有 agent 参与或来源是否如实填写。
 
 ## 提交与 PR 表达
 
@@ -181,7 +212,6 @@ Profiling 发现可复现、已有原因证据的明显性能问题时，不能�
   函数移动须按同一身份/迁移映射匹配，匹配不明标未知。
 
 指标下降或静态符合不代替行为保持；重构说明相关不变式、消费者迁移和成本是否转移。
-使用模板、准备正文和实际 PR 预览的操作见[开发指南](docs/development.md#准备提交与-pr)。
 
 ## 评审与接受
 
@@ -194,14 +224,14 @@ Profiling 发现可复现、已有原因证据的明显性能问题时，不能�
 中的关键跨能力交接加载 `harness-design-handbook`，按[消费者视角的完整动作链](.meta_harness/agents/skills/harness-design-handbook/canonical/references/review/expression.md#消费者视角走查)核对，再沿[可观察结果反查](.meta_harness/agents/skills/harness-design-handbook/canonical/references/cordis.md#反向核对与停止)检查性质与证据范围。
 
 评审意见、设计接受、实现完成和验证通过分别记录。政策与正式规格的接受、部分
-当前采用范围归唯一承诺拥有者；正式RFC与Issue决定按[保存例外](docs/engineering/documentation.md#四类长期成果与普通任务)维护，其余接受或取代过程放工作树tmp。
+当前采用范围归唯一承诺拥有者；正式RFC与Issue决定按[知识放哪](AGENTS.md#知识放哪)维护，其余接受或取代过程放工作树tmp。
 合并、推送、发布或部署依任务授权执行，评审结论和本指南本身不授予这些动作的权限。
 
 ## 维护这份入口
 
-本页拥有贡献者交付信息与协作入口；环境操作归[开发指南](docs/development.md)，
+本页拥有贡献者交付信息与协作入口；环境操作归[开始工作](#开始工作)，
 设计知识的准入与归属归 [.meta_harness](.meta_harness/AGENTS.md)，命令实现归工具与脚本。
 调整其中一项时先修改其所有者，再同步必要入口；
 不要在多份贡献指南、PR 模板和 AGENTS.md 中复制一套会独立演化的规则。
 
-共享分支交付经 PR 进入，步骤归 [`omne-card`](.meta_harness/agents/skills/omne-card/canonical/SKILL.md)，准入的时机归[现行准入](docs/engineering/integration.md#现行准入)；结果接受与关闭归[交付与接受](docs/engineering/delivery.md#接受取消与重开)。技术运输不自动生成 Closes。
+共享分支交付经 PR 进入，步骤归 [`omne-card`](.meta_harness/agents/skills/omne-card/canonical/SKILL.md)，准入的时机归[准入证据怎样取得](.meta_harness/agents/skills/omne-card/canonical/references/admission-evidence.md)；结果接受与关闭归[决定记录](.meta_harness/agents/skills/omne-card/canonical/references/decisions.md)。技术运输不自动生成 Closes。

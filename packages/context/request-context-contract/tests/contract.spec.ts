@@ -69,7 +69,6 @@ describe('assembly closed outcomes and source boundaries', () => {
     if (a.kind === 'candidate-before-extension') {
       expect(a.candidate.coverage.history.anchors.at(-1)?.prefixDigest).toBe('chain:0')
       expect(a.candidate.assembled.messages).toHaveLength(1)
-      // The Model request judgment requires 64 lowercase hex for every Adoption digest.
       expect(a.candidate.assembled.source.digest).toMatch(/^[0-9a-f]{64}$/u)
     }
   })
@@ -177,7 +176,6 @@ describe('assembly closed outcomes and source boundaries', () => {
           seen.push(e.epoch)
           n++
           if (n > 1) return { kind: 'page' as const, page: { rows: [row()], next: null } }
-          // The holder committed a compaction: the history group itself moves to the new epoch.
           const sources = sourcesFor(f.input, p)
           const history = sources.values().history
           sources.update('history', { ...history, evidence: { ...history.evidence, epoch: next } })
@@ -417,7 +415,6 @@ describe('projection and compaction plans', () => {
         policies,
       ),
     ).toMatchObject({ kind: 'invalid', reason: 'progress-mismatch' })
-    // Bound 1: the trimmed material completes in one summarize step.
     expect(
       await deriveStep(
         f.input,
@@ -431,7 +428,6 @@ describe('projection and compaction plans', () => {
         policies,
       ),
     ).toMatchObject({ kind: 'transition', progress: { completed: '1' } })
-    // Later steps consume the same material; nothing trims again.
     expect(trimmed).toHaveLength(1)
   })
   it('rejects floor above retention budget and step veto closes the plan', async () => {
@@ -512,7 +508,6 @@ it('caller-carried stable layers skip history reads while tail/representation/bu
     f.policies,
   )
   expect(changed.kind).toBe('candidate-before-extension')
-  // Only the control group changed: the history token is equal, so the rows are reused.
   expect(f.counts().reads).toBe(before.reads)
   expect(f.counts().meters).toBe(before.meters + 4)
 })

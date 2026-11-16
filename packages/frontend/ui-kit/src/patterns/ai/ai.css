@@ -1,0 +1,40 @@
+.omne-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    var(--omne-ink-faint) 35%,
+    var(--omne-ink-primary) 50%,
+    var(--omne-ink-faint) 65%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.omne-shimmer[data-paused='true'] {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .omne-shimmer {
+    background-image: none;
+    color: var(--omne-ink-muted);
+  }
+}
+
+.omne-tone {
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--omne-ai-tone) 28%, transparent);
+}
+
+.omne-tone-info {
+  --omne-ai-tone: var(--omne-accent);
+}
+.omne-tone-good {
+  --omne-ai-tone: var(--omne-good-ink);
+}
+.omne-tone-caution {
+  --omne-ai-tone: var(--omne-caution-ink);
+}
+.omne-tone-danger {
+  --omne-ai-tone: var(--omne-danger-ink);
+}

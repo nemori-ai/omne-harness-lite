@@ -1,6 +1,3 @@
-// SPEC 11: a commit that the ledger store rejects can never be accepted. The ledger answers the
-// definite failure `invalid` (`field: storage`, the store's reason), at once: it neither re-reads
-// and decides again, as it does after a revision conflict, nor spends `ledgerCommitAttempts`.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { LedgerCommitInput } from '@omne-harness/tool'
 import {
@@ -23,12 +20,10 @@ import {
   writeContext,
 } from './start-values.ts'
 
-// Every scenario ends with every queue entry accounted for by its call domain (SPEC 22).
 afterEach(auditQueues)
 
 const rejected = { kind: 'invalid', field: 'storage', reason: 'command_limit' } as const
 
-/** A harness whose store rejects up to `times` commits matching `matches`, counting each one. */
 function rejecting(matches: (input: LedgerCommitInput) => boolean, times: number) {
   const seen = { rejectable: 0 }
   let armed = false
@@ -97,7 +92,6 @@ describe('11 a commit the ledger store rejects', () => {
   })
 })
 
-/** Whether a commit writes the operation record of `operation`: the commit of that operation. */
 function putsOperation(operation: string) {
   return (input: LedgerCommitInput) =>
     input.writes.some(
@@ -108,7 +102,6 @@ function putsOperation(operation: string) {
     )
 }
 
-/** Whether a commit is a queue-domain commit that deletes the entry of `call`: its release. */
 function releasesEntry(call: string) {
   return (input: LedgerCommitInput) =>
     input.domain.kind === 'queue' &&
@@ -127,7 +120,6 @@ const minimalTerminal = {
 } as const
 
 describe('23 a step of a call that never started, rejected by the store', () => {
-  // c1's start intent is rejected for good after the queue gave it the only slot of the key.
   const startRejected = (memory: Parameters<typeof losingCommits>[0]) =>
     losingCommits(memory, putsOperation('op-c1/start'), 'rejected', 100)
 

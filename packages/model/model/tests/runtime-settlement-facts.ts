@@ -2,7 +2,6 @@ import { writeJsonText } from '@omne-harness/json-text'
 import type { ResultPart } from '@omne-harness/model-contract'
 import type { TransportFact } from '@omne-harness/model-contract/provider'
 
-/** Supplies only upstream facts. The real sender, receiver and driver still own every write. */
 export function resultFacts(parts: readonly ResultPart[]): TransportFact[] {
   return parts.flatMap((part, position): TransportFact[] => {
     const index = String(position)

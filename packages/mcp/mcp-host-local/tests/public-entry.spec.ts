@@ -1,4 +1,3 @@
-// The public root: the factory and its options, and what `open` does before any request (T9).
 import { describe, expect, it } from 'vitest'
 import { isConnectionTarget } from '@omne-harness/mcp-contract'
 import type { HttpCredentialHandle, TransportMaterial } from '@omne-harness/mcp-contract/provider'

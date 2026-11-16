@@ -1,8 +1,3 @@
-// How an author maps a supplier's refusal into the fault of the contract. The supplier of this
-// example signals that an input is too long with its own error code. The status code is evidence
-// and does not decide: a 400 with another code is not an over-limit refusal. The report holds what
-// the supplier gave and nothing else, so a figure that it left out stays null and is never
-// filled in from a local count.
 import type { ModelFault } from '@omne-harness/model-contract'
 import type { TransportTermination } from '@omne-harness/model-contract/provider'
 
@@ -35,7 +30,6 @@ function faultOf(refusal: SupplierRefusal): ModelFault {
   return { ...common, cause: 'unclassified' }
 }
 
-/** The termination that closes the stream after the supplier refused the request. */
 export function terminationOfRefusal(refusal: SupplierRefusal): TransportTermination {
   return { kind: 'failed', fault: faultOf(refusal) }
 }

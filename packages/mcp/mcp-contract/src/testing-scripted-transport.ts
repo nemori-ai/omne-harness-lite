@@ -1,10 +1,3 @@
-// An in-memory transport that answers from a `PeerScript`. It composes the JSON-RPC requests that
-// SPEC T3 names (request ids, the `_meta` envelope, the progress token) with the contract's one
-// implementation, turns each scripted reply into the wire event a real line would report,
-// classifies it with `classifyWireEvent` and takes the conclusion of the decision layer. A request
-// is registered before it is authorized; the caller's signal and `close()` settle it by its phase
-// with the contract's one rule (T5). It keeps only the in-memory wire and its in-flight table, and
-// records what the peer received. It does not speak a protocol and is not a product transport.
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
 import { callAnswerOf, legacyIdentityOf } from './answer-readings.ts'
@@ -73,20 +66,13 @@ import type { PeerIdentity } from './values.ts'
 import { classifyWireEvent, type RequestClass, type WireContext, type WireEvent } from './wire.ts'
 
 export type ScriptedTransportOptions = Readonly<{
-  /**
-   * The modern versions the transport speaks on `server/discover`, highest first. A legacy version
-   * here is a `RangeError`: the legacy path offers `LEGACY_PROTOCOL_VERSIONS`. Default:
-   * `['2026-07-28']`.
-   */
   protocolVersions?: readonly string[]
   clientInfo?: Readonly<{ name: string; version: string }>
-  /** Awaited before the peer answers each request: a test orders answers with it. */
   pace?: (received: PeerReceived) => Promise<void> | void
 }>
 
 export type ScriptedTransportFactory = McpTransportFactory &
   Readonly<{
-    /** What the peer received so far, in order. */
     received(): readonly PeerReceived[]
   }>
 
@@ -95,7 +81,6 @@ type Headers = Readonly<{ [name: string]: string }>
 
 const DEFAULT_CLIENT_INFO: ClientInfo = { name: 'scripted-transport', version: '0' }
 
-/** The plain record a message of this side reads as, the way the peer would read it. */
 function plainRecordOf(text: string): PlainRecord {
   const parsed: unknown = JSON.parse(text)
   if (!isPlainJson(parsed) || !isPlainRecord(parsed))
@@ -107,7 +92,6 @@ function isList(value: Replies): value is readonly PeerReply[] {
   return Array.isArray(value)
 }
 
-/** The peer: picks the scripted reply for each request, in order, and records what it saw. */
 class ScriptedPeer {
   readonly log: PeerReceived[] = []
   private readonly consumed = new Map<string, number>()
@@ -175,21 +159,15 @@ class ScriptedPeer {
     return this.script.wellKnown?.[new URL(url).pathname]
   }
 
-  /** The requests the peer sends at a point of the legacy path. */
   peerRequests(at: 'initialize' | 'initialized'): readonly Readonly<{ method: string }>[] {
     return (this.script.peerRequests ?? []).filter(request => (request.at ?? 'initialized') === at)
   }
 }
 
-/** What one request settled with: the wire answer, and the headers of an HTTP answer. */
 type Answered = Readonly<{ wire: WireAnswer; headers?: Headers }>
 
 const NOT_SENT: Answered = { wire: { kind: 'not-sent', failure: NOT_SENT_FAILURE } }
 
-/**
- * The phase of a request in flight (T5), with what each phase holds: the headers of the refusal
- * with the abort of its discovery once discovering.
- */
 type Phase =
   | Readonly<{ kind: 'authorizing' }>
   | Readonly<{ kind: 'sent' }>
@@ -203,11 +181,6 @@ type Phase =
 const AUTHORIZING: Phase = { kind: 'authorizing' }
 const SENT: Phase = { kind: 'sent' }
 
-/**
- * One request in flight: registered before anything is awaited, with its own settlement (what a
- * caller waits on) and its departure (when the peer took it: what `call` waits on, with the
- * settlement, whichever comes first). A defect of the script fails the settlement.
- */
 type Pending = {
   readonly id: string
   readonly context: WireContext
@@ -221,23 +194,19 @@ type Pending = {
   phase: Phase
 }
 
-/** How one request is sent: the observer of a call, the `_meta` version. */
 type Dispatch = Readonly<{
   observe?: (notification: PeerNotification) => void
   version?: string
   request?: RequestClass
-  /** Params the caller wrote as value trees, written as they are (RFC-0010). */
   values?: Readonly<{ [key: string]: JsonValue }>
 }>
 
-/** The headers of an HTTP reply by lower-case name. */
 function lowerCased(headers: Headers | undefined): Headers {
   return Object.fromEntries(
     Object.entries(headers ?? {}).map(([name, value]) => [name.toLowerCase(), value]),
   )
 }
 
-/** The wire event a reply makes for the request `id` (T8). */
 function eventOf(reply: PeerReply, id: string): WireEvent | undefined {
   const message = (member: Readonly<{ [key: string]: PlainJson }>): WireEvent => {
     const text = JSON.stringify({ jsonrpc: '2.0', id, ...member })
@@ -262,7 +231,6 @@ function eventOf(reply: PeerReply, id: string): WireEvent | undefined {
   }
 }
 
-/** The wire event of an HTTP reply: a 2xx body stream, or an error status with its body. */
 function httpEventOf(reply: Extract<PeerReply, { kind: 'http' }>): WireEvent {
   if (reply.status < 200)
     throw new TypeError(`script: an http ${reply.status} reply is not observable`)
@@ -280,29 +248,20 @@ function httpEventOf(reply: Extract<PeerReply, { kind: 'http' }>): WireEvent {
   }
 }
 
-/**
- * Whether the peer may have received a request answered with `reply`: everything but a request
- * that fails before it leaves, and an HTTP error status, which settles the request before any
- * answer stream began (T5: the boundary of `sent`).
- */
 function departs(reply: PeerReply): boolean {
   if (reply.kind === 'unsent') return false
   return reply.kind !== 'http' || reply.status < 300
 }
 
-/** One transport opened on one material, against the scripted peer. */
 class ScriptedTransport implements McpTransport {
   readonly generation: Generation
-  /** The requests in flight: an entry leaves the table when it settles, and only then. */
   private readonly pending = new Map<string, Pending>()
-  /** The ids of the requests that the credential handle authorized. */
   private readonly authorized = new Set<string>()
   private nextId = 0
   private peerRequestCount = 0
   private version: string | undefined
   private closed = false
   private dead: UnusableCause | undefined
-  /** The `Mcp-Session-Id` of a legacy Streamable HTTP connection. */
   private session: string | undefined
   private readonly peer: ScriptedPeer
   private readonly material: TransportMaterial
@@ -326,12 +285,10 @@ class ScriptedTransport implements McpTransport {
     return this.options.clientInfo ?? DEFAULT_CLIENT_INFO
   }
 
-  /** The `_meta` envelope (T3), by the contract's one implementation. */
   private envelope(version = this.version ?? this.versions[0]): PlainRecord {
     return clientEnvelopeOf(version, this.clientInfo)
   }
 
-  /** The material facts that bind the peer instructions (T3, S3). */
   private get bound(): IdentityBound {
     return {
       generation: this.generation,
@@ -347,7 +304,6 @@ class ScriptedTransport implements McpTransport {
     return this.material.credential
   }
 
-  /** The connection as the T2 and T5 rules see it. */
   private get connection(): ConnectionView {
     return { kind: 'streamable-http', version: this.version, mode: 'streamable' }
   }
@@ -361,20 +317,11 @@ class ScriptedTransport implements McpTransport {
     return { headers: mcpRequestHeadersOf(method, params, version, this.session) }
   }
 
-  // ---- The requests in flight: registration, the phases, and what settles them ----
-
-  /**
-   * Once the transport is not usable any more, every `no-answer` and every `not-sent` other than
-   * `authorization-required` it hands over carries the cause it recorded (T1, T8 "every later
-   * request"); after `close()` none does: closing is this side's decision, not a fact about the
-   * line.
-   */
   private handedOver(answered: Answered): Answered {
     if (this.closed || this.dead === undefined) return answered
     return { ...answered, wire: unusableAnswerOf(answered.wire, this.dead) }
   }
 
-  /** The `not-sent` of a request the transport did not take: closed, not usable, or stopped first. */
   private get refused(): Extract<TransportFailure, { kind: 'not-sent' }> {
     return notSentFailureOf(this.closed ? undefined : this.dead)
   }
@@ -384,7 +331,6 @@ class ScriptedTransport implements McpTransport {
     entry.resolve(this.handedOver(answered))
   }
 
-  /** Stops a request where it stands (T5): the caller's signal fired, `cancelRequest` or `close()` ran. */
   private stop(entry: Pending): void {
     if (!this.pending.has(entry.id)) return
     const phase = entry.phase
@@ -397,7 +343,6 @@ class ScriptedTransport implements McpTransport {
     )
   }
 
-  /** The transport is unusable from now on; every request in flight settles by its phase (T8). */
   private unusable(cause: UnusableCause): void {
     this.dead ??= cause
     for (const entry of this.pending.values()) {
@@ -406,10 +351,6 @@ class ScriptedTransport implements McpTransport {
     }
   }
 
-  /**
-   * Registers one request and starts its sending in the background; the caller waits on the
-   * settlement. Undefined when the transport cannot be used: nothing is registered.
-   */
   private begin(
     method: RequestMethod,
     params: PlainRecord,
@@ -444,7 +385,6 @@ class ScriptedTransport implements McpTransport {
     return entry
   }
 
-  /** Wires the call's signal to the entry: once it fires, the entry is stopped where it stands (T5). */
   private wireSignal(entry: Pending, signal: AbortSignal): void {
     const onAbort = () => this.stop(entry)
     if (signal.aborted) return onAbort()
@@ -453,10 +393,6 @@ class ScriptedTransport implements McpTransport {
     void entry.answered.then(unwire, unwire)
   }
 
-  /**
-   * The sending of one request: authorizes it, then hands it to the peer. An entry stopped
-   * meanwhile is left as it settled. A defect of the script fails the settlement.
-   */
   private async send(
     entry: Pending,
     method: RequestMethod,
@@ -473,7 +409,6 @@ class ScriptedTransport implements McpTransport {
     }
   }
 
-  /** Composes the request, records it, and lets the peer answer after the pace hook. */
   private dispatch(
     entry: Pending,
     method: RequestMethod,
@@ -497,7 +432,6 @@ class ScriptedTransport implements McpTransport {
     const reply = this.peer.reply(method, sent)
     entry.phase = SENT
     if (reply.kind === 'unsent') {
-      // The request fails before it leaves; the peer does not see it (T8 X01).
       return this.apply(
         entry,
         concludeAnswer(classifyWireEvent({ kind: 'unsent' }, entry.context), entry.context),
@@ -509,7 +443,6 @@ class ScriptedTransport implements McpTransport {
     void this.deliver(request, reply, entry)
   }
 
-  /** Answers after the pace hook. A defect of the script fails the settlement. */
   private async deliver(request: Request, reply: PeerReply, entry: Pending): Promise<void> {
     try {
       await this.options.pace?.(request)
@@ -529,7 +462,6 @@ class ScriptedTransport implements McpTransport {
     }
   }
 
-  /** Settles the request as the T8 row says, and what the row says of the transport. */
   private apply(entry: Pending, conclusion: AnswerConclusion, headers: Headers): void {
     switch (conclusion.kind) {
       case 'wait':
@@ -547,11 +479,6 @@ class ScriptedTransport implements McpTransport {
     }
   }
 
-  /**
-   * A notification of the peer during a request. The peer fills in the progress token of the
-   * request when the script names none. A progress notification whose token is the token of the
-   * call goes to `observe` with its `params` as written; any other notification is dropped.
-   */
   private notify(notification: PeerNotificationScript, entry: Pending): void {
     const written = isPlainRecord(notification.params) ? notification.params : {}
     const params =
@@ -563,20 +490,12 @@ class ScriptedTransport implements McpTransport {
     if (params['progressToken'] !== entry.progressToken) return
     try {
       observe({ kind: 'progress', notification: { untrusted: jsonOf(params) } })
-    } catch {
-      // S6: an observer that throws does not change the outcome.
-    }
+    } catch {}
   }
 
-  /**
-   * T4: the request was refused. `reportRejection` once on the handle that authorized it, and the
-   * discovery of R4, run in the background; the request settles when both ended, or by its phase
-   * when it is stopped first (T5).
-   */
   private enterDiscovery(entry: Pending, headers: Headers): void {
     const { target } = this.material
     const credential = this.credential
-    // A handle whose reportRejection rejects or throws is ignored (T9).
     const reported =
       credential !== undefined && this.authorized.has(entry.id)
         ? Promise.resolve()
@@ -599,12 +518,10 @@ class ScriptedTransport implements McpTransport {
     )
   }
 
-  /** Authorizes an outgoing request with the credential handle, when the material has one. */
   private async authorize(id: string): Promise<boolean> {
     const credential = this.credential
     if (credential === undefined) return true
     const headers = new Headers()
-    // A handle whose authorize rejects or throws leaves the request not sent (T9).
     const answer = await Promise.resolve()
       .then(() => credential.authorize(headers))
       .catch(() => undefined)
@@ -613,7 +530,6 @@ class ScriptedTransport implements McpTransport {
     return true
   }
 
-  /** Sends one non-call request; the row may send it once more after a broken stream (D15, O05). */
   private request(
     method: RequestMethod,
     params: PlainRecord,
@@ -622,13 +538,11 @@ class ScriptedTransport implements McpTransport {
     return withOneResend(() => this.once(method, params, how))
   }
 
-  /** Sends the request an operation composed and reads its answer the way the operation does. */
   private async perform<T>(composed: ComposedRequest<T>): Promise<Outcome<T, TransportFailure>> {
     const how: Dispatch = composed.values === undefined ? {} : { values: composed.values }
     return composed.read((await this.request(composed.method, composed.params, how)).wire)
   }
 
-  /** Registers one request and waits on its settlement only: never on its sending. */
   private once(method: RequestMethod, params: PlainRecord, how: Dispatch): Promise<Answered> {
     const entry = this.begin(method, params, how)
     return entry === undefined
@@ -636,7 +550,6 @@ class ScriptedTransport implements McpTransport {
       : entry.answered
   }
 
-  /** Sends a notification. Whatever the peer answers to it does not change any outcome (T8 N01). */
   private sendNotification(method: NotificationMethod, params: PlainRecord): void {
     const version = this.version ?? this.versions[0]
     const written = plainRecordOf(
@@ -664,10 +577,6 @@ class ScriptedTransport implements McpTransport {
     return discovered
   }
 
-  /**
-   * The requests of the peer, at one point of the legacy path: `ping` answers an empty result,
-   * every other request `-32601` (T3).
-   */
   private answerPeerRequests(at: 'initialize' | 'initialized'): void {
     for (const request of this.peer.peerRequests(at)) {
       const id = `p${(this.peerRequestCount += 1)}`
@@ -686,7 +595,6 @@ class ScriptedTransport implements McpTransport {
     }
   }
 
-  /** The legacy path: `initialize` with the highest legacy version, then `notifications/initialized`. */
   private async legacyPath(): Promise<Outcome<PeerIdentity, TransportFailure>> {
     const answered = await this.request('initialize', legacyInitializeParamsOf(this.clientInfo), {
       version: OFFERED_LEGACY_VERSION,
@@ -705,11 +613,6 @@ class ScriptedTransport implements McpTransport {
     return this.perform(listActionsRequest(cursor, this.connection))
   }
 
-  /**
-   * `call` waits for the request to reach the peer or to settle, whichever comes first (T5): a
-   * `SentCall` once the peer may have received it, `not-sent` as the call's own failure when it
-   * settled so before.
-   */
   async call(
     request: CallRequest,
     signal: AbortSignal,
@@ -734,11 +637,6 @@ class ScriptedTransport implements McpTransport {
     }
   }
 
-  /**
-   * T5, by the contract's `cancelsByNotification`: the notification, or the request is stopped by
-   * its phase with the contract's one rule (`stopAnswerOf`), as the caller's signal and `close()`
-   * stop it. Only a request handed to the peer has an answer stream to end.
-   */
   async cancelRequest(requestId: string): Promise<void> {
     if (cancelsByNotification(this.connection)) {
       this.sendNotification('notifications/cancelled', { requestId })
@@ -769,7 +667,6 @@ class ScriptedTransport implements McpTransport {
     return this.perform(cancelTaskRequest(taskId))
   }
 
-  /** Closes the transport (T5): every request in flight settles by its phase there and then. */
   async close(): Promise<void> {
     if (this.closed) return
     this.closed = true
@@ -781,11 +678,6 @@ function isProtocolVersions(versions: readonly string[]): versions is ProtocolVe
   return versions.length > 0
 }
 
-/**
- * A transport factory whose peer answers from the script, in memory. It records what the peer
- * received, `_meta` and progress tokens included. Every transport it opens shares the one peer,
- * so the script is consumed in request order across transports.
- */
 export function createScriptedTransportFactory(
   script: PeerScript,
   options: ScriptedTransportOptions = {},

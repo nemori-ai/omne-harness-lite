@@ -1,6 +1,3 @@
-// Test support of the OpenAI family: the family configuration of the tests, the records by name,
-// and builders that make contract values through the contract judge, so branded identities are
-// real. Every value here is a test parameter, not a package default.
 import { afterAll } from 'vitest'
 import { testExecutor } from './executor.ts'
 import type { JsonValue } from '@omne-harness/json-text'
@@ -52,7 +49,6 @@ afterAll(async () => {
   if ('failure' in released) throw new Error(JSON.stringify(released.failure))
 })
 
-/** The family configuration of the tests. */
 export const CONFIG: OpenAiFamilyConfig = {
   tokenizer: openAiTokenizerResources(),
   executor: EXECUTOR,
@@ -88,7 +84,6 @@ export function supplierOf(record: OpenAiRecord): Supplier {
   }
 }
 
-/** The binding of one record through `composeFamilies`, as a transport acquires it. */
 export async function bindingOf(record: OpenAiRecord): Promise<PiFamilyBinding> {
   const acquired = await composeFamilies([FAMILY]).acquire(
     supplierOf(record),
@@ -137,7 +132,6 @@ export function resultBlock(id: string, callId: string): unknown {
   return { kind: 'tool_result', id, visibility: SHOWN, callId }
 }
 
-/** A message; the id is `msg_` and the given id padded to the identity length. */
 export function message(
   id: string,
   role: string,
@@ -163,13 +157,10 @@ export type RequestParts = Readonly<{
   messages?: readonly unknown[]
   tools?: readonly unknown[]
   toolChoice?: unknown
-  /** Explicit parameters; each becomes an explicit adoption of the record supplier. */
   parameters?: readonly unknown[]
-  /** The declaration that the request fixes; the official declaration expanded by default. */
   declaration?: ReplayDeclaration
 }>
 
-/** The official replay declaration of a record with every default applied. */
 export function declarationOf(record: OpenAiRecord): ReplayDeclaration {
   const judged = judgeReplayDeclaration(
     {
@@ -183,7 +174,6 @@ export function declarationOf(record: OpenAiRecord): ReplayDeclaration {
   return judged.ok
 }
 
-/** The fixed request as plain JSON: what `request.json` holds. */
 export function requestJson(record: OpenAiRecord, parts: RequestParts = {}): unknown {
   const supplier = supplierOf(record)
   const parameters = parts.parameters ?? []
@@ -208,14 +198,12 @@ export function requestJson(record: OpenAiRecord, parts: RequestParts = {}): unk
   }
 }
 
-/** The fixed request through the contract judge; throws when the judge refuses it. */
 export function fixedRequest(record: OpenAiRecord, parts: RequestParts = {}): FixedModelRequest {
   const judged = judgeFixedModelRequest(requestJson(record, parts))
   if (!('ok' in judged)) throw new Error(`test request refused: ${JSON.stringify(judged.failure)}`)
   return judged.ok
 }
 
-/** The encode input of a request of one supplier: its declaration, no media, the resent messages. */
 export function encodeInput(
   request: FixedModelRequest,
   resent: TransportDispatch['resent'] = [],
@@ -223,7 +211,6 @@ export function encodeInput(
   return { request, media: [], declaration: request.declarations[0], resent }
 }
 
-/** The assembled input of a fixed request: what a plan receives. */
 export function assembledOf(request: FixedModelRequest): AssembledModelInput {
   return {
     system: request.system,
@@ -236,7 +223,6 @@ export function assembledOf(request: FixedModelRequest): AssembledModelInput {
   }
 }
 
-/** The official profile of a record as a stored factory profile. */
 export function officialProfile(record: OpenAiRecord): ModelProfile {
   const revision = decodeRevision('1')
   if (!('ok' in revision)) throw new Error('revision')

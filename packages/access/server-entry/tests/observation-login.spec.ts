@@ -1,196 +1,225 @@
-// Observations and the validity of their login (identity spec C5, D4): a revoke on this instance
-// ends every observation of the revoked login at once with `ended(denied)`; an idle or maximum
-// deadline that passes shows at the next round's login check and ends it the same way; an
-// unjudgeable login ends it with `ended(unavailable)`. `cancel-observation` from another login of
-// the same account finds nothing, ends nothing and calls no Session face.
-import { afterEach, describe, expect, it } from 'vitest'
-import type { IdentityGovernance } from '@omne-harness/identity'
-import { parseDuration } from '@omne-harness/utc-instant'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  GOVERNANCE_PATH,
-  SESSION_PATH,
-  anotherLogin,
-  createSession,
-  governed,
-  login,
-  openSse,
-  send,
-  sessionMessage,
-  sleep,
-  startFixture,
-  type Fixture,
-  type Login,
-} from './support/harness.ts'
+  createObservationRecords,
+  type ClaimInput,
+  type LoginCheck,
+  type RecordsEvent,
+} from '../src/observation-hub/records.ts'
+import type { SseStream } from '../src/observation-hub/sse.ts'
 
-let fixture: Fixture | undefined
-afterEach(async () => {
-  await fixture?.stop()
-  fixture = undefined
+const INTERVAL = 50
+
+beforeEach(() => {
+  vi.useFakeTimers()
+})
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.useRealTimers()
 })
 
-function observe(who: Login, session: string, observationId: string, messageId = 'm-o') {
-  return sessionMessage(
-    'observe-session',
-    { tenant: who.tenantText, session, observationId },
-    { loginProof: who.loginProof },
-    messageId,
-  )
+type FakeStream = {
+  readonly stream: SseStream
+  readonly events: string[]
+  readonly calls: () => { event: number; end: number }
+  readonly close: () => void
 }
 
-function cancel(who: Login, session: string, observationId: string) {
-  return sessionMessage(
-    'cancel-observation',
-    { tenant: who.tenantText, session, observationId },
-    { loginProof: who.loginProof },
-    'm-c',
-  )
-}
-
-function endedFrame(observationId: string, reason: string, messageId = 'm-o') {
+function fakeStream(): FakeStream {
+  const events: string[] = []
+  const listeners: (() => void)[] = []
+  const counts = { event: 0, end: 0 }
+  let closed = false
   return {
-    protocolVersion: 'session-public/1',
-    messageId,
-    operation: 'observation-frame',
-    body: { observationId, seq: '1', frame: { kind: 'ended', reason } },
+    events,
+    calls: () => ({ ...counts }),
+    close() {
+      closed = true
+      for (const listener of listeners.splice(0)) listener()
+    },
+    stream: {
+      get closed() {
+        return closed
+      },
+      finished: new Promise<void>(() => {}),
+      event(text: string) {
+        counts.event += 1
+        events.push(text)
+      },
+      end() {
+        counts.end += 1
+      },
+      onClose(listener: () => void) {
+        if (closed) listener()
+        else listeners.push(listener)
+      },
+    } as unknown as SseStream,
   }
 }
 
-function duration(text: string) {
-  const parsed = parseDuration(text)
-  if (!parsed.ok) throw new Error(`${text} did not parse`)
-  return parsed.value
+function setup(limits: { perLogin?: number; perInstance?: number } = {}) {
+  const reports: RecordsEvent[] = []
+  const records = createObservationRecords({
+    limits: { perLogin: 2, perInstance: 4, cancelRetentionMs: 0, ...limits },
+    loginCheckIntervalMs: INTERVAL,
+    report: event => reports.push(event),
+  })
+  return { records, reports }
 }
 
-describe('observation-ended-on-revoke', () => {
-  it('ends every observation of the revoked login at once, and keeps the other login observing', async () => {
-    // A long round: an end within the test can only come from the revoke itself.
-    fixture = await startFixture({ config: { heartbeatIntervalMs: 60_000 } })
-    const first = await login(fixture, 'alice')
-    const second = await anotherLogin(fixture, first)
-    const session = await createSession(fixture, first)
-    const revokedA = openSse(fixture.port, observe(first, session, 'obs-a', 'm-a'))
-    const revokedB = openSse(fixture.port, observe(first, session, 'obs-b', 'm-b'))
-    const kept = openSse(fixture.port, observe(second, session, 'obs-a', 'm-k'))
-    await Promise.all([revokedA, revokedB, kept].map(stream => stream.waitForEvents(1)))
+function observation(key: string, checkLogin: () => Promise<LoginCheck>) {
+  const ended: string[] = []
+  const input: ClaimInput = {
+    key,
+    loginKey: 'L',
+    checkLogin,
+    endFrame: reason => `end:${reason}`,
+    onEnded: reason => ended.push(reason),
+  }
+  return { input, ended }
+}
 
-    const revoked = await send(fixture.port, GOVERNANCE_PATH, {
-      body: governed(second, 'revoke-login', { targetLoginId: first.loginId }, null),
-    })
-    expect(revoked.status).toBe(200)
-    expect((await revokedA.waitForEvents(2))[1]).toEqual(endedFrame('obs-a', 'denied', 'm-a'))
-    expect((await revokedB.waitForEvents(2))[1]).toEqual(endedFrame('obs-b', 'denied', 'm-b'))
-    await Promise.all([revokedA.ended, revokedB.ended])
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>(settle => {
+    resolve = settle
+  })
+  return { promise, resolve }
+}
 
-    // Control: the revoking login's own observation, with the same observationId, goes on.
-    await sleep(30)
-    expect(kept.events()).toHaveLength(1)
-    const cancelled = await send(fixture.port, SESSION_PATH, {
-      body: cancel(second, session, 'obs-a'),
-    })
-    expect((cancelled.json as { body: unknown }).body).toEqual({
-      observationId: 'obs-a',
-      state: 'ended',
-    })
-    expect((await kept.waitForEvents(2))[1]).toEqual(
-      endedFrame('obs-a', 'observer-cancelled', 'm-k'),
+describe('the login check holds nothing the process waits for', () => {
+  it('does not keep the process alive between two rounds, whatever the answers were', async () => {
+    const timers: NodeJS.Timeout[] = []
+    const real = globalThis.setTimeout
+    vi.spyOn(globalThis, 'setTimeout').mockImplementation(((...args: Parameters<typeof real>) => {
+      const timer = real(...args)
+      timers.push(timer)
+      return timer
+    }) as typeof setTimeout)
+    const { records } = setup()
+    const checkLogin = vi.fn<() => Promise<LoginCheck>>(() => Promise.resolve('valid'))
+    records.claim(observation('k', checkLogin).input)!.attach(fakeStream().stream)
+    await vi.advanceTimersByTimeAsync(2 * INTERVAL)
+    expect(checkLogin).toHaveBeenCalledTimes(2)
+    expect(timers).toHaveLength(3)
+    expect(timers.map(timer => timer.hasRef())).toEqual([false, false, false])
+  })
+})
+
+describe('a check that cannot answer', () => {
+  it.each([
+    [
+      'throws before it returns a promise',
+      (): Promise<LoginCheck> => {
+        throw new Error('identity down')
+      },
+    ],
+    [
+      'rejects with a value that is not an error',
+      (): Promise<LoginCheck> => Promise.reject('identity down'),
+    ],
+    ['rejects with nothing', (): Promise<LoginCheck> => Promise.reject(undefined)],
+  ] as const)('ends with unavailable, once, when it %s', async (_label, checkLogin) => {
+    const { records, reports } = setup()
+    const { input, ended } = observation('k', checkLogin)
+    const stream = fakeStream()
+    records.claim(input)!.attach(stream.stream)
+    await vi.advanceTimersByTimeAsync(INTERVAL)
+    expect(stream.events).toEqual(['end:unavailable'])
+    expect(ended).toEqual(['unavailable'])
+    expect(reports).toEqual([{ kind: 'ended', reason: 'unavailable' }])
+  })
+})
+
+describe('a revoked login is over at once', () => {
+  it('writes the ended frame and nothing after it, however long the stream stays open, and leaves no timer', async () => {
+    const { records, reports } = setup()
+    const { input, ended } = observation(
+      'k',
+      vi.fn<() => Promise<LoginCheck>>(() => Promise.resolve('denied')),
     )
+    const stream = fakeStream()
+    records.claim(input)!.attach(stream.stream)
+    await vi.advanceTimersByTimeAsync(INTERVAL)
+    expect(vi.getTimerCount()).toBe(0)
+    await vi.advanceTimersByTimeAsync(20 * INTERVAL)
+    expect(stream.events).toEqual(['end:denied'])
+    expect(stream.calls()).toEqual({ event: 1, end: 1 })
+    expect(ended).toEqual(['denied'])
+    expect(reports).toEqual([{ kind: 'ended', reason: 'denied' }])
   })
 
-  it('ends the target observations when the revoke answers no-change', async () => {
-    fixture = await startFixture({
-      config: { heartbeatIntervalMs: 60_000 },
-      // The port answers no-change and writes nothing: the target login stays valid in identity,
-      // so only the revoke branch can end its observation within the test.
-      governance: (base): IdentityGovernance => ({
-        ...base,
-        revokeLogin: () => Promise.resolve({ kind: 'no-change' }),
-      }),
-    })
-    const first = await login(fixture, 'alice')
-    const second = await anotherLogin(fixture, first)
-    const session = await createSession(fixture, first)
-    const stream = openSse(fixture.port, observe(first, session, 'obs-1'))
-    await stream.waitForEvents(1)
-    const replay = await send(fixture.port, GOVERNANCE_PATH, {
-      body: governed(second, 'revoke-login', { targetLoginId: first.loginId }, null),
-    })
-    expect((replay.json as { outcome: string }).outcome).toBe('no-change')
-    expect((await stream.waitForEvents(2))[1]).toEqual(endedFrame('obs-1', 'denied'))
-    await stream.ended
-  })
-
-  it('does not end observations when the revoke is refused', async () => {
-    fixture = await startFixture({ config: { heartbeatIntervalMs: 60_000 } })
-    const alice = await login(fixture, 'alice')
-    const bob = await login(fixture, 'bob')
-    const session = await createSession(fixture, alice)
-    const stream = openSse(fixture.port, observe(alice, session, 'obs-1'))
-    await stream.waitForEvents(1)
-    const refused = await send(fixture.port, GOVERNANCE_PATH, {
-      body: governed(bob, 'revoke-login', { targetLoginId: alice.loginId }, null),
-    })
-    expect(refused.status).toBe(404)
-    await sleep(30)
-    expect(stream.events()).toHaveLength(1)
-    stream.close()
+  it('checks each observation of the login on its own: one denied ends only that one, and gives its slot back', async () => {
+    const { records } = setup({ perLogin: 2 })
+    const revoked = observation(
+      'a',
+      vi.fn<() => Promise<LoginCheck>>(() => Promise.resolve('denied')),
+    )
+    const kept = observation(
+      'b',
+      vi.fn<() => Promise<LoginCheck>>(() => Promise.resolve('valid')),
+    )
+    const revokedStream = fakeStream()
+    const keptStream = fakeStream()
+    records.claim(revoked.input)!.attach(revokedStream.stream)
+    records.claim(kept.input)!.attach(keptStream.stream)
+    expect(records.claim(observation('c', () => Promise.resolve('valid')).input)).toBeUndefined()
+    await vi.advanceTimersByTimeAsync(3 * INTERVAL)
+    expect(revokedStream.events).toEqual(['end:denied'])
+    expect(keptStream.events).toEqual([])
+    expect(kept.ended).toEqual([])
+    expect(kept.input.checkLogin).toHaveBeenCalledTimes(3)
+    expect(records.claim(observation('c', () => Promise.resolve('valid')).input)).toBeDefined()
   })
 })
 
-describe('observation-ended-on-expiry', () => {
-  it('ends the observation at the next round once the idle deadline passed', async () => {
-    fixture = await startFixture({ config: { heartbeatIntervalMs: 30 } })
-    const alice = await login(fixture, 'alice')
-    const session = await createSession(fixture, alice)
-    const stream = openSse(fixture.port, observe(alice, session, 'obs-1'))
-    await stream.waitForEvents(1)
-    // Control: rounds pass while the login is valid, and the observation stays.
-    await sleep(120)
-    expect(stream.events()).toHaveLength(1)
-    // 601 s after the last successful business access, past the 600 s idle period.
-    fixture.clock.advanceBy(duration('PT601S'))
-    expect((await stream.waitForEvents(2))[1]).toEqual(endedFrame('obs-1', 'denied'))
-    await stream.ended
-  })
-
-  it('ends the observation with unavailable when the login cannot be judged', async () => {
-    fixture = await startFixture({ config: { heartbeatIntervalMs: 30 } })
-    const alice = await login(fixture, 'alice')
-    const session = await createSession(fixture, alice)
-    const stream = openSse(fixture.port, observe(alice, session, 'obs-1'))
-    await stream.waitForEvents(1)
-    fixture.clock.makeUnavailable('clock down')
-    expect((await stream.waitForEvents(2))[1]).toEqual(endedFrame('obs-1', 'unavailable'))
-    await stream.ended
-    fixture.clock.restore()
-  })
-})
-
-describe('cancel-observation-other-login-not-found', () => {
-  it('answers not-found to another login with the same observationId, ends nothing and calls no Session face', async () => {
-    fixture = await startFixture({ config: { heartbeatIntervalMs: 60_000 } })
-    const first = await login(fixture, 'alice')
-    const second = await anotherLogin(fixture, first)
-    const session = await createSession(fixture, first)
-    const stream = openSse(fixture.port, observe(first, session, 'obs-1'))
-    await stream.waitForEvents(1)
-    const callsBefore = fixture.session.controls.calls().length
-
-    const other = await send(fixture.port, SESSION_PATH, { body: cancel(second, session, 'obs-1') })
-    expect(other.status).toBe(200)
-    expect(other.json).toEqual({
-      protocolVersion: 'session-public/1',
-      messageId: 'm-c',
-      outcome: 'succeeded',
-      body: { observationId: 'obs-1', state: 'not-found' },
-    })
-    expect(fixture.session.controls.calls().length).toBe(callsBefore)
-    await sleep(30)
-    expect(stream.events()).toHaveLength(1)
-
-    // Control: the login that established it does end it, still without a Session call.
-    const own = await send(fixture.port, SESSION_PATH, { body: cancel(first, session, 'obs-1') })
-    expect((own.json as { body: unknown }).body).toEqual({ observationId: 'obs-1', state: 'ended' })
-    expect((await stream.waitForEvents(2))[1]).toEqual(endedFrame('obs-1', 'observer-cancelled'))
-    expect(fixture.session.controls.calls().length).toBe(callsBefore)
-  })
+describe('an answer that arrives after the observation was over', () => {
+  it.each([
+    ['the connection closed', (_records: unknown, stream: FakeStream) => stream.close(), []],
+    [
+      'the login was ended',
+      (records: { endLogin(key: string, reason: 'unavailable'): void }) =>
+        records.endLogin('L', 'unavailable'),
+      ['end:unavailable'],
+    ],
+    [
+      'every observation was ended',
+      (records: { endAll(reason: 'unavailable'): Promise<void> }) =>
+        void records.endAll('unavailable'),
+      ['end:unavailable'],
+    ],
+    [
+      'a newer observation took its place',
+      (records: { claim(input: ClaimInput): unknown }) =>
+        records.claim(observation('k', () => Promise.resolve('valid')).input),
+      ['end:observer-replaced'],
+    ],
+  ] as const)(
+    'changes nothing, writes nothing more and arms no timer, when %s while the check was out, whether it then answers valid or denied',
+    async (_label, over, frames) => {
+      for (const answer of ['valid', 'denied'] as const) {
+        const { records, reports } = setup({ perLogin: 9, perInstance: 9 })
+        const pending = deferred<LoginCheck>()
+        const checkLogin = vi.fn<() => Promise<LoginCheck>>(() => pending.promise)
+        const { input, ended } = observation('k', checkLogin)
+        const stream = fakeStream()
+        records.claim(input)!.attach(stream.stream)
+        await vi.advanceTimersByTimeAsync(INTERVAL)
+        expect(checkLogin).toHaveBeenCalledTimes(1)
+        ;(over as (records: unknown, stream: FakeStream) => void)(records, stream)
+        const first = { events: [...stream.events], ended: [...ended], reports: [...reports] }
+        pending.resolve(answer)
+        await vi.advanceTimersByTimeAsync(0)
+        expect(vi.getTimerCount()).toBe(0)
+        await vi.advanceTimersByTimeAsync(10 * INTERVAL)
+        expect(stream.events).toEqual(frames)
+        expect(stream.events).toEqual(first.events)
+        expect(ended).toEqual(first.ended)
+        expect(ended).toHaveLength(1)
+        expect(reports).toEqual(first.reports)
+        expect(checkLogin).toHaveBeenCalledTimes(1)
+        expect(vi.getTimerCount()).toBe(0)
+        vi.clearAllTimers()
+      }
+    },
+  )
 })

@@ -230,7 +230,6 @@ export function createStreamFixture<P, S, D, E = never>(
     else if (resources().subscriptions >= limits.observersPerTenant)
       terminate(observation, { kind: 'ended', reason: 'capacity' })
     else {
-      // Capture and register in one synchronous turn. No externally controlled gap exists here.
       const snapshot = confirmed
       enqueue(observation, { kind: 'snapshot', cursor: snapshot.cursor, value: snapshot.snapshot })
       if (observation.terminal === null) {

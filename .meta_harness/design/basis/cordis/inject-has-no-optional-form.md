@@ -7,14 +7,14 @@ symbols:
   - "fiber.ts: Fiber 构造时遍历 inject 的每一项，任一必需服务缺席即停在 PENDING；inject 没有「可选」写法"
   - "fiber.ts: FiberState.PENDING 的含义是 waiting for required services"
   - "reflect.ts: ctx.get(name, strict=true) 在提供者 fiber 非 ACTIVE 时返回 undefined，不抛错、不登记依赖"
-  - "reflect.ts: ctx.get 沿 fiber 链向上解析，同一棵 Context 树里兄弟插件 provide 的服务能被解析到"
+  - "reflect.ts: ctx.get 用当前上下文的隔离映射把名字换成键，再直接读整棵树共用的服务表（_getImpl），不沿 fiber 链向上找，同一个隔离范围里任何插件 provide 的服务都读得到"
 lines:
-  - "fiber.ts:142-151"
-  - "fiber.ts:225-241"
-  - "fiber.ts:576-578"
-  - "reflect.ts:233-241"
+  - "fiber.ts:139-154"
+  - "fiber.ts:314-319"
+  - "fiber.ts:574-579, 611-623"
+  - "reflect.ts:233-243"
 probe: packages/assembly/kernel-basis/tests/inject-has-no-optional-form.spec.ts
-checked: 2026-09-23
+checked: 2026-11-15
 ---
 
 # `inject` 没有可选形式；可选依赖只能走 `ctx.get`，而 `ctx.get` 看得见整棵树
@@ -31,8 +31,8 @@ fiber 停在 `PENDING`，插件体不跑。**`inject` 的数组形式与对象�
 在需要时用 `ctx.get(name)` 现取：提供者不在或非 `ACTIVE` 时返回 `undefined`，出现之后能取到，
 而且提供者换代**不会**让调用方重跑（因为没有登记依赖）。
 
-第二件事是这条路的另一面：`ctx.get` 沿 fiber 链向上解析，**同一棵 Context 树里任何插件 provide 到根层的服务，
-兄弟插件都取得到**。进程内没有「谁不该看见谁」的边界——想靠「不 inject」来限制某个插件够不着某个服务，是做不到的；
+第二件事是这条路的另一面：`ctx.get` 用当前上下文的隔离映射把名字换成键，再直接读整棵树共用的服务表，不沿 fiber 链向上找。
+**同一个隔离范围里，任何插件 provide 的服务，兄弟插件都取得到**。进程内没有「谁不该看见谁」的边界——想靠「不 inject」来限制某个插件够不着某个服务，是做不到的；
 能挡住的只有 isolate 标签下的实例可见性（见 `isolate-hides-instances-not-data`），而那不是访问控制。
 
 两条合起来决定了装配上的两个形状：**「要么整个起来」靠 `inject`**（门只在它消费的服务全部 `ACTIVE` 时才开，否则 `PENDING`，
@@ -42,14 +42,14 @@ fiber 停在 `PENDING`，插件体不跑。**`inject` 的数组形式与对象�
 
 | symbol / 语义位置 | 读到了什么 | 怎样复核 |
 |---|---|---|
-| `fiber.ts` 构造：遍历 `inject` | 每一项都登记为必需依赖；缺席 ⇒ 状态停在 `PENDING` | 用对象形式 `inject: { missing: undefined }` 装一个插件，观察插件体不跑、`fiber.state === PENDING` |
-| `fiber.ts` `FiberState` 注释 | `PENDING` = waiting for required services | 读源码 142–151 行 |
-| `reflect.ts` `get(name, strict=true)` | 提供者 fiber 非 `ACTIVE` ⇒ 返回 `undefined`；不抛错 | 在没有提供者时 `ctx.get('x')`，得 `undefined` |
-| `reflect.ts` 解析沿链向上 | 兄弟插件 provide 的服务能被解析 | 先装消费者、再装提供者，消费者持有的 ctx 能取到提供者的实例 |
+| `fiber.ts` 构造（314–319 行）与 `_refresh`（611–623 行）：遍历 `inject` | 每一项都登记为必需依赖；缺席 ⇒ 状态停在 `PENDING` | 用对象形式 `inject: { missing: undefined }` 装一个插件，观察插件体不跑、`fiber.state === PENDING` |
+| `fiber.ts` `FiberState` 注释 | `PENDING` = waiting for required services | 读源码 139–154 行 |
+| `reflect.ts` `get(name, strict=true)`（233–243 行） | 提供者 fiber 非 `ACTIVE` ⇒ 返回 `undefined`；不抛错 | 在没有提供者时 `ctx.get('x')`，得 `undefined` |
+| `reflect.ts` `_getImpl`（237–243 行）：按隔离键直接读共用服务表，不沿 fiber 链 | 同一个隔离范围里，兄弟插件 provide 的服务能被解析 | 先装消费者、再装提供者，消费者持有的 ctx 能取到提供者的实例 |
 
-## probe 断言什么
+## 探针断言什么
 
-probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行。对 4.0.4 通过（2026-09-22 首跑，2026-09-23 升格为条目）；2026-10-22 迁入该成员后对 4.0.4 复跑通过：
+探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
 
 1. `inject: { missing: undefined }` 的插件：插件体没跑，`fiber.state` 为 `PENDING`。
 2. 不 inject 的消费者：装载时 `resolveOptional(ctx, 'credentials')` 为 `undefined`；随后装一个兄弟插件 provide `credentials`（gen A），
@@ -60,6 +60,6 @@ probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行�
 
 ## 已知的误用
 
-- **把「不 inject」当成访问控制**：以为运维面不 inject 治理服务就够不着它们。够得着——`ctx.get` 看得见整棵树。
+- **把「不 inject」当成访问控制**：以为运维面不 inject 治理服务就够不着它们。够得着——`ctx.get` 在隔离范围之内看得见整棵树。
   「没有门」要靠结构检查（该单元不引用治理服务名）与通道分离兑现，不靠内核。
 - **给长时操作加 inject**：提供者换代会让消费者卸载重跑；真正只想「有就用」的依赖应走 `ctx.get`，并接受 `undefined`。

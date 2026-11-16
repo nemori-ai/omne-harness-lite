@@ -12,7 +12,6 @@ import { conformanceOf } from './conformance.ts'
 import { versionGraph } from './directions.ts'
 import type { Conformance } from './conformance-model.ts'
 
-/** Read each version once. Architecture and function differences use the exact same snapshots. */
 export function readArchitectureReport(
   input: ActualArchitectureInput,
   config: MetricsConfig,
@@ -51,7 +50,6 @@ export function readArchitectureReport(
       }
     }
   }
-  // 与抽取同一个版本的图：符合性的方向行与度量读同一张。
   const graph = versionGraph(input.root, currentSource.source)
   return {
     document,

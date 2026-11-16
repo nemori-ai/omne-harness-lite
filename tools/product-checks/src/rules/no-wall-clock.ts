@@ -3,10 +3,6 @@ import { isTestPath, type Rule, type Violation } from '@omne-harness/repo-toolch
 import { lineAt } from '@omne-harness/repo-toolchain/core/source-text'
 import { nodeName, syntaxOf, visitSyntax } from '@omne-harness/repo-toolchain/core/syntax'
 
-/**
- * 领域时间只从 clock 服务取。非领域取时必须逐个调用标注用途与理由。
- * `new Date(x)` 是转换不是取时，只禁无参的 `new Date()`。
- */
 export const noWallClock: Rule = {
   id: 'no-wall-clock',
   source: 'docs/architecture/cross-cutting-concepts.md#时间顺序与版本 · SC-OE-3',
@@ -33,7 +29,6 @@ export const noWallClock: Rule = {
         }
         return undefined
       }
-      // 同文件 const 别名与解构；不做跨文件或运行期赋值数据流追踪。
       visitSyntax(syntax, node => {
         if (
           !ts.isVariableDeclaration(node) ||

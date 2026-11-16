@@ -1,6 +1,3 @@
-// The Skill plugin on a real Cordis `Context`. The two demand ports are provided as Services that
-// wrap the memory doubles of `@omne-harness/skill-contract/testing`; the package is a legal Skill
-// package in a temporary directory.
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
@@ -56,7 +53,6 @@ function declaredOf(definition: SkillDefinition): DeclaredProjection {
   }
 }
 
-/** A Service class that provides `port` as the read check of the loading context. */
 function readCheckService(port: SkillReadCheck<unknown, unknown>) {
   return class extends SkillReadCheckService<unknown, unknown> {
     check(...args: Parameters<SkillReadCheck<unknown, unknown>['check']>) {
@@ -65,7 +61,6 @@ function readCheckService(port: SkillReadCheck<unknown, unknown>) {
   }
 }
 
-/** A Service class that provides `port` as the resolution of the loading context. */
 function resolutionService(port: SkillResolution<unknown, unknown>) {
   return class extends SkillResolutionService<unknown, unknown> {
     resolve(...args: Parameters<SkillResolution<unknown, unknown>['resolve']>) {
@@ -77,7 +72,6 @@ function resolutionService(port: SkillResolution<unknown, unknown>) {
   }
 }
 
-/** The test package, and the memory doubles that adopt and grant it. No Context is made here. */
 async function prepared() {
   const root = join(await scratch(), 'review')
   await writeTree(root, {
@@ -114,14 +108,12 @@ async function prepared() {
   return { readCheck, resolution, basisOf }
 }
 
-/** The plugin is loaded on a fresh context that has no port yet. */
 async function loaded() {
   const ctx = new Context()
   const fiber = await ctx.plugin(skillPlugin, {})
   return { ctx, fiber, ...(await prepared()) }
 }
 
-/** The service of `key`, or a failed test when the context has none. */
 function service<
   K extends typeof skillPackageInspectionKey | typeof skillCatalogKey | typeof skillAccessKey,
 >(ctx: Context, key: K) {
@@ -303,7 +295,6 @@ describe('the Skill plugin on a Cordis context', () => {
 
   it('refuses to load with a non-empty configuration and provides nothing', async () => {
     const ctx = new Context()
-    // The typed overload forbids the bad configuration; an assembly reading a plugin tree does not.
     const loading: unknown = Reflect.apply(ctx.plugin, ctx, [skillPlugin, { extra: true }])
     await expect(Promise.resolve(loading)).rejects.toBeDefined()
     expect(ctx.get(skillAccessKey)).toBeUndefined()

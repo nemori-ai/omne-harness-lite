@@ -43,7 +43,6 @@ it('publishes declared commands and the same complete help table', async () => {
   expect(author.facts.implements.commands.every(item => item.parameters.kind === 'declared')).toBe(
     true,
   )
-  // The menu is not repeated in the description: the declaration adds it where it declares Files.
   expect(author.facts.description).not.toContain('mkdir')
   const menu = await run(author, 'help', {}, filesFixture().environment)
   expect(menu.startsWith('done Files help\nCall with ')).toBe(true)
@@ -56,12 +55,9 @@ it('publishes declared commands and the same complete help table', async () => {
   expect(write.startsWith('done Files help write\nUsage: ')).toBe(true)
   expect(write).toContain('\nparents: Create missing parent directories first. Omit for false.\n')
   expect(write).toContain('JSON Schema')
-  // Help answers the guide of the definition: the same text a wrong call reads (D-104).
   if (definition.kind !== 'commands') throw new Error('commands')
   expect(menu).toBe(`done Files help\n${commandGuide(definition)}`)
   expect(write).toBe(`done Files help write\n${commandGuide(definition, 'write')}`)
-  // A help topic that is not a command is a failed call with the reason only; the tool host adds
-  // the guide of the command, never a done answer.
   await expect(run(author, 'help', { name: 'nope' }, filesFixture().environment)).rejects.toThrow(
     /"kind":"invalid","reason":"invalid-field:name"/,
   )
@@ -82,10 +78,7 @@ it('creates missing parents before a write only when asked', async () => {
   expect(await write('/plain/c.ts', false)).toContain('done')
   expect(await write('/d.ts', true)).toContain('done')
   expect(await write('C:/e.ts', true)).toContain('done')
-  // Any other mkdir answer stops the write and is the result.
   expect(await write('/refused/f.ts', true)).toMatch(/^rejected request=.* reason=unsupported$/u)
-  // An existing parent answers conflict and the write still goes ahead; a root or a drive is no
-  // directory to create.
   expect(fixture.mkdirs).toEqual([
     { path: '/src/lib', parents: true },
     { path: '/exists', parents: true },

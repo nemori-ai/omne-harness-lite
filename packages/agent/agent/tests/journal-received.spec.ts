@@ -79,7 +79,6 @@ function fixture() {
           finish: null,
         }),
       )
-      // F1, F2, prepareFinish, load, then tryFinish with the projection (SPEC "条件终结").
       const settling = async (name: string, finish: JournalCommit<string>['finish']) => {
         snapshot = ok(await journal.load({ ...who, execution }))
         ok(
@@ -146,8 +145,6 @@ function fixture() {
         }),
       )
     },
-    // The memory Journal scripts the next `record` call of any execution; the suite only scripts
-    // one execution at a time, so the two readings meet.
     async failNextRecord(_who, _execution, fault) {
       memory.failNext('record', fault)
     },
@@ -187,7 +184,6 @@ describe('one memory Journal received provider', () => {
     received: 'required',
     joint,
   })) {
-    // A case the fixture cannot drive is reported as skipped with its reason, never as green.
     if ('uncovered' in scenario) it.skip(`${scenario.name} (${scenario.uncovered})`, scenario.run)
     else it(scenario.name, scenario.run)
   }

@@ -1,8 +1,3 @@
-// The caller class check of the four face properties (SPEC property 6; verification 4) on real
-// Cordis. Each caller plugin declares its class in `inject: { session: { caller } }`, and the
-// service reads that configuration from the Context of the caller at each property read. The
-// class selects the face; it grants nothing, so an allowed class still meets the access decision
-// (tested at the end).
 import { afterEach, describe, expect, it } from 'vitest'
 import { creation, operationId, ordinaryInput } from '@omne-harness/session-contract/testing'
 import { assemble, type Assembly } from './fixtures/assembly.ts'
@@ -19,20 +14,20 @@ async function build(): Promise<Assembly> {
 }
 
 type Face = Record<string, (input: unknown) => Promise<unknown>>
-const faceNames = ['work', 'management', 'reconciliation', 'history'] as const
+const faceNames = ['work', 'management', 'reconciliation', 'history', 'directory'] as const
 
-/** Every operation of the four faces with the action name that a refusal names. */
 function operationsOf(session: {
   work: unknown
   management: unknown
   reconciliation: unknown
   history: unknown
+  directory: unknown
 }): readonly (readonly [string, () => Promise<unknown>])[] {
   return faceNames.flatMap(name =>
     Object.keys(session[name] as Face).map(
       operation =>
         [
-          name === 'history' ? `history.${operation}` : operation,
+          name === 'history' || name === 'directory' ? `${name}.${operation}` : operation,
           () => (session[name] as Face)[operation]!({}),
         ] as const,
     ),
@@ -49,11 +44,9 @@ describe('a caller whose class is not one of the four', () => {
       const a = await build()
       const caller = await a.caller(declared)
       const operations = operationsOf(caller.session())
-      // The lists are the faces of the instance: the writes, the reads and the four history reads.
       expect(operations.length).toBeGreaterThan(30)
       for (const [action, call] of operations)
         expect(await call(), action).toEqual({ failure: { kind: 'denied', action } })
-      // The refusal came before any access decision was asked.
       expect(a.checks.controls.asked()).toHaveLength(0)
     },
   )
@@ -74,14 +67,12 @@ describe('the class selects the face of that caller', () => {
     const intake = await a.caller('intake')
     const reader = await a.caller('reader')
     const created = await a.create(intake)
-    // `create` belongs to intake; the reader's face refuses the same call.
     const refused = await reader.session().management.create({
       ...a.access('session-2'),
       operation: 'create-session-2' as never,
       creation: {} as never,
     })
     expect(refused).toEqual({ failure: { kind: 'denied', action: 'create' } })
-    // `history.begin` belongs to the reader; the intake face refuses it.
     const begin = {
       ...a.access(),
       kinds: [],
@@ -93,6 +84,19 @@ describe('the class selects the face of that caller', () => {
       failure: { kind: 'denied', action: 'history.begin' },
     })
     expect(await reader.session().history.begin(begin)).toHaveProperty('ok')
+    const list = {
+      principal: a.access().principal,
+      tenant: a.access().tenant,
+      after: null,
+      limit: 10,
+      includeArchived: false,
+    }
+    expect(await intake.session().directory?.list(list)).toEqual({
+      failure: { kind: 'denied', action: 'directory.list' },
+    })
+    expect(await reader.session().directory?.list(list)).toMatchObject({
+      failure: { kind: 'unavailable', owner: 'sessionTransactions' },
+    })
   })
 
   it.each([
@@ -109,7 +113,6 @@ describe('the class selects the face of that caller', () => {
       const face = [faces.work, faces.management, faces.reconciliation].find(
         candidate => operation in candidate,
       ) as unknown as Face
-      // The inputs are complete enough for the class check to be the first refusal.
       const answer = await face[operation]!({
         ...a.access(),
         operation: operationId('op'),
@@ -128,7 +131,6 @@ describe('the class grants nothing', () => {
     const intake = await a.caller('intake')
     await a.create(intake)
     const before = a.checks.controls.asked().length
-    // A principal of tenant B names tenant A, through the intake face that admits `accept`.
     const answer = await intake.session().work.accept({
       ...a.access(),
       principal: 'b:stranger',

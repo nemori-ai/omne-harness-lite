@@ -51,29 +51,19 @@ import {
   readScopeReference,
 } from './host-scope.ts'
 
-/** Initial value of `drainBoundMs` when the configuration does not give one. */
 const defaultDrainBoundMs = 10_000
 
-/** One structured diagnostic of the host provider. */
 export type HostFilesDiagnostic =
   | Readonly<{
-      /**
-       * `drainBoundExceeded`: operations were still running when the bound passed.
-       * `closePending`: no operation runs, but a descriptor whose close failed is still open.
-       */
       kind: 'drainBoundExceeded' | 'closePending'
       provider: string
       generation: string
-      /** File operations and command starts still running when the bound passed. */
       inFlight: number
-      /** Descriptors still open after a failed close. */
       openDescriptors: number
       boundMs: number
-      /** The acquisition of a pending release or settlement; absent for a retirement. */
       acquisition?: string
     }>
   | Readonly<{
-      /** The supervisor did not confirm the stop of these processes; they stay to be stopped. */
       kind: 'stopUnconfirmed'
       provider: string
       generation: string
@@ -81,7 +71,6 @@ export type HostFilesDiagnostic =
       acquisition?: string
     }>
   | Readonly<{
-      /** A command start was refused because these platform prerequisites are missing. */
       kind: 'commandUnavailable' | 'terminalUnavailable'
       provider: string
       generation: string
@@ -89,11 +78,6 @@ export type HostFilesDiagnostic =
       acquisition: string
     }>
   | Readonly<{
-      /**
-       * The marker of a retained process is out of step with its unit: it could not be written
-       * after the handover took effect, could not be removed after the confirmed stop, or was
-       * discarded at load because it was unreadable, from another boot or named a gone unit.
-       */
       kind: 'retainedMarker'
       provider: string
       generation: string
@@ -102,49 +86,23 @@ export type HostFilesDiagnostic =
       issue: RetainedMarkerFact['issue']
     }>
   | Readonly<{
-      /**
-       * A file batch was published, but the staged file it was published from could not be
-       * removed. It stays beside the target. The fact belongs to the engine, not to one
-       * acquisition, so it names no acquisition.
-       */
       kind: 'temporaryFileRemains'
       provider: string
       generation: string
-      /** The batch id. */
       batch: string
-      /** The target that was published. */
       path: string
-      /** The name of the staged file that stays. */
       temporary: string
-      /** The error code of the failed removal. */
       code?: string
     }>
 
 export type HostFilesProviderOptions = Readonly<{
-  /** The responsibility domain this generation joins. Every generation of one host shares it. */
   domain: HostFilesDomain
-  /** Upper bound in milliseconds that a release, a settlement or `retire()` waits for in-flight file operations. */
   drainBoundMs?: number
-  /**
-   * Receives a diagnostic when a drain stays pending, when a command start lacks a prerequisite,
-   * or when a published batch leaves its staged file.
-   */
   diagnose?: (diagnostic: HostFilesDiagnostic) => void
-  /** Bounds of the `command` facility. */
   command?: HostCommandOptions
-  /** Bounds of the persistent Linux terminal facility. */
   terminal?: HostTerminalOptions
-  /**
-   * The host files root, an absolute path. Every path of every `files` request of this provider
-   * must lie below it. Without it, the provider only checks the named object.
-   */
   filesRoot?: string
-  /**
-   * An absolute path where the manifests of file batches are kept, and where the probe of the files
-   * prerequisite makes its temporary directory. Without it, batches answer `unavailable`.
-   */
   stateDirectory?: string
-  /** Bounds of listing and searching; each given value must be a positive safe integer. */
   limits?: Partial<HostFilesLimits>
 }>
 
@@ -152,7 +110,6 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null
 }
 
-/** The version of this package, read from its `package.json` beside `src/` and `dist/`. */
 function packageVersion(): string {
   const parsed: unknown = JSON.parse(
     readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
@@ -170,10 +127,6 @@ function isDrainBound(value: number): boolean {
 
 type Prerequisite = ProviderFacts['prerequisites']
 
-/**
- * Reads prerequisite P2 for `describe`. A settled answer stays for the generation; an unknown one
- * is read again at the next call, as the engine does for its requests.
- */
 function createFilesPrerequisiteReader(
   stateDirectory: string | undefined,
 ): () => Promise<Prerequisite> {
@@ -214,15 +167,6 @@ function temporaryFileRemains(
   }
 }
 
-/**
- * The host provider of the `files` and `command` facilities. It serves the `host_machine` layer
- * only, confirms no isolation claim and gives no continuity guarantee. Each acquisition gets its own
- * facades in the shared domain: its admission, its in-flight operations, the descriptors of its
- * failed closes and the processes it started. A release seals the facades, waits up to
- * `drainBoundMs`, retries the failed closes, force-stops the processes, and returns the quota slot
- * only when nothing is left. Each process runs in its own systemd user scope; the scopes are the
- * managed resources that resource recovery lists and stops.
- */
 export function createHostFilesProvider(options: HostFilesProviderOptions): EnvironmentProvider {
   const domain = options.domain
   const internals: DomainInternals | undefined = domain ? domainInternals(domain) : undefined
@@ -238,12 +182,8 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
   const report = (diagnostic: HostFilesDiagnostic) => {
     try {
       options.diagnose?.(Object.freeze(diagnostic))
-    } catch {
-      /* A diagnostic sink never changes the result. */
-    }
+    } catch {}
   }
-  // The files engine for this provider's configuration. Invalid settings throw here, before the
-  // generation is registered and before any probe starts.
   const files = internals.joinEngine(
     { root: options.filesRoot, stateDirectory: options.stateDirectory, limits: options.limits },
     fact => report(temporaryFileRemains(name, generation, fact)),
@@ -260,8 +200,6 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
   const filesPrerequisite = createFilesPrerequisiteReader(options.stateDirectory)
   const platform = Object.freeze({ os: process.platform, release: release() })
   const stateDirectory = options.stateDirectory
-  // The retained-process index lives with the state directory: without one, nothing is retained.
-  // Linux and Windows hand domains over; macOS sessions are not sealed, so it keeps none.
   const retained: RetainedProcessIndex | undefined =
     (process.platform === 'linux' || process.platform === 'win32') && stateDirectory !== undefined
       ? internals.retainedProcesses(stateDirectory, () =>
@@ -286,14 +224,12 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
       { key: 'provider', value: { kind: 'string', value: name } },
       { key: 'generation', value: { kind: 'string', value: generation } },
       { key: 'version', value: { kind: 'string', value: version } },
-      // The contract's facts cannot say that a files root limits this provider; the evidence can.
       ...(options.filesRoot === undefined
         ? []
         : [{ key: 'filesRoot', value: { kind: 'string', value: 'configured' } } as const]),
     ],
   }
 
-  /** Diagnoses pending drains: work or descriptors left, and processes whose stop is unconfirmed. */
   const diagnose = (
     records: readonly DomainRecord[],
     resources: readonly ManagedResource[],
@@ -329,7 +265,6 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
     return result
   }
 
-  /** The lease of one acquisition: its facade, its invalidation and its release. */
   const leaseOf = (record: DomainRecord): EnvironmentLease => {
     let settle: (value: LeaseInvalidation) => void = () => undefined
     const invalidated = new Promise<LeaseInvalidation>(resolve => {
@@ -353,7 +288,6 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
         return available[key]
       },
       async release() {
-        // A released lease is not invalidated later: its own release removes the notice.
         record.invalidate = () => undefined
         const result = await drain(record)
         return result.kind === 'settled' ? { kind: 'released' } : result
@@ -363,7 +297,6 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
     return lease
   }
 
-  /** The provider's answer to the domain's admission of one acquisition. */
   const answerAdmission = (
     admitted: AdmitResult,
     acquisition: ProviderAcquireInput['acquisition'],
@@ -392,7 +325,6 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
     }
   }
 
-  /** The domain knows every generation it issued; a key of an unknown generation stays unknown. */
   const absent = (original: OriginalAcquisition): 'notAllocated' | 'unknown' =>
     internals.knowsGeneration(original.placement.provider.generation) ? 'notAllocated' : 'unknown'
 
@@ -531,15 +463,12 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
     },
     async listRecoveryResources(scope) {
       const retainedShells = internals.retainedTerminals.resources(scope)
-      // The retained-process markers are part of the index; unread markers make no complete listing.
       const retainedReady = async () => retained === undefined || (await retained.ready())
-      /** One resource per key; a later list's resource replaces an earlier one. */
       const listed = (...lists: (readonly ManagedResource[])[]) => ({
         kind: 'listed' as const,
         resources: [...new Map(lists.flat().map(resource => [resource.key, resource])).values()],
       })
       if (execution.windows !== undefined) {
-        // The cold index lists every command Job whose marker exists; an unread marker makes no list.
         const jobs = await listWindowsJobs(execution.windows.jobs, scope)
         if (jobs === 'unavailable' || !(await retainedReady())) return { kind: 'unavailable' }
         return listed(
@@ -549,7 +478,6 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
         )
       }
       if (execution.macos !== undefined) {
-        // The cold index lists every domain whose marker exists; an unread marker makes no list.
         const resources = await listMacosResources(execution.macos, scope, () =>
           internals.retainedTerminals.resources(scope),
         )
@@ -568,7 +496,6 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
       return listed(
         scopes.resources,
         retainedShells,
-        // A reservation may arrive while the supervisor listing is in flight.
         internals.retainedTerminals.resources(scope),
         retained?.resources(scope) ?? [],
       )
@@ -584,7 +511,6 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
           status: await recoverMacosResource(execution.macos, resource, name),
           evidence: null,
         }
-      // The index stops the Job it holds; the original reference does not stop it (SPEC).
       if (execution.windows !== undefined && (await retained?.mayHold(resource.key)))
         return { status: 'pending', evidence: null }
       if (execution.windows !== undefined)
@@ -628,15 +554,11 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
       }
     },
     async retainedProcesses(scope, tenant) {
-      // Without an index (not Linux, or no state directory) nothing is retained. The index stays
-      // with its state directory, so a retired generation answers its reading like a live one: the
-      // retained processes belong to their scopes, not to the generation that read them.
       if (retained === undefined) return []
       return retained.list(scope, tenant)
     },
     async retire(): Promise<Retirement> {
       retired = true
-      // Retained processes belong to their retention scopes: this generation only stops reading them.
       retained?.retire(generation)
       const retainedDrain = internals.retainedTerminals.retire(generation)
       const own = [...internals.records()].filter(
@@ -648,11 +570,9 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
         record.terminals.seal()
         record.invalidate({ source: 'provider', reason: 'providerRetired' })
       }
-      // Draining force-stops what this generation still runs: those outcomes end as effectUnknown.
       const results = await Promise.all(own.map(record => internals.drain(record, drainBoundMs)))
       const retainedResources = await retainedDrain
       if (results.every(result => result.kind === 'settled') && retainedResources.length === 0) {
-        // Nothing of this generation is left to report on; the engine stays with the domain.
         files.leave()
         return { kind: 'drained' }
       }

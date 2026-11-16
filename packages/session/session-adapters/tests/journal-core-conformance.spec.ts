@@ -1,9 +1,3 @@
-// The session-log Journal against the core conformance suite of the Agent contract's `./testing`
-// entry (Agent SPEC "并发与提交", "托管协调与运行实例"): the facts every binding answers alike. The
-// Agent memory Journal runs the same suite on its own fixture. Each case opens its own Session
-// scene. The Session side records the handover of every input the Agent accepted, the initial one
-// and each first submit, so that an ordinary end is not blocked on the Session side; that record
-// is a Session write after the Journal answered, not a change of the Journal's answer.
 import { describe, it } from 'vitest'
 import {
   agentJournalCoreConformance,
@@ -21,14 +15,12 @@ import { toolCall } from './fixtures/tool-call.ts'
 
 const SETTLEMENT_QUALIFICATIONS: readonly string[] = ['settle', 'migrate-cancellation', 'reconcile']
 
-/** The read actions the scene's reading flag governs (Agent SPEC D5 第 6 节). */
 const READS: readonly string[] = ['load', 'readReplyAdmissions', 'query']
 
 const fixture: AgentJournalCoreFixture<string> = {
   open: (name, options = {}) => openScene(name, options, 'own'),
 }
 
-/** One Session scene with its Agent execution opened under the tenant `tenant`. */
 async function openScene(
   name: string,
   options: AgentJournalCoreOpenOptions,
@@ -36,7 +28,6 @@ async function openScene(
 ): Promise<AgentJournalCoreOpened<string>> {
   const hostRecords = new Map<string, TestHostRecord>()
   const installed = options.cancellationPolicy !== 'absent'
-  // The settlement qualifications the caller holds; every other action stays allowed.
   const held = new Set<string>(SETTLEMENT_QUALIFICATIONS)
   const reading = { allowed: true }
   const s = await scene(
@@ -87,9 +78,7 @@ async function openScene(
     readable: allowed => {
       reading.allowed = allowed
     },
-    // Another Session scene of the same tenant: its own execution and its own Journal.
     sibling: async label => fixture.open(`${name}-${label}`.slice(0, 48)),
-    // A Session scene of another tenant: its own execution on its own Journal cell.
     foreign: async label => openScene(`${name}-${label}`.slice(0, 48), {}, 'other'),
   }
   return {

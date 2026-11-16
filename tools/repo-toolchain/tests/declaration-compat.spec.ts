@@ -1,5 +1,4 @@
 // @module-tag slow
-// 归慢层：每条用例在临时检出里用 TypeScript 6 编译成员的声明。全量准入快层账本里整份合计 7.3 秒，负载下 16.7 秒，4 条里 1 条在全量准入超单条预算（2.5 秒），4 条在负载下都超（tools/test-runner/README_ZH.md「归层」）。
 import {
   copyFileSync,
   mkdirSync,
@@ -21,11 +20,9 @@ afterAll(() => {
   for (const path of temporaries) rmSync(path, { recursive: true, force: true })
 })
 
-/** A checkout with the real base options and one member per entry of `dists`. */
 function checkout(dists: Record<string, Record<string, string> | undefined>): string {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'declaration-compat-')))
   temporaries.push(root)
-  // 根 tsconfig.base.json 只是指向共享预设的 extends；临时仓库里直接放预设本身。
   copyFileSync(
     join(repository, 'tools/repo-config/tsconfig.base.json'),
     join(root, 'tsconfig.base.json'),
@@ -41,10 +38,6 @@ function checkout(dists: Record<string, Record<string, string> | undefined>): st
   return root
 }
 
-/**
- * Workspace members that import each other by package name. Each member exports `source` before
- * `types`, as the repository's members do, and `node_modules/<name>` links to the member.
- */
 function workspace(members: Record<string, { name: string; src: string; dist: string }>): string {
   const root = checkout(
     Object.fromEntries(
@@ -68,7 +61,6 @@ function workspace(members: Record<string, { name: string; src: string; dist: st
   return root
 }
 
-// Each case builds real TypeScript programs, which takes seconds under a loaded full run.
 describe('declaration compatibility', { timeout: 60_000 }, () => {
   it('accepts declarations that TypeScript 6 reads, including relative .ts type imports', () => {
     const root = checkout({
@@ -100,10 +92,6 @@ describe('declaration compatibility', { timeout: 60_000 }, () => {
   })
 
   it('reads no member src: imports between members resolve to the other member dist', () => {
-    // a's declarations import b, and b's augment c. The `source` condition would send those imports
-    // to b/src, so the old code read both copies of b's augmentation, and TypeScript reports the
-    // copy it reads second as TS2717 (here that is b/src, counted as external). Every src holds a
-    // type error that nothing reads: `external: 0` and no diagnostics mean no member src entered.
     const unread = "export const unread: number = 'src is not read';\n"
     const augmentation = (body: string) =>
       'export interface Placement {\n    readonly where: string;\n}\n' +

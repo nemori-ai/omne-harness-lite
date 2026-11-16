@@ -1,7 +1,3 @@
-// Group commit G2-P (SPEC 7.3, 7.4, 7.7.3, 7.7.4, 7.8, 4.5). The `seq` probe reads the file through
-// its own connection while the group runs, so "rows seen by the probe" is the number of operations
-// that are durable at that moment: 0 for the first operation of a group means they share a
-// physical transaction.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { CommitResultV2 } from '@omne-harness/sql-contract'
 import {
@@ -11,14 +7,15 @@ import {
   type Provider,
   type Workspace,
 } from './support.ts'
+import { tick } from './gate.ts'
 import {
+  GROUPING,
   buildGroupMaterials,
   domainFile,
   groupRegistration,
   op,
   readRows,
   seqCommand,
-  sleep,
 } from './group-support.ts'
 
 let workspace: Workspace
@@ -36,12 +33,11 @@ afterEach(async () => {
   await workspace.remove()
 })
 
-/** A registered domain. The collection window is wide, so operations issued together are in it. */
 async function ready(
   config: Record<string, number> = {},
   materials: Built = built,
 ): Promise<Provider> {
-  const provider = await createProvider(workspace, materials, { groupCollectMs: 150, ...config })
+  const provider = await createProvider(workspace, materials, { ...GROUPING, ...config })
   providers.push(provider)
   const result = await provider.storage.registerCombination(groupRegistration(materials))
   if (result.kind !== 'registered') throw new Error(`registration is ${result.kind}`)
@@ -57,14 +53,13 @@ function reply(result: CommitResultV2, participant: string): unknown {
   return (entry.reply as { response: unknown }).response
 }
 
-/** What the probe of this result saw: durable rows and receipts at the time it ran. */
 const probed = (result: CommitResultV2): { rows: number; receipts: number } =>
   reply(result, 'seq') as { rows: number; receipts: number }
 
 const probeOp = (key: string): ReturnType<typeof op> =>
   op(built, key, [seqCommand({ mode: 'probe', file: file() })])
 
-describe('C20: two real original operations share one physical commit', () => {
+describe('two real original operations share one physical commit', () => {
   it('the second operation runs before the first is durable, and both end up durable together', async () => {
     const { storage } = await ready()
     const [first, second] = await Promise.all([
@@ -88,7 +83,7 @@ describe('C20: two real original operations share one physical commit', () => {
     expect(probed(second)).toEqual({ rows: 1, receipts: 1 })
   })
 
-  it('a caller that awaits the first commit before the second never shares a commit (DEP-1)', async () => {
+  it('a caller that awaits the first commit before the second never shares a commit', async () => {
     const { storage } = await ready()
     const first = await storage.commit(op(built, 'a', [seqCommand({ tag: 'a' })]))
     expect(first.kind).toBe('committed')
@@ -160,7 +155,7 @@ describe('group boundaries (SPEC 7.3)', () => {
     const first = op(built, 'a', [seqCommand({ tag: 'a' })])
     const pendingFirst = storage.commit(first)
     const queried = storage.query(first.identity)
-    await sleep(40)
+    await tick()
     const second = await storage.commit(probeOp('p'))
     expect((await pendingFirst).kind).toBe('committed')
     expect((await queried).kind).toBe('committed')
@@ -185,7 +180,7 @@ describe('C21: grouping eligibility', () => {
   const parent = (key: string): ReturnType<typeof op> =>
     op(built, key, [{ participant: 'fk', facts: { mode: 'parent', id: 7 } }])
 
-  it('FK-1: a deferred foreign key violation is not repaired by the next operation of the group', async () => {
+  it('a deferred foreign key violation is not repaired by the next operation of the group', async () => {
     const { storage } = await ready()
     const results = await Promise.all([
       storage.commit(child('child')),
@@ -200,7 +195,7 @@ describe('C21: grouping eligibility', () => {
   })
 })
 
-describe('C18: results are published after the commit is durable', () => {
+describe('results are published after the commit is durable', () => {
   it('a commit that fails at the end (deferred foreign key) is unknown, never committed', async () => {
     const { storage } = await ready()
     const request = op(built, 'child', [{ participant: 'fk', facts: { mode: 'child', parent: 7 } }])

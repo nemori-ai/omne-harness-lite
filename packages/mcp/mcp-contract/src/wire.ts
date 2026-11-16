@@ -1,6 +1,3 @@
-// The answer classes of SPEC T8 and the function that puts one wire event into its class. A
-// transport classifies what it reads with `classifyWireEvent`; the T8 row of the class decides
-// the outcome. The function is pure and total: every event gets one classification.
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import { isObject, itemsOf, member, textOf, type JsonObject } from './json.ts'
 import {
@@ -11,11 +8,6 @@ import {
 } from './readers.ts'
 import { isModernProtocolVersion } from './revisions.ts'
 
-/**
- * The request classes. `discover` is the first `server/discover` of a connection; `discover-retry`
- * is the one sent after a `-32022` that named a version in common. `notification` is a
- * notification of the client (`notifications/initialized`, `notifications/cancelled`).
- */
 export const REQUEST_CLASSES = [
   'discover',
   'discover-retry',
@@ -30,7 +22,6 @@ export const REQUEST_CLASSES = [
 
 export type RequestClass = (typeof REQUEST_CLASSES)[number]
 
-/** The JSON-RPC error classes, by code. `-32022` is split by its `data.supported`. */
 export const ERROR_CLASSES = [
   '-32020',
   '-32021',
@@ -45,18 +36,12 @@ export const ERROR_CLASSES = [
 
 export type ErrorClass = (typeof ERROR_CLASSES)[number]
 
-/**
- * The HTTP status classes of an error answer: six statuses by themselves, `4xx` for every other
- * status from 300 to 499 except 401 and 403, and `5xx` for 500 and above.
- */
 export const HTTP_STATUS_CLASSES = ['400', '404', '405', '406', '415', '429', '4xx', '5xx'] as const
 
 export type HttpStatusClass = (typeof HTTP_STATUS_CLASSES)[number]
 
-/** The body of an HTTP error answer: a JSON-RPC error of a class, or anything else (`plain`). */
 export type BodyClass = ErrorClass | 'plain'
 
-/** The results that a request can read, by request class. */
 export const RESULT_CLASSES = {
   discover: ['result', 'result:no-common', 'result:unreadable'],
   'discover-retry': ['result', 'result:no-common', 'result:unreadable'],
@@ -77,13 +62,6 @@ export const RESULT_CLASSES = {
 
 export type ResultClass = (typeof RESULT_CLASSES)[RequestClass][number]
 
-/**
- * One answer class (SPEC T8). `unsent`: the request failed before it left. `stream-broken`: the
- * answer stream ended with no answer. `silent`: nothing came by the time the transport stopped
- * waiting. `http:2xx`: a 2xx answer
- * whose body ended with no answer to the request. `http:404+session`: a 404 to a request that
- * carried a legacy session id. `http:<status class>+<body>`: an HTTP error status with its body.
- */
 export type AnswerClass =
   | ResultClass
   | `error:${ErrorClass}`
@@ -97,22 +75,6 @@ export type AnswerClass =
   | 'http:404+session'
   | `http:${HttpStatusClass}+${BodyClass}`
 
-/**
- * One wire event, as a transport sees it, for one request.
- * - `unsent`: the request failed before it left: the connection failed (DNS, refused, TLS
- *   handshake).
- * - `nothing`: the transport stopped waiting with nothing for the request: `close()` ran, or the
- *   call's signal fired.
- * - `line`: one message of the shared stream of the legacy HTTP+SSE mode (the data of one event).
- * - `http-aborted`: the HTTP exchange failed after the request started to go out: before the
- *   answer head came (reset, timeout), or while a 2xx body was being read and before it ended.
- *   In the legacy HTTP+SSE mode the end of the shared stream is this event for every request in
- *   flight.
- * - `http-status`: an answer whose status is not 2xx, with its headers by lower-case name and the
- *   whole body.
- * - `http-stream`: a 2xx answer: the JSON-RPC messages read so far (the JSON body, or the data of
- *   each SSE event), and whether the body ended as the peer meant it to.
- */
 export type WireEvent =
   | Readonly<{ kind: 'unsent' }>
   | Readonly<{ kind: 'nothing' }>
@@ -126,13 +88,6 @@ export type WireEvent =
     }>
   | Readonly<{ kind: 'http-stream'; messages: readonly string[]; ended: boolean }>
 
-/**
- * The request an event is classified for: its JSON-RPC id, its class, and whether it carried the
- * legacy session (the `Mcp-Session-Id` header, or the endpoint of the legacy HTTP+SSE mode).
- * `versions` are the modern versions the transport speaks. `mode` is `sse` in the legacy HTTP+SSE
- * mode (SPEC T3): there a 2xx POST body ends with no answer as a matter of course, because the
- * answer comes on the shared stream.
- */
 export type WireContext = Readonly<{
   id: string | number
   request: RequestClass
@@ -141,34 +96,15 @@ export type WireContext = Readonly<{
   mode?: 'sse'
 }>
 
-/**
- * The classification of an event. `answer`: the event is this answer class for the request;
- * `message` is the parsed message the class was read from, when the class has one: the answer
- * to the request (a result or error class), or the JSON-RPC error body of an HTTP error status.
- * `other`: a line of the shared stream that is not about this request (the answer to another
- * request, a request or notification of the peer, other JSON). `waiting`: a 2xx stream that is
- * still open without an answer to the request; it is no class yet.
- */
 export type WireClassification =
   | Readonly<{ kind: 'answer'; answer: AnswerClass; message?: JsonObject }>
   | Readonly<{ kind: 'other' }>
   | Readonly<{ kind: 'waiting' }>
 
-/**
- * A request or notification of the peer, as T3 reads it: a JSON object with a text `method`; a
- * request when it carries an `id` (echoed as written in the response), a notification
- * otherwise. `progressToken` is the token of a progress notification as text: a string value or
- * a number lexeme.
- */
 export type PeerMessage =
   | Readonly<{ kind: 'request'; id: JsonValue; method: string }>
   | Readonly<{ kind: 'notification'; method: string; params?: JsonValue; progressToken?: string }>
 
-/**
- * The limits of what a transport reads from the wire (SPEC T2): the byte bound of one HTTP body
- * or one SSE event (16 MiB), and the JSON limits a message is parsed with. A
- * transport reads with these and parses nothing with others.
- */
 export const WIRE_LIMITS = {
   maxBytes: 16_777_216,
   maxDepth: 128,
@@ -198,18 +134,12 @@ function parse(text: string): JsonValue | undefined {
   return read.kind === 'ok' ? read.value : undefined
 }
 
-/** The progress token of a notification's `params` as text, when it has one. */
 function progressTokenOf(params: JsonValue | undefined): string | undefined {
   const token = isObject(params) ? member(params, 'progressToken') : undefined
   if (token?.kind === 'string') return token.value
   return token?.kind === 'number' ? token.lexeme : undefined
 }
 
-/**
- * Reads one line or stream message as a request or notification of the peer (T3), with the
- * limits of `classifyWireEvent`. Undefined for anything else: an answer, or text that is not a
- * JSON object with a text `method`.
- */
 export function readPeerMessage(text: string): PeerMessage | undefined {
   const message = parse(text)
   const method = isObject(message) ? textOf(member(message, 'method')) : undefined
@@ -226,7 +156,6 @@ export function readPeerMessage(text: string): PeerMessage | undefined {
   }
 }
 
-/** The id of a message as text for comparison, or undefined when it has no string or number id. */
 function idOf(message: JsonObject): string | undefined {
   const id = member(message, 'id')
   if (id?.kind === 'string') return `s:${id.value}`
@@ -238,10 +167,6 @@ function sameId(message: JsonObject, id: string | number): boolean {
   return idOf(message) === (typeof id === 'string' ? `s:${id}` : `n:${String(id)}`)
 }
 
-/**
- * The JSON-RPC envelope of an answer: `jsonrpc` is `"2.0"` and exactly one of `result` and
- * `error` is present (SPEC T2).
- */
 export function envelopeOf(
   message: JsonObject,
 ): Readonly<{ result: JsonValue }> | Readonly<{ error: JsonValue }> | undefined {
@@ -253,7 +178,6 @@ export function envelopeOf(
   return undefined
 }
 
-/** The versions a `-32022` lists, or undefined when `data.supported` is no non-empty text list. */
 export function supportedOf(data: JsonValue | undefined): readonly string[] | undefined {
   const items = isObject(data) ? itemsOf(member(data, 'supported')) : undefined
   if (items === undefined || items.length === 0) return undefined
@@ -261,7 +185,6 @@ export function supportedOf(data: JsonValue | undefined): readonly string[] | un
   return texts.length === items.length ? texts : undefined
 }
 
-/** The class of a JSON-RPC error object (SPEC T2: an object with an integer code and a text message). */
 export function errorClassOf(error: JsonValue, versions: readonly string[]): ErrorClass {
   if (!isObject(error)) return 'unreadable'
   const code = member(error, 'code')
@@ -286,7 +209,6 @@ export function errorClassOf(error: JsonValue, versions: readonly string[]): Err
   }
 }
 
-/** The class of a JSON-RPC result for a request class (SPEC T2, T6). */
 export function resultClassOf(
   request: RequestClass,
   result: JsonValue,
@@ -321,7 +243,6 @@ export function resultClassOf(
   }
 }
 
-/** A message that answers the request: its envelope decides the class; a bad envelope is unreadable. */
 function messageClassOf(message: JsonObject, context: WireContext): AnswerClass {
   const envelope = envelopeOf(message)
   if (envelope === undefined) return 'error:unreadable'
@@ -329,12 +250,10 @@ function messageClassOf(message: JsonObject, context: WireContext): AnswerClass 
   return `error:${errorClassOf(envelope.error, context.versions)}`
 }
 
-/** True for a message that answers the request: an object with the request's id and no method. */
 function answers(message: JsonValue | undefined, context: WireContext): message is JsonObject {
   return isObject(message) && member(message, 'method') === undefined && sameId(message, context.id)
 }
 
-/** The body class of an HTTP error answer, with the message it was read from. Its id is not checked (SPEC T2). */
 function bodyClassOf(
   body: string,
   versions: readonly string[],
@@ -367,7 +286,6 @@ function httpStatusOf(
   return answer(`http:${statusClassOf(status)}+${read.body}`, read.message)
 }
 
-/** A line of the shared stream: the answer when it carries the request's id and no method; `other` for the rest. */
 function lineOf(
   event: Extract<WireEvent, { kind: 'line' }>,
   context: WireContext,
@@ -378,10 +296,6 @@ function lineOf(
     : { kind: 'other' }
 }
 
-/**
- * A 2xx answer: the first message that answers the request; else `http:2xx` once the body ended,
- * or `waiting` while it is open, and in the legacy HTTP+SSE mode even when it ended.
- */
 function httpStreamOf(
   event: Extract<WireEvent, { kind: 'http-stream' }>,
   context: WireContext,
@@ -393,13 +307,6 @@ function httpStreamOf(
   return event.ended && context.mode !== 'sse' ? answer('http:2xx') : { kind: 'waiting' }
 }
 
-/**
- * Puts one wire event into its T8 answer class for one request (SPEC T2, T8), one function per
- * event kind. A line of the shared stream that is not JSON is dropped (`other`); the stream goes
- * on. A line or a 2xx message that carries the request's id and no method is the answer; its
- * envelope and content decide the class. In the legacy HTTP+SSE mode
- * a 2xx body that ended with no answer is still `waiting`: the answer comes on the shared stream.
- */
 export function classifyWireEvent(event: WireEvent, context: WireContext): WireClassification {
   switch (event.kind) {
     case 'unsent':

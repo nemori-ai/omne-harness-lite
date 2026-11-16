@@ -1,7 +1,3 @@
-import { invocationReference } from '../testing/reference-input.ts'
-// The checks of who may reach a call and where it is served: other tenants and revoked principals
-// are refused without a sign of whether the call exists, a lost or replaced instance ends only the
-// observation, and a quiescing provider takes no new call.
 import {
   accessOf,
   admitInput,
@@ -19,6 +15,7 @@ import {
   operationId,
   placed,
   readId,
+  referenceAccessOf,
   refused,
   refusedAs,
   running,
@@ -37,6 +34,7 @@ import type { Check, Scene } from './conformance-types.ts'
 
 const PROBES = [
   'inspect',
+  'contact',
   'dispatches',
   'cancel',
   'connect',
@@ -48,7 +46,6 @@ const PROBES = [
 
 const EVIDENCE = { owner: 'conformance', record: 'record', revision: '1', digest: 'digest' }
 
-/** A call that has ended when the subject can end one, so a refusal is not the answer to a call that was not ready. */
 async function readyCall<P>(scene: Scene<P>, label: string) {
   const hooks = scene.subject.hooks
   if (hooks?.startRun !== undefined && hooks.settleCall !== undefined) {
@@ -98,13 +95,8 @@ export function routeChecks<P>(): readonly Check<P>[] {
         const other = scene.subject.otherTenant
         const operation = operationId('hidden')
         const probes = (call: ModelCallId) => ({
-          inspect: calls.inspect({
-            ...accessOf(scene, call, other),
-            reference: invocationReference({
-              ...accessOf(scene, call, other),
-              admission: operation,
-            }),
-          }),
+          inspect: calls.inspect(referenceAccessOf(scene, { call, operation }, other)),
+          contact: calls.contact(referenceAccessOf(scene, { call, operation }, other)),
           dispatches: calls.dispatches(accessOf(scene, call, other)),
           cancel: calls.cancel(mutationOf(scene, call, operation, other)),
           connect: instances.connect(accessOf(scene, call, other)),
@@ -153,15 +145,14 @@ export function routeChecks<P>(): readonly Check<P>[] {
           action: 'all',
         })
         refusedAs(
-          await calls.inspect({
-            ...accessOf(scene, call.call),
-            reference: invocationReference({
-              ...accessOf(scene, call.call),
-              admission: call.operation,
-            }),
-          }),
+          await calls.inspect(referenceAccessOf(scene, call)),
           'denied',
           'the inspection after the revoke',
+        )
+        refusedAs(
+          await calls.contact(referenceAccessOf(scene, call)),
+          'denied',
+          'the contact after the revoke',
         )
         refusedAs(
           await consumption.beginRead({

@@ -1,5 +1,3 @@
-// Legal Session values that the conformance suites and the non-durable doubles build. Identity comes
-// from the fixture (`SessionAccess`), so no value here names a caller.
 import {
   accountCodec,
   organizationCodec,
@@ -21,7 +19,6 @@ import type { RoutedInput, SessionCreation } from './values.ts'
 import type { GuardCommand } from './ports.ts'
 import { digestOf } from './operations.ts'
 
-/** The owner named in every evidence that a double mints. */
 export const TESTING_OWNER = '@omne-harness/session-contract/testing'
 
 export function adoption(name: string): Adoption {
@@ -32,15 +29,10 @@ export function evidence(record: string): DurableEvidence {
   return { owner: 'conformance', record, revision: '1', digest: `sha256:${record}` }
 }
 
-/** An evidence that a double mints; its digest follows `content`, so other content, other digest. */
 export function mintEvidence(record: string, content: unknown): DurableEvidence {
   return { owner: TESTING_OWNER, record, revision: '1', digest: `sha256:${digestOf(content)}` }
 }
 
-/**
- * Mints a real legal-identity tenant for a test: both halves must be legal atomic texts
- * (`org_`/`acc_` plus the 26-character body).
- */
 export function testingTenant(organization: string, account: string): TenantId {
   const org = organizationCodec.parse(organization)
   const acc = accountCodec.parse(account)
@@ -48,7 +40,6 @@ export function testingTenant(organization: string, account: string): TenantId {
   return composeTenant(org.value, acc.value)
 }
 
-/** Mints a real legal-identity workspace for a test: `wsp_` plus the 26-character body. */
 export function testingWorkspace(text: string): WorkspaceId {
   const parsed = workspaceCodec.parse(text)
   if (!parsed.ok) throw new Error(`illegal test workspace text: ${text}`)
@@ -59,7 +50,6 @@ export const sessionId = (text: string): SessionId => text as SessionId
 export const inputId = (text: string): InputId => text as InputId
 export const operationId = (text: string): SessionOperationId => `sop_${text}` as SessionOperationId
 
-/** The access of the tenant that the in-memory fixtures use. */
 export function memoryAccess<P>(principal: P, session = 'session-1'): SessionAccess<P> {
   return {
     principal,
@@ -68,7 +58,6 @@ export function memoryAccess<P>(principal: P, session = 'session-1'): SessionAcc
   }
 }
 
-/** The access of a second tenant, with a principal of its own, for the cross-tenant cases. */
 export function memoryOtherAccess<P>(principal: P, session = 'session-1'): SessionAccess<P> {
   return {
     principal,
@@ -77,7 +66,6 @@ export function memoryOtherAccess<P>(principal: P, session = 'session-1'): Sessi
   }
 }
 
-/** A user message with one text block. */
 export function userMessage(text: string, id = 'msg_c0nf0rmance0000000000000'): Message {
   return {
     id: id as MessageId,
@@ -93,7 +81,6 @@ export function userMessage(text: string, id = 'msg_c0nf0rmance0000000000000'): 
   } as unknown as Message
 }
 
-/** An assistant message with one text block. */
 export function assistantMessage(text: string, id = 'msg_c0nf0rmance0000000000001'): Message {
   return {
     id: id as MessageId,
@@ -109,11 +96,6 @@ export function assistantMessage(text: string, id = 'msg_c0nf0rmance000000000000
   } as unknown as Message
 }
 
-/**
- * An ordinary routed input of `input` with the text `text`, accepted after a login: its origin has the owner `login-entry`, as the server
- * entry writes it, so an interactive Run may start from it. `intakeInput` is the same input from
- * another origin.
- */
 export function ordinaryInput(
   input: string,
   text = `input ${input}`,
@@ -126,7 +108,6 @@ export function ordinaryInput(
   }
 }
 
-/** An ordinary input whose origin is not the login entry: an interactive Run cannot start from it. */
 export function intakeInput(
   input: string,
   text = `input ${input}`,
@@ -134,7 +115,6 @@ export function intakeInput(
   return { ...ordinaryInput(input, text), origin: evidence(`intake/${input}`) }
 }
 
-/** A creation that `decide` accepts, with no required identity, so the session is dormant at once. */
 export function creation(overrides: Partial<SessionCreation> = {}): SessionCreation {
   return {
     definition: { name: 'assistant', candidate: adoption('assistant@1') },
@@ -150,7 +130,6 @@ export function creation(overrides: Partial<SessionCreation> = {}): SessionCreat
   }
 }
 
-/** A guard material of `participant`, as a bridge double hands it over. */
 export function guard(participant: string, owner: string, facts: unknown): GuardCommand {
   return {
     owner,

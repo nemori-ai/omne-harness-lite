@@ -1,6 +1,3 @@
-// The scripted provider and the scripted transport, wired as a conformance subject with every hook.
-// It is the proof that the suite can be passed, and the model for a provider author who wires a
-// real provider the same way.
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 import type { ModelCallId } from '../index.ts'
 import { DEFAULT_REQUEST, DEFAULT_SUPPLIER } from '../conformance/conformance-defaults.ts'
@@ -19,10 +16,6 @@ function tenantOf(account: string, organization: string) {
   return tenant(parsedOrganization.value, parsedAccount.value)
 }
 
-/**
- * A conformance subject made of the scripted provider and the scripted transport, with a hook for
- * everything that the suite asks of its assembler. Each call gives a subject of its own.
- */
 export function createScriptedConformanceSubject(): ConformanceSubject<ScriptedPrincipal> {
   const principal: ScriptedPrincipal = { name: 'conformance' }
   const { provider, controller } = createScriptedModelProvider<ScriptedPrincipal>({
@@ -137,7 +130,6 @@ export function createScriptedConformanceSubject(): ConformanceSubject<ScriptedP
     hooks,
     transport: {
       transport: scriptedTransport.transport,
-      // A second `start` is a refused step that the script counts; only the first one sends.
       sends: () => Math.min(scriptedTransport.counts().start, 1),
     },
   }

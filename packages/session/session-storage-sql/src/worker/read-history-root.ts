@@ -1,5 +1,3 @@
-// The common log root G of one session in one snapshot (FR-03 step 2): the Session position and the
-// Agent publication count are read by one handler call, never by two reads put together.
 import { encodeValue } from '../codec.ts'
 import { logRoot } from './log-root.ts'
 import { handler, oneRow, scopeOf, text } from './support.ts'

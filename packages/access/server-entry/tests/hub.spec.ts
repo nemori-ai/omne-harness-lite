@@ -1,11 +1,6 @@
-// The observation hub at the new address (#1249 block 1, C1 to C5): an observation goes through
-// the whole pipeline and then the hub; the hub keeps the two bounds, the slot before the stream,
-// replacement, one login check per round, the heartbeat, the frame queue bound and the `ended`
-// frame; it calls `leave` once on every way an observation ends. The frame source of each case is
-// a feed the case drives; moments come from its records, not from a timed wait.
 import { connect, type Socket } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { SseClient } from './support/harness.ts'
+import type { SseClient } from './support/entry.ts'
 import {
   GRACE_MS,
   MESSAGE_ID,
@@ -22,7 +17,7 @@ import {
   type AccessFixture,
   type ApiOptions,
   type Feed,
-} from './support/pipeline-kit.ts'
+} from './support/access-kit.ts'
 
 const fixtures: AccessFixture[] = []
 afterEach(async () => {
@@ -41,7 +36,6 @@ async function until(ready: () => boolean): Promise<void> {
 
 type HubEvent = { kind: 'frame'; frame: unknown } | { kind: 'ended'; reason: string }
 
-/** Waits for the stream to end and answers its events. */
 async function endedEvents(client: SseClient): Promise<readonly HubEvent[]> {
   await client.ended
   return client.events() as HubEvent[]
@@ -53,7 +47,6 @@ function open(fixture: AccessFixture, name = 'watch-note', options: ApiOptions =
   return observe(fixture.port, name, options)
 }
 
-/** An observation whose client reads nothing: the socket is paused once the head arrives. */
 function pausedObserver(fixture: AccessFixture, name: string, body = '{"noteId":"n-1"}'): Socket {
   const socket = connect({ host: '127.0.0.1', port: fixture.port }, () => {
     socket.write(
@@ -70,7 +63,7 @@ function pausedObserver(fixture: AccessFixture, name: string, body = '{"noteId":
   return socket
 }
 
-describe('C1: an observation goes through the whole pipeline', () => {
+describe('an observation goes through the whole pipeline', () => {
   it('opens an event stream: the head, the frames by the contract, and the ended frame', async () => {
     const fixture = await entry()
     const client = open(fixture)
@@ -134,7 +127,6 @@ describe('C1: an observation goes through the whole pipeline', () => {
     })
     expect(over.status).toBe(400)
     expect(over.json).toEqual({ outcome: 'protocol-rejected', body: {} })
-    // `watch-tenant` takes the input limit: the same size opens.
     const big = open(fixture, 'watch-tenant', {
       body: JSON.stringify({ noteId: 'x'.repeat(3000) }),
     })
@@ -146,10 +138,10 @@ describe('C1: an observation goes through the whole pipeline', () => {
   })
 })
 
-describe('C2: the hub keeps its behaviour at the new address', () => {
+describe('the hub keeps its behaviour at the new address', () => {
   it('bounds the observations of one login', async () => {
     const fixture = await entry({
-      config: { observation: { perLogin: 2, perInstance: 8, cancelRetentionMs: 0 } },
+      config: { observation: { perLogin: 2, perInstance: 8 } },
     })
     const first = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-1' } })
     const second = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-2' } })
@@ -161,7 +153,6 @@ describe('C2: the hub keeps its behaviour at the new address', () => {
     expect(third.status).toBe(503)
     expect(third.json).toEqual({ outcome: 'basis-unavailable', body: {} })
     expect(third.headers.connection).not.toBe('close')
-    // Another login still has room.
     const other = open(fixture, 'watch-note', {
       headers: { authorization: `Bearer ${OTHER_PROOF}` },
     })
@@ -175,7 +166,7 @@ describe('C2: the hub keeps its behaviour at the new address', () => {
 
   it('bounds the observations of the instance', async () => {
     const fixture = await entry({
-      config: { observation: { perLogin: 8, perInstance: 2, cancelRetentionMs: 0 } },
+      config: { observation: { perLogin: 8, perInstance: 2 } },
     })
     const a = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-1' } })
     const b = open(fixture, 'watch-note', { headers: { authorization: `Bearer ${OTHER_PROOF}` } })
@@ -188,7 +179,7 @@ describe('C2: the hub keeps its behaviour at the new address', () => {
 
   it('takes the slot before the frame source has decided', async () => {
     const fixture = await entry({
-      config: { observation: { perLogin: 1, perInstance: 8, cancelRetentionMs: 0 } },
+      config: { observation: { perLogin: 1, perInstance: 8 } },
     })
     const deciding = held<never>()
     fixture.notes.sources['watch-note'] = () => deciding.promise
@@ -217,7 +208,6 @@ describe('C2: the hub keeps its behaviour at the new address', () => {
     fixture.notes.feeds[2]!.push(NOTE)
     expect(await renewed.waitForEvents(1)).toEqual([{ kind: 'frame', frame: NOTE }])
     expect(otherLogin.events()).toEqual([])
-    // The same login with another message id is another observation.
     const another = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-other' } })
     await fixture.notes.opened(4)
     fixture.notes.feeds[2]!.push(NOTE)
@@ -236,7 +226,6 @@ describe('C2: the hub keeps its behaviour at the new address', () => {
     const revoked = open(fixture, 'watch-tenant', { headers: { 'omne-message-id': 'm-1' } })
     await fixture.notes.opened(1)
     const opening = fixture.accessIdentity.calls.length
-    // Two rounds later: only identifyLogin was asked again, by the same proof; actFor once, at the opening.
     await fixture.accessIdentity.called('identifyLogin', 3)
     const rounds = fixture.accessIdentity.calls.slice(opening)
     expect(rounds.every(entry => entry.method === 'identifyLogin' && entry.proof === PROOF)).toBe(
@@ -266,7 +255,6 @@ describe('C2: the hub keeps its behaviour at the new address', () => {
       headers: { authorization: `Bearer ${OTHER_PROOF}` },
     })
     await fixture.notes.opened(3)
-    // The login of PROOF is revoked: the identity no longer recognises it.
     ;(fixture.accessIdentity.logins as Map<string, unknown>).delete(PROOF)
     for (const client of mine)
       expect(await endedEvents(client)).toEqual([{ kind: 'ended', reason: 'denied' }])
@@ -286,7 +274,7 @@ describe('C2: the hub keeps its behaviour at the new address', () => {
   })
 })
 
-describe('C3: the frame source', () => {
+describe('the frame source', () => {
   it('gets the principal the port issued, the opening value and the message id', async () => {
     const fixture = await entry()
     const client = open(fixture, 'watch-tenant')
@@ -315,7 +303,6 @@ describe('C3: the frame source', () => {
     ;(await fixture.notes.opened(2)).finish('unavailable')
     expect(await endedEvents(unavailable)).toEqual([{ kind: 'ended', reason: 'unavailable' }])
     expect(fixture.diagnostics.map(event => event.code)).not.toContain('access.frame-source-fault')
-    // A reason that is not even text is a fault.
     const numeric = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-3' } })
     ;(await fixture.notes.opened(3)).finish(42 as unknown as string)
     expect(await endedEvents(numeric)).toEqual([{ kind: 'ended', reason: 'unavailable' }])
@@ -367,7 +354,6 @@ describe('C3: the frame source', () => {
       expect([reply.status, reply.json]).toEqual([status, { outcome, body: {} }])
       expect(reply.headers.connection === 'close').toBe(outcome === 'denied')
     }
-    // A denied answer closes the connection: the raw reply ends, and says so.
     fixture.notes.sources['watch-note'] = cases[0][0]
     const head = await rawCall(
       fixture.port,
@@ -396,8 +382,7 @@ describe('C3: the frame source', () => {
   })
 })
 
-describe('C4: the frame queue bound', () => {
-  /** Pushes a 16 KiB frame each millisecond until the source is aborted or `limit` frames went out. */
+describe('the frame queue bound', () => {
   async function flood(feed: Feed, limit: number): Promise<number> {
     const title = 'x'.repeat(16 * 1024)
     let pushed = 0
@@ -431,7 +416,7 @@ describe('C4: the frame queue bound', () => {
   })
 })
 
-describe('C5: a take-down ends every observation, and completes after their ended frames', () => {
+describe('a take-down ends every observation, and completes after their ended frames', () => {
   it('when the take-down completes, every observation of it has received its ended frame', async () => {
     const fixture = await entry()
     const clients = [
@@ -440,7 +425,6 @@ describe('C5: a take-down ends every observation, and completes after their ende
     ]
     await fixture.notes.opened(2)
     const done = fixture.takeDown()
-    // The take-down has begun but no `ended` frame is written out yet: nobody has left.
     expect(fixture.log.entries.map(line => line.left)).toEqual([false, false])
     await done
     for (const client of clients)
@@ -449,12 +433,10 @@ describe('C5: a take-down ends every observation, and completes after their ende
   })
 
   it('waits for an ended frame that cannot be written out until the grace runs out', async () => {
-    // The frame queue bound is far away, so the observer that reads nothing is not cut off.
     const fixture = await entry({ frameQueueBytes: 1 << 30 })
     const socket = pausedObserver(fixture, 'watch-note')
     const feed = await fixture.notes.opened(1)
     const title = 'x'.repeat(16 * 1024)
-    // 32 MiB more than any socket buffer takes: the rest waits in the writer.
     for (let index = 0; index < 2048; index += 1) feed.push({ noteId: 'n-1', title })
     await until(() => feed.taken === 2048)
     let completed = false
@@ -467,7 +449,6 @@ describe('C5: a take-down ends every observation, and completes after their ende
     fixture.accessClock.advance(GRACE_MS)
     await done
     expect(fixture.log.leaveCounts).toEqual([1])
-    // The connection was cut: reading the rest ends without the `ended` frame.
     let tail = ''
     let closed = false
     socket.on('data', (chunk: Buffer) => {
@@ -483,31 +464,26 @@ describe('C5: a take-down ends every observation, and completes after their ende
 
   it('calls leave once on each way an observation ends', async () => {
     const fixture = await entry({
-      config: { observation: { perLogin: 1, perInstance: 8, cancelRetentionMs: 0 } },
+      config: { observation: { perLogin: 1, perInstance: 8 } },
     })
-    // Full: the second of one login.
     const holder = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-1' } })
     await fixture.notes.opened(1)
     await call(fixture.port, 'watch-note', {
       headers: { 'omne-message-id': 'm-2' },
       body: '{"noteId":"n-1"}',
     })
-    // Replaced, then ended by its own reason.
     const replacing = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-1' } })
     await endedEvents(holder)
     ;(await fixture.notes.opened(2)).finish('note-deleted')
     await endedEvents(replacing)
-    // Cancelled by the observer.
     const leaving = open(fixture, 'watch-all', { body: '{}' })
     await fixture.notes.opened(3)
     leaving.close()
-    // Denied at the round.
     const revoked = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-3' } })
     await fixture.notes.opened(4)
     fixture.accessIdentity.identifyLogin = { kind: 'answer', value: { outcome: 'denied' } }
     await endedEvents(revoked)
     delete fixture.accessIdentity.identifyLogin
-    // Stopped with the entry.
     const stopped = open(fixture, 'watch-all', { body: '{}' })
     await fixture.notes.opened(5)
     await fixture.stop()
@@ -518,7 +494,7 @@ describe('C5: a take-down ends every observation, and completes after their ende
   })
 })
 
-describe('C6: the business access and what stays out of every output', () => {
+describe('the business access and what stays out of every output', () => {
   it('reports a business access once, after the first frame, only for an observation that counts', async () => {
     const fixture = await entry()
     const reports = () =>
@@ -535,7 +511,6 @@ describe('C6: the business access and what stays out of every output', () => {
     feed.push(NOTE)
     await counted.waitForEvents(2)
     expect(reports()).toHaveLength(1)
-    // Not marked, or no login: no report.
     const plain = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-2' } })
     ;(await fixture.notes.opened(2)).push(NOTE)
     await plain.waitForEvents(1)
@@ -569,7 +544,7 @@ describe('C6: the business access and what stays out of every output', () => {
     const tenantText = 'TENANT-HEADER-41aa'
     const bodyMarker = 'BODY-MARKER-77c0'
     const fixture = await entry({
-      config: { observation: { perLogin: 1, perInstance: 8, cancelRetentionMs: 0 } },
+      config: { observation: { perLogin: 1, perInstance: 8 } },
     })
     const headers = (id: string) => ({ 'omne-acting-tenant': tenantText, 'omne-message-id': id })
     const body = `{"noteId":"${bodyMarker}"}`
@@ -580,7 +555,6 @@ describe('C6: the business access and what stays out of every output', () => {
         `${await client.status} ${JSON.stringify(await client.headers)} ${client.chunks.join('')}`,
       )
     }
-    // A frame source fault at the decision, and one while streaming.
     fixture.notes.sources['watch-tenant'] = async () => {
       throw new Error(`source fault ${PROOF} ${tenantText} ${bodyMarker}`)
     }
@@ -590,12 +564,10 @@ describe('C6: the business access and what stays out of every output', () => {
     const faulty = open(fixture, 'watch-tenant', { headers: headers('m-2'), body })
     const feed = await fixture.notes.opened(1)
     feed.push(NOTE)
-    // The slot of this login is taken: a second one is full.
     const full = open(fixture, 'watch-tenant', { headers: headers('m-3'), body })
     await keep(full)
     feed.push({ noteId: 7 })
     await keep(faulty)
-    // The queue bound, against an observer that reads nothing.
     const socket = pausedObserver(fixture, 'watch-tenant', body)
     const flooded = await fixture.notes.opened(2)
     const title = 'x'.repeat(16 * 1024)

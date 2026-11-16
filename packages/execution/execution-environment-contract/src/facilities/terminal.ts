@@ -11,7 +11,6 @@ export type TerminalRef = { readonly id: string; readonly generation: string }
 export type TerminalInformation = {
   readonly terminal: TerminalRef
   readonly state: 'idle' | 'running' | 'invalid' | 'closed'
-  /** Last successful control observation; not a permission. */
   readonly observedCwd: string
 }
 
@@ -36,7 +35,6 @@ export interface TerminalFacility<P> {
       readonly retain?: 'session'
     },
   ): Promise<FacilityResult<{ readonly terminal: TerminalRef }>>
-  /** One leg of the terminal; its output mode is always `terminal`. */
   execute(
     request: FacilityRequest<P> & {
       readonly terminal: TerminalRef

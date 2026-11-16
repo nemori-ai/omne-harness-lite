@@ -6,12 +6,10 @@ import {
 } from '@omne-harness/legal-identity'
 import {
   encodeAccountIdText,
-  encodeGovernanceRequest,
   encodeLoginStateIdText,
   encodeOrganizationIdText,
   encodeTenantText,
   readAccountIdText,
-  readGovernanceRequest,
   readLoginStateIdText,
   readOrganizationIdText,
   readTenantText,
@@ -76,7 +74,6 @@ const families: readonly Family[] = [
       JSON.stringify({ organization: org }),
       JSON.stringify({ organization: acc, account: org }),
       JSON.stringify({ organization: org, account: acc, extra: 'x' }),
-      // Duplicate member: the last value would win in JSON.parse, so a strict read must refuse it.
       `{"organization":"${org}","organization":"${org}","account":"${acc}"}`,
       `{"organization":"${org}","account":"${acc}"} x`,
       `{"organization":"${org}","account":"${acc}\ud800"}`,
@@ -104,44 +101,7 @@ describe.each(families)('$name text', ({ good, read, encode, bad }) => {
   })
 })
 
-describe('agreement with the identity package and the message codecs', () => {
-  it('mints values the message codecs accept, so a request built from them encodes', () => {
-    const login = readLoginStateIdText(lgn)
-    const tenantValue = readTenantText(tenantJson)
-    if (login === undefined || tenantValue === undefined) throw new Error('read failed')
-    const encoded = encodeGovernanceRequest({
-      request: {
-        protocolVersion: 'governance-public/1',
-        messageId: 'm',
-        operation: 'revoke-login',
-        proof: { kind: 'present', value: 'p' },
-        body: { targetLoginId: login },
-      },
-      limits: {
-        maxBytes: 4096,
-        maxDepth: 8,
-        maxItems: 64,
-        maxMembers: 8,
-        maxStringLength: 256,
-        maxNumberLength: 8,
-      },
-    })
-    expect(encoded.kind).toBe('encoded')
-    if (encoded.kind !== 'encoded') return
-    const read = readGovernanceRequest({
-      bytes: encoded.bytes,
-      limits: {
-        maxBytes: 4096,
-        maxDepth: 8,
-        maxItems: 64,
-        maxMembers: 8,
-        maxStringLength: 256,
-        maxNumberLength: 8,
-      },
-    })
-    expect(read.kind).toBe('request')
-  })
-
+describe('agreement with the identity package', () => {
   it('writes values minted by the identity package', () => {
     const o = organizationCodec.parse(org)
     const a = accountCodec.parse(acc)

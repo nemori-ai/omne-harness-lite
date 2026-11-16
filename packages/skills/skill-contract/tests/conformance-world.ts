@@ -1,6 +1,3 @@
-// One small world for the conformance suites: two principals, an adopted Skill with an earlier
-// version, a stand-in, and a capability that exists for nobody. The memory doubles of `./testing`
-// hold it; the violating variants in `conformance.spec.ts` wrap the same doubles.
 import { capabilityId, type CapabilityId } from '@omne-harness/assets'
 import {
   access,
@@ -54,7 +51,6 @@ export const scope: Scope = 'workspace-a'
 export const reviewCapability = capability('review')
 export const retiredCapability = capability('retired')
 export const missingCapability = capability('nobody-has-this')
-/** Adopted, but its asset body has no `package.digest`: no readable package. */
 export const noPackageCapability = capability('no-package')
 
 const currentFiles = {
@@ -148,7 +144,6 @@ export function memoryReadCheck() {
   ])
 }
 
-/** A fresh fixture of the resolution suite; `resolution` replaces the memory double. */
 export function resolutionFixture(
   resolution: SkillResolution<Principal, Scope> = memoryResolution(),
 ): ResolutionFixture<Principal, Scope> {
@@ -165,7 +160,6 @@ export function resolutionFixture(
   }
 }
 
-/** A fresh fixture of the read check suite; `readCheck` replaces the memory double. */
 export function readCheckFixture(
   readCheck: SkillReadCheck<Principal, Scope> = memoryReadCheck(),
 ): ReadCheckFixture<Principal, Scope> {
@@ -178,7 +172,6 @@ export function readCheckFixture(
   }
 }
 
-/** A fresh fixture of the source suite over the memory source, which keeps bytes by digest. */
 export function sourceFixture(): SourceFixture {
   return {
     source: memorySource(),
@@ -189,7 +182,6 @@ export function sourceFixture(): SourceFixture {
   }
 }
 
-/** A basis of the earlier, still lawful version of `review`. */
 export const earlierBasis: SkillMaterialBasis = {
   capability: reviewCapability,
   layer: 'tenant',

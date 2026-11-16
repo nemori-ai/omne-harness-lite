@@ -12,8 +12,6 @@ export type ConfiguredModelHostSettings = Readonly<{
 type Parsed<T> = Readonly<{ value: T }> | Readonly<{ issues: { message: string }[] }>
 type Bound = Readonly<{ minimum: number; safe: boolean }>
 
-// Match model's runtime configuration and the result push's checkedLimits. Runtime counts
-// other than the observer interval accept finite integers, including integers outside safe range.
 const RUNTIME_BOUNDS = {
   outputBatchBytes: { minimum: 1, safe: false },
   outputBatchDelayMs: { minimum: 0, safe: false },
@@ -57,7 +55,6 @@ function parseNumbers<K extends string>(
       }
     numbers[name] = input
   }
-  // Every key in bounds was checked and copied above.
   return { value: numbers as Readonly<Record<K, number>> }
 }
 

@@ -16,25 +16,11 @@ import { createScriptedProcess } from './scripted-process.ts'
 export type ScriptedCommandAnswer =
   | Readonly<{
       kind: 'started'
-      /** Chunks in order. `observedOffset` is counted per stream. Strings are UTF-8 encoded. */
       output?: readonly Readonly<{ stream: OutputChunk['stream']; data: string | Uint8Array }>[]
-      /** Default: completed, exit code 0, `durationMs` 0, counts from `output`. */
       outcome?: CommandOutcome
-      /** `untilStop`: output stays open and `result` waits until a confirmed stop. Default `exit`. */
       runs?: 'exit' | 'untilStop'
-      /** What `stop` answers. Default `confirmed`. */
       stop?: 'confirmed' | 'unconfirmed'
-      /**
-       * Processes the main process leaves behind when it exits (a count, or `'unknown'`). Only with
-       * `runs: 'exit'`. The facility then disposes like a retaining provider: see
-       * `ScriptedCommandOptions.retention`. A script that gives no `leaves` leaves nothing. An
-       * explicit `outcome` that carries its own `residue` keeps it.
-       */
       leaves?: number | 'unknown'
-      /**
-       * Chunks the retained process writes once the domain was handed over. Only with `leaves`;
-       * `retention.output` gives them as the tail, after the bytes `output` already counted.
-       */
       afterHandover?: readonly Readonly<{
         stream: OutputChunk['stream']
         data: string | Uint8Array
@@ -49,16 +35,9 @@ export type CommandScript<P = unknown> = (
   request: StartRequest<P>,
 ) => ScriptedCommandAnswer | Promise<ScriptedCommandAnswer>
 
-/**
- * The retention scopes of scripted facilities. Facilities that share one store and name the same
- * scope share one retention scope; a store of its own is a scope of its own. Not durable.
- */
 export type ScriptedRetentionStore = Readonly<{
-  /** Closes the scope: its retained processes stop, and a later leftover there is stopped for `closed`. */
   closeScope(scope: string): void
-  /** True once the retained process's domain was stopped, by closing its scope or by `retention.stop`. */
   stopped(process: RetainedProcessRef): boolean
-  /** How many domain stops `retention.stop` issued for the retained process. */
   stopsIssued(process: RetainedProcessRef): number
 }>
 
@@ -73,10 +52,8 @@ type RetentionInternals = Readonly<{
   entries: RetentionEntry[]
   closed: Set<string>
   stopped: Set<string>
-  /** End facts: scope, tenant and reference of every retained process whose stop was confirmed. */
   ended: Set<string>
   stopsIssued: Map<string, number>
-  /** Process numbers across the facilities that share the store, so references never collide. */
   processes: { count: number }
 }>
 const internals = new WeakMap<ScriptedRetentionStore, RetentionInternals>()
@@ -110,37 +87,20 @@ function end(state: RetentionInternals, entry: RetentionEntry): void {
 }
 
 export type ScriptedCommandOptions = Readonly<{
-  /**
-   * Makes the facility dispose like a provider that retains. Without it nothing changes: no
-   * `retention` extension, no `residue` unless the script's own `outcome` has one.
-   *
-   * With it, a `started` answer with `leaves` ends `completed` with `residue`: `retained` when the
-   * scope is open, with the process identity as the reference; `stopping/closed` when the scope is
-   * closed; `stopping/unbound` when `ledger` is `false`. An answer without `leaves` gets `none`.
-   * A retained domain is handed over: the handle's `stop` answers `unconfirmed` in both modes and
-   * changes nothing. `retention.list` lists the scope's processes for the request's tenant.
-   * `retention.stop` stops one at once and confirms; a stopped one answers `confirmed` from its
-   * end fact. `retention.output` gives the chunks of the script's `afterHandover` as the tail.
-   */
   retention?: Readonly<{
     store: ScriptedRetentionStore
     scope: string
-    /** `false`: the acquisition has no retention process ledger view. Default `true`. */
     ledger?: boolean
-    /** `false`: the ledger view has no `ended`, so a stopped process's end fact is unreadable. */
     ended?: boolean
-    /** Operations of the extension the facility guard refuses, answered `notAuthorized`. */
     refuse?: readonly ('stop' | 'output')[]
   }>
 }>
 
 export type ScriptedCommandFacility<P = unknown> = Readonly<{
   durability: 'none'
-  /** The facility to put in a scripted lease: `lease: { command: cmd.facility }`. */
   facility: CommandFacility<P>
   calls: readonly StartRequest<P>[]
   stops: readonly StopRecord[]
-  /** After `close`, `start` answers `rejected/closed` without calling the script. Running processes go on. */
   close(): void
 }>
 
@@ -150,15 +110,6 @@ type StopRecord = Readonly<{
   answer: 'confirmed' | 'unconfirmed'
 }>
 
-/**
- * A scripted command facility for tests. The script answers each accepted `start`. It starts no real
- * process and reads nothing from the host. Not durable; never assemble in production.
- *
- * To put it in a lease, give the scripted provider `facilities` that include `'command'` and
- * `lease: { command: cmd.facility }`. A given `lease` replaces the whole default facility table, so
- * the lease has no default `command` and no `terminal`. The caller writes the provider's `retire`
- * script and calls `cmd.close()` in it.
- */
 export function createScriptedCommandFacility<P = unknown>(
   script: CommandScript<P>,
   options: ScriptedCommandOptions = {},
@@ -232,7 +183,6 @@ export function createScriptedCommandFacility<P = unknown>(
 
 type Started = Extract<ScriptedCommandAnswer, { kind: 'started' }>
 
-/** The disposition a retaining provider reports; the handover is recorded in the store. */
 function dispose<P>(input: {
   state: RetentionInternals
   retention: NonNullable<ScriptedCommandOptions['retention']>
@@ -261,7 +211,6 @@ function dispose<P>(input: {
   return { kind: 'retained', process: identity, processes: answer.leaves }
 }
 
-/** The same handle whose completed outcome reports the disposition, unless the script gave one. */
 function withResidue(handle: ProcessHandle, residue: ResidueReport): ProcessHandle {
   const result = handle.result.then(outcome =>
     outcome.kind === 'completed' && outcome.residue === undefined
@@ -274,7 +223,6 @@ function withResidue(handle: ProcessHandle, residue: ResidueReport): ProcessHand
 const bytes = (data: string | Uint8Array) =>
   typeof data === 'string' ? new TextEncoder().encode(data) : data
 
-/** Per stream: the bytes `output` counted before the handover, and the bytes written after it. */
 function retainedStreams(answer: Started): ReadonlyMap<OutputChunk['stream'], RetainedStream> {
   const counted = new Map<OutputChunk['stream'], number>()
   for (const chunk of answer.output ?? [])
@@ -293,10 +241,6 @@ function retainedStreams(answer: Started): ReadonlyMap<OutputChunk['stream'], Re
 
 type Retention = NonNullable<ScriptedCommandOptions['retention']>
 
-/*
- * The payload shapes of `stop` and `output`. They are checked before the guard and the index, so a
- * malformed request is `invalidInput` whatever the reference names.
- */
 const modes: readonly unknown[] = ['graceful', 'forced']
 const streamNames: readonly string[] = ['stdout', 'stderr', 'terminal']
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
@@ -371,7 +315,6 @@ function retentionExtension<P>(
   }
 }
 
-/** The tail of one stream from `from` on. Nothing is discarded: the double keeps every byte. */
 function streamTail(
   stream: OutputChunk['stream'],
   kept: RetainedStream,
@@ -393,7 +336,6 @@ function streamTail(
   }
 }
 
-/** Strict decoding decides `replaced`, as the host does: a U+FFFD the source wrote is not a replacement. */
 function decode(data: Uint8Array): { value: string; replaced: boolean } {
   try {
     return { value: new TextDecoder('utf-8', { fatal: true }).decode(data), replaced: false }

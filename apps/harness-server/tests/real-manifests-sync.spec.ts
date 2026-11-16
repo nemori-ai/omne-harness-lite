@@ -1,5 +1,3 @@
-// `real-manifests-sync`（R1-1，DP1-C5、DP1-C8）：真实行的声明与 `stubs.ts` 的同一行（去掉前缀）逐项相同。
-// 等待装配页补丁的差额写在 `KNOWN_GAPS`，每条带补丁编号；补丁落地、`stubs.ts` 同步之后删掉对应条目。
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -10,7 +8,6 @@ import { rowDeclarationOf, type RowDeclaration } from '../src/row.ts'
 import type { RowId, RowManifest } from '../src/types.ts'
 import { AA_FIXTURE_ROWS } from './fixtures/serve/index.ts'
 
-/** 具名差额清单：行 → 补丁编号与该补丁落地后 `stubs.ts` 这一行会变成的样子（只写变化的字段）。 */
 const KNOWN_GAPS: Readonly<
   Record<string, Readonly<{ patch: string; manifest: Partial<RowManifest> }>>
 > = {}
@@ -30,7 +27,6 @@ function comparable(manifest: RowManifest) {
   }
 }
 
-/** 表里这一行的样子；`withGap` 时取差额落地后的样子（只用于 `./cordis` 的真实导出，夹具照表现状）。 */
 function expectedFor(row: RowId, withGap: boolean): ReturnType<typeof comparable> {
   const table = profile.stubManifests.get(row)
   if (table === undefined) throw new Error(`row "${row}" is not in the stubs table`)
@@ -85,7 +81,7 @@ describe('real-manifests-sync', () => {
     expect(names.filter(name => name.startsWith('s0.'))).toEqual([])
   })
 
-  test('AAP-7: the table no longer lists agentHost as a provided name', () => {
+  test('the table no longer lists agentHost as a provided name', () => {
     const provided = [...profile.stubManifests.values()].flatMap(m => m.provides)
     expect(provided).not.toContain('agentHost')
     expect(profile.stubManifests.get('agent-host' as RowId)?.provides).toContain(
@@ -94,7 +90,6 @@ describe('real-manifests-sync', () => {
   })
 })
 
-/** 发行树里每个文件（`src`、`config`），相对本应用根目录。 */
 function releaseFiles(): string[] {
   const root = fileURLToPath(new URL('..', import.meta.url))
   const files: string[] = []
@@ -110,7 +105,7 @@ function releaseFiles(): string[] {
   return files.map(path => join(root, path))
 }
 
-describe('FIXED-FACTS F6：窄采用来源的替身已删除', () => {
+describe('窄采用来源的替身已删除', () => {
   test('发行树（src、config）里不再出现采用来源缺件的三个字面量', () => {
     const literals = ['adopted-facts-absent', 'adopted-absent', 'B1-GAP-ADOPTED-REQUEST-SOURCE']
     const files = releaseFiles()

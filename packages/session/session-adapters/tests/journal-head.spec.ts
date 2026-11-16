@@ -1,9 +1,3 @@
-// The direct counter-example of the second position source (session-adapters SPEC "位置的唯一来源"):
-// a material preserve takes one publication, and the core's next command must append at the
-// publication after it. With a position of its own the core appended at one the store had passed,
-// the provider found no batch after its head and stored an envelope alone: the facts of the commit
-// were lost. What is checked, on the node:sqlite double: after a preserve, the next commit's batch
-// still carries the family facts of the commit (its cursor move), with the core's envelope.
 import { describe, expect, it } from 'vitest'
 import type { AgentCheckpoint, AgentJournal, Material } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
@@ -49,7 +43,6 @@ async function commit(
   })
 }
 
-/** The family kinds of the last publication of the scene's session. */
 function lastFamilyKinds(s: SqlScene): string[] {
   const rows = s.controls?.select(
     `SELECT kind, body FROM er_fact WHERE session = '${s.access.session}' AND pub = (SELECT MAX(pub) FROM er_fact WHERE session = '${s.access.session}') ORDER BY ord`,
@@ -59,7 +52,6 @@ function lastFamilyKinds(s: SqlScene): string[] {
     .filter(kind => kind !== 'batch' && !kind.startsWith('core.'))
 }
 
-/** The envelope digest of the last publication: the core's key, or the provider's digest. */
 function lastEnvelopeDigest(s: SqlScene): string {
   const rows = s.controls?.select(
     `SELECT body FROM er_fact WHERE session = '${s.access.session}' AND ord = 0 AND pub = (SELECT MAX(pub) FROM er_fact WHERE session = '${s.access.session}')`,

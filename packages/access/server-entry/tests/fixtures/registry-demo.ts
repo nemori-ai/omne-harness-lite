@@ -1,8 +1,3 @@
-// The demonstration command of the access registry. From packages/access/server-entry run
-//   node --conditions=source tests/fixtures/registry-demo.ts
-// It prints a timeline: mount, the same protocol mounted again, a take-down while a call is in
-// flight, a handler that ignores the abort and is answered after the grace, and what a subscriber
-// sees. It uses a test contribution that is in no release and a clock it moves by hand.
 import { AccessAssemblyError, type AccessContribution } from '@omne-harness/access-cordis-contract'
 import { createAccessRegistry } from '../../src/registry/registry.ts'
 import { settleCall } from '../../src/settle/settle.ts'
@@ -21,7 +16,6 @@ const limits = {
 const GRACE_MS = 500
 const clock = manualClock()
 
-/** A contribution whose `save-note` handler returns only when `release` is called. */
 function heldContribution(title: string): {
   contribution: AccessContribution<NotesProtocol>
   release: () => void

@@ -216,7 +216,6 @@ it('denies every read that names another tenant, whatever the rest of the refere
     kind: 'denied',
     reason: 'pool-location',
   })
-  // The same reference under the tenant of the principal is read.
   expect(await service.getRequest(w.principal, get(w))).toMatchObject({ kind: 'found' })
 })
 

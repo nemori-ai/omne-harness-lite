@@ -1,10 +1,3 @@
-// The Session log combination over SQL for the production Journal provider: the Session storage
-// port of session-storage-sql and the session-log Journal on one storage, with one session that
-// has an active Run and an opened execution. The storage is either a node:sqlite test double that
-// runs the real participant, migration and read handler modules of the published materials, or
-// the real sqlite-provider (real Workers and files). The double models receipts, rollback by a
-// stopping reply, recognition by identity and the read rules; it does not model Workers or
-// durability, and a pass on it proves neither.
 import { Context, Service } from '@deepseek-ai/cordis'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -123,21 +116,14 @@ function rowsOf(db: DatabaseSync, sql: string, params: readonly SqlValue[]): Que
 }
 
 export type DoubleControls = Readonly<{
-  /** Throws at the next statement of a write transaction that matches `pattern`. */
   failWrite(pattern: RegExp): void
-  /** Throws at the next statement of a write transaction for which `test` holds. */
   failWriteWhen(test: (sql: string, params: readonly SqlValue[]) => boolean): void
-  /** The next commit runs and its reply is lost: the caller sees `unknown`. */
   loseNextReply(): void
-  /** The next commit does not run and the caller sees `unknown`. */
   dropNext(): void
-  /** Every handler read so far, by handler name. */
   reads: string[]
-  /** Rows of the domain, outside any transaction. */
   select(sql: string): QueryRows
 }>
 
-/** A node:sqlite storage that runs the modules the published materials name. */
 async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleControls }> {
   const materials = sessionStorageMaterials({ readOutputLimitBytes: 20971520 })
   const participants = new Map<string, ParticipantModule>()
@@ -176,7 +162,6 @@ async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleC
         responses,
       }) as unknown as ReceiptV2
     db.exec('BEGIN IMMEDIATE')
-    // This double models the known Session combination; real Workers verify catalog ordering.
     const facts = new Map<string, JsonValue>()
     const order: readonly string[] = SESSION_LOG_PARTICIPANTS
     const ordered = [...request.commands].sort(
@@ -315,18 +300,10 @@ async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleC
 
 export type SqlSceneOptions = Readonly<{
   storage?: 'double' | 'real'
-  /** The Session access decisions; every request is allowed when absent. */
   decide?: (request: SessionAccessRequest<string>) => SessionAccessDecision
-  /** Tenants the domain lookup knows; the scene's own tenant when absent. */
   registered?: 'own' | 'none'
-  /** Installs the test cancellation policy in the Journal (the finishing protocol). */
   cancellation?: 'installed'
-  /** The manifest digest the Journal is configured with; the registered one when absent. */
   manifest?: string
-  /**
-   * `slot`: the first attempt records the session slot reference of the Run's adoption, as the
-   * Session coordinator writes it, so AD-14 can take its instance. A fixed test instance when absent.
-   */
   instance?: 'slot'
 }>
 
@@ -365,10 +342,8 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
     storage = made.storage
     controls = made.controls
   }
-  // Every commit that reaches the storage, with the participants of its commands.
   const commits: string[][] = []
   const inner = storage
-  /** Rewrites what a read answers, to show a reader a durable record that Session never wrote. */
   const rewriteReads: {
     current: ((request: ReadRequest, answer: ReadResult) => ReadResult) | null
   } = { current: null }
@@ -454,7 +429,6 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
   }
   const journals = createSessionLogJournal<string>(journalOptions)
   const view = journals.forSession(access)
-  /** A new provider over the same storage: it has no copy and starts from the durable records. */
   const fresh = () => createSessionLogJournal<string>(journalOptions).forSession(access)
 
   const value = creation({ initial: ordinaryInput('input-1') })
@@ -508,7 +482,6 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
   const initial: AcceptedInput = {
     id: ok(decodeInputId(admitted.input)),
     content: admitted.message,
-    // AD-14: the source basis of the initial input is the receipt of SE13 (PA-01 item 1).
     source: started.receipt.source,
     priority: 'ordinary',
   }
@@ -549,7 +522,6 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
 
 export type SqlScene = Awaited<ReturnType<typeof sqlScene>>
 
-/** Session records the handover of input `id` into the scene's execution (SE35). */
 export function handed(s: SqlScene, id: string, receipt: DurableEvidence) {
   return s.port.commit({
     access: s.sessionAccess,
@@ -571,7 +543,6 @@ export function handed(s: SqlScene, id: string, receipt: DurableEvidence) {
   })
 }
 
-/** Cancels the active Run, accepts input `n` and starts the next Run: the scene of its execution. */
 export async function nextRun(s: SqlScene, n: number): Promise<SqlScene> {
   const snapshot = ok(await s.port.readWork(s.sessionAccess))
   if (snapshot.run.kind !== 'active') throw new Error('an active Run is expected')
@@ -651,23 +622,13 @@ export async function nextRun(s: SqlScene, n: number): Promise<SqlScene> {
   }
 }
 
-/** What `cordisScene` mounts, and how its Session transactions behave. */
 export type CordisSceneOptions = Readonly<{
-  /** Wraps the `commitLog` of the Session transactions (counting, faults). */
   commitLog?: (
     inner: NonNullable<SessionTransactionPort<string>['commitLog']>,
   ) => NonNullable<SessionTransactionPort<string>['commitLog']>
-  /** Leaves `sessionTransactions` out, so a plugin that needs it stays pending. */
   transactions?: 'absent'
 }>
 
-/**
- * A real Cordis root over the scene's storage: `storage`, the trusted `tenantDomainLookup`, the
- * Session access check, the session-log Journal plugin (which sends
- * `session-adapters/agent-published` after each successful write), `session` whose `work` reads as
- * the scene's principal, and `sessionTransactions` over the scene's port. `mount` adds a plugin and
- * `dispose` stops every fiber in reverse order.
- */
 export async function cordisScene(s: SqlScene, options: CordisSceneOptions = {}) {
   const ctx = new Context()
   const fibers: { dispose(): Promise<unknown> }[] = []
@@ -695,10 +656,6 @@ export async function cordisScene(s: SqlScene, options: CordisSceneOptions = {})
     readonly check = (request: SessionAccessRequest<unknown>): Promise<SessionAccessDecision> =>
       Promise.resolve({ kind: 'allowed', evidence: evidence(`access/${request.operation}`) })
   }
-  // The caller classes that the Session faces admit for the two reads of this stand-in
-  // (session-contract SPEC「四个面与公开操作」: `readWork` coordinator and maintainer;「控制与模型选择」:
-  // `readModelSelection` intake and maintainer). A declared class outside them is refused as the
-  // provider refuses it; a read without a declared class (a test reading directly) is not judged.
   const admitted: Readonly<Record<'readWork' | 'readModelSelection', readonly string[]>> = {
     readWork: ['coordinator', 'maintainer'],
     readModelSelection: ['intake', 'maintainer'],

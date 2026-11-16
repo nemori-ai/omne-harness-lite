@@ -31,7 +31,6 @@ import {
   type StopStatus,
 } from './session.ts'
 
-/** A macOS prerequisite a start found missing. */
 export type MacosPrerequisite =
   | 'command-line-tools'
   | 'session-reader'
@@ -44,12 +43,9 @@ export type MacosCommandsInput = Omit<
   'prerequisites' | 'retained' | 'unavailable'
 > &
   Readonly<{
-    /** The session reader, compiled on first use. */
     reader(): Promise<SessionReader>
-    /** The cold index of the state directory; absent when there is none. */
     domains: DomainIndex | undefined
     unavailable(missing: readonly MacosPrerequisite[]): void
-    /** This boot's identity; `kern.bootsessionuuid` when absent. */
     bootId?: () => Promise<string | undefined>
   }>
 
@@ -66,7 +62,6 @@ const gateScript = fileURLToPath(
   ),
 )
 
-/** The environment of the gate itself: nothing of the provider's, so no secret reaches its session. */
 export const gateEnvironment: Readonly<Record<string, string>> = Object.freeze({
   PATH: '/usr/bin:/bin:/usr/sbin:/sbin',
 })
@@ -74,7 +69,6 @@ export const gateEnvironment: Readonly<Record<string, string>> = Object.freeze({
 const hasNul = (text: string) => text.includes('\u0000')
 const invalidPath = (path: string) => !isAbsolute(path) || hasNul(path)
 
-/** The request checks that need no process, in the order of the Linux facility. */
 export function macosRequestIssue(request: StartRequest): FacilityReason | undefined {
   if (request.binding.kind !== 'host_machine') return 'unsupported'
   if (request.outputMode !== 'separate' || request.geometry !== undefined) return 'unsupported'
@@ -86,19 +80,16 @@ export function macosRequestIssue(request: StartRequest): FacilityReason | undef
   return undefined
 }
 
-/** What the reader's absence means as missing prerequisites. */
 export const readerMissing = (
   reading: Extract<SessionReader, { kind: 'missing' }>,
 ): MacosPrerequisite =>
   reading.missing === 'commandLineTools' ? 'command-line-tools' : 'session-reader'
 
-/** One command in its own session: the gate, its frames and its stop. */
 type Entry = {
   readonly resource: ManagedResource
   readonly gate: ChildProcess
   readonly buffer: OutputBuffer
   readonly outcome: Promise<CommandOutcome>
-  /** Known once the gate reported ready and its identity was read; before that no command ran. */
   coordinate: SessionCoordinate | undefined
   gateGone: boolean
   ended: boolean
@@ -109,7 +100,6 @@ type Entry = {
   stopRequested: boolean
   released: boolean
   stopping: Promise<StopStatus> | undefined
-  /** Settles the start that waits for the gate's next event; nothing while no start waits. */
   signal: (event: Exclude<Event, 'late'>) => void
   readonly exited: Promise<void>
   sendControl(message: Readonly<Record<string, unknown>>): void
@@ -144,12 +134,6 @@ function nextEvent(entry: Entry, deadline: number): Promise<Event> {
   })
 }
 
-/**
- * The command facility of one acquisition on macOS. Each command runs in a new POSIX session led
- * by its gate. Sessions do not meet closed containment, so nothing is retained: after the main
- * process exits the whole session is stopped, and `residue` tells why. A stop is confirmed only
- * when the session reader finds the session empty.
- */
 export function createMacosHostCommands(input: MacosCommandsInput): HostCommands {
   const { settings, ledger, retention } = input
   const bootIdOf = input.bootId ?? readBootId
@@ -169,7 +153,6 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
       let status: StopStatus = 'unconfirmed'
       const coordinate = entry.coordinate
       if (coordinate === undefined) {
-        // No session was recorded: no GO went out, so no command ran. The gate alone is stopped.
         if (!entry.gateGone) entry.gate.kill('SIGKILL')
         status = await Promise.race([
           entry.exited.then((): StopStatus => 'confirmed'),
@@ -184,17 +167,12 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
           bootId: await bootIdOf(),
           boundMs: settings.stopBoundMs,
         })
-      // The session went first, the gate with it; only then the channel, as on Linux, so a stopped
-      // command ends as effectUnknown rather than with an exit frame of the gate's own stop.
       entry.closeControl()
       let recorded: Awaited<ReturnType<typeof ledger.stopped>> = 'unavailable'
       try {
         recorded = await ledger.stopped(entry.resource.key, status)
-      } catch {
-        /* The ledger did not record it: the stop responsibility stays open. */
-      }
+      } catch {}
       if (status === 'confirmed' && recorded === 'recorded') {
-        // A marker that cannot be removed stays listed; its recovery finds the session empty.
         await input.domains?.forget(entry.resource.key)
         entry.confirmed = true
         live.delete(entry)
@@ -216,16 +194,13 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
       if (!exited) {
         try {
           await ledger.stopped(entry.resource.key, 'unconfirmed')
-        } catch {
-          /* Unconfirmed either way. */
-        }
+        } catch {}
         return 'unconfirmed'
       }
     }
     return forceStop(entry)
   }
 
-  /** The residue after the exit frame; the whole session is stopped either way. */
   const dispose = (entry: Entry): ResidueReport => {
     const residue = macosResidue({
       members: entry.members,
@@ -292,7 +267,6 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
       const residue = dispose(entry)
       outcome.settle({ kind: 'completed', exit, durationMs, output: buffer.summary(), residue })
     }
-    /** The gate went away, or its frames broke, without an exit frame: the outcome is unknown. */
     const end = () => {
       if (entry.ended) return
       endOutput()
@@ -319,7 +293,6 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
         case 'data':
           buffer.push(frame.stream, frame.bytes)
           break
-        // macOS retains nothing, so it keeps no tail: a drop after the exit has nothing to mark.
         case 'dropped':
           break
         case 'exit':
@@ -379,7 +352,6 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
         mode === 'graceful' ? gracefulStop(entry) : forceStop(entry),
     })
 
-  /** The checks before anything exists, in the order of the Linux facility: request, platform, facade. */
   const admit = async (
     request: StartRequest,
   ): Promise<FacilityReason | Readonly<{ reader: string; bootId: string }>> => {
@@ -414,9 +386,7 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
     let planned: Awaited<ReturnType<typeof ledger.plan>> = 'unavailable'
     try {
       planned = await ledger.plan(resource)
-    } catch {
-      /* A failed durable plan prevents any process. */
-    }
+    } catch {}
     if (planned !== 'recorded') return rejected(planned)
     const deadline = monotonicMs() + settings.startBoundMs
     const entry = launch(resource, request, reader)
@@ -426,7 +396,6 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
     }
     const ready = await nextEvent(entry, deadline)
     if (ready === 'late') {
-      // No GO is sent from now on; the gate exits once its channel ends.
       entry.closeControl()
       return { kind: 'unknown', requestId }
     }
@@ -451,22 +420,18 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
     let permit: Awaited<ReturnType<typeof ledger.permit>> = 'unavailable'
     try {
       permit = await ledger.permit(key)
-    } catch {
-      /* No GO without a confirmed permit. */
-    }
+    } catch {}
     if (permit !== 'confirmed') return refuse(permit)
     if (sealed) return refuse('closed')
     entry.sendControl({ c: 'go' })
     const started = await nextEvent(entry, deadline)
     if (started === 'started') return { kind: 'done', requestId, value: handleOf(entry, bootId) }
     if (started === 'spawnFailed') return refuse('unavailable')
-    // GO went out: the command may have started. The resource stays for the stop.
     return { kind: 'unknown', requestId }
   }
 
   return Object.freeze({
     facility: {
-      // A POSIX session can be left with setsid, so nothing is retained here.
       containment: 'none' as const,
       start(request: StartRequest) {
         const running = start(request)

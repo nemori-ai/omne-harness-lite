@@ -149,7 +149,6 @@ describe('writeJsonText on a deep tree', () => {
 })
 
 describe('writeJsonText on a wide tree', () => {
-  // A spread of the members as call arguments overflows the stack from about 130,000 members.
   it('writes an object of 200,000 members and reads it back to the same tree', () => {
     const wide: JsonValue = {
       kind: 'object',
@@ -169,7 +168,6 @@ describe('writeJsonText on a wide tree', () => {
     expect(writeJsonText(wide)).toBe(`[${'null,'.repeat(199_999)}null]`)
   })
 
-  // Slow: 999 keys of 50,000 units are 50 MB of text.
   it(
     'writes 999 keys of 50,000 equal-length code units in under 1.5 seconds, and reads them back',
     { tags: ['slow'] },

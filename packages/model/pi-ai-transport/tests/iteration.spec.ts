@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { closeSourceOnEarlyEnd } from '../src/iteration.ts'
 
-/** A two-item generator over a source, wrapped; `log` records every close in order. */
 function wrapped(closeSource: () => unknown = () => undefined) {
   const log: string[] = []
   async function* items(): AsyncGenerator<number, void, undefined> {

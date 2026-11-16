@@ -185,7 +185,6 @@ it('runs every governance contract case through the registered service and remov
   expect(report.cases.map(result => result.id)).toEqual(
     IDENTITY_GOVERNANCE_CONTRACT_CASES.map(result => result.id),
   )
-  // This fixture offers no restart, so the restart case is not applicable here.
   expect(
     report.cases.filter(result => result.status === 'not-applicable').map(result => result.id),
   ).toEqual(['revoked-stays-invalid-after-restart'])

@@ -23,12 +23,10 @@ function unavailable(diagnostic: string): AdmissionDecision {
   return { kind: 'unavailable', diagnostic }
 }
 
-/**
- * The rules of the action's tool. `tool` names the tool of the definition the trusted Tool request
- * source described, not the model's spelling of the call. A multi-command tool is one declaration
- * whose call names the command (D-94), so a rule on `Shell` covers every Shell command, and a deny
- * on a tool cannot be passed by naming one of its commands.
- */
+function undecidable(diagnostic: string): AdmissionDecision {
+  return { kind: 'undecidable', diagnostic }
+}
+
 function ruleFor(rules: ActionRules, input: Request) {
   return toolActionRule(rules, input.definition)
 }
@@ -40,9 +38,9 @@ async function decide(
   readPermission: ToolPermissionReader,
 ): Promise<AdmissionDecision> {
   if (rules === undefined)
-    return unavailable('no action rule source is installed in this deployment')
+    return undecidable('no action rule source is installed in this deployment')
   if (input.permissions.length !== 0 || input.decision !== null)
-    return unavailable('permission and decision interpreters are not installed')
+    return undecidable('permission and decision interpreters are not installed')
   const who = sessionWorkOf(input.principal, input.tenant)
   const target = {
     owner: 'agent',
@@ -113,8 +111,8 @@ function actionDecision(
   if (identity.kind === 'denied')
     return { kind: 'deny', reason: identity.reason, evidence: identity.evidence }
   if (identity.kind !== 'allowed')
-    return unavailable('the action identity check answered outside its contract')
-  if (rule === undefined) return unavailable('no action rule matches this action')
+    return undecidable('the action identity check answered outside its contract')
+  if (rule === undefined) return undecidable('no action rule matches this action')
   const evidence = decisionEvidence(`action-rule/${rule.id}`, rules.revision, {
     rule,
     target,
@@ -126,7 +124,6 @@ function actionDecision(
     : { kind: 'allow', evidence }
 }
 
-/** One immutable rule generation; dependencies are acquired anew for each action. */
 export function createActionAdmission(
   options: Readonly<{
     actionRules?: unknown
@@ -143,7 +140,7 @@ export function createActionAdmission(
         return succeed(await decide(input, rules, read, readPermission))
       } catch {
         return succeed(
-          unavailable(
+          undecidable(
             'the action admission request or dependency failed; exception text is not reported',
           ),
         )

@@ -1,5 +1,3 @@
-// HITL 入口主体的签发者与卡片受众（identity「持有者与关系核对位置」、HITL protocol「公开入口与受众」）。
-// 签发者用进程内的真实权威：签出的主体核验通过，引用对同一租户稳定；账号不等或权威拒绝时不签发。
 import { describe, expect, it } from 'vitest'
 import { OriginSchema, type Origin } from '@omne-harness/human-intervention'
 import {
@@ -43,7 +41,6 @@ describe('the HITL entry principal holder', () => {
   it('gives every issuance of one tenant the same reference, and another tenant another one', async () => {
     const { issuer } = inProcessPrincipalAuthority()
     const first = standingPrincipalRef(await issued(issuer))
-    // `issued` builds a new holder each time: no state of the first holder makes the reference.
     const second = standingPrincipalRef(await issued(issuer))
     expect(second).toBe(first)
     expect(hitlEntryRef(tenantA)).toBe(first)

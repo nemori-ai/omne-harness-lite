@@ -1,17 +1,10 @@
-// Test support of the recorder: a local HTTP proxy that tunnels every CONNECT to its target and
-// records the target. It never terminates TLS. The pi transport keeps its own proxy with more
-// modes; tests do not import across members, so this one only tunnels, which is what the
-// recorder's path through a proxy needs.
 import { createServer } from 'node:http'
 import { connect } from 'node:net'
 import type { Duplex } from 'node:stream'
 
 export type TunnelProxy = Readonly<{
-  /** `http://127.0.0.1:<port>`, without credentials. */
   url: URL
-  /** The `host:port` of every CONNECT received so far, in arrival order. */
   connects: readonly string[]
-  /** Destroys every connection and closes the listener. */
   close(): Promise<void>
 }>
 
@@ -24,7 +17,7 @@ export async function startTunnelProxy(): Promise<TunnelProxy> {
     socket.on('error', () => socket.destroy())
   }
   const server = createServer((_req, res) => {
-    res.writeHead(405).end() // Only CONNECT is a proxy request here.
+    res.writeHead(405).end()
   })
   server.on('connect', (req, client: Duplex) => {
     const target = req.url ?? ''

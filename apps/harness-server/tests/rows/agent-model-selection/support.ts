@@ -1,8 +1,3 @@
-// Shared fixtures of the `agent-model-selection` row tests: a scripted Session read face that
-// records the caller class of every read, a scripted `modelProfiles` provider row, a scripted
-// execution index (the trusted `storage` and `tenantDomainLookup`, under the row ids that provide
-// them in the release), and a harness that keeps the tree open while a test calls the row's
-// `agentModelSelection` service.
 import { Service, type Context } from '@deepseek-ai/cordis'
 import type { Failure, ModelSelection } from '@omne-harness/agent-contract'
 import {
@@ -50,12 +45,8 @@ import { serveOnce, type ServeRun } from '../../fixtures/serve/harness.ts'
 
 export type SelectInput = Parameters<ModelSelection<unknown>['select']>[0]
 
-// --- identities ---------------------------------------------------------------------------------
-
-/** The access of the session under test: one tenant, one principal, one session. */
 export const sessionAccess = memoryAccess({ kind: 'agent-principal' })
 export const SESSION: SessionId = sessionAccess.session
-/** A second tenant with a principal of its own, for the cross-tenant cases. */
 export const otherAccess = memoryOtherAccess({ kind: 'other-principal' })
 export const EXECUTION = 'execution-1'
 export const RUN = 'run-1'
@@ -81,7 +72,6 @@ const evidenceOf = (label: string): DurableEvidence => ({
   digest: `digest-${label}`,
 })
 
-/** The input of one `select` call, as the Agent loop builds it. */
 export const selectInput: SelectInput = {
   principal: sessionAccess.principal,
   tenant: sessionAccess.tenant,
@@ -107,8 +97,6 @@ export const selectInput: SelectInput = {
   alterations: [],
 }
 
-// --- the saved selection (Session side) ---------------------------------------------------------
-
 export const SAVED_SOURCE = evidence('session/model-selected-1')
 export const savedSelection = (name: string): SessionModelSelection => ({
   selection: { name, basis: evidence(`basis/${name}`) },
@@ -125,22 +113,18 @@ export type SessionRecord = Readonly<{
   access: Readonly<{ principal: unknown; tenant: unknown; session: string }>
 }>
 
-/** The `readWork` answer of the Session double. */
 export type WorkScript = (access: SessionRecord['access']) => Outcome<WorkSnapshot, SessionFailure>
 
-/** What the Session double saw and every other face it was asked for. */
 export type SessionTrace = {
   reads: SessionRecord[]
   works: SessionRecord[]
   otherFaces: string[]
 }
 
-/** A snapshot that holds only what the location reads: its session and its Run. */
 export function snapshotWith(run: WorkSnapshot['run'], session: string = SESSION): WorkSnapshot {
   return { session, run } as unknown as WorkSnapshot
 }
 
-/** The active Run `run` that holds `execution`. */
 export const activeRun = (run = RUN, execution = EXECUTION): WorkSnapshot['run'] =>
   ({
     kind: 'active',
@@ -148,7 +132,6 @@ export const activeRun = (run = RUN, execution = EXECUTION): WorkSnapshot['run']
     execution: { execution, revision: null, evidence: null, readThrough: '0' },
   }) as unknown as WorkSnapshot['run']
 
-/** The Session that saved the Run of the execution under test as its active Run. */
 export const holdingWork: WorkScript = () => succeed(snapshotWith(activeRun()))
 
 class SessionDouble extends SessionService<unknown> {
@@ -162,8 +145,6 @@ class SessionDouble extends SessionService<unknown> {
     this.workScript = workScript
   }
 
-  // The face is read per call, so `this.ctx` is the context the row asked with and the caller
-  // class is the one the row intercepted with.
   get work(): SessionService<unknown>['work'] {
     const config: { caller?: string } = this[Service.resolveConfig]()
     const trace = this.trace
@@ -212,8 +193,6 @@ export function sessionDoubleRow(
     },
   })
 }
-
-// --- the profiles (Model side) ------------------------------------------------------------------
 
 const must = <T>(outcome: Outcome<T, unknown>): T => {
   if ('ok' in outcome) return outcome.ok
@@ -268,20 +247,17 @@ export const resolvedOf = (
   ...over,
 })
 
-/** The requirement that the default bindings send: the text modality with the history as source. */
 export const textRequirement: ModalityRequirement = {
   modalities: ['text'],
   source: selectInput.history,
 }
 
 export type ProfilesTrace = { resolves: unknown[] }
-/** A table keyed by route, or a raw function for a provider that the scripted double refuses to be. */
 export type ProfilesTable =
   | Readonly<Record<string, ProfilesAnswer>>
   | ((route: string) => Promise<ProfilesAnswer>)
 export type ProfilesAnswer = Awaited<ReturnType<ModelProfilesService<unknown>['resolve']>>
 
-/** A scripted `modelProfiles` over `createScriptedModelProfiles`; `answer` is keyed by route. */
 export function profilesDoubleRow(answers: ProfilesTable, trace: ProfilesTrace = { resolves: [] }) {
   const scripted = createScriptedModelProfiles<unknown>()
   scripted.setAccess({ principal: sessionAccess.principal, tenant: sessionAccess.tenant }, 'allow')
@@ -328,15 +304,11 @@ export function profilesDoubleRow(answers: ProfilesTable, trace: ProfilesTrace =
   }
 }
 
-// --- the execution index (Session log storage side) --------------------------------------------
-
-/** The domain of each registered tenant text; a tenant that is not here is `unregistered`. */
 const DOMAINS: Readonly<Record<string, string>> = {
   [TENANT_TEXT]: 'domain-a',
   [OTHER_TENANT_TEXT]: 'domain-b',
 }
 
-/** One index row: the tenant text, the execution, and where the execution started. */
 export type IndexRow = Readonly<{
   tenant: string
   execution: string
@@ -344,7 +316,6 @@ export type IndexRow = Readonly<{
   run: string
 }>
 
-/** The row of the execution under test, and a row of a second tenant. */
 export const INDEX: readonly IndexRow[] = [
   { tenant: TENANT_TEXT, execution: EXECUTION, session: SESSION, run: RUN },
   { tenant: OTHER_TENANT_TEXT, execution: 'execution-b', session: 'session-b', run: 'run-b' },
@@ -352,12 +323,10 @@ export const INDEX: readonly IndexRow[] = [
 
 export type IndexScript = Readonly<{
   rows?: readonly IndexRow[]
-  /** Replaces the answer of every read, for unreadable or malformed indexes. */
   read?: () => ReadResult
   lookup?: (tenant: string) => TenantDomainLookupResult
 }>
 
-/** What the index doubles were asked. */
 export type IndexTrace = { reads: Readonly<{ domain: string; input: JsonValue }>[] }
 
 const notInFixture = (): never => {
@@ -380,7 +349,6 @@ function indexRows(script: IndexScript, trace: IndexTrace) {
       )
         return { kind: 'read', requestKey: request.requestKey, output: null }
       const input = request.input as Readonly<{ tenant: string; execution: string }>
-      // A row is found only under its own tenant and in that tenant's domain.
       const row = rows.find(
         item =>
           item.tenant === input.tenant &&
@@ -420,24 +388,16 @@ function indexRows(script: IndexScript, trace: IndexTrace) {
   }
 }
 
-/**
- * The trusted table of the release. Since WIRE (R2-D160) it shows the row the two names it reads,
- * `storage` and `tenantDomainLookup`; the release-table test of `selection.spec.ts` pins that.
- */
 export function visibilityWithIndex(): ReadonlyMap<RowId, readonly ServiceName[]> {
   return serveProfile().visibility
 }
 
-/** The trusted table of the release without the row's entry: the row sees no trusted name. */
 export function visibilityWithoutIndex(): ReadonlyMap<RowId, readonly ServiceName[]> {
   const visibility = new Map(serveProfile().visibility)
   visibility.delete('agent-model-selection' as RowId)
   return visibility
 }
 
-// --- bindings and the tree ----------------------------------------------------------------------
-
-/** Bindings that name the session of the test without the execution index. */
 export const sessionBinding: Pick<SelectionBindings, 'sessionOf'> = {
   sessionOf: async () => succeed(SESSION),
 }
@@ -452,23 +412,14 @@ export type Live = Readonly<{
 }>
 
 export type TreeOptions = Readonly<{
-  /** Rows of the tree other than the row under test, by id. A missing id leaves that provider out. */
   session?: SessionScript | null
   profiles?: Parameters<typeof profilesDoubleRow>[0] | null
-  /** The `readWork` answer of the Session double. Default: `holdingWork`. */
   work?: WorkScript
-  /** Default: `sessionBinding`. Pass `{}` to run the row with its own default bindings. */
   bindings?: Partial<SelectionBindings>
-  /**
-   * The execution index doubles. Default: none, so the two trusted names have no provider. Given,
-   * both doubles are in the tree.
-   */
   index?: IndexScript
-  /** Whether the trusted table shows `storage` and `tenantDomainLookup` to the row. Default: true. */
   visible?: boolean
 }>
 
-/** Starts the row with its two providers, runs `use` against the live service, then stops the tree. */
 export async function withLiveRow<T>(
   options: TreeOptions,
   use: (live: Live) => Promise<T> | T,

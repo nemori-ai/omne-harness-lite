@@ -1,7 +1,3 @@
-// The records that the in-process reference double keeps for one deployment, shared by its
-// operations and its governance (SPEC ID-17, ID-18), and the helpers both use. Records outlive a
-// provider instance: `restart` makes new instances over the same records, the way a durable
-// provider reopens its store. The latest adopted clock reading belongs to an instance.
 import { randomBytes } from 'node:crypto'
 import type {
   AccountId,
@@ -62,17 +58,14 @@ export type CreateReceipt = Readonly<{
   outcome: CreateOrganizationOutcome
 }>
 
-/** Everything one deployment of the double has committed. Keys are identity texts. */
 export type IdentityRecords = Readonly<{
   accountsByIdentifier: Map<string, AccountRecord>
   accountsById: Map<string, AccountRecord>
   organizations: Map<string, OrganizationRecord>
-  /** Keyed by `memberKey(organization, account)`. */
   memberships: Map<string, MembershipRecord>
   loginsByProof: Map<string, LoginRecord>
   loginsById: Map<string, LoginRecord>
   invitations: Map<string, InvitationRecord>
-  /** Keyed by account text, a space, and the create call id. */
   receipts: Map<string, CreateReceipt>
 }>
 
@@ -93,11 +86,6 @@ export function memberKey(organization: OrganizationId, account: AccountId): str
   return `${organization.text} ${account.text}`
 }
 
-/**
- * The checks of the double that a negative control can switch off, one at a time, to show that a
- * contract case turns red without it. Product code and the public `./testing` entry never switch
- * one off.
- */
 export type DoubleCheck =
   | 'acting-tenant'
   | 'atomic-commit'
@@ -124,7 +112,6 @@ export type Unavailable = Readonly<{ kind: 'basis-unavailable'; diagnostic: stri
 
 export type TimeBasis = Readonly<{ kind: 'read'; instant: Instant }> | Unavailable
 
-/** One provider instance: its injections, its latest adopted reading and the switched-off checks. */
 export type Instance = {
   readonly clock: IdentityClock
   readonly faults: RecordStoreFaults
@@ -132,15 +119,12 @@ export type Instance = {
   latest: Instant | undefined
 }
 
-// An atomic identity body is 26 characters from this 32-character alphabet, which leaves out i, l,
-// o and u.
 const ID_ALPHABET = '0123456789abcdefghjkmnpqrstvwxyz'
 
 export function randomBody(): string {
   return [...randomBytes(26)].map(byte => ID_ALPHABET[byte % 32]).join('')
 }
 
-/** The owner emits lexically valid text, then parses it like any caller (SPEC "已采用的纯值边界"). */
 export function emit<T>(codec: IdentityTextCodec<T>, prefix: string): T {
   const parsed = codec.parse(`${prefix}${randomBody()}`)
   if (!parsed.ok) throw new TypeError(`emitted ${prefix} text did not parse`)
@@ -161,7 +145,6 @@ export function unavailable(diagnostic: string): Unavailable {
   return Object.freeze({ kind: 'basis-unavailable', diagnostic })
 }
 
-/** Reads the clock. An earlier reading than the latest adopted one is not adopted (SPEC ID-17). */
 export async function readTime(instance: Instance): Promise<TimeBasis> {
   let reading
   try {
@@ -183,7 +166,6 @@ export function storeDown(instance: Instance, store: RecordStore): Unavailable |
     : unavailable(`the ${store} store does not answer: ${diagnostic}`)
 }
 
-/** True while the login is not revoked and `now` reaches neither deadline. */
 export function isLive(record: LoginRecord, now: Instant): boolean {
   return (
     !record.revoked &&

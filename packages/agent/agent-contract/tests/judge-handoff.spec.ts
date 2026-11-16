@@ -131,7 +131,6 @@ describe('judgeHandoffPrepare', () => {
       field: 'runtime',
       reason: 'unknown-field',
     })
-    // An execution branch with an external request is not reinterpreted as an invoke branch.
     expect(failureOf(judgeHandoffPrepare({ ...EXECUTION_PREPARE, request: INPUT }))).toEqual({
       field: 'request.kind',
       reason: 'type',
@@ -199,7 +198,6 @@ describe('judgeHandoffPrepare', () => {
     expect(
       mismatched({ ...INPUT, entry: { ...ENTRY, kind: 'submit', value: ENTRY.initial } }),
     ).toEqual({ field: 'request.entry.initial', reason: 'unknown-field' })
-    // R2-D292: no entry holds a checkpoint; `open` receives the initial one.
     expect(mismatched({ ...INPUT, entry: { ...ENTRY, checkpoint: { position: 'E3' } } })).toEqual({
       field: 'request.entry.checkpoint',
       reason: 'unknown-field',

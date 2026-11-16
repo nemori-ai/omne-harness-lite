@@ -1,7 +1,3 @@
-// Building a vault on a host (`initSecretVault`): the path rule below the user directory, what
-// may already be on the path, the secret never leaving the command, the input rules, and the
-// permission guard with its POSIX form. Every key here is a synthetic string built at run time,
-// and every path is a temporary directory that stands in for the user directory.
 import {
   chmodSync,
   existsSync,
@@ -49,7 +45,6 @@ afterEach(() => {
   for (const dir of scratch.splice(0)) rmSync(dir, { recursive: true, force: true })
 })
 
-/** A fresh directory that plays the user directory; its real path, as the command resolves it. */
 function newHome(): string {
   const dir = realpathSync.native(mkdtempSync(join(tmpdir(), 'secret-init-')))
   scratch.push(dir)
@@ -69,7 +64,6 @@ function valueAt(path: string): string | undefined {
   return typeof taken === 'string' ? undefined : taken.value
 }
 
-/** A vault another process wrote on the path, holding another secret under the same key. */
 function otherVault(path: string): void {
   const built = createSecretVault({
     path,
@@ -80,7 +74,6 @@ function otherVault(path: string): void {
 
 type Probe = { reader: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn> }
 
-/** Deps over the real vault, with the reader and the creation observed. */
 function depsFor(
   home: string,
   over: Partial<SecretVaultInitDeps> = {},
@@ -95,7 +88,6 @@ function depsFor(
   }
 }
 
-/** Everything a run could have left in view: the values, the process arguments and the environment. */
 function leaks(...values: unknown[]): boolean {
   const seen = [
     ...values.map(value => (typeof value === 'string' ? value : inspect(value, { depth: null }))),
@@ -226,7 +218,6 @@ describe('a path that already holds something', () => {
       expect(await initSecretVault(path, deps)).toEqual({ ok: false, reason: 'path-occupied' })
       expect(snapshot(path)).toBe(before)
       expect(reader).not.toHaveBeenCalled()
-      // The adoption path of the vault is never entered, so a valid vault is not "accepted".
       expect(create).not.toHaveBeenCalled()
     },
   )
@@ -247,7 +238,6 @@ describe('a path that already holds something', () => {
     const home = newHome()
     const path = join(home, 'vault.json')
     const { deps } = depsFor(home, {
-      // The vault adopts the file that is already there: the command must not report that as built.
       create: options => (otherVault(path), createSecretVault(options)),
     })
     expect(await initSecretVault(path, deps)).toEqual({ ok: false, reason: 'write-unconfirmed' })
@@ -260,8 +250,6 @@ describe('a path that already holds something', () => {
     let release: (() => void) | undefined
     const { deps } = depsFor(home, {
       lockWaitMs: 0,
-      // The holder publishes its own vault and takes the lock before the command reaches the vault,
-      // so the command waits it out and gets `lock-timeout` with another vault on the path.
       create: options => {
         otherVault(path)
         release = lockSync(path, { realpath: false, stale: Number.MAX_SAFE_INTEGER, retries: 0 })
@@ -672,7 +660,6 @@ describe('the permissions of what the command creates', () => {
       const path = join(home, 'a', 'vault.json')
       const open = process.umask(0)
       try {
-        // Without the mask confinement, only the explicit narrowing can close the modes.
         const guard: PermissionGuard = { ...createPosixGuard(), confine: run => run() }
         expect(await initSecretVault(path, depsFor(home, { guard }).deps)).toEqual({
           ok: true,

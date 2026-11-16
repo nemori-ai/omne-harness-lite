@@ -1,7 +1,3 @@
-// R3 的入口对象在 `serve` 模式下（验收 5）：七个模块装进一棵最小树，受信与否由受信表决定，`entry-object`
-// 记录与 stderr 里没有值、没有签发者；`server-entry` 行经受信的 `principalIssuer` 签出的主体，经受信核验器
-// `principalVerifier`（R2-D203 P-9，对 `session-ad09` 可见，对 `server-entry` 不可见）核验通过。
-// 别的行看不见 `principalIssuer` 由受信表与 APP-0 的装载前检查保证，不在这里重复断言。
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import type { PrincipalIssuer, PrincipalVerifier } from '@omne-harness/identity'
@@ -32,7 +28,6 @@ const entryObjects = [
 
 type Box = { issued?: unknown; verifier?: PrincipalVerifier | undefined }
 
-/** 探针行：装在 `server-entry` 上，签一个 `server-entry` 系统主体放进 `box`，并记下本行看得见哪些受信名。 */
 function probeServerEntry(seen: string[], box: Box): Plugin.Object {
   const plugin: Plugin.Object = {
     name: 'probe-server-entry',
@@ -64,7 +59,6 @@ function probeServerEntry(seen: string[], box: Box): Plugin.Object {
   })
 }
 
-/** 探针行：装在 `session-ad09` 上（受信表让它看见核验器），把核验器放进 `box`。 */
 function probeVerifier(box: Box): Plugin.Object {
   const plugin: Plugin.Object = {
     name: 'probe-verifier',
@@ -100,7 +94,6 @@ describe('R3 entry objects under serve', () => {
       },
       entryObjects,
     })
-    // 夹具看到 startup-result 就请求停止，那一行是夹具自己的；此外 stderr 什么都没有。
     expect(run.stderr.filter(line => !line.startsWith('serve: stop requested: test'))).toEqual([])
     expect(run.result.exitCode).toBe(0)
     expect(run.state('server-entry')).toMatchObject({ state: 'ACTIVE' })

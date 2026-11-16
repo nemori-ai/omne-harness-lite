@@ -1,5 +1,3 @@
-// Contract members with real declarations in a temporary checkout, and the installed, pinned
-// `omne-contract-api` that writes their snapshots. The provider under test resolves the same CLI.
 import { spawnSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -16,7 +14,6 @@ export const MEMBERS: Record<string, Member> = {
   'pkg/b': { name: '@fixture/b', dist: 'export type B = 1;\n' },
   'pkg/c': { name: '@fixture/c', dist: 'export declare const c: number;\n' },
 }
-/** `pkg/a` with one optional property more: an additive change. */
 export const A_ADDITIVE = 'export interface A {\n    a: string;\n    b?: number;\n}\n'
 export const snapshotOf = (member: string) => `${member}/api/${member.slice(4)}.api.md`
 
@@ -25,11 +22,6 @@ export function write(root: string, path: string, text: string): void {
   writeFileSync(join(root, path), text)
 }
 
-/**
- * Writes the members, `tsconfig.base.json` and the `contractApi` configuration. The contract member table
- * at `config.members` is written only when `lines` is given. The members resolve each other
- * through `node_modules` links, which the checkout must ignore.
- */
 export function contracts(
   root: string,
   config: { members: string; snapshot: string; [key: string]: unknown },
@@ -56,7 +48,6 @@ export function contracts(
   }
 }
 
-/** Rewrites the snapshots from the members' dist with the installed CLI. */
 export function writeSnapshots(root: string): void {
   const command = contractApiCommand()
   if (!('file' in command)) throw new Error(command.reason)

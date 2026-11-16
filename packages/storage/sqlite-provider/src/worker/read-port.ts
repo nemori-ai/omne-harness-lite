@@ -1,7 +1,3 @@
-// One read inside a read Worker (SPEC 9.3, 9.4). The read runs in one transaction on the read
-// connection: BEGIN, the first SELECT fixes the snapshot, the handler runs, and the transaction has
-// ended before the reply leaves. The read port allows SELECT on the tables of the handler and the
-// functions of the allow list, counts rows while it iterates, and demands a LIMIT on each statement.
 import { constants as C, type DatabaseSync } from 'node:sqlite'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ReadHandlerModule, ReadPort } from '@omne-harness/sql-contract/worker'
@@ -10,7 +6,6 @@ import { MaterialMismatch, type ModuleCache } from './modules.ts'
 import { BASE_FUNCTIONS, type Decision, SqlGateway } from './ports.ts'
 import type { HandlerSpec, ReaderReply } from './reader-protocol.ts'
 
-/** Read rule: SELECT on the declared tables and allowed functions. Nothing else. */
 export function readDecision(readTables: readonly string[]): Decision {
   const tables = new Set(readTables)
   return (action, arg1, arg2) => {
@@ -30,7 +25,6 @@ export function readDecision(readTables: readonly string[]): Decision {
 
 const HAS_LIMIT = /\blimit\b/i
 
-/** The port that the handler sees. It wraps the gateway with the LIMIT rule. */
 class HandlerPort implements ReadPort {
   missingLimit = false
   private readonly gateway: SqlGateway
@@ -76,7 +70,21 @@ function judgeOutcome(spec: HandlerSpec, outcome: unknown): Settled {
   return { kind: 'read', output: output as JsonValue }
 }
 
-/** Runs the handler inside one read transaction and ends the transaction before it returns. */
+type Material = Pick<HandlerSpec, 'moduleUrl' | 'codeDigest'>
+
+async function handlerOf(state: ReaderState, spec: Material): Promise<ReadHandlerModule | Settled> {
+  try {
+    return await state.modules.load<ReadHandlerModule>(spec.moduleUrl, spec.codeDigest)
+  } catch (error) {
+    return failed(error instanceof MaterialMismatch ? 'material_mismatch' : 'material_unreadable')
+  }
+}
+
+export async function runLoad(state: ReaderState, spec: Material): Promise<ReaderReply> {
+  const loaded = await handlerOf(state, spec)
+  return 'kind' in loaded ? loaded : { kind: 'loaded' }
+}
+
 export async function runRead(
   state: ReaderState,
   spec: HandlerSpec,
@@ -84,17 +92,12 @@ export async function runRead(
 ): Promise<Settled> {
   const db = state.db
   if (db === null) return failed('connection_closed')
-  let module: ReadHandlerModule
-  try {
-    module = await state.modules.load<ReadHandlerModule>(spec.moduleUrl, spec.codeDigest)
-  } catch (error) {
-    return failed(error instanceof MaterialMismatch ? 'material_mismatch' : 'material_unreadable')
-  }
+  const module = await handlerOf(state, spec)
+  if ('kind' in module) return module
   let gateway: SqlGateway | null = null
   let result: Settled
   try {
     db.exec('BEGIN')
-    // The first read of the transaction fixes the snapshot.
     if (missingMarkers(db, spec)) result = { kind: 'schema_unavailable' }
     else {
       gateway = new SqlGateway(db, readDecision(spec.readTables), { maxRows: spec.maxRowsRead })
@@ -116,7 +119,6 @@ export async function runRead(
   } catch {
     result = failed('read_error')
   }
-  // The statement has ended and the rows are in memory. Now the transaction ends too (SPEC 9.3).
   try {
     gateway?.close()
     if (db.isTransaction) db.exec('ROLLBACK')

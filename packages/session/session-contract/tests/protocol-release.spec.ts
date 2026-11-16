@@ -1,3 +1,4 @@
+// @module-tag source-text
 import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'

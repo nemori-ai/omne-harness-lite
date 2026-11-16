@@ -1,4 +1,3 @@
-// Closed shapes of the reference values that definitions, states and results share.
 import { judgeContentBlock, type ContentReference } from '@omne-harness/content-block'
 import { workspaceCodec } from '@omne-harness/legal-identity'
 import type { OrganizationId, TenantId, WorkspaceId } from '@omne-harness/legal-identity'
@@ -7,12 +6,6 @@ import type { SourceLayer, ToolSchemaIdentity } from './definitions.ts'
 import type { Adoption, ConsumerRef, DurableEvidence } from './identity.ts'
 import { filled, literal, member, record, reject, variant, type Check } from './shape.ts'
 
-/**
- * The organization and tenant shapes of legal-identity, read as data: the brand is the `name` tag
- * and the text is not checked by a codec, so the result is not a minted value. `workspaceId`
- * below is checked and minted by its codec instead; moving these two onto their codecs as well is
- * left to a separate card.
- */
 const organizationId: Check<OrganizationId> = record({
   name: literal('OrganizationId'),
   text: filled,
@@ -23,10 +16,6 @@ const tenantId: Check<TenantId> = record({
   account: record({ name: literal('AccountId'), text: filled }),
 })
 const workspaceShape = record({ name: literal('WorkspaceId'), text: filled })
-/**
- * The sixth legal-identity family (G7). The text must be accepted by `workspaceCodec`; the
- * check returns the value that the codec built, so `workspaceEquals` holds for judged values.
- */
 export const workspaceId: Check<WorkspaceId> = (value, at) => {
   const shape = workspaceShape(value, at)
   if ('failure' in shape) return shape
@@ -34,7 +23,6 @@ export const workspaceId: Check<WorkspaceId> = (value, at) => {
   return parsed.ok ? succeed(parsed.value) : reject(member(at, 'text'), 'malformed')
 }
 
-/** The source layer of a contribution (G7): the position and the identity that holds it. */
 export const sourceLayer: Check<SourceLayer> = variant('kind', {
   official: record({ kind: literal('official') }),
   organization: record({ kind: literal('organization'), organization: organizationId }),
@@ -82,10 +70,6 @@ export function sameSchemaIdentity(left: ToolSchemaIdentity, right: ToolSchemaId
   return left.id === right.id && left.revision === right.revision && left.digest === right.digest
 }
 
-/**
- * A content reference, judged by the one rule of @omne-harness/content-block: the reference is
- * checked as the `ref` of a reference block, so this module keeps no second copy of that rule.
- */
 export const contentReference: Check<ContentReference> = (value, at) => {
   const probe = {
     kind: 'file',

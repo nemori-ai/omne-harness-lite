@@ -1,5 +1,3 @@
-// The host files provider: declared facts, acquisition answers, the ledger check through the
-// registry gate, retirement and its drain, invalidation on retirement and release.
 import { execFile } from 'node:child_process'
 import { chmod, mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { release, tmpdir } from 'node:os'
@@ -36,8 +34,6 @@ import { readBootId, scopeDigest, scopeReference } from '../src/host-scope.ts'
 
 const packageVersion = manifest.version
 
-// One test control under `node:fs/promises`: while `failUnlink` is set, removing a staged batch file
-// fails with `EIO`. Every other call, and all bytes, links and descriptors, are real.
 const control = vi.hoisted(() => ({ failUnlink: false }))
 
 vi.mock('node:fs/promises', async importOriginal => {
@@ -62,8 +58,6 @@ afterEach(async () => {
   if (realPath === undefined) delete process.env['PATH']
   else process.env['PATH'] = realPath
   if (realPlatform) Object.defineProperty(process, 'platform', realPlatform)
-  // retire() does not wait for a supervisor call or marker write the index already started, and
-  // either can add an entry to a root while it is removed: retry on ENOTEMPTY instead of failing.
   await Promise.all(
     roots
       .splice(0)
@@ -149,7 +143,6 @@ async function leaseOf(
 
 const execFileAsync = promisify(execFile)
 
-/** Whether a systemd user manager answers on this host, read the way the platform probe reads it. */
 async function userManagerReachable(): Promise<boolean> {
   if (process.platform !== 'linux') return false
   const answer = await execFileAsync('systemctl', ['--user', 'is-system-running']).then(
@@ -159,7 +152,6 @@ async function userManagerReachable(): Promise<boolean> {
   return ['running', 'degraded'].includes(answer.trim())
 }
 
-/** Resolves to `pending` when the promise has not settled after the queued callbacks ran. */
 async function settledOrPending<T>(promise: Promise<T>): Promise<T | 'pending'> {
   return Promise.race([
     promise,
@@ -181,8 +173,6 @@ it('declares the host facilities, no isolation, and platform resource recovery a
     provider.generation,
   )
   expect(provider.quotaDomain).toBe('host-files')
-  // Windows has no complete cold index; Linux needs a reachable user manager; macOS keeps its
-  // index in the state directory, and this provider has none.
   const complete =
     process.platform === 'linux'
       ? await userManagerReachable()
@@ -204,7 +194,6 @@ it('declares the host facilities, no isolation, and platform resource recovery a
     isolation: [],
     prerequisites: facts.prerequisites,
   })
-  // The probe of the command prerequisites decides this value; host-probe.spec.ts reads it.
   expect(['satisfied', 'unsatisfied', 'unknown']).toContain(facts.prerequisites)
 })
 
@@ -230,8 +219,6 @@ it('hands out a host lease with its own identity and evidence, and the files and
   expect(acquired.lease.facility('files')).toBeDefined()
   expect(acquired.lease.facility('command')).toBeDefined()
   expect(acquired.lease.facility('terminal')).toBeDefined()
-  // Linux runs each command in its own systemd scope and Windows in its own Job without breakaway;
-  // macOS runs it in a POSIX session that setsid can leave.
   const declared: Readonly<Record<string, string>> = {
     linux: 'sealed',
     win32: 'sealed',
@@ -451,9 +438,6 @@ it('refuses a command option that is not a bound of its kind', () => {
     )
 })
 
-// The files side of the provider. The host files root, the state directory, the bounds of listing
-// and the batch diagnostic given to the provider reach the engine that serves its acquisitions.
-// They need `/proc/self/fd` and a POSIX file system, so those cases are skipped elsewhere.
 const onLinux = it.skipIf(process.platform !== 'linux')
 
 async function rootedTree() {
@@ -660,21 +644,15 @@ it('merges the files prerequisite into the prerequisites it describes', async ({
     domain: createHostFilesDomain(),
     stateDirectory: tree.state,
   })
-  // Only a host where the command prerequisites are satisfied shows what the files side adds.
   skip((await settled(sound)) !== 'satisfied')
   const broken = createHostFilesProvider({
     domain: createHostFilesDomain(),
     stateDirectory: join(tree.state, 'missing', 'below'),
   })
-  // Listing the recovery resources waits for this provider's own command probe to answer.
   await broken.listRecoveryResources?.(scope1)
   expect((await broken.describe()).prerequisites).toBe('unknown')
 })
 
-// The processes one-shot commands left behind: the provider reads their markers from its state
-// directory and lists and stops them when the platform is Linux. The supervisor is a scripted
-// `systemctl` first on PATH (`fixtures/scripted-systemctl.mjs`), with no `systemd-run` beside it, so
-// the platform probe stops at its first prerequisite and no scope is ever started.
 const scriptedSystemctl = fileURLToPath(
   new URL('./fixtures/scripted-systemctl.mjs', import.meta.url),
 )
@@ -758,7 +736,6 @@ function retainedProvider(
   return createSourceProvider({
     domain: createSourceDomain(),
     ...(state === undefined ? {} : { stateDirectory: state }),
-    // The probe never retries into the real tools. Each supervisor call starts a process, so the bound is wide.
     command: { probeRetryMs: 3_600_000, stopBoundMs },
     ...(diagnose === undefined ? {} : { diagnose }),
   })
@@ -781,7 +758,6 @@ onLinux('lists the retained processes of its state directory for their scope onl
         },
       ],
     })
-    // The index read each unit through the provider's supervisor, with its control group path.
     expect(await host.calls()).toContainEqual([
       '--user',
       'show',
@@ -828,9 +804,6 @@ onLinux(
     } finally {
       await provider.retire?.()
     }
-    // Retirement only stops this generation's polling: the retained processes stay with their
-    // scopes, and a retired generation still answers the index's reading, never an empty list
-    // while the index holds the process.
     expect(await provider.retainedProcesses?.(scope1, tenant)).toEqual(observed)
   },
 )
@@ -868,7 +841,6 @@ onLinux('keeps no retained-process index without a state directory', async () =>
   })
   expect(requested).toEqual([host.state])
   try {
-    // Nothing is retained without a state directory, so the marker on disk is not read for it.
     expect(await without.listRecoveryResources?.(scope1)).toEqual({ kind: 'listed', resources: [] })
     expect(await host.calls()).not.toContainEqual(expect.arrayContaining([unitOf(retainedKey)]))
   } finally {
@@ -921,7 +893,6 @@ onLinux(
     const provider = retainedProvider(host.state)
     try {
       expect(await provider.listRecoveryResources?.(scope1)).toEqual({ kind: 'unavailable' })
-      // The supervisor listing is not consulted once the markers are known to be incomplete.
       expect(await host.calls()).not.toContainEqual(expect.arrayContaining(['Description']))
     } finally {
       await provider.retire?.()
@@ -978,7 +949,6 @@ onLinux(
       expect(await host.calls()).toContainEqual(
         expect.arrayContaining(['kill', unitOf(retainedKey)]),
       )
-      // The stop is the index's: it removed the marker, so no later reading lists the process again.
       expect(await host.markers()).toEqual([])
       expect(await provider.listRecoveryResources?.(scope1)).toEqual({
         kind: 'listed',
@@ -1038,7 +1008,6 @@ const shellB: ManagedResource = {
   reference: { kind: 'null' },
 }
 
-/** Puts a retained-terminal index in the domain that lists what the test says and recovers as told. */
 function withRetainedTerminals(
   domain: ReturnType<typeof createSourceDomain>,
   answers: {
@@ -1050,7 +1019,6 @@ function withRetainedTerminals(
   if (internals === undefined) throw new Error('missing domain internals')
   let listing = 0
   const asked: ManagedResource[] = []
-  // The index of the domain is a frozen object: the domain keeps a stand-in that lists and recovers as told.
   Reflect.set(internals, 'retainedTerminals', {
     ...internals.retainedTerminals,
     resources: (): readonly ManagedResource[] =>
@@ -1070,7 +1038,6 @@ onLinux(
     const host = await retentionHost([activeUnit(retainedKey)])
     await writeMarker(host.state, retainedKey, scope1, bootId)
     const domain = createSourceDomain()
-    // The first reading names shell-a; the reading after the supervisor listing names shell-b only: both are listed.
     withRetainedTerminals(domain, { listings: [[shellA], [shellB]] })
     const provider = createSourceProvider({
       domain,
@@ -1171,8 +1138,6 @@ onLinux('keeps a retained process pending while no supervisor can be found', asy
       provider: 'host-files',
       reference: scopeReference({ unit: unitOf(retainedKey), bootId }),
     }
-    // The index cannot read its markers without the supervisor, so it does not hold the resource;
-    // the generic stop cannot reach the supervisor either: nothing is confirmed.
     expect(await provider.recover?.(resource)).toEqual({ status: 'pending', evidence: null })
     expect(await host.markers()).toEqual([`${retainedKey}.json`])
   } finally {

@@ -1,6 +1,3 @@
-// Child process of the joint kill case. It opens the real provider on the root in argv[2], creates
-// one session, commits one joint publication (an execution-record and a session command), prints
-// one line when the receipt came back, and then waits to be killed. Run by plain `node`.
 import {
   guard,
   operationId,

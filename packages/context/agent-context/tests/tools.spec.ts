@@ -1,6 +1,3 @@
-// The sixth group (SPEC「组六」): `toolsSourceOf(lookup)` over the conditions, alone and through the
-// real Request Context registry and operation group, where the tools the model sees are projected
-// from the definitions that the lookup gave.
 import { describe, expect, it } from 'vitest'
 import type { Adoption, RuntimeConditions } from '@omne-harness/agent-contract'
 import {
@@ -49,7 +46,6 @@ const schemaOf = (field: string): JsonValue => ({
   ],
 })
 
-/** A command tool with one declared command per entry: the name, its summary and its schema. */
 function commandTool(
   name: string,
   description: string,
@@ -118,7 +114,6 @@ const available = (definition: Definition): ToolAvailabilityRead => ({
   layer: { kind: 'official' },
 })
 
-/** A lookup over a table of tools by binding name, which counts its calls. */
 function lookupOf(
   table: Readonly<Record<string, SourceRead<ToolAvailabilityRead>>>,
 ): ToolLookup<string> & { calls: Adoption[] } {
@@ -247,8 +242,6 @@ describe('the sixth group through the real Request Context', () => {
     const result = await preparedWith(w, [binding('Shell'), binding('Files')])
     if (!('ok' in result) || result.ok.kind !== 'assembled')
       throw new Error(`expected assembled, got ${JSON.stringify(result)}`)
-    // Each tool is one declaration (D-94): its description ends with one menu line per command,
-    // and the arguments schema enumerates the commands.
     const tools = result.ok.input.tools
     expect(tools.map(tool => tool.name)).toEqual([FILES.name, SHELL.name])
     for (const [index, definition] of [FILES, SHELL].entries()) {

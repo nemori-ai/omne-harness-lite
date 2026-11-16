@@ -8,7 +8,7 @@ import {
 import { expect, it } from 'vitest'
 import { durableSubject, type AssemblyFacts } from './support/durable-assembly.ts'
 
-it('keeps all 53 provider obligations through the configured runtime and SQL records factories', async () => {
+it('keeps every provider obligation through the configured runtime and SQL records factories', async () => {
   const hooks: unknown[] = []
   const assemblies: AssemblyFacts[] = []
   const report = await checkModelProviderConformance({

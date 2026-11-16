@@ -1,7 +1,3 @@
-// The `modelProfiles` plugin through real Cordis 4.0.4: the official OpenAI profiles behind the
-// `modelProfiles` service, each answer compared with `officialOpenAiProfiles` of the same input,
-// the list and the modality answer, removal, a configuration that cannot load, and the scripted
-// double for the parts both answer the same way.
 import { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { Adoption, ModalityRequirement } from '@omne-harness/model-contract'
@@ -262,7 +258,6 @@ it('agrees with the scripted double on the answers it can register, and on the t
     await service.list({ principal, tenant: TENANT, selected: route, required }),
   )
 
-  // The double does not evaluate: registering a real answer proves the answer is self-consistent.
   const scripted = createScriptedModelProfiles()
   scripted.setAccess({ principal, tenant: TENANT }, 'allow')
   scripted.setResolution({ principal, tenant: TENANT, route, required }, { ok: real })
@@ -274,9 +269,6 @@ it('agrees with the scripted double on the answers it can register, and on the t
     await scripted.profiles.list({ principal, tenant: TENANT, selected: route, required }),
   ).toEqual({ ok: realList })
 
-  // Differences the double keeps on purpose: it denies an access it was not told to allow, while
-  // the real member has no subject check in M2, and it throws for an input it was not scripted
-  // for, while the real member evaluates.
   const unscripted = { ...principal, subject: 'other' }
   expect(
     await scripted.profiles.resolve({ principal: unscripted, tenant: TENANT, route, required }),
@@ -287,7 +279,6 @@ it('agrees with the scripted double on the answers it can register, and on the t
     must(await service.resolve({ principal: unscripted, tenant: TENANT, route, required })).kind,
   ).toBe('resolved')
 
-  // An unminted tenant is refused by both, before anything else.
   const copied = structuredClone(TENANT)
   expect(await scripted.profiles.resolve({ principal, tenant: copied, route, required })).toEqual({
     failure: { kind: 'denied', action: 'tenant' },

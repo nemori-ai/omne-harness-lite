@@ -1,9 +1,3 @@
-// Test support: the recorder of a real request. It sends one request through the assembled local
-// path (vault with a placeholder, Model send boundary, pi transport, families, Model runtime and
-// in-memory ModelCommands) and writes the response body as Node received it, with a side note:
-// the model, the SHA-256 of the request body from the materialization receipt, and the time. It
-// writes no header, no request body and no reply text of its own. Before it writes, the body and
-// the note pass the key pattern check; any finding, or any condition below, writes nothing.
 import { existsSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { FixedModelRequest, ModelFailure } from '@omne-harness/model-contract'
@@ -15,20 +9,17 @@ import { findSecrets, type SecretPattern } from './secret-scan.ts'
 
 type Termination = Extract<TransportFact, { kind: 'ended' }>['termination']
 
-/** Why the recorder wrote nothing. No variant holds a header, a body or a matched secret. */
 export type RecordRefusal =
   | Readonly<{ kind: 'recording-exists'; directory: string }>
   | Readonly<{ kind: 'responses'; count: number }>
   | Readonly<{ kind: 'status'; status: number }>
   | Readonly<{ kind: 'body-not-bytes' }>
   | Readonly<{ kind: 'empty-body' }>
-  /** The call did not settle. `failure` is the kind of the drive's failure, without its details. */
   | Readonly<{ kind: 'not-settled'; failure: ModelFailure['kind'] }>
   | Readonly<{ kind: 'dispatches'; count: number }>
   | Readonly<{ kind: 'no-receipt' }>
   | Readonly<{ kind: 'terminations'; count: number }>
   | Readonly<{ kind: 'reasoning-state-missing' }>
-  /** The case asked for a tool call, and the reply holds none. */
   | Readonly<{ kind: 'tool-call-missing' }>
   | Readonly<{ kind: 'secret'; patterns: readonly SecretPattern[] }>
 
@@ -37,7 +28,6 @@ export type RecordOutcome =
       kind: 'written'
       directory: string
       note: RecordingNote
-      /** The byte length of the written body. */
       bytes: number
       termination: Termination
       reasoningState: boolean
@@ -45,21 +35,16 @@ export type RecordOutcome =
   | Readonly<{ kind: 'refused'; refusal: RecordRefusal }>
 
 export type RecordInput = Readonly<{
-  /** The directory name of the recording below `output`, e.g. the case name. */
   name: string
   request: FixedModelRequest
   requiresReasoningState: boolean
-  /** The reply must hold a tool call, or the recorder writes nothing. Default: not required. */
   requiresToolCall?: boolean
   gateway: Gateway
-  /** The root of the recordings. The recorder never replaces a recording that exists. */
   output: string
-  /** A private directory for the vault file. */
   vault: string
   now: () => Date
 }>
 
-/** Sends `request` once and writes its recording, or writes nothing and says why. */
 export async function recordRound(input: RecordInput): Promise<RecordOutcome> {
   const directory = join(input.output, input.name)
   // Checked before the send, so a run that cannot write costs nothing.
@@ -122,7 +107,6 @@ export async function recordRound(input: RecordInput): Promise<RecordOutcome> {
   const patterns = [...new Set([...findSecrets(body), ...findSecrets(noteBytes)])]
   if (patterns.length > 0) return refused({ kind: 'secret', patterns })
 
-  // Both files appear together: they are written into a private sibling, then renamed.
   mkdirSync(input.output, { recursive: true })
   const partial = mkdtempSync(join(input.output, `.${input.name}-`))
   try {

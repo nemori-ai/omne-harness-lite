@@ -13,7 +13,6 @@ export type ModelSettlement = Readonly<{
   pending: Extract<PendingCall, { kind: 'model' }>
   binding: CallBinding
 }>
-/** Admission carries the Agent's settled-reply premise. Result storage alone never does. */
 export function captureModelSettlement(
   root: CommonRoot,
   execution: MemoryExecution,

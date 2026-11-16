@@ -1,7 +1,3 @@
-// The conditional commit sends the condition commands and the ledger write as one SQL operation.
-// These cases check the request it builds and how it reads the answer. The storage is scripted:
-// the test provider of this member runs only the `tool` participant. The application tests run a
-// real condition participant with the real provider.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { CommitRequestV2, CommitResultV2, SqlStorage } from '@omne-harness/sql-contract'
 import type { LedgerCommitInput, LedgerDomain } from '@omne-harness/tool'
@@ -99,11 +95,9 @@ describe('conditional ledger commit over SQL', () => {
 
   it('keeps the ledger snapshot of the store current: the next read sees the write and reads no storage', async () => {
     const w = await world()
-    // The store reads the domain once and keeps the snapshot.
     expect(await w.store.read(host)).toMatchObject({ kind: 'complete', revision: '0', records: [] })
     const before = w.reads()
     expect(await w.commit.commit({ condition, ledger: ledger() })).toEqual({ kind: 'committed' })
-    // The scripted storage wrote nothing, so only the kept snapshot can hold the new record.
     const after = await w.store.read(host)
     expect(after).toMatchObject({ kind: 'complete', revision: '1' })
     if (after.kind !== 'complete') throw new Error('unreachable')

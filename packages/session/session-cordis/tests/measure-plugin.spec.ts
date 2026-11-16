@@ -1,7 +1,3 @@
-// `createSessionProviderPlugin` on real Cordis 4.0.4 (Session SPEC「测量事件」, session-cordis SPEC
-// 「测量事件的插件入口」): the observer given to the plugin factory reaches the session instance
-// that the plugin builds, so an operation through the real plugin emits the Session segments. The
-// session instance is the real factory over the in-memory transaction pair.
 import type { SessionDiagnostic, SessionMeasureEvent } from '@omne-harness/session'
 import { afterEach, describe, expect, it } from 'vitest'
 import { SessionProvider, createSessionProviderPlugin } from '../src/cordis.ts'
@@ -27,7 +23,6 @@ describe('createSessionProviderPlugin', () => {
     const a = await build(createSessionProviderPlugin({ measure: event => events.push(event) }))
     expect(a.provider.state as number).toBe(FIBER_STATE.ACTIVE)
     await a.create(await a.caller('intake'))
-    // The instance may measure operations of its own scanners too, so look for the create by name.
     const segments = events.filter(event => event.kind === 'segment')
     const start = segments.find(event => event.phase === 'start' && event.operation === 'create')
     const end = segments.find(event => event.phase === 'end' && event.span === start?.span)
@@ -47,7 +42,6 @@ describe('createSessionProviderPlugin', () => {
 
   it('hands the diagnose observer to the session instance, so a stopped coordinator step reaches it', async () => {
     const diagnostics: SessionDiagnostic[] = []
-    // Without the Agent drive port, C2 stops its `invoke` step with `agent-absent` (session SPEC 诊断出口).
     const a = await build(
       createSessionProviderPlugin({ diagnose: diagnostic => diagnostics.push(diagnostic) }),
       { omit: ['sessionAgentDrive'] },
@@ -55,7 +49,6 @@ describe('createSessionProviderPlugin', () => {
     expect(a.provider.state as number).toBe(FIBER_STATE.ACTIVE)
     const intake = await a.caller('intake')
     await a.create(intake)
-    // Bound before the accept, so the accept commit itself wakes S1 and it grants the Run.
     a.bindings.controls.bind(a.tenant, a.sessionId('session-1'))
     await a.accept(intake, 'input-1')
     await expect.poll(() => diagnostics.length, { timeout: 5000 }).toBeGreaterThan(0)

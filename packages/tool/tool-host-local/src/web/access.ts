@@ -1,6 +1,3 @@
-// `createWebAccess`: the single-machine implementation of the Web author's `WebAccess` port. The
-// search key never enters this module as a value of its own: it arrives as a restricted
-// `ToolCredentialCapability` whose `use` hands the key to one Exa request and revokes it after.
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import type { ToolCredentialFailure } from '@omne-harness/tool-contract/provider'
 import type { SearchHit, WebAccess, WebFailure } from '@omne-harness/tool-definitions'
@@ -8,7 +5,6 @@ import type { ToolCredentialCapability } from '../credentials.ts'
 import { searchExa, type WebSearchOptions } from './exa.ts'
 import { fetchPage, type WebFetchOptions } from './fetch.ts'
 
-/** Obtains the restricted capability over the search key for the current call. */
 export type ExaKeySource = () => Promise<
   Outcome<ToolCredentialCapability<string>, ToolCredentialFailure>
 >
@@ -19,7 +15,6 @@ export type WebAccessOptions = Readonly<{
   exaKey: ExaKeySource
 }>
 
-/** `missing` is `unconfigured`; `denied` stays; `invalid` and `unavailable` are `unavailable`. */
 function credentialFailure(failure: ToolCredentialFailure): WebFailure {
   switch (failure.kind) {
     case 'missing':

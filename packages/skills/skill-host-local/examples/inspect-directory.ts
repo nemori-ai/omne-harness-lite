@@ -1,10 +1,3 @@
-// Inspects one Skill package directory through the public entry of this package: one snapshot,
-// the bytes of the two control files, then `parseSkillPackage` of the contract. It prints the
-// definition, or the source failure or the first rejection.
-//
-// Run from the member directory after `pnpm run build`:
-//   node --experimental-strip-types examples/inspect-directory.ts [directory]
-// Without an argument it inspects `examples/sample-skill/`.
 import { fileURLToPath } from 'node:url'
 import { parseSkillPackage, toPackagePath, type Bytes } from '@omne-harness/skill-contract'
 import { createDirectorySource } from '@omne-harness/skill-host-local'
@@ -20,7 +13,6 @@ if (!('ok' in taken)) {
 }
 const snapshot = taken.ok
 
-/** The bytes of a control file, or undefined when the snapshot does not list it. */
 async function control(text: string): Promise<Bytes | undefined> {
   const path = toPackagePath(text)
   if (!('ok' in path) || !snapshot.entries.some(entry => entry.path === path.ok)) return undefined

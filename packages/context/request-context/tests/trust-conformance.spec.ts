@@ -1,4 +1,3 @@
-// The trust suite of request-context-cordis-contract, run on the real source registry.
 import { describe, it } from 'vitest'
 import { createContextSourceRegistry } from '@omne-harness/request-context'
 import { tenantCodec } from '@omne-harness/legal-identity'

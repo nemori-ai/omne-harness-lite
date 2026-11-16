@@ -1,9 +1,6 @@
 import { expect, it } from 'vitest'
 import { harness, issue, open, scope, tenantA } from './support.js'
 
-// The caller declaration that a Cordis provider passes to bind is a consistency check made after
-// every access check, so it never tells a caller more than an unauthorized answer would.
-
 it('bind compares the declared consumer class only after the access checks', async () => {
   const h = harness()
   const a = scope('bind/caller')

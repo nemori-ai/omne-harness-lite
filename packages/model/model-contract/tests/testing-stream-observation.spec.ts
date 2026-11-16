@@ -32,8 +32,6 @@ import {
 } from '@omne-harness/stream-arrival'
 import { within } from './helpers/within.ts'
 
-// Every product value is decoded inside a helper that the test calls, so none is built at
-// module load.
 function must<T, F>(outcome: Outcome<T, F>): T {
   if ('failure' in outcome) throw new Error(`Invalid fixture value ${JSON.stringify(outcome)}`)
   return outcome.ok
@@ -128,7 +126,6 @@ const third = () =>
 type Frame = StreamFrame<ModelStreamSnapshot, ModelStreamDelta>
 type Reader = Readonly<{ next(): Promise<Frame | 'finished'>; abort(): void }>
 
-/** Opens one observation and reads it frame by frame. */
 function watch(
   source: ScriptedStreamObservation<Principal>,
   ref = stream(),
@@ -464,8 +461,6 @@ describe('what an observation request is refused with', () => {
 
   it('answers another tenant as for a stream that does not exist, and denies an unminted tenant', async () => {
     const { source } = opened()
-    // R2-D357: the reference carries no tenant. The stream of tenant A is not published in B's
-    // partition, so B gets exactly the end of an unpublished stream, byte for byte.
     source.setAccess({ tenant: foreign(), principal: viewer }, 'allow')
     const theirs = await watch(source, stream(), { tenant: foreign(), principal: viewer }).next()
     const missing = await watch(source, stream('str_missing'), {

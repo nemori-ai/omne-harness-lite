@@ -1,9 +1,3 @@
-// Test support of the recorder: the cases it can record and the request of each. A first round
-// asks one question of a family model with reasoning. A continued round is the next request of the
-// same family: the first round's request, the reply of the first round as the assistant message,
-// and one more question. The reply is not stored with the recording; it comes from a replay of the
-// first round's recorded body through the same assembled path on a local HTTPS server, so the
-// continued request depends only on files of the recording and on this module.
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -21,72 +15,39 @@ import { createCertificate, startHttpsServer } from './https-server.ts'
 import { assembleLocalHost, decoded, ROUTE_PATH } from './local-host.ts'
 import { readRecordFixture, type FamilyName } from './records.ts'
 
-/** The files of one recording below its case directory. */
 export const RECORDING_FILES = { stream: 'stream.sse', note: 'recording.json' } as const
 
-/**
- * The one file of a synthetic replay piece, below its case directory. A line is a JSON object: the
- * first line is the note (`model`, `payloadDigest`, `recordedAt`); every other line is one frame of
- * the SSE stream, either `{ "data": "<text after data: >" }` or `{ "comment": "<text>" }`. The
- * stream is rebuilt as `: <comment>` and `data: <text>` frames, each ended by a blank line, with the
- * `[DONE]` frame last. A synthetic piece is written by hand, not by the recorder: it only stands
- * in until a real tool-call stream is recorded.
- */
 export const SYNTHETIC_FILE = 'synthetic.jsonl'
 
-/** The side note of one recording. It holds no header, no request body and no reply. */
 export type RecordingNote = Readonly<{
-  /** The supplier model of the request, e.g. `openai/gpt-5.6-sol`. */
   model: string
-  /** The SHA-256 of the request body, as the materialization receipt gives it in `payloadDigest`. */
   payloadDigest: string
-  /** When the response was received, as an ISO 8601 UTC time. */
   recordedAt: string
 }>
 
-/** The cases of the four real recordings in the transport package. */
 export const RECORD_CASE_NAMES = [
   'openai-reasoning',
   'anthropic-reasoning',
   'openai-reasoning-continued',
   'anthropic-reasoning-continued',
 ] as const
-/**
- * The tool-call cases. No real tool stream exists yet, so their replay pieces are synthetic and
- * live below this package's `tests/fixtures/recordings/`; a real recording goes where the recorder
- * puts it and replaces the synthetic piece (see `README.md`).
- */
 export const TOOL_CASE_NAMES = ['openai-tool-call', 'openai-tool-call-continued'] as const
 export const ALL_RECORD_CASE_NAMES = [...RECORD_CASE_NAMES, ...TOOL_CASE_NAMES] as const
 export type RecordCaseName = (typeof ALL_RECORD_CASE_NAMES)[number]
 
 export type RecordCase = Readonly<{
   family: FamilyName
-  /** The family record whose route, supplier and representation the request uses. */
   model: string
-  round:
-    | Readonly<{ kind: 'first' }>
-    /** The first round that this round continues, by its case name. */
-    | Readonly<{ kind: 'continued'; first: RecordCaseName }>
-  /** The reply must hold a reasoning state part, or the recorder writes nothing. */
+  round: Readonly<{ kind: 'first' }> | Readonly<{ kind: 'continued'; first: RecordCaseName }>
   requiresReasoningState: boolean
-  /** The parameters of the request. The adoptions are explicit, from the request's source. */
   parameters: readonly Parameter[]
-  /**
-   * The tools of the first round and `auto` as the choice, as plain JSON for the contract judge.
-   * Without it the request keeps the record fixture's tools (none).
-   */
   tools?: readonly PlainTool[]
-  /** The reply must hold a tool call, or the recorder writes nothing. */
   requiresToolCall?: boolean
-  /** What a continued round adds after the first round's reply. Default: one more question. */
   next?: 'question' | 'tool-result'
 }>
 
-/** A tool declaration as the cases write it: the schema is plain JSON, tagged before the judge. */
 export type PlainTool = Readonly<{ name: string; description: string; argumentsSchema: unknown }>
 
-/** Plain JSON in the tagged form of the contract's JSON value, which the request judge reads. */
 function tagged(value: unknown): unknown {
   if (value === null) return { kind: 'null' }
   if (typeof value === 'boolean') return { kind: 'boolean', value }
@@ -101,26 +62,21 @@ function tagged(value: unknown): unknown {
   throw new Error('a tool schema holds a value that is not JSON')
 }
 
-// At low effort an easy question gets no reasoning at all (reasoning_tokens 0, no reasoning
-// state), so the OpenAI case asks at medium effort.
 const OPENAI_PARAMETERS: readonly Parameter[] = [
   { kind: 'max-output-tokens', value: '1024' },
   { kind: 'reasoning-effort', value: 'medium' },
 ]
-// Anthropic thinking needs a budget below the output limit, so the limit leaves room for it.
 const ANTHROPIC_PARAMETERS: readonly Parameter[] = [
   { kind: 'max-output-tokens', value: '2048' },
   { kind: 'reasoning-effort', value: 'low' },
 ]
 
-// A tool call needs room for the reasoning and the arguments. Medium effort, never `none`: the
-// gateway answers a tool call at effort `none` only on some models, and the project records with
-// reasoning on. `xhigh` is not in the contract's parameter table.
+// Medium effort, never none (the project records with reasoning on) and never xhigh (not in the
+// parameter table).
 const TOOL_PARAMETERS: readonly Parameter[] = [
   { kind: 'max-output-tokens', value: '2048' },
   { kind: 'reasoning-effort', value: 'medium' },
 ]
-/** One function tool; the schema root is an object, as the OpenAI rule `object-root/1` requires. */
 const WEATHER_TOOL: PlainTool = {
   name: 'get_weather',
   description: 'Reads the current temperature of one city, in degrees Celsius.',
@@ -132,7 +88,6 @@ const WEATHER_TOOL: PlainTool = {
   },
 }
 
-/** The two families' record models with a reasoning state reply, as the slow tests use them. */
 export const RECORD_CASES: Readonly<Record<RecordCaseName, RecordCase>> = {
   'openai-reasoning': {
     family: 'pi-ai-openai',
@@ -210,7 +165,6 @@ const TOOL_QUESTION = {
     },
   ],
 }
-/** The result that the tool gives for the call of the first round. It is a test value. */
 const TOOL_RESULT_TEXT = '{"city":"Paris","temperatureCelsius":18}'
 const NEXT_QUESTION = {
   id: 'msg_q200000000000000000000',
@@ -224,7 +178,6 @@ const NEXT_QUESTION = {
     },
   ],
 }
-/** The identity of the first round's reply in the continued request. */
 export const REPLY_ID = 'msg_r100000000000000000000'
 
 function familyRecord(item: RecordCase) {
@@ -234,10 +187,6 @@ function familyRecord(item: RecordCase) {
   return record
 }
 
-/**
- * The first round's request of the case's family: the record fixture's profile, supplier,
- * declaration and representation, the case's parameters, and one question.
- */
 export function firstRoundRequest(item: RecordCase): FixedModelRequest {
   const { request } = readRecordFixture(item.family, familyRecord(item))
   const [supplier] = request.suppliers
@@ -260,7 +209,6 @@ export function firstRoundRequest(item: RecordCase): FixedModelRequest {
   )
 }
 
-/** Reads the side note of a recording. Throws when it is not a note. */
 export function readRecordingNote(directory: string): RecordingNote {
   const parsed: unknown = JSON.parse(readFileSync(join(directory, RECORDING_FILES.note), 'utf8'))
   const field = (name: string): string => {
@@ -275,7 +223,6 @@ export function readRecordingNote(directory: string): RecordingNote {
   }
 }
 
-/** One recording as a replay needs it: the bytes the server answers with, and the side note. */
 export type Recording = Readonly<{ stream: Buffer; note: RecordingNote }>
 
 function stringField(record: unknown, name: string, file: string): string {
@@ -284,7 +231,6 @@ function stringField(record: unknown, name: string, file: string): string {
   return value
 }
 
-/** Reads a synthetic piece. Throws when a line is not what `SYNTHETIC_FILE` describes. */
 export function readSyntheticRecording(file: string): Recording {
   const [head, ...frames] = readFileSync(file, 'utf8')
     .split('\n')
@@ -302,7 +248,6 @@ export function readSyntheticRecording(file: string): Recording {
   return { stream: Buffer.from([...parts, 'data: [DONE]\n\n'].join(''), 'utf8'), note }
 }
 
-/** Reads the recording of a case directory: the synthetic piece when there is one, else the real files. */
 export function readRecording(directory: string): Recording {
   const synthetic = join(directory, SYNTHETIC_FILE)
   if (existsSync(synthetic)) return readSyntheticRecording(synthetic)
@@ -313,17 +258,10 @@ export function readRecording(directory: string): Recording {
 }
 
 export type ReplayedRound = Readonly<{
-  /** The reply blocks of the round, as the Model read them. */
   blocks: readonly ModelBlock[]
-  /** The one dispatch of the round, with its receipt and its account. */
   record: DispatchRecord
 }>
 
-/**
- * Runs `request` through the assembled path against a local HTTPS server that answers with the
- * recorded body in `recording`, settles the call and reads its reply. Refuses when the request
- * body of the replay is not the one that the recording's note names. Nothing leaves the machine.
- */
 export async function replayRound(
   input: Readonly<{ request: FixedModelRequest; recording: string; label: string; vault: string }>,
 ): Promise<ReplayedRound> {
@@ -400,16 +338,10 @@ export async function readReply(
   })
 }
 
-/**
- * The continued request: the first round's request, its reply as the assistant message with the
- * replay scope of the request's declaration and the replay format of the round's receipt, and the
- * next question.
- */
 export function continuedRequest(
   input: Readonly<{
     first: FixedModelRequest
     replayed: ReplayedRound
-    /** What follows the reply: one more question (the default) or the result of its tool call. */
     next?: NonNullable<RecordCase['next']>
   }>,
 ): FixedModelRequest {
@@ -430,7 +362,6 @@ export function continuedRequest(
   return decoded(judgeFixedModelRequest({ ...first, messages: [...first.messages, reply, follow] }))
 }
 
-/** The tool message that answers the first tool call of the reply. Throws when there is none. */
 function toolResultOf(blocks: readonly ModelBlock[]) {
   const call = blocks.find(block => block.kind === 'tool_call')
   if (call === undefined) throw new Error('the first round has no tool call to answer')

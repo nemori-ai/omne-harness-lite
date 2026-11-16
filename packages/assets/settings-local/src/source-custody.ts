@@ -181,7 +181,6 @@ function acceptReceipt(
     return equal(previous, receipt) ? previous : conflict()
   return { kind: 'record' as const }
 }
-/** Receipt authenticity belongs to the coordinator calling the actual source service. */
 export function recordSourceCustody(port: ParticipantPort, raw: SourceCustodyRecord) {
   if (!withinBudget(raw)) return { kind: 'rejected' as const, reason: 'limit_exceeded' as const }
   const input = sourceCustodyRecordSchema.parse(raw)
@@ -224,7 +223,6 @@ export function listSourceCustody(port: ReadPort, raw: SourceCustodyPage) {
   return { kind: 'page' as const, plan, items, after: items.at(-1)?.sourceKey ?? null }
 }
 
-/** Checks this owner's immutable manifest and member states; snapshots stay with their readers. */
 export function sourceCustodyReadiness(port: ReadPort, raw: SourceCustodyPlan) {
   const input = sourceCustodyPlanSchema.parse(raw)
   const attempt = readSettingsAttempt(port, input.identity, input.attemptId)

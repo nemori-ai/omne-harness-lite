@@ -1,6 +1,3 @@
-// Type-level promises: each stage names only the failure kinds of its steps, `pin` gives back
-// exactly the moved failure its caller chose, the unions of the contract are not widened by
-// this member, and the factories give the contract's interfaces. Nothing here runs.
 import { expectTypeOf, test } from 'vitest'
 import type { CapabilityId } from '@omne-harness/assets'
 import type { Access } from '@omne-harness/legal-identity'

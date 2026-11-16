@@ -17,7 +17,7 @@
 | 要引入新概念、改一条定义、改形态、把某个 topic 的概念提成词条 | **先加载 `ubiquitous-language` skill**。顺序是硬的：**先有词条，再在正文里用** |
 | 发现两处说法对不上 | 记进 [conflicts.md](conflicts.md)，**不静默统一掉**。哪一类、怎么写、哪些自己就能定，在 skill 里 |
 | 刚改了某个产品 topic 并升了 rev | 对账器会点名出处还标着旧 rev 的词条。**复核是升 rev 那个人的事**：加载 skill，逐条回读再改 rev |
-| 给一个词条判了「对象」或「未定」 | 这里写完还没完：[领域对象](../domain_objects/AGENTS.md)那边要同时立条目或立待裁，加载 `domain-objects` skill |
+| 给一个词条判了「未定」 | 这里写完还没完：[conflicts.md](conflicts.md) 要同时记一项，写清谁来裁 |
 | 想回改某个 topic 正文的用词来对齐词表 | 不在这里做。这里立规矩；回改由那个 topic 的 owner 自己做并维护现行正文 |
 
 ## 答案在哪一份

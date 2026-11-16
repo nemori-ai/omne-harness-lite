@@ -1,4 +1,3 @@
-// The executor's log of a call that a run left failed or blocked: one line when the reason changes.
 import { describe, expect, it } from 'vitest'
 import type { ToolCallId } from '@omne-harness/tool-contract'
 import { createRunStopLog, troubleOf } from '../src/run-stop-log.ts'

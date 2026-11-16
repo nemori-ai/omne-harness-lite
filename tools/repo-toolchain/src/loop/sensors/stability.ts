@@ -1,5 +1,3 @@
-// 稳定的成员依赖了不稳定的成员：一条边 from → to，若 I(to) − I(from) 大于 margin 就列出。
-// I 是度量报告里成员的不稳定度 出 /（入 + 出），越接近 1 越容易被改动牵连。
 import type { ImportSite } from '../../deps/graph.ts'
 
 export interface StabilityEdge {
@@ -7,7 +5,6 @@ export interface StabilityEdge {
   readonly fromInstability: number
   readonly to: string
   readonly toInstability: number
-  /** 第一个导入处。 */
   readonly site: ImportSite | undefined
 }
 

@@ -1,5 +1,3 @@
-// The connections port (SPEC S8, S9, group page "close()"): the close order, the report, the HTTP
-// handle released with the close, and `closeAll` for the host.
 import { describe, expect, it } from 'vitest'
 import { core } from './doubles/core.ts'
 import { endpointRefOf } from '@omne-harness/mcp-contract/testing'

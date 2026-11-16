@@ -1,5 +1,3 @@
-// A ledger record is stored in the packed text form of sql-contract §10.1: a short record keeps
-// marker 0, a long one is compressed under marker 1, and both read back as they were written.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { LedgerDomain, LedgerRecord } from '@omne-harness/tool'
 import { decodeToolCallId } from '@omne-harness/tool-contract'

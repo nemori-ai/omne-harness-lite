@@ -1,5 +1,3 @@
-// Test helper: the contract's in-memory port doubles wrapped with call counts and handle counts.
-// Tests assert on these counts; the doubles keep their contract behavior.
 import type {
   AdoptionView,
   CatalogStore,
@@ -47,7 +45,6 @@ export function countedEligibility(): Counted<MemoryUseEligibility<Principal>> {
   return { ...memory, ...port, calls: () => count }
 }
 
-/** The catalog store with its reads counted: a case asserts that a step did not read it. */
 export function countedReads<T extends CatalogStore>(
   store: T,
 ): T & Readonly<{ reads: () => number }> {
@@ -62,7 +59,6 @@ export function countedReads<T extends CatalogStore>(
   }
 }
 
-/** One credential handle the test can count: how often it was acquired and released. */
 export type HandleCount = { acquired: number; released: number }
 
 export type CountedCredentials = MemoryCredentialUse<Principal> &
@@ -70,7 +66,6 @@ export type CountedCredentials = MemoryCredentialUse<Principal> &
 
 type Trace = (event: string) => void
 
-/** The memory credential double; every handle it gives out is counted and its release traced. */
 export function countedCredentials(trace: Trace = () => undefined): CountedCredentials {
   const memory = createMemoryCredentialUse<Principal>()
   const handles: HandleCount[] = []
@@ -90,13 +85,11 @@ export function countedCredentials(trace: Trace = () => undefined): CountedCrede
   }
 }
 
-/** The output validator the tests inject, with its calls recorded: the pairs it was given. */
 export type CountedOutputCheck = Readonly<{
   check: OutputValidator
   calls: () => number
 }>
 
-/** An output validator that answers `verdict` to every pair and counts its calls. */
 export function countedOutputCheck(
   verdict: OutputCheck = { kind: 'conforms' },
 ): CountedOutputCheck {

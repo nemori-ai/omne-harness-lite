@@ -1,7 +1,3 @@
-// The `sl_entry` text codec (src/entry-codec.ts): the stored text holds the payload as plain JSON,
-// the entry read back is the entry written (number lexemes and key order included), the digest of
-// the entry object does not change, a repeated key and a row of the retired encoding are refused,
-// and the stored bytes stay within 1.15 times the plain JSON of the entry.
 import { describe, expect, it } from 'vitest'
 import { readJsonText } from '@omne-harness/json-text'
 import type { HistoryEntry } from '@omne-harness/session-contract'
@@ -18,18 +14,15 @@ import { scenarioEntries, tree } from './fixtures/session-scenario.ts'
 
 const entries = scenarioEntries(30) as unknown as HistoryEntry[]
 
-/** The entry as the retired encoding stored and read it: the reference for the digest. */
 const retiredText = (entry: HistoryEntry): string => JSON.stringify(encodeValue(entry))
 const retiredRead = (text: string): HistoryEntry =>
   decodeValue(JSON.parse(text) as JsonValue) as HistoryEntry
 
-/** The entry with its payload as the plain JSON value: the size the user sees as "plain JSON". */
 const plainText = (entry: HistoryEntry): string =>
   JSON.stringify({ ...entry, payload: plainOf(entry.payload) })
 
 const bytes = (text: string): number => Buffer.byteLength(text)
 
-/** One entry whose payload has the given raw JSON text, read by json-text. */
 function entryWithPayload(raw: string): HistoryEntry {
   const read = readJsonText(raw, {
     maxBytes: 1 << 20,
@@ -58,7 +51,6 @@ describe('the stored text', () => {
     for (const entry of entries) {
       const read = readEntryText(writeEntryText(entry))
       expect(read).toEqual(entry)
-      // The digest of the entry object (the evidence of the row) is the one the retired encoding gave.
       expect(entryEvidence('t', 's', read)).toEqual(
         entryEvidence('t', 's', retiredRead(retiredText(entry))),
       )
@@ -169,7 +161,6 @@ describe('size on the fixed session', () => {
   })
 
   it('the tool-heavy shape of the measured session: few prose bytes, many small values', () => {
-    // The measured session had 2.48x; most of its bytes were small structured values.
     const structured = scenarioEntries(4).map(entry => ({
       ...entry,
       payload: tree({

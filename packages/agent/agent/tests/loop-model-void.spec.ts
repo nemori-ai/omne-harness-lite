@@ -1,12 +1,7 @@
-// R2-D292 (the Model admission window): an intent whose admission is unknown is recognized under
-// its original identity; only the Model's authoritative not-accepted voids it, and the step then
-// prepares again under attempt + 1. The checkpoint keeps no request, and a request prepared again
-// need not equal the recorded one, so the original identity is never admitted with a prepared
-// request after a restart. Each case injects one fault: a stop between M0 and admit, inspect
-// answering not-accepted or unavailable, and an admit answering conflict.
 import { describe, expect, it } from 'vitest'
 import { agentEvaluator } from '@omne-harness/agent'
 import type { AgentDependencies } from '@omne-harness/agent'
+import { decodeActionId } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
 import {
   decodeRevision,
@@ -18,8 +13,10 @@ import { fail } from '@omne-harness/operation-result'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
 import { mainCall, mainInvocation, stepOf } from '../src/loop/identities.ts'
 import { canonical } from '../src/canonical.ts'
+import { voidedModelIntents } from '../src/loop/model-result.ts'
 import {
   acceptedInput,
+  evidence,
   execution,
   failure,
   ok,
@@ -51,7 +48,6 @@ async function load(assembly: LoopAssembly) {
 
 const STEP = stepOf(1)
 const REVISION = ok(decodeRevision('1'))
-/** The identities of attempt 0 and 1 of the main call of the first step. */
 const original = mainInvocation(alice.tenant, execution(), STEP, 0)
 const retried = mainInvocation(alice.tenant, execution(), STEP, 1)
 
@@ -59,10 +55,6 @@ function callOf(reference: ModelInvocationRef) {
   return ok(resolveModelInvocationRef(reference, alice.tenant)).call
 }
 
-/**
- * The faults of one case and what the Model was asked. `admit` and `inspect` choose the fault of
- * each call by its identity; `sent` holds every request that reached the Model, by call.
- */
 type Faults = {
   admit: (
     call: string,
@@ -78,8 +70,6 @@ async function faulted(faults: Faults): Promise<{ assembly: LoopAssembly; observ
     ...d,
     requests: {
       ...d.requests,
-      // Every preparation differs from the one before it, as a real one may after a restart
-      // (window usage, clock, live groups): the content of a request is never replayable here.
       async prepare(input) {
         prepares += 1
         const prepared = await d.requests.prepare(input)
@@ -121,18 +111,24 @@ async function faulted(faults: Faults): Promise<{ assembly: LoopAssembly; observ
             return fail({ kind: 'unavailable', dependency: 'admission', diagnostic: 'offline' })
           return d.models.calls.inspect(input)
         },
+        async contact(input) {
+          const call = callOf(input.reference)
+          observed.inspects.push(call)
+          if (faults.inspect(call) === 'unavailable')
+            return fail({ kind: 'unavailable', dependency: 'admission', diagnostic: 'offline' })
+          return d.models.calls.contact(input)
+        },
       },
     },
   }))
   return { assembly, observed }
 }
 
-/** One call identity never carries two requests (FR-2: the sent request is the recorded one). */
 function oneRequestPerIdentity(observed: Observed) {
   for (const [call, bodies] of observed.sent) expect(bodies.size, call).toBe(1)
 }
 
-describe('R2-D292: the Model admission window after a restart', () => {
+describe('the Model admission window after a restart', () => {
   it('a stop between M0 and admit, then not-accepted: voids the intent and admits attempt 1 only', async () => {
     let stop = true
     const { assembly, observed } = await faulted({
@@ -147,7 +143,6 @@ describe('R2-D292: the Model admission window after a restart', () => {
     expect(cut.checkpoint.calls.map(call => call.kind === 'model' && call.reference)).toEqual([
       original,
     ])
-    // The checkpoint holds no request: the restart has nothing to send under the original identity.
     expect(cut.checkpoint.requestPreparation).toBeNull()
     const prepared = assembly.controls.requests.prepare.calls.length
     expect(observed.admits).toEqual([])
@@ -157,16 +152,19 @@ describe('R2-D292: the Model admission window after a restart', () => {
     ok(await coordinator(assembly).continueExecution(authority))
     const after = await load(assembly)
     expect(after.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
-    // bad-naive-readmit: the original identity is never admitted with the request prepared again.
     expect(observed.admits).toEqual([callOf(retried)])
     expect(observed.inspects[0]).toBe(callOf(original))
     expect(after.checkpoint.voided).toEqual([
-      expect.objectContaining({ step: STEP, reference: original }),
+      expect.objectContaining({
+        kind: 'model',
+        step: STEP,
+        reference: original,
+        cause: 'not-accepted',
+      }),
     ])
     expect(
       after.effects.map(effect => effect.pending.kind === 'model' && effect.pending.reference),
     ).toEqual([original, retried])
-    // The step prepared again: I1 and P1 of attempt 1.
     expect(assembly.controls.requests.prepare.calls.length).toBe(prepared + 2)
     expect(assembly.controls.requests.prepare.calls.at(-1)?.action).toBe(`${STEP}/main-a1`)
     oneRequestPerIdentity(observed)
@@ -180,7 +178,6 @@ describe('R2-D292: the Model admission window after a restart', () => {
     assembly.release.open()
     const c = coordinator(assembly)
     ok(await c.accept())
-    // The unknown write is not repeated in this turn: a producer wait at M6.
     ok(await c.runExecution())
     expect((await load(assembly)).state).toMatchObject({
       kind: 'waiting',
@@ -204,12 +201,10 @@ describe('R2-D292: the Model admission window after a restart', () => {
     })
     const first = coordinator(assembly)
     const authority = ok(await first.accept())
-    // The Model accepted the call; the process stopped before it learned so.
     expect(failure(await first.runExecution())).toMatchObject({ node: 'M6' })
     stop = false
     const prepared = assembly.controls.requests.prepare.calls.length
     const next = coordinator(assembly)
-    // bad-naive-unknown: the unknown admission waits at M6; it is not sent again.
     ok(await next.continueExecution(authority))
     const waiting = await load(assembly)
     expect(waiting.state).toMatchObject({
@@ -225,7 +220,6 @@ describe('R2-D292: the Model admission window after a restart', () => {
     ok(await next.runExecution())
     const after = await load(assembly)
     expect(after.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
-    // The Model found the original call: it goes on under its identity, nothing is voided.
     expect(observed.admits).toEqual([callOf(original)])
     expect(after.checkpoint.voided).toEqual([])
     expect(assembly.controls.requests.prepare.calls.length).toBe(prepared)
@@ -237,7 +231,6 @@ describe('R2-D292: the Model admission window after a restart', () => {
   ] as const)(
     'an admit that answers conflict goes on (inspect %s): never stands at M6 and never sends the identity again',
     async (_answer, accepted) => {
-      // `conflict-unheld` stands for a Model that answers conflict and holds no admission of it.
       const { assembly, observed } = await faulted({
         admit: call =>
           call === callOf(original) ? (accepted ? 'conflict' : 'conflict-unheld') : 'pass',
@@ -248,7 +241,6 @@ describe('R2-D292: the Model admission window after a restart', () => {
       ok(await c.accept())
       ok(await c.runExecution())
       const after = await load(assembly)
-      // bad-naive-progress: the conflict does not leave the execution standing at M6.
       expect(after.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
       expect(observed.admits.filter(call => call === callOf(original))).toHaveLength(1)
       expect(after.checkpoint.voided.map(item => item.reference)).toEqual(
@@ -263,5 +255,23 @@ describe('R2-D292: the Model admission window after a restart', () => {
     expect(callOf(retried)).toBe(mainCall(execution(), STEP, 1))
     expect(callOf(retried)).not.toBe(callOf(original))
     expect(mainInvocation(alice.tenant, execution(), STEP, 1)).toBe(retried)
+  })
+})
+
+describe('the attempt of the main call of a step', () => {
+  it('counts the voided Model intents of the step and no voided Tool intent', () => {
+    const basis = evidence('answer')
+    const reference = mainInvocation(alice.tenant, execution(), STEP, 0)
+    const action = ok(decodeActionId(`${STEP}/tool/0`))
+    const lost = { kind: 'model' as const, step: STEP, action, reference, cause: 'lost' as const }
+    const refused = { kind: 'tool' as const, step: STEP, action, cause: 'not-accepted' as const }
+    const voided = [
+      { ...lost, basis },
+      { ...refused, basis },
+      { ...lost, step: stepOf(2), basis },
+    ]
+    expect(voidedModelIntents(voided, STEP)).toBe(1)
+    expect(voidedModelIntents(voided, stepOf(2))).toBe(1)
+    expect(voidedModelIntents([{ ...refused, basis }], STEP)).toBe(0)
   })
 })

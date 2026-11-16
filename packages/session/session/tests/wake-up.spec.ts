@@ -1,14 +1,3 @@
-// Machine guards of the WakeUp model (session-contract verification/models/wake-up/WakeUp.tla).
-//   S5 again: a trigger that arrives while S1 is already judging runs S1 again, so the input
-//     accepted during the first read still opens the Run (negative control "no-again").
-//   S5 GrantedInvoked: a granted Run whose invoke was not accepted, because the retries ran out
-//     or no invoke was sent, is invoked again with the same outbound identity when S1 or the S3
-//     scan finds the session (PA-06 item 2; negative control "scan-start-only").
-//   S6 NoSilentGiveUp: every C2 or S1 step that stops on a failure leaves a named diagnostic with
-//     the session, the Run, the step and the reason (negative control "swallow").
-// The bounded close is also guarded here against unrelated commits (contract I-R2, R2-D327). The
-// periodic scan that finds a session by its pending inputs is guarded by the startup scan case of
-// advance.spec.ts.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fail } from '@omne-harness/operation-result'
 import type {
@@ -42,14 +31,12 @@ async function service(options: Partial<HarnessOptions> = {}): Promise<Harness> 
   return h
 }
 
-/** The Run of the active snapshot. */
 async function activeRun(h: Harness) {
   const snapshot = await read(h)
   if (snapshot.run.kind !== 'active') throw new Error('no active Run')
   return snapshot.run
 }
 
-/** Records every invoke and answers through `answer`, which may delegate to the memory Agent. */
 function recordInvokes(
   h: Harness,
   answer: (
@@ -66,7 +53,6 @@ function recordInvokes(
   return operations
 }
 
-/** A promise with its resolver. */
 function gate() {
   let open: () => void = () => {}
   const promise = new Promise<void>(resolve => {
@@ -79,7 +65,6 @@ it('a trigger during an in-flight judgment runs S1 again, and the input accepted
   const h = await service()
   await h.create()
 
-  // The first read of S1 is held after it has read the session without any input.
   const held = gate()
   const reading = gate()
   let first = true
@@ -108,10 +93,8 @@ it('a trigger during an in-flight judgment runs S1 again, and the input accepted
       kinds: ['intake.routed'],
     })
   }
-  // Wake S1 while nothing is pending; it reads and is held.
   await notice()
   await reading.promise
-  // Meanwhile an input is accepted through the public port and its notice arrives.
   succeeded(
     await h.backend.transactions.commit({
       access: h.access(),
@@ -129,19 +112,18 @@ it('a trigger during an in-flight judgment runs S1 again, and the input accepted
     'accept input-1',
   )
   await notice()
-  // The held read answers the old snapshot: nothing to start. Only the second run of S1 sees it.
   held.open()
   await vi.waitFor(async () => {
     expect((await read(h)).handed).toEqual(['input-1'])
   })
 })
 
-describe('GrantedInvoked: a granted Run whose invoke was not accepted is invoked again (PA-06 item 2)', () => {
+describe('GrantedInvoked: a granted Run whose invoke was not accepted is invoked again', () => {
   for (const [name, backend] of [
     ['memory', memoryBackend],
     ['sql', sqlBackend],
   ] as const)
-    it(`${name}: after the retries run out on an unavailable Agent, the S3 scan invokes it with the same identity`, async () => {
+    it(`${name}: after the retries run out on an unavailable Agent, the recovery scan invokes it with the same identity`, async () => {
       const h = await service({ backend, policy: { advance: { retryDelaysMs: [1000] } } })
       await h.create()
       let down = true
@@ -159,7 +141,6 @@ describe('GrantedInvoked: a granted Run whose invoke was not accepted is invoked
       expect(operations).toHaveLength(2)
       const run = await activeRun(h)
       expect((await read(h)).handed).toEqual([])
-      // The Agent comes back; the startup scan of the tenant finds the session by its pending input.
       down = false
       const handle = succeeded(await h.instance.maintain(TENANT_A), 'maintain')
       await vi.waitFor(async () => {
@@ -184,7 +165,6 @@ describe('GrantedInvoked: a granted Run whose invoke was not accepted is invoked
     const run = await activeRun(h)
     expect(operations).toEqual([])
     h.setDrive(true)
-    // A notice from another process: S1 reads the session and finds the granted Run.
     const now = await read(h)
     h.instance.committed({
       tenant: TENANT_A,
@@ -288,11 +268,10 @@ describe('NoSilentGiveUp: a step that stops on a failure leaves a named diagnost
   })
 })
 
-describe('the bounded close is not starved by unrelated commits (contract I-R2, R2-D327)', () => {
+describe('the bounded close is not starved by unrelated commits (contract I-R2)', () => {
   it('an accept between its read and its commit does not stop the close of a refused first input', async () => {
     const h = await service({ policy: { command: { retriesOnChanged: 1 } } })
     await h.create()
-    // Only the first input is refused; the inputs accepted meanwhile go to the next Run.
     recordInvokes(h, (input, original) =>
       input.first === 'input-1'
         ? Promise.resolve(
@@ -306,7 +285,6 @@ describe('the bounded close is not starved by unrelated commits (contract I-R2, 
     )
     let accepts = 0
     h.view.onCommit(async (input, next) => {
-      // Every commit of the close meets an unrelated accept that moved the snapshot revision.
       if (input.command.kind === 'finishRun') {
         accepts += 1
         succeeded(

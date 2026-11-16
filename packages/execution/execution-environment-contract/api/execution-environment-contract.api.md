@@ -107,6 +107,7 @@
 - `ResidueStopReason` · `facilities/command.d.ts`
 - `ResourceLedger` · `ports.d.ts`
 - `ResourceRecovery` · `environment.d.ts`
+- `ResourcesRecovery` · `environment.d.ts`
 - `RetainedOutput` · `facilities/command.d.ts`
 - `RetainedOutputFrom` · `facilities/command.d.ts`
 - `RetainedProcessInformation` · `facilities/command.d.ts`
@@ -154,6 +155,8 @@
 - `providerFactsSchema` · `operation-schemas.d.ts`
 - `recoverOwnedParamsSchema` · `operation-schemas.d.ts`
 - `recoverOwnedResultSchema` · `operation-schemas.d.ts`
+- `recoverResourcesParamsSchema` · `operation-schemas.d.ts`
+- `recoverResourcesResultSchema` · `operation-schemas.d.ts`
 - `registerFacilityParamsSchema` · `operation-schemas.d.ts`
 - `registerProviderParamsSchema` · `operation-schemas.d.ts`
 - `releaseScopeParamsSchema` · `operation-schemas.d.ts`
@@ -489,6 +492,13 @@ export type UnsupportedRecovery = Readonly<{
     kind: 'resource';
     resource: ManagedResource;
 }>;
+export type ResourcesRecovery = Readonly<{
+    kind: 'recovered';
+    scope: ScopeRef;
+    stopped: readonly ManagedResource[];
+    pending: readonly ManagedResource[];
+    unsupported: readonly ManagedResource[];
+}>;
 export type OwnedRecovery = Readonly<{
     kind: 'recovered';
     scope: ScopeRef;
@@ -552,6 +562,7 @@ export interface ExecutionEnvironment<P> {
     observeRetained(access: Access<P>, scope: ScopeRef): Promise<readonly RetainedProcessInformation[] | Rejected | LookupUnknown>;
     recoverOwned(scope: ScopeRef, access: RecoveryAccess, known?: readonly OriginalAcquisition[]): Promise<OwnedRecovery | Rejected | LookupUnknown>;
     releaseScope(scope: ScopeRef, access: RecoveryAccess, known?: readonly OriginalAcquisition[]): Promise<OwnedRecovery | Rejected | LookupUnknown>;
+    recoverResources(scope: ScopeRef, access: RecoveryAccess, resources: readonly ManagedResource[]): Promise<ResourcesRecovery | Rejected | LookupUnknown>;
 }
 export interface ProviderRegistrations {
     registerFacility<K extends FacilityKey>(descriptor: FacilityDescriptor<K>): () => Promise<void>;
@@ -990,7 +1001,7 @@ export type { TerminalFacility, TerminalInformation, TerminalRef, TerminalRetent
 export { createRecoveryAccess } from './ports.ts';
 export type { FacilityGuard, ManagedResource, RecoveryAccess, RecoveryAuthority, ResourceLedger, RetainedProcessLedger, RetainedTerminalLedger, SessionTerminalRetention, } from './ports.ts';
 export type { AcquisitionInspection, AcquisitionQuery, AcquisitionState, Acquired, AllocationCleanup, AllocationFailed, LookupUnknown, OriginalAcquisition, OriginalInspection, RecoveryInspection, UnknownAcquisition, EnvironmentAdoption, EnvironmentLease, FacilitySet, InstanceIdentity, LeaseInvalidation, LeaseRelease, Pending, Placement, ProviderIdentity, RegistryInvalidationReason, RejectReason, Rejected, } from './lease.ts';
-export type { AcquireInput, AcquisitionListing, AcquisitionSettlement, EnvironmentAction, EnvironmentAuthority, EnvironmentDescription, EnvironmentProvider, ProviderAcquisitionStatus, ProviderQuota, QuotaAnswer, ExecutionEnvironment, OwnedRecovery, PlacementInput, PlatformFacts, ProviderAcquireInput, ProviderAcquisition, ProviderFacts, ProviderRegistrations, RecoveryListing, ResourceRecovery, Retirement, UnsupportedRecovery, } from './environment.ts';
+export type { AcquireInput, AcquisitionListing, AcquisitionSettlement, EnvironmentAction, EnvironmentAuthority, EnvironmentDescription, EnvironmentProvider, ProviderAcquisitionStatus, ProviderQuota, QuotaAnswer, ExecutionEnvironment, OwnedRecovery, PlacementInput, PlatformFacts, ProviderAcquireInput, ProviderAcquisition, ProviderFacts, ProviderRegistrations, RecoveryListing, ResourceRecovery, ResourcesRecovery, Retirement, UnsupportedRecovery, } from './environment.ts';
 export { environmentNeedAdoption, environmentNeedSchema } from './need-declaration.ts';
 export type { EnvironmentNeedDeclaration } from './need-declaration.ts';
 export { environmentNeedSchemaRef } from './need-schema-ref.ts';
@@ -1000,7 +1011,7 @@ export type { ExecutionHostFactsValue, ExecutionPlacementEntry, ExecutionPlaceme
 export { judgeRequirement, matchProviders } from './judge.ts';
 export type { ProviderCapabilities, ProviderMatch, RequirementRefusal } from './judge.ts';
 export type { Issue as DecodeIssue } from './decode.ts';
-export { resolvePlacementParamsSchema, acquireParamsSchema, inspectAcquisitionParamsSchema, inspectRecoveryAcquisitionParamsSchema, describeParamsSchema, observeRetainedParamsSchema, recoverOwnedParamsSchema, releaseScopeParamsSchema, registerFacilityParamsSchema, registerProviderParamsSchema, resolvePlacementResultSchema, acquireResultSchema, inspectAcquisitionResultSchema, inspectRecoveryAcquisitionResultSchema, describeResultSchema, observeRetainedResultSchema, recoverOwnedResultSchema, releaseScopeResultSchema, operationSchemas, providerFactsSchema, managedResourceSchema, originalAcquisitionSchema, } from './operation-schemas.ts';
+export { resolvePlacementParamsSchema, acquireParamsSchema, inspectAcquisitionParamsSchema, inspectRecoveryAcquisitionParamsSchema, describeParamsSchema, observeRetainedParamsSchema, recoverOwnedParamsSchema, releaseScopeParamsSchema, recoverResourcesParamsSchema, registerFacilityParamsSchema, registerProviderParamsSchema, resolvePlacementResultSchema, acquireResultSchema, inspectAcquisitionResultSchema, inspectRecoveryAcquisitionResultSchema, describeResultSchema, observeRetainedResultSchema, recoverOwnedResultSchema, releaseScopeResultSchema, recoverResourcesResultSchema, operationSchemas, providerFactsSchema, managedResourceSchema, originalAcquisitionSchema, } from './operation-schemas.ts';
 export type { OperationSchema, OperationName } from './operation-schemas.ts';
 export type { HostDate } from './blocks.ts';
 ```
@@ -1281,6 +1292,7 @@ export declare const describeParamsSchema: OperationSchema<Parameters<ExecutionE
 export declare const observeRetainedParamsSchema: OperationSchema<Parameters<ExecutionEnvironment<unknown>['observeRetained']>>;
 export declare const recoverOwnedParamsSchema: OperationSchema<Parameters<ExecutionEnvironment<unknown>['recoverOwned']>>;
 export declare const releaseScopeParamsSchema: OperationSchema<Parameters<ExecutionEnvironment<unknown>['releaseScope']>>;
+export declare const recoverResourcesParamsSchema: OperationSchema<Parameters<ExecutionEnvironment<unknown>['recoverResources']>>;
 export declare const registerFacilityParamsSchema: OperationSchema<[
     Readonly<{
         key: import('./facility.ts').FacilityKey;
@@ -1299,6 +1311,7 @@ export declare const describeResultSchema: OperationSchema<Awaited<ReturnType<Ex
 export declare const observeRetainedResultSchema: OperationSchema<Awaited<ReturnType<ExecutionEnvironment<unknown>['observeRetained']>>>;
 export declare const recoverOwnedResultSchema: OperationSchema<Awaited<ReturnType<ExecutionEnvironment<unknown>['recoverOwned']>>>;
 export declare const releaseScopeResultSchema: OperationSchema<Awaited<ReturnType<ExecutionEnvironment<unknown>['releaseScope']>>>;
+export declare const recoverResourcesResultSchema: OperationSchema<Awaited<ReturnType<ExecutionEnvironment<unknown>['recoverResources']>>>;
 export declare const providerFactsSchema: StandardSchemaV1<unknown, Readonly<{
     provider: string;
     generation: string;

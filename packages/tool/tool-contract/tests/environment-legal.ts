@@ -1,9 +1,3 @@
-// The providers of the environment suite that the contract allows, and the fixtures that
-// break the completion contract of `settle`. Each is built at the port boundary: it wraps the
-// methods of the port of the double and the handles that it defines itself, and it never calls a
-// control of the double to make the double behave (`hold`, `excludeDeferred`). The handles of the
-// double that it leaves as they are (`allocations`, `rejectNext`, `otherAccess`) do not shape the
-// answers of the provider.
 import { fail, succeed } from '@omne-harness/operation-result'
 import type {
   PreparationProgress,
@@ -39,15 +33,8 @@ export const without = <T extends object, K extends keyof T>(value: T, key: K): 
   return rest
 }
 
-/** The double with one tenant only: the cross-tenant cases have no second access. */
 export const oneTenant = (): Fixture => without(memoryToolEnvironmentFixture(), 'otherAccess')
 
-/**
- * The generated provider of the table: the first answer of every method, for a new operation,
- * is progress of `kind` (a rejection and an exclusion too), and every read says so until `settle`
- * resolves. The effect of the operation has happened at once; only its answer is masked, and the
- * mask is lifted inside `settle`, which is after the work landed.
- */
 export function generated(
   kind: string,
   options: Readonly<{ settle?: boolean }> = {},
@@ -93,11 +80,6 @@ export function generated(
   }
 }
 
-/**
- * Every new preparation answers `pending` first, a rejection included. The mask is lifted on the
- * next tick and `settle` is not involved, or, for a fixture that keeps the completion contract, by
- * `settle`.
- */
 export function pendingFirstIncludingRejection(liftBy: 'tick' | 'settle'): () => Fixture {
   return () => {
     const base = memoryToolEnvironmentFixture()
@@ -142,10 +124,6 @@ export function pendingFirstIncludingRejection(liftBy: 'tick' | 'settle'): () =>
   }
 }
 
-/**
- * A release answers pending and is carried out on the next tick. The queue is keyed by tenant, call
- * and operation, and the input is checked as P01 wants.
- */
 export function asynchronousRelease(): Fixture {
   const base = memoryToolEnvironmentFixture()
   const env = base.environment
@@ -161,7 +139,6 @@ export function asynchronousRelease(): Fixture {
       ...env,
       release: async input => {
         const key = releaseKey(input)
-        // The input is checked as P01 wants: the same identity with another input goes to the double.
         if (queued.has(key) && queued.get(key) !== input.release.inputDigest)
           return env.release(input)
         if (!queued.has(key)) {
@@ -181,26 +158,12 @@ export function asynchronousRelease(): Fixture {
 
 type PrepareInput = Parameters<Environment['prepare']>[0]
 
-/** What a deferred preparation does. */
 export type Deferral = Readonly<{
-  /** The progress that the provider answers while the allocation has not landed. */
   first: 'pending' | 'unknown'
-  /** When the allocation lands: on the next tick of the event loop, or when `settle` starts it. */
   landsAt: 'tick' | 'settle'
-  /**
-   * A fixture that breaks the completion contract: `settle` starts the landing through this
-   * delay and resolves at once, so it resolves before the allocation landed.
-   */
   lateSettle?: (then: () => void) => void
 }>
 
-/**
- * A provider whose allocation really is deferred: it answers progress for every new preparation,
- * and asks the double for the allocation only when it lands. It defines its own `hold` (every
- * preparation is deferred already, so holding the next one changes nothing) and its own
- * `excludeDeferred` (an excluded preparation never reaches the double and is answered `excluded`).
- * The double is touched through its port only.
- */
 export function deferredPreparation(options: Deferral): () => Fixture {
   return () => {
     const base = memoryToolEnvironmentFixture()
@@ -229,7 +192,6 @@ export function deferredPreparation(options: Deferral): () => Fixture {
         kind: 'excluded',
         exclusion: evidence(`exclusion/${key}`),
       })
-    /** Lands the allocation once: the double is asked for it, and the entry is visible after. */
     const land = (entry: Entry): Promise<void> => {
       entry.landing ??= (
         entry.excluded ? Promise.resolve() : env.prepare(entry.input).then(() => undefined)
@@ -287,11 +249,6 @@ export function deferredPreparation(options: Deferral): () => Fixture {
   }
 }
 
-/**
- * A provider that hands out a fresh reconnect capability with every answer of a preparation (P03:
- * `prepared` returns a capability to reconnect to the original resource); the evidence and the
- * preparation stay the ones of the original allocation.
- */
 export function freshReconnect(): Fixture {
   const base = memoryToolEnvironmentFixture()
   const env = base.environment
@@ -317,13 +274,6 @@ export function freshReconnect(): Fixture {
   }
 }
 
-/**
- * The two legal shapes above at once: the first answer of every new preparation is `pending`
- * (the allocation has happened, only its answer is held back), the resend finds it landed and
- * answers `prepared`, and every `prepared` answer hands out a fresh reconnect capability. A read
- * of a preparation that is still held back answers `pending` too. The provider needs no handle
- * to land: the resend lifts the mask.
- */
 export function pendingFirstWithFreshReconnect(): Fixture {
   const base = memoryToolEnvironmentFixture()
   const env = base.environment
@@ -356,7 +306,6 @@ export function pendingFirstWithFreshReconnect(): Fixture {
           masked.add(key)
           return pending
         }
-        // The resend finds the allocation landed: the mask is lifted.
         masked.delete(key)
         return fresh(answer)
       },
@@ -366,10 +315,6 @@ export function pendingFirstWithFreshReconnect(): Fixture {
   }
 }
 
-/**
- * A provider that refuses a read of a preparation or a release that was never asked for, instead
- * of answering `unknown`, and rejects the preparation of a tenant that it does not serve.
- */
 export function refusesUnseenReads(): Fixture {
   const base = memoryToolEnvironmentFixture()
   const env = base.environment

@@ -1,6 +1,3 @@
-// 验收耗时传感器：没有成员有验收是「0 份」的数据；有验收却找不到这个提交跑全了的记录是没数据；
-// 只认全量的验收运行，或带 scope、写明计划跳过了谁的按计划运行；取最新的一次，实测优先于「跳过」；没出报告的成员按一份计。
-// 没数据时的原因文字指向随 repo-toolchain 发布的入口，断言在 repo-toolchain 的 loop-acceptance-reason.spec.ts。
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -70,7 +67,6 @@ const ledger = (overrides: Partial<LedgerFile['meta']> = {}, seconds = 12): Ledg
   failures: [],
 })
 
-/** 一个带工作区清单的检出；`accepting` 为真时 apps/cli 有 acceptance 脚本。 */
 function checkout(accepting: boolean): { root: string; ledgers: string } {
   const root = temporaryDirectory('acceptance-sensor-')
   put(root, 'pnpm-workspace.yaml', "packages:\n  - 'apps/*'\n")

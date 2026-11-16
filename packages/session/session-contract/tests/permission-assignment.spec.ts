@@ -59,7 +59,6 @@ function assignment(snapshot: WorkSnapshot) {
   } satisfies SessionCommand
 }
 
-// These are named transaction facts for pure domain tests, not a production login authority.
 function qualified(snapshot: WorkSnapshot, command: SessionCommand) {
   return {
     compaction: null,

@@ -100,8 +100,6 @@ async function fixture(retained = false) {
     revision: revision('1'),
     writes: [{ kind: 'put', record: { kind: 'call', call } }],
   })
-  // Every commit of the store is observed; a commit that asserts the original call's revision is
-  // the one a permit makes (the former guarded host commit).
   const realCommit = store.commit.bind(store)
   const commit = vi.spyOn(store, 'commit')
   const callAsserted = (input: LedgerCommitInput) =>
@@ -268,7 +266,6 @@ it('rejects a permit after the original call is durably settled', async () => {
 it('rereads terminality when the call settles between qualification and the asserted commit', async () => {
   const f = await fixture()
   await f.ledger.plan(f.resource)
-  // The call settles while the permit's commit is in flight: its call assertion fails for real.
   f.commit.mockImplementationOnce(async input => {
     await f.finish()
     return f.realCommit(input)
@@ -301,9 +298,6 @@ it('retries a live call revision conflict with a fresh call condition', async ()
 })
 
 it('a handover committed between the permit snapshot and its commit is a conflict, and the re-decision finds the key handed over', async () => {
-  // The acquisition's write asserts its retention scope's revision. A handover that lands in the
-  // window between the snapshot and the commit must fail the write, so the retry decides on the
-  // scope's adoption: the acquisition cannot permit a key its scope took over.
   const f = await fixture(true)
   const retained = await f.retention()
   expect(await f.ledger.plan(f.resource)).toBe('recorded')
@@ -357,7 +351,6 @@ it('does not substitute the ordinary acquisition scope for an absent retained bi
   expect(await retained.permit(f.resource.key)).toBe('unavailable')
 })
 
-/** The stored state of the retention scope's record, or undefined when there is none. */
 async function scopeRecordState(f: Awaited<ReturnType<typeof fixture>>): Promise<unknown> {
   const read = await f.store.readRecord(
     retentionDomain(tenantA, f.fixed.requesterScope),
@@ -376,8 +369,6 @@ it('refuses retained creation after durable scope closure while the creating cal
   await retained.close()
   expect(await retained.permit(f.resource.key)).toBe('closed')
   expect(f.assertedCalls()).toEqual([])
-  // The scope took nothing over; the reservation stays with its creator, whose close leaves the
-  // closed record as it is.
   expect(await retained.inspect()).toEqual([])
   const closed = await scopeRecordState(f)
   expect(closed).toMatchObject({ phase: 'closed', resources: [] })
@@ -433,7 +424,6 @@ it('maintains retained resources without any complete read of an environment dom
   expect(await (await f.retention()).inspect()).toMatchObject([
     { creator: { call: f.preparation.call }, stop: 'active', taken: 'permitted' },
   ])
-  // The confirmed stop ends the scope's hold on the terminal.
   expect(await retained.stopped(f.resource.key, 'confirmed')).toBe('recorded')
   expect(await (await f.retention()).inspect()).toEqual([])
 })

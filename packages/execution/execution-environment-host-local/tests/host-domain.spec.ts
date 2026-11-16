@@ -1,9 +1,3 @@
-// The host files domain on the real file system and real descriptors: per-acquisition admission
-// and drain, failed closes kept by their owner, quota shared across provider generations, queries
-// and settlements after a reload, and the conservative answer for a generation the domain never
-// issued. Two test controls replace parts of `node:fs/promises`: `open` on a marked path waits for
-// the test, and `FileHandle.close` can fail while `closeFails` is set. File bytes, inodes and
-// descriptors are real.
 import { execFile } from 'node:child_process'
 import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -232,12 +226,10 @@ it('drains one acquisition on release: pending with no resources while an operat
   expect(diagnostics).toMatchObject([
     { kind: 'drainBoundExceeded', inFlight: 1, openDescriptors: 0, acquisition: 'first' },
   ])
-  // The slot is still taken, so a third acquisition of the tenant is refused at quota 2.
   expect(await provider.acquire(inputFor(provider, 'third'))).toEqual({
     kind: 'rejected',
     reason: 'quotaExceeded',
   })
-  // The other acquisition keeps working, and the released one admits nothing new.
   expect(await write(second.files, other.path, other.named, 'second-ok')).toMatchObject({
     kind: 'done',
   })
@@ -247,12 +239,10 @@ it('drains one acquisition on release: pending with no resources while an operat
     reason: 'closed',
   })
   control.release()
-  // The result goes back to the original request.
   expect(await running).toMatchObject({ kind: 'done', requestId: 'in-flight' })
   expect(await readFile(held.path, 'utf8')).toBe('written-by-in-flight')
   expect(await first.lease.release()).toEqual({ kind: 'released' })
   expect((await leaseOf(provider, inputFor(provider, 'third'))).lease).toBeDefined()
-  // A second release does not return the slot again.
   expect(await first.lease.release()).toEqual({ kind: 'released' })
   expect(await provider.acquire(inputFor(provider, 'fourth'))).toEqual({
     kind: 'rejected',
@@ -260,7 +250,6 @@ it('drains one acquisition on release: pending with no resources while an operat
   })
 })
 
-// Windows: the files backend keeps no descriptor across requests, so no close of one can fail here.
 it.skipIf(process.platform === 'win32')(
   'keeps a live descriptor whose close failed with its acquisition, until a maintenance retry closes it',
   async () => {
@@ -268,14 +257,12 @@ it.skipIf(process.platform === 'win32')(
     const provider = createHostFilesProvider({ domain, drainBoundMs: 20 })
     const file = await notes()
     const { lease, files } = await leaseOf(provider, inputFor(provider, 'owner'))
-    // The read's close and the retirement's retry both fail; the maintenance retry succeeds.
     control.closeFails = 2
     const read = await files.read(base(file.path, file.named, 'read'))
     expect(read).toMatchObject({
       kind: 'done',
       value: { bytes: new TextEncoder().encode('before') },
     })
-    // The read result stands; the descriptor is still open and belongs to this acquisition.
     expect(await provider.retire()).toEqual({ kind: 'pending', resources: [] })
     await expect(lease.invalidated).resolves.toEqual({
       source: 'provider',
@@ -296,7 +283,6 @@ it.skipIf(process.platform === 'win32')(
   },
 )
 
-// Windows: the files backend keeps no descriptor across requests, so no close of one can fail here.
 it.skipIf(process.platform === 'win32')(
   'keeps an error-path descriptor with its acquisition and settles only after it is closed',
   async () => {
@@ -305,7 +291,6 @@ it.skipIf(process.platform === 'win32')(
     const file = await notes()
     const input = inputFor(provider, 'error-path')
     const { files } = await leaseOf(provider, input)
-    // A named object that does not match makes the facility close the opened descriptor on an error path.
     control.closeFails = 2
     const refused = await files.read(base(file.path, { token: 'other:object' }, 'mismatch'))
     expect(refused).toEqual({ kind: 'rejected', requestId: 'mismatch', reason: 'conflict' })
@@ -328,7 +313,6 @@ it('never lets one acquisition close a handle another acquisition holds on the s
   const readA = await a.files.read(base(file.path, file.named, 'read-a'))
   const readB = await b.files.read(base(file.path, file.named, 'read-b'))
   if (readA.kind !== 'done' || readB.kind !== 'done') throw new Error('expected reads')
-  // Generations are unique in the domain, so the two handles never collide.
   expect(readA.value.handle.generation).not.toBe(readB.value.handle.generation)
   expect(
     await b.files.close({
@@ -336,13 +320,11 @@ it('never lets one acquisition close a handle another acquisition holds on the s
       handle: readA.value.handle,
     }),
   ).toEqual({ kind: 'unknown', requestId: 'b-closes-a' })
-  // A's descriptor is still open and A can still close it.
   expect(
     await a.files.close({ ...base(file.path, file.named, 'a-closes'), handle: readA.value.handle }),
   ).toEqual({ kind: 'done', requestId: 'a-closes', value: { handle: readA.value.handle } })
 })
 
-// Windows: the files backend keeps no descriptor across requests, so no close of one can fail here.
 it.skipIf(process.platform === 'win32')(
   'shares quota and original records across a provider reload in one domain, and settles through the new generation',
   async () => {
@@ -351,14 +333,12 @@ it.skipIf(process.platform === 'win32')(
     const file = await notes()
     const input = inputFor(old, 'before-reload')
     const { lease, files } = await leaseOf(old, input)
-    // The read's close and the old generation's retry fail; the new generation's settlement closes it.
     control.closeFails = 2
     expect((await files.read(base(file.path, file.named, 'read'))).kind).toBe('done')
     expect(await old.retire()).toEqual({ kind: 'pending', resources: [] })
 
     const fresh = createHostFilesProvider({ domain, drainBoundMs: 20 })
     expect(fresh.quotaDomain).toBe(old.quotaDomain)
-    // The new generation sees the original slot: the tenant's quota of one is still taken.
     expect(await fresh.acquire(inputFor(fresh, 'after-reload'))).toEqual({
       kind: 'rejected',
       reason: 'quotaExceeded',
@@ -373,7 +353,6 @@ it.skipIf(process.platform === 'win32')(
       resources: [],
     })
     expect(await fresh.settleAcquisition(originalOf(input))).toEqual({ kind: 'settled' })
-    // The old lease is never revived by the query or the settlement.
     expect(await write(files, file.path, file.named, 'revived')).toEqual({
       kind: 'rejected',
       requestId: 'revived',
@@ -429,7 +408,6 @@ it('lets a rebuilt registry settle the original acquisition through the recovery
     scope: scope1,
     placement,
   }
-  // The registry is lost; a new registry and a new generation join the same domain.
   const second = createEnvironmentRegistry<unknown>({ recovery, ...ports })
   second.registerFacility(filesFacility)
   const fresh = createHostFilesProvider({ domain, drainBoundMs: 20 })
@@ -445,7 +423,6 @@ it('lets a rebuilt registry settle the original acquisition through the recovery
   if (result.kind !== 'recovered') throw new Error('expected a recovery')
   expect(result.settledAcquisitions).toEqual([{ original, outcome: 'settled' }])
   expect(result.unsupported).toEqual([])
-  // Windows, and macOS without a state directory, have no complete cold index.
   expect(result.unavailable).toEqual(
     process.platform === 'win32' || process.platform === 'darwin'
       ? [{ name: fresh.name, generation: fresh.generation, version: fresh.version }]
@@ -476,7 +453,6 @@ it('keeps old use when the quota is lowered, and lets only one of two racing acq
     provider.acquire(inputFor(provider, 'b2', tenantB)),
   ])
   expect([b1.kind, b2.kind].sort()).toEqual(['acquired', 'rejected'])
-  // The global bound of three is now full: a third tenant waits on global capacity.
   const tenantC = tenantOf('acc_0123456789abcdefghjkmnpqrv')
   perTenant = 5
   expect(await provider.acquire(inputFor(provider, 'c1', tenantC))).toEqual({
@@ -489,7 +465,6 @@ it('answers unknown, never notAllocated, for a generation the domain never issue
   const before = createHostFilesProvider({ domain: createHostFilesDomain() })
   const input = inputFor(before, 'from-another-process')
   await leaseOf(before, input)
-  // A new process makes a new domain; it has no evidence that the old capacity was settled.
   const domain: HostFilesDomain = createHostFilesDomain()
   const after = createHostFilesProvider({ domain })
   expect(await after.inspectAcquisition(originalOf(input))).toEqual({ kind: 'unknown' })
@@ -512,7 +487,6 @@ it('settles capacity after an unknown file result without rewriting the bytes', 
   const file = await notes()
   const input = inputFor(provider, 'unknown-effect')
   const { files } = await leaseOf(provider, input)
-  // The object behind the path is not the named one: the write is refused and nothing is written.
   const answer = await files.write({
     ...base(file.path, { token: 'stale:object' }, 'stale'),
     bytes: new TextEncoder().encode('never'),
@@ -530,7 +504,6 @@ it('refuses to create a provider without a domain from this package', () => {
   expect(() => createHostFilesDomain({ quotaDomain: '' })).toThrow(RangeError)
 })
 
-// Real processes in systemd user scopes: only on Linux with OMNE_HOST_COMMAND_LINUX=1.
 const withScopes = process.platform === 'linux' && process.env['OMNE_HOST_COMMAND_LINUX'] === '1'
 
 async function activeState(unit: string): Promise<string> {
@@ -547,12 +520,10 @@ async function activeState(unit: string): Promise<string> {
 
 it(
   'stops the processes of the drained acquisition only, and settles it once their stop is confirmed',
-  // Slow: starts real processes in systemd user scopes and waits for their stop.
   { tags: ['slow'], skip: !withScopes },
   async () => {
     const domain = createHostFilesDomain()
     const provider = createHostFilesProvider({ domain })
-    // A scope of its own: recovery elsewhere on this host reaches every unit of a scope.
     const scope = scopeOf(`scope-domain-${String(Date.now())}-${String(process.pid)}`)
     const firstInput = { ...inputFor(provider, 'first'), scope }
     const first = await leaseOf(provider, firstInput)
@@ -591,8 +562,6 @@ it(
   },
 )
 
-// The engine of an acquisition is reached through the domain internals, which the package entry
-// does not export; these cases use the source modules, all of them one module instance.
 const engineSealed = (record: SourceRecord) => {
   const files = record.engine.facilityFor(record.owner)
   return files.commitBatch({
@@ -616,7 +585,6 @@ it('seals the engine of an acquisition when its drain begins, as it seals the fa
   const input = inputFor(provider, 'sealed')
   const { lease } = await leaseOf(provider, input)
   const record = recordOf(domain, input)
-  // Before the drain the engine admits batches: this one is refused for its content, not as closed.
   expect(await engineSealed(record)).not.toMatchObject({ reason: 'closed' })
   expect(await lease.release()).toEqual({ kind: 'released' })
   expect(await engineSealed(record)).toEqual({
@@ -658,7 +626,6 @@ it('gives providers of one files configuration one engine, and another configura
   )
 })
 
-/** An index that holds nothing and reports `pending` retained processes at each maintenance. */
 function countingIndex(pending: number, maintained: string[], name: string): RetainedProcessIndex {
   const unused = async (): Promise<never> => {
     throw new Error('not used by this test')

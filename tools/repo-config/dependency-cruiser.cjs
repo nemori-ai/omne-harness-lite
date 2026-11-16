@@ -1,23 +1,15 @@
-// dependency-cruiser is the repository's one dependency graph (RFC-0002). `pnpm run lint:deps` and the clean loop read
-// the same run through tools/repo-toolchain/src/deps; member and group cycles are computed there from this graph.
-// Structural guards fail for dev tools and product sources alike.
-//
-// Direction rules project docs/package-organization.md and docs/architecture/layers-and-dependencies.md onto member
-// paths. Rules that need a role the repository does not record yet (a contract must not depend on its provider; a
-// provider is reached through the contract it implements) are not expressed; see docs/package-organization.md.
 const PACKAGES = '^packages/'
 const SDK = '^packages/access/sdk/'
 const SERVER_ENTRY = '^packages/access/server-entry/'
 const PUBLIC_CONTRACT = '^packages/access/public-contract/'
 const ACCESS_CORDIS_CONTRACT = '^packages/access/access-cordis-contract/'
 const ASSEMBLY = '^packages/assembly/assembly/'
-// The entry's positions that know no domain.
 const ENTRY_CORE = '(registry|settle|pipeline|observation-hub|availability)'
-// The client core and the files it imports from the rest of the SDK.
 const SDK_CORE = '^packages/access/sdk/src/(core/|limits\\.ts$|never-written\\.ts$)'
-// The members on the client's side of the access layer. They sit above the SDK. A protocol client
-// or a view module of a domain joins this set when it is built.
-const CLIENT_SIDE = '^packages/access/client-assembly/'
+const CLIENT_ASSEMBLY = '^packages/access/client-assembly/'
+const FRONTEND = '^packages/frontend/'
+const VIEW_MODULE = '^packages/([^/]+)/[^/]+-ui/'
+const CLIENT_SIDE = `${CLIENT_ASSEMBLY}|${FRONTEND}|^packages/[^/]+/[^/]+-ui/`
 const SHARED = '^packages/(common|util)/'
 const ORGANIZATION = 'docs/package-organization.md'
 const TOOLCHAIN = '^tools/repo-toolchain/src/'
@@ -26,7 +18,6 @@ const UNPUBLISHED_TOOLS = '^tools/(dev-flow|product-checks|test-runner)/'
 const WORKSPACE = 'docs/workspace.md'
 const LAYERS = 'docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向'
 const ACCESS_RFC = 'docs/rfcs/RFC-0015-access-dynamic-registration.md'
-// dependency-cruiser resolves `node:crypto` to `crypto`, so a Node built-in is matched by its bare name.
 const NODE_BUILTIN = `^(node:)?(${require('node:module')
   .builtinModules.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
   .join('|')})$`
@@ -131,6 +122,36 @@ module.exports = {
       to: { path: SDK, pathNot: SDK_CORE },
     },
     {
+      name: 'client-side-only-core-contract-and-cordis',
+      comment: `The client assembly runs in a browser and depends only on the public contract, the SDK client core, Cordis and its own files; it imports no server-side member and no Node built-in. ${ACCESS_RFC}「16. 成员怎么放，依赖方向」: 客户端装配只多依赖 Cordis`,
+      severity: 'error',
+      from: { path: `${CLIENT_ASSEMBLY}src/` },
+      to: {
+        path: `${PACKAGES}|(^|/)node_modules/|${NODE_BUILTIN}`,
+        pathNot: `${PUBLIC_CONTRACT}|${SDK_CORE}|${CLIENT_ASSEMBLY}|(^|/)node_modules/@deepseek-ai/cordis/`,
+      },
+    },
+    {
+      name: 'view-module-only-assembly-frontend-and-own-protocol',
+      comment: `The view module of a domain runs in a browser. Of the repository it depends only on the client assembly, the frontend group, the SDK client core, the public contract, the protocol contract and the view modules of its own domain, and the shared pure definitions; it imports no view module of another domain, no server-side member and no Node built-in. Its third-party packages are its own. ${LAYERS}: 领域的界面模块依赖客户端装配、界面外壳契约与共用界面件、领域的协议契约`,
+      severity: 'error',
+      from: { path: `${VIEW_MODULE}src/`, pathNot: FRONTEND },
+      to: {
+        path: `${PACKAGES}|${NODE_BUILTIN}`,
+        pathNot: `${PUBLIC_CONTRACT}|${SDK_CORE}|${CLIENT_ASSEMBLY}|${FRONTEND}|${SHARED}|^packages/$1/[^/]+-(protocol|ui)/`,
+      },
+    },
+    {
+      name: 'frontend-knows-no-domain',
+      comment: `The frontend group, the shell contract and the shared view kit, runs in a browser and knows no domain. Of the repository it depends only on its own group and the shared pure definitions; it imports no client assembly, no view module, no server-side member and no Node built-in. ${LAYERS}: 界面外壳契约与共用界面件没有指向别的框的边`,
+      severity: 'error',
+      from: { path: `${FRONTEND}[^/]+/src/` },
+      to: {
+        path: `${PACKAGES}|${NODE_BUILTIN}`,
+        pathNot: `${FRONTEND}|${SHARED}`,
+      },
+    },
+    {
       name: 'client-side-is-above',
       comment: `No other member depends on a client-side member: not the SDK, not the server side, not a capability. Applications assemble it. ${LAYERS}「依赖关系与禁止方向」`,
       severity: 'error',
@@ -198,12 +219,10 @@ module.exports = {
     },
   ],
   options: {
-    // Keep dist and installed packages as leaves: excluding them would drop the edges that point at them.
     doNotFollow: { path: ['node_modules', '(^|/)dist/', '\\.0\\.0\\.1\\.legacy/'] },
     exclude: { path: ['(^|/)tmp/', '(^|/)\\.worktrees/', '(^|/)coverage/'] },
     tsPreCompilationDeps: 'specify',
     tsConfig: { fileName: 'tsconfig.base.json' },
-    // Same condition as typecheck: workspace imports resolve to member sources instead of dist.
     enhancedResolveOptions: {
       conditionNames: ['source', 'import', 'types', 'node', 'default'],
       exportsFields: ['exports'],

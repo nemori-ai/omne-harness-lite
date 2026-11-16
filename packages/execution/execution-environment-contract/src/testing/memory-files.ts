@@ -9,22 +9,16 @@ import type {
 } from '../index.ts'
 
 export type MemoryFileSystemOptions = Readonly<{
-  /** Files under the grant root, keyed by path relative to it. Parent directories are created. */
   files?: Readonly<Record<string, string | Uint8Array>>
-  /** Empty directories under the grant root. */
   directories?: readonly string[]
 }>
 
 export type MemoryFileSystem<P = unknown> = Readonly<{
   durability: 'none'
-  /** The facility to put in a scripted lease: `lease: { files: fs.facility }`. */
   facility: FileSystemFacility<P>
-  /** The object a relative path names now, for the caller's `named`. `''` names the grant root. */
   objectToken(path: string): ObjectToken | undefined
-  /** A copy of the current bytes of a file, or `undefined`. Not a facility call. */
   peek(path: string): Uint8Array | undefined
   calls: readonly Readonly<{ operation: FacilityOperation<'files'>; path: string }>[]
-  /** After `close`, every operation answers `rejected/closed` and changes nothing. */
   close(): void
 }>
 
@@ -39,7 +33,6 @@ type Entry = {
 )
 type Directory = Extract<Entry, { type: 'directory' }>
 
-/** What a path names: the object, its parent directory for a create, or why there is none. */
 type Resolution =
   | { readonly kind: 'object'; readonly entry: Entry }
   | { readonly kind: 'parent'; readonly parent: Directory; readonly name: string }
@@ -49,22 +42,18 @@ type Resolution =
 type ObjectResolution = Extract<Resolution, { kind: 'object' | 'unresolved' | 'refused' }>
 type ParentResolution = Extract<Resolution, { kind: 'parent' | 'notFound' | 'refused' }>
 
-/** Final segments that do not name a new entry. */
 const NOT_A_NAME: ReadonlySet<string> = new Set(['', '.', '..'])
 
 const handleKey = (handle: HandleGeneration) =>
   JSON.stringify([handle.object.token, handle.generation])
 
 const isCount = (value: number) => Number.isSafeInteger(value) && value >= 0
-/** A byte offset, a byte limit or a list offset: absent, or a non-negative safe integer. */
 const isOptionalCount = (value: number | undefined) => value === undefined || isCount(value)
-/** A list limit: absent, or a positive safe integer. */
 const isOptionalLimit = (value: number | undefined) =>
   value === undefined || (isCount(value) && value > 0)
 
 const byName = ([a]: readonly [string, Entry], [b]: readonly [string, Entry]) => (a < b ? -1 : 1)
 
-/** Script setup only: a seed path is plain segments, no `''`, `.`, `..` or NUL; otherwise it throws. */
 function seedPath(path: string): Readonly<{ parents: readonly string[]; name: string }> {
   const parents = path.split('/')
   const name = parents.pop()
@@ -73,19 +62,6 @@ function seedPath(path: string): Readonly<{ parents: readonly string[]; name: st
   return { parents, name }
 }
 
-/**
- * An in-memory file facility for tests. It plays a placement that claims the isolation
- * `filesystem-root`: the double makes its grant root when it is built, the whole tree is inside it,
- * and no request or lease carries the root. Paths are relative to the root and resolve object by
- * object, as on a real file system: a missing or file segment before `..` leaves the path
- * unresolved, and `..` above the root is refused. The double has no symbolic links, so it does not
- * prove a real grant-root check. Not durable; never assemble in production.
- *
- * To put it in a lease, give the scripted provider `facilities` that include `'files'`,
- * `isolation: ['filesystem-root']` and `lease: { files: fs.facility }`. A given `lease` replaces the
- * whole default facility table. The caller writes the provider's `retire` script and calls
- * `fs.close()` in it.
- */
 export function createMemoryFileSystem<P = unknown>(
   options: MemoryFileSystemOptions = {},
 ): MemoryFileSystem<P> {
@@ -137,7 +113,6 @@ export function createMemoryFileSystem<P = unknown>(
     parent.entries.set(name, makeFile(seed))
   }
 
-  /** Walks the tree one segment at a time from the grant root. `..` goes back to the real parent. */
   function walk(segments: readonly string[]): ObjectResolution {
     let current: Entry = root
     const parents: Directory[] = []
@@ -158,7 +133,6 @@ export function createMemoryFileSystem<P = unknown>(
     return { kind: 'object', entry: current }
   }
 
-  /** The one path resolver. `object` resolves the whole path; `parent` resolves all but the new name. */
   function resolve(path: string, mode: 'object'): ObjectResolution
   function resolve(path: string, mode: 'parent'): ParentResolution
   function resolve(path: string, mode: 'object' | 'parent'): Resolution {
@@ -175,7 +149,6 @@ export function createMemoryFileSystem<P = unknown>(
     return { kind: 'parent', parent: parent.entry, name }
   }
 
-  /** Every successful result carries a new handle generation of the object. */
   function identity(entry: Entry): FileIdentity {
     entry.generation++
     const handle = { object: { token: entry.token.token }, generation: String(entry.generation) }
@@ -193,7 +166,6 @@ export function createMemoryFileSystem<P = unknown>(
   const refuse = (requestId: string, reason: FacilityReason) =>
     ({ kind: 'rejected', requestId, reason }) as const
   const unsupported = (requestId: string) => refuse(requestId, 'unsupported')
-  /** Refuses every operation after `close()`; otherwise records the call. */
   function enter(operation: FacilityOperation<'files'>, requestId: string, path: string) {
     if (closed) return refuse(requestId, 'closed')
     calls.push({ operation, path })
@@ -202,7 +174,6 @@ export function createMemoryFileSystem<P = unknown>(
   const isNamed = (entry: Entry, named: ObjectToken) => entry.token.token === named.token
 
   type Target = Readonly<{ requestId: string; path: string; named: ObjectToken | null }>
-  /** The object a request names, after the path and `named` checks in the order of the contract table. */
   function useObject(request: Target) {
     const found = resolve(request.path, 'object')
     if (found.kind === 'refused') return refuse(request.requestId, found.reason)
@@ -212,7 +183,6 @@ export function createMemoryFileSystem<P = unknown>(
     if (!isNamed(found.entry, request.named)) return refuse(request.requestId, 'conflict')
     return found
   }
-  /** The parent directory and new name of a create; `named` is the parent. */
   function useParent(request: Target) {
     const found = resolve(request.path, 'parent')
     if (found.kind === 'refused') return refuse(request.requestId, found.reason)

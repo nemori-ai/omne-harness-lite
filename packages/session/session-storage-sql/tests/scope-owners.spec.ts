@@ -1,8 +1,3 @@
-// The scope owner source of the SQL storage (SessionScopeOwnerSource): the session that minted a
-// Context scope, read back from the row that the commit minting it wrote. What is checked: creation
-// and unarchiving each leave the owner of the scope they mint, in the tenant that minted it; a new
-// source over the same storage, as after a restart, answers from the rows alone; a scope no session
-// minted is `unknown`; a read that could not look in every domain is `unavailable`, never `unknown`.
 import { describe, expect, it } from 'vitest'
 import { contextScopeOf, type SessionCommand } from '@omne-harness/session-contract'
 import { operationId, sessionId } from '@omne-harness/session-contract/testing'
@@ -22,7 +17,6 @@ const control = (a: App, kind: 'archive' | 'unarchive', name: string) =>
     guards: [],
   })
 
-/** A new source over the storage of `a`: nothing is kept in it, as in a process just started. */
 const fresh = (a: App) =>
   createSessionScopeOwners({ storage: a.provider.storage, domains: a.storageOptions.domains })
 

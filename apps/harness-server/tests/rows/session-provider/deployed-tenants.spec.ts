@@ -1,7 +1,3 @@
-// The tenant source the `session-provider` row gives the Session provider for its startup scan
-// (`deployedTenants`, session-cordis SPEC property 7): the tenant directory asked as the scanner of
-// the deployment, with each entry parsed to a tenant. A directory that does not answer, or an
-// entry that names no tenant, is a failure and never a shorter list.
 import { describe, expect, it } from 'vitest'
 import { memoryAccess } from '@omne-harness/session-contract/testing'
 import { tenantCodec } from '@omne-harness/legal-identity'

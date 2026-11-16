@@ -22,14 +22,12 @@ type Replay = {
 
 type Next = 'wait' | 'again' | 'stop'
 type ControlRequest = Parameters<AgentDrivePort['control']>[0]
-/** What one round decided while holding the session lane: finish, or make this one outbound call. */
 type Round =
   | Readonly<{ kind: 'done'; next: Next }>
   | Readonly<{ kind: 'call'; port: AgentDrivePort; request: ControlRequest }>
 
 const only = <T>(items: readonly T[]): T | null => (items.length === 1 ? (items[0] ?? null) : null)
 
-/** The execution a Run ran on; null unless the history names exactly one. */
 function executionOf(snapshot: WorkSnapshot, run: RunId) {
   const executions = snapshot.executions?.filter(item => item.run === run) ?? []
   return only(executions)?.execution.execution ?? null
@@ -39,7 +37,6 @@ function cancelRunExecution(snapshot: WorkSnapshot, target: ControlProgress['tar
   return target.kind !== 'run' || target.run !== run ? null : executionOf(snapshot, run)
 }
 
-/** The execution of the Run an archive ended; null when the session had no active Run then. */
 function archivedExecution(snapshot: WorkSnapshot, progress: ControlProgress) {
   const run =
     progress.target.kind === 'session' ? runCancelledBy(snapshot, progress.operation) : null
@@ -74,12 +71,10 @@ function producerExecution(
   return execution?.execution.execution === attempt.execution ? attempt.execution : null
 }
 
-/** The execution the control's original Run ran on; null unless the history names exactly one. */
 function originalExecution(snapshot: WorkSnapshot, progress: ControlProgress): string | null {
   if (progress.intent.kind !== 'control') return null
   const intent = progress.intent.value
   if (intent.kind === 'cancel-run') return cancelRunExecution(snapshot, progress.target, intent.run)
-  // An archive cancels the Run that was active: its execution gets the same cancel (AD-14).
   if (intent.kind === 'archive') return archivedExecution(snapshot, progress)
   if (intent.kind === 'stop-call' || intent.kind === 'background-tool')
     return producerExecution(snapshot, progress.target, intent.producer)
@@ -114,7 +109,6 @@ export function createControlPropagation<P>(
   const replayKey = (ref: SessionRef, operation: ControlProgress['operation']): string =>
     `${sessionKey(ref)}\u0000${operation}`
   const CLOSED = Symbol('closed')
-  /** The outbound call cannot be cancelled; at close the result is dropped and the call left to end. */
   const untilClosed = <T>(work: Promise<T>): Promise<T | typeof CLOSED> =>
     new Promise((resolve, reject) => {
       const closed = (): void => resolve(CLOSED)
@@ -129,7 +123,6 @@ export function createControlPropagation<P>(
         (error: unknown) => settle(() => reject(error)),
       )
     })
-  /** Reads and judges under the session lane; the outbound call itself is left to `exchange`. */
   const plan = async (
     ref: SessionRef,
     operation: ControlProgress['operation'],
@@ -158,8 +151,6 @@ export function createControlPropagation<P>(
     }
     return { kind: 'call', port, request }
   }
-  // One round is one outbound step: a send, or a query of the earlier send. A send that ended
-  // unknown is queried in the same round, so the smallest budget still asks before giving up.
   const exchange = async (
     round: Extract<Round, { kind: 'call' }>,
     replay: Replay,
@@ -245,7 +236,6 @@ export function createControlPropagation<P>(
       }
     })
   }
-  /** A control that left `propagating` needs no replay record; one still running drops its own. */
   const settle = (ref: SessionRef, progress: ControlProgress): void => {
     const key = replayKey(ref, progress.operation)
     if (replays.get(key)?.running !== true) replays.delete(key)

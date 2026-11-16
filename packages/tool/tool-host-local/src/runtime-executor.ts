@@ -3,18 +3,20 @@ import { succeed } from '@omne-harness/operation-result'
 import {
   canonicalDigest,
   createToolDriver,
-  type PendingCall,
   type ToolDependencies,
   type ToolLedger,
   type ToolLedgerRecovery,
 } from '@omne-harness/tool'
-import type { DurableEvidence } from '@omne-harness/tool-contract'
+import type { DurableEvidence, ToolInstanceId } from '@omne-harness/tool-contract'
 import type {
   ToolDriver,
   ToolInstanceHost,
   ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
 import { owesWork, waitsForPerson } from './call-dormancy.ts'
+import { attachCall } from './call-liveness.ts'
+import { createLostExecutions, type LostExecutionsInput } from './lost-execution.ts'
+import { createRecoveryScans } from './recovery-scans.ts'
 import { createLocalToolResultDelivery } from './result-delivery.ts'
 import { createRuntimePublication } from './runtime-publication.ts'
 import { createRunStopLog } from './run-stop-log.ts'
@@ -47,77 +49,43 @@ type Entry = {
   started: boolean
   retiring: boolean
   running: boolean
-  /**
-   * Judged from a fresh recovery after a delivery outcome: settled, no pending task, delivery
-   * done. A complete entry is not rescheduled and retires once no run is in progress.
-   */
   complete: boolean
-  /**
-   * Judged after a run that was idle: the call is suspended on a wait and owes nothing now. A
-   * dormant entry leaves the table once no run is in progress; a hint, a run the instance host
-   * queued or the recovery scan brings the call back (model DormantCalls).
-   */
   dormant: boolean
   progress: string
 }
 
-/** How many timer ticks pass before a finished recovery scan is armed again. */
-const RESCAN_TICKS = 60
-
-/**
- * Whether the driver runs the call again on its own, after its backoff (Tool SPEC 23): the last
- * run stopped blocked, without progress at the end of its step budget (or with progress, which it
- * goes on from at once), or on a port that could not answer. The interval leaves these calls to it.
- */
 function drivenLater(progress: string): boolean {
   return (
     progress === 'blocked' || progress === 'yielded' || progress.startsWith('failed/unavailable')
   )
 }
 
-/** 启动扫描每次向账本要的一页调用数。 */
-const RECOVERY_PAGE = 100
-
-/** 原执行可能仍在旧实例里运行的阶段：新实例不接上它，也不重新启动它。 */
-const POSSIBLY_LIVE: ReadonlySet<string> = new Set(['starting', 'live', 'unknown'])
-
-/**
- * 启动扫描的进度。`waiting` 还有页没读完（上次读不到，或内存表已满），定时器下一拍从 `after` 接着读；
- * `done` 已读完；`unsupported` 账本或记录仓不能扫描，不再重试。
- */
-type RecoveryScan = {
-  state: 'waiting' | 'running' | 'done' | 'unsupported'
-  after: PendingCall | null
-  recovered: number
-  /** 上一次扫描以读不到或抛出结束：连续失败只写一条 warn。 */
-  failing: boolean
-  /** 上一次扫描停在内存表已满上：一直满着只写一条 warn。 */
-  full: boolean
-}
+const RESCAN_MS = 60_000
 
 function logTo(ctx: Context): (level: 'warn' | 'info', message: string) => void {
   return (level, message) => {
     try {
       ctx.logger('tool-executor')[level](message)
-    } catch {
-      // The context has ended; there is nobody to tell.
-    }
+    } catch {}
   }
 }
 
-export function createRuntimeExecutor(
-  input: Readonly<{
-    ctx: Context
-    settings: RuntimeCompositionInput
-    dependencies: ToolDependencies<unknown, ToolMessageContentBlock, ToolEnvironmentValue>
-    resultDelivery: ToolLedger<unknown, ToolMessageContentBlock>['delivery']
-    receiver: Parameters<
-      typeof createLocalToolResultDelivery<unknown, ToolMessageContentBlock>
-    >[0]['position']['receiver']
-    /** 账本的受信恢复扫描：执行器启动时用它找回有待推进工作的旧调用。 */
-    recovery: ToolLedgerRecovery
-  }>,
-) {
+type ExecutorInput = Readonly<{
+  ctx: Context
+  settings: RuntimeCompositionInput
+  dependencies: ToolDependencies<unknown, ToolMessageContentBlock, ToolEnvironmentValue>
+  resultDelivery: ToolLedger<unknown, ToolMessageContentBlock>['delivery']
+  receiver: Parameters<
+    typeof createLocalToolResultDelivery<unknown, ToolMessageContentBlock>
+  >[0]['position']['receiver']
+  recovery: ToolLedgerRecovery
+  instance(): ToolInstanceId | null
+  maintenance: LostExecutionsInput['maintenance']
+}>
+
+const AT_REST: ReadonlySet<string> = new Set(['ended', 'not-started', 'lost'])
+
+export function createRuntimeExecutor(input: ExecutorInput) {
   const { settings, dependencies } = input
   const abort = new AbortController()
   const calls = new Map<string, Entry>()
@@ -137,7 +105,6 @@ export function createRuntimeExecutor(
     position: { access: settings.resolveAccess, receiver: input.receiver },
     forwardedCopies: settings.sources.releaseReceivedCopies,
     capacity: settings.capacity,
-    // No receiver, or one that answers unavailable: the delivery stays owed, paced and named (R2-D273, R2-D282).
     pacing: {
       initialMs: settings.configuration.driverRetryDelayMs ?? 1000,
       maxMs: Math.max(settings.configuration.driverRetryDelayMs ?? 1000, 60_000),
@@ -157,11 +124,14 @@ export function createRuntimeExecutor(
     stepsPerRun: settings.configuration.driverStepsPerRun ?? 16,
     retryDelayMs: settings.configuration.driverRetryDelayMs ?? 1000,
   })
+  const lost = createLostExecutions(input, step => driver.later(step))
   const keyOf = (wake: Wake) => canonicalDigest([wake.tenant, wake.call])
+  // `scans` is built below; `remember` reaches it only when it is called, after construction.
   const remember = (wake: Wake, purpose: RuntimeCallPurpose = 'execute'): boolean => {
     const key = keyOf(wake)
     if (calls.has(key)) return !abort.signal.aborted
     if (abort.signal.aborted || calls.size >= settings.capacity) return false
+    scans.registered(wake)
     calls.set(key, {
       wake,
       purpose,
@@ -176,6 +146,15 @@ export function createRuntimeExecutor(
     })
     return true
   }
+  const scans = createRecoveryScans({
+    startup: input.recovery.scan,
+    pending: scan => settings.store.scanPending(scan),
+    rescanMs: settings.recoveryRescanMs ?? RESCAN_MS,
+    remember,
+    schedule: call => void dependencies.instances.schedule(call).catch(() => undefined),
+    warn: message => executorLog('warn', message),
+    signal: abort.signal,
+  })
   const publish = (
     step: Parameters<ToolDriver<unknown>['run']>[0],
     recovery: Recovered,
@@ -260,11 +239,6 @@ export function createRuntimeExecutor(
       },
     })
   }
-  /**
-   * Retires a complete entry once no run is in progress. The delivery outcome and the end of
-   * every run both call it, so the retirement does not depend on which of the two comes last
-   * (R2-D164). A failed cleanup keeps the entry and lets a later outcome judge it again.
-   */
   const stops = createRunStopLog({
     warn: message => executorLog('warn', message),
     info: message => executorLog('info', message),
@@ -290,34 +264,30 @@ export function createRuntimeExecutor(
       calls.delete(key)
       stops.forget(key)
       delivery.release(wake)
+      if (entry.complete) scans.ended(wake)
+      scans.roomMade()
     }
     if (entry.complete) completed += 1
     else dormantExits += 1
   }
-  /**
-   * The entry of a run. A call the table holds runs under its entry. A call it does not hold is a
-   * dormant call that a hint or a late run woke: it comes back when the ledger shows work of it
-   * and the table has room. With no room the recovery scan is armed again and finds it later.
-   */
   const entryOf = async (
     step: Parameters<ToolDriver<unknown>['run']>[0],
   ): Promise<Entry | null> => {
     const known = calls.get(keyOf(step))
     if (known !== undefined) return known
     const recovery = await dependencies.commands.loadRecovery(step)
-    if ('failure' in recovery || !owesWork(recovery.ok)) return null
+    if ('failure' in recovery) return null
+    if (!owesWork(recovery.ok)) {
+      if (recovery.ok.state.phase === 'settled') scans.ended(step)
+      return null
+    }
     if (remember(step)) {
       reentries += 1
       return calls.get(keyOf(step)) ?? null
     }
-    rearmScan()
+    scans.wanted(step)
     return null
   }
-  /**
-   * Drives the delivery of the call and judges the outcome. The delivery worker owns its own
-   * wait; it never occupies the host's driver queue. A settled call whose delivery is done and
-   * whose fresh recovery shows nothing pending is complete: it retires once no run is in progress.
-   */
   const deliver = (
     step: Parameters<ToolDriver<unknown>['run']>[0],
     entry: Entry,
@@ -331,7 +301,7 @@ export function createRuntimeExecutor(
         const current = await dependencies.commands.loadRecovery(step)
         if ('failure' in current || calls.get(keyOf(step)) !== entry) return
         const { execution } = current.ok.state
-        if (execution.kind !== 'ended' && execution.kind !== 'not-started') return
+        if (!AT_REST.has(execution.kind)) return
         if (current.ok.tasks.some(task => task.state === 'pending')) return
         entry.complete = true
         await retire(step, entry)
@@ -353,8 +323,6 @@ export function createRuntimeExecutor(
       try {
         const before = await dependencies.commands.loadRecovery(step)
         if ('failure' in before) {
-          // The read before the run could not answer: the driver runs the call again after its
-          // backoff, and the interval leaves it to the driver (Tool SPEC 23).
           if (before.failure.kind === 'unavailable') {
             entry.progress = `failed/unavailable/${before.failure.dependency}`
             driver.later(step)
@@ -362,24 +330,14 @@ export function createRuntimeExecutor(
           return
         }
         entry.started = true
-        // A new executor cannot attach an old execution by resolving the latest providers. It
-        // lets a call go only when the execution of the current segment can still run in an old
-        // instance; the start record of the segment names its owner. This instance advances a
-        // call that is suspended, ended or never started, or whose current segment it prepared.
-        const owner = before.ok.start?.execution.instance ?? before.ok.execution?.instance
-        if (
-          owner !== undefined &&
-          owner !== step.instance &&
-          POSSIBLY_LIVE.has(before.ok.state.execution.kind)
-        ) {
+        const forget = () => {
           foreignExecutionRuns += 1
-          if (calls.get(keyOf(step)) === entry) {
-            calls.delete(keyOf(step))
-            delivery.release(step)
-          }
-          return
+          if (calls.get(keyOf(step)) !== entry) return
+          calls.delete(keyOf(step))
+          delivery.release(step)
+          scans.roomMade()
         }
-        // A saved final can release an unused writer while its fragment provider is unavailable.
+        if (await lost.handled(step, before.ok, entry, forget)) return
         const progress = await driver.advance(step)
         stops.stopped(keyOf(step), step.call, progress)
         entry.progress =
@@ -398,8 +356,8 @@ export function createRuntimeExecutor(
         deliver(step, entry, after)
       } finally {
         entry.running = false
-        // A dormant call leaves before its run returns: the run the host starts next finds the
-        // call gone and takes it back from the ledger, so a hint that came meanwhile is not lost.
+        // A dormant call leaves before its run returns: the next run finds it gone and reloads it
+        // from the ledger, so a hint that came meanwhile is not lost.
         const dormant = entry.dormant
         const left = retire(step, entry)
         if (dormant) await left
@@ -411,114 +369,50 @@ export function createRuntimeExecutor(
       await waitRuntime(() => advancing.run(step), abort.signal)
     },
   })
-  const warn = (message: string) => executorLog('warn', message)
-  const scan: RecoveryScan = {
-    state: 'waiting',
-    after: null,
-    recovered: 0,
-    failing: false,
-    full: false,
-  }
-  const scanFailed = (message: string) => {
-    if (!scan.failing) warn(message)
-    scan.failing = true
-  }
-  /**
-   * Arms a finished scan again, from the start: a dormant call whose hint was lost, or that found
-   * no room when its hint came, is found by its pending marker.
-   */
-  function rearmScan(): void {
-    if (scan.state !== 'done') return
-    scan.state = 'waiting'
-    scan.after = null
-  }
-  /**
-   * 启动扫描（契约 P09 recover）：按待办标记分页找回有待推进工作的调用，记入内存表并调度，驱动按
-   * 调用当前的阶段推进。内存表满时停在当前游标，等有调用退场后的下一拍接着读；读不到时同样等下一拍。
-   * 扫描只给出调用身份，每次运行仍由实例宿主按 `recover` 资格解析访问。
-   */
-  const sweep = async (): Promise<void> => {
-    if (scan.state !== 'waiting' || abort.signal.aborted) return
-    scan.state = 'running'
-    try {
-      for (;;) {
-        const page = await input.recovery.scan({ after: scan.after, limit: RECOVERY_PAGE })
-        if (abort.signal.aborted) return
-        if ('failure' in page) {
-          if (page.failure.kind === 'unsupported') {
-            scan.state = 'unsupported'
-            warn('The recovery scan is unsupported; old calls are not taken over.')
-          } else scanFailed('The recovery scan is unavailable; it goes on at the next retry.')
-          return
-        }
-        scan.failing = false
-        for (const call of page.ok.calls) {
-          if (!remember(call)) {
-            if (!scan.full)
-              warn('The executor is full; the recovery scan goes on when a call retires.')
-            scan.full = true
-            return
-          }
-          scan.full = false
-          scan.after = call
-          scan.recovered += 1
-          void dependencies.instances.schedule(call).catch(() => undefined)
-        }
-        // 下一页从本页最后一个调用之后开始，游标已在上面记下。
-        if (page.ok.next === null) {
-          scan.state = 'done'
-          return
-        }
-      }
-    } catch {
-      scanFailed(
-        'The recovery scan failed; its error text is withheld. It goes on at the next retry.',
-      )
-    } finally {
-      if (scan.state === 'running') scan.state = 'waiting'
-    }
-  }
   const retryMs = settings.configuration.driverRetryDelayMs ?? 1000
-  // Live calls only: a complete call has nothing left to drive and retires on its own.
-  let ticksSinceScan = 0
   const timer = setInterval(() => {
     for (const entry of calls.values()) {
       if (entry.retiring || entry.complete || entry.dormant || drivenLater(entry.progress)) continue
       void dependencies.instances.schedule(entry.wake).catch(() => undefined)
     }
-    // The long fallback for a lost hint: a finished scan runs again every RESCAN_TICKS ticks.
-    ticksSinceScan = scan.state === 'done' ? ticksSinceScan + 1 : 0
-    if (ticksSinceScan >= RESCAN_TICKS) rearmScan()
-    void sweep()
   }, retryMs)
   timer.unref()
-  void sweep()
+  scans.start()
   let closing: Promise<void> | null = null
   return {
     remember,
     knows: (wake: Wake) => calls.has(keyOf(wake)),
+    attach: (wake: Wake) => attachCall(input, remember, wake),
     rejectAdmission(wake: Wake) {
       const entry = calls.get(keyOf(wake))
-      if (entry !== undefined && !entry.started) calls.delete(keyOf(wake))
+      if (entry === undefined || entry.started) return
+      calls.delete(keyOf(wake))
+      scans.ended(wake)
+      scans.roomMade()
     },
     live: () => !abort.signal.aborted,
-    diagnostics: () => ({
-      knownCalls: calls.size,
-      pacedDeliveries: delivery.pacedEntries(),
-      completed,
-      dormantExits,
-      reentries,
-      foreignExecutionRuns,
-      unownedRuns,
-      recoveryScan: scan.state,
-      recoveredCalls: scan.recovered,
-      progress: [...new Set([...calls.values()].map(entry => entry.progress))],
-      retired: abort.signal.aborted,
-    }),
+    diagnostics: () => {
+      const scanned = scans.diagnostics()
+      return {
+        knownCalls: calls.size,
+        pacedDeliveries: delivery.pacedEntries(),
+        completed,
+        dormantExits,
+        reentries,
+        foreignExecutionRuns,
+        unownedRuns,
+        recoveryScan: scanned.startup,
+        recoveredCalls: scanned.recovered,
+        owedTenants: scanned.owedTenants,
+        progress: [...new Set([...calls.values()].map(entry => entry.progress))],
+        retired: abort.signal.aborted,
+      }
+    },
     close(): Promise<void> {
       if (closing !== null) return closing
       abort.abort()
       clearInterval(timer)
+      scans.close()
       for (const entry of calls.values()) entry.publication?.close('stale-instance')
       closing = Promise.all([
         installed.release(),

@@ -1,5 +1,3 @@
-// Construction of the memory double checks static materials only, as the provider factory does
-// (SPEC 4.1, 4.2): a wrong digest, an unreadable file and an invalid declared combination reject.
 import { describe, expect, it } from 'vitest'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import { createMemorySqlStorage } from '@omne-harness/sql-contract/testing'

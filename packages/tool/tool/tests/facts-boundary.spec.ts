@@ -1,6 +1,3 @@
-// The boundary of receiveFacts (P06, P11): a fact batch is data from an executor that the ledger
-// does not trust. A fact that is not a closed record of its kind is refused as `invalid` with the
-// field that carries the fault, and a batch with such a fact is saved in no part.
 import { describe, expect, it } from 'vitest'
 import { canonicalDigest } from '@omne-harness/tool'
 import {
@@ -12,10 +9,8 @@ import { callId, evidence, ok, principalA, tenantA, text } from './runtime-value
 
 const identity = { id: 'schema', revision: '1', digest: 'sha256:schema' }
 
-/** The request original of the wait, as the JSON text its author encoded. */
 const REQUEST = JSON.stringify({ question: 'which file?' })
 
-/** A well-formed Ask wait, the way a checkpointed segment ends. */
 function askWait(): Record<string, unknown> {
   return {
     kind: 'wait',
@@ -43,7 +38,6 @@ function askWait(): Record<string, unknown> {
   }
 }
 
-/** A well-formed final fact: a result, the terminal and the effect. */
 function finalFact(): Record<string, unknown> {
   return {
     kind: 'final',
@@ -85,7 +79,6 @@ async function running() {
   const recovery = ok(await harness.commands.loadRecovery(access))
   if (recovery.start === null) throw new Error('the fixture did not start')
   const start = recovery.start
-  /** One batch of the same source: `after` is the batch it follows, or null for the first. */
   const send = (facts: readonly unknown[], batch = 'first', after: string | null = null) =>
     Reflect.apply(harness.commands.receiveFacts, null, [
       {
@@ -384,9 +377,6 @@ describe('a fact that is not a closed record of its kind', () => {
   })
 })
 
-// A segment ends once: with its final, or with the one wait it suspends on, and nothing follows
-// the wait. A first start continues no wait, so its `continued` fact is refused for that alone;
-// the order of a `continued` fact on a resume start is in checkpoint-resumption.spec.ts.
 describe('the order of the facts of one start', () => {
   const orders: Array<[string, () => unknown, () => unknown, string]> = [
     ['a wait after the final', finalFact, askWait, 'wait-after-final'],

@@ -1,6 +1,3 @@
-// The assembly of the e2e journey: `createMcp` on the requirement ports and the local transport
-// factory. Four ports are the contract's in-memory doubles; the output validator answers
-// `conforms` to every pair.
 import { createMcp } from '@omne-harness/mcp'
 import type {
   ConnectionTarget,
@@ -48,7 +45,6 @@ const CONFIG: McpConfig<Principal> = {
 
 export type Assembly = Readonly<{
   services: McpServices<Principal, string>
-  /** Adopts one endpoint at the target for alice and grants her the use eligibility. */
   adopt(ref: EndpointRef, target: ConnectionTarget): void
 }>
 

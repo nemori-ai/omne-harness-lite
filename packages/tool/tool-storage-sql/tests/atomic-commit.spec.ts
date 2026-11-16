@@ -1,6 +1,3 @@
-// A6: one ledger commit is one SQL commit. A statement that fails half way rolls back every write
-// of the commit, and a revision conflict writes nothing; the database is checked directly, not only
-// through the port.
 import { afterEach, describe, expect, it } from 'vitest'
 
 import type { LedgerDomain, LedgerRecord } from '@omne-harness/tool'
@@ -51,7 +48,6 @@ function rows(a: App) {
 describe('a commit that fails half way', () => {
   it('leaves no write of it in the database', async () => {
     const a = await app()
-    // Statement 1 reads the revision, statement 2 writes `a`, statement 3 (writing `b`) fails.
     a.sqlite.failStatement(3)
     const answer = await a.store.commit({
       domain,
@@ -59,7 +55,6 @@ describe('a commit that fails half way', () => {
       revision: revision('1'),
       writes: puts('a', 'b', 'c'),
     })
-    // A statement failure is decided by the input and the data, so the same commit fails again.
     expect(answer.kind).toBe('rejected')
     expect(rows(a)).toEqual({ records: [], domains: [] })
     expect(await a.store.read(domain)).toEqual({ kind: 'complete', revision: '0', records: [] })

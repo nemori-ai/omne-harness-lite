@@ -5,6 +5,7 @@ import { encodeModelInvocationRef, resolveModelInvocationRef } from '../referenc
 import { fail, succeed } from '@omne-harness/operation-result'
 import type {
   Admission,
+  CallContact,
   ModelInvocationRef,
   ControlState,
   DispatchRecord,
@@ -54,6 +55,7 @@ function newRecord<P>(
     reads: new Map(),
     fill: new Map(),
     evidence: [],
+    contact: null,
   }
 }
 
@@ -131,6 +133,23 @@ export function createCalls<P>(core: Core<P>): ModelCalls<P> {
     return succeed<Lookup>({ kind: 'found', state: stateOf(record) })
   }
 
+  async function contact(original: ModelReferenceAccess<P>): Reply<CallContact> {
+    const resolved = resolveModelInvocationRef(original.reference, original.tenant)
+    if ('failure' in resolved) return referenceRejected(resolved.failure)
+    const input = { principal: original.principal, ...resolved.ok }
+    if (isReserved(input.admission)) return reservedOperation('admission')
+    const target = resolve(core, input, 'inspect')
+    if (target === null) return denied('inspect')
+    const record = target.record
+    if (record === null) return succeed<CallContact>({ kind: 'not-accepted' })
+    if (record.admission !== input.admission)
+      return fail({ kind: 'invalid', field: 'admission', reason: 'not-original' })
+    if (record.contact !== null) return succeed(structuredClone(record.contact))
+    return succeed<CallContact>({
+      kind: record.lifecycle.phase === 'settled' ? 'settled' : 'holding',
+    })
+  }
+
   async function dispatches(input: CallAccess<P>): Reply<readonly DispatchRecord[]> {
     const record = openCall(core, input, 'dispatches')
     if (record === null) return denied('dispatches')
@@ -164,5 +183,5 @@ export function createCalls<P>(core: Core<P>): ModelCalls<P> {
     })
   }
 
-  return { admit, inspect, dispatches, cancel }
+  return { admit, inspect, contact, dispatches, cancel }
 }

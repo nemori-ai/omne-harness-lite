@@ -17,15 +17,9 @@ import { tenantEquals } from '@omne-harness/legal-identity'
 import { createMemorySessionJournal } from '../../src/testing.ts'
 import { ok, operation, instance, checkpoint, openInput, submitInput } from './common-journal.ts'
 
-/** Suite evidence is preselected before the actual original Journal publication. */
 export function sessionFixture(): SessionTransactionsFixture<string> {
   const initialization = createMemoryInitializationSource(),
     access = memoryAccess('tester')
-  // The suite tests transaction semantics; the access policy is one explicit choice: only the
-  // fixture's tenant may touch a session. The double's tenant keying refuses the other tenant as
-  // well, and J40 observes only that both answers are the same, not which one refused; the scene
-  // of participation-access.spec.ts records the check's own conclusion. Tenant and system
-  // directories stay open.
   const accessCheck = createPolicySessionAccessCheck<string>(request =>
     request.target.kind === 'session' &&
     'tenant' in request.access &&

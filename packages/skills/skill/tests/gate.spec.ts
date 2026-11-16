@@ -1,6 +1,3 @@
-// Steps 1 to 3 of a read, through `gate` directly: the basis identity, the read check, the
-// resolution, and the abort checkpoints around the two port calls. Each branch has one case
-// named by its step.
 import { describe, expect, it } from 'vitest'
 import { isSafeReason, isSkillName } from '@omne-harness/skill-contract'
 import type {

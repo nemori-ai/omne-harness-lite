@@ -1,8 +1,3 @@
-// E2's read of the reply admission facts (Agent SPEC "回复准入的已核实前缀", D5 r2.2 第 5 节): the
-// lower bound the coordinator chooses, the in-process prefix, the read position that ordinary
-// commits carry, the commit-time missing-basis answer that goes to W0, the one origin re-read of
-// a missing basis, and the recovery read from the saved prefix. The memory Journal is the
-// provider; it is not durable, so nothing here proves a durable provider.
 import { describe, expect, it } from 'vitest'
 import { agentEvaluator } from '@omne-harness/agent'
 import type {
@@ -34,7 +29,6 @@ type Commit = JournalCommit<Principal>
 
 const STOP: Failure = { kind: 'busy' }
 
-/** The coordinator of exec-1 whose evaluator stops at E4: E1 and E2 run, nothing is decided. */
 function stopping(assembly: LoopAssembly, change: Partial<ExecutionEntry<Principal>> = {}) {
   return createExecutionCoordinator({
     ports: assembly.dependencies,
@@ -54,7 +48,6 @@ function stopping(assembly: LoopAssembly, change: Partial<ExecutionEntry<Princip
   })
 }
 
-/** The assembly whose Journal records every reply admission read and every commit. */
 async function recorded(
   read: (
     input: ReadInput,
@@ -97,11 +90,6 @@ function seed(assembly: LoopAssembly, count: number) {
 const fromOf = (input: ReadInput | undefined) =>
   input?.from.kind === 'prefix' ? input.from.prefix.sequence : input?.from.kind
 
-/**
- * An execution whose first coordinator read `count` facts and saved them with its ordinary commits
- * before it waits for the Model; `cut` makes the next E2 stop after its reads (the conditions read
- * that follows them fails), so a new coordinator's recovery read can be observed alone.
- */
 async function restartable(
   count: number,
   read?: Parameters<typeof recorded>[0],
@@ -242,7 +230,6 @@ describe('the read position rides on ordinary commits only', () => {
           BigInt(item.checkpoint.replyAdmissionRead.prefix.sequence) >= 4n,
       ),
     ).toBe(true)
-    // A commit whose only change is the read position would be a progress commit (D5 removed it).
     for (let index = 1; index < commits.length; index += 1) {
       const before = commits[index - 1]!
       const after = commits[index]!
@@ -401,11 +388,9 @@ describe('commit-time missing basis and the origin re-read', () => {
     )
     seed(assembly, 2)
     const c = next()
-    // E2 reads (3, 5] into the in-process prefix; the cut stops it before any commit saves 5.
     expect(failure(await c.continueExecution(authority))).toEqual({ node: 'E2', failure: STOP })
     const saved = (await load(assembly)).checkpoint.replyAdmissionRead
     expect(saved.kind === 'verified' && saved.prefix.sequence).toBe('3')
-    // The basis of 5 is lost while the coordinator lives; the origin re-read does not complete.
     expect(
       memory(assembly).replyAdmissions.damage(
         execution(),
@@ -427,7 +412,6 @@ describe('commit-time missing basis and the origin re-read', () => {
 describe('recovery reads from the saved prefix', () => {
   it('saved 120, read 160 in memory before a crash, target 230: the new range is (120, 230], nothing before 120 is scanned and no checkpoint is written', async () => {
     const { assembly, reads, authority, next } = await restartable(120)
-    // The crashed coordinator read to 160 and saved nothing; the new target is 230.
     seed(assembly, 40)
     seed(assembly, 70)
     expect((await load(assembly)).replyAdmissions.prefix.sequence).toBe('230')

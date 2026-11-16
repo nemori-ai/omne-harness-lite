@@ -187,10 +187,6 @@ export function parseConstruction(value: JsonValue, fields: readonly Field[]) {
     ? fail({ kind: 'invalid', reason: `construction-json:${checked.rejected}` } as const)
     : parseFields(checked.ok, fields)
 }
-/**
- * The codec of one command. An invalid value is answered with its reason only; the tool host adds
- * the guide of the command, which the model reads with it (D-104).
- */
 export function parameterCodec(command: Command): ParameterCodec<Arguments> {
   const base = createDefaultParameterCodec(limits)
   if ('failure' in base) throw new TypeError(base.failure.reason)

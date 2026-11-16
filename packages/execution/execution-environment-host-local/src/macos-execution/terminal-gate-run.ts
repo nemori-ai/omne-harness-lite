@@ -1,11 +1,3 @@
-// The gate of one persistent terminal on macOS, without its process wiring. The provider starts the
-// gate detached, so it leads a new POSIX session; node-pty starts the shell as the leader of a
-// second one. It does the I/O of the Linux terminal gate (`../terminal-gate.ts`) with the judgments
-// and the segment state machine of `../terminal-gate-core.ts`, and differs in four places: before
-// `ready` it checks that it leads its own session; the FIFOs live in the directory the provider
-// names; node-pty's native fork gets the path of its spawn-helper; and when the control channel ends
-// after GO, the provider went away and the gate stops both sessions before it exits. The script
-// `terminal-gate.ts` gives it the real channels and node-pty; a test gives it streams of its own.
 import { execFileSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { closeSync, constants, mkdirSync, openSync, readSync, writeSync } from 'node:fs'
@@ -31,28 +23,17 @@ import {
 } from '../terminal-gate-core.ts'
 import { readIdentity, stopSessions } from './session.ts'
 
-/** The bound of one reading, and of the gate's own stop when the provider went away. */
 const readerBoundMs = 10_000
 
-/** What the gate reads and writes, how it starts the PTY, and how it ends its process. */
 export type TerminalGateIo = Readonly<{
-  /** Manager to gate, one JSON object per line. */
   control: Readable
-  /** Gate to manager, one JSON frame per line. */
   frames: Writable
-  /** The domain name. */
   unit: string
-  /** The path of the session reader. */
   reader: string
-  /** The path of node-pty's spawn-helper. */
   helper: string
-  /** The directory the gate creates for its two FIFOs. */
   directory: string
-  /** The gate's own pid, which is its session's id when it leads its session. */
   pid: number
-  /** node-pty's native fork, bound to its module; undefined when it has none. Asked for at GO. */
   ptyFork(): ((...args: unknown[]) => unknown) | undefined
-  /** Registers what the gate closes when its process exits. */
   atExit(close: () => void): void
   exit(code: number): void
 }>
@@ -93,10 +74,8 @@ export function runTerminalGate(io: TerminalGateIo): void {
     send({ t: 'fault' })
     clearInterval(timer)
     control.destroy()
-    // The manager or a cold recovery stops the original scope. This gate cannot certify its own stop.
   }
 
-  /** Takes one step of the state machine: its frames first, then its failure. A failed gate sends nothing more. */
   function apply(step: Step): void {
     if (ended) return
     segments = step.state
@@ -109,12 +88,10 @@ export function runTerminalGate(io: TerminalGateIo): void {
     return error instanceof Error ? Reflect.get(error, 'code') : undefined
   }
 
-  /** A descriptor that would block is no failure; any other error fails the gate. */
   function failUnlessAgain(error: unknown): void {
     if (errno(error) !== 'EAGAIN') fail()
   }
 
-  /** One non-blocking read; empty at the end of what is there now, or after a failure. */
   function readOnce(fd: number, buffer: Buffer): Buffer {
     try {
       return buffer.subarray(0, readSync(fd, buffer, 0, buffer.length, null))
@@ -185,7 +162,6 @@ export function runTerminalGate(io: TerminalGateIo): void {
   function start(config: Initial): void {
     const fork = io.ptyFork()
     if (fork === undefined) return fail()
-    // node-pty starts the shell through its spawn-helper on macOS; the Linux gate passes no helper.
     const args = forkArguments(config, paths, () => fail())
     args[9] = helper
     const forked = ptyHandle(fork(...args))
@@ -259,7 +235,6 @@ export function runTerminalGate(io: TerminalGateIo): void {
       io.exit(0)
       return
     }
-    // After GO the provider went away: nothing on macOS outlives it. Both sessions are stopped.
     void stopSessions({
       reader,
       sessions: [pid, pty.pid],

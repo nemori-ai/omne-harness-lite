@@ -6,7 +6,6 @@ import {
   permissionBasisGuardSchema,
 } from './permission-basis.ts'
 
-/** Stops the operation when the permission basis of this transaction is not the expected one. */
 export default {
   ...PERMISSION_BASIS_GUARD,
   execute(facts, port) {

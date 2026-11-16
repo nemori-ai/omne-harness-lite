@@ -1,7 +1,3 @@
-// The type-level guard of F5 (R2-D292 12.3): a value that carries a message, a produced result, a
-// tool request, a fixed model request or a journal entry anywhere inside it is `never` under
-// `NoContent`, so a fact body built from one does not type-check. The `@ts-expect-error` lines are
-// the negative control: remove the guard and this file fails the type test.
 import { expectTypeOf, it } from 'vitest'
 import type { AgentJournalEntry, ProducedResult } from '@omne-harness/agent-contract'
 import type { Message } from '@omne-harness/message'

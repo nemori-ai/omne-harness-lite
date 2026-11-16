@@ -1,7 +1,3 @@
-// The family table: an exact adoption of a supplier resolves to one record of one family package,
-// and the binding comes from that family only. The table knows no wire format and no vendor. It
-// never parses a name, never matches a prefix, never takes the latest revision and never hands
-// a supplier to another family.
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   decodeProviderName,
@@ -13,33 +9,22 @@ import {
 import { canonicalDigest, RecordPurityError } from './canonical-json.ts'
 import type { PiFamilyBinding, PiFamilyContributions } from './family.ts'
 
-/**
- * The provider of a record's route as a provider name. A record is JSON data, so its route names
- * the provider as text; the table refuses a record whose text is not a provider name. Throws for
- * such a record.
- */
 export function recordProvider(record: PiModelRecordHead): ProviderName {
   const decoded = decodeProviderName(record.route.provider)
   if (!('ok' in decoded)) throw new RangeError(`record ${record.name} has no provider name`)
   return decoded.ok
 }
 
-/** What the table needs from any record. A family record type extends it. Pure JSON data. */
 export type PiModelRecordHead = Readonly<{
-  /** Opaque; never parsed. Several revisions of one model are several records. */
   name: string
   revision: string
-  /** The supplier this record binds. The table refuses any other provider or model. */
   route: Readonly<{ provider: string; model: string }>
-  /** `current`: published in official profiles. `frozen`: acquirable by exact adoption only. */
   status: 'current' | 'frozen'
 }>
 
 export type PiFamilySpec<R extends PiModelRecordHead> = Readonly<{
-  /** The family package name, e.g. `@omne-harness/pi-ai-openai`. Becomes `Adoption.owner`. */
   owner: string
   records: readonly R[]
-  /** Called only with the record whose adoption equals `supplier.adoption` and whose route matches. */
   acquire(
     record: R,
     supplier: Supplier,
@@ -47,10 +32,8 @@ export type PiFamilySpec<R extends PiModelRecordHead> = Readonly<{
   ): Promise<Outcome<PiFamilyBinding, TransportFailure>>
 }>
 
-/** The replay formats of one record: the `format` it produces and the formats it accepts. */
 export type PiReplayFormats = Readonly<{ produces: string; accepts: readonly string[] }>
 
-/** One record of a family with its adoption, and the acquire of its family bound to it. */
 type FamilyEntry = Readonly<{
   adoption: Adoption
   record: PiModelRecordHead
@@ -60,11 +43,6 @@ type FamilyEntry = Readonly<{
   ): Promise<Outcome<PiFamilyBinding, TransportFailure>>
 }>
 
-/**
- * Opaque. Only `defineFamily` makes one, so `composeFamilies` sees checked records only. The
- * private field makes the type nominal: no other value has this type, and no code outside this
- * module reads the entries.
- */
 class PiFamilyHandle {
   readonly owner: string
   readonly #entries: readonly FamilyEntry[]
@@ -75,7 +53,6 @@ class PiFamilyHandle {
     Object.freeze(this)
   }
 
-  /** The entries of a handle, or `undefined` for any other value. */
   static entriesOf(value: unknown): readonly FamilyEntry[] | undefined {
     return typeof value === 'object' && value !== null && #entries in value
       ? value.#entries
@@ -85,11 +62,6 @@ class PiFamilyHandle {
 
 export type PiFamily = PiFamilyHandle
 
-/**
- * The adoption of a record: `{ owner, name, revision, digest }`, where `digest` is the SHA-256 of
- * the canonical JSON of the whole record. The record holds wire data and rule names, so a change
- * of either changes the adoption. Throws `RangeError` when the record is not plain JSON data.
- */
 export function recordAdoption(owner: string, record: PiModelRecordHead): Adoption {
   let digest: string
   try {
@@ -102,13 +74,6 @@ export function recordAdoption(owner: string, record: PiModelRecordHead): Adopti
   return Object.freeze({ owner, name: record.name, revision: record.revision, digest })
 }
 
-/**
- * Checks the records once and returns the opaque family. Throws `RangeError` (an assembly defect)
- * when the owner is empty, `acquire` is not a function, a record is not plain JSON data or lacks
- * its head, two records share `(name, revision)`, or two `current` records share a route. The
- * table keeps a frozen copy of each record, so a later change of the caller's object cannot
- * change an adoption. Creates no tokenizer, connection or model instance.
- */
 export function defineFamily<R extends PiModelRecordHead>(spec: PiFamilySpec<R>): PiFamily {
   const { owner, records, acquire } = spec
   if (typeof owner !== 'string' || owner.length === 0)
@@ -155,19 +120,6 @@ function checkHead(record: PiModelRecordHead, index: number): void {
     throw new RangeError(`${at}.status must be current or frozen`)
 }
 
-/**
- * The one `PiFamilyContributions` that an assembly gives to `createPiTransport`. Throws
- * `RangeError` for a value that `defineFamily` did not make, a repeated owner or a repeated
- * adoption. `acquire` looks up all four fields of `supplier.adoption`:
- *
- * - miss: `unavailable`, `dependency` is the adoption owner, diagnostic `adoption-not-installed`;
- * - hit, other provider or model: `invalid`, `field` `supplier.provider` or `supplier.model`;
- * - hit, same route: the acquire of that family;
- * - the binding names another supplier or adoption: the binding is released, then `unavailable`
- *   with diagnostic `binding-mismatch`;
- * - the signal is aborted before the family is called, or when the family returns a binding: the
- *   binding is released, then `unavailable` with diagnostic `cancelled`.
- */
 export function composeFamilies(families: readonly PiFamily[]): PiFamilyContributions {
   if (!Array.isArray(families)) throw new RangeError('families must be an array')
   const owners = new Set<string>()
@@ -210,10 +162,6 @@ async function acquireFrom(
   return { failure: unavailable(owner, mismatch ? 'binding-mismatch' : 'cancelled') }
 }
 
-/**
- * The replay formats of the record that `adoption` names, read from the record. `null` when no
- * family declares the adoption or the record has no `replay.formats`.
- */
 export function replayFormatsOf(
   families: readonly PiFamily[],
   adoption: Adoption,
@@ -245,11 +193,6 @@ function isTextArray(value: unknown): value is readonly string[] {
   return Array.isArray(value) && value.every(item => typeof item === 'string')
 }
 
-/**
- * The adoption and the frozen record of each record of a family, in record order. For the
- * package's own testing entry; the root entry does not export it. Throws `RangeError` for a
- * value that `defineFamily` did not make.
- */
 export function familyRecords(
   family: PiFamily,
 ): readonly Readonly<{ adoption: Adoption; record: PiModelRecordHead }>[] {

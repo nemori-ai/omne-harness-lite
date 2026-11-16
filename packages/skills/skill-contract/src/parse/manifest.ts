@@ -1,9 +1,3 @@
-// Reads SKILL.md: strict UTF-8 without a byte order mark, a `---` frontmatter closed by the first
-// line that is only `---`, and a YAML mapping whose keys are unique in the whole tree. What the
-// community Skills do beyond that and the main hosts accept is accepted too, with a compatibility
-// hint: a description over the 1024 characters of the Agent Skills specification (up to
-// `DESCRIPTION_LIMIT`), metadata that is not a text map, and a frontmatter that strict YAML does
-// not read but whose name and description can be read line by line.
 import { isMap, parseDocument } from 'yaml'
 import type { CompatibilityHint } from '../hints.ts'
 import { isBoundedText, isSkillName } from '../names.ts'
@@ -12,7 +6,6 @@ import { readByLine } from './by-line.ts'
 import { DESCRIPTION_LIMIT, isSkillDescription, SPECIFICATION_DESCRIPTION_LIMIT } from './shape.ts'
 import { plainValue } from './yaml-value.ts'
 
-/** What the manifest gives to the package rules. `name` is present when it could be read. */
 export type ManifestRead =
   | Readonly<{ kind: 'ok'; manifest: SkillManifest; hints: readonly CompatibilityHint[] }>
   | Readonly<{ kind: 'malformed'; detail: string; name?: string }>
@@ -49,33 +42,22 @@ const DASH = 0x2d
 const CR = 0x0d
 const LF = 0x0a
 
-/** One line of `bytes` from `start`: where its text ends, and where the next line starts. A line
- * ends with LF or CRLF; `next` is `undefined` for the last line, which has no line end. */
 function lineAt(bytes: Uint8Array, start: number): Readonly<{ end: number; next?: number }> {
   const newline = bytes.indexOf(LF, start)
   if (newline === -1) return { end: bytes.length }
-  // The byte before the line end is the CR of a CRLF, or a byte of the line, or the LF of the
-  // line before (`start` is never inside a line end), so no lower bound is needed.
   const end = bytes[newline - 1] === CR ? newline - 1 : newline
   return { end, next: newline + 1 }
 }
 
-/** Whether the line text `[start, end)` is exactly `---`. */
 function isDelimiter(bytes: Uint8Array, start: number, end: number): boolean {
   return end - start === 3 && bytes.subarray(start, end).every(byte => byte === DASH)
 }
 
 type Frontmatter = Readonly<{ yamlStart: number; yamlEnd: number; bodyStart: number }>
 
-/**
- * The byte bounds of the frontmatter: the opening `---` line, then the YAML up to the first line
- * that is only `---`. The body starts after the line end of that closing line, or at the end of
- * the bytes when the closing line is the last line. No legal frontmatter gives `undefined`.
- */
 function frontmatterBounds(bytes: Uint8Array): Frontmatter | undefined {
   const opening = lineAt(bytes, 0)
   if (opening.next === undefined || !isDelimiter(bytes, 0, opening.end)) return undefined
-  // The loop ends only by a return: a line without a line end is the last line.
   for (let start = opening.next; ;) {
     const line = lineAt(bytes, start)
     if (isDelimiter(bytes, start, line.end))
@@ -85,10 +67,6 @@ function frontmatterBounds(bytes: Uint8Array): Frontmatter | undefined {
   }
 }
 
-/**
- * Where the body of a SKILL.md starts, in bytes: after the line end of the closing `---` line.
- * `undefined` when the bytes have no legal frontmatter delimiters. It does not decode the bytes.
- */
 export function bodyOffsetOf(bytes: Uint8Array): number | undefined {
   return frontmatterBounds(bytes)?.bodyStart
 }
@@ -126,14 +104,12 @@ export function readManifest(bytes: Uint8Array): ManifestRead {
   return interpret(fields, rawName)
 }
 
-/** A description over the limit of the Agent Skills specification gets a hint. */
 function descriptionHints(description: string): CompatibilityHint[] {
   return isBoundedText(description, SPECIFICATION_DESCRIPTION_LIMIT)
     ? []
     : ['description-over-limit']
 }
 
-/** A frontmatter that strict YAML does not read: its name and description, read line by line. */
 function lineRead(yaml: string): ManifestRead {
   const { name, description } = readByLine(yaml)
   const fail = (detail: string) =>
@@ -148,7 +124,6 @@ function lineRead(yaml: string): ManifestRead {
   }
 }
 
-/** The checks of the interpreted fields, in order. It reads nothing that it did not check. */
 function interpret(fields: FieldMap, rawName: unknown): ManifestRead {
   const fail = (detail: string) => malformed(detail, rawName)
   if (!isSkillName(rawName)) return fail('name is not a Skill name')
@@ -166,8 +141,6 @@ function interpret(fields: FieldMap, rawName: unknown): ManifestRead {
   return { kind: 'ok', manifest: manifestOf(rawName, description, fields), hints }
 }
 
-/** The text values of `value`: all of it for a text map, the text entries of another map, and
- * `undefined` for a value that is no map. */
 function textEntriesOf(
   value: ManifestValue | undefined,
 ): Readonly<Record<string, string>> | undefined {
@@ -191,7 +164,6 @@ const textField = (fields: FieldMap, key: string): string | undefined => {
   return typeof value === 'string' ? value : undefined
 }
 
-/** Builds the manifest from fields that `interpret` checked. */
 function manifestOf(name: SkillName, description: string, fields: FieldMap): SkillManifest {
   const license = textField(fields, 'license')
   const compatibility = textField(fields, 'compatibility')

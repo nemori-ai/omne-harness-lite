@@ -1,16 +1,9 @@
-// The result receiver table behind `ModelRuntimeService.registerResultReceiver`. A consumer, the
-// Agent host, registers its receiver under its consumer owner from inside its own plugin body. The
-// push stage of the Model host resolves the receiver by the owner that was frozen at admission.
-// The table lives in one process: the guarantee that the push stage can resolve a receiver holds
-// because both sides share this object. It is not a push protocol.
 import type { Context as CordisContext } from '@deepseek-ai/cordis'
 import { registerInCallerFiber, type Admission } from '@omne-harness/kernel-basis/cordis'
 import type { ConsumerRef, ModelResultReceiver } from '@omne-harness/model-contract'
 
 type CordisFiberState = typeof import('@deepseek-ai/cordis').FiberState
 
-// A fiber that is failed, disposed or unloading no longer keeps its registration alive. Cordis runs
-// the effect disposers of one fiber concurrently, so the entry can outlive the fiber state change.
 const FAILED = 3 satisfies CordisFiberState['FAILED']
 const DISPOSED = 4 satisfies CordisFiberState['DISPOSED']
 const UNLOADING = 5 satisfies CordisFiberState['UNLOADING']
@@ -40,15 +33,7 @@ export class ModelResultReceiverConflictError extends Error {
  * @owner packages/model/model-cordis-contract
  */
 export interface ModelResultReceiverTable<P> {
-  /**
-   * Registers `receiver` under `owner` in an effect of `ctx`'s fiber and returns the removal
-   * function. The registration takes effect at once. Removal is synchronous and idempotent, and
-   * only removes the registration it belongs to. An existing registration of a fiber that is
-   * unloading, disposed or failed is replaced. An existing registration of a live fiber is
-   * refused with `ModelResultReceiverConflictError`.
-   */
   register(ctx: CordisContext, owner: Owner, receiver: ModelResultReceiver<P>): () => void
-  /** The receiver of the live registration under `owner`, or `null`. */
   resolve(owner: Owner): ModelResultReceiver<P> | null
 }
 
@@ -68,8 +53,6 @@ function isLive(fiber: CordisContext['fiber']): boolean {
 export function createModelResultReceiverTable<P>(): ModelResultReceiverTable<P> {
   const entries = new Map<Owner, Entry<P>>()
 
-  // Removes the entry only while it is still the one under its owner: a late removal of a replaced
-  // registration finds its successor there and leaves it alone.
   function remove(entry: Entry<P>): void {
     if (entries.get(entry.owner) === entry) entries.delete(entry.owner)
   }

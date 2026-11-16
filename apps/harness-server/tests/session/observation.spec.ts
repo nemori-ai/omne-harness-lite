@@ -1,8 +1,4 @@
 // @module-tag slow
-// Session observation on the release tree (#1248, RFC-0015 §8). Slow: each case starts the release
-// tree in this process and runs the `omne` CLI as child processes; the Model supplier is the local
-// gateway of the release-tree scenarios. The interval of the refresh policy is a minute here, so a
-// state frame that comes within the case came from a commit notice, not from the interval.
 import { describe, expect, it } from 'vitest'
 import { writeJsonText } from '@omne-harness/json-text'
 import {
@@ -42,7 +38,6 @@ function observation(tree: ReleaseTree): SessionObservationService<unknown> {
   return service
 }
 
-/** The assistant messages of `session`, read as `access` through the reader history face. */
 async function assistantMessages(
   tree: ReleaseTree,
   access: LoginAccess,
@@ -117,7 +112,7 @@ describe('session observation on the release tree', () => {
     })
   })
 
-  it('content frames: the snapshot of the running main call, then its deltas (C9b on the release tree)', async () => {
+  it('content frames: the snapshot of the running main call, then its deltas, on the release tree', async () => {
     const held = heldAnswer('one', ' two')
     await onReleaseTree({ script: held.script, observationPolicy: MINUTE }, async tree => {
       const access = await loginAccess(tree)
@@ -158,7 +153,7 @@ describe('session observation on the release tree', () => {
     })
   })
 
-  it('an observation stopped midway leaves the Model call to settle and commit (C11b)', async () => {
+  it('an observation stopped midway leaves the Model call to settle and commit', async () => {
     const held = heldAnswer('one', ' two')
     await onReleaseTree({ script: held.script, observationPolicy: MINUTE }, async tree => {
       const access = await loginAccess(tree)
@@ -209,7 +204,7 @@ describe('session observation on the release tree', () => {
     })
   })
 
-  it('the login principal an observation uses cannot admit a Model call (C18)', async () => {
+  it('the login principal an observation uses cannot admit a Model call', async () => {
     const held = heldAnswer('one', ' two')
     await onReleaseTree({ script: held.script, observationPolicy: MINUTE }, async tree => {
       const access = await loginAccess(tree)

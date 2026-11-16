@@ -432,8 +432,6 @@ describe('ordinary invocation and saved references', () => {
   it('keeps directory failures separate and never consults it for persistent reads or delivery', async () => {
     const base = testAssembly()
     let connects = 0
-    // `current` reads the route, then the state, then the route again to confirm the publication
-    // did not change during the state read; a successful answer therefore takes two replies.
     const directoryReplies = [
       fail({ kind: 'unavailable' as const, dependency: 'directory', diagnostic: 'offline' }),
       succeed({ kind: 'no-live-route' as const }),
@@ -498,8 +496,6 @@ describe('ordinary invocation and saved references', () => {
     expect(connects).toBe(directoryReplies.length)
   })
 
-  // The routing of `instances.current` and `observation.observe` is in stream-observation.spec.ts.
-
   it('rechecks current principal, rejects a forged tenant before reading a port and answers a foreign tenant as a missing call', async () => {
     const deniedActions: ToolLedgerAction[] = []
     const base = testAssembly()
@@ -511,9 +507,6 @@ describe('ordinary invocation and saved references', () => {
     const invoked = accepted(
       await runtime.invoke({ principal: principalA, tenant: tenantA, request: dummyRequest() }),
     )
-    // R2-D357 negative control: tenant B presents tenant A's reference. The text carries no
-    // tenant, so it locates in B's partition, which has no such call: the answer is byte for byte
-    // the answer of a runtime where no tenant ever invoked it.
     const foreign = { principal: principalB, tenant: tenantB, reference: invoked.reference }
     const empty = testAssembly({
       guards: { ...guards({ deniedActions: [] }), sources: base.source.guard },

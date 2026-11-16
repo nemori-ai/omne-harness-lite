@@ -10,13 +10,8 @@ import type { ModelCommandsAuthority } from '../src/commands/types.ts'
 import { callId, identity, op, unbox } from './memory-fixture.ts'
 import { streamFixture } from './stream-source.spec.ts'
 
-// Refusals of the confirmation source: facts that contradict their own call, references that
-// name no call of the reader, and the publication capacity. Each test fails if the source
-// installs or answers what it must refuse.
-
 type Fixture = ReturnType<typeof streamFixture>
 
-/** The fixture state again, differing only in what is known about its first content. */
 function withFirstContent(state: CallState, firstContent: 'observed' | 'uncertain'): CallState {
   if (state.phase !== 'running') throw new Error('fixture state')
   return { ...state, firstContent }
@@ -43,7 +38,6 @@ async function firstFrame(
   return frame
 }
 
-/** A second source over the same fixture whose tenant-level observe answer is fixed. */
 function sourceWithTenantAnswer(f: Fixture, allow: boolean) {
   const base = f.options.authority
   const authority: ModelCommandsAuthority<Fixture['principal']> = {
@@ -255,7 +249,6 @@ it('answers a reference that names no model call by the tenant-level observe ans
     kind: 'ended',
     reason: 'denied',
   })
-  // A malformed reference is stale before any tenant-level answer is asked.
   expect(await firstFrame(denied.host, 'not-a-ref' as StreamRef, f.access)).toEqual({
     kind: 'ended',
     reason: 'stale-stream',

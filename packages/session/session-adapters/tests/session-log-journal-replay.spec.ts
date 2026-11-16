@@ -1,8 +1,3 @@
-// AG-23 on the production Journal: the traces of the finishing model replayed step by step onto
-// the session-log Journal provider over SQL (the node:sqlite double of the Session log
-// combination). Each trace opens its own Session scene; the Session side records the handover of
-// every input the Agent accepted, as the memory scene does, after AD-02 interpreted the events
-// before it (a control event is a deferred fact that Session decides).
 import { afterEach, describe, it } from 'vitest'
 import { succeed } from '@omne-harness/operation-result'
 import {
@@ -40,7 +35,6 @@ async function accept(s: SqlScene, label: string) {
   )
   return {
     id: ok(decodeInputId(`input-${label}`)),
-    // AD-14: the source basis of a submitted input is the receipt of its SE11 (PA-01 item 2).
     source: (accepted as { source: DurableEvidence }).source,
     content: value.message,
     priority: 'ordinary' as const,
@@ -52,10 +46,6 @@ afterEach(async () => {
   for (const dispose of disposers.splice(0).reverse()) await dispose()
 })
 
-/**
- * AD-02 over the scene's storage, called before each Session decision that reads the execution's
- * tail (the replay's Journal is not the Cordis plugin, so no publication event wakes it).
- */
 async function interpretation(s: SqlScene) {
   const c = await cordisScene(s)
   disposers.push(() => c.dispose())
@@ -67,10 +57,6 @@ async function interpretation(s: SqlScene) {
   return async () => ok(await ad02.interpret(target))
 }
 
-/**
- * `durable`: every Journal call of the replay goes to a new provider, which has no in-process copy
- * and rebuilds the records of the session from storage first.
- */
 const fixtureOf = (mode: 'kept' | 'durable'): AgentJournalCoreFixture<string> => ({
   async open(name) {
     const s = await sqlScene(`replay-${mode}-${name}`.slice(0, 48), { cancellation: 'installed' })
@@ -180,7 +166,6 @@ const fixtureOf = (mode: 'kept' | 'durable'): AgentJournalCoreFixture<string> =>
   },
 })
 
-/** A Journal whose every call goes to the Journal `next()` gives at that call. */
 function routed(next: () => AgentJournal<string>): AgentJournal<string> {
   const journal = next()
   const call =
@@ -218,7 +203,7 @@ function routed(next: () => AgentJournal<string>): AgentJournal<string> {
 }
 
 for (const mode of ['kept', 'durable'] as const)
-  describe(`the production session-log Journal replays the traces of the finishing model (AG-23, ${mode} copy)`, () => {
+  describe(`the production session-log Journal replays the traces of the finishing model (${mode} copy)`, () => {
     for (const entry of agentJournalReplayConformance(fixtureOf(mode))) {
       it(entry.name, async () => {
         await entry.run()

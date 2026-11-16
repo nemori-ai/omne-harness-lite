@@ -1,4 +1,3 @@
-// XC-MODELSEL: the saved model selection with the original commit that saved it.
 import { plainOf } from '../codec.ts'
 import { readEntryText } from '../entry-codec.ts'
 import { readMember } from './state-rows.ts'
@@ -20,8 +19,6 @@ export default handler('session.model-selection', (input, port) => {
   if (state === undefined) return { kind: 'absent' }
   if (state['snapshot'] === null || big(state['covered']) !== big(state['tail']))
     return { kind: 'behind' }
-  // The head of the stored snapshot (R2-D292): the revision, and `creation` from the head or from
-  // its member row. No chunk is read.
   const head = text(state['snapshot'])
   const snapshot = {
     revision: (JSON.parse(head) as { revision: string }).revision,

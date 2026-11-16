@@ -112,7 +112,6 @@ function outcomeText(outcome: CommandOutcome | undefined): string {
   ]
   return `${ending}\n${lines.join('\n')}`
 }
-/** What the main process left behind; absent when the provider does not dispose. */
 function residueLine(residue: ResidueReport | undefined): string | undefined {
   switch (residue?.kind) {
     case undefined:
@@ -131,7 +130,6 @@ function residueLine(residue: ResidueReport | undefined): string | undefined {
     }
   }
 }
-/** Bytes the terminal received after the previous segment ended; reported only when there were some. */
 function betweenOf(outcome: CommandOutcome | undefined): BetweenSegments | undefined {
   const summary = outcome?.output
   if (summary?.mode !== 'terminal' || summary.between === undefined) return undefined

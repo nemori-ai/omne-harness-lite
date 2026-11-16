@@ -1,14 +1,3 @@
-// The demonstration of session observation on the release tree (#1248). Not in the release.
-// Usage, from apps/harness-server after `pnpm run build` of the members and of apps/cli:
-//   node tests/session/observation-demo.ts --state     state frames (block 1)
-//   node tests/session/observation-demo.ts --content   content frames through a turn with a tool (block 2)
-//   node tests/session/observation-demo.ts --abort     Ctrl-C midway; the process ends by itself (block 3)
-// It starts the release tree in this process (real SQLite, real identity, the local HTTPS Model
-// gateway of the release-tree scenarios), registers and logs in one person through the `omne` CLI,
-// takes `sessionObservation` from the tree and calls `open` as that person. Every frame is printed
-// with the milliseconds since the frame before it. The refresh policy is passed in here: for
-// `--state` interval 1000 ms, backoff 2, at most 4 attempts; for `--content` interval 4000 ms,
-// backoff 1; for `--abort` the default.
 import { writeJsonText } from '@omne-harness/json-text'
 import type { SessionId } from '@omne-harness/session-contract'
 import type { SessionObservationFrame } from '@omne-harness/session-observation'
@@ -52,7 +41,6 @@ function open(tree: ReleaseTree, access: LoginAccess, session: string, signal: A
   return service.open({ access: { ...access, session: session as SessionId }, signal })
 }
 
-/** Block 1: the run number, revisions that follow the commits, the backoff and its end, denial. */
 async function stateFrames(): Promise<void> {
   const held = heldAnswer('Hello', ', there.')
   await onReleaseTree({ script: held.script, observationPolicy: POLICY }, async tree => {
@@ -95,12 +83,6 @@ async function stateFrames(): Promise<void> {
   })
 }
 
-/**
- * Block 2: a turn with one tool call. Both Model calls hold their answer after the first piece; the
- * script lets each go once its snapshot is printed. A Model call that is accepted but has no stream
- * yet makes no session commit, so its stream is found at the next interval; the other state frames
- * come from commit notices, well inside the interval.
- */
 const CONTENT_POLICY = { interval: 4000, backoff: 1 }
 
 async function contentFrames(): Promise<void> {
@@ -153,13 +135,6 @@ async function contentFrames(): Promise<void> {
   })
 }
 
-/**
- * Block 3: Ctrl-C stops an observation midway. The handler only aborts the observer's signal; the
- * script never calls `process.exit`. When nothing of the observation is left (no wait, no
- * subscription, no notice listener), the process ends by itself, and on its way out prints how long
- * after the abort that was. With `DEMO_CTRL_C_AFTER=<ms>` the script sends itself the same event,
- * for a run without a keyboard.
- */
 async function abortMidway(): Promise<void> {
   const turn = heldToolTurn()
   const options = { script: turn.script, permission: 'bypass-permissions' }
@@ -196,7 +171,6 @@ async function abortMidway(): Promise<void> {
         if (after > 0) setTimeout(() => process.emit('SIGINT'), after).unref()
       }
     }
-    // The observation is gone; let the held Model call go so the turn can end and the tree close.
     turn.release()
     await pollUntil(
       'the turn ends',

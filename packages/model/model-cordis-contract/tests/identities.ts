@@ -1,5 +1,3 @@
-// Parsed identities for the tests. Tenants and model identities are built by the owners' own
-// decoders, never by a type assertion.
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
   decodeModelCallId,

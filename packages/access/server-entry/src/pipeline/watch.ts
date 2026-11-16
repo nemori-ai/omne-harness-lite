@@ -1,10 +1,5 @@
-// What steps 8 and 9 wait on, raced against the two ways a call is cut short (#1233 spec 已定 12,
-// 13): the take-down of its protocol (the abort signal of `enter`) and the caller going away (the
-// response's `close`). Either one ends the wait at once; a dependency that never settles cannot
-// hold the call, or the take-down, waiting.
 import type { ServerResponse } from 'node:http'
 
-/** `gone`: the caller went away, nobody reads an answer. `aborted`: the protocol was taken down. */
 export type Interruption = 'aborted' | 'gone'
 
 export type Attended<T> =
@@ -13,12 +8,9 @@ export type Attended<T> =
   | Readonly<{ kind: 'interrupted'; by: Interruption }>
 
 export type CallWatch = {
-  /** Fires on either interruption; the body read listens to it to stop. */
   readonly halt: AbortSignal
   readonly interruption: () => Interruption | undefined
-  /** Runs `work` unless already interrupted, and settles with whichever comes first. */
   readonly attend: <T>(work: () => Promise<T>) => Promise<Attended<T>>
-  /** Stops listening. The abort signal is shared by every call of the mount. */
   readonly release: () => void
 }
 

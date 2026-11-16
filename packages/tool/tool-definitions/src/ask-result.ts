@@ -1,5 +1,3 @@
-// Ask 的结果投影：把检查点里的题目与人的答复写成给模型的结果文字。
-// 格式归 SPEC「段」。文本一律用 JSON 字符串字面量加引号，所以引号与换行不会让结果有歧义。
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolDecision } from '@omne-harness/tool-contract'
 import { askCommandNames, type AskResponse, type AskState } from './ask-protocol.ts'
@@ -10,7 +8,6 @@ type Question = AskState['questions'][number]
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-/** 读回检查点。字节由 initial 段写出，但从存储读回，所以在这里核一次形状。 */
 export function readAskState(bytes: Uint8Array): Outcome<AskState, string> {
   let value: unknown
   try {
@@ -37,7 +34,6 @@ export function readAskState(bytes: Uint8Array): Outcome<AskState, string> {
 
 const quoted = (text: string) => JSON.stringify(text)
 
-/** 一题一行的答复文字。选项身份不在本题里时返回 null。 */
 function questionLine(at: number, question: Question, answer: Answer): string | null {
   const head = `Q${at + 1} ${question.title}:`
   if (answer.kind === 'no-answer') return `${head} no answer (the person skipped this question)`
@@ -56,20 +52,12 @@ function approvalText(question: Question, answer: Answer): string | null {
   return null
 }
 
-/**
- * 等待被控制关闭时这次调用的结果文字：叫停、归档、中断或插队在人作答之前解除了等待。
- * 它说明没有发生什么，不是人的答复。两条命令各一句，模型据此知道动作没有获得批准，或没有选择。
- */
 export function askClosedResult(command: AskState['command']): string {
   return command === 'request_approval'
     ? 'No approval was obtained: the request was closed before the person decided. Do not perform the action.'
     : 'No selection was made: the question was closed before the person answered.'
 }
 
-/**
- * 把一次等待的决定投影成结果文字。答复要与检查点的题目逐张对上：卡片数、顺序与身份相同，
- * 选中的选项属于该题。对不上时返回失败，不猜。
- */
 export function askResult(
   state: AskState,
   decision: ToolDecision<unknown>,

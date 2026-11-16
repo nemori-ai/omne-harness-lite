@@ -1,13 +1,4 @@
 // @module-tag slow
-// Two bounds of the login checks in the governance commands and reads, on the real SQLite provider,
-// each with its negative control on a copy of `dist` (`fixtures/mutants.ts`):
-// - IS-12: a revocation of a target that has ended and was never revoked answers `no-change` and
-//   writes no revocation row. Without the deadline check the copy writes a row.
-// - IS-10, IS-11: a reading earlier than the issue time of the initiating login is no basis, as in
-//   recognition (IS-05 step 5): every governance call answers `basis-unavailable` and writes nothing.
-//   Without the lower bound the copy judges the login on its deadlines only and goes on.
-// Slow: each case opens storage deployments with their Worker threads; the second one restarts the
-// provider twice on the same files.
 import { DatabaseSync } from 'node:sqlite'
 import { rm } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
@@ -19,7 +10,6 @@ import { identityDomainFile, openSqliteStorage } from './fixtures/storage.ts'
 
 const CREDENTIALS = { loginIdentifier: 'bounds-ada', credential: 'credential-ada' }
 
-/** Runs `observe` on the real build, or on a copy with `mutations`, and removes the copy. */
 async function onBuild<T>(
   mutations: readonly Mutation[] | undefined,
   observe: (build: IdentitySqlBuild) => Promise<T>,
@@ -33,11 +23,6 @@ async function onBuild<T>(
   }
 }
 
-/**
- * Ada has login `ended`, issued at START, and login `caller`, issued 40 minutes later. At START
- * plus 70 minutes `ended` is past its idle deadline (one hour) and `caller` is valid. `caller`
- * revokes `ended`. Returns the outcome and the number of revocation rows in the domain file.
- */
 async function revokeEndedTarget(build: IdentitySqlBuild) {
   const storage = await openSqliteStorage(undefined, build.identitySqlMaterials())
   let open = true
@@ -54,7 +39,6 @@ async function revokeEndedTarget(build: IdentitySqlBuild) {
     const before = await operations.recognizeLogin({ loginProof: ended.loginProof })
     const revoked = await governance.revokeLogin({ login: caller.login, target: ended.login })
     await opened.close()
-    // Close the storage first, so the domain file is complete.
     open = false
     await storage.close()
     const db = new DatabaseSync(identityDomainFile(storage.storageRoot), { readOnly: true })
@@ -72,12 +56,6 @@ async function revokeEndedTarget(build: IdentitySqlBuild) {
   }
 }
 
-/**
- * Ada's login is issued at START plus one hour. A second provider instance on the same files reads
- * START: every governance call of that login and its recognition answer `basis-unavailable`. A
- * third instance reads START plus 90 minutes: the login is still valid and still Ada's personal
- * selection, so the early calls wrote nothing.
- */
 async function governAtEarlyReading(build: IdentitySqlBuild) {
   const storage = await openSqliteStorage(undefined, build.identitySqlMaterials())
   const answer = (outcome: Readonly<{ kind: string; diagnostic?: string }>) =>
@@ -189,7 +167,6 @@ describe('the login bounds of governance on the SQL provider', () => {
     { tags: ['slow'], timeout: 180_000 },
     async () => {
       const observed = await onBuild([CHECKS['issued-at-floor']], governAtEarlyReading)
-      // Recognition keeps its own bound in the main thread; the governance checks lost theirs.
       expect(observed.recognize).toBe(EARLY)
       expect(observed.currentTenant).toBe('succeeded')
       expect(observed.revoke).toBe('succeeded')

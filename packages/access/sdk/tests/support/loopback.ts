@@ -12,9 +12,7 @@ export interface Reply {
   readonly status: number
   readonly headers?: Readonly<Record<string, string>>
   readonly body?: string | Buffer
-  /** Close the connection after the request arrived, without any answer. */
   readonly hangUp?: true
-  /** Write the head and the first half of the body, then close the connection. */
   readonly cut?: true
 }
 
@@ -33,7 +31,6 @@ export function jsonReply(status: number, value: unknown): Reply {
   }
 }
 
-/** A real HTTP server on 127.0.0.1 that records each request and answers with `handler`. */
 export async function startLoopback(
   handler: (received: Received) => Reply | Promise<Reply>,
 ): Promise<LoopbackServer> {
@@ -79,7 +76,6 @@ export async function startLoopback(
   }
 }
 
-/** A port that nothing listens on: bind, read the number, release. */
 export async function closedPort(): Promise<number> {
   const server = createServer()
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))

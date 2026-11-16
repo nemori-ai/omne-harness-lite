@@ -1,6 +1,3 @@
-// The `identityClock` service definition (R1-D27, AAP-8 alternative path): the fifth definition of
-// `./cordis`, the Cordis seam through which the assembly hands an `IdentityClock` to a provider.
-// A concrete subclass registers under the key, delegates `now()` and leaves with its fiber.
 import { Context, Service } from '@deepseek-ai/cordis'
 import { afterEach, expect, it } from 'vitest'
 import { encodeInstant, parseDuration, parseInstant } from '@omne-harness/utc-instant'
@@ -55,7 +52,6 @@ it('registers a concrete clock under the key, delegates now() and removes the ke
   if (!(clock instanceof Clock)) throw new Error('clock missing')
   expect(installed?.instanceToken === clock.instanceToken).toBe(true)
 
-  // `Instant` keeps its fields private, so `toEqual` cannot tell two instants apart: compare text.
   const readText = async () => {
     const reading = await clock.now()
     if (reading.kind !== 'read') throw new Error(`reading failed: ${reading.diagnostic}`)

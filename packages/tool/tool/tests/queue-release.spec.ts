@@ -1,8 +1,3 @@
-// The release of a queue place, the basis a release needs, the operation that recalls an entry,
-// and the reconcile of a waiting call (SPEC 22). A queue entry repeats a fact that its call
-// domain owns, so these tests look at the queue domain itself: a released call holds no entry
-// however the creation step and the settlement interleave, the queue domain keeps nothing for a
-// released call, and nothing but a release basis in the call domain deletes an entry.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LedgerCommitInput, ToolLedgerStore } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore, type MemoryToolLedgerStore } from '@omne-harness/tool/testing'
@@ -29,7 +24,6 @@ import {
   type StartHarness,
 } from './start-values.ts'
 
-// The driver arms timers when a run fails; fake ones keep a test from leaving any behind.
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
 })
@@ -42,7 +36,6 @@ const resources = { owner: 'o', record: 'env', revision: '1', digest: 'd' }
 
 type Commit = LedgerCommitInput
 
-/** Whether a commit is a queue-domain commit that creates a queue entry. */
 function createsEntry(input: Commit): boolean {
   return (
     input.domain.kind === 'queue' &&
@@ -50,14 +43,12 @@ function createsEntry(input: Commit): boolean {
   )
 }
 
-/** Whether a commit is a queue-domain commit that deletes the entry of `call`: its release. */
 function releasesEntry(call: string) {
   return (input: Commit) =>
     input.domain.kind === 'queue' &&
     input.writes.some(write => write.kind === 'delete' && write.key === `entry:${call}`)
 }
 
-/** Whether a commit writes the operation record of `operation`: the commit of that operation. */
 function putsOperation(operation: string) {
   return (input: Commit) =>
     input.writes.some(
@@ -68,7 +59,6 @@ function putsOperation(operation: string) {
     )
 }
 
-/** The call record of `call` as the call domain holds it, and its domain revision. */
 async function callDomain(harness: StartHarness, call: string) {
   const read = await harness.memory.read({
     kind: 'call',
@@ -81,7 +71,6 @@ async function callDomain(harness: StartHarness, call: string) {
   return { read, record: record.call }
 }
 
-/** Settles `c1` through rejectPending at its current revision, as another process would. */
 async function settleElsewhere(harness: StartHarness): Promise<void> {
   ok(
     await harness.commands.rejectPending({
@@ -95,12 +84,6 @@ async function settleElsewhere(harness: StartHarness): Promise<void> {
 type Step = 'admit' | 'plan'
 type Fault = 'applied' | 'delayed' | 'read-fails' | 'crash'
 
-/**
- * A store in which `settle` runs right before the first commit that creates a queue entry, as a
- * process that settled the call after the creating step read it, and in which that creating
- * commit then meets `fault`. With the `plan` step the admission's own creation fails first, so
- * that planPreparation is the step that creates the entry.
- */
 function windowStore(
   memory: MemoryToolLedgerStore,
   step: Step,
@@ -152,26 +135,22 @@ describe('22 release: a released call never regains an entry', () => {
       await admitCall(harness, 'c1')
       if (step === 'plan') {
         expect(await harness.queue()).toEqual([])
-        // The plan read the call before the settlement, so the transaction refuses it as stale.
         const refused = await harness.commands.planPreparation({
           ...(await writeContext(harness, 'c1', 'op-c1/plan')),
           request: fixedOf(harness.internalRequests, 'c1'),
           purpose: 'initial',
           environmentAdoption: adoption('environment'),
         })
-        // A creation commit that answers unknown makes the plan unknown; otherwise it is stale.
         const answers = { 'read-fails': 'unavailable', delayed: 'commit-unknown' } as const
         expect(failure(refused)).toMatchObject({
           kind: answers[fault as 'read-fails' | 'delayed'] ?? 'stale-revision',
         })
       }
       reads.failing = 0
-      // The queue holds no entry for c1, and a commit that was held back cannot land one.
       expect(await harness.queue()).toEqual([])
       if (fault === 'delayed') expect(harness.memory.landDelayed()).toEqual([{ kind: 'conflict' }])
       expect(await harness.queue()).toEqual([])
       expect(await harness.released('c1')).toBe(true)
-      // A recalled admission does not make one either.
       const again = await harness.ledger.admissions.admit(
         admission('c1', 'op-c1', fixedOf(harness.internalRequests, 'c1')),
       )
@@ -256,7 +235,6 @@ describe('22 release: a released call never regains an entry', () => {
 })
 
 describe('22 release basis: only a basis in the call domain releases a place', () => {
-  /** Settles `call` with no start rejection: the logical end alone, which proves nothing. */
   async function settleWithoutBasis(harness: StartHarness, call: string): Promise<void> {
     const { read, record } = await callDomain(harness, call)
     const settled = { ...record, state: { ...record.state, phase: 'settled' } } as never
@@ -298,15 +276,12 @@ describe('22 release basis: only a basis in the call domain releases a place', (
     await admitCall(harness, 'c1')
     await admitCall(harness, 'c2')
     await harness.runOnce('c1')
-    // c1 settled; its release failed, so its entry and its queue task stay.
     expect((await harness.state('c1')).phase).toBe('settled')
     expect((await harness.queue()).map(entry => entry.call)).toEqual(['c1', 'c2'])
-    // c2 waits behind c1's entry; its reconcile removes the entry and the host runs c2 again.
     await harness.drive('c2')
     expect(harness.binding.executions).toEqual(['c2'])
     expect(await harness.released('c1')).toBe(true)
     expect(await harness.queue()).toEqual([{ call: 'c2', ordinal: '2', stage: 'held' }])
-    // The reconcile also asked the host to run c1, and that run closed its queue task.
     const recovery = ok(await harness.commands.loadRecovery(admission('c1', 'op-c1')))
     expect(recovery.tasks.map(task => task.kind)).toEqual(['deliver'])
   })
@@ -321,7 +296,6 @@ describe('22 reconcile: an entry on a basis goes whether or not its call owes a 
     await admitCall(harness, 'c1')
     await admitCall(harness, 'c2')
     await harness.runOnce('c1')
-    // Close c1's queue task by hand: no run is left to repair its release, and no run to wake c2.
     const { read } = await callDomain(harness, 'c1')
     const task = read.records.find(record => record.kind === 'task' && record.task.kind === 'queue')
     if (task?.kind !== 'task') throw new Error('the settled call owes a queue task')
@@ -340,7 +314,6 @@ describe('22 reconcile: an entry on a basis goes whether or not its call owes a 
 })
 
 describe('22 queue step: the operation that moved an entry recalls it', () => {
-  /** Admits `c1` and takes it through plan and environment, to the state that enqueue expects. */
   async function prepared(harness: StartHarness): Promise<void> {
     await admitCall(harness, 'c1')
     const preparation = ok(
@@ -422,7 +395,6 @@ describe('22 queue step: the operation that moved an entry recalls it', () => {
     const harness: StartHarness = startHarness({ memory, store: () => landing.store })
     await admitCall(harness, 'c1')
     const second = await writeContext(harness, 'c1', 'B/plan')
-    // The first plan and its enqueue land after B read the call domain and before B's queue step.
     landing.arm(1)
     const reply = await harness.commands.planPreparation({
       ...second,
@@ -452,11 +424,6 @@ describe('22 queue step: the operation that moved an entry recalls it', () => {
 })
 
 describe('22 reconcile: the waiter repairs only what the call domain proves', () => {
-  /**
-   * c1 holds its slot in the queue and its start intent is about to commit when c2's reconcile
-   * runs: the queue step of c1 landed, the call-domain commit has not. The window is the one a
-   * redo of the owner leaves open.
-   */
   async function reconcileInTheHoldWindow() {
     let reconciled: Awaited<ReturnType<StartHarness['queues']['reconcile']>> | null = null
     const harness: StartHarness = startHarness({
@@ -500,7 +467,6 @@ describe('22 reconcile: the waiter repairs only what the call domain proves', ()
       { call: 'c1', ordinal: '1', stage: 'held' },
       { call: 'c2', ordinal: '2', stage: 'preparing' },
     ])
-    // The reconcile saw an owner that still owes a step and asked for it; it released nothing.
     expect(ok(reconciled)).toEqual({ released: [], redrive: ['c1'] })
   })
 

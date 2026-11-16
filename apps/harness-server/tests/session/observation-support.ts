@@ -1,5 +1,3 @@
-// Support of the session observation cases and demonstration (#1248). No vitest import: the
-// demonstration script runs it with node.
 import type { SessionId } from '@omne-harness/session-contract'
 import {
   sessionObservationKey,
@@ -15,11 +13,6 @@ const sse = (events: readonly unknown[]): string =>
 
 const ECHO = JSON.stringify({ command: 'execute', params: { script: 'echo observed' } })
 
-/**
- * A turn with one tool call, both Model calls held after their first piece until `release`: the
- * first call says `Checking.` and then asks for the Shell tool; the call after the tool result
- * says `All` and then ` done.`.
- */
 export function heldToolTurn(): Readonly<{
   script: GatewayScript
   held(): number
@@ -95,7 +88,6 @@ export function openObservation(
   })
 }
 
-/** A session made through the CLI, with no input yet. */
 export async function emptySession(tree: ReleaseTree): Promise<string> {
   const created = await tree.cli(['create-session', '--definition', 'coding'])
   if (created.status !== 0) throw new Error(created.stderr)

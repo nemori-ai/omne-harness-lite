@@ -1,15 +1,9 @@
-// The record table: the migrated facts of the sealed family policy, the shared wire data, and the
-// purity that the adoption digest relies on.
 import { describe, expect, it } from 'vitest'
 import { defineFamily, recordAdoption } from '@omne-harness/pi-ai-transport'
 import { OPENAI_OWNER, OPENAI_RECORDS, type OpenAiRecord } from '@omne-harness/pi-ai-openai'
 
 const RECORDS: readonly OpenAiRecord[] = OPENAI_RECORDS
 
-/**
- * The sealed `openAiFamilyRecords` (openai-family-policy.ts:178-271): effort set, image rule and
- * input scope of each model.
- */
 const SEALED = {
   'openai/gpt-6-astra': ['astra', 'astra-patch', 'inherited'],
   'openai/gpt-6-astra-pro': ['astra', 'astra-patch', 'unknown'],
@@ -25,10 +19,6 @@ const SEALED = {
   'openai/gpt-5.6-luna-pro': ['standard', 'gpt56-patch', 'unknown'],
 } as const
 
-/**
- * The models added from the official model pages of 2026-11-03. GPT-6.1 Sol publishes no `none`.
- * The image guide names neither model, so both take the GPT-6 proxy of Sol and Luna.
- */
 const ADDED = {
   'openai/gpt-6.1-sol': ['astra', 'sol-luna-auto-proxy', 'inherited'],
   'openai/gpt-6.1-terra': ['standard', 'sol-luna-auto-proxy', 'inherited'],
@@ -36,7 +26,6 @@ const ADDED = {
 
 const MODELS = { ...SEALED, ...ADDED }
 
-/** The published efforts below `xhigh`: the contract has no `xhigh`. */
 const EFFORTS = {
   standard: ['none', 'low', 'medium', 'high', 'max'],
   astra: ['low', 'medium', 'high', 'max'],
@@ -75,7 +64,6 @@ describe('the migrated models', () => {
       const supported = Object.entries(rule.wire)
         .filter(([, wire]) => wire !== 'unsupported')
         .map(([value]) => value)
-      // The project convention: a record never turns reasoning off, so `none` is never offered.
       const sealed = EFFORTS[sealedOf(record)[0]].filter(value => value !== 'none')
       expect(rule.wire.none).toBe('unsupported')
       expect(supported.toSorted()).toEqual(sealed.toSorted())

@@ -10,15 +10,32 @@ export function readObject(path: string): Record<string, unknown> {
   if (!object(value)) throw new Error(`${path}: expected JSON object`)
   return value
 }
-function exportTarget(value: unknown, member: string, root: string, findings: Finding[]): void {
+const STYLESHEET = /^src\/.+\.css$/u
+const RESOURCE_DIRECTORY = /^resources\/(?:[^*/]+\/)*[^*/]+$/u
+const STYLESHEET_GLOB = /^(src(?:\/[^*/]+)*)\/\*\*\/\*\.css$/u
+
+function realNode(root: string, member: string, path: string, kind: 'file' | 'directory'): boolean {
+  const stat = lstatSync(join(root, member, path), { throwIfNoEntry: false })
+  return kind === 'file' ? stat?.isFile() === true : stat?.isDirectory() === true
+}
+function resourceTarget(path: string, root: string, member: string, rich: boolean): boolean {
+  if (path.endsWith('.json')) return existsSync(join(root, member, path))
+  if (!rich) return false
+  if (STYLESHEET.test(path)) return realNode(root, member, path, 'file')
+  return path.endsWith('/*') && RESOURCE_DIRECTORY.test(path.slice(0, -2))
+    ? realNode(root, member, path.slice(0, -2), 'directory')
+    : false
+}
+function exportTarget(
+  value: unknown,
+  member: string,
+  root: string,
+  findings: Finding[],
+  rich: boolean,
+): void {
   if (typeof value === 'string') {
     const path = value.replace(/^\.\//u, '')
-    if (
-      !value.startsWith('./') ||
-      !safeRelative(path) ||
-      !path.endsWith('.json') ||
-      !existsSync(join(root, member, path))
-    )
+    if (!value.startsWith('./') || !safeRelative(path) || !resourceTarget(path, root, member, rich))
       findings.push({
         code: 'resource-export',
         path: `${member}/package.json`,
@@ -127,7 +144,16 @@ function checkConfigurations(root: string, member: string): Finding[] {
   }
   return findings
 }
-function checkPublication(member: string, manifest: Record<string, unknown>): Finding[] {
+function listed(file: string, path: string, rich: boolean): boolean {
+  if (path === file || path.startsWith(`${file}/`)) return true
+  const prefix = rich ? STYLESHEET_GLOB.exec(file)?.[1] : undefined
+  return prefix !== undefined && path.startsWith(`${prefix}/`) && path.endsWith('.css')
+}
+function checkPublication(
+  member: string,
+  manifest: Record<string, unknown>,
+  rich: boolean,
+): Finding[] {
   const files = manifest['files']
   if (!Array.isArray(files) || !files.includes('dist')) {
     return [
@@ -147,9 +173,7 @@ function checkPublication(member: string, manifest: Record<string, unknown>): Fi
     .filter((target): target is string => typeof target === 'string')
     .filter(target => {
       const path = target.replace(/^\.\//u, '')
-      return !files.some(
-        file => typeof file === 'string' && (path === file || path.startsWith(`${file}/`)),
-      )
+      return !files.some(file => typeof file === 'string' && listed(file, path, rich))
     })
     .map(target => ({
       code: 'publication',
@@ -167,17 +191,17 @@ function canonicalEntry(value: unknown, stem: string): boolean {
     value['import'] === `./dist/${stem}.js`
   )
 }
-/** File contents and publishing checks accompany the complete tree comparison. */
 export function checkStructure(
   root: string,
   member: string,
   manifest: Record<string, unknown>,
   variant: Variant,
   required: readonly string[],
+  rich: boolean,
 ): Finding[] {
   const findings: Finding[] = [
     ...checkConfigurations(root, member),
-    ...checkPublication(member, manifest),
+    ...checkPublication(member, manifest, rich),
   ]
   const add = (code: string, reason: string) =>
     findings.push({ code, path: `${member}/package.json`, reason })
@@ -215,7 +239,7 @@ export function checkStructure(
   else {
     if (!canonicalEntry(exports['.'], 'index'))
       add('exports', 'Pure root must resolve to dist/index in both declarations and runtime')
-    for (const value of Object.values(exports)) exportTarget(value, member, root, findings)
+    for (const value of Object.values(exports)) exportTarget(value, member, root, findings, rich)
     if (variant === 'module' && exports['./cordis'] !== undefined)
       add('variant', 'Use a binding variant for ./cordis')
     if (variant !== 'module' && exports['./cordis'] === undefined)
@@ -246,7 +270,6 @@ function realFile(root: string, member: string, tree: readonly TreeNode[], path:
     readFileSync(join(root, member, path), 'utf8').trim() !== ''
   )
 }
-/** Rule set 3: each docs topic lives in exactly one place, a file or a directory with entries. */
 export function checkTopics(
   root: string,
   member: string,
@@ -282,7 +305,6 @@ export function checkTopics(
   }
   return findings
 }
-/** Executable scenarios: *.acceptance.ts files under acceptance/, outside acceptance/fixtures/. */
 export function acceptanceScenarios(tree: readonly TreeNode[]): string[] {
   return tree
     .filter(
@@ -294,7 +316,6 @@ export function acceptanceScenarios(tree: readonly TreeNode[]): string[] {
     )
     .map(node => node.path)
 }
-/** Rule set 3: configuration follows executable scenarios, not the acceptance directory. */
 export function checkAcceptance(
   member: string,
   manifest: Record<string, unknown>,

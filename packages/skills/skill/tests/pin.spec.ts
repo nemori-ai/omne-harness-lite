@@ -1,5 +1,3 @@
-// Steps 5 and 7 through `materialOf` and `pin` directly: the material to pin, the snapshot and
-// its digest, the source failures of the snapshot, and the abort checks around the port call.
 import { describe, expect, it } from 'vitest'
 import { fail } from '@omne-harness/operation-result'
 import type { PinFailure } from '@omne-harness/skill-contract'
@@ -24,7 +22,6 @@ async function gated(world: World, basis?: typeof currentBasis) {
   return okOf(await gate(world.ports, alice, scope, review, basis))
 }
 
-/** Pins like `read` and `list` do: the moved failure follows whether there is a basis. */
 async function pinned(world: World, basis?: typeof currentBasis, signal?: AbortSignal) {
   const material = await gated(world, basis)
   const moved = basis === undefined ? ADOPTED_MATERIAL_CHANGED : BASIS_UNAVAILABLE
@@ -47,8 +44,6 @@ describe('step 5: the material to pin', () => {
   })
 
   it('step-05-pins the basis itself with a basis, not the asset version of the reference', async () => {
-    // A basis without an asset version names the material by its layer; the reference that the
-    // resolution gives carries the asset version v2. The pinned material is the basis as given.
     const world = createWorld()
     const { assetVersion: _dropped, ...byLayer } = currentBasis
     const material = await gated(world, byLayer)

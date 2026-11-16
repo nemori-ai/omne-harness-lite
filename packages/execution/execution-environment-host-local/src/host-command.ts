@@ -43,34 +43,21 @@ import {
   type StopStatus,
 } from './host-scope.ts'
 
-/** Milliseconds on the monotonic clock, for start bounds and process durations. */
 const monotonicMs = () =>
   /* wall-clock: operation-timing -- Bound a start and measure a process duration. */ performance.now()
 
-/** What the provider does with processes a one-shot command left behind, when it may keep them. */
 export type ResiduePolicy = 'retain' | 'stop'
 
-/** Bounds of the host command facility. Every value is configuration; the code holds initial values. */
 export type HostCommandOptions = Readonly<{
-  /** Bytes both output streams of one process may hold before a reader takes them. Initial 1 MiB. */
   maxBufferedBytes?: number
-  /** Largest chunk the gate sends. Initial 64 KiB; never more than `maxBufferedBytes`. */
   maxChunkBytes?: number
-  /** How long a start waits for the gate to report ready and then started. Initial 10000 ms. */
   startBoundMs?: number
-  /** How long a graceful stop waits for the command to exit after SIGTERM. Initial 5000 ms. */
   graceMs?: number
-  /** How long one forced stop sequence may take before it answers unconfirmed. Initial 10000 ms. */
   stopBoundMs?: number
-  /** How long an unsatisfied probe answer is kept before a start probes again. Initial 60000 ms. */
   probeRetryMs?: number
-  /** `retain` hands a domain with leftovers to the retention scope when it may; `stop` never does. Initial `retain`. */
   residuePolicy?: ResiduePolicy
-  /** Retained processes one retention scope may hold, reservations and stopping ones included. Initial 8. */
   retainedPerScope?: number
-  /** Pause between two readings of the retained units' members. Initial 1000 ms. */
   retainedPollMs?: number
-  /** Bytes of output kept per stream of each retained process after the handover; 0 keeps none. Initial 65536. */
   retainedOutputBytes?: number
 }>
 
@@ -89,7 +76,6 @@ export const commandDefaults: CommandSettings = Object.freeze({
   retainedOutputBytes: 64 * 1024,
 })
 
-/** What one option must be: a test of a present value, and the words the issue ends with. */
 type OptionRule = Readonly<{ accepts(value: unknown): boolean; mustBe: string }>
 
 const wholeOneOrMore = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 1
@@ -112,7 +98,6 @@ const policyRule: OptionRule = {
   mustBe: "'retain' or 'stop'",
 }
 
-/** Every option's rule, in the order of the checks: bytes, then times, then counts, then the policy. */
 const optionRules: Readonly<Record<keyof HostCommandOptions, OptionRule>> = {
   maxBufferedBytes: byteRule,
   maxChunkBytes: byteRule,
@@ -126,7 +111,6 @@ const optionRules: Readonly<Record<keyof HostCommandOptions, OptionRule>> = {
   residuePolicy: policyRule,
 }
 
-/** The one check of the command bounds; the provider and the plugin configuration both use it. */
 export function commandOptionsIssue(
   options: Readonly<Record<string, unknown>>,
 ): string | undefined {
@@ -146,20 +130,15 @@ export function commandSettings(options: HostCommandOptions = {}): CommandSettin
   return Object.freeze({ ...commandDefaults, ...options })
 }
 
-// ---------------------------------------------------------------------------------------------
-// Gate frames
-
 export type GateFrame =
   | Readonly<{ kind: 'ready' }>
   | Readonly<{ kind: 'started' }>
   | Readonly<{ kind: 'spawnFailed'; code: string }>
   | Readonly<{ kind: 'data'; stream: 'stdout' | 'stderr'; bytes: Uint8Array }>
-  /** After the exit frame only: `count` bytes of `stream` the gate read but could not send. */
   | Readonly<{ kind: 'dropped'; stream: 'stdout' | 'stderr'; count: number }>
   | Readonly<{
       kind: 'exit'
       exit: Extract<CommandOutcome, { kind: 'completed' }>['exit']
-      /** The unit's members other than the gate when the main process had exited; null when unread. */
       members: number | null
     }>
 
@@ -168,7 +147,6 @@ export type FrameStep =
   | Readonly<{ kind: 'frames'; frames: readonly GateFrame[] }>
   | Readonly<{ kind: 'fault'; fault: string; frames: readonly GateFrame[] }>
 
-/** `exited`: after the exit frame, where the gate still relays what the unit writes; `ended`: no more frames. */
 type Phase = 'launching' | 'ready' | 'running' | 'exited' | 'ended'
 
 const base64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u
@@ -231,13 +209,8 @@ function decodeFrame(value: unknown, maxChunkBytes: number): GateFrame | string 
   }
 }
 
-/** One frame kind's place in the gate's order: the phases that take it, the phase that follows (absent: the same), and the fault elsewhere. */
 type Transition = Readonly<{ from: readonly Phase[]; to?: Phase; fault: string }>
 
-/**
- * The order the gate must keep: ready, then started or a spawn failure, then data, then one exit;
- * after the exit, data and drop frames of what the unit still writes.
- */
 const transitions: Readonly<Record<GateFrame['kind'], Transition>> = {
   ready: { from: ['launching'], to: 'ready', fault: 'ready out of order' },
   started: { from: ['ready'], to: 'running', fault: 'started out of order' },
@@ -255,11 +228,6 @@ function nextPhase(phase: Phase, frame: GateFrame): PhaseStep {
   return { phase: rule.to ?? phase }
 }
 
-/**
- * Reads the gate's frame stream. A line has an upper bound (the base64 length of one chunk plus a
- * margin); an overlong line, malformed JSON, an unknown frame, a frame out of order or bytes over the
- * chunk bound are a fault, and the reader stays faulted.
- */
 export function createGateReader(input: { maxChunkBytes: number }): Readonly<{
   push(bytes: Uint8Array): FrameStep
 }> {
@@ -299,22 +267,11 @@ export function createGateReader(input: { maxChunkBytes: number }): Readonly<{
   })
 }
 
-// ---------------------------------------------------------------------------------------------
-// Output after the exit frame
-
-/**
- * What the unit writes after the exit frame: counted per stream from the exit frame on, and saved
- * only once a handover gave the domain a tail. The frames reach it before the handover (in the exit
- * frame's chunk, or while the commit is in flight) and after it alike.
- */
 export type LateOutput = Readonly<{
-  /** Bytes per stream the gate relayed or dropped after the exit frame. */
   observed(): Readonly<Record<TailStream, number>>
   append(stream: TailStream, bytes: Uint8Array): void
   drop(stream: TailStream, count: number): void
-  /** The handover: from now on the bytes go to a tail that saves the newest `capacity` bytes per stream after `savedFrom`. */
   keep(input: { capacity: number; savedFrom: Readonly<Record<TailStream, number>> }): RetainedTail
-  /** The frame channel ended or broke: the provider observes the streams no longer, and the tail, kept now or later, is closed. */
   close(): void
 }>
 
@@ -347,9 +304,6 @@ export function createLateOutput(): LateOutput {
   })
 }
 
-// ---------------------------------------------------------------------------------------------
-// Bounded output
-
 export type OutputBuffer = Readonly<{
   push(stream: 'stdout' | 'stderr', bytes: Uint8Array): void
   close(): void
@@ -358,11 +312,6 @@ export type OutputBuffer = Readonly<{
   bufferedBytes(): number
 }>
 
-/**
- * Both streams share one buffer of `maxBufferedBytes`. A chunk that does not fit is dropped whole
- * and counted; the next delivered chunk's `observedOffset` shows the gap. One reader only; after it
- * gives up, every byte, the buffered ones included, counts as discarded.
- */
 export function createOutputBuffer(input: { maxBufferedBytes: number }): OutputBuffer {
   type Count = { observedBytes: number; discardedBytes: number }
   const counts: Record<'stdout' | 'stderr', Count> = {
@@ -443,19 +392,13 @@ export function createOutputBuffer(input: { maxBufferedBytes: number }): OutputB
   })
 }
 
-// ---------------------------------------------------------------------------------------------
-// The facility
-
 type StartRequest = Parameters<CommandFacility<unknown>['start']>[0]
 
-/** The command side of one acquisition: its facility, its admission and its running processes. */
 export type HostCommands = Readonly<{
   facility: CommandFacility<unknown>
-  /** Admits no new start from now on; running processes go on until they are stopped. */
   seal(): void
   inFlight(): number
   settled(): Promise<void>
-  /** Force-stops every process whose stop is not confirmed; answers the resources still unconfirmed. */
   stopAll(): Promise<readonly ManagedResource[]>
   unconfirmed(): readonly ManagedResource[]
 }>
@@ -463,17 +406,12 @@ export type HostCommands = Readonly<{
 export type HostCommandsInput = Readonly<{
   ledger: ResourceLedger
   provider: string
-  /** The requester scope of the acquisition; the scope unit's description records it for the listing. */
   scope: ScopeRef
-  /** The tenant of the acquisition; the retained-process index files its entries by it. */
   tenant: TenantId
   settings: CommandSettings
   prerequisites: PrerequisiteProbe
-  /** The retention binding of the acquisition, when the integrator gave one. */
   retention?: ProviderAcquireInput['retention'] | undefined
-  /** The retained-process index of the provider's state directory; absent when there is none. */
   retained?: RetainedProcessIndex | undefined
-  /** Called when a start is refused because a prerequisite is missing. */
   unavailable(missing: readonly HostCommandPrerequisite[]): void
 }>
 
@@ -497,7 +435,6 @@ const invalidVariable = ([name, value]: readonly [string, unknown]) =>
 
 const invalidArgument = (arg: unknown) => typeof arg !== 'string' || hasNul(arg)
 
-/** The request checks that need no process, in order; undefined when the request may go on. */
 function requestIssue(request: StartRequest): FacilityReason | undefined {
   if (request.binding.kind !== 'host_machine') return 'unsupported'
   if (request.outputMode !== 'separate' || request.geometry !== undefined) return 'unsupported'
@@ -507,7 +444,6 @@ function requestIssue(request: StartRequest): FacilityReason | undefined {
   return undefined
 }
 
-/** One process in its own scope: the launcher (`systemd-run` turned gate), its frames and its stop. */
 type ProcessEntry = {
   readonly resource: ManagedResource
   readonly coordinate: ScopeCoordinate
@@ -521,31 +457,23 @@ type ProcessEntry = {
   confirmed: boolean
   startedAt: number | undefined
   exit: Extract<GateFrame, { kind: 'exit' }>['exit'] | undefined
-  /** The gate's reading of the unit's other members at exit; null when it could not read them. */
   members: number | null
-  /** What the unit writes after the exit frame; a handover gives it the tail the index reads. */
   readonly late: LateOutput
   /** A stop of this handle was asked for; set before the stop's first wait. */
   stopRequested: boolean
   /** The acquisition released the domain; set before the release's first wait. */
   released: boolean
-  /** The stop sequence of this acquisition in flight: the unit's stop, then the record. */
   stopping: Promise<StopStatus> | undefined
-  /** The unit's stop itself, while in flight; an interrupted handover gives it to the index. */
   issued: Promise<StopReading> | undefined
   /** The disposition in flight after the exit frame; a stop waits for it to learn the owner. */
   disposition: Promise<unknown> | undefined
-  /** The one resolution in flight of an unread handover; concurrent askers join it. */
   resolving: Promise<void> | undefined
-  /** Settles a waiting start with what the gate reported. */
   signal: ((event: 'ready' | 'started' | 'spawnFailed' | 'ended') => void) | undefined
   closeControl(): void
   sendControl(message: Readonly<Record<string, unknown>>): void
-  /** Resolves once the gate reported the command's exit, or the gate ended. */
   readonly exited: Promise<void>
 }
 
-/** The control pipe of the launcher (descriptor 3), when the launcher has one to write. */
 function controlPipe(launcher: ChildProcess): Writable | undefined {
   const control = launcher.stdio[3]
   return control !== null && control !== undefined && 'write' in control ? control : undefined
@@ -559,7 +487,6 @@ function deferred<T>(): Readonly<{ promise: Promise<T>; settle(value: T): void }
   return { promise, settle }
 }
 
-/** Resolves when the launcher has exited or could not start. */
 function launcherExit(launcher: ChildProcess): Promise<void> {
   return new Promise<void>(resolve => {
     launcher.once('exit', () => resolve())
@@ -567,7 +494,6 @@ function launcherExit(launcher: ChildProcess): Promise<void> {
   })
 }
 
-/** The first line on the control pipe: the request, with the bound on the gate's frames. */
 function startMessage(request: StartRequest, maxChunkBytes: number): string {
   return `${JSON.stringify({
     executable: request.executable,
@@ -580,7 +506,6 @@ function startMessage(request: StartRequest, maxChunkBytes: number): string {
 `
 }
 
-/** Applies one frame of the gate to the process it belongs to; `exited` tells the exit frame. */
 function applyFrame(entry: ProcessEntry, frame: GateFrame, exited: () => void): void {
   switch (frame.kind) {
     case 'ready':
@@ -617,7 +542,6 @@ function applyFrame(entry: ProcessEntry, frame: GateFrame, exited: () => void): 
   }
 }
 
-/** Waits for the next gate event, or answers `late` once `deadline` passes. */
 function nextEvent(entry: ProcessEntry, deadline: number) {
   return new Promise<'ready' | 'started' | 'spawnFailed' | 'ended' | 'late'>(resolve => {
     if (entry.phase === 'ended') return resolve('ended')
@@ -644,7 +568,6 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
   const inFlight = new Set<Promise<unknown>>()
   let sealed = false
   const { retention, tenant } = input
-  /** The retention binding this acquisition can use: bound, same scope as the requester, indexed. */
   const retentionBinding = retentionBindingOf({ retention, retained, scope: input.scope, tenant })
 
   /** The stop of the unit itself, once per sequence; it marks the domain interrupted before its first wait. */
@@ -662,27 +585,17 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     return entry.issued
   }
 
-  /**
-   * The forced stop of a domain this acquisition owns. One that it does not own is not stopped and
-   * answers `unconfirmed`: this acquisition cannot confirm a stop it did not issue. A sequence in
-   * flight is joined. The record goes to this acquisition's ledger only when the domain is still
-   * its own once the disposition settled; a handover that took effect meanwhile gave the unit's
-   * stop to the index, which records it on the retention ledger.
-   */
   const forceStop = (entry: ProcessEntry, tools: ScopeTools): Promise<StopStatus> => {
     if (entry.stopping !== undefined) return entry.stopping
     if (!ownedByAcquisition(entry.custody)) return Promise.resolve('unconfirmed')
     entry.stopping = (async () => {
       const reading = await issueStop(entry, tools)
-      // The owner is known only once the disposition settled; the stop itself did not wait for it.
       await entry.disposition
       if (!ownedByAcquisition(entry.custody)) return reading.status
       let recorded: Awaited<ReturnType<ResourceLedger['stopped']>> = 'unavailable'
       try {
         recorded = await ledger.stopped(entry.resource.key, reading.status)
-      } catch {
-        /* The ledger did not record it: the stop responsibility stays open. */
-      }
+      } catch {}
       if (reading.status === 'confirmed' && recorded === 'recorded') {
         entry.confirmed = true
         live.delete(entry)
@@ -705,16 +618,13 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
       if (!exited) {
         try {
           await ledger.stopped(entry.resource.key, 'unconfirmed')
-        } catch {
-          /* Unconfirmed either way. */
-        }
+        } catch {}
         return 'unconfirmed'
       }
     }
     return forceStop(entry, tools)
   }
 
-  /** What the handover records about the domain, for the index. */
   const handoverDetails = (entry: ProcessEntry, view: RetainedProcessLedger) => ({
     unit: entry.coordinate.unit,
     bootId: entry.coordinate.bootId,
@@ -724,10 +634,6 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     ledger: view,
   })
 
-  /**
-   * The tail of a domain handed over now: it starts saving at what each stream observed so far.
-   * Without a capacity the frame channel closes, and the gate discards what the unit writes.
-   */
   const keepOutput = (entry: ProcessEntry): RetainedTail | 'unsupported' => {
     const frames = entry.launcher.stdout
     if (settings.retainedOutputBytes === 0 || frames === null) {
@@ -749,11 +655,6 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     return tail
   }
 
-  /**
-   * The commit took effect and the domain is whole: the gate is told, this acquisition drops the
-   * control channel, the frame channel feeds the domain's tail, and the index takes the domain as
-   * running. The custody changed already.
-   */
   const enterIndex = async (
     entry: ProcessEntry,
     binding: RetentionBinding,
@@ -771,11 +672,6 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     return handed.process
   }
 
-  /**
-   * The commit took effect, but the domain was stopped, released or its scope closed meanwhile: it
-   * is the retention scope's, and the index holds it as stopping. A stop this acquisition issued
-   * already is the one the index waits for, so the stop is recorded once, on the retention ledger.
-   */
   const enterIndexStopping = (
     entry: ProcessEntry,
     binding: RetentionBinding,
@@ -852,7 +748,6 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     const elapsed = () =>
       entry.startedAt === undefined ? 0 : Math.round(monotonicMs() - entry.startedAt)
     let ended = false
-    /** The gate sends no more output: close the buffer and release every waiter. */
     const endOutput = () => {
       if (ended) return
       ended = true
@@ -861,7 +756,6 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
       exitedGate.settle()
       entry.signal?.('ended')
     }
-    /** The exit frame: the outcome waits for the disposition, which precedes any stop or handover. */
     const onExit = () => {
       const exit = entry.exit
       if (exit === undefined) return
@@ -869,14 +763,12 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
       endOutput()
       const running = custody
         .dispose(entry, tools)
-        // A disposition that itself failed has no result: the domain stays with the acquisition.
         .catch((): ResidueReport => ({ kind: 'unknown' }))
         .then(residue => {
           outcome.settle({ kind: 'completed', exit, durationMs, output: buffer.summary(), residue })
         })
       entry.disposition = running
     }
-    /** The gate went away, or its frames broke, without an exit frame: the outcome is unknown. */
     const end = () => {
       if (ended) return
       endOutput()
@@ -886,26 +778,20 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
         observedDurationMs: elapsed(),
         output: buffer.summary(),
       })
-      // What the command left in its scope, or a gate that went away, is cleared by a forced stop.
       if (!entry.confirmed && entry.startedAt !== undefined) void forceStop(entry, tools)
     }
-    // Frames are read after the exit frame too: what the unit writes then may go to a retained tail.
     let reading = true
     launcher.stdout?.on('data', (bytes: Buffer) => {
       if (!reading) return
       const step = reader.push(bytes)
       for (const frame of step.frames) applyFrame(entry, frame, onExit)
       if (step.kind === 'fault') {
-        // A broken frame stream invalidates the resource: its outcome is unknown, and it is stopped.
-        // After the exit frame the outcome stands, and a handed-over domain is not this one's to
-        // stop; its tail is closed, since nothing is observed from here on.
         reading = false
         entry.late.close()
         end()
         void forceStop(entry, tools)
       }
     })
-    // The frame channel is gone: a tail the handover gave, or gives later, observes nothing more.
     launcher.stdout?.once('close', () => entry.late.close())
     launcher.once('close', end)
     launcher.once('error', end)
@@ -914,7 +800,6 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     return entry
   }
 
-  /** A stop asked through the handle acts only on a domain this acquisition owns. */
   const stopHandle = async (
     entry: ProcessEntry,
     tools: ScopeTools,
@@ -938,7 +823,6 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
       stop: (mode: 'graceful' | 'forced') => stopHandle(entry, tools, mode),
     })
 
-  /** The checks before anything exists, in the order of the SPEC: the request, the platform, the facade. */
   const admit = async (request: StartRequest): Promise<FacilityReason | Admitted> => {
     const issue = requestIssue(request)
     if (issue !== undefined) return issue
@@ -990,7 +874,6 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     }
     const ready = await nextEvent(entry, deadline)
     if (ready === 'late') {
-      // No GO is sent from now on; the resource stays for the release or the retirement.
       entry.closeControl()
       return { kind: 'unknown', requestId }
     }
@@ -1001,14 +884,11 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     entry.sendControl({ c: 'go' })
     const started = await nextEvent(entry, deadline)
     if (started === 'started') return { kind: 'done', requestId, value: handleOf(entry, tools) }
-    // The image did not start: the contract's reason for that is `unavailable`.
     if (started === 'spawnFailed') return refuse('unavailable')
-    // GO went out: the command may have started. The resource stays for the stop.
     return { kind: 'unknown', requestId }
   }
 
   const facility: CommandFacility<unknown> = {
-    // Every command runs in its own systemd scope, or does not run: no process can leave it.
     containment: 'sealed',
     start(request) {
       const running = start(request)

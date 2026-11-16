@@ -1,6 +1,3 @@
-// The replay fixtures of the Anthropic family (#465 C1): every record has its fixture, the request
-// fixture encodes to its body and the stream fixture decodes to the facts that the sealed tests
-// expect, translated to contract facts. The extra cases each check one record.
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -19,7 +16,6 @@ import { FAMILY, recordNamed } from './support/anthropic.ts'
 const root = fileURLToPath(FIXTURES_ROOT)
 const rendered = renderedCases()
 
-/** A family with one record of the Anthropic family; its acquire is the acquire of the full family. */
 function oneRecordFamily(name: string) {
   const contributions = composeFamilies([FAMILY])
   return defineFamily({

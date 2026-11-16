@@ -1,5 +1,3 @@
-// The teardown of one entry (SPEC MC-10, MC-14): one entry point for the close order, every step
-// runs when a port rejects, and the breach is absorbed as MC-14 says.
 import { describe, expect, it } from 'vitest'
 import { core } from './doubles/core.ts'
 import { faulty, type Fault } from './doubles/faults.ts'
@@ -10,14 +8,13 @@ import { adoptHttp, usualScript, world, type World } from './doubles/world.ts'
 const files = endpointRefOf('files')
 const WITH_CREDENTIAL = { auth: 'static' } as const
 
-/** Every non-empty combination of the two steps that can reject. */
 const COMBINATIONS: readonly (readonly Fault[])[] = [['close'], ['release'], ['close', 'release']]
 
 function closes(w: World): number {
   return w.transports.calls.filter(call => call.kind === 'close').length
 }
 
-describe('teardown: every step runs, whichever port rejects (MC-14)', () => {
+describe('teardown: every step runs, whichever port rejects', () => {
   it.each(COMBINATIONS.map(faults => [faults.join(' + '), faults] as const))(
     '%s rejecting: the transport is closed, the handle released once',
     async (_name, faults) => {
@@ -37,7 +34,6 @@ describe('teardown: every step runs, whichever port rejects (MC-14)', () => {
       expect(await c.connections.release(alice, files)).toEqual({
         ok: { kind: 'no-connection' },
       })
-      // Whatever rejected: the transport was closed once and the handle released once.
       expect(closes(w)).toBe(1)
       expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
     },

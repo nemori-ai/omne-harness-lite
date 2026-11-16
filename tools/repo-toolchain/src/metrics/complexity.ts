@@ -1,24 +1,12 @@
-// 圈复杂度与函数文本摘要。算法照 Robert C. Martin 的工具按其逻辑用 TypeScript 重写（原仓库无许可证，
-// 不搬原文）：
-// - 判定点集合：unclebob/crapper@4909ad2 src/crapper/languages/typescript.py `_DECISIONS` 与
-//   languages/treesitter.py `binary_logic`。阈值是按这套计数校出来的，所以集合逐项对齐：
-//   `default` 计入，`??`、`?.` 与逻辑赋值不计。
-// - 函数文本摘要：unclebob/mutator@21d6d6f functions.py 的「各行去尾部空白后拼接再取 sha256」。
-// 有意的差异在计分单元：crapper 只认顶层函数、类方法与顶层箭头常量，嵌套函数并入外层；本仓库大量
-// 使用「工厂函数返回一组方法」的写法，照那样算一个工厂就是一个单元。这里让有名字的内层函数、对象
-// 字面量方法与类字段箭头函数各自成单元，只有匿名回调并入外层。
 import { createHash } from 'node:crypto'
 import ts from '@typescript/typescript6'
 import type { SourceFile } from '../core/rule.ts'
 import { nodeName, syntaxOf } from '../core/syntax.ts'
 
-/** 一个计分单元：有名字的函数。匿名回调并入它所在的单元。 */
 export interface FunctionMetric {
-  /** 限定名：类、外层函数与本函数名以 `.` 相连；顶层判定归 `<module>`。 */
   readonly name: string
   readonly line: number
   readonly endLine: number
-  /** 圈复杂度：1 + 判定点数，不含嵌套的有名函数。 */
   readonly complexity: number
 }
 
@@ -51,7 +39,6 @@ function memberName(name: ts.PropertyName | undefined, syntax: ts.SourceFile): s
   return nodeName(name) ?? name.getText(syntax)
 }
 
-/** 有函数体且能取到名字的函数才是计分单元；重载签名与匿名回调返回 undefined。 */
 function unitName(node: ts.Node, syntax: ts.SourceFile): string | undefined {
   if (ts.isFunctionDeclaration(node))
     return node.body === undefined ? undefined : (node.name?.text ?? 'default')
@@ -70,7 +57,6 @@ function unitName(node: ts.Node, syntax: ts.SourceFile): string | undefined {
   return undefined
 }
 
-/** 类与赋了名字的对象字面量不是计分单元，只给其中的函数提供限定名。 */
 function containerName(node: ts.Node, syntax: ts.SourceFile): string | undefined {
   if (ts.isClassDeclaration(node) || ts.isClassExpression(node)) return node.name?.text
   if (!ts.isObjectLiteralExpression(node)) return undefined
@@ -91,7 +77,6 @@ interface Unit {
   complexity: number
 }
 
-/** 只读语法树；不解析类型，也不跨文件。 */
 export function functionMetrics(file: SourceFile): FunctionMetric[] {
   const syntax = syntaxOf(file)
   const lineOf = (position: number) => syntax.getLineAndCharacterOfPosition(position).line + 1
@@ -129,7 +114,6 @@ export function functionMetrics(file: SourceFile): FunctionMetric[] {
   return units.map(unit => ({ ...unit }))
 }
 
-/** 严格落在 `outer` 行范围之内的其他单元。 */
 export function nestedUnits(
   outer: FunctionMetric,
   units: readonly FunctionMetric[],
@@ -143,11 +127,6 @@ export function nestedUnits(
   )
 }
 
-/**
- * 限定名 → 函数自身文本的摘要，用来判断「这个函数的文本变没变」而不是「diff 碰没碰到它的行」：
- * 挪了位置、上方加了代码都不算变。只取函数自己的行，更内层有名函数的行不算在外层头上；
- * 同名的多个单元按行号顺序把各自摘要拼起来再取一次。
- */
 export function unitDigests(file: SourceFile): Map<string, string> {
   const lines = file.text.split('\n')
   const units = functionMetrics(file)

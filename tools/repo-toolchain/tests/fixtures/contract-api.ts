@@ -1,5 +1,3 @@
-// 契约 API 快照测试的临时检出：真实的根编译选项、成员 package.json、手写的 dist 声明、
-// 按包名的 node_modules 链接、契约成员表与带 contractApi 一节的配置。
 import { copyFileSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -21,7 +19,6 @@ const repository = fileURLToPath(new URL('../../../../', import.meta.url))
 
 export interface FixtureMember {
   readonly name: string
-  /** 子路径到 dist 内的声明文件，例如 `{ '.': 'index.d.ts' }`。 */
   readonly exports: Readonly<Record<string, string>>
   readonly dist?: Readonly<Record<string, string>>
 }
@@ -36,7 +33,6 @@ export function write(root: string, path: string, text: string): void {
   writeFileSync(join(root, path), text)
 }
 
-/** 写一个检出；`contracts` 缺省为全部成员。 */
 export function contractCheckout(
   members: Readonly<Record<string, FixtureMember>>,
   contracts: readonly string[] = Object.keys(members),
@@ -77,7 +73,6 @@ export function contractCheckout(
   return root
 }
 
-/** 两个契约成员 `packages/x/a`（接口 A）与 `packages/x/b`（类型 B）。 */
 export const MEMBERS: Readonly<Record<string, FixtureMember>> = {
   'packages/x/a': {
     name: '@fixture/a',
@@ -91,14 +86,12 @@ export const MEMBERS: Readonly<Record<string, FixtureMember>> = {
   },
 }
 
-/** A committed Git checkout of `MEMBERS` whose snapshots match its dist. */
 export function committedCheckout(): { root: string; base: string } {
   const root = contractCheckout(MEMBERS, Object.keys(MEMBERS), gitRepository())
   writeSnapshots(root, CONFIG)
   return { root, base: commit(root, 'snapshots') }
 }
 
-/** Rewrites the contract member table with one group whose contracts are `contracts`. */
 export function setContracts(root: string, contracts: readonly string[]): void {
   write(
     root,
@@ -107,7 +100,6 @@ export function setContracts(root: string, contracts: readonly string[]): void {
   )
 }
 
-/** 换掉一个成员的整个 dist；`undefined` 表示没有构建。 */
 export function setDist(
   root: string,
   member: string,
@@ -118,7 +110,6 @@ export function setDist(
   for (const [file, text] of Object.entries(dist)) write(root, join(member, 'dist', file), text)
 }
 
-/** 按目录读出检出里的契约成员；读不出时抛出。 */
 export function membersOf(root: string, directories: readonly string[]) {
   return directories.map(directory => {
     const outcome = readContractMember(readWorkingFile(root), directory)
@@ -127,7 +118,6 @@ export function membersOf(root: string, directories: readonly string[]) {
   })
 }
 
-/** 单成员 `packages/x/a`（`@fixture/a`）的快照模型。 */
 export function snapshotOf(
   dist: Readonly<Record<string, string>>,
   exports: Readonly<Record<string, string>> = { '.': 'index.d.ts' },
@@ -138,13 +128,11 @@ export function snapshotOf(
   return result.snapshot
 }
 
-/** 外部包 `x`：成员 a 的依赖，不是契约成员。扩充它的 `Context`、`Events` 测对外扩充。 */
 export const EXTERNAL_X =
   'export interface Context { base: string }\nexport interface Events { ready(): void }\nexport type KeysOf<T> = keyof T;\n'
 
 type Dist = Readonly<Record<string, string>>
 
-/** 成员 a（依赖外部包 x）的一侧：建检出并生成快照。 */
 function sideOf(dist: Dist, exports: Readonly<Record<string, string>>) {
   const root = contractCheckout(
     {
@@ -162,7 +150,6 @@ function sideOf(dist: Dist, exports: Readonly<Record<string, string>>) {
   return { root, snapshot: result.snapshot }
 }
 
-/** 两份 dist 的分类：只给 `index.d.ts` 时可以直接传文本。 */
 export function classifyDists(
   before: string | Dist,
   after: string | Dist,

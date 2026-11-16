@@ -1,9 +1,3 @@
-// The custody chain of a message handoff (Agent SPEC "准入结果保管") across a recordHandoff whose
-// storage outcome is still undecided. The reference core holds the custody attempt of a root
-// recordHandoff as soon as the write was tried, so the chain of its H goes on from it while the
-// storage has not decided and after the attempt is excluded. The production Journal keeps the
-// attempt of an undecided write in the process (see `Held` in agent-journal.ts) and puts it back
-// into every copy it rebuilds.
 import { describe, expect, it } from 'vitest'
 import {
   decodeActionId,
@@ -31,10 +25,6 @@ const PROVIDER = {
   digest: 'suite:handoff',
 }
 
-/**
- * A provider over the scene whose next storage commit stays undecided: it is not applied, and the
- * storage answers unknown to a query of it from then on.
- */
 function undecidedNext(s: SqlScene) {
   const control = { next: false }
   const undecided = new Set<string>()
@@ -72,7 +62,6 @@ const proof = (record: string): DurableEvidence => ({
   digest: `suite:${record}`,
 })
 
-/** The H of a model reply at the position I3 of the checkpoint the execution is at. */
 function handoffRequest(
   s: SqlScene,
   loaded: Extract<Awaited<ReturnType<Journal['load']>>, { ok: unknown }>['ok'],
@@ -104,7 +93,6 @@ function handoffRequest(
   } as Request
 }
 
-/** The root recordHandoff of `request` under `name`: a prepared outcome, no custody yet. */
 function rootOf(s: SqlScene, request: Request, name: string): RootHandoff {
   return {
     ...s.access,
@@ -129,7 +117,6 @@ function rootOf(s: SqlScene, request: Request, name: string): RootHandoff {
   } as RootHandoff
 }
 
-/** The H prepared at the Journal: the P commit of the suite, then the request. */
 async function preparedH(s: SqlScene, journal: Journal) {
   const opened = ok(await journal.open(s.openInput))
   const loaded = ok(await journal.load({ ...s.access, execution: s.execution }))
@@ -186,7 +173,6 @@ describe('the custody chain of a recordHandoff whose storage outcome is undecide
       failure: { kind: 'commit-unknown', operation: root.operation },
     })
 
-    // A takeover attach fences the undecided write: it is excluded in the records that publish.
     const work = ok(await s.port.readWork(s.sessionAccess))
     if (work.run.kind !== 'active') throw new Error('active Run expected')
     const claimed = ok(

@@ -1,8 +1,5 @@
-// The configuration of the real sqlite-provider for the Journal scenes: the values of the
-// session-storage-sql real-provider fixture. Tests override single fields.
 import type { SqliteStorageConfig } from '@omne-harness/sqlite-provider'
 
-/** The provider configuration of this fixture. Tests override single fields. */
 export function realConfig(storageRoot: string): SqliteStorageConfig {
   return {
     storageRoot,
@@ -14,9 +11,6 @@ export function realConfig(storageRoot: string): SqliteStorageConfig {
     maxCommandBytes: 1048576,
     maxRequestBytes: 4194304,
     globalInFlightWriteBytes: 67108864,
-    // The Session `create` of these scenes carries an initial input, and its guard facts embed the
-    // typed form of the command input: they nest 69 levels deep, so 64 is refused (command_limit)
-    // and 69 is the least that passes. See SPEC K-14.
     maxJsonDepth: 80,
     maxJsonMembers: 65536,
     maxResponseBytes: 65536,
@@ -46,7 +40,6 @@ export function realConfig(storageRoot: string): SqliteStorageConfig {
     groupMaxExecutionSliceMs: 5,
     walAutocheckpointPages: 100000,
     journalSizeLimitBytes: 67108864,
-    // The physical-transaction count reads the WAL, so a checkpoint must not restart it mid-test.
     checkpointIntervalMs: 3_600_000,
     checkpointWalBytes: 16777216,
     walReadPauseBytes: 67108864,

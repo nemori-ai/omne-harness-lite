@@ -1,10 +1,3 @@
-// The batches of the Agent fact family of one session after a publication (`pub > after`), in
-// publication order, one snapshot per page: the incremental read of a view that holds the session
-// up to `after`. The rows read are the rows published after it, so a read does not grow with the
-// session. With `execution` the read takes only the facts of that execution (the cold start of an
-// open execution); the batches it gives may then hold part of a publication.
-// A session read without `execution` checks that the publications after `after` are all there,
-// each a whole batch: a gap answers `missing`, never a shorter log.
 import { isCount } from '../codec.ts'
 import {
   batchesOf,
@@ -17,7 +10,6 @@ import {
 } from './fact-rows.ts'
 import { handler, scopeOf } from './support.ts'
 
-/** The publications after `after` are there in order, through the last one of the page. */
 function contiguous(batches: readonly BatchOutput[], after: bigint): boolean {
   return batches.every((batch, index) => BigInt(batch.published) === after + BigInt(index + 1))
 }

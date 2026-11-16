@@ -1,13 +1,5 @@
-// The bounds the explorer runs under. The bounds, the states they reach and the time they take are
-// recorded in `verification/README.md`; a change here changes that record. Each scenario names
-// the T8 class representatives it lets the wire answer with; the lawful answer is always there.
 import type { Scenario } from './explore.ts'
 
-/**
- * The smallest scenario: Streamable HTTP with a handle, one `call` whose signal may fire, one
- * `close()`; the line answers or is left pending, the handle authorizes or hangs for ever, the
- * line closes or is left pending.
- */
 export const MINIMAL: Scenario = {
   name: 'minimal',
   material: 'http',
@@ -21,12 +13,6 @@ export const MINIMAL: Scenario = {
   wireFaults: 0,
 }
 
-/**
- * Streamable HTTP with a handle: one `call` with its signal, `close()`; the wire may refuse the
- * request (401, scoped 403, plain 403), fail before or after it left, or hold the answer stream
- * open and break it; the handle may fail, reject or hang for ever on either method; the metadata
- * fetch may answer, miss, reject or hang for ever. One wire fault and one breach per schedule.
- */
 export const HTTP_CALL: Scenario = {
   name: 'http-call',
   material: 'http',
@@ -46,10 +32,6 @@ export const HTTP_CALL: Scenario = {
   wireFaults: 1,
 }
 
-/**
- * Streamable HTTP with a handle: one `listActions` and one `updateTask`, `close()`; the answer
- * stream may break or end empty twice over, so a read goes out again and a write does not.
- */
 export const HTTP_RESEND: Scenario = {
   name: 'http-resend',
   material: 'http',
@@ -66,11 +48,6 @@ export const HTTP_RESEND: Scenario = {
   wireFaults: 2,
 }
 
-/**
- * Streamable HTTP with a handle: one `call` whose answer stream carries a peer `ping`, then
- * `close()`. The response to the peer `ping` is a POST the credential authorizes (T3, P7); after
- * `close()` the session must not authorize it.
- */
 export const HTTP_PEER: Scenario = {
   name: 'http-peer',
   material: 'http',
@@ -86,10 +63,6 @@ export const HTTP_PEER: Scenario = {
   wireFaults: 1,
 }
 
-/**
- * Streamable HTTP without a handle: one `call`, one `listActions`, `close()`; the wire may refuse
- * with 401 or 403: there is no handle to hear of it.
- */
 export const HTTP_BARE: Scenario = {
   name: 'http-bare',
   material: 'http-bare',
@@ -107,11 +80,6 @@ export const HTTP_BARE: Scenario = {
   wireFaults: 1,
 }
 
-/**
- * The legacy HTTP+SSE fallback: `discover` on a peer that answers the probe and `initialize`
- * with 4xx+plain, so the session tries the GET; the GET may enter the SSE mode, be refused with
- * 401, or fail; in the SSE mode the stream may break; `close()` at any point.
- */
 export const SSE_FALLBACK: Scenario = {
   name: 'sse-fallback',
   material: 'http',
