@@ -377,7 +377,7 @@ function denied(): State {
 describe('跟上变化', () => {
   it('L1 watch，现在 off：开始观察，代次加一，读列表并建立观察', () => {
     const next = step(INITIAL, { kind: 'watch' })
-    expect(next.state.live).toEqual({ kind: 'on', generation: 1 })
+    expect(next.state.live).toEqual({ kind: 'on', generation: 1, attempt: 0 })
     expect(next.effects).toEqual([
       { kind: 'list', token: 1, cursor: null },
       { kind: 'observe', generation: 1 },
@@ -495,13 +495,33 @@ describe('跟上变化', () => {
     expect(again.effects).toEqual([{ kind: 'reconnect-later', generation: 1, attempt: 2 }])
   })
 
-  it('L14 到点重连，代次相同：变 on，代次加一，读列表并建立观察', () => {
+  it('L14 到点重连，代次相同：变 on，代次加一，次数留着，读列表并建立观察', () => {
     const next = step(retrying(), { kind: 'reconnect-due', generation: 1 })
-    expect(next.state.live).toEqual({ kind: 'on', generation: 2 })
+    expect(next.state.live).toEqual({ kind: 'on', generation: 2, attempt: 1 })
     expect(next.effects).toEqual([
       { kind: 'list', token: 2, cursor: null },
       { kind: 'observe', generation: 2 },
     ])
+  })
+
+  it('L17 重连之后一帧都没收到又断了：次数接着加，间隔跟着变长', () => {
+    const reconnected = step(retrying(), { kind: 'reconnect-due', generation: 1 }).state
+    const next = step(reconnected, { kind: 'observation-ended', generation: 2, end: UNAVAILABLE })
+    expect(next.state.live).toEqual({ kind: 'retrying', generation: 2, attempt: 2 })
+    expect(next.effects).toEqual([{ kind: 'reconnect-later', generation: 2, attempt: 2 }])
+  })
+
+  it('L18 重连之后收到一帧：次数清零，之后再断从第一次算起', () => {
+    const reconnected = run(
+      retrying(),
+      { kind: 'reconnect-due', generation: 1 },
+      { kind: 'list-answered', token: 2, answer: page([]) },
+    ).state
+    const framed = step(reconnected, { kind: 'frame', generation: 2 })
+    expect(framed.state.live).toEqual({ kind: 'on', generation: 2, attempt: 0 })
+    expect(framed.effects).toEqual([{ kind: 'list', token: 3, cursor: null }])
+    const next = step(framed.state, { kind: 'observation-ended', generation: 2, end: UNAVAILABLE })
+    expect(next.state.live).toEqual({ kind: 'retrying', generation: 2, attempt: 1 })
   })
 
   it('L15 到点重连，但不在 retrying 或代次不同：不变', () => {
@@ -513,7 +533,7 @@ describe('跟上变化', () => {
 
   it('L16 停了再开：代次接着往上走，旧代次的帧不算数', () => {
     const reopened = run(watching(), { kind: 'unwatch' }, { kind: 'watch' }).state
-    expect(reopened.live).toEqual({ kind: 'on', generation: 2 })
+    expect(reopened.live).toEqual({ kind: 'on', generation: 2, attempt: 0 })
     const answered = step(reopened, { kind: 'list-answered', token: 2, answer: page([]) }).state
     expect(step(answered, { kind: 'frame', generation: 1 }).state).toBe(answered)
   })

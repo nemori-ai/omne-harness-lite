@@ -21,7 +21,7 @@ export type Last = Readonly<{ notice: Notice; sessionRef: string | undefined }>
 
 export type Live =
   | Readonly<{ kind: 'off' }>
-  | Readonly<{ kind: 'on'; generation: number }>
+  | Readonly<{ kind: 'on'; generation: number; attempt: number }>
   | Readonly<{ kind: 'retrying'; generation: number; attempt: number }>
   | Readonly<{ kind: 'denied' }>
 
@@ -294,16 +294,21 @@ function confirm(state: State, key: string): Step {
   ])
 }
 
-function observe(state: State): Step {
+function observe(state: State, attempt: number): Step {
   const generation = state.generations + 1
-  const read = readList({ ...state, generations: generation, live: { kind: 'on', generation } })
+  const read = readList({
+    ...state,
+    generations: generation,
+    live: { kind: 'on', generation, attempt },
+  })
   return { state: read.state, effects: [...read.effects, { kind: 'observe', generation }] }
 }
 
 function frame(state: State, generation: number): Step {
   const live = state.live
   if (live.kind !== 'on' || live.generation !== generation) return same(state)
-  return state.read.kind === 'reading' ? same({ ...state, again: true }) : readList(state)
+  const settled: State = live.attempt === 0 ? state : { ...state, live: { ...live, attempt: 0 } }
+  return settled.read.kind === 'reading' ? same({ ...settled, again: true }) : readList(settled)
 }
 
 const deniedEnd = (end: CardsEnd): boolean =>
@@ -316,7 +321,7 @@ function observationEnded(state: State, generation: number, end: CardsEnd): Step
     return same(state)
   if (deniedEnd(end)) return same({ ...state, live: { kind: 'denied' } })
   if (end.kind === 'aborted') return same(state)
-  const attempt = live.kind === 'retrying' ? live.attempt + 1 : 1
+  const attempt = live.attempt + 1
   return {
     state: { ...state, live: { kind: 'retrying', generation, attempt } },
     effects: [{ kind: 'reconnect-later', generation, attempt }],
@@ -326,7 +331,7 @@ function observationEnded(state: State, generation: number, end: CardsEnd): Step
 function reconnectDue(state: State, generation: number): Step {
   const live = state.live
   if (live.kind !== 'retrying' || live.generation !== generation) return same(state)
-  return observe(state)
+  return observe(state, live.attempt)
 }
 
 export function step(state: State, event: Event): Step {
@@ -342,7 +347,7 @@ export function step(state: State, event: Event): Step {
     case 'confirm':
       return confirm(state, event.key)
     case 'watch':
-      return state.live.kind === 'off' ? observe(state) : same(state)
+      return state.live.kind === 'off' ? observe(state, 0) : same(state)
     case 'unwatch':
       return state.live.kind === 'off'
         ? same(state)

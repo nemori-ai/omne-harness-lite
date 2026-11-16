@@ -121,7 +121,13 @@ describe('帧与重连', () => {
     await settle()
     expect(fake.observations).toHaveLength(2)
     expect(lists(fake)).toHaveLength(2)
-    expect(driver.getState().live).toEqual({ kind: 'on', generation: 2 })
+    expect(driver.getState().live).toEqual({ kind: 'on', generation: 2, attempt: 1 })
+    fake.observations[1]!.end({ kind: 'uncertain' })
+    await settle()
+    expect(timers.map(timer => timer.delayMs)).toEqual([
+      defaultBackoff.delayMs(0),
+      defaultBackoff.delayMs(1),
+    ])
   })
 
   it('F3 观察被拒：不重连', async () => {
