@@ -1,8 +1,10 @@
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { writeSessionOwners } from '@omne-harness/cli'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
+  closedPort,
   defaultAnswer,
   sessionId,
   startFakeService,
@@ -11,7 +13,7 @@ import {
   type FakeService,
   type Seen,
 } from './support/fake-service.ts'
-import { commandUnrecognized } from './support/expected.ts'
+import { commandUnrecognized, notLoggedIn } from './support/expected.ts'
 import { runInProcess } from './support/in-process.ts'
 
 const REFERENCE = 'tool-invocation:v1:call-9:admit-9'
@@ -237,6 +239,148 @@ describe('calls output reads the result of the call page by page', () => {
   })
 })
 
+describe('calls show and output, the edges', () => {
+  const page = (content: unknown[], next: string | null) => ({
+    outcome: 'succeeded',
+    body: {
+      result: 'v1',
+      terminal: { kind: 'completed', detail: null },
+      effect: 'occurred',
+      content,
+      next,
+    },
+  })
+
+  it('shows a running call without an end or a result, and an end without detail', async () => {
+    await serve(seen =>
+      seen.operation === 'read-call'
+        ? { outcome: 'succeeded', body: { call: { ...call, controls: [] } } }
+        : undefined,
+    )
+    expect((await cli(['show', '--call', REFERENCE])).stdout).toBe(
+      'Call: running, background\nEffect: unknown\n',
+    )
+    await serve(seen =>
+      seen.operation === 'read-call'
+        ? {
+            outcome: 'succeeded',
+            body: {
+              call: { ...call, phase: 'settled', terminal: { kind: 'completed', detail: null } },
+            },
+          }
+        : undefined,
+    )
+    const ended = await cli(['show', '--call', REFERENCE, '--tenant', tenantText])
+    expect(ended.stdout).toBe('Call: settled, background\nEnd: completed\nEffect: unknown\n')
+  })
+
+  it('names a block that is not text even when it carries text, and stops on a cursor that does not move', async () => {
+    await serve(seen =>
+      seen.operation === 'read-call-result'
+        ? page([{ kind: 'thinking', id: 't', text: 'hidden' }], 'same')
+        : undefined,
+    )
+    const result = await cli(['output', '--call', REFERENCE, '--result', 'v1'])
+    expect(result).toMatchObject({
+      code: 1,
+      stdout: '[thinking block]\n[thinking block]\n',
+      stderr: 'omne calls output: output incomplete: page 2 did not advance the cursor\n',
+    })
+  })
+
+  it('says a page was not sent when the server cannot be reached', async () => {
+    await serve()
+    const port = await closedPort()
+    const result = await cli([
+      'output',
+      '--call',
+      REFERENCE,
+      '--result',
+      'v1',
+      '--server',
+      `http://127.0.0.1:${port}`,
+    ])
+    expect(result).toMatchObject({
+      code: 4,
+      stdout: '',
+      stderr:
+        'omne calls output: output incomplete: page 1 was not sent: the service is unavailable\n',
+    })
+  })
+
+  it('reads the call of a session for the owner tenant of that session', async () => {
+    const service = await serve(seen =>
+      seen.operation === 'read-call' ? { outcome: 'succeeded', body: { call } } : undefined,
+    )
+    writeSessionOwners(state, new Map([[sessionId, tenantText]]))
+    const shown = await cli(['show', '--call', REFERENCE, '--session', sessionId, '--json'])
+    expect(shown.code).toBe(0)
+    expect(last(service)?.body).toEqual({ tenant: tenantText, reference: REFERENCE })
+  })
+})
+
+describe('calls show and output, the answers that are not a success', () => {
+  it('show says unavailable when the server cannot be reached, and a refused read with its outcome', async () => {
+    await serve()
+    const port = await closedPort()
+    const away = await cli(['show', '--call', REFERENCE, '--server', `http://127.0.0.1:${port}`])
+    expect(away).toMatchObject({ code: 4, stdout: 'Result: unavailable\n', stderr: '' })
+    await serve(seen =>
+      seen.operation === 'read-call' ? { outcome: 'unknown', body: {} } : undefined,
+    )
+    const unknown = await cli(['show', '--call', REFERENCE])
+    expect(unknown.code).toBe(5)
+    expect(unknown.stderr).toBe('omne calls show: result uncertain\n')
+  })
+
+  it('output says why it read nothing when the call read is refused, and when a page has no trusted answer', async () => {
+    await serve(seen => {
+      if (seen.operation === 'read-call') return { outcome: 'denied', body: {} }
+      if (seen.operation === 'read-call-result') return { outcome: 'unknown', body: {} }
+      return undefined
+    })
+    expect(await cli(['output', '--call', REFERENCE, '--tenant', tenantText])).toMatchObject({
+      code: 3,
+      stdout: '',
+      stderr: 'omne calls output: output incomplete: the call read was answered denied\n',
+    })
+    const paged = await cli(['output', '--call', REFERENCE, '--result', 'v1'])
+    expect(paged.code).toBe(5)
+    expect(paged.stderr).toBe(
+      'omne calls output: output incomplete: page 1 had no trusted answer\nomne calls output: result uncertain\n',
+    )
+  })
+
+  it('output reads the call of a session for its owner tenant, and names a text block without text', async () => {
+    const service = await serve(seen =>
+      seen.operation === 'read-call-result'
+        ? {
+            outcome: 'succeeded',
+            body: {
+              result: 'v1',
+              terminal: { kind: 'completed', detail: null },
+              effect: 'occurred',
+              content: [{ kind: 'text', id: 't' }],
+              next: null,
+            },
+          }
+        : undefined,
+    )
+    writeSessionOwners(state, new Map([[sessionId, tenantText]]))
+    const read = await cli([
+      'output',
+      '--call',
+      REFERENCE,
+      '--result',
+      'v1',
+      '--session',
+      sessionId,
+    ])
+    expect(read).toMatchObject({ code: 0, stdout: '[text block]\n' })
+    expect(last(service)?.body).toMatchObject({ tenant: tenantText, result: 'v1' })
+  })
+})
+
 describe('usage', () => {
   it('refuses an unknown action, and an action without its required option', async () => {
     const service = await serve()
@@ -245,8 +389,58 @@ describe('usage', () => {
       code: 2,
       stderr: commandUnrecognized('calls'),
     })
-    expect(await cli(['show'])).toMatchObject({ code: 2 })
+    expect((await cli(['show'])).stderr).toContain('missing --call')
+    expect((await cli(['output'])).stderr).toContain('missing --call')
+    expect((await cli(['list'])).stderr).toContain('missing --session')
     expect((await cli(['stop', '--call', REFERENCE])).stderr).toContain('missing --session')
+    expect((await cli(['background', '--call', REFERENCE])).stderr).toContain('missing --session')
     expect(service.seen).toHaveLength(before)
+  })
+
+  it('refuses an option of another action, an unknown option and a tenant that does not parse', async () => {
+    const service = await serve()
+    const before = service.seen.length
+    for (const argv of [
+      ['list', ...owned, '--json'],
+      ['show', '--call', REFERENCE, '--bogus', 'x'],
+      ['show', '--call', REFERENCE, '--tenant', 'not-a-tenant'],
+    ])
+      expect(await cli(argv)).toMatchObject({
+        code: 2,
+        stderr: commandUnrecognized(`calls ${argv[0]}`),
+      })
+    expect(service.seen).toHaveLength(before)
+  })
+
+  it('refuses a call the protocol cannot carry, before anything is sent', async () => {
+    const service = await serve()
+    const before = service.seen.length
+    for (const argv of [
+      ['show', '--call', ''],
+      ['output', '--call', ''],
+      ['output', '--call', REFERENCE, '--result', ''],
+      ['list', '--session', '', '--tenant', tenantText],
+      ['stop', ...owned, '--call', ''],
+    ])
+      expect(await cli(argv)).toMatchObject({
+        code: 2,
+        stderr: commandUnrecognized(`calls ${argv[0]}`),
+      })
+    expect(service.seen).toHaveLength(before)
+  })
+
+  it('needs a login, and the owner tenant of a session it does not know', async () => {
+    const fresh = await runInProcess(['calls', 'show', '--call', REFERENCE], {
+      omneHome: join(root, 'nobody'),
+      homeDirectory: join(root, 'home'),
+    })
+    expect(fresh).toMatchObject({ code: 1, stderr: notLoggedIn })
+    await serve()
+    const unknown = await cli(['list', '--session', 'f'.repeat(64)])
+    expect(unknown).toMatchObject({
+      code: 2,
+      stderr:
+        'omne calls list: the owner tenant of this session is unknown\nAdd --tenant <tenant>.\n',
+    })
   })
 })

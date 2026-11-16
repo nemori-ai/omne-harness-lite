@@ -52,7 +52,6 @@ export function createAuthor<E>(
       summary: command.summary,
       parameters: { kind: 'declared', value: contract(command) },
       returns,
-      ...(command.background === undefined ? {} : { background: command.background }),
     })),
   }
   const table: Record<

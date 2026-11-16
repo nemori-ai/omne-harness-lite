@@ -12,7 +12,7 @@ type Metadata = Omit<
   'kind' | 'parameters' | 'returns'
 >
 
-function shell(allowed = true): ToolDefinition {
+function shell(allowed = true, unless: readonly string[] = ['terminal']): ToolDefinition {
   const base = functionDefinition({ backgroundAllowed: allowed })
   if (base.kind !== 'function') throw new Error('function')
   const { kind: _kind, parameters, returns, ...metadata } = base
@@ -28,7 +28,7 @@ function shell(allowed = true): ToolDefinition {
         summary: 'Run once or in a terminal.',
         parameters: declared,
         returns,
-        ...(allowed ? { background: { unless: ['terminal'] } } : {}),
+        ...(allowed ? { background: { unless } } : {}),
       },
       { name: 'info', summary: 'Describe the placement.', parameters: declared, returns },
     ],
@@ -81,6 +81,12 @@ describe('the background permission of one call', () => {
       false,
     ],
     ['a parameter named in unless', call(shell(), 'execute', { path: 'a', terminal: 't1' }), false],
+    ['a command the definition does not have', call(shell(), 'restart', { path: 'a' }), false],
+    [
+      'the second of two names in unless',
+      call(shell(true, ['terminal', 'stdin']), 'execute', { path: 'a', stdin: 'x' }),
+      false,
+    ],
     ['a declared command without those parameters', call(shell(), 'execute', { path: 'a' }), true],
   ] as const)('%s: %s', (_, value, expected) => {
     expect(backgroundAllowed(fixed(value))).toBe(expected)

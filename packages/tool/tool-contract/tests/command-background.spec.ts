@@ -63,6 +63,18 @@ describe('a command declares where the background is permitted', () => {
     })
   })
 
+  it('judges the first command like any other', () => {
+    const first = (allowed: boolean) => {
+      const source = commands(allowed)
+      const [read, shell] = source.commands
+      return { ...source, commands: [{ ...read!, background: { unless: [] } }, shell!] }
+    }
+    expect(judgeToolDefinition(first(true))).toHaveProperty('ok')
+    expect(judgeToolDefinition(first(false))).toEqual({
+      failure: { field: 'commands[0].background', reason: 'background-not-allowed' },
+    })
+  })
+
   it('refuses a command tool that permits the background but declares it on no command', () => {
     expect(judgeToolDefinition(commands(true))).toEqual({
       failure: { field: 'commands', reason: 'no-background-command' },
@@ -94,9 +106,11 @@ describe('defineCommandTool carries the declaration into the implementation fact
   })
 
   it('refuses the same two disagreements as the definition', () => {
-    expect(implemented(false, { unless: [] })).toMatchObject({
-      failure: { reason: 'background-not-allowed' },
+    expect(implemented(false, { unless: [] })).toEqual({
+      failure: { field: 'implements.commands[1].background', reason: 'background-not-allowed' },
     })
-    expect(implemented(true)).toMatchObject({ failure: { reason: 'no-background-command' } })
+    expect(implemented(true)).toEqual({
+      failure: { field: 'implements.commands', reason: 'no-background-command' },
+    })
   })
 })
