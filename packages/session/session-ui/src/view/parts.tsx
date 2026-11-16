@@ -87,9 +87,7 @@ function AskCard({
         </div>
       ))}
       {ask.status === 'waiting' ? (
-        <p className="omne-ask-hint">
-          这一轮在等你答复。可以在命令行里答复，或在这里点「停止」取消这一轮。
-        </p>
+        <p className="omne-ask-hint">这一轮在等你答复。也可以点「停止」取消这一轮。</p>
       ) : null}
       {ask.status === 'answered' && result !== null ? (
         <div className="omne-ask-answer">
