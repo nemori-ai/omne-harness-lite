@@ -657,7 +657,7 @@ import type { CallBinding, WorkSnapshot } from './values.ts';
 export type SessionControlStage = 'intent-established' | 'qualification-revoked' | 'producer-confirmed' | 'physically-stopped' | 'duty-released';
 export type SessionControlRecordEvidence = Readonly<{
     operation: string;
-    command: 'cancel' | 'interrupt-model' | 'interrupt-tool' | 'background-tool';
+    command: 'cancel' | 'interrupt-model' | 'interrupt-tool' | 'background-tool' | 'release-tool' | 'withdraw-tool';
     references: readonly string[];
     invocation: string | null;
     reached: readonly SessionControlStage[];
@@ -3071,8 +3071,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:10c9aec665a5cb6cb292c0b2f63ee01aa686f13280dda834d959d28bbb051740";
-export declare const SESSION_RELEASE_DIGEST = "sha256:10c9aec665a5cb6cb292c0b2f63ee01aa686f13280dda834d959d28bbb051740";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:9989aba84f3039f28144749daa5955f4ff58f4954cf8b102e77338c1367c5a97";
+export declare const SESSION_RELEASE_DIGEST = "sha256:9989aba84f3039f28144749daa5955f4ff58f4954cf8b102e77338c1367c5a97";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

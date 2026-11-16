@@ -168,6 +168,7 @@ async function assembled(options: { mount?: readonly string[] } = {}) {
       activeRun(encodeSessionSlotRef({ session: A.session, adoption: runAdoption })),
     ],
   ])
+  const controls = new Map<string, readonly unknown[]>()
   const runKey = (access: { tenant: TenantId; session: SessionId }) =>
     JSON.stringify([textOf(access.tenant), access.session])
   const owns = (access: SessionAccess<unknown>) =>
@@ -285,7 +286,10 @@ async function assembled(options: { mount?: readonly string[] } = {}) {
       calls.push({ method: 'readWork', input: access })
       if (!owns(access)) return fail({ kind: 'denied', action: 'readWork' })
       const run = runs.get(runKey(access))
-      return succeed({ run } as unknown as WorkSnapshot)
+      return succeed({
+        run,
+        controls: controls.get(runKey(access)) ?? [],
+      } as unknown as WorkSnapshot)
     },
     readInput: async input => {
       calls.push({ method: 'readInput', input })
@@ -338,6 +342,7 @@ async function assembled(options: { mount?: readonly string[] } = {}) {
     acquired,
     principalsAsked,
     runs,
+    controls,
     runKey,
     script,
     provision,
@@ -762,6 +767,39 @@ describe('submit uses the handle that invoke or resume kept', () => {
         priority: 'ordinary',
       },
     })
+  })
+
+  it('submits the urgent input of an interrupt with the urgent priority, and any other input as ordinary', async () => {
+    const f = await assembled()
+    const urgent = {
+      kind: 'ordinary',
+      input: 'input-2',
+      message: userMessage('text of input-2'),
+      origin: evidence('origin'),
+    }
+    f.controls.set(f.runKey(A), [
+      {
+        operation: 'sop_interrupt',
+        target: { kind: 'run', run: 'run-1' },
+        intent: { kind: 'interrupt', run: 'run-1', urgent, decision: evidence('decision') },
+        state: 'propagating',
+        pending: [],
+      },
+    ])
+    await f.drive().invoke(invokeInput())
+    expect(await f.drive().submit(submitInput)).toHaveProperty('ok')
+    expect(await f.drive().submit({ ...submitInput, input: inputId('input-3') })).toHaveProperty(
+      'ok',
+    )
+    const priorities = f.calls.flatMap(call =>
+      call.method.startsWith('submit@')
+        ? [(call.input as { value: { id: string; priority: string } }).value]
+        : [],
+    )
+    expect(priorities.map(value => [value.id, value.priority])).toEqual([
+      ['input-2', 'urgent'],
+      ['input-3', 'ordinary'],
+    ])
   })
 
   it('a refusal of the message admission on submit is invalid only with the admission record', async () => {

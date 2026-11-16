@@ -24,10 +24,17 @@ import {
   type Decision,
   type Mint,
   type Snapshot,
+  type LateVersion,
 } from './ledger-decider.ts'
 import { planEnvironmentRelease, processCustodyCovered } from './ledger-environment-release.ts'
 
-import { dropSuspensionContent, nextState, type StateBody, type WriteCommand } from './ledger-start.ts'
+import { lateVersionOf, releasedQueue } from './ledger-ending.ts'
+import {
+  dropSuspensionContent,
+  nextState,
+  type StateBody,
+  type WriteCommand,
+} from './ledger-start.ts'
 import {
   taskKey,
   type CallRecord,
@@ -50,13 +57,8 @@ export type SettlementCheck =
       call: CallRecord
       saved: FactEventRecord
       task: Extract<ToolTask, { kind: 'queue' | 'settle' | 'account' | 'facts' | 'clock' }>
-      late: boolean
+      late: LateVersion | null
     }>
-
-// A withdraw settled the call logically while its execution kept running: the real final is late.
-function settledWhileLive(call: CallRecord): boolean {
-  return call.state.phase === 'settled' && call.state.execution.kind === 'live'
-}
 
 export function checkSettlement(
   snapshot: Snapshot,
@@ -72,13 +74,13 @@ export function checkSettlement(
     return succeed({ kind: 'recalled', state: known.ok.receipt.state })
   if (stateRevision(snapshot) !== command.expected)
     return fail({ kind: 'stale-revision', current: stateRevision(snapshot) })
-  const late = settledWhileLive(call)
-  if (call.state.phase === 'settled' && !late) {
+  const late = lateVersionOf(call.state)
+  if (call.state.phase === 'settled' && late === null) {
     const result = snapshot.results.get(call.state.result)
     return fail({ kind: 'conflict', operation: result?.settledBy ?? command.operation })
   }
   if (
-    (call.state.phase !== 'running' && !late) ||
+    (call.state.phase !== 'running' && late === null) ||
     call.start === null ||
     call.state.execution.kind !== 'live' ||
     !sameFactValue(call.start.execution, command.execution)
@@ -143,10 +145,7 @@ function settledState<B extends ContentBlock>(
     delivery,
     supplements: current.supplements,
     wait: { kind: 'none' },
-    queue:
-      current.queue.kind === 'held' || current.queue.kind === 'waiting'
-        ? ({ ...current.queue, kind: 'released', evidence: basis } as const)
-        : current.queue,
+    queue: releasedQueue(current.queue, basis),
   } as const
   const source = mintEvidence('state', { tenant: call.tenant, call: call.call }, mint.revision, {
     ...common,
@@ -177,10 +176,7 @@ function lateState<B extends ContentBlock>(
     revision: mint.revision,
     effect: final.effect,
     execution: { kind: 'ended', evidence: basis },
-    queue:
-      current.queue.kind === 'held' || current.queue.kind === 'waiting'
-        ? { ...current.queue, kind: 'released', evidence: basis }
-        : current.queue,
+    queue: releasedQueue(current.queue, basis),
     supplements: [
       ...current.supplements,
       {
@@ -249,7 +245,7 @@ export function decidePreserveResult<B extends ContentBlock>(
       cleanup,
     },
     mint,
-    late && call.state.phase === 'settled' ? { logical: call.state.terminal } : null,
+    late,
   )
   const references = checkBodyReferences([
     ...final.result.attachments,
@@ -263,9 +259,10 @@ export function decidePreserveResult<B extends ContentBlock>(
   if ('failure' in uses) return reply(uses)
   if (saved.fact.kind !== 'final' || saved.fact.payload.kind !== 'pending')
     return reply(invalid('final', 'pending-final-required'))
-  const state = late
-    ? lateState(call, final, saved.evidence, first.version.record, mint)
-    : settledState(call, final, saved.evidence, first.version.delivery, mint)
+  const state =
+    late !== null
+      ? lateState(call, final, saved.evidence, first.version.record, mint)
+      : settledState(call, final, saved.evidence, first.version.delivery, mint)
   if ('failure' in state) return reply(state)
   const writes: LedgerWrite[] = [
     put({ kind: 'call', call: { ...call, state: state.ok } }),

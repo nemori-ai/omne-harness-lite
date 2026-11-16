@@ -14,7 +14,6 @@ import {
   type Segment,
 } from './checkpoint-values.ts'
 import {
-  admittedCallSnapshot,
   decideStop,
   runningCallSnapshot,
   STOP as STOP_INTENT,

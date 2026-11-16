@@ -110,8 +110,10 @@ export type FinishAuthorization =
   | Readonly<{ kind: 'cancel'; control: AgentOperationId; source: DurableEvidence }>
 export type ExecutionControl =
   | Readonly<{ kind: 'interrupt-model'; call: M.ModelCallId; reason: DurableEvidence }>
+  // Each Tool control asks Tool for one intent. An urgent input sends `release-tool`; a
+  // cancellation sends `withdraw-tool`.
   | Readonly<{
-      kind: 'interrupt-tool' | 'background-tool'
+      kind: 'interrupt-tool' | 'background-tool' | 'release-tool' | 'withdraw-tool'
       call: T.ToolCallId
       reason: DurableEvidence
     }>
@@ -128,7 +130,7 @@ export type ControlStageFact = Readonly<{
   state: 'reached' | 'unresolved'
   source: DurableEvidence
 }>
-type ToolControl = Extract<ExecutionControl, { kind: 'interrupt-tool' | 'background-tool' }>
+type ToolControl = Extract<ExecutionControl, { call: T.ToolCallId }>
 export type ControlRecord = Readonly<{
   operation: AgentOperationId
   stages: Readonly<

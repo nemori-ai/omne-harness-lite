@@ -32,6 +32,7 @@ import { createResumptionDriver } from './driver-resumption.ts'
 import { createSuspensionDriver } from './driver-suspension.ts'
 import { isExcludedFailure } from './ledger-exclusion.ts'
 import { resumePreparationOperation } from './ledger-resumption.ts'
+import { awaitsFinal } from './ledger-ending.ts'
 import { LEDGER_REJECTED_DIAGNOSTIC, queueKeyOf } from './ledger-start.ts'
 import type { TenantId } from './ledger-store.ts'
 
@@ -828,9 +829,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       })),
     (step, recovery, cancelled) => {
       const task = recovery.tasks.find(item => item.kind === 'settle')
-      // A call a withdraw settled while it still ran settles again with its real, late final.
-      const open = recovery.state.phase !== 'settled' || recovery.state.execution.kind === 'live'
-      return open && task?.kind === 'settle'
+      return awaitsFinal(recovery.state) && task?.kind === 'settle'
         ? [{ key: 'settle', run: () => settle(step, recovery, task, cancelled) }]
         : []
     },

@@ -37,6 +37,7 @@ import {
   backgroundTiming,
   type TimingClose,
 } from './ledger-background.ts'
+import { releasedQueue } from './ledger-ending.ts'
 import {
   commonOf,
   deleteTasks,
@@ -591,10 +592,7 @@ function decideSuspendedControl(
     foreground: { kind: 'final', result: version },
     effect,
     timing: closedTiming(current.timing),
-    queue:
-      current.queue.kind === 'held' || current.queue.kind === 'waiting'
-        ? { ...current.queue, kind: 'released', evidence: committed.exclusion }
-        : current.queue,
+    queue: releasedQueue(current.queue, committed.exclusion),
     controls: [...current.controls, control],
     delivery,
   }

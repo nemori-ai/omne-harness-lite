@@ -2999,7 +2999,7 @@ function coordinate<P>(
     }
     if (pending.association !== 'associated') return null
     const call = toolCallOf(access, pending)
-    return { stage: `interrupt-tool/${call}`, command: { kind: 'interrupt-tool', call, reason } }
+    return { stage: `withdraw-tool/${call}`, command: { kind: 'withdraw-tool', call, reason } }
   }
 
   async function interruptForCancel(

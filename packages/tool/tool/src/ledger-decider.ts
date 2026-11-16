@@ -493,7 +493,11 @@ export function firstResultWrites(
 ): Readonly<{ version: FirstVersion; writes: readonly LedgerWrite[] }> {
   const { tenant, call, operation } = place
   const version = late === null ? FIRST_RESULT_VERSION : LATE_RESULT_VERSION
-  const delivery = { kind: 'pending', delivery: deliveryId(late === null ? 1 : 2), consumer } as const
+  const delivery = {
+    kind: 'pending',
+    delivery: deliveryId(late === null ? 1 : 2),
+    consumer,
+  } as const
   const resultPlace = { tenant, call, result: version, delivery: delivery.delivery, operation }
   const record: ResultRecord = {
     tenant,

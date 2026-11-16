@@ -21,6 +21,7 @@ import type {
   SyntheticDecider,
   SyntheticDecision,
 } from './ledger-result-preparation.ts'
+import { lateVersionOf, releasedQueue } from './ledger-ending.ts'
 import { commonOf, dropSuspensionContent, nextState, type StateBody } from './ledger-start.ts'
 import { taskKey, type CallRecord, type LedgerWrite } from './ledger-store.ts'
 
@@ -130,10 +131,7 @@ function lostAfterWithdraw(
     ...current,
     execution: { kind: 'lost', evidence: command.continuity },
     controls: endedControls(current.controls, command.continuity),
-    queue:
-      current.queue.kind === 'held' || current.queue.kind === 'waiting'
-        ? { ...current.queue, kind: 'released', evidence: command.continuity }
-        : current.queue,
+    queue: releasedQueue(current.queue, command.continuity),
   } as StateBody
   const state = nextState(call, body, mint.revision)
   return {
@@ -159,8 +157,7 @@ export function decideSettleLost(
   if (known.ok?.receipt.kind === 'settle-lost') return reply(succeed(known.ok.receipt.state))
   const call = snapshot.call
   if (call === null) return reply(invalid('call', 'unknown-call'))
-  if (call.state.phase === 'settled' && call.state.execution.kind === 'live')
-    return lostAfterWithdraw(snapshot, call, command, mint)
+  if (lateVersionOf(call.state) !== null) return lostAfterWithdraw(snapshot, call, command, mint)
   if (call.state.phase === 'settled') {
     const settledBy = snapshot.results.get(call.state.result)?.settledBy
     return reply(fail({ kind: 'conflict', operation: settledBy ?? command.operation }))
@@ -183,10 +180,7 @@ export function decideSettleLost(
   if ('failure' in settled) return reply(settled)
   const { version, delivery } = settled.ok.version
   const current = commonOf(call.state)
-  const queue: ToolState['queue'] =
-    current.queue.kind === 'held' || current.queue.kind === 'waiting'
-      ? { ...current.queue, kind: 'released', evidence: command.continuity }
-      : current.queue
+  const queue = releasedQueue(current.queue, command.continuity)
   const shared = {
     ...current,
     phase: 'settled',
