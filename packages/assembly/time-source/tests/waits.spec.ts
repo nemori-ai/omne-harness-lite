@@ -1,3 +1,4 @@
+import { getEventListeners } from 'node:events'
 import { describe, expect, it } from 'vitest'
 import { every, sleep, waitUntil } from '../src/index.ts'
 import { simulatedTime } from '../src/simulated.ts'
@@ -36,6 +37,16 @@ describe('sleep and waitUntil', () => {
     time.advance(10)
     abort.abort()
     expect(await slept).toBe('elapsed')
+  })
+
+  it('take their listener off the signal once the wait fired', async () => {
+    const time = simulatedTime()
+    const abort = new AbortController()
+    const slept = sleep(time.source, 10, abort.signal)
+    expect(getEventListeners(abort.signal, 'abort')).toHaveLength(1)
+    time.advance(10)
+    await slept
+    expect(getEventListeners(abort.signal, 'abort')).toHaveLength(0)
   })
 })
 

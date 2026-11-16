@@ -60,6 +60,29 @@ describe('idle jump (TS-5)', () => {
     expect(seen).toEqual([100, -1])
   })
 
+  it('asks the host for one turn however many waits are pending, and for none when nothing waits', async () => {
+    const turnsAsked = (): number =>
+      process.getActiveResourcesInfo().filter(kind => kind === 'Immediate').length
+    const before = turnsAsked()
+    const time = simulatedTime()
+    time.run('idle-jump')
+    expect(turnsAsked()).toBe(before)
+    const fired: number[] = []
+    for (const delay of [3, 1, 2]) time.source.after(delay, () => fired.push(delay))
+    expect(turnsAsked()).toBe(before + 1)
+    await hostTurns(4)
+    expect([fired, turnsAsked()]).toEqual([[1, 2, 3], before])
+  })
+
+  it('does not jump on a turn it asked for before the pace went back to manual', async () => {
+    const time = simulatedTime()
+    time.run('idle-jump')
+    time.source.after(500, () => undefined)
+    time.run('manual')
+    await hostTurns(3)
+    expect([time.source.elapsed(), time.pending()]).toEqual([0, 1])
+  })
+
   it('stops jumping when the pace goes back to manual', async () => {
     const time = simulatedTime()
     time.run('idle-jump')

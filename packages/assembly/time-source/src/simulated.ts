@@ -1,15 +1,10 @@
-import { WaitQueue } from './queue.ts'
+import { ALREADY_ADVANCING, Line, type TimelineEntry, type WaitBase } from './line.ts'
 import { finite, type Cancel, type TimeSource } from './source.ts'
-import { HOST_TIMER_LIMIT_MS } from './system.ts'
+import { systemTime } from './system.ts'
 
-export type TimelineEntry = Readonly<{
-  event: 'wait' | 'fire' | 'cancel' | 'wall'
-  wait: number | null
-  elapsed: number
-  now: number
-}>
+export type { TimelineEntry } from './line.ts'
 
-export type Pace = 'manual' | 'idle-jump' | Readonly<{ speed: number }>
+export type Pace = 'manual' | 'idle-jump' | Readonly<{ speed: number; follow?: TimeSource }>
 
 export type SimulatedTime = Readonly<{
   source: TimeSource
@@ -24,148 +19,23 @@ export type SimulatedTime = Readonly<{
 
 export type SimulatedTimeOptions = Readonly<{ wall?: number; record?: boolean }>
 
-type Wait = {
-  readonly id: number
-  readonly base: 'elapsed' | 'wall'
-  readonly target: number
-  readonly fire: () => void
-  slot: number
-}
-
-const SPIN_LIMIT = 10_000
-const ALREADY_ADVANCING = 'the time source is already advancing'
+type Scaled = Readonly<{ speed: number; host: TimeSource }>
+type Mode = 'manual' | 'idle-jump' | Scaled
 
 const hostImmediate = setImmediate
-const hostTimeout = setTimeout
-const hostClearTimeout = clearTimeout
-const hostElapsed = (): number =>
-  /* wall-clock: operation-timing -- the scaled pace follows the host monotonic clock */ performance.now()
 
-function checkedPace(pace: Pace): Pace {
+function modeOf(pace: Pace): Mode {
   if (pace === 'manual' || pace === 'idle-jump') return pace
   if (!(finite('speed', pace.speed) > 0)) throw new TypeError('speed must be positive')
-  return { speed: pace.speed }
-}
-
-class Line {
-  elapsed = 0
-  #offset: number
-  #registered = 0
-  #bornBefore = 0
-  #stepping = false
-  readonly #waits = new Map<number, Wait>()
-  readonly #queues = { elapsed: new WaitQueue<Wait>(), wall: new WaitQueue<Wait>() }
-  readonly #record: TimelineEntry[] | null
-
-  constructor(options: SimulatedTimeOptions) {
-    this.#offset = finite('wall', options.wall ?? 0)
-    this.#record = options.record === true ? [] : null
-  }
-
-  get now(): number {
-    return this.#offset + this.elapsed
-  }
-
-  get pending(): number {
-    return this.#waits.size
-  }
-
-  get stepping(): boolean {
-    return this.#stepping
-  }
-
-  earliest(): number | undefined {
-    const first = this.#first()
-    return first === undefined ? undefined : this.#position(first)
-  }
-
-  add(base: Wait['base'], target: number, fire: () => void): number {
-    this.#registered += 1
-    const wait: Wait = { id: this.#registered, base, target, fire, slot: 0 }
-    this.#waits.set(wait.id, wait)
-    this.#queues[base].add(wait)
-    this.#note('wait', wait.id)
-    return wait.id
-  }
-
-  remove(id: number): boolean {
-    const wait = this.#waits.get(id)
-    if (wait === undefined) return false
-    this.#drop(wait)
-    this.#note('cancel', id)
-    return true
-  }
-
-  step<T>(run: () => T): T {
-    if (this.#stepping) throw new TypeError(ALREADY_ADVANCING)
-    this.#stepping = true
-    this.#bornBefore = this.#registered
-    try {
-      return run()
-    } finally {
-      this.#stepping = false
-    }
-  }
-
-  setWall(epochMs: number): void {
-    this.#offset = epochMs - this.elapsed
-    this.#note('wall', null)
-    this.fireThrough(this.elapsed)
-  }
-
-  fireThrough(end: number): void {
-    let spins = 0
-    let spinAt = Number.NaN
-    for (
-      let wait = this.#first();
-      wait !== undefined && this.#position(wait) <= end;
-      wait = this.#first()
-    ) {
-      this.elapsed = Math.max(this.elapsed, this.#position(wait))
-      if (wait.id > this.#bornBefore) {
-        spins = this.elapsed === spinAt ? spins + 1 : 1
-        spinAt = this.elapsed
-        if (spins > SPIN_LIMIT)
-          throw new Error(`more than ${String(SPIN_LIMIT)} new waits fired without time passing`)
-      }
-      this.#drop(wait)
-      this.#note('fire', wait.id)
-      wait.fire()
-    }
-  }
-
-  timeline(): readonly TimelineEntry[] {
-    return this.#record === null ? [] : [...this.#record]
-  }
-
-  #position(wait: Wait): number {
-    return wait.base === 'elapsed' ? wait.target : wait.target - this.#offset
-  }
-
-  #first(): Wait | undefined {
-    const elapsed = this.#queues.elapsed.peek()
-    const wall = this.#queues.wall.peek()
-    if (elapsed === undefined || wall === undefined) return elapsed ?? wall
-    const gap = this.#position(wall) - this.#position(elapsed)
-    return gap < 0 || (gap === 0 && wall.id < elapsed.id) ? wall : elapsed
-  }
-
-  #drop(wait: Wait): void {
-    this.#waits.delete(wait.id)
-    this.#queues[wait.base].remove(wait)
-  }
-
-  #note(event: TimelineEntry['event'], wait: number | null): void {
-    this.#record?.push(Object.freeze({ event, wait, elapsed: this.elapsed, now: this.now }))
-  }
+  return { speed: pace.speed, host: pace.follow ?? systemTime() }
 }
 
 class Pacer {
   readonly #line: Line
-  #pace: Pace = 'manual'
+  #mode: Mode = 'manual'
   #holds = 0
   #jumpQueued = false
-  #hostTimer: ReturnType<typeof setTimeout> | undefined
+  #hostWait: Cancel | undefined
   #anchor = 0
 
   constructor(line: Line) {
@@ -178,7 +48,6 @@ class Pacer {
   }
 
   drive<T>(step: () => T): T {
-    if (this.#line.stepping) throw new TypeError(ALREADY_ADVANCING)
     this.#follow()
     try {
       return this.#line.step(step)
@@ -208,51 +77,48 @@ class Pacer {
   }
 
   run(pace: Pace): void {
-    const checked = checkedPace(pace)
+    const mode = modeOf(pace)
     if (this.#line.stepping) throw new TypeError(ALREADY_ADVANCING)
     this.#follow()
     this.#disarm()
-    this.#pace = checked
-    this.#anchor = hostElapsed()
+    this.#mode = mode
+    if (typeof mode === 'object') this.#anchor = mode.host.elapsed()
     this.settle()
   }
 
   settle(): void {
-    if (this.#line.stepping) return
-    if (this.#pace === 'idle-jump') this.#queueJump()
-    else if (typeof this.#pace === 'object') this.#arm(this.#pace.speed)
+    if (this.#mode === 'idle-jump') this.#queueJump()
+    else if (typeof this.#mode === 'object') this.#arm(this.#mode)
   }
 
   #queueJump(): void {
-    if (this.#jumpQueued || this.#holds > 0 || this.#line.pending === 0) return
+    if (this.#jumpQueued || this.#line.pending === 0) return
     this.#jumpQueued = true
     hostImmediate(() => {
       this.#jumpQueued = false
-      if (this.#pace === 'idle-jump' && this.#holds === 0 && !this.#line.stepping) this.jump()
+      if (this.#mode === 'idle-jump' && this.#holds === 0) this.jump()
     })
   }
 
-  #arm(speed: number): void {
+  #arm(scaled: Scaled): void {
     this.#disarm()
     const earliest = this.#line.earliest()
     if (earliest === undefined) return
     this.#follow()
-    const hostDelay = Math.max(0, (earliest - this.#line.elapsed) / speed)
-    this.#hostTimer = hostTimeout(
-      () => this.drive(() => this.#line.fireThrough(this.#line.elapsed)),
-      Math.min(hostDelay, HOST_TIMER_LIMIT_MS),
+    this.#hostWait = scaled.host.after((earliest - this.#line.elapsed) / scaled.speed, () =>
+      this.drive(() => this.#line.fireThrough(this.#line.elapsed)),
     )
   }
 
   #disarm(): void {
-    hostClearTimeout(this.#hostTimer)
-    this.#hostTimer = undefined
+    this.#hostWait?.()
+    this.#hostWait = undefined
   }
 
   #follow(): void {
-    if (typeof this.#pace !== 'object' || this.#line.stepping) return
-    const host = hostElapsed()
-    this.#line.elapsed += (host - this.#anchor) * this.#pace.speed
+    if (typeof this.#mode !== 'object' || this.#line.stepping) return
+    const host = this.#mode.host.elapsed()
+    this.#line.elapsed += (host - this.#anchor) * this.#mode.speed
     this.#anchor = host
   }
 }
@@ -261,11 +127,12 @@ export function simulatedTime(options: SimulatedTimeOptions = {}): SimulatedTime
   const line = new Line(options)
   const pacer = new Pacer(line)
 
-  const register = (base: Wait['base'], target: number, fire: () => void): Cancel => {
+  const register = (base: WaitBase, target: number, fire: () => void): Cancel => {
     const id = line.add(base, target, fire)
     pacer.settle()
     return () => {
-      if (line.remove(id)) pacer.settle()
+      line.remove(id)
+      pacer.settle()
     }
   }
 

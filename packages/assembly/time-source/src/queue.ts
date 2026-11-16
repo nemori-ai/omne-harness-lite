@@ -16,9 +16,8 @@ export class WaitQueue<T extends Queued> {
   }
 
   remove(item: T): void {
-    const last = this.#items.pop()
-    if (last === undefined || last === item) return
-    this.#sink(last, this.#rise(last, item.slot))
+    const last = this.#items.pop()!
+    if (last !== item) this.#sink(last, this.#rise(last, item.slot))
   }
 
   #place(item: T, slot: number): void {

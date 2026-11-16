@@ -16,7 +16,7 @@ function waited(
       signal?.removeEventListener('abort', onAbort)
       resolve('elapsed')
     })
-    signal?.addEventListener('abort', onAbort, { once: true })
+    signal?.addEventListener('abort', onAbort)
   })
 }
 

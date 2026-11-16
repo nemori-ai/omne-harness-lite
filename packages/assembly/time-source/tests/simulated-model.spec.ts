@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { every } from '../src/index.ts'
 import { simulatedTime, type TimelineEntry } from '../src/simulated.ts'
 
 function prng(seed: number): () => number {
@@ -154,12 +155,18 @@ describe('simulated time, one line per commitment', () => {
   it('refuses numbers that are not finite and registers nothing', () => {
     const time = simulatedTime()
     const none = (): void => undefined
-    expect(() => time.source.after(Number.NaN, none)).toThrow(TypeError)
-    expect(() => time.source.at(Number.POSITIVE_INFINITY, none)).toThrow(TypeError)
-    expect(() => time.advance(Number.NaN)).toThrow(TypeError)
-    expect(() => time.advance(-1)).toThrow(TypeError)
-    expect(() => time.setWall(Number.NaN)).toThrow(TypeError)
-    expect(() => simulatedTime({ wall: Number.NaN })).toThrow(TypeError)
+    const refusals: readonly (readonly [() => unknown, string])[] = [
+      [() => time.source.after(Number.NaN, none), 'delayMs must be a finite number'],
+      [() => time.source.at(Number.POSITIVE_INFINITY, none), 'epochMs must be a finite number'],
+      [() => time.advance(Number.NaN), 'ms must be a finite number'],
+      [() => time.advance(-1), 'ms must not be negative'],
+      [() => time.setWall(Number.NaN), 'epochMs must be a finite number'],
+      [() => simulatedTime({ wall: Number.NaN }), 'wall must be a finite number'],
+    ]
+    for (const [call, message] of refusals) {
+      expect(call).toThrow(TypeError)
+      expect(call).toThrow(message)
+    }
     expect([time.pending(), time.source.elapsed()]).toEqual([0, 0])
   })
 
@@ -182,6 +189,9 @@ describe('simulated time, one line per commitment', () => {
     time.source.after(20, () => undefined)
     time.advance(10)
     expect(refused.map(error => error instanceof TypeError)).toEqual([true, true, true, true])
+    expect(refused.map(error => (error as Error).message)).toEqual(
+      Array.from({ length: 4 }, () => 'the time source is already advancing'),
+    )
     expect([time.source.elapsed(), time.pending()]).toEqual([10, 1])
   })
 
@@ -204,6 +214,24 @@ describe('simulated time, one line per commitment', () => {
     const again = (): void => void time.source.after(0, again)
     again()
     expect(() => time.advance(1)).toThrow(/without time passing/u)
+  })
+
+  it('lets waits renew themselves up to the limit at one instant, and without limit while time passes', () => {
+    const time = simulatedTime()
+    let left = 10_000
+    const again = (): void => {
+      if (left === 0) return
+      left -= 1
+      time.source.after(0, again)
+    }
+    time.source.after(0, again)
+    time.advance(0)
+    expect([left, time.pending()]).toEqual([0, 0])
+    let ticks = 0
+    const stop = every(time.source, 1, () => (ticks += 1))
+    time.advance(20_000)
+    stop()
+    expect(ticks).toBe(20_000)
   })
 
   it('fires many waits that were due at one instant before the step', () => {

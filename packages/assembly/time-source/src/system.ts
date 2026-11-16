@@ -3,25 +3,19 @@ import { finite, type Cancel, type TimeSource, type WaitOptions } from './source
 export const HOST_TIMER_LIMIT_MS = 2_147_483_647
 
 function wake(left: () => number, fire: () => void, options: WaitOptions | undefined): Cancel {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  let over = false
+  let timer: ReturnType<typeof setTimeout>
   const arm = (): void => {
     timer = setTimeout(
       () => {
-        if (left() > 0) return arm()
-        over = true
-        fire()
+        if (left() > 0) arm()
+        else fire()
       },
       Math.min(Math.max(left(), 0), HOST_TIMER_LIMIT_MS),
     )
     if (options?.background === true) timer.unref()
   }
   arm()
-  return () => {
-    if (over) return
-    over = true
-    clearTimeout(timer)
-  }
+  return () => clearTimeout(timer)
 }
 
 export function systemTime(): TimeSource {

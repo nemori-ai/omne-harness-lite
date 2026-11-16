@@ -67,10 +67,27 @@ describe('system time on the host clock (TS-1, TS-4)', () => {
     for (const cancel of cancels) cancel()
   })
 
+  it('a wait holds the host only while it is pending, and a background wait never does', () => {
+    const held = (): number =>
+      process.getActiveResourcesInfo().filter(kind => kind === 'Timeout').length
+    const before = held()
+    const time = systemTime()
+    const cancelBackground = time.after(60_000, () => undefined, { background: true })
+    expect(held()).toBe(before)
+    const cancel = time.at(time.now() + 60_000, () => undefined)
+    expect(held()).toBe(before + 1)
+    cancel()
+    expect(held()).toBe(before)
+    cancelBackground()
+  })
+
   it('refuses numbers that are not finite', () => {
     const time = systemTime()
-    expect(() => time.after(Number.NaN, () => undefined)).toThrow(TypeError)
-    expect(() => time.at(Number.POSITIVE_INFINITY, () => undefined)).toThrow(TypeError)
+    const none = (): void => undefined
+    expect(() => time.after(Number.NaN, none)).toThrow(TypeError)
+    expect(() => time.after(Number.NaN, none)).toThrow('delayMs must be a finite number')
+    expect(() => time.at(Number.POSITIVE_INFINITY, none)).toThrow(TypeError)
+    expect(() => time.at(Number.POSITIVE_INFINITY, none)).toThrow('epochMs must be a finite number')
   })
 })
 
@@ -88,6 +105,19 @@ describe('system time past the host timer limit', () => {
     expect(fired).toBe(false)
     vi.advanceTimersByTime(1)
     expect(fired).toBe(true)
+  })
+
+  it('a cancel during a later segment stops the wait', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance', 'Date'] })
+    const time = systemTime()
+    let fired = false
+    const cancel = time.after(HOST_TIMER_LIMIT_MS + 5_000, () => {
+      fired = true
+    })
+    vi.advanceTimersByTime(HOST_TIMER_LIMIT_MS)
+    cancel()
+    vi.advanceTimersByTime(10_000)
+    expect([fired, vi.getTimerCount()]).toEqual([false, 0])
   })
 
   it('at checks the wall clock again when it wakes: a clock set back makes it wait on', () => {
