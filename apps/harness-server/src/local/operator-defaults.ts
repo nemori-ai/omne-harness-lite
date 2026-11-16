@@ -86,6 +86,9 @@ const PREPARATION = {
 
 export const LOCAL_CONCURRENT_MODEL_CALLS = 20
 
+const STORAGE_LOCK_WAIT_MS = 5000
+export const LOCAL_READ_WAIT_MS = 2 * STORAGE_LOCK_WAIT_MS
+
 const TOOL_ORPHAN_GRACE_MS = 60_000
 
 const MODEL_HOST = {
@@ -190,7 +193,7 @@ function storage(storageRoot: string, shutdownDeadlineMs: number, limits: Storag
     admissionQueueLimit: 64,
     globalAdmissionLimit: 256,
     admissionWaitMs: 1000,
-    lockWaitMs: 5000,
+    lockWaitMs: STORAGE_LOCK_WAIT_MS,
     maxCommandsPerCommit: 16,
     maxCommandBytes: MAX_COMMAND_BYTES,
     maxRequestBytes: 4_194_304,
@@ -205,7 +208,7 @@ function storage(storageRoot: string, shutdownDeadlineMs: number, limits: Storag
     maxReadWorkersPerDomain: limits.maxReadWorkersPerDomain ?? 2,
     readQueuePerDomain: 32,
     readQueueGlobal: 256,
-    readQueueTimeoutMs: 1000,
+    readQueueTimeoutMs: LOCAL_READ_WAIT_MS,
     maxReadInputBytes: 262_144,
     maxReadResultBytes: 20_971_520,
     globalReadResultBytes: 268_435_456,
