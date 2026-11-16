@@ -205,7 +205,67 @@
 - **出处**：[RFC-0015「概念」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0015-access-dynamic-registration.md#1-概念) ·
   [「登记表与贡献」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0015-access-dynamic-registration.md#登记表与贡献)（revision 1，PanQiWei 2026-11-12 采用）
 - **别混**：不是[提示词贡献](record-and-context.md#ul-prompt-contribution--提示词贡献--prompt-contribution)。
-  裸写「贡献」在本系统不止一个所指，跨题目引用时写正式名。
-- **注意**：有贡献不等于开放。一个部署装不装某个领域的接入插件，由服务端应用的装配决定。
+  两者都是拓展贡献的一种，所在的拓展点不同。裸写「贡献」指不出是哪一种，跨题目引用时写正式名。
+- **注意 ①**：有贡献不等于开放。一个部署装不装某个领域的接入插件，由服务端应用的装配决定。
+- **注意 ②**：它是[拓展贡献](#ul-extension-contribution--拓展贡献--extension-contribution)的一种，放在入口的登记表这个[拓展点](#ul-extension-point--拓展点--extension-point)里。
+
+### UL-extension-point · 拓展点 · Extension Point
+
+> **中**：**一个领域在自己的结构上声明的、别的领域可以往里放东西的一个具名位点。**
+> 声明它的领域叫宿主。它由宿主在设计时列出，不在运行期创建。
+> 它定了三样：放进来的一项长什么样，能放几项，宿主拿这一项做什么。
+> 宿主不认识往里放东西的是哪个领域。
+>
+> **EN**: **A named point that a domain declares on its own structure, where other domains can
+> put items.** The domain that declares it is the host. The host lists the point at design time.
+> The point is not created at run time. It fixes three things: the shape of an item, how many
+> items it holds, and what the host does with an item. The host does not know which domain puts
+> an item there.
+
+- **形态**：总称
+- **出处**：[跨系统技术约定「拓展点的共同契约」](../../../../docs/architecture/cross-cutting-concepts.md#拓展点的共同契约)（PanQiWei 2026-11-16 交办定义，卡 #1317）
+- **别混**：不是[能力接缝](#ul-capability-seam--能力接缝--capability-seam)。接缝是一项可替换的能力接进来的位点，
+  消费者按服务键取用这项能力本身；拓展点收的是别的领域各自放进来的项，宿主自己用这些项兑现它的能力。
+  拓展点常常就是宿主在一个接缝上提供的服务的一个登记入口。
+- **注意**：入口的登记表、[界面插入位置](interaction-and-dispatch.md#ul-ui-slot--界面插入位置--ui-slot)、
+  [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)、
+  [业务流程拓展点](interaction-and-dispatch.md#ul-business-flow-extension-point--业务流程拓展点--business-flow-extension-point)各是它的一种。
+  跨题目引用其中一种时写那一种的正式名。
+
+### UL-extension-contribution · 拓展贡献 · Extension Contribution
+
+> **中**：**一个领域往一个[拓展点](#ul-extension-point--拓展点--extension-point)里放的一项。**
+> 它绑在放它的那个领域的 Cordis 作用域上，随作用域挂上与撤下，撤回只撤自己那一项。
+> 它是这一次部署的事实，不分租户。
+>
+> **EN**: **One item that a domain puts into an extension point.** It is bound to the Cordis
+> scope of the domain that puts it there. It is mounted and unmounted with that scope, and
+> unmounting removes only that one item. It is a fact of one deployment. It is not specific to a
+> tenant.
+
+- **形态**：总称
+- **出处**：[跨系统技术约定「拓展点的共同契约」](../../../../docs/architecture/cross-cutting-concepts.md#拓展点的共同契约)（PanQiWei 2026-11-16 交办定义，卡 #1317）
+- **别混**：不是贡献交付。贡献交付讲人怎样把改动交进仓库；拓展贡献是运行着的系统里一个领域放进另一个领域的一项。
+- **注意 ①**：有贡献不等于许用。给谁看、许不许用，由宿主在用到这一项时按资格现问。
+- **注意 ②**：[接入贡献](#ul-access-contribution--接入贡献--access-contribution)、
+  [提示词贡献](record-and-context.md#ul-prompt-contribution--提示词贡献--prompt-contribution)、
+  [拓展件](capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)各是它的一种。
+  正文里没有歧义的地方可以简称「贡献」；跨题目引用时写正式名。
+
+### UL-extension-contract · 拓展契约 · Extension Contract
+
+> **中**：**一个领域公开的全部[拓展点](#ul-extension-point--拓展点--extension-point)的声明。**
+> 它是这个领域公开契约的一部分，和「这个领域提供哪些操作」并列，回答「别的领域怎样拓展它」。
+> 每个拓展点的声明都回答同一组问题。
+>
+> **EN**: **The declarations of all the extension points that one domain makes public.** It is
+> a part of the public contract of the domain. It stands beside the operations that the domain
+> provides, and it answers how other domains extend this domain. The declaration of each
+> extension point answers the same set of questions.
+
+- **形态**：总称
+- **出处**：[跨系统技术约定「拓展点的共同契约」](../../../../docs/architecture/cross-cutting-concepts.md#拓展点的共同契约)（PanQiWei 2026-11-16 交办定义，卡 #1317）
+- **别混**：不是[公开协议](#ul-public-protocol--公开协议--public-protocol)。公开协议是客户端隔着网络调用的操作与观察；
+  拓展契约是别的领域在同一棵 Cordis 插件树上往里放贡献的位点。公开协议这一层不开拓展点。
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)
