@@ -5,6 +5,7 @@ import { Context } from '@deepseek-ai/cordis'
 import type { ReactNode } from 'react'
 import {
   createSlotStore,
+  type AttachedLayout,
   type ItemOf,
   type ScopeSource,
   type ShellLogin,
@@ -33,6 +34,18 @@ class TestShell extends ShellService {
       .items('attached')
       .filter(item => item.anchor === anchor)
       .map(item => item.render({ scope: this.scope.get(), subject }))
+  }
+  arranged(anchor: string, subject: string, layout: AttachedLayout): ReactNode {
+    return layout(
+      this.store
+        .items('attached')
+        .filter(item => item.anchor === anchor)
+        .map(item => ({
+          id: item.id,
+          label: item.label,
+          node: item.render({ scope: this.scope.get(), subject }),
+        })),
+    )
   }
   protected place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void {
     return this.store.place(slot, item)

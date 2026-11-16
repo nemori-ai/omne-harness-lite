@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SseStream } from '../src/observation-hub/sse.ts'
+import { systemClock } from '../src/settle/settle.ts'
 import { holdResponse, type HeldResponse } from './support/held-response.ts'
 
 const HEARTBEAT_MS = 100
@@ -16,7 +17,7 @@ afterEach(async () => {
 
 async function open(firstEvent?: string, headers?: Record<string, string>) {
   held = await holdResponse()
-  const stream = new SseStream(held.res, HEARTBEAT_MS)
+  const stream = new SseStream(held.res, HEARTBEAT_MS, systemClock)
   stream.open(200, firstEvent, headers)
   return { stream, held }
 }
@@ -25,7 +26,7 @@ describe('the bytes of an event stream', () => {
   it('opens with an event-stream head and the extra headers', async () => {
     held = await holdResponse()
     const writeHead = vi.spyOn(held.res, 'writeHead')
-    const stream = new SseStream(held.res, HEARTBEAT_MS)
+    const stream = new SseStream(held.res, HEARTBEAT_MS, systemClock)
     stream.open(200, undefined, { 'omne-message-id': 'm-1' })
     expect(writeHead).toHaveBeenCalledExactlyOnceWith(200, {
       'content-type': 'text/event-stream; charset=utf-8',
@@ -59,7 +60,7 @@ describe('the bytes of an event stream', () => {
 
   it('refuses an event before the head, and a second head', async () => {
     held = await holdResponse()
-    const stream = new SseStream(held.res, HEARTBEAT_MS)
+    const stream = new SseStream(held.res, HEARTBEAT_MS, systemClock)
     expect(() => stream.event('x')).toThrow(
       new TypeError('server-entry: SSE event before the first event'),
     )

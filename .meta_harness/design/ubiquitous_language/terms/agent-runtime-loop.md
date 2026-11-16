@@ -667,6 +667,8 @@
   本卷与词表写「拓展点」「拓展件」，系统页与成员正文写「扩展位置」「扩展」，所指相同；见 [C-62](../conflicts.md#c-62拓展与扩展)
 - **注意 ⑤**：**位置只有这九个，没有「消息落盘之前」「消息落盘之后」**——消息持久化归会话，不归 Agent，消息持久化前后的处理挂在会话的[业务流程拓展点](interaction-and-dispatch.md#ul-business-flow-extension-point--业务流程拓展点--business-flow-extension-point)上，见 [C-61](../conflicts.md#c-61斜杠命令受理依赖已移除的位置)；
   消息准入仍然存在，见[消息准入](#ul-message-admission--消息准入--message-admission)
+- **注意 ⑥**：它是[拓展点](architecture-core-and-extension.md#ul-extension-point--拓展点--extension-point)的一种，宿主是 Agent。
+  裸写「拓展点」指那个统称；指这一种时写「Loop 拓展点」
 
 ### UL-execution-started-position · 执行开始之后 · Execution-Started Position
 

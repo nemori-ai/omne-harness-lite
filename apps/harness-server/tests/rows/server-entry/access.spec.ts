@@ -8,7 +8,12 @@ import type { AccessIdentity } from '@omne-harness/access-cordis-contract'
 import { createCapturingTelemetry } from '@omne-harness/telemetry-contract/testing'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineProtocol } from '@omne-harness/public-contract'
-import { accessDiagnostics, entryAccess } from '../../../src/rows/server-entry/access.ts'
+import { simulatedTime } from '@omne-harness/time-source/simulated'
+import {
+  accessClockOf,
+  accessDiagnostics,
+  entryAccess,
+} from '../../../src/rows/server-entry/access.ts'
 import {
   distributionPath,
   freePort,
@@ -140,6 +145,22 @@ describe('server-entry row: the access it gives the entry', () => {
     }
     const { identity } = entryAccess(new Context(), createCapturingTelemetry().port, port)
     expect(identity).toBe(port)
+  })
+
+  it('gives the entry a clock, and the clock schedules and cancels on the time source it adapts', () => {
+    expect(
+      entryAccess(new Context(), createCapturingTelemetry().port, NO_IDENTITY).clock,
+    ).toBeDefined()
+    const time = simulatedTime()
+    const clock = accessClockOf(time.source)
+    const ran: string[] = []
+    clock.schedule(40, () => ran.push('heartbeat'))
+    const cancel = clock.schedule(40, () => ran.push('cancelled'), { background: true })
+    cancel()
+    time.advance(39)
+    expect([ran, time.pending()]).toEqual([[], 1])
+    time.advance(1)
+    expect([ran, time.pending()]).toEqual([['heartbeat'], 0])
   })
 
   it('writes access.listener-fault when an availability listener throws', () => {
