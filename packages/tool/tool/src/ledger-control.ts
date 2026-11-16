@@ -73,6 +73,11 @@ function withControls(
 
 type BackgroundCommand = ControlCommand &
   Readonly<{ intent: Extract<ToolControl, { kind: 'background' }> }>
+type WithdrawCommand = ControlCommand &
+  Readonly<{ intent: Extract<ToolControl, { kind: 'withdraw' }> }>
+
+const LIVE_STOP_ONLY =
+  'control currently requires a suspended call, or a stop of a started or resuming invocation'
 
 export function decideControl(
   snapshot: Snapshot,
@@ -90,7 +95,27 @@ export function decideControl(
     return decideBackground(snapshot, call, { ...command, intent }, prepared, mint)
   if (call.state.phase === 'suspended')
     return decideSuspendedControl(snapshot, call, command, prepared, mint)
+  if (intent.kind === 'withdraw') return decideWithdraw(call, { ...command, intent }, mint)
   return decideLiveStop(call, command, mint)
+}
+
+// The background row: `all` stops the call and its own result still comes; the foreground reach misses it.
+function decideWithdraw(
+  call: CallRecord,
+  command: WithdrawCommand,
+  mint: Mint,
+): Decision<ControlReceipt> {
+  if (call.state.relation !== 'background') return unsupported(call, LIVE_STOP_ONLY)
+  if (command.intent.reach === 'all' || call.state.execution.kind === 'ended')
+    return decideLiveStop(call, command, mint)
+  const source = controlSource(call, command, mint)
+  return recorded(
+    call,
+    command,
+    { kind: 'rejected', reason: 'out-of-reach', evidence: source },
+    source,
+    mint,
+  )
 }
 
 function controlSource(call: CallRecord, command: ControlCommand, mint: Mint): DurableEvidence {
@@ -248,16 +273,12 @@ function decideLiveStop(
 ): Decision<ControlReceipt> {
   const resumeStarting = call.start?.kind === 'resume' && call.state.execution.kind === 'starting'
   if (
-    command.intent.kind === 'withdraw' ||
     call.start === null ||
     (call.state.execution.kind !== 'live' &&
       call.state.execution.kind !== 'ended' &&
       !resumeStarting)
   )
-    return unsupported(
-      call,
-      'control currently requires a suspended call, or a stop of a started or resuming invocation',
-    )
+    return unsupported(call, LIVE_STOP_ONLY)
   const source = controlSource(call, command, mint)
   const ended = call.state.execution.kind === 'ended'
   const control: ControlRecord = {

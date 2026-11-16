@@ -411,3 +411,65 @@ describe('release of the placeholder delivery', () => {
     expect(decision.writes.map(write => write.kind)).toEqual(['put', 'put'])
   })
 })
+
+describe('a withdraw of a call in the background (the background row of the control table)', () => {
+  const WITHDRAW_ALL: ToolControl = { kind: 'withdraw', reach: 'all' }
+  const WITHDRAW_FOREGROUND: ToolControl = { kind: 'withdraw', reach: 'foreground-and-unadmitted' }
+  async function backgrounded() {
+    const snapshot = permitted(await runningCallSnapshot())
+    return after(snapshot, committed(decide(snapshot)))
+  }
+
+  it('withdraw all sends a stop to a running background call and leaves its original result to come', async () => {
+    const moved = await backgrounded()
+    const decision = committed(
+      decide(moved, WITHDRAW_ALL, { operation: operationId('withdraw-c1') }),
+    )
+    expect(decision.value.progress.kind).toBe('pending')
+    expect(tasksOf(decision).map(task => task.kind)).toEqual(['stop'])
+    expect(stateOf(decision)).toMatchObject({ relation: 'background', phase: 'running' })
+  })
+
+  it('withdraw of the foreground and the unadmitted is out of reach for a background call and changes nothing', async () => {
+    const moved = await backgrounded()
+    const decision = committed(
+      decide(moved, WITHDRAW_FOREGROUND, { operation: operationId('withdraw-c1') }),
+    )
+    expect(decision.value.progress).toMatchObject({ kind: 'rejected', reason: 'out-of-reach' })
+    expect(tasksOf(decision)).toEqual([])
+    expect(stateOf(decision)).toMatchObject({ relation: 'background', phase: 'running' })
+  })
+
+  it('a withdraw of a settled background call answers already-ended, whatever its reach', async () => {
+    const moved = await backgrounded()
+    const settled = withState(moved, {
+      phase: 'settled',
+      execution: { kind: 'ended', evidence: evidence('ended') },
+    })
+    for (const intent of [WITHDRAW_ALL, WITHDRAW_FOREGROUND]) {
+      const decision = committed(decide(settled, intent, { operation: operationId('withdraw-c1') }))
+      expect(decision.value.progress.kind).toBe('already-ended')
+      expect(tasksOf(decision)).toEqual([])
+    }
+  })
+
+  it('withdraw all of a background call that has not started stays unsupported, and the foreground reach still misses it', async () => {
+    const snapshot = permitted(await admittedCallSnapshot())
+    const moved = after(snapshot, committed(decide(snapshot)))
+    expect(
+      replied(decide(moved, WITHDRAW_ALL, { operation: operationId('withdraw-c1') })),
+    ).toMatchObject({ failure: { kind: 'unsupported' } })
+    const missed = committed(
+      decide(moved, WITHDRAW_FOREGROUND, { operation: operationId('withdraw-c1') }),
+    )
+    expect(missed.value.progress).toMatchObject({ kind: 'rejected', reason: 'out-of-reach' })
+  })
+
+  it('a withdraw of a call in the foreground stays unsupported', async () => {
+    const snapshot = await runningCallSnapshot()
+    for (const intent of [WITHDRAW_ALL, WITHDRAW_FOREGROUND])
+      expect(
+        replied(decide(snapshot, intent, { operation: operationId('withdraw-c1') })),
+      ).toMatchObject({ failure: { kind: 'unsupported' } })
+  })
+})
